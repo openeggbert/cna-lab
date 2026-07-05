@@ -38,6 +38,11 @@ bool PlayerController::CollidesAt(const World& world, Core::Vec3f feet) const {
 
 void PlayerController::Update(const World& world, const PlayerInput& input, float dt) {
     yaw_ += input.lookDeltaYaw;
+    // Keep yaw bounded for long play sessions (Craft wraps s->rx the same way).
+    constexpr float kTwoPi = 6.28318530717958647692f;
+    if (yaw_ >= kTwoPi) yaw_ -= kTwoPi;
+    if (yaw_ < 0.0f) yaw_ += kTwoPi;
+
     pitch_ += input.lookDeltaPitch;
     if (pitch_ > kPitchLimit) pitch_ = kPitchLimit;
     if (pitch_ < -kPitchLimit) pitch_ = -kPitchLimit;

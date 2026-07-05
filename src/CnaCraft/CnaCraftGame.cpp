@@ -4,6 +4,7 @@
 #include "Microsoft/Xna/Framework/Input/Keyboard.hpp"
 #include "Microsoft/Xna/Framework/Input/Keys.hpp"
 #include "Microsoft/Xna/Framework/Input/Mouse.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SamplerState.hpp"
 #include "Microsoft/Xna/Framework/Matrix.hpp"
 
 #include "Render/TextureAtlas.hpp"
@@ -59,6 +60,12 @@ void CnaCraftGame::Initialize() {
     effect_->VertexColorEnabled = false;
     effect_->setTextureEnabledProperty(true);
     effect_->EnableDefaultLighting();
+    // EnableDefaultLighting()'s 3-light rig leaves faces angled away from all
+    // three lights essentially unlit (visibly black on flat terrain faces);
+    // floor it with a moderate ambient term so no face ever goes pure black,
+    // matching Craft's block_fragment.glsl ("ambient = value*0.3+0.2", never
+    // zero) — see THIRD_PARTY_NOTICES.md.
+    effect_->setAmbientLightColorProperty(Vector3(0.5f, 0.5f, 0.5f));
 
     atlasTexture_ = std::make_unique<Texture2D>(Render::BuildPlaceholderAtlas(device));
     effect_->setTextureProperty(atlasTexture_.get());
@@ -143,6 +150,12 @@ void CnaCraftGame::Draw(const GameTime&) {
     auto& device = getGraphicsDeviceProperty();
     device.Clear(Color(135, 196, 235, 255), 1.0f);
     device.SetDepthTestEnabled(true);
+    // Nearest-neighbor sampling: the atlas has no padding between tiles, so
+    // linear filtering bleeds each tile's neighbor color (visible as magenta
+    // speckling from the unused-tile fallback color) across every tile edge.
+    // Craft's own texture.png atlas is sampled the same way (GL_NEAREST, see
+    // main.c) — see THIRD_PARTY_NOTICES.md.
+    device.getSamplerStatesProperty()[0] = SamplerState::PointClamp;
 
     const auto& vp = device.getViewportProperty();
     const float aspect = (vp.getHeightProperty() > 0)

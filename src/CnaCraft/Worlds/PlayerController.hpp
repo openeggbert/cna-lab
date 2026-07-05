@@ -27,6 +27,7 @@ public:
     [[nodiscard]] Core::Vec3f LookDirection() const;
     [[nodiscard]] float Yaw() const { return yaw_; }
     [[nodiscard]] float Pitch() const { return pitch_; }
+    [[nodiscard]] bool IsGrounded() const { return grounded_; }
 
 private:
     [[nodiscard]] bool CollidesAt(const World& world, Core::Vec3f feetPosition) const;

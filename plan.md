@@ -221,8 +221,9 @@ target_link_libraries(CnaCraft PRIVATE
 unconditionally; `worlds_smoke_test` links only that and runs as a `ctest` — this is the part that
 can be compiled and verified in any environment, including one without a GPU or windowing system.
 The full `CnaCraft` graphical executable additionally requires `../cna` and `../sharp-runtime`
-checked out as siblings, and the `EASYGL` backend (`-DCNA_GRAPHICS_BACKEND=EASYGL` — 3D is not
-implemented on `SDL_RENDERER`/`BGFX` yet, per `house3d_demo.cpp`).
+checked out as siblings, and one of the three 3D-capable backends selected at configure time via
+`-DCNA_GRAPHICS_BACKEND=EASYGL` (or `VULKAN`, or `BGFX`) — `SDL_RENDERER` remains 2D-only, per
+`house3d_demo.cpp`.
 
 ## 9. Milestones
 
@@ -239,8 +240,129 @@ implemented on `SDL_RENDERER`/`BGFX` yet, per `house3d_demo.cpp`).
 
 ## 10. Known constraints carried over from `analysis.md`
 
-- 3D rendering only works on the `EASYGL` backend today; `SDL_RENDERER`/`BGFX` throw "3D not
-  supported", `VULKAN` is an incomplete scaffold. This prototype targets `EASYGL` only.
+- 3D rendering is implemented on `EASYGL`, `VULKAN`, and `BGFX` (selectable via
+  `CNA_GRAPHICS_BACKEND`, see §8); `SDL_RENDERER` remains 2D-only. `CnaCraft` itself is written
+  against the backend-agnostic `Microsoft::Xna::Framework` API, so no game code changes with the
+  backend choice — only the CMake configure flag does.
 - No occlusion/frustum culling in the engine — acceptable at this prototype's fixed
   `128×64×128`-block/32-chunk scale; would need addressing before scaling to a larger or
   streamed world (§9, M7).
+
+## 11. Task backlog: toward fogleman/Craft feature parity
+
+M0–M6 (§9) get CnaCraft to "walkable, texturable, breakable/placeable voxel world" — a prototype,
+not a game. The reference we picked, [Craft](https://github.com/fogleman/Craft) (see
+`THIRD_PARTY_NOTICES.md`), is a complete small game: infinite streamed world, plants and
+transparency, day/night with a sky dome, SQLite persistence, multiplayer, signs, lighting. This
+section is the task-by-task backlog toward that same feature set, organized by system and grafted
+onto the architecture in §2/§8. Local reference checkout: `/rv/data/development/github.com/other/Craft`
+(read `src/main.c`, `src/world.c`, `src/cube.c`, `shaders/block_*.glsl` before implementing the
+matching item below — they're short, working C, and the exact algorithm is usually right there).
+
+Checkbox state reflects this document's authoring session; update as work lands.
+
+### 11.1 World & terrain
+
+- [ ] Replace the fixed `128×64×128` array-of-chunks `World` with a hash-map-keyed, dynamically
+      loaded/unloaded chunk store (Craft: 32×32 XZ columns, full 0–255 Y range, `(x,y,z)->w` hash
+      map per chunk — `src/map.c`/`src/map.h`). This is the prerequisite for an effectively
+      unbounded world instead of today's fixed bounds.
+- [ ] Chunk load/unload driven by player distance (Craft: `src/world.c` `create_chunk`, only
+      chunks within a radius of the player are resident).
+- [ ] Swap `NoiseGenerator`'s value noise for Simplex noise (Craft: `src/noise.c`-equivalent —
+      actually inlined in `src/world.c`'s `simplex2`/`simplex3` calls) for closer-to-reference
+      terrain shape; keep the deterministic-per-seed property the smoke test relies on.
+- [ ] Caves/overhangs: a second, lower-frequency 3D density noise carving out solid terrain
+      (Craft's `world.c` combines a 2D heightmap with a 3D noise term for overhangs).
+- [ ] Trees and plants placement pass after heightmap generation (Craft: `src/world.c` places
+      `WOOD`/`LEAVES` clusters and `TALL_GRASS`/flower types on top of grass columns).
+
+### 11.2 Blocks & block rendering
+
+- [ ] Expand `BlockType`/`BlockDef` (`src/CnaCraft/Worlds/BlockType.hpp`) toward Craft's roster
+      (`Craft/src/item.h`): sand, brick, wood, cement, plank, snow, glass, cobblestone, light/dark
+      stone, chest, leaves, cloud, tall grass, flower variants, plus the 32-entry solid color
+      palette. Doesn't need to match 1:1, but should stop being 6 block types.
+- [ ] Real texture atlas image (replace `Render::BuildPlaceholderAtlas`'s flat-color placeholder
+      with an actual authored/generated `texture.png`-style atlas, same layout convention as
+      `Craft/textures/texture.png`).
+- [ ] Non-cubic "plant" geometry: cross-quad billboards for grass/flowers (Craft: `src/cube.c`
+      `make_plant`) — `ChunkMesher` needs a second emission path alongside the cube-face path in
+      §4.
+- [ ] Transparency for glass (and plant alpha-cutout): a second draw pass with
+      `BlendState::AlphaBlend` / `SetDepthWriteEnabled(false)`, mirroring
+      `house3d_demo.cpp`'s glass pass (§5 already references this pattern) and Craft's
+      magenta-pixel-discard trick for cutout transparency (`shaders/block_fragment.glsl`).
+- [ ] Ambient occlusion baked per-vertex at mesh time (Craft implements
+      http://0fps.wordpress.com/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/, encoded
+      as a 4th UV component — `uv.z` in `shaders/block_vertex.glsl`'s `fragment_ao`). `MeshVertex`
+      would need an `ao` field alongside `tileIndex`.
+- [ ] Greedy meshing to replace the current naive per-face `ChunkMesher` (§4/§9 M7) — reduces
+      vertex count substantially once the world is no longer fixed-size.
+- [ ] Per-chunk frustum culling before `ChunkRenderer::Draw` (Craft: naive AABB-vs-frustum test in
+      `src/main.c` `render_chunks`) — needed once chunk count is no longer small/fixed.
+- [ ] Clouds: thin, non-solid, unlit decorative blocks near the world ceiling (Craft: `CLOUD`
+      block type, discarded in orthographic mode per `block_fragment.glsl`).
+
+### 11.3 Sky & lighting
+
+- [ ] Day/night cycle: a `daylight` value driven by a game-time clock, feeding into `BasicEffect`
+      lighting (or a custom shader later) the way `block_fragment.glsl`'s `daylight` uniform does.
+- [ ] Textured sky dome + fog blended by height/distance (Craft: `shaders/sky_*.glsl`,
+      `fog_height`/`fog_factor` in `block_vertex.glsl`) — replaces the flat `device.Clear(...)` sky
+      color in `CnaCraftGame::Draw` (§5).
+- [ ] Point/block light sources with propagation (Craft: `light_map` alongside `block_map` in
+      `src/map.c`, `Ctrl+Right-click` toggles a block as a light per the README controls table) —
+      a substantial systems addition, likely its own multi-task effort.
+
+### 11.4 Player & interaction
+
+- [ ] Hotbar: 1–9 keys + `E` to cycle selected block type for placing (README controls table);
+      currently `CnaCraftGame::Update` hardcodes `BlockType::Stone` for right-click placement.
+- [ ] Flying-mode toggle (`Tab`), reusing `house3d_demo.cpp`'s Game/Fly mode split (§1/§6 already
+      note this demo as the movement reference) — `PlayerController` currently only implements
+      Game-mode gravity/collision.
+- [ ] Zoom (Left Shift narrows FOV) and orthographic view toggle (`F`) — both are one-line
+      `Matrix::CreatePerspectiveFieldOfView`/`CreateOrthographic` parameter changes in
+      `CnaCraftGame::Draw`.
+- [ ] Signs: place text on a block face, render as a billboard quad with a small bitmap-font
+      texture (Craft: `src/sign.c`, `textures/sign.png`) — CNA's `SpriteFont`/bitmap-font approach
+      from `house3d_demo.cpp`'s controls overlay is a usable reference for the text-rendering part.
+- [ ] Exact-axis movement keys (Craft's `ZXCVBN`) — low priority, purely a control-scheme nicety.
+
+### 11.5 Persistence
+
+- [ ] SQLite-backed delta save/load: a `block(p, q, x, y, z, w)` table storing only edits over the
+      regenerated procedural terrain, precisely mirroring Craft's schema (`src/db.c`/`src/db.h`)
+      — already the intended shape per §0/§9 M7; this is now a concrete, schema-specified task.
+      `World`/`Chunk` need a way to enumerate only *changed* blocks to keep writes small.
+
+### 11.6 Multiplayer
+
+- [ ] Chunk/block sync over CNA's real ENet-backed `Microsoft::Xna::Framework::Net` layer (see
+      `../cna/README.md` §7), using Craft's message shapes as the protocol reference rather than a
+      literal port: `C,p,q,key` chunk requests, `B,p,q,x,y,z,w` block updates, `K,p,q,key` cache
+      keys, `P,pid,x,y,z,rx,ry` player position streams (`Craft/src/client.c`, `Craft/server.py`).
+- [ ] Remote player rendering + interpolation between the last two received position updates
+      (Craft: `src/main.c` `interpolate_player`).
+- [ ] Picture-in-picture observation of another player (Craft: `O`/`P` keys, `src/main.c` — "just
+      change the viewport and render the scene again from the other player's point of view",
+      trivial to reproduce via a second `Viewport`/`BasicEffect.View` pass in `CnaCraftGame::Draw`).
+
+### 11.7 UI/UX
+
+- [ ] Crosshair + hotbar overlay via `SpriteBatch` (already a CNA-proven pattern, see
+      `house3d_demo.cpp`'s controls-overlay `SpriteBatch` usage referenced in §5).
+- [ ] Chat + slash commands (Craft: `T` to type, `/` for commands, `src/main.c` `handle_command`).
+- [ ] Screenshot capture command (Craft: README "Screenshot" section) — CNA would need a
+      `GraphicsDevice`-backbuffer-to-`Texture2D`/PNG readback path; check whether one already
+      exists before adding it.
+
+### 11.8 Testing
+
+- [ ] Extend `tests/worlds_smoke_test.cpp` alongside each `Worlds/`-layer item above (hash-map
+      chunk store, caves, AO baking, save/load round-trip) — it's the part of this backlog that's
+      cheaply unit-testable without a GPU (§8).
+- [ ] A headless `--smoke N` CI check for `CnaCraft` itself (already wired, §8/main.cpp), extended
+      with `ctest` registration the way `../cna/CMakeLists.txt` registers
+      `EasyGL_House3D_SmokeTest`, once this repo has CI.
