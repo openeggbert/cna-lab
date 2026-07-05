@@ -6,8 +6,8 @@
 
 #include "Microsoft/Xna/Framework/Game.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BasicEffect.hpp"
-#include "Microsoft/Xna/Framework/Graphics/GraphicsDeviceManager.hpp"
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
+#include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
 
 #include "Render/ChunkRenderer.hpp"
 #include "Worlds/PlayerController.hpp"
@@ -37,7 +37,7 @@ protected:
 private:
     void RebuildDirtyChunks();
 
-    Microsoft::Xna::Framework::Graphics::GraphicsDeviceManager graphics_;
+    Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::BasicEffect> effect_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> atlasTexture_;
 
