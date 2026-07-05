@@ -1,0 +1,12 @@
+build/
+build-*/
+cmake-build-*/
+b-release/
+*-build/
+.idea/
+*.user
+
+# editor / test runtime artifacts
+imgui.ini
+Testing/
+*.autosave
