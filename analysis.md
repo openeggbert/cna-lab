@@ -4,7 +4,9 @@
 
 ## What CNA is
 
-A C++ reimplementation of the XNA 4.0 programming model (FNA/MonoGame-style), built on SDL3, with a pluggable graphics backend layer (`SDL_RENDERER`, `EASYGL`/OpenGL, `BGFX`, `VULKAN` — Vulkan still a work-in-progress scaffold). It is not a finished game, it's a framework/runtime.
+A C++ reimplementation of the XNA 4.0 programming model (FNA/MonoGame-style), built on SDL3, with a pluggable graphics backend layer (`SDL_RENDERER`, `EASYGL`/OpenGL, `BGFX`, `VULKAN`). It is not a finished game, it's a framework/runtime.
+
+> **Update:** since this analysis was written, CNA has added 3D support on `VULKAN` and `BGFX` too, not just `EASYGL` — see the corrected caveat below and `plan.md` §8/§10.
 
 ## Key finding: `examples/house3d_demo.cpp` already does 80% of what a voxel prototype needs
 
@@ -33,7 +35,7 @@ There are no "voxel"/"chunk"/"minecraft" references anywhere in the repo — nob
 
 ## Caveats to keep in mind
 
-- **3D currently only works on the EasyGL backend.** Per the comment in `house3d_demo.cpp`, `SDL_RENDERER` and `BGFX` throw "3D not supported" for 3D; the Vulkan backend is generally an incomplete scaffold. A prototype would need to build with `-DCNA_GRAPHICS_BACKEND=EASYGL`.
+- **3D now works on three of the four backends.** `EASYGL`, `VULKAN`, and `BGFX` all support the 3D pipeline (`VertexBuffer`/`IndexBuffer`/`BasicEffect`/`DrawIndexedPrimitives`); only `SDL_RENDERER` remains 2D-only. A prototype can build with any of `-DCNA_GRAPHICS_BACKEND=EASYGL`, `VULKAN`, or `BGFX`.
 - This isn't a major limitation — the README lists EasyGL as verified on Linux, Windows (cross-compiled), **Emscripten/web, and Android**, so platform reach stays reasonably broad.
 - The known bug in `known_bugs.md` (SpriteBatch multiple Begin/End) is a 2D-layer issue and doesn't affect 3D voxel rendering.
 

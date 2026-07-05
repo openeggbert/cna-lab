@@ -43,14 +43,14 @@ openeggbert/
 - A C++23-capable compiler (GCC 12+ or Clang 15+)
 - `../cna` and `../sharp-runtime` present next to this repo (or pass `-DCNA_HOME=<path>`)
 
-CNA's `EASYGL` (OpenGL) backend is required — 3D rendering is not implemented on the
-`SDL_RENDERER` or `BGFX` backends yet, and `VULKAN` is an incomplete scaffold.
+3D rendering is implemented on three of CNA's backends — pick any one at configure time:
+`EASYGL` (OpenGL), `VULKAN`, or `BGFX`. `SDL_RENDERER` remains 2D-only.
 
 ## 4. Build
 
 ```bash
 git submodule update --init --recursive   # only needed the first time, inside ../cna
-cmake -S . -B build -DCNA_GRAPHICS_BACKEND=EASYGL
+cmake -S . -B build -DCNA_GRAPHICS_BACKEND=EASYGL   # or VULKAN, or BGFX
 cmake --build build --target CnaCraft
 ```
 

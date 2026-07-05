@@ -37,8 +37,8 @@ endif()
 # =============================================================================
 # CnaCraft — graphical executable (CNA-dependent).
 #
-# Build with:
-#   cmake -S . -B build -DCNA_GRAPHICS_BACKEND=EASYGL
+# Build with one of the three 3D-capable backends:
+#   cmake -S . -B build -DCNA_GRAPHICS_BACKEND=EASYGL   # or VULKAN, or BGFX
 #   cmake --build build --target CnaCraft
 #
 # Requires ../cna and ../sharp-runtime checked out as siblings of this repo
@@ -66,18 +66,23 @@ if(CNA_CRAFT_BUILD_GAME)
 endif()
 
 if(CNA_CRAFT_BUILD_GAME)
+    # 3D rendering is implemented on EASYGL, VULKAN, and BGFX (pick any one at
+    # configure time); SDL_RENDERER remains 2D-only as of this writing (see
+    # ../cna/examples/house3d_demo.cpp and analysis.md).
+    set(CNA_CRAFT_3D_BACKENDS EASYGL VULKAN BGFX)
     if(NOT CNA_GRAPHICS_BACKEND)
-        set(CNA_GRAPHICS_BACKEND "EASYGL" CACHE STRING "" FORCE)
+        set(CNA_GRAPHICS_BACKEND "EASYGL" CACHE STRING
+            "Graphics backend CnaCraft is built against (EASYGL, VULKAN, or BGFX)." FORCE)
     endif()
-    if(NOT CNA_GRAPHICS_BACKEND STREQUAL "EASYGL")
-        # 3D rendering is only implemented on EASYGL as of this writing (see
-        # ../cna/examples/house3d_demo.cpp and analysis.md).
+    set_property(CACHE CNA_GRAPHICS_BACKEND PROPERTY STRINGS ${CNA_CRAFT_3D_BACKENDS} SDL_RENDERER)
+    if(NOT CNA_GRAPHICS_BACKEND IN_LIST CNA_CRAFT_3D_BACKENDS)
         message(WARNING
-            "CnaCraft: 3D rendering requires the EASYGL backend; "
+            "CnaCraft: 3D rendering requires one of ${CNA_CRAFT_3D_BACKENDS}; "
             "CNA_GRAPHICS_BACKEND is currently '${CNA_GRAPHICS_BACKEND}'.")
     endif()
 
     message(STATUS "CNA source: ${CNA_HOME}")
+    message(STATUS "CnaCraft graphics backend: ${CNA_GRAPHICS_BACKEND}")
 
     set(CNA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(CNA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
