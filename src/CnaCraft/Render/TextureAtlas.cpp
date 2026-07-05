@@ -1,0 +1,57 @@
+#include "TextureAtlas.hpp"
+
+#include <cstddef>
+#include <vector>
+
+#include "Microsoft/Xna/Framework/Color.hpp"
+#include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
+
+using Microsoft::Xna::Framework::Color;
+using Microsoft::Xna::Framework::Graphics::GraphicsDevice;
+using Microsoft::Xna::Framework::Graphics::Texture2D;
+
+namespace CnaCraft::Render {
+
+namespace {
+// One placeholder color per atlas tile index — see BlockType.hpp for which
+// tile index each block face uses.
+const Color kTileColors[] = {
+    Color(90, 170, 60, 255),   // 0: grass top
+    Color(120, 90, 55, 255),   // 1: grass side
+    Color(105, 75, 45, 255),   // 2: dirt
+    Color(130, 130, 130, 255), // 3: stone
+    Color(220, 200, 140, 255), // 4: sand
+    Color(40, 40, 40, 255),    // 5: bedrock
+};
+constexpr int kTileCount = sizeof(kTileColors) / sizeof(kTileColors[0]);
+}
+
+Texture2D BuildPlaceholderAtlas(GraphicsDevice& device) {
+    const int atlasSize = kAtlasTileSize * kAtlasTilesPerRow;
+    std::vector<Color> pixels(static_cast<std::size_t>(atlasSize) * atlasSize, Color(255, 0, 255, 255));
+
+    for (int tile = 0; tile < kTileCount; ++tile) {
+        const int tx = (tile % kAtlasTilesPerRow) * kAtlasTileSize;
+        const int ty = (tile / kAtlasTilesPerRow) * kAtlasTileSize;
+        for (int y = 0; y < kAtlasTileSize; ++y) {
+            for (int x = 0; x < kAtlasTileSize; ++x) {
+                pixels[static_cast<std::size_t>((ty + y) * atlasSize + (tx + x))] = kTileColors[tile];
+            }
+        }
+    }
+
+    Texture2D texture(device, atlasSize, atlasSize);
+    texture.SetData(pixels.data(), static_cast<int>(pixels.size()));
+    return texture;
+}
+
+void MapAtlasUv(int tileIndex, float localU, float localV, float& outU, float& outV) {
+    const int atlasSize = kAtlasTileSize * kAtlasTilesPerRow;
+    const int tx = (tileIndex % kAtlasTilesPerRow) * kAtlasTileSize;
+    const int ty = (tileIndex / kAtlasTilesPerRow) * kAtlasTileSize;
+    const float tileUnit = static_cast<float>(kAtlasTileSize) / static_cast<float>(atlasSize);
+    outU = (static_cast<float>(tx) / static_cast<float>(atlasSize)) + localU * tileUnit;
+    outV = (static_cast<float>(ty) / static_cast<float>(atlasSize)) + localV * tileUnit;
+}
+
+}
