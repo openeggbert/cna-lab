@@ -35,7 +35,7 @@ bool PlayerController::CollidesAt(const World& world, Core::Vec3f feet) const {
     for (int y = minY; y <= maxY; ++y) {
         for (int z = minZ; z <= maxZ; ++z) {
             for (int x = minX; x <= maxX; ++x) {
-                if (world.IsSolid(x, y, z)) return true;
+                if (world.IsCollidable(x, y, z)) return true;
             }
         }
     }

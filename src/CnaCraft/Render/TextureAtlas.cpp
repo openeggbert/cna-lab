@@ -33,6 +33,7 @@ const Color kTileColors[] = {
     Color(190, 190, 180, 255), // 14: light stone
     Color(70, 70, 75, 255),    // 15: dark stone
     Color(140, 200, 220, 130), // 16: glass (partially transparent)
+    Color(235, 235, 240, 255), // 17: cloud
 };
 constexpr int kTileCount = sizeof(kTileColors) / sizeof(kTileColors[0]);
 }

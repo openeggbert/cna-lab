@@ -50,10 +50,16 @@ void TestWorldBoundsAndRoundTrip() {
     World world;
     Check(world.GetBlock(-1, 0, 0) == BlockType::Air, "world out-of-range GetBlock returns Air");
     Check(!world.IsSolid(-1, 0, 0), "world out-of-range IsSolid is false");
+    // Explicit guard against a real bug caught during development: Air's
+    // BlockDef only overrides `solid`, so a naive `.collidable` read (default
+    // true) made empty space collidable and froze the player instantly.
+    // IsCollidable must AND with `solid`.
+    Check(!world.IsCollidable(5, 5, 5), "Air is never collidable, regardless of BlockDef::collidable's default");
 
     world.SetBlock(20, 5, 20, BlockType::Stone); // crosses a chunk boundary (CHUNK_SIZE=16)
     Check(world.GetBlock(20, 5, 20) == BlockType::Stone, "world set/get round-trip across chunk boundary");
     Check(world.IsSolid(20, 5, 20), "world IsSolid true for Stone");
+    Check(world.IsCollidable(20, 5, 20), "world IsCollidable true for Stone");
 
     world.SetBlock(9999, 9999, 9999, BlockType::Stone); // out of range, must be a no-op
     Check(world.GetBlock(9999, 9999, 9999) == BlockType::Air,
@@ -164,10 +170,32 @@ void TestChunkMesherGlassTransparency() {
     Check(mixedMesh.opaque.vertices.size() == 24,
           "Stone next to Glass keeps all 6 faces (Glass doesn't occlude Stone's face)");
 
-    // Collision must be unaffected: Glass is transparent but still solid.
-    Check(againstStone.IsSolid(5, 5, 5), "Glass is still solid/collidable despite being transparent");
+    // Collision must be unaffected: Glass is transparent but still solid/collidable.
+    Check(againstStone.IsSolid(5, 5, 5), "Glass still occupies space (meshed/hit-testable)");
+    Check(againstStone.IsCollidable(5, 5, 5), "Glass is still collidable despite being transparent");
     Check(!againstStone.IsOpaque(5, 5, 5), "Glass is not opaque (doesn't occlude neighbor faces)");
     Check(againstStone.IsOpaque(6, 5, 5), "Stone is opaque");
+}
+
+void TestChunkMesherCloudIsOpaqueButNotCollidable() {
+    // Cloud is the inverse situation from Glass: opaque (occludes neighbors,
+    // meshed into the *opaque* mesh, hit-testable) but NOT collidable (the
+    // player walks straight through it) — matches Craft's
+    // `is_obstacle(CLOUD) == 0` while it's absent from `is_transparent`'s
+    // switch (src/item.c).
+    World world;
+    world.SetBlock(5, 5, 5, BlockType::Cloud);
+    world.SetBlock(6, 5, 5, BlockType::Stone);
+    ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
+
+    Check(mesh.transparent.vertices.empty(), "Cloud emits nothing into the transparent mesh");
+    Check(mesh.opaque.vertices.size() == 20 + 20,
+          "Cloud meshes/occludes exactly like a normal opaque block (5 faces each, touching faces mutually culled)");
+
+    Check(world.IsSolid(5, 5, 5), "Cloud occupies space (meshed/hit-testable)");
+    Check(world.IsOpaque(5, 5, 5), "Cloud is opaque (occludes neighbor faces, unlike Glass)");
+    Check(!world.IsCollidable(5, 5, 5), "Cloud is not collidable (the player walks through it)");
+    Check(world.IsCollidable(6, 5, 5), "a normal Stone neighbor is still collidable");
 }
 
 void TestVoxelRaycastHitsExpectedFaceAndBlock() {
@@ -188,7 +216,7 @@ void TestVoxelRaycastHitsExpectedFaceAndBlock() {
 
 void TestHotbarSelectionAndCycling() {
     Hotbar hotbar;
-    Check(hotbar.SlotCount() == 13, "hotbar has 13 slots (Bedrock excluded from the placeable roster)");
+    Check(hotbar.SlotCount() == 14, "hotbar has 14 slots (Bedrock excluded from the placeable roster)");
     Check(hotbar.SelectedIndex() == 0, "hotbar starts on slot 0");
     Check(hotbar.Selected() == BlockType::Grass, "hotbar starts selecting slot 1's block (Grass)");
 
@@ -207,7 +235,9 @@ void TestHotbarSelectionAndCycling() {
     hotbar.SelectSlot(12);
     Check(hotbar.Selected() == BlockType::Snow, "slot 12 (beyond the 9 direct number keys) is Snow");
     hotbar.CycleNext();
-    Check(hotbar.Selected() == BlockType::Glass, "slot 13 (the last slot) is Glass");
+    Check(hotbar.Selected() == BlockType::Glass, "slot 13 is Glass");
+    hotbar.CycleNext();
+    Check(hotbar.Selected() == BlockType::Cloud, "slot 14 (the last slot) is Cloud");
     hotbar.CycleNext();
     Check(hotbar.SelectedIndex() == 0, "CycleNext wraps back to slot 0 after the last slot");
 }
@@ -404,6 +434,7 @@ int main() {
     TestNoiseGeneratorSimplex2IsSeeded();
     TestChunkMesherFaceCulling();
     TestChunkMesherGlassTransparency();
+    TestChunkMesherCloudIsOpaqueButNotCollidable();
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();
     TestPlayerControllerGravityAndGroundCollision();

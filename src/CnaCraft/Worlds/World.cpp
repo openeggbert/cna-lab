@@ -62,6 +62,17 @@ bool World::IsSolid(int x, int y, int z) const {
     return GetBlockDef(GetBlock(x, y, z)).solid;
 }
 
+bool World::IsCollidable(int x, int y, int z) const {
+    // AND'd with `solid` (not just `.collidable` alone) so Air can never be
+    // collidable regardless of the field's default value — same defensive
+    // pattern as IsOpaque's `solid && !transparent` below. Bug caught here
+    // during development: BlockDef::collidable defaults to true, and Air's
+    // fallback initializer only overrides `solid`, so a bare `.collidable`
+    // read made empty space collidable, freezing the player instantly.
+    const BlockDef def = GetBlockDef(GetBlock(x, y, z));
+    return def.solid && def.collidable;
+}
+
 bool World::IsOpaque(int x, int y, int z) const {
     const BlockDef def = GetBlockDef(GetBlock(x, y, z));
     return def.solid && !def.transparent;

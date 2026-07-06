@@ -67,13 +67,13 @@ cmake --build build --target CnaCraft
 | Left click      | Break block                          |
 | Right click     | Place block (currently selected type)|
 | 1-9             | Select hotbar slot directly (Grass/Dirt/Sand/Stone/Cobblestone/Brick/Plank/Wood/Cement) |
-| E               | Cycle to next hotbar slot (all 13: also reaches LightStone/DarkStone/Snow/Glass) |
+| E               | Cycle to next hotbar slot (all 14: also reaches LightStone/DarkStone/Snow/Glass/Cloud) |
 | Left Shift (hold) | Zoom (narrow FOV)                   |
 | F (hold)        | Orthographic projection               |
 | F12             | Save a screenshot to `screenshots/`   |
 | Esc             | Quit                                  |
 
-A crosshair and a hotbar strip (all 12 slots, selected one highlighted, with a
+A crosshair and the currently-selected hotbar item (e.g. `#4/14 Stone`, with a
 `[FLYING]` indicator while flying) are drawn on screen; both are also printed
 to the console when they change.
 

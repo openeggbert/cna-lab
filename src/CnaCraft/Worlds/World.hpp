@@ -39,6 +39,14 @@ public:
     // ChunkMesher's neighbor-face check; collision (IsSolid) is unaffected.
     [[nodiscard]] bool IsOpaque(int x, int y, int z) const;
 
+    // Whether this cell physically blocks the player (plan.md §11.2
+    // "Clouds") — true for ordinary solid blocks, false for Air *and* for
+    // solid-but-walk-through blocks like Cloud. Used only by
+    // PlayerController::CollidesAt; meshing/occlusion (IsSolid/IsOpaque) are
+    // unaffected — Craft's clouds still occlude neighbors and are still
+    // hit-testable/breakable, they just don't stop the player.
+    [[nodiscard]] bool IsCollidable(int x, int y, int z) const;
+
     Chunk& ChunkAt(int cx, int cy, int cz);
     [[nodiscard]] const Chunk& ChunkAt(int cx, int cy, int cz) const;
 

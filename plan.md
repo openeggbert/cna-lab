@@ -355,10 +355,10 @@ Checkbox state reflects this document's authoring session; update as work lands.
       all 12 placeable types (Bedrock excluded), keys `1`-`9` direct + `E` cycles through all 12,
       matching Craft's own `item_index`/number-key/E behavior (`Craft/src/main.c:2254-2265`).
       **Deliberately deferred** to their own backlog items below since they need more than a new
-      tile: Glass (needed transparency — since added, see "Transparency for glass"; `Hotbar` now
-      has 13 slots), Leaves (transparent like Glass, but not yet added — no reason left to defer
-      other than not having been picked up), Cloud (needs non-solid-but-visible semantics, see
-      "Clouds"), Chest/tall grass/flowers (need non-cubic geometry, see "Non-cubic plant
+      tile: Glass and Cloud (both since added, see "Transparency for glass" / "Clouds"; `Hotbar`
+      now has 14 slots), Leaves (transparent like Glass, but not yet added — no reason left to
+      defer other than not having been picked up), Chest/tall grass/flowers (need non-cubic
+      geometry, see "Non-cubic plant
       geometry"), the 32-entry flat-color palette (low value, skipped).
 - [ ] Real texture atlas image (replace `Render::BuildPlaceholderAtlas`'s flat-color placeholder
       with an actual authored/generated `texture.png`-style atlas, same layout convention as
@@ -402,8 +402,24 @@ Checkbox state reflects this document's authoring session; update as work lands.
       Projection)` per frame and skips `Draw()` for any chunk whose bounds don't intersect it.
       Verified visually against a real EasyGL build across a camera turn (no incorrect
       disappearing chunks/pop-in).
-- [ ] Clouds: thin, non-solid, unlit decorative blocks near the world ceiling (Craft: `CLOUD`
-      block type, discarded in orthographic mode per `block_fragment.glsl`).
+- [x] Clouds: added `BlockType::Cloud` — the inverse situation from Glass. Craft's
+      `is_obstacle(CLOUD)` returns 0 (walk through it) while `is_transparent(CLOUD)` is *not* set
+      (still occludes neighbors, still hit-testable/breakable — `_hit_test` in `src/main.c` treats
+      any `map_get() > 0` cell as hittable). Modeled with a new `BlockDef.collidable` flag (default
+      `true`, `false` only for Cloud) and a new `World::IsCollidable` used only by
+      `PlayerController::CollidesAt`; `World::IsSolid`/`IsOpaque` (meshing/occlusion/hit-testing)
+      are unaffected, so Cloud meshes and occludes exactly like a normal opaque block. Added to the
+      hotbar (14 slots now) and the atlas (18 tiles). **Real bug caught during development**:
+      `BlockDef::collidable` defaults to `true`, and Air's fallback initializer only overrides
+      `solid`, so a naive `.collidable` read made empty space collidable — froze the player
+      instantly (10 existing tests failed). Fixed by AND-ing with `solid` in `IsCollidable`
+      (`solid && collidable`), matching `IsOpaque`'s existing `solid && !transparent` pattern; added
+      an explicit regression test asserting Air is never collidable. 6 new unit tests total (mesh
+      routing/occlusion parity with normal blocks, collidability, the Air guard); 75 checks total.
+      Not discarded in orthographic mode yet (that needs the `daylight`/ortho-aware shader work
+      tracked under "Textured sky dome + fog" below) and not yet auto-generated via 3D density
+      noise near the world ceiling (needs `simplex3`, tracked under "Caves/overhangs" above) —
+      both left as-is; this task covered the block-type semantics only.
 
 ### 11.3 Sky & lighting
 
