@@ -33,6 +33,12 @@ public:
     void SetBlock(int x, int y, int z, BlockType type);
     [[nodiscard]] bool IsSolid(int x, int y, int z) const;
 
+    // Whether this cell occludes a neighboring face (plan.md §11.2
+    // "Transparency for glass") — true for ordinary solid blocks, false for
+    // Air *and* for solid-but-transparent blocks like Glass. Used only by
+    // ChunkMesher's neighbor-face check; collision (IsSolid) is unaffected.
+    [[nodiscard]] bool IsOpaque(int x, int y, int z) const;
+
     Chunk& ChunkAt(int cx, int cy, int cz);
     [[nodiscard]] const Chunk& ChunkAt(int cx, int cy, int cz) const;
 

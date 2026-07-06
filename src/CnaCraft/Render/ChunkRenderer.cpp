@@ -22,14 +22,11 @@ namespace CnaCraft::Render {
 ChunkRenderer::ChunkRenderer(int chunkOriginX, int chunkOriginY, int chunkOriginZ)
     : originX_(chunkOriginX), originY_(chunkOriginY), originZ_(chunkOriginZ) {}
 
-void ChunkRenderer::Rebuild(GraphicsDevice& device, const CnaCraft::Worlds::World& world) {
-    const CnaCraft::Worlds::MeshData mesh =
-        CnaCraft::Worlds::ChunkMesher::Build(world, originX_, originY_, originZ_);
-
+void ChunkRenderer::UploadMesh(GraphicsDevice& device, const CnaCraft::Worlds::MeshData& mesh, MeshBuffers& buffers) {
     if (mesh.vertices.empty()) {
-        vb_.reset();
-        ib_.reset();
-        primitiveCount_ = 0;
+        buffers.vb.reset();
+        buffers.ib.reset();
+        buffers.primitiveCount = 0;
         return;
     }
 
@@ -41,34 +38,49 @@ void ChunkRenderer::Rebuild(GraphicsDevice& device, const CnaCraft::Worlds::Worl
         vertices.emplace_back(Vector3(v.px, v.py, v.pz), Vector3(v.nx, v.ny, v.nz), Vector2(u, w));
     }
 
-    vb_ = std::make_unique<VertexBuffer>(device, static_cast<int>(vertices.size()));
-    vb_->SetData(vertices.data(), static_cast<int>(vertices.size()));
+    buffers.vb = std::make_unique<VertexBuffer>(device, static_cast<int>(vertices.size()));
+    buffers.vb->SetData(vertices.data(), static_cast<int>(vertices.size()));
 
-    ib_ = std::make_unique<IndexBuffer>(
+    buffers.ib = std::make_unique<IndexBuffer>(
         device, IndexElementSize::ThirtyTwoBits, static_cast<int>(mesh.indices.size()), BufferUsage::None);
-    ib_->SetData(mesh.indices.data(), static_cast<int>(mesh.indices.size()));
+    buffers.ib->SetData(mesh.indices.data(), static_cast<int>(mesh.indices.size()));
 
-    primitiveCount_ = static_cast<int>(mesh.indices.size() / 3);
+    buffers.primitiveCount = static_cast<int>(mesh.indices.size() / 3);
 }
 
-void ChunkRenderer::Draw(GraphicsDevice& device, BasicEffect& effect) {
-    if (!vb_ || !ib_) return;
+void ChunkRenderer::Rebuild(GraphicsDevice& device, const CnaCraft::Worlds::World& world) {
+    const CnaCraft::Worlds::ChunkMeshData mesh =
+        CnaCraft::Worlds::ChunkMesher::Build(world, originX_, originY_, originZ_);
+    UploadMesh(device, mesh.opaque, opaque_);
+    UploadMesh(device, mesh.transparent, transparent_);
+}
+
+void ChunkRenderer::Draw(GraphicsDevice& device, BasicEffect& effect, const MeshBuffers& buffers) {
+    if (!buffers.vb || !buffers.ib) return;
 
     effect.World = Matrix::CreateTranslation(
         static_cast<float>(originX_), static_cast<float>(originY_), static_cast<float>(originZ_));
 
     for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty()) {
         pass.Apply();
-        device.SetVertexBuffer(vb_.get());
-        device.Indices(ib_.get());
+        device.SetVertexBuffer(buffers.vb.get());
+        device.Indices(buffers.ib.get());
         device.DrawIndexedPrimitives(
             PrimitiveType::TriangleList,
             /*baseVertex=*/0,
             /*minVertexIndex=*/0,
-            /*numVertices=*/vb_->getVertexCountProperty(),
+            /*numVertices=*/buffers.vb->getVertexCountProperty(),
             /*startIndex=*/0,
-            /*primitiveCount=*/primitiveCount_);
+            /*primitiveCount=*/buffers.primitiveCount);
     }
+}
+
+void ChunkRenderer::DrawOpaque(GraphicsDevice& device, BasicEffect& effect) {
+    Draw(device, effect, opaque_);
+}
+
+void ChunkRenderer::DrawTransparent(GraphicsDevice& device, BasicEffect& effect) {
+    Draw(device, effect, transparent_);
 }
 
 BoundingBox ChunkRenderer::Bounds() const {

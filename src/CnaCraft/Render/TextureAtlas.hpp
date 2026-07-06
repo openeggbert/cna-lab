@@ -10,7 +10,7 @@ namespace CnaCraft::Render {
 
 // A square grid of same-size tiles packed into one Texture2D atlas.
 constexpr int kAtlasTileSize = 16;
-constexpr int kAtlasTilesPerRow = 4;
+constexpr int kAtlasTilesPerRow = 5;
 
 // M1/early-milestone placeholder: one flat color per tile index (see
 // plan.md §5/§9 — a real texture asset replaces this at milestone M6). Built

@@ -47,8 +47,8 @@ int TileIndexForFace(const BlockDef& def, const FaceDef& face) {
 
 }
 
-MeshData ChunkMesher::Build(const World& world, int originX, int originY, int originZ) {
-    MeshData mesh;
+ChunkMeshData ChunkMesher::Build(const World& world, int originX, int originY, int originZ) {
+    ChunkMeshData result;
 
     for (int lz = 0; lz < CHUNK_SIZE; ++lz) {
         for (int ly = 0; ly < CHUNK_SIZE; ++ly) {
@@ -61,8 +61,10 @@ MeshData ChunkMesher::Build(const World& world, int originX, int originY, int or
                 const BlockDef def = GetBlockDef(block);
                 if (!def.solid) continue;
 
+                MeshData& mesh = def.transparent ? result.transparent : result.opaque;
+
                 for (const FaceDef& face : kFaces) {
-                    if (world.IsSolid(wx + face.dx, wy + face.dy, wz + face.dz)) continue;
+                    if (world.IsOpaque(wx + face.dx, wy + face.dy, wz + face.dz)) continue;
 
                     const int tileIndex = TileIndexForFace(def, face);
                     const auto baseIndex = static_cast<std::uint32_t>(mesh.vertices.size());
@@ -92,7 +94,7 @@ MeshData ChunkMesher::Build(const World& world, int originX, int originY, int or
         }
     }
 
-    return mesh;
+    return result;
 }
 
 }

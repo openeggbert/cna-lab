@@ -62,6 +62,11 @@ bool World::IsSolid(int x, int y, int z) const {
     return GetBlockDef(GetBlock(x, y, z)).solid;
 }
 
+bool World::IsOpaque(int x, int y, int z) const {
+    const BlockDef def = GetBlockDef(GetBlock(x, y, z));
+    return def.solid && !def.transparent;
+}
+
 void World::Generate(std::uint32_t seed) {
     for (int x = 0; x < WORLD_SIZE_X; ++x) {
         for (int z = 0; z < WORLD_SIZE_Z; ++z) {

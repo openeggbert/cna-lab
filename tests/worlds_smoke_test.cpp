@@ -110,14 +110,15 @@ void TestNoiseGeneratorSimplex2IsSeeded() {
 void TestChunkMesherFaceCulling() {
     World world;
     // A fully-air chunk should produce no geometry at all.
-    MeshData empty = ChunkMesher::Build(world, 0, 0, 0);
-    Check(empty.vertices.empty() && empty.indices.empty(), "all-air chunk meshes to nothing");
+    ChunkMeshData empty = ChunkMesher::Build(world, 0, 0, 0);
+    Check(empty.opaque.vertices.empty() && empty.opaque.indices.empty(), "all-air chunk meshes to nothing");
 
     // A single solid block surrounded by air exposes all 6 faces.
     world.SetBlock(5, 5, 5, BlockType::Stone);
-    MeshData single = ChunkMesher::Build(world, 0, 0, 0);
-    Check(single.vertices.size() == 24, "single exposed block emits 6 faces * 4 verts = 24 vertices");
-    Check(single.indices.size() == 36, "single exposed block emits 6 faces * 6 indices = 36 indices");
+    ChunkMeshData single = ChunkMesher::Build(world, 0, 0, 0);
+    Check(single.opaque.vertices.size() == 24, "single exposed block emits 6 faces * 4 verts = 24 vertices");
+    Check(single.opaque.indices.size() == 36, "single exposed block emits 6 faces * 6 indices = 36 indices");
+    Check(single.transparent.vertices.empty(), "an opaque block emits nothing into the transparent mesh");
 
     // Burying that block on all 6 sides must remove all its faces from the mesh.
     world.SetBlock(6, 5, 5, BlockType::Stone);
@@ -126,10 +127,47 @@ void TestChunkMesherFaceCulling() {
     world.SetBlock(5, 4, 5, BlockType::Stone);
     world.SetBlock(5, 5, 6, BlockType::Stone);
     world.SetBlock(5, 5, 4, BlockType::Stone);
-    MeshData buried = ChunkMesher::Build(world, 0, 0, 0);
+    ChunkMeshData buried = ChunkMesher::Build(world, 0, 0, 0);
     // 7 solid blocks total, the center one fully occluded: 6 blocks * 5 exposed faces
     // each (the face pointing at the center block is occluded) = 30 faces.
-    Check(buried.vertices.size() == 30 * 4, "surrounding a block on all sides hides its faces");
+    Check(buried.opaque.vertices.size() == 30 * 4, "surrounding a block on all sides hides its faces");
+}
+
+void TestChunkMesherGlassTransparency() {
+    // A lone Glass block surrounded by air: goes into the transparent mesh,
+    // all 6 faces exposed, same as an opaque block would be.
+    World lone;
+    lone.SetBlock(5, 5, 5, BlockType::Glass);
+    ChunkMeshData loneMesh = ChunkMesher::Build(lone, 0, 0, 0);
+    Check(loneMesh.opaque.vertices.empty(), "a lone Glass block emits nothing into the opaque mesh");
+    Check(loneMesh.transparent.vertices.size() == 24, "a lone Glass block emits all 6 faces (24 verts)");
+
+    // Two adjacent Glass blocks: unlike opaque neighbors, transparent
+    // neighbors don't occlude each other's faces (matches Craft's
+    // `opaque[cell] = !is_transparent(w)` — see World::IsOpaque).
+    World adjacent;
+    adjacent.SetBlock(5, 5, 5, BlockType::Glass);
+    adjacent.SetBlock(6, 5, 5, BlockType::Glass);
+    ChunkMeshData adjacentMesh = ChunkMesher::Build(adjacent, 0, 0, 0);
+    Check(adjacentMesh.transparent.vertices.size() == 24 * 2,
+          "two adjacent Glass blocks both keep all 6 faces (transparent neighbors don't occlude)");
+
+    // A Glass block against a Stone block: Glass's face touching the Stone
+    // is culled (the opaque Stone face already covers that spot), but
+    // Stone's face touching the Glass is NOT culled (Glass doesn't occlude).
+    World againstStone;
+    againstStone.SetBlock(5, 5, 5, BlockType::Glass);
+    againstStone.SetBlock(6, 5, 5, BlockType::Stone);
+    ChunkMeshData mixedMesh = ChunkMesher::Build(againstStone, 0, 0, 0);
+    Check(mixedMesh.transparent.vertices.size() == 20,
+          "Glass next to Stone loses only its one face touching the Stone (5 of 6 faces, 20 verts)");
+    Check(mixedMesh.opaque.vertices.size() == 24,
+          "Stone next to Glass keeps all 6 faces (Glass doesn't occlude Stone's face)");
+
+    // Collision must be unaffected: Glass is transparent but still solid.
+    Check(againstStone.IsSolid(5, 5, 5), "Glass is still solid/collidable despite being transparent");
+    Check(!againstStone.IsOpaque(5, 5, 5), "Glass is not opaque (doesn't occlude neighbor faces)");
+    Check(againstStone.IsOpaque(6, 5, 5), "Stone is opaque");
 }
 
 void TestVoxelRaycastHitsExpectedFaceAndBlock() {
@@ -150,7 +188,7 @@ void TestVoxelRaycastHitsExpectedFaceAndBlock() {
 
 void TestHotbarSelectionAndCycling() {
     Hotbar hotbar;
-    Check(hotbar.SlotCount() == 12, "hotbar has 12 slots (Bedrock excluded from the placeable roster)");
+    Check(hotbar.SlotCount() == 13, "hotbar has 13 slots (Bedrock excluded from the placeable roster)");
     Check(hotbar.SelectedIndex() == 0, "hotbar starts on slot 0");
     Check(hotbar.Selected() == BlockType::Grass, "hotbar starts selecting slot 1's block (Grass)");
 
@@ -168,6 +206,8 @@ void TestHotbarSelectionAndCycling() {
 
     hotbar.SelectSlot(12);
     Check(hotbar.Selected() == BlockType::Snow, "slot 12 (beyond the 9 direct number keys) is Snow");
+    hotbar.CycleNext();
+    Check(hotbar.Selected() == BlockType::Glass, "slot 13 (the last slot) is Glass");
     hotbar.CycleNext();
     Check(hotbar.SelectedIndex() == 0, "CycleNext wraps back to slot 0 after the last slot");
 }
@@ -242,6 +282,7 @@ int main() {
     TestWorldGenerationIsDeterministic();
     TestNoiseGeneratorSimplex2IsSeeded();
     TestChunkMesherFaceCulling();
+    TestChunkMesherGlassTransparency();
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();
     TestPlayerControllerGravityAndGroundCollision();

@@ -259,8 +259,21 @@ void CnaCraftGame::Draw(const GameTime&) {
     const BoundingFrustum frustum(effect_->View * effect_->Projection);
     for (auto& renderer : chunkRenderers_) {
         if (!frustum.Intersects(renderer.Bounds())) continue;
-        renderer.Draw(device, *effect_);
+        renderer.DrawOpaque(device, *effect_);
     }
+
+    // Transparent geometry (plan.md §11.2 "Transparency for glass") is drawn
+    // last, with blending on and depth writes off, so the opaque scene
+    // behind it shows through — same order/state as house3d_demo.cpp's
+    // solid-then-glass pass.
+    device.SetBlendEnabled(true);
+    device.SetDepthWriteEnabled(false);
+    for (auto& renderer : chunkRenderers_) {
+        if (!frustum.Intersects(renderer.Bounds())) continue;
+        renderer.DrawTransparent(device, *effect_);
+    }
+    device.SetDepthWriteEnabled(true);
+    device.SetBlendEnabled(false);
 
     hud_->Draw(device);
 

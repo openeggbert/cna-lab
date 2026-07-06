@@ -21,4 +21,13 @@ struct MeshData {
     std::vector<std::uint32_t> indices;
 };
 
+// ChunkMesher::Build emits two independent meshes (plan.md §11.2
+// "Transparency for glass"): `opaque` is drawn normally; `transparent` is
+// drawn last, with alpha blending on and depth writes off, so blocks like
+// Glass show the scene behind them instead of occluding it.
+struct ChunkMeshData {
+    MeshData opaque;
+    MeshData transparent;
+};
+
 }

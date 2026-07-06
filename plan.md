@@ -298,8 +298,9 @@ Checkbox state reflects this document's authoring session; update as work lands.
       all 12 placeable types (Bedrock excluded), keys `1`-`9` direct + `E` cycles through all 12,
       matching Craft's own `item_index`/number-key/E behavior (`Craft/src/main.c:2254-2265`).
       **Deliberately deferred** to their own backlog items below since they need more than a new
-      tile: Glass/Leaves (need transparency — `IsSolid` currently doubles as "renders as an opaque
-      cube", see "Transparency for glass"), Cloud (needs non-solid-but-visible semantics, see
+      tile: Glass (needed transparency — since added, see "Transparency for glass"; `Hotbar` now
+      has 13 slots), Leaves (transparent like Glass, but not yet added — no reason left to defer
+      other than not having been picked up), Cloud (needs non-solid-but-visible semantics, see
       "Clouds"), Chest/tall grass/flowers (need non-cubic geometry, see "Non-cubic plant
       geometry"), the 32-entry flat-color palette (low value, skipped).
 - [ ] Real texture atlas image (replace `Render::BuildPlaceholderAtlas`'s flat-color placeholder
@@ -308,10 +309,29 @@ Checkbox state reflects this document's authoring session; update as work lands.
 - [ ] Non-cubic "plant" geometry: cross-quad billboards for grass/flowers (Craft: `src/cube.c`
       `make_plant`) — `ChunkMesher` needs a second emission path alongside the cube-face path in
       §4.
-- [ ] Transparency for glass (and plant alpha-cutout): a second draw pass with
-      `BlendState::AlphaBlend` / `SetDepthWriteEnabled(false)`, mirroring
-      `house3d_demo.cpp`'s glass pass (§5 already references this pattern) and Craft's
-      magenta-pixel-discard trick for cutout transparency (`shaders/block_fragment.glsl`).
+- [x] Transparency for glass: added `BlockType::Glass` (solid/collidable, but transparent) and a
+      `BlockDef.transparent` flag. `World::IsOpaque` (`solid && !transparent`) replaces `IsSolid` in
+      `ChunkMesher`'s neighbor-face check only — collision (`IsSolid`) is untouched — matching
+      Craft's own `opaque[cell] = !is_transparent(w)` rule (`src/main.c`): adjacent transparent
+      blocks don't occlude each other's faces, but a transparent face against a genuinely opaque
+      neighbor is culled. `ChunkMesher::Build` now returns a `ChunkMeshData{opaque, transparent}`
+      pair; `ChunkRenderer` holds two buffer sets and exposes `DrawOpaque`/`DrawTransparent`;
+      `CnaCraftGame::Draw` draws all opaque geometry first, then all transparent geometry with
+      `SetBlendEnabled(true)`/`SetDepthWriteEnabled(false)`.
+      **Correction**: `house3d_demo.cpp`'s "glass pass" turned out to be dead code — its
+      `glass_builder_` is declared and uploaded but never actually appended to, so
+      `glassMeshes_` is always empty; the demo's window "glass" pane renders as an ordinary opaque
+      box in the solid pass. Reused its *draw-state sequence* (blend on / depth-write off / draw /
+      restore) since that part is correct, but didn't have a working glass-mesh reference to copy —
+      the actual per-chunk opaque/transparent mesh split above is new. Plant alpha-cutout is left
+      to "Non-cubic plant geometry" (transparency here only covers the not-a-plant Glass case).
+      8 new unit tests (transparent-mesh routing, glass/glass and glass/stone occlusion rules,
+      solid-vs-opaque distinction) — 53 checks total. Verified visually against a real EasyGL
+      build (a temporary in-code glass wall, since keyboard-driven placement wasn't reliably
+      scriptable in this sandbox — see the Vulkan/EasyGL input-injection notes elsewhere in this
+      history): a screenshot clearly showed the sky blending through the glass tile's alpha rather
+      than a flat opaque color, confirming the blend pass works; temporary code was reverted before
+      committing.
 - [ ] Ambient occlusion baked per-vertex at mesh time (Craft implements
       http://0fps.wordpress.com/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/, encoded
       as a 4th UV component — `uv.z` in `shaders/block_vertex.glsl`'s `fragment_ao`). `MeshVertex`

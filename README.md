@@ -66,7 +66,7 @@ cmake --build build --target CnaCraft
 | Left click      | Break block                          |
 | Right click     | Place block (currently selected type)|
 | 1-9             | Select hotbar slot directly (Grass/Dirt/Sand/Stone/Cobblestone/Brick/Plank/Wood/Cement) |
-| E               | Cycle to next hotbar slot (all 12: also reaches LightStone/DarkStone/Snow) |
+| E               | Cycle to next hotbar slot (all 13: also reaches LightStone/DarkStone/Snow/Glass) |
 | Left Shift (hold) | Zoom (narrow FOV)                   |
 | F (hold)        | Orthographic projection               |
 | F12             | Save a screenshot to `screenshots/`   |
