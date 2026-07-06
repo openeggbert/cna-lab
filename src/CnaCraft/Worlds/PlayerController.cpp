@@ -13,7 +13,12 @@ constexpr float kPlayerHeight = 1.8f;
 constexpr float kMoveSpeed = 4.5f;
 constexpr float kFlySpeed = 9.0f; // faster than walking, matches Craft's flying speed being 4x
 constexpr float kGravity = 25.0f;
-constexpr float kJumpSpeed = 7.0f;
+// Bug fix: 7.0 gives a max jump height of v^2/(2g) = 49/50 = 0.98 blocks --
+// mathematically just short of clearing a full 1-block step, the single
+// most basic Craft-like traversal move. Craft's own jump speed is 8
+// (`dy = 8` in src/main.c) against the same gravity=25, giving 64/50=1.28
+// blocks -- comfortably enough margin. Matched here.
+constexpr float kJumpSpeed = 8.0f;
 constexpr float kPitchLimit = 1.55f; // ~89 degrees
 }
 

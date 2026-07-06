@@ -279,6 +279,83 @@ void TestPlayerControllerGravityAndGroundCollision() {
     Check(landed, "player falls under gravity and comes to rest on top of the floor (y=4)");
 }
 
+void TestPlayerJumpClearsOneBlockHeight() {
+    // Regression test for a real user-reported bug: kJumpSpeed=7 against
+    // kGravity=25 gives a max jump height of v^2/(2g) = 49/50 = 0.98 blocks
+    // -- mathematically just short of clearing a full 1-block step, the
+    // single most basic Craft-like traversal move. Fixed by matching
+    // Craft's own jump speed of 8 (src/main.c: `dy = 8`), giving 64/50=1.28
+    // blocks. Measures the jump arc directly (no horizontal movement or
+    // collision involved) so it precisely discriminates the two values,
+    // rather than depending on movement-timing specifics that could mask
+    // the difference (as the companion ledge-traversal test below did).
+    World world;
+    constexpr int kFloorTopY = 3; // solid y=0..3, floor surface at y=4
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            for (int y = 0; y <= kFloorTopY; ++y) world.SetBlock(x, y, z, BlockType::Stone);
+        }
+    }
+
+    PlayerController player(Vec3f{static_cast<float>(WORLD_SIZE_X) / 2.0f, 10.0f,
+                                   static_cast<float>(WORLD_SIZE_Z) / 2.0f});
+    PlayerInput noInput;
+    for (int i = 0; i < 120; ++i) player.Update(world, noInput, 1.0f / 60.0f);
+    const float floorFeetY = player.EyePosition().y - 1.7f;
+    Check(std::abs(floorFeetY - 4.0f) < 0.05f, "player settles on the floor before jumping");
+
+    PlayerInput jump;
+    jump.jumpPressed = true;
+    float peakFeetY = floorFeetY;
+    for (int i = 0; i < 90; ++i) {
+        player.Update(world, jump, 1.0f / 60.0f);
+        jump.jumpPressed = false; // one tap, like a real player
+        const float feetY = player.EyePosition().y - 1.7f;
+        if (feetY > peakFeetY) peakFeetY = feetY;
+    }
+    Check(peakFeetY - floorFeetY > 1.0f,
+          "a single jump clears a full 1-block height (feet rise more than 1.0 blocks)");
+}
+
+void TestPlayerCanJumpOntoOneBlockHigherLedge() {
+    // Companion integration check: confirms a jump can actually carry the
+    // player onto a real 1-block-higher ledge while moving, on top of the
+    // precise apex-height measurement above.
+    World world;
+    constexpr int kFloorTopY = 3; // solid y=0..3, main floor surface at y=4
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            for (int y = 0; y <= kFloorTopY; ++y) world.SetBlock(x, y, z, BlockType::Stone);
+        }
+    }
+    const int spawnX = WORLD_SIZE_X / 2;
+    const int spawnZ = WORLD_SIZE_Z / 2;
+    const int ledgeStartZ = spawnZ - 3; // a few blocks ahead (yaw=0 moves toward -Z)
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z <= ledgeStartZ; ++z) {
+            world.SetBlock(x, kFloorTopY + 1, z, BlockType::Stone); // one block higher, surface at y=5
+        }
+    }
+
+    PlayerController player(Vec3f{static_cast<float>(spawnX) + 0.5f, 10.0f, static_cast<float>(spawnZ) + 0.5f});
+    PlayerInput noInput;
+    for (int i = 0; i < 120; ++i) player.Update(world, noInput, 1.0f / 60.0f);
+    Check(std::abs(player.EyePosition().y - (4.0f + 1.7f)) < 0.05f,
+          "player settles on the main floor before attempting the ledge");
+
+    PlayerInput jumpMove;
+    jumpMove.moveForward = 1.0f; // yaw=0 => -Z, straight toward the ledge
+    bool landedOnLedge = false;
+    for (int i = 0; i < 180 && !landedOnLedge; ++i) {
+        jumpMove.jumpPressed = player.IsGrounded(); // tap Space each time grounded, like a real player
+        player.Update(world, jumpMove, 1.0f / 60.0f);
+        if (player.IsGrounded() && std::abs(player.EyePosition().y - (5.0f + 1.7f)) < 0.05f) {
+            landedOnLedge = true;
+        }
+    }
+    Check(landedOnLedge, "player can jump up onto a 1-block-higher ledge while moving forward");
+}
+
 void TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement() {
     World world; // no terrain at all — plenty of open air in every direction
     PlayerController player(Vec3f{static_cast<float>(WORLD_SIZE_X) / 2.0f, 32.0f,
@@ -330,6 +407,8 @@ int main() {
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();
     TestPlayerControllerGravityAndGroundCollision();
+    TestPlayerJumpClearsOneBlockHeight();
+    TestPlayerCanJumpOntoOneBlockHigherLedge();
     TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging();
     TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement();
 

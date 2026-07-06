@@ -293,6 +293,18 @@ checked out as siblings, and one of the three 3D-capable backends selected at co
   Right. If mouse-look specifically still doesn't turn the camera, that points at something
   environment-specific worth reporting (e.g. try clicking into the game window once right after
   it opens, in case the OS/window manager didn't hand it mouse capture immediately).
+- **"Can't jump onto a higher block"** — `kJumpSpeed=7` against `kGravity=25` gives a max jump
+  height of `v²/(2g) = 49/50 = 0.98` blocks: mathematically just short of clearing a full 1-block
+  step, the single most basic Craft-like traversal move. Craft's own jump speed is `8`
+  (`Craft/src/main.c`: `dy = 8`) against the same `gravity=25`, giving `64/50=1.28` blocks —
+  comfortably enough margin. Matched here. Caught with a precise regression test,
+  `TestPlayerJumpClearsOneBlockHeight` (`tests/worlds_smoke_test.cpp`), that measures the jump
+  arc's apex directly (no horizontal movement/collision involved, so it isn't affected by
+  movement-timing specifics) — verified it fails at the old value of `7` and passes at `8`. A
+  companion integration test, `TestPlayerCanJumpOntoOneBlockHigherLedge`, additionally confirms a
+  jump can carry the player onto a real ledge while moving, though on its own it turned out not
+  strict enough to discriminate the two jump-speed values (a retry-until-success loop masked the
+  difference) — kept as a secondary sanity check, not the primary regression guard.
 
 ## 11. Task backlog: toward fogleman/Craft feature parity
 
