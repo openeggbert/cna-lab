@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include "Microsoft/Xna/Framework/BoundingBox.hpp"
 #include "Microsoft/Xna/Framework/Graphics/IndexBuffer.hpp"
 #include "Microsoft/Xna/Framework/Graphics/VertexBuffer.hpp"
 
@@ -28,6 +29,10 @@ public:
 
     void Draw(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
               Microsoft::Xna::Framework::Graphics::BasicEffect& effect);
+
+    // World-space AABB of this chunk, for frustum culling (plan.md §11.2) —
+    // the caller (CnaCraftGame::Draw) decides whether to call Draw() at all.
+    [[nodiscard]] Microsoft::Xna::Framework::BoundingBox Bounds() const;
 
 private:
     int originX_;

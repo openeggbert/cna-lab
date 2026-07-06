@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <vector>
 
+#include "Microsoft/Xna/Framework/BoundingFrustum.hpp"
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Input/Keyboard.hpp"
 #include "Microsoft/Xna/Framework/Input/Keys.hpp"
@@ -250,7 +251,14 @@ void CnaCraftGame::Draw(const GameTime&) {
         effect_->Projection = Matrix::CreatePerspectiveFieldOfView(fov, aspect, 0.1f, 500.0f);
     }
 
+    // Per-chunk frustum culling (plan.md §11.2): only draw chunks whose AABB
+    // intersects the current view frustum. Cheap at today's fixed 32-chunk
+    // world size, but the point is to stay correct once the world is bigger
+    // (§9 M7) — mirrors Craft's own naive AABB-vs-frustum test in
+    // src/main.c's render_chunks.
+    const BoundingFrustum frustum(effect_->View * effect_->Projection);
     for (auto& renderer : chunkRenderers_) {
+        if (!frustum.Intersects(renderer.Bounds())) continue;
         renderer.Draw(device, *effect_);
     }
 

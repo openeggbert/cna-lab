@@ -11,6 +11,7 @@
 #include "Microsoft/Xna/Framework/Vector3.hpp"
 
 #include "TextureAtlas.hpp"
+#include "../Worlds/Chunk.hpp"
 #include "../Worlds/ChunkMesher.hpp"
 
 using namespace Microsoft::Xna::Framework;
@@ -68,6 +69,14 @@ void ChunkRenderer::Draw(GraphicsDevice& device, BasicEffect& effect) {
             /*startIndex=*/0,
             /*primitiveCount=*/primitiveCount_);
     }
+}
+
+BoundingBox ChunkRenderer::Bounds() const {
+    const auto size = static_cast<float>(CnaCraft::Worlds::CHUNK_SIZE);
+    return BoundingBox(
+        Vector3(static_cast<float>(originX_), static_cast<float>(originY_), static_cast<float>(originZ_)),
+        Vector3(static_cast<float>(originX_) + size, static_cast<float>(originY_) + size,
+                static_cast<float>(originZ_) + size));
 }
 
 }

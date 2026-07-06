@@ -318,8 +318,13 @@ Checkbox state reflects this document's authoring session; update as work lands.
       would need an `ao` field alongside `tileIndex`.
 - [ ] Greedy meshing to replace the current naive per-face `ChunkMesher` (§4/§9 M7) — reduces
       vertex count substantially once the world is no longer fixed-size.
-- [ ] Per-chunk frustum culling before `ChunkRenderer::Draw` (Craft: naive AABB-vs-frustum test in
-      `src/main.c` `render_chunks`) — needed once chunk count is no longer small/fixed.
+- [x] Per-chunk frustum culling before `ChunkRenderer::Draw` (Craft: naive AABB-vs-frustum test in
+      `src/main.c` `render_chunks`). CNA already ships real XNA-shaped `BoundingFrustum`/
+      `BoundingBox` types, so this needed no new math: `ChunkRenderer::Bounds()` returns the
+      chunk's world-space AABB, and `CnaCraftGame::Draw` builds one `BoundingFrustum(View *
+      Projection)` per frame and skips `Draw()` for any chunk whose bounds don't intersect it.
+      Verified visually against a real EasyGL build across a camera turn (no incorrect
+      disappearing chunks/pop-in).
 - [ ] Clouds: thin, non-solid, unlit decorative blocks near the world ceiling (Craft: `CLOUD`
       block type, discarded in orthographic mode per `block_fragment.glsl`).
 
