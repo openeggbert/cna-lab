@@ -10,6 +10,7 @@
 #include "CnaCraft/Worlds/BlockType.hpp"
 #include "CnaCraft/Worlds/Chunk.hpp"
 #include "CnaCraft/Worlds/ChunkMesher.hpp"
+#include "CnaCraft/Worlds/Hotbar.hpp"
 #include "CnaCraft/Worlds/NoiseGenerator.hpp"
 #include "CnaCraft/Worlds/PlayerController.hpp"
 #include "CnaCraft/Worlds/VoxelRaycast.hpp"
@@ -123,6 +124,26 @@ void TestVoxelRaycastHitsExpectedFaceAndBlock() {
     Check(!miss.has_value(), "raycast pointed away from any geometry misses");
 }
 
+void TestHotbarSelectionAndCycling() {
+    Hotbar hotbar;
+    Check(hotbar.SelectedIndex() == 0, "hotbar starts on slot 0");
+    Check(hotbar.Selected() == BlockType::Grass, "hotbar starts selecting slot 1's block (Grass)");
+
+    hotbar.SelectSlot(3);
+    Check(hotbar.SelectedIndex() == 2, "SelectSlot(3) selects 0-based index 2");
+    Check(hotbar.Selected() == BlockType::Stone, "slot 3 is Stone");
+
+    hotbar.SelectSlot(0);
+    Check(hotbar.SelectedIndex() == 2, "SelectSlot(0) is out of range and ignored");
+    hotbar.SelectSlot(99);
+    Check(hotbar.SelectedIndex() == 2, "SelectSlot(99) is out of range and ignored");
+
+    hotbar.CycleNext();
+    Check(hotbar.SelectedIndex() == 3, "CycleNext advances to the next slot");
+    hotbar.CycleNext();
+    Check(hotbar.SelectedIndex() == 0, "CycleNext wraps back to slot 0 after the last slot");
+}
+
 void TestPlayerControllerGravityAndGroundCollision() {
     World world;
     // A flat floor of stone at y=0..3, air above.
@@ -154,6 +175,7 @@ int main() {
     TestWorldGenerationIsDeterministic();
     TestChunkMesherFaceCulling();
     TestVoxelRaycastHitsExpectedFaceAndBlock();
+    TestHotbarSelectionAndCycling();
     TestPlayerControllerGravityAndGroundCollision();
 
     if (g_failures == 0) {

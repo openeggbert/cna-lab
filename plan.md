@@ -317,8 +317,12 @@ Checkbox state reflects this document's authoring session; update as work lands.
 
 ### 11.4 Player & interaction
 
-- [ ] Hotbar: 1–9 keys + `E` to cycle selected block type for placing (README controls table);
-      currently `CnaCraftGame::Update` hardcodes `BlockType::Stone` for right-click placement.
+- [x] Hotbar: 1–9 keys + `E` to cycle selected block type for placing (README controls table).
+      Implemented as an engine-agnostic `Worlds/Hotbar` (4 slots: Grass/Dirt/Stone/Sand, unit-tested
+      in `tests/worlds_smoke_test.cpp`) wired into `CnaCraftGame::Update` (keys `1`-`4` select,
+      `E` cycles); right-click placement now uses `hotbar_.Selected()` instead of a hardcoded
+      `BlockType::Stone`. No on-screen overlay yet — selection changes print to the console
+      instead (the visual crosshair/hotbar overlay is its own item, §11.7).
 - [ ] Flying-mode toggle (`Tab`), reusing `house3d_demo.cpp`'s Game/Fly mode split (§1/§6 already
       note this demo as the movement reference) — `PlayerController` currently only implements
       Game-mode gravity/collision.

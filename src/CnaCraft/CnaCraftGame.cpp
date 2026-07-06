@@ -1,5 +1,7 @@
 #include "CnaCraftGame.hpp"
 
+#include <cstdio>
+
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Input/Keyboard.hpp"
 #include "Microsoft/Xna/Framework/Input/Keys.hpp"
@@ -125,6 +127,24 @@ void CnaCraftGame::Update(GameTime& gameTime) {
 
     player_->Update(world_, input, dt);
 
+    const int previousHotbarIndex = hotbar_.SelectedIndex();
+    for (int slot = 1; slot <= Worlds::Hotbar::SlotCount(); ++slot) {
+        if (kb.IsKeyDown(static_cast<Keys>(static_cast<int>(Keys::D1) + slot - 1))) {
+            hotbar_.SelectSlot(slot);
+        }
+    }
+    const bool eDown = kb.IsKeyDown(Keys::E);
+    if (eDown && !eKeyWasDown_) {
+        hotbar_.CycleNext();
+    }
+    eKeyWasDown_ = eDown;
+    if (hotbar_.SelectedIndex() != previousHotbarIndex) {
+        // No on-screen hotbar overlay yet (plan.md §11.7); console feedback is
+        // enough to confirm selection while playing interactively.
+        std::printf("Selected block: %s\n", Worlds::GetBlockName(hotbar_.Selected()));
+        std::fflush(stdout);
+    }
+
     const bool leftDown = mouse.getLeftButtonProperty() == ButtonState::Pressed;
     const bool rightDown = mouse.getRightButtonProperty() == ButtonState::Pressed;
 
@@ -137,7 +157,7 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     if (rightDown && !rightClickWasDown_) {
         if (auto hit = Worlds::VoxelRaycast::Cast(
                 world_, player_->EyePosition(), player_->LookDirection(), kMaxReach)) {
-            world_.SetBlock(hit->x + hit->nx, hit->y + hit->ny, hit->z + hit->nz, Worlds::BlockType::Stone);
+            world_.SetBlock(hit->x + hit->nx, hit->y + hit->ny, hit->z + hit->nz, hotbar_.Selected());
         }
     }
     leftClickWasDown_ = leftDown;

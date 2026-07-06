@@ -25,6 +25,7 @@ add_library(CnaCraftWorlds STATIC
     src/CnaCraft/Worlds/ChunkMesher.cpp
     src/CnaCraft/Worlds/VoxelRaycast.cpp
     src/CnaCraft/Worlds/PlayerController.cpp
+    src/CnaCraft/Worlds/Hotbar.cpp
 )
 target_include_directories(CnaCraftWorlds PUBLIC src)
 

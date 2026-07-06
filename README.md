@@ -56,14 +56,20 @@ cmake --build build --target CnaCraft
 
 ## 5. Controls
 
-| Key             | Action                     |
-|-----------------|----------------------------|
-| W / A / S / D   | Move / strafe              |
-| Mouse           | Look (yaw / pitch)         |
-| Space           | Jump                       |
-| Left click      | Break block                |
-| Right click     | Place block                |
-| Esc             | Quit                       |
+| Key             | Action                              |
+|-----------------|--------------------------------------|
+| W / A / S / D   | Move / strafe                        |
+| Mouse           | Look (yaw / pitch)                   |
+| Space           | Jump                                 |
+| Left click      | Break block                          |
+| Right click     | Place block (currently selected type)|
+| 1 / 2 / 3 / 4   | Select hotbar slot (Grass/Dirt/Stone/Sand) |
+| E               | Cycle to next hotbar slot             |
+| Esc             | Quit                                  |
+
+Hotbar selection has no on-screen overlay yet (that's a separate task, see
+`plan.md` §11.7) — the currently selected block name is printed to the
+console when it changes.
 
 ## 6. License
 

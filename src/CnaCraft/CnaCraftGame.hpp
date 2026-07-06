@@ -10,6 +10,7 @@
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
 
 #include "Render/ChunkRenderer.hpp"
+#include "Worlds/Hotbar.hpp"
 #include "Worlds/PlayerController.hpp"
 #include "Worlds/World.hpp"
 
@@ -44,9 +45,11 @@ private:
     Worlds::World world_;
     std::unique_ptr<Worlds::PlayerController> player_;
     std::vector<Render::ChunkRenderer> chunkRenderers_;
+    Worlds::Hotbar hotbar_;
 
     bool leftClickWasDown_ = false;
     bool rightClickWasDown_ = false;
+    bool eKeyWasDown_ = false;
     int smokeFramesLeft_ = 0;
 };
 
