@@ -67,6 +67,8 @@ cmake --build build --target CnaCraft
 | Right click     | Place block (currently selected type)|
 | 1-9             | Select hotbar slot directly (Grass/Dirt/Sand/Stone/Cobblestone/Brick/Plank/Wood/Cement) |
 | E               | Cycle to next hotbar slot (all 12: also reaches LightStone/DarkStone/Snow) |
+| Left Shift (hold) | Zoom (narrow FOV)                   |
+| F (hold)        | Orthographic projection               |
 | Esc             | Quit                                  |
 
 Hotbar selection and the current fly mode state have no on-screen overlay yet

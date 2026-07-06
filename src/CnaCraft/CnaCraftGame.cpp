@@ -22,9 +22,19 @@ namespace CnaCraft {
 
 namespace {
 constexpr float kPiOver4 = 0.78539816339744830962f;
+// Zoom (plan.md §11.4): narrows the FOV while Left Shift is held, mirroring
+// Craft's own hold-to-zoom behavior (`g->fov = ... ? 15 : 65` in main.c) —
+// not a toggle. Craft's absolute FOV numbers don't carry over 1:1 since our
+// base FOV (kPiOver4, 45 degrees) already differs from Craft's default (65
+// degrees) for unrelated reasons; kZoomFov keeps the same "much narrower"
+// relationship instead.
+constexpr float kZoomFov = 0.26179938779914943654f; // 15 degrees, in radians
 constexpr float kMouseSensitivity = 0.0025f;
 constexpr float kMaxReach = 6.0f;
 constexpr std::uint32_t kWorldSeed = 1337;
+// Orthographic toggle (plan.md §11.4): also hold-to-activate in Craft
+// (`g->ortho = ... ? 64 : 0`), not a toggle despite the backlog's wording.
+constexpr float kOrthoViewHeight = 24.0f; // world units (blocks) of vertical view extent
 }
 
 CnaCraftGame::CnaCraftGame() : graphics_(this) {
@@ -204,7 +214,15 @@ void CnaCraftGame::Draw(const GameTime&) {
     const Vector3 targetVec(eye.x + dir.x, eye.y + dir.y, eye.z + dir.z);
 
     effect_->View = Matrix::CreateLookAt(eyeVec, targetVec, Vector3::Up);
-    effect_->Projection = Matrix::CreatePerspectiveFieldOfView(kPiOver4, aspect, 0.1f, 500.0f);
+
+    const auto kb = Keyboard::GetState();
+    if (kb.IsKeyDown(Keys::F)) {
+        effect_->Projection = Matrix::CreateOrthographic(
+            kOrthoViewHeight * aspect, kOrthoViewHeight, 0.1f, 500.0f);
+    } else {
+        const float fov = kb.IsKeyDown(Keys::LeftShift) ? kZoomFov : kPiOver4;
+        effect_->Projection = Matrix::CreatePerspectiveFieldOfView(fov, aspect, 0.1f, 500.0f);
+    }
 
     for (auto& renderer : chunkRenderers_) {
         renderer.Draw(device, *effect_);

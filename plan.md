@@ -342,9 +342,12 @@ Checkbox state reflects this document's authoring session; update as work lands.
       7 new unit tests in `tests/worlds_smoke_test.cpp`. Verified end-to-end against the real
       EasyGL build (Tab toggling logged "Flying: on"/"off" to the console, no on-screen HUD yet —
       same as the hotbar).
-- [ ] Zoom (Left Shift narrows FOV) and orthographic view toggle (`F`) — both are one-line
-      `Matrix::CreatePerspectiveFieldOfView`/`CreateOrthographic` parameter changes in
-      `CnaCraftGame::Draw`.
+- [x] Zoom (Left Shift narrows FOV) and orthographic view (`F`) in `CnaCraftGame::Draw`. Both are
+      **hold**-to-activate, not toggles — matches Craft's own actual behavior
+      (`g->fov = ... ? 15 : 65` / `g->ortho = ... ? 64 : 0` in `Craft/src/main.c:2418-2419`) despite
+      this backlog item's "toggle" wording. Verified visually against a real EasyGL build
+      (screenshots: normal FOV, Left-Shift-held narrow FOV, F-held orthographic projection all
+      visually distinct and correct).
 - [ ] Signs: place text on a block face, render as a billboard quad with a small bitmap-font
       texture (Craft: `src/sign.c`, `textures/sign.png`) — CNA's `SpriteFont`/bitmap-font approach
       from `house3d_demo.cpp`'s controls overlay is a usable reference for the text-rendering part.
