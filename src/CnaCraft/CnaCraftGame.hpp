@@ -15,6 +15,10 @@
 #include "Worlds/PlayerController.hpp"
 #include "Worlds/World.hpp"
 
+namespace Microsoft::Xna::Framework::Graphics {
+class GraphicsDevice;
+}
+
 namespace CnaCraft {
 
 // Game subclass wiring the engine-agnostic Worlds/ layer to CNA: input
@@ -38,6 +42,7 @@ protected:
 
 private:
     void RebuildDirtyChunks();
+    void CaptureScreenshot(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
 
     Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::BasicEffect> effect_;
@@ -55,6 +60,9 @@ private:
     bool rightClickWasDown_ = false;
     bool eKeyWasDown_ = false;
     bool tabWasDown_ = false;
+    bool f12WasDown_ = false;
+    bool screenshotPending_ = false;
+    int screenshotCounter_ = 0;
     int smokeFramesLeft_ = 0;
 };
 

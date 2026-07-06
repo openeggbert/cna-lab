@@ -10,3 +10,6 @@ b-release/
 imgui.ini
 Testing/
 *.autosave
+
+# CnaCraft's own F12 screenshot capture (plan.md §11.7)
+/screenshots/

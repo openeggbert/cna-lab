@@ -390,9 +390,13 @@ Checkbox state reflects this document's authoring session; update as work lands.
       visually against a real EasyGL build (screenshots: default hotbar row, and the `[FLYING]`
       prefix appearing after a real Tab press).
 - [ ] Chat + slash commands (Craft: `T` to type, `/` for commands, `src/main.c` `handle_command`).
-- [ ] Screenshot capture command (Craft: README "Screenshot" section) — CNA would need a
-      `GraphicsDevice`-backbuffer-to-`Texture2D`/PNG readback path; check whether one already
-      exists before adding it.
+- [x] Screenshot capture command: `F12` captures the current frame (including the HUD) to
+      `screenshots/cnacraft_NNNN.png`. **Correction**: Craft's README "Screenshot" section turned
+      out to just be a marketing image, not a documented in-game hotkey — there's no reference
+      key binding to match, so `F12` was picked as a common convention instead. CNA already had
+      the needed path (`GraphicsDevice::GetBackBufferData` + `Texture2D::SaveAsPng`), so this
+      didn't need new engine-level work. Verified end-to-end against a real EasyGL build (F12
+      produced a valid, correct PNG on disk).
 
 ### 11.8 Testing
 

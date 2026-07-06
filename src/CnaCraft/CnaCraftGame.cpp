@@ -2,11 +2,14 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <filesystem>
+#include <vector>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Input/Keyboard.hpp"
 #include "Microsoft/Xna/Framework/Input/Keys.hpp"
 #include "Microsoft/Xna/Framework/Input/Mouse.hpp"
+#include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SamplerState.hpp"
 #include "Microsoft/Xna/Framework/Matrix.hpp"
 
@@ -154,6 +157,17 @@ void CnaCraftGame::Update(GameTime& gameTime) {
                             player_->IsFlying());
     };
 
+    // Screenshot capture (plan.md §11.7): F12 is not a Craft key (its README's
+    // "Screenshot" section is just a marketing image, not a documented
+    // hotkey) but it's a common convention and CNA already exposes the
+    // needed GraphicsDevice::GetBackBufferData/Texture2D::SaveAsPng — the
+    // actual capture happens in Draw() once the frame is fully rendered.
+    const bool f12Down = kb.IsKeyDown(Keys::F12);
+    if (f12Down && !f12WasDown_) {
+        screenshotPending_ = true;
+    }
+    f12WasDown_ = f12Down;
+
     const bool tabDown = kb.IsKeyDown(Keys::Tab);
     if (tabDown && !tabWasDown_) {
         player_->ToggleFlying();
@@ -241,6 +255,32 @@ void CnaCraftGame::Draw(const GameTime&) {
     }
 
     hud_->Draw(device);
+
+    if (screenshotPending_) {
+        CaptureScreenshot(device);
+        screenshotPending_ = false;
+    }
+}
+
+void CnaCraftGame::CaptureScreenshot(GraphicsDevice& device) {
+    const auto& vp = device.getViewportProperty();
+    const int width = vp.getWidthProperty();
+    const int height = vp.getHeightProperty();
+    if (width <= 0 || height <= 0) return;
+
+    std::vector<Color> pixels(static_cast<std::size_t>(width) * height, Color(0, 0, 0, 255));
+    device.GetBackBufferData(pixels.data(), static_cast<int>(pixels.size()));
+
+    Texture2D frame(device, width, height);
+    frame.SetData(pixels.data(), static_cast<int>(pixels.size()));
+
+    std::filesystem::create_directories("screenshots");
+    char filename[64];
+    std::snprintf(filename, sizeof(filename), "screenshots/cnacraft_%04d.png", ++screenshotCounter_);
+    frame.SaveAsPng(filename);
+
+    std::printf("Screenshot saved: %s\n", filename);
+    std::fflush(stdout);
 }
 
 }

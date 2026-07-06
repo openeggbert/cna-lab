@@ -69,6 +69,7 @@ cmake --build build --target CnaCraft
 | E               | Cycle to next hotbar slot (all 12: also reaches LightStone/DarkStone/Snow) |
 | Left Shift (hold) | Zoom (narrow FOV)                   |
 | F (hold)        | Orthographic projection               |
+| F12             | Save a screenshot to `screenshots/`   |
 | Esc             | Quit                                  |
 
 A crosshair and a hotbar strip (all 12 slots, selected one highlighted, with a
