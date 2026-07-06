@@ -279,10 +279,20 @@ Checkbox state reflects this document's authoring session; update as work lands.
 
 ### 11.2 Blocks & block rendering
 
-- [ ] Expand `BlockType`/`BlockDef` (`src/CnaCraft/Worlds/BlockType.hpp`) toward Craft's roster
+- [x] Expand `BlockType`/`BlockDef` (`src/CnaCraft/Worlds/BlockType.hpp`) toward Craft's roster
       (`Craft/src/item.h`): sand, brick, wood, cement, plank, snow, glass, cobblestone, light/dark
       stone, chest, leaves, cloud, tall grass, flower variants, plus the 32-entry solid color
       palette. Doesn't need to match 1:1, but should stop being 6 block types.
+      Added the plain solid/opaque cube blocks (Cobblestone, Brick, Plank, Wood, Cement,
+      LightStone, DarkStone, Snow — 13 block types total now, up from 6), each with placeholder
+      atlas tiles (16/16 atlas tiles now in use, `TextureAtlas.cpp`). `Hotbar` (§11.4) expanded to
+      all 12 placeable types (Bedrock excluded), keys `1`-`9` direct + `E` cycles through all 12,
+      matching Craft's own `item_index`/number-key/E behavior (`Craft/src/main.c:2254-2265`).
+      **Deliberately deferred** to their own backlog items below since they need more than a new
+      tile: Glass/Leaves (need transparency — `IsSolid` currently doubles as "renders as an opaque
+      cube", see "Transparency for glass"), Cloud (needs non-solid-but-visible semantics, see
+      "Clouds"), Chest/tall grass/flowers (need non-cubic geometry, see "Non-cubic plant
+      geometry"), the 32-entry flat-color palette (low value, skipped).
 - [ ] Real texture atlas image (replace `Render::BuildPlaceholderAtlas`'s flat-color placeholder
       with an actual authored/generated `texture.png`-style atlas, same layout convention as
       `Craft/textures/texture.png`).

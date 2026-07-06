@@ -1,5 +1,6 @@
 #include "CnaCraftGame.hpp"
 
+#include <algorithm>
 #include <cstdio>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
@@ -128,7 +129,8 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     player_->Update(world_, input, dt);
 
     const int previousHotbarIndex = hotbar_.SelectedIndex();
-    for (int slot = 1; slot <= Worlds::Hotbar::SlotCount(); ++slot) {
+    const int numberKeySlots = std::min(Worlds::Hotbar::kMaxNumberKeySlots, Worlds::Hotbar::SlotCount());
+    for (int slot = 1; slot <= numberKeySlots; ++slot) {
         if (kb.IsKeyDown(static_cast<Keys>(static_cast<int>(Keys::D1) + slot - 1))) {
             hotbar_.SelectSlot(slot);
         }

@@ -126,20 +126,24 @@ void TestVoxelRaycastHitsExpectedFaceAndBlock() {
 
 void TestHotbarSelectionAndCycling() {
     Hotbar hotbar;
+    Check(hotbar.SlotCount() == 12, "hotbar has 12 slots (Bedrock excluded from the placeable roster)");
     Check(hotbar.SelectedIndex() == 0, "hotbar starts on slot 0");
     Check(hotbar.Selected() == BlockType::Grass, "hotbar starts selecting slot 1's block (Grass)");
 
-    hotbar.SelectSlot(3);
-    Check(hotbar.SelectedIndex() == 2, "SelectSlot(3) selects 0-based index 2");
-    Check(hotbar.Selected() == BlockType::Stone, "slot 3 is Stone");
+    hotbar.SelectSlot(4);
+    Check(hotbar.SelectedIndex() == 3, "SelectSlot(4) selects 0-based index 3");
+    Check(hotbar.Selected() == BlockType::Stone, "slot 4 is Stone");
 
     hotbar.SelectSlot(0);
-    Check(hotbar.SelectedIndex() == 2, "SelectSlot(0) is out of range and ignored");
+    Check(hotbar.SelectedIndex() == 3, "SelectSlot(0) is out of range and ignored");
     hotbar.SelectSlot(99);
-    Check(hotbar.SelectedIndex() == 2, "SelectSlot(99) is out of range and ignored");
+    Check(hotbar.SelectedIndex() == 3, "SelectSlot(99) is out of range and ignored");
 
     hotbar.CycleNext();
-    Check(hotbar.SelectedIndex() == 3, "CycleNext advances to the next slot");
+    Check(hotbar.SelectedIndex() == 4, "CycleNext advances to the next slot");
+
+    hotbar.SelectSlot(12);
+    Check(hotbar.Selected() == BlockType::Snow, "slot 12 (beyond the 9 direct number keys) is Snow");
     hotbar.CycleNext();
     Check(hotbar.SelectedIndex() == 0, "CycleNext wraps back to slot 0 after the last slot");
 }

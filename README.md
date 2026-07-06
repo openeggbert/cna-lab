@@ -63,8 +63,8 @@ cmake --build build --target CnaCraft
 | Space           | Jump                                 |
 | Left click      | Break block                          |
 | Right click     | Place block (currently selected type)|
-| 1 / 2 / 3 / 4   | Select hotbar slot (Grass/Dirt/Stone/Sand) |
-| E               | Cycle to next hotbar slot             |
+| 1-9             | Select hotbar slot directly (Grass/Dirt/Sand/Stone/Cobblestone/Brick/Plank/Wood/Cement) |
+| E               | Cycle to next hotbar slot (all 12: also reaches LightStone/DarkStone/Snow) |
 | Esc             | Quit                                  |
 
 Hotbar selection has no on-screen overlay yet (that's a separate task, see

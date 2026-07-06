@@ -22,6 +22,16 @@ const Color kTileColors[] = {
     Color(130, 130, 130, 255), // 3: stone
     Color(220, 200, 140, 255), // 4: sand
     Color(40, 40, 40, 255),    // 5: bedrock
+    Color(178, 79, 57, 255),   // 6: brick
+    Color(92, 64, 42, 255),    // 7: wood side (bark)
+    Color(196, 164, 116, 255), // 8: wood top/bottom (rings)
+    Color(160, 160, 165, 255), // 9: cement
+    Color(184, 148, 94, 255),  // 10: plank
+    Color(235, 235, 245, 255), // 11: snow top
+    Color(210, 220, 230, 255), // 12: snow side
+    Color(110, 115, 100, 255), // 13: cobblestone
+    Color(190, 190, 180, 255), // 14: light stone
+    Color(70, 70, 75, 255),    // 15: dark stone
 };
 constexpr int kTileCount = sizeof(kTileColors) / sizeof(kTileColors[0]);
 }
