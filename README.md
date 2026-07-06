@@ -60,16 +60,18 @@ cmake --build build --target CnaCraft
 |-----------------|--------------------------------------|
 | W / A / S / D   | Move / strafe                        |
 | Mouse           | Look (yaw / pitch)                   |
-| Space           | Jump                                 |
+| Space           | Jump (game mode) / fly up (fly mode) |
+| Left Ctrl       | Fly down (fly mode only)             |
+| Tab             | Toggle fly mode (no gravity, free vertical movement) |
 | Left click      | Break block                          |
 | Right click     | Place block (currently selected type)|
 | 1-9             | Select hotbar slot directly (Grass/Dirt/Sand/Stone/Cobblestone/Brick/Plank/Wood/Cement) |
 | E               | Cycle to next hotbar slot (all 12: also reaches LightStone/DarkStone/Snow) |
 | Esc             | Quit                                  |
 
-Hotbar selection has no on-screen overlay yet (that's a separate task, see
-`plan.md` §11.7) — the currently selected block name is printed to the
-console when it changes.
+Hotbar selection and the current fly mode state have no on-screen overlay yet
+(that's a separate task, see `plan.md` §11.7) — both are printed to the
+console when they change.
 
 ## 6. License
 

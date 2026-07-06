@@ -50,6 +50,7 @@ private:
     bool leftClickWasDown_ = false;
     bool rightClickWasDown_ = false;
     bool eKeyWasDown_ = false;
+    bool tabWasDown_ = false;
     int smokeFramesLeft_ = 0;
 };
 

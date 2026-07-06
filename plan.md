@@ -333,9 +333,15 @@ Checkbox state reflects this document's authoring session; update as work lands.
       `E` cycles); right-click placement now uses `hotbar_.Selected()` instead of a hardcoded
       `BlockType::Stone`. No on-screen overlay yet — selection changes print to the console
       instead (the visual crosshair/hotbar overlay is its own item, §11.7).
-- [ ] Flying-mode toggle (`Tab`), reusing `house3d_demo.cpp`'s Game/Fly mode split (§1/§6 already
-      note this demo as the movement reference) — `PlayerController` currently only implements
-      Game-mode gravity/collision.
+- [x] Flying-mode toggle (`Tab`), reusing `house3d_demo.cpp`'s Game/Fly mode split (§1/§6 already
+      note this demo as the movement reference). `PlayerController::ToggleFlying()`/`IsFlying()`
+      added; fly mode disables gravity and allows free vertical movement (`PlayerInput::moveUp`,
+      Space up / Left Ctrl down — Left Shift deliberately left free for the "Zoom" item below);
+      horizontal movement still collides with the world, vertical does not (matches
+      `house3d_demo.cpp`'s fly branch letting the player clip through floors/ceilings on purpose).
+      7 new unit tests in `tests/worlds_smoke_test.cpp`. Verified end-to-end against the real
+      EasyGL build (Tab toggling logged "Flying: on"/"off" to the console, no on-screen HUD yet —
+      same as the hotbar).
 - [ ] Zoom (Left Shift narrows FOV) and orthographic view toggle (`F`) — both are one-line
       `Matrix::CreatePerspectiveFieldOfView`/`CreateOrthographic` parameter changes in
       `CnaCraftGame::Draw`.

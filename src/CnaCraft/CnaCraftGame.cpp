@@ -123,8 +123,22 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     if (kb.IsKeyDown(Keys::D)) input.moveRight += 1.0f;
     if (kb.IsKeyDown(Keys::A)) input.moveRight -= 1.0f;
     input.jumpPressed = kb.IsKeyDown(Keys::Space);
+    // Fly mode only (PlayerController ignores this in game mode): Space rises,
+    // Left Ctrl descends. Left Shift is left free for the "Zoom" backlog item.
+    if (kb.IsKeyDown(Keys::Space)) input.moveUp += 1.0f;
+    if (kb.IsKeyDown(Keys::LeftControl)) input.moveUp -= 1.0f;
     input.lookDeltaYaw = static_cast<float>(mouse.getXProperty()) * kMouseSensitivity;
     input.lookDeltaPitch = -static_cast<float>(mouse.getYProperty()) * kMouseSensitivity;
+
+    const bool tabDown = kb.IsKeyDown(Keys::Tab);
+    if (tabDown && !tabWasDown_) {
+        player_->ToggleFlying();
+        // No on-screen HUD yet (plan.md §11.7); console feedback mirrors the
+        // hotbar selection printout below.
+        std::printf("Flying: %s\n", player_->IsFlying() ? "on" : "off");
+        std::fflush(stdout);
+    }
+    tabWasDown_ = tabDown;
 
     player_->Update(world_, input, dt);
 

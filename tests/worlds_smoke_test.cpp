@@ -171,6 +171,45 @@ void TestPlayerControllerGravityAndGroundCollision() {
     Check(landed, "player falls under gravity and comes to rest on top of the floor (y=4)");
 }
 
+void TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement() {
+    World world; // no terrain at all — plenty of open air in every direction
+    PlayerController player(Vec3f{static_cast<float>(WORLD_SIZE_X) / 2.0f, 32.0f,
+                                   static_cast<float>(WORLD_SIZE_Z) / 2.0f});
+
+    Check(!player.IsFlying(), "player starts in game mode, not flying");
+
+    PlayerInput noInput;
+    const float startY = player.EyePosition().y;
+    player.Update(world, noInput, 1.0f / 60.0f);
+    Check(player.EyePosition().y < startY, "sanity check: gravity pulls the player down in game mode");
+
+    player.ToggleFlying();
+    Check(player.IsFlying(), "ToggleFlying() switches to fly mode");
+
+    const float flyStartY = player.EyePosition().y;
+    PlayerInput hover;
+    for (int i = 0; i < 60; ++i) player.Update(world, hover, 1.0f / 60.0f);
+    Check(std::abs(player.EyePosition().y - flyStartY) < 0.01f,
+          "flying with no vertical input does not fall (no gravity while flying)");
+
+    PlayerInput riseInput;
+    riseInput.moveUp = 1.0f;
+    for (int i = 0; i < 60; ++i) player.Update(world, riseInput, 1.0f / 60.0f);
+    Check(player.EyePosition().y > flyStartY, "moveUp=1 while flying rises");
+
+    const float risenY = player.EyePosition().y;
+    PlayerInput sinkInput;
+    sinkInput.moveUp = -1.0f;
+    for (int i = 0; i < 60; ++i) player.Update(world, sinkInput, 1.0f / 60.0f);
+    Check(player.EyePosition().y < risenY, "moveUp=-1 while flying descends");
+
+    player.ToggleFlying();
+    Check(!player.IsFlying(), "ToggleFlying() again switches back to game mode");
+    const float backToGameY = player.EyePosition().y;
+    player.Update(world, noInput, 1.0f / 60.0f);
+    Check(player.EyePosition().y < backToGameY, "gravity resumes after leaving fly mode");
+}
+
 }
 
 int main() {
@@ -181,6 +220,7 @@ int main() {
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();
     TestPlayerControllerGravityAndGroundCollision();
+    TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement();
 
     if (g_failures == 0) {
         std::printf("\nAll checks passed.\n");

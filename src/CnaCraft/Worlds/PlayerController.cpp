@@ -11,6 +11,7 @@ constexpr float kEyeHeight = 1.7f;
 constexpr float kPlayerHalfWidth = 0.3f;
 constexpr float kPlayerHeight = 1.8f;
 constexpr float kMoveSpeed = 4.5f;
+constexpr float kFlySpeed = 9.0f; // faster than walking, matches Craft's flying speed being 4x
 constexpr float kGravity = 25.0f;
 constexpr float kJumpSpeed = 7.0f;
 constexpr float kPitchLimit = 1.55f; // ~89 degrees
@@ -53,30 +54,48 @@ void PlayerController::Update(const World& world, const PlayerInput& input, floa
     const float forwardX = sy, forwardZ = -cy;
     const float rightX = cy, rightZ = sy;
 
-    const float moveX = (forwardX * input.moveForward + rightX * input.moveRight) * kMoveSpeed;
-    const float moveZ = (forwardZ * input.moveForward + rightZ * input.moveRight) * kMoveSpeed;
-
-    if (grounded_ && input.jumpPressed) {
-        velocity_.y = kJumpSpeed;
-        grounded_ = false;
-    }
-    velocity_.y -= kGravity * dt;
-
     Core::Vec3f next = position_;
 
-    next.x = position_.x + moveX * dt;
-    if (CollidesAt(world, next)) next.x = position_.x;
+    if (flying_) {
+        // Fly mode (plan.md §11.4): no gravity, free vertical movement.
+        // Horizontal axes still collide with the world (matches
+        // house3d_demo.cpp's fly branch); vertical does not, so the player
+        // can fly through floors/ceilings on purpose.
+        const float moveX = (forwardX * input.moveForward + rightX * input.moveRight) * kFlySpeed;
+        const float moveZ = (forwardZ * input.moveForward + rightZ * input.moveRight) * kFlySpeed;
 
-    next.z = position_.z + moveZ * dt;
-    if (CollidesAt(world, Core::Vec3f{next.x, position_.y, next.z})) next.z = position_.z;
+        next.x = position_.x + moveX * dt;
+        if (CollidesAt(world, next)) next.x = position_.x;
 
-    next.y = position_.y + velocity_.y * dt;
-    if (CollidesAt(world, Core::Vec3f{next.x, next.y, next.z})) {
-        if (velocity_.y < 0.0f) grounded_ = true;
-        velocity_.y = 0.0f;
-        next.y = position_.y;
-    } else {
+        next.z = position_.z + moveZ * dt;
+        if (CollidesAt(world, Core::Vec3f{next.x, position_.y, next.z})) next.z = position_.z;
+
+        next.y = position_.y + input.moveUp * kFlySpeed * dt;
         grounded_ = false;
+    } else {
+        const float moveX = (forwardX * input.moveForward + rightX * input.moveRight) * kMoveSpeed;
+        const float moveZ = (forwardZ * input.moveForward + rightZ * input.moveRight) * kMoveSpeed;
+
+        if (grounded_ && input.jumpPressed) {
+            velocity_.y = kJumpSpeed;
+            grounded_ = false;
+        }
+        velocity_.y -= kGravity * dt;
+
+        next.x = position_.x + moveX * dt;
+        if (CollidesAt(world, next)) next.x = position_.x;
+
+        next.z = position_.z + moveZ * dt;
+        if (CollidesAt(world, Core::Vec3f{next.x, position_.y, next.z})) next.z = position_.z;
+
+        next.y = position_.y + velocity_.y * dt;
+        if (CollidesAt(world, Core::Vec3f{next.x, next.y, next.z})) {
+            if (velocity_.y < 0.0f) grounded_ = true;
+            velocity_.y = 0.0f;
+            next.y = position_.y;
+        } else {
+            grounded_ = false;
+        }
     }
 
     position_ = next;
