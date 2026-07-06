@@ -1,5 +1,6 @@
 #include "Hud.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <vector>
 
@@ -121,29 +122,38 @@ constexpr std::uint8_t kFont8x8[95][8] = {
   {0x6E,0x3B,0x00,0x00,0x00,0x00,0x00,0x00}, // 0x7E ~
 };
 
-constexpr int kGlyphAdvance = 8;
+constexpr int kGlyphSize = 8;
 
-// Renders ASCII text into an RGBA pixel buffer; returns the x position just
-// past the last drawn glyph (so callers can chain multiple colored runs on
-// one line without retracking width themselves).
+// Renders ASCII text into an RGBA pixel buffer at `scale`x the native 8x8
+// glyph size (each source pixel becomes a scale-by-scale block) — the
+// original 1x rendering was legibility-tested only in a screenshot, not
+// against a real display, and turned out far too small to read in practice.
+// Returns the x position just past the last drawn glyph, so callers can
+// chain multiple colored runs on one line without retracking width
+// themselves.
 int FontDrawText(std::vector<std::uint8_t>& buf, int bufW, int bufH, int x, int y, const std::string& text,
-                  std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a = 255) {
+                  std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a = 255, int scale = 1) {
     int cx = x;
+    const int glyphAdvance = kGlyphSize * scale;
     for (char ch : text) {
         const int idx = static_cast<unsigned char>(ch) - 0x20;
-        if (idx < 0 || idx >= 95) { cx += kGlyphAdvance; continue; }
+        if (idx < 0 || idx >= 95) { cx += glyphAdvance; continue; }
         const auto* glyph = kFont8x8[idx];
-        for (int row = 0; row < 8; ++row) {
-            for (int col = 0; col < 8; ++col) {
+        for (int row = 0; row < kGlyphSize; ++row) {
+            for (int col = 0; col < kGlyphSize; ++col) {
                 if (glyph[row] & (1u << col)) {
-                    const int px = cx + col, py = y + row;
-                    if (px < 0 || px >= bufW || py < 0 || py >= bufH) continue;
-                    const int off = (py * bufW + px) * 4;
-                    buf[off + 0] = r; buf[off + 1] = g; buf[off + 2] = b; buf[off + 3] = a;
+                    for (int sy = 0; sy < scale; ++sy) {
+                        for (int sx = 0; sx < scale; ++sx) {
+                            const int px = cx + col * scale + sx, py = y + row * scale + sy;
+                            if (px < 0 || px >= bufW || py < 0 || py >= bufH) continue;
+                            const int off = (py * bufW + px) * 4;
+                            buf[off + 0] = r; buf[off + 1] = g; buf[off + 2] = b; buf[off + 3] = a;
+                        }
+                    }
                 }
             }
         }
-        cx += kGlyphAdvance;
+        cx += glyphAdvance;
     }
     return cx;
 }
@@ -164,8 +174,16 @@ Texture2D BuildCrosshairTexture(GraphicsDevice& device) {
     return texture;
 }
 
-constexpr int kHotbarWidth = 900;
-constexpr int kHotbarHeight = 16;
+// Text scale 3x (24px-effective glyphs) — see FontDrawText. Showing all 13
+// slot names on one line (the original approach) forced a very wide native
+// texture, which then had to be scaled back down to fit the screen width —
+// undoing most of the size gain and leaving the text just as small as
+// before. Showing only the currently-selected item keeps the content short
+// enough to render genuinely large at any resolution; width/height below
+// fit the worst case ("[FLYING] #13 Cobblestone") with margin.
+constexpr int kHotbarTextScale = 3;
+constexpr int kHotbarWidth = 650;
+constexpr int kHotbarHeight = 32;
 
 }
 
@@ -181,20 +199,13 @@ void Hud::RebuildHotbar(GraphicsDevice&, const std::string* slotNames, int slotC
                         int selectedIndex, bool flying) {
     std::vector<std::uint8_t> px(static_cast<std::size_t>(kHotbarWidth) * kHotbarHeight * 4, 0);
 
-    int x = 2;
-    if (flying) {
-        x = FontDrawText(px, kHotbarWidth, kHotbarHeight, x, 4, "[FLYING] ", 120, 220, 255);
+    std::string text;
+    if (flying) text += "[FLYING] ";
+    if (selectedIndex >= 0 && selectedIndex < slotCount) {
+        text += "#" + std::to_string(selectedIndex + 1) + "/" + std::to_string(slotCount) + " "
+              + slotNames[selectedIndex];
     }
-    for (int i = 0; i < slotCount; ++i) {
-        const bool selected = (i == selectedIndex);
-        const std::string label = selected ? ("[" + slotNames[i] + "]") : slotNames[i];
-        if (selected) {
-            x = FontDrawText(px, kHotbarWidth, kHotbarHeight, x, 4, label, 255, 230, 60);
-        } else {
-            x = FontDrawText(px, kHotbarWidth, kHotbarHeight, x, 4, label, 190, 190, 190);
-        }
-        x += kGlyphAdvance; // space between entries
-    }
+    FontDrawText(px, kHotbarWidth, kHotbarHeight, 2, 4, text, 255, 230, 60, 255, kHotbarTextScale);
 
     hotbarTexture_.SetDataRGBA(px.data(), kHotbarWidth * kHotbarHeight);
 }
@@ -207,15 +218,27 @@ void Hud::Draw(GraphicsDevice& device) {
     device.SetDepthTestEnabled(false);
     spriteBatch_->Begin();
 
-    const int crossSize = 20;
+    const int crossSize = std::max(20, static_cast<int>(sh * 0.02f));
     spriteBatch_->Draw(
         crosshairTexture_,
         Rectangle((sw - crossSize) / 2, (sh - crossSize) / 2, crossSize, crossSize),
         crosshairTexture_.getBoundsProperty(),
         Color(255, 255, 255, 255));
 
-    const int hotbarDrawWidth = static_cast<int>(sw * 0.7f);
-    const int hotbarDrawHeight = hotbarDrawWidth * kHotbarHeight / kHotbarWidth;
+    // Sized from a target screen HEIGHT (not a fraction of screen width) so
+    // it stays legible regardless of resolution: scaling a very wide, short
+    // texture (kHotbarWidth x kHotbarHeight) to fit a fraction of the
+    // screen's width barely magnifies its height at all, which is what made
+    // the original version too small to read on a real display. Falls back
+    // to width-based sizing only if the height-based width would overflow
+    // the screen.
+    int hotbarDrawHeight = std::max(28, static_cast<int>(sh * 0.045f));
+    int hotbarDrawWidth = hotbarDrawHeight * kHotbarWidth / kHotbarHeight;
+    const int maxWidth = static_cast<int>(sw * 0.95f);
+    if (hotbarDrawWidth > maxWidth) {
+        hotbarDrawWidth = maxWidth;
+        hotbarDrawHeight = hotbarDrawWidth * kHotbarHeight / kHotbarWidth;
+    }
     spriteBatch_->Draw(
         hotbarTexture_,
         Rectangle((sw - hotbarDrawWidth) / 2, sh - hotbarDrawHeight - 12, hotbarDrawWidth, hotbarDrawHeight),

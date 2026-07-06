@@ -249,6 +249,37 @@ checked out as siblings, and one of the three 3D-capable backends selected at co
   `128×64×128`-block/32-chunk scale; would need addressing before scaling to a larger or
   streamed world (§9, M7).
 
+**Real bugs found via actual play (not just tests/screenshots) and fixed:**
+
+- **Spawn wedged against a cliff, unable to move or jump at all** — `CnaCraftGame::Initialize` used
+  to spawn the player at an *integer* world coordinate (`WORLD_SIZE_X/2`, `WORLD_SIZE_Z/2`),
+  exactly on the boundary between two block columns. The player's 0.6-wide hitbox
+  (`kPlayerHalfWidth=0.3`) straddles that boundary equally on both sides. Once §11.1 swapped in
+  Simplex noise (steeper local height changes than the old value noise), the neighboring column
+  right next to spawn was sometimes several blocks taller, permanently wedging the player against
+  it — floating above its own column's true floor, blocked from moving in any direction, and
+  effectively unable to jump clear of it either. **This was reported directly by the user actually
+  playing the game** — earlier automated/screenshot-based verification in this session didn't
+  catch it. Fixed by spawning at block *center* (integer + 0.5) instead, keeping the hitbox fully
+  inside its own column. Root-caused via a temporary per-frame debug print (confirmed WASD input
+  *was* reaching `PlayerController::Update` with the correct `moveForward` value, but position
+  never changed) plus a deterministic diagnostic against the real generated terrain (showed the
+  player resting one full column-height above its own surface, immediately next to a much taller
+  neighbor). Now covered by a permanent regression test,
+  `TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging` (`tests/worlds_smoke_test.cpp`), built from a
+  hand-crafted flat floor plus one tall neighboring column so it stays deterministic regardless of
+  future noise changes.
+- **HUD hotbar text far too small to read** — the original `Render::Hud` hotbar texture packed all
+  13 slot names onto one very wide, short line (900×16px native), then scaled it to fit ~70% of
+  the screen's *width*. Because the native texture was already comparably wide, that barely
+  magnified its *height* at all on realistic resolutions, leaving the text tiny regardless of
+  display size. Fixed by (1) showing only the currently-selected item (`"#4/13 Stone"`, plus a
+  `[FLYING]` prefix) instead of all 13 names on one line, which keeps the content short enough to
+  render genuinely large, and (2) sizing the destination rectangle from a target *screen height*
+  (with a floor and a width-based fallback to avoid overflow) rather than a fraction of screen
+  width. Also added a `scale` parameter to `Hud.cpp`'s `FontDrawText` (3x for the hotbar line) and
+  slightly enlarged the crosshair to scale with resolution too.
+
 ## 11. Task backlog: toward fogleman/Craft feature parity
 
 M0–M6 (§9) get CnaCraft to "walkable, texturable, breakable/placeable voxel world" — a prototype,

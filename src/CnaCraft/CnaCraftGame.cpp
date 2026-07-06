@@ -87,10 +87,19 @@ void CnaCraftGame::Initialize() {
     atlasTexture_ = std::make_unique<Texture2D>(Render::BuildPlaceholderAtlas(device));
     effect_->setTextureProperty(atlasTexture_.get());
 
-    const float spawnX = static_cast<float>(Worlds::WORLD_SIZE_X) / 2.0f;
-    const float spawnZ = static_cast<float>(Worlds::WORLD_SIZE_Z) / 2.0f;
-    const int spawnHeight =
-        Worlds::NoiseGenerator::Height(kWorldSeed, static_cast<int>(spawnX), static_cast<int>(spawnZ));
+    // Bug fix: spawning at an *integer* coordinate puts the player's 0.6-wide
+    // hitbox (kPlayerHalfWidth=0.3) exactly on the boundary between two
+    // block columns, straddling both equally. With Simplex noise's steeper
+    // local height changes (§11.1) a neighboring column can be much taller
+    // right next to spawn, permanently wedging the player against it --
+    // unable to reach its own column's true floor or move in any direction.
+    // Spawning at block *center* (integer + 0.5) keeps the hitbox fully
+    // inside its own column instead.
+    const int spawnColumnX = Worlds::WORLD_SIZE_X / 2;
+    const int spawnColumnZ = Worlds::WORLD_SIZE_Z / 2;
+    const float spawnX = static_cast<float>(spawnColumnX) + 0.5f;
+    const float spawnZ = static_cast<float>(spawnColumnZ) + 0.5f;
+    const int spawnHeight = Worlds::NoiseGenerator::Height(kWorldSeed, spawnColumnX, spawnColumnZ);
     player_ = std::make_unique<Worlds::PlayerController>(
         Core::Vec3f{spawnX, static_cast<float>(spawnHeight + 2), spawnZ});
 

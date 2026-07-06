@@ -212,6 +212,50 @@ void TestHotbarSelectionAndCycling() {
     Check(hotbar.SelectedIndex() == 0, "CycleNext wraps back to slot 0 after the last slot");
 }
 
+void TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging() {
+    // Regression test for a real user-reported bug: CnaCraftGame used to
+    // spawn the player at an *integer* world coordinate, exactly on the
+    // boundary between two block columns. The player's 0.6-wide hitbox
+    // (kPlayerHalfWidth=0.3) straddles that boundary equally on both sides.
+    // With Simplex noise's steeper local height changes (§11.1), a
+    // neighboring column right next to spawn can be much taller than the
+    // spawn column, permanently wedging the player against it: unable to
+    // reach its own column's true floor, unable to move in any direction,
+    // and unable to jump clear of it either. Fixed by spawning at block
+    // *center* (integer + 0.5) instead, which keeps the hitbox fully inside
+    // its own column. Reproduced here with a hand-built flat floor plus one
+    // much taller neighboring column, rather than the real generated
+    // terrain, so this test stays deterministic even if the noise
+    // implementation changes again.
+    World world;
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            for (int y = 0; y <= 3; ++y) world.SetBlock(x, y, z, BlockType::Stone);
+        }
+    }
+    for (int y = 4; y <= 7; ++y) world.SetBlock(65, y, 64, BlockType::Stone); // tall neighbor at x=65
+
+    PlayerController player(Vec3f{64.5f, 10.0f, 64.5f}); // block-center, not 64.0f/64.0f
+    PlayerInput noInput;
+    for (int i = 0; i < 300; ++i) player.Update(world, noInput, 1.0f / 60.0f);
+    Check(std::abs(player.EyePosition().y - (4.0f + 1.7f)) < 0.05f,
+          "block-center spawn settles on its own column's floor, unaffected by a much taller neighbor");
+    Check(player.IsGrounded(), "block-center spawn next to a tall neighbor still registers as grounded");
+
+    PlayerInput moveAway;
+    moveAway.moveForward = 1.0f; // yaw=0 => -Z, perpendicular to the tall neighbor at x=65
+    const float startZ = player.EyePosition().z;
+    for (int i = 0; i < 60; ++i) player.Update(world, moveAway, 1.0f / 60.0f);
+    Check(player.EyePosition().z < startZ - 1.0f,
+          "block-center spawn next to a tall neighbor can still move freely");
+
+    PlayerInput jump;
+    jump.jumpPressed = true;
+    const float preJumpY = player.EyePosition().y;
+    player.Update(world, jump, 1.0f / 60.0f);
+    Check(player.EyePosition().y > preJumpY, "block-center spawn next to a tall neighbor can still jump");
+}
+
 void TestPlayerControllerGravityAndGroundCollision() {
     World world;
     // A flat floor of stone at y=0..3, air above.
@@ -286,6 +330,7 @@ int main() {
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();
     TestPlayerControllerGravityAndGroundCollision();
+    TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging();
     TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement();
 
     if (g_failures == 0) {
