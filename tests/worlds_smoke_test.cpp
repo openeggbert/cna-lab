@@ -83,6 +83,30 @@ void TestWorldGenerationIsDeterministic() {
     Check(!a.IsSolid(0, WORLD_SIZE_Y - 1, 0), "world ceiling column is not solid");
 }
 
+void TestNoiseGeneratorSimplex2IsSeeded() {
+    Check(NoiseGenerator::Height(1234, 5, 5) == NoiseGenerator::Height(1234, 5, 5),
+          "NoiseGenerator::Height is a pure function of (seed, x, z)");
+
+    bool anyDifferent = false;
+    for (int x = 0; x < 32; ++x) {
+        for (int z = 0; z < 32; ++z) {
+            if (NoiseGenerator::Height(1111, x, z) != NoiseGenerator::Height(2222, x, z)) {
+                anyDifferent = true;
+            }
+        }
+    }
+    Check(anyDifferent, "different seeds produce different terrain (unlike Craft's fixed permutation table)");
+
+    bool allInRange = true;
+    for (int x = 0; x < 64; ++x) {
+        for (int z = 0; z < 64; ++z) {
+            const int h = NoiseGenerator::Height(42, x, z);
+            if (h < 4 || h > 56) allInRange = false;
+        }
+    }
+    Check(allInRange, "Height stays within its documented [4, 56] clamp range");
+}
+
 void TestChunkMesherFaceCulling() {
     World world;
     // A fully-air chunk should produce no geometry at all.
@@ -216,6 +240,7 @@ int main() {
     TestChunkBasics();
     TestWorldBoundsAndRoundTrip();
     TestWorldGenerationIsDeterministic();
+    TestNoiseGeneratorSimplex2IsSeeded();
     TestChunkMesherFaceCulling();
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();

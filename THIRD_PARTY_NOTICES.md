@@ -11,9 +11,12 @@ consciously modeled on Craft's approach, and are called out as such in `plan.md`
 - Storing world edits as a sparse list of `(chunk, x, y, z, blockType)` deltas layered on top of
   procedurally regenerated terrain, rather than persisting the full world (Craft's SQLite `block`
   delta-table schema), as the intended approach for the save/load stretch goal.
-- Deterministic, position-seeded noise for terrain height (Craft uses Simplex noise; this
-  prototype uses a self-contained value-noise implementation for the same purpose, with Simplex
-  noted as a possible upgrade).
+- Deterministic, position-seeded noise for terrain height, now using the same 2D Simplex noise
+  algorithm Craft uses (`NoiseGenerator.cpp`'s `Noise2`, independently reimplemented — not copied —
+  following the classic Gustavson simplex-noise algorithm structure that Craft's own
+  `deps/noise/noise.c` also implements, itself derived from https://github.com/caseman/noise, MIT
+  license, Copyright (c) 2008 Casey Duncan). Unlike Craft's fixed/global permutation table, this
+  implementation permutes its gradient table per world seed.
 
 Because this project's own [LICENSE](LICENSE) is already MIT, it is license-compatible with
 Craft's MIT license (reproduced below in full per its terms) without any change to CNA Craft's

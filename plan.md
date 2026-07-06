@@ -20,9 +20,9 @@ no code is copied verbatim, only architecture/algorithms):
 - **Delta-based persistence**: Craft's SQLite `block(p,q,x,y,z,w)` table stores only *edits* on
   top of regenerated procedural terrain, not the full world. Adopted as the intended shape of the
   M7 save/load stretch goal (§9).
-- **Deterministic, position-seeded noise** for terrain height — Craft uses Simplex noise; this
-  plan uses a self-contained value-noise implementation for the same purpose (§3), with Simplex
-  noted as a possible drop-in upgrade.
+- **Deterministic, position-seeded noise** for terrain height — Craft uses Simplex noise, and so
+  does this project now (§3, §11.1), independently reimplemented with a per-world-seed permuted
+  gradient table rather than Craft's own fixed/global one.
 - **Chunked world, not literally infinite** at the storage layer — Craft treats a chunk as a
   32×32 XZ column with the full 0–255 Y range and a hash map of sparse blocks; this prototype
   instead uses fixed-size `16×16×16` chunks over a bounded `128×64×128` world with dense
@@ -111,10 +111,11 @@ flag the mesher/renderer use to know a chunk needs re-meshing.
 - `SetBlock` marks the owning chunk dirty, and also the neighboring chunk(s) if the modified
   block sits on a chunk boundary (its face culling depends on the neighbor).
 
-**`NoiseGenerator`** — deterministic, dependency-free 2D fractal value noise (integer hash →
-smoothstep-interpolated lattice noise, a handful of octaves summed). No external noise library
-needed; the entire prototype's terrain variety comes from this ~40-line file. Seeded so the same
-seed always reproduces the same world (useful for the smoke test in §8).
+**`NoiseGenerator`** — deterministic, dependency-free 2D Simplex noise (§11.1: swapped in from the
+original value-noise implementation to match Craft's own terrain algorithm), fractal-summed over a
+handful of octaves. No external noise library needed. Seeded (via a per-seed permuted gradient
+table) so the same seed always reproduces the same world, and different seeds produce different
+worlds (useful for the smoke test in §8).
 
 ## 4. Meshing (`src/CnaCraft/Worlds/ChunkMesher.*`, `MeshData.hpp`)
 
@@ -269,9 +270,17 @@ Checkbox state reflects this document's authoring session; update as work lands.
       unbounded world instead of today's fixed bounds.
 - [ ] Chunk load/unload driven by player distance (Craft: `src/world.c` `create_chunk`, only
       chunks within a radius of the player are resident).
-- [ ] Swap `NoiseGenerator`'s value noise for Simplex noise (Craft: `src/noise.c`-equivalent —
-      actually inlined in `src/world.c`'s `simplex2`/`simplex3` calls) for closer-to-reference
-      terrain shape; keep the deterministic-per-seed property the smoke test relies on.
+- [x] Swap `NoiseGenerator`'s value noise for Simplex noise. **Correction**: `noise.c`/`noise.h`
+      actually live in `Craft/deps/noise/` (derived from https://github.com/caseman/noise, MIT),
+      not inline in `world.c` as this line originally said — `world.c` just calls `simplex2`. Ported
+      the same 2D simplex algorithm (`Noise2` in `NoiseGenerator.cpp`), but with a per-*world-seed*
+      permuted gradient table (small seeded xorshift32 Fisher-Yates shuffle) instead of Craft's own
+      fixed/global `PERM` table, so both "same seed → same terrain" (already relied on by the
+      smoke test) and "different seed → different terrain" hold — 2 new unit tests cover this plus
+      an output-range sanity check (44 checks total now). Only `simplex2` (2D, for `Height`) was
+      ported; `simplex3` (3D density, needed for caves) is deferred to that backlog item below.
+      Verified visually against a real EasyGL build — terrain has a plausibly more organic/bumpy
+      shape than the old value-noise rolling hills.
 - [ ] Caves/overhangs: a second, lower-frequency 3D density noise carving out solid terrain
       (Craft's `world.c` combines a 2D heightmap with a 3D noise term for overhangs).
 - [ ] Trees and plants placement pass after heightmap generation (Craft: `src/world.c` places
