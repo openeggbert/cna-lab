@@ -10,6 +10,7 @@
 #include "CnaCraft/Worlds/BlockType.hpp"
 #include "CnaCraft/Worlds/Chunk.hpp"
 #include "CnaCraft/Worlds/ChunkMesher.hpp"
+#include "CnaCraft/Worlds/DayNightCycle.hpp"
 #include "CnaCraft/Worlds/Hotbar.hpp"
 #include "CnaCraft/Worlds/NoiseGenerator.hpp"
 #include "CnaCraft/Worlds/PlayerController.hpp"
@@ -111,6 +112,28 @@ void TestNoiseGeneratorSimplex2IsSeeded() {
         }
     }
     Check(allInRange, "Height stays within its documented [4, 56] clamp range");
+}
+
+void TestDayNightCycleMatchesCraftsCurveShape() {
+    constexpr float kDay = kDefaultDayLengthSeconds;
+
+    Check(ComputeDaylight(0.0f, kDay) < 0.01f, "midnight (t=0) is full night");
+    Check(std::abs(ComputeDaylight(kDay * 0.25f, kDay) - 0.5f) < 0.01f,
+          "dawn transition midpoint (t=0.25) is half daylight");
+    Check(ComputeDaylight(kDay * 0.5f, kDay) > 0.99f, "midday (t=0.5) is full daylight");
+    Check(std::abs(ComputeDaylight(kDay * 0.85f, kDay) - 0.5f) < 0.01f,
+          "dusk transition midpoint (t=0.85) is half daylight");
+    Check(ComputeDaylight(kDay * 0.999f, kDay) < 0.01f, "just before midnight (t~1) is full night again");
+
+    // Wraps for any elapsed time, not just the first cycle (callers feed
+    // GameTime::TotalGameTime directly, which only grows).
+    const float firstCycleDawn = ComputeDaylight(kDay * 0.25f, kDay);
+    const float fifthCycleDawn = ComputeDaylight(kDay * 4.25f, kDay);
+    Check(std::abs(firstCycleDawn - fifthCycleDawn) < 0.001f,
+          "the curve wraps identically on later cycles (pure function of elapsed time mod day length)");
+
+    Check(std::abs(ComputeDaylight(100.0f, 0.0f) - 0.5f) < 0.001f,
+          "a zero/invalid day length falls back to a fixed mid-level daylight instead of dividing by zero");
 }
 
 void TestChunkMesherFaceCulling() {
@@ -432,6 +455,7 @@ int main() {
     TestWorldBoundsAndRoundTrip();
     TestWorldGenerationIsDeterministic();
     TestNoiseGeneratorSimplex2IsSeeded();
+    TestDayNightCycleMatchesCraftsCurveShape();
     TestChunkMesherFaceCulling();
     TestChunkMesherGlassTransparency();
     TestChunkMesherCloudIsOpaqueButNotCollidable();

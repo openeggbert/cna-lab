@@ -15,6 +15,7 @@
 #include "Microsoft/Xna/Framework/Matrix.hpp"
 
 #include "Render/TextureAtlas.hpp"
+#include "Worlds/DayNightCycle.hpp"
 #include "Worlds/NoiseGenerator.hpp"
 #include "Worlds/VoxelRaycast.hpp"
 
@@ -81,7 +82,9 @@ void CnaCraftGame::Initialize() {
     // three lights essentially unlit (visibly black on flat terrain faces);
     // floor it with a moderate ambient term so no face ever goes pure black,
     // matching Craft's block_fragment.glsl ("ambient = value*0.3+0.2", never
-    // zero) — see THIRD_PARTY_NOTICES.md.
+    // zero — see THIRD_PARTY_NOTICES.md). Set here as the first frame's
+    // starting value; Draw() recomputes it every frame from the day/night
+    // cycle (plan.md §11.3) using the same formula with a live `daylight`.
     effect_->setAmbientLightColorProperty(Vector3(0.5f, 0.5f, 0.5f));
 
     atlasTexture_ = std::make_unique<Texture2D>(Render::BuildPlaceholderAtlas(device));
@@ -237,9 +240,25 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     RebuildDirtyChunks();
 }
 
-void CnaCraftGame::Draw(const GameTime&) {
+void CnaCraftGame::Draw(const GameTime& gameTime) {
     auto& device = getGraphicsDeviceProperty();
-    device.Clear(Color(135, 196, 235, 255), 1.0f);
+
+    // Day/night cycle (plan.md §11.3): a daylight value in [0, 1] driven by
+    // GameTime::TotalGameTime, matching Craft's own get_daylight()/
+    // time_of_day() curve shape (src/main.c) — dawn/dusk sigmoid transitions
+    // bracketing long full-day/full-night plateaus. Drives BasicEffect's
+    // ambient term with the same `value*0.3+0.2` formula as
+    // block_fragment.glsl, and tints the (still-flat, no sky dome yet —
+    // that's a separate backlog item) clear color between night and day.
+    const float daylight = Worlds::ComputeDaylight(
+        static_cast<float>(gameTime.getTotalGameTimeProperty().getTotalSecondsProperty()));
+    const float ambient = daylight * 0.3f + 0.2f;
+    effect_->setAmbientLightColorProperty(Vector3(ambient, ambient, ambient));
+
+    const auto lerpChannel = [daylight](int night, int day) {
+        return static_cast<int>(static_cast<float>(night) + static_cast<float>(day - night) * daylight);
+    };
+    device.Clear(Color(lerpChannel(12, 135), lerpChannel(14, 196), lerpChannel(36, 235), 255), 1.0f);
     device.SetDepthTestEnabled(true);
     // Nearest-neighbor sampling: the atlas has no padding between tiles, so
     // linear filtering bleeds each tile's neighbor color (visible as magenta

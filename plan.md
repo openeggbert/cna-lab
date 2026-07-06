@@ -423,8 +423,17 @@ Checkbox state reflects this document's authoring session; update as work lands.
 
 ### 11.3 Sky & lighting
 
-- [ ] Day/night cycle: a `daylight` value driven by a game-time clock, feeding into `BasicEffect`
-      lighting (or a custom shader later) the way `block_fragment.glsl`'s `daylight` uniform does.
+- [x] Day/night cycle: new engine-agnostic `Worlds/DayNightCycle.{hpp,cpp}` — `ComputeDaylight`
+      ports Craft's own `get_daylight()`/`time_of_day()` curve shape (`src/main.c`: two sigmoid
+      transitions for dawn/dusk bracketing long full-day/full-night plateaus), driven by
+      `GameTime::TotalGameTime` (matches Craft's real `DAY_LENGTH=600` seconds per cycle).
+      `CnaCraftGame::Draw` recomputes it every frame, feeding `BasicEffect`'s ambient term with the
+      same `value*0.3+0.2` formula as `block_fragment.glsl`, and lerps the (still-flat — no sky
+      dome yet, see below) clear color between a night and day tint. 6 new unit tests (curve shape
+      at midnight/dawn/midday/dusk, wraparound across multiple cycles, zero-day-length fallback);
+      82 checks total. Verified visually against a real EasyGL build: at game start (`TotalGameTime
+      ≈ 0`, i.e. midnight) the sky renders a clear dark navy instead of the old fixed sky-blue, and
+      terrain ambient lighting is visibly darker too.
 - [ ] Textured sky dome + fog blended by height/distance (Craft: `shaders/sky_*.glsl`,
       `fog_height`/`fog_factor` in `block_vertex.glsl`) — replaces the flat `device.Clear(...)` sky
       color in `CnaCraftGame::Draw` (§5).
