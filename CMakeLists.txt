@@ -98,6 +98,7 @@ if(CNA_CRAFT_BUILD_GAME)
         src/CnaCraft/CnaCraftGame.cpp
         src/CnaCraft/Render/TextureAtlas.cpp
         src/CnaCraft/Render/ChunkRenderer.cpp
+        src/CnaCraft/Render/Hud.cpp
     )
     target_include_directories(CnaCraft PRIVATE src)
 

@@ -71,9 +71,9 @@ cmake --build build --target CnaCraft
 | F (hold)        | Orthographic projection               |
 | Esc             | Quit                                  |
 
-Hotbar selection and the current fly mode state have no on-screen overlay yet
-(that's a separate task, see `plan.md` §11.7) — both are printed to the
-console when they change.
+A crosshair and a hotbar strip (all 12 slots, selected one highlighted, with a
+`[FLYING]` indicator while flying) are drawn on screen; both are also printed
+to the console when they change.
 
 ## 6. License
 

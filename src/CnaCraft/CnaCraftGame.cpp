@@ -89,6 +89,14 @@ void CnaCraftGame::Initialize() {
         Worlds::NoiseGenerator::Height(kWorldSeed, static_cast<int>(spawnX), static_cast<int>(spawnZ));
     player_ = std::make_unique<Worlds::PlayerController>(
         Core::Vec3f{spawnX, static_cast<float>(spawnHeight + 2), spawnZ});
+
+    hud_ = std::make_unique<Render::Hud>(device);
+    hotbarSlotNames_.reserve(Worlds::Hotbar::kSlots.size());
+    for (Worlds::BlockType type : Worlds::Hotbar::kSlots) {
+        hotbarSlotNames_.emplace_back(Worlds::GetBlockName(type));
+    }
+    hud_->RebuildHotbar(device, hotbarSlotNames_.data(), static_cast<int>(hotbarSlotNames_.size()),
+                        hotbar_.SelectedIndex(), player_->IsFlying());
 }
 
 void CnaCraftGame::RebuildDirtyChunks() {
@@ -140,13 +148,18 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     input.lookDeltaYaw = static_cast<float>(mouse.getXProperty()) * kMouseSensitivity;
     input.lookDeltaPitch = -static_cast<float>(mouse.getYProperty()) * kMouseSensitivity;
 
+    const auto rebuildHud = [this]() {
+        hud_->RebuildHotbar(getGraphicsDeviceProperty(), hotbarSlotNames_.data(),
+                            static_cast<int>(hotbarSlotNames_.size()), hotbar_.SelectedIndex(),
+                            player_->IsFlying());
+    };
+
     const bool tabDown = kb.IsKeyDown(Keys::Tab);
     if (tabDown && !tabWasDown_) {
         player_->ToggleFlying();
-        // No on-screen HUD yet (plan.md §11.7); console feedback mirrors the
-        // hotbar selection printout below.
         std::printf("Flying: %s\n", player_->IsFlying() ? "on" : "off");
         std::fflush(stdout);
+        rebuildHud();
     }
     tabWasDown_ = tabDown;
 
@@ -165,10 +178,9 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     }
     eKeyWasDown_ = eDown;
     if (hotbar_.SelectedIndex() != previousHotbarIndex) {
-        // No on-screen hotbar overlay yet (plan.md §11.7); console feedback is
-        // enough to confirm selection while playing interactively.
         std::printf("Selected block: %s\n", Worlds::GetBlockName(hotbar_.Selected()));
         std::fflush(stdout);
+        rebuildHud();
     }
 
     const bool leftDown = mouse.getLeftButtonProperty() == ButtonState::Pressed;
@@ -227,6 +239,8 @@ void CnaCraftGame::Draw(const GameTime&) {
     for (auto& renderer : chunkRenderers_) {
         renderer.Draw(device, *effect_);
     }
+
+    hud_->Draw(device);
 }
 
 }

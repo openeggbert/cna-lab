@@ -10,6 +10,7 @@
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
 
 #include "Render/ChunkRenderer.hpp"
+#include "Render/Hud.hpp"
 #include "Worlds/Hotbar.hpp"
 #include "Worlds/PlayerController.hpp"
 #include "Worlds/World.hpp"
@@ -46,6 +47,9 @@ private:
     std::unique_ptr<Worlds::PlayerController> player_;
     std::vector<Render::ChunkRenderer> chunkRenderers_;
     Worlds::Hotbar hotbar_;
+
+    std::unique_ptr<Render::Hud> hud_;
+    std::vector<std::string> hotbarSlotNames_;
 
     bool leftClickWasDown_ = false;
     bool rightClickWasDown_ = false;

@@ -352,6 +352,11 @@ Checkbox state reflects this document's authoring session; update as work lands.
       texture (Craft: `src/sign.c`, `textures/sign.png`) — CNA's `SpriteFont`/bitmap-font approach
       from `house3d_demo.cpp`'s controls overlay is a usable reference for the text-rendering part.
 - [ ] Exact-axis movement keys (Craft's `ZXCVBN`) — low priority, purely a control-scheme nicety.
+      **Correction**: `Craft/README.md` documents this ("ZXCVBN to move in exact directions along
+      the XYZ axes"), but the local checkout's `src/main.c::handle_movement` does not actually
+      implement it (no `glfwGetKey(g->window, 'Z'/'X'/'C'/'V'/'B'/'N')` calls exist) — there's no
+      working reference implementation to port from this checkout. Left unimplemented; revisit
+      only if this turns out to matter to actual play (still low priority either way).
 
 ### 11.5 Persistence
 
@@ -374,8 +379,16 @@ Checkbox state reflects this document's authoring session; update as work lands.
 
 ### 11.7 UI/UX
 
-- [ ] Crosshair + hotbar overlay via `SpriteBatch` (already a CNA-proven pattern, see
-      `house3d_demo.cpp`'s controls-overlay `SpriteBatch` usage referenced in §5).
+- [x] Crosshair + hotbar overlay via `SpriteBatch` (new `Render/Hud.{hpp,cpp}`), replacing the
+      console-printf stopgap the hotbar/fly-mode features used until now. CNA has no
+      content-pipeline `SpriteFont` available at runtime, so — same as `house3d_demo.cpp`'s
+      controls overlay (§5) — text is drawn with an embedded 8x8 bitmap font into a CPU-side RGBA
+      buffer, uploaded via `Texture2D::SetDataRGBA`, and drawn with `SpriteBatch`. Shows a
+      center-screen crosshair (static texture, built once) and a bottom-center hotbar strip listing
+      all 12 slot names with the selected one bracketed/highlighted, rebuilt only when selection or
+      flying state changes (not every frame) plus a `[FLYING]` prefix while flying. Verified
+      visually against a real EasyGL build (screenshots: default hotbar row, and the `[FLYING]`
+      prefix appearing after a real Tab press).
 - [ ] Chat + slash commands (Craft: `T` to type, `/` for commands, `src/main.c` `handle_command`).
 - [ ] Screenshot capture command (Craft: README "Screenshot" section) — CNA would need a
       `GraphicsDevice`-backbuffer-to-`Texture2D`/PNG readback path; check whether one already
