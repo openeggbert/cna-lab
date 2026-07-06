@@ -360,9 +360,16 @@ Checkbox state reflects this document's authoring session; update as work lands.
       defer other than not having been picked up), Chest/tall grass/flowers (need non-cubic
       geometry, see "Non-cubic plant
       geometry"), the 32-entry flat-color palette (low value, skipped).
-- [ ] Real texture atlas image (replace `Render::BuildPlaceholderAtlas`'s flat-color placeholder
-      with an actual authored/generated `texture.png`-style atlas, same layout convention as
-      `Craft/textures/texture.png`).
+- [x] Real texture atlas image: `Render::BuildPlaceholderAtlas` renamed to `BuildProceduralAtlas`
+      (no external art asset — none exists — but no longer flat color either). Inspected Craft's
+      real `Craft/textures/texture.png` (256×256, hand-authored 16px tiles) for reference: mottled
+      speckle on stone/dirt/sand/cobblestone, a brick mortar grid, wood bark/growth-ring patterns,
+      plank board seams. Ported the *idea* (not the pixels) as deterministic per-pixel procedural
+      patterns — `MottlePattern` (12 of 18 tiles, a hash-noise speckle, strength tuned per material),
+      plus dedicated `BrickPattern` (mortar grid), `WoodBarkPattern`/`WoodRingsPattern`,
+      `PlankPattern` (board seams), `SnowFleckPattern`. Verified visually against a real EasyGL
+      build — clearly visible per-pixel speckle detail on terrain (dirt/grass) replacing the old
+      flat color blocks.
 - [ ] Non-cubic "plant" geometry: cross-quad billboards for grass/flowers (Craft: `src/cube.c`
       `make_plant`) — `ChunkMesher` needs a second emission path alongside the cube-face path in
       §4.

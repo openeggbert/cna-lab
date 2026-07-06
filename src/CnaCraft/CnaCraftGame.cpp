@@ -87,7 +87,7 @@ void CnaCraftGame::Initialize() {
     // cycle (plan.md §11.3) using the same formula with a live `daylight`.
     effect_->setAmbientLightColorProperty(Vector3(0.5f, 0.5f, 0.5f));
 
-    atlasTexture_ = std::make_unique<Texture2D>(Render::BuildPlaceholderAtlas(device));
+    atlasTexture_ = std::make_unique<Texture2D>(Render::BuildProceduralAtlas(device));
     effect_->setTextureProperty(atlasTexture_.get());
 
     // Bug fix: spawning at an *integer* coordinate puts the player's 0.6-wide

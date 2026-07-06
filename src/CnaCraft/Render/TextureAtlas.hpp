@@ -12,11 +12,14 @@ namespace CnaCraft::Render {
 constexpr int kAtlasTileSize = 16;
 constexpr int kAtlasTilesPerRow = 5;
 
-// M1/early-milestone placeholder: one flat color per tile index (see
-// plan.md §5/§9 — a real texture asset replaces this at milestone M6). Built
-// entirely in memory, no asset file dependency, so the render pipeline can be
-// proven out before any art exists.
-Microsoft::Xna::Framework::Graphics::Texture2D BuildPlaceholderAtlas(
+// Procedurally generated per-tile textures (plan.md §11.2 "Real texture
+// atlas image") — a per-pixel pattern (speckle/mottle, brick mortar grid,
+// wood bark/rings, plank seams, snow flecks) layered over each tile's base
+// color, in the spirit of Craft's own hand-authored textures.png tiles
+// (mottled stone/dirt/sand, brick's mortar grid, wood's bark/ring patterns)
+// without needing an actual art asset — built entirely in memory, same as
+// the flat-color placeholder this replaced.
+Microsoft::Xna::Framework::Graphics::Texture2D BuildProceduralAtlas(
     Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
 
 // Remaps a tile-local (u, v) in [0,1] into tileIndex's rect within the atlas.
