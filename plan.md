@@ -279,6 +279,20 @@ checked out as siblings, and one of the three 3D-capable backends selected at co
   (with a floor and a width-based fallback to avoid overflow) rather than a fraction of screen
   width. Also added a `scale` parameter to `Hud.cpp`'s `FontDrawText` (3x for the hotbar line) and
   slightly enlarged the crosshair to scale with resolution too.
+- **"Why can't I turn?"** — investigated whether mouse-look was broken. Verified via a temporary
+  debug print plus real injected relative mouse motion that the underlying mechanism (SDL relative
+  mouse mode → `InputManager`'s accumulated delta → `Mouse::GetState()` → `PlayerController::Update`
+  yaw/pitch) *is* wired correctly and does work when a motion event arrives — a 200px synthetic
+  move produced exactly the expected `0.5` rad yaw change. Repeated testing in this sandbox's
+  Xvfb-without-a-window-manager setup was inconsistent (worked once, then not at all on a repeat
+  run), most likely an environment/focus quirk of this specific sandbox rather than a deterministic
+  code bug — same category as this session's previously-noted letter-key `xdotool` flakiness.
+  Rather than leave it unresolved, added **arrow keys as a keyboard alternative to mouse-look**
+  (Left/Right → yaw, Up/Down → pitch, same `1.6 * dt` rotSpeed formula as `house3d_demo.cpp`),
+  additive with the mouse deltas — verified working via a before/after screenshot pair holding
+  Right. If mouse-look specifically still doesn't turn the camera, that points at something
+  environment-specific worth reporting (e.g. try clicking into the game window once right after
+  it opens, in case the OS/window manager didn't hand it mouse capture immediately).
 
 ## 11. Task backlog: toward fogleman/Craft feature parity
 

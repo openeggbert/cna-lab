@@ -160,6 +160,15 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     if (kb.IsKeyDown(Keys::LeftControl)) input.moveUp -= 1.0f;
     input.lookDeltaYaw = static_cast<float>(mouse.getXProperty()) * kMouseSensitivity;
     input.lookDeltaPitch = -static_cast<float>(mouse.getYProperty()) * kMouseSensitivity;
+    // Arrow keys as a keyboard alternative to mouse-look (some players don't
+    // want to use the mouse for turning; also more reliable to test than
+    // relative mouse motion). Additive with the mouse deltas above, same
+    // rotSpeed formula as house3d_demo.cpp's Left/Right/Up/Down turning.
+    const float rotSpeed = 1.6f * dt;
+    if (kb.IsKeyDown(Keys::Left)) input.lookDeltaYaw -= rotSpeed;
+    if (kb.IsKeyDown(Keys::Right)) input.lookDeltaYaw += rotSpeed;
+    if (kb.IsKeyDown(Keys::Up)) input.lookDeltaPitch += rotSpeed;
+    if (kb.IsKeyDown(Keys::Down)) input.lookDeltaPitch -= rotSpeed;
 
     const auto rebuildHud = [this]() {
         hud_->RebuildHotbar(getGraphicsDeviceProperty(), hotbarSlotNames_.data(),

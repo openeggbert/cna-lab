@@ -60,6 +60,7 @@ cmake --build build --target CnaCraft
 |-----------------|--------------------------------------|
 | W / A / S / D   | Move / strafe                        |
 | Mouse           | Look (yaw / pitch)                   |
+| Arrow keys      | Look (yaw / pitch) — keyboard alternative to the mouse |
 | Space           | Jump (game mode) / fly up (fly mode) |
 | Left Ctrl       | Fly down (fly mode only)             |
 | Tab             | Toggle fly mode (no gravity, free vertical movement) |
