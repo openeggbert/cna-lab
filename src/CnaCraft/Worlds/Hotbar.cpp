@@ -12,4 +12,8 @@ void Hotbar::CycleNext() {
     selectedIndex_ = (selectedIndex_ + 1) % SlotCount();
 }
 
+void Hotbar::CyclePrev() {
+    selectedIndex_ = (selectedIndex_ - 1 + SlotCount()) % SlotCount();
+}
+
 }

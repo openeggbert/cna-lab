@@ -202,17 +202,44 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     player_->Update(world_, input, dt);
 
     const int previousHotbarIndex = hotbar_.SelectedIndex();
+    // Craft's on_key (CRAFT_PARITY.md §2.1) maps keys 1-9 to slots 0-8 and
+    // key 0 to slot 9 (a 10th direct-key slot) -- kMaxNumberKeySlots stays
+    // capped at 9 (Hotbar.hpp), key 0 is handled separately as slot 10.
     const int numberKeySlots = std::min(Worlds::Hotbar::kMaxNumberKeySlots, Worlds::Hotbar::SlotCount());
     for (int slot = 1; slot <= numberKeySlots; ++slot) {
         if (kb.IsKeyDown(static_cast<Keys>(static_cast<int>(Keys::D1) + slot - 1))) {
             hotbar_.SelectSlot(slot);
         }
     }
+    if (Worlds::Hotbar::SlotCount() >= 10 && kb.IsKeyDown(Keys::D0)) {
+        hotbar_.SelectSlot(10);
+    }
     const bool eDown = kb.IsKeyDown(Keys::E);
     if (eDown && !eKeyWasDown_) {
         hotbar_.CycleNext();
     }
     eKeyWasDown_ = eDown;
+    // R = reverse-cycle, mirrors Craft's E/R pair (CRAFT_PARITY.md §2.1).
+    const bool rDown = kb.IsKeyDown(Keys::R);
+    if (rDown && !rKeyWasDown_) {
+        hotbar_.CyclePrev();
+    }
+    rKeyWasDown_ = rDown;
+    // Scroll wheel also cycles the hotbar, matching Craft's on_scroll
+    // (CRAFT_PARITY.md §2.1). CNA's ScrollWheelValue is cumulative (XNA
+    // convention), so compare against the previous frame's value; the first
+    // frame just captures a baseline (no synthetic cycle on startup).
+    const int scrollWheelValue = mouse.getScrollWheelValueProperty();
+    if (scrollWheelInitialized_) {
+        const int scrollDelta = scrollWheelValue - previousScrollWheelValue_;
+        if (scrollDelta > 0) {
+            hotbar_.CycleNext();
+        } else if (scrollDelta < 0) {
+            hotbar_.CyclePrev();
+        }
+    }
+    scrollWheelInitialized_ = true;
+    previousScrollWheelValue_ = scrollWheelValue;
     if (hotbar_.SelectedIndex() != previousHotbarIndex) {
         std::printf("Selected block: %s\n", Worlds::GetBlockName(hotbar_.Selected()));
         std::fflush(stdout);
@@ -222,16 +249,33 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     const bool leftDown = mouse.getLeftButtonProperty() == ButtonState::Pressed;
     const bool rightDown = mouse.getRightButtonProperty() == ButtonState::Pressed;
 
-    if (leftDown && !leftClickWasDown_) {
-        if (auto hit = Worlds::VoxelRaycast::Cast(
-                world_, player_->EyePosition(), player_->LookDirection(), kMaxReach)) {
+    // Raycast once per frame -- reused for break/place *and* the visible
+    // targeted-block outline (CRAFT_PARITY.md §2.4), instead of a separate
+    // cast per click as before.
+    const auto hit = Worlds::VoxelRaycast::Cast(world_, player_->EyePosition(), player_->LookDirection(), kMaxReach);
+    hasTargetedBlock_ = hit.has_value();
+    if (hit) {
+        targetedBlockX_ = hit->x;
+        targetedBlockY_ = hit->y;
+        targetedBlockZ_ = hit->z;
+    }
+
+    if (hit && leftDown && !leftClickWasDown_) {
+        // CRAFT_PARITY.md §2.5: only break blocks World::IsBreakable allows
+        // (ports Craft's `is_destructable` guard in on_left_click) — Bedrock,
+        // a cna-craft-only "world-boundary, not meant to be placed" block,
+        // could previously be mined away with no protection at all.
+        if (world_.IsBreakable(hit->x, hit->y, hit->z)) {
             world_.SetBlock(hit->x, hit->y, hit->z, Worlds::BlockType::Air);
         }
     }
-    if (rightDown && !rightClickWasDown_) {
-        if (auto hit = Worlds::VoxelRaycast::Cast(
-                world_, player_->EyePosition(), player_->LookDirection(), kMaxReach)) {
-            world_.SetBlock(hit->x + hit->nx, hit->y + hit->ny, hit->z + hit->nz, hotbar_.Selected());
+    if (hit && rightDown && !rightClickWasDown_) {
+        const int px = hit->x + hit->nx, py = hit->y + hit->ny, pz = hit->z + hit->nz;
+        // CRAFT_PARITY.md §2.6: reject a placement that would overlap the
+        // player's own body, matching Craft's on_right_click guard
+        // (`!player_intersects_block(2, s->x,s->y,s->z, hx,hy,hz)`).
+        if (!player_->IntersectsBlock(px, py, pz)) {
+            world_.SetBlock(px, py, pz, hotbar_.Selected());
         }
     }
     leftClickWasDown_ = leftDown;
@@ -297,6 +341,23 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     for (auto& renderer : chunkRenderers_) {
         if (!frustum.Intersects(renderer.Bounds())) continue;
         renderer.DrawOpaque(device, *effect_);
+    }
+
+    // Visible targeted-block outline (CRAFT_PARITY.md §2.4) — drawn right
+    // after opaque geometry, same ordering as Craft's own render_wireframe
+    // call (right after the solid-block render pass, before transparent
+    // blocks/HUD). Temporarily switches the shared BasicEffect to plain
+    // vertex-color/unlit mode (VertexPositionColor has no UV/normal), then
+    // restores it for the textured/lit chunk geometry that follows.
+    if (hasTargetedBlock_) {
+        selectionOutline_.Update(device, targetedBlockX_, targetedBlockY_, targetedBlockZ_);
+        effect_->setTextureEnabledProperty(false);
+        effect_->VertexColorEnabled = true;
+        effect_->setLightingEnabledProperty(false);
+        selectionOutline_.Draw(device, *effect_);
+        effect_->setLightingEnabledProperty(true);
+        effect_->VertexColorEnabled = false;
+        effect_->setTextureEnabledProperty(true);
     }
 
     // Transparent geometry (plan.md §11.2 "Transparency for glass") is drawn

@@ -621,3 +621,115 @@ explicit human decision first:
 - [ ] A headless `--smoke N` CI check for `CnaCraft` itself (already wired, §8/main.cpp), extended
       with `ctest` registration the way `../cna/CMakeLists.txt` registers
       `EasyGL_House3D_SmokeTest`, once this repo has CI.
+
+## 12. Craft Feature Parity Port
+
+**Superseding note (2026-07-09)**: §11 above was written from a partial reading of Craft's source
+and, while mostly accurate, was never a systematic feature-by-feature audit — it also contained at
+least one real citation error (the "caves/overhangs" item, corrected in §11.1). This section is
+the result of a full audit: 5 parallel passes reading the actual Craft checkout at
+`/rv/data/development/github.com/other/Craft` against cna-craft's current `src/` tree, area by
+area (input/movement, hotbar/raycast/editing, chunk/mesh/terrain, persistence/signs/multiplayer,
+visuals/shaders/atlas). Full findings, with exact file/line citations on both sides, are in
+[CRAFT_PARITY.md](CRAFT_PARITY.md) — **that file is now the source of truth for "does cna-craft
+match Craft's real behavior"**; this section converts its gaps into an ordered, sequential task
+list. Status vocabulary matches §11.0: `pending`/`in_progress`/`completed`/`blocked`/`needs_human`.
+
+**Headline correction**: cna-craft is further along than §11's checkbox list alone suggested for
+some things (raycast is algorithmically *better* than Craft's, trees/clouds/day-night already
+verified as exact constant matches) — but it is **not** a faithful port in several concrete,
+previously-unaudited ways: two real player-facing bugs relative to Craft's own logic (unbounded
+diagonal-speed movement, no player-self-intersection check on block placement), one design gap
+relative to cna-craft's own stated intent (Bedrock — a block Craft doesn't even have — was
+minable, defeating its own "world-boundary, not meant to be placed" comment), a missing
+block-targeting visual (no wireframe outline — unblocked by shader limitations, just never built),
+and a dead `Sand` block (defined everywhere but never generated). This section prioritizes exactly
+those kinds of concrete, verifiable gaps over further decorative world-gen work.
+
+### 12.1 Priority queue (gameplay-critical first, per user's ordering)
+
+1. `completed` — **Hotbar/selected-item switching completeness** (CRAFT_PARITY.md §2.1): add
+   key `0` (10th direct slot), `R` (reverse-cycle, mirrors Craft's `E`/`R` pair), and scroll-wheel
+   cycling to `CnaCraftGame::Update`/`Hotbar`.
+2. `needs_human` — **Block roster matching** (CRAFT_PARITY.md §2.2): whether to remove `Cloud`
+   from the placeable hotbar (Craft never allows placing it — world-gen-only) is a trade-off
+   between Craft fidelity and cna-craft's own existing player-facing feature (players can
+   currently build with clouds) — a product decision, not a technical one. Chest/plants/dyes
+   remain `pending` (large — plants need new mesh-format work, tracked at queue item 7 below;
+   dyes are low-value, deferred).
+3. `completed` — **Visible targeted-block behavior / wireframe outline** (CRAFT_PARITY.md §2.4):
+   render a highlight box around the currently-raycast-targeted block. Verified NOT blocked by
+   the shader-backend limitations in `missing.md` — a plain line-list primitive with stock
+   `BasicEffect` suffices, no `ShaderEffect` needed, works identically on all three backends.
+4. `completed` — **Block breaking: Bedrock protection** (CRAFT_PARITY.md §2.5): add an
+   `IsBreakable`-equivalent guard so `World::Bedrock` (a cna-craft-only concept, absent from
+   Craft entirely) can no longer be mined, matching cna-craft's own documented design intent for
+   that block type.
+5. `completed` — **Block placing: player self-intersection guard** (CRAFT_PARITY.md §2.6): port
+   Craft's `player_intersects_block` check — a placement that would overlap the player's own AABB
+   is now rejected, matching `on_right_click`'s real guard in `main.c:2153-2163`.
+6. `completed` — **Player movement: diagonal-speed normalization bug** (CRAFT_PARITY.md §1.5):
+   `PlayerController`'s horizontal move vector is now normalized before scaling by `kMoveSpeed`/
+   `kFlySpeed`, matching Craft's `get_motion_vector`'s always-unit-vector approach — diagonal
+   movement (e.g. W+D) is no longer ~41% faster than straight movement.
+7. `pending` (large) — **Non-cubic plant geometry** (CRAFT_PARITY.md §3.7): `ChunkMesher` needs a
+   second emission path (cross-quad billboard) before TallGrass/flower `BlockType`s can be added.
+   This is the same item as §11.2's "Non-cubic plant geometry" — restated here as a
+   gameplay-critical-tier item per the parity audit's priority classification, not a new task.
+8. `completed` — **Texture atlas note**: no code change — CRAFT_PARITY.md §5.5 confirms
+   cna-craft's procedural atlas is a documented, deliberate substitution for Craft's hand-authored
+   `texture.png`; adopting a real asset is `needs_human` (new asset dependency), not picked up.
+9. `pending` — **Terrain generation: dead `Sand` block** (CRAFT_PARITY.md §3.3): `BlockType::Sand`
+   is defined, in `BlockDef`, and in the hotbar roster, but `World::Generate` never places it (no
+   sea-level/beach branch exists). A `needs_human`-free, unambiguous fix once picked up — unlike
+   the broader terrain-formula mismatch (Craft's dual-multiplicative-simplex2 vs cna-craft's
+   single-additive-simplex2), which **is** `needs_human` since changing it would visibly reshape
+   all existing generated terrain (a tuning/design decision).
+10. `completed` — **Player physics: terminal velocity clamp** (CRAFT_PARITY.md §1.8): port
+    Craft's `-250 units/s` fall-speed cap to `PlayerController` (jump speed `8.0` and gravity
+    `25.0` already matched Craft exactly from a prior session).
+11. `pending` — **Collision substepping** (CRAFT_PARITY.md §1.7): cna-craft's single
+    whole-step-or-full-revert-per-axis-per-frame collision has no equivalent to Craft's explicit
+    `step = MAX(8, estimate)` substepping, a real (if not yet observed in practice) tunneling risk
+    at high velocity or a dropped frame. Left `pending` rather than `completed` this session — a
+    substep-loop change to `PlayerController::Update` touches load-bearing physics code covered by
+    the "no `PlayerController` public-API changes without re-running the full suite" rule; needs
+    its own careful pass with the full existing physics test suite re-verified against every
+    constant, not bundled into this session's quick-fix batch.
+12. `blocked` — **Ambient occlusion** (CRAFT_PARITY.md §5.1): needs a custom vertex format +
+    `ShaderEffect`; only `EASYGL` has real runtime shader support today per `missing.md`.
+13. `pending` — **Fog** (CRAFT_PARITY.md §5.2): **not blocked** — `BasicEffect` has built-in
+    linear distance fog (`FogEnabled`/`FogColor`/`FogStart`/`FogEnd`) that needs no custom shader
+    and works identically on all three backends. A genuine low-hanging-fruit visual-parity item
+    `missing.md` hadn't previously identified as backend-agnostic.
+14. `pending` — **Sky dome** (CRAFT_PARITY.md §5.3): a plain vertex-colored dome mesh (no
+    time-of-day texture sampling) is achievable with stock `BasicEffect`; full Craft-style texture
+    sampling needs a custom shader. Which version to build is `needs_human` (scope decision).
+15. `needs_human` — **World persistence / delta storage** (CRAFT_PARITY.md §4.1/§4.2): SQLite
+    dependency decision, unchanged from `missing.md`'s prior assessment.
+16. `pending` — **Signs** (CRAFT_PARITY.md §4.3): depends on persistence; text-rendering
+    infrastructure (`Hud.cpp`'s `FontDrawText`) already exists and is reusable.
+17. `pending` — **Chat/slash commands** (CRAFT_PARITY.md §4.5): the real Craft command set is
+    mostly world-editing macros (`/cube`, `/sphere`, `/tree`, `/array`, etc.), a larger scope than
+    "add a chat box."
+18. `pending`, explicitly deferred — **Multiplayer** (CRAFT_PARITY.md §4.6): per project
+    direction, not started before local single-player + persistence are stable.
+19. `needs_human` — **Chunk system redesign** (CRAFT_PARITY.md §3.1/§3.2): hash-map sparse
+    chunks + distance-based streaming, replacing the fixed dense grid — a genuine architecture
+    change, not a quick task; scoping it is a product decision (does cna-craft want an unbounded
+    world at all, given its "small fixed-size prototype" design goal in §1?).
+
+### 12.2 Deliberately not re-litigated this session
+
+Per CRAFT_PARITY.md, these are `complete` (functionally equivalent to Craft) and need no task:
+main game loop (§1.1), mouse look (§1.4), zoom/ortho/arrow-look (§1.9), raycast algorithm (§2.3,
+arguably better than Craft's), collision rules for solid/transparent/collidable (§2.8), face
+culling (§3.4), mesh generation strategy (§3.5), transparent-block rules (§3.6), trees (§3.8),
+clouds (§3.10), day/night lighting (§5.4).
+
+Per CRAFT_PARITY.md, these are documented, deliberate divergences with a real trade-off, not bugs
+— left as `needs_human` rather than auto-"fixed" since a human already made (or should confirm) a
+call: window/cursor-capture-vs-quit-on-Escape behavior (§1.2, README already documents Esc=Quit),
+walking/flying control scheme (§1.6, README already documents the current Space/Ctrl scheme),
+chunk system being fixed-size rather than infinite (§3.1/§3.2, `plan.md` §1 already scopes this
+as a deliberate prototype boundary).

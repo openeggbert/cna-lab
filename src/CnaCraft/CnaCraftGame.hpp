@@ -11,6 +11,7 @@
 
 #include "Render/ChunkRenderer.hpp"
 #include "Render/Hud.hpp"
+#include "Render/SelectionOutline.hpp"
 #include "Worlds/Hotbar.hpp"
 #include "Worlds/PlayerController.hpp"
 #include "Worlds/World.hpp"
@@ -56,10 +57,23 @@ private:
     std::unique_ptr<Render::Hud> hud_;
     std::vector<std::string> hotbarSlotNames_;
 
+    // Visible targeted-block feedback (CRAFT_PARITY.md §2.4) — updated each
+    // frame in Update() from the same raycast used for break/place, drawn in
+    // Draw() only when hasTargetedBlock_ is true (looking at nothing within
+    // reach draws no outline, matching Craft's own hit-test-gated behavior).
+    Render::SelectionOutline selectionOutline_;
+    bool hasTargetedBlock_ = false;
+    int targetedBlockX_ = 0;
+    int targetedBlockY_ = 0;
+    int targetedBlockZ_ = 0;
+
     bool leftClickWasDown_ = false;
     bool rightClickWasDown_ = false;
     bool eKeyWasDown_ = false;
+    bool rKeyWasDown_ = false;
     bool tabWasDown_ = false;
+    bool scrollWheelInitialized_ = false;
+    int previousScrollWheelValue_ = 0;
     bool f12WasDown_ = false;
     bool screenshotPending_ = false;
     int screenshotCounter_ = 0;

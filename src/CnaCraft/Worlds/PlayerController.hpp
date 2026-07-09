@@ -38,6 +38,14 @@ public:
     [[nodiscard]] bool IsGrounded() const { return grounded_; }
     [[nodiscard]] bool IsFlying() const { return flying_; }
 
+    // Whether the player's current AABB covers the given block cell
+    // (CRAFT_PARITY.md §2.6) — ports Craft's `player_intersects_block`
+    // check used by `on_right_click` to reject a placement that would
+    // overlap the player's own body. Uses the exact same cell-enumeration
+    // bounds as CollidesAt, so a cell flagged here is guaranteed to be one
+    // CollidesAt would also flag for this player's current position.
+    [[nodiscard]] bool IntersectsBlock(int bx, int by, int bz) const;
+
 private:
     [[nodiscard]] bool CollidesAt(const World& world, Core::Vec3f feetPosition) const;
 

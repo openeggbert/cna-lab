@@ -61,6 +61,16 @@ void TestWorldBoundsAndRoundTrip() {
     Check(world.GetBlock(20, 5, 20) == BlockType::Stone, "world set/get round-trip across chunk boundary");
     Check(world.IsSolid(20, 5, 20), "world IsSolid true for Stone");
     Check(world.IsCollidable(20, 5, 20), "world IsCollidable true for Stone");
+    Check(world.IsBreakable(20, 5, 20), "world IsBreakable true for ordinary solid blocks like Stone");
+
+    // Regression test (CRAFT_PARITY.md §2.5): Bedrock is a cna-craft-only
+    // "world-boundary, not meant to be placed" block (Craft itself has no
+    // such block) that must also not be breakable -- same defensive
+    // solid-AND pattern as IsOpaque/IsCollidable (see the note above).
+    world.SetBlock(21, 5, 20, BlockType::Bedrock);
+    Check(world.IsSolid(21, 5, 20), "Bedrock is still solid (meshed/hit-testable)");
+    Check(!world.IsBreakable(21, 5, 20), "Bedrock is not breakable, unlike ordinary solid blocks");
+    Check(!world.IsBreakable(5, 5, 5), "Air is never breakable, regardless of BlockDef::breakable's default");
 
     world.SetBlock(9999, 9999, 9999, BlockType::Stone); // out of range, must be a no-op
     Check(world.GetBlock(9999, 9999, 9999) == BlockType::Air,
@@ -447,6 +457,17 @@ void TestHotbarSelectionAndCycling() {
     Check(hotbar.Selected() == BlockType::Leaves, "slot 15 (the last slot) is Leaves");
     hotbar.CycleNext();
     Check(hotbar.SelectedIndex() == 0, "CycleNext wraps back to slot 0 after the last slot");
+
+    // Regression test (CRAFT_PARITY.md §2.1): Craft's E/R key pair cycles
+    // forward/backward through the whole roster; CyclePrev was missing
+    // until this session (only CycleNext/E existed).
+    hotbar.CyclePrev();
+    Check(hotbar.Selected() == BlockType::Leaves,
+          "CyclePrev from slot 0 wraps backward to the last slot (Leaves)");
+    hotbar.CyclePrev();
+    Check(hotbar.Selected() == BlockType::Cloud, "CyclePrev steps back one slot at a time");
+    hotbar.CycleNext();
+    Check(hotbar.Selected() == BlockType::Leaves, "CycleNext after CyclePrev returns to the same slot");
 }
 
 void TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging() {
@@ -514,6 +535,54 @@ void TestPlayerControllerGravityAndGroundCollision() {
         if (std::abs(player.EyePosition().y - (4.0f + 1.7f)) < 0.05f) landed = true;
     }
     Check(landed, "player falls under gravity and comes to rest on top of the floor (y=4)");
+}
+
+void TestPlayerControllerDiagonalMovementNotFaster() {
+    // Regression test (CRAFT_PARITY.md §1.5): moving with two keys held at
+    // once (e.g. forward+right) must not move faster than a single key,
+    // matching Craft's own get_motion_vector (always a unit motion vector
+    // regardless of how many movement keys are held).
+    World world; // empty/air, no obstacles -- pure kinematics test
+
+    PlayerController straight(Vec3f{50.0f, 30.0f, 50.0f});
+    straight.ToggleFlying(); // fly mode: no gravity, so only horizontal input matters
+    PlayerInput straightInput;
+    straightInput.moveForward = 1.0f;
+    for (int i = 0; i < 60; ++i) straight.Update(world, straightInput, 1.0f / 60.0f);
+
+    PlayerController diagonal(Vec3f{50.0f, 30.0f, 50.0f});
+    diagonal.ToggleFlying();
+    PlayerInput diagonalInput;
+    diagonalInput.moveForward = 1.0f;
+    diagonalInput.moveRight = 1.0f;
+    for (int i = 0; i < 60; ++i) diagonal.Update(world, diagonalInput, 1.0f / 60.0f);
+
+    const Vec3f straightPos = straight.EyePosition();
+    const Vec3f diagonalPos = diagonal.EyePosition();
+    const float straightDist = std::sqrt((straightPos.x - 50.0f) * (straightPos.x - 50.0f) +
+                                          (straightPos.z - 50.0f) * (straightPos.z - 50.0f));
+    const float diagonalDist = std::sqrt((diagonalPos.x - 50.0f) * (diagonalPos.x - 50.0f) +
+                                          (diagonalPos.z - 50.0f) * (diagonalPos.z - 50.0f));
+    Check(std::abs(straightDist - diagonalDist) < 0.05f,
+          "moving diagonally (two keys held) covers the same distance as moving straight (one key), "
+          "not sqrt(2)x farther");
+}
+
+void TestPlayerControllerFallSpeedIsClampedToTerminalVelocity() {
+    // Regression test (CRAFT_PARITY.md §1.8): a long fall must not
+    // accelerate forever -- Craft clamps dy to -250 units/s (`main.c`,
+    // `dy = MAX(dy, -250)`), ported as PlayerController's kTerminalVelocity.
+    World world; // empty/air, no floor -- keep falling
+    PlayerController player(Vec3f{50.0f, 5000.0f, 50.0f});
+    PlayerInput noInput;
+    // Fall for long enough that an unclamped v=g*t would clearly exceed 250
+    // (25 * 15s = 375 with no clamp).
+    for (int i = 0; i < 60 * 15; ++i) player.Update(world, noInput, 1.0f / 60.0f);
+    const float y0 = player.EyePosition().y;
+    player.Update(world, noInput, 1.0f / 60.0f);
+    const float y1 = player.EyePosition().y;
+    const float fallSpeed = (y0 - y1) / (1.0f / 60.0f);
+    Check(fallSpeed <= 250.5f, "fall speed is clamped to Craft's terminal velocity (250 units/s), not unbounded");
 }
 
 void TestPlayerJumpClearsOneBlockHeight() {
@@ -593,6 +662,19 @@ void TestPlayerCanJumpOntoOneBlockHigherLedge() {
     Check(landedOnLedge, "player can jump up onto a 1-block-higher ledge while moving forward");
 }
 
+void TestPlayerControllerIntersectsBlockGuardsPlacement() {
+    // Regression test (CRAFT_PARITY.md §2.6): ports Craft's
+    // player_intersects_block check used by on_right_click to reject a
+    // placement that would overlap the player's own AABB.
+    PlayerController player(Vec3f{50.0f, 30.0f, 50.0f}); // feet at (50, 30, 50)
+
+    Check(player.IntersectsBlock(50, 30, 50), "the player's own feet cell intersects their AABB");
+    Check(player.IntersectsBlock(50, 31, 50), "a cell at head height also intersects (kPlayerHeight=1.8)");
+    Check(!player.IntersectsBlock(50, 33, 50), "a cell well above the player's head does not intersect");
+    Check(!player.IntersectsBlock(55, 30, 50), "a cell far away horizontally does not intersect");
+    Check(!player.IntersectsBlock(50, 25, 50), "a cell well below the player's feet does not intersect");
+}
+
 void TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement() {
     World world; // no terrain at all — plenty of open air in every direction
     PlayerController player(Vec3f{static_cast<float>(WORLD_SIZE_X) / 2.0f, 32.0f,
@@ -650,9 +732,12 @@ int main() {
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();
     TestPlayerControllerGravityAndGroundCollision();
+    TestPlayerControllerDiagonalMovementNotFaster();
+    TestPlayerControllerFallSpeedIsClampedToTerminalVelocity();
     TestPlayerJumpClearsOneBlockHeight();
     TestPlayerCanJumpOntoOneBlockHigherLedge();
     TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging();
+    TestPlayerControllerIntersectsBlockGuardsPlacement();
     TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement();
 
     if (g_failures == 0) {

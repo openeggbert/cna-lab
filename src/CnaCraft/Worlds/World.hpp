@@ -47,6 +47,12 @@ public:
     // hit-testable/breakable, they just don't stop the player.
     [[nodiscard]] bool IsCollidable(int x, int y, int z) const;
 
+    // Whether this cell can be broken by the player (CRAFT_PARITY.md §2.5)
+    // — true for ordinary solid blocks, false for Air *and* for
+    // solid-but-permanent blocks like Bedrock. Used only by CnaCraftGame's
+    // left-click handler; meshing/occlusion/collision are unaffected.
+    [[nodiscard]] bool IsBreakable(int x, int y, int z) const;
+
     Chunk& ChunkAt(int cx, int cy, int cz);
     [[nodiscard]] const Chunk& ChunkAt(int cx, int cy, int cz) const;
 

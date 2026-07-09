@@ -55,6 +55,16 @@ enum class BlockType : std::uint8_t {
 // `transparent=false` (opaque, occludes neighbors via `World::IsOpaque`),
 // `collidable=false` (the player passes through it — `World::IsCollidable`,
 // used only by `PlayerController::CollidesAt`).
+//
+// `breakable` (CRAFT_PARITY.md §2.5): false only for Bedrock. Craft itself
+// has no Bedrock/unbreakable-boundary block at all — its `is_destructable`
+// only excludes EMPTY and CLOUD. cna-craft added Bedrock as a
+// "world-boundary block, not meant to be placed by the player" (see
+// Hotbar.hpp), but until this flag existed it *could* still be mined away,
+// defeating that stated purpose. `World::IsBreakable` used only by
+// CnaCraftGame's left-click handler; meshing/occlusion/collision
+// (IsSolid/IsOpaque/IsCollidable) are unaffected — Bedrock still meshes,
+// occludes, and blocks the player exactly like any other solid block.
 struct BlockDef {
     bool solid;
     int topTile;
@@ -62,6 +72,7 @@ struct BlockDef {
     int bottomTile;
     bool transparent = false;
     bool collidable = true;
+    bool breakable = true;
 };
 
 constexpr BlockDef GetBlockDef(BlockType type) {
@@ -81,7 +92,8 @@ constexpr BlockDef GetBlockDef(BlockType type) {
         case BlockType::Glass:       return BlockDef{true, 16, 16, 16, /*transparent=*/true};
         case BlockType::Cloud:       return BlockDef{true, 17, 17, 17, /*transparent=*/false, /*collidable=*/false};
         case BlockType::Leaves:      return BlockDef{true, 18, 18, 18, /*transparent=*/true};
-        case BlockType::Bedrock:     return BlockDef{true, 5, 5, 5};
+        case BlockType::Bedrock:
+            return BlockDef{true, 5, 5, 5, /*transparent=*/false, /*collidable=*/true, /*breakable=*/false};
         case BlockType::Air:
         case BlockType::Count:
         default:

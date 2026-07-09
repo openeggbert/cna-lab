@@ -11,8 +11,17 @@ constexpr float kEyeHeight = 1.7f;
 constexpr float kPlayerHalfWidth = 0.3f;
 constexpr float kPlayerHeight = 1.8f;
 constexpr float kMoveSpeed = 4.5f;
-constexpr float kFlySpeed = 9.0f; // faster than walking, matches Craft's flying speed being 4x
+// NOTE (CRAFT_PARITY.md §1.5): this is 2x kMoveSpeed, not 4x. Craft's own
+// ratio is 4x (walk=5, fly=20, main.c). Left as-is rather than doubled to
+// 18.0 -- unlike the jump-height fix (2127b8c, a literal "can't clear a
+// step" bug), fly-speed is a subjective tuning value with no broken
+// mechanic to fix, so changing it is a gameplay-feel decision, not a bug
+// fix; marked needs_human in CRAFT_PARITY.md/plan.md §12.1 if revisited.
+constexpr float kFlySpeed = 9.0f;
 constexpr float kGravity = 25.0f;
+// Craft clamps fall speed to -250 units/s (`dy = MAX(dy, -250)`, main.c) so a
+// long fall doesn't accelerate forever; ported as-is (CRAFT_PARITY.md §1.8).
+constexpr float kTerminalVelocity = -250.0f;
 // Bug fix: 7.0 gives a max jump height of v^2/(2g) = 49/50 = 0.98 blocks --
 // mathematically just short of clearing a full 1-block step, the single
 // most basic Craft-like traversal move. Craft's own jump speed is 8
@@ -42,6 +51,16 @@ bool PlayerController::CollidesAt(const World& world, Core::Vec3f feet) const {
     return false;
 }
 
+bool PlayerController::IntersectsBlock(int bx, int by, int bz) const {
+    const int minX = static_cast<int>(std::floor(position_.x - kPlayerHalfWidth));
+    const int maxX = static_cast<int>(std::floor(position_.x + kPlayerHalfWidth));
+    const int minY = static_cast<int>(std::floor(position_.y));
+    const int maxY = static_cast<int>(std::floor(position_.y + kPlayerHeight));
+    const int minZ = static_cast<int>(std::floor(position_.z - kPlayerHalfWidth));
+    const int maxZ = static_cast<int>(std::floor(position_.z + kPlayerHalfWidth));
+    return bx >= minX && bx <= maxX && by >= minY && by <= maxY && bz >= minZ && bz <= maxZ;
+}
+
 void PlayerController::Update(const World& world, const PlayerInput& input, float dt) {
     yaw_ += input.lookDeltaYaw;
     // Keep yaw bounded for long play sessions (Craft wraps s->rx the same way).
@@ -59,6 +78,22 @@ void PlayerController::Update(const World& world, const PlayerInput& input, floa
     const float forwardX = sy, forwardZ = -cy;
     const float rightX = cy, rightZ = sy;
 
+    // Normalize the (moveForward, moveRight) input to a unit vector before
+    // scaling by speed (CRAFT_PARITY.md §1.5) -- matches Craft's own
+    // get_motion_vector, which always produces a unit motion vector via
+    // atan2f(sz, sx) regardless of how many movement keys are held. Without
+    // this, holding two movement keys at once (e.g. W+D) moved sqrt(2)x
+    // faster than a single key -- a real bug relative to Craft, not a
+    // deliberate design choice.
+    float moveForwardInput = input.moveForward;
+    float moveRightInput = input.moveRight;
+    const float inputLenSq = moveForwardInput * moveForwardInput + moveRightInput * moveRightInput;
+    if (inputLenSq > 1.0e-8f) {
+        const float invLen = 1.0f / std::sqrt(inputLenSq);
+        moveForwardInput *= invLen;
+        moveRightInput *= invLen;
+    }
+
     Core::Vec3f next = position_;
 
     if (flying_) {
@@ -66,8 +101,8 @@ void PlayerController::Update(const World& world, const PlayerInput& input, floa
         // Horizontal axes still collide with the world (matches
         // house3d_demo.cpp's fly branch); vertical does not, so the player
         // can fly through floors/ceilings on purpose.
-        const float moveX = (forwardX * input.moveForward + rightX * input.moveRight) * kFlySpeed;
-        const float moveZ = (forwardZ * input.moveForward + rightZ * input.moveRight) * kFlySpeed;
+        const float moveX = (forwardX * moveForwardInput + rightX * moveRightInput) * kFlySpeed;
+        const float moveZ = (forwardZ * moveForwardInput + rightZ * moveRightInput) * kFlySpeed;
 
         next.x = position_.x + moveX * dt;
         if (CollidesAt(world, next)) next.x = position_.x;
@@ -78,14 +113,15 @@ void PlayerController::Update(const World& world, const PlayerInput& input, floa
         next.y = position_.y + input.moveUp * kFlySpeed * dt;
         grounded_ = false;
     } else {
-        const float moveX = (forwardX * input.moveForward + rightX * input.moveRight) * kMoveSpeed;
-        const float moveZ = (forwardZ * input.moveForward + rightZ * input.moveRight) * kMoveSpeed;
+        const float moveX = (forwardX * moveForwardInput + rightX * moveRightInput) * kMoveSpeed;
+        const float moveZ = (forwardZ * moveForwardInput + rightZ * moveRightInput) * kMoveSpeed;
 
         if (grounded_ && input.jumpPressed) {
             velocity_.y = kJumpSpeed;
             grounded_ = false;
         }
         velocity_.y -= kGravity * dt;
+        if (velocity_.y < kTerminalVelocity) velocity_.y = kTerminalVelocity;
 
         next.x = position_.x + moveX * dt;
         if (CollidesAt(world, next)) next.x = position_.x;
