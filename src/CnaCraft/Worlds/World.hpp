@@ -69,6 +69,16 @@ private:
     // tree's canopy near the world ceiling.
     void GenerateTrees(std::uint32_t seed);
 
+    // Places TallGrass plant blocks on grass columns (CRAFT_PARITY.md §3.7
+    // "Non-cubic plant geometry") — matches Craft's own world.c grass-
+    // decoration trigger (`simplex2(-x*0.1, z*0.1, 4, 0.8, 2) > 0.6`),
+    // verified against the real checkout. Called after GenerateTrees (a
+    // minor reordering vs. Craft's literal same-pass ordering — harmless
+    // here since this project places TallGrass one cell above the surface,
+    // not on it, so it never actually contends with a tree trunk cell for
+    // the same position the way Craft's own single-Y-level model does).
+    void GenerateGrassDecoration(std::uint32_t seed);
+
     // Places Cloud blocks in a thin band near the world ceiling via 3D
     // density noise (plan.md §11.2 "Clouds" backlog note) — matches Craft's
     // own world.c cloud pass (`simplex3(...) > 0.75`), not a cave/overhang

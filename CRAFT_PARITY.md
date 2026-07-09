@@ -437,14 +437,25 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Craft behavior** (`make_plant`, `cube.c:100-158`): a 2-plane "X" cross billboard (4 quads),
   randomly rotated per-block via noise, for TallGrass + 6 flower colors; non-obstacle,
   transparent, always fully rendered (no face culling test).
-- **cna-craft behavior**: **no non-cubic geometry exists at all** — `ChunkMesher` only emits
-  axis-aligned cube faces. No plant `BlockType`s exist.
-- **Status**: missing
+- **cna-craft behavior** (implemented this session): `ChunkMesher::EmitPlant` — a 4-quad cross
+  billboard (two diagonal planes, each emitted with both windings so it's visible from any angle,
+  matching Craft's 4-quad total exactly), gated by a new `BlockDef.plant` flag. New
+  `BlockType::TallGrass` (the first plant type — flowers/Chest remain deferred, same geometry
+  path). `World::GenerateGrassDecoration` places it using Craft's real trigger
+  (`simplex2(-x*0.1, z*0.1, 4, 0.8, 2) > 0.6`). Not ported: per-block random Y-axis rotation
+  (Craft's `mat_rotate`) — cna-craft's cross is axis-aligned to the world's diagonal, not
+  per-instance-randomized; a cosmetic simplification, not a structural gap.
+- **Status**: complete (TallGrass only — flowers/Chest still use the same new path once added)
 - **Craft files**: `src/cube.c:100-158`, `src/item.c` (`is_plant`)
-- **cna-craft files**: none (would need `ChunkMesher.cpp` + `MeshData.hpp` + `BlockType.hpp`
-  changes)
-- **Priority**: high (gameplay-visible, but a real mesh-format change — see §7 sequencing notes)
-- **Verification method**: visual — plants render as an X-cross, not a cube
+- **cna-craft files**: `src/CnaCraft/Worlds/ChunkMesher.cpp` (`EmitPlant`),
+  `src/CnaCraft/Worlds/BlockType.hpp` (`BlockDef.plant`, `BlockType::TallGrass`),
+  `src/CnaCraft/Worlds/World.cpp` (`GenerateGrassDecoration`),
+  `src/CnaCraft/Render/TextureAtlas.cpp` (tile 19, `Pattern::GrassBlade`)
+- **Priority**: high (done for TallGrass; flowers remain a small follow-up using the same path)
+- **Verification method**: visual — confirmed via a real EasyGL build screenshot showing
+  blade-shaped billboards with transparent gaps growing out of grass terrain; 14 new unit tests
+  (mesh shape/never-culled invariant, solid/collidable/transparent/breakable rules, generation
+  presence/determinism/surface-height invariant)
 
 ### 3.8 Trees
 - **Craft behavior**: `simplex2(x,z,6,0.5,2) > 0.84` trigger on grass columns (with a per-chunk
@@ -688,7 +699,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 3.4 | Face culling | complete | low |
 | 3.5 | Mesh generation | complete | low |
 | 3.6 | Transparent blocks | complete | low |
-| 3.7 | Plants/flowers/tall grass | missing | high (large) |
+| 3.7 | Plants/flowers/tall grass (**fixed this session** — TallGrass) | complete | high |
 | 3.8 | Trees | complete | low |
 | 3.9 | Caves/overhangs | needs_human | n/a (no reference exists) |
 | 3.10 | Clouds | complete | low |

@@ -45,6 +45,54 @@ int TileIndexForFace(const BlockDef& def, const FaceDef& face) {
     return def.sideTile;
 }
 
+// Cross-quad "X" billboard for plant blocks (CRAFT_PARITY.md §3.7), ported
+// from Craft's make_plant (src/cube.c): two full-block-diagonal planes,
+// each emitted twice (once per winding) so both are visible from either
+// side without backface culling hiding half the cross — 4 quads total,
+// matching Craft's own 4-quad plant geometry exactly. Unlike cube faces,
+// plants are never culled against neighbors (Craft draws all 4 quads
+// unconditionally regardless of what's next to the block).
+struct PlantQuad {
+    float nx, ny, nz;
+    float corners[4][3];
+};
+constexpr float kDiagInvSqrt2 = 0.70710678118654752440f; // normalized (±1, 0, ∓1)
+constexpr PlantQuad kPlantQuads[4] = {
+    // Diagonal plane A: (0,0,0)-(1,0,1) to (0,1,0)-(1,1,1), front winding.
+    {kDiagInvSqrt2, 0, -kDiagInvSqrt2, {{0, 0, 0}, {1, 0, 1}, {1, 1, 1}, {0, 1, 0}}},
+    // Same plane, reverse winding (visible from the other side).
+    {-kDiagInvSqrt2, 0, kDiagInvSqrt2, {{1, 0, 1}, {0, 0, 0}, {0, 1, 0}, {1, 1, 1}}},
+    // Diagonal plane B: (1,0,0)-(0,0,1) to (1,1,0)-(0,1,1), front winding.
+    {-kDiagInvSqrt2, 0, -kDiagInvSqrt2, {{1, 0, 0}, {0, 0, 1}, {0, 1, 1}, {1, 1, 0}}},
+    // Same plane, reverse winding.
+    {kDiagInvSqrt2, 0, kDiagInvSqrt2, {{0, 0, 1}, {1, 0, 0}, {1, 1, 0}, {0, 1, 1}}},
+};
+
+void EmitPlant(MeshData& mesh, const BlockDef& def, float lx, float ly, float lz) {
+    for (const PlantQuad& quad : kPlantQuads) {
+        const auto baseIndex = static_cast<std::uint32_t>(mesh.vertices.size());
+        for (int c = 0; c < 4; ++c) {
+            MeshVertex v;
+            v.px = lx + quad.corners[c][0];
+            v.py = ly + quad.corners[c][1];
+            v.pz = lz + quad.corners[c][2];
+            v.nx = quad.nx;
+            v.ny = quad.ny;
+            v.nz = quad.nz;
+            v.u = kUv[c][0];
+            v.v = kUv[c][1];
+            v.tileIndex = def.topTile;
+            mesh.vertices.push_back(v);
+        }
+        mesh.indices.push_back(baseIndex + 0);
+        mesh.indices.push_back(baseIndex + 1);
+        mesh.indices.push_back(baseIndex + 2);
+        mesh.indices.push_back(baseIndex + 0);
+        mesh.indices.push_back(baseIndex + 2);
+        mesh.indices.push_back(baseIndex + 3);
+    }
+}
+
 }
 
 ChunkMeshData ChunkMesher::Build(const World& world, int originX, int originY, int originZ) {
@@ -62,6 +110,11 @@ ChunkMeshData ChunkMesher::Build(const World& world, int originX, int originY, i
                 if (!def.solid) continue;
 
                 MeshData& mesh = def.transparent ? result.transparent : result.opaque;
+
+                if (def.plant) {
+                    EmitPlant(mesh, def, static_cast<float>(lx), static_cast<float>(ly), static_cast<float>(lz));
+                    continue;
+                }
 
                 for (const FaceDef& face : kFaces) {
                     if (world.IsOpaque(wx + face.dx, wy + face.dy, wz + face.dz)) continue;

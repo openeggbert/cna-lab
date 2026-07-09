@@ -125,6 +125,7 @@ void World::Generate(std::uint32_t seed) {
     }
 
     GenerateTrees(seed);
+    GenerateGrassDecoration(seed);
     GenerateClouds(seed);
 }
 
@@ -177,6 +178,37 @@ void World::GenerateTrees(std::uint32_t seed) {
             }
             for (int y = h; y < h + kTrunkHeight; ++y) {
                 SetBlock(x, y, z, BlockType::Wood); // unconditional, same as Craft — trunk wins over canopy
+            }
+        }
+    }
+}
+
+namespace {
+// Craft's world.c places TallGrass (item id 17) via a `simplex2(-x*0.1,
+// z*0.1, 4, 0.8, 2) > 0.6` trigger, gated the same as trees on `w == 1`
+// grass columns, placed directly on top of the surface block (verified
+// against the real checkout). Ported with the same trigger constants.
+constexpr float kGrassNoiseScale = 0.1f;
+constexpr int kGrassNoiseOctaves = 4;
+constexpr float kGrassNoisePersistence = 0.8f;
+constexpr float kGrassNoiseLacunarity = 2.0f;
+constexpr float kGrassThreshold = 0.6f;
+}
+
+void World::GenerateGrassDecoration(std::uint32_t seed) {
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            const int h = NoiseGenerator::Height(seed, x, z);
+            if (GetBlock(x, h, z) != BlockType::Grass) continue; // Craft: only on its `w == 1` grass columns
+            if (h + 1 >= WORLD_SIZE_Y) continue;
+            if (GetBlock(x, h + 1, z) != BlockType::Air) continue; // don't overwrite a tree/cloud already there
+
+            const float density = NoiseGenerator::Simplex2(seed, static_cast<float>(-x) * kGrassNoiseScale,
+                                                             static_cast<float>(z) * kGrassNoiseScale,
+                                                             kGrassNoiseOctaves, kGrassNoisePersistence,
+                                                             kGrassNoiseLacunarity);
+            if (density > kGrassThreshold) {
+                SetBlock(x, h + 1, z, BlockType::TallGrass);
             }
         }
     }

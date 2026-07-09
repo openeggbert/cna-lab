@@ -7,10 +7,12 @@ namespace CnaCraft::Worlds {
 // Roster expanded toward Craft's item.h (plan.md §11.2) with the plain
 // solid/opaque cube blocks, Glass (transparent but still solid/collidable —
 // see "Transparency for glass"), Cloud (opaque but NOT collidable — see
-// "Clouds" below), and Leaves (transparent like Glass — used by
-// World::GenerateTrees, plan.md §11.1 "Trees and plants"). Plants (tall
-// grass, flowers) and Chest are deferred to "Non-cubic plant geometry" —
-// they need their own mesh shape, not just a new tile.
+// "Clouds" below), Leaves (transparent like Glass — used by
+// World::GenerateTrees, plan.md §11.1 "Trees and plants"), and TallGrass
+// (CRAFT_PARITY.md §3.7 "Non-cubic plant geometry" — the first plant-shaped
+// block, a cross-quad billboard instead of a cube; see BlockDef.plant
+// below). Other plant colors (flowers) and Chest remain deferred — same
+// geometry path once picked up, just a new tile/BlockType.
 enum class BlockType : std::uint8_t {
     Air = 0,
     Grass,
@@ -28,6 +30,7 @@ enum class BlockType : std::uint8_t {
     Glass,
     Cloud,
     Leaves,
+    TallGrass,
     Bedrock,
     Count
 };
@@ -65,6 +68,18 @@ enum class BlockType : std::uint8_t {
 // CnaCraftGame's left-click handler; meshing/occlusion/collision
 // (IsSolid/IsOpaque/IsCollidable) are unaffected — Bedrock still meshes,
 // occludes, and blocks the player exactly like any other solid block.
+//
+// `plant` (CRAFT_PARITY.md §3.7): true only for TallGrass. Ports Craft's
+// `is_plant(w)` (item.c) — a plant block is `solid=true` (still meshed/
+// hit-testable via World::IsSolid, still breakable) but `collidable=false`
+// (Craft's `is_obstacle` returns 0 for plants — the player walks through
+// them, same non-collidable pattern as Cloud, just for the opposite
+// "walk through this decoration" reason rather than Cloud's "walk through
+// this sky element") and `transparent=true` (plants don't occlude
+// neighboring faces, matching Craft's `is_transparent(w)` also covering
+// plants). `ChunkMesher` reads this flag to switch a block's mesh emission
+// from 6 cube faces to a cross-quad billboard (`topTile` doubles as "the"
+// single plant texture — sideTile/bottomTile are unused for plants).
 struct BlockDef {
     bool solid;
     int topTile;
@@ -73,6 +88,7 @@ struct BlockDef {
     bool transparent = false;
     bool collidable = true;
     bool breakable = true;
+    bool plant = false;
 };
 
 constexpr BlockDef GetBlockDef(BlockType type) {
@@ -92,6 +108,9 @@ constexpr BlockDef GetBlockDef(BlockType type) {
         case BlockType::Glass:       return BlockDef{true, 16, 16, 16, /*transparent=*/true};
         case BlockType::Cloud:       return BlockDef{true, 17, 17, 17, /*transparent=*/false, /*collidable=*/false};
         case BlockType::Leaves:      return BlockDef{true, 18, 18, 18, /*transparent=*/true};
+        case BlockType::TallGrass:
+            return BlockDef{true, 19, 19, 19, /*transparent=*/true, /*collidable=*/false,
+                             /*breakable=*/true, /*plant=*/true};
         case BlockType::Bedrock:
             return BlockDef{true, 5, 5, 5, /*transparent=*/false, /*collidable=*/true, /*breakable=*/false};
         case BlockType::Air:
@@ -119,6 +138,7 @@ constexpr const char* GetBlockName(BlockType type) {
         case BlockType::Glass:       return "Glass";
         case BlockType::Cloud:       return "Cloud";
         case BlockType::Leaves:      return "Leaves";
+        case BlockType::TallGrass:   return "TallGrass";
         case BlockType::Bedrock:     return "Bedrock";
         default:                     return "Unknown";
     }

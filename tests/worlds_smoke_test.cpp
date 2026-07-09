@@ -249,6 +249,51 @@ void TestWorldGeneratesTrees() {
     Check(noFloatingTrunkBase, "every tree trunk's base sits on solid ground at its column's real surface height, not floating");
 }
 
+void TestWorldGeneratesTallGrass() {
+    // World::GenerateGrassDecoration ports Craft's real tall-grass pass
+    // (verified against the checkout — `simplex2(-x*0.1, z*0.1, 4, 0.8, 2)
+    // > 0.6` trigger on grass columns, placed one cell above the surface).
+    World a, b;
+    a.Generate(1234);
+    b.Generate(1234);
+
+    bool anyTallGrassFound = false;
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            for (int y = 0; y < WORLD_SIZE_Y; ++y) {
+                if (a.GetBlock(x, y, z) == BlockType::TallGrass) anyTallGrassFound = true;
+            }
+        }
+    }
+    Check(anyTallGrassFound, "World::Generate places at least one TallGrass block somewhere in the world");
+
+    bool allMatch = true;
+    for (int x = 0; x < WORLD_SIZE_X; x += 2) {
+        for (int z = 0; z < WORLD_SIZE_Z; z += 2) {
+            const int height = NoiseGenerator::Height(1234, x, z);
+            if (height + 1 < WORLD_SIZE_Y && a.GetBlock(x, height + 1, z) != b.GetBlock(x, height + 1, z)) {
+                allMatch = false;
+            }
+        }
+    }
+    Check(allMatch, "tall grass placement is deterministic for a fixed seed, same as trees/clouds");
+
+    // Every TallGrass block must sit exactly one cell above its column's
+    // real terrain surface height (never floating, never buried).
+    bool everyBladeSitsOnSurface = true;
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            const int height = NoiseGenerator::Height(1234, x, z);
+            for (int y = 0; y < WORLD_SIZE_Y; ++y) {
+                if (a.GetBlock(x, y, z) == BlockType::TallGrass && y != height + 1) {
+                    everyBladeSitsOnSurface = false;
+                }
+            }
+        }
+    }
+    Check(everyBladeSitsOnSurface, "every TallGrass block sits exactly one cell above its column's real surface height");
+}
+
 void TestNoiseGeneratorSimplex2IsSeeded() {
     Check(NoiseGenerator::Height(1234, 5, 5) == NoiseGenerator::Height(1234, 5, 5),
           "NoiseGenerator::Height is a pure function of (seed, x, z)");
@@ -430,6 +475,44 @@ void TestChunkMesherLeavesTransparency() {
     Check(!againstWood.IsOpaque(5, 5, 5), "Leaves is not opaque (doesn't occlude neighbor faces)");
 }
 
+void TestChunkMesherPlantBillboard() {
+    // TallGrass (CRAFT_PARITY.md §3.7 "Non-cubic plant geometry") emits a
+    // 4-quad cross billboard (ChunkMesher::EmitPlant), not 6 cube faces —
+    // ports Craft's make_plant. Unlike cube blocks, plants are never
+    // face-culled against neighbors: they always emit all 4 quads.
+    World lone;
+    lone.SetBlock(5, 5, 5, BlockType::TallGrass);
+    ChunkMeshData loneMesh = ChunkMesher::Build(lone, 0, 0, 0);
+    Check(loneMesh.opaque.vertices.empty(), "a lone TallGrass block emits nothing into the opaque mesh");
+    Check(loneMesh.transparent.vertices.size() == 16,
+          "a lone TallGrass block emits 4 quads * 4 verts = 16 vertices (cross billboard, not a cube)");
+    Check(loneMesh.transparent.indices.size() == 24, "4 quads * 6 indices = 24 indices");
+
+    // Surrounding a plant on all 6 sides must NOT reduce its face count —
+    // plants are never occlusion-culled, unlike cube blocks.
+    World surrounded;
+    surrounded.SetBlock(5, 5, 5, BlockType::TallGrass);
+    surrounded.SetBlock(6, 5, 5, BlockType::Stone);
+    surrounded.SetBlock(4, 5, 5, BlockType::Stone);
+    surrounded.SetBlock(5, 6, 5, BlockType::Stone);
+    surrounded.SetBlock(5, 4, 5, BlockType::Stone);
+    surrounded.SetBlock(5, 5, 6, BlockType::Stone);
+    surrounded.SetBlock(5, 5, 4, BlockType::Stone);
+    ChunkMeshData surroundedMesh = ChunkMesher::Build(surrounded, 0, 0, 0);
+    Check(surroundedMesh.transparent.vertices.size() == 16,
+          "a fully-surrounded TallGrass block still emits all 4 quads (plants are never face-culled)");
+
+    // Collision/occlusion/breakability rules (CRAFT_PARITY.md §3.7): plants
+    // are solid (meshed/hit-testable/breakable) but NOT collidable (the
+    // player walks through them) and NOT opaque (don't occlude neighbors) —
+    // same non-collidable pattern as Cloud, opposite reasoning.
+    Check(surrounded.IsSolid(5, 5, 5), "TallGrass occupies space (meshed/hit-testable)");
+    Check(surrounded.IsBreakable(5, 5, 5), "TallGrass is breakable");
+    Check(!surrounded.IsCollidable(5, 5, 5), "TallGrass is not collidable (the player walks through it)");
+    Check(!surrounded.IsOpaque(5, 5, 5), "TallGrass does not occlude neighboring faces");
+    Check(surrounded.IsOpaque(6, 5, 5), "a normal Stone neighbor is still opaque (unaffected by the plant)");
+}
+
 void TestChunkMesherCloudIsOpaqueButNotCollidable() {
     // Cloud is the inverse situation from Glass: opaque (occludes neighbors,
     // meshed into the *opaque* mesh, hit-testable) but NOT collidable (the
@@ -469,7 +552,7 @@ void TestVoxelRaycastHitsExpectedFaceAndBlock() {
 
 void TestHotbarSelectionAndCycling() {
     Hotbar hotbar;
-    Check(hotbar.SlotCount() == 15, "hotbar has 15 slots (Bedrock excluded from the placeable roster)");
+    Check(hotbar.SlotCount() == 16, "hotbar has 16 slots (Bedrock excluded from the placeable roster)");
     Check(hotbar.SelectedIndex() == 0, "hotbar starts on slot 0");
     Check(hotbar.Selected() == BlockType::Grass, "hotbar starts selecting slot 1's block (Grass)");
 
@@ -492,7 +575,9 @@ void TestHotbarSelectionAndCycling() {
     hotbar.CycleNext();
     Check(hotbar.Selected() == BlockType::Cloud, "slot 14 is Cloud");
     hotbar.CycleNext();
-    Check(hotbar.Selected() == BlockType::Leaves, "slot 15 (the last slot) is Leaves");
+    Check(hotbar.Selected() == BlockType::Leaves, "slot 15 is Leaves");
+    hotbar.CycleNext();
+    Check(hotbar.Selected() == BlockType::TallGrass, "slot 16 (the last slot) is TallGrass");
     hotbar.CycleNext();
     Check(hotbar.SelectedIndex() == 0, "CycleNext wraps back to slot 0 after the last slot");
 
@@ -500,12 +585,12 @@ void TestHotbarSelectionAndCycling() {
     // forward/backward through the whole roster; CyclePrev was missing
     // until this session (only CycleNext/E existed).
     hotbar.CyclePrev();
-    Check(hotbar.Selected() == BlockType::Leaves,
-          "CyclePrev from slot 0 wraps backward to the last slot (Leaves)");
+    Check(hotbar.Selected() == BlockType::TallGrass,
+          "CyclePrev from slot 0 wraps backward to the last slot (TallGrass)");
     hotbar.CyclePrev();
-    Check(hotbar.Selected() == BlockType::Cloud, "CyclePrev steps back one slot at a time");
+    Check(hotbar.Selected() == BlockType::Leaves, "CyclePrev steps back one slot at a time");
     hotbar.CycleNext();
-    Check(hotbar.Selected() == BlockType::Leaves, "CycleNext after CyclePrev returns to the same slot");
+    Check(hotbar.Selected() == BlockType::TallGrass, "CycleNext after CyclePrev returns to the same slot");
 
     // Regression test (CRAFT_PARITY.md §2.7): middle-click "eyedropper",
     // ports Craft's on_middle_click (linear-scan items[] for the targeted
@@ -773,12 +858,14 @@ int main() {
     TestWorldGeneratesClouds();
     TestWorldGeneratesSandAtLowElevation();
     TestWorldGeneratesTrees();
+    TestWorldGeneratesTallGrass();
     TestNoiseGeneratorSimplex2IsSeeded();
     TestNoiseGeneratorSimplex3();
     TestDayNightCycleMatchesCraftsCurveShape();
     TestChunkMesherFaceCulling();
     TestChunkMesherGlassTransparency();
     TestChunkMesherLeavesTransparency();
+    TestChunkMesherPlantBillboard();
     TestChunkMesherCloudIsOpaqueButNotCollidable();
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();

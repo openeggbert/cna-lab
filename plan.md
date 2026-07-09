@@ -361,8 +361,9 @@ explicit human decision first:
 
 - `pending` (large) — Hash-map-keyed dynamic chunk store + distance-based load/unload (§11.1)
   — prerequisite for an unbounded world; a genuine architecture change, not a small patch.
-- `pending` (large) — Non-cubic plant/billboard geometry, ambient occlusion, greedy meshing
-  (§11.2) — each needs a `MeshVertex`/`ChunkMesher` format change.
+- `completed` (moved here from §11.2, see §12.1 item 7) — Non-cubic plant/billboard geometry.
+  `pending` (large) — ambient occlusion, greedy meshing (§11.2) — each needs a further
+  `MeshVertex`/`ChunkMesher` format change.
 - `blocked` (EASYGL-only today) / `needs_human` if VULKAN/BGFX parity is required — Textured sky
   dome + fog, point/block lighting (§11.3): needs CNA `ShaderEffect`; EASYGL has real runtime GLSL,
   VULKAN needs a precompiled-SPIR-V toolchain (no runtime GLSL path), BGFX's `ShaderEffect` is a
@@ -462,9 +463,12 @@ explicit human decision first:
       `PlankPattern` (board seams), `SnowFleckPattern`. Verified visually against a real EasyGL
       build — clearly visible per-pixel speckle detail on terrain (dirt/grass) replacing the old
       flat color blocks.
-- [ ] Non-cubic "plant" geometry: cross-quad billboards for grass/flowers (Craft: `src/cube.c`
-      `make_plant`) — `ChunkMesher` needs a second emission path alongside the cube-face path in
-      §4.
+- [x] Non-cubic "plant" geometry: cross-quad billboards, `ChunkMesher::EmitPlant` — a second
+      emission path alongside the cube-face path in §4, ported from Craft's `src/cube.c`
+      `make_plant` (4-quad "X" cross, verified against the real checkout). `BlockType::TallGrass`
+      is the first plant type; flowers/Chest can reuse the same path later. See §12.1 item 7 for
+      the full implementation notes (this was picked up as part of the CRAFT_PARITY.md-driven
+      parity pass, not this section's original session).
 - [x] Transparency for glass: added `BlockType::Glass` (solid/collidable, but transparent) and a
       `BlockDef.transparent` flag. `World::IsOpaque` (`solid && !transparent`) replaces `IsSolid` in
       `ChunkMesher`'s neighbor-face check only — collision (`IsSolid`) is untouched — matching
@@ -672,10 +676,27 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
    `PlayerController`'s horizontal move vector is now normalized before scaling by `kMoveSpeed`/
    `kFlySpeed`, matching Craft's `get_motion_vector`'s always-unit-vector approach — diagonal
    movement (e.g. W+D) is no longer ~41% faster than straight movement.
-7. `pending` (large) — **Non-cubic plant geometry** (CRAFT_PARITY.md §3.7): `ChunkMesher` needs a
-   second emission path (cross-quad billboard) before TallGrass/flower `BlockType`s can be added.
-   This is the same item as §11.2's "Non-cubic plant geometry" — restated here as a
-   gameplay-critical-tier item per the parity audit's priority classification, not a new task.
+7. `completed` — **Non-cubic plant geometry** (CRAFT_PARITY.md §3.7): `ChunkMesher` gained a
+   second emission path, `EmitPlant` — a 4-quad cross ("X") billboard ported from Craft's real
+   `make_plant` (src/cube.c), two full-block diagonal planes each emitted with both windings so
+   the cross is visible from any angle. New `BlockDef.plant` flag (true only for the new
+   `BlockType::TallGrass`): `solid=true` (meshed/hit-testable/breakable, matches `World::IsSolid`),
+   `collidable=false` (walk-through, same non-collidable pattern as Cloud but opposite reasoning —
+   ports Craft's `is_obstacle(plant)==0`), `transparent=true` (doesn't occlude neighbors, ports
+   `is_transparent(plant)`). Plants are never face-culled against neighbors — always emit all 4
+   quads regardless of what's adjacent, matching Craft exactly. New `World::GenerateGrassDecoration`
+   places `TallGrass` one cell above grass-column surfaces using Craft's real trigger
+   (`simplex2(-x*0.1, z*0.1, 4, 0.8, 2) > 0.6`, verified against the checkout), run after
+   `GenerateTrees` (a harmless reordering vs. Craft's same-Y-level model, since this project places
+   the plant one cell *above* the surface rather than *at* it, so it never actually contends with a
+   tree trunk cell — see the code comment for the full reasoning). New atlas tile 19
+   (`Pattern::GrassBlade` — per-pixel transparent gaps carve blade shapes out of the cross quads,
+   `TextureAtlas.cpp`). `TallGrass` appended to `Hotbar::kSlots` (now 16 slots). 14 new unit tests
+   (mesh emission shape/vertex-count, never-face-culled invariant, solid/collidable/transparent/
+   breakable rules, world-gen presence/determinism/surface-height invariant, hotbar slot count) —
+   138 checks total. Verified visually against a real EasyGL build: a screenshot clearly shows
+   dark-green blade-shaped billboards (with visible transparent gaps between blades) growing out of
+   grass terrain, confirming mesh shape, alpha blending, and world placement all work end-to-end.
 8. `completed` — **Texture atlas note**: no code change — CRAFT_PARITY.md §5.5 confirms
    cna-craft's procedural atlas is a documented, deliberate substitution for Craft's hand-authored
    `texture.png`; adopting a real asset is `needs_human` (new asset dependency), not picked up.

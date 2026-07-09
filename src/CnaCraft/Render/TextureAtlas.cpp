@@ -43,10 +43,11 @@ const TileColor kTileColors[] = {
     {140, 200, 220, 130}, // 16: glass (partially transparent)
     {235, 235, 240, 255}, // 17: cloud
     {55, 120, 40, 215},   // 18: leaves (mottled green, partially transparent like glass)
+    {75, 155, 50, 235},   // 19: tall grass (blade green; per-pixel gaps carve the blade shape)
 };
 constexpr int kTileCount = sizeof(kTileColors) / sizeof(kTileColors[0]);
 
-enum class Pattern { Mottle, Brick, WoodBark, WoodRings, Plank, SnowFleck };
+enum class Pattern { Mottle, Brick, WoodBark, WoodRings, Plank, SnowFleck, GrassBlade };
 
 struct TilePattern {
     Pattern pattern;
@@ -78,6 +79,7 @@ constexpr TilePattern kTilePatterns[] = {
     {Pattern::Mottle, 0.06f},    // 16: glass
     {Pattern::Mottle, 0.05f},    // 17: cloud
     {Pattern::Mottle, 0.30f},    // 18: leaves (punchy speckle, like foliage clumps)
+    {Pattern::GrassBlade, 0.0f}, // 19: tall grass (vertical blade streaks with cutout gaps)
 };
 
 // Deterministic per-pixel hash noise (same technique as
@@ -152,15 +154,30 @@ Color SnowFleckPattern(const TileColor& base, int x, int y) {
     return Shade(base, noise > 0.85f ? -0.15f : 0.02f);
 }
 
+Color GrassBladePattern(const TileColor& base, int x, int y) {
+    // Vertical blade streaks with fully-transparent gaps between them (a
+    // per-pixel stand-in for Craft's real hand-drawn tall-grass sprite,
+    // textures/texture.png) so the cross-quad billboard (ChunkMesher's
+    // EmitPlant) reads as individual blades rather than a solid green card.
+    // A slight per-row wobble keeps the blades from looking perfectly
+    // straight/mechanical.
+    const int wobble = static_cast<int>((PixelHash(19, x, y / 3) - 0.5f) * 3.0f);
+    const int bladeX = (x + wobble + kAtlasTileSize) % 4;
+    if (bladeX >= 2) return Color(base.r, base.g, base.b, std::uint8_t{0}); // gap between blades
+    const float noise = (PixelHash(19, x, y) - 0.5f) * 0.18f;
+    return Shade(base, noise);
+}
+
 Color PaintPixel(int tile, int x, int y) {
     const TileColor& base = kTileColors[tile];
     const TilePattern& pat = kTilePatterns[tile];
     switch (pat.pattern) {
-        case Pattern::Brick:     return BrickPattern(base, x, y);
-        case Pattern::WoodBark:  return WoodBarkPattern(base, x, y);
-        case Pattern::WoodRings: return WoodRingsPattern(base, x, y);
-        case Pattern::Plank:     return PlankPattern(base, x, y);
-        case Pattern::SnowFleck: return SnowFleckPattern(base, x, y);
+        case Pattern::Brick:      return BrickPattern(base, x, y);
+        case Pattern::WoodBark:   return WoodBarkPattern(base, x, y);
+        case Pattern::WoodRings:  return WoodRingsPattern(base, x, y);
+        case Pattern::Plank:      return PlankPattern(base, x, y);
+        case Pattern::SnowFleck:  return SnowFleckPattern(base, x, y);
+        case Pattern::GrassBlade: return GrassBladePattern(base, x, y);
         case Pattern::Mottle:
         default:
             return MottlePattern(base, tile, x, y, pat.strength);
