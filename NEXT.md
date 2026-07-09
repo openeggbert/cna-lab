@@ -1,9 +1,8 @@
 # NEXT.md
 
-Handoff document for resuming work on **cna-craft**. Last updated after this
-session's work (committed as `<pending>` — see git log for the actual hash)
-on top of commit `8bb26e7` (`Add 3D Simplex noise, cloud generation, and
-simple trees`) on branch `develop`.
+Handoff document for resuming work on **cna-craft**. Last updated after
+commit `797c67d` (`Re-assess Signs/Chat scope`) on branch `develop`, the
+end of a long autonomous multi-task session.
 
 ## 1. Project summary
 
@@ -12,200 +11,203 @@ CNA Craft is a first-person voxel-world game/prototype, built entirely on
 XNA 4.0 programming model — and its `sharp-runtime` utility layer. The goal
 is a faithful CNA-native **port of [fogleman/Craft](https://github.com/fogleman/Craft)**
 (MIT-licensed reference project; see `THIRD_PARTY_NOTICES.md`), not merely a
-"Craft-inspired" prototype — architecture/algorithms are studied and ported
-where practical, no code copied verbatim.
+"Craft-inspired" prototype.
 
-**Current development phase**: past initial-prototype milestones (M0–M6 in
-`plan.md` §9). This session did a full, systematic feature-by-feature parity
-audit against the real Craft source (not just README claims) — see
-[CRAFT_PARITY.md](CRAFT_PARITY.md), the new **source of truth for "does
-cna-craft match Craft's real behavior."** `plan.md` §12 ("Craft Feature
-Parity Port") converts its gaps into an ordered task list and **supersedes**
-§11's older, less systematically-audited backlog for anything the two
-disagree on. Read `CRAFT_PARITY.md` and `plan.md` §12 first when resuming.
+**Primary sources of truth, in order**:
+1. [CRAFT_PARITY.md](CRAFT_PARITY.md) — the systematic feature-by-feature
+   parity audit against the real Craft source. ~35 feature areas, each
+   citing exact Craft file/line and exact cna-craft file/line, with a
+   status (`complete`/`partial`/`missing`/`blocked`/`needs_human`).
+2. `plan.md` §12 ("Craft Feature Parity Port") — converts `CRAFT_PARITY.md`
+   into an ordered, numbered task list (22 items) with the same status
+   vocabulary. **This supersedes `plan.md` §11's older backlog** wherever
+   they disagree.
+3. This file — a handoff summary, not an independent source of truth. Keep
+   it in sync with the two files above, not the other way around.
 
-**Key architectural decisions**: unchanged — two-layer split (`Worlds/`
-engine-agnostic, `Render/` + `CnaCraftGame` CNA-dependent), fixed-size world
-(`128×64×128`), naive per-face meshing, backend-agnostic game code,
-two-mesh-buffer (opaque/transparent) convention. See `plan.md` §2/§6.
+**Key architectural decisions**: unchanged across all sessions — two-layer
+split (`Worlds/` engine-agnostic, `Render/` + `CnaCraftGame` CNA-dependent),
+fixed-size world (`128×64×128`), naive per-face meshing (now with a second
+cross-billboard path for plants), backend-agnostic game code,
+two-mesh-buffer (opaque/transparent) convention.
 
 ## 2. Current status
 
-**Build status**: verified this session (EasyGL backend) — clean configure +
-build from scratch, no warnings, `CnaCraft` executable links and runs.
-Verified via headless `--smoke 60` runs and real interactive screenshots
-(Xvfb/xdotool/ImageMagick), not just compilation.
+**Build status**: verified at the end of this session (EasyGL backend) —
+clean configure + build from scratch, zero warnings, `CnaCraft` executable
+links and runs. Verified via headless `--smoke 120` runs and multiple real
+interactive screenshots (Xvfb/xdotool/ImageMagick), not just compilation.
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **117 plain-assert checks,
-all passing** (up from 103 at the start of this session). Builds and runs
-standalone with `-DCNA_CRAFT_BUILD_GAME=OFF` (no CNA/GPU/display needed).
+**Test status**: `tests/worlds_smoke_test.cpp` — **149 plain-assert checks,
+all passing** (up from 103 at the start of this session, 82 two sessions
+ago). Builds and runs standalone with `-DCNA_CRAFT_BUILD_GAME=OFF`.
 
-**What changed this session**: a full 5-area parallel source audit against
-the real Craft checkout (`/rv/data/development/github.com/other/Craft`)
-produced `CRAFT_PARITY.md` (~35 feature areas, each with cited Craft
-behavior, cited cna-craft behavior, and a status). Six concrete, verified
-gaps were then fixed:
+**plan.md §12.1 status as of this session's end** (22 items):
+- **15 `completed`**: hotbar 0/R/scroll, wireframe selection outline,
+  Bedrock break-protection, player self-intersection placement guard,
+  diagonal-movement normalization, non-cubic plant geometry (TallGrass),
+  texture-atlas note, dead-Sand-block fix, terminal-velocity clamp,
+  collision substepping, fog, sky dome (untextured), middle-click
+  eyedropper, Ctrl+left-click-as-place, Flower blocks.
+- **4 `needs_human`**: Cloud-placeable-via-hotbar (Craft fidelity vs.
+  existing feature trade-off), world persistence, delta storage, chunk
+  system redesign (hash-map + streaming).
+- **1 `blocked`**: ambient occlusion (needs a custom `ShaderEffect`, only
+  real on EASYGL today).
+- **2 `pending (large)`**: Signs, Chat/slash-commands — both need a new
+  text-input state machine as a shared prerequisite (CNA *does* have a
+  usable `TextInputEXT` primitive, checked this session, so this isn't
+  engine-blocked — it's genuinely more work than "small, safe, reviewable"
+  scope allows in one continuous pass).
+- **1 `pending`, explicitly deferred**: multiplayer, per project direction
+  (not before local single-player + persistence are stable).
 
-1. **Diagonal-movement speed bug** — `PlayerController`'s move input is now
-   normalized to a unit vector before scaling by speed, matching Craft's
-   `get_motion_vector` (`atan2f`-based, always unit-length). Previously,
-   holding two movement keys (e.g. W+D) moved ~41% faster than one key.
-2. **Terminal velocity clamp** — fall speed is now capped at Craft's own
-   `-250 units/s` (`PlayerController::kTerminalVelocity`); previously
-   unbounded.
-3. **Bedrock break-protection** — new `BlockDef.breakable` flag (`World::
-   IsBreakable`), false only for Bedrock. Bedrock (a cna-craft-only concept —
-   Craft itself has no such block) could previously be mined away, despite
-   `Hotbar.hpp`'s own comment calling it "not meant to be placed by the
-   player." Ported the spirit of Craft's `is_destructable` guard.
-4. **Player self-intersection placement guard** — new `PlayerController::
-   IntersectsBlock(bx,by,bz)`, wired into right-click placement. Ports
-   Craft's real `on_right_click` guard (`!player_intersects_block(...)`).
-   Previously a player could place a block that immediately trapped them.
-5. **Hotbar completeness** — added key `0` (10th direct slot), `R`
-   (reverse-cycle, new `Hotbar::CyclePrev`), and scroll-wheel cycling, all
-   verified against Craft's real `on_key`/`on_scroll`. Previously only
-   `E`/1-9 existed.
-6. **Wireframe selection outline** — new `Render/SelectionOutline.{hpp,cpp}`,
-   a 12-edge `LineList` box drawn around the currently-raycast-targeted
-   block each frame (ports Craft's `render_wireframe`/`make_cube_wireframe`).
-   **Verified this does NOT need a custom shader** — plain `BasicEffect` +
-   `VertexPositionColor` works on all three backends, unlike AO/sky-dome.
-   Previously the player had zero visual feedback for which block would be
-   broken/placed.
+This is a legitimate stop point: every item that was small enough to
+implement safely in a continuous session has been implemented, tested, and
+verified; everything left needs either a human decision or is large enough
+to deserve its own dedicated session.
 
-All 6 fixes have new unit tests (14 new checks: 103→117) and the wireframe
-outline was additionally verified against a real EasyGL build via
-screenshot (visible black edge lines around the targeted block).
+## 3. Recent changes (this session — a long autonomous run)
 
-**What was investigated but deliberately NOT changed**:
-- `kFlySpeed` is 2x `kMoveSpeed`, not Craft's 4x — the in-code comment
-  claiming 4x was wrong and has been corrected, but the *speed itself* was
-  left as-is (a subjective tuning choice, not a bug — see `CRAFT_PARITY.md`
-  §1.5). `needs_human` if you want it changed to match Craft's ratio exactly.
-- Collision substepping (`CRAFT_PARITY.md` §1.7) — Craft explicitly
-  substeps (`step = MAX(8, estimate)`) to avoid tunneling through thin
-  obstacles at high velocity; cna-craft does a single whole-step-or-revert
-  per axis per frame. Left `pending`, not bundled into this session's
-  quick-fix batch — it touches load-bearing physics code that the project's
-  own rules say needs the *full* test suite re-verified against every
-  constant as its own careful pass, not a drive-by change.
-- Removing `Cloud` from the placeable hotbar (Craft never allows placing
-  clouds) — `needs_human`, a trade-off between Craft fidelity and
-  cna-craft's own existing player-facing feature.
-- The dead `Sand` block (defined everywhere, never generated by
-  `World::Generate`) — a small, unambiguous fix, left `pending` (not picked
-  up this session, see `plan.md` §12.1 item 9).
+All individually committed and pushed to `develop`, in order:
 
-**What still does not work / is not implemented** (see `CRAFT_PARITY.md` for
-the full, cited breakdown): non-cubic plant/billboard geometry, ambient
-occlusion (blocked — shader backend limitations), sky dome, fog (NOT
-blocked — `BasicEffect` has built-in fog, just unused), any persistence,
-signs, chat/commands, multiplayer, hash-map/streamed chunk system.
+1. `ee05886` — `CRAFT_PARITY.md` audit (5 parallel research passes against
+   the real Craft checkout) + `plan.md` §12 ordered task list, plus 6
+   immediate fixes: diagonal-movement normalization, terminal-velocity
+   clamp, Bedrock break-protection (`BlockDef.breakable`/`World::
+   IsBreakable`), player self-intersection placement guard
+   (`PlayerController::IntersectsBlock`), hotbar completeness (key `0`,
+   `R`, scroll wheel), wireframe selection outline (`Render::
+   SelectionOutline`, verified NOT blocked by shader limitations).
+2. `6a08ecf` — Fixed the dead `Sand` block: a low-elevation "beach" surface
+   rule (`kSandMaxHeight=10`), adapted from Craft's real `h<=12` rule.
+3. `6e77628` — Distance fog via `BasicEffect`'s built-in
+   `FogEnabled`/`FogColor`/`FogStart`/`FogEnd` — confirmed not blocked by
+   shader limitations (CNA has a real cross-backend fog test suite for this
+   exact code path).
+4. `377f6b5` — Middle-click eyedropper (`Hotbar::SelectByBlockType`).
+5. `b135abe` — Non-cubic plant billboard geometry: `ChunkMesher::EmitPlant`
+   (4-quad cross, ported from Craft's `make_plant`), new
+   `BlockDef.plant` flag, `BlockType::TallGrass`, `World::
+   GenerateGrassDecoration`.
+6. `ee71f13` — Collision substepping (`PlayerController::Update` now runs
+   `clamp(estimate, 8, 64)` substeps per frame, ported from Craft's own
+   `step = MAX(8, estimate)`), preventing tunneling through thin walls at
+   large `dt`. Empirically verified meaningful (forced substepping off,
+   confirmed the new regression test then failed, restored and re-passed).
+7. `974f108` — Plain vertex-colored sky dome (`Render::SkyDome`), replacing
+   the flat clear-color sky. **Real bug caught and fixed during
+   development**: first winding guess rendered nothing at all; traced to
+   CNA's actual default `CullCounterClockwiseFace` rasterizer state via
+   reading the source, fixed empirically with debug colors.
+8. `dfdff8f` — Ctrl+left-click as place, matching Craft's real
+   `on_mouse_button` modifier routing.
+9. `abd89f5` — Flower blocks, reusing the TallGrass plant infrastructure.
+10. `797c67d` — Re-assessed Signs/Chat scope (confirmed CNA has a usable
+    text-input primitive, but the state machine + 3D billboard rendering
+    don't exist yet) and documented the reasoning in both `plan.md` and
+    `CRAFT_PARITY.md` rather than silently skipping them.
 
-## 3. Recent changes (this session)
-
-Not yet committed as of this writing (standing permission granted by the
-user to commit/push periodically — see memory). Files touched: `README.md`
-(N/A this session — no changes), `plan.md`, `NEXT.md` (this file, new),
-`CRAFT_PARITY.md` (new), `CMakeLists.txt`,
-`src/CnaCraft/Worlds/{BlockType,Hotbar,PlayerController,World}.{hpp,cpp}`,
-`src/CnaCraft/CnaCraftGame.{hpp,cpp}`,
-`src/CnaCraft/Render/SelectionOutline.{hpp,cpp}` (new),
-`tests/worlds_smoke_test.cpp`.
-
-In order:
-
-1. **Dispatched 5 parallel research agents**, each reading the real Craft
-   checkout against a specific area of cna-craft's `src/` tree
-   (input/movement/camera; hotbar/block-place/raycast; chunk/mesh/terrain;
-   persistence/signs/multiplayer; visuals/shaders/atlas), each producing a
-   cited, structured comparison report.
-2. **Synthesized `CRAFT_PARITY.md`** from the 5 reports — ~35 feature areas,
-   each with Craft behavior (cited), cna-craft behavior (cited), status,
-   priority, and verification method, plus a summary table.
-3. **Added `plan.md` §12 "Craft Feature Parity Port"** — converts
-   `CRAFT_PARITY.md`'s gaps into an ordered, prioritized task list with
-   explicit statuses, superseding §11 where they disagree.
-4. **Implemented the 6 fixes listed in §2 above**, each built and tested
-   individually before moving to the next.
+Test count progression: 103 → 117 (first batch of 6 fixes) → 120 (Sand) →
+125 (eyedropper) → 138 (plants) → 139 (substepping) → 149 (flowers). Sky
+dome and Ctrl+click added no new `Worlds/`-layer tests (pure render glue /
+pure input glue respectively, verified via build + smoke run instead).
 
 ## 4. Current blocker / main problem
 
-**There is no build-breaking or test-breaking blocker right now.** Clean
-build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and `-DCNA_GRAPHICS_BACKEND=EASYGL`,
-built from scratch), 117/117 tests passing.
+**None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
+`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 149/149 tests
+passing, zero compiler warnings.
 
 Carried over, still unresolved, still not urgent: mouse-look reliability
-confirmation on the user's real machine (`needs_human`, unchanged for
-several sessions now — see `plan.md` §11.0/§12.1).
+confirmation on the user's real (non-sandboxed) machine — `needs_human`,
+unchanged for several sessions now (see `plan.md` §11.0/§12.1 for history).
 
 ## 5. Known bugs and limitations
 
-See `CRAFT_PARITY.md` for the authoritative, cited list — do not re-derive
-this from memory or re-read Craft's source from scratch without checking
-there first, since it's now the maintained single source of truth for
-parity gaps. Highlights not yet fixed:
+See `CRAFT_PARITY.md` for the authoritative, cited, per-feature list — read
+it before re-deriving anything from memory or re-reading Craft's source
+from scratch. Highlights of what's NOT done yet:
 
-- **High priority, `needs_human`**: no world persistence (SQLite dependency
-  decision) — `CRAFT_PARITY.md` §4.1/§4.2.
-- **High priority, `pending` (large)**: no non-cubic plant/billboard
-  geometry — `CRAFT_PARITY.md` §3.7. Needs a `ChunkMesher`/`MeshData` format
-  change (a second emission path), not a quick task.
-- **High priority, `blocked`**: no ambient occlusion — needs a custom
-  vertex format + `ShaderEffect`, only real on EASYGL today (`missing.md`).
-- **Medium priority, `pending`, NOT blocked**: no fog. `BasicEffect` has
-  built-in linear distance fog (`FogEnabled`/`FogColor`/`FogStart`/
-  `FogEnd`) that needs no custom shader — a genuine low-hanging-fruit gap
-  `missing.md` hadn't previously flagged as backend-agnostic.
-- **Medium priority, `pending`**: dead `Sand` block (defined, never
-  generated) — `CRAFT_PARITY.md` §3.3.
-- **Medium priority, `needs_human`**: terrain-height formula structurally
-  differs from Craft's real dual-multiplicative-simplex2 composition
-  (cna-craft uses a single additive simplex2 call) — changing it would
-  visibly reshape all existing terrain, a tuning decision.
+- **`needs_human`**: world persistence (SQLite dependency decision),
+  Cloud-placeable-via-hotbar (Craft never allows placing clouds; removing
+  it is a fidelity-vs-existing-feature trade-off), terrain-height formula
+  (Craft's real dual-multiplicative-simplex2 vs. this project's
+  single-additive-simplex2 — changing it would reshape all existing
+  terrain), chunk system (hash-map + streaming vs. fixed dense grid — is
+  an unbounded world even wanted, given the project's stated fixed-size
+  prototype scope in `plan.md` §1?).
+- **`blocked`**: ambient occlusion — needs a custom vertex format +
+  `ShaderEffect`, only real on EASYGL today (`missing.md`).
+- **`pending (large)`**: Signs, Chat/slash-commands (see §2/§3 above for
+  the detailed reasoning — both need a new text-input state machine;
+  signs additionally need new 3D billboard rendering; chat additionally
+  needs Craft's world-editing macro commands).
+- **Deliberately deferred**: multiplayer.
+- **Low-value, not picked up**: the other 5 of Craft's 6 flower colors,
+  Chest, the 32-entry dye-color palette — all would reuse existing
+  infrastructure (plant geometry or plain-cube blocks) but are pure
+  content-scaling with little gameplay value, explicitly deprioritized per
+  "prioritize gameplay parity over decorative additions."
 
 ## 6. Architecture notes
 
-**New this session**:
-- `Worlds/BlockType.hpp` — `BlockDef` gained a `breakable` field (default
-  `true`, `false` only for Bedrock). Same defensive `solid &&` AND-guard
-  pattern as `transparent`/`collidable` — **do not remove the `solid &&`
-  guard from `World::IsBreakable`**, same reasoning as the existing
-  `IsOpaque`/`IsCollidable` note below.
-- `Worlds/PlayerController` — gained `IntersectsBlock(bx,by,bz)` (public) and
-  a `kTerminalVelocity=-250.0f` clamp. The horizontal move-input vector is
-  now normalized before scaling by speed (inside `Update`, not part of the
-  public API — no signature changes).
-- `Worlds/Hotbar` — gained `CyclePrev()`, symmetric with the existing
-  `CycleNext()`.
-- `Worlds/World` — gained `IsBreakable(x,y,z)`.
-- `Render/SelectionOutline` (new file) — a small, self-contained class:
-  `Update(device, bx,by,bz)` rebuilds an 8-vertex/24-index `LineList` box
-  around a cell, `Draw(device, effect)` issues the draw call. Owns its own
-  `VertexBuffer`/`IndexBuffer`, rebuilt (not reallocated) every frame the
-  target changes. `CnaCraftGame::Draw` temporarily flips the shared
-  `BasicEffect` to `VertexColorEnabled=true`/`TextureEnabled=false`/
-  `LightingEnabled=false` around the outline draw call, then restores it —
-  if you add another `VertexPositionColor`-based draw call, follow this same
-  save/restore pattern rather than leaving the effect in colored-unlit mode.
-- `CnaCraftGame::Update` — the break/place raycast is now cast **once per
-  frame** (previously once per click), and its result is reused for the
-  new outline. If you touch this code, note that `hit` is a `std::optional`
-  captured once near the top of the click-handling block, not re-cast per
-  branch.
+**New this session** (see individual commit messages in §3 for full
+per-feature detail — this is just the "if you touch this again" summary):
 
-**Everything else** (module list, boundaries, data flow) — unchanged from
-prior sessions, see `plan.md` §2/§6/§8.
+- `Worlds/PlayerController` — `Update()` now runs a substep loop internally
+  (`kMinSubsteps=8`, `kMaxSubsteps=64`); yaw/pitch and jump-impulse
+  consumption stay once-per-call, only position/velocity integration is
+  substepped. Gained public `IntersectsBlock(bx,by,bz)`. Gained
+  `kTerminalVelocity=-250.0f`. Move input is normalized before scaling by
+  speed. **If you touch this function again**: re-run the full test suite
+  (139+ physics-related checks) — this is exactly the kind of load-bearing
+  code the project's own rules warn about.
+- `Worlds/BlockType` — `BlockDef` gained `breakable` (false only for
+  Bedrock) and `plant` (true for `TallGrass`/`Flower`) fields, both
+  following the established `solid &&`-guard defensive pattern — **do not
+  drop that guard** when adding a new `BlockDef` boolean.
+- `Worlds/ChunkMesher` — gained `EmitPlant`, a second mesh-emission path
+  (4-quad cross billboard) alongside the original 6-cube-face path, gated
+  by `BlockDef.plant`. Adding a new plant type (a flower color, Chest) is
+  just a new `BlockType` + atlas tile, not new mesher logic.
+- `Worlds/Hotbar` — gained `CyclePrev()` and `SelectByBlockType(type)`.
+  `kSlots` grew from 14 → 17 across this and the prior session (Cloud,
+  Leaves, TallGrass, Flower), always appended at the end, never reordered.
+- `Worlds/World` — `Generate()` pipeline order is now: terrain → trees →
+  grass decoration → flowers → clouds. Each later pass's "only place over
+  Air" guard relies on this exact order; if you insert a new pass, think
+  about where in this sequence it belongs.
+- `Render/SelectionOutline`, `Render/SkyDome` (both new files) — both use
+  the same "flip `BasicEffect` to `VertexColorEnabled=true`/
+  `TextureEnabled=false`/`LightingEnabled=false`, draw, flip back" pattern.
+  **If you add a third `VertexPositionColor`-based draw call, follow this
+  same save/restore pattern.**
+- `Render/SkyDome` specifically: **the triangle winding for non-cube
+  geometry is not obvious** — CNA's default `RasterizerState` culls
+  `CullCounterClockwiseFace` (confirmed by reading
+  `RasterizerState.cpp`), and empirically the correct visible winding for
+  inward-facing dome geometry was the *opposite* of the naive "CCW viewed
+  from inside" reasoning. If you add another custom mesh (not cube faces,
+  not the existing plant cross), verify winding with vivid debug colors in
+  a real build before trusting geometric reasoning alone.
+- `CnaCraftGame::Update` — the break/place raycast is cast once per frame
+  (not once per click) and reused for break, place, Ctrl+place, the
+  eyedropper, and the outline. A `tryPlaceBlock` lambda is shared between
+  ordinary right-click and Ctrl+left-click.
 
-**Boundaries that should not be broken** — unchanged, still load-bearing:
-`Worlds/` must never `#include` anything CNA/SDL; any new `BlockDef` boolean
-flag with a non-`false` default must be AND'd with `solid` wherever
-consumed (now applies to `breakable` too); two-mesh-buffer convention.
+**Everything else** (module list, boundaries, data flow) — unchanged, see
+`plan.md` §2/§6/§8.
+
+**Boundaries that must not be broken** — unchanged, still load-bearing:
+`Worlds/` must never `#include` anything CNA/SDL; any new `BlockDef`
+boolean flag with a non-`false` default must be AND'd with `solid`
+wherever consumed; two-mesh-buffer convention (plants extend `transparent`,
+they didn't need a third category).
 
 ## 7. Useful commands
 
-Unchanged from before:
+Unchanged:
 
 ```bash
 # Engine-agnostic tests only (no CNA/GPU/display needed):
@@ -213,7 +215,7 @@ cmake -S . -B build-worlds -DCNA_CRAFT_BUILD_GAME=OFF -DBUILD_TESTING=ON
 cmake --build build-worlds -j"$(nproc)"
 ./build-worlds/cna_craft_worlds_smoke_test
 ```
-Expect: `All checks passed.` (117 `ok:` lines, 0 `FAIL:` lines as of this
+Expect: `All checks passed.` (149 `ok:` lines, 0 `FAIL:` lines as of this
 writing).
 
 ```bash
@@ -228,67 +230,68 @@ There is no separate lint/format tooling configured in this repo.
 
 ## 8. Next smallest tasks
 
-`plan.md` §12.1 is the authoritative ordered priority queue — read it first.
-As of this session, queue items 1, 3, 4, 5, 6, 10 are `completed`; item 2 is
-`needs_human`; items 7, 9, 11, 13, 14, 16-19 are `pending`; items 12, 15 are
-`blocked`/`needs_human` respectively. A short candidate list for the next
-session, smallest/safest first:
+`plan.md` §12.1 is the authoritative ordered priority queue. As of this
+session's end, everything genuinely small is done. The real next steps all
+require either a human decision or a dedicated multi-part session:
 
-1. **Fix the dead `Sand` block** (`CRAFT_PARITY.md` §3.3, `plan.md` §12.1
-   item 9) — `World::Generate` never places `BlockType::Sand` despite it
-   being fully defined (BlockDef, hotbar roster). Small, unambiguous, no
-   design decision needed. Files: `src/CnaCraft/Worlds/World.cpp`.
-2. **Fog via `BasicEffect`'s built-in properties** (`CRAFT_PARITY.md` §5.2,
-   `plan.md` §12.1 item 13) — genuinely not blocked by shader limitations,
-   unlike AO/sky-dome. `FogEnabled`/`FogColor`/`FogStart`/`FogEnd` on the
-   existing `effect_` in `CnaCraftGame::Draw`.
-3. **Middle-click eyedropper** (`CRAFT_PARITY.md` §2.7) — small,
-   independent convenience feature, not blocked on anything larger.
-
-Do not start on: collision substepping (needs its own careful pass, not a
-quick task — see §2 above), plants/billboards (large mesh-format change),
-AO/sky-dome (blocked/needs_human), persistence/signs/chat/multiplayer (all
-`needs_human` or explicitly deferred), chunk-system redesign (large
-architecture change, `needs_human` on whether it's even wanted given the
-project's stated fixed-world scope).
+1. **Human decisions needed** (ask the user, don't guess): world
+   persistence (SQLite — a new dependency), Cloud-placeable-via-hotbar
+   (keep the existing feature or match Craft exactly?), terrain-height
+   formula (worth reshaping existing terrain to match Craft's real
+   formula?), chunk system (is an unbounded/streamed world even wanted?).
+2. **Dedicated follow-up session**: Signs + Chat/commands (share a
+   text-input state-machine prerequisite — CNA has the primitive, the
+   state machine and 3D billboard rendering don't exist yet). Scope this
+   as its own session with its own plan, not a "next smallest task."
+3. **Low priority, low value**: the other 5 Craft flower colors, Chest,
+   dye-color palette — technically easy (same plant/cube infrastructure)
+   but low gameplay value, explicitly deprioritized twice now.
 
 ## 9. Do not do yet
 
-Unchanged from before (SQLite, multiplayer, AO/greedy-meshing rewrite, sky
-dome/custom shaders, broad `Worlds/`/`Render/` refactor, `PlayerController`
-public-API changes without re-running the full suite, `Hotbar::kSlots`
-reordering) — **plus**:
+Everything from prior sessions still applies (SQLite without go-ahead, no
+multiplayer, no AO/greedy-meshing rewrite without a shader-backend
+decision, no broad `Worlds/`/`Render/` refactor, no `PlayerController`
+public-API changes without re-running the full suite, no `Hotbar::kSlots`
+reordering, no fly-speed constant change without a human decision, no
+removing `Cloud` from the hotbar without a human decision) — **plus**:
 
-- **No collision-substepping change** as a "quick fix" — it's real,
-  identified work (`CRAFT_PARITY.md` §1.7) but explicitly deferred this
-  session specifically because it touches load-bearing physics code; do it
-  as its own careful pass with the full test suite re-verified.
-- **No fly-speed constant change** (`kFlySpeed`) without a human decision —
-  the 2x-vs-Craft's-4x ratio was investigated and deliberately left alone
-  this session (see §2 above); don't "fix" it as a drive-by.
-- **No removing `Cloud` from `Hotbar::kSlots`** without a human decision —
-  it's a documented Craft-fidelity-vs-existing-feature trade-off, not a bug.
+- **No rushed Signs/Chat implementation** — both were deliberately
+  re-scoped to "pending (large)" this session after confirming they're not
+  simply blocked; doing either properly needs a real design pass for the
+  text-input state machine (specifically: how should typing interact with
+  WASD/mouse-look while a text box is focused?), not a drive-by addition.
+- **No collision-substepping constant changes** (`kMinSubsteps=8`,
+  `kMaxSubsteps=64`) without re-running the full test suite AND the manual
+  "force substeps to 1, confirm the tunneling test fails, restore" check —
+  the tunneling regression test is only meaningful if substepping is
+  actually active; a silent regression here wouldn't show up any other way.
+- **No `SkyDome`/`SelectionOutline` winding changes** without a real
+  EasyGL build + screenshot verification — this geometry's correct winding
+  was found empirically, not derived analytically, so don't "clean up"
+  the winding based on reasoning alone.
 
 ## 10. Resume prompt
 
 ```
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
-audit), then plan.md §12.1 (the ordered priority queue derived from it).
-Pick the first pending, non-blocked, non-needs_human item there (or a
-user-reported bug if one exists — that always takes priority). Before
-implementing anything that cites Craft's source code, re-verify the
-citation against the real checkout at
-/rv/data/development/github.com/other/Craft rather than trusting
-CRAFT_PARITY.md or plan.md blindly — they were carefully audited this
-session but could still contain an error, same as every prior citation
-pass in this project's history. Inspect only the files the task names —
-do not refactor unrelated code, and do not touch anything listed under "Do
-not do yet" in either plan.md or this file. Make one small, verified
-improvement: implement the task, build it (cmake --build build-worlds, or
+audit), then plan.md §12.1 (the ordered priority queue derived from it) —
+as of the last session, all 22 items are completed/needs_human/blocked/
+large-pending-deferred; there is no small pending item left. If the user
+hasn't provided a decision on one of the needs_human items (persistence,
+Cloud placeability, terrain formula, chunk redesign), ask before
+proceeding on any of those. If the user wants Signs/Chat, treat it as a
+new dedicated task: design the text-input state machine first (how does
+typing interact with WASD/mouse-look?), get that reviewed/confirmed if
+it's not obvious, then implement signs before chat (signs are the smaller
+of the two). Before implementing anything that cites Craft's source code,
+re-verify the citation against the real checkout at
+/rv/data/development/github.com/other/Craft — CRAFT_PARITY.md was
+carefully audited but could still contain an error, same as every prior
+citation pass in this project's history. Make one small, verified
+improvement at a time: implement, build (cmake --build build-worlds, or
 the full EasyGL build if it touches Render/ or CnaCraftGame), run the
-relevant test/smoke command, and confirm it actually passes before
-considering the task done. When finished, update plan.md §12.1's status
-for that item, update CRAFT_PARITY.md's corresponding entry if the fix
-changes its status from partial/missing to complete, and update this
-file's "Current status"/"Recent changes" with what actually changed.
+relevant test/smoke command, confirm it actually passes. When finished,
+update plan.md §12.1's status, update CRAFT_PARITY.md's corresponding
+entry, and update this file's "Current status"/"Recent changes".
 ```
