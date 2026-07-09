@@ -679,12 +679,18 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
 8. `completed` — **Texture atlas note**: no code change — CRAFT_PARITY.md §5.5 confirms
    cna-craft's procedural atlas is a documented, deliberate substitution for Craft's hand-authored
    `texture.png`; adopting a real asset is `needs_human` (new asset dependency), not picked up.
-9. `pending` — **Terrain generation: dead `Sand` block** (CRAFT_PARITY.md §3.3): `BlockType::Sand`
-   is defined, in `BlockDef`, and in the hotbar roster, but `World::Generate` never places it (no
-   sea-level/beach branch exists). A `needs_human`-free, unambiguous fix once picked up — unlike
-   the broader terrain-formula mismatch (Craft's dual-multiplicative-simplex2 vs cna-craft's
-   single-additive-simplex2), which **is** `needs_human` since changing it would visibly reshape
-   all existing generated terrain (a tuning/design decision).
+9. `completed` — **Terrain generation: dead `Sand` block** (CRAFT_PARITY.md §3.3): `World::Generate`
+   now places `Sand` (replacing the Dirt/Grass surface layers only, not the heightmap itself) for
+   any column at or below `kSandMaxHeight=10` — a low-elevation "beach" rule adapted from Craft's
+   real `if (h <= t) { h = t; w = SAND; }` (t=12), scaled down since Craft's own threshold would
+   swallow nearly this project's entire height range (`kMinHeight=4`). Deliberately does **not**
+   touch `NoiseGenerator::Height`'s formula itself (still the `needs_human` item below) — Stone/
+   Bedrock underneath a sandy column are unchanged, matching cna-craft's own pre-existing layered-
+   terrain design (not itself a Craft citation) rather than Craft's single-uniform-block-column
+   model. Sandy columns correctly get no trees (`World::GenerateTrees` already gates on
+   `BlockType::Grass`, matching Craft's own `if (w == 1)` grass-only trigger). 4 new unit tests
+   (presence, threshold invariant, determinism, cloud-pass-surface-invariant updated for the new
+   valid surface type) — 120 checks total.
 10. `completed` — **Player physics: terminal velocity clamp** (CRAFT_PARITY.md §1.8): port
     Craft's `-250 units/s` fall-speed cap to `PlayerController` (jump speed `8.0` and gravity
     `25.0` already matched Craft exactly from a prior session).

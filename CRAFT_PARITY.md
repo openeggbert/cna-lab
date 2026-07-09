@@ -386,15 +386,20 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   multiplicative dual-noise composition) with different numeric constants. **`BlockType::Sand`
   is defined, in the `BlockDef` table, and in the hotbar roster, but `World::Generate` never
   places it** — confirmed dead code (no sea-level/beach branch exists at all).
-- **Status**: partial
+- **Status**: partial (Sand generation fixed this session; the height-formula mismatch remains)
 - **Craft files**: `src/world.c` (whole file, ~85 lines)
-- **cna-craft files**: `src/CnaCraft/Worlds/World.cpp:81-105`, `NoiseGenerator.cpp:199-212`
-- **Priority**: high
+- **cna-craft files**: `src/CnaCraft/Worlds/World.cpp:81-119`, `NoiseGenerator.cpp:199-212`
+- **Priority**: high (formula mismatch), low (Sand — fixed)
 - **Verification method**: World-generation unit test asserting Sand appears somewhere in a
-  generated world (currently would fail)
-- **Notes**: The terrain-height *formula* mismatch is a large, subjective-tuning item — changing
-  it would visibly change existing terrain shape (`needs_human`, a gameplay-tuning decision). The
-  **dead Sand block** is a small, unambiguous, high-value fix — `pending`, not a design choice.
+  generated world (`TestWorldGeneratesSandAtLowElevation`, now passing)
+- **Notes**: The terrain-height *formula* mismatch remains `needs_human` — changing it would
+  visibly reshape existing terrain (a gameplay-tuning decision). **Sand generation implemented
+  this session**: a low-elevation (`height <= kSandMaxHeight=10`) surface rule replaces
+  Dirt/Grass with Sand without touching the heightmap formula itself — adapted from Craft's real
+  `h<=12` beach rule, scaled down since Craft's literal threshold (12) would swallow nearly all of
+  this project's much smaller height range (floor at `kMinHeight=4`). Does not replicate Craft's
+  whole-column-is-one-material model (Craft has no Stone/Bedrock layering at all); cna-craft's
+  pre-existing layered terrain is kept, only the top 1-4 blocks change material on sandy columns.
 
 ### 3.4 Face culling
 - **Craft behavior**: `is_transparent`/`is_obstacle` (`item.c`) feed a padded `opaque[]` array in
@@ -671,7 +676,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 2.8 | Collision rules (solid/transparent) | complete | low |
 | 3.1 | Chunk system (hash-map vs fixed) | partial | medium (large) |
 | 3.2 | Chunk streaming | missing | low (deliberate) |
-| 3.3 | Terrain formula / dead Sand block | partial | high |
+| 3.3 | Terrain formula (needs_human) / Sand generation (**fixed this session**) | partial | high (formula) |
 | 3.4 | Face culling | complete | low |
 | 3.5 | Mesh generation | complete | low |
 | 3.6 | Transparent blocks | complete | low |

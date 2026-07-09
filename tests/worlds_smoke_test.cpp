@@ -140,19 +140,57 @@ void TestWorldGeneratesClouds() {
     // already be non-Air before the cloud pass runs, but assert the
     // resulting invariant directly — every surface-height cell must still be
     // ordinary terrain surface, i.e. the cloud pass (band y=[58,62], far
-    // above kMaxHeight=56) didn't corrupt terrain/tree generation. Grass OR
-    // Wood is accepted at the surface cell: World::GenerateTrees legitimately
-    // overwrites some Grass cells with a tree trunk's base block, same as
-    // Craft's own `func(x, h, z, 5, arg)` — that is not terrain corruption.
+    // above kMaxHeight=56) didn't corrupt terrain/tree generation. Grass,
+    // Sand, or Wood is accepted at the surface cell: World::GenerateTrees
+    // legitimately overwrites some Grass cells with a tree trunk's base
+    // block (same as Craft's own `func(x, h, z, 5, arg)`), and low-elevation
+    // "beach" columns legitimately surface as Sand instead of Grass
+    // (CRAFT_PARITY.md §3.3) — neither is terrain corruption.
     bool terrainUnaffected = true;
     for (int x = 0; x < WORLD_SIZE_X; x += 5) {
         for (int z = 0; z < WORLD_SIZE_Z; z += 5) {
             const int height = NoiseGenerator::Height(1234, x, z);
             const BlockType surface = a.GetBlock(x, height, z);
-            if (surface != BlockType::Grass && surface != BlockType::Wood) terrainUnaffected = false;
+            if (surface != BlockType::Grass && surface != BlockType::Wood && surface != BlockType::Sand) {
+                terrainUnaffected = false;
+            }
         }
     }
-    Check(terrainUnaffected, "adding the cloud pass does not disturb terrain/tree surface generation");
+    Check(terrainUnaffected, "adding the cloud pass does not disturb terrain/tree/sand surface generation");
+}
+
+void TestWorldGeneratesSandAtLowElevation() {
+    // Regression test (CRAFT_PARITY.md §3.3): BlockType::Sand was fully
+    // defined (BlockDef, Hotbar roster) but World::Generate never actually
+    // placed it anywhere -- confirmed dead code by the audit. Fixed by a
+    // low-elevation "beach" surface rule (kSandMaxHeight=10 in World.cpp).
+    World a, b;
+    a.Generate(1234);
+    b.Generate(1234);
+
+    bool anySandFound = false;
+    bool everySandColumnIsLowElevation = true;
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            const int height = NoiseGenerator::Height(1234, x, z);
+            if (a.GetBlock(x, height, z) == BlockType::Sand) {
+                anySandFound = true;
+                if (height > 10) everySandColumnIsLowElevation = false;
+            }
+        }
+    }
+    Check(anySandFound, "World::Generate places at least one Sand-surfaced column somewhere in the world");
+    Check(everySandColumnIsLowElevation,
+          "every Sand-surfaced column sits at or below the documented kSandMaxHeight=10 threshold");
+
+    bool allMatch = true;
+    for (int x = 0; x < WORLD_SIZE_X; x += 2) {
+        for (int z = 0; z < WORLD_SIZE_Z; z += 2) {
+            const int height = NoiseGenerator::Height(1234, x, z);
+            if (a.GetBlock(x, height, z) != b.GetBlock(x, height, z)) allMatch = false;
+        }
+    }
+    Check(allMatch, "sand-vs-grass surface selection is deterministic for a fixed seed");
 }
 
 void TestWorldGeneratesTrees() {
@@ -721,6 +759,7 @@ int main() {
     TestWorldBoundsAndRoundTrip();
     TestWorldGenerationIsDeterministic();
     TestWorldGeneratesClouds();
+    TestWorldGeneratesSandAtLowElevation();
     TestWorldGeneratesTrees();
     TestNoiseGeneratorSimplex2IsSeeded();
     TestNoiseGeneratorSimplex3();

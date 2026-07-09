@@ -83,10 +83,29 @@ bool World::IsBreakable(int x, int y, int z) const {
     return def.solid && def.breakable;
 }
 
+namespace {
+// Craft's create_world (world.c) uses a beach rule: `if (h <= t) { h = t;
+// w = SAND; }` with t=12 -- low-elevation columns become an entirely
+// sand-colored column (Craft has no separate stone/dirt/bedrock layering at
+// all; every column is one uniform block type). cna-craft's own layered
+// terrain (Bedrock/Stone/Dirt/Grass per column, not part of any Craft
+// citation -- an independent design already in place before this session)
+// doesn't have an equivalent to replace wholesale without reshaping
+// existing terrain (a needs_human call per CRAFT_PARITY.md §3.3's terrain-
+// formula note). Adapted instead as a low-elevation *surface* rule: the
+// same "low ground is sandy" idea, applied only to the Dirt/Grass layers,
+// leaving Bedrock/Stone underneath unchanged. kSandMaxHeight=10 is scaled
+// to this project's much smaller height range (kMinHeight=4..kMaxHeight=56,
+// NoiseGenerator.cpp) rather than reusing Craft's literal t=12, which would
+// swallow nearly this project's entire height range near its floor.
+constexpr int kSandMaxHeight = 10;
+}
+
 void World::Generate(std::uint32_t seed) {
     for (int x = 0; x < WORLD_SIZE_X; ++x) {
         for (int z = 0; z < WORLD_SIZE_Z; ++z) {
             const int height = NoiseGenerator::Height(seed, x, z);
+            const bool sandyColumn = height <= kSandMaxHeight;
             for (int y = 0; y < WORLD_SIZE_Y; ++y) {
                 BlockType type;
                 if (y == 0) {
@@ -94,9 +113,9 @@ void World::Generate(std::uint32_t seed) {
                 } else if (y < height - 4) {
                     type = BlockType::Stone;
                 } else if (y < height) {
-                    type = BlockType::Dirt;
+                    type = sandyColumn ? BlockType::Sand : BlockType::Dirt;
                 } else if (y == height) {
-                    type = BlockType::Grass;
+                    type = sandyColumn ? BlockType::Sand : BlockType::Grass;
                 } else {
                     type = BlockType::Air;
                 }
