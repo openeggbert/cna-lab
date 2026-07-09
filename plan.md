@@ -748,9 +748,27 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     of it was unreliable — same class of sandbox flakiness noted elsewhere in this project's
     history) — the wireframe-outline screenshot from the prior commit already confirms the same
     `Draw()` pipeline (including `effect_` state changes) renders correctly end-to-end.
-14. `pending` — **Sky dome** (CRAFT_PARITY.md §5.3): a plain vertex-colored dome mesh (no
-    time-of-day texture sampling) is achievable with stock `BasicEffect`; full Craft-style texture
-    sampling needs a custom shader. Which version to build is `needs_human` (scope decision).
+14. `completed` — **Sky dome** (CRAFT_PARITY.md §5.3): picked the objectively-safe option rather
+    than treating this as `needs_human` — the plain vertex-colored version needs no new asset
+    dependency and no custom shader (both would be genuine scope/dependency decisions), so it's
+    the "smallest correct" implementation, not a subjective call. New `Render::SkyDome`: a 7-ring/
+    16-segment hemisphere (`VertexPositionColor`, stock `BasicEffect`), rebuilt each frame with a
+    horizon-to-zenith color gradient from the same day/night sky colors `CnaCraftGame::Draw`
+    already computes, drawn centered on the camera (via `World = Scale(400) *
+    Translation(cameraPos)`) with depth writes off so it never occludes anything, fog/lighting
+    temporarily disabled for the draw (same save/restore pattern `SelectionOutline` already uses).
+    Replaces the flat `device.Clear(...)` sky (the clear color is kept as a fallback base/matches
+    the dome's horizon ring, so there's no visible seam). **Real bug caught and fixed during
+    development**: the first winding choice (reasoned analytically as "CCW viewed from inside,
+    since the camera sits at the dome's center") rendered nothing at all — confirmed via a real
+    EasyGL build with deliberately vivid red/green debug colors that never appeared on screen.
+    Traced to CNA's actual default `RasterizerState` (`CullCounterClockwiseFace`, confirmed by
+    reading `RasterizerState.cpp`) needing the opposite winding from what was assumed; fixed
+    empirically (flipped the index order, rebuilt, the green gradient then rendered correctly) and
+    documented in a code comment so the next non-cube geometry addition doesn't repeat the same
+    mistake. Verified visually against a real EasyGL build twice — once with vivid debug colors to
+    unambiguously confirm the dome geometry renders as a gradient (not just the flat clear color
+    showing through), once with the real day/night colors restored.
 15. `needs_human` — **World persistence / delta storage** (CRAFT_PARITY.md §4.1/§4.2): SQLite
     dependency decision, unchanged from `missing.md`'s prior assessment.
 16. `pending` — **Signs** (CRAFT_PARITY.md §4.3): depends on persistence; text-rendering

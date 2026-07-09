@@ -101,6 +101,7 @@ if(CNA_CRAFT_BUILD_GAME)
         src/CnaCraft/Render/ChunkRenderer.cpp
         src/CnaCraft/Render/Hud.cpp
         src/CnaCraft/Render/SelectionOutline.cpp
+        src/CnaCraft/Render/SkyDome.cpp
     )
     target_include_directories(CnaCraft PRIVATE src)
 

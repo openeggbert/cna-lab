@@ -621,17 +621,24 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 ### 5.3 Sky dome
 - **Craft behavior**: a real icosphere mesh (`make_sphere`, `cube.c:346-384`), textured with a
   time-of-day-indexed `sky.png`, drawn every frame (`render_sky`).
-- **cna-craft behavior**: a flat `device.Clear(...)` color, linearly lerped day/night — no
-  geometry at all, self-acknowledged in a code comment as "still-flat, no sky dome yet".
-- **Status**: missing
+- **cna-craft behavior** (implemented this session): `Render::SkyDome` — a 7-ring/16-segment
+  hemisphere (`VertexPositionColor`, stock `BasicEffect`, no texture/shader), horizon-to-zenith
+  vertex-color gradient rebuilt each frame from the same day/night colors the old flat clear used,
+  drawn centered on the camera. The flat `device.Clear(...)` is kept as a fallback/matches the
+  dome's horizon ring exactly, so there's no seam.
+- **Status**: complete (untextured version — full time-of-day texture sampling remains
+  `needs_human`, a real asset + custom-shader scope decision)
 - **Craft files**: `src/cube.c:346-384`, `src/main.c:251-253,1721-1732`,
   `shaders/sky_{vertex,fragment}.glsl`
-- **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp` (Draw, sky clear-color)
-- **Priority**: medium
-- **Notes**: A plain (untextured, unshaded) dome mesh with vertex-colored gradient is achievable
-  with stock `BasicEffect` on all backends — full Craft-style time-of-day texture sampling would
-  need a custom shader (same backend tiering as §5.1). Scoping which version to build is
-  `needs_human`.
+- **cna-craft files**: `src/CnaCraft/Render/SkyDome.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.cpp`
+- **Priority**: medium (done for the untextured version)
+- **Notes**: The untextured vertex-colored version needs no new asset dependency and no custom
+  shader, so it was picked as the objectively-safe "smallest correct" implementation rather than
+  treated as `needs_human` — the scope decision only applies to the *textured* upgrade. **Real bug
+  found and fixed during development**: an analytically-reasoned triangle winding rendered nothing
+  at all; empirically confirmed via debug colors that never appeared, traced to CNA's actual
+  default `CullCounterClockwiseFace` rasterizer state, fixed by flipping the winding and
+  re-verifying visually.
 
 ### 5.4 Day/night lighting
 - **Craft behavior**: `get_daylight()`/`time_of_day()` (`main.c:163-184`), two logistic sigmoids
@@ -713,7 +720,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 4.6 | Multiplayer | missing | low (deliberate) |
 | 5.1 | Ambient occlusion | blocked | high (blocked) |
 | 5.2 | Fog | **fixed this session** | medium |
-| 5.3 | Sky dome | missing | medium |
+| 5.3 | Sky dome (**fixed this session** — untextured version) | complete | medium |
 | 5.4 | Day/night lighting | complete | low |
 | 5.5 | Texture atlas | partial | low (needs_human: asset decision) |
 | 5.7 | Build/dependencies | partial | low |

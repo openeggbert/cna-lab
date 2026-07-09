@@ -12,6 +12,7 @@
 #include "Render/ChunkRenderer.hpp"
 #include "Render/Hud.hpp"
 #include "Render/SelectionOutline.hpp"
+#include "Render/SkyDome.hpp"
 #include "Worlds/Hotbar.hpp"
 #include "Worlds/PlayerController.hpp"
 #include "Worlds/World.hpp"
@@ -62,6 +63,7 @@ private:
     // Draw() only when hasTargetedBlock_ is true (looking at nothing within
     // reach draws no outline, matching Craft's own hit-test-gated behavior).
     Render::SelectionOutline selectionOutline_;
+    Render::SkyDome skyDome_;
     bool hasTargetedBlock_ = false;
     int targetedBlockX_ = 0;
     int targetedBlockY_ = 0;

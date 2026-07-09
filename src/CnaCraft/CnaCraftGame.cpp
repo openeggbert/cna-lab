@@ -331,6 +331,9 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
         return static_cast<int>(static_cast<float>(night) + static_cast<float>(day - night) * daylight);
     };
     const int skyR = lerpChannel(12, 135), skyG = lerpChannel(14, 196), skyB = lerpChannel(36, 235);
+    // Zenith tint for the sky dome (CRAFT_PARITY.md §5.3) — a deeper blue
+    // than the horizon color at both day and night, same lerp function.
+    const int zenithR = lerpChannel(4, 60), zenithG = lerpChannel(6, 120), zenithB = lerpChannel(18, 200);
     device.Clear(Color(skyR, skyG, skyB, 255), 1.0f);
     device.SetDepthTestEnabled(true);
 
@@ -373,6 +376,26 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
         const float fov = kb.IsKeyDown(Keys::LeftShift) ? kZoomFov : kPiOver4;
         effect_->Projection = Matrix::CreatePerspectiveFieldOfView(fov, aspect, 0.1f, 500.0f);
     }
+
+    // Sky dome (CRAFT_PARITY.md §5.3) — a plain vertex-colored gradient
+    // hemisphere replacing the flat clear color, drawn first with depth
+    // writes off so it never occludes anything drawn afterward. Fog is
+    // switched off for this draw (fading the sky into itself would be a
+    // no-op at best, visibly wrong at worst); vertex-color/unlit mode is
+    // used the same way SelectionOutline uses it below, then restored.
+    skyDome_.Update(device, Color(skyR, skyG, skyB, 255), Color(zenithR, zenithG, zenithB, 255));
+    device.SetDepthWriteEnabled(false);
+    const bool fogWasEnabled = effect_->getFogEnabledProperty();
+    effect_->setFogEnabledProperty(false);
+    effect_->setTextureEnabledProperty(false);
+    effect_->VertexColorEnabled = true;
+    effect_->setLightingEnabledProperty(false);
+    skyDome_.Draw(device, *effect_, eyeVec);
+    effect_->setLightingEnabledProperty(true);
+    effect_->VertexColorEnabled = false;
+    effect_->setTextureEnabledProperty(true);
+    effect_->setFogEnabledProperty(fogWasEnabled);
+    device.SetDepthWriteEnabled(true);
 
     // Per-chunk frustum culling (plan.md §11.2): only draw chunks whose AABB
     // intersects the current view frustum. Cheap at today's fixed 32-chunk
