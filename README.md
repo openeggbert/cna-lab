@@ -56,22 +56,24 @@ cmake --build build --target CnaCraft
 
 ## 5. Controls
 
-| Key             | Action                              |
-|-----------------|--------------------------------------|
-| W / A / S / D   | Move / strafe                        |
-| Mouse           | Look (yaw / pitch)                   |
-| Arrow keys      | Look (yaw / pitch) — keyboard alternative to the mouse |
-| Space           | Jump (game mode) / fly up (fly mode) |
-| Left Ctrl       | Fly down (fly mode only)             |
-| Tab             | Toggle fly mode (no gravity, free vertical movement) |
-| Left click      | Break block                          |
-| Right click     | Place block (currently selected type)|
-| 1-9             | Select hotbar slot directly (Grass/Dirt/Sand/Stone/Cobblestone/Brick/Plank/Wood/Cement) |
-| E               | Cycle to next hotbar slot (all 15: also reaches LightStone/DarkStone/Snow/Glass/Cloud/Leaves) |
+| Key               | Action                              |
+|-------------------|--------------------------------------|
+| W / A / S / D     | Move / strafe                        |
+| Mouse             | Look (yaw / pitch)                   |
+| Arrow keys        | Look (yaw / pitch) — keyboard alternative to the mouse |
+| Space             | Jump (game mode) / fly up (fly mode) |
+| Left Ctrl         | Fly down (fly mode only)             |
+| Tab               | Toggle fly mode (no gravity, free vertical movement) |
+| Left click        | Break block (Bedrock is protected — cannot be broken) |
+| Right click       | Place block (currently selected type); blocked if it would overlap your own position |
+| Middle click      | Eyedropper — select the hotbar slot matching the targeted block's type |
+| 1-9, 0            | Select hotbar slot directly (1-9 = slots 1-9, 0 = slot 10) |
+| E / R             | Cycle to next / previous hotbar slot (all 15 slots) |
+| Scroll wheel      | Also cycles the hotbar slot (same as E/R)|
 | Left Shift (hold) | Zoom (narrow FOV)                   |
-| F (hold)        | Orthographic projection               |
-| F12             | Save a screenshot to `screenshots/`   |
-| Esc             | Quit                                  |
+| F (hold)          | Orthographic projection               |
+| F12               | Save a screenshot to `screenshots/`   |
+| Esc               | Quit                                  |
 
 A crosshair and the currently-selected hotbar item (e.g. `#4/15 Stone`, with a
 `[FLYING]` indicator while flying) are drawn on screen; both are also printed

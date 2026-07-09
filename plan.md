@@ -736,6 +736,13 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     chunks + distance-based streaming, replacing the fixed dense grid — a genuine architecture
     change, not a quick task; scoping it is a product decision (does cna-craft want an unbounded
     world at all, given its "small fixed-size prototype" design goal in §1?).
+20. `completed` — **Middle-click eyedropper** (CRAFT_PARITY.md §2.7): new `Hotbar::
+    SelectByBlockType(type)`, wired to the middle mouse button in `CnaCraftGame::Update` using the
+    same per-frame raycast as break/place/outline. Ports Craft's real `on_middle_click` exactly
+    (linear-scan the roster for the targeted block's type, select that slot if found, otherwise
+    leave selection unchanged — e.g. targeting Bedrock or Air does nothing). 5 new unit tests — 125
+    checks total. Ctrl+click-as-place and the light-toggle half of CRAFT_PARITY.md §2.7 remain
+    `pending`/blocked-on-a-larger-subsystem respectively, not picked up in this batch.
 
 ### 12.2 Deliberately not re-litigated this session
 

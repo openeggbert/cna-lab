@@ -40,6 +40,14 @@ public:
     void CycleNext();
     void CyclePrev();
 
+    // Middle-click "eyedropper" (CRAFT_PARITY.md §2.7): selects the slot
+    // holding `type`, if any. Ports Craft's `on_middle_click`, which
+    // linear-scans `items[]` for the targeted block's type and selects that
+    // slot if found, leaving selection unchanged otherwise (e.g. the
+    // targeted block isn't in the placeable roster at all — Bedrock, Air).
+    // Returns true if a matching slot was found and selected.
+    bool SelectByBlockType(BlockType type);
+
     BlockType Selected() const { return kSlots[static_cast<std::size_t>(selectedIndex_)]; }
     int SelectedIndex() const { return selectedIndex_; }
 

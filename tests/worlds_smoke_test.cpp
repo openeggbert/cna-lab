@@ -506,6 +506,18 @@ void TestHotbarSelectionAndCycling() {
     Check(hotbar.Selected() == BlockType::Cloud, "CyclePrev steps back one slot at a time");
     hotbar.CycleNext();
     Check(hotbar.Selected() == BlockType::Leaves, "CycleNext after CyclePrev returns to the same slot");
+
+    // Regression test (CRAFT_PARITY.md §2.7): middle-click "eyedropper",
+    // ports Craft's on_middle_click (linear-scan items[] for the targeted
+    // block, select that slot if found).
+    hotbar.SelectSlot(1);
+    Check(hotbar.SelectByBlockType(BlockType::Cobblestone), "SelectByBlockType finds a slot holding that type");
+    Check(hotbar.Selected() == BlockType::Cobblestone, "SelectByBlockType actually selects the matching slot");
+    Check(!hotbar.SelectByBlockType(BlockType::Bedrock),
+          "SelectByBlockType returns false for a type not in the roster (Bedrock)");
+    Check(hotbar.Selected() == BlockType::Cobblestone,
+          "a failed SelectByBlockType leaves the current selection unchanged, matching Craft's on_middle_click");
+    Check(!hotbar.SelectByBlockType(BlockType::Air), "SelectByBlockType returns false for Air");
 }
 
 void TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging() {

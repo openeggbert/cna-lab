@@ -16,4 +16,14 @@ void Hotbar::CyclePrev() {
     selectedIndex_ = (selectedIndex_ - 1 + SlotCount()) % SlotCount();
 }
 
+bool Hotbar::SelectByBlockType(BlockType type) {
+    for (int i = 0; i < SlotCount(); ++i) {
+        if (kSlots[static_cast<std::size_t>(i)] == type) {
+            selectedIndex_ = i;
+            return true;
+        }
+    }
+    return false;
+}
+
 }

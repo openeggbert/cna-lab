@@ -69,6 +69,7 @@ private:
 
     bool leftClickWasDown_ = false;
     bool rightClickWasDown_ = false;
+    bool middleClickWasDown_ = false;
     bool eKeyWasDown_ = false;
     bool rKeyWasDown_ = false;
     bool tabWasDown_ = false;

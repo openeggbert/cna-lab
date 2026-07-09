@@ -319,16 +319,18 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   → `on_light()`, toggles a placed point-light source at the targeted block. Middle-click →
   `on_middle_click()`, an "eyedropper" that sets the selected hotbar item to match the targeted
   block's type.
-- **cna-craft behavior**: none of the three exist. Left Ctrl is used only for fly-mode descend.
-- **Status**: missing
+- **cna-craft behavior**: middle-click eyedropper implemented this session (`Hotbar::
+  SelectByBlockType`, wired in `CnaCraftGame::Update`). Ctrl+click-as-place and the light-toggle
+  half still don't exist. Left Ctrl is used only for fly-mode descend.
+- **Status**: partial (eyedropper complete; Ctrl+click/light-toggle still missing)
 - **Craft files**: `src/main.c:2131-2138, 2153-2175, 2229-2361`
-- **cna-craft files**: none
+- **cna-craft files**: `src/CnaCraft/Worlds/Hotbar.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.cpp`
 - **Priority**: low
-- **Verification method**: `grep -n "middle\|toggle_light" src/CnaCraft/CnaCraftGame.cpp` — no
-  results
-- **Notes**: The light-toggle half is blocked on a much larger unimplemented subsystem
-  (per-block point lighting, §4.3) — not a simple wiring gap. The eyedropper (middle-click) is a
-  small, independently implementable convenience feature — `pending`, low priority.
+- **Verification method**: `TestHotbarSelectionAndCycling`'s `SelectByBlockType` checks (unit
+  tests, now passing)
+- **Notes**: The light-toggle half is still blocked on a much larger unimplemented subsystem
+  (per-block point lighting, §4.3) — not a simple wiring gap, left `pending`. Ctrl+click-as-place
+  is a small remaining gap, also left `pending` (not picked up this batch).
 
 ### 2.8 Collision rules for solid/transparent/non-collidable blocks
 - **Craft behavior**: `is_obstacle(w)` (blocks movement) vs `is_transparent(w)` (occludes
@@ -678,7 +680,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 2.4 | Wireframe selection outline | **fixed this session** | high |
 | 2.5 | Block breaking (Bedrock protection) | **fixed this session** | critical |
 | 2.6 | Block placing (self-intersection) | **fixed this session** | critical |
-| 2.7 | Ctrl/middle-click interactions | missing | low |
+| 2.7 | Middle-click eyedropper (**fixed this session**) / Ctrl+click / light-toggle | partial | low |
 | 2.8 | Collision rules (solid/transparent) | complete | low |
 | 3.1 | Chunk system (hash-map vs fixed) | partial | medium (large) |
 | 3.2 | Chunk streaming | missing | low (deliberate) |

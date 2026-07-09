@@ -218,6 +218,17 @@ void CnaCraftGame::Update(GameTime& gameTime) {
 
     player_->Update(world_, input, dt);
 
+    // Raycast once per frame -- reused for break/place, the middle-click
+    // eyedropper, and the visible targeted-block outline (CRAFT_PARITY.md
+    // §2.4), instead of a separate cast per click as before.
+    const auto hit = Worlds::VoxelRaycast::Cast(world_, player_->EyePosition(), player_->LookDirection(), kMaxReach);
+    hasTargetedBlock_ = hit.has_value();
+    if (hit) {
+        targetedBlockX_ = hit->x;
+        targetedBlockY_ = hit->y;
+        targetedBlockZ_ = hit->z;
+    }
+
     const int previousHotbarIndex = hotbar_.SelectedIndex();
     // Craft's on_key (CRAFT_PARITY.md §2.1) maps keys 1-9 to slots 0-8 and
     // key 0 to slot 9 (a 10th direct-key slot) -- kMaxNumberKeySlots stays
@@ -257,24 +268,24 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     }
     scrollWheelInitialized_ = true;
     previousScrollWheelValue_ = scrollWheelValue;
+
+    const bool leftDown = mouse.getLeftButtonProperty() == ButtonState::Pressed;
+    const bool rightDown = mouse.getRightButtonProperty() == ButtonState::Pressed;
+    const bool middleDown = mouse.getMiddleButtonProperty() == ButtonState::Pressed;
+
+    // Middle-click "eyedropper" (CRAFT_PARITY.md §2.7): selects the hotbar
+    // slot matching the targeted block's type, ports Craft's real
+    // on_middle_click. Silently does nothing if the target isn't in the
+    // placeable roster (e.g. Bedrock), matching Craft's own behavior.
+    if (hit && middleDown && !middleClickWasDown_) {
+        hotbar_.SelectByBlockType(world_.GetBlock(hit->x, hit->y, hit->z));
+    }
+    middleClickWasDown_ = middleDown;
+
     if (hotbar_.SelectedIndex() != previousHotbarIndex) {
         std::printf("Selected block: %s\n", Worlds::GetBlockName(hotbar_.Selected()));
         std::fflush(stdout);
         rebuildHud();
-    }
-
-    const bool leftDown = mouse.getLeftButtonProperty() == ButtonState::Pressed;
-    const bool rightDown = mouse.getRightButtonProperty() == ButtonState::Pressed;
-
-    // Raycast once per frame -- reused for break/place *and* the visible
-    // targeted-block outline (CRAFT_PARITY.md §2.4), instead of a separate
-    // cast per click as before.
-    const auto hit = Worlds::VoxelRaycast::Cast(world_, player_->EyePosition(), player_->LookDirection(), kMaxReach);
-    hasTargetedBlock_ = hit.has_value();
-    if (hit) {
-        targetedBlockX_ = hit->x;
-        targetedBlockY_ = hit->y;
-        targetedBlockZ_ = hit->z;
     }
 
     if (hit && leftDown && !leftClickWasDown_) {
