@@ -771,11 +771,27 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     showing through), once with the real day/night colors restored.
 15. `needs_human` — **World persistence / delta storage** (CRAFT_PARITY.md §4.1/§4.2): SQLite
     dependency decision, unchanged from `missing.md`'s prior assessment.
-16. `pending` — **Signs** (CRAFT_PARITY.md §4.3): depends on persistence; text-rendering
-    infrastructure (`Hud.cpp`'s `FontDrawText`) already exists and is reusable.
-17. `pending` — **Chat/slash commands** (CRAFT_PARITY.md §4.5): the real Craft command set is
-    mostly world-editing macros (`/cube`, `/sphere`, `/tree`, `/array`, etc.), a larger scope than
-    "add a chat box."
+16. `pending` (large) — **Signs** (CRAFT_PARITY.md §4.3). **Re-assessed this session**: CNA does
+    have a real, usable text-input primitive (`Microsoft::Xna::Framework::Input::TextInputEXT` —
+    `TextInput`/`TextEditing` events, `StartTextInput`/`StopTextInput`), so this is not blocked on
+    a missing engine capability the way it first looked. It remains `pending (large)` rather than
+    picked up as a "next smallest task" because a correct implementation needs *three* new pieces
+    together, not a small extension of existing code: (1) a text-input state machine (open on `` ` ``
+    per Craft, capture `TextInput` events, handle Backspace/Enter/Escape, and — matching Craft's
+    own `if (!g->typing)` gate on `handle_movement`'s key polling — suspend WASD/mouse-look input
+    while typing, since CNA's event-based text input doesn't automatically exclude movement keys
+    the way Craft's GLFW model does); (2) an in-memory (non-persisted, consistent with this
+    project's current no-persistence state) per-face sign store; (3) new 3D billboard-quad
+    rendering oriented per whichever of 6 face normals the sign was placed on, with dynamically
+    generated text texture (`Hud.cpp`'s `FontDrawText` technique is reusable for the *text
+    rendering* part, but not the 3D billboard placement/orientation part, which doesn't exist
+    anywhere in this codebase yet). Recommended as its own dedicated follow-up task, not bundled
+    into a continuous small-batch session.
+17. `pending` (large) — **Chat/slash commands** (CRAFT_PARITY.md §4.5): the same text-input state
+    machine from item 16 is a prerequisite here too. The real Craft command set is mostly
+    world-editing macros (`/cube`, `/sphere`, `/tree`, `/array`, `/copy`, `/paste`, etc.) — a
+    materially larger scope than "add a chat box," since none of those world-editing primitives
+    exist in this codebase either. Recommended as its own dedicated follow-up task.
 18. `pending`, explicitly deferred — **Multiplayer** (CRAFT_PARITY.md §4.6): per project
     direction, not started before local single-player + persistence are stable.
 19. `needs_human` — **Chunk system redesign** (CRAFT_PARITY.md §3.1/§3.2): hash-map sparse

@@ -545,9 +545,17 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Craft files**: `src/sign.c`, `src/sign.h`, `src/main.c:385-395,756-840`
 - **cna-craft files**: none
 - **Priority**: medium
-- **Notes**: Depends on persistence (§4.1/4.2) for the sign table, and needs a billboard-quad
-  render path — but the bitmap-font text-rendering infrastructure already exists
-  (`Render/Hud.cpp`'s `FontDrawText`) and is directly reusable.
+- **Notes**: Persistence for the sign *table* specifically is skippable (an in-memory,
+  non-persisted sign store is consistent with this project's current no-persistence state
+  overall). The real prerequisite, checked this session: CNA has a working text-input primitive
+  (`Microsoft::Xna::Framework::Input::TextInputEXT` — `TextInput`/`TextEditing` events,
+  `StartTextInput`/`StopTextInput`), so text entry itself isn't blocked on a missing engine
+  capability. What's still missing is (a) the input *state machine* around it (suspend WASD/
+  look while typing, matching Craft's own `g->typing` gate — CNA's event model doesn't do this
+  automatically) and (b) 3D billboard-quad rendering oriented per face normal (the bitmap-font
+  *text* rendering technique in `Render/Hud.cpp`'s `FontDrawText` is reusable, but not the 3D
+  placement/orientation part, which doesn't exist yet). Large enough to be its own task, not a
+  quick win — see `plan.md` §12.1 item 16.
 
 ### 4.4 Player names / on-screen text
 - **Craft behavior**: `render_players` draws other players as plain cubes — **no in-world
@@ -571,8 +579,9 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Craft files**: `src/main.c:2021-2094, 2183-2306`
 - **cna-craft files**: none
 - **Priority**: medium
-- **Notes**: A full port would also need `copy()/paste()/tree()/array()/cube()/sphere()/cylinder()`
-  world-editing primitives — a larger scope than "add a chat box."
+- **Notes**: Shares the same text-input state-machine prerequisite as Signs (§4.3). A full port
+  would also need `copy()/paste()/tree()/array()/cube()/sphere()/cylinder()` world-editing
+  primitives — a larger scope than "add a chat box." See `plan.md` §12.1 item 17.
 
 ### 4.6 Multiplayer / server / client networking
 - **Craft behavior**: `client.c` sends ASCII line protocol over raw TCP
