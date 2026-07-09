@@ -6,11 +6,11 @@ namespace CnaCraft::Worlds {
 
 // Roster expanded toward Craft's item.h (plan.md §11.2) with the plain
 // solid/opaque cube blocks, Glass (transparent but still solid/collidable —
-// see "Transparency for glass"), and Cloud (opaque but NOT collidable — see
-// "Clouds" below). Leaves remain deferred (transparent like Glass, but not
-// yet added — no reason left to defer other than not having been picked
-// up). Plants (tall grass, flowers) and Chest are deferred to "Non-cubic
-// plant geometry" — they need their own mesh shape, not just a new tile.
+// see "Transparency for glass"), Cloud (opaque but NOT collidable — see
+// "Clouds" below), and Leaves (transparent like Glass — used by
+// World::GenerateTrees, plan.md §11.1 "Trees and plants"). Plants (tall
+// grass, flowers) and Chest are deferred to "Non-cubic plant geometry" —
+// they need their own mesh shape, not just a new tile.
 enum class BlockType : std::uint8_t {
     Air = 0,
     Grass,
@@ -27,6 +27,7 @@ enum class BlockType : std::uint8_t {
     Snow,
     Glass,
     Cloud,
+    Leaves,
     Bedrock,
     Count
 };
@@ -79,6 +80,7 @@ constexpr BlockDef GetBlockDef(BlockType type) {
         case BlockType::Snow:        return BlockDef{true, 11, 12, 2};
         case BlockType::Glass:       return BlockDef{true, 16, 16, 16, /*transparent=*/true};
         case BlockType::Cloud:       return BlockDef{true, 17, 17, 17, /*transparent=*/false, /*collidable=*/false};
+        case BlockType::Leaves:      return BlockDef{true, 18, 18, 18, /*transparent=*/true};
         case BlockType::Bedrock:     return BlockDef{true, 5, 5, 5};
         case BlockType::Air:
         case BlockType::Count:
@@ -104,6 +106,7 @@ constexpr const char* GetBlockName(BlockType type) {
         case BlockType::Snow:        return "Snow";
         case BlockType::Glass:       return "Glass";
         case BlockType::Cloud:       return "Cloud";
+        case BlockType::Leaves:      return "Leaves";
         case BlockType::Bedrock:     return "Bedrock";
         default:                     return "Unknown";
     }

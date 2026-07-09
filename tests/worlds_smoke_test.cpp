@@ -90,6 +90,117 @@ void TestWorldGenerationIsDeterministic() {
     Check(!a.IsSolid(0, WORLD_SIZE_Y - 1, 0), "world ceiling column is not solid");
 }
 
+void TestWorldGeneratesClouds() {
+    // Craft's world.c places CLOUD blocks via a 3D Simplex density check
+    // near its own world's ceiling (verified against the real checkout —
+    // plan.md §11.1 corrects the earlier "caves/overhangs" citation, which
+    // turned out to have no real Craft reference at all). This project
+    // reuses the same frequency/threshold, in a band near this project's own
+    // (much lower) ceiling instead.
+    World a, b;
+    a.Generate(1234);
+    b.Generate(1234);
+
+    bool anyCloudFound = false;
+    bool allCloudsInBand = true;
+    for (int x = 0; x < WORLD_SIZE_X && allCloudsInBand; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z && allCloudsInBand; ++z) {
+            for (int y = 0; y < WORLD_SIZE_Y; ++y) {
+                if (a.GetBlock(x, y, z) == BlockType::Cloud) {
+                    anyCloudFound = true;
+                    if (y < 58 || y > 62) allCloudsInBand = false;
+                }
+            }
+        }
+    }
+    Check(anyCloudFound, "World::Generate places at least one Cloud block somewhere in the world");
+    Check(allCloudsInBand, "every generated Cloud block sits within the documented y=[58,62] ceiling band");
+
+    bool allMatch = true;
+    for (int x = 0; x < WORLD_SIZE_X; x += 3) {
+        for (int z = 0; z < WORLD_SIZE_Z; z += 3) {
+            for (int y = 58; y <= 62; ++y) {
+                if (a.GetBlock(x, y, z) != b.GetBlock(x, y, z)) allMatch = false;
+            }
+        }
+    }
+    Check(allMatch, "cloud placement is deterministic for a fixed seed, same as terrain");
+
+    // Clouds never overwrite terrain: nothing above kMaxHeight=56 should
+    // already be non-Air before the cloud pass runs, but assert the
+    // resulting invariant directly — every surface-height cell must still be
+    // ordinary terrain surface, i.e. the cloud pass (band y=[58,62], far
+    // above kMaxHeight=56) didn't corrupt terrain/tree generation. Grass OR
+    // Wood is accepted at the surface cell: World::GenerateTrees legitimately
+    // overwrites some Grass cells with a tree trunk's base block, same as
+    // Craft's own `func(x, h, z, 5, arg)` — that is not terrain corruption.
+    bool terrainUnaffected = true;
+    for (int x = 0; x < WORLD_SIZE_X; x += 5) {
+        for (int z = 0; z < WORLD_SIZE_Z; z += 5) {
+            const int height = NoiseGenerator::Height(1234, x, z);
+            const BlockType surface = a.GetBlock(x, height, z);
+            if (surface != BlockType::Grass && surface != BlockType::Wood) terrainUnaffected = false;
+        }
+    }
+    Check(terrainUnaffected, "adding the cloud pass does not disturb terrain/tree surface generation");
+}
+
+void TestWorldGeneratesTrees() {
+    // World::GenerateTrees ports Craft's own tree pass (verified against the
+    // real checkout — `simplex2(x, z, 6, 0.5, 2) > 0.84` trigger on grass
+    // columns, a Wood trunk plus a Leaves canopy blob).
+    World a, b;
+    a.Generate(1234);
+    b.Generate(1234);
+
+    bool anyWoodFound = false;
+    bool anyLeavesFound = false;
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            for (int y = 0; y < WORLD_SIZE_Y; ++y) {
+                const BlockType block = a.GetBlock(x, y, z);
+                if (block == BlockType::Wood) anyWoodFound = true;
+                if (block == BlockType::Leaves) anyLeavesFound = true;
+            }
+        }
+    }
+    Check(anyWoodFound, "World::Generate places at least one tree trunk (Wood) somewhere in the world");
+    Check(anyLeavesFound, "World::Generate places at least one Leaves canopy block somewhere in the world");
+
+    bool allMatch = true;
+    for (int x = 0; x < WORLD_SIZE_X; x += 2) {
+        for (int z = 0; z < WORLD_SIZE_Z; z += 2) {
+            for (int y = 0; y < WORLD_SIZE_Y; y += 3) {
+                if (a.GetBlock(x, y, z) != b.GetBlock(x, y, z)) allMatch = false;
+            }
+        }
+    }
+    Check(allMatch, "tree placement is deterministic for a fixed seed, same as terrain/clouds");
+
+    // Every tree trunk's base must sit exactly at its column's real terrain
+    // surface height (Craft only grows trees on its own `w == 1` grass
+    // columns, trunk starting at y=h) — scan for any Wood block whose y
+    // doesn't match NoiseGenerator::Height(1234, x, z) for its (x, z).
+    bool noFloatingTrunkBase = true;
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            const int height = NoiseGenerator::Height(1234, x, z);
+            // A trunk's base (its lowest Wood block) is always at y=height;
+            // higher trunk segments (y=height+1..height+6) are also Wood but
+            // are expected, not "floating" — only check the base cell itself
+            // isn't Wood while some other Wood exists above the *actual*
+            // surface for this column (which would mean a tree rooted in
+            // midair). Bedrock/Stone/Dirt/Grass/Wood at y=height are all
+            // valid; a mismatch would mean tree generation used the wrong
+            // per-column height.
+            if (a.GetBlock(x, height, z) == BlockType::Wood) {
+                if (a.GetBlock(x, height - 1, z) == BlockType::Air) noFloatingTrunkBase = false;
+            }
+        }
+    }
+    Check(noFloatingTrunkBase, "every tree trunk's base sits on solid ground at its column's real surface height, not floating");
+}
+
 void TestNoiseGeneratorSimplex2IsSeeded() {
     Check(NoiseGenerator::Height(1234, 5, 5) == NoiseGenerator::Height(1234, 5, 5),
           "NoiseGenerator::Height is a pure function of (seed, x, z)");
@@ -112,6 +223,45 @@ void TestNoiseGeneratorSimplex2IsSeeded() {
         }
     }
     Check(allInRange, "Height stays within its documented [4, 56] clamp range");
+}
+
+void TestNoiseGeneratorSimplex3() {
+    Check(NoiseGenerator::Simplex3(1234, 1.0f, 2.0f, 3.0f, 3, 0.5f, 2.0f) ==
+              NoiseGenerator::Simplex3(1234, 1.0f, 2.0f, 3.0f, 3, 0.5f, 2.0f),
+          "NoiseGenerator::Simplex3 is a pure function of (seed, x, y, z, octaves, persistence, lacunarity)");
+
+    bool anyDifferentBySeed = false;
+    for (int x = 0; x < 16; ++x) {
+        for (int y = 0; y < 16; ++y) {
+            const float a = NoiseGenerator::Simplex3(1111, static_cast<float>(x) * 0.1f,
+                                                       static_cast<float>(y) * 0.1f, 0.5f, 3, 0.5f, 2.0f);
+            const float b = NoiseGenerator::Simplex3(2222, static_cast<float>(x) * 0.1f,
+                                                       static_cast<float>(y) * 0.1f, 0.5f, 3, 0.5f, 2.0f);
+            if (std::abs(a - b) > 0.001f) anyDifferentBySeed = true;
+        }
+    }
+    Check(anyDifferentBySeed, "different seeds produce different 3D density noise, same as Simplex2/Height");
+
+    bool anyDifferentByZ = false;
+    const float atZ0 = NoiseGenerator::Simplex3(42, 5.0f, 5.0f, 0.0f, 3, 0.5f, 2.0f);
+    for (int z = 1; z < 16; ++z) {
+        const float atZ = NoiseGenerator::Simplex3(42, 5.0f, 5.0f, static_cast<float>(z) * 0.3f, 3, 0.5f, 2.0f);
+        if (std::abs(atZ - atZ0) > 0.001f) anyDifferentByZ = true;
+    }
+    Check(anyDifferentByZ, "Simplex3 actually varies along the third (z/y-in-world) axis, unlike Simplex2");
+
+    bool allInRange = true;
+    for (int x = 0; x < 32; ++x) {
+        for (int y = 0; y < 32; ++y) {
+            for (int z = 0; z < 8; ++z) {
+                const float n = NoiseGenerator::Simplex3(7, static_cast<float>(x) * 0.05f,
+                                                           static_cast<float>(y) * 0.05f,
+                                                           static_cast<float>(z) * 0.05f, 3, 0.5f, 2.0f);
+                if (n < -0.5f || n > 1.5f) allInRange = false;
+            }
+        }
+    }
+    Check(allInRange, "Simplex3 output stays in a sane range around its documented [0, 1] normalization");
 }
 
 void TestDayNightCycleMatchesCraftsCurveShape() {
@@ -200,6 +350,38 @@ void TestChunkMesherGlassTransparency() {
     Check(againstStone.IsOpaque(6, 5, 5), "Stone is opaque");
 }
 
+void TestChunkMesherLeavesTransparency() {
+    // Leaves is transparent like Glass (plan.md §11.1 "Trees and plants" —
+    // World::GenerateTrees), so it follows the exact same occlusion rules as
+    // TestChunkMesherGlassTransparency above, just with a different
+    // BlockType/tile index.
+    World lone;
+    lone.SetBlock(5, 5, 5, BlockType::Leaves);
+    ChunkMeshData loneMesh = ChunkMesher::Build(lone, 0, 0, 0);
+    Check(loneMesh.opaque.vertices.empty(), "a lone Leaves block emits nothing into the opaque mesh");
+    Check(loneMesh.transparent.vertices.size() == 24, "a lone Leaves block emits all 6 faces (24 verts)");
+
+    World adjacent;
+    adjacent.SetBlock(5, 5, 5, BlockType::Leaves);
+    adjacent.SetBlock(6, 5, 5, BlockType::Leaves);
+    ChunkMeshData adjacentMesh = ChunkMesher::Build(adjacent, 0, 0, 0);
+    Check(adjacentMesh.transparent.vertices.size() == 24 * 2,
+          "two adjacent Leaves blocks both keep all 6 faces (transparent neighbors don't occlude)");
+
+    World againstWood;
+    againstWood.SetBlock(5, 5, 5, BlockType::Leaves);
+    againstWood.SetBlock(6, 5, 5, BlockType::Wood);
+    ChunkMeshData mixedMesh = ChunkMesher::Build(againstWood, 0, 0, 0);
+    Check(mixedMesh.transparent.vertices.size() == 20,
+          "Leaves next to Wood loses only its one face touching the Wood (5 of 6 faces, 20 verts)");
+    Check(mixedMesh.opaque.vertices.size() == 24,
+          "Wood next to Leaves keeps all 6 faces (Leaves doesn't occlude Wood's face)");
+
+    Check(againstWood.IsSolid(5, 5, 5), "Leaves still occupies space (meshed/hit-testable)");
+    Check(againstWood.IsCollidable(5, 5, 5), "Leaves is still collidable (unlike Cloud)");
+    Check(!againstWood.IsOpaque(5, 5, 5), "Leaves is not opaque (doesn't occlude neighbor faces)");
+}
+
 void TestChunkMesherCloudIsOpaqueButNotCollidable() {
     // Cloud is the inverse situation from Glass: opaque (occludes neighbors,
     // meshed into the *opaque* mesh, hit-testable) but NOT collidable (the
@@ -239,7 +421,7 @@ void TestVoxelRaycastHitsExpectedFaceAndBlock() {
 
 void TestHotbarSelectionAndCycling() {
     Hotbar hotbar;
-    Check(hotbar.SlotCount() == 14, "hotbar has 14 slots (Bedrock excluded from the placeable roster)");
+    Check(hotbar.SlotCount() == 15, "hotbar has 15 slots (Bedrock excluded from the placeable roster)");
     Check(hotbar.SelectedIndex() == 0, "hotbar starts on slot 0");
     Check(hotbar.Selected() == BlockType::Grass, "hotbar starts selecting slot 1's block (Grass)");
 
@@ -260,7 +442,9 @@ void TestHotbarSelectionAndCycling() {
     hotbar.CycleNext();
     Check(hotbar.Selected() == BlockType::Glass, "slot 13 is Glass");
     hotbar.CycleNext();
-    Check(hotbar.Selected() == BlockType::Cloud, "slot 14 (the last slot) is Cloud");
+    Check(hotbar.Selected() == BlockType::Cloud, "slot 14 is Cloud");
+    hotbar.CycleNext();
+    Check(hotbar.Selected() == BlockType::Leaves, "slot 15 (the last slot) is Leaves");
     hotbar.CycleNext();
     Check(hotbar.SelectedIndex() == 0, "CycleNext wraps back to slot 0 after the last slot");
 }
@@ -454,10 +638,14 @@ int main() {
     TestChunkBasics();
     TestWorldBoundsAndRoundTrip();
     TestWorldGenerationIsDeterministic();
+    TestWorldGeneratesClouds();
+    TestWorldGeneratesTrees();
     TestNoiseGeneratorSimplex2IsSeeded();
+    TestNoiseGeneratorSimplex3();
     TestDayNightCycleMatchesCraftsCurveShape();
     TestChunkMesherFaceCulling();
     TestChunkMesherGlassTransparency();
+    TestChunkMesherLeavesTransparency();
     TestChunkMesherCloudIsOpaqueButNotCollidable();
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();

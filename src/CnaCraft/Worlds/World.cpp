@@ -99,6 +99,100 @@ void World::Generate(std::uint32_t seed) {
             }
         }
     }
+
+    GenerateTrees(seed);
+    GenerateClouds(seed);
+}
+
+namespace {
+// Craft's world.c places trees via a `simplex2(x, z, 6, 0.5, 2) > 0.84`
+// trigger on grass columns (verified against the real checkout at
+// /rv/data/development/github.com/other/Craft/src/world.c): a 7-tall Wood
+// trunk at (x, h..h+7, z), plus a Leaves canopy blob for y in [h+3, h+8) and
+// (ox, oz) in [-3, 3] wherever ox*ox + oz*oz + (y-(h+4))*(y-(h+4)) < 11.
+// Ported with the same trigger/shape constants. Not ported: Craft's
+// per-chunk `dx-4 < 0` edge-margin check — that exists only because Craft
+// generates chunks independently and needs a safety margin so canopy
+// geometry never reaches into an ungenerated neighboring chunk; this
+// project generates the whole bounded world in one deterministic pass, and
+// SetBlock/GetBlock already treat out-of-world-bounds coordinates as a safe
+// no-op/Air, so the margin has no equivalent purpose here.
+constexpr int kTreeNoiseOctaves = 6;
+constexpr float kTreeNoisePersistence = 0.5f;
+constexpr float kTreeNoiseLacunarity = 2.0f;
+constexpr float kTreeThreshold = 0.84f;
+constexpr int kCanopyRadius = 3;
+constexpr int kCanopyDistanceSquaredMax = 11;
+constexpr int kTrunkHeight = 7;
+}
+
+void World::GenerateTrees(std::uint32_t seed) {
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            const int h = NoiseGenerator::Height(seed, x, z);
+            if (GetBlock(x, h, z) != BlockType::Grass) continue; // Craft: only on its `w == 1` grass columns
+
+            const float density = NoiseGenerator::Simplex2(seed, static_cast<float>(x), static_cast<float>(z),
+                                                             kTreeNoiseOctaves, kTreeNoisePersistence,
+                                                             kTreeNoiseLacunarity);
+            if (density <= kTreeThreshold) continue;
+
+            for (int y = h + 3; y < h + 8; ++y) {
+                const int dy = y - (h + 4);
+                for (int ox = -kCanopyRadius; ox <= kCanopyRadius; ++ox) {
+                    for (int oz = -kCanopyRadius; oz <= kCanopyRadius; ++oz) {
+                        const int d = ox * ox + oz * oz + dy * dy;
+                        // Deliberate deviation from Craft's unconditional write: only
+                        // fill Air, so one tree's canopy never overwrites a
+                        // neighboring tree's already-placed trunk/canopy.
+                        if (d < kCanopyDistanceSquaredMax && GetBlock(x + ox, y, z + oz) == BlockType::Air) {
+                            SetBlock(x + ox, y, z + oz, BlockType::Leaves);
+                        }
+                    }
+                }
+            }
+            for (int y = h; y < h + kTrunkHeight; ++y) {
+                SetBlock(x, y, z, BlockType::Wood); // unconditional, same as Craft — trunk wins over canopy
+            }
+        }
+    }
+}
+
+namespace {
+// Craft's world.c places CLOUD blocks via a 3D density check:
+// `simplex3(x * 0.01, y * 0.1, z * 0.01, 8, 0.5, 2) > 0.75`, in a y=64..72
+// band near its own world's ceiling (verified against the real checkout at
+// /rv/data/development/github.com/other/Craft/src/world.c — frequency
+// scale, octave count, and threshold are ported as-is; only the y-band
+// changes, since this project's WORLD_SIZE_Y=64 is far shorter than Craft's).
+// This project's own NoiseGenerator::Height() clamps terrain to
+// kMaxHeight=56, so the band below is placed just above that, near this
+// world's own ceiling (y=63).
+constexpr int kCloudBandStartY = 58;
+constexpr int kCloudBandEndY = 62; // inclusive
+constexpr float kCloudNoiseScaleXZ = 0.01f;
+constexpr float kCloudNoiseScaleY = 0.1f;
+constexpr int kCloudNoiseOctaves = 8;
+constexpr float kCloudNoisePersistence = 0.5f;
+constexpr float kCloudNoiseLacunarity = 2.0f;
+constexpr float kCloudThreshold = 0.75f;
+}
+
+void World::GenerateClouds(std::uint32_t seed) {
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            for (int y = kCloudBandStartY; y <= kCloudBandEndY; ++y) {
+                if (GetBlock(x, y, z) != BlockType::Air) continue; // never overwrite terrain
+                const float density = NoiseGenerator::Simplex3(
+                    seed, static_cast<float>(x) * kCloudNoiseScaleXZ, static_cast<float>(y) * kCloudNoiseScaleY,
+                    static_cast<float>(z) * kCloudNoiseScaleXZ, kCloudNoiseOctaves, kCloudNoisePersistence,
+                    kCloudNoiseLacunarity);
+                if (density > kCloudThreshold) {
+                    SetBlock(x, y, z, BlockType::Cloud);
+                }
+            }
+        }
+    }
 }
 
 }

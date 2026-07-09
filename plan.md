@@ -319,6 +319,63 @@ matching item below — they're short, working C, and the exact algorithm is usu
 
 Checkbox state reflects this document's authoring session; update as work lands.
 
+### 11.0 Current status & priority queue (updated 2026-07-09)
+
+Baseline verified this session: clean configure+build on `-DCNA_CRAFT_BUILD_GAME=OFF` (worlds-only)
+and `-DCNA_GRAPHICS_BACKEND=EASYGL` (full game); started at **82/82** `tests/worlds_smoke_test.cpp`
+checks passing, now **103/103** after this session's Simplex3/clouds/trees work (queue items 1-5
+below, all completed). No known failing build or test. This section is the authoritative
+status/priority list; `NEXT.md` is a handoff summary that should be kept in sync with it, not a
+separate source of truth.
+
+Status vocabulary used below and in §11.1–§11.8: `pending`, `in_progress`, `completed`, `blocked`
+(technical prerequisite missing), `needs_human` (requires a product/design/dependency decision).
+
+Ordered queue (small/safe first; a user-reported bug always jumps this queue):
+
+1. `completed` — Fix `README.md` "greedy meshing" doc inaccuracy (§1 overview paragraph said
+   "greedy meshing", actual implementation is naive per-face meshing with hidden-face culling;
+   `NEXT.md` §5/§8 item 1 had flagged this as still-open — fixed this session).
+2. `completed` — Sync `plan.md` (this file) with `NEXT.md`'s more recent handoff state (this
+   section).
+3. `completed` — Add `Simplex3` (3D Simplex noise) to `Worlds/NoiseGenerator`, independently unit
+   tested, prerequisite for caves/overhangs (§11.1). Public `NoiseGenerator::Simplex3(seed, x, y, z,
+   octaves, persistence, lacunarity)`, same Gustavson/caseman-noise structure as the existing
+   `Simplex2`/`Noise2`, own seeded permutation table. 4 new unit tests (purity, seed variation,
+   third-axis variation, output-range sanity) — 86 checks total, all passing.
+4. `completed` — Wire `Simplex3` into `World::Generate`. **Redirected from "caves/overhangs" to
+   "clouds"** after verifying the original citation against the real Craft checkout: Craft's
+   `world.c` has no cave-carving code at all; its only `simplex3` use is the CLOUD block pass. That
+   real feature was ported instead (`World::GenerateClouds`, §11.1/§11.2) — see the correction notes
+   there. Genuine cave/overhang carving remains open but is now `needs_human` (no reference
+   algorithm to port; would need invented density thresholds, a subjective design choice).
+5. `completed` — Add simple trees (Wood trunk + `Leaves` canopy, cube geometry only, no billboards)
+   during world generation (`World::GenerateTrees`, §11.1). New `BlockType::Leaves` (transparent
+   like `Glass`), hotbar now 15 slots. 6 new unit tests — 103 checks total. Verified visually.
+6. `needs_human` — Independently confirm mouse-look reliability on the user's real (non-sandboxed)
+   machine; not a coding task, see §11.4/`NEXT.md` §4 for the investigation history.
+
+Larger backlog items intentionally **not** picked up as "next smallest task" — real work items,
+tracked in detail in §11.1–§11.8, but each requires either a bigger implementation effort or an
+explicit human decision first:
+
+- `pending` (large) — Hash-map-keyed dynamic chunk store + distance-based load/unload (§11.1)
+  — prerequisite for an unbounded world; a genuine architecture change, not a small patch.
+- `pending` (large) — Non-cubic plant/billboard geometry, ambient occlusion, greedy meshing
+  (§11.2) — each needs a `MeshVertex`/`ChunkMesher` format change.
+- `blocked` (EASYGL-only today) / `needs_human` if VULKAN/BGFX parity is required — Textured sky
+  dome + fog, point/block lighting (§11.3): needs CNA `ShaderEffect`; EASYGL has real runtime GLSL,
+  VULKAN needs a precompiled-SPIR-V toolchain (no runtime GLSL path), BGFX's `ShaderEffect` is a
+  stub in CNA itself (upstream engine work, out of this repo's scope) — see `missing.md`.
+- `needs_human` — SQLite-backed delta persistence (§11.5): SQLite is not currently a dependency
+  anywhere in this project's chain (`missing.md`); adding it is a new-dependency decision this
+  autonomous session will not make unilaterally.
+- `pending`, explicitly deferred — Multiplayer/`Net`-based chunk/block sync (§11.6): per project
+  direction, do not start before local single-player gameplay, persistence, and chunk logic are
+  stable — persistence itself is still `needs_human`/pending, so this stays deferred.
+- `pending` — Signs, chat/slash commands (§11.4/§11.7) — small-to-medium UI features, lower
+  priority than world/terrain correctness.
+
 ### 11.1 World & terrain
 
 - [ ] Replace the fixed `128×64×128` array-of-chunks `World` with a hash-map-keyed, dynamically
@@ -338,10 +395,45 @@ Checkbox state reflects this document's authoring session; update as work lands.
       ported; `simplex3` (3D density, needed for caves) is deferred to that backlog item below.
       Verified visually against a real EasyGL build — terrain has a plausibly more organic/bumpy
       shape than the old value-noise rolling hills.
-- [ ] Caves/overhangs: a second, lower-frequency 3D density noise carving out solid terrain
-      (Craft's `world.c` combines a 2D heightmap with a 3D noise term for overhangs).
-- [ ] Trees and plants placement pass after heightmap generation (Craft: `src/world.c` places
-      `WOOD`/`LEAVES` clusters and `TALL_GRASS`/flower types on top of grass columns).
+- [ ] Caves/overhangs: a second, lower-frequency 3D density noise carving out solid terrain.
+      **Correction**: this item's original citation ("Craft's `world.c` combines a 2D heightmap
+      with a 3D noise term for overhangs") does not hold up against the real checkout at
+      `/rv/data/development/github.com/other/Craft/src/world.c` — there is no cave/overhang-carving
+      code there at all. Craft's *only* use of `simplex3` is the CLOUD block placement pass (`y=64..72`,
+      `simplex3(x*0.01, y*0.1, z*0.01, 8, 0.5, 2) > 0.75`) — see the now-completed Cloud-generation
+      item below, which ported that real feature instead. Genuine cave/overhang carving (not present
+      in the reference project) would need its own density thresholds/design invented from scratch
+      — marked `needs_human` if picked up, since undocumented gameplay/terrain-shape parameters are a
+      subjective design choice per this project's autonomous-session rules, not a Craft-parity port.
+- [x] Cloud generation via 3D density noise near the world ceiling (`World::GenerateClouds`,
+      `World.cpp`): ports Craft's real (verified) cloud pass — same frequency scale/octave
+      count/threshold (`simplex3(x*0.01, y*0.1, z*0.01, 8, 0.5, 2) > 0.75`), placed in a
+      `y=[58,62]` band near this project's own (much lower) `WORLD_SIZE_Y=64` ceiling instead of
+      Craft's `y=64..72` (Craft's own world is far taller). Only places a Cloud where the cell is
+      still Air, so it never overwrites terrain. 4 new unit tests (a cloud is generated somewhere,
+      all generated clouds stay within the documented band, placement is deterministic per seed,
+      terrain generation is undisturbed) — 90 checks total. Verified visually against a real
+      EasyGL build (fly mode + a screenshot showed Cloud clusters rendered above the terrain).
+- [x] Trees placement pass after heightmap generation (`World::GenerateTrees`, `World.cpp`): ports
+      Craft's real tree pass, verified against the checkout at
+      `/rv/data/development/github.com/other/Craft/src/world.c` — `simplex2(x, z, 6, 0.5, 2) > 0.84`
+      trigger on grass columns, a 7-tall Wood trunk, a Leaves canopy blob (`ox²+oz²+dy²<11` for
+      `y∈[h+3,h+8)`, `ox,oz∈[-3,3]`). Added `BlockType::Leaves` (transparent like Glass — same
+      `World::IsOpaque`/mesher routing, tile 18 in the procedural atlas, added to `Hotbar::kSlots`
+      as the new 15th/last slot). `NoiseGenerator::Simplex2` made public (was private) so
+      `GenerateTrees` can reuse it with its own frequency/octave parameters, same pattern as
+      `Simplex3`. One deliberate deviation from Craft: canopy cells only fill if still Air (Craft
+      writes unconditionally), so one tree's canopy can't stomp a neighboring tree's already-placed
+      trunk — the trunk pass itself stays unconditional, matching Craft exactly. Not ported: Craft's
+      per-chunk edge-margin check (`dx-4<0` etc.) — specific to Craft's independent per-chunk
+      generation model; this project generates the whole bounded world in one pass and
+      SetBlock/GetBlock already treat out-of-bounds coordinates as a safe no-op/Air, so the margin
+      has no equivalent here. Plants (tall grass, flowers) remain deferred to "Non-cubic plant
+      geometry" below — they need billboard geometry, not just a new tile. 6 new unit tests (tree
+      presence, determinism, trunk-base-not-floating, plus 3 Leaves mesh-transparency-routing tests
+      mirroring the existing Glass tests) — 103 checks total. Verified visually against a real
+      EasyGL build (fly mode + a screenshot showed Wood trunk/branch geometry against green Leaves
+      canopy, correctly meshed with visible faces).
 
 ### 11.2 Blocks & block rendering
 
@@ -424,9 +516,9 @@ Checkbox state reflects this document's authoring session; update as work lands.
       an explicit regression test asserting Air is never collidable. 6 new unit tests total (mesh
       routing/occlusion parity with normal blocks, collidability, the Air guard); 75 checks total.
       Not discarded in orthographic mode yet (that needs the `daylight`/ortho-aware shader work
-      tracked under "Textured sky dome + fog" below) and not yet auto-generated via 3D density
-      noise near the world ceiling (needs `simplex3`, tracked under "Caves/overhangs" above) —
-      both left as-is; this task covered the block-type semantics only.
+      tracked under "Textured sky dome + fog" below) — left as-is; this task covered the block-type
+      semantics only. **Update**: auto-generation via 3D density noise near the world ceiling has
+      since landed — see the "Cloud generation via 3D density noise" item under §11.1 above.
 
 ### 11.3 Sky & lighting
 

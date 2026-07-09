@@ -54,6 +54,22 @@ public:
     static bool InBounds(int x, int y, int z);
 
 private:
+    // Places simple Wood-trunk + Leaves-canopy trees on grass columns after
+    // the main terrain pass (plan.md §11.1 "Trees and plants") — matches
+    // Craft's own world.c tree pass (`simplex2(x, z, 6, 0.5, 2) > 0.84`
+    // trigger, 7-tall trunk, a distance<11 spherical-ish canopy blob),
+    // verified against the real checkout. Called before GenerateClouds so
+    // the cloud pass's "only place over Air" guard never overwrites a tall
+    // tree's canopy near the world ceiling.
+    void GenerateTrees(std::uint32_t seed);
+
+    // Places Cloud blocks in a thin band near the world ceiling via 3D
+    // density noise (plan.md §11.2 "Clouds" backlog note) — matches Craft's
+    // own world.c cloud pass (`simplex3(...) > 0.75`), not a cave/overhang
+    // carve (see plan.md §11.1 correction: the real Craft checkout has no
+    // cave-carving code).
+    void GenerateClouds(std::uint32_t seed);
+
     [[nodiscard]] int ChunkIndex(int cx, int cy, int cz) const;
 
     std::vector<std::unique_ptr<Chunk>> chunks_;

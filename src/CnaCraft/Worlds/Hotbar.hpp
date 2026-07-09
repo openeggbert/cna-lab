@@ -19,12 +19,12 @@ namespace CnaCraft::Worlds {
 // meant to be placed by the player, same as Craft never lists it in `items`).
 class Hotbar {
 public:
-    static constexpr std::array<BlockType, 14> kSlots = {
+    static constexpr std::array<BlockType, 15> kSlots = {
         BlockType::Grass,      BlockType::Dirt,     BlockType::Sand,
         BlockType::Stone,      BlockType::Cobblestone, BlockType::Brick,
         BlockType::Plank,      BlockType::Wood,     BlockType::Cement,
         BlockType::LightStone, BlockType::DarkStone, BlockType::Snow,
-        BlockType::Glass,      BlockType::Cloud};
+        BlockType::Glass,      BlockType::Cloud,    BlockType::Leaves};
 
     static constexpr int kMaxNumberKeySlots = 9;
 

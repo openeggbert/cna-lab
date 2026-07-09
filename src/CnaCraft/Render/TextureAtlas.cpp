@@ -42,6 +42,7 @@ const TileColor kTileColors[] = {
     {70, 70, 75, 255},    // 15: dark stone
     {140, 200, 220, 130}, // 16: glass (partially transparent)
     {235, 235, 240, 255}, // 17: cloud
+    {55, 120, 40, 215},   // 18: leaves (mottled green, partially transparent like glass)
 };
 constexpr int kTileCount = sizeof(kTileColors) / sizeof(kTileColors[0]);
 
@@ -76,6 +77,7 @@ constexpr TilePattern kTilePatterns[] = {
     {Pattern::Mottle, 0.12f},    // 15: dark stone
     {Pattern::Mottle, 0.06f},    // 16: glass
     {Pattern::Mottle, 0.05f},    // 17: cloud
+    {Pattern::Mottle, 0.30f},    // 18: leaves (punchy speckle, like foliage clumps)
 };
 
 // Deterministic per-pixel hash noise (same technique as

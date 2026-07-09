@@ -11,9 +11,9 @@ CNA's `Microsoft::Xna::Framework` API (`Vector3`/`Matrix`, `VertexBuffer`/`Index
 `BasicEffect`, `Texture2D`, `Keyboard`/`Mouse`).
 
 It reuses the first-person camera, movement, and AABB-collision approach already proven in CNA's
-own `examples/house3d_demo.cpp`, and adds the voxel-specific layer on top: chunk storage, greedy
-meshing, a block texture atlas, noise-based terrain generation, and a DDA voxel raycast for
-picking blocks.
+own `examples/house3d_demo.cpp`, and adds the voxel-specific layer on top: chunk storage, naive
+per-face hidden-face-culled meshing, a block texture atlas, noise-based terrain generation, and a
+DDA voxel raycast for picking blocks.
 
 See [plan.md](plan.md) for the detailed architecture and implementation roadmap, and
 [analysis.md](analysis.md) for the feasibility analysis this project started from.
@@ -67,13 +67,13 @@ cmake --build build --target CnaCraft
 | Left click      | Break block                          |
 | Right click     | Place block (currently selected type)|
 | 1-9             | Select hotbar slot directly (Grass/Dirt/Sand/Stone/Cobblestone/Brick/Plank/Wood/Cement) |
-| E               | Cycle to next hotbar slot (all 14: also reaches LightStone/DarkStone/Snow/Glass/Cloud) |
+| E               | Cycle to next hotbar slot (all 15: also reaches LightStone/DarkStone/Snow/Glass/Cloud/Leaves) |
 | Left Shift (hold) | Zoom (narrow FOV)                   |
 | F (hold)        | Orthographic projection               |
 | F12             | Save a screenshot to `screenshots/`   |
 | Esc             | Quit                                  |
 
-A crosshair and the currently-selected hotbar item (e.g. `#4/14 Stone`, with a
+A crosshair and the currently-selected hotbar item (e.g. `#4/15 Stone`, with a
 `[FLYING]` indicator while flying) are drawn on screen; both are also printed
 to the console when they change.
 
