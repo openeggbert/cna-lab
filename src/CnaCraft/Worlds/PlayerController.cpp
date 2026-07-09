@@ -29,6 +29,20 @@ constexpr float kTerminalVelocity = -250.0f;
 // blocks -- comfortably enough margin. Matched here.
 constexpr float kJumpSpeed = 8.0f;
 constexpr float kPitchLimit = 1.55f; // ~89 degrees
+
+// Collision substepping (CRAFT_PARITY.md §1.7): Craft explicitly breaks a
+// frame's movement into `step = MAX(8, estimate)` substeps (main.c,
+// handle_movement), each resolved against collision separately, so a fast
+// frame's total displacement can never skip clean over a thin (1-block)
+// obstacle without ever being tested against it -- CollidesAt only tests
+// discrete positions, not the swept path between them, so without this a
+// large enough per-call `dt` (a dropped/hitched frame, or a future speed
+// increase) could tunnel through a wall. kMinSubsteps mirrors Craft's own
+// floor of 8. kMaxSubsteps is a deliberate addition Craft's own code
+// doesn't have (Craft's `step` is otherwise unbounded) -- a defensive cap
+// so a pathologically large one-off `dt` can't blow up this frame's cost.
+constexpr int kMinSubsteps = 8;
+constexpr int kMaxSubsteps = 64;
 }
 
 PlayerController::PlayerController(Core::Vec3f startFeetPosition) : position_(startFeetPosition) {}
@@ -94,52 +108,69 @@ void PlayerController::Update(const World& world, const PlayerInput& input, floa
         moveRightInput *= invLen;
     }
 
-    Core::Vec3f next = position_;
+    const float speed = flying_ ? kFlySpeed : kMoveSpeed;
+    const float moveX = (forwardX * moveForwardInput + rightX * moveRightInput) * speed;
+    const float moveZ = (forwardZ * moveForwardInput + rightZ * moveRightInput) * speed;
 
-    if (flying_) {
-        // Fly mode (plan.md §11.4): no gravity, free vertical movement.
-        // Horizontal axes still collide with the world (matches
-        // house3d_demo.cpp's fly branch); vertical does not, so the player
-        // can fly through floors/ceilings on purpose.
-        const float moveX = (forwardX * moveForwardInput + rightX * moveRightInput) * kFlySpeed;
-        const float moveZ = (forwardZ * moveForwardInput + rightZ * moveRightInput) * kFlySpeed;
+    // Estimate how many substeps this frame's movement needs (see the
+    // kMinSubsteps/kMaxSubsteps comment above) -- Craft's own formula
+    // (main.c) scales substep count with total estimated speed * dt; ported
+    // with the same shape, using this project's own speed constants.
+    const float verticalSpeedEstimate = flying_ ? (input.moveUp * kFlySpeed) : velocity_.y;
+    const float totalSpeedEstimate =
+        std::sqrt(moveX * moveX + verticalSpeedEstimate * verticalSpeedEstimate + moveZ * moveZ);
+    const int estimate = static_cast<int>(std::round(totalSpeedEstimate * dt * 8.0f));
+    const int step = std::min(kMaxSubsteps, std::max(kMinSubsteps, estimate));
+    const float subDt = dt / static_cast<float>(step);
 
-        next.x = position_.x + moveX * dt;
-        if (CollidesAt(world, next)) next.x = position_.x;
+    for (int i = 0; i < step; ++i) {
+        Core::Vec3f next = position_;
 
-        next.z = position_.z + moveZ * dt;
-        if (CollidesAt(world, Core::Vec3f{next.x, position_.y, next.z})) next.z = position_.z;
+        if (flying_) {
+            // Fly mode (plan.md §11.4): no gravity, free vertical movement.
+            // Horizontal axes still collide with the world (matches
+            // house3d_demo.cpp's fly branch); vertical does not, so the
+            // player can fly through floors/ceilings on purpose.
+            next.x = position_.x + moveX * subDt;
+            if (CollidesAt(world, next)) next.x = position_.x;
 
-        next.y = position_.y + input.moveUp * kFlySpeed * dt;
-        grounded_ = false;
-    } else {
-        const float moveX = (forwardX * moveForwardInput + rightX * moveRightInput) * kMoveSpeed;
-        const float moveZ = (forwardZ * moveForwardInput + rightZ * moveRightInput) * kMoveSpeed;
+            next.z = position_.z + moveZ * subDt;
+            if (CollidesAt(world, Core::Vec3f{next.x, position_.y, next.z})) next.z = position_.z;
 
-        if (grounded_ && input.jumpPressed) {
-            velocity_.y = kJumpSpeed;
+            next.y = position_.y + input.moveUp * kFlySpeed * subDt;
             grounded_ = false;
-        }
-        velocity_.y -= kGravity * dt;
-        if (velocity_.y < kTerminalVelocity) velocity_.y = kTerminalVelocity;
-
-        next.x = position_.x + moveX * dt;
-        if (CollidesAt(world, next)) next.x = position_.x;
-
-        next.z = position_.z + moveZ * dt;
-        if (CollidesAt(world, Core::Vec3f{next.x, position_.y, next.z})) next.z = position_.z;
-
-        next.y = position_.y + velocity_.y * dt;
-        if (CollidesAt(world, Core::Vec3f{next.x, next.y, next.z})) {
-            if (velocity_.y < 0.0f) grounded_ = true;
-            velocity_.y = 0.0f;
-            next.y = position_.y;
         } else {
-            grounded_ = false;
-        }
-    }
+            // Jump impulse and grounded state are only ever set/consumed
+            // once per Update() call: grounded_ flips to false the instant
+            // the impulse is applied, so subsequent substeps within this
+            // same call can't re-trigger it (equivalent to Craft's own
+            // static `dy` accumulator, just applied at substep granularity
+            // instead of via a persistent global).
+            if (grounded_ && input.jumpPressed) {
+                velocity_.y = kJumpSpeed;
+                grounded_ = false;
+            }
+            velocity_.y -= kGravity * subDt;
+            if (velocity_.y < kTerminalVelocity) velocity_.y = kTerminalVelocity;
 
-    position_ = next;
+            next.x = position_.x + moveX * subDt;
+            if (CollidesAt(world, next)) next.x = position_.x;
+
+            next.z = position_.z + moveZ * subDt;
+            if (CollidesAt(world, Core::Vec3f{next.x, position_.y, next.z})) next.z = position_.z;
+
+            next.y = position_.y + velocity_.y * subDt;
+            if (CollidesAt(world, Core::Vec3f{next.x, next.y, next.z})) {
+                if (velocity_.y < 0.0f) grounded_ = true;
+                velocity_.y = 0.0f;
+                next.y = position_.y;
+            } else {
+                grounded_ = false;
+            }
+        }
+
+        position_ = next;
+    }
 }
 
 Core::Vec3f PlayerController::EyePosition() const {

@@ -715,14 +715,21 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
 10. `completed` — **Player physics: terminal velocity clamp** (CRAFT_PARITY.md §1.8): port
     Craft's `-250 units/s` fall-speed cap to `PlayerController` (jump speed `8.0` and gravity
     `25.0` already matched Craft exactly from a prior session).
-11. `pending` — **Collision substepping** (CRAFT_PARITY.md §1.7): cna-craft's single
-    whole-step-or-full-revert-per-axis-per-frame collision has no equivalent to Craft's explicit
-    `step = MAX(8, estimate)` substepping, a real (if not yet observed in practice) tunneling risk
-    at high velocity or a dropped frame. Left `pending` rather than `completed` this session — a
-    substep-loop change to `PlayerController::Update` touches load-bearing physics code covered by
-    the "no `PlayerController` public-API changes without re-running the full suite" rule; needs
-    its own careful pass with the full existing physics test suite re-verified against every
-    constant, not bundled into this session's quick-fix batch.
+11. `completed` — **Collision substepping** (CRAFT_PARITY.md §1.7): `PlayerController::Update`
+    now breaks each frame's movement into `step = clamp(estimate, kMinSubsteps=8, kMaxSubsteps=64)`
+    substeps (ported from Craft's own `step = MAX(8, estimate)`, `main.c handle_movement`, same
+    distance-based `estimate` formula using this project's own speed constants), each substep
+    independently resolved through the existing axis-separated `CollidesAt` checks. `kMaxSubsteps`
+    is a deliberate addition beyond Craft's own unbounded `step` — a defensive cost cap for a
+    pathologically large one-off `dt`. Yaw/pitch update and jump-impulse consumption stay
+    once-per-`Update()`-call (not per substep), matching Craft's own `s->rx`/`dy` update points.
+    Verified via the full existing physics test suite re-run (139/139 passing, no regressions —
+    jump height/gravity/fly-mode/grounding all numerically unaffected at normal `dt`), plus a new
+    dedicated regression test that places a huge single-frame `dt` (2 real seconds) against a
+    1-block-thick wall and asserts the player stops at the wall instead of tunneling through it —
+    **empirically confirmed meaningful** by temporarily forcing `kMinSubsteps=kMaxSubsteps=1`
+    (i.e. disabling substepping) and observing the new test correctly fail, then restoring the
+    real values and re-confirming all 139 tests pass.
 12. `blocked` — **Ambient occlusion** (CRAFT_PARITY.md §5.1): needs a custom vertex format +
     `ShaderEffect`; only `EASYGL` has real runtime shader support today per `missing.md`.
 13. `completed` — **Fog** (CRAFT_PARITY.md §5.2): `CnaCraftGame::Draw` now sets `effect_`'s

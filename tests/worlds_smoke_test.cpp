@@ -720,6 +720,49 @@ void TestPlayerControllerFallSpeedIsClampedToTerminalVelocity() {
     Check(fallSpeed <= 250.5f, "fall speed is clamped to Craft's terminal velocity (250 units/s), not unbounded");
 }
 
+void TestPlayerControllerSubsteppingPreventsTunnelingThroughThinWall() {
+    // Regression test (CRAFT_PARITY.md §1.7): without substepping, a single
+    // large-dt movement update (e.g. a severe dropped/hitched frame) could
+    // place the player's entire displacement past a thin (1-block) wall in
+    // one step, since collision only ever tested the destination position,
+    // not the swept path between start and destination. Craft explicitly
+    // substeps movement resolution to prevent exactly this
+    // (`step = MAX(8, estimate)`, main.c) -- ported to PlayerController.
+    World world;
+    // Flat floor so the player doesn't fall while testing horizontal
+    // movement.
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            for (int y = 0; y <= 3; ++y) world.SetBlock(x, y, z, BlockType::Stone);
+        }
+    }
+    // A single-block-thick wall at x=20, spanning well above the floor.
+    constexpr int kWallX = 20;
+    for (int z = 45; z <= 55; ++z) {
+        for (int y = 4; y <= 10; ++y) world.SetBlock(kWallX, y, z, BlockType::Stone);
+    }
+
+    PlayerController player(Vec3f{15.0f, 4.0f, 50.0f}); // on the floor, west of the wall
+    PlayerInput input;
+    input.moveForward = 1.0f;
+
+    // Rotate to face +X (forwardX = sin(yaw), so yaw = +90 degrees) with a
+    // zero-dt update first -- yaw updates unconditionally regardless of dt.
+    PlayerInput turnInput;
+    turnInput.lookDeltaYaw = 1.57079632679f;
+    player.Update(world, turnInput, 0.0f);
+
+    // A single Update call with a huge dt (2 real seconds): naive unclamped
+    // displacement would be moveSpeed(4.5) * dt(2.0) = 9.0 blocks -- more
+    // than enough to jump clean over the 1-block-thick wall 5 blocks away
+    // in one unsubstepped step.
+    player.Update(world, input, 2.0f);
+
+    const float finalX = player.EyePosition().x;
+    Check(finalX < static_cast<float>(kWallX),
+          "a huge single-frame dt does not tunnel the player through a thin wall");
+}
+
 void TestPlayerJumpClearsOneBlockHeight() {
     // Regression test for a real user-reported bug: kJumpSpeed=7 against
     // kGravity=25 gives a max jump height of v^2/(2g) = 49/50 = 0.98 blocks
@@ -872,6 +915,7 @@ int main() {
     TestPlayerControllerGravityAndGroundCollision();
     TestPlayerControllerDiagonalMovementNotFaster();
     TestPlayerControllerFallSpeedIsClampedToTerminalVelocity();
+    TestPlayerControllerSubsteppingPreventsTunnelingThroughThinWall();
     TestPlayerJumpClearsOneBlockHeight();
     TestPlayerCanJumpOntoOneBlockHigherLedge();
     TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging();

@@ -151,19 +151,21 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   toward an obstacle, clamps the coordinate to `n±pad`. Effectively a continuous partial-penetration
   resolver, explicitly substepped to avoid tunneling through thin obstacles at high speed/low
   framerate.
-- **cna-craft behavior** (`CollidesAt`, `PlayerController.cpp:27-43`): true AABB-vs-voxel-grid
-  test (`kPlayerHalfWidth=0.3`, `kPlayerHeight=1.8`), resolved axis-separated (X, then Z, then Y)
-  in a **single whole-step move-or-full-revert per axis per frame** — no substepping.
-- **Status**: partial
+- **cna-craft behavior** (implemented this session): `CollidesAt` (true AABB-vs-voxel-grid test)
+  is now called from inside a substep loop in `PlayerController::Update` —
+  `step = clamp(estimate, kMinSubsteps=8, kMaxSubsteps=64)`, same distance-based `estimate`
+  formula shape as Craft's, resolved axis-separated (X, then Z, then Y) each substep.
+  `kMaxSubsteps` is a deliberate addition beyond Craft's own unbounded `step`.
+- **Status**: complete
 - **Craft files**: `src/main.c:699-738`, called at `main.c:2462`
-- **cna-craft files**: `src/CnaCraft/Worlds/PlayerController.cpp:27-43, 90-103`
-- **Priority**: high
-- **Verification method**: unit test placing the player near a thin wall at high velocity /
-  low simulated framerate and confirming it doesn't tunnel through
-- **Notes**: cna-craft's AABB approach is arguably a cleaner algorithm than Craft's point+pad
-  approximation, but the *lack of substepping* is a genuine tunneling risk at high velocity or a
-  dropped frame — a real, if currently unobserved, bug relative to Craft's explicit anti-tunneling
-  design.
+- **cna-craft files**: `src/CnaCraft/Worlds/PlayerController.cpp`
+- **Priority**: high (done)
+- **Verification method**: full 139-test physics suite re-run (no regressions) plus a new
+  dedicated tunneling regression test, empirically confirmed meaningful by temporarily forcing
+  `kMinSubsteps=kMaxSubsteps=1` and observing it correctly fail, then restoring and re-passing.
+- **Notes**: cna-craft's AABB approach remains a cleaner algorithm than Craft's point+pad
+  approximation; substepping closes the tunneling gap without adopting Craft's fractional-clamp
+  resolver itself.
 
 ### 1.8 Gravity/jump behavior
 - **Craft behavior** (`main.c:2411-2469`): jump sets `dy=8` only `if (dy==0)` (doubles as the
@@ -682,7 +684,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 1.4 | Mouse look | complete | low |
 | 1.5 | Player movement (diagonal speed) | **fixed this session** | high |
 | 1.6 | Walking vs flying | partial | medium (needs_human: control-scheme choice) |
-| 1.7 | Collision (substepping) | partial | high |
+| 1.7 | Collision (substepping) | **fixed this session** | high |
 | 1.8 | Gravity/jump (terminal velocity) | **fixed this session** | medium |
 | 1.9 | Zoom/ortho/arrow-look | complete | low |
 | 2.1 | Hotbar switching (0/R/scroll) | **fixed this session** | medium |
