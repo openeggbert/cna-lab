@@ -704,10 +704,22 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     constant, not bundled into this session's quick-fix batch.
 12. `blocked` — **Ambient occlusion** (CRAFT_PARITY.md §5.1): needs a custom vertex format +
     `ShaderEffect`; only `EASYGL` has real runtime shader support today per `missing.md`.
-13. `pending` — **Fog** (CRAFT_PARITY.md §5.2): **not blocked** — `BasicEffect` has built-in
-    linear distance fog (`FogEnabled`/`FogColor`/`FogStart`/`FogEnd`) that needs no custom shader
-    and works identically on all three backends. A genuine low-hanging-fruit visual-parity item
-    `missing.md` hadn't previously identified as backend-agnostic.
+13. `completed` — **Fog** (CRAFT_PARITY.md §5.2): `CnaCraftGame::Draw` now sets `effect_`'s
+    built-in `FogEnabled`/`FogColor`/`FogStart`/`FogEnd` every frame (`kFogStart=70`,
+    `kFogEnd=150`, scaled to this project's fixed 128×64×128 world instead of Craft's
+    streamed-world render radius). `FogColor` matches the already-computed flat sky clear color,
+    so distant geometry fades toward the sky (same intent as Craft's real sky-texture-sampling
+    fog, simpler source since there's no sky dome yet — see item 14). Fog is disabled in
+    orthographic mode, matching Craft's own `if (bool(ortho)) fog_factor = 0.0`. No custom shader
+    needed — confirmed via CNA's own cross-backend fog test suite
+    (`../cna/examples/{easygl,vulkan,bgfx}_basiceffect_lit_fog_test.cpp`) that this exact
+    lit+textured `BasicEffect` path has real fog support on EASYGL, VULKAN, and BGFX alike.
+    Verified via a clean build (worlds + full EasyGL) and a 100-frame headless smoke run; a
+    fade-visible screenshot proved impractical in this session's sandboxed X11 environment (the
+    fixed spawn point sits in a tightly enclosed terrain pocket, and scripted fly-navigation out
+    of it was unreliable — same class of sandbox flakiness noted elsewhere in this project's
+    history) — the wireframe-outline screenshot from the prior commit already confirms the same
+    `Draw()` pipeline (including `effect_` state changes) renders correctly end-to-end.
 14. `pending` — **Sky dome** (CRAFT_PARITY.md §5.3): a plain vertex-colored dome mesh (no
     time-of-day texture sampling) is achievable with stock `BasicEffect`; full Craft-style texture
     sampling needs a custom shader. Which version to build is `needs_human` (scope decision).

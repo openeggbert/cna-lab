@@ -40,6 +40,23 @@ constexpr std::uint32_t kWorldSeed = 1337;
 // Orthographic toggle (plan.md §11.4): also hold-to-activate in Craft
 // (`g->ortho = ... ? 64 : 0`), not a toggle despite the backlog's wording.
 constexpr float kOrthoViewHeight = 24.0f; // world units (blocks) of vertical view extent
+
+// Distance fog (CRAFT_PARITY.md §5.2): Craft's own block_vertex.glsl fades
+// toward a sampled sky-texture color by camera distance
+// (`fog_distance = render_radius * CHUNK_SIZE`, 320 units in real Craft).
+// This project has no sky dome/texture yet (separate backlog item), so
+// FogColor is set to the same flat sky clear color already computed below
+// each frame instead — same "fade toward the sky" intent, simpler source.
+// Verified NOT blocked by the shader-backend limitations in missing.md:
+// BasicEffect's fog is standard XNA surface (FogEnabled/FogColor/FogStart/
+// FogEnd), not a custom ShaderEffect — CNA has real fog support for the
+// lit+textured BasicEffect path on EASYGL, VULKAN, and BGFX alike (see
+// ../cna/examples/{easygl,vulkan,bgfx}_basiceffect_lit_fog_test.cpp).
+// kFogStart/kFogEnd are scaled to this project's fixed 128x64x128 world
+// (horizontal diagonal ~181 units) rather than Craft's streamed-world
+// render radius, which has no equivalent here.
+constexpr float kFogStart = 70.0f;
+constexpr float kFogEnd = 150.0f;
 }
 
 CnaCraftGame::CnaCraftGame() : graphics_(this) {
@@ -302,8 +319,19 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     const auto lerpChannel = [daylight](int night, int day) {
         return static_cast<int>(static_cast<float>(night) + static_cast<float>(day - night) * daylight);
     };
-    device.Clear(Color(lerpChannel(12, 135), lerpChannel(14, 196), lerpChannel(36, 235), 255), 1.0f);
+    const int skyR = lerpChannel(12, 135), skyG = lerpChannel(14, 196), skyB = lerpChannel(36, 235);
+    device.Clear(Color(skyR, skyG, skyB, 255), 1.0f);
     device.SetDepthTestEnabled(true);
+
+    // Distance fog (CRAFT_PARITY.md §5.2) — fades geometry toward the same
+    // flat sky color used for the clear, so the fixed world's edges recede
+    // instead of hard-cutting at the far clip plane. See the kFogStart/
+    // kFogEnd comment above for why this isn't blocked by shader limits.
+    effect_->setFogEnabledProperty(true);
+    effect_->setFogColorProperty(Vector3(static_cast<float>(skyR) / 255.0f, static_cast<float>(skyG) / 255.0f,
+                                          static_cast<float>(skyB) / 255.0f));
+    effect_->setFogStartProperty(kFogStart);
+    effect_->setFogEndProperty(kFogEnd);
     // Nearest-neighbor sampling: the atlas has no padding between tiles, so
     // linear filtering bleeds each tile's neighbor color (visible as magenta
     // speckling from the unused-tile fallback color) across every tile edge.
@@ -327,6 +355,9 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     if (kb.IsKeyDown(Keys::F)) {
         effect_->Projection = Matrix::CreateOrthographic(
             kOrthoViewHeight * aspect, kOrthoViewHeight, 0.1f, 500.0f);
+        // Craft's own shader disables fog in ortho mode (`if (bool(ortho))
+        // fog_factor = 0.0`, block_vertex.glsl) — matched here.
+        effect_->setFogEnabledProperty(false);
     } else {
         const float fov = kb.IsKeyDown(Keys::LeftShift) ? kZoomFov : kPiOver4;
         effect_->Projection = Matrix::CreatePerspectiveFieldOfView(fov, aspect, 0.1f, 500.0f);

@@ -585,17 +585,23 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 ### 5.2 Fog
 - **Craft behavior**: distance+height fog in `block_vertex.glsl`/`block_fragment.glsl`, blending
   toward a sampled sky-texture color by camera distance.
-- **cna-craft behavior**: none — confirmed via grep for `FogEnabled`/`FogColor` (zero hits);
-  `BasicEffect`'s built-in fog properties are never touched.
-- **Status**: missing (but NOT blocked — see notes)
+- **cna-craft behavior** (implemented this session): `CnaCraftGame::Draw` sets `effect_`'s
+  `FogEnabled`/`FogColor`/`FogStart`/`FogEnd` every frame — `FogColor` matches the already-
+  computed flat sky clear color (same "fade toward sky" intent, simpler source than Craft's
+  texture sampling since no sky dome exists yet), `kFogStart=70`/`kFogEnd=150` scaled to this
+  project's fixed world size. Disabled in ortho mode, matching Craft's own `if (bool(ortho))
+  fog_factor = 0.0`.
+- **Status**: complete
 - **Craft files**: `shaders/block_vertex.glsl:32-38`, `block_fragment.glsl:36-37`
 - **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp` (Draw)
-- **Priority**: medium
-- **Notes**: **Does not require custom shaders** — `Microsoft::Xna::Framework::Graphics::BasicEffect`
-  has its own built-in linear distance fog (`FogEnabled`/`FogColor`/`FogStart`/`FogEnd`), which
-  works identically on all three backends since it's part of the standard XNA `BasicEffect`
-  surface, not a custom `ShaderEffect`. This is a genuine low-hanging-fruit gap `missing.md`
-  didn't previously call out — `pending`, not `blocked`.
+- **Priority**: medium (done)
+- **Notes**: **Did not require custom shaders**, as predicted — `BasicEffect`'s built-in linear
+  distance fog works identically on all three backends since it's standard XNA surface, not a
+  custom `ShaderEffect`; confirmed via CNA's own cross-backend fog test suite
+  (`../cna/examples/{easygl,vulkan,bgfx}_basiceffect_lit_fog_test.cpp`), which exercises this
+  exact lit+textured `BasicEffect` path. Verified via clean build + 100-frame headless smoke run;
+  a visible fade screenshot proved impractical this session (sandboxed X11 fly-navigation
+  flakiness, not a code concern — see `plan.md` §12.1 item 13 for the full note).
 
 ### 5.3 Sky dome
 - **Craft behavior**: a real icosphere mesh (`make_sphere`, `cube.c:346-384`), textured with a
@@ -691,7 +697,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 4.5 | Chat/commands | missing | medium |
 | 4.6 | Multiplayer | missing | low (deliberate) |
 | 5.1 | Ambient occlusion | blocked | high (blocked) |
-| 5.2 | Fog | missing | medium (NOT blocked — quick win) |
+| 5.2 | Fog | **fixed this session** | medium |
 | 5.3 | Sky dome | missing | medium |
 | 5.4 | Day/night lighting | complete | low |
 | 5.5 | Texture atlas | partial | low (needs_human: asset decision) |
