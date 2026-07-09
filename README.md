@@ -65,6 +65,7 @@ cmake --build build --target CnaCraft
 | Left Ctrl         | Fly down (fly mode only)             |
 | Tab               | Toggle fly mode (no gravity, free vertical movement) |
 | Left click        | Break block (Bedrock is protected — cannot be broken) |
+| Ctrl + Left click | Place block instead of breaking (same as Right click) |
 | Right click       | Place block (currently selected type); blocked if it would overlap your own position |
 | Middle click      | Eyedropper — select the hotbar slot matching the targeted block's type |
 | 1-9, 0            | Select hotbar slot directly (1-9 = slots 1-9, 0 = slot 10) |

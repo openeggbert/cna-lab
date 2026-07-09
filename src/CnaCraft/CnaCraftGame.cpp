@@ -288,23 +288,35 @@ void CnaCraftGame::Update(GameTime& gameTime) {
         rebuildHud();
     }
 
+    // Place the selected block adjacent to `hit`'s face, rejecting a
+    // placement that would overlap the player's own body (CRAFT_PARITY.md
+    // §2.6, ports Craft's on_right_click `!player_intersects_block` guard).
+    const auto tryPlaceBlock = [&]() {
+        const int px = hit->x + hit->nx, py = hit->y + hit->ny, pz = hit->z + hit->nz;
+        if (!player_->IntersectsBlock(px, py, pz)) {
+            world_.SetBlock(px, py, pz, hotbar_.Selected());
+        }
+    };
+
+    // CRAFT_PARITY.md §2.7: Ctrl+left-click acts as right-click (place)
+    // instead of break, matching Craft's real on_mouse_button
+    // (`control ? on_right_click() : on_left_click()` for the left button).
+    const bool ctrlDown = kb.IsKeyDown(Keys::LeftControl) || kb.IsKeyDown(Keys::RightControl);
+
     if (hit && leftDown && !leftClickWasDown_) {
-        // CRAFT_PARITY.md §2.5: only break blocks World::IsBreakable allows
-        // (ports Craft's `is_destructable` guard in on_left_click) — Bedrock,
-        // a cna-craft-only "world-boundary, not meant to be placed" block,
-        // could previously be mined away with no protection at all.
-        if (world_.IsBreakable(hit->x, hit->y, hit->z)) {
+        if (ctrlDown) {
+            tryPlaceBlock();
+        } else if (world_.IsBreakable(hit->x, hit->y, hit->z)) {
+            // CRAFT_PARITY.md §2.5: only break blocks World::IsBreakable
+            // allows (ports Craft's `is_destructable` guard in
+            // on_left_click) — Bedrock, a cna-craft-only "world-boundary,
+            // not meant to be placed" block, could previously be mined
+            // away with no protection at all.
             world_.SetBlock(hit->x, hit->y, hit->z, Worlds::BlockType::Air);
         }
     }
     if (hit && rightDown && !rightClickWasDown_) {
-        const int px = hit->x + hit->nx, py = hit->y + hit->ny, pz = hit->z + hit->nz;
-        // CRAFT_PARITY.md §2.6: reject a placement that would overlap the
-        // player's own body, matching Craft's on_right_click guard
-        // (`!player_intersects_block(2, s->x,s->y,s->z, hx,hy,hz)`).
-        if (!player_->IntersectsBlock(px, py, pz)) {
-            world_.SetBlock(px, py, pz, hotbar_.Selected());
-        }
+        tryPlaceBlock();
     }
     leftClickWasDown_ = leftDown;
     rightClickWasDown_ = rightDown;

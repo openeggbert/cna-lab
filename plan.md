@@ -789,6 +789,16 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     leave selection unchanged — e.g. targeting Bedrock or Air does nothing). 5 new unit tests — 125
     checks total. Ctrl+click-as-place and the light-toggle half of CRAFT_PARITY.md §2.7 remain
     `pending`/blocked-on-a-larger-subsystem respectively, not picked up in this batch.
+21. `completed` — **Ctrl+left-click as place** (CRAFT_PARITY.md §2.7): ports Craft's real
+    `on_mouse_button` (`control ? on_right_click() : on_left_click()` for the left button) —
+    holding Left/Right Ctrl while left-clicking now places the selected block (same guard as
+    ordinary right-click: rejects placement that would overlap the player) instead of breaking.
+    The left-click/right-click/Ctrl+left-click paths now share one `tryPlaceBlock` lambda instead
+    of duplicating the placement logic. The light-toggle half of Craft's Ctrl+right-click remains
+    `pending`, blocked on the much larger unimplemented point-lighting subsystem (§4.3/CRAFT_PARITY
+    §2.7). Verified via a clean EasyGL build and a headless smoke run; no new `Worlds/`-layer logic
+    was added (pure `CnaCraftGame.cpp` input-wiring glue reusing already-tested `IntersectsBlock`/
+    `SetBlock`), so no new unit tests were needed.
 
 ### 12.2 Deliberately not re-litigated this session
 

@@ -321,15 +321,19 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   → `on_light()`, toggles a placed point-light source at the targeted block. Middle-click →
   `on_middle_click()`, an "eyedropper" that sets the selected hotbar item to match the targeted
   block's type.
-- **cna-craft behavior**: middle-click eyedropper implemented this session (`Hotbar::
-  SelectByBlockType`, wired in `CnaCraftGame::Update`). Ctrl+click-as-place and the light-toggle
-  half still don't exist. Left Ctrl is used only for fly-mode descend.
-- **Status**: partial (eyedropper complete; Ctrl+click/light-toggle still missing)
+- **cna-craft behavior**: middle-click eyedropper (`Hotbar::SelectByBlockType`) and Ctrl+left-click
+  as place (`tryPlaceBlock` lambda shared with ordinary right-click, gated on
+  `Keys::LeftControl`/`RightControl`) both implemented this session, in `CnaCraftGame::Update`.
+  Only the light-toggle half (Ctrl+right-click) remains missing. Left Ctrl is otherwise used for
+  fly-mode descend — same modifier key, no actual conflict since Craft's own Ctrl is a universal
+  modifier too (no fly-mode carve-out there either).
+- **Status**: partial (eyedropper + Ctrl-click-as-place complete; light-toggle still missing)
 - **Craft files**: `src/main.c:2131-2138, 2153-2175, 2229-2361`
 - **cna-craft files**: `src/CnaCraft/Worlds/Hotbar.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.cpp`
 - **Priority**: low
-- **Verification method**: `TestHotbarSelectionAndCycling`'s `SelectByBlockType` checks (unit
-  tests, now passing)
+- **Verification method**: `TestHotbarSelectionAndCycling`'s `SelectByBlockType` checks (eyedropper,
+  unit-tested); Ctrl+click-as-place verified via a clean EasyGL build + headless smoke run (pure
+  input-wiring glue over already-tested `IntersectsBlock`/`SetBlock`, no new `Worlds/`-layer logic)
 - **Notes**: The light-toggle half is still blocked on a much larger unimplemented subsystem
   (per-block point lighting, §4.3) — not a simple wiring gap, left `pending`. Ctrl+click-as-place
   is a small remaining gap, also left `pending` (not picked up this batch).
@@ -700,7 +704,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 2.4 | Wireframe selection outline | **fixed this session** | high |
 | 2.5 | Block breaking (Bedrock protection) | **fixed this session** | critical |
 | 2.6 | Block placing (self-intersection) | **fixed this session** | critical |
-| 2.7 | Middle-click eyedropper (**fixed this session**) / Ctrl+click / light-toggle | partial | low |
+| 2.7 | Eyedropper + Ctrl-click-as-place (**both fixed this session**) / light-toggle | partial | low |
 | 2.8 | Collision rules (solid/transparent) | complete | low |
 | 3.1 | Chunk system (hash-map vs fixed) | partial | medium (large) |
 | 3.2 | Chunk streaming | missing | low (deliberate) |
