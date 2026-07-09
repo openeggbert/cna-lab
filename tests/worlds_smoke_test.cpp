@@ -294,6 +294,51 @@ void TestWorldGeneratesTallGrass() {
     Check(everyBladeSitsOnSurface, "every TallGrass block sits exactly one cell above its column's real surface height");
 }
 
+void TestWorldGeneratesFlowers() {
+    // World::GenerateFlowers ports Craft's real flower-decoration pass
+    // (verified against the checkout — `simplex2(x*0.05, -z*0.05, 4, 0.8, 2)
+    // > 0.7` trigger on grass columns, placed one cell above the surface;
+    // Craft's second noise sample picking one of 7 flower colors is skipped
+    // since this project has a single representative Flower type).
+    World a, b;
+    a.Generate(1234);
+    b.Generate(1234);
+
+    bool anyFlowerFound = false;
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            for (int y = 0; y < WORLD_SIZE_Y; ++y) {
+                if (a.GetBlock(x, y, z) == BlockType::Flower) anyFlowerFound = true;
+            }
+        }
+    }
+    Check(anyFlowerFound, "World::Generate places at least one Flower block somewhere in the world");
+
+    bool allMatch = true;
+    for (int x = 0; x < WORLD_SIZE_X; x += 2) {
+        for (int z = 0; z < WORLD_SIZE_Z; z += 2) {
+            const int height = NoiseGenerator::Height(1234, x, z);
+            if (height + 1 < WORLD_SIZE_Y && a.GetBlock(x, height + 1, z) != b.GetBlock(x, height + 1, z)) {
+                allMatch = false;
+            }
+        }
+    }
+    Check(allMatch, "flower placement is deterministic for a fixed seed, same as tall grass/trees/clouds");
+
+    bool everyFlowerSitsOnSurface = true;
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            const int height = NoiseGenerator::Height(1234, x, z);
+            for (int y = 0; y < WORLD_SIZE_Y; ++y) {
+                if (a.GetBlock(x, y, z) == BlockType::Flower && y != height + 1) {
+                    everyFlowerSitsOnSurface = false;
+                }
+            }
+        }
+    }
+    Check(everyFlowerSitsOnSurface, "every Flower block sits exactly one cell above its column's real surface height");
+}
+
 void TestNoiseGeneratorSimplex2IsSeeded() {
     Check(NoiseGenerator::Height(1234, 5, 5) == NoiseGenerator::Height(1234, 5, 5),
           "NoiseGenerator::Height is a pure function of (seed, x, z)");
@@ -513,6 +558,22 @@ void TestChunkMesherPlantBillboard() {
     Check(surrounded.IsOpaque(6, 5, 5), "a normal Stone neighbor is still opaque (unaffected by the plant)");
 }
 
+void TestChunkMesherFlowerUsesSamePlantPath() {
+    // Flower (CRAFT_PARITY.md §3.7 follow-up) reuses the exact same
+    // EmitPlant path as TallGrass -- just a lighter check that it's wired
+    // up correctly, not a full re-test of the cross-billboard shape
+    // (already covered by TestChunkMesherPlantBillboard above).
+    World world;
+    world.SetBlock(5, 5, 5, BlockType::Flower);
+    ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
+    Check(mesh.opaque.vertices.empty(), "a lone Flower block emits nothing into the opaque mesh");
+    Check(mesh.transparent.vertices.size() == 16, "a lone Flower block emits a 4-quad cross billboard, not a cube");
+    Check(world.IsSolid(5, 5, 5), "Flower occupies space (meshed/hit-testable)");
+    Check(world.IsBreakable(5, 5, 5), "Flower is breakable");
+    Check(!world.IsCollidable(5, 5, 5), "Flower is not collidable (the player walks through it)");
+    Check(!world.IsOpaque(5, 5, 5), "Flower does not occlude neighboring faces");
+}
+
 void TestChunkMesherCloudIsOpaqueButNotCollidable() {
     // Cloud is the inverse situation from Glass: opaque (occludes neighbors,
     // meshed into the *opaque* mesh, hit-testable) but NOT collidable (the
@@ -552,7 +613,7 @@ void TestVoxelRaycastHitsExpectedFaceAndBlock() {
 
 void TestHotbarSelectionAndCycling() {
     Hotbar hotbar;
-    Check(hotbar.SlotCount() == 16, "hotbar has 16 slots (Bedrock excluded from the placeable roster)");
+    Check(hotbar.SlotCount() == 17, "hotbar has 17 slots (Bedrock excluded from the placeable roster)");
     Check(hotbar.SelectedIndex() == 0, "hotbar starts on slot 0");
     Check(hotbar.Selected() == BlockType::Grass, "hotbar starts selecting slot 1's block (Grass)");
 
@@ -577,7 +638,9 @@ void TestHotbarSelectionAndCycling() {
     hotbar.CycleNext();
     Check(hotbar.Selected() == BlockType::Leaves, "slot 15 is Leaves");
     hotbar.CycleNext();
-    Check(hotbar.Selected() == BlockType::TallGrass, "slot 16 (the last slot) is TallGrass");
+    Check(hotbar.Selected() == BlockType::TallGrass, "slot 16 is TallGrass");
+    hotbar.CycleNext();
+    Check(hotbar.Selected() == BlockType::Flower, "slot 17 (the last slot) is Flower");
     hotbar.CycleNext();
     Check(hotbar.SelectedIndex() == 0, "CycleNext wraps back to slot 0 after the last slot");
 
@@ -585,12 +648,12 @@ void TestHotbarSelectionAndCycling() {
     // forward/backward through the whole roster; CyclePrev was missing
     // until this session (only CycleNext/E existed).
     hotbar.CyclePrev();
-    Check(hotbar.Selected() == BlockType::TallGrass,
-          "CyclePrev from slot 0 wraps backward to the last slot (TallGrass)");
+    Check(hotbar.Selected() == BlockType::Flower,
+          "CyclePrev from slot 0 wraps backward to the last slot (Flower)");
     hotbar.CyclePrev();
-    Check(hotbar.Selected() == BlockType::Leaves, "CyclePrev steps back one slot at a time");
+    Check(hotbar.Selected() == BlockType::TallGrass, "CyclePrev steps back one slot at a time");
     hotbar.CycleNext();
-    Check(hotbar.Selected() == BlockType::TallGrass, "CycleNext after CyclePrev returns to the same slot");
+    Check(hotbar.Selected() == BlockType::Flower, "CycleNext after CyclePrev returns to the same slot");
 
     // Regression test (CRAFT_PARITY.md §2.7): middle-click "eyedropper",
     // ports Craft's on_middle_click (linear-scan items[] for the targeted
@@ -902,6 +965,7 @@ int main() {
     TestWorldGeneratesSandAtLowElevation();
     TestWorldGeneratesTrees();
     TestWorldGeneratesTallGrass();
+    TestWorldGeneratesFlowers();
     TestNoiseGeneratorSimplex2IsSeeded();
     TestNoiseGeneratorSimplex3();
     TestDayNightCycleMatchesCraftsCurveShape();
@@ -909,6 +973,7 @@ int main() {
     TestChunkMesherGlassTransparency();
     TestChunkMesherLeavesTransparency();
     TestChunkMesherPlantBillboard();
+    TestChunkMesherFlowerUsesSamePlantPath();
     TestChunkMesherCloudIsOpaqueButNotCollidable();
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();

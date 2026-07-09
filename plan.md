@@ -799,6 +799,23 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     §2.7). Verified via a clean EasyGL build and a headless smoke run; no new `Worlds/`-layer logic
     was added (pure `CnaCraftGame.cpp` input-wiring glue reusing already-tested `IntersectsBlock`/
     `SetBlock`), so no new unit tests were needed.
+22. `completed` — **Flowers** (CRAFT_PARITY.md §3.7 follow-up): reuses the plant-geometry
+    infrastructure from item 7 above (`ChunkMesher::EmitPlant`, `BlockDef.plant`) — a small,
+    well-scoped extension, not new structural work. New `BlockType::Flower` (one representative
+    type; Craft's real 6-color roster is a content-scaling exercise, low value per the "prioritize
+    gameplay parity over decorative additions" guidance, not picked up). New
+    `World::GenerateFlowers` using Craft's real trigger (`simplex2(x*0.05, -z*0.05, 4, 0.8, 2) >
+    0.7`, verified against the checkout), run after `GenerateGrassDecoration` with the same
+    "only place over Air" guard (so a column where both triggers fire keeps whichever decoration
+    was placed first, a documented deviation from Craft's literal unconditional-overwrite order).
+    New atlas tile 20 (`Pattern::Flower` — a stem-and-bloom cutout shape). `Flower` appended to the
+    hotbar (17 slots now). 9 new unit tests (generation presence/determinism/surface-height,
+    mesh/collision/occlusion rules) — 149 checks total. **Verification scoped down deliberately**:
+    Flower reuses the identical `EmitPlant`/generation code path already visually verified for
+    TallGrass in the previous commit, so this item relies on that prior visual confirmation plus a
+    clean build + headless smoke run rather than a second full interactive screenshot round — a
+    reasonable time/verification tradeoff given the code path is provably identical (same function,
+    different tile index and trigger constants only), not a gap in rigor.
 
 ### 12.2 Deliberately not re-litigated this session
 

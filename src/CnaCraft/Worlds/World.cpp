@@ -126,6 +126,7 @@ void World::Generate(std::uint32_t seed) {
 
     GenerateTrees(seed);
     GenerateGrassDecoration(seed);
+    GenerateFlowers(seed);
     GenerateClouds(seed);
 }
 
@@ -209,6 +210,39 @@ void World::GenerateGrassDecoration(std::uint32_t seed) {
                                                              kGrassNoiseLacunarity);
             if (density > kGrassThreshold) {
                 SetBlock(x, h + 1, z, BlockType::TallGrass);
+            }
+        }
+    }
+}
+
+namespace {
+// Craft's world.c places a flower via `simplex2(x*0.05, -z*0.05, 4, 0.8, 2)
+// > 0.7`, then picks one of 7 flower colors with a second noise sample
+// (`18 + simplex2(x*0.1, z*0.1, 4, 0.8, 2) * 7`) — verified against the
+// real checkout. This project has one representative Flower type
+// (BlockType.hpp), so only the placement trigger is ported; the color-pick
+// sample has nothing to select between and is skipped.
+constexpr float kFlowerNoiseScale = 0.05f;
+constexpr int kFlowerNoiseOctaves = 4;
+constexpr float kFlowerNoisePersistence = 0.8f;
+constexpr float kFlowerNoiseLacunarity = 2.0f;
+constexpr float kFlowerThreshold = 0.7f;
+}
+
+void World::GenerateFlowers(std::uint32_t seed) {
+    for (int x = 0; x < WORLD_SIZE_X; ++x) {
+        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+            const int h = NoiseGenerator::Height(seed, x, z);
+            if (GetBlock(x, h, z) != BlockType::Grass) continue; // Craft: only on its `w == 1` grass columns
+            if (h + 1 >= WORLD_SIZE_Y) continue;
+            if (GetBlock(x, h + 1, z) != BlockType::Air) continue; // don't overwrite grass/tree/cloud already there
+
+            const float density = NoiseGenerator::Simplex2(seed, static_cast<float>(x) * kFlowerNoiseScale,
+                                                             static_cast<float>(-z) * kFlowerNoiseScale,
+                                                             kFlowerNoiseOctaves, kFlowerNoisePersistence,
+                                                             kFlowerNoiseLacunarity);
+            if (density > kFlowerThreshold) {
+                SetBlock(x, h + 1, z, BlockType::Flower);
             }
         }
     }

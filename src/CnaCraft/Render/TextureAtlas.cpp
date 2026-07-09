@@ -44,10 +44,11 @@ const TileColor kTileColors[] = {
     {235, 235, 240, 255}, // 17: cloud
     {55, 120, 40, 215},   // 18: leaves (mottled green, partially transparent like glass)
     {75, 155, 50, 235},   // 19: tall grass (blade green; per-pixel gaps carve the blade shape)
+    {235, 210, 60, 255},  // 20: flower (petal yellow; stem+bloom pattern carves the shape)
 };
 constexpr int kTileCount = sizeof(kTileColors) / sizeof(kTileColors[0]);
 
-enum class Pattern { Mottle, Brick, WoodBark, WoodRings, Plank, SnowFleck, GrassBlade };
+enum class Pattern { Mottle, Brick, WoodBark, WoodRings, Plank, SnowFleck, GrassBlade, Flower };
 
 struct TilePattern {
     Pattern pattern;
@@ -80,6 +81,7 @@ constexpr TilePattern kTilePatterns[] = {
     {Pattern::Mottle, 0.05f},    // 17: cloud
     {Pattern::Mottle, 0.30f},    // 18: leaves (punchy speckle, like foliage clumps)
     {Pattern::GrassBlade, 0.0f}, // 19: tall grass (vertical blade streaks with cutout gaps)
+    {Pattern::Flower, 0.0f},     // 20: flower (stem + bloom cutout shape)
 };
 
 // Deterministic per-pixel hash noise (same technique as
@@ -168,6 +170,27 @@ Color GrassBladePattern(const TileColor& base, int x, int y) {
     return Shade(base, noise);
 }
 
+Color FlowerPattern(const TileColor& base, int x, int y) {
+    // Simple stem-and-bloom shape on an otherwise fully-transparent
+    // background -- a per-pixel stand-in for Craft's real hand-drawn flower
+    // sprites (7 distinct color variants; this project has one
+    // representative Flower type, see BlockType.hpp). Lower half: a thin
+    // green stem. Upper half: a rough circular bloom cluster in the tile's
+    // base (petal) color.
+    constexpr int kCenter = kAtlasTileSize / 2;
+    if (y >= kCenter) {
+        const bool onStem = (x == kCenter || x == kCenter - 1);
+        if (!onStem) return Color(base.r, base.g, base.b, std::uint8_t{0});
+        return Shade(TileColor{70, 140, 40, 255}, (PixelHash(20, x, y) - 0.5f) * 0.10f);
+    }
+    const int dx = x - kCenter;
+    const int dy = y - (kCenter / 2);
+    const int distSq = dx * dx + dy * dy;
+    constexpr int kBloomRadiusSq = 9;
+    if (distSq > kBloomRadiusSq) return Color(base.r, base.g, base.b, std::uint8_t{0});
+    return Shade(base, (PixelHash(20, x, y) - 0.5f) * 0.15f);
+}
+
 Color PaintPixel(int tile, int x, int y) {
     const TileColor& base = kTileColors[tile];
     const TilePattern& pat = kTilePatterns[tile];
@@ -178,6 +201,7 @@ Color PaintPixel(int tile, int x, int y) {
         case Pattern::Plank:      return PlankPattern(base, x, y);
         case Pattern::SnowFleck:  return SnowFleckPattern(base, x, y);
         case Pattern::GrassBlade: return GrassBladePattern(base, x, y);
+        case Pattern::Flower:     return FlowerPattern(base, x, y);
         case Pattern::Mottle:
         default:
             return MottlePattern(base, tile, x, y, pat.strength);

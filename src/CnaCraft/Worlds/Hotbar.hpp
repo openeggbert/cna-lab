@@ -22,13 +22,13 @@ namespace CnaCraft::Worlds {
 // Craft never lists it in `items`).
 class Hotbar {
 public:
-    static constexpr std::array<BlockType, 16> kSlots = {
+    static constexpr std::array<BlockType, 17> kSlots = {
         BlockType::Grass,      BlockType::Dirt,     BlockType::Sand,
         BlockType::Stone,      BlockType::Cobblestone, BlockType::Brick,
         BlockType::Plank,      BlockType::Wood,     BlockType::Cement,
         BlockType::LightStone, BlockType::DarkStone, BlockType::Snow,
         BlockType::Glass,      BlockType::Cloud,    BlockType::Leaves,
-        BlockType::TallGrass};
+        BlockType::TallGrass,  BlockType::Flower};
 
     static constexpr int kMaxNumberKeySlots = 9;
 

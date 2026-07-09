@@ -8,11 +8,14 @@ namespace CnaCraft::Worlds {
 // solid/opaque cube blocks, Glass (transparent but still solid/collidable —
 // see "Transparency for glass"), Cloud (opaque but NOT collidable — see
 // "Clouds" below), Leaves (transparent like Glass — used by
-// World::GenerateTrees, plan.md §11.1 "Trees and plants"), and TallGrass
-// (CRAFT_PARITY.md §3.7 "Non-cubic plant geometry" — the first plant-shaped
-// block, a cross-quad billboard instead of a cube; see BlockDef.plant
-// below). Other plant colors (flowers) and Chest remain deferred — same
-// geometry path once picked up, just a new tile/BlockType.
+// World::GenerateTrees, plan.md §11.1 "Trees and plants"), TallGrass, and
+// Flower (CRAFT_PARITY.md §3.7 "Non-cubic plant geometry" — plant-shaped
+// blocks, a cross-quad billboard instead of a cube; see BlockDef.plant
+// below). Craft has 6 distinct flower colors (`YellowFlower`..`BlueFlower`
+// in item.h); this project has one representative `Flower` type — the
+// geometry/generation path is identical, so adding the other 5 colors
+// later is just a new tile + enum value, not new logic. Chest remains
+// deferred (needs its own non-plant mesh shape).
 enum class BlockType : std::uint8_t {
     Air = 0,
     Grass,
@@ -31,6 +34,7 @@ enum class BlockType : std::uint8_t {
     Cloud,
     Leaves,
     TallGrass,
+    Flower,
     Bedrock,
     Count
 };
@@ -111,6 +115,9 @@ constexpr BlockDef GetBlockDef(BlockType type) {
         case BlockType::TallGrass:
             return BlockDef{true, 19, 19, 19, /*transparent=*/true, /*collidable=*/false,
                              /*breakable=*/true, /*plant=*/true};
+        case BlockType::Flower:
+            return BlockDef{true, 20, 20, 20, /*transparent=*/true, /*collidable=*/false,
+                             /*breakable=*/true, /*plant=*/true};
         case BlockType::Bedrock:
             return BlockDef{true, 5, 5, 5, /*transparent=*/false, /*collidable=*/true, /*breakable=*/false};
         case BlockType::Air:
@@ -139,6 +146,7 @@ constexpr const char* GetBlockName(BlockType type) {
         case BlockType::Cloud:       return "Cloud";
         case BlockType::Leaves:      return "Leaves";
         case BlockType::TallGrass:   return "TallGrass";
+        case BlockType::Flower:      return "Flower";
         case BlockType::Bedrock:     return "Bedrock";
         default:                     return "Unknown";
     }

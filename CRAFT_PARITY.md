@@ -446,22 +446,29 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **cna-craft behavior** (implemented this session): `ChunkMesher::EmitPlant` — a 4-quad cross
   billboard (two diagonal planes, each emitted with both windings so it's visible from any angle,
   matching Craft's 4-quad total exactly), gated by a new `BlockDef.plant` flag. New
-  `BlockType::TallGrass` (the first plant type — flowers/Chest remain deferred, same geometry
-  path). `World::GenerateGrassDecoration` places it using Craft's real trigger
-  (`simplex2(-x*0.1, z*0.1, 4, 0.8, 2) > 0.6`). Not ported: per-block random Y-axis rotation
-  (Craft's `mat_rotate`) — cna-craft's cross is axis-aligned to the world's diagonal, not
-  per-instance-randomized; a cosmetic simplification, not a structural gap.
-- **Status**: complete (TallGrass only — flowers/Chest still use the same new path once added)
+  `BlockType::TallGrass` and `BlockType::Flower` (both plant types — Chest remains deferred, needs
+  its own non-plant mesh shape). `World::GenerateGrassDecoration`/`GenerateFlowers` place them
+  using Craft's real triggers (`simplex2(-x*0.1, z*0.1, 4, 0.8, 2) > 0.6` for grass,
+  `simplex2(x*0.05, -z*0.05, 4, 0.8, 2) > 0.7` for flowers). Craft has 6 distinct flower colors
+  (a second noise sample picks one); this project has one representative `Flower` type, so that
+  color-pick sample is skipped — adding the other 5 colors later is just a new tile/enum value on
+  the same path, not new logic. Not ported: per-block random Y-axis rotation (Craft's
+  `mat_rotate`) — cna-craft's cross is axis-aligned to the world's diagonal, not per-instance-
+  randomized; a cosmetic simplification, not a structural gap.
+- **Status**: complete (TallGrass + one representative Flower — 5 more flower colors and Chest
+  remain a small content follow-up using the same path, low value, not picked up)
 - **Craft files**: `src/cube.c:100-158`, `src/item.c` (`is_plant`)
 - **cna-craft files**: `src/CnaCraft/Worlds/ChunkMesher.cpp` (`EmitPlant`),
-  `src/CnaCraft/Worlds/BlockType.hpp` (`BlockDef.plant`, `BlockType::TallGrass`),
-  `src/CnaCraft/Worlds/World.cpp` (`GenerateGrassDecoration`),
-  `src/CnaCraft/Render/TextureAtlas.cpp` (tile 19, `Pattern::GrassBlade`)
-- **Priority**: high (done for TallGrass; flowers remain a small follow-up using the same path)
+  `src/CnaCraft/Worlds/BlockType.hpp` (`BlockDef.plant`, `BlockType::TallGrass`/`Flower`),
+  `src/CnaCraft/Worlds/World.cpp` (`GenerateGrassDecoration`, `GenerateFlowers`),
+  `src/CnaCraft/Render/TextureAtlas.cpp` (tiles 19-20, `Pattern::GrassBlade`/`Flower`)
+- **Priority**: high (done)
 - **Verification method**: visual — confirmed via a real EasyGL build screenshot showing
-  blade-shaped billboards with transparent gaps growing out of grass terrain; 14 new unit tests
-  (mesh shape/never-culled invariant, solid/collidable/transparent/breakable rules, generation
-  presence/determinism/surface-height invariant)
+  blade-shaped billboards with transparent gaps growing out of grass terrain (TallGrass; Flower
+  reuses the identical, already-verified mesh/generation code path — not independently
+  re-screenshotted, see plan.md §12.1 item 22 for the full note); 23 new unit tests total across
+  both blocks (mesh shape/never-culled invariant, solid/collidable/transparent/breakable rules,
+  generation presence/determinism/surface-height invariant)
 
 ### 3.8 Trees
 - **Craft behavior**: `simplex2(x,z,6,0.5,2) > 0.84` trigger on grass columns (with a per-chunk
@@ -712,7 +719,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 3.4 | Face culling | complete | low |
 | 3.5 | Mesh generation | complete | low |
 | 3.6 | Transparent blocks | complete | low |
-| 3.7 | Plants/flowers/tall grass (**fixed this session** — TallGrass) | complete | high |
+| 3.7 | Plants/flowers/tall grass (**fixed this session** — TallGrass + Flower) | complete | high |
 | 3.8 | Trees | complete | low |
 | 3.9 | Caves/overhangs | needs_human | n/a (no reference exists) |
 | 3.10 | Clouds | complete | low |

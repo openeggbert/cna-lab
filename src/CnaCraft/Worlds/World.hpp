@@ -79,6 +79,17 @@ private:
     // the same position the way Craft's own single-Y-level model does).
     void GenerateGrassDecoration(std::uint32_t seed);
 
+    // Places Flower plant blocks on grass columns (CRAFT_PARITY.md §3.7
+    // follow-up) — matches Craft's own world.c flower-decoration trigger
+    // (`simplex2(x*0.05, -z*0.05, 4, 0.8, 2) > 0.7`), verified against the
+    // real checkout. Craft picks one of 7 flower colors via a second noise
+    // sample; this project has a single representative Flower type, so that
+    // second sample is skipped. Called after GenerateGrassDecoration with
+    // the same "only place over Air" guard, so a column where both the
+    // grass and flower triggers fire keeps whichever was placed first
+    // rather than Craft's literal unconditional-overwrite order.
+    void GenerateFlowers(std::uint32_t seed);
+
     // Places Cloud blocks in a thin band near the world ceiling via 3D
     // density noise (plan.md §11.2 "Clouds" backlog note) — matches Craft's
     // own world.c cloud pass (`simplex3(...) > 0.75`), not a cave/overhang
