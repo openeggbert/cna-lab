@@ -34,6 +34,20 @@ void Check(bool condition, const char* label) {
     }
 }
 
+// Test helper (plan.md §12.1 item 19): several older tests hand-build a
+// flat floor/wall spanning the whole legacy WORLD_SIZE_X x WORLD_SIZE_Z
+// region (a convention from before World streamed chunks on demand).
+// Allocates that same WORLD_CHUNKS_X x WORLD_CHUNKS_Z column region so
+// SetBlock calls across it succeed, same shape World::Generate's own
+// legacy wrapper loops.
+void AllocateAllLegacyColumns(World& world) {
+    for (int cx = 0; cx < WORLD_CHUNKS_X; ++cx) {
+        for (int cz = 0; cz < WORLD_CHUNKS_Z; ++cz) {
+            world.AllocateColumn(cx, cz);
+        }
+    }
+}
+
 void TestChunkBasics() {
     Chunk chunk;
     Check(chunk.GetBlock(0, 0, 0) == BlockType::Air, "new chunk is all air");
@@ -78,6 +92,7 @@ void TestWorldBoundsAndRoundTrip() {
     // IsCollidable must AND with `solid`.
     Check(!world.IsCollidable(5, 5, 5), "Air is never collidable, regardless of BlockDef::collidable's default");
 
+    world.AllocateColumn(1, 1); // (20,*,20)/(21,*,20) below both fall in chunk-column (1,1)
     world.SetBlock(20, 5, 20, BlockType::Stone); // crosses a chunk boundary (CHUNK_SIZE=16)
     Check(world.GetBlock(20, 5, 20) == BlockType::Stone, "world set/get round-trip across chunk boundary");
     Check(world.IsSolid(20, 5, 20), "world IsSolid true for Stone");
@@ -106,6 +121,7 @@ void TestWorldRecordsEditsForPersistence() {
     World world;
     Check(world.RecordedEdits().empty(), "a fresh World has no recorded edits");
 
+    world.AllocateColumn(0, 0); // (1,1,1)/(2,2,2)/(3,3,3) below all fall in chunk-column (0,0)
     world.SetBlock(1, 1, 1, BlockType::Stone);
     Check(world.RecordedEdits().empty(), "plain SetBlock does not record an edit");
 
@@ -533,6 +549,7 @@ void TestDayNightCycleMatchesCraftsCurveShape() {
 
 void TestChunkMesherFaceCulling() {
     World world;
+    world.AllocateColumn(0, 0);
     // A fully-air chunk should produce no geometry at all.
     ChunkMeshData empty = ChunkMesher::Build(world, 0, 0, 0);
     Check(empty.opaque.vertices.empty() && empty.opaque.indices.empty(), "all-air chunk meshes to nothing");
@@ -561,6 +578,7 @@ void TestChunkMesherGlassTransparency() {
     // A lone Glass block surrounded by air: goes into the transparent mesh,
     // all 6 faces exposed, same as an opaque block would be.
     World lone;
+    lone.AllocateColumn(0, 0);
     lone.SetBlock(5, 5, 5, BlockType::Glass);
     ChunkMeshData loneMesh = ChunkMesher::Build(lone, 0, 0, 0);
     Check(loneMesh.opaque.vertices.empty(), "a lone Glass block emits nothing into the opaque mesh");
@@ -570,6 +588,7 @@ void TestChunkMesherGlassTransparency() {
     // neighbors don't occlude each other's faces (matches Craft's
     // `opaque[cell] = !is_transparent(w)` — see World::IsOpaque).
     World adjacent;
+    adjacent.AllocateColumn(0, 0);
     adjacent.SetBlock(5, 5, 5, BlockType::Glass);
     adjacent.SetBlock(6, 5, 5, BlockType::Glass);
     ChunkMeshData adjacentMesh = ChunkMesher::Build(adjacent, 0, 0, 0);
@@ -580,6 +599,7 @@ void TestChunkMesherGlassTransparency() {
     // is culled (the opaque Stone face already covers that spot), but
     // Stone's face touching the Glass is NOT culled (Glass doesn't occlude).
     World againstStone;
+    againstStone.AllocateColumn(0, 0);
     againstStone.SetBlock(5, 5, 5, BlockType::Glass);
     againstStone.SetBlock(6, 5, 5, BlockType::Stone);
     ChunkMeshData mixedMesh = ChunkMesher::Build(againstStone, 0, 0, 0);
@@ -601,12 +621,14 @@ void TestChunkMesherLeavesTransparency() {
     // TestChunkMesherGlassTransparency above, just with a different
     // BlockType/tile index.
     World lone;
+    lone.AllocateColumn(0, 0);
     lone.SetBlock(5, 5, 5, BlockType::Leaves);
     ChunkMeshData loneMesh = ChunkMesher::Build(lone, 0, 0, 0);
     Check(loneMesh.opaque.vertices.empty(), "a lone Leaves block emits nothing into the opaque mesh");
     Check(loneMesh.transparent.vertices.size() == 24, "a lone Leaves block emits all 6 faces (24 verts)");
 
     World adjacent;
+    adjacent.AllocateColumn(0, 0);
     adjacent.SetBlock(5, 5, 5, BlockType::Leaves);
     adjacent.SetBlock(6, 5, 5, BlockType::Leaves);
     ChunkMeshData adjacentMesh = ChunkMesher::Build(adjacent, 0, 0, 0);
@@ -614,6 +636,7 @@ void TestChunkMesherLeavesTransparency() {
           "two adjacent Leaves blocks both keep all 6 faces (transparent neighbors don't occlude)");
 
     World againstWood;
+    againstWood.AllocateColumn(0, 0);
     againstWood.SetBlock(5, 5, 5, BlockType::Leaves);
     againstWood.SetBlock(6, 5, 5, BlockType::Wood);
     ChunkMeshData mixedMesh = ChunkMesher::Build(againstWood, 0, 0, 0);
@@ -633,6 +656,7 @@ void TestChunkMesherPlantBillboard() {
     // ports Craft's make_plant. Unlike cube blocks, plants are never
     // face-culled against neighbors: they always emit all 4 quads.
     World lone;
+    lone.AllocateColumn(0, 0);
     lone.SetBlock(5, 5, 5, BlockType::TallGrass);
     ChunkMeshData loneMesh = ChunkMesher::Build(lone, 0, 0, 0);
     Check(loneMesh.opaque.vertices.empty(), "a lone TallGrass block emits nothing into the opaque mesh");
@@ -643,6 +667,7 @@ void TestChunkMesherPlantBillboard() {
     // Surrounding a plant on all 6 sides must NOT reduce its face count —
     // plants are never occlusion-culled, unlike cube blocks.
     World surrounded;
+    surrounded.AllocateColumn(0, 0);
     surrounded.SetBlock(5, 5, 5, BlockType::TallGrass);
     surrounded.SetBlock(6, 5, 5, BlockType::Stone);
     surrounded.SetBlock(4, 5, 5, BlockType::Stone);
@@ -671,6 +696,7 @@ void TestChunkMesherFlowerUsesSamePlantPath() {
     // up correctly, not a full re-test of the cross-billboard shape
     // (already covered by TestChunkMesherPlantBillboard above).
     World world;
+    world.AllocateColumn(0, 0);
     world.SetBlock(5, 5, 5, BlockType::Flower);
     ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
     Check(mesh.opaque.vertices.empty(), "a lone Flower block emits nothing into the opaque mesh");
@@ -688,6 +714,7 @@ void TestChunkMesherCloudIsOpaqueButNotCollidable() {
     // `is_obstacle(CLOUD) == 0` while it's absent from `is_transparent`'s
     // switch (src/item.c).
     World world;
+    world.AllocateColumn(0, 0);
     world.SetBlock(5, 5, 5, BlockType::Cloud);
     world.SetBlock(6, 5, 5, BlockType::Stone);
     ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
@@ -704,6 +731,7 @@ void TestChunkMesherCloudIsOpaqueButNotCollidable() {
 
 void TestVoxelRaycastHitsExpectedFaceAndBlock() {
     World world;
+    world.AllocateColumn(0, 0);
     world.SetBlock(5, 5, 5, BlockType::Stone);
 
     // Looking straight down the -Z axis at the block from in front of it (+Z side).
@@ -789,6 +817,7 @@ void TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging() {
     // terrain, so this test stays deterministic even if the noise
     // implementation changes again.
     World world;
+    AllocateAllLegacyColumns(world);
     for (int x = 0; x < WORLD_SIZE_X; ++x) {
         for (int z = 0; z < WORLD_SIZE_Z; ++z) {
             for (int y = 0; y <= 3; ++y) world.SetBlock(x, y, z, BlockType::Stone);
@@ -819,6 +848,7 @@ void TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging() {
 
 void TestPlayerControllerGravityAndGroundCollision() {
     World world;
+    AllocateAllLegacyColumns(world);
     // A flat floor of stone at y=0..3, air above.
     for (int x = 0; x < WORLD_SIZE_X; ++x) {
         for (int z = 0; z < WORLD_SIZE_Z; ++z) {
@@ -897,6 +927,7 @@ void TestPlayerControllerSubsteppingPreventsTunnelingThroughThinWall() {
     // substeps movement resolution to prevent exactly this
     // (`step = MAX(8, estimate)`, main.c) -- ported to PlayerController.
     World world;
+    AllocateAllLegacyColumns(world);
     // Flat floor so the player doesn't fall while testing horizontal
     // movement.
     for (int x = 0; x < WORLD_SIZE_X; ++x) {
@@ -942,6 +973,7 @@ void TestPlayerJumpClearsOneBlockHeight() {
     // rather than depending on movement-timing specifics that could mask
     // the difference (as the companion ledge-traversal test below did).
     World world;
+    AllocateAllLegacyColumns(world);
     constexpr int kFloorTopY = 3; // solid y=0..3, floor surface at y=4
     for (int x = 0; x < WORLD_SIZE_X; ++x) {
         for (int z = 0; z < WORLD_SIZE_Z; ++z) {
@@ -974,6 +1006,7 @@ void TestPlayerCanJumpOntoOneBlockHigherLedge() {
     // player onto a real 1-block-higher ledge while moving, on top of the
     // precise apex-height measurement above.
     World world;
+    AllocateAllLegacyColumns(world);
     constexpr int kFloorTopY = 3; // solid y=0..3, main floor surface at y=4
     for (int x = 0; x < WORLD_SIZE_X; ++x) {
         for (int z = 0; z < WORLD_SIZE_Z; ++z) {

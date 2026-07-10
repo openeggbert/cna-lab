@@ -4,58 +4,79 @@
 
 namespace CnaCraft::Worlds {
 
-World::World() {
-    chunks_.resize(static_cast<std::size_t>(WORLD_CHUNKS_X) * WORLD_CHUNKS_Y * WORLD_CHUNKS_Z);
-    for (auto& chunk : chunks_) {
-        chunk = std::make_unique<Chunk>();
-    }
+namespace {
+ColumnKey PackColumnKey(int cx, int cz) {
+    return (static_cast<ColumnKey>(cx) << 32) | static_cast<std::uint32_t>(cz);
+}
 }
 
-bool World::ChunkInBounds(int cx, int cy, int cz) {
-    return cx >= 0 && cx < WORLD_CHUNKS_X &&
-           cy >= 0 && cy < WORLD_CHUNKS_Y &&
-           cz >= 0 && cz < WORLD_CHUNKS_Z;
-}
+World::World() = default;
 
 bool World::InBounds(int x, int y, int z) {
-    return x >= 0 && x < WORLD_SIZE_X &&
-           y >= 0 && y < WORLD_SIZE_Y &&
-           z >= 0 && z < WORLD_SIZE_Z;
+    // Only Y is a real, enforced bound now (plan.md §12.1 item 19) -- x,z
+    // are unbounded, "in range" is decided by whether their column is
+    // loaded (TryChunkAt returning nullptr), not by a fixed extent.
+    (void)x;
+    (void)z;
+    return y >= 0 && y < WORLD_SIZE_Y;
 }
 
-int World::ChunkIndex(int cx, int cy, int cz) const {
-    return cx + WORLD_CHUNKS_X * (cy + WORLD_CHUNKS_Y * cz);
+Chunk* World::TryChunkAt(int cx, int cy, int cz) {
+    if (cy < 0 || cy >= WORLD_CHUNKS_Y) return nullptr;
+    const auto it = columns_.find(PackColumnKey(cx, cz));
+    if (it == columns_.end()) return nullptr;
+    return it->second[static_cast<std::size_t>(cy)].get();
 }
 
-Chunk& World::ChunkAt(int cx, int cy, int cz) {
-    return *chunks_[static_cast<std::size_t>(ChunkIndex(cx, cy, cz))];
+const Chunk* World::TryChunkAt(int cx, int cy, int cz) const {
+    if (cy < 0 || cy >= WORLD_CHUNKS_Y) return nullptr;
+    const auto it = columns_.find(PackColumnKey(cx, cz));
+    if (it == columns_.end()) return nullptr;
+    return it->second[static_cast<std::size_t>(cy)].get();
 }
 
-const Chunk& World::ChunkAt(int cx, int cy, int cz) const {
-    return *chunks_[static_cast<std::size_t>(ChunkIndex(cx, cy, cz))];
+Chunk& World::ChunkAt(int cx, int cy, int cz) { return *TryChunkAt(cx, cy, cz); }
+const Chunk& World::ChunkAt(int cx, int cy, int cz) const { return *TryChunkAt(cx, cy, cz); }
+
+bool World::IsColumnLoaded(int cx, int cz) const {
+    return columns_.find(PackColumnKey(cx, cz)) != columns_.end();
 }
+
+void World::AllocateColumn(int cx, int cz) {
+    const ColumnKey key = PackColumnKey(cx, cz);
+    if (columns_.find(key) != columns_.end()) return; // already loaded, idempotent no-op
+    auto& column = columns_[key];
+    for (auto& chunkPtr : column) chunkPtr = std::make_unique<Chunk>();
+}
+
+void World::UnloadColumn(int cx, int cz) { columns_.erase(PackColumnKey(cx, cz)); }
 
 BlockType World::GetBlock(int x, int y, int z) const {
     if (!InBounds(x, y, z)) return BlockType::Air;
-    const int cx = x / CHUNK_SIZE, cy = y / CHUNK_SIZE, cz = z / CHUNK_SIZE;
-    const int lx = x % CHUNK_SIZE, ly = y % CHUNK_SIZE, lz = z % CHUNK_SIZE;
-    return ChunkAt(cx, cy, cz).GetBlock(lx, ly, lz);
+    const Chunk* chunk = TryChunkAt(ChunkCoordOf(x), y / CHUNK_SIZE, ChunkCoordOf(z));
+    if (!chunk) return BlockType::Air;
+    return chunk->GetBlock(ChunkLocalCoordOf(x), y % CHUNK_SIZE, ChunkLocalCoordOf(z));
 }
 
 void World::SetBlock(int x, int y, int z, BlockType type) {
     if (!InBounds(x, y, z)) return;
-    const int cx = x / CHUNK_SIZE, cy = y / CHUNK_SIZE, cz = z / CHUNK_SIZE;
-    const int lx = x % CHUNK_SIZE, ly = y % CHUNK_SIZE, lz = z % CHUNK_SIZE;
-    ChunkAt(cx, cy, cz).SetBlock(lx, ly, lz, type);
+    const int cx = ChunkCoordOf(x), cy = y / CHUNK_SIZE, cz = ChunkCoordOf(z);
+    Chunk* chunk = TryChunkAt(cx, cy, cz);
+    if (!chunk) return; // column not loaded -- same graceful-degradation pattern as an out-of-range write before
+    const int lx = ChunkLocalCoordOf(x), ly = y % CHUNK_SIZE, lz = ChunkLocalCoordOf(z);
+    chunk->SetBlock(lx, ly, lz, type);
 
     // A block sitting on a chunk boundary affects the neighbor chunk's face
     // culling too (plan.md §0/§4 — Craft's "one-block neighbor overlap").
-    if (lx == 0 && cx > 0) ChunkAt(cx - 1, cy, cz).MarkDirty();
-    if (lx == CHUNK_SIZE - 1 && cx < WORLD_CHUNKS_X - 1) ChunkAt(cx + 1, cy, cz).MarkDirty();
-    if (ly == 0 && cy > 0) ChunkAt(cx, cy - 1, cz).MarkDirty();
-    if (ly == CHUNK_SIZE - 1 && cy < WORLD_CHUNKS_Y - 1) ChunkAt(cx, cy + 1, cz).MarkDirty();
-    if (lz == 0 && cz > 0) ChunkAt(cx, cy, cz - 1).MarkDirty();
-    if (lz == CHUNK_SIZE - 1 && cz < WORLD_CHUNKS_Z - 1) ChunkAt(cx, cy, cz + 1).MarkDirty();
+    // Neighbor chunks may not be loaded (unlike the old fixed grid, where
+    // every neighbor within bounds always existed) -- TryChunkAt handles
+    // that gracefully, same as everywhere else.
+    if (lx == 0) { if (Chunk* n = TryChunkAt(cx - 1, cy, cz)) n->MarkDirty(); }
+    if (lx == CHUNK_SIZE - 1) { if (Chunk* n = TryChunkAt(cx + 1, cy, cz)) n->MarkDirty(); }
+    if (ly == 0) { if (Chunk* n = TryChunkAt(cx, cy - 1, cz)) n->MarkDirty(); }
+    if (ly == CHUNK_SIZE - 1) { if (Chunk* n = TryChunkAt(cx, cy + 1, cz)) n->MarkDirty(); }
+    if (lz == 0) { if (Chunk* n = TryChunkAt(cx, cy, cz - 1)) n->MarkDirty(); }
+    if (lz == CHUNK_SIZE - 1) { if (Chunk* n = TryChunkAt(cx, cy, cz + 1)) n->MarkDirty(); }
 }
 
 void World::SetBlockAndRecordEdit(int x, int y, int z, BlockType type) {
@@ -106,17 +127,32 @@ namespace {
 // doesn't have an equivalent to replace wholesale, so it's adapted as a
 // low-elevation *surface* rule instead: the same "low ground is sandy"
 // idea, applied only to the Dirt/Grass layers, leaving Bedrock/Stone
-// underneath unchanged. kSandMaxHeight now reuses Craft's literal t=12
-// directly (previously scaled down to 10 for this project's old,
-// much-smaller height range — no longer needed now that
-// NoiseGenerator::Height itself ports Craft's real height formula and its
-// own h<=12 clamp, per user decision 2026-07-10; see NoiseGenerator.cpp).
+// underneath unchanged. kSandMaxHeight reuses Craft's literal t=12 directly.
 constexpr int kSandMaxHeight = 12;
 }
 
 void World::Generate(std::uint32_t seed) {
-    for (int x = 0; x < WORLD_SIZE_X; ++x) {
-        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+    for (int cx = 0; cx < WORLD_CHUNKS_X; ++cx) {
+        for (int cz = 0; cz < WORLD_CHUNKS_Z; ++cz) {
+            GenerateColumn(cx, cz, seed);
+        }
+    }
+}
+
+void World::GenerateColumn(int cx, int cz, std::uint32_t seed) {
+    AllocateColumn(cx, cz);
+    GenerateTerrainColumn(cx, cz, seed);
+    GenerateTreesColumn(cx, cz, seed);
+    GenerateGrassDecorationColumn(cx, cz, seed);
+    GenerateFlowersColumn(cx, cz, seed);
+    GenerateCloudsColumn(cx, cz, seed);
+}
+
+void World::GenerateTerrainColumn(int cx, int cz, std::uint32_t seed) {
+    const int originX = cx * CHUNK_SIZE, originZ = cz * CHUNK_SIZE;
+    for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
+        for (int lz = 0; lz < CHUNK_SIZE; ++lz) {
+            const int x = originX + lx, z = originZ + lz;
             const int height = NoiseGenerator::Height(seed, x, z);
             const bool sandyColumn = height <= kSandMaxHeight;
             for (int y = 0; y < WORLD_SIZE_Y; ++y) {
@@ -136,11 +172,6 @@ void World::Generate(std::uint32_t seed) {
             }
         }
     }
-
-    GenerateTrees(seed);
-    GenerateGrassDecoration(seed);
-    GenerateFlowers(seed);
-    GenerateClouds(seed);
 }
 
 namespace {
@@ -149,13 +180,15 @@ namespace {
 // /rv/data/development/github.com/other/Craft/src/world.c): a 7-tall Wood
 // trunk at (x, h..h+7, z), plus a Leaves canopy blob for y in [h+3, h+8) and
 // (ox, oz) in [-3, 3] wherever ox*ox + oz*oz + (y-(h+4))*(y-(h+4)) < 11.
-// Ported with the same trigger/shape constants. Not ported: Craft's
-// per-chunk `dx-4 < 0` edge-margin check — that exists only because Craft
-// generates chunks independently and needs a safety margin so canopy
-// geometry never reaches into an ungenerated neighboring chunk; this
-// project generates the whole bounded world in one deterministic pass, and
-// SetBlock/GetBlock already treat out-of-world-bounds coordinates as a safe
-// no-op/Air, so the margin has no equivalent purpose here.
+// Ported with the same trigger/shape constants, plus (plan.md §12.1 item 19)
+// Craft's real per-chunk margin check (world.c: `dx-4<0 || dz-4<0 ||
+// dx+4>=CHUNK_SIZE || dz+4>=CHUNK_SIZE`), adapted to this project's own
+// kCanopyRadius=3 rather than Craft's literal 4 -- skips placing a tree
+// whose canopy would cross this column's own local x/z boundary, since
+// under streaming a neighboring column may not be loaded yet (this margin
+// check has no equivalent purpose in the old whole-world-at-once
+// generation pass this replaces, where SetBlock/GetBlock across the whole
+// bounded world were always a safe no-op/Air either way).
 constexpr int kTreeNoiseOctaves = 6;
 constexpr float kTreeNoisePersistence = 0.5f;
 constexpr float kTreeNoiseLacunarity = 2.0f;
@@ -165,9 +198,19 @@ constexpr int kCanopyDistanceSquaredMax = 11;
 constexpr int kTrunkHeight = 7;
 }
 
-void World::GenerateTrees(std::uint32_t seed) {
-    for (int x = 0; x < WORLD_SIZE_X; ++x) {
-        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+void World::GenerateTreesColumn(int cx, int cz, std::uint32_t seed) {
+    const int originX = cx * CHUNK_SIZE, originZ = cz * CHUNK_SIZE;
+    for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
+        for (int lz = 0; lz < CHUNK_SIZE; ++lz) {
+            // Margin check (see the comment above GenerateTreesColumn's
+            // declaration): a tree here could never place its canopy
+            // without crossing into a neighboring, possibly-unloaded column.
+            if (lx < kCanopyRadius || lx >= CHUNK_SIZE - kCanopyRadius ||
+                lz < kCanopyRadius || lz >= CHUNK_SIZE - kCanopyRadius) {
+                continue;
+            }
+
+            const int x = originX + lx, z = originZ + lz;
             const int h = NoiseGenerator::Height(seed, x, z);
             if (GetBlock(x, h, z) != BlockType::Grass) continue; // Craft: only on its `w == 1` grass columns
 
@@ -209,9 +252,11 @@ constexpr float kGrassNoiseLacunarity = 2.0f;
 constexpr float kGrassThreshold = 0.6f;
 }
 
-void World::GenerateGrassDecoration(std::uint32_t seed) {
-    for (int x = 0; x < WORLD_SIZE_X; ++x) {
-        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+void World::GenerateGrassDecorationColumn(int cx, int cz, std::uint32_t seed) {
+    const int originX = cx * CHUNK_SIZE, originZ = cz * CHUNK_SIZE;
+    for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
+        for (int lz = 0; lz < CHUNK_SIZE; ++lz) {
+            const int x = originX + lx, z = originZ + lz;
             const int h = NoiseGenerator::Height(seed, x, z);
             if (GetBlock(x, h, z) != BlockType::Grass) continue; // Craft: only on its `w == 1` grass columns
             if (h + 1 >= WORLD_SIZE_Y) continue;
@@ -242,9 +287,11 @@ constexpr float kFlowerNoiseLacunarity = 2.0f;
 constexpr float kFlowerThreshold = 0.7f;
 }
 
-void World::GenerateFlowers(std::uint32_t seed) {
-    for (int x = 0; x < WORLD_SIZE_X; ++x) {
-        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+void World::GenerateFlowersColumn(int cx, int cz, std::uint32_t seed) {
+    const int originX = cx * CHUNK_SIZE, originZ = cz * CHUNK_SIZE;
+    for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
+        for (int lz = 0; lz < CHUNK_SIZE; ++lz) {
+            const int x = originX + lx, z = originZ + lz;
             const int h = NoiseGenerator::Height(seed, x, z);
             if (GetBlock(x, h, z) != BlockType::Grass) continue; // Craft: only on its `w == 1` grass columns
             if (h + 1 >= WORLD_SIZE_Y) continue;
@@ -281,9 +328,11 @@ constexpr float kCloudNoiseLacunarity = 2.0f;
 constexpr float kCloudThreshold = 0.75f;
 }
 
-void World::GenerateClouds(std::uint32_t seed) {
-    for (int x = 0; x < WORLD_SIZE_X; ++x) {
-        for (int z = 0; z < WORLD_SIZE_Z; ++z) {
+void World::GenerateCloudsColumn(int cx, int cz, std::uint32_t seed) {
+    const int originX = cx * CHUNK_SIZE, originZ = cz * CHUNK_SIZE;
+    for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
+        for (int lz = 0; lz < CHUNK_SIZE; ++lz) {
+            const int x = originX + lx, z = originZ + lz;
             for (int y = kCloudBandStartY; y <= kCloudBandEndY; ++y) {
                 if (GetBlock(x, y, z) != BlockType::Air) continue; // never overwrite terrain
                 const float density = NoiseGenerator::Simplex3(
