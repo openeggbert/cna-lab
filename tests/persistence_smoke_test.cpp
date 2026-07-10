@@ -16,6 +16,8 @@
 #include <filesystem>
 #include <string>
 
+#include <sqlite3.h>
+
 #include "CnaCraft/Persistence/WorldStore.hpp"
 #include "CnaCraft/Worlds/BlockType.hpp"
 #include "CnaCraft/Worlds/Sign.hpp"
@@ -196,6 +198,32 @@ int main() {
     }
 
     std::filesystem::remove(dbPath);
+
+    // Round 7 (plan.md §12.1 item 19): a pre-existing world.db from before
+    // the p,q chunk-address columns were added must fail loudly once at
+    // open time, not silently accept edits that then fail per-INSERT --
+    // CREATE INDEX on the new schema's (p,q,x,y,z)/​(p,q) columns fails
+    // against an old table that lacks them, which the existing
+    // schema-creation error path already treats as "harmless no-op store".
+    {
+        const std::string oldSchemaPath = "persistence_smoke_test_old_schema.db";
+        std::filesystem::remove(oldSchemaPath);
+        sqlite3* raw = nullptr;
+        sqlite3_open(oldSchemaPath.c_str(), &raw);
+        sqlite3_exec(raw,
+                     "CREATE TABLE block (x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL, "
+                     "w INTEGER NOT NULL);"
+                     "CREATE UNIQUE INDEX block_xyz_idx ON block (x, y, z);"
+                     "CREATE TABLE sign (x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL, "
+                     "face INTEGER NOT NULL, text TEXT NOT NULL);"
+                     "CREATE UNIQUE INDEX sign_xyzface_idx ON sign (x, y, z, face);",
+                     nullptr, nullptr, nullptr);
+        sqlite3_close(raw);
+
+        WorldStore store(oldSchemaPath);
+        Check(!store.IsOpen(), "opening a pre-p,q-migration world.db fails loudly (IsOpen() false), not silently");
+        std::filesystem::remove(oldSchemaPath);
+    }
 
     std::printf("\n");
     if (checksFailed == 0) {

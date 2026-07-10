@@ -48,6 +48,26 @@ void TestChunkBasics() {
     Check(chunk.IsDirty(), "SetBlock re-dirties the chunk");
 }
 
+void TestChunkCoordOfHandlesNegativeCoordinates() {
+    // plan.md §12.1 item 19: the streamed world extends in every direction
+    // from spawn, so ChunkCoordOf must be a true floor-division, not plain
+    // `/` (which truncates toward zero) -- matches Craft's own `chunked()`
+    // (main.c) semantics for negative inputs.
+    Check(ChunkCoordOf(0) == 0, "ChunkCoordOf(0) == 0");
+    Check(ChunkCoordOf(15) == 0, "ChunkCoordOf(15) == 0 (last cell of chunk 0)");
+    Check(ChunkCoordOf(16) == 1, "ChunkCoordOf(16) == 1 (first cell of chunk 1)");
+    Check(ChunkCoordOf(-1) == -1, "ChunkCoordOf(-1) == -1, not 0 (plain truncating division would give 0)");
+    Check(ChunkCoordOf(-16) == -1, "ChunkCoordOf(-16) == -1 (last cell of chunk -1)");
+    Check(ChunkCoordOf(-17) == -2, "ChunkCoordOf(-17) == -2 (first cell of chunk -2)");
+
+    Check(ChunkLocalCoordOf(0) == 0, "ChunkLocalCoordOf(0) == 0");
+    Check(ChunkLocalCoordOf(15) == 15, "ChunkLocalCoordOf(15) == 15");
+    Check(ChunkLocalCoordOf(16) == 0, "ChunkLocalCoordOf(16) == 0");
+    Check(ChunkLocalCoordOf(-1) == 15, "ChunkLocalCoordOf(-1) == 15, not -1 (plain % would give -1)");
+    Check(ChunkLocalCoordOf(-16) == 0, "ChunkLocalCoordOf(-16) == 0");
+    Check(ChunkLocalCoordOf(-17) == 15, "ChunkLocalCoordOf(-17) == 15");
+}
+
 void TestWorldBoundsAndRoundTrip() {
     World world;
     Check(world.GetBlock(-1, 0, 0) == BlockType::Air, "world out-of-range GetBlock returns Air");
@@ -1094,6 +1114,7 @@ void TestPlayerControllerFloorCatchSafetyNet() {
 
 int main() {
     TestChunkBasics();
+    TestChunkCoordOfHandlesNegativeCoordinates();
     TestWorldBoundsAndRoundTrip();
     TestWorldRecordsEditsForPersistence();
     TestSignStore();

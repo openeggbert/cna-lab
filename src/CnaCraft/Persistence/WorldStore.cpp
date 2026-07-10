@@ -12,27 +12,48 @@
 namespace CnaCraft::Persistence {
 
 namespace {
-// Adapted from Craft's real schema (src/db.c): `create table if not exists
-// block (p int, q int, x int, y int, z int, w int)` + a unique index on
-// (p, q, x, y, z). This project has no per-chunk (p, q) addressing at the
-// World level, so those two columns are dropped and the unique index is
-// just on (x, y, z) directly.
+// Matches Craft's real schema exactly (src/db.c: `create table if not
+// exists block (p int, q int, x int, y int, z int, w int)`, unique index on
+// (p, q, x, y, z)) — plan.md §12.1 item 19, user decision 2026-07-10: add
+// the p,q chunk-address columns this project's earlier fixed-size world had
+// no use for, now that the world streams by chunk column. p,q are
+// redundant with x,z (always `ChunkCoordOf(x)`/`ChunkCoordOf(z)`, see
+// Chunk.hpp) but stored anyway, matching Craft exactly, so `WHERE p=? AND
+// q=?` can use the leading columns of this one composite index for a fast
+// per-chunk-column load query without a second index (see kUpsertSql).
+//
+// Requires deleting any pre-existing `world.db` on upgrade (same precedent
+// as the terrain-formula session) -- an old-schema `block`/`sign` table
+// missing p,q lacks the columns CREATE INDEX below references, so schema
+// creation itself fails loudly once at startup (WorldStore becomes the
+// same harmless no-op store as any other open failure) rather than each
+// per-edit INSERT silently failing one at a time.
 constexpr const char* kCreateTableSql =
     "CREATE TABLE IF NOT EXISTS block ("
+    "  p INTEGER NOT NULL,"
+    "  q INTEGER NOT NULL,"
     "  x INTEGER NOT NULL,"
     "  y INTEGER NOT NULL,"
     "  z INTEGER NOT NULL,"
     "  w INTEGER NOT NULL"
     ");";
-constexpr const char* kCreateIndexSql = "CREATE UNIQUE INDEX IF NOT EXISTS block_xyz_idx ON block (x, y, z);";
-constexpr const char* kUpsertSql = "INSERT OR REPLACE INTO block (x, y, z, w) VALUES (?, ?, ?, ?);";
+constexpr const char* kCreateIndexSql =
+    "CREATE UNIQUE INDEX IF NOT EXISTS block_pqxyz_idx ON block (p, q, x, y, z);";
+constexpr const char* kUpsertSql = "INSERT OR REPLACE INTO block (p, q, x, y, z, w) VALUES (?, ?, ?, ?, ?, ?);";
 constexpr const char* kSelectAllSql = "SELECT x, y, z, w FROM block;";
 
-// Signs (CRAFT_PARITY.md §4.3) — adapted from Craft's real
-// `sign(p,q,x,y,z,face,text)` schema (src/db.c), same p,q-column drop as
-// `block` above.
+// Signs (CRAFT_PARITY.md §4.3) — matches Craft's real
+// `sign(p,q,x,y,z,face,text)` schema (src/db.c) exactly, including its
+// asymmetry vs. `block` above: uniqueness stays on (x,y,z,face) (a sign's
+// real-world identity is "one sign per block face," independent of which
+// chunk that face happens to fall in), with p,q only backing a separate
+// non-unique index for the fast per-chunk load query -- exactly matching
+// Craft's own separate `sign_pq_idx`, not folded into the unique index the
+// way `block`'s is.
 constexpr const char* kCreateSignTableSql =
     "CREATE TABLE IF NOT EXISTS sign ("
+    "  p INTEGER NOT NULL,"
+    "  q INTEGER NOT NULL,"
     "  x INTEGER NOT NULL,"
     "  y INTEGER NOT NULL,"
     "  z INTEGER NOT NULL,"
@@ -41,11 +62,15 @@ constexpr const char* kCreateSignTableSql =
     ");";
 constexpr const char* kCreateSignIndexSql =
     "CREATE UNIQUE INDEX IF NOT EXISTS sign_xyzface_idx ON sign (x, y, z, face);";
+constexpr const char* kCreateSignPqIndexSql = "CREATE INDEX IF NOT EXISTS sign_pq_idx ON sign (p, q);";
 constexpr const char* kSelectAllSignsSql = "SELECT x, y, z, face, text FROM sign;";
 // Incremental sign writes (mirrors Craft's db_insert_sign/db_delete_sign/
-// db_delete_signs, src/db.c) — see WorldStore.hpp's class comment.
+// db_delete_signs, src/db.c) — see WorldStore.hpp's class comment. Delete
+// statements don't bind p,q, matching Craft's own db_delete_sign/
+// db_delete_signs exactly -- (x,y,z[,face]) alone already identifies the
+// row(s) uniquely, p,q would be redundant there.
 constexpr const char* kUpsertSignSql =
-    "INSERT OR REPLACE INTO sign (x, y, z, face, text) VALUES (?, ?, ?, ?, ?);";
+    "INSERT OR REPLACE INTO sign (p, q, x, y, z, face, text) VALUES (?, ?, ?, ?, ?, ?, ?);";
 constexpr const char* kDeleteSignSql = "DELETE FROM sign WHERE x = ? AND y = ? AND z = ? AND face = ?;";
 constexpr const char* kDeleteSignsAtSql = "DELETE FROM sign WHERE x = ? AND y = ? AND z = ?;";
 }
@@ -65,7 +90,8 @@ WorldStore::WorldStore(const std::string& path) {
     if (sqlite3_exec(db_, kCreateTableSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db_, kCreateIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db_, kCreateSignTableSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
-        sqlite3_exec(db_, kCreateSignIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+        sqlite3_exec(db_, kCreateSignIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
+        sqlite3_exec(db_, kCreateSignPqIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
         std::fprintf(stderr, "WorldStore: failed to create schema: %s\n", errMsg ? errMsg : "unknown error");
         sqlite3_free(errMsg);
         sqlite3_close(db_);
@@ -120,10 +146,12 @@ void WorldStore::SaveEdits(Worlds::World& world) {
     }
 
     for (const Worlds::BlockEdit& edit : edits) {
-        sqlite3_bind_int(stmt, 1, edit.x);
-        sqlite3_bind_int(stmt, 2, edit.y);
-        sqlite3_bind_int(stmt, 3, edit.z);
-        sqlite3_bind_int(stmt, 4, static_cast<int>(edit.type));
+        sqlite3_bind_int(stmt, 1, Worlds::ChunkCoordOf(edit.x));
+        sqlite3_bind_int(stmt, 2, Worlds::ChunkCoordOf(edit.z));
+        sqlite3_bind_int(stmt, 3, edit.x);
+        sqlite3_bind_int(stmt, 4, edit.y);
+        sqlite3_bind_int(stmt, 5, edit.z);
+        sqlite3_bind_int(stmt, 6, static_cast<int>(edit.type));
         sqlite3_step(stmt);
         sqlite3_reset(stmt);
     }
@@ -170,11 +198,13 @@ void WorldStore::UpsertSign(const Worlds::Sign& sign) {
         std::fprintf(stderr, "WorldStore: failed to prepare sign upsert statement: %s\n", sqlite3_errmsg(db_));
         return;
     }
-    sqlite3_bind_int(stmt, 1, sign.x);
-    sqlite3_bind_int(stmt, 2, sign.y);
-    sqlite3_bind_int(stmt, 3, sign.z);
-    sqlite3_bind_int(stmt, 4, sign.face);
-    sqlite3_bind_text(stmt, 5, sign.text.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 1, Worlds::ChunkCoordOf(sign.x));
+    sqlite3_bind_int(stmt, 2, Worlds::ChunkCoordOf(sign.z));
+    sqlite3_bind_int(stmt, 3, sign.x);
+    sqlite3_bind_int(stmt, 4, sign.y);
+    sqlite3_bind_int(stmt, 5, sign.z);
+    sqlite3_bind_int(stmt, 6, sign.face);
+    sqlite3_bind_text(stmt, 7, sign.text.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 }

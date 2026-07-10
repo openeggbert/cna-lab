@@ -15,12 +15,17 @@ namespace CnaCraft::Persistence {
 // SQLite-backed delta persistence (CRAFT_PARITY.md §4.1/§4.2, plan.md §12.1
 // item 15 — user decision 2026-07-10: add SQLite). Ports Craft's real
 // delta-storage model (src/db.c: a `block(p,q,x,y,z,w)` table, unique-
-// indexed on the coordinate, storing only *edited* blocks over the
+// indexed on (p,q,x,y,z), storing only *edited* blocks over the
 // regenerated procedural terrain — the world itself is never dumped to
-// disk, only player edits are). Adapted schema: plain `block(x,y,z,w)`,
-// since cna-craft's World has no per-chunk (p,q) addressing the way
-// Craft's streamed-chunk model does — this project's fixed-size world uses
-// absolute world-space coordinates directly.
+// disk, only player edits are). Schema now matches Craft's exactly,
+// including the `p,q` chunk-address columns (plan.md §12.1 item 19, user
+// decision 2026-07-10) — added once the world itself gained per-chunk-
+// column streaming; `LoadInto`/`LoadSignsInto` below are still whole-
+// database loads for now (a column-scoped `LoadColumnInto`/
+// `LoadColumnSignsInto` pair, using the new `WHERE p=? AND q=?` query the
+// schema now supports efficiently, is a tracked follow-up once
+// `CnaCraftGame` actually streams chunks on demand instead of loading the
+// whole world at startup).
 //
 // Deliberately NOT a faithful port of Craft's async worker-thread/
 // COMMIT_INTERVAL batching (src/db.c db_worker_run) — cna-craft has no
