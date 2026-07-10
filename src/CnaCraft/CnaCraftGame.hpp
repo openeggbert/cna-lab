@@ -52,12 +52,6 @@ protected:
     void Draw(const Microsoft::Xna::Framework::GameTime& gameTime) override;
 
 private:
-    // Synchronous mesh (re)build for every dirty chunk -- used only where
-    // synchronous meshing is actually wanted (Initialize()'s spawn-area
-    // force-load, mirroring Craft's own synchronous force_chunks). The
-    // steady-state per-frame path backgrounds meshing instead; see
-    // DispatchMeshingForDirtyChunks/PollMeshJobs below.
-    void RebuildDirtyChunks();
     void CaptureScreenshot(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
 
     // Chunk streaming (plan.md §12.1 item 19). Loads any not-yet-loaded,
@@ -125,10 +119,6 @@ private:
     // genuinely stale and is dropped.
     void PollMeshJobs();
 
-    // Generates (or loads from world.db on top of fresh terrain) one
-    // column synchronously and creates its matching chunkRenderers_
-    // entries -- used only by Initialize()'s spawn-area force-load.
-    void LoadColumnSynchronously(int cx, int cz);
     // Frees one column's World data and chunkRenderers_ entries. Marks
     // still-loaded face-adjacent neighbor columns dirty, so their shared
     // boundary faces re-appear now that this column is gone (same
@@ -167,6 +157,13 @@ private:
     // entirely.
     std::unordered_map<Worlds::ColumnKey, std::array<std::unique_ptr<Render::ChunkRenderer>, Worlds::WORLD_CHUNKS_Y>>
         chunkRenderers_;
+    // Count of chunkRenderers_ entries currently carrying a non-empty glow
+    // mesh (plan.md §12.1 item 27 follow-up) -- kept in sync incrementally
+    // at the two places a renderer's glow buffer can change (PollMeshJobs'
+    // ApplyMesh call, UnloadColumn), so Draw() can skip its entire glow pass
+    // (map iteration + frustum tests, not just draw calls) whenever it's 0,
+    // the overwhelmingly common case.
+    int glowChunkCount_ = 0;
     Worlds::Hotbar hotbar_;
 
     // World persistence (CRAFT_PARITY.md §4.1/§4.2) — loaded once in

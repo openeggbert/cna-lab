@@ -67,6 +67,14 @@ public:
     // the caller (CnaCraftGame::Draw) decides whether to call Draw() at all.
     [[nodiscard]] Microsoft::Xna::Framework::BoundingBox Bounds() const;
 
+    // True once this chunk has at least one light-source block's glow faces
+    // uploaded (plan.md §12.1 item 27 follow-up). Lets the caller skip the
+    // entire glow render pass -- map iteration and per-renderer frustum
+    // tests included, not just the (already free-when-empty) draw call --
+    // whenever no loaded chunk anywhere has any lit block, which is the
+    // overwhelmingly common case (nobody has toggled a light yet).
+    [[nodiscard]] bool HasGlow() const { return glow_.vb != nullptr; }
+
 private:
     struct MeshBuffers {
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> vb;

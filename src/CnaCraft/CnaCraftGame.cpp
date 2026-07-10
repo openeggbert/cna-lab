@@ -151,30 +151,38 @@ void CnaCraftGame::Initialize() {
 
     // Player-position persistence (plan.md §12.1 item 17 follow-up, user
     // decision 2026-07-10): try loading a saved eye position/look direction
-    // before deciding the spawn force-load region below, so a returning
-    // player's force-load happens around where they actually were, not
-    // always world-origin. `loadedX/Z` default to the same world-origin
-    // spawn used when nothing was ever saved (see the fallback branch
-    // further down) so the force-load loop below is correct either way.
+    // so a returning player spawns where they actually were, not always
+    // world-origin. `loadedX/Z` default to the same world-origin spawn used
+    // when nothing was ever saved (see the fallback branch further down).
     float loadedX = 0.5f, loadedY = 0.0f, loadedZ = 0.5f, loadedYaw = 0.0f, loadedPitch = 0.0f;
     const bool hasSavedPlayerState = worldStore_->LoadPlayerState(loadedX, loadedY, loadedZ, loadedYaw, loadedPitch);
-    const int spawnColumnCx = Worlds::ChunkCoordOf(static_cast<int>(std::floor(loadedX)));
-    const int spawnColumnCz = Worlds::ChunkCoordOf(static_cast<int>(std::floor(loadedZ)));
 
-    // Force-generate+mesh every column within radii_.createRadius of the
-    // spawn column synchronously, all at once, ignoring the per-frame
-    // budget cap UpdateStreaming uses later — mirrors Craft's own startup
-    // force_chunks call, so the player never spawns into (or briefly sees)
-    // an ungenerated void. Spawn column is world-origin (0,0) by default
-    // (CRAFT_PARITY.md §1.2/§3.1, plan.md §12.1 item 19) — matches Craft's
-    // own actual behavior exactly, there's no "center of a bounded world"
-    // once the world streams — or the saved column above if one exists.
-    for (int dz = -radii_.createRadius; dz <= radii_.createRadius; ++dz) {
-        for (int dx = -radii_.createRadius; dx <= radii_.createRadius; ++dx) {
-            LoadColumnSynchronously(spawnColumnCx + dx, spawnColumnCz + dz);
-        }
-    }
-    RebuildDirtyChunks();
+    // Deliberately does NOT force-generate+mesh the spawn area synchronously
+    // here (plan.md §12.1 item 28). An earlier version of this method mirrored
+    // Craft's own startup force_chunks call literally -- looping
+    // LoadColumnSynchronously over every column in radii_.createRadius,
+    // blocking Initialize() until the whole spawn area was generated AND
+    // GPU-uploaded. That's cheap in Craft's small C world, but in cna-craft
+    // (SQLite queries + noise generation + CNA-abstraction GPU uploads per
+    // column) it measured ~14 seconds wall-clock for the default radius of 6
+    // (169 columns) -- with the SDL window created but not yet having
+    // presented a single frame the whole time. Several window
+    // managers/compositors (Wayland especially, but not only) render an
+    // unpresented window as blank/invisible or mark it "not responding" --
+    // a real, reproducible player-facing bug ("invisible window on startup"),
+    // identical on every graphics backend since this code is 100%
+    // engine-agnostic. Fix: don't force-load anything here -- UpdateStreaming
+    // (below, called from the very first Update()) discovers the player's
+    // spawn column is unloaded and dispatches it through the same
+    // already-backgrounded TaskT generation/meshing pipeline used for all
+    // runtime streaming (plan.md §12.1 item 19 phase 4), so Draw() presents
+    // a real frame (sky/fog, HUD) on frame 1 and terrain pops in
+    // progressively over the next second or so instead of blocking. Safe
+    // even though the spawn column may render briefly ungenerated: the
+    // floor-catch safety net (World::HighestCollidableY, plan.md §12.1 item
+    // 24) already handles a player standing over not-yet-loaded terrain.
+    // This is a deliberate parity deviation from Craft's own force_chunks
+    // (documented in CRAFT_PARITY.md §3.1/§3.2), not a bug.
 
     effect_ = std::make_unique<BasicEffect>(device);
     effect_->VertexColorEnabled = false;
@@ -234,26 +242,6 @@ void CnaCraftGame::Initialize() {
     signsNeedRebuild_ = false;
 }
 
-void CnaCraftGame::RebuildDirtyChunks() {
-    auto& device = getGraphicsDeviceProperty();
-    // Iterates chunkRenderers_ (not World::LoadedColumns()) since every
-    // loaded column always has a matching chunkRenderers_ entry (LoadColumn
-    // creates both together) -- this is the exact key both containers
-    // share, replacing the old flat-vector "index i means the same chunk in
-    // both containers" assumption with an explicit lookup.
-    for (auto& [key, renderers] : chunkRenderers_) {
-        int cx = 0, cz = 0;
-        Worlds::World::UnpackColumnKey(key, cx, cz);
-        for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
-            Worlds::Chunk& chunk = world_.ChunkAt(cx, cy, cz);
-            if (chunk.IsDirty()) {
-                renderers[static_cast<std::size_t>(cy)]->Rebuild(device, world_);
-                chunk.ClearDirty();
-            }
-        }
-    }
-}
-
 void CnaCraftGame::RecordMark(int x, int y, int z, Worlds::BlockType type) {
     // Mirrors Craft's own record_block (main.c): mark1_ becomes the
     // previous mark0_, mark0_ becomes this new one -- a simple 2-slot
@@ -279,27 +267,20 @@ void CnaCraftGame::MarkNeighborColumnsDirty(int cx, int cz) {
     }
 }
 
-void CnaCraftGame::LoadColumnSynchronously(int cx, int cz) {
-    world_.GenerateColumn(cx, cz, kWorldSeed);
-    worldStore_->LoadColumnInto(world_, cx, cz);
-    worldStore_->LoadColumnLightsInto(world_, cx, cz);
-    worldStore_->LoadColumnSignsInto(signStore_, cx, cz);
-    signsNeedRebuild_ = true; // this column may have contributed persisted signs
-
-    auto& renderers = chunkRenderers_[Worlds::World::PackColumnKey(cx, cz)];
-    for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
-        renderers[static_cast<std::size_t>(cy)] = std::make_unique<Render::ChunkRenderer>(
-            cx * Worlds::CHUNK_SIZE, cy * Worlds::CHUNK_SIZE, cz * Worlds::CHUNK_SIZE);
-    }
-    // Each freshly-created Chunk already starts dirty (Chunk's own default),
-    // so this column's own chunks don't need marking here -- only the
-    // already-loaded neighbors, whose meshes predate this column.
-    MarkNeighborColumnsDirty(cx, cz);
-}
-
 void CnaCraftGame::UnloadColumn(int cx, int cz) {
     world_.UnloadColumn(cx, cz);
-    chunkRenderers_.erase(Worlds::World::PackColumnKey(cx, cz));
+    const auto it = chunkRenderers_.find(Worlds::World::PackColumnKey(cx, cz));
+    if (it != chunkRenderers_.end()) {
+        // glowChunkCount_ (Draw()'s glow-pass skip, plan.md §12.1 item 27
+        // follow-up) must stay in sync with every renderer this column owns,
+        // not just ones changed via ApplyMesh -- unloading a lit chunk without
+        // this would leak the count upward forever, permanently forcing the
+        // (empty) glow pass back on even after every actual light is gone.
+        for (const auto& renderer : it->second) {
+            if (renderer && renderer->HasGlow()) --glowChunkCount_;
+        }
+        chunkRenderers_.erase(it);
+    }
     MarkNeighborColumnsDirty(cx, cz);
     // A sign can't survive after the World data it was attached to is gone
     // (plan.md §12.1 item 19) -- otherwise it'd either accumulate
@@ -480,7 +461,12 @@ void CnaCraftGame::PollMeshJobs() {
         const auto it = chunkRenderers_.find(Worlds::World::PackColumnKey(job.cx, job.cz));
         if (it != chunkRenderers_.end()) {
             const Worlds::ChunkMeshData mesh = job.task.getResultProperty();
-            it->second[static_cast<std::size_t>(job.cy)]->ApplyMesh(device, mesh);
+            Render::ChunkRenderer& renderer = *it->second[static_cast<std::size_t>(job.cy)];
+            const bool hadGlow = renderer.HasGlow();
+            renderer.ApplyMesh(device, mesh);
+            const bool hasGlowNow = renderer.HasGlow();
+            if (hasGlowNow && !hadGlow) ++glowChunkCount_;
+            else if (hadGlow && !hasGlowNow) --glowChunkCount_;
             ++appliedThisFrame;
         }
         // Else: column unloaded before meshing finished -- genuinely
@@ -1041,17 +1027,28 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     // mesh occupies the exact same face positions as its normal opaque
     // emission, so this intentionally overdraws those faces with a fixed
     // bright tint instead of illuminating anything beyond them.
-    effect_->VertexColorEnabled = true;
-    effect_->setLightingEnabledProperty(false);
-    for (auto& [key, renderers] : chunkRenderers_) {
-        (void)key;
-        for (auto& renderer : renderers) {
-            if (!frustum.Intersects(renderer->Bounds())) continue;
-            renderer->DrawGlow(device, *effect_);
+    //
+    // Skipped entirely (map iteration + per-renderer frustum test both) when
+    // glowChunkCount_ is 0 -- true until the player toggles their first
+    // light, and true again afterward for any world where nobody ever does.
+    // Found during a real-world performance report ("cna craft je navic
+    // nejaky zpomalny", 2026-07-10): this pass otherwise doubled the
+    // per-frame chunk-renderer iteration/AABB-test cost of the already-
+    // existing opaque+transparent passes for a feature that in practice
+    // draws nothing almost all the time.
+    if (glowChunkCount_ > 0) {
+        effect_->VertexColorEnabled = true;
+        effect_->setLightingEnabledProperty(false);
+        for (auto& [key, renderers] : chunkRenderers_) {
+            (void)key;
+            for (auto& renderer : renderers) {
+                if (!frustum.Intersects(renderer->Bounds())) continue;
+                renderer->DrawGlow(device, *effect_);
+            }
         }
+        effect_->setLightingEnabledProperty(true);
+        effect_->VertexColorEnabled = false;
     }
-    effect_->setLightingEnabledProperty(true);
-    effect_->VertexColorEnabled = false;
 
     // Signs (CRAFT_PARITY.md §4.3) — lit/textured quads, drawn with the same
     // effect_ state as opaque chunk geometry (VertexPositionNormalTexture,

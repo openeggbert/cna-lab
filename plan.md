@@ -1211,6 +1211,54 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     long-documented sandbox limitation) remains unreliable here — coverage relies on the unit
     tests above plus code review, same tradeoff already accepted for other click-gated features
     (e.g. item 17's `/cube`-style commands).
+28. `completed` — **Fix invisible window on startup + a glow-pass performance regression**
+    (CRAFT_PARITY.md §3.2/§2.7), both user-reported (2026-07-10, "cna craft nabehne neviditelne
+    okno proc? je to na easy gl i vulkanu" / "cna craft je navic nejaky zpomaleny") after item 27
+    shipped. Investigated by reproducing directly rather than guessing:
+    - **Invisible window**: `CnaCraftGame::Initialize()` force-generated+meshed every column
+      within `radii_.createRadius` (169 at the default radius of 6) fully synchronously before the
+      game loop's first `Update()`/`Draw()` — mirroring Craft's own startup `force_chunks` call
+      literally. Timed this directly: ~14 seconds wall-clock in this project (SQLite queries +
+      noise generation + CNA-abstraction GPU uploads per column cost far more per-column than
+      Craft's raw C/GL path), during which the SDL window existed but had never presented a single
+      frame — several window managers/compositors (confirmed reproducible in this project's own
+      Xvfb sandbox, not just theoretical) render an unpresented window as blank/black or mark it
+      "not responding." Identical on EasyGL and Vulkan since `Initialize()` is 100% engine-agnostic
+      (`Worlds::` layer only — the graphics backend never enters into it). **User decision
+      (2026-07-10)**, offered a smaller-radius partial fix vs. the full fix: use the
+      already-existing backgrounded `TaskT` streaming pipeline (built in item 19 phase 4) from
+      frame 1 instead of a special-cased synchronous path. Removed the force-load loop and its two
+      now-dead-code-only helpers (`LoadColumnSynchronously`, `RebuildDirtyChunks`) entirely —
+      `UpdateStreaming` (already called every `Update()`) discovers the player's spawn column is
+      unloaded on frame 1 and dispatches it through the normal pipeline, so `Draw()` presents a
+      real frame (sky/fog/HUD) immediately and terrain pops in progressively over about a second.
+      Safe without Craft's "never see an ungenerated void" guarantee thanks to the existing
+      floor-catch safety net (item 24). Verified by timing the fix the same way as the bug:
+      time-to-first-non-black-frame dropped from ~14s to under 1s (real Xvfb screenshots at fixed
+      intervals after launch), confirmed via full clean EasyGL build + real-build screenshot
+      showing correct terrain/HUD rendering with no regression.
+    - **Glow-pass performance regression**: item 27's `Draw()` added an unconditional third full
+      pass over every loaded `ChunkRenderer` (map iteration + a `BoundingFrustum::Intersects` test
+      per renderer, every frame) on top of the pre-existing opaque+transparent passes, even though
+      virtually no world ever has any block actually lit (nobody has toggled a light). New
+      `CnaCraftGame::glowChunkCount_` tracks how many loaded chunks currently carry a non-empty
+      glow mesh, updated incrementally at the two places that can change it (`PollMeshJobs`'
+      `ApplyMesh` call, `UnloadColumn` — the latter needed so unloading a lit chunk doesn't leak
+      the count upward forever), and `Draw()` now skips the entire glow pass — not just the
+      already-free draw calls, the map iteration and frustum tests too — whenever it's 0. New
+      `ChunkRenderer::HasGlow()` accessor backs this.
+    - **Investigated but not changed**: `sharp-runtime`'s `TaskT::Run` wraps
+      `std::async(std::launch::async, ...)`, which spawns a genuine new OS thread per call rather
+      than drawing from a bounded pool (confirmed by reading `sharp-runtime`'s source, not just the
+      existing code comments describing this) — up to 10 new threads/frame (2 generation + 8
+      meshing dispatch caps) while actively streaming into unexplored territory. This is a
+      pre-existing, already-documented architectural characteristic of item 19 phase 4, not
+      something either user report's root cause was traced to — left as-is rather than
+      speculatively rewritten into a real thread pool without concrete evidence it's a bottleneck.
+    No `Worlds/`-layer code touched by either fix, so the existing 288+40 unit tests are unaffected
+    (re-ran to confirm: unchanged, all passing). Both fixes are pure `CnaCraftGame`/`Render`-layer
+    changes, verified only via real builds (this layer isn't unit-testable, same as every other
+    `CnaCraftGame.cpp` change this project has made).
 
 ### 12.2 Deliberately not re-litigated this session
 

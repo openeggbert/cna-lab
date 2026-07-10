@@ -374,7 +374,15 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   no visual regression to ordinary terrain when no light is toggled.
 - **Notes**: The light-toggle mechanic and persistence are 100% Craft-accurate. The *visual*
   result is not — see §4.3's notes for the full reasoning (a CNA engine-level rendering
-  constraint, not a scope choice).
+  constraint, not a scope choice). **Perf fix 2026-07-10 (plan.md §12.1 item 28 follow-up,
+  user-reported general slowdown)**: the glow render pass originally iterated every loaded
+  `ChunkRenderer` and ran a frustum-intersection test on each, every single frame, unconditionally
+  — a real, avoidable per-frame cost added on top of the pre-existing opaque+transparent passes,
+  even though almost no world ever has any block actually lit. `CnaCraftGame::glowChunkCount_` now
+  tracks how many loaded chunks currently have a non-empty glow mesh (updated incrementally at the
+  two places that can change: `PollMeshJobs`' `ApplyMesh` call, `UnloadColumn`), and `Draw()` skips
+  the entire glow pass — map iteration and frustum tests included, not just the already-free draw
+  calls — whenever it's 0.
 
 ### 2.8 Collision rules for solid/transparent/non-collidable blocks
 - **Craft behavior**: `is_obstacle(w)` (blocks movement) vs `is_transparent(w)` (occludes
@@ -425,11 +433,26 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   player's current `(cx,cz)` that isn't already loaded or in flight, dispatch-capped at
   `kMaxColumnLoadsPerFrame=2` new background jobs/frame; unloads any loaded column beyond
   `kDeleteRadius=9` (hysteresis margin over the create radius, same reasoning as Craft's
-  10/10/14). `Initialize()` still force-generates+meshes the spawn-area columns synchronously
-  before placing the player, mirroring Craft's own `force_chunks`-before-`ensure_chunks` split.
-  Unlike Craft's fixed 4-worker-thread pool, generation/meshing each dispatch one
-  `System::Threading::Tasks::TaskT` per column/chunk (self-throttled via the dispatch/apply caps
-  above rather than a bounded pool — see §3.1's threading note below).
+  10/10/14). Unlike Craft's fixed 4-worker-thread pool, generation/meshing each dispatch one
+  `System::Threading::Tasks::TaskT` per column/chunk — `sharp-runtime`'s `TaskT::Run` is a thin
+  wrapper over `std::async(std::launch::async, ...)`, which (per the C++ standard, and confirmed in
+  practice on this project's libstdc++ target) spawns a genuine new OS thread per call rather than
+  drawing from a real bounded pool — self-throttled only via the dispatch/apply caps above, not a
+  true pool. **Revised again 2026-07-10 (plan.md §12.1 item 28, user-reported "invisible window on
+  startup" bug)**: `Initialize()` no longer force-generates+meshes the spawn-area columns
+  synchronously before placing the player (an earlier version of this note said it still did,
+  mirroring Craft's own `force_chunks`-before-`ensure_chunks` split) — that synchronous burst
+  (169 columns at the default radius) measured ~14 seconds wall-clock in this project (SQLite +
+  noise generation + CNA-abstraction GPU uploads per column cost far more per-column than Craft's
+  raw C/GL path), during which the SDL window existed but had never presented a single frame; many
+  window managers/compositors render that as a blank/invisible window. `Initialize()` now does
+  nothing extra — `UpdateStreaming` naturally discovers the player's spawn column is unloaded on
+  the very first `Update()` and dispatches it through the same already-backgrounded pipeline used
+  for ordinary runtime streaming, so `Draw()` presents a real frame (sky/fog/HUD) on frame 1 and
+  terrain pops in progressively over roughly a second instead of blocking. Deliberately no longer
+  matches Craft's "never see an ungenerated void" startup guarantee exactly — accepted as safe
+  given the floor-catch safety net (§1.8) already handles a player standing over not-yet-loaded
+  terrain.
 - **Status**: complete
 - **Craft files**: `src/main.c` (`force_chunks` L1307, `ensure_chunks` L1418, `delete_chunks`
   L1225)
@@ -439,7 +462,10 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   decision to close this gap)
 - **Verification method**: unit tests + real-build Xvfb/xdotool verification (fly far from spawn,
   confirm terrain streams in with no permanent holes; fly back, confirm no crashes/leaks; thread
-  count stayed bounded, not runaway)
+  count stayed bounded, not runaway). Item 28's startup fix specifically verified by timing:
+  measured wall-clock from process start to first non-black rendered frame dropped from ~14s
+  (synchronous force-load, reproduced and measured directly) to under 1s (background streaming
+  from frame 1), via real Xvfb screenshots taken at fixed intervals after launch.
 - **Notes**: two real bugs were found and fixed during this session's own verification, not left
   as known issues: (1) completed-but-over-the-per-frame-apply-cap background jobs were being
   discarded outright instead of deferred to a later frame, which for meshing specifically (whose
@@ -601,10 +627,11 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   clean-exit behavior: cna-craft saves every frame instead (cheap single-row delete+insert), so a
   crashed or killed process still resumes near its last frame's position rather than losing it
   entirely — the same "eager, no dedicated shutdown hook" simplification already used for
-  `SaveEdits`. `CnaCraftGame::Initialize` loads the saved state (if any) before deciding which
-  columns to force-load, so a returning player's spawn region is centered on where they actually
-  were, not always world-origin; falls back to the existing block-center/height+2 spawn if nothing
-  was ever saved, matching Craft's own `if (!loaded) s->y = highest_block(...) + 2`.
+  `SaveEdits`. `CnaCraftGame::Initialize` loads the saved state (if any) before placing the player,
+  so a returning player spawns where they actually were, not always world-origin (their spawn
+  column then streams in the same way any other unloaded column does — see §3.2 item 28); falls
+  back to the existing block-center/height+2 spawn if nothing was ever saved, matching Craft's own
+  `if (!loaded) s->y = highest_block(...) + 2`.
 - **Status**: complete
 - **Craft files**: `src/db.c`, `src/db.h`
 - **cna-craft files**: `src/CnaCraft/Persistence/WorldStore.{hpp,cpp}`,

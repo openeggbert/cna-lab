@@ -18,6 +18,17 @@ occlusion (user chose "implement for EASYGL only"), a textured sky dome
 (user chose "add sky texture"), and multiplayer (user chose "start
 planning only") — none of these three has been started yet; see §8.
 
+**Immediately after item 27 shipped**, the user hit it live and reported two
+real bugs: an invisible window on startup (both EasyGL and Vulkan) and
+general slowdown. Both root-caused by reproducing directly (not guessed) and
+fixed same-session as **item 28**: `Initialize()`'s ~14-second synchronous
+spawn force-load (blocking the window's first presented frame — several
+compositors render that as invisible) was removed in favor of using the
+already-existing backgrounded streaming pipeline from frame 1; and item 27's
+glow render pass (an unconditional third full per-frame chunk-iteration +
+frustum-test pass) now short-circuits entirely when no chunk is actually
+lit. See item 28's plan.md writeup for the full diagnosis and fix detail.
+
 ## 1. Project summary
 
 CNA Craft is a first-person voxel-world game/prototype, built entirely on
@@ -270,6 +281,27 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     instead, the same tradeoff already accepted for item 17's paint
     commands. See item 27's plan.md writeup for the full technical
     rationale.
+
+12. **Fix invisible window on startup + a glow-pass performance regression**
+    (plan.md §12.1 item 28) — two real bugs the user hit immediately after
+    trying item 27 live ("invisible window on startup, both EasyGL and
+    Vulkan" / "also somehow slowed down"). Root-caused by reproducing
+    directly: `Initialize()`'s spawn-area force-load measured ~14 seconds
+    wall-clock (169 columns, fully synchronous, before the first frame ever
+    presented — several compositors render that as a blank/invisible
+    window), identical on both backends since the code is engine-agnostic.
+    Removed the force-load entirely in favor of the already-existing
+    backgrounded streaming pipeline (item 19 phase 4) — `Draw()` now
+    presents a real frame within under 1 second, terrain pops in
+    progressively instead of blocking. Also found and fixed: item 27's glow
+    render pass unconditionally iterated every loaded chunk with a frustum
+    test every frame even though almost no world ever has a lit block — new
+    `glowChunkCount_` lets `Draw()` skip that entire pass when nothing is
+    lit. See item 28's plan.md writeup for full detail, including a
+    documented-but-unchanged pre-existing characteristic found along the
+    way (each streamed column/chunk spawns a real new OS thread via
+    `sharp-runtime`'s `TaskT`, not a pooled one — not the root cause of
+    either report, left alone).
 
 ## 4. Current blocker / main problem
 
