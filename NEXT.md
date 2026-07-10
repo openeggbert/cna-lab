@@ -13,10 +13,12 @@ toggle** (item 27: Ctrl+right-click) — via a user-approved design pivot (a
 separate additive glow pass, not Craft's real light-propagation, due to a
 CNA engine-level vertex/shader-dispatch constraint discovered during
 planning — see item 27's writeup for the full technical reason). With items
-26/27 done, the remaining choices from that same audit are: ambient
+26/27 done, the remaining choices from that same audit were: ambient
 occlusion (user chose "implement for EASYGL only"), a textured sky dome
-(user chose "add sky texture"), and multiplayer (user chose "start
-planning only") — none of these three has been started yet; see §8.
+(user chose "add sky texture" — since done, item 33 below), and
+multiplayer (user chose "start planning only") — as of the end of this
+session only ambient occlusion and the multiplayer planning pass remain
+unstarted; see §8.
 
 **Immediately after item 27 shipped**, the user hit it live and reported two
 real bugs: an invisible window on startup (both EasyGL and Vulkan) and
@@ -562,8 +564,11 @@ from scratch. Highlights of what's NOT done yet:
 - **`blocked`, decided**: ambient occlusion — needs a custom vertex format +
   `ShaderEffect`, only real on EASYGL today (`missing.md`); user has chosen
   "implement for EASYGL only" when this is picked up.
-- **Decided, not started**: a textured sky dome (user chose "add sky
-  texture" — `SkyDome` currently renders an untextured procedural gradient).
+- **Deliberate simplification (item 33)**: the sky dome is textured with
+  Craft's real sky.png colors now, but `BasicEffect`'s fixed-function fog
+  has one flat color per draw, so fog uses the gradient's horizon band for
+  all elevations (Craft samples per fragment at each fragment's own
+  elevation angle) — see CRAFT_PARITY.md §5.2.
 - **Deliberately deferred, planning only**: multiplayer, per user decision.
 - **Deliberate simplification (item 27)**: light toggle exists and persists
   faithfully, but a toggled light's glow doesn't propagate to neighboring
@@ -678,7 +683,7 @@ cmake -S . -B build-worlds -DCNA_CRAFT_BUILD_GAME=OFF -DBUILD_TESTING=ON
 cmake --build build-worlds -j"$(nproc)"
 ctest --test-dir build-worlds --output-on-failure
 ```
-Expect: `WorldsSmokeTest` (288 `ok:` lines) and `PersistenceSmokeTest`
+Expect: `WorldsSmokeTest` (303 `ok:` lines) and `PersistenceSmokeTest`
 (40 checks) both pass.
 
 ```bash
