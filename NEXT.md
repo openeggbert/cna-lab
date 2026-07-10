@@ -1,7 +1,9 @@
 # NEXT.md
 
-Handoff document for resuming work on **cna-craft**. Last updated after
-adding Signs (this session's 4th and final task) on branch `develop`.
+Handoff document for resuming work on **cna-craft**. Last updated after a
+"minimize remaining Craft-fidelity gaps" batch (plan.md §12.1 item 24) on
+branch `develop`, with the chunk-system redesign (item 19) chosen as the
+next follow-up but not yet started.
 
 ## 1. Project summary
 
@@ -18,7 +20,7 @@ is a faithful CNA-native **port of [fogleman/Craft](https://github.com/fogleman/
    citing exact Craft file/line and exact cna-craft file/line, with a
    status (`complete`/`partial`/`missing`/`blocked`/`needs_human`).
 2. `plan.md` §12 ("Craft Feature Parity Port") — converts `CRAFT_PARITY.md`
-   into an ordered, numbered task list (23 items) with the same status
+   into an ordered, numbered task list (24 items) with the same status
    vocabulary. **This supersedes `plan.md` §11's older backlog** wherever
    they disagree.
 3. This file — a handoff summary, not an independent source of truth. Keep
@@ -36,29 +38,35 @@ two-mesh-buffer (opaque/transparent) convention.
 clean configure + build from scratch, zero warnings, `CnaCraft` executable
 links and runs. Verified via headless `--smoke` runs and real interactive
 Xvfb/xdotool/ImageMagick screenshots, including a full end-to-end sign
-placement/persistence/reload cycle (see §3 item 4 below).
+placement/persistence/reload cycle and a cursor-release-doesn't-quit check
+(process stays alive after Escape, confirmed via `ps` after the change).
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **169 plain-assert checks,
+**Test status**: `tests/worlds_smoke_test.cpp` — **173 plain-assert checks,
 all passing** (up from 149 at the start of this session). Plus a separate
 `cna_craft_persistence_smoke_test` target (21 checks, all passing) covering
 `Persistence::WorldStore` (blocks + signs) against a real SQLite file. Both
 build and run standalone with `-DCNA_CRAFT_BUILD_GAME=OFF`.
 
-**This session resolved all 4 `needs_human` items from the prior session**,
-via `AskUserQuestion` — the user's answers (2026-07-10):
-- **Persistence**: add SQLite (the "full Craft-style delta persistence"
-  option, not an in-memory-only or JSON-file alternative).
-- **Cloud in hotbar**: remove it — match Craft exactly (Craft never allows
-  placing clouds).
-- **Terrain formula**: re-port exactly per Craft's real dual-multiplicative-
-  simplex2 formula, accepting that this reshapes all existing terrain.
-- **Next step after those three**: Signs (the smaller of Signs/Chat).
+**This session resolved 8 open questions total**, all via `AskUserQuestion`
+(2026-07-10):
+- **Persistence**: add SQLite (full Craft-style delta persistence).
+- **Cloud in hotbar**: remove it — match Craft exactly.
+- **Terrain formula**: re-port exactly per Craft's real formula.
+- **Next step after those three**: Signs (done, then revised to match
+  Craft's real incremental `db.c` persistence more closely on request).
+- Then, asked "co dále?" (what's next) with the full remaining-gap list
+  from `CRAFT_PARITY.md`: **cursor capture** (match Craft — Esc releases
+  the cursor, doesn't quit), **fly controls** (match Craft's pitch-coupled
+  flight, no dedicated descend key), **fly speed** (exactly 4x, not 2x),
+  **chunk system** (pursue the unbounded/streamed world after all).
+  Plus two "no real tradeoff" fixes (exact pitch clamp, exact reach
+  distance) implemented without asking, same as the terrain-formula
+  session's own reasoning for what does/doesn't need a human decision.
 
-**plan.md §12.1 status as of this session's end** (23 items):
-- **19 `completed`**: everything from the prior session's 15, plus Cloud
-  removed from the hotbar, terrain formula re-ported, SQLite delta
-  persistence (blocks), Signs (data model + text-input state machine +
-  billboard rendering + persistence).
+**plan.md §12.1 status as of this session's end** (24 items):
+- **21 `completed`**: everything from before, plus item 24 (cursor
+  capture/quit, pitch clamp, fly speed, pitch-coupled flight, floor-catch
+  safety net, reach distance — all now Craft-exact).
 - **1 `blocked`**: ambient occlusion (needs a custom `ShaderEffect`, only
   real on EASYGL today).
 - **1 `pending (large)`**: Chat/slash-commands — shares the text-input
@@ -66,14 +74,18 @@ via `AskUserQuestion` — the user's answers (2026-07-10):
   world-editing primitives (`/cube`, `/sphere`, `/tree`, `/array`, `/copy`,
   `/paste`, etc.) that don't exist in this codebase yet.
 - **1 `pending`, explicitly deferred**: multiplayer, per project direction.
-- **1 `needs_human`**: chunk system redesign (hash-map + streaming) — is an
-  unbounded/streamed world even wanted, given the project's stated
-  fixed-size prototype scope?
+- **1 `pending (large)`**: chunk system redesign (hash-map + streaming) —
+  **user decision 2026-07-10: pursue it**, superseding the prior
+  `needs_human` framing. **Not started** — see §8 below; this is the
+  actual next task, but needs a real design pass first (new World/Chunk
+  storage model, on-demand generation/meshing, load/unload policy,
+  persistence-schema impact), not a same-shape port like item 24's fixes.
 
-This is a legitimate stop point: every item that was small enough to
-implement safely, and every item the user has given a decision on, has been
-implemented, tested, and verified; everything left needs either a further
-human decision or is large enough to deserve its own dedicated session.
+Item 24's fixes are a legitimate stop point on their own (small, safe,
+same-shape ports with no remaining ambiguity, all tested and verified).
+The chunk-system redesign is a different kind of task — large enough that
+it should get its own design/plan pass (see §8) rather than being rushed
+into the same session as item 24's fixes.
 
 ## 3. Recent changes (this session)
 
@@ -146,16 +158,45 @@ All individually committed and pushed to `develop`:
    window remain unreliable here — verified instead via the unit tests
    above plus code review, since `CnaCraftGame`'s wiring calls those same
    tested functions directly).
+6. **Minimized remaining Craft-fidelity gaps** (plan.md §12.1 item 24),
+   following the user's "co dále?" question and 4 more `AskUserQuestion`
+   answers. Five changes, all in `PlayerController`/`CnaCraftGame`: (a)
+   cursor capture — Escape now releases the cursor instead of quitting,
+   left-click while released re-captures instead of clicking, matching
+   Craft's `exclusive` model exactly (new `cursorCaptured_` member);
+   confirmed via `ps` that the process survives Escape now, where before
+   it would have exited; (b) pitch clamp changed from an approximate
+   `1.55f` to the exact `pi/2`; (c) fly speed changed from `9.0f` (2x
+   walk speed) to `18.0f` (exactly 4x, matching Craft's walk=5/fly=20
+   ratio); (d) flight is now pitch-coupled exactly like Craft's own
+   `get_motion_vector` — `PlayerInput::moveUp` and the Left Ctrl-descend
+   key are gone, there is genuinely no dedicated descend key anymore
+   (look down + move forward, or look up + move backward, to descend);
+   (e) `kMaxReach` changed from `6.0f` to `8.0f`, Craft's exact hit-test
+   distance. Also closed a real gap surfaced while re-reading Craft's
+   `handle_movement` for (d): Craft's own `y<0` floor-catch safety net
+   (`highest_block(...)+2`) had no equivalent at all — added
+   `World::HighestCollidableY` + a matching check in
+   `PlayerController::Update`. 5 new tests in `worlds_smoke_test.cpp` (now
+   173 checks): Space-forces-ascend, forward+look-down-descends,
+   pure-strafe-has-no-vertical-component, plus 3 for the floor-catch.
+   Verified against a real headless build under Xvfb: confirmed the
+   process survives Escape, confirmed a clean render (no crash/corruption)
+   via screenshot. The re-capture-on-click path could not be verified live
+   (same mouse-click flakiness as items 4-5) — verified via code review and
+   the fact that `PlayerController`'s side of every change is independently
+   unit-tested.
 
 Test count progression: 149 → 149 (Cloud/terrain-formula changes needed no
 new `Worlds/`-layer tests beyond existing threshold tests, which were
-updated in place) → 164 (Signs' SignStore + edit-recording tests) → 169 (RemoveAllAt) in
-`worlds_smoke_test`; separately, 0 → 18 in the new `persistence_smoke_test`.
+updated in place) → 164 (Signs' SignStore + edit-recording tests) → 169
+(RemoveAllAt) → 173 (item 24's fly/floor-catch tests) in
+`worlds_smoke_test`; separately, 0 → 18 → 21 in `persistence_smoke_test`.
 
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
-`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 169/169 +21/21 tests
+`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 173/173 +21/21 tests
 passing, zero compiler warnings.
 
 Carried over, still unresolved, still not urgent: mouse-look reliability
@@ -168,9 +209,9 @@ See `CRAFT_PARITY.md` for the authoritative, cited, per-feature list — read
 it before re-deriving anything from memory or re-reading Craft's source
 from scratch. Highlights of what's NOT done yet:
 
-- **`needs_human`**: chunk system (hash-map + streaming vs. fixed dense
-  grid — is an unbounded world even wanted, given the project's stated
-  fixed-size prototype scope in `plan.md` §1?).
+- **`pending (large)`, user-approved, not started**: chunk system redesign
+  (hash-map sparse chunks + distance-based streaming, replacing the fixed
+  dense grid) — see §8 below, this is the actual next task.
 - **`blocked`**: ambient occlusion — needs a custom vertex format +
   `ShaderEffect`, only real on EASYGL today (`missing.md`).
 - **`pending (large)`**: Chat/slash-commands — shares Signs' text-input
@@ -240,6 +281,32 @@ per-feature detail — this is just the "if you touch this again" summary):
   custom mesh, either follow that same both-windings shortcut or verify
   with vivid debug colors in a real build before trusting geometric
   reasoning alone.
+- `Worlds/PlayerController` (item 24): flying is now pitch-coupled exactly
+  like Craft's own `get_motion_vector` — **`PlayerInput::moveUp` is gone**,
+  there is no dedicated descend key. If you're tempted to add one back
+  ("it's more discoverable"), don't without asking first — this exact
+  tradeoff was already raised and the user explicitly chose Craft-fidelity
+  over discoverability. `kPitchLimit` is now the literal `pi/2` and
+  `kFlySpeed` is now literally `4 * kMoveSpeed` (`18.0f`) — if you ever
+  change `kMoveSpeed`, keep that ratio intentional, don't let it drift.
+- `Worlds/World::HighestCollidableY` (new, item 24) + the `y<0` check at
+  the end of `PlayerController::Update` — ports Craft's floor-catch safety
+  net. Deliberately does NOT reset `velocity_.y` after catching, matching
+  Craft's own (slightly odd but faithfully-ported) behavior — don't "fix"
+  this to also reset velocity without checking Craft's real code first.
+- `CnaCraftGame` (item 24): **Escape no longer quits** — it releases the
+  mouse cursor (`cursorCaptured_`), matching Craft exactly. There is no
+  in-game quit key in real Craft at all; quitting relies on CNA's own
+  `SDL_EVENT_QUIT -> Game::Exit()` (window close / Alt+F4), confirmed
+  already wired in `Game::PollEvents`. Left-click while released
+  re-captures the cursor instead of breaking/placing/eyedropping —
+  mouse-look and all three mouse buttons are gated on `cursorCaptured_` in
+  `Update()`; arrow-key look is deliberately NOT gated (matches Craft,
+  where arrow-key look lives in `handle_movement`'s `!g->typing` block,
+  entirely separate from `handle_mouse_input`'s `exclusive` gate). If you
+  add a new mouse-button action, gate it on `cursorCaptured_` too, or it'll
+  silently work while the cursor is released, unlike every other click
+  action.
 
 **Everything else** (module list, boundaries, data flow) — unchanged, see
 `plan.md` §2/§6/§8.
@@ -260,7 +327,7 @@ cmake -S . -B build-worlds -DCNA_CRAFT_BUILD_GAME=OFF -DBUILD_TESTING=ON
 cmake --build build-worlds -j"$(nproc)"
 ctest --test-dir build-worlds --output-on-failure
 ```
-Expect: `WorldsSmokeTest` (169 `ok:` lines) and `PersistenceSmokeTest`
+Expect: `WorldsSmokeTest` (173 `ok:` lines) and `PersistenceSmokeTest`
 (21 checks) both pass.
 
 ```bash
@@ -282,15 +349,33 @@ There is no separate lint/format tooling configured in this repo.
 `plan.md` §12.1 is the authoritative ordered priority queue. As of this
 session's end:
 
-1. **Dedicated follow-up session**: Chat/slash-commands (CRAFT_PARITY.md
+1. **The actual next task, user-approved but not started**: chunk system
+   redesign (hash-map sparse chunks + distance-based streaming, replacing
+   the fixed `128×64×128` dense grid) — CRAFT_PARITY.md §3.1/§3.2,
+   plan.md §12.1 item 19. This is a genuine architecture change, not a
+   same-shape port like item 24's fixes were — it touches `World`/`Chunk`'s
+   core storage model, `ChunkRenderer`'s per-chunk lifecycle, and
+   `Persistence::WorldStore`'s schema (Craft's real schema already has
+   `p,q` chunk-address columns this project's `block`/`sign` tables
+   currently drop — revisit that decision once chunks are actually
+   addressed by `(p,q)`). **Needs a real design pass before touching code**
+   — use `EnterPlanMode` or equivalent rather than diving straight into
+   edits, given the size and risk (this is exactly the kind of task this
+   project's own tooling guidance calls out for a plan first). Rough shape
+   to design around: chunk storage keyed by `(p,q)` in a hash map instead
+   of a fixed array; generate/mesh chunks on demand as the player moves
+   (matching Craft's own worker-thread streaming, or a simpler synchronous
+   version given this project's existing "no async worker" precedent from
+   `WorldStore`); an explicit load/unload radius; decide whether
+   `WORLD_SIZE_X/Y/Z` constants and every piece of code that assumes them
+   (spawn logic, cloud/tree/flower generation passes, raycast bounds) needs
+   to change shape or can stay column-local.
+2. **Dedicated follow-up session**: Chat/slash-commands (CRAFT_PARITY.md
    §4.5). The text-input state machine is now built and reusable (see
    `CnaCraftGame::Update`'s typing branch) — the remaining scope is Craft's
    world-editing macro commands (`/cube`, `/sphere`, `/tree`, `/array`,
    `/copy`, `/paste`, etc.), which need new world-editing primitives that
    don't exist in this codebase yet. Scope this as its own session.
-2. **Human decision needed**: chunk system redesign (hash-map + streaming)
-   — ask the user whether an unbounded/streamed world is actually wanted
-   before starting; it's a genuine architecture change, not a small patch.
 3. **Low priority, low value**: the other 5 Craft flower colors, Chest,
    dye-color palette — technically easy (same plant/cube infrastructure)
    but low gameplay value, explicitly deprioritized multiple sessions now.
@@ -300,9 +385,17 @@ session's end:
 Everything from prior sessions still applies (no multiplayer, no AO/
 greedy-meshing rewrite without a shader-backend decision, no broad
 `Worlds/`/`Render/` refactor, no `PlayerController` public-API changes
-without re-running the full suite, no `Hotbar::kSlots` reordering, no
-fly-speed constant change without a human decision) — **plus**:
+without re-running the full suite, no `Hotbar::kSlots` reordering) —
+**plus**:
 
+- **No chunk-system redesign without a design/plan pass first** — it's
+  user-approved to pursue, but "approved to pursue" is not the same as
+  "approved implementation approach." Don't start editing `World`/`Chunk`
+  for this without first proposing a concrete design (storage model,
+  streaming policy, persistence-schema impact) and getting it reviewed.
+- **No re-adding a dedicated fly-descend key** — this exact tradeoff
+  (discoverability vs. Craft-fidelity) was already raised and the user
+  chose Craft-fidelity (item 24). Don't second-guess it without asking.
 - **No rushed Chat/slash-commands implementation** — reuse the text-input
   state machine Signs built, but the world-editing macro commands are a
   real design/implementation effort, not a drive-by addition.
@@ -320,26 +413,31 @@ fly-speed constant change without a human decision) — **plus**:
   asymmetric `hit_test_face` without re-reading why the current symmetric
   convention was chosen deliberately (see `Sign.hpp`'s doc comment) — it's
   a reasoned difference, not a gap.
-- **No re-running the terrain formula change** — it's already done this
-  session (`NoiseGenerator::Height` now matches Craft exactly); don't
-  re-investigate this as if it were still open.
+- **No re-running the terrain-formula, fly-speed, pitch-clamp, or
+  reach-distance changes** — all already done (see §3 items 2 and 6); don't
+  re-investigate these as if they were still open.
 
 ## 10. Resume prompt
 
 ```
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
-as of the last session, 19 of 23 items are completed, 1 blocked
-(ambient occlusion), 1 pending-large (Chat/slash-commands), 1 pending
-deferred (multiplayer), 1 needs_human (chunk system redesign). There is no
-small pending item left that doesn't need either a human decision or a
-dedicated session. If the user wants Chat/slash-commands, reuse the
-text-input state machine already built for Signs (CnaCraftGame::Update's
-typing branch) rather than rebuilding it; the remaining scope is Craft's
-world-editing macro commands. If the user wants the chunk system
-redesigned, ask for confirmation first — it's a genuine architecture
-change. Before implementing anything that cites Craft's source code,
-re-verify the citation against the real checkout at
+as of the last session, 21 of 24 items are completed, 1 blocked (ambient
+occlusion), 1 pending-large (Chat/slash-commands), 1 pending deferred
+(multiplayer), 1 pending-large-user-approved-but-not-started (chunk system
+redesign, item 19 — the user chose to pursue an unbounded/streamed world
+after all on 2026-07-10, but no implementation has started). The chunk
+system redesign is the actual next task, but it's a genuine architecture
+change (new World/Chunk storage model, on-demand generation/meshing,
+load/unload policy, persistence-schema impact) — do NOT start editing code
+for it without a real design pass first (EnterPlanMode or equivalent), per
+this project's own "genuine architecture change" handling rule; see §8
+above for the rough shape to design around. If the user wants
+Chat/slash-commands instead, reuse the text-input state machine already
+built for Signs (CnaCraftGame::Update's typing branch) rather than
+rebuilding it; the remaining scope is Craft's world-editing macro commands.
+Before implementing anything that cites Craft's source code, re-verify the
+citation against the real checkout at
 /rv/data/development/github.com/other/Craft — CRAFT_PARITY.md was
 carefully audited but could still contain an error, same as every prior
 citation pass in this project's history. Make one small, verified

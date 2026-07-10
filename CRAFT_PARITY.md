@@ -45,20 +45,29 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Craft behavior**: GLFW window; cursor captured (`GLFW_CURSOR_DISABLED`) at startup
   (`main.c:2604`). Left-click when not exclusive **re-captures** the cursor
   (`on_mouse_button`, `main.c:2342-2344`); **Escape releases the cursor without quitting**
-  (`on_key`, `main.c:2199-2201`).
-- **cna-craft behavior**: SDL-backed `Keyboard`/`Mouse`. Relative mouse mode is set once in
-  `Initialize()` and never toggled. `Keys::Escape` calls `Exit()` directly — **quits the whole
-  app** (`CnaCraftGame.cpp:147-150`).
-- **Status**: partial
-- **Craft files**: `src/main.c` (`create_window`, `on_key`, `on_mouse_button`)
-- **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp:55-116, 147-150`
-- **Priority**: medium
-- **Verification method**: manual play test (press Escape; Craft releases the cursor, cna-craft
-  quits)
-- **Notes**: cna-craft's Escape-quits behavior is documented in `README.md` §5 as intentional
-  ("Esc | Quit"), so this is a **known, documented divergence**, not an oversight — flagged here
-  for completeness but changing it is a control-scheme decision (`needs_human` if pursued, since
-  README explicitly documents the current behavior).
+  (`on_key`, `main.c:2199-2201`). Mouse buttons (break/place/eyedropper/light-toggle) and
+  mouse-look are both inert while the cursor is released (`on_mouse_button`'s `exclusive` guard,
+  `handle_mouse_input`'s `exclusive` guard). There is no in-game quit key at all — closing the
+  window is the only way to quit.
+- **cna-craft behavior** (matched this session, user decision 2026-07-10): `cursorCaptured_`
+  (`CnaCraftGame.hpp`) tracks capture state. Escape releases the cursor
+  (`Mouse::setIsRelativeMouseModeEXTProperty(false)`) instead of quitting; left-click while
+  released re-captures it instead of breaking/placing/eyedropping on that same click; mouse-look
+  deltas are only applied while captured (arrow-key look still works either way, matching Craft's
+  own `handle_movement`, which isn't gated on `exclusive` at all). Quitting now relies on CNA's
+  own `SDL_EVENT_QUIT -> Game::Exit()` (window close / Alt+F4), confirmed already wired in
+  `Game::PollEvents` before removing the Escape-quit path.
+- **Status**: complete
+- **Craft files**: `src/main.c` (`create_window`, `on_key`, `on_mouse_button`, `handle_mouse_input`)
+- **cna-craft files**: `src/CnaCraft/CnaCraftGame.{hpp,cpp}`
+- **Priority**: medium (done)
+- **Verification method**: real headless build under Xvfb — confirmed the process stays alive
+  after Escape (previously it would exit); full test suite re-run (no PlayerController-side
+  regressions, this section is pure input-wiring glue).
+- **Notes**: Previously a **known, documented divergence** (README explicitly documented
+  Esc-quits as intentional) — changed after the user explicitly asked to minimize differences
+  from Craft, overriding the earlier documented-intentional status. `README.md` §5 updated to
+  match.
 
 ### 1.3 Keyboard controls
 - **Craft behavior** (`config.h:30-44`, `on_key`/`on_char`/`handle_movement`): W/A/S/D move;
@@ -67,82 +76,83 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   O/P = multiplayer observe cameras; arrow keys = keyboard look; Enter = chat/command submit,
   Ctrl+Enter = right-click; Ctrl+V = paste; Backspace = edit typing buffer; Esc = cancel
   typing/release cursor; `t`/`/`/`` ` `` = open chat/command/sign text entry.
-- **cna-craft behavior** (`CnaCraftGame.cpp:154-220`): W/A/S/D move; Space = jump/fly-up; Left
-  Ctrl = fly-down; Tab = fly toggle; arrows = keyboard look; Left Shift = hold-zoom; F =
-  hold-ortho; **E = next-slot only (no R/prev)**; **1-9 direct select (no key `0`, so only 9 of
-  15 slots reachable directly)**; **no scroll-wheel cycling**; F12 = screenshot (cna-craft-only
-  addition, not in Craft). No chat/command/sign typing system at all.
-- **Status**: partial
+- **cna-craft behavior** (`CnaCraftGame.cpp`, current as of this session): W/A/S/D move; Space =
+  jump / force ascend while flying (no dedicated descend key, matching Craft — see §1.6); Tab =
+  fly toggle; arrows = keyboard look (works even while the cursor is released); Left Shift =
+  hold-zoom; F = hold-ortho; E/R = next/prev item cycle; 1-9 and `0` = direct item select (10
+  slots); scroll wheel = item cycle; middle-click = eyedropper; backtick/Enter/Backspace/Esc =
+  sign text entry (§4.3); F12 = screenshot (cna-craft-only addition, not in Craft). Only Ctrl+click
+  light-toggle and the chat/command half of the typing system remain unported.
+- **Status**: complete (light-toggle and chat/commands tracked separately, §2.7/§4.5)
 - **Craft files**: `src/config.h:30-44`, `src/main.c` (`on_key`, `on_char`, `handle_movement`)
-- **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp:154-220`
-- **Priority**: high
+- **cna-craft files**: `src/CnaCraft/CnaCraftGame.{hpp,cpp}`
+- **Priority**: high (done)
 - **Verification method**: code inspection + manual play test
-- **Notes**: Missing: `R` (prev-cycle), scroll-wheel cycling, key `0` (10th direct slot — moot
-  today since cna-craft only has 9 number keys wired, but relevant once >9 slots need direct
-  access), middle-click block-pick, Ctrl+click light-toggle, entire chat/command/sign typing
-  system (large, separate feature — see §3).
+- **Notes**: `R` (prev-cycle), scroll-wheel cycling, key `0`, middle-click eyedropper, and sign
+  text entry were all implemented across this and prior sessions (see §2.1/§2.7/§4.3). Only
+  Ctrl+click light-toggle (needs a whole point-lighting subsystem, §2.7) and chat/slash-commands
+  (needs Craft's world-editing macros, §4.5) remain — both are their own larger features, not
+  small keyboard-wiring gaps, so they're tracked at their own sections rather than here.
 
 ### 1.4 Mouse look
 - **Craft behavior** (`handle_mouse_input`, `main.c:2378-2409`): delta from raw cursor-position
   diff each frame; sensitivity `m = 0.0025`; yaw wraps [0°,360°); pitch clamped to exactly
   ±90°; `INVERT_MOUSE` config flag (default off) flips vertical sign.
-- **cna-craft behavior** (`PlayerController.cpp:45-54`, `kMouseSensitivity=0.0025f`): reads an
+- **cna-craft behavior** (`PlayerController.cpp`, `kMouseSensitivity=0.0025f`): reads an
   already-relative mouse delta (SDL relative mode) each frame, same `0.0025` sensitivity; yaw
-  wraps [0, 2π); pitch clamped to ±1.55 rad (≈88.8°, not exactly 90°). No invert-mouse config.
+  wraps [0, 2π); pitch clamped to exactly ±π/2 (changed from an earlier ±1.55 rad/≈88.8°
+  approximation per user decision 2026-07-10 — `kPitchLimit` is now the literal
+  `1.57079632679489661923f`). No invert-mouse config.
 - **Status**: complete
 - **Craft files**: `src/main.c:2378-2409`
-- **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp:152,164-165`,
-  `src/CnaCraft/Worlds/PlayerController.cpp:45-54`
+- **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp`, `src/CnaCraft/Worlds/PlayerController.cpp`
 - **Priority**: low
-- **Verification method**: manual play test
-- **Notes**: Sensitivity matches exactly. Pitch clamp is ~1.2° tighter than Craft's exact ±90° —
-  cosmetic, not worth a task on its own.
+- **Verification method**: full test suite re-run (no regressions — the pitch-clamp constant is
+  only ever compared for exceeding-vs-not, not for an exact value, so tightening it by ~1.2°
+  couldn't break an existing assertion)
+- **Notes**: Sensitivity and pitch clamp both now match exactly.
 
 ### 1.5 Player movement (walk speed / diagonal movement)
 - **Craft behavior** (`get_motion_vector`, `main.c:204-232`): `strafe = atan2f(sz, sx)` from -1/0/1
   key axes; motion vector is `(cosf(rx+strafe), sinf(rx+strafe))` — **always a unit vector**
   regardless of how many keys are held, so diagonal movement is not faster. Walk speed = 5
   units/s; fly speed = 20 units/s (**exactly 4x** walk speed). No sprint mechanic exists anywhere.
-- **cna-craft behavior** (`PlayerController.cpp:13-21, 81-82`): `moveX/moveZ` are the **unnormalized
-  sum** of independent forward/right axis contributions — pressing two movement keys at once
-  (e.g. W+D) yields a combined vector of magnitude ≈1.41x a single-axis vector, i.e. **diagonal
-  movement is ~41% faster than straight movement** — a real bug relative to Craft. `kMoveSpeed=4.5`,
-  `kFlySpeed=9.0` — ratio is **2x, not 4x**; the code's own comment at `PlayerController.cpp:14`
-  claims "matches Craft's flying speed being 4x" but the actual chosen constants give 2x — the
-  comment is factually wrong.
-- **Status**: partial (real bug)
+- **cna-craft behavior** (`PlayerController.cpp`): `moveX/moveZ` are now normalized before scaling
+  by speed (fixed a prior session), so diagonal movement is not faster. `kMoveSpeed=4.5`,
+  `kFlySpeed=18.0` — **exactly 4x**, matching Craft's own ratio (changed from an earlier 9.0f/2x
+  value per user decision 2026-07-10).
+- **Status**: complete
 - **Craft files**: `src/main.c:204-232, 2411-2469`
-- **cna-craft files**: `src/CnaCraft/Worlds/PlayerController.cpp:13-21, 56-104`
-- **Priority**: high
-- **Verification method**: unit test comparing travel distance for straight vs. diagonal input
-  over equal `dt`
-- **Notes**: **Diagonal-speed normalization implemented this session** (the actual bug — see §6
-  below). The separate `kFlySpeed` 2x-vs-4x ratio mismatch was **left as-is, not changed to 18.0**:
-  unlike the diagonal-speed bug (objectively wrong relative to Craft's own math, no judgment
-  call), fly speed is a subjective tuning value with no broken mechanic to fix — doubling it is a
-  gameplay-feel decision, not a bug fix, so it's `needs_human` if revisited. Only the
-  misleading in-code comment was corrected to state the actual 2x ratio and explain why it wasn't
-  changed.
+- **cna-craft files**: `src/CnaCraft/Worlds/PlayerController.cpp`
+- **Priority**: high (done)
+- **Verification method**: full test suite re-run (no regressions)
+- **Notes**: Diagonal-speed normalization and the exact fly-speed ratio are both now Craft-exact.
 
 ### 1.6 Walking vs flying behavior
 - **Craft behavior**: Tab toggles `g->flying`. While flying, forward/back movement is
   **pitch-coupled** — `vy = sinf(ry)` contributes vertical motion when moving forward/back while
-  looking up/down (classic "look-and-fly" creative flight), and Space directly sets `vy=1`
-  (pure hover climb, no gravity/inertia, `dy=0` forced every substep while flying).
-- **cna-craft behavior**: Tab toggles `flying_` (zeroes `velocity_.y`). Horizontal movement in
-  fly mode uses the **same forward/right basis as walking** (not pitch-coupled); vertical motion
-  is a **separate dedicated axis** (Space=+1, Left Ctrl=-1) scaled by `kFlySpeed`, uncollided.
-- **Status**: partial
+  looking up/down (classic "look-and-fly" creative flight), strafing alone has no vertical
+  component, and Space directly sets `vy=1` (pure hover climb, no gravity/inertia, `dy=0` forced
+  every substep while flying). There is no dedicated descend key at all.
+- **cna-craft behavior** (matched this session, user decision 2026-07-10): Tab toggles `flying_`.
+  `PlayerController::Update` now ports `get_motion_vector`'s flying branch exactly — horizontal
+  speed scales by `cos(pitch)` and picks up a `sin(pitch)` vertical component (flipped when
+  moving backward) when moving forward/back, full horizontal speed with no vertical component
+  when purely strafing, and `input.jumpPressed` (Space) unconditionally overrides the computed
+  vertical speed with a full-speed ascend. `PlayerInput::moveUp` and the Left Ctrl-descend key
+  were removed — there is no dedicated descend key now, matching Craft.
+- **Status**: complete
 - **Craft files**: `src/main.c:204-232, 2250-2252, 2432-2465`
-- **cna-craft files**: `src/CnaCraft/Worlds/PlayerController.cpp:32, 64-79`,
-  `src/CnaCraft/CnaCraftGame.cpp:159-163,193-200`
-- **Priority**: medium
-- **Verification method**: manual play test
-- **Notes**: cna-craft's Space/Ctrl vertical-axis scheme is a different (and arguably more
-  discoverable/standard) control scheme than Craft's pitch-coupled flight, already documented in
-  `README.md` §5 controls table as the current design. Changing to match Craft exactly is a
-  control-scheme decision — `needs_human` if pursued, per the "do not change control scheme
-  without updating README" rule and since README already documents current behavior as intended.
+- **cna-craft files**: `src/CnaCraft/Worlds/PlayerController.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.cpp`
+- **Priority**: medium (done)
+- **Verification method**: 3 new unit tests (Space-forces-ascend, forward+look-down descends,
+  pure-strafe-has-no-vertical-component-even-pitched) plus the full suite re-run; a real headless
+  build + Xvfb smoke run confirmed no crash/regression in the interactive loop.
+- **Notes**: Previously a **known, documented divergence** (cna-craft's Space/Ctrl scheme was
+  arguably more discoverable, and README documented it as the intended design) — changed after
+  the user explicitly asked to minimize differences from Craft, overriding the earlier
+  documented-intentional status. `README.md` §5 updated to match; losing Left Ctrl-descend is a
+  real, intentional control change flagged there.
 
 ### 1.7 Collision behavior
 - **Craft behavior** (`collide`, `main.c:699-738`): per-substep (`step = MAX(8, estimate)`
@@ -172,17 +182,21 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   grounded check) while not flying; gravity `dy -= ut*25` per substep, clamped to a **terminal
   velocity of -250 units/s**; any vertical collision resets `dy=0`; a hard floor-catch:
   `if (s->y < 0) s->y = highest_block(...) + 2`.
-- **cna-craft behavior** (`PlayerController.cpp:15-21, 84-103`): explicit `grounded_` flag gates
-  jumping; `kJumpSpeed=8.0f` and `kGravity=25.0f` — **both match Craft exactly** (a prior
-  session's user-reported jump-height bugfix deliberately matched these). **No terminal-velocity
-  clamp** — `velocity_.y` grows unbounded during a long fall. **No `y<0` floor-catch fallback**.
-- **Status**: partial
+- **cna-craft behavior** (`PlayerController.cpp`): explicit `grounded_` flag gates jumping;
+  `kJumpSpeed=8.0f` and `kGravity=25.0f` — **both match Craft exactly** (a prior session's
+  user-reported jump-height bugfix deliberately matched these). Terminal-velocity clamp
+  (`kTerminalVelocity=-250.0f`) matches Craft exactly. `World::HighestCollidableY` +
+  `PlayerController::Update`'s post-substep-loop `y<0` check now port Craft's own floor-catch
+  fallback exactly, including not resetting velocity afterward.
+- **Status**: complete
 - **Craft files**: `src/main.c:2411-2469`
-- **cna-craft files**: `src/CnaCraft/Worlds/PlayerController.cpp:15-21, 84-103`
-- **Priority**: medium
-- **Verification method**: unit test measuring fall speed after N seconds vs. Craft's -250 cap
-- **Notes**: **Implemented this session** (terminal velocity clamp) — see §5 below. Jump speed
-  (8) and gravity (25) were already exact matches from a prior session.
+- **cna-craft files**: `src/CnaCraft/Worlds/PlayerController.cpp`, `src/CnaCraft/Worlds/World.{hpp,cpp}`
+- **Priority**: medium (done)
+- **Verification method**: unit tests for both the terminal-velocity clamp and the new floor-catch
+  (drop a player to y=-5 over generated terrain, confirm one Update() call snaps them to
+  `HighestCollidableY+2`).
+- **Notes**: Jump speed, gravity, terminal velocity, and the floor-catch safety net are all now
+  exact matches.
 
 ### 1.9 Other player-control behavior (zoom/ortho/arrow-look/sprint/crouch)
 - **Craft behavior**: no sprint, no crouch, no view bobbing anywhere in `main.c`. Arrow-key look
@@ -252,14 +266,16 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   used only for sign placement.
 - **cna-craft behavior** (`VoxelRaycast::Cast`): true Amanatides-Woo DDA — analytic `tMax`/`tDelta`
   per axis, returns an explicit `RaycastHit{x,y,z,nx,ny,nz}` with face normal computed directly.
-  `kMaxReach=6.0f` (vs Craft's hardcoded 8).
-- **Status**: complete (algorithmically equivalent-or-better; reach distance differs slightly)
+  `kMaxReach=8.0f` (`CnaCraftGame.cpp`) — changed from an earlier 6.0f approximation per user
+  decision 2026-07-10, now matching Craft's hardcoded 8 exactly.
+- **Status**: complete (algorithmically equivalent-or-better, and now reach-exact too)
 - **Craft files**: `src/main.c:603-664`
-- **cna-craft files**: `src/CnaCraft/Worlds/VoxelRaycast.{hpp,cpp}`
+- **cna-craft files**: `src/CnaCraft/Worlds/VoxelRaycast.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.cpp`
 - **Priority**: low
-- **Verification method**: constant comparison (`kMaxReach=6` vs Craft's `8`)
+- **Verification method**: constant comparison (`kMaxReach=8`, matches Craft's `8` exactly);
+  full test suite re-run (no regressions — no existing test asserts an exact reach boundary).
 - **Notes**: cna-craft's DDA is a genuine algorithmic improvement over Craft's march-and-round —
-  not a gap. Reach distance (6 vs 8) is a minor numeric mismatch, low priority.
+  not a gap. Reach distance now matches exactly too.
 
 ### 2.4 Visible targeted-block behavior (wireframe outline)
 - **Craft behavior** (`render_wireframe`, `main.c:1734-1752`; `make_cube_wireframe`,
@@ -757,17 +773,17 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | # | Feature | Status | Priority |
 |---|---|---|---|
 | 1.1 | Main game loop | complete | low |
-| 1.2 | Window/cursor capture | partial | medium (needs_human: documented divergence) |
-| 1.3 | Keyboard controls | partial | high |
-| 1.4 | Mouse look | complete | low |
-| 1.5 | Player movement (diagonal speed) | **fixed this session** | high |
-| 1.6 | Walking vs flying | partial | medium (needs_human: control-scheme choice) |
-| 1.7 | Collision (substepping) | **fixed this session** | high |
-| 1.8 | Gravity/jump (terminal velocity) | **fixed this session** | medium |
+| 1.2 | Window/cursor capture (**fixed this session**) | complete | medium |
+| 1.3 | Keyboard controls | complete | high |
+| 1.4 | Mouse look (**pitch clamp fixed this session**) | complete | low |
+| 1.5 | Player movement (diagonal speed + **fly-speed 4x fixed this session**) | complete | high |
+| 1.6 | Walking vs flying (**pitch-coupled flight fixed this session**) | complete | medium |
+| 1.7 | Collision (substepping) | complete | high |
+| 1.8 | Gravity/jump (terminal velocity + **floor-catch fixed this session**) | complete | medium |
 | 1.9 | Zoom/ortho/arrow-look | complete | low |
 | 2.1 | Hotbar switching (0/R/scroll) | **fixed this session** | medium |
 | 2.2 | Block roster (Cloud fidelity **fixed this session**) | partial | medium |
-| 2.3 | Raycast algorithm | complete | low |
+| 2.3 | Raycast algorithm (**reach fixed this session, 6->8**) | complete | low |
 | 2.4 | Wireframe selection outline | **fixed this session** | high |
 | 2.5 | Block breaking (Bedrock protection) | **fixed this session** | critical |
 | 2.6 | Block placing (self-intersection) | **fixed this session** | critical |

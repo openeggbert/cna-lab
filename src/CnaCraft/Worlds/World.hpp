@@ -60,6 +60,12 @@ public:
     // left-click handler; meshing/occlusion/collision are unaffected.
     [[nodiscard]] bool IsBreakable(int x, int y, int z) const;
 
+    // Highest y at (x,z) where IsCollidable is true, or -1 if the column has
+    // no collidable blocks at all — ports Craft's own `highest_block`
+    // (main.c), used by PlayerController's `y<0` floor-catch safety net
+    // (CRAFT_PARITY.md §1.8).
+    [[nodiscard]] int HighestCollidableY(int x, int z) const;
+
     // Player-driven-edit persistence (CRAFT_PARITY.md §4.1/§4.2, ports
     // Craft's delta-storage model — a `block(p,q,x,y,z,w)` SQLite table
     // storing only edits over the regenerated procedural terrain; this

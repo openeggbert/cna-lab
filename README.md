@@ -61,12 +61,11 @@ cmake --build build --target CnaCraft
 | Key               | Action                              |
 |-------------------|--------------------------------------|
 | W / A / S / D     | Move / strafe                        |
-| Mouse             | Look (yaw / pitch)                   |
-| Arrow keys        | Look (yaw / pitch) — keyboard alternative to the mouse |
-| Space             | Jump (game mode) / fly up (fly mode) |
-| Left Ctrl         | Fly down (fly mode only)             |
-| Tab               | Toggle fly mode (no gravity, free vertical movement) |
-| Left click        | Break block (Bedrock is protected — cannot be broken) |
+| Mouse             | Look (yaw / pitch), while the cursor is captured |
+| Arrow keys        | Look (yaw / pitch) — keyboard alternative to the mouse, works even while the cursor is released |
+| Space             | Jump (game mode) / force full ascend (fly mode) |
+| Tab               | Toggle fly mode (no gravity; while flying, movement is pitch-coupled — look up/down while moving forward/back to climb/descend, matching real Craft; there is no dedicated descend key) |
+| Left click        | Break block (Bedrock is protected — cannot be broken); if the cursor is released, re-captures it instead |
 | Ctrl + Left click | Place block instead of breaking (same as Right click) |
 | Right click       | Place block (currently selected type); blocked if it would overlap your own position |
 | Middle click      | Eyedropper — select the hotbar slot matching the targeted block's type |
@@ -79,13 +78,17 @@ cmake --build build --target CnaCraft
 | ` (backtick)      | Start typing a sign on the targeted block face |
 | Enter             | Submit the sign being typed           |
 | Backspace         | Delete the last character while typing a sign |
-| Esc               | While typing a sign: cancel. Otherwise: quit |
+| Esc               | While typing a sign: cancel. Otherwise: release the mouse cursor (matches Craft — there is no in-game quit key; close the window to quit) |
 
 A crosshair and the currently-selected hotbar item (e.g. `#4/16 Stone`, with a
 `[FLYING]` indicator while flying) are drawn on screen; both are also printed
 to the console when they change. While typing a sign, WASD/mouse-look/click
 input is suspended (gravity still applies) and the in-progress text is shown
 on screen above the hotbar.
+
+The mouse cursor is released (not quit) by pressing Esc, matching real Craft — mouse-look and
+mouse-button actions (break/place/eyedropper) stop working until you left-click to re-capture it.
+There is no in-game quit key; close the window (or Alt+F4) to exit.
 
 Placed signs render as a small text billboard on the block face they were
 attached to and are saved/restored the same way as block edits (below).

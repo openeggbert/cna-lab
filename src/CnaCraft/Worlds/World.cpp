@@ -89,6 +89,13 @@ bool World::IsBreakable(int x, int y, int z) const {
     return def.solid && def.breakable;
 }
 
+int World::HighestCollidableY(int x, int z) const {
+    for (int y = WORLD_SIZE_Y - 1; y >= 0; --y) {
+        if (IsCollidable(x, y, z)) return y;
+    }
+    return -1;
+}
+
 namespace {
 // Craft's create_world (world.c) uses a beach rule: `if (h <= t) { h = t;
 // w = SAND; }` with t=12 -- low-elevation columns become an entirely

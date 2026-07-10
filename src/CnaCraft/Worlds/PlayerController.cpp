@@ -11,13 +11,10 @@ constexpr float kEyeHeight = 1.7f;
 constexpr float kPlayerHalfWidth = 0.3f;
 constexpr float kPlayerHeight = 1.8f;
 constexpr float kMoveSpeed = 4.5f;
-// NOTE (CRAFT_PARITY.md §1.5): this is 2x kMoveSpeed, not 4x. Craft's own
-// ratio is 4x (walk=5, fly=20, main.c). Left as-is rather than doubled to
-// 18.0 -- unlike the jump-height fix (2127b8c, a literal "can't clear a
-// step" bug), fly-speed is a subjective tuning value with no broken
-// mechanic to fix, so changing it is a gameplay-feel decision, not a bug
-// fix; marked needs_human in CRAFT_PARITY.md/plan.md §12.1 if revisited.
-constexpr float kFlySpeed = 9.0f;
+// Exactly 4x kMoveSpeed (CRAFT_PARITY.md §1.5), matching Craft's own
+// walk=5/fly=20 ratio (main.c) -- changed from an earlier 2x value
+// (9.0f) per user decision 2026-07-10 to minimize differences from Craft.
+constexpr float kFlySpeed = 18.0f;
 constexpr float kGravity = 25.0f;
 // Craft clamps fall speed to -250 units/s (`dy = MAX(dy, -250)`, main.c) so a
 // long fall doesn't accelerate forever; ported as-is (CRAFT_PARITY.md §1.8).
@@ -28,7 +25,10 @@ constexpr float kTerminalVelocity = -250.0f;
 // (`dy = 8` in src/main.c) against the same gravity=25, giving 64/50=1.28
 // blocks -- comfortably enough margin. Matched here.
 constexpr float kJumpSpeed = 8.0f;
-constexpr float kPitchLimit = 1.55f; // ~89 degrees
+// Exactly Craft's own clamp (`s->ry = MAX(s->ry, -RADIANS(90)); MIN(...,
+// RADIANS(90))`, main.c:handle_mouse_input) -- changed from an earlier
+// 1.55f (~89 degrees) approximation per user decision 2026-07-10.
+constexpr float kPitchLimit = 1.57079632679489661923f; // exactly pi/2
 
 // Collision substepping (CRAFT_PARITY.md §1.7): Craft explicitly breaks a
 // frame's movement into `step = MAX(8, estimate)` substeps (main.c,
@@ -108,7 +108,33 @@ void PlayerController::Update(const World& world, const PlayerInput& input, floa
         moveRightInput *= invLen;
     }
 
-    const float speed = flying_ ? kFlySpeed : kMoveSpeed;
+    // Pitch-coupled flight (CRAFT_PARITY.md §1.6): ports Craft's own
+    // get_motion_vector's flying branch exactly (main.c) -- there is no
+    // dedicated descend key in real Craft at all. Moving forward/back while
+    // flying scales horizontal speed by cos(pitch) and adds a vertical
+    // component of sin(pitch) (flipped when moving backward, since backward
+    // is away from where you're looking); strafing alone (no forward/back
+    // input) uses full horizontal speed and has no vertical component at
+    // all. Space (input.jumpPressed) then unconditionally overrides this
+    // computed vertical speed with a full-speed ascend, matching Craft's own
+    // `if (flying) vy = 1` after get_motion_vector.
+    float flyHorizontalScale = 1.0f;
+    float flyVerticalFraction = 0.0f;
+    if (flying_ && (moveForwardInput != 0.0f || moveRightInput != 0.0f)) {
+        flyHorizontalScale = std::cos(pitch_);
+        flyVerticalFraction = std::sin(pitch_);
+        const bool strafing = moveRightInput != 0.0f;
+        const bool movingForwardOrBack = moveForwardInput != 0.0f;
+        if (strafing) {
+            if (!movingForwardOrBack) flyVerticalFraction = 0.0f;
+            flyHorizontalScale = 1.0f;
+        }
+        if (moveForwardInput < 0.0f) flyVerticalFraction = -flyVerticalFraction;
+    }
+    float flyVerticalSpeed = flyVerticalFraction * kFlySpeed;
+    if (flying_ && input.jumpPressed) flyVerticalSpeed = kFlySpeed;
+
+    const float speed = flying_ ? kFlySpeed * flyHorizontalScale : kMoveSpeed;
     const float moveX = (forwardX * moveForwardInput + rightX * moveRightInput) * speed;
     const float moveZ = (forwardZ * moveForwardInput + rightZ * moveRightInput) * speed;
 
@@ -116,7 +142,7 @@ void PlayerController::Update(const World& world, const PlayerInput& input, floa
     // kMinSubsteps/kMaxSubsteps comment above) -- Craft's own formula
     // (main.c) scales substep count with total estimated speed * dt; ported
     // with the same shape, using this project's own speed constants.
-    const float verticalSpeedEstimate = flying_ ? (input.moveUp * kFlySpeed) : velocity_.y;
+    const float verticalSpeedEstimate = flying_ ? flyVerticalSpeed : velocity_.y;
     const float totalSpeedEstimate =
         std::sqrt(moveX * moveX + verticalSpeedEstimate * verticalSpeedEstimate + moveZ * moveZ);
     const int estimate = static_cast<int>(std::round(totalSpeedEstimate * dt * 8.0f));
@@ -127,17 +153,17 @@ void PlayerController::Update(const World& world, const PlayerInput& input, floa
         Core::Vec3f next = position_;
 
         if (flying_) {
-            // Fly mode (plan.md §11.4): no gravity, free vertical movement.
-            // Horizontal axes still collide with the world (matches
-            // house3d_demo.cpp's fly branch); vertical does not, so the
-            // player can fly through floors/ceilings on purpose.
+            // Fly mode (plan.md §11.4): no gravity. Horizontal axes still
+            // collide with the world (matches house3d_demo.cpp's fly
+            // branch); vertical does not, so the player can fly through
+            // floors/ceilings on purpose.
             next.x = position_.x + moveX * subDt;
             if (CollidesAt(world, next)) next.x = position_.x;
 
             next.z = position_.z + moveZ * subDt;
             if (CollidesAt(world, Core::Vec3f{next.x, position_.y, next.z})) next.z = position_.z;
 
-            next.y = position_.y + input.moveUp * kFlySpeed * subDt;
+            next.y = position_.y + flyVerticalSpeed * subDt;
             grounded_ = false;
         } else {
             // Jump impulse and grounded state are only ever set/consumed
@@ -170,6 +196,20 @@ void PlayerController::Update(const World& world, const PlayerInput& input, floa
         }
 
         position_ = next;
+    }
+
+    // Floor-catch safety net (CRAFT_PARITY.md §1.8): ports Craft's own
+    // `if (s->y < 0) s->y = highest_block(s->x, s->z) + 2` (main.c), a
+    // last-resort recovery if the player ever ends up below the world.
+    // Checked once per Update() call, same as Craft's own placement (after
+    // the substep loop, not inside it). Matched exactly, including not
+    // resetting velocity_.y afterward -- a genuine last-resort net, not
+    // expected to trigger during normal play now that y=0 is always solid
+    // Bedrock (World::Generate).
+    if (position_.y < 0.0f) {
+        const int nx = static_cast<int>(std::round(position_.x));
+        const int nz = static_cast<int>(std::round(position_.z));
+        position_.y = static_cast<float>(world.HighestCollidableY(nx, nz) + 2);
     }
 }
 

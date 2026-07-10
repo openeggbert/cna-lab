@@ -1022,22 +1022,72 @@ void TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement() {
     Check(std::abs(player.EyePosition().y - flyStartY) < 0.01f,
           "flying with no vertical input does not fall (no gravity while flying)");
 
+    // Craft's flying has no dedicated descend key at all (CRAFT_PARITY.md
+    // §1.6, user decision 2026-07-10: match Craft's real pitch-coupled
+    // flight) -- Space (jumpPressed) always forces a full-speed ascend
+    // regardless of look direction or movement input.
     PlayerInput riseInput;
-    riseInput.moveUp = 1.0f;
+    riseInput.jumpPressed = true;
     for (int i = 0; i < 60; ++i) player.Update(world, riseInput, 1.0f / 60.0f);
-    Check(player.EyePosition().y > flyStartY, "moveUp=1 while flying rises");
+    Check(player.EyePosition().y > flyStartY,
+          "Space forces a full ascend while flying, matching Craft's own vy=1 override");
 
     const float risenY = player.EyePosition().y;
-    PlayerInput sinkInput;
-    sinkInput.moveUp = -1.0f;
-    for (int i = 0; i < 60; ++i) player.Update(world, sinkInput, 1.0f / 60.0f);
-    Check(player.EyePosition().y < risenY, "moveUp=-1 while flying descends");
+    // Descending requires looking down and moving forward (or looking up
+    // and moving backward) -- there is no dedicated key, matching Craft's
+    // own get_motion_vector flying branch exactly.
+    PlayerInput lookDown;
+    lookDown.lookDeltaPitch = -1.0f; // radians, well within the +-pi/2 clamp
+    player.Update(world, lookDown, 1.0f / 60.0f);
+    PlayerInput descendInput;
+    descendInput.moveForward = 1.0f;
+    for (int i = 0; i < 60; ++i) player.Update(world, descendInput, 1.0f / 60.0f);
+    Check(player.EyePosition().y < risenY,
+          "moving forward while looking down descends while flying (no dedicated descend key, matches Craft)");
 
     player.ToggleFlying();
     Check(!player.IsFlying(), "ToggleFlying() again switches back to game mode");
     const float backToGameY = player.EyePosition().y;
     player.Update(world, noInput, 1.0f / 60.0f);
     Check(player.EyePosition().y < backToGameY, "gravity resumes after leaving fly mode");
+
+    // Pure strafing (no forward/back input) has no vertical component even
+    // while pitched -- matches Craft's own `if (sx) { if (!sz) y = 0; ...}`
+    // special case (a fresh PlayerController to isolate this from the
+    // accumulated pitch/position state above).
+    PlayerController strafer(Vec3f{static_cast<float>(WORLD_SIZE_X) / 2.0f, 32.0f,
+                                    static_cast<float>(WORLD_SIZE_Z) / 2.0f});
+    strafer.ToggleFlying();
+    PlayerInput straferLookDown;
+    straferLookDown.lookDeltaPitch = -1.0f;
+    strafer.Update(world, straferLookDown, 1.0f / 60.0f);
+    const float strafeStartY = strafer.EyePosition().y;
+    PlayerInput strafeInput;
+    strafeInput.moveRight = 1.0f;
+    for (int i = 0; i < 60; ++i) strafer.Update(world, strafeInput, 1.0f / 60.0f);
+    Check(std::abs(strafer.EyePosition().y - strafeStartY) < 0.01f,
+          "pure strafing while flying has no vertical component even while pitched down, matching Craft");
+}
+
+void TestPlayerControllerFloorCatchSafetyNet() {
+    // CRAFT_PARITY.md §1.8: ports Craft's own
+    // `if (s->y < 0) s->y = highest_block(s->x, s->z) + 2` (main.c) -- a
+    // last-resort recovery if the player ever ends up below the world.
+    World world;
+    world.Generate(1234);
+    const int testX = WORLD_SIZE_X / 2;
+    const int testZ = WORLD_SIZE_Z / 2;
+    const int expectedHighest = world.HighestCollidableY(testX, testZ);
+    Check(expectedHighest >= 0, "sanity check: generated terrain has a collidable column at the test coordinates");
+
+    PlayerController player(
+        Vec3f{static_cast<float>(testX) + 0.5f, -5.0f, static_cast<float>(testZ) + 0.5f});
+    Check(player.EyePosition().y < 0.0f, "sanity check: the player starts below the world");
+
+    PlayerInput noInput;
+    player.Update(world, noInput, 1.0f / 60.0f);
+    Check(std::abs(player.EyePosition().y - (static_cast<float>(expectedHighest + 2) + 1.7f)) < 0.1f,
+          "falling below y=0 snaps the player to 2 blocks above the highest collidable block, matching Craft");
 }
 
 }
@@ -1073,6 +1123,7 @@ int main() {
     TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging();
     TestPlayerControllerIntersectsBlockGuardsPlacement();
     TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement();
+    TestPlayerControllerFloorCatchSafetyNet();
 
     if (g_failures == 0) {
         std::printf("\nAll checks passed.\n");

@@ -36,7 +36,10 @@ constexpr float kPiOver4 = 0.78539816339744830962f;
 // relationship instead.
 constexpr float kZoomFov = 0.26179938779914943654f; // 15 degrees, in radians
 constexpr float kMouseSensitivity = 0.0025f;
-constexpr float kMaxReach = 6.0f;
+// Matches Craft's own hardcoded hit-test distance exactly (main.c) --
+// changed from an earlier 6.0f approximation per user decision 2026-07-10
+// to minimize differences from Craft.
+constexpr float kMaxReach = 8.0f;
 constexpr std::uint32_t kWorldSeed = 1337;
 // Orthographic toggle (plan.md §11.4): also hold-to-activate in Craft
 // (`g->ortho = ... ? 64 : 0`), not a toggle despite the backlog's wording.
@@ -276,13 +279,13 @@ void CnaCraftGame::Update(GameTime& gameTime) {
         return;
     }
 
-    // Edge-triggered (not level-triggered) so cancelling sign typing with
-    // Escape doesn't also quit the game on the next frame if the key is
-    // still physically held down.
-    if (escapeDown && !escapeWasDown_) {
-        escapeWasDown_ = escapeDown;
-        Exit();
-        return;
+    // Cursor capture (CRAFT_PARITY.md §1.2): matches Craft's own on_key --
+    // Escape releases the mouse cursor rather than quitting (see
+    // CnaCraftGame.hpp's cursorCaptured_ comment for why this doesn't
+    // strand the player with no way to quit).
+    if (escapeDown && !escapeWasDown_ && cursorCaptured_) {
+        cursorCaptured_ = false;
+        Mouse::setIsRelativeMouseModeEXTProperty(false);
     }
     escapeWasDown_ = escapeDown;
 
@@ -293,17 +296,26 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     if (kb.IsKeyDown(Keys::S)) input.moveForward -= 1.0f;
     if (kb.IsKeyDown(Keys::D)) input.moveRight += 1.0f;
     if (kb.IsKeyDown(Keys::A)) input.moveRight -= 1.0f;
+    // Space, in both modes: jump (game mode) / force full ascend (fly mode
+    // -- PlayerController now flies pitch-coupled like Craft's own
+    // get_motion_vector, with no dedicated descend key at all, matching
+    // Craft exactly per user decision 2026-07-10; see PlayerController.hpp).
     input.jumpPressed = kb.IsKeyDown(Keys::Space);
-    // Fly mode only (PlayerController ignores this in game mode): Space rises,
-    // Left Ctrl descends. Left Shift is left free for the "Zoom" backlog item.
-    if (kb.IsKeyDown(Keys::Space)) input.moveUp += 1.0f;
-    if (kb.IsKeyDown(Keys::LeftControl)) input.moveUp -= 1.0f;
-    input.lookDeltaYaw = static_cast<float>(mouse.getXProperty()) * kMouseSensitivity;
-    input.lookDeltaPitch = -static_cast<float>(mouse.getYProperty()) * kMouseSensitivity;
+    // Mouse-look is gated on cursor capture (CRAFT_PARITY.md §1.2): matches
+    // Craft's own handle_mouse_input, which only applies mouse deltas while
+    // `exclusive` (cursor captured) -- moving the OS cursor around while
+    // released must not spin the camera.
+    if (cursorCaptured_) {
+        input.lookDeltaYaw = static_cast<float>(mouse.getXProperty()) * kMouseSensitivity;
+        input.lookDeltaPitch = -static_cast<float>(mouse.getYProperty()) * kMouseSensitivity;
+    }
     // Arrow keys as a keyboard alternative to mouse-look (some players don't
     // want to use the mouse for turning; also more reliable to test than
     // relative mouse motion). Additive with the mouse deltas above, same
     // rotSpeed formula as house3d_demo.cpp's Left/Right/Up/Down turning.
+    // NOT gated on cursor capture -- matches Craft's own arrow-key look,
+    // which lives inside handle_movement's `if (!g->typing)` block, entirely
+    // separate from handle_mouse_input's `exclusive` gate.
     const float rotSpeed = 1.6f * dt;
     if (kb.IsKeyDown(Keys::Left)) input.lookDeltaYaw -= rotSpeed;
     if (kb.IsKeyDown(Keys::Right)) input.lookDeltaYaw += rotSpeed;
@@ -393,59 +405,72 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     const bool rightDown = mouse.getRightButtonProperty() == ButtonState::Pressed;
     const bool middleDown = mouse.getMiddleButtonProperty() == ButtonState::Pressed;
 
-    // Middle-click "eyedropper" (CRAFT_PARITY.md §2.7): selects the hotbar
-    // slot matching the targeted block's type, ports Craft's real
-    // on_middle_click. Silently does nothing if the target isn't in the
-    // placeable roster (e.g. Bedrock), matching Craft's own behavior.
-    if (hit && middleDown && !middleClickWasDown_) {
-        hotbar_.SelectByBlockType(world_.GetBlock(hit->x, hit->y, hit->z));
-    }
-    middleClickWasDown_ = middleDown;
-
     if (hotbar_.SelectedIndex() != previousHotbarIndex) {
         std::printf("Selected block: %s\n", Worlds::GetBlockName(hotbar_.Selected()));
         std::fflush(stdout);
         rebuildHud();
     }
 
-    // Place the selected block adjacent to `hit`'s face, rejecting a
-    // placement that would overlap the player's own body (CRAFT_PARITY.md
-    // §2.6, ports Craft's on_right_click `!player_intersects_block` guard).
-    // Uses SetBlockAndRecordEdit (CRAFT_PARITY.md §4.1/§4.2), not plain
-    // SetBlock, so this player-driven change gets persisted.
-    const auto tryPlaceBlock = [&]() {
-        const int px = hit->x + hit->nx, py = hit->y + hit->ny, pz = hit->z + hit->nz;
-        if (!player_->IntersectsBlock(px, py, pz)) {
-            world_.SetBlockAndRecordEdit(px, py, pz, hotbar_.Selected());
+    if (!cursorCaptured_) {
+        // Cursor released (CRAFT_PARITY.md §1.2): matches Craft's own
+        // on_mouse_button exactly -- every mouse button is inert while
+        // released, except left-click, which just re-captures the cursor
+        // instead of breaking/placing/eyedropping on that same click.
+        if (leftDown && !leftClickWasDown_) {
+            cursorCaptured_ = true;
+            Mouse::setIsRelativeMouseModeEXTProperty(true);
         }
-    };
+    } else {
+        // Middle-click "eyedropper" (CRAFT_PARITY.md §2.7): selects the
+        // hotbar slot matching the targeted block's type, ports Craft's
+        // real on_middle_click. Silently does nothing if the target isn't
+        // in the placeable roster (e.g. Bedrock), matching Craft's own
+        // behavior.
+        if (hit && middleDown && !middleClickWasDown_) {
+            hotbar_.SelectByBlockType(world_.GetBlock(hit->x, hit->y, hit->z));
+        }
 
-    // CRAFT_PARITY.md §2.7: Ctrl+left-click acts as right-click (place)
-    // instead of break, matching Craft's real on_mouse_button
-    // (`control ? on_right_click() : on_left_click()` for the left button).
-    const bool ctrlDown = kb.IsKeyDown(Keys::LeftControl) || kb.IsKeyDown(Keys::RightControl);
+        // Place the selected block adjacent to `hit`'s face, rejecting a
+        // placement that would overlap the player's own body
+        // (CRAFT_PARITY.md §2.6, ports Craft's on_right_click
+        // `!player_intersects_block` guard). Uses SetBlockAndRecordEdit
+        // (CRAFT_PARITY.md §4.1/§4.2), not plain SetBlock, so this
+        // player-driven change gets persisted.
+        const auto tryPlaceBlock = [&]() {
+            const int px = hit->x + hit->nx, py = hit->y + hit->ny, pz = hit->z + hit->nz;
+            if (!player_->IntersectsBlock(px, py, pz)) {
+                world_.SetBlockAndRecordEdit(px, py, pz, hotbar_.Selected());
+            }
+        };
 
-    if (hit && leftDown && !leftClickWasDown_) {
-        if (ctrlDown) {
-            tryPlaceBlock();
-        } else if (world_.IsBreakable(hit->x, hit->y, hit->z)) {
-            // CRAFT_PARITY.md §2.5: only break blocks World::IsBreakable
-            // allows (ports Craft's `is_destructable` guard in
-            // on_left_click) — Bedrock, a cna-craft-only "world-boundary,
-            // not meant to be placed" block, could previously be mined
-            // away with no protection at all.
-            world_.SetBlockAndRecordEdit(hit->x, hit->y, hit->z, Worlds::BlockType::Air);
-            // A sign can't outlive the block face it was attached to --
-            // matches Craft's own _set_block calling unset_sign() whenever
-            // a block is set to type 0 (src/main.c).
-            if (signStore_.RemoveAllAt(hit->x, hit->y, hit->z)) {
-                worldStore_->DeleteSignsAt(hit->x, hit->y, hit->z);
-                signsNeedRebuild_ = true;
+        // CRAFT_PARITY.md §2.7: Ctrl+left-click acts as right-click (place)
+        // instead of break, matching Craft's real on_mouse_button
+        // (`control ? on_right_click() : on_left_click()` for the left
+        // button).
+        const bool ctrlDown = kb.IsKeyDown(Keys::LeftControl) || kb.IsKeyDown(Keys::RightControl);
+
+        if (hit && leftDown && !leftClickWasDown_) {
+            if (ctrlDown) {
+                tryPlaceBlock();
+            } else if (world_.IsBreakable(hit->x, hit->y, hit->z)) {
+                // CRAFT_PARITY.md §2.5: only break blocks World::IsBreakable
+                // allows (ports Craft's `is_destructable` guard in
+                // on_left_click) — Bedrock, a cna-craft-only
+                // "world-boundary, not meant to be placed" block, could
+                // previously be mined away with no protection at all.
+                world_.SetBlockAndRecordEdit(hit->x, hit->y, hit->z, Worlds::BlockType::Air);
+                // A sign can't outlive the block face it was attached to --
+                // matches Craft's own _set_block calling unset_sign()
+                // whenever a block is set to type 0 (src/main.c).
+                if (signStore_.RemoveAllAt(hit->x, hit->y, hit->z)) {
+                    worldStore_->DeleteSignsAt(hit->x, hit->y, hit->z);
+                    signsNeedRebuild_ = true;
+                }
             }
         }
-    }
-    if (hit && rightDown && !rightClickWasDown_) {
-        tryPlaceBlock();
+        if (hit && rightDown && !rightClickWasDown_) {
+            tryPlaceBlock();
+        }
     }
 
     // Save any new edits right away (CRAFT_PARITY.md §4.1/§4.2) -- no-op
@@ -457,6 +482,7 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     worldStore_->SaveEdits(world_);
     leftClickWasDown_ = leftDown;
     rightClickWasDown_ = rightDown;
+    middleClickWasDown_ = middleDown;
 
     if (signsNeedRebuild_) {
         signBillboard_.Rebuild(getGraphicsDeviceProperty(), signStore_.Signs());

@@ -100,6 +100,16 @@ private:
     int targetedBlockY_ = 0;
     int targetedBlockZ_ = 0;
 
+    // Cursor capture (CRAFT_PARITY.md §1.2, user decision 2026-07-10: match
+    // Craft's real behavior). Escape releases the cursor rather than
+    // quitting; left-click while released re-captures it instead of
+    // breaking/placing on that same click -- matches Craft's own
+    // exclusive/on_mouse_button model exactly. There is no in-game quit key
+    // in real Craft at all; closing the window (Alt+F4 / the X button) is
+    // the only way to quit, already handled by CNA's own
+    // SDL_EVENT_QUIT -> Game::Exit().
+    bool cursorCaptured_ = true;
+
     bool leftClickWasDown_ = false;
     bool rightClickWasDown_ = false;
     bool middleClickWasDown_ = false;

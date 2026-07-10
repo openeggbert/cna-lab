@@ -879,10 +879,15 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     exist in this codebase either. Recommended as its own dedicated follow-up task.
 18. `pending`, explicitly deferred — **Multiplayer** (CRAFT_PARITY.md §4.6): per project
     direction, not started before local single-player + persistence are stable.
-19. `needs_human` — **Chunk system redesign** (CRAFT_PARITY.md §3.1/§3.2): hash-map sparse
+19. `pending` (large) — **Chunk system redesign** (CRAFT_PARITY.md §3.1/§3.2): hash-map sparse
     chunks + distance-based streaming, replacing the fixed dense grid — a genuine architecture
-    change, not a quick task; scoping it is a product decision (does cna-craft want an unbounded
-    world at all, given its "small fixed-size prototype" design goal in §1?).
+    change, not a quick task. **User decision (2026-07-10)**: pursue an unbounded world after all
+    (supersedes the original `needs_human` framing above, which asked whether this was even
+    wanted). Not started — needs its own design pass (new World/Chunk storage model, chunk
+    generation/meshing on demand as the player moves, load/unload policy, persistence-schema
+    impact on `Persistence::WorldStore`) before implementation, per this project's own "genuine
+    architecture change" handling rule; tracked as its own follow-up, not bundled into item 24's
+    same-shape-port fixes.
 20. `completed` — **Middle-click eyedropper** (CRAFT_PARITY.md §2.7): new `Hotbar::
     SelectByBlockType(type)`, wired to the middle mouse button in `CnaCraftGame::Update` using the
     same per-frame raycast as break/place/outline. Ports Craft's real `on_middle_click` exactly
@@ -933,6 +938,49 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     needed updating (not a wide-reaching test rewrite) — 148 checks total, all still passing.
     Verified visually against a real EasyGL build (terrain, wireframe outline, and a visible tree
     all rendered correctly with the new formula, no corruption or extreme spikes).
+24. `completed` — **Minimize remaining Craft-fidelity gaps** (CRAFT_PARITY.md §1.2/§1.4/§1.5/§1.6/
+    §1.8/§2.3). **User decision (2026-07-10)**, made after being asked "co dále?" (what's next)
+    and given the remaining gap list from CRAFT_PARITY.md: match Craft exactly on every item that
+    was previously a pure control-scheme/tuning choice, even where the cna-craft-only alternative
+    was arguably more discoverable and already documented as intentional in `README.md`. Five
+    changes:
+    - **Cursor capture / quit (§1.2)**: Escape now releases the mouse cursor
+      (`Mouse::setIsRelativeMouseModeEXTProperty(false)`) instead of calling `Exit()`; left-click
+      while released re-captures it instead of breaking/placing/eyedropping on that same click
+      (new `cursorCaptured_` member, gates mouse-look and all three mouse buttons in
+      `CnaCraftGame::Update`, matching Craft's real `on_mouse_button`/`handle_mouse_input`
+      `exclusive` guard exactly). There is no in-game quit key in real Craft at all — confirmed
+      `SDL_EVENT_QUIT -> Game::Exit()` is already wired in CNA's `Game::PollEvents` before removing
+      the Escape-quit path, so closing the window (Alt+F4/the X button) still works.
+    - **Pitch clamp (§1.4)**: `kPitchLimit` changed from an approximate `1.55f` to the exact
+      `pi/2`, matching Craft's own `MAX(s->ry, -RADIANS(90))`/`MIN(..., RADIANS(90))` exactly.
+    - **Fly speed (§1.5)**: `kFlySpeed` changed from `9.0f` (2x `kMoveSpeed`) to `18.0f` (exactly
+      4x), matching Craft's own walk=5/fly=20 ratio.
+    - **Pitch-coupled flight (§1.6)**: `PlayerController::Update` now ports Craft's real
+      `get_motion_vector` flying branch exactly instead of the prior separate Space/Ctrl vertical
+      axis — horizontal speed scales by `cos(pitch)` and gains a `sin(pitch)` vertical component
+      (flipped when moving backward) while moving forward/back, full horizontal speed with zero
+      vertical component while purely strafing, and Space (`jumpPressed`) unconditionally forces a
+      full-speed ascend. `PlayerInput::moveUp` and the Left Ctrl-descend key are gone — **there is
+      no dedicated descend key now**, matching Craft (look down + move forward, or look up + move
+      backward, to descend). 3 new unit tests (Space-forces-ascend, forward+look-down-descends,
+      pure-strafe-has-no-vertical-component).
+    - **Reach distance (§2.3)**: `kMaxReach` changed from `6.0f` to `8.0f`, matching Craft's
+      hardcoded max hit-test distance exactly.
+    Also closed a real gap surfaced while re-reading Craft's `handle_movement` for the flying
+    rewrite: Craft's own `if (s->y < 0) s->y = highest_block(s->x, s->z) + 2` floor-catch safety
+    net (§1.8) had no cna-craft equivalent at all. New `World::HighestCollidableY(x,z)` (ports
+    Craft's own `highest_block`) plus a matching check at the end of
+    `PlayerController::Update` close this, including not resetting velocity afterward, matching
+    Craft's own (imperfect but faithful) behavior exactly. 1 new unit test (drop a player to
+    y=-5 over generated terrain, confirm one `Update()` call snaps them to `HighestCollidableY+2`).
+    Total: 5 new unit tests, 169 checks in `worlds_smoke_test.cpp`. **Verified end-to-end against
+    a real headless build**: confirmed the process stays alive after Escape (previously it would
+    exit), confirmed a clean render with no regressions via screenshot, full test suite re-run (no
+    regressions in the substepping/tunneling/jump-height/diagonal-speed physics tests this touches
+    adjacent code to). `README.md` §5 updated (Esc behavior, fly controls, mouse-look gating) and
+    `CRAFT_PARITY.md` §1.2/§1.3/§1.4/§1.5/§1.6/§1.8/§2.3 updated from their prior stale
+    `partial`/`needs_human` statuses to `complete`.
 
 ### 12.2 Deliberately not re-litigated this session
 
@@ -942,9 +990,16 @@ arguably better than Craft's), collision rules for solid/transparent/collidable 
 culling (§3.4), mesh generation strategy (§3.5), transparent-block rules (§3.6), trees (§3.8),
 clouds (§3.10), day/night lighting (§5.4).
 
-Per CRAFT_PARITY.md, these are documented, deliberate divergences with a real trade-off, not bugs
-— left as `needs_human` rather than auto-"fixed" since a human already made (or should confirm) a
-call: window/cursor-capture-vs-quit-on-Escape behavior (§1.2, README already documents Esc=Quit),
-walking/flying control scheme (§1.6, README already documents the current Space/Ctrl scheme),
-chunk system being fixed-size rather than infinite (§3.1/§3.2, `plan.md` §1 already scopes this
-as a deliberate prototype boundary).
+Two former entries here — window/cursor-capture-vs-quit-on-Escape (§1.2) and walking/flying
+control scheme (§1.6) — were resolved by item 24 above (2026-07-10 user decision to match Craft
+exactly on both, overriding their prior "already documented as intentional" status). One
+remains, still a genuine architecture question rather than a bug fix:
+
+- **Chunk system being fixed-size rather than infinite** (§3.1/§3.2, `plan.md` §1 already scopes
+  this as a deliberate prototype boundary) — **User decision (2026-07-10, same "minimize
+  differences" session as item 24)**: pursue the unbounded/streamed world after all, superseding
+  item 19's original `needs_human` status. **Not started yet as of this note** — deliberately kept
+  out of item 24's batch since it's a genuine multi-part architecture change (hash-map chunk
+  storage, distance-based load/unload, a new World/Chunk data model), not a same-shape port like
+  items 24's fixes were. Needs its own design pass before implementation — see item 19 for the
+  scope breakdown.

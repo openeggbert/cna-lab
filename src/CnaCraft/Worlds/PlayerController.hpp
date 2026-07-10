@@ -9,8 +9,10 @@ class World;
 struct PlayerInput {
     float moveForward = 0.0f;   // -1..1
     float moveRight = 0.0f;     // -1..1
-    float moveUp = 0.0f;        // -1..1, fly mode only (ignored in game mode)
-    bool jumpPressed = false;   // game mode only (ignored in fly mode)
+    // Space, in both modes -- matches Craft's own CRAFT_KEY_JUMP double duty
+    // (main.c: jump when grounded and not flying, force full ascend when
+    // flying). Ignored in game mode unless grounded.
+    bool jumpPressed = false;
     float lookDeltaYaw = 0.0f;   // radians, already scaled by mouse sensitivity
     float lookDeltaPitch = 0.0f; // radians, already scaled by mouse sensitivity
 };
@@ -19,11 +21,15 @@ struct PlayerInput {
 // collision, the same shape as house3d_demo.cpp's game-mode controller,
 // adapted to query World::IsSolid instead of a static box list (plan.md §6).
 //
-// Also supports house3d_demo.cpp's Fly mode (plan.md §11.4): no gravity,
-// free vertical movement (moveUp, uncollided like house3d_demo's fly branch),
-// horizontal movement still collides with the world. Toggle is edge-detected
-// by the caller (CnaCraftGame tracks the Tab key) and applied via
-// ToggleFlying() — PlayerInput itself carries no mode-switch flag.
+// Fly mode (plan.md §11.4, CRAFT_PARITY.md §1.6): no gravity, horizontal
+// movement still collides with the world. Vertical movement is
+// pitch-coupled, matching Craft's own get_motion_vector's flying branch
+// exactly (main.c) -- there is no dedicated descend key in real Craft at
+// all: looking up/down while moving forward/back trades horizontal speed
+// for climb/descend, strafing alone has no vertical component, and Space
+// always forces a full-speed ascend regardless of pitch. Toggle is
+// edge-detected by the caller (CnaCraftGame tracks the Tab key) and applied
+// via ToggleFlying() — PlayerInput itself carries no mode-switch flag.
 class PlayerController {
 public:
     explicit PlayerController(Core::Vec3f startFeetPosition);
