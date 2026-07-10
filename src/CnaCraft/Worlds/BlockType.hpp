@@ -130,7 +130,17 @@ constexpr BlockDef GetBlockDef(BlockType type) {
         case BlockType::DarkStone:   return BlockDef{true, 15, 15, 15};
         case BlockType::Snow:        return BlockDef{true, 11, 12, 2};
         case BlockType::Glass:       return BlockDef{true, 16, 16, 16, /*transparent=*/true};
-        case BlockType::Cloud:       return BlockDef{true, 17, 17, 17, /*transparent=*/false, /*collidable=*/false};
+        // Cloud matches Craft's real item.c guards on BOTH axes: not an
+        // obstacle (collidable=false -- is_obstacle(CLOUD)==0, walk/fly
+        // through, and nothing can be placed against it, on_right_click's
+        // is_obstacle(hw) guard) and not destructable (breakable=false --
+        // is_destructable(CLOUD)==0, can't be mined, can't take a light
+        // toggle, and builder commands won't erase it). breakable was
+        // wrongly left at its default true until 2026-07-10 (plan.md §12.1
+        // item 32, user-reported).
+        case BlockType::Cloud:
+            return BlockDef{true, 17, 17, 17, /*transparent=*/false, /*collidable=*/false,
+                             /*breakable=*/false};
         case BlockType::Leaves:      return BlockDef{true, 18, 18, 18, /*transparent=*/true};
         case BlockType::TallGrass:
             return BlockDef{true, 19, 19, 19, /*transparent=*/true, /*collidable=*/false,

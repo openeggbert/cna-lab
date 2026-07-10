@@ -1376,6 +1376,37 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     self-corrected the saved row within a second; a fresh-world launch screenshot shows a normal
     ground-level first-person view with the targeted-block outline working. The user does NOT need
     to delete `world.db` — the heal is automatic.
+32. `completed` — **Port both halves of Craft's cloud interaction guards** (CRAFT_PARITY.md
+    §2.5/§2.6), user-reported 2026-07-10 ("proc mohu bloky stavet na mracich?" — why can I build
+    blocks on clouds?). Honest history first, since the user asked whether this had been promised:
+    clouds were NOT among the 12 differences in this session's player-facing audit and no explicit
+    promise about them was made today — but CRAFT_PARITY.md §2.6 (written in a prior session)
+    quoted both halves of Craft's placement guard in its Craft-behavior line, then only listed the
+    player-overlap half on the cna-craft side, and still said `complete`. That was a genuine audit
+    error: the implicit claim "placement matches Craft" was false. Two real gaps, from Craft's
+    `item.c`/`main.c` (re-verified against the checkout before changing anything):
+    - **Placement (`is_obstacle`, the reported bug)**: Craft's `on_right_click` requires
+      `is_obstacle(hw)` — the block being placed AGAINST must be an obstacle, and
+      `is_obstacle(CLOUD)==0` (plants too), so nothing can be built on/against clouds or plant
+      billboards in real Craft. cna-craft's `tryPlaceBlock` only had the player-overlap half;
+      the raycast happily hits a Cloud (solid/hit-testable), so placement against it succeeded.
+      Fixed with one guard line: `if (!world_.IsCollidable(hit...)) return;` — `IsCollidable` is
+      this project's exact `is_obstacle` equivalent (already false for Cloud and plants), so the
+      single check covers clouds AND plants, precisely like Craft's own predicate.
+    - **Breaking (`is_destructable`, found while fixing the above)**: `is_destructable(CLOUD)==0`
+      in Craft — clouds can't be mined. Cloud's `BlockDef` had wrongly left `breakable` at its
+      default `true`. Flipping it to `false` also automatically corrected two more paths that
+      route through the same `IsBreakable` predicate: the light toggle (its guard mirrors
+      `on_light`'s `is_destructable` check — clouds no longer accept lights, matching Craft) and
+      `WorldEditor::PaintBlock` (ports `builder_block`, whose erase is `is_destructable`-gated —
+      an Air paint now leaves a cloud in place while a non-Air paint still overwrites it, Craft's
+      exact net behavior).
+    4 new checks (Cloud unbreakable + Stone-control + both PaintBlock-over-cloud behaviors) — 299
+    in `worlds_smoke_test` (up from 295), persistence unchanged at 40. Verified via clean
+    `build-worlds` + full EasyGL builds; the placement-guard wiring itself is CnaCraftGame glue
+    over the already-unit-tested `IsCollidable` predicate (same verification split as item 21's
+    Ctrl+click-as-place), and live click verification remains unavailable in this sandbox (mouse
+    clicks unreliable, long-documented).
 
 ### 12.2 Deliberately not re-litigated this session
 

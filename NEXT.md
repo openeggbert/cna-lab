@@ -77,6 +77,18 @@ persistent stutter: `SavePlayerState` ran every frame with two fsyncing
 SQLite transactions per call (~120 fsyncs/s); now throttled to once per
 second in a single transaction. See item 31's plan.md writeup.
 
+**Then the user asked why blocks can be built on clouds** — fixed as **item
+32**: `tryPlaceBlock` had only ported HALF of Craft's `on_right_click`
+guard (the player-overlap check), missing the `is_obstacle(hw)` half that
+makes clouds and plants unbuildable-against in real Craft; and Cloud's
+`BlockDef` had wrongly left `breakable` at its default `true` (Craft's
+`is_destructable(CLOUD)==0`), which the same fix corrected — with the free
+side effect that light toggles and `/cube`-erases on clouds are now also
+correctly rejected (both route through `IsBreakable`). Notably, this was a
+prior-session **audit error owned in CRAFT_PARITY.md §2.6's notes**: the
+entry quoted both halves of Craft's guard, ported one, and still claimed
+`complete`. See item 32's plan.md writeup.
+
 ## 1. Project summary
 
 CNA Craft is a first-person voxel-world game/prototype, built entirely on
@@ -132,21 +144,23 @@ correctly in the message log, confirmed the log persists after the typing
 box closes, confirmed Sign typing is unaffected by the `TypingMode`
 generalization).
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **295 checks, all
+**Test status**: `tests/worlds_smoke_test.cpp` — **299 checks, all
 passing** (up from 267 before this audit's follow-up work; 173 at the start
 of the chunk-redesign session). Plus `cna_craft_persistence_smoke_test` —
 **40 checks, all passing** (up from 30). Both build and run standalone with
 `-DCNA_CRAFT_BUILD_GAME=OFF`.
 
-**plan.md §12.1 status as of this session's end** (31 items):
+**plan.md §12.1 status as of this session's end** (32 items):
 - **29 `completed`**: everything from before, plus item 26 (arrow-key
   speed, plant rotation, sign winding, player-position persistence — four
   small audit follow-ups), item 27 (light toggle, Ctrl+right-click, via
   a glow-pass design pivot), item 28 (invisible-window-on-startup +
   glow-pass perf fixes), item 29 (Minecraft-style flight/look controls),
-  item 30 (exact-π/2 pitch clamp degenerating the view matrix), and item
+  item 30 (exact-π/2 pitch clamp degenerating the view matrix), item
   31 (player entombment at spawn + per-frame SQLite fsync stutter — the
-  two regressions behind the user's "still broken" reports; see §3 below).
+  two regressions behind the user's "still broken" reports), and item 32
+  (both halves of Craft's cloud guards: is_obstacle on placement,
+  is_destructable on breaking — see §3 below).
 - **1 `blocked`**: ambient occlusion (needs a custom `ShaderEffect`, only
   real on EASYGL today) — user has chosen to implement this for EASYGL
   only when picked up.
@@ -428,10 +442,24 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     a second); fresh-world launch screenshot shows a normal ground-level
     view. Users do NOT need to delete `world.db`.
 
+16. **Port both halves of Craft's cloud guards** (plan.md §12.1 item 32) —
+    user asked why blocks can be built on clouds. Two real gaps, both
+    verified against the Craft checkout before changing anything:
+    `tryPlaceBlock` was missing the `is_obstacle(hw)` half of Craft's
+    `on_right_click` guard (fixed with one line — `IsCollidable` on the
+    targeted block, which is already false for Cloud AND plants, exactly
+    like Craft's own predicate), and Cloud's `BlockDef` wrongly left
+    `breakable` at its default `true` (Craft: `is_destructable(CLOUD)==0`),
+    which also auto-corrected the light-toggle and `/cube`-erase paths
+    (both route through `IsBreakable`). This was a prior-session audit
+    error, owned explicitly in CRAFT_PARITY.md §2.6's notes: the entry
+    quoted both halves of Craft's guard, ported one, and still claimed
+    complete. 4 new checks — 299 total.
+
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
-`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 295/295 + 40/40 tests
+`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 299/299 + 40/40 tests
 passing, zero compiler warnings.
 
 Carried over, still unresolved, still not urgent: mouse-look reliability
@@ -741,7 +769,7 @@ asymmetric scheme) — **plus**:
 ```
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
-as of the last session, 29 of 31 items are completed (including item 19,
+as of the last session, 30 of 32 items are completed (including item 19,
 the chunk-system redesign; item 25, the full 54-item block roster; item 17,
 chat/slash world-editing commands; item 26, four small parity-audit
 follow-ups — arrow-key speed, plant rotation, sign winding, player-position
@@ -750,9 +778,11 @@ pivot; item 28, invisible-window-on-startup + glow-pass perf fixes; item 29,
 Minecraft-style flight/look controls replacing item 24's earlier same-day
 Craft-exact scheme, per direct user request; item 30, a real
 rendering-corruption bug fix — an exact-π/2 pitch clamp degenerating
-`Matrix::CreateLookAt`, exposed by items 24+29 compounding; and item 31,
-player entombment at spawn + per-frame SQLite fsync stutter). **If you
-touch `PlayerController::kPitchLimit`, read item 30 first — don't set it
+`Matrix::CreateLookAt`, exposed by items 24+29 compounding; item 31,
+player entombment at spawn + per-frame SQLite fsync stutter; and item 32,
+both halves of Craft's cloud guards — is_obstacle on placement,
+is_destructable on breaking). **If you touch
+`PlayerController::kPitchLimit`, read item 30 first — don't set it
 back to the literal exact π/2. If you touch Initialize()'s spawn loading,
 UpdateStreaming's ordering, or HealPlayerIfEmbedded, read item 31 first —
 the one-synchronous-column arrangement is the settled midpoint of two real

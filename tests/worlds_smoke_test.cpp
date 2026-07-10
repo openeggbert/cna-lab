@@ -992,6 +992,28 @@ void TestChunkMesherCloudIsOpaqueButNotCollidable() {
     Check(world.IsOpaque(5, 5, 5), "Cloud is opaque (occludes neighbor faces, unlike Glass)");
     Check(!world.IsCollidable(5, 5, 5), "Cloud is not collidable (the player walks through it)");
     Check(world.IsCollidable(6, 5, 5), "a normal Stone neighbor is still collidable");
+
+    // Real bug fix (user-reported 2026-07-10, plan.md §12.1 item 32): both
+    // of Craft's cloud guards, not just the collision one. is_destructable
+    // (CLOUD)==0 in Craft's item.c -- clouds can't be mined (and, since the
+    // light-toggle and builder-command guards route through the same
+    // predicate, can't take a light toggle or be erased by /cube either).
+    // IsCollidable==false above doubles as Craft's is_obstacle(CLOUD)==0
+    // placement guard: CnaCraftGame's tryPlaceBlock rejects placement
+    // against any non-collidable target, so nothing can be built on clouds.
+    Check(!world.IsBreakable(5, 5, 5), "Cloud is not breakable, matching Craft's is_destructable(CLOUD)==0");
+    Check(world.IsBreakable(6, 5, 5), "a normal Stone neighbor is still breakable");
+
+    // WorldEditor::PaintBlock ports Craft's builder_block exactly: the
+    // is_destructable-gated erase skips a cloud (an Air paint leaves it
+    // untouched), but a non-Air paint still overwrites unconditionally --
+    // the same net behavior Craft's own `/cube` has over a cloud cell.
+    WorldEditor::PaintBlock(world, 5, 5, 5, BlockType::Air);
+    Check(world.GetBlock(5, 5, 5) == BlockType::Cloud,
+          "PaintBlock with Air leaves a Cloud in place (builder_block's is_destructable-gated erase)");
+    WorldEditor::PaintBlock(world, 5, 5, 5, BlockType::Stone);
+    Check(world.GetBlock(5, 5, 5) == BlockType::Stone,
+          "PaintBlock with a non-Air type still overwrites a Cloud (builder_block sets w unconditionally)");
 }
 
 void TestChunkMesherEmitsGlowMeshForLightSourceBlocks() {

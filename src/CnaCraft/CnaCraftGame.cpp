@@ -886,6 +886,18 @@ void CnaCraftGame::Update(GameTime& gameTime) {
         // set_block in on_right_click -- every successful placement updates
         // mark0_/mark1_, the anchor points /cube, /sphere, etc. read.
         const auto tryPlaceBlock = [&]() {
+            // Craft's on_right_click guard has TWO halves (main.c:2157-2158):
+            // `is_obstacle(hw)` -- the block being placed AGAINST must be an
+            // obstacle -- AND `!player_intersects_block(...)`. IsCollidable
+            // is this project's exact is_obstacle equivalent (false for
+            // Cloud and plants, mirroring item.c), so nothing can be built
+            // on/against a cloud or a grass/flower billboard, same as real
+            // Craft. The is_obstacle half was missing until 2026-07-10
+            // (plan.md §12.1 item 32, user-reported "why can I build on
+            // clouds?") -- CRAFT_PARITY.md §2.6 had quoted both halves of
+            // Craft's guard, then only ported the player-overlap half while
+            // still marking the entry complete.
+            if (!world_.IsCollidable(hit->x, hit->y, hit->z)) return;
             const int px = hit->x + hit->nx, py = hit->y + hit->ny, pz = hit->z + hit->nz;
             if (!player_->IntersectsBlock(px, py, pz)) {
                 world_.SetBlockAndRecordEdit(px, py, pz, hotbar_.Selected());

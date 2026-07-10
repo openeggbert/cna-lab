@@ -339,14 +339,21 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   block directly above is a plant, it's also destroyed (support-chain reaction).
 - **cna-craft behavior** (`CnaCraftGame.cpp`): on left-click, casts a ray; only breaks if
   `World::IsBreakable(hit->x,hit->y,hit->z)` is true (`World.cpp`: `solid && breakable`, false for
-  Bedrock specifically — a cna-craft-only "world-boundary, not meant to be placed" block, protected
-  from mining as its own doc comment intends).
+  Bedrock — a cna-craft-only "world-boundary" block — **and, fixed 2026-07-10 (plan.md §12.1 item
+  32), also false for Cloud**, matching `is_destructable(CLOUD)==0`; Cloud's `BlockDef` had wrongly
+  left `breakable` at its default `true`, so clouds were minable here while real Craft's never
+  are. Since the light-toggle guard (§2.7) and the builder-command erase (`WorldEditor::
+  PaintBlock`, §4.5) route through this same predicate, the one flag fix also stopped clouds
+  accepting light toggles and being erased by `/cube`-style commands, both matching Craft).
 - **Status**: complete
 - **Craft files**: `src/main.c:2140-2151`, `src/item.c:191-199`
-- **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp`, `src/CnaCraft/Worlds/World.{hpp,cpp}`
+- **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp`, `src/CnaCraft/Worlds/World.{hpp,cpp}`,
+  `src/CnaCraft/Worlds/BlockType.hpp`
 - **Priority**: critical (done)
-- **Verification method**: unit test (`World::IsBreakable` returns false for Bedrock); manual test
-  — mine to the world floor, left-click the bottom layer, confirm it doesn't break
+- **Verification method**: unit tests (`World::IsBreakable` false for Bedrock and for Cloud;
+  `PaintBlock` leaves a Cloud in place on an Air paint but overwrites it on a non-Air paint,
+  builder_block's exact net behavior); manual test — mine to the world floor, left-click the
+  bottom layer, confirm it doesn't break
 - **Notes**: Implemented in an earlier session. No plant-support chain reaction (moot — Craft's
   version only matters because a plant sitting on a now-broken block would otherwise float;
   cna-craft's own plants aren't currently placed by world-gen directly above ordinary breakable
@@ -357,16 +364,27 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   is_obstacle(hw)`, **and** `!player_intersects_block(2, s->x,s->y,s->z, hx,hy,hz)` — placement
   is blocked if it would intersect the player's own bounding box (radius 2).
 - **cna-craft behavior** (`CnaCraftGame.cpp`, the shared `tryPlaceBlock` lambda): on right-click
-  (or Ctrl+left-click, §2.7), casts a ray; only places if
-  `!player_->IntersectsBlock(px,py,pz)` — rejects a placement that would overlap the player's own
-  AABB, same guard Craft's `on_right_click` has.
+  (or Ctrl+left-click, §2.7), casts a ray; places only if BOTH halves of Craft's guard pass —
+  `World::IsCollidable(hit)` on the block being placed against (this project's exact
+  `is_obstacle` equivalent: false for Cloud and plants, so nothing can be built on/against a
+  cloud or a grass/flower billboard) AND `!player_->IntersectsBlock(px,py,pz)` (rejects a
+  placement overlapping the player's own AABB).
 - **Status**: complete
 - **Craft files**: `src/main.c:2153-2163`
 - **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp`, `src/CnaCraft/Worlds/PlayerController.{hpp,cpp}`
 - **Priority**: critical (done)
-- **Verification method**: unit test (`TestPlayerControllerIntersectsBlockGuardsPlacement`); manual
-  test — look straight down at your own feet, right-click, confirm placement is blocked
-- **Notes**: Implemented in an earlier session.
+- **Verification method**: unit test (`TestPlayerControllerIntersectsBlockGuardsPlacement`;
+  `IsCollidable(Cloud)==false` is unit-tested and is the predicate the new guard consumes —
+  the guard wiring itself is CnaCraftGame glue, covered by code review per this project's usual
+  split); manual test — look straight down at your own feet, right-click, confirm placement is
+  blocked
+- **Notes**: **Audit-error correction (2026-07-10, plan.md §12.1 item 32, user-reported "why can
+  I build on clouds?")**: this entry's earlier revision quoted both halves of Craft's guard in
+  the Craft-behavior line, then listed only the player-overlap half on the cna-craft side — and
+  still said `complete`. The `is_obstacle(hw)` half was genuinely missing: the raycast happily
+  hits a Cloud (it's solid/hit-testable), and with no obstacle check on the target, blocks could
+  be placed on clouds and on plants, both impossible in real Craft. A prior-session audit error
+  in the entry itself, not a regression from this session's work.
 
 ### 2.7 Special interactions (Ctrl+click, middle-click, light toggle)
 - **Craft behavior**: Ctrl+left-click (or Ctrl+Enter) → acts as right-click (place). Ctrl+right-click
@@ -994,8 +1012,8 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 2.2 | Block roster (**full 54-item roster completed 2026-07-10**) | complete | medium |
 | 2.3 | Raycast algorithm (**reach fixed this session, 6->8**) | complete | low |
 | 2.4 | Wireframe selection outline | **fixed this session** | high |
-| 2.5 | Block breaking (Bedrock protection) | **fixed this session** | critical |
-| 2.6 | Block placing (self-intersection) | **fixed this session** | critical |
+| 2.5 | Block breaking (Bedrock protected; **Cloud unbreakable, fixed 2026-07-10**) | complete | critical |
+| 2.6 | Block placing (self-intersection; **is_obstacle target guard, fixed 2026-07-10**) | complete | critical |
 | 2.7 | Eyedropper + Ctrl-click-as-place + light-toggle (**light-toggle mechanic/persistence completed 2026-07-10, visual simplified — see §5.1**) | complete | low |
 | 2.8 | Collision rules (solid/transparent) | complete | low |
 | 3.1 | Chunk system (**unbounded column hash-map fixed this session**) | complete | medium (large) |
