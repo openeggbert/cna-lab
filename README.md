@@ -63,9 +63,9 @@ cmake --build build --target CnaCraft
 |-------------------|--------------------------------------|
 | W / A / S / D     | Move / strafe                        |
 | Mouse             | Look (yaw / pitch), while the cursor is captured |
-| Arrow keys        | Look (yaw / pitch) — keyboard alternative to the mouse, works even while the cursor is released |
-| Space             | Jump (game mode) / force full ascend (fly mode) |
-| Tab               | Toggle fly mode (no gravity; while flying, movement is pitch-coupled — look up/down while moving forward/back to climb/descend, matching real Craft; there is no dedicated descend key) |
+| Space             | Jump (game mode) / ascend (fly mode) |
+| Left Shift (hold) | Descend (fly mode only) / zoom, narrow FOV (ground mode) |
+| Tab               | Toggle fly mode (no gravity; Space/Shift move straight up/down regardless of where you're looking, same as Minecraft's creative flight — holding both cancels out) |
 | Left click        | Break block (Bedrock is protected — cannot be broken); if the cursor is released, re-captures it instead |
 | Ctrl + Left click | Place block instead of breaking (same as Right click) |
 | Right click       | Place block (currently selected type); blocked if it would overlap your own position |
@@ -73,7 +73,6 @@ cmake --build build --target CnaCraft
 | 1-9, 0            | Select hotbar slot directly (1-9 = slots 1-9, 0 = slot 10) |
 | E / R             | Cycle to next / previous hotbar slot (all 54 slots) |
 | Scroll wheel      | Also cycles the hotbar slot (same as E/R)|
-| Left Shift (hold) | Zoom (narrow FOV)                   |
 | F (hold)          | Orthographic projection               |
 | F12               | Save a screenshot to `screenshots/`   |
 | ` (backtick)      | Start typing a sign on the targeted block face |

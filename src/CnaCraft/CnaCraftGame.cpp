@@ -654,11 +654,15 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     if (kb.IsKeyDown(Keys::S)) input.moveForward -= 1.0f;
     if (kb.IsKeyDown(Keys::D)) input.moveRight += 1.0f;
     if (kb.IsKeyDown(Keys::A)) input.moveRight -= 1.0f;
-    // Space, in both modes: jump (game mode) / force full ascend (fly mode
-    // -- PlayerController now flies pitch-coupled like Craft's own
-    // get_motion_vector, with no dedicated descend key at all, matching
-    // Craft exactly per user decision 2026-07-10; see PlayerController.hpp).
+    // Space, in both modes: jump (game mode) / force full ascend (fly mode).
+    // Left Shift, fly mode only: force full descend, symmetric with Space --
+    // Minecraft-style independent flight controls, replacing an earlier
+    // pitch-coupled port of Craft's own get_motion_vector per user decision
+    // 2026-07-10 (see PlayerController.hpp's class comment for the full
+    // reasoning). PlayerController ignores descendPressed outside fly mode,
+    // so it's safe to set unconditionally from the raw key state here.
     input.jumpPressed = kb.IsKeyDown(Keys::Space);
+    input.descendPressed = kb.IsKeyDown(Keys::LeftShift);
     // Mouse-look is gated on cursor capture (CRAFT_PARITY.md §1.2): matches
     // Craft's own handle_mouse_input, which only applies mouse deltas while
     // `exclusive` (cursor captured) -- moving the OS cursor around while
@@ -667,20 +671,12 @@ void CnaCraftGame::Update(GameTime& gameTime) {
         input.lookDeltaYaw = static_cast<float>(mouse.getXProperty()) * kMouseSensitivity;
         input.lookDeltaPitch = -static_cast<float>(mouse.getYProperty()) * kMouseSensitivity;
     }
-    // Arrow keys as a keyboard alternative to mouse-look (some players don't
-    // want to use the mouse for turning; also more reliable to test than
-    // relative mouse motion). Additive with the mouse deltas above. NOT
-    // gated on cursor capture -- matches Craft's own arrow-key look, which
-    // lives inside handle_movement's `if (!g->typing)` block, entirely
-    // separate from handle_mouse_input's `exclusive` gate. Rate matches
-    // Craft's own literal `m = dt * 1.0` exactly (main.c handle_movement) --
-    // changed from an earlier 1.6f approximation per user decision
-    // 2026-07-10 to minimize differences from Craft.
-    const float rotSpeed = 1.0f * dt;
-    if (kb.IsKeyDown(Keys::Left)) input.lookDeltaYaw -= rotSpeed;
-    if (kb.IsKeyDown(Keys::Right)) input.lookDeltaYaw += rotSpeed;
-    if (kb.IsKeyDown(Keys::Up)) input.lookDeltaPitch += rotSpeed;
-    if (kb.IsKeyDown(Keys::Down)) input.lookDeltaPitch -= rotSpeed;
+    // Arrow-key look removed 2026-07-10 (plan.md §12.1 item 29, user
+    // decision, part of the same Minecraft-style controls request as fly
+    // mode above) -- Craft has arrow keys as a keyboard alternative to
+    // mouse-look; Minecraft has no such binding at all, and the user found
+    // it an unwanted extra way to nudge the camera. Mouse-look (above) is
+    // now the only way to turn.
 
     const auto rebuildHud = [this]() {
         hud_->RebuildHotbar(getGraphicsDeviceProperty(), hotbarSlotNames_.data(),
@@ -977,7 +973,13 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
         // fog_factor = 0.0`, block_vertex.glsl) — matched here.
         effect_->setFogEnabledProperty(false);
     } else {
-        const float fov = kb.IsKeyDown(Keys::LeftShift) ? kZoomFov : kPiOver4;
+        // Left Shift also means fly-descend now (Minecraft-style flight
+        // controls, PlayerController.hpp) -- suppress the zoom side effect
+        // while flying so holding Shift to descend doesn't also zoom the
+        // camera in, an unrelated and unwanted combination that would only
+        // happen because both features share one key.
+        const bool zooming = kb.IsKeyDown(Keys::LeftShift) && !player_->IsFlying();
+        const float fov = zooming ? kZoomFov : kPiOver4;
         effect_->Projection = Matrix::CreatePerspectiveFieldOfView(fov, aspect, 0.1f, 500.0f);
     }
 

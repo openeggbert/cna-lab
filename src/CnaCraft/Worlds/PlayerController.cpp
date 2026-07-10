@@ -108,33 +108,20 @@ void PlayerController::Update(const World& world, const PlayerInput& input, floa
         moveRightInput *= invLen;
     }
 
-    // Pitch-coupled flight (CRAFT_PARITY.md §1.6): ports Craft's own
-    // get_motion_vector's flying branch exactly (main.c) -- there is no
-    // dedicated descend key in real Craft at all. Moving forward/back while
-    // flying scales horizontal speed by cos(pitch) and adds a vertical
-    // component of sin(pitch) (flipped when moving backward, since backward
-    // is away from where you're looking); strafing alone (no forward/back
-    // input) uses full horizontal speed and has no vertical component at
-    // all. Space (input.jumpPressed) then unconditionally overrides this
-    // computed vertical speed with a full-speed ascend, matching Craft's own
-    // `if (flying) vy = 1` after get_motion_vector.
-    float flyHorizontalScale = 1.0f;
-    float flyVerticalFraction = 0.0f;
-    if (flying_ && (moveForwardInput != 0.0f || moveRightInput != 0.0f)) {
-        flyHorizontalScale = std::cos(pitch_);
-        flyVerticalFraction = std::sin(pitch_);
-        const bool strafing = moveRightInput != 0.0f;
-        const bool movingForwardOrBack = moveForwardInput != 0.0f;
-        if (strafing) {
-            if (!movingForwardOrBack) flyVerticalFraction = 0.0f;
-            flyHorizontalScale = 1.0f;
-        }
-        if (moveForwardInput < 0.0f) flyVerticalFraction = -flyVerticalFraction;
+    // Minecraft-style independent flight (CRAFT_PARITY.md §1.6, changed
+    // 2026-07-10 per user decision -- see the header's class comment for why
+    // this replaced an earlier pitch-coupled port of Craft's own
+    // get_motion_vector): horizontal speed while flying is always full
+    // speed, regardless of look direction. Vertical speed is driven purely
+    // by jumpPressed (Space, ascend) and descendPressed (Shift, descend) --
+    // holding both cancels out to zero, matching Minecraft creative flight.
+    float flyVerticalSpeed = 0.0f;
+    if (flying_) {
+        if (input.jumpPressed) flyVerticalSpeed += kFlySpeed;
+        if (input.descendPressed) flyVerticalSpeed -= kFlySpeed;
     }
-    float flyVerticalSpeed = flyVerticalFraction * kFlySpeed;
-    if (flying_ && input.jumpPressed) flyVerticalSpeed = kFlySpeed;
 
-    const float speed = flying_ ? kFlySpeed * flyHorizontalScale : kMoveSpeed;
+    const float speed = flying_ ? kFlySpeed : kMoveSpeed;
     const float moveX = (forwardX * moveForwardInput + rightX * moveRightInput) * speed;
     const float moveZ = (forwardZ * moveForwardInput + rightZ * moveRightInput) * speed;
 

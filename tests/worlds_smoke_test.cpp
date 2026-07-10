@@ -1416,28 +1416,34 @@ void TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement() {
     Check(std::abs(player.EyePosition().y - flyStartY) < 0.01f,
           "flying with no vertical input does not fall (no gravity while flying)");
 
-    // Craft's flying has no dedicated descend key at all (CRAFT_PARITY.md
-    // §1.6, user decision 2026-07-10: match Craft's real pitch-coupled
-    // flight) -- Space (jumpPressed) always forces a full-speed ascend
-    // regardless of look direction or movement input.
+    // Minecraft-style independent flight (CRAFT_PARITY.md §1.6, changed
+    // 2026-07-10 per user decision -- replaces an earlier pitch-coupled
+    // port of Craft's own get_motion_vector flying branch): Space
+    // (jumpPressed) always forces a full-speed ascend regardless of look
+    // direction or movement input.
     PlayerInput riseInput;
     riseInput.jumpPressed = true;
     for (int i = 0; i < 60; ++i) player.Update(world, riseInput, 1.0f / 60.0f);
-    Check(player.EyePosition().y > flyStartY,
-          "Space forces a full ascend while flying, matching Craft's own vy=1 override");
+    Check(player.EyePosition().y > flyStartY, "Space forces a full ascend while flying");
 
     const float risenY = player.EyePosition().y;
-    // Descending requires looking down and moving forward (or looking up
-    // and moving backward) -- there is no dedicated key, matching Craft's
-    // own get_motion_vector flying branch exactly.
-    PlayerInput lookDown;
-    lookDown.lookDeltaPitch = -1.0f; // radians, well within the +-pi/2 clamp
-    player.Update(world, lookDown, 1.0f / 60.0f);
+    // Shift (descendPressed) always forces a full-speed descend, regardless
+    // of look direction or movement input -- symmetric with Space/ascend,
+    // independent of pitch (no need to look down first, unlike Craft's own
+    // scheme this replaced).
     PlayerInput descendInput;
-    descendInput.moveForward = 1.0f;
+    descendInput.descendPressed = true;
     for (int i = 0; i < 60; ++i) player.Update(world, descendInput, 1.0f / 60.0f);
-    Check(player.EyePosition().y < risenY,
-          "moving forward while looking down descends while flying (no dedicated descend key, matches Craft)");
+    Check(player.EyePosition().y < risenY, "Shift forces a full descend while flying");
+
+    // Holding both Space and Shift cancels out to no net vertical movement.
+    const float beforeBothY = player.EyePosition().y;
+    PlayerInput bothInput;
+    bothInput.jumpPressed = true;
+    bothInput.descendPressed = true;
+    for (int i = 0; i < 30; ++i) player.Update(world, bothInput, 1.0f / 60.0f);
+    Check(std::abs(player.EyePosition().y - beforeBothY) < 0.01f,
+          "holding Space and Shift together while flying cancels out to zero vertical movement");
 
     player.ToggleFlying();
     Check(!player.IsFlying(), "ToggleFlying() again switches back to game mode");
@@ -1445,22 +1451,28 @@ void TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement() {
     player.Update(world, noInput, 1.0f / 60.0f);
     Check(player.EyePosition().y < backToGameY, "gravity resumes after leaving fly mode");
 
-    // Pure strafing (no forward/back input) has no vertical component even
-    // while pitched -- matches Craft's own `if (sx) { if (!sz) y = 0; ...}`
-    // special case (a fresh PlayerController to isolate this from the
-    // accumulated pitch/position state above).
-    PlayerController strafer(Vec3f{static_cast<float>(WORLD_SIZE_X) / 2.0f, 32.0f,
-                                    static_cast<float>(WORLD_SIZE_Z) / 2.0f});
-    strafer.ToggleFlying();
-    PlayerInput straferLookDown;
-    straferLookDown.lookDeltaPitch = -1.0f;
-    strafer.Update(world, straferLookDown, 1.0f / 60.0f);
-    const float strafeStartY = strafer.EyePosition().y;
-    PlayerInput strafeInput;
-    strafeInput.moveRight = 1.0f;
-    for (int i = 0; i < 60; ++i) strafer.Update(world, strafeInput, 1.0f / 60.0f);
-    Check(std::abs(strafer.EyePosition().y - strafeStartY) < 0.01f,
-          "pure strafing while flying has no vertical component even while pitched down, matching Craft");
+    // Horizontal fly speed no longer depends on look direction at all (the
+    // old pitch-coupled scheme scaled it by cos(pitch)) -- looking straight
+    // down and moving forward should cover the same horizontal ground as
+    // looking level, within one substep's floating-point slop.
+    PlayerController levelFlyer(Vec3f{static_cast<float>(WORLD_SIZE_X) / 2.0f, 32.0f,
+                                       static_cast<float>(WORLD_SIZE_Z) / 2.0f});
+    levelFlyer.ToggleFlying();
+    PlayerInput forwardInput;
+    forwardInput.moveForward = 1.0f;
+    for (int i = 0; i < 60; ++i) levelFlyer.Update(world, forwardInput, 1.0f / 60.0f);
+    const float levelDx = levelFlyer.EyePosition().x - static_cast<float>(WORLD_SIZE_X) / 2.0f;
+
+    PlayerController pitchedFlyer(Vec3f{static_cast<float>(WORLD_SIZE_X) / 2.0f, 32.0f,
+                                         static_cast<float>(WORLD_SIZE_Z) / 2.0f});
+    pitchedFlyer.ToggleFlying();
+    PlayerInput lookStraightDown;
+    lookStraightDown.lookDeltaPitch = -1.5f; // radians, near-vertical, within the +-pi/2 clamp
+    pitchedFlyer.Update(world, lookStraightDown, 1.0f / 60.0f);
+    for (int i = 0; i < 60; ++i) pitchedFlyer.Update(world, forwardInput, 1.0f / 60.0f);
+    const float pitchedDx = pitchedFlyer.EyePosition().x - static_cast<float>(WORLD_SIZE_X) / 2.0f;
+    Check(std::abs(levelDx - pitchedDx) < 0.05f,
+          "fly horizontal speed is independent of pitch, unlike the old Craft-matching scheme");
 }
 
 void TestPlayerControllerFloorCatchSafetyNet() {

@@ -29,6 +29,19 @@ glow render pass (an unconditional third full per-frame chunk-iteration +
 frustum-test pass) now short-circuits entirely when no chunk is actually
 lit. See item 28's plan.md writeup for the full diagnosis and fix detail.
 
+**Then, in the same session**, the user asked for a broader change: switch
+cna-craft's flight/look controls from the Craft-exact scheme (item 24, made
+earlier the same day) to Minecraft-style, having tried the Craft-accurate
+version hands-on and found it annoying. Shipped as **item 29**: flying is
+now Space=ascend/Shift=descend independent of pitch (not Craft's real
+pitch-coupled climb/descend), arrow-key look was removed entirely (mouse is
+now the only way to turn), and hotbar scroll-wheel cycling turned out to
+already be implemented (matches both Craft's `on_scroll` and Minecraft's
+scroll-hotbar — no change needed). This is a deliberate, permanent
+departure from Craft parity for these specific controls, not a bug fix —
+see item 29's plan.md writeup and CRAFT_PARITY.md §1.6's notes for the full
+same-day back-and-forth history.
+
 ## 1. Project summary
 
 CNA Craft is a first-person voxel-world game/prototype, built entirely on
@@ -84,7 +97,7 @@ correctly in the message log, confirmed the log persists after the typing
 box closes, confirmed Sign typing is unaffected by the `TypingMode`
 generalization).
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **288 checks, all
+**Test status**: `tests/worlds_smoke_test.cpp` — **289 checks, all
 passing** (up from 267 before this audit's follow-up work; 173 at the start
 of the chunk-redesign session). Plus `cna_craft_persistence_smoke_test` —
 **40 checks, all passing** (up from 30). Both build and run standalone with
@@ -303,10 +316,32 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     `sharp-runtime`'s `TaskT`, not a pooled one — not the root cause of
     either report, left alone).
 
+13. **Switch flight/look controls to Minecraft-style** (plan.md §12.1 item
+    29) — the user tried item 24's earlier Craft-exact flying/arrow-look
+    changes live and asked for Minecraft-style controls instead, a
+    deliberate reversal, not a bug fix. `PlayerController`'s pitch-coupled
+    flying replaced with Space=ascend/Shift=descend independent of pitch
+    (new `PlayerInput::descendPressed`), holding both cancels to zero;
+    horizontal fly speed no longer scales by look angle. Arrow-key look
+    removed entirely — mouse is now the only way to turn. Fixed a knock-on
+    conflict along the way: `Draw()`'s existing Left-Shift-zoom feature now
+    gates on `!IsFlying()` so descending doesn't also zoom the camera.
+    Hotbar scroll-wheel cycling turned out to already exist (matches both
+    Craft's `on_scroll` and Minecraft) — confirmed by reading the code, no
+    change needed. 4 unit tests rewritten for the new flight physics — 289
+    checks (up from 288). `README.md` §5 and CRAFT_PARITY.md §1.6/§1.9
+    updated, the latter preserving the full same-day back-and-forth history
+    so a future reader sees two deliberate decisions, not drift. **Key
+    bindings could not be live-verified** — synthetic keyboard input,
+    including previously-reliable movement keys, stopped reaching the app
+    window in this sandbox partway through this session (see §4) — coverage
+    relies on the rewritten `PlayerController` unit tests (real physics, not
+    mocked) plus code review.
+
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
-`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 288/288 + 40/40 tests
+`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 289/289 + 40/40 tests
 passing, zero compiler warnings.
 
 Carried over, still unresolved, still not urgent: mouse-look reliability
@@ -323,10 +358,15 @@ keys — those remain reliable) also became unreliable partway through this
 session, confirmed across multiple distinct `xdotool` approaches and
 cross-checked against a previously-working case (`/`-command typing) that
 now fails identically. This blocked live re-verification of the sign
-billboard winding fix (§3 item 10) specifically. Treat both this and the
-pre-existing mouse-click unreliability as real, separate sandbox
-limitations when deciding whether a feature can be live-verified here — not
-something to keep re-attempting.
+billboard winding fix (§3 item 10) specifically. **Later in the same
+session, movement/action keydown/keyup also stopped reaching the app
+window** (previously the one input class that stayed reliable all session —
+see §3 item 13's Minecraft-style-controls verification, which had to fall
+back to unit tests only because of this). Treat all three — mouse clicks,
+text input, and now movement keys too — as real, separate-but-compounding
+sandbox limitations when deciding whether a feature can be live-verified
+here. Worth re-checking whether any of these have recovered at the start of
+a fresh session before assuming they're still broken.
 
 **New, deliberate, documented behavior changes from these sessions** (not
 bugs — read before "fixing"):
@@ -455,9 +495,11 @@ this is just the "if you touch this again" summary):
   message actually needs to appear.
 
 **Everything from before these sessions** (module list, boundaries, data
-flow, signs, cursor-capture, pitch-coupled flight, floor-catch, etc.) is
-unchanged — see `plan.md` §2/§6/§8 and prior `NEXT.md` history in git log
-for that detail if needed.
+flow, signs, cursor-capture, floor-catch, etc.) is unchanged — see `plan.md`
+§2/§6/§8 and prior `NEXT.md` history in git log for that detail if needed.
+**Flying is no longer pitch-coupled** — see item 29 below (Minecraft-style
+Space/Shift, a deliberate reversal of an earlier same-day Craft-fidelity
+change).
 
 **Boundaries that must not be broken** — unchanged, still load-bearing:
 `Worlds/` must never `#include` anything CNA/SDL; any new `BlockDef`
@@ -523,10 +565,19 @@ rather than guessing which of the three to start.
 Everything from prior sessions still applies (no multiplayer implementation
 — planning only, per §8 — no broad `Worlds/`/`Render/` refactor, no
 `PlayerController` public-API changes without re-running the full suite, no
-`Hotbar::kSlots` reordering, no re-adding a dedicated fly-descend key, no
-rushed Chat/slash-commands implementation, no `SkyDome`/`SelectionOutline`
-winding "cleanup" without real screenshot verification, no `Sign.hpp`
-face-convention change to match Craft's asymmetric scheme) — **plus**:
+`Hotbar::kSlots` reordering, no rushed Chat/slash-commands implementation,
+no `SkyDome`/`SelectionOutline` winding "cleanup" without real screenshot
+verification, no `Sign.hpp` face-convention change to match Craft's
+asymmetric scheme) — **plus**:
+
+- **Don't revert flying or arrow-key look back to Craft's exact scheme** —
+  item 29 deliberately replaced Craft's pitch-coupled flying with
+  Minecraft-style Space/Shift, and removed arrow-key look, per a direct,
+  informed user request after trying the Craft-accurate version. This
+  reverses item 24's earlier same-day choice; item 29's decision is the
+  current one — don't "fix" it back toward Craft parity citing item 24 or
+  CRAFT_PARITY.md's general fidelity goal, and don't re-add a dedicated
+  Ctrl-descend-style binding either (Shift already owns fly-descend now).
 
 - **No re-running the chunk-system redesign, terrain-formula, fly-speed,
   pitch-clamp, reach-distance, arrow-key-speed, plant-rotation, or
@@ -582,35 +633,39 @@ face-convention change to match Craft's asymmetric scheme) — **plus**:
 ```
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
-as of the last session, 25 of 27 items are completed (including item 19,
+as of the last session, 27 of 29 items are completed (including item 19,
 the chunk-system redesign; item 25, the full 54-item block roster; item 17,
 chat/slash world-editing commands; item 26, four small parity-audit
 follow-ups — arrow-key speed, plant rotation, sign winding, player-position
-persistence; and item 27, light toggle via a user-approved glow-pass design
-pivot). 1 blocked with a scope decision already made (ambient occlusion,
-EASYGL-only — not blocked on a decision anymore, just on implementation), 1
-pending with a scope decision already made (multiplayer — planning only,
-don't implement without a further explicit go-ahead). Two more items from
-the same 12-item parity audit are decided but not started: ambient
-occlusion (EASYGL-only) and a textured sky dome (see §8 for all three).
-If the user doesn't specify what to work on, offer this short list rather
-than guessing which to start. Before implementing anything that cites
-Craft's source code, re-verify the citation against the real checkout at
+persistence; item 27, light toggle via a user-approved glow-pass design
+pivot; item 28, invisible-window-on-startup + glow-pass perf fixes; and
+item 29, Minecraft-style flight/look controls replacing item 24's earlier
+same-day Craft-exact scheme, per direct user request). 1 blocked with a
+scope decision already made (ambient occlusion, EASYGL-only — not blocked
+on a decision anymore, just on implementation), 1 pending with a scope
+decision already made (multiplayer — planning only, don't implement
+without a further explicit go-ahead). Two more items from the same 12-item
+parity audit are decided but not started: ambient occlusion (EASYGL-only)
+and a textured sky dome (see §8 for all three). If the user doesn't specify
+what to work on, offer this short list rather than guessing which to
+start. Before implementing anything that cites Craft's source code,
+re-verify the citation against the real checkout at
 /rv/data/development/github.com/other/Craft — CRAFT_PARITY.md was
 carefully audited but could still contain an error, same as every prior
-citation pass in this project's history. Make one small, verified
-improvement at a time: implement, build (cmake --build build-worlds, or
-the full EasyGL build if it touches Render/ or CnaCraftGame), run the
-relevant test/smoke command, confirm it actually passes — and for anything
-touching CnaCraftGame/Render, verify visually via a real Xvfb/xdotool/
-ImageMagick screenshot cycle (remember: SDL_VIDEODRIVER=x11 is required in
-this sandbox, and xdotool keydown/keyup — not plain xdotool key — for
-reliable key-hold detection; mouse clicks AND synthetic keyboard text
-input are both unreliable in this sandbox as of this session — movement/
-action keydown/keyup remain fine — so anything needing a real break/place/
-text-entry, including verifying the `/cube`-style commands' actual
-painting or the sign-winding fix, should lean on unit tests instead of a
-live screenshot). If you touch the chunk-streaming/threading code (World
+citation pass in this project's history. **Don't revert item 29's controls
+back toward Craft parity** — it's a deliberate, informed reversal of item
+24, not drift; see CRAFT_PARITY.md §1.6's notes for the full history. Make
+one small, verified improvement at a time: implement, build (cmake --build
+build-worlds, or the full EasyGL build if it touches Render/ or
+CnaCraftGame), run the relevant test/smoke command, confirm it actually
+passes — and for anything touching CnaCraftGame/Render, verify visually via
+a real Xvfb/xdotool/ImageMagick screenshot cycle where possible (remember:
+SDL_VIDEODRIVER=x11 is required in this sandbox; as of this session, mouse
+clicks, synthetic keyboard text input, AND movement/action keydown/keyup
+have all become unreliable at various points — check whether any have
+recovered before assuming they're still broken, and fall back to unit
+tests + code review, same as items 27/29 had to, when they haven't). If you
+touch the chunk-streaming/threading code (World
 column storage, CnaCraftGame's Dispatch*/Poll* methods), re-read §6's
 TaskT/apply-cap notes first — there's a real, subtle, already-found-once
 bug class there (discarding instead of deferring completed-but-over-cap

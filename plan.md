@@ -1259,11 +1259,55 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     (re-ran to confirm: unchanged, all passing). Both fixes are pure `CnaCraftGame`/`Render`-layer
     changes, verified only via real builds (this layer isn't unit-testable, same as every other
     `CnaCraftGame.cpp` change this project has made).
+29. `completed` — **Switch flight/look controls from Craft-parity to Minecraft-style**
+    (CRAFT_PARITY.md §1.6/§1.9), user decision 2026-07-10 ("uprav ovládání cna craft aby se to
+    ovládalo asi jako minecraft, ten craft styl ovládání me hodně sere" — reported right after
+    trying item 24's earlier Craft-fidelity flying/arrow-look changes live). A genuine, informed
+    reversal of an explicit choice made earlier the same session (item 24), not a bug fix — the
+    user tried the Craft-accurate scheme hands-on and found it worse, and this project's own
+    stated goal ("port Craft to CNA, ideally no player-visible difference") always deferred to
+    what the actual player wants over literal fidelity when the two conflict. Confirmed scope via
+    `AskUserQuestion` (multi-select) rather than guessing, since several independent control axes
+    were plausibly in play:
+    - **Flying (selected)**: `PlayerController`'s pitch-coupled `get_motion_vector` port (item 24)
+      replaced with Minecraft's own creative-flight scheme — Space always ascends, new
+      `PlayerInput::descendPressed` (Left Shift) always descends, both independent of pitch;
+      holding both cancels to zero net vertical movement; horizontal fly speed no longer scales by
+      `cos(pitch)` (always full speed). `CnaCraftGame::Draw`'s existing Left-Shift-zoom feature
+      (unrelated, predates this) now gates on `!player_->IsFlying()` so descending doesn't also
+      zoom the camera in — an unwanted side effect purely from both features sharing one key,
+      resolved without being asked since leaving it would have undermined the whole point of the
+      change.
+    - **Arrow-key look (selected)**: removed entirely. Craft has it as a keyboard alternative to
+      mouse-look; Minecraft has no such binding, and the user found it an unwanted extra way to
+      nudge the camera. Mouse-look is now the only way to turn.
+    - **Hotbar scroll-wheel cycling (selected)**: already implemented (`CnaCraftGame::Update`,
+      matches Craft's own `on_scroll` *and* Minecraft's hotbar scroll — both real games already
+      agreed on this one) — no code change needed, confirmed by reading the existing wiring rather
+      than assuming.
+    - **Sprint (not selected)**: left as Craft/cna-craft's existing single walk speed, no
+      double-tap-W sprint added.
+    4 unit tests rewritten in `TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement`
+    (Space-ascends, Shift-descends, both-cancel-to-zero, horizontal-speed-independent-of-pitch,
+    replacing the old pitch-coupled-specific assertions) — 289 checks in `worlds_smoke_test` (up
+    from 288), persistence suite unchanged at 40. `README.md` §5's control table and
+    CRAFT_PARITY.md §1.6 updated; §1.6's notes preserve the full same-day back-and-forth history
+    (Minecraft-style → Craft-exact → Minecraft-style again) so a future reader sees this was two
+    deliberate, informed decisions, not drift. Verified via clean `build-worlds` + full EasyGL
+    builds and a real Xvfb screenshot confirming the world still renders correctly; **the actual
+    key bindings (Tab/Space/Shift/arrow-key-removal) could not be live-verified this session** —
+    synthetic keyboard input, including previously-reliable movement/action keys, stopped reaching
+    the app window in this sandbox partway through (same session-wide flakiness already documented
+    for text input and mouse clicks, now apparently extending to movement keys too) — coverage
+    relies on the rewritten unit tests (which exercise the real `PlayerController::Update` physics
+    directly, not a mock) plus code review of the input-wiring glue, which mechanically mirrors
+    every other key binding already shipped this session.
 
 ### 12.2 Deliberately not re-litigated this session
 
 Per CRAFT_PARITY.md, these are `complete` (functionally equivalent to Craft) and need no task:
-main game loop (§1.1), mouse look (§1.4), zoom/ortho/arrow-look (§1.9), raycast algorithm (§2.3,
+main game loop (§1.1), mouse look (§1.4), zoom/ortho (§1.9 — its arrow-look half was removed by
+item 29, a deliberate Minecraft-style deviation, not still Craft-parity), raycast algorithm (§2.3,
 arguably better than Craft's), collision rules for solid/transparent/collidable (§2.8), face
 culling (§3.4), mesh generation strategy (§3.5), transparent-block rules (§3.6), trees (§3.8),
 clouds (§3.10), day/night lighting (§5.4).

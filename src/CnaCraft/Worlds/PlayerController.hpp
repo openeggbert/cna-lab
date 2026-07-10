@@ -9,10 +9,16 @@ class World;
 struct PlayerInput {
     float moveForward = 0.0f;   // -1..1
     float moveRight = 0.0f;     // -1..1
-    // Space, in both modes -- matches Craft's own CRAFT_KEY_JUMP double duty
-    // (main.c: jump when grounded and not flying, force full ascend when
-    // flying). Ignored in game mode unless grounded.
+    // Space: jump when grounded and not flying; force full ascend when
+    // flying (Minecraft-style independent fly controls, CRAFT_PARITY.md
+    // §1.6 — changed 2026-07-10 from Craft's own pitch-coupled flying per
+    // user decision, see the class comment below). Ignored in game mode
+    // unless grounded.
     bool jumpPressed = false;
+    // Left Shift, flying only: force full descend, symmetric with
+    // jumpPressed's ascend. Holding both cancels out to no vertical
+    // movement. No effect in game mode (no sneak/crouch implemented).
+    bool descendPressed = false;
     float lookDeltaYaw = 0.0f;   // radians, already scaled by mouse sensitivity
     float lookDeltaPitch = 0.0f; // radians, already scaled by mouse sensitivity
 };
@@ -22,14 +28,18 @@ struct PlayerInput {
 // adapted to query World::IsSolid instead of a static box list (plan.md §6).
 //
 // Fly mode (plan.md §11.4, CRAFT_PARITY.md §1.6): no gravity, horizontal
-// movement still collides with the world. Vertical movement is
-// pitch-coupled, matching Craft's own get_motion_vector's flying branch
-// exactly (main.c) -- there is no dedicated descend key in real Craft at
-// all: looking up/down while moving forward/back trades horizontal speed
-// for climb/descend, strafing alone has no vertical component, and Space
-// always forces a full-speed ascend regardless of pitch. Toggle is
-// edge-detected by the caller (CnaCraftGame tracks the Tab key) and applied
-// via ToggleFlying() — PlayerInput itself carries no mode-switch flag.
+// movement still collides with the world, always at full speed regardless
+// of look direction. Vertical movement is Space=ascend/Shift=descend,
+// independent of pitch, matching Minecraft's creative-flight controls —
+// **changed 2026-07-10 (user decision) from an earlier version that ported
+// Craft's own pitch-coupled get_motion_vector flying branch exactly** (look
+// up/down while moving to climb/descend, no dedicated descend key at all).
+// That was itself a deliberate Craft-fidelity choice made earlier the same
+// day; the user later found it awkward compared to Minecraft's flight feel
+// and asked for the more ergonomic scheme instead — a legitimate direction
+// change, not a bug fix. Toggle is edge-detected by the caller (CnaCraftGame
+// tracks the Tab key) and applied via ToggleFlying() — PlayerInput itself
+// carries no mode-switch flag.
 class PlayerController {
 public:
     // Vertical offset from feet position to EyePosition() -- public so

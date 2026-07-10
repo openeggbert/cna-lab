@@ -76,12 +76,14 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   O/P = multiplayer observe cameras; arrow keys = keyboard look; Enter = chat/command submit,
   Ctrl+Enter = right-click; Ctrl+V = paste; Backspace = edit typing buffer; Esc = cancel
   typing/release cursor; `t`/`/`/`` ` `` = open chat/command/sign text entry.
-- **cna-craft behavior** (`CnaCraftGame.cpp`): W/A/S/D move; Space = jump / force ascend while
-  flying (no dedicated descend key, matching Craft — see §1.6); Tab = fly toggle; arrows =
-  keyboard look (works even while the cursor is released); Left Shift = hold-zoom; F = hold-ortho;
-  E/R = next/prev item cycle; 1-9 and `0` = direct item select (10 slots); scroll wheel = item
-  cycle; middle-click = eyedropper; backtick/Enter/Backspace/Esc = sign text entry (§4.3); `/` =
-  world-editing command entry (§4.5); F12 = screenshot (cna-craft-only addition, not in Craft).
+- **cna-craft behavior** (`CnaCraftGame.cpp`): W/A/S/D move; Space = jump / ascend while flying,
+  Left Shift = descend while flying (**Minecraft-style independent flight, not Craft's
+  pitch-coupled scheme — deliberate deviation, see §1.6**); Tab = fly toggle; no keyboard-look
+  binding (arrow-key look was removed the same day it was added, see §1.9); Left Shift also
+  hold-zooms, but only outside fly mode (see §1.9); F = hold-ortho; E/R = next/prev item cycle;
+  1-9 and `0` = direct item select (10 slots); scroll wheel = item cycle; middle-click =
+  eyedropper; backtick/Enter/Backspace/Esc = sign text entry (§4.3); `/` = world-editing command
+  entry (§4.5); F12 = screenshot (cna-craft-only addition, not in Craft).
   Only Ctrl+click light-toggle remains unported.
 - **Status**: complete (light-toggle tracked separately, §2.7)
 - **Craft files**: `src/config.h:30-44`, `src/main.c` (`on_key`, `on_char`, `handle_movement`)
@@ -134,25 +136,31 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   looking up/down (classic "look-and-fly" creative flight), strafing alone has no vertical
   component, and Space directly sets `vy=1` (pure hover climb, no gravity/inertia, `dy=0` forced
   every substep while flying). There is no dedicated descend key at all.
-- **cna-craft behavior** (matched this session, user decision 2026-07-10): Tab toggles `flying_`.
-  `PlayerController::Update` now ports `get_motion_vector`'s flying branch exactly — horizontal
-  speed scales by `cos(pitch)` and picks up a `sin(pitch)` vertical component (flipped when
-  moving backward) when moving forward/back, full horizontal speed with no vertical component
-  when purely strafing, and `input.jumpPressed` (Space) unconditionally overrides the computed
-  vertical speed with a full-speed ascend. `PlayerInput::moveUp` and the Left Ctrl-descend key
-  were removed — there is no dedicated descend key now, matching Craft.
-- **Status**: complete
+- **cna-craft behavior** (**revised again 2026-07-10, plan.md §12.1 item 29, user decision** — this
+  section's history is a genuine back-and-forth, not indecision on my part, documented in full
+  below since both directions were deliberate): Tab still toggles `flying_`. Vertical movement is
+  now **Space=ascend / Shift=descend, independent of pitch, at full horizontal speed always** —
+  Minecraft's own creative-flight scheme, not Craft's. Holding both Space and Shift cancels out to
+  zero net vertical movement. `PlayerInput::descendPressed` (Left Shift) is the new field;
+  `jumpPressed` (Space) keeps its existing double duty (jump on the ground, ascend while flying).
+- **Status**: complete (as a deliberate departure from Craft, not accidental drift)
 - **Craft files**: `src/main.c:204-232, 2250-2252, 2432-2465`
 - **cna-craft files**: `src/CnaCraft/Worlds/PlayerController.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.cpp`
 - **Priority**: medium (done)
-- **Verification method**: 3 new unit tests (Space-forces-ascend, forward+look-down descends,
-  pure-strafe-has-no-vertical-component-even-pitched) plus the full suite re-run; a real headless
-  build + Xvfb smoke run confirmed no crash/regression in the interactive loop.
-- **Notes**: Previously a **known, documented divergence** (cna-craft's Space/Ctrl scheme was
-  arguably more discoverable, and README documented it as the intended design) — changed after
-  the user explicitly asked to minimize differences from Craft, overriding the earlier
-  documented-intentional status. `README.md` §5 updated to match; losing Left Ctrl-descend is a
-  real, intentional control change flagged there.
+- **Verification method**: unit tests rewritten for the new scheme (Space-forces-ascend,
+  Shift-forces-descend, both-cancel-to-zero, horizontal-speed-independent-of-pitch) plus the full
+  suite re-run; a real headless build + Xvfb smoke run confirmed no crash/regression.
+- **Notes**: **Full history, because this flip-flopped within the same day**: cna-craft originally
+  shipped a Space/Ctrl independent-flight scheme (documented as intentionally more discoverable
+  than Craft's). Earlier the same day as this entry, the user asked to minimize differences from
+  Craft across several small items at once, and this got ported to Craft's real pitch-coupled
+  scheme as part of that batch (see git history / this file's own prior revision for that
+  writeup). Once that shipped and the user tried flying with it, they reported the Craft-style
+  scheme was genuinely annoying to use and asked for Minecraft-style controls instead — a
+  legitimate, informed reversal after hands-on experience with both, not a mistake to "fix" back
+  later. **Treat this entry, not the git history, as authoritative for current behavior** if
+  they ever seem to disagree. Losing the pitch-coupled behavior is an intentional, permanent
+  departure from Craft parity for this one control; `README.md` §5 updated to match.
 
 ### 1.7 Collision behavior
 - **Craft behavior** (`collide`, `main.c:699-738`): per-substep (`step = MAX(8, estimate)`
@@ -203,11 +211,15 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   exists as a mouse-look alternative at `dt*1.0` rad/s. Shift = hold-zoom (FOV 65→15°). F =
   hold-ortho (`g->ortho=64`). O/P = multiplayer picture-in-picture observe cameras (N/A,
   single-player only).
-- **cna-craft behavior**: matches Craft's absence of sprint/crouch/view-bob. Arrow-key look exists
-  at `1.0*dt` rad/s (updated 2026-07-10, was an approximate `1.6*dt` — user decision, matching
-  Craft's literal `m = dt * 1.0` exactly). Zoom and ortho both present, explicitly documented as
-  intentional Craft-matching hold-to-activate behavior.
-- **Status**: complete
+- **cna-craft behavior**: matches Craft's absence of sprint/crouch/view-bob. **Arrow-key look
+  removed entirely 2026-07-10 (plan.md §12.1 item 29, user decision, part of the same
+  Minecraft-style controls request as §1.6's flying change)** — it briefly existed at `1.0*dt`
+  rad/s (matching Craft's literal `m = dt * 1.0`) after an earlier same-day Craft-fidelity pass,
+  but the user found it an unwanted extra way to nudge the camera; mouse-look is now the only way
+  to turn, matching Minecraft (which has no keyboard-look binding at all). Zoom and ortho both
+  still present; zoom (Left Shift) now also gates on `!IsFlying()` since Shift became the fly
+  mode's descend key in the same change (§1.6) — holding Shift to descend no longer also zooms.
+- **Status**: complete (arrow-look is now a deliberate deviation from Craft, not parity)
 - **Craft files**: `src/main.c:2418-2427, 2268-2273, 2901-2934`
 - **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp:29-42, 155-174, 283-289`
 - **Priority**: low
@@ -348,8 +360,8 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **cna-craft behavior**: middle-click eyedropper (`Hotbar::SelectByBlockType`) and Ctrl+left-click
   as place (`tryPlaceBlock` lambda shared with ordinary right-click, gated on
   `Keys::LeftControl`/`RightControl`) are implemented in `CnaCraftGame::Update`. Left Ctrl has no
-  other binding in cna-craft — flying's own descend is now pitch-coupled (§1.6, no dedicated
-  descend key at all, matching Craft), so there's no modifier-key conflict to speak of.
+  other binding in cna-craft — flying's own descend is Left Shift (§1.6, Minecraft-style), not
+  Ctrl, so there's no modifier-key conflict to speak of.
   Ctrl+right-click light-toggle added 2026-07-10 (plan.md §12.1 item 17 follow-up, user decision):
   `World::IsLightSource`/`SetLightSource` (a per-instance overlay mirroring Craft's own separate
   `lights` Map alongside its block-type `map`, `src/main.c`) toggled on `world_.IsBreakable`-gated
@@ -935,10 +947,10 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 1.3 | Keyboard controls | complete | high |
 | 1.4 | Mouse look (**pitch clamp fixed this session**) | complete | low |
 | 1.5 | Player movement (diagonal speed + **fly-speed 4x fixed this session**) | complete | high |
-| 1.6 | Walking vs flying (**pitch-coupled flight fixed this session**) | complete | medium |
+| 1.6 | Walking vs flying (**Minecraft-style Space/Shift flight, deliberate deviation**) | complete | medium |
 | 1.7 | Collision (substepping) | complete | high |
 | 1.8 | Gravity/jump (terminal velocity + **floor-catch fixed this session**) | complete | medium |
-| 1.9 | Zoom/ortho/arrow-look | complete | low |
+| 1.9 | Zoom/ortho (**arrow-look removed, deliberate deviation**) | complete | low |
 | 2.1 | Hotbar switching (0/R/scroll) | **fixed this session** | medium |
 | 2.2 | Block roster (**full 54-item roster completed 2026-07-10**) | complete | medium |
 | 2.3 | Raycast algorithm (**reach fixed this session, 6->8**) | complete | low |
