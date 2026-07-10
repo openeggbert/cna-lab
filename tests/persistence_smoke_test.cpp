@@ -303,6 +303,56 @@ int main() {
         std::filesystem::remove(streamPath);
     }
 
+    // Round 10 (plan.md §12.1 item 17 follow-up): player-position
+    // persistence -- matches Craft's own single-row state(x,y,z,rx,ry)
+    // table (db_save_state/db_load_state, src/db.c).
+    {
+        const std::string statePath = "persistence_smoke_test_state.db";
+        std::filesystem::remove(statePath);
+
+        float x = 0, y = 0, z = 0, rx = 0, ry = 0;
+        {
+            WorldStore store(statePath);
+            Check(!store.LoadPlayerState(x, y, z, rx, ry),
+                  "LoadPlayerState returns false when nothing has ever been saved");
+        }
+        {
+            WorldStore store(statePath);
+            store.SavePlayerState(12.5f, 20.25f, -7.5f, 1.25f, -0.5f);
+        }
+        {
+            WorldStore store(statePath);
+            const bool loaded = store.LoadPlayerState(x, y, z, rx, ry);
+            Check(loaded, "LoadPlayerState returns true once a state has been saved");
+            Check(x == 12.5f && y == 20.25f && z == -7.5f && rx == 1.25f && ry == -0.5f,
+                  "the loaded position/look direction exactly matches what was saved");
+        }
+        // Re-saving replaces the single row (Craft's own DELETE-then-INSERT,
+        // not an accumulating history) -- checks the raw row count directly
+        // via sqlite3, not just LoadPlayerState's return, since a stray
+        // leftover row could otherwise go unnoticed (SELECT with no
+        // ORDER BY/LIMIT just returns whichever row SQLite finds first).
+        {
+            WorldStore store(statePath);
+            store.SavePlayerState(1.0f, 2.0f, 3.0f, 0.0f, 0.0f);
+            (void)store.LoadPlayerState(x, y, z, rx, ry);
+            Check(x == 1.0f && y == 2.0f && z == 3.0f, "re-saving replaces the previous state, not accumulates it");
+        }
+        {
+            sqlite3* raw = nullptr;
+            sqlite3_open(statePath.c_str(), &raw);
+            sqlite3_stmt* stmt = nullptr;
+            sqlite3_prepare_v2(raw, "SELECT COUNT(*) FROM state;", -1, &stmt, nullptr);
+            sqlite3_step(stmt);
+            const int rowCount = sqlite3_column_int(stmt, 0);
+            sqlite3_finalize(stmt);
+            sqlite3_close(raw);
+            Check(rowCount == 1, "the state table never has more than one row, even after multiple saves");
+        }
+
+        std::filesystem::remove(statePath);
+    }
+
     std::printf("\n");
     if (checksFailed == 0) {
         std::printf("All checks passed.\n");

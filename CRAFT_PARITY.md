@@ -574,15 +574,24 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Craft behavior**: SQLite (`src/db.c`/`db.h`) — `db_init` opens a `.db` file, a dedicated
   writer thread drains a queued ring buffer, periodic + on-exit commits, separate player-position
   `state` table.
-- **cna-craft behavior** (implemented this session): `Persistence::WorldStore` — SQLite via
+- **cna-craft behavior**: `Persistence::WorldStore` — SQLite via
   `find_package(SQLite3 REQUIRED)` (user decision 2026-07-10; confirmed available as a system
   package, `libsqlite3-dev`, no `FetchContent`/vendoring needed). Opens/creates `world.db` in the
   working directory (matching Craft's own simple single-default-file approach, not a save-slot
   system). No dedicated writer thread or ring buffer — `SaveEdits` runs synchronously right after
   each player edit (`CnaCraftGame::Update`), a deliberate simplification for this prototype's low
-  single-player edit rate (documented in `WorldStore.hpp`). No player-position `state` table
-  ported (player always spawns at the same computed spawn point — out of scope for this pass).
-- **Status**: complete (block-edit persistence; player-position `state` table not ported)
+  single-player edit rate (documented in `WorldStore.hpp`). Player-position `state` table added
+  2026-07-10 (plan.md §12.1 item 17 follow-up, user decision): a single-row `state(x,y,z,rx,ry)`
+  table matching Craft's own `db_save_state`/`db_load_state` schema exactly (`WorldStore::
+  SavePlayerState`/`LoadPlayerState`). One deliberate deviation from Craft's real save-once-at-
+  clean-exit behavior: cna-craft saves every frame instead (cheap single-row delete+insert), so a
+  crashed or killed process still resumes near its last frame's position rather than losing it
+  entirely — the same "eager, no dedicated shutdown hook" simplification already used for
+  `SaveEdits`. `CnaCraftGame::Initialize` loads the saved state (if any) before deciding which
+  columns to force-load, so a returning player's spawn region is centered on where they actually
+  were, not always world-origin; falls back to the existing block-center/height+2 spawn if nothing
+  was ever saved, matching Craft's own `if (!loaded) s->y = highest_block(...) + 2`.
+- **Status**: complete
 - **Craft files**: `src/db.c`, `src/db.h`
 - **cna-craft files**: `src/CnaCraft/Persistence/WorldStore.{hpp,cpp}`,
   `src/CnaCraft/CnaCraftGame.cpp` (Initialize/Update wiring)
@@ -595,7 +604,10 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   window proved unreliable (same flakiness class already documented for mouse-look elsewhere in
   this project); the direct `WorldStore` test is arguably better anyway — reliable, repeatable,
   permanent regression coverage. The full game was confirmed to build clean, start without error,
-  and create `world.db` on launch via a real headless `--smoke` run.
+  and create `world.db` on launch via a real headless `--smoke` run. Player-position persistence
+  specifically (movement doesn't need mouse clicks) *was* verified end-to-end in a real EasyGL
+  build under Xvfb: moved away from spawn, killed the process, relaunched, and confirmed via a
+  screenshot that the second launch resumed at the exact same view (not back at world-origin).
 
 ### 4.2 Delta storage of edits
 - **Craft behavior**: `block(p,q,x,y,z,w)` table, unique-indexed on `(p,q,x,y,z)`, `insert or

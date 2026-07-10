@@ -123,6 +123,26 @@ public:
     // block face it was attached to).
     void DeleteSignsAt(int x, int y, int z);
 
+    // Player-position persistence (CRAFT_PARITY.md §4.1, plan.md §12.1
+    // item 17 follow-up, user decision 2026-07-10) — a single-row
+    // `state(x,y,z,rx,ry)` table, matching Craft's own `db_save_state`/
+    // `db_load_state` exactly (src/db.c). x,y,z is the player's real EYE
+    // position (Craft has no feet/eye split); CnaCraftGame is responsible
+    // for converting to/from its own feet-based `PlayerController`
+    // storage. rx/ry are yaw/pitch in radians. Called once at startup
+    // (load) and once per frame (save — cheap single-row delete+insert,
+    // same "eager, no dedicated shutdown hook" simplification already used
+    // for `SaveEdits`, rather than relying on a clean-exit-only save like
+    // Craft's real `db_save_state` call site, which would lose the
+    // position on a crash or killed process).
+    void SavePlayerState(float x, float y, float z, float rx, float ry);
+
+    // Returns false (leaving x/y/z/rx/ry untouched) if no state was ever
+    // saved — the caller should fall back to its own default spawn logic
+    // in that case, matching Craft's own `if (!loaded) s->y = ...` at the
+    // `db_load_state` call site.
+    [[nodiscard]] bool LoadPlayerState(float& x, float& y, float& z, float& rx, float& ry);
+
 private:
     sqlite3* db_ = nullptr;
 };

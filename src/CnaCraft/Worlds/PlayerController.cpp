@@ -7,7 +7,6 @@
 namespace CnaCraft::Worlds {
 
 namespace {
-constexpr float kEyeHeight = 1.7f;
 constexpr float kPlayerHalfWidth = 0.3f;
 constexpr float kPlayerHeight = 1.8f;
 constexpr float kMoveSpeed = 4.5f;
@@ -45,7 +44,8 @@ constexpr int kMinSubsteps = 8;
 constexpr int kMaxSubsteps = 64;
 }
 
-PlayerController::PlayerController(Core::Vec3f startFeetPosition) : position_(startFeetPosition) {}
+PlayerController::PlayerController(Core::Vec3f startFeetPosition, float startYaw, float startPitch)
+    : position_(startFeetPosition), yaw_(startYaw), pitch_(startPitch) {}
 
 bool PlayerController::CollidesAt(const World& world, Core::Vec3f feet) const {
     const int minX = static_cast<int>(std::floor(feet.x - kPlayerHalfWidth));

@@ -75,6 +75,28 @@ constexpr const char* kUpsertSignSql =
     "INSERT OR REPLACE INTO sign (p, q, x, y, z, face, text) VALUES (?, ?, ?, ?, ?, ?, ?);";
 constexpr const char* kDeleteSignSql = "DELETE FROM sign WHERE x = ? AND y = ? AND z = ? AND face = ?;";
 constexpr const char* kDeleteSignsAtSql = "DELETE FROM sign WHERE x = ? AND y = ? AND z = ?;";
+
+// Player-position persistence (CRAFT_PARITY.md §4.1, plan.md §12.1 item 17
+// follow-up, user decision 2026-07-10) -- matches Craft's real single-row
+// `state(x,y,z,rx,ry)` table exactly (src/db.c): x,y,z is the player's
+// real EYE position (Craft has no separate feet/eye split, unlike
+// PlayerController's own feet-based storage -- see WorldStore.hpp's
+// SavePlayerState/LoadPlayerState doc comments for the conversion), rx/ry
+// are yaw/pitch in radians. `DELETE FROM state` then `INSERT` (not
+// `INSERT OR REPLACE` with a unique key) matches Craft's own
+// db_save_state exactly -- there is no primary key to replace on, the
+// table is just always emptied and re-filled with the one current row.
+constexpr const char* kCreateStateTableSql =
+    "CREATE TABLE IF NOT EXISTS state ("
+    "  x REAL NOT NULL,"
+    "  y REAL NOT NULL,"
+    "  z REAL NOT NULL,"
+    "  rx REAL NOT NULL,"
+    "  ry REAL NOT NULL"
+    ");";
+constexpr const char* kDeleteStateSql = "DELETE FROM state;";
+constexpr const char* kInsertStateSql = "INSERT INTO state (x, y, z, rx, ry) VALUES (?, ?, ?, ?, ?);";
+constexpr const char* kSelectStateSql = "SELECT x, y, z, rx, ry FROM state;";
 }
 
 WorldStore::WorldStore(const std::string& path) {
@@ -93,7 +115,8 @@ WorldStore::WorldStore(const std::string& path) {
         sqlite3_exec(db_, kCreateIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db_, kCreateSignTableSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db_, kCreateSignIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
-        sqlite3_exec(db_, kCreateSignPqIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+        sqlite3_exec(db_, kCreateSignPqIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
+        sqlite3_exec(db_, kCreateStateTableSql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
         std::fprintf(stderr, "WorldStore: failed to create schema: %s\n", errMsg ? errMsg : "unknown error");
         sqlite3_free(errMsg);
         sqlite3_close(db_);
@@ -302,6 +325,49 @@ void WorldStore::DeleteSignsAt(int x, int y, int z) {
     sqlite3_bind_int(stmt, 3, z);
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
+}
+
+void WorldStore::SavePlayerState(float x, float y, float z, float rx, float ry) {
+    if (!db_) return;
+
+    // DELETE-then-INSERT, not INSERT OR REPLACE -- matches Craft's own
+    // db_save_state exactly (src/db.c), since this single-row table has no
+    // key to replace on.
+    sqlite3_exec(db_, kDeleteStateSql, nullptr, nullptr, nullptr);
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kInsertStateSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare state insert statement: %s\n", sqlite3_errmsg(db_));
+        return;
+    }
+    sqlite3_bind_double(stmt, 1, static_cast<double>(x));
+    sqlite3_bind_double(stmt, 2, static_cast<double>(y));
+    sqlite3_bind_double(stmt, 3, static_cast<double>(z));
+    sqlite3_bind_double(stmt, 4, static_cast<double>(rx));
+    sqlite3_bind_double(stmt, 5, static_cast<double>(ry));
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+}
+
+bool WorldStore::LoadPlayerState(float& x, float& y, float& z, float& rx, float& ry) {
+    if (!db_) return false;
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kSelectStateSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare state select statement: %s\n", sqlite3_errmsg(db_));
+        return false;
+    }
+    bool found = false;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        x = static_cast<float>(sqlite3_column_double(stmt, 0));
+        y = static_cast<float>(sqlite3_column_double(stmt, 1));
+        z = static_cast<float>(sqlite3_column_double(stmt, 2));
+        rx = static_cast<float>(sqlite3_column_double(stmt, 3));
+        ry = static_cast<float>(sqlite3_column_double(stmt, 4));
+        found = true;
+    }
+    sqlite3_finalize(stmt);
+    return found;
 }
 
 }

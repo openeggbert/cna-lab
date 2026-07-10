@@ -149,16 +149,29 @@ void CnaCraftGame::Initialize() {
         }
     };
 
-    // Spawn at world-origin (0,0) (CRAFT_PARITY.md §1.2/§3.1, plan.md
-    // §12.1 item 19) — matches Craft's own actual behavior exactly; there's
-    // no "center of a bounded world" once the world streams. Force-
-    // generate+mesh every column within radii_.createRadius synchronously, all at
-    // once, ignoring the per-frame budget cap UpdateStreaming uses later —
-    // mirrors Craft's own startup force_chunks call, so the player never
-    // spawns into (or briefly sees) an ungenerated void.
+    // Player-position persistence (plan.md §12.1 item 17 follow-up, user
+    // decision 2026-07-10): try loading a saved eye position/look direction
+    // before deciding the spawn force-load region below, so a returning
+    // player's force-load happens around where they actually were, not
+    // always world-origin. `loadedX/Z` default to the same world-origin
+    // spawn used when nothing was ever saved (see the fallback branch
+    // further down) so the force-load loop below is correct either way.
+    float loadedX = 0.5f, loadedY = 0.0f, loadedZ = 0.5f, loadedYaw = 0.0f, loadedPitch = 0.0f;
+    const bool hasSavedPlayerState = worldStore_->LoadPlayerState(loadedX, loadedY, loadedZ, loadedYaw, loadedPitch);
+    const int spawnColumnCx = Worlds::ChunkCoordOf(static_cast<int>(std::floor(loadedX)));
+    const int spawnColumnCz = Worlds::ChunkCoordOf(static_cast<int>(std::floor(loadedZ)));
+
+    // Force-generate+mesh every column within radii_.createRadius of the
+    // spawn column synchronously, all at once, ignoring the per-frame
+    // budget cap UpdateStreaming uses later — mirrors Craft's own startup
+    // force_chunks call, so the player never spawns into (or briefly sees)
+    // an ungenerated void. Spawn column is world-origin (0,0) by default
+    // (CRAFT_PARITY.md §1.2/§3.1, plan.md §12.1 item 19) — matches Craft's
+    // own actual behavior exactly, there's no "center of a bounded world"
+    // once the world streams — or the saved column above if one exists.
     for (int dz = -radii_.createRadius; dz <= radii_.createRadius; ++dz) {
         for (int dx = -radii_.createRadius; dx <= radii_.createRadius; ++dx) {
-            LoadColumnSynchronously(dx, dz);
+            LoadColumnSynchronously(spawnColumnCx + dx, spawnColumnCz + dz);
         }
     }
     RebuildDirtyChunks();
@@ -189,11 +202,25 @@ void CnaCraftGame::Initialize() {
     // inside its own column instead. Spawn column is now world-origin
     // (0,0) (see the force-load loop above), not "the center of the fixed
     // world" -- there's no such thing once the world streams.
-    const float spawnX = 0.5f;
-    const float spawnZ = 0.5f;
-    const int spawnHeight = Worlds::NoiseGenerator::Height(kWorldSeed, 0, 0);
-    player_ = std::make_unique<Worlds::PlayerController>(
-        Core::Vec3f{spawnX, static_cast<float>(spawnHeight + 2), spawnZ});
+    //
+    // Player-position persistence (plan.md §12.1 item 17 follow-up): if a
+    // saved state exists, spawn there instead -- matches Craft's own real
+    // `db_load_state` behavior exactly (loaded position overrides the
+    // default spawn), converting Craft's real EYE-position storage
+    // (loadedY) to PlayerController's own feet-based storage via
+    // kEyeHeight. Falls back to the block-center/height+2 default spawn if
+    // nothing was ever saved, matching Craft's own
+    // `if (!loaded) s->y = highest_block(...) + 2`.
+    if (hasSavedPlayerState) {
+        player_ = std::make_unique<Worlds::PlayerController>(
+            Core::Vec3f{loadedX, loadedY - Worlds::PlayerController::kEyeHeight, loadedZ}, loadedYaw, loadedPitch);
+    } else {
+        const float spawnX = 0.5f;
+        const float spawnZ = 0.5f;
+        const int spawnHeight = Worlds::NoiseGenerator::Height(kWorldSeed, 0, 0);
+        player_ = std::make_unique<Worlds::PlayerController>(
+            Core::Vec3f{spawnX, static_cast<float>(spawnHeight + 2), spawnZ});
+    }
 
     hud_ = std::make_unique<Render::Hud>(device);
     hotbarSlotNames_.reserve(Worlds::Hotbar::kSlots.size());
@@ -839,6 +866,19 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     // WorldStore.hpp) -- acceptable at this prototype's low single-player
     // edit rate.
     worldStore_->SaveEdits(world_);
+
+    // Player-position persistence (plan.md §12.1 item 17 follow-up) --
+    // saved every frame (cheap single-row delete+insert), not just at clean
+    // exit like Craft's own single `db_save_state` call, so a crashed or
+    // killed process still resumes close to the last frame's position
+    // instead of losing it entirely -- see WorldStore.hpp's doc comment.
+    // Converts PlayerController's own feet-based storage to Craft's real
+    // eye-based storage via kEyeHeight (the inverse of the Initialize()
+    // load-time conversion).
+    {
+        const Core::Vec3f eyePos = player_->EyePosition();
+        worldStore_->SavePlayerState(eyePos.x, eyePos.y, eyePos.z, player_->Yaw(), player_->Pitch());
+    }
     leftClickWasDown_ = leftDown;
     rightClickWasDown_ = rightDown;
     middleClickWasDown_ = middleDown;

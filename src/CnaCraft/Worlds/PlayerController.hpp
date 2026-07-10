@@ -32,7 +32,18 @@ struct PlayerInput {
 // via ToggleFlying() — PlayerInput itself carries no mode-switch flag.
 class PlayerController {
 public:
-    explicit PlayerController(Core::Vec3f startFeetPosition);
+    // Vertical offset from feet position to EyePosition() -- public so
+    // callers converting to/from Craft's own eye-based position storage
+    // (e.g. WorldStore's player-state persistence, plan.md §12.1 item 17
+    // follow-up) have a single source of truth instead of duplicating the
+    // literal.
+    static constexpr float kEyeHeight = 1.7f;
+
+    // startYaw/startPitch (plan.md §12.1 item 17 follow-up, player-position
+    // persistence) let a caller restore a saved look direction along with
+    // position -- default 0,0 preserves every existing call site's behavior
+    // unchanged.
+    explicit PlayerController(Core::Vec3f startFeetPosition, float startYaw = 0.0f, float startPitch = 0.0f);
 
     void Update(const World& world, const PlayerInput& input, float dt);
     void ToggleFlying() { flying_ = !flying_; if (flying_) velocity_.y = 0.0f; }
