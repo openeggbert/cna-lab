@@ -114,13 +114,13 @@ int main() {
     }
 
     // Round 5: signs (CRAFT_PARITY.md §4.3) -- a separate table from block
-    // edits, full delete-and-reinsert save strategy rather than a delta.
+    // edits, incremental per-row writes (UpsertSign/DeleteSign/
+    // DeleteSignsAt) mirroring Craft's own db_insert_sign/db_delete_sign/
+    // db_delete_signs (src/db.c), not a bulk resave of the whole list.
     {
-        SignStore signs;
-        signs.PlaceSign(10, 11, 12, 4, "Hello, Craft!");
-        signs.PlaceSign(20, 21, 22, 0, "Second sign");
         WorldStore store(dbPath);
-        store.SaveSigns(signs);
+        store.UpsertSign(Sign{10, 11, 12, 4, "Hello, Craft!"});
+        store.UpsertSign(Sign{20, 21, 22, 0, "Second sign"});
     }
     {
         SignStore signs;
@@ -140,19 +140,59 @@ int main() {
         Check(foundFirst, "the first sign's coordinates, face, and text all round-trip correctly");
         Check(foundSecond, "the second sign's coordinates, face, and text all round-trip correctly");
     }
-    // Re-saving with a shorter list must not leave stale rows behind
-    // (confirms SaveSigns' delete-and-reinsert strategy actually deletes).
+    // Re-upserting the same (x,y,z,face) replaces the text instead of
+    // duplicating the row (matches the unique index on (x,y,z,face)).
     {
-        SignStore signs;
-        signs.PlaceSign(10, 11, 12, 4, "Only sign now");
         WorldStore store(dbPath);
-        store.SaveSigns(signs);
+        store.UpsertSign(Sign{10, 11, 12, 4, "Updated text"});
     }
     {
         SignStore signs;
         WorldStore store(dbPath);
         store.LoadSignsInto(signs);
-        Check(signs.Signs().size() == 1, "re-saving a shorter sign list removes the old rows, not just adds new ones");
+        Check(signs.Signs().size() == 2, "upserting an existing sign's coordinates+face replaces it, not duplicates it");
+        bool foundUpdated = false;
+        for (const auto& sign : signs.Signs()) {
+            if (sign.x == 10 && sign.y == 11 && sign.z == 12 && sign.face == 4 && sign.text == "Updated text") {
+                foundUpdated = true;
+            }
+        }
+        Check(foundUpdated, "the upserted sign's text was actually replaced");
+    }
+    // DeleteSign removes exactly one (x,y,z,face) row, leaving the other
+    // sign at the same (x,y,z) but a different face untouched.
+    {
+        WorldStore store(dbPath);
+        store.UpsertSign(Sign{10, 11, 12, 1, "Same cell, other face"});
+        store.DeleteSign(10, 11, 12, 4);
+    }
+    {
+        SignStore signs;
+        WorldStore store(dbPath);
+        store.LoadSignsInto(signs);
+        Check(signs.Signs().size() == 2, "DeleteSign removes only the targeted (x,y,z,face) row");
+        bool faceFourGone = true, faceOneSurvives = false;
+        for (const auto& sign : signs.Signs()) {
+            if (sign.x == 10 && sign.y == 11 && sign.z == 12 && sign.face == 4) faceFourGone = false;
+            if (sign.x == 10 && sign.y == 11 && sign.z == 12 && sign.face == 1) faceOneSurvives = true;
+        }
+        Check(faceFourGone, "the deleted face's sign is actually gone");
+        Check(faceOneSurvives, "a different face at the same (x,y,z) survives DeleteSign");
+    }
+    // DeleteSignsAt removes every sign at (x,y,z) regardless of face --
+    // matches Craft's own unset_sign(), called when the underlying block is
+    // broken (a sign can't outlive the block face it was attached to).
+    {
+        WorldStore store(dbPath);
+        store.DeleteSignsAt(10, 11, 12);
+    }
+    {
+        SignStore signs;
+        WorldStore store(dbPath);
+        store.LoadSignsInto(signs);
+        Check(signs.Signs().size() == 1, "DeleteSignsAt removes every face at that coordinate, leaving unrelated signs alone");
+        Check(signs.Signs()[0].x == 20 && signs.Signs()[0].y == 21 && signs.Signs()[0].z == 22,
+              "the surviving sign is the unrelated one at a different coordinate");
     }
 
     std::filesystem::remove(dbPath);

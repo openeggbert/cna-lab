@@ -228,7 +228,14 @@ void CnaCraftGame::Update(GameTime& gameTime) {
             // hit_test in on_key's g->typing branch (src/main.c).
             const auto signHit = Worlds::VoxelRaycast::Cast(
                 world_, player_->EyePosition(), player_->LookDirection(), kMaxReach);
-            if (signHit && !typingBuffer_.empty()) {
+            // Craft's own Enter handler calls set_sign() unconditionally
+            // once there's a hit (src/main.c:2214-2219), even with empty
+            // text -- set_sign() itself routes an empty string to
+            // unset_sign_face() (deleting any existing sign at that face)
+            // rather than storing a blank one. Mirrored here: PlaceSign
+            // already has that same empty-text-deletes behavior, so this
+            // isn't gated on typingBuffer_ being non-empty.
+            if (signHit) {
                 int face = -1;
                 if (signHit->nx > 0) face = 0;
                 else if (signHit->nx < 0) face = 1;
@@ -238,7 +245,14 @@ void CnaCraftGame::Update(GameTime& gameTime) {
                 else if (signHit->nz < 0) face = 5;
                 if (face >= 0) {
                     signStore_.PlaceSign(signHit->x, signHit->y, signHit->z, face, typingBuffer_);
-                    worldStore_->SaveSigns(signStore_);
+                    // Incremental writes matching Craft's own
+                    // db_insert_sign/db_delete_sign (src/db.c), not a bulk
+                    // resave of the whole sign list.
+                    if (typingBuffer_.empty()) {
+                        worldStore_->DeleteSign(signHit->x, signHit->y, signHit->z, face);
+                    } else {
+                        worldStore_->UpsertSign(Worlds::Sign{signHit->x, signHit->y, signHit->z, face, typingBuffer_});
+                    }
                     signsNeedRebuild_ = true;
                 }
             }
@@ -421,6 +435,13 @@ void CnaCraftGame::Update(GameTime& gameTime) {
             // not meant to be placed" block, could previously be mined
             // away with no protection at all.
             world_.SetBlockAndRecordEdit(hit->x, hit->y, hit->z, Worlds::BlockType::Air);
+            // A sign can't outlive the block face it was attached to --
+            // matches Craft's own _set_block calling unset_sign() whenever
+            // a block is set to type 0 (src/main.c).
+            if (signStore_.RemoveAllAt(hit->x, hit->y, hit->z)) {
+                worldStore_->DeleteSignsAt(hit->x, hit->y, hit->z);
+                signsNeedRebuild_ = true;
+            }
         }
     }
     if (hit && rightDown && !rightClickWasDown_) {
@@ -436,6 +457,11 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     worldStore_->SaveEdits(world_);
     leftClickWasDown_ = leftDown;
     rightClickWasDown_ = rightDown;
+
+    if (signsNeedRebuild_) {
+        signBillboard_.Rebuild(getGraphicsDeviceProperty(), signStore_.Signs());
+        signsNeedRebuild_ = false;
+    }
 
     RebuildDirtyChunks();
 }

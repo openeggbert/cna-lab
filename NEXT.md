@@ -38,9 +38,9 @@ links and runs. Verified via headless `--smoke` runs and real interactive
 Xvfb/xdotool/ImageMagick screenshots, including a full end-to-end sign
 placement/persistence/reload cycle (see §3 item 4 below).
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **164 plain-assert checks,
+**Test status**: `tests/worlds_smoke_test.cpp` — **169 plain-assert checks,
 all passing** (up from 149 at the start of this session). Plus a separate
-`cna_craft_persistence_smoke_test` target (18 checks, all passing) covering
+`cna_craft_persistence_smoke_test` target (21 checks, all passing) covering
 `Persistence::WorldStore` (blocks + signs) against a real SQLite file. Both
 build and run standalone with `-DCNA_CRAFT_BUILD_GAME=OFF`.
 
@@ -103,39 +103,59 @@ All individually committed and pushed to `develop`:
    into a relative-mouse-mode SDL window are unreliable here, same
    flakiness class already documented for mouse-look) — the dedicated
    `WorldStore`-level test became the primary verification instead.
-4. (this commit) — Signs: `Worlds::Sign`/`SignStore` (engine-agnostic data
-   model, symmetric 6-face convention derived from the raycast normal,
-   deliberately simpler than Craft's real asymmetric `hit_test_face`); a
-   text-input state machine in `CnaCraftGame::Update()` (backtick opens
-   typing via `TextInputEXT`, suspends WASD/look/click while typing but not
-   gravity, Enter re-raycasts fresh before submitting, Escape cancels
-   without quitting); `Render::SignBillboard` (one dynamically-built text
-   texture per sign via the newly-shared `Render/BitmapFont.hpp`, both
-   triangle windings emitted per quad to sidestep another empirical-winding
-   debug cycle); `WorldStore::LoadSignsInto`/`SaveSigns` (new `sign` table,
-   delete-and-reinsert per save); a new `Hud::SetTyping` on-screen overlay
-   for the in-progress typing buffer. **Verified end-to-end against a real
-   headless `CnaCraft` build**: `SDL_VIDEODRIVER=x11` was required under
-   Xvfb (the default video driver picked Wayland, whose surface X11
-   screenshot tooling can't see — an addition to this project's sandbox
-   quirks); `xdotool keydown`/`keyup` (not plain `xdotool key`, whose
-   default hold duration was too short for this project's 60fps input
-   polling to catch) drove backtick/type/Enter; confirmed via temporary
-   debug prints (removed before the final build) that `TextInput` events,
-   the edge-triggered Enter branch, and the raycast hit all fired
-   correctly; confirmed the "HI" sign rendered on-screen; confirmed the row
+4. Signs: `Worlds::Sign`/`SignStore` (engine-agnostic data model, symmetric
+   6-face convention derived from the raycast normal, deliberately simpler
+   than Craft's real asymmetric `hit_test_face`); a text-input state
+   machine in `CnaCraftGame::Update()` (backtick opens typing via
+   `TextInputEXT`, suspends WASD/look/click while typing but not gravity,
+   Enter re-raycasts fresh before submitting, Escape cancels without
+   quitting); `Render::SignBillboard` (one dynamically-built text texture
+   per sign via the newly-shared `Render/BitmapFont.hpp`, both triangle
+   windings emitted per quad to sidestep another empirical-winding debug
+   cycle); a new `Hud::SetTyping` on-screen overlay for the in-progress
+   typing buffer. **Verified end-to-end against a real headless `CnaCraft`
+   build**: `SDL_VIDEODRIVER=x11` was required under Xvfb (the default
+   video driver picked Wayland, whose surface X11 screenshot tooling can't
+   see — an addition to this project's sandbox quirks); `xdotool keydown`/
+   `keyup` (not plain `xdotool key`, whose default hold duration was too
+   short for this project's 60fps input polling to catch) drove backtick/
+   type/Enter; confirmed the sign rendered on-screen; confirmed the row
    landed in `world.db`'s new `sign` table via `sqlite3`; confirmed the
    sign reloaded correctly after killing and relaunching the process.
+5. **Sign persistence revised to match Craft's real `db.c` more closely**,
+   following a direct user request after reviewing item 4: the first
+   version's `WorldStore::SaveSigns` did a bulk delete-and-reinsert of the
+   whole sign list on every save. Re-checked against the real Craft source
+   (`src/db.c`) and replaced with three incremental methods —
+   `UpsertSign`/`DeleteSign`/`DeleteSignsAt` — matching Craft's own
+   `db_insert_sign`/`db_delete_sign`/`db_delete_signs` exactly (same
+   `(x,y,z,face)` keying, called from the same places). This re-check also
+   surfaced two real gaps versus Craft, both fixed: (a) submitting an
+   empty-text sign now deletes any existing sign at that face (Craft's
+   `set_sign` does this unconditionally on a raycast hit, not gated on the
+   typed buffer already being non-empty as the first version had it); (b)
+   breaking a block now deletes any signs on it (`SignStore::RemoveAllAt` +
+   `WorldStore::DeleteSignsAt`, matching Craft's `_set_block` →
+   `unset_sign` — a sign can't outlive the block face it was attached to).
+   New tests: 4 for `SignStore::RemoveAllAt` (`worlds_smoke_test.cpp`, now
+   169 checks), 7 revised/new for the incremental sign persistence methods
+   (`persistence_smoke_test.cpp`, now 21 checks). Re-verified the sign
+   place/reload cycle end-to-end via the same Xvfb/xdotool flow as item 4;
+   the break-deletes-signs path could **not** be verified live via the GUI
+   (synthetic mouse clicks into this project's relative-mouse-mode SDL
+   window remain unreliable here — verified instead via the unit tests
+   above plus code review, since `CnaCraftGame`'s wiring calls those same
+   tested functions directly).
 
 Test count progression: 149 → 149 (Cloud/terrain-formula changes needed no
 new `Worlds/`-layer tests beyond existing threshold tests, which were
-updated in place) → 164 (Signs' `SignStore` + edit-recording tests) in
+updated in place) → 164 (Signs' SignStore + edit-recording tests) → 169 (RemoveAllAt) in
 `worlds_smoke_test`; separately, 0 → 18 in the new `persistence_smoke_test`.
 
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
-`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 164/164 +18/18 tests
+`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 169/169 +21/21 tests
 passing, zero compiler warnings.
 
 Carried over, still unresolved, still not urgent: mouse-look reliability
@@ -240,8 +260,8 @@ cmake -S . -B build-worlds -DCNA_CRAFT_BUILD_GAME=OFF -DBUILD_TESTING=ON
 cmake --build build-worlds -j"$(nproc)"
 ctest --test-dir build-worlds --output-on-failure
 ```
-Expect: `WorldsSmokeTest` (164 `ok:` lines) and `PersistenceSmokeTest`
-(18 checks) both pass.
+Expect: `WorldsSmokeTest` (169 `ok:` lines) and `PersistenceSmokeTest`
+(21 checks) both pass.
 
 ```bash
 # Full graphical game (requires ../cna and ../sharp-runtime as siblings):

@@ -835,21 +835,43 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     "visible from both sides" is a reasonable simplification for a decal-like sign; the visible
     consequence (confirmed in the screenshot below) is mirrored ghost text bleeding through from
     the reverse-winding triangle when viewed at a grazing angle — accepted as part of the same
-    tradeoff. Signs persist via `WorldStore::LoadSignsInto`/`SaveSigns` (delete-and-reinsert
-    strategy, new `sign` table keyed the same way as `SignStore`, adapted from Craft's real
-    `sign(p,q,x,y,z,face,text)` schema by dropping the chunk-address columns, same reasoning as
-    item 15's `block` table). **Verified end-to-end in a real headless build** (not just unit
-    tests, unlike item 15's persistence-only verification): launched the actual `CnaCraft`
-    executable under Xvfb (`SDL_VIDEODRIVER=x11` — the default video driver silently created a
-    Wayland surface CNA's SDL backend can't see under X11 tooling, wasting an early screenshot
-    attempt before this was diagnosed), drove backtick/type/Enter via `xdotool keydown`/`keyup`
-    (plain `xdotool key`'s default hold duration was too short for this project's 60fps polling to
-    catch — an update to this project's documented keyboard-injection flakiness notes), confirmed
-    via temporary debug prints that `TextInput` events, the edge-triggered Enter branch, and the
-    raycast hit all fired correctly, confirmed the "HI" sign rendered on-screen (including the
-    expected double-winding ghost-text artifact described above), confirmed the row landed in
-    `world.db`'s new `sign` table via `sqlite3`, and confirmed the sign reloaded correctly after
-    killing and relaunching the process. Debug prints were removed before the final build.
+    tradeoff. Signs persist via `WorldStore::LoadSignsInto` (bulk load, same as `LoadInto` for
+    blocks) plus `UpsertSign`/`DeleteSign`/`DeleteSignsAt` (new `sign` table keyed the same way as
+    `SignStore`, adapted from Craft's real `sign(p,q,x,y,z,face,text)` schema by dropping the
+    chunk-address columns, same reasoning as item 15's `block` table). **Revised after initial
+    landing** (same session, following a direct user request to match Craft more closely): the
+    first version of `SaveSigns` did a bulk delete-and-reinsert of the whole sign list on every
+    save; re-reading Craft's real `db.c` showed it's actually incremental
+    (`db_insert_sign`/`db_delete_sign`/`db_delete_signs`, called from `set_sign`/`unset_sign_face`/
+    `unset_sign`), so `WorldStore` was changed to three matching incremental methods instead. This
+    also surfaced a real behavior gap versus Craft: `_set_block` (`src/main.c`) calls
+    `unset_sign()` whenever a block is set to type 0, so a sign can't outlive the block face it was
+    attached to — `CnaCraftGame::Update()`'s break-block branch now calls
+    `SignStore::RemoveAllAt`/`WorldStore::DeleteSignsAt` too, closing that gap. `SignStore` gained
+    `RemoveAllAt(x,y,z)` (ports `unset_sign`) with 4 new unit tests; `WorldStore`'s incremental sign
+    methods have 7 new/revised tests in `persistence_smoke_test.cpp` (upsert-replaces,
+    delete-one-face-leaves-others, delete-all-at-leaves-other-cells). Also fixed to match Craft
+    exactly: submitting an empty-text sign now deletes any existing sign at that face (Craft's
+    `set_sign` routes empty text to `unset_sign_face` unconditionally, not gated on the raycast hit
+    existing *and* the buffer being non-empty as the first version had it).
+    **Verified end-to-end in a real headless build** (not just unit tests, unlike item 15's
+    persistence-only verification): launched the actual `CnaCraft` executable under Xvfb
+    (`SDL_VIDEODRIVER=x11` — the default video driver silently created a Wayland surface CNA's SDL
+    backend can't see under X11 tooling, wasting an early screenshot attempt before this was
+    diagnosed), drove backtick/type/Enter via `xdotool keydown`/`keyup` (plain `xdotool key`'s
+    default hold duration was too short for this project's 60fps polling to catch — an update to
+    this project's documented keyboard-injection flakiness notes), confirmed via temporary debug
+    prints that `TextInput` events, the edge-triggered Enter branch, and the raycast hit all fired
+    correctly, confirmed the sign rendered on-screen (including the expected double-winding
+    ghost-text artifact described above), confirmed the row landed in `world.db`'s new `sign`
+    table via `sqlite3` (both for the original bulk save and, after the revision, the new
+    `UpsertSign` call), and confirmed the sign reloaded correctly after killing and relaunching the
+    process. Debug prints were removed before the final build. The break-deletes-signs path could
+    **not** be verified live via the GUI — synthetic mouse clicks into this project's
+    relative-mouse-mode SDL window remain unreliable in this sandbox (same documented flakiness as
+    item 15's persistence work); verified instead via the unit tests above plus code review, since
+    `CnaCraftGame`'s wiring is a direct, untransformed call into the same
+    `SignStore::RemoveAllAt`/`WorldStore::DeleteSignsAt` functions those tests already exercise.
 17. `pending` (large) — **Chat/slash commands** (CRAFT_PARITY.md §4.5): the same text-input state
     machine from item 16 is a prerequisite here too. The real Craft command set is mostly
     world-editing macros (`/cube`, `/sphere`, `/tree`, `/array`, `/copy`, `/paste`, etc.) — a

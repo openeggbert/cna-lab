@@ -567,8 +567,12 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   handled edge-triggered, WASD/look/click suspended while typing but gravity still integrates,
   matching Craft's own `if (!g->typing)` gate). Rendered by `Render::SignBillboard` as a textured
   quad per sign, oriented per face, with a dynamically-built text texture reusing the shared
-  `Render/BitmapFont.hpp` `FontDrawText`. Persisted in `WorldStore`'s `sign` table (delete-and-
-  reinsert per save, not delta), loaded on startup alongside block edits.
+  `Render/BitmapFont.hpp` `FontDrawText`. Persisted incrementally in `WorldStore`'s `sign` table
+  (`UpsertSign`/`DeleteSign`/`DeleteSignsAt`, mirroring Craft's own `db_insert_sign`/
+  `db_delete_sign`/`db_delete_signs`), loaded on startup alongside block edits. Breaking the
+  underlying block deletes any signs on it (`SignStore::RemoveAllAt` + `WorldStore::
+  DeleteSignsAt`), matching Craft's own `_set_block` calling `unset_sign()` when a block is set to
+  type 0 — a sign can't outlive the block face it was attached to.
 - **Status**: done (deliberate simplifications below)
 - **Craft files**: `src/sign.c`, `src/sign.h`, `src/main.c:385-395,756-840,666-696,2214-2219`
 - **cna-craft files**: `src/CnaCraft/Worlds/Sign.{hpp,cpp}`, `src/CnaCraft/Render/SignBillboard.{hpp,cpp}`,
@@ -588,7 +592,21 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   end-to-end verification screenshot (see `plan.md` §12.1 item 16). Verified end-to-end against
   a real headless `CnaCraft` build under Xvfb: typed and submitted a sign via `xdotool`-injected
   keystrokes, confirmed correct on-screen rendering, confirmed the row landed in `world.db`'s
-  `sign` table, confirmed it reloaded correctly after a process restart.
+  `sign` table via the new incremental `UpsertSign`, confirmed it reloaded correctly after a
+  process restart. The persistence layer was revised after this initial pass, following a direct
+  request to match Craft's real `db.c` more closely: it originally did a bulk delete-and-reinsert
+  of the whole sign list on every save; re-checked against the real Craft source and changed to
+  incremental per-row `UpsertSign`/`DeleteSign`/`DeleteSignsAt`, matching `db_insert_sign`/
+  `db_delete_sign`/`db_delete_signs` exactly. That re-check also surfaced (and fixed) two smaller
+  gaps: submitting an empty-text sign now deletes any existing sign at that face (Craft's
+  `set_sign` does this unconditionally on a hit, not only when the typed text was already
+  non-empty), and breaking a block now deletes any signs on it (Craft's `_set_block` →
+  `unset_sign`), which the initial pass hadn't ported. The break-deletes-signs path could not be
+  verified live via the GUI (synthetic mouse clicks into this project's relative-mouse-mode SDL
+  window remain unreliable in this sandbox, same limitation already documented for item 15's
+  persistence work) — verified instead via unit tests (`SignStore::RemoveAllAt`,
+  `WorldStore::DeleteSign(s)At`) plus code review, since `CnaCraftGame`'s wiring calls those same
+  tested functions directly with no transformation in between.
 
 ### 4.4 Player names / on-screen text
 - **Craft behavior**: `render_players` draws other players as plain cubes — **no in-world

@@ -7,6 +7,7 @@ struct sqlite3;
 namespace CnaCraft::Worlds {
 class World;
 class SignStore;
+struct Sign;
 }
 
 namespace CnaCraft::Persistence {
@@ -69,13 +70,29 @@ public:
 
     // Signs (CRAFT_PARITY.md §4.3) — a separate `sign(x,y,z,face,text)`
     // table (Craft's real `sign(p,q,x,y,z,face,text)` schema, src/db.c,
-    // same p,q-column drop as `block`). Unlike SaveEdits' incremental
-    // delta approach, sign counts are expected to stay small (a handful to
-    // low hundreds, not thousands), so SaveSigns does a full
-    // delete-and-reinsert of the whole list every call rather than tracking
-    // an incremental dirty set — simpler, and cheap enough at this scale.
+    // same p,q-column drop as `block` above). Incremental per-row writes,
+    // mirroring Craft's own `db_insert_sign`/`db_delete_sign`/
+    // `db_delete_signs` (src/db.c) rather than a bulk delete-and-reinsert
+    // of the whole list — an earlier version of this code did the latter
+    // for simplicity; changed to track Craft's real approach more closely.
     void LoadSignsInto(Worlds::SignStore& store);
-    void SaveSigns(const Worlds::SignStore& store);
+
+    // Insert-or-replace a single sign, keyed on (x,y,z,face) — matches
+    // Craft's own `db_insert_sign` (called from `set_sign` with non-empty
+    // text). Call after CnaCraftGame's typing flow submits a non-empty
+    // sign.
+    void UpsertSign(const Worlds::Sign& sign);
+
+    // Delete a single sign at (x,y,z,face) — matches Craft's own
+    // `db_delete_sign` (called from `unset_sign_face`, e.g. submitting an
+    // empty-text sign onto an existing one).
+    void DeleteSign(int x, int y, int z, int face);
+
+    // Delete every sign at (x,y,z) regardless of face — matches Craft's
+    // own `db_delete_signs` (called from `unset_sign`, itself called by
+    // `_set_block` whenever a block is broken: a sign can't outlive the
+    // block face it was attached to).
+    void DeleteSignsAt(int x, int y, int z);
 
 private:
     sqlite3* db_ = nullptr;

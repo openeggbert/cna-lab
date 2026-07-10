@@ -41,9 +41,13 @@ constexpr const char* kCreateSignTableSql =
     ");";
 constexpr const char* kCreateSignIndexSql =
     "CREATE UNIQUE INDEX IF NOT EXISTS sign_xyzface_idx ON sign (x, y, z, face);";
-constexpr const char* kDeleteAllSignsSql = "DELETE FROM sign;";
-constexpr const char* kInsertSignSql = "INSERT INTO sign (x, y, z, face, text) VALUES (?, ?, ?, ?, ?);";
 constexpr const char* kSelectAllSignsSql = "SELECT x, y, z, face, text FROM sign;";
+// Incremental sign writes (mirrors Craft's db_insert_sign/db_delete_sign/
+// db_delete_signs, src/db.c) — see WorldStore.hpp's class comment.
+constexpr const char* kUpsertSignSql =
+    "INSERT OR REPLACE INTO sign (x, y, z, face, text) VALUES (?, ?, ?, ?, ?);";
+constexpr const char* kDeleteSignSql = "DELETE FROM sign WHERE x = ? AND y = ? AND z = ? AND face = ?;";
+constexpr const char* kDeleteSignsAtSql = "DELETE FROM sign WHERE x = ? AND y = ? AND z = ?;";
 }
 
 WorldStore::WorldStore(const std::string& path) {
@@ -158,31 +162,53 @@ void WorldStore::LoadSignsInto(Worlds::SignStore& store) {
     store.ReplaceAll(std::move(signs));
 }
 
-void WorldStore::SaveSigns(const Worlds::SignStore& store) {
+void WorldStore::UpsertSign(const Worlds::Sign& sign) {
     if (!db_) return;
 
-    sqlite3_exec(db_, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
-    sqlite3_exec(db_, kDeleteAllSignsSql, nullptr, nullptr, nullptr);
-
     sqlite3_stmt* stmt = nullptr;
-    if (sqlite3_prepare_v2(db_, kInsertSignSql, -1, &stmt, nullptr) != SQLITE_OK) {
-        std::fprintf(stderr, "WorldStore: failed to prepare sign save statement: %s\n", sqlite3_errmsg(db_));
-        sqlite3_exec(db_, "ROLLBACK;", nullptr, nullptr, nullptr);
+    if (sqlite3_prepare_v2(db_, kUpsertSignSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare sign upsert statement: %s\n", sqlite3_errmsg(db_));
         return;
     }
-
-    for (const Worlds::Sign& sign : store.Signs()) {
-        sqlite3_bind_int(stmt, 1, sign.x);
-        sqlite3_bind_int(stmt, 2, sign.y);
-        sqlite3_bind_int(stmt, 3, sign.z);
-        sqlite3_bind_int(stmt, 4, sign.face);
-        sqlite3_bind_text(stmt, 5, sign.text.c_str(), -1, SQLITE_TRANSIENT);
-        sqlite3_step(stmt);
-        sqlite3_reset(stmt);
-    }
+    sqlite3_bind_int(stmt, 1, sign.x);
+    sqlite3_bind_int(stmt, 2, sign.y);
+    sqlite3_bind_int(stmt, 3, sign.z);
+    sqlite3_bind_int(stmt, 4, sign.face);
+    sqlite3_bind_text(stmt, 5, sign.text.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_step(stmt);
     sqlite3_finalize(stmt);
+}
 
-    sqlite3_exec(db_, "COMMIT;", nullptr, nullptr, nullptr);
+void WorldStore::DeleteSign(int x, int y, int z, int face) {
+    if (!db_) return;
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kDeleteSignSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare sign delete statement: %s\n", sqlite3_errmsg(db_));
+        return;
+    }
+    sqlite3_bind_int(stmt, 1, x);
+    sqlite3_bind_int(stmt, 2, y);
+    sqlite3_bind_int(stmt, 3, z);
+    sqlite3_bind_int(stmt, 4, face);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+}
+
+void WorldStore::DeleteSignsAt(int x, int y, int z) {
+    if (!db_) return;
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kDeleteSignsAtSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare sign delete-all-at statement: %s\n",
+                     sqlite3_errmsg(db_));
+        return;
+    }
+    sqlite3_bind_int(stmt, 1, x);
+    sqlite3_bind_int(stmt, 2, y);
+    sqlite3_bind_int(stmt, 3, z);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
 }
 
 }

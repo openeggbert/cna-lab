@@ -44,6 +44,14 @@ public:
     // `set_sign`).
     void PlaceSign(int x, int y, int z, int face, const std::string& text);
 
+    // Removes every sign at (x,y,z) regardless of face, matching Craft's
+    // own `unset_sign` (src/main.c) — called when the underlying block is
+    // broken (`_set_block`'s `w == 0` branch), since a sign can't outlive
+    // the block face it was attached to. Returns true if anything was
+    // actually removed (callers use this to skip a needless DB delete /
+    // billboard rebuild).
+    bool RemoveAllAt(int x, int y, int z);
+
     [[nodiscard]] const std::vector<Sign>& Signs() const { return signs_; }
 
     // Used by Persistence::WorldStore when loading — replaces the whole

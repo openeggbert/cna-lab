@@ -137,6 +137,22 @@ void TestSignStore() {
     store.ReplaceAll(loaded);
     Check(store.Signs().size() == 1 && store.Signs()[0].text == "Loaded",
           "ReplaceAll replaces the entire list at once, as used when loading from persistence");
+
+    // RemoveAllAt (CRAFT_PARITY.md §4.3) ports Craft's own unset_sign
+    // (src/main.c) -- called when the underlying block is broken, since a
+    // sign can't outlive the block face it was attached to. Removes every
+    // face at (x,y,z), leaving signs at other coordinates untouched.
+    SignStore removeStore;
+    removeStore.PlaceSign(5, 5, 5, 0, "Face 0");
+    removeStore.PlaceSign(5, 5, 5, 1, "Face 1");
+    removeStore.PlaceSign(6, 5, 5, 0, "Different cell");
+    Check(removeStore.Signs().size() == 3, "three signs placed across two cells");
+
+    Check(removeStore.RemoveAllAt(5, 5, 5), "RemoveAllAt returns true when it actually removed something");
+    Check(removeStore.Signs().size() == 1, "RemoveAllAt removes every face at the targeted (x,y,z)");
+    Check(removeStore.Signs()[0].x == 6, "the sign at a different (x,y,z) survives RemoveAllAt");
+
+    Check(!removeStore.RemoveAllAt(5, 5, 5), "RemoveAllAt returns false when there was nothing to remove");
 }
 
 void TestWorldGenerationIsDeterministic() {
