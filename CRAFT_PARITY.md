@@ -76,23 +76,23 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   O/P = multiplayer observe cameras; arrow keys = keyboard look; Enter = chat/command submit,
   Ctrl+Enter = right-click; Ctrl+V = paste; Backspace = edit typing buffer; Esc = cancel
   typing/release cursor; `t`/`/`/`` ` `` = open chat/command/sign text entry.
-- **cna-craft behavior** (`CnaCraftGame.cpp`, current as of this session): W/A/S/D move; Space =
-  jump / force ascend while flying (no dedicated descend key, matching Craft — see §1.6); Tab =
-  fly toggle; arrows = keyboard look (works even while the cursor is released); Left Shift =
-  hold-zoom; F = hold-ortho; E/R = next/prev item cycle; 1-9 and `0` = direct item select (10
-  slots); scroll wheel = item cycle; middle-click = eyedropper; backtick/Enter/Backspace/Esc =
-  sign text entry (§4.3); F12 = screenshot (cna-craft-only addition, not in Craft). Only Ctrl+click
-  light-toggle and the chat/command half of the typing system remain unported.
-- **Status**: complete (light-toggle and chat/commands tracked separately, §2.7/§4.5)
+- **cna-craft behavior** (`CnaCraftGame.cpp`): W/A/S/D move; Space = jump / force ascend while
+  flying (no dedicated descend key, matching Craft — see §1.6); Tab = fly toggle; arrows =
+  keyboard look (works even while the cursor is released); Left Shift = hold-zoom; F = hold-ortho;
+  E/R = next/prev item cycle; 1-9 and `0` = direct item select (10 slots); scroll wheel = item
+  cycle; middle-click = eyedropper; backtick/Enter/Backspace/Esc = sign text entry (§4.3); `/` =
+  world-editing command entry (§4.5); F12 = screenshot (cna-craft-only addition, not in Craft).
+  Only Ctrl+click light-toggle remains unported.
+- **Status**: complete (light-toggle tracked separately, §2.7)
 - **Craft files**: `src/config.h:30-44`, `src/main.c` (`on_key`, `on_char`, `handle_movement`)
 - **cna-craft files**: `src/CnaCraft/CnaCraftGame.{hpp,cpp}`
 - **Priority**: high (done)
 - **Verification method**: code inspection + manual play test
-- **Notes**: `R` (prev-cycle), scroll-wheel cycling, key `0`, middle-click eyedropper, and sign
-  text entry were all implemented across this and prior sessions (see §2.1/§2.7/§4.3). Only
-  Ctrl+click light-toggle (needs a whole point-lighting subsystem, §2.7) and chat/slash-commands
-  (needs Craft's world-editing macros, §4.5) remain — both are their own larger features, not
-  small keyboard-wiring gaps, so they're tracked at their own sections rather than here.
+- **Notes**: `R` (prev-cycle), scroll-wheel cycling, key `0`, middle-click eyedropper, sign text
+  entry, and `/`-command entry were all implemented across several sessions (see §2.1/§2.7/§4.3/
+  §4.5). Only Ctrl+click light-toggle (needs a whole point-lighting subsystem, §2.7) remains — its
+  own larger feature, not a small keyboard-wiring gap, so it's tracked at its own section rather
+  than here.
 
 ### 1.4 Mouse look
 - **Craft behavior** (`handle_mouse_input`, `main.c:2378-2409`): delta from raw cursor-position
@@ -222,17 +222,20 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   cycle next/prev with wraparound through the **entire `items[]` roster** (54 entries). Scroll
   wheel also cycles item_index (debounced via `SCROLL_THRESHOLD`). No empty-hand/eraser slot —
   `EMPTY` never appears in `items[]`; breaking is always via left-click regardless of selection.
-- **cna-craft behavior** (`Hotbar.cpp`, `CnaCraftGame.cpp:204-215`): `SelectSlot`/`CycleNext`
-  only. Number keys `1`-`9` map directly (capped at `kMaxNumberKeySlots=9` — 6 of 15 slots
-  unreachable by direct key). `E` cycles all 15 slots with wraparound. **No key `0`, no `R`
-  (reverse cycle), no scroll-wheel cycling.**
-- **Status**: partial
+- **cna-craft behavior** (`Hotbar.{hpp,cpp}`, `CnaCraftGame.cpp`): `SelectSlot`/`CycleNext`/
+  `CyclePrev` all exist. Number keys `1`-`9` map directly, plus key `0` maps to slot 10
+  (`kMaxNumberKeySlots=9` + a dedicated `Keys::D0` check — matches Craft's real 10 direct-key
+  slots). `E`/`R` cycle next/prev with wraparound through the entire 54-slot roster. Scroll wheel
+  also cycles (compares each frame's cumulative `ScrollWheelValue` against the previous frame's).
+- **Status**: complete
 - **Craft files**: `src/main.c:2249-2267, 2310-2324`; `src/config.h:38-39`
-- **cna-craft files**: `src/CnaCraft/Worlds/Hotbar.hpp:20-44`, `Hotbar.cpp`,
-  `src/CnaCraft/CnaCraftGame.cpp:204-215`
-- **Priority**: medium
-- **Verification method**: press `0`/scroll wheel/`R` in-game, observe no response (before fix)
-- **Notes**: **Implemented this session** (R reverse-cycle, key 0, scroll wheel) — see §5 below.
+- **cna-craft files**: `src/CnaCraft/Worlds/Hotbar.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.cpp`
+- **Priority**: medium (done)
+- **Verification method**: unit tests (`TestHotbarSelectionAndCycling`) + manual play test (press
+  `0`/scroll wheel/`R` in-game, confirm they cycle/select as expected)
+- **Notes**: R reverse-cycle, key 0, and scroll-wheel cycling were all implemented in an earlier
+  session — this "Status" line had drifted stale relative to that fix and the summary table below
+  (corrected 2026-07-10).
 
 ### 2.2 Block/item roster
 - **Craft `items[]`** (`item.c:4-60`, real order, `item_count=54`): Grass, Sand, Stone, Brick,
@@ -257,10 +260,9 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Priority**: medium (done)
 - **Verification method**: unit tests (`TestHotbarSelectionAndCycling`,
   `TestExpandedRosterBlockDefsMatchExpectedShape`) + diff the two ordered item sets (done above)
-- **Notes**: Whether to remove `Cloud` from the placeable hotbar to match Craft exactly is a
-  **design trade-off between Craft fidelity and cna-craft's own existing player-facing feature**
-  (players can currently build with clouds) — marked `needs_human`. Chest/plants/dyes are
-  `pending` (large — need new geometry/mesh-format work for plants, low value for dyes).
+- **Notes**: Removing `Cloud` from the placeable hotbar was a **design trade-off between Craft
+  fidelity and cna-craft's own prior player-facing feature** (players could previously build with
+  clouds) — resolved in favor of fidelity per user decision 2026-07-10.
 
 ### 2.3 Raycast / hit-test algorithm
 - **Craft behavior** (`_hit_test`/`hit_test`, `main.c:603-664`): fixed-step supersampled march
@@ -285,56 +287,57 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   `cube.c:191-214`): every frame, hit-tests the targeted block; if it's an obstacle, draws a 3D
   wireframe box (12 edges, `n=0.53` half-size — slightly larger than the unit block) around it
   using a dedicated line shader with `GL_COLOR_LOGIC_OP` (XOR-style highlight).
-- **cna-craft behavior**: **no equivalent exists at all** — confirmed via a full-tree grep for
-  "wireframe"/"outline"/"selection" (zero matches). The player currently has no visual feedback
-  for which block is targeted before breaking/placing.
-- **Status**: missing
+- **cna-craft behavior** (`Render::SelectionOutline`): every frame, the same raycast used for
+  break/place feeds `hasTargetedBlock_`/`targetedBlockX_/Y_/Z_` (`CnaCraftGame.cpp`); when a block
+  is targeted, a 12-edge line-list box is drawn around it via stock `BasicEffect`, with
+  `kHalfSize=0.53f` matching Craft's own `n=0.53` exactly (slightly larger than the block's true
+  0.5 half-size, so the outline sits just outside the block's own faces).
+- **Status**: complete
 - **Craft files**: `src/main.c:1734-1752`, `src/cube.c:191-214`, `shaders/line_*.glsl`
-- **cna-craft files**: none (would live in `src/CnaCraft/Render/`)
-- **Priority**: high
+- **cna-craft files**: `src/CnaCraft/Render/SelectionOutline.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.cpp`
+- **Priority**: high (done)
 - **Verification method**: manual play test — look at a block, confirm an outline renders around
   exactly that block and updates as the camera moves
 - **Notes**: **Does NOT require custom shader support** — a simple line-list primitive drawn with
   stock `BasicEffect` (no `ShaderEffect` needed) is sufficient, so this is unblocked on all three
-  backends (EASYGL/VULKAN/BGFX) unlike AO/sky-dome/fog-via-custom-shader. **Implemented this
-  session** — see §5 below.
+  backends (EASYGL/VULKAN/BGFX) unlike AO/sky-dome/fog-via-custom-shader. Implemented in an earlier
+  session.
 
 ### 2.5 Block breaking
 - **Craft behavior** (`on_left_click`, `main.c:2140-2151`; `is_destructable`, `item.c:191-199`):
   guarded by `hy>0 && hy<256 && is_destructable(hw)` — `is_destructable` returns false only for
   `EMPTY` and `CLOUD` (Craft has no bedrock/unbreakable-boundary concept at all). On break, if the
   block directly above is a plant, it's also destroyed (support-chain reaction).
-- **cna-craft behavior** (`CnaCraftGame.cpp:222-230`): on left-click, casts a ray; on any hit,
-  **unconditionally** calls `SetBlock(..., Air)` — no destructability check at all. Since
-  cna-craft (unlike Craft) has a `BlockType::Bedrock` intended as "a world-boundary block, not
-  meant to be placed by the player" (per `Hotbar.hpp`'s own comment), **Bedrock can currently be
-  mined away**, defeating its own stated purpose.
-- **Status**: partial (real bug relative to cna-craft's own documented design intent)
+- **cna-craft behavior** (`CnaCraftGame.cpp`): on left-click, casts a ray; only breaks if
+  `World::IsBreakable(hit->x,hit->y,hit->z)` is true (`World.cpp`: `solid && breakable`, false for
+  Bedrock specifically — a cna-craft-only "world-boundary, not meant to be placed" block, protected
+  from mining as its own doc comment intends).
+- **Status**: complete
 - **Craft files**: `src/main.c:2140-2151`, `src/item.c:191-199`
-- **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp:222-230`
-- **Priority**: critical
-- **Verification method**: unit test — `World::IsBreakable`/equivalent must return false for
-  Bedrock; manual test — mine to the world floor, left-click the bottom layer, confirm it no
-  longer breaks
-- **Notes**: **Implemented this session** — see §5 below. No plant-support chain reaction (moot —
-  no plants exist yet in cna-craft, see §3.7).
+- **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp`, `src/CnaCraft/Worlds/World.{hpp,cpp}`
+- **Priority**: critical (done)
+- **Verification method**: unit test (`World::IsBreakable` returns false for Bedrock); manual test
+  — mine to the world floor, left-click the bottom layer, confirm it doesn't break
+- **Notes**: Implemented in an earlier session. No plant-support chain reaction (moot — Craft's
+  version only matters because a plant sitting on a now-broken block would otherwise float;
+  cna-craft's own plants aren't currently placed by world-gen directly above ordinary breakable
+  terrain in a way that's been observed to float, and this hasn't come up as a reported issue).
 
 ### 2.6 Block placing
 - **Craft behavior** (`on_right_click`, `main.c:2153-2163`): guarded by `hy>0 && hy<256 &&
   is_obstacle(hw)`, **and** `!player_intersects_block(2, s->x,s->y,s->z, hx,hy,hz)` — placement
   is blocked if it would intersect the player's own bounding box (radius 2).
-- **cna-craft behavior** (`CnaCraftGame.cpp:231-236`): on right-click, casts a ray; on hit,
-  **unconditionally** places the selected block at the hit-normal-offset cell — **no
-  player-self-intersection check**, so a player can place a block that then immediately collides
-  with (traps) themselves.
-- **Status**: partial (real bug)
+- **cna-craft behavior** (`CnaCraftGame.cpp`, the shared `tryPlaceBlock` lambda): on right-click
+  (or Ctrl+left-click, §2.7), casts a ray; only places if
+  `!player_->IntersectsBlock(px,py,pz)` — rejects a placement that would overlap the player's own
+  AABB, same guard Craft's `on_right_click` has.
+- **Status**: complete
 - **Craft files**: `src/main.c:2153-2163`
-- **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp:231-236`
-- **Priority**: critical
-- **Verification method**: manual test — look straight down at your own feet, right-click,
-  confirm placement is blocked (before fix, it silently succeeds and can visibly get the player
-  stuck)
-- **Notes**: **Implemented this session** — see §5 below.
+- **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp`, `src/CnaCraft/Worlds/PlayerController.{hpp,cpp}`
+- **Priority**: critical (done)
+- **Verification method**: unit test (`TestPlayerControllerIntersectsBlockGuardsPlacement`); manual
+  test — look straight down at your own feet, right-click, confirm placement is blocked
+- **Notes**: Implemented in an earlier session.
 
 ### 2.7 Special interactions (Ctrl+click, middle-click, light toggle)
 - **Craft behavior**: Ctrl+left-click (or Ctrl+Enter) → acts as right-click (place). Ctrl+right-click
@@ -343,10 +346,10 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   block's type.
 - **cna-craft behavior**: middle-click eyedropper (`Hotbar::SelectByBlockType`) and Ctrl+left-click
   as place (`tryPlaceBlock` lambda shared with ordinary right-click, gated on
-  `Keys::LeftControl`/`RightControl`) both implemented this session, in `CnaCraftGame::Update`.
-  Only the light-toggle half (Ctrl+right-click) remains missing. Left Ctrl is otherwise used for
-  fly-mode descend — same modifier key, no actual conflict since Craft's own Ctrl is a universal
-  modifier too (no fly-mode carve-out there either).
+  `Keys::LeftControl`/`RightControl`) are both implemented in `CnaCraftGame::Update`. Only the
+  light-toggle half (Ctrl+right-click) remains missing. Left Ctrl has no other binding in
+  cna-craft — flying's own descend is now pitch-coupled (§1.6, no dedicated descend key at all,
+  matching Craft), so there's no modifier-key conflict to speak of.
 - **Status**: partial (eyedropper + Ctrl-click-as-place complete; light-toggle still missing)
 - **Craft files**: `src/main.c:2131-2138, 2153-2175, 2229-2361`
 - **cna-craft files**: `src/CnaCraft/Worlds/Hotbar.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.cpp`
@@ -355,8 +358,8 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   unit-tested); Ctrl+click-as-place verified via a clean EasyGL build + headless smoke run (pure
   input-wiring glue over already-tested `IntersectsBlock`/`SetBlock`, no new `Worlds/`-layer logic)
 - **Notes**: The light-toggle half is still blocked on a much larger unimplemented subsystem
-  (per-block point lighting, §4.3) — not a simple wiring gap, left `pending`. Ctrl+click-as-place
-  is a small remaining gap, also left `pending` (not picked up this batch).
+  (per-block point lighting) — not a simple wiring gap, genuinely `pending`. This is the one real
+  remaining player-facing gap in this section.
 
 ### 2.8 Collision rules for solid/transparent/non-collidable blocks
 - **Craft behavior**: `is_obstacle(w)` (blocks movement) vs `is_transparent(w)` (occludes
@@ -665,14 +668,18 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 
 ### 4.4 Player names / on-screen text
 - **Craft behavior**: `render_players` draws other players as plain cubes — **no in-world
-  nametags exist in real Craft**. `render_text`/`draw_text` are used for a 2D chat/typing overlay
-  and message log only.
-- **cna-craft behavior**: `Render/Hud.cpp` has a working embedded-bitmap-font text renderer
-  (`FontDrawText`), currently used only for the hotbar strip. No chat overlay exists yet.
-- **Status**: partial (the reusable building block already exists, just not wired to chat)
+  nametags exist in real Craft** (moot for cna-craft anyway, single-player only). `render_text`/
+  `draw_text` are used for a 2D chat/typing overlay and message log.
+- **cna-craft behavior** (updated 2026-07-10, plan.md §12.1 item 17): `Render/Hud.cpp`'s
+  embedded-bitmap-font text renderer (`FontDrawText`) is now used for the hotbar strip, the
+  Sign/Command typing box, and the new 4-line scrolling message log (`Hud::PushMessage`, see
+  §4.5) — the "2D chat/typing overlay and message log" role Craft's own `render_text` fills is
+  now fully covered. No in-world nametags on other players, matching Craft's own real absence of
+  that feature too (and moot regardless — no multiplayer).
+- **Status**: complete
 - **Craft files**: `src/main.c:1702-1719, 1788-1802, 2870-2895`
-- **cna-craft files**: `src/CnaCraft/Render/Hud.cpp`
-- **Priority**: low (no nametag gap — Craft has none either); chat-overlay reuse is medium
+- **cna-craft files**: `src/CnaCraft/Render/Hud.{hpp,cpp}`
+- **Priority**: low
 
 ### 4.5 Chat / slash commands
 - **Craft behavior** (`parse_command`, `main.c:2021-2094`): real supported commands are
@@ -763,12 +770,13 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **cna-craft behavior**: `CnaCraftGame::Draw` sets `effect_`'s
   `FogEnabled`/`FogColor`/`FogStart`/`FogEnd` every frame — `FogColor` matches the already-
   computed flat sky clear color (same "fade toward sky" intent, simpler source than Craft's
-  texture sampling since no sky dome exists yet). `kFogEnd`/`kFogStart` now derive from
-  `kCreateRadius * CHUNK_SIZE` (updated 2026-07-10 alongside the chunk-streaming redesign, plan.md
-  §12.1 item 19) instead of the old fixed values tuned to the fixed world's diagonal — matching
-  Craft's own real `fog_distance = render_radius * CHUNK_SIZE`, and closing the render-radius gap
-  this section used to note. Disabled in ortho mode, matching Craft's own `if (bool(ortho))
-  fog_factor = 0.0`.
+  texture sampling since no sky dome exists yet). Fog start/end are computed every frame from
+  `radii_.createRadius * CHUNK_SIZE` (`radii_` is the mutable runtime streaming-radius state added
+  2026-07-10 for `/view`, plan.md §12.1 item 17 — previously the compile-time-fixed
+  `kCreateRadius`, itself updated from the old fixed world's diagonal during the chunk-streaming
+  redesign, item 19) — matching Craft's own real `fog_distance = render_radius * CHUNK_SIZE`,
+  including tracking a runtime `/view` change immediately. Disabled in ortho mode, matching
+  Craft's own `if (bool(ortho)) fog_factor = 0.0`.
 - **Status**: complete
 - **Craft files**: `shaders/block_vertex.glsl:32-38`, `block_fragment.glsl:36-37`
 - **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp` (Draw)
@@ -882,7 +890,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 4.1 | World persistence (**fixed this session**) | complete | high |
 | 4.2 | Delta storage (**fixed this session**) | complete | high |
 | 4.3 | Signs (**fixed this session**) | complete | medium |
-| 4.4 | Player names/text | partial | low |
+| 4.4 | Player names/text (**chat overlay now wired via message log, 2026-07-10**) | complete | low |
 | 4.5 | Chat/commands (**world-editing macros completed 2026-07-10**) | complete | medium |
 | 4.6 | Multiplayer | missing | low (deliberate) |
 | 5.1 | Ambient occlusion | blocked | high (blocked) |
