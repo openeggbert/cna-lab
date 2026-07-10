@@ -102,15 +102,23 @@ void SignBillboard::Rebuild(GraphicsDevice& device, const std::vector<Worlds::Si
                      static_cast<float>(sign.z) + face.corners[3].Z),
              face.normal, Vector2(0, 0)},
         };
-        // Both windings, so the sign is visible from either side (see the
-        // class comment in SignBillboard.hpp for why).
-        const std::uint16_t indices[12] = {0, 1, 2, 0, 2, 3, 0, 2, 1, 0, 3, 2};
+        // Single outward-facing winding (0,1,2)+(0,2,3) -- same corner-order
+        // convention as ChunkMesher's kFaces (see its comment), empirically
+        // confirmed correct there (every cube face in this project renders
+        // outward, not culled) with CNA's default CullCounterClockwiseFace
+        // rasterizer state (plan.md §12.1 item 17 follow-up, 2026-07-10).
+        // NOT independently re-verified for this specific sign-quad case --
+        // see the class comment in SignBillboard.hpp for why (a real-build
+        // check was attempted but blocked by this session's own synthetic-
+        // text-input flakiness) and for how to revert if this turns out
+        // wrong.
+        const std::uint16_t indices[6] = {0, 1, 2, 0, 2, 3};
 
         SignQuad quad;
         quad.vb = std::make_unique<VertexBuffer>(device, 4);
         quad.vb->SetData(verts, 4);
-        quad.ib = std::make_unique<IndexBuffer>(device, IndexElementSize::SixteenBits, 12, BufferUsage::None);
-        quad.ib->SetData(indices, 12);
+        quad.ib = std::make_unique<IndexBuffer>(device, IndexElementSize::SixteenBits, 6, BufferUsage::None);
+        quad.ib->SetData(indices, 6);
         quad.texture = std::make_unique<Texture2D>(BuildSignTexture(device, sign.text));
         quads_.push_back(std::move(quad));
     }
@@ -132,7 +140,7 @@ void SignBillboard::Draw(GraphicsDevice& device, BasicEffect& effect) {
                 /*minVertexIndex=*/0,
                 /*numVertices=*/4,
                 /*startIndex=*/0,
-                /*primitiveCount=*/4);
+                /*primitiveCount=*/2);
         }
     }
 }

@@ -27,14 +27,25 @@ namespace CnaCraft::Render {
 // the shared embedded bitmap font (Render/BitmapFont.hpp) into its own
 // small dynamically-built texture instead.
 //
-// Each quad is emitted with both triangle windings (visible from either
-// side) rather than a single Craft-accurate outward-facing winding, since
-// this project's correct winding convention for non-cube geometry has
-// turned out to need real-build empirical verification each time (see
-// Render/SkyDome.cpp's winding note) — doubling the (very small, since sign
-// counts are low) triangle count sidesteps needing another such pass here,
-// and "visible from both sides" is a reasonable simplification for a
-// decal-like sign anyway.
+// Each quad uses a single outward-facing winding (updated 2026-07-10) —
+// same (0,1,2)+(0,2,3) corner-order convention as ChunkMesher's cube
+// faces, which is proven correct against CNA's default rasterizer state
+// (every cube face in this project has rendered outward, never culled,
+// across many real-build screenshots this whole session). NOT
+// independently re-verified for this specific sign-quad case, though --
+// a real-build check was attempted but blocked by this session's own
+// synthetic-text-input flakiness (Xvfb/SDL stopped delivering
+// TextInputEXT characters partway through this session, affecting even
+// the already-working `/`-command typing, so no sign with real text could
+// be placed to look at). If you touch this again, verify with a real
+// screenshot before trusting this comment's confidence — this is a
+// same-convention inference, not a confirmed observation. An earlier
+// version emitted both windings to sidestep needing this exact
+// verification pass (see Render/SkyDome.cpp's note on why that's normally
+// needed for non-cube geometry); reverting to that safe fallback is one
+// line if this turns out wrong (see git history for the removed indices).
+// If correct, this removes the both-windings version's known tradeoff:
+// faint mirrored "ghost text" visible from behind at a grazing angle.
 class SignBillboard {
 public:
     // Rebuilds GPU resources for all `signs` — call only when the sign list
