@@ -5,8 +5,9 @@ reimplementation of the XNA 4.0 programming model.
 
 ## 1. Overview
 
-CNA Craft is a small first-person voxel-world prototype: chunked block terrain, procedural
-terrain generation, textured/lit cube meshing, and block breaking/placing, all built directly on
+CNA Craft is a small first-person voxel-world prototype: an unbounded, chunk-streamed block
+terrain, procedural terrain generation, textured/lit cube meshing, and block breaking/placing,
+all built directly on
 CNA's `Microsoft::Xna::Framework` API (`Vector3`/`Matrix`, `VertexBuffer`/`IndexBuffer`,
 `BasicEffect`, `Texture2D`, `Keyboard`/`Mouse`).
 
@@ -93,11 +94,19 @@ There is no in-game quit key; close the window (or Alt+F4) to exit.
 Placed signs render as a small text billboard on the block face they were
 attached to and are saved/restored the same way as block edits (below).
 
-Every block you break or place is saved automatically to `world.db` (SQLite, created next to the
-executable on first launch) and restored on top of the deterministically-regenerated terrain the
-next time you run the game — only your edits are stored, not the whole world, mirroring
-[fogleman/Craft](https://github.com/fogleman/Craft)'s own delta-persistence approach. Delete
-`world.db` to start over with a fresh, unedited world.
+The world has no fixed boundary — new terrain generates on the fly as you move away from spawn,
+and chunks far behind you unload to free memory (both happen in the background; you shouldn't
+notice a hitch). Every block you break or place is saved automatically to `world.db` (SQLite,
+created next to the executable on first launch) and restored per-chunk on top of the
+deterministically-regenerated terrain as each chunk streams back in — only your edits are stored,
+not the whole world, mirroring [fogleman/Craft](https://github.com/fogleman/Craft)'s own
+delta-persistence approach. Delete `world.db` to start over with a fresh, unedited world.
+
+**If you have a `world.db` from before 2026-07-10**, delete it before running this version — the
+save schema changed (added Craft's own `p,q` chunk-address columns to support per-chunk loading)
+and there is no migration path from the old schema. An incompatible `world.db` is detected and
+ignored (with a console warning) rather than causing a crash, but your old edits won't be
+readable; a fresh `world.db` will be created in its place.
 
 ## 6. License
 

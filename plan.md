@@ -245,9 +245,11 @@ checked out as siblings, and one of the three 3D-capable backends selected at co
   `CNA_GRAPHICS_BACKEND`, see §8); `SDL_RENDERER` remains 2D-only. `CnaCraft` itself is written
   against the backend-agnostic `Microsoft::Xna::Framework` API, so no game code changes with the
   backend choice — only the CMake configure flag does.
-- No occlusion/frustum culling in the engine — acceptable at this prototype's fixed
-  `128×64×128`-block/32-chunk scale; would need addressing before scaling to a larger or
-  streamed world (§9, M7).
+- No occlusion/frustum culling in the engine — was acceptable at this prototype's original fixed
+  `128×64×128`-block/32-chunk scale; the world is now unbounded and streamed (§12.1 item 19), so
+  every loaded column within `kCreateRadius` still draws every frame with no culling at all —
+  worth revisiting if render cost at the current radius (6 chunks) ever becomes a problem when
+  scaling the radius up further.
 
 **Real bugs found via actual play (not just tests/screenshots) and fixed:**
 
@@ -359,8 +361,8 @@ Larger backlog items intentionally **not** picked up as "next smallest task" —
 tracked in detail in §11.1–§11.8, but each requires either a bigger implementation effort or an
 explicit human decision first:
 
-- `pending` (large) — Hash-map-keyed dynamic chunk store + distance-based load/unload (§11.1)
-  — prerequisite for an unbounded world; a genuine architecture change, not a small patch.
+- `completed` (see §12.1 item 19) — Hash-map-keyed dynamic chunk store + distance-based
+  load/unload (§11.1) — the unbounded, streamed world.
 - `completed` (moved here from §11.2, see §12.1 item 7) — Non-cubic plant/billboard geometry.
   `pending` (large) — ambient occlusion, greedy meshing (§11.2) — each needs a further
   `MeshVertex`/`ChunkMesher` format change.
@@ -372,8 +374,8 @@ explicit human decision first:
   2026-07-10: add SQLite as a dependency.
 - `pending`, explicitly deferred — Multiplayer/`Net`-based chunk/block sync (§11.6): per project
   direction, do not start before local single-player gameplay, persistence, and chunk logic are
-  stable — persistence is now `completed`, but multiplayer itself stays deferred per that same
-  direction until the chunk-system redesign (needs_human, §11.1) is also settled.
+  stable — persistence and the chunk-system redesign (§11.1) are both now `completed`, but
+  multiplayer itself stays deferred per that same direction.
 - `completed` (see §12.1 item 16) — Signs (§11.4). `pending` (large) — chat/slash commands
   (§11.7): the same text-input state machine Signs now uses is a prerequisite, but Craft's real
   command set (`/cube`, `/sphere`, `/tree`, `/array`, `/copy`, `/paste`, etc.) needs
@@ -382,12 +384,15 @@ explicit human decision first:
 
 ### 11.1 World & terrain
 
-- [ ] Replace the fixed `128×64×128` array-of-chunks `World` with a hash-map-keyed, dynamically
-      loaded/unloaded chunk store (Craft: 32×32 XZ columns, full 0–255 Y range, `(x,y,z)->w` hash
-      map per chunk — `src/map.c`/`src/map.h`). This is the prerequisite for an effectively
-      unbounded world instead of today's fixed bounds.
-- [ ] Chunk load/unload driven by player distance (Craft: `src/world.c` `create_chunk`, only
-      chunks within a radius of the player are resident).
+- [x] Replace the fixed `128×64×128` array-of-chunks `World` with a hash-map-keyed, dynamically
+      loaded/unloaded chunk store (see §12.1 item 19, CRAFT_PARITY.md §3.1) — X/Z are now
+      unbounded (packed-`(cx,cz)`-keyed `unordered_map`); Y stays fixed at `WORLD_CHUNKS_Y=4`,
+      matching Craft's own real behavior (Craft never streams Y either). `Chunk` itself stayed a
+      dense fixed array rather than adopting Craft's sparse per-chunk hash map — a pure internal
+      storage-strategy difference with no player-visible effect.
+- [x] Chunk load/unload driven by player distance (see §12.1 item 19, CRAFT_PARITY.md §3.2):
+      `kCreateRadius=6`/`kDeleteRadius=9` chebyshev distance, generation+meshing backgrounded via
+      `System::Threading::Tasks::TaskT`.
 - [x] Swap `NoiseGenerator`'s value noise for Simplex noise. **Correction**: `noise.c`/`noise.h`
       actually live in `Craft/deps/noise/` (derived from https://github.com/caseman/noise, MIT),
       not inline in `world.c` as this line originally said — `world.c` just calls `simplex2`. Ported
@@ -879,15 +884,71 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     exist in this codebase either. Recommended as its own dedicated follow-up task.
 18. `pending`, explicitly deferred — **Multiplayer** (CRAFT_PARITY.md §4.6): per project
     direction, not started before local single-player + persistence are stable.
-19. `pending` (large) — **Chunk system redesign** (CRAFT_PARITY.md §3.1/§3.2): hash-map sparse
-    chunks + distance-based streaming, replacing the fixed dense grid — a genuine architecture
-    change, not a quick task. **User decision (2026-07-10)**: pursue an unbounded world after all
-    (supersedes the original `needs_human` framing above, which asked whether this was even
-    wanted). Not started — needs its own design pass (new World/Chunk storage model, chunk
-    generation/meshing on demand as the player moves, load/unload policy, persistence-schema
-    impact on `Persistence::WorldStore`) before implementation, per this project's own "genuine
-    architecture change" handling rule; tracked as its own follow-up, not bundled into item 24's
-    same-shape-port fixes.
+19. `completed` — **Chunk system redesign: unbounded, streamed world** (CRAFT_PARITY.md
+    §3.1/§3.2/§5.2). **User decision (2026-07-10)**: pursue an unbounded world after all
+    (supersedes the original `needs_human` framing, which asked whether this was even wanted).
+    Planned via `EnterPlanMode` (three parallel research passes + a design-review pass) before any
+    code was touched, then implemented in seven phases, each independently built/tested before the
+    next started:
+    - **Phase 0** — SQLite schema migration: added Craft's real `p,q` chunk-address columns to
+      `block`/`sign`, `block`'s unique index becomes `(p,q,x,y,z)`, a new non-unique `(p,q)` index
+      on `sign` (mirroring Craft's own asymmetry: `sign` keeps its `(x,y,z,face)` uniqueness).
+      Pre-migration `world.db` files fail loudly at open (no silent per-INSERT failures) via the
+      existing `CREATE INDEX`-against-missing-columns error path — no migration path, delete and
+      regenerate, same precedent as the earlier terrain-formula reset.
+    - **Phase 1** — `World` storage rebuilt as a two-level hash map,
+      `unordered_map<ColumnKey, array<unique_ptr<Chunk>, WORLD_CHUNKS_Y>>`, keyed by packed
+      `(cx,cz)` — unbounded X/Z, Y still fixed (matches Craft's own real behavior: Craft never
+      streams Y either). `GenerateColumn`/`IsColumnLoaded`/`UnloadColumn`/`AllocateColumn` new
+      public API; `World::Generate(seed)` kept as a legacy whole-region wrapper looping
+      `GenerateColumn`, so most of the ~20 pre-existing tests needed zero changes. Ported Craft's
+      real tree-canopy chunk-boundary margin check (`world.c`) as a documented, deliberate minor
+      regression (a few boundary-adjacent trees that used to spawn no longer do).
+    - **Phase 2** — `WorldStore` per-chunk-scoped I/O: `LoadColumnInto`/`LoadColumnSignsInto`/
+      `LoadColumnEdits` (`WHERE p=? AND q=?`), matching Craft's own `db_load_blocks`/
+      `db_load_signs` exactly.
+    - **Phase 3** — `CnaCraftGame` streaming integration, synchronous first (deliberate
+      de-risking before adding threading): player `(cx,cz)` tracked every frame,
+      `kCreateRadius=6`/`kDeleteRadius=9` chebyshev-distance load/unload with a small per-frame
+      budget even pre-threading, spawn moved to world-origin with synchronous force-load
+      (mirroring Craft's own `force_chunks`), `chunkRenderers_` became a `ColumnKey`-keyed hash map
+      (also fixing a latent correctness bug: the old flat vector was only ever kept in lockstep
+      with `World`'s indexing by construction order), signs wired to column load/unload via new
+      `SignStore::RemoveAllInColumn`, `PlayerController`'s floor-catch fixed to distinguish "column
+      genuinely has no ground" from "column not loaded yet", fog now tracks
+      `kCreateRadius * CHUNK_SIZE` instead of a fixed constant (closing the CRAFT_PARITY.md §5.2
+      render-radius gap).
+    - **Phase 4** — backgrounded generation + meshing via sharp-runtime's
+      `System::Threading::Tasks::TaskT` (this project's first use of threading). Discovered
+      mid-implementation: `TaskT<T>::getResultProperty()` returns via a `shared_ptr`-reached member
+      access, not a named local, so it needs `T` copy-constructible, not just movable — ruled out
+      returning a move-only `array<unique_ptr<Chunk>,Y>`; solved via `World::CopyColumn`/
+      `AdoptColumnCopy`/`InstallChunkCopy` converting to/from a plain copyable `array<Chunk,Y>`
+      snapshot form. Background tasks touch no live `World`/`GraphicsDevice`/`sqlite3*` — only
+      plain copyable input/output data, reconstructing a throwaway scratch `World` on the
+      background thread. Two real bugs found via real-build Xvfb/xdotool fly-navigation
+      verification and fixed before this phase was considered done: (1) completed-but-over-the-
+      per-frame-apply-cap jobs were discarded outright instead of deferred, which for meshing
+      specifically (dirty flag clears at dispatch time, not completion time) caused permanent
+      unfilled rectangular holes in distant terrain; (2) `DispatchMeshingForDirtyChunks` had no
+      dispatch cap at all, letting one column's arrival fan out into dozens of concurrent mesh
+      tasks. Re-verified via matched-flight-path screenshot comparisons after the fix — clean
+      terrain, no holes, thread count bounded, across multiple long fly-out-and-back cycles.
+    - **Phase 5** — added the three genuinely new-risk tests this redesign needed (column
+      load/unload lifecycle, boundary-remesh correctness — a boundary face is exposed while its
+      neighbor column is unloaded and correctly culled once the neighbor loads with a solid block
+      across the shared boundary, and a real generate→edit→save→unload→regenerate→reload
+      persistence cycle for one column); the ~20 pre-existing `WORLD_SIZE_*`-shaped tests needed no
+      changes, already compatible via Phase 1's legacy `Generate` wrapper.
+    - **Phase 6** — this documentation pass (CRAFT_PARITY.md §3.1/§3.2/§4.2/§4.3/§5.2, this
+      writeup, `README.md`, `NEXT.md`).
+
+    237 checks passing (`cna_craft_worlds_smoke_test` + `cna_craft_persistence_smoke_test`, up from
+    225 before this item). Two deliberate, documented player-visible behavior changes: block edits
+    and freshly-streamed terrain render 1-2 frames later than the old same-frame synchronous
+    rebuild (imperceptible at 60fps), and a handful of trees right at a chunk-column boundary no
+    longer spawn (Craft's own real margin-check behavior, previously unreplicated since the whole
+    world generated as one unit).
 20. `completed` — **Middle-click eyedropper** (CRAFT_PARITY.md §2.7): new `Hotbar::
     SelectByBlockType(type)`, wired to the middle mouse button in `CnaCraftGame::Update` using the
     same per-frame raycast as break/place/outline. Ports Craft's real `on_middle_click` exactly
@@ -990,16 +1051,9 @@ arguably better than Craft's), collision rules for solid/transparent/collidable 
 culling (§3.4), mesh generation strategy (§3.5), transparent-block rules (§3.6), trees (§3.8),
 clouds (§3.10), day/night lighting (§5.4).
 
-Two former entries here — window/cursor-capture-vs-quit-on-Escape (§1.2) and walking/flying
-control scheme (§1.6) — were resolved by item 24 above (2026-07-10 user decision to match Craft
-exactly on both, overriding their prior "already documented as intentional" status). One
-remains, still a genuine architecture question rather than a bug fix:
-
-- **Chunk system being fixed-size rather than infinite** (§3.1/§3.2, `plan.md` §1 already scopes
-  this as a deliberate prototype boundary) — **User decision (2026-07-10, same "minimize
-  differences" session as item 24)**: pursue the unbounded/streamed world after all, superseding
-  item 19's original `needs_human` status. **Not started yet as of this note** — deliberately kept
-  out of item 24's batch since it's a genuine multi-part architecture change (hash-map chunk
-  storage, distance-based load/unload, a new World/Chunk data model), not a same-shape port like
-  items 24's fixes were. Needs its own design pass before implementation — see item 19 for the
-  scope breakdown.
+Three former entries here — window/cursor-capture-vs-quit-on-Escape (§1.2) and walking/flying
+control scheme (§1.6), resolved by item 24 (2026-07-10 user decision to match Craft exactly on
+both, overriding their prior "already documented as intentional" status), and chunk system
+being fixed-size rather than infinite (§3.1/§3.2), resolved by item 19 (2026-07-10 user decision
+to pursue the unbounded/streamed world after all) — are now fully implemented. None remain open
+in this category as of this note.

@@ -377,29 +377,58 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Craft behavior**: no fixed 3D array — each `Chunk` (one 32×32 XZ column, full 0–255 Y range)
   holds sparse `(x,y,z)→w` entries in an open-addressed hash map (`src/map.c`/`map.h`), dynamically
   grown. Chunks live in a flat dynamic array keyed by `(p,q)`.
-- **cna-craft behavior**: dense fixed `std::array<BlockType,16³>` per `Chunk`, dense fixed
-  `8×4×8` grid of chunks (`128×64×128` world), allocated once at startup.
-- **Status**: partial (deliberate architectural simplification)
+- **cna-craft behavior** (redesigned 2026-07-10, plan.md §12.1 item 19 — user decision: pursue an
+  unbounded world after all): `World`'s storage is now a two-level container,
+  `std::unordered_map<ColumnKey, std::array<std::unique_ptr<Chunk>, WORLD_CHUNKS_Y>> columns_`,
+  keyed by packed `(cx,cz)` — unbounded in X/Z, exactly like Craft's own `(p,q)`-keyed chunk array.
+  `Chunk` itself stays a dense fixed `std::array<BlockType,16³>` (not Craft's sparse hash map — a
+  pure internal storage-strategy difference with no player-visible effect, since Y never streams
+  and 4 chunks of dense height is trivial memory) and `CHUNK_SIZE` stays 16, not Craft's 32 (also
+  purely internal). Y remains fixed (`WORLD_CHUNKS_Y=4`), matching Craft's own real behavior —
+  Craft never streams Y either.
+- **Status**: complete
 - **Craft files**: `src/map.c`, `src/map.h`
-- **cna-craft files**: `src/CnaCraft/Worlds/Chunk.{hpp,cpp}`, `World.hpp`
-- **Priority**: medium
-- **Verification method**: code inspection
-- **Notes**: Explicitly documented in cna-craft's own comments as an intentional scoping decision
-  (fixed prototype world vs. infinite streamed world), not an oversight. Replacing it is a real
-  architecture change — `pending` (large), not a quick task.
+- **cna-craft files**: `src/CnaCraft/Worlds/Chunk.{hpp,cpp}`, `World.{hpp,cpp}`
+- **Priority**: medium (done)
+- **Verification method**: unit tests (`cna_craft_worlds_smoke_test`: column pack/unpack,
+  generate/load/unload lifecycle, copy round-trips) + real-build Xvfb/xdotool fly-navigation
+  verification (confirmed the world extends well past the old 128×128 boundary in every
+  direction, with no crashes/corruption over multiple long fly sessions)
 
 ### 3.2 Chunk loading/unloading by distance
 - **Craft behavior**: `CREATE_CHUNK_RADIUS=10`, `RENDER_CHUNK_RADIUS=10`, `DELETE_CHUNK_RADIUS=14`
   (`config.h`); `force_chunks`/`ensure_chunks` create chunks around the player (worker-threaded),
   `delete_chunks` frees far-away ones every frame.
-- **cna-craft behavior**: none — the entire fixed world is generated once at startup, never
-  streamed.
-- **Status**: missing (deliberate, depends on §3.1)
+- **cna-craft behavior** (redesigned 2026-07-10, plan.md §12.1 item 19): `CnaCraftGame::
+  UpdateStreaming` runs every frame — loads any column within `kCreateRadius=6` (chebyshev) of the
+  player's current `(cx,cz)` that isn't already loaded or in flight, dispatch-capped at
+  `kMaxColumnLoadsPerFrame=2` new background jobs/frame; unloads any loaded column beyond
+  `kDeleteRadius=9` (hysteresis margin over the create radius, same reasoning as Craft's
+  10/10/14). `Initialize()` still force-generates+meshes the spawn-area columns synchronously
+  before placing the player, mirroring Craft's own `force_chunks`-before-`ensure_chunks` split.
+  Unlike Craft's fixed 4-worker-thread pool, generation/meshing each dispatch one
+  `System::Threading::Tasks::TaskT` per column/chunk (self-throttled via the dispatch/apply caps
+  above rather than a bounded pool — see §3.1's threading note below).
+- **Status**: complete
 - **Craft files**: `src/main.c` (`force_chunks` L1307, `ensure_chunks` L1418, `delete_chunks`
   L1225)
-- **cna-craft files**: `src/CnaCraft/Worlds/World.cpp` (`World::World`, `World::Generate`)
-- **Priority**: low (given the project's stated fixed-world scope)
-- **Verification method**: code inspection
+- **cna-craft files**: `src/CnaCraft/CnaCraftGame.{hpp,cpp}` (`UpdateStreaming`,
+  `DispatchColumnGeneration`/`PollGenerationJobs`, `DispatchMeshingForDirtyChunks`/`PollMeshJobs`)
+- **Priority**: low (given the project's original stated fixed-world scope — done anyway per user
+  decision to close this gap)
+- **Verification method**: unit tests + real-build Xvfb/xdotool verification (fly far from spawn,
+  confirm terrain streams in with no permanent holes; fly back, confirm no crashes/leaks; thread
+  count stayed bounded, not runaway)
+- **Notes**: two real bugs were found and fixed during this session's own verification, not left
+  as known issues: (1) completed-but-over-the-per-frame-apply-cap background jobs were being
+  discarded outright instead of deferred to a later frame, which for meshing specifically (whose
+  dirty flag clears at *dispatch* time, not completion time) caused permanent unfilled rectangular
+  holes in distant terrain; (2) `DispatchMeshingForDirtyChunks` originally had no dispatch cap at
+  all, letting one column's arrival fan out into dozens of uncapped concurrent mesh tasks. Both
+  fixed (deferred-not-discarded apply logic, `kMaxMeshDispatchesPerFrame=8` added) and
+  re-verified via matched-flight-path screenshot comparisons. Player-driven edits and freshly
+  streamed-in terrain both now render 1-2 frames later than same-frame synchronous meshing would
+  (backgrounded meshing's one deliberate, documented, imperceptible-at-60fps behavior change).
 
 ### 3.3 Chunk/terrain generation algorithm
 - **Craft behavior** (`create_world`, `src/world.c`): `f = simplex2(x*0.01,z*0.01,4,0.5,2)`,
@@ -560,13 +589,16 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 ### 4.2 Delta storage of edits
 - **Craft behavior**: `block(p,q,x,y,z,w)` table, unique-indexed on `(p,q,x,y,z)`, `insert or
   replace` per edit, loaded back over regenerated terrain.
-- **cna-craft behavior** (implemented this session): `block(x,y,z,w)` table, unique-indexed on
-  `(x,y,z)` — Craft's real schema minus the `p,q` chunk-address columns, since cna-craft's `World`
-  has no per-chunk addressing (a fixed dense grid, not Craft's streamed-chunk model — see §3.1).
-  `World` gained the "enumerate only changed blocks" capability `plan.md`'s original persistence
-  note said was needed: `BlockEdit`, `SetBlockAndRecordEdit`, `RecordedEdits()`,
-  `ClearRecordedEdits()` — all zero-dependency additions to `Worlds/`, kept separate from
-  `WorldStore`'s actual SQLite I/O.
+- **cna-craft behavior**: `block(p,q,x,y,z,w)` table, unique-indexed on `(p,q,x,y,z)` — matches
+  Craft's real schema exactly. Updated 2026-07-10 (plan.md §12.1 item 19) to add the `p,q`
+  chunk-address columns once `World` gained real per-column addressing (§3.1); `WorldStore`
+  computes `p,q` from `x,z` internally (same chunk-address formula as `World`) before binding, so
+  call sites are unchanged. **No migration path from the pre-`p,q` schema** — an old `world.db`
+  fails to open (logged, falls back to the harmless no-op store) rather than silently
+  misbehaving; delete it to upgrade (same precedent as the earlier terrain-formula reset). `World`
+  has the "enumerate only changed blocks" capability `plan.md`'s original persistence note said
+  was needed: `BlockEdit`, `SetBlockAndRecordEdit`, `RecordedEdits()`, `ClearRecordedEdits()` — all
+  zero-dependency additions to `Worlds/`, kept separate from `WorldStore`'s actual SQLite I/O.
 - **Status**: complete
 - **Craft files**: `src/db.c:59-151,315-334,404-420`
 - **cna-craft files**: `src/CnaCraft/Worlds/World.{hpp,cpp}` (`BlockEdit` and friends),
@@ -585,10 +617,13 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   quad per sign, oriented per face, with a dynamically-built text texture reusing the shared
   `Render/BitmapFont.hpp` `FontDrawText`. Persisted incrementally in `WorldStore`'s `sign` table
   (`UpsertSign`/`DeleteSign`/`DeleteSignsAt`, mirroring Craft's own `db_insert_sign`/
-  `db_delete_sign`/`db_delete_signs`), loaded on startup alongside block edits. Breaking the
-  underlying block deletes any signs on it (`SignStore::RemoveAllAt` + `WorldStore::
-  DeleteSignsAt`), matching Craft's own `_set_block` calling `unset_sign()` when a block is set to
-  type 0 — a sign can't outlive the block face it was attached to.
+  `db_delete_sign`/`db_delete_signs`), loaded per-column (`WorldStore::LoadColumnSignsInto`)
+  alongside that column's block edits as it streams in (plan.md §12.1 item 19), and purged
+  (`SignStore::RemoveAllInColumn`) when its column unloads — signs don't leak memory or desync
+  across a long streaming session. Breaking the underlying block deletes any signs on it
+  (`SignStore::RemoveAllAt` + `WorldStore::DeleteSignsAt`), matching Craft's own `_set_block`
+  calling `unset_sign()` when a block is set to type 0 — a sign can't outlive the block face it
+  was attached to.
 - **Status**: done (deliberate simplifications below)
 - **Craft files**: `src/sign.c`, `src/sign.h`, `src/main.c:385-395,756-840,666-696,2214-2219`
 - **cna-craft files**: `src/CnaCraft/Worlds/Sign.{hpp,cpp}`, `src/CnaCraft/Render/SignBillboard.{hpp,cpp}`,
@@ -687,11 +722,14 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 ### 5.2 Fog
 - **Craft behavior**: distance+height fog in `block_vertex.glsl`/`block_fragment.glsl`, blending
   toward a sampled sky-texture color by camera distance.
-- **cna-craft behavior** (implemented this session): `CnaCraftGame::Draw` sets `effect_`'s
+- **cna-craft behavior**: `CnaCraftGame::Draw` sets `effect_`'s
   `FogEnabled`/`FogColor`/`FogStart`/`FogEnd` every frame — `FogColor` matches the already-
   computed flat sky clear color (same "fade toward sky" intent, simpler source than Craft's
-  texture sampling since no sky dome exists yet), `kFogStart=70`/`kFogEnd=150` scaled to this
-  project's fixed world size. Disabled in ortho mode, matching Craft's own `if (bool(ortho))
+  texture sampling since no sky dome exists yet). `kFogEnd`/`kFogStart` now derive from
+  `kCreateRadius * CHUNK_SIZE` (updated 2026-07-10 alongside the chunk-streaming redesign, plan.md
+  §12.1 item 19) instead of the old fixed values tuned to the fixed world's diagonal — matching
+  Craft's own real `fog_distance = render_radius * CHUNK_SIZE`, and closing the render-radius gap
+  this section used to note. Disabled in ortho mode, matching Craft's own `if (bool(ortho))
   fog_factor = 0.0`.
 - **Status**: complete
 - **Craft files**: `shaders/block_vertex.glsl:32-38`, `block_fragment.glsl:36-37`
@@ -789,8 +827,8 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 2.6 | Block placing (self-intersection) | **fixed this session** | critical |
 | 2.7 | Eyedropper + Ctrl-click-as-place (**both fixed this session**) / light-toggle | partial | low |
 | 2.8 | Collision rules (solid/transparent) | complete | low |
-| 3.1 | Chunk system (hash-map vs fixed) | partial | medium (large) |
-| 3.2 | Chunk streaming | missing | low (deliberate) |
+| 3.1 | Chunk system (**unbounded column hash-map fixed this session**) | complete | medium (large) |
+| 3.2 | Chunk streaming (**background generation/meshing fixed this session**) | complete | low |
 | 3.3 | Terrain formula + Sand generation (**both fixed this session**) | complete | high |
 | 3.4 | Face culling | complete | low |
 | 3.5 | Mesh generation | complete | low |
