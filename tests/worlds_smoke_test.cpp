@@ -130,6 +130,66 @@ void TestColumnCopyRoundTrips() {
     Check(singleChunkDest.IsColumnLoaded(0, 0), "InstallChunkCopy allocates the target column if needed");
 }
 
+void TestWorldColumnLoadUnloadLifecycle() {
+    // plan.md §12.1 item 19 phase 5: World::IsColumnLoaded/UnloadColumn are
+    // the primitives CnaCraftGame's streaming loop is built on -- exercised
+    // there only indirectly (via GenerateColumn/AdoptColumnCopy in
+    // TestColumnCopyRoundTrips), so this test covers the plain
+    // generate-then-unload lifecycle directly.
+    World world;
+    Check(!world.IsColumnLoaded(4, -2), "a fresh World has no columns loaded");
+
+    world.GenerateColumn(4, -2, 1234);
+    Check(world.IsColumnLoaded(4, -2), "GenerateColumn loads the column");
+    Check(!world.IsColumnLoaded(4, -1), "a neighboring, never-generated column stays unloaded");
+
+    const int x = 4 * CHUNK_SIZE + 3, z = -2 * CHUNK_SIZE + 3;
+    world.SetBlock(x, 10, z, BlockType::Stone);
+    Check(world.GetBlock(x, 10, z) == BlockType::Stone, "a loaded column's blocks are readable/writable");
+
+    world.UnloadColumn(4, -2);
+    Check(!world.IsColumnLoaded(4, -2), "UnloadColumn actually unloads the column");
+    Check(world.GetBlock(x, 10, z) == BlockType::Air,
+          "reading a cell in a now-unloaded column falls back to the graceful-degradation Air default");
+
+    // Unloading an already-unloaded (or never-loaded) column is a safe no-op.
+    world.UnloadColumn(4, -2);
+    world.UnloadColumn(99, 99);
+    Check(!world.IsColumnLoaded(4, -2), "double-unloading the same column stays a no-op, no crash");
+}
+
+void TestChunkMesherBoundaryRemeshOnNeighborLoad() {
+    // plan.md §12.1 item 19 phase 5 ("boundary-remesh correctness"): a
+    // chunk's face at the edge of the currently-loaded region is exposed
+    // (its neighbor column reads as Air -- the same graceful-degradation
+    // default as any other unloaded column), but once that neighbor loads
+    // with a solid block against the shared boundary, re-meshing must cull
+    // that now-covered face -- this is the real behavior
+    // MarkNeighborColumnsDirty (CnaCraftGame) exists to trigger.
+    World world;
+    world.AllocateColumn(0, 0);
+    // Local x=15 is the chunk's own +X edge (CHUNK_SIZE=16); its neighbor
+    // column (1,0) isn't loaded yet.
+    world.SetBlock(15, 5, 5, BlockType::Stone);
+
+    ChunkMeshData beforeNeighbor = ChunkMesher::Build(world, 0, 0, 0);
+    Check(beforeNeighbor.opaque.vertices.size() == 24,
+          "a boundary block with no loaded neighbor exposes all 6 faces (unloaded neighbor reads as Air)");
+
+    world.AllocateColumn(1, 0);
+    world.SetBlock(16, 5, 5, BlockType::Stone); // local x=0 of column (1,0), touching the boundary
+    ChunkMeshData afterNeighbor = ChunkMesher::Build(world, 0, 0, 0);
+    Check(afterNeighbor.opaque.vertices.size() == 20,
+          "once the neighbor column loads with a solid block across the boundary, re-meshing culls the shared face "
+          "(5 of 6 faces remain)");
+
+    // The neighbor's own mesh, built independently, must show the same
+    // mutual culling on its side of the boundary.
+    ChunkMeshData neighborMesh = ChunkMesher::Build(world, 1 * CHUNK_SIZE, 0, 0);
+    Check(neighborMesh.opaque.vertices.size() == 20,
+          "the neighbor chunk's own mesh also culls its face touching the boundary (mutual occlusion)");
+}
+
 void TestWorldBoundsAndRoundTrip() {
     World world;
     Check(world.GetBlock(-1, 0, 0) == BlockType::Air, "world out-of-range GetBlock returns Air");
@@ -1229,6 +1289,7 @@ int main() {
     TestChunkCoordOfHandlesNegativeCoordinates();
     TestColumnKeyPackingRoundTrips();
     TestColumnCopyRoundTrips();
+    TestWorldColumnLoadUnloadLifecycle();
     TestWorldBoundsAndRoundTrip();
     TestWorldRecordsEditsForPersistence();
     TestSignStore();
@@ -1247,6 +1308,7 @@ int main() {
     TestChunkMesherPlantBillboard();
     TestChunkMesherFlowerUsesSamePlantPath();
     TestChunkMesherCloudIsOpaqueButNotCollidable();
+    TestChunkMesherBoundaryRemeshOnNeighborLoad();
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();
     TestPlayerControllerGravityAndGroundCollision();

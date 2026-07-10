@@ -269,6 +269,40 @@ int main() {
         std::filesystem::remove(oldSchemaPath);
     }
 
+    // Round 9 (plan.md §12.1 item 19 phase 5): the actual streaming
+    // lifecycle a real play session exercises -- generate a column, edit and
+    // save a block, unload the column (as CnaCraftGame::UnloadColumn does
+    // when the player wanders away), then reload just that column from
+    // scratch and confirm the edit survived. Round 7 above proves
+    // column-scoped loading filters correctly; this proves the specific
+    // World::UnloadColumn -> WorldStore::LoadColumnInto round trip that
+    // streaming actually performs is not lossy.
+    {
+        const std::string streamPath = "persistence_smoke_test_stream.db";
+        std::filesystem::remove(streamPath);
+
+        World world;
+        world.GenerateColumn(7, 7, 42); // column (7,7): fresh, untouched by earlier rounds
+        WorldStore store(streamPath);
+        Check(store.IsOpen(), "WorldStore opens a fresh database for the streaming round trip");
+
+        const int x = 7 * 16 + 3, z = 7 * 16 + 3;
+        world.SetBlockAndRecordEdit(x, 20, z, BlockType::Cobblestone);
+        store.SaveEdits(world);
+
+        world.UnloadColumn(7, 7);
+        Check(!world.IsColumnLoaded(7, 7), "the column is actually unloaded before reloading it");
+
+        world.GenerateColumn(7, 7, 42); // simulates streaming back in: regenerate terrain fresh...
+        Check(world.GetBlock(x, 20, z) != BlockType::Cobblestone,
+              "sanity check: freshly-regenerated terrain does not itself contain the edit");
+        store.LoadColumnInto(world, 7, 7); // ...then re-apply this column's persisted edits.
+        Check(world.GetBlock(x, 20, z) == BlockType::Cobblestone,
+              "an edit survives a real unload -> regenerate -> reload cycle for its own column");
+
+        std::filesystem::remove(streamPath);
+    }
+
     std::printf("\n");
     if (checksFailed == 0) {
         std::printf("All checks passed.\n");
