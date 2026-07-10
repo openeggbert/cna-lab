@@ -389,26 +389,26 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Craft behavior** (`create_world`, `src/world.c`): `f = simplex2(x*0.01,z*0.01,4,0.5,2)`,
   `g = simplex2(-x*0.01,-z*0.01,2,0.9,2)`, `mh = g*32+16`, `h = f*mh` — **two independent simplex2
   calls combined multiplicatively**. Sea/sand: `h<=12` → `h=12`, block=Sand; else block=Grass.
-- **cna-craft behavior** (`NoiseGenerator::Height`, `NoiseGenerator.cpp:199-212`): a **single**
-  simplex2 call (`kScale=0.05`, 4 octaves/0.5persist/2lacunarity), `height = base(20) +
-  (n-0.5)*2*amplitude(16)`, clamped `[4,56]` — structurally simpler (additive, not
-  multiplicative dual-noise composition) with different numeric constants. **`BlockType::Sand`
-  is defined, in the `BlockDef` table, and in the hotbar roster, but `World::Generate` never
-  places it** — confirmed dead code (no sea-level/beach branch exists at all).
-- **Status**: partial (Sand generation fixed this session; the height-formula mismatch remains)
+- **cna-craft behavior** (`NoiseGenerator::Height`, `NoiseGenerator.cpp`) — **re-ported exactly
+  this session** (user decision 2026-07-10): now uses Craft's real two-sample multiplicative
+  formula verbatim (`f = Simplex2(x*0.01, z*0.01, 4, 0.5, 2)`, `g = Simplex2(-x*0.01, -z*0.01, 2,
+  0.9, 2)`, `mh = g*32+16`, `height = f*mh`), with Craft's own `h<=12 -> h=12` sea-level clamp
+  folded in (unconditional, not probabilistic — guarantees the lower bound exactly). `World.cpp`'s
+  `kSandMaxHeight` updated from a scaled-down 10 to Craft's literal `12`, now that the height range
+  itself matches Craft's scale.
+- **Status**: complete
 - **Craft files**: `src/world.c` (whole file, ~85 lines)
-- **cna-craft files**: `src/CnaCraft/Worlds/World.cpp:81-119`, `NoiseGenerator.cpp:199-212`
-- **Priority**: high (formula mismatch), low (Sand — fixed)
-- **Verification method**: World-generation unit test asserting Sand appears somewhere in a
-  generated world (`TestWorldGeneratesSandAtLowElevation`, now passing)
-- **Notes**: The terrain-height *formula* mismatch remains `needs_human` — changing it would
-  visibly reshape existing terrain (a gameplay-tuning decision). **Sand generation implemented
-  this session**: a low-elevation (`height <= kSandMaxHeight=10`) surface rule replaces
-  Dirt/Grass with Sand without touching the heightmap formula itself — adapted from Craft's real
-  `h<=12` beach rule, scaled down since Craft's literal threshold (12) would swallow nearly all of
-  this project's much smaller height range (floor at `kMinHeight=4`). Does not replicate Craft's
-  whole-column-is-one-material model (Craft has no Stone/Bedrock layering at all); cna-craft's
-  pre-existing layered terrain is kept, only the top 1-4 blocks change material on sandy columns.
+- **cna-craft files**: `src/CnaCraft/Worlds/World.cpp`, `NoiseGenerator.cpp`
+- **Priority**: high (done)
+- **Verification method**: unit tests (determinism, seed-variation, sane-range-with-tolerance,
+  Sand-presence/threshold — 2 tests had hardcoded old-range numbers updated, 148 checks total, no
+  API signature change so no wide-reaching test rewrite) plus a real EasyGL build screenshot
+  (terrain/outline/tree all rendered correctly, no corruption or extreme spikes).
+- **Notes**: Does not replicate Craft's whole-column-is-one-material model (Craft has no
+  Stone/Bedrock layering at all — every column below `h` is one uniform block type); cna-craft's
+  pre-existing layered terrain (Bedrock/Stone/Dirt/Grass-or-Sand) is kept, only the *height
+  formula* was re-ported, not the layering model itself (that was never a Craft citation — an
+  independent design choice from an earlier session).
 
 ### 3.4 Face culling
 - **Craft behavior**: `is_transparent`/`is_obstacle` (`item.c`) feed a padded `opaque[]` array in
@@ -725,7 +725,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 2.8 | Collision rules (solid/transparent) | complete | low |
 | 3.1 | Chunk system (hash-map vs fixed) | partial | medium (large) |
 | 3.2 | Chunk streaming | missing | low (deliberate) |
-| 3.3 | Terrain formula (needs_human) / Sand generation (**fixed this session**) | partial | high (formula) |
+| 3.3 | Terrain formula + Sand generation (**both fixed this session**) | complete | high |
 | 3.4 | Face culling | complete | low |
 | 3.5 | Mesh generation | complete | low |
 | 3.6 | Transparent blocks | complete | low |

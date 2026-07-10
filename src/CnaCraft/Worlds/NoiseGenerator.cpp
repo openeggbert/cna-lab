@@ -197,17 +197,30 @@ float NoiseGenerator::Simplex3(std::uint32_t seed, float x, float y, float z, in
 }
 
 int NoiseGenerator::Height(std::uint32_t seed, int x, int z) {
-    constexpr float kScale = 0.05f;
-    constexpr int kBaseHeight = 20;
-    constexpr int kAmplitude = 16;
-    constexpr int kMinHeight = 4;
-    constexpr int kMaxHeight = 56; // leaves headroom below WORLD_SIZE_Y (64)
+    // Craft's real create_world formula (src/world.c), verified against the
+    // checkout — re-ported exactly per user decision (2026-07-10), replacing
+    // this project's earlier single-additive-simplex2 approximation. Two
+    // independent simplex2 samples combined *multiplicatively*: `f` is the
+    // primary heightmap noise (4 octaves/0.5 persistence/2 lacunarity, scale
+    // 0.01), `g` modulates the amplitude (2 octaves/0.9 persistence/2
+    // lacunarity, scale -0.01 i.e. mirrored coordinates) into `mh` (a
+    // per-column max-height band), giving `h = f * mh`.
+    //
+    // Craft also reassigns `h = t` (t=12, a flat sea level) whenever the raw
+    // h is <= t, marking that column sand instead of grass in the same step
+    // (`world.c`: `if (h <= t) { h = t; w = SAND; }`). Folded in here too —
+    // both the height clamp and the sand/grass split come from the same
+    // source formula in Craft, and this keeps a single int-returning API
+    // (World::Generate's existing `height <= kSandMaxHeight` check for
+    // "is this a sand column" stays correct, since a sandy column's Height()
+    // now always returns exactly kSeaLevel).
+    const float f = Simplex2(seed, static_cast<float>(x) * 0.01f, static_cast<float>(z) * 0.01f, 4, 0.5f, 2.0f);
+    const float g = Simplex2(seed, static_cast<float>(-x) * 0.01f, static_cast<float>(-z) * 0.01f, 2, 0.9f, 2.0f);
+    const float mh = g * 32.0f + 16.0f;
+    int height = static_cast<int>(f * mh);
 
-    const float n = Simplex2(seed, static_cast<float>(x) * kScale, static_cast<float>(z) * kScale, 4, 0.5f, 2.0f);
-    int height = kBaseHeight + static_cast<int>((n - 0.5f) * 2.0f * static_cast<float>(kAmplitude));
-
-    if (height < kMinHeight) height = kMinHeight;
-    if (height > kMaxHeight) height = kMaxHeight;
+    constexpr int kSeaLevel = 12; // Craft's own t=12 (world.c)
+    if (height <= kSeaLevel) height = kSeaLevel;
     return height;
 }
 

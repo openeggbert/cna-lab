@@ -706,16 +706,16 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
    `texture.png`; adopting a real asset is `needs_human` (new asset dependency), not picked up.
 9. `completed` — **Terrain generation: dead `Sand` block** (CRAFT_PARITY.md §3.3): `World::Generate`
    now places `Sand` (replacing the Dirt/Grass surface layers only, not the heightmap itself) for
-   any column at or below `kSandMaxHeight=10` — a low-elevation "beach" rule adapted from Craft's
-   real `if (h <= t) { h = t; w = SAND; }` (t=12), scaled down since Craft's own threshold would
-   swallow nearly this project's entire height range (`kMinHeight=4`). Deliberately does **not**
-   touch `NoiseGenerator::Height`'s formula itself (still the `needs_human` item below) — Stone/
-   Bedrock underneath a sandy column are unchanged, matching cna-craft's own pre-existing layered-
-   terrain design (not itself a Craft citation) rather than Craft's single-uniform-block-column
-   model. Sandy columns correctly get no trees (`World::GenerateTrees` already gates on
-   `BlockType::Grass`, matching Craft's own `if (w == 1)` grass-only trigger). 4 new unit tests
-   (presence, threshold invariant, determinism, cloud-pass-surface-invariant updated for the new
-   valid surface type) — 120 checks total.
+   any column at or below `kSandMaxHeight` — a low-elevation "beach" rule adapted from Craft's
+   real `if (h <= t) { h = t; w = SAND; }` (t=12). Originally scaled down to 10 since this
+   project's old height formula had a much smaller range; **updated to the literal Craft value 12**
+   as part of item 23 below, once the height formula itself was re-ported. Deliberately does
+   **not** touch cna-craft's layered Stone/Bedrock-under-sand structure — matches cna-craft's own
+   pre-existing layered-terrain design (not itself a Craft citation) rather than Craft's
+   single-uniform-block-column model. Sandy columns correctly get no trees (`World::GenerateTrees`
+   already gates on `BlockType::Grass`, matching Craft's own `if (w == 1)` grass-only trigger). 4
+   new unit tests (presence, threshold invariant, determinism, cloud-pass-surface-invariant
+   updated for the new valid surface type) — 120 checks total at the time.
 10. `completed` — **Player physics: terminal velocity clamp** (CRAFT_PARITY.md §1.8): port
     Craft's `-250 units/s` fall-speed cap to `PlayerController` (jump speed `8.0` and gravity
     `25.0` already matched Craft exactly from a prior session).
@@ -836,6 +836,22 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     clean build + headless smoke run rather than a second full interactive screenshot round — a
     reasonable time/verification tradeoff given the code path is provably identical (same function,
     different tile index and trigger constants only), not a gap in rigor.
+23. `completed` — **Terrain-height formula re-port** (CRAFT_PARITY.md §3.3). **User decision
+    (2026-07-10)**: re-port Craft's real formula exactly, accepting that it reshapes all existing
+    generated terrain. `NoiseGenerator::Height` replaced its old single-additive-`Simplex2` call
+    with Craft's actual two-sample multiplicative formula (`f = Simplex2(x*0.01, z*0.01, 4, 0.5,
+    2)`, `g = Simplex2(-x*0.01, -z*0.01, 2, 0.9, 2)`, `mh = g*32+16`, `height = f*mh`), verified
+    against the checkout. Craft's own `h<=12 -> h=12` sea-level reassignment (which also marks a
+    column sand in Craft's source) is folded into `Height()` itself — the height clamp and the
+    sand/grass split share one formula in Craft, and keeping `Height()` as a plain `int`-returning
+    function (no API signature change) means `World::Generate`'s existing `height <=
+    kSandMaxHeight` sand-column check stays correct, since a sandy column's `Height()` now always
+    returns exactly the sea level. `World.cpp`'s `kSandMaxHeight` updated from the old scaled-down
+    10 to Craft's literal `12`, now that the height range itself matches Craft's scale. No `Worlds/`
+    API signature changed, so only the two tests that hardcoded old height-range/threshold numbers
+    needed updating (not a wide-reaching test rewrite) — 148 checks total, all still passing.
+    Verified visually against a real EasyGL build (terrain, wireframe outline, and a visible tree
+    all rendered correctly with the new formula, no corruption or extreme spikes).
 
 ### 12.2 Deliberately not re-litigated this session
 

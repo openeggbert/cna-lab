@@ -90,15 +90,15 @@ namespace {
 // all; every column is one uniform block type). cna-craft's own layered
 // terrain (Bedrock/Stone/Dirt/Grass per column, not part of any Craft
 // citation -- an independent design already in place before this session)
-// doesn't have an equivalent to replace wholesale without reshaping
-// existing terrain (a needs_human call per CRAFT_PARITY.md §3.3's terrain-
-// formula note). Adapted instead as a low-elevation *surface* rule: the
-// same "low ground is sandy" idea, applied only to the Dirt/Grass layers,
-// leaving Bedrock/Stone underneath unchanged. kSandMaxHeight=10 is scaled
-// to this project's much smaller height range (kMinHeight=4..kMaxHeight=56,
-// NoiseGenerator.cpp) rather than reusing Craft's literal t=12, which would
-// swallow nearly this project's entire height range near its floor.
-constexpr int kSandMaxHeight = 10;
+// doesn't have an equivalent to replace wholesale, so it's adapted as a
+// low-elevation *surface* rule instead: the same "low ground is sandy"
+// idea, applied only to the Dirt/Grass layers, leaving Bedrock/Stone
+// underneath unchanged. kSandMaxHeight now reuses Craft's literal t=12
+// directly (previously scaled down to 10 for this project's old,
+// much-smaller height range — no longer needed now that
+// NoiseGenerator::Height itself ports Craft's real height formula and its
+// own h<=12 clamp, per user decision 2026-07-10; see NoiseGenerator.cpp).
+constexpr int kSandMaxHeight = 12;
 }
 
 void World::Generate(std::uint32_t seed) {

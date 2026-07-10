@@ -163,7 +163,8 @@ void TestWorldGeneratesSandAtLowElevation() {
     // Regression test (CRAFT_PARITY.md §3.3): BlockType::Sand was fully
     // defined (BlockDef, Hotbar roster) but World::Generate never actually
     // placed it anywhere -- confirmed dead code by the audit. Fixed by a
-    // low-elevation "beach" surface rule (kSandMaxHeight=10 in World.cpp).
+    // low-elevation "beach" surface rule (kSandMaxHeight=12 in World.cpp,
+    // Craft's own literal t=12 sea-level threshold, world.c).
     World a, b;
     a.Generate(1234);
     b.Generate(1234);
@@ -175,13 +176,13 @@ void TestWorldGeneratesSandAtLowElevation() {
             const int height = NoiseGenerator::Height(1234, x, z);
             if (a.GetBlock(x, height, z) == BlockType::Sand) {
                 anySandFound = true;
-                if (height > 10) everySandColumnIsLowElevation = false;
+                if (height > 12) everySandColumnIsLowElevation = false;
             }
         }
     }
     Check(anySandFound, "World::Generate places at least one Sand-surfaced column somewhere in the world");
     Check(everySandColumnIsLowElevation,
-          "every Sand-surfaced column sits at or below the documented kSandMaxHeight=10 threshold");
+          "every Sand-surfaced column sits at or below the documented kSandMaxHeight=12 threshold");
 
     bool allMatch = true;
     for (int x = 0; x < WORLD_SIZE_X; x += 2) {
@@ -353,14 +354,22 @@ void TestNoiseGeneratorSimplex2IsSeeded() {
     }
     Check(anyDifferent, "different seeds produce different terrain (unlike Craft's fixed permutation table)");
 
+    // Craft's real formula (re-ported 2026-07-10, user decision): h = f*mh
+    // where f,g are each nominally in [0,1] (Simplex2's own normalization),
+    // mh = g*32+16 in [16,48], so h is nominally in [0,48] before the
+    // h<=12->12 sea-level clamp -- i.e. [12,48] after. A generous tolerance
+    // (not the exact mathematical bound) avoids flakiness from rare
+    // simplex-noise float overshoot slightly outside [0,1]; the lower bound
+    // is exact and unconditional (the sea-level clamp is unconditional
+    // code, not a probabilistic property of the noise).
     bool allInRange = true;
     for (int x = 0; x < 64; ++x) {
         for (int z = 0; z < 64; ++z) {
             const int h = NoiseGenerator::Height(42, x, z);
-            if (h < 4 || h > 56) allInRange = false;
+            if (h < 12 || h > 60) allInRange = false;
         }
     }
-    Check(allInRange, "Height stays within its documented [4, 56] clamp range");
+    Check(allInRange, "Height stays within a sane range around its documented [12, 48] formula bounds");
 }
 
 void TestNoiseGeneratorSimplex3() {
