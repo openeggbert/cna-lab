@@ -102,17 +102,33 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   ±90°; `INVERT_MOUSE` config flag (default off) flips vertical sign.
 - **cna-craft behavior** (`PlayerController.cpp`, `kMouseSensitivity=0.0025f`): reads an
   already-relative mouse delta (SDL relative mode) each frame, same `0.0025` sensitivity; yaw
-  wraps [0, 2π); pitch clamped to exactly ±π/2 (changed from an earlier ±1.55 rad/≈88.8°
-  approximation per user decision 2026-07-10 — `kPitchLimit` is now the literal
-  `1.57079632679489661923f`). No invert-mouse config.
+  wraps [0, 2π). Pitch clamp: **exactly ±π/2 briefly (2026-07-10), then backed off by a small
+  epsilon the same day (real bug, see Notes)** — `kPitchLimit` is now `π/2 - 0.01f`, not the
+  literal `1.57079632679489661923f`. No invert-mouse config.
 - **Status**: complete
 - **Craft files**: `src/main.c:2378-2409`
 - **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp`, `src/CnaCraft/Worlds/PlayerController.cpp`
 - **Priority**: low
-- **Verification method**: full test suite re-run (no regressions — the pitch-clamp constant is
-  only ever compared for exceeding-vs-not, not for an exact value, so tightening it by ~1.2°
-  couldn't break an existing assertion)
-- **Notes**: Sensitivity and pitch clamp both now match exactly.
+- **Verification method**: full test suite re-run, plus a new dedicated test
+  (`TestPlayerControllerPitchClampAvoidsDegenerateLookDirection`) asserting `LookDirection()`'s
+  horizontal component stays well above float32 noise level at the clamp in both directions —
+  the actual property `Matrix::CreateLookAt` needs, confirmed numerically outside the test suite
+  too (a standalone Python check of the same cross-product math, matching the C++ behavior).
+- **Notes**: Sensitivity matches Craft exactly. Pitch clamp does **not** — this is a deliberate,
+  permanent deviation, not a fidelity gap. **Real bug found 2026-07-10** (user-reported:
+  "cna-craft je zcela rozbity", with a screenshot showing terrain rendering shredded into diagonal
+  streaks, reproducible on both EasyGL and Vulkan): at pitch exactly ±π/2, `LookDirection()`
+  becomes exactly parallel to `Vector3::Up`. CNA's `Matrix::CreateLookAt`
+  (`cna/src/Microsoft/Xna/Framework/Matrix.cpp`) computes `Cross3(cameraUpVector, forward)` as its
+  first step — Craft's own hand-rolled camera matrix doesn't go through an equivalent step, which
+  is why Craft itself never hits this even with a literal exact-π/2 clamp. When forward and up are
+  parallel, that cross product collapses toward the zero vector; normalizing it produces a
+  numerically garbage view basis, corrupting every vertex transform for the rest of the frame. The
+  exact-π/2 clamp (earlier the same day, this same entry) made this trivially reachable — any
+  player tilting the camera all the way up/down lands exactly on the unsafe value, not a rare edge
+  case. The new Minecraft-style flying controls (plan.md §12.1 item 29, also this session) made
+  "look straight up while ascending" a completely natural first thing to try with the new
+  controls, which is almost certainly how the user hit it immediately after trying them.
 
 ### 1.5 Player movement (walk speed / diagonal movement)
 - **Craft behavior** (`get_motion_vector`, `main.c:204-232`): `strafe = atan2f(sz, sx)` from -1/0/1

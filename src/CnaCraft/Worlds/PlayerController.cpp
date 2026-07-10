@@ -24,10 +24,31 @@ constexpr float kTerminalVelocity = -250.0f;
 // (`dy = 8` in src/main.c) against the same gravity=25, giving 64/50=1.28
 // blocks -- comfortably enough margin. Matched here.
 constexpr float kJumpSpeed = 8.0f;
-// Exactly Craft's own clamp (`s->ry = MAX(s->ry, -RADIANS(90)); MIN(...,
-// RADIANS(90))`, main.c:handle_mouse_input) -- changed from an earlier
-// 1.55f (~89 degrees) approximation per user decision 2026-07-10.
-constexpr float kPitchLimit = 1.57079632679489661923f; // exactly pi/2
+// Craft's own clamp is exactly +-RADIANS(90) (`s->ry = MAX(s->ry,
+// -RADIANS(90)); MIN(..., RADIANS(90))`, main.c:handle_mouse_input) --
+// matched exactly per user decision 2026-07-10, changed from an earlier
+// 1.55f (~89 degrees) approximation.
+//
+// **Backed off by a small epsilon from the literal pi/2 2026-07-10 (real
+// bug, user-reported: "cna-craft je zcela rozbity" with a screenshot
+// showing terrain shredded into diagonal streaks, both EasyGL and
+// Vulkan)**: at pitch exactly +-pi/2, LookDirection() becomes exactly
+// parallel to Vector3::Up. CNA's Matrix::CreateLookAt (cna/src/Microsoft/
+// Xna/Framework/Matrix.cpp) computes `Cross3(cameraUpVector, forward)` as
+// its first step (Craft's own hand-rolled camera matrix doesn't go through
+// an equivalent step, which is why Craft itself never hits this) -- when
+// forward and up are parallel, that cross product collapses toward the
+// zero vector, and normalizing it produces a numerically garbage view
+// basis, corrupting every vertex transform for the rest of the frame. The
+// exact-pi/2 clamp (this file, same day) made this trivially reachable --
+// any player who tilts the camera all the way up/down lands exactly on the
+// unsafe value, not just in some rare edge case. The Minecraft-style flying
+// controls (also this session) made "look straight up while ascending" a
+// completely natural first thing to try, which is almost certainly how the
+// user hit it immediately. Backing the limit off by a hair is visually
+// indistinguishable from looking exactly straight up/down but keeps the
+// forward/up cross product safely non-zero.
+constexpr float kPitchLimit = 1.5707963267948966f - 0.01f; // pi/2 minus a small margin
 
 // Collision substepping (CRAFT_PARITY.md §1.7): Craft explicitly breaks a
 // frame's movement into `step = MAX(8, estimate)` substeps (main.c,

@@ -1302,6 +1302,39 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     relies on the rewritten unit tests (which exercise the real `PlayerController::Update` physics
     directly, not a mock) plus code review of the input-wiring glue, which mechanically mirrors
     every other key binding already shipped this session.
+30. `completed` — **Fix a real rendering-corruption bug: exact-π/2 pitch clamp caused a degenerate
+    view matrix** (CRAFT_PARITY.md §1.4), user-reported immediately after item 29 shipped
+    ("cna-craft je zcela rozbity", with a screenshot of terrain rendering shredded into diagonal
+    streaks on both EasyGL and Vulkan). Found by reading `Matrix::CreateLookAt`
+    (`cna/src/Microsoft/Xna/Framework/Matrix.cpp`) rather than guessing: it computes
+    `Cross3(cameraUpVector, forward)` as its first step. At pitch exactly ±π/2,
+    `PlayerController::LookDirection()` becomes exactly parallel to `Vector3::Up`, that cross
+    product collapses toward the zero vector, and normalizing a near-zero vector produces a
+    numerically garbage view basis — corrupting every vertex transform for the whole frame.
+    Confirmed numerically (both in a standalone Python check of the same cross-product math and a
+    new C++ unit test) that at the literal `kPitchLimit=π/2`, the cross-product magnitude is
+    ~6×10⁻¹⁷ (pure float32 noise, not a meaningfully oriented vector), vs. ~0.01 after backing the
+    limit off by a small epsilon. This was a **latent bug exposed by two of today's own earlier
+    changes compounding**: item 24 tightened the pitch clamp from an approximate 1.55 rad to the
+    literal exact π/2 (making the unsafe value trivially reachable — any player tilting the camera
+    all the way up/down lands exactly on it, not a rare edge case), and item 29's Minecraft-style
+    flying made "look straight up while ascending" — literally the first thing a player tries when
+    testing new Space-to-fly controls — a completely natural move, which is almost certainly how
+    the user hit it within moments of trying item 29. Craft's own hand-rolled camera matrix never
+    goes through an equivalent cross-product step, which is why the exact-π/2 clamp is safe there
+    but not here. Fix: `kPitchLimit` is now `π/2 - 0.01f` instead of the literal value — visually
+    indistinguishable from looking exactly straight up/down, but keeps `CreateLookAt`'s
+    cross-product numerically well-conditioned. This is now a deliberate, permanent deviation from
+    Craft's literal pitch-clamp value (CRAFT_PARITY.md §1.4 updated accordingly), not a fidelity
+    gap — safety against a real engine-level footgun takes priority over an exact constant match.
+    New `TestPlayerControllerPitchClampAvoidsDegenerateLookDirection` (2 checks) asserts
+    `LookDirection()`'s horizontal component stays well above float32 noise level at the clamp in
+    both directions — 291 checks in `worlds_smoke_test` (up from 289), persistence suite unchanged
+    at 40. Verified via clean `build-worlds` + full EasyGL builds; **could not be re-verified live
+    against the user's original repro** (their real machine, not this sandbox) — the fix is
+    grounded in the exact engine-level mechanism read directly from CNA's `Matrix.cpp` source plus
+    independently-confirmed numerics, not a guess, but the user should confirm the shredded-terrain
+    symptom is actually gone after pulling this commit.
 
 ### 12.2 Deliberately not re-litigated this session
 

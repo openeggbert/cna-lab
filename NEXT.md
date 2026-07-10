@@ -42,6 +42,23 @@ departure from Craft parity for these specific controls, not a bug fix —
 see item 29's plan.md writeup and CRAFT_PARITY.md §1.6's notes for the full
 same-day back-and-forth history.
 
+**Almost immediately after item 29 shipped**, the user reported cna-craft
+"completely broken" with a screenshot showing terrain rendered as shredded
+diagonal streaks, on both EasyGL and Vulkan. Root-caused (not guessed) as
+**item 30**: CNA's `Matrix::CreateLookAt` computes `Cross3(Up, forward)` as
+its first step; at pitch exactly ±π/2 the player's look direction is
+exactly parallel to `Up`, collapsing that cross product toward zero and
+producing a numerically garbage view matrix. This was a latent bug exposed
+by two of *this same session's own* earlier changes compounding: item 24
+tightened the pitch clamp to the literal exact π/2 (making the unsafe value
+trivially reachable), and item 29's new flying controls made "look straight
+up while ascending" the natural first thing to try. Fixed by backing
+`kPitchLimit` off from the literal π/2 by a small epsilon — confirmed
+numerically (both a standalone check and a new unit test) that this keeps
+the cross product safely non-degenerate. See item 30's plan.md writeup for
+the full mechanism and CRAFT_PARITY.md §1.4 for the updated pitch-clamp
+entry.
+
 ## 1. Project summary
 
 CNA Craft is a first-person voxel-world game/prototype, built entirely on
@@ -97,17 +114,20 @@ correctly in the message log, confirmed the log persists after the typing
 box closes, confirmed Sign typing is unaffected by the `TypingMode`
 generalization).
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **289 checks, all
+**Test status**: `tests/worlds_smoke_test.cpp` — **291 checks, all
 passing** (up from 267 before this audit's follow-up work; 173 at the start
 of the chunk-redesign session). Plus `cna_craft_persistence_smoke_test` —
 **40 checks, all passing** (up from 30). Both build and run standalone with
 `-DCNA_CRAFT_BUILD_GAME=OFF`.
 
-**plan.md §12.1 status as of this session's end** (27 items):
-- **25 `completed`**: everything from before, plus item 26 (arrow-key
+**plan.md §12.1 status as of this session's end** (30 items):
+- **28 `completed`**: everything from before, plus item 26 (arrow-key
   speed, plant rotation, sign winding, player-position persistence — four
-  small audit follow-ups) and item 27 (light toggle, Ctrl+right-click, via
-  a glow-pass design pivot) — see §3 below.
+  small audit follow-ups), item 27 (light toggle, Ctrl+right-click, via
+  a glow-pass design pivot), item 28 (invisible-window-on-startup +
+  glow-pass perf fixes), item 29 (Minecraft-style flight/look controls),
+  and item 30 (a real rendering-corruption bug found and fixed in the new
+  controls' wake — see §3 below).
 - **1 `blocked`**: ambient occlusion (needs a custom `ShaderEffect`, only
   real on EASYGL today) — user has chosen to implement this for EASYGL
   only when picked up.
@@ -338,10 +358,29 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     relies on the rewritten `PlayerController` unit tests (real physics, not
     mocked) plus code review.
 
+14. **Fix a real rendering-corruption bug from an exact-π/2 pitch clamp**
+    (plan.md §12.1 item 30) — user-reported ("cna-craft je zcela rozbity",
+    screenshot: terrain shredded into diagonal streaks, both EasyGL and
+    Vulkan) within moments of trying item 29's new flying controls. Traced
+    to CNA's `Matrix::CreateLookAt` (`cna/src/Microsoft/Xna/Framework/
+    Matrix.cpp`): it computes `Cross3(Up, forward)` first, and at pitch
+    exactly ±π/2 `LookDirection()` is exactly parallel to `Up`, collapsing
+    that cross product toward zero and producing a numerically garbage view
+    matrix — a latent bug made trivially reachable by item 24's earlier
+    same-day exact-π/2 pitch clamp, exposed by item 29's flying controls
+    making "look straight up while ascending" the natural first move. Fix:
+    `kPitchLimit` backed off to `π/2 - 0.01f`. New
+    `TestPlayerControllerPitchClampAvoidsDegenerateLookDirection` (2 checks)
+    confirms `LookDirection()`'s horizontal component stays well above
+    float32 noise at the clamp — 291 checks (up from 289). **Not
+    re-verified against the user's original repro** (their machine, not
+    this sandbox) — grounded in reading the exact engine mechanism plus
+    independently-confirmed numerics, but ask them to confirm after pulling.
+
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
-`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 289/289 + 40/40 tests
+`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 291/291 + 40/40 tests
 passing, zero compiler warnings.
 
 Carried over, still unresolved, still not urgent: mouse-look reliability
@@ -579,6 +618,13 @@ asymmetric scheme) — **plus**:
   CRAFT_PARITY.md's general fidelity goal, and don't re-add a dedicated
   Ctrl-descend-style binding either (Shift already owns fly-descend now).
 
+- **Don't set `kPitchLimit` back to the literal exact `π/2`** — item 30
+  found and fixed a real rendering-corruption bug this caused (`Matrix::
+  CreateLookAt`'s `Cross3(Up, forward)` degenerates when they're exactly
+  parallel). The small epsilon backoff (`π/2 - 0.01f`) is load-bearing, not
+  a rounding artifact to "clean up" toward a nicer-looking constant or
+  tighter Craft-parity match.
+
 - **No re-running the chunk-system redesign, terrain-formula, fly-speed,
   pitch-clamp, reach-distance, arrow-key-speed, plant-rotation, or
   player-position-persistence changes** — all already done (see §3); don't
@@ -633,14 +679,18 @@ asymmetric scheme) — **plus**:
 ```
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
-as of the last session, 27 of 29 items are completed (including item 19,
+as of the last session, 28 of 30 items are completed (including item 19,
 the chunk-system redesign; item 25, the full 54-item block roster; item 17,
 chat/slash world-editing commands; item 26, four small parity-audit
 follow-ups — arrow-key speed, plant rotation, sign winding, player-position
 persistence; item 27, light toggle via a user-approved glow-pass design
-pivot; item 28, invisible-window-on-startup + glow-pass perf fixes; and
-item 29, Minecraft-style flight/look controls replacing item 24's earlier
-same-day Craft-exact scheme, per direct user request). 1 blocked with a
+pivot; item 28, invisible-window-on-startup + glow-pass perf fixes; item 29,
+Minecraft-style flight/look controls replacing item 24's earlier same-day
+Craft-exact scheme, per direct user request; and item 30, a real
+rendering-corruption bug fix — an exact-π/2 pitch clamp degenerating
+`Matrix::CreateLookAt`, exposed by items 24+29 compounding). **If you touch
+`PlayerController::kPitchLimit`, read item 30 first — don't set it back to
+the literal exact π/2.** 1 blocked with a
 scope decision already made (ambient occlusion, EASYGL-only — not blocked
 on a decision anymore, just on implementation), 1 pending with a scope
 decision already made (multiplayer — planning only, don't implement

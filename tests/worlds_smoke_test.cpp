@@ -1475,6 +1475,41 @@ void TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement() {
           "fly horizontal speed is independent of pitch, unlike the old Craft-matching scheme");
 }
 
+void TestPlayerControllerPitchClampAvoidsDegenerateLookDirection() {
+    // Real bug fix (user-reported, 2026-07-10): CNA's Matrix::CreateLookAt
+    // computes Cross3(Vector3::Up, forward) as its first step. If pitch is
+    // clamped to exactly +-pi/2, LookDirection() becomes exactly parallel
+    // to Up, that cross product collapses toward the zero vector, and the
+    // resulting normalized view basis is numerically garbage -- reported
+    // live as terrain rendering "shredded" into diagonal streaks on both
+    // EasyGL and Vulkan. kPitchLimit now backs off from the literal pi/2 by
+    // a small margin so this never happens. This test can't construct a
+    // Matrix::CreateLookAt itself (Worlds/ has no CNA dependency, by
+    // design), but it can assert the property CreateLookAt actually needs:
+    // LookDirection()'s horizontal component (x/z) must stay well above
+    // float32 noise level even after clamping pitch as far as input can
+    // push it, in both directions.
+    World world;
+    PlayerController lookingUp(Vec3f{0.5f, 32.0f, 0.5f});
+    PlayerInput pushPitchUp;
+    pushPitchUp.lookDeltaPitch = 100.0f; // absurdly large -- must clamp, not overshoot
+    lookingUp.Update(world, pushPitchUp, 1.0f / 60.0f);
+    const Vec3f upDir = lookingUp.LookDirection();
+    const float upHorizontalMagnitude = std::sqrt(upDir.x * upDir.x + upDir.z * upDir.z);
+    Check(upHorizontalMagnitude > 0.005f,
+          "pitch clamp leaves LookDirection's horizontal component well above float32 noise when looking up "
+          "(CreateLookAt's Cross3(Up, forward) must stay well-conditioned)");
+
+    PlayerController lookingDown(Vec3f{0.5f, 32.0f, 0.5f});
+    PlayerInput pushPitchDown;
+    pushPitchDown.lookDeltaPitch = -100.0f;
+    lookingDown.Update(world, pushPitchDown, 1.0f / 60.0f);
+    const Vec3f downDir = lookingDown.LookDirection();
+    const float downHorizontalMagnitude = std::sqrt(downDir.x * downDir.x + downDir.z * downDir.z);
+    Check(downHorizontalMagnitude > 0.005f,
+          "pitch clamp leaves LookDirection's horizontal component well above float32 noise when looking down");
+}
+
 void TestPlayerControllerFloorCatchSafetyNet() {
     // CRAFT_PARITY.md §1.8: ports Craft's own
     // `if (s->y < 0) s->y = highest_block(s->x, s->z) + 2` (main.c) -- a
@@ -1827,6 +1862,7 @@ int main() {
     TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging();
     TestPlayerControllerIntersectsBlockGuardsPlacement();
     TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement();
+    TestPlayerControllerPitchClampAvoidsDegenerateLookDirection();
     TestPlayerControllerFloorCatchSafetyNet();
     TestPlayerControllerFloorCatchSkipsUnloadedColumn();
     TestWorldEditorPaintBlockRespectsGuards();
