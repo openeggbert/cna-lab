@@ -77,15 +77,41 @@ cmake --build build --target CnaCraft
 | F (hold)          | Orthographic projection               |
 | F12               | Save a screenshot to `screenshots/`   |
 | ` (backtick)      | Start typing a sign on the targeted block face |
-| Enter             | Submit the sign being typed           |
-| Backspace         | Delete the last character while typing a sign |
-| Esc               | While typing a sign: cancel. Otherwise: release the mouse cursor (matches Craft — there is no in-game quit key; close the window to quit) |
+| /                 | Start typing a world-editing command (see below) |
+| Enter             | Submit the sign or command being typed |
+| Backspace         | Delete the last character while typing  |
+| Esc               | While typing: cancel. Otherwise: release the mouse cursor (matches Craft — there is no in-game quit key; close the window to quit) |
 
 A crosshair and the currently-selected hotbar item (e.g. `#4/54 Stone`, with a
 `[FLYING]` indicator while flying) are drawn on screen; both are also printed
-to the console when they change. While typing a sign, WASD/mouse-look/click
+to the console when they change. While typing a sign or command, WASD/mouse-look/click
 input is suspended (gravity still applies) and the in-progress text is shown
-on screen above the hotbar.
+on screen above the hotbar. Command feedback ("Unknown command", etc.) appears in a
+small 4-line scrolling message log above that, which stays visible for a few
+messages even after you close the typing box.
+
+### 5.1 World-editing commands
+
+Press `/` to start typing a command, then Enter to run it — ports Craft's real
+world-editing macros (`src/main.c`'s `parse_command`) almost verbatim. Every command
+except `/view` reads its position(s) from the last one or two blocks you broke or
+placed (Craft's own "marked block" model — there's no separate marking action,
+breaking/placing *is* marking):
+
+| Command                                  | Effect |
+|-------------------------------------------|--------|
+| `/view N`                                 | Set the streamed view/create/delete radius (1-24) |
+| `/cube`, `/fcube`                         | Hollow / filled box between your last two marks (they must be the same block type) |
+| `/sphere N`, `/fsphere N`                 | Hollow / filled sphere of radius N centered on your last mark |
+| `/circlex N`/`y`/`z`, `/fcirclex N`/`y`/`z` | Same as `/sphere`, flattened to a disc along one axis |
+| `/cylinder N`, `/fcylinder N`             | Hollow / filled cylinder of radius N along the axis between your last two marks |
+| `/array N` or `/array X Y Z`              | Repeats your last mark's block type N times (or X/Y/Z times per axis) stepping by the offset between your last two marks |
+| `/tree`                                   | Grows a Wood-trunk-and-Leaves-canopy tree at your last mark |
+| `/copy` then `/paste`                     | Copies the live block contents of the region between your last two marks (at `/copy` time) to a new region between your last two marks (at `/paste` time) |
+
+Any block you paint through a command is saved just like a normal break/place. Unlike
+Craft, a mismatched-type `/cube`/`/array`/`/cylinder` (your last two marks aren't the
+same block type) shows a short message instead of silently doing nothing.
 
 The mouse cursor is released (not quit) by pressing Esc, matching real Craft — mouse-look and
 mouse-button actions (break/place/eyedropper) stop working until you left-click to re-capture it.

@@ -376,11 +376,10 @@ explicit human decision first:
   direction, do not start before local single-player gameplay, persistence, and chunk logic are
   stable — persistence and the chunk-system redesign (§11.1) are both now `completed`, but
   multiplayer itself stays deferred per that same direction.
-- `completed` (see §12.1 item 16) — Signs (§11.4). `pending` (large) — chat/slash commands
-  (§11.7): the same text-input state machine Signs now uses is a prerequisite, but Craft's real
-  command set (`/cube`, `/sphere`, `/tree`, `/array`, `/copy`, `/paste`, etc.) needs
-  world-editing primitives that don't exist in this codebase yet — materially larger scope than
-  "add a chat box."
+- `completed` (see §12.1 item 16) — Signs (§11.4). `completed` (see §12.1 item 17) — chat/slash
+  commands (§11.7): the same text-input state machine Signs uses was generalized into a
+  `TypingMode` enum; Craft's real command set (`/cube`, `/sphere`, `/tree`, `/array`, `/copy`,
+  `/paste`, `/view`, etc.) is now a full port via new `Worlds/WorldEditor.hpp/.cpp` primitives.
 
 ### 11.1 World & terrain
 
@@ -877,11 +876,54 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     item 15's persistence work); verified instead via the unit tests above plus code review, since
     `CnaCraftGame`'s wiring is a direct, untransformed call into the same
     `SignStore::RemoveAllAt`/`WorldStore::DeleteSignsAt` functions those tests already exercise.
-17. `pending` (large) — **Chat/slash commands** (CRAFT_PARITY.md §4.5): the same text-input state
-    machine from item 16 is a prerequisite here too. The real Craft command set is mostly
-    world-editing macros (`/cube`, `/sphere`, `/tree`, `/array`, `/copy`, `/paste`, etc.) — a
-    materially larger scope than "add a chat box," since none of those world-editing primitives
-    exist in this codebase either. Recommended as its own dedicated follow-up task.
+17. `completed` — **Chat/slash commands** (CRAFT_PARITY.md §4.5). Planned via `EnterPlanMode`
+    (comparable scope to item 19's chunk redesign, per this project's own "genuine architecture
+    change needs a plan first" rule) after reading Craft's real `parse_command` and every function
+    it calls directly from the checkout. New `src/CnaCraft/Worlds/WorldEditor.hpp/.cpp` — 7
+    engine-agnostic, directly unit-tested geometry primitives (`PaintBlock` = Craft's
+    `builder_block`; `FillCuboid` = `cube()`; `FillSphere` = `sphere()`, which already covers both
+    the `/sphere` and `/circlex|y|z` command families via its `fx/fy/fz` flatten flags, ported
+    verbatim; `FillCylinder` = `cylinder()`, internally a stack of `FillSphere` calls flattened
+    along one axis, same as Craft's own implementation; `FillArray` = `array()`; `GrowTree` =
+    `tree()`; `PasteRegion` = `paste()`) plus `Worlds::ExecuteCommand`, a direct port of
+    `parse_command`'s real dispatch chain covering every world-editing command (`/view`, `/copy`,
+    `/paste`, `/tree`, `/array`, `/cube`, `/fcube`, `/sphere`, `/fsphere`, `/circlex|y|z`,
+    `/fcirclex|y|z`, `/cylinder`, `/fcylinder`) — the 5 multiplayer-auth-only commands and the
+    plain-chat fallback are deliberately not ported (CRAFT_PARITY.md §4.5 already scopes these
+    out: no networking exists, and there's no other player to talk to).
+    - `CnaCraftGame`'s sign-only typing state machine (`isTypingSign_` bool) generalized to a
+      `TypingMode{None,Sign,Command}` enum — backtick still opens Sign typing unchanged, `/`
+      (`Keys::OemQuestion`) opens Command typing with the buffer pre-seeded as `"/"`, matching
+      Craft's own `g->typing_buffer[0]='/'` exactly.
+    - New `mark0_`/`mark1_` members (mirrors Craft's `g->block0`/`g->block1`) updated via a new
+      `RecordMark` call at both the break and place sites — every command's anchor points.
+    - `radii_` (`Worlds::CommandRadii`) replaces the old compile-time-fixed
+      `kCreateRadius`/`kDeleteRadius` as the mutable runtime source of truth `/view` mutates
+      (clamped to Craft's exact `1..24`, this project's own `+3` hysteresis margin rather than
+      Craft's literal `+4`); fog start/end now derive from `radii_.createRadius` every frame
+      instead of a compile-time constant, so `/view` immediately affects the fog distance too, the
+      same way it affects streaming.
+    - `Render::Hud` gained a real 4-line scrolling message log (`PushMessage`, Craft's own
+      `MAX_MESSAGES=4` ring buffer) for command feedback. **User decision (2026-07-10)**: full
+      Craft-accurate multi-line log, not a simplified single-line flash message, when asked to
+      choose.
+    - Test count: 41 new checks (one per `WorldEditor` primitive — filled/hollow cuboid, sphere's
+      fill/hollow/flatten-axis variants, cylinder's single-axis requirement, array's per-axis step
+      forcing, tree shape, `PaintBlock`'s Bedrock/y-bounds guards, `PasteRegion`'s "reflects live
+      state at paste time, not copy time" quirk — a real, faithfully-reproduced Craft
+      characteristic, not a bug, confirmed by reading Craft's own identical loop shape — plus a
+      broad `ExecuteCommand` dispatch test covering every command string) — 267 checks in
+      `worlds_smoke_test.cpp`, up from 226.
+    - Verified against a real EasyGL build under Xvfb: `/` opens the typing box correctly,
+      `/view 20` updates both the console log and the on-screen message log
+      ("Viewing distance set to 20."), an invalid `/view 99` and an unrecognized `/nonsense` both
+      produce Craft-accurate feedback that stacks correctly in the message log (oldest on top,
+      persists after the typing box closes, matching Craft), and Sign typing (backtick) is
+      unaffected by the `TypingMode` generalization. The world-editing paint commands themselves
+      could not be verified live end-to-end (they need mouse-driven break/place to set real marks
+      first, and synthetic mouse clicks into this sandbox's relative-mouse-mode SDL window remain
+      unreliable — the same documented flakiness as items 15/16) — covered instead by the
+      exhaustive unit tests above.
 18. `pending`, explicitly deferred — **Multiplayer** (CRAFT_PARITY.md §4.6): per project
     direction, not started before local single-player + persistence are stable.
 19. `completed` — **Chunk system redesign: unbounded, streamed world** (CRAFT_PARITY.md

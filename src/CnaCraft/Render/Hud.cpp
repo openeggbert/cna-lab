@@ -53,17 +53,28 @@ constexpr int kTypingTextScale = 2;
 constexpr int kTypingWidth = 650;
 constexpr int kTypingHeight = 28;
 
+// 4-line scrolling message log (plan.md §12.1 item 17, Craft's own
+// g->messages/MAX_MESSAGES=4, config.h) — same text scale/width as the
+// typing box, tall enough for 4 lines at kMessageLineHeight each.
+constexpr int kMessageLogTextScale = 2;
+constexpr int kMessageLogWidth = 650;
+constexpr int kMessageLineHeight = 20;
+constexpr int kMessageLogHeight = kMessageLineHeight * Hud::kMaxMessages;
+
 }
 
 Hud::Hud(GraphicsDevice& device)
     : spriteBatch_(std::make_unique<SpriteBatch>(device)),
       crosshairTexture_(BuildCrosshairTexture(device)),
       hotbarTexture_(device, kHotbarWidth, kHotbarHeight),
-      typingTexture_(device, kTypingWidth, kTypingHeight) {
+      typingTexture_(device, kTypingWidth, kTypingHeight),
+      messageLogTexture_(device, kMessageLogWidth, kMessageLogHeight) {
     std::vector<std::uint8_t> blank(static_cast<std::size_t>(kHotbarWidth) * kHotbarHeight * 4, 0);
     hotbarTexture_.SetDataRGBA(blank.data(), kHotbarWidth * kHotbarHeight);
     std::vector<std::uint8_t> typingBlank(static_cast<std::size_t>(kTypingWidth) * kTypingHeight * 4, 0);
     typingTexture_.SetDataRGBA(typingBlank.data(), kTypingWidth * kTypingHeight);
+    std::vector<std::uint8_t> messageLogBlank(static_cast<std::size_t>(kMessageLogWidth) * kMessageLogHeight * 4, 0);
+    messageLogTexture_.SetDataRGBA(messageLogBlank.data(), kMessageLogWidth * kMessageLogHeight);
 }
 
 void Hud::RebuildHotbar(GraphicsDevice&, const std::string* slotNames, int slotCount,
@@ -81,7 +92,7 @@ void Hud::RebuildHotbar(GraphicsDevice&, const std::string* slotNames, int slotC
     hotbarTexture_.SetDataRGBA(px.data(), kHotbarWidth * kHotbarHeight);
 }
 
-void Hud::SetTyping(GraphicsDevice&, bool active, const std::string& text) {
+void Hud::SetTyping(GraphicsDevice&, bool active, const std::string& label, const std::string& text) {
     typingVisible_ = active;
     if (!active) return;
 
@@ -90,9 +101,33 @@ void Hud::SetTyping(GraphicsDevice&, bool active, const std::string& text) {
     for (int i = 0; i < kTypingWidth * kTypingHeight; ++i) {
         px[static_cast<std::size_t>(i) * 4 + 3] = 160;
     }
-    const std::string display = "Sign: " + text + "_";
+    const std::string display = label + ": " + text + "_";
     FontDrawText(px, kTypingWidth, kTypingHeight, 4, 6, display, 255, 255, 255, 255, kTypingTextScale);
     typingTexture_.SetDataRGBA(px.data(), kTypingWidth * kTypingHeight);
+}
+
+void Hud::PushMessage(GraphicsDevice&, const std::string& text) {
+    messages_[static_cast<std::size_t>(messageIndex_)] = text;
+    messageIndex_ = (messageIndex_ + 1) % kMaxMessages;
+
+    std::vector<std::uint8_t> px(static_cast<std::size_t>(kMessageLogWidth) * kMessageLogHeight * 4, 0);
+    // Same semi-transparent backing as the typing box.
+    for (int i = 0; i < kMessageLogWidth * kMessageLogHeight; ++i) {
+        px[static_cast<std::size_t>(i) * 4 + 3] = 160;
+    }
+    // Oldest message at the top, newest at the bottom (closest to the
+    // typing/hotbar area below it) -- matches Craft's own render loop
+    // (main.c: ty decreasing per line, i=0/oldest drawn first/highest).
+    int lineY = 4;
+    for (int i = 0; i < kMaxMessages; ++i) {
+        const std::string& line = messages_[static_cast<std::size_t>((messageIndex_ + i) % kMaxMessages)];
+        if (!line.empty()) {
+            FontDrawText(px, kMessageLogWidth, kMessageLogHeight, 4, lineY, line, 255, 255, 255, 255,
+                         kMessageLogTextScale);
+        }
+        lineY += kMessageLineHeight;
+    }
+    messageLogTexture_.SetDataRGBA(px.data(), kMessageLogWidth * kMessageLogHeight);
 }
 
 void Hud::Draw(GraphicsDevice& device) {
@@ -130,21 +165,43 @@ void Hud::Draw(GraphicsDevice& device) {
         hotbarTexture_.getBoundsProperty(),
         Color(255, 255, 255, 255));
 
+    // Stacks bottom-to-top: hotbar, then (if typing) the typing box, then
+    // the message log above whichever of those is currently the top of the
+    // stack -- matches Craft's own always-visible message log sitting above
+    // its typing line (main.c), not tied to the typing box's own lifetime.
+    int stackTop = sh - hotbarDrawHeight - 12;
+
+    int typingDrawHeight = 0;
     if (typingVisible_) {
-        int typingDrawHeight = std::max(24, static_cast<int>(sh * 0.04f));
-        int typingDrawWidth = typingDrawHeight * kTypingWidth / kTypingHeight;
+        int typingDrawWidth = 0;
+        typingDrawHeight = std::max(24, static_cast<int>(sh * 0.04f));
+        typingDrawWidth = typingDrawHeight * kTypingWidth / kTypingHeight;
         const int maxTypingWidth = static_cast<int>(sw * 0.95f);
         if (typingDrawWidth > maxTypingWidth) {
             typingDrawWidth = maxTypingWidth;
             typingDrawHeight = typingDrawWidth * kTypingHeight / kTypingWidth;
         }
+        stackTop -= typingDrawHeight + 8;
         spriteBatch_->Draw(
             typingTexture_,
-            Rectangle((sw - typingDrawWidth) / 2, sh - hotbarDrawHeight - typingDrawHeight - 20,
-                      typingDrawWidth, typingDrawHeight),
+            Rectangle((sw - typingDrawWidth) / 2, stackTop, typingDrawWidth, typingDrawHeight),
             typingTexture_.getBoundsProperty(),
             Color(255, 255, 255, 255));
     }
+
+    int messageLogDrawHeight = std::max(48, static_cast<int>(sh * 0.08f));
+    int messageLogDrawWidth = messageLogDrawHeight * kMessageLogWidth / kMessageLogHeight;
+    const int maxMessageLogWidth = static_cast<int>(sw * 0.95f);
+    if (messageLogDrawWidth > maxMessageLogWidth) {
+        messageLogDrawWidth = maxMessageLogWidth;
+        messageLogDrawHeight = messageLogDrawWidth * kMessageLogHeight / kMessageLogWidth;
+    }
+    spriteBatch_->Draw(
+        messageLogTexture_,
+        Rectangle((sw - messageLogDrawWidth) / 2, stackTop - messageLogDrawHeight - 8, messageLogDrawWidth,
+                  messageLogDrawHeight),
+        messageLogTexture_.getBoundsProperty(),
+        Color(255, 255, 255, 255));
 
     spriteBatch_->End();
     device.SetDepthTestEnabled(true);

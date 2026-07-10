@@ -680,14 +680,48 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   `/array`, `/fcube`, `/cube`, `/fsphere`, `/sphere`, `/fcirclex|y|z`, `/circlex|y|z`,
   `/fcylinder`, `/cylinder` — mostly world-editing macros, not chat commands in the Minecraft
   sense. Non-`/`-prefixed text is sent as plain chat via `client_talk`.
-- **cna-craft behavior**: none.
-- **Status**: missing
+- **cna-craft behavior** (implemented 2026-07-10, plan.md §12.1 item 17): `Worlds::ExecuteCommand`
+  (`WorldEditor.hpp/.cpp`) is a direct, verified port of every world-editing command —
+  `/view`, `/copy`, `/paste`, `/tree`, `/array`, `/cube`, `/fcube`, `/sphere`, `/fsphere`,
+  `/circlex|y|z`, `/fcirclex|y|z`, `/cylinder`, `/fcylinder` — via 7 new engine-agnostic
+  primitives (`PaintBlock`/`FillCuboid`/`FillSphere`/`FillCylinder`/`FillArray`/`GrowTree`/
+  `PasteRegion`). The 5 multiplayer-auth-only commands (`/identity`, `/login`, `/logout`,
+  `/online`, `/offline`) and the plain-chat fallback are deliberately not ported — no networking
+  exists (§4.6) and there's no other player to talk to; an unrecognized command returns an
+  "Unknown command" message instead. `CnaCraftGame`'s sign-only typing state machine
+  (`isTypingSign_` bool) generalized to a `TypingMode{None,Sign,Command}` enum — backtick still
+  opens Sign typing unchanged, `/` (`Keys::OemQuestion`) opens Command typing with the buffer
+  pre-seeded as `"/"`, matching Craft's own `g->typing_buffer[0]='/'` exactly. `mark0_`/`mark1_`
+  (`CnaCraftGame`, mirrors Craft's `g->block0`/`g->block1`) track the last two edited
+  positions+types via a new `RecordMark` call at both the break and place sites — the anchor
+  points every command reads. `radii_` (`Worlds::CommandRadii`) replaces the old compile-time-fixed
+  `kCreateRadius`/`kDeleteRadius` as the mutable runtime source of truth `/view` mutates (clamped
+  to Craft's exact `1..24`); fog start/end are now computed from `radii_.createRadius` every frame
+  instead of a compile-time constant, so a `/view` change immediately extends/shrinks the fade
+  distance too. `Render::Hud` gained a real 4-line scrolling message log (`PushMessage`,
+  Craft's own `MAX_MESSAGES=4` ring buffer, `config.h`) for command feedback — user decision
+  2026-07-10: full Craft-accurate multi-line log, not a simplified single-line flash message.
+- **Status**: complete
 - **Craft files**: `src/main.c:2021-2094, 2183-2306`
-- **cna-craft files**: none
-- **Priority**: medium
-- **Notes**: Shares the same text-input state-machine prerequisite as Signs (§4.3). A full port
-  would also need `copy()/paste()/tree()/array()/cube()/sphere()/cylinder()` world-editing
-  primitives — a larger scope than "add a chat box." See `plan.md` §12.1 item 17.
+- **cna-craft files**: `src/CnaCraft/Worlds/WorldEditor.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.
+  {hpp,cpp}`, `src/CnaCraft/Render/Hud.{hpp,cpp}`
+- **Priority**: medium (done)
+- **Verification method**: unit tests (`tests/worlds_smoke_test.cpp` — one test per `WorldEditor`
+  primitive plus a broad `ExecuteCommand` dispatch test covering every command string, the
+  type-mismatch-rejects case, the `/view` clamp, and the unknown-command fallback; 267 checks
+  total, up from 226) + a real EasyGL build under Xvfb: confirmed `/` opens the "Command: /_"
+  typing box, confirmed `/view 20` both updates the console log and pushes "Viewing distance set
+  to 20." into the on-screen message log, confirmed an invalid `/view 99` and an unrecognized
+  `/nonsense` both produce Craft-accurate feedback messages that stack correctly (oldest on top,
+  newest on bottom, same order as Craft's own render loop), confirmed the message log stays
+  visible after the typing box closes (not tied to its lifetime, matching Craft), and confirmed
+  Sign typing (backtick) is unaffected by the `TypingMode` generalization. The world-editing
+  paint commands themselves (`/cube`, `/sphere`, etc.) could not be verified live end-to-end —
+  they need mouse-driven break/place to set real marks first, and synthetic mouse clicks into
+  this sandbox's relative-mouse-mode SDL window remain unreliable (the same documented flakiness
+  class as every other click-dependent feature in this project's history) — verified instead via
+  the exhaustive `WorldEditor`/`ExecuteCommand` unit tests above, which is arguably more reliable
+  regression coverage than a one-off manual screenshot anyway.
 
 ### 4.6 Multiplayer / server / client networking
 - **Craft behavior**: `client.c` sends ASCII line protocol over raw TCP
@@ -849,7 +883,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 4.2 | Delta storage (**fixed this session**) | complete | high |
 | 4.3 | Signs (**fixed this session**) | complete | medium |
 | 4.4 | Player names/text | partial | low |
-| 4.5 | Chat/commands | missing | medium |
+| 4.5 | Chat/commands (**world-editing macros completed 2026-07-10**) | complete | medium |
 | 4.6 | Multiplayer | missing | low (deliberate) |
 | 5.1 | Ambient occlusion | blocked | high (blocked) |
 | 5.2 | Fog | **fixed this session** | medium |

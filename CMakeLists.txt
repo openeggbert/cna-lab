@@ -28,6 +28,7 @@ add_library(CnaCraftWorlds STATIC
     src/CnaCraft/Worlds/Hotbar.cpp
     src/CnaCraft/Worlds/DayNightCycle.cpp
     src/CnaCraft/Worlds/Sign.cpp
+    src/CnaCraft/Worlds/WorldEditor.cpp
 )
 target_include_directories(CnaCraftWorlds PUBLIC src)
 

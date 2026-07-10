@@ -17,6 +17,7 @@
 #include "CnaCraft/Worlds/Sign.hpp"
 #include "CnaCraft/Worlds/VoxelRaycast.hpp"
 #include "CnaCraft/Worlds/World.hpp"
+#include "CnaCraft/Worlds/WorldEditor.hpp"
 
 using namespace CnaCraft::Core;
 using namespace CnaCraft::Worlds;
@@ -1374,6 +1375,279 @@ void TestPlayerControllerFloorCatchSkipsUnloadedColumn() {
           "the floor-catch does not fire over an unloaded column -- the player keeps falling, not snapped to y=1");
 }
 
+// Helper for the WorldEditor tests below: a World with a generous, freshly
+// allocated (all-Air) scratch region so the geometry primitives have room
+// to paint without needing real generated terrain.
+void AllocateEditorScratchRegion(World& world) {
+    for (int cx = -2; cx <= 2; ++cx) {
+        for (int cz = -2; cz <= 2; ++cz) {
+            world.AllocateColumn(cx, cz);
+        }
+    }
+}
+
+void TestWorldEditorPaintBlockRespectsGuards() {
+    // plan.md §12.1 item 17: PaintBlock is Craft's own builder_block --
+    // verified against the real checkout that its is_destructable/
+    // IsBreakable check is only ever load-bearing when painting Air
+    // (erasing): painting a non-Air type always overwrites the cell
+    // regardless of whether the existing block was breakable, since the
+    // unconditional "if (w) set_block(...)" step runs either way. This is
+    // not a bug in the port -- it's Craft's real behavior, faithfully
+    // reproduced (the same reason Craft's own CLOUD, its one
+    // not-destructable-but-solid block, can still be painted over by a
+    // command, just not erased by one).
+    World world;
+    AllocateEditorScratchRegion(world);
+    world.SetBlock(5, 10, 5, BlockType::Bedrock);
+
+    WorldEditor::PaintBlock(world, 5, 10, 5, BlockType::Air);
+    Check(world.GetBlock(5, 10, 5) == BlockType::Bedrock,
+          "PaintBlock cannot erase Bedrock (IsBreakable guards the Air/erase case)");
+
+    WorldEditor::PaintBlock(world, 5, 10, 5, BlockType::Stone);
+    Check(world.GetBlock(5, 10, 5) == BlockType::Stone,
+          "PaintBlock CAN overwrite Bedrock with a non-Air type -- the destructible check is a "
+          "no-op for placing, matching Craft's real builder_block exactly");
+
+    world.SetBlock(10, 0, 10, BlockType::Air);
+    WorldEditor::PaintBlock(world, 10, 0, 10, BlockType::Stone);
+    Check(world.GetBlock(10, 0, 10) == BlockType::Air,
+          "PaintBlock refuses to touch y<=0 at all, protecting the Bedrock floor layer (Craft's own y<=0 guard)");
+
+    WorldEditor::PaintBlock(world, 10, WORLD_SIZE_Y - 1, 10, BlockType::Stone);
+    Check(world.GetBlock(10, WORLD_SIZE_Y - 1, 10) == BlockType::Air,
+          "PaintBlock also refuses the topmost layer (Craft's own y>=256, scaled to WORLD_SIZE_Y)");
+
+    WorldEditor::PaintBlock(world, 10, WORLD_SIZE_Y - 2, 10, BlockType::Stone);
+    Check(world.GetBlock(10, WORLD_SIZE_Y - 2, 10) == BlockType::Stone, "PaintBlock works normally one layer in");
+}
+
+void TestWorldEditorFillCuboidFilledVsHollow() {
+    World filled;
+    AllocateEditorScratchRegion(filled);
+    WorldEditor::FillCuboid(filled, 0, 10, 0, 4, 14, 4, BlockType::Stone, /*fill=*/true);
+    bool everyCellFilled = true;
+    for (int x = 0; x <= 4; ++x)
+        for (int y = 10; y <= 14; ++y)
+            for (int z = 0; z <= 4; ++z)
+                if (filled.GetBlock(x, y, z) != BlockType::Stone) everyCellFilled = false;
+    Check(everyCellFilled, "FillCuboid(fill=true) fills every cell in the box, including the interior");
+
+    World hollow;
+    AllocateEditorScratchRegion(hollow);
+    WorldEditor::FillCuboid(hollow, 0, 10, 0, 4, 14, 4, BlockType::Stone, /*fill=*/false);
+    Check(hollow.GetBlock(0, 10, 0) == BlockType::Stone, "FillCuboid(fill=false) paints the box's corners");
+    Check(hollow.GetBlock(2, 10, 2) == BlockType::Stone, "FillCuboid(fill=false) paints the bottom face's interior "
+                                                          "(still a boundary cell on the y axis)");
+    Check(hollow.GetBlock(2, 12, 2) == BlockType::Air,
+          "FillCuboid(fill=false) leaves the true interior (not touching any face) empty");
+}
+
+void TestWorldEditorFillSphereFilledHollowAndFlattenAxes() {
+    World filled;
+    AllocateEditorScratchRegion(filled);
+    WorldEditor::FillSphere(filled, 10, 20, 10, 4, BlockType::Stone, /*fill=*/true, false, false, false);
+    Check(filled.GetBlock(10, 20, 10) == BlockType::Stone, "FillSphere(fill=true) paints the center");
+    Check(filled.GetBlock(13, 20, 10) == BlockType::Stone,
+          "FillSphere(fill=true) paints interior cells close to the surface too");
+    Check(filled.GetBlock(20, 20, 10) == BlockType::Air, "FillSphere never paints far outside the radius");
+
+    World hollow;
+    AllocateEditorScratchRegion(hollow);
+    WorldEditor::FillSphere(hollow, 10, 20, 10, 4, BlockType::Stone, /*fill=*/false, false, false, false);
+    Check(hollow.GetBlock(10, 20, 10) == BlockType::Air,
+          "FillSphere(fill=false) leaves the center empty (a hollow shell, only the surface is painted)");
+    bool anyShellCellPainted = false;
+    for (int x = 6; x <= 14; ++x)
+        for (int y = 16; y <= 24; ++y)
+            for (int z = 6; z <= 14; ++z)
+                if (hollow.GetBlock(x, y, z) == BlockType::Stone) anyShellCellPainted = true;
+    Check(anyShellCellPainted, "FillSphere(fill=false) actually paints a surface shell somewhere");
+
+    // /circley N -- a flattened disc (flattenY): every painted cell must
+    // sit at exactly y=cy, never above or below, matching Craft's own
+    // sphere() fy flag.
+    World disc;
+    AllocateEditorScratchRegion(disc);
+    WorldEditor::FillSphere(disc, 10, 20, 10, 4, BlockType::Stone, /*fill=*/true, false, true, false);
+    Check(disc.GetBlock(10, 20, 10) == BlockType::Stone, "a Y-flattened disc still paints its own center");
+    Check(disc.GetBlock(10, 21, 10) == BlockType::Air && disc.GetBlock(10, 19, 10) == BlockType::Air,
+          "a Y-flattened disc paints nothing above or below cy -- it's a flat circle, not a sphere");
+}
+
+void TestWorldEditorFillCylinder() {
+    World world;
+    AllocateEditorScratchRegion(world);
+    // A vertical (Y-axis) cylinder from y=10 to y=15, radius 3, centered at (x=10,z=10).
+    WorldEditor::FillCylinder(world, 10, 10, 10, 10, 15, 10, 3, BlockType::Stone, /*fill=*/true);
+    Check(world.GetBlock(10, 10, 10) == BlockType::Stone && world.GetBlock(10, 15, 10) == BlockType::Stone,
+          "a vertical cylinder paints its full length, including both end caps' centers");
+    Check(world.GetBlock(10, 12, 10) == BlockType::Stone,
+          "a vertical cylinder paints its center at every height along its axis, not just the marked ends");
+    Check(world.GetBlock(10, 20, 10) == BlockType::Air,
+          "a vertical cylinder paints nothing past its far end (y=15)");
+
+    // Two corners differing along two axes at once -- Craft's own cylinder()
+    // requires exactly one varying axis (a real cylinder-length axis) and
+    // is a no-op otherwise.
+    World invalid;
+    AllocateEditorScratchRegion(invalid);
+    WorldEditor::FillCylinder(invalid, 0, 0, 0, 5, 5, 0, 3, BlockType::Stone, true);
+    Check(invalid.GetBlock(0, 0, 0) == BlockType::Air && invalid.GetBlock(5, 5, 0) == BlockType::Air,
+          "FillCylinder is a no-op when the two corners differ along more than one axis, matching Craft exactly");
+}
+
+void TestWorldEditorFillArrayStepsAndAxisForcing() {
+    World world;
+    AllocateEditorScratchRegion(world);
+    // Step (2,0,0), repeated 3 times along X only.
+    WorldEditor::FillArray(world, 0, 10, 0, 2, 10, 0, BlockType::Stone, /*xc=*/3, /*yc=*/5, /*zc=*/5);
+    Check(world.GetBlock(0, 10, 0) == BlockType::Stone && world.GetBlock(2, 10, 0) == BlockType::Stone &&
+              world.GetBlock(4, 10, 0) == BlockType::Stone,
+          "FillArray repeats 3 times along X at the requested step (0, 2, 4)");
+    Check(world.GetBlock(1, 10, 0) == BlockType::Air,
+          "FillArray does not paint between steps -- only exactly at each repeated offset");
+    Check(world.GetBlock(0, 15, 0) == BlockType::Air && world.GetBlock(0, 10, 5) == BlockType::Air,
+          "FillArray forces yc/zc down to 1 when the Y/Z step is zero, regardless of the requested "
+          "yc=5/zc=5 -- Craft's own dy?yc:1 / dz?zc:1 guard");
+}
+
+void TestWorldEditorGrowTree() {
+    World world;
+    AllocateEditorScratchRegion(world);
+    WorldEditor::GrowTree(world, 10, 10, 10);
+
+    bool trunkAllWood = true;
+    for (int y = 10; y < 17; ++y) {
+        if (world.GetBlock(10, y, 10) != BlockType::Wood) trunkAllWood = false;
+    }
+    Check(trunkAllWood, "GrowTree paints a 7-tall Wood trunk at the root column, matching Craft's tree()");
+    Check(world.GetBlock(10, 17, 10) != BlockType::Wood, "the trunk is exactly 7 blocks tall, not taller");
+
+    bool anyLeavesFound = false;
+    for (int dx = -3; dx <= 3; ++dx)
+        for (int dz = -3; dz <= 3; ++dz)
+            for (int y = 13; y < 18; ++y)
+                if (world.GetBlock(10 + dx, y, 10 + dz) == BlockType::Leaves) anyLeavesFound = true;
+    Check(anyLeavesFound, "GrowTree paints a Leaves canopy blob around the upper trunk");
+}
+
+void TestWorldEditorPasteRegionReflectsLiveStateAtPasteTime() {
+    // plan.md §12.1 item 17: a real, faithfully-reproduced Craft quirk --
+    // /copy only remembers the source region's *positions*, not its
+    // contents, so a /paste run after the source has since changed
+    // reflects the NEW state, not a snapshot from /copy time.
+    World world;
+    AllocateEditorScratchRegion(world);
+    for (int x = 0; x <= 2; ++x) world.SetBlock(x, 10, 0, BlockType::Stone);
+
+    const ClipboardRegion source{0, 10, 0, 2, 10, 0}; // as if /copy ran while the source was all Stone
+
+    // Mutate the source AFTER the (hypothetical) /copy but BEFORE /paste.
+    world.SetBlock(1, 10, 0, BlockType::Dirt);
+
+    // Destination well above the source (destY1=40, not closer): PasteRegion
+    // sweeps y ascending from 0 and writes to y+oy each iteration, so a
+    // destination too close to the source can have an early iteration
+    // clobber the real source row before it's later read as the "source" --
+    // a real, faithfully-reproduced Craft quirk (same loop shape as Craft's
+    // own paste(), see WorldEditor.cpp's PasteRegion comment), not something
+    // this test is trying to exercise here. destY1=40 (oy=30) keeps the only
+    // theoretically-colliding source row (y = 10-30 = -20) out of range.
+    WorldEditor::PasteRegion(world, source, 0, 40, 0, 2, 40, 0);
+    Check(world.GetBlock(0, 40, 0) == BlockType::Stone && world.GetBlock(2, 40, 0) == BlockType::Stone,
+          "PasteRegion copies the unchanged parts of the source correctly");
+    Check(world.GetBlock(1, 40, 0) == BlockType::Dirt,
+          "PasteRegion reflects the source's CURRENT live state at paste time, not a snapshot from copy time "
+          "(the middle cell was changed to Dirt after the hypothetical /copy, and paste picks that up)");
+}
+
+void TestExecuteCommandDispatchesEveryCommand() {
+    World world;
+    AllocateEditorScratchRegion(world);
+    ClipboardRegion clipboard;
+    CommandRadii radii{6, 9};
+
+    // /view: valid sets both radii (createRadius=N, deleteRadius=N+3, this
+    // project's own hysteresis margin, not Craft's literal +4); invalid is
+    // rejected with Craft's exact message and radii are left untouched.
+    std::string msg = ExecuteCommand(world, "/view 10", BlockMark{}, BlockMark{}, clipboard, radii);
+    Check(radii.createRadius == 10 && radii.deleteRadius == 13, "/view sets createRadius/deleteRadius correctly");
+    msg = ExecuteCommand(world, "/view 99", BlockMark{}, BlockMark{}, clipboard, radii);
+    Check(msg == "Viewing distance must be between 1 and 24.", "/view rejects an out-of-range radius with "
+                                                                 "Craft's exact message");
+    Check(radii.createRadius == 10, "a rejected /view leaves the previous radius unchanged");
+
+    // Mark two Stone corners (as if the player broke/placed Stone twice) and
+    // run /cube.
+    const BlockMark stoneMark0{4, 10, 4, BlockType::Stone};
+    const BlockMark stoneMark1{0, 10, 0, BlockType::Stone};
+    msg = ExecuteCommand(world, "/cube", stoneMark0, stoneMark1, clipboard, radii);
+    Check(world.GetBlock(2, 10, 2) == BlockType::Air && world.GetBlock(0, 10, 0) == BlockType::Stone,
+          "/cube paints a hollow box between the two marks (interior stays empty, corners painted)");
+    msg = ExecuteCommand(world, "/fcube", stoneMark0, stoneMark1, clipboard, radii);
+    Check(world.GetBlock(2, 10, 2) == BlockType::Stone, "/fcube paints a filled box (the same interior cell "
+                                                          "now painted)");
+
+    // Mismatched mark types reject cube/array/cylinder with a message
+    // instead of silently no-op'ing (a deliberate small UX improvement
+    // over Craft's own silent failure here, documented in the plan).
+    const BlockMark dirtMark{8, 10, 8, BlockType::Dirt};
+    msg = ExecuteCommand(world, "/cube", stoneMark0, dirtMark, clipboard, radii);
+    Check(msg == "Marked blocks must be the same type.", "/cube rejects mismatched mark types with a message");
+
+    // /sphere + /circley (a representative sample of the 12 sphere/circle
+    // command strings -- FillSphere's own axis/fill logic is already
+    // covered exhaustively above; this just confirms ExecuteCommand routes
+    // each string to the right flatten combination).
+    msg = ExecuteCommand(world, "/sphere 3", stoneMark0, BlockMark{}, clipboard, radii);
+    Check(world.GetBlock(4, 10, 4) == BlockType::Stone, "/sphere paints centered on mark0");
+    World circleWorld;
+    AllocateEditorScratchRegion(circleWorld);
+    const BlockMark circleCenter{10, 20, 10, BlockType::Stone};
+    (void)ExecuteCommand(circleWorld, "/fcircley 4", circleCenter, BlockMark{}, clipboard, radii);
+    Check(circleWorld.GetBlock(10, 21, 10) == BlockType::Air,
+          "/fcircley routes to a Y-flattened disc, not a full sphere -- nothing painted above the center");
+
+    // /array (both the "%d" and "%d %d %d" forms) between two same-type marks.
+    World arrayWorld;
+    AllocateEditorScratchRegion(arrayWorld);
+    const BlockMark arrayMark0{2, 10, 0, BlockType::Stone};
+    const BlockMark arrayMark1{0, 10, 0, BlockType::Stone};
+    (void)ExecuteCommand(arrayWorld, "/array 3", arrayMark0, arrayMark1, clipboard, radii);
+    Check(arrayWorld.GetBlock(4, 10, 0) == BlockType::Stone, "/array N repeats N times using the marks' own step");
+
+    // /tree at mark0.
+    World treeWorld;
+    AllocateEditorScratchRegion(treeWorld);
+    (void)ExecuteCommand(treeWorld, "/tree", BlockMark{10, 10, 10, BlockType::Air}, BlockMark{}, clipboard, radii);
+    Check(treeWorld.GetBlock(10, 10, 10) == BlockType::Wood, "/tree grows a tree rooted at mark0");
+
+    // /copy + /paste round trip.
+    World copyWorld;
+    AllocateEditorScratchRegion(copyWorld);
+    copyWorld.SetBlock(0, 10, 0, BlockType::Stone);
+    ClipboardRegion cb;
+    (void)ExecuteCommand(copyWorld, "/copy", BlockMark{0, 10, 0, BlockType::Stone}, BlockMark{0, 10, 0, BlockType::Stone},
+                   cb, radii);
+    (void)ExecuteCommand(copyWorld, "/paste", BlockMark{5, 20, 5, BlockType::Air}, BlockMark{5, 20, 5, BlockType::Air}, cb,
+                   radii);
+    Check(copyWorld.GetBlock(5, 20, 5) == BlockType::Stone, "/copy + /paste round-trips a single-cell region");
+
+    // /cylinder with matched marks along one axis.
+    World cylWorld;
+    AllocateEditorScratchRegion(cylWorld);
+    (void)ExecuteCommand(cylWorld, "/fcylinder 2", BlockMark{10, 10, 10, BlockType::Stone},
+                   BlockMark{10, 14, 10, BlockType::Stone}, clipboard, radii);
+    Check(cylWorld.GetBlock(10, 12, 10) == BlockType::Stone, "/fcylinder paints along its axis between the marks");
+
+    // Unknown command.
+    msg = ExecuteCommand(world, "/nonsense", BlockMark{}, BlockMark{}, clipboard, radii);
+    Check(msg == "Unknown command: /nonsense", "an unrecognized command returns an Unknown-command message "
+                                                "instead of being forwarded anywhere (no multiplayer chat exists)");
+}
+
 }
 
 int main() {
@@ -1415,6 +1689,14 @@ int main() {
     TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement();
     TestPlayerControllerFloorCatchSafetyNet();
     TestPlayerControllerFloorCatchSkipsUnloadedColumn();
+    TestWorldEditorPaintBlockRespectsGuards();
+    TestWorldEditorFillCuboidFilledVsHollow();
+    TestWorldEditorFillSphereFilledHollowAndFlattenAxes();
+    TestWorldEditorFillCylinder();
+    TestWorldEditorFillArrayStepsAndAxisForcing();
+    TestWorldEditorGrowTree();
+    TestWorldEditorPasteRegionReflectsLiveStateAtPasteTime();
+    TestExecuteCommandDispatchesEveryCommand();
 
     if (g_failures == 0) {
         std::printf("\nAll checks passed.\n");

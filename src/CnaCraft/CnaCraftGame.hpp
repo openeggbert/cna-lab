@@ -24,6 +24,7 @@
 #include "Worlds/PlayerController.hpp"
 #include "Worlds/Sign.hpp"
 #include "Worlds/World.hpp"
+#include "Worlds/WorldEditor.hpp"
 
 namespace Microsoft::Xna::Framework::Graphics {
 class GraphicsDevice;
@@ -185,19 +186,39 @@ private:
     Render::SignBillboard signBillboard_;
     bool signsNeedRebuild_ = true;
 
-    // Sign text-typing state machine (mirrors Craft's own g->typing /
-    // g->typing_buffer in main.c). While isTypingSign_ is true, WASD/look/
-    // click input is suspended (matching Craft's handle_movement gating
-    // movement polling on !g->typing) but gravity/physics still integrates.
-    // Backtick opens typing (edge-triggered), Enter submits (re-raycasts
-    // fresh, matching Craft calling hit_test at Enter-time rather than
-    // caching the block from when typing started), Escape cancels.
-    bool isTypingSign_ = false;
+    // Typing state machine (mirrors Craft's own g->typing / g->typing_buffer
+    // in main.c). While typingMode_ != None, WASD/look/click input is
+    // suspended (matching Craft's handle_movement gating movement polling on
+    // !g->typing) but gravity/physics still integrates. Backtick opens Sign
+    // typing (buffer starts empty); `/` opens Command typing (buffer starts
+    // as "/", matching Craft's own g->typing_buffer[0]='/' exactly) --
+    // plan.md §12.1 item 17. Both edge-triggered; Enter submits (Sign
+    // re-raycasts fresh at Enter-time, matching Craft calling hit_test then
+    // rather than caching the block from when typing started; Command calls
+    // Worlds::ExecuteCommand), Escape cancels either mode without quitting.
+    enum class TypingMode { None, Sign, Command };
+    TypingMode typingMode_ = TypingMode::None;
     std::string typingBuffer_;
     bool backtickWasDown_ = false;
+    bool slashWasDown_ = false;
     bool backspaceWasDown_ = false;
     bool enterWasDown_ = false;
     bool escapeWasDown_ = false;
+
+    // World-editing command state (plan.md §12.1 item 17, CRAFT_PARITY.md
+    // §4.5) -- mark0_/mark1_ mirror Craft's own g->block0/g->block1 (the
+    // last two edited positions+types, updated via RecordMark right after
+    // every successful break/place), clipboard_ mirrors g->copy0/g->copy1
+    // (just the two corner positions `/copy` remembers, not their
+    // contents -- see Worlds::WorldEditor::PasteRegion's doc comment).
+    // radii_ replaces the old compile-time-fixed kCreateRadius/
+    // kDeleteRadius as the mutable source of truth `/view` mutates at
+    // runtime; seeded from those same constants in Initialize().
+    Worlds::BlockMark mark0_;
+    Worlds::BlockMark mark1_;
+    Worlds::ClipboardRegion clipboard_;
+    Worlds::CommandRadii radii_;
+    void RecordMark(int x, int y, int z, Worlds::BlockType type);
 
     // Visible targeted-block feedback (CRAFT_PARITY.md §2.4) — updated each
     // frame in Update() from the same raycast used for break/place, drawn in

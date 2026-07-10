@@ -1,10 +1,15 @@
 # NEXT.md
 
-Handoff document for resuming work on **cna-craft**. Last updated after the
-**chunk-system redesign** (plan.md §12.1 item 19: unbounded, streamed world,
-7 phases) and, immediately after in the same day, **the block roster expansion
-to Craft's full 54-item set** (plan.md §12.1 item 25: Chest, the other 5
-flower colors, all 32 dye colors) — both shipped on branch `develop`.
+Handoff document for resuming work on **cna-craft**. Last updated after three
+back-to-back sessions on the same day (2026-07-10), all shipped on branch
+`develop`: the **chunk-system redesign** (plan.md §12.1 item 19: unbounded,
+streamed world, 7 phases), **the block roster expansion** to Craft's full
+54-item set (item 25: Chest, the other 5 flower colors, all 32 dye colors),
+and **chat/slash world-editing commands** (item 17: `/cube`, `/sphere`,
+`/copy`+`/paste`, `/view`, etc.). With item 17 done, `plan.md` §12.1 has
+exactly one real remaining item (Chat/slash-commands' own former
+placeholder is now filled — the only thing left is `blocked` ambient
+occlusion and explicitly-deferred multiplayer; see §8).
 
 ## 1. Project summary
 
@@ -27,48 +32,58 @@ is a faithful CNA-native **port of [fogleman/Craft](https://github.com/fogleman/
 3. This file — a handoff summary, not an independent source of truth. Keep
    it in sync with the two files above, not the other way around.
 
-**Key architectural decisions, updated this session**: the world is now
-**unbounded and chunk-streamed** in X/Z (packed-`(cx,cz)`-keyed hash map of
-columns), not the old fixed `128×64×128` array — Y stays fixed
+**Key architectural decisions, updated across these sessions**: the world is
+now **unbounded and chunk-streamed** in X/Z (packed-`(cx,cz)`-keyed hash map
+of columns), not the old fixed `128×64×128` array — Y stays fixed
 (`WORLD_CHUNKS_Y=4`), matching Craft's own real behavior. Generation and
 meshing are backgrounded via `sharp-runtime`'s `System::Threading::Tasks::
-TaskT` — this project's first use of threading. Everything else is
-unchanged: two-layer split (`Worlds/` engine-agnostic, `Render/` +
-`CnaCraftGame` CNA-dependent), naive per-face meshing (plus a cross-billboard
-path for plants), backend-agnostic game code, two-mesh-buffer
-(opaque/transparent) convention.
+TaskT` — this project's first use of threading. The block roster is
+Craft's full 54-item set. Typing now generalizes to two modes (Sign,
+Command via `/`), backed by a new engine-agnostic `Worlds/WorldEditor`
+module for world-editing commands. Everything else is unchanged: two-layer
+split (`Worlds/` engine-agnostic, `Render/` + `CnaCraftGame` CNA-dependent),
+naive per-face meshing (plus a cross-billboard path for plants),
+backend-agnostic game code, two-mesh-buffer (opaque/transparent)
+convention.
 
 ## 2. Current status
 
 **Build status**: verified at the end of this session (EasyGL backend) —
 clean configure + build from scratch, zero warnings, `CnaCraft` executable
 links and runs. Verified via real interactive Xvfb/xdotool/ImageMagick
-screenshots for both pieces of work: the chunk redesign (flew far beyond the
-old 128×128 boundary in multiple directions, confirmed terrain streams in
-cleanly with no permanent visual holes — a real bug found and fixed, see
-§3 — flew back toward spawn, confirmed no crashes/leaks and a bounded
-thread count throughout) and the roster expansion (cycled the hotbar
+screenshots across all three pieces of work: the chunk redesign (flew far
+beyond the old 128×128 boundary in multiple directions, confirmed terrain
+streams in cleanly with no permanent visual holes — a real bug found and
+fixed, see §3 — flew back toward spawn, confirmed no crashes/leaks and a
+bounded thread count throughout), the roster expansion (cycled the hotbar
 through all 54 slots via `E`, confirmed the HUD showed the right name at
 each slot, confirmed naturally-generated flowers now render in more than
-one color side by side).
+one color side by side), and chat/slash-commands (confirmed `/` opens the
+Command typing box, confirmed `/view 20` updates both the console and the
+new on-screen message log, confirmed an invalid `/view 99` and an
+unrecognized `/nonsense` both produce Craft-accurate feedback that stacks
+correctly in the message log, confirmed the log persists after the typing
+box closes, confirmed Sign typing is unaffected by the `TypingMode`
+generalization).
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **226 checks, all
+**Test status**: `tests/worlds_smoke_test.cpp` — **267 checks, all
 passing** (up from 173 at the start of the chunk-redesign session). Plus
 `cna_craft_persistence_smoke_test` — **30 checks, all passing** (up from
 21). Both build and run standalone with `-DCNA_CRAFT_BUILD_GAME=OFF`.
 
 **plan.md §12.1 status as of this session's end** (25 items):
-- **22 `completed`**: everything from before, plus item 19 (chunk-system
-  redesign) and item 25 (full 54-item block roster) — see §3 below.
+- **23 `completed`**: everything from before, plus item 19 (chunk-system
+  redesign), item 25 (full 54-item block roster), and item 17
+  (chat/slash-commands) — see §3 below.
 - **1 `blocked`**: ambient occlusion (needs a custom `ShaderEffect`, only
   real on EASYGL today).
-- **1 `pending (large)`**: Chat/slash-commands — shares the text-input
-  state machine Signs already built, but Craft's real command set needs
-  world-editing primitives (`/cube`, `/sphere`, `/tree`, `/array`, `/copy`,
-  `/paste`, etc.) that don't exist in this codebase yet.
 - **1 `pending`, explicitly deferred**: multiplayer, per project direction
-  (all its usual prerequisites — persistence, chunk logic — are now done,
-  but multiplayer itself stays deferred).
+  (all its usual prerequisites — persistence, chunk logic, chat — are now
+  done, but multiplayer itself stays deferred).
+
+There is no other open `plan.md` §12.1 item — the priority queue this file's
+own §8 used to point to is now empty except for the two above. Anything
+left is either low-value content (§5) or genuinely out of scope for now.
 
 ## 3. Recent changes (this session)
 
@@ -154,17 +169,71 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
    showed naturally-generated orange/yellow and purple flower blooms side
    by side, confirming the color-pick noise actually varies.
 
+9. **Chat/slash world-editing commands** (plan.md §12.1 item 17,
+   CRAFT_PARITY.md §4.5) — picked up immediately after item 25, closing the
+   last real gap in the priority queue. Planned via `EnterPlanMode` (same
+   scope class as the chunk redesign) after reading Craft's real
+   `parse_command` and every function it calls directly from the checkout.
+   New `src/CnaCraft/Worlds/WorldEditor.hpp/.cpp`: 7 engine-agnostic
+   geometry primitives (`PaintBlock`=`builder_block`, `FillCuboid`=`cube()`,
+   `FillSphere`=`sphere()` — covers both `/sphere` and `/circlex|y|z` via
+   flatten flags, exactly like Craft reuses it — `FillCylinder`=`cylinder()`
+   (a stack of flattened `FillSphere` calls along one axis), `FillArray`=
+   `array()`, `GrowTree`=`tree()`, `PasteRegion`=`paste()`) plus
+   `Worlds::ExecuteCommand`, a direct port of `parse_command`'s dispatch
+   chain for every world-editing command. The 5 multiplayer-auth commands
+   and the plain-chat fallback are deliberately not ported (no networking,
+   no one to talk to). `CnaCraftGame`'s sign-only `isTypingSign_` bool
+   generalized to `TypingMode{None,Sign,Command}`; `/` (`Keys::
+   OemQuestion`) opens Command typing pre-seeded with `"/"`. New `mark0_`/
+   `mark1_` (mirrors Craft's `g->block0`/`g->block1`) updated via a new
+   `RecordMark` at both break and place. `radii_` (`Worlds::CommandRadii`)
+   replaces the compile-time `kCreateRadius`/`kDeleteRadius` as the mutable
+   value `/view` mutates (clamped `1..24`); fog now derives from
+   `radii_.createRadius` every frame instead of a compile-time constant.
+   `Render::Hud` gained a real 4-line scrolling message log (`PushMessage`)
+   for command feedback — **user decision (2026-07-10)**: full
+   Craft-accurate multi-line log over a simplified single-line flash
+   message, when asked to choose. Caught and fixed one real test-authoring
+   bug via the suite itself: an early `PasteRegion` test accidentally chose
+   source/destination coordinates that triggered a genuine, faithfully-
+   reproduced Craft quirk (pasting a region whose destination Y range
+   overlaps not-yet-read source rows can clobber source data mid-copy,
+   since Craft's own `paste()` reads/writes the same live map in one
+   ascending-y sweep) — not a bug in the port, fixed by choosing
+   non-overlapping test coordinates instead, with the quirk itself now
+   documented in `WorldEditor.cpp`. 41 new checks — 267 in
+   `worlds_smoke_test` (up from 226), persistence suite unchanged at 30.
+   Verified against a real EasyGL build under Xvfb: `/` opens the
+   "Command: /_" typing box correctly, `/view 20` updates both the console
+   log and the on-screen message log ("Viewing distance set to 20."), an
+   invalid `/view 99` and an unrecognized `/nonsense` both produce
+   Craft-accurate feedback that stacks correctly (oldest on top, persists
+   after the typing box closes), and Sign typing (backtick) is unaffected.
+   The world-editing paint commands themselves (`/cube`, `/sphere`, etc.)
+   couldn't be verified live end-to-end — they need mouse-driven
+   break/place to set real marks first, and synthetic mouse clicks into
+   this sandbox's relative-mouse-mode SDL window remain unreliable (same
+   documented flakiness as every other click-dependent feature in this
+   project's history) — covered instead by the exhaustive `WorldEditor`/
+   `ExecuteCommand` unit tests, arguably better regression coverage than a
+   one-off manual screenshot would have been anyway.
+
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
-`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 207/207 + 30/30 tests
+`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 267/267 + 30/30 tests
 passing, zero compiler warnings.
 
 Carried over, still unresolved, still not urgent: mouse-look reliability
 confirmation on the user's real (non-sandboxed) machine — `needs_human`,
 unchanged for several sessions now (see `plan.md` §11.0/§12.1 for history).
+The same underlying sandbox limitation (unreliable synthetic mouse clicks
+into a relative-mouse-mode SDL window) is also why the new `/cube`-style
+world-editing commands' actual painting couldn't be verified live — see §3
+item 9.
 
-**New, deliberate, documented behavior changes from this session** (not
+**New, deliberate, documented behavior changes from these sessions** (not
 bugs — read before "fixing"):
 - Player-driven block edits and freshly-streamed-in terrain render 1-2
   frames later than the old same-frame synchronous rebuild (backgrounded
@@ -173,9 +242,18 @@ bugs — read before "fixing"):
   (Craft's own real per-column margin-check behavior, previously
   unreplicated since the whole world used to generate as one unit).
 - No occlusion/frustum culling exists anywhere in the engine, and now the
-  world is unbounded — every loaded column within `kCreateRadius` draws
-  every frame regardless of visibility. Not a problem at the current
-  radius (6 chunks), but worth remembering if the radius is ever increased.
+  world is unbounded — every loaded column within `radii_.createRadius`
+  draws every frame regardless of visibility. Not a problem at the current
+  default radius (6 chunks), but worth remembering if `/view` is used to
+  increase it a lot, or the default is raised.
+- A mismatched-type `/cube`/`/array`/`/cylinder` (marks aren't the same
+  block type) now shows a message instead of Craft's own silent no-op — a
+  small, deliberate UX improvement, not a fidelity gap.
+- `PasteRegion` can clobber source data mid-copy if the destination Y range
+  overlaps not-yet-read source rows in the *same* World — a real,
+  faithfully-reproduced Craft quirk (same loop shape as Craft's own
+  `paste()`), not a bug. Harmless for the common case (pasting somewhere
+  that doesn't Y-overlap the source).
 
 ## 5. Known bugs and limitations
 
@@ -185,20 +263,16 @@ from scratch. Highlights of what's NOT done yet:
 
 - **`blocked`**: ambient occlusion — needs a custom vertex format +
   `ShaderEffect`, only real on EASYGL today (`missing.md`).
-- **`pending (large)`**: Chat/slash-commands — shares Signs' text-input
-  state machine (now built and reusable) but additionally needs Craft's
-  world-editing macro commands (`copy()/paste()/tree()/array()/cube()/
-  sphere()/cylinder()`), none of which exist in this codebase.
 - **Deliberately deferred**: multiplayer.
-- **Not ported (out of scope this pass)**: Craft's player-position `state`
-  table (spawn/camera position persistence) — this project always spawns
-  at the deterministic world-origin column; revisit only if that stops
-  being desired.
-- **Low-value, not picked up**: the other 5 of Craft's 6 flower colors,
-  Chest, the 32-entry dye-color palette — all would reuse existing
-  infrastructure (plant geometry or plain-cube blocks) but are pure
-  content-scaling with little gameplay value, explicitly deprioritized per
-  "prioritize gameplay parity over decorative additions."
+- **Not ported (out of scope)**: Craft's player-position `state` table
+  (spawn/camera position persistence) — this project always spawns at the
+  deterministic world-origin column; revisit only if that stops being
+  desired. Craft's `/identity`/`/login`/`/logout`/`/online`/`/offline`
+  commands (multiplayer auth) — no networking exists to authenticate
+  against.
+- **Nothing else identified**: the block roster (item 25) and chat/commands
+  (item 17) categories that used to have "low-value, not picked up" entries
+  here are both fully done now.
 
 ## 6. Architecture notes
 
@@ -245,7 +319,7 @@ this is just the "if you touch this again" summary):
   and rejected at open (logged, falls back to the no-op store), not
   silently corrupted.
 - `Worlds/BlockType` — **new values must always be appended after the last
-  one (`Bedrock` as of this note), never inserted earlier.**
+  one (`Dye31` as of this note), never inserted earlier.**
   `Persistence::WorldStore` persists `BlockType` as its raw `static_cast
   <int>` ordinal — inserting mid-enum would silently reinterpret every
   existing `world.db`'s saved block types on next load, with no error or
@@ -253,8 +327,34 @@ this is just the "if you touch this again" summary):
   same reason (existing slot numbers are load-bearing for muscle memory and
   tests). If you add a new block type, add it at the end of the enum and
   the end of `kSlots`, not wherever feels topically appropriate.
+- `Worlds/WorldEditor` (new, plan.md §12.1 item 17) — engine-agnostic
+  world-editing primitives + `Worlds::ExecuteCommand`, the `/`-command
+  parser/dispatcher. Pure functions of their inputs (a `World&` plus plain
+  coordinates/marks/clipboard/radii) — no CNA dependency, fully
+  unit-testable, same pattern as `ChunkMesher`/`VoxelRaycast`/
+  `PlayerController`. If you add a new command, add its dispatch branch to
+  `ExecuteCommand` (mirrors Craft's real `parse_command` order) and its own
+  `WorldEditor::` primitive if it needs new geometry, not inline logic
+  inside `CnaCraftGame`.
+- `CnaCraftGame::TypingMode` (replaces the old `isTypingSign_` bool) — a
+  3-state enum (`None`/`Sign`/`Command`). If you add a third typing trigger
+  (Craft's own bare-Enter-opens-empty-chat-buffer, not ported here since
+  there's no multiplayer to chat with), add a new enum value, not a second
+  bool — a bool can't represent "not typing" vs "typing, but which mode."
+- `CnaCraftGame::mark0_`/`mark1_`/`clipboard_`/`radii_` — session state a
+  command reads, updated by `RecordMark` (called at both break and place)
+  and by `/copy`/`/view` respectively. `radii_` is the actual mutable
+  source of truth for streaming/fog now — `kCreateRadius`/`kDeleteRadius`
+  (the anonymous-namespace constants) are only ever read once, to seed
+  `radii_` in `Initialize()`. Don't read the constants directly anywhere
+  else, or a runtime `/view` change won't take effect there.
+- `Render::Hud::PushMessage` — Craft's own 4-line message ring buffer
+  (`MAX_MESSAGES`). Rebuilds its texture on every call (matches
+  `SetTyping`'s "small texture, low-frequency interaction, per-call rebuild
+  is cheap enough" reasoning) — don't call it every frame, only when a new
+  message actually needs to appear.
 
-**Everything from before this session** (module list, boundaries, data
+**Everything from before these sessions** (module list, boundaries, data
 flow, signs, cursor-capture, pitch-coupled flight, floor-catch, etc.) is
 unchanged — see `plan.md` §2/§6/§8 and prior `NEXT.md` history in git log
 for that detail if needed.
@@ -273,7 +373,7 @@ cmake -S . -B build-worlds -DCNA_CRAFT_BUILD_GAME=OFF -DBUILD_TESTING=ON
 cmake --build build-worlds -j"$(nproc)"
 ctest --test-dir build-worlds --output-on-failure
 ```
-Expect: `WorldsSmokeTest` (207 `ok:` lines) and `PersistenceSmokeTest`
+Expect: `WorldsSmokeTest` (267 `ok:` lines) and `PersistenceSmokeTest`
 (30 checks) both pass.
 
 ```bash
@@ -294,27 +394,25 @@ There is no separate lint/format tooling configured in this repo.
 ## 8. Next smallest tasks
 
 `plan.md` §12.1 is the authoritative ordered priority queue. As of this
-session's end, there is exactly **one** remaining real task:
+session's end, **there is no remaining item in the queue at all** —
+chat/slash-commands (item 17) was the last one, and it's done. What's left:
 
-1. **Chat/slash-commands** (CRAFT_PARITY.md §4.5, plan.md item 17). The
-   text-input state machine is built and reusable (see
-   `CnaCraftGame::Update`'s typing branch) — the remaining scope is Craft's
-   world-editing macro commands (`/cube`, `/sphere`, `/tree`, `/array`,
-   `/copy`, `/paste`, etc.), which need new world-editing primitives that
-   don't exist in this codebase yet. Large enough scope (comparable to the
-   chunk redesign in that it needs new primitives, not just a same-shape
-   port) that it likely deserves its own `EnterPlanMode` pass before
-   diving in, same reasoning as item 19. Scope this as its own session.
+- **`blocked`, needs a human decision**: ambient occlusion — needs a
+  shader-backend choice (only real on EASYGL today), not more design work.
+- **Explicitly deferred, not "next"**: multiplayer, per project direction.
+  Every one of its usual prerequisites (persistence, chunk streaming, chat)
+  is now done, so if the user ever wants to pick it up, nothing else is
+  blocking it — but don't start it without being asked.
+- **Possible future polish, not scoped/requested yet**: Craft's real
+  per-instance random Y-axis rotation for plant billboards (a cosmetic gap
+  noted in §3.7), the player-position `state` table, occlusion/frustum
+  culling if `/view`'s radius is ever pushed much higher than the default.
+  None of these are "next" — just things a future session might reasonably
+  pick up if asked.
 
-The low-value content additions (extra flower colors, Chest, dye palette)
-that used to sit here are now done (item 25, see §3). Multiplayer stays
-explicitly deferred per project direction (not "next" — just no longer
-blocked on anything else).
-
-No other item currently needs a design pass — everything else remaining
-(`blocked`/deferred) is waiting on either a human decision (shader-backend
-choice for AO) or a deliberate scope decision (multiplayer timing), not on
-more design work.
+If the user asks "what's next" with nothing else specified, the honest
+answer is: the ordered queue is empty, ask what they want rather than
+guessing at scope.
 
 ## 9. Do not do yet
 
@@ -348,24 +446,31 @@ face-convention change to match Craft's asymmetric scheme) — **plus**:
   never reorder `Hotbar::kSlots`** — see §6's note; both are append-only
   for real persistence-compatibility and test-stability reasons, not just
   tidiness.
+- **Don't add a bare-Enter "chat" typing trigger** — Craft has one
+  (opens an empty typing buffer sent as multiplayer chat), deliberately not
+  ported since there's no multiplayer to talk to. Don't add it "for
+  completeness" without a real reason (e.g. multiplayer actually landing).
+- **Don't read `kCreateRadius`/`kDeleteRadius` directly outside
+  `Initialize()`** — everything else must read `radii_` (`Worlds::
+  CommandRadii`), the actual mutable value `/view` changes at runtime. The
+  constants are seed values now, not the live source of truth.
 
 ## 10. Resume prompt
 
 ```
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
-as of the last session, 22 of 25 items are completed (including item 19,
-the chunk-system redesign to an unbounded/streamed world, and item 25, the
-full 54-item block roster), 1 blocked (ambient occlusion), 1 pending-large
-(Chat/slash-commands), 1 pending deferred (multiplayer). The one real
-remaining task is Chat/slash-commands (reuse the text-input state machine
-already built for Signs, CnaCraftGame::Update's typing branch — the
-remaining scope is Craft's world-editing macro commands). Unlike the
-content-roster addition, this one is comparable in scope to the chunk
-redesign (needs new world-editing primitives, not just a same-shape port)
-and likely deserves its own EnterPlanMode pass before diving in. Before
-implementing anything that cites Craft's source code, re-verify the
-citation against the real checkout at
+as of the last session, 23 of 25 items are completed (including item 19,
+the chunk-system redesign to an unbounded/streamed world; item 25, the
+full 54-item block roster; and item 17, chat/slash world-editing
+commands), 1 blocked (ambient occlusion, needs a shader-backend decision),
+1 pending deferred (multiplayer, per project direction). The ordered
+priority queue is now EMPTY — there is no single obvious "next task."
+If the user doesn't specify what to work on, ask rather than guessing at
+scope; don't assume ambient occlusion or multiplayer are wanted just
+because they're the only open items (both are gated on a decision only
+the user can make). Before implementing anything that cites Craft's
+source code, re-verify the citation against the real checkout at
 /rv/data/development/github.com/other/Craft — CRAFT_PARITY.md was
 carefully audited but could still contain an error, same as every prior
 citation pass in this project's history. Make one small, verified
@@ -375,11 +480,17 @@ relevant test/smoke command, confirm it actually passes — and for anything
 touching CnaCraftGame/Render, verify visually via a real Xvfb/xdotool/
 ImageMagick screenshot cycle (remember: SDL_VIDEODRIVER=x11 is required in
 this sandbox, and xdotool keydown/keyup — not plain xdotool key — for
-reliable key-hold detection). If you touch the chunk-streaming/threading
+reliable key-hold detection; mouse clicks remain unreliable in this
+sandbox, so anything needing a real break/place — including verifying the
+`/cube`-style commands' actual painting — should lean on unit tests
+instead of a live screenshot). If you touch the chunk-streaming/threading
 code (World column storage, CnaCraftGame's Dispatch*/Poll* methods),
 re-read §6's TaskT/apply-cap notes first — there's a real, subtle,
 already-found-once bug class there (discarding instead of deferring
-completed-but-over-cap jobs). When finished, update plan.md §12.1's status,
-update CRAFT_PARITY.md's corresponding entry, and update this file's
-"Current status"/"Recent changes".
+completed-but-over-cap jobs). If you touch WorldEditor/ExecuteCommand,
+re-read §6's PasteRegion note first — a same-World overlapping paste can
+clobber source data mid-copy, a real Craft quirk, not a bug to "fix."
+When finished, update plan.md §12.1's status, update CRAFT_PARITY.md's
+corresponding entry, and update this file's "Current status"/"Recent
+changes".
 ```

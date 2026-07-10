@@ -56,19 +56,23 @@ constexpr float kOrthoViewHeight = 24.0f; // world units (blocks) of vertical vi
 // unbounded. render == create (no separate render-distance check in
 // Draw() -- frustum culling alone decides visibility among loaded chunks,
 // same as before streaming existed; nothing loaded is ever farther than
-// kDeleteRadius anyway). delete > create (hysteresis margin, matches
+// the delete radius anyway). delete > create (hysteresis margin, matches
 // Craft's own create/delete gap, so a column right at the boundary
 // doesn't load/unload every frame as the player moves back and forth
-// across it).
+// across it). These are only the *initial* values now (plan.md §12.1 item
+// 17) -- CnaCraftGame::radii_ (Worlds::CommandRadii) is the actual mutable
+// source of truth every streaming/fog computation reads, seeded from these
+// two constants in Initialize() and mutated at runtime by the `/view`
+// command.
 constexpr int kCreateRadius = 6;
 constexpr int kDeleteRadius = 9;
 // Budget cap on new column loads per frame, even while this whole pass
 // stays synchronous (a later phase backgrounds it) -- bounds worst-case
 // frame cost from a fast fly-mode dash into unloaded territory. The
 // initial spawn force-load in Initialize() ignores this cap (loads
-// everything within kCreateRadius up front, all at once, matching Craft's
-// own startup force_chunks call, so the player never sees an empty world
-// even briefly).
+// everything within radii_.createRadius up front, all at once, matching
+// Craft's own startup force_chunks call, so the player never sees an empty
+// world even briefly).
 constexpr int kMaxColumnLoadsPerFrame = 2;
 
 // Distance fog (CRAFT_PARITY.md §5.2): Craft's own block_vertex.glsl fades
@@ -84,11 +88,10 @@ constexpr int kMaxColumnLoadsPerFrame = 2;
 // custom ShaderEffect — CNA has real fog support for the lit+textured
 // BasicEffect path on EASYGL, VULKAN, and BGFX alike (see
 // ../cna/examples/{easygl,vulkan,bgfx}_basiceffect_lit_fog_test.cpp).
-// kFogStart/kFogEnd now track kCreateRadius (previously scaled to this
-// project's old fixed 128x64x128 world's ~181-unit diagonal, which no
-// longer has any meaning once the world is unbounded).
-constexpr float kFogEnd = static_cast<float>(kCreateRadius * Worlds::CHUNK_SIZE);
-constexpr float kFogStart = kFogEnd * 0.5f;
+// Fog start/end are computed every frame in Draw() from radii_.createRadius
+// (plan.md §12.1 item 17), not a compile-time constant -- so a runtime
+// `/view` change immediately extends/shrinks the fade distance to match,
+// same as Craft's own fog_distance tracking g->render_radius live.
 }
 
 CnaCraftGame::CnaCraftGame() : graphics_(this) {
@@ -109,6 +112,12 @@ void CnaCraftGame::Initialize() {
 
     Mouse::setIsRelativeMouseModeEXTProperty(true);
 
+    // radii_ (plan.md §12.1 item 17) starts at these compile-time defaults;
+    // `/view` mutates it at runtime from here on -- everything below reads
+    // radii_, never the constants directly, so a later /view immediately
+    // takes effect everywhere (streaming, fog).
+    radii_ = Worlds::CommandRadii{kCreateRadius, kDeleteRadius};
+
     // World persistence (CRAFT_PARITY.md §4.1/§4.2): opened before any
     // column loads, so LoadColumn (called by the spawn force-load below)
     // can immediately overlay persisted edits/signs on top of each
@@ -122,17 +131,20 @@ void CnaCraftGame::Initialize() {
         std::fflush(stdout);
     }
 
-    // Text input for placing signs (CRAFT_PARITY.md §4.3) — a single
-    // persistent handler, gated on isTypingSign_ so keystrokes are ignored
-    // whenever the player isn't actively typing a sign. Backtick itself must
-    // NOT be captured here (StartTextInput() isn't active yet when it's
-    // pressed) — that's handled as an edge-triggered Keys::OemTilde check in
-    // Update() instead.
+    // Text input for signs (CRAFT_PARITY.md §4.3) and commands (plan.md
+    // §12.1 item 17) — a single persistent handler, gated on typingMode_ so
+    // keystrokes are ignored whenever the player isn't actively typing
+    // either. Backtick/`/` themselves must NOT be captured here
+    // (StartTextInput() isn't active yet when either is pressed) — those
+    // are handled as edge-triggered Keys::OemTilde/OemQuestion checks in
+    // Update() instead. Cap matches Craft's own MAX_TEXT_LENGTH (main.c) --
+    // one shared buffer-length limit for both sign text and commands, same
+    // as Craft's single g->typing_buffer.
     TextInputEXT::TextInput = [this](SharpRuntime::charcs c) {
-        if (!isTypingSign_) return;
+        if (typingMode_ == TypingMode::None) return;
         if (c < 0x20 || c > 0x7e) return;  // printable ASCII only
-        constexpr std::size_t kMaxSignTextLength = 64;
-        if (typingBuffer_.size() < kMaxSignTextLength) {
+        constexpr std::size_t kMaxTypingTextLength = 256;
+        if (typingBuffer_.size() < kMaxTypingTextLength) {
             typingBuffer_.push_back(static_cast<char>(c));
         }
     };
@@ -140,12 +152,12 @@ void CnaCraftGame::Initialize() {
     // Spawn at world-origin (0,0) (CRAFT_PARITY.md §1.2/§3.1, plan.md
     // §12.1 item 19) — matches Craft's own actual behavior exactly; there's
     // no "center of a bounded world" once the world streams. Force-
-    // generate+mesh every column within kCreateRadius synchronously, all at
+    // generate+mesh every column within radii_.createRadius synchronously, all at
     // once, ignoring the per-frame budget cap UpdateStreaming uses later —
     // mirrors Craft's own startup force_chunks call, so the player never
     // spawns into (or briefly sees) an ungenerated void.
-    for (int dz = -kCreateRadius; dz <= kCreateRadius; ++dz) {
-        for (int dx = -kCreateRadius; dx <= kCreateRadius; ++dx) {
+    for (int dz = -radii_.createRadius; dz <= radii_.createRadius; ++dz) {
+        for (int dx = -radii_.createRadius; dx <= radii_.createRadius; ++dx) {
             LoadColumnSynchronously(dx, dz);
         }
     }
@@ -213,6 +225,14 @@ void CnaCraftGame::RebuildDirtyChunks() {
             }
         }
     }
+}
+
+void CnaCraftGame::RecordMark(int x, int y, int z, Worlds::BlockType type) {
+    // Mirrors Craft's own record_block (main.c): mark1_ becomes the
+    // previous mark0_, mark0_ becomes this new one -- a simple 2-slot
+    // history of the last two edited positions.
+    mark1_ = mark0_;
+    mark0_ = Worlds::BlockMark{x, y, z, type};
 }
 
 void CnaCraftGame::MarkNeighborColumnsDirty(int cx, int cz) {
@@ -437,8 +457,10 @@ void CnaCraftGame::PollMeshJobs() {
 
 void CnaCraftGame::UpdateStreaming(int playerCx, int playerCz) {
     int dispatchesThisFrame = 0;
-    for (int dz = -kCreateRadius; dz <= kCreateRadius && dispatchesThisFrame < kMaxColumnLoadsPerFrame; ++dz) {
-        for (int dx = -kCreateRadius; dx <= kCreateRadius && dispatchesThisFrame < kMaxColumnLoadsPerFrame; ++dx) {
+    for (int dz = -radii_.createRadius; dz <= radii_.createRadius && dispatchesThisFrame < kMaxColumnLoadsPerFrame;
+         ++dz) {
+        for (int dx = -radii_.createRadius; dx <= radii_.createRadius && dispatchesThisFrame < kMaxColumnLoadsPerFrame;
+             ++dx) {
             const int cx = playerCx + dx, cz = playerCz + dz;
             if (world_.IsColumnLoaded(cx, cz) || IsColumnGenerationInFlight(cx, cz)) continue;
             DispatchColumnGeneration(cx, cz);
@@ -453,7 +475,7 @@ void CnaCraftGame::UpdateStreaming(int playerCx, int playerCz) {
         (void)renderers;
         int ucx = 0, ucz = 0;
         Worlds::World::UnpackColumnKey(key, ucx, ucz);
-        if (std::max(std::abs(ucx - playerCx), std::abs(ucz - playerCz)) > kDeleteRadius) {
+        if (std::max(std::abs(ucx - playerCx), std::abs(ucz - playerCz)) > radii_.deleteRadius) {
             toUnload.emplace_back(ucx, ucz);
         }
     }
@@ -475,19 +497,32 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     const auto kb = Keyboard::GetState();
     const bool escapeDown = kb.IsKeyDown(Keys::Escape);
 
-    // Sign text-typing state machine (CRAFT_PARITY.md §4.3) -- handled
-    // before any WASD/look/click input is read, so typing fully suspends
-    // normal gameplay input, matching Craft's own handle_movement gating
-    // all movement/look polling on !g->typing (src/main.c).
+    // Typing state machine (CRAFT_PARITY.md §4.3, plan.md §12.1 item 17) --
+    // handled before any WASD/look/click input is read, so typing fully
+    // suspends normal gameplay input, matching Craft's own handle_movement
+    // gating all movement/look polling on !g->typing (src/main.c). Backtick
+    // opens Sign typing; `/` (Keys::OemQuestion, CNA's XNA-standard name for
+    // the main `/`/`?` key) opens Command typing with the buffer
+    // pre-seeded as "/" (matches Craft's own g->typing_buffer[0]='/'
+    // exactly). Both are mutually exclusive with each other and with an
+    // already-open typing session.
     const bool backtickDown = kb.IsKeyDown(Keys::OemTilde);
-    if (backtickDown && !backtickWasDown_ && !isTypingSign_) {
-        isTypingSign_ = true;
+    if (backtickDown && !backtickWasDown_ && typingMode_ == TypingMode::None) {
+        typingMode_ = TypingMode::Sign;
         typingBuffer_.clear();
         TextInputEXT::StartTextInput();
     }
     backtickWasDown_ = backtickDown;
 
-    if (isTypingSign_) {
+    const bool slashDown = kb.IsKeyDown(Keys::OemQuestion);
+    if (slashDown && !slashWasDown_ && typingMode_ == TypingMode::None) {
+        typingMode_ = TypingMode::Command;
+        typingBuffer_ = "/";
+        TextInputEXT::StartTextInput();
+    }
+    slashWasDown_ = slashDown;
+
+    if (typingMode_ != TypingMode::None) {
         const bool backspaceDown = kb.IsKeyDown(Keys::Back);
         if (backspaceDown && !backspaceWasDown_ && !typingBuffer_.empty()) {
             typingBuffer_.pop_back();
@@ -495,14 +530,14 @@ void CnaCraftGame::Update(GameTime& gameTime) {
         backspaceWasDown_ = backspaceDown;
 
         if (escapeDown && !escapeWasDown_) {
-            isTypingSign_ = false;
+            typingMode_ = TypingMode::None;
             typingBuffer_.clear();
             TextInputEXT::StopTextInput();
         }
         escapeWasDown_ = escapeDown;
 
         const bool enterDown = kb.IsKeyDown(Keys::Enter);
-        if (enterDown && !enterWasDown_ && isTypingSign_) {
+        if (enterDown && !enterWasDown_ && typingMode_ == TypingMode::Sign) {
             // Re-raycast fresh at submit time rather than reusing a raycast
             // from when typing started -- matches Craft's own Enter-time
             // hit_test in on_key's g->typing branch (src/main.c).
@@ -536,13 +571,30 @@ void CnaCraftGame::Update(GameTime& gameTime) {
                     signsNeedRebuild_ = true;
                 }
             }
-            isTypingSign_ = false;
+            typingMode_ = TypingMode::None;
+            typingBuffer_.clear();
+            TextInputEXT::StopTextInput();
+        } else if (enterDown && !enterWasDown_ && typingMode_ == TypingMode::Command) {
+            // Worlds::ExecuteCommand (plan.md §12.1 item 17, Craft's real
+            // parse_command) is a pure function of its inputs -- CnaCraftGame
+            // just feeds it the current marks/clipboard/radii and surfaces
+            // the returned feedback message the same dual way Craft's own
+            // add_message does (console + the new on-screen message log).
+            const std::string message =
+                Worlds::ExecuteCommand(world_, typingBuffer_, mark0_, mark1_, clipboard_, radii_);
+            if (!message.empty()) {
+                std::printf("%s\n", message.c_str());
+                std::fflush(stdout);
+                hud_->PushMessage(getGraphicsDeviceProperty(), message);
+            }
+            typingMode_ = TypingMode::None;
             typingBuffer_.clear();
             TextInputEXT::StopTextInput();
         }
         enterWasDown_ = enterDown;
 
-        hud_->SetTyping(getGraphicsDeviceProperty(), isTypingSign_, typingBuffer_);
+        hud_->SetTyping(getGraphicsDeviceProperty(), typingMode_ != TypingMode::None,
+                         typingMode_ == TypingMode::Command ? "Command" : "Sign", typingBuffer_);
 
         // Gravity/physics still integrates while typing (frozen player-driven
         // input, real dt), matching Craft's own substep loop running even
@@ -555,7 +607,10 @@ void CnaCraftGame::Update(GameTime& gameTime) {
         // No new column dispatch while typing (the player's (cx,cz) can't
         // change -- WASD is suspended), but already-in-flight background
         // jobs keep draining every frame, same "chunk-rebuild keeps
-        // running while frozen" precedent as before backgrounding existed.
+        // running while frozen" precedent as before backgrounding existed --
+        // this also covers any block edits a just-submitted command made
+        // (e.g. /cube), which already marked their chunks dirty the same
+        // way a player-driven edit would.
         PollGenerationJobs();
         DispatchMeshingForDirtyChunks();
         PollMeshJobs();
@@ -729,11 +784,15 @@ void CnaCraftGame::Update(GameTime& gameTime) {
         // (CRAFT_PARITY.md §2.6, ports Craft's on_right_click
         // `!player_intersects_block` guard). Uses SetBlockAndRecordEdit
         // (CRAFT_PARITY.md §4.1/§4.2), not plain SetBlock, so this
-        // player-driven change gets persisted.
+        // player-driven change gets persisted. RecordMark (plan.md §12.1
+        // item 17) mirrors Craft's own record_block call right after
+        // set_block in on_right_click -- every successful placement updates
+        // mark0_/mark1_, the anchor points /cube, /sphere, etc. read.
         const auto tryPlaceBlock = [&]() {
             const int px = hit->x + hit->nx, py = hit->y + hit->ny, pz = hit->z + hit->nz;
             if (!player_->IntersectsBlock(px, py, pz)) {
                 world_.SetBlockAndRecordEdit(px, py, pz, hotbar_.Selected());
+                RecordMark(px, py, pz, hotbar_.Selected());
             }
         };
 
@@ -753,6 +812,10 @@ void CnaCraftGame::Update(GameTime& gameTime) {
                 // "world-boundary, not meant to be placed" block, could
                 // previously be mined away with no protection at all.
                 world_.SetBlockAndRecordEdit(hit->x, hit->y, hit->z, Worlds::BlockType::Air);
+                // RecordMark (plan.md §12.1 item 17) mirrors Craft's own
+                // record_block call in on_left_click, with w=0/Air -- a
+                // broken block is just as valid a mark as a placed one.
+                RecordMark(hit->x, hit->y, hit->z, Worlds::BlockType::Air);
                 // A sign can't outlive the block face it was attached to --
                 // matches Craft's own _set_block calling unset_sign()
                 // whenever a block is set to type 0 (src/main.c).
@@ -820,14 +883,19 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     device.SetDepthTestEnabled(true);
 
     // Distance fog (CRAFT_PARITY.md §5.2) — fades geometry toward the same
-    // flat sky color used for the clear, so the fixed world's edges recede
-    // instead of hard-cutting at the far clip plane. See the kFogStart/
-    // kFogEnd comment above for why this isn't blocked by shader limits.
+    // flat sky color used for the clear, so the streamed region's edge
+    // recedes instead of hard-cutting at the far clip plane. Computed from
+    // radii_.createRadius every frame (not a compile-time constant) so a
+    // runtime `/view` change immediately extends/shrinks the fade distance
+    // to match, same as Craft's own fog_distance tracking g->render_radius
+    // live. See the anonymous-namespace comment above for why this isn't
+    // blocked by shader limits.
+    const float fogEnd = static_cast<float>(radii_.createRadius * Worlds::CHUNK_SIZE);
     effect_->setFogEnabledProperty(true);
     effect_->setFogColorProperty(Vector3(static_cast<float>(skyR) / 255.0f, static_cast<float>(skyG) / 255.0f,
                                           static_cast<float>(skyB) / 255.0f));
-    effect_->setFogStartProperty(kFogStart);
-    effect_->setFogEndProperty(kFogEnd);
+    effect_->setFogStartProperty(fogEnd * 0.5f);
+    effect_->setFogEndProperty(fogEnd);
     // Nearest-neighbor sampling: the atlas has no padding between tiles, so
     // linear filtering bleeds each tile's neighbor color (visible as magenta
     // speckling from the unused-tile fallback color) across every tile edge.
