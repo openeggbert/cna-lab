@@ -6,6 +6,7 @@ struct sqlite3;
 
 namespace CnaCraft::Worlds {
 class World;
+class SignStore;
 }
 
 namespace CnaCraft::Persistence {
@@ -65,6 +66,16 @@ public:
     // (as CnaCraftGame does, gated on there being at least one new edit)
     // is cheap.
     void SaveEdits(Worlds::World& world);
+
+    // Signs (CRAFT_PARITY.md §4.3) — a separate `sign(x,y,z,face,text)`
+    // table (Craft's real `sign(p,q,x,y,z,face,text)` schema, src/db.c,
+    // same p,q-column drop as `block`). Unlike SaveEdits' incremental
+    // delta approach, sign counts are expected to stay small (a handful to
+    // low hundreds, not thousands), so SaveSigns does a full
+    // delete-and-reinsert of the whole list every call rather than tracking
+    // an incremental dirty set — simpler, and cheap enough at this scale.
+    void LoadSignsInto(Worlds::SignStore& store);
+    void SaveSigns(const Worlds::SignStore& store);
 
 private:
     sqlite3* db_ = nullptr;

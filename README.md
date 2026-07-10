@@ -76,11 +76,19 @@ cmake --build build --target CnaCraft
 | Left Shift (hold) | Zoom (narrow FOV)                   |
 | F (hold)          | Orthographic projection               |
 | F12               | Save a screenshot to `screenshots/`   |
-| Esc               | Quit                                  |
+| ` (backtick)      | Start typing a sign on the targeted block face |
+| Enter             | Submit the sign being typed           |
+| Backspace         | Delete the last character while typing a sign |
+| Esc               | While typing a sign: cancel. Otherwise: quit |
 
 A crosshair and the currently-selected hotbar item (e.g. `#4/16 Stone`, with a
 `[FLYING]` indicator while flying) are drawn on screen; both are also printed
-to the console when they change.
+to the console when they change. While typing a sign, WASD/mouse-look/click
+input is suspended (gravity still applies) and the in-progress text is shown
+on screen above the hotbar.
+
+Placed signs render as a small text billboard on the block face they were
+attached to and are saved/restored the same way as block edits (below).
 
 Every block you break or place is saved automatically to `world.db` (SQLite, created next to the
 executable on first launch) and restored on top of the deterministically-regenerated terrain the

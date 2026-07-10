@@ -13,9 +13,11 @@
 #include "Render/ChunkRenderer.hpp"
 #include "Render/Hud.hpp"
 #include "Render/SelectionOutline.hpp"
+#include "Render/SignBillboard.hpp"
 #include "Render/SkyDome.hpp"
 #include "Worlds/Hotbar.hpp"
 #include "Worlds/PlayerController.hpp"
+#include "Worlds/Sign.hpp"
 #include "Worlds/World.hpp"
 
 namespace Microsoft::Xna::Framework::Graphics {
@@ -63,6 +65,29 @@ private:
 
     std::unique_ptr<Render::Hud> hud_;
     std::vector<std::string> hotbarSlotNames_;
+
+    // Signs (CRAFT_PARITY.md §4.3, plan.md §12.1 item 16). signStore_ is the
+    // engine-agnostic data model, loaded once in Initialize() (after
+    // worldStore_->LoadInto). signBillboard_ holds the GPU resources and is
+    // rebuilt only when the sign list actually changes (placed/erased),
+    // never every frame -- same convention as chunkRenderers_.
+    Worlds::SignStore signStore_;
+    Render::SignBillboard signBillboard_;
+    bool signsNeedRebuild_ = true;
+
+    // Sign text-typing state machine (mirrors Craft's own g->typing /
+    // g->typing_buffer in main.c). While isTypingSign_ is true, WASD/look/
+    // click input is suspended (matching Craft's handle_movement gating
+    // movement polling on !g->typing) but gravity/physics still integrates.
+    // Backtick opens typing (edge-triggered), Enter submits (re-raycasts
+    // fresh, matching Craft calling hit_test at Enter-time rather than
+    // caching the block from when typing started), Escape cancels.
+    bool isTypingSign_ = false;
+    std::string typingBuffer_;
+    bool backtickWasDown_ = false;
+    bool backspaceWasDown_ = false;
+    bool enterWasDown_ = false;
+    bool escapeWasDown_ = false;
 
     // Visible targeted-block feedback (CRAFT_PARITY.md §2.4) — updated each
     // frame in Update() from the same raycast used for break/place, drawn in

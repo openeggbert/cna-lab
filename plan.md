@@ -368,14 +368,17 @@ explicit human decision first:
   dome + fog, point/block lighting (§11.3): needs CNA `ShaderEffect`; EASYGL has real runtime GLSL,
   VULKAN needs a precompiled-SPIR-V toolchain (no runtime GLSL path), BGFX's `ShaderEffect` is a
   stub in CNA itself (upstream engine work, out of this repo's scope) — see `missing.md`.
-- `needs_human` — SQLite-backed delta persistence (§11.5): SQLite is not currently a dependency
-  anywhere in this project's chain (`missing.md`); adding it is a new-dependency decision this
-  autonomous session will not make unilaterally.
+- `completed` (see §12.1 item 15) — SQLite-backed delta persistence (§11.5). User decision
+  2026-07-10: add SQLite as a dependency.
 - `pending`, explicitly deferred — Multiplayer/`Net`-based chunk/block sync (§11.6): per project
   direction, do not start before local single-player gameplay, persistence, and chunk logic are
-  stable — persistence itself is still `needs_human`/pending, so this stays deferred.
-- `pending` — Signs, chat/slash commands (§11.4/§11.7) — small-to-medium UI features, lower
-  priority than world/terrain correctness.
+  stable — persistence is now `completed`, but multiplayer itself stays deferred per that same
+  direction until the chunk-system redesign (needs_human, §11.1) is also settled.
+- `completed` (see §12.1 item 16) — Signs (§11.4). `pending` (large) — chat/slash commands
+  (§11.7): the same text-input state machine Signs now uses is a prerequisite, but Craft's real
+  command set (`/cube`, `/sphere`, `/tree`, `/array`, `/copy`, `/paste`, etc.) needs
+  world-editing primitives that don't exist in this codebase yet — materially larger scope than
+  "add a chat box."
 
 ### 11.1 World & terrain
 
@@ -567,9 +570,10 @@ explicit human decision first:
       this backlog item's "toggle" wording. Verified visually against a real EasyGL build
       (screenshots: normal FOV, Left-Shift-held narrow FOV, F-held orthographic projection all
       visually distinct and correct).
-- [ ] Signs: place text on a block face, render as a billboard quad with a small bitmap-font
-      texture (Craft: `src/sign.c`, `textures/sign.png`) — CNA's `SpriteFont`/bitmap-font approach
-      from `house3d_demo.cpp`'s controls overlay is a usable reference for the text-rendering part.
+- [x] Signs: place text on a block face, render as a billboard quad with a small bitmap-font
+      texture (Craft: `src/sign.c`, `textures/sign.png`). See §12.1 item 16 for the full
+      implementation writeup (data model, text-input state machine, rendering, persistence,
+      end-to-end verification).
 - [ ] Exact-axis movement keys (Craft's `ZXCVBN`) — low priority, purely a control-scheme nicety.
       **Correction**: `Craft/README.md` documents this ("ZXCVBN to move in exact directions along
       the XYZ axes"), but the local checkout's `src/main.c::handle_movement` does not actually
@@ -579,10 +583,10 @@ explicit human decision first:
 
 ### 11.5 Persistence
 
-- [ ] SQLite-backed delta save/load: a `block(p, q, x, y, z, w)` table storing only edits over the
-      regenerated procedural terrain, precisely mirroring Craft's schema (`src/db.c`/`src/db.h`)
-      — already the intended shape per §0/§9 M7; this is now a concrete, schema-specified task.
-      `World`/`Chunk` need a way to enumerate only *changed* blocks to keep writes small.
+- [x] SQLite-backed delta save/load: a `block(x, y, z, w)` table storing only edits over the
+      regenerated procedural terrain, adapted from Craft's schema (`src/db.c`/`src/db.h`) by
+      dropping the `p, q` chunk-address columns (no chunk (p,q) addressing in this project's fixed
+      grid `World`). See §12.1 item 15 for the full implementation writeup.
 
 ### 11.6 Multiplayer
 
@@ -802,22 +806,50 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     (arguably better: it's reliable, repeatable, and became permanent regression coverage rather
     than a one-off manual check). The full game was still verified to build cleanly, start up
     without error, and create `world.db` on launch via a real headless `--smoke` run.
-16. `pending` (large) — **Signs** (CRAFT_PARITY.md §4.3). **Re-assessed this session**: CNA does
-    have a real, usable text-input primitive (`Microsoft::Xna::Framework::Input::TextInputEXT` —
-    `TextInput`/`TextEditing` events, `StartTextInput`/`StopTextInput`), so this is not blocked on
-    a missing engine capability the way it first looked. It remains `pending (large)` rather than
-    picked up as a "next smallest task" because a correct implementation needs *three* new pieces
-    together, not a small extension of existing code: (1) a text-input state machine (open on `` ` ``
-    per Craft, capture `TextInput` events, handle Backspace/Enter/Escape, and — matching Craft's
-    own `if (!g->typing)` gate on `handle_movement`'s key polling — suspend WASD/mouse-look input
-    while typing, since CNA's event-based text input doesn't automatically exclude movement keys
-    the way Craft's GLFW model does); (2) an in-memory (non-persisted, consistent with this
-    project's current no-persistence state) per-face sign store; (3) new 3D billboard-quad
-    rendering oriented per whichever of 6 face normals the sign was placed on, with dynamically
-    generated text texture (`Hud.cpp`'s `FontDrawText` technique is reusable for the *text
-    rendering* part, but not the 3D billboard placement/orientation part, which doesn't exist
-    anywhere in this codebase yet). Recommended as its own dedicated follow-up task, not bundled
-    into a continuous small-batch session.
+16. `completed` — **Signs** (CRAFT_PARITY.md §4.3). Built as the three pieces identified below,
+    plus SQLite persistence (extending item 15's `WorldStore`, decided together with it this
+    session): (1) `Worlds::Sign`/`Worlds::SignStore` (`Worlds/Sign.hpp/.cpp`) — an engine-agnostic
+    data model keyed by `(x,y,z,face)`, with a deliberately simplified *symmetric* 6-face
+    convention (0=+X,1=-X,2=+Y/top,3=-Y/bottom,4=+Z,5=-Z, derived directly from the raycast hit
+    normal) rather than Craft's real asymmetric `hit_test_face` (main.c:666-696, 4-way
+    player-angle-dependent rotation, no bottom-face support) — documented in Sign.hpp as a reasoned
+    difference, not an oversight, since `VoxelRaycast` already provides a normal Craft's own
+    hit-test doesn't. (2) A text-input state machine in `CnaCraftGame::Update()`: backtick
+    (`Keys::OemTilde`, edge-triggered) opens typing via `TextInputEXT::StartTextInput()`; a
+    `TextInputEXT::TextInput` handler registered once in `Initialize()` appends printable-ASCII
+    characters (gated on `isTypingSign_`, 64-char cap); Backspace/Enter/Escape handled
+    edge-triggered inside the typing branch, which also feeds `PlayerController::Update()` a
+    frozen (all-zero) `PlayerInput` with real `dt` (gravity still integrates, matching Craft's own
+    `if (!g->typing)` gate on movement-key polling only) and returns early, fully suspending
+    WASD/look/click/hotbar input while typing. Enter re-runs `VoxelRaycast::Cast` fresh (not the
+    frame-start raycast) before submitting, matching Craft's own Enter-time `hit_test` call
+    (main.c:2214-2219). Escape cancels typing without quitting the game; the game-quit Escape
+    check was changed from level- to edge-triggered so cancelling doesn't also quit on the next
+    frame if the key is still physically held. (3) `Render::SignBillboard`
+    (`Render/SignBillboard.hpp/.cpp`) — one dynamically-built 128x32 text texture per sign (reuses
+    the now-shared `Render/BitmapFont.hpp` `FontDrawText`, extracted from `Hud.cpp` for this
+    purpose) on a quad oriented per the sign's face, offset outward by a small epsilon. Each quad
+    is emitted with **both** triangle windings (12 indices, not 6) rather than a single
+    Craft-accurate winding — this project's correct winding convention for non-cube geometry has
+    needed real-build empirical verification every time so far (see `SkyDome.cpp`'s note), and
+    "visible from both sides" is a reasonable simplification for a decal-like sign; the visible
+    consequence (confirmed in the screenshot below) is mirrored ghost text bleeding through from
+    the reverse-winding triangle when viewed at a grazing angle — accepted as part of the same
+    tradeoff. Signs persist via `WorldStore::LoadSignsInto`/`SaveSigns` (delete-and-reinsert
+    strategy, new `sign` table keyed the same way as `SignStore`, adapted from Craft's real
+    `sign(p,q,x,y,z,face,text)` schema by dropping the chunk-address columns, same reasoning as
+    item 15's `block` table). **Verified end-to-end in a real headless build** (not just unit
+    tests, unlike item 15's persistence-only verification): launched the actual `CnaCraft`
+    executable under Xvfb (`SDL_VIDEODRIVER=x11` — the default video driver silently created a
+    Wayland surface CNA's SDL backend can't see under X11 tooling, wasting an early screenshot
+    attempt before this was diagnosed), drove backtick/type/Enter via `xdotool keydown`/`keyup`
+    (plain `xdotool key`'s default hold duration was too short for this project's 60fps polling to
+    catch — an update to this project's documented keyboard-injection flakiness notes), confirmed
+    via temporary debug prints that `TextInput` events, the edge-triggered Enter branch, and the
+    raycast hit all fired correctly, confirmed the "HI" sign rendered on-screen (including the
+    expected double-winding ghost-text artifact described above), confirmed the row landed in
+    `world.db`'s new `sign` table via `sqlite3`, and confirmed the sign reloaded correctly after
+    killing and relaunching the process. Debug prints were removed before the final build.
 17. `pending` (large) — **Chat/slash commands** (CRAFT_PARITY.md §4.5): the same text-input state
     machine from item 16 is a prerequisite here too. The real Craft command set is mostly
     world-editing macros (`/cube`, `/sphere`, `/tree`, `/array`, `/copy`, `/paste`, etc.) — a

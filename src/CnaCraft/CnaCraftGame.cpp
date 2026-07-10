@@ -10,6 +10,7 @@
 #include "Microsoft/Xna/Framework/Input/Keyboard.hpp"
 #include "Microsoft/Xna/Framework/Input/Keys.hpp"
 #include "Microsoft/Xna/Framework/Input/Mouse.hpp"
+#include "Microsoft/Xna/Framework/Input/TextInputEXT.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SamplerState.hpp"
 #include "Microsoft/Xna/Framework/Matrix.hpp"
@@ -90,6 +91,22 @@ void CnaCraftGame::Initialize() {
         std::fflush(stdout);
     }
     worldStore_->LoadInto(world_);
+    worldStore_->LoadSignsInto(signStore_);
+
+    // Text input for placing signs (CRAFT_PARITY.md §4.3) — a single
+    // persistent handler, gated on isTypingSign_ so keystrokes are ignored
+    // whenever the player isn't actively typing a sign. Backtick itself must
+    // NOT be captured here (StartTextInput() isn't active yet when it's
+    // pressed) — that's handled as an edge-triggered Keys::OemTilde check in
+    // Update() instead.
+    TextInputEXT::TextInput = [this](SharpRuntime::charcs c) {
+        if (!isTypingSign_) return;
+        if (c < 0x20 || c > 0x7e) return;  // printable ASCII only
+        constexpr std::size_t kMaxSignTextLength = 64;
+        if (typingBuffer_.size() < kMaxSignTextLength) {
+            typingBuffer_.push_back(static_cast<char>(c));
+        }
+    };
 
     chunkRenderers_.reserve(
         static_cast<std::size_t>(Worlds::WORLD_CHUNKS_X) * Worlds::WORLD_CHUNKS_Y * Worlds::WORLD_CHUNKS_Z);
@@ -142,6 +159,9 @@ void CnaCraftGame::Initialize() {
     }
     hud_->RebuildHotbar(device, hotbarSlotNames_.data(), static_cast<int>(hotbarSlotNames_.size()),
                         hotbar_.SelectedIndex(), player_->IsFlying());
+
+    signBillboard_.Rebuild(device, signStore_.Signs());
+    signsNeedRebuild_ = false;
 }
 
 void CnaCraftGame::RebuildDirtyChunks() {
@@ -173,10 +193,84 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     const float dt = static_cast<float>(gameTime.getElapsedGameTimeProperty().getTotalSecondsProperty());
 
     const auto kb = Keyboard::GetState();
-    if (kb.IsKeyDown(Keys::Escape)) {
+    const bool escapeDown = kb.IsKeyDown(Keys::Escape);
+
+    // Sign text-typing state machine (CRAFT_PARITY.md §4.3) -- handled
+    // before any WASD/look/click input is read, so typing fully suspends
+    // normal gameplay input, matching Craft's own handle_movement gating
+    // all movement/look polling on !g->typing (src/main.c).
+    const bool backtickDown = kb.IsKeyDown(Keys::OemTilde);
+    if (backtickDown && !backtickWasDown_ && !isTypingSign_) {
+        isTypingSign_ = true;
+        typingBuffer_.clear();
+        TextInputEXT::StartTextInput();
+    }
+    backtickWasDown_ = backtickDown;
+
+    if (isTypingSign_) {
+        const bool backspaceDown = kb.IsKeyDown(Keys::Back);
+        if (backspaceDown && !backspaceWasDown_ && !typingBuffer_.empty()) {
+            typingBuffer_.pop_back();
+        }
+        backspaceWasDown_ = backspaceDown;
+
+        if (escapeDown && !escapeWasDown_) {
+            isTypingSign_ = false;
+            typingBuffer_.clear();
+            TextInputEXT::StopTextInput();
+        }
+        escapeWasDown_ = escapeDown;
+
+        const bool enterDown = kb.IsKeyDown(Keys::Enter);
+        if (enterDown && !enterWasDown_ && isTypingSign_) {
+            // Re-raycast fresh at submit time rather than reusing a raycast
+            // from when typing started -- matches Craft's own Enter-time
+            // hit_test in on_key's g->typing branch (src/main.c).
+            const auto signHit = Worlds::VoxelRaycast::Cast(
+                world_, player_->EyePosition(), player_->LookDirection(), kMaxReach);
+            if (signHit && !typingBuffer_.empty()) {
+                int face = -1;
+                if (signHit->nx > 0) face = 0;
+                else if (signHit->nx < 0) face = 1;
+                else if (signHit->ny > 0) face = 2;
+                else if (signHit->ny < 0) face = 3;
+                else if (signHit->nz > 0) face = 4;
+                else if (signHit->nz < 0) face = 5;
+                if (face >= 0) {
+                    signStore_.PlaceSign(signHit->x, signHit->y, signHit->z, face, typingBuffer_);
+                    worldStore_->SaveSigns(signStore_);
+                    signsNeedRebuild_ = true;
+                }
+            }
+            isTypingSign_ = false;
+            typingBuffer_.clear();
+            TextInputEXT::StopTextInput();
+        }
+        enterWasDown_ = enterDown;
+
+        hud_->SetTyping(getGraphicsDeviceProperty(), isTypingSign_, typingBuffer_);
+
+        // Gravity/physics still integrates while typing (frozen player-driven
+        // input, real dt), matching Craft's own substep loop running even
+        // while g->typing is set.
+        player_->Update(world_, Worlds::PlayerInput{}, dt);
+        if (signsNeedRebuild_) {
+            signBillboard_.Rebuild(getGraphicsDeviceProperty(), signStore_.Signs());
+            signsNeedRebuild_ = false;
+        }
+        RebuildDirtyChunks();
+        return;
+    }
+
+    // Edge-triggered (not level-triggered) so cancelling sign typing with
+    // Escape doesn't also quit the game on the next frame if the key is
+    // still physically held down.
+    if (escapeDown && !escapeWasDown_) {
+        escapeWasDown_ = escapeDown;
         Exit();
         return;
     }
+    escapeWasDown_ = escapeDown;
 
     const auto mouse = Mouse::GetState();
 
@@ -441,6 +535,12 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
         if (!frustum.Intersects(renderer.Bounds())) continue;
         renderer.DrawOpaque(device, *effect_);
     }
+
+    // Signs (CRAFT_PARITY.md §4.3) — lit/textured quads, drawn with the same
+    // effect_ state as opaque chunk geometry (VertexPositionNormalTexture,
+    // no per-quad state changes needed beyond the per-quad texture already
+    // handled inside SignBillboard::Draw).
+    signBillboard_.Draw(device, *effect_);
 
     // Visible targeted-block outline (CRAFT_PARITY.md §2.4) — drawn right
     // after opaque geometry, same ordering as Craft's own render_wireframe

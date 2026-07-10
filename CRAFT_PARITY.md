@@ -561,22 +561,34 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Craft behavior**: `sign.c`/`sign.h` — a `Sign{x,y,z,face,text[64]}` struct in a per-chunk
   `SignList` (not a block type), placed via a typing-buffer flow, persisted in its own `sign`
   table, rendered as a textured billboard quad on the target face.
-- **cna-craft behavior**: none.
-- **Status**: missing
-- **Craft files**: `src/sign.c`, `src/sign.h`, `src/main.c:385-395,756-840`
-- **cna-craft files**: none
-- **Priority**: medium
-- **Notes**: Persistence for the sign *table* specifically is skippable (an in-memory,
-  non-persisted sign store is consistent with this project's current no-persistence state
-  overall). The real prerequisite, checked this session: CNA has a working text-input primitive
-  (`Microsoft::Xna::Framework::Input::TextInputEXT` — `TextInput`/`TextEditing` events,
-  `StartTextInput`/`StopTextInput`), so text entry itself isn't blocked on a missing engine
-  capability. What's still missing is (a) the input *state machine* around it (suspend WASD/
-  look while typing, matching Craft's own `g->typing` gate — CNA's event model doesn't do this
-  automatically) and (b) 3D billboard-quad rendering oriented per face normal (the bitmap-font
-  *text* rendering technique in `Render/Hud.cpp`'s `FontDrawText` is reusable, but not the 3D
-  placement/orientation part, which doesn't exist yet). Large enough to be its own task, not a
-  quick win — see `plan.md` §12.1 item 16.
+- **cna-craft behavior**: `Worlds::Sign`/`SignStore` (`Worlds/Sign.{hpp,cpp}`) — the same
+  `(x,y,z,face,text)` shape, keyed by `(x,y,z,face)`. Placed via a text-input state machine in
+  `CnaCraftGame::Update()` (backtick opens typing via `TextInputEXT`, Backspace/Enter/Escape
+  handled edge-triggered, WASD/look/click suspended while typing but gravity still integrates,
+  matching Craft's own `if (!g->typing)` gate). Rendered by `Render::SignBillboard` as a textured
+  quad per sign, oriented per face, with a dynamically-built text texture reusing the shared
+  `Render/BitmapFont.hpp` `FontDrawText`. Persisted in `WorldStore`'s `sign` table (delete-and-
+  reinsert per save, not delta), loaded on startup alongside block edits.
+- **Status**: done (deliberate simplifications below)
+- **Craft files**: `src/sign.c`, `src/sign.h`, `src/main.c:385-395,756-840,666-696,2214-2219`
+- **cna-craft files**: `src/CnaCraft/Worlds/Sign.{hpp,cpp}`, `src/CnaCraft/Render/SignBillboard.{hpp,cpp}`,
+  `src/CnaCraft/Render/BitmapFont.{hpp,cpp}`, `src/CnaCraft/Persistence/WorldStore.{hpp,cpp}`,
+  `src/CnaCraft/CnaCraftGame.{hpp,cpp}`
+- **Priority**: medium (done)
+- **Notes**: Two deliberate differences from real Craft, both documented in-code: (1) face
+  convention is a *symmetric* 6-face scheme derived directly from the raycast hit normal
+  (0=+X,1=-X,2=+Y/top,3=-Y/bottom,4=+Z,5=-Z), not Craft's real asymmetric `hit_test_face`
+  (main.c:666-696 — 4-way player-angle-dependent rotation on top faces only, no bottom-face
+  support at all) — `VoxelRaycast` already provides a normal Craft's own hit-test doesn't, so
+  there was no reason to replicate the asymmetry. (2) each sign quad is emitted with both
+  triangle windings (12 indices instead of 6) rather than a single Craft-accurate outward
+  winding, since this project's correct winding for non-cube geometry has needed real-build
+  empirical verification every time so far (see `Render/SkyDome.cpp`'s note) — the visible
+  tradeoff is mirrored ghost text bleeding through at a grazing angle, confirmed in the
+  end-to-end verification screenshot (see `plan.md` §12.1 item 16). Verified end-to-end against
+  a real headless `CnaCraft` build under Xvfb: typed and submitted a sign via `xdotool`-injected
+  keystrokes, confirmed correct on-screen rendering, confirmed the row landed in `world.db`'s
+  `sign` table, confirmed it reloaded correctly after a process restart.
 
 ### 4.4 Player names / on-screen text
 - **Craft behavior**: `render_players` draws other players as plain cubes — **no in-world
@@ -755,7 +767,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 3.10 | Clouds | complete | low |
 | 4.1 | World persistence (**fixed this session**) | complete | high |
 | 4.2 | Delta storage (**fixed this session**) | complete | high |
-| 4.3 | Signs | missing | medium |
+| 4.3 | Signs (**fixed this session**) | complete | medium |
 | 4.4 | Player names/text | partial | low |
 | 4.5 | Chat/commands | missing | medium |
 | 4.6 | Multiplayer | missing | low (deliberate) |

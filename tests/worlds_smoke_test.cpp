@@ -14,6 +14,7 @@
 #include "CnaCraft/Worlds/Hotbar.hpp"
 #include "CnaCraft/Worlds/NoiseGenerator.hpp"
 #include "CnaCraft/Worlds/PlayerController.hpp"
+#include "CnaCraft/Worlds/Sign.hpp"
 #include "CnaCraft/Worlds/VoxelRaycast.hpp"
 #include "CnaCraft/Worlds/World.hpp"
 
@@ -104,6 +105,38 @@ void TestWorldRecordsEditsForPersistence() {
     world.SetBlockAndRecordEdit(9999, 9999, 9999, BlockType::Stone); // out of range
     Check(world.RecordedEdits().empty(),
           "an out-of-range SetBlockAndRecordEdit is a no-op, same as SetBlock, and records nothing");
+}
+
+void TestSignStore() {
+    // CRAFT_PARITY.md §4.3: SignStore ports Craft's real SignList model
+    // (src/sign.c) -- a separate overlay keyed on (x,y,z,face), not a block
+    // type. Unique per (x,y,z,face) (matches Craft's own `sign_xyzface_idx`
+    // index / `insert or replace` semantics); empty text removes a sign
+    // instead of storing a blank one (matches Craft's own `set_sign` ->
+    // `sign_list_remove` path for empty text).
+    SignStore store;
+    Check(store.Signs().empty(), "a fresh SignStore has no signs");
+
+    store.PlaceSign(1, 2, 3, 4, "Hello");
+    Check(store.Signs().size() == 1, "PlaceSign adds a new sign");
+    Check(store.Signs()[0].x == 1 && store.Signs()[0].y == 2 && store.Signs()[0].z == 3 &&
+              store.Signs()[0].face == 4 && store.Signs()[0].text == "Hello",
+          "the placed sign has the correct coordinates, face, and text");
+
+    store.PlaceSign(1, 2, 3, 4, "Updated");
+    Check(store.Signs().size() == 1, "placing a sign at the same (x,y,z,face) replaces it, not duplicates it");
+    Check(store.Signs()[0].text == "Updated", "the replaced sign has the new text");
+
+    store.PlaceSign(1, 2, 3, 5, "Different face");
+    Check(store.Signs().size() == 2, "a different face at the same (x,y,z) is a distinct sign");
+
+    store.PlaceSign(1, 2, 3, 4, "");
+    Check(store.Signs().size() == 1, "placing empty text removes the existing sign instead of storing a blank one");
+
+    std::vector<Sign> loaded = {Sign{9, 9, 9, 0, "Loaded"}};
+    store.ReplaceAll(loaded);
+    Check(store.Signs().size() == 1 && store.Signs()[0].text == "Loaded",
+          "ReplaceAll replaces the entire list at once, as used when loading from persistence");
 }
 
 void TestWorldGenerationIsDeterministic() {
@@ -997,6 +1030,7 @@ int main() {
     TestChunkBasics();
     TestWorldBoundsAndRoundTrip();
     TestWorldRecordsEditsForPersistence();
+    TestSignStore();
     TestWorldGenerationIsDeterministic();
     TestWorldGeneratesClouds();
     TestWorldGeneratesSandAtLowElevation();

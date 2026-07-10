@@ -18,6 +18,7 @@
 
 #include "CnaCraft/Persistence/WorldStore.hpp"
 #include "CnaCraft/Worlds/BlockType.hpp"
+#include "CnaCraft/Worlds/Sign.hpp"
 #include "CnaCraft/Worlds/World.hpp"
 
 using namespace CnaCraft::Worlds;
@@ -110,6 +111,48 @@ int main() {
         WorldStore store(dbPath);
         store.LoadInto(world);
         Check(world.GetBlock(6, 6, 6) == BlockType::Air, "a block broken back to Air correctly round-trips as Air, not as missing/ignored");
+    }
+
+    // Round 5: signs (CRAFT_PARITY.md §4.3) -- a separate table from block
+    // edits, full delete-and-reinsert save strategy rather than a delta.
+    {
+        SignStore signs;
+        signs.PlaceSign(10, 11, 12, 4, "Hello, Craft!");
+        signs.PlaceSign(20, 21, 22, 0, "Second sign");
+        WorldStore store(dbPath);
+        store.SaveSigns(signs);
+    }
+    {
+        SignStore signs;
+        Check(signs.Signs().empty(), "a fresh SignStore has no signs before loading");
+        WorldStore store(dbPath);
+        store.LoadSignsInto(signs);
+        Check(signs.Signs().size() == 2, "both saved signs are loaded back");
+        bool foundFirst = false, foundSecond = false;
+        for (const auto& sign : signs.Signs()) {
+            if (sign.x == 10 && sign.y == 11 && sign.z == 12 && sign.face == 4 && sign.text == "Hello, Craft!") {
+                foundFirst = true;
+            }
+            if (sign.x == 20 && sign.y == 21 && sign.z == 22 && sign.face == 0 && sign.text == "Second sign") {
+                foundSecond = true;
+            }
+        }
+        Check(foundFirst, "the first sign's coordinates, face, and text all round-trip correctly");
+        Check(foundSecond, "the second sign's coordinates, face, and text all round-trip correctly");
+    }
+    // Re-saving with a shorter list must not leave stale rows behind
+    // (confirms SaveSigns' delete-and-reinsert strategy actually deletes).
+    {
+        SignStore signs;
+        signs.PlaceSign(10, 11, 12, 4, "Only sign now");
+        WorldStore store(dbPath);
+        store.SaveSigns(signs);
+    }
+    {
+        SignStore signs;
+        WorldStore store(dbPath);
+        store.LoadSignsInto(signs);
+        Check(signs.Signs().size() == 1, "re-saving a shorter sign list removes the old rows, not just adds new ones");
     }
 
     std::filesystem::remove(dbPath);
