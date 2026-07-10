@@ -89,6 +89,23 @@ prior-session **audit error owned in CRAFT_PARITY.md §2.6's notes**: the
 entry quoted both halves of Craft's guard, ported one, and still claimed
 `complete`. See item 32's plan.md writeup.
 
+**Then the user picked "textured sky dome" from the remaining-work list** —
+shipped as **item 33**: the untextured vertex-color gradient hemisphere was
+replaced by a full UV sphere textured with a 64×16 gradient sampled
+directly from Craft's own shipped `sky.png` (real dawn/dusk orange bands),
+new `Render::SkyTexture` + rewritten `Render::SkyDome` +
+`Worlds::ComputeTimeOfDay` (Craft's `time_of_day()`, unit-tested). Fog and
+the clear color now sample the same gradient's horizon band, and the game
+clock now starts at `day_length/3` (mid-morning, Craft's own
+`glfwSetTime(g->day_length/3.0)`) instead of literal midnight — the
+previously-unnoticed reason every screenshot this project ever took looked
+dark. Also fixed in passing: the degenerate `dayLength<=0` daylight branch
+returned 0.5 brightness, matching nothing in Craft (Craft pins the *timer*
+to noon → brightness ≈1.0). And **item 34** (user request "how do I go
+fullscreen?"): F11 now toggles fullscreen via CNA's existing
+`GraphicsDeviceManager::ToggleFullScreen()` — Minecraft's binding; real
+Craft has no runtime toggle at all. See items 33/34's plan.md writeups.
+
 ## 1. Project summary
 
 CNA Craft is a first-person voxel-world game/prototype, built entirely on
@@ -144,23 +161,24 @@ correctly in the message log, confirmed the log persists after the typing
 box closes, confirmed Sign typing is unaffected by the `TypingMode`
 generalization).
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **299 checks, all
+**Test status**: `tests/worlds_smoke_test.cpp` — **303 checks, all
 passing** (up from 267 before this audit's follow-up work; 173 at the start
 of the chunk-redesign session). Plus `cna_craft_persistence_smoke_test` —
 **40 checks, all passing** (up from 30). Both build and run standalone with
 `-DCNA_CRAFT_BUILD_GAME=OFF`.
 
-**plan.md §12.1 status as of this session's end** (32 items):
-- **29 `completed`**: everything from before, plus item 26 (arrow-key
+**plan.md §12.1 status as of this session's end** (34 items):
+- **32 `completed`**: everything from before, plus item 26 (arrow-key
   speed, plant rotation, sign winding, player-position persistence — four
   small audit follow-ups), item 27 (light toggle, Ctrl+right-click, via
   a glow-pass design pivot), item 28 (invisible-window-on-startup +
   glow-pass perf fixes), item 29 (Minecraft-style flight/look controls),
   item 30 (exact-π/2 pitch clamp degenerating the view matrix), item
   31 (player entombment at spawn + per-frame SQLite fsync stutter — the
-  two regressions behind the user's "still broken" reports), and item 32
+  two regressions behind the user's "still broken" reports), item 32
   (both halves of Craft's cloud guards: is_obstacle on placement,
-  is_destructable on breaking — see §3 below).
+  is_destructable on breaking), item 33 (textured sky dome + morning
+  start), and item 34 (F11 fullscreen toggle — see §3 below).
 - **1 `blocked`**: ambient occlusion (needs a custom `ShaderEffect`, only
   real on EASYGL today) — user has chosen to implement this for EASYGL
   only when picked up.
@@ -168,8 +186,9 @@ of the chunk-redesign session). Plus `cna_craft_persistence_smoke_test` —
   (all its usual prerequisites — persistence, chunk logic, chat — are now
   done, but multiplayer itself stays deferred to planning-only for now).
 
-Two more items from the same 12-item audit are decided but not yet started:
-ambient occlusion (EASYGL-only) and a textured sky dome — see §8.
+One more item from the same 12-item audit is decided but not yet started:
+ambient occlusion (EASYGL-only) — see §8. The textured sky dome is done
+(item 33).
 
 ## 3. Recent changes (this session)
 
@@ -456,10 +475,36 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     quoted both halves of Craft's guard, ported one, and still claimed
     complete. 4 new checks — 299 total.
 
+17. **Textured sky dome** (plan.md §12.1 item 33) — user picked it from the
+    remaining-work list. New `Render::SkyTexture` (64×16 gradient sampled
+    directly from Craft's own `sky.png` — real dawn/dusk orange bands,
+    embedded as constants like the dye colors were), `Render::SkyDome`
+    rewritten as a full textured UV sphere (`VertexPositionColorTexture`,
+    time-of-day baked into vertex U per frame since BasicEffect has no
+    custom-uniform slot), fog + clear color now sample the same gradient's
+    horizon band, and the game clock starts at `day_length/3` (mid-morning,
+    Craft's `glfwSetTime` — previously literal midnight, why every prior
+    screenshot looked dark). New `Worlds::ComputeTimeOfDay` (unit-tested);
+    also corrected the degenerate `dayLength<=0` daylight branch (returned
+    0.5 brightness; Craft yields ≈1.0 noon daylight). 303 checks (up from
+    299). Screenshot-verified at two time-axis points (midnight black sky
+    pre-offset; light-blue day sky at launch post-offset); the dawn/dusk
+    bands come from the same numerically-verified table but weren't
+    directly screenshot-verified (the sandbox's software renderer runs the
+    fixed-step game clock slower than wall time — see CRAFT_PARITY.md
+    §5.3's note).
+
+18. **F11 fullscreen toggle** (plan.md §12.1 item 34) — user asked how to
+    go fullscreen; there was no way. One edge-triggered branch calling
+    CNA's existing `GraphicsDeviceManager::ToggleFullScreen()`. Minecraft's
+    binding (real Craft has only a compile-time FULLSCREEN flag, no runtime
+    toggle). README §5 updated. Needs a real WM to verify visually — one
+    keypress on the user's machine.
+
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
-`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 299/299 + 40/40 tests
+`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 303/303 + 40/40 tests
 passing, zero compiler warnings.
 
 Carried over, still unresolved, still not urgent: mouse-look reliability
@@ -653,10 +698,10 @@ There is no separate lint/format tooling configured in this repo.
 
 ## 8. Next smallest tasks
 
-`plan.md` §12.1 is the authoritative ordered priority queue. Items 26/27
-(this session) are done. What's left is the other three choices from the
-same 12-item audit, each already decided by the user but not yet started —
-pick whichever the user names, or ask if they haven't:
+`plan.md` §12.1 is the authoritative ordered priority queue. Everything
+through item 34 is done (including the textured sky dome, item 33). What's
+left is two decided-but-not-started choices from the 12-item audit — pick
+whichever the user names, or ask if they haven't:
 
 - **Ambient occlusion, EASYGL-only** (user decision 2026-07-10): needs a
   custom vertex format + `ShaderEffect` on the EasyGL backend specifically
@@ -666,9 +711,6 @@ pick whichever the user names, or ask if they haven't:
   documented in CRAFT_PARITY.md §5.1 and item 27's plan.md writeup — read
   that first, since it directly shaped how far a vertex-format change can
   go without new engine-side work.
-- **Textured sky dome** (user decision 2026-07-10, "Přidat texturu
-  oblohy"): `Render/SkyDome` currently renders an untextured procedural
-  gradient; add a real texture.
 - **Multiplayer — planning only** (user decision 2026-07-10, "Začít
   plánovat"): every usual prerequisite (persistence, chunk streaming,
   chat/commands) is done, so nothing structurally blocks starting a design
@@ -676,7 +718,7 @@ pick whichever the user names, or ask if they haven't:
   networking code without a further explicit go-ahead.
 
 If the user asks "what's next" with nothing else specified, offer this list
-rather than guessing which of the three to start.
+rather than guessing which of the two to start.
 
 ## 9. Do not do yet
 
@@ -769,7 +811,7 @@ asymmetric scheme) — **plus**:
 ```
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
-as of the last session, 30 of 32 items are completed (including item 19,
+as of the last session, 32 of 34 items are completed (including item 19,
 the chunk-system redesign; item 25, the full 54-item block roster; item 17,
 chat/slash world-editing commands; item 26, four small parity-audit
 follow-ups — arrow-key speed, plant rotation, sign winding, player-position
@@ -779,10 +821,11 @@ Minecraft-style flight/look controls replacing item 24's earlier same-day
 Craft-exact scheme, per direct user request; item 30, a real
 rendering-corruption bug fix — an exact-π/2 pitch clamp degenerating
 `Matrix::CreateLookAt`, exposed by items 24+29 compounding; item 31,
-player entombment at spawn + per-frame SQLite fsync stutter; and item 32,
+player entombment at spawn + per-frame SQLite fsync stutter; item 32,
 both halves of Craft's cloud guards — is_obstacle on placement,
-is_destructable on breaking). **If you touch
-`PlayerController::kPitchLimit`, read item 30 first — don't set it
+is_destructable on breaking; item 33, the textured sky dome — real
+sky.png colors, morning start; and item 34, F11 fullscreen). **If you
+touch `PlayerController::kPitchLimit`, read item 30 first — don't set it
 back to the literal exact π/2. If you touch Initialize()'s spawn loading,
 UpdateStreaming's ordering, or HealPlayerIfEmbedded, read item 31 first —
 the one-synchronous-column arrangement is the settled midpoint of two real
@@ -790,11 +833,10 @@ user-reported bugs in opposite directions.** 1 blocked with a
 scope decision already made (ambient occlusion, EASYGL-only — not blocked
 on a decision anymore, just on implementation), 1 pending with a scope
 decision already made (multiplayer — planning only, don't implement
-without a further explicit go-ahead). Two more items from the same 12-item
-parity audit are decided but not started: ambient occlusion (EASYGL-only)
-and a textured sky dome (see §8 for all three). If the user doesn't specify
-what to work on, offer this short list rather than guessing which to
-start. Before implementing anything that cites Craft's source code,
+without a further explicit go-ahead); those two are also the only
+remaining not-started choices from the 12-item parity audit (see §8). If
+the user doesn't specify what to work on, offer this short list rather
+than guessing which to start. Before implementing anything that cites Craft's source code,
 re-verify the citation against the real checkout at
 /rv/data/development/github.com/other/Craft — CRAFT_PARITY.md was
 carefully audited but could still contain an error, same as every prior

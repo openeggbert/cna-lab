@@ -4,11 +4,13 @@
 #include <cstdint>
 #include <vector>
 
+#include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BasicEffect.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Graphics/PrimitiveType.hpp"
-#include "Microsoft/Xna/Framework/Graphics/VertexPositionColor.hpp"
+#include "Microsoft/Xna/Framework/Graphics/VertexPositionColorTexture.hpp"
 #include "Microsoft/Xna/Framework/Matrix.hpp"
+#include "Microsoft/Xna/Framework/Vector2.hpp"
 
 using namespace Microsoft::Xna::Framework;
 using namespace Microsoft::Xna::Framework::Graphics;
@@ -16,36 +18,40 @@ using namespace Microsoft::Xna::Framework::Graphics;
 namespace CnaCraft::Render {
 
 namespace {
-constexpr int kRings = 6;     // horizon (ring 0) to zenith (ring kRings)
+// Full sphere now (was a hemisphere in the gradient version): rings run
+// nadir -> zenith so looking below the horizon shows Craft's real
+// below-horizon sky band instead of falling through to the clear color.
+constexpr int kRings = 12;    // nadir (ring 0) to zenith (ring kRings)
 constexpr int kSegments = 16; // around the Y axis
 constexpr float kRadius = 400.0f; // comfortably inside the 500-unit far clip plane
-constexpr float kHalfPi = 1.57079632679489661923f;
+constexpr float kPi = 3.14159265358979323846f;
 constexpr float kTwoPi = 6.28318530717958647692f;
 }
 
-void SkyDome::Update(GraphicsDevice& device, const Color& horizonColor, const Color& zenithColor) {
-    std::vector<VertexPositionColor> vertices;
+void SkyDome::Update(GraphicsDevice& device, float timeOfDay) {
+    std::vector<VertexPositionColorTexture> vertices;
     vertices.reserve(static_cast<std::size_t>(kRings + 1) * (kSegments + 1));
 
+    const Color white(255, 255, 255, 255);
     for (int r = 0; r <= kRings; ++r) {
-        const float t = static_cast<float>(r) / static_cast<float>(kRings); // 0=horizon, 1=zenith
-        const float angle = t * kHalfPi;
-        const float y = std::sin(angle);
-        const float ringRadius = std::cos(angle);
-
-        const auto lerpByte = [t](std::uint8_t from, std::uint8_t to) {
-            return static_cast<std::uint8_t>(static_cast<float>(from) + (static_cast<float>(to) - static_cast<float>(from)) * t);
-        };
-        const Color ringColor(lerpByte(horizonColor.getRProperty(), zenithColor.getRProperty()),
-                               lerpByte(horizonColor.getGProperty(), zenithColor.getGProperty()),
-                               lerpByte(horizonColor.getBProperty(), zenithColor.getBProperty()),
-                               std::uint8_t{255});
+        // latitude from -pi/2 (nadir) to +pi/2 (zenith); the V coordinate is
+        // Craft's own sphere texcoord `t = 1 - acos(y)/pi`, which for
+        // y = sin(latitude) simplifies to 0.5 + latitude/pi: 0 at the
+        // nadir, 0.5 at the horizon, 1 at the zenith.
+        const float latitude = -kPi / 2.0f + (static_cast<float>(r) / static_cast<float>(kRings)) * kPi;
+        const float y = std::sin(latitude);
+        const float ringRadius = std::cos(latitude);
+        const float v = 0.5f + latitude / kPi;
 
         for (int s = 0; s <= kSegments; ++s) {
             const float theta = (static_cast<float>(s) / static_cast<float>(kSegments)) * kTwoPi;
             const float x = ringRadius * std::cos(theta);
             const float z = ringRadius * std::sin(theta);
-            vertices.emplace_back(Vector3(x, y, z), ringColor);
+            // U = the frame's time of day, identical for every vertex --
+            // Craft passes this as the `timer` shader uniform; BasicEffect
+            // has no such slot, so it's baked per-vertex and re-uploaded
+            // (see the class comment).
+            vertices.emplace_back(Vector3(x, y, z), white, Vector2(timeOfDay, v));
         }
     }
 
@@ -64,8 +70,11 @@ void SkyDome::Update(GraphicsDevice& device, const Color& horizonColor, const Co
                 // facing sphere. CNA's default RasterizerState culls
                 // CullCounterClockwiseFace (RasterizerState.cpp), so the
                 // *visible* winding here must render as CW in screen space
-                // -- verified empirically via a real EasyGL build (a naive
-                // "CCW from outside" guess rendered nothing at all).
+                // -- verified empirically via a real EasyGL build back when
+                // this was the gradient hemisphere (a naive "CCW from
+                // outside" guess rendered nothing at all); the ring/segment
+                // parametrization (y increasing with r) is unchanged, so the
+                // winding carries over to the full sphere as-is.
                 indices.push_back(v00);
                 indices.push_back(v10);
                 indices.push_back(v11);

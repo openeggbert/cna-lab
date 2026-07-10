@@ -2,7 +2,6 @@
 
 #include <memory>
 
-#include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Graphics/IndexBuffer.hpp"
 #include "Microsoft/Xna/Framework/Graphics/VertexBuffer.hpp"
 #include "Microsoft/Xna/Framework/Vector3.hpp"
@@ -14,30 +13,41 @@ class BasicEffect;
 
 namespace CnaCraft::Render {
 
-// A plain vertex-colored gradient hemisphere replacing the flat
-// `device.Clear(...)` sky (CRAFT_PARITY.md §5.3) — the safe, no-asset-
-// dependency version of Craft's real sky dome (`src/cube.c` make_sphere,
-// textured with textures/sky.png and time-of-day sampling in
-// shaders/sky_*.glsl). Full texture-sampling parity would need a new art
-// asset and a custom ShaderEffect (only real on EASYGL today per
-// missing.md) — a scope decision left `needs_human`. This version needs
-// neither: a low-poly hemisphere with per-vertex color interpolated from a
-// horizon color (at the rim) to a zenith color (at the pole), rebuilt each
-// frame from the same day/night sky colors `CnaCraftGame::Draw` already
-// computes for the fallback clear color, drawn with stock `BasicEffect`
-// (`VertexColorEnabled`, no texture) — works identically on all three CNA
-// backends.
+// A textured sky sphere (CRAFT_PARITY.md §5.3, plan.md §12.1 item 33) —
+// ports Craft's real sky dome (`src/cube.c` make_sphere + textures/sky.png
+// + shaders/sky_*.glsl) onto stock BasicEffect. Craft's sky fragment shader
+// samples `texture2D(sampler, vec2(timer, t))`: the U coordinate is the
+// time of day (one uniform value for the whole dome per frame) and V is the
+// vertex's elevation band (`t = 1 - acos(y)/pi`: 0 = nadir, 0.5 = horizon,
+// 1 = zenith). BasicEffect has no custom-uniform slot to pass `timer`
+// through, so Update() bakes the frame's time of day into every vertex's U
+// instead and re-uploads the (small, ~450-vertex) buffer — the same
+// per-frame re-upload cost profile the previous vertex-colored gradient
+// version of this class already had. Vertices are VertexPositionColorTexture
+// with white color: the one proven CNA Texture+VertexColor unlit combo
+// (see MeshData.hpp's ChunkMeshData comment), drawn by CnaCraftGame with
+// TextureEnabled+VertexColorEnabled, LightingEnabled=false, and
+// SamplerState::LinearClamp — matching Craft's own GL_LINEAR +
+// GL_CLAMP_TO_EDGE sky sampling exactly.
+//
+// This replaced an earlier vertex-colored gradient hemisphere (2026-07-10,
+// user decision from the parity audit: "Přidat texturu oblohy"): the
+// gradient version only approximated day/night tinting and had no
+// dawn/dusk colors at all; the texture carries Craft's real sunrise/sunset
+// bands. Now a full sphere (not a hemisphere) so looking below the horizon
+// while flying shows Craft's real below-horizon sky colors too.
 class SkyDome {
 public:
-    // Rebuilds per-vertex colors for the current frame's horizon/zenith sky
-    // tint (cheap — a fixed, small vertex count, no geometry changes).
-    void Update(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
-                const Microsoft::Xna::Framework::Color& horizonColor,
-                const Microsoft::Xna::Framework::Color& zenithColor);
+    // Re-bakes the current time of day (in [0,1), see
+    // Worlds::ComputeTimeOfDay) into every vertex's U coordinate and
+    // re-uploads. Geometry/indices are built once, lazily.
+    void Update(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device, float timeOfDay);
 
     // Draws the dome centered on the camera position (so it always reads as
     // "infinitely far away," never translating with the player) at a fixed
-    // large radius comfortably inside the far clip plane.
+    // large radius comfortably inside the far clip plane. The caller is
+    // responsible for the BasicEffect flip (texture = the sky texture,
+    // VertexColorEnabled, lighting/fog off) and the LinearClamp sampler.
     void Draw(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
               Microsoft::Xna::Framework::Graphics::BasicEffect& effect,
               const Microsoft::Xna::Framework::Vector3& cameraPosition);

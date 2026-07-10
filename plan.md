@@ -1407,6 +1407,56 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     over the already-unit-tested `IsCollidable` predicate (same verification split as item 21's
     Ctrl+click-as-place), and live click verification remains unavailable in this sandbox (mouse
     clicks unreliable, long-documented).
+33. `completed` — **Textured sky dome** (CRAFT_PARITY.md §5.3/§5.2), user decision 2026-07-10
+    ("Přidat texturu oblohy", chosen from the remaining audit items when asked what's next).
+    Ports Craft's real sky rendering (`render_sky` + `textures/sky.png` +
+    `shaders/sky_*.glsl`, all re-read from the checkout before implementing) onto stock
+    `BasicEffect`:
+    - **New `Render::SkyTexture`**: a 64×16 gradient texture whose colors are sampled directly
+      from Craft's own shipped `sky.png` (ImageMagick box-filter downscale, embedded as a
+      constants table — the same real-asset-colors approach as item 25's dye blocks, keeping the
+      "no binary art assets" convention while matching the real look, dawn/dusk orange bands
+      included). Layout matches Craft's sampling exactly: U = time of day, V = elevation
+      (`t = 1 - acos(y)/pi`, 0.5 = horizon), `LinearClamp` = Craft's GL_LINEAR+GL_CLAMP_TO_EDGE.
+      `SampleSkyColor(u,v)` is the CPU-side bilinear mirror, feeding the clear color and
+      `FogColor` from the same gradient's horizon band — so fog now fades toward the *real* sky
+      color at the current time of day (Craft samples per fragment at each fragment's elevation;
+      BasicEffect's single flat fog color per draw makes the horizon band stand in for all
+      elevations, a documented simplification in §5.2).
+    - **`Render::SkyDome` rewritten**: full UV sphere (was a hemisphere — below-horizon sky now
+      shows Craft's real below-horizon band while flying), `VertexPositionColorTexture` with
+      white colors (the proven stride-24 unlit Texture+VertexColor combo, item 27's constraint
+      notes apply). Craft passes time-of-day as a shader uniform; `BasicEffect` has no such slot,
+      so `Update(device, timeOfDay)` bakes it into every vertex's U and re-uploads per frame —
+      the same per-frame upload cost the old vertex-color gradient version already paid.
+    - **`Worlds::ComputeTimeOfDay`** split out of `ComputeDaylight` (Craft's `time_of_day()`,
+      unit-tested). Found and fixed a real pre-existing mismatch in the process: the degenerate
+      `dayLength<=0` branch used to return a literal 0.5 *brightness*; Craft pins the *timer* to
+      0.5 (noon) and computes brightness from it (≈1.0, full daylight) — the old test asserting
+      0.5 documented behavior that matched nothing in Craft, now corrected.
+    - **Game clock now starts at `day_length/3`** (mid-morning), matching Craft's
+      `glfwSetTime(g->day_length / 3.0)` (`main.c:2582`) — previously cna-craft started at
+      literal midnight, itself an unnoticed parity gap that explains why every screenshot this
+      project ever took looked dark.
+    8 new/updated checks (`ComputeTimeOfDay` wrap/noon/midnight/degenerate + the corrected
+    daylight-at-degenerate-day-length assertions) — 303 in `worlds_smoke_test` (up from 299),
+    persistence unchanged at 40. Verified via clean builds + real Xvfb screenshots at two points
+    of the time axis: pre-offset launch at t≈0 correctly showed the near-black midnight sky;
+    post-offset launch shows a real light-blue day sky immediately (verifying texture path +
+    morning start at once). **The dawn/dusk orange bands were not directly screenshot-verified**
+    — the sandbox's software renderer runs the fixed-step game clock slower than wall time
+    (CNA's `TotalGameTime` advances per executed update; Craft uses wall-clock `glfwGetTime()` —
+    a nuance invisible at real 60fps, noted in §5.3), putting dusk ~15+ real minutes out — they
+    come from the same numerically-verified color table as the two verified points.
+34. `completed` — **F11 fullscreen toggle**, user request 2026-07-10 ("jak v cna-craft udelat
+    fullscreen?" — there was previously no way at all). Not a Craft key: real Craft has only a
+    compile-time `FULLSCREEN` config flag (`src/config.h`), no runtime toggle — F11 is
+    Minecraft's binding, consistent with the item-29 Minecraft-style controls direction. One
+    edge-triggered branch in `CnaCraftGame::Update` calling CNA's existing
+    `GraphicsDeviceManager::ToggleFullScreen()` (which flips `IsFullScreen` and applies changes
+    itself). `README.md` §5 updated. Pure input-wiring glue over an existing engine API (same
+    verification class as item 21) — verified via a clean build; the actual mode switch needs a
+    real window manager to confirm visually, which the user can do with one keypress.
 
 ### 12.2 Deliberately not re-litigated this session
 

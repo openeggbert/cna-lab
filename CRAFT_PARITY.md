@@ -907,9 +907,14 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Craft behavior**: distance+height fog in `block_vertex.glsl`/`block_fragment.glsl`, blending
   toward a sampled sky-texture color by camera distance.
 - **cna-craft behavior**: `CnaCraftGame::Draw` sets `effect_`'s
-  `FogEnabled`/`FogColor`/`FogStart`/`FogEnd` every frame — `FogColor` matches the already-
-  computed flat sky clear color (same "fade toward sky" intent, simpler source than Craft's
-  texture sampling since no sky dome exists yet). Fog start/end are computed every frame from
+  `FogEnabled`/`FogColor`/`FogStart`/`FogEnd` every frame — `FogColor` is now sampled from the
+  same sky gradient the textured dome uses (`Render::SampleSkyColor(timeOfDay, 0.5)`, the horizon
+  band — updated 2026-07-10 with the textured sky, plan.md §12.1 item 33), so fog genuinely fades
+  toward the real sky color at the current time of day, dawn/dusk oranges included. One remaining
+  simplification vs. Craft: Craft's `block_fragment.glsl` samples the sky texture *per fragment*
+  at that fragment's own elevation angle (`vec2(timer, fog_height)`); `BasicEffect`'s
+  fixed-function fog has exactly one flat color per draw, so the horizon band (where fog-faded
+  geometry actually sits) stands in for all elevations. Fog start/end are computed every frame from
   `radii_.createRadius * CHUNK_SIZE` (`radii_` is the mutable runtime streaming-radius state added
   2026-07-10 for `/view`, plan.md §12.1 item 17 — previously the compile-time-fixed
   `kCreateRadius`, itself updated from the old fixed world's diagonal during the chunk-streaming
@@ -930,25 +935,49 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 
 ### 5.3 Sky dome
 - **Craft behavior**: a real icosphere mesh (`make_sphere`, `cube.c:346-384`), textured with a
-  time-of-day-indexed `sky.png`, drawn every frame (`render_sky`).
-- **cna-craft behavior** (implemented this session): `Render::SkyDome` — a 7-ring/16-segment
-  hemisphere (`VertexPositionColor`, stock `BasicEffect`, no texture/shader), horizon-to-zenith
-  vertex-color gradient rebuilt each frame from the same day/night colors the old flat clear used,
-  drawn centered on the camera. The flat `device.Clear(...)` is kept as a fallback/matches the
-  dome's horizon ring exactly, so there's no seam.
-- **Status**: complete (untextured version — full time-of-day texture sampling remains
-  `needs_human`, a real asset + custom-shader scope decision)
-- **Craft files**: `src/cube.c:346-384`, `src/main.c:251-253,1721-1732`,
+  time-of-day-indexed `sky.png` (`vec2(timer, t)` sampling, `t = 1 - acos(y)/pi`:
+  0 nadir / 0.5 horizon / 1 zenith), GL_LINEAR + GL_CLAMP_TO_EDGE, drawn every frame
+  (`render_sky`). The clock starts at `day_length/3` (mid-morning, `main.c:2582`), and the block
+  shaders' fog samples the same sky texture per fragment at that fragment's elevation.
+- **cna-craft behavior** (**textured 2026-07-10, plan.md §12.1 item 33, user decision "Přidat
+  texturu oblohy"** — replaced the earlier untextured vertex-color gradient hemisphere): a full
+  13-ring/16-segment UV sphere (`VertexPositionColorTexture`, white vertex colors — the proven
+  stride-24 Texture+VertexColor unlit combo, same as the light-toggle glow pass), textured with
+  `Render::BuildProceduralSkyTexture` — a 64×16 gradient whose colors are sampled directly from
+  Craft's own shipped `textures/sky.png` (real dawn/dusk orange bands, real day/night blues —
+  same real-asset-colors-embedded-as-constants approach as the dye blocks, item 25), sampled with
+  `SamplerState::LinearClamp` (Craft's exact GL_LINEAR+GL_CLAMP_TO_EDGE). V = Craft's exact
+  `t = 1 - acos(y)/pi` elevation mapping; U = `Worlds::ComputeTimeOfDay` (Craft's `timer`),
+  baked into the vertex UVs and re-uploaded per frame since `BasicEffect` has no custom-uniform
+  slot (same per-frame re-upload cost profile the old gradient version already had). The clear
+  color and `FogColor` both come from `Render::SampleSkyColor(timeOfDay, 0.5)` — the same
+  gradient's horizon band, CPU-side (see §5.2). The game clock also now starts at
+  `day_length/3` (mid-morning), matching Craft's `glfwSetTime(g->day_length / 3.0)` — previously
+  it started at literal midnight, which is why every earlier screenshot of this project looked
+  dark.
+- **Status**: complete
+- **Craft files**: `src/cube.c:346-384`, `src/main.c:251-253,1721-1732,2582,2636-2644`,
   `shaders/sky_{vertex,fragment}.glsl`
-- **cna-craft files**: `src/CnaCraft/Render/SkyDome.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.cpp`
-- **Priority**: medium (done for the untextured version)
-- **Notes**: The untextured vertex-colored version needs no new asset dependency and no custom
-  shader, so it was picked as the objectively-safe "smallest correct" implementation rather than
-  treated as `needs_human` — the scope decision only applies to the *textured* upgrade. **Real bug
-  found and fixed during development**: an analytically-reasoned triangle winding rendered nothing
-  at all; empirically confirmed via debug colors that never appeared, traced to CNA's actual
-  default `CullCounterClockwiseFace` rasterizer state, fixed by flipping the winding and
-  re-verifying visually.
+- **cna-craft files**: `src/CnaCraft/Render/SkyDome.{hpp,cpp}`,
+  `src/CnaCraft/Render/SkyTexture.{hpp,cpp}`, `src/CnaCraft/Worlds/DayNightCycle.{hpp,cpp}`
+  (`ComputeTimeOfDay`), `src/CnaCraft/CnaCraftGame.cpp`
+- **Priority**: medium (done)
+- **Verification method**: real-build Xvfb screenshots at three points of the U axis — pre-offset
+  launch at t≈0 showed the correct near-black midnight sky; post-offset launch shows a real light
+  blue day sky immediately (verifying both the texture path and the morning-start offset);
+  the dawn/dusk orange bands themselves come from the same sampled color table (verified
+  numerically against sky.png during generation) but were **not** directly screenshot-verified —
+  the sandbox's software renderer runs the fixed-step game clock slower than wall time, putting
+  dusk ~15+ real minutes out, so this relies on the two verified U points plus the table data.
+  `ComputeTimeOfDay` is unit-tested (wrap/noon/midnight/degenerate-day-length).
+- **Notes**: The old untextured version's empirically-found winding lesson (CNA culls
+  CullCounterClockwiseFace; the dome must wind for an inside viewer) carries over unchanged —
+  the ring/segment parametrization is the same, extended from a hemisphere to a full sphere so
+  looking below the horizon while flying shows Craft's real below-horizon band. One observed
+  (sandbox-only) nuance while verifying: CNA's fixed-step `GameTime::TotalGameTime` advances per
+  executed update, so under a renderer too slow to hit 60fps the day cycle runs slower than wall
+  time — Craft uses wall-clock `glfwGetTime()` and would not. On real hardware at 60fps the two
+  agree; noted here rather than "fixed" since it's invisible at full frame rate.
 
 ### 5.4 Day/night lighting
 - **Craft behavior**: `get_daylight()`/`time_of_day()` (`main.c:163-184`), two logistic sigmoids
@@ -1033,8 +1062,8 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 4.5 | Chat/commands (**world-editing macros completed 2026-07-10**) | complete | medium |
 | 4.6 | Multiplayer | missing | low (deliberate) |
 | 5.1 | Ambient occlusion | blocked | high (blocked) |
-| 5.2 | Fog | **fixed this session** | medium |
-| 5.3 | Sky dome (**fixed this session** — untextured version) | complete | medium |
+| 5.2 | Fog (**fades to the real sky gradient, 2026-07-10**) | complete | medium |
+| 5.3 | Sky dome (**textured with real sky.png colors, 2026-07-10**) | complete | medium |
 | 5.4 | Day/night lighting | complete | low |
 | 5.5 | Texture atlas | partial | low (needs_human: asset decision) |
 | 5.7 | Build/dependencies | partial | low |

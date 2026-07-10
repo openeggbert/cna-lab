@@ -715,8 +715,25 @@ void TestDayNightCycleMatchesCraftsCurveShape() {
     Check(std::abs(firstCycleDawn - fifthCycleDawn) < 0.001f,
           "the curve wraps identically on later cycles (pure function of elapsed time mod day length)");
 
-    Check(std::abs(ComputeDaylight(100.0f, 0.0f) - 0.5f) < 0.001f,
-          "a zero/invalid day length falls back to a fixed mid-level daylight instead of dividing by zero");
+    // A zero/invalid day length pins time-of-day to noon (Craft's own
+    // day_length<=0 branch in time_of_day()) -- and daylight is then the
+    // curve AT noon, ~1.0, matching Craft's get_daylight (which computes
+    // from the pinned timer rather than short-circuiting). An earlier
+    // version of ComputeDaylight returned a literal 0.5 brightness here,
+    // which matched nothing in Craft -- corrected 2026-07-10 when
+    // ComputeTimeOfDay was split out for the sky texture (plan.md §12.1
+    // item 33).
+    Check(std::abs(ComputeTimeOfDay(100.0f, 0.0f) - 0.5f) < 0.001f,
+          "a zero/invalid day length pins time-of-day to noon instead of dividing by zero");
+    Check(ComputeDaylight(100.0f, 0.0f) > 0.99f,
+          "daylight for a zero day length is full noon daylight, matching Craft's get_daylight");
+
+    // ComputeTimeOfDay is Craft's time_of_day(): the raw wrapped cycle
+    // fraction the sky texture's U coordinate uses (plan.md §12.1 item 33).
+    Check(std::abs(ComputeTimeOfDay(kDay * 0.5f, kDay) - 0.5f) < 0.001f, "half a day in is noon (t=0.5)");
+    Check(std::abs(ComputeTimeOfDay(kDay * 4.25f, kDay) - 0.25f) < 0.001f,
+          "time-of-day wraps identically on later cycles (4.25 days in = dawn)");
+    Check(ComputeTimeOfDay(0.0f, kDay) < 0.001f, "t=0 is midnight");
 }
 
 void TestChunkMesherFaceCulling() {

@@ -169,6 +169,10 @@ private:
     Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::BasicEffect> effect_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> atlasTexture_;
+    // The sky gradient texture (plan.md §12.1 item 33) -- built once in
+    // Initialize(), swapped in for the atlas during the sky dome pass in
+    // Draw(), swapped back for terrain right after.
+    std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> skyTexture_;
 
     Worlds::World world_;
     std::unique_ptr<Worlds::PlayerController> player_;
@@ -270,6 +274,7 @@ private:
     bool scrollWheelInitialized_ = false;
     int previousScrollWheelValue_ = 0;
     bool f12WasDown_ = false;
+    bool f11WasDown_ = false;
     bool screenshotPending_ = false;
     int screenshotCounter_ = 0;
     int smokeFramesLeft_ = 0;

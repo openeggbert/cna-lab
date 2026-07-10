@@ -74,6 +74,7 @@ cmake --build build --target CnaCraft
 | E / R             | Cycle to next / previous hotbar slot (all 54 slots) |
 | Scroll wheel      | Also cycles the hotbar slot (same as E/R)|
 | F (hold)          | Orthographic projection               |
+| F11               | Toggle fullscreen                     |
 | F12               | Save a screenshot to `screenshots/`   |
 | ` (backtick)      | Start typing a sign on the targeted block face |
 | /                 | Start typing a world-editing command (see below) |

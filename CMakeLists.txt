@@ -133,6 +133,7 @@ if(CNA_CRAFT_BUILD_GAME)
         src/CnaCraft/Render/Hud.cpp
         src/CnaCraft/Render/SelectionOutline.cpp
         src/CnaCraft/Render/SkyDome.cpp
+        src/CnaCraft/Render/SkyTexture.cpp
         src/CnaCraft/Render/SignBillboard.cpp
         src/CnaCraft/Persistence/WorldStore.cpp
     )

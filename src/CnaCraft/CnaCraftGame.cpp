@@ -17,6 +17,7 @@
 #include "Microsoft/Xna/Framework/Graphics/SamplerState.hpp"
 #include "Microsoft/Xna/Framework/Matrix.hpp"
 
+#include "Render/SkyTexture.hpp"
 #include "Render/TextureAtlas.hpp"
 #include "Worlds/ChunkMesher.hpp"
 #include "Worlds/DayNightCycle.hpp"
@@ -207,6 +208,7 @@ void CnaCraftGame::Initialize() {
     effect_->setAmbientLightColorProperty(Vector3(0.5f, 0.5f, 0.5f));
 
     atlasTexture_ = std::make_unique<Texture2D>(Render::BuildProceduralAtlas(device));
+    skyTexture_ = std::make_unique<Texture2D>(Render::BuildProceduralSkyTexture(device));
     effect_->setTextureProperty(atlasTexture_.get());
 
     // Bug fix: spawning at an *integer* coordinate puts the player's 0.6-wide
@@ -774,6 +776,20 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     }
     f12WasDown_ = f12Down;
 
+    // F11 = fullscreen toggle (user request 2026-07-10, plan.md §12.1 item
+    // 34). Not a Craft key -- real Craft has only a compile-time FULLSCREEN
+    // config flag (src/config.h), no runtime toggle at all -- F11 is
+    // Minecraft's binding, consistent with the Minecraft-style controls
+    // direction (item 29). CNA's GraphicsDeviceManager::ToggleFullScreen
+    // flips IsFullScreen and calls ApplyChanges() itself.
+    const bool f11Down = kb.IsKeyDown(Keys::F11);
+    if (f11Down && !f11WasDown_) {
+        graphics_.ToggleFullScreen();
+        std::printf("Fullscreen: %s\n", graphics_.getIsFullScreenProperty() ? "on" : "off");
+        std::fflush(stdout);
+    }
+    f11WasDown_ = f11Down;
+
     const bool tabDown = kb.IsKeyDown(Keys::Tab);
     if (tabDown && !tabWasDown_) {
         player_->ToggleFlying();
@@ -1011,21 +1027,29 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     // time_of_day() curve shape (src/main.c) — dawn/dusk sigmoid transitions
     // bracketing long full-day/full-night plateaus. Drives BasicEffect's
     // ambient term with the same `value*0.3+0.2` formula as
-    // block_fragment.glsl, and tints the (still-flat, no sky dome yet —
-    // that's a separate backlog item) clear color between night and day.
-    const float daylight = Worlds::ComputeDaylight(
-        static_cast<float>(gameTime.getTotalGameTimeProperty().getTotalSecondsProperty()));
+    // block_fragment.glsl. timeOfDay is Craft's raw `timer` value — the sky
+    // texture's U coordinate (plan.md §12.1 item 33).
+    // Craft starts its clock at day_length/3 (`glfwSetTime(g->day_length /
+    // 3.0)`, main.c:2582) -- mid-morning, full daylight -- not at 0
+    // (midnight). Matched here as a fixed offset (plan.md §12.1 item 33;
+    // this also explains why every earlier screenshot of this project
+    // looked dark: the game used to begin at literal midnight).
+    const float totalSeconds =
+        static_cast<float>(gameTime.getTotalGameTimeProperty().getTotalSecondsProperty()) +
+        Worlds::kDefaultDayLengthSeconds / 3.0f;
+    const float daylight = Worlds::ComputeDaylight(totalSeconds);
+    const float timeOfDay = Worlds::ComputeTimeOfDay(totalSeconds);
     const float ambient = daylight * 0.3f + 0.2f;
     effect_->setAmbientLightColorProperty(Vector3(ambient, ambient, ambient));
 
-    const auto lerpChannel = [daylight](int night, int day) {
-        return static_cast<int>(static_cast<float>(night) + static_cast<float>(day - night) * daylight);
-    };
-    const int skyR = lerpChannel(12, 135), skyG = lerpChannel(14, 196), skyB = lerpChannel(36, 235);
-    // Zenith tint for the sky dome (CRAFT_PARITY.md §5.3) — a deeper blue
-    // than the horizon color at both day and night, same lerp function.
-    const int zenithR = lerpChannel(4, 60), zenithG = lerpChannel(6, 120), zenithB = lerpChannel(18, 200);
-    device.Clear(Color(skyR, skyG, skyB, 255), 1.0f);
+    // Clear color = the sky gradient's horizon band for the current time of
+    // day (CRAFT_PARITY.md §5.3, plan.md §12.1 item 33) — replaces the old
+    // hand-picked night/day lerp with colors sampled from Craft's real
+    // sky.png, so dawn/dusk show their real orange glow. Rarely visible
+    // (the textured dome covers the whole view) but keeps any sliver
+    // outside the dome consistent with it.
+    const Color horizonSky = Render::SampleSkyColor(timeOfDay, 0.5f);
+    device.Clear(horizonSky, 1.0f);
     device.SetDepthTestEnabled(true);
 
     // Distance fog (CRAFT_PARITY.md §5.2) — fades geometry toward the same
@@ -1038,8 +1062,16 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     // blocked by shader limits.
     const float fogEnd = static_cast<float>(radii_.createRadius * Worlds::CHUNK_SIZE);
     effect_->setFogEnabledProperty(true);
-    effect_->setFogColorProperty(Vector3(static_cast<float>(skyR) / 255.0f, static_cast<float>(skyG) / 255.0f,
-                                          static_cast<float>(skyB) / 255.0f));
+    // Fog fades toward the sky gradient's horizon color for the current
+    // time of day — Craft's block_fragment.glsl samples the sky texture per
+    // fragment at that fragment's elevation (`vec2(timer, fog_height)`);
+    // BasicEffect's fixed-function fog has a single flat color per draw, so
+    // the horizon band (where fog-faded geometry actually sits) stands in
+    // for all elevations — a documented simplification (CRAFT_PARITY.md
+    // §5.2), not an oversight.
+    effect_->setFogColorProperty(Vector3(static_cast<float>(horizonSky.getRProperty()) / 255.0f,
+                                          static_cast<float>(horizonSky.getGProperty()) / 255.0f,
+                                          static_cast<float>(horizonSky.getBProperty()) / 255.0f));
     effect_->setFogStartProperty(fogEnd * 0.5f);
     effect_->setFogEndProperty(fogEnd);
     // Nearest-neighbor sampling: the atlas has no padding between tiles, so
@@ -1079,23 +1111,31 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
         effect_->Projection = Matrix::CreatePerspectiveFieldOfView(fov, aspect, 0.1f, 500.0f);
     }
 
-    // Sky dome (CRAFT_PARITY.md §5.3) — a plain vertex-colored gradient
-    // hemisphere replacing the flat clear color, drawn first with depth
-    // writes off so it never occludes anything drawn afterward. Fog is
-    // switched off for this draw (fading the sky into itself would be a
-    // no-op at best, visibly wrong at worst); vertex-color/unlit mode is
-    // used the same way SelectionOutline uses it below, then restored.
-    skyDome_.Update(device, Color(skyR, skyG, skyB, 255), Color(zenithR, zenithG, zenithB, 255));
+    // Sky dome (CRAFT_PARITY.md §5.3, plan.md §12.1 item 33) — a textured
+    // sphere sampling the sky gradient (Craft's real sky.png colors) at the
+    // current time of day, drawn first with depth writes off so it never
+    // occludes anything drawn afterward. Fog is switched off for this draw
+    // (fading the sky into itself would be a no-op at best, visibly wrong
+    // at worst). Effect flip: texture switches to the sky texture with
+    // LinearClamp (Craft's own GL_LINEAR+GL_CLAMP_TO_EDGE sky sampling —
+    // the gradient must interpolate smoothly, unlike the point-sampled
+    // block atlas), VertexColorEnabled goes on (white vertex colors — the
+    // proven stride-24 Texture+VertexColor unlit combo, same as the glow
+    // pass), lighting goes off; everything restored for terrain right
+    // after.
+    skyDome_.Update(device, timeOfDay);
     device.SetDepthWriteEnabled(false);
     const bool fogWasEnabled = effect_->getFogEnabledProperty();
     effect_->setFogEnabledProperty(false);
-    effect_->setTextureEnabledProperty(false);
+    effect_->setTextureProperty(skyTexture_.get());
+    device.getSamplerStatesProperty()[0] = SamplerState::LinearClamp;
     effect_->VertexColorEnabled = true;
     effect_->setLightingEnabledProperty(false);
     skyDome_.Draw(device, *effect_, eyeVec);
     effect_->setLightingEnabledProperty(true);
     effect_->VertexColorEnabled = false;
-    effect_->setTextureEnabledProperty(true);
+    device.getSamplerStatesProperty()[0] = SamplerState::PointClamp;
+    effect_->setTextureProperty(atlasTexture_.get());
     effect_->setFogEnabledProperty(fogWasEnabled);
     device.SetDepthWriteEnabled(true);
 
