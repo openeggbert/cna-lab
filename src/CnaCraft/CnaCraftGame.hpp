@@ -11,6 +11,8 @@
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
 
+#include "System/Threading/Tasks/Task.hpp"
+
 #include "Persistence/WorldStore.hpp"
 #include "Render/ChunkRenderer.hpp"
 #include "Render/Hud.hpp"
@@ -18,6 +20,7 @@
 #include "Render/SignBillboard.hpp"
 #include "Render/SkyDome.hpp"
 #include "Worlds/Hotbar.hpp"
+#include "Worlds/MeshData.hpp"
 #include "Worlds/PlayerController.hpp"
 #include "Worlds/Sign.hpp"
 #include "Worlds/World.hpp"
@@ -48,27 +51,106 @@ protected:
     void Draw(const Microsoft::Xna::Framework::GameTime& gameTime) override;
 
 private:
+    // Synchronous mesh (re)build for every dirty chunk -- used only where
+    // synchronous meshing is actually wanted (Initialize()'s spawn-area
+    // force-load, mirroring Craft's own synchronous force_chunks). The
+    // steady-state per-frame path backgrounds meshing instead; see
+    // DispatchMeshingForDirtyChunks/PollMeshJobs below.
     void RebuildDirtyChunks();
     void CaptureScreenshot(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
 
-    // Chunk streaming (plan.md §12.1 item 19) -- synchronous for now (a
-    // later phase backgrounds generation/meshing via sharp-runtime Task).
-    // Loads any not-yet-loaded column within kCreateRadius of the player's
-    // current position (budget-capped per frame), unloads any loaded
+    // Chunk streaming (plan.md §12.1 item 19). Loads any not-yet-loaded,
+    // not-already-in-flight column within kCreateRadius of the player's
+    // current position (dispatch-capped per frame), unloads any loaded
     // column beyond kDeleteRadius.
     void UpdateStreaming(int playerCx, int playerCz);
+
+    // Dispatches a background column-generation Task (plan.md §12.1 item
+    // 19 phase 4): fetches this column's persisted edits synchronously
+    // (cheap, main-thread-only SQLite access -- see WorldStore's own
+    // reasoning for why per-edit access stays synchronous), then hands
+    // (seed,cx,cz,edits) as plain copyable data to a background Task that
+    // builds a throwaway scratch World, generates+applies-edits into it,
+    // and returns the resulting column as a copyable
+    // std::array<Worlds::Chunk,Y> (not the live World's own
+    // std::unique_ptr-based storage, which isn't copy-constructible --
+    // TaskT<T>::getResultProperty() requires T copyable). Also loads this
+    // column's signs synchronously (cheap, same reasoning). Actually
+    // creating the World column + chunkRenderers_ entries happens later,
+    // in PollGenerationJobs, once the background task completes.
+    void DispatchColumnGeneration(int cx, int cz);
+    // Applies completed generation jobs, merging each into world_
+    // (World::AdoptColumnCopy), creating matching chunkRenderers_ entries,
+    // and marking the column + its already-loaded neighbors dirty. The
+    // apply cap (separate from the dispatch cap above -- bounds
+    // frame-time spikes from a burst of simultaneous completions) DEFERS
+    // excess completed jobs to a later frame's call rather than dropping
+    // them -- discarding a completed result outright is only safe for a
+    // job that's genuinely no longer wanted (its column got loaded some
+    // other way first), never merely because this frame's apply budget
+    // ran out (a real bug this exact mistake caused once already -- see
+    // PollMeshJobs' comment for why it's worse there). Never erases an
+    // incomplete job's TaskT -- sharp-runtime's Task/TaskT wrap
+    // std::async, whose future destructor blocks until the task finishes
+    // unless already awaited; only ever polling
+    // getIsCompletedProperty()/erasing once true avoids that stall.
+    void PollGenerationJobs();
+
+    // Dispatches a background meshing Task per dirty chunk, dispatch-capped
+    // per frame (plan.md §12.1 item 19 phase 4): builds a small snapshot of
+    // copyable per-chunk data (the target chunk + its up-to-6 face-adjacent
+    // neighbors, each a plain Worlds::Chunk value, not a pointer into the
+    // live World -- a background task must never read the live World
+    // concurrently with main-thread edits) and hands that to a Task that
+    // reconstructs a throwaway World from it and calls ChunkMesher::Build.
+    // Clears the dirty flag immediately on dispatch, matching Craft's own
+    // dirty-cleared-when-dispatched-not-when-complete timing -- a dirty
+    // chunk that doesn't get dispatched this frame (cap reached) simply
+    // stays dirty and is picked up by a later call instead.
+    void DispatchMeshingForDirtyChunks();
+    // Applies completed mesh jobs (apply-capped per frame, deferring
+    // excess to a later call -- same reasoning as PollGenerationJobs, but
+    // load-bearing here in a way it isn't there: DispatchMeshingForDirty
+    // Chunks already cleared this chunk's dirty flag back when the job was
+    // dispatched, so dropping a completed-but-over-cap result outright
+    // would leave that chunk permanently un-meshed, with nothing left to
+    // ever mark it dirty again. Confirmed by a real bug during this
+    // phase's own visual verification: distant terrain showed permanent
+    // rectangular holes that never filled in, traced to exactly this
+    // mistake in an earlier version of this function). Uploads the
+    // computed ChunkMeshData into the matching ChunkRenderer
+    // (GraphicsDevice/VertexBuffer/IndexBuffer calls, main-thread-only);
+    // a completed job whose column unloaded before it finished is
+    // genuinely stale and is dropped.
+    void PollMeshJobs();
+
     // Generates (or loads from world.db on top of fresh terrain) one
-    // column and creates its matching chunkRenderers_ entries. Also marks
-    // already-loaded face-adjacent neighbor columns dirty, since their
-    // shared boundary faces were meshed against "phantom Air" before this
-    // column existed.
-    void LoadColumn(int cx, int cz);
+    // column synchronously and creates its matching chunkRenderers_
+    // entries -- used only by Initialize()'s spawn-area force-load.
+    void LoadColumnSynchronously(int cx, int cz);
     // Frees one column's World data and chunkRenderers_ entries. Marks
     // still-loaded face-adjacent neighbor columns dirty, so their shared
     // boundary faces re-appear now that this column is gone (same
-    // reasoning as LoadColumn, in reverse).
+    // reasoning as loading, in reverse).
     void UnloadColumn(int cx, int cz);
     void MarkNeighborColumnsDirty(int cx, int cz);
+    [[nodiscard]] bool IsColumnGenerationInFlight(int cx, int cz) const;
+
+    // In-flight background jobs (plan.md §12.1 item 19 phase 4). TResult
+    // must be copy-constructible (TaskT<T>::getResultProperty() returns by
+    // value from a member reached through a shared_ptr, which needs a copy,
+    // not a move) -- std::array<Worlds::Chunk,Y> and Worlds::ChunkMeshData
+    // both qualify; a std::array<std::unique_ptr<Chunk>,Y> would not.
+    struct InFlightGenerationJob {
+        int cx = 0, cz = 0;
+        System::Threading::Tasks::TaskT<std::array<Worlds::Chunk, Worlds::WORLD_CHUNKS_Y>> task;
+    };
+    struct InFlightMeshJob {
+        int cx = 0, cy = 0, cz = 0;
+        System::Threading::Tasks::TaskT<Worlds::ChunkMeshData> task;
+    };
+    std::vector<InFlightGenerationJob> inFlightGenerationJobs_;
+    std::vector<InFlightMeshJob> inFlightMeshJobs_;
 
     Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::BasicEffect> effect_;

@@ -14,6 +14,7 @@ class BasicEffect;
 namespace CnaCraft::Worlds {
 class World;
 struct MeshData;
+struct ChunkMeshData;
 }
 
 namespace CnaCraft::Render {
@@ -30,8 +31,22 @@ class ChunkRenderer {
 public:
     ChunkRenderer(int chunkOriginX, int chunkOriginY, int chunkOriginZ);
 
+    // Synchronous: computes the mesh (ChunkMesher::Build) and uploads it in
+    // one call. Used only where synchronous meshing is actually wanted
+    // (CnaCraftGame's spawn-area force-load in Initialize(), mirroring
+    // Craft's own synchronous force_chunks) -- the steady-state per-frame
+    // path backgrounds mesh computation instead (plan.md §12.1 item 19
+    // phase 4) and calls ApplyMesh below with an already-computed result.
     void Rebuild(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
                  const CnaCraft::Worlds::World& world);
+
+    // Uploads an already-computed mesh (e.g. produced by a background
+    // ChunkMesher::Build call) — the GPU-upload half of Rebuild, split out
+    // so mesh computation (safe off the main thread, given a data
+    // snapshot) and GPU upload (main-thread-only) can happen on different
+    // threads.
+    void ApplyMesh(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
+                    const CnaCraft::Worlds::ChunkMeshData& mesh);
 
     void DrawOpaque(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
                      Microsoft::Xna::Framework::Graphics::BasicEffect& effect);

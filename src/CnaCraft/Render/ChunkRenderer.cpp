@@ -51,6 +51,10 @@ void ChunkRenderer::UploadMesh(GraphicsDevice& device, const CnaCraft::Worlds::M
 void ChunkRenderer::Rebuild(GraphicsDevice& device, const CnaCraft::Worlds::World& world) {
     const CnaCraft::Worlds::ChunkMeshData mesh =
         CnaCraft::Worlds::ChunkMesher::Build(world, originX_, originY_, originZ_);
+    ApplyMesh(device, mesh);
+}
+
+void ChunkRenderer::ApplyMesh(GraphicsDevice& device, const CnaCraft::Worlds::ChunkMeshData& mesh) {
     UploadMesh(device, mesh.opaque, opaque_);
     UploadMesh(device, mesh.transparent, transparent_);
 }

@@ -54,6 +54,25 @@ void World::AllocateColumn(int cx, int cz) {
 
 void World::UnloadColumn(int cx, int cz) { columns_.erase(PackColumnKey(cx, cz)); }
 
+void World::InstallChunkCopy(int cx, int cy, int cz, const Chunk& chunk) {
+    AllocateColumn(cx, cz);
+    if (Chunk* target = TryChunkAt(cx, cy, cz)) *target = chunk;
+}
+
+std::array<Chunk, WORLD_CHUNKS_Y> World::CopyColumn(int cx, int cz) const {
+    std::array<Chunk, WORLD_CHUNKS_Y> result;
+    for (int cy = 0; cy < WORLD_CHUNKS_Y; ++cy) {
+        if (const Chunk* chunk = TryChunkAt(cx, cy, cz)) result[static_cast<std::size_t>(cy)] = *chunk;
+    }
+    return result;
+}
+
+void World::AdoptColumnCopy(int cx, int cz, const std::array<Chunk, WORLD_CHUNKS_Y>& chunks) {
+    for (int cy = 0; cy < WORLD_CHUNKS_Y; ++cy) {
+        InstallChunkCopy(cx, cy, cz, chunks[static_cast<std::size_t>(cy)]);
+    }
+}
+
 BlockType World::GetBlock(int x, int y, int z) const {
     if (!InBounds(x, y, z)) return BlockType::Air;
     const Chunk* chunk = TryChunkAt(ChunkCoordOf(x), y / CHUNK_SIZE, ChunkCoordOf(z));

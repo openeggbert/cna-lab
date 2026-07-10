@@ -98,6 +98,38 @@ void TestColumnKeyPackingRoundTrips() {
     Check(allRoundTrip, "PackColumnKey/UnpackColumnKey round-trip correctly, including negative coordinates");
 }
 
+void TestColumnCopyRoundTrips() {
+    // plan.md §12.1 item 19 phase 4: CopyColumn/AdoptColumnCopy/
+    // InstallChunkCopy are the plain-copyable-data path a background
+    // generation task's result crosses the thread boundary through
+    // (TaskT<T>::getResultProperty() requires T copy-constructible, ruling
+    // out a std::array<std::unique_ptr<Chunk>,N> result type).
+    World source;
+    source.GenerateColumn(2, -3, 1234);
+    const auto copy = source.CopyColumn(2, -3);
+
+    World dest;
+    Check(!dest.IsColumnLoaded(2, -3), "sanity check: the destination column starts unloaded");
+    dest.AdoptColumnCopy(2, -3, copy);
+    Check(dest.IsColumnLoaded(2, -3), "AdoptColumnCopy loads the column");
+
+    bool allBlocksMatch = true;
+    for (int lx = 0; lx < CHUNK_SIZE; ++lx) {
+        for (int lz = 0; lz < CHUNK_SIZE; ++lz) {
+            for (int ly = 0; ly < WORLD_SIZE_Y; ++ly) {
+                const int x = 2 * CHUNK_SIZE + lx, y = ly, z = -3 * CHUNK_SIZE + lz;
+                if (source.GetBlock(x, y, z) != dest.GetBlock(x, y, z)) allBlocksMatch = false;
+            }
+        }
+    }
+    Check(allBlocksMatch, "every block in the copied column matches the source exactly");
+
+    // InstallChunkCopy on its own -- a single chunk, not a whole column.
+    World singleChunkDest;
+    singleChunkDest.InstallChunkCopy(0, 1, 0, *source.TryChunkAt(2, 1, -3));
+    Check(singleChunkDest.IsColumnLoaded(0, 0), "InstallChunkCopy allocates the target column if needed");
+}
+
 void TestWorldBoundsAndRoundTrip() {
     World world;
     Check(world.GetBlock(-1, 0, 0) == BlockType::Air, "world out-of-range GetBlock returns Air");
@@ -1196,6 +1228,7 @@ int main() {
     TestChunkBasics();
     TestChunkCoordOfHandlesNegativeCoordinates();
     TestColumnKeyPackingRoundTrips();
+    TestColumnCopyRoundTrips();
     TestWorldBoundsAndRoundTrip();
     TestWorldRecordsEditsForPersistence();
     TestSignStore();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 struct sqlite3;
 
@@ -8,6 +9,7 @@ namespace CnaCraft::Worlds {
 class World;
 class SignStore;
 struct Sign;
+struct BlockEdit;
 }
 
 namespace CnaCraft::Persistence {
@@ -70,6 +72,14 @@ public:
     // matches Craft's own db_load_blocks exactly. Same plain-SetBlock
     // (non-recording) application as LoadInto.
     void LoadColumnInto(Worlds::World& world, int cx, int cz);
+
+    // Same query as LoadColumnInto, but returns the edits as plain data
+    // instead of applying them to a World (plan.md §12.1 item 19 phase 4)
+    // — for callers that need to hand the edits to further processing
+    // rather than apply them directly, e.g. a background column-generation
+    // task, which must never touch WorldStore/sqlite3 off the main thread.
+    // LoadColumnInto is implemented in terms of this.
+    [[nodiscard]] std::vector<Worlds::BlockEdit> LoadColumnEdits(int cx, int cz);
 
     // Writes every edit in `world.RecordedEdits()` (INSERT OR REPLACE, so
     // only the latest value per coordinate survives — matches Craft's own

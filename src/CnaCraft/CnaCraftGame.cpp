@@ -18,6 +18,7 @@
 #include "Microsoft/Xna/Framework/Matrix.hpp"
 
 #include "Render/TextureAtlas.hpp"
+#include "Worlds/ChunkMesher.hpp"
 #include "Worlds/DayNightCycle.hpp"
 #include "Worlds/NoiseGenerator.hpp"
 #include "Worlds/VoxelRaycast.hpp"
@@ -145,7 +146,7 @@ void CnaCraftGame::Initialize() {
     // spawns into (or briefly sees) an ungenerated void.
     for (int dz = -kCreateRadius; dz <= kCreateRadius; ++dz) {
         for (int dx = -kCreateRadius; dx <= kCreateRadius; ++dx) {
-            LoadColumn(dx, dz);
+            LoadColumnSynchronously(dx, dz);
         }
     }
     RebuildDirtyChunks();
@@ -231,7 +232,7 @@ void CnaCraftGame::MarkNeighborColumnsDirty(int cx, int cz) {
     }
 }
 
-void CnaCraftGame::LoadColumn(int cx, int cz) {
+void CnaCraftGame::LoadColumnSynchronously(int cx, int cz) {
     world_.GenerateColumn(cx, cz, kWorldSeed);
     worldStore_->LoadColumnInto(world_, cx, cz);
     worldStore_->LoadColumnSignsInto(signStore_, cx, cz);
@@ -260,14 +261,188 @@ void CnaCraftGame::UnloadColumn(int cx, int cz) {
     if (signStore_.RemoveAllInColumn(cx, cz)) signsNeedRebuild_ = true;
 }
 
+bool CnaCraftGame::IsColumnGenerationInFlight(int cx, int cz) const {
+    for (const auto& job : inFlightGenerationJobs_) {
+        if (job.cx == cx && job.cz == cz) return true;
+    }
+    return false;
+}
+
+void CnaCraftGame::DispatchColumnGeneration(int cx, int cz) {
+    // Main thread, synchronous, cheap (see this method's doc comment in
+    // CnaCraftGame.hpp for why this stays synchronous rather than also
+    // being backgrounded).
+    const auto edits = worldStore_->LoadColumnEdits(cx, cz);
+    worldStore_->LoadColumnSignsInto(signStore_, cx, cz);
+    signsNeedRebuild_ = true; // this column may have contributed persisted signs
+
+    const std::uint32_t seed = kWorldSeed;
+    // TaskT has no default constructor (only TaskT(std::function<T()>)),
+    // so the job struct must be aggregate-initialized with an
+    // already-constructed task, not default-constructed then assigned.
+    auto task = System::Threading::Tasks::TaskT<std::array<Worlds::Chunk, Worlds::WORLD_CHUNKS_Y>>::Run(
+        [cx, cz, seed, edits]() -> std::array<Worlds::Chunk, Worlds::WORLD_CHUNKS_Y> {
+            // Runs on a background thread -- captures only plain data
+            // (ints, a std::vector<BlockEdit>), builds its own throwaway
+            // World with no connection to the live one, touches no
+            // SQLite/GraphicsDevice at all. Reuses GenerateColumn/SetBlock
+            // unmodified; only the target (a scratch World, not `this`
+            // game's live world_) differs from the synchronous path.
+            Worlds::World scratch;
+            scratch.GenerateColumn(cx, cz, seed);
+            for (const Worlds::BlockEdit& edit : edits) {
+                scratch.SetBlock(edit.x, edit.y, edit.z, edit.type);
+            }
+            return scratch.CopyColumn(cx, cz);
+        });
+    inFlightGenerationJobs_.push_back(InFlightGenerationJob{cx, cz, std::move(task)});
+}
+
+void CnaCraftGame::PollGenerationJobs() {
+    // The apply cap THROTTLES how many completed results get merged into
+    // world_ this frame -- it must never cause a completed job to be
+    // dropped outright, only deferred to a later frame's call (real bug,
+    // found via visual verification: an earlier version of this function
+    // discarded a completed-but-over-cap job unconditionally, reasoning
+    // that UpdateStreaming would just re-dispatch it later -- true for
+    // generation only because IsColumnLoaded/IsColumnGenerationInFlight
+    // both naturally stay false until real work happens, so nothing is
+    // lost; the equivalent mistake in PollMeshJobs was NOT self-healing,
+    // since a mesh job's dirty flag is already cleared at dispatch time --
+    // see PollMeshJobs' own note). Both functions now use the same
+    // defer-don't-discard shape for consistency, even though generation
+    // technically could get away with the simpler discard-and-redo.
+    constexpr int kMaxAppliedPerFrame = 2;
+    int appliedThisFrame = 0;
+    std::size_t i = 0;
+    while (i < inFlightGenerationJobs_.size()) {
+        if (appliedThisFrame >= kMaxAppliedPerFrame) break;
+        InFlightGenerationJob& job = inFlightGenerationJobs_[i];
+        if (!job.task.getIsCompletedProperty()) {
+            ++i;
+            continue;
+        }
+        // Completed -- safe to erase this entry (the future's
+        // blocking-destructor hazard only applies to an INCOMPLETE
+        // future; a finished one destructs instantly).
+        const int cx = job.cx, cz = job.cz;
+        if (!world_.IsColumnLoaded(cx, cz)) {
+            const auto chunks = job.task.getResultProperty();
+            world_.AdoptColumnCopy(cx, cz, chunks);
+
+            auto& renderers = chunkRenderers_[Worlds::World::PackColumnKey(cx, cz)];
+            for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
+                renderers[static_cast<std::size_t>(cy)] = std::make_unique<Render::ChunkRenderer>(
+                    cx * Worlds::CHUNK_SIZE, cy * Worlds::CHUNK_SIZE, cz * Worlds::CHUNK_SIZE);
+            }
+            MarkNeighborColumnsDirty(cx, cz);
+            ++appliedThisFrame;
+        }
+        // Else: already loaded some other way -- genuinely stale, drop it.
+        inFlightGenerationJobs_.erase(inFlightGenerationJobs_.begin() + static_cast<std::ptrdiff_t>(i));
+    }
+}
+
+void CnaCraftGame::DispatchMeshingForDirtyChunks() {
+    // Dispatch cap, same reasoning as DispatchColumnGeneration's
+    // kMaxColumnLoadsPerFrame: sharp-runtime's ThreadPool/TaskT spawn a
+    // genuine new OS thread per Task::Run call rather than drawing from a
+    // real bounded pool, so uncapped dispatch is a real hazard, not just a
+    // theoretical one -- one column loading can dirty up to 20 chunks at
+    // once (its own 4 Y-levels + up to 4 neighbor columns' 4 Y-levels
+    // each), and multiple columns can load in the same frame. A dirty
+    // chunk that doesn't get dispatched this frame stays dirty (its flag
+    // is only cleared right when a task is actually dispatched for it) and
+    // is picked up by a later frame's call instead.
+    constexpr int kMaxMeshDispatchesPerFrame = 8;
+    int dispatchesThisFrame = 0;
+    for (auto& [key, renderers] : chunkRenderers_) {
+        if (dispatchesThisFrame >= kMaxMeshDispatchesPerFrame) break;
+        int cx = 0, cz = 0;
+        Worlds::World::UnpackColumnKey(key, cx, cz);
+        for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
+            if (dispatchesThisFrame >= kMaxMeshDispatchesPerFrame) break;
+            Worlds::Chunk& chunk = world_.ChunkAt(cx, cy, cz);
+            if (!chunk.IsDirty()) continue;
+            chunk.ClearDirty(); // cleared on dispatch, not completion -- matches Craft's own timing
+            ++dispatchesThisFrame;
+
+            // Snapshot the target chunk + its up-to-6 face-adjacent
+            // neighbors as plain copyable (cx,cy,cz,Chunk) tuples -- the
+            // background task reconstructs its own throwaway World from
+            // this, never touching the live world_.
+            struct ChunkSnapshot {
+                int cx = 0, cy = 0, cz = 0;
+                Worlds::Chunk chunk;
+            };
+            std::vector<ChunkSnapshot> snapshots;
+            static constexpr int kOffsetsX[7] = {0, -1, 1, 0, 0, 0, 0};
+            static constexpr int kOffsetsY[7] = {0, 0, 0, -1, 1, 0, 0};
+            static constexpr int kOffsetsZ[7] = {0, 0, 0, 0, 0, -1, 1};
+            for (int n = 0; n < 7; ++n) {
+                const int ncx = cx + kOffsetsX[n], ncy = cy + kOffsetsY[n], ncz = cz + kOffsetsZ[n];
+                if (const Worlds::Chunk* neighbor = world_.TryChunkAt(ncx, ncy, ncz)) {
+                    snapshots.push_back(ChunkSnapshot{ncx, ncy, ncz, *neighbor});
+                }
+            }
+
+            const int originX = cx * Worlds::CHUNK_SIZE, originY = cy * Worlds::CHUNK_SIZE,
+                      originZ = cz * Worlds::CHUNK_SIZE;
+            auto meshTask = System::Threading::Tasks::TaskT<Worlds::ChunkMeshData>::Run(
+                [snapshots, originX, originY, originZ]() -> Worlds::ChunkMeshData {
+                    Worlds::World scratch;
+                    for (const auto& s : snapshots) scratch.InstallChunkCopy(s.cx, s.cy, s.cz, s.chunk);
+                    return Worlds::ChunkMesher::Build(scratch, originX, originY, originZ);
+                });
+            inFlightMeshJobs_.push_back(InFlightMeshJob{cx, cy, cz, std::move(meshTask)});
+        }
+    }
+}
+
+void CnaCraftGame::PollMeshJobs() {
+    // The apply cap THROTTLES uploads this frame -- it must never cause a
+    // completed job to be dropped outright, only deferred to a later
+    // frame's call. Real bug, found via visual verification (persistent
+    // holes in distant terrain that never filled in even after waiting):
+    // an earlier version discarded a completed-but-over-cap job
+    // unconditionally, reasoning it was safe because "a still-dirty chunk
+    // gets re-dispatched later" -- false here, since
+    // DispatchMeshingForDirtyChunks already cleared this chunk's dirty
+    // flag back when the job was DISPATCHED, not when it completes, so a
+    // discarded result left the chunk permanently un-meshed (its
+    // ChunkRenderer never got its first real upload) with nothing left to
+    // ever mark it dirty again.
+    constexpr int kMaxAppliedPerFrame = 4; // meshing is cheaper to apply (upload-only) than generation
+    auto& device = getGraphicsDeviceProperty();
+    int appliedThisFrame = 0;
+    std::size_t i = 0;
+    while (i < inFlightMeshJobs_.size()) {
+        if (appliedThisFrame >= kMaxAppliedPerFrame) break;
+        InFlightMeshJob& job = inFlightMeshJobs_[i];
+        if (!job.task.getIsCompletedProperty()) {
+            ++i;
+            continue;
+        }
+        const auto it = chunkRenderers_.find(Worlds::World::PackColumnKey(job.cx, job.cz));
+        if (it != chunkRenderers_.end()) {
+            const Worlds::ChunkMeshData mesh = job.task.getResultProperty();
+            it->second[static_cast<std::size_t>(job.cy)]->ApplyMesh(device, mesh);
+            ++appliedThisFrame;
+        }
+        // Else: column unloaded before meshing finished -- genuinely
+        // stale, drop it (matches Craft's own equivalent race).
+        inFlightMeshJobs_.erase(inFlightMeshJobs_.begin() + static_cast<std::ptrdiff_t>(i));
+    }
+}
+
 void CnaCraftGame::UpdateStreaming(int playerCx, int playerCz) {
-    int loadsThisFrame = 0;
-    for (int dz = -kCreateRadius; dz <= kCreateRadius && loadsThisFrame < kMaxColumnLoadsPerFrame; ++dz) {
-        for (int dx = -kCreateRadius; dx <= kCreateRadius && loadsThisFrame < kMaxColumnLoadsPerFrame; ++dx) {
+    int dispatchesThisFrame = 0;
+    for (int dz = -kCreateRadius; dz <= kCreateRadius && dispatchesThisFrame < kMaxColumnLoadsPerFrame; ++dz) {
+        for (int dx = -kCreateRadius; dx <= kCreateRadius && dispatchesThisFrame < kMaxColumnLoadsPerFrame; ++dx) {
             const int cx = playerCx + dx, cz = playerCz + dz;
-            if (world_.IsColumnLoaded(cx, cz)) continue;
-            LoadColumn(cx, cz);
-            ++loadsThisFrame;
+            if (world_.IsColumnLoaded(cx, cz) || IsColumnGenerationInFlight(cx, cz)) continue;
+            DispatchColumnGeneration(cx, cz);
+            ++dispatchesThisFrame;
         }
     }
 
@@ -377,7 +552,13 @@ void CnaCraftGame::Update(GameTime& gameTime) {
             signBillboard_.Rebuild(getGraphicsDeviceProperty(), signStore_.Signs());
             signsNeedRebuild_ = false;
         }
-        RebuildDirtyChunks();
+        // No new column dispatch while typing (the player's (cx,cz) can't
+        // change -- WASD is suspended), but already-in-flight background
+        // jobs keep draining every frame, same "chunk-rebuild keeps
+        // running while frozen" precedent as before backgrounding existed.
+        PollGenerationJobs();
+        DispatchMeshingForDirtyChunks();
+        PollMeshJobs();
         return;
     }
 
@@ -602,7 +783,15 @@ void CnaCraftGame::Update(GameTime& gameTime) {
         signsNeedRebuild_ = false;
     }
 
-    RebuildDirtyChunks();
+    // Background generation/meshing pipeline (plan.md §12.1 item 19 phase
+    // 4): apply any completed column-generation results first (so a
+    // freshly-loaded column's chunks are already in world_ before this
+    // same frame's dirty scan below), then dispatch meshing for anything
+    // dirty (including chunks the just-applied generation results marked
+    // dirty), then apply any completed mesh results.
+    PollGenerationJobs();
+    DispatchMeshingForDirtyChunks();
+    PollMeshJobs();
 }
 
 void CnaCraftGame::Draw(const GameTime& gameTime) {

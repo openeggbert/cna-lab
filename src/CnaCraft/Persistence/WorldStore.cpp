@@ -134,12 +134,21 @@ void WorldStore::LoadInto(Worlds::World& world) {
 }
 
 void WorldStore::LoadColumnInto(Worlds::World& world, int cx, int cz) {
-    if (!db_) return;
+    // Plain SetBlock -- loaded edits must not be re-recorded as new pending
+    // edits (see WorldStore.hpp's class comment).
+    for (const Worlds::BlockEdit& edit : LoadColumnEdits(cx, cz)) {
+        world.SetBlock(edit.x, edit.y, edit.z, edit.type);
+    }
+}
+
+std::vector<Worlds::BlockEdit> WorldStore::LoadColumnEdits(int cx, int cz) {
+    std::vector<Worlds::BlockEdit> edits;
+    if (!db_) return edits;
 
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, kSelectColumnSql, -1, &stmt, nullptr) != SQLITE_OK) {
         std::fprintf(stderr, "WorldStore: failed to prepare column load query: %s\n", sqlite3_errmsg(db_));
-        return;
+        return edits;
     }
     sqlite3_bind_int(stmt, 1, cx);
     sqlite3_bind_int(stmt, 2, cz);
@@ -149,15 +158,15 @@ void WorldStore::LoadColumnInto(Worlds::World& world, int cx, int cz) {
     // newly-loaded column (potentially many per second while flying), not
     // once at startup; per-column load noise isn't worth logging.
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        const int x = sqlite3_column_int(stmt, 0);
-        const int y = sqlite3_column_int(stmt, 1);
-        const int z = sqlite3_column_int(stmt, 2);
-        const auto type = static_cast<Worlds::BlockType>(sqlite3_column_int(stmt, 3));
-        // Plain SetBlock -- loaded edits must not be re-recorded as new
-        // pending edits (see WorldStore.hpp's class comment).
-        world.SetBlock(x, y, z, type);
+        Worlds::BlockEdit edit;
+        edit.x = sqlite3_column_int(stmt, 0);
+        edit.y = sqlite3_column_int(stmt, 1);
+        edit.z = sqlite3_column_int(stmt, 2);
+        edit.type = static_cast<Worlds::BlockType>(sqlite3_column_int(stmt, 3));
+        edits.push_back(edit);
     }
     sqlite3_finalize(stmt);
+    return edits;
 }
 
 void WorldStore::SaveEdits(Worlds::World& world) {

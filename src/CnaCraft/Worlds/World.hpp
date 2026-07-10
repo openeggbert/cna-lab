@@ -83,6 +83,28 @@ public:
     // away to unload.
     void UnloadColumn(int cx, int cz);
 
+    // Copies a single chunk's block data (by value) into this World at
+    // (cx,cy,cz), allocating that column first if needed. Used to build a
+    // small, fully-decoupled snapshot World for safe background meshing
+    // (plan.md §12.1 item 19 phase 4) — the snapshot never shares any
+    // pointer/reference with the live World, matching Craft's own
+    // map_copy approach: a background task must never read the live World
+    // concurrently with main-thread edits.
+    void InstallChunkCopy(int cx, int cy, int cz, const Chunk& chunk);
+
+    // Copies an entire loaded column's chunks out by value (e.g. to hand a
+    // background-generated column's result back to the main thread as
+    // plain, copyable data — TaskT<T>::getResultProperty() requires T to
+    // be copy-constructible, which a std::array<std::unique_ptr<Chunk>,N>
+    // is not, unlike std::array<Chunk,N>). UB if the column isn't loaded.
+    [[nodiscard]] std::array<Chunk, WORLD_CHUNKS_Y> CopyColumn(int cx, int cz) const;
+
+    // Installs a column's worth of already-computed chunk data (by value),
+    // allocating the column first if needed — the counterpart to
+    // CopyColumn, used on the main thread to merge a completed background
+    // generation task's result into the live World.
+    void AdoptColumnCopy(int cx, int cz, const std::array<Chunk, WORLD_CHUNKS_Y>& chunks);
+
     // World-space access. Coordinates in a column that isn't loaded (or
     // outside the enforced Y range) read as Air / are ignored on write, so
     // callers (mesher, raycast, collision) never need bounds/load-state
