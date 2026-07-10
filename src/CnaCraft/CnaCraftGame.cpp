@@ -649,12 +649,14 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     }
     // Arrow keys as a keyboard alternative to mouse-look (some players don't
     // want to use the mouse for turning; also more reliable to test than
-    // relative mouse motion). Additive with the mouse deltas above, same
-    // rotSpeed formula as house3d_demo.cpp's Left/Right/Up/Down turning.
-    // NOT gated on cursor capture -- matches Craft's own arrow-key look,
-    // which lives inside handle_movement's `if (!g->typing)` block, entirely
-    // separate from handle_mouse_input's `exclusive` gate.
-    const float rotSpeed = 1.6f * dt;
+    // relative mouse motion). Additive with the mouse deltas above. NOT
+    // gated on cursor capture -- matches Craft's own arrow-key look, which
+    // lives inside handle_movement's `if (!g->typing)` block, entirely
+    // separate from handle_mouse_input's `exclusive` gate. Rate matches
+    // Craft's own literal `m = dt * 1.0` exactly (main.c handle_movement) --
+    // changed from an earlier 1.6f approximation per user decision
+    // 2026-07-10 to minimize differences from Craft.
+    const float rotSpeed = 1.0f * dt;
     if (kb.IsKeyDown(Keys::Left)) input.lookDeltaYaw -= rotSpeed;
     if (kb.IsKeyDown(Keys::Right)) input.lookDeltaYaw += rotSpeed;
     if (kb.IsKeyDown(Keys::Up)) input.lookDeltaPitch += rotSpeed;

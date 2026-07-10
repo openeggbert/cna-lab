@@ -1,7 +1,10 @@
 #include "ChunkMesher.hpp"
 
+#include <cmath>
+
 #include "BlockType.hpp"
 #include "Chunk.hpp"
+#include "NoiseGenerator.hpp"
 #include "World.hpp"
 
 namespace CnaCraft::Worlds {
@@ -68,17 +71,46 @@ constexpr PlantQuad kPlantQuads[4] = {
     {kDiagInvSqrt2, 0, kDiagInvSqrt2, {{0, 0, 1}, {1, 0, 0}, {1, 1, 0}, {0, 1, 1}}},
 };
 
-void EmitPlant(MeshData& mesh, const BlockDef& def, float lx, float ly, float lz) {
+// Per-instance random Y-axis rotation (CRAFT_PARITY.md §3.7, added
+// 2026-07-10 per user decision): ports Craft's own `rotation =
+// simplex2(ex, ez, 4, 0.5, 2) * 360` (main.c) exactly, applied via
+// `mat_rotate(mb, 0, 1, 0, RADIANS(rotation))` before translating into
+// place -- a deterministic pseudo-random rotation purely a function of the
+// block's world (x,z), so a field of grass/flowers reads as organic
+// instead of every blade sharing the exact same orientation. Uses a fixed
+// seed (not the world's own terrain seed) since Craft's real simplex2 here
+// draws from its single global, non-per-world-seeded permutation table --
+// this rotation is cosmetic per-position variation, not part of the
+// seed-varying terrain shape.
+constexpr std::uint32_t kPlantRotationSeed = 0;
+
+void EmitPlant(MeshData& mesh, const BlockDef& def, float lx, float ly, float lz, int wx, int wz) {
+    const float rotationDegrees =
+        NoiseGenerator::Simplex2(kPlantRotationSeed, static_cast<float>(wx), static_cast<float>(wz), 4, 0.5f, 2.0f) *
+        360.0f;
+    const float rotationRadians = rotationDegrees * (3.14159265358979323846f / 180.0f);
+    const float cosR = std::cos(rotationRadians);
+    const float sinR = std::sin(rotationRadians);
+
     for (const PlantQuad& quad : kPlantQuads) {
         const auto baseIndex = static_cast<std::uint32_t>(mesh.vertices.size());
         for (int c = 0; c < 4; ++c) {
+            // Rotate around the block's own vertical center axis (0.5, *, 0.5)
+            // -- corners are defined in [0,1] local space, not centered at the
+            // origin, so recenter before rotating and shift back after,
+            // matching Craft's own rotate-then-translate order (cube.c).
+            const float dx = quad.corners[c][0] - 0.5f;
+            const float dz = quad.corners[c][2] - 0.5f;
+            const float rx = dx * cosR - dz * sinR;
+            const float rz = dx * sinR + dz * cosR;
+
             MeshVertex v;
-            v.px = lx + quad.corners[c][0];
+            v.px = lx + rx + 0.5f;
             v.py = ly + quad.corners[c][1];
-            v.pz = lz + quad.corners[c][2];
-            v.nx = quad.nx;
+            v.pz = lz + rz + 0.5f;
+            v.nx = quad.nx * cosR - quad.nz * sinR;
             v.ny = quad.ny;
-            v.nz = quad.nz;
+            v.nz = quad.nx * sinR + quad.nz * cosR;
             v.u = kUv[c][0];
             v.v = kUv[c][1];
             v.tileIndex = def.topTile;
@@ -112,7 +144,8 @@ ChunkMeshData ChunkMesher::Build(const World& world, int originX, int originY, i
                 MeshData& mesh = def.transparent ? result.transparent : result.opaque;
 
                 if (def.plant) {
-                    EmitPlant(mesh, def, static_cast<float>(lx), static_cast<float>(ly), static_cast<float>(lz));
+                    EmitPlant(mesh, def, static_cast<float>(lx), static_cast<float>(ly), static_cast<float>(lz), wx,
+                              wz);
                     continue;
                 }
 

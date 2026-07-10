@@ -204,8 +204,9 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   hold-ortho (`g->ortho=64`). O/P = multiplayer picture-in-picture observe cameras (N/A,
   single-player only).
 - **cna-craft behavior**: matches Craft's absence of sprint/crouch/view-bob. Arrow-key look exists
-  at `1.6*dt` rad/s (different constant, same idea). Zoom and ortho both present, explicitly
-  documented as intentional Craft-matching hold-to-activate behavior.
+  at `1.0*dt` rad/s (updated 2026-07-10, was an approximate `1.6*dt` — user decision, matching
+  Craft's literal `m = dt * 1.0` exactly). Zoom and ortho both present, explicitly documented as
+  intentional Craft-matching hold-to-activate behavior.
 - **Status**: complete
 - **Craft files**: `src/main.c:2418-2427, 2268-2273, 2901-2934`
 - **cna-craft files**: `src/CnaCraft/CnaCraftGame.cpp:29-42, 155-174, 283-289`
@@ -505,10 +506,13 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   0.7` for flowers). Craft's second noise sample picking one of the 6 flower colors
   (`18 + simplex2(x*0.1, z*0.1, 4, 0.8, 2) * 7`) is now ported too, clamped to always land on a
   real color (Craft's literal formula can overshoot past its own valid range when the noise
-  sample drifts slightly above 1.0 — an upstream quirk not worth reproducing). Not ported:
-  per-block random Y-axis rotation (Craft's `mat_rotate`) — cna-craft's cross is axis-aligned to
-  the world's diagonal, not per-instance-randomized; a cosmetic simplification, not a structural
-  gap.
+  sample drifts slightly above 1.0 — an upstream quirk not worth reproducing). Per-block random
+  Y-axis rotation (Craft's `mat_rotate`) is now ported too (added 2026-07-10, user decision):
+  `EmitPlant` rotates each plant's cross around its own vertical center axis by
+  `simplex2(wx, wz, 4, 0.5, 2) * 360` degrees, matching Craft's own `rotation` formula
+  (`main.c`) exactly — a fixed, non-per-world-seeded noise sample (`kPlantRotationSeed`), since
+  this is cosmetic per-position variation, not part of the seed-varying terrain shape, matching
+  the fact that Craft's own noise here draws from its single global permutation table too.
 - **Status**: complete
 - **Craft files**: `src/cube.c:100-158`, `src/item.c` (`is_plant`), `src/world.c` (color-pick)
 - **cna-craft files**: `src/CnaCraft/Worlds/ChunkMesher.cpp` (`EmitPlant`),

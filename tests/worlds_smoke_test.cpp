@@ -831,6 +831,50 @@ void TestChunkMesherPlantBillboard() {
     Check(surrounded.IsOpaque(6, 5, 5), "a normal Stone neighbor is still opaque (unaffected by the plant)");
 }
 
+void TestChunkMesherPlantsGetRandomPerInstanceRotation() {
+    // CRAFT_PARITY.md §3.7 (added 2026-07-10, user decision): ports Craft's
+    // own `rotation = simplex2(ex, ez, 4, 0.5, 2) * 360` (main.c) -- a
+    // deterministic pseudo-random Y-axis rotation purely a function of the
+    // block's world (x,z), so a field of grass/flowers doesn't look like
+    // every blade shares the exact same orientation.
+    World world;
+    world.AllocateColumn(0, 0);
+    world.SetBlock(2, 5, 2, BlockType::TallGrass);
+    world.SetBlock(9, 5, 9, BlockType::TallGrass);
+    ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
+    Check(mesh.transparent.vertices.size() == 32, "two TallGrass blocks still emit 4 quads * 4 verts each");
+
+    // The two blocks' quads must NOT be simple translations of each other --
+    // if they were, vertex[i].px - 2 would equal vertex[i+16].px - 9 for
+    // every corresponding vertex (same shape, just offset). A real rotation
+    // breaks that relationship for at least one corner.
+    bool anyCornerDiffers = false;
+    for (int i = 0; i < 16; ++i) {
+        const float dx0 = mesh.transparent.vertices[static_cast<std::size_t>(i)].px - 2.0f;
+        const float dz0 = mesh.transparent.vertices[static_cast<std::size_t>(i)].pz - 2.0f;
+        const float dx1 = mesh.transparent.vertices[static_cast<std::size_t>(i + 16)].px - 9.0f;
+        const float dz1 = mesh.transparent.vertices[static_cast<std::size_t>(i + 16)].pz - 9.0f;
+        if (std::abs(dx0 - dx1) > 0.001f || std::abs(dz0 - dz1) > 0.001f) anyCornerDiffers = true;
+    }
+    Check(anyCornerDiffers,
+          "two TallGrass blocks at different world positions get different rotation angles, not "
+          "identical orientation");
+
+    // The rotation must stay centered on the block: each corner sits at
+    // distance sqrt(0.5) =~ 0.7071 from the block's own vertical center axis
+    // (lx+0.5, lz+0.5) before rotating, and a Y-axis rotation preserves that
+    // distance exactly, regardless of angle.
+    bool allCornersAtExpectedRadius = true;
+    for (int i = 0; i < 16; ++i) {
+        const auto& v = mesh.transparent.vertices[static_cast<std::size_t>(i)];
+        const float dist = std::sqrt((v.px - 2.5f) * (v.px - 2.5f) + (v.pz - 2.5f) * (v.pz - 2.5f));
+        if (std::abs(dist - 0.70710678f) > 0.01f) allCornersAtExpectedRadius = false;
+    }
+    Check(allCornersAtExpectedRadius,
+          "every rotated corner stays exactly sqrt(0.5) from its block's own center axis -- rotation "
+          "pivots correctly, doesn't drift the shape");
+}
+
 void TestChunkMesherFlowerUsesSamePlantPath() {
     // Flower (CRAFT_PARITY.md §3.7 follow-up) reuses the exact same
     // EmitPlant path as TallGrass -- just a lighter check that it's wired
@@ -1672,6 +1716,7 @@ int main() {
     TestChunkMesherGlassTransparency();
     TestChunkMesherLeavesTransparency();
     TestChunkMesherPlantBillboard();
+    TestChunkMesherPlantsGetRandomPerInstanceRotation();
     TestChunkMesherFlowerUsesSamePlantPath();
     TestExpandedRosterBlockDefsMatchExpectedShape();
     TestChunkMesherCloudIsOpaqueButNotCollidable();
