@@ -532,25 +532,42 @@ void TestWorldGeneratesTallGrass() {
     Check(everyBladeSitsOnSurface, "every TallGrass block sits exactly one cell above its column's real surface height");
 }
 
+bool IsAnyFlowerColor(BlockType type) {
+    return type == BlockType::Flower || type == BlockType::RedFlower || type == BlockType::PurpleFlower ||
+           type == BlockType::SunFlower || type == BlockType::WhiteFlower || type == BlockType::BlueFlower;
+}
+
 void TestWorldGeneratesFlowers() {
     // World::GenerateFlowers ports Craft's real flower-decoration pass
     // (verified against the checkout — `simplex2(x*0.05, -z*0.05, 4, 0.8, 2)
     // > 0.7` trigger on grass columns, placed one cell above the surface;
-    // Craft's second noise sample picking one of 7 flower colors is skipped
-    // since this project has a single representative Flower type).
+    // a second noise sample picks one of the 6 real flower colors, ported
+    // 2026-07-10 once all 6 existed as BlockTypes — CRAFT_PARITY.md §3.7).
     World a, b;
     a.Generate(1234);
     b.Generate(1234);
 
     bool anyFlowerFound = false;
+    bool morethanOneColorFound = false;
+    BlockType firstColorSeen = BlockType::Air;
     for (int x = 0; x < WORLD_SIZE_X; ++x) {
         for (int z = 0; z < WORLD_SIZE_Z; ++z) {
             for (int y = 0; y < WORLD_SIZE_Y; ++y) {
-                if (a.GetBlock(x, y, z) == BlockType::Flower) anyFlowerFound = true;
+                const BlockType block = a.GetBlock(x, y, z);
+                if (IsAnyFlowerColor(block)) {
+                    anyFlowerFound = true;
+                    if (firstColorSeen == BlockType::Air) {
+                        firstColorSeen = block;
+                    } else if (block != firstColorSeen) {
+                        morethanOneColorFound = true;
+                    }
+                }
             }
         }
     }
-    Check(anyFlowerFound, "World::Generate places at least one Flower block somewhere in the world");
+    Check(anyFlowerFound, "World::Generate places at least one flower block somewhere in the world");
+    Check(morethanOneColorFound,
+          "World::Generate's color-pick noise actually produces more than one flower color, not always the same one");
 
     bool allMatch = true;
     for (int x = 0; x < WORLD_SIZE_X; x += 2) {
@@ -561,20 +578,20 @@ void TestWorldGeneratesFlowers() {
             }
         }
     }
-    Check(allMatch, "flower placement is deterministic for a fixed seed, same as tall grass/trees/clouds");
+    Check(allMatch, "flower placement (including color choice) is deterministic for a fixed seed, same as tall grass/trees/clouds");
 
     bool everyFlowerSitsOnSurface = true;
     for (int x = 0; x < WORLD_SIZE_X; ++x) {
         for (int z = 0; z < WORLD_SIZE_Z; ++z) {
             const int height = NoiseGenerator::Height(1234, x, z);
             for (int y = 0; y < WORLD_SIZE_Y; ++y) {
-                if (a.GetBlock(x, y, z) == BlockType::Flower && y != height + 1) {
+                if (IsAnyFlowerColor(a.GetBlock(x, y, z)) && y != height + 1) {
                     everyFlowerSitsOnSurface = false;
                 }
             }
         }
     }
-    Check(everyFlowerSitsOnSurface, "every Flower block sits exactly one cell above its column's real surface height");
+    Check(everyFlowerSitsOnSurface, "every flower block, any color, sits exactly one cell above its column's real surface height");
 }
 
 void TestNoiseGeneratorSimplex2IsSeeded() {
@@ -830,6 +847,55 @@ void TestChunkMesherFlowerUsesSamePlantPath() {
     Check(!world.IsOpaque(5, 5, 5), "Flower does not occlude neighboring faces");
 }
 
+void TestExpandedRosterBlockDefsMatchExpectedShape() {
+    // CRAFT_PARITY.md §2.2/§3.7: Chest, the other 5 flower colors, and the
+    // 32 dye colors were added to close the remaining "roster is smaller
+    // than Craft's real item.h" gap. Chest/dyes are plain solid cubes (same
+    // shape as any other block, e.g. Stone); the 5 new flower colors reuse
+    // exactly the same plant behavior as the pre-existing Flower (yellow) --
+    // this test is a lighter check that each is wired up correctly, not a
+    // full re-test of cube/plant meshing (already covered above).
+    World world;
+    world.AllocateColumn(0, 0);
+
+    world.SetBlock(5, 5, 5, BlockType::Chest);
+    Check(world.IsSolid(5, 5, 5), "Chest occupies space (meshed/hit-testable)");
+    Check(world.IsOpaque(5, 5, 5), "Chest is opaque (occludes neighbor faces, unlike Glass)");
+    Check(world.IsCollidable(5, 5, 5), "Chest is collidable, unlike Cloud");
+    Check(world.IsBreakable(5, 5, 5), "Chest is breakable");
+    ChunkMeshData chestMesh = ChunkMesher::Build(world, 0, 0, 0);
+    Check(chestMesh.opaque.vertices.size() == 24, "a lone Chest block emits a normal 6-face cube, not a plant");
+
+    const BlockType newFlowers[] = {BlockType::RedFlower, BlockType::PurpleFlower, BlockType::SunFlower,
+                                     BlockType::WhiteFlower, BlockType::BlueFlower};
+    bool allFlowersArePlants = true;
+    for (BlockType flower : newFlowers) {
+        World flowerWorld; // isolated from the Chest block above -- a lone plant's mesh must be checked alone
+        flowerWorld.AllocateColumn(0, 0);
+        flowerWorld.SetBlock(6, 5, 5, flower);
+        if (!flowerWorld.IsSolid(6, 5, 5) || flowerWorld.IsOpaque(6, 5, 5) || flowerWorld.IsCollidable(6, 5, 5) ||
+            !flowerWorld.IsBreakable(6, 5, 5)) {
+            allFlowersArePlants = false;
+        }
+        ChunkMeshData flowerMesh = ChunkMesher::Build(flowerWorld, 0, 0, 0);
+        if (!flowerMesh.opaque.vertices.empty() || flowerMesh.transparent.vertices.size() != 16) {
+            allFlowersArePlants = false;
+        }
+    }
+    Check(allFlowersArePlants,
+          "every new flower color (Red/Purple/Sun/White/Blue) is solid-but-non-collidable, non-opaque, "
+          "breakable, and emits a 4-quad cross billboard -- the same plant shape as the original Flower");
+
+    world.SetBlock(7, 5, 5, BlockType::Dye00);
+    world.SetBlock(8, 5, 5, BlockType::Dye31);
+    Check(world.IsSolid(7, 5, 5) && world.IsOpaque(7, 5, 5) && world.IsCollidable(7, 5, 5) &&
+              world.IsBreakable(7, 5, 5),
+          "Dye00 (the first dye color) is a plain solid cube, same shape as Stone");
+    Check(world.IsSolid(8, 5, 5) && world.IsOpaque(8, 5, 5) && world.IsCollidable(8, 5, 5) &&
+              world.IsBreakable(8, 5, 5),
+          "Dye31 (the last dye color) is a plain solid cube too");
+}
+
 void TestChunkMesherCloudIsOpaqueButNotCollidable() {
     // Cloud is the inverse situation from Glass: opaque (occludes neighbors,
     // meshed into the *opaque* mesh, hit-testable) but NOT collidable (the
@@ -871,7 +937,9 @@ void TestVoxelRaycastHitsExpectedFaceAndBlock() {
 
 void TestHotbarSelectionAndCycling() {
     Hotbar hotbar;
-    Check(hotbar.SlotCount() == 16, "hotbar has 16 slots (Bedrock and Cloud excluded from the placeable roster)");
+    Check(hotbar.SlotCount() == 54,
+          "hotbar has 54 slots, matching Craft's real item_count exactly (Bedrock and Cloud "
+          "still excluded from the placeable roster)");
     Check(hotbar.SelectedIndex() == 0, "hotbar starts on slot 0");
     Check(hotbar.Selected() == BlockType::Grass, "hotbar starts selecting slot 1's block (Grass)");
 
@@ -896,20 +964,42 @@ void TestHotbarSelectionAndCycling() {
     hotbar.CycleNext();
     Check(hotbar.Selected() == BlockType::TallGrass, "slot 15 is TallGrass");
     hotbar.CycleNext();
-    Check(hotbar.Selected() == BlockType::Flower, "slot 16 (the last slot) is Flower");
+    Check(hotbar.Selected() == BlockType::Flower, "slot 16 is Flower (Craft's YELLOW_FLOWER)");
+
+    // Slots 17-54: Chest, the other 5 flower colors, and the 32 dye colors —
+    // appended after the original 16 (CRAFT_PARITY.md §2.2/§3.7, matching
+    // Craft's real 54-item roster). CycleNext keeps stepping through them in
+    // this order rather than wrapping after slot 16.
     hotbar.CycleNext();
-    Check(hotbar.SelectedIndex() == 0, "CycleNext wraps back to slot 0 after the last slot");
+    Check(hotbar.Selected() == BlockType::Chest, "slot 17 is Chest");
+    hotbar.CycleNext();
+    Check(hotbar.Selected() == BlockType::RedFlower, "slot 18 is RedFlower");
+    hotbar.CycleNext();
+    Check(hotbar.Selected() == BlockType::PurpleFlower, "slot 19 is PurpleFlower");
+    hotbar.CycleNext();
+    Check(hotbar.Selected() == BlockType::SunFlower, "slot 20 is SunFlower");
+    hotbar.CycleNext();
+    Check(hotbar.Selected() == BlockType::WhiteFlower, "slot 21 is WhiteFlower");
+    hotbar.CycleNext();
+    Check(hotbar.Selected() == BlockType::BlueFlower, "slot 22 is BlueFlower");
+    hotbar.CycleNext();
+    Check(hotbar.Selected() == BlockType::Dye00, "slot 23 is the first dye color, Dye00");
+
+    hotbar.SelectSlot(54);
+    Check(hotbar.Selected() == BlockType::Dye31, "slot 54 (the last slot) is Dye31");
+    hotbar.CycleNext();
+    Check(hotbar.SelectedIndex() == 0, "CycleNext wraps back to slot 0 after the last slot (Dye31)");
 
     // Regression test (CRAFT_PARITY.md §2.1): Craft's E/R key pair cycles
     // forward/backward through the whole roster; CyclePrev was missing
     // until this session (only CycleNext/E existed).
     hotbar.CyclePrev();
-    Check(hotbar.Selected() == BlockType::Flower,
-          "CyclePrev from slot 0 wraps backward to the last slot (Flower)");
+    Check(hotbar.Selected() == BlockType::Dye31,
+          "CyclePrev from slot 0 wraps backward to the last slot (Dye31)");
     hotbar.CyclePrev();
-    Check(hotbar.Selected() == BlockType::TallGrass, "CyclePrev steps back one slot at a time");
+    Check(hotbar.Selected() == BlockType::Dye30, "CyclePrev steps back one slot at a time");
     hotbar.CycleNext();
-    Check(hotbar.Selected() == BlockType::Flower, "CycleNext after CyclePrev returns to the same slot");
+    Check(hotbar.Selected() == BlockType::Dye31, "CycleNext after CyclePrev returns to the same slot");
 
     // Regression test (CRAFT_PARITY.md §2.7): middle-click "eyedropper",
     // ports Craft's on_middle_click (linear-scan items[] for the targeted
@@ -917,9 +1007,11 @@ void TestHotbarSelectionAndCycling() {
     hotbar.SelectSlot(1);
     Check(hotbar.SelectByBlockType(BlockType::Cobblestone), "SelectByBlockType finds a slot holding that type");
     Check(hotbar.Selected() == BlockType::Cobblestone, "SelectByBlockType actually selects the matching slot");
+    Check(hotbar.SelectByBlockType(BlockType::Dye15), "SelectByBlockType finds a dye-color slot too");
+    Check(hotbar.Selected() == BlockType::Dye15, "SelectByBlockType actually selects the matching dye slot");
     Check(!hotbar.SelectByBlockType(BlockType::Bedrock),
           "SelectByBlockType returns false for a type not in the roster (Bedrock)");
-    Check(hotbar.Selected() == BlockType::Cobblestone,
+    Check(hotbar.Selected() == BlockType::Dye15,
           "a failed SelectByBlockType leaves the current selection unchanged, matching Craft's on_middle_click");
     Check(!hotbar.SelectByBlockType(BlockType::Air), "SelectByBlockType returns false for Air");
 }
@@ -1307,6 +1399,7 @@ int main() {
     TestChunkMesherLeavesTransparency();
     TestChunkMesherPlantBillboard();
     TestChunkMesherFlowerUsesSamePlantPath();
+    TestExpandedRosterBlockDefsMatchExpectedShape();
     TestChunkMesherCloudIsOpaqueButNotCollidable();
     TestChunkMesherBoundaryRemeshOnNeighborLoad();
     TestVoxelRaycastHitsExpectedFaceAndBlock();

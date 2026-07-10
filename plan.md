@@ -1042,6 +1042,38 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     adjacent code to). `README.md` §5 updated (Esc behavior, fly controls, mouse-look gating) and
     `CRAFT_PARITY.md` §1.2/§1.3/§1.4/§1.5/§1.6/§1.8/§2.3 updated from their prior stale
     `partial`/`needs_human` statuses to `complete`.
+25. `completed` — **Expand the block roster to Craft's full 54-item set** (CRAFT_PARITY.md
+    §2.2/§3.7): after the chunk-system redesign (item 19), the two remaining follow-ups were
+    Chat/slash-commands (large, needs a design pass) and this — low-value but well-defined content
+    additions the item-2/item-22 notes above already deferred as "low value, skipped." User chose
+    this over Chat/slash-commands (2026-07-10). Added `Chest` (a plain solid cube, `blocks[CHEST]`
+    in Craft's real `item.c` — no special mesh shape, unlike Minecraft's chest) and the 5 flower
+    colors beyond the existing `Flower`/yellow (`RedFlower`/`PurpleFlower`/`SunFlower`/
+    `WhiteFlower`/`BlueFlower`, reusing `ChunkMesher::EmitPlant`'s existing cross-billboard path
+    unchanged), plus all 32 of Craft's `COLOR_00`-`COLOR_31` dye/paint blocks (`Dye00`-`Dye31`,
+    plain solid cubes — Craft doesn't name individual dye colors either). New `BlockType` values
+    were appended after `Bedrock`, never inserted earlier — `Persistence::WorldStore` persists
+    `BlockType` as its raw enum ordinal, so inserting mid-roster would silently reinterpret every
+    existing `world.db`'s block types; `Hotbar::kSlots` likewise appends its 38 new slots after the
+    existing 16 rather than reordering them, so number keys 1-9 and every existing test assertion
+    about specific slots keep meaning exactly what they always have. `Hotbar::SlotCount()` is now
+    54, matching Craft's real `item_count` exactly (`item.c`). `TextureAtlas`'s grid grew from 5×5
+    to 8×8 tiles to fit the 38 new tiles; the 32 dye-color tiles use real RGB values sampled
+    directly from Craft's own shipped `textures/texture.png` (tiles 176-207 there) rather than the
+    procedural-placeholder colors every other tile in this atlas uses, since Craft's dye tiles are
+    flat swatches with no pattern to speak of anyway — a rare case where matching the real asset
+    was easier and more faithful than inventing a placeholder. Also ported Craft's real flower
+    color-pick (`world.c`: a second noise sample chooses one of the 6 flower colors,
+    `18 + simplex2(x*0.1, z*0.1, 4, 0.8, 2) * 7`), previously skipped when only one flower color
+    existed — `World::GenerateFlowersColumn` now scatters all 6 colors through world generation,
+    not just placeable via the hotbar. 2 new/revised tests (`TestExpandedRosterBlockDefsMatchExpectedShape`,
+    `TestHotbarSelectionAndCycling` rewritten for 54 slots, `TestWorldGeneratesFlowers` rewritten to
+    check for any of the 6 colors and confirm more than one color actually appears) — 226 checks in
+    `worlds_smoke_test.cpp` (up from 207), persistence suite unchanged at 30. Verified against a
+    real EasyGL build under Xvfb: cycled the hotbar through all 54 slots via repeated `E` presses,
+    confirmed the HUD correctly showed `#21/54 WhiteFlower` through `#35/54 Dye12`; a screenshot
+    during that same session shows naturally-generated orange/yellow and purple flower blooms
+    side by side in the world, confirming the color-pick noise actually varies.
 
 ### 12.2 Deliberately not re-litigated this session
 

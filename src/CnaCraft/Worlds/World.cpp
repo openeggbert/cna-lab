@@ -297,16 +297,36 @@ void World::GenerateGrassDecorationColumn(int cx, int cz, std::uint32_t seed) {
 
 namespace {
 // Craft's world.c places a flower via `simplex2(x*0.05, -z*0.05, 4, 0.8, 2)
-// > 0.7`, then picks one of 7 flower colors with a second noise sample
+// > 0.7`, then picks one of its 6 flower colors with a second noise sample
 // (`18 + simplex2(x*0.1, z*0.1, 4, 0.8, 2) * 7`) — verified against the
-// real checkout. This project has one representative Flower type
-// (BlockType.hpp), so only the placement trigger is ported; the color-pick
-// sample has nothing to select between and is skipped.
+// real checkout. Now that all 6 colors exist as BlockTypes (CRAFT_PARITY.md
+// §2.2/§3.7, added 2026-07-10), both passes are ported.
 constexpr float kFlowerNoiseScale = 0.05f;
 constexpr int kFlowerNoiseOctaves = 4;
 constexpr float kFlowerNoisePersistence = 0.8f;
 constexpr float kFlowerNoiseLacunarity = 2.0f;
 constexpr float kFlowerThreshold = 0.7f;
+
+constexpr float kFlowerColorNoiseScale = 0.1f;
+constexpr int kFlowerColorNoiseOctaves = 4;
+constexpr float kFlowerColorNoisePersistence = 0.8f;
+constexpr float kFlowerColorNoiseLacunarity = 2.0f;
+
+// Craft's real tile order (item.h: YELLOW_FLOWER=18 .. BLUE_FLOWER=23).
+constexpr BlockType kFlowerColors[6] = {BlockType::Flower,       BlockType::RedFlower, BlockType::PurpleFlower,
+                                         BlockType::SunFlower,    BlockType::WhiteFlower, BlockType::BlueFlower};
+
+// Craft's literal `18 + noise*7` can overshoot past its own 6 valid color
+// IDs (18-23) when the noise sample drifts slightly above 1.0 — an upstream
+// quirk (an out-of-range block ID silently renders as nothing), not
+// something worth reproducing. Clamped here to always land on one of the 6
+// real colors.
+BlockType PickFlowerColor(float noise) {
+    int index = static_cast<int>(noise * 6.0f);
+    if (index < 0) index = 0;
+    if (index >= 6) index = 5;
+    return kFlowerColors[index];
+}
 }
 
 void World::GenerateFlowersColumn(int cx, int cz, std::uint32_t seed) {
@@ -324,7 +344,12 @@ void World::GenerateFlowersColumn(int cx, int cz, std::uint32_t seed) {
                                                              kFlowerNoiseOctaves, kFlowerNoisePersistence,
                                                              kFlowerNoiseLacunarity);
             if (density > kFlowerThreshold) {
-                SetBlock(x, h + 1, z, BlockType::Flower);
+                const float colorNoise =
+                    NoiseGenerator::Simplex2(seed, static_cast<float>(x) * kFlowerColorNoiseScale,
+                                              static_cast<float>(z) * kFlowerColorNoiseScale,
+                                              kFlowerColorNoiseOctaves, kFlowerColorNoisePersistence,
+                                              kFlowerColorNoiseLacunarity);
+                SetBlock(x, h + 1, z, PickFlowerColor(colorNoise));
             }
         }
     }

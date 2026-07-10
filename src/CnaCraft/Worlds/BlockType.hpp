@@ -11,11 +11,21 @@ namespace CnaCraft::Worlds {
 // World::GenerateTrees, plan.md §11.1 "Trees and plants"), TallGrass, and
 // Flower (CRAFT_PARITY.md §3.7 "Non-cubic plant geometry" — plant-shaped
 // blocks, a cross-quad billboard instead of a cube; see BlockDef.plant
-// below). Craft has 6 distinct flower colors (`YellowFlower`..`BlueFlower`
-// in item.h); this project has one representative `Flower` type — the
-// geometry/generation path is identical, so adding the other 5 colors
-// later is just a new tile + enum value, not new logic. Chest remains
-// deferred (needs its own non-plant mesh shape).
+// below). `Flower` is Craft's `YELLOW_FLOWER`; the other 5 flower colors
+// (`Red/Purple/Sun/White/BlueFlower`, item.h) and `Chest` (a plain solid
+// cube, `blocks[CHEST]` in Craft's own `item.c` — no special mesh shape,
+// unlike a Minecraft-style chest) were added below, plus all 32 of
+// Craft's `COLOR_00`..`COLOR_31` dye/paint blocks (`Dye00`..`Dye31` — also
+// plain solid cubes; Craft itself never names individual dye colors either,
+// just numbers them). CRAFT_PARITY.md §2.2/§3.7.
+//
+// **New values are appended after `Bedrock`, never inserted earlier** —
+// `Persistence::WorldStore` persists `BlockType` as its raw
+// `static_cast<int>` ordinal (`WorldStore.cpp`), so inserting a value in
+// the middle would silently reinterpret every existing saved-world.db's
+// block types. `Hotbar::kSlots` likewise appends its new slots after the
+// existing 16 rather than reordering them, so slots 1-16 keep meaning
+// exactly what they always have.
 enum class BlockType : std::uint8_t {
     Air = 0,
     Grass,
@@ -36,6 +46,16 @@ enum class BlockType : std::uint8_t {
     TallGrass,
     Flower,
     Bedrock,
+    Chest,
+    RedFlower,
+    PurpleFlower,
+    SunFlower,
+    WhiteFlower,
+    BlueFlower,
+    Dye00, Dye01, Dye02, Dye03, Dye04, Dye05, Dye06, Dye07,
+    Dye08, Dye09, Dye10, Dye11, Dye12, Dye13, Dye14, Dye15,
+    Dye16, Dye17, Dye18, Dye19, Dye20, Dye21, Dye22, Dye23,
+    Dye24, Dye25, Dye26, Dye27, Dye28, Dye29, Dye30, Dye31,
     Count
 };
 
@@ -120,6 +140,54 @@ constexpr BlockDef GetBlockDef(BlockType type) {
                              /*breakable=*/true, /*plant=*/true};
         case BlockType::Bedrock:
             return BlockDef{true, 5, 5, 5, /*transparent=*/false, /*collidable=*/true, /*breakable=*/false};
+        case BlockType::Chest:       return BlockDef{true, 21, 21, 21};
+        case BlockType::RedFlower:
+            return BlockDef{true, 22, 22, 22, /*transparent=*/true, /*collidable=*/false,
+                             /*breakable=*/true, /*plant=*/true};
+        case BlockType::PurpleFlower:
+            return BlockDef{true, 23, 23, 23, /*transparent=*/true, /*collidable=*/false,
+                             /*breakable=*/true, /*plant=*/true};
+        case BlockType::SunFlower:
+            return BlockDef{true, 24, 24, 24, /*transparent=*/true, /*collidable=*/false,
+                             /*breakable=*/true, /*plant=*/true};
+        case BlockType::WhiteFlower:
+            return BlockDef{true, 25, 25, 25, /*transparent=*/true, /*collidable=*/false,
+                             /*breakable=*/true, /*plant=*/true};
+        case BlockType::BlueFlower:
+            return BlockDef{true, 26, 26, 26, /*transparent=*/true, /*collidable=*/false,
+                             /*breakable=*/true, /*plant=*/true};
+        case BlockType::Dye00: return BlockDef{true, 27, 27, 27};
+        case BlockType::Dye01: return BlockDef{true, 28, 28, 28};
+        case BlockType::Dye02: return BlockDef{true, 29, 29, 29};
+        case BlockType::Dye03: return BlockDef{true, 30, 30, 30};
+        case BlockType::Dye04: return BlockDef{true, 31, 31, 31};
+        case BlockType::Dye05: return BlockDef{true, 32, 32, 32};
+        case BlockType::Dye06: return BlockDef{true, 33, 33, 33};
+        case BlockType::Dye07: return BlockDef{true, 34, 34, 34};
+        case BlockType::Dye08: return BlockDef{true, 35, 35, 35};
+        case BlockType::Dye09: return BlockDef{true, 36, 36, 36};
+        case BlockType::Dye10: return BlockDef{true, 37, 37, 37};
+        case BlockType::Dye11: return BlockDef{true, 38, 38, 38};
+        case BlockType::Dye12: return BlockDef{true, 39, 39, 39};
+        case BlockType::Dye13: return BlockDef{true, 40, 40, 40};
+        case BlockType::Dye14: return BlockDef{true, 41, 41, 41};
+        case BlockType::Dye15: return BlockDef{true, 42, 42, 42};
+        case BlockType::Dye16: return BlockDef{true, 43, 43, 43};
+        case BlockType::Dye17: return BlockDef{true, 44, 44, 44};
+        case BlockType::Dye18: return BlockDef{true, 45, 45, 45};
+        case BlockType::Dye19: return BlockDef{true, 46, 46, 46};
+        case BlockType::Dye20: return BlockDef{true, 47, 47, 47};
+        case BlockType::Dye21: return BlockDef{true, 48, 48, 48};
+        case BlockType::Dye22: return BlockDef{true, 49, 49, 49};
+        case BlockType::Dye23: return BlockDef{true, 50, 50, 50};
+        case BlockType::Dye24: return BlockDef{true, 51, 51, 51};
+        case BlockType::Dye25: return BlockDef{true, 52, 52, 52};
+        case BlockType::Dye26: return BlockDef{true, 53, 53, 53};
+        case BlockType::Dye27: return BlockDef{true, 54, 54, 54};
+        case BlockType::Dye28: return BlockDef{true, 55, 55, 55};
+        case BlockType::Dye29: return BlockDef{true, 56, 56, 56};
+        case BlockType::Dye30: return BlockDef{true, 57, 57, 57};
+        case BlockType::Dye31: return BlockDef{true, 58, 58, 58};
         case BlockType::Air:
         case BlockType::Count:
         default:
@@ -148,6 +216,44 @@ constexpr const char* GetBlockName(BlockType type) {
         case BlockType::TallGrass:   return "TallGrass";
         case BlockType::Flower:      return "Flower";
         case BlockType::Bedrock:     return "Bedrock";
+        case BlockType::Chest:       return "Chest";
+        case BlockType::RedFlower:   return "RedFlower";
+        case BlockType::PurpleFlower: return "PurpleFlower";
+        case BlockType::SunFlower:   return "SunFlower";
+        case BlockType::WhiteFlower: return "WhiteFlower";
+        case BlockType::BlueFlower:  return "BlueFlower";
+        case BlockType::Dye00: return "Dye00";
+        case BlockType::Dye01: return "Dye01";
+        case BlockType::Dye02: return "Dye02";
+        case BlockType::Dye03: return "Dye03";
+        case BlockType::Dye04: return "Dye04";
+        case BlockType::Dye05: return "Dye05";
+        case BlockType::Dye06: return "Dye06";
+        case BlockType::Dye07: return "Dye07";
+        case BlockType::Dye08: return "Dye08";
+        case BlockType::Dye09: return "Dye09";
+        case BlockType::Dye10: return "Dye10";
+        case BlockType::Dye11: return "Dye11";
+        case BlockType::Dye12: return "Dye12";
+        case BlockType::Dye13: return "Dye13";
+        case BlockType::Dye14: return "Dye14";
+        case BlockType::Dye15: return "Dye15";
+        case BlockType::Dye16: return "Dye16";
+        case BlockType::Dye17: return "Dye17";
+        case BlockType::Dye18: return "Dye18";
+        case BlockType::Dye19: return "Dye19";
+        case BlockType::Dye20: return "Dye20";
+        case BlockType::Dye21: return "Dye21";
+        case BlockType::Dye22: return "Dye22";
+        case BlockType::Dye23: return "Dye23";
+        case BlockType::Dye24: return "Dye24";
+        case BlockType::Dye25: return "Dye25";
+        case BlockType::Dye26: return "Dye26";
+        case BlockType::Dye27: return "Dye27";
+        case BlockType::Dye28: return "Dye28";
+        case BlockType::Dye29: return "Dye29";
+        case BlockType::Dye30: return "Dye30";
+        case BlockType::Dye31: return "Dye31";
         default:                     return "Unknown";
     }
 }

@@ -10,7 +10,7 @@ namespace CnaCraft::Render {
 
 // A square grid of same-size tiles packed into one Texture2D atlas.
 constexpr int kAtlasTileSize = 16;
-constexpr int kAtlasTilesPerRow = 5;
+constexpr int kAtlasTilesPerRow = 8;
 
 // Procedurally generated per-tile textures (plan.md §11.2 "Real texture
 // atlas image") — a per-pixel pattern (speckle/mottle, brick mortar grid,

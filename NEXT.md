@@ -1,9 +1,10 @@
 # NEXT.md
 
 Handoff document for resuming work on **cna-craft**. Last updated after the
-**chunk-system redesign** (plan.md §12.1 item 19: unbounded, streamed world)
-was fully planned, implemented across 7 phases, and shipped on branch
-`develop`.
+**chunk-system redesign** (plan.md §12.1 item 19: unbounded, streamed world,
+7 phases) and, immediately after in the same day, **the block roster expansion
+to Craft's full 54-item set** (plan.md §12.1 item 25: Chest, the other 5
+flower colors, all 32 dye colors) — both shipped on branch `develop`.
 
 ## 1. Project summary
 
@@ -42,19 +43,23 @@ path for plants), backend-agnostic game code, two-mesh-buffer
 **Build status**: verified at the end of this session (EasyGL backend) —
 clean configure + build from scratch, zero warnings, `CnaCraft` executable
 links and runs. Verified via real interactive Xvfb/xdotool/ImageMagick
-screenshots: flew far beyond the old 128×128 boundary in multiple
-directions, confirmed terrain streams in cleanly with no permanent visual
-holes (a real bug found and fixed this session — see §3), flew back toward
-spawn, confirmed no crashes/leaks and a bounded thread count throughout.
+screenshots for both pieces of work: the chunk redesign (flew far beyond the
+old 128×128 boundary in multiple directions, confirmed terrain streams in
+cleanly with no permanent visual holes — a real bug found and fixed, see
+§3 — flew back toward spawn, confirmed no crashes/leaks and a bounded
+thread count throughout) and the roster expansion (cycled the hotbar
+through all 54 slots via `E`, confirmed the HUD showed the right name at
+each slot, confirmed naturally-generated flowers now render in more than
+one color side by side).
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **207 checks, all
-passing** (up from 173 at the start of this session). Plus
+**Test status**: `tests/worlds_smoke_test.cpp` — **226 checks, all
+passing** (up from 173 at the start of the chunk-redesign session). Plus
 `cna_craft_persistence_smoke_test` — **30 checks, all passing** (up from
 21). Both build and run standalone with `-DCNA_CRAFT_BUILD_GAME=OFF`.
 
-**plan.md §12.1 status as of this session's end** (24 items):
+**plan.md §12.1 status as of this session's end** (25 items):
 - **22 `completed`**: everything from before, plus item 19 (chunk-system
-  redesign — see §3 below).
+  redesign) and item 25 (full 54-item block roster) — see §3 below.
 - **1 `blocked`**: ambient occlusion (needs a custom `ShaderEffect`, only
   real on EASYGL today).
 - **1 `pending (large)`**: Chat/slash-commands — shares the text-input
@@ -119,6 +124,35 @@ started (plan.md §12.1 item 19 has the full per-phase writeup):
 Test count progression: 173 → 199 (phases 1-3, incremental) → 207 (phase 5)
 in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
 (phase 5) in `persistence_smoke_test`.
+
+8. **Block roster expansion to Craft's full 54 items** (plan.md §12.1 item
+   25, CRAFT_PARITY.md §2.2/§3.7), picked up immediately after item 19 in
+   the same day, per user choice between it and Chat/slash-commands. Added
+   `Chest` (plain solid cube, no special mesh), the other 5 flower colors
+   (`Red/Purple/Sun/White/BlueFlower` — reuse the existing plant-billboard
+   path unchanged), and all 32 dye colors (`Dye00`-`Dye31`, plain solid
+   cubes). **New `BlockType` values appended after `Bedrock`, never
+   inserted earlier** — `WorldStore` persists `BlockType` as its raw enum
+   ordinal, so inserting mid-roster would silently reinterpret every
+   existing `world.db`'s saved blocks; `Hotbar::kSlots` likewise appends
+   its 38 new slots after the original 16 so number keys 1-9 and every
+   pre-existing test assertion keep meaning exactly what they always have.
+   `TextureAtlas`'s grid grew 5×5 → 8×8; the 32 dye tiles use real RGB
+   values sampled directly from Craft's own shipped `texture.png` (its dye
+   tiles are flat swatches there too, so there was no "procedural pattern"
+   to invent — matching the real asset was both easier and more faithful).
+   Also ported Craft's real flower color-pick noise (`world.c`) so world
+   generation actually scatters all 6 colors, not just the hotbar. Fixed a
+   test bug caught by the suite itself while writing this: an early version
+   of the new Chest/flower BlockDef test reused one `World` across sub-checks
+   and picked up Chest's opaque geometry in a plant's "should be empty"
+   mesh assertion — split into isolated `World` instances per sub-check.
+   226 checks in `worlds_smoke_test` (up from 207), persistence suite
+   unchanged at 30. Verified against a real EasyGL build under Xvfb: cycled
+   the hotbar through all 54 slots via `E`, confirmed the HUD showed
+   `#21/54 WhiteFlower` through `#35/54 Dye12` correctly, and a screenshot
+   showed naturally-generated orange/yellow and purple flower blooms side
+   by side, confirming the color-pick noise actually varies.
 
 ## 4. Current blocker / main problem
 
@@ -210,6 +244,15 @@ this is just the "if you touch this again" summary):
   **No migration path** from a pre-2026-07-10 `world.db` — it's detected
   and rejected at open (logged, falls back to the no-op store), not
   silently corrupted.
+- `Worlds/BlockType` — **new values must always be appended after the last
+  one (`Bedrock` as of this note), never inserted earlier.**
+  `Persistence::WorldStore` persists `BlockType` as its raw `static_cast
+  <int>` ordinal — inserting mid-enum would silently reinterpret every
+  existing `world.db`'s saved block types on next load, with no error or
+  warning. `Hotbar::kSlots` follows the same append-only convention for the
+  same reason (existing slot numbers are load-bearing for muscle memory and
+  tests). If you add a new block type, add it at the end of the enum and
+  the end of `kSlots`, not wherever feels topically appropriate.
 
 **Everything from before this session** (module list, boundaries, data
 flow, signs, cursor-capture, pitch-coupled flight, floor-catch, etc.) is
@@ -251,25 +294,27 @@ There is no separate lint/format tooling configured in this repo.
 ## 8. Next smallest tasks
 
 `plan.md` §12.1 is the authoritative ordered priority queue. As of this
-session's end, the two remaining large, deliberately-not-started items are:
+session's end, there is exactly **one** remaining real task:
 
-1. **Chat/slash-commands** (CRAFT_PARITY.md §4.5). The text-input state
-   machine is built and reusable (see `CnaCraftGame::Update`'s typing
-   branch) — the remaining scope is Craft's world-editing macro commands
-   (`/cube`, `/sphere`, `/tree`, `/array`, `/copy`, `/paste`, etc.), which
-   need new world-editing primitives that don't exist in this codebase
-   yet. Scope this as its own session.
-2. **Low priority, low value**: the other 5 Craft flower colors, Chest,
-   dye-color palette — technically easy (same plant/cube infrastructure)
-   but low gameplay value, explicitly deprioritized multiple sessions now.
+1. **Chat/slash-commands** (CRAFT_PARITY.md §4.5, plan.md item 17). The
+   text-input state machine is built and reusable (see
+   `CnaCraftGame::Update`'s typing branch) — the remaining scope is Craft's
+   world-editing macro commands (`/cube`, `/sphere`, `/tree`, `/array`,
+   `/copy`, `/paste`, etc.), which need new world-editing primitives that
+   don't exist in this codebase yet. Large enough scope (comparable to the
+   chunk redesign in that it needs new primitives, not just a same-shape
+   port) that it likely deserves its own `EnterPlanMode` pass before
+   diving in, same reasoning as item 19. Scope this as its own session.
 
-Multiplayer stays explicitly deferred per project direction (not "next" —
-just no longer blocked on anything else).
+The low-value content additions (extra flower colors, Chest, dye palette)
+that used to sit here are now done (item 25, see §3). Multiplayer stays
+explicitly deferred per project direction (not "next" — just no longer
+blocked on anything else).
 
 No other item currently needs a design pass — everything else remaining
-(`blocked`/`needs_human`/deferred) is waiting on either a human decision
-(shader-backend choice for AO) or a deliberate scope decision (multiplayer
-timing), not on more design work.
+(`blocked`/deferred) is waiting on either a human decision (shader-backend
+choice for AO) or a deliberate scope decision (multiplayer timing), not on
+more design work.
 
 ## 9. Do not do yet
 
@@ -299,21 +344,26 @@ face-convention change to match Craft's asymmetric scheme) — **plus**:
 - **Don't increase `kCreateRadius` without also addressing culling** — see
   §4's note; render cost scales with loaded-column count and nothing
   culls off-screen chunks today.
+- **Never insert a new `BlockType` value earlier than the last one, and
+  never reorder `Hotbar::kSlots`** — see §6's note; both are append-only
+  for real persistence-compatibility and test-stability reasons, not just
+  tidiness.
 
 ## 10. Resume prompt
 
 ```
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
-as of the last session, 22 of 24 items are completed (including item 19,
-the chunk-system redesign to an unbounded/streamed world), 1 blocked
-(ambient occlusion), 1 pending-large (Chat/slash-commands), 1 pending
-deferred (multiplayer). The two real remaining tasks are Chat/slash-
-commands (reuse the text-input state machine already built for Signs,
-CnaCraftGame::Update's typing branch — the remaining scope is Craft's
-world-editing macro commands) and low-value content additions (extra
-flower colors, Chest, dye palette). Neither needs a design pass first —
-unlike the chunk redesign, these are same-shape ports/additions. Before
+as of the last session, 22 of 25 items are completed (including item 19,
+the chunk-system redesign to an unbounded/streamed world, and item 25, the
+full 54-item block roster), 1 blocked (ambient occlusion), 1 pending-large
+(Chat/slash-commands), 1 pending deferred (multiplayer). The one real
+remaining task is Chat/slash-commands (reuse the text-input state machine
+already built for Signs, CnaCraftGame::Update's typing branch — the
+remaining scope is Craft's world-editing macro commands). Unlike the
+content-roster addition, this one is comparable in scope to the chunk
+redesign (needs new world-editing primitives, not just a same-shape port)
+and likely deserves its own EnterPlanMode pass before diving in. Before
 implementing anything that cites Craft's source code, re-verify the
 citation against the real checkout at
 /rv/data/development/github.com/other/Craft — CRAFT_PARITY.md was

@@ -240,20 +240,23 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   YellowFlower, RedFlower, PurpleFlower, SunFlower, WhiteFlower, BlueFlower, then 32
   `Color00`-`Color31` dye/paint blocks. **`CLOUD` is deliberately excluded from `items[]`** —
   world-gen only, never player-placeable in real Craft.
-- **cna-craft `Hotbar::kSlots`** (16 slots, as of this session): Grass, Dirt, Sand, Stone,
-  Cobblestone, Brick, Plank, Wood, Cement, LightStone, DarkStone, Snow, Glass, Leaves, TallGrass,
-  Flower. `Cloud` **removed this session** (user decision 2026-07-10: match Craft exactly) — it's
-  still a real `BlockType` (world-gen only via `World::GenerateClouds`), just no longer in the
-  placeable roster.
-- **Missing from cna-craft**: Chest, 5 of Craft's 6 flower colors (one representative `Flower`
-  type exists, using the same billboard geometry — see §3.7), all 32 dye colors (low value — a
-  flat-color palette, already noted as "skipped" in `plan.md`'s original block-roster item).
-- **Status**: partial (Cloud-placeability fidelity fixed this session; Chest/other flower
-  colors/dyes remain low-value follow-ups)
+- **cna-craft `Hotbar::kSlots`** (54 slots — matches Craft's real `item_count` exactly, added
+  2026-07-10): Grass, Dirt, Sand, Stone, Cobblestone, Brick, Plank, Wood, Cement, LightStone,
+  DarkStone, Snow, Glass, Leaves, TallGrass, Flower, then Chest, RedFlower, PurpleFlower,
+  SunFlower, WhiteFlower, BlueFlower, then `Dye00`-`Dye31` (32 dye colors, Craft's own
+  `COLOR_00`-`COLOR_31` — Craft doesn't name individual dye colors either). Same item *set* as
+  Craft's `items[]`, different order (the new slots were appended after the original 16 rather
+  than interleaved in Craft's exact positions, since `BlockType`'s enum ordinals are persisted
+  directly — see `BlockType.hpp`'s doc comment). `Cloud` **removed** (user decision 2026-07-10:
+  match Craft exactly) — it's still a real `BlockType` (world-gen only via
+  `World::GenerateClouds`), just not in the placeable roster, matching Craft's own `items[]`
+  never listing `CLOUD` either.
+- **Status**: complete
 - **Craft files**: `src/item.h:4-59`, `src/item.c:4-62`
 - **cna-craft files**: `src/CnaCraft/Worlds/BlockType.hpp`, `src/CnaCraft/Worlds/Hotbar.hpp`
-- **Priority**: medium (done for the Cloud fidelity question)
-- **Verification method**: diff the two ordered lists (done above)
+- **Priority**: medium (done)
+- **Verification method**: unit tests (`TestHotbarSelectionAndCycling`,
+  `TestExpandedRosterBlockDefsMatchExpectedShape`) + diff the two ordered item sets (done above)
 - **Notes**: Whether to remove `Cloud` from the placeable hotbar to match Craft exactly is a
   **design trade-off between Craft fidelity and cna-craft's own existing player-facing feature**
   (players can currently build with clouds) — marked `needs_human`. Chest/plants/dyes are
@@ -489,25 +492,26 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Craft behavior** (`make_plant`, `cube.c:100-158`): a 2-plane "X" cross billboard (4 quads),
   randomly rotated per-block via noise, for TallGrass + 6 flower colors; non-obstacle,
   transparent, always fully rendered (no face culling test).
-- **cna-craft behavior** (implemented this session): `ChunkMesher::EmitPlant` — a 4-quad cross
+- **cna-craft behavior**: `ChunkMesher::EmitPlant` — a 4-quad cross
   billboard (two diagonal planes, each emitted with both windings so it's visible from any angle,
-  matching Craft's 4-quad total exactly), gated by a new `BlockDef.plant` flag. New
-  `BlockType::TallGrass` and `BlockType::Flower` (both plant types — Chest remains deferred, needs
-  its own non-plant mesh shape). `World::GenerateGrassDecoration`/`GenerateFlowers` place them
-  using Craft's real triggers (`simplex2(-x*0.1, z*0.1, 4, 0.8, 2) > 0.6` for grass,
-  `simplex2(x*0.05, -z*0.05, 4, 0.8, 2) > 0.7` for flowers). Craft has 6 distinct flower colors
-  (a second noise sample picks one); this project has one representative `Flower` type, so that
-  color-pick sample is skipped — adding the other 5 colors later is just a new tile/enum value on
-  the same path, not new logic. Not ported: per-block random Y-axis rotation (Craft's
-  `mat_rotate`) — cna-craft's cross is axis-aligned to the world's diagonal, not per-instance-
-  randomized; a cosmetic simplification, not a structural gap.
-- **Status**: complete (TallGrass + one representative Flower — 5 more flower colors and Chest
-  remain a small content follow-up using the same path, low value, not picked up)
-- **Craft files**: `src/cube.c:100-158`, `src/item.c` (`is_plant`)
+  matching Craft's 4-quad total exactly), gated by a new `BlockDef.plant` flag. `BlockType::
+  TallGrass` and all 6 flower colors (`Flower`/`RedFlower`/`PurpleFlower`/`SunFlower`/
+  `WhiteFlower`/`BlueFlower` — the other 5 added 2026-07-10, see §2.2) are plant types.
+  `World::GenerateGrassDecoration`/`GenerateFlowers` place them using Craft's real triggers
+  (`simplex2(-x*0.1, z*0.1, 4, 0.8, 2) > 0.6` for grass, `simplex2(x*0.05, -z*0.05, 4, 0.8, 2) >
+  0.7` for flowers). Craft's second noise sample picking one of the 6 flower colors
+  (`18 + simplex2(x*0.1, z*0.1, 4, 0.8, 2) * 7`) is now ported too, clamped to always land on a
+  real color (Craft's literal formula can overshoot past its own valid range when the noise
+  sample drifts slightly above 1.0 — an upstream quirk not worth reproducing). Not ported:
+  per-block random Y-axis rotation (Craft's `mat_rotate`) — cna-craft's cross is axis-aligned to
+  the world's diagonal, not per-instance-randomized; a cosmetic simplification, not a structural
+  gap.
+- **Status**: complete
+- **Craft files**: `src/cube.c:100-158`, `src/item.c` (`is_plant`), `src/world.c` (color-pick)
 - **cna-craft files**: `src/CnaCraft/Worlds/ChunkMesher.cpp` (`EmitPlant`),
-  `src/CnaCraft/Worlds/BlockType.hpp` (`BlockDef.plant`, `BlockType::TallGrass`/`Flower`),
-  `src/CnaCraft/Worlds/World.cpp` (`GenerateGrassDecoration`, `GenerateFlowers`),
-  `src/CnaCraft/Render/TextureAtlas.cpp` (tiles 19-20, `Pattern::GrassBlade`/`Flower`)
+  `src/CnaCraft/Worlds/BlockType.hpp` (`BlockDef.plant`, the 6 flower `BlockType`s),
+  `src/CnaCraft/Worlds/World.cpp` (`GenerateGrassDecoration`, `GenerateFlowersColumn`),
+  `src/CnaCraft/Render/TextureAtlas.cpp` (tiles 19-20/22-26, `Pattern::GrassBlade`/`Flower`)
 - **Priority**: high (done)
 - **Verification method**: visual — confirmed via a real EasyGL build screenshot showing
   blade-shaped billboards with transparent gaps growing out of grass terrain (TallGrass; Flower
@@ -778,15 +782,19 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 ### 5.5 Texture atlas
 - **Craft behavior**: a real 256×256 hand-authored `texture.png`, 16×16 grid of 16px tiles,
   `blocks[w][6]` per-face tile-index table.
-- **cna-craft behavior**: `BuildProceduralAtlas` — a 5×5 grid (19 tiles used of 25 slots),
-  procedurally patterned (no art asset), documented as a deliberate substitution.
+- **cna-craft behavior**: `BuildProceduralAtlas` — an 8×8 grid (59 tiles used of 64 slots, grown
+  from 5×5/25 on 2026-07-10 to fit the expanded block roster's new tiles — see §2.2), mostly
+  procedurally patterned (no art asset). One exception: the 32 dye-color tiles (27-58) use real
+  RGB values sampled directly from Craft's own shipped `textures/texture.png`, since those tiles
+  are flat swatches there too — nothing procedural to invent, so matching the real asset was both
+  easier and more faithful for that one block group.
 - **Status**: partial (deliberate)
 - **Craft files**: `textures/texture.png`, `src/cube.c:54-64,87-92`
 - **cna-craft files**: `src/CnaCraft/Render/TextureAtlas.{hpp,cpp}`
 - **Priority**: low
 - **Notes**: Functionally equivalent (each block gets a distinct texture); not visually
-  equivalent to Craft's hand-drawn art. Adopting a real authored texture asset is a
-  `needs_human` decision (new asset dependency).
+  equivalent to Craft's hand-drawn art for the non-dye tiles. Adopting a real authored texture
+  asset for the rest is a `needs_human` decision (new asset dependency).
 
 ### 5.6 Crosshair / wireframe selection outline
 - See §2.4 above (moved there since it's gameplay-facing, not purely cosmetic) —
@@ -820,7 +828,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 1.8 | Gravity/jump (terminal velocity + **floor-catch fixed this session**) | complete | medium |
 | 1.9 | Zoom/ortho/arrow-look | complete | low |
 | 2.1 | Hotbar switching (0/R/scroll) | **fixed this session** | medium |
-| 2.2 | Block roster (Cloud fidelity **fixed this session**) | partial | medium |
+| 2.2 | Block roster (**full 54-item roster completed 2026-07-10**) | complete | medium |
 | 2.3 | Raycast algorithm (**reach fixed this session, 6->8**) | complete | low |
 | 2.4 | Wireframe selection outline | **fixed this session** | high |
 | 2.5 | Block breaking (Bedrock protection) | **fixed this session** | critical |
@@ -833,7 +841,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 3.4 | Face culling | complete | low |
 | 3.5 | Mesh generation | complete | low |
 | 3.6 | Transparent blocks | complete | low |
-| 3.7 | Plants/flowers/tall grass (**fixed this session** — TallGrass + Flower) | complete | high |
+| 3.7 | Plants/flowers/tall grass (all 6 flower colors **completed 2026-07-10**) | complete | high |
 | 3.8 | Trees | complete | low |
 | 3.9 | Caves/overhangs | needs_human | n/a (no reference exists) |
 | 3.10 | Clouds | complete | low |

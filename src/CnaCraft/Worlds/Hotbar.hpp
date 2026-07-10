@@ -25,15 +25,35 @@ namespace CnaCraft::Worlds {
 // removed here to match that exactly, even though it briefly existed as a
 // placeable slot in an earlier session before the fidelity-vs-feature
 // trade-off was resolved.
+//
+// Slots 17-54 (Chest, the other 5 flower colors, the 32 dye colors) were
+// appended after the original 16 rather than interleaved in Craft's own
+// `items[]` order — `BlockType`'s enum ordinals are persisted directly
+// (`Persistence::WorldStore`), and slots 1-16 are already load-bearing in
+// existing tests/saves, so this list only ever grows at the tail, matching
+// `BlockType`'s own append-only convention (see its doc comment). Craft's
+// real `item_count` is 54 with this exact roster (16 base blocks + 6
+// flower colors + 32 dye colors, `item.c`), so `SlotCount()` now matches
+// Craft's real inventory size exactly, just in a different slot order.
 class Hotbar {
 public:
-    static constexpr std::array<BlockType, 16> kSlots = {
+    static constexpr std::array<BlockType, 54> kSlots = {
         BlockType::Grass,      BlockType::Dirt,     BlockType::Sand,
         BlockType::Stone,      BlockType::Cobblestone, BlockType::Brick,
         BlockType::Plank,      BlockType::Wood,     BlockType::Cement,
         BlockType::LightStone, BlockType::DarkStone, BlockType::Snow,
         BlockType::Glass,      BlockType::Leaves,
-        BlockType::TallGrass,  BlockType::Flower};
+        BlockType::TallGrass,  BlockType::Flower,
+        BlockType::Chest,      BlockType::RedFlower, BlockType::PurpleFlower,
+        BlockType::SunFlower,  BlockType::WhiteFlower, BlockType::BlueFlower,
+        BlockType::Dye00, BlockType::Dye01, BlockType::Dye02, BlockType::Dye03,
+        BlockType::Dye04, BlockType::Dye05, BlockType::Dye06, BlockType::Dye07,
+        BlockType::Dye08, BlockType::Dye09, BlockType::Dye10, BlockType::Dye11,
+        BlockType::Dye12, BlockType::Dye13, BlockType::Dye14, BlockType::Dye15,
+        BlockType::Dye16, BlockType::Dye17, BlockType::Dye18, BlockType::Dye19,
+        BlockType::Dye20, BlockType::Dye21, BlockType::Dye22, BlockType::Dye23,
+        BlockType::Dye24, BlockType::Dye25, BlockType::Dye26, BlockType::Dye27,
+        BlockType::Dye28, BlockType::Dye29, BlockType::Dye30, BlockType::Dye31};
 
     static constexpr int kMaxNumberKeySlots = 9;
 

@@ -71,7 +71,7 @@ cmake --build build --target CnaCraft
 | Right click       | Place block (currently selected type); blocked if it would overlap your own position |
 | Middle click      | Eyedropper — select the hotbar slot matching the targeted block's type |
 | 1-9, 0            | Select hotbar slot directly (1-9 = slots 1-9, 0 = slot 10) |
-| E / R             | Cycle to next / previous hotbar slot (all 16 slots) |
+| E / R             | Cycle to next / previous hotbar slot (all 54 slots) |
 | Scroll wheel      | Also cycles the hotbar slot (same as E/R)|
 | Left Shift (hold) | Zoom (narrow FOV)                   |
 | F (hold)          | Orthographic projection               |
@@ -81,7 +81,7 @@ cmake --build build --target CnaCraft
 | Backspace         | Delete the last character while typing a sign |
 | Esc               | While typing a sign: cancel. Otherwise: release the mouse cursor (matches Craft — there is no in-game quit key; close the window to quit) |
 
-A crosshair and the currently-selected hotbar item (e.g. `#4/16 Stone`, with a
+A crosshair and the currently-selected hotbar item (e.g. `#4/54 Stone`, with a
 `[FLYING]` indicator while flying) are drawn on screen; both are also printed
 to the console when they change. While typing a sign, WASD/mouse-look/click
 input is suspended (gravity still applies) and the in-progress text is shown

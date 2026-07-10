@@ -44,7 +44,53 @@ const TileColor kTileColors[] = {
     {235, 235, 240, 255}, // 17: cloud
     {55, 120, 40, 215},   // 18: leaves (mottled green, partially transparent like glass)
     {75, 155, 50, 235},   // 19: tall grass (blade green; per-pixel gaps carve the blade shape)
-    {235, 210, 60, 255},  // 20: flower (petal yellow; stem+bloom pattern carves the shape)
+    {235, 210, 60, 255},  // 20: flower (petal yellow — Craft's YELLOW_FLOWER)
+    {150, 100, 60, 255},  // 21: chest (wooden-crate brown)
+    {200, 50, 50, 255},   // 22: red flower (Craft's RED_FLOWER)
+    {150, 75, 175, 255},  // 23: purple flower (Craft's PURPLE_FLOWER)
+    {230, 160, 30, 255},  // 24: sun flower (Craft's SUN_FLOWER)
+    {245, 245, 238, 255}, // 25: white flower (Craft's WHITE_FLOWER)
+    {95, 125, 240, 255},  // 26: blue flower (Craft's BLUE_FLOWER)
+    // 27-58: the 32 dye/paint colors (Craft's COLOR_00..COLOR_31, item.h) —
+    // sampled directly from the real Craft's shipped textures/texture.png
+    // (tiles 176-207 there), unlike every other tile above, which is an
+    // original procedural placeholder. Real Craft's own atlas has no
+    // procedural texture for these either (they're flat swatches, no
+    // mortar/grain/bark pattern), so a plain Mottle-pattern swatch here is
+    // already a faithful match, not a placeholder standing in for a
+    // pattern Craft actually has.
+    {246, 237, 59, 255},  // 27: Dye00
+    {149, 221, 80, 255},  // 28: Dye01
+    {111, 191, 56, 255},  // 29: Dye02
+    {59, 148, 111, 255},  // 30: Dye03
+    {79, 108, 53, 255},   // 31: Dye04
+    {79, 72, 35, 255},    // 32: Dye05
+    {54, 64, 61, 255},    // 33: Dye06
+    {64, 64, 114, 255},   // 34: Dye07
+    {112, 112, 112, 255}, // 35: Dye08
+    {96, 93, 90, 255},    // 36: Dye09
+    {122, 73, 141, 255},  // 37: Dye10
+    {174, 58, 58, 255},   // 38: Dye11
+    {210, 87, 98, 255},   // 39: Dye12
+    {215, 128, 188, 255}, // 40: Dye13
+    {146, 153, 80, 255},  // 41: Dye14
+    {144, 118, 58, 255},  // 42: Dye15
+    {32, 32, 32, 255},    // 43: Dye16
+    {37, 35, 54, 255},    // 44: Dye17
+    {73, 45, 64, 255},    // 45: Dye18
+    {101, 58, 50, 255},   // 46: Dye19
+    {139, 85, 59, 255},   // 47: Dye20
+    {218, 114, 42, 255},  // 48: Dye21
+    {210, 156, 101, 255}, // 49: Dye22
+    {228, 187, 148, 255}, // 50: Dye23
+    {55, 101, 133, 255},  // 51: Dye24
+    {92, 110, 220, 255},  // 52: Dye25
+    {103, 157, 252, 255}, // 53: Dye26
+    {93, 197, 219, 255},  // 54: Dye27
+    {204, 219, 250, 255}, // 55: Dye28
+    {254, 254, 254, 255}, // 56: Dye29
+    {156, 173, 182, 255}, // 57: Dye30
+    {128, 123, 131, 255}, // 58: Dye31
 };
 constexpr int kTileCount = sizeof(kTileColors) / sizeof(kTileColors[0]);
 
@@ -82,6 +128,24 @@ constexpr TilePattern kTilePatterns[] = {
     {Pattern::Mottle, 0.30f},    // 18: leaves (punchy speckle, like foliage clumps)
     {Pattern::GrassBlade, 0.0f}, // 19: tall grass (vertical blade streaks with cutout gaps)
     {Pattern::Flower, 0.0f},     // 20: flower (stem + bloom cutout shape)
+    {Pattern::Plank, 0.0f},      // 21: chest (crate-plank seams, same look as Plank)
+    {Pattern::Flower, 0.0f},     // 22: red flower
+    {Pattern::Flower, 0.0f},     // 23: purple flower
+    {Pattern::Flower, 0.0f},     // 24: sun flower
+    {Pattern::Flower, 0.0f},     // 25: white flower
+    {Pattern::Flower, 0.0f},     // 26: blue flower
+    // 27-58: dye colors are flat swatches in real Craft too (see the
+    // kTileColors comment above) — a very subtle mottle keeps them from
+    // looking like a completely flat-shaded debug color, without adding a
+    // pattern Craft's own dye tiles don't have.
+    {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, // 27-30
+    {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, // 31-34
+    {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, // 35-38
+    {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, // 39-42
+    {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, // 43-46
+    {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, // 47-50
+    {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, // 51-54
+    {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, // 55-58
 };
 
 // Deterministic per-pixel hash noise (same technique as
