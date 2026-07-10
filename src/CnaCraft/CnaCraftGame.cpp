@@ -1,8 +1,10 @@
 #include "CnaCraftGame.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
+#include <utility>
 #include <vector>
 
 #include "Microsoft/Xna/Framework/BoundingFrustum.hpp"
@@ -45,22 +47,47 @@ constexpr std::uint32_t kWorldSeed = 1337;
 // (`g->ortho = ... ? 64 : 0`), not a toggle despite the backlog's wording.
 constexpr float kOrthoViewHeight = 24.0f; // world units (blocks) of vertical view extent
 
+// Chunk streaming radii (plan.md §12.1 item 19), in chunk-grid units (each
+// chunk = Worlds::CHUNK_SIZE=16 blocks) -- deliberately NOT copying Craft's
+// literal 10/10/14 (its own CHUNK_SIZE=32 doubles the absolute-blocks
+// math); this project's own starting point, the same rough order of
+// magnitude as the old fixed 128x128 world (8 chunks across) but now
+// unbounded. render == create (no separate render-distance check in
+// Draw() -- frustum culling alone decides visibility among loaded chunks,
+// same as before streaming existed; nothing loaded is ever farther than
+// kDeleteRadius anyway). delete > create (hysteresis margin, matches
+// Craft's own create/delete gap, so a column right at the boundary
+// doesn't load/unload every frame as the player moves back and forth
+// across it).
+constexpr int kCreateRadius = 6;
+constexpr int kDeleteRadius = 9;
+// Budget cap on new column loads per frame, even while this whole pass
+// stays synchronous (a later phase backgrounds it) -- bounds worst-case
+// frame cost from a fast fly-mode dash into unloaded territory. The
+// initial spawn force-load in Initialize() ignores this cap (loads
+// everything within kCreateRadius up front, all at once, matching Craft's
+// own startup force_chunks call, so the player never sees an empty world
+// even briefly).
+constexpr int kMaxColumnLoadsPerFrame = 2;
+
 // Distance fog (CRAFT_PARITY.md §5.2): Craft's own block_vertex.glsl fades
-// toward a sampled sky-texture color by camera distance
-// (`fog_distance = render_radius * CHUNK_SIZE`, 320 units in real Craft).
-// This project has no sky dome/texture yet (separate backlog item), so
-// FogColor is set to the same flat sky clear color already computed below
-// each frame instead — same "fade toward the sky" intent, simpler source.
-// Verified NOT blocked by the shader-backend limitations in missing.md:
-// BasicEffect's fog is standard XNA surface (FogEnabled/FogColor/FogStart/
-// FogEnd), not a custom ShaderEffect — CNA has real fog support for the
-// lit+textured BasicEffect path on EASYGL, VULKAN, and BGFX alike (see
+// toward a sampled sky-texture color by camera distance, with
+// `fog_distance = render_radius * CHUNK_SIZE` (320 units in real Craft) --
+// tying fog to the render radius isn't just cosmetic in Craft, it hides
+// the pop-in at the edge of the loaded/streamed region. This project has
+// no sky dome texture yet (separate backlog item), so FogColor is set to
+// the same flat sky clear color already computed below each frame instead
+// — same "fade toward the sky" intent, simpler source. Verified NOT
+// blocked by the shader-backend limitations in missing.md: BasicEffect's
+// fog is standard XNA surface (FogEnabled/FogColor/FogStart/FogEnd), not a
+// custom ShaderEffect — CNA has real fog support for the lit+textured
+// BasicEffect path on EASYGL, VULKAN, and BGFX alike (see
 // ../cna/examples/{easygl,vulkan,bgfx}_basiceffect_lit_fog_test.cpp).
-// kFogStart/kFogEnd are scaled to this project's fixed 128x64x128 world
-// (horizontal diagonal ~181 units) rather than Craft's streamed-world
-// render radius, which has no equivalent here.
-constexpr float kFogStart = 70.0f;
-constexpr float kFogEnd = 150.0f;
+// kFogStart/kFogEnd now track kCreateRadius (previously scaled to this
+// project's old fixed 128x64x128 world's ~181-unit diagonal, which no
+// longer has any meaning once the world is unbounded).
+constexpr float kFogEnd = static_cast<float>(kCreateRadius * Worlds::CHUNK_SIZE);
+constexpr float kFogStart = kFogEnd * 0.5f;
 }
 
 CnaCraftGame::CnaCraftGame() : graphics_(this) {
@@ -81,20 +108,18 @@ void CnaCraftGame::Initialize() {
 
     Mouse::setIsRelativeMouseModeEXTProperty(true);
 
-    world_.Generate(kWorldSeed);
-
-    // World persistence (CRAFT_PARITY.md §4.1/§4.2): load any saved edits
-    // on top of the freshly (deterministically) regenerated terrain, before
-    // the initial chunk mesh build below picks them up. `world.db` in the
-    // working directory, matching Craft's own simple single-default-file
-    // approach (`DB_PATH`, src/db.c) rather than a save-slot system.
+    // World persistence (CRAFT_PARITY.md §4.1/§4.2): opened before any
+    // column loads, so LoadColumn (called by the spawn force-load below)
+    // can immediately overlay persisted edits/signs on top of each
+    // freshly generated column, same order as before streaming existed.
+    // `world.db` in the working directory, matching Craft's own simple
+    // single-default-file approach (`DB_PATH`, src/db.c) rather than a
+    // save-slot system.
     worldStore_ = std::make_unique<Persistence::WorldStore>("world.db");
     if (!worldStore_->IsOpen()) {
         std::printf("WorldStore: could not open world.db -- edits will not be saved this session\n");
         std::fflush(stdout);
     }
-    worldStore_->LoadInto(world_);
-    worldStore_->LoadSignsInto(signStore_);
 
     // Text input for placing signs (CRAFT_PARITY.md §4.3) — a single
     // persistent handler, gated on isTypingSign_ so keystrokes are ignored
@@ -111,14 +136,16 @@ void CnaCraftGame::Initialize() {
         }
     };
 
-    chunkRenderers_.reserve(
-        static_cast<std::size_t>(Worlds::WORLD_CHUNKS_X) * Worlds::WORLD_CHUNKS_Y * Worlds::WORLD_CHUNKS_Z);
-    for (int cz = 0; cz < Worlds::WORLD_CHUNKS_Z; ++cz) {
-        for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
-            for (int cx = 0; cx < Worlds::WORLD_CHUNKS_X; ++cx) {
-                chunkRenderers_.emplace_back(
-                    cx * Worlds::CHUNK_SIZE, cy * Worlds::CHUNK_SIZE, cz * Worlds::CHUNK_SIZE);
-            }
+    // Spawn at world-origin (0,0) (CRAFT_PARITY.md §1.2/§3.1, plan.md
+    // §12.1 item 19) — matches Craft's own actual behavior exactly; there's
+    // no "center of a bounded world" once the world streams. Force-
+    // generate+mesh every column within kCreateRadius synchronously, all at
+    // once, ignoring the per-frame budget cap UpdateStreaming uses later —
+    // mirrors Craft's own startup force_chunks call, so the player never
+    // spawns into (or briefly sees) an ungenerated void.
+    for (int dz = -kCreateRadius; dz <= kCreateRadius; ++dz) {
+        for (int dx = -kCreateRadius; dx <= kCreateRadius; ++dx) {
+            LoadColumn(dx, dz);
         }
     }
     RebuildDirtyChunks();
@@ -146,12 +173,12 @@ void CnaCraftGame::Initialize() {
     // right next to spawn, permanently wedging the player against it --
     // unable to reach its own column's true floor or move in any direction.
     // Spawning at block *center* (integer + 0.5) keeps the hitbox fully
-    // inside its own column instead.
-    const int spawnColumnX = Worlds::WORLD_SIZE_X / 2;
-    const int spawnColumnZ = Worlds::WORLD_SIZE_Z / 2;
-    const float spawnX = static_cast<float>(spawnColumnX) + 0.5f;
-    const float spawnZ = static_cast<float>(spawnColumnZ) + 0.5f;
-    const int spawnHeight = Worlds::NoiseGenerator::Height(kWorldSeed, spawnColumnX, spawnColumnZ);
+    // inside its own column instead. Spawn column is now world-origin
+    // (0,0) (see the force-load loop above), not "the center of the fixed
+    // world" -- there's no such thing once the world streams.
+    const float spawnX = 0.5f;
+    const float spawnZ = 0.5f;
+    const int spawnHeight = Worlds::NoiseGenerator::Height(kWorldSeed, 0, 0);
     player_ = std::make_unique<Worlds::PlayerController>(
         Core::Vec3f{spawnX, static_cast<float>(spawnHeight + 2), spawnZ});
 
@@ -169,18 +196,93 @@ void CnaCraftGame::Initialize() {
 
 void CnaCraftGame::RebuildDirtyChunks() {
     auto& device = getGraphicsDeviceProperty();
-    std::size_t i = 0;
-    for (int cz = 0; cz < Worlds::WORLD_CHUNKS_Z; ++cz) {
+    // Iterates chunkRenderers_ (not World::LoadedColumns()) since every
+    // loaded column always has a matching chunkRenderers_ entry (LoadColumn
+    // creates both together) -- this is the exact key both containers
+    // share, replacing the old flat-vector "index i means the same chunk in
+    // both containers" assumption with an explicit lookup.
+    for (auto& [key, renderers] : chunkRenderers_) {
+        int cx = 0, cz = 0;
+        Worlds::World::UnpackColumnKey(key, cx, cz);
         for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
-            for (int cx = 0; cx < Worlds::WORLD_CHUNKS_X; ++cx, ++i) {
-                Worlds::Chunk& chunk = world_.ChunkAt(cx, cy, cz);
-                if (chunk.IsDirty()) {
-                    chunkRenderers_[i].Rebuild(device, world_);
-                    chunk.ClearDirty();
-                }
+            Worlds::Chunk& chunk = world_.ChunkAt(cx, cy, cz);
+            if (chunk.IsDirty()) {
+                renderers[static_cast<std::size_t>(cy)]->Rebuild(device, world_);
+                chunk.ClearDirty();
             }
         }
     }
+}
+
+void CnaCraftGame::MarkNeighborColumnsDirty(int cx, int cz) {
+    // Whenever a column loads or unloads, its face-adjacent neighbors'
+    // shared boundary faces need re-meshing: a neighbor meshed before this
+    // column existed culled that shared face against "phantom Air" (or, on
+    // unload, needs to show it again now that the neighbor is gone) --
+    // see LoadColumn/UnloadColumn.
+    static constexpr int kOffsetsX[4] = {-1, 1, 0, 0};
+    static constexpr int kOffsetsZ[4] = {0, 0, -1, 1};
+    for (int i = 0; i < 4; ++i) {
+        const int ncx = cx + kOffsetsX[i], ncz = cz + kOffsetsZ[i];
+        if (!world_.IsColumnLoaded(ncx, ncz)) continue;
+        for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
+            world_.ChunkAt(ncx, cy, ncz).MarkDirty();
+        }
+    }
+}
+
+void CnaCraftGame::LoadColumn(int cx, int cz) {
+    world_.GenerateColumn(cx, cz, kWorldSeed);
+    worldStore_->LoadColumnInto(world_, cx, cz);
+    worldStore_->LoadColumnSignsInto(signStore_, cx, cz);
+    signsNeedRebuild_ = true; // this column may have contributed persisted signs
+
+    auto& renderers = chunkRenderers_[Worlds::World::PackColumnKey(cx, cz)];
+    for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
+        renderers[static_cast<std::size_t>(cy)] = std::make_unique<Render::ChunkRenderer>(
+            cx * Worlds::CHUNK_SIZE, cy * Worlds::CHUNK_SIZE, cz * Worlds::CHUNK_SIZE);
+    }
+    // Each freshly-created Chunk already starts dirty (Chunk's own default),
+    // so this column's own chunks don't need marking here -- only the
+    // already-loaded neighbors, whose meshes predate this column.
+    MarkNeighborColumnsDirty(cx, cz);
+}
+
+void CnaCraftGame::UnloadColumn(int cx, int cz) {
+    world_.UnloadColumn(cx, cz);
+    chunkRenderers_.erase(Worlds::World::PackColumnKey(cx, cz));
+    MarkNeighborColumnsDirty(cx, cz);
+    // A sign can't survive after the World data it was attached to is gone
+    // (plan.md §12.1 item 19) -- otherwise it'd either accumulate
+    // unboundedly in memory over a long streamed-world session, or desync
+    // from a later re-generated column that doesn't know about it until
+    // WorldStore's own LoadColumnSignsInto reloads it.
+    if (signStore_.RemoveAllInColumn(cx, cz)) signsNeedRebuild_ = true;
+}
+
+void CnaCraftGame::UpdateStreaming(int playerCx, int playerCz) {
+    int loadsThisFrame = 0;
+    for (int dz = -kCreateRadius; dz <= kCreateRadius && loadsThisFrame < kMaxColumnLoadsPerFrame; ++dz) {
+        for (int dx = -kCreateRadius; dx <= kCreateRadius && loadsThisFrame < kMaxColumnLoadsPerFrame; ++dx) {
+            const int cx = playerCx + dx, cz = playerCz + dz;
+            if (world_.IsColumnLoaded(cx, cz)) continue;
+            LoadColumn(cx, cz);
+            ++loadsThisFrame;
+        }
+    }
+
+    // Collect first, then unload -- erasing from chunkRenderers_ while
+    // iterating it would invalidate the iterator.
+    std::vector<std::pair<int, int>> toUnload;
+    for (const auto& [key, renderers] : chunkRenderers_) {
+        (void)renderers;
+        int ucx = 0, ucz = 0;
+        Worlds::World::UnpackColumnKey(key, ucx, ucz);
+        if (std::max(std::abs(ucx - playerCx), std::abs(ucz - playerCz)) > kDeleteRadius) {
+            toUnload.emplace_back(ucx, ucz);
+        }
+    }
+    for (const auto& [ucx, ucz] : toUnload) UnloadColumn(ucx, ucz);
 }
 
 void CnaCraftGame::Update(GameTime& gameTime) {
@@ -349,6 +451,17 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     tabWasDown_ = tabDown;
 
     player_->Update(world_, input, dt);
+
+    // Chunk streaming (plan.md §12.1 item 19): load/unload columns around
+    // the player's new position every frame. Not gated on movement having
+    // actually happened -- IsColumnLoaded checks make repeated calls at the
+    // same position cheap no-ops, same "safe to call every frame" pattern
+    // as WorldStore::SaveEdits.
+    {
+        const Core::Vec3f eye = player_->EyePosition();
+        UpdateStreaming(Worlds::ChunkCoordOf(static_cast<int>(std::floor(eye.x))),
+                         Worlds::ChunkCoordOf(static_cast<int>(std::floor(eye.z))));
+    }
 
     // Raycast once per frame -- reused for break/place, the middle-click
     // eyedropper, and the visible targeted-block outline (CRAFT_PARITY.md
@@ -578,14 +691,19 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     device.SetDepthWriteEnabled(true);
 
     // Per-chunk frustum culling (plan.md §11.2): only draw chunks whose AABB
-    // intersects the current view frustum. Cheap at today's fixed 32-chunk
-    // world size, but the point is to stay correct once the world is bigger
-    // (§9 M7) — mirrors Craft's own naive AABB-vs-frustum test in
-    // src/main.c's render_chunks.
+    // intersects the current view frustum — mirrors Craft's own naive
+    // AABB-vs-frustum test in src/main.c's render_chunks. No separate
+    // render-distance check: kCreateRadius == kRenderRadius (see the
+    // constant's comment), so nothing loaded is ever farther away than
+    // kDeleteRadius, and frustum culling alone decides per-frame visibility
+    // among loaded chunks, same as before streaming existed.
     const BoundingFrustum frustum(effect_->View * effect_->Projection);
-    for (auto& renderer : chunkRenderers_) {
-        if (!frustum.Intersects(renderer.Bounds())) continue;
-        renderer.DrawOpaque(device, *effect_);
+    for (auto& [key, renderers] : chunkRenderers_) {
+        (void)key;
+        for (auto& renderer : renderers) {
+            if (!frustum.Intersects(renderer->Bounds())) continue;
+            renderer->DrawOpaque(device, *effect_);
+        }
     }
 
     // Signs (CRAFT_PARITY.md §4.3) — lit/textured quads, drawn with the same
@@ -617,9 +735,12 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     // solid-then-glass pass.
     device.SetBlendEnabled(true);
     device.SetDepthWriteEnabled(false);
-    for (auto& renderer : chunkRenderers_) {
-        if (!frustum.Intersects(renderer.Bounds())) continue;
-        renderer.DrawTransparent(device, *effect_);
+    for (auto& [key, renderers] : chunkRenderers_) {
+        (void)key;
+        for (auto& renderer : renderers) {
+            if (!frustum.Intersects(renderer->Bounds())) continue;
+            renderer->DrawTransparent(device, *effect_);
+        }
     }
     device.SetDepthWriteEnabled(true);
     device.SetBlendEnabled(false);

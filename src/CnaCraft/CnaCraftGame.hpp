@@ -1,7 +1,9 @@
 #pragma once
 
+#include <array>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "Microsoft/Xna/Framework/Game.hpp"
@@ -49,13 +51,39 @@ private:
     void RebuildDirtyChunks();
     void CaptureScreenshot(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
 
+    // Chunk streaming (plan.md §12.1 item 19) -- synchronous for now (a
+    // later phase backgrounds generation/meshing via sharp-runtime Task).
+    // Loads any not-yet-loaded column within kCreateRadius of the player's
+    // current position (budget-capped per frame), unloads any loaded
+    // column beyond kDeleteRadius.
+    void UpdateStreaming(int playerCx, int playerCz);
+    // Generates (or loads from world.db on top of fresh terrain) one
+    // column and creates its matching chunkRenderers_ entries. Also marks
+    // already-loaded face-adjacent neighbor columns dirty, since their
+    // shared boundary faces were meshed against "phantom Air" before this
+    // column existed.
+    void LoadColumn(int cx, int cz);
+    // Frees one column's World data and chunkRenderers_ entries. Marks
+    // still-loaded face-adjacent neighbor columns dirty, so their shared
+    // boundary faces re-appear now that this column is gone (same
+    // reasoning as LoadColumn, in reverse).
+    void UnloadColumn(int cx, int cz);
+    void MarkNeighborColumnsDirty(int cx, int cz);
+
     Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::BasicEffect> effect_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> atlasTexture_;
 
     Worlds::World world_;
     std::unique_ptr<Worlds::PlayerController> player_;
-    std::vector<Render::ChunkRenderer> chunkRenderers_;
+    // Keyed identically to Worlds::World's own column storage (Worlds::
+    // World::PackColumnKey) -- a real correctness fix over the old flat
+    // std::vector, which was only ever kept in lockstep with World's
+    // indexing by construction order (both built by an identical triple-
+    // nested loop), a fragile assumption a hash-map-keyed lookup removes
+    // entirely.
+    std::unordered_map<Worlds::ColumnKey, std::array<std::unique_ptr<Render::ChunkRenderer>, Worlds::WORLD_CHUNKS_Y>>
+        chunkRenderers_;
     Worlds::Hotbar hotbar_;
 
     // World persistence (CRAFT_PARITY.md §4.1/§4.2) — loaded once in

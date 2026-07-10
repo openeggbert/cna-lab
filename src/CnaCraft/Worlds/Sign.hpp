@@ -52,6 +52,15 @@ public:
     // billboard rebuild).
     bool RemoveAllAt(int x, int y, int z);
 
+    // Removes every sign whose (x,z) falls within chunk-column (cx,cz),
+    // regardless of y or face — used when a column unloads (plan.md §12.1
+    // item 19): a sign can't survive after the World data it was attached
+    // to is gone (and would otherwise either accumulate unboundedly across
+    // a long streamed-world session or desync from a re-generated column
+    // that doesn't know about it until WorldStore reloads it). Returns
+    // true if anything was actually removed.
+    bool RemoveAllInColumn(int cx, int cz);
+
     [[nodiscard]] const std::vector<Sign>& Signs() const { return signs_; }
 
     // Used by Persistence::WorldStore when loading — replaces the whole

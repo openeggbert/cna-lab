@@ -4,13 +4,16 @@
 
 namespace CnaCraft::Worlds {
 
-namespace {
-ColumnKey PackColumnKey(int cx, int cz) {
+World::World() = default;
+
+ColumnKey World::PackColumnKey(int cx, int cz) {
     return (static_cast<ColumnKey>(cx) << 32) | static_cast<std::uint32_t>(cz);
 }
-}
 
-World::World() = default;
+void World::UnpackColumnKey(ColumnKey key, int& cx, int& cz) {
+    cx = static_cast<int>(key >> 32);
+    cz = static_cast<int>(static_cast<std::uint32_t>(key & 0xffffffffLL));
+}
 
 bool World::InBounds(int x, int y, int z) {
     // Only Y is a real, enforced bound now (plan.md §12.1 item 19) -- x,z

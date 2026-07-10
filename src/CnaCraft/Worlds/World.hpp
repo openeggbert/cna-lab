@@ -150,6 +150,23 @@ public:
     [[nodiscard]] Chunk* TryChunkAt(int cx, int cy, int cz);
     [[nodiscard]] const Chunk* TryChunkAt(int cx, int cy, int cz) const;
 
+    // Read-only access to the currently-loaded columns, for callers that
+    // need to iterate all of them (CnaCraftGame's chunk-rebuild and
+    // distance-based unload passes). Exposes the internal container type
+    // directly -- a reasonable simplicity/YAGNI tradeoff at this project's
+    // scale rather than building a bespoke iterator abstraction.
+    [[nodiscard]] const std::unordered_map<ColumnKey, std::array<std::unique_ptr<Chunk>, WORLD_CHUNKS_Y>>&
+    LoadedColumns() const {
+        return columns_;
+    }
+
+    // Packs/unpacks a (cx,cz) chunk-column address into/from the ColumnKey
+    // used by LoadedColumns() above -- exposed so callers outside World
+    // (CnaCraftGame keys its own per-column ChunkRenderer storage the same
+    // way) can look up/iterate using identical keys.
+    static ColumnKey PackColumnKey(int cx, int cz);
+    static void UnpackColumnKey(ColumnKey key, int& cx, int& cz);
+
     static bool InBounds(int x, int y, int z);
 
 private:

@@ -82,6 +82,22 @@ void TestChunkCoordOfHandlesNegativeCoordinates() {
     Check(ChunkLocalCoordOf(-17) == 15, "ChunkLocalCoordOf(-17) == 15");
 }
 
+void TestColumnKeyPackingRoundTrips() {
+    // plan.md §12.1 item 19: CnaCraftGame keys its own per-column
+    // ChunkRenderer storage the same way World keys chunk columns, so this
+    // round-trip must hold for negative coordinates too (the streamed
+    // world extends in every direction from spawn).
+    const int testCases[][2] = {{0, 0}, {5, -3}, {-1, -1}, {-17, 4}, {100, -100}};
+    bool allRoundTrip = true;
+    for (const auto& tc : testCases) {
+        const ColumnKey key = World::PackColumnKey(tc[0], tc[1]);
+        int cx = 0, cz = 0;
+        World::UnpackColumnKey(key, cx, cz);
+        if (cx != tc[0] || cz != tc[1]) allRoundTrip = false;
+    }
+    Check(allRoundTrip, "PackColumnKey/UnpackColumnKey round-trip correctly, including negative coordinates");
+}
+
 void TestWorldBoundsAndRoundTrip() {
     World world;
     Check(world.GetBlock(-1, 0, 0) == BlockType::Air, "world out-of-range GetBlock returns Air");
@@ -189,6 +205,21 @@ void TestSignStore() {
     Check(removeStore.Signs()[0].x == 6, "the sign at a different (x,y,z) survives RemoveAllAt");
 
     Check(!removeStore.RemoveAllAt(5, 5, 5), "RemoveAllAt returns false when there was nothing to remove");
+
+    // RemoveAllInColumn (plan.md §12.1 item 19) -- used when a chunk-column
+    // unloads: removes every sign in that column regardless of y, unlike
+    // RemoveAllAt which matches an exact (x,y,z).
+    SignStore columnStore;
+    columnStore.PlaceSign(5, 5, 5, 0, "Column zero, low");
+    columnStore.PlaceSign(5, 40, 5, 0, "Column zero, high"); // same column, very different y
+    columnStore.PlaceSign(20, 5, 20, 0, "Column one-one");
+    Check(columnStore.Signs().size() == 3, "three signs placed, two sharing a column at different heights");
+
+    Check(columnStore.RemoveAllInColumn(0, 0), "RemoveAllInColumn returns true when it actually removed something");
+    Check(columnStore.Signs().size() == 1, "RemoveAllInColumn removes every sign in that column regardless of y");
+    Check(columnStore.Signs()[0].x == 20, "the sign in a different column survives RemoveAllInColumn");
+
+    Check(!columnStore.RemoveAllInColumn(0, 0), "RemoveAllInColumn returns false when there was nothing to remove");
 }
 
 void TestWorldGenerationIsDeterministic() {
@@ -1143,11 +1174,28 @@ void TestPlayerControllerFloorCatchSafetyNet() {
           "falling below y=0 snaps the player to 2 blocks above the highest collidable block, matching Craft");
 }
 
+void TestPlayerControllerFloorCatchSkipsUnloadedColumn() {
+    // plan.md §12.1 item 19: HighestCollidableY's -1 now means both "loaded
+    // but genuinely no ground" and "column not loaded at all" -- the
+    // floor-catch must not treat the latter as "snap to y=1", or a player
+    // falling below an as-yet-unstreamed column would get teleported into
+    // open air instead of just continuing to fall until real terrain loads.
+    World world; // no columns allocated at all -- (500,*,500)'s column is unloaded
+    PlayerController player(Vec3f{500.5f, -5.0f, 500.5f});
+    Check(player.EyePosition().y < 0.0f, "sanity check: the player starts below the world");
+
+    PlayerInput noInput;
+    player.Update(world, noInput, 1.0f / 60.0f);
+    Check(player.EyePosition().y < 0.0f,
+          "the floor-catch does not fire over an unloaded column -- the player keeps falling, not snapped to y=1");
+}
+
 }
 
 int main() {
     TestChunkBasics();
     TestChunkCoordOfHandlesNegativeCoordinates();
+    TestColumnKeyPackingRoundTrips();
     TestWorldBoundsAndRoundTrip();
     TestWorldRecordsEditsForPersistence();
     TestSignStore();
@@ -1178,6 +1226,7 @@ int main() {
     TestPlayerControllerIntersectsBlockGuardsPlacement();
     TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement();
     TestPlayerControllerFloorCatchSafetyNet();
+    TestPlayerControllerFloorCatchSkipsUnloadedColumn();
 
     if (g_failures == 0) {
         std::printf("\nAll checks passed.\n");

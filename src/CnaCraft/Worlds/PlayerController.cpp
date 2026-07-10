@@ -205,11 +205,21 @@ void PlayerController::Update(const World& world, const PlayerInput& input, floa
     // the substep loop, not inside it). Matched exactly, including not
     // resetting velocity_.y afterward -- a genuine last-resort net, not
     // expected to trigger during normal play now that y=0 is always solid
-    // Bedrock (World::Generate).
+    // Bedrock wherever a column is actually loaded (World::GenerateColumn).
     if (position_.y < 0.0f) {
         const int nx = static_cast<int>(std::round(position_.x));
         const int nz = static_cast<int>(std::round(position_.z));
-        position_.y = static_cast<float>(world.HighestCollidableY(nx, nz) + 2);
+        // HighestCollidableY's -1 ("no ground") is ambiguous under
+        // streaming (plan.md §12.1 item 19): it now also means "this
+        // column isn't loaded yet", not just "loaded but genuinely empty".
+        // Skip the catch rather than trusting -1+2=1 in that case --
+        // CnaCraftGame's own streaming loop loads a column around the
+        // player's current position every frame regardless of y, so this
+        // resolves itself within a frame or two once real terrain exists
+        // to catch on.
+        if (world.IsColumnLoaded(ChunkCoordOf(nx), ChunkCoordOf(nz))) {
+            position_.y = static_cast<float>(world.HighestCollidableY(nx, nz) + 2);
+        }
     }
 }
 
