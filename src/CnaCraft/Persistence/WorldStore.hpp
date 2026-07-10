@@ -20,12 +20,12 @@ namespace CnaCraft::Persistence {
 // disk, only player edits are). Schema now matches Craft's exactly,
 // including the `p,q` chunk-address columns (plan.md §12.1 item 19, user
 // decision 2026-07-10) — added once the world itself gained per-chunk-
-// column streaming; `LoadInto`/`LoadSignsInto` below are still whole-
-// database loads for now (a column-scoped `LoadColumnInto`/
-// `LoadColumnSignsInto` pair, using the new `WHERE p=? AND q=?` query the
-// schema now supports efficiently, is a tracked follow-up once
-// `CnaCraftGame` actually streams chunks on demand instead of loading the
-// whole world at startup).
+// column streaming. `LoadColumnInto`/`LoadColumnSignsInto` are the
+// column-scoped loads Craft's own db_load_blocks/db_load_signs (`WHERE
+// p=? AND q=?`) match; `LoadInto`/`LoadSignsInto` (whole-database loads)
+// stay too, still used by `CnaCraftGame` until it actually streams chunks
+// on demand instead of loading the whole world at startup (a later phase
+// of this same redesign).
 //
 // Deliberately NOT a faithful port of Craft's async worker-thread/
 // COMMIT_INTERVAL batching (src/db.c db_worker_run) — cna-craft has no
@@ -65,6 +65,12 @@ public:
     // re-queue a full-world save.
     void LoadInto(Worlds::World& world);
 
+    // Loads only the persisted edits for one chunk-column (x,z), scoped by
+    // `WHERE p=? AND q=?` (uses the leading columns of block_pqxyz_idx) —
+    // matches Craft's own db_load_blocks exactly. Same plain-SetBlock
+    // (non-recording) application as LoadInto.
+    void LoadColumnInto(Worlds::World& world, int cx, int cz);
+
     // Writes every edit in `world.RecordedEdits()` (INSERT OR REPLACE, so
     // only the latest value per coordinate survives — matches Craft's own
     // unique-index-per-coordinate delta model) and then clears them.
@@ -81,6 +87,14 @@ public:
     // of the whole list — an earlier version of this code did the latter
     // for simplicity; changed to track Craft's real approach more closely.
     void LoadSignsInto(Worlds::SignStore& store);
+
+    // Loads only the persisted signs for one chunk-column (x,z), scoped by
+    // `WHERE p=? AND q=?` (uses the new sign_pq_idx) — matches Craft's own
+    // db_load_signs exactly. Unlike LoadSignsInto (which replaces the whole
+    // SignStore via ReplaceAll), this ADDS this column's signs via
+    // PlaceSign — callers loading multiple columns incrementally must not
+    // clobber previously-loaded ones.
+    void LoadColumnSignsInto(Worlds::SignStore& store, int cx, int cz);
 
     // Insert-or-replace a single sign, keyed on (x,y,z,face) — matches
     // Craft's own `db_insert_sign` (called from `set_sign` with non-empty

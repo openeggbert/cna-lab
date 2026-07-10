@@ -197,9 +197,53 @@ int main() {
               "the surviving sign is the unrelated one at a different coordinate");
     }
 
+    // Round 7 (plan.md §12.1 item 19): column-scoped loading (LoadColumnInto/
+    // LoadColumnSignsInto) only pulls in the requested chunk-column's data --
+    // proves the new `WHERE p=? AND q=?` queries actually filter correctly,
+    // not just that the write side happens to no-op for an unloaded column.
+    {
+        WorldStore store(dbPath);
+        // (5,5,5) is chunk-column (0,0); (20,5,20) is chunk-column (1,1).
+        World seedWorld;
+        seedWorld.AllocateColumn(0, 0);
+        seedWorld.AllocateColumn(1, 1);
+        seedWorld.SetBlockAndRecordEdit(5, 5, 5, BlockType::Cobblestone);
+        seedWorld.SetBlockAndRecordEdit(20, 5, 20, BlockType::Snow);
+        store.SaveEdits(seedWorld);
+
+        // (50,6,50) is chunk-column (3,3) -- deliberately far from every
+        // coordinate any earlier round in this shared dbPath ever touched
+        // (round 5/6's signs at (10,11,12)/(20,21,22) fall in columns
+        // (0,0)/(1,1), so reusing either of those columns here would pick
+        // up that pre-existing leftover sign data too and make this round's
+        // assertions depend on exactly what earlier rounds left behind).
+        store.UpsertSign(Sign{5, 6, 5, 0, "Column zero sign"});
+        store.UpsertSign(Sign{50, 6, 50, 0, "Column three-three sign"});
+    }
+    {
+        World world;
+        world.AllocateColumn(0, 0);
+        world.AllocateColumn(1, 1); // allocated too, so a wrongly-cross-loaded edit would actually be visible
+        WorldStore store(dbPath);
+        store.LoadColumnInto(world, 0, 0);
+        Check(world.GetBlock(5, 5, 5) == BlockType::Cobblestone,
+              "LoadColumnInto loads the requested column's edit");
+        Check(world.GetBlock(20, 5, 20) == BlockType::Air,
+              "LoadColumnInto does not load a different column's edit, despite that column being allocated");
+
+        SignStore signs;
+        store.LoadColumnSignsInto(signs, 0, 0);
+        Check(signs.Signs().size() == 1 && signs.Signs()[0].text == "Column zero sign",
+              "LoadColumnSignsInto loads only the requested column's sign");
+
+        store.LoadColumnSignsInto(signs, 3, 3);
+        Check(signs.Signs().size() == 2,
+              "a second LoadColumnSignsInto call for a different column accumulates, not replaces");
+    }
+
     std::filesystem::remove(dbPath);
 
-    // Round 7 (plan.md §12.1 item 19): a pre-existing world.db from before
+    // Round 8 (plan.md §12.1 item 19): a pre-existing world.db from before
     // the p,q chunk-address columns were added must fail loudly once at
     // open time, not silently accept edits that then fail per-INSERT --
     // CREATE INDEX on the new schema's (p,q,x,y,z)/​(p,q) columns fails

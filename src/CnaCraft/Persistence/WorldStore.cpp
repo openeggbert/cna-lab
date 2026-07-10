@@ -41,6 +41,7 @@ constexpr const char* kCreateIndexSql =
     "CREATE UNIQUE INDEX IF NOT EXISTS block_pqxyz_idx ON block (p, q, x, y, z);";
 constexpr const char* kUpsertSql = "INSERT OR REPLACE INTO block (p, q, x, y, z, w) VALUES (?, ?, ?, ?, ?, ?);";
 constexpr const char* kSelectAllSql = "SELECT x, y, z, w FROM block;";
+constexpr const char* kSelectColumnSql = "SELECT x, y, z, w FROM block WHERE p = ? AND q = ?;";
 
 // Signs (CRAFT_PARITY.md §4.3) — matches Craft's real
 // `sign(p,q,x,y,z,face,text)` schema (src/db.c) exactly, including its
@@ -64,6 +65,7 @@ constexpr const char* kCreateSignIndexSql =
     "CREATE UNIQUE INDEX IF NOT EXISTS sign_xyzface_idx ON sign (x, y, z, face);";
 constexpr const char* kCreateSignPqIndexSql = "CREATE INDEX IF NOT EXISTS sign_pq_idx ON sign (p, q);";
 constexpr const char* kSelectAllSignsSql = "SELECT x, y, z, face, text FROM sign;";
+constexpr const char* kSelectColumnSignsSql = "SELECT x, y, z, face, text FROM sign WHERE p = ? AND q = ?;";
 // Incremental sign writes (mirrors Craft's db_insert_sign/db_delete_sign/
 // db_delete_signs, src/db.c) — see WorldStore.hpp's class comment. Delete
 // statements don't bind p,q, matching Craft's own db_delete_sign/
@@ -131,6 +133,33 @@ void WorldStore::LoadInto(Worlds::World& world) {
     }
 }
 
+void WorldStore::LoadColumnInto(Worlds::World& world, int cx, int cz) {
+    if (!db_) return;
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kSelectColumnSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare column load query: %s\n", sqlite3_errmsg(db_));
+        return;
+    }
+    sqlite3_bind_int(stmt, 1, cx);
+    sqlite3_bind_int(stmt, 2, cz);
+
+    // No "loaded N edit(s)" print here, unlike LoadInto -- once
+    // CnaCraftGame actually streams columns on demand this fires once per
+    // newly-loaded column (potentially many per second while flying), not
+    // once at startup; per-column load noise isn't worth logging.
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const int x = sqlite3_column_int(stmt, 0);
+        const int y = sqlite3_column_int(stmt, 1);
+        const int z = sqlite3_column_int(stmt, 2);
+        const auto type = static_cast<Worlds::BlockType>(sqlite3_column_int(stmt, 3));
+        // Plain SetBlock -- loaded edits must not be re-recorded as new
+        // pending edits (see WorldStore.hpp's class comment).
+        world.SetBlock(x, y, z, type);
+    }
+    sqlite3_finalize(stmt);
+}
+
 void WorldStore::SaveEdits(Worlds::World& world) {
     if (!db_) return;
     const auto& edits = world.RecordedEdits();
@@ -188,6 +217,31 @@ void WorldStore::LoadSignsInto(Worlds::SignStore& store) {
         std::fflush(stdout);
     }
     store.ReplaceAll(std::move(signs));
+}
+
+void WorldStore::LoadColumnSignsInto(Worlds::SignStore& store, int cx, int cz) {
+    if (!db_) return;
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kSelectColumnSignsSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare column sign load query: %s\n", sqlite3_errmsg(db_));
+        return;
+    }
+    sqlite3_bind_int(stmt, 1, cx);
+    sqlite3_bind_int(stmt, 2, cz);
+
+    // PlaceSign, not ReplaceAll -- adds this column's signs to whatever's
+    // already loaded (other columns), rather than wiping them (see
+    // WorldStore.hpp's doc comment).
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const int x = sqlite3_column_int(stmt, 0);
+        const int y = sqlite3_column_int(stmt, 1);
+        const int z = sqlite3_column_int(stmt, 2);
+        const int face = sqlite3_column_int(stmt, 3);
+        const unsigned char* text = sqlite3_column_text(stmt, 4);
+        store.PlaceSign(x, y, z, face, text ? reinterpret_cast<const char*>(text) : "");
+    }
+    sqlite3_finalize(stmt);
 }
 
 void WorldStore::UpsertSign(const Worlds::Sign& sign) {
