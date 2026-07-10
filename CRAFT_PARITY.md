@@ -347,20 +347,34 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   block's type.
 - **cna-craft behavior**: middle-click eyedropper (`Hotbar::SelectByBlockType`) and Ctrl+left-click
   as place (`tryPlaceBlock` lambda shared with ordinary right-click, gated on
-  `Keys::LeftControl`/`RightControl`) are both implemented in `CnaCraftGame::Update`. Only the
-  light-toggle half (Ctrl+right-click) remains missing. Left Ctrl has no other binding in
-  cna-craft — flying's own descend is now pitch-coupled (§1.6, no dedicated descend key at all,
-  matching Craft), so there's no modifier-key conflict to speak of.
-- **Status**: partial (eyedropper + Ctrl-click-as-place complete; light-toggle still missing)
+  `Keys::LeftControl`/`RightControl`) are implemented in `CnaCraftGame::Update`. Left Ctrl has no
+  other binding in cna-craft — flying's own descend is now pitch-coupled (§1.6, no dedicated
+  descend key at all, matching Craft), so there's no modifier-key conflict to speak of.
+  Ctrl+right-click light-toggle added 2026-07-10 (plan.md §12.1 item 17 follow-up, user decision):
+  `World::IsLightSource`/`SetLightSource` (a per-instance overlay mirroring Craft's own separate
+  `lights` Map alongside its block-type `map`, `src/main.c`) toggled on `world_.IsBreakable`-gated
+  blocks (matches Craft's own `is_destructable` guard in `on_light`), persisted via a new
+  `light(p,q,x,y,z,w)` `WorldStore` table matching Craft's real schema exactly. **Visually,
+  this is a deliberate, documented simplification, not a full port** — see §5.1 below for why
+  Craft's real light-bleeds-into-neighbors propagation isn't achievable here, and what cna-craft
+  does instead.
+- **Status**: complete
 - **Craft files**: `src/main.c:2131-2138, 2153-2175, 2229-2361`
-- **cna-craft files**: `src/CnaCraft/Worlds/Hotbar.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.cpp`
-- **Priority**: low
+- **cna-craft files**: `src/CnaCraft/Worlds/{Hotbar,Chunk,World}.{hpp,cpp}`,
+  `src/CnaCraft/Persistence/WorldStore.{hpp,cpp}`, `src/CnaCraft/CnaCraftGame.cpp`
+- **Priority**: low (done)
 - **Verification method**: `TestHotbarSelectionAndCycling`'s `SelectByBlockType` checks (eyedropper,
   unit-tested); Ctrl+click-as-place verified via a clean EasyGL build + headless smoke run (pure
-  input-wiring glue over already-tested `IntersectsBlock`/`SetBlock`, no new `Worlds/`-layer logic)
-- **Notes**: The light-toggle half is still blocked on a much larger unimplemented subsystem
-  (per-block point lighting) — not a simple wiring gap, genuinely `pending`. This is the one real
-  remaining player-facing gap in this section.
+  input-wiring glue over already-tested `IntersectsBlock`/`SetBlock`, no new `Worlds/`-layer logic);
+  light-toggle's data model/persistence/glow-mesh-emission are unit-tested
+  (`TestChunkAndWorldLightSourceOverlay`, `TestChunkMesherEmitsGlowMeshForLightSourceBlocks`,
+  persistence Round 11) — the toggle keybind itself needs a live Ctrl+right-click to verify, which
+  (like every other click-dependent feature this session) couldn't be confirmed live in this
+  sandbox; a full EasyGL build + real-build screenshot did confirm the new glow render pass adds
+  no visual regression to ordinary terrain when no light is toggled.
+- **Notes**: The light-toggle mechanic and persistence are 100% Craft-accurate. The *visual*
+  result is not — see §4.3's notes for the full reasoning (a CNA engine-level rendering
+  constraint, not a scope choice).
 
 ### 2.8 Collision rules for solid/transparent/non-collidable blocks
 - **Craft behavior**: `is_obstacle(w)` (blocks movement) vs `is_transparent(w)` (occludes
@@ -778,7 +792,20 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Notes**: Requires a custom vertex format + shader (`ShaderEffect`) — per `missing.md`, only
   `EASYGL` has real runtime shader support today; `VULKAN` needs a precompiled-SPIR-V toolchain;
   `BGFX`'s `ShaderEffect` is a stub in CNA itself. `blocked` pending that CNA-side work (or an
-  `EASYGL`-only scoped implementation, which is a `needs_human` scope decision).
+  `EASYGL`-only scoped implementation, which is a `needs_human` scope decision). **Confirmed via a
+  deeper research pass 2026-07-10** (while scoping §2.7's light-toggle): the real mechanism is that
+  CNA's three graphics backends all dispatch shader/pipeline selection by *hardcoded raw
+  vertex-buffer byte stride* (16/20/24/32/52), not by the `VertexDeclaration`'s actual element
+  list — no stride/shader combination in any backend combines `TextureEnabled` +
+  `LightingEnabled` (normal-based) + `VertexColorEnabled` together, so even a from-scratch custom
+  vertex type hits the same wall without new engine-side work in all three backends. One proven,
+  already-used exception exists: `VertexPositionColorTexture` (stride 24, `TextureEnabled` +
+  `VertexColorEnabled`, `LightingEnabled=false`) — `SkyDome`/`SelectionOutline` already use it, and
+  §2.7's light-toggle glow pass reuses it too, but adopting it for *ordinary chunk terrain* (to
+  carry baked AO/light) would mean dropping the live per-frame GPU day/night ambient update chunk
+  rendering has today in favor of CPU-rebaked vertex colors across every loaded chunk — a much
+  larger, separate change than AO itself, not something either the light-toggle work or this note
+  is proposing.
 
 ### 5.2 Fog
 - **Craft behavior**: distance+height fog in `block_vertex.glsl`/`block_fragment.glsl`, blending
@@ -891,7 +918,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 2.4 | Wireframe selection outline | **fixed this session** | high |
 | 2.5 | Block breaking (Bedrock protection) | **fixed this session** | critical |
 | 2.6 | Block placing (self-intersection) | **fixed this session** | critical |
-| 2.7 | Eyedropper + Ctrl-click-as-place (**both fixed this session**) / light-toggle | partial | low |
+| 2.7 | Eyedropper + Ctrl-click-as-place + light-toggle (**light-toggle mechanic/persistence completed 2026-07-10, visual simplified — see §5.1**) | complete | low |
 | 2.8 | Collision rules (solid/transparent) | complete | low |
 | 3.1 | Chunk system (**unbounded column hash-map fixed this session**) | complete | medium (large) |
 | 3.2 | Chunk streaming (**background generation/meshing fixed this session**) | complete | low |

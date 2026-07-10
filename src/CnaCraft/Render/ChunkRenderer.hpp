@@ -14,6 +14,7 @@ class BasicEffect;
 namespace CnaCraft::Worlds {
 class World;
 struct MeshData;
+struct GlowMeshData;
 struct ChunkMeshData;
 }
 
@@ -53,6 +54,15 @@ public:
     void DrawTransparent(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
                           Microsoft::Xna::Framework::Graphics::BasicEffect& effect);
 
+    // Light-toggle glow pass (plan.md §12.1 item 17 follow-up) — drawn with
+    // `effect`'s VertexColorEnabled+TextureEnabled, LightingEnabled=false
+    // (the caller, CnaCraftGame::Draw, is responsible for that effect
+    // flip/restore, same "temporarily reconfigure the shared BasicEffect"
+    // pattern already used for SkyDome/SelectionOutline). Empty/no-op if
+    // this chunk has no light-source blocks.
+    void DrawGlow(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
+                  Microsoft::Xna::Framework::Graphics::BasicEffect& effect);
+
     // World-space AABB of this chunk, for frustum culling (plan.md §11.2) —
     // the caller (CnaCraftGame::Draw) decides whether to call Draw() at all.
     [[nodiscard]] Microsoft::Xna::Framework::BoundingBox Bounds() const;
@@ -68,12 +78,15 @@ private:
               Microsoft::Xna::Framework::Graphics::BasicEffect& effect, const MeshBuffers& buffers);
     static void UploadMesh(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
                            const CnaCraft::Worlds::MeshData& mesh, MeshBuffers& buffers);
+    static void UploadGlowMesh(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
+                                const CnaCraft::Worlds::GlowMeshData& mesh, MeshBuffers& buffers);
 
     int originX_;
     int originY_;
     int originZ_;
     MeshBuffers opaque_;
     MeshBuffers transparent_;
+    MeshBuffers glow_;
 };
 
 }

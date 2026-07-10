@@ -101,6 +101,20 @@ void World::SetBlock(int x, int y, int z, BlockType type) {
     if (lz == CHUNK_SIZE - 1) { if (Chunk* n = TryChunkAt(cx, cy, cz + 1)) n->MarkDirty(); }
 }
 
+bool World::IsLightSource(int x, int y, int z) const {
+    if (!InBounds(x, y, z)) return false;
+    const Chunk* chunk = TryChunkAt(ChunkCoordOf(x), y / CHUNK_SIZE, ChunkCoordOf(z));
+    if (!chunk) return false;
+    return chunk->IsLightSource(ChunkLocalCoordOf(x), y % CHUNK_SIZE, ChunkLocalCoordOf(z));
+}
+
+void World::SetLightSource(int x, int y, int z, bool on) {
+    if (!InBounds(x, y, z)) return;
+    Chunk* chunk = TryChunkAt(ChunkCoordOf(x), y / CHUNK_SIZE, ChunkCoordOf(z));
+    if (!chunk) return; // column not loaded -- same graceful-degradation pattern as SetBlock
+    chunk->SetLightSource(ChunkLocalCoordOf(x), y % CHUNK_SIZE, ChunkLocalCoordOf(z), on);
+}
+
 void World::SetBlockAndRecordEdit(int x, int y, int z, BlockType type) {
     SetBlock(x, y, z, type);
     if (!InBounds(x, y, z)) return; // matches SetBlock's own no-op-out-of-bounds guard

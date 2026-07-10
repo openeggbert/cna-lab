@@ -1,15 +1,22 @@
 # NEXT.md
 
-Handoff document for resuming work on **cna-craft**. Last updated after three
-back-to-back sessions on the same day (2026-07-10), all shipped on branch
-`develop`: the **chunk-system redesign** (plan.md §12.1 item 19: unbounded,
-streamed world, 7 phases), **the block roster expansion** to Craft's full
-54-item set (item 25: Chest, the other 5 flower colors, all 32 dye colors),
-and **chat/slash world-editing commands** (item 17: `/cube`, `/sphere`,
-`/copy`+`/paste`, `/view`, etc.). With item 17 done, `plan.md` §12.1 has
-exactly one real remaining item (Chat/slash-commands' own former
-placeholder is now filled — the only thing left is `blocked` ambient
-occlusion and explicitly-deferred multiplayer; see §8).
+Handoff document for resuming work on **cna-craft**. Last updated after a
+player-vs-Craft parity audit and its follow-up implementation work, same day
+(2026-07-10) as the chunk-redesign/roster/chat-commands sessions below, all
+shipped on branch `develop`. That audit (`plan.md` §12.1 item 26/27) compared
+cna-craft against real Craft feature-by-feature and found 12 player-facing
+differences; the user was asked about each one individually and decided per
+item. Four small/safe fixes shipped first (item 26: arrow-key look speed,
+per-instance plant rotation, sign billboard winding, player-position
+persistence across sessions), then the one genuine remaining gap — **light
+toggle** (item 27: Ctrl+right-click) — via a user-approved design pivot (a
+separate additive glow pass, not Craft's real light-propagation, due to a
+CNA engine-level vertex/shader-dispatch constraint discovered during
+planning — see item 27's writeup for the full technical reason). With items
+26/27 done, the remaining choices from that same audit are: ambient
+occlusion (user chose "implement for EASYGL only"), a textured sky dome
+(user chose "add sky texture"), and multiplayer (user chose "start
+planning only") — none of these three has been started yet; see §8.
 
 ## 1. Project summary
 
@@ -66,24 +73,26 @@ correctly in the message log, confirmed the log persists after the typing
 box closes, confirmed Sign typing is unaffected by the `TypingMode`
 generalization).
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **267 checks, all
-passing** (up from 173 at the start of the chunk-redesign session). Plus
-`cna_craft_persistence_smoke_test` — **30 checks, all passing** (up from
-21). Both build and run standalone with `-DCNA_CRAFT_BUILD_GAME=OFF`.
+**Test status**: `tests/worlds_smoke_test.cpp` — **288 checks, all
+passing** (up from 267 before this audit's follow-up work; 173 at the start
+of the chunk-redesign session). Plus `cna_craft_persistence_smoke_test` —
+**40 checks, all passing** (up from 30). Both build and run standalone with
+`-DCNA_CRAFT_BUILD_GAME=OFF`.
 
-**plan.md §12.1 status as of this session's end** (25 items):
-- **23 `completed`**: everything from before, plus item 19 (chunk-system
-  redesign), item 25 (full 54-item block roster), and item 17
-  (chat/slash-commands) — see §3 below.
+**plan.md §12.1 status as of this session's end** (27 items):
+- **25 `completed`**: everything from before, plus item 26 (arrow-key
+  speed, plant rotation, sign winding, player-position persistence — four
+  small audit follow-ups) and item 27 (light toggle, Ctrl+right-click, via
+  a glow-pass design pivot) — see §3 below.
 - **1 `blocked`**: ambient occlusion (needs a custom `ShaderEffect`, only
-  real on EASYGL today).
+  real on EASYGL today) — user has chosen to implement this for EASYGL
+  only when picked up.
 - **1 `pending`, explicitly deferred**: multiplayer, per project direction
   (all its usual prerequisites — persistence, chunk logic, chat — are now
-  done, but multiplayer itself stays deferred).
+  done, but multiplayer itself stays deferred to planning-only for now).
 
-There is no other open `plan.md` §12.1 item — the priority queue this file's
-own §8 used to point to is now empty except for the two above. Anything
-left is either low-value content (§5) or genuinely out of scope for now.
+Two more items from the same 12-item audit are decided but not yet started:
+ambient occlusion (EASYGL-only) and a textured sky dome — see §8.
 
 ## 3. Recent changes (this session)
 
@@ -219,10 +228,53 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
    `ExecuteCommand` unit tests, arguably better regression coverage than a
    one-off manual screenshot would have been anyway.
 
+10. **Player-vs-Craft parity audit + 4 small follow-up fixes** (plan.md
+    §12.1 item 26, CRAFT_PARITY.md §1.9/§3.7/§4.3/§4.1). A full comparison
+    against real Craft (two parallel audit forks, then an artifact listing
+    12 differences) was reviewed with the user one item at a time via
+    `AskUserQuestion`. The four decided as small/safe were done first, each
+    its own commit: arrow-key look speed (`1.6f*dt` → Craft's real
+    `1.0f*dt`), per-instance plant billboard rotation (was: every plant of
+    a type shared one orientation; now: `Simplex2`-seeded per-(x,z)
+    rotation, matching Craft), sign billboard winding (both-windings → one
+    correct winding, to remove a ghost-text backface artifact — **shipped
+    without live re-verification**, since synthetic keyboard text input
+    broke in this sandbox mid-session; see §4), and player-position
+    persistence across sessions (new `state` table, `SavePlayerState`/
+    `LoadPlayerState`, verified end-to-end via a real kill-and-relaunch
+    Xvfb test). See item 26's plan.md writeup for full detail.
+
+11. **Light toggle, Ctrl+right-click** (plan.md §12.1 item 27,
+    CRAFT_PARITY.md §2.7/§5.1) — the one genuine (non-deliberate) gap from
+    the same audit. Porting Craft's real light-propagation system turned
+    out to require new CNA-engine-level work (all three graphics backends
+    dispatch shader/pipeline selection by hardcoded vertex-buffer byte
+    stride, not by declared vertex elements — no existing combo supports
+    texture + normal-lighting + vertex-color together). This tradeoff was
+    shown to the user rather than silently worked around; the user asked
+    for an alternative, and a proposed **separate additive glow pass**
+    design (toggle mechanic/persistence 100% Craft-faithful; the lit
+    block's own faces get an unlit warm-white-tinted pass instead of real
+    propagation into neighbors) was accepted and planned via
+    `EnterPlanMode` before implementation. New: `Chunk::lightSources_`
+    overlay + `IsLightSource`/`SetLightSource` (`Chunk`+`World`), a third
+    `glow` mesh in `ChunkMeshData`/`ChunkMesher::Build`, a `light(p,q,x,y,z,w)`
+    SQLite table matching Craft's real schema shape, `Ctrl+right-click`
+    wired into `CnaCraftGame`'s right-click branch, a third `ChunkRenderer`
+    buffer pair + `DrawGlow`, and a third render pass in `CnaCraftGame::Draw`.
+    21 new checks. Verified via clean builds + a real Xvfb regression
+    screenshot (glow pass exists but draws nothing when unused, no visual
+    change to ordinary terrain); **actually toggling a light and seeing it
+    glow was not live-verified** — needs a working synthetic mouse click,
+    unreliable in this sandbox — covered by unit tests + code review
+    instead, the same tradeoff already accepted for item 17's paint
+    commands. See item 27's plan.md writeup for the full technical
+    rationale.
+
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
-`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 267/267 + 30/30 tests
+`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 288/288 + 40/40 tests
 passing, zero compiler warnings.
 
 Carried over, still unresolved, still not urgent: mouse-look reliability
@@ -230,8 +282,19 @@ confirmation on the user's real (non-sandboxed) machine — `needs_human`,
 unchanged for several sessions now (see `plan.md` §11.0/§12.1 for history).
 The same underlying sandbox limitation (unreliable synthetic mouse clicks
 into a relative-mouse-mode SDL window) is also why the new `/cube`-style
-world-editing commands' actual painting couldn't be verified live — see §3
-item 9.
+world-editing commands' actual painting couldn't be verified live (§3 item
+9), and why item 11's light-toggle-actually-glowing couldn't be
+live-verified either.
+
+**New this session**: synthetic keyboard **text input** (not movement/action
+keys — those remain reliable) also became unreliable partway through this
+session, confirmed across multiple distinct `xdotool` approaches and
+cross-checked against a previously-working case (`/`-command typing) that
+now fails identically. This blocked live re-verification of the sign
+billboard winding fix (§3 item 10) specifically. Treat both this and the
+pre-existing mouse-click unreliability as real, separate sandbox
+limitations when deciding whether a feature can be live-verified here — not
+something to keep re-attempting.
 
 **New, deliberate, documented behavior changes from these sessions** (not
 bugs — read before "fixing"):
@@ -261,18 +324,23 @@ See `CRAFT_PARITY.md` for the authoritative, cited, per-feature list — read
 it before re-deriving anything from memory or re-reading Craft's source
 from scratch. Highlights of what's NOT done yet:
 
-- **`blocked`**: ambient occlusion — needs a custom vertex format +
-  `ShaderEffect`, only real on EASYGL today (`missing.md`).
-- **Deliberately deferred**: multiplayer.
-- **Not ported (out of scope)**: Craft's player-position `state` table
-  (spawn/camera position persistence) — this project always spawns at the
-  deterministic world-origin column; revisit only if that stops being
-  desired. Craft's `/identity`/`/login`/`/logout`/`/online`/`/offline`
-  commands (multiplayer auth) — no networking exists to authenticate
-  against.
-- **Nothing else identified**: the block roster (item 25) and chat/commands
-  (item 17) categories that used to have "low-value, not picked up" entries
-  here are both fully done now.
+- **`blocked`, decided**: ambient occlusion — needs a custom vertex format +
+  `ShaderEffect`, only real on EASYGL today (`missing.md`); user has chosen
+  "implement for EASYGL only" when this is picked up.
+- **Decided, not started**: a textured sky dome (user chose "add sky
+  texture" — `SkyDome` currently renders an untextured procedural gradient).
+- **Deliberately deferred, planning only**: multiplayer, per user decision.
+- **Deliberate simplification (item 27)**: light toggle exists and persists
+  faithfully, but a toggled light's glow doesn't propagate to neighboring
+  faces or attenuate by distance — a self-contained glow pass on the lit
+  block's own faces only, due to a CNA engine vertex/shader-dispatch
+  constraint (see item 27's plan.md writeup, CRAFT_PARITY.md §5.1).
+- **Not ported (out of scope)**: Craft's `/identity`/`/login`/`/logout`/
+  `/online`/`/offline` commands (multiplayer auth) — no networking exists
+  to authenticate against.
+- **Nothing else identified**: the block roster (item 25), chat/commands
+  (item 17), and the small audit follow-ups (item 26: arrow-key speed,
+  plant rotation, sign winding, player-position persistence) are all done.
 
 ## 6. Architecture notes
 
@@ -373,8 +441,8 @@ cmake -S . -B build-worlds -DCNA_CRAFT_BUILD_GAME=OFF -DBUILD_TESTING=ON
 cmake --build build-worlds -j"$(nproc)"
 ctest --test-dir build-worlds --output-on-failure
 ```
-Expect: `WorldsSmokeTest` (267 `ok:` lines) and `PersistenceSmokeTest`
-(30 checks) both pass.
+Expect: `WorldsSmokeTest` (288 `ok:` lines) and `PersistenceSmokeTest`
+(40 checks) both pass.
 
 ```bash
 # Full graphical game (requires ../cna and ../sharp-runtime as siblings):
@@ -393,41 +461,63 @@ There is no separate lint/format tooling configured in this repo.
 
 ## 8. Next smallest tasks
 
-`plan.md` §12.1 is the authoritative ordered priority queue. As of this
-session's end, **there is no remaining item in the queue at all** —
-chat/slash-commands (item 17) was the last one, and it's done. What's left:
+`plan.md` §12.1 is the authoritative ordered priority queue. Items 26/27
+(this session) are done. What's left is the other three choices from the
+same 12-item audit, each already decided by the user but not yet started —
+pick whichever the user names, or ask if they haven't:
 
-- **`blocked`, needs a human decision**: ambient occlusion — needs a
-  shader-backend choice (only real on EASYGL today), not more design work.
-- **Explicitly deferred, not "next"**: multiplayer, per project direction.
-  Every one of its usual prerequisites (persistence, chunk streaming, chat)
-  is now done, so if the user ever wants to pick it up, nothing else is
-  blocking it — but don't start it without being asked.
-- **Possible future polish, not scoped/requested yet**: Craft's real
-  per-instance random Y-axis rotation for plant billboards (a cosmetic gap
-  noted in §3.7), the player-position `state` table, occlusion/frustum
-  culling if `/view`'s radius is ever pushed much higher than the default.
-  None of these are "next" — just things a future session might reasonably
-  pick up if asked.
+- **Ambient occlusion, EASYGL-only** (user decision 2026-07-10): needs a
+  custom vertex format + `ShaderEffect` on the EasyGL backend specifically
+  (not Vulkan/Bgfx) — this is now a scoping decision already made, not an
+  open design question; the remaining work is the implementation itself.
+  Related engine constraint (vertex-stride-based shader dispatch) is
+  documented in CRAFT_PARITY.md §5.1 and item 27's plan.md writeup — read
+  that first, since it directly shaped how far a vertex-format change can
+  go without new engine-side work.
+- **Textured sky dome** (user decision 2026-07-10, "Přidat texturu
+  oblohy"): `Render/SkyDome` currently renders an untextured procedural
+  gradient; add a real texture.
+- **Multiplayer — planning only** (user decision 2026-07-10, "Začít
+  plánovat"): every usual prerequisite (persistence, chunk streaming,
+  chat/commands) is done, so nothing structurally blocks starting a design
+  pass — but the user asked only to *plan*, not implement, so don't write
+  networking code without a further explicit go-ahead.
 
-If the user asks "what's next" with nothing else specified, the honest
-answer is: the ordered queue is empty, ask what they want rather than
-guessing at scope.
+If the user asks "what's next" with nothing else specified, offer this list
+rather than guessing which of the three to start.
 
 ## 9. Do not do yet
 
-Everything from prior sessions still applies (no multiplayer, no AO/
-greedy-meshing rewrite without a shader-backend decision, no broad
-`Worlds/`/`Render/` refactor, no `PlayerController` public-API changes
-without re-running the full suite, no `Hotbar::kSlots` reordering, no
-re-adding a dedicated fly-descend key, no rushed Chat/slash-commands
-implementation, no `SkyDome`/`SelectionOutline`/`SignBillboard` winding
-"cleanup" without real screenshot verification, no `Sign.hpp`
+Everything from prior sessions still applies (no multiplayer implementation
+— planning only, per §8 — no broad `Worlds/`/`Render/` refactor, no
+`PlayerController` public-API changes without re-running the full suite, no
+`Hotbar::kSlots` reordering, no re-adding a dedicated fly-descend key, no
+rushed Chat/slash-commands implementation, no `SkyDome`/`SelectionOutline`
+winding "cleanup" without real screenshot verification, no `Sign.hpp`
 face-convention change to match Craft's asymmetric scheme) — **plus**:
 
 - **No re-running the chunk-system redesign, terrain-formula, fly-speed,
-  pitch-clamp, or reach-distance changes** — all already done (see §3);
-  don't re-investigate these as if they were still open.
+  pitch-clamp, reach-distance, arrow-key-speed, plant-rotation, or
+  player-position-persistence changes** — all already done (see §3); don't
+  re-investigate these as if they were still open.
+- **AO now has a scope decision (EASYGL-only) — it's not blocked on "which
+  shader backend," only on someone doing the implementation.** Don't
+  re-litigate the backend choice; don't expand scope to Vulkan/Bgfx without
+  a new explicit decision.
+- **`SignBillboard`'s single-winding fix (item 26) shipped without live
+  screenshot re-verification** (sandbox keyboard-text-input broke
+  mid-session) — if you're back in an environment where text input works,
+  a real verification screenshot (place a sign, look at both sides) would
+  be genuinely useful and closes a real gap, it's not busywork. Don't
+  re-derive or re-guess the winding itself, though — the fix (single
+  correct winding, 6 indices) is believed correct on strong indirect
+  evidence (identical convention proven for every other face all session).
+- **Light toggle's glow does not propagate to neighbors or attenuate by
+  distance — this is intentional** (item 27, CRAFT_PARITY.md §5.1's engine
+  constraint), not an unfinished feature. Don't "fix" it into a
+  neighbor-propagating system without a new engine-level vertex-format/
+  shader-dispatch capability being added first (a much larger change) and
+  a fresh user decision to pursue it.
 - **Don't discard a completed-but-over-cap background job in
   `PollGenerationJobs`/`PollMeshJobs`** — defer it to a later frame
   instead. See §6's apply-cap note; this exact mistake caused a real,
@@ -460,17 +550,20 @@ face-convention change to match Craft's asymmetric scheme) — **plus**:
 ```
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
-as of the last session, 23 of 25 items are completed (including item 19,
-the chunk-system redesign to an unbounded/streamed world; item 25, the
-full 54-item block roster; and item 17, chat/slash world-editing
-commands), 1 blocked (ambient occlusion, needs a shader-backend decision),
-1 pending deferred (multiplayer, per project direction). The ordered
-priority queue is now EMPTY — there is no single obvious "next task."
-If the user doesn't specify what to work on, ask rather than guessing at
-scope; don't assume ambient occlusion or multiplayer are wanted just
-because they're the only open items (both are gated on a decision only
-the user can make). Before implementing anything that cites Craft's
-source code, re-verify the citation against the real checkout at
+as of the last session, 25 of 27 items are completed (including item 19,
+the chunk-system redesign; item 25, the full 54-item block roster; item 17,
+chat/slash world-editing commands; item 26, four small parity-audit
+follow-ups — arrow-key speed, plant rotation, sign winding, player-position
+persistence; and item 27, light toggle via a user-approved glow-pass design
+pivot). 1 blocked with a scope decision already made (ambient occlusion,
+EASYGL-only — not blocked on a decision anymore, just on implementation), 1
+pending with a scope decision already made (multiplayer — planning only,
+don't implement without a further explicit go-ahead). Two more items from
+the same 12-item parity audit are decided but not started: ambient
+occlusion (EASYGL-only) and a textured sky dome (see §8 for all three).
+If the user doesn't specify what to work on, offer this short list rather
+than guessing which to start. Before implementing anything that cites
+Craft's source code, re-verify the citation against the real checkout at
 /rv/data/development/github.com/other/Craft — CRAFT_PARITY.md was
 carefully audited but could still contain an error, same as every prior
 citation pass in this project's history. Make one small, verified
@@ -480,17 +573,23 @@ relevant test/smoke command, confirm it actually passes — and for anything
 touching CnaCraftGame/Render, verify visually via a real Xvfb/xdotool/
 ImageMagick screenshot cycle (remember: SDL_VIDEODRIVER=x11 is required in
 this sandbox, and xdotool keydown/keyup — not plain xdotool key — for
-reliable key-hold detection; mouse clicks remain unreliable in this
-sandbox, so anything needing a real break/place — including verifying the
-`/cube`-style commands' actual painting — should lean on unit tests
-instead of a live screenshot). If you touch the chunk-streaming/threading
-code (World column storage, CnaCraftGame's Dispatch*/Poll* methods),
-re-read §6's TaskT/apply-cap notes first — there's a real, subtle,
-already-found-once bug class there (discarding instead of deferring
-completed-but-over-cap jobs). If you touch WorldEditor/ExecuteCommand,
-re-read §6's PasteRegion note first — a same-World overlapping paste can
-clobber source data mid-copy, a real Craft quirk, not a bug to "fix."
-When finished, update plan.md §12.1's status, update CRAFT_PARITY.md's
-corresponding entry, and update this file's "Current status"/"Recent
-changes".
+reliable key-hold detection; mouse clicks AND synthetic keyboard text
+input are both unreliable in this sandbox as of this session — movement/
+action keydown/keyup remain fine — so anything needing a real break/place/
+text-entry, including verifying the `/cube`-style commands' actual
+painting or the sign-winding fix, should lean on unit tests instead of a
+live screenshot). If you touch the chunk-streaming/threading code (World
+column storage, CnaCraftGame's Dispatch*/Poll* methods), re-read §6's
+TaskT/apply-cap notes first — there's a real, subtle, already-found-once
+bug class there (discarding instead of deferring completed-but-over-cap
+jobs). If you touch WorldEditor/ExecuteCommand, re-read §6's PasteRegion
+note first — a same-World overlapping paste can clobber source data
+mid-copy, a real Craft quirk, not a bug to "fix." If you touch light-toggle
+or add any new combined vertex format, re-read item 27's plan.md writeup
+and CRAFT_PARITY.md §5.1 first — CNA's graphics backends dispatch
+shader/pipeline selection by hardcoded raw vertex-buffer byte stride, not
+by declared vertex elements, which is why AO and full light propagation
+are both harder than they look. When finished, update plan.md §12.1's
+status, update CRAFT_PARITY.md's corresponding entry, and update this
+file's "Current status"/"Recent changes".
 ```

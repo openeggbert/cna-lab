@@ -222,6 +222,37 @@ void TestWorldBoundsAndRoundTrip() {
           "world out-of-range SetBlock is a no-op");
 }
 
+void TestChunkAndWorldLightSourceOverlay() {
+    // CRAFT_PARITY.md §2.7/§4.3 (plan.md §12.1 item 17 follow-up, "light
+    // toggle"): a light source is a per-instance overlay independent of
+    // block type, mirroring Craft's own separate `lights` Map alongside
+    // its block-type `map` (see Chunk.hpp's doc comment) -- not a BlockDef
+    // flag.
+    Chunk chunk;
+    Check(!chunk.IsLightSource(1, 2, 3), "a new chunk has no light sources anywhere");
+    chunk.SetLightSource(1, 2, 3, true);
+    Check(chunk.IsLightSource(1, 2, 3), "Chunk::SetLightSource(true) round-trips");
+    Check(!chunk.IsLightSource(1, 2, 4), "setting one cell's light source does not bleed into neighbors");
+    chunk.SetLightSource(1, 2, 3, false);
+    Check(!chunk.IsLightSource(1, 2, 3), "Chunk::SetLightSource(false) turns it back off");
+    Check(!chunk.IsLightSource(-1, 0, 0), "chunk out-of-bounds IsLightSource returns false, not UB");
+
+    World world;
+    world.AllocateColumn(0, 0);
+    world.SetBlock(5, 5, 5, BlockType::Stone);
+    Check(!world.IsLightSource(5, 5, 5), "a freshly-placed block is not a light source by default");
+    world.SetLightSource(5, 5, 5, true);
+    Check(world.IsLightSource(5, 5, 5), "World::SetLightSource(true) round-trips across the chunk boundary too");
+    world.SetLightSource(5, 5, 5, false);
+    Check(!world.IsLightSource(5, 5, 5), "World::SetLightSource(false) round-trips");
+
+    // Unloaded column: same graceful-degradation pattern as GetBlock/SetBlock.
+    World unloadedWorld;
+    Check(!unloadedWorld.IsLightSource(500, 5, 500), "an unloaded column reads as no light source, not UB");
+    unloadedWorld.SetLightSource(500, 5, 500, true); // must be a silent no-op
+    Check(!unloadedWorld.IsLightSource(500, 5, 500), "setting a light source on an unloaded column is a no-op");
+}
+
 void TestWorldRecordsEditsForPersistence() {
     // CRAFT_PARITY.md §4.1/§4.2: plain SetBlock() must NOT record an edit
     // (used by world generation and by loading already-persisted edits back
@@ -963,6 +994,56 @@ void TestChunkMesherCloudIsOpaqueButNotCollidable() {
     Check(world.IsCollidable(6, 5, 5), "a normal Stone neighbor is still collidable");
 }
 
+void TestChunkMesherEmitsGlowMeshForLightSourceBlocks() {
+    // CRAFT_PARITY.md §2.7/§4.3 (plan.md §12.1 item 17 follow-up, "light
+    // toggle"): a light-source block's exposed faces get emitted a SECOND
+    // time into ChunkMeshData::glow, ADDITIVE to its normal opaque
+    // emission -- the block still meshes completely normally.
+    World notLight;
+    notLight.AllocateColumn(0, 0);
+    notLight.SetBlock(5, 5, 5, BlockType::Stone);
+    ChunkMeshData notLightMesh = ChunkMesher::Build(notLight, 0, 0, 0);
+    Check(notLightMesh.opaque.vertices.size() == 24, "an ordinary Stone block meshes normally (6 faces)");
+    Check(notLightMesh.glow.vertices.empty(), "a block that isn't a light source emits nothing into the glow mesh");
+
+    World lit;
+    lit.AllocateColumn(0, 0);
+    lit.SetBlock(5, 5, 5, BlockType::Stone);
+    lit.SetLightSource(5, 5, 5, true);
+    ChunkMeshData litMesh = ChunkMesher::Build(lit, 0, 0, 0);
+    Check(litMesh.opaque.vertices.size() == 24,
+          "a light-source block still meshes into opaque normally -- glow is additive, not a replacement");
+    Check(litMesh.glow.vertices.size() == 24,
+          "a lone light-source block's glow mesh has the same 6-faces*4-verts shape as its opaque mesh");
+    Check(litMesh.glow.indices.size() == 36, "glow mesh index count matches its vertex count (6 faces * 6 indices)");
+
+    // Face culling applies identically to the glow mesh: burying the light
+    // source removes its glow faces the same way it removes its opaque ones.
+    World buried;
+    buried.AllocateColumn(0, 0);
+    buried.SetBlock(5, 5, 5, BlockType::Stone);
+    buried.SetLightSource(5, 5, 5, true);
+    buried.SetBlock(6, 5, 5, BlockType::Stone);
+    buried.SetBlock(4, 5, 5, BlockType::Stone);
+    buried.SetBlock(5, 6, 5, BlockType::Stone);
+    buried.SetBlock(5, 4, 5, BlockType::Stone);
+    buried.SetBlock(5, 5, 6, BlockType::Stone);
+    buried.SetBlock(5, 5, 4, BlockType::Stone);
+    ChunkMeshData buriedMesh = ChunkMesher::Build(buried, 0, 0, 0);
+    Check(buriedMesh.glow.vertices.empty(),
+          "a fully-buried light source has no exposed faces, so its glow mesh is empty too");
+
+    // Toggling the light back off removes the glow mesh on the next rebuild.
+    World toggled;
+    toggled.AllocateColumn(0, 0);
+    toggled.SetBlock(5, 5, 5, BlockType::Stone);
+    toggled.SetLightSource(5, 5, 5, true);
+    toggled.SetLightSource(5, 5, 5, false);
+    ChunkMeshData toggledMesh = ChunkMesher::Build(toggled, 0, 0, 0);
+    Check(toggledMesh.glow.vertices.empty(), "toggling the light back off removes its glow mesh on rebuild");
+    Check(toggledMesh.opaque.vertices.size() == 24, "the block's normal opaque mesh is unaffected by the toggle");
+}
+
 void TestVoxelRaycastHitsExpectedFaceAndBlock() {
     World world;
     world.AllocateColumn(0, 0);
@@ -1701,6 +1782,7 @@ int main() {
     TestColumnCopyRoundTrips();
     TestWorldColumnLoadUnloadLifecycle();
     TestWorldBoundsAndRoundTrip();
+    TestChunkAndWorldLightSourceOverlay();
     TestWorldRecordsEditsForPersistence();
     TestSignStore();
     TestWorldGenerationIsDeterministic();
@@ -1720,6 +1802,7 @@ int main() {
     TestChunkMesherFlowerUsesSamePlantPath();
     TestExpandedRosterBlockDefsMatchExpectedShape();
     TestChunkMesherCloudIsOpaqueButNotCollidable();
+    TestChunkMesherEmitsGlowMeshForLightSourceBlocks();
     TestChunkMesherBoundaryRemeshOnNeighborLoad();
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();

@@ -149,6 +149,18 @@ ChunkMeshData ChunkMesher::Build(const World& world, int originX, int originY, i
                     continue;
                 }
 
+                // Light-toggle glow pass (plan.md §12.1 item 17 follow-up):
+                // a light-source cube block's exposed faces get emitted a
+                // SECOND time into `glow`, additive to the normal opaque/
+                // transparent emission below -- see MeshData.hpp's
+                // ChunkMeshData doc comment for why this is a separate
+                // unlit mesh rather than baked into the lit-textured one.
+                // Plants are deliberately excluded (Craft's own
+                // is_destructable guard on toggle-eligibility doesn't
+                // discriminate, but a cross-billboard has no "exposed cube
+                // faces" concept to emit a glow pass for).
+                const bool isLightSource = world.IsLightSource(wx, wy, wz);
+
                 for (const FaceDef& face : kFaces) {
                     if (world.IsOpaque(wx + face.dx, wy + face.dy, wz + face.dz)) continue;
 
@@ -175,6 +187,26 @@ ChunkMeshData ChunkMesher::Build(const World& world, int originX, int originY, i
                     mesh.indices.push_back(baseIndex + 0);
                     mesh.indices.push_back(baseIndex + 2);
                     mesh.indices.push_back(baseIndex + 3);
+
+                    if (isLightSource) {
+                        const auto glowBaseIndex = static_cast<std::uint32_t>(result.glow.vertices.size());
+                        for (int c = 0; c < 4; ++c) {
+                            GlowVertex gv;
+                            gv.px = static_cast<float>(lx) + face.corners[c][0];
+                            gv.py = static_cast<float>(ly) + face.corners[c][1];
+                            gv.pz = static_cast<float>(lz) + face.corners[c][2];
+                            gv.u = kUv[c][0];
+                            gv.v = kUv[c][1];
+                            gv.tileIndex = tileIndex;
+                            result.glow.vertices.push_back(gv);
+                        }
+                        result.glow.indices.push_back(glowBaseIndex + 0);
+                        result.glow.indices.push_back(glowBaseIndex + 1);
+                        result.glow.indices.push_back(glowBaseIndex + 2);
+                        result.glow.indices.push_back(glowBaseIndex + 0);
+                        result.glow.indices.push_back(glowBaseIndex + 2);
+                        result.glow.indices.push_back(glowBaseIndex + 3);
+                    }
                 }
             }
         }

@@ -113,6 +113,18 @@ public:
     void SetBlock(int x, int y, int z, BlockType type);
     [[nodiscard]] bool IsSolid(int x, int y, int z) const;
 
+    // Light-source overlay (CRAFT_PARITY.md §2.7/§4.3, plan.md §12.1 item 17
+    // follow-up "light toggle") — pass-through to Chunk::IsLightSource/
+    // SetLightSource, same graceful-degradation pattern as GetBlock/
+    // SetBlock (an unloaded column reads as "not a light source" / a write
+    // to one is a no-op). Unlike SetBlock, does NOT mark neighbor chunks
+    // dirty on a chunk-boundary cell — this project's light doesn't bleed
+    // across chunk boundaries (or at all, beyond the toggled block's own
+    // faces; see ChunkMesher's glow-mesh emission), so there is no
+    // neighbor-visible effect to invalidate, unlike a block-type change.
+    [[nodiscard]] bool IsLightSource(int x, int y, int z) const;
+    void SetLightSource(int x, int y, int z, bool on);
+
     // Whether this cell occludes a neighboring face (plan.md §11.2
     // "Transparency for glass") — true for ordinary solid blocks, false for
     // Air *and* for solid-but-transparent blocks like Glass. Used only by

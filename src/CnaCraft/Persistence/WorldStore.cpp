@@ -97,6 +97,28 @@ constexpr const char* kCreateStateTableSql =
 constexpr const char* kDeleteStateSql = "DELETE FROM state;";
 constexpr const char* kInsertStateSql = "INSERT INTO state (x, y, z, rx, ry) VALUES (?, ?, ?, ?, ?);";
 constexpr const char* kSelectStateSql = "SELECT x, y, z, rx, ry FROM state;";
+
+// Light toggles (CRAFT_PARITY.md §2.7/§4.3, plan.md §12.1 item 17 follow-up,
+// user decision 2026-07-10) — matches Craft's real `light(p,q,x,y,z,w)`
+// table and its unique `(p,q,x,y,z)` index exactly (src/db.c), same shape
+// as `block`'s own table/index above. `w` stores Craft's literal 0/15
+// values even though cna-craft only ever treats it as a boolean on/off
+// (World::IsLightSource) -- keeping the on-disk schema/data byte-identical
+// to a real Craft world.db is a free bonus of matching the schema exactly,
+// not something the loader depends on.
+constexpr const char* kCreateLightTableSql =
+    "CREATE TABLE IF NOT EXISTS light ("
+    "  p INTEGER NOT NULL,"
+    "  q INTEGER NOT NULL,"
+    "  x INTEGER NOT NULL,"
+    "  y INTEGER NOT NULL,"
+    "  z INTEGER NOT NULL,"
+    "  w INTEGER NOT NULL"
+    ");";
+constexpr const char* kCreateLightIndexSql =
+    "CREATE UNIQUE INDEX IF NOT EXISTS light_pqxyz_idx ON light (p, q, x, y, z);";
+constexpr const char* kUpsertLightSql = "INSERT OR REPLACE INTO light (p, q, x, y, z, w) VALUES (?, ?, ?, ?, ?, ?);";
+constexpr const char* kSelectColumnLightSql = "SELECT x, y, z, w FROM light WHERE p = ? AND q = ?;";
 }
 
 WorldStore::WorldStore(const std::string& path) {
@@ -116,7 +138,9 @@ WorldStore::WorldStore(const std::string& path) {
         sqlite3_exec(db_, kCreateSignTableSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db_, kCreateSignIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db_, kCreateSignPqIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
-        sqlite3_exec(db_, kCreateStateTableSql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+        sqlite3_exec(db_, kCreateStateTableSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
+        sqlite3_exec(db_, kCreateLightTableSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
+        sqlite3_exec(db_, kCreateLightIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
         std::fprintf(stderr, "WorldStore: failed to create schema: %s\n", errMsg ? errMsg : "unknown error");
         sqlite3_free(errMsg);
         sqlite3_close(db_);
@@ -368,6 +392,45 @@ bool WorldStore::LoadPlayerState(float& x, float& y, float& z, float& rx, float&
     }
     sqlite3_finalize(stmt);
     return found;
+}
+
+void WorldStore::UpsertLight(int x, int y, int z, bool on) {
+    if (!db_) return;
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kUpsertLightSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare light upsert statement: %s\n", sqlite3_errmsg(db_));
+        return;
+    }
+    sqlite3_bind_int(stmt, 1, Worlds::ChunkCoordOf(x));
+    sqlite3_bind_int(stmt, 2, Worlds::ChunkCoordOf(z));
+    sqlite3_bind_int(stmt, 3, x);
+    sqlite3_bind_int(stmt, 4, y);
+    sqlite3_bind_int(stmt, 5, z);
+    sqlite3_bind_int(stmt, 6, on ? 15 : 0);  // Craft's real literal on/off values (src/db.c)
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+}
+
+void WorldStore::LoadColumnLightsInto(Worlds::World& world, int cx, int cz) {
+    if (!db_) return;
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kSelectColumnLightSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare light column load query: %s\n", sqlite3_errmsg(db_));
+        return;
+    }
+    sqlite3_bind_int(stmt, 1, cx);
+    sqlite3_bind_int(stmt, 2, cz);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const int x = sqlite3_column_int(stmt, 0);
+        const int y = sqlite3_column_int(stmt, 1);
+        const int z = sqlite3_column_int(stmt, 2);
+        const int w = sqlite3_column_int(stmt, 3);
+        world.SetLightSource(x, y, z, w != 0);
+    }
+    sqlite3_finalize(stmt);
 }
 
 }

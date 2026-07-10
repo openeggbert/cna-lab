@@ -27,4 +27,15 @@ void Chunk::SetBlock(int x, int y, int z, BlockType type) {
     dirty_ = true;
 }
 
+bool Chunk::IsLightSource(int x, int y, int z) const {
+    if (!InBounds(x, y, z)) return false;
+    return lightSources_[static_cast<std::size_t>(Index(x, y, z))];
+}
+
+void Chunk::SetLightSource(int x, int y, int z, bool on) {
+    if (!InBounds(x, y, z)) return;
+    lightSources_[static_cast<std::size_t>(Index(x, y, z))] = on;
+    dirty_ = true;
+}
+
 }

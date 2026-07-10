@@ -143,6 +143,20 @@ public:
     // `db_load_state` call site.
     [[nodiscard]] bool LoadPlayerState(float& x, float& y, float& z, float& rx, float& ry);
 
+    // Light toggles (CRAFT_PARITY.md §2.7/§4.3, plan.md §12.1 item 17
+    // follow-up, user decision 2026-07-10) — matches Craft's real
+    // `light(p,q,x,y,z,w)` table and `db_insert_light`/`db_load_lights`
+    // exactly (src/db.c). Incremental single-row writes (like
+    // `UpsertSign`), not batched — a light toggle is a one-off player
+    // action, not a bulk edit.
+    void UpsertLight(int x, int y, int z, bool on);
+
+    // Loads only the requested chunk-column's lights (`WHERE p=? AND
+    // q=?`), matching `LoadColumnSignsInto`'s per-column scoping exactly.
+    // Applies directly via `World::SetLightSource` (not a recorded edit —
+    // there is no batch-save path for lights to avoid re-recording into).
+    void LoadColumnLightsInto(Worlds::World& world, int cx, int cz);
+
 private:
     sqlite3* db_ = nullptr;
 };

@@ -282,6 +282,7 @@ void CnaCraftGame::MarkNeighborColumnsDirty(int cx, int cz) {
 void CnaCraftGame::LoadColumnSynchronously(int cx, int cz) {
     world_.GenerateColumn(cx, cz, kWorldSeed);
     worldStore_->LoadColumnInto(world_, cx, cz);
+    worldStore_->LoadColumnLightsInto(world_, cx, cz);
     worldStore_->LoadColumnSignsInto(signStore_, cx, cz);
     signsNeedRebuild_ = true; // this column may have contributed persisted signs
 
@@ -376,6 +377,12 @@ void CnaCraftGame::PollGenerationJobs() {
         if (!world_.IsColumnLoaded(cx, cz)) {
             const auto chunks = job.task.getResultProperty();
             world_.AdoptColumnCopy(cx, cz, chunks);
+            // Lights (plan.md §12.1 item 17 follow-up), unlike signs (loaded
+            // earlier in DispatchColumnGeneration into the always-available
+            // signStore_), must wait until the column actually exists in
+            // world_ -- World::SetLightSource silently no-ops on an
+            // unloaded column, same graceful-degradation rule as SetBlock.
+            worldStore_->LoadColumnLightsInto(world_, cx, cz);
 
             auto& renderers = chunkRenderers_[Worlds::World::PackColumnKey(cx, cz)];
             for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
@@ -855,7 +862,26 @@ void CnaCraftGame::Update(GameTime& gameTime) {
             }
         }
         if (hit && rightDown && !rightClickWasDown_) {
-            tryPlaceBlock();
+            if (ctrlDown) {
+                // CRAFT_PARITY.md §2.7/§4.3 (plan.md §12.1 item 17
+                // follow-up "light toggle"): Ctrl+right-click toggles a
+                // light source, matching Craft's real on_mouse_button
+                // (`GLFW_MOUSE_BUTTON_RIGHT` + control -> on_light(), not
+                // on_right_click()) -- ports Craft's own toggle_light,
+                // gated on World::IsBreakable exactly like Craft's own
+                // on_light() gates on is_destructable(hw). World::
+                // SetLightSource already marks the chunk dirty (mirrors
+                // SetBlock), so ChunkMesher's glow-mesh emission picks
+                // this up on the next mesh rebuild with no extra dirtying
+                // needed here.
+                if (world_.IsBreakable(hit->x, hit->y, hit->z)) {
+                    const bool on = !world_.IsLightSource(hit->x, hit->y, hit->z);
+                    world_.SetLightSource(hit->x, hit->y, hit->z, on);
+                    worldStore_->UpsertLight(hit->x, hit->y, hit->z, on);
+                }
+            } else {
+                tryPlaceBlock();
+            }
         }
     }
 
@@ -1004,6 +1030,28 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
             renderer->DrawOpaque(device, *effect_);
         }
     }
+
+    // Light-toggle glow pass (CRAFT_PARITY.md §2.7/§4.3, plan.md §12.1 item
+    // 17 follow-up) — drawn right after opaque geometry, same "temporarily
+    // switch the shared BasicEffect to unlit vertex-color mode" pattern as
+    // the selection outline below, but with TextureEnabled left on too
+    // (VertexPositionColorTexture, the one proven Texture+VertexColor
+    // unlit combo this engine supports without a custom shader -- see
+    // MeshData.hpp's ChunkMeshData comment). A light-source block's glow
+    // mesh occupies the exact same face positions as its normal opaque
+    // emission, so this intentionally overdraws those faces with a fixed
+    // bright tint instead of illuminating anything beyond them.
+    effect_->VertexColorEnabled = true;
+    effect_->setLightingEnabledProperty(false);
+    for (auto& [key, renderers] : chunkRenderers_) {
+        (void)key;
+        for (auto& renderer : renderers) {
+            if (!frustum.Intersects(renderer->Bounds())) continue;
+            renderer->DrawGlow(device, *effect_);
+        }
+    }
+    effect_->setLightingEnabledProperty(true);
+    effect_->VertexColorEnabled = false;
 
     // Signs (CRAFT_PARITY.md §4.3) — lit/textured quads, drawn with the same
     // effect_ state as opaque chunk geometry (VertexPositionNormalTexture,

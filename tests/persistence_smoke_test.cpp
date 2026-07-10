@@ -353,6 +353,64 @@ int main() {
         std::filesystem::remove(statePath);
     }
 
+    // Round 11 (plan.md §12.1 item 17 follow-up, "light toggle"): matches
+    // Craft's own light(p,q,x,y,z,w) table (db_insert_light/db_load_lights,
+    // src/db.c) -- same shape/index as `block`'s own table, same
+    // column-scoped load query as signs.
+    {
+        const std::string lightPath = "persistence_smoke_test_light.db";
+        std::filesystem::remove(lightPath);
+
+        {
+            WorldStore store(lightPath);
+            Check(store.IsOpen(), "WorldStore opens a fresh database for the light round trip");
+            // (5,5,5) is chunk-column (0,0); (20,5,20) is chunk-column (1,1).
+            store.UpsertLight(5, 5, 5, true);
+            store.UpsertLight(20, 5, 20, true);
+        }
+        {
+            World world;
+            world.AllocateColumn(0, 0);
+            world.AllocateColumn(1, 1); // allocated too, so a wrongly-cross-loaded light would actually be visible
+            WorldStore store(lightPath);
+            store.LoadColumnLightsInto(world, 0, 0);
+            Check(world.IsLightSource(5, 5, 5), "LoadColumnLightsInto loads the requested column's light");
+            Check(!world.IsLightSource(20, 5, 20),
+                  "LoadColumnLightsInto does not load a different column's light, despite that column being "
+                  "allocated");
+        }
+        // Toggling off (w=0) round-trips too, matching Craft's own
+        // INSERT OR REPLACE semantics (the row survives with w=0, it isn't
+        // deleted) -- confirmed both via LoadColumnLightsInto's own result
+        // and a direct row-count check, same rigor as Round 10's re-save
+        // check above.
+        {
+            WorldStore store(lightPath);
+            store.UpsertLight(5, 5, 5, false);
+        }
+        {
+            World world;
+            world.AllocateColumn(0, 0);
+            WorldStore store(lightPath);
+            store.LoadColumnLightsInto(world, 0, 0);
+            Check(!world.IsLightSource(5, 5, 5), "toggling a light off round-trips through persistence too");
+        }
+        {
+            sqlite3* raw = nullptr;
+            sqlite3_open(lightPath.c_str(), &raw);
+            sqlite3_stmt* stmt = nullptr;
+            sqlite3_prepare_v2(raw, "SELECT COUNT(*) FROM light;", -1, &stmt, nullptr);
+            sqlite3_step(stmt);
+            const int rowCount = sqlite3_column_int(stmt, 0);
+            sqlite3_finalize(stmt);
+            sqlite3_close(raw);
+            Check(rowCount == 2,
+                  "toggling a light off replaces its row (w=0), it doesn't delete it -- still 2 rows total");
+        }
+
+        std::filesystem::remove(lightPath);
+    }
+
     std::printf("\n");
     if (checksFailed == 0) {
         std::printf("All checks passed.\n");

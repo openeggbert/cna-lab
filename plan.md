@@ -1116,6 +1116,101 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     confirmed the HUD correctly showed `#21/54 WhiteFlower` through `#35/54 Dye12`; a screenshot
     during that same session shows naturally-generated orange/yellow and purple flower blooms
     side by side in the world, confirming the color-pick noise actually varies.
+26. `completed` — **Player-vs-Craft comparison audit follow-ups, batch 1** (CRAFT_PARITY.md §1.9/
+    §3.7/§4.3/§4.1): after item 25, a full player-facing comparison audit against real Craft found
+    12 remaining differences; asked back to the user one by one (`AskUserQuestion`, 2026-07-10) for
+    a decision on each. Four small/safe items were picked up first, each independently committed:
+    - **Arrow-key look speed (§1.9)**: `kArrowLookSpeed`-equivalent rotation rate changed from
+      `1.6f * dt` to Craft's own literal `1.0f * dt` (`main.c:2418`, `m = dt * 1.0`), re-verified
+      directly against the checkout before changing.
+    - **Per-instance plant billboard rotation (§3.7)**: `ChunkMesher::EmitPlant` now takes the
+      block's world `x,z` and rotates each quad (and its normal) around the block-local center by
+      `Simplex2(seed=0, wx, wz, 4, 0.5, 2) * 360` degrees, porting Craft's real per-instance
+      variation (`main.c`) instead of every plant of a given type sharing one fixed orientation.
+      The seed is a fixed constant (not the world seed), matching Craft's own non-per-world-seeded
+      permutation table for this specific noise use. Verified visually via a real EasyGL build
+      (screenshot showing varied grass-blade orientations).
+    - **Sign billboard winding (§4.3)**: `SignBillboard` changed from emitting both windings
+      (front+back quad, 12 indices) to a single correct winding (6 indices), to remove a
+      "ghost text" backface artifact. **Not independently re-verified with a live screenshot** —
+      synthetic keyboard text input broke in this sandbox session partway through (confirmed via
+      several failed `xdotool type` variants, and confirmed as a real environment regression by
+      the fact that even previously-working `/`-command typing failed identically afterward, not
+      just this change). Shipped on strong indirect evidence instead (identical winding convention
+      already proven correct for every cube face all session) with an honest code comment stating
+      it's unverified and a one-line revert path if wrong.
+    - **Player-position persistence across sessions (§4.1)**: new `state(x,y,z,rx,ry)` SQLite table
+      in `Persistence::WorldStore` (`SavePlayerState`/`LoadPlayerState`, DELETE-then-INSERT
+      semantics, matching Craft's real single-row `state` table exactly — `src/db.c`). Craft
+      stores eye position directly; cna-craft's `PlayerController` stores feet position
+      internally, so `PlayerController::kEyeHeight` (`1.7f`) was made a public constant to convert
+      at the load/save boundary in `CnaCraftGame`. On a fresh `world.db` (no saved state), spawn
+      behavior is unchanged (deterministic origin-column spawn). Verified end-to-end via a real
+      kill-and-relaunch test in Xvfb — screenshot after relaunch shows the exact same resumed view
+      — the one verification in this batch that didn't depend on sandbox mouse/keyboard-text
+      reliability, since it only needed keyboard movement.
+    Commits: `c2fafca` (arrow-key + plant rotation), `a58d456` (sign winding), `eb6cc88`
+    (player-position persistence).
+27. `completed` — **Light toggle, Ctrl+right-click** (CRAFT_PARITY.md §2.7/§5.1) — the one genuine
+    (non-deliberate) gap left from the same 12-item audit as item 26; user chose this as the next
+    large subsystem to pick up (2026-07-10, "Přepínání světla"). Research into Craft's real
+    implementation (`src/main.c`/`src/db.c`: a per-cell `lights` overlay `Map`, a recursive
+    6-directional flood-fill `light_fill` radius 15, blended with ambient occlusion in
+    `occlusion()` and baked into two extra per-vertex floats consumed by a custom GLSL shader)
+    found that porting it faithfully is **not achievable without new CNA-engine-level work**: all
+    three CNA graphics backends (EasyGL/Vulkan/Bgfx) dispatch shader/pipeline selection by
+    **hardcoded raw vertex-buffer byte stride**, not by the `VertexDeclaration`'s element list, and
+    no existing stride/shader combination in any backend combines `TextureEnabled` +
+    normal-based `LightingEnabled` + `VertexColorEnabled` together — the closest proven combo
+    (`VertexPositionColorTexture`, stride 24, already used by `SkyDome`/`SelectionOutline`) drops
+    normal-based lighting entirely. Presented this tradeoff to the user via `AskUserQuestion`
+    rather than silently picking a workaround; user first asked to pause and think, then asked for
+    an alternative approach; a proposed **separate additive glow pass** (toggle mechanic +
+    persistence 100% Craft-faithful, but the lit block's own faces render via a self-contained
+    unlit `VertexPositionColorTexture` pass with a fixed warm-white tint, instead of Craft's real
+    light-bleeds-into-neighbors propagation) was accepted ("Ano, tohle zní dobře"). Planned via
+    `EnterPlanMode` before implementation, per this project's "genuine architecture change needs a
+    plan first" rule. Implementation:
+    - `Worlds::Chunk` gained a `lightSources_` boolean overlay array parallel to `blocks_`
+      (mirroring Craft's separate `lights` Map, simplified to on/off since this design doesn't
+      propagate/attenuate) plus `IsLightSource`/`SetLightSource`, mirroring `GetBlock`/`SetBlock`
+      exactly. `Worlds::World` gained matching pass-through accessors (no neighbor-chunk
+      dirty-marking, unlike `SetBlock`, since this design's glow doesn't cross chunk boundaries).
+    - `Worlds::MeshData` gained a `GlowVertex`/`GlowMeshData` shape (position+UV+tile, no normal)
+      and `ChunkMeshData::glow`, a third mesh alongside `opaque`/`transparent`.
+      `ChunkMesher::Build` emits a light-source block's exposed faces into `glow` **in addition
+      to**, not instead of, its normal `opaque`/`transparent` emission — the block still meshes
+      completely normally.
+    - `Persistence::WorldStore` gained a `light(p,q,x,y,z,w)` table matching Craft's real schema
+      shape exactly (same columns/unique-index pattern as `block`), with `UpsertLight` (stores
+      Craft's literal `w=15`/`w=0` values even though only used as a bool here — keeps the
+      on-disk schema/data byte-compatible with a real Craft `world.db`) and
+      `LoadColumnLightsInto`, wired into both per-column load sites (`LoadColumnSynchronously`,
+      `PollGenerationJobs`) alongside the existing block/sign loads.
+    - `CnaCraftGame`'s right-click branch gained the missing Ctrl-modified case (Craft's
+      `on_light()` vs. plain `on_right_click()`/place split): `Ctrl+right-click` on a breakable
+      block toggles its light-source flag and upserts it, gated by the same `IsBreakable` guard
+      Craft uses (`is_destructable`).
+    - `Render::ChunkRenderer` gained a third vertex/index buffer pair (`glow_`) uploaded via CNA's
+      proven `VertexPositionColorTexture` combo, and `DrawGlow`. `CnaCraftGame::Draw` adds a third
+      render pass after opaque/transparent: flip `effect_` to `VertexColorEnabled=true`,
+      `LightingEnabled=false` (same flip-draw-flip-back pattern as `SkyDome`/`SelectionOutline`),
+      draw every chunk's glow mesh with a fixed warm-white tint (full brightness, day/night
+      independent), flip back.
+    **Deliberate non-goals** (documented as Craft deviations, not gaps): no propagation to
+    neighboring faces, no 0-15 intensity falloff (on/off only), no interaction with day/night
+    ambient beyond the lit block's own faces — all direct consequences of the engine constraint
+    above, out of scope without new engine work.
+    21 new checks (`TestChunkAndWorldLightSourceOverlay`, `TestChunkMesherEmitsGlowMeshForLightSourceBlocks`
+    in `worlds_smoke_test.cpp`; a lights round in `persistence_smoke_test.cpp`) — 288 checks in
+    `worlds_smoke_test` (up from 267), 40 in `persistence_smoke_test` (up from 30), all passing.
+    Verified via a clean `build-worlds` + full EasyGL build, and a real Xvfb regression screenshot
+    confirming the new (empty, since nothing is toggled yet) glow pass doesn't alter ordinary
+    terrain rendering. **Live confirmation that a toggled block actually glows was not obtained**
+    — Ctrl+right-click needs a working synthetic mouse click, which (per this project's
+    long-documented sandbox limitation) remains unreliable here — coverage relies on the unit
+    tests above plus code review, same tradeoff already accepted for other click-gated features
+    (e.g. item 17's `/cube`-style commands).
 
 ### 12.2 Deliberately not re-litigated this session
 
