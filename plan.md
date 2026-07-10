@@ -1335,6 +1335,47 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     grounded in the exact engine-level mechanism read directly from CNA's `Matrix.cpp` source plus
     independently-confirmed numerics, not a guess, but the user should confirm the shredded-terrain
     symptom is actually gone after pulling this commit.
+31. `completed` — **Fix player entombment at spawn (WASD dead, torn rendering) + per-frame SQLite
+    fsync stutter** (CRAFT_PARITY.md §3.2/§4.1), user-reported after pulling item 30 ("obraz je
+    stale trhany wasd a sipky neumoznuji chuzi" — image still torn, WASD/arrows don't walk). Both
+    were regressions from this same day's own work, and they compounded:
+    - **Entombment (the WASD/torn-image bug)**: item 28's invisible-window fix removed ALL
+      synchronous spawn loading — the player was created and gravity ran from frame 1 while the
+      ground under their feet didn't exist yet, so they free-fell through the void; the spawn
+      column arrived asynchronously ~a second later (made worse by `UpdateStreaming`'s raster-order
+      dispatch, which loaded the FAR CORNERS of the radius-6 square before the player's own column,
+      ~85th of 169) and materialized around the falling player, entombing them inside solid blocks.
+      Axis-separated collision rejects every move from inside terrain — WASD completely dead — and
+      the camera sits inside geometry — torn/shredded rendering. Worst part: item 41's every-frame
+      position save persisted the entombed position into `world.db`, so restarting with fixed code
+      restored the player still entombed; the bug outlived every code fix until the data itself is
+      healed, which is why the user's symptoms survived pulling items 28-30. Three-part fix:
+      `Initialize()` synchronously loads exactly ONE column (the player's own, ~80ms, imperceptible
+      vs. item 28's 14s for 169 — `LoadColumnSynchronously` re-added after item 28 deleted it);
+      `UpdateStreaming` now dispatches nearest-first (chebyshev-sorted candidates) instead of
+      raster order (also fixes far-corners-pop-in-first, a visual wart of its own); and new
+      `PlayerController::IsEmbedded` + `CnaCraftGame::HealPlayerIfEmbedded` snap an inside-terrain
+      player to the surface (preserving yaw/pitch/flying) at the only two places entombment can
+      arise — `Initialize()` (heals poisoned `world.db` files from the live regression) and
+      `PollGenerationJobs`' column-apply step (a column materializing around a player who
+      walked/flew into not-yet-loaded territory at ground level). The existing floor-catch (item
+      24) only covers y<0 and structurally cannot catch entombment at y>0 — these are complements,
+      not overlap.
+    - **Stutter ("trhaný obraz"/earlier "zpomalený")**: `SavePlayerState` ran every frame, and each
+      call was a DELETE + INSERT as two separate implicit SQLite transactions — up to 120 disk
+      fsyncs per second, a constant frame hitch on ordinary hardware. Invisible in this project's
+      own sandbox verification (fast disk), which is why item 41 shipped it unnoticed. Fixed by
+      throttling to one save per second (`playerStateSaveAccumulator_`; losing ≤1s of position on a
+      crash is nothing) and wrapping the DELETE+INSERT in one explicit transaction (one fsync per
+      save, not two).
+    4 new checks (`TestPlayerControllerIsEmbeddedDetectsOverlapWithSolidTerrain`:
+    buried/standing/unloaded-column cases) — 295 in `worlds_smoke_test` (up from 291), persistence
+    unchanged at 40. **Verified end-to-end in the sandbox, including the poisoned-data path**: a
+    `world.db` deliberately corrupted via sqlite3 to hold an inside-terrain position (exactly what
+    the user's file holds) printed the heal message on launch, stood the player on the surface, and
+    self-corrected the saved row within a second; a fresh-world launch screenshot shows a normal
+    ground-level first-person view with the targeted-block outline working. The user does NOT need
+    to delete `world.db` — the heal is automatic.
 
 ### 12.2 Deliberately not re-litigated this session
 

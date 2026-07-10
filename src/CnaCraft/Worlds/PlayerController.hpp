@@ -73,6 +73,20 @@ public:
     // CollidesAt would also flag for this player's current position.
     [[nodiscard]] bool IntersectsBlock(int bx, int by, int bz) const;
 
+    // Whether the player's current AABB overlaps any collidable block —
+    // i.e. the player is stuck INSIDE terrain, a state normal movement can
+    // never produce (axis-separated collision rejects any move into a
+    // solid) but that terrain materializing AROUND an already-positioned
+    // player can (plan.md §12.1 item 31: the async-spawn regression let the
+    // player free-fall through not-yet-loaded ground, then get entombed
+    // when the column arrived; positions saved while entombed persisted the
+    // stuck state into world.db). An embedded player can't move at all —
+    // every axis move collides — so callers (CnaCraftGame) use this to
+    // detect-and-heal by snapping to the surface. Same collision predicate
+    // as movement itself (CollidesAt), so "embedded" here is exactly the
+    // state movement can't escape from.
+    [[nodiscard]] bool IsEmbedded(const World& world) const;
+
 private:
     [[nodiscard]] bool CollidesAt(const World& world, Core::Vec3f feetPosition) const;
 

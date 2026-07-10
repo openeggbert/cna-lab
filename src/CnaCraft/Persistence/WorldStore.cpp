@@ -356,12 +356,17 @@ void WorldStore::SavePlayerState(float x, float y, float z, float rx, float ry) 
 
     // DELETE-then-INSERT, not INSERT OR REPLACE -- matches Craft's own
     // db_save_state exactly (src/db.c), since this single-row table has no
-    // key to replace on.
+    // key to replace on. Wrapped in one explicit transaction (plan.md
+    // §12.1 item 31): as two separate implicit transactions, each commit
+    // fsyncs the disk independently -- doubling the per-save I/O cost of
+    // what the caller already throttles for exactly that reason.
+    sqlite3_exec(db_, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
     sqlite3_exec(db_, kDeleteStateSql, nullptr, nullptr, nullptr);
 
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(db_, kInsertStateSql, -1, &stmt, nullptr) != SQLITE_OK) {
         std::fprintf(stderr, "WorldStore: failed to prepare state insert statement: %s\n", sqlite3_errmsg(db_));
+        sqlite3_exec(db_, "ROLLBACK;", nullptr, nullptr, nullptr);
         return;
     }
     sqlite3_bind_double(stmt, 1, static_cast<double>(x));
@@ -371,6 +376,7 @@ void WorldStore::SavePlayerState(float x, float y, float z, float rx, float ry) 
     sqlite3_bind_double(stmt, 5, static_cast<double>(ry));
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
+    sqlite3_exec(db_, "COMMIT;", nullptr, nullptr, nullptr);
 }
 
 bool WorldStore::LoadPlayerState(float& x, float& y, float& z, float& rx, float& ry) {

@@ -1475,6 +1475,38 @@ void TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement() {
           "fly horizontal speed is independent of pitch, unlike the old Craft-matching scheme");
 }
 
+void TestPlayerControllerIsEmbeddedDetectsOverlapWithSolidTerrain() {
+    // Real bug fix (user-reported, 2026-07-10, plan.md §12.1 item 31): the
+    // async-spawn change let terrain materialize AROUND an already-falling
+    // player, entombing them inside solid blocks -- a state axis-separated
+    // collision can never escape from (every move collides), so WASD went
+    // completely dead. IsEmbedded is the detection half of the
+    // detect-and-heal fix (CnaCraftGame::HealPlayerIfEmbedded is the other
+    // half, not unit-testable -- CNA layer).
+    World world;
+    world.Generate(1234);
+    const int testX = WORLD_SIZE_X / 2;
+    const int testZ = WORLD_SIZE_Z / 2;
+    const int surfaceY = world.HighestCollidableY(testX, testZ);
+    Check(surfaceY > 2, "sanity check: generated terrain has real height at the test column");
+
+    // Feet inside the ground: AABB overlaps solid blocks -> embedded.
+    PlayerController buried(Vec3f{static_cast<float>(testX) + 0.5f, static_cast<float>(surfaceY) - 2.0f,
+                                   static_cast<float>(testZ) + 0.5f});
+    Check(buried.IsEmbedded(world), "a player whose AABB overlaps solid terrain reports IsEmbedded");
+
+    // Feet on top of the ground (the normal standing position): not embedded.
+    PlayerController standing(Vec3f{static_cast<float>(testX) + 0.5f, static_cast<float>(surfaceY) + 1.0f,
+                                     static_cast<float>(testZ) + 0.5f});
+    Check(!standing.IsEmbedded(world), "a player standing on the surface does not report IsEmbedded");
+
+    // Over an unloaded column (streamed world): no terrain data -> not
+    // embedded, same graceful degradation as every other World query.
+    World empty;
+    PlayerController floating(Vec3f{0.5f, 10.0f, 0.5f});
+    Check(!floating.IsEmbedded(empty), "a player over an unloaded column does not report IsEmbedded");
+}
+
 void TestPlayerControllerPitchClampAvoidsDegenerateLookDirection() {
     // Real bug fix (user-reported, 2026-07-10): CNA's Matrix::CreateLookAt
     // computes Cross3(Vector3::Up, forward) as its first step. If pitch is
@@ -1862,6 +1894,7 @@ int main() {
     TestPlayerSpawnAtBlockCenterAvoidsBoundaryWedging();
     TestPlayerControllerIntersectsBlockGuardsPlacement();
     TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement();
+    TestPlayerControllerIsEmbeddedDetectsOverlapWithSolidTerrain();
     TestPlayerControllerPitchClampAvoidsDegenerateLookDirection();
     TestPlayerControllerFloorCatchSafetyNet();
     TestPlayerControllerFloorCatchSkipsUnloadedColumn();

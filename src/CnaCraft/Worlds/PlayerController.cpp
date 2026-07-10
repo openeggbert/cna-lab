@@ -86,6 +86,10 @@ bool PlayerController::CollidesAt(const World& world, Core::Vec3f feet) const {
     return false;
 }
 
+bool PlayerController::IsEmbedded(const World& world) const {
+    return CollidesAt(world, position_);
+}
+
 bool PlayerController::IntersectsBlock(int bx, int by, int bz) const {
     const int minX = static_cast<int>(std::floor(position_.x - kPlayerHalfWidth));
     const int maxX = static_cast<int>(std::floor(position_.x + kPlayerHalfWidth));

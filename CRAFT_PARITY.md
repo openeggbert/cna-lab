@@ -478,9 +478,22 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   the very first `Update()` and dispatches it through the same already-backgrounded pipeline used
   for ordinary runtime streaming, so `Draw()` presents a real frame (sky/fog/HUD) on frame 1 and
   terrain pops in progressively over roughly a second instead of blocking. Deliberately no longer
-  matches Craft's "never see an ungenerated void" startup guarantee exactly — accepted as safe
-  given the floor-catch safety net (§1.8) already handles a player standing over not-yet-loaded
-  terrain.
+  matches Craft's "never see an ungenerated void" startup guarantee exactly.
+  **Revised a third time 2026-07-10 (plan.md §12.1 item 31, user-reported "WASD doesn't walk,
+  image torn" bug)**: item 28's "load nothing synchronously" went one column too far — the player
+  free-fell through their own not-yet-loaded spawn ground from frame 1, got entombed inside the
+  terrain when the column materialized around them (~a second later; the raster-order dispatch
+  loaded far corners first, making it worse), and the then-every-frame position save persisted the
+  entombed position into `world.db` so even restarting with fixed code restored them stuck. The
+  final arrangement: `Initialize()` synchronously loads exactly ONE column (the player's own,
+  ~80ms — imperceptible, unlike 169 of them), `UpdateStreaming` dispatches nearest-first
+  (chebyshev-sorted) instead of raster order, and `CnaCraftGame::HealPlayerIfEmbedded` (backed by
+  the new `PlayerController::IsEmbedded`) snaps an inside-terrain player to the surface at the two
+  places entombment can arise: `Initialize()` (heals `world.db` files poisoned while the
+  regression was live) and `PollGenerationJobs`' column-apply step (a column materializing around
+  a player who moved into not-yet-loaded territory at ground level). The floor-catch (§1.8) still
+  covers the fell-below-the-world case; `IsEmbedded` covers the entombed-above-zero case it
+  structurally couldn't.
 - **Status**: complete
 - **Craft files**: `src/main.c` (`force_chunks` L1307, `ensure_chunks` L1418, `delete_chunks`
   L1225)
@@ -493,7 +506,12 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   count stayed bounded, not runaway). Item 28's startup fix specifically verified by timing:
   measured wall-clock from process start to first non-black rendered frame dropped from ~14s
   (synchronous force-load, reproduced and measured directly) to under 1s (background streaming
-  from frame 1), via real Xvfb screenshots taken at fixed intervals after launch.
+  from frame 1), via real Xvfb screenshots taken at fixed intervals after launch. Item 31's
+  entombment fix verified end-to-end against a deliberately poisoned `world.db` (state row set to
+  an inside-terrain position via sqlite3, exactly the state a live-regression `world.db` holds):
+  launch printed the heal message, the player stood on the surface, and the saved state
+  self-corrected within a second; a fresh-world launch screenshot confirmed a normal ground-level
+  view. `IsEmbedded` itself is unit-tested (buried/standing/unloaded-column cases).
 - **Notes**: two real bugs were found and fixed during this session's own verification, not left
   as known issues: (1) completed-but-over-the-per-frame-apply-cap background jobs were being
   discarded outright instead of deferred to a later frame, which for meshing specifically (whose
@@ -652,14 +670,19 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   2026-07-10 (plan.md §12.1 item 17 follow-up, user decision): a single-row `state(x,y,z,rx,ry)`
   table matching Craft's own `db_save_state`/`db_load_state` schema exactly (`WorldStore::
   SavePlayerState`/`LoadPlayerState`). One deliberate deviation from Craft's real save-once-at-
-  clean-exit behavior: cna-craft saves every frame instead (cheap single-row delete+insert), so a
-  crashed or killed process still resumes near its last frame's position rather than losing it
-  entirely — the same "eager, no dedicated shutdown hook" simplification already used for
-  `SaveEdits`. `CnaCraftGame::Initialize` loads the saved state (if any) before placing the player,
-  so a returning player spawns where they actually were, not always world-origin (their spawn
-  column then streams in the same way any other unloaded column does — see §3.2 item 28); falls
-  back to the existing block-center/height+2 spawn if nothing was ever saved, matching Craft's own
-  `if (!loaded) s->y = highest_block(...) + 2`.
+  clean-exit behavior: cna-craft saves once per second instead, so a crashed or killed process
+  still resumes within a second of where it was. **Revised 2026-07-10 (plan.md §12.1 item 31,
+  user-reported stutter/slowdown)**: the first version saved every frame — "cheap single-row
+  delete+insert" was wrong in the way that matters, because each save's SQLite commit fsyncs the
+  disk, and the DELETE+INSERT pair as two implicit transactions fsynced twice; 60-120 fsyncs/second
+  is a real, constant per-frame hitch on ordinary hardware (invisible on this project's own
+  fast-disk sandbox, which is why it shipped unnoticed). Now throttled to one save per second in
+  `CnaCraftGame::Update` and wrapped in a single explicit transaction in `SavePlayerState`.
+  `CnaCraftGame::Initialize` loads the saved state (if any) before placing the player, so a
+  returning player spawns where they actually were, not always world-origin (their spawn column is
+  loaded synchronously and the restored position is validated/healed against it — see §3.2 item
+  31); falls back to the existing block-center/height+2 spawn if nothing was ever saved, matching
+  Craft's own `if (!loaded) s->y = highest_block(...) + 2`.
 - **Status**: complete
 - **Craft files**: `src/db.c`, `src/db.h`
 - **cna-craft files**: `src/CnaCraft/Persistence/WorldStore.{hpp,cpp}`,

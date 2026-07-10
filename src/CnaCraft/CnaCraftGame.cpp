@@ -157,32 +157,41 @@ void CnaCraftGame::Initialize() {
     float loadedX = 0.5f, loadedY = 0.0f, loadedZ = 0.5f, loadedYaw = 0.0f, loadedPitch = 0.0f;
     const bool hasSavedPlayerState = worldStore_->LoadPlayerState(loadedX, loadedY, loadedZ, loadedYaw, loadedPitch);
 
-    // Deliberately does NOT force-generate+mesh the spawn area synchronously
-    // here (plan.md §12.1 item 28). An earlier version of this method mirrored
-    // Craft's own startup force_chunks call literally -- looping
-    // LoadColumnSynchronously over every column in radii_.createRadius,
-    // blocking Initialize() until the whole spawn area was generated AND
-    // GPU-uploaded. That's cheap in Craft's small C world, but in cna-craft
-    // (SQLite queries + noise generation + CNA-abstraction GPU uploads per
-    // column) it measured ~14 seconds wall-clock for the default radius of 6
-    // (169 columns) -- with the SDL window created but not yet having
-    // presented a single frame the whole time. Several window
-    // managers/compositors (Wayland especially, but not only) render an
-    // unpresented window as blank/invisible or mark it "not responding" --
-    // a real, reproducible player-facing bug ("invisible window on startup"),
-    // identical on every graphics backend since this code is 100%
-    // engine-agnostic. Fix: don't force-load anything here -- UpdateStreaming
-    // (below, called from the very first Update()) discovers the player's
-    // spawn column is unloaded and dispatches it through the same
-    // already-backgrounded TaskT generation/meshing pipeline used for all
-    // runtime streaming (plan.md §12.1 item 19 phase 4), so Draw() presents
-    // a real frame (sky/fog, HUD) on frame 1 and terrain pops in
-    // progressively over the next second or so instead of blocking. Safe
-    // even though the spawn column may render briefly ungenerated: the
-    // floor-catch safety net (World::HighestCollidableY, plan.md §12.1 item
-    // 24) already handles a player standing over not-yet-loaded terrain.
-    // This is a deliberate parity deviation from Craft's own force_chunks
-    // (documented in CRAFT_PARITY.md §3.1/§3.2), not a bug.
+    // Spawn-area loading (plan.md §12.1 items 28 + 31, both user-reported
+    // bugs, in tension with each other -- read both before touching this):
+    //
+    // Item 28: an earlier version mirrored Craft's own startup force_chunks
+    // literally, synchronously loading EVERY column in radii_.createRadius
+    // (169 at the default radius, ~14 seconds measured) before the first
+    // frame ever presented -- several compositors render an unpresented
+    // window as blank/invisible ("invisible window on startup"). So the
+    // spawn AREA streams in through the normal backgrounded pipeline
+    // (UpdateStreaming, from the very first Update()), and the window
+    // presents a real frame immediately.
+    //
+    // Item 31: but the fix for item 28 initially loaded NOTHING
+    // synchronously -- and that was its own real regression ("WASD doesn't
+    // walk, image torn"): the player was created and gravity ran from frame
+    // 1 while the ground under their feet didn't exist yet, so they
+    // free-fell through the void; when the spawn column finally arrived
+    // (asynchronously, ~a second later), the terrain materialized AROUND
+    // the falling player, entombing them inside solid blocks --
+    // axis-separated collision then rejects movement on every axis (WASD
+    // completely dead) and the camera sits inside geometry (torn/shredded
+    // rendering). Worse, the every-frame position save persisted the
+    // entombed position into world.db, so restarting -- even with fixed
+    // code -- restored the player still entombed.
+    //
+    // The resolution: synchronously load ONLY the player's own spawn column
+    // (one column, ~80ms -- imperceptible at startup, unlike 169 of them)
+    // so the ground under their feet exists before physics ever runs, and
+    // let everything else stream in. Plus HealPlayerIfEmbedded() below for
+    // the two ways an entombed state can still arise (a world.db poisoned
+    // by the original regression; walking/flying into not-yet-loaded
+    // territory at ground level).
+    const int spawnColumnCx = Worlds::ChunkCoordOf(static_cast<int>(std::floor(loadedX)));
+    const int spawnColumnCz = Worlds::ChunkCoordOf(static_cast<int>(std::floor(loadedZ)));
+    LoadColumnSynchronously(spawnColumnCx, spawnColumnCz);
 
     effect_ = std::make_unique<BasicEffect>(device);
     effect_->VertexColorEnabled = false;
@@ -229,6 +238,13 @@ void CnaCraftGame::Initialize() {
         player_ = std::make_unique<Worlds::PlayerController>(
             Core::Vec3f{spawnX, static_cast<float>(spawnHeight + 2), spawnZ});
     }
+    // A saved position may be entombed inside terrain -- world.db files
+    // written while the item-28 async-spawn regression was live kept saving
+    // the player's position while they were stuck inside blocks, and those
+    // rows outlive the code fix (see the spawn-loading comment above).
+    // The spawn column was just loaded synchronously, so there's real
+    // terrain to validate against.
+    HealPlayerIfEmbedded();
 
     hud_ = std::make_unique<Render::Hud>(device);
     hotbarSlotNames_.reserve(Worlds::Hotbar::kSlots.size());
@@ -265,6 +281,44 @@ void CnaCraftGame::MarkNeighborColumnsDirty(int cx, int cz) {
             world_.ChunkAt(ncx, cy, ncz).MarkDirty();
         }
     }
+}
+
+void CnaCraftGame::LoadColumnSynchronously(int cx, int cz) {
+    world_.GenerateColumn(cx, cz, kWorldSeed);
+    worldStore_->LoadColumnInto(world_, cx, cz);
+    worldStore_->LoadColumnLightsInto(world_, cx, cz);
+    worldStore_->LoadColumnSignsInto(signStore_, cx, cz);
+    signsNeedRebuild_ = true; // this column may have contributed persisted signs
+
+    auto& renderers = chunkRenderers_[Worlds::World::PackColumnKey(cx, cz)];
+    for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
+        renderers[static_cast<std::size_t>(cy)] = std::make_unique<Render::ChunkRenderer>(
+            cx * Worlds::CHUNK_SIZE, cy * Worlds::CHUNK_SIZE, cz * Worlds::CHUNK_SIZE);
+    }
+    // Each freshly-created Chunk already starts dirty (Chunk's own default),
+    // so this column's own chunks don't need marking here -- the normal
+    // background meshing path (DispatchMeshingForDirtyChunks) picks them up
+    // within a few frames. Only already-loaded neighbors, whose meshes
+    // predate this column, need explicit re-marking.
+    MarkNeighborColumnsDirty(cx, cz);
+}
+
+void CnaCraftGame::HealPlayerIfEmbedded() {
+    if (!player_ || !player_->IsEmbedded(world_)) return;
+    // Same snap-to-surface recovery shape as the floor-catch safety net
+    // (PlayerController::Update, CRAFT_PARITY.md §1.8), applied to the
+    // "inside terrain" case instead of the "below the world" case. Yaw,
+    // pitch, and flying state survive; only the position moves.
+    const Core::Vec3f eye = player_->EyePosition();
+    const int nx = static_cast<int>(std::floor(eye.x));
+    const int nz = static_cast<int>(std::floor(eye.z));
+    const float healedFeetY = static_cast<float>(world_.HighestCollidableY(nx, nz) + 2);
+    const bool wasFlying = player_->IsFlying();
+    player_ = std::make_unique<Worlds::PlayerController>(
+        Core::Vec3f{eye.x, healedFeetY, eye.z}, player_->Yaw(), player_->Pitch());
+    if (wasFlying) player_->ToggleFlying();
+    std::printf("Player was embedded in terrain -- moved to surface (y=%.1f)\n", healedFeetY);
+    std::fflush(stdout);
 }
 
 void CnaCraftGame::UnloadColumn(int cx, int cz) {
@@ -371,6 +425,13 @@ void CnaCraftGame::PollGenerationJobs() {
                     cx * Worlds::CHUNK_SIZE, cy * Worlds::CHUNK_SIZE, cz * Worlds::CHUNK_SIZE);
             }
             MarkNeighborColumnsDirty(cx, cz);
+            // A column materializing around a player who moved into
+            // not-yet-loaded territory at ground level can entomb them
+            // (plan.md §12.1 item 31) -- this apply step is the only moment
+            // during normal play where terrain appears at a position the
+            // player already occupies, so check-and-heal exactly here
+            // rather than paying an every-frame check.
+            HealPlayerIfEmbedded();
             ++appliedThisFrame;
         }
         // Else: already loaded some other way -- genuinely stale, drop it.
@@ -476,16 +537,34 @@ void CnaCraftGame::PollMeshJobs() {
 }
 
 void CnaCraftGame::UpdateStreaming(int playerCx, int playerCz) {
-    int dispatchesThisFrame = 0;
-    for (int dz = -radii_.createRadius; dz <= radii_.createRadius && dispatchesThisFrame < kMaxColumnLoadsPerFrame;
-         ++dz) {
-        for (int dx = -radii_.createRadius; dx <= radii_.createRadius && dispatchesThisFrame < kMaxColumnLoadsPerFrame;
-             ++dx) {
+    // Dispatch NEAREST columns first (plan.md §12.1 item 31) -- the
+    // previous plain raster scan dispatched from the far CORNER of the
+    // square inward, so the terrain the player is standing on/next to was
+    // among the LAST to load (~85th of 169 at the default radius), while
+    // distant corners filled in first. That both looks wrong (pop-in far
+    // away while the ground nearby is missing) and maximized the window for
+    // the item-31 entombment race. Chebyshev distance matches the radius
+    // metric the load/unload tests already use. The collect+sort is over at
+    // most (2r+1)^2 = 169 cells of hash lookups per frame -- trivial next
+    // to everything else a frame does.
+    struct Candidate {
+        int dist, cx, cz;
+    };
+    std::vector<Candidate> candidates;
+    for (int dz = -radii_.createRadius; dz <= radii_.createRadius; ++dz) {
+        for (int dx = -radii_.createRadius; dx <= radii_.createRadius; ++dx) {
             const int cx = playerCx + dx, cz = playerCz + dz;
             if (world_.IsColumnLoaded(cx, cz) || IsColumnGenerationInFlight(cx, cz)) continue;
-            DispatchColumnGeneration(cx, cz);
-            ++dispatchesThisFrame;
+            candidates.push_back(Candidate{std::max(std::abs(dx), std::abs(dz)), cx, cz});
         }
+    }
+    std::sort(candidates.begin(), candidates.end(),
+              [](const Candidate& a, const Candidate& b) { return a.dist < b.dist; });
+    const int dispatchCount =
+        std::min(kMaxColumnLoadsPerFrame, static_cast<int>(candidates.size()));
+    for (int i = 0; i < dispatchCount; ++i) {
+        DispatchColumnGeneration(candidates[static_cast<std::size_t>(i)].cx,
+                                 candidates[static_cast<std::size_t>(i)].cz);
     }
 
     // Collect first, then unload -- erasing from chunkRenderers_ while
@@ -876,14 +955,19 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     worldStore_->SaveEdits(world_);
 
     // Player-position persistence (plan.md §12.1 item 17 follow-up) --
-    // saved every frame (cheap single-row delete+insert), not just at clean
-    // exit like Craft's own single `db_save_state` call, so a crashed or
-    // killed process still resumes close to the last frame's position
-    // instead of losing it entirely -- see WorldStore.hpp's doc comment.
+    // saved once per second, not just at clean exit like Craft's own single
+    // `db_save_state` call, so a crashed or killed process still resumes
+    // within a second of where it was. NOT saved every frame (as the first
+    // version did): each save's SQLite commit fsyncs the disk, and 60+
+    // fsyncs/second was a real, user-reported per-frame stutter on ordinary
+    // hardware (plan.md §12.1 item 31) -- invisible in this project's own
+    // fast-disk sandbox verification, which is why it shipped unnoticed.
     // Converts PlayerController's own feet-based storage to Craft's real
     // eye-based storage via kEyeHeight (the inverse of the Initialize()
     // load-time conversion).
-    {
+    playerStateSaveAccumulator_ += dt;
+    if (playerStateSaveAccumulator_ >= 1.0f) {
+        playerStateSaveAccumulator_ = 0.0f;
         const Core::Vec3f eyePos = player_->EyePosition();
         worldStore_->SavePlayerState(eyePos.x, eyePos.y, eyePos.z, player_->Yaw(), player_->Pitch());
     }

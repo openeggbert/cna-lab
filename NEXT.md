@@ -59,6 +59,24 @@ the cross product safely non-degenerate. See item 30's plan.md writeup for
 the full mechanism and CRAFT_PARITY.md §1.4 for the updated pitch-clamp
 entry.
 
+**After pulling item 30 the user was STILL broken** ("obraz je stale trhany
+wasd a sipky neumoznuji chuzi") — because the real remaining bug poisoned
+their `world.db`, not just the code. Root-caused and fixed as **item 31**:
+item 28's async-spawn change let the player free-fall through
+not-yet-loaded ground and get **entombed inside terrain** when the column
+materialized around them (WASD dead — collision rejects every move from
+inside solid blocks; torn rendering — camera inside geometry), and the
+then-every-frame position save wrote the entombed position to `world.db`,
+so it survived every restart and every code fix. Fixed by: synchronously
+loading exactly one column (the player's own) at startup, nearest-first
+streaming dispatch, and a detect-and-heal (`PlayerController::IsEmbedded` +
+`CnaCraftGame::HealPlayerIfEmbedded`) that snaps an entombed player to the
+surface — including one poisoned by the old bug, verified end-to-end
+against a deliberately corrupted `world.db`. The same item also fixed the
+persistent stutter: `SavePlayerState` ran every frame with two fsyncing
+SQLite transactions per call (~120 fsyncs/s); now throttled to once per
+second in a single transaction. See item 31's plan.md writeup.
+
 ## 1. Project summary
 
 CNA Craft is a first-person voxel-world game/prototype, built entirely on
@@ -114,20 +132,21 @@ correctly in the message log, confirmed the log persists after the typing
 box closes, confirmed Sign typing is unaffected by the `TypingMode`
 generalization).
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **291 checks, all
+**Test status**: `tests/worlds_smoke_test.cpp` — **295 checks, all
 passing** (up from 267 before this audit's follow-up work; 173 at the start
 of the chunk-redesign session). Plus `cna_craft_persistence_smoke_test` —
 **40 checks, all passing** (up from 30). Both build and run standalone with
 `-DCNA_CRAFT_BUILD_GAME=OFF`.
 
-**plan.md §12.1 status as of this session's end** (30 items):
-- **28 `completed`**: everything from before, plus item 26 (arrow-key
+**plan.md §12.1 status as of this session's end** (31 items):
+- **29 `completed`**: everything from before, plus item 26 (arrow-key
   speed, plant rotation, sign winding, player-position persistence — four
   small audit follow-ups), item 27 (light toggle, Ctrl+right-click, via
   a glow-pass design pivot), item 28 (invisible-window-on-startup +
   glow-pass perf fixes), item 29 (Minecraft-style flight/look controls),
-  and item 30 (a real rendering-corruption bug found and fixed in the new
-  controls' wake — see §3 below).
+  item 30 (exact-π/2 pitch clamp degenerating the view matrix), and item
+  31 (player entombment at spawn + per-frame SQLite fsync stutter — the
+  two regressions behind the user's "still broken" reports; see §3 below).
 - **1 `blocked`**: ambient occlusion (needs a custom `ShaderEffect`, only
   real on EASYGL today) — user has chosen to implement this for EASYGL
   only when picked up.
@@ -376,11 +395,43 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     re-verified against the user's original repro** (their machine, not
     this sandbox) — grounded in reading the exact engine mechanism plus
     independently-confirmed numerics, but ask them to confirm after pulling.
+    (Follow-up: the user was still broken after this — item 30's fix was
+    real but their dominant symptom turned out to be item 15's entombment,
+    whose poisoned `world.db` state survived code fixes.)
+
+15. **Fix player entombment at spawn + per-frame SQLite fsync stutter**
+    (plan.md §12.1 item 31) — the user's "still torn, WASD/arrows don't
+    walk" report after pulling everything above. Two compounding
+    regressions from this same day: (a) item 28 removed ALL synchronous
+    spawn loading, so the player free-fell through not-yet-loaded ground
+    from frame 1 and got entombed inside the terrain when the column
+    materialized around them ~a second later (raster-order streaming
+    dispatch loaded far corners before the player's own column, widening
+    the race) — axis-separated collision rejects every move from inside
+    solid blocks (WASD dead) and the camera sits inside geometry (torn
+    rendering); the every-frame position save then wrote the entombed
+    position into `world.db`, making the stuck state survive restarts AND
+    all subsequent code fixes. (b) That same every-frame `SavePlayerState`
+    was itself the stutter: DELETE+INSERT as two implicit SQLite
+    transactions = up to 120 disk fsyncs/second — invisible on the
+    sandbox's fast disk, brutal on real hardware. Fixes: `Initialize()`
+    synchronously loads exactly one column (the player's own, ~80ms;
+    `LoadColumnSynchronously` re-added), `UpdateStreaming` dispatches
+    nearest-first (chebyshev-sorted), new `PlayerController::IsEmbedded` +
+    `CnaCraftGame::HealPlayerIfEmbedded` detect-and-heal at `Initialize()`
+    and `PollGenerationJobs`' column-apply (the only two entombment
+    moments), `SavePlayerState` throttled to once per second and wrapped
+    in a single transaction. 4 new checks — 295 total. **Verified
+    end-to-end including the poisoned-data path**: a `world.db`
+    deliberately corrupted to an inside-terrain position healed itself on
+    launch (message printed, player on surface, row self-corrected within
+    a second); fresh-world launch screenshot shows a normal ground-level
+    view. Users do NOT need to delete `world.db`.
 
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
-`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 291/291 + 40/40 tests
+`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 295/295 + 40/40 tests
 passing, zero compiler warnings.
 
 Carried over, still unresolved, still not urgent: mouse-look reliability
@@ -618,6 +669,17 @@ asymmetric scheme) — **plus**:
   CRAFT_PARITY.md's general fidelity goal, and don't re-add a dedicated
   Ctrl-descend-style binding either (Shift already owns fly-descend now).
 
+- **Don't remove `Initialize()`'s single synchronous spawn-column load, and
+  don't restore the full-radius one either** — this is the settled midpoint
+  of a real back-and-forth: 169 columns synchronously = item 28's
+  ~14-second invisible window; zero columns synchronously = item 31's
+  player entombed in terrain with WASD dead. Exactly one column (~80ms) is
+  deliberate. Similarly, don't "simplify away" `HealPlayerIfEmbedded` or
+  the nearest-first ordering in `UpdateStreaming` — all three parts of
+  item 31's fix are load-bearing, and the heal also repairs `world.db`
+  files poisoned while the regression was live (which outlive any code
+  fix).
+
 - **Don't set `kPitchLimit` back to the literal exact `π/2`** — item 30
   found and fixed a real rendering-corruption bug this caused (`Matrix::
   CreateLookAt`'s `Cross3(Up, forward)` degenerates when they're exactly
@@ -679,18 +741,22 @@ asymmetric scheme) — **plus**:
 ```
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
-as of the last session, 28 of 30 items are completed (including item 19,
+as of the last session, 29 of 31 items are completed (including item 19,
 the chunk-system redesign; item 25, the full 54-item block roster; item 17,
 chat/slash world-editing commands; item 26, four small parity-audit
 follow-ups — arrow-key speed, plant rotation, sign winding, player-position
 persistence; item 27, light toggle via a user-approved glow-pass design
 pivot; item 28, invisible-window-on-startup + glow-pass perf fixes; item 29,
 Minecraft-style flight/look controls replacing item 24's earlier same-day
-Craft-exact scheme, per direct user request; and item 30, a real
+Craft-exact scheme, per direct user request; item 30, a real
 rendering-corruption bug fix — an exact-π/2 pitch clamp degenerating
-`Matrix::CreateLookAt`, exposed by items 24+29 compounding). **If you touch
-`PlayerController::kPitchLimit`, read item 30 first — don't set it back to
-the literal exact π/2.** 1 blocked with a
+`Matrix::CreateLookAt`, exposed by items 24+29 compounding; and item 31,
+player entombment at spawn + per-frame SQLite fsync stutter). **If you
+touch `PlayerController::kPitchLimit`, read item 30 first — don't set it
+back to the literal exact π/2. If you touch Initialize()'s spawn loading,
+UpdateStreaming's ordering, or HealPlayerIfEmbedded, read item 31 first —
+the one-synchronous-column arrangement is the settled midpoint of two real
+user-reported bugs in opposite directions.** 1 blocked with a
 scope decision already made (ambient occlusion, EASYGL-only — not blocked
 on a decision anymore, just on implementation), 1 pending with a scope
 decision already made (multiplayer — planning only, don't implement

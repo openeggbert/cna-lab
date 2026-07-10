@@ -119,6 +119,29 @@ private:
     // genuinely stale and is dropped.
     void PollMeshJobs();
 
+    // Generates (or loads from world.db on top of fresh terrain) one
+    // column synchronously and creates its matching chunkRenderers_
+    // entries. Used only for the player's own spawn column in Initialize()
+    // (plan.md §12.1 item 31) — one column costs ~80ms, cheap enough not to
+    // delay the first presented frame perceptibly, and it guarantees the
+    // ground under the player's feet exists before physics ever runs. (The
+    // full-radius synchronous force-load this is a remnant of was removed
+    // by item 28 for blocking the window ~14s; removing the player's OWN
+    // column along with it was a real regression — the player free-fell
+    // through not-yet-loaded ground and got entombed when it arrived. See
+    // HealPlayerIfEmbedded below.)
+    void LoadColumnSynchronously(int cx, int cz);
+    // If the player's AABB overlaps solid terrain (a state normal movement
+    // can never produce — see PlayerController::IsEmbedded), snap them to
+    // the surface, preserving yaw/pitch/flying. Called from two places:
+    // Initialize() (heals world.db states corrupted by the item-28
+    // async-spawn regression, where positions kept being saved while the
+    // player was entombed — those states outlive the code fix, so they
+    // must be healed at load) and PollGenerationJobs() (a column
+    // materializing around a player who walked/flew into not-yet-loaded
+    // territory entombs them at load-apply time — the only moment
+    // embedding can arise during normal play).
+    void HealPlayerIfEmbedded();
     // Frees one column's World data and chunkRenderers_ entries. Marks
     // still-loaded face-adjacent neighbor columns dirty, so their shared
     // boundary faces re-appear now that this column is gone (same
@@ -250,6 +273,13 @@ private:
     bool screenshotPending_ = false;
     int screenshotCounter_ = 0;
     int smokeFramesLeft_ = 0;
+    // Throttle for SavePlayerState (plan.md §12.1 item 31): each save is a
+    // synchronous SQLite write whose commit fsyncs the disk — doing it
+    // every frame (as the first version of player-position persistence
+    // did) means 60+ fsyncs/second, a real, user-visible per-frame stutter
+    // on ordinary hardware. Saving once per second loses at most one
+    // second of position on a crash, which is nothing.
+    float playerStateSaveAccumulator_ = 0.0f;
 };
 
 }
