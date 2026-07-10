@@ -773,8 +773,35 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     mistake. Verified visually against a real EasyGL build twice — once with vivid debug colors to
     unambiguously confirm the dome geometry renders as a gradient (not just the flat clear color
     showing through), once with the real day/night colors restored.
-15. `needs_human` — **World persistence / delta storage** (CRAFT_PARITY.md §4.1/§4.2): SQLite
-    dependency decision, unchanged from `missing.md`'s prior assessment.
+15. `completed` — **World persistence / delta storage** (CRAFT_PARITY.md §4.1/§4.2). **User
+    decision (2026-07-10)**: add SQLite. New `Persistence/WorldStore` (a new layer, deliberately
+    kept out of the engine-agnostic `CnaCraftWorlds` library — see its own header comment) wraps a
+    `block(x,y,z,w)` table (Craft's real `block(p,q,x,y,z,w)` schema, `src/db.c`, minus the `p,q`
+    chunk-address columns since cna-craft's `World` has no per-chunk addressing), unique-indexed on
+    `(x,y,z)`, `INSERT OR REPLACE` on save (matching Craft's own single-latest-value-per-coordinate
+    delta model). `World` gained plain edit-tracking (`BlockEdit`, `SetBlockAndRecordEdit`,
+    `RecordedEdits()`, `ClearRecordedEdits()`) with zero new dependencies — `SetBlock` (used by
+    world generation and by loading) still never persists; only player-driven edits recorded via
+    `SetBlockAndRecordEdit` (now used by `CnaCraftGame`'s break/place/Ctrl-place paths) do.
+    `CnaCraftGame::Initialize` loads `world.db` (if present) right after `World::Generate`, before
+    the initial chunk mesh build; edits save synchronously right after each player action (not
+    batched/async like Craft's own worker thread — a deliberate simplification given this
+    prototype's low single-player edit rate, documented in `WorldStore.hpp`). `world.db` added to
+    `.gitignore` (a runtime save file, not source). `find_package(SQLite3 REQUIRED)` added to
+    `CMakeLists.txt` (only for the `CnaCraft` executable target, not `CnaCraftWorlds`); confirmed
+    available via the system package (`libsqlite3-dev`) with no `FetchContent`/vendoring needed.
+    12 new unit tests in a **new, separate test target** `cna_craft_persistence_smoke_test`
+    (`tests/persistence_smoke_test.cpp`) — save/load/overwrite/Air-round-trip round-trips against a
+    real SQLite file on disk, registered as its own `ctest` (`PersistenceSmokeTest`). Kept separate
+    from `worlds_smoke_test`/`WorldsSmokeTest` since it's the only part of this repo's test suite
+    that touches real disk I/O. **Verification note**: end-to-end verification via the actual
+    graphical game (real mouse click → break → check the `.db` file) turned out to be impractical
+    in this sandbox — synthetic mouse clicks into a relative-mouse-mode SDL window are unreliable
+    here, the same class of flakiness already documented elsewhere in this project's history for
+    mouse-look — so the dedicated `WorldStore`-level test above is the primary verification instead
+    (arguably better: it's reliable, repeatable, and became permanent regression coverage rather
+    than a one-off manual check). The full game was still verified to build cleanly, start up
+    without error, and create `world.db` on launch via a real headless `--smoke` run.
 16. `pending` (large) — **Signs** (CRAFT_PARITY.md §4.3). **Re-assessed this session**: CNA does
     have a real, usable text-input primitive (`Microsoft::Xna::Framework::Input::TextInputEXT` —
     `TextInput`/`TextEditing` events, `StartTextInput`/`StopTextInput`), so this is not blocked on

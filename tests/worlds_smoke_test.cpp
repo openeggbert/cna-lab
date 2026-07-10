@@ -77,6 +77,35 @@ void TestWorldBoundsAndRoundTrip() {
           "world out-of-range SetBlock is a no-op");
 }
 
+void TestWorldRecordsEditsForPersistence() {
+    // CRAFT_PARITY.md §4.1/§4.2: plain SetBlock() must NOT record an edit
+    // (used by world generation and by loading already-persisted edits back
+    // -- neither should be re-persisted); only SetBlockAndRecordEdit()
+    // (used by CnaCraftGame's player-driven break/place) should.
+    World world;
+    Check(world.RecordedEdits().empty(), "a fresh World has no recorded edits");
+
+    world.SetBlock(1, 1, 1, BlockType::Stone);
+    Check(world.RecordedEdits().empty(), "plain SetBlock does not record an edit");
+
+    world.SetBlockAndRecordEdit(2, 2, 2, BlockType::Dirt);
+    Check(world.RecordedEdits().size() == 1, "SetBlockAndRecordEdit records exactly one edit");
+    Check(world.GetBlock(2, 2, 2) == BlockType::Dirt, "SetBlockAndRecordEdit still applies the block change");
+    const BlockEdit& edit = world.RecordedEdits()[0];
+    Check(edit.x == 2 && edit.y == 2 && edit.z == 2 && edit.type == BlockType::Dirt,
+          "the recorded edit has the correct coordinates and type");
+
+    world.SetBlockAndRecordEdit(3, 3, 3, BlockType::Sand);
+    Check(world.RecordedEdits().size() == 2, "a second edit accumulates rather than replacing the first");
+
+    world.ClearRecordedEdits();
+    Check(world.RecordedEdits().empty(), "ClearRecordedEdits empties the recorded-edits list");
+
+    world.SetBlockAndRecordEdit(9999, 9999, 9999, BlockType::Stone); // out of range
+    Check(world.RecordedEdits().empty(),
+          "an out-of-range SetBlockAndRecordEdit is a no-op, same as SetBlock, and records nothing");
+}
+
 void TestWorldGenerationIsDeterministic() {
     World a, b;
     a.Generate(1234);
@@ -967,6 +996,7 @@ void TestPlayerControllerFlyingTogglesGravityAndFreeVerticalMovement() {
 int main() {
     TestChunkBasics();
     TestWorldBoundsAndRoundTrip();
+    TestWorldRecordsEditsForPersistence();
     TestWorldGenerationIsDeterministic();
     TestWorldGeneratesClouds();
     TestWorldGeneratesSandAtLowElevation();

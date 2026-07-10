@@ -58,6 +58,12 @@ void World::SetBlock(int x, int y, int z, BlockType type) {
     if (lz == CHUNK_SIZE - 1 && cz < WORLD_CHUNKS_Z - 1) ChunkAt(cx, cy, cz + 1).MarkDirty();
 }
 
+void World::SetBlockAndRecordEdit(int x, int y, int z, BlockType type) {
+    SetBlock(x, y, z, type);
+    if (!InBounds(x, y, z)) return; // matches SetBlock's own no-op-out-of-bounds guard
+    recordedEdits_.push_back(BlockEdit{x, y, z, type});
+}
+
 bool World::IsSolid(int x, int y, int z) const {
     return GetBlockDef(GetBlock(x, y, z)).solid;
 }

@@ -79,6 +79,18 @@ void CnaCraftGame::Initialize() {
 
     world_.Generate(kWorldSeed);
 
+    // World persistence (CRAFT_PARITY.md §4.1/§4.2): load any saved edits
+    // on top of the freshly (deterministically) regenerated terrain, before
+    // the initial chunk mesh build below picks them up. `world.db` in the
+    // working directory, matching Craft's own simple single-default-file
+    // approach (`DB_PATH`, src/db.c) rather than a save-slot system.
+    worldStore_ = std::make_unique<Persistence::WorldStore>("world.db");
+    if (!worldStore_->IsOpen()) {
+        std::printf("WorldStore: could not open world.db -- edits will not be saved this session\n");
+        std::fflush(stdout);
+    }
+    worldStore_->LoadInto(world_);
+
     chunkRenderers_.reserve(
         static_cast<std::size_t>(Worlds::WORLD_CHUNKS_X) * Worlds::WORLD_CHUNKS_Y * Worlds::WORLD_CHUNKS_Z);
     for (int cz = 0; cz < Worlds::WORLD_CHUNKS_Z; ++cz) {
@@ -291,10 +303,12 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     // Place the selected block adjacent to `hit`'s face, rejecting a
     // placement that would overlap the player's own body (CRAFT_PARITY.md
     // §2.6, ports Craft's on_right_click `!player_intersects_block` guard).
+    // Uses SetBlockAndRecordEdit (CRAFT_PARITY.md §4.1/§4.2), not plain
+    // SetBlock, so this player-driven change gets persisted.
     const auto tryPlaceBlock = [&]() {
         const int px = hit->x + hit->nx, py = hit->y + hit->ny, pz = hit->z + hit->nz;
         if (!player_->IntersectsBlock(px, py, pz)) {
-            world_.SetBlock(px, py, pz, hotbar_.Selected());
+            world_.SetBlockAndRecordEdit(px, py, pz, hotbar_.Selected());
         }
     };
 
@@ -312,12 +326,20 @@ void CnaCraftGame::Update(GameTime& gameTime) {
             // on_left_click) — Bedrock, a cna-craft-only "world-boundary,
             // not meant to be placed" block, could previously be mined
             // away with no protection at all.
-            world_.SetBlock(hit->x, hit->y, hit->z, Worlds::BlockType::Air);
+            world_.SetBlockAndRecordEdit(hit->x, hit->y, hit->z, Worlds::BlockType::Air);
         }
     }
     if (hit && rightDown && !rightClickWasDown_) {
         tryPlaceBlock();
     }
+
+    // Save any new edits right away (CRAFT_PARITY.md §4.1/§4.2) -- no-op
+    // when there's nothing new to save (WorldStore::SaveEdits checks
+    // RecordedEdits().empty() first), so calling this every frame is cheap.
+    // Synchronous, not batched/async like Craft's own worker thread (see
+    // WorldStore.hpp) -- acceptable at this prototype's low single-player
+    // edit rate.
+    worldStore_->SaveEdits(world_);
     leftClickWasDown_ = leftDown;
     rightClickWasDown_ = rightDown;
 

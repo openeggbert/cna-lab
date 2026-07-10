@@ -518,24 +518,44 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Craft behavior**: SQLite (`src/db.c`/`db.h`) — `db_init` opens a `.db` file, a dedicated
   writer thread drains a queued ring buffer, periodic + on-exit commits, separate player-position
   `state` table.
-- **cna-craft behavior**: none — confirmed via full-tree grep (zero real hits; the only matches
-  are unrelated noise `persistence` parameter names). `missing.md` independently confirms no
-  SQLite anywhere in the CNA/sharp-runtime dependency chain either.
-- **Status**: needs_human (new external dependency decision)
+- **cna-craft behavior** (implemented this session): `Persistence::WorldStore` — SQLite via
+  `find_package(SQLite3 REQUIRED)` (user decision 2026-07-10; confirmed available as a system
+  package, `libsqlite3-dev`, no `FetchContent`/vendoring needed). Opens/creates `world.db` in the
+  working directory (matching Craft's own simple single-default-file approach, not a save-slot
+  system). No dedicated writer thread or ring buffer — `SaveEdits` runs synchronously right after
+  each player edit (`CnaCraftGame::Update`), a deliberate simplification for this prototype's low
+  single-player edit rate (documented in `WorldStore.hpp`). No player-position `state` table
+  ported (player always spawns at the same computed spawn point — out of scope for this pass).
+- **Status**: complete (block-edit persistence; player-position `state` table not ported)
 - **Craft files**: `src/db.c`, `src/db.h`
-- **cna-craft files**: none
-- **Priority**: high (gameplay-important) but blocked on a dependency decision
-- **Verification method**: `grep -rin sqlite src/` (currently zero real hits)
+- **cna-craft files**: `src/CnaCraft/Persistence/WorldStore.{hpp,cpp}`,
+  `src/CnaCraft/CnaCraftGame.cpp` (Initialize/Update wiring)
+- **Priority**: high (done)
+- **Verification method**: a new, separate test target `cna_craft_persistence_smoke_test`
+  (`tests/persistence_smoke_test.cpp`, 12 checks, registered as ctest `PersistenceSmokeTest`)
+  exercises `WorldStore` directly against a real SQLite file on disk — save/load/overwrite/
+  Air-round-trip. End-to-end verification via the real graphical game (click to break, check the
+  `.db` file) was attempted but synthetic mouse clicks into this sandbox's relative-mouse-mode SDL
+  window proved unreliable (same flakiness class already documented for mouse-look elsewhere in
+  this project); the direct `WorldStore` test is arguably better anyway — reliable, repeatable,
+  permanent regression coverage. The full game was confirmed to build clean, start without error,
+  and create `world.db` on launch via a real headless `--smoke` run.
 
 ### 4.2 Delta storage of edits
 - **Craft behavior**: `block(p,q,x,y,z,w)` table, unique-indexed on `(p,q,x,y,z)`, `insert or
   replace` per edit, loaded back over regenerated terrain.
-- **cna-craft behavior**: none; no "enumerate changed blocks" capability exists in `Chunk`/`World`
-  either.
-- **Status**: needs_human (blocked on §4.1)
+- **cna-craft behavior** (implemented this session): `block(x,y,z,w)` table, unique-indexed on
+  `(x,y,z)` — Craft's real schema minus the `p,q` chunk-address columns, since cna-craft's `World`
+  has no per-chunk addressing (a fixed dense grid, not Craft's streamed-chunk model — see §3.1).
+  `World` gained the "enumerate only changed blocks" capability `plan.md`'s original persistence
+  note said was needed: `BlockEdit`, `SetBlockAndRecordEdit`, `RecordedEdits()`,
+  `ClearRecordedEdits()` — all zero-dependency additions to `Worlds/`, kept separate from
+  `WorldStore`'s actual SQLite I/O.
+- **Status**: complete
 - **Craft files**: `src/db.c:59-151,315-334,404-420`
-- **cna-craft files**: none
-- **Priority**: high, blocked
+- **cna-craft files**: `src/CnaCraft/Worlds/World.{hpp,cpp}` (`BlockEdit` and friends),
+  `src/CnaCraft/Persistence/WorldStore.cpp` (the actual SQL)
+- **Priority**: high (done)
 
 ### 4.3 Signs / placed text
 - **Craft behavior**: `sign.c`/`sign.h` — a `Sign{x,y,z,face,text[64]}` struct in a per-chunk
@@ -733,8 +753,8 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 3.8 | Trees | complete | low |
 | 3.9 | Caves/overhangs | needs_human | n/a (no reference exists) |
 | 3.10 | Clouds | complete | low |
-| 4.1 | World persistence | needs_human | high (blocked on dependency) |
-| 4.2 | Delta storage | needs_human | high (blocked) |
+| 4.1 | World persistence (**fixed this session**) | complete | high |
+| 4.2 | Delta storage (**fixed this session**) | complete | high |
 | 4.3 | Signs | missing | medium |
 | 4.4 | Player names/text | partial | low |
 | 4.5 | Chat/commands | missing | medium |

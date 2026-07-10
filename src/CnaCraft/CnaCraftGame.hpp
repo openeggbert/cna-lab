@@ -9,6 +9,7 @@
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
 
+#include "Persistence/WorldStore.hpp"
 #include "Render/ChunkRenderer.hpp"
 #include "Render/Hud.hpp"
 #include "Render/SelectionOutline.hpp"
@@ -54,6 +55,11 @@ private:
     std::unique_ptr<Worlds::PlayerController> player_;
     std::vector<Render::ChunkRenderer> chunkRenderers_;
     Worlds::Hotbar hotbar_;
+
+    // World persistence (CRAFT_PARITY.md §4.1/§4.2) — loaded once in
+    // Initialize() (after World::Generate, before the initial chunk mesh
+    // build), saved synchronously right after any player edit in Update().
+    std::unique_ptr<Persistence::WorldStore> worldStore_;
 
     std::unique_ptr<Render::Hud> hud_;
     std::vector<std::string> hotbarSlotNames_;

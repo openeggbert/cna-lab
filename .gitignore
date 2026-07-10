@@ -13,3 +13,7 @@ Testing/
 
 # CnaCraft's own F12 screenshot capture (plan.md §11.7)
 /screenshots/
+
+# CnaCraft's own world persistence (CRAFT_PARITY.md §4.1/§4.2) -- a runtime
+# save file, not source; each player's saved edits are local to their machine.
+/world.db

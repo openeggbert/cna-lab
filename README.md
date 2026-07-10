@@ -42,6 +42,8 @@ openeggbert/
 - CMake 3.21+
 - A C++23-capable compiler (GCC 12+ or Clang 15+)
 - `../cna` and `../sharp-runtime` present next to this repo (or pass `-DCNA_HOME=<path>`)
+- SQLite 3 development files (e.g. `libsqlite3-dev` on Debian/Ubuntu) — used for world persistence
+  (see §5); found via CMake's built-in `FindSQLite3` module, no vendoring/network fetch needed
 
 3D rendering is implemented on three of CNA's backends — pick any one at configure time:
 `EASYGL` (OpenGL), `VULKAN`, or `BGFX`. `SDL_RENDERER` remains 2D-only.
@@ -79,6 +81,12 @@ cmake --build build --target CnaCraft
 A crosshair and the currently-selected hotbar item (e.g. `#4/16 Stone`, with a
 `[FLYING]` indicator while flying) are drawn on screen; both are also printed
 to the console when they change.
+
+Every block you break or place is saved automatically to `world.db` (SQLite, created next to the
+executable on first launch) and restored on top of the deterministically-regenerated terrain the
+next time you run the game — only your edits are stored, not the whole world, mirroring
+[fogleman/Craft](https://github.com/fogleman/Craft)'s own delta-persistence approach. Delete
+`world.db` to start over with a fresh, unedited world.
 
 ## 6. License
 

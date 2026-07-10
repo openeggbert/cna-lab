@@ -36,15 +36,21 @@ should work once shaders are precompiled to SPIR-V. Treat `BGFX` as `BasicEffect
 dynamic day/night lighting) until CNA's BGFX backend gets real shader support — file that as a
 CNA-side task, not a `cna-craft` one.
 
-## SQLite: not available anywhere
+## SQLite: added 2026-07-10 (user decision), delta persistence implemented
 
-Craft-style delta world persistence (`plan.md` §11.5, mirroring Craft's `block(p,q,x,y,z,w)`
-table) needs SQLite. It is not present in this project's dependency chain today — a
-case-insensitive `sqlite` search across both `../cna` and `../sharp-runtime` CMake files and
-source turns up nothing linkable (the only hits are unrelated `sharp-runtime/plan.sqlite3*`
-project-planning database files, not a library). Adding SQLite (via `FetchContent`, a git
-submodule, or `find_package(SQLite3)` against the system package) is straightforward but is new,
-unstarted work — no shortcut currently available.
+**Update**: this section originally said SQLite wasn't present anywhere in the dependency chain.
+That's still true of `../cna`/`../sharp-runtime` themselves, but as of 2026-07-10 the user
+explicitly approved adding it directly to `cna-craft`'s own `CMakeLists.txt` (not to CNA), via
+`find_package(SQLite3 REQUIRED)` against the system package — confirmed present and discoverable
+on this dev machine (`libsqlite3-dev`, CMake's built-in `FindSQLite3` module gives the
+`SQLite::SQLite3` imported target directly, no `FetchContent`/vendoring/submodule needed). See
+`src/CnaCraft/Persistence/WorldStore.{hpp,cpp}` for the resulting delta-storage implementation
+(CRAFT_PARITY.md §4.1/§4.2, plan.md §12.1 item 15) — a `block(x,y,z,w)` table (Craft's real
+`block(p,q,x,y,z,w)` schema minus the `p,q` chunk-address columns cna-craft's World doesn't have),
+storing only player-driven edits over the regenerated procedural terrain, exactly like Craft's own
+delta model. Only the engine-agnostic `CnaCraftWorlds` library and its main smoke test remain
+SQLite-free by design (a separate `cna_craft_persistence_smoke_test` target covers `WorldStore`
+specifically, since it needs real disk I/O unlike the rest of `CnaCraftWorlds`'s tests).
 
 ## BGFX build cost
 

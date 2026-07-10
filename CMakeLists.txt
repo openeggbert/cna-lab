@@ -34,6 +34,26 @@ if(BUILD_TESTING)
     add_executable(cna_craft_worlds_smoke_test tests/worlds_smoke_test.cpp)
     target_link_libraries(cna_craft_worlds_smoke_test PRIVATE CnaCraftWorlds)
     add_test(NAME WorldsSmokeTest COMMAND cna_craft_worlds_smoke_test)
+
+    # Persistence::WorldStore (CRAFT_PARITY.md §4.1/§4.2, plan.md §12.1 item
+    # 15) needs real SQLite + filesystem access but, like CnaCraftWorlds
+    # itself, no CNA/GPU/display -- a separate small test target/ctest, not
+    # bundled into cna_craft_worlds_smoke_test, since it's the only part of
+    # this repo's test suite that touches disk I/O. Degrades gracefully
+    # (skipped, not a fatal configure error) if SQLite3 isn't available,
+    # mirroring how CNA_CRAFT_BUILD_GAME degrades when CNA isn't found.
+    find_package(SQLite3 QUIET)
+    if(SQLite3_FOUND)
+        add_executable(cna_craft_persistence_smoke_test
+            tests/persistence_smoke_test.cpp
+            src/CnaCraft/Persistence/WorldStore.cpp
+        )
+        target_include_directories(cna_craft_persistence_smoke_test PRIVATE src)
+        target_link_libraries(cna_craft_persistence_smoke_test PRIVATE CnaCraftWorlds SQLite::SQLite3)
+        add_test(NAME PersistenceSmokeTest COMMAND cna_craft_persistence_smoke_test)
+    else()
+        message(STATUS "CnaCraft: SQLite3 not found -- skipping cna_craft_persistence_smoke_test")
+    endif()
 endif()
 
 # =============================================================================
@@ -94,6 +114,14 @@ if(CNA_CRAFT_BUILD_GAME)
         add_subdirectory("${CNA_HOME}" CNA_dep)
     endif()
 
+    # World persistence (CRAFT_PARITY.md §4.1/§4.2, plan.md §12.1 item 15 --
+    # user decision 2026-07-10: add SQLite). Only needed by the CnaCraft
+    # executable's Persistence/ layer, not by the engine-agnostic
+    # CnaCraftWorlds library above -- that library's whole point is staying
+    # dependency-free and testable with no GPU/display, and persistence is a
+    # new, separate concern from core voxel logic (see Persistence/WorldStore).
+    find_package(SQLite3 REQUIRED)
+
     add_executable(CnaCraft
         src/CnaCraft/main.cpp
         src/CnaCraft/CnaCraftGame.cpp
@@ -102,6 +130,7 @@ if(CNA_CRAFT_BUILD_GAME)
         src/CnaCraft/Render/Hud.cpp
         src/CnaCraft/Render/SelectionOutline.cpp
         src/CnaCraft/Render/SkyDome.cpp
+        src/CnaCraft/Persistence/WorldStore.cpp
     )
     target_include_directories(CnaCraft PRIVATE src)
 
@@ -126,6 +155,7 @@ if(CNA_CRAFT_BUILD_GAME)
     else()
         target_link_libraries(CnaCraft PRIVATE CNA SHARP_RUNTIME CnaCraftWorlds)
     endif()
+    target_link_libraries(CnaCraft PRIVATE SQLite::SQLite3)
     if(TARGET SDL3::SDL3main)
         target_link_libraries(CnaCraft PRIVATE SDL3::SDL3main)
     endif()

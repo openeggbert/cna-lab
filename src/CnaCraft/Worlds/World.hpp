@@ -18,6 +18,13 @@ constexpr int WORLD_SIZE_X = WORLD_CHUNKS_X * CHUNK_SIZE;
 constexpr int WORLD_SIZE_Y = WORLD_CHUNKS_Y * CHUNK_SIZE;
 constexpr int WORLD_SIZE_Z = WORLD_CHUNKS_Z * CHUNK_SIZE;
 
+// A single player-driven block edit, recorded for persistence
+// (CRAFT_PARITY.md §4.1/§4.2) — see World::SetBlockAndRecordEdit.
+struct BlockEdit {
+    int x = 0, y = 0, z = 0;
+    BlockType type = BlockType::Air;
+};
+
 class World {
 public:
     World();
@@ -52,6 +59,26 @@ public:
     // solid-but-permanent blocks like Bedrock. Used only by CnaCraftGame's
     // left-click handler; meshing/occlusion/collision are unaffected.
     [[nodiscard]] bool IsBreakable(int x, int y, int z) const;
+
+    // Player-driven-edit persistence (CRAFT_PARITY.md §4.1/§4.2, ports
+    // Craft's delta-storage model — a `block(p,q,x,y,z,w)` SQLite table
+    // storing only edits over the regenerated procedural terrain; this
+    // project's `Persistence::WorldStore` adapts that schema to a plain
+    // `block(x,y,z,w)` table since cna-craft has no chunk (p,q) addressing
+    // at the World level, unlike Craft's streamed-chunk model).
+    //
+    // Plain SetBlock() does NOT record an edit — it's used for both world
+    // generation (which must never be persisted) and applying already-
+    // loaded edits back (which would be redundant to re-record). Only
+    // *player*-initiated changes (break/place in CnaCraftGame) should call
+    // this instead.
+    void SetBlockAndRecordEdit(int x, int y, int z, BlockType type);
+
+    // Edits recorded since the last ClearRecordedEdits() call —
+    // Persistence::WorldStore::SaveEdits() reads this to know what to
+    // write, then clears it.
+    [[nodiscard]] const std::vector<BlockEdit>& RecordedEdits() const { return recordedEdits_; }
+    void ClearRecordedEdits() { recordedEdits_.clear(); }
 
     Chunk& ChunkAt(int cx, int cy, int cz);
     [[nodiscard]] const Chunk& ChunkAt(int cx, int cy, int cz) const;
@@ -100,6 +127,7 @@ private:
     [[nodiscard]] int ChunkIndex(int cx, int cy, int cz) const;
 
     std::vector<std::unique_ptr<Chunk>> chunks_;
+    std::vector<BlockEdit> recordedEdits_;
 };
 
 }
