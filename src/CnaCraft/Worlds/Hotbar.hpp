@@ -19,15 +19,20 @@ namespace CnaCraft::Worlds {
 // `on_key` binds `E`=next, `R`=prev — `CyclePrev` was missing until this
 // session, only `CycleNext`/E existed). Bedrock is intentionally excluded
 // (world-boundary block, not meant to be placed by the player, same as
-// Craft never lists it in `items`).
+// Craft never lists it in `items`). Cloud is also excluded (CRAFT_PARITY.md
+// §2.2, user decision 2026-07-10): real Craft's `items[]` never lists
+// CLOUD either — it's world-gen-only, never player-placeable — so it was
+// removed here to match that exactly, even though it briefly existed as a
+// placeable slot in an earlier session before the fidelity-vs-feature
+// trade-off was resolved.
 class Hotbar {
 public:
-    static constexpr std::array<BlockType, 17> kSlots = {
+    static constexpr std::array<BlockType, 16> kSlots = {
         BlockType::Grass,      BlockType::Dirt,     BlockType::Sand,
         BlockType::Stone,      BlockType::Cobblestone, BlockType::Brick,
         BlockType::Plank,      BlockType::Wood,     BlockType::Cement,
         BlockType::LightStone, BlockType::DarkStone, BlockType::Snow,
-        BlockType::Glass,      BlockType::Cloud,    BlockType::Leaves,
+        BlockType::Glass,      BlockType::Leaves,
         BlockType::TallGrass,  BlockType::Flower};
 
     static constexpr int kMaxNumberKeySlots = 9;

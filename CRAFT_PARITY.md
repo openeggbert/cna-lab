@@ -226,18 +226,19 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   YellowFlower, RedFlower, PurpleFlower, SunFlower, WhiteFlower, BlueFlower, then 32
   `Color00`-`Color31` dye/paint blocks. **`CLOUD` is deliberately excluded from `items[]`** —
   world-gen only, never player-placeable in real Craft.
-- **cna-craft `Hotbar::kSlots`** (15 slots): Grass, Dirt, Sand, Stone, Cobblestone, Brick, Plank,
-  Wood, Cement, LightStone, DarkStone, Snow, Glass, **Cloud**, Leaves.
-- **Missing from cna-craft**: Chest, all 6 plant/flower types (need billboard geometry — see
-  §3.7), all 32 dye colors (low value — a flat-color palette, already noted as "skipped" in
-  `plan.md`'s original block-roster item).
-- **Extra in cna-craft not matching Craft's design**: `Cloud` is directly placeable via the
-  hotbar; real Craft never allows this (world-gen-only block).
-- **Status**: partial
+- **cna-craft `Hotbar::kSlots`** (16 slots, as of this session): Grass, Dirt, Sand, Stone,
+  Cobblestone, Brick, Plank, Wood, Cement, LightStone, DarkStone, Snow, Glass, Leaves, TallGrass,
+  Flower. `Cloud` **removed this session** (user decision 2026-07-10: match Craft exactly) — it's
+  still a real `BlockType` (world-gen only via `World::GenerateClouds`), just no longer in the
+  placeable roster.
+- **Missing from cna-craft**: Chest, 5 of Craft's 6 flower colors (one representative `Flower`
+  type exists, using the same billboard geometry — see §3.7), all 32 dye colors (low value — a
+  flat-color palette, already noted as "skipped" in `plan.md`'s original block-roster item).
+- **Status**: partial (Cloud-placeability fidelity fixed this session; Chest/other flower
+  colors/dyes remain low-value follow-ups)
 - **Craft files**: `src/item.h:4-59`, `src/item.c:4-62`
-- **cna-craft files**: `src/CnaCraft/Worlds/BlockType.hpp:14-33`,
-  `src/CnaCraft/Worlds/Hotbar.hpp:22-27`
-- **Priority**: medium
+- **cna-craft files**: `src/CnaCraft/Worlds/BlockType.hpp`, `src/CnaCraft/Worlds/Hotbar.hpp`
+- **Priority**: medium (done for the Cloud fidelity question)
 - **Verification method**: diff the two ordered lists (done above)
 - **Notes**: Whether to remove `Cloud` from the placeable hotbar to match Craft exactly is a
   **design trade-off between Craft fidelity and cna-craft's own existing player-facing feature**
@@ -715,7 +716,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 1.8 | Gravity/jump (terminal velocity) | **fixed this session** | medium |
 | 1.9 | Zoom/ortho/arrow-look | complete | low |
 | 2.1 | Hotbar switching (0/R/scroll) | **fixed this session** | medium |
-| 2.2 | Block roster | partial | medium (needs_human: Cloud placeability) |
+| 2.2 | Block roster (Cloud fidelity **fixed this session**) | partial | medium |
 | 2.3 | Raycast algorithm | complete | low |
 | 2.4 | Wireframe selection outline | **fixed this session** | high |
 | 2.5 | Block breaking (Bedrock protection) | **fixed this session** | critical |

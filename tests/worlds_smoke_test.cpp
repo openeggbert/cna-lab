@@ -613,7 +613,7 @@ void TestVoxelRaycastHitsExpectedFaceAndBlock() {
 
 void TestHotbarSelectionAndCycling() {
     Hotbar hotbar;
-    Check(hotbar.SlotCount() == 17, "hotbar has 17 slots (Bedrock excluded from the placeable roster)");
+    Check(hotbar.SlotCount() == 16, "hotbar has 16 slots (Bedrock and Cloud excluded from the placeable roster)");
     Check(hotbar.SelectedIndex() == 0, "hotbar starts on slot 0");
     Check(hotbar.Selected() == BlockType::Grass, "hotbar starts selecting slot 1's block (Grass)");
 
@@ -634,13 +634,11 @@ void TestHotbarSelectionAndCycling() {
     hotbar.CycleNext();
     Check(hotbar.Selected() == BlockType::Glass, "slot 13 is Glass");
     hotbar.CycleNext();
-    Check(hotbar.Selected() == BlockType::Cloud, "slot 14 is Cloud");
+    Check(hotbar.Selected() == BlockType::Leaves, "slot 14 is Leaves");
     hotbar.CycleNext();
-    Check(hotbar.Selected() == BlockType::Leaves, "slot 15 is Leaves");
+    Check(hotbar.Selected() == BlockType::TallGrass, "slot 15 is TallGrass");
     hotbar.CycleNext();
-    Check(hotbar.Selected() == BlockType::TallGrass, "slot 16 is TallGrass");
-    hotbar.CycleNext();
-    Check(hotbar.Selected() == BlockType::Flower, "slot 17 (the last slot) is Flower");
+    Check(hotbar.Selected() == BlockType::Flower, "slot 16 (the last slot) is Flower");
     hotbar.CycleNext();
     Check(hotbar.SelectedIndex() == 0, "CycleNext wraps back to slot 0 after the last slot");
 
