@@ -198,13 +198,13 @@ void CnaCraftGame::Initialize() {
     effect_->VertexColorEnabled = false;
     effect_->setTextureEnabledProperty(true);
     effect_->EnableDefaultLighting();
-    // EnableDefaultLighting()'s 3-light rig leaves faces angled away from all
-    // three lights essentially unlit (visibly black on flat terrain faces);
-    // floor it with a moderate ambient term so no face ever goes pure black,
-    // matching Craft's block_fragment.glsl ("ambient = value*0.3+0.2", never
-    // zero — see THIRD_PARTY_NOTICES.md). Set here as the first frame's
-    // starting value; Draw() recomputes it every frame from the day/night
-    // cycle (plan.md §11.3) using the same formula with a live `daylight`.
+    // The EnableDefaultLighting() rig + ambient floor now light ONLY the
+    // sign billboards (still VertexPositionNormalTexture) -- chunk terrain
+    // switched to Craft's exact vertex-color model with plan.md §12.1 item
+    // 12 (per-vertex baked AO/diffuse in MeshVertex::shade, daylight via
+    // DiffuseColor; see Draw()'s per-pass state). The ambient floor keeps
+    // matching Craft's block_fragment.glsl ("ambient = value*0.3+0.2",
+    // never zero); Draw() recomputes it per frame from the day/night cycle.
     effect_->setAmbientLightColorProperty(Vector3(0.5f, 0.5f, 0.5f));
 
     atlasTexture_ = std::make_unique<Texture2D>(Render::BuildProceduralAtlas(device));
@@ -1054,7 +1054,22 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     const float daylight = Worlds::ComputeDaylight(totalSeconds);
     const float timeOfDay = Worlds::ComputeTimeOfDay(totalSeconds);
     const float ambient = daylight * 0.3f + 0.2f;
+    // The ambient uniform now only lights SIGNS (the one remaining
+    // lit-path consumer); terrain gets its daylight through
+    // terrainDiffuse below instead (plan.md §12.1 item 12).
     effect_->setAmbientLightColorProperty(Vector3(ambient, ambient, ambient));
+
+    // Terrain daylight diffuse -- the per-frame half of Craft's factored
+    // block lighting (see MeshVertex::shade): vertex colors carry shade/2,
+    // so DiffuseColor restores the *2 and the product is exactly Craft's
+    // texel * (daylight*0.3+0.2) * (1+df) * aoBrightness. In [0.4, 1.0],
+    // so nothing ever clamps. Each draw pass below sets DiffuseColor
+    // explicitly (terrain dimmed, everything else white) -- the sky dome
+    // draws FIRST, so without its explicit white it would inherit LAST
+    // frame's terrain value.
+    const float terrainDiffuse = 2.0f * ambient;
+    const Vector3 kWhite(1.0f, 1.0f, 1.0f);
+    const Vector3 terrainDiffuseColor(terrainDiffuse, terrainDiffuse, terrainDiffuse);
 
     // Clear color = the sky gradient's horizon band for the current time of
     // day (CRAFT_PARITY.md §5.3, plan.md §12.1 item 33) — replaces the old
@@ -1145,13 +1160,19 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     device.getSamplerStatesProperty()[0] = SamplerState::LinearClamp;
     effect_->VertexColorEnabled = true;
     effect_->setLightingEnabledProperty(false);
+    effect_->setDiffuseColorProperty(kWhite);  // never inherit last frame's terrain dimming
     skyDome_.Draw(device, *effect_, eyeVec);
-    effect_->setLightingEnabledProperty(true);
-    effect_->VertexColorEnabled = false;
     device.getSamplerStatesProperty()[0] = SamplerState::PointClamp;
     effect_->setTextureProperty(atlasTexture_.get());
     effect_->setFogEnabledProperty(fogWasEnabled);
     device.SetDepthWriteEnabled(true);
+
+    // Terrain state (plan.md §12.1 item 12): VertexColorEnabled stays ON and
+    // lighting stays OFF from the sky pass -- chunk terrain is now the
+    // baked-shade vertex-color path (stride-24 texture*color*diffuse), not
+    // the old normal-lit rig. Only the diffuse changes to the daylight
+    // factor.
+    effect_->setDiffuseColorProperty(terrainDiffuseColor);
 
     // Per-chunk frustum culling (plan.md §11.2): only draw chunks whose AABB
     // intersects the current view frustum — mirrors Craft's own naive
@@ -1189,8 +1210,11 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     // existing opaque+transparent passes for a feature that in practice
     // draws nothing almost all the time.
     if (glowChunkCount_ > 0) {
-        effect_->VertexColorEnabled = true;
-        effect_->setLightingEnabledProperty(false);
+        // VertexColorEnabled/lighting are already in the right state (the
+        // terrain path shares them now); only the diffuse differs -- glow
+        // is deliberately day/night-independent, so it draws at full white
+        // instead of the terrain's daylight dimming.
+        effect_->setDiffuseColorProperty(kWhite);
         for (auto& [key, renderers] : chunkRenderers_) {
             (void)key;
             for (auto& renderer : renderers) {
@@ -1198,14 +1222,16 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
                 renderer->DrawGlow(device, *effect_);
             }
         }
-        effect_->setLightingEnabledProperty(true);
-        effect_->VertexColorEnabled = false;
+        effect_->setDiffuseColorProperty(terrainDiffuseColor);
     }
 
-    // Signs (CRAFT_PARITY.md §4.3) — lit/textured quads, drawn with the same
-    // effect_ state as opaque chunk geometry (VertexPositionNormalTexture,
-    // no per-quad state changes needed beyond the per-quad texture already
-    // handled inside SignBillboard::Draw).
+    // Signs (CRAFT_PARITY.md §4.3) — lit/textured VertexPositionNormalTexture
+    // quads: the ONE remaining consumer of the EnableDefaultLighting rig +
+    // per-frame ambient now that terrain went vertex-color (item 12).
+    // Diffuse must be white -- the lit shader multiplies it too.
+    effect_->VertexColorEnabled = false;
+    effect_->setLightingEnabledProperty(true);
+    effect_->setDiffuseColorProperty(kWhite);
     signBillboard_.Draw(device, *effect_);
 
     // Visible targeted-block outline (CRAFT_PARITY.md §2.4) — drawn right
@@ -1219,11 +1245,17 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
         effect_->setTextureEnabledProperty(false);
         effect_->VertexColorEnabled = true;
         effect_->setLightingEnabledProperty(false);
+        effect_->setDiffuseColorProperty(kWhite);  // stride-16 colored program multiplies diffuse too
         selectionOutline_.Draw(device, *effect_);
-        effect_->setLightingEnabledProperty(true);
-        effect_->VertexColorEnabled = false;
         effect_->setTextureEnabledProperty(true);
     }
+
+    // Transparent terrain shares the baked-shade vertex-color state with
+    // the opaque pass (see above); re-assert it here since the sign/outline
+    // passes just changed pieces of it.
+    effect_->VertexColorEnabled = true;
+    effect_->setLightingEnabledProperty(false);
+    effect_->setDiffuseColorProperty(terrainDiffuseColor);
 
     // Transparent geometry (plan.md §11.2 "Transparency for glass") is drawn
     // last, with blending on and depth writes off, so the opaque scene
@@ -1240,6 +1272,13 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     }
     device.SetDepthWriteEnabled(true);
     device.SetBlendEnabled(false);
+
+    // Defensive end-of-frame baseline (lit, no vertex color, white diffuse)
+    // so nothing this frame set can leak into a pass that forgets to assert
+    // its own state -- every pass above still sets what it needs.
+    effect_->VertexColorEnabled = false;
+    effect_->setLightingEnabledProperty(true);
+    effect_->setDiffuseColorProperty(kWhite);
 
     hud_->Draw(device);
 

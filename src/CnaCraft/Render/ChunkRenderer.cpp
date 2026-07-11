@@ -1,5 +1,7 @@
 #include "ChunkRenderer.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <vector>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
@@ -7,7 +9,6 @@
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Graphics/PrimitiveType.hpp"
 #include "Microsoft/Xna/Framework/Graphics/VertexPositionColorTexture.hpp"
-#include "Microsoft/Xna/Framework/Graphics/VertexPositionNormalTexture.hpp"
 #include "Microsoft/Xna/Framework/Matrix.hpp"
 #include "Microsoft/Xna/Framework/Vector2.hpp"
 #include "Microsoft/Xna/Framework/Vector3.hpp"
@@ -32,12 +33,24 @@ void ChunkRenderer::UploadMesh(GraphicsDevice& device, const CnaCraft::Worlds::M
         return;
     }
 
-    std::vector<VertexPositionNormalTexture> vertices;
+    // Baked-AO terrain (plan.md §12.1 item 12, CRAFT_PARITY.md §5.1):
+    // terrain uploads as VertexPositionColorTexture, NOT the old
+    // VertexPositionNormalTexture -- the mesher already baked the entire
+    // time-independent half of Craft's block lighting into
+    // MeshVertex::shade (per-face diffuse * per-vertex AO, range
+    // [0.3, 2.0]), so normals are no longer needed at draw time. The
+    // grayscale vertex color carries shade/2 (so it fits 8-bit [0,1]);
+    // CnaCraftGame::Draw restores the *2 through DiffuseColor =
+    // 2*(daylight*0.3+0.2), keeping day/night a live per-frame uniform.
+    // Alpha stays 255 -- the transparent pass's blending keys on the
+    // texture's own alpha exactly as before.
+    std::vector<VertexPositionColorTexture> vertices;
     vertices.reserve(mesh.vertices.size());
     for (const auto& v : mesh.vertices) {
         float u = 0.0f, w = 0.0f;
         MapAtlasUv(v.tileIndex, v.u, v.v, u, w);
-        vertices.emplace_back(Vector3(v.px, v.py, v.pz), Vector3(v.nx, v.ny, v.nz), Vector2(u, w));
+        const int c = static_cast<int>(std::lround(std::min(v.shade * 0.5f, 1.0f) * 255.0f));
+        vertices.emplace_back(Vector3(v.px, v.py, v.pz), Color(c, c, c, 255), Vector2(u, w));
     }
 
     buffers.vb = std::make_unique<VertexBuffer>(device, static_cast<int>(vertices.size()));
