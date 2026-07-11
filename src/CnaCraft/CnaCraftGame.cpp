@@ -690,6 +690,17 @@ bool CnaCraftGame::IsColumnGenerationInFlight(int cx, int cz) const {
 }
 
 void CnaCraftGame::DispatchColumnGeneration(int cx, int cz) {
+#ifdef __EMSCRIPTEN__
+    // Web build: sharp-runtime's TaskT deliberately throws on Emscripten
+    // (no std::async there), so column generation runs synchronously on
+    // the main thread instead -- LoadColumnSynchronously is the exact
+    // same code path Initialize() already uses for the spawn column.
+    // UpdateStreaming's per-frame dispatch cap bounds the hitch (one
+    // column ~tens of ms in wasm); terrain pops in a little chunkier
+    // than the native build's background streaming, nothing more.
+    LoadColumnSynchronously(cx, cz);
+    return;
+#endif
     // Main thread, synchronous, cheap (see this method's doc comment in
     // CnaCraftGame.hpp for why this stays synchronous rather than also
     // being backgrounded).
@@ -791,6 +802,35 @@ void CnaCraftGame::PollGenerationJobs() {
 }
 
 void CnaCraftGame::DispatchMeshingForDirtyChunks() {
+#ifdef __EMSCRIPTEN__
+    // Web build: no TaskT (see DispatchColumnGeneration above), so dirty
+    // chunks re-mesh synchronously via ChunkRenderer::Rebuild -- reading
+    // the LIVE world is safe here precisely because nothing else runs
+    // concurrently on wasm. Same per-frame cap; glow-count bookkeeping
+    // mirrors PollMeshJobs' apply step.
+    constexpr int kMaxSyncMeshesPerFrame = 8;
+    auto& device = getGraphicsDeviceProperty();
+    int meshedThisFrame = 0;
+    for (auto& [key, renderers] : chunkRenderers_) {
+        if (meshedThisFrame >= kMaxSyncMeshesPerFrame) break;
+        int cx = 0, cz = 0;
+        Worlds::World::UnpackColumnKey(key, cx, cz);
+        for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
+            if (meshedThisFrame >= kMaxSyncMeshesPerFrame) break;
+            Worlds::Chunk& chunk = world_.ChunkAt(cx, cy, cz);
+            if (!chunk.IsDirty()) continue;
+            chunk.ClearDirty();
+            ++meshedThisFrame;
+            Render::ChunkRenderer& renderer = *renderers[static_cast<std::size_t>(cy)];
+            const bool hadGlow = renderer.HasGlow();
+            renderer.Rebuild(device, world_);
+            const bool hasGlowNow = renderer.HasGlow();
+            if (hasGlowNow && !hadGlow) ++glowChunkCount_;
+            else if (hadGlow && !hasGlowNow) --glowChunkCount_;
+        }
+    }
+    return;
+#endif
     // Dispatch cap, same reasoning as DispatchColumnGeneration's
     // kMaxColumnLoadsPerFrame: sharp-runtime's ThreadPool/TaskT spawn a
     // genuine new OS thread per Task::Run call rather than drawing from a

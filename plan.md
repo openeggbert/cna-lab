@@ -1552,6 +1552,40 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     flower colors + tall grass before/after under Xvfb: blooms now on top, stems rooted,
     grass unchanged.
 
+36. `completed` (2026-07-11) — **Web build (Emscripten/WebAssembly)**, user request ("zkus udelat
+    webovy emscripten build"). The game now builds to wasm and runs in a browser on WebGL 2 via
+    CNA's EasyGL backend — terrain streaming, baked AO, the day/night sky dome and the full HUD
+    all intact; verified end to end in headless Chrome (WebGL 2.0 / OpenGL ES 3.0 context,
+    walked with W, toggled fly with Tab, ascended above the clouds with Space, screenshots at
+    each step). Emscripten-specific work, all of it isolated and none of it touching the native
+    paths:
+    - **Threading**: sharp-runtime's `TaskT` deliberately throws on Emscripten (no `std::async`
+      there), so `DispatchColumnGeneration`/`DispatchMeshingForDirtyChunks` take an
+      `#ifdef __EMSCRIPTEN__` path that generates/meshes synchronously on the main thread —
+      reusing `LoadColumnSynchronously` and `ChunkRenderer::Rebuild`, both already-proven code
+      paths — under the same per-frame caps. Terrain pops in chunkier than the native
+      background streaming; nothing else changes.
+    - **Persistence**: no SQLite on wasm. `Persistence/WorldStoreStub.cpp` implements the same
+      interface as no-ops (compiled INSTEAD OF `WorldStore.cpp`), exercising the store's own
+      existing open-failure degradation — so game code needs zero platform branches. The one
+      semantic that had to be preserved: `SaveEdits` still clears `RecordedEdits`, or they would
+      accumulate unboundedly.
+    - **Multiplayer**: `CnaCraftServer` and the socket tests are excluded from the wasm build (a
+      browser page can't accept TCP connections); the web build is offline single-player. The
+      protocol/transport code still compiles — `--server` simply has nothing to connect to.
+    - **Two real browser-platform bugs found and fixed**: (1) `-sALLOW_MEMORY_GROWTH` backs the
+      wasm heap with a *resizable* ArrayBuffer, and current Chrome rejects views of resizable
+      buffers in BOTH `crypto.getRandomValues` (aborted startup before `main()`) and WebGL's
+      `texImage2D` (aborted the first texture upload). Fixed by dropping memory growth for a
+      fixed 512 MB heap (sidesteps the whole class) plus a `web/pre.js` shim wrapping
+      `getRandomValues` for belt-and-braces. (2) The default context was WebGL 1, but EasyGL's
+      shaders are `#version 300 es` — fixed with `-sMIN_WEBGL_VERSION=2`.
+    - **`web/shell.html`**: a real full-window shell with pointer-lock-on-click (the game runs in
+      relative-mouse mode) and a controls legend, replacing the toolchain's 800×480 demo page.
+    - CMake: `emcmake` configure works with no extra flags; `embuilder build zlib` is the one
+      manual prerequisite (sharp-runtime links zlib). Native builds and all six CTest suites
+      verified unchanged afterward.
+
 ### 12.2 Deliberately not re-litigated this session
 
 Per CRAFT_PARITY.md, these are `complete` (functionally equivalent to Craft) and need no task:

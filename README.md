@@ -57,6 +57,26 @@ cmake -S . -B build -DCNA_GRAPHICS_BACKEND=EASYGL   # or VULKAN, or BGFX
 cmake --build build --target CnaCraft
 ```
 
+### 4.1 Web build (Emscripten / WebAssembly)
+
+The game also builds to WebAssembly and runs in the browser on WebGL 2 (via CNA's EasyGL
+backend), with terrain streaming, ambient occlusion, the day/night sky and the full HUD intact:
+
+```bash
+source /path/to/emsdk/emsdk_env.sh
+embuilder build zlib                          # one-off: sharp-runtime needs zlib
+emcmake cmake -S . -B build-web -DCNA_GRAPHICS_BACKEND=EASYGL
+cmake --build build-web --target CnaCraft
+python3 -m http.server 8000 --directory build-web    # then open http://localhost:8000/CnaCraft.html
+```
+
+Web-specific differences, all deliberate: **single-player only** (a browser page cannot host or
+open raw TCP sockets, so `--server` and `CnaCraftServer` are native-only), **edits are not
+persisted** (no SQLite in the browser — the world resets on reload), and **generation/meshing run
+synchronously on the main thread** (Emscripten has no threads in this configuration), so terrain
+pops in a little chunkier than the desktop build's background streaming. Click the page to lock
+the pointer; Esc releases it, exactly like the desktop build.
+
 ## 5. Controls
 
 | Key               | Action                              |

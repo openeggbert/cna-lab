@@ -46,7 +46,10 @@ add_library(CnaCraftNetProtocol STATIC
 )
 target_include_directories(CnaCraftNetProtocol PUBLIC src)
 
-if(BUILD_TESTING)
+# Test binaries are host-run (ctest executes them directly), so they are
+# skipped when cross-compiling to wasm -- run the test suites in a native
+# build tree instead (the web build changes no engine-agnostic logic).
+if(BUILD_TESTING AND NOT EMSCRIPTEN)
     add_executable(cna_craft_worlds_smoke_test tests/worlds_smoke_test.cpp)
     target_link_libraries(cna_craft_worlds_smoke_test PRIVATE CnaCraftWorlds)
     add_test(NAME WorldsSmokeTest COMMAND cna_craft_worlds_smoke_test)
@@ -140,7 +143,18 @@ if(CNA_CRAFT_BUILD_GAME)
     # CnaCraftWorlds library above -- that library's whole point is staying
     # dependency-free and testable with no GPU/display, and persistence is a
     # new, separate concern from core voxel logic (see Persistence/WorldStore).
-    find_package(SQLite3 REQUIRED)
+    #
+    # Web build: no SQLite on wasm -- WorldStoreStub.cpp implements the same
+    # interface as harmless no-ops (the store's existing open-failure
+    # degradation, decided at compile time instead of runtime). Edits then
+    # live only for the browser session, which is what a web demo wants
+    # anyway.
+    if(EMSCRIPTEN)
+        set(_cna_craft_persistence_src src/CnaCraft/Persistence/WorldStoreStub.cpp)
+    else()
+        find_package(SQLite3 REQUIRED)
+        set(_cna_craft_persistence_src src/CnaCraft/Persistence/WorldStore.cpp)
+    endif()
 
     # =========================================================================
     # CnaCraftNetTransport -- the socket-using half of Net/ (MULTIPLAYER_PLAN.md
@@ -158,16 +172,20 @@ if(CNA_CRAFT_BUILD_GAME)
 
     # CnaCraftServer -- the authoritative headless game server
     # (MULTIPLAYER_PLAN.md §6): no CNA/graphics, just Worlds/ + Persistence/
-    # + the Net transport. Runs anywhere the worlds tests do.
-    add_executable(CnaCraftServer
-        src/CnaCraft/Server/main.cpp
-        src/CnaCraft/Server/GameServer.cpp
-        src/CnaCraft/Persistence/WorldStore.cpp
-    )
-    target_include_directories(CnaCraftServer PRIVATE src)
-    target_link_libraries(CnaCraftServer PRIVATE CnaCraftNetTransport CnaCraftWorlds SQLite::SQLite3)
+    # + the Net transport. Runs anywhere the worlds tests do -- except wasm,
+    # where sharp-runtime's sockets are unsupported (a browser page can't
+    # accept TCP connections anyway; the web build is offline single-player).
+    if(NOT EMSCRIPTEN)
+        add_executable(CnaCraftServer
+            src/CnaCraft/Server/main.cpp
+            src/CnaCraft/Server/GameServer.cpp
+            src/CnaCraft/Persistence/WorldStore.cpp
+        )
+        target_include_directories(CnaCraftServer PRIVATE src)
+        target_link_libraries(CnaCraftServer PRIVATE CnaCraftNetTransport CnaCraftWorlds SQLite::SQLite3)
+    endif()
 
-    if(BUILD_TESTING)
+    if(BUILD_TESTING AND NOT EMSCRIPTEN)
         add_executable(cna_craft_net_transport_smoke_test tests/net_transport_smoke_test.cpp)
         target_link_libraries(cna_craft_net_transport_smoke_test PRIVATE CnaCraftNetTransport)
         add_test(NAME NetTransportSmokeTest COMMAND cna_craft_net_transport_smoke_test)
@@ -205,7 +223,7 @@ if(CNA_CRAFT_BUILD_GAME)
         src/CnaCraft/Render/SkyTexture.cpp
         src/CnaCraft/Render/SignBillboard.cpp
         src/CnaCraft/Render/PlayerCube.cpp
-        src/CnaCraft/Persistence/WorldStore.cpp
+        ${_cna_craft_persistence_src}
     )
     target_include_directories(CnaCraft PRIVATE src)
 
@@ -223,19 +241,58 @@ if(CNA_CRAFT_BUILD_GAME)
     # CNA and its backend static library have circular symbol references
     # (mirrors ../cna/CMakeLists.txt's own examples and
     # ../galaxy-eggbert/CMakeLists.txt's GalaxyEggbertCNA target).
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT WIN32 AND _cna_craft_backend_target)
+    if(EMSCRIPTEN)
+        # Web build (plan.md §12.1 item 18 follow-up): same target shape as
+        # CNA's own verified web demos (../cna/CMakeLists.txt's cna_demo_2d
+        # Emscripten branch). No --preload-file: every cna-craft asset
+        # (texture atlas, sky gradient, bitmap font) is generated
+        # procedurally at startup -- there is no content directory at all.
+        set_target_properties(CnaCraft PROPERTIES SUFFIX ".html")
+        # SDL3 (CNA's vendored static libSDL3.a) flows in transitively
+        # through the backend target's own link interface, same as the
+        # native build below -- naming SDL3::SDL3 here directly would fail
+        # at generate time (it's an imported target scoped to the CNA
+        # subdirectory).
         target_link_libraries(CnaCraft PRIVATE
-            -Wl,--start-group CNA ${_cna_craft_backend_target} -Wl,--end-group
-            SHARP_RUNTIME CnaCraftWorlds CnaCraftNetTransport)
+            CNA ${_cna_craft_backend_target} SHARP_RUNTIME
+            CnaCraftWorlds CnaCraftNetTransport)
+        target_link_options(CnaCraft PRIVATE
+            # FIXED 512 MB heap, deliberately NO -sALLOW_MEMORY_GROWTH: a
+            # growable wasm heap is backed by a RESIZABLE ArrayBuffer, and
+            # current browsers (Chrome 130+) reject views of resizable
+            # buffers in crypto.getRandomValues AND WebGL's texImage2D/
+            # bufferData upload paths -- the latter would mean copying
+            # every texture/vertex upload through a temp. A fixed heap
+            # sidesteps the whole class; 512 MB comfortably fits the
+            # streamed world at the default radius.
+            -sINITIAL_MEMORY=536870912
+            -sSTACK_SIZE=1048576
+            -sFORCE_FILESYSTEM=1
+            # EasyGL's shaders are '#version 300 es' -- require a real
+            # WebGL 2 context (= OpenGL ES 3.0), never a WebGL 1 fallback.
+            -sMAX_WEBGL_VERSION=2
+            -sMIN_WEBGL_VERSION=2
+            "SHELL:--pre-js ${CMAKE_CURRENT_SOURCE_DIR}/web/pre.js"
+            "SHELL:--shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html"
+        )
+        set_property(TARGET CnaCraft APPEND PROPERTY LINK_DEPENDS
+                     "${CMAKE_CURRENT_SOURCE_DIR}/web/pre.js"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html")
     else()
-        target_link_libraries(CnaCraft PRIVATE CNA SHARP_RUNTIME CnaCraftWorlds CnaCraftNetTransport)
-    endif()
-    target_link_libraries(CnaCraft PRIVATE SQLite::SQLite3)
-    if(TARGET SDL3::SDL3main)
-        target_link_libraries(CnaCraft PRIVATE SDL3::SDL3main)
-    endif()
-    if(WIN32 AND COMMAND cna_copy_sdl_runtime)
-        set_target_properties(CnaCraft PROPERTIES WIN32_EXECUTABLE TRUE)
-        cna_copy_sdl_runtime(CnaCraft)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT WIN32 AND _cna_craft_backend_target)
+            target_link_libraries(CnaCraft PRIVATE
+                -Wl,--start-group CNA ${_cna_craft_backend_target} -Wl,--end-group
+                SHARP_RUNTIME CnaCraftWorlds CnaCraftNetTransport)
+        else()
+            target_link_libraries(CnaCraft PRIVATE CNA SHARP_RUNTIME CnaCraftWorlds CnaCraftNetTransport)
+        endif()
+        target_link_libraries(CnaCraft PRIVATE SQLite::SQLite3)
+        if(TARGET SDL3::SDL3main)
+            target_link_libraries(CnaCraft PRIVATE SDL3::SDL3main)
+        endif()
+        if(WIN32 AND COMMAND cna_copy_sdl_runtime)
+            set_target_properties(CnaCraft PROPERTIES WIN32_EXECUTABLE TRUE)
+            cna_copy_sdl_runtime(CnaCraft)
+        endif()
     endif()
 endif()

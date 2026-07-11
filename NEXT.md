@@ -167,9 +167,15 @@ cycle), `persistence_smoke_test` **40**. Protocol + worlds + persistence
 run standalone with `-DCNA_CRAFT_BUILD_GAME=OFF`; the socket-using suites
 need the game-enabled tree (SHARP_RUNTIME).
 
-**plan.md §12.1 status as of this session's end** (34 items):
-**ALL 34 `completed`.** Item 18 (multiplayer, phases M0-M7) landed last —
-see §3 item 22. Nothing is blocked, pending, or decided-but-unstarted.
+**plan.md §12.1 status as of this session's end** (36 items):
+**ALL 36 `completed`.** Item 18 (multiplayer, phases M0-M7, §3 item 22)
+and item 36 (the Emscripten web build, §3 item 23) landed last. Nothing
+is blocked, pending, or decided-but-unstarted.
+
+**Platforms**: native Linux (EasyGL verified; Vulkan/Bgfx build but only
+EasyGL has been run here) and **WebAssembly/WebGL 2 via Emscripten**
+(item 36 — single-player only, no persistence; see §3 item 23 for the
+wasm-specific code paths and the browser bugs they work around).
 
 ## 3. Recent changes (this session)
 
@@ -585,6 +591,32 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     focus-based); pkill -f patterns matching the invoking shell's own
     command line kill the shell (see §4).
 
+23. **Web build — Emscripten/WebAssembly** (plan.md §12.1 item 36, user
+    request "zkus udelat webovy emscripten build" — same session). The
+    game runs in a browser on WebGL 2 (EasyGL backend), verified live in
+    headless Chrome: walked, toggled fly, ascended above the clouds, HUD
+    and AO terrain all correct. wasm-specific paths, all `#ifdef`-isolated
+    from native: TaskT throws on Emscripten, so column generation and
+    meshing run SYNCHRONOUSLY on the main thread (reusing
+    `LoadColumnSynchronously` / `ChunkRenderer::Rebuild`, both proven
+    code); `Persistence/WorldStoreStub.cpp` replaces the SQLite store with
+    no-ops (SaveEdits MUST still clear RecordedEdits, or they accumulate);
+    `CnaCraftServer` + socket tests are excluded (a browser page can't
+    accept TCP) so web is single-player. **Two real browser bugs found**:
+    `-sALLOW_MEMORY_GROWTH` gives a resizable ArrayBuffer, which current
+    Chrome rejects in BOTH `crypto.getRandomValues` (killed startup) and
+    WebGL `texImage2D` (killed the first texture upload) — fixed with a
+    fixed 512 MB heap (+ a `web/pre.js` shim); and the default context was
+    WebGL 1 while EasyGL's shaders are `#version 300 es` — fixed with
+    `-sMIN_WEBGL_VERSION=2`. `web/shell.html` is a real full-window shell
+    with pointer-lock-on-click. Build: `embuilder build zlib` once, then
+    `emcmake cmake -S . -B build-web -DCNA_GRAPHICS_BACKEND=EASYGL`.
+    **Screenshot verification tip**: Chrome's `--screenshot` +
+    `--virtual-time-budget` captures the WebGL canvas BLACK (rAF timing);
+    drive the page over the DevTools Protocol instead (real sleep, then
+    `Page.captureScreenshot`; `Input.dispatchKeyEvent` even drives the
+    game) — see the session's `cdp_play.py` pattern.
+
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
@@ -816,6 +848,15 @@ SDL_VIDEODRIVER=x11 DISPLAY=:0 ./build-easygl/CnaCraft --smoke 30
 SDL_VIDEODRIVER=x11 DISPLAY=:0 ./build-easygl/CnaCraft --server 127.0.0.1 4080
 # In-game: Enter = chat, /online HOST [PORT], /offline, /list, /nick NAME,
 # P = cycle picture-in-picture observation, @nick text = private message.
+```
+
+```bash
+# Web build (plan.md §12.1 item 36) -- wasm + WebGL 2, single-player:
+source ~/emsdk/emsdk_env.sh
+embuilder build zlib                       # one-off (sharp-runtime links zlib)
+emcmake cmake -S . -B build-web -DCNA_GRAPHICS_BACKEND=EASYGL
+cmake --build build-web --target CnaCraft
+python3 -m http.server 8000 --directory build-web   # open /CnaCraft.html
 ```
 Note: `SDL_VIDEODRIVER=x11` matters in sandboxes where `WAYLAND_DISPLAY` is
 also set — otherwise SDL silently creates a Wayland surface that X11
