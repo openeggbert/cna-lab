@@ -1,9 +1,10 @@
 # MULTIPLAYER_PLAN.md — design document (planning only)
 
-Status: **design pass complete, implementation NOT started** — per the user
-decision of 2026-07-10 ("Začít plánovat"), this document is the deliverable;
-no networking code exists or may be written without a further explicit
-go-ahead (NEXT.md §8/§9). Written 2026-07-11 from three research passes over
+Status: **design pass complete AND all §11 scope questions decided by the
+user (2026-07-11)** — see §11 for the four recorded decisions. Implementation
+is still NOT started and still requires the user's explicit "start" (the
+standing 2026-07-10 planning-only decision; NEXT.md §8/§9); when it comes,
+begin at phase M0 (§10). Written 2026-07-11 from three research passes over
 the real Craft checkout (`/rv/data/development/github.com/other/Craft`),
 CNA + sharp-runtime, and cna-craft's own integration surface. Every claim
 below was verified against source; citations are file:line in the
@@ -336,21 +337,35 @@ one field, no other changes; day length itself also comes from `E`.
   player cube.
 - **M6 — Chat + mode switching**: Enter-chat (online only), T routing,
   `/online`/`/offline`, sign/light sync polish.
-- **M7 (optional, separate decisions)**: auth trio, PIP observer views
-  (plan.md §11.6's third bullet), Option-A Craft-server compatibility mode
-  (terrain port + 32↔16 mapping + ID map).
+- **M7a — Picture-in-picture observation** (decided IN scope, §11): Craft's
+  O/P-key cycling, rendered as a second viewport + `BasicEffect.View` pass
+  from the observed player's interpolated state.
+- **M7b — `@nick` private messages** (decided IN scope, §11): server-side
+  routing per Craft's `on_talk`.
+- Dropped from the roadmap per §11's decisions: the auth trio and the
+  Option-A real-Craft compatibility mode.
 
-## 11. Open questions for the user (decide before implementation)
+## 11. Scope decisions — DECIDED by the user, 2026-07-11
 
-1. **Compatibility target**: Option B (cna-craft↔cna-craft, recommended)
-   vs Option A (real-Craft-server compatible) vs B-then-A?
-2. **Server language/placement**: C++ `CnaCraftServer` in this repo
-   (recommended — shares Worlds/Persistence, fixes validation coherence)
-   vs adapting Craft's `server.py` (needs the C world lib + ID/chunk
-   mapping anyway)?
-3. **Auth scope**: guest-only + `/nick` (recommended for LAN) vs porting
-   the identity-token flow against a self-hosted auth service?
-4. **Scope of M7 extras**: PIP observer? Option-A mode ever?
+All four questions were put to the user individually and answered
+("ja odpovim jak si to predstavuji"):
+
+1. **Compatibility target: Option B** — cna-craft↔cna-craft only, own
+   server, protocol kept Craft-shaped with the two documented deltas
+   (§4). Real-Craft-server compatibility (Option A) is NOT in scope and
+   was not chosen even as a later milestone — don't build toward it
+   beyond the cheap protocol-shape discipline already in the design.
+2. **Server: C++ `CnaCraftServer` in this repo**, reusing
+   `Worlds/` + `Persistence/` (§6). Craft's `server.py` will not be
+   adapted.
+3. **Auth: none — guest names + `/nick`** (§9). The `/identity`,
+   `/login`, `/logout` trio stays unported; `A` messages only carry an
+   optional nick.
+4. **M7 extras: BOTH selected** — picture-in-picture observation
+   (Craft's O/P keys; second viewport + View matrix pass) AND `@nick`
+   private messages (server-side routing, Craft's own behavior). These
+   join the roadmap as M7a/M7b after M6; the Option-A compatibility mode
+   drops off the roadmap entirely per decision 1.
 
 ## 12. Constraints carried over (do not violate during implementation)
 

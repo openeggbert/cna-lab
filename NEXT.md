@@ -802,11 +802,13 @@ implementable is done, and the multiplayer PLANNING pass is done too**
 (`MULTIPLAYER_PLAN.md`, §3 item 20). What's actionable next:
 
 - **Multiplayer implementation — ONLY with an explicit user go-ahead**:
-  first get the user's answers to `MULTIPLAYER_PLAN.md` §11's four open
-  questions (compatibility target, server placement, auth scope, M7
-  extras), then start at phase M0 (protocol module + tests). Do NOT start
-  from the old plan.md §11.6 transport suggestion — the plan doc
-  supersedes it.
+  `MULTIPLAYER_PLAN.md` §11's four scope questions are now DECIDED
+  (2026-07-11: cna-craft↔cna-craft only; C++ `CnaCraftServer` in this
+  repo; no auth, guest + `/nick`; M7 = PIP observation + `@nick` PMs;
+  real-Craft compatibility dropped). Everything is ready to start at
+  phase M0 (protocol module + tests) the moment the user says start. Do
+  NOT begin from the old plan.md §11.6 transport suggestion — the plan
+  doc supersedes it.
 
 Also legitimately available if the user prefers polish over planning:
 one-keypress verifications on their real machine (F11 fullscreen, item 34;
@@ -916,10 +918,11 @@ Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
 as of the last session (2026-07-11), **33 of 34 items are completed and
 nothing is blocked**; the only remaining item is multiplayer, whose
-DESIGN is done (`MULTIPLAYER_PLAN.md` — read it before any multiplayer
-work; §11 lists the user decisions still needed) but whose implementation
-requires an explicit user go-ahead (standing decision — don't write
-networking code without one). Highlights: item 19 chunk streaming, item 25
+DESIGN is done and fully scoped (`MULTIPLAYER_PLAN.md` — read it before
+any multiplayer work; its §11 records the user's four scope decisions of
+2026-07-11) but whose implementation requires an explicit user go-ahead
+(standing decision — don't write networking code without one; when it
+comes, start at phase M0). Highlights: item 19 chunk streaming, item 25
 the 54-block roster, item 17 chat/slash commands, items 26-34 the parity
 audit's follow-ups (controls, light-toggle glow pass, sky dome, F11), and
 item 12 **ambient occlusion** — baked per-vertex Craft AO via
