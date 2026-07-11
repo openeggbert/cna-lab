@@ -302,6 +302,9 @@ if(CNA_CRAFT_BUILD_GAME)
             # to spawn a worker, and blocking the browser's main thread
             # deadlocks. Harmless when threads are off (the flag is ignored).
             -sPTHREAD_POOL_SIZE=16
+            $<$<BOOL:${CNA_CRAFT_WASM_THREADS}>:-sPROXY_TO_PTHREAD>
+            $<$<BOOL:${CNA_CRAFT_WASM_THREADS}>:-sOFFSCREENCANVAS_SUPPORT=1>
+            $<$<BOOL:${CNA_CRAFT_WASM_THREADS}>:-sOFFSCREEN_FRAMEBUFFER=1>
             "SHELL:--pre-js ${CMAKE_CURRENT_SOURCE_DIR}/web/pre.js"
             "SHELL:--shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html"
         )
