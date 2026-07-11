@@ -141,6 +141,26 @@ if(CNA_CRAFT_BUILD_GAME)
     # new, separate concern from core voxel logic (see Persistence/WorldStore).
     find_package(SQLite3 REQUIRED)
 
+    # =========================================================================
+    # CnaCraftNetTransport -- the socket-using half of Net/ (MULTIPLAYER_PLAN.md
+    # §5): LineSocket framing + GameClient. Lives inside the game-enabled
+    # branch because it needs SHARP_RUNTIME (System::Net::Sockets), which only
+    # exists once the CNA tree is added. Pure protocol parse/format stays in
+    # CnaCraftNetProtocol above, testable without any of this.
+    # =========================================================================
+    add_library(CnaCraftNetTransport STATIC
+        src/CnaCraft/Net/LineSocket.cpp
+        src/CnaCraft/Net/GameClient.cpp
+    )
+    target_include_directories(CnaCraftNetTransport PUBLIC src)
+    target_link_libraries(CnaCraftNetTransport PUBLIC CnaCraftNetProtocol SHARP_RUNTIME)
+
+    if(BUILD_TESTING)
+        add_executable(cna_craft_net_transport_smoke_test tests/net_transport_smoke_test.cpp)
+        target_link_libraries(cna_craft_net_transport_smoke_test PRIVATE CnaCraftNetTransport)
+        add_test(NAME NetTransportSmokeTest COMMAND cna_craft_net_transport_smoke_test)
+    endif()
+
     add_executable(CnaCraft
         src/CnaCraft/main.cpp
         src/CnaCraft/CnaCraftGame.cpp
