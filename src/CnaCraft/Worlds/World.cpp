@@ -88,17 +88,28 @@ void World::SetBlock(int x, int y, int z, BlockType type) {
     const int lx = ChunkLocalCoordOf(x), ly = y % CHUNK_SIZE, lz = ChunkLocalCoordOf(z);
     chunk->SetBlock(lx, ly, lz, type);
 
-    // A block sitting on a chunk boundary affects the neighbor chunk's face
-    // culling too (plan.md §0/§4 — Craft's "one-block neighbor overlap").
-    // Neighbor chunks may not be loaded (unlike the old fixed grid, where
-    // every neighbor within bounds always existed) -- TryChunkAt handles
-    // that gracefully, same as everywhere else.
-    if (lx == 0) { if (Chunk* n = TryChunkAt(cx - 1, cy, cz)) n->MarkDirty(); }
-    if (lx == CHUNK_SIZE - 1) { if (Chunk* n = TryChunkAt(cx + 1, cy, cz)) n->MarkDirty(); }
-    if (ly == 0) { if (Chunk* n = TryChunkAt(cx, cy - 1, cz)) n->MarkDirty(); }
-    if (ly == CHUNK_SIZE - 1) { if (Chunk* n = TryChunkAt(cx, cy + 1, cz)) n->MarkDirty(); }
-    if (lz == 0) { if (Chunk* n = TryChunkAt(cx, cy, cz - 1)) n->MarkDirty(); }
-    if (lz == CHUNK_SIZE - 1) { if (Chunk* n = TryChunkAt(cx, cy, cz + 1)) n->MarkDirty(); }
+    // An edit invalidates baked shading (AO + column shade, plan.md §12.1
+    // item 12) in the box [x-1,x+1] x [y-8,y+1] x [z-1,z+1]: AO reads the
+    // full 26-neighborhood (so DIAGONAL chunks matter, not just
+    // face-adjacent -- Craft's own set_block dirties X/Z diagonals via its
+    // phantom -w border writes, main.c:1557-1576), and the column-shade
+    // term reaches cells up to 8 below the edit -- hence ly <= 7, not
+    // ly == 0, for the chunk below (Craft needs no Y rule only because its
+    // chunks are full-height columns). Every neighbor chunk that box
+    // touches must remesh; the cross product below marks exactly those.
+    // Neighbor chunks may not be loaded -- TryChunkAt handles that
+    // gracefully, same as everywhere else.
+    const int sxLo = (lx == 0) ? -1 : 0, sxHi = (lx == CHUNK_SIZE - 1) ? 1 : 0;
+    const int syLo = (ly <= 7) ? -1 : 0, syHi = (ly == CHUNK_SIZE - 1) ? 1 : 0;
+    const int szLo = (lz == 0) ? -1 : 0, szHi = (lz == CHUNK_SIZE - 1) ? 1 : 0;
+    for (int sx = sxLo; sx <= sxHi; ++sx) {
+        for (int sy = syLo; sy <= syHi; ++sy) {
+            for (int sz = szLo; sz <= szHi; ++sz) {
+                if (sx == 0 && sy == 0 && sz == 0) continue;
+                if (Chunk* n = TryChunkAt(cx + sx, cy + sy, cz + sz)) n->MarkDirty();
+            }
+        }
+    }
 }
 
 bool World::IsLightSource(int x, int y, int z) const {

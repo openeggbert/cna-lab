@@ -14,6 +14,17 @@ struct MeshVertex {
     float nx = 0.0f, ny = 0.0f, nz = 0.0f;
     float u = 0.0f, v = 0.0f;
     int tileIndex = 0;
+    // Baked static Craft light factor (CRAFT_PARITY.md §5.1, plan.md §12.1
+    // item 12): (1 + df) * (0.3 + (1 - ao) * 0.7), in [0.3, 2.0] -- df is
+    // Craft's fixed-direction per-face diffuse, ao the per-vertex occlusion
+    // from ChunkMesher::ComputeOcclusion (cloud faces carry Craft's
+    // contrast-compressed variant). With no torch-light propagation (the
+    // item-27 glow-pass pivot), this is the ENTIRE time-independent half of
+    // Craft's block_fragment.glsl lighting; the time-dependent half stays a
+    // live per-frame uniform: the renderer uploads shade/2 as the 8-bit
+    // vertex color and BasicEffect::DiffuseColor = 2*(daylight*0.3+0.2)
+    // restores the *2 -- see ChunkRenderer::UploadMesh.
+    float shade = 1.0f;
 };
 
 struct MeshData {

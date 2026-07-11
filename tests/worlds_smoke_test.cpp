@@ -191,6 +191,365 @@ void TestChunkMesherBoundaryRemeshOnNeighborLoad() {
           "the neighbor chunk's own mesh also culls its face touching the boundary (mutual occlusion)");
 }
 
+// ---- Ambient occlusion (plan.md §12.1 item 12, CRAFT_PARITY.md §5.1) ----
+// Expected values below were derived by hand from Craft's own formulas
+// (occlusion() in main.c + block_vertex/block_fragment.glsl) during
+// planning, independently of the implementation.
+
+constexpr float kAoInvSqrt3 = 0.57735027f;      // Craft's diffuse for +Y/-X/-Z faces
+constexpr float kAoLitShade = 1.0f + kAoInvSqrt3;  // unoccluded lit face: (1+df)*1.0
+
+bool ApproxEq(float a, float b) { return std::fabs(a - b) < 1e-4f; }
+
+// Base index (first of 4 consecutive vertices) of the quad with the given
+// face normal and minimum corner position, or -1. Every mesher emission
+// (cube faces and plant quads alike) appends exactly 4 vertices, so quads
+// always start at multiples of 4.
+int FindQuadBase(const MeshData& mesh, float nx, float ny, float nz, float minX, float minY, float minZ) {
+    for (std::size_t i = 0; i + 3 < mesh.vertices.size(); i += 4) {
+        if (mesh.vertices[i].nx != nx || mesh.vertices[i].ny != ny || mesh.vertices[i].nz != nz) continue;
+        float mx = mesh.vertices[i].px, my = mesh.vertices[i].py, mz = mesh.vertices[i].pz;
+        for (std::size_t c = 1; c < 4; ++c) {
+            mx = std::min(mx, mesh.vertices[i + c].px);
+            my = std::min(my, mesh.vertices[i + c].py);
+            mz = std::min(mz, mesh.vertices[i + c].pz);
+        }
+        if (mx == minX && my == minY && mz == minZ) return static_cast<int>(i);
+    }
+    return -1;
+}
+
+bool QuadShadesAre(const MeshData& mesh, int base, float s0, float s1, float s2, float s3) {
+    if (base < 0) return false;
+    const std::size_t b = static_cast<std::size_t>(base);
+    return ApproxEq(mesh.vertices[b + 0].shade, s0) && ApproxEq(mesh.vertices[b + 1].shade, s1) &&
+           ApproxEq(mesh.vertices[b + 2].shade, s2) && ApproxEq(mesh.vertices[b + 3].shade, s3);
+}
+
+void TestComputeOcclusionKnownValues() {
+    // Synthetic-input checks against Craft's occlusion() math -- the only
+    // way to observe the both-sides rule in isolation, since in-world an
+    // opaque side cell always also contributes shade 1.0 and saturates the
+    // clamp. Face 2 is +Y (top); its corner 0 sits at XZ tangent (-1,-1).
+    const int side1 = ChunkMesher::NeighborIndex(-1, 1, 0);
+    const int side2 = ChunkMesher::NeighborIndex(0, 1, -1);
+    const int corner = ChunkMesher::NeighborIndex(-1, 1, -1);
+    const int center = ChunkMesher::NeighborIndex(0, 1, 0);
+
+    std::uint8_t n[27] = {};
+    float s[27] = {};
+    float ao[6][4];
+
+    ChunkMesher::ComputeOcclusion(n, s, ao);
+    bool allZero = true;
+    for (int f = 0; f < 6; ++f) {
+        for (int c = 0; c < 4; ++c) allZero = allZero && ao[f][c] == 0.0f;
+    }
+    Check(allZero, "occlusion: empty neighborhood yields ao == 0 for all 24 face-corners");
+
+    n[side1] = 1;
+    ChunkMesher::ComputeOcclusion(n, s, ao);
+    Check(ApproxEq(ao[2][0], 0.25f), "occlusion: a single side neighbor yields curve value 0.25");
+
+    n[side1] = 0;
+    n[corner] = 1;
+    ChunkMesher::ComputeOcclusion(n, s, ao);
+    Check(ApproxEq(ao[2][0], 0.25f), "occlusion: a single corner neighbor yields curve value 0.25");
+
+    n[corner] = 0;
+    n[side1] = 1;
+    n[side2] = 1;
+    ChunkMesher::ComputeOcclusion(n, s, ao);
+    Check(ApproxEq(ao[2][0], 0.75f),
+          "occlusion: both side neighbors force the fully-occluded curve value 0.75 (not the naive sum 0.5)");
+
+    n[corner] = 1;
+    ChunkMesher::ComputeOcclusion(n, s, ao);
+    Check(ApproxEq(ao[2][0], 0.75f), "occlusion: the corner neighbor adds nothing once both sides are solid");
+
+    n[side1] = n[side2] = n[corner] = 0;
+    s[center] = 0.875f;
+    ChunkMesher::ComputeOcclusion(n, s, ao);
+    Check(ApproxEq(ao[2][0], 0.21875f) && ApproxEq(ao[2][1], 0.21875f) && ApproxEq(ao[2][2], 0.21875f) &&
+              ApproxEq(ao[2][3], 0.21875f),
+          "occlusion: the shared face-center shade is averaged into all 4 corners (0.875/4)");
+
+    n[side1] = n[side2] = 1;
+    s[side1] = 1.0f;
+    s[side2] = 1.0f;
+    ChunkMesher::ComputeOcclusion(n, s, ao);
+    Check(ApproxEq(ao[2][0], 1.0f), "occlusion: curve + shade sum clamps at 1.0");
+}
+
+void TestMesherBakesLoneBlockShades() {
+    World world;
+    world.AllocateColumn(0, 0);
+    world.SetBlock(5, 5, 5, BlockType::Stone);
+    const ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
+
+    const int top = FindQuadBase(mesh.opaque, 0, 1, 0, 5, 6, 5);
+    const int negX = FindQuadBase(mesh.opaque, -1, 0, 0, 5, 5, 5);
+    const int posX = FindQuadBase(mesh.opaque, 1, 0, 0, 6, 5, 5);
+    const int bottom = FindQuadBase(mesh.opaque, 0, -1, 0, 5, 5, 5);
+    Check(QuadShadesAre(mesh.opaque, top, kAoLitShade, kAoLitShade, kAoLitShade, kAoLitShade),
+          "lone block: unoccluded top face bakes (1 + 1/sqrt3) everywhere");
+    Check(QuadShadesAre(mesh.opaque, negX, kAoLitShade, kAoLitShade, kAoLitShade, kAoLitShade),
+          "lone block: -X face is lit by Craft's fixed (-1,1,-1) light direction");
+    Check(QuadShadesAre(mesh.opaque, posX, 1.0f, 1.0f, 1.0f, 1.0f),
+          "lone block: +X face gets zero diffuse, bakes exactly 1.0");
+    // The block shades the cell directly below itself (column-shade oy=1 ->
+    // 0.875, averaged /4 -> ao 0.21875 -> brightness 0.846875, df 0).
+    Check(QuadShadesAre(mesh.opaque, bottom, 0.846875f, 0.846875f, 0.846875f, 0.846875f),
+          "lone block: bottom face is darkened by the block's own column shade");
+}
+
+void TestMesherGroundContactDarkensSideFaces() {
+    World world;
+    world.AllocateColumn(0, 0);
+    for (int x = 0; x < CHUNK_SIZE; ++x) {
+        for (int z = 0; z < CHUNK_SIZE; ++z) world.SetBlock(x, 4, z, BlockType::Stone);
+    }
+    world.SetBlock(5, 5, 5, BlockType::Stone);
+    const ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
+
+    // +X face corners 0,1 are the bottom pair (corner y == 5), 2,3 the top
+    // pair; floor contact saturates the bottom pair's ao to 1.0 -> 0.3.
+    const int posX = FindQuadBase(mesh.opaque, 1, 0, 0, 6, 5, 5);
+    Check(QuadShadesAre(mesh.opaque, posX, 0.3f, 0.3f, 1.0f, 1.0f),
+          "ground contact: +X face bottom corners saturate to the 0.3 floor, top corners stay 1.0");
+    // -X face corners: 0,1 bottom pair, 2,3 top pair (same layout), but the
+    // face carries diffuse 1/sqrt3.
+    const int negX = FindQuadBase(mesh.opaque, -1, 0, 0, 5, 5, 5);
+    Check(QuadShadesAre(mesh.opaque, negX, 0.3f * kAoLitShade, 0.3f * kAoLitShade, kAoLitShade, kAoLitShade),
+          "ground contact: -X face bottom corners bake 0.3 * (1 + 1/sqrt3)");
+}
+
+void TestMesherColumnShadeFalloff() {
+    for (int gap = 1; gap <= 2; ++gap) {
+        World world;
+        world.AllocateColumn(0, 0);
+        world.SetBlock(5, 5, 5, BlockType::Stone);
+        world.SetBlock(5, 6 + gap, 5, BlockType::Stone);  // hovering occluder, outside the 27-neighborhood
+        const ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
+        const int top = FindQuadBase(mesh.opaque, 0, 1, 0, 5, 6, 5);
+        // Column shade at the face-center cell: 1 - 0.125*(gap), averaged /4.
+        const float ao = (1.0f - 0.125f * static_cast<float>(gap)) / 4.0f;
+        const float expected = kAoLitShade * (0.3f + (1.0f - ao) * 0.7f);
+        Check(QuadShadesAre(mesh.opaque, top, expected, expected, expected, expected),
+              gap == 1 ? "column shade: occluder 1 above dims the top face by its 0.875 shade"
+                       : "column shade: occluder 2 above dims less (0.75 shade) -- distance falloff works");
+    }
+}
+
+void TestMesherDiagonalFlip() {
+    // The quad's split diagonal must run along the LESS occluded pair
+    // (Craft cube.c:65-67). Corner order of the +Y face is fan-wound
+    // starting at XZ (-1,-1), so corners 0-2 form one diagonal, 1-3 the
+    // other; the default index pattern 0,1,2/0,2,3 splits along 0-2.
+    struct Case {
+        int ox, oz;      // occluder offset (diagonally above that corner)
+        bool expectFlip;
+        const char* label;
+    };
+    const Case cases[] = {
+        {4, 4, true, "diagonal flip: occluder above corner 0 flips the split to 1-3"},
+        {6, 4, false, "diagonal flip: occluder above corner 1 keeps the default 0-2 split"},
+        {6, 6, true, "diagonal flip: occluder above corner 2 flips the split to 1-3"},
+    };
+    for (const Case& c : cases) {
+        World world;
+        world.AllocateColumn(0, 0);
+        world.SetBlock(5, 5, 5, BlockType::Stone);
+        world.SetBlock(c.ox, 6, c.oz, BlockType::Stone);
+        const ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
+        const int base = FindQuadBase(mesh.opaque, 0, 1, 0, 5, 6, 5);
+        Check(base >= 0, "diagonal flip: top face quad found");
+        if (base < 0) continue;
+        // Each quad contributes exactly 6 indices, in emission order.
+        const std::size_t ix = static_cast<std::size_t>(base) / 4 * 6;
+        const auto b = static_cast<std::uint32_t>(base);
+        const bool flipped = mesh.opaque.indices[ix + 0] == b + 0 && mesh.opaque.indices[ix + 1] == b + 1 &&
+                             mesh.opaque.indices[ix + 2] == b + 3 && mesh.opaque.indices[ix + 3] == b + 1 &&
+                             mesh.opaque.indices[ix + 4] == b + 2 && mesh.opaque.indices[ix + 5] == b + 3;
+        const bool standard = mesh.opaque.indices[ix + 0] == b + 0 && mesh.opaque.indices[ix + 1] == b + 1 &&
+                              mesh.opaque.indices[ix + 2] == b + 2 && mesh.opaque.indices[ix + 3] == b + 0 &&
+                              mesh.opaque.indices[ix + 4] == b + 2 && mesh.opaque.indices[ix + 5] == b + 3;
+        Check(c.expectFlip ? flipped : standard, c.label);
+    }
+    // And the darkened corner's baked shade: ao 0.5 (corner 0.25 + its own
+    // shade 1.0/4) -> brightness 0.65.
+    World world;
+    world.AllocateColumn(0, 0);
+    world.SetBlock(5, 5, 5, BlockType::Stone);
+    world.SetBlock(4, 6, 4, BlockType::Stone);
+    const ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
+    const int base = FindQuadBase(mesh.opaque, 0, 1, 0, 5, 6, 5);
+    Check(base >= 0 && ApproxEq(mesh.opaque.vertices[static_cast<std::size_t>(base)].shade, kAoLitShade * 0.65f),
+          "diagonal flip: the occluded corner itself bakes (1 + 1/sqrt3) * 0.65");
+}
+
+void TestMesherCrossChunkAo() {
+    // AO must read across the column boundary, exactly like face culling
+    // does (TestChunkMesherBoundaryRemeshOnNeighborLoad above).
+    World world;
+    world.AllocateColumn(0, 0);
+    world.SetBlock(15, 5, 5, BlockType::Stone);
+
+    ChunkMeshData before = ChunkMesher::Build(world, 0, 0, 0);
+    const int topBefore = FindQuadBase(before.opaque, 0, 1, 0, 15, 6, 5);
+    Check(QuadShadesAre(before.opaque, topBefore, kAoLitShade, kAoLitShade, kAoLitShade, kAoLitShade),
+          "cross-chunk AO: no neighbor column loaded -> boundary block's top face fully lit");
+
+    world.AllocateColumn(1, 0);
+    world.SetBlock(16, 6, 5, BlockType::Stone);  // in the NEIGHBOR column, diagonally above the +X edge
+    ChunkMeshData after = ChunkMesher::Build(world, 0, 0, 0);
+    const int topAfter = FindQuadBase(after.opaque, 0, 1, 0, 15, 6, 5);
+    // Corners 1,2 are the +X-side pair (px == 16): side cell (16,6,5) is
+    // opaque -> ao 0.25 + shade 1.0/4 = 0.5 -> brightness 0.65. Corners
+    // 0,3 (px == 15) are untouched.
+    Check(QuadShadesAre(after.opaque, topAfter, kAoLitShade, kAoLitShade * 0.65f, kAoLitShade * 0.65f, kAoLitShade),
+          "cross-chunk AO: an occluder in the neighbor column darkens only the boundary-side corners");
+}
+
+void TestMesherPlantScalarAo() {
+    // Craft reduces a plant's ao[6][4] to the single MINIMUM (brightest)
+    // value (main.c:1102-1116) -- a plant on open ground must NOT be
+    // darkened by the floor it stands on (its unoccluded top corners win).
+    World world;
+    world.AllocateColumn(0, 0);
+    for (int x = 0; x < CHUNK_SIZE; ++x) {
+        for (int z = 0; z < CHUNK_SIZE; ++z) world.SetBlock(x, 4, z, BlockType::Stone);
+    }
+    world.SetBlock(5, 5, 5, BlockType::TallGrass);
+    const ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
+    Check(mesh.transparent.vertices.size() == 16, "plant AO: plant emits its usual 4 quads");
+    bool openGroundOk = true;
+    for (const MeshVertex& v : mesh.transparent.vertices) {
+        const float df = std::max(0.0f, (-v.nx - v.nz) * kAoInvSqrt3);
+        openGroundOk = openGroundOk && ApproxEq(v.shade, 1.0f + df);
+    }
+    Check(openGroundOk, "plant AO: on open ground every plant vertex bakes minAo == 0 (full brightness)");
+
+    // Fully enclosed in a 3x3x3 stone shell: every face-corner saturates,
+    // minAo == 1 -> every vertex dims to (1 + df) * 0.3.
+    World cave;
+    cave.AllocateColumn(0, 0);
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dz = -1; dz <= 1; ++dz) {
+                if (dx == 0 && dy == 0 && dz == 0) continue;
+                cave.SetBlock(5 + dx, 5 + dy, 5 + dz, BlockType::Stone);
+            }
+        }
+    }
+    cave.SetBlock(5, 5, 5, BlockType::TallGrass);
+    const ChunkMeshData caveMesh = ChunkMesher::Build(cave, 0, 0, 0);
+    bool enclosedOk = caveMesh.transparent.vertices.size() == 16;
+    for (const MeshVertex& v : caveMesh.transparent.vertices) {
+        const float df = std::max(0.0f, (-v.nx - v.nz) * kAoInvSqrt3);
+        enclosedOk = enclosedOk && ApproxEq(v.shade, (1.0f + df) * 0.3f);
+    }
+    Check(enclosedOk, "plant AO: fully enclosed plant bakes minAo == 1 (dimmed to 0.3)");
+}
+
+void TestMesherCloudCompression() {
+    // Craft's fragment shader compresses cloud diffuse/AO contrast to 20%
+    // (block_fragment.glsl, keyed on the pure-white texel); here it's baked
+    // by block type. shade_cloud = (2 - df*0.2) * (1 - (1 - aoB)*0.2).
+    World world;
+    world.AllocateColumn(0, 0);
+    world.SetBlock(5, 9, 5, BlockType::Cloud);
+    const ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
+
+    const float topExpected = 2.0f - kAoInvSqrt3 * 0.2f;             // aoB == 1 on top
+    const float bottomExpected = 2.0f * (1.0f - (1.0f - 0.846875f) * 0.2f);  // self column shade below
+    const int top = FindQuadBase(mesh.opaque, 0, 1, 0, 5, 10, 5);
+    const int posX = FindQuadBase(mesh.opaque, 1, 0, 0, 6, 9, 5);
+    const int bottom = FindQuadBase(mesh.opaque, 0, -1, 0, 5, 9, 5);
+    Check(QuadShadesAre(mesh.opaque, top, topExpected, topExpected, topExpected, topExpected),
+          "cloud: top face bakes the compressed diffuse (about 1.884)");
+    Check(QuadShadesAre(mesh.opaque, posX, 2.0f, 2.0f, 2.0f, 2.0f),
+          "cloud: zero-diffuse unoccluded face bakes the full 2.0");
+    Check(QuadShadesAre(mesh.opaque, bottom, bottomExpected, bottomExpected, bottomExpected, bottomExpected),
+          "cloud: bottom face's own column shade is compressed to 20% too");
+
+    // Control: Stone in the same spot bakes the UNcompressed values --
+    // the compression keys on BlockType::Cloud, not on everything.
+    World control;
+    control.AllocateColumn(0, 0);
+    control.SetBlock(5, 9, 5, BlockType::Stone);
+    const ChunkMeshData stoneMesh = ChunkMesher::Build(control, 0, 0, 0);
+    const int stoneTop = FindQuadBase(stoneMesh.opaque, 0, 1, 0, 5, 10, 5);
+    Check(QuadShadesAre(stoneMesh.opaque, stoneTop, kAoLitShade, kAoLitShade, kAoLitShade, kAoLitShade),
+          "cloud: a Stone control block in the same spot bakes uncompressed shades");
+}
+
+void TestMesherTransparentFacesGetAo() {
+    // In Craft, transparent blocks' own faces get AO (compute_chunk meshes
+    // every block via make_cube with ao) but transparent blocks do NOT
+    // occlude others (opaque[] uses !is_transparent).
+    World world;
+    world.AllocateColumn(0, 0);
+    for (int x = 0; x < CHUNK_SIZE; ++x) {
+        for (int z = 0; z < CHUNK_SIZE; ++z) world.SetBlock(x, 4, z, BlockType::Stone);
+    }
+    world.SetBlock(5, 5, 5, BlockType::Glass);
+    const ChunkMeshData mesh = ChunkMesher::Build(world, 0, 0, 0);
+    const int posX = FindQuadBase(mesh.transparent, 1, 0, 0, 6, 5, 5);
+    Check(QuadShadesAre(mesh.transparent, posX, 0.3f, 0.3f, 1.0f, 1.0f),
+          "transparent AO: glass's own +X face gets the same floor-contact AO a Stone would");
+
+    World occluderWorld;
+    occluderWorld.AllocateColumn(0, 0);
+    occluderWorld.SetBlock(5, 5, 5, BlockType::Stone);
+    occluderWorld.SetBlock(4, 6, 4, BlockType::Glass);  // where the flip test's Stone occluder sat
+    const ChunkMeshData glassNeighbor = ChunkMesher::Build(occluderWorld, 0, 0, 0);
+    const int top = FindQuadBase(glassNeighbor.opaque, 0, 1, 0, 5, 6, 5);
+    Check(QuadShadesAre(glassNeighbor.opaque, top, kAoLitShade, kAoLitShade, kAoLitShade, kAoLitShade),
+          "transparent AO: glass as a neighbor casts no occlusion and no column shade");
+}
+
+void TestWorldSetBlockDirtiesAoNeighborhood() {
+    // The cross-product dirty rule in World::SetBlock: an edit invalidates
+    // baked shading in [x-1,x+1] x [y-8,y+1] x [z-1,z+1], so diagonal
+    // chunks and (via the column-shade reach) the chunk BELOW must remesh.
+    World world;
+    for (int cx = 0; cx <= 1; ++cx) {
+        for (int cz = 0; cz <= 1; ++cz) world.AllocateColumn(cx, cz);
+    }
+    const auto clearAll = [&world]() {
+        for (int cx = 0; cx <= 1; ++cx) {
+            for (int cy = 0; cy < WORLD_CHUNKS_Y; ++cy) {
+                for (int cz = 0; cz <= 1; ++cz) world.ChunkAt(cx, cy, cz).ClearDirty();
+            }
+        }
+    };
+
+    clearAll();
+    world.SetBlock(15, 20, 15, BlockType::Stone);  // lx=15, ly=4 (<=7), lz=15 in chunk (0,1,0)
+    bool eightDirty = true;
+    for (int cx = 0; cx <= 1; ++cx) {
+        for (int cy = 0; cy <= 1; ++cy) {
+            for (int cz = 0; cz <= 1; ++cz) eightDirty = eightDirty && world.ChunkAt(cx, cy, cz).IsDirty();
+        }
+    }
+    Check(eightDirty, "edit dirtying: a low corner edit dirties all 8 surrounding chunks (diagonals included)");
+    Check(!world.ChunkAt(0, 2, 0).IsDirty(), "edit dirtying: the chunk above is untouched by a low edit");
+
+    clearAll();
+    world.SetBlock(3, 24, 3, BlockType::Stone);  // ly=8: shade reach stops INSIDE this chunk
+    Check(world.ChunkAt(0, 1, 0).IsDirty() && !world.ChunkAt(0, 0, 0).IsDirty(),
+          "edit dirtying: ly=8 does not reach the chunk below");
+
+    clearAll();
+    world.SetBlock(3, 23, 3, BlockType::Stone);  // ly=7: shade reach crosses into the chunk below
+    Check(world.ChunkAt(0, 0, 0).IsDirty(), "edit dirtying: ly=7 dirties the chunk below (8-block shade reach)");
+
+    clearAll();
+    world.SetBlock(3, 31, 3, BlockType::Stone);  // ly=15: AO reach crosses into the chunk above
+    Check(world.ChunkAt(0, 2, 0).IsDirty(), "edit dirtying: a top-layer edit dirties the chunk above");
+}
+
 void TestWorldBoundsAndRoundTrip() {
     World world;
     Check(world.GetBlock(-1, 0, 0) == BlockType::Air, "world out-of-range GetBlock returns Air");
@@ -1922,6 +2281,16 @@ int main() {
     TestChunkMesherCloudIsOpaqueButNotCollidable();
     TestChunkMesherEmitsGlowMeshForLightSourceBlocks();
     TestChunkMesherBoundaryRemeshOnNeighborLoad();
+    TestComputeOcclusionKnownValues();
+    TestMesherBakesLoneBlockShades();
+    TestMesherGroundContactDarkensSideFaces();
+    TestMesherColumnShadeFalloff();
+    TestMesherDiagonalFlip();
+    TestMesherCrossChunkAo();
+    TestMesherPlantScalarAo();
+    TestMesherCloudCompression();
+    TestMesherTransparentFacesGetAo();
+    TestWorldSetBlockDirtiesAoNeighborhood();
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();
     TestPlayerControllerGravityAndGroundCollision();
