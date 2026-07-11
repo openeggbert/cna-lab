@@ -801,8 +801,11 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   embedded-bitmap-font text renderer (`FontDrawText`) is now used for the hotbar strip, the
   Sign/Command typing box, and the new 4-line scrolling message log (`Hud::PushMessage`, see
   §4.5) — the "2D chat/typing overlay and message log" role Craft's own `render_text` fills is
-  now fully covered. No in-world nametags on other players, matching Craft's own real absence of
-  that feature too (and moot regardless — no multiplayer).
+  now fully covered. **Updated 2026-07-11 (item 18 M5)**: remote players now render as Craft's
+  plain cubes (`Render/PlayerCube`, `make_player`'s look), and the crosshair-targeted player's
+  name draws as 2D HUD text near the crosshair (`Hud::SetTargetPlayerName`) — exactly Craft's
+  `SHOW_PLAYER_NAMES` placement; still no in-world 3D nametags, matching Craft's own real
+  absence of that feature.
 - **Status**: complete
 - **Craft files**: `src/main.c:1702-1719, 1788-1802, 2870-2895`
 - **cna-craft files**: `src/CnaCraft/Render/Hud.{hpp,cpp}`
@@ -862,13 +865,25 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   (`V,version` / `A,user,token` / `P,x,y,z,rx,ry` / `C,p,q,key` / `B,x,y,z,w` / `L,x,y,z,w` /
   `S,x,y,z,face,text` / talk); `server.py` is a Python `SocketServer`-based authoritative server
   with its own SQLite DB.
-- **cna-craft behavior**: none — confirmed via grep (zero hits for net/socket/enet/tcp/udp).
-  Deliberately deferred; a full **design pass completed 2026-07-11** — see `MULTIPLAYER_PLAN.md`
-  for the verified protocol reference, architecture, and the wire-vs-world compatibility
-  analysis. (Correction recorded there: CNA's ENet `Net` layer — which this entry's older text
-  suggested as the future home — is the wrong transport for Craft's TCP line protocol;
-  sharp-runtime's existing `TcpClient` stack is the right one.)
-- **Status**: missing (implementation) — planned, awaiting explicit user go-ahead
+- **cna-craft behavior**: **IMPLEMENTED, 2026-07-11** (plan.md §12.1 item 18, phases M0-M7 —
+  user go-ahead "pust se prosim do implementace vsech 4 bodu" after the design pass). The full
+  stack per `MULTIPLAYER_PLAN.md`: a shape-identical ASCII line protocol (`Net/Protocol`,
+  version 1001 dialect — 16-block column p/q, BlockType-ordinal w, new `W,seed` world-info
+  message, auth-less `A,nick`), a `Socket`+thread+queue client transport (`Net/GameClient` over
+  sharp-runtime's real `System::Net::Sockets` — NOT CNA's ENet `Net` layer, which is
+  UDP/session-model and 2D-SpriteBatch-scoped for custom use), an authoritative headless
+  `CnaCraftServer` (server.py's model-thread architecture; generates + validates against the
+  same `Worlds/` code clients run), rowid-keyed incremental chunk sync with Craft's
+  optimistic-edit + revert protocol, per-server client cache dbs, remote players with Craft's
+  exact two-sample interpolation + cube rendering + crosshair nametags, bare-Enter chat,
+  `/online`/`/offline` runtime switching, unknown-command forwarding, `@nick` PMs, and P-key
+  picture-in-picture observation. Deliberate deltas from real Craft, all documented in
+  `MULTIPLAYER_PLAN.md`: no compatibility with real Craft servers (Option B decision — terrain
+  identity/CHUNK_SIZE/item-id mismatches), no auth (`/identity` trio unported, guest + `/nick`
+  only), connection loss falls back to offline instead of `exit(1)`, no `O` full-view observe
+  swap (PIP only), and no negative-`w` edge markers (our mesher reads across real columns).
+- **Status**: complete (cna-craft↔cna-craft; real-Craft-server compatibility deliberately out
+  of scope per the recorded user decision)
 - **Craft files**: `src/client.c:69-160`, `server.py`
 - **cna-craft files**: none
 - **Priority**: low (explicitly deferred until local single-player + persistence are solid, per
@@ -1085,7 +1100,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 4.3 | Signs (**fixed this session**) | complete | medium |
 | 4.4 | Player names/text (**chat overlay now wired via message log, 2026-07-10**) | complete | low |
 | 4.5 | Chat/commands (**world-editing macros completed 2026-07-10**) | complete | medium |
-| 4.6 | Multiplayer | missing | low (deliberate) |
+| 4.6 | Multiplayer (**implemented 2026-07-11, cna-craft↔cna-craft — see MULTIPLAYER_PLAN.md**) | complete | high (done) |
 | 5.1 | Ambient occlusion | complete | high (done) |
 | 5.2 | Fog (**fades to the real sky gradient, 2026-07-10**) | complete | medium |
 | 5.3 | Sky dome (**textured with real sky.png colors, 2026-07-10**) | complete | medium |

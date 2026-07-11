@@ -1,26 +1,19 @@
 # NEXT.md
 
 Handoff document for resuming work on **cna-craft**. Last updated 2026-07-11
-after shipping **ambient occlusion** (plan.md §12.1 item 12, the last
-`blocked` item — see §3 item 19 below), on branch `develop`. The 2026-07-10
-player-vs-Craft parity audit (`plan.md` §12.1 items 26/27) compared
-cna-craft against real Craft feature-by-feature and found 12 player-facing
-differences; the user was asked about each one individually and decided per
-item. Four small/safe fixes shipped first (item 26), then the light toggle
-(item 27, via a user-approved glow-pass design pivot), the textured sky
-dome (item 33), F11 fullscreen (item 34), and now ambient occlusion —
-**notably NOT via the "EASYGL-only custom ShaderEffect" route the audit
-recorded**: planning research disproved that premise (CNA's 3D draw path
-ignores `ShaderEffect` entirely) and found a mathematically exact
-no-engine-work path instead (Craft's block lighting factors into a static
-per-vertex value × a per-frame daylight scalar), which the user approved
-("libi se mi Vertex color reseni") — it works on ALL backends, not just
-EasyGL. See CRAFT_PARITY.md §5.1's rewritten entry, which explicitly owns
-and corrects the two disproven claims the old entry carried. **Later the
-same day, the multiplayer planning pass was completed too** — see
-`MULTIPLAYER_PLAN.md` (the design deliverable) and §3 item 20; multiplayer
-IMPLEMENTATION remains gated on an explicit user go-ahead, and the plan's
-§11 lists the open questions the user must decide first. See §8.
+after shipping **MULTIPLAYER end to end** (plan.md §12.1 item 18, phases
+M0-M7 — see §3 item 22 below), on branch `develop`. That completes the
+ENTIRE §12.1 queue: all 34 items are `completed`, nothing is blocked or
+pending. The same day also shipped ambient occlusion (item 12 — via baked
+vertex colors on ALL backends after planning research disproved the
+recorded "EASYGL-only ShaderEffect" premise; see §3 item 19 and
+CRAFT_PARITY.md §5.1's correction notes), the upside-down-flower fix
+(item 35, §3 item 21), and the multiplayer design pass + its four
+user-decided scope questions (`MULTIPLAYER_PLAN.md` — cna-craft↔cna-craft
+only with an own C++ server, no auth, PIP observation + @nick PMs in
+scope; real-Craft-server compatibility deliberately dropped). The user
+verified dusk/night/day cycling on real hardware; the Vulkan backend
+remains the one surface not yet looked at (see §8).
 
 **Immediately after item 27 shipped**, the user hit it live and reported two
 real bugs: an invisible window on startup (both EasyGL and Vulkan) and
@@ -165,24 +158,18 @@ correctly in the message log, confirmed the log persists after the typing
 box closes, confirmed Sign typing is unaffected by the `TypingMode`
 generalization).
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **341 checks, all
-passing** (up from 303 — the 38 new checks are the item-12 AO known-value
-suite; 173 at the start of the chunk-redesign session). Plus
-`cna_craft_persistence_smoke_test` — **40 checks, all passing**. Both build
-and run standalone with `-DCNA_CRAFT_BUILD_GAME=OFF`. The worlds suite also
-got FASTER with AO in (18.7s vs 20.4s before) — the padded-occupancy
-snapshot removed per-face `World::IsOpaque` hash walks from face culling.
+**Test status** — six CTest suites, all green in both build trees:
+`worlds_smoke_test` **349** (AO + remote-player interpolation),
+`net_protocol_smoke_test` **33**, `net_transport_smoke_test` **21**,
+`net_server_smoke_test` **33** (incl. @nick PM checks),
+`net_worldsync_smoke_test` **34** (incl. a server-restart persistence
+cycle), `persistence_smoke_test` **40**. Protocol + worlds + persistence
+run standalone with `-DCNA_CRAFT_BUILD_GAME=OFF`; the socket-using suites
+need the game-enabled tree (SHARP_RUNTIME).
 
 **plan.md §12.1 status as of this session's end** (34 items):
-- **33 `completed`**: everything from before (items 26-34 — see §3), plus
-  **item 12, ambient occlusion** (2026-07-11, the last `blocked` item —
-  see §3 item 19 below). Nothing is `blocked` anymore.
-- **1 `pending` (implementation only)**: multiplayer — its **planning pass
-  is done** (2026-07-11, `MULTIPLAYER_PLAN.md`); writing actual networking
-  code still requires an explicit user go-ahead plus answers to the plan's
-  §11 open questions (compatibility target, server placement, auth scope).
-
-Nothing decided is unstarted anymore — see §8 for what's actionable next.
+**ALL 34 `completed`.** Item 18 (multiplayer, phases M0-M7) landed last —
+see §3 item 22. Nothing is blocked, pending, or decided-but-unstarted.
 
 ## 3. Recent changes (this session)
 
@@ -571,6 +558,33 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     confirmed dusk/night/day cycling looks right on their machine (see
     item 19's verification note).
 
+22. **Multiplayer, end to end** (plan.md §12.1 item 18, CRAFT_PARITY.md
+    §4.6, design + scope decisions in `MULTIPLAYER_PLAN.md` — same
+    session, 2026-07-11, user go-ahead "pust se prosim do implementace
+    vsech 4 bodu"). Eight phases, each its own verified commit — plan.md
+    item 18's writeup has the full per-phase detail; the short version:
+    a Craft-shape ASCII line protocol (version-1001 dialect: 16-block
+    column p/q, BlockType-ordinal w, `W,seed`, auth-less `A,nick`) in a
+    pure-std:: `Net/Protocol` module; `LineSocket`+`GameClient` transport
+    on sharp-runtime sockets (drop → offline fallback, never Craft's
+    exit(1)); an authoritative headless `CnaCraftServer` (server.py's
+    one-model-thread architecture, generating + validating terrain with
+    the same `Worlds/` code clients run); rowid-keyed incremental chunk
+    sync with the optimistic-edit/revert protocol and per-server
+    `cache.<host>.<port>.db` client caches; `--server HOST [PORT]` game
+    integration with the network poller at both pipeline sites; remote
+    players (exact interpolate_player port + cube rendering + crosshair
+    nametags); bare-Enter chat (online only), unknown-command forwarding,
+    `/online`//`/offline` runtime switching; P-key PIP observation and
+    server-side `@nick` PMs. Everything live-verified under Xvfb against
+    real servers with python bots speaking the raw protocol (walls built
+    remotely, chat round-trips, the 'pepa' cube + nametag + PIP inset all
+    screenshot-proven). Real bugs found and fixed during bring-up: server
+    id assignment raced service threads; close() doesn't wake accept()
+    on Linux; xdotool text entry needs windowfocus (SDL_TEXTINPUT is
+    focus-based); pkill -f patterns matching the invoking shell's own
+    command line kill the shell (see §4).
+
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
@@ -598,8 +612,18 @@ marks) still can't be driven live, but a **staged `world.db`** works
 beautifully as a substitute — the AO session verified its scene by
 inserting `block`/`light`/`state` rows directly (the `state` table even
 sets yaw/pitch, i.e. full camera aim without any input at all; see item
-19). Re-check input at the start of each fresh session before assuming
-either state persists.
+19). **Two more traps found during item 18's bring-up**: (a) xdotool TEXT
+entry (SDL_TEXTINPUT) is focus-based — run `xdotool windowfocus <win>`
+on the live window first, or typed characters silently vanish (movement/
+action keys don't care: CNA reads SDL's GLOBAL keyboard state); beware
+stale windows of dead clients confusing `xwininfo | grep Game`. (b)
+`pkill -f PATTERN` kills the invoking shell itself when PATTERN appears
+verbatim in that shell's own command line (the harness wraps commands in
+`bash -c '...'`) — use `pkill -x <name>` instead. Also, a python bot
+speaking the raw ASCII protocol over a socket is the proven way to drive
+multiplayer scenarios (see item 22); keep the bot inside the same Bash
+call as the screenshots or it dies with the shell. Re-check input at the
+start of each fresh session before assuming either state persists.
 
 **New, deliberate, documented behavior changes from these sessions** (not
 bugs — read before "fixing"):
@@ -786,6 +810,12 @@ cmake -S . -B build-easygl -DCNA_GRAPHICS_BACKEND=EASYGL
 cmake --build build-easygl --target CnaCraft -j"$(nproc)"
 SDL_VIDEODRIVER=x11 DISPLAY=:0 ./build-easygl/CnaCraft          # interactive
 SDL_VIDEODRIVER=x11 DISPLAY=:0 ./build-easygl/CnaCraft --smoke 30
+
+# Multiplayer (plan.md §12.1 item 18): headless server + connected client
+./build-easygl/CnaCraftServer 4080 --seed 1337 &
+SDL_VIDEODRIVER=x11 DISPLAY=:0 ./build-easygl/CnaCraft --server 127.0.0.1 4080
+# In-game: Enter = chat, /online HOST [PORT], /offline, /list, /nick NAME,
+# P = cycle picture-in-picture observation, @nick text = private message.
 ```
 Note: `SDL_VIDEODRIVER=x11` matters in sandboxes where `WAYLAND_DISPLAY` is
 also set — otherwise SDL silently creates a Wayland surface that X11
@@ -797,24 +827,23 @@ There is no separate lint/format tooling configured in this repo.
 
 ## 8. Next smallest tasks
 
-`plan.md` §12.1 is the authoritative ordered priority queue. **Everything
-implementable is done, and the multiplayer PLANNING pass is done too**
-(`MULTIPLAYER_PLAN.md`, §3 item 20). What's actionable next:
+`plan.md` §12.1 is the authoritative ordered priority queue — and it is
+**FINISHED: all 34 items completed**, multiplayer included. Nothing is
+decided-but-unstarted. What legitimately remains:
 
-- **Multiplayer implementation — ONLY with an explicit user go-ahead**:
-  `MULTIPLAYER_PLAN.md` §11's four scope questions are now DECIDED
-  (2026-07-11: cna-craft↔cna-craft only; C++ `CnaCraftServer` in this
-  repo; no auth, guest + `/nick`; M7 = PIP observation + `@nick` PMs;
-  real-Craft compatibility dropped). Everything is ready to start at
-  phase M0 (protocol module + tests) the moment the user says start. Do
-  NOT begin from the old plan.md §11.6 transport suggestion — the plan
-  doc supersedes it.
-
-Also legitimately available if the user prefers polish over planning:
-one-keypress verifications on their real machine (F11 fullscreen, item 34;
-Vulkan AO rendering — day/night was already user-verified 2026-07-11, see
-§3 item 19), or the §11 backlog's remaining nice-to-haves (greedy meshing,
-occlusion culling — neither user-requested yet).
+- **Real-machine verifications** (one look each): Vulkan backend rendering
+  (AO + the new player cubes — EasyGL-only sandbox here; note the Net
+  code is backend-independent), F11 fullscreen (item 34), and a real
+  two-machine LAN multiplayer session (everything here ran over loopback).
+- **§11 backlog nice-to-haves, none user-requested yet**: greedy meshing
+  (NOTE: per-vertex AO now constrains it — only uniformly-shaded faces
+  can merge), occlusion culling for large `/view` radii, sign-text
+  UTF-8, gamepad input.
+- **Multiplayer follow-ups if desired**: server-side player-position
+  persistence across restarts, a `/spawn`-style teleport command, rate
+  limiting (Craft ships one, off by default), Craft-server compatibility
+  mode (explicitly dropped by the user 2026-07-11 — don't start it
+  without a NEW decision).
 
 If the user asks "what's next" with nothing else specified, offer this
 short list rather than picking silently.
@@ -902,10 +931,20 @@ asymmetric scheme) — **plus**:
   never reorder `Hotbar::kSlots`** — see §6's note; both are append-only
   for real persistence-compatibility and test-stability reasons, not just
   tidiness.
-- **Don't add a bare-Enter "chat" typing trigger** — Craft has one
-  (opens an empty typing buffer sent as multiplayer chat), deliberately not
-  ported since there's no multiplayer to talk to. Don't add it "for
-  completeness" without a real reason (e.g. multiplayer actually landing).
+- **(SUPERSEDED 2026-07-11 — multiplayer landed)** The bare-Enter chat
+  trigger now EXISTS (TypingMode::Chat, item 18 M6) but is ONLINE-ONLY by
+  design: offline Enter must stay inert. Don't "enable it offline for
+  consistency" — there's still nobody to talk to there.
+- **Multiplayer invariants (item 18)**: the protocol version is 1001 —
+  bump it on ANY wire-format change (the server rejects mismatches, which
+  is the only thing keeping old/new clients from silently desyncing).
+  BlockType ordinals ARE the wire's `w` values now — one more reason the
+  enum stays append-only. `SwitchMode` must keep draining in-flight TaskT
+  jobs before clearing them (same never-erase-incomplete rule as
+  everywhere). Don't resurrect Craft-server compatibility (Option A)
+  without a NEW user decision — it was explicitly dropped, not deferred.
+  The server binary name `CnaCraftServer` shares the `CnaCraft` prefix:
+  scripts must use exact-name pkill/pgrep (see §4).
 - **Don't read `kCreateRadius`/`kDeleteRadius` directly outside
   `Initialize()`** — everything else must read `radii_` (`Worlds::
   CommandRadii`), the actual mutable value `/view` changes at runtime. The
@@ -916,13 +955,16 @@ asymmetric scheme) — **plus**:
 ```
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
-as of the last session (2026-07-11), **33 of 34 items are completed and
-nothing is blocked**; the only remaining item is multiplayer, whose
-DESIGN is done and fully scoped (`MULTIPLAYER_PLAN.md` — read it before
-any multiplayer work; its §11 records the user's four scope decisions of
-2026-07-11) but whose implementation requires an explicit user go-ahead
-(standing decision — don't write networking code without one; when it
-comes, start at phase M0). Highlights: item 19 chunk streaming, item 25
+as of the last session (2026-07-11), **ALL 34 items are completed** —
+including item 18, MULTIPLAYER, implemented end to end in phases M0-M7
+(protocol/transport/server/world-sync/game-integration/remote-players/
+chat+mode-switching/PIP+PMs; `MULTIPLAYER_PLAN.md` is the wire-format and
+architecture reference, plan.md item 18's writeup the per-phase record).
+Before touching Net/ or Server/ code, read NEXT.md §9's multiplayer
+invariants (protocol version 1001 bumps on ANY wire change; BlockType
+ordinals are wire values; SwitchMode's TaskT drain; Craft-server
+compatibility was DROPPED by user decision, not deferred — don't
+resurrect it). Highlights: item 19 chunk streaming, item 25
 the 54-block roster, item 17 chat/slash commands, items 26-34 the parity
 audit's follow-ups (controls, light-toggle glow pass, sky dome, F11), and
 item 12 **ambient occlusion** — baked per-vertex Craft AO via

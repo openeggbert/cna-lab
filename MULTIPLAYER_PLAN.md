@@ -1,14 +1,17 @@
 # MULTIPLAYER_PLAN.md — design document (planning only)
 
-Status: **design pass complete AND all §11 scope questions decided by the
-user (2026-07-11)** — see §11 for the four recorded decisions. Implementation
-is still NOT started and still requires the user's explicit "start" (the
-standing 2026-07-10 planning-only decision; NEXT.md §8/§9); when it comes,
-begin at phase M0 (§10). Written 2026-07-11 from three research passes over
-the real Craft checkout (`/rv/data/development/github.com/other/Craft`),
-CNA + sharp-runtime, and cna-craft's own integration surface. Every claim
-below was verified against source; citations are file:line in the
-respective repos.
+Status: **IMPLEMENTED — all phases M0-M7 shipped 2026-07-11** (user
+go-ahead "pust se prosim do implementace vsech 4 bodu" the same day the
+design and its §11 scope decisions were recorded). Each phase landed as
+its own verified commit on `develop` (protocol M0, transport M1, server
+M2, world sync M3, game integration M4, remote players M5, chat + mode
+switching M6, PIP observation + @nick PMs M7) — see plan.md §12.1 item
+18's writeup for the per-phase detail and verification evidence. This
+document remains the protocol/architecture reference; §2's message table
+and §4's dialect deltas describe the shipped wire format exactly. Written
+2026-07-11 from three research passes over the real Craft checkout
+(`/rv/data/development/github.com/other/Craft`), CNA + sharp-runtime, and
+cna-craft's own integration surface.
 
 ---
 

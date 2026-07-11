@@ -962,16 +962,51 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
       first, and synthetic mouse clicks into this sandbox's relative-mouse-mode SDL window remain
       unreliable — the same documented flakiness as items 15/16) — covered instead by the
       exhaustive unit tests above.
-18. `pending` (implementation) / **planning pass `completed` 2026-07-11** — **Multiplayer**
-    (CRAFT_PARITY.md §4.6): the design document is `MULTIPLAYER_PLAN.md` (repo root) — full
-    Craft protocol reference (verified against `client.c`/`server.py`), client/server
-    architecture on sharp-runtime's existing `TcpClient`/`Thread`/`ConcurrentQueue` (NOT CNA's
-    ENet `Net` layer — wrong tool, see the doc's §3), the wire-vs-world compatibility analysis
-    (terrain-generation identity, CHUNK_SIZE 32↔16, block-ID mapping — why real-Craft-server
-    compatibility is a separate large milestone), a recommended cna-craft↔cna-craft scope with
-    an own `CnaCraftServer` reusing `Worlds/`+`Persistence/`, phasing M0-M7, and the §11 open
-    questions the user must decide before any code is written. **Implementation remains gated
-    on an explicit user go-ahead** per the 2026-07-10 planning-only decision.
+18. `completed` (2026-07-11) — **Multiplayer** (CRAFT_PARITY.md §4.6, design in
+    `MULTIPLAYER_PLAN.md`, scope decisions in its §11, go-ahead "pust se prosim do implementace
+    vsech 4 bodu"). Shipped in 8 independently committed+verified phases:
+    - **M0** `Net/Protocol` — shape-identical Craft ASCII line protocol, version-1001 dialect
+      (16-block column p/q, BlockType-ordinal w, `W,seed`, auth-less `A,nick`); pure std::, 33
+      round-trip/malformed-line checks running in the worlds-only build.
+    - **M1** `Net/LineSocket`+`GameClient` — sharp-runtime Socket + Poll(200ms) reader thread +
+      ConcurrentQueue inbox; drop → `IsDropped()` instead of Craft's `exit(1)`; loopback CTest
+      incl. split-line reassembly.
+    - **M2** `Server/GameServer` + `CnaCraftServer` binary — server.py's architecture (accept
+      thread, per-client service threads, ONE model thread owning all state), U/E/W handshake,
+      P relay, guest nicks, /nick /list /help, version rejection. Two real bugs found by its
+      CTest: model-thread id assignment raced service threads (early messages dropped as id 0),
+      and close() doesn't wake accept() on Linux (Stop() hung — fixed via shutdown + poke).
+    - **M3** world sync — server owns a real `Worlds::World` (validation coherent by
+      construction), rowid-keyed incremental chunk responses, Craft's optimistic-edit + revert
+      protocol, sign/light sync + break-cleanup; WorldStore grew UpsertBlock/
+      LoadColumnEditsSince/raw row reads + the client `key(p,q,key)` cache table (Craft's db.c
+      schema); 34-check CTest incl. a full server-restart persistence cycle.
+    - **M4** game integration — `--server HOST [PORT]`, pre-store synchronous handshake (seed
+      before any column generates; per-server `cache.<host>.<port>.db` so server deltas never
+      touch world.db), PollNetworkMessages at both pipeline sites (defer-don't-discard), edit/
+      light/sign/position outbound hooks (one RecordedEdits hook covers clicks AND /commands),
+      E-driven shared clock, embed-heal on remote blocks. Verified live: a python bot speaking
+      the raw protocol built a wall the game rendered, chat flowed to the HUD, 17 P updates
+      captured from real key-driven movement.
+    - **M5** remote players — `Worlds/RemotePlayer` ports interpolate_player exactly (window
+      clamp, saturation, ±π yaw seam; 8 unit checks), `Render/PlayerCube` (Craft's make_player
+      cube, new appended atlas tile 59), crosshair nametag as 2D HUD text (Craft's
+      SHOW_PLAYER_NAMES; no 3D billboards, matching Craft's own absence). Verified live: the
+      'pepa' cube + nametag dead-center in open sky.
+    - **M6** chat + mode switching — bare-Enter chat (ONLINE ONLY -- the exact feature NEXT.md
+      §9 deferred "until multiplayer actually lands"), unknown-command forwarding (Craft's
+      client_talk fallthrough → /list etc. reach the server), `/online HOST [PORT]` +
+      `/offline` via SwitchMode (drain in-flight TaskT jobs, unload every column, reconnect,
+      right store, respawn through the extracted SpawnPlayerForCurrentMode). Verified live:
+      chat round-trip, offline→online cycle with a fresh id in one HUD log.
+    - **M7** extras — P-key PIP observation (Draw's pass stack extracted into RenderScene;
+      corner viewport + depth-only clear + observed player's interpolated camera; Craft's 'O'
+      full-view swap deliberately not ported) and server-side `@nick` PMs (echo to sender,
+      readable unknown-nick error, bystander provably excluded — 6 new CTest checks). Verified
+      live: one screenshot with the main view, the 'pepa' nametag AND the inset showing pepa's
+      own different view.
+    Suite totals after item 18: worlds 349, protocol 33, transport 21, server 33, worldsync 34,
+    persistence 40 — all green in both build trees.
 19. `completed` — **Chunk system redesign: unbounded, streamed world** (CRAFT_PARITY.md
     §3.1/§3.2/§5.2). **User decision (2026-07-10)**: pursue an unbounded world after all
     (supersedes the original `needs_human` framing, which asked whether this was even wanted).

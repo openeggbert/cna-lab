@@ -78,7 +78,8 @@ cmake --build build --target CnaCraft
 | F12               | Save a screenshot to `screenshots/`   |
 | ` (backtick)      | Start typing a sign on the targeted block face |
 | /                 | Start typing a world-editing command (see below) |
-| Enter             | Submit the sign or command being typed |
+| Enter             | Submit the sign/command/chat being typed; when NOT typing and connected to a server: open the chat box |
+| P                 | (Multiplayer) Cycle picture-in-picture observation of other players' views; one step past the last player switches it off |
 | Backspace         | Delete the last character while typing  |
 | Esc               | While typing: cancel. Otherwise: release the mouse cursor (matches Craft — there is no in-game quit key; close the window to quit) |
 
@@ -133,6 +134,33 @@ save schema changed (added Craft's own `p,q` chunk-address columns to support pe
 and there is no migration path from the old schema. An incompatible `world.db` is detected and
 ignored (with a console warning) rather than causing a crash, but your old edits won't be
 readable; a fresh `world.db` will be created in its place.
+
+### 5.2 Multiplayer
+
+cna-craft plays multiplayer against its own server (built alongside the game as
+`CnaCraftServer` — a headless console binary, no GPU needed). It is **not** compatible with
+original Craft servers (different terrain generator, chunk size, and block ids — a deliberate,
+documented scope decision; see `MULTIPLAYER_PLAN.md`), but the wire protocol is a faithful
+dialect of Craft's own ASCII line protocol.
+
+```bash
+# Host (any machine, no display needed):
+./build/CnaCraftServer 4080 --seed 1337
+
+# Players:
+./build/CnaCraft --server HOST 4080
+```
+
+In game: **Enter** opens the chat box (online only) — plain text is chat, `@nick text` sends a
+private message; `/list`, `/nick NAME` and `/help` run on the server; `/online HOST [PORT]` and
+`/offline` switch modes at runtime; **P** cycles a picture-in-picture inset showing another
+player's view. Other players appear as skin-toned cubes (Craft's own look) with their name shown
+near the crosshair when you aim at them. All world edits are validated by the server (its word
+wins — a rejected edit snaps back with a message) and synced live to everyone; each server you
+join gets its own local cache file (`cache.<host>.<port>.db`), so your single-player `world.db`
+is never touched by online play. The day/night clock and terrain seed come from the server, so
+everyone shares one world and one sky. If the connection drops, the game says so and keeps
+running offline.
 
 ## 6. License
 
