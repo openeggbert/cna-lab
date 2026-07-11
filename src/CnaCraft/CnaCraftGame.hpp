@@ -10,6 +10,8 @@
 #include "Microsoft/Xna/Framework/Graphics/BasicEffect.hpp"
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
+#include "Microsoft/Xna/Framework/Matrix.hpp"
+#include "Microsoft/Xna/Framework/Vector3.hpp"
 
 #include "System/Threading/Tasks/Task.hpp"
 
@@ -198,6 +200,20 @@ private:
     // creation, embed-heal.
     void SpawnPlayerForCurrentMode();
 
+    // One full world render with the given camera (item 18 M7a): sky ->
+    // opaque terrain -> remote players -> glow -> signs -> optional
+    // selection outline -> transparent, every pass asserting its own
+    // BasicEffect state. Draw() calls this once for the main camera, and
+    // once more into a corner viewport when PIP observation is active
+    // (skipPlayerId excludes the observed player from their own view; the
+    // targeted-block outline is main-camera-only UI).
+    void RenderScene(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
+                     const Microsoft::Xna::Framework::Vector3& eyeVec,
+                     const Microsoft::Xna::Framework::Matrix& view,
+                     const Microsoft::Xna::Framework::Matrix& projection,
+                     const Microsoft::Xna::Framework::Vector3& terrainDiffuseColor,
+                     bool includeSelectionOutline, int skipPlayerId);
+
     // In-flight background jobs (plan.md §12.1 item 19 phase 4). TResult
     // must be copy-constructible (TaskT<T>::getResultProperty() returns by
     // value from a member reached through a shared_ptr, which needs a copy,
@@ -370,6 +386,13 @@ private:
     // "player<id>" until N arrives, Craft's own placeholder), D removes.
     std::unordered_map<int, Worlds::RemotePlayer> remotePlayers_;
     Render::PlayerCube playerCube_;
+
+    // PIP observation (item 18 M7a) -- Craft's observe2: the id of the
+    // remote player whose view renders in the corner inset, -1 = off.
+    // Cycled by the P key (Craft's own CRAFT_KEY_OBSERVE_INSET); reset
+    // when that player disconnects or the mode switches.
+    int pipObservedId_ = -1;
+    bool pKeyWasDown_ = false;
 };
 
 }

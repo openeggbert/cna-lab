@@ -138,6 +138,50 @@ void RunAll() {
                          msg),
           "/list names both players");
 
+    // --- @nick private messages (item 18 M7b) ---
+    GameClient c5;
+    Check(c5.Connect("127.0.0.1", server.Port()), "PM bystander connects");
+    c5.Send(MakeVersion(kProtocolVersion));
+    c5.Send(MakeNick("cumil"));
+    Check(WaitForMessage(c5, [](const ServerMessage& m) { return m.op == ServerOpcode::WorldInfo; }, msg),
+          "PM bystander handshake completes");
+    // Drain the bystander's join-era chatter so the absence check below is clean.
+    {
+        ServerMessage drain;
+        while (c5.TryReceive(drain)) {
+        }
+    }
+    c1.Send(MakeTalk("@karel psst, tajny plan"));
+    Check(WaitForMessage(c2,
+                         [](const ServerMessage& m) {
+                             return m.op == ServerOpcode::Talk && m.text == "robert> psst, tajny plan";
+                         },
+                         msg),
+          "the addressee receives the private message");
+    Check(WaitForMessage(c1,
+                         [](const ServerMessage& m) {
+                             return m.op == ServerOpcode::Talk && m.text == "robert> psst, tajny plan";
+                         },
+                         msg),
+          "the sender sees their own private message (echo)");
+    c1.Send(MakeTalk("@nikdo halo?"));
+    Check(WaitForMessage(c1,
+                         [](const ServerMessage& m) {
+                             return m.op == ServerOpcode::Talk &&
+                                    m.text.find("no player named 'nikdo'") != std::string::npos;
+                         },
+                         msg),
+          "a PM to an unknown nick returns a readable error");
+    {
+        ServerMessage leaked;
+        bool sawPm = false;
+        while (c5.TryReceive(leaked)) {
+            if (leaked.op == ServerOpcode::Talk && leaked.text.find("psst") != std::string::npos) sawPm = true;
+        }
+        Check(!sawPm, "the bystander never sees the private message");
+    }
+    c5.Stop();
+
     // --- Disconnect propagates ---
     c2.Stop();
     Check(WaitForMessage(

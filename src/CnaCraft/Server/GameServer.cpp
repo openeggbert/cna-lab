@@ -636,6 +636,37 @@ void GameServer::HandleSign(Client& client, int x, int y, int z, int face, const
 
 void GameServer::HandleTalk(Client& client, const std::string& text) {
     if (text.empty()) return;
+    if (text[0] == '@') {
+        // Private message (item 18 M7b) -- Craft's own '@nick message'
+        // routing (server.py on_talk): delivered to the addressee AND
+        // echoed to the sender (that's how the sender sees it, same as
+        // public chat's broadcast echo). Unknown nick -> readable error.
+        const std::size_t space = text.find(' ');
+        const std::string targetNick = text.substr(1, space == std::string::npos ? std::string::npos : space - 1);
+        const std::string message = space == std::string::npos ? std::string() : text.substr(space + 1);
+        Client* target = nullptr;
+        for (auto& [id, other] : clients_) {
+            (void)id;
+            if (other->nick == targetNick) {
+                target = other.get();
+                break;
+            }
+        }
+        if (target == nullptr) {
+            Net::ServerMessage reply;
+            reply.op = Net::ServerOpcode::Talk;
+            reply.text = "There is no player named '" + targetNick + "'.";
+            SendTo(client, reply);
+            return;
+        }
+        if (message.empty()) return;
+        Net::ServerMessage pm;
+        pm.op = Net::ServerOpcode::Talk;
+        pm.text = client.nick + "> " + message;
+        SendTo(*target, pm);
+        if (target->id != client.id) SendTo(client, pm);
+        return;
+    }
     if (text[0] == '/') {
         // Server-side commands, ported from server.py's patterns.
         if (text == "/list") {

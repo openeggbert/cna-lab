@@ -11,6 +11,8 @@
 
 #include "Microsoft/Xna/Framework/BoundingFrustum.hpp"
 #include "Microsoft/Xna/Framework/Color.hpp"
+#include "Microsoft/Xna/Framework/Graphics/ClearOptions.hpp"
+#include "Microsoft/Xna/Framework/Graphics/Viewport.hpp"
 #include "Microsoft/Xna/Framework/Input/Keyboard.hpp"
 #include "Microsoft/Xna/Framework/Input/Keys.hpp"
 #include "Microsoft/Xna/Framework/Input/Mouse.hpp"
@@ -317,6 +319,7 @@ void CnaCraftGame::SwitchMode(const std::string& host, int port) {
     remotePlayers_.clear();
     myPlayerId_ = -1;
     netDropAnnounced_ = false;
+    pipObservedId_ = -1;
 
     // 3. World/render teardown -- snapshot the keys first (UnloadColumn
     //    mutates chunkRenderers_). UnloadColumn also clears each column's
@@ -562,6 +565,7 @@ void CnaCraftGame::ApplyServerMessage(const Net::ServerMessage& msg) {
         }
         case Net::ServerOpcode::Disconnect:
             remotePlayers_.erase(msg.id);
+            if (msg.id == pipObservedId_) pipObservedId_ = -1;  // the observed player left (M7a)
             break;
     }
 }
@@ -1223,6 +1227,39 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     }
     tabWasDown_ = tabDown;
 
+    // PIP observation cycling (item 18 M7a) -- Craft's own 'P'
+    // (CRAFT_KEY_OBSERVE_INSET) walks the remote-player list; one step past
+    // the last player switches the inset off. Craft's 'O' full-view swap
+    // (observe1) is deliberately NOT ported -- the M7 decision covers the
+    // corner inset only. Harmless offline: no remote players, no cycling.
+    const bool pDown = kb.IsKeyDown(Keys::P);
+    if (pDown && !pKeyWasDown_) {
+        std::vector<int> observableIds;
+        observableIds.reserve(remotePlayers_.size());
+        for (const auto& [id, remote] : remotePlayers_) {
+            if (remote.HasSample()) observableIds.push_back(id);
+        }
+        std::sort(observableIds.begin(), observableIds.end());
+        int next = -1;
+        if (!observableIds.empty()) {
+            if (pipObservedId_ < 0) {
+                next = observableIds.front();
+            } else {
+                const auto it = std::upper_bound(observableIds.begin(), observableIds.end(), pipObservedId_);
+                next = (it == observableIds.end()) ? -1 : *it;
+            }
+        }
+        if (pipObservedId_ != next) {
+            pipObservedId_ = next;
+            const std::string notice =
+                pipObservedId_ < 0 ? "Observation off." : ("Observing " + remotePlayers_[pipObservedId_].name + ".");
+            std::printf("%s\n", notice.c_str());
+            std::fflush(stdout);
+            hud_->PushMessage(getGraphicsDeviceProperty(), notice);
+        }
+    }
+    pKeyWasDown_ = pDown;
+
     player_->Update(world_, input, dt);
 
     // Chunk streaming (plan.md §12.1 item 19): load/unload columns around
@@ -1567,12 +1604,12 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     const Vector3 eyeVec(eye.x, eye.y, eye.z);
     const Vector3 targetVec(eye.x + dir.x, eye.y + dir.y, eye.z + dir.z);
 
-    effect_->View = Matrix::CreateLookAt(eyeVec, targetVec, Vector3::Up);
+    const Matrix mainView = Matrix::CreateLookAt(eyeVec, targetVec, Vector3::Up);
 
     const auto kb = Keyboard::GetState();
+    Matrix mainProjection;
     if (kb.IsKeyDown(Keys::F)) {
-        effect_->Projection = Matrix::CreateOrthographic(
-            kOrthoViewHeight * aspect, kOrthoViewHeight, 0.1f, 500.0f);
+        mainProjection = Matrix::CreateOrthographic(kOrthoViewHeight * aspect, kOrthoViewHeight, 0.1f, 500.0f);
         // Craft's own shader disables fog in ortho mode (`if (bool(ortho))
         // fog_factor = 0.0`, block_vertex.glsl) — matched here.
         effect_->setFogEnabledProperty(false);
@@ -1584,8 +1621,71 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
         // happen because both features share one key.
         const bool zooming = kb.IsKeyDown(Keys::LeftShift) && !player_->IsFlying();
         const float fov = zooming ? kZoomFov : kPiOver4;
-        effect_->Projection = Matrix::CreatePerspectiveFieldOfView(fov, aspect, 0.1f, 500.0f);
+        mainProjection = Matrix::CreatePerspectiveFieldOfView(fov, aspect, 0.1f, 500.0f);
     }
+
+    // Time-of-day is baked into the sky dome's vertices once per frame,
+    // shared by the main render and the PIP inset alike.
+    skyDome_.Update(device, timeOfDay);
+
+    RenderScene(device, eyeVec, mainView, mainProjection, terrainDiffuseColor,
+                /*includeSelectionOutline=*/true, /*skipPlayerId=*/-1);
+
+    // PIP observation inset (item 18 M7a -- Craft's observe2 corner
+    // viewport, main.c's render-into-inset): after the main scene, clear
+    // the DEPTH buffer only (color stays -- the inset's own sky pass
+    // repaints every pixel of its viewport, and nothing after this needs
+    // the main scene's depth: the HUD draws with depth testing off),
+    // shrink the viewport to the top-right corner, and render the whole
+    // scene again from the observed player's interpolated eyes.
+    if (pipObservedId_ >= 0) {
+        const auto observedIt = remotePlayers_.find(pipObservedId_);
+        if (observedIt != remotePlayers_.end() && observedIt->second.HasSample()) {
+            const auto s = observedIt->second.Interpolated(static_cast<double>(lastKnownTotalSeconds_));
+            const Viewport fullViewport = device.getViewportProperty();
+            const int pipW = std::max(1, fullViewport.getWidthProperty() / 3);
+            const int pipH = std::max(1, fullViewport.getHeightProperty() / 3);
+            const Viewport pipViewport(
+                fullViewport.getXProperty() + fullViewport.getWidthProperty() - pipW - 10,
+                fullViewport.getYProperty() + 10, pipW, pipH);
+            device.Clear(ClearOptions::DepthBuffer, Color(0, 0, 0, 255), 1.0f, 0);
+            device.setViewportProperty(pipViewport);
+
+            const float cosPitch = std::cos(s.ry);
+            const Vector3 observerEye(s.x, s.y, s.z);
+            const Vector3 observerTarget(s.x + cosPitch * std::sin(s.rx), s.y + std::sin(s.ry),
+                                         s.z - cosPitch * std::cos(s.rx));
+            const Matrix observerView = Matrix::CreateLookAt(observerEye, observerTarget, Vector3::Up);
+            const float pipAspect = static_cast<float>(pipW) / static_cast<float>(pipH);
+            const Matrix observerProjection =
+                Matrix::CreatePerspectiveFieldOfView(kPiOver4, pipAspect, 0.1f, 500.0f);
+            RenderScene(device, observerEye, observerView, observerProjection, terrainDiffuseColor,
+                        /*includeSelectionOutline=*/false, /*skipPlayerId=*/pipObservedId_);
+            device.setViewportProperty(fullViewport);
+        }
+    }
+
+    // Defensive end-of-frame baseline (lit, no vertex color, white diffuse)
+    // so nothing this frame set can leak into a pass that forgets to assert
+    // its own state -- every pass above still sets what it needs.
+    effect_->VertexColorEnabled = false;
+    effect_->setLightingEnabledProperty(true);
+    effect_->setDiffuseColorProperty(Vector3(1.0f, 1.0f, 1.0f));
+
+    hud_->Draw(device);
+
+    if (screenshotPending_) {
+        CaptureScreenshot(device);
+        screenshotPending_ = false;
+    }
+}
+
+void CnaCraftGame::RenderScene(GraphicsDevice& device, const Vector3& eyeVec, const Matrix& view,
+                               const Matrix& projection, const Vector3& terrainDiffuseColor,
+                               bool includeSelectionOutline, int skipPlayerId) {
+    const Vector3 kWhite(1.0f, 1.0f, 1.0f);
+    effect_->View = view;
+    effect_->Projection = projection;
 
     // Sky dome (CRAFT_PARITY.md §5.3, plan.md §12.1 item 33) — a textured
     // sphere sampling the sky gradient (Craft's real sky.png colors) at the
@@ -1598,8 +1698,8 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     // block atlas), VertexColorEnabled goes on (white vertex colors — the
     // proven stride-24 Texture+VertexColor unlit combo, same as the glow
     // pass), lighting goes off; everything restored for terrain right
-    // after.
-    skyDome_.Update(device, timeOfDay);
+    // after. (skyDome_.Update already ran in Draw -- time-of-day is
+    // camera-independent, shared by the main render and the PIP inset.)
     device.SetDepthWriteEnabled(false);
     const bool fogWasEnabled = effect_->getFogEnabledProperty();
     effect_->setFogEnabledProperty(false);
@@ -1647,7 +1747,7 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
         std::vector<Render::PlayerCube::Instance> instances;
         instances.reserve(remotePlayers_.size());
         for (auto& [id, remote] : remotePlayers_) {
-            (void)id;
+            if (id == skipPlayerId) continue;  // an observer never sees their own cube (PIP, M7a)
             if (!remote.HasSample()) continue;
             const auto s = remote.Interpolated(static_cast<double>(lastKnownTotalSeconds_));
             Render::PlayerCube::Instance inst;
@@ -1714,7 +1814,7 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     // blocks/HUD). Temporarily switches the shared BasicEffect to plain
     // vertex-color/unlit mode (VertexPositionColor has no UV/normal), then
     // restores it for the textured/lit chunk geometry that follows.
-    if (hasTargetedBlock_) {
+    if (includeSelectionOutline && hasTargetedBlock_) {
         selectionOutline_.Update(device, targetedBlockX_, targetedBlockY_, targetedBlockZ_);
         effect_->setTextureEnabledProperty(false);
         effect_->VertexColorEnabled = true;
@@ -1746,20 +1846,6 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     }
     device.SetDepthWriteEnabled(true);
     device.SetBlendEnabled(false);
-
-    // Defensive end-of-frame baseline (lit, no vertex color, white diffuse)
-    // so nothing this frame set can leak into a pass that forgets to assert
-    // its own state -- every pass above still sets what it needs.
-    effect_->VertexColorEnabled = false;
-    effect_->setLightingEnabledProperty(true);
-    effect_->setDiffuseColorProperty(kWhite);
-
-    hud_->Draw(device);
-
-    if (screenshotPending_) {
-        CaptureScreenshot(device);
-        screenshotPending_ = false;
-    }
 }
 
 void CnaCraftGame::CaptureScreenshot(GraphicsDevice& device) {
