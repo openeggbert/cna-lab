@@ -74,13 +74,44 @@
       overlay.addEventListener('click', function () {
         overlay.classList.add('hidden');
         canvas.focus();
-        if (canvas.requestPointerLock) canvas.requestPointerLock();
+        // Deliberately NOT calling canvas.requestPointerLock() here (an
+        // earlier version of this file did, and it was a real bug): the
+        // game itself already asks for relative mouse mode during
+        // Initialize() (Mouse.setIsRelativeMouseModeEXTProperty(true) ->
+        // SDL_SetWindowRelativeMouseMode -> emscripten_request_pointerlock
+        // with Emscripten's own deferUntilInEventHandler=1). That runs long
+        // before this overlay is ever clicked, so the browser denies it
+        // (Pointer Lock requires an active user gesture) -- but Emscripten
+        // queues the request and reruns it automatically the moment ANY
+        // subsequent Emscripten-registered event handler fires while
+        // navigator.userActivation.isActive is true, which this very click
+        // satisfies (mousedown/mouseup bubble to document regardless of
+        // which element was clicked). A second, JS-side
+        // canvas.requestPointerLock() call here raced that queued retry on
+        // the exact same user gesture and could get rejected by the
+        // browser as a duplicate -- removing it lets Emscripten's own,
+        // purpose-built retry own this entirely. If it still doesn't
+        // engage on this first click (browser-dependent), the player's
+        // very next real click -- e.g. to break a block -- lands directly
+        // on the canvas and satisfies it then.
       });
       // Esc releases the cursor (the game's own convention) -- show the overlay
       // again so the player knows how to get back in.
       document.addEventListener('pointerlockchange', function () {
         if (document.pointerLockElement !== canvas && ready) overlay.classList.remove('hidden');
       });
+
+      // Keep browser default key actions from stealing input away from the
+      // game (found via a real user report: Tab silently shifted keyboard
+      // focus off the page instead of toggling fly mode). Capture-phase, no
+      // stopPropagation -- Emscripten's own keydown handler still sees and
+      // processes every one of these keys normally for gameplay; only the
+      // BROWSER's native default action (focus-cycling on Tab, page-scroll
+      // on Space) is suppressed.
+      var kCaptureKeys = new Set(['Tab', 'Space']);
+      window.addEventListener('keydown', function (e) {
+        if (kCaptureKeys.has(e.code)) e.preventDefault();
+      }, true);
     </script>
     {{{ SCRIPT }}}
   </body>
