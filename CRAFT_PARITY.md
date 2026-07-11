@@ -863,10 +863,12 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
   `S,x,y,z,face,text` / talk); `server.py` is a Python `SocketServer`-based authoritative server
   with its own SQLite DB.
 - **cna-craft behavior**: none — confirmed via grep (zero hits for net/socket/enet/tcp/udp).
-  Already explicitly, deliberately deferred per `plan.md` §0/§9/§11.6 (CNA's own ENet-backed
-  `Net` layer is the intended future home, using Craft's message shapes as a protocol
-  *reference*, not a literal port).
-- **Status**: missing (deliberate, documented scope decision)
+  Deliberately deferred; a full **design pass completed 2026-07-11** — see `MULTIPLAYER_PLAN.md`
+  for the verified protocol reference, architecture, and the wire-vs-world compatibility
+  analysis. (Correction recorded there: CNA's ENet `Net` layer — which this entry's older text
+  suggested as the future home — is the wrong transport for Craft's TCP line protocol;
+  sharp-runtime's existing `TcpClient` stack is the right one.)
+- **Status**: missing (implementation) — planned, awaiting explicit user go-ahead
 - **Craft files**: `src/client.c:69-160`, `server.py`
 - **cna-craft files**: none
 - **Priority**: low (explicitly deferred until local single-player + persistence are solid, per

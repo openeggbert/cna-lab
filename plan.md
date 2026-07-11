@@ -598,10 +598,16 @@ explicit human decision first:
 
 ### 11.6 Multiplayer
 
-- [ ] Chunk/block sync over CNA's real ENet-backed `Microsoft::Xna::Framework::Net` layer (see
-      `../cna/README.md` §7), using Craft's message shapes as the protocol reference rather than a
-      literal port: `C,p,q,key` chunk requests, `B,p,q,x,y,z,w` block updates, `K,p,q,key` cache
-      keys, `P,pid,x,y,z,rx,ry` player position streams (`Craft/src/client.c`, `Craft/server.py`).
+Design pass completed 2026-07-11 — see **`MULTIPLAYER_PLAN.md`** (authoritative; supersedes the
+transport suggestion below). Key correction from that research: CNA's ENet `Net` layer is the
+WRONG transport for Craft's TCP line protocol — sharp-runtime's existing
+`System::Net::Sockets::TcpClient` + `StreamReader::ReadLine()` is the right (and already-built)
+tool.
+
+- [ ] Chunk/block sync following Craft's message shapes (`C,p,q,key` chunk requests,
+      `B,p,q,x,y,z,w` block updates, `K,p,q,key` cache keys, `P,pid,x,y,z,rx,ry` player position
+      streams — `Craft/src/client.c`, `Craft/server.py`) — full protocol table and client/server
+      design in `MULTIPLAYER_PLAN.md` §2/§5/§6.
 - [ ] Remote player rendering + interpolation between the last two received position updates
       (Craft: `src/main.c` `interpolate_player`).
 - [ ] Picture-in-picture observation of another player (Craft: `O`/`P` keys, `src/main.c` — "just
@@ -954,8 +960,16 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
       first, and synthetic mouse clicks into this sandbox's relative-mouse-mode SDL window remain
       unreliable — the same documented flakiness as items 15/16) — covered instead by the
       exhaustive unit tests above.
-18. `pending`, explicitly deferred — **Multiplayer** (CRAFT_PARITY.md §4.6): per project
-    direction, not started before local single-player + persistence are stable.
+18. `pending` (implementation) / **planning pass `completed` 2026-07-11** — **Multiplayer**
+    (CRAFT_PARITY.md §4.6): the design document is `MULTIPLAYER_PLAN.md` (repo root) — full
+    Craft protocol reference (verified against `client.c`/`server.py`), client/server
+    architecture on sharp-runtime's existing `TcpClient`/`Thread`/`ConcurrentQueue` (NOT CNA's
+    ENet `Net` layer — wrong tool, see the doc's §3), the wire-vs-world compatibility analysis
+    (terrain-generation identity, CHUNK_SIZE 32↔16, block-ID mapping — why real-Craft-server
+    compatibility is a separate large milestone), a recommended cna-craft↔cna-craft scope with
+    an own `CnaCraftServer` reusing `Worlds/`+`Persistence/`, phasing M0-M7, and the §11 open
+    questions the user must decide before any code is written. **Implementation remains gated
+    on an explicit user go-ahead** per the 2026-07-10 planning-only decision.
 19. `completed` — **Chunk system redesign: unbounded, streamed world** (CRAFT_PARITY.md
     §3.1/§3.2/§5.2). **User decision (2026-07-10)**: pursue an unbounded world after all
     (supersedes the original `needs_human` framing, which asked whether this was even wanted).
