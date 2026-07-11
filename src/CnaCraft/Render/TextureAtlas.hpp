@@ -12,6 +12,11 @@ namespace CnaCraft::Render {
 constexpr int kAtlasTileSize = 16;
 constexpr int kAtlasTilesPerRow = 8;
 
+// Atlas tile carrying the remote-player skin/face (plan.md §12.1 item 18
+// M5) -- appended after the dye block (tiles 27-58), same append-only rule
+// as BlockType/Hotbar (NEXT.md §6).
+constexpr int kPlayerSkinTile = 59;
+
 // Procedurally generated per-tile textures (plan.md §11.2 "Real texture
 // atlas image") — a per-pixel pattern (speckle/mottle, brick mortar grid,
 // wood bark/rings, plank seams, snow flecks) layered over each tile's base

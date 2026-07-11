@@ -17,6 +17,7 @@
 #include "Persistence/WorldStore.hpp"
 #include "Render/ChunkRenderer.hpp"
 #include "Render/Hud.hpp"
+#include "Render/PlayerCube.hpp"
 #include "Render/SelectionOutline.hpp"
 #include "Render/SignBillboard.hpp"
 #include "Render/SkyDome.hpp"
@@ -24,6 +25,7 @@
 #include "Worlds/Hotbar.hpp"
 #include "Worlds/MeshData.hpp"
 #include "Worlds/PlayerController.hpp"
+#include "Worlds/RemotePlayer.hpp"
 #include "Worlds/Sign.hpp"
 #include "Worlds/World.hpp"
 #include "Worlds/WorldEditor.hpp"
@@ -343,6 +345,11 @@ private:
     // Position-send throttle state (Craft: 0.1s cadence + still-skip).
     float lastPositionSentSeconds_ = -1.0f;
     float sentEyeX_ = 0.0f, sentEyeY_ = 0.0f, sentEyeZ_ = 0.0f, sentYaw_ = 0.0f, sentPitch_ = 0.0f;
+
+    // Remote players (item 18 M5): P creates/updates (name defaults to
+    // "player<id>" until N arrives, Craft's own placeholder), D removes.
+    std::unordered_map<int, Worlds::RemotePlayer> remotePlayers_;
+    Render::PlayerCube playerCube_;
 };
 
 }

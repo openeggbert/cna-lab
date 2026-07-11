@@ -14,6 +14,7 @@
 #include "CnaCraft/Worlds/Hotbar.hpp"
 #include "CnaCraft/Worlds/NoiseGenerator.hpp"
 #include "CnaCraft/Worlds/PlayerController.hpp"
+#include "CnaCraft/Worlds/RemotePlayer.hpp"
 #include "CnaCraft/Worlds/Sign.hpp"
 #include "CnaCraft/Worlds/VoxelRaycast.hpp"
 #include "CnaCraft/Worlds/World.hpp"
@@ -507,6 +508,52 @@ void TestMesherTransparentFacesGetAo() {
     const int top = FindQuadBase(glassNeighbor.opaque, 0, 1, 0, 5, 6, 5);
     Check(QuadShadesAre(glassNeighbor.opaque, top, kAoLitShade, kAoLitShade, kAoLitShade, kAoLitShade),
           "transparent AO: glass as a neighbor casts no occlusion and no column shade");
+}
+
+void TestRemotePlayerInterpolation() {
+    // Direct port checks against Craft's update_player/interpolate_player
+    // math (main.c:421-461) -- see Worlds/RemotePlayer.
+    RemotePlayer player;
+    Check(!player.HasSample(), "remote player starts with no samples");
+
+    player.PushSample(10.0f, 20.0f, 30.0f, 1.0f, 0.5f, 100.0);
+    const auto first = player.Interpolated(100.05);
+    Check(ApproxEq(first.x, 10.0f) && ApproxEq(first.y, 20.0f) && ApproxEq(first.rx, 1.0f),
+          "a single sample seeds both slots (player renders at the reported spot immediately)");
+
+    // Second sample 0.5s later: interpolation should walk sample1 -> sample2
+    // over the 0.5s window that separated them.
+    player.PushSample(20.0f, 20.0f, 30.0f, 1.0f, 0.5f, 100.5);
+    const auto atStart = player.Interpolated(100.5);
+    Check(ApproxEq(atStart.x, 10.0f), "at the newest sample's arrival, rendering restarts from the older sample");
+    const auto atQuarter = player.Interpolated(100.625);
+    Check(ApproxEq(atQuarter.x, 12.5f), "a quarter of the window in, the position is a quarter of the way");
+    const auto atEnd = player.Interpolated(101.0);
+    Check(ApproxEq(atEnd.x, 20.0f), "at the window's end the position reaches the newest sample");
+    const auto pastEnd = player.Interpolated(200.0);
+    Check(ApproxEq(pastEnd.x, 20.0f), "a stalled sender leaves the player parked (progress saturates at 1)");
+
+    // Yaw wraparound: 3.0 -> -3.0 crosses the ±pi seam; the short way is
+    // through pi (delta 0.28), not back through zero (delta 6.0). Halfway
+    // through, the yaw must sit just past +pi (equivalently just below -pi),
+    // NOT at 0 (which the naive lerp would give).
+    RemotePlayer turner;
+    turner.PushSample(0, 0, 0, 3.0f, 0, 100.0);
+    turner.PushSample(0, 0, 0, -3.0f, 0, 100.5);
+    const auto mid = turner.Interpolated(100.75);
+    // Halfway between 3.0 and -3.0 the short way is the ±pi seam itself
+    // (|rx| ~= pi; the sign depends on which sample got the 2*pi shift --
+    // Craft shifts the OLDER one, landing the path in negative territory).
+    Check(std::fabs(mid.rx) > 3.1f && std::fabs(mid.rx) < 3.2f,
+          "yaw interpolation crosses the pi seam the short way (never spins through zero)");
+
+    // Craft clamps the lerp window to [0.1, 1.0]: two samples 5s apart
+    // still play back over at most 1s.
+    RemotePlayer straggler;
+    straggler.PushSample(0, 0, 0, 0, 0, 100.0);
+    straggler.PushSample(10.0f, 0, 0, 0, 0, 105.0);
+    const auto clamped = straggler.Interpolated(106.0);
+    Check(ApproxEq(clamped.x, 10.0f), "the interpolation window clamps to 1s (Craft's own MIN/MAX bounds)");
 }
 
 void TestWorldSetBlockDirtiesAoNeighborhood() {
@@ -2291,6 +2338,7 @@ int main() {
     TestMesherCloudCompression();
     TestMesherTransparentFacesGetAo();
     TestWorldSetBlockDirtiesAoNeighborhood();
+    TestRemotePlayerInterpolation();
     TestVoxelRaycastHitsExpectedFaceAndBlock();
     TestHotbarSelectionAndCycling();
     TestPlayerControllerGravityAndGroundCollision();

@@ -61,6 +61,10 @@ constexpr int kMessageLogWidth = 650;
 constexpr int kMessageLineHeight = 20;
 constexpr int kMessageLogHeight = kMessageLineHeight * Hud::kMaxMessages;
 
+constexpr int kNametagWidth = 300;
+constexpr int kNametagHeight = 24;
+constexpr float kNametagTextScale = 2.0f;
+
 }
 
 Hud::Hud(GraphicsDevice& device)
@@ -68,13 +72,16 @@ Hud::Hud(GraphicsDevice& device)
       crosshairTexture_(BuildCrosshairTexture(device)),
       hotbarTexture_(device, kHotbarWidth, kHotbarHeight),
       typingTexture_(device, kTypingWidth, kTypingHeight),
-      messageLogTexture_(device, kMessageLogWidth, kMessageLogHeight) {
+      messageLogTexture_(device, kMessageLogWidth, kMessageLogHeight),
+      nametagTexture_(device, kNametagWidth, kNametagHeight) {
     std::vector<std::uint8_t> blank(static_cast<std::size_t>(kHotbarWidth) * kHotbarHeight * 4, 0);
     hotbarTexture_.SetDataRGBA(blank.data(), kHotbarWidth * kHotbarHeight);
     std::vector<std::uint8_t> typingBlank(static_cast<std::size_t>(kTypingWidth) * kTypingHeight * 4, 0);
     typingTexture_.SetDataRGBA(typingBlank.data(), kTypingWidth * kTypingHeight);
     std::vector<std::uint8_t> messageLogBlank(static_cast<std::size_t>(kMessageLogWidth) * kMessageLogHeight * 4, 0);
     messageLogTexture_.SetDataRGBA(messageLogBlank.data(), kMessageLogWidth * kMessageLogHeight);
+    std::vector<std::uint8_t> nametagBlank(static_cast<std::size_t>(kNametagWidth) * kNametagHeight * 4, 0);
+    nametagTexture_.SetDataRGBA(nametagBlank.data(), kNametagWidth * kNametagHeight);
 }
 
 void Hud::RebuildHotbar(GraphicsDevice&, const std::string* slotNames, int slotCount,
@@ -130,6 +137,16 @@ void Hud::PushMessage(GraphicsDevice&, const std::string& text) {
     messageLogTexture_.SetDataRGBA(px.data(), kMessageLogWidth * kMessageLogHeight);
 }
 
+void Hud::SetTargetPlayerName(GraphicsDevice&, const std::string& name) {
+    if (name == targetPlayerName_) return;  // rebuild only on change (RebuildHotbar's convention)
+    targetPlayerName_ = name;
+    if (name.empty()) return;  // Draw() skips it; no need to re-upload a blank
+
+    std::vector<std::uint8_t> px(static_cast<std::size_t>(kNametagWidth) * kNametagHeight * 4, 0);
+    FontDrawText(px, kNametagWidth, kNametagHeight, 2, 4, name, 255, 255, 255, 255, kNametagTextScale);
+    nametagTexture_.SetDataRGBA(px.data(), kNametagWidth * kNametagHeight);
+}
+
 void Hud::Draw(GraphicsDevice& device) {
     const auto& vp = device.getViewportProperty();
     const int sw = vp.getWidthProperty();
@@ -144,6 +161,16 @@ void Hud::Draw(GraphicsDevice& device) {
         Rectangle((sw - crossSize) / 2, (sh - crossSize) / 2, crossSize, crossSize),
         crosshairTexture_.getBoundsProperty(),
         Color(255, 255, 255, 255));
+
+    if (!targetPlayerName_.empty()) {
+        // Just below the crosshair, centered -- Craft's own aimed-at-player
+        // name placement (main.c:2893-2898).
+        const int tagHeight = std::max(20, static_cast<int>(sh * 0.03f));
+        const int tagWidth = tagHeight * kNametagWidth / kNametagHeight;
+        spriteBatch_->Draw(nametagTexture_,
+                           Rectangle((sw - tagWidth) / 2, (sh + crossSize) / 2 + 8, tagWidth, tagHeight),
+                           nametagTexture_.getBoundsProperty(), Color(255, 255, 255, 255));
+    }
 
     // Sized from a target screen HEIGHT (not a fraction of screen width) so
     // it stays legible regardless of resolution: scaling a very wide, short

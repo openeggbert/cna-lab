@@ -29,6 +29,7 @@ add_library(CnaCraftWorlds STATIC
     src/CnaCraft/Worlds/DayNightCycle.cpp
     src/CnaCraft/Worlds/Sign.cpp
     src/CnaCraft/Worlds/WorldEditor.cpp
+    src/CnaCraft/Worlds/RemotePlayer.cpp
 )
 target_include_directories(CnaCraftWorlds PUBLIC src)
 
@@ -203,6 +204,7 @@ if(CNA_CRAFT_BUILD_GAME)
         src/CnaCraft/Render/SkyDome.cpp
         src/CnaCraft/Render/SkyTexture.cpp
         src/CnaCraft/Render/SignBillboard.cpp
+        src/CnaCraft/Render/PlayerCube.cpp
         src/CnaCraft/Persistence/WorldStore.cpp
     )
     target_include_directories(CnaCraft PRIVATE src)

@@ -55,6 +55,15 @@ public:
     // the typing box's lifetime).
     void PushMessage(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device, const std::string& text);
 
+    // Crosshair-targeted remote-player nametag (MULTIPLAYER_PLAN.md §7,
+    // plan.md §12.1 item 18 M5) -- Craft's SHOW_PLAYER_NAMES draws the
+    // aimed-at player's name as 2D HUD text near the crosshair
+    // (main.c:2893-2898), NOT as a 3D billboard (real Craft has no
+    // in-world nametags -- CRAFT_PARITY.md §4.4). Rebuilds its small
+    // texture only when the name actually changes; empty name hides it.
+    void SetTargetPlayerName(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
+                             const std::string& name);
+
     void Draw(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
 
 private:
@@ -71,6 +80,9 @@ private:
     std::array<std::string, kMaxMessages> messages_;
     int messageIndex_ = 0;
     Microsoft::Xna::Framework::Graphics::Texture2D messageLogTexture_;
+
+    std::string targetPlayerName_;
+    Microsoft::Xna::Framework::Graphics::Texture2D nametagTexture_;
 };
 
 }

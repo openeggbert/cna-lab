@@ -91,10 +91,11 @@ const TileColor kTileColors[] = {
     {254, 254, 254, 255}, // 56: Dye29
     {156, 173, 182, 255}, // 57: Dye30
     {128, 123, 131, 255}, // 58: Dye31
+    {224, 172, 130, 255}, // 59: remote-player skin (plan.md §12.1 item 18 M5) -- kPlayerSkinTile
 };
 constexpr int kTileCount = sizeof(kTileColors) / sizeof(kTileColors[0]);
 
-enum class Pattern { Mottle, Brick, WoodBark, WoodRings, Plank, SnowFleck, GrassBlade, Flower };
+enum class Pattern { Mottle, Brick, WoodBark, WoodRings, Plank, SnowFleck, GrassBlade, Flower, PlayerFace };
 
 struct TilePattern {
     Pattern pattern;
@@ -146,6 +147,7 @@ constexpr TilePattern kTilePatterns[] = {
     {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, // 47-50
     {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, // 51-54
     {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, {Pattern::Mottle, 0.04f}, // 55-58
+    {Pattern::PlayerFace, 0.0f},  // 59: remote-player skin (kPlayerSkinTile)
 };
 
 // Deterministic per-pixel hash noise (same technique as
@@ -266,6 +268,21 @@ Color FlowerPattern(const TileColor& base, int x, int y) {
     return Shade(base, (PixelHash(20, x, fy) - 0.5f) * 0.15f);
 }
 
+Color PlayerFacePattern(const TileColor& base, int x, int y) {
+    // Remote-player skin (plan.md §12.1 item 18 M5): a plain skin-tone
+    // tile with two dark eyes in the quad's upper half -- a stand-in for
+    // Craft's hand-drawn player-head tiles (texture.png 226/224/...). Same
+    // V convention as FlowerPattern above: LOW pixel y renders at the quad
+    // BOTTOM, so the eyes are drawn at HIGH pixel y (fy mirrors it so the
+    // eye math reads top-down).
+    const int fy = kAtlasTileSize - 1 - y;
+    const bool leftEye = (x >= 4 && x <= 5 && fy >= 5 && fy <= 7);
+    const bool rightEye = (x >= 10 && x <= 11 && fy >= 5 && fy <= 7);
+    if (leftEye || rightEye) return Color(40, 32, 30, 255);
+    const float noise = (PixelHash(59, x, y) - 0.5f) * 0.08f;
+    return Shade(base, noise);
+}
+
 Color PaintPixel(int tile, int x, int y) {
     const TileColor& base = kTileColors[tile];
     const TilePattern& pat = kTilePatterns[tile];
@@ -277,6 +294,7 @@ Color PaintPixel(int tile, int x, int y) {
         case Pattern::SnowFleck:  return SnowFleckPattern(base, x, y);
         case Pattern::GrassBlade: return GrassBladePattern(base, x, y);
         case Pattern::Flower:     return FlowerPattern(base, x, y);
+        case Pattern::PlayerFace: return PlayerFacePattern(base, x, y);
         case Pattern::Mottle:
         default:
             return MottlePattern(base, tile, x, y, pat.strength);

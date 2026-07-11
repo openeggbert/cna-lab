@@ -452,10 +452,28 @@ void CnaCraftGame::ApplyServerMessage(const Net::ServerMessage& msg) {
             // in ConnectToServer; ignored at runtime (regenerating a live
             // world under the player is not a thing this client does).
             break;
-        case Net::ServerOpcode::Position:
-        case Net::ServerOpcode::Nick:
+        case Net::ServerOpcode::Position: {
+            // Implicit join, Craft's model (main.c:2508-2515): the first P
+            // for an unknown id creates the player, named "player<id>"
+            // until its N arrives.
+            auto [it, inserted] = remotePlayers_.try_emplace(msg.id);
+            if (inserted) {
+                it->second.id = msg.id;
+                it->second.name = "player" + std::to_string(msg.id);
+            }
+            it->second.PushSample(msg.x, msg.y, msg.z, msg.rx, msg.ry,
+                                  static_cast<double>(lastKnownTotalSeconds_));
+            break;
+        }
+        case Net::ServerOpcode::Nick: {
+            if (msg.id == myPlayerId_) break;  // own nick echoes back on /nick broadcasts
+            auto [it, inserted] = remotePlayers_.try_emplace(msg.id);
+            if (inserted) it->second.id = msg.id;
+            it->second.name = msg.text;
+            break;
+        }
         case Net::ServerOpcode::Disconnect:
-            // Remote players land in M5 (MULTIPLAYER_PLAN.md §10).
+            remotePlayers_.erase(msg.id);
             break;
     }
 }
@@ -1084,6 +1102,30 @@ void CnaCraftGame::Update(GameTime& gameTime) {
         targetedBlockZ_ = hit->z;
     }
 
+    // Crosshair-targeted player nametag (item 18 M5 -- Craft's own
+    // player_crosshair + 2D HUD name, main.c:2893-2898): the nearest
+    // remote player whose interpolated position sits within a cube's
+    // width of the look ray. Cheap (a handful of players, pure math).
+    {
+        std::string targetName;
+        float bestAlong = 96.0f;  // Craft's own generous crosshair range
+        const Core::Vec3f eyePos = player_->EyePosition();
+        const Core::Vec3f look = player_->LookDirection();
+        for (auto& [id, remote] : remotePlayers_) {
+            (void)id;
+            if (!remote.HasSample()) continue;
+            const auto s = remote.Interpolated(static_cast<double>(lastKnownTotalSeconds_));
+            const float px = s.x - eyePos.x, py = s.y - eyePos.y, pz = s.z - eyePos.z;
+            const float along = px * look.x + py * look.y + pz * look.z;
+            if (along < 0.5f || along > bestAlong) continue;
+            const float offX = px - look.x * along, offY = py - look.y * along, offZ = pz - look.z * along;
+            if (offX * offX + offY * offY + offZ * offZ > 0.6f * 0.6f) continue;
+            bestAlong = along;
+            targetName = remote.name;
+        }
+        hud_->SetTargetPlayerName(getGraphicsDeviceProperty(), targetName);
+    }
+
     const int previousHotbarIndex = hotbar_.SelectedIndex();
     // Craft's on_key (CRAFT_PARITY.md §2.1) maps keys 1-9 to slots 0-8 and
     // key 0 to slot 9 (a 10th direct-key slot) -- kMaxNumberKeySlots stays
@@ -1448,6 +1490,33 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
             if (!frustum.Intersects(renderer->Bounds())) continue;
             renderer->DrawOpaque(device, *effect_);
         }
+    }
+
+    // Remote players (item 18 M5) -- drawn inside the opaque terrain
+    // pass's state (VertexColorEnabled, unlit, daylight DiffuseColor), so
+    // player cubes pick up the same daylight dimming terrain does; their
+    // baked vertex color makes them flat-lit with no AO, Craft's own
+    // make_player look. Interpolation runs on the same clock the samples
+    // were stamped with (Update's lastKnownTotalSeconds_).
+    if (!remotePlayers_.empty()) {
+        std::vector<Render::PlayerCube::Instance> instances;
+        instances.reserve(remotePlayers_.size());
+        for (auto& [id, remote] : remotePlayers_) {
+            (void)id;
+            if (!remote.HasSample()) continue;
+            const auto s = remote.Interpolated(static_cast<double>(lastKnownTotalSeconds_));
+            Render::PlayerCube::Instance inst;
+            inst.x = s.x;
+            inst.y = s.y;
+            inst.z = s.z;
+            inst.yaw = s.rx;
+            inst.pitch = s.ry;
+            instances.push_back(inst);
+        }
+        playerCube_.Update(device, instances);
+        playerCube_.Draw(device, *effect_);
+    } else {
+        playerCube_.Update(device, {});
     }
 
     // Light-toggle glow pass (CRAFT_PARITY.md §2.7/§4.3, plan.md §12.1 item
