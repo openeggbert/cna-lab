@@ -1,9 +1,11 @@
 #include "CnaCraftGame.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -44,7 +46,9 @@ constexpr float kMouseSensitivity = 0.0025f;
 // changed from an earlier 6.0f approximation per user decision 2026-07-10
 // to minimize differences from Craft.
 constexpr float kMaxReach = 8.0f;
-constexpr std::uint32_t kWorldSeed = 1337;
+// The classic single-player terrain seed lives as the worldSeed_ member's
+// default in CnaCraftGame.hpp now (a server's W message may override it
+// before any column generates -- plan.md §12.1 item 18 M4).
 // Orthographic toggle (plan.md §11.4): also hold-to-activate in Craft
 // (`g->ortho = ... ? 64 : 0`), not a toggle despite the backlog's wording.
 constexpr float kOrthoViewHeight = 24.0f; // world units (blocks) of vertical view extent
@@ -119,16 +123,25 @@ void CnaCraftGame::Initialize() {
     // takes effect everywhere (streaming, fog).
     radii_ = Worlds::CommandRadii{kCreateRadius, kDeleteRadius};
 
+    // Multiplayer connect (plan.md §12.1 item 18 M4) -- BEFORE the store
+    // opens (online mode uses a per-server cache file, never the local
+    // single-player world.db, so server deltas can't poison it -- Craft's
+    // own cache.<addr>.<port>.db convention, main.c:2706) and before any
+    // column generates (the server's W message carries the terrain seed).
+    ConnectToServer();
+
     // World persistence (CRAFT_PARITY.md §4.1/§4.2): opened before any
     // column loads, so LoadColumn (called by the spawn force-load below)
     // can immediately overlay persisted edits/signs on top of each
     // freshly generated column, same order as before streaming existed.
-    // `world.db` in the working directory, matching Craft's own simple
-    // single-default-file approach (`DB_PATH`, src/db.c) rather than a
-    // save-slot system.
-    worldStore_ = std::make_unique<Persistence::WorldStore>("world.db");
+    // Offline: `world.db` in the working directory, matching Craft's own
+    // simple single-default-file approach (`DB_PATH`, src/db.c) rather
+    // than a save-slot system.
+    const std::string dbPath =
+        IsOnline() ? ("cache." + serverHost_ + "." + std::to_string(serverPort_) + ".db") : "world.db";
+    worldStore_ = std::make_unique<Persistence::WorldStore>(dbPath);
     if (!worldStore_->IsOpen()) {
-        std::printf("WorldStore: could not open world.db -- edits will not be saved this session\n");
+        std::printf("WorldStore: could not open %s -- edits will not be saved this session\n", dbPath.c_str());
         std::fflush(stdout);
     }
 
@@ -156,7 +169,12 @@ void CnaCraftGame::Initialize() {
     // world-origin. `loadedX/Z` default to the same world-origin spawn used
     // when nothing was ever saved (see the fallback branch further down).
     float loadedX = 0.5f, loadedY = 0.0f, loadedZ = 0.5f, loadedYaw = 0.0f, loadedPitch = 0.0f;
-    const bool hasSavedPlayerState = worldStore_->LoadPlayerState(loadedX, loadedY, loadedZ, loadedYaw, loadedPitch);
+    // Online, the spawn is server-authoritative (the U message; y=0 means
+    // "compute local ground height", Craft's own convention) -- the cache
+    // db's saved position is deliberately NOT resumed, matching Craft's
+    // real join behavior of always spawning where the server says.
+    const bool hasSavedPlayerState =
+        !IsOnline() && worldStore_->LoadPlayerState(loadedX, loadedY, loadedZ, loadedYaw, loadedPitch);
 
     // Spawn-area loading (plan.md §12.1 items 28 + 31, both user-reported
     // bugs, in tension with each other -- read both before touching this):
@@ -236,7 +254,7 @@ void CnaCraftGame::Initialize() {
     } else {
         const float spawnX = 0.5f;
         const float spawnZ = 0.5f;
-        const int spawnHeight = Worlds::NoiseGenerator::Height(kWorldSeed, 0, 0);
+        const int spawnHeight = Worlds::NoiseGenerator::Height(worldSeed_, 0, 0);
         player_ = std::make_unique<Worlds::PlayerController>(
             Core::Vec3f{spawnX, static_cast<float>(spawnHeight + 2), spawnZ});
     }
@@ -268,6 +286,207 @@ void CnaCraftGame::RecordMark(int x, int y, int z, Worlds::BlockType type) {
     mark0_ = Worlds::BlockMark{x, y, z, type};
 }
 
+void CnaCraftGame::ConnectToServer() {
+    if (serverHost_.empty()) return;
+    netClient_ = std::make_unique<Net::GameClient>();
+    std::printf("Connecting to %s:%d...\n", serverHost_.c_str(), serverPort_);
+    std::fflush(stdout);
+    if (!netClient_->Connect(serverHost_, serverPort_)) {
+        std::printf("Connection failed (%s) -- starting offline instead.\n", netClient_->LastError().c_str());
+        std::fflush(stdout);
+        netClient_.reset();
+        return;
+    }
+    netClient_->Send(Net::MakeVersion(Net::kProtocolVersion));
+    netClient_->Send(Net::MakeNick(""));  // guest name; /nick changes it later
+
+    // Wait (bounded) for the join handshake: U (our id), E (shared clock),
+    // and critically W (the terrain seed) -- the spawn column generates
+    // right after this, and it MUST use the server's seed or this client
+    // would stand on different ground than everyone else. Runs before the
+    // first frame ever presents, same place Craft does its own blocking
+    // connect (main.c's client_connect before the main loop).
+    bool gotWorldInfo = false, gotYou = false, gotTime = false;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (std::chrono::steady_clock::now() < deadline && !(gotWorldInfo && gotYou && gotTime)) {
+        Net::ServerMessage msg;
+        while (netClient_->TryReceive(msg)) {
+            switch (msg.op) {
+                case Net::ServerOpcode::WorldInfo:
+                    worldSeed_ = msg.seed;
+                    gotWorldInfo = true;
+                    break;
+                case Net::ServerOpcode::You:
+                    myPlayerId_ = msg.id;
+                    gotYou = true;
+                    // Spawn position handling happens in Initialize's
+                    // player-creation branch (y=0 -> local ground height);
+                    // a nonzero-y U at join would land here too, but the
+                    // M2 server always spawns at origin.
+                    break;
+                case Net::ServerOpcode::Time:
+                    dayLengthSeconds_ = msg.dayLength;
+                    // TotalGameTime is ~0 during Initialize, so the offset
+                    // is simply the server's elapsed clock.
+                    clockOffsetSeconds_ = static_cast<float>(msg.elapsed) - lastKnownTotalSeconds_;
+                    gotTime = true;
+                    break;
+                default:
+                    break;  // welcome chat etc. -- redelivered? No: consumed; fine pre-HUD
+            }
+            if (gotWorldInfo && gotYou && gotTime) break;
+        }
+        if (!(gotWorldInfo && gotYou && gotTime)) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    }
+    if (!(gotWorldInfo && gotYou && gotTime) || netClient_->IsDropped()) {
+        std::printf("Server handshake failed%s%s -- starting offline instead.\n",
+                    netClient_->LastError().empty() ? "" : ": ", netClient_->LastError().c_str());
+        std::fflush(stdout);
+        netClient_->Stop();
+        netClient_.reset();
+        return;
+    }
+    std::printf("Connected. Player id %d, world seed %u, day length %.0fs.\n", myPlayerId_, worldSeed_,
+                static_cast<double>(dayLengthSeconds_));
+    std::fflush(stdout);
+}
+
+void CnaCraftGame::PollNetworkMessages() {
+    if (!netClient_) return;
+    if (netClient_->IsDropped()) {
+        if (!netDropAnnounced_) {
+            netDropAnnounced_ = true;
+            const std::string notice = "Connection to the server was lost -- continuing offline.";
+            std::printf("%s\n", notice.c_str());
+            std::fflush(stdout);
+            if (hud_) hud_->PushMessage(getGraphicsDeviceProperty(), notice);
+        }
+        return;
+    }
+    // Apply cap: whatever it leaves stays in the inbox for next frame --
+    // the network analog of the defer-don't-discard rule the generation/
+    // mesh pollers follow (NEXT.md §6). 256 comfortably swallows a whole
+    // chunk response burst without risking a frame spike on reconnect
+    // floods.
+    constexpr int kMaxMessagesPerFrame = 256;
+    bool appliedBlocks = false;
+    Net::ServerMessage msg;
+    for (int i = 0; i < kMaxMessagesPerFrame && netClient_->TryReceive(msg); ++i) {
+        if (msg.op == Net::ServerOpcode::Block) appliedBlocks = true;
+        ApplyServerMessage(msg);
+    }
+    // A remote block materializing exactly where this player stands is the
+    // same entombment class item 31 heals -- run the same detect-and-heal.
+    if (appliedBlocks) HealPlayerIfEmbedded();
+}
+
+void CnaCraftGame::ApplyServerMessage(const Net::ServerMessage& msg) {
+    switch (msg.op) {
+        case Net::ServerOpcode::Block: {
+            // Cache first (so a column loading later replays it), live
+            // world second (graceful no-op when the column isn't loaded --
+            // PollGenerationJobs re-applies stored edits at install).
+            worldStore_->UpsertBlock(msg.bx, msg.by, msg.bz, msg.w);
+            if (world_.IsColumnLoaded(msg.p, msg.q)) {
+                world_.SetBlock(msg.bx, msg.by, msg.bz, static_cast<Worlds::BlockType>(msg.w));
+                if (msg.w == 0 && signStore_.RemoveAllAt(msg.bx, msg.by, msg.bz)) signsNeedRebuild_ = true;
+            }
+            break;
+        }
+        case Net::ServerOpcode::Light:
+            worldStore_->UpsertLight(msg.bx, msg.by, msg.bz, msg.w != 0);
+            world_.SetLightSource(msg.bx, msg.by, msg.bz, msg.w != 0);  // no-op when unloaded
+            break;
+        case Net::ServerOpcode::Sign: {
+            if (msg.text.empty()) {
+                worldStore_->DeleteSign(msg.bx, msg.by, msg.bz, msg.face);
+            } else {
+                worldStore_->UpsertSign(Worlds::Sign{msg.bx, msg.by, msg.bz, msg.face, msg.text});
+            }
+            // PlaceSign handles both store and delete (empty text) in one
+            // call, same as the local typing flow.
+            signStore_.PlaceSign(msg.bx, msg.by, msg.bz, msg.face, msg.text);
+            signsNeedRebuild_ = true;
+            break;
+        }
+        case Net::ServerOpcode::Key:
+            worldStore_->SetColumnKey(msg.p, msg.q, msg.key);
+            break;
+        case Net::ServerOpcode::Redraw: {
+            for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
+                if (Worlds::Chunk* chunk = world_.TryChunkAt(msg.p, cy, msg.q)) chunk->MarkDirty();
+            }
+            break;
+        }
+        case Net::ServerOpcode::ChunkDone:
+            break;  // informational trailer; nothing to do (Craft's client ignores it too)
+        case Net::ServerOpcode::Talk:
+            std::printf("%s\n", msg.text.c_str());
+            std::fflush(stdout);
+            if (hud_) hud_->PushMessage(getGraphicsDeviceProperty(), msg.text);
+            break;
+        case Net::ServerOpcode::Time:
+            dayLengthSeconds_ = msg.dayLength;
+            clockOffsetSeconds_ = static_cast<float>(msg.elapsed) - lastKnownTotalSeconds_;
+            break;
+        case Net::ServerOpcode::You: {
+            // Runtime teleport (server /goto etc. -- Craft's U handler).
+            myPlayerId_ = msg.id;
+            float feetY = msg.y - Worlds::PlayerController::kEyeHeight;
+            if (msg.y == 0.0f) {
+                feetY = static_cast<float>(
+                    Worlds::NoiseGenerator::Height(worldSeed_, static_cast<int>(msg.x), static_cast<int>(msg.z)) +
+                    2);
+            }
+            player_ = std::make_unique<Worlds::PlayerController>(Core::Vec3f{msg.x, feetY, msg.z}, msg.rx, msg.ry);
+            const int cx = Worlds::ChunkCoordOf(static_cast<int>(std::floor(msg.x)));
+            const int cz = Worlds::ChunkCoordOf(static_cast<int>(std::floor(msg.z)));
+            if (!world_.IsColumnLoaded(cx, cz)) LoadColumnSynchronously(cx, cz);
+            HealPlayerIfEmbedded();
+            break;
+        }
+        case Net::ServerOpcode::WorldInfo:
+            // Only meaningful before the first column generates -- handled
+            // in ConnectToServer; ignored at runtime (regenerating a live
+            // world under the player is not a thing this client does).
+            break;
+        case Net::ServerOpcode::Position:
+        case Net::ServerOpcode::Nick:
+        case Net::ServerOpcode::Disconnect:
+            // Remote players land in M5 (MULTIPLAYER_PLAN.md §10).
+            break;
+    }
+}
+
+void CnaCraftGame::SendPendingEditsToServer() {
+    if (!IsOnline()) return;
+    for (const Worlds::BlockEdit& edit : world_.RecordedEdits()) {
+        netClient_->Send(Net::MakeBlock(edit.x, edit.y, edit.z, static_cast<int>(edit.type)));
+    }
+}
+
+void CnaCraftGame::SendPositionIfDue(float totalSeconds) {
+    if (!IsOnline() || !player_) return;
+    if (lastPositionSentSeconds_ >= 0.0f && totalSeconds - lastPositionSentSeconds_ < 0.1f) return;
+    const Core::Vec3f eye = player_->EyePosition();
+    const float yaw = player_->Yaw();
+    const float pitch = player_->Pitch();
+    // Craft's still-skip (client.c:98): squared position delta plus look
+    // deltas under a hair's width -> nothing worth telling anyone.
+    const float dx = eye.x - sentEyeX_, dy = eye.y - sentEyeY_, dz = eye.z - sentEyeZ_;
+    const float dr = yaw - sentYaw_, dp = pitch - sentPitch_;
+    if (lastPositionSentSeconds_ >= 0.0f && dx * dx + dy * dy + dz * dz + dr * dr + dp * dp < 0.0001f) return;
+    netClient_->Send(Net::MakePosition(eye.x, eye.y, eye.z, yaw, pitch));
+    sentEyeX_ = eye.x;
+    sentEyeY_ = eye.y;
+    sentEyeZ_ = eye.z;
+    sentYaw_ = yaw;
+    sentPitch_ = pitch;
+    lastPositionSentSeconds_ = totalSeconds;
+}
+
 void CnaCraftGame::MarkNeighborColumnsDirty(int cx, int cz) {
     // Whenever a column loads or unloads, its neighbors' meshes go stale:
     // face-adjacent ones culled shared boundary faces against "phantom
@@ -289,11 +508,15 @@ void CnaCraftGame::MarkNeighborColumnsDirty(int cx, int cz) {
 }
 
 void CnaCraftGame::LoadColumnSynchronously(int cx, int cz) {
-    world_.GenerateColumn(cx, cz, kWorldSeed);
+    world_.GenerateColumn(cx, cz, worldSeed_);
     worldStore_->LoadColumnInto(world_, cx, cz);
     worldStore_->LoadColumnLightsInto(world_, cx, cz);
     worldStore_->LoadColumnSignsInto(signStore_, cx, cz);
     signsNeedRebuild_ = true; // this column may have contributed persisted signs
+    // Online: ask the server for anything newer than our cached key --
+    // deltas arrive asynchronously via PollNetworkMessages and overlay the
+    // cache-loaded state above (Craft's own request_chunk-at-load).
+    if (IsOnline()) netClient_->Send(Net::MakeChunkRequest(cx, cz, worldStore_->GetColumnKey(cx, cz)));
 
     auto& renderers = chunkRenderers_[Worlds::World::PackColumnKey(cx, cz)];
     for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
@@ -363,8 +586,14 @@ void CnaCraftGame::DispatchColumnGeneration(int cx, int cz) {
     const auto edits = worldStore_->LoadColumnEdits(cx, cz);
     worldStore_->LoadColumnSignsInto(signStore_, cx, cz);
     signsNeedRebuild_ = true; // this column may have contributed persisted signs
+    // Online: request anything newer than the cache in parallel with the
+    // background generation below -- inbound deltas either apply to the
+    // installed column later (IsColumnLoaded check in ApplyServerMessage)
+    // or land in the cache and get re-applied at install by
+    // PollGenerationJobs' post-adopt edit replay.
+    if (IsOnline()) netClient_->Send(Net::MakeChunkRequest(cx, cz, worldStore_->GetColumnKey(cx, cz)));
 
-    const std::uint32_t seed = kWorldSeed;
+    const std::uint32_t seed = worldSeed_;
     // TaskT has no default constructor (only TaskT(std::function<T()>)),
     // so the job struct must be aggregate-initialized with an
     // already-constructed task, not default-constructed then assigned.
@@ -423,6 +652,13 @@ void CnaCraftGame::PollGenerationJobs() {
             // world_ -- World::SetLightSource silently no-ops on an
             // unloaded column, same graceful-degradation rule as SetBlock.
             worldStore_->LoadColumnLightsInto(world_, cx, cz);
+            // Online race closure (item 18 M4): a server delta that arrived
+            // AFTER this job's edit snapshot was taken went into the cache
+            // db but not the job's scratch world -- re-applying the stored
+            // edits here (idempotent; the column's chunks are about to
+            // remesh anyway, they start dirty) guarantees the installed
+            // column reflects everything the cache knows.
+            if (IsOnline()) worldStore_->LoadColumnInto(world_, cx, cz);
 
             auto& renderers = chunkRenderers_[Worlds::World::PackColumnKey(cx, cz)];
             for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
@@ -608,6 +844,11 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     }
 
     const float dt = static_cast<float>(gameTime.getElapsedGameTimeProperty().getTotalSecondsProperty());
+    // "Now" for the network layer: the E clock handler converts the
+    // server's elapsed seconds into an offset against this, and the
+    // position-send throttle measures its 0.1s cadence with it.
+    lastKnownTotalSeconds_ =
+        static_cast<float>(gameTime.getTotalGameTimeProperty().getTotalSecondsProperty());
 
     const auto kb = Keyboard::GetState();
     const bool escapeDown = kb.IsKeyDown(Keys::Escape);
@@ -684,6 +925,9 @@ void CnaCraftGame::Update(GameTime& gameTime) {
                         worldStore_->UpsertSign(Worlds::Sign{signHit->x, signHit->y, signHit->z, face, typingBuffer_});
                     }
                     signsNeedRebuild_ = true;
+                    if (IsOnline()) {
+                        netClient_->Send(Net::MakeSign(signHit->x, signHit->y, signHit->z, face, typingBuffer_));
+                    }
                 }
             }
             typingMode_ = TypingMode::None;
@@ -726,6 +970,9 @@ void CnaCraftGame::Update(GameTime& gameTime) {
         // this also covers any block edits a just-submitted command made
         // (e.g. /cube), which already marked their chunks dirty the same
         // way a player-driven edit would.
+        SendPendingEditsToServer();  // a just-submitted /command's edits must reach the server too
+        worldStore_->SaveEdits(world_);
+        PollNetworkMessages();
         PollGenerationJobs();
         DispatchMeshingForDirtyChunks();
         PollMeshJobs();
@@ -981,12 +1228,22 @@ void CnaCraftGame::Update(GameTime& gameTime) {
                     const bool on = !world_.IsLightSource(hit->x, hit->y, hit->z);
                     world_.SetLightSource(hit->x, hit->y, hit->z, on);
                     worldStore_->UpsertLight(hit->x, hit->y, hit->z, on);
+                    if (IsOnline()) netClient_->Send(Net::MakeLight(hit->x, hit->y, hit->z, on ? 15 : 0));
                 }
             } else {
                 tryPlaceBlock();
             }
         }
     }
+
+    // Online: ship this frame's fresh edits to the server BEFORE SaveEdits
+    // clears them -- one hook covers clicks and /commands alike, because
+    // every edit source funnels through World::RecordedEdits (item 18 M4).
+    // The local application already happened (optimistic, Craft's model);
+    // a server rejection arrives later as a revert B.
+    SendPendingEditsToServer();
+    // Craft's position cadence: at most every 0.1s, skipped while still.
+    SendPositionIfDue(lastKnownTotalSeconds_);
 
     // Save any new edits right away (CRAFT_PARITY.md §4.1/§4.2) -- no-op
     // when there's nothing new to save (WorldStore::SaveEdits checks
@@ -1023,11 +1280,12 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     }
 
     // Background generation/meshing pipeline (plan.md §12.1 item 19 phase
-    // 4): apply any completed column-generation results first (so a
-    // freshly-loaded column's chunks are already in world_ before this
-    // same frame's dirty scan below), then dispatch meshing for anything
-    // dirty (including chunks the just-applied generation results marked
-    // dirty), then apply any completed mesh results.
+    // 4): inbound network messages first (remote edits mark chunks dirty
+    // the same way local ones do), then apply any completed column-
+    // generation results (so a freshly-loaded column's chunks are already
+    // in world_ before this same frame's dirty scan below), then dispatch
+    // meshing for anything dirty, then apply any completed mesh results.
+    PollNetworkMessages();
     PollGenerationJobs();
     DispatchMeshingForDirtyChunks();
     PollMeshJobs();
@@ -1045,14 +1303,16 @@ void CnaCraftGame::Draw(const GameTime& gameTime) {
     // texture's U coordinate (plan.md §12.1 item 33).
     // Craft starts its clock at day_length/3 (`glfwSetTime(g->day_length /
     // 3.0)`, main.c:2582) -- mid-morning, full daylight -- not at 0
-    // (midnight). Matched here as a fixed offset (plan.md §12.1 item 33;
-    // this also explains why every earlier screenshot of this project
-    // looked dark: the game used to begin at literal midnight).
+    // (midnight). Offline that's exactly what clockOffsetSeconds_ defaults
+    // to (plan.md §12.1 item 33; this also explains why every earlier
+    // screenshot of this project looked dark: the game used to begin at
+    // literal midnight). Online, the server's E message overwrote the
+    // offset and day length so every player shares one sky (item 18 M4).
     const float totalSeconds =
         static_cast<float>(gameTime.getTotalGameTimeProperty().getTotalSecondsProperty()) +
-        Worlds::kDefaultDayLengthSeconds / 3.0f;
-    const float daylight = Worlds::ComputeDaylight(totalSeconds);
-    const float timeOfDay = Worlds::ComputeTimeOfDay(totalSeconds);
+        clockOffsetSeconds_;
+    const float daylight = Worlds::ComputeDaylight(totalSeconds, dayLengthSeconds_);
+    const float timeOfDay = Worlds::ComputeTimeOfDay(totalSeconds, dayLengthSeconds_);
     const float ambient = daylight * 0.3f + 0.2f;
     // The ambient uniform now only lights SIGNS (the one remaining
     // lit-path consumer); terrain gets its daylight through

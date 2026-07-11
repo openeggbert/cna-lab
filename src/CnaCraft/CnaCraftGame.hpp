@@ -13,12 +13,14 @@
 
 #include "System/Threading/Tasks/Task.hpp"
 
+#include "Net/GameClient.hpp"
 #include "Persistence/WorldStore.hpp"
 #include "Render/ChunkRenderer.hpp"
 #include "Render/Hud.hpp"
 #include "Render/SelectionOutline.hpp"
 #include "Render/SignBillboard.hpp"
 #include "Render/SkyDome.hpp"
+#include "Worlds/DayNightCycle.hpp"
 #include "Worlds/Hotbar.hpp"
 #include "Worlds/MeshData.hpp"
 #include "Worlds/PlayerController.hpp"
@@ -45,6 +47,14 @@ public:
     // Mirrors house3d_demo.cpp's --smoke flag: quit after N Update() calls, for
     // headless CI verification without a human at the keyboard.
     void SetSmokeFrames(int n) { smokeFramesLeft_ = n; }
+
+    // Multiplayer client mode (MULTIPLAYER_PLAN.md §5, plan.md §12.1 item
+    // 18 phase M4): set from main.cpp's `--server HOST [PORT]` before
+    // Run(). Empty host (the default) = classic offline single-player.
+    void SetServer(const std::string& host, int port) {
+        serverHost_ = host;
+        serverPort_ = port;
+    }
 
 protected:
     void Initialize() override;
@@ -149,6 +159,29 @@ private:
     void UnloadColumn(int cx, int cz);
     void MarkNeighborColumnsDirty(int cx, int cz);
     [[nodiscard]] bool IsColumnGenerationInFlight(int cx, int cz) const;
+
+    // --- Multiplayer (MULTIPLAYER_PLAN.md §5, plan.md §12.1 item 18 M4) ---
+    // Connects + performs the version/handshake exchange synchronously
+    // (bounded wait) BEFORE the store opens and any column generates: the
+    // per-server cache path and the server's terrain seed both shape what
+    // Initialize() does next. On any failure the game falls back to plain
+    // offline single-player with a console/HUD notice -- never a crash
+    // (deliberate departure from Craft's exit(1)).
+    void ConnectToServer();
+    // Per-frame inbox drain, capped, called from BOTH per-frame pipeline
+    // sites (the main path and the typing-mode early return) right before
+    // PollGenerationJobs -- same defer-don't-discard discipline: whatever
+    // the cap leaves stays queued for the next frame.
+    void PollNetworkMessages();
+    void ApplyServerMessage(const Net::ServerMessage& msg);
+    // Sends this frame's freshly recorded edits as B lines BEFORE
+    // WorldStore::SaveEdits clears them -- one hook covers every edit
+    // source (clicks AND WorldEditor /commands) because they all funnel
+    // through World::RecordedEdits.
+    void SendPendingEditsToServer();
+    // Craft's position cadence: at most every 0.1s, skipped while still.
+    void SendPositionIfDue(float totalSeconds);
+    [[nodiscard]] bool IsOnline() const { return netClient_ && netClient_->IsConnected(); }
 
     // In-flight background jobs (plan.md §12.1 item 19 phase 4). TResult
     // must be copy-constructible (TaskT<T>::getResultProperty() returns by
@@ -285,6 +318,31 @@ private:
     // on ordinary hardware. Saving once per second loses at most one
     // second of position on a crash, which is nothing.
     float playerStateSaveAccumulator_ = 0.0f;
+
+    // --- Multiplayer state (MULTIPLAYER_PLAN.md §5, item 18 M4) ---
+    std::string serverHost_;  // empty = offline
+    int serverPort_ = Net::kDefaultPort;
+    std::unique_ptr<Net::GameClient> netClient_;
+    int myPlayerId_ = -1;
+    bool netDropAnnounced_ = false;
+    // The terrain seed. Offline it stays at the classic single-player
+    // constant; online the server's W message overrides it during
+    // ConnectToServer, BEFORE any column generates -- every GenerateColumn
+    // call reads this member, never a constant, so all clients of one
+    // server produce identical base terrain (the core Option-B guarantee).
+    std::uint32_t worldSeed_ = 1337;
+    // Day/night clock: totalSeconds = TotalGameTime + clockOffsetSeconds_,
+    // wrapped by dayLengthSeconds_. Offline both stay at the classic
+    // defaults (mid-morning start); the server's E message overwrites both
+    // so every player shares one sky.
+    float clockOffsetSeconds_ = Worlds::kDefaultDayLengthSeconds / 3.0f;
+    float dayLengthSeconds_ = Worlds::kDefaultDayLengthSeconds;
+    // TotalGameTime as of the current Update() -- the E handler needs "now"
+    // to convert the server's elapsed clock into an offset.
+    float lastKnownTotalSeconds_ = 0.0f;
+    // Position-send throttle state (Craft: 0.1s cadence + still-skip).
+    float lastPositionSentSeconds_ = -1.0f;
+    float sentEyeX_ = 0.0f, sentEyeY_ = 0.0f, sentEyeZ_ = 0.0f, sentYaw_ = 0.0f, sentPitch_ = 0.0f;
 };
 
 }

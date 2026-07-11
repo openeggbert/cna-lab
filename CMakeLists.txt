@@ -224,9 +224,9 @@ if(CNA_CRAFT_BUILD_GAME)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT WIN32 AND _cna_craft_backend_target)
         target_link_libraries(CnaCraft PRIVATE
             -Wl,--start-group CNA ${_cna_craft_backend_target} -Wl,--end-group
-            SHARP_RUNTIME CnaCraftWorlds)
+            SHARP_RUNTIME CnaCraftWorlds CnaCraftNetTransport)
     else()
-        target_link_libraries(CnaCraft PRIVATE CNA SHARP_RUNTIME CnaCraftWorlds)
+        target_link_libraries(CnaCraft PRIVATE CNA SHARP_RUNTIME CnaCraftWorlds CnaCraftNetTransport)
     endif()
     target_link_libraries(CnaCraft PRIVATE SQLite::SQLite3)
     if(TARGET SDL3::SDL3main)
