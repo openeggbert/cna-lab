@@ -1,28 +1,34 @@
 # CNA Craft
 
-A Minecraft-like voxel world prototype built on [CNA](https://github.com/openeggbert/cna), a C++
-reimplementation of the XNA 4.0 programming model.
+A C++ port of [**fogleman/Craft**](https://github.com/fogleman/Craft) (MIT license) onto
+[CNA](https://github.com/openeggbert/cna), a C++ reimplementation of the XNA 4.0 programming
+model.
 
 ## 1. Overview
 
-CNA Craft is a small first-person voxel-world prototype: an unbounded, chunk-streamed block
-terrain, procedural terrain generation, textured/lit cube meshing, and block breaking/placing,
-all built directly on
-CNA's `Microsoft::Xna::Framework` API (`Vector3`/`Matrix`, `VertexBuffer`/`IndexBuffer`,
-`BasicEffect`, `Texture2D`, `Keyboard`/`Mouse`).
+**CNA Craft is a derivative work of [Craft](https://github.com/fogleman/Craft) by Michael
+Fogleman** — not merely "inspired by" it. The goal is a faithful reimplementation of Craft's
+behavior on a different engine: gameplay, world generation, ambient occlusion, the world-editing
+`/`-commands, the SQLite save schema and the multiplayer protocol are all ported from Craft, and
+tracked feature-by-feature against its source in [CRAFT_PARITY.md](CRAFT_PARITY.md). No Craft
+source code is copied verbatim (this is C++23 against a different API, and no Craft files ship
+here), but the substance is Craft's — see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the full attribution and Craft's license
+text, which this project reproduces as MIT requires.
 
-It reuses the first-person camera, movement, and AABB-collision approach already proven in CNA's
-own `examples/house3d_demo.cpp`, and adds the voxel-specific layer on top: chunk storage, naive
-per-face hidden-face-culled meshing, a block texture atlas, noise-based terrain generation, and a
-DDA voxel raycast for picking blocks.
+What that gets you today: an unbounded, chunk-streamed voxel world with procedural terrain, baked
+per-vertex ambient occlusion, a textured day/night sky, block breaking/placing with a 54-block
+roster, signs, world-editing commands, SQLite delta persistence, and multiplayer against this
+project's own server — all built directly on CNA's `Microsoft::Xna::Framework` API
+(`Vector3`/`Matrix`, `VertexBuffer`/`IndexBuffer`, `BasicEffect`, `Texture2D`,
+`Keyboard`/`Mouse`), and also playable in a browser (WebAssembly/WebGL 2).
 
-See [plan.md](plan.md) for the detailed architecture and implementation roadmap, and
+The first-person camera, movement, and AABB-collision approach comes from CNA's own
+`examples/house3d_demo.cpp`; the voxel layer on top (chunk storage, hidden-face-culled meshing, a
+procedural texture atlas, noise terrain, DDA raycast picking) follows Craft's design.
+
+See [plan.md](plan.md) for the detailed architecture and implementation history, and
 [analysis.md](analysis.md) for the feasibility analysis this project started from.
-
-Several architectural choices (exposed-face-only meshing, chunk-boundary neighbor overlap,
-delta-based world persistence) are consciously modeled on
-[fogleman/Craft](https://github.com/fogleman/Craft) (MIT license) — see
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the full attribution and license text.
 
 ## 2. Status
 
@@ -196,3 +202,9 @@ running offline.
 ## 6. License
 
 CNA Craft is licensed under the [MIT License](LICENSE).
+
+It is a derivative work of [Craft](https://github.com/fogleman/Craft), Copyright © 2013 Michael
+Fogleman, also MIT-licensed — Craft's copyright notice and full license text are reproduced in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), as its license requires, together with a
+detailed account of exactly what this project takes from it. It also builds on
+[CNA](https://github.com/openeggbert/cna) (Ms-PL) and its sharp-runtime layer; see the same file.
