@@ -617,6 +617,33 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     `Page.captureScreenshot`; `Input.dispatchKeyEvent` even drives the
     game) — see the session's `cdp_play.py` pattern.
 
+24. **Wasm threads — fixing the web build's streaming freeze** (plan.md
+    §12.1 item 37, user report: "kdyz to nacita dalsi bloky tak se to
+    zasekne" / "asi nefunguje paralizace" — both exactly right). Item 23's
+    synchronous main-thread generation/meshing was the freeze. The guard
+    in sharp-runtime's `TaskT` fired on ANY `__EMSCRIPTEN__` build even
+    though its own message said *single-threaded*; Emscripten DOES have
+    pthreads with `-pthread` (defining `__EMSCRIPTEN_PTHREADS__`). Fixed
+    upstream (sharp-runtime f75b121: all Emscripten stubs re-gated on
+    `__EMSCRIPTEN__ && !__EMSCRIPTEN_PTHREADS__`), then the web build got
+    `-pthread` + `-sPTHREAD_POOL_SIZE=16`, and item 23's fallbacks now
+    apply only to a no-pthreads build — so the browser runs the game's
+    NORMAL backgrounded pipeline, with zero wasm-specific code.
+    **Three things a future session must not re-derive**: (a) `-pthread`
+    must reach EVERY object or the wasm ABI mismatches — CNA's SDL
+    sub-build is a separate cmake `execute_process` that ignores the
+    parent cache but INHERITS THE ENVIRONMENT, so
+    `CFLAGS=-pthread CXXFLAGS=-pthread emcmake cmake ...` works with no
+    CNA changes (delete `../cna/.sdl-prebuilt-emscripten` once to force
+    the SDL rebuild); (b) threads need SharedArrayBuffer, which needs a
+    cross-origin-isolated page — `web/serve.py` sends the COOP/COEP
+    headers `python3 -m http.server` does not, and without them the
+    runtime refuses to start; (c) PTHREAD_POOL_SIZE must exceed the
+    worst-case concurrent job count, because a main thread that outruns
+    the pool would block to spawn a worker, and blocking the browser main
+    thread deadlocks. Verified: 60 s of continuous streaming flight =
+    3604 frames, median 16.7 ms, worst 26.5 ms, zero frames over 100 ms.
+
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
@@ -851,12 +878,15 @@ SDL_VIDEODRIVER=x11 DISPLAY=:0 ./build-easygl/CnaCraft --server 127.0.0.1 4080
 ```
 
 ```bash
-# Web build (plan.md §12.1 item 36) -- wasm + WebGL 2, single-player:
+# Web build (plan.md §12.1 items 36+37) -- wasm + WebGL 2 + real threads,
+# single-player. -pthread MUST go through CFLAGS/CXXFLAGS so it reaches SDL/
+# CNA/sharp-runtime too (see item 37); serve.py sends the COOP/COEP headers
+# SharedArrayBuffer requires -- plain http.server will NOT work.
 source ~/emsdk/emsdk_env.sh
 embuilder build zlib                       # one-off (sharp-runtime links zlib)
-emcmake cmake -S . -B build-web -DCNA_GRAPHICS_BACKEND=EASYGL
+CFLAGS=-pthread CXXFLAGS=-pthread emcmake cmake -S . -B build-web -DCNA_GRAPHICS_BACKEND=EASYGL
 cmake --build build-web --target CnaCraft
-python3 -m http.server 8000 --directory build-web   # open /CnaCraft.html
+python3 web/serve.py 8000 build-web        # open /CnaCraft.html
 ```
 Note: `SDL_VIDEODRIVER=x11` matters in sandboxes where `WAYLAND_DISPLAY` is
 also set — otherwise SDL silently creates a Wayland surface that X11

@@ -248,6 +248,25 @@ if(CNA_CRAFT_BUILD_GAME)
         # (texture atlas, sky gradient, bitmap font) is generated
         # procedurally at startup -- there is no content directory at all.
         set_target_properties(CnaCraft PROPERTIES SUFFIX ".html")
+        # Wasm THREADS (plan.md §12.1 item 37, user report: the world froze
+        # whenever a new column streamed in). Emscripten's pthreads are Web
+        # Workers over a SharedArrayBuffer heap, so -pthread must be set for
+        # COMPILING every translation unit AND linking -- including SDL/CNA/
+        # sharp-runtime, which is why the documented configure line passes
+        # -pthread through CXXFLAGS/CFLAGS (CNA's SDL sub-build is a separate
+        # cmake invocation that inherits the environment, not this cache).
+        # With that in place sharp-runtime defines __EMSCRIPTEN_PTHREADS__,
+        # its TaskT stops throwing, and the game takes its NORMAL
+        # backgrounded generation/meshing path -- no wasm-specific code.
+        # PTHREAD_POOL_SIZE must cover the worst-case concurrent job count
+        # (kMaxColumnLoadsPerFrame=2 + kMaxMeshDispatchesPerFrame=8, plus
+        # slack): a main thread that outruns the pool would have to block to
+        # spawn a worker, and blocking the browser's main thread deadlocks.
+        # Pages must be served cross-origin-isolated (COOP/COEP) -- web/serve.py
+        # does that; without it the runtime falls back to no SharedArrayBuffer
+        # and refuses to start, so keep the single-threaded build (drop
+        # -pthread) as the fallback for plain static hosting.
+        target_compile_options(CnaCraft PRIVATE -pthread)
         # SDL3 (CNA's vendored static libSDL3.a) flows in transitively
         # through the backend target's own link interface, same as the
         # native build below -- naming SDL3::SDL3 here directly would fail
@@ -272,6 +291,8 @@ if(CNA_CRAFT_BUILD_GAME)
             # WebGL 2 context (= OpenGL ES 3.0), never a WebGL 1 fallback.
             -sMAX_WEBGL_VERSION=2
             -sMIN_WEBGL_VERSION=2
+            -pthread
+            -sPTHREAD_POOL_SIZE=16
             "SHELL:--pre-js ${CMAKE_CURRENT_SOURCE_DIR}/web/pre.js"
             "SHELL:--shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html"
         )

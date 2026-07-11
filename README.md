@@ -65,17 +65,28 @@ backend), with terrain streaming, ambient occlusion, the day/night sky and the f
 ```bash
 source /path/to/emsdk/emsdk_env.sh
 embuilder build zlib                          # one-off: sharp-runtime needs zlib
-emcmake cmake -S . -B build-web -DCNA_GRAPHICS_BACKEND=EASYGL
+
+# -pthread must reach EVERY object (SDL/CNA/sharp-runtime/game), so pass it via CFLAGS/CXXFLAGS:
+CFLAGS=-pthread CXXFLAGS=-pthread emcmake cmake -S . -B build-web -DCNA_GRAPHICS_BACKEND=EASYGL
 cmake --build build-web --target CnaCraft
-python3 -m http.server 8000 --directory build-web    # then open http://localhost:8000/CnaCraft.html
+
+python3 web/serve.py 8000 build-web           # then open http://localhost:8000/CnaCraft.html
 ```
 
-Web-specific differences, all deliberate: **single-player only** (a browser page cannot host or
-open raw TCP sockets, so `--server` and `CnaCraftServer` are native-only), **edits are not
-persisted** (no SQLite in the browser — the world resets on reload), and **generation/meshing run
-synchronously on the main thread** (Emscripten has no threads in this configuration), so terrain
-pops in a little chunkier than the desktop build's background streaming. Click the page to lock
-the pointer; Esc releases it, exactly like the desktop build.
+The web build uses **real threads** (Emscripten pthreads = Web Workers over a shared heap), so
+chunk generation and meshing run in the background exactly like the desktop build — a continuous
+60-second flight streaming new terrain measured a steady 60 FPS with no frame over 100 ms. Those
+threads need a `SharedArrayBuffer`, which browsers only grant to *cross-origin isolated* pages, so
+the server must send `Cross-Origin-Opener-Policy: same-origin` and
+`Cross-Origin-Embedder-Policy: require-corp` — `web/serve.py` does exactly that (plain
+`python3 -m http.server` does not, and the page then refuses to start). If your host cannot send
+those headers, build without `-pthread`: the game still runs, but generation/meshing fall back to
+the main thread and the picture stutters whenever new terrain streams in.
+
+Other web-specific differences, all deliberate: **single-player only** (a browser page cannot host
+or open raw TCP sockets, so `--server` and `CnaCraftServer` are native-only) and **edits are not
+persisted** (no SQLite in the browser — the world resets on reload). Click the page to lock the
+pointer; Esc releases it, exactly like the desktop build.
 
 ## 5. Controls
 

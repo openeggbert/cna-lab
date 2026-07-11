@@ -1586,6 +1586,39 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
       manual prerequisite (sharp-runtime links zlib). Native builds and all six CTest suites
       verified unchanged afterward.
 
+37. `completed` (2026-07-11) — **Wasm threads: fix the web build's streaming freeze**, user report
+    ("funguje to v prohlizeci ale kdyz to nacita dalsi bloky tak se to zasekne" / "asi nefunguje
+    paralizace"). Exactly right: item 36 shipped the web build with generation AND meshing running
+    synchronously on the main thread, because sharp-runtime's `TaskT` threw
+    `PlatformNotSupportedException` on Emscripten — so every newly streamed column stalled the
+    frame. Root cause was the guard itself, not a platform limit: it fired on any
+    `__EMSCRIPTEN__` build, while its own message said *"not available in Emscripten
+    single-threaded build"* — the accurate condition. Emscripten does provide pthreads (Web
+    Workers over a SharedArrayBuffer heap) when everything is compiled+linked with `-pthread`,
+    defining `__EMSCRIPTEN_PTHREADS__` exactly then.
+    - **sharp-runtime** (separate repo, commit f75b121): every Emscripten stub in
+      `Task`/`Parallel`/`ThreadPool`/`Timer` re-gated on
+      `defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)`. A `-pthread` wasm build now
+      gets the real `std::async` path; the single-threaded build keeps its explicit failure.
+    - **cna-craft**: `-pthread` compile+link options, `-sPTHREAD_POOL_SIZE=16` (must exceed the
+      worst-case concurrent job count — a main thread that outruns the pool would have to block to
+      spawn a worker, and blocking the browser main thread deadlocks), and the item-36 synchronous
+      fallbacks re-gated to the no-pthreads build so the game takes its NORMAL backgrounded
+      pipeline in the browser, with no wasm-specific code at all.
+    - **Build-chain detail**: `-pthread` must reach EVERY object (SDL, CNA, sharp-runtime, game)
+      or the wasm ABI mismatches. CNA's SDL sub-build is a separate `execute_process` cmake
+      invocation that does not inherit the parent cache — but it does inherit the environment, so
+      passing `CFLAGS=-pthread CXXFLAGS=-pthread` to `emcmake` propagates correctly (and
+      `.sdl-prebuilt-emscripten` must be deleted once to force the rebuild). No CNA changes needed.
+    - **Serving**: threads need a `SharedArrayBuffer`, which requires a cross-origin-isolated page
+      (COOP `same-origin` + COEP `require-corp`). `python3 -m http.server` sends neither, so the
+      new `web/serve.py` does.
+    - **Verified in headless Chrome**: cross-origin isolation on, SharedArrayBuffer present, real
+      Web Workers running, and a 60-second continuous flight (streaming new columns the whole time)
+      measured **3604 frames, median 16.7 ms, p95 19.2 ms, worst 26.5 ms, ZERO frames over
+      100 ms**, with a flat worker count and JS heap. Native builds + all six CTest suites
+      unchanged.
+
 ### 12.2 Deliberately not re-litigated this session
 
 Per CRAFT_PARITY.md, these are `complete` (functionally equivalent to Craft) and need no task:

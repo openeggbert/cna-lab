@@ -690,14 +690,17 @@ bool CnaCraftGame::IsColumnGenerationInFlight(int cx, int cz) const {
 }
 
 void CnaCraftGame::DispatchColumnGeneration(int cx, int cz) {
-#ifdef __EMSCRIPTEN__
-    // Web build: sharp-runtime's TaskT deliberately throws on Emscripten
-    // (no std::async there), so column generation runs synchronously on
-    // the main thread instead -- LoadColumnSynchronously is the exact
-    // same code path Initialize() already uses for the spawn column.
-    // UpdateStreaming's per-frame dispatch cap bounds the hitch (one
-    // column ~tens of ms in wasm); terrain pops in a little chunkier
-    // than the native build's background streaming, nothing more.
+#if defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)
+    // Single-threaded wasm fallback ONLY (a build without -pthread):
+    // sharp-runtime's TaskT throws there, so column generation runs
+    // synchronously on the main thread -- LoadColumnSynchronously is the
+    // exact code path Initialize() already uses for the spawn column.
+    // This visibly stalls the frame whenever a column streams in (a real
+    // user report: "kdyz to nacita dalsi bloky tak se to zasekne"), which
+    // is exactly why the shipped web build enables pthreads and takes the
+    // normal backgrounded path below instead. Kept as a graceful fallback
+    // for hosts that cannot serve the COOP/COEP headers SharedArrayBuffer
+    // (and therefore wasm threads) require.
     LoadColumnSynchronously(cx, cz);
     return;
 #endif
@@ -802,12 +805,12 @@ void CnaCraftGame::PollGenerationJobs() {
 }
 
 void CnaCraftGame::DispatchMeshingForDirtyChunks() {
-#ifdef __EMSCRIPTEN__
-    // Web build: no TaskT (see DispatchColumnGeneration above), so dirty
-    // chunks re-mesh synchronously via ChunkRenderer::Rebuild -- reading
-    // the LIVE world is safe here precisely because nothing else runs
-    // concurrently on wasm. Same per-frame cap; glow-count bookkeeping
-    // mirrors PollMeshJobs' apply step.
+#if defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)
+    // Single-threaded wasm fallback ONLY (see DispatchColumnGeneration):
+    // no TaskT, so dirty chunks re-mesh synchronously via
+    // ChunkRenderer::Rebuild -- reading the LIVE world is safe here
+    // precisely because nothing else runs concurrently. Same per-frame
+    // cap; glow-count bookkeeping mirrors PollMeshJobs' apply step.
     constexpr int kMaxSyncMeshesPerFrame = 8;
     auto& device = getGraphicsDeviceProperty();
     int meshedThisFrame = 0;
