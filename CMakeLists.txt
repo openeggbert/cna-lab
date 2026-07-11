@@ -32,10 +32,27 @@ add_library(CnaCraftWorlds STATIC
 )
 target_include_directories(CnaCraftWorlds PUBLIC src)
 
+# =============================================================================
+# CnaCraftNetProtocol — the multiplayer wire protocol (MULTIPLAYER_PLAN.md
+# §2/§5, plan.md §12.1 item 18). Pure parse/format over std:: only -- no
+# sockets, no sharp-runtime, no CNA -- so it builds and tests in the
+# worlds-only configuration exactly like CnaCraftWorlds. The socket-using
+# transport (Net/GameClient) is deliberately NOT in this library: it needs
+# SHARP_RUNTIME, which only exists when the game build pulls in the CNA tree.
+# =============================================================================
+add_library(CnaCraftNetProtocol STATIC
+    src/CnaCraft/Net/Protocol.cpp
+)
+target_include_directories(CnaCraftNetProtocol PUBLIC src)
+
 if(BUILD_TESTING)
     add_executable(cna_craft_worlds_smoke_test tests/worlds_smoke_test.cpp)
     target_link_libraries(cna_craft_worlds_smoke_test PRIVATE CnaCraftWorlds)
     add_test(NAME WorldsSmokeTest COMMAND cna_craft_worlds_smoke_test)
+
+    add_executable(cna_craft_net_protocol_smoke_test tests/net_protocol_smoke_test.cpp)
+    target_link_libraries(cna_craft_net_protocol_smoke_test PRIVATE CnaCraftNetProtocol)
+    add_test(NAME NetProtocolSmokeTest COMMAND cna_craft_net_protocol_smoke_test)
 
     # Persistence::WorldStore (CRAFT_PARITY.md §4.1/§4.2, plan.md §12.1 item
     # 15) needs real SQLite + filesystem access but, like CnaCraftWorlds
