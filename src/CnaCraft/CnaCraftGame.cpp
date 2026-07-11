@@ -163,6 +163,41 @@ void CnaCraftGame::Initialize() {
         }
     };
 
+    // Spawn (saved-position load, synchronous spawn-column load, player
+    // creation, embed-heal) -- shared with SwitchMode's /online //offline
+    // rebuild, see SpawnPlayerForCurrentMode below for the full docs.
+    SpawnPlayerForCurrentMode();
+
+    effect_ = std::make_unique<BasicEffect>(device);
+    effect_->VertexColorEnabled = false;
+    effect_->setTextureEnabledProperty(true);
+    effect_->EnableDefaultLighting();
+    // The EnableDefaultLighting() rig + ambient floor now light ONLY the
+    // sign billboards (still VertexPositionNormalTexture) -- chunk terrain
+    // switched to Craft's exact vertex-color model with plan.md §12.1 item
+    // 12 (per-vertex baked AO/diffuse in MeshVertex::shade, daylight via
+    // DiffuseColor; see Draw()'s per-pass state). The ambient floor keeps
+    // matching Craft's block_fragment.glsl ("ambient = value*0.3+0.2",
+    // never zero); Draw() recomputes it per frame from the day/night cycle.
+    effect_->setAmbientLightColorProperty(Vector3(0.5f, 0.5f, 0.5f));
+
+    atlasTexture_ = std::make_unique<Texture2D>(Render::BuildProceduralAtlas(device));
+    skyTexture_ = std::make_unique<Texture2D>(Render::BuildProceduralSkyTexture(device));
+    effect_->setTextureProperty(atlasTexture_.get());
+
+    hud_ = std::make_unique<Render::Hud>(device);
+    hotbarSlotNames_.reserve(Worlds::Hotbar::kSlots.size());
+    for (Worlds::BlockType type : Worlds::Hotbar::kSlots) {
+        hotbarSlotNames_.emplace_back(Worlds::GetBlockName(type));
+    }
+    hud_->RebuildHotbar(device, hotbarSlotNames_.data(), static_cast<int>(hotbarSlotNames_.size()),
+                        hotbar_.SelectedIndex(), player_->IsFlying());
+
+    signBillboard_.Rebuild(device, signStore_.Signs());
+    signsNeedRebuild_ = false;
+}
+
+void CnaCraftGame::SpawnPlayerForCurrentMode() {
     // Player-position persistence (plan.md §12.1 item 17 follow-up, user
     // decision 2026-07-10): try loading a saved eye position/look direction
     // so a returning player spawns where they actually were, not always
@@ -212,23 +247,6 @@ void CnaCraftGame::Initialize() {
     const int spawnColumnCz = Worlds::ChunkCoordOf(static_cast<int>(std::floor(loadedZ)));
     LoadColumnSynchronously(spawnColumnCx, spawnColumnCz);
 
-    effect_ = std::make_unique<BasicEffect>(device);
-    effect_->VertexColorEnabled = false;
-    effect_->setTextureEnabledProperty(true);
-    effect_->EnableDefaultLighting();
-    // The EnableDefaultLighting() rig + ambient floor now light ONLY the
-    // sign billboards (still VertexPositionNormalTexture) -- chunk terrain
-    // switched to Craft's exact vertex-color model with plan.md §12.1 item
-    // 12 (per-vertex baked AO/diffuse in MeshVertex::shade, daylight via
-    // DiffuseColor; see Draw()'s per-pass state). The ambient floor keeps
-    // matching Craft's block_fragment.glsl ("ambient = value*0.3+0.2",
-    // never zero); Draw() recomputes it per frame from the day/night cycle.
-    effect_->setAmbientLightColorProperty(Vector3(0.5f, 0.5f, 0.5f));
-
-    atlasTexture_ = std::make_unique<Texture2D>(Render::BuildProceduralAtlas(device));
-    skyTexture_ = std::make_unique<Texture2D>(Render::BuildProceduralSkyTexture(device));
-    effect_->setTextureProperty(atlasTexture_.get());
-
     // Bug fix: spawning at an *integer* coordinate puts the player's 0.6-wide
     // hitbox (kPlayerHalfWidth=0.3) exactly on the boundary between two
     // block columns, straddling both equally. With Simplex noise's steeper
@@ -265,17 +283,87 @@ void CnaCraftGame::Initialize() {
     // The spawn column was just loaded synchronously, so there's real
     // terrain to validate against.
     HealPlayerIfEmbedded();
+}
 
-    hud_ = std::make_unique<Render::Hud>(device);
-    hotbarSlotNames_.reserve(Worlds::Hotbar::kSlots.size());
-    for (Worlds::BlockType type : Worlds::Hotbar::kSlots) {
-        hotbarSlotNames_.emplace_back(Worlds::GetBlockName(type));
+void CnaCraftGame::SwitchMode(const std::string& host, int port) {
+    // Craft's own /online //offline model: tear the whole session down and
+    // rebuild against the new mode (main.c's outer while(running) loop) --
+    // done in place here since CnaCraftGame has no outer loop to fall back
+    // to.
+    //
+    // 1. Drain in-flight background jobs COMPLETELY first. Never erase an
+    //    incomplete TaskT (NEXT.md §6 -- the future's destructor blocks),
+    //    and their results must not land in the new mode's world anyway.
+    //    Jobs are short (one column generation ~80ms), so this stalls a
+    //    frame or two at worst -- a mode switch is allowed to hitch.
+    const auto allJobsDone = [this]() {
+        for (auto& job : inFlightGenerationJobs_) {
+            if (!job.task.getIsCompletedProperty()) return false;
+        }
+        for (auto& job : inFlightMeshJobs_) {
+            if (!job.task.getIsCompletedProperty()) return false;
+        }
+        return true;
+    };
+    while (!allJobsDone()) System::Threading::Thread::Sleep(5);
+    inFlightGenerationJobs_.clear();
+    inFlightMeshJobs_.clear();
+
+    // 2. Network teardown.
+    if (netClient_) {
+        netClient_->Stop();
+        netClient_.reset();
     }
-    hud_->RebuildHotbar(device, hotbarSlotNames_.data(), static_cast<int>(hotbarSlotNames_.size()),
-                        hotbar_.SelectedIndex(), player_->IsFlying());
+    remotePlayers_.clear();
+    myPlayerId_ = -1;
+    netDropAnnounced_ = false;
 
-    signBillboard_.Rebuild(device, signStore_.Signs());
-    signsNeedRebuild_ = false;
+    // 3. World/render teardown -- snapshot the keys first (UnloadColumn
+    //    mutates chunkRenderers_). UnloadColumn also clears each column's
+    //    signs and keeps glowChunkCount_ in sync.
+    std::vector<std::pair<int, int>> loadedColumns;
+    loadedColumns.reserve(chunkRenderers_.size());
+    for (const auto& [key, renderers] : chunkRenderers_) {
+        (void)renderers;
+        int cx = 0, cz = 0;
+        Worlds::World::UnpackColumnKey(key, cx, cz);
+        loadedColumns.emplace_back(cx, cz);
+    }
+    for (const auto& [cx, cz] : loadedColumns) UnloadColumn(cx, cz);
+    hasTargetedBlock_ = false;
+
+    // 4. New mode's defaults; ConnectToServer overrides seed/clock/id when
+    //    a server answers. The offline clock re-anchors to mid-morning NOW
+    //    (totalSeconds = lastKnown + offset == dayLength/3), matching what
+    //    a fresh offline launch would show.
+    serverHost_ = host;
+    serverPort_ = port;
+    worldSeed_ = kDefaultWorldSeed;
+    dayLengthSeconds_ = Worlds::kDefaultDayLengthSeconds;
+    clockOffsetSeconds_ = Worlds::kDefaultDayLengthSeconds / 3.0f - lastKnownTotalSeconds_;
+    ConnectToServer();
+
+    // 5. The right store for the mode (per-server cache online, world.db
+    //    offline -- same rule as Initialize).
+    const std::string dbPath =
+        IsOnline() ? ("cache." + serverHost_ + "." + std::to_string(serverPort_) + ".db") : "world.db";
+    worldStore_ = std::make_unique<Persistence::WorldStore>(dbPath);
+    if (!worldStore_->IsOpen()) {
+        std::printf("WorldStore: could not open %s -- edits will not be saved this session\n", dbPath.c_str());
+        std::fflush(stdout);
+    }
+
+    // 6. Respawn into the new world (streaming refills the area from the
+    //    next Update's UpdateStreaming pass).
+    SpawnPlayerForCurrentMode();
+
+    const std::string notice = IsOnline()
+                                   ? ("Connected to " + serverHost_ + ":" + std::to_string(serverPort_) + ".")
+                                   : (host.empty() ? std::string("Switched to offline mode.")
+                                                   : ("Could not connect to " + host + " -- offline mode."));
+    std::printf("%s\n", notice.c_str());
+    std::fflush(stdout);
+    if (hud_) hud_->PushMessage(getGraphicsDeviceProperty(), notice);
 }
 
 void CnaCraftGame::RecordMark(int x, int y, int z, Worlds::BlockType type) {
@@ -888,6 +976,21 @@ void CnaCraftGame::Update(GameTime& gameTime) {
     }
     backtickWasDown_ = backtickDown;
 
+    // Bare-Enter chat (item 18 M6) -- Craft's own CRAFT_KEY_CHAT opening an
+    // empty typing buffer sent as plain multiplayer chat. Online only:
+    // offline Enter keeps doing nothing, exactly the behavior NEXT.md §9
+    // preserved "until multiplayer actually lands". Edge-consumed here so
+    // the typing branch below doesn't instantly submit the same press.
+    if (typingMode_ == TypingMode::None) {
+        const bool enterDownForChat = kb.IsKeyDown(Keys::Enter);
+        if (enterDownForChat && !enterWasDown_ && IsOnline()) {
+            typingMode_ = TypingMode::Chat;
+            typingBuffer_.clear();
+            TextInputEXT::StartTextInput();
+        }
+        enterWasDown_ = enterDownForChat;
+    }
+
     const bool slashDown = kb.IsKeyDown(Keys::OemQuestion);
     if (slashDown && !slashWasDown_ && typingMode_ == TypingMode::None) {
         typingMode_ = TypingMode::Command;
@@ -952,17 +1055,56 @@ void CnaCraftGame::Update(GameTime& gameTime) {
             typingBuffer_.clear();
             TextInputEXT::StopTextInput();
         } else if (enterDown && !enterWasDown_ && typingMode_ == TypingMode::Command) {
-            // Worlds::ExecuteCommand (plan.md §12.1 item 17, Craft's real
-            // parse_command) is a pure function of its inputs -- CnaCraftGame
-            // just feeds it the current marks/clipboard/radii and surfaces
-            // the returned feedback message the same dual way Craft's own
-            // add_message does (console + the new on-screen message log).
-            const std::string message =
-                Worlds::ExecuteCommand(world_, typingBuffer_, mark0_, mark1_, clipboard_, radii_);
-            if (!message.empty()) {
-                std::printf("%s\n", message.c_str());
-                std::fflush(stdout);
-                hud_->PushMessage(getGraphicsDeviceProperty(), message);
+            const std::string commandText = typingBuffer_;
+            typingMode_ = TypingMode::None;
+            typingBuffer_.clear();
+            TextInputEXT::StopTextInput();
+            // Mode switching intercepts BEFORE the local dispatcher --
+            // /online HOST [PORT] and /offline are session commands, not
+            // world edits (item 18 M6, Craft's parse_command does the
+            // same). SwitchMode replaces worldStore_/netClient_/world
+            // state, so nothing after this may hold references into them.
+            if (commandText.rfind("/online ", 0) == 0) {
+                std::string host = commandText.substr(8);
+                int newPort = Net::kDefaultPort;
+                const std::size_t space = host.find(' ');
+                if (space != std::string::npos) {
+                    newPort = std::atoi(host.c_str() + space + 1);
+                    host = host.substr(0, space);
+                }
+                if (!host.empty()) SwitchMode(host, newPort);
+            } else if (commandText == "/offline") {
+                SwitchMode("", Net::kDefaultPort);
+            } else {
+                // Worlds::ExecuteCommand (plan.md §12.1 item 17, Craft's
+                // real parse_command) is a pure function of its inputs --
+                // CnaCraftGame just feeds it the current marks/clipboard/
+                // radii and surfaces the returned feedback message the same
+                // dual way Craft's own add_message does (console + the
+                // on-screen message log). NEW with M6: a command the local
+                // dispatcher doesn't know is forwarded to the server when
+                // online (Craft's own client_talk fallthrough) -- that's
+                // how /list, /nick and /help reach CnaCraftServer; the
+                // server replies via T straight into the message log.
+                std::string message =
+                    Worlds::ExecuteCommand(world_, commandText, mark0_, mark1_, clipboard_, radii_);
+                if (IsOnline() && message.rfind("Unknown command:", 0) == 0) {
+                    netClient_->Send(Net::MakeTalk(commandText));
+                    message.clear();
+                }
+                if (!message.empty()) {
+                    std::printf("%s\n", message.c_str());
+                    std::fflush(stdout);
+                    hud_->PushMessage(getGraphicsDeviceProperty(), message);
+                }
+            }
+        } else if (enterDown && !enterWasDown_ && typingMode_ == TypingMode::Chat) {
+            // Plain chat (item 18 M6): the whole buffer goes to the server
+            // as T; the sender sees their own line when the server echoes
+            // the broadcast back (Craft's send_talk model). An empty buffer
+            // just closes the box, matching Craft's own empty-text skip.
+            if (IsOnline() && !typingBuffer_.empty()) {
+                netClient_->Send(Net::MakeTalk(typingBuffer_));
             }
             typingMode_ = TypingMode::None;
             typingBuffer_.clear();
@@ -971,7 +1113,10 @@ void CnaCraftGame::Update(GameTime& gameTime) {
         enterWasDown_ = enterDown;
 
         hud_->SetTyping(getGraphicsDeviceProperty(), typingMode_ != TypingMode::None,
-                         typingMode_ == TypingMode::Command ? "Command" : "Sign", typingBuffer_);
+                         typingMode_ == TypingMode::Command ? "Command"
+                         : typingMode_ == TypingMode::Chat  ? "Chat"
+                                                            : "Sign",
+                         typingBuffer_);
 
         // Gravity/physics still integrates while typing (frozen player-driven
         // input, real dt), matching Craft's own substep loop running even

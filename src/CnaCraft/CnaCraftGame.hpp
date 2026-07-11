@@ -185,6 +185,19 @@ private:
     void SendPositionIfDue(float totalSeconds);
     [[nodiscard]] bool IsOnline() const { return netClient_ && netClient_->IsConnected(); }
 
+    // Runtime mode switching (item 18 M6) -- the /online HOST [PORT] and
+    // /offline commands, Craft's own outer-loop teardown/rebuild model
+    // (main.c:2729-2751) done in place: drain in-flight background jobs
+    // (never erase an incomplete TaskT -- NEXT.md §6), stop the client,
+    // unload every column, then reconnect + reopen the right store +
+    // respawn. Empty host = offline.
+    void SwitchMode(const std::string& host, int port);
+    // The shared spawn sequence Initialize() and SwitchMode() both use:
+    // saved-position load (offline only -- online spawns are
+    // server-authoritative), synchronous spawn-column load, player
+    // creation, embed-heal.
+    void SpawnPlayerForCurrentMode();
+
     // In-flight background jobs (plan.md §12.1 item 19 phase 4). TResult
     // must be copy-constructible (TaskT<T>::getResultProperty() returns by
     // value from a member reached through a shared_ptr, which needs a copy,
@@ -255,7 +268,12 @@ private:
     // re-raycasts fresh at Enter-time, matching Craft calling hit_test then
     // rather than caching the block from when typing started; Command calls
     // Worlds::ExecuteCommand), Escape cancels either mode without quitting.
-    enum class TypingMode { None, Sign, Command };
+    // `Chat` (plan.md §12.1 item 18 M6): Craft's bare-Enter empty typing
+    // buffer, sent to the server as plain chat -- the exact feature NEXT.md
+    // §9's "don't add a bare-Enter chat trigger" note deferred "until
+    // multiplayer actually lands"; it has. Online-only: offline Enter does
+    // nothing, preserving the old behavior exactly.
+    enum class TypingMode { None, Sign, Command, Chat };
     TypingMode typingMode_ = TypingMode::None;
     std::string typingBuffer_;
     bool backtickWasDown_ = false;
@@ -332,7 +350,9 @@ private:
     // ConnectToServer, BEFORE any column generates -- every GenerateColumn
     // call reads this member, never a constant, so all clients of one
     // server produce identical base terrain (the core Option-B guarantee).
-    std::uint32_t worldSeed_ = 1337;
+    // SwitchMode resets it to the default when going offline.
+    static constexpr std::uint32_t kDefaultWorldSeed = 1337;
+    std::uint32_t worldSeed_ = kDefaultWorldSeed;
     // Day/night clock: totalSeconds = TotalGameTime + clockOffsetSeconds_,
     // wrapped by dayLengthSeconds_. Offline both stay at the classic
     // defaults (mid-morning start); the server's E message overwrites both
