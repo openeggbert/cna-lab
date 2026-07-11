@@ -302,8 +302,24 @@ if(CNA_CRAFT_BUILD_GAME)
             # to spawn a worker, and blocking the browser's main thread
             # deadlocks. Harmless when threads are off (the flag is ignored).
             -sPTHREAD_POOL_SIZE=16
+            # PROXY_TO_PTHREAD moves main()/the game loop off the browser
+            # main thread onto a worker -- required to fix the SDL pointer-
+            # event mutex deadlock (item 37 follow-up). Once main() runs on
+            # a worker, GL calls from it need OFFSCREEN_FRAMEBUFFER to reach
+            # the real canvas, which the main thread still fully owns --
+            # this proxies GL commands across the thread boundary (a real
+            # but small per-call cost) without transferring the canvas.
+            # Deliberately NOT -sOFFSCREENCANVAS_SUPPORT: that variant
+            # hands the canvas itself to the worker via
+            # transferControlToOffscreen(), which (a) aborted during
+            # worker init in Firefox, (b) threw a DOMException in Chrome
+            # the instant any JS on the main thread touched canvas.width/
+            # height (shell.html's own resize handler did exactly that),
+            # and (c) broke SDL's mouse/pointer-lock handling on the
+            # now-placeholder main-thread canvas -- a real user-reported
+            # regression from an earlier version of this build. Don't
+            # re-add it without solving all three.
             $<$<BOOL:${CNA_CRAFT_WASM_THREADS}>:-sPROXY_TO_PTHREAD>
-            $<$<BOOL:${CNA_CRAFT_WASM_THREADS}>:-sOFFSCREENCANVAS_SUPPORT=1>
             $<$<BOOL:${CNA_CRAFT_WASM_THREADS}>:-sOFFSCREEN_FRAMEBUFFER=1>
             "SHELL:--pre-js ${CMAKE_CURRENT_SOURCE_DIR}/web/pre.js"
             "SHELL:--shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html"
