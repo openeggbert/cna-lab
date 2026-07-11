@@ -95,6 +95,25 @@ endif()
 # =============================================================================
 option(CNA_CRAFT_BUILD_GAME "Build the graphical CnaCraft executable (requires ../cna and ../sharp-runtime)" ON)
 
+# Wasm threads (plan.md §12.1 item 37): -pthread must reach EVERY object --
+# game, CnaCraftWorlds, CNA, easy-gl, sharp-runtime, SDL -- or wasm-ld refuses
+# to link ("--shared-memory is disallowed by X.o because it was not compiled
+# with 'atomics'"). Setting it here, BEFORE add_subdirectory(CNA), covers
+# everything built in this tree; CNA's SDL prebuilt is a separate cmake
+# invocation that inherits only the ENVIRONMENT, which is why the documented
+# configure line also exports CFLAGS/CXXFLAGS (see README §4.1). Opt out with
+# -DCNA_CRAFT_WASM_THREADS=OFF for hosting that cannot send COOP/COEP headers;
+# the game then falls back to synchronous generation/meshing on the main
+# thread (visibly stuttery while terrain streams -- that is exactly the
+# regression item 37 fixed).
+if(EMSCRIPTEN)
+    option(CNA_CRAFT_WASM_THREADS "Build the web target with Emscripten pthreads (needs COOP/COEP hosting)" ON)
+    if(CNA_CRAFT_WASM_THREADS)
+        add_compile_options(-pthread)
+        add_link_options(-pthread)
+    endif()
+endif()
+
 if(CNA_CRAFT_BUILD_GAME)
     set(CNA_HOME "" CACHE PATH "Path to the CNA source directory. Defaults to ../cna.")
     if(NOT CNA_HOME)
@@ -248,25 +267,11 @@ if(CNA_CRAFT_BUILD_GAME)
         # (texture atlas, sky gradient, bitmap font) is generated
         # procedurally at startup -- there is no content directory at all.
         set_target_properties(CnaCraft PROPERTIES SUFFIX ".html")
-        # Wasm THREADS (plan.md §12.1 item 37, user report: the world froze
-        # whenever a new column streamed in). Emscripten's pthreads are Web
-        # Workers over a SharedArrayBuffer heap, so -pthread must be set for
-        # COMPILING every translation unit AND linking -- including SDL/CNA/
-        # sharp-runtime, which is why the documented configure line passes
-        # -pthread through CXXFLAGS/CFLAGS (CNA's SDL sub-build is a separate
-        # cmake invocation that inherits the environment, not this cache).
-        # With that in place sharp-runtime defines __EMSCRIPTEN_PTHREADS__,
-        # its TaskT stops throwing, and the game takes its NORMAL
-        # backgrounded generation/meshing path -- no wasm-specific code.
-        # PTHREAD_POOL_SIZE must cover the worst-case concurrent job count
-        # (kMaxColumnLoadsPerFrame=2 + kMaxMeshDispatchesPerFrame=8, plus
-        # slack): a main thread that outruns the pool would have to block to
-        # spawn a worker, and blocking the browser's main thread deadlocks.
-        # Pages must be served cross-origin-isolated (COOP/COEP) -- web/serve.py
-        # does that; without it the runtime falls back to no SharedArrayBuffer
-        # and refuses to start, so keep the single-threaded build (drop
-        # -pthread) as the fallback for plain static hosting.
-        target_compile_options(CnaCraft PRIVATE -pthread)
+        # -pthread itself is applied tree-wide near the top of this file (it
+        # must also reach CNA/easy-gl/sharp-runtime, not just this target).
+        # With it, sharp-runtime defines __EMSCRIPTEN_PTHREADS__, its TaskT
+        # stops throwing, and the game takes its NORMAL backgrounded
+        # generation/meshing path in the browser -- no wasm-specific code.
         # SDL3 (CNA's vendored static libSDL3.a) flows in transitively
         # through the backend target's own link interface, same as the
         # native build below -- naming SDL3::SDL3 here directly would fail
@@ -291,7 +296,11 @@ if(CNA_CRAFT_BUILD_GAME)
             # WebGL 2 context (= OpenGL ES 3.0), never a WebGL 1 fallback.
             -sMAX_WEBGL_VERSION=2
             -sMIN_WEBGL_VERSION=2
-            -pthread
+            # PTHREAD_POOL_SIZE must cover the worst-case concurrent job count
+            # (kMaxColumnLoadsPerFrame=2 + kMaxMeshDispatchesPerFrame=8, plus
+            # slack): a main thread that outruns the pool would have to block
+            # to spawn a worker, and blocking the browser's main thread
+            # deadlocks. Harmless when threads are off (the flag is ignored).
             -sPTHREAD_POOL_SIZE=16
             "SHELL:--pre-js ${CMAKE_CURRENT_SOURCE_DIR}/web/pre.js"
             "SHELL:--shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html"
