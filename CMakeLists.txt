@@ -155,10 +155,28 @@ if(CNA_CRAFT_BUILD_GAME)
     target_include_directories(CnaCraftNetTransport PUBLIC src)
     target_link_libraries(CnaCraftNetTransport PUBLIC CnaCraftNetProtocol SHARP_RUNTIME)
 
+    # CnaCraftServer -- the authoritative headless game server
+    # (MULTIPLAYER_PLAN.md §6): no CNA/graphics, just Worlds/ + Persistence/
+    # + the Net transport. Runs anywhere the worlds tests do.
+    add_executable(CnaCraftServer
+        src/CnaCraft/Server/main.cpp
+        src/CnaCraft/Server/GameServer.cpp
+    )
+    target_include_directories(CnaCraftServer PRIVATE src)
+    target_link_libraries(CnaCraftServer PRIVATE CnaCraftNetTransport CnaCraftWorlds)
+
     if(BUILD_TESTING)
         add_executable(cna_craft_net_transport_smoke_test tests/net_transport_smoke_test.cpp)
         target_link_libraries(cna_craft_net_transport_smoke_test PRIVATE CnaCraftNetTransport)
         add_test(NAME NetTransportSmokeTest COMMAND cna_craft_net_transport_smoke_test)
+
+        add_executable(cna_craft_net_server_smoke_test
+            tests/net_server_smoke_test.cpp
+            src/CnaCraft/Server/GameServer.cpp
+        )
+        target_include_directories(cna_craft_net_server_smoke_test PRIVATE src)
+        target_link_libraries(cna_craft_net_server_smoke_test PRIVATE CnaCraftNetTransport CnaCraftWorlds)
+        add_test(NAME NetServerSmokeTest COMMAND cna_craft_net_server_smoke_test)
     endif()
 
     add_executable(CnaCraft
