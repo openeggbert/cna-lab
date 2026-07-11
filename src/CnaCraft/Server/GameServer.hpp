@@ -9,6 +9,8 @@
 
 #include "../Net/LineSocket.hpp"
 #include "../Net/Protocol.hpp"
+#include "../Persistence/WorldStore.hpp"
+#include "../Worlds/World.hpp"
 #include "System/Collections/Concurrent/ConcurrentQueue.hpp"
 #include "System/Net/Sockets/Socket.hpp"
 #include "System/Threading/Thread.hpp"
@@ -38,6 +40,7 @@ struct ServerConfig {
     int port = Net::kDefaultPort;  // 0 = ephemeral (tests); Port() reports the real one
     std::uint32_t seed = 1337;     // sent to every client via W (MULTIPLAYER_PLAN.md §4)
     float dayLengthSeconds = 600.0f;
+    std::string dbPath = "server_world.db";  // the authoritative edit store (Craft's craft.db role)
 };
 
 class GameServer {
@@ -90,6 +93,15 @@ private:
     void HandleLeave(int clientId);
     void HandleMessage(Client& client, const Net::ClientMessage& msg);
     void HandleTalk(Client& client, const std::string& text);
+    void HandleChunkRequest(Client& client, int p, int q, std::int64_t sinceKey);
+    void HandleBlock(Client& client, int x, int y, int z, int w);
+    void HandleLight(Client& client, int x, int y, int z, int w);
+    void HandleSign(Client& client, int x, int y, int z, int face, const std::string& text);
+    // Generates + overlays stored edits/lights for the column holding an
+    // edit, so validation sees the same terrain the editing client does
+    // (the whole reason the server reuses Worlds/ -- MULTIPLAYER_PLAN.md §6).
+    void EnsureColumnLoaded(int cx, int cz);
+    void RejectEdit(Client& client, int x, int y, int z, const std::string& reason);
     void SendTo(Client& client, const Net::ServerMessage& msg);
     void Broadcast(const Net::ServerMessage& msg, int exceptId = -1);
     double ElapsedSeconds() const;
@@ -106,6 +118,11 @@ private:
     System::Collections::Concurrent::ConcurrentQueue<Command> commands_;
 
     // Model-thread-owned (except Stop(), which runs after the model joined):
+    // the authoritative world -- generated on demand per column, edits
+    // overlaid from the store, never unloaded (bounded by explored area;
+    // ~32 KB per column, fine for a LAN server's lifetime).
+    Worlds::World world_;
+    std::unique_ptr<Persistence::WorldStore> store_;
     std::unordered_map<int, std::shared_ptr<Client>> clients_;
     std::vector<std::shared_ptr<Client>> zombies_;
     // Atomic and assigned in the ACCEPT thread, before the client's service

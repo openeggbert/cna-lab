@@ -161,9 +161,10 @@ if(CNA_CRAFT_BUILD_GAME)
     add_executable(CnaCraftServer
         src/CnaCraft/Server/main.cpp
         src/CnaCraft/Server/GameServer.cpp
+        src/CnaCraft/Persistence/WorldStore.cpp
     )
     target_include_directories(CnaCraftServer PRIVATE src)
-    target_link_libraries(CnaCraftServer PRIVATE CnaCraftNetTransport CnaCraftWorlds)
+    target_link_libraries(CnaCraftServer PRIVATE CnaCraftNetTransport CnaCraftWorlds SQLite::SQLite3)
 
     if(BUILD_TESTING)
         add_executable(cna_craft_net_transport_smoke_test tests/net_transport_smoke_test.cpp)
@@ -173,10 +174,22 @@ if(CNA_CRAFT_BUILD_GAME)
         add_executable(cna_craft_net_server_smoke_test
             tests/net_server_smoke_test.cpp
             src/CnaCraft/Server/GameServer.cpp
+            src/CnaCraft/Persistence/WorldStore.cpp
         )
         target_include_directories(cna_craft_net_server_smoke_test PRIVATE src)
-        target_link_libraries(cna_craft_net_server_smoke_test PRIVATE CnaCraftNetTransport CnaCraftWorlds)
+        target_link_libraries(cna_craft_net_server_smoke_test PRIVATE CnaCraftNetTransport CnaCraftWorlds
+                                                                      SQLite::SQLite3)
         add_test(NAME NetServerSmokeTest COMMAND cna_craft_net_server_smoke_test)
+
+        add_executable(cna_craft_net_worldsync_smoke_test
+            tests/net_worldsync_smoke_test.cpp
+            src/CnaCraft/Server/GameServer.cpp
+            src/CnaCraft/Persistence/WorldStore.cpp
+        )
+        target_include_directories(cna_craft_net_worldsync_smoke_test PRIVATE src)
+        target_link_libraries(cna_craft_net_worldsync_smoke_test PRIVATE CnaCraftNetTransport CnaCraftWorlds
+                                                                         SQLite::SQLite3)
+        add_test(NAME NetWorldSyncSmokeTest COMMAND cna_craft_net_worldsync_smoke_test)
     endif()
 
     add_executable(CnaCraft

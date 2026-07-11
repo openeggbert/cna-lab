@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -156,6 +157,45 @@ public:
     // Applies directly via `World::SetLightSource` (not a recorded edit —
     // there is no batch-save path for lights to avoid re-recording into).
     void LoadColumnLightsInto(Worlds::World& world, int cx, int cz);
+
+    // ---- Multiplayer world sync (MULTIPLAYER_PLAN.md §3/§6, plan.md
+    // §12.1 item 18 phase M3) ----
+
+    // Single-block upsert — the server's edit-accept path writes each
+    // validated edit immediately (the server has no RecordedEdits batch to
+    // flush; SaveEdits stays the single-player path). The client's inbound
+    // remote-delta cache writes use this too.
+    void UpsertBlock(int x, int y, int z, int w);
+
+    // The incremental chunk-sync read (Craft's server.py on_chunk): this
+    // column's edits with `rowid > sinceKey`, in rowid order — SQLite's
+    // rowid IS the version counter, exactly like Craft's server. `maxKey`
+    // is set to the highest rowid streamed (left untouched when no rows
+    // qualify).
+    [[nodiscard]] std::vector<Worlds::BlockEdit> LoadColumnEditsSince(int cx, int cz, std::int64_t sinceKey,
+                                                                      std::int64_t& maxKey);
+
+    // Raw per-column light rows for chunk responses — unlike
+    // LoadColumnLightsInto this needs no World to apply to. Craft's server
+    // re-sends ALL of a chunk's lights on every request (no key filter);
+    // ours does the same, so no rowid plumbing here.
+    struct LightRow {
+        int x = 0, y = 0, z = 0;
+        bool on = false;
+    };
+    [[nodiscard]] std::vector<LightRow> LoadColumnLightRows(int cx, int cz);
+
+    // Raw per-column sign rows for chunk responses (full resend, like
+    // lights — Craft's own model).
+    [[nodiscard]] std::vector<Worlds::Sign> LoadColumnSignRows(int cx, int cz);
+
+    // Client-side chunk-cache versioning — Craft's `key(p,q,key)` table
+    // (src/db.c db_get_key/db_set_key): the highest server rowid this
+    // client has already applied for a column, sent with C requests so the
+    // server streams only newer edits. GetColumnKey returns 0 when the
+    // column was never synced (Craft's own "no row" default).
+    void SetColumnKey(int cx, int cz, std::int64_t key);
+    [[nodiscard]] std::int64_t GetColumnKey(int cx, int cz);
 
 private:
     sqlite3* db_ = nullptr;

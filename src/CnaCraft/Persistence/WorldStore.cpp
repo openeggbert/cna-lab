@@ -119,6 +119,26 @@ constexpr const char* kCreateLightIndexSql =
     "CREATE UNIQUE INDEX IF NOT EXISTS light_pqxyz_idx ON light (p, q, x, y, z);";
 constexpr const char* kUpsertLightSql = "INSERT OR REPLACE INTO light (p, q, x, y, z, w) VALUES (?, ?, ?, ?, ?, ?);";
 constexpr const char* kSelectColumnLightSql = "SELECT x, y, z, w FROM light WHERE p = ? AND q = ?;";
+
+// Multiplayer chunk-cache versioning (MULTIPLAYER_PLAN.md §3, plan.md
+// §12.1 item 18 phase M3) — Craft's real `key(p,q,key)` table (src/db.c
+// db_get_key/db_set_key), byte-identical schema. The stored value is the
+// highest server block-rowid this client has already applied for the
+// column. Server-side, the block table's own rowid serves as the version
+// counter (like server.py) — no extra table needed there.
+constexpr const char* kCreateKeyTableSql =
+    "CREATE TABLE IF NOT EXISTS key ("
+    "  p INTEGER NOT NULL,"
+    "  q INTEGER NOT NULL,"
+    "  key INTEGER NOT NULL"
+    ");";
+constexpr const char* kCreateKeyIndexSql = "CREATE UNIQUE INDEX IF NOT EXISTS key_pq_idx ON key (p, q);";
+constexpr const char* kUpsertKeySql = "INSERT OR REPLACE INTO key (p, q, key) VALUES (?, ?, ?);";
+constexpr const char* kSelectKeySql = "SELECT key FROM key WHERE p = ? AND q = ?;";
+
+constexpr const char* kSelectColumnSinceSql =
+    "SELECT rowid, x, y, z, w FROM block WHERE p = ? AND q = ? AND rowid > ? ORDER BY rowid;";
+constexpr const char* kSelectColumnSignsRawSql = "SELECT x, y, z, face, text FROM sign WHERE p = ? AND q = ?;";
 }
 
 WorldStore::WorldStore(const std::string& path) {
@@ -140,7 +160,9 @@ WorldStore::WorldStore(const std::string& path) {
         sqlite3_exec(db_, kCreateSignPqIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db_, kCreateStateTableSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db_, kCreateLightTableSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
-        sqlite3_exec(db_, kCreateLightIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+        sqlite3_exec(db_, kCreateLightIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
+        sqlite3_exec(db_, kCreateKeyTableSql, nullptr, nullptr, &errMsg) != SQLITE_OK ||
+        sqlite3_exec(db_, kCreateKeyIndexSql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
         std::fprintf(stderr, "WorldStore: failed to create schema: %s\n", errMsg ? errMsg : "unknown error");
         sqlite3_free(errMsg);
         sqlite3_close(db_);
@@ -437,6 +459,124 @@ void WorldStore::LoadColumnLightsInto(Worlds::World& world, int cx, int cz) {
         world.SetLightSource(x, y, z, w != 0);
     }
     sqlite3_finalize(stmt);
+}
+
+void WorldStore::UpsertBlock(int x, int y, int z, int w) {
+    if (!db_) return;
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kUpsertSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare block upsert: %s\n", sqlite3_errmsg(db_));
+        return;
+    }
+    sqlite3_bind_int(stmt, 1, Worlds::ChunkCoordOf(x));
+    sqlite3_bind_int(stmt, 2, Worlds::ChunkCoordOf(z));
+    sqlite3_bind_int(stmt, 3, x);
+    sqlite3_bind_int(stmt, 4, y);
+    sqlite3_bind_int(stmt, 5, z);
+    sqlite3_bind_int(stmt, 6, w);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+}
+
+std::vector<Worlds::BlockEdit> WorldStore::LoadColumnEditsSince(int cx, int cz, std::int64_t sinceKey,
+                                                                std::int64_t& maxKey) {
+    std::vector<Worlds::BlockEdit> edits;
+    if (!db_) return edits;
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kSelectColumnSinceSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare incremental column query: %s\n", sqlite3_errmsg(db_));
+        return edits;
+    }
+    sqlite3_bind_int(stmt, 1, cx);
+    sqlite3_bind_int(stmt, 2, cz);
+    sqlite3_bind_int64(stmt, 3, sinceKey);
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const auto rowid = static_cast<std::int64_t>(sqlite3_column_int64(stmt, 0));
+        if (rowid > maxKey) maxKey = rowid;
+        Worlds::BlockEdit edit;
+        edit.x = sqlite3_column_int(stmt, 1);
+        edit.y = sqlite3_column_int(stmt, 2);
+        edit.z = sqlite3_column_int(stmt, 3);
+        edit.type = static_cast<Worlds::BlockType>(sqlite3_column_int(stmt, 4));
+        edits.push_back(edit);
+    }
+    sqlite3_finalize(stmt);
+    return edits;
+}
+
+std::vector<WorldStore::LightRow> WorldStore::LoadColumnLightRows(int cx, int cz) {
+    std::vector<LightRow> rows;
+    if (!db_) return rows;
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kSelectColumnLightSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare raw light query: %s\n", sqlite3_errmsg(db_));
+        return rows;
+    }
+    sqlite3_bind_int(stmt, 1, cx);
+    sqlite3_bind_int(stmt, 2, cz);
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        LightRow row;
+        row.x = sqlite3_column_int(stmt, 0);
+        row.y = sqlite3_column_int(stmt, 1);
+        row.z = sqlite3_column_int(stmt, 2);
+        row.on = sqlite3_column_int(stmt, 3) != 0;
+        rows.push_back(row);
+    }
+    sqlite3_finalize(stmt);
+    return rows;
+}
+
+std::vector<Worlds::Sign> WorldStore::LoadColumnSignRows(int cx, int cz) {
+    std::vector<Worlds::Sign> rows;
+    if (!db_) return rows;
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kSelectColumnSignsRawSql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare raw sign query: %s\n", sqlite3_errmsg(db_));
+        return rows;
+    }
+    sqlite3_bind_int(stmt, 1, cx);
+    sqlite3_bind_int(stmt, 2, cz);
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        Worlds::Sign sign;
+        sign.x = sqlite3_column_int(stmt, 0);
+        sign.y = sqlite3_column_int(stmt, 1);
+        sign.z = sqlite3_column_int(stmt, 2);
+        sign.face = sqlite3_column_int(stmt, 3);
+        const unsigned char* text = sqlite3_column_text(stmt, 4);
+        if (text) sign.text = reinterpret_cast<const char*>(text);
+        rows.push_back(sign);
+    }
+    sqlite3_finalize(stmt);
+    return rows;
+}
+
+void WorldStore::SetColumnKey(int cx, int cz, std::int64_t key) {
+    if (!db_) return;
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kUpsertKeySql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare key upsert: %s\n", sqlite3_errmsg(db_));
+        return;
+    }
+    sqlite3_bind_int(stmt, 1, cx);
+    sqlite3_bind_int(stmt, 2, cz);
+    sqlite3_bind_int64(stmt, 3, key);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+}
+
+std::int64_t WorldStore::GetColumnKey(int cx, int cz) {
+    if (!db_) return 0;
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, kSelectKeySql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::fprintf(stderr, "WorldStore: failed to prepare key select: %s\n", sqlite3_errmsg(db_));
+        return 0;
+    }
+    sqlite3_bind_int(stmt, 1, cx);
+    sqlite3_bind_int(stmt, 2, cz);
+    std::int64_t key = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) key = static_cast<std::int64_t>(sqlite3_column_int64(stmt, 0));
+    sqlite3_finalize(stmt);
+    return key;
 }
 
 }

@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdio>
 
+#include "../Worlds/Sign.hpp"
 #include "System/Net/IPAddress.hpp"
 #include "System/Net/IPEndPoint.hpp"
 #include "System/Net/Sockets/AddressFamily.hpp"
@@ -66,6 +67,12 @@ bool GameServer::Start() {
         lastError_ = "unknown bind/listen error";
         listener_.reset();
         return false;
+    }
+
+    store_ = std::make_unique<Persistence::WorldStore>(config_.dbPath);
+    if (!store_->IsOpen()) {
+        std::fprintf(stderr, "CnaCraftServer: warning -- world store '%s' failed to open; edits won't persist\n",
+                     config_.dbPath.c_str());
     }
 
     startTicks_ = NowTicks();
@@ -139,6 +146,7 @@ void GameServer::Stop() {
     }
     zombies_.clear();
     listener_.reset();
+    store_.reset();  // closes the SQLite handle; safe -- the model thread is gone
 }
 
 void GameServer::AcceptLoop() {
@@ -385,12 +393,245 @@ void GameServer::HandleMessage(Client& client, const Net::ClientMessage& msg) {
             HandleTalk(client, msg.text);
             break;
         case Net::ClientOpcode::ChunkRequest:
+            HandleChunkRequest(client, msg.p, msg.q, msg.key);
+            break;
         case Net::ClientOpcode::Block:
+            HandleBlock(client, msg.bx, msg.by, msg.bz, msg.w);
+            break;
         case Net::ClientOpcode::Light:
+            HandleLight(client, msg.bx, msg.by, msg.bz, msg.w);
+            break;
         case Net::ClientOpcode::Sign:
-            // World sync lands in M3 (MULTIPLAYER_PLAN.md §10).
+            HandleSign(client, msg.bx, msg.by, msg.bz, msg.face, msg.text);
             break;
     }
+}
+
+void GameServer::EnsureColumnLoaded(int cx, int cz) {
+    if (world_.IsColumnLoaded(cx, cz)) return;
+    world_.GenerateColumn(cx, cz, config_.seed);
+    store_->LoadColumnInto(world_, cx, cz);
+    store_->LoadColumnLightsInto(world_, cx, cz);
+}
+
+void GameServer::HandleChunkRequest(Client& client, int p, int q, std::int64_t sinceKey) {
+    // server.py's on_chunk, same response order: incremental blocks by
+    // rowid key, K if any block went out, then ALL lights and ALL signs
+    // (full resend -- Craft's own model), R if anything changed, C always.
+    std::int64_t maxKey = sinceKey;
+    const auto edits = store_->LoadColumnEditsSince(p, q, sinceKey, maxKey);
+    for (const auto& edit : edits) {
+        Net::ServerMessage b;
+        b.op = Net::ServerOpcode::Block;
+        b.p = p;
+        b.q = q;
+        b.bx = edit.x;
+        b.by = edit.y;
+        b.bz = edit.z;
+        b.w = static_cast<int>(edit.type);
+        SendTo(client, b);
+    }
+    if (maxKey > sinceKey) {
+        Net::ServerMessage k;
+        k.op = Net::ServerOpcode::Key;
+        k.p = p;
+        k.q = q;
+        k.key = maxKey;
+        SendTo(client, k);
+    }
+    const auto lights = store_->LoadColumnLightRows(p, q);
+    for (const auto& light : lights) {
+        Net::ServerMessage l;
+        l.op = Net::ServerOpcode::Light;
+        l.p = p;
+        l.q = q;
+        l.bx = light.x;
+        l.by = light.y;
+        l.bz = light.z;
+        l.w = light.on ? 15 : 0;
+        SendTo(client, l);
+    }
+    const auto signs = store_->LoadColumnSignRows(p, q);
+    for (const auto& sign : signs) {
+        Net::ServerMessage s;
+        s.op = Net::ServerOpcode::Sign;
+        s.p = p;
+        s.q = q;
+        s.bx = sign.x;
+        s.by = sign.y;
+        s.bz = sign.z;
+        s.face = sign.face;
+        s.text = sign.text;
+        SendTo(client, s);
+    }
+    if (!edits.empty() || !lights.empty() || !signs.empty()) {
+        Net::ServerMessage r;
+        r.op = Net::ServerOpcode::Redraw;
+        r.p = p;
+        r.q = q;
+        SendTo(client, r);
+    }
+    Net::ServerMessage done;
+    done.op = Net::ServerOpcode::ChunkDone;
+    done.p = p;
+    done.q = q;
+    SendTo(client, done);
+}
+
+void GameServer::RejectEdit(Client& client, int x, int y, int z, const std::string& reason) {
+    // Craft's revert protocol (server.py on_block's reject path): echo the
+    // AUTHORITATIVE current value back to the offender + R + a reason.
+    EnsureColumnLoaded(Worlds::ChunkCoordOf(x), Worlds::ChunkCoordOf(z));
+    Net::ServerMessage revert;
+    revert.op = Net::ServerOpcode::Block;
+    revert.p = Worlds::ChunkCoordOf(x);
+    revert.q = Worlds::ChunkCoordOf(z);
+    revert.bx = x;
+    revert.by = y;
+    revert.bz = z;
+    revert.w = static_cast<int>(world_.GetBlock(x, y, z));
+    SendTo(client, revert);
+    Net::ServerMessage redraw;
+    redraw.op = Net::ServerOpcode::Redraw;
+    redraw.p = revert.p;
+    redraw.q = revert.q;
+    SendTo(client, redraw);
+    Net::ServerMessage talk;
+    talk.op = Net::ServerOpcode::Talk;
+    talk.text = reason;
+    SendTo(client, talk);
+}
+
+void GameServer::HandleBlock(Client& client, int x, int y, int z, int w) {
+    constexpr int kWorldHeight = Worlds::WORLD_CHUNKS_Y * Worlds::CHUNK_SIZE;
+    if (y <= 0 || y >= kWorldHeight) {
+        RejectEdit(client, x, y, z, "You cannot build at that height.");
+        return;
+    }
+    if (w < 0 || w >= static_cast<int>(Worlds::BlockType::Count)) {
+        RejectEdit(client, x, y, z, "That is not a valid block.");
+        return;
+    }
+    EnsureColumnLoaded(Worlds::ChunkCoordOf(x), Worlds::ChunkCoordOf(z));
+    const Worlds::BlockType previous = world_.GetBlock(x, y, z);
+    const auto type = static_cast<Worlds::BlockType>(w);
+
+    if (type != Worlds::BlockType::Air) {
+        // Placement: only into empty space (server.py's previous==0 rule;
+        // the finer is_obstacle/player-overlap guards stay client-side,
+        // exactly like Craft).
+        if (previous != Worlds::BlockType::Air) {
+            RejectEdit(client, x, y, z, "There is already a block there.");
+            return;
+        }
+    } else {
+        // Breaking: something must exist and be breakable (covers Cloud
+        // and Bedrock -- Craft's INDESTRUCTIBLE_ITEMS, via the same
+        // BlockDef.breakable flag the local game uses, item 32).
+        if (previous == Worlds::BlockType::Air) {
+            RejectEdit(client, x, y, z, "There is nothing to remove there.");
+            return;
+        }
+        if (!world_.IsBreakable(x, y, z)) {
+            RejectEdit(client, x, y, z, "That block cannot be destroyed.");
+            return;
+        }
+    }
+
+    world_.SetBlock(x, y, z, type);
+    store_->UpsertBlock(x, y, z, w);
+    if (type == Worlds::BlockType::Air) {
+        // A broken block takes its signs and light with it (server.py
+        // on_block does the same cleanup).
+        store_->DeleteSignsAt(x, y, z);
+        if (world_.IsLightSource(x, y, z)) {
+            world_.SetLightSource(x, y, z, false);
+            store_->UpsertLight(x, y, z, false);
+        }
+    }
+
+    Net::ServerMessage b;
+    b.op = Net::ServerOpcode::Block;
+    b.p = Worlds::ChunkCoordOf(x);
+    b.q = Worlds::ChunkCoordOf(z);
+    b.bx = x;
+    b.by = y;
+    b.bz = z;
+    b.w = w;
+    Broadcast(b, client.id);
+    Net::ServerMessage r;
+    r.op = Net::ServerOpcode::Redraw;
+    r.p = b.p;
+    r.q = b.q;
+    Broadcast(r, client.id);
+}
+
+void GameServer::HandleLight(Client& client, int x, int y, int z, int w) {
+    EnsureColumnLoaded(Worlds::ChunkCoordOf(x), Worlds::ChunkCoordOf(z));
+    const bool wantOn = w != 0;
+    // Same eligibility rule the local game enforces (item 32): lights
+    // toggle only on solid, breakable blocks.
+    if (!world_.IsBreakable(x, y, z) || (w != 0 && w != 15)) {
+        Net::ServerMessage revert;
+        revert.op = Net::ServerOpcode::Light;
+        revert.p = Worlds::ChunkCoordOf(x);
+        revert.q = Worlds::ChunkCoordOf(z);
+        revert.bx = x;
+        revert.by = y;
+        revert.bz = z;
+        revert.w = world_.IsLightSource(x, y, z) ? 15 : 0;
+        SendTo(client, revert);
+        Net::ServerMessage talk;
+        talk.op = Net::ServerOpcode::Talk;
+        talk.text = "You cannot toggle a light there.";
+        SendTo(client, talk);
+        return;
+    }
+    world_.SetLightSource(x, y, z, wantOn);
+    store_->UpsertLight(x, y, z, wantOn);
+    Net::ServerMessage l;
+    l.op = Net::ServerOpcode::Light;
+    l.p = Worlds::ChunkCoordOf(x);
+    l.q = Worlds::ChunkCoordOf(z);
+    l.bx = x;
+    l.by = y;
+    l.bz = z;
+    l.w = wantOn ? 15 : 0;
+    Broadcast(l, client.id);
+    Net::ServerMessage r;
+    r.op = Net::ServerOpcode::Redraw;
+    r.p = l.p;
+    r.q = l.q;
+    Broadcast(r, client.id);
+}
+
+void GameServer::HandleSign(Client& client, int x, int y, int z, int face, const std::string& text) {
+    constexpr int kWorldHeight = Worlds::WORLD_CHUNKS_Y * Worlds::CHUNK_SIZE;
+    constexpr std::size_t kMaxSignText = 64;  // Craft's MAX_SIGN_LENGTH
+    if (y < 0 || y >= kWorldHeight || face < 0 || face > 5) return;  // silently ignore, nothing to revert
+    std::string clipped = text.substr(0, kMaxSignText);
+
+    if (clipped.empty()) {
+        store_->DeleteSign(x, y, z, face);
+    } else {
+        Worlds::Sign sign;
+        sign.x = x;
+        sign.y = y;
+        sign.z = z;
+        sign.face = face;
+        sign.text = clipped;
+        store_->UpsertSign(sign);
+    }
+    Net::ServerMessage s;
+    s.op = Net::ServerOpcode::Sign;
+    s.p = Worlds::ChunkCoordOf(x);
+    s.q = Worlds::ChunkCoordOf(z);
+    s.bx = x;
+    s.by = y;
+    s.bz = z;
+    s.face = face;
+    s.text = clipped;
+    Broadcast(s, client.id);
 }
 
 void GameServer::HandleTalk(Client& client, const std::string& text) {
