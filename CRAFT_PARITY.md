@@ -581,10 +581,11 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 - **Craft behavior** (`make_cube_faces`, `cube.c:7-98`): naive per-block-per-face — one static
   quad per exposed face, with baked per-vertex AO/light (see §5.1).
 - **cna-craft behavior** (`ChunkMesher::Build`): also naive per-block-per-face, structurally
-  equivalent, minus AO/lighting (flat-shaded).
-- **Status**: complete (meshing strategy); AO gap tracked separately at §5.1
+  equivalent, **including baked per-vertex AO and the diagonal flip since plan.md §12.1 item 12**
+  (see §5.1; torch light remains the one unported vertex input — §2.7).
+- **Status**: complete
 - **Craft files**: `src/cube.c:7-98`
-- **cna-craft files**: `src/CnaCraft/Worlds/ChunkMesher.cpp:50-98`
+- **cna-craft files**: `src/CnaCraft/Worlds/ChunkMesher.cpp`
 - **Priority**: low
 
 ### 3.6 Transparent blocks
@@ -876,32 +877,54 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 ## 5. Visual features, shaders, atlas
 
 ### 5.1 Ambient occlusion
-- **Craft behavior**: per-vertex AO baked on the CPU (`occlusion()`, `main.c:879-919`, the
-  0fps.wordpress.com corner-lookup algorithm), packed into a 4th vertex UV component, applied in
-  `block_fragment.glsl` as a multiplicative darkening term.
-- **cna-craft behavior**: none — `VertexPositionNormalTexture` has no AO channel; rendering uses
-  stock `BasicEffect`.
-- **Status**: blocked
-- **Craft files**: `src/main.c:879-919`, `src/cube.c:53-79`, `shaders/block_{vertex,fragment}.glsl`
-- **cna-craft files**: `src/CnaCraft/Render/ChunkRenderer.cpp`, `Worlds/ChunkMesher.*`
-- **Priority**: high (visual parity), blocked
-- **Notes**: Requires a custom vertex format + shader (`ShaderEffect`) — per `missing.md`, only
-  `EASYGL` has real runtime shader support today; `VULKAN` needs a precompiled-SPIR-V toolchain;
-  `BGFX`'s `ShaderEffect` is a stub in CNA itself. `blocked` pending that CNA-side work (or an
-  `EASYGL`-only scoped implementation, which is a `needs_human` scope decision). **Confirmed via a
-  deeper research pass 2026-07-10** (while scoping §2.7's light-toggle): the real mechanism is that
-  CNA's three graphics backends all dispatch shader/pipeline selection by *hardcoded raw
-  vertex-buffer byte stride* (16/20/24/32/52), not by the `VertexDeclaration`'s actual element
-  list — no stride/shader combination in any backend combines `TextureEnabled` +
-  `LightingEnabled` (normal-based) + `VertexColorEnabled` together, so even a from-scratch custom
-  vertex type hits the same wall without new engine-side work in all three backends. One proven,
-  already-used exception exists: `VertexPositionColorTexture` (stride 24, `TextureEnabled` +
-  `VertexColorEnabled`, `LightingEnabled=false`) — `SkyDome`/`SelectionOutline` already use it, and
-  §2.7's light-toggle glow pass reuses it too, but adopting it for *ordinary chunk terrain* (to
-  carry baked AO/light) would mean dropping the live per-frame GPU day/night ambient update chunk
-  rendering has today in favor of CPU-rebaked vertex colors across every loaded chunk — a much
-  larger, separate change than AO itself, not something either the light-toggle work or this note
-  is proposing.
+- **Craft behavior**: per-vertex AO baked on the CPU (`occlusion()`, `main.c:879-921`, the
+  0fps.wordpress.com corner-lookup algorithm: 27-neighborhood, `curve[4]={0,.25,.5,.75}`, the
+  both-sides-solid→3 rule, plus an 8-block column-shade term), packed into a 4th vertex UV
+  component alongside per-vertex torch light, combined in `block_{vertex,fragment}.glsl` as
+  `texel * (ambient + light_color*df) * ao_brightness` with the anti-anisotropy quad-diagonal
+  flip in `make_cube_faces` (`cube.c:65-67`).
+- **cna-craft behavior**: **the same AO, baked at mesh time** (plan.md §12.1 item 12, 2026-07-11).
+  `ChunkMesher::ComputeOcclusion` is a direct port of `occlusion()` (zero-torch-light variant —
+  see §2.7 for why there is no light propagation); the lookup cells are derived geometrically from
+  the mesher's own face table instead of transcribing Craft's `lookup3`/`lookup4` (whose
+  face/corner order differs), pinned by 38 hand-derived known-value checks. The diagonal flip,
+  plants' scalar `min_ao` (`main.c:1102-1116`), transparent blocks getting-AO-but-not-casting-it,
+  and clouds' 20% contrast compression (keyed on `BlockType::Cloud` at mesh time rather than
+  Craft's pure-white-texel test in the fragment shader — same predicate, same output) are all
+  ported. Because Craft's diffuse light direction is FIXED (`normalize(-1,1,-1)`) and there is no
+  torch light, Craft's whole block-lighting equation factors exactly into
+  `texel × (daylight*0.3+0.2) × (1+df)*aoBrightness` — a per-frame scalar times a static
+  per-vertex value. `MeshVertex::shade` carries the static half; the renderer uploads `shade/2`
+  as an 8-bit `VertexPositionColorTexture` color and `BasicEffect::DiffuseColor =
+  2*(daylight*0.3+0.2)` carries the per-frame half, so day/night remains a live GPU uniform with
+  zero rebaking. Terrain lighting is now *exactly* Craft's grayscale model — the old
+  `EnableDefaultLighting` 3-light rig (specular, tinted lights, none of which Craft has) survives
+  only for sign billboards.
+- **Status**: complete
+- **Craft files**: `src/main.c:879-921,958-1134`, `src/cube.c:37-98`,
+  `shaders/block_{vertex,fragment}.glsl`
+- **cna-craft files**: `src/CnaCraft/Worlds/ChunkMesher.*`, `Worlds/MeshData.hpp`,
+  `Worlds/World.cpp` (edit-dirty rule), `src/CnaCraft/Render/ChunkRenderer.cpp`,
+  `src/CnaCraft/CnaCraftGame.cpp` (27-chunk mesh snapshots, per-pass draw state)
+- **Priority**: high (visual parity), done
+- **Notes**: **This entry previously carried two claims that planning research (2026-07-11)
+  disproved — corrected here rather than silently dropped.** (1) "Requires a custom vertex format
+  + `ShaderEffect`, only real on EASYGL": in fact CNA's 3D draw path ignores `ShaderEffect`
+  entirely on every backend (it only functions via 2D SpriteBatch — `EasyGLGraphicsBackend.cpp`'s
+  `SelectProgram` picks stock programs by stride and never consults a custom effect), so the
+  ShaderEffect route would have required MORE engine work than believed, not less. (2) "Adopting
+  `VertexPositionColorTexture` for terrain would mean dropping the live per-frame day/night
+  ambient update in favor of CPU-rebaked vertex colors": false — the factorization above shows
+  daylight rides the (unclamped, verified) `DiffuseColor` uniform while vertex colors stay
+  static. Net result: AO shipped with **no CNA engine changes at all and works on ALL backends**
+  (stride 24 is universally supported), superseding the earlier "EASYGL-only" scope decision by
+  strictly beating it. The stride-based-dispatch engine constraint itself remains real and still
+  blocks anything needing texture + normal-lighting + vertex-color *simultaneously* (e.g. real
+  torch-light propagation, whose `min(1, daylight + light)` does NOT factor — see §2.7). A lit
+  (glow-toggled) block's faces intentionally show no AO: Craft's own `lights[13]==15`
+  supersaturation (`main.c:908-915`) washes AO out identically. Known cosmetic corner: cna-craft
+  emits world-bottom (y=0) undersides (Craft suppresses them via `ey > 0`) and they bake dark —
+  invisible in practice, documented not fixed.
 
 ### 5.2 Fog
 - **Craft behavior**: distance+height fog in `block_vertex.glsl`/`block_fragment.glsl`, blending
@@ -1061,7 +1084,7 @@ checkout against the current cna-craft `src/` tree, file-by-file and line-by-lin
 | 4.4 | Player names/text (**chat overlay now wired via message log, 2026-07-10**) | complete | low |
 | 4.5 | Chat/commands (**world-editing macros completed 2026-07-10**) | complete | medium |
 | 4.6 | Multiplayer | missing | low (deliberate) |
-| 5.1 | Ambient occlusion | blocked | high (blocked) |
+| 5.1 | Ambient occlusion | complete | high (done) |
 | 5.2 | Fog (**fades to the real sky gradient, 2026-07-10**) | complete | medium |
 | 5.3 | Sky dome (**textured with real sky.png colors, 2026-07-10**) | complete | medium |
 | 5.4 | Day/night lighting | complete | low |

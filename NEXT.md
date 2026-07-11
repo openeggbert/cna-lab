@@ -1,24 +1,24 @@
 # NEXT.md
 
-Handoff document for resuming work on **cna-craft**. Last updated after a
-player-vs-Craft parity audit and its follow-up implementation work, same day
-(2026-07-10) as the chunk-redesign/roster/chat-commands sessions below, all
-shipped on branch `develop`. That audit (`plan.md` §12.1 item 26/27) compared
+Handoff document for resuming work on **cna-craft**. Last updated 2026-07-11
+after shipping **ambient occlusion** (plan.md §12.1 item 12, the last
+`blocked` item — see §3 item 19 below), on branch `develop`. The 2026-07-10
+player-vs-Craft parity audit (`plan.md` §12.1 items 26/27) compared
 cna-craft against real Craft feature-by-feature and found 12 player-facing
 differences; the user was asked about each one individually and decided per
-item. Four small/safe fixes shipped first (item 26: arrow-key look speed,
-per-instance plant rotation, sign billboard winding, player-position
-persistence across sessions), then the one genuine remaining gap — **light
-toggle** (item 27: Ctrl+right-click) — via a user-approved design pivot (a
-separate additive glow pass, not Craft's real light-propagation, due to a
-CNA engine-level vertex/shader-dispatch constraint discovered during
-planning — see item 27's writeup for the full technical reason). With items
-26/27 done, the remaining choices from that same audit were: ambient
-occlusion (user chose "implement for EASYGL only"), a textured sky dome
-(user chose "add sky texture" — since done, item 33 below), and
-multiplayer (user chose "start planning only") — as of the end of this
-session only ambient occlusion and the multiplayer planning pass remain
-unstarted; see §8.
+item. Four small/safe fixes shipped first (item 26), then the light toggle
+(item 27, via a user-approved glow-pass design pivot), the textured sky
+dome (item 33), F11 fullscreen (item 34), and now ambient occlusion —
+**notably NOT via the "EASYGL-only custom ShaderEffect" route the audit
+recorded**: planning research disproved that premise (CNA's 3D draw path
+ignores `ShaderEffect` entirely) and found a mathematically exact
+no-engine-work path instead (Craft's block lighting factors into a static
+per-vertex value × a per-frame daylight scalar), which the user approved
+("libi se mi Vertex color reseni") — it works on ALL backends, not just
+EasyGL. See CRAFT_PARITY.md §5.1's rewritten entry, which explicitly owns
+and corrects the two disproven claims the old entry carried. The only
+remaining decided-but-unstarted work from the audit is the multiplayer
+planning pass; see §8.
 
 **Immediately after item 27 shipped**, the user hit it live and reported two
 real bugs: an invisible window on startup (both EasyGL and Vulkan) and
@@ -163,34 +163,24 @@ correctly in the message log, confirmed the log persists after the typing
 box closes, confirmed Sign typing is unaffected by the `TypingMode`
 generalization).
 
-**Test status**: `tests/worlds_smoke_test.cpp` — **303 checks, all
-passing** (up from 267 before this audit's follow-up work; 173 at the start
-of the chunk-redesign session). Plus `cna_craft_persistence_smoke_test` —
-**40 checks, all passing** (up from 30). Both build and run standalone with
-`-DCNA_CRAFT_BUILD_GAME=OFF`.
+**Test status**: `tests/worlds_smoke_test.cpp` — **341 checks, all
+passing** (up from 303 — the 38 new checks are the item-12 AO known-value
+suite; 173 at the start of the chunk-redesign session). Plus
+`cna_craft_persistence_smoke_test` — **40 checks, all passing**. Both build
+and run standalone with `-DCNA_CRAFT_BUILD_GAME=OFF`. The worlds suite also
+got FASTER with AO in (18.7s vs 20.4s before) — the padded-occupancy
+snapshot removed per-face `World::IsOpaque` hash walks from face culling.
 
 **plan.md §12.1 status as of this session's end** (34 items):
-- **32 `completed`**: everything from before, plus item 26 (arrow-key
-  speed, plant rotation, sign winding, player-position persistence — four
-  small audit follow-ups), item 27 (light toggle, Ctrl+right-click, via
-  a glow-pass design pivot), item 28 (invisible-window-on-startup +
-  glow-pass perf fixes), item 29 (Minecraft-style flight/look controls),
-  item 30 (exact-π/2 pitch clamp degenerating the view matrix), item
-  31 (player entombment at spawn + per-frame SQLite fsync stutter — the
-  two regressions behind the user's "still broken" reports), item 32
-  (both halves of Craft's cloud guards: is_obstacle on placement,
-  is_destructable on breaking), item 33 (textured sky dome + morning
-  start), and item 34 (F11 fullscreen toggle — see §3 below).
-- **1 `blocked`**: ambient occlusion (needs a custom `ShaderEffect`, only
-  real on EASYGL today) — user has chosen to implement this for EASYGL
-  only when picked up.
+- **33 `completed`**: everything from before (items 26-34 — see §3), plus
+  **item 12, ambient occlusion** (2026-07-11, the last `blocked` item —
+  see §3 item 19 below). Nothing is `blocked` anymore.
 - **1 `pending`, explicitly deferred**: multiplayer, per project direction
   (all its usual prerequisites — persistence, chunk logic, chat — are now
   done, but multiplayer itself stays deferred to planning-only for now).
 
-One more item from the same 12-item audit is decided but not yet started:
-ambient occlusion (EASYGL-only) — see §8. The textured sky dome is done
-(item 33).
+That multiplayer planning pass is now the ONLY decided-but-unstarted item
+— see §8.
 
 ## 3. Recent changes (this session)
 
@@ -503,6 +493,39 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     toggle). README §5 updated. Needs a real WM to verify visually — one
     keypress on the user's machine.
 
+19. **Ambient occlusion** (plan.md §12.1 item 12, CRAFT_PARITY.md §5.1 —
+    session of 2026-07-11, three committed phases + docs). The headline:
+    shipped with **zero CNA engine changes, on all backends**, killing the
+    audit-era "needs custom ShaderEffect, EASYGL-only" premise — planning
+    research found CNA's 3D draw path ignores `ShaderEffect` entirely
+    (2D-SpriteBatch-only on every backend), AND that with no torch light
+    (item 27's pivot) Craft's whole block-lighting equation factors into
+    `texel × (daylight*0.3+0.2) × (1+df)*aoBrightness`: a per-frame scalar
+    (rides `BasicEffect::DiffuseColor`, so day/night stays a live uniform
+    with zero rebaking) times a static per-vertex value (new
+    `MeshVertex::shade`, uploaded as `shade/2` in a
+    `VertexPositionColorTexture` grayscale color). `ChunkMesher::
+    ComputeOcclusion` ports Craft's `occlusion()` exactly (27-neighborhood
+    corner/side rule + curve, 8-block column shade, anti-anisotropy
+    diagonal flip, plants' scalar `min_ao`, clouds' 20% contrast
+    compression keyed on `BlockType::Cloud`); lookup cells are derived
+    geometrically from the mesher's own face table rather than transcribed
+    from Craft's differently-ordered ones, pinned by 38 hand-derived
+    known-value checks. Knock-ons: mesh-job snapshots widened 7→27 chunks,
+    `MarkNeighborColumnsDirty` 4→8 columns, `World::SetBlock` dirties the
+    `[x-1,x+1]×[y-8,y+1]×[z-1,z+1]` cross product — all three prevent
+    baked seams at chunk borders. Terrain no longer uses the
+    `EnableDefaultLighting` 3-light rig (Craft never had specular/tinted
+    lights — this is a parity WIN); signs are the rig's only remaining
+    consumer. Verified live under Xvfb via a staged `world.db` scene
+    (wall spanning the x=16 border: contact shadow continuous, no seam;
+    dark overhang underside; lone-block contact ring; plant on stone
+    fully bright; clouds mildly shaded; glow block bright and
+    daylight-independent). NOT live-verified: day/night animation over
+    wall time (sandbox clock too slow) and the Vulkan backend (EasyGL
+    build only here) — both grounded in code reading + tests; worth one
+    look on the user's machine.
+
 ## 4. Current blocker / main problem
 
 **None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
@@ -518,20 +541,20 @@ world-editing commands' actual painting couldn't be verified live (§3 item
 9), and why item 11's light-toggle-actually-glowing couldn't be
 live-verified either.
 
-**New this session**: synthetic keyboard **text input** (not movement/action
-keys — those remain reliable) also became unreliable partway through this
-session, confirmed across multiple distinct `xdotool` approaches and
-cross-checked against a previously-working case (`/`-command typing) that
-now fails identically. This blocked live re-verification of the sign
-billboard winding fix (§3 item 10) specifically. **Later in the same
-session, movement/action keydown/keyup also stopped reaching the app
-window** (previously the one input class that stayed reliable all session —
-see §3 item 13's Minecraft-style-controls verification, which had to fall
-back to unit tests only because of this). Treat all three — mouse clicks,
-text input, and now movement keys too — as real, separate-but-compounding
-sandbox limitations when deciding whether a feature can be live-verified
-here. Worth re-checking whether any of these have recovered at the start of
-a fresh session before assuming they're still broken.
+**Sandbox input status (re-checked 2026-07-11, the AO session)**: synthetic
+keyboard **recovered** — both movement/action keys (W/A/Tab/Space via
+`xdotool keydown/keyup --window <id>` with short sleeps; the instantaneous
+`xdotool key` form did NOT register, use explicit keydown/keyup) and
+typing-trigger keys (slash opened the Command box) reached the app window
+reliably all session. **Mouse remains dead** (relative motion produced zero
+pixel change; clicks untested and historically unreliable). Practical
+consequence: anything mark-dependent (`/cube` painting needs mouse-set
+marks) still can't be driven live, but a **staged `world.db`** works
+beautifully as a substitute — the AO session verified its scene by
+inserting `block`/`light`/`state` rows directly (the `state` table even
+sets yaw/pitch, i.e. full camera aim without any input at all; see item
+19). Re-check input at the start of each fresh session before assuming
+either state persists.
 
 **New, deliberate, documented behavior changes from these sessions** (not
 bugs — read before "fixing"):
@@ -561,9 +584,14 @@ See `CRAFT_PARITY.md` for the authoritative, cited, per-feature list — read
 it before re-deriving anything from memory or re-reading Craft's source
 from scratch. Highlights of what's NOT done yet:
 
-- **`blocked`, decided**: ambient occlusion — needs a custom vertex format +
-  `ShaderEffect`, only real on EASYGL today (`missing.md`); user has chosen
-  "implement for EASYGL only" when this is picked up.
+- **Ambient occlusion is DONE (item 12, 2026-07-11)** — and NOT via the
+  EASYGL-only ShaderEffect route this list used to describe (that premise
+  was disproven; see CRAFT_PARITY.md §5.1's corrected entry). Two small
+  deliberate residuals: a lit (glow-toggled) block's faces show no AO
+  (matches Craft's own `lights[13]==15` saturation exactly), and
+  world-bottom y=0 undersides bake dark because cna-craft emits faces
+  Craft suppresses (`ey > 0`) — invisible in practice, documented not
+  fixed.
 - **Deliberate simplification (item 33)**: the sky dome is textured with
   Craft's real sky.png colors now, but `BasicEffect`'s fixed-function fog
   has one flat color per draw, so fog uses the gradient's horizon band for
@@ -661,6 +689,27 @@ this is just the "if you touch this again" summary):
   `SetTyping`'s "small texture, low-frequency interaction, per-call rebuild
   is cheap enough" reasoning) — don't call it every frame, only when a new
   message actually needs to appear.
+- **Baked AO (new, item 12)** — `MeshVertex::shade` is the ENTIRE
+  time-independent half of Craft's block lighting (`(1+df)*aoBrightness`,
+  range [0.3, 2.0], cloud-compressed for `BlockType::Cloud`), computed by
+  `ChunkMesher::ComputeOcclusion` + `BakedShade`. The renderer uploads
+  `shade/2` as an 8-bit vertex color; `CnaCraftGame::Draw` restores the ×2
+  via `DiffuseColor = 2*(daylight*0.3+0.2)`. **If you touch either half,
+  keep the ×0.5/×2 pair in sync** — the calibration points are noon
+  unoccluded top face = 0.789×texel, night = 0.315×texel (both exactly
+  Craft's shader output). Every Draw pass now sets
+  VertexColorEnabled/Lighting/DiffuseColor explicitly — the sky dome draws
+  FIRST, so a forgotten white diffuse there shows up as "sky dims with
+  daylight twice". The diagonal-flip comparison in the mesher uses RAW ao
+  (higher = darker), never baked shade (inverted ordering). The mesher's
+  occupancy comes from a padded per-Build snapshot filled in chunk-aligned
+  slabs — keep fills going through `Chunk::GetBlock` + `GetBlockDef`
+  (`solid && !transparent`, `World::IsOpaque`'s exact predicate), not
+  per-cell `World::GetBlock` hash walks (that variant measurably ~2x'd the
+  test suite). AO reads cross chunk borders: mesh-job snapshots must stay
+  the full 27-chunk set and `World::SetBlock`'s cross-product dirty rule
+  (diagonals + `ly <= 7` reaching the chunk below) is load-bearing — trim
+  either and you get baked seams that only show at chunk corners/edges.
 
 **Everything from before these sessions** (module list, boundaries, data
 flow, signs, cursor-capture, floor-catch, etc.) is unchanged — see `plan.md`
@@ -703,27 +752,24 @@ There is no separate lint/format tooling configured in this repo.
 
 ## 8. Next smallest tasks
 
-`plan.md` §12.1 is the authoritative ordered priority queue. Everything
-through item 34 is done (including the textured sky dome, item 33). What's
-left is two decided-but-not-started choices from the 12-item audit — pick
-whichever the user names, or ask if they haven't:
+`plan.md` §12.1 is the authoritative ordered priority queue. **Everything
+implementable is done — all 34 items except one.** The single remaining
+decided-but-not-started item:
 
-- **Ambient occlusion, EASYGL-only** (user decision 2026-07-10): needs a
-  custom vertex format + `ShaderEffect` on the EasyGL backend specifically
-  (not Vulkan/Bgfx) — this is now a scoping decision already made, not an
-  open design question; the remaining work is the implementation itself.
-  Related engine constraint (vertex-stride-based shader dispatch) is
-  documented in CRAFT_PARITY.md §5.1 and item 27's plan.md writeup — read
-  that first, since it directly shaped how far a vertex-format change can
-  go without new engine-side work.
 - **Multiplayer — planning only** (user decision 2026-07-10, "Začít
   plánovat"): every usual prerequisite (persistence, chunk streaming,
   chat/commands) is done, so nothing structurally blocks starting a design
   pass — but the user asked only to *plan*, not implement, so don't write
   networking code without a further explicit go-ahead.
 
-If the user asks "what's next" with nothing else specified, offer this list
-rather than guessing which of the two to start.
+Also legitimately available if the user prefers polish over planning:
+one-keypress verifications on their real machine (F11 fullscreen, item 34;
+day/night AO dimming + Vulkan AO rendering, item 12 — see §3 item 19's
+NOT-live-verified list), or the §11 backlog's remaining nice-to-haves
+(greedy meshing, occlusion culling — neither user-requested yet).
+
+If the user asks "what's next" with nothing else specified, offer this
+short list rather than picking silently.
 
 ## 9. Do not do yet
 
@@ -766,10 +812,16 @@ asymmetric scheme) — **plus**:
   pitch-clamp, reach-distance, arrow-key-speed, plant-rotation, or
   player-position-persistence changes** — all already done (see §3); don't
   re-investigate these as if they were still open.
-- **AO now has a scope decision (EASYGL-only) — it's not blocked on "which
-  shader backend," only on someone doing the implementation.** Don't
-  re-litigate the backend choice; don't expand scope to Vulkan/Bgfx without
-  a new explicit decision.
+- **AO is DONE — don't re-implement it, and don't "restore" the old
+  terrain lighting.** Specifically: don't re-add normals/`EnableDefaultLighting`
+  to chunk terrain (the 3-light rig with specular was NEVER Craft-accurate;
+  its removal was a deliberate parity win, and signs still use it — that
+  split is intentional); don't "fix" plants being unshaded by the ground
+  they stand on (Craft's own scalar `min_ao` behavior); don't swap the
+  flip comparison to baked shade (it must use raw ao — see §6); and the
+  old "EASYGL-only custom ShaderEffect" scope decision is SUPERSEDED, not
+  pending — the shipped approach beats it on every axis (see CRAFT_PARITY.md
+  §5.1's correction notes).
 - **`SignBillboard`'s single-winding fix (item 26) shipped without live
   screenshot re-verification** (sandbox keyboard-text-input broke
   mid-session) — if you're back in an environment where text input works,
@@ -816,60 +868,54 @@ asymmetric scheme) — **plus**:
 ```
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
-as of the last session, 32 of 34 items are completed (including item 19,
-the chunk-system redesign; item 25, the full 54-item block roster; item 17,
-chat/slash world-editing commands; item 26, four small parity-audit
-follow-ups — arrow-key speed, plant rotation, sign winding, player-position
-persistence; item 27, light toggle via a user-approved glow-pass design
-pivot; item 28, invisible-window-on-startup + glow-pass perf fixes; item 29,
-Minecraft-style flight/look controls replacing item 24's earlier same-day
-Craft-exact scheme, per direct user request; item 30, a real
-rendering-corruption bug fix — an exact-π/2 pitch clamp degenerating
-`Matrix::CreateLookAt`, exposed by items 24+29 compounding; item 31,
-player entombment at spawn + per-frame SQLite fsync stutter; item 32,
-both halves of Craft's cloud guards — is_obstacle on placement,
-is_destructable on breaking; item 33, the textured sky dome — real
-sky.png colors, morning start; and item 34, F11 fullscreen). **If you
-touch `PlayerController::kPitchLimit`, read item 30 first — don't set it
-back to the literal exact π/2. If you touch Initialize()'s spawn loading,
+as of the last session (2026-07-11), **33 of 34 items are completed and
+nothing is blocked**; the only remaining item is multiplayer, scoped to
+planning ONLY (user decision — don't write networking code without a
+further explicit go-ahead). Highlights: item 19 chunk streaming, item 25
+the 54-block roster, item 17 chat/slash commands, items 26-34 the parity
+audit's follow-ups (controls, light-toggle glow pass, sky dome, F11), and
+item 12 **ambient occlusion** — baked per-vertex Craft AO via
+`MeshVertex::shade` + vertex-color terrain, shipped with zero engine work
+on ALL backends after planning research disproved the recorded
+"EASYGL-only ShaderEffect" premise (see CRAFT_PARITY.md §5.1's correction
+notes, and §6's baked-AO invariants before touching the mesher/renderer:
+the ×0.5/×2 shade-diffuse pair, raw-ao flip comparison, 27-chunk
+snapshots, cross-product dirty rule). **If you touch
+`PlayerController::kPitchLimit`, read item 30 first — don't set it back
+to the literal exact π/2. If you touch Initialize()'s spawn loading,
 UpdateStreaming's ordering, or HealPlayerIfEmbedded, read item 31 first —
 the one-synchronous-column arrangement is the settled midpoint of two real
-user-reported bugs in opposite directions.** 1 blocked with a
-scope decision already made (ambient occlusion, EASYGL-only — not blocked
-on a decision anymore, just on implementation), 1 pending with a scope
-decision already made (multiplayer — planning only, don't implement
-without a further explicit go-ahead); those two are also the only
-remaining not-started choices from the 12-item parity audit (see §8). If
-the user doesn't specify what to work on, offer this short list rather
-than guessing which to start. Before implementing anything that cites Craft's source code,
-re-verify the citation against the real checkout at
+user-reported bugs in opposite directions.** If the user doesn't specify
+what to work on, offer §8's short list rather than guessing. Before
+implementing anything that cites Craft's source code, re-verify the
+citation against the real checkout at
 /rv/data/development/github.com/other/Craft — CRAFT_PARITY.md was
-carefully audited but could still contain an error, same as every prior
-citation pass in this project's history. **Don't revert item 29's controls
-back toward Craft parity** — it's a deliberate, informed reversal of item
-24, not drift; see CRAFT_PARITY.md §1.6's notes for the full history. Make
+carefully audited but has twice now contained real errors (owned in §2.6
+and §5.1's notes). **Don't revert item 29's controls back toward Craft
+parity** — a deliberate, informed reversal; see CRAFT_PARITY.md §1.6. Make
 one small, verified improvement at a time: implement, build (cmake --build
 build-worlds, or the full EasyGL build if it touches Render/ or
 CnaCraftGame), run the relevant test/smoke command, confirm it actually
-passes — and for anything touching CnaCraftGame/Render, verify visually via
-a real Xvfb/xdotool/ImageMagick screenshot cycle where possible (remember:
-SDL_VIDEODRIVER=x11 is required in this sandbox; as of this session, mouse
-clicks, synthetic keyboard text input, AND movement/action keydown/keyup
-have all become unreliable at various points — check whether any have
-recovered before assuming they're still broken, and fall back to unit
-tests + code review, same as items 27/29 had to, when they haven't). If you
-touch the chunk-streaming/threading code (World
-column storage, CnaCraftGame's Dispatch*/Poll* methods), re-read §6's
-TaskT/apply-cap notes first — there's a real, subtle, already-found-once
-bug class there (discarding instead of deferring completed-but-over-cap
-jobs). If you touch WorldEditor/ExecuteCommand, re-read §6's PasteRegion
-note first — a same-World overlapping paste can clobber source data
-mid-copy, a real Craft quirk, not a bug to "fix." If you touch light-toggle
-or add any new combined vertex format, re-read item 27's plan.md writeup
-and CRAFT_PARITY.md §5.1 first — CNA's graphics backends dispatch
-shader/pipeline selection by hardcoded raw vertex-buffer byte stride, not
-by declared vertex elements, which is why AO and full light propagation
-are both harder than they look. When finished, update plan.md §12.1's
+passes — and for anything touching CnaCraftGame/Render, verify visually
+via a real Xvfb/xdotool/ImageMagick screenshot cycle where possible
+(SDL_VIDEODRIVER=x11 required; as of 2026-07-11 synthetic KEYBOARD works
+again — use explicit `xdotool keydown/keyup --window <id>`, not the
+instant `key` form — while MOUSE stays dead; a hand-crafted `world.db`
+with `block`/`light`/`state` rows is the proven substitute for
+mouse-dependent scene setup, including exact camera aim via `state`'s
+yaw/pitch — see §3 item 19 and §4). If you touch the
+chunk-streaming/threading code (World column storage, CnaCraftGame's
+Dispatch*/Poll* methods), re-read §6's TaskT/apply-cap notes first —
+there's a real, subtle, already-found-once bug class there (discarding
+instead of deferring completed-but-over-cap jobs). If you touch
+WorldEditor/ExecuteCommand, re-read §6's PasteRegion note first — a
+same-World overlapping paste can clobber source data mid-copy, a real
+Craft quirk, not a bug to "fix." If you add any new combined vertex
+format, re-read item 27's plan.md writeup and CRAFT_PARITY.md §5.1 first —
+CNA backends dispatch shaders by hardcoded vertex-buffer byte stride, and
+the 3D path ignores ShaderEffect entirely; that's why real torch-light
+propagation (whose `min(1, daylight+light)` does NOT factor like AO did)
+still needs genuine engine work. When finished, update plan.md §12.1's
 status, update CRAFT_PARITY.md's corresponding entry, and update this
 file's "Current status"/"Recent changes".
 ```

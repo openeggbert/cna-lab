@@ -364,12 +364,15 @@ explicit human decision first:
 - `completed` (see §12.1 item 19) — Hash-map-keyed dynamic chunk store + distance-based
   load/unload (§11.1) — the unbounded, streamed world.
 - `completed` (moved here from §11.2, see §12.1 item 7) — Non-cubic plant/billboard geometry.
-  `pending` (large) — ambient occlusion, greedy meshing (§11.2) — each needs a further
-  `MeshVertex`/`ChunkMesher` format change.
-- `blocked` (EASYGL-only today) / `needs_human` if VULKAN/BGFX parity is required — Textured sky
-  dome + fog, point/block lighting (§11.3): needs CNA `ShaderEffect`; EASYGL has real runtime GLSL,
-  VULKAN needs a precompiled-SPIR-V toolchain (no runtime GLSL path), BGFX's `ShaderEffect` is a
-  stub in CNA itself (upstream engine work, out of this repo's scope) — see `missing.md`.
+  `completed` (see §12.1 item 12, 2026-07-11) — ambient occlusion (`MeshVertex::shade`);
+  `pending` (large) — greedy meshing (§11.2), which still needs its own `ChunkMesher` rework.
+- Mostly `completed` shader-free, superseding this entry's old "needs CNA `ShaderEffect`" premise
+  (see missing.md's 2026-07-11 correction): textured sky dome + fog shipped as §12.1 item 33,
+  block lighting as the item-27 glow pass, ambient occlusion as item 12 — all on stock effects,
+  all backends. Still genuinely shader-blocked (EASYGL-only if attempted today): real torch-light
+  propagation (`min(1, daylight+light)` doesn't factor into static × uniform) and per-fragment
+  elevation fog — and CNA's 3D draw path currently ignores `ShaderEffect` on every backend, so
+  even those need engine work first, not just a shader.
 - `completed` (see §12.1 item 15) — SQLite-backed delta persistence (§11.5). User decision
   2026-07-10: add SQLite as a dependency.
 - `pending`, explicitly deferred — Multiplayer/`Net`-based chunk/block sync (§11.6): per project
@@ -499,10 +502,11 @@ explicit human decision first:
       history): a screenshot clearly showed the sky blending through the glass tile's alpha rather
       than a flat opaque color, confirming the blend pass works; temporary code was reverted before
       committing.
-- [ ] Ambient occlusion baked per-vertex at mesh time (Craft implements
+- [x] Ambient occlusion baked per-vertex at mesh time (Craft implements
       http://0fps.wordpress.com/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/, encoded
-      as a 4th UV component — `uv.z` in `shaders/block_vertex.glsl`'s `fragment_ao`). `MeshVertex`
-      would need an `ao` field alongside `tileIndex`.
+      as a 4th UV component — `uv.z` in `shaders/block_vertex.glsl`'s `fragment_ao`). Done —
+      §12.1 item 12 (2026-07-11): `MeshVertex::shade` + vertex-color rendering, no shader work
+      needed after all.
 - [ ] Greedy meshing to replace the current naive per-face `ChunkMesher` (§4/§9 M7) — reduces
       vertex count substantially once the world is no longer fixed-size.
 - [x] Per-chunk frustum culling before `ChunkRenderer::Draw` (Craft: naive AABB-vs-frustum test in
@@ -742,8 +746,34 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     **empirically confirmed meaningful** by temporarily forcing `kMinSubsteps=kMaxSubsteps=1`
     (i.e. disabling substepping) and observing the new test correctly fail, then restoring the
     real values and re-confirming all 139 tests pass.
-12. `blocked` — **Ambient occlusion** (CRAFT_PARITY.md §5.1): needs a custom vertex format +
-    `ShaderEffect`; only `EASYGL` has real runtime shader support today per `missing.md`.
+12. `completed` (2026-07-11) — **Ambient occlusion** (CRAFT_PARITY.md §5.1). Shipped WITHOUT any
+    CNA engine work and on ALL backends, superseding both this entry's old "needs a custom vertex
+    format + `ShaderEffect`" premise and the user's earlier EASYGL-only scope decision — planning
+    research found (a) CNA's 3D draw path ignores `ShaderEffect` entirely (it only works via 2D
+    SpriteBatch), so that route was MORE engine work than recorded, and (b) with no torch light
+    (item 27's pivot) and Craft's FIXED diffuse direction, Craft's whole block-lighting equation
+    factors into `texel × (daylight*0.3+0.2) × (1+df)*aoBrightness` — per-frame scalar × static
+    per-vertex value. Implementation in 3 committed phases: (1) `ChunkMesher::ComputeOcclusion`, a
+    direct port of Craft's `occlusion()` (27-neighborhood, curve, both-sides rule, 8-block column
+    shade, diagonal flip, plant scalar `min_ao`, cloud contrast compression keyed on
+    `BlockType::Cloud`), baked into a new `MeshVertex::shade`; lookup cells derived geometrically
+    from the mesher's own face table (Craft's tables use a different face/corner order), pinned by
+    38 hand-derived known-value checks; occupancy snapshotted per `Build()` into a Craft-style
+    padded array filled in chunk-aligned slabs — the worlds suite got FASTER than pre-AO (18.7s vs
+    20.4s) because face culling stopped hash-walking `World::IsOpaque`; `World::SetBlock`'s dirty
+    rule widened to the `[x-1,x+1]×[y-8,y+1]×[z-1,z+1]` cross product (diagonals + the 8-down
+    shade reach). (2) Mesh-job snapshots widened 7→27 chunks and `MarkNeighborColumnsDirty` 4→8
+    columns (Craft's own 3×3 `dirty_chunk` shape) so background meshing can't bake border seams.
+    (3) Terrain uploads as `VertexPositionColorTexture` carrying `shade/2`; every `Draw` pass sets
+    explicit state — terrain unlit + `DiffuseColor = 2*(daylight*0.3+0.2)` (day/night stays a live
+    uniform, zero rebaking), sky/glow/outline white diffuse, signs keep the lit rig (its only
+    remaining consumer). Verified: 341/341 + 40/40 tests; live Xvfb screenshots of a staged
+    `world.db` scene (wall spanning the x=16 chunk border: contact shadow continuous, NO seam;
+    overhang underside dark; lone-block contact ring; plant on stone platform fully bright; clouds
+    only mildly shaded; glow block bright and daylight-independent). Synthetic keyboard
+    movement/typing RECOVERED this session (mouse still dead) — day/night animation over wall time
+    and Vulkan were not live-verified here (clock too slow in sandbox / EasyGL-only build), both
+    grounded in code reading + unit tests; worth one look on the user's machine.
 13. `completed` — **Fog** (CRAFT_PARITY.md §5.2): `CnaCraftGame::Draw` now sets `effect_`'s
     built-in `FogEnabled`/`FogColor`/`FogStart`/`FogEnd` every frame (`kFogStart=70`,
     `kFogEnd=150`, scaled to this project's fixed 128×64×128 world instead of Craft's

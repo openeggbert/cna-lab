@@ -25,16 +25,27 @@ GLSL shaders (`shaders/block_vertex.glsl`, `shaders/block_fragment.glsl`,
   stub `BgfxEffectBackend` — `Bind()` is empty, no shader compilation happens at all. Custom
   shaders on BGFX would require new engine-level work in CNA itself, not just in `cna-craft`.
 
-**Implication:** AO baking, day/night-driven sky dome fog, and any other custom-shader visual
-feature can only be built cleanly against `EASYGL` right now. `VULKAN` can get there but needs a
-SPIR-V toolchain investment. `BGFX` can't get there at all until CNA's own BGFX backend grows
-real shader support — that's upstream work on CNA, out of `cna-craft`'s scope.
+**Implication:** any genuinely custom-shader visual feature can only be built cleanly against
+`EASYGL` right now. `VULKAN` can get there but needs a SPIR-V toolchain investment. `BGFX` can't
+get there at all until CNA's own BGFX backend grows real shader support — that's upstream work on
+CNA, out of `cna-craft`'s scope.
 
-**Recommendation:** treat `EASYGL` as the primary/reference target for full-fidelity work
-(§11.2/§11.3 of `plan.md` — AO, day/night sky dome). Treat `VULKAN` as a secondary target that
-should work once shaders are precompiled to SPIR-V. Treat `BGFX` as `BasicEffect`-only (no AO, no
-dynamic day/night lighting) until CNA's BGFX backend gets real shader support — file that as a
-CNA-side task, not a `cna-craft` one.
+**Correction (2026-07-11, plan.md §12.1 item 12):** two things this section used to imply turned
+out wrong, and one of its headline examples no longer needs shaders at all. (1) `ShaderEffect` is
+only consumed by the 2D SpriteBatch path on EVERY backend — CNA's 3D draws select stock programs
+by vertex stride and never bind a custom effect — so "build 3D AO against EASYGL's ShaderEffect"
+was never actually a workable plan without engine changes. (2) **AO shipped without any custom
+shader**, on all three backends, by baking Craft's static lighting factor into
+`VertexPositionColorTexture` vertex colors and riding daylight on `BasicEffect::DiffuseColor` —
+see CRAFT_PARITY.md §5.1. The sky dome similarly shipped shader-free (item 33). What still
+genuinely needs the custom-shader work described above: real torch-light propagation
+(`min(1, daylight + light)` does not factor into static × uniform) and per-fragment
+elevation-dependent fog.
+
+**Recommendation (historical, now mostly moot):** treat `EASYGL` as the primary/reference target
+for any FUTURE custom-shader work; `VULKAN` secondary (SPIR-V toolchain); `BGFX`
+`BasicEffect`-only until CNA's BGFX backend gets real shader support — file that as a CNA-side
+task, not a `cna-craft` one.
 
 ## SQLite: added 2026-07-10 (user decision), delta persistence implemented
 
@@ -71,11 +82,14 @@ an offline dev environment.
 
 ## Summary
 
-| Backend | Gameplay (movement/collision/terrain/blocks) | Custom shaders (AO, day/night, fog) | Notes |
+| Backend | Gameplay (movement/collision/terrain/blocks) | Custom shaders (2D-only today; would matter for torch-light propagation / per-fragment fog) | Notes |
 |---|---|---|---|
-| EASYGL | ✅ works today | ✅ real GLSL support | reference/primary target |
+| EASYGL | ✅ works today | ✅ real GLSL support (SpriteBatch path only — 3D draws ignore ShaderEffect on every backend) | reference/primary target |
 | VULKAN | ✅ works today | ⚠️ works, but needs precompiled SPIR-V | extra toolchain investment |
 | BGFX | ✅ works today | ❌ `ShaderEffect` is a stub in CNA | needs upstream CNA work first; first configure needs network access |
+
+(AO and the day/night sky dome were both delivered WITHOUT custom shaders — 2026-07-11 correction
+above — so this table now only gates the features still listed in its header.)
 
 Full Craft feature parity, identically on all three backends, is not realistic today without also
 extending CNA's own BGFX backend. A phased, backend-tiered approach (per the table above) is the
