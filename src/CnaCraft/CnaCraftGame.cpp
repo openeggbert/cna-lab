@@ -269,18 +269,21 @@ void CnaCraftGame::RecordMark(int x, int y, int z, Worlds::BlockType type) {
 }
 
 void CnaCraftGame::MarkNeighborColumnsDirty(int cx, int cz) {
-    // Whenever a column loads or unloads, its face-adjacent neighbors'
-    // shared boundary faces need re-meshing: a neighbor meshed before this
-    // column existed culled that shared face against "phantom Air" (or, on
-    // unload, needs to show it again now that the neighbor is gone) --
-    // see LoadColumn/UnloadColumn.
-    static constexpr int kOffsetsX[4] = {-1, 1, 0, 0};
-    static constexpr int kOffsetsZ[4] = {0, 0, -1, 1};
-    for (int i = 0; i < 4; ++i) {
-        const int ncx = cx + kOffsetsX[i], ncz = cz + kOffsetsZ[i];
-        if (!world_.IsColumnLoaded(ncx, ncz)) continue;
-        for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
-            world_.ChunkAt(ncx, cy, ncz).MarkDirty();
+    // Whenever a column loads or unloads, its neighbors' meshes go stale:
+    // face-adjacent ones culled shared boundary faces against "phantom
+    // Air" (or need to show them again on unload), and since plan.md
+    // §12.1 item 12 ALL 8 surrounding columns -- diagonals included --
+    // also bake this column's blocks into their corner-vertex ambient
+    // occlusion (Craft's own dirty_chunk marks the same 3x3 column
+    // neighborhood, main.c:865-877). See LoadColumn/UnloadColumn.
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dz = -1; dz <= 1; ++dz) {
+            if (dx == 0 && dz == 0) continue;
+            const int ncx = cx + dx, ncz = cz + dz;
+            if (!world_.IsColumnLoaded(ncx, ncz)) continue;
+            for (int cy = 0; cy < Worlds::WORLD_CHUNKS_Y; ++cy) {
+                world_.ChunkAt(ncx, cy, ncz).MarkDirty();
+            }
         }
     }
 }
@@ -446,9 +449,11 @@ void CnaCraftGame::DispatchMeshingForDirtyChunks() {
     // kMaxColumnLoadsPerFrame: sharp-runtime's ThreadPool/TaskT spawn a
     // genuine new OS thread per Task::Run call rather than drawing from a
     // real bounded pool, so uncapped dispatch is a real hazard, not just a
-    // theoretical one -- one column loading can dirty up to 20 chunks at
-    // once (its own 4 Y-levels + up to 4 neighbor columns' 4 Y-levels
-    // each), and multiple columns can load in the same frame. A dirty
+    // theoretical one -- one column loading can dirty up to 36 chunks at
+    // once (its own 4 Y-levels + up to 8 neighbor columns' 4 Y-levels
+    // each, diagonals included since item 12's AO -- see
+    // MarkNeighborColumnsDirty), and multiple columns can load in the same
+    // frame. A dirty
     // chunk that doesn't get dispatched this frame stays dirty (its flag
     // is only cleared right when a task is actually dispatched for it) and
     // is picked up by a later frame's call instead.
@@ -465,22 +470,31 @@ void CnaCraftGame::DispatchMeshingForDirtyChunks() {
             chunk.ClearDirty(); // cleared on dispatch, not completion -- matches Craft's own timing
             ++dispatchesThisFrame;
 
-            // Snapshot the target chunk + its up-to-6 face-adjacent
-            // neighbors as plain copyable (cx,cy,cz,Chunk) tuples -- the
-            // background task reconstructs its own throwaway World from
-            // this, never touching the live world_.
+            // Snapshot the target chunk + ALL 26 surrounding neighbors as
+            // plain copyable (cx,cy,cz,Chunk) tuples -- the background task
+            // reconstructs its own throwaway World from this, never
+            // touching the live world_. Diagonal neighbors joined the set
+            // with plan.md §12.1 item 12: baked ambient occlusion samples
+            // the full 27-cell neighborhood around every boundary block
+            // (and the column-shade term reads up to 8 cells above the
+            // chunk top), so a face-adjacent-only snapshot would bake AO
+            // seams along chunk edges/corners. ~27 x ~8 KB per job --
+            // still trivial next to the mesh itself. An absent neighbor
+            // (unloaded column, cy out of range) reads as Air in the
+            // scratch World, matching Craft's own null-map behavior.
             struct ChunkSnapshot {
                 int cx = 0, cy = 0, cz = 0;
                 Worlds::Chunk chunk;
             };
             std::vector<ChunkSnapshot> snapshots;
-            static constexpr int kOffsetsX[7] = {0, -1, 1, 0, 0, 0, 0};
-            static constexpr int kOffsetsY[7] = {0, 0, 0, -1, 1, 0, 0};
-            static constexpr int kOffsetsZ[7] = {0, 0, 0, 0, 0, -1, 1};
-            for (int n = 0; n < 7; ++n) {
-                const int ncx = cx + kOffsetsX[n], ncy = cy + kOffsetsY[n], ncz = cz + kOffsetsZ[n];
-                if (const Worlds::Chunk* neighbor = world_.TryChunkAt(ncx, ncy, ncz)) {
-                    snapshots.push_back(ChunkSnapshot{ncx, ncy, ncz, *neighbor});
+            for (int nx = -1; nx <= 1; ++nx) {
+                for (int ny = -1; ny <= 1; ++ny) {
+                    for (int nz = -1; nz <= 1; ++nz) {
+                        const int ncx = cx + nx, ncy = cy + ny, ncz = cz + nz;
+                        if (const Worlds::Chunk* neighbor = world_.TryChunkAt(ncx, ncy, ncz)) {
+                            snapshots.push_back(ChunkSnapshot{ncx, ncy, ncz, *neighbor});
+                        }
+                    }
                 }
             }
 
