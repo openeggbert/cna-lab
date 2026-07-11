@@ -778,8 +778,10 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     overhang underside dark; lone-block contact ring; plant on stone platform fully bright; clouds
     only mildly shaded; glow block bright and daylight-independent). Synthetic keyboard
     movement/typing RECOVERED this session (mouse still dead) — day/night animation over wall time
-    and Vulkan were not live-verified here (clock too slow in sandbox / EasyGL-only build), both
-    grounded in code reading + unit tests; worth one look on the user's machine.
+    and Vulkan were not live-verified in the sandbox (clock too slow / EasyGL-only build).
+    **Day/night since USER-VERIFIED on real hardware (2026-07-11): dusk, night, and the full
+    cycle confirmed OK ("soumrak a noc stridani dne a noci jsou ok").** Vulkan remains the one
+    unverified surface.
 13. `completed` — **Fog** (CRAFT_PARITY.md §5.2): `CnaCraftGame::Draw` now sets `effect_`'s
     built-in `FogEnabled`/`FogColor`/`FogStart`/`FogEnd` every frame (`kFogStart=70`,
     `kFogEnd=150`, scaled to this project's fixed 128×64×128 world instead of Craft's
@@ -1501,6 +1503,19 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
     itself). `README.md` §5 updated. Pure input-wiring glue over an existing engine API (same
     verification class as item 21) — verified via a clean build; the actual mode switch needs a
     real window manager to confirm visually, which the user can do with one keypress.
+35. `completed` (2026-07-11) — **Fix upside-down flower sprites**, user report ("ohledne kvetin -
+    jsou obracene"). Root cause in `Render/TextureAtlas.cpp`'s `FlowerPattern`: the art code was
+    written in image-editor "pixel row 0 = top" orientation, but `MapAtlasUv` maps `localV=0` —
+    a quad's BOTTOM vertices per `ChunkMesher`'s `kUv` — to pixel row 0, so low rows render at
+    the quad's bottom: blooms sat on the ground with stems pointing up. The flower is the
+    atlas's only vertically-directional tile (every cube pattern is vertically symmetric, tall
+    grass's blades run full-height), which is why nothing else ever exposed the convention
+    mismatch — present since the flower tile was first drawn, NOT an item-12 AO regression
+    (AO touched neither UVs nor the atlas). Fix: one mirrored coordinate (`fy = kAtlasTileSize -
+    1 - y`) inside `FlowerPattern`, with the V-convention documented at the flip site so the
+    next directional tile doesn't repeat this. Verified via a staged-world.db lineup of all six
+    flower colors + tall grass before/after under Xvfb: blooms now on top, stems rooted,
+    grass unchanged.
 
 ### 12.2 Deliberately not re-litigated this session
 

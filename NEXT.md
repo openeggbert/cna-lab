@@ -523,10 +523,10 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     (wall spanning the x=16 border: contact shadow continuous, no seam;
     dark overhang underside; lone-block contact ring; plant on stone
     fully bright; clouds mildly shaded; glow block bright and
-    daylight-independent). NOT live-verified: day/night animation over
-    wall time (sandbox clock too slow) and the Vulkan backend (EasyGL
-    build only here) — both grounded in code reading + tests; worth one
-    look on the user's machine.
+    daylight-independent). **Day/night USER-VERIFIED on real hardware
+    later the same day** ("soumrak a noc stridani dne a noci jsou ok") —
+    the only remaining unverified surface is the Vulkan backend (EasyGL
+    build only in the sandbox), grounded in code reading + tests.
 
 20. **Multiplayer planning pass** (plan.md §12.1 item 18, CRAFT_PARITY.md
     §4.6 — same session, 2026-07-11). Deliverable: **`MULTIPLAYER_PLAN.md`**
@@ -555,6 +555,21 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     Craft's byte-for-byte but the `w` VALUES don't (cna-craft BlockType
     ordinals ≠ Craft item ids), so a real Craft `craft.db` would be
     misread — documented, not fixed.
+
+21. **Fix upside-down flower sprites** (plan.md §12.1 item 35 — user
+    report while playing, 2026-07-11: "ohledne kvetin - jsou obracene").
+    `FlowerPattern` in `Render/TextureAtlas.cpp` drew its art assuming
+    "pixel row 0 = top", but `MapAtlasUv` maps `localV=0` (a quad's
+    BOTTOM vertices) to pixel row 0 — blooms rendered at the ground,
+    stems up. One mirrored coordinate fixes it; the V convention is now
+    documented at the flip site. The flower was the atlas's ONLY
+    vertically-directional tile, so nothing else is affected (checked:
+    all cube patterns vertically symmetric, tall-grass blades
+    full-height). Present since the flower tile was first drawn — not an
+    AO regression. Verified before/after via a staged-world.db lineup of
+    all six flower colors under Xvfb. Same session, the user also
+    confirmed dusk/night/day cycling looks right on their machine (see
+    item 19's verification note).
 
 ## 4. Current blocker / main problem
 
@@ -795,9 +810,9 @@ implementable is done, and the multiplayer PLANNING pass is done too**
 
 Also legitimately available if the user prefers polish over planning:
 one-keypress verifications on their real machine (F11 fullscreen, item 34;
-day/night AO dimming + Vulkan AO rendering, item 12 — see §3 item 19's
-NOT-live-verified list), or the §11 backlog's remaining nice-to-haves
-(greedy meshing, occlusion culling — neither user-requested yet).
+Vulkan AO rendering — day/night was already user-verified 2026-07-11, see
+§3 item 19), or the §11 backlog's remaining nice-to-haves (greedy meshing,
+occlusion culling — neither user-requested yet).
 
 If the user asks "what's next" with nothing else specified, offer this
 short list rather than picking silently.

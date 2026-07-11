@@ -238,21 +238,32 @@ Color FlowerPattern(const TileColor& base, int x, int y) {
     // Simple stem-and-bloom shape on an otherwise fully-transparent
     // background -- a per-pixel stand-in for Craft's real hand-drawn flower
     // sprites (7 distinct color variants; this project has one
-    // representative Flower type, see BlockType.hpp). Lower half: a thin
-    // green stem. Upper half: a rough circular bloom cluster in the tile's
-    // base (petal) color.
+    // representative Flower type, see BlockType.hpp). Stem in the quad's
+    // lower half, bloom cluster in its upper half.
+    //
+    // ORIENTATION (user-reported bug, 2026-07-11: "kvetiny jsou obracene"
+    // -- blooms rendered at the ground with stems pointing up): MapAtlasUv
+    // maps localV=0 -- a quad's BOTTOM vertices, see ChunkMesher's kUv --
+    // to the tile's pixel row 0, so LOW pixel y renders at the BOTTOM of
+    // the quad. This function was originally written assuming the
+    // opposite, image-editor-style "row 0 = top" orientation; `fy` mirrors
+    // the coordinate so the art logic below can keep reading in that
+    // natural top-down convention while rendering right-side up. The
+    // flower is the atlas's only vertically-directional tile, which is why
+    // nothing else ever exposed the convention mismatch.
+    const int fy = kAtlasTileSize - 1 - y;
     constexpr int kCenter = kAtlasTileSize / 2;
-    if (y >= kCenter) {
+    if (fy >= kCenter) {
         const bool onStem = (x == kCenter || x == kCenter - 1);
         if (!onStem) return Color(base.r, base.g, base.b, std::uint8_t{0});
-        return Shade(TileColor{70, 140, 40, 255}, (PixelHash(20, x, y) - 0.5f) * 0.10f);
+        return Shade(TileColor{70, 140, 40, 255}, (PixelHash(20, x, fy) - 0.5f) * 0.10f);
     }
     const int dx = x - kCenter;
-    const int dy = y - (kCenter / 2);
+    const int dy = fy - (kCenter / 2);
     const int distSq = dx * dx + dy * dy;
     constexpr int kBloomRadiusSq = 9;
     if (distSq > kBloomRadiusSq) return Color(base.r, base.g, base.b, std::uint8_t{0});
-    return Shade(base, (PixelHash(20, x, y) - 0.5f) * 0.15f);
+    return Shade(base, (PixelHash(20, x, fy) - 0.5f) * 0.15f);
 }
 
 Color PaintPixel(int tile, int x, int y) {
