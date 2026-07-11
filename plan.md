@@ -1619,7 +1619,47 @@ those kinds of concrete, verifiable gaps over further decorative world-gen work.
       100 ms**, with a flat worker count and JS heap. Native builds + all six CTest suites
       unchanged.
 
-### 12.2 Deliberately not re-litigated this session
+38. `completed` (2026-07-11) — **Web build: fix mouse capture and Tab focus-stealing**, user
+    report after item 37 landed ("nefunguje kurzor jenom klavesnice" / "tab nefunguje"). Two real,
+    independent (non-threading) bugs, both missed by earlier testing because it only exercised
+    keyboard, never mouse, and never checked whether focus survived a Tab press.
+    - **Cursor**: `web/shell.html`'s overlay click handler called `canvas.requestPointerLock()`
+      itself, racing the game's OWN pointer-lock request (`Mouse::setIsRelativeMouseModeEXTProperty
+      (true)` in `Initialize()` → SDL's `Emscripten_SetRelativeMouseMode` →
+      `emscripten_request_pointerlock(canvas, 1)`, confirmed by reading
+      `third_party/SDL/src/video/emscripten/SDL_emscriptenmouse.c` inside CNA's vendored SDL). The
+      trailing `1` is Emscripten's `deferUntilInEventHandler` flag: since `Initialize()` runs
+      before any user gesture, the browser denies that first attempt, but Emscripten queues it and
+      reruns it automatically on the next Emscripten-registered event handler firing while
+      `navigator.userActivation.isActive` (confirmed in the compiled JS:
+      `JSEvents.deferCall`/`canPerformEventHandlerRequests`/`runDeferredCalls`) — a click on the
+      overlay div satisfies this via `mousedown` bubbling to `document`. The shell's own duplicate
+      call on the same click raced that queued retry and likely got rejected. Fix: removed the
+      manual call entirely — SDL/Emscripten's own mechanism now solely owns it.
+    - **Tab**: has a browser default action (shift keyboard focus) that was never suppressed, so
+      pressing it silently moved focus off the page instead of only toggling fly mode. Fixed with
+      a `window`-level, capture-phase `keydown` listener in `shell.html` that calls
+      `preventDefault()` for `Tab` and `Space` (both have default browser actions and are core
+      gameplay keys) without `stopPropagation`, so Emscripten's own keydown handling still
+      processes every key normally.
+    - **Verified in headless Chrome**: `document.activeElement` stays `"canvas"` across a Tab press
+      (direct proof the focus-steal is fixed); SDL3's own raw `mouse_x`/`mouse_y` globals still
+      update from synthetic mouse movement; a combined mouse-move + Tab + sustained-flight session
+      produced zero deadlocks/aborts at a steady ~60 FPS across two independent runs. **Could NOT
+      verify**: whether pointer lock actually engages for a real user gesture — headless Chrome
+      never grants Pointer Lock for CDP-synthesized clicks regardless of any code fix (a
+      deliberate anti-automation browser restriction, not a bug); `document.pointerLockElement`
+      stayed `null` throughout every attempt, consistent with that limitation.
+
+39. `needs_human` / **currently BLOCKED — black screen in a REAL browser** (2026-07-11, user
+    report immediately after item 38: "na firefoxu i chrome je cerna obrazovka", with a `404 File
+    not found` console line followed by the normal init sequence — `WindowDebug`, `EasyGL
+    initialized`, `WorldStore: could not open world.db`). This is a NEW, still-open bug, on BOTH
+    browsers, in real (non-headless) sessions — item 38's headless verification could not have
+    caught it, since headless Chrome's pointer-lock/gesture limitations already made a full
+    real-world play session impossible to reproduce there. See NEXT.md §4 for the full
+    investigation state, ruled-out causes, and concrete next steps — start there, not from
+    scratch, before touching this again.
 
 Per CRAFT_PARITY.md, these are `complete` (functionally equivalent to Craft) and need no task:
 main game loop (§1.1), mouse look (§1.4), zoom/ortho (§1.9 — its arrow-look half was removed by

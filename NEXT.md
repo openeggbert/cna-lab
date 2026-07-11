@@ -1,19 +1,29 @@
 # NEXT.md
 
 Handoff document for resuming work on **cna-craft**. Last updated 2026-07-11
-after shipping **MULTIPLAYER end to end** (plan.md §12.1 item 18, phases
-M0-M7 — see §3 item 22 below), on branch `develop`. That completes the
-ENTIRE §12.1 queue: all 34 items are `completed`, nothing is blocked or
-pending. The same day also shipped ambient occlusion (item 12 — via baked
-vertex colors on ALL backends after planning research disproved the
-recorded "EASYGL-only ShaderEffect" premise; see §3 item 19 and
-CRAFT_PARITY.md §5.1's correction notes), the upside-down-flower fix
-(item 35, §3 item 21), and the multiplayer design pass + its four
-user-decided scope questions (`MULTIPLAYER_PLAN.md` — cna-craft↔cna-craft
-only with an own C++ server, no auth, PIP observation + @nick PMs in
-scope; real-Craft-server compatibility deliberately dropped). The user
-verified dusk/night/day cycling on real hardware; the Vulkan backend
-remains the one surface not yet looked at (see §8).
+on branch `develop`. **There is an OPEN, unresolved bug right now: the web
+build shows a black screen in real (non-headless) Firefox and Chrome —
+plan.md §12.1 item 39, `needs_human` — see §4 for the full investigation
+state. Read §4 before touching the web build again.**
+
+Same session, earlier: shipped **MULTIPLAYER end to end** (plan.md §12.1
+item 18, phases M0-M7 — see §3 item 22 below), which completed the entire
+§12.1 queue as it stood then (34/34 items). Also shipped ambient occlusion
+(item 12 — via baked vertex colors on ALL backends after planning research
+disproved the recorded "EASYGL-only ShaderEffect" premise; see §3 item 19
+and CRAFT_PARITY.md §5.1's correction notes), the upside-down-flower fix
+(item 35, §3 item 21), the multiplayer design pass + its four user-decided
+scope questions (`MULTIPLAYER_PLAN.md` — cna-craft↔cna-craft only with an
+own C++ server, no auth, PIP observation + @nick PMs in scope;
+real-Craft-server compatibility deliberately dropped), and — per a
+separate user request "zkus udelat webovy emscripten build" — an
+Emscripten/WebAssembly build (items 36-38, §3 items 23-25) that went
+through three real, found-and-fixed bugs (a synchronous-main-thread
+streaming freeze, a pthread mutex deadlock on mouse input, then a
+duplicate-pointer-lock-request + Tab-focus-steal pair) before hitting the
+CURRENTLY-OPEN black-screen bug above. The user verified dusk/night/day
+cycling on real hardware; the Vulkan backend remains one surface not yet
+looked at (see §8).
 
 **Immediately after item 27 shipped**, the user hit it live and reported two
 real bugs: an invisible window on startup (both EasyGL and Vulkan) and
@@ -644,11 +654,125 @@ in `worlds_smoke_test`; 21 → 26 (phase 0/2 schema/column tests) → 30
     thread deadlocks. Verified: 60 s of continuous streaming flight =
     3604 frames, median 16.7 ms, worst 26.5 ms, zero frames over 100 ms.
 
+25. **Web build — fix mouse capture and Tab focus-stealing** (plan.md
+    §12.1 item 38, user report right after item 24 landed: "nefunguje
+    kurzor jenom klavesnice" / "tab nefunguje"). Two real, INDEPENDENT
+    bugs (nothing to do with threading), both missed earlier because
+    testing only ever used keyboard, never mouse, and never checked
+    whether focus survived a Tab press. **Cursor**: `web/shell.html`'s
+    overlay click handler called `canvas.requestPointerLock()` itself,
+    racing the game's OWN pointer-lock request (`Initialize()`'s
+    `Mouse::setIsRelativeMouseModeEXTProperty(true)` → SDL's
+    `Emscripten_SetRelativeMouseMode` →
+    `emscripten_request_pointerlock(canvas, 1)` — confirmed by reading
+    CNA's vendored `third_party/SDL/src/video/emscripten/
+    SDL_emscriptenmouse.c`). The trailing `1` is Emscripten's
+    `deferUntilInEventHandler` flag: since `Initialize()` runs before any
+    user gesture, the browser denies that first attempt, but Emscripten
+    QUEUES it and reruns it automatically the next time any of its own
+    event handlers fires while `navigator.userActivation.isActive`
+    (confirmed in the compiled JS: `JSEvents.deferCall`/
+    `canPerformEventHandlerRequests`/`runDeferredCalls`) — a click on the
+    overlay satisfies this via `mousedown` bubbling to `document`. The
+    shell's OWN duplicate call on the same click raced that queued retry
+    and likely got rejected as a dupe. Fix: removed the manual call
+    entirely, trusting SDL/Emscripten's own mechanism exclusively.
+    **Tab**: has a browser default action (shift keyboard focus) never
+    suppressed, so pressing it silently moved focus off the page instead
+    of toggling fly mode. Fixed with a `window`-level, capture-phase
+    `keydown` listener (`preventDefault()` for `Tab`/`Space`, no
+    `stopPropagation` — Emscripten's own handling still sees every key
+    normally). Verified in headless Chrome: `document.activeElement`
+    stays `"canvas"` across a Tab press (direct proof), SDL3's raw
+    `mouse_x`/`mouse_y` still update from synthetic movement, zero
+    deadlocks across combined mouse+Tab+flight sessions at ~60 FPS.
+    **Could NOT verify pointer lock actually ENGAGING** — headless Chrome
+    never grants it for CDP-synthesized clicks (`document.
+    pointerLockElement` stayed `null` throughout, consistent with that
+    known browser anti-automation restriction, not a fix failure).
+
 ## 4. Current blocker / main problem
 
-**None.** Clean build (both `-DCNA_CRAFT_BUILD_GAME=OFF` and
-`-DCNA_GRAPHICS_BACKEND=EASYGL`, built from scratch), 303/303 + 40/40 tests
-passing, zero compiler warnings.
+**Web build: BLACK SCREEN in a real (non-headless) browser — both
+Firefox and Chrome, reported immediately after item 25 landed
+(2026-07-11).** This is the actual next task (plan.md §12.1 item 39,
+`needs_human`) — **read this whole section before touching it.**
+
+**Exact user report**: console shows, in this order —
+```
+Failed to load resource: the server responded with a status of 404 (File not found)
+[WindowDebug] after SDL_CreateWindow: flags=0x622 borderless=false fullscreen=false
+EasyGLGraphicsBackend initialized with OpenGL OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium))
+CNA: EasyGL capabilities -- MSAA up to 8x; ...
+WorldStore: could not open world.db -- edits will not be saved this session
+```
+— then black screen, on BOTH browsers. Note the 404 line prints *before*
+`[WindowDebug]`, i.e. before SDL/CNA/WorldStore init messages, and nothing
+prints *after* `WorldStore:` — either the game silently stalls right after
+that point (no further printf ever runs, e.g. stuck before/inside the
+first `Draw()`), or it's running but genuinely rendering nothing (actual
+black framebuffer), and there is no visible JS-side exception either way
+(no `Aborted`/`RuntimeError` like item 25's mutex deadlock had — this
+looks like a silent stall/no-op, not a crash).
+
+**What is already ruled out / known-good, so don't re-investigate these**:
+- **The 404's exact URL was NOT captured** in the user's paste — Chrome's
+  console often only shows this generic line unless expanded. In every
+  one of THIS session's own server logs (`web/serve.py`'s access log),
+  the only 404s ever seen were `favicon.ico` and
+  `/.well-known/appspecific/com.chrome.devtools.json` — both totally
+  benign browser auto-probes, NOT things the game needs, and NOT things
+  that would cause a black screen. **First step next session: open the
+  browser's Network tab (not just Console) and get the EXACT 404'd URL**
+  — don't assume it's the favicon without checking; if it names an actual
+  build artifact (`.wasm`, `.js`, `.worker.js`, `.wasm.map`), that changes
+  the diagnosis completely.
+- **Not a stale-cache JS/WASM mismatch**: `web/serve.py` already sends
+  `Cache-Control: no-store` on every response (confirmed present in the
+  file) — a hard-refresh shouldn't even be necessary, though asking the
+  user to try one (and/or a fully new private/incognito window, to rule
+  out a service worker or extension interfering) costs nothing and is a
+  reasonable first ask.
+- **Not the item-25 mouse/Tab fix's own logic** — that fix only touches
+  JS event-handling code paths (click/keydown listeners), nothing that
+  runs before `Initialize()` or affects rendering; a black screen this
+  early (before the user could even interact) doesn't implicate it
+  directly, though it can't be ruled out as a coincidental trigger
+  without a bisect (see next steps).
+- **Not the pthread deadlock from item 25's predecessor** — that produced
+  an explicit `Aborted(Assertion failed...)` in the console; this report
+  has no such message at all.
+
+**Concrete next steps, in order**:
+1. Get the EXACT 404 URL from the Network tab (or ask the user to paste
+   it) — this is the single most useful missing fact.
+2. Ask the user to try a hard-refresh (Ctrl+Shift+R) and/or a fresh
+   private-browsing window, and report whether the 404/black-screen
+   persists identically.
+3. Bisect via `-DCNA_CRAFT_WASM_THREADS=OFF` (see CMakeLists.txt's
+   option, added in item 24): rebuild with threads off (single-threaded
+   fallback, no `PROXY_TO_PTHREAD`/`OFFSCREEN_FRAMEBUFFER`) and see if
+   the black screen still happens — this isolates whether it's
+   thread-related at all (item 24/25's territory) or something else
+   entirely (e.g. a plain WebGL context-creation or shader-compile issue
+   that's ALWAYS been latent and only now being hit on the user's real
+   GPU/driver, unlike this sandbox's SwiftShader software renderer).
+4. Get the FULL console output, not just what was pasted — ask the user
+   to scroll up/down and copy everything, since real Chrome/Firefox
+   sessions may print additional lines (warnings, shader compile logs,
+   further errors) that a truncated paste could have cut off.
+5. This sandbox's headless Chrome testing (SwiftShader, `--enable-unsafe-
+   swiftshader`) has consistently shown a WORKING game throughout this
+   entire web-build effort (items 23-25) — so this may be a real-GPU- or
+   real-browser-specific issue this sandbox literally cannot reproduce.
+   If bisection doesn't localize it quickly, the most efficient path may
+   be asking the user to run with the browser's DevTools open from page
+   load (not just after) and share a full screenshot of the Network +
+   Console tabs together.
+
+**Native build status (unaffected by any of this)**: clean build (both
+`-DCNA_CRAFT_BUILD_GAME=OFF` and `-DCNA_GRAPHICS_BACKEND=EASYGL`, built
+from scratch), all six CTest suites passing, zero compiler warnings.
 
 Carried over, still unresolved, still not urgent: mouse-look reliability
 confirmation on the user's real (non-sandboxed) machine — `needs_human`,
@@ -898,9 +1022,15 @@ There is no separate lint/format tooling configured in this repo.
 
 ## 8. Next smallest tasks
 
-`plan.md` §12.1 is the authoritative ordered priority queue — and it is
-**FINISHED: all 34 items completed**, multiplayer included. Nothing is
-decided-but-unstarted. What legitimately remains:
+**Top of the list right now: plan.md §12.1 item 39, the web build's
+real-browser black screen (`needs_human`) — see §4 for the full
+investigation state, what's ruled out, and the concrete next steps. Start
+there, don't re-derive.** Everything else below is optional/secondary
+until that's resolved.
+
+`plan.md` §12.1's numbered queue is otherwise **FINISHED: all items
+completed**, multiplayer included, except that one open item. What else
+legitimately remains:
 
 - **Real-machine verifications** (one look each): Vulkan backend rendering
   (AO + the new player cubes — EasyGL-only sandbox here; note the Net
@@ -1024,9 +1154,26 @@ asymmetric scheme) — **plus**:
 ## 10. Resume prompt
 
 ```
+FIRST: there is an OPEN, unresolved bug -- plan.md §12.1 item 39, the web
+build shows a black screen in real (non-headless) Firefox AND Chrome,
+right after a 404 in the console (exact URL not yet captured) followed by
+normal-looking init messages (WindowDebug, EasyGL init, WorldStore) and
+then nothing further. Read NEXT.md §4 in full before doing ANYTHING else
+with the web build -- it has the exact repro, what's already ruled out
+(favicon/devtools 404s are the only ones this sandbox has ever seen and
+are benign; not a stale-cache issue, serve.py already sends
+Cache-Control: no-store; not the mouse/Tab fix's own logic by itself; not
+the earlier pthread deadlock, which had a different, explicit console
+error), and 5 concrete next steps in priority order (get the exact 404
+URL from the Network tab first). This sandbox's headless Chrome (SwiftShader)
+has shown a working game through this entire web-build effort, so this may
+be a real-GPU/real-browser-specific issue unreproducible here -- may need
+the user's own DevTools session to fully diagnose.
+
 Read CRAFT_PARITY.md first (the authoritative Craft-vs-cna-craft parity
 audit), then plan.md §12.1 (the ordered priority queue derived from it) —
-as of the last session (2026-07-11), **ALL 34 items are completed** —
+as of the last session (2026-07-11), **ALL 34 numbered-queue items are
+completed** (see below for two follow-up items past the original 34) —
 including item 18, MULTIPLAYER, implemented end to end in phases M0-M7
 (protocol/transport/server/world-sync/game-integration/remote-players/
 chat+mode-switching/PIP+PMs; `MULTIPLAYER_PLAN.md` is the wire-format and
