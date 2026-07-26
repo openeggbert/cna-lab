@@ -54,6 +54,13 @@ cmake --build --preset sdl-renderer --target CnaTamagotchiDomainTests
 ctest --test-dir cmake-build-sdl-renderer --output-on-failure
 ```
 
+## Save foundation
+
+The framework-free persistence layer now writes and reads version-1 JSON save
+files, validates every field, writes through a `.tmp` file, and creates a
+`.bak` copy before replacing an existing slot. Automatic save-slot selection,
+UTC time catch-up, and in-game loading will be connected in a later milestone.
+
 ## Layout
 
 ```text

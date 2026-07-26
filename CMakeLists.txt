@@ -108,4 +108,12 @@ if(CNA_TAMAGOTCHI_BUILD_TESTS AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_C
     target_include_directories(CnaTamagotchiDomainTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
     add_test(NAME CnaTamagotchiDomainTests COMMAND CnaTamagotchiDomainTests)
+
+    add_executable(CnaTamagotchiPersistenceTests
+        tests/SaveRepositoryTests.cpp
+        src/Persistence/SaveRepository.cpp
+    )
+    target_include_directories(CnaTamagotchiPersistenceTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    add_test(NAME CnaTamagotchiPersistenceTests COMMAND CnaTamagotchiPersistenceTests)
 endif()

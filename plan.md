@@ -46,9 +46,10 @@ will be copied.
   - Add basic original pet species and a data-driven evolution table.
 
 - [ ] **6. Persistence and resilience**
-  - Implement versioned JSON save/load in a user-data directory.
-  - Use atomic replacement plus a backup save.
-  - Add migration, validation, corruption-recovery, and offline-time tests.
+  - [x] Implement version-1 JSON save/load with field validation.
+  - [x] Use a temporary file and backup before replacing an existing save.
+  - Add user-data path selection, atomic-replace support on every target,
+    migrations, corruption recovery, and UTC offline-time integration.
 
 - [ ] **7. Polish and release readiness**
   - Add sound options, keyboard/controller accessibility, pause/help, and
