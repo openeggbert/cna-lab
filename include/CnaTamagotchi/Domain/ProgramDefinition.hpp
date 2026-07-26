@@ -30,7 +30,7 @@ enum class ProgramEndScreen : std::uint8_t {
 
 // P1 records a hidden A/B lineage when the child becomes a teen.  This is a
 // programme fact, not a UI species choice: later adult rules may constrain the
-// lineage in addition to accumulated care and discipline mistakes.
+// lineage in addition to accumulated care and the visible discipline meter.
 enum class ProgramTeenLineage : std::uint8_t {
     None,
     TypeA,
@@ -92,6 +92,12 @@ struct EvolutionRule final {
     std::string_view targetCharacterId;
     int minimumCareMistakes{0};
     int maximumCareMistakes{-1};
+    int minimumDisciplineBars{0};
+    int maximumDisciplineBars{-1};
+    // Kept as an independent criterion so a later programme whose documented
+    // chart uses missed discipline calls can still use the shared resolver.
+    // International P1 leaves this range unconstrained and uses its four
+    // visible discipline bars instead.
     int minimumDisciplineMistakes{0};
     int maximumDisciplineMistakes{-1};
     ProgramTeenLineage requiredTeenLineage{ProgramTeenLineage::None};

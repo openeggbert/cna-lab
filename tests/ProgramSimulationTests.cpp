@@ -1,6 +1,7 @@
 #include "CnaTamagotchi/Domain/P1Program.hpp"
 #include "CnaTamagotchi/Domain/ProgramSimulation.hpp"
 
+#include <array>
 #include <iostream>
 
 using namespace CnaTamagotchi::Domain;
@@ -69,12 +70,12 @@ void testP1FoodGameWasteAndSleepUseProgrammeData()
     const ProgramDefinition& p1 = Programs::internationalP1();
     static_cast<void>(simulation.advance(p1, pet, 5));
 
-    expect(simulation.feed(p1, pet, 0) && pet.hungerHearts == 1 && pet.weight == 6,
-        "P1 Bread must add one hunger heart and one ounce from programme data");
-    expect(simulation.feed(p1, pet, 1) && pet.happinessHearts == 1 && pet.weight == 8,
-        "P1 Candy must add one happiness heart and two ounces from programme data");
-    expect(simulation.completeGame(p1, pet, 3) && pet.happinessHearts == 2 && pet.weight == 7,
-        "a three-win P1 Character game must add happiness and remove one ounce");
+    expect(simulation.feed(p1, pet, 0) && pet.hungerHearts == 1 && pet.weight == 5,
+        "P1 Bread must add one hunger heart while Babytchi keeps its five-ounce weight");
+    expect(simulation.feed(p1, pet, 1) && pet.happinessHearts == 1 && pet.weight == 5,
+        "P1 Candy must add happiness while Babytchi keeps its five-ounce weight");
+    expect(simulation.completeGame(p1, pet, 3) && pet.happinessHearts == 2 && pet.weight == 5,
+        "a three-win P1 Character game must not change Babytchi's fixed baby weight");
 
     static_cast<void>(simulation.advance(p1, pet, 15));
     expect(pet.wasteCount == 1, "Babytchi's captured first waste event must be programme data");
@@ -91,13 +92,13 @@ void testP1FoodGameWasteAndSleepUseProgrammeData()
         "the P1 Light action must apply only while the character is asleep");
 }
 
-ProgramPetState p1TeenWith(const int careMistakes, const int disciplineMistakes,
+ProgramPetState p1TeenWith(const int careMistakes, const int disciplineBars,
                            ProgramSimulation& simulation, const ProgramDefinition& p1)
 {
     ProgramPetState pet{};
     static_cast<void>(simulation.advance(p1, pet, 5));
     pet.careMistakes = careMistakes;
-    pet.disciplineMistakes = disciplineMistakes;
+    pet.disciplineBars = disciplineBars;
     const ProgramAdvanceReport evolution = simulation.advance(
         p1, pet, p1.lifecycle.babyToChildMinutes + p1.lifecycle.childToTeenMinutes);
     expect(evolution.becameChild && evolution.becameTeen && pet.stage == ProgramStage::Teen,
@@ -114,38 +115,57 @@ void testP1EvolutionRulesRemainProgrammeData()
     expect(p1.evolutionRules.size() == 17,
         "the P1 programme must expose its teen and adult chart as data rules");
 
-    ProgramPetState mametchi = p1TeenWith(0, 0, simulation, p1);
-    expect(mametchi.characterId == "tamatchi" && mametchi.teenLineage == ProgramTeenLineage::TypeA,
-        "low-care P1 child state must select type-A Tamatchi");
-    const ProgramAdvanceReport mametchiEvolution = simulation.advance(
-        p1, mametchi, p1.lifecycle.teenToAdultMinutes);
-    expect(mametchiEvolution.becameAdult && mametchi.characterId == "mametchi"
-            && mametchi.age == p1.lifecycle.adultAge,
-        "type-A Tamatchi with zero discipline mistakes must become Mametchi at age six");
-
-    ProgramPetState ginjirotchi = p1TeenWith(0, 1, simulation, p1);
-    static_cast<void>(simulation.advance(p1, ginjirotchi, p1.lifecycle.teenToAdultMinutes));
-    expect(ginjirotchi.characterId == "ginjirotchi",
-        "type-A Tamatchi with one discipline mistake must become Ginjirotchi");
-
-    ProgramPetState maskutchi = p1TeenWith(0, 2, simulation, p1);
-    static_cast<void>(simulation.advance(p1, maskutchi, p1.lifecycle.teenToAdultMinutes));
-    expect(maskutchi.characterId == "maskutchi",
-        "type-A Tamatchi with two discipline mistakes must become Maskutchi");
-
-    ProgramPetState kuchipatchi = p1TeenWith(3, 0, simulation, p1);
-    expect(kuchipatchi.characterId == "kuchitamatchi",
-        "three care mistakes must select Kuchitamatchi from Marutchi");
-    static_cast<void>(simulation.advance(p1, kuchipatchi, p1.lifecycle.teenToAdultMinutes));
-    expect(kuchipatchi.characterId == "kuchipatchi",
-        "type-A Kuchitamatchi with low discipline mistakes must become Kuchipatchi");
-
-    ProgramPetState typeB = p1TeenWith(0, 3, simulation, p1);
+    ProgramPetState typeA = p1TeenWith(0, 3, simulation, p1);
+    expect(typeA.characterId == "tamatchi" && typeA.teenLineage == ProgramTeenLineage::TypeA,
+        "one-or-fewer-care-mistake P1 child state with 75%-100% discipline must select type-A Tamatchi");
+    ProgramPetState typeB = p1TeenWith(0, 2, simulation, p1);
     expect(typeB.characterId == "tamatchi" && typeB.teenLineage == ProgramTeenLineage::TypeB,
-        "three discipline mistakes must retain Tamatchi but record the type-B lineage");
-    static_cast<void>(simulation.advance(p1, typeB, p1.lifecycle.teenToAdultMinutes));
-    expect(typeB.characterId == "maskutchi",
-        "the type-B Tamatchi rule must select Maskutchi from programme data");
+        "0%-50% child discipline must retain Tamatchi but record the type-B lineage");
+
+    ProgramPetState kuchitamatchi = p1TeenWith(2, 3, simulation, p1);
+    expect(kuchitamatchi.characterId == "kuchitamatchi"
+            && kuchitamatchi.teenLineage == ProgramTeenLineage::TypeA,
+        "two care mistakes must select type-A Kuchitamatchi from Marutchi");
+
+    struct AdultCase final {
+        int childCareMistakes;
+        int childDisciplineBars;
+        int adultCareMistakes;
+        int adultDisciplineBars;
+        const char* expectedCharacterId;
+    };
+    constexpr std::array<AdultCase, 15> adultCases{{
+        {0, 3, 0, 4, "mametchi"},
+        {0, 3, 0, 3, "ginjirotchi"},
+        {0, 3, 0, 0, "maskutchi"},
+        {0, 3, 3, 4, "kuchipatchi"},
+        {0, 3, 3, 3, "nyorotchi"},
+        {0, 3, 3, 0, "tarakotchi"},
+        {0, 2, 0, 4, "ginjirotchi"},
+        {0, 2, 0, 0, "maskutchi"},
+        {0, 2, 3, 4, "nyorotchi"},
+        {0, 2, 3, 0, "tarakotchi"},
+        {2, 3, 0, 4, "kuchipatchi"},
+        {2, 3, 0, 3, "nyorotchi"},
+        {2, 3, 0, 0, "tarakotchi"},
+        {2, 2, 0, 4, "nyorotchi"},
+        {2, 2, 0, 0, "tarakotchi"},
+    }};
+
+    for (const AdultCase& testCase : adultCases) {
+        ProgramPetState pet = p1TeenWith(testCase.childCareMistakes,
+            testCase.childDisciplineBars, simulation, p1);
+        // The meter can change during the teen stage, while the version set at
+        // its evolution remains hidden state. This is why both values belong
+        // in a resolver trace.
+        pet.careMistakes = testCase.adultCareMistakes;
+        pet.disciplineBars = testCase.adultDisciplineBars;
+        const ProgramAdvanceReport evolution = simulation.advance(
+            p1, pet, p1.lifecycle.teenToAdultMinutes);
+        expect(evolution.becameAdult && pet.characterId == testCase.expectedCharacterId
+                && pet.age == p1.lifecycle.adultAge,
+            "each classic P1 adult rule must select its documented data target at age six");
+    }
 }
 
 } // namespace

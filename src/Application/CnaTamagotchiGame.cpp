@@ -64,12 +64,12 @@ struct ButtonPosition final {
 };
 
 constexpr int IconCount = 8;
+constexpr int SelectableIconCount = IconCount - 1;
 constexpr int ButtonY = 555;
 constexpr int ResetButtonX = 408;
 constexpr int ResetButtonY = 542;
 constexpr int ResetButtonRadius = 10;
 constexpr float ResetHoldSeconds = 1.5F;
-constexpr float ClockViewSeconds = 3.0F;
 constexpr int ButtonHitRadius = 29;
 constexpr std::array<ButtonPosition, 3> ButtonPositions{{
     {202}, {270}, {338},
@@ -169,13 +169,18 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     bool resetHeld = keyboard.IsKeyDown(Keys::R);
 
     bool saveChanged = false;
-    const bool startsClockFlow = screen_ == Screen::Home
-        && clockChord && !clockChordWasDown_;
-    if (startsClockFlow) {
-        if (pet_.stage == Domain::ProgramStage::End) {
-            startNewEgg();
-        } else {
+    const bool pressedClockChord = clockChord && !clockChordWasDown_;
+    if (pressedClockChord) {
+        if (screen_ == Screen::ClockView) {
             beginClockSetup();
+        } else if (screen_ == Screen::Home && pet_.stage == Domain::ProgramStage::End) {
+            startNewEgg();
+        } else if (screen_ == Screen::Home && selectedIcon_ < 0) {
+            // P1 reserves this chord for the sound setting on the home LCD;
+            // the actual audio layer will consume this session-local setting
+            // when the P1 beep traces are implemented.
+            soundEnabled_ = !soundEnabled_;
+            setFeedback(Feedback::Success);
         }
     } else if (!clockChord) {
         if (selectNext && !selectNextWasDown_) {
@@ -229,13 +234,6 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     cancelWasDown_ = cancel;
     mouseLeftWasDown_ = mouseLeftDown;
     clockChordWasDown_ = clockChord;
-
-    if (screen_ == Screen::ClockView) {
-        clockViewSeconds_ = std::max(0.0F, clockViewSeconds_ - elapsedSeconds);
-        if (clockViewSeconds_ == 0.0F) {
-            screen_ = Screen::Home;
-        }
-    }
 
     if (screen_ != Screen::SaveRecovery && screen_ != Screen::ResetConfirm
         && screen_ != Screen::ClockSetup) {
@@ -295,8 +293,9 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
     }
 
     if (screen_ == Screen::ClockView) {
-        screen_ = Screen::Home;
-        clockViewSeconds_ = 0.0F;
+        if (button == DeviceButton::B || button == DeviceButton::C) {
+            screen_ = Screen::Home;
+        }
         return false;
     }
 
@@ -324,19 +323,28 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
     switch (button) {
     case DeviceButton::A:
         if (screen_ == Screen::Home) {
-            selectedIcon_ = (selectedIcon_ + 1 + IconCount) % IconCount;
+            selectedIcon_ = (selectedIcon_ + 1 + SelectableIconCount) % SelectableIconCount;
         } else if (screen_ == Screen::Food) {
             foodSelection_ = (foodSelection_ + 1)
                 % static_cast<int>(activeProgramme().food.size());
         } else if (screen_ == Screen::Game && !gameResolved_) {
-            gameChoice_ = (gameChoice_ + 1) % 2;
+            gameChoice_ = 0;
+            gameWon_ = gameChoice_ == gameTarget_;
+            gameResolved_ = true;
+            if (gameWon_) {
+                ++gameWins_;
+            }
+            ++gameRound_;
+            if (gameRound_ == activeProgramme().game.rounds) {
+                static_cast<void>(simulation_.completeGame(activeProgramme(), pet_, gameWins_));
+            }
+            return true;
         }
         return false;
     case DeviceButton::B:
         if (screen_ == Screen::Home && selectedIcon_ < 0) {
             if (pet_.attentionReason == Domain::ProgramAttentionReason::None) {
                 screen_ = Screen::ClockView;
-                clockViewSeconds_ = ClockViewSeconds;
             }
             return false;
         }
@@ -361,14 +369,14 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
                 }
                 return false;
             }
+            gameChoice_ = 1;
             gameWon_ = gameChoice_ == gameTarget_;
             gameResolved_ = true;
             if (gameWon_) {
                 ++gameWins_;
             }
             ++gameRound_;
-            if (gameRound_ == activeProgramme().game.rounds
-                && gameWins_ >= activeProgramme().game.winsNeededForHappiness) {
+            if (gameRound_ == activeProgramme().game.rounds) {
                 static_cast<void>(simulation_.completeGame(activeProgramme(), pet_, gameWins_));
             }
             return true;
@@ -465,13 +473,12 @@ bool CnaTamagotchiGame::resetAtWindowPosition(const float x, const float y) cons
 void CnaTamagotchiGame::moveSelectionBackward() noexcept
 {
     if (screen_ == Screen::Home) {
-        selectedIcon_ = selectedIcon_ < 0 ? IconCount - 1
-                                          : (selectedIcon_ + IconCount - 1) % IconCount;
+        selectedIcon_ = selectedIcon_ < 0 ? SelectableIconCount - 1
+                                          : (selectedIcon_ + SelectableIconCount - 1)
+                % SelectableIconCount;
     } else if (screen_ == Screen::Food) {
         foodSelection_ = (foodSelection_ + 1)
             % static_cast<int>(activeProgramme().food.size());
-    } else if (screen_ == Screen::Game && !gameResolved_) {
-        gameChoice_ = (gameChoice_ + 1) % 2;
     } else if (screen_ == Screen::SaveRecovery && recoveryBackupAvailable_) {
         recoveryChoice_ = recoveryChoice_ == RecoveryChoice::RestoreBackup
             ? RecoveryChoice::NewEgg : RecoveryChoice::RestoreBackup;
@@ -672,11 +679,13 @@ void CnaTamagotchiGame::startNextCharacterRound() noexcept
 
 void CnaTamagotchiGame::startNewEgg() noexcept
 {
-    // A new egg begins a fresh deterministic generation while retaining no
-    // accidental needs, illness, or care mistakes from the departed pet.
+    // A P1 death/new-egg chord keeps the already configured device clock. It
+    // clears the departed generation only; reset is the separate path that
+    // requires SET again.
     seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
+    const int retainedClockMinutes = pet_.clockMinutesOfDay;
     resetPetToEgg();
-    beginClockSetup();
+    pet_.clockMinutesOfDay = retainedClockMinutes;
 }
 
 void CnaTamagotchiGame::startFreshEgg() noexcept
@@ -690,7 +699,6 @@ void CnaTamagotchiGame::beginClockSetup() noexcept
 {
     clockSetupMinutes_ = pet_.clockMinutesOfDay;
     screen_ = Screen::ClockSetup;
-    clockViewSeconds_ = 0.0F;
 }
 
 void CnaTamagotchiGame::resetPetToEgg() noexcept

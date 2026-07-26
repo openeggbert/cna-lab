@@ -36,9 +36,9 @@ Each entry has a confidence status:
 | --- | --- | --- |
 | 32 × 16 one-bit game LCD, two four-icon bands | Provisional | Historical P1 documentation and device observation; retain the entire 32 × 16 game bitmap and render the fixed icon cells in its connected top/bottom surround. |
 | A selects, B confirms, C cancels | Verified | Manual activation and care instructions. Do not add direct-care buttons. |
-| B shows the clock when Attention is not lit | Verified | Official Original FAQ; the P1 UI must not use B only as a generic menu key. |
-| A+C enters clock setting | Verified | Official Original FAQ. A changes hours, B changes minutes, C confirms. |
-| A+C starts a new egg at the end screen | Verified | Official Original FAQ. |
+| B shows the clock when no icon is selected and Attention is not lit | Verified in part | The Clock view remains until B returns; the P1 UI must not use B only as a generic menu key. |
+| A+C on Clock enters clock setting; A+C on the clear home LCD toggles sound | Verified in part | A changes hours, B changes minutes, C confirms. The current app retains the sound setting until P1 audio traces are implemented. |
+| A+C starts a new egg at the end screen without setting the clock again | Verified in part | The existing P1 device clock is retained; only hardware reset enters SET. |
 | Rear reset produces a pulsating egg and requires clock setup | Verified | P1 manual. Desktop hold/confirmation is a host safety guard before this result. |
 
 ## Care functions
@@ -71,11 +71,31 @@ are captured from the selected target programme.
 ## Evolution-rule representation
 
 The shared engine represents a growth chart as ordered `EvolutionRule` data:
-source character, target character, care-mistake range, discipline-mistake
-range, and optional A/B teen lineage. P1 supplies rules for Marutchi →
-Tamatchi/Kuchitamatchi and the visible adult outcomes. The simulator has
-deterministic traces for the documented Mametchi, Ginjirotchi, Maskutchi,
-Kuchipatchi, Nyorotchi, and Tarakotchi branches.
+source character, target character, care-mistake range, visible-discipline-bar
+range, optional discipline-mistake range for programmes that need it, and an
+optional A/B teen lineage. The selected classic P1 profile uses its visible
+discipline bars exclusively; it does **not** use the later rerelease's
+discipline-mistake thresholds.
+
+The P1 package supplies the following classic visible branches. `A` and `B`
+are hidden versions of an otherwise identically named teenager; `D` is the
+four-segment 0–4 discipline meter at the adult transition.
+
+| Teen | Version | Care mistakes | D | Adult |
+| --- | --- | --- | --- | --- |
+| Tamatchi | A | 0–2 | 4 | Mametchi |
+| Tamatchi | A | 0–2 | 3 | Ginjirotchi |
+| Tamatchi | A | 0–2 | 0–2 | Maskutchi |
+| Tamatchi | A | 3+ | 4 / 3 / 0–2 | Kuchipatchi / Nyorotchi / Tarakotchi |
+| Tamatchi | B | 0–2 | 4 / 0–3 | Ginjirotchi / Maskutchi |
+| Tamatchi | B | 3+ | 4 / 0–3 | Nyorotchi / Tarakotchi |
+| Kuchitamatchi | A | any | 4 / 3 / 0–2 | Kuchipatchi / Nyorotchi / Tarakotchi |
+| Kuchitamatchi | B | any | 4 / 0–3 | Nyorotchi / Tarakotchi |
+
+At the Marutchi transition, 0–1 care mistakes selects Tamatchi and 2+ selects
+Kuchitamatchi. Three or four discipline bars records hidden version A; zero to
+two records B. The simulator has deterministic traces for each data-defined
+visible adult target.
 
 This is **provisional** source-backed behaviour, not yet a final fidelity
 claim. The current live Attention/care-mistake producer is incomplete, so the
@@ -89,7 +109,7 @@ branch remains open until its timing and zero-mistake condition are captured.
 | --- | --- | --- |
 | New egg hatches after about five minutes | Verified | Reset/activation → clock setup → hatch. |
 | Baby → child timing | Verified | Babytchi evolves to Marutchi after 65 minutes. |
-| Child → teen timing and branch | Verified in part | At age 3, 0–1 care mistakes yields Tamatchi; 2+ yields Kuchitamatchi. Capture exact version/discipline carry state. |
+| Child → teen timing and branch | Verified in part | At age 3, 0–1 care mistakes yields Tamatchi; 2+ yields Kuchitamatchi; 75–100% discipline records version A, 0–50% version B. |
 | Teen → adult timing and matrix | Verified in part | At age 6, the form is selected by teen type, care mistakes, and 25% discipline bands. Capture each branch in tests. |
 | Hunger/happiness decay | Open | Record every heart change by stage. |
 | Attention window and care-mistake criteria | Open | Trigger hunger, happiness, light, and false calls separately. |
@@ -117,9 +137,9 @@ branch remains open until its timing and zero-mistake condition are captured.
 These values were captured from [Thaao's original-P1 care guide](https://thaao.net/tama/p1/)
 and its [P1 character guide](https://thaao.net/tama/p1/?p=chara); the official
 manual remains the primary source for visible controls and care functions.
-The provisional A/B lineage and adult threshold table is additionally recorded
-by a [community P1 chart](https://tamagotchi.fandom.com/wiki/User_blog%3AThePeejdom/A_100%25_accurate_P1/P2_chart);
-it must be checked against target traces before release.
+The provisional A/B lineage and adult threshold table is recorded in the same
+[P1 character guide](https://thaao.net/tama/p1/?p=chara). It must still be
+checked against target traces before release.
 
 ## Explicit exclusions
 

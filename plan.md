@@ -73,7 +73,8 @@ similar emulation core is permitted in the application, build, or test suite.
 - [ ] **6. P1 controls and care menus**
   - [x] Add P1 clock flow: an unconfigured new/reset egg does not run or save;
     A sets the hour, B sets the minute, C confirms, B views the clock with no
-    selected icon, and A+C enters clock setup / starts an end-screen egg.
+    selected icon, A+C from that Clock view enters SET, and A+C starts an
+    end-screen egg while retaining the established clock.
   - Finish exact A/B/C navigation and clock behaviour in every transient
     animation and Attention state.
   - Replace legacy menus with P1 bread/candy Food, Light, Toilet, Health Meter,
@@ -86,7 +87,8 @@ similar emulation core is permitted in the application, build, or test suite.
   - Implement the five-round Character game, including left/right choices,
     result rules, happiness effect, and weight effect.
   - [x] Add a programme-data evolution-rule schema and deterministic traces for
-    the documented Marutchi, visible teen/adult, and A/B lineage branches.
+    the documented classic Marutchi, visible teen/adult, A/B lineage, and
+    four-discipline-bar branches (not modern rerelease discipline mistakes).
   - Connect real care/discipline mistakes to the full P1 tree and implement
     the separately timed hidden Bill path with exhaustive resolver tests.
 

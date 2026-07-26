@@ -24,30 +24,62 @@ constexpr std::array<CreatureDefinition, 11> Creatures{{
     CreatureDefinition{"bill", "Bill", ProgramStage::Adult, true, 30, 22 * 60, 9 * 60},
 }};
 
-// International P1's published chart distinguishes the hidden A/B teen
-// lineage from its visible character.  These ranges are intentionally data so
-// the simulator stays programme-agnostic; Bill's later Maskutchi-only special
+// International P1's classic chart distinguishes the hidden A/B teen lineage
+// from its visible character.  Unlike a modern rerelease, it evaluates the
+// four visible discipline bars (0%, 25%, 50%, 75%, 100%), not a count of
+// missed discipline calls. These ranges are intentionally data so the
+// simulator stays programme-agnostic; Bill's later Maskutchi-only special
 // branch is represented in the roster but awaits its separately timed trace.
 constexpr std::array<EvolutionRule, 17> EvolutionRules{{
-    EvolutionRule{"marutchi", "tamatchi", 0, 2},
-    EvolutionRule{"marutchi", "kuchitamatchi", 3, -1},
+    EvolutionRule{.sourceCharacterId = "marutchi", .targetCharacterId = "tamatchi",
+        .minimumCareMistakes = 0, .maximumCareMistakes = 1},
+    EvolutionRule{.sourceCharacterId = "marutchi", .targetCharacterId = "kuchitamatchi",
+        .minimumCareMistakes = 2},
 
-    EvolutionRule{"tamatchi", "mametchi", 0, 2, 0, 0, ProgramTeenLineage::TypeA},
-    EvolutionRule{"tamatchi", "ginjirotchi", 0, 2, 1, 1, ProgramTeenLineage::TypeA},
-    EvolutionRule{"tamatchi", "maskutchi", 0, 2, 2, -1, ProgramTeenLineage::TypeA},
-    EvolutionRule{"tamatchi", "kuchipatchi", 3, -1, 0, 1, ProgramTeenLineage::TypeA},
-    EvolutionRule{"tamatchi", "nyorotchi", 3, -1, 2, 3, ProgramTeenLineage::TypeA},
-    EvolutionRule{"tamatchi", "tarakotchi", 3, -1, 4, -1, ProgramTeenLineage::TypeA},
-    EvolutionRule{"tamatchi", "maskutchi", 0, 3, 2, -1, ProgramTeenLineage::TypeB},
-    EvolutionRule{"tamatchi", "nyorotchi", 4, -1, 3, 7, ProgramTeenLineage::TypeB},
-    EvolutionRule{"tamatchi", "tarakotchi", 4, -1, 8, -1, ProgramTeenLineage::TypeB},
+    EvolutionRule{.sourceCharacterId = "tamatchi", .targetCharacterId = "mametchi",
+        .maximumCareMistakes = 2, .minimumDisciplineBars = 4, .maximumDisciplineBars = 4,
+        .requiredTeenLineage = ProgramTeenLineage::TypeA},
+    EvolutionRule{.sourceCharacterId = "tamatchi", .targetCharacterId = "ginjirotchi",
+        .maximumCareMistakes = 2, .minimumDisciplineBars = 3, .maximumDisciplineBars = 3,
+        .requiredTeenLineage = ProgramTeenLineage::TypeA},
+    EvolutionRule{.sourceCharacterId = "tamatchi", .targetCharacterId = "maskutchi",
+        .maximumCareMistakes = 2, .maximumDisciplineBars = 2,
+        .requiredTeenLineage = ProgramTeenLineage::TypeA},
+    EvolutionRule{.sourceCharacterId = "tamatchi", .targetCharacterId = "kuchipatchi",
+        .minimumCareMistakes = 3, .minimumDisciplineBars = 4, .maximumDisciplineBars = 4,
+        .requiredTeenLineage = ProgramTeenLineage::TypeA},
+    EvolutionRule{.sourceCharacterId = "tamatchi", .targetCharacterId = "nyorotchi",
+        .minimumCareMistakes = 3, .minimumDisciplineBars = 3, .maximumDisciplineBars = 3,
+        .requiredTeenLineage = ProgramTeenLineage::TypeA},
+    EvolutionRule{.sourceCharacterId = "tamatchi", .targetCharacterId = "tarakotchi",
+        .minimumCareMistakes = 3, .maximumDisciplineBars = 2,
+        .requiredTeenLineage = ProgramTeenLineage::TypeA},
+    EvolutionRule{.sourceCharacterId = "tamatchi", .targetCharacterId = "ginjirotchi",
+        .maximumCareMistakes = 2, .minimumDisciplineBars = 4, .maximumDisciplineBars = 4,
+        .requiredTeenLineage = ProgramTeenLineage::TypeB},
+    EvolutionRule{.sourceCharacterId = "tamatchi", .targetCharacterId = "maskutchi",
+        .maximumCareMistakes = 2, .maximumDisciplineBars = 3,
+        .requiredTeenLineage = ProgramTeenLineage::TypeB},
+    EvolutionRule{.sourceCharacterId = "tamatchi", .targetCharacterId = "nyorotchi",
+        .minimumCareMistakes = 3, .minimumDisciplineBars = 4, .maximumDisciplineBars = 4,
+        .requiredTeenLineage = ProgramTeenLineage::TypeB},
+    EvolutionRule{.sourceCharacterId = "tamatchi", .targetCharacterId = "tarakotchi",
+        .minimumCareMistakes = 3, .maximumDisciplineBars = 3,
+        .requiredTeenLineage = ProgramTeenLineage::TypeB},
 
-    EvolutionRule{"kuchitamatchi", "kuchipatchi", 3, -1, 0, 1, ProgramTeenLineage::TypeA},
-    EvolutionRule{"kuchitamatchi", "nyorotchi", 3, -1, 2, 2, ProgramTeenLineage::TypeA},
-    EvolutionRule{"kuchitamatchi", "tarakotchi", 3, -1, 3, -1, ProgramTeenLineage::TypeA},
-    EvolutionRule{"kuchitamatchi", "maskutchi", 0, 3, 2, -1, ProgramTeenLineage::TypeB},
-    EvolutionRule{"kuchitamatchi", "nyorotchi", 3, -1, 3, 5, ProgramTeenLineage::TypeB},
-    EvolutionRule{"kuchitamatchi", "tarakotchi", 3, -1, 6, -1, ProgramTeenLineage::TypeB},
+    EvolutionRule{.sourceCharacterId = "kuchitamatchi", .targetCharacterId = "kuchipatchi",
+        .minimumDisciplineBars = 4, .maximumDisciplineBars = 4,
+        .requiredTeenLineage = ProgramTeenLineage::TypeA},
+    EvolutionRule{.sourceCharacterId = "kuchitamatchi", .targetCharacterId = "nyorotchi",
+        .minimumDisciplineBars = 3, .maximumDisciplineBars = 3,
+        .requiredTeenLineage = ProgramTeenLineage::TypeA},
+    EvolutionRule{.sourceCharacterId = "kuchitamatchi", .targetCharacterId = "tarakotchi",
+        .maximumDisciplineBars = 2, .requiredTeenLineage = ProgramTeenLineage::TypeA},
+    EvolutionRule{.sourceCharacterId = "kuchitamatchi", .targetCharacterId = "nyorotchi",
+        .minimumDisciplineBars = 4, .maximumDisciplineBars = 4,
+        .requiredTeenLineage = ProgramTeenLineage::TypeB},
+    EvolutionRule{.sourceCharacterId = "kuchitamatchi", .targetCharacterId = "tarakotchi",
+        .maximumDisciplineBars = 3, .requiredTeenLineage = ProgramTeenLineage::TypeB},
 }};
 
 constexpr ProgramDefinition Definition{

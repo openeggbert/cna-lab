@@ -105,12 +105,12 @@ private:
     int gameWins_{0};
     int clockSetupMinutes_{12 * 60};
     float feedbackSeconds_{0.0F};
-    float clockViewSeconds_{0.0F};
     float resetHoldSeconds_{0.0F};
     std::int64_t lastSavedUnixSeconds_{0};
     std::uint64_t seed_{0};
     bool gameResolved_{false};
     bool gameWon_{false};
+    bool soundEnabled_{true};
     bool recoveryBackupAvailable_{false};
     bool legacySaveAwaitingArchive_{false};
     RecoveryChoice recoveryChoice_{RecoveryChoice::NewEgg};

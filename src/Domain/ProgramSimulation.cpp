@@ -59,7 +59,7 @@ ProgramAdvanceReport ProgramSimulation::advance(const ProgramDefinition& program
     const int teenEvolutionMinute = programme.lifecycle.babyToChildMinutes
         + programme.lifecycle.childToTeenMinutes;
     if (state.stage == ProgramStage::Child && currentLifeMinute >= teenEvolutionMinute) {
-        state.teenLineage = state.disciplineMistakes <= 2
+        state.teenLineage = state.disciplineBars >= 3
             ? ProgramTeenLineage::TypeA : ProgramTeenLineage::TypeB;
         state.teenStartedWithNoDiscipline = state.disciplineBars == 0;
         report.becameTeen = evolve(programme, state);
@@ -91,7 +91,11 @@ bool ProgramSimulation::feed(const ProgramDefinition& programme, ProgramPetState
 
     state.hungerHearts = std::clamp(state.hungerHearts + food.hungerHeartDelta, 0, 4);
     state.happinessHearts = std::clamp(state.happinessHearts + food.happinessHeartDelta, 0, 4);
-    state.weight = std::max(0, state.weight + food.weightDelta);
+    // Babytchi can eat and play, but the original P1 never changes its
+    // displayed five-ounce baby weight.
+    if (state.stage != ProgramStage::Baby) {
+        state.weight = std::max(0, state.weight + food.weightDelta);
+    }
     if ((food.hungerHeartDelta > 0 && state.attentionReason == ProgramAttentionReason::Hunger)
         || (food.happinessHeartDelta > 0
             && state.attentionReason == ProgramAttentionReason::Happiness)) {
@@ -108,7 +112,9 @@ bool ProgramSimulation::completeGame(const ProgramDefinition& programme, Program
         return false;
     }
 
-    state.weight = std::max(0, state.weight + programme.game.weightDeltaOnCompletion);
+    if (state.stage != ProgramStage::Baby) {
+        state.weight = std::max(0, state.weight + programme.game.weightDeltaOnCompletion);
+    }
     if (wins >= programme.game.winsNeededForHappiness) {
         state.happinessHearts = std::clamp(
             state.happinessHearts + programme.game.happinessHeartDeltaOnWin, 0, 4);
@@ -189,6 +195,8 @@ const EvolutionRule* ProgramSimulation::matchingEvolutionRule(
         [&state, &within](const EvolutionRule& rule) {
             return rule.sourceCharacterId == state.characterId
                 && within(state.careMistakes, rule.minimumCareMistakes, rule.maximumCareMistakes)
+                && within(state.disciplineBars,
+                    rule.minimumDisciplineBars, rule.maximumDisciplineBars)
                 && within(state.disciplineMistakes,
                     rule.minimumDisciplineMistakes, rule.maximumDisciplineMistakes)
                 && (rule.requiredTeenLineage == ProgramTeenLineage::None

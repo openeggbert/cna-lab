@@ -38,14 +38,15 @@ Bread/Candy, the five-round Character game, weight effects, Toilet, and the
 captured Marutchi sleep schedule. P1 JSON saves have an explicit programme id;
 an incompatible prototype save is preserved under a `.legacy` suffix rather
 than invented into a P1 pet. A persisted, data-driven P1 growth resolver now
-covers the documented visible teen/adult branches in deterministic tests; live
+covers the documented classic visible teen/adult branches in deterministic
+tests, including the hidden teen-version and four-bar discipline matrix; live
 Attention-generated care mistakes and the later Bill branch are still pending.
 
 Those systems are foundations, not a complete P1 implementation yet. The new
 character catalogue uses provisional one-bit placeholders pending exact sprite
 and animation capture. Attention calls, later-stage decay and illness,
-discipline timing, the full evolution matrix, life span, and the angel end
-sequence still need source-backed implementation. Legacy
+discipline timing, the later Bill branch, life span, and the angel end sequence
+still need source-backed implementation. Legacy
 prototype source files remain temporarily for isolated historical tests, but
 they no longer drive the active application.
 
@@ -89,11 +90,14 @@ areas remain correct when the game window is resized. Icons do not become
 independent modern UI buttons: clicking an icon may be offered as an
 accessibility shortcut later, but it must invoke the equivalent A/B/C sequence.
 
-The active P1 mapping includes the original clock behaviour: B shows the clock
-for three seconds when Attention is not lit, and A+C enters clock setting. In
-clock setting, A advances the hour, B advances the minute, and C confirms.
-A+C together create a new egg after the end screen. Desktop shortcuts mirror
-those button combinations but do not introduce a fourth care action.
+The active P1 mapping includes the original clock behaviour: with no icon
+selected and no Attention call, B opens the clock and B returns to the home
+LCD. Press A+C while viewing that clock to enter clock setting; A advances the
+hour, B advances the minute, and C confirms. On a clear home LCD, A+C toggles
+the P1 sound setting (the audio output itself is still pending). A+C together
+create a new egg after the end screen **without** resetting the established
+clock. Desktop shortcuts mirror those button combinations but do not introduce
+a fourth care action.
 
 The recessed pinhole at the lower-right of the shell simulates the original
 rear reset switch without making it an accidental fourth care control. Hold it
@@ -164,17 +168,16 @@ it too long can make the creature ill. Illness is also possible after excessive
 snacks or severe neglect. Medicine only solves illness, not hunger, sadness,
 or a false discipline call.
 
-Weight is meaningful: meals add a little, snacks add more, and a successful
-game helps reduce it. This makes the player choose between a quick snack and
-playing the small game.
+Weight is meaningful after the baby stage: meals add a little, snacks add
+more, and completing the game helps reduce it. Babytchi remains at its fixed
+five-ounce starting weight regardless of feeding or play.
 
 ## Mini-game
 
 P1 has exactly one mini-game: **Character**. In each five-round game, A guesses
 that the creature will look left and B guesses that it will look right. Three or
 more correct guesses fill one happiness heart; completing the game also reduces
-weight when the creature is above its stage minimum. The P2 Number game will be
-removed. [P1 instruction manual](https://www.bandai.com/amfile/file/download/file/3639/product/1309818/)
+weight after the baby stage. The P2 Number game will be removed. [P1 instruction manual](https://www.bandai.com/amfile/file/download/file/3639/product/1309818/)
 
 ## Characters and evolution
 
