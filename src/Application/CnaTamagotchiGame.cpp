@@ -15,6 +15,8 @@
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Rectangle.hpp"
 #include "Microsoft/Xna/Framework/Input/Keyboard.hpp"
+#include "Microsoft/Xna/Framework/Input/Mouse.hpp"
+#include "Microsoft/Xna/Framework/Input/Touch/TouchPanel.hpp"
 
 using namespace Microsoft::Xna::Framework;
 using namespace Microsoft::Xna::Framework::Graphics;
@@ -52,9 +54,19 @@ struct IconPosition final {
     int y;
 };
 
+struct ButtonPosition final {
+    int x;
+};
+
 constexpr std::array<IconPosition, 8> IconPositions{{
     {151, 225}, {230, 209}, {310, 209}, {389, 225},
     {151, 510}, {230, 526}, {310, 526}, {389, 510},
+}};
+
+constexpr int ButtonY = 601;
+constexpr int ButtonHitRadius = 29;
+constexpr std::array<ButtonPosition, 3> ButtonPositions{{
+    {202}, {270}, {338},
 }};
 
 std::int64_t unixSecondsNow() noexcept
@@ -179,11 +191,6 @@ void CnaTamagotchiGame::LoadContent()
 void CnaTamagotchiGame::Update(GameTime& gameTime)
 {
     const KeyboardState keyboard = Keyboard::GetState();
-    if (keyboard.IsKeyDown(Keys::Escape)) {
-        Exit();
-        return;
-    }
-
     const auto elapsedMilliseconds =
         gameTime.getElapsedGameTimeProperty().getTotalMillisecondsProperty();
     const float elapsedSeconds = static_cast<float>(elapsedMilliseconds) / 1000.0F;
@@ -193,9 +200,69 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     const bool selectPrevious = keyboard.IsKeyDown(Keys::Left);
     const bool confirm = keyboard.IsKeyDown(Keys::B) || keyboard.IsKeyDown(Keys::Enter)
         || keyboard.IsKeyDown(Keys::Space);
-    const bool cancel = keyboard.IsKeyDown(Keys::C) || keyboard.IsKeyDown(Keys::Back);
+    const bool cancel = keyboard.IsKeyDown(Keys::C) || keyboard.IsKeyDown(Keys::Back)
+        || keyboard.IsKeyDown(Keys::Escape);
 
+    bool saveChanged = false;
     if (selectNext && !selectNextWasDown_) {
+        saveChanged = pressButton(DeviceButton::A);
+    }
+    if (selectPrevious && !selectPreviousWasDown_) {
+        moveSelectionBackward();
+    }
+    if (confirm && !confirmWasDown_) {
+        saveChanged = pressButton(DeviceButton::B) || saveChanged;
+    }
+    if (cancel && !cancelWasDown_) {
+        saveChanged = pressButton(DeviceButton::C) || saveChanged;
+    }
+
+    std::optional<DeviceButton> pointerButton;
+    const Touch::TouchCollection touches = Touch::TouchPanel::GetState();
+    for (int index = 0; index < touches.getCountProperty(); ++index) {
+        const Touch::TouchLocation& touch = touches[static_cast<std::size_t>(index)];
+        if (touch.getStateProperty() == Touch::TouchLocationState::Pressed) {
+            const Vector2& position = touch.getPositionProperty();
+            pointerButton = buttonAtWindowPosition(position.X, position.Y);
+            if (pointerButton.has_value()) {
+                break;
+            }
+        }
+    }
+
+    const MouseState mouse = Mouse::GetState();
+    const bool mouseLeftDown = mouse.getLeftButtonProperty() == ButtonState::Pressed;
+    if (!pointerButton.has_value() && mouseLeftDown && !mouseLeftWasDown_) {
+        pointerButton = buttonAtWindowPosition(
+            static_cast<float>(mouse.getXProperty()), static_cast<float>(mouse.getYProperty()));
+    }
+    if (pointerButton.has_value()) {
+        saveChanged = pressButton(*pointerButton) || saveChanged;
+    }
+
+    selectNextWasDown_ = selectNext;
+    selectPreviousWasDown_ = selectPrevious;
+    confirmWasDown_ = confirm;
+    cancelWasDown_ = cancel;
+    mouseLeftWasDown_ = mouseLeftDown;
+
+    simulationSeconds_ += elapsedSeconds;
+    while (simulationSeconds_ >= 60.0F) {
+        static_cast<void>(simulation_.advance(pet_, 1));
+        simulationSeconds_ -= 60.0F;
+        lastSavedUnixSeconds_ += 60;
+        saveChanged = true;
+    }
+    if (saveChanged) {
+        saveNow();
+    }
+    refreshDisplay();
+}
+
+bool CnaTamagotchiGame::pressButton(const DeviceButton button)
+{
+    switch (button) {
+    case DeviceButton::A:
         if (screen_ == Screen::Home) {
             selectedIcon_ = (selectedIcon_ + 1) % static_cast<int>(IconPositions.size());
         } else if (screen_ == Screen::Food) {
@@ -203,46 +270,47 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
         } else if (screen_ == Screen::Game && !gameResolved_) {
             gameChoice_ = (gameChoice_ + 1) % 2;
         }
-    }
-    if (selectPrevious && !selectPreviousWasDown_) {
-        if (screen_ == Screen::Home) {
-            selectedIcon_ = (selectedIcon_ + static_cast<int>(IconPositions.size()) - 1)
-                % static_cast<int>(IconPositions.size());
-        } else if (screen_ == Screen::Food) {
-            foodSelection_ = (foodSelection_ + 1) % 2;
-        } else if (screen_ == Screen::Game && !gameResolved_) {
-            gameChoice_ = (gameChoice_ + 1) % 2;
-        }
-    }
-    bool saveChanged = false;
-    if (confirm && !confirmWasDown_) {
+        return false;
+    case DeviceButton::B:
         if (screen_ == Screen::Food) {
             simulation_.applyAction(pet_, foodSelection_ == 0
                 ? Domain::PetAction::Meal : Domain::PetAction::Snack);
             screen_ = Screen::Home;
-            saveChanged = true;
-        } else if (screen_ == Screen::Status) {
+            return true;
+        }
+        if (screen_ == Screen::Status) {
             statusPage_ = (statusPage_ + 1) % 2;
-        } else if (screen_ == Screen::Game) {
+            return false;
+        }
+        if (screen_ == Screen::Game) {
             if (gameResolved_) {
                 screen_ = Screen::Home;
-            } else {
-                gameWon_ = gameChoice_ == gameTarget_;
-                gameResolved_ = true;
-                if (gameWon_) {
-                    simulation_.applyAction(pet_, Domain::PetAction::Play);
-                }
-                saveChanged = true;
+                return false;
             }
-        } else if (selectedIcon_ == 0) {
+            gameWon_ = gameChoice_ == gameTarget_;
+            gameResolved_ = true;
+            if (gameWon_) {
+                simulation_.applyAction(pet_, Domain::PetAction::Play);
+            }
+            return true;
+        }
+        if (selectedIcon_ == 0) {
             screen_ = Screen::Food;
-        } else if (selectedIcon_ == 5) {
+            return false;
+        }
+        if (selectedIcon_ == 5) {
             screen_ = Screen::Status;
-        } else if (selectedIcon_ == 2) {
-            startPeekGame();
-            screen_ = Screen::Game;
-            saveChanged = true;
-        } else {
+            return false;
+        }
+        if (selectedIcon_ == 2) {
+            if (!pet_.asleep) {
+                startPeekGame();
+                screen_ = Screen::Game;
+                return true;
+            }
+            return false;
+        }
+        {
             constexpr std::array<std::optional<Domain::PetAction>, 8> iconActions{{
                 std::nullopt, // food opens its own two-choice menu
                 Domain::PetAction::ToggleLight,
@@ -257,32 +325,53 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
                 iconActions[static_cast<std::size_t>(selectedIcon_)];
             if (action.has_value()) {
                 simulation_.applyAction(pet_, *action);
-                saveChanged = true;
+                return true;
             }
         }
-    }
-    if (cancel && !cancelWasDown_) {
+        return false;
+    case DeviceButton::C:
         if (screen_ != Screen::Home) {
             screen_ = Screen::Home;
         }
+        return false;
     }
 
-    selectNextWasDown_ = selectNext;
-    selectPreviousWasDown_ = selectPrevious;
-    confirmWasDown_ = confirm;
-    cancelWasDown_ = cancel;
+    return false;
+}
 
-    simulationSeconds_ += elapsedSeconds;
-    while (simulationSeconds_ >= 60.0F) {
-        static_cast<void>(simulation_.advance(pet_, 1));
-        simulationSeconds_ -= 60.0F;
-        lastSavedUnixSeconds_ += 60;
-        saveChanged = true;
+std::optional<CnaTamagotchiGame::DeviceButton>
+CnaTamagotchiGame::buttonAtWindowPosition(const float x, const float y) const noexcept
+{
+    const Rectangle clientBounds = getWindowProperty().getClientBoundsProperty();
+    if (clientBounds.Width <= 0 || clientBounds.Height <= 0) {
+        return std::nullopt;
     }
-    if (saveChanged) {
-        saveNow();
+
+    const float deviceX = x * static_cast<float>(WindowWidth)
+        / static_cast<float>(clientBounds.Width);
+    const float deviceY = y * static_cast<float>(WindowHeight)
+        / static_cast<float>(clientBounds.Height);
+    for (std::size_t index = 0; index < ButtonPositions.size(); ++index) {
+        const float deltaX = deviceX - static_cast<float>(ButtonPositions[index].x);
+        const float deltaY = deviceY - static_cast<float>(ButtonY);
+        if (deltaX * deltaX + deltaY * deltaY
+            <= static_cast<float>(ButtonHitRadius * ButtonHitRadius)) {
+            return static_cast<DeviceButton>(index);
+        }
     }
-    refreshDisplay();
+    return std::nullopt;
+}
+
+void CnaTamagotchiGame::moveSelectionBackward() noexcept
+{
+    if (screen_ == Screen::Home) {
+        selectedIcon_ = (selectedIcon_ + static_cast<int>(IconPositions.size()) - 1)
+            % static_cast<int>(IconPositions.size());
+    } else if (screen_ == Screen::Food) {
+        foodSelection_ = (foodSelection_ + 1) % 2;
+    } else if (screen_ == Screen::Game && !gameResolved_) {
+        gameChoice_ = (gameChoice_ + 1) % 2;
+    }
 }
 
 void CnaTamagotchiGame::Draw(const GameTime& gameTime)
@@ -608,10 +697,10 @@ void CnaTamagotchiGame::drawDevice()
     }
 
     // Three physical controls: A changes selection, B confirms, C clears it.
-    for (const int x : {202, 270, 338}) {
-        drawEllipse(x, 605, 25, 25, ShellOutline);
-        drawEllipse(x, 601, 20, 20, ShellHighlight);
-        drawEllipse(x - 3, 597, 8, 8, Color(255, 238, 244, 255));
+    for (const ButtonPosition button : ButtonPositions) {
+        drawEllipse(button.x, ButtonY + 4, 25, 25, ShellOutline);
+        drawEllipse(button.x, ButtonY, 20, 20, ShellHighlight);
+        drawEllipse(button.x - 3, ButtonY - 4, 8, 8, Color(255, 238, 244, 255));
     }
 }
 

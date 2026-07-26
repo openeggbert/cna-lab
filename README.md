@@ -54,13 +54,15 @@ historical device:
 | B | centre | Open, confirm, or perform the selected action | `B`, Enter, Space |
 | C | right | Cancel, close a submenu, or return to the previous screen | `C`, Backspace, Escape |
 
-Mouse and touch input will press these same three virtual buttons. Icons will
-not become independent modern UI buttons: clicking an icon may be offered as an
-accessibility shortcut, but it must invoke the equivalent A/B/C sequence.
+Mouse and touch input now press these same three virtual buttons; their hit
+areas remain correct when the game window is resized. Icons do not become
+independent modern UI buttons: clicking an icon may be offered as an
+accessibility shortcut later, but it must invoke the equivalent A/B/C sequence.
 
-The current build uses C to close Food and Status screens; pressing B on Food
-opens a Meal/Snack menu, and B on Status advances its compact data page. Left
-is a temporary desktop convenience for moving backwards through choices.
+The current build uses C to close Food, Status, and Game screens; pressing B
+on Food opens a Meal/Snack menu, and B on Status advances its compact data
+page. Left is a temporary desktop convenience for moving backwards through
+choices.
 
 ## Shell icons and menus
 

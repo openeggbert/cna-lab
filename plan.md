@@ -42,8 +42,8 @@ will be copied.
   - Scale LCD pixels with nearest-neighbour rendering and no anti-aliasing.
 
 - [ ] **5. First playable care loop**
-  - [x] Implement A/B/C keyboard mapping, icon selection, and feeding, play,
-    sleep, cleaning, medicine, and discipline actions.
+  - [x] Implement A/B/C keyboard, mouse, and touch mapping, icon selection,
+    and feeding, play, sleep, cleaning, medicine, and discipline actions.
   - Add menus, a named status screen, attention requests, and an in-device
     presentation for discipline.
     - [x] Add the first Food (meal/snack) and two-page Status LCD screens;

@@ -39,7 +39,16 @@ private:
         Game,
     };
 
+    enum class DeviceButton {
+        A,
+        B,
+        C,
+    };
+
     [[nodiscard]] Microsoft::Xna::Framework::Color backgroundColor() const;
+    [[nodiscard]] bool pressButton(DeviceButton button);
+    [[nodiscard]] std::optional<DeviceButton> buttonAtWindowPosition(float x, float y) const noexcept;
+    void moveSelectionBackward() noexcept;
     void loadSave();
     void saveNow();
     void startPeekGame() noexcept;
@@ -70,6 +79,7 @@ private:
     bool selectPreviousWasDown_{false};
     bool confirmWasDown_{false};
     bool cancelWasDown_{false};
+    bool mouseLeftWasDown_{false};
     bool smokeTest_{false};
     unsigned int drawnFrames_{0};
 };
