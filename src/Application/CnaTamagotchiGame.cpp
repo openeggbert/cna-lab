@@ -178,7 +178,7 @@ CnaTamagotchiGame::CnaTamagotchiGame(const bool smokeTest)
     Game::getWindowProperty().setTitleProperty("CNA Tamagotchi");
     if (!smokeTest_) {
         savePath_ = defaultSavePath();
-        loadSave();
+        saveDirty_ = loadSave();
         saveNow();
     }
     refreshDisplay();
@@ -264,6 +264,7 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
         saveChanged = true;
     }
     if (saveChanged) {
+        saveDirty_ = true;
         saveNow();
     }
     refreshDisplay();
@@ -455,13 +456,13 @@ Color CnaTamagotchiGame::backgroundColor() const
         255U);
 }
 
-void CnaTamagotchiGame::loadSave()
+bool CnaTamagotchiGame::loadSave()
 {
     const Persistence::LoadResult loaded = saveRepository_.load(savePath_);
     if (!loaded.data) {
         lastSavedUnixSeconds_ = unixSecondsNow();
         seed_ = static_cast<std::uint64_t>(lastSavedUnixSeconds_);
-        return;
+        return true;
     }
 
     pet_ = loaded.data->pet;
@@ -470,7 +471,7 @@ void CnaTamagotchiGame::loadSave()
 
     const std::int64_t now = unixSecondsNow();
     if (now <= lastSavedUnixSeconds_) {
-        return;
+        return false;
     }
 
     const std::int64_t elapsedSeconds = now - lastSavedUnixSeconds_;
@@ -483,7 +484,7 @@ void CnaTamagotchiGame::loadSave()
         // time instead of letting repeated launches consume it in chunks.
         lastSavedUnixSeconds_ = now;
         simulationSeconds_ = 0.0F;
-        return;
+        return true;
     }
 
     // Keep sub-minute time in the saved timestamp. Without this, repeatedly
@@ -491,11 +492,12 @@ void CnaTamagotchiGame::loadSave()
     // full simulated minute from ever being reached.
     lastSavedUnixSeconds_ += static_cast<std::int64_t>(report.appliedMinutes) * 60;
     simulationSeconds_ = static_cast<float>(elapsedSeconds % 60);
+    return report.appliedMinutes > 0;
 }
 
 void CnaTamagotchiGame::saveNow()
 {
-    if (smokeTest_) {
+    if (smokeTest_ || !saveDirty_) {
         return;
     }
 
@@ -506,7 +508,10 @@ void CnaTamagotchiGame::saveNow()
         .seed = seed_,
         .pet = pet_,
     };
-    static_cast<void>(saveRepository_.save(savePath_, data));
+    const Persistence::SaveResult result = saveRepository_.save(savePath_, data);
+    if (result.success) {
+        saveDirty_ = false;
+    }
 }
 
 void CnaTamagotchiGame::startPeekGame() noexcept
@@ -870,7 +875,9 @@ void CnaTamagotchiGame::drawDevice()
 void CnaTamagotchiGame::OnExiting(System::Object* const sender,
                                   const System::EventArgs& args)
 {
-    saveNow();
+    if (saveDirty_) {
+        saveNow();
+    }
     Game::OnExiting(sender, args);
 }
 

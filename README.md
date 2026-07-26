@@ -207,9 +207,10 @@ data is read.
 Current persistence writes a versioned JSON document through a `.tmp` file and
 keeps a `.bak` copy before replacing an existing save. The application uses
 `saves/slot-1.json` relative to its working directory, loads it at startup,
-performs bounded UTC catch-up, and saves after care changes and on exit. Its
-UTC simulation anchor retains sub-minute time and never moves backwards, so
-repeated quick restarts or rolling the system clock back cannot grant extra
+performs bounded UTC catch-up, and writes only after a changed care state (or
+once for a new slot), rather than rewriting unchanged data on every launch.
+Its UTC simulation anchor retains sub-minute time and never moves backwards,
+so repeated quick restarts or rolling the system clock back cannot grant extra
 care time. Platform-specific user-data paths, slot selection, schema migrations,
 and recovery UI remain to be added.
 

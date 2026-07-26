@@ -56,7 +56,7 @@ private:
     [[nodiscard]] bool pressButton(DeviceButton button);
     [[nodiscard]] std::optional<DeviceButton> buttonAtWindowPosition(float x, float y) const noexcept;
     void moveSelectionBackward() noexcept;
-    void loadSave();
+    [[nodiscard]] bool loadSave();
     void saveNow();
     void startPeekGame() noexcept;
     void startNumberGame() noexcept;
@@ -94,6 +94,7 @@ private:
     bool confirmWasDown_{false};
     bool cancelWasDown_{false};
     bool mouseLeftWasDown_{false};
+    bool saveDirty_{false};
     bool smokeTest_{false};
     unsigned int drawnFrames_{0};
 };
