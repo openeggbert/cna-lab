@@ -5,11 +5,12 @@
 
 namespace CnaTamagotchi::Domain {
 
-// One 10×10 one-bit character cell for the 32×16 P1 game area. These are
-// deliberately separate from programme rules so later captured animation
-// frames can replace a sprite without changing the simulator.
+// One 16×8 one-bit character cell for the 32×16 P1 game area. This uses the
+// original display's wide, low sprite proportion instead of stretching a pet
+// into a modern portrait. Frames remain separate from programme rules so a
+// later animation catalogue can replace them without changing the simulator.
 struct P1Sprite final {
-    std::array<std::string_view, 10> rows;
+    std::array<std::string_view, 8> rows;
 };
 
 class P1SpriteCatalog final {

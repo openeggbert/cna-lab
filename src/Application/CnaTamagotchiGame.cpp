@@ -866,18 +866,15 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         return;
     }
 
-    drawHeartMeter(1, 3, pet_.hungerHearts);
-    drawHeartMeter(1, 6, pet_.happinessHearts);
-    drawHeartMeter(1, 9, pet_.disciplineBars);
-
     const Domain::P1Sprite& sprite = Domain::P1SpriteCatalog::spriteForCharacter(pet_.characterId);
-    // The device's idle scene is animated even before an interaction is
-    // selected.  This is a temporary low-frequency egg wobble / awake-pet
-    // bob until the distinct P1 animation frames are transcribed; it avoids
-    // presenting the provisional artwork as a frozen final sprite.
+    // The original home LCD gives its wide, short pet sprite the central game
+    // field; hearts belong to the Meter pages rather than permanently filling
+    // the left edge. A low-frequency egg wobble / awake-pet bob provides the
+    // current idle motion until distinct P1 action frames are transcribed.
     const bool alternateIdlePose = static_cast<int>(backgroundTimeSeconds_ * 1.5F) % 2 != 0;
-    const int spriteX = pet_.stage == Domain::ProgramStage::Egg && alternateIdlePose ? 12 : 13;
-    const int spriteY = pet_.stage != Domain::ProgramStage::Egg && !pet_.asleep && alternateIdlePose ? 2 : 3;
+    const int spriteX = alternateIdlePose ? 7 : 8;
+    const int spriteY = pet_.stage != Domain::ProgramStage::Egg && !pet_.asleep
+        && alternateIdlePose ? 3 : 4;
     display_.drawSprite(spriteX, spriteY, sprite.rows);
 
     if (pet_.asleep) {
