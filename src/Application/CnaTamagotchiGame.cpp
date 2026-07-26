@@ -300,7 +300,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             return true;
         }
         if (screen_ == Screen::Status) {
-            statusPage_ = (statusPage_ + 1) % 3;
+            statusPage_ = (statusPage_ + 1) % 4;
             return false;
         }
         if (screen_ == Screen::Game || screen_ == Screen::NumberGame) {
@@ -604,11 +604,15 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
             drawHeartMeter(12, 6, pet_.needs.hunger);
             drawText(display_, 8, 8, "HAPP");
             drawHeartMeter(12, 14, pet_.needs.happiness);
-        } else {
+        } else if (statusPage_ == 2) {
             drawText(display_, 8, 0, "DISC");
             drawHeartMeter(12, 6, pet_.needs.discipline);
             const std::string mistakes = "MIST" + std::to_string(pet_.careMistakes);
             drawText(display_, 2, 9, mistakes);
+        } else {
+            drawText(display_, 8, 1, "LINE");
+            drawText(display_, pet_.species == Domain::PetSpecies::Mossling ? 10 : 8,
+                9, pet_.species == Domain::PetSpecies::Mossling ? "NUM" : "PEEK");
         }
         return;
     }

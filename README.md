@@ -71,7 +71,7 @@ accessibility shortcut later, but it must invoke the equivalent A/B/C sequence.
 
 The current build uses C to close Food, Status, and Game screens; pressing B
 on Food opens a Meal/Snack menu, and B on Status advances its three compact
-data pages. Left is a temporary desktop convenience for moving backwards
+data pages plus a line/game-profile page. Left is a temporary desktop convenience for moving backwards
 through choices.
 
 ## Shell icons and menus
