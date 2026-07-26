@@ -46,7 +46,7 @@ will be copied.
     and feeding, play, sleep, cleaning, medicine, and discipline actions.
   - Add menus, a named status screen, attention requests, and an in-device
     presentation for discipline.
-    - [x] Add the first Food (meal/snack) and two-page Status LCD screens;
+    - [x] Add the first Food (meal/snack) and three-page Status LCD screens;
       display the attention call on the home screen.
   - [x] Add a first original two-choice Peek mini-game with seed-backed outcomes.
   - Add feedback animations and a second game profile.

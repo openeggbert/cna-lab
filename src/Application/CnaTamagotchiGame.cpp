@@ -89,6 +89,7 @@ constexpr Glyph LetterD{{"110", "101", "101", "101", "110"}};
 constexpr Glyph LetterE{{"111", "100", "110", "100", "111"}};
 constexpr Glyph LetterF{{"111", "100", "110", "100", "100"}};
 constexpr Glyph LetterG{{"011", "100", "101", "101", "011"}};
+constexpr Glyph LetterH{{"101", "101", "111", "101", "101"}};
 constexpr Glyph LetterI{{"111", "010", "010", "010", "111"}};
 constexpr Glyph LetterL{{"100", "100", "100", "100", "111"}};
 constexpr Glyph LetterM{{"101", "111", "111", "101", "101"}};
@@ -97,6 +98,7 @@ constexpr Glyph LetterP{{"110", "101", "110", "100", "100"}};
 constexpr Glyph LetterR{{"110", "101", "110", "101", "101"}};
 constexpr Glyph LetterS{{"011", "100", "010", "001", "110"}};
 constexpr Glyph LetterT{{"111", "010", "010", "010", "010"}};
+constexpr Glyph LetterU{{"101", "101", "101", "101", "111"}};
 constexpr Glyph LetterW{{"101", "101", "101", "111", "101"}};
 constexpr Glyph LetterK{{"101", "101", "110", "101", "101"}};
 constexpr Glyph LetterN{{"101", "111", "111", "111", "101"}};
@@ -120,6 +122,7 @@ const Glyph& glyphFor(const char character) noexcept
     case 'E': return LetterE;
     case 'F': return LetterF;
     case 'G': return LetterG;
+    case 'H': return LetterH;
     case 'I': return LetterI;
     case 'L': return LetterL;
     case 'M': return LetterM;
@@ -128,6 +131,7 @@ const Glyph& glyphFor(const char character) noexcept
     case 'R': return LetterR;
     case 'S': return LetterS;
     case 'T': return LetterT;
+    case 'U': return LetterU;
     case 'W': return LetterW;
     case 'K': return LetterK;
     case 'N': return LetterN;
@@ -279,7 +283,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             return true;
         }
         if (screen_ == Screen::Status) {
-            statusPage_ = (statusPage_ + 1) % 2;
+            statusPage_ = (statusPage_ + 1) % 3;
             return false;
         }
         if (screen_ == Screen::Game) {
@@ -485,6 +489,17 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
 {
     display_.clear();
 
+    const auto drawHeartMeter = [this](const int firstX, const int firstY, const int value) {
+        const int filled = std::clamp((value + 24) / 25, 0, 4);
+        for (int heart = 0; heart < filled; ++heart) {
+            const int x = firstX + heart * 2;
+            display_.setPixel(x, firstY, true);
+            display_.setPixel(x + 1, firstY, true);
+            display_.setPixel(x, firstY + 1, true);
+            display_.setPixel(x + 1, firstY + 1, true);
+        }
+    };
+
     if (screen_ == Screen::Food) {
         drawText(display_, 8, 0, "FOOD");
         drawText(display_, 6, 6, "MEAL");
@@ -502,12 +517,16 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
             const std::string weight = "WGT" + std::to_string(pet_.weight);
             drawText(display_, 2, 1, age);
             drawText(display_, 2, 9, weight);
+        } else if (statusPage_ == 1) {
+            drawText(display_, 8, 0, "HUNG");
+            drawHeartMeter(12, 6, pet_.needs.hunger);
+            drawText(display_, 8, 8, "HAPP");
+            drawHeartMeter(12, 14, pet_.needs.happiness);
         } else {
-            const std::string mistakes = "CARE" + std::to_string(pet_.careMistakes);
-            const std::string discipline = "DISC" + std::to_string(
-                std::clamp((pet_.needs.discipline + 24) / 25, 0, 4));
-            drawText(display_, 2, 1, mistakes);
-            drawText(display_, 2, 9, discipline);
+            drawText(display_, 8, 0, "DISC");
+            drawHeartMeter(12, 6, pet_.needs.discipline);
+            const std::string mistakes = "MIST" + std::to_string(pet_.careMistakes);
+            drawText(display_, 2, 9, mistakes);
         }
         return;
     }
@@ -540,19 +559,9 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         return;
     }
 
-    const auto drawHeartMeter = [this](const int firstX, const int value) {
-        const int filled = std::clamp((value + 24) / 25, 0, 4);
-        for (int heart = 0; heart < filled; ++heart) {
-            const int x = firstX + heart * 2;
-            display_.setPixel(x, 0, true);
-            display_.setPixel(x + 1, 0, true);
-            display_.setPixel(x, 1, true);
-            display_.setPixel(x + 1, 1, true);
-        }
-    };
-    drawHeartMeter(0, pet_.needs.hunger);
-    drawHeartMeter(12, pet_.needs.happiness);
-    drawHeartMeter(24, pet_.needs.discipline);
+    drawHeartMeter(0, 0, pet_.needs.hunger);
+    drawHeartMeter(12, 0, pet_.needs.happiness);
+    drawHeartMeter(24, 0, pet_.needs.discipline);
 
     const Domain::CreatureForm form = Domain::CreatureCatalog::formFor(pet_);
     const Domain::CreatureSprite& sprite = Domain::CreatureCatalog::spriteFor(form);
