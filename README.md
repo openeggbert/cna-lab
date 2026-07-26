@@ -16,11 +16,15 @@ project will be original.
 The current build already opens a CNA window and renders an original pastel
 egg-shaped device with a 32 × 16 one-bit LCD, eight shell icons, three physical
 controls, and the complete first original creature line. It also has an early
-deterministic pet simulator and a tested JSON save repository.
+deterministic pet simulator and a tested JSON save repository. The current
+care slice renders four hunger, happiness, and discipline segments; schedules
+sleep; handles waste; requests attention for empty needs, light, and false
+calls; and preserves those states in saves.
 
 Those systems are foundations, not the final classic ruleset. In particular,
-the present `0…100` need values, generic icon mapping, simplified sleep action,
-and one-minute development clock will be replaced by the faithful model below.
+the internal `0…100` need values, unfinished status/menu screens, temporary
+one-minute development clock, and simplified illness/death rules will be
+replaced by the faithful model below.
 
 ## Reference target and display decision
 
@@ -192,11 +196,11 @@ UTC catch-up, schema migrations, and corruption recovery.
 
 ## Implementation order
 
-1. Replace the prototype's generic 0–100 values with four-heart needs,
-   discipline segments, waste, illness, attention deadlines, and a real game clock.
-2. Replace the temporary icon mapping with the eight functions above and make
-   A/B/C navigation match the physical device.
-3. Implement the egg, hatch, stage schedule, sleep schedules, care mistakes,
+1. Complete the conversion from the prototype's generic 0–100 values to
+   authentic four-heart needs and discipline segments, including illness rules.
+2. Add status and food submenus, then make A/B/C navigation match the physical
+   device in every screen.
+3. Implement the egg, hatch, stage schedule, complete sleep schedules, care mistakes,
    illness, death/farewell, and event-jump offline processing.
 4. Implement the complete first creature line and the two compact games.
 5. Integrate versioned saves into the application and add migration/recovery tests.

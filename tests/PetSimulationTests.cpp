@@ -31,7 +31,7 @@ void testActionsRespectBounds()
     expect(pet.needs.hunger <= 100, "feeding must not exceed maximum hunger");
     expect(pet.needs.happiness <= 100, "actions must not exceed maximum happiness");
     expect(pet.needs.energy >= 0, "play must not make energy negative");
-    expect(pet.weight == 13, "meal and snack must update weight deterministically");
+    expect(pet.weight == 12, "meal, snack, and game must update weight deterministically");
 }
 
 void testOfflineAdvanceClampsAndEvolves()
@@ -82,6 +82,60 @@ void testSleepRecoversEnergy()
         "sleep must recover more energy than being awake");
 }
 
+void testAttentionWindowAndDiscipline()
+{
+    PetSimulation simulation;
+    PetState pet{};
+    pet.lifeStage = LifeStage::Hatchling;
+    pet.ageMinutes = 14;
+    pet.needs.hunger = 25;
+
+    static_cast<void>(simulation.advance(pet, 1));
+    expect(pet.attentionReason == AttentionReason::Hunger,
+        "empty hunger must create an attention call");
+    expect(pet.attentionDeadlineMinutes == 30,
+        "attention call must give a fifteen-minute response window");
+
+    static_cast<void>(simulation.advance(pet, 15));
+    expect(pet.careMistakes == 1, "ignored hunger call must create a care mistake");
+    expect(pet.attentionReason == AttentionReason::None,
+        "expired attention call must clear before a later retry");
+
+    pet.attentionReason = AttentionReason::Discipline;
+    pet.attentionDeadlineMinutes = pet.ageMinutes + 15;
+    const int disciplineBefore = pet.needs.discipline;
+    simulation.applyAction(pet, PetAction::Discipline);
+    expect(pet.needs.discipline == disciplineBefore + 25,
+        "discipline must only reward a false attention call");
+    expect(pet.attentionReason == AttentionReason::None,
+        "correct discipline must resolve the false call");
+}
+
+void testWasteAndSleepLight()
+{
+    PetSimulation simulation;
+    PetState pet{};
+    pet.lifeStage = LifeStage::Hatchling;
+    pet.ageMinutes = 119;
+
+    static_cast<void>(simulation.advance(pet, 1));
+    expect(pet.wasteCount == 1, "creature must create waste on its scheduled interval");
+    simulation.applyAction(pet, PetAction::Clean);
+    expect(pet.wasteCount == 0, "clean action must remove waste");
+
+    PetState sleepingPet{};
+    sleepingPet.lifeStage = LifeStage::Child;
+    sleepingPet.clockMinutesOfDay = 20 * 60 - 1;
+    static_cast<void>(simulation.advance(sleepingPet, 1));
+    expect(sleepingPet.asleep, "child must fall asleep at the scheduled evening time");
+    expect(sleepingPet.attentionReason == AttentionReason::SleepLight,
+        "sleeping with the light on must request attention");
+    simulation.applyAction(sleepingPet, PetAction::ToggleLight);
+    expect(sleepingPet.lightOff, "light action must turn the light off while asleep");
+    expect(sleepingPet.attentionReason == AttentionReason::None,
+        "turning the light off must resolve its attention call");
+}
+
 } // namespace
 
 int main()
@@ -90,6 +144,8 @@ int main()
     testOfflineAdvanceClampsAndEvolves();
     testClassicEggAndChildTiming();
     testSleepRecoversEnergy();
+    testAttentionWindowAndDiscipline();
+    testWasteAndSleepLight();
 
     if (failures == 0) {
         std::cout << "PetSimulationTests passed\n";

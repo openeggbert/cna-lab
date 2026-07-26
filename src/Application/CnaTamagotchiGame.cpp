@@ -5,7 +5,6 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <string_view>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
@@ -102,13 +101,13 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     if (confirm && !confirmWasDown_) {
         constexpr std::array<std::optional<Domain::PetAction>, 8> iconActions{{
             Domain::PetAction::Meal,
+            Domain::PetAction::ToggleLight,
             Domain::PetAction::Play,
-            Domain::PetAction::ToggleSleep,
-            Domain::PetAction::Discipline,
-            Domain::PetAction::Clean,
             Domain::PetAction::Medicine,
+            Domain::PetAction::Clean,
             std::nullopt, // status is display-only in this first interaction slice
-            std::nullopt, // journal is introduced with persistence
+            Domain::PetAction::Discipline,
+            std::nullopt, // attention is an automatic indicator
         }};
         const std::optional<Domain::PetAction> action =
             iconActions[static_cast<std::size_t>(selectedIcon_)];
@@ -179,16 +178,19 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
 {
     display_.clear();
 
-    const auto drawMeter = [this](const int firstX, const int value) {
-        constexpr int MeterWidth = 8;
-        const int filled = std::clamp((value * MeterWidth + 99) / 100, 0, MeterWidth);
-        for (int offset = 0; offset < filled; ++offset) {
-            display_.setPixel(firstX + offset, 1, true);
+    const auto drawHeartMeter = [this](const int firstX, const int value) {
+        const int filled = std::clamp((value + 24) / 25, 0, 4);
+        for (int heart = 0; heart < filled; ++heart) {
+            const int x = firstX + heart * 2;
+            display_.setPixel(x, 0, true);
+            display_.setPixel(x + 1, 0, true);
+            display_.setPixel(x, 1, true);
+            display_.setPixel(x + 1, 1, true);
         }
     };
-    drawMeter(1, pet_.needs.hunger);
-    drawMeter(12, pet_.needs.happiness);
-    drawMeter(23, pet_.needs.health);
+    drawHeartMeter(0, pet_.needs.hunger);
+    drawHeartMeter(12, pet_.needs.happiness);
+    drawHeartMeter(24, pet_.needs.discipline);
 
     const Domain::CreatureForm form = Domain::CreatureCatalog::formFor(pet_);
     const Domain::CreatureSprite& sprite = Domain::CreatureCatalog::spriteFor(form);
@@ -215,6 +217,13 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         display_.setPixel(27, 6, true);
         display_.setPixel(28, 6, true);
         display_.setPixel(28, 7, true);
+    }
+
+    if (pet_.attentionReason != Domain::AttentionReason::None) {
+        display_.setPixel(29, 3, true);
+        display_.setPixel(30, 3, true);
+        display_.setPixel(29, 4, true);
+        display_.setPixel(30, 4, true);
     }
 }
 
@@ -288,34 +297,34 @@ void CnaTamagotchiGame::drawDevice()
             drawRect(Rectangle(position.x - 15, position.y - 5, 30, 4), icon);
             drawRect(Rectangle(position.x - 10, position.y - 1, 20, 4), cutout);
             break;
-        case 1: // ball
-            drawRing(position.x, position.y, 12, icon, cutout);
-            drawRect(Rectangle(position.x - 2, position.y - 12, 4, 24), icon);
-            break;
-        case 2: // moon
+        case 1: // moon / light
             drawEllipse(position.x, position.y, 12, 12, icon);
             drawEllipse(position.x + 5, position.y - 4, 11, 11, cutout);
             break;
-        case 3: // bell
-            drawEllipse(position.x, position.y + 5, 12, 9, icon);
-            drawRect(Rectangle(position.x - 10, position.y - 5, 20, 12), icon);
-            drawEllipse(position.x, position.y + 13, 3, 3, icon);
+        case 2: // ball / game
+            drawRing(position.x, position.y, 12, icon, cutout);
+            drawRect(Rectangle(position.x - 2, position.y - 12, 4, 24), icon);
+            break;
+        case 3: // health cross / medicine
+            drawRect(Rectangle(position.x - 4, position.y - 13, 8, 26), icon);
+            drawRect(Rectangle(position.x - 13, position.y - 4, 26, 8), icon);
             break;
         case 4: // cleaning droplet
             drawEllipse(position.x, position.y + 4, 9, 12, icon);
             drawRect(Rectangle(position.x - 3, position.y - 12, 6, 19), icon);
             break;
-        case 5: // health cross
-            drawRect(Rectangle(position.x - 4, position.y - 13, 8, 26), icon);
-            drawRect(Rectangle(position.x - 13, position.y - 4, 26, 8), icon);
-            break;
-        case 6: // heart/status
+        case 5: // heart / status
             drawEllipse(position.x - 6, position.y - 4, 7, 7, icon);
             drawEllipse(position.x + 6, position.y - 4, 7, 7, icon);
             drawRect(Rectangle(position.x - 9, position.y - 3, 18, 12), icon);
             drawEllipse(position.x, position.y + 8, 5, 5, icon);
             break;
-        case 7: // memory star
+        case 6: // bell / discipline
+            drawEllipse(position.x, position.y + 5, 12, 9, icon);
+            drawRect(Rectangle(position.x - 10, position.y - 5, 20, 12), icon);
+            drawEllipse(position.x, position.y + 13, 3, 3, icon);
+            break;
+        case 7: // attention marker
             drawRect(Rectangle(position.x - 3, position.y - 14, 6, 28), icon);
             drawRect(Rectangle(position.x - 14, position.y - 3, 28, 6), icon);
             drawRect(Rectangle(position.x - 9, position.y - 9, 18, 18), icon);
@@ -325,7 +334,7 @@ void CnaTamagotchiGame::drawDevice()
         }
     }
 
-    // Three physical controls. Their functions will be wired in the care-loop milestone.
+    // Three physical controls: A changes selection, B confirms, C clears it.
     for (const int x : {202, 270, 338}) {
         drawEllipse(x, 605, 25, 25, ShellOutline);
         drawEllipse(x, 601, 20, 20, ShellHighlight);

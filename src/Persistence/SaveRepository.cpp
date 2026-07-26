@@ -47,6 +47,11 @@ std::optional<Integer> extractInteger(const std::string& json, const std::string
     return value;
 }
 
+bool containsKey(const std::string& json, const std::string_view key)
+{
+    return json.find("\"" + std::string(key) + "\"") != std::string::npos;
+}
+
 bool validNeed(const int value) noexcept
 {
     return value >= 0 && value <= 100;
@@ -64,6 +69,12 @@ bool validLifeStage(const int value) noexcept
         && value <= static_cast<int>(Domain::LifeStage::Farewell);
 }
 
+bool validAttentionReason(const int value) noexcept
+{
+    return value >= static_cast<int>(Domain::AttentionReason::None)
+        && value <= static_cast<int>(Domain::AttentionReason::Discipline);
+}
+
 std::string serialise(const SaveData& data)
 {
     const Domain::Needs& needs = data.pet.needs;
@@ -77,8 +88,17 @@ std::string serialise(const SaveData& data)
         "    \"weight\": " + std::to_string(data.pet.weight) + ",\n"
         "    \"careMistakes\": " + std::to_string(data.pet.careMistakes) + ",\n"
         "    \"ageMinutes\": " + std::to_string(data.pet.ageMinutes) + ",\n"
+        "    \"clockMinutesOfDay\": " + std::to_string(data.pet.clockMinutesOfDay) + ",\n"
+        "    \"wasteCount\": " + std::to_string(data.pet.wasteCount) + ",\n"
+        "    \"attentionDeadlineMinutes\": "
+            + std::to_string(data.pet.attentionDeadlineMinutes) + ",\n"
+        "    \"nextAttentionEligibleMinutes\": "
+            + std::to_string(data.pet.nextAttentionEligibleMinutes) + ",\n"
         "    \"asleep\": " + std::to_string(data.pet.asleep ? 1 : 0) + ",\n"
+        "    \"lightOff\": " + std::to_string(data.pet.lightOff ? 1 : 0) + ",\n"
         "    \"sick\": " + std::to_string(data.pet.sick ? 1 : 0) + ",\n"
+        "    \"attentionReason\": "
+            + std::to_string(static_cast<int>(data.pet.attentionReason)) + ",\n"
         "    \"needs\": {\n"
         "      \"hunger\": " + std::to_string(needs.hunger) + ",\n"
         "      \"happiness\": " + std::to_string(needs.happiness) + ",\n"
@@ -175,8 +195,14 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     const auto weight = extractInteger<int>(json, "weight");
     const auto careMistakes = extractInteger<int>(json, "careMistakes");
     const auto ageMinutes = extractInteger<int>(json, "ageMinutes");
+    const auto clockMinutesOfDay = extractInteger<int>(json, "clockMinutesOfDay");
+    const auto wasteCount = extractInteger<int>(json, "wasteCount");
+    const auto attentionDeadlineMinutes = extractInteger<int>(json, "attentionDeadlineMinutes");
+    const auto nextAttentionEligibleMinutes = extractInteger<int>(json, "nextAttentionEligibleMinutes");
     const auto asleep = extractInteger<int>(json, "asleep");
+    const auto lightOff = extractInteger<int>(json, "lightOff");
     const auto sick = extractInteger<int>(json, "sick");
+    const auto attentionReason = extractInteger<int>(json, "attentionReason");
     const auto hunger = extractInteger<int>(json, "hunger");
     const auto happiness = extractInteger<int>(json, "happiness");
     const auto energy = extractInteger<int>(json, "energy");
@@ -185,10 +211,20 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     const auto affection = extractInteger<int>(json, "affection");
     const auto discipline = extractInteger<int>(json, "discipline");
 
+    const bool hasCareSchedulerFields = containsKey(json, "clockMinutesOfDay")
+        || containsKey(json, "wasteCount") || containsKey(json, "attentionDeadlineMinutes")
+        || containsKey(json, "nextAttentionEligibleMinutes") || containsKey(json, "lightOff")
+        || containsKey(json, "attentionReason");
+    const bool hasCompleteCareSchedulerFields = clockMinutesOfDay && wasteCount
+        && attentionDeadlineMinutes && nextAttentionEligibleMinutes && lightOff && attentionReason;
+
     if (!formatVersion || !lastSaved || !seed || !species || !lifeStage || !weight
         || !careMistakes || !ageMinutes || !asleep || !sick || !hunger || !happiness
         || !energy || !hygiene || !health || !affection || !discipline) {
         return invalid("Save file is missing or repeats a required numeric field.");
+    }
+    if (hasCareSchedulerFields && !hasCompleteCareSchedulerFields) {
+        return invalid("Save file has an incomplete or repeated care-scheduler field.");
     }
     if (*formatVersion != SaveData::CurrentFormatVersion) {
         return invalid("Unsupported save format version.");
@@ -199,6 +235,12 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
         || !validNeed(*hunger) || !validNeed(*happiness) || !validNeed(*energy)
         || !validNeed(*hygiene) || !validNeed(*health) || !validNeed(*affection)
         || !validNeed(*discipline)) {
+        return invalid("Save file contains a value outside the supported range.");
+    }
+    if (hasCareSchedulerFields
+        && (*clockMinutesOfDay < 0 || *clockMinutesOfDay >= 24 * 60 || *wasteCount < 0
+            || *attentionDeadlineMinutes < -1 || *nextAttentionEligibleMinutes < 0
+            || (*lightOff != 0 && *lightOff != 1) || !validAttentionReason(*attentionReason))) {
         return invalid("Save file contains a value outside the supported range.");
     }
 
@@ -213,6 +255,14 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     data.pet.ageMinutes = *ageMinutes;
     data.pet.asleep = *asleep == 1;
     data.pet.sick = *sick == 1;
+    if (hasCareSchedulerFields) {
+        data.pet.clockMinutesOfDay = *clockMinutesOfDay;
+        data.pet.wasteCount = *wasteCount;
+        data.pet.attentionDeadlineMinutes = *attentionDeadlineMinutes;
+        data.pet.nextAttentionEligibleMinutes = *nextAttentionEligibleMinutes;
+        data.pet.lightOff = *lightOff == 1;
+        data.pet.attentionReason = static_cast<Domain::AttentionReason>(*attentionReason);
+    }
     data.pet.needs = Domain::Needs{
         .hunger = *hunger,
         .happiness = *happiness,

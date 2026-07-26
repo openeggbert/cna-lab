@@ -11,6 +11,7 @@ enum class PetAction {
     Medicine,
     Play,
     ToggleSleep,
+    ToggleLight,
     Discipline,
 };
 
@@ -33,6 +34,9 @@ public:
 private:
     static void advanceOneMinute(PetState& state) noexcept;
     static void updateLifeStage(PetState& state) noexcept;
+    static void updateSleepSchedule(PetState& state) noexcept;
+    static void updateAttention(PetState& state) noexcept;
+    static void clearAttention(PetState& state) noexcept;
     static void enforceInvariants(PetState& state) noexcept;
 };
 

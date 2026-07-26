@@ -25,9 +25,11 @@ will be copied.
 - [ ] **3. Deterministic game domain**
   - [x] Define `PetState`, needs, life stages, and core care actions.
   - [x] Implement deterministic offline progression with a safe 12-hour clamp.
+  - [x] Persist care-scheduler state with backward-compatible version-1 save loading.
   - Add persisted UTC timestamps and clock-rollback behaviour with the save layer.
   - [x] Add unit tests for care effects, offline clamping, and life-stage progression.
-  - Add scheduled events, care-mistake presentation, and data-driven evolution.
+  - [x] Add scheduled attention, care-mistake rules, waste, sleep/light requests,
+    and data-driven evolution.
 
 - [ ] **4. 1-bit display and device renderer**
   - Complete the independent 32 × 16 framebuffer with sprites, text, and
@@ -61,6 +63,6 @@ will be copied.
 
 ## Immediate next task
 
-Begin milestone 3 by defining the domain data model and its tests. The visual
-prototype is now in place, so the pet's long-lived behaviour can become
-correct and testable before interactive menus are added.
+Complete the first playable care loop with an in-device status screen and
+food submenu. This will let the existing A/B/C controls expose meal versus
+snack behaviour without adding modern UI controls outside the device.

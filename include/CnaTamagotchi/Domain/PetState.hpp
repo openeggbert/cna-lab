@@ -21,6 +21,14 @@ enum class PetSpecies : std::uint8_t {
     Cometling,
 };
 
+enum class AttentionReason : std::uint8_t {
+    None,
+    Hunger,
+    Happiness,
+    SleepLight,
+    Discipline,
+};
+
 // All needs use the inclusive [0, 100] range. Domain code owns their
 // invariants so the future renderer can project them without clamping.
 struct Needs final {
@@ -40,8 +48,14 @@ struct PetState final {
     int weight{10};
     int careMistakes{0};
     int ageMinutes{0};
+    int clockMinutesOfDay{9 * 60};
+    int wasteCount{0};
+    int attentionDeadlineMinutes{-1};
+    int nextAttentionEligibleMinutes{0};
     bool asleep{false};
+    bool lightOff{false};
     bool sick{false};
+    AttentionReason attentionReason{AttentionReason::None};
 };
 
 } // namespace CnaTamagotchi::Domain
