@@ -222,8 +222,10 @@ performs bounded UTC catch-up, and writes only after a changed care state (or
 once for a new slot), rather than rewriting unchanged data on every launch.
 Its UTC simulation anchor retains sub-minute time and never moves backwards,
 so repeated quick restarts or rolling the system clock back cannot grant extra
-care time. Platform-specific user-data paths, slot selection, schema migrations,
-and recovery UI remain to be added.
+care time. If the active save cannot be read, the LCD offers `REST` when its
+backup is valid or `NEW` to begin again; `NEW` first renames the damaged file to
+`slot-1.json.corrupt` (with a numeric suffix when needed). Platform-specific
+user-data paths, slot selection, and schema migrations remain to be added.
 
 ## Implementation order
 
@@ -234,7 +236,7 @@ and recovery UI remain to be added.
 3. Implement the egg, hatch, stage schedule, complete sleep schedules, care mistakes,
    illness, death/farewell, and event-jump offline processing.
 4. Add feedback animations to the implemented creature lines.
-5. Add selectable user-data save slots plus migration/recovery UI and tests.
+5. Add selectable user-data save slots plus schema migrations and tests.
 6. Add sounds, visual accessibility options, further complete egg lines,
    and a Relaxed mode without weakening the default Classic mode.
 
@@ -261,7 +263,7 @@ Pass `--smoke-test` to exit after three rendered frames.
 ## Tests
 
 ```bash
-cmake --build --preset sdl-renderer --target CnaTamagotchiDomainTests CnaTamagotchiCreatureCatalogTests CnaTamagotchiPersistenceTests
+cmake --build --preset sdl-renderer --target CnaTamagotchiDomainTests CnaTamagotchiCreatureCatalogTests CnaTamagotchiDisplayTests CnaTamagotchiPersistenceTests
 ctest --test-dir cmake-build-sdl-renderer --output-on-failure
 ```
 

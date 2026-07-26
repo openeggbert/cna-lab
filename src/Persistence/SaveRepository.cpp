@@ -275,4 +275,77 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     return LoadResult{.data = data, .error = {}};
 }
 
+SaveResult SaveRepository::restoreBackup(const std::filesystem::path& path) const
+{
+    if (path.empty() || path.filename().empty()) {
+        return SaveResult{.success = false, .error = "Save path must name a file."};
+    }
+
+    const std::filesystem::path backupPath = path.string() + ".bak";
+    if (!load(backupPath).success()) {
+        return SaveResult{.success = false, .error = "The backup save is missing or invalid."};
+    }
+
+    const std::filesystem::path temporaryPath = path.string() + ".tmp";
+    std::error_code error;
+    std::filesystem::remove(temporaryPath, error);
+    error.clear();
+    std::filesystem::copy_file(backupPath, temporaryPath,
+        std::filesystem::copy_options::overwrite_existing, error);
+    if (error) {
+        return SaveResult{.success = false,
+            .error = "Could not prepare the backup for restoration: " + error.message()};
+    }
+
+    std::filesystem::rename(temporaryPath, path, error);
+    if (error) {
+        return SaveResult{.success = false,
+            .error = "Could not restore the backup atomically; temporary save was retained: "
+                + error.message()};
+    }
+    return SaveResult{.success = true, .error = {}};
+}
+
+SaveResult SaveRepository::archiveCorruptSave(const std::filesystem::path& path) const
+{
+    if (path.empty() || path.filename().empty()) {
+        return SaveResult{.success = false, .error = "Save path must name a file."};
+    }
+
+    std::error_code error;
+    if (!std::filesystem::exists(path, error)) {
+        if (error) {
+            return SaveResult{.success = false,
+                .error = "Could not inspect the damaged save: " + error.message()};
+        }
+        return SaveResult{.success = true, .error = {}};
+    }
+
+    for (int index = 0; index < 1'000; ++index) {
+        const std::filesystem::path archivePath = path.string() + ".corrupt"
+            + (index == 0 ? std::string{} : "." + std::to_string(index));
+        if (std::filesystem::exists(archivePath, error)) {
+            if (error) {
+                return SaveResult{.success = false,
+                    .error = "Could not inspect a recovery archive: " + error.message()};
+            }
+            continue;
+        }
+        if (error) {
+            return SaveResult{.success = false,
+                .error = "Could not inspect a recovery archive: " + error.message()};
+        }
+
+        std::filesystem::rename(path, archivePath, error);
+        if (error) {
+            return SaveResult{.success = false,
+                .error = "Could not archive the damaged save: " + error.message()};
+        }
+        return SaveResult{.success = true, .error = {}};
+    }
+
+    return SaveResult{.success = false,
+        .error = "Could not archive the damaged save: too many recovery archives exist."};
+}
+
 } // namespace CnaTamagotchi::Persistence

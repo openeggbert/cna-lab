@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <limits>
 #include <string>
+#include <system_error>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
@@ -172,12 +173,14 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     cancelWasDown_ = cancel;
     mouseLeftWasDown_ = mouseLeftDown;
 
-    simulationSeconds_ += elapsedSeconds;
-    while (simulationSeconds_ >= 60.0F) {
-        static_cast<void>(simulation_.advance(pet_, 1));
-        simulationSeconds_ -= 60.0F;
-        lastSavedUnixSeconds_ += 60;
-        saveChanged = true;
+    if (screen_ != Screen::SaveRecovery) {
+        simulationSeconds_ += elapsedSeconds;
+        while (simulationSeconds_ >= 60.0F) {
+            static_cast<void>(simulation_.advance(pet_, 1));
+            simulationSeconds_ -= 60.0F;
+            lastSavedUnixSeconds_ += 60;
+            saveChanged = true;
+        }
     }
     if (saveChanged) {
         saveDirty_ = true;
@@ -188,6 +191,21 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
 
 bool CnaTamagotchiGame::pressButton(const DeviceButton button)
 {
+    if (screen_ == Screen::SaveRecovery) {
+        if (button == DeviceButton::A && recoveryBackupAvailable_) {
+            recoveryChoice_ = recoveryChoice_ == RecoveryChoice::RestoreBackup
+                ? RecoveryChoice::NewEgg : RecoveryChoice::RestoreBackup;
+            return false;
+        }
+        if (button == DeviceButton::B) {
+            const bool completed = recoveryChoice_ == RecoveryChoice::RestoreBackup
+                ? restoreBackup() : archiveAndStartFreshEgg();
+            setFeedback(completed ? Feedback::Success : Feedback::Blocked);
+            return completed;
+        }
+        return false;
+    }
+
     if (pet_.lifeStage == Domain::LifeStage::Farewell) {
         if (button == DeviceButton::B) {
             startNewEgg();
@@ -327,6 +345,9 @@ void CnaTamagotchiGame::moveSelectionBackward() noexcept
         foodSelection_ = (foodSelection_ + 1) % 2;
     } else if ((screen_ == Screen::Game || screen_ == Screen::NumberGame) && !gameResolved_) {
         gameChoice_ = (gameChoice_ + 1) % 2;
+    } else if (screen_ == Screen::SaveRecovery && recoveryBackupAvailable_) {
+        recoveryChoice_ = recoveryChoice_ == RecoveryChoice::RestoreBackup
+            ? RecoveryChoice::NewEgg : RecoveryChoice::RestoreBackup;
     }
 }
 
@@ -374,16 +395,39 @@ Color CnaTamagotchiGame::backgroundColor() const
 
 bool CnaTamagotchiGame::loadSave()
 {
-    const Persistence::LoadResult loaded = saveRepository_.load(savePath_);
-    if (!loaded.data) {
-        lastSavedUnixSeconds_ = unixSecondsNow();
-        seed_ = static_cast<std::uint64_t>(lastSavedUnixSeconds_);
+    std::error_code error;
+    const bool saveExists = std::filesystem::exists(savePath_, error);
+    if (error) {
+        recoveryBackupAvailable_ = false;
+        recoveryChoice_ = RecoveryChoice::NewEgg;
+        screen_ = Screen::SaveRecovery;
+        return false;
+    }
+    if (!saveExists) {
+        startFreshEgg();
         return true;
     }
 
-    pet_ = loaded.data->pet;
-    seed_ = loaded.data->seed;
-    lastSavedUnixSeconds_ = loaded.data->lastSavedUnixSeconds;
+    const Persistence::LoadResult loaded = saveRepository_.load(savePath_);
+    if (!loaded.data) {
+        recoveryBackupAvailable_ = saveRepository_.load(savePath_.string() + ".bak").success();
+        recoveryChoice_ = recoveryBackupAvailable_ ? RecoveryChoice::RestoreBackup
+                                                    : RecoveryChoice::NewEgg;
+        screen_ = Screen::SaveRecovery;
+        return false;
+    }
+
+    return activateSave(*loaded.data);
+}
+
+bool CnaTamagotchiGame::activateSave(const Persistence::SaveData& data)
+{
+    pet_ = data.pet;
+    seed_ = data.seed;
+    lastSavedUnixSeconds_ = data.lastSavedUnixSeconds;
+    screen_ = Screen::Home;
+    selectedIcon_ = 0;
+    simulationSeconds_ = 0.0F;
 
     const std::int64_t now = unixSecondsNow();
     if (now <= lastSavedUnixSeconds_) {
@@ -409,6 +453,35 @@ bool CnaTamagotchiGame::loadSave()
     lastSavedUnixSeconds_ += static_cast<std::int64_t>(report.appliedMinutes) * 60;
     simulationSeconds_ = static_cast<float>(elapsedSeconds % 60);
     return report.appliedMinutes > 0;
+}
+
+bool CnaTamagotchiGame::restoreBackup()
+{
+    if (!recoveryBackupAvailable_) {
+        return false;
+    }
+
+    const Persistence::LoadResult backup = saveRepository_.load(savePath_.string() + ".bak");
+    if (!backup.data || !saveRepository_.restoreBackup(savePath_).success) {
+        return false;
+    }
+
+    recoveryBackupAvailable_ = false;
+    recoveryChoice_ = RecoveryChoice::NewEgg;
+    static_cast<void>(activateSave(*backup.data));
+    return true;
+}
+
+bool CnaTamagotchiGame::archiveAndStartFreshEgg()
+{
+    if (!saveRepository_.archiveCorruptSave(savePath_).success) {
+        return false;
+    }
+
+    recoveryBackupAvailable_ = false;
+    recoveryChoice_ = RecoveryChoice::NewEgg;
+    startFreshEgg();
+    return true;
 }
 
 void CnaTamagotchiGame::saveNow()
@@ -460,6 +533,17 @@ void CnaTamagotchiGame::startNewEgg() noexcept
     // A new egg begins a fresh deterministic generation while retaining no
     // accidental needs, illness, or care mistakes from the departed pet.
     seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
+    resetPetToEgg();
+}
+
+void CnaTamagotchiGame::startFreshEgg() noexcept
+{
+    seed_ = static_cast<std::uint64_t>(unixSecondsNow());
+    resetPetToEgg();
+}
+
+void CnaTamagotchiGame::resetPetToEgg() noexcept
+{
     pet_ = Domain::PetState{};
     pet_.species = (seed_ & 1U) == 0U ? Domain::PetSpecies::Puffin
                                       : Domain::PetSpecies::Mossling;
@@ -486,6 +570,25 @@ void CnaTamagotchiGame::setFeedback(const Feedback feedback) noexcept
 void CnaTamagotchiGame::refreshDisplay() noexcept
 {
     display_.clear();
+
+    if (screen_ == Screen::SaveRecovery) {
+        if (recoveryBackupAvailable_) {
+            display_.drawText(10, 0, "ERR");
+            display_.drawText(8, 6, "REST");
+            display_.drawText(10, 11, "NEW");
+            const int markerY = recoveryChoice_ == RecoveryChoice::RestoreBackup ? 7 : 12;
+            display_.setPixel(4, markerY, true);
+            display_.setPixel(5, markerY + 1, true);
+            display_.setPixel(4, markerY + 2, true);
+        } else {
+            display_.drawText(8, 1, "NONE");
+            display_.drawText(10, 9, "NEW");
+            display_.setPixel(4, 10, true);
+            display_.setPixel(5, 11, true);
+            display_.setPixel(4, 12, true);
+        }
+        return;
+    }
 
     const auto drawHeartMeter = [this](const int firstX, const int firstY, const int value) {
         const int filled = std::clamp((value + 24) / 25, 0, 4);

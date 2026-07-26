@@ -37,6 +37,8 @@ public:
     [[nodiscard]] SaveResult save(const std::filesystem::path& path,
                                   const SaveData& data) const;
     [[nodiscard]] LoadResult load(const std::filesystem::path& path) const;
+    [[nodiscard]] SaveResult restoreBackup(const std::filesystem::path& path) const;
+    [[nodiscard]] SaveResult archiveCorruptSave(const std::filesystem::path& path) const;
 };
 
 } // namespace CnaTamagotchi::Persistence

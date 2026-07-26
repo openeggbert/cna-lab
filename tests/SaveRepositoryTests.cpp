@@ -94,6 +94,60 @@ void testInvalidDataIsRejected()
     std::filesystem::remove_all(directory, error);
 }
 
+void testBackupRestorationAndCorruptArchive()
+{
+    const std::filesystem::path directory = testDirectory();
+    const std::filesystem::path path = directory / "recoverable.json";
+    std::error_code error;
+    std::filesystem::remove_all(directory, error);
+
+    Persistence::SaveRepository repository;
+    Persistence::SaveData backupData{};
+    backupData.lastSavedUnixSeconds = 1'725'000'000;
+    backupData.seed = 47;
+    backupData.pet.needs.hunger = 31;
+    expect(repository.save(path, backupData).success, "first recovery save must succeed");
+
+    Persistence::SaveData currentData = backupData;
+    currentData.pet.needs.hunger = 84;
+    expect(repository.save(path, currentData).success, "second recovery save must succeed");
+
+    {
+        std::ofstream stream(path, std::ios::trunc);
+        stream << "this is not a save";
+    }
+    expect(!repository.load(path).success(), "the deliberately damaged current save must be rejected");
+
+    expect(repository.restoreBackup(path).success, "a valid backup must restore over damage");
+    const Persistence::LoadResult restored = repository.load(path);
+    expect(restored.success(), "the restored main save must load");
+    if (restored.data) {
+        expect(restored.data->pet.needs.hunger == backupData.pet.needs.hunger,
+            "restoration must recover the data stored in the backup");
+    }
+    expect(repository.load(path.string() + ".bak").success(),
+        "restoration must retain the valid backup file");
+
+    {
+        std::ofstream stream(path, std::ios::trunc);
+        stream << "damaged again";
+    }
+    expect(repository.archiveCorruptSave(path).success, "damaged save must be archivable");
+    expect(!std::filesystem::exists(path), "archiving must remove the damaged file from its active path");
+    expect(std::filesystem::exists(path.string() + ".corrupt"),
+        "the first damaged save must be retained in a recovery archive");
+
+    {
+        std::ofstream stream(path, std::ios::trunc);
+        stream << "another damaged save";
+    }
+    expect(repository.archiveCorruptSave(path).success, "a second damaged save must be archivable");
+    expect(std::filesystem::exists(path.string() + ".corrupt.1"),
+        "recovery archives must never overwrite an earlier damaged save");
+
+    std::filesystem::remove_all(directory, error);
+}
+
 void testLegacyVersionOneLoadsWithCareDefaults()
 {
     const std::filesystem::path directory = testDirectory();
@@ -150,6 +204,7 @@ int main()
 {
     testRoundTripAndBackup();
     testInvalidDataIsRejected();
+    testBackupRestorationAndCorruptArchive();
     testLegacyVersionOneLoadsWithCareDefaults();
 
     if (failures == 0) {

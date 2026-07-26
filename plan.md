@@ -63,8 +63,10 @@ will be copied.
   - [x] Use a temporary file and backup before replacing an existing save.
   - [x] Integrate an automatic relative save slot and bounded UTC offline-time
     catch-up; prevent clock rollback from moving the saved timestamp backward.
+  - [x] Add an in-device corruption-recovery choice that restores a valid
+    backup or archives the damaged slot before a new egg begins.
   - Add platform user-data path selection, atomic-replace support on every
-    target, migrations, and corruption-recovery UI.
+    target, and migrations.
 
 - [ ] **7. Polish and release readiness**
   - Add sound options, keyboard/controller accessibility, pause/help, and
@@ -75,7 +77,6 @@ will be copied.
 
 ## Immediate next task
 
-Add a player-facing recovery path for unreadable save data: offer the current
-slot's backup when it is valid, or let the player explicitly begin a new egg.
-Keep the choice inside the device flow and never silently overwrite a damaged
-save.
+Select a platform-appropriate user-data directory while keeping existing
+relative saves discoverable and recoverable. This must not break the player
+backup/recovery flow or silently move an existing active pet.

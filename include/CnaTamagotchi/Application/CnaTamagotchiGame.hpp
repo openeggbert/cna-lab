@@ -40,6 +40,7 @@ private:
         Status,
         Game,
         NumberGame,
+        SaveRecovery,
     };
 
     enum class DeviceButton {
@@ -54,15 +55,25 @@ private:
         Blocked,
     };
 
+    enum class RecoveryChoice {
+        RestoreBackup,
+        NewEgg,
+    };
+
     [[nodiscard]] Microsoft::Xna::Framework::Color backgroundColor() const;
     [[nodiscard]] bool pressButton(DeviceButton button);
     [[nodiscard]] std::optional<DeviceButton> buttonAtWindowPosition(float x, float y) const noexcept;
     void moveSelectionBackward() noexcept;
     [[nodiscard]] bool loadSave();
+    [[nodiscard]] bool activateSave(const Persistence::SaveData& data);
+    [[nodiscard]] bool restoreBackup();
+    [[nodiscard]] bool archiveAndStartFreshEgg();
     void saveNow();
     void startPeekGame() noexcept;
     void startNumberGame() noexcept;
     void startNewEgg() noexcept;
+    void startFreshEgg() noexcept;
+    void resetPetToEgg() noexcept;
     void setFeedback(Feedback feedback) noexcept;
     void refreshDisplay() noexcept;
     void drawDevice();
@@ -91,6 +102,8 @@ private:
     std::uint64_t seed_{0};
     bool gameResolved_{false};
     bool gameWon_{false};
+    bool recoveryBackupAvailable_{false};
+    RecoveryChoice recoveryChoice_{RecoveryChoice::NewEgg};
     Feedback feedback_{Feedback::None};
     bool selectNextWasDown_{false};
     bool selectPreviousWasDown_{false};
