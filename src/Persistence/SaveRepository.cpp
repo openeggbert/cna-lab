@@ -137,7 +137,10 @@ bool validPetState(const Domain::ProgramPetState& pet) noexcept
         && pet.disciplineMistakes >= 0 && pet.disciplineMistakes <= MaximumPersistedAge
         && validTeenLineage(static_cast<int>(pet.teenLineage))
         && pet.attentionDeadlineMinutes >= -1
-        && pet.nextAttentionEligibleMinutes >= 0
+        // -1 is the deliberate P1 sentinel used after an ignored attention
+        // call. It prevents the same empty meter from immediately raising a
+        // duplicate call until the player restores it.
+        && pet.nextAttentionEligibleMinutes >= -1
         && validAttentionReason(static_cast<int>(pet.attentionReason))
         && validStage(static_cast<int>(pet.stage));
 }
@@ -326,7 +329,7 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
         || *medicineDosesRemaining > MaximumMedicineDoses || !validBoolean(*asleep)
         || *clockMinutesOfDay < 0 || *clockMinutesOfDay >= 24 * 60 || *wasteCount < 0
         || *careMistakes < 0 || *attentionDeadlineMinutes < -1
-        || *nextAttentionEligibleMinutes < 0 || !validBoolean(*lightOff)
+        || *nextAttentionEligibleMinutes < -1 || !validBoolean(*lightOff)
         || !validBoolean(*sick) || !validAttentionReason(*attentionReason)) {
         return invalid("Save file contains a value outside the supported P1 range.");
     }

@@ -117,6 +117,29 @@ void testInvalidDataIsRejected()
     std::filesystem::remove_all(directory, error);
 }
 
+void testIgnoredAttentionCallRoundTrips()
+{
+    const std::filesystem::path directory = testDirectory();
+    const std::filesystem::path path = directory / "ignored-attention.json";
+    std::error_code error;
+    std::filesystem::remove_all(directory, error);
+
+    Persistence::SaveData data = p1Save();
+    data.pet.attentionDeadlineMinutes = -1;
+    data.pet.nextAttentionEligibleMinutes = -1;
+    data.pet.attentionReason = Domain::ProgramAttentionReason::None;
+
+    Persistence::SaveRepository repository;
+    expect(repository.save(path, data).success,
+        "an ignored P1 attention call must remain a saveable state");
+    const Persistence::LoadResult loaded = repository.load(path);
+    expect(loaded.success() && loaded.data
+            && loaded.data->pet.nextAttentionEligibleMinutes == -1,
+        "the ignored P1 attention sentinel must survive a save round trip");
+
+    std::filesystem::remove_all(directory, error);
+}
+
 void testVersionTwoP1SaveKeepsAConservativeEvolutionDefault()
 {
     const std::filesystem::path directory = testDirectory();
@@ -254,6 +277,7 @@ int main()
 {
     testP1RoundTripAndBackup();
     testInvalidDataIsRejected();
+    testIgnoredAttentionCallRoundTrips();
     testVersionTwoP1SaveKeepsAConservativeEvolutionDefault();
     testBackupRestorationAndArchives();
     testLegacyPrototypeIsNeverConvertedToP1();
