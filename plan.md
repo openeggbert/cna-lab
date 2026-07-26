@@ -33,6 +33,10 @@ similar emulation core is permitted in the application, build, or test suite.
 - [ ] **3. Source-backed P1 rule ledger**
   - [x] Add `docs/p1-specification.md` with source/observation, target variant,
     inputs, expected outcome, and a test reference for every implemented rule.
+  - [x] Record the boundary for visual reference work: a captured P1 Mametchi
+    idle sequence may be manually transcribed into independent one-bit frame
+    data, but no ROM, extracted asset, or emulator dependency may enter this
+    repository.
   - Capture the international P1 stage timing, character sprites/animations,
     sleep schedules, minimum weights, life spans, attention timing, care
     mistakes, discipline, illness, medicine doses, and evolution matrix.
@@ -69,6 +73,9 @@ similar emulation core is permitted in the application, build, or test suite.
     P1 character cell and three separately drawn, anchored idle phases. One
     captured Mametchi idle trace is represented as one-bit frame data and is
     covered by a focused catalogue test.
+  - Compare and replace every remaining provisional home redraw before calling
+    the character catalogue visually faithful; then capture its distinct care
+    action frames rather than reusing home-idle art.
   - Add target sprite states and animations: idle, eating, sleeping, unhappy,
     ill, medicine, waste, attention, game, evolution, and end sequence.
   - Render P1’s checkerboard LCD field and exact permanent P1 icon placement;
@@ -128,7 +135,9 @@ similar emulation core is permitted in the application, build, or test suite.
 
 ## Immediate next task
 
-Capture and compare the remaining international-P1 character idle and action
-frames. The new fixed-cell renderer removes the incorrect bobbing behaviour,
-but its non-Mametchi redraws and all care-action animations still need a
-frame-by-frame comparison before they can be described as exact.
+Follow the ordered visual and behaviour backlog in [next.md](next.md). The
+first implementation task is to capture and compare the remaining
+international-P1 character idle frames. The fixed-cell renderer removes the
+incorrect bobbing behaviour, but its non-Mametchi redraws and all care-action
+animations still need a frame-by-frame comparison before they can be described
+as exact.
