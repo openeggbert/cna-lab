@@ -32,6 +32,7 @@ will be copied.
     and data-driven evolution.
   - [x] Add basic illness and Farewell transitions for excessive snacks and
     neglected waste/health.
+  - [x] Add the initial Farewell-to-new-egg reset flow.
 
 - [ ] **4. 1-bit display and device renderer**
   - Complete the independent 32 × 16 framebuffer with sprites, text, and

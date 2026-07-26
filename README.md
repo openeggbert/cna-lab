@@ -172,9 +172,10 @@ reward for maximising one number.
 ## Death, farewell, and a new egg
 
 Death or farewell belongs in Classic mode. It will be presented quietly and
-respectfully, followed by a new-egg flow and a chronological journal entry.
-A successful long-lived adult may leave an egg or memory event before departing.
-Relaxed mode will make this optional, but Classic mode will preserve stakes.
+respectfully. The current Farewell display reads `NEW`; B starts a new,
+freshly-seeded egg. A chronological journal and a successful-adult memory/egg
+event remain future work. Relaxed mode will make permanent loss optional, but
+Classic mode will preserve stakes.
 
 ## Technical architecture
 

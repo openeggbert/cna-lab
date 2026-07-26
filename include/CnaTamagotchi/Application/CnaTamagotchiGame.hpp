@@ -52,6 +52,7 @@ private:
     void loadSave();
     void saveNow();
     void startPeekGame() noexcept;
+    void startNewEgg() noexcept;
     void refreshDisplay() noexcept;
     void drawDevice();
 

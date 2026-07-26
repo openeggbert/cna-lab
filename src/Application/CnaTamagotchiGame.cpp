@@ -265,6 +265,14 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
 
 bool CnaTamagotchiGame::pressButton(const DeviceButton button)
 {
+    if (pet_.lifeStage == Domain::LifeStage::Farewell) {
+        if (button == DeviceButton::B) {
+            startNewEgg();
+            return true;
+        }
+        return false;
+    }
+
     switch (button) {
     case DeviceButton::A:
         if (screen_ == Screen::Home) {
@@ -485,6 +493,23 @@ void CnaTamagotchiGame::startPeekGame() noexcept
     gameWon_ = false;
 }
 
+void CnaTamagotchiGame::startNewEgg() noexcept
+{
+    // A new egg begins a fresh deterministic generation while retaining no
+    // accidental needs, illness, or care mistakes from the departed pet.
+    seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
+    pet_ = Domain::PetState{};
+    screen_ = Screen::Home;
+    selectedIcon_ = 0;
+    foodSelection_ = 0;
+    statusPage_ = 0;
+    gameChoice_ = 0;
+    gameTarget_ = 0;
+    gameResolved_ = false;
+    gameWon_ = false;
+    simulationSeconds_ = 0.0F;
+}
+
 void CnaTamagotchiGame::refreshDisplay() noexcept
 {
     display_.clear();
@@ -556,6 +581,20 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         display_.setPixel(markerX, 13, true);
         display_.setPixel(markerX + 1, 14, true);
         display_.setPixel(markerX, 15, true);
+        return;
+    }
+
+    if (pet_.lifeStage == Domain::LifeStage::Farewell) {
+        drawText(display_, 10, 0, "NEW");
+        const Domain::CreatureSprite& sprite = Domain::CreatureCatalog::spriteFor(
+            Domain::CreatureCatalog::formFor(pet_));
+        for (int y = 0; y < static_cast<int>(sprite.rows.size()); ++y) {
+            for (int x = 0; x < static_cast<int>(sprite.rows[static_cast<std::size_t>(y)].size()); ++x) {
+                if (sprite.rows[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)] == '#') {
+                    display_.setPixel(11 + x, 5 + y, true);
+                }
+            }
+        }
         return;
     }
 
