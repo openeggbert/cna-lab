@@ -29,6 +29,10 @@ void testEveryLifeStageResolvesToAnOriginalForm()
     pet.lifeStage = LifeStage::Child;
     expect(CreatureCatalog::formFor(pet) == CreatureForm::Sproutlet,
         "child must resolve to Sproutlet");
+
+    pet.lifeStage = LifeStage::Farewell;
+    expect(CreatureCatalog::formFor(pet) == CreatureForm::Farewell,
+        "farewell must use its own non-living display form");
 }
 
 void testCareChangesTeenAndAdultOutcome()
@@ -57,11 +61,12 @@ void testCareChangesTeenAndAdultOutcome()
 
 void testEverySpriteHasAStableName()
 {
-    constexpr std::array<CreatureForm, 12> forms{{
+    constexpr std::array<CreatureForm, 13> forms{{
         CreatureForm::Egg, CreatureForm::Pipple, CreatureForm::Sproutlet,
         CreatureForm::Flitwing, CreatureForm::Tumblepuff, CreatureForm::Skywhistle,
         CreatureForm::Mossmuzzle, CreatureForm::Ripplefin, CreatureForm::Pebbleback,
         CreatureForm::Bramblepaw, CreatureForm::Duskroot, CreatureForm::Moonmote,
+        CreatureForm::Farewell,
     }};
 
     for (const CreatureForm form : forms) {

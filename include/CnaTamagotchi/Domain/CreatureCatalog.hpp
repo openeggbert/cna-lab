@@ -7,8 +7,8 @@
 
 namespace CnaTamagotchi::Domain {
 
-// Every form in the first original creature line. Egg is a display state;
-// all remaining entries are living creature forms.
+// Every form in the first original creature line. Egg and Farewell are display
+// states; the remaining entries are living creature forms.
 enum class CreatureForm {
     Egg,
     Pipple,
@@ -22,6 +22,7 @@ enum class CreatureForm {
     Bramblepaw,
     Duskroot,
     Moonmote,
+    Farewell,
 };
 
 struct CreatureSprite final {

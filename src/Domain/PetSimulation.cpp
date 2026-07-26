@@ -9,6 +9,7 @@ constexpr int MinNeed = 0;
 constexpr int MaxNeed = 100;
 constexpr int HeartValue = 25;
 constexpr int AttentionWindowMinutes = 15;
+constexpr int OverweightSnackThreshold = 30;
 
 int clampNeed(const int value) noexcept
 {
@@ -52,6 +53,10 @@ SimulationReport PetSimulation::advance(PetState& state, const int elapsedMinute
 
 void PetSimulation::applyAction(PetState& state, const PetAction action) const noexcept
 {
+    if (state.lifeStage == LifeStage::Farewell) {
+        return;
+    }
+
     switch (action) {
     case PetAction::Meal:
         state.needs.hunger += HeartValue;
@@ -63,6 +68,10 @@ void PetSimulation::applyAction(PetState& state, const PetAction action) const n
     case PetAction::Snack:
         state.needs.happiness += HeartValue;
         state.weight += 2;
+        if (state.weight >= OverweightSnackThreshold) {
+            state.sick = true;
+            state.needs.health -= 15;
+        }
         if (state.attentionReason == AttentionReason::Happiness) {
             clearAttention(state);
         }
@@ -148,9 +157,19 @@ void PetSimulation::advanceOneMinute(PetState& state) noexcept
         if (state.needs.health <= 15) {
             state.sick = true;
         }
+        if (state.wasteCount >= 2) {
+            state.sick = true;
+        }
     }
 
     enforceInvariants(state);
+    if (state.needs.health == 0) {
+        state.lifeStage = LifeStage::Farewell;
+        state.asleep = false;
+        state.lightOff = false;
+        clearAttention(state);
+        return;
+    }
     updateAttention(state);
 }
 

@@ -30,6 +30,8 @@ will be copied.
   - [x] Add unit tests for care effects, offline clamping, and life-stage progression.
   - [x] Add scheduled attention, care-mistake rules, waste, sleep/light requests,
     and data-driven evolution.
+  - [x] Add basic illness and Farewell transitions for excessive snacks and
+    neglected waste/health.
 
 - [ ] **4. 1-bit display and device renderer**
   - Complete the independent 32 × 16 framebuffer with sprites, text, and

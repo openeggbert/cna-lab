@@ -136,6 +136,32 @@ void testWasteAndSleepLight()
         "turning the light off must resolve its attention call");
 }
 
+void testIllnessAndFarewell()
+{
+    PetSimulation simulation;
+    PetState overfed{};
+    overfed.weight = 28;
+
+    simulation.applyAction(overfed, PetAction::Snack);
+    expect(overfed.sick, "repeatedly using snacks at unhealthy weight must cause illness");
+    expect(overfed.needs.health == 85, "an overfeeding illness must reduce health");
+    simulation.applyAction(overfed, PetAction::Medicine);
+    expect(!overfed.sick, "medicine must clear an illness once health is restored");
+
+    PetState neglected{};
+    neglected.lifeStage = LifeStage::Hatchling;
+    neglected.ageMinutes = 239;
+    neglected.wasteCount = 1;
+    neglected.needs.health = 5;
+    static_cast<void>(simulation.advance(neglected, 1));
+    expect(neglected.sick, "unattended waste must cause illness");
+    expect(neglected.lifeStage == LifeStage::Farewell,
+        "zero health from neglected care must enter farewell state");
+    simulation.applyAction(neglected, PetAction::Meal);
+    expect(neglected.needs.hunger == 50,
+        "farewell state must no longer accept care actions");
+}
+
 } // namespace
 
 int main()
@@ -146,6 +172,7 @@ int main()
     testSleepRecoversEnergy();
     testAttentionWindowAndDiscipline();
     testWasteAndSleepLight();
+    testIllnessAndFarewell();
 
     if (failures == 0) {
         std::cout << "PetSimulationTests passed\n";

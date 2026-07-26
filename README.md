@@ -22,12 +22,13 @@ sleep; handles waste; requests attention for empty needs, light, and false
 calls; preserves those states in saves; and provides Food and Status LCD
 screens rather than adding modern external controls. The Game icon opens the
 first original two-choice Peek mini-game; a win, not merely opening the icon,
-improves happiness.
+improves happiness. Uncleaned waste and excessive snacks can cause illness;
+running health down to zero enters an original Farewell display state.
 
 Those systems are foundations, not the final classic ruleset. In particular,
 the internal `0…100` need values, unfinished status/menu screens, temporary
-one-minute development clock, and simplified illness/death rules will be
-replaced by the faithful model below.
+one-minute development clock, and simplified long-term illness/farewell rules
+will be replaced by the faithful model below.
 
 ## Reference target and display decision
 

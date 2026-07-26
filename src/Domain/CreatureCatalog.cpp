@@ -161,6 +161,19 @@ constexpr CreatureSprite Moonmote{{
     " ##    ## ",
 }};
 
+constexpr CreatureSprite Farewell{{
+    "    ##    ",
+    "   ####   ",
+    "  ##  ##  ",
+    " ######## ",
+    "   ####   ",
+    "  ##  ##  ",
+    " ##    ## ",
+    "          ",
+    "    ##    ",
+    "   ####   ",
+}};
+
 } // namespace
 
 CreatureForm CreatureCatalog::formFor(const PetState& state) noexcept
@@ -188,7 +201,7 @@ CreatureForm CreatureCatalog::formFor(const PetState& state) noexcept
         return CreatureForm::Duskroot;
     }
     case LifeStage::Farewell:
-        return CreatureForm::Moonmote;
+        return CreatureForm::Farewell;
     }
 
     return CreatureForm::Egg;
@@ -209,6 +222,7 @@ const CreatureSprite& CreatureCatalog::spriteFor(const CreatureForm form) noexce
     case CreatureForm::Bramblepaw: return Bramblepaw;
     case CreatureForm::Duskroot: return Duskroot;
     case CreatureForm::Moonmote: return Moonmote;
+    case CreatureForm::Farewell: return Farewell;
     }
 
     return Egg;
@@ -229,6 +243,7 @@ std::string_view CreatureCatalog::nameFor(const CreatureForm form) noexcept
     case CreatureForm::Bramblepaw: return "Bramblepaw";
     case CreatureForm::Duskroot: return "Duskroot";
     case CreatureForm::Moonmote: return "Moonmote";
+    case CreatureForm::Farewell: return "Farewell";
     }
 
     return "Egg";
