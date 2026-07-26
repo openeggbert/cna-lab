@@ -42,6 +42,7 @@ constexpr int IconAtlasCellWidth = 38;
 constexpr int IconAtlasCellHeight = 36;
 constexpr int IconDrawWidth = 32;
 constexpr int IconDrawHeight = 30;
+constexpr float P1IdleFrameSeconds = 0.42F;
 
 struct Rgb final {
     std::uint8_t red;
@@ -919,15 +920,12 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     }
 
     const Domain::P1Sprite& sprite = Domain::P1SpriteCatalog::spriteForCharacter(pet_.characterId);
-    // The original home LCD gives its wide, short pet sprite the central game
-    // field; hearts belong to the Meter pages rather than permanently filling
-    // the left edge. A low-frequency egg wobble / awake-pet bob provides the
-    // current idle motion until distinct P1 action frames are transcribed.
-    const bool alternateIdlePose = static_cast<int>(backgroundTimeSeconds_ * 1.5F) % 2 != 0;
-    const int spriteX = alternateIdlePose ? 7 : 8;
-    const int spriteY = pet_.stage != Domain::ProgramStage::Egg && !pet_.asleep
-        && alternateIdlePose ? 3 : 4;
-    display_.drawSprite(spriteX, spriteY, sprite.rows);
+    // P1 home animation changes pixels *inside* a fixed character cell.  It
+    // does not make a modern-looking sprite bob by translating it across the
+    // LCD.  Sleeping leaves the first quiet frame on screen.
+    const std::size_t idleFrame = pet_.asleep ? 0U : static_cast<std::size_t>(
+        backgroundTimeSeconds_ / P1IdleFrameSeconds);
+    display_.drawSprite(8, 3, sprite.idleFrame(idleFrame).rows);
 
     if (pet_.asleep) {
         display_.setPixel(27, 4, true);

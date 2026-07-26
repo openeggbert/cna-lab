@@ -65,6 +65,10 @@ similar emulation core is permitted in the application, build, or test suite.
   - Replace Pipple/Budbit assets with Babytchi, Marutchi, Tamatchi,
     Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi, Kuchipatchi, Nyorotchi,
     Tarakotchi, and Bill.
+  - [x] Replace the provisional translated home sprite with a fixed 16 × 10
+    P1 character cell and three separately drawn, anchored idle phases. One
+    captured Mametchi idle trace is represented as one-bit frame data and is
+    covered by a focused catalogue test.
   - Add target sprite states and animations: idle, eating, sleeping, unhappy,
     ill, medicine, waste, attention, game, evolution, and end sequence.
   - Render P1’s checkerboard LCD field and exact permanent P1 icon placement;
@@ -124,6 +128,7 @@ similar emulation core is permitted in the application, build, or test suite.
 
 ## Immediate next task
 
-Capture the exact international-P1 character sprites and animation frames,
-then replace the provisional P1 catalogue frames before implementing the
-remaining timer and evolution traces.
+Capture and compare the remaining international-P1 character idle and action
+frames. The new fixed-cell renderer removes the incorrect bobbing behaviour,
+but its non-Mametchi redraws and all care-action animations still need a
+frame-by-frame comparison before they can be described as exact.

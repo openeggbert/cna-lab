@@ -140,6 +140,14 @@ if(CNA_TAMAGOTCHI_BUILD_TESTS AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_C
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
     add_test(NAME CnaTamagotchiP1ProgramTests COMMAND CnaTamagotchiP1ProgramTests)
 
+    add_executable(CnaTamagotchiP1SpriteCatalogTests
+        tests/P1SpriteCatalogTests.cpp
+        src/Domain/P1SpriteCatalog.cpp
+    )
+    target_include_directories(CnaTamagotchiP1SpriteCatalogTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    add_test(NAME CnaTamagotchiP1SpriteCatalogTests COMMAND CnaTamagotchiP1SpriteCatalogTests)
+
     add_executable(CnaTamagotchiProgramSimulationTests
         tests/ProgramSimulationTests.cpp
         src/Domain/P1Program.cpp
