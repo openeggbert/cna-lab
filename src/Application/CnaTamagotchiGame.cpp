@@ -317,7 +317,11 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         return true;
     }
 
-    if (pet_.stage == Domain::ProgramStage::End) {
+    if (pet_.stage == Domain::ProgramStage::End && screen_ == Screen::Home) {
+        if (button == DeviceButton::B) {
+            screen_ = Screen::Status;
+            statusPage_ = 0;
+        }
         return false;
     }
 
