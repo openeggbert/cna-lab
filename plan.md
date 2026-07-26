@@ -98,7 +98,8 @@ similar emulation core is permitted in the application, build, or test suite.
 
 - [ ] **8. Completion of real-time P1 behaviour**
   - Implement verified P1 timers, calls, sleep/light mistakes, waste, illness,
-    medicine, refusal, weight, death/life span, and angel-and-stars end screen.
+    medicine, refusal, weight, and the death/life-span transition into the
+    already-rendered angel-and-stars end screen.
   - Process long offline periods faithfully and deterministically; test clock
     rollback, restart, and boundary moments.
   - Replace the generic current Farewell/new-egg flow.

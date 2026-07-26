@@ -12,6 +12,7 @@
 #include <limits>
 #include <string>
 #include <system_error>
+#include <utility>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
@@ -329,6 +330,8 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
                 % static_cast<int>(activeProgramme().food.size());
         } else if (screen_ == Screen::Light) {
             lightSelection_ = (lightSelection_ + 1) % 2;
+        } else if (screen_ == Screen::Status) {
+            statusPage_ = (statusPage_ + 1) % 4;
         } else if (screen_ == Screen::Game && gameResolved_) {
             if (gameRound_ >= activeProgramme().game.rounds) {
                 screen_ = Screen::Home;
@@ -885,7 +888,16 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     }
 
     if (pet_.stage == Domain::ProgramStage::End) {
-        display_.drawText(10, 6, "NEW");
+        constexpr std::array<std::string_view, 8> Angel{{
+            "      ##        ", "    ######      ", "   ## ## ##     ", "  ##  ##  ##    ",
+            " ##  ######  ## ", "  ##  ####  ##  ", "    ##  ##      ", "   ##    ##     ",
+        }};
+        display_.drawSprite(8, 4, Angel);
+        for (const auto [x, y] : std::array<std::pair<int, int>, 7>{{
+                 {2, 3}, {5, 7}, {4, 12}, {27, 3}, {29, 7}, {26, 12}, {30, 14},
+             }}) {
+            display_.setPixel(x, y, true);
+        }
         return;
     }
 

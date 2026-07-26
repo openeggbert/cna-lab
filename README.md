@@ -47,8 +47,8 @@ character catalogue uses provisional one-bit placeholders pending exact sprite
 and animation capture. The implemented fifteen-minute Attention windows cover
 the initial/zero-heart and lights-off calls, but natural later-stage heart
 decay and scheduled false-discipline calls are still pending. Later illness,
-the Bill branch, life span, and the angel end sequence also need source-backed
-implementation. Legacy
+the Bill branch, life span, and the timing that reaches the already-rendered
+angel end screen also need source-backed implementation. Legacy
 prototype source files remain temporarily for isolated historical tests, but
 they no longer drive the active application.
 
@@ -194,9 +194,10 @@ characters are included. [Official FAQ](https://tamagotchi-official.com/us/serie
 ## End of life and a new egg
 
 International P1 ends with its angel-and-stars screen. At the end screen,
-pressing A+C produces a new egg. The current generic Farewell screen and
-button-B restart will be removed. Any desktop save archive is a host-side
-safety mechanism, not a fictional in-device journal.
+pressing A+C produces a new egg. The renderer and chord already use that P1
+presentation; the natural life-span/death transition that reaches it remains
+an open, source-backed task. Any desktop save archive is a host-side safety
+mechanism, not a fictional in-device journal.
 
 ## Technical architecture
 
