@@ -507,6 +507,7 @@ void CnaTamagotchiGame::startNewEgg() noexcept
     gameTarget_ = 0;
     gameResolved_ = false;
     gameWon_ = false;
+    lastSavedUnixSeconds_ = unixSecondsNow();
     simulationSeconds_ = 0.0F;
 }
 
