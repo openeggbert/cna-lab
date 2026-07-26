@@ -252,7 +252,10 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
             static_cast<void>(simulation_.advance(activeProgramme(), pet_, 1));
             simulationSeconds_ -= 60.0F;
             lastSavedUnixSeconds_ += 60;
-            saveChanged = true;
+            // Do not rewrite the slot and its backup once per simulated
+            // minute. A later care action stores this current timestamp; if
+            // the process exits first, deterministic offline catch-up
+            // replays the unsaved minutes from the prior timestamp.
         }
     } else {
         resetHoldSeconds_ = 0.0F;
