@@ -75,6 +75,8 @@ endif()
 target_include_directories(${CNA_TAMAGOTCHI_TARGET} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
+configure_file(assets/p1-icon-atlas.png assets/p1-icon-atlas.png COPYONLY)
+
 # Imported SDL targets are directory-scoped, so discover SDL3 again after
 # CNA configures its dependencies.
 find_package(SDL3 REQUIRED CONFIG)

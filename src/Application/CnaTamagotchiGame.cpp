@@ -95,6 +95,23 @@ std::filesystem::path defaultSavePath()
         workingDirectory, Persistence::SaveLocation::platformDataDirectory());
 }
 
+std::filesystem::path iconAtlasPath()
+{
+    constexpr std::array<std::string_view, 2> candidates{{
+        "assets/p1-icon-atlas.png",
+        "../assets/p1-icon-atlas.png",
+    }};
+    std::error_code error;
+    for (const std::string_view candidate : candidates) {
+        const std::filesystem::path path(candidate);
+        if (std::filesystem::exists(path, error) && !error) {
+            return path;
+        }
+        error.clear();
+    }
+    return std::filesystem::path(candidates.front());
+}
+
 } // namespace
 
 CnaTamagotchiGame::CnaTamagotchiGame(const bool smokeTest,
@@ -120,6 +137,7 @@ void CnaTamagotchiGame::LoadContent()
     pixelTexture_.emplace(getGraphicsDeviceProperty(), 1, 1);
     const Color white(255, 255, 255, 255);
     pixelTexture_->SetData(&white, 1);
+    iconAtlasTexture_.emplace(iconAtlasPath().string(), getGraphicsDeviceProperty());
 }
 
 void CnaTamagotchiGame::Update(GameTime& gameTime)
@@ -870,91 +888,24 @@ void CnaTamagotchiGame::drawDevice()
         }
     }
 
-    // These are printed-style face symbols, not magnified pixels from the
-    // 32×16 game LCD. Inactive icons stay muted; an active or urgent symbol
-    // becomes dark and receives only a small locator dot, never a square tile.
-    const Color iconInactive(104, 107, 82, 255);
-    const auto drawIcon = [this, &drawRect, &drawEllipse, iconInactive, lcdOn, lcdOff](const int index) {
+    // The atlas is a transparency mask derived from the reference device's
+    // eight face icons. CNA applies one of two outline colours at draw time:
+    // muted grey when inactive and near-black when selected or urgent.
+    const Color iconInactive(104, 104, 104, 255);
+    for (int index = 0; index < IconCount; ++index) {
         const int slot = index % 4;
         const bool topBand = index < 4;
         const int bandY = topBand ? DisplayY - IconBandHeight : DisplayY + DisplayPixelHeight;
         const int slotWidth = DisplayPixelWidth / 4;
-        const int centreX = DisplayX + slot * slotWidth + slotWidth / 2;
-        const int centreY = bandY + IconBandHeight / 2;
         const bool urgent = (index == 3 && pet_.sick)
             || (index == 4 && pet_.wasteCount > 0)
             || (index == 7 && pet_.attentionReason != Domain::ProgramAttentionReason::None);
         const bool active = index == selectedIcon_ || urgent;
-        const Color ink = active ? lcdOn : iconInactive;
-        const auto bar = [&drawRect, ink](const int x, const int y, const int width, const int height) {
-            drawRect(Rectangle(x, y, width, height), ink);
-        };
-
-        switch (index) {
-        case 0: // fork and knife
-            bar(centreX - 16, centreY - 11, 3, 17);
-            bar(centreX - 21, centreY - 11, 3, 7);
-            bar(centreX - 16, centreY - 11, 3, 7);
-            bar(centreX - 11, centreY - 11, 3, 7);
-            bar(centreX + 11, centreY - 11, 4, 18);
-            bar(centreX + 7, centreY - 11, 8, 5);
-            break;
-        case 1: // light bulb and rays
-            drawEllipse(centreX, centreY - 2, 8, 8, ink);
-            bar(centreX - 5, centreY + 5, 10, 3);
-            bar(centreX - 4, centreY + 9, 8, 3);
-            bar(centreX, centreY - 16, 3, 4);
-            bar(centreX - 15, centreY - 3, 4, 3);
-            bar(centreX + 12, centreY - 3, 4, 3);
-            break;
-        case 2: // Character game ball and paddle
-            drawEllipse(centreX - 7, centreY - 3, 7, 7, ink);
-            bar(centreX + 5, centreY - 11, 4, 17);
-            bar(centreX + 2, centreY - 11, 10, 4);
-            bar(centreX + 9, centreY + 5, 8, 4);
-            break;
-        case 3: // medicine bottle with cross
-            bar(centreX - 8, centreY - 12, 16, 4);
-            drawEllipse(centreX, centreY + 1, 10, 10, ink);
-            bar(centreX - 2, centreY - 4, 4, 10);
-            bar(centreX - 5, centreY - 1, 10, 4);
-            break;
-        case 4: // toilet bowl
-            bar(centreX - 12, centreY - 10, 10, 6);
-            bar(centreX - 12, centreY - 10, 3, 17);
-            drawEllipse(centreX + 2, centreY + 1, 12, 7, ink);
-            bar(centreX + 2, centreY + 5, 5, 8);
-            bar(centreX - 3, centreY + 11, 16, 3);
-            break;
-        case 5: // Health Meter scale
-            drawEllipse(centreX, centreY + 1, 13, 10, ink);
-            drawEllipse(centreX, centreY + 1, 8, 5, lcdOff);
-            bar(centreX - 1, centreY - 5, 3, 8);
-            bar(centreX - 1, centreY - 5, 8, 3);
-            break;
-        case 6: // discipline bell
-            drawEllipse(centreX, centreY, 11, 9, ink);
-            bar(centreX - 13, centreY + 5, 26, 4);
-            drawEllipse(centreX, centreY + 11, 3, 3, ink);
-            bar(centreX - 2, centreY - 13, 4, 5);
-            break;
-        case 7: // attention clock
-            drawEllipse(centreX, centreY, 11, 11, ink);
-            drawEllipse(centreX, centreY, 7, 7, lcdOff);
-            bar(centreX - 1, centreY - 6, 3, 8);
-            bar(centreX - 1, centreY, 8, 3);
-            break;
-        default:
-            break;
-        }
-
-        if (active) {
-            const int markerY = topBand ? bandY + IconBandHeight - 5 : bandY + 2;
-            drawEllipse(centreX, markerY, 3, 2, lcdOn);
-        }
-    };
-    for (int icon = 0; icon < IconCount; ++icon) {
-        drawIcon(icon);
+        const Rectangle source((index % 4) * 38, (index / 4) * 36, 38, 36);
+        const Rectangle destination(DisplayX + slot * slotWidth + 8, bandY + 1,
+            slotWidth - 16, IconBandHeight - 2);
+        spriteBatch_->Draw(*iconAtlasTexture_, destination, source,
+            active ? lcdOn : iconInactive);
     }
 
     // Three physical controls: A changes selection, B confirms, C clears it.
