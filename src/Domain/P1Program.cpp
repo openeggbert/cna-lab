@@ -37,6 +37,8 @@ constexpr ProgramDefinition Definition{
         .babyNapDurationMinutes = 5,
         .babyIllnessMinute = 33,
         .babyIllnessMedicineDoses = 2,
+        .babyFirstWasteMinute = 15,
+        .babySecondWasteMinute = 45,
     },
     .game = GameDefinition{
         .kind = ProgramGameKind::Character,

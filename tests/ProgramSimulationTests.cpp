@@ -62,12 +62,42 @@ void testP1BabyTraceUsesSharedProgrammeSimulator()
     expect(pet.weight == 10, "Marutchi must receive its P1 minimum weight from programme data");
 }
 
+void testP1FoodGameWasteAndSleepUseProgrammeData()
+{
+    ProgramPetState pet{};
+    ProgramSimulation simulation;
+    const ProgramDefinition& p1 = Programs::internationalP1();
+    static_cast<void>(simulation.advance(p1, pet, 5));
+
+    expect(simulation.feed(p1, pet, 0) && pet.hungerHearts == 1 && pet.weight == 6,
+        "P1 Bread must add one hunger heart and one ounce from programme data");
+    expect(simulation.feed(p1, pet, 1) && pet.happinessHearts == 1 && pet.weight == 8,
+        "P1 Candy must add one happiness heart and two ounces from programme data");
+    expect(simulation.completeGame(p1, pet, 3) && pet.happinessHearts == 2 && pet.weight == 7,
+        "a three-win P1 Character game must add happiness and remove one ounce");
+
+    static_cast<void>(simulation.advance(p1, pet, 15));
+    expect(pet.wasteCount == 1, "Babytchi's captured first waste event must be programme data");
+    expect(simulation.cleanWaste(pet) && pet.wasteCount == 0,
+        "the P1 Toilet action must remove recorded waste without a prototype hygiene meter");
+
+    static_cast<void>(simulation.advance(p1, pet, 50));
+    expect(pet.stage == ProgramStage::Child && pet.characterId == "marutchi",
+        "the trace must reach Marutchi before its P1 sleep schedule is evaluated");
+    pet.clockMinutesOfDay = 19 * 60 + 59;
+    static_cast<void>(simulation.advance(p1, pet, 1));
+    expect(pet.asleep, "Marutchi must follow its captured 20:00 P1 sleep schedule");
+    expect(simulation.toggleLight(pet) && pet.lightOff,
+        "the P1 Light action must apply only while the character is asleep");
+}
+
 } // namespace
 
 int main()
 {
     testP1EggHatchesFromProgrammeData();
     testP1BabyTraceUsesSharedProgrammeSimulator();
+    testP1FoodGameWasteAndSleepUseProgrammeData();
 
     if (failures == 0) {
         std::cout << "ProgramSimulationTests passed\n";

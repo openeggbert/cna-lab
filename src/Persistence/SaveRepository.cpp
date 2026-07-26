@@ -2,8 +2,10 @@
 
 #include <array>
 #include <charconv>
+#include <cctype>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <string_view>
 #include <system_error>
 
@@ -11,6 +13,10 @@ namespace CnaTamagotchi::Persistence {
 namespace {
 
 constexpr std::size_t MaximumSaveBytes = 64U * 1024U;
+constexpr int MaximumPersistedMinutes = std::numeric_limits<int>::max();
+constexpr int MaximumPersistedWeight = 9'999;
+constexpr int MaximumPersistedAge = 9'999;
+constexpr int MaximumMedicineDoses = 4;
 
 template <typename Integer>
 std::optional<Integer> extractInteger(const std::string& json, const std::string_view key)
@@ -28,9 +34,7 @@ std::optional<Integer> extractInteger(const std::string& json, const std::string
     }
 
     std::size_t valueStart = colon + 1U;
-    while (valueStart < json.size()
-           && (json[valueStart] == ' ' || json[valueStart] == '\t'
-               || json[valueStart] == '\r' || json[valueStart] == '\n')) {
+    while (valueStart < json.size() && std::isspace(static_cast<unsigned char>(json[valueStart]))) {
         ++valueStart;
     }
     if (valueStart == json.size()) {
@@ -47,74 +51,140 @@ std::optional<Integer> extractInteger(const std::string& json, const std::string
     return value;
 }
 
-bool containsKey(const std::string& json, const std::string_view key)
+std::optional<std::string> extractIdentifier(const std::string& json, const std::string_view key)
 {
-    return json.find("\"" + std::string(key) + "\"") != std::string::npos;
+    const std::string quotedKey = "\"" + std::string(key) + "\"";
+    const std::size_t keyPosition = json.find(quotedKey);
+    if (keyPosition == std::string::npos
+        || json.find(quotedKey, keyPosition + quotedKey.size()) != std::string::npos) {
+        return std::nullopt;
+    }
+
+    const std::size_t colon = json.find(':', keyPosition + quotedKey.size());
+    if (colon == std::string::npos) {
+        return std::nullopt;
+    }
+
+    std::size_t valueStart = colon + 1U;
+    while (valueStart < json.size() && std::isspace(static_cast<unsigned char>(json[valueStart]))) {
+        ++valueStart;
+    }
+    if (valueStart >= json.size() || json[valueStart] != '\"') {
+        return std::nullopt;
+    }
+
+    const std::size_t valueEnd = json.find('\"', valueStart + 1U);
+    const std::size_t escape = json.find('\\', valueStart + 1U);
+    if (valueEnd == std::string::npos || (escape != std::string::npos && escape < valueEnd)) {
+        return std::nullopt;
+    }
+    return json.substr(valueStart + 1U, valueEnd - valueStart - 1U);
 }
 
-bool validNeed(const int value) noexcept
+bool validIdentifier(const std::string_view value) noexcept
 {
-    return value >= 0 && value <= 100;
+    if (value.empty() || value.size() > 64U) {
+        return false;
+    }
+    for (const char character : value) {
+        const bool allowed = (character >= 'a' && character <= 'z')
+            || (character >= '0' && character <= '9') || character == '-';
+        if (!allowed) {
+            return false;
+        }
+    }
+    return true;
 }
 
-bool validSpecies(const int value) noexcept
+bool validStage(const int value) noexcept
 {
-    return value >= static_cast<int>(Domain::PetSpecies::Puffin)
-        && value <= static_cast<int>(Domain::PetSpecies::Cometling);
+    return value >= static_cast<int>(Domain::ProgramStage::Egg)
+        && value <= static_cast<int>(Domain::ProgramStage::End);
 }
 
-bool validLifeStage(const int value) noexcept
+bool validBoolean(const int value) noexcept
 {
-    return value >= static_cast<int>(Domain::LifeStage::Egg)
-        && value <= static_cast<int>(Domain::LifeStage::Farewell);
+    return value == 0 || value == 1;
 }
 
 bool validAttentionReason(const int value) noexcept
 {
-    return value >= static_cast<int>(Domain::AttentionReason::None)
-        && value <= static_cast<int>(Domain::AttentionReason::Discipline);
+    return value >= static_cast<int>(Domain::ProgramAttentionReason::None)
+        && value <= static_cast<int>(Domain::ProgramAttentionReason::Discipline);
+}
+
+bool validPetState(const Domain::ProgramPetState& pet) noexcept
+{
+    return validIdentifier(pet.characterId)
+        && pet.minutesSinceClockSet >= 0 && pet.minutesSinceClockSet <= MaximumPersistedMinutes
+        && pet.minutesSinceHatch >= 0 && pet.minutesSinceHatch <= MaximumPersistedMinutes
+        && pet.age >= 0 && pet.age <= MaximumPersistedAge
+        && pet.weight >= 0 && pet.weight <= MaximumPersistedWeight
+        && pet.hungerHearts >= 0 && pet.hungerHearts <= 4
+        && pet.happinessHearts >= 0 && pet.happinessHearts <= 4
+        && pet.disciplineBars >= 0 && pet.disciplineBars <= 4
+        && pet.medicineDosesRemaining >= 0
+        && pet.medicineDosesRemaining <= MaximumMedicineDoses
+        && pet.clockMinutesOfDay >= 0 && pet.clockMinutesOfDay < 24 * 60
+        && pet.wasteCount >= 0 && pet.wasteCount <= MaximumPersistedWeight
+        && pet.careMistakes >= 0 && pet.careMistakes <= MaximumPersistedAge
+        && pet.attentionDeadlineMinutes >= -1
+        && pet.nextAttentionEligibleMinutes >= 0
+        && validAttentionReason(static_cast<int>(pet.attentionReason))
+        && validStage(static_cast<int>(pet.stage));
+}
+
+bool validSaveData(const SaveData& data) noexcept
+{
+    return data.formatVersion == SaveData::CurrentFormatVersion
+        && data.lastSavedUnixSeconds >= 0
+        && validIdentifier(data.programId)
+        && validPetState(data.pet);
 }
 
 std::string serialise(const SaveData& data)
 {
-    const Domain::Needs& needs = data.pet.needs;
+    const Domain::ProgramPetState& pet = data.pet;
     return "{\n"
         "  \"formatVersion\": " + std::to_string(data.formatVersion) + ",\n"
+        "  \"programId\": \"" + data.programId + "\",\n"
         "  \"lastSavedUnixSeconds\": " + std::to_string(data.lastSavedUnixSeconds) + ",\n"
         "  \"seed\": " + std::to_string(data.seed) + ",\n"
         "  \"pet\": {\n"
-        "    \"species\": " + std::to_string(static_cast<int>(data.pet.species)) + ",\n"
-        "    \"lifeStage\": " + std::to_string(static_cast<int>(data.pet.lifeStage)) + ",\n"
-        "    \"weight\": " + std::to_string(data.pet.weight) + ",\n"
-        "    \"careMistakes\": " + std::to_string(data.pet.careMistakes) + ",\n"
-        "    \"ageMinutes\": " + std::to_string(data.pet.ageMinutes) + ",\n"
-        "    \"clockMinutesOfDay\": " + std::to_string(data.pet.clockMinutesOfDay) + ",\n"
-        "    \"wasteCount\": " + std::to_string(data.pet.wasteCount) + ",\n"
-        "    \"attentionDeadlineMinutes\": "
-            + std::to_string(data.pet.attentionDeadlineMinutes) + ",\n"
+        "    \"characterId\": \"" + pet.characterId + "\",\n"
+        "    \"stage\": " + std::to_string(static_cast<int>(pet.stage)) + ",\n"
+        "    \"minutesSinceClockSet\": " + std::to_string(pet.minutesSinceClockSet) + ",\n"
+        "    \"minutesSinceHatch\": " + std::to_string(pet.minutesSinceHatch) + ",\n"
+        "    \"age\": " + std::to_string(pet.age) + ",\n"
+        "    \"weight\": " + std::to_string(pet.weight) + ",\n"
+        "    \"hungerHearts\": " + std::to_string(pet.hungerHearts) + ",\n"
+        "    \"happinessHearts\": " + std::to_string(pet.happinessHearts) + ",\n"
+        "    \"disciplineBars\": " + std::to_string(pet.disciplineBars) + ",\n"
+        "    \"medicineDosesRemaining\": " + std::to_string(pet.medicineDosesRemaining) + ",\n"
+        "    \"clockMinutesOfDay\": " + std::to_string(pet.clockMinutesOfDay) + ",\n"
+        "    \"wasteCount\": " + std::to_string(pet.wasteCount) + ",\n"
+        "    \"careMistakes\": " + std::to_string(pet.careMistakes) + ",\n"
+        "    \"attentionDeadlineMinutes\": " + std::to_string(pet.attentionDeadlineMinutes) + ",\n"
         "    \"nextAttentionEligibleMinutes\": "
-            + std::to_string(data.pet.nextAttentionEligibleMinutes) + ",\n"
-        "    \"asleep\": " + std::to_string(data.pet.asleep ? 1 : 0) + ",\n"
-        "    \"lightOff\": " + std::to_string(data.pet.lightOff ? 1 : 0) + ",\n"
-        "    \"sick\": " + std::to_string(data.pet.sick ? 1 : 0) + ",\n"
+            + std::to_string(pet.nextAttentionEligibleMinutes) + ",\n"
+        "    \"asleep\": " + std::to_string(pet.asleep ? 1 : 0) + ",\n"
+        "    \"lightOff\": " + std::to_string(pet.lightOff ? 1 : 0) + ",\n"
+        "    \"sick\": " + std::to_string(pet.sick ? 1 : 0) + ",\n"
         "    \"attentionReason\": "
-            + std::to_string(static_cast<int>(data.pet.attentionReason)) + ",\n"
-        "    \"needs\": {\n"
-        "      \"hunger\": " + std::to_string(needs.hunger) + ",\n"
-        "      \"happiness\": " + std::to_string(needs.happiness) + ",\n"
-        "      \"energy\": " + std::to_string(needs.energy) + ",\n"
-        "      \"hygiene\": " + std::to_string(needs.hygiene) + ",\n"
-        "      \"health\": " + std::to_string(needs.health) + ",\n"
-        "      \"affection\": " + std::to_string(needs.affection) + ",\n"
-        "      \"discipline\": " + std::to_string(needs.discipline) + "\n"
-        "    }\n"
+            + std::to_string(static_cast<int>(pet.attentionReason)) + "\n"
         "  }\n"
         "}\n";
 }
 
 LoadResult invalid(const std::string_view reason)
 {
-    return LoadResult{.data = std::nullopt, .error = std::string(reason)};
+    return LoadResult{.data = std::nullopt, .legacyPrototype = false, .error = std::string(reason)};
+}
+
+LoadResult legacyPrototype()
+{
+    return LoadResult{.data = std::nullopt, .legacyPrototype = true,
+        .error = "This slot belongs to the retired pre-P1 prototype."};
 }
 
 } // namespace
@@ -124,8 +194,8 @@ SaveResult SaveRepository::save(const std::filesystem::path& path, const SaveDat
     if (path.empty() || path.filename().empty()) {
         return SaveResult{.success = false, .error = "Save path must name a file."};
     }
-    if (data.formatVersion != SaveData::CurrentFormatVersion) {
-        return SaveResult{.success = false, .error = "Refusing to write an unsupported save version."};
+    if (!validSaveData(data)) {
+        return SaveResult{.success = false, .error = "Refusing to write an invalid or unsupported P1 save."};
     }
 
     std::error_code error;
@@ -188,91 +258,84 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     }
 
     const auto formatVersion = extractInteger<int>(json, "formatVersion");
+    if (!formatVersion) {
+        return invalid("Save file is missing or repeats its format version.");
+    }
+    if (*formatVersion == 1) {
+        return legacyPrototype();
+    }
+    if (*formatVersion != SaveData::CurrentFormatVersion) {
+        return invalid("Unsupported save format version.");
+    }
+
+    const auto programId = extractIdentifier(json, "programId");
     const auto lastSaved = extractInteger<std::int64_t>(json, "lastSavedUnixSeconds");
     const auto seed = extractInteger<std::uint64_t>(json, "seed");
-    const auto species = extractInteger<int>(json, "species");
-    const auto lifeStage = extractInteger<int>(json, "lifeStage");
+    const auto characterId = extractIdentifier(json, "characterId");
+    const auto stage = extractInteger<int>(json, "stage");
+    const auto minutesSinceClockSet = extractInteger<int>(json, "minutesSinceClockSet");
+    const auto minutesSinceHatch = extractInteger<int>(json, "minutesSinceHatch");
+    const auto age = extractInteger<int>(json, "age");
     const auto weight = extractInteger<int>(json, "weight");
-    const auto careMistakes = extractInteger<int>(json, "careMistakes");
-    const auto ageMinutes = extractInteger<int>(json, "ageMinutes");
+    const auto hungerHearts = extractInteger<int>(json, "hungerHearts");
+    const auto happinessHearts = extractInteger<int>(json, "happinessHearts");
+    const auto disciplineBars = extractInteger<int>(json, "disciplineBars");
+    const auto medicineDosesRemaining = extractInteger<int>(json, "medicineDosesRemaining");
     const auto clockMinutesOfDay = extractInteger<int>(json, "clockMinutesOfDay");
     const auto wasteCount = extractInteger<int>(json, "wasteCount");
+    const auto careMistakes = extractInteger<int>(json, "careMistakes");
     const auto attentionDeadlineMinutes = extractInteger<int>(json, "attentionDeadlineMinutes");
     const auto nextAttentionEligibleMinutes = extractInteger<int>(json, "nextAttentionEligibleMinutes");
     const auto asleep = extractInteger<int>(json, "asleep");
     const auto lightOff = extractInteger<int>(json, "lightOff");
     const auto sick = extractInteger<int>(json, "sick");
     const auto attentionReason = extractInteger<int>(json, "attentionReason");
-    const auto hunger = extractInteger<int>(json, "hunger");
-    const auto happiness = extractInteger<int>(json, "happiness");
-    const auto energy = extractInteger<int>(json, "energy");
-    const auto hygiene = extractInteger<int>(json, "hygiene");
-    const auto health = extractInteger<int>(json, "health");
-    const auto affection = extractInteger<int>(json, "affection");
-    const auto discipline = extractInteger<int>(json, "discipline");
 
-    const bool hasCareSchedulerFields = containsKey(json, "clockMinutesOfDay")
-        || containsKey(json, "wasteCount") || containsKey(json, "attentionDeadlineMinutes")
-        || containsKey(json, "nextAttentionEligibleMinutes") || containsKey(json, "lightOff")
-        || containsKey(json, "attentionReason");
-    const bool hasCompleteCareSchedulerFields = clockMinutesOfDay && wasteCount
-        && attentionDeadlineMinutes && nextAttentionEligibleMinutes && lightOff && attentionReason;
-
-    if (!formatVersion || !lastSaved || !seed || !species || !lifeStage || !weight
-        || !careMistakes || !ageMinutes || !asleep || !sick || !hunger || !happiness
-        || !energy || !hygiene || !health || !affection || !discipline) {
-        return invalid("Save file is missing or repeats a required numeric field.");
+    if (!programId || !lastSaved || !seed || !characterId || !stage || !minutesSinceClockSet
+        || !minutesSinceHatch || !age || !weight || !hungerHearts || !happinessHearts
+        || !disciplineBars || !medicineDosesRemaining || !clockMinutesOfDay || !wasteCount
+        || !careMistakes || !attentionDeadlineMinutes || !nextAttentionEligibleMinutes || !asleep
+        || !lightOff || !sick || !attentionReason) {
+        return invalid("Save file is missing or repeats a required P1 field.");
     }
-    if (hasCareSchedulerFields && !hasCompleteCareSchedulerFields) {
-        return invalid("Save file has an incomplete or repeated care-scheduler field.");
-    }
-    if (*formatVersion != SaveData::CurrentFormatVersion) {
-        return invalid("Unsupported save format version.");
-    }
-    if (*lastSaved < 0 || !validSpecies(*species) || !validLifeStage(*lifeStage)
-        || *weight < 0 || *careMistakes < 0 || *ageMinutes < 0
-        || (*asleep != 0 && *asleep != 1) || (*sick != 0 && *sick != 1)
-        || !validNeed(*hunger) || !validNeed(*happiness) || !validNeed(*energy)
-        || !validNeed(*hygiene) || !validNeed(*health) || !validNeed(*affection)
-        || !validNeed(*discipline)) {
-        return invalid("Save file contains a value outside the supported range.");
-    }
-    if (hasCareSchedulerFields
-        && (*clockMinutesOfDay < 0 || *clockMinutesOfDay >= 24 * 60 || *wasteCount < 0
-            || *attentionDeadlineMinutes < -1 || *nextAttentionEligibleMinutes < 0
-            || (*lightOff != 0 && *lightOff != 1) || !validAttentionReason(*attentionReason))) {
-        return invalid("Save file contains a value outside the supported range.");
+    if (!validIdentifier(*programId) || !validIdentifier(*characterId) || *lastSaved < 0
+        || !validStage(*stage) || *minutesSinceClockSet < 0 || *minutesSinceHatch < 0
+        || *age < 0 || *weight < 0 || *hungerHearts < 0 || *hungerHearts > 4
+        || *happinessHearts < 0 || *happinessHearts > 4 || *disciplineBars < 0
+        || *disciplineBars > 4 || *medicineDosesRemaining < 0
+        || *medicineDosesRemaining > MaximumMedicineDoses || !validBoolean(*asleep)
+        || *clockMinutesOfDay < 0 || *clockMinutesOfDay >= 24 * 60 || *wasteCount < 0
+        || *careMistakes < 0 || *attentionDeadlineMinutes < -1
+        || *nextAttentionEligibleMinutes < 0 || !validBoolean(*lightOff)
+        || !validBoolean(*sick) || !validAttentionReason(*attentionReason)) {
+        return invalid("Save file contains a value outside the supported P1 range.");
     }
 
     SaveData data{};
     data.formatVersion = *formatVersion;
+    data.programId = *programId;
     data.lastSavedUnixSeconds = *lastSaved;
     data.seed = *seed;
-    data.pet.species = static_cast<Domain::PetSpecies>(*species);
-    data.pet.lifeStage = static_cast<Domain::LifeStage>(*lifeStage);
+    data.pet.characterId = *characterId;
+    data.pet.stage = static_cast<Domain::ProgramStage>(*stage);
+    data.pet.minutesSinceClockSet = *minutesSinceClockSet;
+    data.pet.minutesSinceHatch = *minutesSinceHatch;
+    data.pet.age = *age;
     data.pet.weight = *weight;
+    data.pet.hungerHearts = *hungerHearts;
+    data.pet.happinessHearts = *happinessHearts;
+    data.pet.disciplineBars = *disciplineBars;
+    data.pet.medicineDosesRemaining = *medicineDosesRemaining;
+    data.pet.clockMinutesOfDay = *clockMinutesOfDay;
+    data.pet.wasteCount = *wasteCount;
     data.pet.careMistakes = *careMistakes;
-    data.pet.ageMinutes = *ageMinutes;
+    data.pet.attentionDeadlineMinutes = *attentionDeadlineMinutes;
+    data.pet.nextAttentionEligibleMinutes = *nextAttentionEligibleMinutes;
     data.pet.asleep = *asleep == 1;
+    data.pet.lightOff = *lightOff == 1;
     data.pet.sick = *sick == 1;
-    if (hasCareSchedulerFields) {
-        data.pet.clockMinutesOfDay = *clockMinutesOfDay;
-        data.pet.wasteCount = *wasteCount;
-        data.pet.attentionDeadlineMinutes = *attentionDeadlineMinutes;
-        data.pet.nextAttentionEligibleMinutes = *nextAttentionEligibleMinutes;
-        data.pet.lightOff = *lightOff == 1;
-        data.pet.attentionReason = static_cast<Domain::AttentionReason>(*attentionReason);
-    }
-    data.pet.needs = Domain::Needs{
-        .hunger = *hunger,
-        .happiness = *happiness,
-        .energy = *energy,
-        .hygiene = *hygiene,
-        .health = *health,
-        .affection = *affection,
-        .discipline = *discipline,
-    };
-    return LoadResult{.data = data, .error = {}};
+    data.pet.attentionReason = static_cast<Domain::ProgramAttentionReason>(*attentionReason);
+    return LoadResult{.data = std::move(data), .legacyPrototype = false, .error = {}};
 }
 
 SaveResult SaveRepository::restoreBackup(const std::filesystem::path& path) const
@@ -360,6 +423,11 @@ SaveResult SaveRepository::archiveCorruptSave(const std::filesystem::path& path)
 SaveResult SaveRepository::archiveResetSave(const std::filesystem::path& path) const
 {
     return archiveSaveFile(path, ".reset");
+}
+
+SaveResult SaveRepository::archiveLegacySave(const std::filesystem::path& path) const
+{
+    return archiveSaveFile(path, ".legacy");
 }
 
 } // namespace CnaTamagotchi::Persistence

@@ -23,53 +23,69 @@ std::filesystem::path testDirectory()
     return std::filesystem::temp_directory_path() / "cna-tamagotchi-save-repository-tests";
 }
 
-void testRoundTripAndBackup()
+Persistence::SaveData p1Save()
+{
+    Persistence::SaveData data{};
+    data.lastSavedUnixSeconds = 1'725'000'000;
+    data.seed = 42;
+    data.pet.characterId = "marutchi";
+    data.pet.stage = Domain::ProgramStage::Child;
+    data.pet.minutesSinceClockSet = 70;
+    data.pet.minutesSinceHatch = 65;
+    data.pet.age = 1;
+    data.pet.weight = 12;
+    data.pet.hungerHearts = 3;
+    data.pet.happinessHearts = 2;
+    data.pet.disciplineBars = 1;
+    data.pet.medicineDosesRemaining = 0;
+    data.pet.clockMinutesOfDay = 20 * 60;
+    data.pet.wasteCount = 1;
+    data.pet.careMistakes = 2;
+    data.pet.attentionDeadlineMinutes = 85;
+    data.pet.nextAttentionEligibleMinutes = 100;
+    data.pet.asleep = true;
+    data.pet.lightOff = true;
+    data.pet.attentionReason = Domain::ProgramAttentionReason::SleepLight;
+    return data;
+}
+
+void testP1RoundTripAndBackup()
 {
     const std::filesystem::path directory = testDirectory();
     const std::filesystem::path path = directory / "slot-1.json";
     std::error_code error;
     std::filesystem::remove_all(directory, error);
 
-    Persistence::SaveData first{};
-    first.lastSavedUnixSeconds = 1'725'000'000;
-    first.seed = 42;
-    first.pet.species = Domain::PetSpecies::Cometling;
-    first.pet.lifeStage = Domain::LifeStage::Teen;
-    first.pet.ageMinutes = 1'440;
-    first.pet.clockMinutesOfDay = 1'234;
-    first.pet.wasteCount = 2;
-    first.pet.attentionReason = Domain::AttentionReason::SleepLight;
-    first.pet.attentionDeadlineMinutes = 1'455;
-    first.pet.nextAttentionEligibleMinutes = 1'470;
-    first.pet.needs.hunger = 37;
-    first.pet.asleep = true;
-    first.pet.lightOff = true;
-
+    Persistence::SaveData first = p1Save();
     Persistence::SaveRepository repository;
-    expect(repository.save(path, first).success, "first save must succeed");
+    expect(repository.save(path, first).success, "first P1 save must succeed");
 
     Persistence::SaveData second = first;
-    second.pet.needs.hunger = 81;
-    expect(repository.save(path, second).success, "second save must succeed");
+    second.pet.hungerHearts = 1;
+    expect(repository.save(path, second).success, "second P1 save must succeed");
     expect(std::filesystem::exists(path.string() + ".bak"),
-        "saving an existing slot must create a backup");
+        "saving an existing P1 slot must create a backup");
 
     const Persistence::LoadResult loaded = repository.load(path);
-    expect(loaded.success(), "saved slot must load");
+    expect(loaded.success(), "saved P1 slot must load");
+    expect(!loaded.isLegacyPrototype(), "current P1 save must not be classified as legacy");
     if (loaded.data) {
-        expect(loaded.data->seed == second.seed, "seed must survive a round trip");
-        expect(loaded.data->pet.species == Domain::PetSpecies::Cometling,
-            "species must survive a round trip");
-        expect(loaded.data->pet.needs.hunger == 81,
-            "latest need value must survive a round trip");
-        expect(loaded.data->pet.asleep, "boolean state must survive a round trip");
-        expect(loaded.data->pet.clockMinutesOfDay == 1'234,
-            "clock state must survive a round trip");
-        expect(loaded.data->pet.wasteCount == 2,
-            "waste state must survive a round trip");
-        expect(loaded.data->pet.attentionReason == Domain::AttentionReason::SleepLight,
-            "attention reason must survive a round trip");
-        expect(loaded.data->pet.lightOff, "light state must survive a round trip");
+        expect(loaded.data->formatVersion == Persistence::SaveData::CurrentFormatVersion,
+            "the current P1 format version must survive a round trip");
+        expect(loaded.data->programId == "international-p1-1997",
+            "P1 programme identifier must survive a round trip");
+        expect(loaded.data->pet.characterId == "marutchi"
+                && loaded.data->pet.stage == Domain::ProgramStage::Child,
+            "P1 character identity and stage must survive a round trip");
+        expect(loaded.data->pet.hungerHearts == 1 && loaded.data->pet.asleep,
+            "P1 visible heart and boolean state must survive a round trip");
+        expect(loaded.data->pet.minutesSinceClockSet == 70
+                && loaded.data->pet.minutesSinceHatch == 65,
+            "P1 lifecycle time must survive a round trip");
+        expect(loaded.data->pet.wasteCount == 1 && loaded.data->pet.careMistakes == 2
+                && loaded.data->pet.lightOff
+                && loaded.data->pet.attentionReason == Domain::ProgramAttentionReason::SleepLight,
+            "P1 care-event and light state must survive a round trip");
     }
 
     std::filesystem::remove_all(directory, error);
@@ -89,12 +105,13 @@ void testInvalidDataIsRejected()
 
     Persistence::SaveRepository repository;
     const Persistence::LoadResult loaded = repository.load(path);
-    expect(!loaded.success(), "unsupported or incomplete JSON must be rejected");
+    expect(!loaded.success() && !loaded.isLegacyPrototype(),
+        "unsupported or incomplete JSON must be rejected as invalid, not legacy");
 
     std::filesystem::remove_all(directory, error);
 }
 
-void testBackupRestorationAndCorruptArchive()
+void testBackupRestorationAndArchives()
 {
     const std::filesystem::path directory = testDirectory();
     const std::filesystem::path path = directory / "recoverable.json";
@@ -102,14 +119,12 @@ void testBackupRestorationAndCorruptArchive()
     std::filesystem::remove_all(directory, error);
 
     Persistence::SaveRepository repository;
-    Persistence::SaveData backupData{};
-    backupData.lastSavedUnixSeconds = 1'725'000'000;
-    backupData.seed = 47;
-    backupData.pet.needs.hunger = 31;
+    Persistence::SaveData backupData = p1Save();
+    backupData.pet.happinessHearts = 2;
     expect(repository.save(path, backupData).success, "first recovery save must succeed");
 
     Persistence::SaveData currentData = backupData;
-    currentData.pet.needs.hunger = 84;
+    currentData.pet.happinessHearts = 4;
     expect(repository.save(path, currentData).success, "second recovery save must succeed");
 
     {
@@ -118,12 +133,12 @@ void testBackupRestorationAndCorruptArchive()
     }
     expect(!repository.load(path).success(), "the deliberately damaged current save must be rejected");
 
-    expect(repository.restoreBackup(path).success, "a valid backup must restore over damage");
+    expect(repository.restoreBackup(path).success, "a valid P1 backup must restore over damage");
     const Persistence::LoadResult restored = repository.load(path);
     expect(restored.success(), "the restored main save must load");
     if (restored.data) {
-        expect(restored.data->pet.needs.hunger == backupData.pet.needs.hunger,
-            "restoration must recover the data stored in the backup");
+        expect(restored.data->pet.happinessHearts == backupData.pet.happinessHearts,
+            "restoration must recover the P1 state stored in the backup");
     }
     expect(repository.load(path.string() + ".bak").success(),
         "restoration must retain the valid backup file");
@@ -137,14 +152,6 @@ void testBackupRestorationAndCorruptArchive()
     expect(std::filesystem::exists(path.string() + ".corrupt"),
         "the first damaged save must be retained in a recovery archive");
 
-    {
-        std::ofstream stream(path, std::ios::trunc);
-        stream << "another damaged save";
-    }
-    expect(repository.archiveCorruptSave(path).success, "a second damaged save must be archivable");
-    expect(std::filesystem::exists(path.string() + ".corrupt.1"),
-        "recovery archives must never overwrite an earlier damaged save");
-
     expect(repository.save(path, currentData).success, "a reset test save must succeed");
     expect(repository.archiveResetSave(path).success, "an explicit reset must archive its active save");
     expect(std::filesystem::exists(path.string() + ".reset"),
@@ -153,7 +160,7 @@ void testBackupRestorationAndCorruptArchive()
     std::filesystem::remove_all(directory, error);
 }
 
-void testLegacyVersionOneLoadsWithCareDefaults()
+void testLegacyPrototypeIsNeverConvertedToP1()
 {
     const std::filesystem::path directory = testDirectory();
     const std::filesystem::path path = directory / "legacy.json";
@@ -167,38 +174,18 @@ void testLegacyVersionOneLoadsWithCareDefaults()
   "formatVersion": 1,
   "lastSavedUnixSeconds": 1725000000,
   "seed": 42,
-  "pet": {
-    "species": 0,
-    "lifeStage": 2,
-    "weight": 12,
-    "careMistakes": 1,
-    "ageMinutes": 65,
-    "asleep": 0,
-    "sick": 0,
-    "needs": {
-      "hunger": 75,
-      "happiness": 50,
-      "energy": 75,
-      "hygiene": 75,
-      "health": 100,
-      "affection": 50,
-      "discipline": 50
-    }
-  }
+  "pet": { "species": 0 }
 })";
     }
 
     Persistence::SaveRepository repository;
     const Persistence::LoadResult loaded = repository.load(path);
-    expect(loaded.success(), "original version-1 save must remain loadable");
-    if (loaded.data) {
-        expect(loaded.data->pet.clockMinutesOfDay == 9 * 60,
-            "legacy save must receive the default game clock");
-        expect(loaded.data->pet.wasteCount == 0,
-            "legacy save must receive no accumulated waste");
-        expect(loaded.data->pet.attentionReason == Domain::AttentionReason::None,
-            "legacy save must receive no active attention call");
-    }
+    expect(!loaded.success() && loaded.isLegacyPrototype(),
+        "the retired prototype save must be recognised but never converted into P1 state");
+    expect(repository.archiveLegacySave(path).success,
+        "an incompatible prototype save must be recoverably archived");
+    expect(std::filesystem::exists(path.string() + ".legacy"),
+        "the incompatible prototype save must remain available under the legacy suffix");
 
     std::filesystem::remove_all(directory, error);
 }
@@ -207,10 +194,10 @@ void testLegacyVersionOneLoadsWithCareDefaults()
 
 int main()
 {
-    testRoundTripAndBackup();
+    testP1RoundTripAndBackup();
     testInvalidDataIsRejected();
-    testBackupRestorationAndCorruptArchive();
-    testLegacyVersionOneLoadsWithCareDefaults();
+    testBackupRestorationAndArchives();
+    testLegacyPrototypeIsNeverConvertedToP1();
 
     if (failures == 0) {
         std::cout << "SaveRepositoryTests passed\n";

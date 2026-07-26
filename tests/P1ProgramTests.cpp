@@ -58,6 +58,8 @@ void testP1LifecycleAndCharacterSchedulesAreProgrammeData()
         "P1 Babytchi nap must be data rather than a simulator special case");
     expect(p1.lifecycle.babyIllnessMinute == 33 && p1.lifecycle.babyIllnessMedicineDoses == 2,
         "P1 Babytchi illness trace must be data rather than a simulator special case");
+    expect(p1.lifecycle.babyFirstWasteMinute == 15 && p1.lifecycle.babySecondWasteMinute == 45,
+        "P1 Babytchi waste events must be data rather than a simulator special case");
 
     const auto mametchi = std::find_if(p1.creatures.begin(), p1.creatures.end(),
         [](const CreatureDefinition& creature) { return creature.id == "mametchi"; });

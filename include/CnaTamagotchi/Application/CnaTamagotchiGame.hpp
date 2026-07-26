@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
-#include "CnaTamagotchi/Domain/PetSimulation.hpp"
+#include "CnaTamagotchi/Domain/ProgramSimulation.hpp"
 #include "CnaTamagotchi/Persistence/SaveRepository.hpp"
 
 #include <cstdint>
@@ -82,8 +82,8 @@ private:
 
     Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
     Display::MonochromeDisplay display_;
-    Domain::PetState pet_;
-    Domain::PetSimulation simulation_;
+    Domain::ProgramPetState pet_;
+    Domain::ProgramSimulation simulation_;
     Persistence::SaveRepository saveRepository_;
     std::filesystem::path savePath_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
@@ -106,6 +106,7 @@ private:
     bool gameResolved_{false};
     bool gameWon_{false};
     bool recoveryBackupAvailable_{false};
+    bool legacySaveAwaitingArchive_{false};
     RecoveryChoice recoveryChoice_{RecoveryChoice::NewEgg};
     Feedback feedback_{Feedback::None};
     bool selectNextWasDown_{false};

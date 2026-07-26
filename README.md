@@ -16,6 +16,11 @@ data-driven programme definition, so a future P2 implementation can supply
 separate P2 data to the same engine rather than turning this build into a
 hybrid or duplicating the simulator.
 
+This project is a clean behavioural reimplementation. It does not embed, load,
+execute, compare against, or require an original Tamagotchi ROM, TamaLIB, or
+any other emulation core. Fidelity is established through documented rules,
+reconstructed one-bit assets, deterministic traces, and independent tests.
+
 ## Player guide
 
 The detailed English end-user tutorial is available as a standalone static site
@@ -24,27 +29,23 @@ from the earlier prototype to the selected 1997 international P1 reference.
 
 ## Current prototype
 
-The current build already opens a CNA window and renders an egg-shaped device
-with a 32 × 16 one-bit LCD, eight in-LCD icon-band pictograms, three primary
-physical controls, an early deterministic pet simulator, and a tested JSON
-save repository. The current
-care slice renders four hunger, happiness, and discipline segments; schedules
-sleep; handles waste; requests attention for empty needs, light, and false
-calls; preserves those states in saves; and provides Food and Status LCD
-screens rather than adding modern external controls. The Game icon still opens
-the P1 Character game defined by the selected P1 programme data. The legacy
-creature catalogue and simulator are still being migrated. A win, not merely
-opening the icon, improves happiness. Uncleaned waste and
-excessive snacks can cause illness;
-running health down to zero enters an original Farewell display state. Waste,
-illness, and attention have their own compact LCD/shell indicators.
-Successful care briefly draws a spark beside the creature; an unavailable care
-action draws a small cross without writing an unchanged save slot.
+The current build opens a CNA window and renders an egg-shaped device with a
+full 32 × 16 one-bit game field, connected top/bottom icon bands, and three
+physical controls. Its active state is now the shared P1 programme state, not
+the retired Pipple/Budbit prototype. The implemented P1 trace covers the egg,
+Babytchi, Marutchi, early illness and two-dose medicine, baby waste, P1
+Bread/Candy, the five-round Character game, weight effects, Toilet, and the
+captured Marutchi sleep schedule. P1 JSON saves have an explicit programme id;
+an incompatible prototype save is preserved under a `.legacy` suffix rather
+than invented into a P1 pet.
 
-Those systems are foundations, not a P1 implementation yet. In particular, the
-current original creature catalogue, `0…100` need values, second game,
-unfinished status/menu screens, temporary one-minute development clock, and
-simplified illness/farewell rules will be replaced by the P1 model below.
+Those systems are foundations, not a complete P1 implementation yet. The new
+character catalogue uses provisional one-bit placeholders pending exact sprite
+and animation capture. Attention calls, later-stage decay and illness,
+discipline timing, the full evolution matrix, clock-setting flow, life span,
+and the angel end sequence still need source-backed implementation. Legacy
+prototype source files remain temporarily for isolated historical tests, but
+they no longer drive the active application.
 
 ## Reference target and display decision
 
@@ -60,11 +61,12 @@ hardware cannot be reproduced safely. In particular, a held virtual reset
 pinhole may require confirmation before it performs the original reset result:
 a fresh pulsating egg followed by clock setup and hatching.
 
-`cna-tamagotchi` therefore uses a permanent **32 × 16 logical LCD**. Every LCD
-pixel is either off (muted yellow-green) or on (near-black), with integer
-nearest-neighbour scaling and no grey pixels or anti-aliasing. The extra
-physical space around it belongs to the shell, icon bands, and controls; it is
-not additional display resolution.
+`cna-tamagotchi` therefore uses a permanent **32 × 16 logical game LCD**.
+Every game pixel is either off (muted yellow-green) or on (near-black), with
+integer nearest-neighbour scaling and no grey pixels or anti-aliasing. Four
+fixed icon cells above it and four below it are a physically connected LCD
+surround, not rows within the 32 × 16 game bitmap; together they make the
+visible LCD module appear close to square.
 
 The default is an olive LCD. Optional one-bit palettes are presentation-only
 desktop accessibility settings; they cannot alter P1 rules or LCD resolution.

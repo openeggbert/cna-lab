@@ -13,6 +13,11 @@ definitions, rules, persistence, renderer, and input must consume a selected
 programme package. A later P2 implementation will supply its own data package
 and game strategy to that same engine; it must not fork or copy the P1 engine.
 
+This is explicitly **not** a ROM emulator. The source tree, executable, tests,
+and build must not depend on TamaLIB, an original ROM, another emulation core,
+or emulator-to-engine comparison tooling. All visible P1 behaviour is
+specified, implemented, and tested as independent C++ code.
+
 The target is the English-language 1997 international device, not the original
 Japanese 1996 device and not a modern `Original Tamagotchi` reissue. That
 distinction is essential: regional and reissue versions change visible food,

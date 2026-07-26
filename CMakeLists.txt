@@ -52,6 +52,7 @@ set(CNA_TAMAGOTCHI_SOURCES
     src/Display/MonochromeDisplay.cpp
     src/Domain/CreatureCatalog.cpp
     src/Domain/P1Program.cpp
+    src/Domain/P1SpriteCatalog.cpp
     src/Domain/ProgramSimulation.cpp
     src/Domain/PetSimulation.cpp
     src/Persistence/SaveLocation.cpp

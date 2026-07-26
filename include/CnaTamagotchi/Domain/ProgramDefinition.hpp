@@ -69,6 +69,8 @@ struct LifecycleDefinition final {
     int babyNapDurationMinutes{0};
     int babyIllnessMinute{-1};
     int babyIllnessMedicineDoses{0};
+    int babyFirstWasteMinute{-1};
+    int babySecondWasteMinute{-1};
 };
 
 struct ProgramDefinition final {

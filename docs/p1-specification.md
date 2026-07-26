@@ -10,6 +10,11 @@ P1 is represented as the first `ProgramDefinition` data package. The same
 generic definition schema will later allow P2 data to reuse the engine without
 mixing its content or rules into this P1 ledger.
 
+The programme is implemented as clean C++ behaviour. This ledger must never
+use a ROM, TamaLIB, or another emulator as an implementation dependency or
+test oracle; evidence comes from public manuals, documented historical sources,
+and reproducible observations.
+
 Each entry has a confidence status:
 
 - **Verified** — stated in a primary P1 manual or reproduced by a captured
@@ -29,7 +34,7 @@ Each entry has a confidence status:
 
 | Rule | Status | Evidence / implementation consequence |
 | --- | --- | --- |
-| 32 × 16 one-bit LCD, two four-icon bands | Provisional | Historical P1 documentation and device observation; retain the existing logical resolution and move all icons inside it. |
+| 32 × 16 one-bit game LCD, two four-icon bands | Provisional | Historical P1 documentation and device observation; retain the entire 32 × 16 game bitmap and render the fixed icon cells in its connected top/bottom surround. |
 | A selects, B confirms, C cancels | Verified | Manual activation and care instructions. Do not add direct-care buttons. |
 | B shows the clock when Attention is not lit | Verified | Official Original FAQ; the P1 UI must not use B only as a generic menu key. |
 | A+C enters clock setting | Verified | Official Original FAQ. A changes hours, B changes minutes, C confirms. |
@@ -74,7 +79,7 @@ are captured from the selected target programme.
 | Hunger/happiness decay | Open | Record every heart change by stage. |
 | Attention window and care-mistake criteria | Open | Trigger hunger, happiness, light, and false calls separately. |
 | Sleep/wake time per character | Open | Record exact transitions by current form. |
-| Waste, sickness, medicine doses | Open | Record trigger, display, repeated dose, and recovery traces. |
+| Waste, sickness, medicine doses | Verified in part | Babytchi waste at 15/45 minutes and sickness at minute 33 requiring two doses are traced; capture later-stage triggers and recovery. |
 | Weight changes, minimum weight, game effect | Open | Record Meal, Snack, game win, game loss, and refusal boundaries. |
 | Adult life span and end sequence | Open | Record well-cared and neglected adult runs. |
 

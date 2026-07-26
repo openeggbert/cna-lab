@@ -10,6 +10,9 @@ capture method. The engine is data-driven: P1 is its first and only active
 programme package, so a future P2 package can reuse the engine instead of
 copying it.
 
+This is a clean behavioural implementation: no original ROM, TamaLIB, or
+similar emulation core is permitted in the application, build, or test suite.
+
 ## Milestones
 
 - [x] **1. Project foundation**
@@ -45,6 +48,8 @@ copying it.
   - [x] Introduce a shared programme simulator and drive the P1 egg → Babytchi
     → Marutchi trace from definition data (including the captured baby illness,
     medicine, and nap events).
+  - [x] Move the active application to the shared programme state and simulator;
+    retire the Pipple/Budbit state from the active renderer and save path.
   - Make schedules, evolution rules, menu/icon data, and sprite keys part of
     programme data before P1 behaviour is migrated into the shared engine.
   - Remove custom species, two-line generation seed, Elder, generic Farewell,
@@ -88,8 +93,8 @@ copying it.
   - Replace the generic current Farewell/new-egg flow.
 
 - [ ] **9. Save migration and user documentation**
-  - Version P1 saves with an explicit target identifier.
-  - Archive incompatible legacy hybrid saves rather than converting them into
+  - [x] Version P1 saves with an explicit target identifier.
+  - [x] Archive incompatible legacy hybrid saves rather than converting them into
     fictitious P1 pets.
   - Rewrite the English static tutorial into detailed novice-friendly P1 parts,
     replacing all Pipple, Budbit, PEEK, and NUM material with P1 screenshots or
@@ -103,6 +108,6 @@ copying it.
 
 ## Immediate next task
 
-Migrate the active application from the legacy `PetSimulation` to the shared
-programme simulator, preserving an explicit legacy-save compatibility boundary
-before replacing gameplay assets and menus.
+Capture the exact international-P1 character sprites and animation frames,
+then replace the provisional P1 catalogue frames before implementing the
+remaining timer and evolution traces.

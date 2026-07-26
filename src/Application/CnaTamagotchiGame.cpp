@@ -1,6 +1,6 @@
 #include "CnaTamagotchi/Application/CnaTamagotchiGame.hpp"
-#include "CnaTamagotchi/Domain/CreatureCatalog.hpp"
 #include "CnaTamagotchi/Domain/P1Program.hpp"
+#include "CnaTamagotchi/Domain/P1SpriteCatalog.hpp"
 #include "CnaTamagotchi/Persistence/SaveLocation.hpp"
 
 #include <algorithm>
@@ -35,6 +35,8 @@ constexpr int DisplayPixelWidth = Display::MonochromeDisplay::Width * DisplaySca
 constexpr int DisplayPixelHeight = Display::MonochromeDisplay::Height * DisplayScale;
 constexpr int DisplayX = (WindowWidth - DisplayPixelWidth) / 2;
 constexpr int DisplayY = 280;
+constexpr int IconBandHeight = 34;
+constexpr int LcdModulePadding = 12;
 
 struct Rgb final {
     std::uint8_t red;
@@ -205,7 +207,7 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
         }
         simulationSeconds_ += elapsedSeconds;
         while (simulationSeconds_ >= 60.0F) {
-            static_cast<void>(simulation_.advance(pet_, 1));
+            static_cast<void>(simulation_.advance(activeProgramme(), pet_, 1));
             simulationSeconds_ -= 60.0F;
             lastSavedUnixSeconds_ += 60;
             saveChanged = true;
@@ -249,7 +251,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         return false;
     }
 
-    if (pet_.lifeStage == Domain::LifeStage::Farewell) {
+    if (pet_.stage == Domain::ProgramStage::End) {
         if (button == DeviceButton::B) {
             startNewEgg();
             setFeedback(Feedback::Success);
@@ -271,11 +273,10 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         return false;
     case DeviceButton::B:
         if (screen_ == Screen::Food) {
-            simulation_.applyAction(pet_, foodSelection_ == 0
-                ? Domain::PetAction::Meal : Domain::PetAction::Snack);
+            const bool fed = simulation_.feed(activeProgramme(), pet_, foodSelection_);
             screen_ = Screen::Home;
-            setFeedback(Feedback::Success);
-            return true;
+            setFeedback(fed ? Feedback::Success : Feedback::Blocked);
+            return fed;
         }
         if (screen_ == Screen::Status) {
             statusPage_ = (statusPage_ + 1) % 4;
@@ -298,7 +299,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             ++gameRound_;
             if (gameRound_ == activeProgramme().game.rounds
                 && gameWins_ >= activeProgramme().game.winsNeededForHappiness) {
-                simulation_.applyAction(pet_, Domain::PetAction::Play);
+                static_cast<void>(simulation_.completeGame(activeProgramme(), pet_, gameWins_));
             }
             return true;
         }
@@ -319,34 +320,25 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             setFeedback(Feedback::Blocked);
             return false;
         }
-        {
-            constexpr std::array<std::optional<Domain::PetAction>, 8> iconActions{{
-                std::nullopt, // food opens its own two-choice menu
-                Domain::PetAction::ToggleLight,
-                std::nullopt, // game opens its own choice screen
-                Domain::PetAction::Medicine,
-                Domain::PetAction::Clean,
-                std::nullopt, // status opens its own display
-                Domain::PetAction::Discipline,
-                std::nullopt, // attention is an automatic indicator
-            }};
-            const std::optional<Domain::PetAction> action =
-                iconActions[static_cast<std::size_t>(selectedIcon_)];
-            if (action.has_value()) {
-                const bool hasEffect = (*action != Domain::PetAction::ToggleLight || pet_.asleep)
-                    && (*action != Domain::PetAction::Medicine || pet_.sick)
-                    && (*action != Domain::PetAction::Clean
-                        || pet_.wasteCount > 0 || pet_.needs.hygiene < 100)
-                    && (*action != Domain::PetAction::Discipline
-                        || pet_.attentionReason == Domain::AttentionReason::Discipline);
-                if (!hasEffect) {
-                    setFeedback(Feedback::Blocked);
-                    return false;
-                }
-                simulation_.applyAction(pet_, *action);
-                setFeedback(Feedback::Success);
-                return true;
-            }
+        if (selectedIcon_ == 1) {
+            const bool changed = simulation_.toggleLight(pet_);
+            setFeedback(changed ? Feedback::Success : Feedback::Blocked);
+            return changed;
+        }
+        if (selectedIcon_ == 3) {
+            const bool changed = simulation_.giveMedicine(pet_);
+            setFeedback(changed ? Feedback::Success : Feedback::Blocked);
+            return changed;
+        }
+        if (selectedIcon_ == 4) {
+            const bool changed = simulation_.cleanWaste(pet_);
+            setFeedback(changed ? Feedback::Success : Feedback::Blocked);
+            return changed;
+        }
+        if (selectedIcon_ == 6) {
+            const bool changed = simulation_.discipline(pet_);
+            setFeedback(changed ? Feedback::Success : Feedback::Blocked);
+            return changed;
         }
         return false;
     case DeviceButton::C:
@@ -473,7 +465,9 @@ bool CnaTamagotchiGame::loadSave()
 
     const Persistence::LoadResult loaded = saveRepository_.load(savePath_);
     if (!loaded.data) {
-        recoveryBackupAvailable_ = saveRepository_.load(savePath_.string() + ".bak").success();
+        legacySaveAwaitingArchive_ = loaded.isLegacyPrototype();
+        recoveryBackupAvailable_ = !legacySaveAwaitingArchive_
+            && saveRepository_.load(savePath_.string() + ".bak").success();
         recoveryChoice_ = recoveryBackupAvailable_ ? RecoveryChoice::RestoreBackup
                                                     : RecoveryChoice::NewEgg;
         screen_ = Screen::SaveRecovery;
@@ -485,6 +479,14 @@ bool CnaTamagotchiGame::loadSave()
 
 bool CnaTamagotchiGame::activateSave(const Persistence::SaveData& data)
 {
+    if (data.programId != activeProgramme().id) {
+        legacySaveAwaitingArchive_ = false;
+        recoveryBackupAvailable_ = false;
+        recoveryChoice_ = RecoveryChoice::NewEgg;
+        screen_ = Screen::SaveRecovery;
+        return false;
+    }
+
     pet_ = data.pet;
     seed_ = data.seed;
     lastSavedUnixSeconds_ = data.lastSavedUnixSeconds;
@@ -501,14 +503,8 @@ bool CnaTamagotchiGame::activateSave(const Persistence::SaveData& data)
     const std::int64_t elapsedMinutes = elapsedSeconds / 60;
     const int appliedMinutes = static_cast<int>(std::min(
         elapsedMinutes, static_cast<std::int64_t>(std::numeric_limits<int>::max())));
-    const Domain::SimulationReport report = simulation_.advance(pet_, appliedMinutes);
-    if (report.wasClamped) {
-        // The development safeguard deliberately discards excessive offline
-        // time instead of letting repeated launches consume it in chunks.
-        lastSavedUnixSeconds_ = now;
-        simulationSeconds_ = 0.0F;
-        return true;
-    }
+    const Domain::ProgramAdvanceReport report = simulation_.advance(
+        activeProgramme(), pet_, appliedMinutes);
 
     // Keep sub-minute time in the saved timestamp. Without this, repeatedly
     // opening and closing the application every few seconds would prevent a
@@ -530,6 +526,7 @@ bool CnaTamagotchiGame::restoreBackup()
     }
 
     recoveryBackupAvailable_ = false;
+    legacySaveAwaitingArchive_ = false;
     recoveryChoice_ = RecoveryChoice::NewEgg;
     static_cast<void>(activateSave(*backup.data));
     return true;
@@ -537,11 +534,15 @@ bool CnaTamagotchiGame::restoreBackup()
 
 bool CnaTamagotchiGame::archiveAndStartFreshEgg()
 {
-    if (!saveRepository_.archiveCorruptSave(savePath_).success) {
+    const Persistence::SaveResult archive = legacySaveAwaitingArchive_
+        ? saveRepository_.archiveLegacySave(savePath_)
+        : saveRepository_.archiveCorruptSave(savePath_);
+    if (!archive.success) {
         return false;
     }
 
     recoveryBackupAvailable_ = false;
+    legacySaveAwaitingArchive_ = false;
     recoveryChoice_ = RecoveryChoice::NewEgg;
     startFreshEgg();
     return true;
@@ -566,6 +567,7 @@ void CnaTamagotchiGame::saveNow()
     // This is an elapsed-time anchor, rather than merely the instant of the
     // file write. It never moves backwards, and it retains sub-minute time.
     const Persistence::SaveData data{
+        .programId = std::string(activeProgramme().id),
         .lastSavedUnixSeconds = lastSavedUnixSeconds_,
         .seed = seed_,
         .pet = pet_,
@@ -610,10 +612,7 @@ void CnaTamagotchiGame::startFreshEgg() noexcept
 
 void CnaTamagotchiGame::resetPetToEgg() noexcept
 {
-    pet_ = Domain::PetState{};
-    // Legacy storage still has a species field until the P1 save migration;
-    // the active application never selects a second creature line from it.
-    pet_.species = Domain::PetSpecies::Puffin;
+    pet_ = Domain::ProgramPetState{};
     screen_ = Screen::Home;
     selectedIcon_ = 0;
     foodSelection_ = 0;
@@ -638,65 +637,8 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
 {
     display_.clear();
 
-    // The original-style device face keeps all eight care pictograms inside
-    // the 32 × 16 LCD: four above the creature and four below it. A selected
-    // or urgent icon is inverted, which remains legible on a true one-bit LCD.
-    const auto drawLcdIcon = [this](const int index) {
-        const int slotX = (index % 4) * 8;
-        const int slotY = index < 4 ? 0 : 13;
-        const bool urgent = (index == 3 && pet_.sick)
-            || (index == 4 && pet_.wasteCount > 0)
-            || (index == 7 && pet_.attentionReason != Domain::AttentionReason::None);
-        const bool inverted = index == selectedIcon_ || urgent;
-        if (inverted) {
-            display_.fillRectangle(slotX, slotY, 8, 3, true);
-        }
-        const auto pixel = [this, slotX, slotY, inverted](const int x, const int y) {
-            display_.setPixel(slotX + x, slotY + y, !inverted);
-        };
-
-        switch (index) {
-        case 0: // fork and knife / Food
-            pixel(2, 0); pixel(3, 0); pixel(4, 0); pixel(3, 1); pixel(3, 2);
-            pixel(6, 0); pixel(6, 1); pixel(5, 2); pixel(6, 2);
-            break;
-        case 1: // small sun / Light
-            pixel(1, 0); pixel(3, 0); pixel(5, 0); pixel(2, 1); pixel(3, 1);
-            pixel(4, 1); pixel(3, 2);
-            break;
-        case 2: // ball / Game
-            pixel(2, 0); pixel(3, 0); pixel(1, 1); pixel(2, 1); pixel(3, 1);
-            pixel(4, 1); pixel(2, 2); pixel(3, 2);
-            break;
-        case 3: // compact medicine cross
-            pixel(3, 0); pixel(2, 1); pixel(3, 1); pixel(4, 1); pixel(3, 2);
-            break;
-        case 4: // toilet / Clean
-            pixel(1, 0); pixel(2, 0); pixel(3, 0); pixel(4, 0); pixel(2, 1);
-            pixel(3, 1); pixel(4, 1); pixel(3, 2); pixel(4, 2);
-            break;
-        case 5: // scale / Status
-            pixel(3, 0); pixel(1, 1); pixel(2, 1); pixel(3, 1); pixel(4, 1);
-            pixel(5, 1); pixel(2, 2); pixel(4, 2);
-            break;
-        case 6: // bell / Discipline
-            pixel(3, 0); pixel(2, 1); pixel(3, 1); pixel(4, 1); pixel(1, 2);
-            pixel(2, 2); pixel(3, 2); pixel(4, 2); pixel(5, 2);
-            break;
-        case 7: // clock / Attention
-            pixel(2, 0); pixel(3, 0); pixel(4, 0); pixel(1, 1); pixel(3, 1);
-            pixel(4, 1); pixel(2, 2); pixel(3, 2); pixel(4, 2);
-            break;
-        default:
-            break;
-        }
-    };
-    for (int index = 0; index < IconCount; ++index) {
-        drawLcdIcon(index);
-    }
-
     const auto drawHeartMeter = [this](const int firstX, const int firstY, const int value) {
-        const int filled = std::clamp((value + 24) / 25, 0, 4);
+        const int filled = std::clamp(value, 0, 4);
         for (int heart = 0; heart < filled; ++heart) {
             const int x = firstX + heart * 2;
             display_.setPixel(x, firstY, true);
@@ -715,7 +657,8 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
             display_.setPixel(5, markerY + 1, true);
             display_.setPixel(4, markerY + 2, true);
         } else {
-            display_.drawText(8, 3, "NONE");
+            display_.drawText(legacySaveAwaitingArchive_ ? 10 : 8, 3,
+                legacySaveAwaitingArchive_ ? "OLD" : "NONE");
             display_.drawText(10, 8, "NEW");
             display_.setPixel(4, 9, true);
             display_.setPixel(5, 10, true);
@@ -743,19 +686,19 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
 
     if (screen_ == Screen::Status) {
         if (statusPage_ == 0) {
-            const std::string age = "AGE" + std::to_string(pet_.ageMinutes / (24 * 60));
+            const std::string age = "AGE" + std::to_string(pet_.age);
             const std::string weight = "WGT" + std::to_string(pet_.weight);
             display_.drawText(2, 3, age);
             display_.drawText(2, 8, weight);
         } else if (statusPage_ == 1) {
             display_.drawText(1, 3, "DIS");
-            drawHeartMeter(20, 5, pet_.needs.discipline);
+            drawHeartMeter(20, 5, pet_.disciplineBars);
         } else if (statusPage_ == 2) {
             display_.drawText(1, 5, "HUN");
-            drawHeartMeter(20, 7, pet_.needs.hunger);
+            drawHeartMeter(20, 7, pet_.hungerHearts);
         } else {
             display_.drawText(1, 5, "HAP");
-            drawHeartMeter(20, 7, pet_.needs.happiness);
+            drawHeartMeter(20, 7, pet_.happinessHearts);
         }
         return;
     }
@@ -793,17 +736,16 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         return;
     }
 
-    if (pet_.lifeStage == Domain::LifeStage::Farewell) {
+    if (pet_.stage == Domain::ProgramStage::End) {
         display_.drawText(10, 6, "NEW");
         return;
     }
 
-    drawHeartMeter(1, 3, pet_.needs.hunger);
-    drawHeartMeter(1, 6, pet_.needs.happiness);
-    drawHeartMeter(1, 9, pet_.needs.discipline);
+    drawHeartMeter(1, 3, pet_.hungerHearts);
+    drawHeartMeter(1, 6, pet_.happinessHearts);
+    drawHeartMeter(1, 9, pet_.disciplineBars);
 
-    const Domain::CreatureForm form = Domain::CreatureCatalog::formFor(pet_);
-    const Domain::CreatureSprite& sprite = Domain::CreatureCatalog::spriteFor(form);
+    const Domain::P1Sprite& sprite = Domain::P1SpriteCatalog::spriteForCharacter(pet_.characterId);
     display_.drawSprite(13, 3, sprite.rows);
 
     if (pet_.asleep) {
@@ -902,11 +844,17 @@ void CnaTamagotchiGame::drawDevice()
     drawRing(270, 72, 20, ShellOutline, backgroundColor());
     drawRing(270, 72, 14, ShellMain, backgroundColor());
 
-    // The recessed LCD is exactly 32 × 16 logical pixels at 8× scale.
-    drawRect(Rectangle(DisplayX - 12, DisplayY - 12,
-        DisplayPixelWidth + 24, DisplayPixelHeight + 24), lcdBezel);
-    drawRect(Rectangle(DisplayX - 6, DisplayY - 6,
-        DisplayPixelWidth + 12, DisplayPixelHeight + 12), ShellShadow);
+    // The active game bitmap is exactly 32 × 16 pixels. The eight permanent
+    // icon cells live in the physically connected top/bottom LCD surround;
+    // they must never consume rows from that game bitmap.
+    const int moduleX = DisplayX - LcdModulePadding;
+    const int moduleY = DisplayY - IconBandHeight - LcdModulePadding;
+    const int moduleWidth = DisplayPixelWidth + LcdModulePadding * 2;
+    const int moduleHeight = DisplayPixelHeight + IconBandHeight * 2 + LcdModulePadding * 2;
+    drawRect(Rectangle(moduleX, moduleY, moduleWidth, moduleHeight), lcdBezel);
+    drawRect(Rectangle(moduleX + 6, moduleY + 6, moduleWidth - 12, moduleHeight - 12), ShellShadow);
+    drawRect(Rectangle(DisplayX, DisplayY - IconBandHeight,
+        DisplayPixelWidth, DisplayPixelHeight + IconBandHeight * 2), lcdOff);
     drawRect(Rectangle(DisplayX, DisplayY, DisplayPixelWidth, DisplayPixelHeight), lcdOff);
 
     for (int y = 0; y < Display::MonochromeDisplay::Height; ++y) {
@@ -920,6 +868,93 @@ void CnaTamagotchiGame::drawDevice()
                     lcdOn);
             }
         }
+    }
+
+    // These are printed-style face symbols, not magnified pixels from the
+    // 32×16 game LCD. Inactive icons stay muted; an active or urgent symbol
+    // becomes dark and receives only a small locator dot, never a square tile.
+    const Color iconInactive(104, 107, 82, 255);
+    const auto drawIcon = [this, &drawRect, &drawEllipse, iconInactive, lcdOn, lcdOff](const int index) {
+        const int slot = index % 4;
+        const bool topBand = index < 4;
+        const int bandY = topBand ? DisplayY - IconBandHeight : DisplayY + DisplayPixelHeight;
+        const int slotWidth = DisplayPixelWidth / 4;
+        const int centreX = DisplayX + slot * slotWidth + slotWidth / 2;
+        const int centreY = bandY + IconBandHeight / 2;
+        const bool urgent = (index == 3 && pet_.sick)
+            || (index == 4 && pet_.wasteCount > 0)
+            || (index == 7 && pet_.attentionReason != Domain::ProgramAttentionReason::None);
+        const bool active = index == selectedIcon_ || urgent;
+        const Color ink = active ? lcdOn : iconInactive;
+        const auto bar = [&drawRect, ink](const int x, const int y, const int width, const int height) {
+            drawRect(Rectangle(x, y, width, height), ink);
+        };
+
+        switch (index) {
+        case 0: // fork and knife
+            bar(centreX - 16, centreY - 11, 3, 17);
+            bar(centreX - 21, centreY - 11, 3, 7);
+            bar(centreX - 16, centreY - 11, 3, 7);
+            bar(centreX - 11, centreY - 11, 3, 7);
+            bar(centreX + 11, centreY - 11, 4, 18);
+            bar(centreX + 7, centreY - 11, 8, 5);
+            break;
+        case 1: // light bulb and rays
+            drawEllipse(centreX, centreY - 2, 8, 8, ink);
+            bar(centreX - 5, centreY + 5, 10, 3);
+            bar(centreX - 4, centreY + 9, 8, 3);
+            bar(centreX, centreY - 16, 3, 4);
+            bar(centreX - 15, centreY - 3, 4, 3);
+            bar(centreX + 12, centreY - 3, 4, 3);
+            break;
+        case 2: // Character game ball and paddle
+            drawEllipse(centreX - 7, centreY - 3, 7, 7, ink);
+            bar(centreX + 5, centreY - 11, 4, 17);
+            bar(centreX + 2, centreY - 11, 10, 4);
+            bar(centreX + 9, centreY + 5, 8, 4);
+            break;
+        case 3: // medicine bottle with cross
+            bar(centreX - 8, centreY - 12, 16, 4);
+            drawEllipse(centreX, centreY + 1, 10, 10, ink);
+            bar(centreX - 2, centreY - 4, 4, 10);
+            bar(centreX - 5, centreY - 1, 10, 4);
+            break;
+        case 4: // toilet bowl
+            bar(centreX - 12, centreY - 10, 10, 6);
+            bar(centreX - 12, centreY - 10, 3, 17);
+            drawEllipse(centreX + 2, centreY + 1, 12, 7, ink);
+            bar(centreX + 2, centreY + 5, 5, 8);
+            bar(centreX - 3, centreY + 11, 16, 3);
+            break;
+        case 5: // Health Meter scale
+            drawEllipse(centreX, centreY + 1, 13, 10, ink);
+            drawEllipse(centreX, centreY + 1, 8, 5, lcdOff);
+            bar(centreX - 1, centreY - 5, 3, 8);
+            bar(centreX - 1, centreY - 5, 8, 3);
+            break;
+        case 6: // discipline bell
+            drawEllipse(centreX, centreY, 11, 9, ink);
+            bar(centreX - 13, centreY + 5, 26, 4);
+            drawEllipse(centreX, centreY + 11, 3, 3, ink);
+            bar(centreX - 2, centreY - 13, 4, 5);
+            break;
+        case 7: // attention clock
+            drawEllipse(centreX, centreY, 11, 11, ink);
+            drawEllipse(centreX, centreY, 7, 7, lcdOff);
+            bar(centreX - 1, centreY - 6, 3, 8);
+            bar(centreX - 1, centreY, 8, 3);
+            break;
+        default:
+            break;
+        }
+
+        if (active) {
+            const int markerY = topBand ? bandY + IconBandHeight - 5 : bandY + 2;
+            drawEllipse(centreX, markerY, 3, 2, lcdOn);
+        }
+    };
+    for (int icon = 0; icon < IconCount; ++icon) {
+        drawIcon(icon);
     }
 
     // Three physical controls: A changes selection, B confirms, C clears it.
