@@ -23,6 +23,7 @@ if(NOT EXISTS "${IRON_SHADOWS_CNA_DIR}/CMakeLists.txt")
         "  workspace/cna\n"
         "  workspace/sharp-runtime\n"
         "  workspace/easy-gl       # for EASYGL\n"
+        "  workspace/cna-extended\n"
         "  workspace/iron-shadows\n"
         "Override with -DIRON_SHADOWS_CNA_DIR=/absolute/path/to/cna")
 endif()
@@ -35,6 +36,16 @@ if(NOT EXISTS "${IRON_SHADOWS_DEPENDENCY_ROOT}/sharp-runtime/CMakeLists.txt")
         "This is required by CNA's current build contract.")
 endif()
 
+set(IRON_SHADOWS_CNA_EXTENDED_DIR "${IRON_SHADOWS_DEPENDENCY_ROOT}/cna-extended" CACHE PATH
+    "Path to the cna-extended repository (ECS, 3D transform hierarchy, 3D collision/octree, skinned-model playback).")
+
+if(NOT EXISTS "${IRON_SHADOWS_CNA_EXTENDED_DIR}/CMakeLists.txt")
+    message(FATAL_ERROR
+        "Iron Shadows: cna-extended must be a sibling of CNA at\n"
+        "  ${IRON_SHADOWS_CNA_EXTENDED_DIR}\n"
+        "Override with -DIRON_SHADOWS_CNA_EXTENDED_DIR=/absolute/path/to/cna-extended")
+endif()
+
 # Consumer-side choices. The project does not build dependency tests/examples by default.
 set(CNA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(CNA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -42,6 +53,8 @@ set(CNA_ENABLE_NET OFF CACHE BOOL "" FORCE)
 set(CNA_DEVICES OFF CACHE BOOL "" FORCE)
 set(SHARP_RUNTIME_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(SHARP_RUNTIME_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+set(CNA_EXTENDED_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(CNA_EXTENDED_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 # EASYGL is the recommended prototype backend. Override with VULKAN where available.
 if(NOT DEFINED CNA_GRAPHICS_BACKEND)
@@ -49,6 +62,10 @@ if(NOT DEFINED CNA_GRAPHICS_BACKEND)
 endif()
 
 add_subdirectory("${IRON_SHADOWS_CNA_DIR}" "${CMAKE_BINARY_DIR}/_deps/cna")
+
+# cna-extended detects the `CNA` target this project just defined above and
+# links against it instead of building its own copy of CNA.
+add_subdirectory("${IRON_SHADOWS_CNA_EXTENDED_DIR}" "${CMAKE_BINARY_DIR}/_deps/cna_extended")
 
 include(cmake/CompilerWarnings.cmake)
 include(cmake/CnaLinking.cmake)
@@ -70,7 +87,8 @@ target_include_directories(iron_shadows_core
 target_link_libraries(iron_shadows_core
     PUBLIC
         CNA
-        SHARP_RUNTIME)
+        SHARP_RUNTIME
+        CNA_EXTENDED)
 
 iron_shadows_apply_warnings(iron_shadows_core)
 

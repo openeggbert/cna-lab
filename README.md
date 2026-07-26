@@ -57,13 +57,14 @@ Use a recursive CNA checkout with populated submodules. See [`docs/validation.md
 
 ## Required workspace layout
 
-CNA currently expects `sharp-runtime` and, for the recommended EasyGL backend, `easy-gl` as sibling repositories. Use this layout:
+CNA currently expects `sharp-runtime` and, for the recommended EasyGL backend, `easy-gl` as sibling repositories. Iron Shadows also depends on `cna-extended` for its ECS, 3D transform hierarchy, 3D collision/octree, and skinned-model playback, instead of reimplementing that boilerplate. Use this layout:
 
 ```text
 workspace/
 ├── cna/
 ├── sharp-runtime/
 ├── easy-gl/          # required for CNA_GRAPHICS_BACKEND=EASYGL
+├── cna-extended/      # ECS, Transform3, 3D collision/octree, skinned-model playback
 ├── mesh-craft/       # authoring/conversion tool; optional for compiling the game
 └── iron-shadows/
 ```

@@ -4,16 +4,14 @@
 
 - Every Iron Shadows `.cpp` file passed a C++23 syntax-only compile against the actual supplied CNA and sharp-runtime headers with software-backend definitions.
 - The prototype MC3 scene passed the supplied Mesh Craft `mc3.xsd`.
-- sharp-runtime configured and built as `libSHARP_RUNTIME.a` in a persistent validation build directory.
-- The Iron Shadows core tests were linked from the real project sources, CNA math/color sources, and the built sharp-runtime library; all collision, vehicle, mission, dialogue, and save round-trip tests passed.
-- A small executable linked to that library and successfully exercised `System::IO::Directory` and `System::IO::File` by creating, writing, reading, deleting, and removing temporary test data.
-- CMake target and backend names used by Iron Shadows were checked against CNA's current CMake files.
+- `./scripts/preflight.sh` confirms CNA, sharp-runtime, EasyGL, and cna-extended siblings, plus populated CNA-vendored SDL/SDL_image/SDL_mixer.
+- The full `compile-software` preset configured and built (780 targets, `-j4`, ccache), including `cna-extended` linking against the parent-provided `CNA` target as designed.
+- `iron_shadows_core_tests` linked against the real project sources, CNA, sharp-runtime, and `CNA_EXTENDED`, and all tests (collision, vehicle, mission, dialogue, save round-trip) passed via `ctest --preset compile-software`.
+- CMake target and backend names used by Iron Shadows were checked against CNA's and cna-extended's current CMake files.
 
 ## Full CNA-linked build status
 
-A full Iron Shadows executable was not linked in the supplied validation workspace. CNA configuration stopped while resolving SDL because the ZIP contained empty vendored `third_party/SDL`, `third_party/SDL_image`, and `third_party/SDL_mixer` directories, and a compatible system SDL3 package was not available there. The EasyGL sibling repository was also not supplied.
-
-This is a dependency-checkout limitation, not a C++ syntax error found in Iron Shadows. Use a recursive CNA checkout with populated submodules, place sharp-runtime next to CNA, and place EasyGL next to CNA for the EasyGL preset.
+A full Iron Shadows executable (`iron_shadows`) now links successfully in this workspace using the `compile-software` preset. The CNA-vendored SDL/SDL_image/SDL_mixer submodules are populated here, and both `easy-gl` and `cna-extended` are present as siblings, so the earlier missing-submodule/missing-sibling limitation no longer applies in this environment. The `dev-easygl`/`dev-vulkan` presets (real rendering backends) have not yet been build-verified here; only `compile-software` has been exercised end to end.
 
 ## Reproduction
 

@@ -5,12 +5,20 @@ The repository deliberately separates framework code, reusable open-city systems
 ```text
 sharp-runtime
       ↓
-     CNA + future CNA EXT
+     CNA (materials, shadows, instancing, post-processing already available)
+      ↓
+cna-extended (ECS, Transform3 hierarchy, 3D collision/octree, skinned-model playback)
       ↓
 Iron Shadows reusable systems (`iron_shadows_core`)
       ↓
 Iron Shadows game application and original content
 ```
+
+`cna-extended` is a sibling dependency (`../cna-extended`), not a fork of CNA. It supplies
+scene/ECS boilerplate a small team should not rewrite, but it does not provide materials,
+shadows, instancing, or post-processing — those already exist in CNA itself
+(`PbrEffect`, `SkinnedPbrEffect`, shadow-mapping and instancing examples) and should be
+integrated directly rather than reimplemented under a separate "CNA EXT" layer.
 
 The current prototype includes a small but real vertical path:
 
