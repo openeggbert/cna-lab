@@ -47,7 +47,7 @@ will be copied.
   - Add menus, a named status screen, attention requests, and an in-device
     presentation for discipline.
     - [x] Add the first Food (meal/snack) and three-page Status LCD screens;
-      display the attention call on the home screen.
+      display attention, waste, and illness indicators on the home screen.
   - [x] Add a first original two-choice Peek mini-game with seed-backed outcomes.
   - Add feedback animations and a second game profile.
   - [x] Add the first original egg line: 11 creature forms plus an egg, with

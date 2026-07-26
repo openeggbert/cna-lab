@@ -590,6 +590,26 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         display_.setPixel(28, 7, true);
     }
 
+    if (pet_.sick) {
+        display_.setPixel(2, 6, true);
+        display_.setPixel(1, 7, true);
+        display_.setPixel(2, 7, true);
+        display_.setPixel(3, 7, true);
+        display_.setPixel(2, 8, true);
+    }
+
+    const int visibleWaste = std::min(pet_.wasteCount, 2);
+    for (int waste = 0; waste < visibleWaste; ++waste) {
+        const int x = 2 + waste * 4;
+        display_.setPixel(x + 1, 11, true);
+        display_.setPixel(x, 12, true);
+        display_.setPixel(x + 1, 12, true);
+        display_.setPixel(x + 2, 12, true);
+        display_.setPixel(x, 13, true);
+        display_.setPixel(x + 1, 13, true);
+        display_.setPixel(x + 2, 13, true);
+    }
+
     if (pet_.attentionReason != Domain::AttentionReason::None) {
         display_.setPixel(29, 3, true);
         display_.setPixel(30, 3, true);
@@ -659,7 +679,10 @@ void CnaTamagotchiGame::drawDevice()
         if (selected) {
             drawEllipse(position.x, position.y, 18, 18, ShellHighlight);
         }
-        const Color icon = selected ? Ink : ShellShadow;
+        const bool active = (index == 3 && pet_.sick)
+            || (index == 4 && pet_.wasteCount > 0)
+            || (index == 7 && pet_.attentionReason != Domain::AttentionReason::None);
+        const Color icon = selected || active ? Ink : ShellShadow;
         const Color cutout = ShellMain;
 
         switch (index) {
