@@ -1,0 +1,55 @@
+# CMake and IDE build trees
+cmake-build-*/
+build/
+out/
+_deps/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.ninja
+.ninja_*
+
+# Binaries and compiler output
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.pdb
+*.ilk
+*.dSYM/
+iron_shadows
+iron_shadows_core_tests
+
+# Runtime-generated state
+runtime/
+logs/
+crash-dumps/
+
+# Generated content; source MC3 stays tracked
+assets/generated/
+*.cnj
+*.bin
+*.glb
+*.gltf
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+local.cmake
