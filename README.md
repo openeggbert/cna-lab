@@ -19,7 +19,8 @@ controls, and the complete first original creature line. It also has an early
 deterministic pet simulator and a tested JSON save repository. The current
 care slice renders four hunger, happiness, and discipline segments; schedules
 sleep; handles waste; requests attention for empty needs, light, and false
-calls; and preserves those states in saves.
+calls; preserves those states in saves; and provides Food and Status LCD
+screens rather than adding modern external controls.
 
 Those systems are foundations, not the final classic ruleset. In particular,
 the internal `0…100` need values, unfinished status/menu screens, temporary
@@ -54,9 +55,9 @@ Mouse and touch input will press these same three virtual buttons. Icons will
 not become independent modern UI buttons: clicking an icon may be offered as an
 accessibility shortcut, but it must invoke the equivalent A/B/C sequence.
 
-The current prototype maps C to the first icon and allows Left to move
-backward. That is temporary; the completed implementation will follow the
-table above.
+The current build uses C to close Food and Status screens; pressing B on Food
+opens a Meal/Snack menu, and B on Status advances its compact data page. Left
+is a temporary desktop convenience for moving backwards through choices.
 
 ## Shell icons and menus
 

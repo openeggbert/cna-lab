@@ -28,6 +28,12 @@ protected:
     void Draw(const Microsoft::Xna::Framework::GameTime& gameTime) override;
 
 private:
+    enum class Screen {
+        Home,
+        Food,
+        Status,
+    };
+
     [[nodiscard]] Microsoft::Xna::Framework::Color backgroundColor() const;
     void refreshDisplay() noexcept;
     void drawDevice();
@@ -40,7 +46,10 @@ private:
     std::optional<Microsoft::Xna::Framework::Graphics::Texture2D> pixelTexture_;
     float backgroundTimeSeconds_{0.0F};
     float simulationSeconds_{0.0F};
+    Screen screen_{Screen::Home};
     int selectedIcon_{0};
+    int foodSelection_{0};
+    int statusPage_{0};
     bool selectNextWasDown_{false};
     bool selectPreviousWasDown_{false};
     bool confirmWasDown_{false};

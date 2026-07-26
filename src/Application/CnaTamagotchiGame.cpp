@@ -5,6 +5,8 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <string>
+#include <string_view>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
@@ -52,6 +54,83 @@ constexpr std::array<IconPosition, 8> IconPositions{{
     {151, 510}, {230, 526}, {310, 526}, {389, 510},
 }};
 
+using Glyph = std::array<std::string_view, 5>;
+
+constexpr Glyph Blank{{"000", "000", "000", "000", "000"}};
+constexpr Glyph LetterA{{"010", "101", "111", "101", "101"}};
+constexpr Glyph LetterC{{"011", "100", "100", "100", "011"}};
+constexpr Glyph LetterD{{"110", "101", "101", "101", "110"}};
+constexpr Glyph LetterE{{"111", "100", "110", "100", "111"}};
+constexpr Glyph LetterF{{"111", "100", "110", "100", "100"}};
+constexpr Glyph LetterG{{"011", "100", "101", "101", "011"}};
+constexpr Glyph LetterI{{"111", "010", "010", "010", "111"}};
+constexpr Glyph LetterL{{"100", "100", "100", "100", "111"}};
+constexpr Glyph LetterM{{"101", "111", "111", "101", "101"}};
+constexpr Glyph LetterO{{"010", "101", "101", "101", "010"}};
+constexpr Glyph LetterR{{"110", "101", "110", "101", "101"}};
+constexpr Glyph LetterS{{"011", "100", "010", "001", "110"}};
+constexpr Glyph LetterT{{"111", "010", "010", "010", "010"}};
+constexpr Glyph LetterW{{"101", "101", "101", "111", "101"}};
+constexpr Glyph Digit0{{"111", "101", "101", "101", "111"}};
+constexpr Glyph Digit1{{"010", "110", "010", "010", "111"}};
+constexpr Glyph Digit2{{"110", "001", "010", "100", "111"}};
+constexpr Glyph Digit3{{"110", "001", "010", "001", "110"}};
+constexpr Glyph Digit4{{"101", "101", "111", "001", "001"}};
+constexpr Glyph Digit5{{"111", "100", "110", "001", "110"}};
+constexpr Glyph Digit6{{"011", "100", "111", "101", "111"}};
+constexpr Glyph Digit7{{"111", "001", "010", "010", "010"}};
+constexpr Glyph Digit8{{"111", "101", "111", "101", "111"}};
+constexpr Glyph Digit9{{"111", "101", "111", "001", "110"}};
+
+const Glyph& glyphFor(const char character) noexcept
+{
+    switch (character) {
+    case 'A': return LetterA;
+    case 'C': return LetterC;
+    case 'D': return LetterD;
+    case 'E': return LetterE;
+    case 'F': return LetterF;
+    case 'G': return LetterG;
+    case 'I': return LetterI;
+    case 'L': return LetterL;
+    case 'M': return LetterM;
+    case 'O': return LetterO;
+    case 'R': return LetterR;
+    case 'S': return LetterS;
+    case 'T': return LetterT;
+    case 'W': return LetterW;
+    case '0': return Digit0;
+    case '1': return Digit1;
+    case '2': return Digit2;
+    case '3': return Digit3;
+    case '4': return Digit4;
+    case '5': return Digit5;
+    case '6': return Digit6;
+    case '7': return Digit7;
+    case '8': return Digit8;
+    case '9': return Digit9;
+    default: return Blank;
+    }
+}
+
+void drawText(Display::MonochromeDisplay& display, const int firstX, const int firstY,
+              const std::string_view text) noexcept
+{
+    constexpr int GlyphWidth = 3;
+    constexpr int GlyphHeight = 5;
+    constexpr int GlyphAdvance = GlyphWidth + 1;
+    for (int index = 0; index < static_cast<int>(text.size()); ++index) {
+        const Glyph& glyph = glyphFor(text[static_cast<std::size_t>(index)]);
+        for (int y = 0; y < GlyphHeight; ++y) {
+            for (int x = 0; x < GlyphWidth; ++x) {
+                if (glyph[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)] == '1') {
+                    display.setPixel(firstX + index * GlyphAdvance + x, firstY + y, true);
+                }
+            }
+        }
+    }
+}
+
 } // namespace
 
 CnaTamagotchiGame::CnaTamagotchiGame(const bool smokeTest)
@@ -92,31 +171,53 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     const bool cancel = keyboard.IsKeyDown(Keys::C) || keyboard.IsKeyDown(Keys::Back);
 
     if (selectNext && !selectNextWasDown_) {
-        selectedIcon_ = (selectedIcon_ + 1) % static_cast<int>(IconPositions.size());
+        if (screen_ == Screen::Home) {
+            selectedIcon_ = (selectedIcon_ + 1) % static_cast<int>(IconPositions.size());
+        } else if (screen_ == Screen::Food) {
+            foodSelection_ = (foodSelection_ + 1) % 2;
+        }
     }
     if (selectPrevious && !selectPreviousWasDown_) {
-        selectedIcon_ = (selectedIcon_ + static_cast<int>(IconPositions.size()) - 1)
-            % static_cast<int>(IconPositions.size());
+        if (screen_ == Screen::Home) {
+            selectedIcon_ = (selectedIcon_ + static_cast<int>(IconPositions.size()) - 1)
+                % static_cast<int>(IconPositions.size());
+        } else if (screen_ == Screen::Food) {
+            foodSelection_ = (foodSelection_ + 1) % 2;
+        }
     }
     if (confirm && !confirmWasDown_) {
-        constexpr std::array<std::optional<Domain::PetAction>, 8> iconActions{{
-            Domain::PetAction::Meal,
-            Domain::PetAction::ToggleLight,
-            Domain::PetAction::Play,
-            Domain::PetAction::Medicine,
-            Domain::PetAction::Clean,
-            std::nullopt, // status is display-only in this first interaction slice
-            Domain::PetAction::Discipline,
-            std::nullopt, // attention is an automatic indicator
-        }};
-        const std::optional<Domain::PetAction> action =
-            iconActions[static_cast<std::size_t>(selectedIcon_)];
-        if (action.has_value()) {
-            simulation_.applyAction(pet_, *action);
+        if (screen_ == Screen::Food) {
+            simulation_.applyAction(pet_, foodSelection_ == 0
+                ? Domain::PetAction::Meal : Domain::PetAction::Snack);
+            screen_ = Screen::Home;
+        } else if (screen_ == Screen::Status) {
+            statusPage_ = (statusPage_ + 1) % 2;
+        } else if (selectedIcon_ == 0) {
+            screen_ = Screen::Food;
+        } else if (selectedIcon_ == 5) {
+            screen_ = Screen::Status;
+        } else {
+            constexpr std::array<std::optional<Domain::PetAction>, 8> iconActions{{
+                std::nullopt, // food opens its own two-choice menu
+                Domain::PetAction::ToggleLight,
+                Domain::PetAction::Play,
+                Domain::PetAction::Medicine,
+                Domain::PetAction::Clean,
+                std::nullopt, // status opens its own display
+                Domain::PetAction::Discipline,
+                std::nullopt, // attention is an automatic indicator
+            }};
+            const std::optional<Domain::PetAction> action =
+                iconActions[static_cast<std::size_t>(selectedIcon_)];
+            if (action.has_value()) {
+                simulation_.applyAction(pet_, *action);
+            }
         }
     }
     if (cancel && !cancelWasDown_) {
-        selectedIcon_ = 0;
+        if (screen_ != Screen::Home) {
+            screen_ = Screen::Home;
+        }
     }
 
     selectNextWasDown_ = selectNext;
@@ -177,6 +278,33 @@ Color CnaTamagotchiGame::backgroundColor() const
 void CnaTamagotchiGame::refreshDisplay() noexcept
 {
     display_.clear();
+
+    if (screen_ == Screen::Food) {
+        drawText(display_, 8, 0, "FOOD");
+        drawText(display_, 6, 6, "MEAL");
+        drawText(display_, 6, 11, "SNACK");
+        const int markerY = foodSelection_ == 0 ? 7 : 12;
+        display_.setPixel(1, markerY, true);
+        display_.setPixel(2, markerY + 1, true);
+        display_.setPixel(1, markerY + 2, true);
+        return;
+    }
+
+    if (screen_ == Screen::Status) {
+        if (statusPage_ == 0) {
+            const std::string age = "AGE" + std::to_string(pet_.ageMinutes / (24 * 60));
+            const std::string weight = "WGT" + std::to_string(pet_.weight);
+            drawText(display_, 2, 1, age);
+            drawText(display_, 2, 9, weight);
+        } else {
+            const std::string mistakes = "CARE" + std::to_string(pet_.careMistakes);
+            const std::string discipline = "DISC" + std::to_string(
+                std::clamp((pet_.needs.discipline + 24) / 25, 0, 4));
+            drawText(display_, 2, 1, mistakes);
+            drawText(display_, 2, 9, discipline);
+        }
+        return;
+    }
 
     const auto drawHeartMeter = [this](const int firstX, const int value) {
         const int filled = std::clamp((value + 24) / 25, 0, 4);
