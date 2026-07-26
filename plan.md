@@ -26,7 +26,7 @@ capture method.
     representing it as a faithful result.
 
 - [ ] **3. Source-backed P1 rule ledger**
-  - Add `docs/p1-specification.md` with source/observation, target variant,
+  - [x] Add `docs/p1-specification.md` with source/observation, target variant,
     inputs, expected outcome, and a test reference for every implemented rule.
   - Capture the international P1 stage timing, character sprites/animations,
     sleep schedules, minimum weights, life spans, attention timing, care
@@ -34,6 +34,8 @@ capture method.
   - Explicitly distinguish verified facts from still-unverified behaviour.
 
 - [ ] **4. Replace the legacy domain with P1 state**
+  - [x] Add a tested P1 roster, unambiguous P1 stages, and bounded visible
+    four-heart/four-bar state as the migration seam.
   - Remove custom species, two-line generation seed, Elder, generic Farewell,
     and `0…100` needs from the active simulation.
   - Model P1’s form, stage, four hunger hearts, four happiness hearts, four
