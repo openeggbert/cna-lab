@@ -10,7 +10,7 @@
 namespace CnaTamagotchi::Persistence {
 
 struct SaveData final {
-    static constexpr int CurrentFormatVersion = 2;
+    static constexpr int CurrentFormatVersion = 3;
 
     int formatVersion{CurrentFormatVersion};
     std::string programId{"international-p1-1997"};

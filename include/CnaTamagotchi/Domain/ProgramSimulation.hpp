@@ -31,6 +31,9 @@ struct ProgramPetState final {
     int clockMinutesOfDay{9 * 60};
     int wasteCount{0};
     int careMistakes{0};
+    int disciplineMistakes{0};
+    ProgramTeenLineage teenLineage{ProgramTeenLineage::None};
+    bool teenStartedWithNoDiscipline{false};
     int attentionDeadlineMinutes{-1};
     int nextAttentionEligibleMinutes{0};
     bool asleep{false};
@@ -44,6 +47,8 @@ struct ProgramAdvanceReport final {
     int appliedMinutes{0};
     bool hatched{false};
     bool becameChild{false};
+    bool becameTeen{false};
+    bool becameAdult{false};
 };
 
 // Shared programme-driven lifecycle engine. Its first implemented slice is
@@ -66,6 +71,11 @@ public:
 private:
     [[nodiscard]] static const CreatureDefinition* firstCharacterAtStage(
         const ProgramDefinition& programme, ProgramStage stage) noexcept;
+    [[nodiscard]] static const CreatureDefinition* characterById(
+        const ProgramDefinition& programme, std::string_view id) noexcept;
+    [[nodiscard]] static const EvolutionRule* matchingEvolutionRule(
+        const ProgramDefinition& programme, const ProgramPetState& state) noexcept;
+    static bool evolve(const ProgramDefinition& programme, ProgramPetState& state) noexcept;
     static void hatch(const ProgramDefinition& programme, ProgramPetState& state) noexcept;
     static void updateBabyEvents(const ProgramDefinition& programme,
                                  ProgramPetState& state,

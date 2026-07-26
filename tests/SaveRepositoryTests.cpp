@@ -41,6 +41,9 @@ Persistence::SaveData p1Save()
     data.pet.clockMinutesOfDay = 20 * 60;
     data.pet.wasteCount = 1;
     data.pet.careMistakes = 2;
+    data.pet.disciplineMistakes = 1;
+    data.pet.teenLineage = Domain::ProgramTeenLineage::TypeA;
+    data.pet.teenStartedWithNoDiscipline = true;
     data.pet.attentionDeadlineMinutes = 85;
     data.pet.nextAttentionEligibleMinutes = 100;
     data.pet.asleep = true;
@@ -83,9 +86,12 @@ void testP1RoundTripAndBackup()
                 && loaded.data->pet.minutesSinceHatch == 65,
             "P1 lifecycle time must survive a round trip");
         expect(loaded.data->pet.wasteCount == 1 && loaded.data->pet.careMistakes == 2
+                && loaded.data->pet.disciplineMistakes == 1
+                && loaded.data->pet.teenLineage == Domain::ProgramTeenLineage::TypeA
+                && loaded.data->pet.teenStartedWithNoDiscipline
                 && loaded.data->pet.lightOff
                 && loaded.data->pet.attentionReason == Domain::ProgramAttentionReason::SleepLight,
-            "P1 care-event and light state must survive a round trip");
+            "P1 care-event, evolution-history, and light state must survive a round trip");
     }
 
     std::filesystem::remove_all(directory, error);
@@ -107,6 +113,58 @@ void testInvalidDataIsRejected()
     const Persistence::LoadResult loaded = repository.load(path);
     expect(!loaded.success() && !loaded.isLegacyPrototype(),
         "unsupported or incomplete JSON must be rejected as invalid, not legacy");
+
+    std::filesystem::remove_all(directory, error);
+}
+
+void testVersionTwoP1SaveKeepsAConservativeEvolutionDefault()
+{
+    const std::filesystem::path directory = testDirectory();
+    const std::filesystem::path path = directory / "version-two.json";
+    std::error_code error;
+    std::filesystem::remove_all(directory, error);
+    std::filesystem::create_directories(directory, error);
+
+    {
+        std::ofstream stream(path);
+        stream << R"({
+  "formatVersion": 2,
+  "programId": "international-p1-1997",
+  "lastSavedUnixSeconds": 1725000000,
+  "seed": 42,
+  "pet": {
+    "characterId": "marutchi",
+    "stage": 2,
+    "minutesSinceClockSet": 70,
+    "minutesSinceHatch": 65,
+    "age": 1,
+    "weight": 10,
+    "hungerHearts": 3,
+    "happinessHearts": 2,
+    "disciplineBars": 1,
+    "medicineDosesRemaining": 0,
+    "clockMinutesOfDay": 1200,
+    "wasteCount": 0,
+    "careMistakes": 2,
+    "attentionDeadlineMinutes": -1,
+    "nextAttentionEligibleMinutes": 0,
+    "asleep": 0,
+    "lightOff": 0,
+    "sick": 0,
+    "attentionReason": 0
+  }
+})";
+    }
+
+    Persistence::SaveRepository repository;
+    const Persistence::LoadResult loaded = repository.load(path);
+    expect(loaded.success(), "version-two P1 saves must remain readable after evolution-history storage");
+    if (loaded.data) {
+        expect(loaded.data->formatVersion == 2
+                && loaded.data->pet.disciplineMistakes == 0
+                && loaded.data->pet.teenLineage == Domain::ProgramTeenLineage::None,
+            "a version-two P1 save must receive conservative unknown evolution-history defaults");
+    }
 
     std::filesystem::remove_all(directory, error);
 }
@@ -196,6 +254,7 @@ int main()
 {
     testP1RoundTripAndBackup();
     testInvalidDataIsRejected();
+    testVersionTwoP1SaveKeepsAConservativeEvolutionDefault();
     testBackupRestorationAndArchives();
     testLegacyPrototypeIsNeverConvertedToP1();
 

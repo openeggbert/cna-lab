@@ -91,6 +91,63 @@ void testP1FoodGameWasteAndSleepUseProgrammeData()
         "the P1 Light action must apply only while the character is asleep");
 }
 
+ProgramPetState p1TeenWith(const int careMistakes, const int disciplineMistakes,
+                           ProgramSimulation& simulation, const ProgramDefinition& p1)
+{
+    ProgramPetState pet{};
+    static_cast<void>(simulation.advance(p1, pet, 5));
+    pet.careMistakes = careMistakes;
+    pet.disciplineMistakes = disciplineMistakes;
+    const ProgramAdvanceReport evolution = simulation.advance(
+        p1, pet, p1.lifecycle.babyToChildMinutes + p1.lifecycle.childToTeenMinutes);
+    expect(evolution.becameChild && evolution.becameTeen && pet.stage == ProgramStage::Teen,
+        "P1's captured child duration must produce a data-selected teen");
+    expect(pet.age == p1.lifecycle.teenAge,
+        "the P1 teen transition must retain the captured age-three display value");
+    return pet;
+}
+
+void testP1EvolutionRulesRemainProgrammeData()
+{
+    ProgramSimulation simulation;
+    const ProgramDefinition& p1 = Programs::internationalP1();
+    expect(p1.evolutionRules.size() == 17,
+        "the P1 programme must expose its teen and adult chart as data rules");
+
+    ProgramPetState mametchi = p1TeenWith(0, 0, simulation, p1);
+    expect(mametchi.characterId == "tamatchi" && mametchi.teenLineage == ProgramTeenLineage::TypeA,
+        "low-care P1 child state must select type-A Tamatchi");
+    const ProgramAdvanceReport mametchiEvolution = simulation.advance(
+        p1, mametchi, p1.lifecycle.teenToAdultMinutes);
+    expect(mametchiEvolution.becameAdult && mametchi.characterId == "mametchi"
+            && mametchi.age == p1.lifecycle.adultAge,
+        "type-A Tamatchi with zero discipline mistakes must become Mametchi at age six");
+
+    ProgramPetState ginjirotchi = p1TeenWith(0, 1, simulation, p1);
+    static_cast<void>(simulation.advance(p1, ginjirotchi, p1.lifecycle.teenToAdultMinutes));
+    expect(ginjirotchi.characterId == "ginjirotchi",
+        "type-A Tamatchi with one discipline mistake must become Ginjirotchi");
+
+    ProgramPetState maskutchi = p1TeenWith(0, 2, simulation, p1);
+    static_cast<void>(simulation.advance(p1, maskutchi, p1.lifecycle.teenToAdultMinutes));
+    expect(maskutchi.characterId == "maskutchi",
+        "type-A Tamatchi with two discipline mistakes must become Maskutchi");
+
+    ProgramPetState kuchipatchi = p1TeenWith(3, 0, simulation, p1);
+    expect(kuchipatchi.characterId == "kuchitamatchi",
+        "three care mistakes must select Kuchitamatchi from Marutchi");
+    static_cast<void>(simulation.advance(p1, kuchipatchi, p1.lifecycle.teenToAdultMinutes));
+    expect(kuchipatchi.characterId == "kuchipatchi",
+        "type-A Kuchitamatchi with low discipline mistakes must become Kuchipatchi");
+
+    ProgramPetState typeB = p1TeenWith(0, 3, simulation, p1);
+    expect(typeB.characterId == "tamatchi" && typeB.teenLineage == ProgramTeenLineage::TypeB,
+        "three discipline mistakes must retain Tamatchi but record the type-B lineage");
+    static_cast<void>(simulation.advance(p1, typeB, p1.lifecycle.teenToAdultMinutes));
+    expect(typeB.characterId == "maskutchi",
+        "the type-B Tamatchi rule must select Maskutchi from programme data");
+}
+
 } // namespace
 
 int main()
@@ -98,6 +155,7 @@ int main()
     testP1EggHatchesFromProgrammeData();
     testP1BabyTraceUsesSharedProgrammeSimulator();
     testP1FoodGameWasteAndSleepUseProgrammeData();
+    testP1EvolutionRulesRemainProgrammeData();
 
     if (failures == 0) {
         std::cout << "ProgramSimulationTests passed\n";

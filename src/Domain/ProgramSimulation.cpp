@@ -25,7 +25,7 @@ ProgramAdvanceReport ProgramSimulation::advance(const ProgramDefinition& program
         report.hatched = true;
     }
 
-    if (state.stage != ProgramStage::Baby) {
+    if (state.stage == ProgramStage::Egg || state.stage == ProgramStage::End) {
         updateSleepSchedule(programme, state);
         return report;
     }
@@ -34,18 +34,42 @@ ProgramAdvanceReport ProgramSimulation::advance(const ProgramDefinition& program
     const int currentLifeMinute = std::max(
         0, state.minutesSinceClockSet - programme.lifecycle.hatchDelayMinutes);
     state.minutesSinceHatch = currentLifeMinute;
-    updateBabyEvents(programme, state, previousLifeMinute, currentLifeMinute);
 
-    if (currentLifeMinute >= programme.lifecycle.babyToChildMinutes) {
-        if (const CreatureDefinition* const child = firstCharacterAtStage(programme, ProgramStage::Child)) {
-            state.characterId = child->id;
-            state.stage = ProgramStage::Child;
-            state.weight = child->minimumWeight;
-            state.asleep = false;
-            state.lightOff = false;
-            report.becameChild = true;
+    if (state.stage == ProgramStage::Baby) {
+        updateBabyEvents(programme, state, previousLifeMinute, currentLifeMinute);
+
+        if (currentLifeMinute >= programme.lifecycle.babyToChildMinutes) {
+            if (const CreatureDefinition* const child = firstCharacterAtStage(programme, ProgramStage::Child)) {
+                state.characterId = child->id;
+                state.stage = ProgramStage::Child;
+                state.weight = child->minimumWeight;
+                state.asleep = false;
+                state.lightOff = false;
+                report.becameChild = true;
+            }
         }
     }
+
+    const int firstBirthdayMinute = programme.lifecycle.babyNapStartMinute
+        + programme.lifecycle.babyNapDurationMinutes;
+    if (currentLifeMinute >= firstBirthdayMinute) {
+        state.age = std::max(state.age, 1 + currentLifeMinute / (24 * 60));
+    }
+
+    const int teenEvolutionMinute = programme.lifecycle.babyToChildMinutes
+        + programme.lifecycle.childToTeenMinutes;
+    if (state.stage == ProgramStage::Child && currentLifeMinute >= teenEvolutionMinute) {
+        state.teenLineage = state.disciplineMistakes <= 2
+            ? ProgramTeenLineage::TypeA : ProgramTeenLineage::TypeB;
+        state.teenStartedWithNoDiscipline = state.disciplineBars == 0;
+        report.becameTeen = evolve(programme, state);
+    }
+
+    const int adultEvolutionMinute = teenEvolutionMinute + programme.lifecycle.teenToAdultMinutes;
+    if (state.stage == ProgramStage::Teen && currentLifeMinute >= adultEvolutionMinute) {
+        report.becameAdult = evolve(programme, state);
+    }
+
     updateSleepSchedule(programme, state);
     return report;
 }
@@ -147,6 +171,51 @@ const CreatureDefinition* ProgramSimulation::firstCharacterAtStage(
     return found == programme.creatures.end() ? nullptr : &*found;
 }
 
+const CreatureDefinition* ProgramSimulation::characterById(
+    const ProgramDefinition& programme, const std::string_view id) noexcept
+{
+    const auto found = std::find_if(programme.creatures.begin(), programme.creatures.end(),
+        [id](const CreatureDefinition& character) { return character.id == id; });
+    return found == programme.creatures.end() ? nullptr : &*found;
+}
+
+const EvolutionRule* ProgramSimulation::matchingEvolutionRule(
+    const ProgramDefinition& programme, const ProgramPetState& state) noexcept
+{
+    const auto within = [](const int value, const int minimum, const int maximum) {
+        return value >= minimum && (maximum < 0 || value <= maximum);
+    };
+    const auto found = std::find_if(programme.evolutionRules.begin(), programme.evolutionRules.end(),
+        [&state, &within](const EvolutionRule& rule) {
+            return rule.sourceCharacterId == state.characterId
+                && within(state.careMistakes, rule.minimumCareMistakes, rule.maximumCareMistakes)
+                && within(state.disciplineMistakes,
+                    rule.minimumDisciplineMistakes, rule.maximumDisciplineMistakes)
+                && (rule.requiredTeenLineage == ProgramTeenLineage::None
+                    || rule.requiredTeenLineage == state.teenLineage);
+        });
+    return found == programme.evolutionRules.end() ? nullptr : &*found;
+}
+
+bool ProgramSimulation::evolve(const ProgramDefinition& programme, ProgramPetState& state) noexcept
+{
+    const EvolutionRule* const rule = matchingEvolutionRule(programme, state);
+    if (rule == nullptr) {
+        return false;
+    }
+    const CreatureDefinition* const target = characterById(programme, rule->targetCharacterId);
+    if (target == nullptr) {
+        return false;
+    }
+
+    state.characterId = target->id;
+    state.stage = target->stage;
+    state.weight = target->minimumWeight;
+    state.asleep = false;
+    state.lightOff = false;
+    return true;
+}
+
 void ProgramSimulation::hatch(const ProgramDefinition& programme, ProgramPetState& state) noexcept
 {
     const CreatureDefinition* const baby = firstCharacterAtStage(programme, ProgramStage::Baby);
@@ -164,6 +233,9 @@ void ProgramSimulation::hatch(const ProgramDefinition& programme, ProgramPetStat
     state.medicineDosesRemaining = 0;
     state.wasteCount = 0;
     state.careMistakes = 0;
+    state.disciplineMistakes = 0;
+    state.teenLineage = ProgramTeenLineage::None;
+    state.teenStartedWithNoDiscipline = false;
     state.attentionDeadlineMinutes = -1;
     state.nextAttentionEligibleMinutes = 0;
     state.asleep = false;

@@ -113,6 +113,12 @@ bool validAttentionReason(const int value) noexcept
         && value <= static_cast<int>(Domain::ProgramAttentionReason::Discipline);
 }
 
+bool validTeenLineage(const int value) noexcept
+{
+    return value >= static_cast<int>(Domain::ProgramTeenLineage::None)
+        && value <= static_cast<int>(Domain::ProgramTeenLineage::TypeB);
+}
+
 bool validPetState(const Domain::ProgramPetState& pet) noexcept
 {
     return validIdentifier(pet.characterId)
@@ -128,6 +134,8 @@ bool validPetState(const Domain::ProgramPetState& pet) noexcept
         && pet.clockMinutesOfDay >= 0 && pet.clockMinutesOfDay < 24 * 60
         && pet.wasteCount >= 0 && pet.wasteCount <= MaximumPersistedWeight
         && pet.careMistakes >= 0 && pet.careMistakes <= MaximumPersistedAge
+        && pet.disciplineMistakes >= 0 && pet.disciplineMistakes <= MaximumPersistedAge
+        && validTeenLineage(static_cast<int>(pet.teenLineage))
         && pet.attentionDeadlineMinutes >= -1
         && pet.nextAttentionEligibleMinutes >= 0
         && validAttentionReason(static_cast<int>(pet.attentionReason))
@@ -164,6 +172,11 @@ std::string serialise(const SaveData& data)
         "    \"clockMinutesOfDay\": " + std::to_string(pet.clockMinutesOfDay) + ",\n"
         "    \"wasteCount\": " + std::to_string(pet.wasteCount) + ",\n"
         "    \"careMistakes\": " + std::to_string(pet.careMistakes) + ",\n"
+        "    \"disciplineMistakes\": " + std::to_string(pet.disciplineMistakes) + ",\n"
+        "    \"teenLineage\": "
+            + std::to_string(static_cast<int>(pet.teenLineage)) + ",\n"
+        "    \"teenStartedWithNoDiscipline\": "
+            + std::to_string(pet.teenStartedWithNoDiscipline ? 1 : 0) + ",\n"
         "    \"attentionDeadlineMinutes\": " + std::to_string(pet.attentionDeadlineMinutes) + ",\n"
         "    \"nextAttentionEligibleMinutes\": "
             + std::to_string(pet.nextAttentionEligibleMinutes) + ",\n"
@@ -264,7 +277,7 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     if (*formatVersion == 1) {
         return legacyPrototype();
     }
-    if (*formatVersion != SaveData::CurrentFormatVersion) {
+    if (*formatVersion != 2 && *formatVersion != SaveData::CurrentFormatVersion) {
         return invalid("Unsupported save format version.");
     }
 
@@ -284,6 +297,9 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     const auto clockMinutesOfDay = extractInteger<int>(json, "clockMinutesOfDay");
     const auto wasteCount = extractInteger<int>(json, "wasteCount");
     const auto careMistakes = extractInteger<int>(json, "careMistakes");
+    const auto disciplineMistakes = extractInteger<int>(json, "disciplineMistakes");
+    const auto teenLineage = extractInteger<int>(json, "teenLineage");
+    const auto teenStartedWithNoDiscipline = extractInteger<int>(json, "teenStartedWithNoDiscipline");
     const auto attentionDeadlineMinutes = extractInteger<int>(json, "attentionDeadlineMinutes");
     const auto nextAttentionEligibleMinutes = extractInteger<int>(json, "nextAttentionEligibleMinutes");
     const auto asleep = extractInteger<int>(json, "asleep");
@@ -298,6 +314,10 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
         || !lightOff || !sick || !attentionReason) {
         return invalid("Save file is missing or repeats a required P1 field.");
     }
+    if (*formatVersion == SaveData::CurrentFormatVersion
+        && (!disciplineMistakes || !teenLineage || !teenStartedWithNoDiscipline)) {
+        return invalid("Save file is missing or repeats an evolution-history field.");
+    }
     if (!validIdentifier(*programId) || !validIdentifier(*characterId) || *lastSaved < 0
         || !validStage(*stage) || *minutesSinceClockSet < 0 || *minutesSinceHatch < 0
         || *age < 0 || *weight < 0 || *hungerHearts < 0 || *hungerHearts > 4
@@ -309,6 +329,12 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
         || *nextAttentionEligibleMinutes < 0 || !validBoolean(*lightOff)
         || !validBoolean(*sick) || !validAttentionReason(*attentionReason)) {
         return invalid("Save file contains a value outside the supported P1 range.");
+    }
+    if (*formatVersion == SaveData::CurrentFormatVersion
+        && (*disciplineMistakes < 0 || *disciplineMistakes > MaximumPersistedAge
+            || !validTeenLineage(*teenLineage)
+            || !validBoolean(*teenStartedWithNoDiscipline))) {
+        return invalid("Save file contains an invalid P1 evolution-history value.");
     }
 
     SaveData data{};
@@ -329,6 +355,11 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     data.pet.clockMinutesOfDay = *clockMinutesOfDay;
     data.pet.wasteCount = *wasteCount;
     data.pet.careMistakes = *careMistakes;
+    data.pet.disciplineMistakes = disciplineMistakes.value_or(0);
+    data.pet.teenLineage = teenLineage
+        ? static_cast<Domain::ProgramTeenLineage>(*teenLineage)
+        : Domain::ProgramTeenLineage::None;
+    data.pet.teenStartedWithNoDiscipline = teenStartedWithNoDiscipline.value_or(0) == 1;
     data.pet.attentionDeadlineMinutes = *attentionDeadlineMinutes;
     data.pet.nextAttentionEligibleMinutes = *nextAttentionEligibleMinutes;
     data.pet.asleep = *asleep == 1;

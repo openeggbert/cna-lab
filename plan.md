@@ -85,8 +85,10 @@ similar emulation core is permitted in the application, build, or test suite.
   - Remove Number and all P2 game behaviour.
   - Implement the five-round Character game, including left/right choices,
     result rules, happiness effect, and weight effect.
-  - Implement the exact P1 care-mistake/discipline evolution tree and hidden
-    Bill path with exhaustive resolver tests.
+  - [x] Add a programme-data evolution-rule schema and deterministic traces for
+    the documented Marutchi, visible teen/adult, and A/B lineage branches.
+  - Connect real care/discipline mistakes to the full P1 tree and implement
+    the separately timed hidden Bill path with exhaustive resolver tests.
 
 - [ ] **8. Completion of real-time P1 behaviour**
   - Implement verified P1 timers, calls, sleep/light mistakes, waste, illness,

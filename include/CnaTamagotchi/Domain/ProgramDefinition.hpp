@@ -28,6 +28,15 @@ enum class ProgramEndScreen : std::uint8_t {
     Ufo,
 };
 
+// P1 records a hidden A/B lineage when the child becomes a teen.  This is a
+// programme fact, not a UI species choice: later adult rules may constrain the
+// lineage in addition to accumulated care and discipline mistakes.
+enum class ProgramTeenLineage : std::uint8_t {
+    None,
+    TypeA,
+    TypeB,
+};
+
 struct CreatureDefinition final {
     std::string_view id;
     std::string_view displayName;
@@ -63,6 +72,8 @@ struct DisplayDefinition final {
 struct LifecycleDefinition final {
     int hatchDelayMinutes{0};
     int babyToChildMinutes{0};
+    int childToTeenMinutes{0};
+    int teenToAdultMinutes{0};
     int teenAge{0};
     int adultAge{0};
     int babyNapStartMinute{-1};
@@ -71,6 +82,19 @@ struct LifecycleDefinition final {
     int babyIllnessMedicineDoses{0};
     int babyFirstWasteMinute{-1};
     int babySecondWasteMinute{-1};
+};
+
+// A target rule is data, rather than a P1-specific if/else chain. Negative
+// maximum values are unbounded. The same schema lets another first-generation
+// programme provide an independent evolution chart without copying the engine.
+struct EvolutionRule final {
+    std::string_view sourceCharacterId;
+    std::string_view targetCharacterId;
+    int minimumCareMistakes{0};
+    int maximumCareMistakes{-1};
+    int minimumDisciplineMistakes{0};
+    int maximumDisciplineMistakes{-1};
+    ProgramTeenLineage requiredTeenLineage{ProgramTeenLineage::None};
 };
 
 struct ProgramDefinition final {
@@ -82,6 +106,7 @@ struct ProgramDefinition final {
     ProgramEndScreen endScreen;
     std::span<const FoodDefinition> food;
     std::span<const CreatureDefinition> creatures;
+    std::span<const EvolutionRule> evolutionRules;
 };
 
 } // namespace CnaTamagotchi::Domain

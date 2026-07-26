@@ -37,7 +37,9 @@ Babytchi, Marutchi, early illness and two-dose medicine, baby waste, P1
 Bread/Candy, the five-round Character game, weight effects, Toilet, and the
 captured Marutchi sleep schedule. P1 JSON saves have an explicit programme id;
 an incompatible prototype save is preserved under a `.legacy` suffix rather
-than invented into a P1 pet.
+than invented into a P1 pet. A persisted, data-driven P1 growth resolver now
+covers the documented visible teen/adult branches in deterministic tests; live
+Attention-generated care mistakes and the later Bill branch are still pending.
 
 Those systems are foundations, not a complete P1 implementation yet. The new
 character catalogue uses provisional one-bit placeholders pending exact sprite

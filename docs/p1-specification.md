@@ -68,6 +68,21 @@ The roster is corroborated by historical character references; exact pixel
 sprites, animation frames, and every branch condition remain open until they
 are captured from the selected target programme.
 
+## Evolution-rule representation
+
+The shared engine represents a growth chart as ordered `EvolutionRule` data:
+source character, target character, care-mistake range, discipline-mistake
+range, and optional A/B teen lineage. P1 supplies rules for Marutchi →
+Tamatchi/Kuchitamatchi and the visible adult outcomes. The simulator has
+deterministic traces for the documented Mametchi, Ginjirotchi, Maskutchi,
+Kuchipatchi, Nyorotchi, and Tarakotchi branches.
+
+This is **provisional** source-backed behaviour, not yet a final fidelity
+claim. The current live Attention/care-mistake producer is incomplete, so the
+persisted counters and resolver are tested independently before every P1 call
+condition is connected. The later international Maskutchi → Bill special
+branch remains open until its timing and zero-mistake condition are captured.
+
 ## Timing and evolution capture table
 
 | Rule | Status | Required trace before implementation is final |
@@ -102,6 +117,9 @@ are captured from the selected target programme.
 These values were captured from [Thaao's original-P1 care guide](https://thaao.net/tama/p1/)
 and its [P1 character guide](https://thaao.net/tama/p1/?p=chara); the official
 manual remains the primary source for visible controls and care functions.
+The provisional A/B lineage and adult threshold table is additionally recorded
+by a [community P1 chart](https://tamagotchi.fandom.com/wiki/User_blog%3AThePeejdom/A_100%25_accurate_P1/P2_chart);
+it must be checked against target traces before release.
 
 ## Explicit exclusions
 
