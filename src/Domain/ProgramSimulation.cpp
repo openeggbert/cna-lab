@@ -249,6 +249,9 @@ bool ProgramSimulation::evolve(const ProgramDefinition& programme, ProgramPetSta
     state.characterId = target->id;
     state.stage = target->stage;
     state.weight = target->minimumWeight;
+    if (rule->targetDisciplineBars >= 0) {
+        state.disciplineBars = rule->targetDisciplineBars;
+    }
     state.asleep = false;
     state.lightOff = false;
     return true;

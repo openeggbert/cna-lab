@@ -166,20 +166,26 @@ void testP1EvolutionRulesRemainProgrammeData()
 {
     ProgramSimulation simulation;
     const ProgramDefinition& p1 = Programs::internationalP1();
-    expect(p1.evolutionRules.size() == 17,
-        "the P1 programme must expose its teen and adult chart as data rules");
+    expect(p1.evolutionRules.size() == 19,
+        "the P1 programme must expose its teen/adult chart and target meter resets as data rules");
 
     ProgramPetState typeA = p1TeenWith(0, 3, simulation, p1);
     expect(typeA.characterId == "tamatchi" && typeA.teenLineage == ProgramTeenLineage::TypeA,
         "one-or-fewer-care-mistake P1 child state with 75%-100% discipline must select type-A Tamatchi");
+    expect(typeA.disciplineBars == 2,
+        "a classic P1 type-A Tamatchi must begin with the documented 50% discipline meter");
     ProgramPetState typeB = p1TeenWith(0, 2, simulation, p1);
     expect(typeB.characterId == "tamatchi" && typeB.teenLineage == ProgramTeenLineage::TypeB,
         "0%-50% child discipline must retain Tamatchi but record the type-B lineage");
+    expect(typeB.disciplineBars == 0,
+        "a classic P1 type-B Tamatchi must begin with an empty discipline meter");
 
     ProgramPetState kuchitamatchi = p1TeenWith(2, 3, simulation, p1);
     expect(kuchitamatchi.characterId == "kuchitamatchi"
             && kuchitamatchi.teenLineage == ProgramTeenLineage::TypeA,
         "two care mistakes must select type-A Kuchitamatchi from Marutchi");
+    expect(kuchitamatchi.disciplineBars == 2,
+        "a classic P1 type-A Kuchitamatchi must begin with the documented 50% meter");
 
     struct AdultCase final {
         int childCareMistakes;
@@ -187,23 +193,24 @@ void testP1EvolutionRulesRemainProgrammeData()
         int adultCareMistakes;
         int adultDisciplineBars;
         const char* expectedCharacterId;
+        int expectedInitialDisciplineBars;
     };
     constexpr std::array<AdultCase, 15> adultCases{{
-        {0, 3, 0, 4, "mametchi"},
-        {0, 3, 0, 3, "ginjirotchi"},
-        {0, 3, 0, 0, "maskutchi"},
-        {0, 3, 3, 4, "kuchipatchi"},
-        {0, 3, 3, 3, "nyorotchi"},
-        {0, 3, 3, 0, "tarakotchi"},
-        {0, 2, 0, 4, "ginjirotchi"},
-        {0, 2, 0, 0, "maskutchi"},
-        {0, 2, 3, 4, "nyorotchi"},
-        {0, 2, 3, 0, "tarakotchi"},
-        {2, 3, 0, 4, "kuchipatchi"},
-        {2, 3, 0, 3, "nyorotchi"},
-        {2, 3, 0, 0, "tarakotchi"},
-        {2, 2, 0, 4, "nyorotchi"},
-        {2, 2, 0, 0, "tarakotchi"},
+        {0, 3, 0, 4, "mametchi", 4},
+        {0, 3, 0, 3, "ginjirotchi", 2},
+        {0, 3, 0, 0, "maskutchi", 0},
+        {0, 3, 3, 4, "kuchipatchi", 4},
+        {0, 3, 3, 3, "nyorotchi", 2},
+        {0, 3, 3, 0, "tarakotchi", 0},
+        {0, 2, 0, 4, "ginjirotchi", 2},
+        {0, 2, 0, 0, "maskutchi", 0},
+        {0, 2, 3, 4, "nyorotchi", 2},
+        {0, 2, 3, 0, "tarakotchi", 0},
+        {2, 3, 0, 4, "kuchipatchi", 4},
+        {2, 3, 0, 3, "nyorotchi", 2},
+        {2, 3, 0, 0, "tarakotchi", 0},
+        {2, 2, 0, 4, "nyorotchi", 2},
+        {2, 2, 0, 0, "tarakotchi", 0},
     }};
 
     for (const AdultCase& testCase : adultCases) {
@@ -217,8 +224,9 @@ void testP1EvolutionRulesRemainProgrammeData()
         const ProgramAdvanceReport evolution = simulation.advance(
             p1, pet, p1.lifecycle.teenToAdultMinutes);
         expect(evolution.becameAdult && pet.characterId == testCase.expectedCharacterId
-                && pet.age == p1.lifecycle.adultAge,
-            "each classic P1 adult rule must select its documented data target at age six");
+                && pet.age == p1.lifecycle.adultAge
+                && pet.disciplineBars == testCase.expectedInitialDisciplineBars,
+            "each classic P1 adult rule must select its documented target and initial meter at age six");
     }
 }
 

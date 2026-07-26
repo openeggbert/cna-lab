@@ -72,10 +72,10 @@ are captured from the selected target programme.
 
 The shared engine represents a growth chart as ordered `EvolutionRule` data:
 source character, target character, care-mistake range, visible-discipline-bar
-range, optional discipline-mistake range for programmes that need it, and an
-optional A/B teen lineage. The selected classic P1 profile uses its visible
-discipline bars exclusively; it does **not** use the later rerelease's
-discipline-mistake thresholds.
+range, optional discipline-mistake range for programmes that need it, an
+optional A/B teen lineage, and an optional target value for the visible
+discipline meter. The target meter value matters because P1 forms do not all
+carry the displayed bars unchanged through an evolution.
 
 The P1 package supplies the following classic visible branches. `A` and `B`
 are hidden versions of an otherwise identically named teenager; `D` is the
@@ -95,7 +95,10 @@ four-segment 0–4 discipline meter at the adult transition.
 At the Marutchi transition, 0–1 care mistakes selects Tamatchi and 2+ selects
 Kuchitamatchi. Three or four discipline bars records hidden version A; zero to
 two records B. The simulator has deterministic traces for each data-defined
-visible adult target.
+visible adult target. The visible meter then starts at 50% for a version-A
+teen and 0% for a version-B teen. Adults start at 100% (Mametchi and
+Kuchipatchi), 50% (Ginjirotchi and Nyorotchi), or 0% (Maskutchi and
+Tarakotchi).
 
 This is **provisional** source-backed behaviour, not yet a final fidelity
 claim. The shared simulator now produces and resolves the fifteen-minute
@@ -136,6 +139,11 @@ zero-discipline condition are captured.
 - The Health Meter has four pages: age/weight (ounces in international P1),
   Discipline, Hungry, and Happy. Both heart meters range from 0 to 4;
   discipline moves in 25% increments.
+- The P1 visible discipline meter is initialised on each form change: type-A
+  teens begin at 50%, type-B teens at 0%; Mametchi/Kuchipatchi begin at 100%,
+  Ginjirotchi/Nyorotchi at 50%, and Maskutchi/Tarakotchi at 0%. This is
+  provisional reverse-engineering evidence, represented as data on the
+  relevant evolution rule rather than a hard-coded engine exception.
 
 These values were captured from [Thaao's original-P1 care guide](https://thaao.net/tama/p1/)
 and its [P1 character guide](https://thaao.net/tama/p1/?p=chara); the official

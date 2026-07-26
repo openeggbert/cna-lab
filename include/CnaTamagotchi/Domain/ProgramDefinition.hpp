@@ -102,6 +102,11 @@ struct EvolutionRule final {
     int minimumDisciplineMistakes{0};
     int maximumDisciplineMistakes{-1};
     ProgramTeenLineage requiredTeenLineage{ProgramTeenLineage::None};
+    // A programme can initialise the visible four-segment discipline meter
+    // when it changes form. -1 preserves the prior value; 0..4 replaces it.
+    // This keeps form-specific display state in the programme data instead
+    // of embedding a P1 exception in the shared evolution engine.
+    int targetDisciplineBars{-1};
 };
 
 struct ProgramDefinition final {
