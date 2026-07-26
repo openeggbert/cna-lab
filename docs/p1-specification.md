@@ -49,7 +49,7 @@ Each entry has a confidence status:
 | Light | Verified | Select On/Off. Turn light off when the character sleeps; it turns on automatically at wake-up. |
 | Toilet | Verified | Flush droppings; leaving them causes illness. |
 | Health Meter | Verified | Shows age/weight, discipline, hunger, and happiness pages. |
-| Character game | Verified | Five turns. A chooses left, B chooses right; matching the direction raises happiness. |
+| Character game | Verified in part | Five turns. A chooses left, B chooses right; matching the direction raises happiness. The captured base success fraction is per form. |
 | Medicine | Verified | A skull indicates sickness. Two or three doses can be needed. |
 | Attention | Verified | It illuminates when the character needs care; it is not a selected action. |
 | Discipline | Verified | Use after an unjustified call, meal refusal while hungry, or play refusal while unhappy. |
@@ -143,6 +143,11 @@ provisional pending a selected-target trace.
   Kuchipatchi at 60/70 with none; Nyorotchi at 60/70 and seven; Tarakotchi at
   45/50 and seven. Calls are capped at the number that could fill the form's
   initial visible Discipline meter.
+- Character-game success chance is also per-form programme data: 50% for all
+  P1 forms except Maskutchi (10/32, 31.25%) and Kuchipatchi (22/32, 68.75%).
+  The desktop game's persisted deterministic sequence resolves the shown
+  direction after the A/B guess, so a restart does not replace a sequence with
+  a new host-random result.
 - Adult minimum weight / sleep pairs are: Mametchi and Ginjirotchi 30 oz,
   22:00–09:00; Maskutchi 30 oz, 23:00–11:00; Kuchipatchi 20 oz,
   22:00–09:00; Nyorotchi 10 oz, 22:00–09:00; Tarakotchi 20 oz,

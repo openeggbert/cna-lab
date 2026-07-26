@@ -76,6 +76,17 @@ void testP1LifecycleAndCharacterSchedulesAreProgrammeData()
             && marutchi->happinessHeartLossMinutes == 60
             && marutchi->disciplineCallAfterNeedDecrements == 6,
         "P1 Marutchi's need-decay and false-call cadence must be programme data");
+
+    const auto maskutchi = std::find_if(p1.creatures.begin(), p1.creatures.end(),
+        [](const CreatureDefinition& creature) { return creature.id == "maskutchi"; });
+    const auto kuchipatchi = std::find_if(p1.creatures.begin(), p1.creatures.end(),
+        [](const CreatureDefinition& creature) { return creature.id == "kuchipatchi"; });
+    expect(maskutchi != p1.creatures.end() && maskutchi->characterGameWinNumerator == 10
+            && maskutchi->characterGameWinDenominator == 32
+            && kuchipatchi != p1.creatures.end()
+            && kuchipatchi->characterGameWinNumerator == 22
+            && kuchipatchi->characterGameWinDenominator == 32,
+        "P1's non-uniform Character-game probabilities must be programme data");
 }
 
 } // namespace

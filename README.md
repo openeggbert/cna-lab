@@ -179,9 +179,11 @@ five-ounce starting weight regardless of feeding or play.
 ## Mini-game
 
 P1 has exactly one mini-game: **Character**. In each five-round game, A guesses
-that the creature will look left and B guesses that it will look right. Three or
-more correct guesses fill one happiness heart; completing the game also reduces
-weight after the baby stage. The P2 Number game will be removed. [P1 instruction manual](https://www.bandai.com/amfile/file/download/file/3639/product/1309818/)
+that the creature will look left and B guesses that it will look right. The
+captured per-character success chance is used: 50% for most forms, 31.25% for
+Maskutchi, and 68.75% for Kuchipatchi. Three or more correct guesses fill one
+happiness heart; completing the game also reduces weight after the baby stage.
+P2's Number game is not part of this programme. [P1 instruction manual](https://www.bandai.com/amfile/file/download/file/3639/product/1309818/)
 
 ## Characters and evolution
 

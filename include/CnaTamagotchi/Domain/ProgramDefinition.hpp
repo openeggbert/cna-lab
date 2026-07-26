@@ -53,6 +53,10 @@ struct CreatureDefinition final {
     // them; the run-time quota still stops calls once its visible meter could
     // have been filled.
     int disciplineCallAfterNeedDecrements{-1};
+    // Character-game chance expressed exactly as a fraction so the program
+    // data does not depend on a host floating-point random implementation.
+    int characterGameWinNumerator{1};
+    int characterGameWinDenominator{2};
 };
 
 struct FoodDefinition final {

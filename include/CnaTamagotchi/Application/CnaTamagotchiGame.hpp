@@ -76,6 +76,7 @@ private:
     void saveNow();
     void startCharacterGame() noexcept;
     void startNextCharacterRound() noexcept;
+    void resolveCharacterRound(int choice) noexcept;
     void startNewEgg() noexcept;
     void startFreshEgg() noexcept;
     void beginClockSetup() noexcept;

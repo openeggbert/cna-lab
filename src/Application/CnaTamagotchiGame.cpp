@@ -348,16 +348,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             }
             return false;
         } else if (screen_ == Screen::Game) {
-            gameChoice_ = 0;
-            gameWon_ = gameChoice_ == gameTarget_;
-            gameResolved_ = true;
-            if (gameWon_) {
-                ++gameWins_;
-            }
-            ++gameRound_;
-            if (gameRound_ == activeProgramme().game.rounds) {
-                static_cast<void>(simulation_.completeGame(activeProgramme(), pet_, gameWins_));
-            }
+            resolveCharacterRound(0);
             return true;
         }
         return false;
@@ -396,16 +387,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
                 }
                 return false;
             }
-            gameChoice_ = 1;
-            gameWon_ = gameChoice_ == gameTarget_;
-            gameResolved_ = true;
-            if (gameWon_) {
-                ++gameWins_;
-            }
-            ++gameRound_;
-            if (gameRound_ == activeProgramme().game.rounds) {
-                static_cast<void>(simulation_.completeGame(activeProgramme(), pet_, gameWins_));
-            }
+            resolveCharacterRound(1);
             return true;
         }
         if (selectedIcon_ == 0) {
@@ -698,13 +680,40 @@ void CnaTamagotchiGame::startCharacterGame() noexcept
 
 void CnaTamagotchiGame::startNextCharacterRound() noexcept
 {
-    // The persisted seed keeps the local sequence stable across restarts
-    // without relying on a platform random-number API.
-    seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
-    gameTarget_ = static_cast<int>((seed_ >> 63U) & 1U);
+    // The direction stays hidden until the A/B prediction is committed.
+    // The persisted seed keeps the local sequence stable across restarts.
+    gameTarget_ = 0;
     gameChoice_ = 0;
     gameResolved_ = false;
     gameWon_ = false;
+}
+
+void CnaTamagotchiGame::resolveCharacterRound(const int choice) noexcept
+{
+    // The P1 base data has a per-form success fraction. Derive the displayed
+    // direction after the user's prediction so it carries that exact chance,
+    // rather than accidentally treating every form as a 50/50 target coin.
+    seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
+    const auto character = std::find_if(activeProgramme().creatures.begin(),
+        activeProgramme().creatures.end(), [this](const Domain::CreatureDefinition& definition) {
+            return definition.id == pet_.characterId;
+        });
+    const int numerator = character == activeProgramme().creatures.end()
+        ? 1 : character->characterGameWinNumerator;
+    const int denominator = character == activeProgramme().creatures.end()
+        ? 2 : character->characterGameWinDenominator;
+    gameChoice_ = choice;
+    gameWon_ = denominator > 0
+        && static_cast<int>(seed_ % static_cast<std::uint64_t>(denominator)) < numerator;
+    gameTarget_ = gameWon_ ? gameChoice_ : 1 - gameChoice_;
+    gameResolved_ = true;
+    if (gameWon_) {
+        ++gameWins_;
+    }
+    ++gameRound_;
+    if (gameRound_ == activeProgramme().game.rounds) {
+        static_cast<void>(simulation_.completeGame(activeProgramme(), pet_, gameWins_));
+    }
 }
 
 void CnaTamagotchiGame::startNewEgg() noexcept
