@@ -38,8 +38,10 @@ will be copied.
   - Scale LCD pixels with nearest-neighbour rendering and no anti-aliasing.
 
 - [ ] **5. First playable care loop**
-  - Implement A/B/C input mapping, menu navigation, status screen, feeding,
-    cleaning, sleep/light, medicine, attention, and discipline.
+  - [x] Implement A/B/C keyboard mapping, icon selection, and feeding, play,
+    sleep, cleaning, medicine, and discipline actions.
+  - Add menus, a named status screen, attention requests, and an in-device
+    presentation for discipline.
   - Add one small original mini-game and feedback animations.
   - Add basic original pet species and a data-driven evolution table.
 

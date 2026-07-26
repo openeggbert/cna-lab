@@ -50,6 +50,7 @@ set(CNA_TAMAGOTCHI_SOURCES
     src/main.cpp
     src/Application/CnaTamagotchiGame.cpp
     src/Display/MonochromeDisplay.cpp
+    src/Domain/PetSimulation.cpp
 )
 
 # Android's SDL activity loads libmain.so; desktop builds a normal executable.

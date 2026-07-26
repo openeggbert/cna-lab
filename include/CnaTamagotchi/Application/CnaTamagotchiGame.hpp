@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
+#include "CnaTamagotchi/Domain/PetSimulation.hpp"
 
 #include <memory>
 #include <optional>
@@ -28,14 +29,22 @@ protected:
 
 private:
     [[nodiscard]] Microsoft::Xna::Framework::Color backgroundColor() const;
-    void seedDemoDisplay() noexcept;
+    void refreshDisplay() noexcept;
     void drawDevice();
 
     Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
     Display::MonochromeDisplay display_;
+    Domain::PetState pet_;
+    Domain::PetSimulation simulation_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
     std::optional<Microsoft::Xna::Framework::Graphics::Texture2D> pixelTexture_;
     float backgroundTimeSeconds_{0.0F};
+    float simulationSeconds_{0.0F};
+    int selectedIcon_{0};
+    bool selectNextWasDown_{false};
+    bool selectPreviousWasDown_{false};
+    bool confirmWasDown_{false};
+    bool cancelWasDown_{false};
     bool smokeTest_{false};
     unsigned int drawnFrames_{0};
 };

@@ -28,6 +28,16 @@ cmake --build --preset sdl-renderer
 The skeleton opens a 540 × 760 window. Press Escape to close it. Pass
 `--smoke-test` to have the application exit after three rendered frames.
 
+## Prototype controls
+
+- `A` or Right arrow: select the next care icon; Left arrow: select the previous one.
+- `B`, Enter, or Space: perform the selected action.
+- `C` or Backspace: return selection to the meal icon; Escape: close the game.
+
+The active icons currently implement meal, play, sleep, discipline, cleaning,
+and medicine. The LCD bars show hunger, happiness, and health; one real minute
+currently advances one simulated minute while the application is open.
+
 To use a CNA checkout outside the default sibling location:
 
 ```bash

@@ -58,9 +58,9 @@ The device has three clickable/keyboard-mappable controls:
 
 | Control | Keyboard | Role |
 | --- | --- | --- |
-| A / left | Left arrow, `A` | Move the icon/menu selection left; previous choice |
+| A / select | `A`, Right arrow; Left arrow for previous | Move the icon selection |
 | B / confirm | Enter, Space, `B` | Open or confirm the selected action |
-| C / back | Escape, Backspace, `C` | Close, cancel, or go back |
+| C / back | `C`, Backspace | Cancel and return selection to the meal icon |
 
 In the shell, not inside the 32 × 24 LCD, use eight small pictograms split in
 two bands. The active selection is dark; inactive icons use the shell's

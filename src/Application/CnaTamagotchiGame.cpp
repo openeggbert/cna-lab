@@ -59,7 +59,7 @@ CnaTamagotchiGame::CnaTamagotchiGame(const bool smokeTest)
     graphics_.setPreferredBackBufferWidthProperty(WindowWidth);
     graphics_.setPreferredBackBufferHeightProperty(WindowHeight);
     Game::getWindowProperty().setTitleProperty("CNA Tamagotchi");
-    seedDemoDisplay();
+    refreshDisplay();
 }
 
 void CnaTamagotchiGame::LoadContent()
@@ -80,7 +80,54 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
 
     const auto elapsedMilliseconds =
         gameTime.getElapsedGameTimeProperty().getTotalMillisecondsProperty();
-    backgroundTimeSeconds_ += static_cast<float>(elapsedMilliseconds) / 1000.0F;
+    const float elapsedSeconds = static_cast<float>(elapsedMilliseconds) / 1000.0F;
+    backgroundTimeSeconds_ += elapsedSeconds;
+
+    const bool selectNext = keyboard.IsKeyDown(Keys::A) || keyboard.IsKeyDown(Keys::Right);
+    const bool selectPrevious = keyboard.IsKeyDown(Keys::Left);
+    const bool confirm = keyboard.IsKeyDown(Keys::B) || keyboard.IsKeyDown(Keys::Enter)
+        || keyboard.IsKeyDown(Keys::Space);
+    const bool cancel = keyboard.IsKeyDown(Keys::C) || keyboard.IsKeyDown(Keys::Back);
+
+    if (selectNext && !selectNextWasDown_) {
+        selectedIcon_ = (selectedIcon_ + 1) % static_cast<int>(IconPositions.size());
+    }
+    if (selectPrevious && !selectPreviousWasDown_) {
+        selectedIcon_ = (selectedIcon_ + static_cast<int>(IconPositions.size()) - 1)
+            % static_cast<int>(IconPositions.size());
+    }
+    if (confirm && !confirmWasDown_) {
+        constexpr std::array<std::optional<Domain::PetAction>, 8> iconActions{{
+            Domain::PetAction::Meal,
+            Domain::PetAction::Play,
+            Domain::PetAction::ToggleSleep,
+            Domain::PetAction::Discipline,
+            Domain::PetAction::Clean,
+            Domain::PetAction::Medicine,
+            std::nullopt, // status is display-only in this first interaction slice
+            std::nullopt, // journal is introduced with persistence
+        }};
+        const std::optional<Domain::PetAction> action =
+            iconActions[static_cast<std::size_t>(selectedIcon_)];
+        if (action.has_value()) {
+            simulation_.applyAction(pet_, *action);
+        }
+    }
+    if (cancel && !cancelWasDown_) {
+        selectedIcon_ = 0;
+    }
+
+    selectNextWasDown_ = selectNext;
+    selectPreviousWasDown_ = selectPrevious;
+    confirmWasDown_ = confirm;
+    cancelWasDown_ = cancel;
+
+    simulationSeconds_ += elapsedSeconds;
+    while (simulationSeconds_ >= 60.0F) {
+        static_cast<void>(simulation_.advance(pet_, 1));
+        simulationSeconds_ -= 60.0F;
+    }
+    refreshDisplay();
 }
 
 void CnaTamagotchiGame::Draw(const GameTime& gameTime)
@@ -125,9 +172,20 @@ Color CnaTamagotchiGame::backgroundColor() const
         255U);
 }
 
-void CnaTamagotchiGame::seedDemoDisplay() noexcept
+void CnaTamagotchiGame::refreshDisplay() noexcept
 {
     display_.clear();
+
+    const auto drawMeter = [this](const int firstX, const int value) {
+        constexpr int MeterWidth = 8;
+        const int filled = std::clamp((value * MeterWidth + 99) / 100, 0, MeterWidth);
+        for (int offset = 0; offset < filled; ++offset) {
+            display_.setPixel(firstX + offset, 1, true);
+        }
+    };
+    drawMeter(1, pet_.needs.hunger);
+    drawMeter(12, pet_.needs.happiness);
+    drawMeter(23, pet_.needs.health);
 
     constexpr std::array<std::string_view, 11> pet{{
         "    ##    ",
@@ -151,7 +209,7 @@ void CnaTamagotchiGame::seedDemoDisplay() noexcept
         }
     }
 
-    // Tiny floor and two stars make the first 1-bit screen immediately legible.
+    // Tiny floor and two stars keep the first 1-bit screen immediately legible.
     for (int x = 5; x < 27; ++x) {
         display_.setPixel(x, 20, true);
     }
@@ -161,6 +219,12 @@ void CnaTamagotchiGame::seedDemoDisplay() noexcept
     display_.setPixel(27, 3, true);
     display_.setPixel(28, 3, true);
     display_.setPixel(28, 4, true);
+
+    if (pet_.asleep) {
+        display_.setPixel(27, 6, true);
+        display_.setPixel(28, 6, true);
+        display_.setPixel(28, 7, true);
+    }
 }
 
 void CnaTamagotchiGame::drawDevice()
@@ -218,7 +282,11 @@ void CnaTamagotchiGame::drawDevice()
     // Eight care symbols in two shell bands. The first bowl is active.
     for (std::size_t index = 0; index < IconPositions.size(); ++index) {
         const IconPosition position = IconPositions[index];
-        const Color icon = index == 0U ? Ink : ShellShadow;
+        const bool selected = static_cast<int>(index) == selectedIcon_;
+        if (selected) {
+            drawEllipse(position.x, position.y, 18, 18, ShellHighlight);
+        }
+        const Color icon = selected ? Ink : ShellShadow;
         const Color cutout = ShellMain;
 
         switch (index) {
