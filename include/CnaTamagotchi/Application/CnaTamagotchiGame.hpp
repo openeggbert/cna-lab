@@ -36,11 +36,13 @@ private:
         Home,
         Food,
         Status,
+        Game,
     };
 
     [[nodiscard]] Microsoft::Xna::Framework::Color backgroundColor() const;
     void loadSave();
     void saveNow();
+    void startPeekGame() noexcept;
     void refreshDisplay() noexcept;
     void drawDevice();
 
@@ -58,8 +60,12 @@ private:
     int selectedIcon_{0};
     int foodSelection_{0};
     int statusPage_{0};
+    int gameChoice_{0};
+    int gameTarget_{0};
     std::int64_t lastSavedUnixSeconds_{0};
     std::uint64_t seed_{0};
+    bool gameResolved_{false};
+    bool gameWon_{false};
     bool selectNextWasDown_{false};
     bool selectPreviousWasDown_{false};
     bool confirmWasDown_{false};

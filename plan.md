@@ -46,7 +46,8 @@ will be copied.
     presentation for discipline.
     - [x] Add the first Food (meal/snack) and two-page Status LCD screens;
       display the attention call on the home screen.
-  - Add one small original mini-game and feedback animations.
+  - [x] Add a first original two-choice Peek mini-game with seed-backed outcomes.
+  - Add feedback animations and a second game profile.
   - [x] Add the first original egg line: 11 creature forms plus an egg, with
     care-driven teen/adult resolution and tested 1-bit sprites.
 

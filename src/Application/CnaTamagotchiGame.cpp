@@ -81,10 +81,13 @@ constexpr Glyph LetterI{{"111", "010", "010", "010", "111"}};
 constexpr Glyph LetterL{{"100", "100", "100", "100", "111"}};
 constexpr Glyph LetterM{{"101", "111", "111", "101", "101"}};
 constexpr Glyph LetterO{{"010", "101", "101", "101", "010"}};
+constexpr Glyph LetterP{{"110", "101", "110", "100", "100"}};
 constexpr Glyph LetterR{{"110", "101", "110", "101", "101"}};
 constexpr Glyph LetterS{{"011", "100", "010", "001", "110"}};
 constexpr Glyph LetterT{{"111", "010", "010", "010", "010"}};
 constexpr Glyph LetterW{{"101", "101", "101", "111", "101"}};
+constexpr Glyph LetterK{{"101", "101", "110", "101", "101"}};
+constexpr Glyph LetterN{{"101", "111", "111", "111", "101"}};
 constexpr Glyph Digit0{{"111", "101", "101", "101", "111"}};
 constexpr Glyph Digit1{{"010", "110", "010", "010", "111"}};
 constexpr Glyph Digit2{{"110", "001", "010", "100", "111"}};
@@ -109,10 +112,13 @@ const Glyph& glyphFor(const char character) noexcept
     case 'L': return LetterL;
     case 'M': return LetterM;
     case 'O': return LetterO;
+    case 'P': return LetterP;
     case 'R': return LetterR;
     case 'S': return LetterS;
     case 'T': return LetterT;
     case 'W': return LetterW;
+    case 'K': return LetterK;
+    case 'N': return LetterN;
     case '0': return Digit0;
     case '1': return Digit1;
     case '2': return Digit2;
@@ -194,6 +200,8 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
             selectedIcon_ = (selectedIcon_ + 1) % static_cast<int>(IconPositions.size());
         } else if (screen_ == Screen::Food) {
             foodSelection_ = (foodSelection_ + 1) % 2;
+        } else if (screen_ == Screen::Game && !gameResolved_) {
+            gameChoice_ = (gameChoice_ + 1) % 2;
         }
     }
     if (selectPrevious && !selectPreviousWasDown_) {
@@ -202,26 +210,43 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
                 % static_cast<int>(IconPositions.size());
         } else if (screen_ == Screen::Food) {
             foodSelection_ = (foodSelection_ + 1) % 2;
+        } else if (screen_ == Screen::Game && !gameResolved_) {
+            gameChoice_ = (gameChoice_ + 1) % 2;
         }
     }
-    bool petChanged = false;
+    bool saveChanged = false;
     if (confirm && !confirmWasDown_) {
         if (screen_ == Screen::Food) {
             simulation_.applyAction(pet_, foodSelection_ == 0
                 ? Domain::PetAction::Meal : Domain::PetAction::Snack);
             screen_ = Screen::Home;
-            petChanged = true;
+            saveChanged = true;
         } else if (screen_ == Screen::Status) {
             statusPage_ = (statusPage_ + 1) % 2;
+        } else if (screen_ == Screen::Game) {
+            if (gameResolved_) {
+                screen_ = Screen::Home;
+            } else {
+                gameWon_ = gameChoice_ == gameTarget_;
+                gameResolved_ = true;
+                if (gameWon_) {
+                    simulation_.applyAction(pet_, Domain::PetAction::Play);
+                }
+                saveChanged = true;
+            }
         } else if (selectedIcon_ == 0) {
             screen_ = Screen::Food;
         } else if (selectedIcon_ == 5) {
             screen_ = Screen::Status;
+        } else if (selectedIcon_ == 2) {
+            startPeekGame();
+            screen_ = Screen::Game;
+            saveChanged = true;
         } else {
             constexpr std::array<std::optional<Domain::PetAction>, 8> iconActions{{
                 std::nullopt, // food opens its own two-choice menu
                 Domain::PetAction::ToggleLight,
-                Domain::PetAction::Play,
+                std::nullopt, // game opens its own choice screen
                 Domain::PetAction::Medicine,
                 Domain::PetAction::Clean,
                 std::nullopt, // status opens its own display
@@ -232,7 +257,7 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
                 iconActions[static_cast<std::size_t>(selectedIcon_)];
             if (action.has_value()) {
                 simulation_.applyAction(pet_, *action);
-                petChanged = true;
+                saveChanged = true;
             }
         }
     }
@@ -252,9 +277,9 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
         static_cast<void>(simulation_.advance(pet_, 1));
         simulationSeconds_ -= 60.0F;
         lastSavedUnixSeconds_ += 60;
-        petChanged = true;
+        saveChanged = true;
     }
-    if (petChanged) {
+    if (saveChanged) {
         saveNow();
     }
     refreshDisplay();
@@ -356,6 +381,17 @@ void CnaTamagotchiGame::saveNow()
     static_cast<void>(saveRepository_.save(savePath_, data));
 }
 
+void CnaTamagotchiGame::startPeekGame() noexcept
+{
+    // The seed is persisted, so the sequence remains stable across restarts
+    // without relying on a platform random-number API.
+    seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
+    gameTarget_ = static_cast<int>((seed_ >> 63U) & 1U);
+    gameChoice_ = 0;
+    gameResolved_ = false;
+    gameWon_ = false;
+}
+
 void CnaTamagotchiGame::refreshDisplay() noexcept
 {
     display_.clear();
@@ -384,6 +420,34 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
             drawText(display_, 2, 1, mistakes);
             drawText(display_, 2, 9, discipline);
         }
+        return;
+    }
+
+    if (screen_ == Screen::Game) {
+        if (gameResolved_) {
+            drawText(display_, gameWon_ ? 10 : 8, 5, gameWon_ ? "WIN" : "LOSE");
+            return;
+        }
+
+        drawText(display_, 8, 0, "PICK");
+        // Two deliberately abstract peek positions; the selected position is
+        // marked below it, rather than using a modern text button.
+        for (const int x : {8, 23}) {
+            display_.setPixel(x, 7, true);
+            display_.setPixel(x + 1, 7, true);
+            display_.setPixel(x, 8, true);
+            display_.setPixel(x + 1, 8, true);
+            display_.setPixel(x, 9, true);
+            display_.setPixel(x + 1, 9, true);
+            display_.setPixel(x - 1, 10, true);
+            display_.setPixel(x, 10, true);
+            display_.setPixel(x + 1, 10, true);
+            display_.setPixel(x + 2, 10, true);
+        }
+        const int markerX = gameChoice_ == 0 ? 8 : 23;
+        display_.setPixel(markerX, 13, true);
+        display_.setPixel(markerX + 1, 14, true);
+        display_.setPixel(markerX, 15, true);
         return;
     }
 

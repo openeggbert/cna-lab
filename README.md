@@ -20,7 +20,9 @@ deterministic pet simulator and a tested JSON save repository. The current
 care slice renders four hunger, happiness, and discipline segments; schedules
 sleep; handles waste; requests attention for empty needs, light, and false
 calls; preserves those states in saves; and provides Food and Status LCD
-screens rather than adding modern external controls.
+screens rather than adding modern external controls. The Game icon opens the
+first original two-choice Peek mini-game; a win, not merely opening the icon,
+improves happiness.
 
 Those systems are foundations, not the final classic ruleset. In particular,
 the internal `0…100` need values, unfinished status/menu screens, temporary
@@ -207,7 +209,8 @@ and recovery UI remain to be added.
    device in every screen.
 3. Implement the egg, hatch, stage schedule, complete sleep schedules, care mistakes,
    illness, death/farewell, and event-jump offline processing.
-4. Implement the complete first creature line and the two compact games.
+4. Complete the second compact game and add feedback animations to the
+implemented first creature line.
 5. Add selectable user-data save slots plus migration/recovery UI and tests.
 6. Add sounds, visual accessibility options, additional complete egg lines,
    and a Relaxed mode without weakening the default Classic mode.
