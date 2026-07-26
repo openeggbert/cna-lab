@@ -159,18 +159,23 @@ bool ProgramSimulation::giveMedicine(ProgramPetState& state) const noexcept
     return true;
 }
 
-bool ProgramSimulation::toggleLight(ProgramPetState& state) const noexcept
+bool ProgramSimulation::setLightOff(ProgramPetState& state, const bool lightOff) const noexcept
 {
-    if (!state.asleep) {
+    if (!state.asleep || state.lightOff == lightOff) {
         return false;
     }
-    state.lightOff = !state.lightOff;
+    state.lightOff = lightOff;
     if (state.lightOff && state.attentionReason == ProgramAttentionReason::SleepLight) {
         state.attentionReason = ProgramAttentionReason::None;
         state.attentionDeadlineMinutes = -1;
         state.nextAttentionEligibleMinutes = state.minutesSinceClockSet;
     }
     return true;
+}
+
+bool ProgramSimulation::toggleLight(ProgramPetState& state) const noexcept
+{
+    return setLightOff(state, !state.lightOff);
 }
 
 bool ProgramSimulation::cleanWaste(ProgramPetState& state) const noexcept

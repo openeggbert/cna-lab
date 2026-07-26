@@ -64,6 +64,7 @@ public:
     [[nodiscard]] bool completeGame(const ProgramDefinition& programme, ProgramPetState& state,
                                     int wins) const noexcept;
     [[nodiscard]] bool giveMedicine(ProgramPetState& state) const noexcept;
+    [[nodiscard]] bool setLightOff(ProgramPetState& state, bool lightOff) const noexcept;
     [[nodiscard]] bool toggleLight(ProgramPetState& state) const noexcept;
     [[nodiscard]] bool cleanWaste(ProgramPetState& state) const noexcept;
     [[nodiscard]] bool discipline(ProgramPetState& state) const noexcept;

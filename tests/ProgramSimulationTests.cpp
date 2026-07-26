@@ -88,8 +88,12 @@ void testP1FoodGameWasteAndSleepUseProgrammeData()
     pet.clockMinutesOfDay = 19 * 60 + 59;
     static_cast<void>(simulation.advance(p1, pet, 1));
     expect(pet.asleep, "Marutchi must follow its captured 20:00 P1 sleep schedule");
-    expect(simulation.toggleLight(pet) && pet.lightOff,
-        "the P1 Light action must apply only while the character is asleep");
+    expect(simulation.setLightOff(pet, true) && pet.lightOff,
+        "the P1 Light menu must set OFF only while the character is asleep");
+    expect(simulation.setLightOff(pet, false) && !pet.lightOff,
+        "the P1 Light menu must also allow the ON selection while asleep");
+    expect(!simulation.setLightOff(pet, false),
+        "choosing the already active P1 light state must not manufacture a care change");
 }
 
 void testP1AttentionCallsAndCareMistakesUseProgrammeData()

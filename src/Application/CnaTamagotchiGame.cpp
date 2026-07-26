@@ -327,6 +327,8 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         } else if (screen_ == Screen::Food) {
             foodSelection_ = (foodSelection_ + 1)
                 % static_cast<int>(activeProgramme().food.size());
+        } else if (screen_ == Screen::Light) {
+            lightSelection_ = (lightSelection_ + 1) % 2;
         } else if (screen_ == Screen::Game && gameResolved_) {
             if (gameRound_ >= activeProgramme().game.rounds) {
                 screen_ = Screen::Home;
@@ -362,6 +364,13 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             selectedIcon_ = -1;
             setFeedback(fed ? Feedback::Success : Feedback::Blocked);
             return fed;
+        }
+        if (screen_ == Screen::Light) {
+            const bool changed = simulation_.setLightOff(pet_, lightSelection_ == 1);
+            screen_ = Screen::Home;
+            selectedIcon_ = -1;
+            setFeedback(changed ? Feedback::Success : Feedback::Blocked);
+            return changed;
         }
         if (screen_ == Screen::Status) {
             statusPage_ = (statusPage_ + 1) % 4;
@@ -407,9 +416,9 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             return false;
         }
         if (selectedIcon_ == 1) {
-            const bool changed = simulation_.toggleLight(pet_);
-            setFeedback(changed ? Feedback::Success : Feedback::Blocked);
-            return changed;
+            screen_ = Screen::Light;
+            lightSelection_ = pet_.lightOff ? 1 : 0;
+            return false;
         }
         if (selectedIcon_ == 3) {
             const bool changed = simulation_.giveMedicine(pet_);
@@ -487,6 +496,8 @@ void CnaTamagotchiGame::moveSelectionBackward() noexcept
     } else if (screen_ == Screen::Food) {
         foodSelection_ = (foodSelection_ + 1)
             % static_cast<int>(activeProgramme().food.size());
+    } else if (screen_ == Screen::Light) {
+        lightSelection_ = (lightSelection_ + 1) % 2;
     } else if (screen_ == Screen::SaveRecovery && recoveryBackupAvailable_) {
         recoveryChoice_ = recoveryChoice_ == RecoveryChoice::RestoreBackup
             ? RecoveryChoice::NewEgg : RecoveryChoice::RestoreBackup;
@@ -715,6 +726,7 @@ void CnaTamagotchiGame::resetPetToEgg() noexcept
     screen_ = Screen::Home;
     selectedIcon_ = -1;
     foodSelection_ = 0;
+    lightSelection_ = 0;
     statusPage_ = 0;
     gameChoice_ = 0;
     gameTarget_ = 0;
@@ -806,6 +818,17 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         display_.setPixel(1, markerY, true);
         display_.setPixel(2, markerY + 1, true);
         display_.setPixel(1, markerY + 2, true);
+        return;
+    }
+
+    if (screen_ == Screen::Light) {
+        display_.drawText(7, 1, "LIGHT");
+        display_.drawText(11, 5, "ON");
+        display_.drawText(10, 10, "OFF");
+        const int markerY = lightSelection_ == 0 ? 6 : 11;
+        display_.setPixel(6, markerY, true);
+        display_.setPixel(7, markerY + 1, true);
+        display_.setPixel(6, markerY + 2, true);
         return;
     }
 

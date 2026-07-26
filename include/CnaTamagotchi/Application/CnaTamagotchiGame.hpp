@@ -37,6 +37,7 @@ private:
     enum class Screen {
         Home,
         Food,
+        Light,
         Status,
         Game,
         ClockView,
@@ -98,6 +99,7 @@ private:
     Screen screen_{Screen::Home};
     int selectedIcon_{-1};
     int foodSelection_{0};
+    int lightSelection_{0};
     int statusPage_{0};
     int gameChoice_{0};
     int gameTarget_{0};
