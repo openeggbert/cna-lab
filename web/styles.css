@@ -20,6 +20,14 @@ figcaption { color:#775d68; font-size:.82rem; text-align:center; }
 main { padding:3rem 1.5rem 6rem; }
 section { margin:5rem 0; }
 .layout-two { display:grid; grid-template-columns:1.1fr .9fr; gap:clamp(2rem,7vw,7rem); align-items:center; }
+.tutorial-intro { max-width:800px; }
+.lesson-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; }
+.lesson { position:relative; min-height:255px; padding:1.35rem; border:1px solid var(--line); border-radius:1.25rem; background:#fffdf9; }
+.lesson > span { display:inline-block; margin-bottom:.85rem; color:var(--pink-dark); font-size:.78rem; font-weight:900; letter-spacing:.12em; }
+.lesson h3 { font-size:1.18rem; }
+.lesson p { margin-bottom:0; font-size:.94rem; }
+.gallery { display:grid; grid-template-columns:repeat(2,1fr); gap:1.5rem; }
+.reference { text-align:center; }
 .tip, .screen-card, .faq details { border:1px solid var(--line); border-radius:1.5rem; background:#fffdf9; padding:1.5rem; box-shadow:0 12px 35px #97577716; }
 .tip ol,.steps { padding-left:1.2rem; }
 .tip li,.steps li { margin:.65rem 0; }
@@ -55,4 +63,5 @@ small,.note { color:#775d68; }
 summary { cursor:pointer; font-weight:800; }
 code { padding:.1rem .3rem; border-radius:.25rem; background:#f1e8e1; }
 footer { padding:2rem 1.5rem; color:#765f69; background:#f3c7d6; text-align:center; font-size:.88rem; }
-@media (max-width:760px) { nav a:not(.brand) { display:none; } .hero { min-height:auto; } .hero-copy { padding-top:3rem; } .hero-device { position:relative; width:100%; right:auto; } .layout-two,.control-grid,.warning-grid { grid-template-columns:1fr; } .icon-grid { grid-template-columns:repeat(2,1fr); } .games { margin-inline:-1.5rem; } }
+@media (max-width:900px) { .lesson-grid { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:760px) { nav a:not(.brand) { display:none; } .hero { min-height:auto; } .hero-copy { padding-top:3rem; } .hero-device { position:relative; width:100%; right:auto; } .layout-two,.control-grid,.warning-grid,.lesson-grid,.gallery { grid-template-columns:1fr; } .icon-grid { grid-template-columns:repeat(2,1fr); } .games { margin-inline:-1.5rem; } }

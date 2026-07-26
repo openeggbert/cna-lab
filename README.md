@@ -13,9 +13,10 @@ project will be original.
 
 ## Player guide
 
-The Czech end-user tutorial is available as a standalone static site in
-[web/index.html](web/index.html). It explains the three controls, care icons,
-mini-games, saves, and the full life cycle without development terminology.
+The detailed English end-user tutorial is available as a standalone static site
+in [web/index.html](web/index.html). It covers the three controls, care icons,
+mini-games, calls, saving, evolution, and the full life cycle without
+development terminology.
 
 ## Current prototype
 

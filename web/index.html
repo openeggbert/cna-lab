@@ -1,134 +1,115 @@
 <!doctype html>
-<html lang="cs">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Uživatelská příručka hry CNA Tamagotchi.">
-  <title>CNA Tamagotchi — uživatelská příručka</title>
+  <meta name="description" content="A detailed player guide for CNA Tamagotchi.">
+  <title>CNA Tamagotchi — Complete Player Guide</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="hero">
-    <nav aria-label="Obsah stránky">
-      <a class="brand" href="#zacatek">CNA TAMAGOTCHI</a>
-      <a href="#ovladani">Ovládání</a>
-      <a href="#pece">Péče</a>
-      <a href="#hry">Hry</a>
-      <a href="#zivot">Životní cyklus</a>
+    <nav aria-label="Page navigation">
+      <a class="brand" href="#start">CNA TAMAGOTCHI</a>
+      <a href="#tutorial">Tutorial</a>
+      <a href="#reference">Reference</a>
+      <a href="#faq">Help</a>
     </nav>
     <div class="hero-copy">
-      <p class="eyebrow">UŽIVATELSKÝ PRŮVODCE</p>
-      <h1>Malý tvor.<br>Skutečný čas.</h1>
-      <p>Pečujte o původního digitálního mazlíčka pomocí tří tlačítek. Krmte ho, hrajte hry, ukliďte po něm a reagujte, když vás potřebuje.</p>
-      <a class="button" href="#prvnich-pet-minut">Začít tutorial</a>
+      <p class="eyebrow">COMPLETE PLAYER GUIDE</p>
+      <h1>A small pet.<br>A real routine.</h1>
+      <p>Everything you need to raise a CNA Tamagotchi: the three buttons, every care icon, calls for attention, both games, evolution, saving, and the next generation.</p>
+      <a class="button" href="#tutorial">Begin the 24-part tutorial</a>
     </div>
     <figure class="hero-device">
-      <img src="assets/home-screen.svg" alt="Ilustrace růžového zařízení CNA Tamagotchi s jednobitovým LCD.">
-      <figcaption>Ilustrace aktuální domovské obrazovky hry.</figcaption>
+      <img src="assets/home-screen.svg" alt="Illustration of the CNA Tamagotchi device and its one-bit home screen.">
+      <figcaption>Illustration of the current in-game home screen.</figcaption>
     </figure>
   </header>
 
-  <main>
-    <section id="zacatek" class="intro layout-two">
+  <main id="start">
+    <section class="intro layout-two">
       <div>
-        <p class="eyebrow">CO OČEKÁVAT</p>
-        <h2>Žije i mimo okno hry</h2>
-        <p>Nové vejce se vylíhne přibližně po pěti minutách. Tvor roste z baby přes child a teen až do dospělé podoby. Jeho vývoj závisí na péči, ne na výběru hotového dospělého.</p>
-        <p>Hra ukládá změněný stav automaticky. Po dalším spuštění bezpečně započítá uplynulý čas.</p>
+        <p class="eyebrow">READ THIS FIRST</p>
+        <h2>This is not a menu-driven pet collector</h2>
+        <p>You do not select an adult creature from a list. You begin with an egg, build a care history, and discover the result as it grows. Food, games, sleep, discipline, messes, illness, and missed calls all matter.</p>
+        <p>The game continues to account for time after you close it. A short visit is enough when your pet is well, but ignoring it for too long has consequences.</p>
       </div>
       <aside class="tip">
-        <h3>První spuštění</h3>
+        <h3>Your first session</h3>
         <ol>
-          <li>Otevřete aplikaci <strong>CnaTamagotchi</strong>.</li>
-          <li>Nechte vejce pět minut v klidu.</li>
-          <li>Po vylíhnutí otevřete Food a nabídněte Meal.</li>
-          <li>Sledujte horní segmenty a blikající attention stav.</li>
+          <li>Open <strong>CnaTamagotchi</strong>.</li>
+          <li>Wait for the egg to hatch; this takes about five minutes.</li>
+          <li>Use Food after the hatch, then check Status.</li>
+          <li>Before leaving, clean any mess and turn off the light if your pet is asleep.</li>
         </ol>
       </aside>
     </section>
 
-    <section id="ovladani" class="controls">
-      <p class="eyebrow">TŘI TLAČÍTKA</p>
-      <h2>Všechno ovládáte jako kapesní zařízení</h2>
-      <div class="control-grid">
-        <article><span class="key">A</span><h3>Další</h3><p>Posune výběr mezi ikonami nebo mezi možnostmi v menu.</p><small>Klávesnice: A nebo →</small></article>
-        <article><span class="key">B</span><h3>Potvrdit</h3><p>Otevře vybranou ikonu, provede péči nebo vyhodnotí hru.</p><small>Klávesnice: B, Enter nebo mezerník</small></article>
-        <article><span class="key">C</span><h3>Zpět</h3><p>Zavře Food, Status nebo minihru bez provedení další akce.</p><small>Klávesnice: C, Backspace nebo Escape</small></article>
-      </div>
-      <p class="note">Můžete také kliknout nebo klepnout přímo na levé, prostřední a pravé kulaté tlačítko pod LCD. Klávesa ← je pohodlná desktopová zkratka pro krok zpět.</p>
+    <section id="tutorial" class="tutorial-intro">
+      <p class="eyebrow">THE FULL WALKTHROUGH</p>
+      <h2>24 lessons for a healthy first generation</h2>
+      <p>Read in order for your first pet, or jump to a lesson when you need an answer. Every lesson describes the player-facing behaviour of the device rather than implementation details.</p>
     </section>
 
-    <section id="prvnich-pet-minut" class="layout-two tutorial">
-      <div>
-        <p class="eyebrow">PRVNÍCH PĚT MINUT</p>
-        <h2>Od vejce k prvnímu jídlu</h2>
-        <ol class="steps">
-          <li><strong>Počkejte na hatch.</strong> Vejce zůstává na LCD asi pět minut.</li>
-          <li><strong>Vyberte Food.</strong> Food je první horní ikona, takže po startu stačí B.</li>
-          <li><strong>Zvolte Meal nebo Snack.</strong> A přepíná položku, B ji podá. Meal doplní hlad; Snack doplní štěstí, ale více zvyšuje hmotnost.</li>
-          <li><strong>Vraťte se domů.</strong> Po úspěšné péči se vedle tvora krátce ukáže jiskra.</li>
-        </ol>
-      </div>
-      <figure class="screen-card">
-        <img src="assets/food-screen.svg" alt="Ilustrace LCD s menu FOOD a volbami MEAL a SNACK.">
-        <figcaption>Food: A mění volbu, B ji potvrzuje, C menu zavře.</figcaption>
-      </figure>
+    <section class="lesson-grid" aria-label="Twenty-four player tutorial lessons">
+      <article class="lesson"><span>01</span><h3>Meet the device</h3><p>The shell has eight care icons around a 32 × 16 monochrome LCD. The display is intentionally tiny: black pixels are on; olive-green pixels are off. The creature and its needs fit into that constraint.</p></article>
+      <article class="lesson"><span>02</span><h3>Learn A, B, and C</h3><p><strong>A</strong> moves forward. <strong>B</strong> opens, confirms, or performs an action. <strong>C</strong> backs out of a screen. On a computer use A/→, B/Enter/Space, and C/Backspace/Escape. You can also click or tap the three round buttons below the LCD.</p></article>
+      <article class="lesson"><span>03</span><h3>Understand selection</h3><p>On the home screen, one shell icon is darker than the others. That is the current selection. Press A until the icon you want is selected, then press B. The icons are not separate modern buttons; the three-button rhythm is the intended way to play.</p></article>
+      <article class="lesson"><span>04</span><h3>Wait for the hatch</h3><p>A new generation begins as an egg. It hatches after roughly five minutes. There is nothing to feed before the hatch, so use this time to become comfortable with the selection ring and the Status icon.</p></article>
+      <article class="lesson"><span>05</span><h3>Open Food</h3><p>Food is the first icon in the top row. Press B to open it. The LCD shows <strong>MEAL</strong> and <strong>SNACK</strong>; press A to move the pointer, B to serve the highlighted option, or C to leave without serving anything.</p></article>
+      <article class="lesson"><span>06</span><h3>Choose a Meal when hungry</h3><p>A Meal restores one hunger segment and adds a small amount of weight. It is the normal answer to an empty hunger meter or a genuine hunger call. Feeding at sensible intervals is better than waiting for a crisis.</p></article>
+      <article class="lesson"><span>07</span><h3>Use Snacks carefully</h3><p>A Snack restores one happiness segment, but adds more weight than a Meal. Snacks are useful when happiness is low and a game is not practical. Repeated snacks at an unhealthy weight can cause illness, so they are not a substitute for play.</p></article>
+      <article class="lesson"><span>08</span><h3>Read the home meters</h3><p>The three groups across the top of the home LCD are hunger, happiness, and discipline. Each group contains four two-pixel segments. More black segments mean a fuller meter. Empty hunger or happiness eventually demands attention.</p></article>
+      <article class="lesson"><span>09</span><h3>Use Status deliberately</h3><p>Select Status and press B. Repeated presses of B cycle through age/weight, hunger/happiness, discipline/care mistakes, and the active line/game profile. Press C to return home. Status is your calm check-in screen, not an emergency screen.</p></article>
+      <article class="lesson"><span>10</span><h3>Learn the active line</h3><p>The fourth Status page reads <strong>PEEK</strong> or <strong>NUM</strong>. PEEK belongs to the Pipple line. NUM belongs to the Budbit line. The line is determined by the current generation; it changes which mini-game the Game icon opens.</p></article>
+      <article class="lesson"><span>11</span><h3>Play PEEK</h3><p>For a Pipple-line pet, select Game. The LCD shows two positions. Press A to choose left or right, then press B to reveal the result. A win raises happiness and helps control weight. Merely opening the game does not grant its benefits.</p></article>
+      <article class="lesson"><span>12</span><h3>Play NUM</h3><p>For a Budbit-line pet, select Game. The LCD presents a number and an up/down choice. Press A to choose whether the next number will be lower or higher, then press B to resolve the round. Winning has the same care benefit as PEEK.</p></article>
+      <article class="lesson"><span>13</span><h3>Know when games are unavailable</h3><p>A sleeping pet will not play. If you try an unavailable action, the home LCD briefly shows a small cross instead of changing the pet. This is a reminder to solve the current need first, not an error that damages the pet.</p></article>
+      <article class="lesson"><span>14</span><h3>Notice sleep</h3><p>From the child stage onward, the pet follows a day/night schedule. A sleeping pet is marked with a small sleep symbol. It rests at night and wakes in the morning. Its light is a care responsibility, not a decorative setting.</p></article>
+      <article class="lesson"><span>15</span><h3>Turn off the light</h3><p>When the pet falls asleep, select Light and press B to turn the light off. Waking turns it back on automatically. Leaving the light on creates a genuine attention call. Pressing Light while the pet is awake has no effect.</p></article>
+      <article class="lesson"><span>16</span><h3>Clean every mess</h3><p>Waste appears as a small mark near the lower-left part of the home LCD. The Clean icon removes it. Do not wait for several messes: uncleaned waste contributes to poor health and can make the pet sick.</p></article>
+      <article class="lesson"><span>17</span><h3>Recognise illness</h3><p>A small cross on the LCD means illness. Select Medicine and press B. Medicine is for illness only; it will not restore hunger, happiness, or discipline. If there is no illness, the device gives the unavailable-action cross instead.</p></article>
+      <article class="lesson"><span>18</span><h3>Respond to attention calls</h3><p>A square attention marker appears at the upper-right of the LCD, and the Attention shell icon becomes dark. Calls can be caused by empty hunger, empty happiness, a sleeping pet with its light on, or a deliberate false call. Genuine calls should be handled within about fifteen minutes.</p></article>
+      <article class="lesson"><span>19</span><h3>Use Discipline only for a false call</h3><p>Sometimes a pet calls even though food, happiness, sleep, and cleanliness are fine. This is the correct time for Discipline. It raises discipline only for that false-call situation. Using it at other times does nothing, so do not use it as a generic punishment button.</p></article>
+      <article class="lesson"><span>20</span><h3>Avoid care mistakes</h3><p>Ignoring a genuine call creates a care mistake. Care mistakes remain part of the pet's history and influence evolution. The Status screen shows their count. There is no single perfect adult button: consistent sensible care produces better outcomes.</p></article>
+      <article class="lesson"><span>21</span><h3>Watch weight and health</h3><p>Meals add a little weight, Snacks add more, and a won game reduces it. Extremely high weight combined with more Snacks can lead to illness. Severe neglect, illness, and uncleaned waste reduce health; health reaching zero leads to Farewell.</p></article>
+      <article class="lesson"><span>22</span><h3>Follow growth</h3><p>The egg hatches at about 5 minutes, becomes a child at about 65 minutes, reaches teen around day 3, and adulthood around day 6. Each line has a baby, child, two teen outcomes, six regular adults, and a rare late form.</p></article>
+      <article class="lesson"><span>23</span><h3>Close the game safely</h3><p>The game saves a new slot once, then saves after real care changes. It does not rewrite an unchanged save simply because you opened and closed the window. On the next launch, elapsed time is applied safely, including incomplete minutes.</p></article>
+      <article class="lesson"><span>24</span><h3>Begin the next generation</h3><p>If health reaches zero, the pet enters Farewell. The LCD displays <strong>NEW</strong>. Press B to begin a clean new egg. The next line is selected deterministically from the saved generation seed, so the new life has its own path and game profile.</p></article>
     </section>
 
-    <section id="pece" class="icons-section">
-      <p class="eyebrow">IKONY PÉČE</p>
-      <h2>Co znamená každá ikona</h2>
+    <section class="gallery" aria-label="Screen illustrations">
+      <figure class="screen-card"><img src="assets/food-screen.svg" alt="Illustration of the Food screen with Meal and Snack choices."><figcaption>Food: press A to choose, B to serve, C to return.</figcaption></figure>
+      <figure class="screen-card"><img src="assets/game-screens.svg" alt="Illustration of the PEEK and NUM game screens."><figcaption>PEEK and NUM are short, line-specific games.</figcaption></figure>
+    </section>
+
+    <section id="reference" class="reference">
+      <p class="eyebrow">QUICK REFERENCE</p>
+      <h2>Icon and indicator reference</h2>
       <div class="icon-grid">
-        <article><b>Food</b><span>Meal / Snack</span><p>Doplňuje hlad nebo štěstí.</p></article>
-        <article><b>Light</b><span>Světlo</span><p>Po usnutí tvora jej vypněte.</p></article>
-        <article><b>Game</b><span>Hra</span><p>Výhra zvýší štěstí a snižuje hmotnost.</p></article>
-        <article><b>Medicine</b><span>Lék</span><p>Funguje pouze při nemoci.</p></article>
-        <article><b>Clean</b><span>Úklid</span><p>Odstraní odpad z LCD i stavu tvora.</p></article>
-        <article><b>Status</b><span>Stav</span><p>Věk/hmotnost, potřeby, disciplína a aktivní game profil.</p></article>
-        <article><b>Discipline</b><span>Disciplína</span><p>Používejte jen při falešném attention call.</p></article>
-        <article><b>Attention</b><span>Upozornění</span><p>Automatický indikátor; není to ruční akce.</p></article>
+        <article><b>Food</b><span>Meal / Snack</span><p>Restores hunger or happiness.</p></article>
+        <article><b>Light</b><span>Light on / off</span><p>Turn it off after sleep begins.</p></article>
+        <article><b>Game</b><span>PEEK / NUM</span><p>Win to improve happiness and weight.</p></article>
+        <article><b>Medicine</b><span>Illness only</span><p>Use when the illness cross is present.</p></article>
+        <article><b>Clean</b><span>Remove waste</span><p>Clear every mess promptly.</p></article>
+        <article><b>Status</b><span>Four pages</span><p>Age, needs, discipline, and line profile.</p></article>
+        <article><b>Discipline</b><span>False call</span><p>Use only when the pet calls without a real need.</p></article>
+        <article><b>Attention</b><span>Automatic</span><p>Darkens when a call needs your response.</p></article>
       </div>
-      <div class="status-callout">
-        <strong>Horní LCD segmenty:</strong> zleva hlad, štěstí a disciplína. Čtyři černé bloky znamenají plný stav. Odpad, nemoc a attention mají vlastní malé indikátory.
-      </div>
+      <div class="status-callout"><strong>LCD symbols:</strong> four black segments are a full meter; a sleep mark means the pet is asleep; a cross means illness; lower-left marks are waste; the upper-right square is an active attention call; a brief sparkle means successful care.</div>
     </section>
 
-    <section id="hry" class="layout-two games">
-      <figure class="screen-card">
-        <img src="assets/game-screens.svg" alt="Ilustrace LCD obrazovek Peek a Number.">
-        <figcaption>Dvě krátké hry, každá pro jednu egg line.</figcaption>
-      </figure>
-      <div>
-        <p class="eyebrow">MINIHRY</p>
-        <h2>Vyhrajte, aby hra pomohla</h2>
-        <p><strong>Pipple line — Peek:</strong> A vybere levou nebo pravou pozici, B výběr vyhodnotí.</p>
-        <p><strong>Budbit line — Number:</strong> LCD ukáže číslo. A přepíná tip „nižší/vyšší“, B jej vyhodnotí.</p>
-        <p>Jen výhra přidá štěstí a sníží hmotnost. Po výsledku stiskněte B nebo C pro návrat domů.</p>
-      </div>
-    </section>
-
-    <section id="zivot" class="life">
-      <p class="eyebrow">ŽIVOTNÍ CYKLUS</p>
-      <h2>Pečujte včas</h2>
-      <div class="timeline">
-        <div><b>0 min</b><span>Egg</span></div><div><b>5 min</b><span>Baby</span></div><div><b>65 min</b><span>Child</span></div><div><b>3 dny</b><span>Teen</span></div><div><b>6 dní</b><span>Adult</span></div>
-      </div>
-      <div class="warning-grid">
-        <article><h3>Attention</h3><p>Prázdný hlad/štěstí, rozsvícené světlo během spánku nebo falešný call vyžadují reakci. U skutečné potřeby máte přibližně 15 minut.</p></article>
-        <article><h3>Nemoc a odpad</h3><p>Neuklizený odpad a příliš mnoho snacků mohou způsobit nemoc. Křížek na LCD znamená, že je čas na Medicine.</p></article>
-        <article><h3>Farewell</h3><p>Pokud zdraví klesne na nulu, objeví se Farewell. LCD ukáže NEW; stisk B začne nové vejce s novou generační linií.</p></article>
-      </div>
-    </section>
-
-    <section class="faq">
-      <p class="eyebrow">RYCHLÁ POMOC</p>
-      <h2>Časté otázky</h2>
-      <details><summary>Proč ikona ukazuje malý křížek místo změny?</summary><p>Akce teď nemá účinek — například Medicine bez nemoci, Light když tvor nespí nebo Discipline bez falešného callu. Nezměněný stav se zbytečně neukládá.</p></details>
-      <details><summary>Kde je můj save?</summary><p>Hra používá slot <code>saves/slot-1.json</code> relativně k místu, odkud ji spustíte. Vytváří také zálohu s příponou <code>.bak</code>.</p></details>
-      <details><summary>Jak získám jiného tvora?</summary><p>Dospělého nevybíráte ručně. Péče určuje jeho podobu. Po Farewell založí B novou generaci; ta deterministicky vybere Pipple nebo Budbit line.</p></details>
+    <section id="faq" class="faq">
+      <p class="eyebrow">HELP</p>
+      <h2>Frequently asked questions</h2>
+      <details><summary>Why did an icon show a small cross instead of changing anything?</summary><p>The action was unavailable: for example Medicine without illness, Light while the pet is awake, Game while it is asleep, or Discipline without a false call. The pet was not harmed and the unchanged save was not rewritten.</p></details>
+      <details><summary>Where is the save file?</summary><p>The current player slot is <code>saves/slot-1.json</code>, relative to the place where the game was opened. The game keeps a <code>.bak</code> backup before replacing an existing slot.</p></details>
+      <details><summary>Can I choose a specific adult?</summary><p>No. Adults are care outcomes. The new generation determines its Pipple or Budbit line, while care history determines its teen and adult outcome.</p></details>
+      <details><summary>Can I pause time?</summary><p>Not in the default experience. CNA Tamagotchi is designed as a real-time pet. Check it before extended absences, especially once it has started receiving calls.</p></details>
     </section>
   </main>
 
-  <footer>© CNA Tamagotchi — původní virtuální mazlíček inspirovaný kapesními zařízeními 90. let.</footer>
+  <footer>CNA Tamagotchi — an original virtual-pet experience inspired by the constraints of 1990s pocket devices.</footer>
 </body>
 </html>
