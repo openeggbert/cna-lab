@@ -1,87 +1,95 @@
-# CNA Tamagotchi Development Plan
+# CNA Tamagotchi — International P1 Development Plan
 
-## Scope and principles
+## Fixed target
 
-This plan describes an original C++ virtual-pet game powered by the sibling
-CNA framework. It uses the 32 × 16 logical monochrome display chosen in
-[analysis.md](analysis.md), while keeping simulation code independent from the
-renderer. No commercial Tamagotchi characters, artwork, or device branding
-will be copied.
+The game is an unofficial, as-faithful-as-practical reimplementation of the
+**international 1997 Tamagotchi Generation 1 (P1)** programme. It is not a
+P1/P2 hybrid and it does not target a Japanese original or a modern reissue.
+See [analysis.md](analysis.md) for the exact scope, legal boundary, and rule
+capture method.
 
 ## Milestones
 
-- [x] **1. Product analysis and technical direction**
-  - Record the visual, control, simulation, and save-data proposal.
-  - Verify the reference LCD resolution and interaction pattern.
-  - Define an original-art/content boundary.
+- [x] **1. Project foundation**
+  - Create CMake C++ project with `include/`, `src/`, tests, `.gitignore`, and
+    a CNA application entry point.
+  - Implement an independent 32 × 16 one-bit LCD model and a scalable desktop
+    egg-device renderer.
+  - Add low-write JSON persistence, backup/recovery, platform save locations,
+    smoke tests, and a protected virtual reset control.
 
-- [x] **2. Buildable project skeleton**
-  - Add root CMake configuration that consumes the sibling `../cna` checkout.
-  - Add `include/` and `src/` layers plus a minimal CNA application entry point.
-  - Add a basic CMake preset, `.gitignore`, and developer README.
-  - Start a window with a warm, slowly transitioning background.
-  - Exclude a licence file because it will be supplied separately.
+- [x] **2. P1 target decision**
+  - Select international P1 (1997), rather than P2 or a hybrid.
+  - Record the target, the excluded variants, and the required P1 roster,
+    controls, food, game, visual treatment, and end screen in English.
+  - Mark current Pipple/Budbit content as legacy prototype content rather than
+    representing it as a faithful result.
 
-- [ ] **3. Deterministic game domain**
-  - [x] Define `PetState`, needs, life stages, and core care actions.
-  - [x] Implement deterministic offline progression with a safe 12-hour clamp.
-  - [x] Persist care-scheduler state with backward-compatible version-1 save loading.
-  - [x] Add persisted UTC timestamps and clock-rollback behaviour with the save layer.
-  - [x] Add unit tests for care effects, offline clamping, and life-stage progression.
-  - [x] Add scheduled attention, care-mistake rules, waste, sleep/light requests,
-    and data-driven evolution.
-  - [x] Add basic illness and Farewell transitions for excessive snacks and
-    neglected waste/health.
-  - [x] Add the initial Farewell-to-new-egg reset flow.
+- [ ] **3. Source-backed P1 rule ledger**
+  - Add `docs/p1-specification.md` with source/observation, target variant,
+    inputs, expected outcome, and a test reference for every implemented rule.
+  - Capture the international P1 stage timing, character sprites/animations,
+    sleep schedules, minimum weights, life spans, attention timing, care
+    mistakes, discipline, illness, medicine doses, and evolution matrix.
+  - Explicitly distinguish verified facts from still-unverified behaviour.
 
-- [x] **4. 1-bit display and device renderer**
-  - [x] Complete the independent 32 × 16 framebuffer with sprites, text, and
-    clipped drawing helpers.
-  - [x] Draw an original egg-shaped shell, LCD, eight persistent LCD icons,
-    and three physical buttons as the first visible prototype.
-  - [x] Add a palette selector and renderer tests.
-  - [x] Scale LCD pixels with nearest-neighbour rendering and no anti-aliasing.
-  - [x] Move the eight care pictograms into permanent 4+4 LCD icon bands and
-    refine the device into a shorter original egg silhouette.
+- [ ] **4. Replace the legacy domain with P1 state**
+  - Remove custom species, two-line generation seed, Elder, generic Farewell,
+    and `0…100` needs from the active simulation.
+  - Model P1’s form, stage, four hunger hearts, four happiness hearts, four
+    discipline bars, age, weight, clock, care-event history, waste, illness,
+    sleep, light, attention, and game state.
+  - Implement chronological offline event processing without a broad per-minute
+    loop or unnecessary save writes.
+  - Add domain tests for each P1 trace before declaring it faithful.
 
-- [ ] **5. First playable care loop**
-  - [x] Implement A/B/C keyboard, mouse, and touch mapping, icon selection,
-    and feeding, play, sleep, cleaning, medicine, and discipline actions.
-  - Add menus, a named status screen, attention requests, and an in-device
-    presentation for discipline.
-    - [x] Add the first Food (meal/snack) and status LCD screens for needs,
-      discipline, and the active creature line/game profile;
-      display attention, waste, and illness indicators on the home screen.
-  - [x] Add a first original two-choice Peek mini-game with seed-backed outcomes.
-  - [x] Add the Number higher/lower profile for the second creature line.
-  - [x] Add brief 1-bit success and unavailable-action feedback animations.
-  - [x] Add a protected reset pinhole with hold-to-open and B/C confirmation;
-    retain the previous generation in a separate reset archive.
-  - [x] Add the first original egg line: 11 creature forms plus an egg, with
-    care-driven teen/adult resolution and tested 1-bit sprites.
-  - [x] Add a second full original egg line with its own baby, child, teen,
-    adult, and rare forms selected by a new generation seed.
+- [ ] **5. P1 character catalogue and LCD assets**
+  - Replace Pipple/Budbit assets with Babytchi, Marutchi, Tamatchi,
+    Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi, Kuchipatchi, Nyorotchi,
+    Tarakotchi, and Bill.
+  - Add target sprite states and animations: idle, eating, sleeping, unhappy,
+    ill, medicine, waste, attention, game, evolution, and end sequence.
+  - Render P1’s checkerboard LCD field and exact permanent P1 icon placement;
+    preserve the 32 × 16 logical resolution and one-bit pixels.
 
-- [ ] **6. Persistence and resilience**
-  - [x] Implement version-1 JSON save/load with field validation.
-  - [x] Use a temporary file and backup before replacing an existing save.
-  - [x] Integrate an automatic relative save slot and bounded UTC offline-time
-    catch-up; prevent clock rollback from moving the saved timestamp backward.
-  - [x] Add an in-device corruption-recovery choice that restores a valid
-    backup or archives the damaged slot before a new egg begins.
-  - [x] Add platform user-data path selection while preserving existing
-    relative saves and backups in place.
-  - Add atomic-replace support on every target and migrations.
+- [ ] **6. P1 controls and care menus**
+  - Implement exact A/B/C navigation, B clock view, A+C clock setting, and
+    A+C fresh egg from the end screen.
+  - Replace legacy menus with P1 bread/candy Food, Light, Toilet, Health Meter,
+    Medicine, Discipline, and unselectable Attention behaviour.
+  - Preserve the desktop reset hold/confirmation only as a safety guard; its
+    visible outcome must enter the P1 reset and clock-setup flow.
 
-- [ ] **7. Polish and release readiness**
-  - Add sound options, keyboard/controller accessibility, pause/help, and
-    export/import.
-  - Add original pixel art, testing/smoke-test coverage, CI, and platform
-    packaging documentation.
-  - Profile real-time updates and document known limitations.
+- [ ] **7. P1 Character game and evolution**
+  - Remove Number and all P2 game behaviour.
+  - Implement the five-round Character game, including left/right choices,
+    result rules, happiness effect, and weight effect.
+  - Implement the exact P1 care-mistake/discipline evolution tree and hidden
+    Bill path with exhaustive resolver tests.
+
+- [ ] **8. Completion of real-time P1 behaviour**
+  - Implement verified P1 timers, calls, sleep/light mistakes, waste, illness,
+    medicine, refusal, weight, death/life span, and angel-and-stars end screen.
+  - Process long offline periods faithfully and deterministically; test clock
+    rollback, restart, and boundary moments.
+  - Replace the generic current Farewell/new-egg flow.
+
+- [ ] **9. Save migration and user documentation**
+  - Version P1 saves with an explicit target identifier.
+  - Archive incompatible legacy hybrid saves rather than converting them into
+    fictitious P1 pets.
+  - Rewrite the English static tutorial into detailed novice-friendly P1 parts,
+    replacing all Pipple, Budbit, PEEK, and NUM material with P1 screenshots or
+    accurately labelled illustrations.
+
+- [ ] **10. Verification and release readiness**
+  - Run domain, persistence, display, and smoke tests with at most three build
+    jobs; avoid unnecessary clean builds and large generated files.
+  - Compare all visible flows against the captured international P1 reference.
+  - Document remaining desktop-only safeguards and known deviations clearly.
 
 ## Immediate next task
 
-Implement a versioned migration seam before the save format changes. Old slots
-must be validated and migrated into memory before an upgraded file is written;
-the original must remain recoverable if migration fails.
+Create the source-backed international-P1 rule ledger, then introduce a
+P1-specific domain seam and a legacy-save compatibility boundary before
+replacing active gameplay assets.

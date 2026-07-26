@@ -1,175 +1,150 @@
-# CNA Tamagotchi — Analysis and Technical Proposal
+# CNA Tamagotchi — International P1 Analysis and Technical Proposal
 
-## Product intent
+## Product decision
 
-`cna-tamagotchi` will be an original virtual-pet game written in modern C++
-and rendered with the sibling [CNA](../cna) framework. It should evoke the
-small, tactile charm of a 1990s digital pet without reproducing Tamagotchi
-characters, art, names, or product branding. The player raises an original
-creature by attending to its needs over real elapsed time; care quality,
-choices, and play determine its development.
+`cna-tamagotchi` is an independent C++ fan reimplementation of the
+**international 1997 Tamagotchi Generation 1 programme** (P1). It is no longer
+an original virtual-pet game and must not be a P1/P2 hybrid. P2 characters,
+food, Number game, wavy LCD background, and UFO ending are outside scope.
 
-The initial deliverable is intentionally only an application skeleton. It
-must make later gameplay, rendering, saving, and testing independent rather
-than placing all game logic in an XNA-style `Game` subclass.
+The target is the English-language 1997 international device, not the original
+Japanese 1996 device and not a modern `Original Tamagotchi` reissue. That
+distinction is essential: regional and reissue versions change visible food,
+hidden characters, end screens, and some rules.
 
-## Reference-device findings
+The project is unofficial and unaffiliated with Bandai. A faithful public
+distribution that includes protected names, sprites, logos, or sound effects
+needs permission from the relevant rightsholders.
 
-The original 1996/1997 Tamagotchi has a **32 × 16 pixel** monochrome LCD, two
-rows of care icons, and three physical buttons. The game will use that same
-32 × 16 logical resolution to preserve the compact visual constraint and
-interaction rhythm of the reference device.
+## Reference specification
 
-Each logical pixel
-is either `off` (the LCD's pale green/yellow background) or `on` (near-black).
-It will be scaled by an integer multiplier with nearest-neighbour sampling;
-there is no anti-aliasing or intermediate grey. The display will be drawn
-inside a larger, decorative device shell rather than being the full window.
+The implementation reference is the 1997 international P1 instruction manual,
+supported by period P1 documentation and direct observation of the target
+programme. Every rule implemented as “faithful” must be recorded in a
+source-backed specification ledger and verified by a deterministic test trace.
 
-Sources consulted:
+| Area | International P1 target |
+| --- | --- |
+| Screen | 32 × 16 one-bit LCD, checkerboard background |
+| Controls | A selects; B confirms; C cancels; B shows clock when Attention is off; A+C sets the clock and starts a new egg from the end screen |
+| Icons | Food, Light, Game, Medicine; Toilet, Health Meter, Discipline, Attention |
+| Food | Bread meal; wrapped-candy snack |
+| Game | Five-round Character game: predict left with A or right with B |
+| Growth roster | Babytchi, Marutchi, Tamatchi, Kuchitamatchi, six standard adults, hidden Bill |
+| End screen | Angel among stars |
+| Reset | Rear reset switch; fresh pulsating egg, clock setup, then hatch after about five minutes |
 
-- [Tamagotchi (1996 Pet) technical details](https://tamagotchi.fandom.com/wiki/Tamagotchi_(1996_Pet)) — 32 × 16 display and the icon-row layout.
-- [Bandai Original Tamagotchi product description](https://www.bandai.com/original-tamagotchi-white-with-black) — feeding, cleaning, medicine, discipline, a character game, and care-driven adult outcomes.
-- [Bandai UK Original Tamagotchi description](https://shop.bandai.co.uk/brand/bandai/collection/tamagotchi/tamagotchi-original-black-42963gtnp/) — hunger, happiness, discipline, illness, weight, sleep, and evolution as useful genre mechanics.
+The official P1 manual documents the controls, eight care functions, game,
+medicine, and discipline behaviour. [P1 instruction manual](https://www.bandai.com/amfile/file/download/file/3639/product/1309818/)
+Bandai identifies Generation 1 and Generation 2 as different characters and
+slightly different play patterns even though their core care loop is shared.
+[Official comparison](https://tamagotchi-official.com/us/news/01_166/)
 
-## Visual direction
+## Required fidelity
 
-The application window should feel soft and calm, not like a literal plastic
-toy photographed against a background:
+The final programme must reproduce these player-visible properties:
 
-- A very light warm background transitions slowly (about 25–45 seconds) among
-  ivory `#FFF9EE`, pale peach `#FFF0DF`, warm cream `#FFF6DF`, and misty
-  apricot `#FDEBCE`. The phase is deterministic from time so it remains gentle
-  rather than flashing randomly.
-- The main device is a tall egg-shaped ellipse with a small rim, subtle
-  highlight, and an optional short keychain tab. Initial shell palettes:
-  `Sakura`, `Sky`, `Mint`, `Lavender`, `Sunshine`, and `Monochrome`.
-  Shell colour is purely cosmetic and selectable when a save is created.
-- The recessed LCD has a muted yellow-green/off colour (for example
-  `#B8C58A`) and dark on pixels (`#20271B`). A little screen grain is optional
-  and must never obscure pixels.
-- The UI should be original: a generic egg device and original creatures,
-  not a copy of a named commercial shell, frame motif, or character.
+- the international P1 roster and its one fixed evolution tree: Babytchi →
+  Marutchi → Tamatchi or Kuchitamatchi → Mametchi, Ginjirotchi, Maskutchi,
+  Kuchipatchi, Nyorotchi, Tarakotchi, or hidden Bill;
+- actual one-bit P1 character sprites and their state animations, not
+  substitute animal shapes;
+- P1 food symbols and menus, P1 checkerboard screen treatment, P1 icon order,
+  P1 Character game, and P1 angel end screen;
+- real-time progression while the app is closed, including stage changes,
+  sleep/wake times, hunger and happiness loss, waste, illness, calls,
+  discipline, care mistakes, age, weight, and life span;
+- the P1’s discrete four-heart hunger, happiness, and discipline display,
+  rather than hidden `0…100` RPG-like values;
+- exact action outcomes, including refusal, attention calls, repeated medicine
+  where required, game-result effects, and the combination-button flows.
 
-## Proposed controls and screen layout
+The desktop app may add only non-fictional host safeguards: nearest-neighbour
+scaling, optional one-bit palettes, platform save paths, a reset hold plus
+confirmation to prevent accidental loss, corrupt-save recovery, and backup
+archives. They must not change simulated P1 state or appear as in-device P1
+features.
 
-The device has three clickable/keyboard-mappable controls:
+## Rule-capture method
 
-| Control | Keyboard | Role |
-| --- | --- | --- |
-| A / select | `A`, Right arrow; Left arrow for previous | Move the icon selection |
-| B / confirm | Enter, Space, `B` | Open or confirm the selected action |
-| C / back | `C`, Backspace | Cancel and return selection to the meal icon |
+Available web guides are useful pointers but not a sufficient authority for
+every timer or evolution condition. Before each rules subsystem is called
+complete, capture it in `docs/p1-specification.md` with:
 
-Inside the 32 × 16 LCD, use eight small pictograms split into a top and bottom
-band. The selected or urgent icon is inverted against the one-bit LCD, while
-the central ten rows remain available for the creature and care information.
-The implemented menu set is:
+1. target variant and source or observation;
+2. inputs and elapsed real time;
+3. expected LCD state, sounds, care-mistake count, and persistent state;
+4. an automated domain test that replays the same trace.
 
-| Top band | Purpose | Bottom band | Purpose |
-| --- | --- | --- | --- |
-| Fork / knife | Meal / snack | Toilet | Clean messes |
-| Sun | Light / sleep | Scale | Need and age status |
-| Ball | Mini-game | Bell | Discipline for false calls |
-| Medicine cross | Treat illness | Clock | Automatic attention indicator |
+This prevents accidental adoption of Japanese P1, P2, or modern-reissue
+behaviour. It also makes disputed details explicit rather than hiding guesses
+inside simulation constants.
 
-Settings (sound, shell, accessibility, export/import) belong in the start
-screen and pause menu, not the toy face. A small recessed reset pinhole is
-separate from A/B/C; it requires a 1.5-second hold and an on-LCD B/C
-confirmation before creating a fresh generation.
+## Domain model
 
-## Game-system proposal
-
-### Pet and time model
-
-A save contains one active pet and a chronological journal. The core will
-advance from a persisted UTC timestamp to `now`, clamping a single offline
-advance to a safe maximum and processing events in deterministic time steps.
-This prevents clock changes from producing exploits or enormous simulation
-loops. The pet is an explicit state machine:
-
-`Egg → Hatchling → Child → Teen → Adult → Elder / Farewell`.
-
-Needs are numeric values in the domain layer, normally `0…100`: hunger,
-happiness, energy, hygiene, health, affection, and discipline. Scheduled
-events create requests (meal, sleep, mess, attention); ignored requests add
-care-mistake records. A data-driven evolution table maps species, care band,
-and a deterministic saved seed to original adult forms. The implementation
-uses original Pipple and Budbit creature lines rather than any protected
-Tamagotchi roster.
-
-### Actions and consequences
-
-The first vertical slice should cover feeding, cleaning, sleep/light,
-medicine, one short timing mini-game, status, and attention/discipline. Meals
-reduce hunger, snacks improve happiness but have a modest weight/health
-trade-off, play consumes energy but improves happiness, and neglected messes
-or illness deteriorate health. Audio and vibration-like feedback are optional
-later; the game must remain fully playable visually.
-
-## Architecture
-
-The dependency direction is deliberately one way:
+The current prototype’s `PetSpecies`, two original creature lines, random
+generation seed, Elder stage, generic Farewell state, and `0…100` needs do not
+belong in the P1 model. Replace them with a P1-specific domain:
 
 ```text
-Application / CNA adapter
-          │ input, frame clock, drawing
-          ▼
-Game session / use cases ───── Persistence adapter
-          │                         │
-          ▼                         ▼
-Domain: PetState, clock, actions, evolution, events
-          │
-          ▼
-MonochromeDisplay (32 × 16 pixels, render-model only)
+P1PetState
+  form                 exact P1 current character
+  stage                egg / baby / child / teen / adult / end
+  hunger[0..4]         four visible hearts
+  happiness[0..4]      four visible hearts
+  discipline[0..4]     four visible bars
+  age, weight          displayed P1 values and units
+  clock                local device time and clock-setting state
+  care events          timestamped P1 mistakes and discipline calls
+  waste, illness, sleep, light, attention, game-round state
+  UTC anchor           host persistence only
 ```
 
-- **`domain/`**: C++ value types and deterministic rules with no CNA headers.
-  This is where automated tests will concentrate.
-- **`display/`**: a tiny packed or byte-per-pixel 1-bit framebuffer with safe
-  pixel access, clear, and future sprite/text blitting. It is also independent
-  of CNA.
-- **`application/`**: the `Game` subclass, input mapping, timer bridge,
-  window/shell renderer, and later audio. It translates framework events into
-  domain actions and projects state to the framebuffer.
-- **`persistence/`**: versioned save DTO and atomic file replacement. The
-  domain must never directly read a file.
+Evolution must use explicit, stage-bound P1 care-mistake and discipline
+conditions. It must not derive an adult from a general “care quality” score,
+random seed, custom affection, energy, hygiene, or a selectable species.
 
-The current prototype creates these boundaries and renders the original
-egg-shaped device, its 32 × 16 LCD, static care icons, and a demo pixel
-creature over the warm background. It does not pretend that gameplay is
-already implemented.
+The event engine should jump between meaningful scheduled events for offline
+catch-up. It must process events in chronological order, use a monotonic UTC
+anchor to defend against clock rollback, and avoid writing saves unless state
+changes. This preserves the requested SSD-friendly behaviour while retaining
+real-time care.
 
-## Save-data design
+## Rendering and input
 
-Use a human-readable, versioned JSON document in the per-user application-data
-directory, for example `cna-tamagotchi/saves/slot-1.json`. Store:
+The existing independent 32 × 16 display model is the correct seam to keep.
+Replace its legacy symbols and original sprite catalogue with a P1 LCD asset
+catalogue. The device shell must become a close desktop presentation of the
+1997 international P1: compact egg proportions, three round buttons, a recessed
+screen, checkerboard LCD field, permanent in-display icon bands, and a small
+rear-reset analogue. Decorative background and palette selection remain outside
+the logical LCD.
 
-- `formatVersion`, save UUID, UTC `lastSavedAt`, game seed, and selected shell;
-- pet species, name, life stage, birth time, needs, weight, care mistakes,
-  evolution flags, and pending event schedule;
-- user settings and a bounded activity journal.
+The logical button model remains A/B/C. Mouse, touch, keyboard, and controller
+input all translate to those buttons; no direct menu buttons or extra care
+actions may bypass the P1 state machine.
 
-Write to `slot-1.json.tmp`, flush/close it, then atomically replace the real
-file; retain one `.bak` file for recovery. Parsing validates ranges and schema
-version before mutating a session. A future export/import feature will use the
-same schema but will be explicit about replacing an existing slot. JSON is
-well-suited while saves are small and makes debugging/modding practical;
-version migrations keep old pets playable.
+## Persistence migration
 
-## Delivery sequence and risks
+Existing saves describe a different game and cannot be truthfully converted
+into P1 pets. A save-format migration must therefore detect a legacy slot,
+preserve it as an archive, and offer a new P1 egg. New P1 saves need a target
+identifier such as `international-p1-1997` so that a future incompatible mode
+cannot silently load them with the wrong rules.
 
-1. Establish the buildable CNA project and pure C++ seam classes (this
-   skeleton).
-2. Add domain simulation and tests before the visible pet.
-3. Render the device, menu icons, and 32 × 16 1-bit framebuffer using original assets
-   and pixel art.
-4. Add input/menu actions, the first care loop, and a simple mini-game.
-5. Add versioned persistence, offline catch-up, sound, accessibility, and
-   content/evolution expansion.
+## Implementation order
 
-Important risks: the CNA checkout is a sibling dependency, visual design must
-avoid copying a commercial device or character artwork, and real-time games
-need clear behaviour for sleep, timezone, clock rollback, and long offline
-periods. Automated deterministic simulation tests and a separate render model
-address the latter two risks.
+1. Record this target in README, plan, and the end-user tutorial; add the
+   source-backed P1 rule ledger.
+2. Replace the legacy domain values and creature catalogue with the P1 roster,
+   a dedicated P1 evolution resolver, and sprite tests.
+3. Implement P1 menus, bread/candy feeding, Health Meter pages, attention and
+   discipline semantics, clock flows, and the Character game.
+4. Replace provisional timers with captured P1 schedules, care-mistake rules,
+   illness, sleep, weight, life span, and angel ending; build golden trace
+   tests for each.
+5. Implement legacy-save archival/migration, reset-to-clock-setup, detailed
+   player documentation, and final visual/audio comparison passes.
+
+No P2 content will be retained after the migration except historical notes in
+the development record.

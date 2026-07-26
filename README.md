@@ -1,57 +1,58 @@
 # CNA Tamagotchi
 
-`cna-tamagotchi` is an original C++ virtual-pet game built with
-[CNA](https://github.com/openeggbert/cna). It aims for the deliberately small,
-real-time experience of the first 1996/1997 virtual-pet devices: one creature,
-three buttons, a tiny monochrome display, short interactions, and consequences
-that unfold while the application is closed.
+`cna-tamagotchi` is a C++ fan reimplementation built with
+[CNA](https://github.com/openeggbert/cna). Its single historical target is the
+**international 1997 Tamagotchi Generation 1 programme** (usually called
+**P1**): one creature, three buttons, a 32 × 16 monochrome LCD, short
+interactions, and consequences that unfold while the application is closed.
 
-The project takes inspiration from genre mechanics and hardware constraints.
-It does **not** copy Tamagotchi characters, sprite art, logos, shell patterns,
-sound effects, or names. Every creature, icon drawing, shell, and asset in this
-project will be original.
+This is an independent, unofficial preservation project. It is not made by,
+endorsed by, or affiliated with Bandai. P1 names, character designs, game
+rules, and branding belong to their respective rightsholders; public release
+of a faithful clone requires the appropriate permission.
 
 ## Player guide
 
 The detailed English end-user tutorial is available as a standalone static site
-in [web/index.html](web/index.html). It covers the three controls, care icons,
-mini-games, calls, saving, evolution, and the full life cycle without
-development terminology.
+in [web/index.html](web/index.html). It is being migrated alongside the game
+from the earlier prototype to the selected 1997 international P1 reference.
 
 ## Current prototype
 
-The current build already opens a CNA window and renders an original pastel
-egg-shaped device with a 32 × 16 one-bit LCD, eight in-LCD icon-band
-pictograms, three primary physical controls, and two complete original creature lines. It also has an early
-deterministic pet simulator and a tested JSON save repository. The current
+The current build already opens a CNA window and renders an egg-shaped device
+with a 32 × 16 one-bit LCD, eight in-LCD icon-band pictograms, three primary
+physical controls, an early deterministic pet simulator, and a tested JSON
+save repository. The current
 care slice renders four hunger, happiness, and discipline segments; schedules
 sleep; handles waste; requests attention for empty needs, light, and false
 calls; preserves those states in saves; and provides Food and Status LCD
-screens rather than adding modern external controls. The Game icon opens the
-line's original two-choice mini-game: Peek for Pipple and Number for Budbit.
-A win, not merely opening the icon, improves happiness. Uncleaned waste and
+screens rather than adding modern external controls. The Game icon still opens
+legacy prototype mini-games. A win, not merely opening the icon, improves
+happiness. Uncleaned waste and
 excessive snacks can cause illness;
 running health down to zero enters an original Farewell display state. Waste,
 illness, and attention have their own compact LCD/shell indicators.
 Successful care briefly draws a spark beside the creature; an unavailable care
 action draws a small cross without writing an unchanged save slot.
 
-Those systems are foundations, not the final classic ruleset. In particular,
-the internal `0…100` need values, unfinished status/menu screens, temporary
-one-minute development clock, and simplified long-term illness/farewell rules
-will be replaced by the faithful model below.
+Those systems are foundations, not a P1 implementation yet. In particular, the
+current original creature catalogue, `0…100` need values, second game,
+unfinished status/menu screens, temporary one-minute development clock, and
+simplified illness/farewell rules will be replaced by the P1 model below.
 
 ## Reference target and display decision
 
-The reference target is the first-generation 1996/1997 device (commonly called
-P1/P2 by fans), not a later connected, colour, or online Tamagotchi model.
-The original has a **32 × 16 pixel** monochrome LCD, two icon bands, and three
-buttons. [Technical reference](https://tamagotchi.fandom.com/wiki/Tamagotchi_(1996_Pet))
+The project will reproduce the **international P1 programme released in 1997**
+as closely as practical. It will not combine P1 and P2 rules, characters, food,
+games, or end screens, and it will not use later Connection, colour, online, or
+2017-reissue rule changes. The reference hardware has a **32 × 16 pixel**
+monochrome LCD, two icon bands, and three buttons. The contemporary P1 manual
+documents the controls and care functions. [P1 instruction manual](https://www.bandai.com/amfile/file/download/file/3639/product/1309818/)
 
-This is a hardware-and-interaction reference, not a literal Bandai P1 or P2
-reimplementation. The current game is an original P1/P2-era hybrid: it keeps
-the early-device care rhythm and constraints while using its own creature
-lines, games, sprites, rules, reset safety, and save format.
+The app will retain only clearly documented desktop safeguards where physical
+hardware cannot be reproduced safely. In particular, a held virtual reset
+pinhole may require confirmation before it performs the original reset result:
+a fresh pulsating egg followed by clock setup and hatching.
 
 `cna-tamagotchi` therefore uses a permanent **32 × 16 logical LCD**. Every LCD
 pixel is either off (muted yellow-green) or on (near-black), with integer
@@ -59,9 +60,8 @@ nearest-neighbour scaling and no grey pixels or anti-aliasing. The extra
 physical space around it belongs to the shell, icon bands, and controls; it is
 not additional display resolution.
 
-The default is the olive LCD. Desktop players may choose an equivalent
-one-bit colour treatment at launch with `--lcd-palette=olive`, `amber`, `ice`,
-or `mono`; this does not change game rules or LCD resolution.
+The default is an olive LCD. Optional one-bit palettes are presentation-only
+desktop accessibility settings; they cannot alter P1 rules or LCD resolution.
 
 ## Controls
 
@@ -79,27 +79,26 @@ areas remain correct when the game window is resized. Icons do not become
 independent modern UI buttons: clicking an icon may be offered as an
 accessibility shortcut later, but it must invoke the equivalent A/B/C sequence.
 
-The current build uses C to close Food, Status, and Game screens; pressing B
-on Food opens a Meal/Snack menu, and B on Status advances its three compact
-data pages plus a line/game-profile page. Left is a temporary desktop convenience for moving backwards
-through choices.
+The final P1 mapping includes the original clock behaviour: B shows the clock
+when Attention is not lit, and A+C enters clock setting. A and C together
+create a new egg after the end screen. Desktop shortcuts may mirror those
+button combinations but must not introduce a fourth care action.
 
-The recessed pinhole at the lower-right of the shell simulates hardware reset
-without making it an accidental fourth care control. Hold it with the mouse,
-or hold `R`, for about 1.5 seconds; the LCD then requires B to confirm or C to
-cancel. A confirmed reset archives the active slot as `.reset` before starting
-a fresh egg.
+The recessed pinhole at the lower-right of the shell simulates the original
+rear reset switch without making it an accidental fourth care control. Hold it
+with the mouse, or hold `R`, for about 1.5 seconds; the desktop guard then
+requires B to confirm or C to cancel. A confirmed reset archives the active
+slot as `.reset`, enters P1 clock setup, and produces a fresh pulsating egg.
 
 ## LCD icon bands and menus
 
-Eight original-drawn 1-bit pictograms sit *inside* the LCD in two permanent
-bands: four above the creature and four below it. Their function follows the
-early-device pattern while their artwork remains original. The selected or
-urgent pictogram is inverted on the one-bit background.
+Eight P1 pictograms sit *inside* the LCD in two permanent bands: four above
+the creature and four below it. Their placement, selection sequence, status
+pages, and care outcome will follow the international P1 programme.
 
 | Top band | Function | Behaviour |
 | --- | --- | --- |
-| Food | Meal / snack | A meal restores hunger; a snack restores happiness but adds more weight and can contribute to illness when overused. |
+| Food | Meal / snack | P1 bread restores hunger; candy restores happiness and adds more weight. |
 | Light | On / off | The player turns the light off only after the creature sleeps; waking turns it back on. |
 | Game | One short game | Raises happiness and helps control weight. |
 | Medicine | Treat illness | Works only for an ill creature. |
@@ -115,25 +114,23 @@ This is the same functional family described for the original device: food,
 light, game, medicine, cleaning, health/status, discipline, and attention.
 [Original function overview](https://tamaconnection.neocities.org/vintage/p1p2)
 
-## Classic life cycle
+## P1 life cycle
 
-A new save begins with an egg. The egg hatches after about five minutes. The
-creature then progresses through baby, child, teen, and adult forms in real
-time. The target cadence is the classic one: baby to child after roughly
-65 minutes, teen around age three days, and adult around age six days; each
-real day counts approximately as one year of the creature's age.
-[Classic growth summary](https://tamagotchi.fandom.com/wiki/Tamagotchi_(1996_Pet))
+A new save begins with a pulsating egg. After clock setup it hatches after
+about five minutes. The P1 path is Babytchi → Marutchi → Tamatchi or
+Kuchitamatchi → a care-determined adult. The event scheduler will model the
+historical stage timings, sleep schedules, weights, care-mistake windows, and
+adult lifespans from the chosen international P1 reference.
 
 Classic mode must continue while the program is closed. Saving stores UTC
 time and processes the missed scheduled events when loading. Moving the system
 clock backward must not create free care time. The present twelve-hour
-simulation clamp is a development safeguard and will not limit Authentic
-Classic mode; the event engine will jump efficiently between meaningful events
+simulation clamp is a development safeguard and will not limit P1 simulation;
+the event engine will jump efficiently between meaningful events
 instead of iterating through every minute.
 
-An optional Relaxed mode will be added later for accessibility. It may pause
-time and disable permanent loss, but it is not the default and does not change
-the Classic rules.
+There is no alternative gameplay mode in the P1 core. Accessibility features
+must leave the simulated programme intact.
 
 ## Needs, calls, mistakes, and illness
 
@@ -160,53 +157,30 @@ Weight is meaningful: meals add a little, snacks add more, and a successful
 game helps reduce it. This makes the player choose between a quick snack and
 playing the small game.
 
-## Mini-games
+## Mini-game
 
-The initial authentic programme will have two selectable game profiles:
+P1 has exactly one mini-game: **Character**. In each five-round game, A guesses
+that the creature will look left and B guesses that it will look right. Three or
+more correct guesses fill one happiness heart; completing the game also reduces
+weight when the creature is above its stage minimum. The P2 Number game will be
+removed. [P1 instruction manual](https://www.bandai.com/amfile/file/download/file/3639/product/1309818/)
 
-- **Peek game** — the player predicts whether the creature will look left or right.
-- **Number game** — the player predicts whether the next number is higher or lower.
+## Characters and evolution
 
-Only one profile is active for a given egg line, preserving the compact feel of
-the original P1/P2 devices: Pipple uses Peek and Budbit uses Number. The rules
-and artwork are original, while the two-choice, seconds-long interaction remains
-intentionally simple.
+The P1 roster is fixed. It has Babytchi, Marutchi, Tamatchi, Kuchitamatchi, the
+six regular adults Mametchi, Ginjirotchi, Maskutchi, Kuchipatchi, Nyorotchi,
+and Tarakotchi, plus the international hidden character Bill. The exact P1
+care-mistake and discipline matrix—not a random seed or a player choice—will
+select the branch. The original Generation 1/2 FAQ likewise describes a single
+active character and an eleven-character total when baby, child, and hidden
+characters are included. [Official FAQ](https://tamagotchi-official.com/us/series/original/faq/)
 
-## Creatures and evolution
+## End of life and a new egg
 
-The game will contain multiple original creature forms, but it will not let the
-player choose an already-grown adult from a menu. Care and a stored generation
-seed determine the outcome, which is the important original-game idea.
-
-Two complete egg lines are implemented. Each line has:
-
-- one egg, one baby form, and one child form;
-- two teen forms;
-- six adult forms with distinct animal-like silhouettes (for example bird-like,
-  amphibian-like, hedgehog-like, lizard-like, aquatic, and nocturnal);
-- one rare late or special form.
-
-This gives 22 living forms, two care-driven rare forms, and a shared egg LCD
-state without turning the device into a creature-collection game. The first
-generation begins on the Pipple line; each later new egg deterministically
-selects the Pipple or Budbit line from the saved generation seed. Further egg
-lines can be added only after each has a complete growth tree, animation set,
-rules table, and tests.
-
-The current resolver uses care mistakes, discipline, weight, illness, and age
-to select the teen and adult form. Snack history, game performance, stage-
-specific care mistakes, and a saved generation seed will be added as the
-classic care-event system replaces the temporary `0…100` simulator. Better care
-makes the healthier adult outcomes more likely, but no adult form is simply a
-reward for maximising one number.
-
-## Death, farewell, and a new egg
-
-Death or farewell belongs in Classic mode. It will be presented quietly and
-respectfully. The current Farewell display reads `NEW`; B starts a new,
-freshly-seeded egg. A chronological journal and a successful-adult memory/egg
-event remain future work. Relaxed mode will make permanent loss optional, but
-Classic mode will preserve stakes.
+International P1 ends with its angel-and-stars screen. At the end screen,
+pressing A+C produces a new egg. The current generic Farewell screen and
+button-B restart will be removed. Any desktop save archive is a host-side
+safety mechanism, not a fictional in-device journal.
 
 ## Technical architecture
 
@@ -246,16 +220,13 @@ schema migrations remain to be added.
 
 ## Implementation order
 
-1. Complete the conversion from the prototype's generic 0–100 values to
-   authentic four-heart needs and discipline segments, including illness rules.
-2. Add status and food submenus, then make A/B/C navigation match the physical
-   device in every screen.
-3. Implement the egg, hatch, stage schedule, complete sleep schedules, care mistakes,
-   illness, death/farewell, and event-jump offline processing.
-4. Add feedback animations to the implemented creature lines.
-5. Add selectable user-data save slots plus schema migrations and tests.
-6. Add sounds, visual accessibility options, further complete egg lines,
-   and a Relaxed mode without weakening the default Classic mode.
+1. Capture each P1 rule in the source-backed ledger before calling it faithful.
+2. Replace legacy prototype state and creature lines with the P1 roster and
+   four-heart simulation.
+3. Implement the P1 menus, clock, reset outcome, Character game, evolution,
+   timers, care mistakes, illness, and angel end sequence.
+4. Archive legacy hybrid saves instead of converting them into fictional P1
+   pets, then rewrite the detailed English player tutorial.
 
 Each completed milestone is built, tested, and committed locally. No remote
 push is performed until a remote exists and the user explicitly requests it.
@@ -271,7 +242,7 @@ push is performed until a remote exists and the user explicitly requests it.
 
 ```bash
 cmake --preset sdl-renderer
-cmake --build --preset sdl-renderer
+cmake --build --preset sdl-renderer --parallel 3
 ./cmake-build-sdl-renderer/CnaTamagotchi
 ```
 
@@ -280,7 +251,7 @@ Pass `--smoke-test` to exit after three rendered frames.
 ## Tests
 
 ```bash
-cmake --build --preset sdl-renderer --target CnaTamagotchiDomainTests CnaTamagotchiCreatureCatalogTests CnaTamagotchiDisplayTests CnaTamagotchiSaveLocationTests CnaTamagotchiPersistenceTests
+cmake --build --preset sdl-renderer --parallel 3 --target CnaTamagotchiDomainTests CnaTamagotchiCreatureCatalogTests CnaTamagotchiDisplayTests CnaTamagotchiSaveLocationTests CnaTamagotchiPersistenceTests
 ctest --test-dir cmake-build-sdl-renderer --output-on-failure
 ```
 
@@ -292,6 +263,7 @@ src/                    executable entry point and implementations
 tests/                  framework-free domain and persistence tests
 analysis.md             technical analysis
 plan.md                 staged implementation plan
+docs/p1-specification.md source-backed P1 rule ledger
 ```
 
 No licence file is included yet; it will be added separately.
