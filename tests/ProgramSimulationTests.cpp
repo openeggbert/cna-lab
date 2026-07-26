@@ -119,8 +119,11 @@ void testP1AttentionCallsAndCareMistakesUseProgrammeData()
 
     pet.attentionReason = ProgramAttentionReason::Discipline;
     pet.attentionDeadlineMinutes = pet.minutesSinceClockSet + p1.lifecycle.attentionWindowMinutes;
+    pet.nextAttentionEligibleMinutes = pet.minutesSinceClockSet;
+    pet.hungerHearts = 4;
+    pet.happinessHearts = 4;
     static_cast<void>(simulation.advance(p1, pet, p1.lifecycle.attentionWindowMinutes));
-    expect(pet.careMistakes == 1 && pet.attentionReason == ProgramAttentionReason::None,
+    expect(pet.careMistakes == 1,
         "a missed classic-P1 false discipline call must not become a care mistake");
 
     static_cast<void>(simulation.advance(p1, pet, 45));
@@ -128,12 +131,62 @@ void testP1AttentionCallsAndCareMistakesUseProgrammeData()
         "baby-stage calls must not influence the Marutchi care-mistake history");
     pet.hungerHearts = 4;
     pet.happinessHearts = 4;
+    pet.attentionReason = ProgramAttentionReason::None;
+    pet.attentionDeadlineMinutes = -1;
+    pet.nextAttentionEligibleMinutes = pet.minutesSinceClockSet;
     pet.clockMinutesOfDay = 19 * 60 + 59;
     static_cast<void>(simulation.advance(p1, pet, 1));
     expect(pet.asleep && pet.attentionReason == ProgramAttentionReason::SleepLight,
         "a sleeping Marutchi with the light on must begin a P1 lights-off call");
     expect(simulation.toggleLight(pet) && pet.attentionReason == ProgramAttentionReason::None,
         "turning the P1 light off during the call must clear it");
+}
+
+void testP1NeedTimersPauseForSleepAndScheduleFalseCalls()
+{
+    ProgramPetState baby{};
+    ProgramSimulation simulation;
+    const ProgramDefinition& p1 = Programs::internationalP1();
+    static_cast<void>(simulation.advance(p1, baby, 5));
+    for (int count = 0; count < 4; ++count) {
+        static_cast<void>(simulation.feed(p1, baby, 0));
+        static_cast<void>(simulation.feed(p1, baby, 1));
+    }
+
+    static_cast<void>(simulation.advance(p1, baby, 2));
+    expect(baby.hungerHearts == 4 && baby.happinessHearts == 4,
+        "Babytchi must retain full hearts before its captured three/four-minute losses");
+    static_cast<void>(simulation.advance(p1, baby, 1));
+    expect(baby.hungerHearts == 3 && baby.happinessHearts == 4,
+        "Babytchi must lose hungry hearts at its captured three-minute rate");
+    static_cast<void>(simulation.advance(p1, baby, 1));
+    expect(baby.hungerHearts == 3 && baby.happinessHearts == 3,
+        "Babytchi must lose happy hearts at its captured four-minute rate");
+
+    static_cast<void>(simulation.advance(p1, baby, 36));
+    expect(baby.asleep && baby.minutesSinceHatch == p1.lifecycle.babyNapStartMinute,
+        "the baby timer trace must reach the captured nap boundary");
+    const int awakeMinutesAtNap = baby.stageAwakeMinutes;
+    static_cast<void>(simulation.advance(p1, baby, p1.lifecycle.babyNapDurationMinutes));
+    expect(!baby.asleep && baby.stageAwakeMinutes == awakeMinutesAtNap,
+        "P1 need timers must pause for every minute of Babytchi's nap");
+
+    ProgramPetState marutchi{};
+    static_cast<void>(simulation.advance(p1, marutchi, 5 + p1.lifecycle.babyToChildMinutes));
+    marutchi.hungerHearts = 4;
+    marutchi.happinessHearts = 4;
+    marutchi.attentionReason = ProgramAttentionReason::None;
+    marutchi.attentionDeadlineMinutes = -1;
+    marutchi.nextAttentionEligibleMinutes = marutchi.minutesSinceClockSet;
+    static_cast<void>(simulation.advance(p1, marutchi, 180));
+    expect(marutchi.attentionReason == ProgramAttentionReason::Discipline
+            && marutchi.disciplineCallsIssued == 1 && marutchi.disciplineCallQuota == 4,
+        "six Marutchi need decrements must raise one false P1 Discipline call");
+    expect(!simulation.feed(p1, marutchi, 0) && !simulation.completeGame(p1, marutchi, 3),
+        "a false P1 call must refuse meals and Character games until disciplined");
+    expect(simulation.discipline(marutchi) && marutchi.disciplineBars == 1
+            && marutchi.attentionReason == ProgramAttentionReason::None,
+        "disciplining a false P1 call must fill one visible bar and resolve the call");
 }
 
 ProgramPetState p1TeenWith(const int careMistakes, const int disciplineBars,
@@ -153,8 +206,14 @@ ProgramPetState p1TeenWith(const int careMistakes, const int disciplineBars,
     pet.nextAttentionEligibleMinutes = pet.minutesSinceClockSet;
     pet.careMistakes = careMistakes;
     pet.disciplineBars = disciplineBars;
+    pet.minutesSinceClockSet = p1.lifecycle.hatchDelayMinutes + p1.lifecycle.babyToChildMinutes
+        + p1.lifecycle.childToTeenMinutes - 1;
+    pet.minutesSinceHatch = pet.minutesSinceClockSet - p1.lifecycle.hatchDelayMinutes;
+    pet.clockMinutesOfDay = 12 * 60;
+    pet.asleep = false;
+    pet.age = p1.lifecycle.teenAge;
     const ProgramAdvanceReport evolution = simulation.advance(
-        p1, pet, p1.lifecycle.childToTeenMinutes);
+        p1, pet, 1);
     expect(childEvolution.becameChild && evolution.becameTeen && pet.stage == ProgramStage::Teen,
         "P1's captured child duration must produce a data-selected teen");
     expect(pet.age == p1.lifecycle.teenAge,
@@ -221,8 +280,20 @@ void testP1EvolutionRulesRemainProgrammeData()
         // in a resolver trace.
         pet.careMistakes = testCase.adultCareMistakes;
         pet.disciplineBars = testCase.adultDisciplineBars;
+        pet.hungerHearts = 4;
+        pet.happinessHearts = 4;
+        pet.attentionReason = ProgramAttentionReason::None;
+        pet.attentionDeadlineMinutes = -1;
+        pet.nextAttentionEligibleMinutes = pet.minutesSinceClockSet;
+        pet.minutesSinceClockSet = p1.lifecycle.hatchDelayMinutes
+            + p1.lifecycle.babyToChildMinutes + p1.lifecycle.childToTeenMinutes
+            + p1.lifecycle.teenToAdultMinutes - 1;
+        pet.minutesSinceHatch = pet.minutesSinceClockSet - p1.lifecycle.hatchDelayMinutes;
+        pet.clockMinutesOfDay = 12 * 60;
+        pet.asleep = false;
+        pet.age = p1.lifecycle.adultAge;
         const ProgramAdvanceReport evolution = simulation.advance(
-            p1, pet, p1.lifecycle.teenToAdultMinutes);
+            p1, pet, 1);
         expect(evolution.becameAdult && pet.characterId == testCase.expectedCharacterId
                 && pet.age == p1.lifecycle.adultAge
                 && pet.disciplineBars == testCase.expectedInitialDisciplineBars,
@@ -238,6 +309,7 @@ int main()
     testP1BabyTraceUsesSharedProgrammeSimulator();
     testP1FoodGameWasteAndSleepUseProgrammeData();
     testP1AttentionCallsAndCareMistakesUseProgrammeData();
+    testP1NeedTimersPauseForSleepAndScheduleFalseCalls();
     testP1EvolutionRulesRemainProgrammeData();
 
     if (failures == 0) {

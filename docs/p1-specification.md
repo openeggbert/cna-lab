@@ -103,11 +103,12 @@ Tarakotchi).
 This is **provisional** source-backed behaviour, not yet a final fidelity
 claim. The shared simulator now produces and resolves the fifteen-minute
 Hunger, Happiness, and lights-off Attention windows, records genuine missed
-calls, and excludes missed classic-P1 false discipline calls. Natural
-later-stage heart decay and the scheduled false-call generator remain open, so
-the persisted counters and resolver are also tested independently. The later
-international Maskutchi → Bill special branch remains open until its timing and
-zero-discipline condition are captured.
+calls, and excludes missed classic-P1 false discipline calls. It also applies
+the captured per-character Hunger/Happy loss rates only while the form is
+awake, and raises bounded false Discipline calls from the documented combined
+heart-decrement cadence. Their timer phase is persisted. The later
+international Maskutchi → Bill special branch remains open until its timing
+and zero-discipline condition are captured.
 
 ## Timing and evolution capture table
 
@@ -117,9 +118,9 @@ zero-discipline condition are captured.
 | Baby → child timing | Verified | Babytchi evolves to Marutchi after 65 minutes. |
 | Child → teen timing and branch | Verified in part | At age 3, 0–1 care mistakes yields Tamatchi; 2+ yields Kuchitamatchi; 75–100% discipline records version A, 0–50% version B. |
 | Teen → adult timing and matrix | Verified in part | At age 6, the form is selected by teen type, care mistakes, and 25% discipline bands. Capture each branch in tests. |
-| Hunger/happiness decay | Open | Record every heart change by stage. |
-| Attention window and care-mistake criteria | Verified in part | The simulator implements a 15-minute hungry/happy/lights-off window, a genuine-call care mistake, and no classic-P1 mistake for a missed false call. Capture natural decay and false-call scheduling. |
-| Sleep/wake time per character | Open | Record exact transitions by current form. |
+| Hunger/happiness decay | Provisional implemented | The P1 data package carries the captured loss rates for every form; the simulator decrements only while awake and persists each timer phase. |
+| Attention window and care-mistake criteria | Provisional implemented | The simulator implements 15-minute hungry/happy/lights-off and false-call windows, a genuine-call care mistake, no classic-P1 mistake for a missed false call, and the documented six/seven-decrement false-call cadence. |
+| Sleep/wake time per character | Verified in part | The captured per-character schedules drive sleep, light calls, wake-up age increments, and the pause in need loss. Capture target traces for remaining life-cycle timing. |
 | Waste, sickness, medicine doses | Verified in part | Babytchi waste at 15/45 minutes and sickness at minute 33 requiring two doses are traced; capture later-stage triggers and recovery. |
 | Weight changes, minimum weight, game effect | Open | Record Meal, Snack, game win, game loss, and refusal boundaries. |
 | Adult life span and end sequence | Open | Record well-cared and neglected adult runs. |
@@ -132,6 +133,13 @@ zero-discipline condition are captured.
   evolution.
 - Marutchi begins at 10 oz and sleeps 20:00–09:00; Tamatchi and Kuchitamatchi
   begin at 20 oz and sleep 21:00–09:00.
+- Need loss / false-call cadence is data per form: Babytchi loses Hungry/Happy
+  at 3/4 awake minutes; Marutchi at 50/60 and then calls after six real heart
+  decrements; both teenagers at 75/85 and six; Mametchi/Bill at 81/91 with no
+  false call; Ginjirotchi at 81/91 and seven; Maskutchi at 55/65 and seven;
+  Kuchipatchi at 60/70 with none; Nyorotchi at 60/70 and seven; Tarakotchi at
+  45/50 and seven. Calls are capped at the number that could fill the form's
+  initial visible Discipline meter.
 - Adult minimum weight / sleep pairs are: Mametchi and Ginjirotchi 30 oz,
   22:00–09:00; Maskutchi 30 oz, 23:00–11:00; Kuchipatchi 20 oz,
   22:00–09:00; Nyorotchi 10 oz, 22:00–09:00; Tarakotchi 20 oz,
@@ -145,12 +153,15 @@ zero-discipline condition are captured.
   provisional reverse-engineering evidence, represented as data on the
   relevant evolution rule rather than a hard-coded engine exception.
 
-These values were captured from [Thaao's original-P1 care guide](https://thaao.net/tama/p1/)
-and its [P1 character guide](https://thaao.net/tama/p1/?p=chara); the official
-manual remains the primary source for visible controls and care functions.
-The provisional A/B lineage and adult threshold table is recorded in the same
-[P1 character guide](https://thaao.net/tama/p1/?p=chara). It must still be
-checked against target traces before release.
+The visible controls, baby trace, sleep schedule, and classic chart are
+captured from [Thaao's original-P1 care guide](https://thaao.net/tama/p1/) and
+its [P1 character guide](https://thaao.net/tama/p1/?p=chara). The per-form
+loss rates, false-call cadences, and initial meter values are provisional
+reverse-engineering evidence from the [P1/P2 evolution and base-stat
+record](https://www.tamatalk.com/threads/tamagotchi-p1-p2-evolution-guide.200023/).
+The official manual remains the primary source for visible controls and care
+functions. All secondary-source values must still be checked against target
+traces before release.
 
 ## Explicit exclusions
 

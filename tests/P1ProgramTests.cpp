@@ -68,6 +68,13 @@ void testP1LifecycleAndCharacterSchedulesAreProgrammeData()
     expect(mametchi != p1.creatures.end() && mametchi->minimumWeight == 30
             && mametchi->sleepStartMinute == 22 * 60 && mametchi->wakeMinute == 9 * 60,
         "P1 character minimum weight and sleep schedule must be programme data");
+
+    const auto marutchi = std::find_if(p1.creatures.begin(), p1.creatures.end(),
+        [](const CreatureDefinition& creature) { return creature.id == "marutchi"; });
+    expect(marutchi != p1.creatures.end() && marutchi->hungerHeartLossMinutes == 50
+            && marutchi->happinessHeartLossMinutes == 60
+            && marutchi->disciplineCallAfterNeedDecrements == 6,
+        "P1 Marutchi's need-decay and false-call cadence must be programme data");
 }
 
 } // namespace

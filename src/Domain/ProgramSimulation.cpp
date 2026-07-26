@@ -14,74 +14,78 @@ ProgramAdvanceReport ProgramSimulation::advance(const ProgramDefinition& program
     }
 
     ProgramAdvanceReport report{.requestedMinutes = requested, .appliedMinutes = requested};
-    const int previousClockMinute = state.minutesSinceClockSet;
-    state.minutesSinceClockSet += requested;
-    state.clockMinutesOfDay = (state.clockMinutesOfDay + requested) % (24 * 60);
+    // Simulate at minute boundaries. This is deliberately CPU-only: it keeps
+    // the historical timers correct across sleep/wake edges without causing
+    // the application to write a save for each boundary.
+    for (int minute = 0; minute < requested; ++minute) {
+        const int previousClockMinute = state.minutesSinceClockSet;
+        const int previousLifeMinute = state.minutesSinceHatch;
+        const bool elapsedWhileAwake = !state.asleep;
+        ++state.minutesSinceClockSet;
+        state.clockMinutesOfDay = (state.clockMinutesOfDay + 1) % (24 * 60);
 
-    if (state.stage == ProgramStage::Egg
-        && previousClockMinute < programme.lifecycle.hatchDelayMinutes
-        && state.minutesSinceClockSet >= programme.lifecycle.hatchDelayMinutes) {
-        hatch(programme, state);
-        state.attentionReason = ProgramAttentionReason::Hunger;
-        state.attentionDeadlineMinutes = programme.lifecycle.hatchDelayMinutes
-            + programme.lifecycle.attentionWindowMinutes;
-        report.hatched = true;
-    }
+        if (state.stage == ProgramStage::Egg
+            && previousClockMinute < programme.lifecycle.hatchDelayMinutes
+            && state.minutesSinceClockSet >= programme.lifecycle.hatchDelayMinutes) {
+            hatch(programme, state);
+            state.attentionReason = ProgramAttentionReason::Hunger;
+            state.attentionDeadlineMinutes = programme.lifecycle.hatchDelayMinutes
+                + programme.lifecycle.attentionWindowMinutes;
+            report.hatched = true;
+            continue;
+        }
 
-    if (state.stage == ProgramStage::Egg || state.stage == ProgramStage::End) {
-        updateSleepSchedule(programme, state);
-        return report;
-    }
+        if (state.stage == ProgramStage::Egg || state.stage == ProgramStage::End) {
+            updateSleepSchedule(programme, state);
+            continue;
+        }
 
-    const int previousLifeMinute = state.minutesSinceHatch;
-    const int currentLifeMinute = std::max(
-        0, state.minutesSinceClockSet - programme.lifecycle.hatchDelayMinutes);
-    state.minutesSinceHatch = currentLifeMinute;
+        const int currentLifeMinute = std::max(
+            0, state.minutesSinceClockSet - programme.lifecycle.hatchDelayMinutes);
+        state.minutesSinceHatch = currentLifeMinute;
+        advanceNeedTimers(programme, state, elapsedWhileAwake);
 
-    if (state.stage == ProgramStage::Baby) {
-        updateBabyEvents(programme, state, previousLifeMinute, currentLifeMinute);
+        if (state.stage == ProgramStage::Baby) {
+            updateBabyEvents(programme, state, previousLifeMinute, currentLifeMinute);
 
-        if (currentLifeMinute >= programme.lifecycle.babyToChildMinutes) {
-            if (const CreatureDefinition* const child = firstCharacterAtStage(programme, ProgramStage::Child)) {
-                state.characterId = child->id;
-                state.stage = ProgramStage::Child;
-                state.weight = child->minimumWeight;
-                state.asleep = false;
-                state.lightOff = false;
-                // Baby care is a practice period in P1. It can produce calls,
-                // but no baby-stage care history affects the Marutchi branch.
-                state.careMistakes = 0;
-                state.attentionReason = ProgramAttentionReason::None;
-                state.attentionDeadlineMinutes = -1;
-                state.nextAttentionEligibleMinutes = state.minutesSinceClockSet;
-                report.becameChild = true;
+            if (currentLifeMinute >= programme.lifecycle.babyToChildMinutes) {
+                if (const CreatureDefinition* const child = firstCharacterAtStage(
+                        programme, ProgramStage::Child)) {
+                    state.characterId = child->id;
+                    state.stage = ProgramStage::Child;
+                    state.weight = child->minimumWeight;
+                    state.asleep = false;
+                    state.lightOff = false;
+                    // Baby care is a practice period in P1. It can produce
+                    // calls, but no baby-stage care history affects Marutchi.
+                    state.careMistakes = 0;
+                    state.attentionReason = ProgramAttentionReason::None;
+                    state.attentionDeadlineMinutes = -1;
+                    state.nextAttentionEligibleMinutes = state.minutesSinceClockSet;
+                    initialiseStageRuntime(state);
+                    report.becameChild = true;
+                }
             }
         }
-    }
 
-    const int firstBirthdayMinute = programme.lifecycle.babyNapStartMinute
-        + programme.lifecycle.babyNapDurationMinutes;
-    if (currentLifeMinute >= firstBirthdayMinute) {
-        state.age = std::max(state.age, 1 + currentLifeMinute / (24 * 60));
-    }
+        const int teenEvolutionMinute = programme.lifecycle.babyToChildMinutes
+            + programme.lifecycle.childToTeenMinutes;
+        if (state.stage == ProgramStage::Child && currentLifeMinute >= teenEvolutionMinute) {
+            state.teenLineage = state.disciplineBars >= 3
+                ? ProgramTeenLineage::TypeA : ProgramTeenLineage::TypeB;
+            state.teenStartedWithNoDiscipline = state.disciplineBars == 0;
+            report.becameTeen = evolve(programme, state);
+        }
 
-    const int teenEvolutionMinute = programme.lifecycle.babyToChildMinutes
-        + programme.lifecycle.childToTeenMinutes;
-    if (state.stage == ProgramStage::Child && currentLifeMinute >= teenEvolutionMinute) {
-        state.teenLineage = state.disciplineBars >= 3
-            ? ProgramTeenLineage::TypeA : ProgramTeenLineage::TypeB;
-        state.teenStartedWithNoDiscipline = state.disciplineBars == 0;
-        report.becameTeen = evolve(programme, state);
-    }
+        const int adultEvolutionMinute = teenEvolutionMinute + programme.lifecycle.teenToAdultMinutes;
+        if (state.stage == ProgramStage::Teen && currentLifeMinute >= adultEvolutionMinute) {
+            report.becameAdult = evolve(programme, state);
+        }
 
-    const int adultEvolutionMinute = teenEvolutionMinute + programme.lifecycle.teenToAdultMinutes;
-    if (state.stage == ProgramStage::Teen && currentLifeMinute >= adultEvolutionMinute) {
-        report.becameAdult = evolve(programme, state);
+        expireAttention(programme, state);
+        updateSleepSchedule(programme, state);
+        beginAttentionIfNeeded(programme, state);
     }
-
-    expireAttention(programme, state);
-    updateSleepSchedule(programme, state);
-    beginAttentionIfNeeded(programme, state);
     return report;
 }
 
@@ -89,6 +93,7 @@ bool ProgramSimulation::feed(const ProgramDefinition& programme, ProgramPetState
                              const int foodIndex) const noexcept
 {
     if (state.stage == ProgramStage::Egg || state.stage == ProgramStage::End
+        || state.attentionReason == ProgramAttentionReason::Discipline
         || foodIndex < 0 || foodIndex >= static_cast<int>(programme.food.size())) {
         return false;
     }
@@ -126,6 +131,9 @@ bool ProgramSimulation::completeGame(const ProgramDefinition& programme, Program
                                      const int wins) const noexcept
 {
     if (state.stage == ProgramStage::Egg || state.stage == ProgramStage::End || state.asleep) {
+        return false;
+    }
+    if (state.attentionReason == ProgramAttentionReason::Discipline) {
         return false;
     }
 
@@ -252,6 +260,7 @@ bool ProgramSimulation::evolve(const ProgramDefinition& programme, ProgramPetSta
     if (rule->targetDisciplineBars >= 0) {
         state.disciplineBars = rule->targetDisciplineBars;
     }
+    initialiseStageRuntime(state);
     state.asleep = false;
     state.lightOff = false;
     return true;
@@ -277,12 +286,73 @@ void ProgramSimulation::hatch(const ProgramDefinition& programme, ProgramPetStat
     state.disciplineMistakes = 0;
     state.teenLineage = ProgramTeenLineage::None;
     state.teenStartedWithNoDiscipline = false;
+    initialiseStageRuntime(state);
     state.attentionDeadlineMinutes = -1;
     state.nextAttentionEligibleMinutes = 0;
     state.asleep = false;
     state.lightOff = false;
     state.sick = false;
     state.attentionReason = ProgramAttentionReason::None;
+}
+
+void ProgramSimulation::initialiseStageRuntime(ProgramPetState& state) noexcept
+{
+    state.stageAwakeMinutes = 0;
+    state.hungerLossElapsedMinutes = 0;
+    state.happinessLossElapsedMinutes = 0;
+    state.needHeartDecrementsSinceDisciplineCall = 0;
+    state.disciplineCallQuota = std::max(0, 4 - state.disciplineBars);
+    state.disciplineCallsIssued = 0;
+    state.pendingDisciplineCall = false;
+}
+
+void ProgramSimulation::advanceNeedTimers(const ProgramDefinition& programme,
+                                          ProgramPetState& state,
+                                          const bool elapsedWhileAwake) noexcept
+{
+    if (!elapsedWhileAwake || state.stage == ProgramStage::Egg || state.stage == ProgramStage::End) {
+        return;
+    }
+    const CreatureDefinition* const character = characterById(programme, state.characterId);
+    if (character == nullptr) {
+        return;
+    }
+
+    ++state.stageAwakeMinutes;
+    const auto loseHeart = [](int& elapsed, const int interval, int& hearts) {
+        if (interval < 1) {
+            return false;
+        }
+        ++elapsed;
+        if (elapsed < interval) {
+            return false;
+        }
+        elapsed = 0;
+        if (hearts == 0) {
+            return false;
+        }
+        --hearts;
+        return true;
+    };
+
+    const bool lostHunger = loseHeart(state.hungerLossElapsedMinutes,
+        character->hungerHeartLossMinutes, state.hungerHearts);
+    const bool lostHappiness = loseHeart(state.happinessLossElapsedMinutes,
+        character->happinessHeartLossMinutes, state.happinessHearts);
+    const int decrements = static_cast<int>(lostHunger) + static_cast<int>(lostHappiness);
+    if (decrements == 0 || character->disciplineCallAfterNeedDecrements < 1
+        || state.disciplineCallsIssued >= state.disciplineCallQuota) {
+        return;
+    }
+
+    state.needHeartDecrementsSinceDisciplineCall += decrements;
+    if (state.needHeartDecrementsSinceDisciplineCall
+        >= character->disciplineCallAfterNeedDecrements) {
+        state.needHeartDecrementsSinceDisciplineCall
+            -= character->disciplineCallAfterNeedDecrements;
+        ++state.disciplineCallsIssued;
+        state.pendingDisciplineCall = true;
+    }
 }
 
 void ProgramSimulation::updateBabyEvents(const ProgramDefinition& programme,
@@ -324,12 +394,14 @@ void ProgramSimulation::expireAttention(const ProgramDefinition& programme,
     // call into a care mistake. A real hunger, happiness, or lights-off call
     // does. The negative eligibility sentinel prevents repeated mistakes while
     // the same empty meter remains unattended.
-    if (state.attentionReason != ProgramAttentionReason::Discipline) {
+    const bool wasDisciplineCall = state.attentionReason == ProgramAttentionReason::Discipline;
+    if (!wasDisciplineCall) {
         ++state.careMistakes;
     }
     state.attentionReason = ProgramAttentionReason::None;
     state.attentionDeadlineMinutes = -1;
-    state.nextAttentionEligibleMinutes = -1;
+    state.nextAttentionEligibleMinutes = wasDisciplineCall
+        ? state.minutesSinceClockSet : -1;
 }
 
 void ProgramSimulation::beginAttentionIfNeeded(const ProgramDefinition& programme,
@@ -349,6 +421,9 @@ void ProgramSimulation::beginAttentionIfNeeded(const ProgramDefinition& programm
         reason = ProgramAttentionReason::Hunger;
     } else if (state.happinessHearts == 0) {
         reason = ProgramAttentionReason::Happiness;
+    } else if (state.pendingDisciplineCall && !state.asleep) {
+        reason = ProgramAttentionReason::Discipline;
+        state.pendingDisciplineCall = false;
     }
     if (reason == ProgramAttentionReason::None) {
         return;
@@ -382,6 +457,7 @@ void ProgramSimulation::updateSleepSchedule(const ProgramDefinition& programme,
             && state.clockMinutesOfDay < character->wakeMinute;
     const bool wasAsleep = state.asleep;
     if (wasAsleep && !shouldSleep) {
+        ++state.age;
         state.lightOff = false;
         if (state.attentionReason == ProgramAttentionReason::SleepLight) {
             state.attentionReason = ProgramAttentionReason::None;

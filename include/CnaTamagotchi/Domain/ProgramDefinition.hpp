@@ -45,6 +45,13 @@ struct CreatureDefinition final {
     int minimumWeight{0};
     int sleepStartMinute{-1};
     int wakeMinute{-1};
+    int hungerHeartLossMinutes{-1};
+    int happinessHeartLossMinutes{-1};
+    // Number of real hunger/happiness heart decrements between false
+    // Discipline calls. A negative value means that this form never makes
+    // them; the run-time quota still stops calls once its visible meter could
+    // have been filled.
+    int disciplineCallAfterNeedDecrements{-1};
 };
 
 struct FoodDefinition final {

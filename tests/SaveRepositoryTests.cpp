@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <string>
 
 using namespace CnaTamagotchi;
 
@@ -44,6 +45,13 @@ Persistence::SaveData p1Save()
     data.pet.disciplineMistakes = 1;
     data.pet.teenLineage = Domain::ProgramTeenLineage::TypeA;
     data.pet.teenStartedWithNoDiscipline = true;
+    data.pet.stageAwakeMinutes = 120;
+    data.pet.hungerLossElapsedMinutes = 20;
+    data.pet.happinessLossElapsedMinutes = 35;
+    data.pet.needHeartDecrementsSinceDisciplineCall = 4;
+    data.pet.disciplineCallQuota = 3;
+    data.pet.disciplineCallsIssued = 1;
+    data.pet.pendingDisciplineCall = true;
     data.pet.attentionDeadlineMinutes = 85;
     data.pet.nextAttentionEligibleMinutes = 100;
     data.pet.asleep = true;
@@ -89,9 +97,16 @@ void testP1RoundTripAndBackup()
                 && loaded.data->pet.disciplineMistakes == 1
                 && loaded.data->pet.teenLineage == Domain::ProgramTeenLineage::TypeA
                 && loaded.data->pet.teenStartedWithNoDiscipline
+                && loaded.data->pet.stageAwakeMinutes == 120
+                && loaded.data->pet.hungerLossElapsedMinutes == 20
+                && loaded.data->pet.happinessLossElapsedMinutes == 35
+                && loaded.data->pet.needHeartDecrementsSinceDisciplineCall == 4
+                && loaded.data->pet.disciplineCallQuota == 3
+                && loaded.data->pet.disciplineCallsIssued == 1
+                && loaded.data->pet.pendingDisciplineCall
                 && loaded.data->pet.lightOff
                 && loaded.data->pet.attentionReason == Domain::ProgramAttentionReason::SleepLight,
-            "P1 care-event, evolution-history, and light state must survive a round trip");
+            "P1 care-event, evolution-history, timer, and light state must survive a round trip");
     }
 
     std::filesystem::remove_all(directory, error);
@@ -183,11 +198,64 @@ void testVersionTwoP1SaveKeepsAConservativeEvolutionDefault()
     const Persistence::LoadResult loaded = repository.load(path);
     expect(loaded.success(), "version-two P1 saves must remain readable after evolution-history storage");
     if (loaded.data) {
-        expect(loaded.data->formatVersion == 2
+        expect(loaded.data->formatVersion == Persistence::SaveData::CurrentFormatVersion
                 && loaded.data->pet.disciplineMistakes == 0
-                && loaded.data->pet.teenLineage == Domain::ProgramTeenLineage::None,
-            "a version-two P1 save must receive conservative unknown evolution-history defaults");
+                && loaded.data->pet.teenLineage == Domain::ProgramTeenLineage::None
+                && loaded.data->pet.disciplineCallQuota == 3
+                && loaded.data->pet.disciplineCallsIssued == 0,
+            "a version-two P1 save must receive conservative evolution and timer defaults");
     }
+
+    std::filesystem::remove_all(directory, error);
+}
+
+void testVersionThreeP1SaveReceivesTimerDefaults()
+{
+    const std::filesystem::path directory = testDirectory();
+    const std::filesystem::path path = directory / "version-three.json";
+    std::error_code error;
+    std::filesystem::remove_all(directory, error);
+
+    Persistence::SaveRepository repository;
+    expect(repository.save(path, p1Save()).success,
+        "a current P1 save must be available as a version-three migration fixture");
+
+    std::ifstream input(path);
+    std::string versionThree((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    const std::string currentVersion = "\"formatVersion\": "
+        + std::to_string(Persistence::SaveData::CurrentFormatVersion);
+    const std::size_t versionPosition = versionThree.find(currentVersion);
+    expect(versionPosition != std::string::npos,
+        "the generated current save must expose its format version for migration testing");
+    if (versionPosition != std::string::npos) {
+        versionThree.replace(versionPosition, currentVersion.size(), "\"formatVersion\": 3");
+    }
+    for (const char* const key : {"stageAwakeMinutes", "hungerLossElapsedMinutes",
+             "happinessLossElapsedMinutes", "needHeartDecrementsSinceDisciplineCall",
+             "disciplineCallQuota", "disciplineCallsIssued", "pendingDisciplineCall"}) {
+        const std::size_t keyPosition = versionThree.find(std::string("\"") + key + "\"");
+        expect(keyPosition != std::string::npos,
+            "the generated current save must contain every removable timer field");
+        if (keyPosition != std::string::npos) {
+            const std::size_t lineStart = versionThree.rfind('\n', keyPosition);
+            const std::size_t lineEnd = versionThree.find('\n', keyPosition);
+            versionThree.erase(lineStart == std::string::npos ? 0 : lineStart + 1,
+                lineEnd == std::string::npos ? std::string::npos : lineEnd - lineStart);
+        }
+    }
+    {
+        std::ofstream output(path, std::ios::trunc);
+        output << versionThree;
+    }
+
+    const Persistence::LoadResult loaded = repository.load(path);
+    expect(loaded.success() && loaded.data
+            && loaded.data->formatVersion == Persistence::SaveData::CurrentFormatVersion
+            && loaded.data->pet.stageAwakeMinutes == 0
+            && loaded.data->pet.disciplineCallQuota == 3
+            && loaded.data->pet.disciplineCallsIssued == 0
+            && !loaded.data->pet.pendingDisciplineCall,
+        "a version-three P1 save must migrate conservatively to the current timer state");
 
     std::filesystem::remove_all(directory, error);
 }
@@ -279,6 +347,7 @@ int main()
     testInvalidDataIsRejected();
     testIgnoredAttentionCallRoundTrips();
     testVersionTwoP1SaveKeepsAConservativeEvolutionDefault();
+    testVersionThreeP1SaveReceivesTimerDefaults();
     testBackupRestorationAndArchives();
     testLegacyPrototypeIsNeverConvertedToP1();
 

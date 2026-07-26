@@ -417,7 +417,8 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             return false;
         }
         if (selectedIcon_ == 2) {
-            if (!pet_.asleep) {
+            if (!pet_.asleep
+                && pet_.attentionReason != Domain::ProgramAttentionReason::Discipline) {
                 startCharacterGame();
                 screen_ = Screen::Game;
                 return true;

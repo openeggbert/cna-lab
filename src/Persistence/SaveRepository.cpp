@@ -136,6 +136,16 @@ bool validPetState(const Domain::ProgramPetState& pet) noexcept
         && pet.careMistakes >= 0 && pet.careMistakes <= MaximumPersistedAge
         && pet.disciplineMistakes >= 0 && pet.disciplineMistakes <= MaximumPersistedAge
         && validTeenLineage(static_cast<int>(pet.teenLineage))
+        && pet.stageAwakeMinutes >= 0 && pet.stageAwakeMinutes <= MaximumPersistedMinutes
+        && pet.hungerLossElapsedMinutes >= 0
+        && pet.hungerLossElapsedMinutes <= MaximumPersistedMinutes
+        && pet.happinessLossElapsedMinutes >= 0
+        && pet.happinessLossElapsedMinutes <= MaximumPersistedMinutes
+        && pet.needHeartDecrementsSinceDisciplineCall >= 0
+        && pet.needHeartDecrementsSinceDisciplineCall <= MaximumPersistedMinutes
+        && pet.disciplineCallQuota >= 0 && pet.disciplineCallQuota <= 4
+        && pet.disciplineCallsIssued >= 0
+        && pet.disciplineCallsIssued <= pet.disciplineCallQuota
         && pet.attentionDeadlineMinutes >= -1
         // -1 is the deliberate P1 sentinel used after an ignored attention
         // call. It prevents the same empty meter from immediately raising a
@@ -180,6 +190,17 @@ std::string serialise(const SaveData& data)
             + std::to_string(static_cast<int>(pet.teenLineage)) + ",\n"
         "    \"teenStartedWithNoDiscipline\": "
             + std::to_string(pet.teenStartedWithNoDiscipline ? 1 : 0) + ",\n"
+        "    \"stageAwakeMinutes\": " + std::to_string(pet.stageAwakeMinutes) + ",\n"
+        "    \"hungerLossElapsedMinutes\": "
+            + std::to_string(pet.hungerLossElapsedMinutes) + ",\n"
+        "    \"happinessLossElapsedMinutes\": "
+            + std::to_string(pet.happinessLossElapsedMinutes) + ",\n"
+        "    \"needHeartDecrementsSinceDisciplineCall\": "
+            + std::to_string(pet.needHeartDecrementsSinceDisciplineCall) + ",\n"
+        "    \"disciplineCallQuota\": " + std::to_string(pet.disciplineCallQuota) + ",\n"
+        "    \"disciplineCallsIssued\": " + std::to_string(pet.disciplineCallsIssued) + ",\n"
+        "    \"pendingDisciplineCall\": "
+            + std::to_string(pet.pendingDisciplineCall ? 1 : 0) + ",\n"
         "    \"attentionDeadlineMinutes\": " + std::to_string(pet.attentionDeadlineMinutes) + ",\n"
         "    \"nextAttentionEligibleMinutes\": "
             + std::to_string(pet.nextAttentionEligibleMinutes) + ",\n"
@@ -280,7 +301,8 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     if (*formatVersion == 1) {
         return legacyPrototype();
     }
-    if (*formatVersion != 2 && *formatVersion != SaveData::CurrentFormatVersion) {
+    if (*formatVersion != 2 && *formatVersion != 3
+        && *formatVersion != SaveData::CurrentFormatVersion) {
         return invalid("Unsupported save format version.");
     }
 
@@ -303,6 +325,14 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     const auto disciplineMistakes = extractInteger<int>(json, "disciplineMistakes");
     const auto teenLineage = extractInteger<int>(json, "teenLineage");
     const auto teenStartedWithNoDiscipline = extractInteger<int>(json, "teenStartedWithNoDiscipline");
+    const auto stageAwakeMinutes = extractInteger<int>(json, "stageAwakeMinutes");
+    const auto hungerLossElapsedMinutes = extractInteger<int>(json, "hungerLossElapsedMinutes");
+    const auto happinessLossElapsedMinutes = extractInteger<int>(json, "happinessLossElapsedMinutes");
+    const auto needHeartDecrementsSinceDisciplineCall = extractInteger<int>(
+        json, "needHeartDecrementsSinceDisciplineCall");
+    const auto disciplineCallQuota = extractInteger<int>(json, "disciplineCallQuota");
+    const auto disciplineCallsIssued = extractInteger<int>(json, "disciplineCallsIssued");
+    const auto pendingDisciplineCall = extractInteger<int>(json, "pendingDisciplineCall");
     const auto attentionDeadlineMinutes = extractInteger<int>(json, "attentionDeadlineMinutes");
     const auto nextAttentionEligibleMinutes = extractInteger<int>(json, "nextAttentionEligibleMinutes");
     const auto asleep = extractInteger<int>(json, "asleep");
@@ -317,9 +347,15 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
         || !lightOff || !sick || !attentionReason) {
         return invalid("Save file is missing or repeats a required P1 field.");
     }
-    if (*formatVersion == SaveData::CurrentFormatVersion
+    if (*formatVersion >= 3
         && (!disciplineMistakes || !teenLineage || !teenStartedWithNoDiscipline)) {
         return invalid("Save file is missing or repeats an evolution-history field.");
+    }
+    if (*formatVersion == SaveData::CurrentFormatVersion
+        && (!stageAwakeMinutes || !hungerLossElapsedMinutes || !happinessLossElapsedMinutes
+            || !needHeartDecrementsSinceDisciplineCall || !disciplineCallQuota
+            || !disciplineCallsIssued || !pendingDisciplineCall)) {
+        return invalid("Save file is missing or repeats a P1 timer field.");
     }
     if (!validIdentifier(*programId) || !validIdentifier(*characterId) || *lastSaved < 0
         || !validStage(*stage) || *minutesSinceClockSet < 0 || *minutesSinceHatch < 0
@@ -333,15 +369,29 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
         || !validBoolean(*sick) || !validAttentionReason(*attentionReason)) {
         return invalid("Save file contains a value outside the supported P1 range.");
     }
-    if (*formatVersion == SaveData::CurrentFormatVersion
+    if (*formatVersion >= 3
         && (*disciplineMistakes < 0 || *disciplineMistakes > MaximumPersistedAge
             || !validTeenLineage(*teenLineage)
             || !validBoolean(*teenStartedWithNoDiscipline))) {
         return invalid("Save file contains an invalid P1 evolution-history value.");
     }
+    if (*formatVersion == SaveData::CurrentFormatVersion
+        && (*stageAwakeMinutes < 0 || *hungerLossElapsedMinutes < 0
+            || *happinessLossElapsedMinutes < 0 || *needHeartDecrementsSinceDisciplineCall < 0
+            || *stageAwakeMinutes > MaximumPersistedMinutes
+            || *hungerLossElapsedMinutes > MaximumPersistedMinutes
+            || *happinessLossElapsedMinutes > MaximumPersistedMinutes
+            || *needHeartDecrementsSinceDisciplineCall > MaximumPersistedMinutes
+            || *disciplineCallQuota < 0 || *disciplineCallQuota > 4
+            || *disciplineCallsIssued < 0 || *disciplineCallsIssued > *disciplineCallQuota
+            || !validBoolean(*pendingDisciplineCall))) {
+        return invalid("Save file contains an invalid P1 timer value.");
+    }
 
     SaveData data{};
-    data.formatVersion = *formatVersion;
+    // Accepted v2/v3 data is migrated in memory and is written back as the
+    // current format at the next real save action.
+    data.formatVersion = SaveData::CurrentFormatVersion;
     data.programId = *programId;
     data.lastSavedUnixSeconds = *lastSaved;
     data.seed = *seed;
@@ -363,6 +413,17 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
         ? static_cast<Domain::ProgramTeenLineage>(*teenLineage)
         : Domain::ProgramTeenLineage::None;
     data.pet.teenStartedWithNoDiscipline = teenStartedWithNoDiscipline.value_or(0) == 1;
+    data.pet.stageAwakeMinutes = stageAwakeMinutes.value_or(0);
+    data.pet.hungerLossElapsedMinutes = hungerLossElapsedMinutes.value_or(0);
+    data.pet.happinessLossElapsedMinutes = happinessLossElapsedMinutes.value_or(0);
+    data.pet.needHeartDecrementsSinceDisciplineCall =
+        needHeartDecrementsSinceDisciplineCall.value_or(0);
+    // A pre-v4 slot has no exact timer phase. Preserve its visible meter and
+    // start a conservative new discipline-call cycle rather than rejecting a
+    // user's existing P1 pet.
+    data.pet.disciplineCallQuota = disciplineCallQuota.value_or(4 - *disciplineBars);
+    data.pet.disciplineCallsIssued = disciplineCallsIssued.value_or(0);
+    data.pet.pendingDisciplineCall = pendingDisciplineCall.value_or(0) == 1;
     data.pet.attentionDeadlineMinutes = *attentionDeadlineMinutes;
     data.pet.nextAttentionEligibleMinutes = *nextAttentionEligibleMinutes;
     data.pet.asleep = *asleep == 1;

@@ -92,8 +92,10 @@ similar emulation core is permitted in the application, build, or test suite.
   - [x] Connect genuine fifteen-minute hunger/happiness/lights-off calls to
     care mistakes while excluding missed classic-P1 false calls; preserve the
     baby-stage reset before Marutchi.
-  - Add the scheduled false-discipline calls and natural heart decay, then
-    implement the separately timed hidden Bill path with exhaustive resolver
+  - [x] Add per-character hunger/happiness decay, sleep pauses, and bounded
+    false-discipline calls from programme data; preserve their timer phase in
+    P1 saves.
+  - Implement the separately timed hidden Bill path with exhaustive resolver
     tests.
 
 - [ ] **8. Completion of real-time P1 behaviour**

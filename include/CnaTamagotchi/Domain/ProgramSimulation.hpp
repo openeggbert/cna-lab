@@ -34,6 +34,15 @@ struct ProgramPetState final {
     int disciplineMistakes{0};
     ProgramTeenLineage teenLineage{ProgramTeenLineage::None};
     bool teenStartedWithNoDiscipline{false};
+    // These counters describe elapsed awake time, rather than wall-clock
+    // minutes, because original P1 need meters pause while a form sleeps.
+    int stageAwakeMinutes{0};
+    int hungerLossElapsedMinutes{0};
+    int happinessLossElapsedMinutes{0};
+    int needHeartDecrementsSinceDisciplineCall{0};
+    int disciplineCallQuota{0};
+    int disciplineCallsIssued{0};
+    bool pendingDisciplineCall{false};
     int attentionDeadlineMinutes{-1};
     int nextAttentionEligibleMinutes{0};
     bool asleep{false};
@@ -77,6 +86,10 @@ private:
     [[nodiscard]] static const EvolutionRule* matchingEvolutionRule(
         const ProgramDefinition& programme, const ProgramPetState& state) noexcept;
     static bool evolve(const ProgramDefinition& programme, ProgramPetState& state) noexcept;
+    static void initialiseStageRuntime(ProgramPetState& state) noexcept;
+    static void advanceNeedTimers(const ProgramDefinition& programme,
+                                  ProgramPetState& state,
+                                  bool elapsedWhileAwake) noexcept;
     static void hatch(const ProgramDefinition& programme, ProgramPetState& state) noexcept;
     static void updateBabyEvents(const ProgramDefinition& programme,
                                  ProgramPetState& state,
