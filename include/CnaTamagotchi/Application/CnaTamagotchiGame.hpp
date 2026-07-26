@@ -2,7 +2,10 @@
 
 #include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
 #include "CnaTamagotchi/Domain/PetSimulation.hpp"
+#include "CnaTamagotchi/Persistence/SaveRepository.hpp"
 
+#include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <optional>
 
@@ -26,6 +29,7 @@ protected:
     void LoadContent() override;
     void Update(Microsoft::Xna::Framework::GameTime& gameTime) override;
     void Draw(const Microsoft::Xna::Framework::GameTime& gameTime) override;
+    void OnExiting(System::Object* sender, const System::EventArgs& args) override;
 
 private:
     enum class Screen {
@@ -35,6 +39,8 @@ private:
     };
 
     [[nodiscard]] Microsoft::Xna::Framework::Color backgroundColor() const;
+    void loadSave();
+    void saveNow();
     void refreshDisplay() noexcept;
     void drawDevice();
 
@@ -42,6 +48,8 @@ private:
     Display::MonochromeDisplay display_;
     Domain::PetState pet_;
     Domain::PetSimulation simulation_;
+    Persistence::SaveRepository saveRepository_;
+    std::filesystem::path savePath_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
     std::optional<Microsoft::Xna::Framework::Graphics::Texture2D> pixelTexture_;
     float backgroundTimeSeconds_{0.0F};
@@ -50,6 +58,8 @@ private:
     int selectedIcon_{0};
     int foodSelection_{0};
     int statusPage_{0};
+    std::int64_t lastSavedUnixSeconds_{0};
+    std::uint64_t seed_{0};
     bool selectNextWasDown_{false};
     bool selectPreviousWasDown_{false};
     bool confirmWasDown_{false};

@@ -52,6 +52,7 @@ set(CNA_TAMAGOTCHI_SOURCES
     src/Display/MonochromeDisplay.cpp
     src/Domain/CreatureCatalog.cpp
     src/Domain/PetSimulation.cpp
+    src/Persistence/SaveRepository.cpp
 )
 
 # Android's SDL activity loads libmain.so; desktop builds a normal executable.

@@ -53,8 +53,10 @@ will be copied.
 - [ ] **6. Persistence and resilience**
   - [x] Implement version-1 JSON save/load with field validation.
   - [x] Use a temporary file and backup before replacing an existing save.
-  - Add user-data path selection, atomic-replace support on every target,
-    migrations, corruption recovery, and UTC offline-time integration.
+  - [x] Integrate an automatic relative save slot and bounded UTC offline-time
+    catch-up; prevent clock rollback from moving the saved timestamp backward.
+  - Add platform user-data path selection, atomic-replace support on every
+    target, migrations, and corruption-recovery UI.
 
 - [ ] **7. Polish and release readiness**
   - Add sound options, keyboard/controller accessibility, pause/help, and

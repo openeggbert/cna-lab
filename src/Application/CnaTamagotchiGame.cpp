@@ -3,8 +3,11 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <filesystem>
+#include <limits>
 #include <string>
 #include <string_view>
 
@@ -53,6 +56,17 @@ constexpr std::array<IconPosition, 8> IconPositions{{
     {151, 225}, {230, 209}, {310, 209}, {389, 225},
     {151, 510}, {230, 526}, {310, 526}, {389, 510},
 }};
+
+std::int64_t unixSecondsNow() noexcept
+{
+    using namespace std::chrono;
+    return duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+}
+
+std::filesystem::path defaultSavePath()
+{
+    return std::filesystem::current_path() / "saves" / "slot-1.json";
+}
 
 using Glyph = std::array<std::string_view, 5>;
 
@@ -140,6 +154,11 @@ CnaTamagotchiGame::CnaTamagotchiGame(const bool smokeTest)
     graphics_.setPreferredBackBufferWidthProperty(WindowWidth);
     graphics_.setPreferredBackBufferHeightProperty(WindowHeight);
     Game::getWindowProperty().setTitleProperty("CNA Tamagotchi");
+    if (!smokeTest_) {
+        savePath_ = defaultSavePath();
+        loadSave();
+        saveNow();
+    }
     refreshDisplay();
 }
 
@@ -185,11 +204,13 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
             foodSelection_ = (foodSelection_ + 1) % 2;
         }
     }
+    bool petChanged = false;
     if (confirm && !confirmWasDown_) {
         if (screen_ == Screen::Food) {
             simulation_.applyAction(pet_, foodSelection_ == 0
                 ? Domain::PetAction::Meal : Domain::PetAction::Snack);
             screen_ = Screen::Home;
+            petChanged = true;
         } else if (screen_ == Screen::Status) {
             statusPage_ = (statusPage_ + 1) % 2;
         } else if (selectedIcon_ == 0) {
@@ -211,6 +232,7 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
                 iconActions[static_cast<std::size_t>(selectedIcon_)];
             if (action.has_value()) {
                 simulation_.applyAction(pet_, *action);
+                petChanged = true;
             }
         }
     }
@@ -229,6 +251,11 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     while (simulationSeconds_ >= 60.0F) {
         static_cast<void>(simulation_.advance(pet_, 1));
         simulationSeconds_ -= 60.0F;
+        lastSavedUnixSeconds_ += 60;
+        petChanged = true;
+    }
+    if (petChanged) {
+        saveNow();
     }
     refreshDisplay();
 }
@@ -273,6 +300,60 @@ Color CnaTamagotchiGame::backgroundColor() const
         blend(colours[current].green, colours[next].green),
         blend(colours[current].blue, colours[next].blue),
         255U);
+}
+
+void CnaTamagotchiGame::loadSave()
+{
+    const Persistence::LoadResult loaded = saveRepository_.load(savePath_);
+    if (!loaded.data) {
+        lastSavedUnixSeconds_ = unixSecondsNow();
+        seed_ = static_cast<std::uint64_t>(lastSavedUnixSeconds_);
+        return;
+    }
+
+    pet_ = loaded.data->pet;
+    seed_ = loaded.data->seed;
+    lastSavedUnixSeconds_ = loaded.data->lastSavedUnixSeconds;
+
+    const std::int64_t now = unixSecondsNow();
+    if (now <= lastSavedUnixSeconds_) {
+        return;
+    }
+
+    const std::int64_t elapsedSeconds = now - lastSavedUnixSeconds_;
+    const std::int64_t elapsedMinutes = elapsedSeconds / 60;
+    const int appliedMinutes = static_cast<int>(std::min(
+        elapsedMinutes, static_cast<std::int64_t>(std::numeric_limits<int>::max())));
+    const Domain::SimulationReport report = simulation_.advance(pet_, appliedMinutes);
+    if (report.wasClamped) {
+        // The development safeguard deliberately discards excessive offline
+        // time instead of letting repeated launches consume it in chunks.
+        lastSavedUnixSeconds_ = now;
+        simulationSeconds_ = 0.0F;
+        return;
+    }
+
+    // Keep sub-minute time in the saved timestamp. Without this, repeatedly
+    // opening and closing the application every few seconds would prevent a
+    // full simulated minute from ever being reached.
+    lastSavedUnixSeconds_ += static_cast<std::int64_t>(report.appliedMinutes) * 60;
+    simulationSeconds_ = static_cast<float>(elapsedSeconds % 60);
+}
+
+void CnaTamagotchiGame::saveNow()
+{
+    if (smokeTest_) {
+        return;
+    }
+
+    // This is an elapsed-time anchor, rather than merely the instant of the
+    // file write. It never moves backwards, and it retains sub-minute time.
+    const Persistence::SaveData data{
+        .lastSavedUnixSeconds = lastSavedUnixSeconds_,
+        .seed = seed_,
+        .pet = pet_,
+    };
+    static_cast<void>(saveRepository_.save(savePath_, data));
 }
 
 void CnaTamagotchiGame::refreshDisplay() noexcept
@@ -468,6 +549,13 @@ void CnaTamagotchiGame::drawDevice()
         drawEllipse(x, 601, 20, 20, ShellHighlight);
         drawEllipse(x - 3, 597, 8, 8, Color(255, 238, 244, 255));
     }
+}
+
+void CnaTamagotchiGame::OnExiting(System::Object* const sender,
+                                  const System::EventArgs& args)
+{
+    saveNow();
+    Game::OnExiting(sender, args);
 }
 
 GetTypeNameCPP(CnaTamagotchiGame, "CnaTamagotchiGame")

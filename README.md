@@ -191,9 +191,13 @@ window and keeps persistence from directly mutating gameplay after invalid
 data is read.
 
 Current persistence writes a versioned JSON document through a `.tmp` file and
-keeps a `.bak` copy before replacing an existing save. The next integration
-step will add platform-appropriate user-data paths, automatic save points,
-UTC catch-up, schema migrations, and corruption recovery.
+keeps a `.bak` copy before replacing an existing save. The application uses
+`saves/slot-1.json` relative to its working directory, loads it at startup,
+performs bounded UTC catch-up, and saves after care changes and on exit. Its
+UTC simulation anchor retains sub-minute time and never moves backwards, so
+repeated quick restarts or rolling the system clock back cannot grant extra
+care time. Platform-specific user-data paths, slot selection, schema migrations,
+and recovery UI remain to be added.
 
 ## Implementation order
 
@@ -204,7 +208,7 @@ UTC catch-up, schema migrations, and corruption recovery.
 3. Implement the egg, hatch, stage schedule, complete sleep schedules, care mistakes,
    illness, death/farewell, and event-jump offline processing.
 4. Implement the complete first creature line and the two compact games.
-5. Integrate versioned saves into the application and add migration/recovery tests.
+5. Add selectable user-data save slots plus migration/recovery UI and tests.
 6. Add sounds, visual accessibility options, additional complete egg lines,
    and a Relaxed mode without weakening the default Classic mode.
 
