@@ -199,6 +199,12 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
         gameTime.getElapsedGameTimeProperty().getTotalMillisecondsProperty();
     const float elapsedSeconds = static_cast<float>(elapsedMilliseconds) / 1000.0F;
     backgroundTimeSeconds_ += elapsedSeconds;
+    if (feedbackSeconds_ > 0.0F) {
+        feedbackSeconds_ = std::max(0.0F, feedbackSeconds_ - elapsedSeconds);
+        if (feedbackSeconds_ == 0.0F) {
+            feedback_ = Feedback::None;
+        }
+    }
 
     const bool selectNext = keyboard.IsKeyDown(Keys::A) || keyboard.IsKeyDown(Keys::Right);
     const bool selectPrevious = keyboard.IsKeyDown(Keys::Left);
@@ -268,6 +274,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
     if (pet_.lifeStage == Domain::LifeStage::Farewell) {
         if (button == DeviceButton::B) {
             startNewEgg();
+            setFeedback(Feedback::Success);
             return true;
         }
         return false;
@@ -288,6 +295,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             simulation_.applyAction(pet_, foodSelection_ == 0
                 ? Domain::PetAction::Meal : Domain::PetAction::Snack);
             screen_ = Screen::Home;
+            setFeedback(Feedback::Success);
             return true;
         }
         if (screen_ == Screen::Status) {
@@ -327,6 +335,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
                 }
                 return true;
             }
+            setFeedback(Feedback::Blocked);
             return false;
         }
         {
@@ -343,7 +352,18 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             const std::optional<Domain::PetAction> action =
                 iconActions[static_cast<std::size_t>(selectedIcon_)];
             if (action.has_value()) {
+                const bool hasEffect = (*action != Domain::PetAction::ToggleLight || pet_.asleep)
+                    && (*action != Domain::PetAction::Medicine || pet_.sick)
+                    && (*action != Domain::PetAction::Clean
+                        || pet_.wasteCount > 0 || pet_.needs.hygiene < 100)
+                    && (*action != Domain::PetAction::Discipline
+                        || pet_.attentionReason == Domain::AttentionReason::Discipline);
+                if (!hasEffect) {
+                    setFeedback(Feedback::Blocked);
+                    return false;
+                }
                 simulation_.applyAction(pet_, *action);
+                setFeedback(Feedback::Success);
                 return true;
             }
         }
@@ -536,6 +556,12 @@ void CnaTamagotchiGame::startNewEgg() noexcept
     simulationSeconds_ = 0.0F;
 }
 
+void CnaTamagotchiGame::setFeedback(const Feedback feedback) noexcept
+{
+    feedback_ = feedback;
+    feedbackSeconds_ = feedback == Feedback::None ? 0.0F : 0.8F;
+}
+
 void CnaTamagotchiGame::refreshDisplay() noexcept
 {
     display_.clear();
@@ -706,6 +732,20 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         display_.setPixel(30, 3, true);
         display_.setPixel(29, 4, true);
         display_.setPixel(30, 4, true);
+    }
+
+    if (feedback_ == Feedback::Success) {
+        display_.setPixel(24, 9, true);
+        display_.setPixel(23, 10, true);
+        display_.setPixel(24, 10, true);
+        display_.setPixel(25, 10, true);
+        display_.setPixel(24, 11, true);
+    } else if (feedback_ == Feedback::Blocked) {
+        display_.setPixel(23, 9, true);
+        display_.setPixel(25, 9, true);
+        display_.setPixel(24, 10, true);
+        display_.setPixel(23, 11, true);
+        display_.setPixel(25, 11, true);
     }
 }
 

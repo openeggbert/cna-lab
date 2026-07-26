@@ -26,6 +26,8 @@ A win, not merely opening the icon, improves happiness. Uncleaned waste and
 excessive snacks can cause illness;
 running health down to zero enters an original Farewell display state. Waste,
 illness, and attention have their own compact LCD/shell indicators.
+Successful care briefly draws a spark beside the creature; an unavailable care
+action draws a small cross without writing an unchanged save slot.
 
 Those systems are foundations, not the final classic ruleset. In particular,
 the internal `0…100` need values, unfinished status/menu screens, temporary

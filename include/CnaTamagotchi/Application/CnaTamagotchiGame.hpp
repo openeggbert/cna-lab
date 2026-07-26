@@ -46,6 +46,12 @@ private:
         C,
     };
 
+    enum class Feedback {
+        None,
+        Success,
+        Blocked,
+    };
+
     [[nodiscard]] Microsoft::Xna::Framework::Color backgroundColor() const;
     [[nodiscard]] bool pressButton(DeviceButton button);
     [[nodiscard]] std::optional<DeviceButton> buttonAtWindowPosition(float x, float y) const noexcept;
@@ -55,6 +61,7 @@ private:
     void startPeekGame() noexcept;
     void startNumberGame() noexcept;
     void startNewEgg() noexcept;
+    void setFeedback(Feedback feedback) noexcept;
     void refreshDisplay() noexcept;
     void drawDevice();
 
@@ -76,10 +83,12 @@ private:
     int gameTarget_{0};
     int currentNumber_{0};
     int nextNumber_{0};
+    float feedbackSeconds_{0.0F};
     std::int64_t lastSavedUnixSeconds_{0};
     std::uint64_t seed_{0};
     bool gameResolved_{false};
     bool gameWon_{false};
+    Feedback feedback_{Feedback::None};
     bool selectNextWasDown_{false};
     bool selectPreviousWasDown_{false};
     bool confirmWasDown_{false};
