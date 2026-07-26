@@ -102,6 +102,8 @@ similar emulation core is permitted in the application, build, or test suite.
   - Implement verified P1 timers, calls, sleep/light mistakes, waste, illness,
     medicine, refusal, weight, and the death/life-span transition into the
     already-rendered angel-and-stars end screen.
+  - [x] Clamp Bread/Candy and completed Character-game weight changes to each
+    form's P1 minimum and 99 oz maximum (Babytchi remains fixed at 5 oz).
   - Process long offline periods faithfully and deterministically; test clock
     rollback, restart, and boundary moments.
   - Replace the generic current Farewell/new-egg flow.

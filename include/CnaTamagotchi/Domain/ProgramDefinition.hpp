@@ -43,6 +43,7 @@ struct CreatureDefinition final {
     ProgramStage stage;
     bool hidden{false};
     int minimumWeight{0};
+    int maximumWeight{99};
     int sleepStartMinute{-1};
     int wakeMinute{-1};
     int hungerHeartLossMinutes{-1};

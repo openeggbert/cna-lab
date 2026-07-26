@@ -147,6 +147,9 @@ provisional pending a selected-target trace.
   22:00–09:00; Maskutchi 30 oz, 23:00–11:00; Kuchipatchi 20 oz,
   22:00–09:00; Nyorotchi 10 oz, 22:00–09:00; Tarakotchi 20 oz,
   22:00–10:00; Bill 30 oz, 22:00–09:00.
+- Babytchi's weight is fixed at 5 oz. Every later P1 form has a recorded
+  minimum weight and a 99 oz upper bound; Bread/Candy and a completed
+  Character game clamp at those per-form limits.
 - The Health Meter has four pages: age/weight (ounces in international P1),
   Discipline, Hungry, and Happy. Both heart meters range from 0 to 4;
   discipline moves in 25% increments.

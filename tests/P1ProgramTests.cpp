@@ -66,8 +66,9 @@ void testP1LifecycleAndCharacterSchedulesAreProgrammeData()
     const auto mametchi = std::find_if(p1.creatures.begin(), p1.creatures.end(),
         [](const CreatureDefinition& creature) { return creature.id == "mametchi"; });
     expect(mametchi != p1.creatures.end() && mametchi->minimumWeight == 30
+            && mametchi->maximumWeight == 99
             && mametchi->sleepStartMinute == 22 * 60 && mametchi->wakeMinute == 9 * 60,
-        "P1 character minimum weight and sleep schedule must be programme data");
+        "P1 character weight boundaries and sleep schedule must be programme data");
 
     const auto marutchi = std::find_if(p1.creatures.begin(), p1.creatures.end(),
         [](const CreatureDefinition& creature) { return creature.id == "marutchi"; });

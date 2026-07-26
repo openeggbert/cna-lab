@@ -85,6 +85,13 @@ void testP1FoodGameWasteAndSleepUseProgrammeData()
     static_cast<void>(simulation.advance(p1, pet, 50));
     expect(pet.stage == ProgramStage::Child && pet.characterId == "marutchi",
         "the trace must reach Marutchi before its P1 sleep schedule is evaluated");
+    pet.weight = 10;
+    expect(simulation.completeGame(p1, pet, 0) && pet.weight == 10,
+        "a P1 Character game must never reduce Marutchi below its ten-ounce minimum");
+    pet.weight = 99;
+    pet.hungerHearts = 3;
+    expect(simulation.feed(p1, pet, 0) && pet.weight == 99,
+        "P1 food must never raise a non-baby form above its ninety-nine-ounce maximum");
     pet.clockMinutesOfDay = 19 * 60 + 59;
     static_cast<void>(simulation.advance(p1, pet, 1));
     expect(pet.asleep, "Marutchi must follow its captured 20:00 P1 sleep schedule");

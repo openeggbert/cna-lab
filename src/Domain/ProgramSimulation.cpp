@@ -115,7 +115,10 @@ bool ProgramSimulation::feed(const ProgramDefinition& programme, ProgramPetState
     // Babytchi can eat and play, but the original P1 never changes its
     // displayed five-ounce baby weight.
     if (state.stage != ProgramStage::Baby) {
-        state.weight = std::max(0, state.weight + food.weightDelta);
+        if (const CreatureDefinition* const character = characterById(programme, state.characterId)) {
+            state.weight = std::clamp(state.weight + food.weightDelta,
+                character->minimumWeight, character->maximumWeight);
+        }
     }
     if ((food.hungerHeartDelta > 0 && state.attentionReason == ProgramAttentionReason::Hunger)
         || (food.happinessHeartDelta > 0
@@ -141,7 +144,10 @@ bool ProgramSimulation::completeGame(const ProgramDefinition& programme, Program
     }
 
     if (state.stage != ProgramStage::Baby) {
-        state.weight = std::max(0, state.weight + programme.game.weightDeltaOnCompletion);
+        if (const CreatureDefinition* const character = characterById(programme, state.characterId)) {
+            state.weight = std::clamp(state.weight + programme.game.weightDeltaOnCompletion,
+                character->minimumWeight, character->maximumWeight);
+        }
     }
     const bool restoredEmptyHappiness = state.happinessHearts == 0
         && wins >= programme.game.winsNeededForHappiness;
