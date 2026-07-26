@@ -1,0 +1,129 @@
+# 04. Core runtime services
+
+[Back to master plan](../plan.md)
+
+
+Provide deterministic time, configuration, logging, IDs, events, jobs, and diagnostics.
+
+- [ ] **IS-04-001 P0** — Create a central game configuration loader with defaults and validation.
+- [ ] **IS-04-002 P0** — Create structured logging categories and severity levels.
+- [ ] **IS-04-003 P0** — Create a monotonic simulation clock independent of wall-clock time.
+- [ ] **IS-04-004 P0** — Clamp or subdivide extreme frame deltas.
+- [ ] **IS-04-005 P0** — Define fixed-step versus variable-step responsibilities.
+- [ ] **IS-04-006 P1** — Create command-line parsing for backend-independent game options.
+- [ ] **IS-04-007 P1** — Create a console-variable/developer-variable registry.
+- [ ] **IS-04-008 P1** — Create runtime feature flags with clear shipping policy.
+- [ ] **IS-04-009 P1** — Create stable entity, asset, mission, dialogue, and sector ID wrappers.
+- [ ] **IS-04-010 P1** — Create a result/error object with contextual chaining.
+- [ ] **IS-04-011 P1** — Create assertion and verify macros with release semantics.
+- [ ] **IS-04-012 P1** — Create scoped performance markers.
+- [ ] **IS-04-013 P1** — Create a job system adapter over chosen sharp-runtime/std primitives.
+- [ ] **IS-04-014 P1** — Create cancellation-aware background work queues.
+- [ ] **IS-04-015 P1** — Create a main-thread dispatch queue.
+- [ ] **IS-04-016 P1** — Create a render-thread resource-upload queue.
+- [ ] **IS-04-017 P1** — Create a deterministic random-stream service with named streams.
+- [ ] **IS-04-018 P1** — Create a data-driven tuning-variable service.
+- [ ] **IS-04-019 P1** — Create crash-context collection without storing sensitive user data.
+- [ ] **IS-04-020 P2** — Create an in-game developer console.
+- [ ] **IS-04-021 P2** — Create structured JSON diagnostic dumps.
+- [ ] **IS-04-022 P2** — Create a frame-history ring buffer for bug reports.
+- [ ] **IS-04-023 P2** — Create a lightweight metrics registry.
+- [ ] **IS-04-024 P2** — Create a build/version information service.
+- [ ] **IS-04-025 P2** — Create localization-safe formatting helpers.
+- [ ] **IS-04-026 P1** — Define the scope, responsibilities, and explicit non-goals of configuration service.
+- [ ] **IS-04-027 P1** — Define the public C++ API and ownership rules for configuration service.
+- [ ] **IS-04-028 P1** — Define versioned configuration or asset data for configuration service.
+- [ ] **IS-04-029 P1** — Implement the smallest deterministic reference path for configuration service.
+- [ ] **IS-04-030 P1** — Add input validation and actionable failure reporting to configuration service.
+- [ ] **IS-04-031 P1** — Add focused unit tests for configuration service.
+- [ ] **IS-04-032 P1** — Add an integration scenario that exercises configuration service in a running game flow.
+- [ ] **IS-04-033 P2** — Add logging, counters, and debug inspection for configuration service.
+- [ ] **IS-04-034 P1** — Define save/checkpoint serialization and restoration for configuration service.
+- [ ] **IS-04-035 P2** — Define CPU, memory, latency, and content budgets for configuration service.
+- [ ] **IS-04-036 P2** — Profile configuration service under a representative worst-case scene.
+- [ ] **IS-04-037 P2** — Document usage examples, invariants, and common failure modes for configuration service.
+- [ ] **IS-04-038 P1** — Define the scope, responsibilities, and explicit non-goals of structured logger.
+- [ ] **IS-04-039 P1** — Define the public C++ API and ownership rules for structured logger.
+- [ ] **IS-04-040 P1** — Define versioned configuration or asset data for structured logger.
+- [ ] **IS-04-041 P1** — Implement the smallest deterministic reference path for structured logger.
+- [ ] **IS-04-042 P1** — Add input validation and actionable failure reporting to structured logger.
+- [ ] **IS-04-043 P1** — Add focused unit tests for structured logger.
+- [ ] **IS-04-044 P1** — Add an integration scenario that exercises structured logger in a running game flow.
+- [ ] **IS-04-045 P2** — Add logging, counters, and debug inspection for structured logger.
+- [ ] **IS-04-046 P1** — Define save/checkpoint serialization and restoration for structured logger.
+- [ ] **IS-04-047 P2** — Define CPU, memory, latency, and content budgets for structured logger.
+- [ ] **IS-04-048 P2** — Profile structured logger under a representative worst-case scene.
+- [ ] **IS-04-049 P2** — Document usage examples, invariants, and common failure modes for structured logger.
+- [ ] **IS-04-050 P1** — Define the scope, responsibilities, and explicit non-goals of simulation clock.
+- [ ] **IS-04-051 P1** — Define the public C++ API and ownership rules for simulation clock.
+- [ ] **IS-04-052 P1** — Define versioned configuration or asset data for simulation clock.
+- [ ] **IS-04-053 P1** — Implement the smallest deterministic reference path for simulation clock.
+- [ ] **IS-04-054 P1** — Add input validation and actionable failure reporting to simulation clock.
+- [ ] **IS-04-055 P1** — Add focused unit tests for simulation clock.
+- [ ] **IS-04-056 P1** — Add an integration scenario that exercises simulation clock in a running game flow.
+- [ ] **IS-04-057 P2** — Add logging, counters, and debug inspection for simulation clock.
+- [ ] **IS-04-058 P1** — Define save/checkpoint serialization and restoration for simulation clock.
+- [ ] **IS-04-059 P2** — Define CPU, memory, latency, and content budgets for simulation clock.
+- [ ] **IS-04-060 P2** — Profile simulation clock under a representative worst-case scene.
+- [ ] **IS-04-061 P2** — Document usage examples, invariants, and common failure modes for simulation clock.
+- [ ] **IS-04-062 P1** — Define the scope, responsibilities, and explicit non-goals of job scheduler.
+- [ ] **IS-04-063 P1** — Define the public C++ API and ownership rules for job scheduler.
+- [ ] **IS-04-064 P1** — Define versioned configuration or asset data for job scheduler.
+- [ ] **IS-04-065 P1** — Implement the smallest deterministic reference path for job scheduler.
+- [ ] **IS-04-066 P1** — Add input validation and actionable failure reporting to job scheduler.
+- [ ] **IS-04-067 P1** — Add focused unit tests for job scheduler.
+- [ ] **IS-04-068 P1** — Add an integration scenario that exercises job scheduler in a running game flow.
+- [ ] **IS-04-069 P2** — Add logging, counters, and debug inspection for job scheduler.
+- [ ] **IS-04-070 P1** — Define save/checkpoint serialization and restoration for job scheduler.
+- [ ] **IS-04-071 P2** — Define CPU, memory, latency, and content budgets for job scheduler.
+- [ ] **IS-04-072 P2** — Profile job scheduler under a representative worst-case scene.
+- [ ] **IS-04-073 P2** — Document usage examples, invariants, and common failure modes for job scheduler.
+- [ ] **IS-04-074 P1** — Define the scope, responsibilities, and explicit non-goals of main-thread dispatcher.
+- [ ] **IS-04-075 P1** — Define the public C++ API and ownership rules for main-thread dispatcher.
+- [ ] **IS-04-076 P1** — Define versioned configuration or asset data for main-thread dispatcher.
+- [ ] **IS-04-077 P1** — Implement the smallest deterministic reference path for main-thread dispatcher.
+- [ ] **IS-04-078 P1** — Add input validation and actionable failure reporting to main-thread dispatcher.
+- [ ] **IS-04-079 P1** — Add focused unit tests for main-thread dispatcher.
+- [ ] **IS-04-080 P1** — Add an integration scenario that exercises main-thread dispatcher in a running game flow.
+- [ ] **IS-04-081 P2** — Add logging, counters, and debug inspection for main-thread dispatcher.
+- [ ] **IS-04-082 P1** — Define save/checkpoint serialization and restoration for main-thread dispatcher.
+- [ ] **IS-04-083 P2** — Define CPU, memory, latency, and content budgets for main-thread dispatcher.
+- [ ] **IS-04-084 P2** — Profile main-thread dispatcher under a representative worst-case scene.
+- [ ] **IS-04-085 P2** — Document usage examples, invariants, and common failure modes for main-thread dispatcher.
+- [ ] **IS-04-086 P1** — Define the scope, responsibilities, and explicit non-goals of deterministic random streams.
+- [ ] **IS-04-087 P1** — Define the public C++ API and ownership rules for deterministic random streams.
+- [ ] **IS-04-088 P1** — Define versioned configuration or asset data for deterministic random streams.
+- [ ] **IS-04-089 P1** — Implement the smallest deterministic reference path for deterministic random streams.
+- [ ] **IS-04-090 P1** — Add input validation and actionable failure reporting to deterministic random streams.
+- [ ] **IS-04-091 P1** — Add focused unit tests for deterministic random streams.
+- [ ] **IS-04-092 P1** — Add an integration scenario that exercises deterministic random streams in a running game flow.
+- [ ] **IS-04-093 P2** — Add logging, counters, and debug inspection for deterministic random streams.
+- [ ] **IS-04-094 P1** — Define save/checkpoint serialization and restoration for deterministic random streams.
+- [ ] **IS-04-095 P2** — Define CPU, memory, latency, and content budgets for deterministic random streams.
+- [ ] **IS-04-096 P2** — Profile deterministic random streams under a representative worst-case scene.
+- [ ] **IS-04-097 P2** — Document usage examples, invariants, and common failure modes for deterministic random streams.
+- [ ] **IS-04-098 P1** — Define the scope, responsibilities, and explicit non-goals of developer console.
+- [ ] **IS-04-099 P1** — Define the public C++ API and ownership rules for developer console.
+- [ ] **IS-04-100 P1** — Define versioned configuration or asset data for developer console.
+- [ ] **IS-04-101 P1** — Implement the smallest deterministic reference path for developer console.
+- [ ] **IS-04-102 P1** — Add input validation and actionable failure reporting to developer console.
+- [ ] **IS-04-103 P1** — Add focused unit tests for developer console.
+- [ ] **IS-04-104 P1** — Add an integration scenario that exercises developer console in a running game flow.
+- [ ] **IS-04-105 P2** — Add logging, counters, and debug inspection for developer console.
+- [ ] **IS-04-106 P1** — Define save/checkpoint serialization and restoration for developer console.
+- [ ] **IS-04-107 P2** — Define CPU, memory, latency, and content budgets for developer console.
+- [ ] **IS-04-108 P2** — Profile developer console under a representative worst-case scene.
+- [ ] **IS-04-109 P2** — Document usage examples, invariants, and common failure modes for developer console.
+- [ ] **IS-04-110 P1** — Define the scope, responsibilities, and explicit non-goals of metrics registry.
+- [ ] **IS-04-111 P1** — Define the public C++ API and ownership rules for metrics registry.
+- [ ] **IS-04-112 P1** — Define versioned configuration or asset data for metrics registry.
+- [ ] **IS-04-113 P1** — Implement the smallest deterministic reference path for metrics registry.
+- [ ] **IS-04-114 P1** — Add input validation and actionable failure reporting to metrics registry.
+- [ ] **IS-04-115 P1** — Add focused unit tests for metrics registry.
+- [ ] **IS-04-116 P1** — Add an integration scenario that exercises metrics registry in a running game flow.
+- [ ] **IS-04-117 P2** — Add logging, counters, and debug inspection for metrics registry.
+- [ ] **IS-04-118 P1** — Define save/checkpoint serialization and restoration for metrics registry.
+- [ ] **IS-04-119 P2** — Define CPU, memory, latency, and content budgets for metrics registry.
+- [ ] **IS-04-120 P2** — Profile metrics registry under a representative worst-case scene.
+- [ ] **IS-04-121 P2** — Document usage examples, invariants, and common failure modes for metrics registry.
+

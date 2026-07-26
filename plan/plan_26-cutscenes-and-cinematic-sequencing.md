@@ -1,0 +1,201 @@
+# 26. Cutscenes and cinematic sequencing
+
+[Back to master plan](../plan.md)
+
+
+Build in-engine timelines that are skippable, checkpoint-safe, and toolable.
+
+- [ ] **IS-26-001 P0** — Create a minimal in-engine sequence player.
+- [ ] **IS-26-002 P0** — Create camera, animation, dialogue, audio, event, and fade tracks.
+- [ ] **IS-26-003 P0** — Author a short prologue sequence that hands control to the current mission.
+- [ ] **IS-26-004 P0** — Implement skip that applies required terminal gameplay state.
+- [ ] **IS-26-005 P1** — Create sequence IDs, track IDs, bindings, clips, and markers.
+- [ ] **IS-26-006 P1** — Create entity binding robust to streaming and respawn.
+- [ ] **IS-26-007 P1** — Create camera cuts and blends.
+- [ ] **IS-26-008 P1** — Create animation clip scheduling and synchronization.
+- [ ] **IS-26-009 P1** — Create property and transform animation tracks.
+- [ ] **IS-26-010 P1** — Create dialogue/subtitle synchronization.
+- [ ] **IS-26-011 P1** — Create audio/music scheduling and ducking markers.
+- [ ] **IS-26-012 P1** — Create mission event and checkpoint markers.
+- [ ] **IS-26-013 P1** — Create visibility, spawn, despawn, and control-lock tracks.
+- [ ] **IS-26-014 P1** — Create pre-roll and asset prefetch.
+- [ ] **IS-26-015 P1** — Create behavior for missing or late assets.
+- [ ] **IS-26-016 P1** — Create save/load policy while a sequence is active.
+- [ ] **IS-26-017 P1** — Create sequence validation and dependency reporting.
+- [ ] **IS-26-018 P1** — Create a timeline debug overlay.
+- [ ] **IS-26-019 P1** — Create deterministic sequence tests with fixed time.
+- [ ] **IS-26-020 P2** — Create a timeline editor after the data model stabilizes.
+- [ ] **IS-26-021 P2** — Create camera rails and look-at constraints.
+- [ ] **IS-26-022 P2** — Create letterbox and presentation overlays with accessibility options.
+- [ ] **IS-26-023 P2** — Create video-track support for rare pre-rendered inserts using CNA VideoPlayer.
+- [ ] **IS-26-024 P2** — Create sequence nesting only after cycle/ownership rules are defined.
+- [ ] **IS-26-025 P1** — Define the scope, responsibilities, and explicit non-goals of cinematic sequence player.
+- [ ] **IS-26-026 P1** — Define the public C++ API and ownership rules for cinematic sequence player.
+- [ ] **IS-26-027 P1** — Define versioned configuration or asset data for cinematic sequence player.
+- [ ] **IS-26-028 P1** — Implement the smallest deterministic reference path for cinematic sequence player.
+- [ ] **IS-26-029 P1** — Add input validation and actionable failure reporting to cinematic sequence player.
+- [ ] **IS-26-030 P1** — Add focused unit tests for cinematic sequence player.
+- [ ] **IS-26-031 P1** — Add an integration scenario that exercises cinematic sequence player in a running game flow.
+- [ ] **IS-26-032 P2** — Add logging, counters, and debug inspection for cinematic sequence player.
+- [ ] **IS-26-033 P2** — Add an in-world or overlay debug visualization for cinematic sequence player.
+- [ ] **IS-26-034 P1** — Define save/checkpoint serialization and restoration for cinematic sequence player.
+- [ ] **IS-26-035 P2** — Define CPU, memory, latency, and content budgets for cinematic sequence player.
+- [ ] **IS-26-036 P2** — Profile cinematic sequence player under a representative worst-case scene.
+- [ ] **IS-26-037 P2** — Document usage examples, invariants, and common failure modes for cinematic sequence player.
+- [ ] **IS-26-038 P1** — Define the scope, responsibilities, and explicit non-goals of camera track.
+- [ ] **IS-26-039 P1** — Define the public C++ API and ownership rules for camera track.
+- [ ] **IS-26-040 P1** — Define versioned configuration or asset data for camera track.
+- [ ] **IS-26-041 P1** — Implement the smallest deterministic reference path for camera track.
+- [ ] **IS-26-042 P1** — Add input validation and actionable failure reporting to camera track.
+- [ ] **IS-26-043 P1** — Add focused unit tests for camera track.
+- [ ] **IS-26-044 P1** — Add an integration scenario that exercises camera track in a running game flow.
+- [ ] **IS-26-045 P2** — Add logging, counters, and debug inspection for camera track.
+- [ ] **IS-26-046 P2** — Add an in-world or overlay debug visualization for camera track.
+- [ ] **IS-26-047 P1** — Define save/checkpoint serialization and restoration for camera track.
+- [ ] **IS-26-048 P2** — Define CPU, memory, latency, and content budgets for camera track.
+- [ ] **IS-26-049 P2** — Profile camera track under a representative worst-case scene.
+- [ ] **IS-26-050 P2** — Document usage examples, invariants, and common failure modes for camera track.
+- [ ] **IS-26-051 P1** — Define the scope, responsibilities, and explicit non-goals of animation track.
+- [ ] **IS-26-052 P1** — Define the public C++ API and ownership rules for animation track.
+- [ ] **IS-26-053 P1** — Define versioned configuration or asset data for animation track.
+- [ ] **IS-26-054 P1** — Implement the smallest deterministic reference path for animation track.
+- [ ] **IS-26-055 P1** — Add input validation and actionable failure reporting to animation track.
+- [ ] **IS-26-056 P1** — Add focused unit tests for animation track.
+- [ ] **IS-26-057 P1** — Add an integration scenario that exercises animation track in a running game flow.
+- [ ] **IS-26-058 P2** — Add logging, counters, and debug inspection for animation track.
+- [ ] **IS-26-059 P2** — Add an in-world or overlay debug visualization for animation track.
+- [ ] **IS-26-060 P1** — Define save/checkpoint serialization and restoration for animation track.
+- [ ] **IS-26-061 P2** — Define CPU, memory, latency, and content budgets for animation track.
+- [ ] **IS-26-062 P2** — Profile animation track under a representative worst-case scene.
+- [ ] **IS-26-063 P2** — Document usage examples, invariants, and common failure modes for animation track.
+- [ ] **IS-26-064 P1** — Define the scope, responsibilities, and explicit non-goals of dialogue track.
+- [ ] **IS-26-065 P1** — Define the public C++ API and ownership rules for dialogue track.
+- [ ] **IS-26-066 P1** — Define versioned configuration or asset data for dialogue track.
+- [ ] **IS-26-067 P1** — Implement the smallest deterministic reference path for dialogue track.
+- [ ] **IS-26-068 P1** — Add input validation and actionable failure reporting to dialogue track.
+- [ ] **IS-26-069 P1** — Add focused unit tests for dialogue track.
+- [ ] **IS-26-070 P1** — Add an integration scenario that exercises dialogue track in a running game flow.
+- [ ] **IS-26-071 P2** — Add logging, counters, and debug inspection for dialogue track.
+- [ ] **IS-26-072 P2** — Add an in-world or overlay debug visualization for dialogue track.
+- [ ] **IS-26-073 P1** — Define save/checkpoint serialization and restoration for dialogue track.
+- [ ] **IS-26-074 P2** — Define CPU, memory, latency, and content budgets for dialogue track.
+- [ ] **IS-26-075 P2** — Profile dialogue track under a representative worst-case scene.
+- [ ] **IS-26-076 P2** — Document usage examples, invariants, and common failure modes for dialogue track.
+- [ ] **IS-26-077 P1** — Define the scope, responsibilities, and explicit non-goals of audio track.
+- [ ] **IS-26-078 P1** — Define the public C++ API and ownership rules for audio track.
+- [ ] **IS-26-079 P1** — Define versioned configuration or asset data for audio track.
+- [ ] **IS-26-080 P1** — Implement the smallest deterministic reference path for audio track.
+- [ ] **IS-26-081 P1** — Add input validation and actionable failure reporting to audio track.
+- [ ] **IS-26-082 P1** — Add focused unit tests for audio track.
+- [ ] **IS-26-083 P1** — Add an integration scenario that exercises audio track in a running game flow.
+- [ ] **IS-26-084 P2** — Add logging, counters, and debug inspection for audio track.
+- [ ] **IS-26-085 P2** — Add an in-world or overlay debug visualization for audio track.
+- [ ] **IS-26-086 P1** — Define save/checkpoint serialization and restoration for audio track.
+- [ ] **IS-26-087 P2** — Define CPU, memory, latency, and content budgets for audio track.
+- [ ] **IS-26-088 P2** — Profile audio track under a representative worst-case scene.
+- [ ] **IS-26-089 P2** — Document usage examples, invariants, and common failure modes for audio track.
+- [ ] **IS-26-090 P1** — Define the scope, responsibilities, and explicit non-goals of event track.
+- [ ] **IS-26-091 P1** — Define the public C++ API and ownership rules for event track.
+- [ ] **IS-26-092 P1** — Define versioned configuration or asset data for event track.
+- [ ] **IS-26-093 P1** — Implement the smallest deterministic reference path for event track.
+- [ ] **IS-26-094 P1** — Add input validation and actionable failure reporting to event track.
+- [ ] **IS-26-095 P1** — Add focused unit tests for event track.
+- [ ] **IS-26-096 P1** — Add an integration scenario that exercises event track in a running game flow.
+- [ ] **IS-26-097 P2** — Add logging, counters, and debug inspection for event track.
+- [ ] **IS-26-098 P2** — Add an in-world or overlay debug visualization for event track.
+- [ ] **IS-26-099 P1** — Define save/checkpoint serialization and restoration for event track.
+- [ ] **IS-26-100 P2** — Define CPU, memory, latency, and content budgets for event track.
+- [ ] **IS-26-101 P2** — Profile event track under a representative worst-case scene.
+- [ ] **IS-26-102 P2** — Document usage examples, invariants, and common failure modes for event track.
+- [ ] **IS-26-103 P1** — Define the scope, responsibilities, and explicit non-goals of sequence binding resolver.
+- [ ] **IS-26-104 P1** — Define the public C++ API and ownership rules for sequence binding resolver.
+- [ ] **IS-26-105 P1** — Define versioned configuration or asset data for sequence binding resolver.
+- [ ] **IS-26-106 P1** — Implement the smallest deterministic reference path for sequence binding resolver.
+- [ ] **IS-26-107 P1** — Add input validation and actionable failure reporting to sequence binding resolver.
+- [ ] **IS-26-108 P1** — Add focused unit tests for sequence binding resolver.
+- [ ] **IS-26-109 P1** — Add an integration scenario that exercises sequence binding resolver in a running game flow.
+- [ ] **IS-26-110 P2** — Add logging, counters, and debug inspection for sequence binding resolver.
+- [ ] **IS-26-111 P2** — Add an in-world or overlay debug visualization for sequence binding resolver.
+- [ ] **IS-26-112 P1** — Define save/checkpoint serialization and restoration for sequence binding resolver.
+- [ ] **IS-26-113 P2** — Define CPU, memory, latency, and content budgets for sequence binding resolver.
+- [ ] **IS-26-114 P2** — Profile sequence binding resolver under a representative worst-case scene.
+- [ ] **IS-26-115 P2** — Document usage examples, invariants, and common failure modes for sequence binding resolver.
+- [ ] **IS-26-116 P1** — Define the scope, responsibilities, and explicit non-goals of sequence validator.
+- [ ] **IS-26-117 P1** — Define the public C++ API and ownership rules for sequence validator.
+- [ ] **IS-26-118 P1** — Define versioned configuration or asset data for sequence validator.
+- [ ] **IS-26-119 P1** — Implement the smallest deterministic reference path for sequence validator.
+- [ ] **IS-26-120 P1** — Add input validation and actionable failure reporting to sequence validator.
+- [ ] **IS-26-121 P1** — Add focused unit tests for sequence validator.
+- [ ] **IS-26-122 P1** — Add an integration scenario that exercises sequence validator in a running game flow.
+- [ ] **IS-26-123 P2** — Add logging, counters, and debug inspection for sequence validator.
+- [ ] **IS-26-124 P2** — Add an in-world or overlay debug visualization for sequence validator.
+- [ ] **IS-26-125 P1** — Define save/checkpoint serialization and restoration for sequence validator.
+- [ ] **IS-26-126 P2** — Define CPU, memory, latency, and content budgets for sequence validator.
+- [ ] **IS-26-127 P2** — Profile sequence validator under a representative worst-case scene.
+- [ ] **IS-26-128 P2** — Document usage examples, invariants, and common failure modes for sequence validator.
+- [ ] **IS-26-129 P2** — Define the scope, responsibilities, and explicit non-goals of sequence prefetcher.
+- [ ] **IS-26-130 P2** — Define the public C++ API and ownership rules for sequence prefetcher.
+- [ ] **IS-26-131 P2** — Define versioned configuration or asset data for sequence prefetcher.
+- [ ] **IS-26-132 P2** — Implement the smallest deterministic reference path for sequence prefetcher.
+- [ ] **IS-26-133 P2** — Add input validation and actionable failure reporting to sequence prefetcher.
+- [ ] **IS-26-134 P2** — Add focused unit tests for sequence prefetcher.
+- [ ] **IS-26-135 P2** — Add an integration scenario that exercises sequence prefetcher in a running game flow.
+- [ ] **IS-26-136 P2** — Add logging, counters, and debug inspection for sequence prefetcher.
+- [ ] **IS-26-137 P2** — Add an in-world or overlay debug visualization for sequence prefetcher.
+- [ ] **IS-26-138 P2** — Define save/checkpoint serialization and restoration for sequence prefetcher.
+- [ ] **IS-26-139 P2** — Define CPU, memory, latency, and content budgets for sequence prefetcher.
+- [ ] **IS-26-140 P2** — Profile sequence prefetcher under a representative worst-case scene.
+- [ ] **IS-26-141 P2** — Document usage examples, invariants, and common failure modes for sequence prefetcher.
+- [ ] **IS-26-142 P2** — Define the scope, responsibilities, and explicit non-goals of sequence skip finalizer.
+- [ ] **IS-26-143 P2** — Define the public C++ API and ownership rules for sequence skip finalizer.
+- [ ] **IS-26-144 P2** — Define versioned configuration or asset data for sequence skip finalizer.
+- [ ] **IS-26-145 P2** — Implement the smallest deterministic reference path for sequence skip finalizer.
+- [ ] **IS-26-146 P2** — Add input validation and actionable failure reporting to sequence skip finalizer.
+- [ ] **IS-26-147 P2** — Add focused unit tests for sequence skip finalizer.
+- [ ] **IS-26-148 P2** — Add an integration scenario that exercises sequence skip finalizer in a running game flow.
+- [ ] **IS-26-149 P2** — Add logging, counters, and debug inspection for sequence skip finalizer.
+- [ ] **IS-26-150 P2** — Add an in-world or overlay debug visualization for sequence skip finalizer.
+- [ ] **IS-26-151 P2** — Define save/checkpoint serialization and restoration for sequence skip finalizer.
+- [ ] **IS-26-152 P2** — Define CPU, memory, latency, and content budgets for sequence skip finalizer.
+- [ ] **IS-26-153 P2** — Profile sequence skip finalizer under a representative worst-case scene.
+- [ ] **IS-26-154 P2** — Document usage examples, invariants, and common failure modes for sequence skip finalizer.
+- [ ] **IS-26-155 P2** — Define the scope, responsibilities, and explicit non-goals of sequence nesting.
+- [ ] **IS-26-156 P2** — Define the public C++ API and ownership rules for sequence nesting.
+- [ ] **IS-26-157 P2** — Define versioned configuration or asset data for sequence nesting.
+- [ ] **IS-26-158 P2** — Implement the smallest deterministic reference path for sequence nesting.
+- [ ] **IS-26-159 P2** — Add input validation and actionable failure reporting to sequence nesting.
+- [ ] **IS-26-160 P2** — Add focused unit tests for sequence nesting.
+- [ ] **IS-26-161 P2** — Add an integration scenario that exercises sequence nesting in a running game flow.
+- [ ] **IS-26-162 P2** — Add logging, counters, and debug inspection for sequence nesting.
+- [ ] **IS-26-163 P2** — Add an in-world or overlay debug visualization for sequence nesting.
+- [ ] **IS-26-164 P2** — Define save/checkpoint serialization and restoration for sequence nesting.
+- [ ] **IS-26-165 P2** — Define CPU, memory, latency, and content budgets for sequence nesting.
+- [ ] **IS-26-166 P2** — Profile sequence nesting under a representative worst-case scene.
+- [ ] **IS-26-167 P2** — Document usage examples, invariants, and common failure modes for sequence nesting.
+- [ ] **IS-26-168 P2** — Define the scope, responsibilities, and explicit non-goals of cinematic camera rig.
+- [ ] **IS-26-169 P2** — Define the public C++ API and ownership rules for cinematic camera rig.
+- [ ] **IS-26-170 P2** — Define versioned configuration or asset data for cinematic camera rig.
+- [ ] **IS-26-171 P2** — Implement the smallest deterministic reference path for cinematic camera rig.
+- [ ] **IS-26-172 P2** — Add input validation and actionable failure reporting to cinematic camera rig.
+- [ ] **IS-26-173 P2** — Add focused unit tests for cinematic camera rig.
+- [ ] **IS-26-174 P2** — Add an integration scenario that exercises cinematic camera rig in a running game flow.
+- [ ] **IS-26-175 P2** — Add logging, counters, and debug inspection for cinematic camera rig.
+- [ ] **IS-26-176 P2** — Add an in-world or overlay debug visualization for cinematic camera rig.
+- [ ] **IS-26-177 P2** — Define save/checkpoint serialization and restoration for cinematic camera rig.
+- [ ] **IS-26-178 P2** — Define CPU, memory, latency, and content budgets for cinematic camera rig.
+- [ ] **IS-26-179 P2** — Profile cinematic camera rig under a representative worst-case scene.
+- [ ] **IS-26-180 P2** — Document usage examples, invariants, and common failure modes for cinematic camera rig.
+- [ ] **IS-26-181 P2** — Define the scope, responsibilities, and explicit non-goals of sequence asset dependency scanner.
+- [ ] **IS-26-182 P2** — Define the public C++ API and ownership rules for sequence asset dependency scanner.
+- [ ] **IS-26-183 P2** — Define versioned configuration or asset data for sequence asset dependency scanner.
+- [ ] **IS-26-184 P2** — Implement the smallest deterministic reference path for sequence asset dependency scanner.
+- [ ] **IS-26-185 P2** — Add input validation and actionable failure reporting to sequence asset dependency scanner.
+- [ ] **IS-26-186 P2** — Add focused unit tests for sequence asset dependency scanner.
+- [ ] **IS-26-187 P2** — Add an integration scenario that exercises sequence asset dependency scanner in a running game flow.
+- [ ] **IS-26-188 P2** — Add logging, counters, and debug inspection for sequence asset dependency scanner.
+- [ ] **IS-26-189 P2** — Add an in-world or overlay debug visualization for sequence asset dependency scanner.
+- [ ] **IS-26-190 P2** — Define save/checkpoint serialization and restoration for sequence asset dependency scanner.
+- [ ] **IS-26-191 P2** — Define CPU, memory, latency, and content budgets for sequence asset dependency scanner.
+- [ ] **IS-26-192 P2** — Profile sequence asset dependency scanner under a representative worst-case scene.
+- [ ] **IS-26-193 P2** — Document usage examples, invariants, and common failure modes for sequence asset dependency scanner.
+

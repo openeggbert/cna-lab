@@ -1,0 +1,189 @@
+# 14. Terrain, roads, sidewalks, buildings, and interiors
+
+[Back to master plan](../plan.md)
+
+
+Generate and author city geometry from reusable, logically connected systems.
+
+- [ ] **IS-14-001 P0** — Define a road-graph source schema independent of render meshes.
+- [ ] **IS-14-002 P0** — Generate visual road surfaces and logical lanes from shared data.
+- [ ] **IS-14-003 P0** — Create one accessible interior connected through an explicit portal.
+- [ ] **IS-14-004 P0** — Create collision proxies separate from detailed building render meshes.
+- [ ] **IS-14-005 P1** — Define district, block, lot, building, floor, room, and portal IDs.
+- [ ] **IS-14-006 P1** — Create road nodes, directed segments, lanes, turn links, speed limits, and stop lines.
+- [ ] **IS-14-007 P1** — Create sidewalks, crossings, curb ramps, and pedestrian connections.
+- [ ] **IS-14-008 P1** — Create intersection generation and validation.
+- [ ] **IS-14-009 P1** — Create lane-marking and road-sign generation.
+- [ ] **IS-14-010 P1** — Create parking, loading, spawn, and service slots.
+- [ ] **IS-14-011 P1** — Create terrain height and material representation.
+- [ ] **IS-14-012 P1** — Create bridges, tunnels, ramps, and multi-level road support.
+- [ ] **IS-14-013 P1** — Create building facade modules and variation rules.
+- [ ] **IS-14-014 P1** — Create window, door, roof, stair, elevator, and fire-escape prefabs.
+- [ ] **IS-14-015 P1** — Create fake-interior and full-interior classifications.
+- [ ] **IS-14-016 P1** — Create interior/exterior visibility portals.
+- [ ] **IS-14-017 P1** — Create building collision and navigation bake outputs.
+- [ ] **IS-14-018 P1** — Create water, shoreline, dock, and boundary rules if Iron City uses a harbor.
+- [ ] **IS-14-019 P1** — Create district-specific prop and vegetation sets.
+- [ ] **IS-14-020 P1** — Create environmental destruction scope limits.
+- [ ] **IS-14-021 P2** — Create procedural utility placement: drains, poles, cables, hydrants, signs, and lamps.
+- [ ] **IS-14-022 P2** — Create snow/rain drainage and wetness metadata if weather is implemented.
+- [ ] **IS-14-023 P2** — Create day/night emissive window rules.
+- [ ] **IS-14-024 P2** — Create editor validation for inaccessible rooms and disconnected streets.
+- [ ] **IS-14-025 P2** — Create skyline silhouette authoring tools.
+- [ ] **IS-14-026 P1** — Define the scope, responsibilities, and explicit non-goals of road graph.
+- [ ] **IS-14-027 P1** — Define the public C++ API and ownership rules for road graph.
+- [ ] **IS-14-028 P1** — Define versioned configuration or asset data for road graph.
+- [ ] **IS-14-029 P1** — Implement the smallest deterministic reference path for road graph.
+- [ ] **IS-14-030 P1** — Add input validation and actionable failure reporting to road graph.
+- [ ] **IS-14-031 P1** — Add focused unit tests for road graph.
+- [ ] **IS-14-032 P1** — Add an integration scenario that exercises road graph in a running game flow.
+- [ ] **IS-14-033 P2** — Add logging, counters, and debug inspection for road graph.
+- [ ] **IS-14-034 P2** — Add an in-world or overlay debug visualization for road graph.
+- [ ] **IS-14-035 P2** — Define CPU, memory, latency, and content budgets for road graph.
+- [ ] **IS-14-036 P2** — Profile road graph under a representative worst-case scene.
+- [ ] **IS-14-037 P2** — Document usage examples, invariants, and common failure modes for road graph.
+- [ ] **IS-14-038 P1** — Define the scope, responsibilities, and explicit non-goals of road mesh generator.
+- [ ] **IS-14-039 P1** — Define the public C++ API and ownership rules for road mesh generator.
+- [ ] **IS-14-040 P1** — Define versioned configuration or asset data for road mesh generator.
+- [ ] **IS-14-041 P1** — Implement the smallest deterministic reference path for road mesh generator.
+- [ ] **IS-14-042 P1** — Add input validation and actionable failure reporting to road mesh generator.
+- [ ] **IS-14-043 P1** — Add focused unit tests for road mesh generator.
+- [ ] **IS-14-044 P1** — Add an integration scenario that exercises road mesh generator in a running game flow.
+- [ ] **IS-14-045 P2** — Add logging, counters, and debug inspection for road mesh generator.
+- [ ] **IS-14-046 P2** — Add an in-world or overlay debug visualization for road mesh generator.
+- [ ] **IS-14-047 P2** — Define CPU, memory, latency, and content budgets for road mesh generator.
+- [ ] **IS-14-048 P2** — Profile road mesh generator under a representative worst-case scene.
+- [ ] **IS-14-049 P2** — Document usage examples, invariants, and common failure modes for road mesh generator.
+- [ ] **IS-14-050 P1** — Define the scope, responsibilities, and explicit non-goals of intersection generator.
+- [ ] **IS-14-051 P1** — Define the public C++ API and ownership rules for intersection generator.
+- [ ] **IS-14-052 P1** — Define versioned configuration or asset data for intersection generator.
+- [ ] **IS-14-053 P1** — Implement the smallest deterministic reference path for intersection generator.
+- [ ] **IS-14-054 P1** — Add input validation and actionable failure reporting to intersection generator.
+- [ ] **IS-14-055 P1** — Add focused unit tests for intersection generator.
+- [ ] **IS-14-056 P1** — Add an integration scenario that exercises intersection generator in a running game flow.
+- [ ] **IS-14-057 P2** — Add logging, counters, and debug inspection for intersection generator.
+- [ ] **IS-14-058 P2** — Add an in-world or overlay debug visualization for intersection generator.
+- [ ] **IS-14-059 P2** — Define CPU, memory, latency, and content budgets for intersection generator.
+- [ ] **IS-14-060 P2** — Profile intersection generator under a representative worst-case scene.
+- [ ] **IS-14-061 P2** — Document usage examples, invariants, and common failure modes for intersection generator.
+- [ ] **IS-14-062 P1** — Define the scope, responsibilities, and explicit non-goals of sidewalk graph.
+- [ ] **IS-14-063 P1** — Define the public C++ API and ownership rules for sidewalk graph.
+- [ ] **IS-14-064 P1** — Define versioned configuration or asset data for sidewalk graph.
+- [ ] **IS-14-065 P1** — Implement the smallest deterministic reference path for sidewalk graph.
+- [ ] **IS-14-066 P1** — Add input validation and actionable failure reporting to sidewalk graph.
+- [ ] **IS-14-067 P1** — Add focused unit tests for sidewalk graph.
+- [ ] **IS-14-068 P1** — Add an integration scenario that exercises sidewalk graph in a running game flow.
+- [ ] **IS-14-069 P2** — Add logging, counters, and debug inspection for sidewalk graph.
+- [ ] **IS-14-070 P2** — Add an in-world or overlay debug visualization for sidewalk graph.
+- [ ] **IS-14-071 P2** — Define CPU, memory, latency, and content budgets for sidewalk graph.
+- [ ] **IS-14-072 P2** — Profile sidewalk graph under a representative worst-case scene.
+- [ ] **IS-14-073 P2** — Document usage examples, invariants, and common failure modes for sidewalk graph.
+- [ ] **IS-14-074 P1** — Define the scope, responsibilities, and explicit non-goals of terrain system.
+- [ ] **IS-14-075 P1** — Define the public C++ API and ownership rules for terrain system.
+- [ ] **IS-14-076 P1** — Define versioned configuration or asset data for terrain system.
+- [ ] **IS-14-077 P1** — Implement the smallest deterministic reference path for terrain system.
+- [ ] **IS-14-078 P1** — Add input validation and actionable failure reporting to terrain system.
+- [ ] **IS-14-079 P1** — Add focused unit tests for terrain system.
+- [ ] **IS-14-080 P1** — Add an integration scenario that exercises terrain system in a running game flow.
+- [ ] **IS-14-081 P2** — Add logging, counters, and debug inspection for terrain system.
+- [ ] **IS-14-082 P2** — Add an in-world or overlay debug visualization for terrain system.
+- [ ] **IS-14-083 P2** — Define CPU, memory, latency, and content budgets for terrain system.
+- [ ] **IS-14-084 P2** — Profile terrain system under a representative worst-case scene.
+- [ ] **IS-14-085 P2** — Document usage examples, invariants, and common failure modes for terrain system.
+- [ ] **IS-14-086 P1** — Define the scope, responsibilities, and explicit non-goals of building prefab system.
+- [ ] **IS-14-087 P1** — Define the public C++ API and ownership rules for building prefab system.
+- [ ] **IS-14-088 P1** — Define versioned configuration or asset data for building prefab system.
+- [ ] **IS-14-089 P1** — Implement the smallest deterministic reference path for building prefab system.
+- [ ] **IS-14-090 P1** — Add input validation and actionable failure reporting to building prefab system.
+- [ ] **IS-14-091 P1** — Add focused unit tests for building prefab system.
+- [ ] **IS-14-092 P1** — Add an integration scenario that exercises building prefab system in a running game flow.
+- [ ] **IS-14-093 P2** — Add logging, counters, and debug inspection for building prefab system.
+- [ ] **IS-14-094 P2** — Add an in-world or overlay debug visualization for building prefab system.
+- [ ] **IS-14-095 P2** — Define CPU, memory, latency, and content budgets for building prefab system.
+- [ ] **IS-14-096 P2** — Profile building prefab system under a representative worst-case scene.
+- [ ] **IS-14-097 P2** — Document usage examples, invariants, and common failure modes for building prefab system.
+- [ ] **IS-14-098 P1** — Define the scope, responsibilities, and explicit non-goals of interior portal system.
+- [ ] **IS-14-099 P1** — Define the public C++ API and ownership rules for interior portal system.
+- [ ] **IS-14-100 P1** — Define versioned configuration or asset data for interior portal system.
+- [ ] **IS-14-101 P1** — Implement the smallest deterministic reference path for interior portal system.
+- [ ] **IS-14-102 P1** — Add input validation and actionable failure reporting to interior portal system.
+- [ ] **IS-14-103 P1** — Add focused unit tests for interior portal system.
+- [ ] **IS-14-104 P1** — Add an integration scenario that exercises interior portal system in a running game flow.
+- [ ] **IS-14-105 P2** — Add logging, counters, and debug inspection for interior portal system.
+- [ ] **IS-14-106 P2** — Add an in-world or overlay debug visualization for interior portal system.
+- [ ] **IS-14-107 P2** — Define CPU, memory, latency, and content budgets for interior portal system.
+- [ ] **IS-14-108 P2** — Profile interior portal system under a representative worst-case scene.
+- [ ] **IS-14-109 P2** — Document usage examples, invariants, and common failure modes for interior portal system.
+- [ ] **IS-14-110 P1** — Define the scope, responsibilities, and explicit non-goals of collision proxy generator.
+- [ ] **IS-14-111 P1** — Define the public C++ API and ownership rules for collision proxy generator.
+- [ ] **IS-14-112 P1** — Define versioned configuration or asset data for collision proxy generator.
+- [ ] **IS-14-113 P1** — Implement the smallest deterministic reference path for collision proxy generator.
+- [ ] **IS-14-114 P1** — Add input validation and actionable failure reporting to collision proxy generator.
+- [ ] **IS-14-115 P1** — Add focused unit tests for collision proxy generator.
+- [ ] **IS-14-116 P1** — Add an integration scenario that exercises collision proxy generator in a running game flow.
+- [ ] **IS-14-117 P2** — Add logging, counters, and debug inspection for collision proxy generator.
+- [ ] **IS-14-118 P2** — Add an in-world or overlay debug visualization for collision proxy generator.
+- [ ] **IS-14-119 P2** — Define CPU, memory, latency, and content budgets for collision proxy generator.
+- [ ] **IS-14-120 P2** — Profile collision proxy generator under a representative worst-case scene.
+- [ ] **IS-14-121 P2** — Document usage examples, invariants, and common failure modes for collision proxy generator.
+- [ ] **IS-14-122 P2** — Define the scope, responsibilities, and explicit non-goals of room graph.
+- [ ] **IS-14-123 P2** — Define the public C++ API and ownership rules for room graph.
+- [ ] **IS-14-124 P2** — Define versioned configuration or asset data for room graph.
+- [ ] **IS-14-125 P2** — Implement the smallest deterministic reference path for room graph.
+- [ ] **IS-14-126 P2** — Add input validation and actionable failure reporting to room graph.
+- [ ] **IS-14-127 P2** — Add focused unit tests for room graph.
+- [ ] **IS-14-128 P2** — Add an integration scenario that exercises room graph in a running game flow.
+- [ ] **IS-14-129 P2** — Add logging, counters, and debug inspection for room graph.
+- [ ] **IS-14-130 P2** — Add an in-world or overlay debug visualization for room graph.
+- [ ] **IS-14-131 P2** — Define CPU, memory, latency, and content budgets for room graph.
+- [ ] **IS-14-132 P2** — Profile room graph under a representative worst-case scene.
+- [ ] **IS-14-133 P2** — Document usage examples, invariants, and common failure modes for room graph.
+- [ ] **IS-14-134 P2** — Define the scope, responsibilities, and explicit non-goals of building visibility system.
+- [ ] **IS-14-135 P2** — Define the public C++ API and ownership rules for building visibility system.
+- [ ] **IS-14-136 P2** — Define versioned configuration or asset data for building visibility system.
+- [ ] **IS-14-137 P2** — Implement the smallest deterministic reference path for building visibility system.
+- [ ] **IS-14-138 P2** — Add input validation and actionable failure reporting to building visibility system.
+- [ ] **IS-14-139 P2** — Add focused unit tests for building visibility system.
+- [ ] **IS-14-140 P2** — Add an integration scenario that exercises building visibility system in a running game flow.
+- [ ] **IS-14-141 P2** — Add logging, counters, and debug inspection for building visibility system.
+- [ ] **IS-14-142 P2** — Add an in-world or overlay debug visualization for building visibility system.
+- [ ] **IS-14-143 P2** — Define CPU, memory, latency, and content budgets for building visibility system.
+- [ ] **IS-14-144 P2** — Profile building visibility system under a representative worst-case scene.
+- [ ] **IS-14-145 P2** — Document usage examples, invariants, and common failure modes for building visibility system.
+- [ ] **IS-14-146 P2** — Define the scope, responsibilities, and explicit non-goals of street furniture placer.
+- [ ] **IS-14-147 P2** — Define the public C++ API and ownership rules for street furniture placer.
+- [ ] **IS-14-148 P2** — Define versioned configuration or asset data for street furniture placer.
+- [ ] **IS-14-149 P2** — Implement the smallest deterministic reference path for street furniture placer.
+- [ ] **IS-14-150 P2** — Add input validation and actionable failure reporting to street furniture placer.
+- [ ] **IS-14-151 P2** — Add focused unit tests for street furniture placer.
+- [ ] **IS-14-152 P2** — Add an integration scenario that exercises street furniture placer in a running game flow.
+- [ ] **IS-14-153 P2** — Add logging, counters, and debug inspection for street furniture placer.
+- [ ] **IS-14-154 P2** — Add an in-world or overlay debug visualization for street furniture placer.
+- [ ] **IS-14-155 P2** — Define CPU, memory, latency, and content budgets for street furniture placer.
+- [ ] **IS-14-156 P2** — Profile street furniture placer under a representative worst-case scene.
+- [ ] **IS-14-157 P2** — Document usage examples, invariants, and common failure modes for street furniture placer.
+- [ ] **IS-14-158 P2** — Define the scope, responsibilities, and explicit non-goals of district rule set.
+- [ ] **IS-14-159 P2** — Define the public C++ API and ownership rules for district rule set.
+- [ ] **IS-14-160 P2** — Define versioned configuration or asset data for district rule set.
+- [ ] **IS-14-161 P2** — Implement the smallest deterministic reference path for district rule set.
+- [ ] **IS-14-162 P2** — Add input validation and actionable failure reporting to district rule set.
+- [ ] **IS-14-163 P2** — Add focused unit tests for district rule set.
+- [ ] **IS-14-164 P2** — Add an integration scenario that exercises district rule set in a running game flow.
+- [ ] **IS-14-165 P2** — Add logging, counters, and debug inspection for district rule set.
+- [ ] **IS-14-166 P2** — Add an in-world or overlay debug visualization for district rule set.
+- [ ] **IS-14-167 P2** — Define CPU, memory, latency, and content budgets for district rule set.
+- [ ] **IS-14-168 P2** — Profile district rule set under a representative worst-case scene.
+- [ ] **IS-14-169 P2** — Document usage examples, invariants, and common failure modes for district rule set.
+- [ ] **IS-14-170 P2** — Define the scope, responsibilities, and explicit non-goals of fake interior system.
+- [ ] **IS-14-171 P2** — Define the public C++ API and ownership rules for fake interior system.
+- [ ] **IS-14-172 P2** — Define versioned configuration or asset data for fake interior system.
+- [ ] **IS-14-173 P2** — Implement the smallest deterministic reference path for fake interior system.
+- [ ] **IS-14-174 P2** — Add input validation and actionable failure reporting to fake interior system.
+- [ ] **IS-14-175 P2** — Add focused unit tests for fake interior system.
+- [ ] **IS-14-176 P2** — Add an integration scenario that exercises fake interior system in a running game flow.
+- [ ] **IS-14-177 P2** — Add logging, counters, and debug inspection for fake interior system.
+- [ ] **IS-14-178 P2** — Add an in-world or overlay debug visualization for fake interior system.
+- [ ] **IS-14-179 P2** — Define CPU, memory, latency, and content budgets for fake interior system.
+- [ ] **IS-14-180 P2** — Profile fake interior system under a representative worst-case scene.
+- [ ] **IS-14-181 P2** — Document usage examples, invariants, and common failure modes for fake interior system.
+

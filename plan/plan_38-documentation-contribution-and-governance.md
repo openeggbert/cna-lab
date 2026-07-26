@@ -1,0 +1,85 @@
+# 38. Documentation, contribution, and governance
+
+[Back to master plan](../plan.md)
+
+
+Keep architectural decisions, workflows, and project status understandable over a multi-year effort.
+
+- [ ] **IS-38-001 P0** — Keep README build instructions synchronized with real dependency requirements.
+- [ ] **IS-38-002 P0** — Keep analysis.md and plan.md updated after major architectural decisions.
+- [ ] **IS-38-003 P0** — Record exact validation status without claiming unrun builds or tests.
+- [ ] **IS-38-004 P1** — Create ADRs for entity model, physics library, asset package, scripting, streaming, and backend tier decisions.
+- [ ] **IS-38-005 P1** — Create subsystem READMEs with ownership, threading, data, tests, and debugging.
+- [ ] **IS-38-006 P1** — Create coding standards for C++23 usage, includes, ownership, and errors.
+- [ ] **IS-38-007 P1** — Create asset-authoring standards for MC3, Blender, textures, characters, vehicles, and audio.
+- [ ] **IS-38-008 P1** — Create contributor setup and first-task guide.
+- [ ] **IS-38-009 P1** — Create issue templates for bugs, features, assets, and CNA upstream defects.
+- [ ] **IS-38-010 P1** — Create pull-request checklist for tests, docs, provenance, and performance.
+- [ ] **IS-38-011 P1** — Create release-note and changelog process.
+- [ ] **IS-38-012 P1** — Create a glossary of CNA, MC3, CNJ, MCB, sector, entity, mission, and content terms.
+- [ ] **IS-38-013 P1** — Create architecture diagrams generated from source where practical.
+- [ ] **IS-38-014 P1** — Create current milestone/status dashboard.
+- [ ] **IS-38-015 P1** — Create a decision log for scope cuts.
+- [ ] **IS-38-016 P1** — Create onboarding sample tasks that do not require the full city.
+- [ ] **IS-38-017 P1** — Create documentation lint and broken-link checks.
+- [ ] **IS-38-018 P2** — Create API documentation after interfaces stabilize.
+- [ ] **IS-38-019 P2** — Create content creator documentation with screenshots and examples.
+- [ ] **IS-38-020 P2** — Create translation/localization contributor guidance.
+- [ ] **IS-38-021 P2** — Create community code of conduct if external collaboration begins.
+- [ ] **IS-38-022 P2** — Create archival policy for obsolete plans and formats.
+- [ ] **IS-38-023 P2** — Define the scope, responsibilities, and explicit non-goals of architecture decision record process.
+- [ ] **IS-38-024 P2** — Define the public C++ API and ownership rules for architecture decision record process.
+- [ ] **IS-38-025 P2** — Define versioned configuration or asset data for architecture decision record process.
+- [ ] **IS-38-026 P2** — Implement the smallest deterministic reference path for architecture decision record process.
+- [ ] **IS-38-027 P2** — Add input validation and actionable failure reporting to architecture decision record process.
+- [ ] **IS-38-028 P2** — Add focused unit tests for architecture decision record process.
+- [ ] **IS-38-029 P2** — Add an integration scenario that exercises architecture decision record process in a running game flow.
+- [ ] **IS-38-030 P2** — Add logging, counters, and debug inspection for architecture decision record process.
+- [ ] **IS-38-031 P2** — Define CPU, memory, latency, and content budgets for architecture decision record process.
+- [ ] **IS-38-032 P2** — Profile architecture decision record process under a representative worst-case scene.
+- [ ] **IS-38-033 P2** — Document usage examples, invariants, and common failure modes for architecture decision record process.
+- [ ] **IS-38-034 P2** — Define the scope, responsibilities, and explicit non-goals of subsystem documentation.
+- [ ] **IS-38-035 P2** — Define the public C++ API and ownership rules for subsystem documentation.
+- [ ] **IS-38-036 P2** — Define versioned configuration or asset data for subsystem documentation.
+- [ ] **IS-38-037 P2** — Implement the smallest deterministic reference path for subsystem documentation.
+- [ ] **IS-38-038 P2** — Add input validation and actionable failure reporting to subsystem documentation.
+- [ ] **IS-38-039 P2** — Add focused unit tests for subsystem documentation.
+- [ ] **IS-38-040 P2** — Add an integration scenario that exercises subsystem documentation in a running game flow.
+- [ ] **IS-38-041 P2** — Add logging, counters, and debug inspection for subsystem documentation.
+- [ ] **IS-38-042 P2** — Define CPU, memory, latency, and content budgets for subsystem documentation.
+- [ ] **IS-38-043 P2** — Profile subsystem documentation under a representative worst-case scene.
+- [ ] **IS-38-044 P2** — Document usage examples, invariants, and common failure modes for subsystem documentation.
+- [ ] **IS-38-045 P2** — Define the scope, responsibilities, and explicit non-goals of asset authoring guide.
+- [ ] **IS-38-046 P2** — Define the public C++ API and ownership rules for asset authoring guide.
+- [ ] **IS-38-047 P2** — Define versioned configuration or asset data for asset authoring guide.
+- [ ] **IS-38-048 P2** — Implement the smallest deterministic reference path for asset authoring guide.
+- [ ] **IS-38-049 P2** — Add input validation and actionable failure reporting to asset authoring guide.
+- [ ] **IS-38-050 P2** — Add focused unit tests for asset authoring guide.
+- [ ] **IS-38-051 P2** — Add an integration scenario that exercises asset authoring guide in a running game flow.
+- [ ] **IS-38-052 P2** — Add logging, counters, and debug inspection for asset authoring guide.
+- [ ] **IS-38-053 P2** — Define CPU, memory, latency, and content budgets for asset authoring guide.
+- [ ] **IS-38-054 P2** — Profile asset authoring guide under a representative worst-case scene.
+- [ ] **IS-38-055 P2** — Document usage examples, invariants, and common failure modes for asset authoring guide.
+- [ ] **IS-38-056 P2** — Define the scope, responsibilities, and explicit non-goals of contributor onboarding.
+- [ ] **IS-38-057 P2** — Define the public C++ API and ownership rules for contributor onboarding.
+- [ ] **IS-38-058 P2** — Define versioned configuration or asset data for contributor onboarding.
+- [ ] **IS-38-059 P2** — Implement the smallest deterministic reference path for contributor onboarding.
+- [ ] **IS-38-060 P2** — Add input validation and actionable failure reporting to contributor onboarding.
+- [ ] **IS-38-061 P2** — Add focused unit tests for contributor onboarding.
+- [ ] **IS-38-062 P2** — Add an integration scenario that exercises contributor onboarding in a running game flow.
+- [ ] **IS-38-063 P2** — Add logging, counters, and debug inspection for contributor onboarding.
+- [ ] **IS-38-064 P2** — Define CPU, memory, latency, and content budgets for contributor onboarding.
+- [ ] **IS-38-065 P2** — Profile contributor onboarding under a representative worst-case scene.
+- [ ] **IS-38-066 P2** — Document usage examples, invariants, and common failure modes for contributor onboarding.
+- [ ] **IS-38-067 P2** — Define the scope, responsibilities, and explicit non-goals of release documentation.
+- [ ] **IS-38-068 P2** — Define the public C++ API and ownership rules for release documentation.
+- [ ] **IS-38-069 P2** — Define versioned configuration or asset data for release documentation.
+- [ ] **IS-38-070 P2** — Implement the smallest deterministic reference path for release documentation.
+- [ ] **IS-38-071 P2** — Add input validation and actionable failure reporting to release documentation.
+- [ ] **IS-38-072 P2** — Add focused unit tests for release documentation.
+- [ ] **IS-38-073 P2** — Add an integration scenario that exercises release documentation in a running game flow.
+- [ ] **IS-38-074 P2** — Add logging, counters, and debug inspection for release documentation.
+- [ ] **IS-38-075 P2** — Define CPU, memory, latency, and content budgets for release documentation.
+- [ ] **IS-38-076 P2** — Profile release documentation under a representative worst-case scene.
+- [ ] **IS-38-077 P2** — Document usage examples, invariants, and common failure modes for release documentation.
+

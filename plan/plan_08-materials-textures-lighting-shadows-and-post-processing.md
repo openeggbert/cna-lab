@@ -1,0 +1,228 @@
+# 08. Materials, textures, lighting, shadows, and post-processing
+
+[Back to master plan](../plan.md)
+
+
+Build the visual foundation required for a convincing historical city.
+
+- [ ] **IS-08-001 P0** — Define a small production PBR material model compatible with CNA paths.
+- [ ] **IS-08-002 P0** — Define texture color-space rules.
+- [ ] **IS-08-003 P0** — Define texture naming, channel packing, and compression rules.
+- [ ] **IS-08-004 P0** — Implement one directional sun and one stable shadow path.
+- [ ] **IS-08-005 P0** — Implement fog and color grading sufficient for the vertical slice.
+- [ ] **IS-08-006 P1** — Create material instances and per-object overrides.
+- [ ] **IS-08-007 P1** — Create default materials for stone, brick, plaster, metal, glass, wood, road, cloth, skin, and vegetation.
+- [ ] **IS-08-008 P1** — Create normal/tangent validation in the asset pipeline.
+- [ ] **IS-08-009 P1** — Create texture mip and maximum-dimension validation.
+- [ ] **IS-08-010 P1** — Create streaming or residency policy for large textures.
+- [ ] **IS-08-011 P1** — Create alpha-mask and alpha-blend material policies.
+- [ ] **IS-08-012 P1** — Create double-sided material policy.
+- [ ] **IS-08-013 P1** — Create cascaded shadow-map design and prototype.
+- [ ] **IS-08-014 P1** — Create shadow caster LOD and distance rules.
+- [ ] **IS-08-015 P1** — Create ambient/environment lighting policy.
+- [ ] **IS-08-016 P1** — Create a bounded local-light system for interiors and streets.
+- [ ] **IS-08-017 P1** — Create bloom, tone mapping, exposure, and vignette settings.
+- [ ] **IS-08-018 P1** — Create SSAO only if it is stable on production backends.
+- [ ] **IS-08-019 P1** — Create historical color-depth/CRT effects as optional stylistic post-processes, not defaults.
+- [ ] **IS-08-020 P2** — Create weather-dependent wetness and roughness overrides.
+- [ ] **IS-08-021 P2** — Create light probes or baked ambient support for interiors.
+- [ ] **IS-08-022 P2** — Create screen-space reflection experiments only after core lighting is stable.
+- [ ] **IS-08-023 P2** — Create volumetric fog experiments for selected scenes.
+- [ ] **IS-08-024 P2** — Create automatic exposure only if cinematic control remains predictable.
+- [ ] **IS-08-025 P3** — Evaluate temporal anti-aliasing after motion-vector infrastructure exists.
+- [ ] **IS-08-026 P1** — Define the scope, responsibilities, and explicit non-goals of PBR material model.
+- [ ] **IS-08-027 P1** — Define the public C++ API and ownership rules for PBR material model.
+- [ ] **IS-08-028 P1** — Define versioned configuration or asset data for PBR material model.
+- [ ] **IS-08-029 P1** — Implement the smallest deterministic reference path for PBR material model.
+- [ ] **IS-08-030 P1** — Add input validation and actionable failure reporting to PBR material model.
+- [ ] **IS-08-031 P1** — Add focused unit tests for PBR material model.
+- [ ] **IS-08-032 P1** — Add an integration scenario that exercises PBR material model in a running game flow.
+- [ ] **IS-08-033 P2** — Add logging, counters, and debug inspection for PBR material model.
+- [ ] **IS-08-034 P2** — Add an in-world or overlay debug visualization for PBR material model.
+- [ ] **IS-08-035 P2** — Define CPU, memory, latency, and content budgets for PBR material model.
+- [ ] **IS-08-036 P2** — Profile PBR material model under a representative worst-case scene.
+- [ ] **IS-08-037 P2** — Document usage examples, invariants, and common failure modes for PBR material model.
+- [ ] **IS-08-038 P2** — Validate PBR material model on each production graphics backend and record differences.
+- [ ] **IS-08-039 P1** — Define the scope, responsibilities, and explicit non-goals of texture manager.
+- [ ] **IS-08-040 P1** — Define the public C++ API and ownership rules for texture manager.
+- [ ] **IS-08-041 P1** — Define versioned configuration or asset data for texture manager.
+- [ ] **IS-08-042 P1** — Implement the smallest deterministic reference path for texture manager.
+- [ ] **IS-08-043 P1** — Add input validation and actionable failure reporting to texture manager.
+- [ ] **IS-08-044 P1** — Add focused unit tests for texture manager.
+- [ ] **IS-08-045 P1** — Add an integration scenario that exercises texture manager in a running game flow.
+- [ ] **IS-08-046 P2** — Add logging, counters, and debug inspection for texture manager.
+- [ ] **IS-08-047 P2** — Add an in-world or overlay debug visualization for texture manager.
+- [ ] **IS-08-048 P2** — Define CPU, memory, latency, and content budgets for texture manager.
+- [ ] **IS-08-049 P2** — Profile texture manager under a representative worst-case scene.
+- [ ] **IS-08-050 P2** — Document usage examples, invariants, and common failure modes for texture manager.
+- [ ] **IS-08-051 P2** — Validate texture manager on each production graphics backend and record differences.
+- [ ] **IS-08-052 P1** — Define the scope, responsibilities, and explicit non-goals of directional sunlight.
+- [ ] **IS-08-053 P1** — Define the public C++ API and ownership rules for directional sunlight.
+- [ ] **IS-08-054 P1** — Define versioned configuration or asset data for directional sunlight.
+- [ ] **IS-08-055 P1** — Implement the smallest deterministic reference path for directional sunlight.
+- [ ] **IS-08-056 P1** — Add input validation and actionable failure reporting to directional sunlight.
+- [ ] **IS-08-057 P1** — Add focused unit tests for directional sunlight.
+- [ ] **IS-08-058 P1** — Add an integration scenario that exercises directional sunlight in a running game flow.
+- [ ] **IS-08-059 P2** — Add logging, counters, and debug inspection for directional sunlight.
+- [ ] **IS-08-060 P2** — Add an in-world or overlay debug visualization for directional sunlight.
+- [ ] **IS-08-061 P2** — Define CPU, memory, latency, and content budgets for directional sunlight.
+- [ ] **IS-08-062 P2** — Profile directional sunlight under a representative worst-case scene.
+- [ ] **IS-08-063 P2** — Document usage examples, invariants, and common failure modes for directional sunlight.
+- [ ] **IS-08-064 P2** — Validate directional sunlight on each production graphics backend and record differences.
+- [ ] **IS-08-065 P1** — Define the scope, responsibilities, and explicit non-goals of shadow atlas.
+- [ ] **IS-08-066 P1** — Define the public C++ API and ownership rules for shadow atlas.
+- [ ] **IS-08-067 P1** — Define versioned configuration or asset data for shadow atlas.
+- [ ] **IS-08-068 P1** — Implement the smallest deterministic reference path for shadow atlas.
+- [ ] **IS-08-069 P1** — Add input validation and actionable failure reporting to shadow atlas.
+- [ ] **IS-08-070 P1** — Add focused unit tests for shadow atlas.
+- [ ] **IS-08-071 P1** — Add an integration scenario that exercises shadow atlas in a running game flow.
+- [ ] **IS-08-072 P2** — Add logging, counters, and debug inspection for shadow atlas.
+- [ ] **IS-08-073 P2** — Add an in-world or overlay debug visualization for shadow atlas.
+- [ ] **IS-08-074 P2** — Define CPU, memory, latency, and content budgets for shadow atlas.
+- [ ] **IS-08-075 P2** — Profile shadow atlas under a representative worst-case scene.
+- [ ] **IS-08-076 P2** — Document usage examples, invariants, and common failure modes for shadow atlas.
+- [ ] **IS-08-077 P2** — Validate shadow atlas on each production graphics backend and record differences.
+- [ ] **IS-08-078 P1** — Define the scope, responsibilities, and explicit non-goals of local light manager.
+- [ ] **IS-08-079 P1** — Define the public C++ API and ownership rules for local light manager.
+- [ ] **IS-08-080 P1** — Define versioned configuration or asset data for local light manager.
+- [ ] **IS-08-081 P1** — Implement the smallest deterministic reference path for local light manager.
+- [ ] **IS-08-082 P1** — Add input validation and actionable failure reporting to local light manager.
+- [ ] **IS-08-083 P1** — Add focused unit tests for local light manager.
+- [ ] **IS-08-084 P1** — Add an integration scenario that exercises local light manager in a running game flow.
+- [ ] **IS-08-085 P2** — Add logging, counters, and debug inspection for local light manager.
+- [ ] **IS-08-086 P2** — Add an in-world or overlay debug visualization for local light manager.
+- [ ] **IS-08-087 P2** — Define CPU, memory, latency, and content budgets for local light manager.
+- [ ] **IS-08-088 P2** — Profile local light manager under a representative worst-case scene.
+- [ ] **IS-08-089 P2** — Document usage examples, invariants, and common failure modes for local light manager.
+- [ ] **IS-08-090 P2** — Validate local light manager on each production graphics backend and record differences.
+- [ ] **IS-08-091 P1** — Define the scope, responsibilities, and explicit non-goals of fog system.
+- [ ] **IS-08-092 P1** — Define the public C++ API and ownership rules for fog system.
+- [ ] **IS-08-093 P1** — Define versioned configuration or asset data for fog system.
+- [ ] **IS-08-094 P1** — Implement the smallest deterministic reference path for fog system.
+- [ ] **IS-08-095 P1** — Add input validation and actionable failure reporting to fog system.
+- [ ] **IS-08-096 P1** — Add focused unit tests for fog system.
+- [ ] **IS-08-097 P1** — Add an integration scenario that exercises fog system in a running game flow.
+- [ ] **IS-08-098 P2** — Add logging, counters, and debug inspection for fog system.
+- [ ] **IS-08-099 P2** — Add an in-world or overlay debug visualization for fog system.
+- [ ] **IS-08-100 P2** — Define CPU, memory, latency, and content budgets for fog system.
+- [ ] **IS-08-101 P2** — Profile fog system under a representative worst-case scene.
+- [ ] **IS-08-102 P2** — Document usage examples, invariants, and common failure modes for fog system.
+- [ ] **IS-08-103 P2** — Validate fog system on each production graphics backend and record differences.
+- [ ] **IS-08-104 P1** — Define the scope, responsibilities, and explicit non-goals of color grading.
+- [ ] **IS-08-105 P1** — Define the public C++ API and ownership rules for color grading.
+- [ ] **IS-08-106 P1** — Define versioned configuration or asset data for color grading.
+- [ ] **IS-08-107 P1** — Implement the smallest deterministic reference path for color grading.
+- [ ] **IS-08-108 P1** — Add input validation and actionable failure reporting to color grading.
+- [ ] **IS-08-109 P1** — Add focused unit tests for color grading.
+- [ ] **IS-08-110 P1** — Add an integration scenario that exercises color grading in a running game flow.
+- [ ] **IS-08-111 P2** — Add logging, counters, and debug inspection for color grading.
+- [ ] **IS-08-112 P2** — Add an in-world or overlay debug visualization for color grading.
+- [ ] **IS-08-113 P2** — Define CPU, memory, latency, and content budgets for color grading.
+- [ ] **IS-08-114 P2** — Profile color grading under a representative worst-case scene.
+- [ ] **IS-08-115 P2** — Document usage examples, invariants, and common failure modes for color grading.
+- [ ] **IS-08-116 P2** — Validate color grading on each production graphics backend and record differences.
+- [ ] **IS-08-117 P1** — Define the scope, responsibilities, and explicit non-goals of bloom.
+- [ ] **IS-08-118 P1** — Define the public C++ API and ownership rules for bloom.
+- [ ] **IS-08-119 P1** — Define versioned configuration or asset data for bloom.
+- [ ] **IS-08-120 P1** — Implement the smallest deterministic reference path for bloom.
+- [ ] **IS-08-121 P1** — Add input validation and actionable failure reporting to bloom.
+- [ ] **IS-08-122 P1** — Add focused unit tests for bloom.
+- [ ] **IS-08-123 P1** — Add an integration scenario that exercises bloom in a running game flow.
+- [ ] **IS-08-124 P2** — Add logging, counters, and debug inspection for bloom.
+- [ ] **IS-08-125 P2** — Add an in-world or overlay debug visualization for bloom.
+- [ ] **IS-08-126 P2** — Define CPU, memory, latency, and content budgets for bloom.
+- [ ] **IS-08-127 P2** — Profile bloom under a representative worst-case scene.
+- [ ] **IS-08-128 P2** — Document usage examples, invariants, and common failure modes for bloom.
+- [ ] **IS-08-129 P2** — Validate bloom on each production graphics backend and record differences.
+- [ ] **IS-08-130 P1** — Define the scope, responsibilities, and explicit non-goals of ambient occlusion.
+- [ ] **IS-08-131 P1** — Define the public C++ API and ownership rules for ambient occlusion.
+- [ ] **IS-08-132 P1** — Define versioned configuration or asset data for ambient occlusion.
+- [ ] **IS-08-133 P1** — Implement the smallest deterministic reference path for ambient occlusion.
+- [ ] **IS-08-134 P1** — Add input validation and actionable failure reporting to ambient occlusion.
+- [ ] **IS-08-135 P1** — Add focused unit tests for ambient occlusion.
+- [ ] **IS-08-136 P1** — Add an integration scenario that exercises ambient occlusion in a running game flow.
+- [ ] **IS-08-137 P2** — Add logging, counters, and debug inspection for ambient occlusion.
+- [ ] **IS-08-138 P2** — Add an in-world or overlay debug visualization for ambient occlusion.
+- [ ] **IS-08-139 P2** — Define CPU, memory, latency, and content budgets for ambient occlusion.
+- [ ] **IS-08-140 P2** — Profile ambient occlusion under a representative worst-case scene.
+- [ ] **IS-08-141 P2** — Document usage examples, invariants, and common failure modes for ambient occlusion.
+- [ ] **IS-08-142 P2** — Validate ambient occlusion on each production graphics backend and record differences.
+- [ ] **IS-08-143 P1** — Define the scope, responsibilities, and explicit non-goals of environment lighting.
+- [ ] **IS-08-144 P1** — Define the public C++ API and ownership rules for environment lighting.
+- [ ] **IS-08-145 P1** — Define versioned configuration or asset data for environment lighting.
+- [ ] **IS-08-146 P1** — Implement the smallest deterministic reference path for environment lighting.
+- [ ] **IS-08-147 P1** — Add input validation and actionable failure reporting to environment lighting.
+- [ ] **IS-08-148 P1** — Add focused unit tests for environment lighting.
+- [ ] **IS-08-149 P1** — Add an integration scenario that exercises environment lighting in a running game flow.
+- [ ] **IS-08-150 P2** — Add logging, counters, and debug inspection for environment lighting.
+- [ ] **IS-08-151 P2** — Add an in-world or overlay debug visualization for environment lighting.
+- [ ] **IS-08-152 P2** — Define CPU, memory, latency, and content budgets for environment lighting.
+- [ ] **IS-08-153 P2** — Profile environment lighting under a representative worst-case scene.
+- [ ] **IS-08-154 P2** — Document usage examples, invariants, and common failure modes for environment lighting.
+- [ ] **IS-08-155 P2** — Validate environment lighting on each production graphics backend and record differences.
+- [ ] **IS-08-156 P2** — Define the scope, responsibilities, and explicit non-goals of glass material path.
+- [ ] **IS-08-157 P2** — Define the public C++ API and ownership rules for glass material path.
+- [ ] **IS-08-158 P2** — Define versioned configuration or asset data for glass material path.
+- [ ] **IS-08-159 P2** — Implement the smallest deterministic reference path for glass material path.
+- [ ] **IS-08-160 P2** — Add input validation and actionable failure reporting to glass material path.
+- [ ] **IS-08-161 P2** — Add focused unit tests for glass material path.
+- [ ] **IS-08-162 P2** — Add an integration scenario that exercises glass material path in a running game flow.
+- [ ] **IS-08-163 P2** — Add logging, counters, and debug inspection for glass material path.
+- [ ] **IS-08-164 P2** — Add an in-world or overlay debug visualization for glass material path.
+- [ ] **IS-08-165 P2** — Define CPU, memory, latency, and content budgets for glass material path.
+- [ ] **IS-08-166 P2** — Profile glass material path under a representative worst-case scene.
+- [ ] **IS-08-167 P2** — Document usage examples, invariants, and common failure modes for glass material path.
+- [ ] **IS-08-168 P2** — Validate glass material path on each production graphics backend and record differences.
+- [ ] **IS-08-169 P2** — Define the scope, responsibilities, and explicit non-goals of skin material path.
+- [ ] **IS-08-170 P2** — Define the public C++ API and ownership rules for skin material path.
+- [ ] **IS-08-171 P2** — Define versioned configuration or asset data for skin material path.
+- [ ] **IS-08-172 P2** — Implement the smallest deterministic reference path for skin material path.
+- [ ] **IS-08-173 P2** — Add input validation and actionable failure reporting to skin material path.
+- [ ] **IS-08-174 P2** — Add focused unit tests for skin material path.
+- [ ] **IS-08-175 P2** — Add an integration scenario that exercises skin material path in a running game flow.
+- [ ] **IS-08-176 P2** — Add logging, counters, and debug inspection for skin material path.
+- [ ] **IS-08-177 P2** — Add an in-world or overlay debug visualization for skin material path.
+- [ ] **IS-08-178 P2** — Define CPU, memory, latency, and content budgets for skin material path.
+- [ ] **IS-08-179 P2** — Profile skin material path under a representative worst-case scene.
+- [ ] **IS-08-180 P2** — Document usage examples, invariants, and common failure modes for skin material path.
+- [ ] **IS-08-181 P2** — Validate skin material path on each production graphics backend and record differences.
+- [ ] **IS-08-182 P2** — Define the scope, responsibilities, and explicit non-goals of vegetation material path.
+- [ ] **IS-08-183 P2** — Define the public C++ API and ownership rules for vegetation material path.
+- [ ] **IS-08-184 P2** — Define versioned configuration or asset data for vegetation material path.
+- [ ] **IS-08-185 P2** — Implement the smallest deterministic reference path for vegetation material path.
+- [ ] **IS-08-186 P2** — Add input validation and actionable failure reporting to vegetation material path.
+- [ ] **IS-08-187 P2** — Add focused unit tests for vegetation material path.
+- [ ] **IS-08-188 P2** — Add an integration scenario that exercises vegetation material path in a running game flow.
+- [ ] **IS-08-189 P2** — Add logging, counters, and debug inspection for vegetation material path.
+- [ ] **IS-08-190 P2** — Add an in-world or overlay debug visualization for vegetation material path.
+- [ ] **IS-08-191 P2** — Define CPU, memory, latency, and content budgets for vegetation material path.
+- [ ] **IS-08-192 P2** — Profile vegetation material path under a representative worst-case scene.
+- [ ] **IS-08-193 P2** — Document usage examples, invariants, and common failure modes for vegetation material path.
+- [ ] **IS-08-194 P2** — Validate vegetation material path on each production graphics backend and record differences.
+- [ ] **IS-08-195 P2** — Define the scope, responsibilities, and explicit non-goals of road material path.
+- [ ] **IS-08-196 P2** — Define the public C++ API and ownership rules for road material path.
+- [ ] **IS-08-197 P2** — Define versioned configuration or asset data for road material path.
+- [ ] **IS-08-198 P2** — Implement the smallest deterministic reference path for road material path.
+- [ ] **IS-08-199 P2** — Add input validation and actionable failure reporting to road material path.
+- [ ] **IS-08-200 P2** — Add focused unit tests for road material path.
+- [ ] **IS-08-201 P2** — Add an integration scenario that exercises road material path in a running game flow.
+- [ ] **IS-08-202 P2** — Add logging, counters, and debug inspection for road material path.
+- [ ] **IS-08-203 P2** — Add an in-world or overlay debug visualization for road material path.
+- [ ] **IS-08-204 P2** — Define CPU, memory, latency, and content budgets for road material path.
+- [ ] **IS-08-205 P2** — Profile road material path under a representative worst-case scene.
+- [ ] **IS-08-206 P2** — Document usage examples, invariants, and common failure modes for road material path.
+- [ ] **IS-08-207 P2** — Validate road material path on each production graphics backend and record differences.
+- [ ] **IS-08-208 P2** — Define the scope, responsibilities, and explicit non-goals of interior light baking bridge.
+- [ ] **IS-08-209 P2** — Define the public C++ API and ownership rules for interior light baking bridge.
+- [ ] **IS-08-210 P2** — Define versioned configuration or asset data for interior light baking bridge.
+- [ ] **IS-08-211 P2** — Implement the smallest deterministic reference path for interior light baking bridge.
+- [ ] **IS-08-212 P2** — Add input validation and actionable failure reporting to interior light baking bridge.
+- [ ] **IS-08-213 P2** — Add focused unit tests for interior light baking bridge.
+- [ ] **IS-08-214 P2** — Add an integration scenario that exercises interior light baking bridge in a running game flow.
+- [ ] **IS-08-215 P2** — Add logging, counters, and debug inspection for interior light baking bridge.
+- [ ] **IS-08-216 P2** — Add an in-world or overlay debug visualization for interior light baking bridge.
+- [ ] **IS-08-217 P2** — Define CPU, memory, latency, and content budgets for interior light baking bridge.
+- [ ] **IS-08-218 P2** — Profile interior light baking bridge under a representative worst-case scene.
+- [ ] **IS-08-219 P2** — Document usage examples, invariants, and common failure modes for interior light baking bridge.
+- [ ] **IS-08-220 P2** — Validate interior light baking bridge on each production graphics backend and record differences.
+

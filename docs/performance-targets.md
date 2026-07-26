@@ -1,0 +1,236 @@
+# Realistic performance and hardware targets
+
+## Why this document exists
+
+An earlier informal estimate for this project was unnecessarily high because it
+implicitly assumed something close to a modern open-world production: PBR
+everywhere, many dynamic shadows, dozens of fully simulated NPCs and cars,
+large-scale streaming, and large textures. **That level of cost is not a
+property of CNA, nor a necessary consequence of this game.**
+
+CNA itself can have very low overhead. The real requirements are determined
+mainly by the scope and treatment of content, not by the framework.
+
+## A more realistic target for this game
+
+Assuming graphics roughly at the level of the original Mafia, or a lightly
+modernized take on it:
+
+### Minimum configuration
+
+- CPU: dual-core, around 2 GHz
+- RAM: **2-4 GB**
+- GPU: OpenGL 3.3, DirectX 9/11, or Vulkan
+- VRAM: **512 MB to 1 GB**
+- Disk: approximately **2-8 GB**
+- Resolution: 720p
+- Performance target: 30 FPS
+
+A game at this scope could run even on older integrated graphics, as long as
+effects are not overused.
+
+### Recommended configuration
+
+- CPU: quad-core
+- RAM: **4-8 GB**
+- GPU: an older discrete card or a modern integrated GPU
+- VRAM: **1-2 GB**
+- Disk: approximately **5-15 GB**
+- Resolution: 1080p
+- Performance target: 60 FPS
+
+For example, hardware around the level of:
+
+- a newer-generation Intel HD/UHD iGPU,
+- an AMD Vega iGPU,
+- a GeForce GT 1030,
+- a GTX 750,
+- a Radeon RX 550,
+
+should be sufficient for a reasonably built game at this scope.
+
+## What the game itself might actually consume
+
+A reasonable memory budget:
+
+| Area                                      | Approximate RAM |
+| ------------------------------------------ | ---------------: |
+| CNA, sharp-runtime, and game code           |      100-300 MB |
+| Active city sector                          |      200-600 MB |
+| CPU-side textures and streaming cache       |      200-700 MB |
+| NPCs, vehicles, animation, and physics      |      100-300 MB |
+| Audio                                       |       50-250 MB |
+| Other headroom                              |      200-500 MB |
+| **Total**                                   |   **0.8-2.5 GB** |
+
+So the game itself could plausibly fit within roughly **1-2 GB of RAM**, or up
+to 3 GB in larger scenes. A stated requirement of 8 or 16 GB would really be a
+recommendation for the whole modern operating system around it, not an actual
+need of the game itself.
+
+## VRAM
+
+With reasonable textures:
+
+- low: **256-512 MB**
+- medium: **512 MB-1 GB**
+- high: **1-2 GB**
+
+This assumes:
+
+- most textures sized 256x256 to 1024x1024;
+- 2K textures reserved for important objects only;
+- no unnecessary 4K textures;
+- texture compression;
+- mipmaps;
+- shared materials;
+- facade atlases;
+- loading only nearby sectors.
+
+## CPU
+
+The original Mafia could simulate a city on single-core processors with far
+less performance than today's machines. This project may carry more overhead
+because it sits on more general-purpose libraries, but that is still not a
+reason to require six modern cores.
+
+A dual-core CPU can reasonably handle:
+
+- the player;
+- one vehicle simulated in detail;
+- a handful of nearby cars;
+- dozens of simple pedestrians;
+- basic physics;
+- missions and dialogue;
+- audio;
+- city rendering.
+
+Four cores would comfortably allow separating:
+
+1. the main game/render thread;
+2. physics;
+3. asset streaming;
+4. AI, navigation, or other helper work.
+
+## What would actually raise the requirements
+
+High requirements would only appear once everything is pushed to its maximum
+at once:
+
+- hundreds of active NPCs;
+- dozens of cars with full physics;
+- dynamic shadows from every light source;
+- large view distance with no LOD;
+- 2K-4K textures on every object;
+- PBR with many lights;
+- SSAO, volumetric fog, SSR, and other heavy post-processing;
+- skeletal animation for hundreds of characters at once;
+- large-scale destruction;
+- loading the entire city at once.
+
+None of this is mandatory.
+
+## Keeping the game genuinely lightweight
+
+### Split the city into sectors
+
+For example, 128x128 or 256x256 meters. Only sectors around the player need
+to sit in RAM and VRAM at once.
+
+### Use LOD
+
+For every building, vehicle, and character:
+
+- a detailed model up close;
+- a simpler model at medium distance;
+- a very simple model or billboard far away.
+
+### Bound the active simulation
+
+For example:
+
+- 10-20 pedestrians with detailed AI;
+- other pedestrians with simple movement only;
+- 5-10 vehicles with real physics;
+- distant cars represented as spline-following objects;
+- NPCs outside the player's vicinity represented only as saved state.
+
+### Baked lighting
+
+Instead of fully dynamic lighting:
+
+- static lightmaps for buildings;
+- one dynamic sun;
+- a handful of important dynamic lights;
+- simple ambient lighting;
+- limited shadow casting.
+
+### Instancing
+
+Render many of the following with a single draw call each:
+
+- lamps;
+- windows;
+- trees;
+- signs;
+- benches;
+- fences.
+
+### Restrained textures
+
+A retro-realistic visual style can look good even with small textures.
+AI-generated assets will need automatic optimization, since AI can otherwise
+produce unnecessarily large meshes and textures without any limit.
+
+## Recommended project targets
+
+For **Iron Shadows**, set in **Iron City**, the recommended targets are:
+
+### Absolute minimum
+
+- 64-bit dual-core CPU
+- 2 GB of RAM free for the game
+- 512 MB VRAM or shared graphics memory
+- OpenGL 3.3 or an equivalent backend
+- 720p at 30 FPS
+
+### Recommended
+
+- Quad-core CPU
+- 4 GB of RAM free
+- 1-2 GB VRAM
+- An SSD is not required, but it improves streaming
+- 1080p at 60 FPS
+
+### Development machine
+
+Development itself is more demanding than running the game, since it runs
+several of the following at the same time:
+
+- CLion;
+- the compiler;
+- the debugger;
+- Mesh Craft;
+- model generation;
+- converters;
+- possibly Blender;
+- the CNA game itself.
+
+16-32 GB of RAM makes sense for a development machine, but that is not a
+requirement for players.
+
+## Conclusion
+
+**CNA by itself does not cause high requirements.** On the contrary, it
+should allow for a very lean native game without the overhead of a large,
+general-purpose commercial engine. A previously assumed 8-16 GB of RAM and a
+GTX 1060 would correspond to a significantly modernized variant with a large
+city and advanced graphics.
+
+For a game visually positioned between **Mafia 1, Mafia: The City of Lost
+Heaven, and a lightly modernized indie 3D look**, a more realistic target is:
+
+> **2-4 GB RAM, 512 MB to 1 GB VRAM, and an ordinary dual- to quad-core CPU.**
+
+With disciplined optimization, the game could run on quite old hardware while
+reaching hundreds of FPS on modern machines.

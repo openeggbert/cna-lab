@@ -1,0 +1,82 @@
+# 02. Workspace, dependencies, and CMake
+
+[Back to master plan](../plan.md)
+
+
+Make recursive dependency checkout, configuration, build, test, install, and packaging reproducible.
+
+- [x] **IS-02-001 P0** — Add a dependency preflight script that detects missing CNA sibling repositories and empty submodules.
+- [ ] **IS-02-002 P0** — Make the preflight script print exact recursive checkout commands.
+- [ ] **IS-02-003 P0** — Document minimum CMake, C++ compiler, Ninja, SDL, Vulkan, and EasyGL requirements.
+- [ ] **IS-02-004 P0** — Pin tested CNA, sharp-runtime, Mesh Craft, and EasyGL revisions in a dependency manifest.
+- [ ] **IS-02-005 P0** — Decide between git submodules, a superproject, or documented sibling checkouts.
+- [ ] **IS-02-006 P0** — Ensure no build script creates build trees under /tmp, /var/tmp, or /dev/shm.
+- [ ] **IS-02-007 P0** — Keep ccache enabled and expose a diagnostic when it is unavailable.
+- [ ] **IS-02-008 P0** — Ensure all helper scripts use at most four build jobs by default.
+- [ ] **IS-02-009 P1** — Add a `dev-headless` configure/build/test preset.
+- [ ] **IS-02-010 P1** — Add an ASan/UBSan preset for supported Linux backends.
+- [ ] **IS-02-011 P1** — Add a TSan preset for non-graphics core tests.
+- [ ] **IS-02-012 P1** — Add a release-with-debug-info preset.
+- [ ] **IS-02-013 P1** — Add a warnings-as-errors CI preset without forcing it on local developers.
+- [ ] **IS-02-014 P1** — Export compile_commands.json consistently for CLion and tooling.
+- [ ] **IS-02-015 P1** — Add install-tree smoke tests.
+- [ ] **IS-02-016 P1** — Add CMake package metadata for a future reusable Iron Shadows engine target.
+- [ ] **IS-02-017 P1** — Verify GNU and Clang builds.
+- [ ] **IS-02-018 P1** — Verify MSVC and MinGW builds when Windows support begins.
+- [ ] **IS-02-019 P1** — Record every persistent build directory used in validation reports.
+- [ ] **IS-02-020 P1** — Add a script that prints selected CNA backend and dependency paths.
+- [ ] **IS-02-021 P1** — Detect incompatible cached backend selections and explain how to reconfigure without deleting the tree.
+- [ ] **IS-02-022 P2** — Add unity-build experiments only as optional presets.
+- [ ] **IS-02-023 P2** — Add link-time optimization only after debugability and linker compatibility are verified.
+- [ ] **IS-02-024 P2** — Add a dependency license collection step to packaging.
+- [ ] **IS-02-025 P2** — Add reproducible source archive generation.
+- [ ] **IS-02-026 P2** — Add CMake graph visualization documentation.
+- [ ] **IS-02-027 P2** — Add a build option for excluding the prototype renderer after production content loads.
+- [ ] **IS-02-028 P2** — Add a build option for tools-only executables.
+- [ ] **IS-02-029 P2** — Add a build option for dedicated asset validation without the game executable.
+- [ ] **IS-02-030 P3** — Evaluate vcpkg/conan only if sibling-source builds become unmanageable.
+- [ ] **IS-02-031 P1** — Define the scope, responsibilities, and explicit non-goals of dependency preflight.
+- [ ] **IS-02-032 P1** — Define the public C++ API and ownership rules for dependency preflight.
+- [ ] **IS-02-033 P1** — Define versioned configuration or asset data for dependency preflight.
+- [ ] **IS-02-034 P1** — Implement the smallest deterministic reference path for dependency preflight.
+- [ ] **IS-02-035 P1** — Add input validation and actionable failure reporting to dependency preflight.
+- [ ] **IS-02-036 P1** — Add focused unit tests for dependency preflight.
+- [ ] **IS-02-037 P1** — Add an integration scenario that exercises dependency preflight in a running game flow.
+- [ ] **IS-02-038 P2** — Add logging, counters, and debug inspection for dependency preflight.
+- [ ] **IS-02-039 P2** — Define CPU, memory, latency, and content budgets for dependency preflight.
+- [ ] **IS-02-040 P2** — Profile dependency preflight under a representative worst-case scene.
+- [ ] **IS-02-041 P2** — Document usage examples, invariants, and common failure modes for dependency preflight.
+- [ ] **IS-02-042 P1** — Define the scope, responsibilities, and explicit non-goals of CMake preset validation.
+- [ ] **IS-02-043 P1** — Define the public C++ API and ownership rules for CMake preset validation.
+- [ ] **IS-02-044 P1** — Define versioned configuration or asset data for CMake preset validation.
+- [ ] **IS-02-045 P1** — Implement the smallest deterministic reference path for CMake preset validation.
+- [ ] **IS-02-046 P1** — Add input validation and actionable failure reporting to CMake preset validation.
+- [ ] **IS-02-047 P1** — Add focused unit tests for CMake preset validation.
+- [ ] **IS-02-048 P1** — Add an integration scenario that exercises CMake preset validation in a running game flow.
+- [ ] **IS-02-049 P2** — Add logging, counters, and debug inspection for CMake preset validation.
+- [ ] **IS-02-050 P2** — Define CPU, memory, latency, and content budgets for CMake preset validation.
+- [ ] **IS-02-051 P2** — Profile CMake preset validation under a representative worst-case scene.
+- [ ] **IS-02-052 P2** — Document usage examples, invariants, and common failure modes for CMake preset validation.
+- [ ] **IS-02-053 P1** — Define the scope, responsibilities, and explicit non-goals of install-tree packaging.
+- [ ] **IS-02-054 P1** — Define the public C++ API and ownership rules for install-tree packaging.
+- [ ] **IS-02-055 P1** — Define versioned configuration or asset data for install-tree packaging.
+- [ ] **IS-02-056 P1** — Implement the smallest deterministic reference path for install-tree packaging.
+- [ ] **IS-02-057 P1** — Add input validation and actionable failure reporting to install-tree packaging.
+- [ ] **IS-02-058 P1** — Add focused unit tests for install-tree packaging.
+- [ ] **IS-02-059 P1** — Add an integration scenario that exercises install-tree packaging in a running game flow.
+- [ ] **IS-02-060 P2** — Add logging, counters, and debug inspection for install-tree packaging.
+- [ ] **IS-02-061 P2** — Define CPU, memory, latency, and content budgets for install-tree packaging.
+- [ ] **IS-02-062 P2** — Profile install-tree packaging under a representative worst-case scene.
+- [ ] **IS-02-063 P2** — Document usage examples, invariants, and common failure modes for install-tree packaging.
+- [ ] **IS-02-064 P1** — Define the scope, responsibilities, and explicit non-goals of dependency revision manifest.
+- [ ] **IS-02-065 P1** — Define the public C++ API and ownership rules for dependency revision manifest.
+- [ ] **IS-02-066 P1** — Define versioned configuration or asset data for dependency revision manifest.
+- [ ] **IS-02-067 P1** — Implement the smallest deterministic reference path for dependency revision manifest.
+- [ ] **IS-02-068 P1** — Add input validation and actionable failure reporting to dependency revision manifest.
+- [ ] **IS-02-069 P1** — Add focused unit tests for dependency revision manifest.
+- [ ] **IS-02-070 P1** — Add an integration scenario that exercises dependency revision manifest in a running game flow.
+- [ ] **IS-02-071 P2** — Add logging, counters, and debug inspection for dependency revision manifest.
+- [ ] **IS-02-072 P2** — Define CPU, memory, latency, and content budgets for dependency revision manifest.
+- [ ] **IS-02-073 P2** — Profile dependency revision manifest under a representative worst-case scene.
+- [ ] **IS-02-074 P2** — Document usage examples, invariants, and common failure modes for dependency revision manifest.
+

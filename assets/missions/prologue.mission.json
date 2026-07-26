@@ -1,0 +1,12 @@
+{
+  "id": "prototype_delivery",
+  "title": "The Quiet Delivery",
+  "implementation": "Currently mirrored by PrototypeMission.cpp; this file defines the intended future data-driven form.",
+  "states": [
+    { "id": "introduction", "objective": "Listen to Mara" },
+    { "id": "reach_vehicle", "objective": "Walk to the sedan" },
+    { "id": "enter_vehicle", "objective": "Enter the sedan" },
+    { "id": "drive_to_warehouse", "objective": "Drive to the warehouse" },
+    { "id": "completed", "objective": "Delivery complete" }
+  ]
+}

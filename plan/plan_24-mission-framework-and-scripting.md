@@ -1,0 +1,202 @@
+# 24. Mission framework and scripting
+
+[Back to master plan](../plan.md)
+
+
+Represent missions as versioned, testable state graphs with constrained scripting.
+
+- [ ] **IS-24-001 P0** — Replace prototype hard-coded mission state with versioned data while preserving behavior.
+- [ ] **IS-24-002 P0** — Define mission, state, objective, condition, action, trigger, checkpoint, failure, and completion IDs.
+- [ ] **IS-24-003 P0** — Create a mission validation tool that finds missing references and unreachable states.
+- [ ] **IS-24-004 P0** — Create one complete data-driven vertical-slice mission.
+- [ ] **IS-24-005 P1** — Create mission variables with typed values.
+- [ ] **IS-24-006 P1** — Create entity, area, dialogue, cinematic, timer, inventory, vehicle, and wanted conditions.
+- [ ] **IS-24-007 P1** — Create spawn, despawn, enable, disable, move, play, set, wait, and branch actions.
+- [ ] **IS-24-008 P1** — Create objective text and progress events.
+- [ ] **IS-24-009 P1** — Create failure reasons and retry policies.
+- [ ] **IS-24-010 P1** — Create checkpoint boundaries and terminal state application.
+- [ ] **IS-24-011 P1** — Create mission-owned streamed entity references.
+- [ ] **IS-24-012 P1** — Create mission pause/resume across cinematics and menus.
+- [ ] **IS-24-013 P1** — Create mission debug overlay and forced state transitions.
+- [ ] **IS-24-014 P1** — Create mission event trace and replay.
+- [ ] **IS-24-015 P1** — Create deterministic mission scenario tests.
+- [ ] **IS-24-016 P1** — Create version migration for mission state.
+- [ ] **IS-24-017 P1** — Create safe behavior when content referenced by a save is missing.
+- [ ] **IS-24-018 P1** — Create mission dependency and prerequisite graph.
+- [ ] **IS-24-019 P1** — Create campaign chapter and unlock state.
+- [ ] **IS-24-020 P1** — Create constrained Lua API only for logic not expressible declaratively.
+- [ ] **IS-24-021 P1** — Create script time/memory/instruction limits.
+- [ ] **IS-24-022 P1** — Create script error isolation and mission-friendly diagnostics.
+- [ ] **IS-24-023 P2** — Create reusable mission templates for delivery, tailing, chase, escort, infiltration, conversation, and escape.
+- [ ] **IS-24-024 P2** — Create optional objective and rating support only if game design uses it.
+- [ ] **IS-24-025 P2** — Create non-linear mission choice support after the first linear campaign slice works.
+- [ ] **IS-24-026 P1** — Define the scope, responsibilities, and explicit non-goals of mission graph runtime.
+- [ ] **IS-24-027 P1** — Define the public C++ API and ownership rules for mission graph runtime.
+- [ ] **IS-24-028 P1** — Define versioned configuration or asset data for mission graph runtime.
+- [ ] **IS-24-029 P1** — Implement the smallest deterministic reference path for mission graph runtime.
+- [ ] **IS-24-030 P1** — Add input validation and actionable failure reporting to mission graph runtime.
+- [ ] **IS-24-031 P1** — Add focused unit tests for mission graph runtime.
+- [ ] **IS-24-032 P1** — Add an integration scenario that exercises mission graph runtime in a running game flow.
+- [ ] **IS-24-033 P2** — Add logging, counters, and debug inspection for mission graph runtime.
+- [ ] **IS-24-034 P2** — Add an in-world or overlay debug visualization for mission graph runtime.
+- [ ] **IS-24-035 P1** — Define save/checkpoint serialization and restoration for mission graph runtime.
+- [ ] **IS-24-036 P2** — Define CPU, memory, latency, and content budgets for mission graph runtime.
+- [ ] **IS-24-037 P2** — Profile mission graph runtime under a representative worst-case scene.
+- [ ] **IS-24-038 P2** — Document usage examples, invariants, and common failure modes for mission graph runtime.
+- [ ] **IS-24-039 P1** — Define the scope, responsibilities, and explicit non-goals of mission condition evaluator.
+- [ ] **IS-24-040 P1** — Define the public C++ API and ownership rules for mission condition evaluator.
+- [ ] **IS-24-041 P1** — Define versioned configuration or asset data for mission condition evaluator.
+- [ ] **IS-24-042 P1** — Implement the smallest deterministic reference path for mission condition evaluator.
+- [ ] **IS-24-043 P1** — Add input validation and actionable failure reporting to mission condition evaluator.
+- [ ] **IS-24-044 P1** — Add focused unit tests for mission condition evaluator.
+- [ ] **IS-24-045 P1** — Add an integration scenario that exercises mission condition evaluator in a running game flow.
+- [ ] **IS-24-046 P2** — Add logging, counters, and debug inspection for mission condition evaluator.
+- [ ] **IS-24-047 P2** — Add an in-world or overlay debug visualization for mission condition evaluator.
+- [ ] **IS-24-048 P1** — Define save/checkpoint serialization and restoration for mission condition evaluator.
+- [ ] **IS-24-049 P2** — Define CPU, memory, latency, and content budgets for mission condition evaluator.
+- [ ] **IS-24-050 P2** — Profile mission condition evaluator under a representative worst-case scene.
+- [ ] **IS-24-051 P2** — Document usage examples, invariants, and common failure modes for mission condition evaluator.
+- [ ] **IS-24-052 P1** — Define the scope, responsibilities, and explicit non-goals of mission action executor.
+- [ ] **IS-24-053 P1** — Define the public C++ API and ownership rules for mission action executor.
+- [ ] **IS-24-054 P1** — Define versioned configuration or asset data for mission action executor.
+- [ ] **IS-24-055 P1** — Implement the smallest deterministic reference path for mission action executor.
+- [ ] **IS-24-056 P1** — Add input validation and actionable failure reporting to mission action executor.
+- [ ] **IS-24-057 P1** — Add focused unit tests for mission action executor.
+- [ ] **IS-24-058 P1** — Add an integration scenario that exercises mission action executor in a running game flow.
+- [ ] **IS-24-059 P2** — Add logging, counters, and debug inspection for mission action executor.
+- [ ] **IS-24-060 P2** — Add an in-world or overlay debug visualization for mission action executor.
+- [ ] **IS-24-061 P1** — Define save/checkpoint serialization and restoration for mission action executor.
+- [ ] **IS-24-062 P2** — Define CPU, memory, latency, and content budgets for mission action executor.
+- [ ] **IS-24-063 P2** — Profile mission action executor under a representative worst-case scene.
+- [ ] **IS-24-064 P2** — Document usage examples, invariants, and common failure modes for mission action executor.
+- [ ] **IS-24-065 P1** — Define the scope, responsibilities, and explicit non-goals of objective tracker.
+- [ ] **IS-24-066 P1** — Define the public C++ API and ownership rules for objective tracker.
+- [ ] **IS-24-067 P1** — Define versioned configuration or asset data for objective tracker.
+- [ ] **IS-24-068 P1** — Implement the smallest deterministic reference path for objective tracker.
+- [ ] **IS-24-069 P1** — Add input validation and actionable failure reporting to objective tracker.
+- [ ] **IS-24-070 P1** — Add focused unit tests for objective tracker.
+- [ ] **IS-24-071 P1** — Add an integration scenario that exercises objective tracker in a running game flow.
+- [ ] **IS-24-072 P2** — Add logging, counters, and debug inspection for objective tracker.
+- [ ] **IS-24-073 P2** — Add an in-world or overlay debug visualization for objective tracker.
+- [ ] **IS-24-074 P1** — Define save/checkpoint serialization and restoration for objective tracker.
+- [ ] **IS-24-075 P2** — Define CPU, memory, latency, and content budgets for objective tracker.
+- [ ] **IS-24-076 P2** — Profile objective tracker under a representative worst-case scene.
+- [ ] **IS-24-077 P2** — Document usage examples, invariants, and common failure modes for objective tracker.
+- [ ] **IS-24-078 P1** — Define the scope, responsibilities, and explicit non-goals of checkpoint coordinator.
+- [ ] **IS-24-079 P1** — Define the public C++ API and ownership rules for checkpoint coordinator.
+- [ ] **IS-24-080 P1** — Define versioned configuration or asset data for checkpoint coordinator.
+- [ ] **IS-24-081 P1** — Implement the smallest deterministic reference path for checkpoint coordinator.
+- [ ] **IS-24-082 P1** — Add input validation and actionable failure reporting to checkpoint coordinator.
+- [ ] **IS-24-083 P1** — Add focused unit tests for checkpoint coordinator.
+- [ ] **IS-24-084 P1** — Add an integration scenario that exercises checkpoint coordinator in a running game flow.
+- [ ] **IS-24-085 P2** — Add logging, counters, and debug inspection for checkpoint coordinator.
+- [ ] **IS-24-086 P2** — Add an in-world or overlay debug visualization for checkpoint coordinator.
+- [ ] **IS-24-087 P1** — Define save/checkpoint serialization and restoration for checkpoint coordinator.
+- [ ] **IS-24-088 P2** — Define CPU, memory, latency, and content budgets for checkpoint coordinator.
+- [ ] **IS-24-089 P2** — Profile checkpoint coordinator under a representative worst-case scene.
+- [ ] **IS-24-090 P2** — Document usage examples, invariants, and common failure modes for checkpoint coordinator.
+- [ ] **IS-24-091 P1** — Define the scope, responsibilities, and explicit non-goals of mission validator.
+- [ ] **IS-24-092 P1** — Define the public C++ API and ownership rules for mission validator.
+- [ ] **IS-24-093 P1** — Define versioned configuration or asset data for mission validator.
+- [ ] **IS-24-094 P1** — Implement the smallest deterministic reference path for mission validator.
+- [ ] **IS-24-095 P1** — Add input validation and actionable failure reporting to mission validator.
+- [ ] **IS-24-096 P1** — Add focused unit tests for mission validator.
+- [ ] **IS-24-097 P1** — Add an integration scenario that exercises mission validator in a running game flow.
+- [ ] **IS-24-098 P2** — Add logging, counters, and debug inspection for mission validator.
+- [ ] **IS-24-099 P2** — Add an in-world or overlay debug visualization for mission validator.
+- [ ] **IS-24-100 P1** — Define save/checkpoint serialization and restoration for mission validator.
+- [ ] **IS-24-101 P2** — Define CPU, memory, latency, and content budgets for mission validator.
+- [ ] **IS-24-102 P2** — Profile mission validator under a representative worst-case scene.
+- [ ] **IS-24-103 P2** — Document usage examples, invariants, and common failure modes for mission validator.
+- [ ] **IS-24-104 P1** — Define the scope, responsibilities, and explicit non-goals of mission debug tracer.
+- [ ] **IS-24-105 P1** — Define the public C++ API and ownership rules for mission debug tracer.
+- [ ] **IS-24-106 P1** — Define versioned configuration or asset data for mission debug tracer.
+- [ ] **IS-24-107 P1** — Implement the smallest deterministic reference path for mission debug tracer.
+- [ ] **IS-24-108 P1** — Add input validation and actionable failure reporting to mission debug tracer.
+- [ ] **IS-24-109 P1** — Add focused unit tests for mission debug tracer.
+- [ ] **IS-24-110 P1** — Add an integration scenario that exercises mission debug tracer in a running game flow.
+- [ ] **IS-24-111 P2** — Add logging, counters, and debug inspection for mission debug tracer.
+- [ ] **IS-24-112 P2** — Add an in-world or overlay debug visualization for mission debug tracer.
+- [ ] **IS-24-113 P1** — Define save/checkpoint serialization and restoration for mission debug tracer.
+- [ ] **IS-24-114 P2** — Define CPU, memory, latency, and content budgets for mission debug tracer.
+- [ ] **IS-24-115 P2** — Profile mission debug tracer under a representative worst-case scene.
+- [ ] **IS-24-116 P2** — Document usage examples, invariants, and common failure modes for mission debug tracer.
+- [ ] **IS-24-117 P1** — Define the scope, responsibilities, and explicit non-goals of constrained Lua mission bridge.
+- [ ] **IS-24-118 P1** — Define the public C++ API and ownership rules for constrained Lua mission bridge.
+- [ ] **IS-24-119 P1** — Define versioned configuration or asset data for constrained Lua mission bridge.
+- [ ] **IS-24-120 P1** — Implement the smallest deterministic reference path for constrained Lua mission bridge.
+- [ ] **IS-24-121 P1** — Add input validation and actionable failure reporting to constrained Lua mission bridge.
+- [ ] **IS-24-122 P1** — Add focused unit tests for constrained Lua mission bridge.
+- [ ] **IS-24-123 P1** — Add an integration scenario that exercises constrained Lua mission bridge in a running game flow.
+- [ ] **IS-24-124 P2** — Add logging, counters, and debug inspection for constrained Lua mission bridge.
+- [ ] **IS-24-125 P2** — Add an in-world or overlay debug visualization for constrained Lua mission bridge.
+- [ ] **IS-24-126 P1** — Define save/checkpoint serialization and restoration for constrained Lua mission bridge.
+- [ ] **IS-24-127 P2** — Define CPU, memory, latency, and content budgets for constrained Lua mission bridge.
+- [ ] **IS-24-128 P2** — Profile constrained Lua mission bridge under a representative worst-case scene.
+- [ ] **IS-24-129 P2** — Document usage examples, invariants, and common failure modes for constrained Lua mission bridge.
+- [ ] **IS-24-130 P2** — Define the scope, responsibilities, and explicit non-goals of campaign graph.
+- [ ] **IS-24-131 P2** — Define the public C++ API and ownership rules for campaign graph.
+- [ ] **IS-24-132 P2** — Define versioned configuration or asset data for campaign graph.
+- [ ] **IS-24-133 P2** — Implement the smallest deterministic reference path for campaign graph.
+- [ ] **IS-24-134 P2** — Add input validation and actionable failure reporting to campaign graph.
+- [ ] **IS-24-135 P2** — Add focused unit tests for campaign graph.
+- [ ] **IS-24-136 P2** — Add an integration scenario that exercises campaign graph in a running game flow.
+- [ ] **IS-24-137 P2** — Add logging, counters, and debug inspection for campaign graph.
+- [ ] **IS-24-138 P2** — Add an in-world or overlay debug visualization for campaign graph.
+- [ ] **IS-24-139 P2** — Define save/checkpoint serialization and restoration for campaign graph.
+- [ ] **IS-24-140 P2** — Define CPU, memory, latency, and content budgets for campaign graph.
+- [ ] **IS-24-141 P2** — Profile campaign graph under a representative worst-case scene.
+- [ ] **IS-24-142 P2** — Document usage examples, invariants, and common failure modes for campaign graph.
+- [ ] **IS-24-143 P2** — Define the scope, responsibilities, and explicit non-goals of mission entity binder.
+- [ ] **IS-24-144 P2** — Define the public C++ API and ownership rules for mission entity binder.
+- [ ] **IS-24-145 P2** — Define versioned configuration or asset data for mission entity binder.
+- [ ] **IS-24-146 P2** — Implement the smallest deterministic reference path for mission entity binder.
+- [ ] **IS-24-147 P2** — Add input validation and actionable failure reporting to mission entity binder.
+- [ ] **IS-24-148 P2** — Add focused unit tests for mission entity binder.
+- [ ] **IS-24-149 P2** — Add an integration scenario that exercises mission entity binder in a running game flow.
+- [ ] **IS-24-150 P2** — Add logging, counters, and debug inspection for mission entity binder.
+- [ ] **IS-24-151 P2** — Add an in-world or overlay debug visualization for mission entity binder.
+- [ ] **IS-24-152 P2** — Define save/checkpoint serialization and restoration for mission entity binder.
+- [ ] **IS-24-153 P2** — Define CPU, memory, latency, and content budgets for mission entity binder.
+- [ ] **IS-24-154 P2** — Profile mission entity binder under a representative worst-case scene.
+- [ ] **IS-24-155 P2** — Document usage examples, invariants, and common failure modes for mission entity binder.
+- [ ] **IS-24-156 P2** — Define the scope, responsibilities, and explicit non-goals of mission timer service.
+- [ ] **IS-24-157 P2** — Define the public C++ API and ownership rules for mission timer service.
+- [ ] **IS-24-158 P2** — Define versioned configuration or asset data for mission timer service.
+- [ ] **IS-24-159 P2** — Implement the smallest deterministic reference path for mission timer service.
+- [ ] **IS-24-160 P2** — Add input validation and actionable failure reporting to mission timer service.
+- [ ] **IS-24-161 P2** — Add focused unit tests for mission timer service.
+- [ ] **IS-24-162 P2** — Add an integration scenario that exercises mission timer service in a running game flow.
+- [ ] **IS-24-163 P2** — Add logging, counters, and debug inspection for mission timer service.
+- [ ] **IS-24-164 P2** — Add an in-world or overlay debug visualization for mission timer service.
+- [ ] **IS-24-165 P2** — Define save/checkpoint serialization and restoration for mission timer service.
+- [ ] **IS-24-166 P2** — Define CPU, memory, latency, and content budgets for mission timer service.
+- [ ] **IS-24-167 P2** — Profile mission timer service under a representative worst-case scene.
+- [ ] **IS-24-168 P2** — Document usage examples, invariants, and common failure modes for mission timer service.
+- [ ] **IS-24-169 P2** — Define the scope, responsibilities, and explicit non-goals of mission variable store.
+- [ ] **IS-24-170 P2** — Define the public C++ API and ownership rules for mission variable store.
+- [ ] **IS-24-171 P2** — Define versioned configuration or asset data for mission variable store.
+- [ ] **IS-24-172 P2** — Implement the smallest deterministic reference path for mission variable store.
+- [ ] **IS-24-173 P2** — Add input validation and actionable failure reporting to mission variable store.
+- [ ] **IS-24-174 P2** — Add focused unit tests for mission variable store.
+- [ ] **IS-24-175 P2** — Add an integration scenario that exercises mission variable store in a running game flow.
+- [ ] **IS-24-176 P2** — Add logging, counters, and debug inspection for mission variable store.
+- [ ] **IS-24-177 P2** — Add an in-world or overlay debug visualization for mission variable store.
+- [ ] **IS-24-178 P2** — Define save/checkpoint serialization and restoration for mission variable store.
+- [ ] **IS-24-179 P2** — Define CPU, memory, latency, and content budgets for mission variable store.
+- [ ] **IS-24-180 P2** — Profile mission variable store under a representative worst-case scene.
+- [ ] **IS-24-181 P2** — Document usage examples, invariants, and common failure modes for mission variable store.
+- [ ] **IS-24-182 P2** — Define the scope, responsibilities, and explicit non-goals of mission template library.
+- [ ] **IS-24-183 P2** — Define the public C++ API and ownership rules for mission template library.
+- [ ] **IS-24-184 P2** — Define versioned configuration or asset data for mission template library.
+- [ ] **IS-24-185 P2** — Implement the smallest deterministic reference path for mission template library.
+- [ ] **IS-24-186 P2** — Add input validation and actionable failure reporting to mission template library.
+- [ ] **IS-24-187 P2** — Add focused unit tests for mission template library.
+- [ ] **IS-24-188 P2** — Add an integration scenario that exercises mission template library in a running game flow.
+- [ ] **IS-24-189 P2** — Add logging, counters, and debug inspection for mission template library.
+- [ ] **IS-24-190 P2** — Add an in-world or overlay debug visualization for mission template library.
+- [ ] **IS-24-191 P2** — Define save/checkpoint serialization and restoration for mission template library.
+- [ ] **IS-24-192 P2** — Define CPU, memory, latency, and content budgets for mission template library.
+- [ ] **IS-24-193 P2** — Profile mission template library under a representative worst-case scene.
+- [ ] **IS-24-194 P2** — Document usage examples, invariants, and common failure modes for mission template library.
+

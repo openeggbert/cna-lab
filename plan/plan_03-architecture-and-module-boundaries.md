@@ -1,0 +1,88 @@
+# 03. Architecture and module boundaries
+
+[Back to master plan](../plan.md)
+
+
+Create stable dependency directions before systems grow into a monolith.
+
+- [ ] **IS-03-001 P0** — Write a dependency-direction diagram and enforce it in review.
+- [ ] **IS-03-002 P0** — Keep game-specific systems out of CNA and sharp-runtime.
+- [ ] **IS-03-003 P0** — Define a composition root that constructs long-lived game services.
+- [ ] **IS-03-004 P0** — Define ownership and shutdown order for graphics, audio, physics, jobs, assets, and world state.
+- [ ] **IS-03-005 P0** — Ban unrestricted global service locators from gameplay code.
+- [ ] **IS-03-006 P0** — Define public/private headers per module.
+- [ ] **IS-03-007 P1** — Define module-level CMake targets after boundaries stabilize.
+- [ ] **IS-03-008 P1** — Define error-handling policy: exceptions, expected/result values, assertions, and fatal errors.
+- [ ] **IS-03-009 P1** — Define thread-affinity annotations and documentation.
+- [ ] **IS-03-010 P1** — Define deterministic simulation boundaries and nondeterministic presentation boundaries.
+- [ ] **IS-03-011 P1** — Define coordinate-system, units, angle, handedness, and time conventions.
+- [ ] **IS-03-012 P1** — Define stable ID types rather than passing raw strings everywhere.
+- [ ] **IS-03-013 P1** — Define data ownership across streamed sectors.
+- [ ] **IS-03-014 P1** — Define gameplay event semantics and avoid hidden synchronous recursion.
+- [ ] **IS-03-015 P1** — Define subsystem initialization and hot-reload contracts.
+- [ ] **IS-03-016 P1** — Define platform abstraction boundaries without duplicating CNA facilities.
+- [ ] **IS-03-017 P1** — Define policies for `std` versus sharp-runtime collections/types.
+- [ ] **IS-03-018 P1** — Define ABI expectations; prefer source-level integration until APIs stabilize.
+- [ ] **IS-03-019 P1** — Record architectural decisions in ADR files.
+- [ ] **IS-03-020 P1** — Create a forbidden-dependency check for low-level modules.
+- [ ] **IS-03-021 P2** — Evaluate ECS, scene graph, hybrid component model, and object model with a concrete prototype.
+- [ ] **IS-03-022 P2** — Measure whether an ECS improves actual hot loops before committing globally.
+- [ ] **IS-03-023 P2** — Define plugin boundaries for optional tools, not core gameplay.
+- [ ] **IS-03-024 P2** — Create a code ownership map by subsystem.
+- [ ] **IS-03-025 P2** — Create a deprecation policy for public game-engine APIs.
+- [ ] **IS-03-026 P1** — Define the scope, responsibilities, and explicit non-goals of game-service composition root.
+- [ ] **IS-03-027 P1** — Define the public C++ API and ownership rules for game-service composition root.
+- [ ] **IS-03-028 P1** — Define versioned configuration or asset data for game-service composition root.
+- [ ] **IS-03-029 P1** — Implement the smallest deterministic reference path for game-service composition root.
+- [ ] **IS-03-030 P1** — Add input validation and actionable failure reporting to game-service composition root.
+- [ ] **IS-03-031 P1** — Add focused unit tests for game-service composition root.
+- [ ] **IS-03-032 P1** — Add an integration scenario that exercises game-service composition root in a running game flow.
+- [ ] **IS-03-033 P2** — Add logging, counters, and debug inspection for game-service composition root.
+- [ ] **IS-03-034 P2** — Define CPU, memory, latency, and content budgets for game-service composition root.
+- [ ] **IS-03-035 P2** — Profile game-service composition root under a representative worst-case scene.
+- [ ] **IS-03-036 P2** — Document usage examples, invariants, and common failure modes for game-service composition root.
+- [ ] **IS-03-037 P1** — Define the scope, responsibilities, and explicit non-goals of module dependency validator.
+- [ ] **IS-03-038 P1** — Define the public C++ API and ownership rules for module dependency validator.
+- [ ] **IS-03-039 P1** — Define versioned configuration or asset data for module dependency validator.
+- [ ] **IS-03-040 P1** — Implement the smallest deterministic reference path for module dependency validator.
+- [ ] **IS-03-041 P1** — Add input validation and actionable failure reporting to module dependency validator.
+- [ ] **IS-03-042 P1** — Add focused unit tests for module dependency validator.
+- [ ] **IS-03-043 P1** — Add an integration scenario that exercises module dependency validator in a running game flow.
+- [ ] **IS-03-044 P2** — Add logging, counters, and debug inspection for module dependency validator.
+- [ ] **IS-03-045 P2** — Define CPU, memory, latency, and content budgets for module dependency validator.
+- [ ] **IS-03-046 P2** — Profile module dependency validator under a representative worst-case scene.
+- [ ] **IS-03-047 P2** — Document usage examples, invariants, and common failure modes for module dependency validator.
+- [ ] **IS-03-048 P1** — Define the scope, responsibilities, and explicit non-goals of stable identifier framework.
+- [ ] **IS-03-049 P1** — Define the public C++ API and ownership rules for stable identifier framework.
+- [ ] **IS-03-050 P1** — Define versioned configuration or asset data for stable identifier framework.
+- [ ] **IS-03-051 P1** — Implement the smallest deterministic reference path for stable identifier framework.
+- [ ] **IS-03-052 P1** — Add input validation and actionable failure reporting to stable identifier framework.
+- [ ] **IS-03-053 P1** — Add focused unit tests for stable identifier framework.
+- [ ] **IS-03-054 P1** — Add an integration scenario that exercises stable identifier framework in a running game flow.
+- [ ] **IS-03-055 P2** — Add logging, counters, and debug inspection for stable identifier framework.
+- [ ] **IS-03-056 P2** — Define CPU, memory, latency, and content budgets for stable identifier framework.
+- [ ] **IS-03-057 P2** — Profile stable identifier framework under a representative worst-case scene.
+- [ ] **IS-03-058 P2** — Document usage examples, invariants, and common failure modes for stable identifier framework.
+- [ ] **IS-03-059 P1** — Define the scope, responsibilities, and explicit non-goals of gameplay event bus.
+- [ ] **IS-03-060 P1** — Define the public C++ API and ownership rules for gameplay event bus.
+- [ ] **IS-03-061 P1** — Define versioned configuration or asset data for gameplay event bus.
+- [ ] **IS-03-062 P1** — Implement the smallest deterministic reference path for gameplay event bus.
+- [ ] **IS-03-063 P1** — Add input validation and actionable failure reporting to gameplay event bus.
+- [ ] **IS-03-064 P1** — Add focused unit tests for gameplay event bus.
+- [ ] **IS-03-065 P1** — Add an integration scenario that exercises gameplay event bus in a running game flow.
+- [ ] **IS-03-066 P2** — Add logging, counters, and debug inspection for gameplay event bus.
+- [ ] **IS-03-067 P2** — Define CPU, memory, latency, and content budgets for gameplay event bus.
+- [ ] **IS-03-068 P2** — Profile gameplay event bus under a representative worst-case scene.
+- [ ] **IS-03-069 P2** — Document usage examples, invariants, and common failure modes for gameplay event bus.
+- [ ] **IS-03-070 P1** — Define the scope, responsibilities, and explicit non-goals of subsystem lifecycle coordinator.
+- [ ] **IS-03-071 P1** — Define the public C++ API and ownership rules for subsystem lifecycle coordinator.
+- [ ] **IS-03-072 P1** — Define versioned configuration or asset data for subsystem lifecycle coordinator.
+- [ ] **IS-03-073 P1** — Implement the smallest deterministic reference path for subsystem lifecycle coordinator.
+- [ ] **IS-03-074 P1** — Add input validation and actionable failure reporting to subsystem lifecycle coordinator.
+- [ ] **IS-03-075 P1** — Add focused unit tests for subsystem lifecycle coordinator.
+- [ ] **IS-03-076 P1** — Add an integration scenario that exercises subsystem lifecycle coordinator in a running game flow.
+- [ ] **IS-03-077 P2** — Add logging, counters, and debug inspection for subsystem lifecycle coordinator.
+- [ ] **IS-03-078 P2** — Define CPU, memory, latency, and content budgets for subsystem lifecycle coordinator.
+- [ ] **IS-03-079 P2** — Profile subsystem lifecycle coordinator under a representative worst-case scene.
+- [ ] **IS-03-080 P2** — Document usage examples, invariants, and common failure modes for subsystem lifecycle coordinator.
+

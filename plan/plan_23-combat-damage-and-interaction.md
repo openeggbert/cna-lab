@@ -1,0 +1,172 @@
+# 23. Combat, damage, and interaction
+
+[Back to master plan](../plan.md)
+
+
+Add only the combat and interaction systems required by the original campaign design.
+
+- [ ] **IS-23-001 P1** — Define whether combat is central, limited, optional, or avoidable in the campaign.
+- [ ] **IS-23-002 P1** — Define weapon classes required by the vertical slice.
+- [ ] **IS-23-003 P1** — Create aiming, firing, reload, recoil, and ammo state.
+- [ ] **IS-23-004 P1** — Create hitscan/projectile policy per weapon.
+- [ ] **IS-23-005 P1** — Create damage, health, armor, incapacitation, and death rules.
+- [ ] **IS-23-006 P1** — Create cover interaction only if level design supports it.
+- [ ] **IS-23-007 P1** — Create friendly/neutral/hostile faction rules.
+- [ ] **IS-23-008 P1** — Create combat perception and alert propagation.
+- [ ] **IS-23-009 P1** — Create civilian and police reactions to visible weapons.
+- [ ] **IS-23-010 P1** — Create impact effects and material responses.
+- [ ] **IS-23-011 P1** — Create weapon inventory and persistence.
+- [ ] **IS-23-012 P1** — Create combat animation layers and notifies.
+- [ ] **IS-23-013 P1** — Create camera and input transitions into/out of aiming.
+- [ ] **IS-23-014 P1** — Create mission rules for prohibited weapons or non-lethal goals.
+- [ ] **IS-23-015 P1** — Create combat debug and damage logs.
+- [ ] **IS-23-016 P1** — Create accessibility assists for aiming and camera motion.
+- [ ] **IS-23-017 P2** — Create melee only if campaign content requires it.
+- [ ] **IS-23-018 P2** — Create destructible cover only for selected authored objects.
+- [ ] **IS-23-019 P2** — Create suppression behavior only if enemy AI needs it.
+- [ ] **IS-23-020 P2** — Create advanced ballistic simulation only if it improves the intended feel.
+- [ ] **IS-23-021 P3** — Avoid adding large weapon catalogs before mission use cases exist.
+- [ ] **IS-23-022 P1** — Define the scope, responsibilities, and explicit non-goals of weapon definition.
+- [ ] **IS-23-023 P1** — Define the public C++ API and ownership rules for weapon definition.
+- [ ] **IS-23-024 P1** — Define versioned configuration or asset data for weapon definition.
+- [ ] **IS-23-025 P1** — Implement the smallest deterministic reference path for weapon definition.
+- [ ] **IS-23-026 P1** — Add input validation and actionable failure reporting to weapon definition.
+- [ ] **IS-23-027 P1** — Add focused unit tests for weapon definition.
+- [ ] **IS-23-028 P1** — Add an integration scenario that exercises weapon definition in a running game flow.
+- [ ] **IS-23-029 P2** — Add logging, counters, and debug inspection for weapon definition.
+- [ ] **IS-23-030 P2** — Add an in-world or overlay debug visualization for weapon definition.
+- [ ] **IS-23-031 P1** — Define save/checkpoint serialization and restoration for weapon definition.
+- [ ] **IS-23-032 P2** — Define CPU, memory, latency, and content budgets for weapon definition.
+- [ ] **IS-23-033 P2** — Profile weapon definition under a representative worst-case scene.
+- [ ] **IS-23-034 P2** — Document usage examples, invariants, and common failure modes for weapon definition.
+- [ ] **IS-23-035 P1** — Define the scope, responsibilities, and explicit non-goals of weapon controller.
+- [ ] **IS-23-036 P1** — Define the public C++ API and ownership rules for weapon controller.
+- [ ] **IS-23-037 P1** — Define versioned configuration or asset data for weapon controller.
+- [ ] **IS-23-038 P1** — Implement the smallest deterministic reference path for weapon controller.
+- [ ] **IS-23-039 P1** — Add input validation and actionable failure reporting to weapon controller.
+- [ ] **IS-23-040 P1** — Add focused unit tests for weapon controller.
+- [ ] **IS-23-041 P1** — Add an integration scenario that exercises weapon controller in a running game flow.
+- [ ] **IS-23-042 P2** — Add logging, counters, and debug inspection for weapon controller.
+- [ ] **IS-23-043 P2** — Add an in-world or overlay debug visualization for weapon controller.
+- [ ] **IS-23-044 P1** — Define save/checkpoint serialization and restoration for weapon controller.
+- [ ] **IS-23-045 P2** — Define CPU, memory, latency, and content budgets for weapon controller.
+- [ ] **IS-23-046 P2** — Profile weapon controller under a representative worst-case scene.
+- [ ] **IS-23-047 P2** — Document usage examples, invariants, and common failure modes for weapon controller.
+- [ ] **IS-23-048 P1** — Define the scope, responsibilities, and explicit non-goals of damage system.
+- [ ] **IS-23-049 P1** — Define the public C++ API and ownership rules for damage system.
+- [ ] **IS-23-050 P1** — Define versioned configuration or asset data for damage system.
+- [ ] **IS-23-051 P1** — Implement the smallest deterministic reference path for damage system.
+- [ ] **IS-23-052 P1** — Add input validation and actionable failure reporting to damage system.
+- [ ] **IS-23-053 P1** — Add focused unit tests for damage system.
+- [ ] **IS-23-054 P1** — Add an integration scenario that exercises damage system in a running game flow.
+- [ ] **IS-23-055 P2** — Add logging, counters, and debug inspection for damage system.
+- [ ] **IS-23-056 P2** — Add an in-world or overlay debug visualization for damage system.
+- [ ] **IS-23-057 P1** — Define save/checkpoint serialization and restoration for damage system.
+- [ ] **IS-23-058 P2** — Define CPU, memory, latency, and content budgets for damage system.
+- [ ] **IS-23-059 P2** — Profile damage system under a representative worst-case scene.
+- [ ] **IS-23-060 P2** — Document usage examples, invariants, and common failure modes for damage system.
+- [ ] **IS-23-061 P1** — Define the scope, responsibilities, and explicit non-goals of combat perception.
+- [ ] **IS-23-062 P1** — Define the public C++ API and ownership rules for combat perception.
+- [ ] **IS-23-063 P1** — Define versioned configuration or asset data for combat perception.
+- [ ] **IS-23-064 P1** — Implement the smallest deterministic reference path for combat perception.
+- [ ] **IS-23-065 P1** — Add input validation and actionable failure reporting to combat perception.
+- [ ] **IS-23-066 P1** — Add focused unit tests for combat perception.
+- [ ] **IS-23-067 P1** — Add an integration scenario that exercises combat perception in a running game flow.
+- [ ] **IS-23-068 P2** — Add logging, counters, and debug inspection for combat perception.
+- [ ] **IS-23-069 P2** — Add an in-world or overlay debug visualization for combat perception.
+- [ ] **IS-23-070 P1** — Define save/checkpoint serialization and restoration for combat perception.
+- [ ] **IS-23-071 P2** — Define CPU, memory, latency, and content budgets for combat perception.
+- [ ] **IS-23-072 P2** — Profile combat perception under a representative worst-case scene.
+- [ ] **IS-23-073 P2** — Document usage examples, invariants, and common failure modes for combat perception.
+- [ ] **IS-23-074 P1** — Define the scope, responsibilities, and explicit non-goals of combat animation integration.
+- [ ] **IS-23-075 P1** — Define the public C++ API and ownership rules for combat animation integration.
+- [ ] **IS-23-076 P1** — Define versioned configuration or asset data for combat animation integration.
+- [ ] **IS-23-077 P1** — Implement the smallest deterministic reference path for combat animation integration.
+- [ ] **IS-23-078 P1** — Add input validation and actionable failure reporting to combat animation integration.
+- [ ] **IS-23-079 P1** — Add focused unit tests for combat animation integration.
+- [ ] **IS-23-080 P1** — Add an integration scenario that exercises combat animation integration in a running game flow.
+- [ ] **IS-23-081 P2** — Add logging, counters, and debug inspection for combat animation integration.
+- [ ] **IS-23-082 P2** — Add an in-world or overlay debug visualization for combat animation integration.
+- [ ] **IS-23-083 P1** — Define save/checkpoint serialization and restoration for combat animation integration.
+- [ ] **IS-23-084 P2** — Define CPU, memory, latency, and content budgets for combat animation integration.
+- [ ] **IS-23-085 P2** — Profile combat animation integration under a representative worst-case scene.
+- [ ] **IS-23-086 P2** — Document usage examples, invariants, and common failure modes for combat animation integration.
+- [ ] **IS-23-087 P1** — Define the scope, responsibilities, and explicit non-goals of impact effect resolver.
+- [ ] **IS-23-088 P1** — Define the public C++ API and ownership rules for impact effect resolver.
+- [ ] **IS-23-089 P1** — Define versioned configuration or asset data for impact effect resolver.
+- [ ] **IS-23-090 P1** — Implement the smallest deterministic reference path for impact effect resolver.
+- [ ] **IS-23-091 P1** — Add input validation and actionable failure reporting to impact effect resolver.
+- [ ] **IS-23-092 P1** — Add focused unit tests for impact effect resolver.
+- [ ] **IS-23-093 P1** — Add an integration scenario that exercises impact effect resolver in a running game flow.
+- [ ] **IS-23-094 P2** — Add logging, counters, and debug inspection for impact effect resolver.
+- [ ] **IS-23-095 P2** — Add an in-world or overlay debug visualization for impact effect resolver.
+- [ ] **IS-23-096 P1** — Define save/checkpoint serialization and restoration for impact effect resolver.
+- [ ] **IS-23-097 P2** — Define CPU, memory, latency, and content budgets for impact effect resolver.
+- [ ] **IS-23-098 P2** — Profile impact effect resolver under a representative worst-case scene.
+- [ ] **IS-23-099 P2** — Document usage examples, invariants, and common failure modes for impact effect resolver.
+- [ ] **IS-23-100 P2** — Define the scope, responsibilities, and explicit non-goals of inventory.
+- [ ] **IS-23-101 P2** — Define the public C++ API and ownership rules for inventory.
+- [ ] **IS-23-102 P2** — Define versioned configuration or asset data for inventory.
+- [ ] **IS-23-103 P2** — Implement the smallest deterministic reference path for inventory.
+- [ ] **IS-23-104 P2** — Add input validation and actionable failure reporting to inventory.
+- [ ] **IS-23-105 P2** — Add focused unit tests for inventory.
+- [ ] **IS-23-106 P2** — Add an integration scenario that exercises inventory in a running game flow.
+- [ ] **IS-23-107 P2** — Add logging, counters, and debug inspection for inventory.
+- [ ] **IS-23-108 P2** — Add an in-world or overlay debug visualization for inventory.
+- [ ] **IS-23-109 P2** — Define save/checkpoint serialization and restoration for inventory.
+- [ ] **IS-23-110 P2** — Define CPU, memory, latency, and content budgets for inventory.
+- [ ] **IS-23-111 P2** — Profile inventory under a representative worst-case scene.
+- [ ] **IS-23-112 P2** — Document usage examples, invariants, and common failure modes for inventory.
+- [ ] **IS-23-113 P2** — Define the scope, responsibilities, and explicit non-goals of aim assist.
+- [ ] **IS-23-114 P2** — Define the public C++ API and ownership rules for aim assist.
+- [ ] **IS-23-115 P2** — Define versioned configuration or asset data for aim assist.
+- [ ] **IS-23-116 P2** — Implement the smallest deterministic reference path for aim assist.
+- [ ] **IS-23-117 P2** — Add input validation and actionable failure reporting to aim assist.
+- [ ] **IS-23-118 P2** — Add focused unit tests for aim assist.
+- [ ] **IS-23-119 P2** — Add an integration scenario that exercises aim assist in a running game flow.
+- [ ] **IS-23-120 P2** — Add logging, counters, and debug inspection for aim assist.
+- [ ] **IS-23-121 P2** — Add an in-world or overlay debug visualization for aim assist.
+- [ ] **IS-23-122 P2** — Define save/checkpoint serialization and restoration for aim assist.
+- [ ] **IS-23-123 P2** — Define CPU, memory, latency, and content budgets for aim assist.
+- [ ] **IS-23-124 P2** — Profile aim assist under a representative worst-case scene.
+- [ ] **IS-23-125 P2** — Document usage examples, invariants, and common failure modes for aim assist.
+- [ ] **IS-23-126 P2** — Define the scope, responsibilities, and explicit non-goals of combat camera.
+- [ ] **IS-23-127 P2** — Define the public C++ API and ownership rules for combat camera.
+- [ ] **IS-23-128 P2** — Define versioned configuration or asset data for combat camera.
+- [ ] **IS-23-129 P2** — Implement the smallest deterministic reference path for combat camera.
+- [ ] **IS-23-130 P2** — Add input validation and actionable failure reporting to combat camera.
+- [ ] **IS-23-131 P2** — Add focused unit tests for combat camera.
+- [ ] **IS-23-132 P2** — Add an integration scenario that exercises combat camera in a running game flow.
+- [ ] **IS-23-133 P2** — Add logging, counters, and debug inspection for combat camera.
+- [ ] **IS-23-134 P2** — Add an in-world or overlay debug visualization for combat camera.
+- [ ] **IS-23-135 P2** — Define save/checkpoint serialization and restoration for combat camera.
+- [ ] **IS-23-136 P2** — Define CPU, memory, latency, and content budgets for combat camera.
+- [ ] **IS-23-137 P2** — Profile combat camera under a representative worst-case scene.
+- [ ] **IS-23-138 P2** — Document usage examples, invariants, and common failure modes for combat camera.
+- [ ] **IS-23-139 P2** — Define the scope, responsibilities, and explicit non-goals of hit reaction.
+- [ ] **IS-23-140 P2** — Define the public C++ API and ownership rules for hit reaction.
+- [ ] **IS-23-141 P2** — Define versioned configuration or asset data for hit reaction.
+- [ ] **IS-23-142 P2** — Implement the smallest deterministic reference path for hit reaction.
+- [ ] **IS-23-143 P2** — Add input validation and actionable failure reporting to hit reaction.
+- [ ] **IS-23-144 P2** — Add focused unit tests for hit reaction.
+- [ ] **IS-23-145 P2** — Add an integration scenario that exercises hit reaction in a running game flow.
+- [ ] **IS-23-146 P2** — Add logging, counters, and debug inspection for hit reaction.
+- [ ] **IS-23-147 P2** — Add an in-world or overlay debug visualization for hit reaction.
+- [ ] **IS-23-148 P2** — Define save/checkpoint serialization and restoration for hit reaction.
+- [ ] **IS-23-149 P2** — Define CPU, memory, latency, and content budgets for hit reaction.
+- [ ] **IS-23-150 P2** — Profile hit reaction under a representative worst-case scene.
+- [ ] **IS-23-151 P2** — Document usage examples, invariants, and common failure modes for hit reaction.
+- [ ] **IS-23-152 P2** — Define the scope, responsibilities, and explicit non-goals of weapon audio integration.
+- [ ] **IS-23-153 P2** — Define the public C++ API and ownership rules for weapon audio integration.
+- [ ] **IS-23-154 P2** — Define versioned configuration or asset data for weapon audio integration.
+- [ ] **IS-23-155 P2** — Implement the smallest deterministic reference path for weapon audio integration.
+- [ ] **IS-23-156 P2** — Add input validation and actionable failure reporting to weapon audio integration.
+- [ ] **IS-23-157 P2** — Add focused unit tests for weapon audio integration.
+- [ ] **IS-23-158 P2** — Add an integration scenario that exercises weapon audio integration in a running game flow.
+- [ ] **IS-23-159 P2** — Add logging, counters, and debug inspection for weapon audio integration.
+- [ ] **IS-23-160 P2** — Add an in-world or overlay debug visualization for weapon audio integration.
+- [ ] **IS-23-161 P2** — Define save/checkpoint serialization and restoration for weapon audio integration.
+- [ ] **IS-23-162 P2** — Define CPU, memory, latency, and content budgets for weapon audio integration.
+- [ ] **IS-23-163 P2** — Profile weapon audio integration under a representative worst-case scene.
+- [ ] **IS-23-164 P2** — Document usage examples, invariants, and common failure modes for weapon audio integration.
+

@@ -1,0 +1,6 @@
+{
+  "projectName": "Iron Shadows",
+  "cityName": "Iron City",
+  "prototypeYear": 1932,
+  "notes": "Reserved for a future System.Text.Json-backed configuration loader."
+}

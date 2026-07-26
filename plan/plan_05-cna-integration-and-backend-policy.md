@@ -1,0 +1,89 @@
+# 05. CNA integration and backend policy
+
+[Back to master plan](../plan.md)
+
+
+Use CNA correctly while limiting game production to an explicit backend support tier.
+
+- [ ] **IS-05-001 P0** — Run the prototype on EasyGL and record all required sibling dependencies.
+- [ ] **IS-05-002 P0** — Run the prototype on Vulkan and compare behavior with EasyGL.
+- [ ] **IS-05-003 P0** — Run core and smoke tests on software or headless backends where possible.
+- [ ] **IS-05-004 P0** — Classify CNA backends as production, validation, experimental, historical, or diagnostic for this game.
+- [ ] **IS-05-005 P0** — Limit release blockers to the declared production backend tier.
+- [ ] **IS-05-006 P1** — Create a backend capability report at startup.
+- [ ] **IS-05-007 P1** — Create graceful messages for unsupported backend capabilities.
+- [ ] **IS-05-008 P1** — Centralize GraphicsDevice resource creation and disposal rules.
+- [ ] **IS-05-009 P1** — Document device-lost/reset behavior for each target backend.
+- [ ] **IS-05-010 P1** — Create a minimal backend parity scene.
+- [ ] **IS-05-011 P1** — Create a shader/material parity scene.
+- [ ] **IS-05-012 P1** — Create a render-target and post-process parity scene.
+- [ ] **IS-05-013 P1** — Create an input parity checklist.
+- [ ] **IS-05-014 P1** — Create an audio parity checklist.
+- [ ] **IS-05-015 P1** — Validate window resize, fullscreen, DPI, focus, and suspend/resume behavior.
+- [ ] **IS-05-016 P1** — Validate graphics-resource cleanup under repeated scene reload.
+- [ ] **IS-05-017 P2** — Track CNA issues with minimal reproductions outside the game.
+- [ ] **IS-05-018 P2** — Upstream general fixes rather than maintaining hidden game-only patches.
+- [ ] **IS-05-019 P2** — Create a CNA revision upgrade checklist.
+- [ ] **IS-05-020 P2** — Create a bisectable compatibility branch policy.
+- [ ] **IS-05-021 P3** — Evaluate additional backends only after primary slice stability.
+- [ ] **IS-05-022 P1** — Define the scope, responsibilities, and explicit non-goals of CNA application host.
+- [ ] **IS-05-023 P1** — Define the public C++ API and ownership rules for CNA application host.
+- [ ] **IS-05-024 P1** — Define versioned configuration or asset data for CNA application host.
+- [ ] **IS-05-025 P1** — Implement the smallest deterministic reference path for CNA application host.
+- [ ] **IS-05-026 P1** — Add input validation and actionable failure reporting to CNA application host.
+- [ ] **IS-05-027 P1** — Add focused unit tests for CNA application host.
+- [ ] **IS-05-028 P1** — Add an integration scenario that exercises CNA application host in a running game flow.
+- [ ] **IS-05-029 P2** — Add logging, counters, and debug inspection for CNA application host.
+- [ ] **IS-05-030 P2** — Define CPU, memory, latency, and content budgets for CNA application host.
+- [ ] **IS-05-031 P2** — Profile CNA application host under a representative worst-case scene.
+- [ ] **IS-05-032 P2** — Document usage examples, invariants, and common failure modes for CNA application host.
+- [ ] **IS-05-033 P2** — Validate CNA application host on each production graphics backend and record differences.
+- [ ] **IS-05-034 P1** — Define the scope, responsibilities, and explicit non-goals of graphics-device resource registry.
+- [ ] **IS-05-035 P1** — Define the public C++ API and ownership rules for graphics-device resource registry.
+- [ ] **IS-05-036 P1** — Define versioned configuration or asset data for graphics-device resource registry.
+- [ ] **IS-05-037 P1** — Implement the smallest deterministic reference path for graphics-device resource registry.
+- [ ] **IS-05-038 P1** — Add input validation and actionable failure reporting to graphics-device resource registry.
+- [ ] **IS-05-039 P1** — Add focused unit tests for graphics-device resource registry.
+- [ ] **IS-05-040 P1** — Add an integration scenario that exercises graphics-device resource registry in a running game flow.
+- [ ] **IS-05-041 P2** — Add logging, counters, and debug inspection for graphics-device resource registry.
+- [ ] **IS-05-042 P2** — Define CPU, memory, latency, and content budgets for graphics-device resource registry.
+- [ ] **IS-05-043 P2** — Profile graphics-device resource registry under a representative worst-case scene.
+- [ ] **IS-05-044 P2** — Document usage examples, invariants, and common failure modes for graphics-device resource registry.
+- [ ] **IS-05-045 P2** — Validate graphics-device resource registry on each production graphics backend and record differences.
+- [ ] **IS-05-046 P1** — Define the scope, responsibilities, and explicit non-goals of backend capability database.
+- [ ] **IS-05-047 P1** — Define the public C++ API and ownership rules for backend capability database.
+- [ ] **IS-05-048 P1** — Define versioned configuration or asset data for backend capability database.
+- [ ] **IS-05-049 P1** — Implement the smallest deterministic reference path for backend capability database.
+- [ ] **IS-05-050 P1** — Add input validation and actionable failure reporting to backend capability database.
+- [ ] **IS-05-051 P1** — Add focused unit tests for backend capability database.
+- [ ] **IS-05-052 P1** — Add an integration scenario that exercises backend capability database in a running game flow.
+- [ ] **IS-05-053 P2** — Add logging, counters, and debug inspection for backend capability database.
+- [ ] **IS-05-054 P2** — Define CPU, memory, latency, and content budgets for backend capability database.
+- [ ] **IS-05-055 P2** — Profile backend capability database under a representative worst-case scene.
+- [ ] **IS-05-056 P2** — Document usage examples, invariants, and common failure modes for backend capability database.
+- [ ] **IS-05-057 P2** — Validate backend capability database on each production graphics backend and record differences.
+- [ ] **IS-05-058 P1** — Define the scope, responsibilities, and explicit non-goals of backend parity scene.
+- [ ] **IS-05-059 P1** — Define the public C++ API and ownership rules for backend parity scene.
+- [ ] **IS-05-060 P1** — Define versioned configuration or asset data for backend parity scene.
+- [ ] **IS-05-061 P1** — Implement the smallest deterministic reference path for backend parity scene.
+- [ ] **IS-05-062 P1** — Add input validation and actionable failure reporting to backend parity scene.
+- [ ] **IS-05-063 P1** — Add focused unit tests for backend parity scene.
+- [ ] **IS-05-064 P1** — Add an integration scenario that exercises backend parity scene in a running game flow.
+- [ ] **IS-05-065 P2** — Add logging, counters, and debug inspection for backend parity scene.
+- [ ] **IS-05-066 P2** — Define CPU, memory, latency, and content budgets for backend parity scene.
+- [ ] **IS-05-067 P2** — Profile backend parity scene under a representative worst-case scene.
+- [ ] **IS-05-068 P2** — Document usage examples, invariants, and common failure modes for backend parity scene.
+- [ ] **IS-05-069 P2** — Validate backend parity scene on each production graphics backend and record differences.
+- [ ] **IS-05-070 P1** — Define the scope, responsibilities, and explicit non-goals of CNA revision upgrade workflow.
+- [ ] **IS-05-071 P1** — Define the public C++ API and ownership rules for CNA revision upgrade workflow.
+- [ ] **IS-05-072 P1** — Define versioned configuration or asset data for CNA revision upgrade workflow.
+- [ ] **IS-05-073 P1** — Implement the smallest deterministic reference path for CNA revision upgrade workflow.
+- [ ] **IS-05-074 P1** — Add input validation and actionable failure reporting to CNA revision upgrade workflow.
+- [ ] **IS-05-075 P1** — Add focused unit tests for CNA revision upgrade workflow.
+- [ ] **IS-05-076 P1** — Add an integration scenario that exercises CNA revision upgrade workflow in a running game flow.
+- [ ] **IS-05-077 P2** — Add logging, counters, and debug inspection for CNA revision upgrade workflow.
+- [ ] **IS-05-078 P2** — Define CPU, memory, latency, and content budgets for CNA revision upgrade workflow.
+- [ ] **IS-05-079 P2** — Profile CNA revision upgrade workflow under a representative worst-case scene.
+- [ ] **IS-05-080 P2** — Document usage examples, invariants, and common failure modes for CNA revision upgrade workflow.
+- [ ] **IS-05-081 P2** — Validate CNA revision upgrade workflow on each production graphics backend and record differences.
+

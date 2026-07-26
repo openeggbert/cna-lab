@@ -1,0 +1,174 @@
+# 16. Player controller and cameras
+
+[Back to master plan](../plan.md)
+
+
+Evolve the debug controller into responsive on-foot movement and cinematic camera behavior.
+
+- [ ] **IS-16-001 P0** — Run and tune the existing on-foot controller in the integrated build.
+- [ ] **IS-16-002 P0** — Replace circle/AABB collision with the production character controller.
+- [ ] **IS-16-003 P0** — Create camera collision and obstruction handling.
+- [ ] **IS-16-004 P0** — Create interaction prompts for the car and mission objects.
+- [ ] **IS-16-005 P1** — Add acceleration, deceleration, turning inertia, and slope handling.
+- [ ] **IS-16-006 P1** — Add step-up, ledge, ground, and falling states.
+- [ ] **IS-16-007 P1** — Add crouch only if required by level design.
+- [ ] **IS-16-008 P1** — Add sprint stamina only if it contributes to gameplay.
+- [ ] **IS-16-009 P1** — Add context-sensitive interaction targeting.
+- [ ] **IS-16-010 P1** — Add doors, switches, pickups, seats, and talk interactions.
+- [ ] **IS-16-011 P1** — Add camera shoulder selection and collision fade rules.
+- [ ] **IS-16-012 P1** — Add camera zones for interiors and narrow spaces.
+- [ ] **IS-16-013 P1** — Add vehicle entry/exit alignment and safe-position search.
+- [ ] **IS-16-014 P1** — Add control locking through explicit gameplay modes.
+- [ ] **IS-16-015 P1** — Add motion/animation synchronization.
+- [ ] **IS-16-016 P1** — Add footstep event and surface lookup.
+- [ ] **IS-16-017 P1** — Add player state restoration at checkpoints.
+- [ ] **IS-16-018 P1** — Add gamepad input and vibration.
+- [ ] **IS-16-019 P1** — Add input buffering where animation gates interactions.
+- [ ] **IS-16-020 P2** — Add photo/debug free-camera mode.
+- [ ] **IS-16-021 P2** — Add first-person inspection only if campaign design requires it.
+- [ ] **IS-16-022 P2** — Add camera shake channels with accessibility scaling.
+- [ ] **IS-16-023 P2** — Add cinematic camera handoff blending.
+- [ ] **IS-16-024 P1** — Define the scope, responsibilities, and explicit non-goals of on-foot locomotion.
+- [ ] **IS-16-025 P1** — Define the public C++ API and ownership rules for on-foot locomotion.
+- [ ] **IS-16-026 P1** — Define versioned configuration or asset data for on-foot locomotion.
+- [ ] **IS-16-027 P1** — Implement the smallest deterministic reference path for on-foot locomotion.
+- [ ] **IS-16-028 P1** — Add input validation and actionable failure reporting to on-foot locomotion.
+- [ ] **IS-16-029 P1** — Add focused unit tests for on-foot locomotion.
+- [ ] **IS-16-030 P1** — Add an integration scenario that exercises on-foot locomotion in a running game flow.
+- [ ] **IS-16-031 P2** — Add logging, counters, and debug inspection for on-foot locomotion.
+- [ ] **IS-16-032 P2** — Add an in-world or overlay debug visualization for on-foot locomotion.
+- [ ] **IS-16-033 P1** — Define save/checkpoint serialization and restoration for on-foot locomotion.
+- [ ] **IS-16-034 P2** — Define CPU, memory, latency, and content budgets for on-foot locomotion.
+- [ ] **IS-16-035 P2** — Profile on-foot locomotion under a representative worst-case scene.
+- [ ] **IS-16-036 P2** — Document usage examples, invariants, and common failure modes for on-foot locomotion.
+- [ ] **IS-16-037 P1** — Define the scope, responsibilities, and explicit non-goals of character collision controller.
+- [ ] **IS-16-038 P1** — Define the public C++ API and ownership rules for character collision controller.
+- [ ] **IS-16-039 P1** — Define versioned configuration or asset data for character collision controller.
+- [ ] **IS-16-040 P1** — Implement the smallest deterministic reference path for character collision controller.
+- [ ] **IS-16-041 P1** — Add input validation and actionable failure reporting to character collision controller.
+- [ ] **IS-16-042 P1** — Add focused unit tests for character collision controller.
+- [ ] **IS-16-043 P1** — Add an integration scenario that exercises character collision controller in a running game flow.
+- [ ] **IS-16-044 P2** — Add logging, counters, and debug inspection for character collision controller.
+- [ ] **IS-16-045 P2** — Add an in-world or overlay debug visualization for character collision controller.
+- [ ] **IS-16-046 P1** — Define save/checkpoint serialization and restoration for character collision controller.
+- [ ] **IS-16-047 P2** — Define CPU, memory, latency, and content budgets for character collision controller.
+- [ ] **IS-16-048 P2** — Profile character collision controller under a representative worst-case scene.
+- [ ] **IS-16-049 P2** — Document usage examples, invariants, and common failure modes for character collision controller.
+- [ ] **IS-16-050 P1** — Define the scope, responsibilities, and explicit non-goals of third-person camera.
+- [ ] **IS-16-051 P1** — Define the public C++ API and ownership rules for third-person camera.
+- [ ] **IS-16-052 P1** — Define versioned configuration or asset data for third-person camera.
+- [ ] **IS-16-053 P1** — Implement the smallest deterministic reference path for third-person camera.
+- [ ] **IS-16-054 P1** — Add input validation and actionable failure reporting to third-person camera.
+- [ ] **IS-16-055 P1** — Add focused unit tests for third-person camera.
+- [ ] **IS-16-056 P1** — Add an integration scenario that exercises third-person camera in a running game flow.
+- [ ] **IS-16-057 P2** — Add logging, counters, and debug inspection for third-person camera.
+- [ ] **IS-16-058 P2** — Add an in-world or overlay debug visualization for third-person camera.
+- [ ] **IS-16-059 P1** — Define save/checkpoint serialization and restoration for third-person camera.
+- [ ] **IS-16-060 P2** — Define CPU, memory, latency, and content budgets for third-person camera.
+- [ ] **IS-16-061 P2** — Profile third-person camera under a representative worst-case scene.
+- [ ] **IS-16-062 P2** — Document usage examples, invariants, and common failure modes for third-person camera.
+- [ ] **IS-16-063 P1** — Define the scope, responsibilities, and explicit non-goals of camera collision.
+- [ ] **IS-16-064 P1** — Define the public C++ API and ownership rules for camera collision.
+- [ ] **IS-16-065 P1** — Define versioned configuration or asset data for camera collision.
+- [ ] **IS-16-066 P1** — Implement the smallest deterministic reference path for camera collision.
+- [ ] **IS-16-067 P1** — Add input validation and actionable failure reporting to camera collision.
+- [ ] **IS-16-068 P1** — Add focused unit tests for camera collision.
+- [ ] **IS-16-069 P1** — Add an integration scenario that exercises camera collision in a running game flow.
+- [ ] **IS-16-070 P2** — Add logging, counters, and debug inspection for camera collision.
+- [ ] **IS-16-071 P2** — Add an in-world or overlay debug visualization for camera collision.
+- [ ] **IS-16-072 P1** — Define save/checkpoint serialization and restoration for camera collision.
+- [ ] **IS-16-073 P2** — Define CPU, memory, latency, and content budgets for camera collision.
+- [ ] **IS-16-074 P2** — Profile camera collision under a representative worst-case scene.
+- [ ] **IS-16-075 P2** — Document usage examples, invariants, and common failure modes for camera collision.
+- [ ] **IS-16-076 P1** — Define the scope, responsibilities, and explicit non-goals of interaction targeting.
+- [ ] **IS-16-077 P1** — Define the public C++ API and ownership rules for interaction targeting.
+- [ ] **IS-16-078 P1** — Define versioned configuration or asset data for interaction targeting.
+- [ ] **IS-16-079 P1** — Implement the smallest deterministic reference path for interaction targeting.
+- [ ] **IS-16-080 P1** — Add input validation and actionable failure reporting to interaction targeting.
+- [ ] **IS-16-081 P1** — Add focused unit tests for interaction targeting.
+- [ ] **IS-16-082 P1** — Add an integration scenario that exercises interaction targeting in a running game flow.
+- [ ] **IS-16-083 P2** — Add logging, counters, and debug inspection for interaction targeting.
+- [ ] **IS-16-084 P2** — Add an in-world or overlay debug visualization for interaction targeting.
+- [ ] **IS-16-085 P1** — Define save/checkpoint serialization and restoration for interaction targeting.
+- [ ] **IS-16-086 P2** — Define CPU, memory, latency, and content budgets for interaction targeting.
+- [ ] **IS-16-087 P2** — Profile interaction targeting under a representative worst-case scene.
+- [ ] **IS-16-088 P2** — Document usage examples, invariants, and common failure modes for interaction targeting.
+- [ ] **IS-16-089 P1** — Define the scope, responsibilities, and explicit non-goals of vehicle enter/exit flow.
+- [ ] **IS-16-090 P1** — Define the public C++ API and ownership rules for vehicle enter/exit flow.
+- [ ] **IS-16-091 P1** — Define versioned configuration or asset data for vehicle enter/exit flow.
+- [ ] **IS-16-092 P1** — Implement the smallest deterministic reference path for vehicle enter/exit flow.
+- [ ] **IS-16-093 P1** — Add input validation and actionable failure reporting to vehicle enter/exit flow.
+- [ ] **IS-16-094 P1** — Add focused unit tests for vehicle enter/exit flow.
+- [ ] **IS-16-095 P1** — Add an integration scenario that exercises vehicle enter/exit flow in a running game flow.
+- [ ] **IS-16-096 P2** — Add logging, counters, and debug inspection for vehicle enter/exit flow.
+- [ ] **IS-16-097 P2** — Add an in-world or overlay debug visualization for vehicle enter/exit flow.
+- [ ] **IS-16-098 P1** — Define save/checkpoint serialization and restoration for vehicle enter/exit flow.
+- [ ] **IS-16-099 P2** — Define CPU, memory, latency, and content budgets for vehicle enter/exit flow.
+- [ ] **IS-16-100 P2** — Profile vehicle enter/exit flow under a representative worst-case scene.
+- [ ] **IS-16-101 P2** — Document usage examples, invariants, and common failure modes for vehicle enter/exit flow.
+- [ ] **IS-16-102 P2** — Define the scope, responsibilities, and explicit non-goals of interaction mode manager.
+- [ ] **IS-16-103 P2** — Define the public C++ API and ownership rules for interaction mode manager.
+- [ ] **IS-16-104 P2** — Define versioned configuration or asset data for interaction mode manager.
+- [ ] **IS-16-105 P2** — Implement the smallest deterministic reference path for interaction mode manager.
+- [ ] **IS-16-106 P2** — Add input validation and actionable failure reporting to interaction mode manager.
+- [ ] **IS-16-107 P2** — Add focused unit tests for interaction mode manager.
+- [ ] **IS-16-108 P2** — Add an integration scenario that exercises interaction mode manager in a running game flow.
+- [ ] **IS-16-109 P2** — Add logging, counters, and debug inspection for interaction mode manager.
+- [ ] **IS-16-110 P2** — Add an in-world or overlay debug visualization for interaction mode manager.
+- [ ] **IS-16-111 P2** — Define save/checkpoint serialization and restoration for interaction mode manager.
+- [ ] **IS-16-112 P2** — Define CPU, memory, latency, and content budgets for interaction mode manager.
+- [ ] **IS-16-113 P2** — Profile interaction mode manager under a representative worst-case scene.
+- [ ] **IS-16-114 P2** — Document usage examples, invariants, and common failure modes for interaction mode manager.
+- [ ] **IS-16-115 P2** — Define the scope, responsibilities, and explicit non-goals of input context router.
+- [ ] **IS-16-116 P2** — Define the public C++ API and ownership rules for input context router.
+- [ ] **IS-16-117 P2** — Define versioned configuration or asset data for input context router.
+- [ ] **IS-16-118 P2** — Implement the smallest deterministic reference path for input context router.
+- [ ] **IS-16-119 P2** — Add input validation and actionable failure reporting to input context router.
+- [ ] **IS-16-120 P2** — Add focused unit tests for input context router.
+- [ ] **IS-16-121 P2** — Add an integration scenario that exercises input context router in a running game flow.
+- [ ] **IS-16-122 P2** — Add logging, counters, and debug inspection for input context router.
+- [ ] **IS-16-123 P2** — Add an in-world or overlay debug visualization for input context router.
+- [ ] **IS-16-124 P2** — Define save/checkpoint serialization and restoration for input context router.
+- [ ] **IS-16-125 P2** — Define CPU, memory, latency, and content budgets for input context router.
+- [ ] **IS-16-126 P2** — Profile input context router under a representative worst-case scene.
+- [ ] **IS-16-127 P2** — Document usage examples, invariants, and common failure modes for input context router.
+- [ ] **IS-16-128 P2** — Define the scope, responsibilities, and explicit non-goals of camera zone system.
+- [ ] **IS-16-129 P2** — Define the public C++ API and ownership rules for camera zone system.
+- [ ] **IS-16-130 P2** — Define versioned configuration or asset data for camera zone system.
+- [ ] **IS-16-131 P2** — Implement the smallest deterministic reference path for camera zone system.
+- [ ] **IS-16-132 P2** — Add input validation and actionable failure reporting to camera zone system.
+- [ ] **IS-16-133 P2** — Add focused unit tests for camera zone system.
+- [ ] **IS-16-134 P2** — Add an integration scenario that exercises camera zone system in a running game flow.
+- [ ] **IS-16-135 P2** — Add logging, counters, and debug inspection for camera zone system.
+- [ ] **IS-16-136 P2** — Add an in-world or overlay debug visualization for camera zone system.
+- [ ] **IS-16-137 P2** — Define save/checkpoint serialization and restoration for camera zone system.
+- [ ] **IS-16-138 P2** — Define CPU, memory, latency, and content budgets for camera zone system.
+- [ ] **IS-16-139 P2** — Profile camera zone system under a representative worst-case scene.
+- [ ] **IS-16-140 P2** — Document usage examples, invariants, and common failure modes for camera zone system.
+- [ ] **IS-16-141 P2** — Define the scope, responsibilities, and explicit non-goals of camera shake mixer.
+- [ ] **IS-16-142 P2** — Define the public C++ API and ownership rules for camera shake mixer.
+- [ ] **IS-16-143 P2** — Define versioned configuration or asset data for camera shake mixer.
+- [ ] **IS-16-144 P2** — Implement the smallest deterministic reference path for camera shake mixer.
+- [ ] **IS-16-145 P2** — Add input validation and actionable failure reporting to camera shake mixer.
+- [ ] **IS-16-146 P2** — Add focused unit tests for camera shake mixer.
+- [ ] **IS-16-147 P2** — Add an integration scenario that exercises camera shake mixer in a running game flow.
+- [ ] **IS-16-148 P2** — Add logging, counters, and debug inspection for camera shake mixer.
+- [ ] **IS-16-149 P2** — Add an in-world or overlay debug visualization for camera shake mixer.
+- [ ] **IS-16-150 P2** — Define save/checkpoint serialization and restoration for camera shake mixer.
+- [ ] **IS-16-151 P2** — Define CPU, memory, latency, and content budgets for camera shake mixer.
+- [ ] **IS-16-152 P2** — Profile camera shake mixer under a representative worst-case scene.
+- [ ] **IS-16-153 P2** — Document usage examples, invariants, and common failure modes for camera shake mixer.
+- [ ] **IS-16-154 P2** — Define the scope, responsibilities, and explicit non-goals of player state machine.
+- [ ] **IS-16-155 P2** — Define the public C++ API and ownership rules for player state machine.
+- [ ] **IS-16-156 P2** — Define versioned configuration or asset data for player state machine.
+- [ ] **IS-16-157 P2** — Implement the smallest deterministic reference path for player state machine.
+- [ ] **IS-16-158 P2** — Add input validation and actionable failure reporting to player state machine.
+- [ ] **IS-16-159 P2** — Add focused unit tests for player state machine.
+- [ ] **IS-16-160 P2** — Add an integration scenario that exercises player state machine in a running game flow.
+- [ ] **IS-16-161 P2** — Add logging, counters, and debug inspection for player state machine.
+- [ ] **IS-16-162 P2** — Add an in-world or overlay debug visualization for player state machine.
+- [ ] **IS-16-163 P2** — Define save/checkpoint serialization and restoration for player state machine.
+- [ ] **IS-16-164 P2** — Define CPU, memory, latency, and content budgets for player state machine.
+- [ ] **IS-16-165 P2** — Profile player state machine under a representative worst-case scene.
+- [ ] **IS-16-166 P2** — Document usage examples, invariants, and common failure modes for player state machine.
+

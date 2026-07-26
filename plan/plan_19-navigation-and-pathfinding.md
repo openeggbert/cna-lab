@@ -1,0 +1,182 @@
+# 19. Navigation and pathfinding
+
+[Back to master plan](../plan.md)
+
+
+Connect exterior, interior, pedestrian, vehicle, and special-purpose navigation data.
+
+- [ ] **IS-19-001 P0** — Choose a simple waypoint/graph path for the first pedestrian slice.
+- [ ] **IS-19-002 P0** — Define navigation data ownership by sector.
+- [ ] **IS-19-003 P0** — Connect exterior and first interior navigation through portals.
+- [ ] **IS-19-004 P0** — Create debug rendering for nodes, edges, portals, paths, and blocked links.
+- [ ] **IS-19-005 P1** — Evaluate Recast/Detour or another navmesh library for later production use.
+- [ ] **IS-19-006 P1** — Define agent sizes, slopes, steps, and clearance classes.
+- [ ] **IS-19-007 P1** — Create nav build inputs from collision/authoring data.
+- [ ] **IS-19-008 P1** — Create tiled nav data compatible with streaming.
+- [ ] **IS-19-009 P1** — Create dynamic obstacle and temporary blockage handling.
+- [ ] **IS-19-010 P1** — Create asynchronous path requests with cancellation.
+- [ ] **IS-19-011 P1** — Create path-result staleness checks.
+- [ ] **IS-19-012 P1** — Create path smoothing and corner handling.
+- [ ] **IS-19-013 P1** — Create local avoidance for pedestrians.
+- [ ] **IS-19-014 P1** — Create off-mesh links for doors, stairs, ladders, seats, and vehicle entry.
+- [ ] **IS-19-015 P1** — Create traffic lane graph pathfinding separately from pedestrian navigation.
+- [ ] **IS-19-016 P1** — Create police search-area and tactical query helpers only when needed.
+- [ ] **IS-19-017 P1** — Create nav validation for disconnected authored destinations.
+- [ ] **IS-19-018 P1** — Create navigation bake cache and incremental rebuild.
+- [ ] **IS-19-019 P1** — Create deterministic pathfinding tests.
+- [ ] **IS-19-020 P2** — Create crowd-flow heatmaps.
+- [ ] **IS-19-021 P2** — Create accessibility-aware path categories for civilians.
+- [ ] **IS-19-022 P2** — Create interior room/portal graph for high-level planning.
+- [ ] **IS-19-023 P2** — Create route cost overlays for danger, police, traffic, and mission constraints.
+- [ ] **IS-19-024 P1** — Define the scope, responsibilities, and explicit non-goals of pedestrian waypoint graph.
+- [ ] **IS-19-025 P1** — Define the public C++ API and ownership rules for pedestrian waypoint graph.
+- [ ] **IS-19-026 P1** — Define versioned configuration or asset data for pedestrian waypoint graph.
+- [ ] **IS-19-027 P1** — Implement the smallest deterministic reference path for pedestrian waypoint graph.
+- [ ] **IS-19-028 P1** — Add input validation and actionable failure reporting to pedestrian waypoint graph.
+- [ ] **IS-19-029 P1** — Add focused unit tests for pedestrian waypoint graph.
+- [ ] **IS-19-030 P1** — Add an integration scenario that exercises pedestrian waypoint graph in a running game flow.
+- [ ] **IS-19-031 P2** — Add logging, counters, and debug inspection for pedestrian waypoint graph.
+- [ ] **IS-19-032 P2** — Add an in-world or overlay debug visualization for pedestrian waypoint graph.
+- [ ] **IS-19-033 P1** — Define save/checkpoint serialization and restoration for pedestrian waypoint graph.
+- [ ] **IS-19-034 P2** — Define CPU, memory, latency, and content budgets for pedestrian waypoint graph.
+- [ ] **IS-19-035 P2** — Profile pedestrian waypoint graph under a representative worst-case scene.
+- [ ] **IS-19-036 P2** — Document usage examples, invariants, and common failure modes for pedestrian waypoint graph.
+- [ ] **IS-19-037 P1** — Define the scope, responsibilities, and explicit non-goals of tiled navmesh.
+- [ ] **IS-19-038 P1** — Define the public C++ API and ownership rules for tiled navmesh.
+- [ ] **IS-19-039 P1** — Define versioned configuration or asset data for tiled navmesh.
+- [ ] **IS-19-040 P1** — Implement the smallest deterministic reference path for tiled navmesh.
+- [ ] **IS-19-041 P1** — Add input validation and actionable failure reporting to tiled navmesh.
+- [ ] **IS-19-042 P1** — Add focused unit tests for tiled navmesh.
+- [ ] **IS-19-043 P1** — Add an integration scenario that exercises tiled navmesh in a running game flow.
+- [ ] **IS-19-044 P2** — Add logging, counters, and debug inspection for tiled navmesh.
+- [ ] **IS-19-045 P2** — Add an in-world or overlay debug visualization for tiled navmesh.
+- [ ] **IS-19-046 P1** — Define save/checkpoint serialization and restoration for tiled navmesh.
+- [ ] **IS-19-047 P2** — Define CPU, memory, latency, and content budgets for tiled navmesh.
+- [ ] **IS-19-048 P2** — Profile tiled navmesh under a representative worst-case scene.
+- [ ] **IS-19-049 P2** — Document usage examples, invariants, and common failure modes for tiled navmesh.
+- [ ] **IS-19-050 P1** — Define the scope, responsibilities, and explicit non-goals of navigation portal links.
+- [ ] **IS-19-051 P1** — Define the public C++ API and ownership rules for navigation portal links.
+- [ ] **IS-19-052 P1** — Define versioned configuration or asset data for navigation portal links.
+- [ ] **IS-19-053 P1** — Implement the smallest deterministic reference path for navigation portal links.
+- [ ] **IS-19-054 P1** — Add input validation and actionable failure reporting to navigation portal links.
+- [ ] **IS-19-055 P1** — Add focused unit tests for navigation portal links.
+- [ ] **IS-19-056 P1** — Add an integration scenario that exercises navigation portal links in a running game flow.
+- [ ] **IS-19-057 P2** — Add logging, counters, and debug inspection for navigation portal links.
+- [ ] **IS-19-058 P2** — Add an in-world or overlay debug visualization for navigation portal links.
+- [ ] **IS-19-059 P1** — Define save/checkpoint serialization and restoration for navigation portal links.
+- [ ] **IS-19-060 P2** — Define CPU, memory, latency, and content budgets for navigation portal links.
+- [ ] **IS-19-061 P2** — Profile navigation portal links under a representative worst-case scene.
+- [ ] **IS-19-062 P2** — Document usage examples, invariants, and common failure modes for navigation portal links.
+- [ ] **IS-19-063 P1** — Define the scope, responsibilities, and explicit non-goals of asynchronous path service.
+- [ ] **IS-19-064 P1** — Define the public C++ API and ownership rules for asynchronous path service.
+- [ ] **IS-19-065 P1** — Define versioned configuration or asset data for asynchronous path service.
+- [ ] **IS-19-066 P1** — Implement the smallest deterministic reference path for asynchronous path service.
+- [ ] **IS-19-067 P1** — Add input validation and actionable failure reporting to asynchronous path service.
+- [ ] **IS-19-068 P1** — Add focused unit tests for asynchronous path service.
+- [ ] **IS-19-069 P1** — Add an integration scenario that exercises asynchronous path service in a running game flow.
+- [ ] **IS-19-070 P2** — Add logging, counters, and debug inspection for asynchronous path service.
+- [ ] **IS-19-071 P2** — Add an in-world or overlay debug visualization for asynchronous path service.
+- [ ] **IS-19-072 P1** — Define save/checkpoint serialization and restoration for asynchronous path service.
+- [ ] **IS-19-073 P2** — Define CPU, memory, latency, and content budgets for asynchronous path service.
+- [ ] **IS-19-074 P2** — Profile asynchronous path service under a representative worst-case scene.
+- [ ] **IS-19-075 P2** — Document usage examples, invariants, and common failure modes for asynchronous path service.
+- [ ] **IS-19-076 P1** — Define the scope, responsibilities, and explicit non-goals of local avoidance.
+- [ ] **IS-19-077 P1** — Define the public C++ API and ownership rules for local avoidance.
+- [ ] **IS-19-078 P1** — Define versioned configuration or asset data for local avoidance.
+- [ ] **IS-19-079 P1** — Implement the smallest deterministic reference path for local avoidance.
+- [ ] **IS-19-080 P1** — Add input validation and actionable failure reporting to local avoidance.
+- [ ] **IS-19-081 P1** — Add focused unit tests for local avoidance.
+- [ ] **IS-19-082 P1** — Add an integration scenario that exercises local avoidance in a running game flow.
+- [ ] **IS-19-083 P2** — Add logging, counters, and debug inspection for local avoidance.
+- [ ] **IS-19-084 P2** — Add an in-world or overlay debug visualization for local avoidance.
+- [ ] **IS-19-085 P1** — Define save/checkpoint serialization and restoration for local avoidance.
+- [ ] **IS-19-086 P2** — Define CPU, memory, latency, and content budgets for local avoidance.
+- [ ] **IS-19-087 P2** — Profile local avoidance under a representative worst-case scene.
+- [ ] **IS-19-088 P2** — Document usage examples, invariants, and common failure modes for local avoidance.
+- [ ] **IS-19-089 P1** — Define the scope, responsibilities, and explicit non-goals of dynamic obstacle manager.
+- [ ] **IS-19-090 P1** — Define the public C++ API and ownership rules for dynamic obstacle manager.
+- [ ] **IS-19-091 P1** — Define versioned configuration or asset data for dynamic obstacle manager.
+- [ ] **IS-19-092 P1** — Implement the smallest deterministic reference path for dynamic obstacle manager.
+- [ ] **IS-19-093 P1** — Add input validation and actionable failure reporting to dynamic obstacle manager.
+- [ ] **IS-19-094 P1** — Add focused unit tests for dynamic obstacle manager.
+- [ ] **IS-19-095 P1** — Add an integration scenario that exercises dynamic obstacle manager in a running game flow.
+- [ ] **IS-19-096 P2** — Add logging, counters, and debug inspection for dynamic obstacle manager.
+- [ ] **IS-19-097 P2** — Add an in-world or overlay debug visualization for dynamic obstacle manager.
+- [ ] **IS-19-098 P1** — Define save/checkpoint serialization and restoration for dynamic obstacle manager.
+- [ ] **IS-19-099 P2** — Define CPU, memory, latency, and content budgets for dynamic obstacle manager.
+- [ ] **IS-19-100 P2** — Profile dynamic obstacle manager under a representative worst-case scene.
+- [ ] **IS-19-101 P2** — Document usage examples, invariants, and common failure modes for dynamic obstacle manager.
+- [ ] **IS-19-102 P1** — Define the scope, responsibilities, and explicit non-goals of traffic route planner.
+- [ ] **IS-19-103 P1** — Define the public C++ API and ownership rules for traffic route planner.
+- [ ] **IS-19-104 P1** — Define versioned configuration or asset data for traffic route planner.
+- [ ] **IS-19-105 P1** — Implement the smallest deterministic reference path for traffic route planner.
+- [ ] **IS-19-106 P1** — Add input validation and actionable failure reporting to traffic route planner.
+- [ ] **IS-19-107 P1** — Add focused unit tests for traffic route planner.
+- [ ] **IS-19-108 P1** — Add an integration scenario that exercises traffic route planner in a running game flow.
+- [ ] **IS-19-109 P2** — Add logging, counters, and debug inspection for traffic route planner.
+- [ ] **IS-19-110 P2** — Add an in-world or overlay debug visualization for traffic route planner.
+- [ ] **IS-19-111 P1** — Define save/checkpoint serialization and restoration for traffic route planner.
+- [ ] **IS-19-112 P2** — Define CPU, memory, latency, and content budgets for traffic route planner.
+- [ ] **IS-19-113 P2** — Profile traffic route planner under a representative worst-case scene.
+- [ ] **IS-19-114 P2** — Document usage examples, invariants, and common failure modes for traffic route planner.
+- [ ] **IS-19-115 P2** — Define the scope, responsibilities, and explicit non-goals of high-level room planner.
+- [ ] **IS-19-116 P2** — Define the public C++ API and ownership rules for high-level room planner.
+- [ ] **IS-19-117 P2** — Define versioned configuration or asset data for high-level room planner.
+- [ ] **IS-19-118 P2** — Implement the smallest deterministic reference path for high-level room planner.
+- [ ] **IS-19-119 P2** — Add input validation and actionable failure reporting to high-level room planner.
+- [ ] **IS-19-120 P2** — Add focused unit tests for high-level room planner.
+- [ ] **IS-19-121 P2** — Add an integration scenario that exercises high-level room planner in a running game flow.
+- [ ] **IS-19-122 P2** — Add logging, counters, and debug inspection for high-level room planner.
+- [ ] **IS-19-123 P2** — Add an in-world or overlay debug visualization for high-level room planner.
+- [ ] **IS-19-124 P2** — Define CPU, memory, latency, and content budgets for high-level room planner.
+- [ ] **IS-19-125 P2** — Profile high-level room planner under a representative worst-case scene.
+- [ ] **IS-19-126 P2** — Document usage examples, invariants, and common failure modes for high-level room planner.
+- [ ] **IS-19-127 P2** — Define the scope, responsibilities, and explicit non-goals of off-mesh link manager.
+- [ ] **IS-19-128 P2** — Define the public C++ API and ownership rules for off-mesh link manager.
+- [ ] **IS-19-129 P2** — Define versioned configuration or asset data for off-mesh link manager.
+- [ ] **IS-19-130 P2** — Implement the smallest deterministic reference path for off-mesh link manager.
+- [ ] **IS-19-131 P2** — Add input validation and actionable failure reporting to off-mesh link manager.
+- [ ] **IS-19-132 P2** — Add focused unit tests for off-mesh link manager.
+- [ ] **IS-19-133 P2** — Add an integration scenario that exercises off-mesh link manager in a running game flow.
+- [ ] **IS-19-134 P2** — Add logging, counters, and debug inspection for off-mesh link manager.
+- [ ] **IS-19-135 P2** — Add an in-world or overlay debug visualization for off-mesh link manager.
+- [ ] **IS-19-136 P2** — Define CPU, memory, latency, and content budgets for off-mesh link manager.
+- [ ] **IS-19-137 P2** — Profile off-mesh link manager under a representative worst-case scene.
+- [ ] **IS-19-138 P2** — Document usage examples, invariants, and common failure modes for off-mesh link manager.
+- [ ] **IS-19-139 P2** — Define the scope, responsibilities, and explicit non-goals of nav tile streamer.
+- [ ] **IS-19-140 P2** — Define the public C++ API and ownership rules for nav tile streamer.
+- [ ] **IS-19-141 P2** — Define versioned configuration or asset data for nav tile streamer.
+- [ ] **IS-19-142 P2** — Implement the smallest deterministic reference path for nav tile streamer.
+- [ ] **IS-19-143 P2** — Add input validation and actionable failure reporting to nav tile streamer.
+- [ ] **IS-19-144 P2** — Add focused unit tests for nav tile streamer.
+- [ ] **IS-19-145 P2** — Add an integration scenario that exercises nav tile streamer in a running game flow.
+- [ ] **IS-19-146 P2** — Add logging, counters, and debug inspection for nav tile streamer.
+- [ ] **IS-19-147 P2** — Add an in-world or overlay debug visualization for nav tile streamer.
+- [ ] **IS-19-148 P2** — Define CPU, memory, latency, and content budgets for nav tile streamer.
+- [ ] **IS-19-149 P2** — Profile nav tile streamer under a representative worst-case scene.
+- [ ] **IS-19-150 P2** — Document usage examples, invariants, and common failure modes for nav tile streamer.
+- [ ] **IS-19-151 P2** — Define the scope, responsibilities, and explicit non-goals of route cost overlay.
+- [ ] **IS-19-152 P2** — Define the public C++ API and ownership rules for route cost overlay.
+- [ ] **IS-19-153 P2** — Define versioned configuration or asset data for route cost overlay.
+- [ ] **IS-19-154 P2** — Implement the smallest deterministic reference path for route cost overlay.
+- [ ] **IS-19-155 P2** — Add input validation and actionable failure reporting to route cost overlay.
+- [ ] **IS-19-156 P2** — Add focused unit tests for route cost overlay.
+- [ ] **IS-19-157 P2** — Add an integration scenario that exercises route cost overlay in a running game flow.
+- [ ] **IS-19-158 P2** — Add logging, counters, and debug inspection for route cost overlay.
+- [ ] **IS-19-159 P2** — Add an in-world or overlay debug visualization for route cost overlay.
+- [ ] **IS-19-160 P2** — Define CPU, memory, latency, and content budgets for route cost overlay.
+- [ ] **IS-19-161 P2** — Profile route cost overlay under a representative worst-case scene.
+- [ ] **IS-19-162 P2** — Document usage examples, invariants, and common failure modes for route cost overlay.
+- [ ] **IS-19-163 P2** — Define the scope, responsibilities, and explicit non-goals of path query cache.
+- [ ] **IS-19-164 P2** — Define the public C++ API and ownership rules for path query cache.
+- [ ] **IS-19-165 P2** — Define versioned configuration or asset data for path query cache.
+- [ ] **IS-19-166 P2** — Implement the smallest deterministic reference path for path query cache.
+- [ ] **IS-19-167 P2** — Add input validation and actionable failure reporting to path query cache.
+- [ ] **IS-19-168 P2** — Add focused unit tests for path query cache.
+- [ ] **IS-19-169 P2** — Add an integration scenario that exercises path query cache in a running game flow.
+- [ ] **IS-19-170 P2** — Add logging, counters, and debug inspection for path query cache.
+- [ ] **IS-19-171 P2** — Add an in-world or overlay debug visualization for path query cache.
+- [ ] **IS-19-172 P2** — Define CPU, memory, latency, and content budgets for path query cache.
+- [ ] **IS-19-173 P2** — Profile path query cache under a representative worst-case scene.
+- [ ] **IS-19-174 P2** — Document usage examples, invariants, and common failure modes for path query cache.
+

@@ -1,0 +1,174 @@
+# 29. Save games, checkpoints, profiles, and migration
+
+[Back to master plan](../plan.md)
+
+
+Persist logical state safely across streaming, version changes, and interrupted writes.
+
+- [ ] **IS-29-001 P0** — Version the current save format and add explicit migration infrastructure.
+- [ ] **IS-29-002 P0** — Implement atomic write to a temporary file followed by replacement.
+- [ ] **IS-29-003 P0** — Keep at least one rolling backup.
+- [ ] **IS-29-004 P0** — Add checksum/corruption detection.
+- [ ] **IS-29-005 P0** — Separate user settings from campaign save data.
+- [ ] **IS-29-006 P1** — Create profile and save-slot metadata.
+- [ ] **IS-29-007 P1** — Create stable serialization for mission, player, vehicle, world, inventory, and wanted state.
+- [ ] **IS-29-008 P1** — Create sector-persistence records for streamed entities.
+- [ ] **IS-29-009 P1** — Create checkpoint snapshot semantics.
+- [ ] **IS-29-010 P1** — Create autosave scheduling that avoids unsafe moments.
+- [ ] **IS-29-011 P1** — Create save-blocking reasons and clear UI feedback.
+- [ ] **IS-29-012 P1** — Create asynchronous save snapshot preparation where safe.
+- [ ] **IS-29-013 P1** — Create thumbnail capture after render pipeline support exists.
+- [ ] **IS-29-014 P1** — Create migration fixtures for every released format version.
+- [ ] **IS-29-015 P1** — Create tests for truncated, duplicated, invalid, and future-version saves.
+- [ ] **IS-29-016 P1** — Create behavior when optional content referenced by a save is absent.
+- [ ] **IS-29-017 P1** — Create cross-platform path and filename policy.
+- [ ] **IS-29-018 P1** — Create privacy policy for telemetry/crash data separate from saves.
+- [ ] **IS-29-019 P1** — Create developer save inspection and diff tools.
+- [ ] **IS-29-020 P2** — Create cloud-save integration only through a platform-neutral interface.
+- [ ] **IS-29-021 P2** — Create import/export support for debugging.
+- [ ] **IS-29-022 P2** — Create campaign chapter replay snapshots only if game design uses them.
+- [ ] **IS-29-023 P1** — Define the scope, responsibilities, and explicit non-goals of save snapshot model.
+- [ ] **IS-29-024 P1** — Define the public C++ API and ownership rules for save snapshot model.
+- [ ] **IS-29-025 P1** — Define versioned configuration or asset data for save snapshot model.
+- [ ] **IS-29-026 P1** — Implement the smallest deterministic reference path for save snapshot model.
+- [ ] **IS-29-027 P1** — Add input validation and actionable failure reporting to save snapshot model.
+- [ ] **IS-29-028 P1** — Add focused unit tests for save snapshot model.
+- [ ] **IS-29-029 P1** — Add an integration scenario that exercises save snapshot model in a running game flow.
+- [ ] **IS-29-030 P2** — Add logging, counters, and debug inspection for save snapshot model.
+- [ ] **IS-29-031 P1** — Define save/checkpoint serialization and restoration for save snapshot model.
+- [ ] **IS-29-032 P2** — Define CPU, memory, latency, and content budgets for save snapshot model.
+- [ ] **IS-29-033 P2** — Profile save snapshot model under a representative worst-case scene.
+- [ ] **IS-29-034 P2** — Document usage examples, invariants, and common failure modes for save snapshot model.
+- [ ] **IS-29-035 P1** — Define the scope, responsibilities, and explicit non-goals of atomic save writer.
+- [ ] **IS-29-036 P1** — Define the public C++ API and ownership rules for atomic save writer.
+- [ ] **IS-29-037 P1** — Define versioned configuration or asset data for atomic save writer.
+- [ ] **IS-29-038 P1** — Implement the smallest deterministic reference path for atomic save writer.
+- [ ] **IS-29-039 P1** — Add input validation and actionable failure reporting to atomic save writer.
+- [ ] **IS-29-040 P1** — Add focused unit tests for atomic save writer.
+- [ ] **IS-29-041 P1** — Add an integration scenario that exercises atomic save writer in a running game flow.
+- [ ] **IS-29-042 P2** — Add logging, counters, and debug inspection for atomic save writer.
+- [ ] **IS-29-043 P1** — Define save/checkpoint serialization and restoration for atomic save writer.
+- [ ] **IS-29-044 P2** — Define CPU, memory, latency, and content budgets for atomic save writer.
+- [ ] **IS-29-045 P2** — Profile atomic save writer under a representative worst-case scene.
+- [ ] **IS-29-046 P2** — Document usage examples, invariants, and common failure modes for atomic save writer.
+- [ ] **IS-29-047 P1** — Define the scope, responsibilities, and explicit non-goals of save migration registry.
+- [ ] **IS-29-048 P1** — Define the public C++ API and ownership rules for save migration registry.
+- [ ] **IS-29-049 P1** — Define versioned configuration or asset data for save migration registry.
+- [ ] **IS-29-050 P1** — Implement the smallest deterministic reference path for save migration registry.
+- [ ] **IS-29-051 P1** — Add input validation and actionable failure reporting to save migration registry.
+- [ ] **IS-29-052 P1** — Add focused unit tests for save migration registry.
+- [ ] **IS-29-053 P1** — Add an integration scenario that exercises save migration registry in a running game flow.
+- [ ] **IS-29-054 P2** — Add logging, counters, and debug inspection for save migration registry.
+- [ ] **IS-29-055 P1** — Define save/checkpoint serialization and restoration for save migration registry.
+- [ ] **IS-29-056 P2** — Define CPU, memory, latency, and content budgets for save migration registry.
+- [ ] **IS-29-057 P2** — Profile save migration registry under a representative worst-case scene.
+- [ ] **IS-29-058 P2** — Document usage examples, invariants, and common failure modes for save migration registry.
+- [ ] **IS-29-059 P1** — Define the scope, responsibilities, and explicit non-goals of checkpoint manager.
+- [ ] **IS-29-060 P1** — Define the public C++ API and ownership rules for checkpoint manager.
+- [ ] **IS-29-061 P1** — Define versioned configuration or asset data for checkpoint manager.
+- [ ] **IS-29-062 P1** — Implement the smallest deterministic reference path for checkpoint manager.
+- [ ] **IS-29-063 P1** — Add input validation and actionable failure reporting to checkpoint manager.
+- [ ] **IS-29-064 P1** — Add focused unit tests for checkpoint manager.
+- [ ] **IS-29-065 P1** — Add an integration scenario that exercises checkpoint manager in a running game flow.
+- [ ] **IS-29-066 P2** — Add logging, counters, and debug inspection for checkpoint manager.
+- [ ] **IS-29-067 P1** — Define save/checkpoint serialization and restoration for checkpoint manager.
+- [ ] **IS-29-068 P2** — Define CPU, memory, latency, and content budgets for checkpoint manager.
+- [ ] **IS-29-069 P2** — Profile checkpoint manager under a representative worst-case scene.
+- [ ] **IS-29-070 P2** — Document usage examples, invariants, and common failure modes for checkpoint manager.
+- [ ] **IS-29-071 P1** — Define the scope, responsibilities, and explicit non-goals of profile manager.
+- [ ] **IS-29-072 P1** — Define the public C++ API and ownership rules for profile manager.
+- [ ] **IS-29-073 P1** — Define versioned configuration or asset data for profile manager.
+- [ ] **IS-29-074 P1** — Implement the smallest deterministic reference path for profile manager.
+- [ ] **IS-29-075 P1** — Add input validation and actionable failure reporting to profile manager.
+- [ ] **IS-29-076 P1** — Add focused unit tests for profile manager.
+- [ ] **IS-29-077 P1** — Add an integration scenario that exercises profile manager in a running game flow.
+- [ ] **IS-29-078 P2** — Add logging, counters, and debug inspection for profile manager.
+- [ ] **IS-29-079 P1** — Define save/checkpoint serialization and restoration for profile manager.
+- [ ] **IS-29-080 P2** — Define CPU, memory, latency, and content budgets for profile manager.
+- [ ] **IS-29-081 P2** — Profile profile manager under a representative worst-case scene.
+- [ ] **IS-29-082 P2** — Document usage examples, invariants, and common failure modes for profile manager.
+- [ ] **IS-29-083 P1** — Define the scope, responsibilities, and explicit non-goals of sector persistence store.
+- [ ] **IS-29-084 P1** — Define the public C++ API and ownership rules for sector persistence store.
+- [ ] **IS-29-085 P1** — Define versioned configuration or asset data for sector persistence store.
+- [ ] **IS-29-086 P1** — Implement the smallest deterministic reference path for sector persistence store.
+- [ ] **IS-29-087 P1** — Add input validation and actionable failure reporting to sector persistence store.
+- [ ] **IS-29-088 P1** — Add focused unit tests for sector persistence store.
+- [ ] **IS-29-089 P1** — Add an integration scenario that exercises sector persistence store in a running game flow.
+- [ ] **IS-29-090 P2** — Add logging, counters, and debug inspection for sector persistence store.
+- [ ] **IS-29-091 P1** — Define save/checkpoint serialization and restoration for sector persistence store.
+- [ ] **IS-29-092 P2** — Define CPU, memory, latency, and content budgets for sector persistence store.
+- [ ] **IS-29-093 P2** — Profile sector persistence store under a representative worst-case scene.
+- [ ] **IS-29-094 P2** — Document usage examples, invariants, and common failure modes for sector persistence store.
+- [ ] **IS-29-095 P1** — Define the scope, responsibilities, and explicit non-goals of save inspector.
+- [ ] **IS-29-096 P1** — Define the public C++ API and ownership rules for save inspector.
+- [ ] **IS-29-097 P1** — Define versioned configuration or asset data for save inspector.
+- [ ] **IS-29-098 P1** — Implement the smallest deterministic reference path for save inspector.
+- [ ] **IS-29-099 P1** — Add input validation and actionable failure reporting to save inspector.
+- [ ] **IS-29-100 P1** — Add focused unit tests for save inspector.
+- [ ] **IS-29-101 P1** — Add an integration scenario that exercises save inspector in a running game flow.
+- [ ] **IS-29-102 P2** — Add logging, counters, and debug inspection for save inspector.
+- [ ] **IS-29-103 P1** — Define save/checkpoint serialization and restoration for save inspector.
+- [ ] **IS-29-104 P2** — Define CPU, memory, latency, and content budgets for save inspector.
+- [ ] **IS-29-105 P2** — Profile save inspector under a representative worst-case scene.
+- [ ] **IS-29-106 P2** — Document usage examples, invariants, and common failure modes for save inspector.
+- [ ] **IS-29-107 P2** — Define the scope, responsibilities, and explicit non-goals of autosave scheduler.
+- [ ] **IS-29-108 P2** — Define the public C++ API and ownership rules for autosave scheduler.
+- [ ] **IS-29-109 P2** — Define versioned configuration or asset data for autosave scheduler.
+- [ ] **IS-29-110 P2** — Implement the smallest deterministic reference path for autosave scheduler.
+- [ ] **IS-29-111 P2** — Add input validation and actionable failure reporting to autosave scheduler.
+- [ ] **IS-29-112 P2** — Add focused unit tests for autosave scheduler.
+- [ ] **IS-29-113 P2** — Add an integration scenario that exercises autosave scheduler in a running game flow.
+- [ ] **IS-29-114 P2** — Add logging, counters, and debug inspection for autosave scheduler.
+- [ ] **IS-29-115 P2** — Define save/checkpoint serialization and restoration for autosave scheduler.
+- [ ] **IS-29-116 P2** — Define CPU, memory, latency, and content budgets for autosave scheduler.
+- [ ] **IS-29-117 P2** — Profile autosave scheduler under a representative worst-case scene.
+- [ ] **IS-29-118 P2** — Document usage examples, invariants, and common failure modes for autosave scheduler.
+- [ ] **IS-29-119 P2** — Define the scope, responsibilities, and explicit non-goals of backup rotation.
+- [ ] **IS-29-120 P2** — Define the public C++ API and ownership rules for backup rotation.
+- [ ] **IS-29-121 P2** — Define versioned configuration or asset data for backup rotation.
+- [ ] **IS-29-122 P2** — Implement the smallest deterministic reference path for backup rotation.
+- [ ] **IS-29-123 P2** — Add input validation and actionable failure reporting to backup rotation.
+- [ ] **IS-29-124 P2** — Add focused unit tests for backup rotation.
+- [ ] **IS-29-125 P2** — Add an integration scenario that exercises backup rotation in a running game flow.
+- [ ] **IS-29-126 P2** — Add logging, counters, and debug inspection for backup rotation.
+- [ ] **IS-29-127 P2** — Define save/checkpoint serialization and restoration for backup rotation.
+- [ ] **IS-29-128 P2** — Define CPU, memory, latency, and content budgets for backup rotation.
+- [ ] **IS-29-129 P2** — Profile backup rotation under a representative worst-case scene.
+- [ ] **IS-29-130 P2** — Document usage examples, invariants, and common failure modes for backup rotation.
+- [ ] **IS-29-131 P2** — Define the scope, responsibilities, and explicit non-goals of save corruption recovery.
+- [ ] **IS-29-132 P2** — Define the public C++ API and ownership rules for save corruption recovery.
+- [ ] **IS-29-133 P2** — Define versioned configuration or asset data for save corruption recovery.
+- [ ] **IS-29-134 P2** — Implement the smallest deterministic reference path for save corruption recovery.
+- [ ] **IS-29-135 P2** — Add input validation and actionable failure reporting to save corruption recovery.
+- [ ] **IS-29-136 P2** — Add focused unit tests for save corruption recovery.
+- [ ] **IS-29-137 P2** — Add an integration scenario that exercises save corruption recovery in a running game flow.
+- [ ] **IS-29-138 P2** — Add logging, counters, and debug inspection for save corruption recovery.
+- [ ] **IS-29-139 P2** — Define save/checkpoint serialization and restoration for save corruption recovery.
+- [ ] **IS-29-140 P2** — Define CPU, memory, latency, and content budgets for save corruption recovery.
+- [ ] **IS-29-141 P2** — Profile save corruption recovery under a representative worst-case scene.
+- [ ] **IS-29-142 P2** — Document usage examples, invariants, and common failure modes for save corruption recovery.
+- [ ] **IS-29-143 P2** — Define the scope, responsibilities, and explicit non-goals of save compatibility reporter.
+- [ ] **IS-29-144 P2** — Define the public C++ API and ownership rules for save compatibility reporter.
+- [ ] **IS-29-145 P2** — Define versioned configuration or asset data for save compatibility reporter.
+- [ ] **IS-29-146 P2** — Implement the smallest deterministic reference path for save compatibility reporter.
+- [ ] **IS-29-147 P2** — Add input validation and actionable failure reporting to save compatibility reporter.
+- [ ] **IS-29-148 P2** — Add focused unit tests for save compatibility reporter.
+- [ ] **IS-29-149 P2** — Add an integration scenario that exercises save compatibility reporter in a running game flow.
+- [ ] **IS-29-150 P2** — Add logging, counters, and debug inspection for save compatibility reporter.
+- [ ] **IS-29-151 P2** — Define save/checkpoint serialization and restoration for save compatibility reporter.
+- [ ] **IS-29-152 P2** — Define CPU, memory, latency, and content budgets for save compatibility reporter.
+- [ ] **IS-29-153 P2** — Profile save compatibility reporter under a representative worst-case scene.
+- [ ] **IS-29-154 P2** — Document usage examples, invariants, and common failure modes for save compatibility reporter.
+- [ ] **IS-29-155 P2** — Define the scope, responsibilities, and explicit non-goals of cloud-save adapter.
+- [ ] **IS-29-156 P2** — Define the public C++ API and ownership rules for cloud-save adapter.
+- [ ] **IS-29-157 P2** — Define versioned configuration or asset data for cloud-save adapter.
+- [ ] **IS-29-158 P2** — Implement the smallest deterministic reference path for cloud-save adapter.
+- [ ] **IS-29-159 P2** — Add input validation and actionable failure reporting to cloud-save adapter.
+- [ ] **IS-29-160 P2** — Add focused unit tests for cloud-save adapter.
+- [ ] **IS-29-161 P2** — Add an integration scenario that exercises cloud-save adapter in a running game flow.
+- [ ] **IS-29-162 P2** — Add logging, counters, and debug inspection for cloud-save adapter.
+- [ ] **IS-29-163 P2** — Define save/checkpoint serialization and restoration for cloud-save adapter.
+- [ ] **IS-29-164 P2** — Define CPU, memory, latency, and content budgets for cloud-save adapter.
+- [ ] **IS-29-165 P2** — Profile cloud-save adapter under a representative worst-case scene.
+- [ ] **IS-29-166 P2** — Document usage examples, invariants, and common failure modes for cloud-save adapter.
+

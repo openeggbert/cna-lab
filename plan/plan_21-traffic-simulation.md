@@ -1,0 +1,189 @@
+# 21. Traffic simulation
+
+[Back to master plan](../plan.md)
+
+
+Build robust lane-based traffic that survives streaming, blockage, and player interference.
+
+- [ ] **IS-21-001 P0** — Spawn three to five AI vehicles on a closed lane loop.
+- [ ] **IS-21-002 P0** — Implement lane following, speed target, and following distance.
+- [ ] **IS-21-003 P0** — Implement stop line and traffic signal compliance.
+- [ ] **IS-21-004 P0** — Implement obstacle braking for player and blocked traffic.
+- [ ] **IS-21-005 P1** — Create directed lane graphs with turn connections.
+- [ ] **IS-21-006 P1** — Create route selection across intersections.
+- [ ] **IS-21-007 P1** — Create intersection reservations to reduce deadlocks.
+- [ ] **IS-21-008 P1** — Create traffic-light phases and timing data.
+- [ ] **IS-21-009 P1** — Create stop-sign and priority-junction behavior.
+- [ ] **IS-21-010 P1** — Create lane-change rules only where roads support them.
+- [ ] **IS-21-011 P1** — Create parked vehicle slots and departure/arrival behavior.
+- [ ] **IS-21-012 P1** — Create traffic spawn/despawn outside attention.
+- [ ] **IS-21-013 P1** — Create streamed traffic rehydration.
+- [ ] **IS-21-014 P1** — Create blocked-road rerouting.
+- [ ] **IS-21-015 P1** — Create stuck detection and bounded recovery.
+- [ ] **IS-21-016 P1** — Create accident and disabled-vehicle handling.
+- [ ] **IS-21-017 P1** — Create emergency vehicle priority hooks for later police use.
+- [ ] **IS-21-018 P1** — Create district/time-based traffic density.
+- [ ] **IS-21-019 P1** — Create debug lane, route, target-speed, and reservation visualization.
+- [ ] **IS-21-020 P1** — Create deterministic intersection scenario tests.
+- [ ] **IS-21-021 P2** — Create overtaking only on selected multi-lane roads.
+- [ ] **IS-21-022 P2** — Create parking maneuvers after core flow is robust.
+- [ ] **IS-21-023 P2** — Create public transit only if campaign scope requires it.
+- [ ] **IS-21-024 P2** — Create honking and social driving reactions.
+- [ ] **IS-21-025 P2** — Create traffic-law variation by district or era only if useful.
+- [ ] **IS-21-026 P1** — Define the scope, responsibilities, and explicit non-goals of lane follower.
+- [ ] **IS-21-027 P1** — Define the public C++ API and ownership rules for lane follower.
+- [ ] **IS-21-028 P1** — Define versioned configuration or asset data for lane follower.
+- [ ] **IS-21-029 P1** — Implement the smallest deterministic reference path for lane follower.
+- [ ] **IS-21-030 P1** — Add input validation and actionable failure reporting to lane follower.
+- [ ] **IS-21-031 P1** — Add focused unit tests for lane follower.
+- [ ] **IS-21-032 P1** — Add an integration scenario that exercises lane follower in a running game flow.
+- [ ] **IS-21-033 P2** — Add logging, counters, and debug inspection for lane follower.
+- [ ] **IS-21-034 P2** — Add an in-world or overlay debug visualization for lane follower.
+- [ ] **IS-21-035 P1** — Define save/checkpoint serialization and restoration for lane follower.
+- [ ] **IS-21-036 P2** — Define CPU, memory, latency, and content budgets for lane follower.
+- [ ] **IS-21-037 P2** — Profile lane follower under a representative worst-case scene.
+- [ ] **IS-21-038 P2** — Document usage examples, invariants, and common failure modes for lane follower.
+- [ ] **IS-21-039 P1** — Define the scope, responsibilities, and explicit non-goals of traffic route planner.
+- [ ] **IS-21-040 P1** — Define the public C++ API and ownership rules for traffic route planner.
+- [ ] **IS-21-041 P1** — Define versioned configuration or asset data for traffic route planner.
+- [ ] **IS-21-042 P1** — Implement the smallest deterministic reference path for traffic route planner.
+- [ ] **IS-21-043 P1** — Add input validation and actionable failure reporting to traffic route planner.
+- [ ] **IS-21-044 P1** — Add focused unit tests for traffic route planner.
+- [ ] **IS-21-045 P1** — Add an integration scenario that exercises traffic route planner in a running game flow.
+- [ ] **IS-21-046 P2** — Add logging, counters, and debug inspection for traffic route planner.
+- [ ] **IS-21-047 P2** — Add an in-world or overlay debug visualization for traffic route planner.
+- [ ] **IS-21-048 P1** — Define save/checkpoint serialization and restoration for traffic route planner.
+- [ ] **IS-21-049 P2** — Define CPU, memory, latency, and content budgets for traffic route planner.
+- [ ] **IS-21-050 P2** — Profile traffic route planner under a representative worst-case scene.
+- [ ] **IS-21-051 P2** — Document usage examples, invariants, and common failure modes for traffic route planner.
+- [ ] **IS-21-052 P1** — Define the scope, responsibilities, and explicit non-goals of vehicle spacing controller.
+- [ ] **IS-21-053 P1** — Define the public C++ API and ownership rules for vehicle spacing controller.
+- [ ] **IS-21-054 P1** — Define versioned configuration or asset data for vehicle spacing controller.
+- [ ] **IS-21-055 P1** — Implement the smallest deterministic reference path for vehicle spacing controller.
+- [ ] **IS-21-056 P1** — Add input validation and actionable failure reporting to vehicle spacing controller.
+- [ ] **IS-21-057 P1** — Add focused unit tests for vehicle spacing controller.
+- [ ] **IS-21-058 P1** — Add an integration scenario that exercises vehicle spacing controller in a running game flow.
+- [ ] **IS-21-059 P2** — Add logging, counters, and debug inspection for vehicle spacing controller.
+- [ ] **IS-21-060 P2** — Add an in-world or overlay debug visualization for vehicle spacing controller.
+- [ ] **IS-21-061 P1** — Define save/checkpoint serialization and restoration for vehicle spacing controller.
+- [ ] **IS-21-062 P2** — Define CPU, memory, latency, and content budgets for vehicle spacing controller.
+- [ ] **IS-21-063 P2** — Profile vehicle spacing controller under a representative worst-case scene.
+- [ ] **IS-21-064 P2** — Document usage examples, invariants, and common failure modes for vehicle spacing controller.
+- [ ] **IS-21-065 P1** — Define the scope, responsibilities, and explicit non-goals of intersection reservation manager.
+- [ ] **IS-21-066 P1** — Define the public C++ API and ownership rules for intersection reservation manager.
+- [ ] **IS-21-067 P1** — Define versioned configuration or asset data for intersection reservation manager.
+- [ ] **IS-21-068 P1** — Implement the smallest deterministic reference path for intersection reservation manager.
+- [ ] **IS-21-069 P1** — Add input validation and actionable failure reporting to intersection reservation manager.
+- [ ] **IS-21-070 P1** — Add focused unit tests for intersection reservation manager.
+- [ ] **IS-21-071 P1** — Add an integration scenario that exercises intersection reservation manager in a running game flow.
+- [ ] **IS-21-072 P2** — Add logging, counters, and debug inspection for intersection reservation manager.
+- [ ] **IS-21-073 P2** — Add an in-world or overlay debug visualization for intersection reservation manager.
+- [ ] **IS-21-074 P1** — Define save/checkpoint serialization and restoration for intersection reservation manager.
+- [ ] **IS-21-075 P2** — Define CPU, memory, latency, and content budgets for intersection reservation manager.
+- [ ] **IS-21-076 P2** — Profile intersection reservation manager under a representative worst-case scene.
+- [ ] **IS-21-077 P2** — Document usage examples, invariants, and common failure modes for intersection reservation manager.
+- [ ] **IS-21-078 P1** — Define the scope, responsibilities, and explicit non-goals of traffic signal controller.
+- [ ] **IS-21-079 P1** — Define the public C++ API and ownership rules for traffic signal controller.
+- [ ] **IS-21-080 P1** — Define versioned configuration or asset data for traffic signal controller.
+- [ ] **IS-21-081 P1** — Implement the smallest deterministic reference path for traffic signal controller.
+- [ ] **IS-21-082 P1** — Add input validation and actionable failure reporting to traffic signal controller.
+- [ ] **IS-21-083 P1** — Add focused unit tests for traffic signal controller.
+- [ ] **IS-21-084 P1** — Add an integration scenario that exercises traffic signal controller in a running game flow.
+- [ ] **IS-21-085 P2** — Add logging, counters, and debug inspection for traffic signal controller.
+- [ ] **IS-21-086 P2** — Add an in-world or overlay debug visualization for traffic signal controller.
+- [ ] **IS-21-087 P1** — Define save/checkpoint serialization and restoration for traffic signal controller.
+- [ ] **IS-21-088 P2** — Define CPU, memory, latency, and content budgets for traffic signal controller.
+- [ ] **IS-21-089 P2** — Profile traffic signal controller under a representative worst-case scene.
+- [ ] **IS-21-090 P2** — Document usage examples, invariants, and common failure modes for traffic signal controller.
+- [ ] **IS-21-091 P1** — Define the scope, responsibilities, and explicit non-goals of traffic spawn manager.
+- [ ] **IS-21-092 P1** — Define the public C++ API and ownership rules for traffic spawn manager.
+- [ ] **IS-21-093 P1** — Define versioned configuration or asset data for traffic spawn manager.
+- [ ] **IS-21-094 P1** — Implement the smallest deterministic reference path for traffic spawn manager.
+- [ ] **IS-21-095 P1** — Add input validation and actionable failure reporting to traffic spawn manager.
+- [ ] **IS-21-096 P1** — Add focused unit tests for traffic spawn manager.
+- [ ] **IS-21-097 P1** — Add an integration scenario that exercises traffic spawn manager in a running game flow.
+- [ ] **IS-21-098 P2** — Add logging, counters, and debug inspection for traffic spawn manager.
+- [ ] **IS-21-099 P2** — Add an in-world or overlay debug visualization for traffic spawn manager.
+- [ ] **IS-21-100 P1** — Define save/checkpoint serialization and restoration for traffic spawn manager.
+- [ ] **IS-21-101 P2** — Define CPU, memory, latency, and content budgets for traffic spawn manager.
+- [ ] **IS-21-102 P2** — Profile traffic spawn manager under a representative worst-case scene.
+- [ ] **IS-21-103 P2** — Document usage examples, invariants, and common failure modes for traffic spawn manager.
+- [ ] **IS-21-104 P1** — Define the scope, responsibilities, and explicit non-goals of traffic blockage recovery.
+- [ ] **IS-21-105 P1** — Define the public C++ API and ownership rules for traffic blockage recovery.
+- [ ] **IS-21-106 P1** — Define versioned configuration or asset data for traffic blockage recovery.
+- [ ] **IS-21-107 P1** — Implement the smallest deterministic reference path for traffic blockage recovery.
+- [ ] **IS-21-108 P1** — Add input validation and actionable failure reporting to traffic blockage recovery.
+- [ ] **IS-21-109 P1** — Add focused unit tests for traffic blockage recovery.
+- [ ] **IS-21-110 P1** — Add an integration scenario that exercises traffic blockage recovery in a running game flow.
+- [ ] **IS-21-111 P2** — Add logging, counters, and debug inspection for traffic blockage recovery.
+- [ ] **IS-21-112 P2** — Add an in-world or overlay debug visualization for traffic blockage recovery.
+- [ ] **IS-21-113 P1** — Define save/checkpoint serialization and restoration for traffic blockage recovery.
+- [ ] **IS-21-114 P2** — Define CPU, memory, latency, and content budgets for traffic blockage recovery.
+- [ ] **IS-21-115 P2** — Profile traffic blockage recovery under a representative worst-case scene.
+- [ ] **IS-21-116 P2** — Document usage examples, invariants, and common failure modes for traffic blockage recovery.
+- [ ] **IS-21-117 P2** — Define the scope, responsibilities, and explicit non-goals of traffic density manager.
+- [ ] **IS-21-118 P2** — Define the public C++ API and ownership rules for traffic density manager.
+- [ ] **IS-21-119 P2** — Define versioned configuration or asset data for traffic density manager.
+- [ ] **IS-21-120 P2** — Implement the smallest deterministic reference path for traffic density manager.
+- [ ] **IS-21-121 P2** — Add input validation and actionable failure reporting to traffic density manager.
+- [ ] **IS-21-122 P2** — Add focused unit tests for traffic density manager.
+- [ ] **IS-21-123 P2** — Add an integration scenario that exercises traffic density manager in a running game flow.
+- [ ] **IS-21-124 P2** — Add logging, counters, and debug inspection for traffic density manager.
+- [ ] **IS-21-125 P2** — Add an in-world or overlay debug visualization for traffic density manager.
+- [ ] **IS-21-126 P2** — Define save/checkpoint serialization and restoration for traffic density manager.
+- [ ] **IS-21-127 P2** — Define CPU, memory, latency, and content budgets for traffic density manager.
+- [ ] **IS-21-128 P2** — Profile traffic density manager under a representative worst-case scene.
+- [ ] **IS-21-129 P2** — Document usage examples, invariants, and common failure modes for traffic density manager.
+- [ ] **IS-21-130 P2** — Define the scope, responsibilities, and explicit non-goals of parking manager.
+- [ ] **IS-21-131 P2** — Define the public C++ API and ownership rules for parking manager.
+- [ ] **IS-21-132 P2** — Define versioned configuration or asset data for parking manager.
+- [ ] **IS-21-133 P2** — Implement the smallest deterministic reference path for parking manager.
+- [ ] **IS-21-134 P2** — Add input validation and actionable failure reporting to parking manager.
+- [ ] **IS-21-135 P2** — Add focused unit tests for parking manager.
+- [ ] **IS-21-136 P2** — Add an integration scenario that exercises parking manager in a running game flow.
+- [ ] **IS-21-137 P2** — Add logging, counters, and debug inspection for parking manager.
+- [ ] **IS-21-138 P2** — Add an in-world or overlay debug visualization for parking manager.
+- [ ] **IS-21-139 P2** — Define save/checkpoint serialization and restoration for parking manager.
+- [ ] **IS-21-140 P2** — Define CPU, memory, latency, and content budgets for parking manager.
+- [ ] **IS-21-141 P2** — Profile parking manager under a representative worst-case scene.
+- [ ] **IS-21-142 P2** — Document usage examples, invariants, and common failure modes for parking manager.
+- [ ] **IS-21-143 P2** — Define the scope, responsibilities, and explicit non-goals of traffic accident manager.
+- [ ] **IS-21-144 P2** — Define the public C++ API and ownership rules for traffic accident manager.
+- [ ] **IS-21-145 P2** — Define versioned configuration or asset data for traffic accident manager.
+- [ ] **IS-21-146 P2** — Implement the smallest deterministic reference path for traffic accident manager.
+- [ ] **IS-21-147 P2** — Add input validation and actionable failure reporting to traffic accident manager.
+- [ ] **IS-21-148 P2** — Add focused unit tests for traffic accident manager.
+- [ ] **IS-21-149 P2** — Add an integration scenario that exercises traffic accident manager in a running game flow.
+- [ ] **IS-21-150 P2** — Add logging, counters, and debug inspection for traffic accident manager.
+- [ ] **IS-21-151 P2** — Add an in-world or overlay debug visualization for traffic accident manager.
+- [ ] **IS-21-152 P2** — Define save/checkpoint serialization and restoration for traffic accident manager.
+- [ ] **IS-21-153 P2** — Define CPU, memory, latency, and content budgets for traffic accident manager.
+- [ ] **IS-21-154 P2** — Profile traffic accident manager under a representative worst-case scene.
+- [ ] **IS-21-155 P2** — Document usage examples, invariants, and common failure modes for traffic accident manager.
+- [ ] **IS-21-156 P2** — Define the scope, responsibilities, and explicit non-goals of traffic signal network.
+- [ ] **IS-21-157 P2** — Define the public C++ API and ownership rules for traffic signal network.
+- [ ] **IS-21-158 P2** — Define versioned configuration or asset data for traffic signal network.
+- [ ] **IS-21-159 P2** — Implement the smallest deterministic reference path for traffic signal network.
+- [ ] **IS-21-160 P2** — Add input validation and actionable failure reporting to traffic signal network.
+- [ ] **IS-21-161 P2** — Add focused unit tests for traffic signal network.
+- [ ] **IS-21-162 P2** — Add an integration scenario that exercises traffic signal network in a running game flow.
+- [ ] **IS-21-163 P2** — Add logging, counters, and debug inspection for traffic signal network.
+- [ ] **IS-21-164 P2** — Add an in-world or overlay debug visualization for traffic signal network.
+- [ ] **IS-21-165 P2** — Define save/checkpoint serialization and restoration for traffic signal network.
+- [ ] **IS-21-166 P2** — Define CPU, memory, latency, and content budgets for traffic signal network.
+- [ ] **IS-21-167 P2** — Profile traffic signal network under a representative worst-case scene.
+- [ ] **IS-21-168 P2** — Document usage examples, invariants, and common failure modes for traffic signal network.
+- [ ] **IS-21-169 P2** — Define the scope, responsibilities, and explicit non-goals of traffic LOD simulator.
+- [ ] **IS-21-170 P2** — Define the public C++ API and ownership rules for traffic LOD simulator.
+- [ ] **IS-21-171 P2** — Define versioned configuration or asset data for traffic LOD simulator.
+- [ ] **IS-21-172 P2** — Implement the smallest deterministic reference path for traffic LOD simulator.
+- [ ] **IS-21-173 P2** — Add input validation and actionable failure reporting to traffic LOD simulator.
+- [ ] **IS-21-174 P2** — Add focused unit tests for traffic LOD simulator.
+- [ ] **IS-21-175 P2** — Add an integration scenario that exercises traffic LOD simulator in a running game flow.
+- [ ] **IS-21-176 P2** — Add logging, counters, and debug inspection for traffic LOD simulator.
+- [ ] **IS-21-177 P2** — Add an in-world or overlay debug visualization for traffic LOD simulator.
+- [ ] **IS-21-178 P2** — Define save/checkpoint serialization and restoration for traffic LOD simulator.
+- [ ] **IS-21-179 P2** — Define CPU, memory, latency, and content budgets for traffic LOD simulator.
+- [ ] **IS-21-180 P2** — Profile traffic LOD simulator under a representative worst-case scene.
+- [ ] **IS-21-181 P2** — Document usage examples, invariants, and common failure modes for traffic LOD simulator.
+

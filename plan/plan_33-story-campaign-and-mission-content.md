@@ -1,0 +1,151 @@
+# 33. Story, campaign, and mission content
+
+[Back to master plan](../plan.md)
+
+
+Turn technology into an original authored game with pacing, themes, and replayable missions.
+
+- [ ] **IS-33-001 P0** — Write the vertical-slice premise, beginning, reversal, climax, and resolution.
+- [ ] **IS-33-002 P0** — Write the original prologue dialogue and replace placeholder text.
+- [ ] **IS-33-003 P0** — Define one complete mission that uses walking, dialogue, driving, an interior, and a cutscene.
+- [ ] **IS-33-004 P0** — Create a narrative reason for the warehouse destination and player stakes.
+- [ ] **IS-33-005 P1** — Define protagonist goal, flaw, pressure, relationships, and arc.
+- [ ] **IS-33-006 P1** — Define antagonist goal, methods, and relationship to Iron City.
+- [ ] **IS-33-007 P1** — Define major factions and their conflicting incentives.
+- [ ] **IS-33-008 P1** — Define campaign chapters and escalation.
+- [ ] **IS-33-009 P1** — Define mission variety and avoid copying known mission structures.
+- [ ] **IS-33-010 P1** — Define optional content scope.
+- [ ] **IS-33-011 P1** — Define how driving, interiors, city exploration, and dialogue serve the story.
+- [ ] **IS-33-012 P1** — Define consequences and continuity between missions.
+- [ ] **IS-33-013 P1** — Create a character bible with original voices and vocabulary.
+- [ ] **IS-33-014 P1** — Create a location bible.
+- [ ] **IS-33-015 P1** — Create a chronology and continuity tracker.
+- [ ] **IS-33-016 P1** — Create a mission pitch template with technical/content budgets.
+- [ ] **IS-33-017 P1** — Create a mission review for originality, pacing, mechanics, assets, and save/checkpoint needs.
+- [ ] **IS-33-018 P1** — Create placeholder voice scripts and subtitle IDs.
+- [ ] **IS-33-019 P1** — Create cutscene shot lists after gameplay staging is proven.
+- [ ] **IS-33-020 P1** — Create fail/retry dialogue variants.
+- [ ] **IS-33-021 P2** — Create ambient newspapers, radio, ads, and signs that reinforce Iron City.
+- [ ] **IS-33-022 P2** — Create side missions only after the main vertical slice is complete.
+- [ ] **IS-33-023 P2** — Create branching outcomes only where production can support them.
+- [ ] **IS-33-024 P2** — Write an original one-paragraph pitch for the prologue delivery mission archetype.
+- [ ] **IS-33-025 P2** — Identify required mechanics and reject unnecessary new systems for the prologue delivery mission archetype.
+- [ ] **IS-33-026 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the prologue delivery mission archetype.
+- [ ] **IS-33-027 P2** — Define objective graph and checkpoint structure for the prologue delivery mission archetype.
+- [ ] **IS-33-028 P2** — Define failure and recovery behavior for the prologue delivery mission archetype.
+- [ ] **IS-33-029 P2** — Define mission-specific ai and scripting needs for the prologue delivery mission archetype.
+- [ ] **IS-33-030 P2** — Create a graybox implementation plan for the prologue delivery mission archetype.
+- [ ] **IS-33-031 P2** — Create automated happy-path and failure-path scenarios for the prologue delivery mission archetype.
+- [ ] **IS-33-032 P2** — Write an original one-paragraph pitch for the meeting and negotiation mission archetype.
+- [ ] **IS-33-033 P2** — Identify required mechanics and reject unnecessary new systems for the meeting and negotiation mission archetype.
+- [ ] **IS-33-034 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the meeting and negotiation mission archetype.
+- [ ] **IS-33-035 P2** — Define objective graph and checkpoint structure for the meeting and negotiation mission archetype.
+- [ ] **IS-33-036 P2** — Define failure and recovery behavior for the meeting and negotiation mission archetype.
+- [ ] **IS-33-037 P2** — Define mission-specific ai and scripting needs for the meeting and negotiation mission archetype.
+- [ ] **IS-33-038 P2** — Create a graybox implementation plan for the meeting and negotiation mission archetype.
+- [ ] **IS-33-039 P2** — Create automated happy-path and failure-path scenarios for the meeting and negotiation mission archetype.
+- [ ] **IS-33-040 P2** — Write an original one-paragraph pitch for the vehicle chase mission archetype.
+- [ ] **IS-33-041 P2** — Identify required mechanics and reject unnecessary new systems for the vehicle chase mission archetype.
+- [ ] **IS-33-042 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the vehicle chase mission archetype.
+- [ ] **IS-33-043 P2** — Define objective graph and checkpoint structure for the vehicle chase mission archetype.
+- [ ] **IS-33-044 P2** — Define failure and recovery behavior for the vehicle chase mission archetype.
+- [ ] **IS-33-045 P2** — Define mission-specific ai and scripting needs for the vehicle chase mission archetype.
+- [ ] **IS-33-046 P2** — Create a graybox implementation plan for the vehicle chase mission archetype.
+- [ ] **IS-33-047 P2** — Create automated happy-path and failure-path scenarios for the vehicle chase mission archetype.
+- [ ] **IS-33-048 P2** — Write an original one-paragraph pitch for the tailing mission archetype.
+- [ ] **IS-33-049 P2** — Identify required mechanics and reject unnecessary new systems for the tailing mission archetype.
+- [ ] **IS-33-050 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the tailing mission archetype.
+- [ ] **IS-33-051 P2** — Define objective graph and checkpoint structure for the tailing mission archetype.
+- [ ] **IS-33-052 P2** — Define failure and recovery behavior for the tailing mission archetype.
+- [ ] **IS-33-053 P2** — Define mission-specific ai and scripting needs for the tailing mission archetype.
+- [ ] **IS-33-054 P2** — Create a graybox implementation plan for the tailing mission archetype.
+- [ ] **IS-33-055 P2** — Create automated happy-path and failure-path scenarios for the tailing mission archetype.
+- [ ] **IS-33-056 P2** — Write an original one-paragraph pitch for the escape mission archetype.
+- [ ] **IS-33-057 P2** — Identify required mechanics and reject unnecessary new systems for the escape mission archetype.
+- [ ] **IS-33-058 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the escape mission archetype.
+- [ ] **IS-33-059 P2** — Define objective graph and checkpoint structure for the escape mission archetype.
+- [ ] **IS-33-060 P2** — Define failure and recovery behavior for the escape mission archetype.
+- [ ] **IS-33-061 P2** — Define mission-specific ai and scripting needs for the escape mission archetype.
+- [ ] **IS-33-062 P2** — Create a graybox implementation plan for the escape mission archetype.
+- [ ] **IS-33-063 P2** — Create automated happy-path and failure-path scenarios for the escape mission archetype.
+- [ ] **IS-33-064 P2** — Write an original one-paragraph pitch for the warehouse infiltration mission archetype.
+- [ ] **IS-33-065 P2** — Identify required mechanics and reject unnecessary new systems for the warehouse infiltration mission archetype.
+- [ ] **IS-33-066 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the warehouse infiltration mission archetype.
+- [ ] **IS-33-067 P2** — Define objective graph and checkpoint structure for the warehouse infiltration mission archetype.
+- [ ] **IS-33-068 P2** — Define failure and recovery behavior for the warehouse infiltration mission archetype.
+- [ ] **IS-33-069 P2** — Define mission-specific ai and scripting needs for the warehouse infiltration mission archetype.
+- [ ] **IS-33-070 P2** — Create a graybox implementation plan for the warehouse infiltration mission archetype.
+- [ ] **IS-33-071 P2** — Create automated happy-path and failure-path scenarios for the warehouse infiltration mission archetype.
+- [ ] **IS-33-072 P2** — Write an original one-paragraph pitch for the rescue mission archetype.
+- [ ] **IS-33-073 P2** — Identify required mechanics and reject unnecessary new systems for the rescue mission archetype.
+- [ ] **IS-33-074 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the rescue mission archetype.
+- [ ] **IS-33-075 P2** — Define objective graph and checkpoint structure for the rescue mission archetype.
+- [ ] **IS-33-076 P2** — Define failure and recovery behavior for the rescue mission archetype.
+- [ ] **IS-33-077 P2** — Define mission-specific ai and scripting needs for the rescue mission archetype.
+- [ ] **IS-33-078 P2** — Create a graybox implementation plan for the rescue mission archetype.
+- [ ] **IS-33-079 P2** — Create automated happy-path and failure-path scenarios for the rescue mission archetype.
+- [ ] **IS-33-080 P2** — Write an original one-paragraph pitch for the escort mission archetype.
+- [ ] **IS-33-081 P2** — Identify required mechanics and reject unnecessary new systems for the escort mission archetype.
+- [ ] **IS-33-082 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the escort mission archetype.
+- [ ] **IS-33-083 P2** — Define objective graph and checkpoint structure for the escort mission archetype.
+- [ ] **IS-33-084 P2** — Define failure and recovery behavior for the escort mission archetype.
+- [ ] **IS-33-085 P2** — Define mission-specific ai and scripting needs for the escort mission archetype.
+- [ ] **IS-33-086 P2** — Create a graybox implementation plan for the escort mission archetype.
+- [ ] **IS-33-087 P2** — Create automated happy-path and failure-path scenarios for the escort mission archetype.
+- [ ] **IS-33-088 P2** — Write an original one-paragraph pitch for the investigation mission archetype.
+- [ ] **IS-33-089 P2** — Identify required mechanics and reject unnecessary new systems for the investigation mission archetype.
+- [ ] **IS-33-090 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the investigation mission archetype.
+- [ ] **IS-33-091 P2** — Define objective graph and checkpoint structure for the investigation mission archetype.
+- [ ] **IS-33-092 P2** — Define failure and recovery behavior for the investigation mission archetype.
+- [ ] **IS-33-093 P2** — Define mission-specific ai and scripting needs for the investigation mission archetype.
+- [ ] **IS-33-094 P2** — Create a graybox implementation plan for the investigation mission archetype.
+- [ ] **IS-33-095 P2** — Create automated happy-path and failure-path scenarios for the investigation mission archetype.
+- [ ] **IS-33-096 P2** — Write an original one-paragraph pitch for the race against time mission archetype.
+- [ ] **IS-33-097 P2** — Identify required mechanics and reject unnecessary new systems for the race against time mission archetype.
+- [ ] **IS-33-098 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the race against time mission archetype.
+- [ ] **IS-33-099 P2** — Define objective graph and checkpoint structure for the race against time mission archetype.
+- [ ] **IS-33-100 P2** — Define failure and recovery behavior for the race against time mission archetype.
+- [ ] **IS-33-101 P2** — Define mission-specific ai and scripting needs for the race against time mission archetype.
+- [ ] **IS-33-102 P2** — Create a graybox implementation plan for the race against time mission archetype.
+- [ ] **IS-33-103 P2** — Create automated happy-path and failure-path scenarios for the race against time mission archetype.
+- [ ] **IS-33-104 P2** — Write an original one-paragraph pitch for the police evasion mission archetype.
+- [ ] **IS-33-105 P2** — Identify required mechanics and reject unnecessary new systems for the police evasion mission archetype.
+- [ ] **IS-33-106 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the police evasion mission archetype.
+- [ ] **IS-33-107 P2** — Define objective graph and checkpoint structure for the police evasion mission archetype.
+- [ ] **IS-33-108 P2** — Define failure and recovery behavior for the police evasion mission archetype.
+- [ ] **IS-33-109 P2** — Define mission-specific ai and scripting needs for the police evasion mission archetype.
+- [ ] **IS-33-110 P2** — Create a graybox implementation plan for the police evasion mission archetype.
+- [ ] **IS-33-111 P2** — Create automated happy-path and failure-path scenarios for the police evasion mission archetype.
+- [ ] **IS-33-112 P2** — Write an original one-paragraph pitch for the interior confrontation mission archetype.
+- [ ] **IS-33-113 P2** — Identify required mechanics and reject unnecessary new systems for the interior confrontation mission archetype.
+- [ ] **IS-33-114 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the interior confrontation mission archetype.
+- [ ] **IS-33-115 P2** — Define objective graph and checkpoint structure for the interior confrontation mission archetype.
+- [ ] **IS-33-116 P2** — Define failure and recovery behavior for the interior confrontation mission archetype.
+- [ ] **IS-33-117 P2** — Define mission-specific ai and scripting needs for the interior confrontation mission archetype.
+- [ ] **IS-33-118 P2** — Create a graybox implementation plan for the interior confrontation mission archetype.
+- [ ] **IS-33-119 P2** — Create automated happy-path and failure-path scenarios for the interior confrontation mission archetype.
+- [ ] **IS-33-120 P2** — Write an original one-paragraph pitch for the countryside transit mission archetype.
+- [ ] **IS-33-121 P2** — Identify required mechanics and reject unnecessary new systems for the countryside transit mission archetype.
+- [ ] **IS-33-122 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the countryside transit mission archetype.
+- [ ] **IS-33-123 P2** — Define objective graph and checkpoint structure for the countryside transit mission archetype.
+- [ ] **IS-33-124 P2** — Define failure and recovery behavior for the countryside transit mission archetype.
+- [ ] **IS-33-125 P2** — Define mission-specific ai and scripting needs for the countryside transit mission archetype.
+- [ ] **IS-33-126 P2** — Create a graybox implementation plan for the countryside transit mission archetype.
+- [ ] **IS-33-127 P2** — Create automated happy-path and failure-path scenarios for the countryside transit mission archetype.
+- [ ] **IS-33-128 P2** — Write an original one-paragraph pitch for the finale setup mission archetype.
+- [ ] **IS-33-129 P2** — Identify required mechanics and reject unnecessary new systems for the finale setup mission archetype.
+- [ ] **IS-33-130 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the finale setup mission archetype.
+- [ ] **IS-33-131 P2** — Define objective graph and checkpoint structure for the finale setup mission archetype.
+- [ ] **IS-33-132 P2** — Define failure and recovery behavior for the finale setup mission archetype.
+- [ ] **IS-33-133 P2** — Define mission-specific ai and scripting needs for the finale setup mission archetype.
+- [ ] **IS-33-134 P2** — Create a graybox implementation plan for the finale setup mission archetype.
+- [ ] **IS-33-135 P2** — Create automated happy-path and failure-path scenarios for the finale setup mission archetype.
+- [ ] **IS-33-136 P2** — Write an original one-paragraph pitch for the epilogue mission archetype.
+- [ ] **IS-33-137 P2** — Identify required mechanics and reject unnecessary new systems for the epilogue mission archetype.
+- [ ] **IS-33-138 P2** — Identify locations, characters, vehicles, audio, and cinematic assets for the epilogue mission archetype.
+- [ ] **IS-33-139 P2** — Define objective graph and checkpoint structure for the epilogue mission archetype.
+- [ ] **IS-33-140 P2** — Define failure and recovery behavior for the epilogue mission archetype.
+- [ ] **IS-33-141 P2** — Define mission-specific ai and scripting needs for the epilogue mission archetype.
+- [ ] **IS-33-142 P2** — Create a graybox implementation plan for the epilogue mission archetype.
+- [ ] **IS-33-143 P2** — Create automated happy-path and failure-path scenarios for the epilogue mission archetype.
+

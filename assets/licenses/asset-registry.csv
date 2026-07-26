@@ -1,0 +1,3 @@
+asset_id,relative_path,source_url,author,license,download_date,modified,attribution_required,commercial_use_allowed,redistribution_allowed,notes
+prototype_mc3,source/mc3/prototype_city_block.mc3.xml,,Iron Shadows contributors,MIT,,false,false,true,true,Original repository asset
+prologue_dialogue,dialogues/prologue.dialogue.txt,,Iron Shadows contributors,MIT,,false,false,true,true,Original repository asset

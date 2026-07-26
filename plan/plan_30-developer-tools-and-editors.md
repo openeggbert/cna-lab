@@ -1,0 +1,196 @@
+# 30. Developer tools and editors
+
+[Back to master plan](../plan.md)
+
+
+Make content and mission production observable, repeatable, and less dependent on source edits.
+
+- [ ] **IS-30-001 P0** — Create a single asset-build command that validates, converts, packages, and reports.
+- [ ] **IS-30-002 P0** — Create a sector viewer that can load one runtime package without running the campaign.
+- [ ] **IS-30-003 P0** — Create collision, trigger, navigation, lane, and entity debug overlays.
+- [ ] **IS-30-004 P0** — Create mission-state forcing and trace tools.
+- [ ] **IS-30-005 P1** — Create an asset catalog with thumbnails, status, provenance, dependencies, and budgets.
+- [ ] **IS-30-006 P1** — Create road/lane graph editing and validation.
+- [ ] **IS-30-007 P1** — Create building/interior portal validation.
+- [ ] **IS-30-008 P1** — Create navigation bake and visualization tools.
+- [ ] **IS-30-009 P1** — Create vehicle tuning UI with live telemetry.
+- [ ] **IS-30-010 P1** — Create animation graph and skeleton inspection.
+- [ ] **IS-30-011 P1** — Create dialogue graph preview and voice timing review.
+- [ ] **IS-30-012 P1** — Create cinematic timeline editor after runtime stabilization.
+- [ ] **IS-30-013 P1** — Create mission graph editor after schema stabilization.
+- [ ] **IS-30-014 P1** — Create world-sector memory and dependency reports.
+- [ ] **IS-30-015 P1** — Create deterministic input recording and playback.
+- [ ] **IS-30-016 P1** — Create screenshot/reference capture automation.
+- [ ] **IS-30-017 P1** — Create content audit reports for missing license, collision, LOD, texture, and ID data.
+- [ ] **IS-30-018 P1** — Create hot-reload only for data types that can be safely replaced.
+- [ ] **IS-30-019 P1** — Create editor crash recovery and transaction logs.
+- [ ] **IS-30-020 P2** — Create Blender export/validation helpers for character and vehicle content.
+- [ ] **IS-30-021 P2** — Create command-line batch tools for CI.
+- [ ] **IS-30-022 P2** — Create a world heatmap viewer for AI, traffic, streaming, and performance traces.
+- [ ] **IS-30-023 P2** — Create a dependency graph browser.
+- [ ] **IS-30-024 P2** — Create a release-content review dashboard.
+- [ ] **IS-30-025 P1** — Define the scope, responsibilities, and explicit non-goals of asset build orchestrator.
+- [ ] **IS-30-026 P1** — Define the public C++ API and ownership rules for asset build orchestrator.
+- [ ] **IS-30-027 P1** — Define versioned configuration or asset data for asset build orchestrator.
+- [ ] **IS-30-028 P1** — Implement the smallest deterministic reference path for asset build orchestrator.
+- [ ] **IS-30-029 P1** — Add input validation and actionable failure reporting to asset build orchestrator.
+- [ ] **IS-30-030 P1** — Add focused unit tests for asset build orchestrator.
+- [ ] **IS-30-031 P1** — Add an integration scenario that exercises asset build orchestrator in a running game flow.
+- [ ] **IS-30-032 P2** — Add logging, counters, and debug inspection for asset build orchestrator.
+- [ ] **IS-30-033 P2** — Add an in-world or overlay debug visualization for asset build orchestrator.
+- [ ] **IS-30-034 P1** — Define save/checkpoint serialization and restoration for asset build orchestrator.
+- [ ] **IS-30-035 P2** — Define CPU, memory, latency, and content budgets for asset build orchestrator.
+- [ ] **IS-30-036 P2** — Profile asset build orchestrator under a representative worst-case scene.
+- [ ] **IS-30-037 P2** — Document usage examples, invariants, and common failure modes for asset build orchestrator.
+- [ ] **IS-30-038 P1** — Define the scope, responsibilities, and explicit non-goals of sector viewer.
+- [ ] **IS-30-039 P1** — Define the public C++ API and ownership rules for sector viewer.
+- [ ] **IS-30-040 P1** — Define versioned configuration or asset data for sector viewer.
+- [ ] **IS-30-041 P1** — Implement the smallest deterministic reference path for sector viewer.
+- [ ] **IS-30-042 P1** — Add input validation and actionable failure reporting to sector viewer.
+- [ ] **IS-30-043 P1** — Add focused unit tests for sector viewer.
+- [ ] **IS-30-044 P1** — Add an integration scenario that exercises sector viewer in a running game flow.
+- [ ] **IS-30-045 P2** — Add logging, counters, and debug inspection for sector viewer.
+- [ ] **IS-30-046 P2** — Add an in-world or overlay debug visualization for sector viewer.
+- [ ] **IS-30-047 P1** — Define save/checkpoint serialization and restoration for sector viewer.
+- [ ] **IS-30-048 P2** — Define CPU, memory, latency, and content budgets for sector viewer.
+- [ ] **IS-30-049 P2** — Profile sector viewer under a representative worst-case scene.
+- [ ] **IS-30-050 P2** — Document usage examples, invariants, and common failure modes for sector viewer.
+- [ ] **IS-30-051 P1** — Define the scope, responsibilities, and explicit non-goals of road graph editor.
+- [ ] **IS-30-052 P1** — Define the public C++ API and ownership rules for road graph editor.
+- [ ] **IS-30-053 P1** — Define versioned configuration or asset data for road graph editor.
+- [ ] **IS-30-054 P1** — Implement the smallest deterministic reference path for road graph editor.
+- [ ] **IS-30-055 P1** — Add input validation and actionable failure reporting to road graph editor.
+- [ ] **IS-30-056 P1** — Add focused unit tests for road graph editor.
+- [ ] **IS-30-057 P1** — Add an integration scenario that exercises road graph editor in a running game flow.
+- [ ] **IS-30-058 P2** — Add logging, counters, and debug inspection for road graph editor.
+- [ ] **IS-30-059 P2** — Add an in-world or overlay debug visualization for road graph editor.
+- [ ] **IS-30-060 P1** — Define save/checkpoint serialization and restoration for road graph editor.
+- [ ] **IS-30-061 P2** — Define CPU, memory, latency, and content budgets for road graph editor.
+- [ ] **IS-30-062 P2** — Profile road graph editor under a representative worst-case scene.
+- [ ] **IS-30-063 P2** — Document usage examples, invariants, and common failure modes for road graph editor.
+- [ ] **IS-30-064 P1** — Define the scope, responsibilities, and explicit non-goals of mission graph editor.
+- [ ] **IS-30-065 P1** — Define the public C++ API and ownership rules for mission graph editor.
+- [ ] **IS-30-066 P1** — Define versioned configuration or asset data for mission graph editor.
+- [ ] **IS-30-067 P1** — Implement the smallest deterministic reference path for mission graph editor.
+- [ ] **IS-30-068 P1** — Add input validation and actionable failure reporting to mission graph editor.
+- [ ] **IS-30-069 P1** — Add focused unit tests for mission graph editor.
+- [ ] **IS-30-070 P1** — Add an integration scenario that exercises mission graph editor in a running game flow.
+- [ ] **IS-30-071 P2** — Add logging, counters, and debug inspection for mission graph editor.
+- [ ] **IS-30-072 P2** — Add an in-world or overlay debug visualization for mission graph editor.
+- [ ] **IS-30-073 P1** — Define save/checkpoint serialization and restoration for mission graph editor.
+- [ ] **IS-30-074 P2** — Define CPU, memory, latency, and content budgets for mission graph editor.
+- [ ] **IS-30-075 P2** — Profile mission graph editor under a representative worst-case scene.
+- [ ] **IS-30-076 P2** — Document usage examples, invariants, and common failure modes for mission graph editor.
+- [ ] **IS-30-077 P1** — Define the scope, responsibilities, and explicit non-goals of cinematic timeline editor.
+- [ ] **IS-30-078 P1** — Define the public C++ API and ownership rules for cinematic timeline editor.
+- [ ] **IS-30-079 P1** — Define versioned configuration or asset data for cinematic timeline editor.
+- [ ] **IS-30-080 P1** — Implement the smallest deterministic reference path for cinematic timeline editor.
+- [ ] **IS-30-081 P1** — Add input validation and actionable failure reporting to cinematic timeline editor.
+- [ ] **IS-30-082 P1** — Add focused unit tests for cinematic timeline editor.
+- [ ] **IS-30-083 P1** — Add an integration scenario that exercises cinematic timeline editor in a running game flow.
+- [ ] **IS-30-084 P2** — Add logging, counters, and debug inspection for cinematic timeline editor.
+- [ ] **IS-30-085 P2** — Add an in-world or overlay debug visualization for cinematic timeline editor.
+- [ ] **IS-30-086 P1** — Define save/checkpoint serialization and restoration for cinematic timeline editor.
+- [ ] **IS-30-087 P2** — Define CPU, memory, latency, and content budgets for cinematic timeline editor.
+- [ ] **IS-30-088 P2** — Profile cinematic timeline editor under a representative worst-case scene.
+- [ ] **IS-30-089 P2** — Document usage examples, invariants, and common failure modes for cinematic timeline editor.
+- [ ] **IS-30-090 P1** — Define the scope, responsibilities, and explicit non-goals of dialogue editor.
+- [ ] **IS-30-091 P1** — Define the public C++ API and ownership rules for dialogue editor.
+- [ ] **IS-30-092 P1** — Define versioned configuration or asset data for dialogue editor.
+- [ ] **IS-30-093 P1** — Implement the smallest deterministic reference path for dialogue editor.
+- [ ] **IS-30-094 P1** — Add input validation and actionable failure reporting to dialogue editor.
+- [ ] **IS-30-095 P1** — Add focused unit tests for dialogue editor.
+- [ ] **IS-30-096 P1** — Add an integration scenario that exercises dialogue editor in a running game flow.
+- [ ] **IS-30-097 P2** — Add logging, counters, and debug inspection for dialogue editor.
+- [ ] **IS-30-098 P2** — Add an in-world or overlay debug visualization for dialogue editor.
+- [ ] **IS-30-099 P1** — Define save/checkpoint serialization and restoration for dialogue editor.
+- [ ] **IS-30-100 P2** — Define CPU, memory, latency, and content budgets for dialogue editor.
+- [ ] **IS-30-101 P2** — Profile dialogue editor under a representative worst-case scene.
+- [ ] **IS-30-102 P2** — Document usage examples, invariants, and common failure modes for dialogue editor.
+- [ ] **IS-30-103 P1** — Define the scope, responsibilities, and explicit non-goals of vehicle tuning tool.
+- [ ] **IS-30-104 P1** — Define the public C++ API and ownership rules for vehicle tuning tool.
+- [ ] **IS-30-105 P1** — Define versioned configuration or asset data for vehicle tuning tool.
+- [ ] **IS-30-106 P1** — Implement the smallest deterministic reference path for vehicle tuning tool.
+- [ ] **IS-30-107 P1** — Add input validation and actionable failure reporting to vehicle tuning tool.
+- [ ] **IS-30-108 P1** — Add focused unit tests for vehicle tuning tool.
+- [ ] **IS-30-109 P1** — Add an integration scenario that exercises vehicle tuning tool in a running game flow.
+- [ ] **IS-30-110 P2** — Add logging, counters, and debug inspection for vehicle tuning tool.
+- [ ] **IS-30-111 P2** — Add an in-world or overlay debug visualization for vehicle tuning tool.
+- [ ] **IS-30-112 P1** — Define save/checkpoint serialization and restoration for vehicle tuning tool.
+- [ ] **IS-30-113 P2** — Define CPU, memory, latency, and content budgets for vehicle tuning tool.
+- [ ] **IS-30-114 P2** — Profile vehicle tuning tool under a representative worst-case scene.
+- [ ] **IS-30-115 P2** — Document usage examples, invariants, and common failure modes for vehicle tuning tool.
+- [ ] **IS-30-116 P1** — Define the scope, responsibilities, and explicit non-goals of content audit dashboard.
+- [ ] **IS-30-117 P1** — Define the public C++ API and ownership rules for content audit dashboard.
+- [ ] **IS-30-118 P1** — Define versioned configuration or asset data for content audit dashboard.
+- [ ] **IS-30-119 P1** — Implement the smallest deterministic reference path for content audit dashboard.
+- [ ] **IS-30-120 P1** — Add input validation and actionable failure reporting to content audit dashboard.
+- [ ] **IS-30-121 P1** — Add focused unit tests for content audit dashboard.
+- [ ] **IS-30-122 P1** — Add an integration scenario that exercises content audit dashboard in a running game flow.
+- [ ] **IS-30-123 P2** — Add logging, counters, and debug inspection for content audit dashboard.
+- [ ] **IS-30-124 P2** — Add an in-world or overlay debug visualization for content audit dashboard.
+- [ ] **IS-30-125 P1** — Define save/checkpoint serialization and restoration for content audit dashboard.
+- [ ] **IS-30-126 P2** — Define CPU, memory, latency, and content budgets for content audit dashboard.
+- [ ] **IS-30-127 P2** — Profile content audit dashboard under a representative worst-case scene.
+- [ ] **IS-30-128 P2** — Document usage examples, invariants, and common failure modes for content audit dashboard.
+- [ ] **IS-30-129 P2** — Define the scope, responsibilities, and explicit non-goals of MC3 preview automation.
+- [ ] **IS-30-130 P2** — Define the public C++ API and ownership rules for MC3 preview automation.
+- [ ] **IS-30-131 P2** — Define versioned configuration or asset data for MC3 preview automation.
+- [ ] **IS-30-132 P2** — Implement the smallest deterministic reference path for MC3 preview automation.
+- [ ] **IS-30-133 P2** — Add input validation and actionable failure reporting to MC3 preview automation.
+- [ ] **IS-30-134 P2** — Add focused unit tests for MC3 preview automation.
+- [ ] **IS-30-135 P2** — Add an integration scenario that exercises MC3 preview automation in a running game flow.
+- [ ] **IS-30-136 P2** — Add logging, counters, and debug inspection for MC3 preview automation.
+- [ ] **IS-30-137 P2** — Add an in-world or overlay debug visualization for MC3 preview automation.
+- [ ] **IS-30-138 P2** — Define CPU, memory, latency, and content budgets for MC3 preview automation.
+- [ ] **IS-30-139 P2** — Profile MC3 preview automation under a representative worst-case scene.
+- [ ] **IS-30-140 P2** — Document usage examples, invariants, and common failure modes for MC3 preview automation.
+- [ ] **IS-30-141 P2** — Define the scope, responsibilities, and explicit non-goals of package explorer.
+- [ ] **IS-30-142 P2** — Define the public C++ API and ownership rules for package explorer.
+- [ ] **IS-30-143 P2** — Define versioned configuration or asset data for package explorer.
+- [ ] **IS-30-144 P2** — Implement the smallest deterministic reference path for package explorer.
+- [ ] **IS-30-145 P2** — Add input validation and actionable failure reporting to package explorer.
+- [ ] **IS-30-146 P2** — Add focused unit tests for package explorer.
+- [ ] **IS-30-147 P2** — Add an integration scenario that exercises package explorer in a running game flow.
+- [ ] **IS-30-148 P2** — Add logging, counters, and debug inspection for package explorer.
+- [ ] **IS-30-149 P2** — Add an in-world or overlay debug visualization for package explorer.
+- [ ] **IS-30-150 P2** — Define CPU, memory, latency, and content budgets for package explorer.
+- [ ] **IS-30-151 P2** — Profile package explorer under a representative worst-case scene.
+- [ ] **IS-30-152 P2** — Document usage examples, invariants, and common failure modes for package explorer.
+- [ ] **IS-30-153 P2** — Define the scope, responsibilities, and explicit non-goals of save inspector UI.
+- [ ] **IS-30-154 P2** — Define the public C++ API and ownership rules for save inspector UI.
+- [ ] **IS-30-155 P2** — Define versioned configuration or asset data for save inspector UI.
+- [ ] **IS-30-156 P2** — Implement the smallest deterministic reference path for save inspector UI.
+- [ ] **IS-30-157 P2** — Add input validation and actionable failure reporting to save inspector UI.
+- [ ] **IS-30-158 P2** — Add focused unit tests for save inspector UI.
+- [ ] **IS-30-159 P2** — Add an integration scenario that exercises save inspector UI in a running game flow.
+- [ ] **IS-30-160 P2** — Add logging, counters, and debug inspection for save inspector UI.
+- [ ] **IS-30-161 P2** — Add an in-world or overlay debug visualization for save inspector UI.
+- [ ] **IS-30-162 P2** — Define CPU, memory, latency, and content budgets for save inspector UI.
+- [ ] **IS-30-163 P2** — Profile save inspector UI under a representative worst-case scene.
+- [ ] **IS-30-164 P2** — Document usage examples, invariants, and common failure modes for save inspector UI.
+- [ ] **IS-30-165 P2** — Define the scope, responsibilities, and explicit non-goals of AI behavior inspector.
+- [ ] **IS-30-166 P2** — Define the public C++ API and ownership rules for AI behavior inspector.
+- [ ] **IS-30-167 P2** — Define versioned configuration or asset data for AI behavior inspector.
+- [ ] **IS-30-168 P2** — Implement the smallest deterministic reference path for AI behavior inspector.
+- [ ] **IS-30-169 P2** — Add input validation and actionable failure reporting to AI behavior inspector.
+- [ ] **IS-30-170 P2** — Add focused unit tests for AI behavior inspector.
+- [ ] **IS-30-171 P2** — Add an integration scenario that exercises AI behavior inspector in a running game flow.
+- [ ] **IS-30-172 P2** — Add logging, counters, and debug inspection for AI behavior inspector.
+- [ ] **IS-30-173 P2** — Add an in-world or overlay debug visualization for AI behavior inspector.
+- [ ] **IS-30-174 P2** — Define CPU, memory, latency, and content budgets for AI behavior inspector.
+- [ ] **IS-30-175 P2** — Profile AI behavior inspector under a representative worst-case scene.
+- [ ] **IS-30-176 P2** — Document usage examples, invariants, and common failure modes for AI behavior inspector.
+- [ ] **IS-30-177 P2** — Define the scope, responsibilities, and explicit non-goals of performance capture browser.
+- [ ] **IS-30-178 P2** — Define the public C++ API and ownership rules for performance capture browser.
+- [ ] **IS-30-179 P2** — Define versioned configuration or asset data for performance capture browser.
+- [ ] **IS-30-180 P2** — Implement the smallest deterministic reference path for performance capture browser.
+- [ ] **IS-30-181 P2** — Add input validation and actionable failure reporting to performance capture browser.
+- [ ] **IS-30-182 P2** — Add focused unit tests for performance capture browser.
+- [ ] **IS-30-183 P2** — Add an integration scenario that exercises performance capture browser in a running game flow.
+- [ ] **IS-30-184 P2** — Add logging, counters, and debug inspection for performance capture browser.
+- [ ] **IS-30-185 P2** — Add an in-world or overlay debug visualization for performance capture browser.
+- [ ] **IS-30-186 P2** — Define CPU, memory, latency, and content budgets for performance capture browser.
+- [ ] **IS-30-187 P2** — Profile performance capture browser under a representative worst-case scene.
+- [ ] **IS-30-188 P2** — Document usage examples, invariants, and common failure modes for performance capture browser.
+

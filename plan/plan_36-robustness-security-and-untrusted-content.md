@@ -1,0 +1,157 @@
+# 36. Robustness, security, and untrusted content
+
+[Back to master plan](../plan.md)
+
+
+Treat downloaded/generated assets, scripts, saves, and network data as untrusted inputs.
+
+- [ ] **IS-36-001 P0** — Treat all downloaded and AI-generated assets as untrusted input.
+- [ ] **IS-36-002 P0** — Bound all package counts, sizes, nesting, string lengths, and allocations.
+- [ ] **IS-36-003 P0** — Sandbox or strictly constrain Lua APIs.
+- [ ] **IS-36-004 P0** — Reject path traversal and absolute output paths in asset tools.
+- [ ] **IS-36-005 P0** — Use atomic writes for saves and generated manifests.
+- [ ] **IS-36-006 P1** — Validate UTF-8 and normalize identifiers consistently.
+- [ ] **IS-36-007 P1** — Detect integer overflow in size/offset calculations.
+- [ ] **IS-36-008 P1** — Detect decompression bombs and excessive expansion ratios.
+- [ ] **IS-36-009 P1** — Set parser recursion/depth limits.
+- [ ] **IS-36-010 P1** — Set script CPU, memory, and instruction budgets.
+- [ ] **IS-36-011 P1** — Avoid executing code from downloaded asset packages.
+- [ ] **IS-36-012 P1** — Separate developer hot-reload paths from shipping content paths.
+- [ ] **IS-36-013 P1** — Create secure temporary-file handling in tools.
+- [ ] **IS-36-014 P1** — Create clear errors without leaking sensitive local paths in shipping builds.
+- [ ] **IS-36-015 P1** — Create corruption recovery for caches and derived assets.
+- [ ] **IS-36-016 P1** — Create dependency hash/signature checks for release packages.
+- [ ] **IS-36-017 P1** — Run static analysis and sanitizers on parsers and converters.
+- [ ] **IS-36-018 P1** — Create a vulnerability response and dependency update process.
+- [ ] **IS-36-019 P1** — Document privacy boundaries for logs, crash reports, and analytics.
+- [ ] **IS-36-020 P2** — Fuzz MC3 metadata, runtime packages, saves, dialogue, and mission data.
+- [ ] **IS-36-021 P2** — Threat-model mod support before exposing writable/executable content.
+- [ ] **IS-36-022 P2** — Threat-model network features before adding any multiplayer/online service.
+- [ ] **IS-36-023 P1** — Define the scope, responsibilities, and explicit non-goals of runtime package parser hardening.
+- [ ] **IS-36-024 P1** — Define the public C++ API and ownership rules for runtime package parser hardening.
+- [ ] **IS-36-025 P1** — Define versioned configuration or asset data for runtime package parser hardening.
+- [ ] **IS-36-026 P1** — Implement the smallest deterministic reference path for runtime package parser hardening.
+- [ ] **IS-36-027 P1** — Add input validation and actionable failure reporting to runtime package parser hardening.
+- [ ] **IS-36-028 P1** — Add focused unit tests for runtime package parser hardening.
+- [ ] **IS-36-029 P1** — Add an integration scenario that exercises runtime package parser hardening in a running game flow.
+- [ ] **IS-36-030 P2** — Add logging, counters, and debug inspection for runtime package parser hardening.
+- [ ] **IS-36-031 P1** — Define save/checkpoint serialization and restoration for runtime package parser hardening.
+- [ ] **IS-36-032 P2** — Define CPU, memory, latency, and content budgets for runtime package parser hardening.
+- [ ] **IS-36-033 P2** — Profile runtime package parser hardening under a representative worst-case scene.
+- [ ] **IS-36-034 P2** — Document usage examples, invariants, and common failure modes for runtime package parser hardening.
+- [ ] **IS-36-035 P1** — Define the scope, responsibilities, and explicit non-goals of save parser hardening.
+- [ ] **IS-36-036 P1** — Define the public C++ API and ownership rules for save parser hardening.
+- [ ] **IS-36-037 P1** — Define versioned configuration or asset data for save parser hardening.
+- [ ] **IS-36-038 P1** — Implement the smallest deterministic reference path for save parser hardening.
+- [ ] **IS-36-039 P1** — Add input validation and actionable failure reporting to save parser hardening.
+- [ ] **IS-36-040 P1** — Add focused unit tests for save parser hardening.
+- [ ] **IS-36-041 P1** — Add an integration scenario that exercises save parser hardening in a running game flow.
+- [ ] **IS-36-042 P2** — Add logging, counters, and debug inspection for save parser hardening.
+- [ ] **IS-36-043 P1** — Define save/checkpoint serialization and restoration for save parser hardening.
+- [ ] **IS-36-044 P2** — Define CPU, memory, latency, and content budgets for save parser hardening.
+- [ ] **IS-36-045 P2** — Profile save parser hardening under a representative worst-case scene.
+- [ ] **IS-36-046 P2** — Document usage examples, invariants, and common failure modes for save parser hardening.
+- [ ] **IS-36-047 P1** — Define the scope, responsibilities, and explicit non-goals of script sandbox.
+- [ ] **IS-36-048 P1** — Define the public C++ API and ownership rules for script sandbox.
+- [ ] **IS-36-049 P1** — Define versioned configuration or asset data for script sandbox.
+- [ ] **IS-36-050 P1** — Implement the smallest deterministic reference path for script sandbox.
+- [ ] **IS-36-051 P1** — Add input validation and actionable failure reporting to script sandbox.
+- [ ] **IS-36-052 P1** — Add focused unit tests for script sandbox.
+- [ ] **IS-36-053 P1** — Add an integration scenario that exercises script sandbox in a running game flow.
+- [ ] **IS-36-054 P2** — Add logging, counters, and debug inspection for script sandbox.
+- [ ] **IS-36-055 P1** — Define save/checkpoint serialization and restoration for script sandbox.
+- [ ] **IS-36-056 P2** — Define CPU, memory, latency, and content budgets for script sandbox.
+- [ ] **IS-36-057 P2** — Profile script sandbox under a representative worst-case scene.
+- [ ] **IS-36-058 P2** — Document usage examples, invariants, and common failure modes for script sandbox.
+- [ ] **IS-36-059 P1** — Define the scope, responsibilities, and explicit non-goals of asset tool path security.
+- [ ] **IS-36-060 P1** — Define the public C++ API and ownership rules for asset tool path security.
+- [ ] **IS-36-061 P1** — Define versioned configuration or asset data for asset tool path security.
+- [ ] **IS-36-062 P1** — Implement the smallest deterministic reference path for asset tool path security.
+- [ ] **IS-36-063 P1** — Add input validation and actionable failure reporting to asset tool path security.
+- [ ] **IS-36-064 P1** — Add focused unit tests for asset tool path security.
+- [ ] **IS-36-065 P1** — Add an integration scenario that exercises asset tool path security in a running game flow.
+- [ ] **IS-36-066 P2** — Add logging, counters, and debug inspection for asset tool path security.
+- [ ] **IS-36-067 P1** — Define save/checkpoint serialization and restoration for asset tool path security.
+- [ ] **IS-36-068 P2** — Define CPU, memory, latency, and content budgets for asset tool path security.
+- [ ] **IS-36-069 P2** — Profile asset tool path security under a representative worst-case scene.
+- [ ] **IS-36-070 P2** — Document usage examples, invariants, and common failure modes for asset tool path security.
+- [ ] **IS-36-071 P1** — Define the scope, responsibilities, and explicit non-goals of release manifest verifier.
+- [ ] **IS-36-072 P1** — Define the public C++ API and ownership rules for release manifest verifier.
+- [ ] **IS-36-073 P1** — Define versioned configuration or asset data for release manifest verifier.
+- [ ] **IS-36-074 P1** — Implement the smallest deterministic reference path for release manifest verifier.
+- [ ] **IS-36-075 P1** — Add input validation and actionable failure reporting to release manifest verifier.
+- [ ] **IS-36-076 P1** — Add focused unit tests for release manifest verifier.
+- [ ] **IS-36-077 P1** — Add an integration scenario that exercises release manifest verifier in a running game flow.
+- [ ] **IS-36-078 P2** — Add logging, counters, and debug inspection for release manifest verifier.
+- [ ] **IS-36-079 P1** — Define save/checkpoint serialization and restoration for release manifest verifier.
+- [ ] **IS-36-080 P2** — Define CPU, memory, latency, and content budgets for release manifest verifier.
+- [ ] **IS-36-081 P2** — Profile release manifest verifier under a representative worst-case scene.
+- [ ] **IS-36-082 P2** — Document usage examples, invariants, and common failure modes for release manifest verifier.
+- [ ] **IS-36-083 P1** — Define the scope, responsibilities, and explicit non-goals of fuzzing corpus manager.
+- [ ] **IS-36-084 P1** — Define the public C++ API and ownership rules for fuzzing corpus manager.
+- [ ] **IS-36-085 P1** — Define versioned configuration or asset data for fuzzing corpus manager.
+- [ ] **IS-36-086 P1** — Implement the smallest deterministic reference path for fuzzing corpus manager.
+- [ ] **IS-36-087 P1** — Add input validation and actionable failure reporting to fuzzing corpus manager.
+- [ ] **IS-36-088 P1** — Add focused unit tests for fuzzing corpus manager.
+- [ ] **IS-36-089 P1** — Add an integration scenario that exercises fuzzing corpus manager in a running game flow.
+- [ ] **IS-36-090 P2** — Add logging, counters, and debug inspection for fuzzing corpus manager.
+- [ ] **IS-36-091 P1** — Define save/checkpoint serialization and restoration for fuzzing corpus manager.
+- [ ] **IS-36-092 P2** — Define CPU, memory, latency, and content budgets for fuzzing corpus manager.
+- [ ] **IS-36-093 P2** — Profile fuzzing corpus manager under a representative worst-case scene.
+- [ ] **IS-36-094 P2** — Document usage examples, invariants, and common failure modes for fuzzing corpus manager.
+- [ ] **IS-36-095 P2** — Define the scope, responsibilities, and explicit non-goals of input data size limiter.
+- [ ] **IS-36-096 P2** — Define the public C++ API and ownership rules for input data size limiter.
+- [ ] **IS-36-097 P2** — Define versioned configuration or asset data for input data size limiter.
+- [ ] **IS-36-098 P2** — Implement the smallest deterministic reference path for input data size limiter.
+- [ ] **IS-36-099 P2** — Add input validation and actionable failure reporting to input data size limiter.
+- [ ] **IS-36-100 P2** — Add focused unit tests for input data size limiter.
+- [ ] **IS-36-101 P2** — Add an integration scenario that exercises input data size limiter in a running game flow.
+- [ ] **IS-36-102 P2** — Add logging, counters, and debug inspection for input data size limiter.
+- [ ] **IS-36-103 P2** — Define CPU, memory, latency, and content budgets for input data size limiter.
+- [ ] **IS-36-104 P2** — Profile input data size limiter under a representative worst-case scene.
+- [ ] **IS-36-105 P2** — Document usage examples, invariants, and common failure modes for input data size limiter.
+- [ ] **IS-36-106 P2** — Define the scope, responsibilities, and explicit non-goals of Unicode normalizer.
+- [ ] **IS-36-107 P2** — Define the public C++ API and ownership rules for Unicode normalizer.
+- [ ] **IS-36-108 P2** — Define versioned configuration or asset data for Unicode normalizer.
+- [ ] **IS-36-109 P2** — Implement the smallest deterministic reference path for Unicode normalizer.
+- [ ] **IS-36-110 P2** — Add input validation and actionable failure reporting to Unicode normalizer.
+- [ ] **IS-36-111 P2** — Add focused unit tests for Unicode normalizer.
+- [ ] **IS-36-112 P2** — Add an integration scenario that exercises Unicode normalizer in a running game flow.
+- [ ] **IS-36-113 P2** — Add logging, counters, and debug inspection for Unicode normalizer.
+- [ ] **IS-36-114 P2** — Define CPU, memory, latency, and content budgets for Unicode normalizer.
+- [ ] **IS-36-115 P2** — Profile Unicode normalizer under a representative worst-case scene.
+- [ ] **IS-36-116 P2** — Document usage examples, invariants, and common failure modes for Unicode normalizer.
+- [ ] **IS-36-117 P2** — Define the scope, responsibilities, and explicit non-goals of archive extractor hardening.
+- [ ] **IS-36-118 P2** — Define the public C++ API and ownership rules for archive extractor hardening.
+- [ ] **IS-36-119 P2** — Define versioned configuration or asset data for archive extractor hardening.
+- [ ] **IS-36-120 P2** — Implement the smallest deterministic reference path for archive extractor hardening.
+- [ ] **IS-36-121 P2** — Add input validation and actionable failure reporting to archive extractor hardening.
+- [ ] **IS-36-122 P2** — Add focused unit tests for archive extractor hardening.
+- [ ] **IS-36-123 P2** — Add an integration scenario that exercises archive extractor hardening in a running game flow.
+- [ ] **IS-36-124 P2** — Add logging, counters, and debug inspection for archive extractor hardening.
+- [ ] **IS-36-125 P2** — Define CPU, memory, latency, and content budgets for archive extractor hardening.
+- [ ] **IS-36-126 P2** — Profile archive extractor hardening under a representative worst-case scene.
+- [ ] **IS-36-127 P2** — Document usage examples, invariants, and common failure modes for archive extractor hardening.
+- [ ] **IS-36-128 P2** — Define the scope, responsibilities, and explicit non-goals of dependency vulnerability scanner.
+- [ ] **IS-36-129 P2** — Define the public C++ API and ownership rules for dependency vulnerability scanner.
+- [ ] **IS-36-130 P2** — Define versioned configuration or asset data for dependency vulnerability scanner.
+- [ ] **IS-36-131 P2** — Implement the smallest deterministic reference path for dependency vulnerability scanner.
+- [ ] **IS-36-132 P2** — Add input validation and actionable failure reporting to dependency vulnerability scanner.
+- [ ] **IS-36-133 P2** — Add focused unit tests for dependency vulnerability scanner.
+- [ ] **IS-36-134 P2** — Add an integration scenario that exercises dependency vulnerability scanner in a running game flow.
+- [ ] **IS-36-135 P2** — Add logging, counters, and debug inspection for dependency vulnerability scanner.
+- [ ] **IS-36-136 P2** — Define CPU, memory, latency, and content budgets for dependency vulnerability scanner.
+- [ ] **IS-36-137 P2** — Profile dependency vulnerability scanner under a representative worst-case scene.
+- [ ] **IS-36-138 P2** — Document usage examples, invariants, and common failure modes for dependency vulnerability scanner.
+- [ ] **IS-36-139 P2** — Define the scope, responsibilities, and explicit non-goals of log privacy filter.
+- [ ] **IS-36-140 P2** — Define the public C++ API and ownership rules for log privacy filter.
+- [ ] **IS-36-141 P2** — Define versioned configuration or asset data for log privacy filter.
+- [ ] **IS-36-142 P2** — Implement the smallest deterministic reference path for log privacy filter.
+- [ ] **IS-36-143 P2** — Add input validation and actionable failure reporting to log privacy filter.
+- [ ] **IS-36-144 P2** — Add focused unit tests for log privacy filter.
+- [ ] **IS-36-145 P2** — Add an integration scenario that exercises log privacy filter in a running game flow.
+- [ ] **IS-36-146 P2** — Add logging, counters, and debug inspection for log privacy filter.
+- [ ] **IS-36-147 P2** — Define CPU, memory, latency, and content budgets for log privacy filter.
+- [ ] **IS-36-148 P2** — Profile log privacy filter under a representative worst-case scene.
+- [ ] **IS-36-149 P2** — Document usage examples, invariants, and common failure modes for log privacy filter.
+

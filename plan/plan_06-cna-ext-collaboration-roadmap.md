@@ -1,0 +1,119 @@
+# 06. CNA EXT collaboration roadmap
+
+[Back to master plan](../plan.md)
+
+
+Identify reusable modern graphics/runtime features without placing game-specific logic in CNA.
+
+- [ ] **IS-06-001 P0** — List which vertical-slice blockers belong in CNA EXT and which belong only in Iron Shadows.
+- [ ] **IS-06-002 P0** — Require a general-purpose API contract before adding a feature to CNA EXT.
+- [ ] **IS-06-003 P0** — Avoid moving mission, traffic, police, story, or Iron City concepts into CNA EXT.
+- [ ] **IS-06-004 P1** — Draft CNA EXT material and material-instance APIs.
+- [ ] **IS-06-005 P1** — Draft CNA EXT scene, scene-node, mesh, and LOD APIs.
+- [ ] **IS-06-006 P1** — Draft CNA EXT animation clip, controller, graph, layer, and mask APIs.
+- [ ] **IS-06-007 P1** — Draft CNA EXT instancing and instance-buffer APIs.
+- [ ] **IS-06-008 P1** — Draft CNA EXT resource upload and asynchronous content APIs.
+- [ ] **IS-06-009 P1** — Draft CNA EXT shadow-renderer and post-process graph APIs.
+- [ ] **IS-06-010 P1** — Draft CNA EXT capability-query conventions.
+- [ ] **IS-06-011 P1** — Create one small independent sample for every accepted EXT API.
+- [ ] **IS-06-012 P1** — Create cross-backend conformance tests for accepted EXT behavior.
+- [ ] **IS-06-013 P1** — Document fallback behavior when an EXT feature is unavailable.
+- [ ] **IS-06-014 P2** — Evaluate render-graph scope without blocking basic post-processing.
+- [ ] **IS-06-015 P2** — Evaluate clustered/forward+ lighting as a later reusable feature.
+- [ ] **IS-06-016 P2** — Evaluate GPU-driven culling only after CPU culling is measured.
+- [ ] **IS-06-017 P2** — Evaluate bindless/resource indexing per backend capability.
+- [ ] **IS-06-018 P2** — Evaluate morph-target support for faces and damage.
+- [ ] **IS-06-019 P2** — Evaluate reflection probes and environment-lighting helpers.
+- [ ] **IS-06-020 P3** — Evaluate virtual texturing only after real city texture pressure is measured.
+- [ ] **IS-06-021 P2** — Define the scope, responsibilities, and explicit non-goals of EXT material system.
+- [ ] **IS-06-022 P2** — Define the public C++ API and ownership rules for EXT material system.
+- [ ] **IS-06-023 P2** — Define versioned configuration or asset data for EXT material system.
+- [ ] **IS-06-024 P2** — Implement the smallest deterministic reference path for EXT material system.
+- [ ] **IS-06-025 P2** — Add input validation and actionable failure reporting to EXT material system.
+- [ ] **IS-06-026 P2** — Add focused unit tests for EXT material system.
+- [ ] **IS-06-027 P2** — Add an integration scenario that exercises EXT material system in a running game flow.
+- [ ] **IS-06-028 P2** — Add logging, counters, and debug inspection for EXT material system.
+- [ ] **IS-06-029 P2** — Add an in-world or overlay debug visualization for EXT material system.
+- [ ] **IS-06-030 P2** — Define CPU, memory, latency, and content budgets for EXT material system.
+- [ ] **IS-06-031 P2** — Profile EXT material system under a representative worst-case scene.
+- [ ] **IS-06-032 P2** — Document usage examples, invariants, and common failure modes for EXT material system.
+- [ ] **IS-06-033 P2** — Validate EXT material system on each production graphics backend and record differences.
+- [ ] **IS-06-034 P2** — Define the scope, responsibilities, and explicit non-goals of EXT scene representation.
+- [ ] **IS-06-035 P2** — Define the public C++ API and ownership rules for EXT scene representation.
+- [ ] **IS-06-036 P2** — Define versioned configuration or asset data for EXT scene representation.
+- [ ] **IS-06-037 P2** — Implement the smallest deterministic reference path for EXT scene representation.
+- [ ] **IS-06-038 P2** — Add input validation and actionable failure reporting to EXT scene representation.
+- [ ] **IS-06-039 P2** — Add focused unit tests for EXT scene representation.
+- [ ] **IS-06-040 P2** — Add an integration scenario that exercises EXT scene representation in a running game flow.
+- [ ] **IS-06-041 P2** — Add logging, counters, and debug inspection for EXT scene representation.
+- [ ] **IS-06-042 P2** — Add an in-world or overlay debug visualization for EXT scene representation.
+- [ ] **IS-06-043 P2** — Define CPU, memory, latency, and content budgets for EXT scene representation.
+- [ ] **IS-06-044 P2** — Profile EXT scene representation under a representative worst-case scene.
+- [ ] **IS-06-045 P2** — Document usage examples, invariants, and common failure modes for EXT scene representation.
+- [ ] **IS-06-046 P2** — Validate EXT scene representation on each production graphics backend and record differences.
+- [ ] **IS-06-047 P2** — Define the scope, responsibilities, and explicit non-goals of EXT animation graph.
+- [ ] **IS-06-048 P2** — Define the public C++ API and ownership rules for EXT animation graph.
+- [ ] **IS-06-049 P2** — Define versioned configuration or asset data for EXT animation graph.
+- [ ] **IS-06-050 P2** — Implement the smallest deterministic reference path for EXT animation graph.
+- [ ] **IS-06-051 P2** — Add input validation and actionable failure reporting to EXT animation graph.
+- [ ] **IS-06-052 P2** — Add focused unit tests for EXT animation graph.
+- [ ] **IS-06-053 P2** — Add an integration scenario that exercises EXT animation graph in a running game flow.
+- [ ] **IS-06-054 P2** — Add logging, counters, and debug inspection for EXT animation graph.
+- [ ] **IS-06-055 P2** — Add an in-world or overlay debug visualization for EXT animation graph.
+- [ ] **IS-06-056 P2** — Define CPU, memory, latency, and content budgets for EXT animation graph.
+- [ ] **IS-06-057 P2** — Profile EXT animation graph under a representative worst-case scene.
+- [ ] **IS-06-058 P2** — Document usage examples, invariants, and common failure modes for EXT animation graph.
+- [ ] **IS-06-059 P2** — Validate EXT animation graph on each production graphics backend and record differences.
+- [ ] **IS-06-060 P2** — Define the scope, responsibilities, and explicit non-goals of EXT instance batching.
+- [ ] **IS-06-061 P2** — Define the public C++ API and ownership rules for EXT instance batching.
+- [ ] **IS-06-062 P2** — Define versioned configuration or asset data for EXT instance batching.
+- [ ] **IS-06-063 P2** — Implement the smallest deterministic reference path for EXT instance batching.
+- [ ] **IS-06-064 P2** — Add input validation and actionable failure reporting to EXT instance batching.
+- [ ] **IS-06-065 P2** — Add focused unit tests for EXT instance batching.
+- [ ] **IS-06-066 P2** — Add an integration scenario that exercises EXT instance batching in a running game flow.
+- [ ] **IS-06-067 P2** — Add logging, counters, and debug inspection for EXT instance batching.
+- [ ] **IS-06-068 P2** — Add an in-world or overlay debug visualization for EXT instance batching.
+- [ ] **IS-06-069 P2** — Define CPU, memory, latency, and content budgets for EXT instance batching.
+- [ ] **IS-06-070 P2** — Profile EXT instance batching under a representative worst-case scene.
+- [ ] **IS-06-071 P2** — Document usage examples, invariants, and common failure modes for EXT instance batching.
+- [ ] **IS-06-072 P2** — Validate EXT instance batching on each production graphics backend and record differences.
+- [ ] **IS-06-073 P2** — Define the scope, responsibilities, and explicit non-goals of EXT upload queue.
+- [ ] **IS-06-074 P2** — Define the public C++ API and ownership rules for EXT upload queue.
+- [ ] **IS-06-075 P2** — Define versioned configuration or asset data for EXT upload queue.
+- [ ] **IS-06-076 P2** — Implement the smallest deterministic reference path for EXT upload queue.
+- [ ] **IS-06-077 P2** — Add input validation and actionable failure reporting to EXT upload queue.
+- [ ] **IS-06-078 P2** — Add focused unit tests for EXT upload queue.
+- [ ] **IS-06-079 P2** — Add an integration scenario that exercises EXT upload queue in a running game flow.
+- [ ] **IS-06-080 P2** — Add logging, counters, and debug inspection for EXT upload queue.
+- [ ] **IS-06-081 P2** — Add an in-world or overlay debug visualization for EXT upload queue.
+- [ ] **IS-06-082 P2** — Define CPU, memory, latency, and content budgets for EXT upload queue.
+- [ ] **IS-06-083 P2** — Profile EXT upload queue under a representative worst-case scene.
+- [ ] **IS-06-084 P2** — Document usage examples, invariants, and common failure modes for EXT upload queue.
+- [ ] **IS-06-085 P2** — Validate EXT upload queue on each production graphics backend and record differences.
+- [ ] **IS-06-086 P2** — Define the scope, responsibilities, and explicit non-goals of EXT shadow renderer.
+- [ ] **IS-06-087 P2** — Define the public C++ API and ownership rules for EXT shadow renderer.
+- [ ] **IS-06-088 P2** — Define versioned configuration or asset data for EXT shadow renderer.
+- [ ] **IS-06-089 P2** — Implement the smallest deterministic reference path for EXT shadow renderer.
+- [ ] **IS-06-090 P2** — Add input validation and actionable failure reporting to EXT shadow renderer.
+- [ ] **IS-06-091 P2** — Add focused unit tests for EXT shadow renderer.
+- [ ] **IS-06-092 P2** — Add an integration scenario that exercises EXT shadow renderer in a running game flow.
+- [ ] **IS-06-093 P2** — Add logging, counters, and debug inspection for EXT shadow renderer.
+- [ ] **IS-06-094 P2** — Add an in-world or overlay debug visualization for EXT shadow renderer.
+- [ ] **IS-06-095 P2** — Define CPU, memory, latency, and content budgets for EXT shadow renderer.
+- [ ] **IS-06-096 P2** — Profile EXT shadow renderer under a representative worst-case scene.
+- [ ] **IS-06-097 P2** — Document usage examples, invariants, and common failure modes for EXT shadow renderer.
+- [ ] **IS-06-098 P2** — Validate EXT shadow renderer on each production graphics backend and record differences.
+- [ ] **IS-06-099 P2** — Define the scope, responsibilities, and explicit non-goals of EXT post-process graph.
+- [ ] **IS-06-100 P2** — Define the public C++ API and ownership rules for EXT post-process graph.
+- [ ] **IS-06-101 P2** — Define versioned configuration or asset data for EXT post-process graph.
+- [ ] **IS-06-102 P2** — Implement the smallest deterministic reference path for EXT post-process graph.
+- [ ] **IS-06-103 P2** — Add input validation and actionable failure reporting to EXT post-process graph.
+- [ ] **IS-06-104 P2** — Add focused unit tests for EXT post-process graph.
+- [ ] **IS-06-105 P2** — Add an integration scenario that exercises EXT post-process graph in a running game flow.
+- [ ] **IS-06-106 P2** — Add logging, counters, and debug inspection for EXT post-process graph.
+- [ ] **IS-06-107 P2** — Add an in-world or overlay debug visualization for EXT post-process graph.
+- [ ] **IS-06-108 P2** — Define CPU, memory, latency, and content budgets for EXT post-process graph.
+- [ ] **IS-06-109 P2** — Profile EXT post-process graph under a representative worst-case scene.
+- [ ] **IS-06-110 P2** — Document usage examples, invariants, and common failure modes for EXT post-process graph.
+- [ ] **IS-06-111 P2** — Validate EXT post-process graph on each production graphics backend and record differences.
+
