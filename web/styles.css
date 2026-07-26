@@ -1,0 +1,58 @@
+:root { --ink:#332b30; --paper:#fff8ed; --pink:#f2aec7; --pink-dark:#975777; --cream:#ffe9d8; --lcd:#bdca8f; --lcd-ink:#222c1f; --line:#e8b8c9; }
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { margin:0; color:var(--ink); background:var(--paper); font:17px/1.6 ui-rounded, "Avenir Next", system-ui, sans-serif; }
+nav, main, .hero { max-width:1180px; margin:auto; }
+nav { display:flex; align-items:center; gap:1.2rem; padding:1.25rem 1.5rem; }
+nav a { color:inherit; text-decoration:none; font-size:.88rem; font-weight:700; }
+nav .brand { margin-right:auto; letter-spacing:.09em; color:var(--pink-dark); }
+.hero { min-height:690px; position:relative; overflow:hidden; padding:0 1.5rem 3rem; background:radial-gradient(circle at 76% 30%,#fff0e7 0 18%,transparent 45%),linear-gradient(145deg,#fffaf1,#ffeddf); }
+.hero-copy { max-width:535px; padding:7rem 0 2rem; }
+.eyebrow { margin:0 0 .55rem; color:var(--pink-dark); font-size:.76rem; font-weight:800; letter-spacing:.15em; }
+h1,h2,h3 { line-height:1.1; margin:.2rem 0 1rem; }
+h1 { font-size:clamp(3rem,8vw,6.7rem); letter-spacing:-.075em; }
+h2 { font-size:clamp(2rem,4vw,3.35rem); letter-spacing:-.05em; }
+h3 { font-size:1.25rem; }
+.button { display:inline-block; margin-top:1rem; padding:.8rem 1.2rem; border-radius:999px; color:white; background:var(--pink-dark); font-weight:800; text-decoration:none; }
+.hero-device { position:absolute; width:min(48%,510px); right:2.5%; bottom:0; margin:0; text-align:center; }
+.hero-device img { display:block; width:100%; filter:drop-shadow(0 18px 18px #97577744); }
+figcaption { color:#775d68; font-size:.82rem; text-align:center; }
+main { padding:3rem 1.5rem 6rem; }
+section { margin:5rem 0; }
+.layout-two { display:grid; grid-template-columns:1.1fr .9fr; gap:clamp(2rem,7vw,7rem); align-items:center; }
+.tip, .screen-card, .faq details { border:1px solid var(--line); border-radius:1.5rem; background:#fffdf9; padding:1.5rem; box-shadow:0 12px 35px #97577716; }
+.tip ol,.steps { padding-left:1.2rem; }
+.tip li,.steps li { margin:.65rem 0; }
+.controls { text-align:center; }
+.control-grid,.icon-grid,.warning-grid { display:grid; gap:1rem; }
+.control-grid { grid-template-columns:repeat(3,1fr); margin:2rem 0 1rem; }
+.control-grid article { padding:1.4rem; border-radius:1.3rem; background:var(--cream); }
+.key { display:grid; place-items:center; width:58px; height:58px; margin:0 auto 1rem; border:4px solid var(--pink-dark); border-radius:50%; color:white; background:var(--pink); font-size:1.5rem; font-weight:900; }
+small,.note { color:#775d68; }
+.screen-card { margin:0; padding:1rem; }
+.screen-card img { display:block; width:100%; border-radius:1rem; background:#f8e4dc; }
+.icons-section { text-align:center; }
+.icon-grid { grid-template-columns:repeat(4,1fr); text-align:left; }
+.icon-grid article { min-height:155px; padding:1.1rem; border:1px solid var(--line); border-radius:1.1rem; background:#fffdf9; }
+.icon-grid b,.icon-grid span { display:block; }
+.icon-grid b { color:var(--pink-dark); }
+.icon-grid span { font-weight:800; }
+.icon-grid p { margin:.45rem 0; font-size:.92rem; }
+.status-callout { margin:1.5rem auto 0; max-width:790px; padding:1rem 1.2rem; border-radius:1rem; background:var(--lcd); color:var(--lcd-ink); text-align:left; }
+.games { background:#ffe8dc; margin-inline:-1.5rem; padding:4rem 1.5rem; }
+.games > * { max-width:500px; }
+.life { text-align:center; }
+.timeline { display:flex; justify-content:center; gap:0; margin:2.5rem 0; overflow:auto; }
+.timeline div { min-width:125px; padding:1rem; border-right:1px dashed var(--pink-dark); }
+.timeline div:last-child { border:0; }
+.timeline b,.timeline span { display:block; }
+.timeline b { color:var(--pink-dark); }
+.warning-grid { grid-template-columns:repeat(3,1fr); text-align:left; }
+.warning-grid article { padding:1.25rem; border-radius:1.2rem; background:#f6e8dd; }
+.warning-grid p { margin:0; }
+.faq { max-width:800px; margin-inline:auto; }
+.faq details { margin:.7rem 0; }
+summary { cursor:pointer; font-weight:800; }
+code { padding:.1rem .3rem; border-radius:.25rem; background:#f1e8e1; }
+footer { padding:2rem 1.5rem; color:#765f69; background:#f3c7d6; text-align:center; font-size:.88rem; }
+@media (max-width:760px) { nav a:not(.brand) { display:none; } .hero { min-height:auto; } .hero-copy { padding-top:3rem; } .hero-device { position:relative; width:100%; right:auto; } .layout-two,.control-grid,.warning-grid { grid-template-columns:1fr; } .icon-grid { grid-template-columns:repeat(2,1fr); } .games { margin-inline:-1.5rem; } }

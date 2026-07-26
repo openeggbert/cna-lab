@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Uživatelská příručka hry CNA Tamagotchi.">
+  <title>CNA Tamagotchi — uživatelská příručka</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <nav aria-label="Obsah stránky">
+      <a class="brand" href="#zacatek">CNA TAMAGOTCHI</a>
+      <a href="#ovladani">Ovládání</a>
+      <a href="#pece">Péče</a>
+      <a href="#hry">Hry</a>
+      <a href="#zivot">Životní cyklus</a>
+    </nav>
+    <div class="hero-copy">
+      <p class="eyebrow">UŽIVATELSKÝ PRŮVODCE</p>
+      <h1>Malý tvor.<br>Skutečný čas.</h1>
+      <p>Pečujte o původního digitálního mazlíčka pomocí tří tlačítek. Krmte ho, hrajte hry, ukliďte po něm a reagujte, když vás potřebuje.</p>
+      <a class="button" href="#prvnich-pet-minut">Začít tutorial</a>
+    </div>
+    <figure class="hero-device">
+      <img src="assets/home-screen.svg" alt="Ilustrace růžového zařízení CNA Tamagotchi s jednobitovým LCD.">
+      <figcaption>Ilustrace aktuální domovské obrazovky hry.</figcaption>
+    </figure>
+  </header>
+
+  <main>
+    <section id="zacatek" class="intro layout-two">
+      <div>
+        <p class="eyebrow">CO OČEKÁVAT</p>
+        <h2>Žije i mimo okno hry</h2>
+        <p>Nové vejce se vylíhne přibližně po pěti minutách. Tvor roste z baby přes child a teen až do dospělé podoby. Jeho vývoj závisí na péči, ne na výběru hotového dospělého.</p>
+        <p>Hra ukládá změněný stav automaticky. Po dalším spuštění bezpečně započítá uplynulý čas.</p>
+      </div>
+      <aside class="tip">
+        <h3>První spuštění</h3>
+        <ol>
+          <li>Otevřete aplikaci <strong>CnaTamagotchi</strong>.</li>
+          <li>Nechte vejce pět minut v klidu.</li>
+          <li>Po vylíhnutí otevřete Food a nabídněte Meal.</li>
+          <li>Sledujte horní segmenty a blikající attention stav.</li>
+        </ol>
+      </aside>
+    </section>
+
+    <section id="ovladani" class="controls">
+      <p class="eyebrow">TŘI TLAČÍTKA</p>
+      <h2>Všechno ovládáte jako kapesní zařízení</h2>
+      <div class="control-grid">
+        <article><span class="key">A</span><h3>Další</h3><p>Posune výběr mezi ikonami nebo mezi možnostmi v menu.</p><small>Klávesnice: A nebo →</small></article>
+        <article><span class="key">B</span><h3>Potvrdit</h3><p>Otevře vybranou ikonu, provede péči nebo vyhodnotí hru.</p><small>Klávesnice: B, Enter nebo mezerník</small></article>
+        <article><span class="key">C</span><h3>Zpět</h3><p>Zavře Food, Status nebo minihru bez provedení další akce.</p><small>Klávesnice: C, Backspace nebo Escape</small></article>
+      </div>
+      <p class="note">Můžete také kliknout nebo klepnout přímo na levé, prostřední a pravé kulaté tlačítko pod LCD. Klávesa ← je pohodlná desktopová zkratka pro krok zpět.</p>
+    </section>
+
+    <section id="prvnich-pet-minut" class="layout-two tutorial">
+      <div>
+        <p class="eyebrow">PRVNÍCH PĚT MINUT</p>
+        <h2>Od vejce k prvnímu jídlu</h2>
+        <ol class="steps">
+          <li><strong>Počkejte na hatch.</strong> Vejce zůstává na LCD asi pět minut.</li>
+          <li><strong>Vyberte Food.</strong> Food je první horní ikona, takže po startu stačí B.</li>
+          <li><strong>Zvolte Meal nebo Snack.</strong> A přepíná položku, B ji podá. Meal doplní hlad; Snack doplní štěstí, ale více zvyšuje hmotnost.</li>
+          <li><strong>Vraťte se domů.</strong> Po úspěšné péči se vedle tvora krátce ukáže jiskra.</li>
+        </ol>
+      </div>
+      <figure class="screen-card">
+        <img src="assets/food-screen.svg" alt="Ilustrace LCD s menu FOOD a volbami MEAL a SNACK.">
+        <figcaption>Food: A mění volbu, B ji potvrzuje, C menu zavře.</figcaption>
+      </figure>
+    </section>
+
+    <section id="pece" class="icons-section">
+      <p class="eyebrow">IKONY PÉČE</p>
+      <h2>Co znamená každá ikona</h2>
+      <div class="icon-grid">
+        <article><b>Food</b><span>Meal / Snack</span><p>Doplňuje hlad nebo štěstí.</p></article>
+        <article><b>Light</b><span>Světlo</span><p>Po usnutí tvora jej vypněte.</p></article>
+        <article><b>Game</b><span>Hra</span><p>Výhra zvýší štěstí a snižuje hmotnost.</p></article>
+        <article><b>Medicine</b><span>Lék</span><p>Funguje pouze při nemoci.</p></article>
+        <article><b>Clean</b><span>Úklid</span><p>Odstraní odpad z LCD i stavu tvora.</p></article>
+        <article><b>Status</b><span>Stav</span><p>Věk/hmotnost, potřeby a disciplína.</p></article>
+        <article><b>Discipline</b><span>Disciplína</span><p>Používejte jen při falešném attention call.</p></article>
+        <article><b>Attention</b><span>Upozornění</span><p>Automatický indikátor; není to ruční akce.</p></article>
+      </div>
+      <div class="status-callout">
+        <strong>Horní LCD segmenty:</strong> zleva hlad, štěstí a disciplína. Čtyři černé bloky znamenají plný stav. Odpad, nemoc a attention mají vlastní malé indikátory.
+      </div>
+    </section>
+
+    <section id="hry" class="layout-two games">
+      <figure class="screen-card">
+        <img src="assets/game-screens.svg" alt="Ilustrace LCD obrazovek Peek a Number.">
+        <figcaption>Dvě krátké hry, každá pro jednu egg line.</figcaption>
+      </figure>
+      <div>
+        <p class="eyebrow">MINIHRY</p>
+        <h2>Vyhrajte, aby hra pomohla</h2>
+        <p><strong>Pipple line — Peek:</strong> A vybere levou nebo pravou pozici, B výběr vyhodnotí.</p>
+        <p><strong>Budbit line — Number:</strong> LCD ukáže číslo. A přepíná tip „nižší/vyšší“, B jej vyhodnotí.</p>
+        <p>Jen výhra přidá štěstí a sníží hmotnost. Po výsledku stiskněte B nebo C pro návrat domů.</p>
+      </div>
+    </section>
+
+    <section id="zivot" class="life">
+      <p class="eyebrow">ŽIVOTNÍ CYKLUS</p>
+      <h2>Pečujte včas</h2>
+      <div class="timeline">
+        <div><b>0 min</b><span>Egg</span></div><div><b>5 min</b><span>Baby</span></div><div><b>65 min</b><span>Child</span></div><div><b>3 dny</b><span>Teen</span></div><div><b>6 dní</b><span>Adult</span></div>
+      </div>
+      <div class="warning-grid">
+        <article><h3>Attention</h3><p>Prázdný hlad/štěstí, rozsvícené světlo během spánku nebo falešný call vyžadují reakci. U skutečné potřeby máte přibližně 15 minut.</p></article>
+        <article><h3>Nemoc a odpad</h3><p>Neuklizený odpad a příliš mnoho snacků mohou způsobit nemoc. Křížek na LCD znamená, že je čas na Medicine.</p></article>
+        <article><h3>Farewell</h3><p>Pokud zdraví klesne na nulu, objeví se Farewell. LCD ukáže NEW; stisk B začne nové vejce s novou generační linií.</p></article>
+      </div>
+    </section>
+
+    <section class="faq">
+      <p class="eyebrow">RYCHLÁ POMOC</p>
+      <h2>Časté otázky</h2>
+      <details><summary>Proč ikona ukazuje malý křížek místo změny?</summary><p>Akce teď nemá účinek — například Medicine bez nemoci, Light když tvor nespí nebo Discipline bez falešného callu. Nezměněný stav se zbytečně neukládá.</p></details>
+      <details><summary>Kde je můj save?</summary><p>Hra používá slot <code>saves/slot-1.json</code> relativně k místu, odkud ji spustíte. Vytváří také zálohu s příponou <code>.bak</code>.</p></details>
+      <details><summary>Jak získám jiného tvora?</summary><p>Dospělého nevybíráte ručně. Péče určuje jeho podobu. Po Farewell založí B novou generaci; ta deterministicky vybere Pipple nebo Budbit line.</p></details>
+    </section>
+  </main>
+
+  <footer>© CNA Tamagotchi — původní virtuální mazlíček inspirovaný kapesními zařízeními 90. let.</footer>
+</body>
+</html>

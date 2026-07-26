@@ -11,6 +11,12 @@ It does **not** copy Tamagotchi characters, sprite art, logos, shell patterns,
 sound effects, or names. Every creature, icon drawing, shell, and asset in this
 project will be original.
 
+## Player guide
+
+The Czech end-user tutorial is available as a standalone static site in
+[web/index.html](web/index.html). It explains the three controls, care icons,
+mini-games, saves, and the full life cycle without development terminology.
+
 ## Current prototype
 
 The current build already opens a CNA window and renders an original pastel
