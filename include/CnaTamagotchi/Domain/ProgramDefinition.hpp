@@ -114,6 +114,10 @@ struct EvolutionRule final {
     // This keeps form-specific display state in the programme data instead
     // of embedding a P1 exception in the shared evolution engine.
     int targetDisciplineBars{-1};
+    // Most rules are stage transitions; a programme can also define a later
+    // form change that becomes eligible at a displayed age.
+    int minimumAge{0};
+    bool requiresTeenStartedWithNoDiscipline{false};
 };
 
 struct ProgramDefinition final {

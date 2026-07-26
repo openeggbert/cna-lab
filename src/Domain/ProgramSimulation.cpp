@@ -84,6 +84,9 @@ ProgramAdvanceReport ProgramSimulation::advance(const ProgramDefinition& program
 
         expireAttention(programme, state);
         updateSleepSchedule(programme, state);
+        if (state.stage == ProgramStage::Adult) {
+            report.becameHiddenAdult = evolve(programme, state);
+        }
         beginAttentionIfNeeded(programme, state);
     }
     return report;
@@ -237,8 +240,11 @@ const EvolutionRule* ProgramSimulation::matchingEvolutionRule(
                     rule.minimumDisciplineBars, rule.maximumDisciplineBars)
                 && within(state.disciplineMistakes,
                     rule.minimumDisciplineMistakes, rule.maximumDisciplineMistakes)
+                && state.age >= rule.minimumAge
                 && (rule.requiredTeenLineage == ProgramTeenLineage::None
-                    || rule.requiredTeenLineage == state.teenLineage);
+                    || rule.requiredTeenLineage == state.teenLineage)
+                && (!rule.requiresTeenStartedWithNoDiscipline
+                    || state.teenStartedWithNoDiscipline);
         });
     return found == programme.evolutionRules.end() ? nullptr : &*found;
 }

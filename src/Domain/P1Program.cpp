@@ -39,9 +39,9 @@ constexpr std::array<CreatureDefinition, 11> Creatures{{
 // from its visible character.  Unlike a modern rerelease, it evaluates the
 // four visible discipline bars (0%, 25%, 50%, 75%, 100%), not a count of
 // missed discipline calls. These ranges are intentionally data so the
-// simulator stays programme-agnostic; Bill's later Maskutchi-only special
-// branch is represented in the roster but awaits its separately timed trace.
-constexpr std::array<EvolutionRule, 19> EvolutionRules{{
+// simulator stays programme-agnostic, including Bill's later, qualified
+// Maskutchi-only form change.
+constexpr std::array<EvolutionRule, 20> EvolutionRules{{
     EvolutionRule{.sourceCharacterId = "marutchi", .targetCharacterId = "tamatchi",
         .minimumCareMistakes = 0, .maximumCareMistakes = 1,
         .requiredTeenLineage = ProgramTeenLineage::TypeA, .targetDisciplineBars = 2},
@@ -101,6 +101,10 @@ constexpr std::array<EvolutionRule, 19> EvolutionRules{{
     EvolutionRule{.sourceCharacterId = "kuchitamatchi", .targetCharacterId = "tarakotchi",
         .maximumDisciplineBars = 3, .requiredTeenLineage = ProgramTeenLineage::TypeB,
         .targetDisciplineBars = 0},
+
+    EvolutionRule{.sourceCharacterId = "maskutchi", .targetCharacterId = "bill",
+        .requiredTeenLineage = ProgramTeenLineage::TypeB, .targetDisciplineBars = 4,
+        .minimumAge = 10, .requiresTeenStartedWithNoDiscipline = true},
 }};
 
 constexpr ProgramDefinition Definition{

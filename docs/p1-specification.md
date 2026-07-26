@@ -107,8 +107,10 @@ calls, and excludes missed classic-P1 false discipline calls. It also applies
 the captured per-character Hunger/Happy loss rates only while the form is
 awake, and raises bounded false Discipline calls from the documented combined
 heart-decrement cadence. Their timer phase is persisted. The later
-international Maskutchi → Bill special branch remains open until its timing
-and zero-discipline condition are captured.
+international Maskutchi → Bill branch is represented as a later data rule:
+only the type-B, zero-discipline teen history is eligible, it is checked at
+the age-ten wake-up, and the target Bill meter starts at 100%. This remains
+provisional pending a selected-target trace.
 
 ## Timing and evolution capture table
 
@@ -118,6 +120,7 @@ and zero-discipline condition are captured.
 | Baby → child timing | Verified | Babytchi evolves to Marutchi after 65 minutes. |
 | Child → teen timing and branch | Verified in part | At age 3, 0–1 care mistakes yields Tamatchi; 2+ yields Kuchitamatchi; 75–100% discipline records version A, 0–50% version B. |
 | Teen → adult timing and matrix | Verified in part | At age 6, the form is selected by teen type, care mistakes, and 25% discipline bands. Capture each branch in tests. |
+| Maskutchi → Bill | Provisional implemented | A type-B Maskutchi whose teen began with zero discipline changes at the age-ten wake-up; qualified and rejected paths are deterministic tests. |
 | Hunger/happiness decay | Provisional implemented | The P1 data package carries the captured loss rates for every form; the simulator decrements only while awake and persists each timer phase. |
 | Attention window and care-mistake criteria | Provisional implemented | The simulator implements 15-minute hungry/happy/lights-off and false-call windows, a genuine-call care mistake, no classic-P1 mistake for a missed false call, and the documented six/seven-decrement false-call cadence. |
 | Sleep/wake time per character | Verified in part | The captured per-character schedules drive sleep, light calls, wake-up age increments, and the pause in need loss. Capture target traces for remaining life-cycle timing. |

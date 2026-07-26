@@ -41,15 +41,15 @@ than invented into a P1 pet. A persisted, data-driven P1 growth resolver now
 covers the documented classic visible teen/adult branches in deterministic
 tests, including the hidden teen-version and four-bar discipline matrix. Need
 meters now use the captured per-character rates, pause while the pet sleeps,
-and schedule the bounded false Discipline calls; the later Bill branch is
-still pending.
+and schedule the bounded false Discipline calls. The qualified original-P1
+Maskutchi path now becomes the international hidden Bill at its age-ten wake.
 
 Those systems are foundations, not a complete P1 implementation yet. The new
 character catalogue uses provisional one-bit placeholders pending exact sprite
 and animation capture. The implemented fifteen-minute Attention windows cover
 initial/zero-heart, lights-off, and scheduled false-discipline calls; genuine
-need timers pause during sleep. Later illness, the Bill branch, life span, and
-the timing that reaches the already-rendered angel end screen still need
+need timers pause during sleep. Later illness, life span, and the timing that
+reaches the already-rendered angel end screen still need
 source-backed implementation. Legacy
 prototype source files remain temporarily for isolated historical tests, but
 they no longer drive the active application.

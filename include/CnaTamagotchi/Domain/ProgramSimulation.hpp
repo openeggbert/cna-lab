@@ -58,6 +58,7 @@ struct ProgramAdvanceReport final {
     bool becameChild{false};
     bool becameTeen{false};
     bool becameAdult{false};
+    bool becameHiddenAdult{false};
 };
 
 // Shared programme-driven lifecycle engine. Its first implemented slice is

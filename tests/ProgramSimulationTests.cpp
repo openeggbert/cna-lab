@@ -225,8 +225,8 @@ void testP1EvolutionRulesRemainProgrammeData()
 {
     ProgramSimulation simulation;
     const ProgramDefinition& p1 = Programs::internationalP1();
-    expect(p1.evolutionRules.size() == 19,
-        "the P1 programme must expose its teen/adult chart and target meter resets as data rules");
+    expect(p1.evolutionRules.size() == 20,
+        "the P1 programme must expose its teen/adult chart, meter resets, and Bill branch as data rules");
 
     ProgramPetState typeA = p1TeenWith(0, 3, simulation, p1);
     expect(typeA.characterId == "tamatchi" && typeA.teenLineage == ProgramTeenLineage::TypeA,
@@ -299,6 +299,38 @@ void testP1EvolutionRulesRemainProgrammeData()
                 && pet.disciplineBars == testCase.expectedInitialDisciplineBars,
             "each classic P1 adult rule must select its documented target and initial meter at age six");
     }
+
+    ProgramPetState billCandidate{};
+    billCandidate.characterId = "maskutchi";
+    billCandidate.stage = ProgramStage::Adult;
+    billCandidate.minutesSinceClockSet = 10 * 60 + 59;
+    billCandidate.minutesSinceHatch = 8 * 24 * 60;
+    billCandidate.clockMinutesOfDay = 10 * 60 + 59;
+    billCandidate.age = 9;
+    billCandidate.weight = 30;
+    billCandidate.hungerHearts = 4;
+    billCandidate.happinessHearts = 4;
+    billCandidate.teenLineage = ProgramTeenLineage::TypeB;
+    billCandidate.teenStartedWithNoDiscipline = true;
+    billCandidate.asleep = true;
+    billCandidate.lightOff = true;
+    billCandidate.nextAttentionEligibleMinutes = billCandidate.minutesSinceClockSet;
+    const ProgramAdvanceReport billEvolution = simulation.advance(p1, billCandidate, 1);
+    expect(billEvolution.becameHiddenAdult && billCandidate.characterId == "bill"
+            && billCandidate.stage == ProgramStage::Adult && billCandidate.age == 10
+            && billCandidate.disciplineBars == 4,
+        "the qualified original-P1 Maskutchi path must become Bill at the age-ten wake-up");
+
+    ProgramPetState ordinaryMaskutchi = billCandidate;
+    ordinaryMaskutchi.characterId = "maskutchi";
+    ordinaryMaskutchi.age = 10;
+    ordinaryMaskutchi.disciplineBars = 0;
+    ordinaryMaskutchi.teenStartedWithNoDiscipline = false;
+    ordinaryMaskutchi.asleep = false;
+    ordinaryMaskutchi.clockMinutesOfDay = 12 * 60;
+    static_cast<void>(simulation.advance(p1, ordinaryMaskutchi, 1));
+    expect(ordinaryMaskutchi.characterId == "maskutchi",
+        "a Maskutchi without the zero-discipline teen history must not become Bill");
 }
 
 } // namespace
