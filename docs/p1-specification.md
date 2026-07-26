@@ -68,15 +68,35 @@ are captured from the selected target programme.
 | Rule | Status | Required trace before implementation is final |
 | --- | --- | --- |
 | New egg hatches after about five minutes | Verified | Reset/activation → clock setup → hatch. |
-| Baby → child timing | Open | Fresh hatch with no interactions; record timestamp and LCD frames. |
-| Child → teen timing and branch | Open | Controlled good- and poor-care runs with every care call recorded. |
-| Teen → adult timing and matrix | Open | Controlled care-mistake/discipline runs for every adult and Bill. |
+| Baby → child timing | Verified | Babytchi evolves to Marutchi after 65 minutes. |
+| Child → teen timing and branch | Verified in part | At age 3, 0–1 care mistakes yields Tamatchi; 2+ yields Kuchitamatchi. Capture exact version/discipline carry state. |
+| Teen → adult timing and matrix | Verified in part | At age 6, the form is selected by teen type, care mistakes, and 25% discipline bands. Capture each branch in tests. |
 | Hunger/happiness decay | Open | Record every heart change by stage. |
 | Attention window and care-mistake criteria | Open | Trigger hunger, happiness, light, and false calls separately. |
 | Sleep/wake time per character | Open | Record exact transitions by current form. |
 | Waste, sickness, medicine doses | Open | Record trigger, display, repeated dose, and recovery traces. |
 | Weight changes, minimum weight, game effect | Open | Record Meal, Snack, game win, game loss, and refusal boundaries. |
 | Adult life span and end sequence | Open | Record well-cared and neglected adult runs. |
+
+## Captured P1 data values
+
+- Babytchi begins at 5 oz, loses hearts every 2–3 minutes, poops at minutes 15
+  and 45, becomes ill at minute 33 (two medicine doses), naps from minute 40
+  to 45, and becomes Marutchi at minute 65. None of its care affects later
+  evolution.
+- Marutchi begins at 10 oz and sleeps 20:00–09:00; Tamatchi and Kuchitamatchi
+  begin at 20 oz and sleep 21:00–09:00.
+- Adult minimum weight / sleep pairs are: Mametchi and Ginjirotchi 30 oz,
+  22:00–09:00; Maskutchi 30 oz, 23:00–11:00; Kuchipatchi 20 oz,
+  22:00–09:00; Nyorotchi 10 oz, 22:00–09:00; Tarakotchi 20 oz,
+  22:00–10:00; Bill 30 oz, 22:00–09:00.
+- The Health Meter has four pages: age/weight (ounces in international P1),
+  Discipline, Hungry, and Happy. Both heart meters range from 0 to 4;
+  discipline moves in 25% increments.
+
+These values were captured from [Thaao's original-P1 care guide](https://thaao.net/tama/p1/)
+and its [P1 character guide](https://thaao.net/tama/p1/?p=chara); the official
+manual remains the primary source for visible controls and care functions.
 
 ## Explicit exclusions
 

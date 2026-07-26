@@ -47,12 +47,32 @@ void testP1FoodAndRosterExcludeP2Content()
     expect(mimitchi == p1.creatures.end(), "P2 characters must not leak into P1 data");
 }
 
+void testP1LifecycleAndCharacterSchedulesAreProgrammeData()
+{
+    const ProgramDefinition& p1 = Programs::internationalP1();
+    expect(p1.lifecycle.hatchDelayMinutes == 5 && p1.lifecycle.babyToChildMinutes == 65,
+        "P1 hatch and baby-to-child timing must be kept in programme data");
+    expect(p1.lifecycle.teenAge == 3 && p1.lifecycle.adultAge == 6,
+        "P1 evolution ages must be kept in programme data");
+    expect(p1.lifecycle.babyNapStartMinute == 40 && p1.lifecycle.babyNapDurationMinutes == 5,
+        "P1 Babytchi nap must be data rather than a simulator special case");
+    expect(p1.lifecycle.babyIllnessMinute == 33 && p1.lifecycle.babyIllnessMedicineDoses == 2,
+        "P1 Babytchi illness trace must be data rather than a simulator special case");
+
+    const auto mametchi = std::find_if(p1.creatures.begin(), p1.creatures.end(),
+        [](const CreatureDefinition& creature) { return creature.id == "mametchi"; });
+    expect(mametchi != p1.creatures.end() && mametchi->minimumWeight == 30
+            && mametchi->sleepStartMinute == 22 * 60 && mametchi->wakeMinute == 9 * 60,
+        "P1 character minimum weight and sleep schedule must be programme data");
+}
+
 } // namespace
 
 int main()
 {
     testP1ProgrammeDefinesItsOwnContent();
     testP1FoodAndRosterExcludeP2Content();
+    testP1LifecycleAndCharacterSchedulesAreProgrammeData();
 
     if (failures == 0) {
         std::cout << "P1ProgramTests passed\n";

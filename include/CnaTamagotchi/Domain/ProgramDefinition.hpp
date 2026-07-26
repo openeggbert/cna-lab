@@ -33,6 +33,9 @@ struct CreatureDefinition final {
     std::string_view displayName;
     ProgramStage stage;
     bool hidden{false};
+    int minimumWeight{0};
+    int sleepStartMinute{-1};
+    int wakeMinute{-1};
 };
 
 struct FoodDefinition final {
@@ -57,10 +60,22 @@ struct DisplayDefinition final {
     int logicalHeight{16};
 };
 
+struct LifecycleDefinition final {
+    int hatchDelayMinutes{0};
+    int babyToChildMinutes{0};
+    int teenAge{0};
+    int adultAge{0};
+    int babyNapStartMinute{-1};
+    int babyNapDurationMinutes{0};
+    int babyIllnessMinute{-1};
+    int babyIllnessMedicineDoses{0};
+};
+
 struct ProgramDefinition final {
     std::string_view id;
     std::string_view displayName;
     DisplayDefinition display;
+    LifecycleDefinition lifecycle;
     GameDefinition game;
     ProgramEndScreen endScreen;
     std::span<const FoodDefinition> food;

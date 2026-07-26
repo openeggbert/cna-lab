@@ -42,6 +42,9 @@ copying it.
     data package for the P1 roster, food, display, Character game, and ending.
   - [x] Drive the active Food and Character-game UI from that selected P1
     definition, removing the active P2 Number-game path.
+  - [x] Introduce a shared programme simulator and drive the P1 egg → Babytchi
+    → Marutchi trace from definition data (including the captured baby illness,
+    medicine, and nap events).
   - Make schedules, evolution rules, menu/icon data, and sprite keys part of
     programme data before P1 behaviour is migrated into the shared engine.
   - Remove custom species, two-line generation seed, Elder, generic Farewell,
@@ -100,6 +103,6 @@ copying it.
 
 ## Immediate next task
 
-Create the source-backed international-P1 rule ledger, then introduce a
-P1-specific domain seam and a legacy-save compatibility boundary before
-replacing active gameplay assets.
+Migrate the active application from the legacy `PetSimulation` to the shared
+programme simulator, preserving an explicit legacy-save compatibility boundary
+before replacing gameplay assets and menus.
