@@ -10,7 +10,7 @@ namespace CnaTamagotchi::Display {
 class MonochromeDisplay final {
 public:
     static constexpr int Width = 32;
-    static constexpr int Height = 24;
+    static constexpr int Height = 16;
 
     void clear(bool value = false) noexcept;
     [[nodiscard]] bool pixel(int x, int y) const noexcept;

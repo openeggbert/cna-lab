@@ -3,7 +3,7 @@
 ## Scope and principles
 
 This plan describes an original C++ virtual-pet game powered by the sibling
-CNA framework. It uses the 32 × 24 logical monochrome display chosen in
+CNA framework. It uses the 32 × 16 logical monochrome display chosen in
 [analysis.md](analysis.md), while keeping simulation code independent from the
 renderer. No commercial Tamagotchi characters, artwork, or device branding
 will be copied.
@@ -30,7 +30,7 @@ will be copied.
   - Add scheduled events, care-mistake presentation, and data-driven evolution.
 
 - [ ] **4. 1-bit display and device renderer**
-  - Complete the independent 32 × 24 framebuffer with sprites, text, and
+  - Complete the independent 32 × 16 framebuffer with sprites, text, and
     clipped drawing helpers.
   - [x] Draw an original egg-shaped shell, LCD, eight persistent shell icons,
     and three physical buttons as the first visible prototype.

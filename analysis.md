@@ -16,12 +16,11 @@ than placing all game logic in an XNA-style `Game` subclass.
 ## Reference-device findings
 
 The original 1996/1997 Tamagotchi has a **32 × 16 pixel** monochrome LCD, two
-rows of care icons, and three physical buttons. It is a useful interaction and
-hardware reference, but its sixteen-pixel height is too restrictive for this
-new application: it leaves little room for an animated creature and readable
-status detail.
+rows of care icons, and three physical buttons. The game will use that same
+32 × 16 logical resolution to preserve the compact visual constraint and
+interaction rhythm of the reference device.
 
-The game will therefore use a 32 × 24 **logical** display. Each logical pixel
+Each logical pixel
 is either `off` (the LCD's pale green/yellow background) or `on` (near-black).
 It will be scaled by an integer multiplier with nearest-neighbour sampling;
 there is no anti-aliasing or intermediate grey. The display will be drawn
@@ -62,7 +61,7 @@ The device has three clickable/keyboard-mappable controls:
 | B / confirm | Enter, Space, `B` | Open or confirm the selected action |
 | C / back | `C`, Backspace | Cancel and return selection to the meal icon |
 
-In the shell, not inside the 32 × 24 LCD, use eight small pictograms split in
+In the shell, not inside the 32 × 16 LCD, use eight small pictograms split in
 two bands. The active selection is dark; inactive icons use the shell's
 shadow colour. The first proposed menu set is:
 
@@ -120,7 +119,7 @@ Game session / use cases ───── Persistence adapter
 Domain: PetState, clock, actions, evolution, events
           │
           ▼
-MonochromeDisplay (32 × 24 pixels, render-model only)
+MonochromeDisplay (32 × 16 pixels, render-model only)
 ```
 
 - **`domain/`**: C++ value types and deterministic rules with no CNA headers.
@@ -135,7 +134,7 @@ MonochromeDisplay (32 × 24 pixels, render-model only)
   domain must never directly read a file.
 
 The current prototype creates these boundaries and renders the original
-egg-shaped device, its 32 × 24 LCD, static care icons, and a demo pixel
+egg-shaped device, its 32 × 16 LCD, static care icons, and a demo pixel
 creature over the warm background. It does not pretend that gameplay is
 already implemented.
 
@@ -161,7 +160,7 @@ version migrations keep old pets playable.
 1. Establish the buildable CNA project and pure C++ seam classes (this
    skeleton).
 2. Add domain simulation and tests before the visible pet.
-3. Render the device, menu icons, and 32 × 24 1-bit framebuffer using original assets
+3. Render the device, menu icons, and 32 × 16 1-bit framebuffer using original assets
    and pixel art.
 4. Add input/menu actions, the first care loop, and a simple mini-game.
 5. Add versioned persistence, offline catch-up, sound, accessibility, and

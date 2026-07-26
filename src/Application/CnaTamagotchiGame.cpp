@@ -22,8 +22,10 @@ constexpr int WindowWidth = 540;
 constexpr int WindowHeight = 760;
 constexpr float BackgroundCycleSeconds = 32.0F;
 constexpr int DisplayScale = 8;
-constexpr int DisplayX = (WindowWidth - Display::MonochromeDisplay::Width * DisplayScale) / 2;
-constexpr int DisplayY = 268;
+constexpr int DisplayPixelWidth = Display::MonochromeDisplay::Width * DisplayScale;
+constexpr int DisplayPixelHeight = Display::MonochromeDisplay::Height * DisplayScale;
+constexpr int DisplayX = (WindowWidth - DisplayPixelWidth) / 2;
+constexpr int DisplayY = 302;
 
 struct Rgb final {
     std::uint8_t red;
@@ -187,15 +189,12 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     drawMeter(12, pet_.needs.happiness);
     drawMeter(23, pet_.needs.health);
 
-    constexpr std::array<std::string_view, 11> pet{{
-        "    ##    ",
+    constexpr std::array<std::string_view, 8> pet{{
         "  ######  ",
-        " ######## ",
         "## ## ## ##",
         "##########",
         "## #### ##",
         "##########",
-        "  ##  ##  ",
         "  ##  ##  ",
         " ##    ## ",
         "##      ##",
@@ -204,14 +203,14 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     for (int y = 0; y < static_cast<int>(pet.size()); ++y) {
         for (int x = 0; x < static_cast<int>(pet[static_cast<std::size_t>(y)].size()); ++x) {
             if (pet[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)] == '#') {
-                display_.setPixel(11 + x, 6 + y, true);
+                display_.setPixel(11 + x, 5 + y, true);
             }
         }
     }
 
     // Tiny floor and two stars keep the first 1-bit screen immediately legible.
     for (int x = 5; x < 27; ++x) {
-        display_.setPixel(x, 20, true);
+        display_.setPixel(x, 14, true);
     }
     display_.setPixel(5, 4, true);
     display_.setPixel(4, 4, true);
@@ -261,10 +260,12 @@ void CnaTamagotchiGame::drawDevice()
     drawRing(270, 83, 20, ShellOutline, backgroundColor());
     drawRing(270, 83, 14, ShellMain, backgroundColor());
 
-    // The recessed LCD is exactly 32 × 24 logical pixels at 8× scale.
-    drawRect(Rectangle(DisplayX - 12, DisplayY - 12, 280, 216), LcdBezel);
-    drawRect(Rectangle(DisplayX - 6, DisplayY - 6, 268, 204), ShellShadow);
-    drawRect(Rectangle(DisplayX, DisplayY, 256, 192), LcdOff);
+    // The recessed LCD is exactly 32 × 16 logical pixels at 8× scale.
+    drawRect(Rectangle(DisplayX - 12, DisplayY - 12,
+        DisplayPixelWidth + 24, DisplayPixelHeight + 24), LcdBezel);
+    drawRect(Rectangle(DisplayX - 6, DisplayY - 6,
+        DisplayPixelWidth + 12, DisplayPixelHeight + 12), ShellShadow);
+    drawRect(Rectangle(DisplayX, DisplayY, DisplayPixelWidth, DisplayPixelHeight), LcdOff);
 
     for (int y = 0; y < Display::MonochromeDisplay::Height; ++y) {
         for (int x = 0; x < Display::MonochromeDisplay::Width; ++x) {
