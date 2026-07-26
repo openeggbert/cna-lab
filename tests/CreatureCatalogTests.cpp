@@ -59,13 +59,46 @@ void testCareChangesTeenAndAdultOutcome()
         "excellent long-lived adult must reach the rare form");
 }
 
+void testSecondEggLineUsesIndependentForms()
+{
+    PetState pet{};
+    pet.species = PetSpecies::Mossling;
+    pet.lifeStage = LifeStage::Hatchling;
+    expect(CreatureCatalog::formFor(pet) == CreatureForm::Budbit,
+        "Mossling hatchling must use the second-line baby form");
+
+    pet.lifeStage = LifeStage::Teen;
+    pet.needs.discipline = 100;
+    expect(CreatureCatalog::formFor(pet) == CreatureForm::Lilyloop,
+        "well-cared-for Mossling teen must use Lilyloop");
+
+    pet.lifeStage = LifeStage::Adult;
+    pet.careMistakes = 8;
+    pet.needs.discipline = 0;
+    pet.weight = 30;
+    expect(CreatureCatalog::formFor(pet) == CreatureForm::Rootslug,
+        "neglected Mossling adult must reach the low-care form");
+
+    pet = PetState{};
+    pet.species = PetSpecies::Mossling;
+    pet.lifeStage = LifeStage::Adult;
+    pet.ageMinutes = 12 * 24 * 60;
+    pet.needs.discipline = 100;
+    expect(CreatureCatalog::formFor(pet) == CreatureForm::Starbloom,
+        "excellent long-lived Mossling must reach the rare form");
+}
+
 void testEverySpriteHasAStableName()
 {
-    constexpr std::array<CreatureForm, 13> forms{{
+    constexpr std::array<CreatureForm, 24> forms{{
         CreatureForm::Egg, CreatureForm::Pipple, CreatureForm::Sproutlet,
         CreatureForm::Flitwing, CreatureForm::Tumblepuff, CreatureForm::Skywhistle,
         CreatureForm::Mossmuzzle, CreatureForm::Ripplefin, CreatureForm::Pebbleback,
         CreatureForm::Bramblepaw, CreatureForm::Duskroot, CreatureForm::Moonmote,
+        CreatureForm::Budbit, CreatureForm::Fernkin, CreatureForm::Lilyloop,
+        CreatureForm::Thornhop, CreatureForm::Reedhare, CreatureForm::Cloverowl,
+        CreatureForm::Bloomtail, CreatureForm::Sedgehog, CreatureForm::Nectarmoth,
+        CreatureForm::Rootslug, CreatureForm::Starbloom,
         CreatureForm::Farewell,
     }};
 
@@ -82,6 +115,7 @@ int main()
 {
     testEveryLifeStageResolvesToAnOriginalForm();
     testCareChangesTeenAndAdultOutcome();
+    testSecondEggLineUsesIndependentForms();
     testEverySpriteHasAStableName();
 
     if (failures == 0) {

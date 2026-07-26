@@ -7,7 +7,7 @@
 
 namespace CnaTamagotchi::Domain {
 
-// Every form in the first original creature line. Egg and Farewell are display
+// Every form in the two original creature lines. Egg and Farewell are display
 // states; the remaining entries are living creature forms.
 enum class CreatureForm {
     Egg,
@@ -22,6 +22,17 @@ enum class CreatureForm {
     Bramblepaw,
     Duskroot,
     Moonmote,
+    Budbit,
+    Fernkin,
+    Lilyloop,
+    Thornhop,
+    Reedhare,
+    Cloverowl,
+    Bloomtail,
+    Sedgehog,
+    Nectarmoth,
+    Rootslug,
+    Starbloom,
     Farewell,
 };
 

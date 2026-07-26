@@ -161,6 +161,149 @@ constexpr CreatureSprite Moonmote{{
     " ##    ## ",
 }};
 
+constexpr CreatureSprite Budbit{{
+    "    ##    ",
+    "   ####   ",
+    "    ##    ",
+    "  ##  ##  ",
+    " ######## ",
+    "## ## ## #",
+    "##########",
+    "   ## ##  ",
+    "  ##  ##  ",
+    " ##    ## ",
+}};
+
+constexpr CreatureSprite Fernkin{{
+    "    ##    ",
+    "   ####   ",
+    " ## ## ## ",
+    "  ######  ",
+    "##########",
+    "## ## ## #",
+    " ######## ",
+    "  ##  ##  ",
+    " ##    ## ",
+    "##      ##",
+}};
+
+constexpr CreatureSprite Lilyloop{{
+    " ## ## ## ",
+    "### ## ###",
+    " ######## ",
+    "## ## ## #",
+    "##########",
+    "  ######  ",
+    " ## ## ## ",
+    "##  ##  ##",
+    "   ## ##   ",
+    "  ##  ##  ",
+}};
+
+constexpr CreatureSprite Thornhop{{
+    "##  ##  ##",
+    " ###  ### ",
+    "  ######  ",
+    " ######## ",
+    "## ## ## #",
+    "##########",
+    " ## ######",
+    "  ##  ##  ",
+    " ##    ## ",
+    "##      ##",
+}};
+
+constexpr CreatureSprite Reedhare{{
+    " ##    ## ",
+    "###    ###",
+    " ######## ",
+    "## ## ## #",
+    "##########",
+    "  ######  ",
+    " ## ## ## ",
+    " ## ####  ",
+    "##  ## ## ",
+    "   ##  ## ",
+}};
+
+constexpr CreatureSprite Cloverowl{{
+    " ## ## ## ",
+    "##########",
+    " ## ## ## ",
+    "## ## ## #",
+    "##########",
+    "## #### ##",
+    "##########",
+    "  ##  ##  ",
+    " ######## ",
+    "##      ##",
+}};
+
+constexpr CreatureSprite Bloomtail{{
+    "    ##    ",
+    "  ######  ",
+    " ######## ",
+    "## ## ## #",
+    "##########",
+    "##########",
+    " ## ####  ",
+    "##  ######",
+    " ####  ## ",
+    "##      ##",
+}};
+
+constexpr CreatureSprite Sedgehog{{
+    "  ######  ",
+    " ######## ",
+    "## #### ##",
+    "##########",
+    "## ## ## #",
+    "##########",
+    "  ####### ",
+    " ## ## ## ",
+    "##  ##  ##",
+    "  ##  ##  ",
+}};
+
+constexpr CreatureSprite Nectarmoth{{
+    "##      ##",
+    "###    ###",
+    " ######## ",
+    "## ## ## #",
+    "##########",
+    "## #### ##",
+    "##########",
+    "##  ##  ##",
+    " ## ## ## ",
+    "##      ##",
+}};
+
+constexpr CreatureSprite Rootslug{{
+    "     ##   ",
+    "   ###### ",
+    " ######## ",
+    "## ## ## #",
+    "##########",
+    "##########",
+    " #######  ",
+    "## ###### ",
+    " #########",
+    "   #######",
+}};
+
+constexpr CreatureSprite Starbloom{{
+    "   ## ##  ",
+    " ## ######",
+    "##########",
+    "## ## ## #",
+    "##########",
+    "  ######  ",
+    " ######## ",
+    "## ## ## #",
+    "  ##  ##  ",
+    " ##    ## ",
+}};
+
 constexpr CreatureSprite Farewell{{
     "    ##    ",
     "   ####   ",
@@ -178,6 +321,38 @@ constexpr CreatureSprite Farewell{{
 
 CreatureForm CreatureCatalog::formFor(const PetState& state) noexcept
 {
+    if (state.lifeStage == LifeStage::Farewell) {
+        return CreatureForm::Farewell;
+    }
+
+    if (state.species == PetSpecies::Mossling) {
+        switch (state.lifeStage) {
+        case LifeStage::Egg:
+            return CreatureForm::Egg;
+        case LifeStage::Hatchling:
+            return CreatureForm::Budbit;
+        case LifeStage::Child:
+            return CreatureForm::Fernkin;
+        case LifeStage::Teen:
+            return careQuality(state) >= 60 ? CreatureForm::Lilyloop : CreatureForm::Thornhop;
+        case LifeStage::Adult:
+        case LifeStage::Elder: {
+            const int quality = careQuality(state);
+            if (state.ageMinutes >= 12 * 24 * 60 && quality >= 85) {
+                return CreatureForm::Starbloom;
+            }
+            if (quality >= 85) return CreatureForm::Reedhare;
+            if (quality >= 70) return CreatureForm::Cloverowl;
+            if (quality >= 55) return CreatureForm::Bloomtail;
+            if (quality >= 40) return CreatureForm::Sedgehog;
+            if (quality >= 25) return CreatureForm::Nectarmoth;
+            return CreatureForm::Rootslug;
+        }
+        case LifeStage::Farewell:
+            return CreatureForm::Farewell;
+        }
+    }
+
     switch (state.lifeStage) {
     case LifeStage::Egg:
         return CreatureForm::Egg;
@@ -200,8 +375,7 @@ CreatureForm CreatureCatalog::formFor(const PetState& state) noexcept
         if (quality >= 25) return CreatureForm::Bramblepaw;
         return CreatureForm::Duskroot;
     }
-    case LifeStage::Farewell:
-        return CreatureForm::Farewell;
+    case LifeStage::Farewell: return CreatureForm::Farewell;
     }
 
     return CreatureForm::Egg;
@@ -222,6 +396,17 @@ const CreatureSprite& CreatureCatalog::spriteFor(const CreatureForm form) noexce
     case CreatureForm::Bramblepaw: return Bramblepaw;
     case CreatureForm::Duskroot: return Duskroot;
     case CreatureForm::Moonmote: return Moonmote;
+    case CreatureForm::Budbit: return Budbit;
+    case CreatureForm::Fernkin: return Fernkin;
+    case CreatureForm::Lilyloop: return Lilyloop;
+    case CreatureForm::Thornhop: return Thornhop;
+    case CreatureForm::Reedhare: return Reedhare;
+    case CreatureForm::Cloverowl: return Cloverowl;
+    case CreatureForm::Bloomtail: return Bloomtail;
+    case CreatureForm::Sedgehog: return Sedgehog;
+    case CreatureForm::Nectarmoth: return Nectarmoth;
+    case CreatureForm::Rootslug: return Rootslug;
+    case CreatureForm::Starbloom: return Starbloom;
     case CreatureForm::Farewell: return Farewell;
     }
 
@@ -243,6 +428,17 @@ std::string_view CreatureCatalog::nameFor(const CreatureForm form) noexcept
     case CreatureForm::Bramblepaw: return "Bramblepaw";
     case CreatureForm::Duskroot: return "Duskroot";
     case CreatureForm::Moonmote: return "Moonmote";
+    case CreatureForm::Budbit: return "Budbit";
+    case CreatureForm::Fernkin: return "Fernkin";
+    case CreatureForm::Lilyloop: return "Lilyloop";
+    case CreatureForm::Thornhop: return "Thornhop";
+    case CreatureForm::Reedhare: return "Reedhare";
+    case CreatureForm::Cloverowl: return "Cloverowl";
+    case CreatureForm::Bloomtail: return "Bloomtail";
+    case CreatureForm::Sedgehog: return "Sedgehog";
+    case CreatureForm::Nectarmoth: return "Nectarmoth";
+    case CreatureForm::Rootslug: return "Rootslug";
+    case CreatureForm::Starbloom: return "Starbloom";
     case CreatureForm::Farewell: return "Farewell";
     }
 

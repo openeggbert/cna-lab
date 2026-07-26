@@ -53,6 +53,8 @@ will be copied.
   - Add feedback animations and a second game profile.
   - [x] Add the first original egg line: 11 creature forms plus an egg, with
     care-driven teen/adult resolution and tested 1-bit sprites.
+  - [x] Add a second full original egg line with its own baby, child, teen,
+    adult, and rare forms selected by a new generation seed.
 
 - [ ] **6. Persistence and resilience**
   - [x] Implement version-1 JSON save/load with field validation.

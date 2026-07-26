@@ -499,6 +499,8 @@ void CnaTamagotchiGame::startNewEgg() noexcept
     // accidental needs, illness, or care mistakes from the departed pet.
     seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
     pet_ = Domain::PetState{};
+    pet_.species = (seed_ & 1U) == 0U ? Domain::PetSpecies::Puffin
+                                      : Domain::PetSpecies::Mossling;
     screen_ = Screen::Home;
     selectedIcon_ = 0;
     foodSelection_ = 0;

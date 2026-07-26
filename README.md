@@ -15,7 +15,7 @@ project will be original.
 
 The current build already opens a CNA window and renders an original pastel
 egg-shaped device with a 32 × 16 one-bit LCD, eight shell icons, three physical
-controls, and the complete first original creature line. It also has an early
+controls, and two complete original creature lines. It also has an early
 deterministic pet simulator and a tested JSON save repository. The current
 care slice renders four hunger, happiness, and discipline segments; schedules
 sleep; handles waste; requests attention for empty needs, light, and false
@@ -150,7 +150,7 @@ The game will contain multiple original creature forms, but it will not let the
 player choose an already-grown adult from a menu. Care and a stored generation
 seed determine the outcome, which is the important original-game idea.
 
-The first complete egg line is implemented with:
+Two complete egg lines are implemented. Each line has:
 
 - one egg, one baby form, and one child form;
 - two teen forms;
@@ -158,9 +158,12 @@ The first complete egg line is implemented with:
   amphibian-like, hedgehog-like, lizard-like, aquatic, and nocturnal);
 - one rare late or special form.
 
-That gives meaningful variety without turning the device into a creature
-collection game. Further egg lines can be added only after each has a complete
-growth tree, animation set, rules table, and tests.
+This gives 22 living forms, two care-driven rare forms, and a shared egg LCD
+state without turning the device into a creature-collection game. The first
+generation begins on the Pipple line; each later new egg deterministically
+selects the Pipple or Budbit line from the saved generation seed. Further egg
+lines can be added only after each has a complete growth tree, animation set,
+rules table, and tests.
 
 The current resolver uses care mistakes, discipline, weight, illness, and age
 to select the teen and adult form. Snack history, game performance, stage-
@@ -215,9 +218,9 @@ and recovery UI remain to be added.
 3. Implement the egg, hatch, stage schedule, complete sleep schedules, care mistakes,
    illness, death/farewell, and event-jump offline processing.
 4. Complete the second compact game and add feedback animations to the
-implemented first creature line.
+implemented creature lines.
 5. Add selectable user-data save slots plus migration/recovery UI and tests.
-6. Add sounds, visual accessibility options, additional complete egg lines,
+6. Add sounds, visual accessibility options, further complete egg lines,
    and a Relaxed mode without weakening the default Classic mode.
 
 Each completed milestone is built, tested, and committed locally. No remote
