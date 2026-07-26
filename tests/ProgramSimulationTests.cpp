@@ -92,16 +92,66 @@ void testP1FoodGameWasteAndSleepUseProgrammeData()
         "the P1 Light action must apply only while the character is asleep");
 }
 
+void testP1AttentionCallsAndCareMistakesUseProgrammeData()
+{
+    ProgramPetState pet{};
+    ProgramSimulation simulation;
+    const ProgramDefinition& p1 = Programs::internationalP1();
+
+    static_cast<void>(simulation.advance(p1, pet, 5));
+    expect(pet.attentionReason == ProgramAttentionReason::Hunger
+            && pet.attentionDeadlineMinutes == 20,
+        "a newly hatched P1 baby with zero hunger must begin its fifteen-minute hunger call");
+
+    static_cast<void>(simulation.advance(p1, pet, 15));
+    expect(pet.careMistakes == 1 && pet.attentionReason == ProgramAttentionReason::None
+            && pet.nextAttentionEligibleMinutes == -1,
+        "an unanswered real P1 call must make one care mistake without repeating while empty");
+
+    expect(simulation.feed(p1, pet, 0) && pet.attentionReason == ProgramAttentionReason::Happiness,
+        "feeding after a missed hunger call must re-arm attention for the still-empty happy meter");
+    expect(simulation.feed(p1, pet, 1) && pet.attentionReason == ProgramAttentionReason::None,
+        "feeding the correct snack must clear a real P1 happiness call");
+
+    pet.attentionReason = ProgramAttentionReason::Discipline;
+    pet.attentionDeadlineMinutes = pet.minutesSinceClockSet + p1.lifecycle.attentionWindowMinutes;
+    static_cast<void>(simulation.advance(p1, pet, p1.lifecycle.attentionWindowMinutes));
+    expect(pet.careMistakes == 1 && pet.attentionReason == ProgramAttentionReason::None,
+        "a missed classic-P1 false discipline call must not become a care mistake");
+
+    static_cast<void>(simulation.advance(p1, pet, 45));
+    expect(pet.stage == ProgramStage::Child && pet.careMistakes == 0,
+        "baby-stage calls must not influence the Marutchi care-mistake history");
+    pet.hungerHearts = 4;
+    pet.happinessHearts = 4;
+    pet.clockMinutesOfDay = 19 * 60 + 59;
+    static_cast<void>(simulation.advance(p1, pet, 1));
+    expect(pet.asleep && pet.attentionReason == ProgramAttentionReason::SleepLight,
+        "a sleeping Marutchi with the light on must begin a P1 lights-off call");
+    expect(simulation.toggleLight(pet) && pet.attentionReason == ProgramAttentionReason::None,
+        "turning the P1 light off during the call must clear it");
+}
+
 ProgramPetState p1TeenWith(const int careMistakes, const int disciplineBars,
                            ProgramSimulation& simulation, const ProgramDefinition& p1)
 {
     ProgramPetState pet{};
     static_cast<void>(simulation.advance(p1, pet, 5));
+    const ProgramAdvanceReport childEvolution = simulation.advance(
+        p1, pet, p1.lifecycle.babyToChildMinutes);
+    // Fixture care begins at Marutchi. The P1 baby is deliberately excluded
+    // from later evolution history, and full hearts prevent the fixture from
+    // manufacturing an unrelated live attention call during the long trace.
+    pet.hungerHearts = 4;
+    pet.happinessHearts = 4;
+    pet.attentionReason = ProgramAttentionReason::None;
+    pet.attentionDeadlineMinutes = -1;
+    pet.nextAttentionEligibleMinutes = pet.minutesSinceClockSet;
     pet.careMistakes = careMistakes;
     pet.disciplineBars = disciplineBars;
     const ProgramAdvanceReport evolution = simulation.advance(
-        p1, pet, p1.lifecycle.babyToChildMinutes + p1.lifecycle.childToTeenMinutes);
-    expect(evolution.becameChild && evolution.becameTeen && pet.stage == ProgramStage::Teen,
+        p1, pet, p1.lifecycle.childToTeenMinutes);
+    expect(childEvolution.becameChild && evolution.becameTeen && pet.stage == ProgramStage::Teen,
         "P1's captured child duration must produce a data-selected teen");
     expect(pet.age == p1.lifecycle.teenAge,
         "the P1 teen transition must retain the captured age-three display value");
@@ -175,6 +225,7 @@ int main()
     testP1EggHatchesFromProgrammeData();
     testP1BabyTraceUsesSharedProgrammeSimulator();
     testP1FoodGameWasteAndSleepUseProgrammeData();
+    testP1AttentionCallsAndCareMistakesUseProgrammeData();
     testP1EvolutionRulesRemainProgrammeData();
 
     if (failures == 0) {

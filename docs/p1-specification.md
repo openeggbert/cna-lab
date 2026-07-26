@@ -98,10 +98,13 @@ two records B. The simulator has deterministic traces for each data-defined
 visible adult target.
 
 This is **provisional** source-backed behaviour, not yet a final fidelity
-claim. The current live Attention/care-mistake producer is incomplete, so the
-persisted counters and resolver are tested independently before every P1 call
-condition is connected. The later international Maskutchi → Bill special
-branch remains open until its timing and zero-mistake condition are captured.
+claim. The shared simulator now produces and resolves the fifteen-minute
+Hunger, Happiness, and lights-off Attention windows, records genuine missed
+calls, and excludes missed classic-P1 false discipline calls. Natural
+later-stage heart decay and the scheduled false-call generator remain open, so
+the persisted counters and resolver are also tested independently. The later
+international Maskutchi → Bill special branch remains open until its timing and
+zero-discipline condition are captured.
 
 ## Timing and evolution capture table
 
@@ -112,7 +115,7 @@ branch remains open until its timing and zero-mistake condition are captured.
 | Child → teen timing and branch | Verified in part | At age 3, 0–1 care mistakes yields Tamatchi; 2+ yields Kuchitamatchi; 75–100% discipline records version A, 0–50% version B. |
 | Teen → adult timing and matrix | Verified in part | At age 6, the form is selected by teen type, care mistakes, and 25% discipline bands. Capture each branch in tests. |
 | Hunger/happiness decay | Open | Record every heart change by stage. |
-| Attention window and care-mistake criteria | Open | Trigger hunger, happiness, light, and false calls separately. |
+| Attention window and care-mistake criteria | Verified in part | The simulator implements a 15-minute hungry/happy/lights-off window, a genuine-call care mistake, and no classic-P1 mistake for a missed false call. Capture natural decay and false-call scheduling. |
 | Sleep/wake time per character | Open | Record exact transitions by current form. |
 | Waste, sickness, medicine doses | Verified in part | Babytchi waste at 15/45 minutes and sickness at minute 33 requiring two doses are traced; capture later-stage triggers and recovery. |
 | Weight changes, minimum weight, game effect | Open | Record Meal, Snack, game win, game loss, and refusal boundaries. |

@@ -52,6 +52,8 @@ void testP1LifecycleAndCharacterSchedulesAreProgrammeData()
     const ProgramDefinition& p1 = Programs::internationalP1();
     expect(p1.lifecycle.hatchDelayMinutes == 5 && p1.lifecycle.babyToChildMinutes == 65,
         "P1 hatch and baby-to-child timing must be kept in programme data");
+    expect(p1.lifecycle.attentionWindowMinutes == 15,
+        "the P1 fifteen-minute Attention window must be programme data");
     expect(p1.lifecycle.teenAge == 3 && p1.lifecycle.adultAge == 6,
         "P1 evolution ages must be kept in programme data");
     expect(p1.lifecycle.babyNapStartMinute == 40 && p1.lifecycle.babyNapDurationMinutes == 5,

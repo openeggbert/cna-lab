@@ -81,6 +81,10 @@ private:
                                  ProgramPetState& state,
                                  int previousLifeMinute,
                                  int currentLifeMinute) noexcept;
+    static void expireAttention(const ProgramDefinition& programme,
+                                ProgramPetState& state) noexcept;
+    static void beginAttentionIfNeeded(const ProgramDefinition& programme,
+                                       ProgramPetState& state) noexcept;
     static void updateSleepSchedule(const ProgramDefinition& programme,
                                     ProgramPetState& state) noexcept;
 };

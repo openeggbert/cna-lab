@@ -89,8 +89,12 @@ similar emulation core is permitted in the application, build, or test suite.
   - [x] Add a programme-data evolution-rule schema and deterministic traces for
     the documented classic Marutchi, visible teen/adult, A/B lineage, and
     four-discipline-bar branches (not modern rerelease discipline mistakes).
-  - Connect real care/discipline mistakes to the full P1 tree and implement
-    the separately timed hidden Bill path with exhaustive resolver tests.
+  - [x] Connect genuine fifteen-minute hunger/happiness/lights-off calls to
+    care mistakes while excluding missed classic-P1 false calls; preserve the
+    baby-stage reset before Marutchi.
+  - Add the scheduled false-discipline calls and natural heart decay, then
+    implement the separately timed hidden Bill path with exhaustive resolver
+    tests.
 
 - [ ] **8. Completion of real-time P1 behaviour**
   - Implement verified P1 timers, calls, sleep/light mistakes, waste, illness,

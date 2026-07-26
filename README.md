@@ -44,9 +44,11 @@ Attention-generated care mistakes and the later Bill branch are still pending.
 
 Those systems are foundations, not a complete P1 implementation yet. The new
 character catalogue uses provisional one-bit placeholders pending exact sprite
-and animation capture. Attention calls, later-stage decay and illness,
-discipline timing, the later Bill branch, life span, and the angel end sequence
-still need source-backed implementation. Legacy
+and animation capture. The implemented fifteen-minute Attention windows cover
+the initial/zero-heart and lights-off calls, but natural later-stage heart
+decay and scheduled false-discipline calls are still pending. Later illness,
+the Bill branch, life span, and the angel end sequence also need source-backed
+implementation. Legacy
 prototype source files remain temporarily for isolated historical tests, but
 they no longer drive the active application.
 

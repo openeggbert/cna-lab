@@ -327,7 +327,15 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         } else if (screen_ == Screen::Food) {
             foodSelection_ = (foodSelection_ + 1)
                 % static_cast<int>(activeProgramme().food.size());
-        } else if (screen_ == Screen::Game && !gameResolved_) {
+        } else if (screen_ == Screen::Game && gameResolved_) {
+            if (gameRound_ >= activeProgramme().game.rounds) {
+                screen_ = Screen::Home;
+                selectedIcon_ = -1;
+            } else {
+                startNextCharacterRound();
+            }
+            return false;
+        } else if (screen_ == Screen::Game) {
             gameChoice_ = 0;
             gameWon_ = gameChoice_ == gameTarget_;
             gameResolved_ = true;

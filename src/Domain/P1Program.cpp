@@ -88,6 +88,7 @@ constexpr ProgramDefinition Definition{
     .display = DisplayDefinition{.checkerboardBackground = true},
     .lifecycle = LifecycleDefinition{
         .hatchDelayMinutes = 5,
+        .attentionWindowMinutes = 15,
         .babyToChildMinutes = 65,
         .childToTeenMinutes = 48 * 60,
         .teenToAdultMinutes = 72 * 60,

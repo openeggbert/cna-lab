@@ -71,6 +71,7 @@ struct DisplayDefinition final {
 
 struct LifecycleDefinition final {
     int hatchDelayMinutes{0};
+    int attentionWindowMinutes{15};
     int babyToChildMinutes{0};
     int childToTeenMinutes{0};
     int teenToAdultMinutes{0};
