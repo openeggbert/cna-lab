@@ -37,6 +37,10 @@ constexpr int DisplayX = (WindowWidth - DisplayPixelWidth) / 2;
 constexpr int DisplayY = 280;
 constexpr int IconBandHeight = 34;
 constexpr int LcdModulePadding = 12;
+constexpr int IconAtlasCellWidth = 38;
+constexpr int IconAtlasCellHeight = 36;
+constexpr int IconDrawWidth = 32;
+constexpr int IconDrawHeight = 30;
 
 struct Rgb final {
     std::uint8_t red;
@@ -764,7 +768,14 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     drawHeartMeter(1, 9, pet_.disciplineBars);
 
     const Domain::P1Sprite& sprite = Domain::P1SpriteCatalog::spriteForCharacter(pet_.characterId);
-    display_.drawSprite(13, 3, sprite.rows);
+    // The device's idle scene is animated even before an interaction is
+    // selected.  This is a temporary low-frequency egg wobble / awake-pet
+    // bob until the distinct P1 animation frames are transcribed; it avoids
+    // presenting the provisional artwork as a frozen final sprite.
+    const bool alternateIdlePose = static_cast<int>(backgroundTimeSeconds_ * 1.5F) % 2 != 0;
+    const int spriteX = pet_.stage == Domain::ProgramStage::Egg && alternateIdlePose ? 12 : 13;
+    const int spriteY = pet_.stage != Domain::ProgramStage::Egg && !pet_.asleep && alternateIdlePose ? 2 : 3;
+    display_.drawSprite(spriteX, spriteY, sprite.rows);
 
     if (pet_.asleep) {
         display_.setPixel(27, 4, true);
@@ -901,9 +912,15 @@ void CnaTamagotchiGame::drawDevice()
             || (index == 4 && pet_.wasteCount > 0)
             || (index == 7 && pet_.attentionReason != Domain::ProgramAttentionReason::None);
         const bool active = index == selectedIcon_ || urgent;
-        const Rectangle source((index % 4) * 38, (index / 4) * 36, 38, 36);
-        const Rectangle destination(DisplayX + slot * slotWidth + 8, bandY + 1,
-            slotWidth - 16, IconBandHeight - 2);
+        const Rectangle source((index % 4) * IconAtlasCellWidth,
+            (index / 4) * IconAtlasCellHeight, IconAtlasCellWidth, IconAtlasCellHeight);
+        // Keep the photographed face art centred and close to its native
+        // aspect ratio.  Stretching a 38x36 mask across a 48x32 cell made
+        // the icons squat and put their outlines against the band edges.
+        const Rectangle destination(DisplayX + slot * slotWidth
+                + (slotWidth - IconDrawWidth) / 2,
+            bandY + (IconBandHeight - IconDrawHeight) / 2,
+            IconDrawWidth, IconDrawHeight);
         spriteBatch_->Draw(*iconAtlasTexture_, destination, source,
             active ? lcdOn : iconInactive);
     }
