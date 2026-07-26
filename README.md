@@ -35,6 +35,15 @@ cmake -S . -B build -DCNA_ROOT_DIR=/path/to/cna -DCNA_GRAPHICS_BACKEND=SDL_RENDE
 cmake --build build --target CnaTamagotchi
 ```
 
+## Tests
+
+The deterministic pet rules have no CNA dependency and are tested separately:
+
+```bash
+cmake --build --preset sdl-renderer --target CnaTamagotchiDomainTests
+ctest --test-dir cmake-build-sdl-renderer --output-on-failure
+```
+
 ## Layout
 
 ```text

@@ -96,3 +96,15 @@ endif()
 if(TARGET SDL3::SDL3main)
     target_link_libraries(${CNA_TAMAGOTCHI_TARGET} PRIVATE SDL3::SDL3main)
 endif()
+
+option(CNA_TAMAGOTCHI_BUILD_TESTS "Build framework-free domain tests" ON)
+if(CNA_TAMAGOTCHI_BUILD_TESTS AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_CROSSCOMPILING)
+    enable_testing()
+    add_executable(CnaTamagotchiDomainTests
+        tests/PetSimulationTests.cpp
+        src/Domain/PetSimulation.cpp
+    )
+    target_include_directories(CnaTamagotchiDomainTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    add_test(NAME CnaTamagotchiDomainTests COMMAND CnaTamagotchiDomainTests)
+endif()

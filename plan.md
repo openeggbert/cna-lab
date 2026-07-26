@@ -23,10 +23,11 @@ will be copied.
   - Exclude a licence file because it will be supplied separately.
 
 - [ ] **3. Deterministic game domain**
-  - Define `PetState`, needs, life stages, actions, and scheduled events.
-  - Implement elapsed-time/offline progression with safe clamping and clock
-    rollback behaviour.
-  - Add unit tests for care effects, event processing, and evolution inputs.
+  - [x] Define `PetState`, needs, life stages, and core care actions.
+  - [x] Implement deterministic offline progression with a safe 12-hour clamp.
+  - Add persisted UTC timestamps and clock-rollback behaviour with the save layer.
+  - [x] Add unit tests for care effects, offline clamping, and life-stage progression.
+  - Add scheduled events, care-mistake presentation, and data-driven evolution.
 
 - [ ] **4. 1-bit display and device renderer**
   - Complete the independent 32 × 24 framebuffer with sprites, text, and
