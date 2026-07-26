@@ -71,8 +71,11 @@ similar emulation core is permitted in the application, build, or test suite.
     preserve the 32 × 16 logical resolution and one-bit pixels.
 
 - [ ] **6. P1 controls and care menus**
-  - Implement exact A/B/C navigation, B clock view, A+C clock setting, and
-    A+C fresh egg from the end screen.
+  - [x] Add P1 clock flow: an unconfigured new/reset egg does not run or save;
+    A sets the hour, B sets the minute, C confirms, B views the clock with no
+    selected icon, and A+C enters clock setup / starts an end-screen egg.
+  - Finish exact A/B/C navigation and clock behaviour in every transient
+    animation and Attention state.
   - Replace legacy menus with P1 bread/candy Food, Light, Toilet, Health Meter,
     Medicine, Discipline, and unselectable Attention behaviour.
   - Preserve the desktop reset hold/confirmation only as a safety guard; its

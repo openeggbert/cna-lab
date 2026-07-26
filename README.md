@@ -42,8 +42,8 @@ than invented into a P1 pet.
 Those systems are foundations, not a complete P1 implementation yet. The new
 character catalogue uses provisional one-bit placeholders pending exact sprite
 and animation capture. Attention calls, later-stage decay and illness,
-discipline timing, the full evolution matrix, clock-setting flow, life span,
-and the angel end sequence still need source-backed implementation. Legacy
+discipline timing, the full evolution matrix, life span, and the angel end
+sequence still need source-backed implementation. Legacy
 prototype source files remain temporarily for isolated historical tests, but
 they no longer drive the active application.
 
@@ -87,10 +87,11 @@ areas remain correct when the game window is resized. Icons do not become
 independent modern UI buttons: clicking an icon may be offered as an
 accessibility shortcut later, but it must invoke the equivalent A/B/C sequence.
 
-The final P1 mapping includes the original clock behaviour: B shows the clock
-when Attention is not lit, and A+C enters clock setting. A and C together
-create a new egg after the end screen. Desktop shortcuts may mirror those
-button combinations but must not introduce a fourth care action.
+The active P1 mapping includes the original clock behaviour: B shows the clock
+for three seconds when Attention is not lit, and A+C enters clock setting. In
+clock setting, A advances the hour, B advances the minute, and C confirms.
+A+C together create a new egg after the end screen. Desktop shortcuts mirror
+those button combinations but do not introduce a fourth care action.
 
 The recessed pinhole at the lower-right of the shell simulates the original
 rear reset switch without making it an accidental fourth care control. Hold it

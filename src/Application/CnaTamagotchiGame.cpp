@@ -69,6 +69,7 @@ constexpr int ResetButtonX = 408;
 constexpr int ResetButtonY = 542;
 constexpr int ResetButtonRadius = 10;
 constexpr float ResetHoldSeconds = 1.5F;
+constexpr float ClockViewSeconds = 3.0F;
 constexpr int ButtonHitRadius = 29;
 constexpr std::array<ButtonPosition, 3> ButtonPositions{{
     {202}, {270}, {338},
@@ -164,20 +165,31 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
         || keyboard.IsKeyDown(Keys::Space);
     const bool cancel = keyboard.IsKeyDown(Keys::C) || keyboard.IsKeyDown(Keys::Back)
         || keyboard.IsKeyDown(Keys::Escape);
+    const bool clockChord = keyboard.IsKeyDown(Keys::A) && keyboard.IsKeyDown(Keys::C);
     bool resetHeld = keyboard.IsKeyDown(Keys::R);
 
     bool saveChanged = false;
-    if (selectNext && !selectNextWasDown_) {
-        saveChanged = pressButton(DeviceButton::A);
-    }
-    if (selectPrevious && !selectPreviousWasDown_) {
-        moveSelectionBackward();
-    }
-    if (confirm && !confirmWasDown_) {
-        saveChanged = pressButton(DeviceButton::B) || saveChanged;
-    }
-    if (cancel && !cancelWasDown_) {
-        saveChanged = pressButton(DeviceButton::C) || saveChanged;
+    const bool startsClockFlow = screen_ == Screen::Home
+        && clockChord && !clockChordWasDown_;
+    if (startsClockFlow) {
+        if (pet_.stage == Domain::ProgramStage::End) {
+            startNewEgg();
+        } else {
+            beginClockSetup();
+        }
+    } else if (!clockChord) {
+        if (selectNext && !selectNextWasDown_) {
+            saveChanged = pressButton(DeviceButton::A);
+        }
+        if (selectPrevious && !selectPreviousWasDown_) {
+            moveSelectionBackward();
+        }
+        if (confirm && !confirmWasDown_) {
+            saveChanged = pressButton(DeviceButton::B) || saveChanged;
+        }
+        if (cancel && !cancelWasDown_) {
+            saveChanged = pressButton(DeviceButton::C) || saveChanged;
+        }
     }
 
     std::optional<DeviceButton> pointerButton;
@@ -216,8 +228,17 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     confirmWasDown_ = confirm;
     cancelWasDown_ = cancel;
     mouseLeftWasDown_ = mouseLeftDown;
+    clockChordWasDown_ = clockChord;
 
-    if (screen_ != Screen::SaveRecovery && screen_ != Screen::ResetConfirm) {
+    if (screen_ == Screen::ClockView) {
+        clockViewSeconds_ = std::max(0.0F, clockViewSeconds_ - elapsedSeconds);
+        if (clockViewSeconds_ == 0.0F) {
+            screen_ = Screen::Home;
+        }
+    }
+
+    if (screen_ != Screen::SaveRecovery && screen_ != Screen::ResetConfirm
+        && screen_ != Screen::ClockSetup) {
         if (resetHeld) {
             resetHoldSeconds_ += elapsedSeconds;
             if (resetHoldSeconds_ >= ResetHoldSeconds) {
@@ -237,7 +258,7 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     } else {
         resetHoldSeconds_ = 0.0F;
     }
-    if (saveChanged) {
+    if (saveChanged && screen_ != Screen::ClockSetup) {
         saveDirty_ = true;
         saveNow();
     }
@@ -273,19 +294,37 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         return false;
     }
 
-    if (pet_.stage == Domain::ProgramStage::End) {
-        if (button == DeviceButton::B) {
-            startNewEgg();
-            setFeedback(Feedback::Success);
-            return true;
+    if (screen_ == Screen::ClockView) {
+        screen_ = Screen::Home;
+        clockViewSeconds_ = 0.0F;
+        return false;
+    }
+
+    if (screen_ == Screen::ClockSetup) {
+        if (button == DeviceButton::A) {
+            clockSetupMinutes_ = (clockSetupMinutes_ + 60) % (24 * 60);
+            return false;
         }
+        if (button == DeviceButton::B) {
+            clockSetupMinutes_ = (clockSetupMinutes_ + 1) % (24 * 60);
+            return false;
+        }
+
+        pet_.clockMinutesOfDay = clockSetupMinutes_;
+        lastSavedUnixSeconds_ = unixSecondsNow();
+        simulationSeconds_ = 0.0F;
+        screen_ = Screen::Home;
+        return true;
+    }
+
+    if (pet_.stage == Domain::ProgramStage::End) {
         return false;
     }
 
     switch (button) {
     case DeviceButton::A:
         if (screen_ == Screen::Home) {
-            selectedIcon_ = (selectedIcon_ + 1) % IconCount;
+            selectedIcon_ = (selectedIcon_ + 1 + IconCount) % IconCount;
         } else if (screen_ == Screen::Food) {
             foodSelection_ = (foodSelection_ + 1)
                 % static_cast<int>(activeProgramme().food.size());
@@ -294,9 +333,17 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         }
         return false;
     case DeviceButton::B:
+        if (screen_ == Screen::Home && selectedIcon_ < 0) {
+            if (pet_.attentionReason == Domain::ProgramAttentionReason::None) {
+                screen_ = Screen::ClockView;
+                clockViewSeconds_ = ClockViewSeconds;
+            }
+            return false;
+        }
         if (screen_ == Screen::Food) {
             const bool fed = simulation_.feed(activeProgramme(), pet_, foodSelection_);
             screen_ = Screen::Home;
+            selectedIcon_ = -1;
             setFeedback(fed ? Feedback::Success : Feedback::Blocked);
             return fed;
         }
@@ -308,6 +355,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             if (gameResolved_) {
                 if (gameRound_ >= activeProgramme().game.rounds) {
                     screen_ = Screen::Home;
+                    selectedIcon_ = -1;
                 } else {
                     startNextCharacterRound();
                 }
@@ -367,6 +415,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         if (screen_ != Screen::Home) {
             screen_ = Screen::Home;
         }
+        selectedIcon_ = -1;
         return false;
     }
 
@@ -416,7 +465,8 @@ bool CnaTamagotchiGame::resetAtWindowPosition(const float x, const float y) cons
 void CnaTamagotchiGame::moveSelectionBackward() noexcept
 {
     if (screen_ == Screen::Home) {
-        selectedIcon_ = (selectedIcon_ + IconCount - 1) % IconCount;
+        selectedIcon_ = selectedIcon_ < 0 ? IconCount - 1
+                                          : (selectedIcon_ + IconCount - 1) % IconCount;
     } else if (screen_ == Screen::Food) {
         foodSelection_ = (foodSelection_ + 1)
             % static_cast<int>(activeProgramme().food.size());
@@ -482,7 +532,9 @@ bool CnaTamagotchiGame::loadSave()
     }
     if (!saveExists) {
         startFreshEgg();
-        return true;
+        // A newly reset P1 must be clock-configured before it gets a durable
+        // elapsed-time anchor. Do not save an egg that is not yet running.
+        return false;
     }
 
     const Persistence::LoadResult loaded = saveRepository_.load(savePath_);
@@ -513,7 +565,7 @@ bool CnaTamagotchiGame::activateSave(const Persistence::SaveData& data)
     seed_ = data.seed;
     lastSavedUnixSeconds_ = data.lastSavedUnixSeconds;
     screen_ = Screen::Home;
-    selectedIcon_ = 0;
+    selectedIcon_ = -1;
     simulationSeconds_ = 0.0F;
 
     const std::int64_t now = unixSecondsNow();
@@ -582,7 +634,7 @@ bool CnaTamagotchiGame::resetCurrentSession()
 
 void CnaTamagotchiGame::saveNow()
 {
-    if (smokeTest_ || !saveDirty_) {
+    if (smokeTest_ || !saveDirty_ || screen_ == Screen::ClockSetup) {
         return;
     }
 
@@ -624,19 +676,28 @@ void CnaTamagotchiGame::startNewEgg() noexcept
     // accidental needs, illness, or care mistakes from the departed pet.
     seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
     resetPetToEgg();
+    beginClockSetup();
 }
 
 void CnaTamagotchiGame::startFreshEgg() noexcept
 {
     seed_ = static_cast<std::uint64_t>(unixSecondsNow());
     resetPetToEgg();
+    beginClockSetup();
+}
+
+void CnaTamagotchiGame::beginClockSetup() noexcept
+{
+    clockSetupMinutes_ = pet_.clockMinutesOfDay;
+    screen_ = Screen::ClockSetup;
+    clockViewSeconds_ = 0.0F;
 }
 
 void CnaTamagotchiGame::resetPetToEgg() noexcept
 {
     pet_ = Domain::ProgramPetState{};
     screen_ = Screen::Home;
-    selectedIcon_ = 0;
+    selectedIcon_ = -1;
     foodSelection_ = 0;
     statusPage_ = 0;
     gameChoice_ = 0;
@@ -647,6 +708,7 @@ void CnaTamagotchiGame::resetPetToEgg() noexcept
     gameWon_ = false;
     lastSavedUnixSeconds_ = unixSecondsNow();
     simulationSeconds_ = 0.0F;
+    saveDirty_ = false;
 }
 
 void CnaTamagotchiGame::setFeedback(const Feedback feedback) noexcept
@@ -668,6 +730,21 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
             display_.setPixel(x, firstY + 1, true);
             display_.setPixel(x + 1, firstY + 1, true);
         }
+    };
+
+    const auto drawClock = [this](const int minutes, const bool setup) {
+        const int hour24 = minutes / 60;
+        const int hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+        const int minute = minutes % 60;
+        const std::string hours = (hour12 < 10 ? "0" : "") + std::to_string(hour12);
+        const std::string minutesText = (minute < 10 ? "0" : "") + std::to_string(minute);
+        if (setup) {
+            display_.drawText(10, 1, "SET");
+        }
+        display_.drawText(3, 8, hours);
+        display_.setPixel(16, 9, true);
+        display_.setPixel(16, 11, true);
+        display_.drawText(21, 8, minutesText);
     };
 
     if (screen_ == Screen::SaveRecovery) {
@@ -692,6 +769,16 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     if (screen_ == Screen::ResetConfirm) {
         display_.drawText(6, 3, "RESET");
         display_.drawText(8, 8, "SURE");
+        return;
+    }
+
+    if (screen_ == Screen::ClockView) {
+        drawClock(pet_.clockMinutesOfDay, false);
+        return;
+    }
+
+    if (screen_ == Screen::ClockSetup) {
+        drawClock(clockSetupMinutes_, true);
         return;
     }
 
@@ -942,7 +1029,7 @@ void CnaTamagotchiGame::drawDevice()
 void CnaTamagotchiGame::OnExiting(System::Object* const sender,
                                   const System::EventArgs& args)
 {
-    if (saveDirty_) {
+    if (saveDirty_ && screen_ != Screen::ClockSetup) {
         saveNow();
     }
     Game::OnExiting(sender, args);

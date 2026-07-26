@@ -39,6 +39,8 @@ private:
         Food,
         Status,
         Game,
+        ClockView,
+        ClockSetup,
         SaveRecovery,
         ResetConfirm,
     };
@@ -75,6 +77,7 @@ private:
     void startNextCharacterRound() noexcept;
     void startNewEgg() noexcept;
     void startFreshEgg() noexcept;
+    void beginClockSetup() noexcept;
     void resetPetToEgg() noexcept;
     void setFeedback(Feedback feedback) noexcept;
     void refreshDisplay() noexcept;
@@ -93,14 +96,16 @@ private:
     float backgroundTimeSeconds_{0.0F};
     float simulationSeconds_{0.0F};
     Screen screen_{Screen::Home};
-    int selectedIcon_{0};
+    int selectedIcon_{-1};
     int foodSelection_{0};
     int statusPage_{0};
     int gameChoice_{0};
     int gameTarget_{0};
     int gameRound_{0};
     int gameWins_{0};
+    int clockSetupMinutes_{12 * 60};
     float feedbackSeconds_{0.0F};
+    float clockViewSeconds_{0.0F};
     float resetHoldSeconds_{0.0F};
     std::int64_t lastSavedUnixSeconds_{0};
     std::uint64_t seed_{0};
@@ -115,6 +120,7 @@ private:
     bool confirmWasDown_{false};
     bool cancelWasDown_{false};
     bool mouseLeftWasDown_{false};
+    bool clockChordWasDown_{false};
     bool saveDirty_{false};
     bool smokeTest_{false};
     unsigned int drawnFrames_{0};
