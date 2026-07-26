@@ -65,8 +65,9 @@ will be copied.
     catch-up; prevent clock rollback from moving the saved timestamp backward.
   - [x] Add an in-device corruption-recovery choice that restores a valid
     backup or archives the damaged slot before a new egg begins.
-  - Add platform user-data path selection, atomic-replace support on every
-    target, and migrations.
+  - [x] Add platform user-data path selection while preserving existing
+    relative saves and backups in place.
+  - Add atomic-replace support on every target and migrations.
 
 - [ ] **7. Polish and release readiness**
   - Add sound options, keyboard/controller accessibility, pause/help, and
@@ -77,6 +78,6 @@ will be copied.
 
 ## Immediate next task
 
-Select a platform-appropriate user-data directory while keeping existing
-relative saves discoverable and recoverable. This must not break the player
-backup/recovery flow or silently move an existing active pet.
+Implement a versioned migration seam before the save format changes. Old slots
+must be validated and migrated into memory before an upgraded file is written;
+the original must remain recoverable if migration fails.

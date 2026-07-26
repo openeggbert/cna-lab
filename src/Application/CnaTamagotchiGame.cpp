@@ -1,5 +1,6 @@
 #include "CnaTamagotchi/Application/CnaTamagotchiGame.hpp"
 #include "CnaTamagotchi/Domain/CreatureCatalog.hpp"
+#include "CnaTamagotchi/Persistence/SaveLocation.hpp"
 
 #include <algorithm>
 #include <array>
@@ -79,7 +80,13 @@ std::int64_t unixSecondsNow() noexcept
 
 std::filesystem::path defaultSavePath()
 {
-    return std::filesystem::current_path() / "saves" / "slot-1.json";
+    std::error_code error;
+    const std::filesystem::path workingDirectory = std::filesystem::current_path(error);
+    if (error) {
+        return std::filesystem::path("saves") / "slot-1.json";
+    }
+    return Persistence::SaveLocation::resolveSlot(
+        workingDirectory, Persistence::SaveLocation::platformDataDirectory());
 }
 
 } // namespace

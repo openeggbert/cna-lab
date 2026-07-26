@@ -222,10 +222,14 @@ performs bounded UTC catch-up, and writes only after a changed care state (or
 once for a new slot), rather than rewriting unchanged data on every launch.
 Its UTC simulation anchor retains sub-minute time and never moves backwards,
 so repeated quick restarts or rolling the system clock back cannot grant extra
-care time. If the active save cannot be read, the LCD offers `REST` when its
-backup is valid or `NEW` to begin again; `NEW` first renames the damaged file to
-`slot-1.json.corrupt` (with a numeric suffix when needed). Platform-specific
-user-data paths, slot selection, and schema migrations remain to be added.
+care time. New slots use the standard per-user data directory (`LOCALAPPDATA`
+on Windows, `~/Library/Application Support` on macOS, or `XDG_DATA_HOME` /
+`~/.local/share` on Linux). An existing relative `saves/slot-1.json` or its
+backup always takes precedence, so updates do not relocate an active pet. If
+the active save cannot be read, the LCD offers `REST` when its backup is valid
+or `NEW` to begin again; `NEW` first renames the damaged file to
+`slot-1.json.corrupt` (with a numeric suffix when needed). Slot selection and
+schema migrations remain to be added.
 
 ## Implementation order
 
@@ -263,7 +267,7 @@ Pass `--smoke-test` to exit after three rendered frames.
 ## Tests
 
 ```bash
-cmake --build --preset sdl-renderer --target CnaTamagotchiDomainTests CnaTamagotchiCreatureCatalogTests CnaTamagotchiDisplayTests CnaTamagotchiPersistenceTests
+cmake --build --preset sdl-renderer --target CnaTamagotchiDomainTests CnaTamagotchiCreatureCatalogTests CnaTamagotchiDisplayTests CnaTamagotchiSaveLocationTests CnaTamagotchiPersistenceTests
 ctest --test-dir cmake-build-sdl-renderer --output-on-failure
 ```
 
