@@ -50,7 +50,8 @@ will be copied.
     - [x] Add the first Food (meal/snack) and three-page Status LCD screens;
       display attention, waste, and illness indicators on the home screen.
   - [x] Add a first original two-choice Peek mini-game with seed-backed outcomes.
-  - Add feedback animations and a second game profile.
+  - [x] Add the Number higher/lower profile for the second creature line.
+  - Add feedback animations.
   - [x] Add the first original egg line: 11 creature forms plus an egg, with
     care-driven teen/adult resolution and tested 1-bit sprites.
   - [x] Add a second full original egg line with its own baby, child, teen,

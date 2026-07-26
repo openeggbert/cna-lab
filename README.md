@@ -21,8 +21,9 @@ care slice renders four hunger, happiness, and discipline segments; schedules
 sleep; handles waste; requests attention for empty needs, light, and false
 calls; preserves those states in saves; and provides Food and Status LCD
 screens rather than adding modern external controls. The Game icon opens the
-first original two-choice Peek mini-game; a win, not merely opening the icon,
-improves happiness. Uncleaned waste and excessive snacks can cause illness;
+line's original two-choice mini-game: Peek for Pipple and Number for Budbit.
+A win, not merely opening the icon, improves happiness. Uncleaned waste and
+excessive snacks can cause illness;
 running health down to zero enters an original Farewell display state. Waste,
 illness, and attention have their own compact LCD/shell indicators.
 
@@ -141,8 +142,9 @@ The initial authentic programme will have two selectable game profiles:
 - **Number game** — the player predicts whether the next number is higher or lower.
 
 Only one profile is active for a given egg line, preserving the compact feel of
-the original P1/P2 devices. The rules and artwork will be original, while the
-two-choice, seconds-long interaction remains intentionally simple.
+the original P1/P2 devices: Pipple uses Peek and Budbit uses Number. The rules
+and artwork are original, while the two-choice, seconds-long interaction remains
+intentionally simple.
 
 ## Creatures and evolution
 
@@ -217,8 +219,7 @@ and recovery UI remain to be added.
    device in every screen.
 3. Implement the egg, hatch, stage schedule, complete sleep schedules, care mistakes,
    illness, death/farewell, and event-jump offline processing.
-4. Complete the second compact game and add feedback animations to the
-implemented creature lines.
+4. Add feedback animations to the implemented creature lines.
 5. Add selectable user-data save slots plus migration/recovery UI and tests.
 6. Add sounds, visual accessibility options, further complete egg lines,
    and a Relaxed mode without weakening the default Classic mode.

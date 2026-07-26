@@ -279,7 +279,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             selectedIcon_ = (selectedIcon_ + 1) % static_cast<int>(IconPositions.size());
         } else if (screen_ == Screen::Food) {
             foodSelection_ = (foodSelection_ + 1) % 2;
-        } else if (screen_ == Screen::Game && !gameResolved_) {
+        } else if ((screen_ == Screen::Game || screen_ == Screen::NumberGame) && !gameResolved_) {
             gameChoice_ = (gameChoice_ + 1) % 2;
         }
         return false;
@@ -294,12 +294,14 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             statusPage_ = (statusPage_ + 1) % 3;
             return false;
         }
-        if (screen_ == Screen::Game) {
+        if (screen_ == Screen::Game || screen_ == Screen::NumberGame) {
             if (gameResolved_) {
                 screen_ = Screen::Home;
                 return false;
             }
-            gameWon_ = gameChoice_ == gameTarget_;
+            gameWon_ = screen_ == Screen::Game
+                ? gameChoice_ == gameTarget_
+                : gameChoice_ == (nextNumber_ > currentNumber_ ? 1 : 0);
             gameResolved_ = true;
             if (gameWon_) {
                 simulation_.applyAction(pet_, Domain::PetAction::Play);
@@ -316,8 +318,13 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         }
         if (selectedIcon_ == 2) {
             if (!pet_.asleep) {
-                startPeekGame();
-                screen_ = Screen::Game;
+                if (pet_.species == Domain::PetSpecies::Mossling) {
+                    startNumberGame();
+                    screen_ = Screen::NumberGame;
+                } else {
+                    startPeekGame();
+                    screen_ = Screen::Game;
+                }
                 return true;
             }
             return false;
@@ -381,7 +388,7 @@ void CnaTamagotchiGame::moveSelectionBackward() noexcept
             % static_cast<int>(IconPositions.size());
     } else if (screen_ == Screen::Food) {
         foodSelection_ = (foodSelection_ + 1) % 2;
-    } else if (screen_ == Screen::Game && !gameResolved_) {
+    } else if ((screen_ == Screen::Game || screen_ == Screen::NumberGame) && !gameResolved_) {
         gameChoice_ = (gameChoice_ + 1) % 2;
     }
 }
@@ -493,6 +500,20 @@ void CnaTamagotchiGame::startPeekGame() noexcept
     gameWon_ = false;
 }
 
+void CnaTamagotchiGame::startNumberGame() noexcept
+{
+    seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
+    currentNumber_ = static_cast<int>(seed_ % 9U) + 1;
+    seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
+    nextNumber_ = static_cast<int>(seed_ % 9U) + 1;
+    if (nextNumber_ == currentNumber_) {
+        nextNumber_ = currentNumber_ == 9 ? 8 : currentNumber_ + 1;
+    }
+    gameChoice_ = 0; // lower
+    gameResolved_ = false;
+    gameWon_ = false;
+}
+
 void CnaTamagotchiGame::startNewEgg() noexcept
 {
     // A new egg begins a fresh deterministic generation while retaining no
@@ -507,6 +528,8 @@ void CnaTamagotchiGame::startNewEgg() noexcept
     statusPage_ = 0;
     gameChoice_ = 0;
     gameTarget_ = 0;
+    currentNumber_ = 0;
+    nextNumber_ = 0;
     gameResolved_ = false;
     gameWon_ = false;
     lastSavedUnixSeconds_ = unixSecondsNow();
@@ -584,6 +607,32 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         display_.setPixel(markerX, 13, true);
         display_.setPixel(markerX + 1, 14, true);
         display_.setPixel(markerX, 15, true);
+        return;
+    }
+
+    if (screen_ == Screen::NumberGame) {
+        if (gameResolved_) {
+            drawText(display_, gameWon_ ? 10 : 8, 5, gameWon_ ? "WIN" : "LOSE");
+            return;
+        }
+
+        drawText(display_, 10, 0, "NUM");
+        drawText(display_, 14, 5, std::to_string(currentNumber_));
+        if (gameChoice_ == 0) { // lower
+            display_.setPixel(16, 11, true);
+            display_.setPixel(15, 12, true);
+            display_.setPixel(16, 12, true);
+            display_.setPixel(17, 12, true);
+            display_.setPixel(16, 13, true);
+            display_.setPixel(16, 14, true);
+        } else { // higher
+            display_.setPixel(16, 11, true);
+            display_.setPixel(16, 12, true);
+            display_.setPixel(15, 13, true);
+            display_.setPixel(16, 13, true);
+            display_.setPixel(17, 13, true);
+            display_.setPixel(16, 14, true);
+        }
         return;
     }
 

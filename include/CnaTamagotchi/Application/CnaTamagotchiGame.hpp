@@ -37,6 +37,7 @@ private:
         Food,
         Status,
         Game,
+        NumberGame,
     };
 
     enum class DeviceButton {
@@ -52,6 +53,7 @@ private:
     void loadSave();
     void saveNow();
     void startPeekGame() noexcept;
+    void startNumberGame() noexcept;
     void startNewEgg() noexcept;
     void refreshDisplay() noexcept;
     void drawDevice();
@@ -72,6 +74,8 @@ private:
     int statusPage_{0};
     int gameChoice_{0};
     int gameTarget_{0};
+    int currentNumber_{0};
+    int nextNumber_{0};
     std::int64_t lastSavedUnixSeconds_{0};
     std::uint64_t seed_{0};
     bool gameResolved_{false};
