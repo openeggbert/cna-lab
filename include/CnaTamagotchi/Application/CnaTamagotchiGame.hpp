@@ -21,7 +21,9 @@ namespace CnaTamagotchi::Application {
 // CNA adapter only. Simulation and persistence must stay out of this class.
 class CnaTamagotchiGame final : public Microsoft::Xna::Framework::Game {
 public:
-    explicit CnaTamagotchiGame(bool smokeTest = false);
+    explicit CnaTamagotchiGame(
+        bool smokeTest = false,
+        Display::LcdPalette lcdPalette = Display::LcdPalette::ClassicOlive);
 
     GetTypeNameHPP()
 
@@ -73,6 +75,7 @@ private:
     std::filesystem::path savePath_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
     std::optional<Microsoft::Xna::Framework::Graphics::Texture2D> pixelTexture_;
+    Display::LcdPalette lcdPalette_{Display::LcdPalette::ClassicOlive};
     float backgroundTimeSeconds_{0.0F};
     float simulationSeconds_{0.0F};
     Screen screen_{Screen::Home};

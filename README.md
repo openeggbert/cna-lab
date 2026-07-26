@@ -54,6 +54,10 @@ nearest-neighbour scaling and no grey pixels or anti-aliasing. The extra
 physical space around it belongs to the shell, icon bands, and controls; it is
 not additional display resolution.
 
+The default is the olive LCD. Desktop players may choose an equivalent
+one-bit colour treatment at launch with `--lcd-palette=olive`, `amber`, `ice`,
+or `mono`; this does not change game rules or LCD resolution.
+
 ## Controls
 
 The finished device will have exactly three primary controls, like the

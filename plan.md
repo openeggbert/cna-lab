@@ -26,7 +26,7 @@ will be copied.
   - [x] Define `PetState`, needs, life stages, and core care actions.
   - [x] Implement deterministic offline progression with a safe 12-hour clamp.
   - [x] Persist care-scheduler state with backward-compatible version-1 save loading.
-  - Add persisted UTC timestamps and clock-rollback behaviour with the save layer.
+  - [x] Add persisted UTC timestamps and clock-rollback behaviour with the save layer.
   - [x] Add unit tests for care effects, offline clamping, and life-stage progression.
   - [x] Add scheduled attention, care-mistake rules, waste, sleep/light requests,
     and data-driven evolution.
@@ -34,13 +34,13 @@ will be copied.
     neglected waste/health.
   - [x] Add the initial Farewell-to-new-egg reset flow.
 
-- [ ] **4. 1-bit display and device renderer**
-  - Complete the independent 32 × 16 framebuffer with sprites, text, and
+- [x] **4. 1-bit display and device renderer**
+  - [x] Complete the independent 32 × 16 framebuffer with sprites, text, and
     clipped drawing helpers.
   - [x] Draw an original egg-shaped shell, LCD, eight persistent shell icons,
     and three physical buttons as the first visible prototype.
-  - Add a palette selector and renderer tests.
-  - Scale LCD pixels with nearest-neighbour rendering and no anti-aliasing.
+  - [x] Add a palette selector and renderer tests.
+  - [x] Scale LCD pixels with nearest-neighbour rendering and no anti-aliasing.
 
 - [ ] **5. First playable care loop**
   - [x] Implement A/B/C keyboard, mouse, and touch mapping, icon selection,
@@ -75,6 +75,7 @@ will be copied.
 
 ## Immediate next task
 
-Complete the first playable care loop with an in-device status screen and
-food submenu. This will let the existing A/B/C controls expose meal versus
-snack behaviour without adding modern UI controls outside the device.
+Add a player-facing recovery path for unreadable save data: offer the current
+slot's backup when it is valid, or let the player explicitly begin a new egg.
+Keep the choice inside the device flow and never silently overwrite a damaged
+save.

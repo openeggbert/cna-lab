@@ -119,6 +119,14 @@ if(CNA_TAMAGOTCHI_BUILD_TESTS AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_C
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
     add_test(NAME CnaTamagotchiCreatureCatalogTests COMMAND CnaTamagotchiCreatureCatalogTests)
 
+    add_executable(CnaTamagotchiDisplayTests
+        tests/MonochromeDisplayTests.cpp
+        src/Display/MonochromeDisplay.cpp
+    )
+    target_include_directories(CnaTamagotchiDisplayTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    add_test(NAME CnaTamagotchiDisplayTests COMMAND CnaTamagotchiDisplayTests)
+
     add_executable(CnaTamagotchiPersistenceTests
         tests/SaveRepositoryTests.cpp
         src/Persistence/SaveRepository.cpp

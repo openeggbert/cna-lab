@@ -9,7 +9,6 @@
 #include <filesystem>
 #include <limits>
 #include <string>
-#include <string_view>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
@@ -45,9 +44,11 @@ const Color ShellMain(242, 174, 199, 255);
 const Color ShellHighlight(255, 216, 228, 255);
 const Color ShellShadow(194, 116, 151, 255);
 const Color Ink(69, 55, 62, 255);
-const Color LcdBezel(77, 91, 62, 255);
-const Color LcdOff(188, 202, 143, 255);
-const Color LcdOn(34, 44, 31, 255);
+
+Color asColor(const Display::LcdColour colour) noexcept
+{
+    return Color(colour.red, colour.green, colour.blue, 255U);
+}
 
 struct IconPosition final {
     int x;
@@ -80,97 +81,12 @@ std::filesystem::path defaultSavePath()
     return std::filesystem::current_path() / "saves" / "slot-1.json";
 }
 
-using Glyph = std::array<std::string_view, 5>;
-
-constexpr Glyph Blank{{"000", "000", "000", "000", "000"}};
-constexpr Glyph LetterA{{"010", "101", "111", "101", "101"}};
-constexpr Glyph LetterC{{"011", "100", "100", "100", "011"}};
-constexpr Glyph LetterD{{"110", "101", "101", "101", "110"}};
-constexpr Glyph LetterE{{"111", "100", "110", "100", "111"}};
-constexpr Glyph LetterF{{"111", "100", "110", "100", "100"}};
-constexpr Glyph LetterG{{"011", "100", "101", "101", "011"}};
-constexpr Glyph LetterH{{"101", "101", "111", "101", "101"}};
-constexpr Glyph LetterI{{"111", "010", "010", "010", "111"}};
-constexpr Glyph LetterL{{"100", "100", "100", "100", "111"}};
-constexpr Glyph LetterM{{"101", "111", "111", "101", "101"}};
-constexpr Glyph LetterO{{"010", "101", "101", "101", "010"}};
-constexpr Glyph LetterP{{"110", "101", "110", "100", "100"}};
-constexpr Glyph LetterR{{"110", "101", "110", "101", "101"}};
-constexpr Glyph LetterS{{"011", "100", "010", "001", "110"}};
-constexpr Glyph LetterT{{"111", "010", "010", "010", "010"}};
-constexpr Glyph LetterU{{"101", "101", "101", "101", "111"}};
-constexpr Glyph LetterW{{"101", "101", "101", "111", "101"}};
-constexpr Glyph LetterK{{"101", "101", "110", "101", "101"}};
-constexpr Glyph LetterN{{"101", "111", "111", "111", "101"}};
-constexpr Glyph Digit0{{"111", "101", "101", "101", "111"}};
-constexpr Glyph Digit1{{"010", "110", "010", "010", "111"}};
-constexpr Glyph Digit2{{"110", "001", "010", "100", "111"}};
-constexpr Glyph Digit3{{"110", "001", "010", "001", "110"}};
-constexpr Glyph Digit4{{"101", "101", "111", "001", "001"}};
-constexpr Glyph Digit5{{"111", "100", "110", "001", "110"}};
-constexpr Glyph Digit6{{"011", "100", "111", "101", "111"}};
-constexpr Glyph Digit7{{"111", "001", "010", "010", "010"}};
-constexpr Glyph Digit8{{"111", "101", "111", "101", "111"}};
-constexpr Glyph Digit9{{"111", "101", "111", "001", "110"}};
-
-const Glyph& glyphFor(const char character) noexcept
-{
-    switch (character) {
-    case 'A': return LetterA;
-    case 'C': return LetterC;
-    case 'D': return LetterD;
-    case 'E': return LetterE;
-    case 'F': return LetterF;
-    case 'G': return LetterG;
-    case 'H': return LetterH;
-    case 'I': return LetterI;
-    case 'L': return LetterL;
-    case 'M': return LetterM;
-    case 'O': return LetterO;
-    case 'P': return LetterP;
-    case 'R': return LetterR;
-    case 'S': return LetterS;
-    case 'T': return LetterT;
-    case 'U': return LetterU;
-    case 'W': return LetterW;
-    case 'K': return LetterK;
-    case 'N': return LetterN;
-    case '0': return Digit0;
-    case '1': return Digit1;
-    case '2': return Digit2;
-    case '3': return Digit3;
-    case '4': return Digit4;
-    case '5': return Digit5;
-    case '6': return Digit6;
-    case '7': return Digit7;
-    case '8': return Digit8;
-    case '9': return Digit9;
-    default: return Blank;
-    }
-}
-
-void drawText(Display::MonochromeDisplay& display, const int firstX, const int firstY,
-              const std::string_view text) noexcept
-{
-    constexpr int GlyphWidth = 3;
-    constexpr int GlyphHeight = 5;
-    constexpr int GlyphAdvance = GlyphWidth + 1;
-    for (int index = 0; index < static_cast<int>(text.size()); ++index) {
-        const Glyph& glyph = glyphFor(text[static_cast<std::size_t>(index)]);
-        for (int y = 0; y < GlyphHeight; ++y) {
-            for (int x = 0; x < GlyphWidth; ++x) {
-                if (glyph[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)] == '1') {
-                    display.setPixel(firstX + index * GlyphAdvance + x, firstY + y, true);
-                }
-            }
-        }
-    }
-}
-
 } // namespace
 
-CnaTamagotchiGame::CnaTamagotchiGame(const bool smokeTest)
+CnaTamagotchiGame::CnaTamagotchiGame(const bool smokeTest,
+                                     const Display::LcdPalette lcdPalette)
     : graphics_(this),
+      lcdPalette_(lcdPalette),
       smokeTest_(smokeTest)
 {
     graphics_.setPreferredBackBufferWidthProperty(WindowWidth);
@@ -583,9 +499,9 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     };
 
     if (screen_ == Screen::Food) {
-        drawText(display_, 8, 0, "FOOD");
-        drawText(display_, 6, 6, "MEAL");
-        drawText(display_, 6, 11, "SNACK");
+        display_.drawText(8, 0, "FOOD");
+        display_.drawText(6, 6, "MEAL");
+        display_.drawText(6, 11, "SNACK");
         const int markerY = foodSelection_ == 0 ? 7 : 12;
         display_.setPixel(1, markerY, true);
         display_.setPixel(2, markerY + 1, true);
@@ -597,21 +513,21 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         if (statusPage_ == 0) {
             const std::string age = "AGE" + std::to_string(pet_.ageMinutes / (24 * 60));
             const std::string weight = "WGT" + std::to_string(pet_.weight);
-            drawText(display_, 2, 1, age);
-            drawText(display_, 2, 9, weight);
+            display_.drawText(2, 1, age);
+            display_.drawText(2, 9, weight);
         } else if (statusPage_ == 1) {
-            drawText(display_, 8, 0, "HUNG");
+            display_.drawText(8, 0, "HUNG");
             drawHeartMeter(12, 6, pet_.needs.hunger);
-            drawText(display_, 8, 8, "HAPP");
+            display_.drawText(8, 8, "HAPP");
             drawHeartMeter(12, 14, pet_.needs.happiness);
         } else if (statusPage_ == 2) {
-            drawText(display_, 8, 0, "DISC");
+            display_.drawText(8, 0, "DISC");
             drawHeartMeter(12, 6, pet_.needs.discipline);
             const std::string mistakes = "MIST" + std::to_string(pet_.careMistakes);
-            drawText(display_, 2, 9, mistakes);
+            display_.drawText(2, 9, mistakes);
         } else {
-            drawText(display_, 8, 1, "LINE");
-            drawText(display_, pet_.species == Domain::PetSpecies::Mossling ? 10 : 8,
+            display_.drawText(8, 1, "LINE");
+            display_.drawText(pet_.species == Domain::PetSpecies::Mossling ? 10 : 8,
                 9, pet_.species == Domain::PetSpecies::Mossling ? "NUM" : "PEEK");
         }
         return;
@@ -619,11 +535,11 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
 
     if (screen_ == Screen::Game) {
         if (gameResolved_) {
-            drawText(display_, gameWon_ ? 10 : 8, 5, gameWon_ ? "WIN" : "LOSE");
+            display_.drawText(gameWon_ ? 10 : 8, 5, gameWon_ ? "WIN" : "LOSE");
             return;
         }
 
-        drawText(display_, 8, 0, "PICK");
+        display_.drawText(8, 0, "PICK");
         // Two deliberately abstract peek positions; the selected position is
         // marked below it, rather than using a modern text button.
         for (const int x : {8, 23}) {
@@ -647,12 +563,12 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
 
     if (screen_ == Screen::NumberGame) {
         if (gameResolved_) {
-            drawText(display_, gameWon_ ? 10 : 8, 5, gameWon_ ? "WIN" : "LOSE");
+            display_.drawText(gameWon_ ? 10 : 8, 5, gameWon_ ? "WIN" : "LOSE");
             return;
         }
 
-        drawText(display_, 10, 0, "NUM");
-        drawText(display_, 14, 5, std::to_string(currentNumber_));
+        display_.drawText(10, 0, "NUM");
+        display_.drawText(14, 5, std::to_string(currentNumber_));
         if (gameChoice_ == 0) { // lower
             display_.setPixel(16, 11, true);
             display_.setPixel(15, 12, true);
@@ -672,16 +588,10 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     }
 
     if (pet_.lifeStage == Domain::LifeStage::Farewell) {
-        drawText(display_, 10, 0, "NEW");
+        display_.drawText(10, 0, "NEW");
         const Domain::CreatureSprite& sprite = Domain::CreatureCatalog::spriteFor(
             Domain::CreatureCatalog::formFor(pet_));
-        for (int y = 0; y < static_cast<int>(sprite.rows.size()); ++y) {
-            for (int x = 0; x < static_cast<int>(sprite.rows[static_cast<std::size_t>(y)].size()); ++x) {
-                if (sprite.rows[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)] == '#') {
-                    display_.setPixel(11 + x, 5 + y, true);
-                }
-            }
-        }
+        display_.drawSprite(11, 5, sprite.rows);
         return;
     }
 
@@ -691,18 +601,10 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
 
     const Domain::CreatureForm form = Domain::CreatureCatalog::formFor(pet_);
     const Domain::CreatureSprite& sprite = Domain::CreatureCatalog::spriteFor(form);
-    for (int y = 0; y < static_cast<int>(sprite.rows.size()); ++y) {
-        for (int x = 0; x < static_cast<int>(sprite.rows[static_cast<std::size_t>(y)].size()); ++x) {
-            if (sprite.rows[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)] == '#') {
-                display_.setPixel(11 + x, 4 + y, true);
-            }
-        }
-    }
+    display_.drawSprite(11, 4, sprite.rows);
 
     // Tiny floor and two stars keep the first 1-bit screen immediately legible.
-    for (int x = 5; x < 27; ++x) {
-        display_.setPixel(x, 14, true);
-    }
+    display_.fillRectangle(5, 14, 22, 1, true);
     display_.setPixel(5, 4, true);
     display_.setPixel(4, 4, true);
     display_.setPixel(5, 3, true);
@@ -780,6 +682,11 @@ void CnaTamagotchiGame::drawDevice()
         drawEllipse(centreX, centreY, radius, radius, outer);
         drawEllipse(centreX, centreY, radius - 3, radius - 3, inner);
     };
+    const Display::LcdPaletteColours lcdColours =
+        Display::MonochromeDisplay::coloursFor(lcdPalette_);
+    const Color lcdBezel = asColor(lcdColours.bezel);
+    const Color lcdOff = asColor(lcdColours.off);
+    const Color lcdOn = asColor(lcdColours.on);
 
     // Drop shadow, shell rim, and inner egg. The geometry is original rather
     // than reproducing a specific commercial shell pattern.
@@ -794,10 +701,10 @@ void CnaTamagotchiGame::drawDevice()
 
     // The recessed LCD is exactly 32 × 16 logical pixels at 8× scale.
     drawRect(Rectangle(DisplayX - 12, DisplayY - 12,
-        DisplayPixelWidth + 24, DisplayPixelHeight + 24), LcdBezel);
+        DisplayPixelWidth + 24, DisplayPixelHeight + 24), lcdBezel);
     drawRect(Rectangle(DisplayX - 6, DisplayY - 6,
         DisplayPixelWidth + 12, DisplayPixelHeight + 12), ShellShadow);
-    drawRect(Rectangle(DisplayX, DisplayY, DisplayPixelWidth, DisplayPixelHeight), LcdOff);
+    drawRect(Rectangle(DisplayX, DisplayY, DisplayPixelWidth, DisplayPixelHeight), lcdOff);
 
     for (int y = 0; y < Display::MonochromeDisplay::Height; ++y) {
         for (int x = 0; x < Display::MonochromeDisplay::Width; ++x) {
@@ -807,7 +714,7 @@ void CnaTamagotchiGame::drawDevice()
                     DisplayY + y * DisplayScale,
                     DisplayScale,
                     DisplayScale),
-                    LcdOn);
+                    lcdOn);
             }
         }
     }
