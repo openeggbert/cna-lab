@@ -15,8 +15,8 @@ project will be original.
 
 The current build already opens a CNA window and renders an original pastel
 egg-shaped device with a 32 × 16 one-bit LCD, eight shell icons, three physical
-controls, and a demo creature. It also has an early deterministic pet simulator
-and a tested JSON save repository.
+controls, and the complete first original creature line. It also has an early
+deterministic pet simulator and a tested JSON save repository.
 
 Those systems are foundations, not the final classic ruleset. In particular,
 the present `0…100` need values, generic icon mapping, simplified sleep action,
@@ -139,7 +139,7 @@ The game will contain multiple original creature forms, but it will not let the
 player choose an already-grown adult from a menu. Care and a stored generation
 seed determine the outcome, which is the important original-game idea.
 
-The first complete egg line will contain:
+The first complete egg line is implemented with:
 
 - one egg, one baby form, and one child form;
 - two teen forms;
@@ -151,10 +151,12 @@ That gives meaningful variety without turning the device into a creature
 collection game. Further egg lines can be added only after each has a complete
 growth tree, animation set, rules table, and tests.
 
-Evolution will use care mistakes, successful discipline, snack/weight history,
-game performance, stage-specific health, and the saved seed. Better care makes
-the healthier adult outcomes more likely, but no adult form is simply a reward
-for maximising one number.
+The current resolver uses care mistakes, discipline, weight, illness, and age
+to select the teen and adult form. Snack history, game performance, stage-
+specific care mistakes, and a saved generation seed will be added as the
+classic care-event system replaces the temporary `0…100` simulator. Better care
+makes the healthier adult outcomes more likely, but no adult form is simply a
+reward for maximising one number.
 
 ## Death, farewell, and a new egg
 
@@ -224,7 +226,7 @@ Pass `--smoke-test` to exit after three rendered frames.
 ## Tests
 
 ```bash
-cmake --build --preset sdl-renderer --target CnaTamagotchiDomainTests CnaTamagotchiPersistenceTests
+cmake --build --preset sdl-renderer --target CnaTamagotchiDomainTests CnaTamagotchiCreatureCatalogTests CnaTamagotchiPersistenceTests
 ctest --test-dir cmake-build-sdl-renderer --output-on-failure
 ```
 

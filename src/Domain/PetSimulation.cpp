@@ -116,13 +116,13 @@ void PetSimulation::updateLifeStage(PetState& state) noexcept
 
     if (state.ageMinutes >= 30 * 24 * 60) {
         state.lifeStage = LifeStage::Elder;
-    } else if (state.ageMinutes >= 3 * 24 * 60) {
+    } else if (state.ageMinutes >= 6 * 24 * 60) {
         state.lifeStage = LifeStage::Adult;
-    } else if (state.ageMinutes >= 24 * 60) {
+    } else if (state.ageMinutes >= 3 * 24 * 60) {
         state.lifeStage = LifeStage::Teen;
-    } else if (state.ageMinutes >= 6 * 60) {
+    } else if (state.ageMinutes >= 65) {
         state.lifeStage = LifeStage::Child;
-    } else if (state.ageMinutes >= 60) {
+    } else if (state.ageMinutes >= 5) {
         state.lifeStage = LifeStage::Hatchling;
     }
 }

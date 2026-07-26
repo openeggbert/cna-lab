@@ -93,8 +93,9 @@ happiness, energy, hygiene, health, affection, and discipline. Scheduled
 events create requests (meal, sleep, mess, attention); ignored requests add
 care-mistake records. A data-driven evolution table maps species, care band,
 and a deterministic saved seed to original adult forms. Early implementation
-will use a small set of original species such as Puffin, Mossling, Pebblet,
-and Cometling rather than any protected Tamagotchi roster.
+will use the original Pipple, Sproutlet, Flitwing, Tumblepuff, Skywhistle,
+Mossmuzzle, Ripplefin, Pebbleback, Bramblepaw, Duskroot, and Moonmote forms
+rather than any protected Tamagotchi roster.
 
 ### Actions and consequences
 

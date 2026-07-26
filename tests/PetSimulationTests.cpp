@@ -51,6 +51,21 @@ void testOfflineAdvanceClampsAndEvolves()
         "a twelve-hour-old pet must reach the child stage");
 }
 
+void testClassicEggAndChildTiming()
+{
+    PetSimulation simulation;
+    PetState pet{};
+
+    static_cast<void>(simulation.advance(pet, 4));
+    expect(pet.lifeStage == LifeStage::Egg, "egg must remain visible for the first four minutes");
+
+    static_cast<void>(simulation.advance(pet, 1));
+    expect(pet.lifeStage == LifeStage::Hatchling, "egg must hatch after five minutes");
+
+    static_cast<void>(simulation.advance(pet, 60));
+    expect(pet.lifeStage == LifeStage::Child, "baby must become a child at 65 minutes");
+}
+
 void testSleepRecoversEnergy()
 {
     PetSimulation simulation;
@@ -73,6 +88,7 @@ int main()
 {
     testActionsRespectBounds();
     testOfflineAdvanceClampsAndEvolves();
+    testClassicEggAndChildTiming();
     testSleepRecoversEnergy();
 
     if (failures == 0) {

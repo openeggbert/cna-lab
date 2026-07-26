@@ -1,4 +1,5 @@
 #include "CnaTamagotchi/Application/CnaTamagotchiGame.hpp"
+#include "CnaTamagotchi/Domain/CreatureCatalog.hpp"
 
 #include <algorithm>
 #include <array>
@@ -189,21 +190,12 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     drawMeter(12, pet_.needs.happiness);
     drawMeter(23, pet_.needs.health);
 
-    constexpr std::array<std::string_view, 8> pet{{
-        "  ######  ",
-        "## ## ## ##",
-        "##########",
-        "## #### ##",
-        "##########",
-        "  ##  ##  ",
-        " ##    ## ",
-        "##      ##",
-    }};
-
-    for (int y = 0; y < static_cast<int>(pet.size()); ++y) {
-        for (int x = 0; x < static_cast<int>(pet[static_cast<std::size_t>(y)].size()); ++x) {
-            if (pet[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)] == '#') {
-                display_.setPixel(11 + x, 5 + y, true);
+    const Domain::CreatureForm form = Domain::CreatureCatalog::formFor(pet_);
+    const Domain::CreatureSprite& sprite = Domain::CreatureCatalog::spriteFor(form);
+    for (int y = 0; y < static_cast<int>(sprite.rows.size()); ++y) {
+        for (int x = 0; x < static_cast<int>(sprite.rows[static_cast<std::size_t>(y)].size()); ++x) {
+            if (sprite.rows[static_cast<std::size_t>(y)][static_cast<std::size_t>(x)] == '#') {
+                display_.setPixel(11 + x, 4 + y, true);
             }
         }
     }

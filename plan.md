@@ -43,7 +43,8 @@ will be copied.
   - Add menus, a named status screen, attention requests, and an in-device
     presentation for discipline.
   - Add one small original mini-game and feedback animations.
-  - Add basic original pet species and a data-driven evolution table.
+  - [x] Add the first original egg line: 11 creature forms plus an egg, with
+    care-driven teen/adult resolution and tested 1-bit sprites.
 
 - [ ] **6. Persistence and resilience**
   - [x] Implement version-1 JSON save/load with field validation.
