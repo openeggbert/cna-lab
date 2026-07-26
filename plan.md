@@ -6,7 +6,9 @@ The game is an unofficial, as-faithful-as-practical reimplementation of the
 **international 1997 Tamagotchi Generation 1 (P1)** programme. It is not a
 P1/P2 hybrid and it does not target a Japanese original or a modern reissue.
 See [analysis.md](analysis.md) for the exact scope, legal boundary, and rule
-capture method.
+capture method. The engine is data-driven: P1 is its first and only active
+programme package, so a future P2 package can reuse the engine instead of
+copying it.
 
 ## Milestones
 
@@ -36,6 +38,12 @@ capture method.
 - [ ] **4. Replace the legacy domain with P1 state**
   - [x] Add a tested P1 roster, unambiguous P1 stages, and bounded visible
     four-heart/four-bar state as the migration seam.
+  - [x] Add generic programme-definition types and an `international-p1-1997`
+    data package for the P1 roster, food, display, Character game, and ending.
+  - [x] Drive the active Food and Character-game UI from that selected P1
+    definition, removing the active P2 Number-game path.
+  - Make schedules, evolution rules, menu/icon data, and sprite keys part of
+    programme data before P1 behaviour is migrated into the shared engine.
   - Remove custom species, two-line generation seed, Elder, generic Farewell,
     and `0…100` needs from the active simulation.
   - Model P1’s form, stage, four hunger hearts, four happiness hearts, four

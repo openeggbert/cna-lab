@@ -6,6 +6,10 @@ This ledger applies only to the English-language international Generation 1
 programme released in 1997. “P1” is fan shorthand; it must not silently mean a
 Japanese 1996 unit, a Japanese P2 wave, an English P2, or a modern reissue.
 
+P1 is represented as the first `ProgramDefinition` data package. The same
+generic definition schema will later allow P2 data to reuse the engine without
+mixing its content or rules into this P1 ledger.
+
 Each entry has a confidence status:
 
 - **Verified** — stated in a primary P1 manual or reproduced by a captured

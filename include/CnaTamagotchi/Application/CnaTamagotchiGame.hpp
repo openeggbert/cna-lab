@@ -39,7 +39,6 @@ private:
         Food,
         Status,
         Game,
-        NumberGame,
         SaveRecovery,
         ResetConfirm,
     };
@@ -72,8 +71,8 @@ private:
     [[nodiscard]] bool archiveAndStartFreshEgg();
     [[nodiscard]] bool resetCurrentSession();
     void saveNow();
-    void startPeekGame() noexcept;
-    void startNumberGame() noexcept;
+    void startCharacterGame() noexcept;
+    void startNextCharacterRound() noexcept;
     void startNewEgg() noexcept;
     void startFreshEgg() noexcept;
     void resetPetToEgg() noexcept;
@@ -98,8 +97,8 @@ private:
     int statusPage_{0};
     int gameChoice_{0};
     int gameTarget_{0};
-    int currentNumber_{0};
-    int nextNumber_{0};
+    int gameRound_{0};
+    int gameWins_{0};
     float feedbackSeconds_{0.0F};
     float resetHoldSeconds_{0.0F};
     std::int64_t lastSavedUnixSeconds_{0};

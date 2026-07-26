@@ -7,6 +7,12 @@
 an original virtual-pet game and must not be a P1/P2 hybrid. P2 characters,
 food, Number game, wavy LCD background, and UFO ending are outside scope.
 
+P1 is the only active programme and the only player-visible target. The engine
+is nevertheless data-driven from the first P1 implementation: shared program
+definitions, rules, persistence, renderer, and input must consume a selected
+programme package. A later P2 implementation will supply its own data package
+and game strategy to that same engine; it must not fork or copy the P1 engine.
+
 The target is the English-language 1997 international device, not the original
 Japanese 1996 device and not a modern `Original Tamagotchi` reissue. That
 distinction is essential: regional and reissue versions change visible food,
@@ -80,7 +86,17 @@ This prevents accidental adoption of Japanese P1, P2, or modern-reissue
 behaviour. It also makes disputed details explicit rather than hiding guesses
 inside simulation constants.
 
-## Domain model
+## Data-driven domain model
+
+The central seam is a generic `ProgramDefinition`, rather than a global
+`if (P1) ... else if (P2) ...` chain. It holds display characteristics, food,
+game definition, end-screen choice, roster, schedules, evolution rules, and
+sprite keys. `international-p1-1997` is the first concrete data package. A
+future P2 package will have a different roster, food, background, game, and
+ending, while the generic event scheduler and controller remain shared.
+
+The P1 data package must be selected explicitly in the save format. A loaded
+save may never infer P1/P2 from a character name or a legacy enum value.
 
 The current prototype’s `PetSpecies`, two original creature lines, random
 generation seed, Elder stage, generic Farewell state, and `0…100` needs do not
@@ -100,8 +116,9 @@ P1PetState
   UTC anchor           host persistence only
 ```
 
-Evolution must use explicit, stage-bound P1 care-mistake and discipline
-conditions. It must not derive an adult from a general “care quality” score,
+Evolution must use explicit, stage-bound programme data and care-event
+conditions. For P1, those are the exact P1 care-mistake and discipline
+conditions; it must not derive an adult from a general “care quality” score,
 random seed, custom affection, energy, hygiene, or a selectable species.
 
 The event engine should jump between meaningful scheduled events for offline
@@ -136,8 +153,9 @@ cannot silently load them with the wrong rules.
 
 1. Record this target in README, plan, and the end-user tutorial; add the
    source-backed P1 rule ledger.
-2. Replace the legacy domain values and creature catalogue with the P1 roster,
-   a dedicated P1 evolution resolver, and sprite tests.
+2. Replace the legacy domain values and creature catalogue with the generic
+   programme seam, P1 roster data, a data-driven evolution resolver, and
+   sprite tests.
 3. Implement P1 menus, bread/candy feeding, Health Meter pages, attention and
    discipline semantics, clock flows, and the Character game.
 4. Replace provisional timers with captured P1 schedules, care-mistake rules,
@@ -146,5 +164,6 @@ cannot silently load them with the wrong rules.
 5. Implement legacy-save archival/migration, reset-to-clock-setup, detailed
    player documentation, and final visual/audio comparison passes.
 
-No P2 content will be retained after the migration except historical notes in
-the development record.
+No P2 content will be active after the migration. A later P2 package may be
+added only through the shared programme interfaces and its own independently
+verified data.

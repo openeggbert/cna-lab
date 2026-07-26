@@ -11,6 +11,11 @@ endorsed by, or affiliated with Bandai. P1 names, character designs, game
 rules, and branding belong to their respective rightsholders; public release
 of a faithful clone requires the appropriate permission.
 
+P1 is the only active programme. Its rules and content are kept in a
+data-driven programme definition, so a future P2 implementation can supply
+separate P2 data to the same engine rather than turning this build into a
+hybrid or duplicating the simulator.
+
 ## Player guide
 
 The detailed English end-user tutorial is available as a standalone static site
@@ -27,8 +32,9 @@ care slice renders four hunger, happiness, and discipline segments; schedules
 sleep; handles waste; requests attention for empty needs, light, and false
 calls; preserves those states in saves; and provides Food and Status LCD
 screens rather than adding modern external controls. The Game icon still opens
-legacy prototype mini-games. A win, not merely opening the icon, improves
-happiness. Uncleaned waste and
+the P1 Character game defined by the selected P1 programme data. The legacy
+creature catalogue and simulator are still being migrated. A win, not merely
+opening the icon, improves happiness. Uncleaned waste and
 excessive snacks can cause illness;
 running health down to zero enters an original Farewell display state. Waste,
 illness, and attention have their own compact LCD/shell indicators.

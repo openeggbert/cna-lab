@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include "CnaTamagotchi/Domain/ProgramDefinition.hpp"
 
 namespace CnaTamagotchi::Domain {
 
@@ -22,14 +22,7 @@ enum class P1Character : std::uint8_t {
     Angel,
 };
 
-enum class P1Stage : std::uint8_t {
-    Egg,
-    Baby,
-    Child,
-    Teen,
-    Adult,
-    End,
-};
+using P1Stage = ProgramStage;
 
 // This replaces the prototype's broad 0..100 needs when the active
 // simulation is migrated. The extra runtime fields live in the simulation

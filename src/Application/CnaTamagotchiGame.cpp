@@ -1,5 +1,6 @@
 #include "CnaTamagotchi/Application/CnaTamagotchiGame.hpp"
 #include "CnaTamagotchi/Domain/CreatureCatalog.hpp"
+#include "CnaTamagotchi/Domain/P1Program.hpp"
 #include "CnaTamagotchi/Persistence/SaveLocation.hpp"
 
 #include <algorithm>
@@ -66,6 +67,14 @@ constexpr int ButtonHitRadius = 29;
 constexpr std::array<ButtonPosition, 3> ButtonPositions{{
     {202}, {270}, {338},
 }};
+
+const Domain::ProgramDefinition& activeProgramme() noexcept
+{
+    // The application has one selected programme today. All programme-specific
+    // visible values come from this definition, so a later P2 package can use
+    // the same controller and simulator rather than a copied application.
+    return Domain::Programs::internationalP1();
+}
 
 std::int64_t unixSecondsNow() noexcept
 {
@@ -254,8 +263,9 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         if (screen_ == Screen::Home) {
             selectedIcon_ = (selectedIcon_ + 1) % IconCount;
         } else if (screen_ == Screen::Food) {
-            foodSelection_ = (foodSelection_ + 1) % 2;
-        } else if ((screen_ == Screen::Game || screen_ == Screen::NumberGame) && !gameResolved_) {
+            foodSelection_ = (foodSelection_ + 1)
+                % static_cast<int>(activeProgramme().food.size());
+        } else if (screen_ == Screen::Game && !gameResolved_) {
             gameChoice_ = (gameChoice_ + 1) % 2;
         }
         return false;
@@ -271,16 +281,23 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             statusPage_ = (statusPage_ + 1) % 4;
             return false;
         }
-        if (screen_ == Screen::Game || screen_ == Screen::NumberGame) {
+        if (screen_ == Screen::Game) {
             if (gameResolved_) {
-                screen_ = Screen::Home;
+                if (gameRound_ >= activeProgramme().game.rounds) {
+                    screen_ = Screen::Home;
+                } else {
+                    startNextCharacterRound();
+                }
                 return false;
             }
-            gameWon_ = screen_ == Screen::Game
-                ? gameChoice_ == gameTarget_
-                : gameChoice_ == (nextNumber_ > currentNumber_ ? 1 : 0);
+            gameWon_ = gameChoice_ == gameTarget_;
             gameResolved_ = true;
             if (gameWon_) {
+                ++gameWins_;
+            }
+            ++gameRound_;
+            if (gameRound_ == activeProgramme().game.rounds
+                && gameWins_ >= activeProgramme().game.winsNeededForHappiness) {
                 simulation_.applyAction(pet_, Domain::PetAction::Play);
             }
             return true;
@@ -295,13 +312,8 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         }
         if (selectedIcon_ == 2) {
             if (!pet_.asleep) {
-                if (pet_.species == Domain::PetSpecies::Mossling) {
-                    startNumberGame();
-                    screen_ = Screen::NumberGame;
-                } else {
-                    startPeekGame();
-                    screen_ = Screen::Game;
-                }
+                startCharacterGame();
+                screen_ = Screen::Game;
                 return true;
             }
             setFeedback(Feedback::Blocked);
@@ -392,8 +404,9 @@ void CnaTamagotchiGame::moveSelectionBackward() noexcept
     if (screen_ == Screen::Home) {
         selectedIcon_ = (selectedIcon_ + IconCount - 1) % IconCount;
     } else if (screen_ == Screen::Food) {
-        foodSelection_ = (foodSelection_ + 1) % 2;
-    } else if ((screen_ == Screen::Game || screen_ == Screen::NumberGame) && !gameResolved_) {
+        foodSelection_ = (foodSelection_ + 1)
+            % static_cast<int>(activeProgramme().food.size());
+    } else if (screen_ == Screen::Game && !gameResolved_) {
         gameChoice_ = (gameChoice_ + 1) % 2;
     } else if (screen_ == Screen::SaveRecovery && recoveryBackupAvailable_) {
         recoveryChoice_ = recoveryChoice_ == RecoveryChoice::RestoreBackup
@@ -563,27 +576,20 @@ void CnaTamagotchiGame::saveNow()
     }
 }
 
-void CnaTamagotchiGame::startPeekGame() noexcept
+void CnaTamagotchiGame::startCharacterGame() noexcept
 {
-    // The seed is persisted, so the sequence remains stable across restarts
+    gameRound_ = 0;
+    gameWins_ = 0;
+    startNextCharacterRound();
+}
+
+void CnaTamagotchiGame::startNextCharacterRound() noexcept
+{
+    // The persisted seed keeps the local sequence stable across restarts
     // without relying on a platform random-number API.
     seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
     gameTarget_ = static_cast<int>((seed_ >> 63U) & 1U);
     gameChoice_ = 0;
-    gameResolved_ = false;
-    gameWon_ = false;
-}
-
-void CnaTamagotchiGame::startNumberGame() noexcept
-{
-    seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
-    currentNumber_ = static_cast<int>(seed_ % 9U) + 1;
-    seed_ = seed_ * 6'364'136'223'846'793'005ULL + 1'442'695'040'888'963'407ULL;
-    nextNumber_ = static_cast<int>(seed_ % 9U) + 1;
-    if (nextNumber_ == currentNumber_) {
-        nextNumber_ = currentNumber_ == 9 ? 8 : currentNumber_ + 1;
-    }
-    gameChoice_ = 0; // lower
     gameResolved_ = false;
     gameWon_ = false;
 }
@@ -605,16 +611,17 @@ void CnaTamagotchiGame::startFreshEgg() noexcept
 void CnaTamagotchiGame::resetPetToEgg() noexcept
 {
     pet_ = Domain::PetState{};
-    pet_.species = (seed_ & 1U) == 0U ? Domain::PetSpecies::Puffin
-                                      : Domain::PetSpecies::Mossling;
+    // Legacy storage still has a species field until the P1 save migration;
+    // the active application never selects a second creature line from it.
+    pet_.species = Domain::PetSpecies::Puffin;
     screen_ = Screen::Home;
     selectedIcon_ = 0;
     foodSelection_ = 0;
     statusPage_ = 0;
     gameChoice_ = 0;
     gameTarget_ = 0;
-    currentNumber_ = 0;
-    nextNumber_ = 0;
+    gameRound_ = 0;
+    gameWins_ = 0;
     gameResolved_ = false;
     gameWon_ = false;
     lastSavedUnixSeconds_ = unixSecondsNow();
@@ -724,8 +731,9 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     }
 
     if (screen_ == Screen::Food) {
-        display_.drawText(6, 3, "MEAL");
-        display_.drawText(6, 8, "SNACK");
+        const auto& food = activeProgramme().food;
+        display_.drawText(3, 3, food[0].lcdLabel);
+        display_.drawText(3, 8, food[1].lcdLabel);
         const int markerY = foodSelection_ == 0 ? 4 : 9;
         display_.setPixel(1, markerY, true);
         display_.setPixel(2, markerY + 1, true);
@@ -740,32 +748,34 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
             display_.drawText(2, 3, age);
             display_.drawText(2, 8, weight);
         } else if (statusPage_ == 1) {
-            display_.drawText(1, 3, "HUN");
-            drawHeartMeter(20, 5, pet_.needs.hunger);
-            display_.drawText(1, 8, "HAP");
-            drawHeartMeter(20, 10, pet_.needs.happiness);
-        } else if (statusPage_ == 2) {
             display_.drawText(1, 3, "DIS");
             drawHeartMeter(20, 5, pet_.needs.discipline);
-            const std::string mistakes = "MIST" + std::to_string(pet_.careMistakes);
-            display_.drawText(2, 8, mistakes);
+        } else if (statusPage_ == 2) {
+            display_.drawText(1, 5, "HUN");
+            drawHeartMeter(20, 7, pet_.needs.hunger);
         } else {
-            display_.drawText(8, 3, "LINE");
-            display_.drawText(pet_.species == Domain::PetSpecies::Mossling ? 10 : 8,
-                8, pet_.species == Domain::PetSpecies::Mossling ? "NUM" : "PEEK");
+            display_.drawText(1, 5, "HAP");
+            drawHeartMeter(20, 7, pet_.needs.happiness);
         }
         return;
     }
 
     if (screen_ == Screen::Game) {
         if (gameResolved_) {
-            display_.drawText(gameWon_ ? 10 : 8, 6, gameWon_ ? "WIN" : "LOSE");
+            if (gameRound_ >= activeProgramme().game.rounds) {
+                const bool completeWin = gameWins_ >= activeProgramme().game.winsNeededForHappiness;
+                display_.drawText(completeWin ? 10 : 8, 4, completeWin ? "WIN" : "LOSE");
+                display_.drawText(12, 9, "W" + std::to_string(gameWins_));
+            } else {
+                display_.drawText(gameWon_ ? 10 : 8, 5, gameWon_ ? "OK" : "NO");
+                display_.drawText(12, 9, "R" + std::to_string(gameRound_));
+            }
             return;
         }
 
-        display_.drawText(8, 3, "PICK");
-        // Two deliberately abstract peek positions; the selected position is
-        // marked below it, rather than using a modern text button.
+        display_.drawText(8, 3, "CHAR");
+        // The P1 Character game is a five-round left/right prediction. The
+        // selected position is marked below the two target positions.
         for (const int x : {8, 23}) {
             display_.setPixel(x, 8, true);
             display_.setPixel(x + 1, 8, true);
@@ -780,30 +790,6 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         }
         const int markerX = gameChoice_ == 0 ? 8 : 23;
         display_.setPixel(markerX, 12, true);
-        return;
-    }
-
-    if (screen_ == Screen::NumberGame) {
-        if (gameResolved_) {
-            display_.drawText(gameWon_ ? 10 : 8, 6, gameWon_ ? "WIN" : "LOSE");
-            return;
-        }
-
-        display_.drawText(10, 3, "NUM");
-        display_.drawText(14, 8, std::to_string(currentNumber_));
-        if (gameChoice_ == 0) { // lower
-            display_.setPixel(16, 10, true);
-            display_.setPixel(15, 11, true);
-            display_.setPixel(16, 11, true);
-            display_.setPixel(17, 11, true);
-            display_.setPixel(16, 12, true);
-        } else { // higher
-            display_.setPixel(16, 10, true);
-            display_.setPixel(16, 11, true);
-            display_.setPixel(15, 12, true);
-            display_.setPixel(16, 12, true);
-            display_.setPixel(17, 12, true);
-        }
         return;
     }
 

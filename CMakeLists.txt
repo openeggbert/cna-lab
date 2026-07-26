@@ -51,6 +51,7 @@ set(CNA_TAMAGOTCHI_SOURCES
     src/Application/CnaTamagotchiGame.cpp
     src/Display/MonochromeDisplay.cpp
     src/Domain/CreatureCatalog.cpp
+    src/Domain/P1Program.cpp
     src/Domain/PetSimulation.cpp
     src/Persistence/SaveLocation.cpp
     src/Persistence/SaveRepository.cpp
@@ -126,6 +127,14 @@ if(CNA_TAMAGOTCHI_BUILD_TESTS AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_C
     target_include_directories(CnaTamagotchiP1StateTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
     add_test(NAME CnaTamagotchiP1StateTests COMMAND CnaTamagotchiP1StateTests)
+
+    add_executable(CnaTamagotchiP1ProgramTests
+        tests/P1ProgramTests.cpp
+        src/Domain/P1Program.cpp
+    )
+    target_include_directories(CnaTamagotchiP1ProgramTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    add_test(NAME CnaTamagotchiP1ProgramTests COMMAND CnaTamagotchiP1ProgramTests)
 
     add_executable(CnaTamagotchiDisplayTests
         tests/MonochromeDisplayTests.cpp
