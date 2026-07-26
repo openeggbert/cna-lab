@@ -28,6 +28,14 @@ section { margin:5rem 0; }
 .lesson p { margin-bottom:0; font-size:.94rem; }
 .gallery { display:grid; grid-template-columns:repeat(2,1fr); gap:1.5rem; }
 .reference { text-align:center; }
+.detailed-course { max-width:920px; margin-inline:auto; }
+.course-intro { max-width:720px; }
+.guide-part { margin:1.25rem 0; padding:1.5rem 1.65rem; border:1px solid var(--line); border-radius:1.25rem; background:#fffdf9; box-shadow:0 12px 35px #97577710; }
+.guide-part > span { display:block; margin-bottom:.7rem; color:var(--pink-dark); font-size:.78rem; font-weight:900; letter-spacing:.12em; }
+.guide-part h3 { margin-bottom:.75rem; }
+.guide-part ol { margin:.9rem 0; padding-left:1.35rem; }
+.guide-part li { margin:.5rem 0; }
+.guide-check { margin:0; padding:.75rem .9rem; border-radius:.7rem; color:var(--lcd-ink); background:var(--lcd); font-size:.94rem; }
 .tip, .screen-card, .faq details { border:1px solid var(--line); border-radius:1.5rem; background:#fffdf9; padding:1.5rem; box-shadow:0 12px 35px #97577716; }
 .tip ol,.steps { padding-left:1.2rem; }
 .tip li,.steps li { margin:.65rem 0; }

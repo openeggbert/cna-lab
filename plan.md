@@ -37,10 +37,12 @@ will be copied.
 - [x] **4. 1-bit display and device renderer**
   - [x] Complete the independent 32 × 16 framebuffer with sprites, text, and
     clipped drawing helpers.
-  - [x] Draw an original egg-shaped shell, LCD, eight persistent shell icons,
+  - [x] Draw an original egg-shaped shell, LCD, eight persistent LCD icons,
     and three physical buttons as the first visible prototype.
   - [x] Add a palette selector and renderer tests.
   - [x] Scale LCD pixels with nearest-neighbour rendering and no anti-aliasing.
+  - [x] Move the eight care pictograms into permanent 4+4 LCD icon bands and
+    refine the device into a shorter original egg silhouette.
 
 - [ ] **5. First playable care loop**
   - [x] Implement A/B/C keyboard, mouse, and touch mapping, icon selection,
@@ -53,6 +55,8 @@ will be copied.
   - [x] Add a first original two-choice Peek mini-game with seed-backed outcomes.
   - [x] Add the Number higher/lower profile for the second creature line.
   - [x] Add brief 1-bit success and unavailable-action feedback animations.
+  - [x] Add a protected reset pinhole with hold-to-open and B/C confirmation;
+    retain the previous generation in a separate reset archive.
   - [x] Add the first original egg line: 11 creature forms plus an egg, with
     care-driven teen/adult resolution and tested 1-bit sprites.
   - [x] Add a second full original egg line with its own baby, child, teen,

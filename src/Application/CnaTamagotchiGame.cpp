@@ -27,13 +27,13 @@ namespace CnaTamagotchi::Application {
 namespace {
 
 constexpr int WindowWidth = 540;
-constexpr int WindowHeight = 760;
+constexpr int WindowHeight = 700;
 constexpr float BackgroundCycleSeconds = 32.0F;
 constexpr int DisplayScale = 8;
 constexpr int DisplayPixelWidth = Display::MonochromeDisplay::Width * DisplayScale;
 constexpr int DisplayPixelHeight = Display::MonochromeDisplay::Height * DisplayScale;
 constexpr int DisplayX = (WindowWidth - DisplayPixelWidth) / 2;
-constexpr int DisplayY = 302;
+constexpr int DisplayY = 280;
 
 struct Rgb final {
     std::uint8_t red;
@@ -52,21 +52,16 @@ Color asColor(const Display::LcdColour colour) noexcept
     return Color(colour.red, colour.green, colour.blue, 255U);
 }
 
-struct IconPosition final {
-    int x;
-    int y;
-};
-
 struct ButtonPosition final {
     int x;
 };
 
-constexpr std::array<IconPosition, 8> IconPositions{{
-    {151, 225}, {230, 209}, {310, 209}, {389, 225},
-    {151, 510}, {230, 526}, {310, 526}, {389, 510},
-}};
-
-constexpr int ButtonY = 601;
+constexpr int IconCount = 8;
+constexpr int ButtonY = 555;
+constexpr int ResetButtonX = 408;
+constexpr int ResetButtonY = 542;
+constexpr int ResetButtonRadius = 10;
+constexpr float ResetHoldSeconds = 1.5F;
 constexpr int ButtonHitRadius = 29;
 constexpr std::array<ButtonPosition, 3> ButtonPositions{{
     {202}, {270}, {338},
@@ -136,6 +131,7 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
         || keyboard.IsKeyDown(Keys::Space);
     const bool cancel = keyboard.IsKeyDown(Keys::C) || keyboard.IsKeyDown(Keys::Back)
         || keyboard.IsKeyDown(Keys::Escape);
+    bool resetHeld = keyboard.IsKeyDown(Keys::R);
 
     bool saveChanged = false;
     if (selectNext && !selectNextWasDown_) {
@@ -155,17 +151,25 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     const Touch::TouchCollection touches = Touch::TouchPanel::GetState();
     for (int index = 0; index < touches.getCountProperty(); ++index) {
         const Touch::TouchLocation& touch = touches[static_cast<std::size_t>(index)];
+        const Vector2& position = touch.getPositionProperty();
         if (touch.getStateProperty() == Touch::TouchLocationState::Pressed) {
-            const Vector2& position = touch.getPositionProperty();
             pointerButton = buttonAtWindowPosition(position.X, position.Y);
             if (pointerButton.has_value()) {
                 break;
             }
         }
+        if (touch.getStateProperty() == Touch::TouchLocationState::Pressed
+            || touch.getStateProperty() == Touch::TouchLocationState::Moved) {
+            resetHeld = resetHeld || resetAtWindowPosition(position.X, position.Y);
+        }
     }
 
     const MouseState mouse = Mouse::GetState();
     const bool mouseLeftDown = mouse.getLeftButtonProperty() == ButtonState::Pressed;
+    if (mouseLeftDown) {
+        resetHeld = resetHeld || resetAtWindowPosition(
+            static_cast<float>(mouse.getXProperty()), static_cast<float>(mouse.getYProperty()));
+    }
     if (!pointerButton.has_value() && mouseLeftDown && !mouseLeftWasDown_) {
         pointerButton = buttonAtWindowPosition(
             static_cast<float>(mouse.getXProperty()), static_cast<float>(mouse.getYProperty()));
@@ -180,7 +184,16 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     cancelWasDown_ = cancel;
     mouseLeftWasDown_ = mouseLeftDown;
 
-    if (screen_ != Screen::SaveRecovery) {
+    if (screen_ != Screen::SaveRecovery && screen_ != Screen::ResetConfirm) {
+        if (resetHeld) {
+            resetHoldSeconds_ += elapsedSeconds;
+            if (resetHoldSeconds_ >= ResetHoldSeconds) {
+                screen_ = Screen::ResetConfirm;
+                resetHoldSeconds_ = 0.0F;
+            }
+        } else {
+            resetHoldSeconds_ = 0.0F;
+        }
         simulationSeconds_ += elapsedSeconds;
         while (simulationSeconds_ >= 60.0F) {
             static_cast<void>(simulation_.advance(pet_, 1));
@@ -188,6 +201,8 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
             lastSavedUnixSeconds_ += 60;
             saveChanged = true;
         }
+    } else {
+        resetHoldSeconds_ = 0.0F;
     }
     if (saveChanged) {
         saveDirty_ = true;
@@ -198,6 +213,18 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
 
 bool CnaTamagotchiGame::pressButton(const DeviceButton button)
 {
+    if (screen_ == Screen::ResetConfirm) {
+        if (button == DeviceButton::B) {
+            const bool completed = resetCurrentSession();
+            setFeedback(completed ? Feedback::Success : Feedback::Blocked);
+            return completed;
+        }
+        if (button == DeviceButton::C) {
+            screen_ = Screen::Home;
+        }
+        return false;
+    }
+
     if (screen_ == Screen::SaveRecovery) {
         if (button == DeviceButton::A && recoveryBackupAvailable_) {
             recoveryChoice_ = recoveryChoice_ == RecoveryChoice::RestoreBackup
@@ -225,7 +252,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
     switch (button) {
     case DeviceButton::A:
         if (screen_ == Screen::Home) {
-            selectedIcon_ = (selectedIcon_ + 1) % static_cast<int>(IconPositions.size());
+            selectedIcon_ = (selectedIcon_ + 1) % IconCount;
         } else if (screen_ == Screen::Food) {
             foodSelection_ = (foodSelection_ + 1) % 2;
         } else if ((screen_ == Screen::Game || screen_ == Screen::NumberGame) && !gameResolved_) {
@@ -343,11 +370,27 @@ CnaTamagotchiGame::buttonAtWindowPosition(const float x, const float y) const no
     return std::nullopt;
 }
 
+bool CnaTamagotchiGame::resetAtWindowPosition(const float x, const float y) const noexcept
+{
+    const Rectangle clientBounds = getWindowProperty().getClientBoundsProperty();
+    if (clientBounds.Width <= 0 || clientBounds.Height <= 0) {
+        return false;
+    }
+
+    const float deviceX = x * static_cast<float>(WindowWidth)
+        / static_cast<float>(clientBounds.Width);
+    const float deviceY = y * static_cast<float>(WindowHeight)
+        / static_cast<float>(clientBounds.Height);
+    const float deltaX = deviceX - static_cast<float>(ResetButtonX);
+    const float deltaY = deviceY - static_cast<float>(ResetButtonY);
+    return deltaX * deltaX + deltaY * deltaY
+        <= static_cast<float>(ResetButtonRadius * ResetButtonRadius);
+}
+
 void CnaTamagotchiGame::moveSelectionBackward() noexcept
 {
     if (screen_ == Screen::Home) {
-        selectedIcon_ = (selectedIcon_ + static_cast<int>(IconPositions.size()) - 1)
-            % static_cast<int>(IconPositions.size());
+        selectedIcon_ = (selectedIcon_ + IconCount - 1) % IconCount;
     } else if (screen_ == Screen::Food) {
         foodSelection_ = (foodSelection_ + 1) % 2;
     } else if ((screen_ == Screen::Game || screen_ == Screen::NumberGame) && !gameResolved_) {
@@ -491,6 +534,16 @@ bool CnaTamagotchiGame::archiveAndStartFreshEgg()
     return true;
 }
 
+bool CnaTamagotchiGame::resetCurrentSession()
+{
+    if (savePath_.empty() || !saveRepository_.archiveResetSave(savePath_).success) {
+        return false;
+    }
+
+    startFreshEgg();
+    return true;
+}
+
 void CnaTamagotchiGame::saveNow()
 {
     if (smokeTest_ || !saveDirty_) {
@@ -578,23 +631,61 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
 {
     display_.clear();
 
-    if (screen_ == Screen::SaveRecovery) {
-        if (recoveryBackupAvailable_) {
-            display_.drawText(10, 0, "ERR");
-            display_.drawText(8, 6, "REST");
-            display_.drawText(10, 11, "NEW");
-            const int markerY = recoveryChoice_ == RecoveryChoice::RestoreBackup ? 7 : 12;
-            display_.setPixel(4, markerY, true);
-            display_.setPixel(5, markerY + 1, true);
-            display_.setPixel(4, markerY + 2, true);
-        } else {
-            display_.drawText(8, 1, "NONE");
-            display_.drawText(10, 9, "NEW");
-            display_.setPixel(4, 10, true);
-            display_.setPixel(5, 11, true);
-            display_.setPixel(4, 12, true);
+    // The original-style device face keeps all eight care pictograms inside
+    // the 32 × 16 LCD: four above the creature and four below it. A selected
+    // or urgent icon is inverted, which remains legible on a true one-bit LCD.
+    const auto drawLcdIcon = [this](const int index) {
+        const int slotX = (index % 4) * 8;
+        const int slotY = index < 4 ? 0 : 13;
+        const bool urgent = (index == 3 && pet_.sick)
+            || (index == 4 && pet_.wasteCount > 0)
+            || (index == 7 && pet_.attentionReason != Domain::AttentionReason::None);
+        const bool inverted = index == selectedIcon_ || urgent;
+        if (inverted) {
+            display_.fillRectangle(slotX, slotY, 8, 3, true);
         }
-        return;
+        const auto pixel = [this, slotX, slotY, inverted](const int x, const int y) {
+            display_.setPixel(slotX + x, slotY + y, !inverted);
+        };
+
+        switch (index) {
+        case 0: // fork and knife / Food
+            pixel(2, 0); pixel(3, 0); pixel(4, 0); pixel(3, 1); pixel(3, 2);
+            pixel(6, 0); pixel(6, 1); pixel(5, 2); pixel(6, 2);
+            break;
+        case 1: // small sun / Light
+            pixel(1, 0); pixel(3, 0); pixel(5, 0); pixel(2, 1); pixel(3, 1);
+            pixel(4, 1); pixel(3, 2);
+            break;
+        case 2: // ball / Game
+            pixel(2, 0); pixel(3, 0); pixel(1, 1); pixel(2, 1); pixel(3, 1);
+            pixel(4, 1); pixel(2, 2); pixel(3, 2);
+            break;
+        case 3: // compact medicine cross
+            pixel(3, 0); pixel(2, 1); pixel(3, 1); pixel(4, 1); pixel(3, 2);
+            break;
+        case 4: // toilet / Clean
+            pixel(1, 0); pixel(2, 0); pixel(3, 0); pixel(4, 0); pixel(2, 1);
+            pixel(3, 1); pixel(4, 1); pixel(3, 2); pixel(4, 2);
+            break;
+        case 5: // scale / Status
+            pixel(3, 0); pixel(1, 1); pixel(2, 1); pixel(3, 1); pixel(4, 1);
+            pixel(5, 1); pixel(2, 2); pixel(4, 2);
+            break;
+        case 6: // bell / Discipline
+            pixel(3, 0); pixel(2, 1); pixel(3, 1); pixel(4, 1); pixel(1, 2);
+            pixel(2, 2); pixel(3, 2); pixel(4, 2); pixel(5, 2);
+            break;
+        case 7: // clock / Attention
+            pixel(2, 0); pixel(3, 0); pixel(4, 0); pixel(1, 1); pixel(3, 1);
+            pixel(4, 1); pixel(2, 2); pixel(3, 2); pixel(4, 2);
+            break;
+        default:
+            break;
+        }
+    };
+    for (int index = 0; index < IconCount; ++index) {
+        drawLcdIcon(index);
     }
 
     const auto drawHeartMeter = [this](const int firstX, const int firstY, const int value) {
@@ -608,11 +699,34 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         }
     };
 
+    if (screen_ == Screen::SaveRecovery) {
+        if (recoveryBackupAvailable_) {
+            display_.drawText(8, 3, "REST");
+            display_.drawText(10, 8, "NEW");
+            const int markerY = recoveryChoice_ == RecoveryChoice::RestoreBackup ? 4 : 9;
+            display_.setPixel(4, markerY, true);
+            display_.setPixel(5, markerY + 1, true);
+            display_.setPixel(4, markerY + 2, true);
+        } else {
+            display_.drawText(8, 3, "NONE");
+            display_.drawText(10, 8, "NEW");
+            display_.setPixel(4, 9, true);
+            display_.setPixel(5, 10, true);
+            display_.setPixel(4, 11, true);
+        }
+        return;
+    }
+
+    if (screen_ == Screen::ResetConfirm) {
+        display_.drawText(6, 3, "RESET");
+        display_.drawText(8, 8, "SURE");
+        return;
+    }
+
     if (screen_ == Screen::Food) {
-        display_.drawText(8, 0, "FOOD");
-        display_.drawText(6, 6, "MEAL");
-        display_.drawText(6, 11, "SNACK");
-        const int markerY = foodSelection_ == 0 ? 7 : 12;
+        display_.drawText(6, 3, "MEAL");
+        display_.drawText(6, 8, "SNACK");
+        const int markerY = foodSelection_ == 0 ? 4 : 9;
         display_.setPixel(1, markerY, true);
         display_.setPixel(2, markerY + 1, true);
         display_.setPixel(1, markerY + 2, true);
@@ -623,150 +737,125 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         if (statusPage_ == 0) {
             const std::string age = "AGE" + std::to_string(pet_.ageMinutes / (24 * 60));
             const std::string weight = "WGT" + std::to_string(pet_.weight);
-            display_.drawText(2, 1, age);
-            display_.drawText(2, 9, weight);
+            display_.drawText(2, 3, age);
+            display_.drawText(2, 8, weight);
         } else if (statusPage_ == 1) {
-            display_.drawText(8, 0, "HUNG");
-            drawHeartMeter(12, 6, pet_.needs.hunger);
-            display_.drawText(8, 8, "HAPP");
-            drawHeartMeter(12, 14, pet_.needs.happiness);
+            display_.drawText(1, 3, "HUN");
+            drawHeartMeter(20, 5, pet_.needs.hunger);
+            display_.drawText(1, 8, "HAP");
+            drawHeartMeter(20, 10, pet_.needs.happiness);
         } else if (statusPage_ == 2) {
-            display_.drawText(8, 0, "DISC");
-            drawHeartMeter(12, 6, pet_.needs.discipline);
+            display_.drawText(1, 3, "DIS");
+            drawHeartMeter(20, 5, pet_.needs.discipline);
             const std::string mistakes = "MIST" + std::to_string(pet_.careMistakes);
-            display_.drawText(2, 9, mistakes);
+            display_.drawText(2, 8, mistakes);
         } else {
-            display_.drawText(8, 1, "LINE");
+            display_.drawText(8, 3, "LINE");
             display_.drawText(pet_.species == Domain::PetSpecies::Mossling ? 10 : 8,
-                9, pet_.species == Domain::PetSpecies::Mossling ? "NUM" : "PEEK");
+                8, pet_.species == Domain::PetSpecies::Mossling ? "NUM" : "PEEK");
         }
         return;
     }
 
     if (screen_ == Screen::Game) {
         if (gameResolved_) {
-            display_.drawText(gameWon_ ? 10 : 8, 5, gameWon_ ? "WIN" : "LOSE");
+            display_.drawText(gameWon_ ? 10 : 8, 6, gameWon_ ? "WIN" : "LOSE");
             return;
         }
 
-        display_.drawText(8, 0, "PICK");
+        display_.drawText(8, 3, "PICK");
         // Two deliberately abstract peek positions; the selected position is
         // marked below it, rather than using a modern text button.
         for (const int x : {8, 23}) {
-            display_.setPixel(x, 7, true);
-            display_.setPixel(x + 1, 7, true);
             display_.setPixel(x, 8, true);
             display_.setPixel(x + 1, 8, true);
             display_.setPixel(x, 9, true);
             display_.setPixel(x + 1, 9, true);
-            display_.setPixel(x - 1, 10, true);
             display_.setPixel(x, 10, true);
             display_.setPixel(x + 1, 10, true);
-            display_.setPixel(x + 2, 10, true);
+            display_.setPixel(x - 1, 11, true);
+            display_.setPixel(x, 11, true);
+            display_.setPixel(x + 1, 11, true);
+            display_.setPixel(x + 2, 11, true);
         }
         const int markerX = gameChoice_ == 0 ? 8 : 23;
-        display_.setPixel(markerX, 13, true);
-        display_.setPixel(markerX + 1, 14, true);
-        display_.setPixel(markerX, 15, true);
+        display_.setPixel(markerX, 12, true);
         return;
     }
 
     if (screen_ == Screen::NumberGame) {
         if (gameResolved_) {
-            display_.drawText(gameWon_ ? 10 : 8, 5, gameWon_ ? "WIN" : "LOSE");
+            display_.drawText(gameWon_ ? 10 : 8, 6, gameWon_ ? "WIN" : "LOSE");
             return;
         }
 
-        display_.drawText(10, 0, "NUM");
-        display_.drawText(14, 5, std::to_string(currentNumber_));
+        display_.drawText(10, 3, "NUM");
+        display_.drawText(14, 8, std::to_string(currentNumber_));
         if (gameChoice_ == 0) { // lower
+            display_.setPixel(16, 10, true);
+            display_.setPixel(15, 11, true);
+            display_.setPixel(16, 11, true);
+            display_.setPixel(17, 11, true);
+            display_.setPixel(16, 12, true);
+        } else { // higher
+            display_.setPixel(16, 10, true);
             display_.setPixel(16, 11, true);
             display_.setPixel(15, 12, true);
             display_.setPixel(16, 12, true);
             display_.setPixel(17, 12, true);
-            display_.setPixel(16, 13, true);
-            display_.setPixel(16, 14, true);
-        } else { // higher
-            display_.setPixel(16, 11, true);
-            display_.setPixel(16, 12, true);
-            display_.setPixel(15, 13, true);
-            display_.setPixel(16, 13, true);
-            display_.setPixel(17, 13, true);
-            display_.setPixel(16, 14, true);
         }
         return;
     }
 
     if (pet_.lifeStage == Domain::LifeStage::Farewell) {
-        display_.drawText(10, 0, "NEW");
-        const Domain::CreatureSprite& sprite = Domain::CreatureCatalog::spriteFor(
-            Domain::CreatureCatalog::formFor(pet_));
-        display_.drawSprite(11, 5, sprite.rows);
+        display_.drawText(10, 6, "NEW");
         return;
     }
 
-    drawHeartMeter(0, 0, pet_.needs.hunger);
-    drawHeartMeter(12, 0, pet_.needs.happiness);
-    drawHeartMeter(24, 0, pet_.needs.discipline);
+    drawHeartMeter(1, 3, pet_.needs.hunger);
+    drawHeartMeter(1, 6, pet_.needs.happiness);
+    drawHeartMeter(1, 9, pet_.needs.discipline);
 
     const Domain::CreatureForm form = Domain::CreatureCatalog::formFor(pet_);
     const Domain::CreatureSprite& sprite = Domain::CreatureCatalog::spriteFor(form);
-    display_.drawSprite(11, 4, sprite.rows);
-
-    // Tiny floor and two stars keep the first 1-bit screen immediately legible.
-    display_.fillRectangle(5, 14, 22, 1, true);
-    display_.setPixel(5, 4, true);
-    display_.setPixel(4, 4, true);
-    display_.setPixel(5, 3, true);
-    display_.setPixel(27, 3, true);
-    display_.setPixel(28, 3, true);
-    display_.setPixel(28, 4, true);
+    display_.drawSprite(13, 3, sprite.rows);
 
     if (pet_.asleep) {
-        display_.setPixel(27, 6, true);
-        display_.setPixel(28, 6, true);
-        display_.setPixel(28, 7, true);
+        display_.setPixel(27, 4, true);
+        display_.setPixel(28, 4, true);
+        display_.setPixel(28, 5, true);
     }
 
     if (pet_.sick) {
-        display_.setPixel(2, 6, true);
-        display_.setPixel(1, 7, true);
-        display_.setPixel(2, 7, true);
-        display_.setPixel(3, 7, true);
-        display_.setPixel(2, 8, true);
+        display_.setPixel(28, 7, true);
+        display_.setPixel(27, 8, true);
+        display_.setPixel(28, 8, true);
+        display_.setPixel(29, 8, true);
+        display_.setPixel(28, 9, true);
     }
 
     const int visibleWaste = std::min(pet_.wasteCount, 2);
     for (int waste = 0; waste < visibleWaste; ++waste) {
-        const int x = 2 + waste * 4;
+        const int x = 26 + waste * 3;
+        display_.setPixel(x + 1, 10, true);
+        display_.setPixel(x, 11, true);
         display_.setPixel(x + 1, 11, true);
-        display_.setPixel(x, 12, true);
+        display_.setPixel(x + 2, 11, true);
         display_.setPixel(x + 1, 12, true);
-        display_.setPixel(x + 2, 12, true);
-        display_.setPixel(x, 13, true);
-        display_.setPixel(x + 1, 13, true);
-        display_.setPixel(x + 2, 13, true);
-    }
-
-    if (pet_.attentionReason != Domain::AttentionReason::None) {
-        display_.setPixel(29, 3, true);
-        display_.setPixel(30, 3, true);
-        display_.setPixel(29, 4, true);
-        display_.setPixel(30, 4, true);
     }
 
     if (feedback_ == Feedback::Success) {
-        display_.setPixel(24, 9, true);
-        display_.setPixel(23, 10, true);
-        display_.setPixel(24, 10, true);
-        display_.setPixel(25, 10, true);
-        display_.setPixel(24, 11, true);
+        display_.setPixel(24, 5, true);
+        display_.setPixel(23, 6, true);
+        display_.setPixel(24, 6, true);
+        display_.setPixel(25, 6, true);
+        display_.setPixel(24, 7, true);
     } else if (feedback_ == Feedback::Blocked) {
-        display_.setPixel(23, 9, true);
-        display_.setPixel(25, 9, true);
-        display_.setPixel(24, 10, true);
-        display_.setPixel(23, 11, true);
-        display_.setPixel(25, 11, true);
+        display_.setPixel(23, 5, true);
+        display_.setPixel(25, 5, true);
+        display_.setPixel(24, 6, true);
+        display_.setPixel(23, 7, true);
+        display_.setPixel(25, 7, true);
     }
 }
 
@@ -787,6 +876,23 @@ void CnaTamagotchiGame::drawDevice()
         }
     };
 
+    const auto drawEgg = [&drawRect](const int centreX, const int centreY,
+                                     const int radiusX, const int radiusY,
+                                     const Color colour) {
+        for (int y = -radiusY; y <= radiusY; ++y) {
+            const float normalizedY = static_cast<float>(y) / static_cast<float>(radiusY);
+            const float ovalWidth = std::sqrt(std::max(
+                0.0F, 1.0F - normalizedY * normalizedY));
+            // A narrower crown and a slightly lower widest point make this an
+            // egg rather than the previous tall, symmetric capsule.
+            const float lowerHalf = (normalizedY + 1.0F) * 0.5F;
+            const float taper = 0.82F + lowerHalf * 0.26F;
+            const int halfWidth = static_cast<int>(
+                ovalWidth * taper * static_cast<float>(radiusX));
+            drawRect(Rectangle(centreX - halfWidth, centreY + y, halfWidth * 2 + 1, 1), colour);
+        }
+    };
+
     const auto drawRing = [&drawEllipse](const int centreX, const int centreY,
                                         const int radius, const Color outer, const Color inner) {
         drawEllipse(centreX, centreY, radius, radius, outer);
@@ -798,16 +904,17 @@ void CnaTamagotchiGame::drawDevice()
     const Color lcdOff = asColor(lcdColours.off);
     const Color lcdOn = asColor(lcdColours.on);
 
-    // Drop shadow, shell rim, and inner egg. The geometry is original rather
-    // than reproducing a specific commercial shell pattern.
-    drawEllipse(278, 684, 151, 15, Color(178, 129, 111, 44));
-    drawEllipse(270, 392, 204, 310, ShellOutline);
-    drawEllipse(270, 388, 193, 299, ShellMain);
-    drawEllipse(238, 340, 128, 223, ShellHighlight);
+    // Drop shadow, shell rim, and inner egg. The shorter, tapered silhouette
+    // is original, while retaining the broad handheld proportions of a
+    // 1990s virtual-pet device.
+    drawEllipse(278, 638, 164, 15, Color(178, 129, 111, 44));
+    drawEgg(270, 348, 220, 272, ShellOutline);
+    drawEgg(270, 346, 208, 260, ShellMain);
+    drawEllipse(238, 318, 135, 190, ShellHighlight);
 
     // Small keychain tab: recognisable, but deliberately generic.
-    drawRing(270, 83, 20, ShellOutline, backgroundColor());
-    drawRing(270, 83, 14, ShellMain, backgroundColor());
+    drawRing(270, 72, 20, ShellOutline, backgroundColor());
+    drawRing(270, 72, 14, ShellMain, backgroundColor());
 
     // The recessed LCD is exactly 32 × 16 logical pixels at 8× scale.
     drawRect(Rectangle(DisplayX - 12, DisplayY - 12,
@@ -829,68 +936,18 @@ void CnaTamagotchiGame::drawDevice()
         }
     }
 
-    // Eight care symbols in two shell bands. The first bowl is active.
-    for (std::size_t index = 0; index < IconPositions.size(); ++index) {
-        const IconPosition position = IconPositions[index];
-        const bool selected = static_cast<int>(index) == selectedIcon_;
-        if (selected) {
-            drawEllipse(position.x, position.y, 18, 18, ShellHighlight);
-        }
-        const bool active = (index == 3 && pet_.sick)
-            || (index == 4 && pet_.wasteCount > 0)
-            || (index == 7 && pet_.attentionReason != Domain::AttentionReason::None);
-        const Color icon = selected || active ? Ink : ShellShadow;
-        const Color cutout = ShellMain;
-
-        switch (index) {
-        case 0: // bowl
-            drawEllipse(position.x, position.y + 3, 13, 7, icon);
-            drawRect(Rectangle(position.x - 15, position.y - 5, 30, 4), icon);
-            drawRect(Rectangle(position.x - 10, position.y - 1, 20, 4), cutout);
-            break;
-        case 1: // moon / light
-            drawEllipse(position.x, position.y, 12, 12, icon);
-            drawEllipse(position.x + 5, position.y - 4, 11, 11, cutout);
-            break;
-        case 2: // ball / game
-            drawRing(position.x, position.y, 12, icon, cutout);
-            drawRect(Rectangle(position.x - 2, position.y - 12, 4, 24), icon);
-            break;
-        case 3: // health cross / medicine
-            drawRect(Rectangle(position.x - 4, position.y - 13, 8, 26), icon);
-            drawRect(Rectangle(position.x - 13, position.y - 4, 26, 8), icon);
-            break;
-        case 4: // cleaning droplet
-            drawEllipse(position.x, position.y + 4, 9, 12, icon);
-            drawRect(Rectangle(position.x - 3, position.y - 12, 6, 19), icon);
-            break;
-        case 5: // heart / status
-            drawEllipse(position.x - 6, position.y - 4, 7, 7, icon);
-            drawEllipse(position.x + 6, position.y - 4, 7, 7, icon);
-            drawRect(Rectangle(position.x - 9, position.y - 3, 18, 12), icon);
-            drawEllipse(position.x, position.y + 8, 5, 5, icon);
-            break;
-        case 6: // bell / discipline
-            drawEllipse(position.x, position.y + 5, 12, 9, icon);
-            drawRect(Rectangle(position.x - 10, position.y - 5, 20, 12), icon);
-            drawEllipse(position.x, position.y + 13, 3, 3, icon);
-            break;
-        case 7: // attention marker
-            drawRect(Rectangle(position.x - 3, position.y - 14, 6, 28), icon);
-            drawRect(Rectangle(position.x - 14, position.y - 3, 28, 6), icon);
-            drawRect(Rectangle(position.x - 9, position.y - 9, 18, 18), icon);
-            break;
-        default:
-            break;
-        }
-    }
-
     // Three physical controls: A changes selection, B confirms, C clears it.
     for (const ButtonPosition button : ButtonPositions) {
         drawEllipse(button.x, ButtonY + 4, 25, 25, ShellOutline);
         drawEllipse(button.x, ButtonY, 20, 20, ShellHighlight);
         drawEllipse(button.x - 3, ButtonY - 4, 8, 8, Color(255, 238, 244, 255));
     }
+
+    // A small recessed reset pinhole sits apart from the three care controls.
+    // Hold it (or the desktop R key) before the LCD asks for B/C confirmation.
+    drawEllipse(ResetButtonX, ResetButtonY, ResetButtonRadius, ResetButtonRadius, ShellOutline);
+    drawEllipse(ResetButtonX, ResetButtonY, ResetButtonRadius - 3, ResetButtonRadius - 3,
+        ShellShadow);
 }
 
 void CnaTamagotchiGame::OnExiting(System::Object* const sender,

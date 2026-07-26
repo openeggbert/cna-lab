@@ -61,20 +61,22 @@ The device has three clickable/keyboard-mappable controls:
 | B / confirm | Enter, Space, `B` | Open or confirm the selected action |
 | C / back | `C`, Backspace | Cancel and return selection to the meal icon |
 
-In the shell, not inside the 32 × 16 LCD, use eight small pictograms split in
-two bands. The active selection is dark; inactive icons use the shell's
-shadow colour. The first proposed menu set is:
+Inside the 32 × 16 LCD, use eight small pictograms split into a top and bottom
+band. The selected or urgent icon is inverted against the one-bit LCD, while
+the central ten rows remain available for the creature and care information.
+The implemented menu set is:
 
 | Top band | Purpose | Bottom band | Purpose |
 | --- | --- | --- | --- |
-| Bowl | Meal / snack | Toilet | Clean messes |
-| Ball | Mini-game | Health cross | Diagnose / medicine |
-| Moon | Light / sleep | Heart graph | Need and age status |
-| Bell | Attention log | Star | Care journal / memories |
+| Fork / knife | Meal / snack | Toilet | Clean messes |
+| Sun | Light / sleep | Scale | Need and age status |
+| Ball | Mini-game | Bell | Discipline for false calls |
+| Medicine cross | Treat illness | Clock | Automatic attention indicator |
 
-Discipline is an in-screen action on the attention log, avoiding a ninth
-permanent icon. Settings (sound, shell, accessibility, export/import) belong
-in the start screen and pause menu, not the toy face.
+Settings (sound, shell, accessibility, export/import) belong in the start
+screen and pause menu, not the toy face. A small recessed reset pinhole is
+separate from A/B/C; it requires a 1.5-second hold and an on-LCD B/C
+confirmation before creating a fresh generation.
 
 ## Game-system proposal
 

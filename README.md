@@ -21,8 +21,8 @@ development terminology.
 ## Current prototype
 
 The current build already opens a CNA window and renders an original pastel
-egg-shaped device with a 32 × 16 one-bit LCD, eight shell icons, three physical
-controls, and two complete original creature lines. It also has an early
+egg-shaped device with a 32 × 16 one-bit LCD, eight in-LCD icon-band
+pictograms, three primary physical controls, and two complete original creature lines. It also has an early
 deterministic pet simulator and a tested JSON save repository. The current
 care slice renders four hunger, happiness, and discipline segments; schedules
 sleep; handles waste; requests attention for empty needs, light, and false
@@ -47,6 +47,11 @@ The reference target is the first-generation 1996/1997 device (commonly called
 P1/P2 by fans), not a later connected, colour, or online Tamagotchi model.
 The original has a **32 × 16 pixel** monochrome LCD, two icon bands, and three
 buttons. [Technical reference](https://tamagotchi.fandom.com/wiki/Tamagotchi_(1996_Pet))
+
+This is a hardware-and-interaction reference, not a literal Bandai P1 or P2
+reimplementation. The current game is an original P1/P2-era hybrid: it keeps
+the early-device care rhythm and constraints while using its own creature
+lines, games, sprites, rules, reset safety, and save format.
 
 `cna-tamagotchi` therefore uses a permanent **32 × 16 logical LCD**. Every LCD
 pixel is either off (muted yellow-green) or on (near-black), with integer
@@ -79,10 +84,18 @@ on Food opens a Meal/Snack menu, and B on Status advances its three compact
 data pages plus a line/game-profile page. Left is a temporary desktop convenience for moving backwards
 through choices.
 
-## Shell icons and menus
+The recessed pinhole at the lower-right of the shell simulates hardware reset
+without making it an accidental fourth care control. Hold it with the mouse,
+or hold `R`, for about 1.5 seconds; the LCD then requires B to confirm or C to
+cancel. A confirmed reset archives the active slot as `.reset` before starting
+a fresh egg.
 
-Eight original-drawn pictograms will sit outside the LCD in two bands. Their
-function follows the early-device pattern while their artwork remains original.
+## LCD icon bands and menus
+
+Eight original-drawn 1-bit pictograms sit *inside* the LCD in two permanent
+bands: four above the creature and four below it. Their function follows the
+early-device pattern while their artwork remains original. The selected or
+urgent pictogram is inverted on the one-bit background.
 
 | Top band | Function | Behaviour |
 | --- | --- | --- |

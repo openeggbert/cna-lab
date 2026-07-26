@@ -145,6 +145,11 @@ void testBackupRestorationAndCorruptArchive()
     expect(std::filesystem::exists(path.string() + ".corrupt.1"),
         "recovery archives must never overwrite an earlier damaged save");
 
+    expect(repository.save(path, currentData).success, "a reset test save must succeed");
+    expect(repository.archiveResetSave(path).success, "an explicit reset must archive its active save");
+    expect(std::filesystem::exists(path.string() + ".reset"),
+        "an explicit reset must retain the prior generation separately from corrupt saves");
+
     std::filesystem::remove_all(directory, error);
 }
 

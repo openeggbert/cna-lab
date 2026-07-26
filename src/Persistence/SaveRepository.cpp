@@ -306,7 +306,9 @@ SaveResult SaveRepository::restoreBackup(const std::filesystem::path& path) cons
     return SaveResult{.success = true, .error = {}};
 }
 
-SaveResult SaveRepository::archiveCorruptSave(const std::filesystem::path& path) const
+namespace {
+
+SaveResult archiveSaveFile(const std::filesystem::path& path, const std::string_view suffix)
 {
     if (path.empty() || path.filename().empty()) {
         return SaveResult{.success = false, .error = "Save path must name a file."};
@@ -316,36 +318,48 @@ SaveResult SaveRepository::archiveCorruptSave(const std::filesystem::path& path)
     if (!std::filesystem::exists(path, error)) {
         if (error) {
             return SaveResult{.success = false,
-                .error = "Could not inspect the damaged save: " + error.message()};
+                .error = "Could not inspect the save for archiving: " + error.message()};
         }
         return SaveResult{.success = true, .error = {}};
     }
 
     for (int index = 0; index < 1'000; ++index) {
-        const std::filesystem::path archivePath = path.string() + ".corrupt"
+        const std::filesystem::path archivePath = path.string() + std::string(suffix)
             + (index == 0 ? std::string{} : "." + std::to_string(index));
         if (std::filesystem::exists(archivePath, error)) {
             if (error) {
                 return SaveResult{.success = false,
-                    .error = "Could not inspect a recovery archive: " + error.message()};
+                    .error = "Could not inspect a save archive: " + error.message()};
             }
             continue;
         }
         if (error) {
             return SaveResult{.success = false,
-                .error = "Could not inspect a recovery archive: " + error.message()};
+                .error = "Could not inspect a save archive: " + error.message()};
         }
 
         std::filesystem::rename(path, archivePath, error);
         if (error) {
             return SaveResult{.success = false,
-                .error = "Could not archive the damaged save: " + error.message()};
+                .error = "Could not archive the save: " + error.message()};
         }
         return SaveResult{.success = true, .error = {}};
     }
 
     return SaveResult{.success = false,
-        .error = "Could not archive the damaged save: too many recovery archives exist."};
+        .error = "Could not archive the save: too many archives exist."};
+}
+
+} // namespace
+
+SaveResult SaveRepository::archiveCorruptSave(const std::filesystem::path& path) const
+{
+    return archiveSaveFile(path, ".corrupt");
+}
+
+SaveResult SaveRepository::archiveResetSave(const std::filesystem::path& path) const
+{
+    return archiveSaveFile(path, ".reset");
 }
 
 } // namespace CnaTamagotchi::Persistence

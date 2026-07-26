@@ -41,6 +41,7 @@ private:
         Game,
         NumberGame,
         SaveRecovery,
+        ResetConfirm,
     };
 
     enum class DeviceButton {
@@ -63,11 +64,13 @@ private:
     [[nodiscard]] Microsoft::Xna::Framework::Color backgroundColor() const;
     [[nodiscard]] bool pressButton(DeviceButton button);
     [[nodiscard]] std::optional<DeviceButton> buttonAtWindowPosition(float x, float y) const noexcept;
+    [[nodiscard]] bool resetAtWindowPosition(float x, float y) const noexcept;
     void moveSelectionBackward() noexcept;
     [[nodiscard]] bool loadSave();
     [[nodiscard]] bool activateSave(const Persistence::SaveData& data);
     [[nodiscard]] bool restoreBackup();
     [[nodiscard]] bool archiveAndStartFreshEgg();
+    [[nodiscard]] bool resetCurrentSession();
     void saveNow();
     void startPeekGame() noexcept;
     void startNumberGame() noexcept;
@@ -98,6 +101,7 @@ private:
     int currentNumber_{0};
     int nextNumber_{0};
     float feedbackSeconds_{0.0F};
+    float resetHoldSeconds_{0.0F};
     std::int64_t lastSavedUnixSeconds_{0};
     std::uint64_t seed_{0};
     bool gameResolved_{false};
