@@ -1,0 +1,37 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "sdl-renderer",
+      "displayName": "Desktop — SDL Renderer",
+      "description": "Portable 2D development build.",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/cmake-build-sdl-renderer",
+      "cacheVariables": {
+        "CNA_GRAPHICS_BACKEND": "SDL_RENDERER"
+      }
+    },
+    {
+      "name": "headless",
+      "displayName": "Headless — domain/test build",
+      "description": "No graphics window; reserved for future automated tests.",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/cmake-build-headless",
+      "cacheVariables": {
+        "CNA_GRAPHICS_BACKEND": "HEADLESS"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "sdl-renderer", "configurePreset": "sdl-renderer", "targets": ["CnaTamagotchi"] },
+    { "name": "headless", "configurePreset": "headless", "targets": ["CnaTamagotchi"] }
+  ]
+}
