@@ -2,164 +2,78 @@
 
 [Back to master plan](../plan.md)
 
+Make MC3 a validated, reproducible, hand-authored source format for constructional content. Content is authored by a person in Mesh Craft/MC3 and Blender; AI may assist an author (suggesting geometry, drafting a first pass) but does not run as an autonomous content generator. Procedural building/road/interior/prop generation is explicitly out of scope for v1 — see the last section.
 
-Make MC3 a validated, AI-friendly, reproducible source format for constructional content.
+## Schema and format foundations
 
 - [ ] **IS-09-001 P0** — Keep the supplied MC3 schema version in the source manifest.
 - [ ] **IS-09-002 P0** — Add MC3 schema validation to the asset build script.
 - [ ] **IS-09-003 P0** — Make invalid MC3 fail the build with file and line diagnostics.
-- [ ] **IS-09-004 P0** — Generate one production-path building in MC3 and load its converted output.
-- [ ] **IS-09-005 P0** — Generate one production-path street prop set in MC3.
+- [ ] **IS-09-004 P0** — Author one production-path building in MC3 and load its converted output.
+- [ ] **IS-09-005 P0** — Author one production-path street prop set in MC3.
 - [ ] **IS-09-006 P1** — Define Iron Shadows naming, units, axes, pivots, tags, and layer conventions for MC3.
 - [ ] **IS-09-007 P1** — Define allowed MC3 collision values and required metadata.
-- [ ] **IS-09-008 P1** — Define definition/instance conventions for repeated objects.
+- [ ] **IS-09-008 P1** — Define definition/instance conventions for repeated objects (lamps, benches, signs) authored once and placed many times.
 - [ ] **IS-09-009 P1** — Define material and texture-reference conventions.
 - [ ] **IS-09-010 P1** — Define building facade, floor, room, door, window, and portal conventions.
 - [ ] **IS-09-011 P1** — Define road, sidewalk, curb, lane, crossing, and sign conventions.
-- [ ] **IS-09-012 P1** — Define logical area and trigger conventions.
+- [ ] **IS-09-012 P1** — Define logical area and trigger conventions for missions.
 - [ ] **IS-09-013 P1** — Define animation clip naming for doors, gates, lifts, fans, and machines.
-- [ ] **IS-09-014 P1** — Create MC3 lint checks beyond XSD validation.
-- [ ] **IS-09-015 P1** — Create deterministic MC3 formatting and canonicalization.
-- [ ] **IS-09-016 P1** — Create MC3 include/prefab strategy without uncontrolled duplication.
-- [ ] **IS-09-017 P1** — Create an AI prompt contract for generating valid MC3.
-- [ ] **IS-09-018 P1** — Create an AI repair loop driven by schema/lint diagnostics.
-- [ ] **IS-09-019 P1** — Create visual golden scenes for every supported MC3 construction feature.
-- [ ] **IS-09-020 P2** — Add custom metadata namespacing for Iron Shadows.
-- [ ] **IS-09-021 P2** — Create approximate-CSG policy and warnings.
-- [ ] **IS-09-022 P2** — Create UV-generation policy for CSG/extrude output.
-- [ ] **IS-09-023 P2** — Create flat/smooth normal policies for generated geometry.
-- [ ] **IS-09-024 P2** — Create MC3 complexity budgets to prevent pathological generated files.
-- [ ] **IS-09-025 P2** — Create a migration tool when the MC3 schema version changes.
-- [ ] **IS-09-026 P1** — Define the scope, responsibilities, and explicit non-goals of MC3 schema validator.
-- [ ] **IS-09-027 P1** — Define the public C++ API and ownership rules for MC3 schema validator.
-- [ ] **IS-09-028 P1** — Define versioned configuration or asset data for MC3 schema validator.
-- [ ] **IS-09-029 P1** — Implement the smallest deterministic reference path for MC3 schema validator.
-- [ ] **IS-09-030 P1** — Add input validation and actionable failure reporting to MC3 schema validator.
-- [ ] **IS-09-031 P1** — Add focused unit tests for MC3 schema validator.
-- [ ] **IS-09-032 P1** — Add an integration scenario that exercises MC3 schema validator in a running game flow.
-- [ ] **IS-09-033 P2** — Add logging, counters, and debug inspection for MC3 schema validator.
-- [ ] **IS-09-034 P2** — Add an in-world or overlay debug visualization for MC3 schema validator.
-- [ ] **IS-09-035 P2** — Define CPU, memory, latency, and content budgets for MC3 schema validator.
-- [ ] **IS-09-036 P2** — Profile MC3 schema validator under a representative worst-case scene.
-- [ ] **IS-09-037 P2** — Document usage examples, invariants, and common failure modes for MC3 schema validator.
-- [ ] **IS-09-038 P1** — Define the scope, responsibilities, and explicit non-goals of MC3 linter.
-- [ ] **IS-09-039 P1** — Define the public C++ API and ownership rules for MC3 linter.
-- [ ] **IS-09-040 P1** — Define versioned configuration or asset data for MC3 linter.
-- [ ] **IS-09-041 P1** — Implement the smallest deterministic reference path for MC3 linter.
-- [ ] **IS-09-042 P1** — Add input validation and actionable failure reporting to MC3 linter.
-- [ ] **IS-09-043 P1** — Add focused unit tests for MC3 linter.
-- [ ] **IS-09-044 P1** — Add an integration scenario that exercises MC3 linter in a running game flow.
-- [ ] **IS-09-045 P2** — Add logging, counters, and debug inspection for MC3 linter.
-- [ ] **IS-09-046 P2** — Add an in-world or overlay debug visualization for MC3 linter.
-- [ ] **IS-09-047 P2** — Define CPU, memory, latency, and content budgets for MC3 linter.
-- [ ] **IS-09-048 P2** — Profile MC3 linter under a representative worst-case scene.
-- [ ] **IS-09-049 P2** — Document usage examples, invariants, and common failure modes for MC3 linter.
-- [ ] **IS-09-050 P1** — Define the scope, responsibilities, and explicit non-goals of MC3 canonical formatter.
-- [ ] **IS-09-051 P1** — Define the public C++ API and ownership rules for MC3 canonical formatter.
-- [ ] **IS-09-052 P1** — Define versioned configuration or asset data for MC3 canonical formatter.
-- [ ] **IS-09-053 P1** — Implement the smallest deterministic reference path for MC3 canonical formatter.
-- [ ] **IS-09-054 P1** — Add input validation and actionable failure reporting to MC3 canonical formatter.
-- [ ] **IS-09-055 P1** — Add focused unit tests for MC3 canonical formatter.
-- [ ] **IS-09-056 P1** — Add an integration scenario that exercises MC3 canonical formatter in a running game flow.
-- [ ] **IS-09-057 P2** — Add logging, counters, and debug inspection for MC3 canonical formatter.
-- [ ] **IS-09-058 P2** — Add an in-world or overlay debug visualization for MC3 canonical formatter.
-- [ ] **IS-09-059 P2** — Define CPU, memory, latency, and content budgets for MC3 canonical formatter.
-- [ ] **IS-09-060 P2** — Profile MC3 canonical formatter under a representative worst-case scene.
-- [ ] **IS-09-061 P2** — Document usage examples, invariants, and common failure modes for MC3 canonical formatter.
-- [ ] **IS-09-062 P1** — Define the scope, responsibilities, and explicit non-goals of MC3 prefab library.
-- [ ] **IS-09-063 P1** — Define the public C++ API and ownership rules for MC3 prefab library.
-- [ ] **IS-09-064 P1** — Define versioned configuration or asset data for MC3 prefab library.
-- [ ] **IS-09-065 P1** — Implement the smallest deterministic reference path for MC3 prefab library.
-- [ ] **IS-09-066 P1** — Add input validation and actionable failure reporting to MC3 prefab library.
-- [ ] **IS-09-067 P1** — Add focused unit tests for MC3 prefab library.
-- [ ] **IS-09-068 P1** — Add an integration scenario that exercises MC3 prefab library in a running game flow.
-- [ ] **IS-09-069 P2** — Add logging, counters, and debug inspection for MC3 prefab library.
-- [ ] **IS-09-070 P2** — Add an in-world or overlay debug visualization for MC3 prefab library.
-- [ ] **IS-09-071 P2** — Define CPU, memory, latency, and content budgets for MC3 prefab library.
-- [ ] **IS-09-072 P2** — Profile MC3 prefab library under a representative worst-case scene.
-- [ ] **IS-09-073 P2** — Document usage examples, invariants, and common failure modes for MC3 prefab library.
-- [ ] **IS-09-074 P1** — Define the scope, responsibilities, and explicit non-goals of MC3 AI generation contract.
-- [ ] **IS-09-075 P1** — Define the public C++ API and ownership rules for MC3 AI generation contract.
-- [ ] **IS-09-076 P1** — Define versioned configuration or asset data for MC3 AI generation contract.
-- [ ] **IS-09-077 P1** — Implement the smallest deterministic reference path for MC3 AI generation contract.
-- [ ] **IS-09-078 P1** — Add input validation and actionable failure reporting to MC3 AI generation contract.
-- [ ] **IS-09-079 P1** — Add focused unit tests for MC3 AI generation contract.
-- [ ] **IS-09-080 P1** — Add an integration scenario that exercises MC3 AI generation contract in a running game flow.
-- [ ] **IS-09-081 P2** — Add logging, counters, and debug inspection for MC3 AI generation contract.
-- [ ] **IS-09-082 P2** — Add an in-world or overlay debug visualization for MC3 AI generation contract.
-- [ ] **IS-09-083 P2** — Define CPU, memory, latency, and content budgets for MC3 AI generation contract.
-- [ ] **IS-09-084 P2** — Profile MC3 AI generation contract under a representative worst-case scene.
-- [ ] **IS-09-085 P2** — Document usage examples, invariants, and common failure modes for MC3 AI generation contract.
-- [ ] **IS-09-086 P1** — Define the scope, responsibilities, and explicit non-goals of MC3 migration tool.
-- [ ] **IS-09-087 P1** — Define the public C++ API and ownership rules for MC3 migration tool.
-- [ ] **IS-09-088 P1** — Define versioned configuration or asset data for MC3 migration tool.
-- [ ] **IS-09-089 P1** — Implement the smallest deterministic reference path for MC3 migration tool.
-- [ ] **IS-09-090 P1** — Add input validation and actionable failure reporting to MC3 migration tool.
-- [ ] **IS-09-091 P1** — Add focused unit tests for MC3 migration tool.
-- [ ] **IS-09-092 P1** — Add an integration scenario that exercises MC3 migration tool in a running game flow.
-- [ ] **IS-09-093 P2** — Add logging, counters, and debug inspection for MC3 migration tool.
-- [ ] **IS-09-094 P2** — Add an in-world or overlay debug visualization for MC3 migration tool.
-- [ ] **IS-09-095 P2** — Define CPU, memory, latency, and content budgets for MC3 migration tool.
-- [ ] **IS-09-096 P2** — Profile MC3 migration tool under a representative worst-case scene.
-- [ ] **IS-09-097 P2** — Document usage examples, invariants, and common failure modes for MC3 migration tool.
-- [ ] **IS-09-098 P2** — Define the scope, responsibilities, and explicit non-goals of MC3 building generator.
-- [ ] **IS-09-099 P2** — Define the public C++ API and ownership rules for MC3 building generator.
-- [ ] **IS-09-100 P2** — Define versioned configuration or asset data for MC3 building generator.
-- [ ] **IS-09-101 P2** — Implement the smallest deterministic reference path for MC3 building generator.
-- [ ] **IS-09-102 P2** — Add input validation and actionable failure reporting to MC3 building generator.
-- [ ] **IS-09-103 P2** — Add focused unit tests for MC3 building generator.
-- [ ] **IS-09-104 P2** — Add an integration scenario that exercises MC3 building generator in a running game flow.
-- [ ] **IS-09-105 P2** — Add logging, counters, and debug inspection for MC3 building generator.
-- [ ] **IS-09-106 P2** — Add an in-world or overlay debug visualization for MC3 building generator.
-- [ ] **IS-09-107 P2** — Define CPU, memory, latency, and content budgets for MC3 building generator.
-- [ ] **IS-09-108 P2** — Profile MC3 building generator under a representative worst-case scene.
-- [ ] **IS-09-109 P2** — Document usage examples, invariants, and common failure modes for MC3 building generator.
-- [ ] **IS-09-110 P2** — Define the scope, responsibilities, and explicit non-goals of MC3 road generator.
-- [ ] **IS-09-111 P2** — Define the public C++ API and ownership rules for MC3 road generator.
-- [ ] **IS-09-112 P2** — Define versioned configuration or asset data for MC3 road generator.
-- [ ] **IS-09-113 P2** — Implement the smallest deterministic reference path for MC3 road generator.
-- [ ] **IS-09-114 P2** — Add input validation and actionable failure reporting to MC3 road generator.
-- [ ] **IS-09-115 P2** — Add focused unit tests for MC3 road generator.
-- [ ] **IS-09-116 P2** — Add an integration scenario that exercises MC3 road generator in a running game flow.
-- [ ] **IS-09-117 P2** — Add logging, counters, and debug inspection for MC3 road generator.
-- [ ] **IS-09-118 P2** — Add an in-world or overlay debug visualization for MC3 road generator.
-- [ ] **IS-09-119 P2** — Define CPU, memory, latency, and content budgets for MC3 road generator.
-- [ ] **IS-09-120 P2** — Profile MC3 road generator under a representative worst-case scene.
-- [ ] **IS-09-121 P2** — Document usage examples, invariants, and common failure modes for MC3 road generator.
-- [ ] **IS-09-122 P2** — Define the scope, responsibilities, and explicit non-goals of MC3 interior generator.
-- [ ] **IS-09-123 P2** — Define the public C++ API and ownership rules for MC3 interior generator.
-- [ ] **IS-09-124 P2** — Define versioned configuration or asset data for MC3 interior generator.
-- [ ] **IS-09-125 P2** — Implement the smallest deterministic reference path for MC3 interior generator.
-- [ ] **IS-09-126 P2** — Add input validation and actionable failure reporting to MC3 interior generator.
-- [ ] **IS-09-127 P2** — Add focused unit tests for MC3 interior generator.
-- [ ] **IS-09-128 P2** — Add an integration scenario that exercises MC3 interior generator in a running game flow.
-- [ ] **IS-09-129 P2** — Add logging, counters, and debug inspection for MC3 interior generator.
-- [ ] **IS-09-130 P2** — Add an in-world or overlay debug visualization for MC3 interior generator.
-- [ ] **IS-09-131 P2** — Define CPU, memory, latency, and content budgets for MC3 interior generator.
-- [ ] **IS-09-132 P2** — Profile MC3 interior generator under a representative worst-case scene.
-- [ ] **IS-09-133 P2** — Document usage examples, invariants, and common failure modes for MC3 interior generator.
-- [ ] **IS-09-134 P2** — Define the scope, responsibilities, and explicit non-goals of MC3 prop generator.
-- [ ] **IS-09-135 P2** — Define the public C++ API and ownership rules for MC3 prop generator.
-- [ ] **IS-09-136 P2** — Define versioned configuration or asset data for MC3 prop generator.
-- [ ] **IS-09-137 P2** — Implement the smallest deterministic reference path for MC3 prop generator.
-- [ ] **IS-09-138 P2** — Add input validation and actionable failure reporting to MC3 prop generator.
-- [ ] **IS-09-139 P2** — Add focused unit tests for MC3 prop generator.
-- [ ] **IS-09-140 P2** — Add an integration scenario that exercises MC3 prop generator in a running game flow.
-- [ ] **IS-09-141 P2** — Add logging, counters, and debug inspection for MC3 prop generator.
-- [ ] **IS-09-142 P2** — Add an in-world or overlay debug visualization for MC3 prop generator.
-- [ ] **IS-09-143 P2** — Define CPU, memory, latency, and content budgets for MC3 prop generator.
-- [ ] **IS-09-144 P2** — Profile MC3 prop generator under a representative worst-case scene.
-- [ ] **IS-09-145 P2** — Document usage examples, invariants, and common failure modes for MC3 prop generator.
-- [ ] **IS-09-146 P2** — Define the scope, responsibilities, and explicit non-goals of MC3 scene differ.
-- [ ] **IS-09-147 P2** — Define the public C++ API and ownership rules for MC3 scene differ.
-- [ ] **IS-09-148 P2** — Define versioned configuration or asset data for MC3 scene differ.
-- [ ] **IS-09-149 P2** — Implement the smallest deterministic reference path for MC3 scene differ.
-- [ ] **IS-09-150 P2** — Add input validation and actionable failure reporting to MC3 scene differ.
-- [ ] **IS-09-151 P2** — Add focused unit tests for MC3 scene differ.
-- [ ] **IS-09-152 P2** — Add an integration scenario that exercises MC3 scene differ in a running game flow.
-- [ ] **IS-09-153 P2** — Add logging, counters, and debug inspection for MC3 scene differ.
-- [ ] **IS-09-154 P2** — Add an in-world or overlay debug visualization for MC3 scene differ.
-- [ ] **IS-09-155 P2** — Define CPU, memory, latency, and content budgets for MC3 scene differ.
-- [ ] **IS-09-156 P2** — Profile MC3 scene differ under a representative worst-case scene.
-- [ ] **IS-09-157 P2** — Document usage examples, invariants, and common failure modes for MC3 scene differ.
 
+## Authoring-support tooling
+
+Each tool below gets one lean production lifecycle instead of a repeated 12-13-step template: define its scope/API/config, implement the smallest working version with real error reporting, test it, and document it.
+
+- [ ] **IS-09-014 P1** — MC3 schema/lint validator: define scope (schema + house-style lint rules) and non-goals, and its CLI/API shape.
+- [ ] **IS-09-015 P1** — MC3 schema/lint validator: implement the reference path with actionable failure diagnostics (file, line, rule).
+- [ ] **IS-09-016 P1** — MC3 schema/lint validator: add unit tests and one integration test in the asset build script.
+- [ ] **IS-09-017 P2** — MC3 schema/lint validator: document usage, invariants, and common failure modes.
+- [ ] **IS-09-018 P1** — MC3 canonical formatter: define scope/API for deterministic MC3 formatting and canonicalization.
+- [ ] **IS-09-019 P1** — MC3 canonical formatter: implement the reference path and wire it into pre-commit/build tooling.
+- [ ] **IS-09-020 P2** — MC3 canonical formatter: add tests and document usage.
+- [ ] **IS-09-021 P1** — MC3 prefab/include library: define scope for a definition/instance and include strategy without uncontrolled duplication.
+- [ ] **IS-09-022 P1** — MC3 prefab/include library: implement the reference path (shared lamp/bench/window/sign prefabs) and validate reuse across districts.
+- [ ] **IS-09-023 P2** — MC3 prefab/include library: add tests and document usage.
+- [ ] **IS-09-024 P2** — MC3 authoring assist: define a prompt/checklist contract for using AI to help draft valid MC3, reviewed and committed by a human author.
+- [ ] **IS-09-025 P2** — MC3 authoring assist: validate AI-assisted drafts through the same schema/lint/format tools as hand-authored content, with no separate acceptance path.
+- [ ] **IS-09-026 P2** — MC3 schema migration tool: define scope for migrating existing scenes when the MC3 schema version changes.
+- [ ] **IS-09-027 P2** — MC3 schema migration tool: implement the reference path, add a regression test using the current prototype scene, and document usage.
+
+## MC3 -> glTF/GLB -> CNJ conversion pipeline
+
+- [ ] **IS-09-028 P0** — Keep `mc3togltf` and the CNA glTF-to-CNJ tool wired into `scripts/build-assets.sh` as the single supported conversion path.
+- [ ] **IS-09-029 P1** — Cache conversion outputs keyed by source content hash so unchanged MC3 files are not reconverted.
+- [ ] **IS-09-030 P1** — Fail the asset build with a clear message when a conversion step drops MC3-only semantics (collision, areas, triggers) that the runtime still needs.
+- [ ] **IS-09-031 P1** — Add a golden-output regression test for the conversion path using the prototype city block scene.
+- [ ] **IS-09-032 P2** — Add golden-output regression tests for one building, one road segment, and one interior once authored.
+- [ ] **IS-09-033 P2** — Document the conversion path's known semantic gaps and how gameplay metadata is preserved alongside render geometry.
+
+## Content validation gates
+
+Every authored asset must pass these gates before it is considered production-ready, regardless of who or what drafted it.
+
+- [ ] **IS-09-034 P1** — Scale, unit, axis, and pivot validation against the conventions in this file.
+- [ ] **IS-09-035 P1** — Triangle, vertex, material, and texture budget checks per asset category.
+- [ ] **IS-09-036 P1** — Non-manifold and degenerate geometry checks.
+- [ ] **IS-09-037 P1** — UV and texture-reference checks.
+- [ ] **IS-09-038 P1** — Collision-proxy presence and sanity checks (matches the metadata conventions above).
+- [ ] **IS-09-039 P2** — Naming and tag convention checks (catches drift from the conventions above over a long campaign).
+- [ ] **IS-09-040 P1** — Runtime load test: every validated asset must load and render in a headless smoke run before it is merged.
+- [ ] **IS-09-041 P2** — License/provenance record check, cross-referenced with the asset registry (group 11) for any non-original source content.
+- [ ] **IS-09-042 P2** — Content hash recorded per asset so re-validation can detect silent edits.
+- [ ] **IS-09-043 P2** — Roll validation results into a single build-blocking report rather than scattered warnings.
+
+## District and campaign content planning
+
+The campaign targets several hand-built districts plus countryside content across roughly 15-20 missions, built one district at a time.
+
+- [ ] **IS-09-044 P0** — Maintain a per-district MC3 source manifest listing every building/street/prop/interior file and its status (drafted/validated/converted/in-game).
+- [ ] **IS-09-045 P1** — Define authoring conventions specific to countryside content (terrain tiles, fences, rural roads, farm props) alongside the urban conventions above.
+- [ ] **IS-09-046 P1** — Define an authoring checklist for mission-critical interiors (only the locations a mission's briefing/objective/dialogue actually needs).
+- [ ] **IS-09-047 P1** — Track authored building/prop/interior counts per district against a rough content budget so no single district silently balloons.
+- [ ] **IS-09-048 P2** — Require a short human content review (art direction plus a validation-gate pass) before any district's content is marked done.
+- [ ] **IS-09-049 P2** — Keep a versioned content changelog per district so a regression in a later pass is traceable to a specific change.
+
+## Explicitly out of scope for v1
+
+- [ ] **IS-09-050 P3** — Research autonomous procedural building/road/interior/prop generation only as a someday exploration; it is not a v1 dependency, and no generator tooling should be built until manual authoring output for the full campaign proves it is actually needed.

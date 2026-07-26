@@ -3,16 +3,16 @@
 [Back to master plan](../plan.md)
 
 
-Turn technology into an original authored game with pacing, themes, and replayable missions.
+Turn technology into an original authored game with pacing, themes, and a structured mission campaign — full Mafia-1 scale (multiple hand-authored districts plus countryside, roughly 15-20 missions), shipped one district/chapter at a time, each connected to the next by a loading transition rather than free-roam open-world traversal. This is a linear story campaign, not a freeform open-world content list: every mission belongs to exactly one chapter/district, and later chapters are not started until the current one's district passes its own vertical-slice gate (see plan_39).
 
-- [ ] **IS-33-001 P0** — Write the vertical-slice premise, beginning, reversal, climax, and resolution.
+- [ ] **IS-33-001 P0** — Write the vertical-slice premise, beginning, reversal, climax, and resolution for the first district/chapter.
 - [ ] **IS-33-002 P0** — Write the original prologue dialogue and replace placeholder text.
 - [ ] **IS-33-003 P0** — Define one complete mission that uses walking, dialogue, driving, an interior, and a cutscene.
 - [ ] **IS-33-004 P0** — Create a narrative reason for the warehouse destination and player stakes.
-- [ ] **IS-33-005 P1** — Define protagonist goal, flaw, pressure, relationships, and arc.
+- [ ] **IS-33-005 P1** — Define protagonist goal, flaw, pressure, relationships, and arc across the full campaign.
 - [ ] **IS-33-006 P1** — Define antagonist goal, methods, and relationship to Iron City.
 - [ ] **IS-33-007 P1** — Define major factions and their conflicting incentives.
-- [ ] **IS-33-008 P1** — Define campaign chapters and escalation.
+- [ ] **IS-33-008 P1** — Define campaign chapters and escalation, mapping each chapter to one district (or the countryside) and assigning the mission archetypes below to specific chapters in play order.
 - [ ] **IS-33-009 P1** — Define mission variety and avoid copying known mission structures.
 - [ ] **IS-33-010 P1** — Define optional content scope.
 - [ ] **IS-33-011 P1** — Define how driving, interiors, city exploration, and dialogue serve the story.

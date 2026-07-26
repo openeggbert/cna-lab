@@ -2,188 +2,65 @@
 
 [Back to master plan](../plan.md)
 
+Populate the city at Mafia-1 (2002) fidelity: a modest number of pedestrians near the player, sidewalk navigation, and simple reactive behavior. No statistical/demographic unloaded-population simulation and no density-by-time/weather budgeting — that belongs to a much larger open-world simulation, not this game.
 
-Populate the city using scalable simulation levels and readable behavior.
-
-- [ ] **IS-20-001 P0** — Spawn a small number of pedestrians in the vertical-slice block.
-- [ ] **IS-20-002 P0** — Give pedestrians destinations and idle points on valid walkable data.
-- [ ] **IS-20-003 P0** — Connect pedestrian locomotion to animation.
+- [ ] **IS-20-001 P0** — Spawn 10-20 pedestrians near the player in the vertical-slice district.
+- [ ] **IS-20-002 P0** — Give pedestrians destinations and idle points along sidewalk waypoint data.
+- [ ] **IS-20-003 P0** — Connect pedestrian locomotion to animation states (walk/idle/turn).
 - [ ] **IS-20-004 P0** — Make pedestrians avoid the player and moving vehicles at a basic level.
-- [ ] **IS-20-005 P1** — Define full, simplified, logical, and statistical AI simulation tiers.
-- [ ] **IS-20-006 P1** — Define citizen archetypes without stereotyping or copying characters.
-- [ ] **IS-20-007 P1** — Create schedules and routine destinations.
-- [ ] **IS-20-008 P1** — Create idle, walk, talk, wait, browse, work, flee, and recover behaviors.
-- [ ] **IS-20-009 P1** — Create perception of vehicles, horns, collisions, weapons, and police.
-- [ ] **IS-20-010 P1** — Create reaction selection with cooldowns and personality parameters.
-- [ ] **IS-20-011 P1** — Create safe crowd spawn/despawn outside player attention.
-- [ ] **IS-20-012 P1** — Create persistence for important named NPCs.
-- [ ] **IS-20-013 P1** — Create lightweight representation for unloaded NPCs.
-- [ ] **IS-20-014 P1** — Create conversation pairs and ambient dialogue triggers.
-- [ ] **IS-20-015 P1** — Create sidewalk congestion management.
-- [ ] **IS-20-016 P1** — Create blocked-path recovery.
-- [ ] **IS-20-017 P1** — Create pedestrian crossing behavior.
-- [ ] **IS-20-018 P1** — Create vehicle-impact avoidance and emergency reactions.
-- [ ] **IS-20-019 P1** — Create AI debugging for current goal, path, perception, and tier.
-- [ ] **IS-20-020 P1** — Create population density budgets per district/time/weather.
-- [ ] **IS-20-021 P2** — Create group walking and family/friend formations.
-- [ ] **IS-20-022 P2** — Create umbrellas and weather reactions.
-- [ ] **IS-20-023 P2** — Create seated and indoor ambient routines.
-- [ ] **IS-20-024 P2** — Create crowd panic propagation with strict bounds.
-- [ ] **IS-20-025 P2** — Create accessibility options reducing crowd density.
-- [ ] **IS-20-026 P1** — Define the scope, responsibilities, and explicit non-goals of pedestrian agent.
-- [ ] **IS-20-027 P1** — Define the public C++ API and ownership rules for pedestrian agent.
-- [ ] **IS-20-028 P1** — Define versioned configuration or asset data for pedestrian agent.
-- [ ] **IS-20-029 P1** — Implement the smallest deterministic reference path for pedestrian agent.
-- [ ] **IS-20-030 P1** — Add input validation and actionable failure reporting to pedestrian agent.
-- [ ] **IS-20-031 P1** — Add focused unit tests for pedestrian agent.
-- [ ] **IS-20-032 P1** — Add an integration scenario that exercises pedestrian agent in a running game flow.
-- [ ] **IS-20-033 P2** — Add logging, counters, and debug inspection for pedestrian agent.
-- [ ] **IS-20-034 P2** — Add an in-world or overlay debug visualization for pedestrian agent.
-- [ ] **IS-20-035 P1** — Define save/checkpoint serialization and restoration for pedestrian agent.
-- [ ] **IS-20-036 P2** — Define CPU, memory, latency, and content budgets for pedestrian agent.
-- [ ] **IS-20-037 P2** — Profile pedestrian agent under a representative worst-case scene.
-- [ ] **IS-20-038 P2** — Document usage examples, invariants, and common failure modes for pedestrian agent.
-- [ ] **IS-20-039 P1** — Define the scope, responsibilities, and explicit non-goals of ambient routine planner.
-- [ ] **IS-20-040 P1** — Define the public C++ API and ownership rules for ambient routine planner.
-- [ ] **IS-20-041 P1** — Define versioned configuration or asset data for ambient routine planner.
-- [ ] **IS-20-042 P1** — Implement the smallest deterministic reference path for ambient routine planner.
-- [ ] **IS-20-043 P1** — Add input validation and actionable failure reporting to ambient routine planner.
-- [ ] **IS-20-044 P1** — Add focused unit tests for ambient routine planner.
-- [ ] **IS-20-045 P1** — Add an integration scenario that exercises ambient routine planner in a running game flow.
-- [ ] **IS-20-046 P2** — Add logging, counters, and debug inspection for ambient routine planner.
-- [ ] **IS-20-047 P2** — Add an in-world or overlay debug visualization for ambient routine planner.
-- [ ] **IS-20-048 P1** — Define save/checkpoint serialization and restoration for ambient routine planner.
-- [ ] **IS-20-049 P2** — Define CPU, memory, latency, and content budgets for ambient routine planner.
-- [ ] **IS-20-050 P2** — Profile ambient routine planner under a representative worst-case scene.
-- [ ] **IS-20-051 P2** — Document usage examples, invariants, and common failure modes for ambient routine planner.
-- [ ] **IS-20-052 P1** — Define the scope, responsibilities, and explicit non-goals of pedestrian perception.
-- [ ] **IS-20-053 P1** — Define the public C++ API and ownership rules for pedestrian perception.
-- [ ] **IS-20-054 P1** — Define versioned configuration or asset data for pedestrian perception.
-- [ ] **IS-20-055 P1** — Implement the smallest deterministic reference path for pedestrian perception.
-- [ ] **IS-20-056 P1** — Add input validation and actionable failure reporting to pedestrian perception.
-- [ ] **IS-20-057 P1** — Add focused unit tests for pedestrian perception.
-- [ ] **IS-20-058 P1** — Add an integration scenario that exercises pedestrian perception in a running game flow.
-- [ ] **IS-20-059 P2** — Add logging, counters, and debug inspection for pedestrian perception.
-- [ ] **IS-20-060 P2** — Add an in-world or overlay debug visualization for pedestrian perception.
-- [ ] **IS-20-061 P1** — Define save/checkpoint serialization and restoration for pedestrian perception.
-- [ ] **IS-20-062 P2** — Define CPU, memory, latency, and content budgets for pedestrian perception.
-- [ ] **IS-20-063 P2** — Profile pedestrian perception under a representative worst-case scene.
-- [ ] **IS-20-064 P2** — Document usage examples, invariants, and common failure modes for pedestrian perception.
-- [ ] **IS-20-065 P1** — Define the scope, responsibilities, and explicit non-goals of reaction selector.
-- [ ] **IS-20-066 P1** — Define the public C++ API and ownership rules for reaction selector.
-- [ ] **IS-20-067 P1** — Define versioned configuration or asset data for reaction selector.
-- [ ] **IS-20-068 P1** — Implement the smallest deterministic reference path for reaction selector.
-- [ ] **IS-20-069 P1** — Add input validation and actionable failure reporting to reaction selector.
-- [ ] **IS-20-070 P1** — Add focused unit tests for reaction selector.
-- [ ] **IS-20-071 P1** — Add an integration scenario that exercises reaction selector in a running game flow.
-- [ ] **IS-20-072 P2** — Add logging, counters, and debug inspection for reaction selector.
-- [ ] **IS-20-073 P2** — Add an in-world or overlay debug visualization for reaction selector.
-- [ ] **IS-20-074 P1** — Define save/checkpoint serialization and restoration for reaction selector.
-- [ ] **IS-20-075 P2** — Define CPU, memory, latency, and content budgets for reaction selector.
-- [ ] **IS-20-076 P2** — Profile reaction selector under a representative worst-case scene.
-- [ ] **IS-20-077 P2** — Document usage examples, invariants, and common failure modes for reaction selector.
-- [ ] **IS-20-078 P1** — Define the scope, responsibilities, and explicit non-goals of AI simulation tier manager.
-- [ ] **IS-20-079 P1** — Define the public C++ API and ownership rules for AI simulation tier manager.
-- [ ] **IS-20-080 P1** — Define versioned configuration or asset data for AI simulation tier manager.
-- [ ] **IS-20-081 P1** — Implement the smallest deterministic reference path for AI simulation tier manager.
-- [ ] **IS-20-082 P1** — Add input validation and actionable failure reporting to AI simulation tier manager.
-- [ ] **IS-20-083 P1** — Add focused unit tests for AI simulation tier manager.
-- [ ] **IS-20-084 P1** — Add an integration scenario that exercises AI simulation tier manager in a running game flow.
-- [ ] **IS-20-085 P2** — Add logging, counters, and debug inspection for AI simulation tier manager.
-- [ ] **IS-20-086 P2** — Add an in-world or overlay debug visualization for AI simulation tier manager.
-- [ ] **IS-20-087 P1** — Define save/checkpoint serialization and restoration for AI simulation tier manager.
-- [ ] **IS-20-088 P2** — Define CPU, memory, latency, and content budgets for AI simulation tier manager.
-- [ ] **IS-20-089 P2** — Profile AI simulation tier manager under a representative worst-case scene.
-- [ ] **IS-20-090 P2** — Document usage examples, invariants, and common failure modes for AI simulation tier manager.
-- [ ] **IS-20-091 P1** — Define the scope, responsibilities, and explicit non-goals of pedestrian spawn manager.
-- [ ] **IS-20-092 P1** — Define the public C++ API and ownership rules for pedestrian spawn manager.
-- [ ] **IS-20-093 P1** — Define versioned configuration or asset data for pedestrian spawn manager.
-- [ ] **IS-20-094 P1** — Implement the smallest deterministic reference path for pedestrian spawn manager.
-- [ ] **IS-20-095 P1** — Add input validation and actionable failure reporting to pedestrian spawn manager.
-- [ ] **IS-20-096 P1** — Add focused unit tests for pedestrian spawn manager.
-- [ ] **IS-20-097 P1** — Add an integration scenario that exercises pedestrian spawn manager in a running game flow.
-- [ ] **IS-20-098 P2** — Add logging, counters, and debug inspection for pedestrian spawn manager.
-- [ ] **IS-20-099 P2** — Add an in-world or overlay debug visualization for pedestrian spawn manager.
-- [ ] **IS-20-100 P1** — Define save/checkpoint serialization and restoration for pedestrian spawn manager.
-- [ ] **IS-20-101 P2** — Define CPU, memory, latency, and content budgets for pedestrian spawn manager.
-- [ ] **IS-20-102 P2** — Profile pedestrian spawn manager under a representative worst-case scene.
-- [ ] **IS-20-103 P2** — Document usage examples, invariants, and common failure modes for pedestrian spawn manager.
-- [ ] **IS-20-104 P1** — Define the scope, responsibilities, and explicit non-goals of ambient conversation system.
-- [ ] **IS-20-105 P1** — Define the public C++ API and ownership rules for ambient conversation system.
-- [ ] **IS-20-106 P1** — Define versioned configuration or asset data for ambient conversation system.
-- [ ] **IS-20-107 P1** — Implement the smallest deterministic reference path for ambient conversation system.
-- [ ] **IS-20-108 P1** — Add input validation and actionable failure reporting to ambient conversation system.
-- [ ] **IS-20-109 P1** — Add focused unit tests for ambient conversation system.
-- [ ] **IS-20-110 P1** — Add an integration scenario that exercises ambient conversation system in a running game flow.
-- [ ] **IS-20-111 P2** — Add logging, counters, and debug inspection for ambient conversation system.
-- [ ] **IS-20-112 P2** — Add an in-world or overlay debug visualization for ambient conversation system.
-- [ ] **IS-20-113 P1** — Define save/checkpoint serialization and restoration for ambient conversation system.
-- [ ] **IS-20-114 P2** — Define CPU, memory, latency, and content budgets for ambient conversation system.
-- [ ] **IS-20-115 P2** — Profile ambient conversation system under a representative worst-case scene.
-- [ ] **IS-20-116 P2** — Document usage examples, invariants, and common failure modes for ambient conversation system.
-- [ ] **IS-20-117 P2** — Define the scope, responsibilities, and explicit non-goals of civilian schedule.
-- [ ] **IS-20-118 P2** — Define the public C++ API and ownership rules for civilian schedule.
-- [ ] **IS-20-119 P2** — Define versioned configuration or asset data for civilian schedule.
-- [ ] **IS-20-120 P2** — Implement the smallest deterministic reference path for civilian schedule.
-- [ ] **IS-20-121 P2** — Add input validation and actionable failure reporting to civilian schedule.
-- [ ] **IS-20-122 P2** — Add focused unit tests for civilian schedule.
-- [ ] **IS-20-123 P2** — Add an integration scenario that exercises civilian schedule in a running game flow.
-- [ ] **IS-20-124 P2** — Add logging, counters, and debug inspection for civilian schedule.
-- [ ] **IS-20-125 P2** — Add an in-world or overlay debug visualization for civilian schedule.
-- [ ] **IS-20-126 P2** — Define save/checkpoint serialization and restoration for civilian schedule.
-- [ ] **IS-20-127 P2** — Define CPU, memory, latency, and content budgets for civilian schedule.
-- [ ] **IS-20-128 P2** — Profile civilian schedule under a representative worst-case scene.
-- [ ] **IS-20-129 P2** — Document usage examples, invariants, and common failure modes for civilian schedule.
-- [ ] **IS-20-130 P2** — Define the scope, responsibilities, and explicit non-goals of crowd density manager.
-- [ ] **IS-20-131 P2** — Define the public C++ API and ownership rules for crowd density manager.
-- [ ] **IS-20-132 P2** — Define versioned configuration or asset data for crowd density manager.
-- [ ] **IS-20-133 P2** — Implement the smallest deterministic reference path for crowd density manager.
-- [ ] **IS-20-134 P2** — Add input validation and actionable failure reporting to crowd density manager.
-- [ ] **IS-20-135 P2** — Add focused unit tests for crowd density manager.
-- [ ] **IS-20-136 P2** — Add an integration scenario that exercises crowd density manager in a running game flow.
-- [ ] **IS-20-137 P2** — Add logging, counters, and debug inspection for crowd density manager.
-- [ ] **IS-20-138 P2** — Add an in-world or overlay debug visualization for crowd density manager.
-- [ ] **IS-20-139 P2** — Define save/checkpoint serialization and restoration for crowd density manager.
-- [ ] **IS-20-140 P2** — Define CPU, memory, latency, and content budgets for crowd density manager.
-- [ ] **IS-20-141 P2** — Profile crowd density manager under a representative worst-case scene.
-- [ ] **IS-20-142 P2** — Document usage examples, invariants, and common failure modes for crowd density manager.
-- [ ] **IS-20-143 P2** — Define the scope, responsibilities, and explicit non-goals of panic coordinator.
-- [ ] **IS-20-144 P2** — Define the public C++ API and ownership rules for panic coordinator.
-- [ ] **IS-20-145 P2** — Define versioned configuration or asset data for panic coordinator.
-- [ ] **IS-20-146 P2** — Implement the smallest deterministic reference path for panic coordinator.
-- [ ] **IS-20-147 P2** — Add input validation and actionable failure reporting to panic coordinator.
-- [ ] **IS-20-148 P2** — Add focused unit tests for panic coordinator.
-- [ ] **IS-20-149 P2** — Add an integration scenario that exercises panic coordinator in a running game flow.
-- [ ] **IS-20-150 P2** — Add logging, counters, and debug inspection for panic coordinator.
-- [ ] **IS-20-151 P2** — Add an in-world or overlay debug visualization for panic coordinator.
-- [ ] **IS-20-152 P2** — Define save/checkpoint serialization and restoration for panic coordinator.
-- [ ] **IS-20-153 P2** — Define CPU, memory, latency, and content budgets for panic coordinator.
-- [ ] **IS-20-154 P2** — Profile panic coordinator under a representative worst-case scene.
-- [ ] **IS-20-155 P2** — Document usage examples, invariants, and common failure modes for panic coordinator.
-- [ ] **IS-20-156 P2** — Define the scope, responsibilities, and explicit non-goals of ambient activity system.
-- [ ] **IS-20-157 P2** — Define the public C++ API and ownership rules for ambient activity system.
-- [ ] **IS-20-158 P2** — Define versioned configuration or asset data for ambient activity system.
-- [ ] **IS-20-159 P2** — Implement the smallest deterministic reference path for ambient activity system.
-- [ ] **IS-20-160 P2** — Add input validation and actionable failure reporting to ambient activity system.
-- [ ] **IS-20-161 P2** — Add focused unit tests for ambient activity system.
-- [ ] **IS-20-162 P2** — Add an integration scenario that exercises ambient activity system in a running game flow.
-- [ ] **IS-20-163 P2** — Add logging, counters, and debug inspection for ambient activity system.
-- [ ] **IS-20-164 P2** — Add an in-world or overlay debug visualization for ambient activity system.
-- [ ] **IS-20-165 P2** — Define save/checkpoint serialization and restoration for ambient activity system.
-- [ ] **IS-20-166 P2** — Define CPU, memory, latency, and content budgets for ambient activity system.
-- [ ] **IS-20-167 P2** — Profile ambient activity system under a representative worst-case scene.
-- [ ] **IS-20-168 P2** — Document usage examples, invariants, and common failure modes for ambient activity system.
-- [ ] **IS-20-169 P2** — Define the scope, responsibilities, and explicit non-goals of NPC persistence bridge.
-- [ ] **IS-20-170 P2** — Define the public C++ API and ownership rules for NPC persistence bridge.
-- [ ] **IS-20-171 P2** — Define versioned configuration or asset data for NPC persistence bridge.
-- [ ] **IS-20-172 P2** — Implement the smallest deterministic reference path for NPC persistence bridge.
-- [ ] **IS-20-173 P2** — Add input validation and actionable failure reporting to NPC persistence bridge.
-- [ ] **IS-20-174 P2** — Add focused unit tests for NPC persistence bridge.
-- [ ] **IS-20-175 P2** — Add an integration scenario that exercises NPC persistence bridge in a running game flow.
-- [ ] **IS-20-176 P2** — Add logging, counters, and debug inspection for NPC persistence bridge.
-- [ ] **IS-20-177 P2** — Add an in-world or overlay debug visualization for NPC persistence bridge.
-- [ ] **IS-20-178 P2** — Define save/checkpoint serialization and restoration for NPC persistence bridge.
-- [ ] **IS-20-179 P2** — Define CPU, memory, latency, and content budgets for NPC persistence bridge.
-- [ ] **IS-20-180 P2** — Profile NPC persistence bridge under a representative worst-case scene.
-- [ ] **IS-20-181 P2** — Document usage examples, invariants, and common failure modes for NPC persistence bridge.
-
+- [ ] **IS-20-005 P1** — Create idle, walk, talk, wait, browse, flee, and recover behaviors.
+- [ ] **IS-20-006 P1** — Create perception of vehicles, horns, collisions, weapons, and police within a limited radius.
+- [ ] **IS-20-007 P1** — Create reaction selection with cooldowns and simple personality variation (calm/nervous/aggressive).
+- [ ] **IS-20-008 P1** — Create safe pedestrian spawn/despawn outside player attention using a simple distance-based population cap.
+- [ ] **IS-20-009 P1** — Create persistence for important named NPCs across a district visit.
+- [ ] **IS-20-010 P1** — Create sidewalk congestion avoidance so pedestrians do not stack or clip through each other.
+- [ ] **IS-20-011 P1** — Create blocked-path recovery when a pedestrian's route is obstructed.
+- [ ] **IS-20-012 P1** — Create pedestrian crossing behavior at marked crosswalks, respecting traffic signals.
+- [ ] **IS-20-013 P1** — Create vehicle-impact avoidance so pedestrians flee an incoming vehicle before being hit.
+- [ ] **IS-20-014 P1** — Create a bounded panic reaction (nearby pedestrians flee) to gunfire or violence within a limited radius.
+- [ ] **IS-20-015 P1** — Create an AI debug view showing a selected pedestrian's current goal, path, and perception state.
+- [ ] **IS-20-016 P1** — Expose a query API so traffic and police systems can find nearby pedestrian witnesses.
+- [ ] **IS-20-017 P2** — Create group walking for a few pedestrian pairs (couples, friends).
+- [ ] **IS-20-018 P2** — Create seated and simple indoor ambient idles for interior extras.
+- [ ] **IS-20-019 P2** — Create short ambient dialogue barks between passing pedestrian pairs.
+- [ ] **IS-20-020 P2** — Create an accessibility option to reduce simulated pedestrian density.
+- [ ] **IS-20-021 P1** — Define the scope, public API, and explicit non-goals of the pedestrian agent.
+- [ ] **IS-20-022 P1** — Define versioned configuration/data for the pedestrian agent.
+- [ ] **IS-20-023 P1** — Implement the smallest deterministic reference path for the pedestrian agent.
+- [ ] **IS-20-024 P1** — Add focused unit tests and one integration scenario for the pedestrian agent.
+- [ ] **IS-20-025 P1** — Define save/checkpoint serialization and restoration for the pedestrian agent.
+- [ ] **IS-20-026 P2** — Add logging, counters, and a debug view for the pedestrian agent.
+- [ ] **IS-20-027 P2** — Define CPU/memory/latency budgets for the pedestrian agent and profile a worst-case scene.
+- [ ] **IS-20-028 P2** — Document usage examples and common failure modes for the pedestrian agent.
+- [ ] **IS-20-029 P1** — Define the scope, public API, and explicit non-goals of pedestrian perception.
+- [ ] **IS-20-030 P1** — Define versioned configuration/data for pedestrian perception.
+- [ ] **IS-20-031 P1** — Implement the smallest deterministic reference path for pedestrian perception.
+- [ ] **IS-20-032 P1** — Add focused unit tests and one integration scenario for pedestrian perception.
+- [ ] **IS-20-033 P1** — Define save/checkpoint serialization and restoration for pedestrian perception.
+- [ ] **IS-20-034 P2** — Add logging, counters, and a debug view for pedestrian perception.
+- [ ] **IS-20-035 P2** — Define CPU/memory/latency budgets for pedestrian perception and profile a worst-case scene.
+- [ ] **IS-20-036 P2** — Document usage examples and common failure modes for pedestrian perception.
+- [ ] **IS-20-037 P1** — Define the scope, public API, and explicit non-goals of the reaction selector.
+- [ ] **IS-20-038 P1** — Define versioned configuration/data for the reaction selector.
+- [ ] **IS-20-039 P1** — Implement the smallest deterministic reference path for the reaction selector.
+- [ ] **IS-20-040 P1** — Add focused unit tests and one integration scenario for the reaction selector.
+- [ ] **IS-20-041 P1** — Define save/checkpoint serialization and restoration for the reaction selector.
+- [ ] **IS-20-042 P2** — Add logging, counters, and a debug view for the reaction selector.
+- [ ] **IS-20-043 P2** — Define CPU/memory/latency budgets for the reaction selector and profile a worst-case scene.
+- [ ] **IS-20-044 P2** — Document usage examples and common failure modes for the reaction selector.
+- [ ] **IS-20-045 P1** — Define the scope, public API, and explicit non-goals of the pedestrian population manager.
+- [ ] **IS-20-046 P1** — Define versioned configuration/data for the pedestrian population manager.
+- [ ] **IS-20-047 P1** — Implement the smallest deterministic reference path for the pedestrian population manager.
+- [ ] **IS-20-048 P1** — Add focused unit tests and one integration scenario for the pedestrian population manager.
+- [ ] **IS-20-049 P1** — Define save/checkpoint serialization and restoration for the pedestrian population manager.
+- [ ] **IS-20-050 P2** — Add logging, counters, and a debug view for the pedestrian population manager.
+- [ ] **IS-20-051 P2** — Define CPU/memory/latency budgets for the pedestrian population manager and profile a worst-case scene.
+- [ ] **IS-20-052 P2** — Document usage examples and common failure modes for the pedestrian population manager.
+- [ ] **IS-20-053 P2** — Define the scope, public API, and explicit non-goals of the ambient conversation system.
+- [ ] **IS-20-054 P2** — Define versioned configuration/data for the ambient conversation system.
+- [ ] **IS-20-055 P2** — Implement the smallest deterministic reference path for the ambient conversation system.
+- [ ] **IS-20-056 P2** — Add focused unit tests and one integration scenario for the ambient conversation system.
+- [ ] **IS-20-057 P2** — Define save/checkpoint serialization and restoration for the ambient conversation system.
+- [ ] **IS-20-058 P2** — Add logging, counters, and a debug view for the ambient conversation system.
+- [ ] **IS-20-059 P2** — Define CPU/memory/latency budgets for the ambient conversation system and profile a worst-case scene.
+- [ ] **IS-20-060 P2** — Document usage examples and common failure modes for the ambient conversation system.

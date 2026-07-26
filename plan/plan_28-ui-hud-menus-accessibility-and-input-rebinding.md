@@ -2,8 +2,13 @@
 
 [Back to master plan](../plan.md)
 
-
 Replace debug title text with a complete readable and accessible presentation layer.
+Input rebinding covers the primary gameplay actions on keyboard and gamepad for v1; a
+full every-action rebinding matrix with cross-device conflict detection is explicit
+later polish, not a v1 dependency. Dialogue subtitle timing/content lives in group 25;
+this group owns how the HUD presents it.
+
+## Core UI data and flow
 
 - [ ] **IS-28-001 P0** — Replace window-title mission text with a SpriteBatch/SpriteFont HUD.
 - [ ] **IS-28-002 P0** — Display current objective, interaction prompt, dialogue subtitle, and transient save status.
@@ -11,204 +16,73 @@ Replace debug title text with a complete readable and accessible presentation la
 - [ ] **IS-28-004 P0** — Create pause, settings, save/load, restart, and quit menus.
 - [ ] **IS-28-005 P1** — Create UI layout scaling for aspect ratio, resolution, and DPI.
 - [ ] **IS-28-006 P1** — Create safe-area support.
-- [ ] **IS-28-007 P1** — Create input rebinding with conflict resolution.
+- [ ] **IS-28-007 P1** — Create basic rebinding (rebind the primary on-foot/vehicle/menu actions) for keyboard and gamepad; a full every-action matrix with cross-device conflict detection is deferred (see IS-28-024).
 - [ ] **IS-28-008 P1** — Create separate on-foot, vehicle, menu, and cinematic input contexts.
 - [ ] **IS-28-009 P1** — Create mouse sensitivity, gamepad sensitivity, inversion, and dead-zone settings.
-- [ ] **IS-28-010 P1** — Create subtitle size, background, speaker labels, and duration options.
-- [ ] **IS-28-011 P1** — Create color-blind-safe objective and marker presentation.
-- [ ] **IS-28-012 P1** — Create reduced motion/camera shake options.
-- [ ] **IS-28-013 P1** — Create hold/toggle options where relevant.
-- [ ] **IS-28-014 P1** — Create readable focus and hover states.
-- [ ] **IS-28-015 P1** — Create localization-friendly dynamic layout.
-- [ ] **IS-28-016 P1** — Create UI sound events.
-- [ ] **IS-28-017 P1** — Create loading and streaming status presentation without exposing technical noise.
-- [ ] **IS-28-018 P1** — Create wanted/vehicle/health UI only when those systems exist.
-- [ ] **IS-28-019 P1** — Create UI state tests and screenshot references.
-- [ ] **IS-28-020 P2** — Create map and route UI after road graph and navigation are stable.
-- [ ] **IS-28-021 P2** — Create mission log and dialogue history.
-- [ ] **IS-28-022 P2** — Create photo mode UI only after core presentation works.
-- [ ] **IS-28-023 P2** — Create accessibility presets.
-- [ ] **IS-28-024 P2** — Create screen-reader feasibility study for menus.
-- [ ] **IS-28-025 P1** — Define the scope, responsibilities, and explicit non-goals of HUD root.
-- [ ] **IS-28-026 P1** — Define the public C++ API and ownership rules for HUD root.
-- [ ] **IS-28-027 P1** — Define versioned configuration or asset data for HUD root.
-- [ ] **IS-28-028 P1** — Implement the smallest deterministic reference path for HUD root.
-- [ ] **IS-28-029 P1** — Add input validation and actionable failure reporting to HUD root.
-- [ ] **IS-28-030 P1** — Add focused unit tests for HUD root.
-- [ ] **IS-28-031 P1** — Add an integration scenario that exercises HUD root in a running game flow.
-- [ ] **IS-28-032 P2** — Add logging, counters, and debug inspection for HUD root.
-- [ ] **IS-28-033 P2** — Add an in-world or overlay debug visualization for HUD root.
-- [ ] **IS-28-034 P1** — Define save/checkpoint serialization and restoration for HUD root.
-- [ ] **IS-28-035 P2** — Define CPU, memory, latency, and content budgets for HUD root.
-- [ ] **IS-28-036 P2** — Profile HUD root under a representative worst-case scene.
-- [ ] **IS-28-037 P2** — Document usage examples, invariants, and common failure modes for HUD root.
-- [ ] **IS-28-038 P2** — Validate HUD root on each production graphics backend and record differences.
-- [ ] **IS-28-039 P1** — Define the scope, responsibilities, and explicit non-goals of objective presenter.
-- [ ] **IS-28-040 P1** — Define the public C++ API and ownership rules for objective presenter.
-- [ ] **IS-28-041 P1** — Define versioned configuration or asset data for objective presenter.
-- [ ] **IS-28-042 P1** — Implement the smallest deterministic reference path for objective presenter.
-- [ ] **IS-28-043 P1** — Add input validation and actionable failure reporting to objective presenter.
-- [ ] **IS-28-044 P1** — Add focused unit tests for objective presenter.
-- [ ] **IS-28-045 P1** — Add an integration scenario that exercises objective presenter in a running game flow.
-- [ ] **IS-28-046 P2** — Add logging, counters, and debug inspection for objective presenter.
-- [ ] **IS-28-047 P2** — Add an in-world or overlay debug visualization for objective presenter.
-- [ ] **IS-28-048 P1** — Define save/checkpoint serialization and restoration for objective presenter.
-- [ ] **IS-28-049 P2** — Define CPU, memory, latency, and content budgets for objective presenter.
-- [ ] **IS-28-050 P2** — Profile objective presenter under a representative worst-case scene.
-- [ ] **IS-28-051 P2** — Document usage examples, invariants, and common failure modes for objective presenter.
-- [ ] **IS-28-052 P2** — Validate objective presenter on each production graphics backend and record differences.
-- [ ] **IS-28-053 P1** — Define the scope, responsibilities, and explicit non-goals of interaction prompt.
-- [ ] **IS-28-054 P1** — Define the public C++ API and ownership rules for interaction prompt.
-- [ ] **IS-28-055 P1** — Define versioned configuration or asset data for interaction prompt.
-- [ ] **IS-28-056 P1** — Implement the smallest deterministic reference path for interaction prompt.
-- [ ] **IS-28-057 P1** — Add input validation and actionable failure reporting to interaction prompt.
-- [ ] **IS-28-058 P1** — Add focused unit tests for interaction prompt.
-- [ ] **IS-28-059 P1** — Add an integration scenario that exercises interaction prompt in a running game flow.
-- [ ] **IS-28-060 P2** — Add logging, counters, and debug inspection for interaction prompt.
-- [ ] **IS-28-061 P2** — Add an in-world or overlay debug visualization for interaction prompt.
-- [ ] **IS-28-062 P1** — Define save/checkpoint serialization and restoration for interaction prompt.
-- [ ] **IS-28-063 P2** — Define CPU, memory, latency, and content budgets for interaction prompt.
-- [ ] **IS-28-064 P2** — Profile interaction prompt under a representative worst-case scene.
-- [ ] **IS-28-065 P2** — Document usage examples, invariants, and common failure modes for interaction prompt.
-- [ ] **IS-28-066 P2** — Validate interaction prompt on each production graphics backend and record differences.
-- [ ] **IS-28-067 P1** — Define the scope, responsibilities, and explicit non-goals of subtitle UI.
-- [ ] **IS-28-068 P1** — Define the public C++ API and ownership rules for subtitle UI.
-- [ ] **IS-28-069 P1** — Define versioned configuration or asset data for subtitle UI.
-- [ ] **IS-28-070 P1** — Implement the smallest deterministic reference path for subtitle UI.
-- [ ] **IS-28-071 P1** — Add input validation and actionable failure reporting to subtitle UI.
-- [ ] **IS-28-072 P1** — Add focused unit tests for subtitle UI.
-- [ ] **IS-28-073 P1** — Add an integration scenario that exercises subtitle UI in a running game flow.
-- [ ] **IS-28-074 P2** — Add logging, counters, and debug inspection for subtitle UI.
-- [ ] **IS-28-075 P2** — Add an in-world or overlay debug visualization for subtitle UI.
-- [ ] **IS-28-076 P1** — Define save/checkpoint serialization and restoration for subtitle UI.
-- [ ] **IS-28-077 P2** — Define CPU, memory, latency, and content budgets for subtitle UI.
-- [ ] **IS-28-078 P2** — Profile subtitle UI under a representative worst-case scene.
-- [ ] **IS-28-079 P2** — Document usage examples, invariants, and common failure modes for subtitle UI.
-- [ ] **IS-28-080 P2** — Validate subtitle UI on each production graphics backend and record differences.
-- [ ] **IS-28-081 P1** — Define the scope, responsibilities, and explicit non-goals of pause menu.
-- [ ] **IS-28-082 P1** — Define the public C++ API and ownership rules for pause menu.
-- [ ] **IS-28-083 P1** — Define versioned configuration or asset data for pause menu.
-- [ ] **IS-28-084 P1** — Implement the smallest deterministic reference path for pause menu.
-- [ ] **IS-28-085 P1** — Add input validation and actionable failure reporting to pause menu.
-- [ ] **IS-28-086 P1** — Add focused unit tests for pause menu.
-- [ ] **IS-28-087 P1** — Add an integration scenario that exercises pause menu in a running game flow.
-- [ ] **IS-28-088 P2** — Add logging, counters, and debug inspection for pause menu.
-- [ ] **IS-28-089 P2** — Add an in-world or overlay debug visualization for pause menu.
-- [ ] **IS-28-090 P1** — Define save/checkpoint serialization and restoration for pause menu.
-- [ ] **IS-28-091 P2** — Define CPU, memory, latency, and content budgets for pause menu.
-- [ ] **IS-28-092 P2** — Profile pause menu under a representative worst-case scene.
-- [ ] **IS-28-093 P2** — Document usage examples, invariants, and common failure modes for pause menu.
-- [ ] **IS-28-094 P2** — Validate pause menu on each production graphics backend and record differences.
-- [ ] **IS-28-095 P1** — Define the scope, responsibilities, and explicit non-goals of settings menu.
-- [ ] **IS-28-096 P1** — Define the public C++ API and ownership rules for settings menu.
-- [ ] **IS-28-097 P1** — Define versioned configuration or asset data for settings menu.
-- [ ] **IS-28-098 P1** — Implement the smallest deterministic reference path for settings menu.
-- [ ] **IS-28-099 P1** — Add input validation and actionable failure reporting to settings menu.
-- [ ] **IS-28-100 P1** — Add focused unit tests for settings menu.
-- [ ] **IS-28-101 P1** — Add an integration scenario that exercises settings menu in a running game flow.
-- [ ] **IS-28-102 P2** — Add logging, counters, and debug inspection for settings menu.
-- [ ] **IS-28-103 P2** — Add an in-world or overlay debug visualization for settings menu.
-- [ ] **IS-28-104 P1** — Define save/checkpoint serialization and restoration for settings menu.
-- [ ] **IS-28-105 P2** — Define CPU, memory, latency, and content budgets for settings menu.
-- [ ] **IS-28-106 P2** — Profile settings menu under a representative worst-case scene.
-- [ ] **IS-28-107 P2** — Document usage examples, invariants, and common failure modes for settings menu.
-- [ ] **IS-28-108 P2** — Validate settings menu on each production graphics backend and record differences.
-- [ ] **IS-28-109 P1** — Define the scope, responsibilities, and explicit non-goals of input rebinding.
-- [ ] **IS-28-110 P1** — Define the public C++ API and ownership rules for input rebinding.
-- [ ] **IS-28-111 P1** — Define versioned configuration or asset data for input rebinding.
-- [ ] **IS-28-112 P1** — Implement the smallest deterministic reference path for input rebinding.
-- [ ] **IS-28-113 P1** — Add input validation and actionable failure reporting to input rebinding.
-- [ ] **IS-28-114 P1** — Add focused unit tests for input rebinding.
-- [ ] **IS-28-115 P1** — Add an integration scenario that exercises input rebinding in a running game flow.
-- [ ] **IS-28-116 P2** — Add logging, counters, and debug inspection for input rebinding.
-- [ ] **IS-28-117 P2** — Add an in-world or overlay debug visualization for input rebinding.
-- [ ] **IS-28-118 P1** — Define save/checkpoint serialization and restoration for input rebinding.
-- [ ] **IS-28-119 P2** — Define CPU, memory, latency, and content budgets for input rebinding.
-- [ ] **IS-28-120 P2** — Profile input rebinding under a representative worst-case scene.
-- [ ] **IS-28-121 P2** — Document usage examples, invariants, and common failure modes for input rebinding.
-- [ ] **IS-28-122 P2** — Validate input rebinding on each production graphics backend and record differences.
-- [ ] **IS-28-123 P1** — Define the scope, responsibilities, and explicit non-goals of accessibility settings.
-- [ ] **IS-28-124 P1** — Define the public C++ API and ownership rules for accessibility settings.
-- [ ] **IS-28-125 P1** — Define versioned configuration or asset data for accessibility settings.
-- [ ] **IS-28-126 P1** — Implement the smallest deterministic reference path for accessibility settings.
-- [ ] **IS-28-127 P1** — Add input validation and actionable failure reporting to accessibility settings.
-- [ ] **IS-28-128 P1** — Add focused unit tests for accessibility settings.
-- [ ] **IS-28-129 P1** — Add an integration scenario that exercises accessibility settings in a running game flow.
-- [ ] **IS-28-130 P2** — Add logging, counters, and debug inspection for accessibility settings.
-- [ ] **IS-28-131 P2** — Add an in-world or overlay debug visualization for accessibility settings.
-- [ ] **IS-28-132 P1** — Define save/checkpoint serialization and restoration for accessibility settings.
-- [ ] **IS-28-133 P2** — Define CPU, memory, latency, and content budgets for accessibility settings.
-- [ ] **IS-28-134 P2** — Profile accessibility settings under a representative worst-case scene.
-- [ ] **IS-28-135 P2** — Document usage examples, invariants, and common failure modes for accessibility settings.
-- [ ] **IS-28-136 P2** — Validate accessibility settings on each production graphics backend and record differences.
-- [ ] **IS-28-137 P2** — Define the scope, responsibilities, and explicit non-goals of UI navigation.
-- [ ] **IS-28-138 P2** — Define the public C++ API and ownership rules for UI navigation.
-- [ ] **IS-28-139 P2** — Define versioned configuration or asset data for UI navigation.
-- [ ] **IS-28-140 P2** — Implement the smallest deterministic reference path for UI navigation.
-- [ ] **IS-28-141 P2** — Add input validation and actionable failure reporting to UI navigation.
-- [ ] **IS-28-142 P2** — Add focused unit tests for UI navigation.
-- [ ] **IS-28-143 P2** — Add an integration scenario that exercises UI navigation in a running game flow.
-- [ ] **IS-28-144 P2** — Add logging, counters, and debug inspection for UI navigation.
-- [ ] **IS-28-145 P2** — Add an in-world or overlay debug visualization for UI navigation.
-- [ ] **IS-28-146 P2** — Define save/checkpoint serialization and restoration for UI navigation.
-- [ ] **IS-28-147 P2** — Define CPU, memory, latency, and content budgets for UI navigation.
-- [ ] **IS-28-148 P2** — Profile UI navigation under a representative worst-case scene.
-- [ ] **IS-28-149 P2** — Document usage examples, invariants, and common failure modes for UI navigation.
-- [ ] **IS-28-150 P2** — Validate UI navigation on each production graphics backend and record differences.
-- [ ] **IS-28-151 P2** — Define the scope, responsibilities, and explicit non-goals of UI style/theme.
-- [ ] **IS-28-152 P2** — Define the public C++ API and ownership rules for UI style/theme.
-- [ ] **IS-28-153 P2** — Define versioned configuration or asset data for UI style/theme.
-- [ ] **IS-28-154 P2** — Implement the smallest deterministic reference path for UI style/theme.
-- [ ] **IS-28-155 P2** — Add input validation and actionable failure reporting to UI style/theme.
-- [ ] **IS-28-156 P2** — Add focused unit tests for UI style/theme.
-- [ ] **IS-28-157 P2** — Add an integration scenario that exercises UI style/theme in a running game flow.
-- [ ] **IS-28-158 P2** — Add logging, counters, and debug inspection for UI style/theme.
-- [ ] **IS-28-159 P2** — Add an in-world or overlay debug visualization for UI style/theme.
-- [ ] **IS-28-160 P2** — Define save/checkpoint serialization and restoration for UI style/theme.
-- [ ] **IS-28-161 P2** — Define CPU, memory, latency, and content budgets for UI style/theme.
-- [ ] **IS-28-162 P2** — Profile UI style/theme under a representative worst-case scene.
-- [ ] **IS-28-163 P2** — Document usage examples, invariants, and common failure modes for UI style/theme.
-- [ ] **IS-28-164 P2** — Validate UI style/theme on each production graphics backend and record differences.
-- [ ] **IS-28-165 P2** — Define the scope, responsibilities, and explicit non-goals of screen transition.
-- [ ] **IS-28-166 P2** — Define the public C++ API and ownership rules for screen transition.
-- [ ] **IS-28-167 P2** — Define versioned configuration or asset data for screen transition.
-- [ ] **IS-28-168 P2** — Implement the smallest deterministic reference path for screen transition.
-- [ ] **IS-28-169 P2** — Add input validation and actionable failure reporting to screen transition.
-- [ ] **IS-28-170 P2** — Add focused unit tests for screen transition.
-- [ ] **IS-28-171 P2** — Add an integration scenario that exercises screen transition in a running game flow.
-- [ ] **IS-28-172 P2** — Add logging, counters, and debug inspection for screen transition.
-- [ ] **IS-28-173 P2** — Add an in-world or overlay debug visualization for screen transition.
-- [ ] **IS-28-174 P2** — Define save/checkpoint serialization and restoration for screen transition.
-- [ ] **IS-28-175 P2** — Define CPU, memory, latency, and content budgets for screen transition.
-- [ ] **IS-28-176 P2** — Profile screen transition under a representative worst-case scene.
-- [ ] **IS-28-177 P2** — Document usage examples, invariants, and common failure modes for screen transition.
-- [ ] **IS-28-178 P2** — Validate screen transition on each production graphics backend and record differences.
-- [ ] **IS-28-179 P2** — Define the scope, responsibilities, and explicit non-goals of settings persistence.
-- [ ] **IS-28-180 P2** — Define the public C++ API and ownership rules for settings persistence.
-- [ ] **IS-28-181 P2** — Define versioned configuration or asset data for settings persistence.
-- [ ] **IS-28-182 P2** — Implement the smallest deterministic reference path for settings persistence.
-- [ ] **IS-28-183 P2** — Add input validation and actionable failure reporting to settings persistence.
-- [ ] **IS-28-184 P2** — Add focused unit tests for settings persistence.
-- [ ] **IS-28-185 P2** — Add an integration scenario that exercises settings persistence in a running game flow.
-- [ ] **IS-28-186 P2** — Add logging, counters, and debug inspection for settings persistence.
-- [ ] **IS-28-187 P2** — Add an in-world or overlay debug visualization for settings persistence.
-- [ ] **IS-28-188 P2** — Define save/checkpoint serialization and restoration for settings persistence.
-- [ ] **IS-28-189 P2** — Define CPU, memory, latency, and content budgets for settings persistence.
-- [ ] **IS-28-190 P2** — Profile settings persistence under a representative worst-case scene.
-- [ ] **IS-28-191 P2** — Document usage examples, invariants, and common failure modes for settings persistence.
-- [ ] **IS-28-192 P2** — Validate settings persistence on each production graphics backend and record differences.
-- [ ] **IS-28-193 P2** — Define the scope, responsibilities, and explicit non-goals of accessibility preset manager.
-- [ ] **IS-28-194 P2** — Define the public C++ API and ownership rules for accessibility preset manager.
-- [ ] **IS-28-195 P2** — Define versioned configuration or asset data for accessibility preset manager.
-- [ ] **IS-28-196 P2** — Implement the smallest deterministic reference path for accessibility preset manager.
-- [ ] **IS-28-197 P2** — Add input validation and actionable failure reporting to accessibility preset manager.
-- [ ] **IS-28-198 P2** — Add focused unit tests for accessibility preset manager.
-- [ ] **IS-28-199 P2** — Add an integration scenario that exercises accessibility preset manager in a running game flow.
-- [ ] **IS-28-200 P2** — Add logging, counters, and debug inspection for accessibility preset manager.
-- [ ] **IS-28-201 P2** — Add an in-world or overlay debug visualization for accessibility preset manager.
-- [ ] **IS-28-202 P2** — Define save/checkpoint serialization and restoration for accessibility preset manager.
-- [ ] **IS-28-203 P2** — Define CPU, memory, latency, and content budgets for accessibility preset manager.
-- [ ] **IS-28-204 P2** — Profile accessibility preset manager under a representative worst-case scene.
-- [ ] **IS-28-205 P2** — Document usage examples, invariants, and common failure modes for accessibility preset manager.
-- [ ] **IS-28-206 P2** — Validate accessibility preset manager on each production graphics backend and record differences.
+- [ ] **IS-28-010 P1** — Create color-blind-safe objective and marker presentation.
+- [ ] **IS-28-011 P1** — Create reduced motion/camera shake options.
+- [ ] **IS-28-012 P1** — Create hold/toggle options where relevant.
+- [ ] **IS-28-013 P1** — Create readable focus and hover states.
+- [ ] **IS-28-014 P1** — Create UI sound events.
+- [ ] **IS-28-015 P1** — Create loading/district-transition status presentation without exposing technical noise.
+- [ ] **IS-28-016 P1** — Create wanted/vehicle/health UI once those systems exist (groups 17/22).
+- [ ] **IS-28-017 P1** — Create UI state tests and screenshot references.
+- [ ] **IS-28-018 P2** — Create a simple map/route UI for the current district once its road graph exists.
+- [ ] **IS-28-019 P2** — Create mission log and dialogue history.
+- [ ] **IS-28-020 P2** — Create accessibility presets (bundles of the options above).
+- [ ] **IS-28-021 P2** — Create a basic UI style/theme pass (consistent fonts, colors, spacing) once the functional screens above exist.
+- [ ] **IS-28-022 P3** — Create photo mode UI only after core presentation works and only if time remains.
+- [ ] **IS-28-023 P3** — Run a screen-reader feasibility study for menus as a research spike, not a committed feature.
+- [ ] **IS-28-024 P3** — Design the full every-action input-rebinding matrix with cross-device conflict detection only as later polish once basic rebinding (IS-28-007) ships.
 
+## HUD root
+
+- [ ] **IS-28-025 P0** — Define the scope and public API of the HUD root, covering objective/interaction-prompt/subtitle display (IS-28-002).
+- [ ] **IS-28-026 P0** — Implement the smallest deterministic reference path: show one objective and one interaction prompt at once.
+- [ ] **IS-28-027 P1** — Add input validation and actionable failure reporting for missing HUD data.
+- [ ] **IS-28-028 P1** — Add unit tests and one integration scenario covering layout scaling (IS-28-005) and safe areas (IS-28-006).
+- [ ] **IS-28-029 P1** — Define save/checkpoint serialization and restoration for transient HUD state (e.g. save-status indicator).
+- [ ] **IS-28-030 P2** — Add debug logging/inspection and document usage.
+
+## Menu system (pause, settings, save/load)
+
+- [ ] **IS-28-031 P0** — Define the scope and public API of the menu system (pause/settings/save/load/restart/quit from IS-28-004).
+- [ ] **IS-28-032 P0** — Implement the smallest deterministic reference path: open pause menu, adjust one setting, resume.
+- [ ] **IS-28-033 P1** — Add input validation and actionable failure reporting for malformed settings data.
+- [ ] **IS-28-034 P1** — Add unit tests and one integration scenario covering keyboard/gamepad menu navigation (IS-28-003).
+- [ ] **IS-28-035 P1** — Define save/checkpoint serialization and restoration for menu-driven settings.
+- [ ] **IS-28-036 P2** — Add debug logging/inspection and document usage.
+
+## Input rebinding (basic scope)
+
+- [ ] **IS-28-037 P1** — Define the scope and public API of basic input rebinding (primary actions only, per IS-28-007), including input contexts (IS-28-008).
+- [ ] **IS-28-038 P1** — Implement the smallest deterministic reference path: rebind one action on keyboard and one on gamepad.
+- [ ] **IS-28-039 P1** — Add input validation and actionable failure reporting for conflicting/invalid bindings.
+- [ ] **IS-28-040 P1** — Add unit tests and one integration scenario covering context switching (on-foot/vehicle/menu/cinematic).
+- [ ] **IS-28-041 P1** — Define save/checkpoint serialization and restoration for rebound controls.
+- [ ] **IS-28-042 P2** — Add debug logging/inspection and document usage.
+
+## Accessibility settings
+
+- [ ] **IS-28-043 P1** — Define the scope and public API of accessibility settings (color-blind-safe presentation, reduced motion, subtitle options, hold/toggle, presets from IS-28-010/011/012/020).
+- [ ] **IS-28-044 P1** — Implement the smallest deterministic reference path: toggle one accessibility option and see it take effect immediately.
+- [ ] **IS-28-045 P1** — Add input validation and actionable failure reporting for malformed accessibility data.
+- [ ] **IS-28-046 P1** — Add unit tests and one integration scenario covering an accessibility preset bundle.
+- [ ] **IS-28-047 P1** — Define save/checkpoint serialization and restoration for accessibility settings.
+- [ ] **IS-28-048 P2** — Add debug logging/inspection and document usage.
+
+## Screen transition
+
+- [ ] **IS-28-049 P1** — Define the scope and public API of screen transitions (menu-to-menu and district-loading transitions from IS-28-015).
+- [ ] **IS-28-050 P1** — Implement the smallest deterministic reference path: fade between two screens without a visible pop.
+- [ ] **IS-28-051 P1** — Add input validation and actionable failure reporting for interrupted transitions.
+- [ ] **IS-28-052 P1** — Add unit tests and one integration scenario covering a district-load transition.
+- [ ] **IS-28-053 P2** — Add debug logging/inspection and document usage.
+
+## Settings persistence
+
+- [ ] **IS-28-054 P1** — Define the scope and public API for persisting settings (video/audio/input/accessibility) separately from campaign save data.
+- [ ] **IS-28-055 P1** — Implement the smallest deterministic reference path: change a setting, restart the game, confirm it persisted.
+- [ ] **IS-28-056 P1** — Add input validation and actionable failure reporting for corrupted settings files.
+- [ ] **IS-28-057 P1** — Add unit tests and one integration scenario covering settings persistence across all menus above.
+- [ ] **IS-28-058 P2** — Add debug logging/inspection and document usage.

@@ -2,301 +2,87 @@
 
 [Back to master plan](../plan.md)
 
+Produce reusable, optimized, licensed environment content, hand-authored in Mesh Craft/MC3, for a multi-district-plus-countryside campaign built one district at a time. Naming, collision, and validation conventions live in group 09 — this file does not repeat them per asset class, only references them.
 
-Produce reusable, optimized, licensed city content through a controlled pipeline.
+## Vertical slice and district foundations
 
 - [ ] **IS-31-001 P0** — Choose the vertical-slice district and produce a blockout map.
-- [ ] **IS-31-002 P0** — Produce one bar/meeting interior, one garage, one warehouse, and connecting streets.
+- [ ] **IS-31-002 P0** — Produce one bar/meeting interior, one garage, one warehouse, and connecting streets for the vertical slice.
 - [ ] **IS-31-003 P0** — Produce LOD and collision for every vertical-slice environment asset.
 - [ ] **IS-31-004 P0** — Register and approve every vertical-slice asset license/provenance record.
-- [ ] **IS-31-005 P1** — Create district palettes for architecture, road materials, signage, vegetation, and props.
-- [ ] **IS-31-006 P1** — Create reusable building facade kits.
+- [ ] **IS-31-005 P1** — Create a district palette (architecture, road materials, signage, vegetation, props) for each district before authoring its content.
+- [ ] **IS-31-006 P1** — Create reusable building facade kits shared across districts with district-specific palette swaps.
 - [ ] **IS-31-007 P1** — Create reusable interior wall, floor, ceiling, door, stair, and trim kits.
-- [ ] **IS-31-008 P1** — Create street lamp, bench, hydrant, bin, sign, fence, pole, cable, drain, and mailbox kits.
-- [ ] **IS-31-009 P1** — Create road, curb, sidewalk, crossing, alley, parking, and loading modules.
-- [ ] **IS-31-010 P1** — Create window and storefront variation sets.
-- [ ] **IS-31-011 P1** — Create warehouse/industrial prop sets.
-- [ ] **IS-31-012 P1** — Create residential and commercial furniture sets.
-- [ ] **IS-31-013 P1** — Create vegetation and seasonal variation sets.
-- [ ] **IS-31-014 P1** — Create skyline and far-proxy assets.
-- [ ] **IS-31-015 P1** — Create fake-interior window cards/geometry where appropriate.
-- [ ] **IS-31-016 P1** — Create prop placement rules and density budgets.
-- [ ] **IS-31-017 P1** — Create district signage and fictional business identities.
-- [ ] **IS-31-018 P1** — Create material libraries with consistent texel density.
-- [ ] **IS-31-019 P1** — Create damage/dirt variation rules without unique asset explosion.
-- [ ] **IS-31-020 P1** — Review repeated silhouettes and visual monotony.
-- [ ] **IS-31-021 P2** — Create countryside/outer-district kits after the city slice works.
-- [ ] **IS-31-022 P2** — Create waterfront/rail/industrial expansion kits if required by Iron City.
-- [ ] **IS-31-023 P2** — Create weather variants after base assets are approved.
-- [ ] **IS-31-024 P2** — Create night emissive variants and light-placement data.
-- [ ] **IS-31-025 P1** — Define source convention and naming for the road segment asset class.
-- [ ] **IS-31-026 P1** — Create at least one approved source asset for the road segment asset class.
-- [ ] **IS-31-027 P1** — Generate or author render geometry for the road segment asset class.
-- [ ] **IS-31-028 P1** — Create collision and logical metadata for the road segment asset class.
-- [ ] **IS-31-029 P1** — Create lods or an explicit lod exemption for the road segment asset class.
-- [ ] **IS-31-030 P1** — Validate materials, textures, scale, pivot, and bounds for the road segment asset class.
-- [ ] **IS-31-031 P1** — Record provenance and license approval for the road segment asset class.
-- [ ] **IS-31-032 P2** — Add automated preview/reference capture for the road segment asset class.
-- [ ] **IS-31-033 P2** — Measure runtime cost in a representative repeated scene for the road segment asset class.
-- [ ] **IS-31-034 P1** — Define source convention and naming for the intersection asset class.
-- [ ] **IS-31-035 P1** — Create at least one approved source asset for the intersection asset class.
-- [ ] **IS-31-036 P1** — Generate or author render geometry for the intersection asset class.
-- [ ] **IS-31-037 P1** — Create collision and logical metadata for the intersection asset class.
-- [ ] **IS-31-038 P1** — Create lods or an explicit lod exemption for the intersection asset class.
-- [ ] **IS-31-039 P1** — Validate materials, textures, scale, pivot, and bounds for the intersection asset class.
-- [ ] **IS-31-040 P1** — Record provenance and license approval for the intersection asset class.
-- [ ] **IS-31-041 P2** — Add automated preview/reference capture for the intersection asset class.
-- [ ] **IS-31-042 P2** — Measure runtime cost in a representative repeated scene for the intersection asset class.
-- [ ] **IS-31-043 P1** — Define source convention and naming for the sidewalk module asset class.
-- [ ] **IS-31-044 P1** — Create at least one approved source asset for the sidewalk module asset class.
-- [ ] **IS-31-045 P1** — Generate or author render geometry for the sidewalk module asset class.
-- [ ] **IS-31-046 P1** — Create collision and logical metadata for the sidewalk module asset class.
-- [ ] **IS-31-047 P1** — Create lods or an explicit lod exemption for the sidewalk module asset class.
-- [ ] **IS-31-048 P1** — Validate materials, textures, scale, pivot, and bounds for the sidewalk module asset class.
-- [ ] **IS-31-049 P1** — Record provenance and license approval for the sidewalk module asset class.
-- [ ] **IS-31-050 P2** — Add automated preview/reference capture for the sidewalk module asset class.
-- [ ] **IS-31-051 P2** — Measure runtime cost in a representative repeated scene for the sidewalk module asset class.
-- [ ] **IS-31-052 P1** — Define source convention and naming for the building facade asset class.
-- [ ] **IS-31-053 P1** — Create at least one approved source asset for the building facade asset class.
-- [ ] **IS-31-054 P1** — Generate or author render geometry for the building facade asset class.
-- [ ] **IS-31-055 P1** — Create collision and logical metadata for the building facade asset class.
-- [ ] **IS-31-056 P1** — Create lods or an explicit lod exemption for the building facade asset class.
-- [ ] **IS-31-057 P1** — Validate materials, textures, scale, pivot, and bounds for the building facade asset class.
-- [ ] **IS-31-058 P1** — Record provenance and license approval for the building facade asset class.
-- [ ] **IS-31-059 P2** — Add automated preview/reference capture for the building facade asset class.
-- [ ] **IS-31-060 P2** — Measure runtime cost in a representative repeated scene for the building facade asset class.
-- [ ] **IS-31-061 P1** — Define source convention and naming for the roof module asset class.
-- [ ] **IS-31-062 P1** — Create at least one approved source asset for the roof module asset class.
-- [ ] **IS-31-063 P1** — Generate or author render geometry for the roof module asset class.
-- [ ] **IS-31-064 P1** — Create collision and logical metadata for the roof module asset class.
-- [ ] **IS-31-065 P1** — Create lods or an explicit lod exemption for the roof module asset class.
-- [ ] **IS-31-066 P1** — Validate materials, textures, scale, pivot, and bounds for the roof module asset class.
-- [ ] **IS-31-067 P1** — Record provenance and license approval for the roof module asset class.
-- [ ] **IS-31-068 P2** — Add automated preview/reference capture for the roof module asset class.
-- [ ] **IS-31-069 P2** — Measure runtime cost in a representative repeated scene for the roof module asset class.
-- [ ] **IS-31-070 P1** — Define source convention and naming for the window module asset class.
-- [ ] **IS-31-071 P1** — Create at least one approved source asset for the window module asset class.
-- [ ] **IS-31-072 P1** — Generate or author render geometry for the window module asset class.
-- [ ] **IS-31-073 P1** — Create collision and logical metadata for the window module asset class.
-- [ ] **IS-31-074 P1** — Create lods or an explicit lod exemption for the window module asset class.
-- [ ] **IS-31-075 P1** — Validate materials, textures, scale, pivot, and bounds for the window module asset class.
-- [ ] **IS-31-076 P1** — Record provenance and license approval for the window module asset class.
-- [ ] **IS-31-077 P2** — Add automated preview/reference capture for the window module asset class.
-- [ ] **IS-31-078 P2** — Measure runtime cost in a representative repeated scene for the window module asset class.
-- [ ] **IS-31-079 P1** — Define source convention and naming for the door module asset class.
-- [ ] **IS-31-080 P1** — Create at least one approved source asset for the door module asset class.
-- [ ] **IS-31-081 P1** — Generate or author render geometry for the door module asset class.
-- [ ] **IS-31-082 P1** — Create collision and logical metadata for the door module asset class.
-- [ ] **IS-31-083 P1** — Create lods or an explicit lod exemption for the door module asset class.
-- [ ] **IS-31-084 P1** — Validate materials, textures, scale, pivot, and bounds for the door module asset class.
-- [ ] **IS-31-085 P1** — Record provenance and license approval for the door module asset class.
-- [ ] **IS-31-086 P2** — Add automated preview/reference capture for the door module asset class.
-- [ ] **IS-31-087 P2** — Measure runtime cost in a representative repeated scene for the door module asset class.
-- [ ] **IS-31-088 P1** — Define source convention and naming for the stair module asset class.
-- [ ] **IS-31-089 P1** — Create at least one approved source asset for the stair module asset class.
-- [ ] **IS-31-090 P1** — Generate or author render geometry for the stair module asset class.
-- [ ] **IS-31-091 P1** — Create collision and logical metadata for the stair module asset class.
-- [ ] **IS-31-092 P1** — Create lods or an explicit lod exemption for the stair module asset class.
-- [ ] **IS-31-093 P1** — Validate materials, textures, scale, pivot, and bounds for the stair module asset class.
-- [ ] **IS-31-094 P1** — Record provenance and license approval for the stair module asset class.
-- [ ] **IS-31-095 P2** — Add automated preview/reference capture for the stair module asset class.
-- [ ] **IS-31-096 P2** — Measure runtime cost in a representative repeated scene for the stair module asset class.
-- [ ] **IS-31-097 P1** — Define source convention and naming for the interior room shell asset class.
-- [ ] **IS-31-098 P1** — Create at least one approved source asset for the interior room shell asset class.
-- [ ] **IS-31-099 P1** — Generate or author render geometry for the interior room shell asset class.
-- [ ] **IS-31-100 P1** — Create collision and logical metadata for the interior room shell asset class.
-- [ ] **IS-31-101 P1** — Create lods or an explicit lod exemption for the interior room shell asset class.
-- [ ] **IS-31-102 P1** — Validate materials, textures, scale, pivot, and bounds for the interior room shell asset class.
-- [ ] **IS-31-103 P1** — Record provenance and license approval for the interior room shell asset class.
-- [ ] **IS-31-104 P2** — Add automated preview/reference capture for the interior room shell asset class.
-- [ ] **IS-31-105 P2** — Measure runtime cost in a representative repeated scene for the interior room shell asset class.
-- [ ] **IS-31-106 P1** — Define source convention and naming for the warehouse prop asset class.
-- [ ] **IS-31-107 P1** — Create at least one approved source asset for the warehouse prop asset class.
-- [ ] **IS-31-108 P1** — Generate or author render geometry for the warehouse prop asset class.
-- [ ] **IS-31-109 P1** — Create collision and logical metadata for the warehouse prop asset class.
-- [ ] **IS-31-110 P1** — Create lods or an explicit lod exemption for the warehouse prop asset class.
-- [ ] **IS-31-111 P1** — Validate materials, textures, scale, pivot, and bounds for the warehouse prop asset class.
-- [ ] **IS-31-112 P1** — Record provenance and license approval for the warehouse prop asset class.
-- [ ] **IS-31-113 P2** — Add automated preview/reference capture for the warehouse prop asset class.
-- [ ] **IS-31-114 P2** — Measure runtime cost in a representative repeated scene for the warehouse prop asset class.
-- [ ] **IS-31-115 P1** — Define source convention and naming for the garage prop asset class.
-- [ ] **IS-31-116 P1** — Create at least one approved source asset for the garage prop asset class.
-- [ ] **IS-31-117 P1** — Generate or author render geometry for the garage prop asset class.
-- [ ] **IS-31-118 P1** — Create collision and logical metadata for the garage prop asset class.
-- [ ] **IS-31-119 P1** — Create lods or an explicit lod exemption for the garage prop asset class.
-- [ ] **IS-31-120 P1** — Validate materials, textures, scale, pivot, and bounds for the garage prop asset class.
-- [ ] **IS-31-121 P1** — Record provenance and license approval for the garage prop asset class.
-- [ ] **IS-31-122 P2** — Add automated preview/reference capture for the garage prop asset class.
-- [ ] **IS-31-123 P2** — Measure runtime cost in a representative repeated scene for the garage prop asset class.
-- [ ] **IS-31-124 P1** — Define source convention and naming for the bar furniture asset class.
-- [ ] **IS-31-125 P1** — Create at least one approved source asset for the bar furniture asset class.
-- [ ] **IS-31-126 P1** — Generate or author render geometry for the bar furniture asset class.
-- [ ] **IS-31-127 P1** — Create collision and logical metadata for the bar furniture asset class.
-- [ ] **IS-31-128 P1** — Create lods or an explicit lod exemption for the bar furniture asset class.
-- [ ] **IS-31-129 P1** — Validate materials, textures, scale, pivot, and bounds for the bar furniture asset class.
-- [ ] **IS-31-130 P1** — Record provenance and license approval for the bar furniture asset class.
-- [ ] **IS-31-131 P2** — Add automated preview/reference capture for the bar furniture asset class.
-- [ ] **IS-31-132 P2** — Measure runtime cost in a representative repeated scene for the bar furniture asset class.
-- [ ] **IS-31-133 P1** — Define source convention and naming for the street lamp asset class.
-- [ ] **IS-31-134 P1** — Create at least one approved source asset for the street lamp asset class.
-- [ ] **IS-31-135 P1** — Generate or author render geometry for the street lamp asset class.
-- [ ] **IS-31-136 P1** — Create collision and logical metadata for the street lamp asset class.
-- [ ] **IS-31-137 P1** — Create lods or an explicit lod exemption for the street lamp asset class.
-- [ ] **IS-31-138 P1** — Validate materials, textures, scale, pivot, and bounds for the street lamp asset class.
-- [ ] **IS-31-139 P1** — Record provenance and license approval for the street lamp asset class.
-- [ ] **IS-31-140 P2** — Add automated preview/reference capture for the street lamp asset class.
-- [ ] **IS-31-141 P2** — Measure runtime cost in a representative repeated scene for the street lamp asset class.
-- [ ] **IS-31-142 P1** — Define source convention and naming for the traffic sign asset class.
-- [ ] **IS-31-143 P1** — Create at least one approved source asset for the traffic sign asset class.
-- [ ] **IS-31-144 P1** — Generate or author render geometry for the traffic sign asset class.
-- [ ] **IS-31-145 P1** — Create collision and logical metadata for the traffic sign asset class.
-- [ ] **IS-31-146 P1** — Create lods or an explicit lod exemption for the traffic sign asset class.
-- [ ] **IS-31-147 P1** — Validate materials, textures, scale, pivot, and bounds for the traffic sign asset class.
-- [ ] **IS-31-148 P1** — Record provenance and license approval for the traffic sign asset class.
-- [ ] **IS-31-149 P2** — Add automated preview/reference capture for the traffic sign asset class.
-- [ ] **IS-31-150 P2** — Measure runtime cost in a representative repeated scene for the traffic sign asset class.
-- [ ] **IS-31-151 P1** — Define source convention and naming for the bench asset class.
-- [ ] **IS-31-152 P1** — Create at least one approved source asset for the bench asset class.
-- [ ] **IS-31-153 P1** — Generate or author render geometry for the bench asset class.
-- [ ] **IS-31-154 P1** — Create collision and logical metadata for the bench asset class.
-- [ ] **IS-31-155 P1** — Create lods or an explicit lod exemption for the bench asset class.
-- [ ] **IS-31-156 P1** — Validate materials, textures, scale, pivot, and bounds for the bench asset class.
-- [ ] **IS-31-157 P1** — Record provenance and license approval for the bench asset class.
-- [ ] **IS-31-158 P2** — Add automated preview/reference capture for the bench asset class.
-- [ ] **IS-31-159 P2** — Measure runtime cost in a representative repeated scene for the bench asset class.
-- [ ] **IS-31-160 P1** — Define source convention and naming for the hydrant asset class.
-- [ ] **IS-31-161 P1** — Create at least one approved source asset for the hydrant asset class.
-- [ ] **IS-31-162 P1** — Generate or author render geometry for the hydrant asset class.
-- [ ] **IS-31-163 P1** — Create collision and logical metadata for the hydrant asset class.
-- [ ] **IS-31-164 P1** — Create lods or an explicit lod exemption for the hydrant asset class.
-- [ ] **IS-31-165 P1** — Validate materials, textures, scale, pivot, and bounds for the hydrant asset class.
-- [ ] **IS-31-166 P1** — Record provenance and license approval for the hydrant asset class.
-- [ ] **IS-31-167 P2** — Add automated preview/reference capture for the hydrant asset class.
-- [ ] **IS-31-168 P2** — Measure runtime cost in a representative repeated scene for the hydrant asset class.
-- [ ] **IS-31-169 P1** — Define source convention and naming for the mailbox asset class.
-- [ ] **IS-31-170 P1** — Create at least one approved source asset for the mailbox asset class.
-- [ ] **IS-31-171 P1** — Generate or author render geometry for the mailbox asset class.
-- [ ] **IS-31-172 P1** — Create collision and logical metadata for the mailbox asset class.
-- [ ] **IS-31-173 P1** — Create lods or an explicit lod exemption for the mailbox asset class.
-- [ ] **IS-31-174 P1** — Validate materials, textures, scale, pivot, and bounds for the mailbox asset class.
-- [ ] **IS-31-175 P1** — Record provenance and license approval for the mailbox asset class.
-- [ ] **IS-31-176 P2** — Add automated preview/reference capture for the mailbox asset class.
-- [ ] **IS-31-177 P2** — Measure runtime cost in a representative repeated scene for the mailbox asset class.
-- [ ] **IS-31-178 P1** — Define source convention and naming for the fence asset class.
-- [ ] **IS-31-179 P1** — Create at least one approved source asset for the fence asset class.
-- [ ] **IS-31-180 P1** — Generate or author render geometry for the fence asset class.
-- [ ] **IS-31-181 P1** — Create collision and logical metadata for the fence asset class.
-- [ ] **IS-31-182 P1** — Create lods or an explicit lod exemption for the fence asset class.
-- [ ] **IS-31-183 P1** — Validate materials, textures, scale, pivot, and bounds for the fence asset class.
-- [ ] **IS-31-184 P1** — Record provenance and license approval for the fence asset class.
-- [ ] **IS-31-185 P2** — Add automated preview/reference capture for the fence asset class.
-- [ ] **IS-31-186 P2** — Measure runtime cost in a representative repeated scene for the fence asset class.
-- [ ] **IS-31-187 P1** — Define source convention and naming for the utility pole asset class.
-- [ ] **IS-31-188 P1** — Create at least one approved source asset for the utility pole asset class.
-- [ ] **IS-31-189 P1** — Generate or author render geometry for the utility pole asset class.
-- [ ] **IS-31-190 P1** — Create collision and logical metadata for the utility pole asset class.
-- [ ] **IS-31-191 P1** — Create lods or an explicit lod exemption for the utility pole asset class.
-- [ ] **IS-31-192 P1** — Validate materials, textures, scale, pivot, and bounds for the utility pole asset class.
-- [ ] **IS-31-193 P1** — Record provenance and license approval for the utility pole asset class.
-- [ ] **IS-31-194 P2** — Add automated preview/reference capture for the utility pole asset class.
-- [ ] **IS-31-195 P2** — Measure runtime cost in a representative repeated scene for the utility pole asset class.
-- [ ] **IS-31-196 P1** — Define source convention and naming for the overhead cable asset class.
-- [ ] **IS-31-197 P1** — Create at least one approved source asset for the overhead cable asset class.
-- [ ] **IS-31-198 P1** — Generate or author render geometry for the overhead cable asset class.
-- [ ] **IS-31-199 P1** — Create collision and logical metadata for the overhead cable asset class.
-- [ ] **IS-31-200 P1** — Create lods or an explicit lod exemption for the overhead cable asset class.
-- [ ] **IS-31-201 P1** — Validate materials, textures, scale, pivot, and bounds for the overhead cable asset class.
-- [ ] **IS-31-202 P1** — Record provenance and license approval for the overhead cable asset class.
-- [ ] **IS-31-203 P2** — Add automated preview/reference capture for the overhead cable asset class.
-- [ ] **IS-31-204 P2** — Measure runtime cost in a representative repeated scene for the overhead cable asset class.
-- [ ] **IS-31-205 P1** — Define source convention and naming for the drain asset class.
-- [ ] **IS-31-206 P1** — Create at least one approved source asset for the drain asset class.
-- [ ] **IS-31-207 P1** — Generate or author render geometry for the drain asset class.
-- [ ] **IS-31-208 P1** — Create collision and logical metadata for the drain asset class.
-- [ ] **IS-31-209 P1** — Create lods or an explicit lod exemption for the drain asset class.
-- [ ] **IS-31-210 P1** — Validate materials, textures, scale, pivot, and bounds for the drain asset class.
-- [ ] **IS-31-211 P1** — Record provenance and license approval for the drain asset class.
-- [ ] **IS-31-212 P2** — Add automated preview/reference capture for the drain asset class.
-- [ ] **IS-31-213 P2** — Measure runtime cost in a representative repeated scene for the drain asset class.
-- [ ] **IS-31-214 P1** — Define source convention and naming for the road marking asset class.
-- [ ] **IS-31-215 P1** — Create at least one approved source asset for the road marking asset class.
-- [ ] **IS-31-216 P1** — Generate or author render geometry for the road marking asset class.
-- [ ] **IS-31-217 P1** — Create collision and logical metadata for the road marking asset class.
-- [ ] **IS-31-218 P1** — Create lods or an explicit lod exemption for the road marking asset class.
-- [ ] **IS-31-219 P1** — Validate materials, textures, scale, pivot, and bounds for the road marking asset class.
-- [ ] **IS-31-220 P1** — Record provenance and license approval for the road marking asset class.
-- [ ] **IS-31-221 P2** — Add automated preview/reference capture for the road marking asset class.
-- [ ] **IS-31-222 P2** — Measure runtime cost in a representative repeated scene for the road marking asset class.
-- [ ] **IS-31-223 P1** — Define source convention and naming for the tree asset class.
-- [ ] **IS-31-224 P1** — Create at least one approved source asset for the tree asset class.
-- [ ] **IS-31-225 P1** — Generate or author render geometry for the tree asset class.
-- [ ] **IS-31-226 P1** — Create collision and logical metadata for the tree asset class.
-- [ ] **IS-31-227 P1** — Create lods or an explicit lod exemption for the tree asset class.
-- [ ] **IS-31-228 P1** — Validate materials, textures, scale, pivot, and bounds for the tree asset class.
-- [ ] **IS-31-229 P1** — Record provenance and license approval for the tree asset class.
-- [ ] **IS-31-230 P2** — Add automated preview/reference capture for the tree asset class.
-- [ ] **IS-31-231 P2** — Measure runtime cost in a representative repeated scene for the tree asset class.
-- [ ] **IS-31-232 P1** — Define source convention and naming for the shrub asset class.
-- [ ] **IS-31-233 P1** — Create at least one approved source asset for the shrub asset class.
-- [ ] **IS-31-234 P1** — Generate or author render geometry for the shrub asset class.
-- [ ] **IS-31-235 P1** — Create collision and logical metadata for the shrub asset class.
-- [ ] **IS-31-236 P1** — Create lods or an explicit lod exemption for the shrub asset class.
-- [ ] **IS-31-237 P1** — Validate materials, textures, scale, pivot, and bounds for the shrub asset class.
-- [ ] **IS-31-238 P1** — Record provenance and license approval for the shrub asset class.
-- [ ] **IS-31-239 P2** — Add automated preview/reference capture for the shrub asset class.
-- [ ] **IS-31-240 P2** — Measure runtime cost in a representative repeated scene for the shrub asset class.
-- [ ] **IS-31-241 P1** — Define source convention and naming for the grass patch asset class.
-- [ ] **IS-31-242 P1** — Create at least one approved source asset for the grass patch asset class.
-- [ ] **IS-31-243 P1** — Generate or author render geometry for the grass patch asset class.
-- [ ] **IS-31-244 P1** — Create collision and logical metadata for the grass patch asset class.
-- [ ] **IS-31-245 P1** — Create lods or an explicit lod exemption for the grass patch asset class.
-- [ ] **IS-31-246 P1** — Validate materials, textures, scale, pivot, and bounds for the grass patch asset class.
-- [ ] **IS-31-247 P1** — Record provenance and license approval for the grass patch asset class.
-- [ ] **IS-31-248 P2** — Add automated preview/reference capture for the grass patch asset class.
-- [ ] **IS-31-249 P2** — Measure runtime cost in a representative repeated scene for the grass patch asset class.
-- [ ] **IS-31-250 P1** — Define source convention and naming for the far skyline proxy asset class.
-- [ ] **IS-31-251 P1** — Create at least one approved source asset for the far skyline proxy asset class.
-- [ ] **IS-31-252 P1** — Generate or author render geometry for the far skyline proxy asset class.
-- [ ] **IS-31-253 P1** — Create collision and logical metadata for the far skyline proxy asset class.
-- [ ] **IS-31-254 P1** — Create lods or an explicit lod exemption for the far skyline proxy asset class.
-- [ ] **IS-31-255 P1** — Validate materials, textures, scale, pivot, and bounds for the far skyline proxy asset class.
-- [ ] **IS-31-256 P1** — Record provenance and license approval for the far skyline proxy asset class.
-- [ ] **IS-31-257 P2** — Add automated preview/reference capture for the far skyline proxy asset class.
-- [ ] **IS-31-258 P2** — Measure runtime cost in a representative repeated scene for the far skyline proxy asset class.
-- [ ] **IS-31-259 P1** — Define source convention and naming for the bridge module asset class.
-- [ ] **IS-31-260 P1** — Create at least one approved source asset for the bridge module asset class.
-- [ ] **IS-31-261 P1** — Generate or author render geometry for the bridge module asset class.
-- [ ] **IS-31-262 P1** — Create collision and logical metadata for the bridge module asset class.
-- [ ] **IS-31-263 P1** — Create lods or an explicit lod exemption for the bridge module asset class.
-- [ ] **IS-31-264 P1** — Validate materials, textures, scale, pivot, and bounds for the bridge module asset class.
-- [ ] **IS-31-265 P1** — Record provenance and license approval for the bridge module asset class.
-- [ ] **IS-31-266 P2** — Add automated preview/reference capture for the bridge module asset class.
-- [ ] **IS-31-267 P2** — Measure runtime cost in a representative repeated scene for the bridge module asset class.
-- [ ] **IS-31-268 P1** — Define source convention and naming for the tunnel module asset class.
-- [ ] **IS-31-269 P1** — Create at least one approved source asset for the tunnel module asset class.
-- [ ] **IS-31-270 P1** — Generate or author render geometry for the tunnel module asset class.
-- [ ] **IS-31-271 P1** — Create collision and logical metadata for the tunnel module asset class.
-- [ ] **IS-31-272 P1** — Create lods or an explicit lod exemption for the tunnel module asset class.
-- [ ] **IS-31-273 P1** — Validate materials, textures, scale, pivot, and bounds for the tunnel module asset class.
-- [ ] **IS-31-274 P1** — Record provenance and license approval for the tunnel module asset class.
-- [ ] **IS-31-275 P2** — Add automated preview/reference capture for the tunnel module asset class.
-- [ ] **IS-31-276 P2** — Measure runtime cost in a representative repeated scene for the tunnel module asset class.
-- [ ] **IS-31-277 P1** — Define source convention and naming for the dock module asset class.
-- [ ] **IS-31-278 P1** — Create at least one approved source asset for the dock module asset class.
-- [ ] **IS-31-279 P1** — Generate or author render geometry for the dock module asset class.
-- [ ] **IS-31-280 P1** — Create collision and logical metadata for the dock module asset class.
-- [ ] **IS-31-281 P1** — Create lods or an explicit lod exemption for the dock module asset class.
-- [ ] **IS-31-282 P1** — Validate materials, textures, scale, pivot, and bounds for the dock module asset class.
-- [ ] **IS-31-283 P1** — Record provenance and license approval for the dock module asset class.
-- [ ] **IS-31-284 P2** — Add automated preview/reference capture for the dock module asset class.
-- [ ] **IS-31-285 P2** — Measure runtime cost in a representative repeated scene for the dock module asset class.
-- [ ] **IS-31-286 P1** — Define source convention and naming for the industrial machine asset class.
-- [ ] **IS-31-287 P1** — Create at least one approved source asset for the industrial machine asset class.
-- [ ] **IS-31-288 P1** — Generate or author render geometry for the industrial machine asset class.
-- [ ] **IS-31-289 P1** — Create collision and logical metadata for the industrial machine asset class.
-- [ ] **IS-31-290 P1** — Create lods or an explicit lod exemption for the industrial machine asset class.
-- [ ] **IS-31-291 P1** — Validate materials, textures, scale, pivot, and bounds for the industrial machine asset class.
-- [ ] **IS-31-292 P1** — Record provenance and license approval for the industrial machine asset class.
-- [ ] **IS-31-293 P2** — Add automated preview/reference capture for the industrial machine asset class.
-- [ ] **IS-31-294 P2** — Measure runtime cost in a representative repeated scene for the industrial machine asset class.
+- [ ] **IS-31-008 P1** — Create prop placement rules and density budgets per district.
+- [ ] **IS-31-009 P1** — Create district signage and fictional business identities.
+- [ ] **IS-31-010 P1** — Create material libraries with consistent texel density across all districts.
+- [ ] **IS-31-011 P1** — Create damage/dirt variation rules applied through material variants, not unique per-instance assets.
+- [ ] **IS-31-012 P1** — Review repeated silhouettes and visual monotony once a district's blockout is populated.
+- [ ] **IS-31-013 P1** — Produce the countryside district(s) content plan (terrain tiles, rural roads, farm/industrial props) alongside the urban districts.
+- [ ] **IS-31-014 P2** — Create waterfront/rail/industrial expansion kits only for the specific districts that need them.
+- [ ] **IS-31-015 P2** — Create weather variants after base assets for a district are approved.
+- [ ] **IS-31-016 P2** — Create night emissive variants and light-placement data for street lighting once the baked-lighting pass for a district is stable.
+- [ ] **IS-31-017 P1** — Create fake-interior window cards/geometry for background buildings that are never entered.
+- [ ] **IS-31-018 P2** — Create skyline and far-proxy assets once a district's near geometry is stable.
 
+## Asset class production
+
+Each category below gets three tasks instead of the previous nine-step template per class: author it, validate/license it, and (later) measure its runtime cost. Naming and metadata conventions come from group 09.
+
+### Infrastructure (roads, crossings, bridges)
+
+- [ ] **IS-31-019 P0** — Author render geometry, collision, and LOD for the road segment asset class.
+- [ ] **IS-31-020 P0** — Validate and record provenance/license for the road segment asset class.
+- [ ] **IS-31-021 P2** — Measure runtime cost of the road segment asset class in a representative repeated scene.
+- [ ] **IS-31-022 P0** — Author render geometry, collision, and LOD for the intersection asset class.
+- [ ] **IS-31-023 P0** — Validate and record provenance/license for the intersection asset class.
+- [ ] **IS-31-024 P2** — Measure runtime cost of the intersection asset class in a representative repeated scene.
+- [ ] **IS-31-025 P0** — Author render geometry, collision, and LOD for the sidewalk module asset class.
+- [ ] **IS-31-026 P0** — Validate and record provenance/license for the sidewalk module asset class.
+- [ ] **IS-31-027 P2** — Measure runtime cost of the sidewalk module asset class in a representative repeated scene.
+- [ ] **IS-31-028 P1** — Author, validate, and license the road marking asset class.
+- [ ] **IS-31-029 P2** — Author, validate, and license the bridge module asset class, only if a district's design needs one.
+- [ ] **IS-31-030 P2** — Author, validate, and license the tunnel module asset class, only if a district's design needs one.
+- [ ] **IS-31-031 P2** — Author, validate, and license the dock module asset class, only if a waterfront district needs one.
+
+### Buildings
+
+- [ ] **IS-31-032 P0** — Author render geometry, collision, and LOD for the building facade asset class.
+- [ ] **IS-31-033 P0** — Validate and record provenance/license for the building facade asset class.
+- [ ] **IS-31-034 P2** — Measure runtime cost of the building facade asset class in a representative repeated scene.
+- [ ] **IS-31-035 P1** — Author, validate, and license the roof module asset class.
+- [ ] **IS-31-036 P0** — Author render geometry, collision, and LOD for the window module asset class.
+- [ ] **IS-31-037 P0** — Validate and record provenance/license for the window module asset class.
+- [ ] **IS-31-038 P0** — Author render geometry, collision, and LOD for the door module asset class.
+- [ ] **IS-31-039 P0** — Validate and record provenance/license for the door module asset class.
+- [ ] **IS-31-040 P1** — Author, validate, and license the stair module asset class.
+- [ ] **IS-31-041 P1** — Author, validate, and license the interior room shell asset class for mission-critical interiors.
+- [ ] **IS-31-042 P2** — Measure runtime cost of the building-kit asset classes (roof/window/door/stair/interior shell) in a representative repeated scene.
+
+### Interior and industrial props
+
+- [ ] **IS-31-043 P1** — Author, validate, and license the warehouse prop asset class.
+- [ ] **IS-31-044 P1** — Author, validate, and license the garage prop asset class.
+- [ ] **IS-31-045 P1** — Author, validate, and license the bar furniture asset class.
+- [ ] **IS-31-046 P2** — Author, validate, and license the industrial machine asset class, only for districts/missions that need one.
+- [ ] **IS-31-047 P2** — Measure runtime cost of the interior/industrial prop classes in a representative repeated scene.
+
+### Street furniture and utilities
+
+- [ ] **IS-31-048 P0** — Author render geometry, collision, and LOD for the street lamp asset class as a definition/instance prefab.
+- [ ] **IS-31-049 P0** — Validate and record provenance/license for the street lamp asset class.
+- [ ] **IS-31-050 P0** — Author, validate, and license the traffic sign asset class as a definition/instance prefab.
+- [ ] **IS-31-051 P0** — Author, validate, and license the bench asset class as a definition/instance prefab.
+- [ ] **IS-31-052 P1** — Author, validate, and license the fence asset class as a definition/instance prefab.
+- [ ] **IS-31-053 P1** — Author, validate, and license the remaining small street-furniture prop set (hydrant, mailbox, utility pole, overhead cable, drain) as shared definition/instance prefabs.
+- [ ] **IS-31-054 P2** — Measure runtime cost of the street-furniture prop set in a representative repeated scene, and confirm instancing is actually used at runtime (see group 06/07 instancing integration).
+
+### Vegetation and distant dressing
+
+- [ ] **IS-31-055 P1** — Author, validate, and license a tree/shrub/grass-patch vegetation set as shared definition/instance prefabs, with district-appropriate variants (urban vs. countryside).
+- [ ] **IS-31-056 P2** — Author, validate, and license the far skyline proxy asset class once a district's near geometry is stable.
+- [ ] **IS-31-057 P2** — Measure runtime cost of the vegetation and skyline-proxy sets in a representative repeated scene.
+
+## Content gate
+
+- [ ] **IS-31-058 P0** — Run every environment asset in this file through the group 09 content validation gates before it is considered production-ready.

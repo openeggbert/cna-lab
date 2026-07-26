@@ -128,7 +128,7 @@ scripts/                Build, test, run, and asset helpers
 tests/                  Window-free core tests
 analysis.md             Technical feasibility and architecture analysis
 plan.md                 Master plan index; links to the 41 group files below
-plan/                   6,380-task backlog split into one file per group
+plan/                   2,663-task backlog split into one file per group
 docs/renaming.md        Checklist for replacing the provisional title safely
 docs/performance-targets.md  Realistic hardware/RAM/VRAM targets for this game
 ```

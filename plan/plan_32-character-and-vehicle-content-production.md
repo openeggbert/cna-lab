@@ -2,8 +2,9 @@
 
 [Back to master plan](../plan.md)
 
+Create a coherent, modestly sized cast and vehicle fleet for a 15-20 mission campaign, hand-authored with shared standards and budgets. Each named character and each vehicle model gets three production tasks instead of the previous eight-step template.
 
-Create coherent populations and vehicle fleets with shared standards and budgets.
+## Shared foundations
 
 - [ ] **IS-32-001 P0** — Produce one playable character on the standard skeleton.
 - [ ] **IS-32-002 P0** — Produce one named mission NPC and three ambient civilian variants.
@@ -13,226 +14,103 @@ Create coherent populations and vehicle fleets with shared standards and budgets
 - [ ] **IS-32-006 P1** — Define demographic variety appropriate to the fictional setting without tokenization.
 - [ ] **IS-32-007 P1** — Define character LOD, texture, bone, material, and animation budgets.
 - [ ] **IS-32-008 P1** — Define vehicle scale, wheel, seat, door, light, collider, and damage conventions.
-- [ ] **IS-32-009 P1** — Create fictional manufacturer, model, year, class, and performance data.
+- [ ] **IS-32-009 P1** — Create fictional manufacturer, model, year, class, and performance data for the vehicle roster.
 - [ ] **IS-32-010 P1** — Create civilian, commercial, taxi, police, and mission vehicle categories.
-- [ ] **IS-32-011 P1** — Create shared animation retarget and validation.
+- [ ] **IS-32-011 P1** — Create shared animation retarget and validation pipeline for every character on the standard skeleton.
 - [ ] **IS-32-012 P1** — Create facial/jaw fallback for characters without full facial rigs.
-- [ ] **IS-32-013 P1** — Create crowd outfit palette and combination validation.
+- [ ] **IS-32-013 P1** — Create crowd outfit palette and combination validation for ambient civilians.
 - [ ] **IS-32-014 P1** — Create vehicle color/material variants through material instances.
-- [ ] **IS-32-015 P1** — Create character/vehicle thumbnail and review renders.
-- [ ] **IS-32-016 P1** — Create voice and character-ID binding.
-- [ ] **IS-32-017 P1** — Create named-character persistence metadata.
-- [ ] **IS-32-018 P1** — Create seated pose validation for every vehicle interior class.
-- [ ] **IS-32-019 P1** — Create collision and occlusion proxy assets.
-- [ ] **IS-32-020 P2** — Create damaged clothing and vehicle variants only where missions require them.
-- [ ] **IS-32-021 P2** — Create seasonal clothing sets after base population works.
-- [ ] **IS-32-022 P2** — Create emergency/service vehicle sets after traffic is stable.
-- [ ] **IS-32-023 P1** — Define original visual and narrative brief for the playable protagonist.
-- [ ] **IS-32-024 P1** — Create or generate source model for the playable protagonist.
-- [ ] **IS-32-025 P1** — Retarget to the standard skeleton for the playable protagonist.
-- [ ] **IS-32-026 P1** — Validate skin weights and deformation for the playable protagonist.
-- [ ] **IS-32-027 P1** — Create lod and texture variants for the playable protagonist.
-- [ ] **IS-32-028 P1** — Assign animation set and behavior archetype for the playable protagonist.
-- [ ] **IS-32-029 P1** — Record voice/localization and provenance metadata for the playable protagonist.
-- [ ] **IS-32-030 P2** — Capture review turntable and in-game reference for the playable protagonist.
-- [ ] **IS-32-031 P1** — Define original visual and narrative brief for the named ally.
-- [ ] **IS-32-032 P1** — Create or generate source model for the named ally.
-- [ ] **IS-32-033 P1** — Retarget to the standard skeleton for the named ally.
-- [ ] **IS-32-034 P1** — Validate skin weights and deformation for the named ally.
-- [ ] **IS-32-035 P1** — Create lod and texture variants for the named ally.
-- [ ] **IS-32-036 P1** — Assign animation set and behavior archetype for the named ally.
-- [ ] **IS-32-037 P1** — Record voice/localization and provenance metadata for the named ally.
-- [ ] **IS-32-038 P2** — Capture review turntable and in-game reference for the named ally.
-- [ ] **IS-32-039 P1** — Define original visual and narrative brief for the named antagonist.
-- [ ] **IS-32-040 P1** — Create or generate source model for the named antagonist.
-- [ ] **IS-32-041 P1** — Retarget to the standard skeleton for the named antagonist.
-- [ ] **IS-32-042 P1** — Validate skin weights and deformation for the named antagonist.
-- [ ] **IS-32-043 P1** — Create lod and texture variants for the named antagonist.
-- [ ] **IS-32-044 P1** — Assign animation set and behavior archetype for the named antagonist.
-- [ ] **IS-32-045 P1** — Record voice/localization and provenance metadata for the named antagonist.
-- [ ] **IS-32-046 P2** — Capture review turntable and in-game reference for the named antagonist.
-- [ ] **IS-32-047 P1** — Define original visual and narrative brief for the bartender.
-- [ ] **IS-32-048 P1** — Create or generate source model for the bartender.
-- [ ] **IS-32-049 P1** — Retarget to the standard skeleton for the bartender.
-- [ ] **IS-32-050 P1** — Validate skin weights and deformation for the bartender.
-- [ ] **IS-32-051 P1** — Create lod and texture variants for the bartender.
-- [ ] **IS-32-052 P1** — Assign animation set and behavior archetype for the bartender.
-- [ ] **IS-32-053 P1** — Record voice/localization and provenance metadata for the bartender.
-- [ ] **IS-32-054 P2** — Capture review turntable and in-game reference for the bartender.
-- [ ] **IS-32-055 P1** — Define original visual and narrative brief for the mechanic.
-- [ ] **IS-32-056 P1** — Create or generate source model for the mechanic.
-- [ ] **IS-32-057 P1** — Retarget to the standard skeleton for the mechanic.
-- [ ] **IS-32-058 P1** — Validate skin weights and deformation for the mechanic.
-- [ ] **IS-32-059 P1** — Create lod and texture variants for the mechanic.
-- [ ] **IS-32-060 P1** — Assign animation set and behavior archetype for the mechanic.
-- [ ] **IS-32-061 P1** — Record voice/localization and provenance metadata for the mechanic.
-- [ ] **IS-32-062 P2** — Capture review turntable and in-game reference for the mechanic.
-- [ ] **IS-32-063 P1** — Define original visual and narrative brief for the warehouse worker.
-- [ ] **IS-32-064 P1** — Create or generate source model for the warehouse worker.
-- [ ] **IS-32-065 P1** — Retarget to the standard skeleton for the warehouse worker.
-- [ ] **IS-32-066 P1** — Validate skin weights and deformation for the warehouse worker.
-- [ ] **IS-32-067 P1** — Create lod and texture variants for the warehouse worker.
-- [ ] **IS-32-068 P1** — Assign animation set and behavior archetype for the warehouse worker.
-- [ ] **IS-32-069 P1** — Record voice/localization and provenance metadata for the warehouse worker.
-- [ ] **IS-32-070 P2** — Capture review turntable and in-game reference for the warehouse worker.
-- [ ] **IS-32-071 P1** — Define original visual and narrative brief for the civilian man.
-- [ ] **IS-32-072 P1** — Create or generate source model for the civilian man.
-- [ ] **IS-32-073 P1** — Retarget to the standard skeleton for the civilian man.
-- [ ] **IS-32-074 P1** — Validate skin weights and deformation for the civilian man.
-- [ ] **IS-32-075 P1** — Create lod and texture variants for the civilian man.
-- [ ] **IS-32-076 P1** — Assign animation set and behavior archetype for the civilian man.
-- [ ] **IS-32-077 P1** — Record voice/localization and provenance metadata for the civilian man.
-- [ ] **IS-32-078 P2** — Capture review turntable and in-game reference for the civilian man.
-- [ ] **IS-32-079 P1** — Define original visual and narrative brief for the civilian woman.
-- [ ] **IS-32-080 P1** — Create or generate source model for the civilian woman.
-- [ ] **IS-32-081 P1** — Retarget to the standard skeleton for the civilian woman.
-- [ ] **IS-32-082 P1** — Validate skin weights and deformation for the civilian woman.
-- [ ] **IS-32-083 P1** — Create lod and texture variants for the civilian woman.
-- [ ] **IS-32-084 P1** — Assign animation set and behavior archetype for the civilian woman.
-- [ ] **IS-32-085 P1** — Record voice/localization and provenance metadata for the civilian woman.
-- [ ] **IS-32-086 P2** — Capture review turntable and in-game reference for the civilian woman.
-- [ ] **IS-32-087 P1** — Define original visual and narrative brief for the civilian elder.
-- [ ] **IS-32-088 P1** — Create or generate source model for the civilian elder.
-- [ ] **IS-32-089 P1** — Retarget to the standard skeleton for the civilian elder.
-- [ ] **IS-32-090 P1** — Validate skin weights and deformation for the civilian elder.
-- [ ] **IS-32-091 P1** — Create lod and texture variants for the civilian elder.
-- [ ] **IS-32-092 P1** — Assign animation set and behavior archetype for the civilian elder.
-- [ ] **IS-32-093 P1** — Record voice/localization and provenance metadata for the civilian elder.
-- [ ] **IS-32-094 P2** — Capture review turntable and in-game reference for the civilian elder.
-- [ ] **IS-32-095 P1** — Define original visual and narrative brief for the police officer.
-- [ ] **IS-32-096 P1** — Create or generate source model for the police officer.
-- [ ] **IS-32-097 P1** — Retarget to the standard skeleton for the police officer.
-- [ ] **IS-32-098 P1** — Validate skin weights and deformation for the police officer.
-- [ ] **IS-32-099 P1** — Create lod and texture variants for the police officer.
-- [ ] **IS-32-100 P1** — Assign animation set and behavior archetype for the police officer.
-- [ ] **IS-32-101 P1** — Record voice/localization and provenance metadata for the police officer.
-- [ ] **IS-32-102 P2** — Capture review turntable and in-game reference for the police officer.
-- [ ] **IS-32-103 P1** — Define original visual and narrative brief for the driver.
-- [ ] **IS-32-104 P1** — Create or generate source model for the driver.
-- [ ] **IS-32-105 P1** — Retarget to the standard skeleton for the driver.
-- [ ] **IS-32-106 P1** — Validate skin weights and deformation for the driver.
-- [ ] **IS-32-107 P1** — Create lod and texture variants for the driver.
-- [ ] **IS-32-108 P1** — Assign animation set and behavior archetype for the driver.
-- [ ] **IS-32-109 P1** — Record voice/localization and provenance metadata for the driver.
-- [ ] **IS-32-110 P2** — Capture review turntable and in-game reference for the driver.
-- [ ] **IS-32-111 P1** — Define original visual and narrative brief for the pedestrian child substitute or omit decision.
-- [ ] **IS-32-112 P1** — Create or generate source model for the pedestrian child substitute or omit decision.
-- [ ] **IS-32-113 P1** — Retarget to the standard skeleton for the pedestrian child substitute or omit decision.
-- [ ] **IS-32-114 P1** — Validate skin weights and deformation for the pedestrian child substitute or omit decision.
-- [ ] **IS-32-115 P1** — Create lod and texture variants for the pedestrian child substitute or omit decision.
-- [ ] **IS-32-116 P1** — Assign animation set and behavior archetype for the pedestrian child substitute or omit decision.
-- [ ] **IS-32-117 P1** — Record voice/localization and provenance metadata for the pedestrian child substitute or omit decision.
-- [ ] **IS-32-118 P2** — Capture review turntable and in-game reference for the pedestrian child substitute or omit decision.
-- [ ] **IS-32-119 P1** — Define original visual and narrative brief for the mission guard.
-- [ ] **IS-32-120 P1** — Create or generate source model for the mission guard.
-- [ ] **IS-32-121 P1** — Retarget to the standard skeleton for the mission guard.
-- [ ] **IS-32-122 P1** — Validate skin weights and deformation for the mission guard.
-- [ ] **IS-32-123 P1** — Create lod and texture variants for the mission guard.
-- [ ] **IS-32-124 P1** — Assign animation set and behavior archetype for the mission guard.
-- [ ] **IS-32-125 P1** — Record voice/localization and provenance metadata for the mission guard.
-- [ ] **IS-32-126 P2** — Capture review turntable and in-game reference for the mission guard.
-- [ ] **IS-32-127 P1** — Define original visual and narrative brief for the radio announcer.
-- [ ] **IS-32-128 P1** — Create or generate source model for the radio announcer.
-- [ ] **IS-32-129 P1** — Retarget to the standard skeleton for the radio announcer.
-- [ ] **IS-32-130 P1** — Validate skin weights and deformation for the radio announcer.
-- [ ] **IS-32-131 P1** — Create lod and texture variants for the radio announcer.
-- [ ] **IS-32-132 P1** — Assign animation set and behavior archetype for the radio announcer.
-- [ ] **IS-32-133 P1** — Record voice/localization and provenance metadata for the radio announcer.
-- [ ] **IS-32-134 P2** — Capture review turntable and in-game reference for the radio announcer.
-- [ ] **IS-32-135 P1** — Define fictional model identity and handling target for the vertical-slice sedan.
-- [ ] **IS-32-136 P1** — Create or generate source model for the vertical-slice sedan.
-- [ ] **IS-32-137 P1** — Separate wheels, doors, lights, seats, and dashboard for the vertical-slice sedan.
-- [ ] **IS-32-138 P1** — Create collision, center-of-mass, and entry-point data for the vertical-slice sedan.
-- [ ] **IS-32-139 P1** — Create lod and material variants for the vertical-slice sedan.
-- [ ] **IS-32-140 P1** — Create vehicle configuration and sound assignment for the vertical-slice sedan.
-- [ ] **IS-32-141 P1** — Record provenance and license approval for the vertical-slice sedan.
-- [ ] **IS-32-142 P2** — Run handling, seat, lighting, and damage validation for the vertical-slice sedan.
-- [ ] **IS-32-143 P1** — Define fictional model identity and handling target for the compact sedan.
-- [ ] **IS-32-144 P1** — Create or generate source model for the compact sedan.
-- [ ] **IS-32-145 P1** — Separate wheels, doors, lights, seats, and dashboard for the compact sedan.
-- [ ] **IS-32-146 P1** — Create collision, center-of-mass, and entry-point data for the compact sedan.
-- [ ] **IS-32-147 P1** — Create lod and material variants for the compact sedan.
-- [ ] **IS-32-148 P1** — Create vehicle configuration and sound assignment for the compact sedan.
-- [ ] **IS-32-149 P1** — Record provenance and license approval for the compact sedan.
-- [ ] **IS-32-150 P2** — Run handling, seat, lighting, and damage validation for the compact sedan.
-- [ ] **IS-32-151 P1** — Define fictional model identity and handling target for the large sedan.
-- [ ] **IS-32-152 P1** — Create or generate source model for the large sedan.
-- [ ] **IS-32-153 P1** — Separate wheels, doors, lights, seats, and dashboard for the large sedan.
-- [ ] **IS-32-154 P1** — Create collision, center-of-mass, and entry-point data for the large sedan.
-- [ ] **IS-32-155 P1** — Create lod and material variants for the large sedan.
-- [ ] **IS-32-156 P1** — Create vehicle configuration and sound assignment for the large sedan.
-- [ ] **IS-32-157 P1** — Record provenance and license approval for the large sedan.
-- [ ] **IS-32-158 P2** — Run handling, seat, lighting, and damage validation for the large sedan.
-- [ ] **IS-32-159 P1** — Define fictional model identity and handling target for the coupe.
-- [ ] **IS-32-160 P1** — Create or generate source model for the coupe.
-- [ ] **IS-32-161 P1** — Separate wheels, doors, lights, seats, and dashboard for the coupe.
-- [ ] **IS-32-162 P1** — Create collision, center-of-mass, and entry-point data for the coupe.
-- [ ] **IS-32-163 P1** — Create lod and material variants for the coupe.
-- [ ] **IS-32-164 P1** — Create vehicle configuration and sound assignment for the coupe.
-- [ ] **IS-32-165 P1** — Record provenance and license approval for the coupe.
-- [ ] **IS-32-166 P2** — Run handling, seat, lighting, and damage validation for the coupe.
-- [ ] **IS-32-167 P1** — Define fictional model identity and handling target for the delivery van.
-- [ ] **IS-32-168 P1** — Create or generate source model for the delivery van.
-- [ ] **IS-32-169 P1** — Separate wheels, doors, lights, seats, and dashboard for the delivery van.
-- [ ] **IS-32-170 P1** — Create collision, center-of-mass, and entry-point data for the delivery van.
-- [ ] **IS-32-171 P1** — Create lod and material variants for the delivery van.
-- [ ] **IS-32-172 P1** — Create vehicle configuration and sound assignment for the delivery van.
-- [ ] **IS-32-173 P1** — Record provenance and license approval for the delivery van.
-- [ ] **IS-32-174 P2** — Run handling, seat, lighting, and damage validation for the delivery van.
-- [ ] **IS-32-175 P1** — Define fictional model identity and handling target for the flatbed truck.
-- [ ] **IS-32-176 P1** — Create or generate source model for the flatbed truck.
-- [ ] **IS-32-177 P1** — Separate wheels, doors, lights, seats, and dashboard for the flatbed truck.
-- [ ] **IS-32-178 P1** — Create collision, center-of-mass, and entry-point data for the flatbed truck.
-- [ ] **IS-32-179 P1** — Create lod and material variants for the flatbed truck.
-- [ ] **IS-32-180 P1** — Create vehicle configuration and sound assignment for the flatbed truck.
-- [ ] **IS-32-181 P1** — Record provenance and license approval for the flatbed truck.
-- [ ] **IS-32-182 P2** — Run handling, seat, lighting, and damage validation for the flatbed truck.
-- [ ] **IS-32-183 P1** — Define fictional model identity and handling target for the taxi.
-- [ ] **IS-32-184 P1** — Create or generate source model for the taxi.
-- [ ] **IS-32-185 P1** — Separate wheels, doors, lights, seats, and dashboard for the taxi.
-- [ ] **IS-32-186 P1** — Create collision, center-of-mass, and entry-point data for the taxi.
-- [ ] **IS-32-187 P1** — Create lod and material variants for the taxi.
-- [ ] **IS-32-188 P1** — Create vehicle configuration and sound assignment for the taxi.
-- [ ] **IS-32-189 P1** — Record provenance and license approval for the taxi.
-- [ ] **IS-32-190 P2** — Run handling, seat, lighting, and damage validation for the taxi.
-- [ ] **IS-32-191 P1** — Define fictional model identity and handling target for the police sedan.
-- [ ] **IS-32-192 P1** — Create or generate source model for the police sedan.
-- [ ] **IS-32-193 P1** — Separate wheels, doors, lights, seats, and dashboard for the police sedan.
-- [ ] **IS-32-194 P1** — Create collision, center-of-mass, and entry-point data for the police sedan.
-- [ ] **IS-32-195 P1** — Create lod and material variants for the police sedan.
-- [ ] **IS-32-196 P1** — Create vehicle configuration and sound assignment for the police sedan.
-- [ ] **IS-32-197 P1** — Record provenance and license approval for the police sedan.
-- [ ] **IS-32-198 P2** — Run handling, seat, lighting, and damage validation for the police sedan.
-- [ ] **IS-32-199 P1** — Define fictional model identity and handling target for the luxury car.
-- [ ] **IS-32-200 P1** — Create or generate source model for the luxury car.
-- [ ] **IS-32-201 P1** — Separate wheels, doors, lights, seats, and dashboard for the luxury car.
-- [ ] **IS-32-202 P1** — Create collision, center-of-mass, and entry-point data for the luxury car.
-- [ ] **IS-32-203 P1** — Create lod and material variants for the luxury car.
-- [ ] **IS-32-204 P1** — Create vehicle configuration and sound assignment for the luxury car.
-- [ ] **IS-32-205 P1** — Record provenance and license approval for the luxury car.
-- [ ] **IS-32-206 P2** — Run handling, seat, lighting, and damage validation for the luxury car.
-- [ ] **IS-32-207 P1** — Define fictional model identity and handling target for the utility truck.
-- [ ] **IS-32-208 P1** — Create or generate source model for the utility truck.
-- [ ] **IS-32-209 P1** — Separate wheels, doors, lights, seats, and dashboard for the utility truck.
-- [ ] **IS-32-210 P1** — Create collision, center-of-mass, and entry-point data for the utility truck.
-- [ ] **IS-32-211 P1** — Create lod and material variants for the utility truck.
-- [ ] **IS-32-212 P1** — Create vehicle configuration and sound assignment for the utility truck.
-- [ ] **IS-32-213 P1** — Record provenance and license approval for the utility truck.
-- [ ] **IS-32-214 P2** — Run handling, seat, lighting, and damage validation for the utility truck.
-- [ ] **IS-32-215 P1** — Define fictional model identity and handling target for the parked wreck.
-- [ ] **IS-32-216 P1** — Create or generate source model for the parked wreck.
-- [ ] **IS-32-217 P1** — Separate wheels, doors, lights, seats, and dashboard for the parked wreck.
-- [ ] **IS-32-218 P1** — Create collision, center-of-mass, and entry-point data for the parked wreck.
-- [ ] **IS-32-219 P1** — Create lod and material variants for the parked wreck.
-- [ ] **IS-32-220 P1** — Create vehicle configuration and sound assignment for the parked wreck.
-- [ ] **IS-32-221 P1** — Record provenance and license approval for the parked wreck.
-- [ ] **IS-32-222 P2** — Run handling, seat, lighting, and damage validation for the parked wreck.
-- [ ] **IS-32-223 P1** — Define fictional model identity and handling target for the mission getaway car.
-- [ ] **IS-32-224 P1** — Create or generate source model for the mission getaway car.
-- [ ] **IS-32-225 P1** — Separate wheels, doors, lights, seats, and dashboard for the mission getaway car.
-- [ ] **IS-32-226 P1** — Create collision, center-of-mass, and entry-point data for the mission getaway car.
-- [ ] **IS-32-227 P1** — Create lod and material variants for the mission getaway car.
-- [ ] **IS-32-228 P1** — Create vehicle configuration and sound assignment for the mission getaway car.
-- [ ] **IS-32-229 P1** — Record provenance and license approval for the mission getaway car.
-- [ ] **IS-32-230 P2** — Run handling, seat, lighting, and damage validation for the mission getaway car.
+- [ ] **IS-32-015 P1** — Create voice and character-ID binding shared across all named characters.
+- [ ] **IS-32-016 P1** — Create named-character persistence metadata (for save games and mission state).
+- [ ] **IS-32-017 P1** — Create seated pose validation for every vehicle interior class.
+- [ ] **IS-32-018 P1** — Create collision and occlusion proxy assets for characters and vehicles.
+- [ ] **IS-32-019 P2** — Create damaged clothing and vehicle variants only where a specific mission requires them.
+- [ ] **IS-32-020 P2** — Create emergency/service vehicle sets (ambulance, fire) only if a mission needs one, after traffic and police are stable.
 
+## Named characters
+
+Roster for the 15-20 mission campaign: protagonist, named ally, named antagonist, bartender, mechanic, warehouse worker, civilian man, civilian woman, civilian elder, police officer, driver, pedestrian child substitute (or an explicit decision to omit children), mission guard, radio announcer.
+
+- [ ] **IS-32-021 P0** — Author (brief, source model, retarget, skin weights) the playable protagonist.
+- [ ] **IS-32-022 P0** — Assign LOD/texture variants, animation set, and behavior archetype for the protagonist.
+- [ ] **IS-32-023 P1** — Record voice/provenance and capture a review reference for the protagonist.
+- [ ] **IS-32-024 P1** — Author (brief, source model, retarget, skin weights) the named ally.
+- [ ] **IS-32-025 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the named ally.
+- [ ] **IS-32-026 P2** — Record voice/provenance and capture a review reference for the named ally.
+- [ ] **IS-32-027 P1** — Author (brief, source model, retarget, skin weights) the named antagonist.
+- [ ] **IS-32-028 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the named antagonist.
+- [ ] **IS-32-029 P2** — Record voice/provenance and capture a review reference for the named antagonist.
+- [ ] **IS-32-030 P1** — Author (brief, source model, retarget, skin weights) the bartender.
+- [ ] **IS-32-031 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the bartender.
+- [ ] **IS-32-032 P2** — Record voice/provenance and capture a review reference for the bartender.
+- [ ] **IS-32-033 P1** — Author (brief, source model, retarget, skin weights) the mechanic.
+- [ ] **IS-32-034 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the mechanic.
+- [ ] **IS-32-035 P2** — Record voice/provenance and capture a review reference for the mechanic.
+- [ ] **IS-32-036 P1** — Author (brief, source model, retarget, skin weights) the warehouse worker.
+- [ ] **IS-32-037 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the warehouse worker.
+- [ ] **IS-32-038 P2** — Record voice/provenance and capture a review reference for the warehouse worker.
+- [ ] **IS-32-039 P1** — Author (brief, source model, retarget, skin weights) the civilian man variant.
+- [ ] **IS-32-040 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the civilian man variant.
+- [ ] **IS-32-041 P2** — Record voice/provenance and capture a review reference for the civilian man variant.
+- [ ] **IS-32-042 P1** — Author (brief, source model, retarget, skin weights) the civilian woman variant.
+- [ ] **IS-32-043 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the civilian woman variant.
+- [ ] **IS-32-044 P2** — Record voice/provenance and capture a review reference for the civilian woman variant.
+- [ ] **IS-32-045 P1** — Author (brief, source model, retarget, skin weights) the civilian elder variant.
+- [ ] **IS-32-046 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the civilian elder variant.
+- [ ] **IS-32-047 P2** — Record voice/provenance and capture a review reference for the civilian elder variant.
+- [ ] **IS-32-048 P1** — Author (brief, source model, retarget, skin weights) the police officer.
+- [ ] **IS-32-049 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the police officer.
+- [ ] **IS-32-050 P2** — Record voice/provenance and capture a review reference for the police officer.
+- [ ] **IS-32-051 P1** — Author (brief, source model, retarget, skin weights) the driver.
+- [ ] **IS-32-052 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the driver.
+- [ ] **IS-32-053 P2** — Record voice/provenance and capture a review reference for the driver.
+- [ ] **IS-32-054 P1** — Decide whether to include a pedestrian child substitute or omit children entirely, then author (or document the omission) accordingly.
+- [ ] **IS-32-055 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the pedestrian child substitute, if included.
+- [ ] **IS-32-056 P2** — Record voice/provenance and capture a review reference for the pedestrian child substitute, if included.
+- [ ] **IS-32-057 P1** — Author (brief, source model, retarget, skin weights) the mission guard.
+- [ ] **IS-32-058 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the mission guard.
+- [ ] **IS-32-059 P2** — Record voice/provenance and capture a review reference for the mission guard.
+- [ ] **IS-32-060 P1** — Author (brief, source model, retarget, skin weights) the radio announcer.
+- [ ] **IS-32-061 P1** — Assign LOD/texture variants, animation set, and behavior archetype for the radio announcer.
+- [ ] **IS-32-062 P2** — Record voice/provenance and capture a review reference for the radio announcer.
+
+## Vehicle roster
+
+Roster for the campaign: vertical-slice sedan, compact sedan, large sedan, coupe, delivery van, flatbed truck, taxi, police sedan, luxury car, utility truck, parked wreck, mission getaway car.
+
+- [ ] **IS-32-063 P0** — Author (identity/handling target, source model, separated parts) the vertical-slice sedan.
+- [ ] **IS-32-064 P0** — Create collision/COM/entry data, LOD/material variants, and configuration/sound for the vertical-slice sedan.
+- [ ] **IS-32-065 P1** — Record provenance and run handling/seat/lighting/damage validation for the vertical-slice sedan.
+- [ ] **IS-32-066 P1** — Author (identity/handling target, source model, separated parts) the compact sedan.
+- [ ] **IS-32-067 P1** — Create collision/COM/entry data, LOD/material variants, and configuration/sound for the compact sedan.
+- [ ] **IS-32-068 P2** — Record provenance and run handling/seat/lighting/damage validation for the compact sedan.
+- [ ] **IS-32-069 P1** — Author (identity/handling target, source model, separated parts) the large sedan.
+- [ ] **IS-32-070 P1** — Create collision/COM/entry data, LOD/material variants, and configuration/sound for the large sedan.
+- [ ] **IS-32-071 P2** — Record provenance and run handling/seat/lighting/damage validation for the large sedan.
+- [ ] **IS-32-072 P1** — Author (identity/handling target, source model, separated parts) the coupe.
+- [ ] **IS-32-073 P1** — Create collision/COM/entry data, LOD/material variants, and configuration/sound for the coupe.
+- [ ] **IS-32-074 P2** — Record provenance and run handling/seat/lighting/damage validation for the coupe.
+- [ ] **IS-32-075 P1** — Author (identity/handling target, source model, separated parts) the delivery van.
+- [ ] **IS-32-076 P1** — Create collision/COM/entry data, LOD/material variants, and configuration/sound for the delivery van.
+- [ ] **IS-32-077 P2** — Record provenance and run handling/seat/lighting/damage validation for the delivery van.
+- [ ] **IS-32-078 P1** — Author (identity/handling target, source model, separated parts) the flatbed truck.
+- [ ] **IS-32-079 P1** — Create collision/COM/entry data, LOD/material variants, and configuration/sound for the flatbed truck.
+- [ ] **IS-32-080 P2** — Record provenance and run handling/seat/lighting/damage validation for the flatbed truck.
+- [ ] **IS-32-081 P1** — Author (identity/handling target, source model, separated parts) the taxi.
+- [ ] **IS-32-082 P1** — Create collision/COM/entry data, LOD/material variants, and configuration/sound for the taxi.
+- [ ] **IS-32-083 P2** — Record provenance and run handling/seat/lighting/damage validation for the taxi.
+- [ ] **IS-32-084 P1** — Author (identity/handling target, source model, separated parts) the police sedan.
+- [ ] **IS-32-085 P1** — Create collision/COM/entry data, LOD/material variants, and configuration/sound for the police sedan.
+- [ ] **IS-32-086 P2** — Record provenance and run handling/seat/lighting/damage validation for the police sedan.
+- [ ] **IS-32-087 P2** — Author (identity/handling target, source model, separated parts) the luxury car.
+- [ ] **IS-32-088 P2** — Create collision/COM/entry data, LOD/material variants, and configuration/sound for the luxury car.
+- [ ] **IS-32-089 P2** — Record provenance and run handling/seat/lighting/damage validation for the luxury car.
+- [ ] **IS-32-090 P2** — Author (identity/handling target, source model, separated parts) the utility truck.
+- [ ] **IS-32-091 P2** — Create collision/COM/entry data, LOD/material variants, and configuration/sound for the utility truck.
+- [ ] **IS-32-092 P2** — Record provenance and run handling/seat/lighting/damage validation for the utility truck.
+- [ ] **IS-32-093 P2** — Author (identity/handling target, source model, separated parts) the parked wreck.
+- [ ] **IS-32-094 P2** — Create collision/COM/entry data, LOD/material variants, and configuration/sound for the parked wreck.
+- [ ] **IS-32-095 P2** — Record provenance and run handling/seat/lighting/damage validation for the parked wreck.
+- [ ] **IS-32-096 P1** — Author (identity/handling target, source model, separated parts) the mission getaway car.
+- [ ] **IS-32-097 P1** — Create collision/COM/entry data, LOD/material variants, and configuration/sound for the mission getaway car.
+- [ ] **IS-32-098 P2** — Record provenance and run handling/seat/lighting/damage validation for the mission getaway car.

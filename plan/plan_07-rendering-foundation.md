@@ -2,214 +2,66 @@
 
 [Back to master plan](../plan.md)
 
-
-Replace debug boxes with a scalable scene renderer and resource lifecycle.
+Replace debug boxes with a scalable scene renderer sized for one Mafia-1-fidelity district at a time, not an open-world streaming renderer. Decals, particles, reflection probes, GPU-indirect drawing, and shader-permutation caching are explicitly deferred; see `plan_06` for the CNA/cna-extended integration this depends on.
 
 - [ ] **IS-07-001 P0** — Create a runtime asset handle rather than storing raw graphics-resource pointers in gameplay objects.
 - [ ] **IS-07-002 P0** — Load one CNJ static model and replace one procedural building.
 - [ ] **IS-07-003 P0** — Load one CNJ vehicle model and attach it to the current vehicle transform.
 - [ ] **IS-07-004 P0** — Create a fallback error mesh and material.
 - [ ] **IS-07-005 P0** — Create explicit render-world extraction from gameplay/world state.
-- [ ] **IS-07-006 P1** — Create renderable components for static, skinned, instanced, decal, particle, and debug geometry.
+- [ ] **IS-07-006 P1** — Create renderable components for static, skinned, and instanced geometry.
 - [ ] **IS-07-007 P1** — Create frustum culling using CNA bounding primitives.
-- [ ] **IS-07-008 P1** — Create stable opaque and transparent render queues.
-- [ ] **IS-07-009 P1** — Create material/state sorting.
-- [ ] **IS-07-010 P1** — Create per-view constants for main, shadow, reflection, and UI views.
-- [ ] **IS-07-011 P1** — Create camera-relative rendering or origin rebasing if precision tests require it.
-- [ ] **IS-07-012 P1** — Create LOD selection with hysteresis.
-- [ ] **IS-07-013 P1** — Create instance batching for lamps, windows, street props, and vegetation.
-- [ ] **IS-07-014 P1** — Create visibility layers for gameplay, editor, cinematic, and debug views.
-- [ ] **IS-07-015 P1** — Create resource lifetime fences around asynchronous uploads.
-- [ ] **IS-07-016 P1** — Create safe placeholders while streamed resources are pending.
-- [ ] **IS-07-017 P1** — Create GPU resource accounting by asset and sector.
-- [ ] **IS-07-018 P1** — Create render-pass timing markers.
-- [ ] **IS-07-019 P2** — Create occlusion-query experiments after frustum/sector culling works.
-- [ ] **IS-07-020 P2** — Create impostor support for skyline and vegetation.
-- [ ] **IS-07-021 P2** — Create decal rendering for signs, dirt, damage, and road markings.
-- [ ] **IS-07-022 P2** — Create a particle system for dust, smoke, sparks, weather, and impacts.
-- [ ] **IS-07-023 P2** — Create a reflection-probe assignment system.
-- [ ] **IS-07-024 P2** — Create render-scene capture for regression tests.
-- [ ] **IS-07-025 P3** — Evaluate GPU indirect drawing after batching bottlenecks are measured.
-- [ ] **IS-07-026 P1** — Define the scope, responsibilities, and explicit non-goals of render-world extractor.
-- [ ] **IS-07-027 P1** — Define the public C++ API and ownership rules for render-world extractor.
-- [ ] **IS-07-028 P1** — Define versioned configuration or asset data for render-world extractor.
-- [ ] **IS-07-029 P1** — Implement the smallest deterministic reference path for render-world extractor.
-- [ ] **IS-07-030 P1** — Add input validation and actionable failure reporting to render-world extractor.
-- [ ] **IS-07-031 P1** — Add focused unit tests for render-world extractor.
-- [ ] **IS-07-032 P1** — Add an integration scenario that exercises render-world extractor in a running game flow.
-- [ ] **IS-07-033 P2** — Add logging, counters, and debug inspection for render-world extractor.
-- [ ] **IS-07-034 P2** — Add an in-world or overlay debug visualization for render-world extractor.
-- [ ] **IS-07-035 P2** — Define CPU, memory, latency, and content budgets for render-world extractor.
-- [ ] **IS-07-036 P2** — Profile render-world extractor under a representative worst-case scene.
-- [ ] **IS-07-037 P2** — Document usage examples, invariants, and common failure modes for render-world extractor.
-- [ ] **IS-07-038 P2** — Validate render-world extractor on each production graphics backend and record differences.
-- [ ] **IS-07-039 P1** — Define the scope, responsibilities, and explicit non-goals of static mesh renderer.
-- [ ] **IS-07-040 P1** — Define the public C++ API and ownership rules for static mesh renderer.
-- [ ] **IS-07-041 P1** — Define versioned configuration or asset data for static mesh renderer.
-- [ ] **IS-07-042 P1** — Implement the smallest deterministic reference path for static mesh renderer.
-- [ ] **IS-07-043 P1** — Add input validation and actionable failure reporting to static mesh renderer.
-- [ ] **IS-07-044 P1** — Add focused unit tests for static mesh renderer.
-- [ ] **IS-07-045 P1** — Add an integration scenario that exercises static mesh renderer in a running game flow.
-- [ ] **IS-07-046 P2** — Add logging, counters, and debug inspection for static mesh renderer.
-- [ ] **IS-07-047 P2** — Add an in-world or overlay debug visualization for static mesh renderer.
-- [ ] **IS-07-048 P2** — Define CPU, memory, latency, and content budgets for static mesh renderer.
-- [ ] **IS-07-049 P2** — Profile static mesh renderer under a representative worst-case scene.
-- [ ] **IS-07-050 P2** — Document usage examples, invariants, and common failure modes for static mesh renderer.
-- [ ] **IS-07-051 P2** — Validate static mesh renderer on each production graphics backend and record differences.
-- [ ] **IS-07-052 P1** — Define the scope, responsibilities, and explicit non-goals of skinned mesh renderer.
-- [ ] **IS-07-053 P1** — Define the public C++ API and ownership rules for skinned mesh renderer.
-- [ ] **IS-07-054 P1** — Define versioned configuration or asset data for skinned mesh renderer.
-- [ ] **IS-07-055 P1** — Implement the smallest deterministic reference path for skinned mesh renderer.
-- [ ] **IS-07-056 P1** — Add input validation and actionable failure reporting to skinned mesh renderer.
-- [ ] **IS-07-057 P1** — Add focused unit tests for skinned mesh renderer.
-- [ ] **IS-07-058 P1** — Add an integration scenario that exercises skinned mesh renderer in a running game flow.
-- [ ] **IS-07-059 P2** — Add logging, counters, and debug inspection for skinned mesh renderer.
-- [ ] **IS-07-060 P2** — Add an in-world or overlay debug visualization for skinned mesh renderer.
-- [ ] **IS-07-061 P2** — Define CPU, memory, latency, and content budgets for skinned mesh renderer.
-- [ ] **IS-07-062 P2** — Profile skinned mesh renderer under a representative worst-case scene.
-- [ ] **IS-07-063 P2** — Document usage examples, invariants, and common failure modes for skinned mesh renderer.
-- [ ] **IS-07-064 P2** — Validate skinned mesh renderer on each production graphics backend and record differences.
-- [ ] **IS-07-065 P1** — Define the scope, responsibilities, and explicit non-goals of instance batch renderer.
-- [ ] **IS-07-066 P1** — Define the public C++ API and ownership rules for instance batch renderer.
-- [ ] **IS-07-067 P1** — Define versioned configuration or asset data for instance batch renderer.
-- [ ] **IS-07-068 P1** — Implement the smallest deterministic reference path for instance batch renderer.
-- [ ] **IS-07-069 P1** — Add input validation and actionable failure reporting to instance batch renderer.
-- [ ] **IS-07-070 P1** — Add focused unit tests for instance batch renderer.
-- [ ] **IS-07-071 P1** — Add an integration scenario that exercises instance batch renderer in a running game flow.
-- [ ] **IS-07-072 P2** — Add logging, counters, and debug inspection for instance batch renderer.
-- [ ] **IS-07-073 P2** — Add an in-world or overlay debug visualization for instance batch renderer.
-- [ ] **IS-07-074 P2** — Define CPU, memory, latency, and content budgets for instance batch renderer.
-- [ ] **IS-07-075 P2** — Profile instance batch renderer under a representative worst-case scene.
-- [ ] **IS-07-076 P2** — Document usage examples, invariants, and common failure modes for instance batch renderer.
-- [ ] **IS-07-077 P2** — Validate instance batch renderer on each production graphics backend and record differences.
-- [ ] **IS-07-078 P1** — Define the scope, responsibilities, and explicit non-goals of LOD selector.
-- [ ] **IS-07-079 P1** — Define the public C++ API and ownership rules for LOD selector.
-- [ ] **IS-07-080 P1** — Define versioned configuration or asset data for LOD selector.
-- [ ] **IS-07-081 P1** — Implement the smallest deterministic reference path for LOD selector.
-- [ ] **IS-07-082 P1** — Add input validation and actionable failure reporting to LOD selector.
-- [ ] **IS-07-083 P1** — Add focused unit tests for LOD selector.
-- [ ] **IS-07-084 P1** — Add an integration scenario that exercises LOD selector in a running game flow.
-- [ ] **IS-07-085 P2** — Add logging, counters, and debug inspection for LOD selector.
-- [ ] **IS-07-086 P2** — Add an in-world or overlay debug visualization for LOD selector.
-- [ ] **IS-07-087 P2** — Define CPU, memory, latency, and content budgets for LOD selector.
-- [ ] **IS-07-088 P2** — Profile LOD selector under a representative worst-case scene.
-- [ ] **IS-07-089 P2** — Document usage examples, invariants, and common failure modes for LOD selector.
-- [ ] **IS-07-090 P2** — Validate LOD selector on each production graphics backend and record differences.
-- [ ] **IS-07-091 P1** — Define the scope, responsibilities, and explicit non-goals of visibility culler.
-- [ ] **IS-07-092 P1** — Define the public C++ API and ownership rules for visibility culler.
-- [ ] **IS-07-093 P1** — Define versioned configuration or asset data for visibility culler.
-- [ ] **IS-07-094 P1** — Implement the smallest deterministic reference path for visibility culler.
-- [ ] **IS-07-095 P1** — Add input validation and actionable failure reporting to visibility culler.
-- [ ] **IS-07-096 P1** — Add focused unit tests for visibility culler.
-- [ ] **IS-07-097 P1** — Add an integration scenario that exercises visibility culler in a running game flow.
-- [ ] **IS-07-098 P2** — Add logging, counters, and debug inspection for visibility culler.
-- [ ] **IS-07-099 P2** — Add an in-world or overlay debug visualization for visibility culler.
-- [ ] **IS-07-100 P2** — Define CPU, memory, latency, and content budgets for visibility culler.
-- [ ] **IS-07-101 P2** — Profile visibility culler under a representative worst-case scene.
-- [ ] **IS-07-102 P2** — Document usage examples, invariants, and common failure modes for visibility culler.
-- [ ] **IS-07-103 P2** — Validate visibility culler on each production graphics backend and record differences.
-- [ ] **IS-07-104 P1** — Define the scope, responsibilities, and explicit non-goals of decal renderer.
-- [ ] **IS-07-105 P1** — Define the public C++ API and ownership rules for decal renderer.
-- [ ] **IS-07-106 P1** — Define versioned configuration or asset data for decal renderer.
-- [ ] **IS-07-107 P1** — Implement the smallest deterministic reference path for decal renderer.
-- [ ] **IS-07-108 P1** — Add input validation and actionable failure reporting to decal renderer.
-- [ ] **IS-07-109 P1** — Add focused unit tests for decal renderer.
-- [ ] **IS-07-110 P1** — Add an integration scenario that exercises decal renderer in a running game flow.
-- [ ] **IS-07-111 P2** — Add logging, counters, and debug inspection for decal renderer.
-- [ ] **IS-07-112 P2** — Add an in-world or overlay debug visualization for decal renderer.
-- [ ] **IS-07-113 P2** — Define CPU, memory, latency, and content budgets for decal renderer.
-- [ ] **IS-07-114 P2** — Profile decal renderer under a representative worst-case scene.
-- [ ] **IS-07-115 P2** — Document usage examples, invariants, and common failure modes for decal renderer.
-- [ ] **IS-07-116 P2** — Validate decal renderer on each production graphics backend and record differences.
-- [ ] **IS-07-117 P1** — Define the scope, responsibilities, and explicit non-goals of particle renderer.
-- [ ] **IS-07-118 P1** — Define the public C++ API and ownership rules for particle renderer.
-- [ ] **IS-07-119 P1** — Define versioned configuration or asset data for particle renderer.
-- [ ] **IS-07-120 P1** — Implement the smallest deterministic reference path for particle renderer.
-- [ ] **IS-07-121 P1** — Add input validation and actionable failure reporting to particle renderer.
-- [ ] **IS-07-122 P1** — Add focused unit tests for particle renderer.
-- [ ] **IS-07-123 P1** — Add an integration scenario that exercises particle renderer in a running game flow.
-- [ ] **IS-07-124 P2** — Add logging, counters, and debug inspection for particle renderer.
-- [ ] **IS-07-125 P2** — Add an in-world or overlay debug visualization for particle renderer.
-- [ ] **IS-07-126 P2** — Define CPU, memory, latency, and content budgets for particle renderer.
-- [ ] **IS-07-127 P2** — Profile particle renderer under a representative worst-case scene.
-- [ ] **IS-07-128 P2** — Document usage examples, invariants, and common failure modes for particle renderer.
-- [ ] **IS-07-129 P2** — Validate particle renderer on each production graphics backend and record differences.
-- [ ] **IS-07-130 P1** — Define the scope, responsibilities, and explicit non-goals of debug geometry renderer.
-- [ ] **IS-07-131 P1** — Define the public C++ API and ownership rules for debug geometry renderer.
-- [ ] **IS-07-132 P1** — Define versioned configuration or asset data for debug geometry renderer.
-- [ ] **IS-07-133 P1** — Implement the smallest deterministic reference path for debug geometry renderer.
-- [ ] **IS-07-134 P1** — Add input validation and actionable failure reporting to debug geometry renderer.
-- [ ] **IS-07-135 P1** — Add focused unit tests for debug geometry renderer.
-- [ ] **IS-07-136 P1** — Add an integration scenario that exercises debug geometry renderer in a running game flow.
-- [ ] **IS-07-137 P2** — Add logging, counters, and debug inspection for debug geometry renderer.
-- [ ] **IS-07-138 P2** — Add an in-world or overlay debug visualization for debug geometry renderer.
-- [ ] **IS-07-139 P2** — Define CPU, memory, latency, and content budgets for debug geometry renderer.
-- [ ] **IS-07-140 P2** — Profile debug geometry renderer under a representative worst-case scene.
-- [ ] **IS-07-141 P2** — Document usage examples, invariants, and common failure modes for debug geometry renderer.
-- [ ] **IS-07-142 P2** — Validate debug geometry renderer on each production graphics backend and record differences.
-- [ ] **IS-07-143 P2** — Define the scope, responsibilities, and explicit non-goals of camera view family.
-- [ ] **IS-07-144 P2** — Define the public C++ API and ownership rules for camera view family.
-- [ ] **IS-07-145 P2** — Define versioned configuration or asset data for camera view family.
-- [ ] **IS-07-146 P2** — Implement the smallest deterministic reference path for camera view family.
-- [ ] **IS-07-147 P2** — Add input validation and actionable failure reporting to camera view family.
-- [ ] **IS-07-148 P2** — Add focused unit tests for camera view family.
-- [ ] **IS-07-149 P2** — Add an integration scenario that exercises camera view family in a running game flow.
-- [ ] **IS-07-150 P2** — Add logging, counters, and debug inspection for camera view family.
-- [ ] **IS-07-151 P2** — Add an in-world or overlay debug visualization for camera view family.
-- [ ] **IS-07-152 P2** — Define CPU, memory, latency, and content budgets for camera view family.
-- [ ] **IS-07-153 P2** — Profile camera view family under a representative worst-case scene.
-- [ ] **IS-07-154 P2** — Document usage examples, invariants, and common failure modes for camera view family.
-- [ ] **IS-07-155 P2** — Validate camera view family on each production graphics backend and record differences.
-- [ ] **IS-07-156 P2** — Define the scope, responsibilities, and explicit non-goals of render pass scheduler.
-- [ ] **IS-07-157 P2** — Define the public C++ API and ownership rules for render pass scheduler.
-- [ ] **IS-07-158 P2** — Define versioned configuration or asset data for render pass scheduler.
-- [ ] **IS-07-159 P2** — Implement the smallest deterministic reference path for render pass scheduler.
-- [ ] **IS-07-160 P2** — Add input validation and actionable failure reporting to render pass scheduler.
-- [ ] **IS-07-161 P2** — Add focused unit tests for render pass scheduler.
-- [ ] **IS-07-162 P2** — Add an integration scenario that exercises render pass scheduler in a running game flow.
-- [ ] **IS-07-163 P2** — Add logging, counters, and debug inspection for render pass scheduler.
-- [ ] **IS-07-164 P2** — Add an in-world or overlay debug visualization for render pass scheduler.
-- [ ] **IS-07-165 P2** — Define CPU, memory, latency, and content budgets for render pass scheduler.
-- [ ] **IS-07-166 P2** — Profile render pass scheduler under a representative worst-case scene.
-- [ ] **IS-07-167 P2** — Document usage examples, invariants, and common failure modes for render pass scheduler.
-- [ ] **IS-07-168 P2** — Validate render pass scheduler on each production graphics backend and record differences.
-- [ ] **IS-07-169 P2** — Define the scope, responsibilities, and explicit non-goals of shader permutation cache.
-- [ ] **IS-07-170 P2** — Define the public C++ API and ownership rules for shader permutation cache.
-- [ ] **IS-07-171 P2** — Define versioned configuration or asset data for shader permutation cache.
-- [ ] **IS-07-172 P2** — Implement the smallest deterministic reference path for shader permutation cache.
-- [ ] **IS-07-173 P2** — Add input validation and actionable failure reporting to shader permutation cache.
-- [ ] **IS-07-174 P2** — Add focused unit tests for shader permutation cache.
-- [ ] **IS-07-175 P2** — Add an integration scenario that exercises shader permutation cache in a running game flow.
-- [ ] **IS-07-176 P2** — Add logging, counters, and debug inspection for shader permutation cache.
-- [ ] **IS-07-177 P2** — Add an in-world or overlay debug visualization for shader permutation cache.
-- [ ] **IS-07-178 P2** — Define CPU, memory, latency, and content budgets for shader permutation cache.
-- [ ] **IS-07-179 P2** — Profile shader permutation cache under a representative worst-case scene.
-- [ ] **IS-07-180 P2** — Document usage examples, invariants, and common failure modes for shader permutation cache.
-- [ ] **IS-07-181 P2** — Validate shader permutation cache on each production graphics backend and record differences.
-- [ ] **IS-07-182 P2** — Define the scope, responsibilities, and explicit non-goals of GPU resource recycler.
-- [ ] **IS-07-183 P2** — Define the public C++ API and ownership rules for GPU resource recycler.
-- [ ] **IS-07-184 P2** — Define versioned configuration or asset data for GPU resource recycler.
-- [ ] **IS-07-185 P2** — Implement the smallest deterministic reference path for GPU resource recycler.
-- [ ] **IS-07-186 P2** — Add input validation and actionable failure reporting to GPU resource recycler.
-- [ ] **IS-07-187 P2** — Add focused unit tests for GPU resource recycler.
-- [ ] **IS-07-188 P2** — Add an integration scenario that exercises GPU resource recycler in a running game flow.
-- [ ] **IS-07-189 P2** — Add logging, counters, and debug inspection for GPU resource recycler.
-- [ ] **IS-07-190 P2** — Add an in-world or overlay debug visualization for GPU resource recycler.
-- [ ] **IS-07-191 P2** — Define CPU, memory, latency, and content budgets for GPU resource recycler.
-- [ ] **IS-07-192 P2** — Profile GPU resource recycler under a representative worst-case scene.
-- [ ] **IS-07-193 P2** — Document usage examples, invariants, and common failure modes for GPU resource recycler.
-- [ ] **IS-07-194 P2** — Validate GPU resource recycler on each production graphics backend and record differences.
-- [ ] **IS-07-195 P2** — Define the scope, responsibilities, and explicit non-goals of transparent object sorter.
-- [ ] **IS-07-196 P2** — Define the public C++ API and ownership rules for transparent object sorter.
-- [ ] **IS-07-197 P2** — Define versioned configuration or asset data for transparent object sorter.
-- [ ] **IS-07-198 P2** — Implement the smallest deterministic reference path for transparent object sorter.
-- [ ] **IS-07-199 P2** — Add input validation and actionable failure reporting to transparent object sorter.
-- [ ] **IS-07-200 P2** — Add focused unit tests for transparent object sorter.
-- [ ] **IS-07-201 P2** — Add an integration scenario that exercises transparent object sorter in a running game flow.
-- [ ] **IS-07-202 P2** — Add logging, counters, and debug inspection for transparent object sorter.
-- [ ] **IS-07-203 P2** — Add an in-world or overlay debug visualization for transparent object sorter.
-- [ ] **IS-07-204 P2** — Define CPU, memory, latency, and content budgets for transparent object sorter.
-- [ ] **IS-07-205 P2** — Profile transparent object sorter under a representative worst-case scene.
-- [ ] **IS-07-206 P2** — Document usage examples, invariants, and common failure modes for transparent object sorter.
-- [ ] **IS-07-207 P2** — Validate transparent object sorter on each production graphics backend and record differences.
-
+- [ ] **IS-07-008 P1** — Create stable opaque and transparent render queues with material/state sorting.
+- [ ] **IS-07-009 P1** — Create per-view constants for the main view and the single shadow view.
+- [ ] **IS-07-010 P2** — Create camera-relative rendering or origin rebasing only if precision tests show it is needed at a district's scale.
+- [ ] **IS-07-011 P1** — Create LOD selection with hysteresis for buildings, props, and characters.
+- [ ] **IS-07-012 P1** — Create instance batching for lamps, windows, street props, and vegetation.
+- [ ] **IS-07-013 P1** — Create visibility layers for gameplay, debug, and cinematic views.
+- [ ] **IS-07-014 P1** — Create resource lifetime fences around asynchronous uploads.
+- [ ] **IS-07-015 P1** — Create safe placeholders while a district's streamed resources are pending at load time.
+- [ ] **IS-07-016 P1** — Create GPU resource accounting by asset and district.
+- [ ] **IS-07-017 P2** — Create render-pass timing markers.
+- [ ] **IS-07-018 P1** — Create render-scene capture for regression tests.
+- [ ] **IS-07-019 P3** — Defer decal rendering (signs, dirt, damage, road markings); ship the first playable district without decals.
+- [ ] **IS-07-020 P3** — Defer a general particle system (dust, smoke, sparks, weather, impacts); use at most a couple of hand-authored sprite effects for v1.
+- [ ] **IS-07-021 P3** — Defer reflection probes, GPU-indirect drawing, occlusion queries, and shader-permutation caching indefinitely; revisit only if profiling the first district shows a bottleneck they would actually fix.
+- [ ] **IS-07-022 P1** — Define the scope, API, and explicit non-goals of the render-world extractor.
+- [ ] **IS-07-023 P1** — Implement the smallest deterministic reference path for the render-world extractor.
+- [ ] **IS-07-024 P1** — Add focused unit tests for the render-world extractor.
+- [ ] **IS-07-025 P1** — Add an integration scenario that exercises the render-world extractor in a running game flow.
+- [ ] **IS-07-026 P2** — Add logging/counters for the render-world extractor and profile it against the first district.
+- [ ] **IS-07-027 P1** — Define the scope, API, and explicit non-goals of the static mesh renderer.
+- [ ] **IS-07-028 P1** — Implement the smallest deterministic reference path for the static mesh renderer.
+- [ ] **IS-07-029 P1** — Add focused unit tests for the static mesh renderer.
+- [ ] **IS-07-030 P1** — Add an integration scenario that exercises the static mesh renderer in a running game flow.
+- [ ] **IS-07-031 P2** — Add logging/counters for the static mesh renderer and profile it against the first district.
+- [ ] **IS-07-032 P1** — Define the scope, API, and explicit non-goals of the skinned mesh renderer.
+- [ ] **IS-07-033 P1** — Implement the smallest deterministic reference path for the skinned mesh renderer.
+- [ ] **IS-07-034 P1** — Add focused unit tests for the skinned mesh renderer.
+- [ ] **IS-07-035 P1** — Add an integration scenario that exercises the skinned mesh renderer in a running game flow.
+- [ ] **IS-07-036 P2** — Add logging/counters for the skinned mesh renderer and profile it against the first district.
+- [ ] **IS-07-037 P1** — Define the scope, API, and explicit non-goals of the instance batch renderer.
+- [ ] **IS-07-038 P1** — Implement the smallest deterministic reference path for the instance batch renderer.
+- [ ] **IS-07-039 P1** — Add focused unit tests for the instance batch renderer.
+- [ ] **IS-07-040 P1** — Add an integration scenario that exercises the instance batch renderer in a running game flow.
+- [ ] **IS-07-041 P2** — Add logging/counters for the instance batch renderer and profile it against the first district.
+- [ ] **IS-07-042 P1** — Define the scope, API, and explicit non-goals of the LOD selector.
+- [ ] **IS-07-043 P1** — Implement the smallest deterministic reference path for the LOD selector.
+- [ ] **IS-07-044 P1** — Add focused unit tests for the LOD selector.
+- [ ] **IS-07-045 P1** — Add an integration scenario that exercises the LOD selector in a running game flow.
+- [ ] **IS-07-046 P2** — Add logging/counters for the LOD selector and profile it against the first district.
+- [ ] **IS-07-047 P1** — Define the scope, API, and explicit non-goals of the visibility culler.
+- [ ] **IS-07-048 P1** — Implement the smallest deterministic reference path for the visibility culler.
+- [ ] **IS-07-049 P1** — Add focused unit tests for the visibility culler.
+- [ ] **IS-07-050 P1** — Add an integration scenario that exercises the visibility culler in a running game flow.
+- [ ] **IS-07-051 P2** — Add logging/counters for the visibility culler and profile it against the first district.
+- [ ] **IS-07-052 P1** — Define the scope, API, and explicit non-goals of the debug geometry renderer.
+- [ ] **IS-07-053 P1** — Implement the smallest deterministic reference path for the debug geometry renderer.
+- [ ] **IS-07-054 P1** — Add focused unit tests for the debug geometry renderer.
+- [ ] **IS-07-055 P1** — Add an integration scenario that exercises the debug geometry renderer in a running game flow.
+- [ ] **IS-07-056 P2** — Add logging/counters for the debug geometry renderer and profile it against the first district.
+- [ ] **IS-07-057 P2** — Define the scope, API, and explicit non-goals of camera and view management.
+- [ ] **IS-07-058 P2** — Implement the smallest deterministic reference path for camera and view management.
+- [ ] **IS-07-059 P2** — Add focused unit tests for camera and view management.
+- [ ] **IS-07-060 P2** — Add an integration scenario that exercises camera and view management in a running game flow.
+- [ ] **IS-07-061 P2** — Add logging/counters for camera and view management and profile it against the first district.

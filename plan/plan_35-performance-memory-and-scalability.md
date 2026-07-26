@@ -2,200 +2,57 @@
 
 [Back to master plan](../plan.md)
 
+Establish budgets and measure representative district workloads against the locked performance target (docs/performance-targets.md: baked lighting + one dynamic sun + limited shadows, ~2-4GB RAM, 512MB-1GB VRAM, 720p/30fps minimum, 1080p/60fps recommended, EasyGL as the shipped backend).
 
-Establish budgets and measure representative city workloads before content expansion.
-
-- [ ] **IS-35-001 P0** — Define target hardware and frame-rate/resolution goals.
-- [ ] **IS-35-002 P0** — Define initial CPU, GPU, memory, streaming, physics, AI, and audio budgets.
-- [ ] **IS-35-003 P0** — Instrument frame time by major subsystem.
+- [ ] **IS-35-001 P0** — Define target hardware and frame-rate/resolution goals from docs/performance-targets.md.
+- [ ] **IS-35-002 P0** — Define initial CPU, GPU, memory, district-load, physics, AI, and audio budgets sized for one district (10-20 pedestrians, 5-10 physics vehicles, one sun, limited shadows).
+- [ ] **IS-35-003 P0** — Instrument frame time by major subsystem (render, physics, AI, audio, district load).
 - [ ] **IS-35-004 P0** — Record a baseline from the first running procedural prototype.
 - [ ] **IS-35-005 P1** — Track draw calls, state changes, vertices, triangles, instances, and visible objects.
-- [ ] **IS-35-006 P1** — Track texture, buffer, render-target, and transient GPU memory.
-- [ ] **IS-35-007 P1** — Track sector I/O, decompression, parse, upload, and activation latency.
-- [ ] **IS-35-008 P1** — Track active bodies, contacts, queries, and physics step time.
-- [ ] **IS-35-009 P1** — Track full/simplified/logical AI counts and update time.
-- [ ] **IS-35-010 P1** — Track path requests, queue time, expanded nodes, and failures.
+- [ ] **IS-35-006 P1** — Track texture, buffer, render-target, and transient GPU memory against the 512MB-1GB VRAM target.
+- [ ] **IS-35-007 P1** — Track district load/unload I/O, decompression, parse, upload, and activation latency (a full level load between districts, not continuous streaming).
+- [ ] **IS-35-008 P1** — Track active physics bodies, contacts, queries, and physics step time for the modest vehicle/pedestrian count.
+- [ ] **IS-35-009 P1** — Track simplified pedestrian/traffic/police AI counts and update time.
+- [ ] **IS-35-010 P1** — Track pedestrian waypoint-graph path requests, queue time, and failures.
 - [ ] **IS-35-011 P1** — Track active audio voices, decoders, streams, and bus cost.
-- [ ] **IS-35-012 P1** — Create representative walking, driving, interior, traffic, cutscene, and combat captures.
-- [ ] **IS-35-013 P1** — Create memory high-water and leak checks across repeated load/unload.
-- [ ] **IS-35-014 P1** — Create content budgets enforced by validators.
-- [ ] **IS-35-015 P1** — Create frame-pacing and hitch histograms.
-- [ ] **IS-35-016 P1** — Create release performance reports by platform/backend.
+- [ ] **IS-35-012 P1** — Create representative walking, driving, interior, traffic, district-transition, and mission captures.
+- [ ] **IS-35-013 P1** — Create memory high-water and leak checks across repeated district load/unload cycles.
+- [ ] **IS-35-014 P1** — Create content budgets enforced by validators (triangle/texture/material budgets per building/vehicle/character).
+- [ ] **IS-35-015 P1** — Create frame-pacing and hitch histograms, including at district-transition load boundaries.
+- [ ] **IS-35-016 P1** — Create release performance reports against the locked minimum/recommended hardware targets.
 - [ ] **IS-35-017 P1** — Optimize only measured bottlenecks and record before/after evidence.
-- [ ] **IS-35-018 P1** — Keep low-detail AI and rendering paths visually coherent.
+- [ ] **IS-35-018 P1** — Keep low-detail AI and rendering paths visually coherent at LOD/culling distance.
 - [ ] **IS-35-019 P2** — Evaluate multithreaded culling after single-threaded costs are measured.
-- [ ] **IS-35-020 P2** — Evaluate job granularity and contention.
-- [ ] **IS-35-021 P2** — Evaluate texture streaming after actual residency pressure appears.
-- [ ] **IS-35-022 P2** — Evaluate occlusion culling after sector/frustum/LOD wins are measured.
-- [ ] **IS-35-023 P2** — Evaluate data-oriented component storage for proven hot loops.
+- [ ] **IS-35-020 P2** — Evaluate job granularity and contention only if a measured bottleneck justifies it.
+- [ ] **IS-35-021 P2** — Evaluate texture streaming only after actual residency pressure appears against the VRAM budget.
+- [ ] **IS-35-022 P2** — Evaluate occlusion culling after district/frustum/LOD wins are measured.
+- [ ] **IS-35-023 P2** — Evaluate data-oriented component storage for proven hot loops only.
 - [ ] **IS-35-024 P2** — Create automated capture comparison over time.
-- [ ] **IS-35-025 P1** — Define the scope, responsibilities, and explicit non-goals of frame profiler.
-- [ ] **IS-35-026 P1** — Define the public C++ API and ownership rules for frame profiler.
-- [ ] **IS-35-027 P1** — Define versioned configuration or asset data for frame profiler.
-- [ ] **IS-35-028 P1** — Implement the smallest deterministic reference path for frame profiler.
-- [ ] **IS-35-029 P1** — Add input validation and actionable failure reporting to frame profiler.
-- [ ] **IS-35-030 P1** — Add focused unit tests for frame profiler.
-- [ ] **IS-35-031 P1** — Add an integration scenario that exercises frame profiler in a running game flow.
-- [ ] **IS-35-032 P2** — Add logging, counters, and debug inspection for frame profiler.
-- [ ] **IS-35-033 P2** — Add an in-world or overlay debug visualization for frame profiler.
-- [ ] **IS-35-034 P2** — Define CPU, memory, latency, and content budgets for frame profiler.
-- [ ] **IS-35-035 P2** — Profile frame profiler under a representative worst-case scene.
-- [ ] **IS-35-036 P2** — Document usage examples, invariants, and common failure modes for frame profiler.
-- [ ] **IS-35-037 P2** — Validate frame profiler on each production graphics backend and record differences.
-- [ ] **IS-35-038 P1** — Define the scope, responsibilities, and explicit non-goals of GPU pass profiler.
-- [ ] **IS-35-039 P1** — Define the public C++ API and ownership rules for GPU pass profiler.
-- [ ] **IS-35-040 P1** — Define versioned configuration or asset data for GPU pass profiler.
-- [ ] **IS-35-041 P1** — Implement the smallest deterministic reference path for GPU pass profiler.
-- [ ] **IS-35-042 P1** — Add input validation and actionable failure reporting to GPU pass profiler.
-- [ ] **IS-35-043 P1** — Add focused unit tests for GPU pass profiler.
-- [ ] **IS-35-044 P1** — Add an integration scenario that exercises GPU pass profiler in a running game flow.
-- [ ] **IS-35-045 P2** — Add logging, counters, and debug inspection for GPU pass profiler.
-- [ ] **IS-35-046 P2** — Add an in-world or overlay debug visualization for GPU pass profiler.
-- [ ] **IS-35-047 P2** — Define CPU, memory, latency, and content budgets for GPU pass profiler.
-- [ ] **IS-35-048 P2** — Profile GPU pass profiler under a representative worst-case scene.
-- [ ] **IS-35-049 P2** — Document usage examples, invariants, and common failure modes for GPU pass profiler.
-- [ ] **IS-35-050 P2** — Validate GPU pass profiler on each production graphics backend and record differences.
-- [ ] **IS-35-051 P1** — Define the scope, responsibilities, and explicit non-goals of memory tracker.
-- [ ] **IS-35-052 P1** — Define the public C++ API and ownership rules for memory tracker.
-- [ ] **IS-35-053 P1** — Define versioned configuration or asset data for memory tracker.
-- [ ] **IS-35-054 P1** — Implement the smallest deterministic reference path for memory tracker.
-- [ ] **IS-35-055 P1** — Add input validation and actionable failure reporting to memory tracker.
-- [ ] **IS-35-056 P1** — Add focused unit tests for memory tracker.
-- [ ] **IS-35-057 P1** — Add an integration scenario that exercises memory tracker in a running game flow.
-- [ ] **IS-35-058 P2** — Add logging, counters, and debug inspection for memory tracker.
-- [ ] **IS-35-059 P2** — Add an in-world or overlay debug visualization for memory tracker.
-- [ ] **IS-35-060 P2** — Define CPU, memory, latency, and content budgets for memory tracker.
-- [ ] **IS-35-061 P2** — Profile memory tracker under a representative worst-case scene.
-- [ ] **IS-35-062 P2** — Document usage examples, invariants, and common failure modes for memory tracker.
-- [ ] **IS-35-063 P2** — Validate memory tracker on each production graphics backend and record differences.
-- [ ] **IS-35-064 P1** — Define the scope, responsibilities, and explicit non-goals of streaming profiler.
-- [ ] **IS-35-065 P1** — Define the public C++ API and ownership rules for streaming profiler.
-- [ ] **IS-35-066 P1** — Define versioned configuration or asset data for streaming profiler.
-- [ ] **IS-35-067 P1** — Implement the smallest deterministic reference path for streaming profiler.
-- [ ] **IS-35-068 P1** — Add input validation and actionable failure reporting to streaming profiler.
-- [ ] **IS-35-069 P1** — Add focused unit tests for streaming profiler.
-- [ ] **IS-35-070 P1** — Add an integration scenario that exercises streaming profiler in a running game flow.
-- [ ] **IS-35-071 P2** — Add logging, counters, and debug inspection for streaming profiler.
-- [ ] **IS-35-072 P2** — Add an in-world or overlay debug visualization for streaming profiler.
-- [ ] **IS-35-073 P2** — Define CPU, memory, latency, and content budgets for streaming profiler.
-- [ ] **IS-35-074 P2** — Profile streaming profiler under a representative worst-case scene.
-- [ ] **IS-35-075 P2** — Document usage examples, invariants, and common failure modes for streaming profiler.
-- [ ] **IS-35-076 P2** — Validate streaming profiler on each production graphics backend and record differences.
-- [ ] **IS-35-077 P1** — Define the scope, responsibilities, and explicit non-goals of physics profiler.
-- [ ] **IS-35-078 P1** — Define the public C++ API and ownership rules for physics profiler.
-- [ ] **IS-35-079 P1** — Define versioned configuration or asset data for physics profiler.
-- [ ] **IS-35-080 P1** — Implement the smallest deterministic reference path for physics profiler.
-- [ ] **IS-35-081 P1** — Add input validation and actionable failure reporting to physics profiler.
-- [ ] **IS-35-082 P1** — Add focused unit tests for physics profiler.
-- [ ] **IS-35-083 P1** — Add an integration scenario that exercises physics profiler in a running game flow.
-- [ ] **IS-35-084 P2** — Add logging, counters, and debug inspection for physics profiler.
-- [ ] **IS-35-085 P2** — Add an in-world or overlay debug visualization for physics profiler.
-- [ ] **IS-35-086 P2** — Define CPU, memory, latency, and content budgets for physics profiler.
-- [ ] **IS-35-087 P2** — Profile physics profiler under a representative worst-case scene.
-- [ ] **IS-35-088 P2** — Document usage examples, invariants, and common failure modes for physics profiler.
-- [ ] **IS-35-089 P2** — Validate physics profiler on each production graphics backend and record differences.
-- [ ] **IS-35-090 P1** — Define the scope, responsibilities, and explicit non-goals of AI profiler.
-- [ ] **IS-35-091 P1** — Define the public C++ API and ownership rules for AI profiler.
-- [ ] **IS-35-092 P1** — Define versioned configuration or asset data for AI profiler.
-- [ ] **IS-35-093 P1** — Implement the smallest deterministic reference path for AI profiler.
-- [ ] **IS-35-094 P1** — Add input validation and actionable failure reporting to AI profiler.
-- [ ] **IS-35-095 P1** — Add focused unit tests for AI profiler.
-- [ ] **IS-35-096 P1** — Add an integration scenario that exercises AI profiler in a running game flow.
-- [ ] **IS-35-097 P2** — Add logging, counters, and debug inspection for AI profiler.
-- [ ] **IS-35-098 P2** — Add an in-world or overlay debug visualization for AI profiler.
-- [ ] **IS-35-099 P2** — Define CPU, memory, latency, and content budgets for AI profiler.
-- [ ] **IS-35-100 P2** — Profile AI profiler under a representative worst-case scene.
-- [ ] **IS-35-101 P2** — Document usage examples, invariants, and common failure modes for AI profiler.
-- [ ] **IS-35-102 P2** — Validate AI profiler on each production graphics backend and record differences.
-- [ ] **IS-35-103 P1** — Define the scope, responsibilities, and explicit non-goals of audio profiler.
-- [ ] **IS-35-104 P1** — Define the public C++ API and ownership rules for audio profiler.
-- [ ] **IS-35-105 P1** — Define versioned configuration or asset data for audio profiler.
-- [ ] **IS-35-106 P1** — Implement the smallest deterministic reference path for audio profiler.
-- [ ] **IS-35-107 P1** — Add input validation and actionable failure reporting to audio profiler.
-- [ ] **IS-35-108 P1** — Add focused unit tests for audio profiler.
-- [ ] **IS-35-109 P1** — Add an integration scenario that exercises audio profiler in a running game flow.
-- [ ] **IS-35-110 P2** — Add logging, counters, and debug inspection for audio profiler.
-- [ ] **IS-35-111 P2** — Add an in-world or overlay debug visualization for audio profiler.
-- [ ] **IS-35-112 P2** — Define CPU, memory, latency, and content budgets for audio profiler.
-- [ ] **IS-35-113 P2** — Profile audio profiler under a representative worst-case scene.
-- [ ] **IS-35-114 P2** — Document usage examples, invariants, and common failure modes for audio profiler.
-- [ ] **IS-35-115 P2** — Validate audio profiler on each production graphics backend and record differences.
-- [ ] **IS-35-116 P1** — Define the scope, responsibilities, and explicit non-goals of performance report generator.
-- [ ] **IS-35-117 P1** — Define the public C++ API and ownership rules for performance report generator.
-- [ ] **IS-35-118 P1** — Define versioned configuration or asset data for performance report generator.
-- [ ] **IS-35-119 P1** — Implement the smallest deterministic reference path for performance report generator.
-- [ ] **IS-35-120 P1** — Add input validation and actionable failure reporting to performance report generator.
-- [ ] **IS-35-121 P1** — Add focused unit tests for performance report generator.
-- [ ] **IS-35-122 P1** — Add an integration scenario that exercises performance report generator in a running game flow.
-- [ ] **IS-35-123 P2** — Add logging, counters, and debug inspection for performance report generator.
-- [ ] **IS-35-124 P2** — Add an in-world or overlay debug visualization for performance report generator.
-- [ ] **IS-35-125 P2** — Define CPU, memory, latency, and content budgets for performance report generator.
-- [ ] **IS-35-126 P2** — Profile performance report generator under a representative worst-case scene.
-- [ ] **IS-35-127 P2** — Document usage examples, invariants, and common failure modes for performance report generator.
-- [ ] **IS-35-128 P2** — Validate performance report generator on each production graphics backend and record differences.
-- [ ] **IS-35-129 P2** — Define the scope, responsibilities, and explicit non-goals of content budget validator.
-- [ ] **IS-35-130 P2** — Define the public C++ API and ownership rules for content budget validator.
-- [ ] **IS-35-131 P2** — Define versioned configuration or asset data for content budget validator.
-- [ ] **IS-35-132 P2** — Implement the smallest deterministic reference path for content budget validator.
-- [ ] **IS-35-133 P2** — Add input validation and actionable failure reporting to content budget validator.
-- [ ] **IS-35-134 P2** — Add focused unit tests for content budget validator.
-- [ ] **IS-35-135 P2** — Add an integration scenario that exercises content budget validator in a running game flow.
-- [ ] **IS-35-136 P2** — Add logging, counters, and debug inspection for content budget validator.
-- [ ] **IS-35-137 P2** — Add an in-world or overlay debug visualization for content budget validator.
-- [ ] **IS-35-138 P2** — Define CPU, memory, latency, and content budgets for content budget validator.
-- [ ] **IS-35-139 P2** — Profile content budget validator under a representative worst-case scene.
-- [ ] **IS-35-140 P2** — Document usage examples, invariants, and common failure modes for content budget validator.
-- [ ] **IS-35-141 P2** — Validate content budget validator on each production graphics backend and record differences.
-- [ ] **IS-35-142 P2** — Define the scope, responsibilities, and explicit non-goals of hitch detector.
-- [ ] **IS-35-143 P2** — Define the public C++ API and ownership rules for hitch detector.
-- [ ] **IS-35-144 P2** — Define versioned configuration or asset data for hitch detector.
-- [ ] **IS-35-145 P2** — Implement the smallest deterministic reference path for hitch detector.
-- [ ] **IS-35-146 P2** — Add input validation and actionable failure reporting to hitch detector.
-- [ ] **IS-35-147 P2** — Add focused unit tests for hitch detector.
-- [ ] **IS-35-148 P2** — Add an integration scenario that exercises hitch detector in a running game flow.
-- [ ] **IS-35-149 P2** — Add logging, counters, and debug inspection for hitch detector.
-- [ ] **IS-35-150 P2** — Add an in-world or overlay debug visualization for hitch detector.
-- [ ] **IS-35-151 P2** — Define CPU, memory, latency, and content budgets for hitch detector.
-- [ ] **IS-35-152 P2** — Profile hitch detector under a representative worst-case scene.
-- [ ] **IS-35-153 P2** — Document usage examples, invariants, and common failure modes for hitch detector.
-- [ ] **IS-35-154 P2** — Validate hitch detector on each production graphics backend and record differences.
-- [ ] **IS-35-155 P2** — Define the scope, responsibilities, and explicit non-goals of memory leak soak.
-- [ ] **IS-35-156 P2** — Define the public C++ API and ownership rules for memory leak soak.
-- [ ] **IS-35-157 P2** — Define versioned configuration or asset data for memory leak soak.
-- [ ] **IS-35-158 P2** — Implement the smallest deterministic reference path for memory leak soak.
-- [ ] **IS-35-159 P2** — Add input validation and actionable failure reporting to memory leak soak.
-- [ ] **IS-35-160 P2** — Add focused unit tests for memory leak soak.
-- [ ] **IS-35-161 P2** — Add an integration scenario that exercises memory leak soak in a running game flow.
-- [ ] **IS-35-162 P2** — Add logging, counters, and debug inspection for memory leak soak.
-- [ ] **IS-35-163 P2** — Add an in-world or overlay debug visualization for memory leak soak.
-- [ ] **IS-35-164 P2** — Define CPU, memory, latency, and content budgets for memory leak soak.
-- [ ] **IS-35-165 P2** — Profile memory leak soak under a representative worst-case scene.
-- [ ] **IS-35-166 P2** — Document usage examples, invariants, and common failure modes for memory leak soak.
-- [ ] **IS-35-167 P2** — Validate memory leak soak on each production graphics backend and record differences.
-- [ ] **IS-35-168 P2** — Define the scope, responsibilities, and explicit non-goals of frame pacing analyzer.
-- [ ] **IS-35-169 P2** — Define the public C++ API and ownership rules for frame pacing analyzer.
-- [ ] **IS-35-170 P2** — Define versioned configuration or asset data for frame pacing analyzer.
-- [ ] **IS-35-171 P2** — Implement the smallest deterministic reference path for frame pacing analyzer.
-- [ ] **IS-35-172 P2** — Add input validation and actionable failure reporting to frame pacing analyzer.
-- [ ] **IS-35-173 P2** — Add focused unit tests for frame pacing analyzer.
-- [ ] **IS-35-174 P2** — Add an integration scenario that exercises frame pacing analyzer in a running game flow.
-- [ ] **IS-35-175 P2** — Add logging, counters, and debug inspection for frame pacing analyzer.
-- [ ] **IS-35-176 P2** — Add an in-world or overlay debug visualization for frame pacing analyzer.
-- [ ] **IS-35-177 P2** — Define CPU, memory, latency, and content budgets for frame pacing analyzer.
-- [ ] **IS-35-178 P2** — Profile frame pacing analyzer under a representative worst-case scene.
-- [ ] **IS-35-179 P2** — Document usage examples, invariants, and common failure modes for frame pacing analyzer.
-- [ ] **IS-35-180 P2** — Validate frame pacing analyzer on each production graphics backend and record differences.
-- [ ] **IS-35-181 P2** — Define the scope, responsibilities, and explicit non-goals of backend comparison report.
-- [ ] **IS-35-182 P2** — Define the public C++ API and ownership rules for backend comparison report.
-- [ ] **IS-35-183 P2** — Define versioned configuration or asset data for backend comparison report.
-- [ ] **IS-35-184 P2** — Implement the smallest deterministic reference path for backend comparison report.
-- [ ] **IS-35-185 P2** — Add input validation and actionable failure reporting to backend comparison report.
-- [ ] **IS-35-186 P2** — Add focused unit tests for backend comparison report.
-- [ ] **IS-35-187 P2** — Add an integration scenario that exercises backend comparison report in a running game flow.
-- [ ] **IS-35-188 P2** — Add logging, counters, and debug inspection for backend comparison report.
-- [ ] **IS-35-189 P2** — Add an in-world or overlay debug visualization for backend comparison report.
-- [ ] **IS-35-190 P2** — Define CPU, memory, latency, and content budgets for backend comparison report.
-- [ ] **IS-35-191 P2** — Profile backend comparison report under a representative worst-case scene.
-- [ ] **IS-35-192 P2** — Document usage examples, invariants, and common failure modes for backend comparison report.
-- [ ] **IS-35-193 P2** — Validate backend comparison report on each production graphics backend and record differences.
-
+- [ ] **IS-35-025 P1** — Define scope and implement the smallest working frame profiler (CPU/GPU time per subsystem, one sun + limited shadows, EasyGL only).
+- [ ] **IS-35-026 P1** — Add unit tests and one real-flow integration test for the frame profiler.
+- [ ] **IS-35-027 P1** — Add logging/overlay output and documentation for the frame profiler.
+- [ ] **IS-35-028 P1** — Define scope and implement the smallest working memory tracker (RAM/VRAM high-water, per-category breakdown against the 2-4GB/512MB-1GB target).
+- [ ] **IS-35-029 P1** — Add unit tests and one real-flow integration test for the memory tracker.
+- [ ] **IS-35-030 P1** — Add logging/overlay output and documentation for the memory tracker.
+- [ ] **IS-35-031 P1** — Define scope and implement the smallest working district-load profiler (load time, asset counts, memory delta per transition).
+- [ ] **IS-35-032 P1** — Add unit tests and one real-flow integration test for the district-load profiler.
+- [ ] **IS-35-033 P1** — Add logging/overlay output and documentation for the district-load profiler.
+- [ ] **IS-35-034 P1** — Define scope and implement the smallest working physics profiler (body/contact/query counts, step time).
+- [ ] **IS-35-035 P1** — Add unit tests and one real-flow integration test for the physics profiler.
+- [ ] **IS-35-036 P2** — Add logging/overlay output and documentation for the physics profiler.
+- [ ] **IS-35-037 P1** — Define scope and implement the smallest working AI profiler (pedestrian/traffic/police counts and update time).
+- [ ] **IS-35-038 P1** — Add unit tests and one real-flow integration test for the AI profiler.
+- [ ] **IS-35-039 P2** — Add logging/overlay output and documentation for the AI profiler.
+- [ ] **IS-35-040 P2** — Define scope and implement the smallest working audio profiler (active voice/stream/bus cost).
+- [ ] **IS-35-041 P2** — Add unit tests, logging output, and documentation for the audio profiler.
+- [ ] **IS-35-042 P1** — Define scope and implement the smallest working performance report generator (per-release summary against locked hardware targets).
+- [ ] **IS-35-043 P1** — Add unit tests and one real-flow integration test for the performance report generator.
+- [ ] **IS-35-044 P2** — Document usage of the performance report generator.
+- [ ] **IS-35-045 P2** — Define scope and implement the smallest working content budget validator (triangle/texture/material limits at authoring/import time).
+- [ ] **IS-35-046 P2** — Add unit tests and CI wiring for the content budget validator.
+- [ ] **IS-35-047 P2** — Document usage and failure modes of the content budget validator.
+- [ ] **IS-35-048 P2** — Define scope and implement the smallest working frame-pacing/hitch detector (combines pacing histogram and hitch flagging into one tool).
+- [ ] **IS-35-049 P2** — Add unit tests and one real-flow integration test for the frame-pacing/hitch detector.
+- [ ] **IS-35-050 P2** — Document usage of the frame-pacing/hitch detector.
+- [ ] **IS-35-051 P2** — Define scope and implement the smallest working memory-leak soak test (repeated district load/unload, mission replay, save/load cycles).
+- [ ] **IS-35-052 P2** — Add CI wiring and documentation for the memory-leak soak test.

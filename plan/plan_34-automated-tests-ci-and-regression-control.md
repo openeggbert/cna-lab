@@ -2,188 +2,43 @@
 
 [Back to master plan](../plan.md)
 
-
-Protect deterministic systems, converters, builds, and representative gameplay flows.
+Protect deterministic systems, converters, builds, and representative gameplay flows at Mafia-1 fidelity (district loading, simplified traffic/police/pedestrian AI, EasyGL as the shipped backend) rather than a modern open-world test matrix.
 
 - [ ] **IS-34-001 P0** — Keep core tests window-free and fast.
 - [ ] **IS-34-002 P0** — Add integrated startup/smoke tests once CNA dependencies build.
 - [ ] **IS-34-003 P0** — Run MC3 schema validation in CI.
 - [ ] **IS-34-004 P0** — Run asset registry/license validation in CI.
-- [ ] **IS-34-005 P0** — Run at least one production-backend build in CI.
+- [ ] **IS-34-005 P0** — Run the EasyGL production-backend build in CI.
 - [ ] **IS-34-006 P1** — Add unit tests for every parser, state machine, serializer, and deterministic controller.
 - [ ] **IS-34-007 P1** — Add property tests for IDs, package bounds, and save round trips.
-- [ ] **IS-34-008 P1** — Add malformed asset/save/script inputs.
+- [ ] **IS-34-008 P1** — Add malformed asset/save/mission-data input tests.
 - [ ] **IS-34-009 P1** — Add fixed-input gameplay scenario tests.
 - [ ] **IS-34-010 P1** — Add mission happy-path, skip, fail, retry, save, and load tests.
-- [ ] **IS-34-011 P1** — Add streaming boundary and cancellation tests.
-- [ ] **IS-34-012 P1** — Add traffic intersection deadlock scenarios.
+- [ ] **IS-34-011 P1** — Add district load/unload and cancellation tests.
+- [ ] **IS-34-012 P1** — Add simplified-traffic lane-following and signal-compliance scenarios (no deadlock-avoidance/intersection-reservation testing — that system doesn't exist by design).
 - [ ] **IS-34-013 P1** — Add vehicle stability and collision scenarios.
 - [ ] **IS-34-014 P1** — Add animation transition and missing-clip tests.
-- [ ] **IS-34-015 P1** — Add dialogue/localization missing-reference tests.
+- [ ] **IS-34-015 P1** — Add dialogue stable-ID missing-reference tests.
 - [ ] **IS-34-016 P1** — Add cutscene skip terminal-state tests.
 - [ ] **IS-34-017 P1** — Add install/package launch tests.
 - [ ] **IS-34-018 P1** — Add sanitizer jobs with controlled scope.
 - [ ] **IS-34-019 P1** — Add test artifact upload for logs, traces, screenshots, and package reports.
 - [ ] **IS-34-020 P1** — Quarantine flaky tests only with owner and expiration date.
-- [ ] **IS-34-021 P2** — Add rendering reference images on selected stable runners.
-- [ ] **IS-34-022 P2** — Add long streaming/traffic/AI soak jobs.
-- [ ] **IS-34-023 P2** — Add fuzzing for package, save, MC3 metadata, and script boundaries.
-- [ ] **IS-34-024 P2** — Add performance regression thresholds after stable baselines exist.
-- [ ] **IS-34-025 P2** — Add platform/backend matrix expansion according to support tiers.
-- [ ] **IS-34-026 P1** — Define the scope, responsibilities, and explicit non-goals of unit test harness.
-- [ ] **IS-34-027 P1** — Define the public C++ API and ownership rules for unit test harness.
-- [ ] **IS-34-028 P1** — Define versioned configuration or asset data for unit test harness.
-- [ ] **IS-34-029 P1** — Implement the smallest deterministic reference path for unit test harness.
-- [ ] **IS-34-030 P1** — Add input validation and actionable failure reporting to unit test harness.
-- [ ] **IS-34-031 P1** — Add focused unit tests for unit test harness.
-- [ ] **IS-34-032 P1** — Add an integration scenario that exercises unit test harness in a running game flow.
-- [ ] **IS-34-033 P2** — Add logging, counters, and debug inspection for unit test harness.
-- [ ] **IS-34-034 P2** — Add an in-world or overlay debug visualization for unit test harness.
-- [ ] **IS-34-035 P2** — Define CPU, memory, latency, and content budgets for unit test harness.
-- [ ] **IS-34-036 P2** — Profile unit test harness under a representative worst-case scene.
-- [ ] **IS-34-037 P2** — Document usage examples, invariants, and common failure modes for unit test harness.
-- [ ] **IS-34-038 P2** — Validate unit test harness on each production graphics backend and record differences.
-- [ ] **IS-34-039 P1** — Define the scope, responsibilities, and explicit non-goals of fixed-input scenario runner.
-- [ ] **IS-34-040 P1** — Define the public C++ API and ownership rules for fixed-input scenario runner.
-- [ ] **IS-34-041 P1** — Define versioned configuration or asset data for fixed-input scenario runner.
-- [ ] **IS-34-042 P1** — Implement the smallest deterministic reference path for fixed-input scenario runner.
-- [ ] **IS-34-043 P1** — Add input validation and actionable failure reporting to fixed-input scenario runner.
-- [ ] **IS-34-044 P1** — Add focused unit tests for fixed-input scenario runner.
-- [ ] **IS-34-045 P1** — Add an integration scenario that exercises fixed-input scenario runner in a running game flow.
-- [ ] **IS-34-046 P2** — Add logging, counters, and debug inspection for fixed-input scenario runner.
-- [ ] **IS-34-047 P2** — Add an in-world or overlay debug visualization for fixed-input scenario runner.
-- [ ] **IS-34-048 P2** — Define CPU, memory, latency, and content budgets for fixed-input scenario runner.
-- [ ] **IS-34-049 P2** — Profile fixed-input scenario runner under a representative worst-case scene.
-- [ ] **IS-34-050 P2** — Document usage examples, invariants, and common failure modes for fixed-input scenario runner.
-- [ ] **IS-34-051 P2** — Validate fixed-input scenario runner on each production graphics backend and record differences.
-- [ ] **IS-34-052 P1** — Define the scope, responsibilities, and explicit non-goals of render reference runner.
-- [ ] **IS-34-053 P1** — Define the public C++ API and ownership rules for render reference runner.
-- [ ] **IS-34-054 P1** — Define versioned configuration or asset data for render reference runner.
-- [ ] **IS-34-055 P1** — Implement the smallest deterministic reference path for render reference runner.
-- [ ] **IS-34-056 P1** — Add input validation and actionable failure reporting to render reference runner.
-- [ ] **IS-34-057 P1** — Add focused unit tests for render reference runner.
-- [ ] **IS-34-058 P1** — Add an integration scenario that exercises render reference runner in a running game flow.
-- [ ] **IS-34-059 P2** — Add logging, counters, and debug inspection for render reference runner.
-- [ ] **IS-34-060 P2** — Add an in-world or overlay debug visualization for render reference runner.
-- [ ] **IS-34-061 P2** — Define CPU, memory, latency, and content budgets for render reference runner.
-- [ ] **IS-34-062 P2** — Profile render reference runner under a representative worst-case scene.
-- [ ] **IS-34-063 P2** — Document usage examples, invariants, and common failure modes for render reference runner.
-- [ ] **IS-34-064 P2** — Validate render reference runner on each production graphics backend and record differences.
-- [ ] **IS-34-065 P1** — Define the scope, responsibilities, and explicit non-goals of asset validation CI.
-- [ ] **IS-34-066 P1** — Define the public C++ API and ownership rules for asset validation CI.
-- [ ] **IS-34-067 P1** — Define versioned configuration or asset data for asset validation CI.
-- [ ] **IS-34-068 P1** — Implement the smallest deterministic reference path for asset validation CI.
-- [ ] **IS-34-069 P1** — Add input validation and actionable failure reporting to asset validation CI.
-- [ ] **IS-34-070 P1** — Add focused unit tests for asset validation CI.
-- [ ] **IS-34-071 P1** — Add an integration scenario that exercises asset validation CI in a running game flow.
-- [ ] **IS-34-072 P2** — Add logging, counters, and debug inspection for asset validation CI.
-- [ ] **IS-34-073 P2** — Add an in-world or overlay debug visualization for asset validation CI.
-- [ ] **IS-34-074 P2** — Define CPU, memory, latency, and content budgets for asset validation CI.
-- [ ] **IS-34-075 P2** — Profile asset validation CI under a representative worst-case scene.
-- [ ] **IS-34-076 P2** — Document usage examples, invariants, and common failure modes for asset validation CI.
-- [ ] **IS-34-077 P2** — Validate asset validation CI on each production graphics backend and record differences.
-- [ ] **IS-34-078 P1** — Define the scope, responsibilities, and explicit non-goals of sanitizer CI.
-- [ ] **IS-34-079 P1** — Define the public C++ API and ownership rules for sanitizer CI.
-- [ ] **IS-34-080 P1** — Define versioned configuration or asset data for sanitizer CI.
-- [ ] **IS-34-081 P1** — Implement the smallest deterministic reference path for sanitizer CI.
-- [ ] **IS-34-082 P1** — Add input validation and actionable failure reporting to sanitizer CI.
-- [ ] **IS-34-083 P1** — Add focused unit tests for sanitizer CI.
-- [ ] **IS-34-084 P1** — Add an integration scenario that exercises sanitizer CI in a running game flow.
-- [ ] **IS-34-085 P2** — Add logging, counters, and debug inspection for sanitizer CI.
-- [ ] **IS-34-086 P2** — Add an in-world or overlay debug visualization for sanitizer CI.
-- [ ] **IS-34-087 P2** — Define CPU, memory, latency, and content budgets for sanitizer CI.
-- [ ] **IS-34-088 P2** — Profile sanitizer CI under a representative worst-case scene.
-- [ ] **IS-34-089 P2** — Document usage examples, invariants, and common failure modes for sanitizer CI.
-- [ ] **IS-34-090 P2** — Validate sanitizer CI on each production graphics backend and record differences.
-- [ ] **IS-34-091 P1** — Define the scope, responsibilities, and explicit non-goals of soak-test runner.
-- [ ] **IS-34-092 P1** — Define the public C++ API and ownership rules for soak-test runner.
-- [ ] **IS-34-093 P1** — Define versioned configuration or asset data for soak-test runner.
-- [ ] **IS-34-094 P1** — Implement the smallest deterministic reference path for soak-test runner.
-- [ ] **IS-34-095 P1** — Add input validation and actionable failure reporting to soak-test runner.
-- [ ] **IS-34-096 P1** — Add focused unit tests for soak-test runner.
-- [ ] **IS-34-097 P1** — Add an integration scenario that exercises soak-test runner in a running game flow.
-- [ ] **IS-34-098 P2** — Add logging, counters, and debug inspection for soak-test runner.
-- [ ] **IS-34-099 P2** — Add an in-world or overlay debug visualization for soak-test runner.
-- [ ] **IS-34-100 P2** — Define CPU, memory, latency, and content budgets for soak-test runner.
-- [ ] **IS-34-101 P2** — Profile soak-test runner under a representative worst-case scene.
-- [ ] **IS-34-102 P2** — Document usage examples, invariants, and common failure modes for soak-test runner.
-- [ ] **IS-34-103 P2** — Validate soak-test runner on each production graphics backend and record differences.
-- [ ] **IS-34-104 P1** — Define the scope, responsibilities, and explicit non-goals of performance regression gate.
-- [ ] **IS-34-105 P1** — Define the public C++ API and ownership rules for performance regression gate.
-- [ ] **IS-34-106 P1** — Define versioned configuration or asset data for performance regression gate.
-- [ ] **IS-34-107 P1** — Implement the smallest deterministic reference path for performance regression gate.
-- [ ] **IS-34-108 P1** — Add input validation and actionable failure reporting to performance regression gate.
-- [ ] **IS-34-109 P1** — Add focused unit tests for performance regression gate.
-- [ ] **IS-34-110 P1** — Add an integration scenario that exercises performance regression gate in a running game flow.
-- [ ] **IS-34-111 P2** — Add logging, counters, and debug inspection for performance regression gate.
-- [ ] **IS-34-112 P2** — Add an in-world or overlay debug visualization for performance regression gate.
-- [ ] **IS-34-113 P2** — Define CPU, memory, latency, and content budgets for performance regression gate.
-- [ ] **IS-34-114 P2** — Profile performance regression gate under a representative worst-case scene.
-- [ ] **IS-34-115 P2** — Document usage examples, invariants, and common failure modes for performance regression gate.
-- [ ] **IS-34-116 P2** — Validate performance regression gate on each production graphics backend and record differences.
-- [ ] **IS-34-117 P2** — Define the scope, responsibilities, and explicit non-goals of test data fixture manager.
-- [ ] **IS-34-118 P2** — Define the public C++ API and ownership rules for test data fixture manager.
-- [ ] **IS-34-119 P2** — Define versioned configuration or asset data for test data fixture manager.
-- [ ] **IS-34-120 P2** — Implement the smallest deterministic reference path for test data fixture manager.
-- [ ] **IS-34-121 P2** — Add input validation and actionable failure reporting to test data fixture manager.
-- [ ] **IS-34-122 P2** — Add focused unit tests for test data fixture manager.
-- [ ] **IS-34-123 P2** — Add an integration scenario that exercises test data fixture manager in a running game flow.
-- [ ] **IS-34-124 P2** — Add logging, counters, and debug inspection for test data fixture manager.
-- [ ] **IS-34-125 P2** — Add an in-world or overlay debug visualization for test data fixture manager.
-- [ ] **IS-34-126 P2** — Define CPU, memory, latency, and content budgets for test data fixture manager.
-- [ ] **IS-34-127 P2** — Profile test data fixture manager under a representative worst-case scene.
-- [ ] **IS-34-128 P2** — Document usage examples, invariants, and common failure modes for test data fixture manager.
-- [ ] **IS-34-129 P2** — Validate test data fixture manager on each production graphics backend and record differences.
-- [ ] **IS-34-130 P2** — Define the scope, responsibilities, and explicit non-goals of flaky test tracker.
-- [ ] **IS-34-131 P2** — Define the public C++ API and ownership rules for flaky test tracker.
-- [ ] **IS-34-132 P2** — Define versioned configuration or asset data for flaky test tracker.
-- [ ] **IS-34-133 P2** — Implement the smallest deterministic reference path for flaky test tracker.
-- [ ] **IS-34-134 P2** — Add input validation and actionable failure reporting to flaky test tracker.
-- [ ] **IS-34-135 P2** — Add focused unit tests for flaky test tracker.
-- [ ] **IS-34-136 P2** — Add an integration scenario that exercises flaky test tracker in a running game flow.
-- [ ] **IS-34-137 P2** — Add logging, counters, and debug inspection for flaky test tracker.
-- [ ] **IS-34-138 P2** — Add an in-world or overlay debug visualization for flaky test tracker.
-- [ ] **IS-34-139 P2** — Define CPU, memory, latency, and content budgets for flaky test tracker.
-- [ ] **IS-34-140 P2** — Profile flaky test tracker under a representative worst-case scene.
-- [ ] **IS-34-141 P2** — Document usage examples, invariants, and common failure modes for flaky test tracker.
-- [ ] **IS-34-142 P2** — Validate flaky test tracker on each production graphics backend and record differences.
-- [ ] **IS-34-143 P2** — Define the scope, responsibilities, and explicit non-goals of crash reproducer.
-- [ ] **IS-34-144 P2** — Define the public C++ API and ownership rules for crash reproducer.
-- [ ] **IS-34-145 P2** — Define versioned configuration or asset data for crash reproducer.
-- [ ] **IS-34-146 P2** — Implement the smallest deterministic reference path for crash reproducer.
-- [ ] **IS-34-147 P2** — Add input validation and actionable failure reporting to crash reproducer.
-- [ ] **IS-34-148 P2** — Add focused unit tests for crash reproducer.
-- [ ] **IS-34-149 P2** — Add an integration scenario that exercises crash reproducer in a running game flow.
-- [ ] **IS-34-150 P2** — Add logging, counters, and debug inspection for crash reproducer.
-- [ ] **IS-34-151 P2** — Add an in-world or overlay debug visualization for crash reproducer.
-- [ ] **IS-34-152 P2** — Define CPU, memory, latency, and content budgets for crash reproducer.
-- [ ] **IS-34-153 P2** — Profile crash reproducer under a representative worst-case scene.
-- [ ] **IS-34-154 P2** — Document usage examples, invariants, and common failure modes for crash reproducer.
-- [ ] **IS-34-155 P2** — Validate crash reproducer on each production graphics backend and record differences.
-- [ ] **IS-34-156 P2** — Define the scope, responsibilities, and explicit non-goals of scenario assertion library.
-- [ ] **IS-34-157 P2** — Define the public C++ API and ownership rules for scenario assertion library.
-- [ ] **IS-34-158 P2** — Define versioned configuration or asset data for scenario assertion library.
-- [ ] **IS-34-159 P2** — Implement the smallest deterministic reference path for scenario assertion library.
-- [ ] **IS-34-160 P2** — Add input validation and actionable failure reporting to scenario assertion library.
-- [ ] **IS-34-161 P2** — Add focused unit tests for scenario assertion library.
-- [ ] **IS-34-162 P2** — Add an integration scenario that exercises scenario assertion library in a running game flow.
-- [ ] **IS-34-163 P2** — Add logging, counters, and debug inspection for scenario assertion library.
-- [ ] **IS-34-164 P2** — Add an in-world or overlay debug visualization for scenario assertion library.
-- [ ] **IS-34-165 P2** — Define CPU, memory, latency, and content budgets for scenario assertion library.
-- [ ] **IS-34-166 P2** — Profile scenario assertion library under a representative worst-case scene.
-- [ ] **IS-34-167 P2** — Document usage examples, invariants, and common failure modes for scenario assertion library.
-- [ ] **IS-34-168 P2** — Validate scenario assertion library on each production graphics backend and record differences.
-- [ ] **IS-34-169 P2** — Define the scope, responsibilities, and explicit non-goals of test artifact reporter.
-- [ ] **IS-34-170 P2** — Define the public C++ API and ownership rules for test artifact reporter.
-- [ ] **IS-34-171 P2** — Define versioned configuration or asset data for test artifact reporter.
-- [ ] **IS-34-172 P2** — Implement the smallest deterministic reference path for test artifact reporter.
-- [ ] **IS-34-173 P2** — Add input validation and actionable failure reporting to test artifact reporter.
-- [ ] **IS-34-174 P2** — Add focused unit tests for test artifact reporter.
-- [ ] **IS-34-175 P2** — Add an integration scenario that exercises test artifact reporter in a running game flow.
-- [ ] **IS-34-176 P2** — Add logging, counters, and debug inspection for test artifact reporter.
-- [ ] **IS-34-177 P2** — Add an in-world or overlay debug visualization for test artifact reporter.
-- [ ] **IS-34-178 P2** — Define CPU, memory, latency, and content budgets for test artifact reporter.
-- [ ] **IS-34-179 P2** — Profile test artifact reporter under a representative worst-case scene.
-- [ ] **IS-34-180 P2** — Document usage examples, invariants, and common failure modes for test artifact reporter.
-- [ ] **IS-34-181 P2** — Validate test artifact reporter on each production graphics backend and record differences.
-
+- [ ] **IS-34-021 P2** — Add rendering reference images on the EasyGL backend.
+- [ ] **IS-34-022 P2** — Add district-load and simplified traffic/pedestrian/police soak jobs (not seamless-streaming soak — that system doesn't exist by design).
+- [ ] **IS-34-023 P2** — Add fuzzing for package, save, and mission-data boundaries.
+- [ ] **IS-34-024 P2** — Add performance regression thresholds after stable baselines exist (see plan_35).
+- [ ] **IS-34-025 P1** — Define scope and implement the smallest working asset validation CI job (MC3/glTF/CNJ schema, budgets, license registry).
+- [ ] **IS-34-026 P1** — Add tests and CI wiring for the asset validation job; document its failure modes.
+- [ ] **IS-34-027 P1** — Define scope and implement the smallest working sanitizer CI job (ASan/UBSan on core tests, controlled scope per docs/build rules).
+- [ ] **IS-34-028 P1** — Add tests and CI wiring for the sanitizer job; document its failure modes.
+- [ ] **IS-34-029 P2** — Define scope and implement the smallest working soak-test runner (district load/unload, mission replay, save/load repeated cycles).
+- [ ] **IS-34-030 P2** — Add tests and CI wiring for the soak-test runner; document its failure modes.
+- [ ] **IS-34-031 P1** — Define scope and implement the smallest working performance regression gate (compares captures against plan_35 baselines).
+- [ ] **IS-34-032 P1** — Add tests and CI wiring for the performance regression gate; document its failure modes.
+- [ ] **IS-34-033 P2** — Define scope and implement the smallest working crash reproducer (captures a minimal repro scene/input trace on failure).
+- [ ] **IS-34-034 P2** — Add tests and CI wiring for the crash reproducer; document its failure modes.
+- [ ] **IS-34-035 P2** — Define scope and implement the smallest working test fixture/data manager (shared save/mission/district fixtures for tests).
+- [ ] **IS-34-036 P2** — Add tests and documentation for the test fixture/data manager.
+- [ ] **IS-34-037 P2** — Define scope and implement combined flaky-test tracking and CI artifact reporting (owner/expiration for quarantined tests, one reporting surface for logs/traces/screenshots).
+- [ ] **IS-34-038 P2** — Add tests and documentation for the flaky-test/artifact reporting tool.

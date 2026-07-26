@@ -2,8 +2,7 @@
 
 [Back to master plan](../plan.md)
 
-
-Make every production asset traceable, licensed, validated, and incrementally built.
+Make every production asset traceable, licensed, validated, and incrementally built. License/provenance tracking matters regardless of project scope; a catalog-browser UI and content-signing infrastructure do not, and are cut.
 
 - [ ] **IS-11-001 P0** — Make every production asset require an asset-registry entry.
 - [ ] **IS-11-002 P0** — Define an allow-list of accepted licenses.
@@ -16,88 +15,77 @@ Make every production asset traceable, licensed, validated, and incrementally bu
 - [ ] **IS-11-009 P1** — Detect unregistered files under production asset directories.
 - [ ] **IS-11-010 P1** — Detect duplicate assets by content hash.
 - [ ] **IS-11-011 P1** — Detect case-collision and path-portability problems.
-- [ ] **IS-11-012 P1** — Create asset dependency graphs.
-- [ ] **IS-11-013 P1** — Create incremental rebuild decisions from source and tool hashes.
-- [ ] **IS-11-014 P1** — Create clean-room provenance rules for AI-generated assets.
-- [ ] **IS-11-015 P1** — Create rejection reasons and quarantine directories.
-- [ ] **IS-11-016 P1** — Create per-asset quality state: draft, validated, approved, shipping.
-- [ ] **IS-11-017 P1** — Create budgets and warnings by asset class.
-- [ ] **IS-11-018 P2** — Create a local asset catalog browser.
-- [ ] **IS-11-019 P2** — Create thumbnail generation for model and texture assets.
-- [ ] **IS-11-020 P2** — Create attribution-screen generation if licenses require it.
-- [ ] **IS-11-021 P2** — Create release manifest signing and hash verification.
-- [ ] **IS-11-022 P2** — Create stale-source-link audit reports.
-- [ ] **IS-11-023 P2** — Create an archive policy for replaced or revoked assets.
-- [ ] **IS-11-024 P1** — Define the scope, responsibilities, and explicit non-goals of asset registry.
-- [ ] **IS-11-025 P1** — Define the public C++ API and ownership rules for asset registry.
-- [ ] **IS-11-026 P1** — Define versioned configuration or asset data for asset registry.
-- [ ] **IS-11-027 P1** — Implement the smallest deterministic reference path for asset registry.
-- [ ] **IS-11-028 P1** — Add input validation and actionable failure reporting to asset registry.
-- [ ] **IS-11-029 P1** — Add focused unit tests for asset registry.
-- [ ] **IS-11-030 P1** — Add an integration scenario that exercises asset registry in a running game flow.
-- [ ] **IS-11-031 P2** — Add logging, counters, and debug inspection for asset registry.
-- [ ] **IS-11-032 P1** — Define save/checkpoint serialization and restoration for asset registry.
-- [ ] **IS-11-033 P2** — Define CPU, memory, latency, and content budgets for asset registry.
-- [ ] **IS-11-034 P2** — Profile asset registry under a representative worst-case scene.
-- [ ] **IS-11-035 P2** — Document usage examples, invariants, and common failure modes for asset registry.
-- [ ] **IS-11-036 P1** — Define the scope, responsibilities, and explicit non-goals of license policy validator.
-- [ ] **IS-11-037 P1** — Define the public C++ API and ownership rules for license policy validator.
-- [ ] **IS-11-038 P1** — Define versioned configuration or asset data for license policy validator.
-- [ ] **IS-11-039 P1** — Implement the smallest deterministic reference path for license policy validator.
-- [ ] **IS-11-040 P1** — Add input validation and actionable failure reporting to license policy validator.
-- [ ] **IS-11-041 P1** — Add focused unit tests for license policy validator.
-- [ ] **IS-11-042 P1** — Add an integration scenario that exercises license policy validator in a running game flow.
-- [ ] **IS-11-043 P2** — Add logging, counters, and debug inspection for license policy validator.
-- [ ] **IS-11-044 P1** — Define save/checkpoint serialization and restoration for license policy validator.
-- [ ] **IS-11-045 P2** — Define CPU, memory, latency, and content budgets for license policy validator.
-- [ ] **IS-11-046 P2** — Profile license policy validator under a representative worst-case scene.
-- [ ] **IS-11-047 P2** — Document usage examples, invariants, and common failure modes for license policy validator.
-- [ ] **IS-11-048 P1** — Define the scope, responsibilities, and explicit non-goals of asset dependency graph.
-- [ ] **IS-11-049 P1** — Define the public C++ API and ownership rules for asset dependency graph.
-- [ ] **IS-11-050 P1** — Define versioned configuration or asset data for asset dependency graph.
-- [ ] **IS-11-051 P1** — Implement the smallest deterministic reference path for asset dependency graph.
-- [ ] **IS-11-052 P1** — Add input validation and actionable failure reporting to asset dependency graph.
-- [ ] **IS-11-053 P1** — Add focused unit tests for asset dependency graph.
-- [ ] **IS-11-054 P1** — Add an integration scenario that exercises asset dependency graph in a running game flow.
-- [ ] **IS-11-055 P2** — Add logging, counters, and debug inspection for asset dependency graph.
-- [ ] **IS-11-056 P1** — Define save/checkpoint serialization and restoration for asset dependency graph.
-- [ ] **IS-11-057 P2** — Define CPU, memory, latency, and content budgets for asset dependency graph.
-- [ ] **IS-11-058 P2** — Profile asset dependency graph under a representative worst-case scene.
-- [ ] **IS-11-059 P2** — Document usage examples, invariants, and common failure modes for asset dependency graph.
-- [ ] **IS-11-060 P1** — Define the scope, responsibilities, and explicit non-goals of incremental asset cache.
-- [ ] **IS-11-061 P1** — Define the public C++ API and ownership rules for incremental asset cache.
-- [ ] **IS-11-062 P1** — Define versioned configuration or asset data for incremental asset cache.
-- [ ] **IS-11-063 P1** — Implement the smallest deterministic reference path for incremental asset cache.
-- [ ] **IS-11-064 P1** — Add input validation and actionable failure reporting to incremental asset cache.
-- [ ] **IS-11-065 P1** — Add focused unit tests for incremental asset cache.
-- [ ] **IS-11-066 P1** — Add an integration scenario that exercises incremental asset cache in a running game flow.
-- [ ] **IS-11-067 P2** — Add logging, counters, and debug inspection for incremental asset cache.
-- [ ] **IS-11-068 P1** — Define save/checkpoint serialization and restoration for incremental asset cache.
-- [ ] **IS-11-069 P2** — Define CPU, memory, latency, and content budgets for incremental asset cache.
-- [ ] **IS-11-070 P2** — Profile incremental asset cache under a representative worst-case scene.
-- [ ] **IS-11-071 P2** — Document usage examples, invariants, and common failure modes for incremental asset cache.
-- [ ] **IS-11-072 P1** — Define the scope, responsibilities, and explicit non-goals of asset quarantine workflow.
-- [ ] **IS-11-073 P1** — Define the public C++ API and ownership rules for asset quarantine workflow.
-- [ ] **IS-11-074 P1** — Define versioned configuration or asset data for asset quarantine workflow.
-- [ ] **IS-11-075 P1** — Implement the smallest deterministic reference path for asset quarantine workflow.
-- [ ] **IS-11-076 P1** — Add input validation and actionable failure reporting to asset quarantine workflow.
-- [ ] **IS-11-077 P1** — Add focused unit tests for asset quarantine workflow.
-- [ ] **IS-11-078 P1** — Add an integration scenario that exercises asset quarantine workflow in a running game flow.
-- [ ] **IS-11-079 P2** — Add logging, counters, and debug inspection for asset quarantine workflow.
-- [ ] **IS-11-080 P1** — Define save/checkpoint serialization and restoration for asset quarantine workflow.
-- [ ] **IS-11-081 P2** — Define CPU, memory, latency, and content budgets for asset quarantine workflow.
-- [ ] **IS-11-082 P2** — Profile asset quarantine workflow under a representative worst-case scene.
-- [ ] **IS-11-083 P2** — Document usage examples, invariants, and common failure modes for asset quarantine workflow.
-- [ ] **IS-11-084 P1** — Define the scope, responsibilities, and explicit non-goals of release asset manifest.
-- [ ] **IS-11-085 P1** — Define the public C++ API and ownership rules for release asset manifest.
-- [ ] **IS-11-086 P1** — Define versioned configuration or asset data for release asset manifest.
-- [ ] **IS-11-087 P1** — Implement the smallest deterministic reference path for release asset manifest.
-- [ ] **IS-11-088 P1** — Add input validation and actionable failure reporting to release asset manifest.
-- [ ] **IS-11-089 P1** — Add focused unit tests for release asset manifest.
-- [ ] **IS-11-090 P1** — Add an integration scenario that exercises release asset manifest in a running game flow.
-- [ ] **IS-11-091 P2** — Add logging, counters, and debug inspection for release asset manifest.
-- [ ] **IS-11-092 P1** — Define save/checkpoint serialization and restoration for release asset manifest.
-- [ ] **IS-11-093 P2** — Define CPU, memory, latency, and content budgets for release asset manifest.
-- [ ] **IS-11-094 P2** — Profile release asset manifest under a representative worst-case scene.
-- [ ] **IS-11-095 P2** — Document usage examples, invariants, and common failure modes for release asset manifest.
+- [ ] **IS-11-012 P1** — Create incremental rebuild decisions from source and tool hashes.
+- [ ] **IS-11-013 P1** — Create clean-room provenance rules for AI-generated/AI-assisted assets.
+- [ ] **IS-11-014 P1** — Create rejection reasons and quarantine directories.
+- [ ] **IS-11-015 P1** — Create per-asset quality state: draft, validated, approved, shipping.
+- [ ] **IS-11-016 P1** — Create budgets and warnings by asset class.
+- [ ] **IS-11-017 P2** — Create thumbnail generation for model and texture assets.
+- [ ] **IS-11-018 P2** — Create attribution-screen generation if licenses require it.
+- [ ] **IS-11-019 P2** — Create release-manifest hash verification (no signing infrastructure).
+- [ ] **IS-11-020 P2** — Create stale-source-link audit reports.
+- [ ] **IS-11-021 P2** — Create an archive policy for replaced or revoked assets.
 
+## Asset registry system
+
+- [ ] **IS-11-022 P1** — Define the scope, public API, and versioned data format of the asset registry.
+- [ ] **IS-11-023 P1** — Implement the smallest deterministic reference path for the asset registry.
+- [ ] **IS-11-024 P1** — Add input validation and actionable failure reporting to the asset registry.
+- [ ] **IS-11-025 P1** — Add focused unit tests for the asset registry.
+- [ ] **IS-11-026 P1** — Add an integration scenario exercising the asset registry in a running build.
+- [ ] **IS-11-027 P1** — Define save/checkpoint restoration rules so registry state survives interrupted builds.
+- [ ] **IS-11-028 P2** — Add logging and debug inspection for the asset registry.
+- [ ] **IS-11-029 P2** — Document usage examples and common failure modes for the asset registry.
+
+## License policy validator
+
+- [ ] **IS-11-030 P1** — Define the scope, public API, and versioned data format of the license policy validator.
+- [ ] **IS-11-031 P1** — Implement the smallest deterministic reference path for the license policy validator.
+- [ ] **IS-11-032 P1** — Add input validation and actionable failure reporting to the license policy validator.
+- [ ] **IS-11-033 P1** — Add focused unit tests for the license policy validator.
+- [ ] **IS-11-034 P1** — Add an integration scenario exercising the license policy validator in a running build.
+- [ ] **IS-11-035 P2** — Add logging and debug inspection for the license policy validator.
+- [ ] **IS-11-036 P2** — Define CPU/latency budgets for the license policy validator on a full asset scan.
+- [ ] **IS-11-037 P2** — Document usage examples and common failure modes for the license policy validator.
+
+## Asset dependency graph
+
+- [ ] **IS-11-038 P1** — Define the scope, public API, and versioned data format of the asset dependency graph.
+- [ ] **IS-11-039 P1** — Implement the smallest deterministic reference path for the asset dependency graph.
+- [ ] **IS-11-040 P1** — Add input validation and actionable failure reporting to the asset dependency graph.
+- [ ] **IS-11-041 P1** — Add focused unit tests for the asset dependency graph.
+- [ ] **IS-11-042 P1** — Add an integration scenario exercising the asset dependency graph in a running build.
+- [ ] **IS-11-043 P2** — Add logging and debug inspection for the asset dependency graph.
+- [ ] **IS-11-044 P2** — Define CPU/memory budgets for the asset dependency graph at full-campaign asset scale.
+- [ ] **IS-11-045 P2** — Document usage examples and common failure modes for the asset dependency graph.
+
+## Incremental asset build cache
+
+- [ ] **IS-11-046 P1** — Define the scope, public API, and versioned data format of the incremental build cache.
+- [ ] **IS-11-047 P1** — Implement the smallest deterministic reference path for the incremental build cache.
+- [ ] **IS-11-048 P1** — Add input validation and actionable failure reporting to the incremental build cache.
+- [ ] **IS-11-049 P1** — Add focused unit tests for the incremental build cache.
+- [ ] **IS-11-050 P1** — Add an integration scenario exercising the incremental build cache in a running build.
+- [ ] **IS-11-051 P2** — Add logging and debug inspection for the incremental build cache.
+- [ ] **IS-11-052 P2** — Profile the incremental build cache under a representative full-campaign rebuild.
+- [ ] **IS-11-053 P2** — Document usage examples and common failure modes for the incremental build cache.
+
+## Asset quarantine workflow
+
+- [ ] **IS-11-054 P1** — Define the scope, public API, and versioned data format of the quarantine workflow.
+- [ ] **IS-11-055 P1** — Implement the smallest deterministic reference path for the quarantine workflow.
+- [ ] **IS-11-056 P1** — Add input validation and actionable failure reporting to the quarantine workflow.
+- [ ] **IS-11-057 P1** — Add focused unit tests for the quarantine workflow.
+- [ ] **IS-11-058 P1** — Add an integration scenario exercising the quarantine workflow in a running build.
+- [ ] **IS-11-059 P2** — Add logging and debug inspection for the quarantine workflow.
+- [ ] **IS-11-060 P2** — Document usage examples and common failure modes for the quarantine workflow.
+
+## Release asset manifest
+
+- [ ] **IS-11-061 P1** — Define the scope, public API, and versioned data format of the release asset manifest.
+- [ ] **IS-11-062 P1** — Implement the smallest deterministic reference path for the release asset manifest.
+- [ ] **IS-11-063 P1** — Add input validation and actionable failure reporting to the release asset manifest.
+- [ ] **IS-11-064 P1** — Add focused unit tests for the release asset manifest.
+- [ ] **IS-11-065 P1** — Add an integration scenario exercising the release asset manifest in a build/release flow.
+- [ ] **IS-11-066 P2** — Add logging and debug inspection for the release asset manifest.
+- [ ] **IS-11-067 P2** — Document usage examples and common failure modes for the release asset manifest.

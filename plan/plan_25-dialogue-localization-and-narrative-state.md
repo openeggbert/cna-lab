@@ -2,11 +2,17 @@
 
 [Back to master plan](../plan.md)
 
+Support voiced, interruptible conversations tied to mission state, shipping in one
+language first. Every line of dialogue and UI text uses a stable string ID from day
+one so a second language can be added later without touching the dialogue system or
+rewriting content; the full multi-locale runtime (language switching, a translation
+pipeline, per-locale asset variants) is explicitly deferred until a second language is
+actually planned.
 
-Support voiced, localized, interruptible conversations tied to mission state.
+## Core dialogue data and flow
 
 - [ ] **IS-25-001 P0** — Replace the prototype delimiter text with versioned JSON or XML dialogue data.
-- [ ] **IS-25-002 P0** — Assign stable dialogue, conversation, line, speaker, and localization IDs.
+- [ ] **IS-25-002 P0** — Assign stable dialogue, conversation, line, and speaker IDs; the same ID doubles as the future localization key.
 - [ ] **IS-25-003 P0** — Display dialogue through a proper subtitle UI.
 - [ ] **IS-25-004 P0** — Bind dialogue completion to the data-driven mission.
 - [ ] **IS-25-005 P1** — Add voice asset references and duration metadata.
@@ -18,170 +24,55 @@ Support voiced, localized, interruptible conversations tied to mission state.
 - [ ] **IS-25-011 P1** — Add dialogue camera/cinematic hooks.
 - [ ] **IS-25-012 P1** — Add mission actions from completed or selected lines.
 - [ ] **IS-25-013 P1** — Add subtitle speaker labels, background, size, and timing accessibility options.
-- [ ] **IS-25-014 P1** — Add localization extraction and import.
-- [ ] **IS-25-015 P1** — Add pluralization, gender/context notes, and variable formatting rules where needed.
-- [ ] **IS-25-016 P1** — Add missing-translation fallback and validation.
-- [ ] **IS-25-017 P1** — Add dialogue history/replay screen if desired.
-- [ ] **IS-25-018 P1** — Add save/checkpoint restoration of active conversations.
-- [ ] **IS-25-019 P1** — Add dialogue graph validation and preview.
-- [ ] **IS-25-020 P2** — Add simple jaw movement and facial events.
-- [ ] **IS-25-021 P2** — Add ambient barks with cooldown and priority.
-- [ ] **IS-25-022 P2** — Add radio/telephone conversation presentation modes.
-- [ ] **IS-25-023 P2** — Add lip-sync data import only when voice production is stable.
-- [ ] **IS-25-024 P1** — Define the scope, responsibilities, and explicit non-goals of dialogue database.
-- [ ] **IS-25-025 P1** — Define the public C++ API and ownership rules for dialogue database.
-- [ ] **IS-25-026 P1** — Define versioned configuration or asset data for dialogue database.
-- [ ] **IS-25-027 P1** — Implement the smallest deterministic reference path for dialogue database.
-- [ ] **IS-25-028 P1** — Add input validation and actionable failure reporting to dialogue database.
-- [ ] **IS-25-029 P1** — Add focused unit tests for dialogue database.
-- [ ] **IS-25-030 P1** — Add an integration scenario that exercises dialogue database in a running game flow.
-- [ ] **IS-25-031 P2** — Add logging, counters, and debug inspection for dialogue database.
-- [ ] **IS-25-032 P2** — Add an in-world or overlay debug visualization for dialogue database.
-- [ ] **IS-25-033 P1** — Define save/checkpoint serialization and restoration for dialogue database.
-- [ ] **IS-25-034 P2** — Define CPU, memory, latency, and content budgets for dialogue database.
-- [ ] **IS-25-035 P2** — Profile dialogue database under a representative worst-case scene.
-- [ ] **IS-25-036 P2** — Document usage examples, invariants, and common failure modes for dialogue database.
-- [ ] **IS-25-037 P1** — Define the scope, responsibilities, and explicit non-goals of conversation player.
-- [ ] **IS-25-038 P1** — Define the public C++ API and ownership rules for conversation player.
-- [ ] **IS-25-039 P1** — Define versioned configuration or asset data for conversation player.
-- [ ] **IS-25-040 P1** — Implement the smallest deterministic reference path for conversation player.
-- [ ] **IS-25-041 P1** — Add input validation and actionable failure reporting to conversation player.
-- [ ] **IS-25-042 P1** — Add focused unit tests for conversation player.
-- [ ] **IS-25-043 P1** — Add an integration scenario that exercises conversation player in a running game flow.
-- [ ] **IS-25-044 P2** — Add logging, counters, and debug inspection for conversation player.
-- [ ] **IS-25-045 P2** — Add an in-world or overlay debug visualization for conversation player.
-- [ ] **IS-25-046 P1** — Define save/checkpoint serialization and restoration for conversation player.
-- [ ] **IS-25-047 P2** — Define CPU, memory, latency, and content budgets for conversation player.
-- [ ] **IS-25-048 P2** — Profile conversation player under a representative worst-case scene.
-- [ ] **IS-25-049 P2** — Document usage examples, invariants, and common failure modes for conversation player.
-- [ ] **IS-25-050 P1** — Define the scope, responsibilities, and explicit non-goals of subtitle presenter.
-- [ ] **IS-25-051 P1** — Define the public C++ API and ownership rules for subtitle presenter.
-- [ ] **IS-25-052 P1** — Define versioned configuration or asset data for subtitle presenter.
-- [ ] **IS-25-053 P1** — Implement the smallest deterministic reference path for subtitle presenter.
-- [ ] **IS-25-054 P1** — Add input validation and actionable failure reporting to subtitle presenter.
-- [ ] **IS-25-055 P1** — Add focused unit tests for subtitle presenter.
-- [ ] **IS-25-056 P1** — Add an integration scenario that exercises subtitle presenter in a running game flow.
-- [ ] **IS-25-057 P2** — Add logging, counters, and debug inspection for subtitle presenter.
-- [ ] **IS-25-058 P2** — Add an in-world or overlay debug visualization for subtitle presenter.
-- [ ] **IS-25-059 P1** — Define save/checkpoint serialization and restoration for subtitle presenter.
-- [ ] **IS-25-060 P2** — Define CPU, memory, latency, and content budgets for subtitle presenter.
-- [ ] **IS-25-061 P2** — Profile subtitle presenter under a representative worst-case scene.
-- [ ] **IS-25-062 P2** — Document usage examples, invariants, and common failure modes for subtitle presenter.
-- [ ] **IS-25-063 P1** — Define the scope, responsibilities, and explicit non-goals of dialogue choice system.
-- [ ] **IS-25-064 P1** — Define the public C++ API and ownership rules for dialogue choice system.
-- [ ] **IS-25-065 P1** — Define versioned configuration or asset data for dialogue choice system.
-- [ ] **IS-25-066 P1** — Implement the smallest deterministic reference path for dialogue choice system.
-- [ ] **IS-25-067 P1** — Add input validation and actionable failure reporting to dialogue choice system.
-- [ ] **IS-25-068 P1** — Add focused unit tests for dialogue choice system.
-- [ ] **IS-25-069 P1** — Add an integration scenario that exercises dialogue choice system in a running game flow.
-- [ ] **IS-25-070 P2** — Add logging, counters, and debug inspection for dialogue choice system.
-- [ ] **IS-25-071 P2** — Add an in-world or overlay debug visualization for dialogue choice system.
-- [ ] **IS-25-072 P1** — Define save/checkpoint serialization and restoration for dialogue choice system.
-- [ ] **IS-25-073 P2** — Define CPU, memory, latency, and content budgets for dialogue choice system.
-- [ ] **IS-25-074 P2** — Profile dialogue choice system under a representative worst-case scene.
-- [ ] **IS-25-075 P2** — Document usage examples, invariants, and common failure modes for dialogue choice system.
-- [ ] **IS-25-076 P1** — Define the scope, responsibilities, and explicit non-goals of localization database.
-- [ ] **IS-25-077 P1** — Define the public C++ API and ownership rules for localization database.
-- [ ] **IS-25-078 P1** — Define versioned configuration or asset data for localization database.
-- [ ] **IS-25-079 P1** — Implement the smallest deterministic reference path for localization database.
-- [ ] **IS-25-080 P1** — Add input validation and actionable failure reporting to localization database.
-- [ ] **IS-25-081 P1** — Add focused unit tests for localization database.
-- [ ] **IS-25-082 P1** — Add an integration scenario that exercises localization database in a running game flow.
-- [ ] **IS-25-083 P2** — Add logging, counters, and debug inspection for localization database.
-- [ ] **IS-25-084 P2** — Add an in-world or overlay debug visualization for localization database.
-- [ ] **IS-25-085 P1** — Define save/checkpoint serialization and restoration for localization database.
-- [ ] **IS-25-086 P2** — Define CPU, memory, latency, and content budgets for localization database.
-- [ ] **IS-25-087 P2** — Profile localization database under a representative worst-case scene.
-- [ ] **IS-25-088 P2** — Document usage examples, invariants, and common failure modes for localization database.
-- [ ] **IS-25-089 P1** — Define the scope, responsibilities, and explicit non-goals of voice timing resolver.
-- [ ] **IS-25-090 P1** — Define the public C++ API and ownership rules for voice timing resolver.
-- [ ] **IS-25-091 P1** — Define versioned configuration or asset data for voice timing resolver.
-- [ ] **IS-25-092 P1** — Implement the smallest deterministic reference path for voice timing resolver.
-- [ ] **IS-25-093 P1** — Add input validation and actionable failure reporting to voice timing resolver.
-- [ ] **IS-25-094 P1** — Add focused unit tests for voice timing resolver.
-- [ ] **IS-25-095 P1** — Add an integration scenario that exercises voice timing resolver in a running game flow.
-- [ ] **IS-25-096 P2** — Add logging, counters, and debug inspection for voice timing resolver.
-- [ ] **IS-25-097 P2** — Add an in-world or overlay debug visualization for voice timing resolver.
-- [ ] **IS-25-098 P1** — Define save/checkpoint serialization and restoration for voice timing resolver.
-- [ ] **IS-25-099 P2** — Define CPU, memory, latency, and content budgets for voice timing resolver.
-- [ ] **IS-25-100 P2** — Profile voice timing resolver under a representative worst-case scene.
-- [ ] **IS-25-101 P2** — Document usage examples, invariants, and common failure modes for voice timing resolver.
-- [ ] **IS-25-102 P1** — Define the scope, responsibilities, and explicit non-goals of ambient bark scheduler.
-- [ ] **IS-25-103 P1** — Define the public C++ API and ownership rules for ambient bark scheduler.
-- [ ] **IS-25-104 P1** — Define versioned configuration or asset data for ambient bark scheduler.
-- [ ] **IS-25-105 P1** — Implement the smallest deterministic reference path for ambient bark scheduler.
-- [ ] **IS-25-106 P1** — Add input validation and actionable failure reporting to ambient bark scheduler.
-- [ ] **IS-25-107 P1** — Add focused unit tests for ambient bark scheduler.
-- [ ] **IS-25-108 P1** — Add an integration scenario that exercises ambient bark scheduler in a running game flow.
-- [ ] **IS-25-109 P2** — Add logging, counters, and debug inspection for ambient bark scheduler.
-- [ ] **IS-25-110 P2** — Add an in-world or overlay debug visualization for ambient bark scheduler.
-- [ ] **IS-25-111 P1** — Define save/checkpoint serialization and restoration for ambient bark scheduler.
-- [ ] **IS-25-112 P2** — Define CPU, memory, latency, and content budgets for ambient bark scheduler.
-- [ ] **IS-25-113 P2** — Profile ambient bark scheduler under a representative worst-case scene.
-- [ ] **IS-25-114 P2** — Document usage examples, invariants, and common failure modes for ambient bark scheduler.
-- [ ] **IS-25-115 P2** — Define the scope, responsibilities, and explicit non-goals of speaker database.
-- [ ] **IS-25-116 P2** — Define the public C++ API and ownership rules for speaker database.
-- [ ] **IS-25-117 P2** — Define versioned configuration or asset data for speaker database.
-- [ ] **IS-25-118 P2** — Implement the smallest deterministic reference path for speaker database.
-- [ ] **IS-25-119 P2** — Add input validation and actionable failure reporting to speaker database.
-- [ ] **IS-25-120 P2** — Add focused unit tests for speaker database.
-- [ ] **IS-25-121 P2** — Add an integration scenario that exercises speaker database in a running game flow.
-- [ ] **IS-25-122 P2** — Add logging, counters, and debug inspection for speaker database.
-- [ ] **IS-25-123 P2** — Add an in-world or overlay debug visualization for speaker database.
-- [ ] **IS-25-124 P2** — Define save/checkpoint serialization and restoration for speaker database.
-- [ ] **IS-25-125 P2** — Define CPU, memory, latency, and content budgets for speaker database.
-- [ ] **IS-25-126 P2** — Profile speaker database under a representative worst-case scene.
-- [ ] **IS-25-127 P2** — Document usage examples, invariants, and common failure modes for speaker database.
-- [ ] **IS-25-128 P2** — Define the scope, responsibilities, and explicit non-goals of subtitle timing.
-- [ ] **IS-25-129 P2** — Define the public C++ API and ownership rules for subtitle timing.
-- [ ] **IS-25-130 P2** — Define versioned configuration or asset data for subtitle timing.
-- [ ] **IS-25-131 P2** — Implement the smallest deterministic reference path for subtitle timing.
-- [ ] **IS-25-132 P2** — Add input validation and actionable failure reporting to subtitle timing.
-- [ ] **IS-25-133 P2** — Add focused unit tests for subtitle timing.
-- [ ] **IS-25-134 P2** — Add an integration scenario that exercises subtitle timing in a running game flow.
-- [ ] **IS-25-135 P2** — Add logging, counters, and debug inspection for subtitle timing.
-- [ ] **IS-25-136 P2** — Add an in-world or overlay debug visualization for subtitle timing.
-- [ ] **IS-25-137 P2** — Define save/checkpoint serialization and restoration for subtitle timing.
-- [ ] **IS-25-138 P2** — Define CPU, memory, latency, and content budgets for subtitle timing.
-- [ ] **IS-25-139 P2** — Profile subtitle timing under a representative worst-case scene.
-- [ ] **IS-25-140 P2** — Document usage examples, invariants, and common failure modes for subtitle timing.
-- [ ] **IS-25-141 P2** — Define the scope, responsibilities, and explicit non-goals of dialogue camera bridge.
-- [ ] **IS-25-142 P2** — Define the public C++ API and ownership rules for dialogue camera bridge.
-- [ ] **IS-25-143 P2** — Define versioned configuration or asset data for dialogue camera bridge.
-- [ ] **IS-25-144 P2** — Implement the smallest deterministic reference path for dialogue camera bridge.
-- [ ] **IS-25-145 P2** — Add input validation and actionable failure reporting to dialogue camera bridge.
-- [ ] **IS-25-146 P2** — Add focused unit tests for dialogue camera bridge.
-- [ ] **IS-25-147 P2** — Add an integration scenario that exercises dialogue camera bridge in a running game flow.
-- [ ] **IS-25-148 P2** — Add logging, counters, and debug inspection for dialogue camera bridge.
-- [ ] **IS-25-149 P2** — Add an in-world or overlay debug visualization for dialogue camera bridge.
-- [ ] **IS-25-150 P2** — Define save/checkpoint serialization and restoration for dialogue camera bridge.
-- [ ] **IS-25-151 P2** — Define CPU, memory, latency, and content budgets for dialogue camera bridge.
-- [ ] **IS-25-152 P2** — Profile dialogue camera bridge under a representative worst-case scene.
-- [ ] **IS-25-153 P2** — Document usage examples, invariants, and common failure modes for dialogue camera bridge.
-- [ ] **IS-25-154 P2** — Define the scope, responsibilities, and explicit non-goals of conversation staging.
-- [ ] **IS-25-155 P2** — Define the public C++ API and ownership rules for conversation staging.
-- [ ] **IS-25-156 P2** — Define versioned configuration or asset data for conversation staging.
-- [ ] **IS-25-157 P2** — Implement the smallest deterministic reference path for conversation staging.
-- [ ] **IS-25-158 P2** — Add input validation and actionable failure reporting to conversation staging.
-- [ ] **IS-25-159 P2** — Add focused unit tests for conversation staging.
-- [ ] **IS-25-160 P2** — Add an integration scenario that exercises conversation staging in a running game flow.
-- [ ] **IS-25-161 P2** — Add logging, counters, and debug inspection for conversation staging.
-- [ ] **IS-25-162 P2** — Add an in-world or overlay debug visualization for conversation staging.
-- [ ] **IS-25-163 P2** — Define save/checkpoint serialization and restoration for conversation staging.
-- [ ] **IS-25-164 P2** — Define CPU, memory, latency, and content budgets for conversation staging.
-- [ ] **IS-25-165 P2** — Profile conversation staging under a representative worst-case scene.
-- [ ] **IS-25-166 P2** — Document usage examples, invariants, and common failure modes for conversation staging.
-- [ ] **IS-25-167 P2** — Define the scope, responsibilities, and explicit non-goals of translation validation.
-- [ ] **IS-25-168 P2** — Define the public C++ API and ownership rules for translation validation.
-- [ ] **IS-25-169 P2** — Define versioned configuration or asset data for translation validation.
-- [ ] **IS-25-170 P2** — Implement the smallest deterministic reference path for translation validation.
-- [ ] **IS-25-171 P2** — Add input validation and actionable failure reporting to translation validation.
-- [ ] **IS-25-172 P2** — Add focused unit tests for translation validation.
-- [ ] **IS-25-173 P2** — Add an integration scenario that exercises translation validation in a running game flow.
-- [ ] **IS-25-174 P2** — Add logging, counters, and debug inspection for translation validation.
-- [ ] **IS-25-175 P2** — Add an in-world or overlay debug visualization for translation validation.
-- [ ] **IS-25-176 P2** — Define save/checkpoint serialization and restoration for translation validation.
-- [ ] **IS-25-177 P2** — Define CPU, memory, latency, and content budgets for translation validation.
-- [ ] **IS-25-178 P2** — Profile translation validation under a representative worst-case scene.
-- [ ] **IS-25-179 P2** — Document usage examples, invariants, and common failure modes for translation validation.
+- [ ] **IS-25-014 P1** — Write all dialogue/UI text in one shipped language, keyed by the stable IDs from IS-25-002, so a translation pass later only touches data, never code.
+- [ ] **IS-25-015 P1** — Add dialogue history/replay screen if desired.
+- [ ] **IS-25-016 P1** — Add save/checkpoint restoration of active conversations.
+- [ ] **IS-25-017 P1** — Add a dialogue graph validation/preview script (not a GUI editor) that finds missing references and unreachable lines.
+- [ ] **IS-25-018 P2** — Add simple jaw movement and facial events.
+- [ ] **IS-25-019 P2** — Add ambient barks with cooldown and priority.
+- [ ] **IS-25-020 P2** — Add radio/telephone conversation presentation modes.
+- [ ] **IS-25-021 P2** — Add lip-sync data import only when voice production is stable.
+- [ ] **IS-25-022 P3** — Design the full multi-locale runtime (language-switch UI, translation-management pipeline, per-locale voice/asset variants) only once a second shipped language is actually planned.
 
+## Dialogue database
+
+- [ ] **IS-25-023 P1** — Define the scope and public API of the dialogue database (dialogue/conversation/line/speaker records from IS-25-002/IS-25-009).
+- [ ] **IS-25-024 P1** — Implement the smallest deterministic reference path: load one conversation, resolve its lines and speakers.
+- [ ] **IS-25-025 P1** — Add input validation and actionable failure reporting for malformed dialogue data.
+- [ ] **IS-25-026 P1** — Add unit tests and one integration scenario exercising the database in a running game flow.
+- [ ] **IS-25-027 P1** — Define save/checkpoint serialization and restoration where dialogue state affects mission variables.
+- [ ] **IS-25-028 P2** — Add debug logging/inspection and document usage.
+
+## Conversation player
+
+- [ ] **IS-25-029 P1** — Define the scope and public API of the conversation player (advance/interrupt/resume from IS-25-007/IS-25-008).
+- [ ] **IS-25-030 P1** — Implement the smallest deterministic reference path: play one conversation start to finish.
+- [ ] **IS-25-031 P1** — Add input validation and actionable failure reporting for malformed conversation graphs.
+- [ ] **IS-25-032 P1** — Add unit tests and one integration scenario covering interruption/resumption.
+- [ ] **IS-25-033 P1** — Define save/checkpoint serialization and restoration for an in-progress conversation.
+- [ ] **IS-25-034 P2** — Add debug logging/inspection and document usage.
+
+## Subtitle presenter
+
+- [ ] **IS-25-035 P1** — Define the scope and public API of the subtitle presenter, including timing (IS-25-006) and accessibility options (IS-25-013).
+- [ ] **IS-25-036 P1** — Implement the smallest deterministic reference path: show and time one subtitle line against voice duration.
+- [ ] **IS-25-037 P1** — Add input validation and actionable failure reporting for missing voice/timing data.
+- [ ] **IS-25-038 P1** — Add unit tests and one integration scenario covering accessibility display options.
+- [ ] **IS-25-039 P2** — Add debug logging/inspection and document usage.
+
+## Dialogue choice system
+
+- [ ] **IS-25-040 P1** — Define the scope and public API of the dialogue choice system (branching choices/conditions from IS-25-007).
+- [ ] **IS-25-041 P1** — Implement the smallest deterministic reference path: present one branching choice and follow the selected line.
+- [ ] **IS-25-042 P1** — Add input validation and actionable failure reporting for malformed choice data.
+- [ ] **IS-25-043 P1** — Add unit tests and one integration scenario covering condition-gated choices.
+- [ ] **IS-25-044 P1** — Define save/checkpoint serialization and restoration for pending/selected choices.
+- [ ] **IS-25-045 P2** — Add debug logging/inspection and document usage.
+
+## Conversation staging and camera bridge
+
+- [ ] **IS-25-046 P1** — Define the scope and public API for conversation staging (start positions/facing from IS-25-010) and the camera/cinematic hooks (IS-25-011).
+- [ ] **IS-25-047 P1** — Implement the smallest deterministic reference path: stage two speakers and cut to a conversation camera.
+- [ ] **IS-25-048 P1** — Add input validation and actionable failure reporting for missing staging/camera data.
+- [ ] **IS-25-049 P1** — Add unit tests and one integration scenario covering staging + camera together in a running conversation.
+- [ ] **IS-25-050 P2** — Add debug logging/inspection and document usage.

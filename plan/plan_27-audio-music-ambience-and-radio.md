@@ -2,8 +2,12 @@
 
 [Back to master plan](../plan.md)
 
+Build a game-level audio graph above CNA audio/media capabilities. The vehicle radio
+ships as one or two simple looping stations for v1 (fixed track list, no scheduling,
+no ads, no announcer/interruption rules) — full station scheduling is explicit later
+polish, not a v1 dependency.
 
-Build a game-level audio graph above CNA audio/media capabilities.
+## Core audio data and flow
 
 - [ ] **IS-27-001 P0** — Create master, music, dialogue, ambience, vehicle, effects, and UI buses.
 - [ ] **IS-27-002 P0** — Play one spatial ambient emitter and one vehicle sound through CNA.
@@ -12,14 +16,14 @@ Build a game-level audio graph above CNA audio/media capabilities.
 - [ ] **IS-27-005 P1** — Create audio event definitions separate from raw file paths.
 - [ ] **IS-27-006 P1** — Create voice limits and priority/stealing policy.
 - [ ] **IS-27-007 P1** — Create distance attenuation and spatialization presets.
-- [ ] **IS-27-008 P1** — Create simple obstruction/occlusion queries.
-- [ ] **IS-27-009 P1** — Create ambient zones for streets, interiors, industrial sites, countryside, and waterfront.
+- [ ] **IS-27-008 P1** — Create simple obstruction/occlusion queries (a volume check against level geometry, not a dedicated occlusion subsystem).
+- [ ] **IS-27-009 P1** — Create ambient zones for streets, interiors, industrial sites, countryside, and waterfront across the campaign's districts.
 - [ ] **IS-27-010 P1** — Create smooth zone blending.
 - [ ] **IS-27-011 P1** — Create footstep surface-to-event mapping.
 - [ ] **IS-27-012 P1** — Create vehicle idle, load, RPM, exhaust, tire, suspension, impact, and cabin layers.
 - [ ] **IS-27-013 P1** — Create engine parameter smoothing and gear events.
-- [ ] **IS-27-014 P1** — Create music state and transition system.
-- [ ] **IS-27-015 P1** — Create radio station schedule, tracks, announcer, ads, and interruption rules.
+- [ ] **IS-27-014 P1** — Create music state and transition system, including mission-specific music states.
+- [ ] **IS-27-015 P1** — Create one or two simple looping vehicle-radio stations (fixed track list, no scheduling/ads/interruption rules).
 - [ ] **IS-27-016 P1** — Create voice/music streaming and preload budgets.
 - [ ] **IS-27-017 P1** — Create pause, focus-loss, and suspend behavior.
 - [ ] **IS-27-018 P1** — Create per-bus volume settings and dynamic-range presets.
@@ -28,167 +32,55 @@ Build a game-level audio graph above CNA audio/media capabilities.
 - [ ] **IS-27-021 P2** — Create reverberation zones if backend/library support is adequate.
 - [ ] **IS-27-022 P2** — Create weather-dependent ambience.
 - [ ] **IS-27-023 P2** — Create time-of-day ambience variation.
-- [ ] **IS-27-024 P2** — Create audio language-pack support.
+- [ ] **IS-27-024 P3** — Design full radio-station scheduling (multiple stations, tracks, announcer, ads, interruption rules) only as later polish once the simple station from IS-27-015 ships.
 - [ ] **IS-27-025 P2** — Create visual sound indicators as an accessibility option.
-- [ ] **IS-27-026 P1** — Define the scope, responsibilities, and explicit non-goals of audio bus graph.
-- [ ] **IS-27-027 P1** — Define the public C++ API and ownership rules for audio bus graph.
-- [ ] **IS-27-028 P1** — Define versioned configuration or asset data for audio bus graph.
-- [ ] **IS-27-029 P1** — Implement the smallest deterministic reference path for audio bus graph.
-- [ ] **IS-27-030 P1** — Add input validation and actionable failure reporting to audio bus graph.
-- [ ] **IS-27-031 P1** — Add focused unit tests for audio bus graph.
-- [ ] **IS-27-032 P1** — Add an integration scenario that exercises audio bus graph in a running game flow.
-- [ ] **IS-27-033 P2** — Add logging, counters, and debug inspection for audio bus graph.
-- [ ] **IS-27-034 P1** — Define save/checkpoint serialization and restoration for audio bus graph.
-- [ ] **IS-27-035 P2** — Define CPU, memory, latency, and content budgets for audio bus graph.
-- [ ] **IS-27-036 P2** — Profile audio bus graph under a representative worst-case scene.
-- [ ] **IS-27-037 P2** — Document usage examples, invariants, and common failure modes for audio bus graph.
-- [ ] **IS-27-038 P1** — Define the scope, responsibilities, and explicit non-goals of spatial audio emitter.
-- [ ] **IS-27-039 P1** — Define the public C++ API and ownership rules for spatial audio emitter.
-- [ ] **IS-27-040 P1** — Define versioned configuration or asset data for spatial audio emitter.
-- [ ] **IS-27-041 P1** — Implement the smallest deterministic reference path for spatial audio emitter.
-- [ ] **IS-27-042 P1** — Add input validation and actionable failure reporting to spatial audio emitter.
-- [ ] **IS-27-043 P1** — Add focused unit tests for spatial audio emitter.
-- [ ] **IS-27-044 P1** — Add an integration scenario that exercises spatial audio emitter in a running game flow.
-- [ ] **IS-27-045 P2** — Add logging, counters, and debug inspection for spatial audio emitter.
-- [ ] **IS-27-046 P1** — Define save/checkpoint serialization and restoration for spatial audio emitter.
-- [ ] **IS-27-047 P2** — Define CPU, memory, latency, and content budgets for spatial audio emitter.
-- [ ] **IS-27-048 P2** — Profile spatial audio emitter under a representative worst-case scene.
-- [ ] **IS-27-049 P2** — Document usage examples, invariants, and common failure modes for spatial audio emitter.
-- [ ] **IS-27-050 P1** — Define the scope, responsibilities, and explicit non-goals of ambient zone manager.
-- [ ] **IS-27-051 P1** — Define the public C++ API and ownership rules for ambient zone manager.
-- [ ] **IS-27-052 P1** — Define versioned configuration or asset data for ambient zone manager.
-- [ ] **IS-27-053 P1** — Implement the smallest deterministic reference path for ambient zone manager.
-- [ ] **IS-27-054 P1** — Add input validation and actionable failure reporting to ambient zone manager.
-- [ ] **IS-27-055 P1** — Add focused unit tests for ambient zone manager.
-- [ ] **IS-27-056 P1** — Add an integration scenario that exercises ambient zone manager in a running game flow.
-- [ ] **IS-27-057 P2** — Add logging, counters, and debug inspection for ambient zone manager.
-- [ ] **IS-27-058 P1** — Define save/checkpoint serialization and restoration for ambient zone manager.
-- [ ] **IS-27-059 P2** — Define CPU, memory, latency, and content budgets for ambient zone manager.
-- [ ] **IS-27-060 P2** — Profile ambient zone manager under a representative worst-case scene.
-- [ ] **IS-27-061 P2** — Document usage examples, invariants, and common failure modes for ambient zone manager.
-- [ ] **IS-27-062 P1** — Define the scope, responsibilities, and explicit non-goals of footstep resolver.
-- [ ] **IS-27-063 P1** — Define the public C++ API and ownership rules for footstep resolver.
-- [ ] **IS-27-064 P1** — Define versioned configuration or asset data for footstep resolver.
-- [ ] **IS-27-065 P1** — Implement the smallest deterministic reference path for footstep resolver.
-- [ ] **IS-27-066 P1** — Add input validation and actionable failure reporting to footstep resolver.
-- [ ] **IS-27-067 P1** — Add focused unit tests for footstep resolver.
-- [ ] **IS-27-068 P1** — Add an integration scenario that exercises footstep resolver in a running game flow.
-- [ ] **IS-27-069 P2** — Add logging, counters, and debug inspection for footstep resolver.
-- [ ] **IS-27-070 P1** — Define save/checkpoint serialization and restoration for footstep resolver.
-- [ ] **IS-27-071 P2** — Define CPU, memory, latency, and content budgets for footstep resolver.
-- [ ] **IS-27-072 P2** — Profile footstep resolver under a representative worst-case scene.
-- [ ] **IS-27-073 P2** — Document usage examples, invariants, and common failure modes for footstep resolver.
-- [ ] **IS-27-074 P1** — Define the scope, responsibilities, and explicit non-goals of vehicle audio controller.
-- [ ] **IS-27-075 P1** — Define the public C++ API and ownership rules for vehicle audio controller.
-- [ ] **IS-27-076 P1** — Define versioned configuration or asset data for vehicle audio controller.
-- [ ] **IS-27-077 P1** — Implement the smallest deterministic reference path for vehicle audio controller.
-- [ ] **IS-27-078 P1** — Add input validation and actionable failure reporting to vehicle audio controller.
-- [ ] **IS-27-079 P1** — Add focused unit tests for vehicle audio controller.
-- [ ] **IS-27-080 P1** — Add an integration scenario that exercises vehicle audio controller in a running game flow.
-- [ ] **IS-27-081 P2** — Add logging, counters, and debug inspection for vehicle audio controller.
-- [ ] **IS-27-082 P1** — Define save/checkpoint serialization and restoration for vehicle audio controller.
-- [ ] **IS-27-083 P2** — Define CPU, memory, latency, and content budgets for vehicle audio controller.
-- [ ] **IS-27-084 P2** — Profile vehicle audio controller under a representative worst-case scene.
-- [ ] **IS-27-085 P2** — Document usage examples, invariants, and common failure modes for vehicle audio controller.
-- [ ] **IS-27-086 P1** — Define the scope, responsibilities, and explicit non-goals of music director.
-- [ ] **IS-27-087 P1** — Define the public C++ API and ownership rules for music director.
-- [ ] **IS-27-088 P1** — Define versioned configuration or asset data for music director.
-- [ ] **IS-27-089 P1** — Implement the smallest deterministic reference path for music director.
-- [ ] **IS-27-090 P1** — Add input validation and actionable failure reporting to music director.
-- [ ] **IS-27-091 P1** — Add focused unit tests for music director.
-- [ ] **IS-27-092 P1** — Add an integration scenario that exercises music director in a running game flow.
-- [ ] **IS-27-093 P2** — Add logging, counters, and debug inspection for music director.
-- [ ] **IS-27-094 P1** — Define save/checkpoint serialization and restoration for music director.
-- [ ] **IS-27-095 P2** — Define CPU, memory, latency, and content budgets for music director.
-- [ ] **IS-27-096 P2** — Profile music director under a representative worst-case scene.
-- [ ] **IS-27-097 P2** — Document usage examples, invariants, and common failure modes for music director.
-- [ ] **IS-27-098 P1** — Define the scope, responsibilities, and explicit non-goals of radio scheduler.
-- [ ] **IS-27-099 P1** — Define the public C++ API and ownership rules for radio scheduler.
-- [ ] **IS-27-100 P1** — Define versioned configuration or asset data for radio scheduler.
-- [ ] **IS-27-101 P1** — Implement the smallest deterministic reference path for radio scheduler.
-- [ ] **IS-27-102 P1** — Add input validation and actionable failure reporting to radio scheduler.
-- [ ] **IS-27-103 P1** — Add focused unit tests for radio scheduler.
-- [ ] **IS-27-104 P1** — Add an integration scenario that exercises radio scheduler in a running game flow.
-- [ ] **IS-27-105 P2** — Add logging, counters, and debug inspection for radio scheduler.
-- [ ] **IS-27-106 P1** — Define save/checkpoint serialization and restoration for radio scheduler.
-- [ ] **IS-27-107 P2** — Define CPU, memory, latency, and content budgets for radio scheduler.
-- [ ] **IS-27-108 P2** — Profile radio scheduler under a representative worst-case scene.
-- [ ] **IS-27-109 P2** — Document usage examples, invariants, and common failure modes for radio scheduler.
-- [ ] **IS-27-110 P1** — Define the scope, responsibilities, and explicit non-goals of voice streaming manager.
-- [ ] **IS-27-111 P1** — Define the public C++ API and ownership rules for voice streaming manager.
-- [ ] **IS-27-112 P1** — Define versioned configuration or asset data for voice streaming manager.
-- [ ] **IS-27-113 P1** — Implement the smallest deterministic reference path for voice streaming manager.
-- [ ] **IS-27-114 P1** — Add input validation and actionable failure reporting to voice streaming manager.
-- [ ] **IS-27-115 P1** — Add focused unit tests for voice streaming manager.
-- [ ] **IS-27-116 P1** — Add an integration scenario that exercises voice streaming manager in a running game flow.
-- [ ] **IS-27-117 P2** — Add logging, counters, and debug inspection for voice streaming manager.
-- [ ] **IS-27-118 P1** — Define save/checkpoint serialization and restoration for voice streaming manager.
-- [ ] **IS-27-119 P2** — Define CPU, memory, latency, and content budgets for voice streaming manager.
-- [ ] **IS-27-120 P2** — Profile voice streaming manager under a representative worst-case scene.
-- [ ] **IS-27-121 P2** — Document usage examples, invariants, and common failure modes for voice streaming manager.
-- [ ] **IS-27-122 P2** — Define the scope, responsibilities, and explicit non-goals of audio event database.
-- [ ] **IS-27-123 P2** — Define the public C++ API and ownership rules for audio event database.
-- [ ] **IS-27-124 P2** — Define versioned configuration or asset data for audio event database.
-- [ ] **IS-27-125 P2** — Implement the smallest deterministic reference path for audio event database.
-- [ ] **IS-27-126 P2** — Add input validation and actionable failure reporting to audio event database.
-- [ ] **IS-27-127 P2** — Add focused unit tests for audio event database.
-- [ ] **IS-27-128 P2** — Add an integration scenario that exercises audio event database in a running game flow.
-- [ ] **IS-27-129 P2** — Add logging, counters, and debug inspection for audio event database.
-- [ ] **IS-27-130 P2** — Define save/checkpoint serialization and restoration for audio event database.
-- [ ] **IS-27-131 P2** — Define CPU, memory, latency, and content budgets for audio event database.
-- [ ] **IS-27-132 P2** — Profile audio event database under a representative worst-case scene.
-- [ ] **IS-27-133 P2** — Document usage examples, invariants, and common failure modes for audio event database.
-- [ ] **IS-27-134 P2** — Validate audio event database on each production graphics backend and record differences.
-- [ ] **IS-27-135 P2** — Define the scope, responsibilities, and explicit non-goals of voice allocator.
-- [ ] **IS-27-136 P2** — Define the public C++ API and ownership rules for voice allocator.
-- [ ] **IS-27-137 P2** — Define versioned configuration or asset data for voice allocator.
-- [ ] **IS-27-138 P2** — Implement the smallest deterministic reference path for voice allocator.
-- [ ] **IS-27-139 P2** — Add input validation and actionable failure reporting to voice allocator.
-- [ ] **IS-27-140 P2** — Add focused unit tests for voice allocator.
-- [ ] **IS-27-141 P2** — Add an integration scenario that exercises voice allocator in a running game flow.
-- [ ] **IS-27-142 P2** — Add logging, counters, and debug inspection for voice allocator.
-- [ ] **IS-27-143 P2** — Define save/checkpoint serialization and restoration for voice allocator.
-- [ ] **IS-27-144 P2** — Define CPU, memory, latency, and content budgets for voice allocator.
-- [ ] **IS-27-145 P2** — Profile voice allocator under a representative worst-case scene.
-- [ ] **IS-27-146 P2** — Document usage examples, invariants, and common failure modes for voice allocator.
-- [ ] **IS-27-147 P2** — Validate voice allocator on each production graphics backend and record differences.
-- [ ] **IS-27-148 P2** — Define the scope, responsibilities, and explicit non-goals of audio occlusion.
-- [ ] **IS-27-149 P2** — Define the public C++ API and ownership rules for audio occlusion.
-- [ ] **IS-27-150 P2** — Define versioned configuration or asset data for audio occlusion.
-- [ ] **IS-27-151 P2** — Implement the smallest deterministic reference path for audio occlusion.
-- [ ] **IS-27-152 P2** — Add input validation and actionable failure reporting to audio occlusion.
-- [ ] **IS-27-153 P2** — Add focused unit tests for audio occlusion.
-- [ ] **IS-27-154 P2** — Add an integration scenario that exercises audio occlusion in a running game flow.
-- [ ] **IS-27-155 P2** — Add logging, counters, and debug inspection for audio occlusion.
-- [ ] **IS-27-156 P2** — Define save/checkpoint serialization and restoration for audio occlusion.
-- [ ] **IS-27-157 P2** — Define CPU, memory, latency, and content budgets for audio occlusion.
-- [ ] **IS-27-158 P2** — Profile audio occlusion under a representative worst-case scene.
-- [ ] **IS-27-159 P2** — Document usage examples, invariants, and common failure modes for audio occlusion.
-- [ ] **IS-27-160 P2** — Validate audio occlusion on each production graphics backend and record differences.
-- [ ] **IS-27-161 P2** — Define the scope, responsibilities, and explicit non-goals of radio interruption.
-- [ ] **IS-27-162 P2** — Define the public C++ API and ownership rules for radio interruption.
-- [ ] **IS-27-163 P2** — Define versioned configuration or asset data for radio interruption.
-- [ ] **IS-27-164 P2** — Implement the smallest deterministic reference path for radio interruption.
-- [ ] **IS-27-165 P2** — Add input validation and actionable failure reporting to radio interruption.
-- [ ] **IS-27-166 P2** — Add focused unit tests for radio interruption.
-- [ ] **IS-27-167 P2** — Add an integration scenario that exercises radio interruption in a running game flow.
-- [ ] **IS-27-168 P2** — Add logging, counters, and debug inspection for radio interruption.
-- [ ] **IS-27-169 P2** — Define save/checkpoint serialization and restoration for radio interruption.
-- [ ] **IS-27-170 P2** — Define CPU, memory, latency, and content budgets for radio interruption.
-- [ ] **IS-27-171 P2** — Profile radio interruption under a representative worst-case scene.
-- [ ] **IS-27-172 P2** — Document usage examples, invariants, and common failure modes for radio interruption.
-- [ ] **IS-27-173 P2** — Validate radio interruption on each production graphics backend and record differences.
-- [ ] **IS-27-174 P2** — Define the scope, responsibilities, and explicit non-goals of mission music state.
-- [ ] **IS-27-175 P2** — Define the public C++ API and ownership rules for mission music state.
-- [ ] **IS-27-176 P2** — Define versioned configuration or asset data for mission music state.
-- [ ] **IS-27-177 P2** — Implement the smallest deterministic reference path for mission music state.
-- [ ] **IS-27-178 P2** — Add input validation and actionable failure reporting to mission music state.
-- [ ] **IS-27-179 P2** — Add focused unit tests for mission music state.
-- [ ] **IS-27-180 P2** — Add an integration scenario that exercises mission music state in a running game flow.
-- [ ] **IS-27-181 P2** — Add logging, counters, and debug inspection for mission music state.
-- [ ] **IS-27-182 P2** — Define save/checkpoint serialization and restoration for mission music state.
-- [ ] **IS-27-183 P2** — Define CPU, memory, latency, and content budgets for mission music state.
-- [ ] **IS-27-184 P2** — Profile mission music state under a representative worst-case scene.
-- [ ] **IS-27-185 P2** — Document usage examples, invariants, and common failure modes for mission music state.
-- [ ] **IS-27-186 P2** — Validate mission music state on each production graphics backend and record differences.
 
+## Audio bus graph
+
+- [ ] **IS-27-026 P0** — Define the scope and public API of the audio bus graph (master/music/dialogue/ambience/vehicle/effects/UI from IS-27-001), including audio event definitions (IS-27-005) and per-bus volume (IS-27-018).
+- [ ] **IS-27-027 P0** — Implement the smallest deterministic reference path: route one sound through one bus at one volume.
+- [ ] **IS-27-028 P1** — Add input validation and actionable failure reporting for malformed audio event/bus data.
+- [ ] **IS-27-029 P1** — Add unit tests and one integration scenario covering dialogue ducking (IS-27-004) and voice priority/stealing (IS-27-006).
+- [ ] **IS-27-030 P1** — Define save/checkpoint serialization and restoration for per-bus volume settings.
+- [ ] **IS-27-031 P2** — Add debug logging/inspection (meters, active-voice display from IS-27-019) and document usage.
+
+## Spatial audio emitter
+
+- [ ] **IS-27-032 P1** — Define the scope and public API of spatial audio emitters (attenuation/spatialization from IS-27-007, occlusion check from IS-27-008).
+- [ ] **IS-27-033 P1** — Implement the smallest deterministic reference path: one emitter attenuates correctly as the listener moves.
+- [ ] **IS-27-034 P1** — Add input validation and actionable failure reporting for malformed emitter data.
+- [ ] **IS-27-035 P1** — Add unit tests and one integration scenario covering listener updates (IS-27-003) across camera/player modes.
+- [ ] **IS-27-036 P2** — Add debug logging/inspection and document usage.
+
+## Ambient zone manager
+
+- [ ] **IS-27-037 P1** — Define the scope and public API of the ambient zone manager (zones and blending from IS-27-009/IS-27-010).
+- [ ] **IS-27-038 P1** — Implement the smallest deterministic reference path: cross a zone boundary and hear a smooth ambience blend.
+- [ ] **IS-27-039 P1** — Add input validation and actionable failure reporting for malformed zone data.
+- [ ] **IS-27-040 P1** — Add unit tests and one integration scenario covering weather/time-of-day variation (IS-27-022/IS-27-023) once those exist.
+- [ ] **IS-27-041 P2** — Add debug logging/inspection and document usage.
+
+## Footstep resolver
+
+- [ ] **IS-27-042 P1** — Define the scope and public API of the footstep resolver (surface mapping from IS-27-011).
+- [ ] **IS-27-043 P1** — Implement the smallest deterministic reference path: one footstep event resolves to the correct surface sound.
+- [ ] **IS-27-044 P1** — Add input validation and actionable failure reporting for unmapped surfaces (fallback per IS-27-020).
+- [ ] **IS-27-045 P1** — Add unit tests and one integration scenario covering all district surface types.
+- [ ] **IS-27-046 P2** — Add debug logging/inspection and document usage.
+
+## Vehicle audio controller
+
+- [ ] **IS-27-047 P1** — Define the scope and public API of the vehicle audio controller (layers from IS-27-012, engine smoothing from IS-27-013).
+- [ ] **IS-27-048 P1** — Implement the smallest deterministic reference path: drive the sedan through idle, acceleration, and braking with correct layered sound.
+- [ ] **IS-27-049 P1** — Add input validation and actionable failure reporting for malformed vehicle audio data.
+- [ ] **IS-27-050 P1** — Add unit tests and one integration scenario covering the radio stations from IS-27-015 playing through the cabin bus.
+- [ ] **IS-27-051 P2** — Add debug logging/inspection and document usage.
+
+## Music director
+
+- [ ] **IS-27-052 P1** — Define the scope and public API of the music director (states/transitions from IS-27-014, including mission-specific states).
+- [ ] **IS-27-053 P1** — Implement the smallest deterministic reference path: transition from exploration music to one mission's combat/tension state and back.
+- [ ] **IS-27-054 P1** — Add input validation and actionable failure reporting for malformed music-state data.
+- [ ] **IS-27-055 P1** — Add unit tests and one integration scenario covering a full mission's music-state sequence.
+- [ ] **IS-27-056 P1** — Define save/checkpoint serialization and restoration for the active music state.
+- [ ] **IS-27-057 P2** — Add debug logging/inspection and document usage.

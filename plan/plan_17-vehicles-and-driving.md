@@ -2,8 +2,7 @@
 
 [Back to master plan](../plan.md)
 
-
-Progress from kinematic movement to believable, tunable historical vehicles.
+Progress from kinematic movement to one believable, tunable historical sedan (plus a small campaign vehicle roster later — see group 32). Wheel-damage granularity, full telemetry graphing, and garage/persistence systems are cut down to the minimum needed, or later.
 
 - [ ] **IS-17-001 P0** — Preserve the current kinematic controller as a deterministic fallback/test vehicle.
 - [ ] **IS-17-002 P0** — Create a raycast-vehicle prototype in the selected physics library.
@@ -19,202 +18,122 @@ Progress from kinematic movement to believable, tunable historical vehicles.
 - [ ] **IS-17-012 P1** — Implement engine start/stop and stalled states if useful.
 - [ ] **IS-17-013 P1** — Implement doors, seats, occupants, and entry points.
 - [ ] **IS-17-014 P1** — Implement headlights, brake lights, indicators, horn, and dashboard states.
-- [ ] **IS-17-015 P1** — Implement impact damage and disabled states.
-- [ ] **IS-17-016 P1** — Implement wheel damage and recovery policy.
-- [ ] **IS-17-017 P1** — Implement vehicle-to-mission stable IDs.
-- [ ] **IS-17-018 P1** — Implement AI and player control through the same command interface.
-- [ ] **IS-17-019 P1** — Implement vehicle spawn, despawn, pooling, and streaming restoration.
-- [ ] **IS-17-020 P1** — Implement safe reset for overturned or stuck mission vehicles.
-- [ ] **IS-17-021 P1** — Implement garage/parking ownership and persistence.
-- [ ] **IS-17-022 P1** — Implement vehicle camera presets and transitions.
-- [ ] **IS-17-023 P1** — Implement telemetry graphs for RPM, gear, speed, slip, suspension, and contacts.
-- [ ] **IS-17-024 P1** — Implement deterministic vehicle test tracks.
-- [ ] **IS-17-025 P2** — Implement manual clutch and gearbox mode.
-- [ ] **IS-17-026 P2** — Implement differential and drivetrain variants.
-- [ ] **IS-17-027 P2** — Implement trailers only if campaign content requires them.
-- [ ] **IS-17-028 P2** — Implement motorcycles only as a separate post-slice project.
-- [ ] **IS-17-029 P2** — Implement deformable cosmetic damage only after gameplay damage works.
-- [ ] **IS-17-030 P3** — Evaluate high-fidelity tire models only if current handling cannot meet the game target.
-- [ ] **IS-17-031 P1** — Define the scope, responsibilities, and explicit non-goals of vehicle configuration.
-- [ ] **IS-17-032 P1** — Define the public C++ API and ownership rules for vehicle configuration.
-- [ ] **IS-17-033 P1** — Define versioned configuration or asset data for vehicle configuration.
-- [ ] **IS-17-034 P1** — Implement the smallest deterministic reference path for vehicle configuration.
-- [ ] **IS-17-035 P1** — Add input validation and actionable failure reporting to vehicle configuration.
-- [ ] **IS-17-036 P1** — Add focused unit tests for vehicle configuration.
-- [ ] **IS-17-037 P1** — Add an integration scenario that exercises vehicle configuration in a running game flow.
-- [ ] **IS-17-038 P2** — Add logging, counters, and debug inspection for vehicle configuration.
-- [ ] **IS-17-039 P2** — Add an in-world or overlay debug visualization for vehicle configuration.
-- [ ] **IS-17-040 P1** — Define save/checkpoint serialization and restoration for vehicle configuration.
-- [ ] **IS-17-041 P2** — Define CPU, memory, latency, and content budgets for vehicle configuration.
-- [ ] **IS-17-042 P2** — Profile vehicle configuration under a representative worst-case scene.
-- [ ] **IS-17-043 P2** — Document usage examples, invariants, and common failure modes for vehicle configuration.
-- [ ] **IS-17-044 P1** — Define the scope, responsibilities, and explicit non-goals of raycast vehicle physics.
-- [ ] **IS-17-045 P1** — Define the public C++ API and ownership rules for raycast vehicle physics.
-- [ ] **IS-17-046 P1** — Define versioned configuration or asset data for raycast vehicle physics.
-- [ ] **IS-17-047 P1** — Implement the smallest deterministic reference path for raycast vehicle physics.
-- [ ] **IS-17-048 P1** — Add input validation and actionable failure reporting to raycast vehicle physics.
-- [ ] **IS-17-049 P1** — Add focused unit tests for raycast vehicle physics.
-- [ ] **IS-17-050 P1** — Add an integration scenario that exercises raycast vehicle physics in a running game flow.
-- [ ] **IS-17-051 P2** — Add logging, counters, and debug inspection for raycast vehicle physics.
-- [ ] **IS-17-052 P2** — Add an in-world or overlay debug visualization for raycast vehicle physics.
-- [ ] **IS-17-053 P1** — Define save/checkpoint serialization and restoration for raycast vehicle physics.
-- [ ] **IS-17-054 P2** — Define CPU, memory, latency, and content budgets for raycast vehicle physics.
-- [ ] **IS-17-055 P2** — Profile raycast vehicle physics under a representative worst-case scene.
-- [ ] **IS-17-056 P2** — Document usage examples, invariants, and common failure modes for raycast vehicle physics.
-- [ ] **IS-17-057 P1** — Define the scope, responsibilities, and explicit non-goals of vehicle command interface.
-- [ ] **IS-17-058 P1** — Define the public C++ API and ownership rules for vehicle command interface.
-- [ ] **IS-17-059 P1** — Define versioned configuration or asset data for vehicle command interface.
-- [ ] **IS-17-060 P1** — Implement the smallest deterministic reference path for vehicle command interface.
-- [ ] **IS-17-061 P1** — Add input validation and actionable failure reporting to vehicle command interface.
-- [ ] **IS-17-062 P1** — Add focused unit tests for vehicle command interface.
-- [ ] **IS-17-063 P1** — Add an integration scenario that exercises vehicle command interface in a running game flow.
-- [ ] **IS-17-064 P2** — Add logging, counters, and debug inspection for vehicle command interface.
-- [ ] **IS-17-065 P2** — Add an in-world or overlay debug visualization for vehicle command interface.
-- [ ] **IS-17-066 P1** — Define save/checkpoint serialization and restoration for vehicle command interface.
-- [ ] **IS-17-067 P2** — Define CPU, memory, latency, and content budgets for vehicle command interface.
-- [ ] **IS-17-068 P2** — Profile vehicle command interface under a representative worst-case scene.
-- [ ] **IS-17-069 P2** — Document usage examples, invariants, and common failure modes for vehicle command interface.
-- [ ] **IS-17-070 P1** — Define the scope, responsibilities, and explicit non-goals of wheel visual controller.
-- [ ] **IS-17-071 P1** — Define the public C++ API and ownership rules for wheel visual controller.
-- [ ] **IS-17-072 P1** — Define versioned configuration or asset data for wheel visual controller.
-- [ ] **IS-17-073 P1** — Implement the smallest deterministic reference path for wheel visual controller.
-- [ ] **IS-17-074 P1** — Add input validation and actionable failure reporting to wheel visual controller.
-- [ ] **IS-17-075 P1** — Add focused unit tests for wheel visual controller.
-- [ ] **IS-17-076 P1** — Add an integration scenario that exercises wheel visual controller in a running game flow.
-- [ ] **IS-17-077 P2** — Add logging, counters, and debug inspection for wheel visual controller.
-- [ ] **IS-17-078 P2** — Add an in-world or overlay debug visualization for wheel visual controller.
-- [ ] **IS-17-079 P1** — Define save/checkpoint serialization and restoration for wheel visual controller.
-- [ ] **IS-17-080 P2** — Define CPU, memory, latency, and content budgets for wheel visual controller.
-- [ ] **IS-17-081 P2** — Profile wheel visual controller under a representative worst-case scene.
-- [ ] **IS-17-082 P2** — Document usage examples, invariants, and common failure modes for wheel visual controller.
-- [ ] **IS-17-083 P1** — Define the scope, responsibilities, and explicit non-goals of vehicle damage.
-- [ ] **IS-17-084 P1** — Define the public C++ API and ownership rules for vehicle damage.
-- [ ] **IS-17-085 P1** — Define versioned configuration or asset data for vehicle damage.
-- [ ] **IS-17-086 P1** — Implement the smallest deterministic reference path for vehicle damage.
-- [ ] **IS-17-087 P1** — Add input validation and actionable failure reporting to vehicle damage.
-- [ ] **IS-17-088 P1** — Add focused unit tests for vehicle damage.
-- [ ] **IS-17-089 P1** — Add an integration scenario that exercises vehicle damage in a running game flow.
-- [ ] **IS-17-090 P2** — Add logging, counters, and debug inspection for vehicle damage.
-- [ ] **IS-17-091 P2** — Add an in-world or overlay debug visualization for vehicle damage.
-- [ ] **IS-17-092 P1** — Define save/checkpoint serialization and restoration for vehicle damage.
-- [ ] **IS-17-093 P2** — Define CPU, memory, latency, and content budgets for vehicle damage.
-- [ ] **IS-17-094 P2** — Profile vehicle damage under a representative worst-case scene.
-- [ ] **IS-17-095 P2** — Document usage examples, invariants, and common failure modes for vehicle damage.
-- [ ] **IS-17-096 P1** — Define the scope, responsibilities, and explicit non-goals of vehicle entry points.
-- [ ] **IS-17-097 P1** — Define the public C++ API and ownership rules for vehicle entry points.
-- [ ] **IS-17-098 P1** — Define versioned configuration or asset data for vehicle entry points.
-- [ ] **IS-17-099 P1** — Implement the smallest deterministic reference path for vehicle entry points.
-- [ ] **IS-17-100 P1** — Add input validation and actionable failure reporting to vehicle entry points.
-- [ ] **IS-17-101 P1** — Add focused unit tests for vehicle entry points.
-- [ ] **IS-17-102 P1** — Add an integration scenario that exercises vehicle entry points in a running game flow.
-- [ ] **IS-17-103 P2** — Add logging, counters, and debug inspection for vehicle entry points.
-- [ ] **IS-17-104 P2** — Add an in-world or overlay debug visualization for vehicle entry points.
-- [ ] **IS-17-105 P1** — Define save/checkpoint serialization and restoration for vehicle entry points.
-- [ ] **IS-17-106 P2** — Define CPU, memory, latency, and content budgets for vehicle entry points.
-- [ ] **IS-17-107 P2** — Profile vehicle entry points under a representative worst-case scene.
-- [ ] **IS-17-108 P2** — Document usage examples, invariants, and common failure modes for vehicle entry points.
-- [ ] **IS-17-109 P1** — Define the scope, responsibilities, and explicit non-goals of vehicle persistence.
-- [ ] **IS-17-110 P1** — Define the public C++ API and ownership rules for vehicle persistence.
-- [ ] **IS-17-111 P1** — Define versioned configuration or asset data for vehicle persistence.
-- [ ] **IS-17-112 P1** — Implement the smallest deterministic reference path for vehicle persistence.
-- [ ] **IS-17-113 P1** — Add input validation and actionable failure reporting to vehicle persistence.
-- [ ] **IS-17-114 P1** — Add focused unit tests for vehicle persistence.
-- [ ] **IS-17-115 P1** — Add an integration scenario that exercises vehicle persistence in a running game flow.
-- [ ] **IS-17-116 P2** — Add logging, counters, and debug inspection for vehicle persistence.
-- [ ] **IS-17-117 P2** — Add an in-world or overlay debug visualization for vehicle persistence.
-- [ ] **IS-17-118 P1** — Define save/checkpoint serialization and restoration for vehicle persistence.
-- [ ] **IS-17-119 P2** — Define CPU, memory, latency, and content budgets for vehicle persistence.
-- [ ] **IS-17-120 P2** — Profile vehicle persistence under a representative worst-case scene.
-- [ ] **IS-17-121 P2** — Document usage examples, invariants, and common failure modes for vehicle persistence.
-- [ ] **IS-17-122 P1** — Define the scope, responsibilities, and explicit non-goals of vehicle telemetry.
-- [ ] **IS-17-123 P1** — Define the public C++ API and ownership rules for vehicle telemetry.
-- [ ] **IS-17-124 P1** — Define versioned configuration or asset data for vehicle telemetry.
-- [ ] **IS-17-125 P1** — Implement the smallest deterministic reference path for vehicle telemetry.
-- [ ] **IS-17-126 P1** — Add input validation and actionable failure reporting to vehicle telemetry.
-- [ ] **IS-17-127 P1** — Add focused unit tests for vehicle telemetry.
-- [ ] **IS-17-128 P1** — Add an integration scenario that exercises vehicle telemetry in a running game flow.
-- [ ] **IS-17-129 P2** — Add logging, counters, and debug inspection for vehicle telemetry.
-- [ ] **IS-17-130 P2** — Add an in-world or overlay debug visualization for vehicle telemetry.
-- [ ] **IS-17-131 P1** — Define save/checkpoint serialization and restoration for vehicle telemetry.
-- [ ] **IS-17-132 P2** — Define CPU, memory, latency, and content budgets for vehicle telemetry.
-- [ ] **IS-17-133 P2** — Profile vehicle telemetry under a representative worst-case scene.
-- [ ] **IS-17-134 P2** — Document usage examples, invariants, and common failure modes for vehicle telemetry.
-- [ ] **IS-17-135 P2** — Define the scope, responsibilities, and explicit non-goals of engine simulation.
-- [ ] **IS-17-136 P2** — Define the public C++ API and ownership rules for engine simulation.
-- [ ] **IS-17-137 P2** — Define versioned configuration or asset data for engine simulation.
-- [ ] **IS-17-138 P2** — Implement the smallest deterministic reference path for engine simulation.
-- [ ] **IS-17-139 P2** — Add input validation and actionable failure reporting to engine simulation.
-- [ ] **IS-17-140 P2** — Add focused unit tests for engine simulation.
-- [ ] **IS-17-141 P2** — Add an integration scenario that exercises engine simulation in a running game flow.
-- [ ] **IS-17-142 P2** — Add logging, counters, and debug inspection for engine simulation.
-- [ ] **IS-17-143 P2** — Add an in-world or overlay debug visualization for engine simulation.
-- [ ] **IS-17-144 P2** — Define save/checkpoint serialization and restoration for engine simulation.
-- [ ] **IS-17-145 P2** — Define CPU, memory, latency, and content budgets for engine simulation.
-- [ ] **IS-17-146 P2** — Profile engine simulation under a representative worst-case scene.
-- [ ] **IS-17-147 P2** — Document usage examples, invariants, and common failure modes for engine simulation.
-- [ ] **IS-17-148 P2** — Define the scope, responsibilities, and explicit non-goals of gearbox simulation.
-- [ ] **IS-17-149 P2** — Define the public C++ API and ownership rules for gearbox simulation.
-- [ ] **IS-17-150 P2** — Define versioned configuration or asset data for gearbox simulation.
-- [ ] **IS-17-151 P2** — Implement the smallest deterministic reference path for gearbox simulation.
-- [ ] **IS-17-152 P2** — Add input validation and actionable failure reporting to gearbox simulation.
-- [ ] **IS-17-153 P2** — Add focused unit tests for gearbox simulation.
-- [ ] **IS-17-154 P2** — Add an integration scenario that exercises gearbox simulation in a running game flow.
-- [ ] **IS-17-155 P2** — Add logging, counters, and debug inspection for gearbox simulation.
-- [ ] **IS-17-156 P2** — Add an in-world or overlay debug visualization for gearbox simulation.
-- [ ] **IS-17-157 P2** — Define save/checkpoint serialization and restoration for gearbox simulation.
-- [ ] **IS-17-158 P2** — Define CPU, memory, latency, and content budgets for gearbox simulation.
-- [ ] **IS-17-159 P2** — Profile gearbox simulation under a representative worst-case scene.
-- [ ] **IS-17-160 P2** — Document usage examples, invariants, and common failure modes for gearbox simulation.
-- [ ] **IS-17-161 P2** — Define the scope, responsibilities, and explicit non-goals of tire model.
-- [ ] **IS-17-162 P2** — Define the public C++ API and ownership rules for tire model.
-- [ ] **IS-17-163 P2** — Define versioned configuration or asset data for tire model.
-- [ ] **IS-17-164 P2** — Implement the smallest deterministic reference path for tire model.
-- [ ] **IS-17-165 P2** — Add input validation and actionable failure reporting to tire model.
-- [ ] **IS-17-166 P2** — Add focused unit tests for tire model.
-- [ ] **IS-17-167 P2** — Add an integration scenario that exercises tire model in a running game flow.
-- [ ] **IS-17-168 P2** — Add logging, counters, and debug inspection for tire model.
-- [ ] **IS-17-169 P2** — Add an in-world or overlay debug visualization for tire model.
-- [ ] **IS-17-170 P2** — Define save/checkpoint serialization and restoration for tire model.
-- [ ] **IS-17-171 P2** — Define CPU, memory, latency, and content budgets for tire model.
-- [ ] **IS-17-172 P2** — Profile tire model under a representative worst-case scene.
-- [ ] **IS-17-173 P2** — Document usage examples, invariants, and common failure modes for tire model.
-- [ ] **IS-17-174 P2** — Define the scope, responsibilities, and explicit non-goals of suspension model.
-- [ ] **IS-17-175 P2** — Define the public C++ API and ownership rules for suspension model.
-- [ ] **IS-17-176 P2** — Define versioned configuration or asset data for suspension model.
-- [ ] **IS-17-177 P2** — Implement the smallest deterministic reference path for suspension model.
-- [ ] **IS-17-178 P2** — Add input validation and actionable failure reporting to suspension model.
-- [ ] **IS-17-179 P2** — Add focused unit tests for suspension model.
-- [ ] **IS-17-180 P2** — Add an integration scenario that exercises suspension model in a running game flow.
-- [ ] **IS-17-181 P2** — Add logging, counters, and debug inspection for suspension model.
-- [ ] **IS-17-182 P2** — Add an in-world or overlay debug visualization for suspension model.
-- [ ] **IS-17-183 P2** — Define save/checkpoint serialization and restoration for suspension model.
-- [ ] **IS-17-184 P2** — Define CPU, memory, latency, and content budgets for suspension model.
-- [ ] **IS-17-185 P2** — Profile suspension model under a representative worst-case scene.
-- [ ] **IS-17-186 P2** — Document usage examples, invariants, and common failure modes for suspension model.
-- [ ] **IS-17-187 P2** — Define the scope, responsibilities, and explicit non-goals of vehicle light controller.
-- [ ] **IS-17-188 P2** — Define the public C++ API and ownership rules for vehicle light controller.
-- [ ] **IS-17-189 P2** — Define versioned configuration or asset data for vehicle light controller.
-- [ ] **IS-17-190 P2** — Implement the smallest deterministic reference path for vehicle light controller.
-- [ ] **IS-17-191 P2** — Add input validation and actionable failure reporting to vehicle light controller.
-- [ ] **IS-17-192 P2** — Add focused unit tests for vehicle light controller.
-- [ ] **IS-17-193 P2** — Add an integration scenario that exercises vehicle light controller in a running game flow.
-- [ ] **IS-17-194 P2** — Add logging, counters, and debug inspection for vehicle light controller.
-- [ ] **IS-17-195 P2** — Add an in-world or overlay debug visualization for vehicle light controller.
-- [ ] **IS-17-196 P2** — Define save/checkpoint serialization and restoration for vehicle light controller.
-- [ ] **IS-17-197 P2** — Define CPU, memory, latency, and content budgets for vehicle light controller.
-- [ ] **IS-17-198 P2** — Profile vehicle light controller under a representative worst-case scene.
-- [ ] **IS-17-199 P2** — Document usage examples, invariants, and common failure modes for vehicle light controller.
-- [ ] **IS-17-200 P2** — Define the scope, responsibilities, and explicit non-goals of vehicle recovery system.
-- [ ] **IS-17-201 P2** — Define the public C++ API and ownership rules for vehicle recovery system.
-- [ ] **IS-17-202 P2** — Define versioned configuration or asset data for vehicle recovery system.
-- [ ] **IS-17-203 P2** — Implement the smallest deterministic reference path for vehicle recovery system.
-- [ ] **IS-17-204 P2** — Add input validation and actionable failure reporting to vehicle recovery system.
-- [ ] **IS-17-205 P2** — Add focused unit tests for vehicle recovery system.
-- [ ] **IS-17-206 P2** — Add an integration scenario that exercises vehicle recovery system in a running game flow.
-- [ ] **IS-17-207 P2** — Add logging, counters, and debug inspection for vehicle recovery system.
-- [ ] **IS-17-208 P2** — Add an in-world or overlay debug visualization for vehicle recovery system.
-- [ ] **IS-17-209 P2** — Define save/checkpoint serialization and restoration for vehicle recovery system.
-- [ ] **IS-17-210 P2** — Define CPU, memory, latency, and content budgets for vehicle recovery system.
-- [ ] **IS-17-211 P2** — Profile vehicle recovery system under a representative worst-case scene.
-- [ ] **IS-17-212 P2** — Document usage examples, invariants, and common failure modes for vehicle recovery system.
+- [ ] **IS-17-015 P1** — Implement impact damage and disabled states, including simple wheel damage as part of the same system (no separate wheel-damage-state machine).
+- [ ] **IS-17-016 P1** — Implement vehicle-to-mission stable IDs.
+- [ ] **IS-17-017 P1** — Implement AI and player control through the same command interface.
+- [ ] **IS-17-018 P1** — Implement vehicle spawn, despawn, pooling, and district-load restoration.
+- [ ] **IS-17-019 P1** — Implement safe reset for overturned or stuck mission vehicles.
+- [ ] **IS-17-020 P1** — Implement vehicle camera presets and transitions.
+- [ ] **IS-17-021 P1** — Implement deterministic vehicle test tracks.
+- [ ] **IS-17-022 P2** — Implement manual clutch and gearbox mode.
+- [ ] **IS-17-023 P2** — Implement differential and drivetrain variants.
+- [ ] **IS-17-024 P2** — Implement per-vehicle parking/ownership persistence only if the campaign needs it (no full garage system).
+- [ ] **IS-17-025 P2** — Implement trailers only if campaign content requires them.
+- [ ] **IS-17-026 P2** — Implement motorcycles only as a separate post-slice project.
+- [ ] **IS-17-027 P2** — Implement deformable cosmetic damage only after gameplay damage works.
+- [ ] **IS-17-028 P3** — Evaluate high-fidelity tire models only if current handling cannot meet the game target.
 
+## Vehicle configuration
+
+- [ ] **IS-17-029 P1** — Define the scope, public API, and versioned schema for vehicle configuration.
+- [ ] **IS-17-030 P1** — Implement the smallest deterministic reference path for loading a vehicle configuration.
+- [ ] **IS-17-031 P1** — Add input validation and actionable failure reporting to vehicle configuration.
+- [ ] **IS-17-032 P1** — Add focused unit tests for vehicle configuration.
+- [ ] **IS-17-033 P1** — Add an integration scenario that exercises vehicle configuration in a running game flow.
+- [ ] **IS-17-034 P2** — Document usage examples and common failure modes for vehicle configuration.
+
+## Raycast vehicle physics (chassis, wheels, steering, brakes)
+
+- [ ] **IS-17-035 P0** — Define the scope, public API, and versioned config for raycast vehicle physics.
+- [ ] **IS-17-036 P0** — Implement the smallest deterministic reference path for raycast vehicle physics (one sedan, four wheels).
+- [ ] **IS-17-037 P1** — Add input validation and actionable failure reporting to raycast vehicle physics.
+- [ ] **IS-17-038 P1** — Add focused unit tests for raycast vehicle physics.
+- [ ] **IS-17-039 P1** — Add an integration scenario that exercises raycast vehicle physics in a running game flow.
+- [ ] **IS-17-040 P1** — Define save/checkpoint serialization and restoration for vehicle physics state.
+- [ ] **IS-17-041 P2** — Profile raycast vehicle physics under a representative worst-case scene.
+- [ ] **IS-17-042 P2** — Document usage examples and common failure modes for raycast vehicle physics.
+
+## Engine simulation
+
+- [ ] **IS-17-043 P1** — Define the scope and public API for a simple torque-curve engine model.
+- [ ] **IS-17-044 P1** — Implement the smallest deterministic reference path for the engine model.
+- [ ] **IS-17-045 P1** — Add focused unit tests for the engine model.
+- [ ] **IS-17-046 P1** — Add an integration scenario driving the sedan through its full RPM range.
+- [ ] **IS-17-047 P2** — Profile the engine model under sustained full-throttle driving.
+- [ ] **IS-17-048 P2** — Document usage examples and common failure modes for the engine model.
+
+## Gearbox simulation
+
+- [ ] **IS-17-049 P1** — Define the scope and public API for a simple gearbox/final-drive model.
+- [ ] **IS-17-050 P1** — Implement the smallest deterministic reference path for the gearbox model.
+- [ ] **IS-17-051 P1** — Add focused unit tests for the gearbox model, including shift timing.
+- [ ] **IS-17-052 P1** — Add an integration scenario exercising gear changes during driving.
+- [ ] **IS-17-053 P2** — Profile the gearbox model during rapid shifting.
+- [ ] **IS-17-054 P2** — Document usage examples and common failure modes for the gearbox model.
+
+## Tire model
+
+- [ ] **IS-17-055 P1** — Define the scope and public API for a simple longitudinal/lateral tire-grip model.
+- [ ] **IS-17-056 P1** — Implement the smallest deterministic reference path for the tire model.
+- [ ] **IS-17-057 P1** — Add focused unit tests for the tire model, including low-grip surfaces.
+- [ ] **IS-17-058 P1** — Add an integration scenario exercising cornering and braking grip.
+- [ ] **IS-17-059 P2** — Profile the tire model under a representative worst-case scene.
+- [ ] **IS-17-060 P2** — Document usage examples and common failure modes for the tire model.
+
+## Suspension model
+
+- [ ] **IS-17-061 P1** — Define the scope and public API for a simple spring/damper suspension model.
+- [ ] **IS-17-062 P1** — Implement the smallest deterministic reference path for the suspension model.
+- [ ] **IS-17-063 P1** — Add focused unit tests for the suspension model.
+- [ ] **IS-17-064 P1** — Add an integration scenario exercising suspension travel over uneven ground.
+- [ ] **IS-17-065 P2** — Profile the suspension model under a representative worst-case scene.
+- [ ] **IS-17-066 P2** — Document usage examples and common failure modes for the suspension model.
+
+## Vehicle command interface
+
+- [ ] **IS-17-067 P1** — Define the scope, public API, and versioned config for the vehicle command interface shared by player and AI.
+- [ ] **IS-17-068 P1** — Implement the smallest deterministic reference path for the command interface.
+- [ ] **IS-17-069 P1** — Add input validation and actionable failure reporting to the command interface.
+- [ ] **IS-17-070 P1** — Add focused unit tests for the command interface.
+- [ ] **IS-17-071 P1** — Add an integration scenario driving the same command interface from player input and from a scripted AI route.
+- [ ] **IS-17-072 P2** — Document usage examples and common failure modes for the command interface.
+
+## Wheel visual controller
+
+- [ ] **IS-17-073 P1** — Define the scope and public API for wheel visual pose from physics contacts.
+- [ ] **IS-17-074 P1** — Implement the smallest deterministic reference path for wheel visual pose.
+- [ ] **IS-17-075 P1** — Add focused unit tests for wheel visual pose.
+- [ ] **IS-17-076 P1** — Add an integration scenario exercising wheel visuals during driving.
+- [ ] **IS-17-077 P2** — Document usage examples and common failure modes for wheel visual pose.
+
+## Vehicle damage
+
+- [ ] **IS-17-078 P1** — Define the scope, public API, and versioned config for vehicle damage (impact + simple wheel damage).
+- [ ] **IS-17-079 P1** — Implement the smallest deterministic reference path for vehicle damage and disabled states.
+- [ ] **IS-17-080 P1** — Add input validation and actionable failure reporting to vehicle damage.
+- [ ] **IS-17-081 P1** — Add focused unit tests for vehicle damage.
+- [ ] **IS-17-082 P1** — Add an integration scenario that exercises vehicle damage in a running game flow.
+- [ ] **IS-17-083 P1** — Define save/checkpoint serialization and restoration for vehicle damage state.
+- [ ] **IS-17-084 P2** — Document usage examples and common failure modes for vehicle damage.
+
+## Vehicle entry points
+
+- [ ] **IS-17-085 P1** — Define the scope and public API for vehicle entry-point definitions (doors, seats).
+- [ ] **IS-17-086 P1** — Implement the smallest deterministic reference path for vehicle entry points.
+- [ ] **IS-17-087 P1** — Add focused unit tests for vehicle entry points.
+- [ ] **IS-17-088 P1** — Add an integration scenario exercising entry/exit for the sedan.
+- [ ] **IS-17-089 P2** — Document usage examples and common failure modes for vehicle entry points.
+
+## Vehicle light controller
+
+- [ ] **IS-17-090 P2** — Define the scope and public API for headlight/brake-light/indicator/horn states.
+- [ ] **IS-17-091 P2** — Implement the smallest deterministic reference path for the vehicle light controller.
+- [ ] **IS-17-092 P2** — Add focused unit tests for the vehicle light controller.
+- [ ] **IS-17-093 P2** — Add an integration scenario exercising lights during a night driving segment.
+- [ ] **IS-17-094 P2** — Document usage examples and common failure modes for the vehicle light controller.
+
+## Vehicle debug counters (no full telemetry-graph tooling)
+
+- [ ] **IS-17-095 P2** — Add basic debug counters for RPM, gear, speed, and slip (text/overlay, not a graphing UI).
+- [ ] **IS-17-096 P2** — Add focused unit tests confirming debug counters match physics state.
+- [ ] **IS-17-097 P2** — Document how to read the vehicle debug counters.

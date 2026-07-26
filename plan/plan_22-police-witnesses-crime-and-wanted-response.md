@@ -2,185 +2,65 @@
 
 [Back to master plan](../plan.md)
 
+Create fair, observable law-enforcement gameplay at Mafia-1 (2002) fidelity: a witnessed offense or crime triggers a chase with one escalation step, then resolves. No multi-tier GTA-style wanted stars, no search-area decay simulation, no roadblocks, and no persistent detective/investigation system — those belong to a much larger open-world simulation, not this game.
 
-Create fair, observable law-enforcement gameplay without omniscient AI.
-
-- [ ] **IS-22-001 P1** — Define which actions are offenses and how severity is calculated.
-- [ ] **IS-22-002 P1** — Create witness perception rather than global instant knowledge.
-- [ ] **IS-22-003 P1** — Create report transmission and police dispatch delays.
-- [ ] **IS-22-004 P1** — Create wanted severity, search area, visibility, and decay.
-- [ ] **IS-22-005 P1** — Create traffic-stop behavior for minor offenses.
+- [ ] **IS-22-001 P0** — Define which actions are offenses (speeding, running a light, violence) and how they are detected.
+- [ ] **IS-22-002 P0** — Create witness perception so an officer or civilian must actually see the act, not global instant knowledge.
+- [ ] **IS-22-003 P0** — Create a short dispatch delay between a witnessed offense and police responding.
+- [ ] **IS-22-004 P1** — Create a single wanted state machine: clear -> chased -> resolved (arrested/fined, or escaped by breaking line of sight).
+- [ ] **IS-22-005 P1** — Create traffic-stop behavior for minor offenses (pull over, ticket/warning).
 - [ ] **IS-22-006 P1** — Create pursuit behavior for vehicles and on-foot suspects.
 - [ ] **IS-22-007 P1** — Create surrender, arrest, escape, and mission-failure states.
 - [ ] **IS-22-008 P1** — Create police spawn rules that avoid visible pop-in.
-- [ ] **IS-22-009 P1** — Create police route planning through traffic.
-- [ ] **IS-22-010 P1** — Create roadblock hooks for high severity.
-- [ ] **IS-22-011 P1** — Create witness intimidation or loss only if narratively appropriate.
-- [ ] **IS-22-012 P1** — Create false-positive prevention and clear player feedback.
-- [ ] **IS-22-013 P1** — Create mission overrides for scripted police states.
-- [ ] **IS-22-014 P1** — Create checkpoint-safe wanted-state restoration.
-- [ ] **IS-22-015 P1** — Create police debug view for knowledge, dispatch, search, and target state.
-- [ ] **IS-22-016 P1** — Create test scenarios for unseen crime, lost sight, vehicle swap, interior hiding, and district escape.
-- [ ] **IS-22-017 P2** — Create radio call audio and subtitle events.
-- [ ] **IS-22-018 P2** — Create foot patrols and parked patrol vehicles.
-- [ ] **IS-22-019 P2** — Create backup escalation and de-escalation.
-- [ ] **IS-22-020 P2** — Create non-lethal arrest behavior before advanced combat.
-- [ ] **IS-22-021 P2** — Create civilian witness variability.
-- [ ] **IS-22-022 P3** — Create detective/investigation persistence only if campaign design needs it.
-- [ ] **IS-22-023 P1** — Define the scope, responsibilities, and explicit non-goals of crime event model.
-- [ ] **IS-22-024 P1** — Define the public C++ API and ownership rules for crime event model.
-- [ ] **IS-22-025 P1** — Define versioned configuration or asset data for crime event model.
-- [ ] **IS-22-026 P1** — Implement the smallest deterministic reference path for crime event model.
-- [ ] **IS-22-027 P1** — Add input validation and actionable failure reporting to crime event model.
-- [ ] **IS-22-028 P1** — Add focused unit tests for crime event model.
-- [ ] **IS-22-029 P1** — Add an integration scenario that exercises crime event model in a running game flow.
-- [ ] **IS-22-030 P2** — Add logging, counters, and debug inspection for crime event model.
-- [ ] **IS-22-031 P2** — Add an in-world or overlay debug visualization for crime event model.
-- [ ] **IS-22-032 P1** — Define save/checkpoint serialization and restoration for crime event model.
-- [ ] **IS-22-033 P2** — Define CPU, memory, latency, and content budgets for crime event model.
-- [ ] **IS-22-034 P2** — Profile crime event model under a representative worst-case scene.
-- [ ] **IS-22-035 P2** — Document usage examples, invariants, and common failure modes for crime event model.
-- [ ] **IS-22-036 P1** — Define the scope, responsibilities, and explicit non-goals of witness system.
-- [ ] **IS-22-037 P1** — Define the public C++ API and ownership rules for witness system.
-- [ ] **IS-22-038 P1** — Define versioned configuration or asset data for witness system.
-- [ ] **IS-22-039 P1** — Implement the smallest deterministic reference path for witness system.
-- [ ] **IS-22-040 P1** — Add input validation and actionable failure reporting to witness system.
-- [ ] **IS-22-041 P1** — Add focused unit tests for witness system.
-- [ ] **IS-22-042 P1** — Add an integration scenario that exercises witness system in a running game flow.
-- [ ] **IS-22-043 P2** — Add logging, counters, and debug inspection for witness system.
-- [ ] **IS-22-044 P2** — Add an in-world or overlay debug visualization for witness system.
-- [ ] **IS-22-045 P1** — Define save/checkpoint serialization and restoration for witness system.
-- [ ] **IS-22-046 P2** — Define CPU, memory, latency, and content budgets for witness system.
-- [ ] **IS-22-047 P2** — Profile witness system under a representative worst-case scene.
-- [ ] **IS-22-048 P2** — Document usage examples, invariants, and common failure modes for witness system.
-- [ ] **IS-22-049 P1** — Define the scope, responsibilities, and explicit non-goals of wanted-state manager.
-- [ ] **IS-22-050 P1** — Define the public C++ API and ownership rules for wanted-state manager.
-- [ ] **IS-22-051 P1** — Define versioned configuration or asset data for wanted-state manager.
-- [ ] **IS-22-052 P1** — Implement the smallest deterministic reference path for wanted-state manager.
-- [ ] **IS-22-053 P1** — Add input validation and actionable failure reporting to wanted-state manager.
-- [ ] **IS-22-054 P1** — Add focused unit tests for wanted-state manager.
-- [ ] **IS-22-055 P1** — Add an integration scenario that exercises wanted-state manager in a running game flow.
-- [ ] **IS-22-056 P2** — Add logging, counters, and debug inspection for wanted-state manager.
-- [ ] **IS-22-057 P2** — Add an in-world or overlay debug visualization for wanted-state manager.
-- [ ] **IS-22-058 P1** — Define save/checkpoint serialization and restoration for wanted-state manager.
-- [ ] **IS-22-059 P2** — Define CPU, memory, latency, and content budgets for wanted-state manager.
-- [ ] **IS-22-060 P2** — Profile wanted-state manager under a representative worst-case scene.
-- [ ] **IS-22-061 P2** — Document usage examples, invariants, and common failure modes for wanted-state manager.
-- [ ] **IS-22-062 P1** — Define the scope, responsibilities, and explicit non-goals of police dispatcher.
-- [ ] **IS-22-063 P1** — Define the public C++ API and ownership rules for police dispatcher.
-- [ ] **IS-22-064 P1** — Define versioned configuration or asset data for police dispatcher.
-- [ ] **IS-22-065 P1** — Implement the smallest deterministic reference path for police dispatcher.
-- [ ] **IS-22-066 P1** — Add input validation and actionable failure reporting to police dispatcher.
-- [ ] **IS-22-067 P1** — Add focused unit tests for police dispatcher.
-- [ ] **IS-22-068 P1** — Add an integration scenario that exercises police dispatcher in a running game flow.
-- [ ] **IS-22-069 P2** — Add logging, counters, and debug inspection for police dispatcher.
-- [ ] **IS-22-070 P2** — Add an in-world or overlay debug visualization for police dispatcher.
-- [ ] **IS-22-071 P1** — Define save/checkpoint serialization and restoration for police dispatcher.
-- [ ] **IS-22-072 P2** — Define CPU, memory, latency, and content budgets for police dispatcher.
-- [ ] **IS-22-073 P2** — Profile police dispatcher under a representative worst-case scene.
-- [ ] **IS-22-074 P2** — Document usage examples, invariants, and common failure modes for police dispatcher.
-- [ ] **IS-22-075 P1** — Define the scope, responsibilities, and explicit non-goals of traffic-stop behavior.
-- [ ] **IS-22-076 P1** — Define the public C++ API and ownership rules for traffic-stop behavior.
-- [ ] **IS-22-077 P1** — Define versioned configuration or asset data for traffic-stop behavior.
-- [ ] **IS-22-078 P1** — Implement the smallest deterministic reference path for traffic-stop behavior.
-- [ ] **IS-22-079 P1** — Add input validation and actionable failure reporting to traffic-stop behavior.
-- [ ] **IS-22-080 P1** — Add focused unit tests for traffic-stop behavior.
-- [ ] **IS-22-081 P1** — Add an integration scenario that exercises traffic-stop behavior in a running game flow.
-- [ ] **IS-22-082 P2** — Add logging, counters, and debug inspection for traffic-stop behavior.
-- [ ] **IS-22-083 P2** — Add an in-world or overlay debug visualization for traffic-stop behavior.
-- [ ] **IS-22-084 P1** — Define save/checkpoint serialization and restoration for traffic-stop behavior.
-- [ ] **IS-22-085 P2** — Define CPU, memory, latency, and content budgets for traffic-stop behavior.
-- [ ] **IS-22-086 P2** — Profile traffic-stop behavior under a representative worst-case scene.
-- [ ] **IS-22-087 P2** — Document usage examples, invariants, and common failure modes for traffic-stop behavior.
-- [ ] **IS-22-088 P1** — Define the scope, responsibilities, and explicit non-goals of pursuit coordinator.
-- [ ] **IS-22-089 P1** — Define the public C++ API and ownership rules for pursuit coordinator.
-- [ ] **IS-22-090 P1** — Define versioned configuration or asset data for pursuit coordinator.
-- [ ] **IS-22-091 P1** — Implement the smallest deterministic reference path for pursuit coordinator.
-- [ ] **IS-22-092 P1** — Add input validation and actionable failure reporting to pursuit coordinator.
-- [ ] **IS-22-093 P1** — Add focused unit tests for pursuit coordinator.
-- [ ] **IS-22-094 P1** — Add an integration scenario that exercises pursuit coordinator in a running game flow.
-- [ ] **IS-22-095 P2** — Add logging, counters, and debug inspection for pursuit coordinator.
-- [ ] **IS-22-096 P2** — Add an in-world or overlay debug visualization for pursuit coordinator.
-- [ ] **IS-22-097 P1** — Define save/checkpoint serialization and restoration for pursuit coordinator.
-- [ ] **IS-22-098 P2** — Define CPU, memory, latency, and content budgets for pursuit coordinator.
-- [ ] **IS-22-099 P2** — Profile pursuit coordinator under a representative worst-case scene.
-- [ ] **IS-22-100 P2** — Document usage examples, invariants, and common failure modes for pursuit coordinator.
-- [ ] **IS-22-101 P1** — Define the scope, responsibilities, and explicit non-goals of arrest flow.
-- [ ] **IS-22-102 P1** — Define the public C++ API and ownership rules for arrest flow.
-- [ ] **IS-22-103 P1** — Define versioned configuration or asset data for arrest flow.
-- [ ] **IS-22-104 P1** — Implement the smallest deterministic reference path for arrest flow.
-- [ ] **IS-22-105 P1** — Add input validation and actionable failure reporting to arrest flow.
-- [ ] **IS-22-106 P1** — Add focused unit tests for arrest flow.
-- [ ] **IS-22-107 P1** — Add an integration scenario that exercises arrest flow in a running game flow.
-- [ ] **IS-22-108 P2** — Add logging, counters, and debug inspection for arrest flow.
-- [ ] **IS-22-109 P2** — Add an in-world or overlay debug visualization for arrest flow.
-- [ ] **IS-22-110 P1** — Define save/checkpoint serialization and restoration for arrest flow.
-- [ ] **IS-22-111 P2** — Define CPU, memory, latency, and content budgets for arrest flow.
-- [ ] **IS-22-112 P2** — Profile arrest flow under a representative worst-case scene.
-- [ ] **IS-22-113 P2** — Document usage examples, invariants, and common failure modes for arrest flow.
-- [ ] **IS-22-114 P2** — Define the scope, responsibilities, and explicit non-goals of offense detector.
-- [ ] **IS-22-115 P2** — Define the public C++ API and ownership rules for offense detector.
-- [ ] **IS-22-116 P2** — Define versioned configuration or asset data for offense detector.
-- [ ] **IS-22-117 P2** — Implement the smallest deterministic reference path for offense detector.
-- [ ] **IS-22-118 P2** — Add input validation and actionable failure reporting to offense detector.
-- [ ] **IS-22-119 P2** — Add focused unit tests for offense detector.
-- [ ] **IS-22-120 P2** — Add an integration scenario that exercises offense detector in a running game flow.
-- [ ] **IS-22-121 P2** — Add logging, counters, and debug inspection for offense detector.
-- [ ] **IS-22-122 P2** — Add an in-world or overlay debug visualization for offense detector.
-- [ ] **IS-22-123 P2** — Define save/checkpoint serialization and restoration for offense detector.
-- [ ] **IS-22-124 P2** — Define CPU, memory, latency, and content budgets for offense detector.
-- [ ] **IS-22-125 P2** — Profile offense detector under a representative worst-case scene.
-- [ ] **IS-22-126 P2** — Document usage examples, invariants, and common failure modes for offense detector.
-- [ ] **IS-22-127 P2** — Define the scope, responsibilities, and explicit non-goals of witness report queue.
-- [ ] **IS-22-128 P2** — Define the public C++ API and ownership rules for witness report queue.
-- [ ] **IS-22-129 P2** — Define versioned configuration or asset data for witness report queue.
-- [ ] **IS-22-130 P2** — Implement the smallest deterministic reference path for witness report queue.
-- [ ] **IS-22-131 P2** — Add input validation and actionable failure reporting to witness report queue.
-- [ ] **IS-22-132 P2** — Add focused unit tests for witness report queue.
-- [ ] **IS-22-133 P2** — Add an integration scenario that exercises witness report queue in a running game flow.
-- [ ] **IS-22-134 P2** — Add logging, counters, and debug inspection for witness report queue.
-- [ ] **IS-22-135 P2** — Add an in-world or overlay debug visualization for witness report queue.
-- [ ] **IS-22-136 P2** — Define save/checkpoint serialization and restoration for witness report queue.
-- [ ] **IS-22-137 P2** — Define CPU, memory, latency, and content budgets for witness report queue.
-- [ ] **IS-22-138 P2** — Profile witness report queue under a representative worst-case scene.
-- [ ] **IS-22-139 P2** — Document usage examples, invariants, and common failure modes for witness report queue.
-- [ ] **IS-22-140 P2** — Define the scope, responsibilities, and explicit non-goals of search-area planner.
-- [ ] **IS-22-141 P2** — Define the public C++ API and ownership rules for search-area planner.
-- [ ] **IS-22-142 P2** — Define versioned configuration or asset data for search-area planner.
-- [ ] **IS-22-143 P2** — Implement the smallest deterministic reference path for search-area planner.
-- [ ] **IS-22-144 P2** — Add input validation and actionable failure reporting to search-area planner.
-- [ ] **IS-22-145 P2** — Add focused unit tests for search-area planner.
-- [ ] **IS-22-146 P2** — Add an integration scenario that exercises search-area planner in a running game flow.
-- [ ] **IS-22-147 P2** — Add logging, counters, and debug inspection for search-area planner.
-- [ ] **IS-22-148 P2** — Add an in-world or overlay debug visualization for search-area planner.
-- [ ] **IS-22-149 P2** — Define save/checkpoint serialization and restoration for search-area planner.
-- [ ] **IS-22-150 P2** — Define CPU, memory, latency, and content budgets for search-area planner.
-- [ ] **IS-22-151 P2** — Profile search-area planner under a representative worst-case scene.
-- [ ] **IS-22-152 P2** — Document usage examples, invariants, and common failure modes for search-area planner.
-- [ ] **IS-22-153 P2** — Define the scope, responsibilities, and explicit non-goals of police spawn planner.
-- [ ] **IS-22-154 P2** — Define the public C++ API and ownership rules for police spawn planner.
-- [ ] **IS-22-155 P2** — Define versioned configuration or asset data for police spawn planner.
-- [ ] **IS-22-156 P2** — Implement the smallest deterministic reference path for police spawn planner.
-- [ ] **IS-22-157 P2** — Add input validation and actionable failure reporting to police spawn planner.
-- [ ] **IS-22-158 P2** — Add focused unit tests for police spawn planner.
-- [ ] **IS-22-159 P2** — Add an integration scenario that exercises police spawn planner in a running game flow.
-- [ ] **IS-22-160 P2** — Add logging, counters, and debug inspection for police spawn planner.
-- [ ] **IS-22-161 P2** — Add an in-world or overlay debug visualization for police spawn planner.
-- [ ] **IS-22-162 P2** — Define save/checkpoint serialization and restoration for police spawn planner.
-- [ ] **IS-22-163 P2** — Define CPU, memory, latency, and content budgets for police spawn planner.
-- [ ] **IS-22-164 P2** — Profile police spawn planner under a representative worst-case scene.
-- [ ] **IS-22-165 P2** — Document usage examples, invariants, and common failure modes for police spawn planner.
-- [ ] **IS-22-166 P2** — Define the scope, responsibilities, and explicit non-goals of wanted UI data model.
-- [ ] **IS-22-167 P2** — Define the public C++ API and ownership rules for wanted UI data model.
-- [ ] **IS-22-168 P2** — Define versioned configuration or asset data for wanted UI data model.
-- [ ] **IS-22-169 P2** — Implement the smallest deterministic reference path for wanted UI data model.
-- [ ] **IS-22-170 P2** — Add input validation and actionable failure reporting to wanted UI data model.
-- [ ] **IS-22-171 P2** — Add focused unit tests for wanted UI data model.
-- [ ] **IS-22-172 P2** — Add an integration scenario that exercises wanted UI data model in a running game flow.
-- [ ] **IS-22-173 P2** — Add logging, counters, and debug inspection for wanted UI data model.
-- [ ] **IS-22-174 P2** — Add an in-world or overlay debug visualization for wanted UI data model.
-- [ ] **IS-22-175 P2** — Define save/checkpoint serialization and restoration for wanted UI data model.
-- [ ] **IS-22-176 P2** — Define CPU, memory, latency, and content budgets for wanted UI data model.
-- [ ] **IS-22-177 P2** — Profile wanted UI data model under a representative worst-case scene.
-- [ ] **IS-22-178 P2** — Document usage examples, invariants, and common failure modes for wanted UI data model.
-
+- [ ] **IS-22-009 P1** — Create police route planning that reuses the traffic lane graph.
+- [ ] **IS-22-010 P1** — Create one backup-escalation step (a second officer/car joins an active pursuit) with no further tiers.
+- [ ] **IS-22-011 P1** — Create false-positive prevention and clear player feedback for why they are being chased.
+- [ ] **IS-22-012 P1** — Create mission overrides for scripted police states.
+- [ ] **IS-22-013 P1** — Create checkpoint-safe wanted-state restoration.
+- [ ] **IS-22-014 P1** — Create a police debug view for witness knowledge, dispatch, and pursuit state.
+- [ ] **IS-22-015 P1** — Create test scenarios for unseen crime, lost sight, vehicle swap, interior hiding, and district escape.
+- [ ] **IS-22-016 P2** — Create radio call audio and subtitle events.
+- [ ] **IS-22-017 P2** — Create foot patrols and parked patrol vehicles as passive set dressing.
+- [ ] **IS-22-018 P2** — Create non-lethal arrest behavior before advanced combat is implemented.
+- [ ] **IS-22-019 P2** — Create civilian witness variability (some report faster/slower, or not at all).
+- [ ] **IS-22-020 P3** — Non-goal: detective/investigation persistence across sessions is a distant post-slice idea (see group 40), not part of v1.
+- [ ] **IS-22-021 P1** — Define the scope, public API, and explicit non-goals of the crime/offense detector.
+- [ ] **IS-22-022 P1** — Define versioned configuration/data for the crime/offense detector.
+- [ ] **IS-22-023 P1** — Implement the smallest deterministic reference path for the crime/offense detector.
+- [ ] **IS-22-024 P1** — Add focused unit tests and one integration scenario for the crime/offense detector.
+- [ ] **IS-22-025 P1** — Define save/checkpoint serialization and restoration for the crime/offense detector.
+- [ ] **IS-22-026 P2** — Add logging, counters, and a debug view for the crime/offense detector.
+- [ ] **IS-22-027 P2** — Define CPU/memory/latency budgets for the crime/offense detector and profile a worst-case scene.
+- [ ] **IS-22-028 P2** — Document usage examples and common failure modes for the crime/offense detector.
+- [ ] **IS-22-029 P1** — Define the scope, public API, and explicit non-goals of the witness system.
+- [ ] **IS-22-030 P1** — Define versioned configuration/data for the witness system.
+- [ ] **IS-22-031 P1** — Implement the smallest deterministic reference path for the witness system.
+- [ ] **IS-22-032 P1** — Add focused unit tests and one integration scenario for the witness system.
+- [ ] **IS-22-033 P1** — Define save/checkpoint serialization and restoration for the witness system.
+- [ ] **IS-22-034 P2** — Add logging, counters, and a debug view for the witness system.
+- [ ] **IS-22-035 P2** — Define CPU/memory/latency budgets for the witness system and profile a worst-case scene.
+- [ ] **IS-22-036 P2** — Document usage examples and common failure modes for the witness system.
+- [ ] **IS-22-037 P1** — Define the scope, public API, and explicit non-goals of the police dispatcher.
+- [ ] **IS-22-038 P1** — Define versioned configuration/data for the police dispatcher.
+- [ ] **IS-22-039 P1** — Implement the smallest deterministic reference path for the police dispatcher.
+- [ ] **IS-22-040 P1** — Add focused unit tests and one integration scenario for the police dispatcher.
+- [ ] **IS-22-041 P1** — Define save/checkpoint serialization and restoration for the police dispatcher.
+- [ ] **IS-22-042 P2** — Add logging, counters, and a debug view for the police dispatcher.
+- [ ] **IS-22-043 P2** — Define CPU/memory/latency budgets for the police dispatcher and profile a worst-case scene.
+- [ ] **IS-22-044 P2** — Document usage examples and common failure modes for the police dispatcher.
+- [ ] **IS-22-045 P1** — Define the scope, public API, and explicit non-goals of the pursuit coordinator.
+- [ ] **IS-22-046 P1** — Define versioned configuration/data for the pursuit coordinator.
+- [ ] **IS-22-047 P1** — Implement the smallest deterministic reference path for the pursuit coordinator.
+- [ ] **IS-22-048 P1** — Add focused unit tests and one integration scenario for the pursuit coordinator.
+- [ ] **IS-22-049 P1** — Define save/checkpoint serialization and restoration for the pursuit coordinator.
+- [ ] **IS-22-050 P2** — Add logging, counters, and a debug view for the pursuit coordinator.
+- [ ] **IS-22-051 P2** — Define CPU/memory/latency budgets for the pursuit coordinator and profile a worst-case scene.
+- [ ] **IS-22-052 P2** — Document usage examples and common failure modes for the pursuit coordinator.
+- [ ] **IS-22-053 P1** — Define the scope, public API, and explicit non-goals of the arrest and resolution flow.
+- [ ] **IS-22-054 P1** — Define versioned configuration/data for the arrest and resolution flow.
+- [ ] **IS-22-055 P1** — Implement the smallest deterministic reference path for the arrest and resolution flow.
+- [ ] **IS-22-056 P1** — Add focused unit tests and one integration scenario for the arrest and resolution flow.
+- [ ] **IS-22-057 P1** — Define save/checkpoint serialization and restoration for the arrest and resolution flow.
+- [ ] **IS-22-058 P2** — Add logging, counters, and a debug view for the arrest and resolution flow.
+- [ ] **IS-22-059 P2** — Define CPU/memory/latency budgets for the arrest and resolution flow and profile a worst-case scene.
+- [ ] **IS-22-060 P2** — Document usage examples and common failure modes for the arrest and resolution flow.

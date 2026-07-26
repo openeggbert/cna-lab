@@ -2,8 +2,7 @@
 
 [Back to master plan](../plan.md)
 
-
-Create a reusable character pipeline and production animation graph.
+Create a reusable character pipeline and a production animation system sized for one shared skeleton across a campaign-sized character roster (see group 32). Full facial/jaw animation, heavy animation-LOD/update-throttling systems, and per-backend validation (EasyGL is the only real target — see group 05) are cut down to a single someday note each.
 
 - [ ] **IS-18-001 P0** — Define one standard human skeleton and naming convention.
 - [ ] **IS-18-002 P0** — Import one skinned character through glTF/CNJ and render it with CNA.
@@ -15,224 +14,126 @@ Create a reusable character pipeline and production animation graph.
 - [ ] **IS-18-008 P1** — Create additive look, breathing, recoil, and gesture layers.
 - [ ] **IS-18-009 P1** — Create root-motion extraction and policy.
 - [ ] **IS-18-010 P1** — Create animation events/notifies for footsteps, impacts, sounds, and mission hooks.
-- [ ] **IS-18-011 P1** — Create retargeting validation for AI-generated characters.
+- [ ] **IS-18-011 P1** — Create retargeting validation for AI-assisted/AI-generated characters.
 - [ ] **IS-18-012 P1** — Create foot IK and ground alignment.
 - [ ] **IS-18-013 P1** — Create hand IK for steering wheels and props.
 - [ ] **IS-18-014 P1** — Create head/eye look-at.
 - [ ] **IS-18-015 P1** — Create seat and vehicle mount alignment.
 - [ ] **IS-18-016 P1** — Create transition interruption rules.
-- [ ] **IS-18-017 P1** — Create animation LOD and update throttling.
-- [ ] **IS-18-018 P1** — Create deterministic animation state checkpoint restoration.
-- [ ] **IS-18-019 P1** — Create skeleton/clip compatibility checks in the asset build.
-- [ ] **IS-18-020 P1** — Create an animation graph debug view.
-- [ ] **IS-18-021 P2** — Create simple jaw/flap animation from dialogue timing.
-- [ ] **IS-18-022 P2** — Create facial morph support if CNA EXT gains morph targets.
-- [ ] **IS-18-023 P2** — Create ragdoll blend-in/blend-out after physics integration.
-- [ ] **IS-18-024 P2** — Create crowd animation sharing/caching.
-- [ ] **IS-18-025 P2** — Create procedural pose correction for varying vehicle interiors.
-- [ ] **IS-18-026 P1** — Define the scope, responsibilities, and explicit non-goals of skeleton convention.
-- [ ] **IS-18-027 P1** — Define the public C++ API and ownership rules for skeleton convention.
-- [ ] **IS-18-028 P1** — Define versioned configuration or asset data for skeleton convention.
-- [ ] **IS-18-029 P1** — Implement the smallest deterministic reference path for skeleton convention.
-- [ ] **IS-18-030 P1** — Add input validation and actionable failure reporting to skeleton convention.
-- [ ] **IS-18-031 P1** — Add focused unit tests for skeleton convention.
-- [ ] **IS-18-032 P1** — Add an integration scenario that exercises skeleton convention in a running game flow.
-- [ ] **IS-18-033 P2** — Add logging, counters, and debug inspection for skeleton convention.
-- [ ] **IS-18-034 P2** — Add an in-world or overlay debug visualization for skeleton convention.
-- [ ] **IS-18-035 P1** — Define save/checkpoint serialization and restoration for skeleton convention.
-- [ ] **IS-18-036 P2** — Define CPU, memory, latency, and content budgets for skeleton convention.
-- [ ] **IS-18-037 P2** — Profile skeleton convention under a representative worst-case scene.
-- [ ] **IS-18-038 P2** — Document usage examples, invariants, and common failure modes for skeleton convention.
-- [ ] **IS-18-039 P2** — Validate skeleton convention on each production graphics backend and record differences.
-- [ ] **IS-18-040 P1** — Define the scope, responsibilities, and explicit non-goals of animation clip player.
-- [ ] **IS-18-041 P1** — Define the public C++ API and ownership rules for animation clip player.
-- [ ] **IS-18-042 P1** — Define versioned configuration or asset data for animation clip player.
-- [ ] **IS-18-043 P1** — Implement the smallest deterministic reference path for animation clip player.
-- [ ] **IS-18-044 P1** — Add input validation and actionable failure reporting to animation clip player.
-- [ ] **IS-18-045 P1** — Add focused unit tests for animation clip player.
-- [ ] **IS-18-046 P1** — Add an integration scenario that exercises animation clip player in a running game flow.
-- [ ] **IS-18-047 P2** — Add logging, counters, and debug inspection for animation clip player.
-- [ ] **IS-18-048 P2** — Add an in-world or overlay debug visualization for animation clip player.
-- [ ] **IS-18-049 P1** — Define save/checkpoint serialization and restoration for animation clip player.
-- [ ] **IS-18-050 P2** — Define CPU, memory, latency, and content budgets for animation clip player.
-- [ ] **IS-18-051 P2** — Profile animation clip player under a representative worst-case scene.
-- [ ] **IS-18-052 P2** — Document usage examples, invariants, and common failure modes for animation clip player.
-- [ ] **IS-18-053 P2** — Validate animation clip player on each production graphics backend and record differences.
-- [ ] **IS-18-054 P1** — Define the scope, responsibilities, and explicit non-goals of animation state machine.
-- [ ] **IS-18-055 P1** — Define the public C++ API and ownership rules for animation state machine.
-- [ ] **IS-18-056 P1** — Define versioned configuration or asset data for animation state machine.
-- [ ] **IS-18-057 P1** — Implement the smallest deterministic reference path for animation state machine.
-- [ ] **IS-18-058 P1** — Add input validation and actionable failure reporting to animation state machine.
-- [ ] **IS-18-059 P1** — Add focused unit tests for animation state machine.
-- [ ] **IS-18-060 P1** — Add an integration scenario that exercises animation state machine in a running game flow.
-- [ ] **IS-18-061 P2** — Add logging, counters, and debug inspection for animation state machine.
-- [ ] **IS-18-062 P2** — Add an in-world or overlay debug visualization for animation state machine.
-- [ ] **IS-18-063 P1** — Define save/checkpoint serialization and restoration for animation state machine.
-- [ ] **IS-18-064 P2** — Define CPU, memory, latency, and content budgets for animation state machine.
-- [ ] **IS-18-065 P2** — Profile animation state machine under a representative worst-case scene.
-- [ ] **IS-18-066 P2** — Document usage examples, invariants, and common failure modes for animation state machine.
-- [ ] **IS-18-067 P2** — Validate animation state machine on each production graphics backend and record differences.
-- [ ] **IS-18-068 P1** — Define the scope, responsibilities, and explicit non-goals of animation blend layers.
-- [ ] **IS-18-069 P1** — Define the public C++ API and ownership rules for animation blend layers.
-- [ ] **IS-18-070 P1** — Define versioned configuration or asset data for animation blend layers.
-- [ ] **IS-18-071 P1** — Implement the smallest deterministic reference path for animation blend layers.
-- [ ] **IS-18-072 P1** — Add input validation and actionable failure reporting to animation blend layers.
-- [ ] **IS-18-073 P1** — Add focused unit tests for animation blend layers.
-- [ ] **IS-18-074 P1** — Add an integration scenario that exercises animation blend layers in a running game flow.
-- [ ] **IS-18-075 P2** — Add logging, counters, and debug inspection for animation blend layers.
-- [ ] **IS-18-076 P2** — Add an in-world or overlay debug visualization for animation blend layers.
-- [ ] **IS-18-077 P1** — Define save/checkpoint serialization and restoration for animation blend layers.
-- [ ] **IS-18-078 P2** — Define CPU, memory, latency, and content budgets for animation blend layers.
-- [ ] **IS-18-079 P2** — Profile animation blend layers under a representative worst-case scene.
-- [ ] **IS-18-080 P2** — Document usage examples, invariants, and common failure modes for animation blend layers.
-- [ ] **IS-18-081 P2** — Validate animation blend layers on each production graphics backend and record differences.
-- [ ] **IS-18-082 P1** — Define the scope, responsibilities, and explicit non-goals of root motion.
-- [ ] **IS-18-083 P1** — Define the public C++ API and ownership rules for root motion.
-- [ ] **IS-18-084 P1** — Define versioned configuration or asset data for root motion.
-- [ ] **IS-18-085 P1** — Implement the smallest deterministic reference path for root motion.
-- [ ] **IS-18-086 P1** — Add input validation and actionable failure reporting to root motion.
-- [ ] **IS-18-087 P1** — Add focused unit tests for root motion.
-- [ ] **IS-18-088 P1** — Add an integration scenario that exercises root motion in a running game flow.
-- [ ] **IS-18-089 P2** — Add logging, counters, and debug inspection for root motion.
-- [ ] **IS-18-090 P2** — Add an in-world or overlay debug visualization for root motion.
-- [ ] **IS-18-091 P1** — Define save/checkpoint serialization and restoration for root motion.
-- [ ] **IS-18-092 P2** — Define CPU, memory, latency, and content budgets for root motion.
-- [ ] **IS-18-093 P2** — Profile root motion under a representative worst-case scene.
-- [ ] **IS-18-094 P2** — Document usage examples, invariants, and common failure modes for root motion.
-- [ ] **IS-18-095 P2** — Validate root motion on each production graphics backend and record differences.
-- [ ] **IS-18-096 P1** — Define the scope, responsibilities, and explicit non-goals of animation notifies.
-- [ ] **IS-18-097 P1** — Define the public C++ API and ownership rules for animation notifies.
-- [ ] **IS-18-098 P1** — Define versioned configuration or asset data for animation notifies.
-- [ ] **IS-18-099 P1** — Implement the smallest deterministic reference path for animation notifies.
-- [ ] **IS-18-100 P1** — Add input validation and actionable failure reporting to animation notifies.
-- [ ] **IS-18-101 P1** — Add focused unit tests for animation notifies.
-- [ ] **IS-18-102 P1** — Add an integration scenario that exercises animation notifies in a running game flow.
-- [ ] **IS-18-103 P2** — Add logging, counters, and debug inspection for animation notifies.
-- [ ] **IS-18-104 P2** — Add an in-world or overlay debug visualization for animation notifies.
-- [ ] **IS-18-105 P1** — Define save/checkpoint serialization and restoration for animation notifies.
-- [ ] **IS-18-106 P2** — Define CPU, memory, latency, and content budgets for animation notifies.
-- [ ] **IS-18-107 P2** — Profile animation notifies under a representative worst-case scene.
-- [ ] **IS-18-108 P2** — Document usage examples, invariants, and common failure modes for animation notifies.
-- [ ] **IS-18-109 P2** — Validate animation notifies on each production graphics backend and record differences.
-- [ ] **IS-18-110 P1** — Define the scope, responsibilities, and explicit non-goals of foot IK.
-- [ ] **IS-18-111 P1** — Define the public C++ API and ownership rules for foot IK.
-- [ ] **IS-18-112 P1** — Define versioned configuration or asset data for foot IK.
-- [ ] **IS-18-113 P1** — Implement the smallest deterministic reference path for foot IK.
-- [ ] **IS-18-114 P1** — Add input validation and actionable failure reporting to foot IK.
-- [ ] **IS-18-115 P1** — Add focused unit tests for foot IK.
-- [ ] **IS-18-116 P1** — Add an integration scenario that exercises foot IK in a running game flow.
-- [ ] **IS-18-117 P2** — Add logging, counters, and debug inspection for foot IK.
-- [ ] **IS-18-118 P2** — Add an in-world or overlay debug visualization for foot IK.
-- [ ] **IS-18-119 P1** — Define save/checkpoint serialization and restoration for foot IK.
-- [ ] **IS-18-120 P2** — Define CPU, memory, latency, and content budgets for foot IK.
-- [ ] **IS-18-121 P2** — Profile foot IK under a representative worst-case scene.
-- [ ] **IS-18-122 P2** — Document usage examples, invariants, and common failure modes for foot IK.
-- [ ] **IS-18-123 P2** — Validate foot IK on each production graphics backend and record differences.
-- [ ] **IS-18-124 P1** — Define the scope, responsibilities, and explicit non-goals of hand IK.
-- [ ] **IS-18-125 P1** — Define the public C++ API and ownership rules for hand IK.
-- [ ] **IS-18-126 P1** — Define versioned configuration or asset data for hand IK.
-- [ ] **IS-18-127 P1** — Implement the smallest deterministic reference path for hand IK.
-- [ ] **IS-18-128 P1** — Add input validation and actionable failure reporting to hand IK.
-- [ ] **IS-18-129 P1** — Add focused unit tests for hand IK.
-- [ ] **IS-18-130 P1** — Add an integration scenario that exercises hand IK in a running game flow.
-- [ ] **IS-18-131 P2** — Add logging, counters, and debug inspection for hand IK.
-- [ ] **IS-18-132 P2** — Add an in-world or overlay debug visualization for hand IK.
-- [ ] **IS-18-133 P1** — Define save/checkpoint serialization and restoration for hand IK.
-- [ ] **IS-18-134 P2** — Define CPU, memory, latency, and content budgets for hand IK.
-- [ ] **IS-18-135 P2** — Profile hand IK under a representative worst-case scene.
-- [ ] **IS-18-136 P2** — Document usage examples, invariants, and common failure modes for hand IK.
-- [ ] **IS-18-137 P2** — Validate hand IK on each production graphics backend and record differences.
-- [ ] **IS-18-138 P1** — Define the scope, responsibilities, and explicit non-goals of look-at controller.
-- [ ] **IS-18-139 P1** — Define the public C++ API and ownership rules for look-at controller.
-- [ ] **IS-18-140 P1** — Define versioned configuration or asset data for look-at controller.
-- [ ] **IS-18-141 P1** — Implement the smallest deterministic reference path for look-at controller.
-- [ ] **IS-18-142 P1** — Add input validation and actionable failure reporting to look-at controller.
-- [ ] **IS-18-143 P1** — Add focused unit tests for look-at controller.
-- [ ] **IS-18-144 P1** — Add an integration scenario that exercises look-at controller in a running game flow.
-- [ ] **IS-18-145 P2** — Add logging, counters, and debug inspection for look-at controller.
-- [ ] **IS-18-146 P2** — Add an in-world or overlay debug visualization for look-at controller.
-- [ ] **IS-18-147 P1** — Define save/checkpoint serialization and restoration for look-at controller.
-- [ ] **IS-18-148 P2** — Define CPU, memory, latency, and content budgets for look-at controller.
-- [ ] **IS-18-149 P2** — Profile look-at controller under a representative worst-case scene.
-- [ ] **IS-18-150 P2** — Document usage examples, invariants, and common failure modes for look-at controller.
-- [ ] **IS-18-151 P2** — Validate look-at controller on each production graphics backend and record differences.
-- [ ] **IS-18-152 P1** — Define the scope, responsibilities, and explicit non-goals of animation LOD.
-- [ ] **IS-18-153 P1** — Define the public C++ API and ownership rules for animation LOD.
-- [ ] **IS-18-154 P1** — Define versioned configuration or asset data for animation LOD.
-- [ ] **IS-18-155 P1** — Implement the smallest deterministic reference path for animation LOD.
-- [ ] **IS-18-156 P1** — Add input validation and actionable failure reporting to animation LOD.
-- [ ] **IS-18-157 P1** — Add focused unit tests for animation LOD.
-- [ ] **IS-18-158 P1** — Add an integration scenario that exercises animation LOD in a running game flow.
-- [ ] **IS-18-159 P2** — Add logging, counters, and debug inspection for animation LOD.
-- [ ] **IS-18-160 P2** — Add an in-world or overlay debug visualization for animation LOD.
-- [ ] **IS-18-161 P1** — Define save/checkpoint serialization and restoration for animation LOD.
-- [ ] **IS-18-162 P2** — Define CPU, memory, latency, and content budgets for animation LOD.
-- [ ] **IS-18-163 P2** — Profile animation LOD under a representative worst-case scene.
-- [ ] **IS-18-164 P2** — Document usage examples, invariants, and common failure modes for animation LOD.
-- [ ] **IS-18-165 P2** — Validate animation LOD on each production graphics backend and record differences.
-- [ ] **IS-18-166 P2** — Define the scope, responsibilities, and explicit non-goals of animation retargeter.
-- [ ] **IS-18-167 P2** — Define the public C++ API and ownership rules for animation retargeter.
-- [ ] **IS-18-168 P2** — Define versioned configuration or asset data for animation retargeter.
-- [ ] **IS-18-169 P2** — Implement the smallest deterministic reference path for animation retargeter.
-- [ ] **IS-18-170 P2** — Add input validation and actionable failure reporting to animation retargeter.
-- [ ] **IS-18-171 P2** — Add focused unit tests for animation retargeter.
-- [ ] **IS-18-172 P2** — Add an integration scenario that exercises animation retargeter in a running game flow.
-- [ ] **IS-18-173 P2** — Add logging, counters, and debug inspection for animation retargeter.
-- [ ] **IS-18-174 P2** — Add an in-world or overlay debug visualization for animation retargeter.
-- [ ] **IS-18-175 P2** — Define save/checkpoint serialization and restoration for animation retargeter.
-- [ ] **IS-18-176 P2** — Define CPU, memory, latency, and content budgets for animation retargeter.
-- [ ] **IS-18-177 P2** — Profile animation retargeter under a representative worst-case scene.
-- [ ] **IS-18-178 P2** — Document usage examples, invariants, and common failure modes for animation retargeter.
-- [ ] **IS-18-179 P2** — Define the scope, responsibilities, and explicit non-goals of pose cache.
-- [ ] **IS-18-180 P2** — Define the public C++ API and ownership rules for pose cache.
-- [ ] **IS-18-181 P2** — Define versioned configuration or asset data for pose cache.
-- [ ] **IS-18-182 P2** — Implement the smallest deterministic reference path for pose cache.
-- [ ] **IS-18-183 P2** — Add input validation and actionable failure reporting to pose cache.
-- [ ] **IS-18-184 P2** — Add focused unit tests for pose cache.
-- [ ] **IS-18-185 P2** — Add an integration scenario that exercises pose cache in a running game flow.
-- [ ] **IS-18-186 P2** — Add logging, counters, and debug inspection for pose cache.
-- [ ] **IS-18-187 P2** — Add an in-world or overlay debug visualization for pose cache.
-- [ ] **IS-18-188 P2** — Define save/checkpoint serialization and restoration for pose cache.
-- [ ] **IS-18-189 P2** — Define CPU, memory, latency, and content budgets for pose cache.
-- [ ] **IS-18-190 P2** — Profile pose cache under a representative worst-case scene.
-- [ ] **IS-18-191 P2** — Document usage examples, invariants, and common failure modes for pose cache.
-- [ ] **IS-18-192 P2** — Define the scope, responsibilities, and explicit non-goals of seat pose system.
-- [ ] **IS-18-193 P2** — Define the public C++ API and ownership rules for seat pose system.
-- [ ] **IS-18-194 P2** — Define versioned configuration or asset data for seat pose system.
-- [ ] **IS-18-195 P2** — Implement the smallest deterministic reference path for seat pose system.
-- [ ] **IS-18-196 P2** — Add input validation and actionable failure reporting to seat pose system.
-- [ ] **IS-18-197 P2** — Add focused unit tests for seat pose system.
-- [ ] **IS-18-198 P2** — Add an integration scenario that exercises seat pose system in a running game flow.
-- [ ] **IS-18-199 P2** — Add logging, counters, and debug inspection for seat pose system.
-- [ ] **IS-18-200 P2** — Add an in-world or overlay debug visualization for seat pose system.
-- [ ] **IS-18-201 P2** — Define save/checkpoint serialization and restoration for seat pose system.
-- [ ] **IS-18-202 P2** — Define CPU, memory, latency, and content budgets for seat pose system.
-- [ ] **IS-18-203 P2** — Profile seat pose system under a representative worst-case scene.
-- [ ] **IS-18-204 P2** — Document usage examples, invariants, and common failure modes for seat pose system.
-- [ ] **IS-18-205 P2** — Define the scope, responsibilities, and explicit non-goals of facial/jaw controller.
-- [ ] **IS-18-206 P2** — Define the public C++ API and ownership rules for facial/jaw controller.
-- [ ] **IS-18-207 P2** — Define versioned configuration or asset data for facial/jaw controller.
-- [ ] **IS-18-208 P2** — Implement the smallest deterministic reference path for facial/jaw controller.
-- [ ] **IS-18-209 P2** — Add input validation and actionable failure reporting to facial/jaw controller.
-- [ ] **IS-18-210 P2** — Add focused unit tests for facial/jaw controller.
-- [ ] **IS-18-211 P2** — Add an integration scenario that exercises facial/jaw controller in a running game flow.
-- [ ] **IS-18-212 P2** — Add logging, counters, and debug inspection for facial/jaw controller.
-- [ ] **IS-18-213 P2** — Add an in-world or overlay debug visualization for facial/jaw controller.
-- [ ] **IS-18-214 P2** — Define save/checkpoint serialization and restoration for facial/jaw controller.
-- [ ] **IS-18-215 P2** — Define CPU, memory, latency, and content budgets for facial/jaw controller.
-- [ ] **IS-18-216 P2** — Profile facial/jaw controller under a representative worst-case scene.
-- [ ] **IS-18-217 P2** — Document usage examples, invariants, and common failure modes for facial/jaw controller.
-- [ ] **IS-18-218 P2** — Define the scope, responsibilities, and explicit non-goals of animation event router.
-- [ ] **IS-18-219 P2** — Define the public C++ API and ownership rules for animation event router.
-- [ ] **IS-18-220 P2** — Define versioned configuration or asset data for animation event router.
-- [ ] **IS-18-221 P2** — Implement the smallest deterministic reference path for animation event router.
-- [ ] **IS-18-222 P2** — Add input validation and actionable failure reporting to animation event router.
-- [ ] **IS-18-223 P2** — Add focused unit tests for animation event router.
-- [ ] **IS-18-224 P2** — Add an integration scenario that exercises animation event router in a running game flow.
-- [ ] **IS-18-225 P2** — Add logging, counters, and debug inspection for animation event router.
-- [ ] **IS-18-226 P2** — Add an in-world or overlay debug visualization for animation event router.
-- [ ] **IS-18-227 P2** — Define save/checkpoint serialization and restoration for animation event router.
-- [ ] **IS-18-228 P2** — Define CPU, memory, latency, and content budgets for animation event router.
-- [ ] **IS-18-229 P2** — Profile animation event router under a representative worst-case scene.
-- [ ] **IS-18-230 P2** — Document usage examples, invariants, and common failure modes for animation event router.
+- [ ] **IS-18-017 P1** — Create deterministic animation state checkpoint restoration.
+- [ ] **IS-18-018 P1** — Create skeleton/clip compatibility checks in the asset build.
+- [ ] **IS-18-019 P1** — Create a text/overlay animation-graph debug view (no GUI editor).
+- [ ] **IS-18-020 P2** — Create simple jaw/flap animation from dialogue timing (full facial animation is out of scope).
+- [ ] **IS-18-021 P2** — Create basic animation LOD (reduced update rate for distant characters) only if profiling shows it is needed; no full animation-LOD framework.
+- [ ] **IS-18-022 P2** — Create ragdoll blend-in/blend-out after physics integration.
+- [ ] **IS-18-023 P2** — Create crowd animation sharing/caching for the small nearby-pedestrian count established in group 20.
+- [ ] **IS-18-024 P2** — Create procedural pose correction for varying vehicle interiors.
 
+## Skeleton convention
+
+- [ ] **IS-18-025 P1** — Define the scope, public API, and versioned config for the skeleton convention.
+- [ ] **IS-18-026 P1** — Implement the smallest deterministic reference path for the skeleton convention.
+- [ ] **IS-18-027 P1** — Add input validation and actionable failure reporting to the skeleton convention.
+- [ ] **IS-18-028 P1** — Add focused unit tests for the skeleton convention.
+- [ ] **IS-18-029 P1** — Add an integration scenario that exercises the skeleton convention in a running game flow.
+- [ ] **IS-18-030 P1** — Define save/checkpoint serialization and restoration for skeleton-dependent state.
+- [ ] **IS-18-031 P2** — Document usage examples and common failure modes for the skeleton convention.
+
+## Animation clip player
+
+- [ ] **IS-18-032 P1** — Define the scope, public API, and versioned config for the animation clip player.
+- [ ] **IS-18-033 P1** — Implement the smallest deterministic reference path for the animation clip player.
+- [ ] **IS-18-034 P1** — Add input validation and actionable failure reporting to the animation clip player.
+- [ ] **IS-18-035 P1** — Add focused unit tests for the animation clip player.
+- [ ] **IS-18-036 P1** — Add an integration scenario that exercises the animation clip player in a running game flow.
+- [ ] **IS-18-037 P1** — Define save/checkpoint serialization and restoration for clip-player state.
+- [ ] **IS-18-038 P2** — Document usage examples and common failure modes for the animation clip player.
+
+## Animation state machine
+
+- [ ] **IS-18-039 P1** — Define the scope, public API, and versioned config for the animation state machine.
+- [ ] **IS-18-040 P1** — Implement the smallest deterministic reference path for the animation state machine.
+- [ ] **IS-18-041 P1** — Add input validation and actionable failure reporting to the animation state machine.
+- [ ] **IS-18-042 P1** — Add focused unit tests for the animation state machine.
+- [ ] **IS-18-043 P1** — Add an integration scenario that exercises the animation state machine in a running game flow.
+- [ ] **IS-18-044 P1** — Define save/checkpoint serialization and restoration for animation-state-machine state.
+- [ ] **IS-18-045 P2** — Add a text/overlay debug view for the current animation state.
+- [ ] **IS-18-046 P2** — Document usage examples and common failure modes for the animation state machine.
+
+## Animation blend layers
+
+- [ ] **IS-18-047 P1** — Define the scope, public API, and versioned config for animation blend layers.
+- [ ] **IS-18-048 P1** — Implement the smallest deterministic reference path for animation blend layers.
+- [ ] **IS-18-049 P1** — Add input validation and actionable failure reporting to animation blend layers.
+- [ ] **IS-18-050 P1** — Add focused unit tests for animation blend layers.
+- [ ] **IS-18-051 P1** — Add an integration scenario that exercises animation blend layers in a running game flow.
+- [ ] **IS-18-052 P1** — Define save/checkpoint serialization and restoration for blend-layer state.
+- [ ] **IS-18-053 P2** — Add a text/overlay debug view for active blend layers.
+- [ ] **IS-18-054 P2** — Document usage examples and common failure modes for animation blend layers.
+
+## Root motion
+
+- [ ] **IS-18-055 P1** — Define the scope, public API, and versioned config for root motion.
+- [ ] **IS-18-056 P1** — Implement the smallest deterministic reference path for root motion.
+- [ ] **IS-18-057 P1** — Add input validation and actionable failure reporting to root motion.
+- [ ] **IS-18-058 P1** — Add focused unit tests for root motion.
+- [ ] **IS-18-059 P1** — Add an integration scenario that exercises root motion in a running game flow.
+- [ ] **IS-18-060 P1** — Define save/checkpoint serialization and restoration for root-motion state.
+- [ ] **IS-18-061 P2** — Document usage examples and common failure modes for root motion.
+
+## Animation notifies and events
+
+Merges the standalone "animation event router" into the notifies system — they are the same concept (fire an event at a point in a clip).
+
+- [ ] **IS-18-062 P1** — Define the scope, public API, and versioned config for animation notifies/events.
+- [ ] **IS-18-063 P1** — Implement the smallest deterministic reference path for animation notifies/events.
+- [ ] **IS-18-064 P1** — Add input validation and actionable failure reporting to animation notifies/events.
+- [ ] **IS-18-065 P1** — Add focused unit tests for animation notifies/events.
+- [ ] **IS-18-066 P1** — Add an integration scenario that exercises animation notifies/events (footsteps, mission hooks) in a running game flow.
+- [ ] **IS-18-067 P1** — Define save/checkpoint serialization and restoration for pending notify state.
+- [ ] **IS-18-068 P2** — Add a text/overlay debug view for fired notifies/events.
+- [ ] **IS-18-069 P2** — Document usage examples and common failure modes for animation notifies/events.
+
+## Foot IK
+
+- [ ] **IS-18-070 P1** — Define the scope, public API, and versioned config for foot IK.
+- [ ] **IS-18-071 P1** — Implement the smallest deterministic reference path for foot IK and ground alignment.
+- [ ] **IS-18-072 P1** — Add focused unit tests for foot IK.
+- [ ] **IS-18-073 P1** — Add an integration scenario that exercises foot IK on uneven ground.
+- [ ] **IS-18-074 P1** — Define save/checkpoint serialization and restoration for foot IK state.
+- [ ] **IS-18-075 P2** — Document usage examples and common failure modes for foot IK.
+
+## Hand IK
+
+- [ ] **IS-18-076 P1** — Define the scope, public API, and versioned config for hand IK.
+- [ ] **IS-18-077 P1** — Implement the smallest deterministic reference path for hand IK on the steering wheel.
+- [ ] **IS-18-078 P1** — Add focused unit tests for hand IK.
+- [ ] **IS-18-079 P1** — Add an integration scenario that exercises hand IK while driving.
+- [ ] **IS-18-080 P2** — Document usage examples and common failure modes for hand IK.
+
+## Look-at controller
+
+- [ ] **IS-18-081 P1** — Define the scope, public API, and versioned config for the head/eye look-at controller.
+- [ ] **IS-18-082 P1** — Implement the smallest deterministic reference path for the look-at controller.
+- [ ] **IS-18-083 P1** — Add focused unit tests for the look-at controller.
+- [ ] **IS-18-084 P1** — Add an integration scenario that exercises look-at during a dialogue encounter.
+- [ ] **IS-18-085 P2** — Document usage examples and common failure modes for the look-at controller.
+
+## Seat and vehicle-mount pose system
+
+- [ ] **IS-18-086 P1** — Define the scope, public API, and versioned config for seat/vehicle-mount pose alignment.
+- [ ] **IS-18-087 P1** — Implement the smallest deterministic reference path for seat/vehicle-mount pose alignment.
+- [ ] **IS-18-088 P1** — Add input validation and actionable failure reporting to the pose system.
+- [ ] **IS-18-089 P1** — Add focused unit tests for the pose system.
+- [ ] **IS-18-090 P1** — Add an integration scenario that exercises entry/exit and driving pose alignment for the sedan.
+- [ ] **IS-18-091 P1** — Define save/checkpoint serialization and restoration for pose-system state.
+- [ ] **IS-18-092 P2** — Document usage examples and common failure modes for the pose system.
+
+## Animation retargeter
+
+- [ ] **IS-18-093 P1** — Define the scope and public API for retargeting AI-assisted/AI-generated character rigs onto the standard skeleton.
+- [ ] **IS-18-094 P1** — Implement the smallest deterministic reference path for the retargeter.
+- [ ] **IS-18-095 P1** — Add input validation and actionable failure reporting to the retargeter.
+- [ ] **IS-18-096 P1** — Add focused unit tests for the retargeter.
+- [ ] **IS-18-097 P1** — Add an integration scenario retargeting one new character onto the standard skeleton.
+- [ ] **IS-18-098 P2** — Document usage examples and common failure modes for the retargeter.

@@ -2,172 +2,83 @@
 
 [Back to master plan](../plan.md)
 
+Give district-loaded objects stable identity, ownership, components, and lifecycle semantics, built on top of `cna-extended`'s ECS (`World`/`Entity`/`ComponentManager`) and `Transform3` hierarchy rather than a parallel entity system designed from scratch. There is no in-house editor, so editor-only concerns (undo/redo transactions, full component-reflection-for-GUI-editing) are cut.
 
-Give streamed objects stable identity, ownership, components, and lifecycle semantics.
-
-- [ ] **IS-12-001 P0** — Choose a hybrid entity/component/scene-node model through a small measured prototype.
-- [ ] **IS-12-002 P0** — Assign stable IDs that survive save/load and sector unload/reload.
+- [ ] **IS-12-001 P0** — Adopt cna-extended's ECS and Transform3 hierarchy as the entity/scene model instead of designing a new one; confirm it covers Iron Shadows' needs through a small measured prototype.
+- [ ] **IS-12-002 P0** — Assign stable IDs that survive save/load and district unload/reload.
 - [ ] **IS-12-003 P0** — Separate logical entities from render and physics handles.
-- [ ] **IS-12-004 P0** — Define entity ownership by persistent world, mission, sector, or temporary effect.
-- [ ] **IS-12-005 P1** — Define component registration and serialization metadata.
-- [ ] **IS-12-006 P1** — Define entity activation, deactivation, destruction, and rehydration states.
-- [ ] **IS-12-007 P1** — Define cross-sector entity references.
-- [ ] **IS-12-008 P1** — Define parent/child transform ownership.
-- [ ] **IS-12-009 P1** — Define prefab instantiation and override rules.
-- [ ] **IS-12-010 P1** — Define runtime-spawned versus authored entity identity.
-- [ ] **IS-12-011 P1** — Define pooled entity behavior without ID reuse bugs.
-- [ ] **IS-12-012 P1** — Create query APIs that avoid unrestricted world scans.
-- [ ] **IS-12-013 P1** — Create deterministic update ordering where gameplay depends on it.
-- [ ] **IS-12-014 P1** — Create component change notification without recursive chaos.
-- [ ] **IS-12-015 P1** — Create entity debug names separate from stable IDs.
-- [ ] **IS-12-016 P1** — Create entity inspection and dump tooling.
-- [ ] **IS-12-017 P1** — Create orphan-reference validation.
-- [ ] **IS-12-018 P1** — Create prefab circular-dependency validation.
-- [ ] **IS-12-019 P2** — Create data-oriented storage for measured hot components.
-- [ ] **IS-12-020 P2** — Create archetype/group iteration only where profiling justifies it.
-- [ ] **IS-12-021 P2** — Create editor undo/redo transaction semantics.
-- [ ] **IS-12-022 P2** — Create runtime entity diff capture for bug reports.
-- [ ] **IS-12-023 P1** — Define the scope, responsibilities, and explicit non-goals of entity registry.
-- [ ] **IS-12-024 P1** — Define the public C++ API and ownership rules for entity registry.
-- [ ] **IS-12-025 P1** — Define versioned configuration or asset data for entity registry.
-- [ ] **IS-12-026 P1** — Implement the smallest deterministic reference path for entity registry.
-- [ ] **IS-12-027 P1** — Add input validation and actionable failure reporting to entity registry.
-- [ ] **IS-12-028 P1** — Add focused unit tests for entity registry.
-- [ ] **IS-12-029 P1** — Add an integration scenario that exercises entity registry in a running game flow.
-- [ ] **IS-12-030 P2** — Add logging, counters, and debug inspection for entity registry.
-- [ ] **IS-12-031 P2** — Add an in-world or overlay debug visualization for entity registry.
-- [ ] **IS-12-032 P1** — Define save/checkpoint serialization and restoration for entity registry.
-- [ ] **IS-12-033 P2** — Define CPU, memory, latency, and content budgets for entity registry.
-- [ ] **IS-12-034 P2** — Profile entity registry under a representative worst-case scene.
-- [ ] **IS-12-035 P2** — Document usage examples, invariants, and common failure modes for entity registry.
-- [ ] **IS-12-036 P1** — Define the scope, responsibilities, and explicit non-goals of component storage.
-- [ ] **IS-12-037 P1** — Define the public C++ API and ownership rules for component storage.
-- [ ] **IS-12-038 P1** — Define versioned configuration or asset data for component storage.
-- [ ] **IS-12-039 P1** — Implement the smallest deterministic reference path for component storage.
-- [ ] **IS-12-040 P1** — Add input validation and actionable failure reporting to component storage.
-- [ ] **IS-12-041 P1** — Add focused unit tests for component storage.
-- [ ] **IS-12-042 P1** — Add an integration scenario that exercises component storage in a running game flow.
-- [ ] **IS-12-043 P2** — Add logging, counters, and debug inspection for component storage.
-- [ ] **IS-12-044 P2** — Add an in-world or overlay debug visualization for component storage.
-- [ ] **IS-12-045 P1** — Define save/checkpoint serialization and restoration for component storage.
-- [ ] **IS-12-046 P2** — Define CPU, memory, latency, and content budgets for component storage.
-- [ ] **IS-12-047 P2** — Profile component storage under a representative worst-case scene.
-- [ ] **IS-12-048 P2** — Document usage examples, invariants, and common failure modes for component storage.
-- [ ] **IS-12-049 P1** — Define the scope, responsibilities, and explicit non-goals of prefab instantiator.
-- [ ] **IS-12-050 P1** — Define the public C++ API and ownership rules for prefab instantiator.
-- [ ] **IS-12-051 P1** — Define versioned configuration or asset data for prefab instantiator.
-- [ ] **IS-12-052 P1** — Implement the smallest deterministic reference path for prefab instantiator.
-- [ ] **IS-12-053 P1** — Add input validation and actionable failure reporting to prefab instantiator.
-- [ ] **IS-12-054 P1** — Add focused unit tests for prefab instantiator.
-- [ ] **IS-12-055 P1** — Add an integration scenario that exercises prefab instantiator in a running game flow.
-- [ ] **IS-12-056 P2** — Add logging, counters, and debug inspection for prefab instantiator.
-- [ ] **IS-12-057 P2** — Add an in-world or overlay debug visualization for prefab instantiator.
-- [ ] **IS-12-058 P1** — Define save/checkpoint serialization and restoration for prefab instantiator.
-- [ ] **IS-12-059 P2** — Define CPU, memory, latency, and content budgets for prefab instantiator.
-- [ ] **IS-12-060 P2** — Profile prefab instantiator under a representative worst-case scene.
-- [ ] **IS-12-061 P2** — Document usage examples, invariants, and common failure modes for prefab instantiator.
-- [ ] **IS-12-062 P1** — Define the scope, responsibilities, and explicit non-goals of transform hierarchy.
-- [ ] **IS-12-063 P1** — Define the public C++ API and ownership rules for transform hierarchy.
-- [ ] **IS-12-064 P1** — Define versioned configuration or asset data for transform hierarchy.
-- [ ] **IS-12-065 P1** — Implement the smallest deterministic reference path for transform hierarchy.
-- [ ] **IS-12-066 P1** — Add input validation and actionable failure reporting to transform hierarchy.
-- [ ] **IS-12-067 P1** — Add focused unit tests for transform hierarchy.
-- [ ] **IS-12-068 P1** — Add an integration scenario that exercises transform hierarchy in a running game flow.
-- [ ] **IS-12-069 P2** — Add logging, counters, and debug inspection for transform hierarchy.
-- [ ] **IS-12-070 P2** — Add an in-world or overlay debug visualization for transform hierarchy.
-- [ ] **IS-12-071 P1** — Define save/checkpoint serialization and restoration for transform hierarchy.
-- [ ] **IS-12-072 P2** — Define CPU, memory, latency, and content budgets for transform hierarchy.
-- [ ] **IS-12-073 P2** — Profile transform hierarchy under a representative worst-case scene.
-- [ ] **IS-12-074 P2** — Document usage examples, invariants, and common failure modes for transform hierarchy.
-- [ ] **IS-12-075 P1** — Define the scope, responsibilities, and explicit non-goals of stable reference resolver.
-- [ ] **IS-12-076 P1** — Define the public C++ API and ownership rules for stable reference resolver.
-- [ ] **IS-12-077 P1** — Define versioned configuration or asset data for stable reference resolver.
-- [ ] **IS-12-078 P1** — Implement the smallest deterministic reference path for stable reference resolver.
-- [ ] **IS-12-079 P1** — Add input validation and actionable failure reporting to stable reference resolver.
-- [ ] **IS-12-080 P1** — Add focused unit tests for stable reference resolver.
-- [ ] **IS-12-081 P1** — Add an integration scenario that exercises stable reference resolver in a running game flow.
-- [ ] **IS-12-082 P2** — Add logging, counters, and debug inspection for stable reference resolver.
-- [ ] **IS-12-083 P2** — Add an in-world or overlay debug visualization for stable reference resolver.
-- [ ] **IS-12-084 P1** — Define save/checkpoint serialization and restoration for stable reference resolver.
-- [ ] **IS-12-085 P2** — Define CPU, memory, latency, and content budgets for stable reference resolver.
-- [ ] **IS-12-086 P2** — Profile stable reference resolver under a representative worst-case scene.
-- [ ] **IS-12-087 P2** — Document usage examples, invariants, and common failure modes for stable reference resolver.
-- [ ] **IS-12-088 P1** — Define the scope, responsibilities, and explicit non-goals of entity lifecycle state machine.
-- [ ] **IS-12-089 P1** — Define the public C++ API and ownership rules for entity lifecycle state machine.
-- [ ] **IS-12-090 P1** — Define versioned configuration or asset data for entity lifecycle state machine.
-- [ ] **IS-12-091 P1** — Implement the smallest deterministic reference path for entity lifecycle state machine.
-- [ ] **IS-12-092 P1** — Add input validation and actionable failure reporting to entity lifecycle state machine.
-- [ ] **IS-12-093 P1** — Add focused unit tests for entity lifecycle state machine.
-- [ ] **IS-12-094 P1** — Add an integration scenario that exercises entity lifecycle state machine in a running game flow.
-- [ ] **IS-12-095 P2** — Add logging, counters, and debug inspection for entity lifecycle state machine.
-- [ ] **IS-12-096 P2** — Add an in-world or overlay debug visualization for entity lifecycle state machine.
-- [ ] **IS-12-097 P1** — Define save/checkpoint serialization and restoration for entity lifecycle state machine.
-- [ ] **IS-12-098 P2** — Define CPU, memory, latency, and content budgets for entity lifecycle state machine.
-- [ ] **IS-12-099 P2** — Profile entity lifecycle state machine under a representative worst-case scene.
-- [ ] **IS-12-100 P2** — Document usage examples, invariants, and common failure modes for entity lifecycle state machine.
-- [ ] **IS-12-101 P2** — Define the scope, responsibilities, and explicit non-goals of spatial index.
-- [ ] **IS-12-102 P2** — Define the public C++ API and ownership rules for spatial index.
-- [ ] **IS-12-103 P2** — Define versioned configuration or asset data for spatial index.
-- [ ] **IS-12-104 P2** — Implement the smallest deterministic reference path for spatial index.
-- [ ] **IS-12-105 P2** — Add input validation and actionable failure reporting to spatial index.
-- [ ] **IS-12-106 P2** — Add focused unit tests for spatial index.
-- [ ] **IS-12-107 P2** — Add an integration scenario that exercises spatial index in a running game flow.
-- [ ] **IS-12-108 P2** — Add logging, counters, and debug inspection for spatial index.
-- [ ] **IS-12-109 P2** — Add an in-world or overlay debug visualization for spatial index.
-- [ ] **IS-12-110 P2** — Define save/checkpoint serialization and restoration for spatial index.
-- [ ] **IS-12-111 P2** — Define CPU, memory, latency, and content budgets for spatial index.
-- [ ] **IS-12-112 P2** — Profile spatial index under a representative worst-case scene.
-- [ ] **IS-12-113 P2** — Document usage examples, invariants, and common failure modes for spatial index.
-- [ ] **IS-12-114 P2** — Define the scope, responsibilities, and explicit non-goals of world query API.
-- [ ] **IS-12-115 P2** — Define the public C++ API and ownership rules for world query API.
-- [ ] **IS-12-116 P2** — Define versioned configuration or asset data for world query API.
-- [ ] **IS-12-117 P2** — Implement the smallest deterministic reference path for world query API.
-- [ ] **IS-12-118 P2** — Add input validation and actionable failure reporting to world query API.
-- [ ] **IS-12-119 P2** — Add focused unit tests for world query API.
-- [ ] **IS-12-120 P2** — Add an integration scenario that exercises world query API in a running game flow.
-- [ ] **IS-12-121 P2** — Add logging, counters, and debug inspection for world query API.
-- [ ] **IS-12-122 P2** — Add an in-world or overlay debug visualization for world query API.
-- [ ] **IS-12-123 P2** — Define save/checkpoint serialization and restoration for world query API.
-- [ ] **IS-12-124 P2** — Define CPU, memory, latency, and content budgets for world query API.
-- [ ] **IS-12-125 P2** — Profile world query API under a representative worst-case scene.
-- [ ] **IS-12-126 P2** — Document usage examples, invariants, and common failure modes for world query API.
-- [ ] **IS-12-127 P2** — Define the scope, responsibilities, and explicit non-goals of prefab override system.
-- [ ] **IS-12-128 P2** — Define the public C++ API and ownership rules for prefab override system.
-- [ ] **IS-12-129 P2** — Define versioned configuration or asset data for prefab override system.
-- [ ] **IS-12-130 P2** — Implement the smallest deterministic reference path for prefab override system.
-- [ ] **IS-12-131 P2** — Add input validation and actionable failure reporting to prefab override system.
-- [ ] **IS-12-132 P2** — Add focused unit tests for prefab override system.
-- [ ] **IS-12-133 P2** — Add an integration scenario that exercises prefab override system in a running game flow.
-- [ ] **IS-12-134 P2** — Add logging, counters, and debug inspection for prefab override system.
-- [ ] **IS-12-135 P2** — Add an in-world or overlay debug visualization for prefab override system.
-- [ ] **IS-12-136 P2** — Define save/checkpoint serialization and restoration for prefab override system.
-- [ ] **IS-12-137 P2** — Define CPU, memory, latency, and content budgets for prefab override system.
-- [ ] **IS-12-138 P2** — Profile prefab override system under a representative worst-case scene.
-- [ ] **IS-12-139 P2** — Document usage examples, invariants, and common failure modes for prefab override system.
-- [ ] **IS-12-140 P2** — Define the scope, responsibilities, and explicit non-goals of component reflection metadata.
-- [ ] **IS-12-141 P2** — Define the public C++ API and ownership rules for component reflection metadata.
-- [ ] **IS-12-142 P2** — Define versioned configuration or asset data for component reflection metadata.
-- [ ] **IS-12-143 P2** — Implement the smallest deterministic reference path for component reflection metadata.
-- [ ] **IS-12-144 P2** — Add input validation and actionable failure reporting to component reflection metadata.
-- [ ] **IS-12-145 P2** — Add focused unit tests for component reflection metadata.
-- [ ] **IS-12-146 P2** — Add an integration scenario that exercises component reflection metadata in a running game flow.
-- [ ] **IS-12-147 P2** — Add logging, counters, and debug inspection for component reflection metadata.
-- [ ] **IS-12-148 P2** — Add an in-world or overlay debug visualization for component reflection metadata.
-- [ ] **IS-12-149 P2** — Define save/checkpoint serialization and restoration for component reflection metadata.
-- [ ] **IS-12-150 P2** — Define CPU, memory, latency, and content budgets for component reflection metadata.
-- [ ] **IS-12-151 P2** — Profile component reflection metadata under a representative worst-case scene.
-- [ ] **IS-12-152 P2** — Document usage examples, invariants, and common failure modes for component reflection metadata.
-- [ ] **IS-12-153 P2** — Define the scope, responsibilities, and explicit non-goals of entity command buffer.
-- [ ] **IS-12-154 P2** — Define the public C++ API and ownership rules for entity command buffer.
-- [ ] **IS-12-155 P2** — Define versioned configuration or asset data for entity command buffer.
-- [ ] **IS-12-156 P2** — Implement the smallest deterministic reference path for entity command buffer.
-- [ ] **IS-12-157 P2** — Add input validation and actionable failure reporting to entity command buffer.
-- [ ] **IS-12-158 P2** — Add focused unit tests for entity command buffer.
-- [ ] **IS-12-159 P2** — Add an integration scenario that exercises entity command buffer in a running game flow.
-- [ ] **IS-12-160 P2** — Add logging, counters, and debug inspection for entity command buffer.
-- [ ] **IS-12-161 P2** — Add an in-world or overlay debug visualization for entity command buffer.
-- [ ] **IS-12-162 P2** — Define save/checkpoint serialization and restoration for entity command buffer.
-- [ ] **IS-12-163 P2** — Define CPU, memory, latency, and content budgets for entity command buffer.
-- [ ] **IS-12-164 P2** — Profile entity command buffer under a representative worst-case scene.
-- [ ] **IS-12-165 P2** — Document usage examples, invariants, and common failure modes for entity command buffer.
+- [ ] **IS-12-004 P0** — Define entity ownership by persistent world, mission, district, or temporary effect.
+- [ ] **IS-12-005 P1** — Define component registration and serialization metadata on top of cna-extended's component types.
+- [ ] **IS-12-006 P1** — Define entity activation, deactivation, destruction, and rehydration states across district transitions.
+- [ ] **IS-12-007 P1** — Define cross-district entity references (e.g. a mission character who appears in more than one district).
+- [ ] **IS-12-008 P1** — Define prefab instantiation and override rules for MC3-authored content.
+- [ ] **IS-12-009 P1** — Define runtime-spawned versus authored entity identity.
+- [ ] **IS-12-010 P1** — Define pooled entity behavior without ID reuse bugs.
+- [ ] **IS-12-011 P1** — Create query APIs that avoid unrestricted world scans.
+- [ ] **IS-12-012 P1** — Create deterministic update ordering where gameplay depends on it.
+- [ ] **IS-12-013 P1** — Create component change notification without recursive chaos.
+- [ ] **IS-12-014 P1** — Create entity debug names separate from stable IDs.
+- [ ] **IS-12-015 P1** — Create a text-based entity inspection/dump helper (not a GUI editor).
+- [ ] **IS-12-016 P1** — Create orphan-reference validation.
+- [ ] **IS-12-017 P1** — Create prefab circular-dependency validation.
+- [ ] **IS-12-018 P2** — Create data-oriented storage for measured hot components, only after profiling justifies it.
+- [ ] **IS-12-019 P2** — Create runtime entity diff capture for bug reports.
 
+## cna-extended ECS integration
+
+- [ ] **IS-12-020 P0** — Wire cna-extended's `World`/`Entity`/`ComponentManager` into Iron Shadows' core library and confirm it links and runs (already validated end to end via the `compile-software` preset).
+- [ ] **IS-12-021 P0** — Define Iron Shadows-specific component types (mission-relevant, gameplay-relevant) on top of cna-extended's component storage.
+- [ ] **IS-12-022 P1** — Confirm cna-extended's `Transform3` hierarchy satisfies parent/child transform ownership needs (vehicles, attached props, character-held items).
+- [ ] **IS-12-023 P1** — Add focused unit tests for Iron Shadows' component types layered on cna-extended's ECS.
+- [ ] **IS-12-024 P1** — Add an integration scenario exercising entity creation/destruction through a full district load/unload cycle.
+- [ ] **IS-12-025 P2** — Add logging and debug inspection for entity/component state.
+- [ ] **IS-12-026 P2** — Document how Iron Shadows' entity/component conventions build on cna-extended's ECS.
+
+## Prefab instantiation and overrides
+
+- [ ] **IS-12-027 P1** — Define the scope and public API of prefab instantiation for MC3-authored content.
+- [ ] **IS-12-028 P1** — Implement the smallest deterministic reference path for instantiating one MC3 prefab as entities.
+- [ ] **IS-12-029 P1** — Define per-instance override rules (position, material, tags) without duplicating the whole prefab.
+- [ ] **IS-12-030 P1** — Add input validation and actionable failure reporting for prefab instantiation.
+- [ ] **IS-12-031 P1** — Add focused unit tests for prefab instantiation and overrides.
+- [ ] **IS-12-032 P1** — Add an integration scenario instantiating a full district's worth of prefabs.
+- [ ] **IS-12-033 P2** — Document usage examples and common failure modes for prefab instantiation.
+
+## Stable reference resolver
+
+- [ ] **IS-12-034 P1** — Define the scope and public API of the stable-ID reference resolver used by missions and saves.
+- [ ] **IS-12-035 P1** — Implement the smallest deterministic reference path resolving a stable ID to a live entity (or "not currently loaded").
+- [ ] **IS-12-036 P1** — Add input validation and actionable failure reporting for unresolved/dangling references.
+- [ ] **IS-12-037 P1** — Add focused unit tests for the reference resolver, including cross-district cases.
+- [ ] **IS-12-038 P1** — Add an integration scenario where a mission references an entity across a district transition.
+- [ ] **IS-12-039 P1** — Define save/checkpoint serialization and restoration for stable references.
+- [ ] **IS-12-040 P2** — Document usage examples and common failure modes for the reference resolver.
+
+## Entity lifecycle and district transitions
+
+- [ ] **IS-12-041 P1** — Define the scope and public API of the entity lifecycle state machine (active/inactive/destroyed/rehydrating).
+- [ ] **IS-12-042 P1** — Implement the smallest deterministic reference path for entity lifecycle across one district load/unload.
+- [ ] **IS-12-043 P1** — Add input validation and actionable failure reporting for lifecycle transitions.
+- [ ] **IS-12-044 P1** — Add focused unit tests for the lifecycle state machine.
+- [ ] **IS-12-045 P1** — Add an integration scenario covering a full district transition with persistent-state entities.
+- [ ] **IS-12-046 P1** — Define save/checkpoint serialization and restoration for entity lifecycle state.
+- [ ] **IS-12-047 P2** — Document usage examples and common failure modes for the lifecycle state machine.
+
+## Spatial queries
+
+Reuse cna-extended's octree/collision broadphase where possible instead of building a second spatial index.
+
+- [ ] **IS-12-048 P1** — Evaluate whether cna-extended's octree/collision broadphase can serve gameplay spatial queries directly.
+- [ ] **IS-12-049 P1** — Define the public API for gameplay world queries (nearest entity, entities in radius, raycast-to-entity).
+- [ ] **IS-12-050 P1** — Implement the smallest deterministic reference path for gameplay world queries.
+- [ ] **IS-12-051 P1** — Add focused unit tests for gameplay world queries.
+- [ ] **IS-12-052 P1** — Add an integration scenario using world queries from mission/AI code.
+- [ ] **IS-12-053 P2** — Profile world queries under a representative worst-case district.
+- [ ] **IS-12-054 P2** — Document usage examples and common failure modes for world queries.
+
+## Entity command buffer
+
+- [ ] **IS-12-055 P1** — Define the scope of a deferred entity command buffer (spawn/destroy/component-change requests applied at a safe point in the frame).
+- [ ] **IS-12-056 P1** — Implement the smallest deterministic reference path for the command buffer.
+- [ ] **IS-12-057 P1** — Add focused unit tests for the command buffer, including ordering guarantees.
+- [ ] **IS-12-058 P2** — Document usage examples and common failure modes for the command buffer.

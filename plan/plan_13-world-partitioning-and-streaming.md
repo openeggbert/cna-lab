@@ -1,189 +1,51 @@
-# 13. World partitioning and streaming
+# 13. District loading and world structure
 
 [Back to master plan](../plan.md)
 
+Iron City is built as several discrete districts and countryside chapters connected by loading screens, the same way the original Mafia moved between Lost Heaven, the countryside, and other areas. There is no seamless open-world streaming: within one district the player drives and walks freely without loading, and moving to a different district is a normal level transition. Keep this system small — it exists to make district transitions reliable and save-safe, not to hide a continuous always-loaded map.
 
-Allow driving through a city without loading the entire world or retaining stale work.
-
-- [ ] **IS-13-001 P0** — Create a second sector so streaming cannot be postponed.
-- [ ] **IS-13-002 P0** — Define initial sector dimensions and coordinate naming.
-- [ ] **IS-13-003 P0** — Define sector package ownership for geometry, collision, navigation, traffic, audio, and entities.
-- [ ] **IS-13-004 P0** — Implement asynchronous sector file loading with cancellation.
-- [ ] **IS-13-005 P0** — Implement render-thread resource upload for loaded sectors.
-- [ ] **IS-13-006 P0** — Implement deterministic sector activation and deactivation.
-- [ ] **IS-13-007 P0** — Prevent unload while missions or persistent entities retain required state.
-- [ ] **IS-13-008 P1** — Create distance and route-aware streaming priorities.
-- [ ] **IS-13-009 P1** — Create prefetch based on player velocity and road direction.
-- [ ] **IS-13-010 P1** — Create memory budgets and eviction order.
-- [ ] **IS-13-011 P1** — Create placeholder geometry during delayed loads.
-- [ ] **IS-13-012 P1** — Create streaming stalls and queue-depth telemetry.
-- [ ] **IS-13-013 P1** — Create streamed physics body creation/destruction sequencing.
-- [ ] **IS-13-014 P1** — Create streamed navigation tile connection/disconnection.
-- [ ] **IS-13-015 P1** — Create streamed ambient audio zones.
-- [ ] **IS-13-016 P1** — Create streamed mission-entity rehydration.
-- [ ] **IS-13-017 P1** — Create safe handling for load failure or corrupted sectors.
-- [ ] **IS-13-018 P1** — Create teleport and fast-travel bulk streaming.
-- [ ] **IS-13-019 P1** — Create save/load re-entry into partially loaded worlds.
-- [ ] **IS-13-020 P1** — Create deterministic sector-boundary tests.
-- [ ] **IS-13-021 P2** — Create far skyline and district proxy packages.
-- [ ] **IS-13-022 P2** — Create sector dependency visualization.
-- [ ] **IS-13-023 P2** — Create background decompression and I/O throttling.
-- [ ] **IS-13-024 P2** — Create streaming replay traces.
-- [ ] **IS-13-025 P2** — Create long high-speed driving soak tests.
-- [ ] **IS-13-026 P1** — Define the scope, responsibilities, and explicit non-goals of sector coordinate system.
-- [ ] **IS-13-027 P1** — Define the public C++ API and ownership rules for sector coordinate system.
-- [ ] **IS-13-028 P1** — Define versioned configuration or asset data for sector coordinate system.
-- [ ] **IS-13-029 P1** — Implement the smallest deterministic reference path for sector coordinate system.
-- [ ] **IS-13-030 P1** — Add input validation and actionable failure reporting to sector coordinate system.
-- [ ] **IS-13-031 P1** — Add focused unit tests for sector coordinate system.
-- [ ] **IS-13-032 P1** — Add an integration scenario that exercises sector coordinate system in a running game flow.
-- [ ] **IS-13-033 P2** — Add logging, counters, and debug inspection for sector coordinate system.
-- [ ] **IS-13-034 P2** — Add an in-world or overlay debug visualization for sector coordinate system.
-- [ ] **IS-13-035 P1** — Define save/checkpoint serialization and restoration for sector coordinate system.
-- [ ] **IS-13-036 P2** — Define CPU, memory, latency, and content budgets for sector coordinate system.
-- [ ] **IS-13-037 P2** — Profile sector coordinate system under a representative worst-case scene.
-- [ ] **IS-13-038 P2** — Document usage examples, invariants, and common failure modes for sector coordinate system.
-- [ ] **IS-13-039 P1** — Define the scope, responsibilities, and explicit non-goals of sector package loader.
-- [ ] **IS-13-040 P1** — Define the public C++ API and ownership rules for sector package loader.
-- [ ] **IS-13-041 P1** — Define versioned configuration or asset data for sector package loader.
-- [ ] **IS-13-042 P1** — Implement the smallest deterministic reference path for sector package loader.
-- [ ] **IS-13-043 P1** — Add input validation and actionable failure reporting to sector package loader.
-- [ ] **IS-13-044 P1** — Add focused unit tests for sector package loader.
-- [ ] **IS-13-045 P1** — Add an integration scenario that exercises sector package loader in a running game flow.
-- [ ] **IS-13-046 P2** — Add logging, counters, and debug inspection for sector package loader.
-- [ ] **IS-13-047 P2** — Add an in-world or overlay debug visualization for sector package loader.
-- [ ] **IS-13-048 P1** — Define save/checkpoint serialization and restoration for sector package loader.
-- [ ] **IS-13-049 P2** — Define CPU, memory, latency, and content budgets for sector package loader.
-- [ ] **IS-13-050 P2** — Profile sector package loader under a representative worst-case scene.
-- [ ] **IS-13-051 P2** — Document usage examples, invariants, and common failure modes for sector package loader.
-- [ ] **IS-13-052 P1** — Define the scope, responsibilities, and explicit non-goals of streaming priority scheduler.
-- [ ] **IS-13-053 P1** — Define the public C++ API and ownership rules for streaming priority scheduler.
-- [ ] **IS-13-054 P1** — Define versioned configuration or asset data for streaming priority scheduler.
-- [ ] **IS-13-055 P1** — Implement the smallest deterministic reference path for streaming priority scheduler.
-- [ ] **IS-13-056 P1** — Add input validation and actionable failure reporting to streaming priority scheduler.
-- [ ] **IS-13-057 P1** — Add focused unit tests for streaming priority scheduler.
-- [ ] **IS-13-058 P1** — Add an integration scenario that exercises streaming priority scheduler in a running game flow.
-- [ ] **IS-13-059 P2** — Add logging, counters, and debug inspection for streaming priority scheduler.
-- [ ] **IS-13-060 P2** — Add an in-world or overlay debug visualization for streaming priority scheduler.
-- [ ] **IS-13-061 P1** — Define save/checkpoint serialization and restoration for streaming priority scheduler.
-- [ ] **IS-13-062 P2** — Define CPU, memory, latency, and content budgets for streaming priority scheduler.
-- [ ] **IS-13-063 P2** — Profile streaming priority scheduler under a representative worst-case scene.
-- [ ] **IS-13-064 P2** — Document usage examples, invariants, and common failure modes for streaming priority scheduler.
-- [ ] **IS-13-065 P1** — Define the scope, responsibilities, and explicit non-goals of sector activation pipeline.
-- [ ] **IS-13-066 P1** — Define the public C++ API and ownership rules for sector activation pipeline.
-- [ ] **IS-13-067 P1** — Define versioned configuration or asset data for sector activation pipeline.
-- [ ] **IS-13-068 P1** — Implement the smallest deterministic reference path for sector activation pipeline.
-- [ ] **IS-13-069 P1** — Add input validation and actionable failure reporting to sector activation pipeline.
-- [ ] **IS-13-070 P1** — Add focused unit tests for sector activation pipeline.
-- [ ] **IS-13-071 P1** — Add an integration scenario that exercises sector activation pipeline in a running game flow.
-- [ ] **IS-13-072 P2** — Add logging, counters, and debug inspection for sector activation pipeline.
-- [ ] **IS-13-073 P2** — Add an in-world or overlay debug visualization for sector activation pipeline.
-- [ ] **IS-13-074 P1** — Define save/checkpoint serialization and restoration for sector activation pipeline.
-- [ ] **IS-13-075 P2** — Define CPU, memory, latency, and content budgets for sector activation pipeline.
-- [ ] **IS-13-076 P2** — Profile sector activation pipeline under a representative worst-case scene.
-- [ ] **IS-13-077 P2** — Document usage examples, invariants, and common failure modes for sector activation pipeline.
-- [ ] **IS-13-078 P1** — Define the scope, responsibilities, and explicit non-goals of sector eviction manager.
-- [ ] **IS-13-079 P1** — Define the public C++ API and ownership rules for sector eviction manager.
-- [ ] **IS-13-080 P1** — Define versioned configuration or asset data for sector eviction manager.
-- [ ] **IS-13-081 P1** — Implement the smallest deterministic reference path for sector eviction manager.
-- [ ] **IS-13-082 P1** — Add input validation and actionable failure reporting to sector eviction manager.
-- [ ] **IS-13-083 P1** — Add focused unit tests for sector eviction manager.
-- [ ] **IS-13-084 P1** — Add an integration scenario that exercises sector eviction manager in a running game flow.
-- [ ] **IS-13-085 P2** — Add logging, counters, and debug inspection for sector eviction manager.
-- [ ] **IS-13-086 P2** — Add an in-world or overlay debug visualization for sector eviction manager.
-- [ ] **IS-13-087 P1** — Define save/checkpoint serialization and restoration for sector eviction manager.
-- [ ] **IS-13-088 P2** — Define CPU, memory, latency, and content budgets for sector eviction manager.
-- [ ] **IS-13-089 P2** — Profile sector eviction manager under a representative worst-case scene.
-- [ ] **IS-13-090 P2** — Document usage examples, invariants, and common failure modes for sector eviction manager.
-- [ ] **IS-13-091 P1** — Define the scope, responsibilities, and explicit non-goals of streaming telemetry.
-- [ ] **IS-13-092 P1** — Define the public C++ API and ownership rules for streaming telemetry.
-- [ ] **IS-13-093 P1** — Define versioned configuration or asset data for streaming telemetry.
-- [ ] **IS-13-094 P1** — Implement the smallest deterministic reference path for streaming telemetry.
-- [ ] **IS-13-095 P1** — Add input validation and actionable failure reporting to streaming telemetry.
-- [ ] **IS-13-096 P1** — Add focused unit tests for streaming telemetry.
-- [ ] **IS-13-097 P1** — Add an integration scenario that exercises streaming telemetry in a running game flow.
-- [ ] **IS-13-098 P2** — Add logging, counters, and debug inspection for streaming telemetry.
-- [ ] **IS-13-099 P2** — Add an in-world or overlay debug visualization for streaming telemetry.
-- [ ] **IS-13-100 P1** — Define save/checkpoint serialization and restoration for streaming telemetry.
-- [ ] **IS-13-101 P2** — Define CPU, memory, latency, and content budgets for streaming telemetry.
-- [ ] **IS-13-102 P2** — Profile streaming telemetry under a representative worst-case scene.
-- [ ] **IS-13-103 P2** — Document usage examples, invariants, and common failure modes for streaming telemetry.
-- [ ] **IS-13-104 P1** — Define the scope, responsibilities, and explicit non-goals of far-world proxy system.
-- [ ] **IS-13-105 P1** — Define the public C++ API and ownership rules for far-world proxy system.
-- [ ] **IS-13-106 P1** — Define versioned configuration or asset data for far-world proxy system.
-- [ ] **IS-13-107 P1** — Implement the smallest deterministic reference path for far-world proxy system.
-- [ ] **IS-13-108 P1** — Add input validation and actionable failure reporting to far-world proxy system.
-- [ ] **IS-13-109 P1** — Add focused unit tests for far-world proxy system.
-- [ ] **IS-13-110 P1** — Add an integration scenario that exercises far-world proxy system in a running game flow.
-- [ ] **IS-13-111 P2** — Add logging, counters, and debug inspection for far-world proxy system.
-- [ ] **IS-13-112 P2** — Add an in-world or overlay debug visualization for far-world proxy system.
-- [ ] **IS-13-113 P1** — Define save/checkpoint serialization and restoration for far-world proxy system.
-- [ ] **IS-13-114 P2** — Define CPU, memory, latency, and content budgets for far-world proxy system.
-- [ ] **IS-13-115 P2** — Profile far-world proxy system under a representative worst-case scene.
-- [ ] **IS-13-116 P2** — Document usage examples, invariants, and common failure modes for far-world proxy system.
-- [ ] **IS-13-117 P2** — Define the scope, responsibilities, and explicit non-goals of streaming prediction.
-- [ ] **IS-13-118 P2** — Define the public C++ API and ownership rules for streaming prediction.
-- [ ] **IS-13-119 P2** — Define versioned configuration or asset data for streaming prediction.
-- [ ] **IS-13-120 P2** — Implement the smallest deterministic reference path for streaming prediction.
-- [ ] **IS-13-121 P2** — Add input validation and actionable failure reporting to streaming prediction.
-- [ ] **IS-13-122 P2** — Add focused unit tests for streaming prediction.
-- [ ] **IS-13-123 P2** — Add an integration scenario that exercises streaming prediction in a running game flow.
-- [ ] **IS-13-124 P2** — Add logging, counters, and debug inspection for streaming prediction.
-- [ ] **IS-13-125 P2** — Add an in-world or overlay debug visualization for streaming prediction.
-- [ ] **IS-13-126 P2** — Define save/checkpoint serialization and restoration for streaming prediction.
-- [ ] **IS-13-127 P2** — Define CPU, memory, latency, and content budgets for streaming prediction.
-- [ ] **IS-13-128 P2** — Profile streaming prediction under a representative worst-case scene.
-- [ ] **IS-13-129 P2** — Document usage examples, invariants, and common failure modes for streaming prediction.
-- [ ] **IS-13-130 P2** — Define the scope, responsibilities, and explicit non-goals of streaming budget allocator.
-- [ ] **IS-13-131 P2** — Define the public C++ API and ownership rules for streaming budget allocator.
-- [ ] **IS-13-132 P2** — Define versioned configuration or asset data for streaming budget allocator.
-- [ ] **IS-13-133 P2** — Implement the smallest deterministic reference path for streaming budget allocator.
-- [ ] **IS-13-134 P2** — Add input validation and actionable failure reporting to streaming budget allocator.
-- [ ] **IS-13-135 P2** — Add focused unit tests for streaming budget allocator.
-- [ ] **IS-13-136 P2** — Add an integration scenario that exercises streaming budget allocator in a running game flow.
-- [ ] **IS-13-137 P2** — Add logging, counters, and debug inspection for streaming budget allocator.
-- [ ] **IS-13-138 P2** — Add an in-world or overlay debug visualization for streaming budget allocator.
-- [ ] **IS-13-139 P2** — Define save/checkpoint serialization and restoration for streaming budget allocator.
-- [ ] **IS-13-140 P2** — Define CPU, memory, latency, and content budgets for streaming budget allocator.
-- [ ] **IS-13-141 P2** — Profile streaming budget allocator under a representative worst-case scene.
-- [ ] **IS-13-142 P2** — Document usage examples, invariants, and common failure modes for streaming budget allocator.
-- [ ] **IS-13-143 P2** — Define the scope, responsibilities, and explicit non-goals of streaming dependency resolver.
-- [ ] **IS-13-144 P2** — Define the public C++ API and ownership rules for streaming dependency resolver.
-- [ ] **IS-13-145 P2** — Define versioned configuration or asset data for streaming dependency resolver.
-- [ ] **IS-13-146 P2** — Implement the smallest deterministic reference path for streaming dependency resolver.
-- [ ] **IS-13-147 P2** — Add input validation and actionable failure reporting to streaming dependency resolver.
-- [ ] **IS-13-148 P2** — Add focused unit tests for streaming dependency resolver.
-- [ ] **IS-13-149 P2** — Add an integration scenario that exercises streaming dependency resolver in a running game flow.
-- [ ] **IS-13-150 P2** — Add logging, counters, and debug inspection for streaming dependency resolver.
-- [ ] **IS-13-151 P2** — Add an in-world or overlay debug visualization for streaming dependency resolver.
-- [ ] **IS-13-152 P2** — Define save/checkpoint serialization and restoration for streaming dependency resolver.
-- [ ] **IS-13-153 P2** — Define CPU, memory, latency, and content budgets for streaming dependency resolver.
-- [ ] **IS-13-154 P2** — Profile streaming dependency resolver under a representative worst-case scene.
-- [ ] **IS-13-155 P2** — Document usage examples, invariants, and common failure modes for streaming dependency resolver.
-- [ ] **IS-13-156 P2** — Define the scope, responsibilities, and explicit non-goals of streaming error recovery.
-- [ ] **IS-13-157 P2** — Define the public C++ API and ownership rules for streaming error recovery.
-- [ ] **IS-13-158 P2** — Define versioned configuration or asset data for streaming error recovery.
-- [ ] **IS-13-159 P2** — Implement the smallest deterministic reference path for streaming error recovery.
-- [ ] **IS-13-160 P2** — Add input validation and actionable failure reporting to streaming error recovery.
-- [ ] **IS-13-161 P2** — Add focused unit tests for streaming error recovery.
-- [ ] **IS-13-162 P2** — Add an integration scenario that exercises streaming error recovery in a running game flow.
-- [ ] **IS-13-163 P2** — Add logging, counters, and debug inspection for streaming error recovery.
-- [ ] **IS-13-164 P2** — Add an in-world or overlay debug visualization for streaming error recovery.
-- [ ] **IS-13-165 P2** — Define save/checkpoint serialization and restoration for streaming error recovery.
-- [ ] **IS-13-166 P2** — Define CPU, memory, latency, and content budgets for streaming error recovery.
-- [ ] **IS-13-167 P2** — Profile streaming error recovery under a representative worst-case scene.
-- [ ] **IS-13-168 P2** — Document usage examples, invariants, and common failure modes for streaming error recovery.
-- [ ] **IS-13-169 P2** — Define the scope, responsibilities, and explicit non-goals of teleport loader.
-- [ ] **IS-13-170 P2** — Define the public C++ API and ownership rules for teleport loader.
-- [ ] **IS-13-171 P2** — Define versioned configuration or asset data for teleport loader.
-- [ ] **IS-13-172 P2** — Implement the smallest deterministic reference path for teleport loader.
-- [ ] **IS-13-173 P2** — Add input validation and actionable failure reporting to teleport loader.
-- [ ] **IS-13-174 P2** — Add focused unit tests for teleport loader.
-- [ ] **IS-13-175 P2** — Add an integration scenario that exercises teleport loader in a running game flow.
-- [ ] **IS-13-176 P2** — Add logging, counters, and debug inspection for teleport loader.
-- [ ] **IS-13-177 P2** — Add an in-world or overlay debug visualization for teleport loader.
-- [ ] **IS-13-178 P2** — Define save/checkpoint serialization and restoration for teleport loader.
-- [ ] **IS-13-179 P2** — Define CPU, memory, latency, and content budgets for teleport loader.
-- [ ] **IS-13-180 P2** — Profile teleport loader under a representative worst-case scene.
-- [ ] **IS-13-181 P2** — Document usage examples, invariants, and common failure modes for teleport loader.
-
+- [ ] **IS-13-001 P0** — Define the district registry: id, display name, asset root, entry/exit points, and which mission chapters use it.
+- [ ] **IS-13-002 P0** — Define the public API for requesting a district transition (by district id and named entry point).
+- [ ] **IS-13-003 P1** — Store district registry data as versioned JSON/XML under `assets/config/`.
+- [ ] **IS-13-004 P1** — Validate the district registry at startup (missing asset roots, dangling entry-point references) and fail with an actionable message.
+- [ ] **IS-13-005 P2** — Document how to add a new district to the registry.
+- [ ] **IS-13-006 P0** — Implement the load sequence: unload the current district's geometry/collision/navigation/entities, then load the target district's.
+- [ ] **IS-13-007 P0** — Implement synchronous MC3/CNJ scene loading for one district (no cross-district streaming).
+- [ ] **IS-13-008 P0** — Spawn the player and camera at the requested entry point with the correct facing direction.
+- [ ] **IS-13-009 P0** — Spawn the player's current vehicle (if any) at a valid entry point when the district supports vehicle entry.
+- [ ] **IS-13-010 P1** — Guarantee deterministic teardown order so no dangling references survive a district unload (physics bodies, audio emitters, entities).
+- [ ] **IS-13-011 P1** — Add a hard failure path if a required entry point is missing, with a clear error rather than a silent spawn at the origin.
+- [ ] **IS-13-012 P1** — Add focused unit tests for the load/unload sequence using a pair of minimal test districts.
+- [ ] **IS-13-013 P0** — Show a loading screen during district transitions with a minimum display time to avoid flicker on fast loads.
+- [ ] **IS-13-014 P1** — Show basic progress feedback (percentage or stage text) on the loading screen.
+- [ ] **IS-13-015 P2** — Show a district-specific loading image or short lore text during the transition.
+- [ ] **IS-13-016 P2** — Add a fade-out/fade-in transition around the loading screen instead of a hard cut.
+- [ ] **IS-13-017 P0** — Carry player health/inventory/mission state across a district transition unchanged.
+- [ ] **IS-13-018 P0** — Carry the player's currently owned/driven vehicle across a transition when the story allows it.
+- [ ] **IS-13-019 P1** — Reset or re-anchor the camera cleanly at the new entry point (no leftover shake, no old target reference).
+- [ ] **IS-13-020 P1** — Define which HUD/dialogue/mission state must persist vs. reset across a transition.
+- [ ] **IS-13-021 P1** — Add an integration test that drives a full transition and asserts player/vehicle/mission state survived intact.
+- [ ] **IS-13-022 P0** — Store per-district mutable world state (doors unlocked, pickups taken, destructible props broken, NPC defeated/alive) keyed by district id.
+- [ ] **IS-13-023 P0** — Apply saved per-district state when a district is (re-)loaded, so a district reflects prior visits correctly.
+- [ ] **IS-13-024 P1** — Integrate per-district state into the existing save/load system (`SaveGame`) as one section per visited district.
+- [ ] **IS-13-025 P1** — Define save-compatibility rules for adding a new district to a registry that existing saves don't know about.
+- [ ] **IS-13-026 P1** — Add a save/load round-trip test that saves mid-district, reloads, and verifies world state matches.
+- [ ] **IS-13-027 P2** — Add a test that saves in one district, loads into a fresh process, and confirms the correct district is restored on load.
+- [ ] **IS-13-028 P1** — Add frustum culling for a district's static geometry (skip draw calls for off-screen buildings/props).
+- [ ] **IS-13-029 P1** — Add simple distance-based LOD tiers (near/medium/far) for buildings and props within a district.
+- [ ] **IS-13-030 P2** — Split a large district into a handful of fixed always-loaded sub-areas only if profiling shows a single draw/collision pass is too slow — this is local culling, not streaming.
+- [ ] **IS-13-031 P2** — Add occlusion-friendly grouping for dense city blocks (batch nearby static props).
+- [ ] **IS-13-032 P2** — Profile one full district's CPU/GPU frame time and memory footprint against the docs/performance-targets.md budget.
+- [ ] **IS-13-033 P3** — Add a distant skyline/proxy silhouette for the district the player is not currently in, if a mission needs visible transitions (e.g. driving toward a district border).
+- [ ] **IS-13-034 P1** — Load a district's geometry/texture data on a background thread while showing the loading screen.
+- [ ] **IS-13-035 P1** — Upload GPU resources (buffers, textures) from the background-loaded data on the render thread once ready.
+- [ ] **IS-13-036 P2** — Add cancellation if the player quits or force-reloads mid-transition.
+- [ ] **IS-13-037 P2** — Add a background-loading unit test using a fake slow asset source.
+- [ ] **IS-13-038 P3** — Pre-warm the next likely district's assets in the background during a loading-screen-heavy mission sequence, if load times become a problem.
+- [ ] **IS-13-039 P1** — Handle a missing or corrupt district package by returning to the main menu or last checkpoint with a clear message instead of crashing.
+- [ ] **IS-13-040 P1** — Handle an interrupted/cancelled transition (e.g. process killed mid-load) by recovering to the last valid checkpoint on next launch.
+- [ ] **IS-13-041 P2** — Add a fallback minimal district (a single empty room) used only in automated tests and error recovery, never shipped as real content.
+- [ ] **IS-13-042 P0** — Add a deterministic core test that transitions between two minimal test districts and asserts the world ends up in the expected state.
+- [ ] **IS-13-043 P1** — Add a debug/dev command to force-load any registered district at any entry point for testing.
+- [ ] **IS-13-044 P2** — Add a soak test that repeats district transitions many times and checks for leaked entities, physics bodies, or audio emitters.
+- [ ] **IS-13-045 P2** — Document the district-transition flow and per-district save-state contract for content authors adding new districts.

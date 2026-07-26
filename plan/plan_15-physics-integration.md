@@ -2,188 +2,71 @@
 
 [Back to master plan](../plan.md)
 
+A real physics library sits behind Iron Shadows-owned interfaces so vehicle/character/mission code never depends on the library's own types. This is genuinely needed regardless of scope, but stays scoped to what one hand-authored district actually requires: rigid bodies, a character controller, vehicle contacts, and collision queries — not ragdolls, buoyancy, or destruction as first-class systems.
 
-Introduce a production rigid-body/query layer behind game-owned abstractions.
+## Library selection and core world
 
-- [ ] **IS-15-001 P0** — Prototype Jolt Physics behind Iron Shadows-owned interfaces.
-- [ ] **IS-15-002 P0** — Compare Jolt against one alternative only on concrete vertical-slice needs.
-- [ ] **IS-15-003 P0** — Select the production physics library and pin its revision/license.
-- [ ] **IS-15-004 P0** — Create a PhysicsWorld with fixed-step scheduling.
-- [ ] **IS-15-005 P0** — Map MC3 static, dynamic, kinematic, trigger, and none collision roles.
-- [ ] **IS-15-006 P0** — Implement raycast, sweep, overlap, and trigger queries.
-- [ ] **IS-15-007 P0** — Create collision layers and masks for world, player, vehicles, characters, projectiles, triggers, and debris.
-- [ ] **IS-15-008 P1** — Create physics material definitions for asphalt, dirt, grass, wood, metal, glass, and water.
-- [ ] **IS-15-009 P1** — Create primitive, convex, mesh, compound, and heightfield shape paths.
-- [ ] **IS-15-010 P1** — Create convex decomposition tooling for approved assets.
-- [ ] **IS-15-011 P1** — Create stable physics handles that do not leak library pointers.
-- [ ] **IS-15-012 P1** — Create safe deferred body creation/destruction.
-- [ ] **IS-15-013 P1** — Create contact and trigger event queues.
-- [ ] **IS-15-014 P1** — Create origin-shift or large-world strategy if precision tests require it.
-- [ ] **IS-15-015 P1** — Create debug collision rendering.
-- [ ] **IS-15-016 P1** — Create body/contact/query counters.
-- [ ] **IS-15-017 P1** — Create deterministic-enough checkpoint restoration rules.
-- [ ] **IS-15-018 P1** — Create sleeping and activation policies.
-- [ ] **IS-15-019 P1** — Create streamed-sector body ownership.
-- [ ] **IS-15-020 P1** — Create malformed collision-data limits.
-- [ ] **IS-15-021 P2** — Create breakable-object constraints only for selected content.
-- [ ] **IS-15-022 P2** — Create ragdoll support after animation/character priorities are met.
-- [ ] **IS-15-023 P2** — Create water buoyancy only if campaign content requires it.
-- [ ] **IS-15-024 P2** — Create physics replay capture for difficult bugs.
-- [ ] **IS-15-025 P2** — Profile worst-case pileups and dense interiors.
-- [ ] **IS-15-026 P1** — Define the scope, responsibilities, and explicit non-goals of physics world.
-- [ ] **IS-15-027 P1** — Define the public C++ API and ownership rules for physics world.
-- [ ] **IS-15-028 P1** — Define versioned configuration or asset data for physics world.
-- [ ] **IS-15-029 P1** — Implement the smallest deterministic reference path for physics world.
-- [ ] **IS-15-030 P1** — Add input validation and actionable failure reporting to physics world.
-- [ ] **IS-15-031 P1** — Add focused unit tests for physics world.
-- [ ] **IS-15-032 P1** — Add an integration scenario that exercises physics world in a running game flow.
-- [ ] **IS-15-033 P2** — Add logging, counters, and debug inspection for physics world.
-- [ ] **IS-15-034 P2** — Add an in-world or overlay debug visualization for physics world.
-- [ ] **IS-15-035 P1** — Define save/checkpoint serialization and restoration for physics world.
-- [ ] **IS-15-036 P2** — Define CPU, memory, latency, and content budgets for physics world.
-- [ ] **IS-15-037 P2** — Profile physics world under a representative worst-case scene.
-- [ ] **IS-15-038 P2** — Document usage examples, invariants, and common failure modes for physics world.
-- [ ] **IS-15-039 P1** — Define the scope, responsibilities, and explicit non-goals of collision shape cache.
-- [ ] **IS-15-040 P1** — Define the public C++ API and ownership rules for collision shape cache.
-- [ ] **IS-15-041 P1** — Define versioned configuration or asset data for collision shape cache.
-- [ ] **IS-15-042 P1** — Implement the smallest deterministic reference path for collision shape cache.
-- [ ] **IS-15-043 P1** — Add input validation and actionable failure reporting to collision shape cache.
-- [ ] **IS-15-044 P1** — Add focused unit tests for collision shape cache.
-- [ ] **IS-15-045 P1** — Add an integration scenario that exercises collision shape cache in a running game flow.
-- [ ] **IS-15-046 P2** — Add logging, counters, and debug inspection for collision shape cache.
-- [ ] **IS-15-047 P2** — Add an in-world or overlay debug visualization for collision shape cache.
-- [ ] **IS-15-048 P1** — Define save/checkpoint serialization and restoration for collision shape cache.
-- [ ] **IS-15-049 P2** — Define CPU, memory, latency, and content budgets for collision shape cache.
-- [ ] **IS-15-050 P2** — Profile collision shape cache under a representative worst-case scene.
-- [ ] **IS-15-051 P2** — Document usage examples, invariants, and common failure modes for collision shape cache.
-- [ ] **IS-15-052 P1** — Define the scope, responsibilities, and explicit non-goals of collision query service.
-- [ ] **IS-15-053 P1** — Define the public C++ API and ownership rules for collision query service.
-- [ ] **IS-15-054 P1** — Define versioned configuration or asset data for collision query service.
-- [ ] **IS-15-055 P1** — Implement the smallest deterministic reference path for collision query service.
-- [ ] **IS-15-056 P1** — Add input validation and actionable failure reporting to collision query service.
-- [ ] **IS-15-057 P1** — Add focused unit tests for collision query service.
-- [ ] **IS-15-058 P1** — Add an integration scenario that exercises collision query service in a running game flow.
-- [ ] **IS-15-059 P2** — Add logging, counters, and debug inspection for collision query service.
-- [ ] **IS-15-060 P2** — Add an in-world or overlay debug visualization for collision query service.
-- [ ] **IS-15-061 P1** — Define save/checkpoint serialization and restoration for collision query service.
-- [ ] **IS-15-062 P2** — Define CPU, memory, latency, and content budgets for collision query service.
-- [ ] **IS-15-063 P2** — Profile collision query service under a representative worst-case scene.
-- [ ] **IS-15-064 P2** — Document usage examples, invariants, and common failure modes for collision query service.
-- [ ] **IS-15-065 P1** — Define the scope, responsibilities, and explicit non-goals of trigger event service.
-- [ ] **IS-15-066 P1** — Define the public C++ API and ownership rules for trigger event service.
-- [ ] **IS-15-067 P1** — Define versioned configuration or asset data for trigger event service.
-- [ ] **IS-15-068 P1** — Implement the smallest deterministic reference path for trigger event service.
-- [ ] **IS-15-069 P1** — Add input validation and actionable failure reporting to trigger event service.
-- [ ] **IS-15-070 P1** — Add focused unit tests for trigger event service.
-- [ ] **IS-15-071 P1** — Add an integration scenario that exercises trigger event service in a running game flow.
-- [ ] **IS-15-072 P2** — Add logging, counters, and debug inspection for trigger event service.
-- [ ] **IS-15-073 P2** — Add an in-world or overlay debug visualization for trigger event service.
-- [ ] **IS-15-074 P1** — Define save/checkpoint serialization and restoration for trigger event service.
-- [ ] **IS-15-075 P2** — Define CPU, memory, latency, and content budgets for trigger event service.
-- [ ] **IS-15-076 P2** — Profile trigger event service under a representative worst-case scene.
-- [ ] **IS-15-077 P2** — Document usage examples, invariants, and common failure modes for trigger event service.
-- [ ] **IS-15-078 P1** — Define the scope, responsibilities, and explicit non-goals of physics material database.
-- [ ] **IS-15-079 P1** — Define the public C++ API and ownership rules for physics material database.
-- [ ] **IS-15-080 P1** — Define versioned configuration or asset data for physics material database.
-- [ ] **IS-15-081 P1** — Implement the smallest deterministic reference path for physics material database.
-- [ ] **IS-15-082 P1** — Add input validation and actionable failure reporting to physics material database.
-- [ ] **IS-15-083 P1** — Add focused unit tests for physics material database.
-- [ ] **IS-15-084 P1** — Add an integration scenario that exercises physics material database in a running game flow.
-- [ ] **IS-15-085 P2** — Add logging, counters, and debug inspection for physics material database.
-- [ ] **IS-15-086 P2** — Add an in-world or overlay debug visualization for physics material database.
-- [ ] **IS-15-087 P1** — Define save/checkpoint serialization and restoration for physics material database.
-- [ ] **IS-15-088 P2** — Define CPU, memory, latency, and content budgets for physics material database.
-- [ ] **IS-15-089 P2** — Profile physics material database under a representative worst-case scene.
-- [ ] **IS-15-090 P2** — Document usage examples, invariants, and common failure modes for physics material database.
-- [ ] **IS-15-091 P1** — Define the scope, responsibilities, and explicit non-goals of streamed physics ownership.
-- [ ] **IS-15-092 P1** — Define the public C++ API and ownership rules for streamed physics ownership.
-- [ ] **IS-15-093 P1** — Define versioned configuration or asset data for streamed physics ownership.
-- [ ] **IS-15-094 P1** — Implement the smallest deterministic reference path for streamed physics ownership.
-- [ ] **IS-15-095 P1** — Add input validation and actionable failure reporting to streamed physics ownership.
-- [ ] **IS-15-096 P1** — Add focused unit tests for streamed physics ownership.
-- [ ] **IS-15-097 P1** — Add an integration scenario that exercises streamed physics ownership in a running game flow.
-- [ ] **IS-15-098 P2** — Add logging, counters, and debug inspection for streamed physics ownership.
-- [ ] **IS-15-099 P2** — Add an in-world or overlay debug visualization for streamed physics ownership.
-- [ ] **IS-15-100 P1** — Define save/checkpoint serialization and restoration for streamed physics ownership.
-- [ ] **IS-15-101 P2** — Define CPU, memory, latency, and content budgets for streamed physics ownership.
-- [ ] **IS-15-102 P2** — Profile streamed physics ownership under a representative worst-case scene.
-- [ ] **IS-15-103 P2** — Document usage examples, invariants, and common failure modes for streamed physics ownership.
-- [ ] **IS-15-104 P1** — Define the scope, responsibilities, and explicit non-goals of physics debug renderer.
-- [ ] **IS-15-105 P1** — Define the public C++ API and ownership rules for physics debug renderer.
-- [ ] **IS-15-106 P1** — Define versioned configuration or asset data for physics debug renderer.
-- [ ] **IS-15-107 P1** — Implement the smallest deterministic reference path for physics debug renderer.
-- [ ] **IS-15-108 P1** — Add input validation and actionable failure reporting to physics debug renderer.
-- [ ] **IS-15-109 P1** — Add focused unit tests for physics debug renderer.
-- [ ] **IS-15-110 P1** — Add an integration scenario that exercises physics debug renderer in a running game flow.
-- [ ] **IS-15-111 P2** — Add logging, counters, and debug inspection for physics debug renderer.
-- [ ] **IS-15-112 P2** — Add an in-world or overlay debug visualization for physics debug renderer.
-- [ ] **IS-15-113 P1** — Define save/checkpoint serialization and restoration for physics debug renderer.
-- [ ] **IS-15-114 P2** — Define CPU, memory, latency, and content budgets for physics debug renderer.
-- [ ] **IS-15-115 P2** — Profile physics debug renderer under a representative worst-case scene.
-- [ ] **IS-15-116 P2** — Document usage examples, invariants, and common failure modes for physics debug renderer.
-- [ ] **IS-15-117 P2** — Define the scope, responsibilities, and explicit non-goals of character physics adapter.
-- [ ] **IS-15-118 P2** — Define the public C++ API and ownership rules for character physics adapter.
-- [ ] **IS-15-119 P2** — Define versioned configuration or asset data for character physics adapter.
-- [ ] **IS-15-120 P2** — Implement the smallest deterministic reference path for character physics adapter.
-- [ ] **IS-15-121 P2** — Add input validation and actionable failure reporting to character physics adapter.
-- [ ] **IS-15-122 P2** — Add focused unit tests for character physics adapter.
-- [ ] **IS-15-123 P2** — Add an integration scenario that exercises character physics adapter in a running game flow.
-- [ ] **IS-15-124 P2** — Add logging, counters, and debug inspection for character physics adapter.
-- [ ] **IS-15-125 P2** — Add an in-world or overlay debug visualization for character physics adapter.
-- [ ] **IS-15-126 P2** — Define save/checkpoint serialization and restoration for character physics adapter.
-- [ ] **IS-15-127 P2** — Define CPU, memory, latency, and content budgets for character physics adapter.
-- [ ] **IS-15-128 P2** — Profile character physics adapter under a representative worst-case scene.
-- [ ] **IS-15-129 P2** — Document usage examples, invariants, and common failure modes for character physics adapter.
-- [ ] **IS-15-130 P2** — Define the scope, responsibilities, and explicit non-goals of vehicle physics adapter.
-- [ ] **IS-15-131 P2** — Define the public C++ API and ownership rules for vehicle physics adapter.
-- [ ] **IS-15-132 P2** — Define versioned configuration or asset data for vehicle physics adapter.
-- [ ] **IS-15-133 P2** — Implement the smallest deterministic reference path for vehicle physics adapter.
-- [ ] **IS-15-134 P2** — Add input validation and actionable failure reporting to vehicle physics adapter.
-- [ ] **IS-15-135 P2** — Add focused unit tests for vehicle physics adapter.
-- [ ] **IS-15-136 P2** — Add an integration scenario that exercises vehicle physics adapter in a running game flow.
-- [ ] **IS-15-137 P2** — Add logging, counters, and debug inspection for vehicle physics adapter.
-- [ ] **IS-15-138 P2** — Add an in-world or overlay debug visualization for vehicle physics adapter.
-- [ ] **IS-15-139 P2** — Define save/checkpoint serialization and restoration for vehicle physics adapter.
-- [ ] **IS-15-140 P2** — Define CPU, memory, latency, and content budgets for vehicle physics adapter.
-- [ ] **IS-15-141 P2** — Profile vehicle physics adapter under a representative worst-case scene.
-- [ ] **IS-15-142 P2** — Document usage examples, invariants, and common failure modes for vehicle physics adapter.
-- [ ] **IS-15-143 P2** — Define the scope, responsibilities, and explicit non-goals of ragdoll adapter.
-- [ ] **IS-15-144 P2** — Define the public C++ API and ownership rules for ragdoll adapter.
-- [ ] **IS-15-145 P2** — Define versioned configuration or asset data for ragdoll adapter.
-- [ ] **IS-15-146 P2** — Implement the smallest deterministic reference path for ragdoll adapter.
-- [ ] **IS-15-147 P2** — Add input validation and actionable failure reporting to ragdoll adapter.
-- [ ] **IS-15-148 P2** — Add focused unit tests for ragdoll adapter.
-- [ ] **IS-15-149 P2** — Add an integration scenario that exercises ragdoll adapter in a running game flow.
-- [ ] **IS-15-150 P2** — Add logging, counters, and debug inspection for ragdoll adapter.
-- [ ] **IS-15-151 P2** — Add an in-world or overlay debug visualization for ragdoll adapter.
-- [ ] **IS-15-152 P2** — Define save/checkpoint serialization and restoration for ragdoll adapter.
-- [ ] **IS-15-153 P2** — Define CPU, memory, latency, and content budgets for ragdoll adapter.
-- [ ] **IS-15-154 P2** — Profile ragdoll adapter under a representative worst-case scene.
-- [ ] **IS-15-155 P2** — Document usage examples, invariants, and common failure modes for ragdoll adapter.
-- [ ] **IS-15-156 P2** — Define the scope, responsibilities, and explicit non-goals of breakable constraint manager.
-- [ ] **IS-15-157 P2** — Define the public C++ API and ownership rules for breakable constraint manager.
-- [ ] **IS-15-158 P2** — Define versioned configuration or asset data for breakable constraint manager.
-- [ ] **IS-15-159 P2** — Implement the smallest deterministic reference path for breakable constraint manager.
-- [ ] **IS-15-160 P2** — Add input validation and actionable failure reporting to breakable constraint manager.
-- [ ] **IS-15-161 P2** — Add focused unit tests for breakable constraint manager.
-- [ ] **IS-15-162 P2** — Add an integration scenario that exercises breakable constraint manager in a running game flow.
-- [ ] **IS-15-163 P2** — Add logging, counters, and debug inspection for breakable constraint manager.
-- [ ] **IS-15-164 P2** — Add an in-world or overlay debug visualization for breakable constraint manager.
-- [ ] **IS-15-165 P2** — Define save/checkpoint serialization and restoration for breakable constraint manager.
-- [ ] **IS-15-166 P2** — Define CPU, memory, latency, and content budgets for breakable constraint manager.
-- [ ] **IS-15-167 P2** — Profile breakable constraint manager under a representative worst-case scene.
-- [ ] **IS-15-168 P2** — Document usage examples, invariants, and common failure modes for breakable constraint manager.
-- [ ] **IS-15-169 P2** — Define the scope, responsibilities, and explicit non-goals of physics replay trace.
-- [ ] **IS-15-170 P2** — Define the public C++ API and ownership rules for physics replay trace.
-- [ ] **IS-15-171 P2** — Define versioned configuration or asset data for physics replay trace.
-- [ ] **IS-15-172 P2** — Implement the smallest deterministic reference path for physics replay trace.
-- [ ] **IS-15-173 P2** — Add input validation and actionable failure reporting to physics replay trace.
-- [ ] **IS-15-174 P2** — Add focused unit tests for physics replay trace.
-- [ ] **IS-15-175 P2** — Add an integration scenario that exercises physics replay trace in a running game flow.
-- [ ] **IS-15-176 P2** — Add logging, counters, and debug inspection for physics replay trace.
-- [ ] **IS-15-177 P2** — Add an in-world or overlay debug visualization for physics replay trace.
-- [ ] **IS-15-178 P2** — Define save/checkpoint serialization and restoration for physics replay trace.
-- [ ] **IS-15-179 P2** — Define CPU, memory, latency, and content budgets for physics replay trace.
-- [ ] **IS-15-180 P2** — Profile physics replay trace under a representative worst-case scene.
-- [ ] **IS-15-181 P2** — Document usage examples, invariants, and common failure modes for physics replay trace.
+- [ ] **IS-15-001 P0** — Prototype Jolt Physics behind Iron Shadows-owned interfaces (`PhysicsWorld`, `RigidBodyHandle`, `CollisionShape`, ...).
+- [ ] **IS-15-002 P0** — Compare Jolt against one alternative only on concrete vertical-slice needs (character controller, vehicle contacts, triggers).
+- [ ] **IS-15-003 P0** — Select the production physics library and pin its revision/license in `THIRD_PARTY.md`.
+- [ ] **IS-15-004 P0** — Create a `PhysicsWorld` with fixed-step scheduling decoupled from render frame rate.
+- [ ] **IS-15-005 P1** — Create stable physics handles that never leak library pointers into game/mission code.
+- [ ] **IS-15-006 P1** — Create safe deferred body creation/destruction (bodies created/destroyed outside the physics step).
+- [ ] **IS-15-007 P1** — Create sleeping and activation policies for bodies at rest.
+- [ ] **IS-15-008 P1** — Add focused unit tests for `PhysicsWorld` lifecycle (create, step, destroy, deterministic teardown).
 
+## MC3 collision integration
+
+- [ ] **IS-15-009 P0** — Map MC3 static, dynamic, kinematic, trigger, and none collision roles onto physics bodies.
+- [ ] **IS-15-010 P0** — Create collision layers and masks for world, player, vehicles, characters, and triggers.
+- [ ] **IS-15-011 P1** — Load a district's collision proxies (from plan 14's collision-proxy pipeline) into the physics world at district-load time.
+- [ ] **IS-15-012 P1** — Define limits and a safe fallback for malformed or missing collision data instead of crashing.
+- [ ] **IS-15-013 P1** — Add an integration test that loads one hand-authored district and asserts every building has a working collision body.
+
+## Shapes, materials, and queries
+
+- [ ] **IS-15-014 P1** — Create primitive, convex, mesh, and compound shape paths.
+- [ ] **IS-15-015 P2** — Create a heightfield shape path for countryside terrain.
+- [ ] **IS-15-016 P1** — Create physics material definitions for asphalt, dirt, grass, wood, metal, and glass.
+- [ ] **IS-15-017 P2** — Add convex-decomposition tooling, limited to explicitly approved building/prop assets rather than run automatically on everything.
+- [ ] **IS-15-018 P0** — Implement raycast, sweep, overlap, and trigger queries.
+- [ ] **IS-15-019 P1** — Implement a contact-event and trigger-event queue consumable by gameplay/mission code.
+- [ ] **IS-15-020 P2** — Add focused unit tests for shape/material selection and query correctness.
+
+## Character controller adapter
+
+- [ ] **IS-15-021 P0** — Create a `CharacterBody` adapter (capsule or similar) driven by `PlayerController`.
+- [ ] **IS-15-022 P1** — Handle steps, slopes, and simple stairs within the character controller.
+- [ ] **IS-15-023 P1** — Detect grounded/airborne state for movement and animation state.
+- [ ] **IS-15-024 P1** — Add an integration test that walks the character controller through one hand-authored district without falling through geometry.
+
+## Vehicle physics adapter
+
+- [ ] **IS-15-025 P0** — Create a `VehiclePhysics` adapter exposing a chassis rigid body and per-wheel raycast contact points (tuning specifics live in plan 17).
+- [ ] **IS-15-026 P1** — Expose suspension spring/damper hook points for `VehicleController` to drive.
+- [ ] **IS-15-027 P1** — Integrate collision response between the vehicle adapter and world/character/vehicle collision layers.
+- [ ] **IS-15-028 P1** — Add an integration test that drives one vehicle through one hand-authored district without tunneling through geometry.
+
+## Debug tooling
+
+- [ ] **IS-15-029 P1** — Add debug collision wireframe rendering, toggled by a dev command.
+- [ ] **IS-15-030 P2** — Add body/contact/query counters for profiling.
+
+## Save and checkpoint integration
+
+- [ ] **IS-15-031 P1** — Define deterministic-enough restoration rules so a loaded save reproduces equivalent physics state (position/velocity), not bit-exact replay.
+- [ ] **IS-15-032 P1** — Tear down and recreate physics bodies cleanly across a district transition (ties to plan 13's district load/unload flow).
+- [ ] **IS-15-033 P1** — Add a save/load round-trip test that verifies physics-relevant entity state (position, velocity, awake/asleep) survives.
+
+## Deferred / limited-scope later work
+
+- [ ] **IS-15-034 P3** — Add ragdoll support only after character animation priorities (plan 18) are met.
+- [ ] **IS-15-035 P3** — Add water buoyancy only if a specific mission or district (e.g. a harbor) requires it.
+- [ ] **IS-15-036 P3** — Add breakable-object constraints only for explicitly selected mission content, not as a general destruction system.
+- [ ] **IS-15-037 P3** — Add physics replay/trace capture only if a specific hard-to-reproduce bug needs it.
+
+## Profiling
+
+- [ ] **IS-15-038 P2** — Profile a dense interior/worst-case pileup scenario against the CPU/memory budget in `docs/performance-targets.md`.
+- [ ] **IS-15-039 P2** — Add a soak test with many concurrently active bodies to check for leaks or instability.
+- [ ] **IS-15-040 P2** — Document the physics system's scope, invariants, and explicit non-goals (no ragdoll/buoyancy/destruction by default) for contributors.
