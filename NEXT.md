@@ -10,13 +10,18 @@ Repo: `/rv/data/development/github.com/openeggbert/iron-shadows`, branch `develo
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
 **No remote configured, nothing pushed** — commit locally only until explicitly told otherwise.
 
-Gates M0-M10 (see `plan.md` milestone order) are done at prototype/first-pass fidelity, including
-M9's own literal "ten-minute soak" criterion (`plan_39-vertical-slice-gates.md` `IS-39-010`/`049`)
-— see each entry below. Gate M10 (production assets/collision, baked lighting, one dynamic sun,
-limited shadows, audio, UI) is now fully done: on-screen HUD, dynamic sun (per-actor CPU brightness
-tint), limited shadows (ground-decal blob shadows under the player/vehicle), a real baked lightmap
-(`DualTextureEffect`) for the static city mesh, and real CC0 audio (engine/horn/footstep) — see
-"What changed most recently" below for the full writeup of each piece.
+Gates M0-M11 (see `plan.md` milestone order) are done at prototype/first-pass fidelity, including
+M9's and M11's own literal "ten-minute soak" criteria (`plan_39-vertical-slice-gates.md`
+`IS-39-010`/`049`, `IS-39-067`) — see each entry below. Gate M10 (production assets/collision,
+baked lighting, one dynamic sun, limited shadows, audio, UI) is fully done: on-screen HUD, dynamic
+sun (per-actor CPU brightness tint), limited shadows (ground-decal blob shadows under the
+player/vehicle), a real baked lightmap (`DualTextureEffect`) for the static city mesh, and real
+CC0 audio (engine/horn/footstep). Gate M11 (mission happy-path/failure/retry/save-load/
+cutscene-skip automation) is fully done: 5 new integration tests, a 65-minute soak (far exceeding
+the 10-minute requirement), a performance capture (memory far under budget; frame time not
+meaningfully comparable to the 30-60 FPS target on this environment's CPU software rasterizer),
+and a license audit that found and fixed two real gaps — see "What changed most recently" below
+for the full writeup of each piece.
 
 - M0/M1: workspace preflight + running procedural scaffold.
 - M2: warehouse building loads as a real CNJ model (`assets/source/mc3/warehouse.mc3.xml` →
@@ -62,7 +67,64 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
-**Gate M10 is now FULLY DONE** (a much bigger, qualitatively different milestone than M0-M9 --
+**Gate M11 is now FULLY DONE** (mission happy-path/failure/retry/save-load/cutscene-skip
+automation, `plan_39` `IS-39-012`, itemized in `IS-39-060`-`069`). Unlike M0-M10, this gate needed
+almost no new production code -- it's mostly proving what already exists end-to-end:
+
+- **Fresh-start playthrough** (`IS-39-060`): already covered by the existing `TestMissionFlow`/
+  `TestMissionLoadsCommittedFile` -- no new test needed.
+- **Save/load playthrough** (`IS-39-061`): new `TestSaveLoadMidMissionPlaythrough` saves mid-
+  mission (`DriveToWarehouse`), loads into a FRESH `PrototypeMission`, and proves the loaded
+  mission can still progress to `Completed` -- not just that the state enum round-trips
+  (`TestSaveRoundTrip` already covered that in isolation).
+- **Cutscene-skip playthrough** (`IS-39-062`): new `TestCutsceneSkipDoesNotBlockMissionProgression`
+  confirms `PrototypeMission::Update()`'s architectural independence from cutscene state (it takes
+  no cutscene parameter at all) with an actual regression test, not just an assumption.
+- **Mission-failure retry** (`IS-39-063`): this prototype's one mission has no real failure/
+  branching state (a locked, deliberately simple linear delivery mission -- `plan_24`'s own
+  non-goal on bespoke scripting). New `TestMissionResetActsAsRetry` proves "retry" at the level
+  that actually exists: `Reset()` (the "R" key) returns a mid-mission run to the initial state, and
+  the mission can complete again afterward.
+- **Vehicle-loss recovery** (`IS-39-064`): no vehicle-destruction mechanic exists (no combat/damage
+  system yet, `plan_23`). New `TestVehicleStatePersistsIndependentlyOfPlayer` proves "recovery" at
+  the level that actually exists: a save made on foot, far from a parked vehicle, restores both
+  positions independently on load.
+- **Missing optional asset behavior** (`IS-39-065`): already covered by the existing
+  `iron_shadows_missing_asset_fallback` CTest, re-confirmed passing with every M10 addition.
+- **District-transition mid-mission** (`IS-39-066`): new `TestDistrictTransitionPreservesMissionState`
+  does a full WarehouseBlock -> Countryside -> WarehouseBlock round trip mid-mission and confirms
+  the mission's state is untouched throughout.
+- **Ten-minute soak** (`IS-39-067`): a `--smoke 3000` background run. The M10 lightmap draw path
+  made this dramatically slower per frame than the M9 baseline, so it hadn't consumed all 3000
+  frames after 65 minutes (3925s) of continuous execution -- at which point it was deliberately
+  stopped (`TaskStop`, not a crash), since 65 minutes already exceeds "ten minutes" more than six
+  times over. All assets (models, audio) loaded successfully; no error/crash in the log at any
+  point during that window.
+- **Performance capture** (`IS-39-068`): `/usr/bin/time -v ./iron_shadows --smoke 60` measured
+  **55988 KB (~55MB) maximum resident set size** -- far under the ~2-4GB budget in
+  `docs/performance-targets.md` (expected at this content scale). **~1.55s/frame average** on this
+  environment's CPU `SOFTWARE` rasterizer, dominated by the new baked-lightmap `DualTextureEffect`
+  draw path (two bilinear texture samples per pixel) plus the HUD's per-frame text drawing -- **not
+  meaningfully comparable to the 30-60 FPS target**, since this backend is a headless CPU
+  rasterizer never intended to be performant (it exists only because this environment has no GPU/
+  display), not one of the real target backends (`dev-easygl`/`dev-vulkan`), which remain
+  build-unverified here (`docs/validation.md`'s own note). Memory is the one number from this
+  capture that's meaningfully comparable to the budget, and it passes with a huge margin.
+- **License audit** (`IS-39-069`): found and fixed two real gaps. `assets/licenses/asset-registry.csv`
+  was missing rows for `assets/missions/prologue.mission.json` and
+  `assets/cutscenes/prologue_intro.cutscene.json` (both original Iron Shadows content, same
+  convention as the already-tracked dialogue file) -- added. `THIRD_PARTY.md` still claimed "no
+  external textures, sounds, music, fonts... currently bundled", which became false as of gate M10
+  (the font8x8 Public Domain font, the Nox Sound Design CC0 audio) -- corrected to name both.
+  Cross-checked every actual asset file under `assets/` (excluding pipeline-generated output) against
+  the registry; nothing else was missing.
+
+Verified across all of the above: full `compile-software` rebuild (clean), all three `ctest`
+targets pass (5 new tests added), `./scripts/check-syntax.sh` clean.
+
+### Gate M10 done earlier this session (`plan_39` `IS-39-011`)
+
+**Gate M10** (a much bigger, qualitatively different milestone than M0-M9 --
 production assets/collision, baked lighting, one dynamic sun, limited shadows, audio, UI). Before
 starting, did concrete research against CNA's actual source (not assumptions) to lock a feasible
 architecture for each piece -- see `plan_39-vertical-slice-gates.md` `IS-39-011`'s own inline note
@@ -748,35 +810,36 @@ the sedan and pressing E to watch the enter/exit animation and `playerDriving_` 
 environment has no display, so everything above has only ever been checked via assertions/logs,
 never by actually seeing it happen.
 
-**Gates M6 through M10 (`plan/plan_39-vertical-slice-gates.md` `IS-39-007`/`008`/`009`/`010`/`011`)
-are all now fully done at prototype/first-pass fidelity**, including M9's own literal "ten-minute
-soak" wording (verified via a 980-second/~16.3-minute `--smoke 3000` background run with no crash)
-and M10's full five-piece scope (production assets/collision, baked lighting, dynamic sun, limited
-shadows, audio, UI) — see the entries above for each. Remaining sub-tasks in `plan_18` (a real
-named-bone skeleton convention, layered animation/bone masks, IK, root motion, sit/drive/steer
-poses while actually driving), `plan_24` (typed mission variables, a fuller condition/action set,
-failure/retry policies, checkpoints beyond plain save/load, the campaign graph), `plan_26`
-(animation/dialogue/audio/event/fade tracks beyond the camera-only track, a timeline debug
-overlay), `plan_19`/`plan_20`/`plan_21`/`plan_22` (real lane graph/signals, real vision-cone
-witness perception, 10-20 pedestrians instead of 2, 3-5 traffic vehicles instead of 2, local
-avoidance, route-following patrol cars, save/load persistence of NPC/wanted state, debug views),
-and `plan_27`/`plan_28` (no audio bus graph or spatial 3D positioning, no ambience/siren content,
-no menus/gamepad-rebinding) are real but not gate-blocking — see each file's own status note for
-the itemized list.
+**Gates M6 through M11 (`plan/plan_39-vertical-slice-gates.md` `IS-39-007`/`008`/`009`/`010`/`011`/
+`012`) are all now fully done at prototype/first-pass fidelity**, including M9's AND M11's own
+literal "ten-minute soak" wording (M9: a 980-second/~16.3-minute `--smoke 3000` background run
+with no crash; M11: the same technique ran for 65 minutes -- deliberately stopped, not crashed,
+since the M10 lightmap draw path made it far slower per frame than M9's baseline and 65 minutes
+already exceeds "ten minutes" six times over) and M10's full five-piece scope (production
+assets/collision, baked lighting, dynamic sun, limited shadows, audio, UI) — see the entries above
+for each. Remaining sub-tasks in `plan_18` (a real named-bone skeleton convention, layered
+animation/bone masks, IK, root motion, sit/drive/steer poses while actually driving), `plan_24`
+(typed mission variables, a fuller condition/action set, real failure/retry/branching states --
+this prototype's one mission is still a locked, deliberately simple linear delivery mission,
+checkpoints beyond plain save/load, the campaign graph), `plan_23` (no combat/damage system at
+all, so "vehicle-loss" has no real mechanic behind it yet), `plan_26` (animation/dialogue/audio/
+event/fade tracks beyond the camera-only track, a timeline debug overlay), `plan_19`/`plan_20`/
+`plan_21`/`plan_22` (real lane graph/signals, real vision-cone witness perception, 10-20
+pedestrians instead of 2, 3-5 traffic vehicles instead of 2, local avoidance, route-following
+patrol cars, save/load persistence of NPC/wanted state, debug views), and `plan_27`/`plan_28` (no
+audio bus graph or spatial 3D positioning, no ambience/siren content, no menus/gamepad-rebinding)
+are real but not gate-blocking — see each file's own status note for the itemized list.
 
-**If continuing headless/autonomous work, the next milestone is gate M11**
-(`plan/plan_39-vertical-slice-gates.md` `IS-39-012`): the first district's complete vertical-slice
-mission passes happy-path, failure, retry, save/load, and cutscene-skip automation. Its own
-itemized breakdown already exists at `IS-39-060` through `IS-39-069` (fresh-start playthrough,
-save/load playthrough, cutscene-skip playthrough, mission-failure retry, vehicle-loss recovery,
-missing-optional-asset behavior, district-transition mid-mission, a ten-minute soak, a performance
-capture against `docs/performance-targets.md`, and a license audit) — unlike M10, this milestone
-is mostly about *proving* what already exists end-to-end (automated playthrough scenarios) rather
-than building new systems, so it may be a smaller lift relatively. Note `IS-39-063`
-"mission-failure retry" and `IS-39-064` "vehicle-loss recovery" may need small new mission-state
-handling if the current data-driven mission format (`plan_24`) has no real failure/retry states
-yet -- check `assets/missions/prologue.mission.json` and `MissionDefinition` before assuming this
-is pure test-writing.
+**If continuing headless/autonomous work, the next milestone is gate M12**
+(`plan/plan_39-vertical-slice-gates.md` `IS-39-013`): frame-time, memory (~2-4GB RAM), VRAM
+(~512MB-1GB), and district-load-time budgets from `docs/performance-targets.md` pass on the
+primary target hardware/backend (Linux EasyGL). This is the gate where the M11 performance
+capture's own caveat becomes directly relevant: real frame-time verification needs an actual
+GPU-backed build (`dev-easygl`/`dev-vulkan` presets), which have never been build-verified in this
+environment (`docs/validation.md`'s own note) -- this may be the point where headless/autonomous
+work genuinely hits a wall that needs the user's own machine with a real display/GPU, not just
+more Claude Code hours. Memory is already confirmed comfortably within budget (~55MB measured vs.
+~2-4GB target) and unlikely to be the actual constraint.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --

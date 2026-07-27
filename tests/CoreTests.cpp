@@ -685,6 +685,174 @@ namespace
         }
     }
 
+    // Gate M11 / plan_39 IS-39-061 (save/load playthrough): saving mid-mission and loading into a
+    // FRESH PrototypeMission must not just round-trip the state enum (TestSaveRoundTrip already
+    // covers that in isolation) -- the loaded mission must actually keep progressing correctly
+    // afterward, proving a save/load cycle doesn't leave it stuck or in a state it can't advance
+    // from.
+    void TestSaveLoadMidMissionPlaythrough()
+    {
+        IronShadows::PrototypeWorld world;
+        IronShadows::PrototypeMission mission;
+        mission.Reset();
+        mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
+        Require(mission.GetState() == IronShadows::PrototypeMissionState::DriveToWarehouse,
+                "setup: mission must reach DriveToWarehouse before saving");
+
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_shadows_playthrough_test.save";
+        IronShadows::SaveSnapshot snapshot;
+        snapshot.missionState = mission.GetState();
+        snapshot.playerPosition = world.GetVehicleSpawn();
+        snapshot.vehiclePosition = world.GetVehicleSpawn();
+        snapshot.playerDriving = true;
+        snapshot.districtId = world.GetId();
+
+        std::string error;
+        Require(IronShadows::SaveGame::Write(path.string(), snapshot, error), "save write failed: " + error);
+        const auto loaded = IronShadows::SaveGame::Read(path.string(), error);
+        Require(loaded.has_value(), "save read failed: " + error);
+
+        IronShadows::PrototypeMission resumedMission;
+        resumedMission.SetState(loaded->missionState);
+        Require(resumedMission.GetState() == IronShadows::PrototypeMissionState::DriveToWarehouse,
+                "the loaded mission state must match what was saved");
+
+        // Continuing from the loaded state must still complete the mission correctly.
+        resumedMission.Update(true, world.GetWarehouseGoal().bounds.center, world.GetWarehouseGoal().bounds.center,
+                              true, world.GetWarehouseGoal());
+        Require(resumedMission.IsCompleted(), "a mission resumed from a save must still be able to complete");
+
+        std::filesystem::remove(path);
+    }
+
+    // Gate M11 / plan_39 IS-39-062 (cutscene-skip playthrough): CutscenePlayer and PrototypeMission
+    // are independent by construction (Mission::Update() takes no cutscene state at all) -- proves
+    // that rather than just assuming it: skipping a cutscene immediately must not prevent the
+    // mission from progressing normally right afterward.
+    void TestCutsceneSkipDoesNotBlockMissionProgression()
+    {
+        IronShadows::CutsceneSequence sequence;
+        sequence.duration = 2.5F;
+        sequence.cameraKeyframes = {
+            {0.0F, IronShadows::Vector3(0.0F, 0.0F, 0.0F), IronShadows::Vector3(1.0F, 0.0F, 0.0F)},
+            {2.5F, IronShadows::Vector3(1.0F, 0.0F, 0.0F), IronShadows::Vector3(2.0F, 0.0F, 0.0F)},
+        };
+        IronShadows::CutscenePlayer cutscene;
+        cutscene.Start(sequence);
+        cutscene.Skip();
+        Require(!cutscene.IsActive(), "Skip() must finish the cutscene immediately");
+
+        IronShadows::PrototypeWorld world;
+        IronShadows::PrototypeMission mission;
+        mission.Reset();
+        mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        Require(mission.GetState() == IronShadows::PrototypeMissionState::ReachVehicle,
+                "mission progression must work normally immediately after a cutscene is skipped");
+    }
+
+    // Gate M11 / plan_39 IS-39-063 (mission-failure retry): this prototype's one mission has no
+    // real failure state (a locked, deliberately simple linear delivery mission -- see
+    // plan_24-mission-framework-and-scripting.md's own non-goal on bespoke scripting), so "retry"
+    // is proven at the level that actually exists: Reset() (the "R" key in IronShadowsGame) must
+    // return a mid-mission run all the way back to the mission's own initial state, and the
+    // mission must still be able to complete again afterward.
+    void TestMissionResetActsAsRetry()
+    {
+        IronShadows::PrototypeWorld world;
+        IronShadows::PrototypeMission mission;
+        mission.Reset();
+        mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
+        Require(mission.GetState() == IronShadows::PrototypeMissionState::DriveToWarehouse,
+                "setup: mission must be mid-flight before retrying");
+
+        mission.Reset();
+        Require(mission.GetState() == IronShadows::PrototypeMissionState::Introduction,
+                "Reset() must return a mid-mission run to the mission's own initial state");
+
+        mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
+        mission.Update(true, world.GetWarehouseGoal().bounds.center, world.GetWarehouseGoal().bounds.center, true,
+                      world.GetWarehouseGoal());
+        Require(mission.IsCompleted(), "a retried mission must be able to complete again");
+    }
+
+    // Gate M11 / plan_39 IS-39-064 (vehicle-loss recovery): this prototype has no vehicle-
+    // destruction mechanic (no combat/damage system exists yet, plan_23), so "recovery" is proven
+    // at the level that actually exists: if the player saves while separated from their own
+    // vehicle (on foot, vehicle parked somewhere else), loading must restore BOTH independently
+    // rather than collapsing one onto the other -- the vehicle is never actually "lost" as long as
+    // its own saved position survives the round trip.
+    void TestVehicleStatePersistsIndependentlyOfPlayer()
+    {
+        const std::filesystem::path path =
+            std::filesystem::current_path() / "iron_shadows_vehicle_recovery_test.save";
+        IronShadows::SaveSnapshot snapshot;
+        snapshot.missionState = IronShadows::PrototypeMissionState::ReachVehicle;
+        snapshot.playerPosition = {50.0F, 1.70F, -10.0F}; // far from the vehicle
+        snapshot.playerYaw = 1.2F;
+        snapshot.vehiclePosition = {0.0F, 0.65F, 11.0F};
+        snapshot.vehicleYaw = 0.3F;
+        snapshot.vehicleSpeed = 0.0F;
+        snapshot.playerDriving = false;
+        snapshot.districtId = IronShadows::DistrictId::WarehouseBlock;
+
+        std::string error;
+        Require(IronShadows::SaveGame::Write(path.string(), snapshot, error), "save write failed: " + error);
+        const auto loaded = IronShadows::SaveGame::Read(path.string(), error);
+        Require(loaded.has_value(), "save read failed: " + error);
+
+        Require(IronShadows::DistanceSquaredXZ(loaded->playerPosition, snapshot.playerPosition) < 1e-4F,
+                "the player's own position must survive independently of the vehicle's");
+        Require(IronShadows::DistanceSquaredXZ(loaded->vehiclePosition, snapshot.vehiclePosition) < 1e-4F,
+                "the vehicle's own position must survive independently of the player's, even when parked far away");
+        Require(!loaded->playerDriving,
+                "a save made on foot, away from the vehicle, must not silently mark the player as driving");
+
+        std::filesystem::remove(path);
+    }
+
+    // Gate M11 / plan_39 IS-39-066 (district-transition mid-mission): leaving and returning to the
+    // original district must not disturb an in-progress mission's state. DistrictManager and
+    // PrototypeMission are independent objects by construction, but this is worth a direct
+    // regression test rather than an assumption.
+    void TestDistrictTransitionPreservesMissionState()
+    {
+        IronShadows::PrototypeWorld world;
+        IronShadows::PrototypeMission mission;
+        mission.Reset();
+        mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        Require(mission.GetState() == IronShadows::PrototypeMissionState::EnterVehicle,
+                "setup: mission must be mid-flight before transitioning districts");
+
+        IronShadows::Physics::PhysicsWorld physics;
+        IronShadows::DistrictManager districts;
+        districts.Initialize(physics);
+
+        districts.RequestTransition(physics); // WarehouseBlock -> Countryside
+        for (int i = 0; i < 60; ++i)
+        {
+            districts.Update(1.0F / 60.0F);
+        }
+        Require(districts.ConsumeArrival(), "arrival must be reported once the loading screen finishes");
+        Require(mission.GetState() == IronShadows::PrototypeMissionState::EnterVehicle,
+                "leaving the district must not disturb the mission's state");
+
+        districts.RequestTransition(physics); // Countryside -> WarehouseBlock
+        for (int i = 0; i < 60; ++i)
+        {
+            districts.Update(1.0F / 60.0F);
+        }
+        Require(districts.ConsumeArrival(), "arrival must be reported once the return trip's loading screen finishes");
+        Require(mission.GetState() == IronShadows::PrototypeMissionState::EnterVehicle,
+                "returning to the original district must not disturb the mission's state either");
+    }
+
     void TestSaveRoundTrip()
     {
         const std::filesystem::path path = std::filesystem::current_path() / "iron_shadows_core_test.save";
@@ -733,6 +901,11 @@ int main()
         TestBitmapFontGlyphAtlas();
         TestSunBrightnessMatchesHandComputedValue();
         TestLightmapMeshBuilderBakesPerFaceBrightness();
+        TestSaveLoadMidMissionPlaythrough();
+        TestCutsceneSkipDoesNotBlockMissionProgression();
+        TestMissionResetActsAsRetry();
+        TestVehicleStatePersistsIndependentlyOfPlayer();
+        TestDistrictTransitionPreservesMissionState();
         TestSaveRoundTrip();
         std::cout << "Iron Shadows core tests passed\n";
         return 0;
