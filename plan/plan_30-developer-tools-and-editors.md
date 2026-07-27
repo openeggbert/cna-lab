@@ -2,9 +2,9 @@
 
 [Back to master plan](../plan.md)
 
-No in-house editor suite. Content is authored in Mesh Craft/MC3, Blender, and hand-written JSON/XML/text data, checked by command-line validation scripts. At most one small in-game debug/mission-state view tool is in scope.
+No **second, Iron Shadows-specific** editor suite is built. Spatial content (buildings, roads, interiors, props, collision, trigger/mission-marker areas) is authored visually in **Mesh Craft**, which is already a real 3D scene editor (viewport, orbit camera, gizmos, CSG, extrude-along-path, scene hierarchy/properties panels, Walk Mode, and bounded live event-binding preview) — nothing here duplicates that. Non-spatial content (mission state graphs, dialogue) is hand-written JSON/XML/text data, checked by command-line validation scripts. At most one small in-game debug/mission-state view tool is in scope, purely for runtime debugging, not authoring.
 
-- [ ] **IS-30-001 P0** — Document that no GUI editor suite is planned (no road/lane-graph editor, no mission-graph editor, no timeline editor); all content is hand-authored and validated by scripts.
+- [ ] **IS-30-001 P0** — Document that no bespoke road/lane-graph editor, mission-graph editor, or timeline editor is built on top of Mesh Craft; spatial content is authored directly in Mesh Craft's existing 3D editor, and non-spatial mission/dialogue data is hand-authored and validated by scripts.
 - [ ] **IS-30-002 P0** — Create a single asset-build CLI command that validates, converts (MC3 -> GLB -> CNJ), packages, and reports.
 - [ ] **IS-30-003 P0** — Create the one in-game debug/mission-state view: current mission, active objective, and forced state transitions.
 - [ ] **IS-30-004 P1** — Add a collision/trigger/navigation-waypoint overlay toggle to the debug view.

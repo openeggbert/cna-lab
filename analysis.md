@@ -30,7 +30,7 @@ The missing part is not “a graphics API,” and a second inspection changed th
 - missions, dialogue, cutscenes, checkpoints, and save migration;
 - navigation data and road/lane graphs;
 - scalable asset packaging and licensing provenance;
-- a small amount of tooling (mainly a debug/mission-state view — not an in-house editor suite), automated validation, and a manual (not procedural) content-production workflow in Mesh Craft/MC3.
+- a small amount of tooling beyond Mesh Craft itself (mainly a runtime debug/mission-state view — not a second, bespoke editor suite), automated validation, and a manual (not procedural) content-production workflow in Mesh Craft/MC3. Mesh Craft is not just an XML/CLI tool: it is already a real 3D scene editor (Dear ImGui viewport, orbit camera, gizmos, CSG, extrude-along-path, scene hierarchy/properties panels, a first-person Walk Mode with collision, and a bounded live preview of area/trigger/timer event bindings), so spatial content is authored visually in it, not hand-typed.
 
 The correct strategy is to keep CNA general-purpose and XNA-compatible, use CNA's own existing modern-rendering facilities and cna-extended's scene/ECS facilities directly, and only add a new "CNA EXT" type when a genuine gap remains after that — not design a new engine layer speculatively. The repository created with this analysis follows that separation.
 
@@ -119,6 +119,8 @@ The supplied Mesh Craft tree includes the MC3 schema and conversion path. MC3 ve
 - a compact MCB representation in the broader project.
 
 The included Iron Shadows MC3 prototype was validated against the supplied `mc3.xsd`. It represents a road crossing, several buildings, a warehouse, a mission marker, lights, PBR material data, static collision metadata, and trigger metadata.
+
+Mesh Craft itself (the application, distinct from the MC3 data format) is a real C++23 3D scene editor, not just a schema/CLI toolchain: a Dear ImGui application with a live 3D viewport, orbit camera, transform gizmos, a scene hierarchy panel and properties panel, CSG boolean operations, extrude-along-path authoring, an animation timeline, autosave/recovery, glTF/GLB import as bounded editable MC3 content, and a first-person **Walk Mode** that exercises walk-collision proxies directly in the editor. It also has a bounded **Preview/Play** mode that dispatches timer, Walk Mode area-enter/exit, and picked-object click event bindings through an isolated, resource-limited Lua VM for authoring feedback — this is editor-side authoring convenience, not the shipped game's runtime scripting (Iron Shadows' own mission scripting, per group 24, is deliberately simpler: engine-evaluated condition/action expressions, not a general embedded VM). Practically, this means Iron Shadows' spatial content — buildings, roads, interiors, props, collision, and mission trigger/marker areas — is authored by placing and manipulating objects directly in Mesh Craft's viewport, not by hand-editing MC3 XML text.
 
 Mesh Craft should be treated as an authoring system for hand-built content. Iron Shadows content (buildings, roads, interiors) is manually authored in MC3/Blender rather than produced by procedural generators; Mesh Craft's preview/action runner is useful for authoring feedback but should not silently become the complete production game runtime, and building a generator toolchain on top of it is explicitly out of scope for now (see section 7.3). Production mission, physics, streaming, and AI semantics should be owned by the game layer.
 
@@ -646,7 +648,7 @@ Save data must store logical state rather than raw pointers, addresses, backend 
 
 ## 17. Tools and production workflow
 
-Iron Shadows deliberately does **not** build an in-house editor suite (no road/lane graph editor, no mission-graph editor, no cinematic timeline editor). Content authoring happens in existing tools — Mesh Craft/MC3, Blender, and hand-written JSON/XML/text data — which is enough for a hand-authored campaign at the scope in section 23. Building a bespoke editor suite is exactly the kind of investment a small team should not make; it is parked as post-slice research, not v1 work.
+Iron Shadows deliberately does **not** build a second, bespoke editor suite on top of what already exists (no separate road/lane-graph editor, mission-graph editor, or cinematic timeline editor). Spatial content authoring already has a real tool — Mesh Craft, a genuine 3D scene editor with a viewport, gizmos, CSG, Walk Mode, and event-binding preview (section 3.3) — so building a second one would duplicate it. Non-spatial content (mission state graphs, dialogue) is hand-written JSON/XML/text data, which is tractable at the campaign scope in section 23 without a visual graph editor. Building a bespoke editor suite beyond Mesh Craft is exactly the kind of investment a small team should not make; it is parked as post-slice research, not v1 work.
 
 What is still worth having, kept small and script-shaped rather than as GUI applications:
 
