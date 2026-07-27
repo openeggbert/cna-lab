@@ -10,6 +10,7 @@
 #include "IronShadows/Missions/PrototypeMission.hpp"
 #include "IronShadows/Persistence/SaveGame.hpp"
 #include "IronShadows/Physics/PhysicsWorld.hpp"
+#include "IronShadows/Graphics/SunLight.hpp"
 #include "IronShadows/UI/BitmapFont.hpp"
 #include "IronShadows/World/DistrictManager.hpp"
 #include "IronShadows/World/PrototypeWorld.hpp"
@@ -611,6 +612,17 @@ namespace
                 "an opaque glyph pixel must be pure white");
     }
 
+    // Gate M10 / plan_39 IS-39-011 (dynamic sun): ComputeSunBrightness() is a plain deterministic
+    // function of the hand-authored kSunDirection/kSunIntensity/kSunAmbientFloor constants --
+    // hand-computed here (upDot = -kSunDirection.Y = 0.5997; brightness = 0.35 + 0.75*0.5997 =
+    // 0.799775) so a future change to those constants can't silently drift without a test noticing.
+    void TestSunBrightnessMatchesHandComputedValue()
+    {
+        const float brightness = IronShadows::ComputeSunBrightness();
+        Require(std::abs(brightness - 0.799775F) < 1e-4F,
+                "ComputeSunBrightness() must match the hand-computed value for the authored sun direction");
+    }
+
     void TestSaveRoundTrip()
     {
         const std::filesystem::path path = std::filesystem::current_path() / "iron_shadows_core_test.save";
@@ -657,6 +669,7 @@ int main()
         TestPedestrianFleesAndResumesPath();
         TestPoliceSystemFullCycle();
         TestBitmapFontGlyphAtlas();
+        TestSunBrightnessMatchesHandComputedValue();
         TestSaveRoundTrip();
         std::cout << "Iron Shadows core tests passed\n";
         return 0;

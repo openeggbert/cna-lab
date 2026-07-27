@@ -113,9 +113,27 @@ namespace IronShadows
                          const std::vector<ActorPose>& policeCars);
 
     private:
+        // tint multiplies vertex color (see SunLight.hpp's own comment on why this, rather than
+        // CNA's built-in lighting, drives gate M10's "dynamic sun"). Defaults to full brightness
+        // for static geometry; dynamic actors pass ComputeSunBrightness() explicitly.
         void DrawMesh(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
                       PrimitiveMesh& mesh,
-                      const Microsoft::Xna::Framework::Matrix& worldMatrix);
+                      const Microsoft::Xna::Framework::Matrix& worldMatrix,
+                      const Microsoft::Xna::Framework::Vector3& tint =
+                          Microsoft::Xna::Framework::Vector3(1.0F, 1.0F, 1.0F));
+
+        // Gate M10: a period-appropriate "blob shadow" -- a flat, dark, semi-transparent decal on
+        // the ground beneath an actor -- standing in for real shadow-mapping, which is not
+        // achievable on the SOFTWARE backend without modifying CNA itself (no shadow-map support,
+        // fixed per-backend effect formulas rather than a custom-shader system; confirmed by
+        // reading its source). Scoped to just the player and their own vehicle, matching gate
+        // M10's own "limited shadows" wording -- not extended to every traffic/pedestrian/police
+        // actor.
+        void DrawShadowDecal(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
+                             const Microsoft::Xna::Framework::Vector3& position,
+                             float yaw,
+                             float width,
+                             float depth);
 
         PrimitiveMesh staticCityMesh_;
         PrimitiveMesh vehicleMesh_;
@@ -123,6 +141,7 @@ namespace IronShadows
         PrimitiveMesh trafficVehicleMesh_;
         PrimitiveMesh pedestrianMesh_;
         PrimitiveMesh policeCarMesh_;
+        PrimitiveMesh shadowDecalMesh_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::BasicEffect> effect_;
 
         std::optional<Microsoft::Xna::Framework::Graphics::Model> warehouseModel_;

@@ -1,5 +1,6 @@
 #include "IronShadows/Graphics/PrototypeRenderer.hpp"
 
+#include "IronShadows/Graphics/SunLight.hpp"
 #include "IronShadows/World/PrototypeWorld.hpp"
 
 #include "CNA/Extended/ECS/Entity.hpp"
@@ -8,8 +9,10 @@
 #include "CNA/Extended/World3DEXT/ModelAnimationComponentEXT.hpp"
 #include "CNA/Extended/World3DEXT/ModelAnimationSystem3DEXT.hpp"
 #include "Microsoft/Xna/Framework/GameTime.hpp"
+#include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Graphics/ModelMesh.hpp"
+#include "Microsoft/Xna/Framework/Graphics/PbrEffect.hpp"
 #include "Microsoft/Xna/Framework/Graphics/RasterizerState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SkinnedEffect.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SkinnedPbrEffect.hpp"
@@ -21,6 +24,38 @@ namespace IronShadows
 {
     using namespace Microsoft::Xna::Framework;
     using namespace Microsoft::Xna::Framework::Graphics;
+
+    namespace
+    {
+        // Gate M10: applies the same CPU-computed sun-brightness tint (SunLight.hpp) to every
+        // BasicEffect/PbrEffect/SkinnedEffect/SkinnedPbrEffect a CNJ Model's meshes use -- the
+        // real-content equivalent of DrawMesh()'s `tint` parameter for the procedural boxes.
+        void SetModelDiffuseColor(Model& model, const Vector3& tint)
+        {
+            for (ModelMesh* mesh : model.getMeshesProperty())
+            {
+                for (Effect* effect : mesh->getEffectsPropertyMutable())
+                {
+                    if (auto* basicEffect = dynamic_cast<BasicEffect*>(effect))
+                    {
+                        basicEffect->setDiffuseColorProperty(tint);
+                    }
+                    else if (auto* pbrEffect = dynamic_cast<PbrEffect*>(effect))
+                    {
+                        pbrEffect->setDiffuseColorProperty(tint);
+                    }
+                    else if (auto* skinnedEffect = dynamic_cast<SkinnedEffect*>(effect))
+                    {
+                        skinnedEffect->setDiffuseColorProperty(tint);
+                    }
+                    else if (auto* skinnedPbrEffect = dynamic_cast<SkinnedPbrEffect*>(effect))
+                    {
+                        skinnedPbrEffect->setDiffuseColorProperty(tint);
+                    }
+                }
+            }
+        }
+    }
 
     PrototypeRenderer::PrototypeRenderer() = default;
     PrototypeRenderer::~PrototypeRenderer() = default;
@@ -98,6 +133,13 @@ namespace IronShadows
         policeCarBuilder.AddBox({0.0F, 0.92F, -0.10F}, {0.55F, 0.20F, 0.35F}, Color(200, 40, 40, 255));
         policeCarMesh_.Upload(device, policeCarBuilder);
 
+        // Gate M10: a unit-footprint flat, dark, semi-transparent decal -- scaled/positioned per
+        // actor at draw time (see DrawShadowDecal()) rather than baked per-size, so one mesh
+        // covers both the player's and the vehicle's differently-shaped footprints.
+        MeshBuilder shadowBuilder;
+        shadowBuilder.AddBox({0.0F, 0.0F, 0.0F}, {1.0F, 0.02F, 1.0F}, Color(10, 10, 10, 110));
+        shadowDecalMesh_.Upload(device, shadowBuilder);
+
         effect_ = std::make_unique<BasicEffect>(device);
         effect_->VertexColorEnabled = true;
         device.setRasterizerStateProperty(RasterizerState::CullNone);
@@ -132,14 +174,32 @@ namespace IronShadows
 
     void PrototypeRenderer::DrawMesh(GraphicsDevice& device,
                                      PrimitiveMesh& mesh,
-                                     const Matrix& worldMatrix)
+                                     const Matrix& worldMatrix,
+                                     const Vector3& tint)
     {
         effect_->World = worldMatrix;
+        effect_->setDiffuseColorProperty(tint);
         for (auto& pass : effect_->getCurrentTechniqueProperty()->getPassesProperty())
         {
             pass.Apply();
             mesh.Draw(device);
         }
+    }
+
+    void PrototypeRenderer::DrawShadowDecal(GraphicsDevice& device,
+                                            const Vector3& position,
+                                            float yaw,
+                                            float width,
+                                            float depth)
+    {
+        // Ground surface sits at Y = -0.05 (SetGround's center -0.30 + half-height 0.25); this
+        // matches the small clearance lane markings already use above it (Y = 0.045) to avoid
+        // z-fighting.
+        constexpr float kShadowGroundY = 0.03F;
+        const Matrix world = Matrix::CreateScale(width, 1.0F, depth) *
+                             Matrix::CreateRotationY(yaw) *
+                             Matrix::CreateTranslation(Vector3(position.X, kShadowGroundY, position.Z));
+        DrawMesh(device, shadowDecalMesh_, world);
     }
 
     void PrototypeRenderer::Draw(GraphicsDevice& device,
@@ -154,6 +214,13 @@ namespace IronShadows
         effect_->View = view;
         effect_->Projection = projection;
 
+        // Gate M10: one shared brightness scalar for every dynamic actor this frame (see
+        // SunLight.hpp). Static geometry (staticCityMesh_/warehouseModel_) is deliberately left at
+        // full brightness here -- it gets real per-face lighting from the baked lightmap instead
+        // (a later step), not this uniform-per-actor approximation.
+        const float sunBrightness = ComputeSunBrightness();
+        const Vector3 sunTint(sunBrightness, sunBrightness, sunBrightness);
+
         DrawMesh(device, staticCityMesh_, Matrix::getIdentityProperty());
 
         const Matrix vehicleWorld = Matrix::CreateRotationY(vehicleYaw) * Matrix::CreateTranslation(vehiclePosition);
@@ -166,6 +233,11 @@ namespace IronShadows
                 {-1.05F, -0.20F, 1.35F},  {1.05F, -0.20F, 1.35F},
             };
 
+            SetModelDiffuseColor(vehicleModels_->body, sunTint);
+            SetModelDiffuseColor(vehicleModels_->cabin, sunTint);
+            SetModelDiffuseColor(vehicleModels_->windshield, sunTint);
+            SetModelDiffuseColor(vehicleModels_->wheel, sunTint);
+
             vehicleModels_->body.Draw(vehicleWorld, view, projection);
             vehicleModels_->cabin.Draw(Matrix::CreateTranslation(kCabinOffset) * vehicleWorld, view, projection);
             vehicleModels_->windshield.Draw(Matrix::CreateTranslation(kWindshieldOffset) * vehicleWorld, view, projection);
@@ -176,7 +248,7 @@ namespace IronShadows
         }
         else
         {
-            DrawMesh(device, vehicleMesh_, vehicleWorld);
+            DrawMesh(device, vehicleMesh_, vehicleWorld, sunTint);
         }
 
         if (warehouseModel_.has_value())
@@ -200,10 +272,12 @@ namespace IronShadows
                         if (auto* skinnedEffect = dynamic_cast<SkinnedEffect*>(effect))
                         {
                             skinnedEffect->SetBoneTransforms(skinTransforms);
+                            skinnedEffect->setDiffuseColorProperty(sunTint);
                         }
                         else if (auto* skinnedPbrEffect = dynamic_cast<SkinnedPbrEffect*>(effect))
                         {
                             skinnedPbrEffect->SetBoneTransforms(skinTransforms);
+                            skinnedPbrEffect->setDiffuseColorProperty(sunTint);
                         }
                     }
                 }
@@ -213,9 +287,21 @@ namespace IronShadows
             else
             {
                 const Vector3 playerBodyPosition = playerPosition + Vector3(0.0F, -0.95F, 0.0F);
-                DrawMesh(device, playerMesh_, Matrix::CreateRotationY(playerYaw) * Matrix::CreateTranslation(playerBodyPosition));
+                DrawMesh(device, playerMesh_,
+                        Matrix::CreateRotationY(playerYaw) * Matrix::CreateTranslation(playerBodyPosition), sunTint);
             }
         }
+
+        // Gate M10 "limited shadows": simple ground-decal blob shadows beneath the player and
+        // their own vehicle only (not traffic/pedestrians/police -- see DrawShadowDecal()'s own
+        // comment). Drawn last, with alpha blending, over the already-drawn opaque geometry.
+        device.setBlendStateProperty(BlendState::AlphaBlend);
+        if (drawPlayer)
+        {
+            DrawShadowDecal(device, playerPosition, playerYaw, 0.8F, 0.8F);
+        }
+        DrawShadowDecal(device, vehiclePosition, vehicleYaw, 1.9F, 3.7F);
+        device.setBlendStateProperty(BlendState::Opaque);
     }
 
     void PrototypeRenderer::DrawTraffic(GraphicsDevice& device,
@@ -228,10 +314,15 @@ namespace IronShadows
         effect_->View = view;
         effect_->Projection = projection;
 
+        // Gate M10: the same shared sun-brightness tint as Draw()'s player/vehicle -- see
+        // SunLight.hpp's own comment.
+        const float sunBrightness = ComputeSunBrightness();
+        const Vector3 sunTint(sunBrightness, sunBrightness, sunBrightness);
+
         for (const ActorPose& pose : trafficVehicles)
         {
             DrawMesh(device, trafficVehicleMesh_,
-                    Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position));
+                    Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position), sunTint);
         }
         for (const ActorPose& pose : pedestrians)
         {
@@ -240,12 +331,12 @@ namespace IronShadows
             // height (see PrototypeWorld::BuildWarehouseBlock's sidewalkPaths_ comment) -- no
             // extra vertical offset needed here.
             DrawMesh(device, pedestrianMesh_,
-                    Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position));
+                    Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position), sunTint);
         }
         for (const ActorPose& pose : policeCars)
         {
             DrawMesh(device, policeCarMesh_,
-                    Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position));
+                    Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position), sunTint);
         }
     }
 }

@@ -13,9 +13,13 @@ someone switched branches outside this session at some point; both exist, `devel
 Gates M0-M9 (see `plan.md` milestone order) are done at prototype fidelity, including M9's own
 literal "ten-minute soak" criterion (`plan_39-vertical-slice-gates.md` `IS-39-010`/`049`) — see
 its entry below. **Gate M10 is IN PROGRESS** (production assets/collision, baked lighting, one
-dynamic sun, limited shadows, audio, UI) — the on-screen HUD piece is done; dynamic sun/shadows,
-the baked lightmap, and audio remain — see "What changed most recently" below for the locked
-architecture and implementation order.
+dynamic sun, limited shadows, audio, UI) — the on-screen HUD, dynamic sun (per-actor CPU
+brightness tint), and limited shadows (ground-decal blob shadows under the player/vehicle) are
+done; the baked lightmap and audio remain — see "What changed most recently" below for the locked
+architecture and implementation order. The user has explicitly chosen the higher-effort path for
+both remaining pieces (a real lightmap texture bake, and real CC0 sound assets downloaded via
+WebSearch/WebFetch, not simplified/synthesized placeholders) — do not substitute the simpler
+option without checking first.
 
 - M0/M1: workspace preflight + running procedural scaffold.
 - M2: warehouse building loads as a real CNJ model (`assets/source/mc3/warehouse.mc3.xml` →
@@ -72,8 +76,49 @@ decisions: a REAL lightmap texture bake (not a vertex-color approximation), and 
 assets via WebSearch/WebFetch (not synthesized placeholder audio) -- both tracked in
 `assets/licenses/asset-registry.csv`.
 
-Planned implementation order: **UI/HUD (done, see below) -> dynamic sun + shadow decals (next) ->
-baked lightmap (biggest, most novel) -> audio (needs external CC0 asset sourcing)**.
+Planned implementation order: **UI/HUD (done) -> dynamic sun + shadow decals (done, see below) ->
+baked lightmap (next, biggest/most novel) -> audio (needs external CC0 asset sourcing, source
+already picked -- see below)**.
+
+### Dynamic sun + shadow decals done this session (`plan_39` `IS-39-011`'s own note)
+
+- New `include/IronShadows/Graphics/SunLight.hpp`: a single shared, fixed sun direction/intensity
+  (`kSunDirection`/`kSunIntensity`/`kSunAmbientFloor`, hand-normalized literal constants -- no
+  day/night cycle, that is real `plan_08`/`plan_31` scope, not attempted here) and
+  `ComputeSunBrightness()`, a plain scalar (`ambientFloor + intensity * max(0, dot(Up,
+  -sunDirection))`, clamped to [0,1]) approximating how much daylight reaches a mostly-upward-
+  facing dynamic actor. This exists because `BasicEffect`'s built-in `DirectionalLight0`/
+  `EnableDefaultLighting()` is confirmed a no-op on the SOFTWARE backend Iron Shadows targets (its
+  own source comment says so), so real per-light shading would silently do nothing; instead this
+  scalar is applied as a `DiffuseColor` multiplier, which the SOFTWARE backend DOES apply
+  unconditionally (`vertexColor*diffuseColor*texture0`, confirmed by reading
+  `SoftwareGraphicsBackend.cpp`'s `RasterizeTriangleShaded`) -- independent of any lighting-enabled
+  flag.
+- `PrototypeRenderer::DrawMesh()` gained a `tint` parameter (default full brightness (1,1,1) for
+  static geometry) multiplied into `effect_`'s `DiffuseColor` before each draw; `Draw()`/
+  `DrawTraffic()` now pass `ComputeSunBrightness()` as that tint for every dynamic actor (player,
+  vehicle, traffic, pedestrians, police) -- one uniform scalar per actor, not real per-face N-dot-L
+  shading, a deliberate simplification. A new `SetModelDiffuseColor()` helper does the same for CNJ
+  `Model`-based content (the warehouse/vehicle/character), iterating each mesh's
+  `BasicEffect`/`PbrEffect`/`SkinnedEffect`/`SkinnedPbrEffect` and setting `DiffuseColor` directly
+  (all four confirmed to expose it via `IEffectLights`-adjacent per-class properties). The static
+  city mesh and warehouse model are deliberately left untinted for now -- they get real per-face
+  lighting from the baked lightmap instead (the next step), not this per-actor approximation.
+- New `PrototypeRenderer::DrawShadowDecal()`: a flat, dark, semi-transparent unit-footprint mesh
+  (`shadowDecalMesh_`, built once) scaled/rotated/positioned per actor at draw time, drawn with
+  `BlendState::AlphaBlend` (confirmed implemented on the SOFTWARE backend) just above the ground
+  plane. Standing in for real shadow-mapping, which is confirmed NOT achievable on the SOFTWARE
+  backend without modifying CNA itself (no shadow-map support at all; effects are fixed per-backend
+  formulas, not a custom-shader system) -- a period-appropriate "blob shadow", not real shadows.
+  Scoped to just the player and their own vehicle (matching gate M10's own "limited shadows"
+  wording), not extended to every traffic/pedestrian/police actor.
+- New test: `TestSunBrightnessMatchesHandComputedValue` (exact hand-computed value,
+  0.799775, for the authored sun direction/intensity/ambient-floor constants). Verified: full
+  `compile-software` rebuild (clean, one pre-existing unrelated warning only), all three `ctest`
+  targets pass, `./scripts/check-syntax.sh` clean, and a `--smoke 20` run with no crash. **Not
+  verified**: any visual/interactive check of how the tint/shadows actually look, since this
+  environment has no display -- unlike some earlier milestones this session, no screenshot was
+  captured for this piece (time-boxed to keep momentum on the remaining, larger M10 pieces).
 
 ### UI/HUD done this session (`plan_28` `IS-28-001`/`002`)
 
