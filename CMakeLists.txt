@@ -143,6 +143,13 @@ if(IRON_SHADOWS_BUILD_TESTS)
     add_test(NAME iron_shadows_core_tests COMMAND iron_shadows_core_tests)
     set_tests_properties(iron_shadows_core_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+    # IS-39-035: the game must fall back to the procedural warehouse box, not crash, when
+    # scripts/build-assets.sh has not produced assets/generated/warehouse/cnj/warehouse.cnj.
+    add_test(NAME iron_shadows_missing_asset_fallback
+        COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-missing-asset-fallback.sh" "$<TARGET_FILE:iron_shadows>")
+    set_tests_properties(iron_shadows_missing_asset_fallback PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
 endif()
 
 install(TARGETS iron_shadows RUNTIME DESTINATION bin)

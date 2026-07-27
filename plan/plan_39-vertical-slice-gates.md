@@ -42,14 +42,14 @@ rather than being a one-time final check.
 - [ ] **IS-39-025 P0** — M1 procedural executable: capture logs and gameplay reference.
 - [x] **IS-39-026 P0** — M2 first production asset: validate MC3.
 - [x] **IS-39-027 P0** — M2 first production asset: convert MC3 to GLB.
-- [ ] **IS-39-028 P0** — M2 first production asset: validate GLB.
+- [ ] **IS-39-028 P0** — M2 first production asset: add a standalone GLB structural validation step (currently only implicit: `mc3togltf`/`cna_tool_gltf_to_cnj` error out on malformed input, but nothing validates the GLB independently of a successful conversion).
 - [x] **IS-39-029 P0** — M2 first production asset: convert GLB to CNJ.
 - [x] **IS-39-030 P0** — M2 first production asset: load CNJ.
-- [ ] **IS-39-031 P0** — M2 first production asset: assign material using CNA's PbrEffect.
-- [ ] **IS-39-032 P0** — M2 first production asset: create collision.
+- [ ] **IS-39-031 P0** — M2 first production asset: assign material using CNA's PbrEffect. Confirmed root cause: CNA's `cna_tool_gltf_to_cnj` only emits `PbrEffect` when a primitive has an actual normal/metallic-roughness *texture* (see `GltfImportCore.cpp`'s `usePbr` derivation) -- a flat-factor-only material like the current warehouse's is deliberately routed to `BasicEffect` instead, which is correct behavior, not a bug. Revisit once the warehouse gets a real normal/metallic-roughness texture (a content task, see plan_31), not a code task.
+- [ ] **IS-39-032 P0** — M2 first production asset: derive collision from the MC3 `collision` attribute instead of the pre-existing, independently-authored procedural AABB in `PrototypeWorld` -- needs the sidecar/MCB metadata compiler from plan_10 (`IS-10-001`/`IS-10-002`), not a one-off XML parse, since the single-asset `warehouse.mc3.xml` does not carry the building's city-block world position on its own.
 - [x] **IS-39-033 P0** — M2 first production asset: replace procedural mesh.
 - [x] **IS-39-034 P0** — M2 first production asset: package provenance.
-- [ ] **IS-39-035 P0** — M2 first production asset: test missing/corrupt asset fallback.
+- [x] **IS-39-035 P0** — M2 first production asset: test missing/corrupt asset fallback (`scripts/test-missing-asset-fallback.sh`, wired into `ctest` as `iron_shadows_missing_asset_fallback`).
 - [ ] **IS-39-036 P0** — M5 district load/unload: partition one district's assets for loading-screen transition.
 - [ ] **IS-39-037 P0** — M5 district load/unload: load the target district asynchronously behind the loading screen.
 - [ ] **IS-39-038 P0** — M5 district load/unload: upload GPU resources safely once loading completes.
