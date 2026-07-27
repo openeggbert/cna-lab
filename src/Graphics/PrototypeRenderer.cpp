@@ -171,7 +171,7 @@ namespace IronShadows
                 // use, then draw through the same direct Model::Draw() call warehouseModel_/
                 // vehicleModels_ already use (no RenderSystem3DEXT/Camera3DEXT: this renderer
                 // already has view/projection ready, and needs no other ECS-driven drawing).
-                const auto& skinTransforms = characterAnimComponent_->PlayerEXT.GetSkinTransforms();
+                const auto& skinTransforms = characterAnimComponent_->BlendedSkinTransformsEXT;
                 for (ModelMesh* mesh : characterModel_->getMeshesProperty())
                 {
                     for (Effect* effect : mesh->getEffectsPropertyMutable())

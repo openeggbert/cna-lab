@@ -117,11 +117,30 @@ workaround.
   to a no-op (so it could not have been the cause). If a future session sees `--smoke` runs that
   seem to hang, check `uptime`/`ps aux --sort=-%cpu` for contention before assuming a regression.
 - **Explicitly not done** (see `plan/plan_18-characters-skeletons-and-animation.md`/`plan_39`'s
-  gate M6 entry for the full itemized list): clip blending, a dialogue-pose clip (dialogue leaves
+  gate M6 entry for the full itemized list): a dialogue-pose clip (dialogue leaves
   the character in whatever locomotion clip it was already playing), vehicle entry/exit animation
   (the character just is not drawn while driving, matching the box it replaced), a general
   named-bone skeleton convention (this rig is a one-off, not reusable), and any interactive/visual
   check of how the character actually looks or moves — this environment has no display.
+
+**Follow-up in the same session: clip blending added.** The paragraph above originally shipped
+with a hard cut only; blending was added right after (`cna-extended` commit `2ff3cff`, iron-shadows
+same commit as the rest of this M6 work). `ModelAnimationComponentEXT` gained `BlendDurationEXT`
+(seconds, default 0.25; 0 = hard cut), `BlendFromSkinTransformsEXT` (a frozen outgoing-pose
+snapshot), and `BlendedSkinTransformsEXT` (the actual per-frame output — `RenderSystem3DEXT` and
+Iron Shadows' `PrototypeRenderer` both read this now, not `PlayerEXT.GetSkinTransforms()`
+directly). `ModelAnimationSystem3DEXT::Update()` snapshots the outgoing pose the instant
+`ClipNameEXT` changes to a different clip, then writes a per-bone `Matrix::Lerp` between that
+snapshot and the new clip's live pose each frame. `Matrix::Lerp` (matching real XNA's own
+`Matrix.Lerp`) is a simple per-component interpolation, not true rotation-aware blending — a
+documented simplification, adequate for a short crossfade between similar poses like Idle/Walk,
+not a substitute for a real blend-space/layered system. Verified: 2 new `cna-extended` tests
+(a hand-verified two-named-clip glTF fixture, proving the blend math numerically at
+t=0/halfway/finished, plus a `BlendDurationEXT=0` hard-cut case) — full suite 2369/2369, including
+the previously-flaky `TexturePackerFileReaderTests` case now passing (confirms that was a
+parallel-run isolation flake, not a regression). In Iron Shadows: full rebuild, all `ctest`
+targets pass, `check-syntax.sh` clean, `--smoke 20` exits 0. Not verified: how the crossfade
+actually looks, since this environment has no display.
 
 ### Earlier this session: implemented gate M5 (second district)
 
@@ -268,21 +287,19 @@ never by actually seeing it happen.
 
 **If continuing headless/autonomous work, gate M6 (`plan/plan_39-vertical-slice-gates.md`
 `IS-39-007`) still has real work left before it's fully done** — see `plan/plan_18-characters-skeletons-and-animation.md`
-for the itemized list, but the three biggest pieces are:
-1. **Clip blending** — neither `AnimationSystem3DEXT` (Avatar path) nor the new
-   `ModelAnimationSystem3DEXT` (added this session, general `Model`/`AnimationPlayer` path) support
-   it; both only do a hard cut. This is real work in the `cna-extended` sibling repo (cross into it
-   again with the same kind of explicit go-ahead this session got, or ask first) — likely a linear
-   blend between two `AnimationPlayer`-computed pose sets over a short window, driven by
-   `ModelAnimationComponentEXT` gaining a second "outgoing" clip + blend-weight field.
-2. **A dialogue-pose clip** — dialogue currently leaves the character in whatever locomotion clip
+for the itemized list, but the two biggest remaining pieces are:
+1. **A dialogue-pose clip** — dialogue currently leaves the character in whatever locomotion clip
    it was already playing. Needs a new clip authored in `gen_test_character_gltf.py` (or a real
    asset once one exists) plus a call from wherever `DialogueSystem`'s active/inactive state is
    already read in `IronShadowsGame::Update()`.
-3. **Vehicle entry/exit animation** — the character is currently just not drawn at all while
+2. **Vehicle entry/exit animation** — the character is currently just not drawn at all while
    `playerDriving_` is true (same as the box it replaced). Needs an actual enter/exit clip and a
    state machine in `IronShadowsGame`/`PrototypeRenderer` for "play this clip once, non-looping,
    then switch to driving-hidden" rather than the current binary show/hide.
+
+(Clip blending was the third piece here — **done as a same-session follow-up**, see above:
+`ModelAnimationComponentEXT`/`ModelAnimationSystem3DEXT` now crossfade via a per-bone
+`Matrix::Lerp` over `BlendDurationEXT` seconds, not a hard cut.)
 
 Before any of that, note the *real* rig used today (`assets/source/gltf/test_character.gltf`) is a
 minimal 3-bone/3-box placeholder, not a proper reusable skeleton (`plan_18` `IS-18-001` is still

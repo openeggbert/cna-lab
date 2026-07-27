@@ -65,11 +65,12 @@ namespace IronShadows
                         std::optional<Microsoft::Xna::Framework::Graphics::Model> characterModel = std::nullopt);
 
         // Advances the skinned character's animation state (gate M6): switches to clipName if it
-        // differs from the currently playing clip (a hard cut -- see
-        // CNA::Extended::World3DEXT::ModelAnimationSystem3DEXT's own header comment for why there
-        // is no blending yet) and ticks it by deltaSeconds. A no-op if characterModel was not
-        // supplied to Initialize() (the procedural player box stays in place instead). Call once
-        // per frame from gameplay Update(), not Draw() -- Draw() has no time step of its own.
+        // differs from the currently playing clip, crossfading over
+        // ModelAnimationComponentEXT::BlendDurationEXT seconds (see
+        // CNA::Extended::World3DEXT::ModelAnimationSystem3DEXT's own header comment for how), and
+        // ticks it by deltaSeconds. A no-op if characterModel was not supplied to Initialize()
+        // (the procedural player box stays in place instead). Call once per frame from gameplay
+        // Update(), not Draw() -- Draw() has no time step of its own.
         void UpdateCharacterAnimation(float deltaSeconds, const std::string& clipName);
 
         // Rebuilds just the static city mesh for a newly loaded district (a district transition,
