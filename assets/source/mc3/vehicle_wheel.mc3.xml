@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mc3 version="0.3" model="IronShadowsSedanWheel" unit="meter" coordinate_system="right_handed_y_up">
+  <lights>
+    <directional name="Sun" color="1 0.94 0.82" brightness="1.1" direction="0.35 -1 -0.25"/>
+  </lights>
+  <materials>
+    <material id="tire" roughness="0.9" metallic="0">
+      <base_color>0.098 0.098 0.106 1</base_color>
+    </material>
+  </materials>
+  <objects>
+    <box name="Wheel" size="0.32 0.65 0.75" position="0 0 0" material="tire" collision="none"/>
+  </objects>
+</mc3>

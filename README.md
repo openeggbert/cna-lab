@@ -20,7 +20,7 @@ The current C++ prototype is intentionally simple but not empty. It provides:
 - A reset key (**R**).
 - Headless core tests for collision, vehicle movement, mission progression, dialogue, and persistence.
 - An editable MC3 source scene and an MC3 → GLB → CNJ helper script.
-- One real production asset: the warehouse building is authored in MC3, converted through the full Mesh Craft → CNA pipeline, and loaded in-engine as a CNJ model (with a procedural-box fallback if the generated asset is missing), replacing its procedural counterpart while the delivery mission still works unchanged.
+- Two real production assets: the warehouse building and the sedan (as four composed parts — body/cabin/windshield/wheel) are authored in MC3, converted through the full Mesh Craft → CNA pipeline, and loaded in-engine as CNJ models (with a procedural fallback if a generated asset is missing), replacing their procedural counterparts while driving and the delivery mission still work unchanged.
 
 The renderer otherwise uses colored boxes. It is a debug scaffold designed to be replaced incrementally by MC3/glTF/CNJ content, one building at a time, following the warehouse's example.
 
@@ -100,18 +100,22 @@ Build Mesh Craft and CNA's conversion tools first, then set:
 export MESH_CRAFT_BUILD_DIR=/path/to/mesh-craft/cmake-build-release
 export CNA_BUILD_DIR=/path/to/cna/cmake-build-tools
 ./scripts/build-assets.sh
-./scripts/build-assets.sh assets/source/mc3/warehouse.mc3.xml assets/generated/warehouse
+./scripts/build-assets.sh assets/source/mc3/warehouse.mc3.xml assets/generated/models
+./scripts/build-assets.sh assets/source/mc3/vehicle_body.mc3.xml assets/generated/models
+./scripts/build-assets.sh assets/source/mc3/vehicle_cabin.mc3.xml assets/generated/models
+./scripts/build-assets.sh assets/source/mc3/vehicle_windshield.mc3.xml assets/generated/models
+./scripts/build-assets.sh assets/source/mc3/vehicle_wheel.mc3.xml assets/generated/models
 ```
 
-This runs:
+This runs, for every input listed above:
 
 ```text
-prototype_city_block.mc3.xml               warehouse.mc3.xml
-  → mc3togltf → prototype_city_block.glb      → mc3togltf → warehouse.glb
-  → cna_tool_gltf_to_cnj → CNJ + sidecars      → cna_tool_gltf_to_cnj → CNJ + sidecars
+<name>.mc3.xml → mc3togltf → <name>.glb → cna_tool_gltf_to_cnj → CNJ + binary sidecars
 ```
 
-The executable loads `assets/generated/warehouse/cnj/warehouse.cnj` at startup (via `Content.Load<Model>`) and draws it in place of the procedural warehouse box, proving the Mesh Craft → CNA runtime loop end to end while every other building stays procedural for now. If the generated asset is missing (a fresh checkout that has not run `build-assets.sh` yet), the game logs a warning and falls back to the procedural box instead of failing to start (`scripts/test-missing-asset-fallback.sh` covers this in `ctest`). Deriving collision from the MC3 `collision` attribute instead of the separate procedural AABB and a standalone GLB validation step are still open (`plan/plan_39-vertical-slice-gates.md`).
+All generated CNJ output shares one content root, `assets/generated/models/cnj/`, which the executable points its `ContentManager` at during startup.
+
+The executable loads `warehouse.cnj` and draws it in place of the procedural warehouse box, and loads `vehicle_body.cnj`/`vehicle_cabin.cnj`/`vehicle_windshield.cnj`/`vehicle_wheel.cnj` (the wheel model reused for all four wheel positions) and composes them with Iron Shadows' own per-part transforms in place of the procedural sedan, proving the Mesh Craft → CNA runtime loop end to end while every other building stays procedural for now. The sedan is authored as four single-object MC3 files rather than one multi-part scene because the current `cna_tool_gltf_to_cnj` does not bake per-object glTF node transforms into vertex data — a multi-object MC3 scene loaded as one CNJ model would lose each part's relative position (confirmed empirically; see `plan/plan_10-gltf-cnj-mcb-and-runtime-packages.md` `IS-10-004b`). If a generated asset is missing (a fresh checkout that has not run `build-assets.sh` yet), the game logs a warning and falls back to procedural geometry instead of failing to start (`scripts/test-missing-asset-fallback.sh` covers both the warehouse and the sedan in `ctest`). Deriving collision from the MC3 `collision` attribute instead of the separate procedural AABB and a standalone GLB validation step are still open (`plan/plan_39-vertical-slice-gates.md`).
 
 ## Repository map
 
@@ -141,4 +145,6 @@ Original repository code and original sample assets are MIT-licensed. Dependenci
 
 ## Immediate next milestone
 
-The warehouse building now loads as a generated CNJ model in place of its procedural box, with the delivery mission still working unchanged, asset provenance recorded, and an automated `ctest` regression (`iron_shadows_missing_asset_fallback`) covering the missing-asset fallback path (`plan/plan_39-vertical-slice-gates.md` gate M2, tasks `IS-39-026/027/029/030/033/034/035`). Still open for that same gate: a standalone GLB validation step, and deriving collision from the MC3 `collision` attribute instead of the separate procedural AABB (needs the sidecar/MCB metadata compiler from `plan/plan_10-gltf-cnj-mcb-and-runtime-packages.md`, not a one-off parse). `PbrEffect` materials turned out not to be a gap: CNA's own conversion tool only emits `PbrEffect` when a material has a real normal/metallic-roughness texture, and the warehouse's current material is deliberately flat-color, so `BasicEffect` is already the correct choice for it — revisit once it gets a real texture (a content task, not a code task). After M2, replace the sedan with a generated CNJ vehicle (gate M3) before expanding to a second building.
+Gates M2 and M3 are done: the warehouse building and the sedan both load as generated CNJ models in place of their procedural counterparts, with driving and the delivery mission still working unchanged, asset provenance recorded, and an automated `ctest` regression (`iron_shadows_missing_asset_fallback`) covering the missing-asset fallback path for both (`plan/plan_39-vertical-slice-gates.md` gate M2 tasks `IS-39-026/027/029/030/033/034/035`, gate M3 task `IS-39-004`). Still open from M2: a standalone GLB validation step, and deriving collision from the MC3 `collision` attribute instead of the separate procedural AABB (needs the sidecar/MCB metadata compiler from `plan/plan_10-gltf-cnj-mcb-and-runtime-packages.md`, not a one-off parse). `PbrEffect` materials turned out not to be a gap: CNA's own conversion tool only emits `PbrEffect` when a material has a real normal/metallic-roughness texture, and the current materials are deliberately flat-color, so `BasicEffect` is already the correct choice — revisit once they get real textures (a content task, not a code task). M3 also surfaced a real pipeline gap worth fixing upstream: `cna_tool_gltf_to_cnj` does not bake per-object node transforms, so a multi-part prop currently needs one MC3 file per part plus manual composition code (`IS-10-004b`) instead of one authored scene.
+
+Next: **M4 — select and prototype a physics library** (Jolt is the current recommendation, `analysis.md` §10) behind an Iron Shadows abstraction, covering character, trigger, raycast, and vehicle prototypes, before the second district (M5) forces a real streaming/loading-screen design.

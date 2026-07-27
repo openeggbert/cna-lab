@@ -8,6 +8,7 @@ Preserve both render data and gameplay metadata through conversion and packaging
 - [ ] **IS-10-002 P0** — Create a sidecar metadata path for semantics not represented in glTF.
 - [x] **IS-10-003 P0** — Load one converted CNJ model in the game.
 - [ ] **IS-10-004 P0** — Define a runtime package manifest with version, dependencies, hashes, and district ownership.
+- [ ] **IS-10-004b P1** — Confirmed gap: `cna_tool_gltf_to_cnj` does not bake per-object glTF node transforms into vertex data (verified empirically: four identically-shaped, differently-positioned MC3 boxes produced byte-identical CNJ vertex buffers). A multi-object MC3 scene loaded as one CNJ `Model` therefore loses each object's relative position. Workaround in place for the sedan (four single-object MC3 files, composed with Iron Shadows' own per-part transforms in `PrototypeRenderer`); a real fix (baking node-world-transform into vertex positions during conversion, or emitting a per-mesh-part transform in the CNJ `Model` format for `ContentManager` to apply) belongs upstream in CNA/Mesh Craft, not as a permanent Iron Shadows workaround, since it will keep costing extra per-part MC3 files and manual composition code for every future multi-part prop otherwise.
 
 ## glTF validation stage
 

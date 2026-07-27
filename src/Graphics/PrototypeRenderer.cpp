@@ -14,9 +14,11 @@ namespace IronShadows
 
     void PrototypeRenderer::Initialize(GraphicsDevice& device,
                                        const PrototypeWorld& world,
-                                       std::optional<Model> warehouseModel)
+                                       std::optional<Model> warehouseModel,
+                                       std::optional<VehicleModelSet> vehicleModels)
     {
         warehouseModel_ = std::move(warehouseModel);
+        vehicleModels_ = std::move(vehicleModels);
 
         MeshBuilder cityBuilder;
         for (const WorldBox& box : world.GetBoxes())
@@ -76,7 +78,29 @@ namespace IronShadows
         effect_->Projection = projection;
 
         DrawMesh(device, staticCityMesh_, Matrix::getIdentityProperty());
-        DrawMesh(device, vehicleMesh_, Matrix::CreateRotationY(vehicleYaw) * Matrix::CreateTranslation(vehiclePosition));
+
+        const Matrix vehicleWorld = Matrix::CreateRotationY(vehicleYaw) * Matrix::CreateTranslation(vehiclePosition);
+        if (vehicleModels_.has_value())
+        {
+            const Vector3 kCabinOffset{0.0F, 0.58F, -0.15F};
+            const Vector3 kWindshieldOffset{0.0F, 0.62F, -0.35F};
+            const Vector3 kWheelOffsets[4] = {
+                {-1.05F, -0.20F, -1.35F}, {1.05F, -0.20F, -1.35F},
+                {-1.05F, -0.20F, 1.35F},  {1.05F, -0.20F, 1.35F},
+            };
+
+            vehicleModels_->body.Draw(vehicleWorld, view, projection);
+            vehicleModels_->cabin.Draw(Matrix::CreateTranslation(kCabinOffset) * vehicleWorld, view, projection);
+            vehicleModels_->windshield.Draw(Matrix::CreateTranslation(kWindshieldOffset) * vehicleWorld, view, projection);
+            for (const Vector3& wheelOffset : kWheelOffsets)
+            {
+                vehicleModels_->wheel.Draw(Matrix::CreateTranslation(wheelOffset) * vehicleWorld, view, projection);
+            }
+        }
+        else
+        {
+            DrawMesh(device, vehicleMesh_, vehicleWorld);
+        }
 
         if (warehouseModel_.has_value())
         {

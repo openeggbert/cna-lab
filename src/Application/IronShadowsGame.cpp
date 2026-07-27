@@ -60,11 +60,12 @@ namespace IronShadows
             std::cout << line->speaker << ": " << line->text << '\n';
         }
 
-        // Load the warehouse as a generated CNJ model (MC3 -> glTF -> CNJ) if it has been built
-        // via scripts/build-assets.sh; otherwise fall back to the procedural box, so a fresh
-        // checkout that has not run the asset pipeline still runs.
+        // Load the warehouse and sedan as generated CNJ models (MC3 -> glTF -> CNJ) if they have
+        // been built via scripts/build-assets.sh; otherwise fall back to procedural geometry, so
+        // a fresh checkout that has not run the asset pipeline still runs.
+        getContentProperty().setRootDirectoryProperty(assetRoot_ + "/generated/models/cnj");
+
         std::optional<Graphics::Model> warehouseModel;
-        getContentProperty().setRootDirectoryProperty(assetRoot_ + "/generated/warehouse/cnj");
         try
         {
             warehouseModel = getContentProperty().Load<Graphics::Model>("warehouse");
@@ -74,11 +75,37 @@ namespace IronShadows
         {
             std::cerr << "[IronShadows] " << contentError.what()
                       << " -- using procedural warehouse box. Run scripts/build-assets.sh"
-                         " assets/source/mc3/warehouse.mc3.xml assets/generated/warehouse to"
+                         " assets/source/mc3/warehouse.mc3.xml assets/generated/models to"
                          " generate it.\n";
         }
 
-        renderer_.Initialize(getGraphicsDeviceProperty(), world_, std::move(warehouseModel));
+        // The sedan is authored as four single-object MC3 files (body/cabin/windshield/wheel)
+        // instead of one multi-object scene: the current MC3 -> glTF -> CNJ pipeline does not
+        // bake per-object node transforms into vertex data, so a multi-part scene loaded as one
+        // CNJ Model would lose each part's relative position (see PrototypeRenderer.hpp's
+        // VehicleModelSet comment). Iron Shadows composes the four parts itself instead. All four
+        // must load for the sedan to use CNJ content; otherwise it stays fully procedural rather
+        // than mixing generated and procedural parts.
+        std::optional<VehicleModelSet> vehicleModels;
+        try
+        {
+            VehicleModelSet models{
+                getContentProperty().Load<Graphics::Model>("vehicle_body"),
+                getContentProperty().Load<Graphics::Model>("vehicle_cabin"),
+                getContentProperty().Load<Graphics::Model>("vehicle_windshield"),
+                getContentProperty().Load<Graphics::Model>("vehicle_wheel")};
+            vehicleModels = std::move(models);
+            std::cout << "[IronShadows] Loaded generated vehicle_{body,cabin,windshield,wheel}.cnj\n";
+        }
+        catch (const std::exception& contentError)
+        {
+            std::cerr << "[IronShadows] " << contentError.what()
+                      << " -- using procedural sedan. Run scripts/build-assets.sh"
+                         " assets/source/mc3/vehicle_<part>.mc3.xml assets/generated/models"
+                         " for body/cabin/windshield/wheel to generate it.\n";
+        }
+
+        renderer_.Initialize(getGraphicsDeviceProperty(), world_, std::move(warehouseModel), std::move(vehicleModels));
         UpdateWindowTitle(10.0F);
     }
 

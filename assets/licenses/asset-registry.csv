@@ -2,3 +2,7 @@ asset_id,relative_path,source_url,author,license,download_date,modified,attribut
 prototype_mc3,source/mc3/prototype_city_block.mc3.xml,,Iron Shadows contributors,MIT,,false,false,true,true,Original repository asset
 prologue_dialogue,dialogues/prologue.dialogue.txt,,Iron Shadows contributors,MIT,,false,false,true,true,Original repository asset
 warehouse_mc3,source/mc3/warehouse.mc3.xml,,Iron Shadows contributors,MIT,,false,false,true,true,Original repository asset; first building converted through the full MC3 -> GLB -> CNJ pipeline and loaded in-engine (gate M2)
+vehicle_body_mc3,source/mc3/vehicle_body.mc3.xml,,Iron Shadows contributors,MIT,,false,false,true,true,Original repository asset; sedan body, one of four CNJ-loaded parts composed in-engine (gate M3)
+vehicle_cabin_mc3,source/mc3/vehicle_cabin.mc3.xml,,Iron Shadows contributors,MIT,,false,false,true,true,Original repository asset; sedan cabin, one of four CNJ-loaded parts composed in-engine (gate M3)
+vehicle_windshield_mc3,source/mc3/vehicle_windshield.mc3.xml,,Iron Shadows contributors,MIT,,false,false,true,true,Original repository asset; sedan windshield, one of four CNJ-loaded parts composed in-engine (gate M3)
+vehicle_wheel_mc3,source/mc3/vehicle_wheel.mc3.xml,,Iron Shadows contributors,MIT,,false,false,true,true,Original repository asset; sedan wheel (reused for all four wheels), one of four CNJ-loaded parts composed in-engine (gate M3)

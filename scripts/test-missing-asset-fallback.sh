@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Regression test for IS-39-035: the game must not crash or hang when the generated
-# warehouse.cnj asset (produced by scripts/build-assets.sh) has not been built. It should log a
-# warning and fall back to the procedural warehouse box instead.
+# warehouse.cnj / vehicle_*.cnj assets (produced by scripts/build-assets.sh) have not been built.
+# It should log a warning and fall back to procedural geometry instead.
 
 executable="${1:?Usage: test-missing-asset-fallback.sh <path-to-iron_shadows>}"
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -28,7 +28,12 @@ if [[ $status -ne 0 ]]; then
 fi
 
 if ! grep -q "using procedural warehouse box" <<<"$output"; then
-  echo "FAIL: expected fallback log message was not printed" >&2
+  echo "FAIL: expected warehouse fallback log message was not printed" >&2
+  exit 1
+fi
+
+if ! grep -q "using procedural sedan" <<<"$output"; then
+  echo "FAIL: expected sedan fallback log message was not printed" >&2
   exit 1
 fi
 
