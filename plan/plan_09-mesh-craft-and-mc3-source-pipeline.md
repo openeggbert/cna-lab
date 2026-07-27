@@ -9,7 +9,7 @@ Make MC3 a validated, reproducible, hand-authored source format for construction
 - [ ] **IS-09-001 P0** — Keep the supplied MC3 schema version in the source manifest.
 - [ ] **IS-09-002 P0** — Add MC3 schema validation to the asset build script.
 - [ ] **IS-09-003 P0** — Make invalid MC3 fail the build with file and line diagnostics.
-- [ ] **IS-09-004 P0** — Author one production-path building in MC3 and load its converted output.
+- [x] **IS-09-004 P0** — Author one production-path building in MC3 and load its converted output.
 - [ ] **IS-09-005 P0** — Author one production-path street prop set in MC3.
 - [ ] **IS-09-006 P1** — Define Iron Shadows naming, units, axes, pivots, tags, and layer conventions for MC3.
 - [ ] **IS-09-007 P1** — Define allowed MC3 collision values and required metadata.

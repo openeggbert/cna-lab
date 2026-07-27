@@ -20,8 +20,9 @@ The current C++ prototype is intentionally simple but not empty. It provides:
 - A reset key (**R**).
 - Headless core tests for collision, vehicle movement, mission progression, dialogue, and persistence.
 - An editable MC3 source scene and an MC3 → GLB → CNJ helper script.
+- One real production asset: the warehouse building is authored in MC3, converted through the full Mesh Craft → CNA pipeline, and loaded in-engine as a CNJ model (with a procedural-box fallback if the generated asset is missing), replacing its procedural counterpart while the delivery mission still works unchanged.
 
-The renderer uses colored boxes only. It is a debug scaffold designed to be replaced incrementally by MC3/glTF/CNJ content.
+The renderer otherwise uses colored boxes. It is a debug scaffold designed to be replaced incrementally by MC3/glTF/CNJ content, one building at a time, following the warehouse's example.
 
 ## Controls
 
@@ -99,17 +100,18 @@ Build Mesh Craft and CNA's conversion tools first, then set:
 export MESH_CRAFT_BUILD_DIR=/path/to/mesh-craft/cmake-build-release
 export CNA_BUILD_DIR=/path/to/cna/cmake-build-tools
 ./scripts/build-assets.sh
+./scripts/build-assets.sh assets/source/mc3/warehouse.mc3.xml assets/generated/warehouse
 ```
 
 This runs:
 
 ```text
-prototype_city_block.mc3.xml
-  → mc3togltf → prototype_city_block.glb
-  → cna_tool_gltf_to_cnj → CNJ model and binary sidecars
+prototype_city_block.mc3.xml               warehouse.mc3.xml
+  → mc3togltf → prototype_city_block.glb      → mc3togltf → warehouse.glb
+  → cna_tool_gltf_to_cnj → CNJ + sidecars      → cna_tool_gltf_to_cnj → CNJ + sidecars
 ```
 
-The executable does not yet load the generated CNJ scene; connecting that runtime path is an early task in `plan.md`.
+The executable loads `assets/generated/warehouse/cnj/warehouse.cnj` at startup (via `Content.Load<Model>`) and draws it in place of the procedural warehouse box, proving the Mesh Craft → CNA runtime loop end to end while every other building stays procedural for now. If the generated asset is missing (a fresh checkout that has not run `build-assets.sh` yet), the game logs a warning and falls back to the procedural box instead of failing to start. Assigning `PbrEffect`/materials to the loaded model, deriving collision from the MC3 `collision` attribute instead of the separate procedural AABB, and asset-registry provenance tracking are still open (`plan/plan_39-vertical-slice-gates.md`).
 
 ## Repository map
 
@@ -139,4 +141,4 @@ Original repository code and original sample assets are MIT-licensed. Dependenci
 
 ## Immediate next milestone
 
-Replace one procedural building and the sedan with generated CNJ content while preserving the existing playable mission. That proves the complete Mesh Craft → CNA runtime loop before expanding the map.
+The warehouse building now loads as a generated CNJ model in place of its procedural box, with the delivery mission still working unchanged (`plan/plan_39-vertical-slice-gates.md` gate M2, tasks `IS-39-026/027/029/030/033`). Still open for that same gate: assign `PbrEffect` materials to the loaded model instead of its default `BasicEffect`, validate the intermediate GLB, derive collision from the MC3 `collision` attribute instead of the separate procedural AABB, record asset-registry provenance, and add an automated test for the missing/corrupt-asset fallback path. After that, replace the sedan with a generated CNJ vehicle (gate M3) before expanding to a second building.

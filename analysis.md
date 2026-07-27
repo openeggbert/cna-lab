@@ -800,9 +800,9 @@ The most valuable next steps are:
 
 1. Build the repository from a recursive CNA checkout and execute the current prototype (done: `compile-software` preset builds and passes tests with `cna-extended` linked).
 2. Add a dependency preflight script that gives precise missing-submodule messages (done: `scripts/preflight.sh` also checks `cna-extended`).
-3. Load one generated CNJ building at runtime and replace its procedural counterpart.
+3. Load one generated CNJ building at runtime and replace its procedural counterpart (done: `assets/source/mc3/warehouse.mc3.xml` -> `mc3togltf` -> `cna_tool_gltf_to_cnj` -> `Content.Load<Model>()`, with a procedural-box fallback if the asset is missing; see `docs/validation.md`. Still open: `PbrEffect` materials instead of the default `BasicEffect`, and deriving collision from the MC3 `collision` attribute instead of the pre-existing procedural AABB — see `plan/plan_39-vertical-slice-gates.md` gate M2).
 4. Load one generated CNJ vehicle body and preserve current controls.
-5. Introduce a production asset registry and package manifest.
+5. Introduce a production asset registry and package manifest (registry started: `assets/licenses/asset-registry.csv` now tracks the warehouse MC3 source; the package-manifest half of this item is still open, see `plan/plan_10-gltf-cnj-mcb-and-runtime-packages.md`).
 6. Select and prototype a physics library behind an abstraction, using cna-extended's collision/octree only where it already suffices and reaching for a dedicated rigid-body library (section 10) where it does not.
 7. Create a second, genuinely different district to validate the district-loading approach (section 8), not a bigger single streamed sector.
 8. Replace window-title objectives with a minimal SpriteBatch/SpriteFont HUD.

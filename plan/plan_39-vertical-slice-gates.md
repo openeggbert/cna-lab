@@ -40,15 +40,15 @@ rather than being a one-time final check.
 - [ ] **IS-39-023 P0** — M1 procedural executable: save and load.
 - [ ] **IS-39-024 P0** — M1 procedural executable: reset and quit.
 - [ ] **IS-39-025 P0** — M1 procedural executable: capture logs and gameplay reference.
-- [ ] **IS-39-026 P0** — M2 first production asset: validate MC3.
-- [ ] **IS-39-027 P0** — M2 first production asset: convert MC3 to GLB.
+- [x] **IS-39-026 P0** — M2 first production asset: validate MC3.
+- [x] **IS-39-027 P0** — M2 first production asset: convert MC3 to GLB.
 - [ ] **IS-39-028 P0** — M2 first production asset: validate GLB.
-- [ ] **IS-39-029 P0** — M2 first production asset: convert GLB to CNJ.
-- [ ] **IS-39-030 P0** — M2 first production asset: load CNJ.
+- [x] **IS-39-029 P0** — M2 first production asset: convert GLB to CNJ.
+- [x] **IS-39-030 P0** — M2 first production asset: load CNJ.
 - [ ] **IS-39-031 P0** — M2 first production asset: assign material using CNA's PbrEffect.
 - [ ] **IS-39-032 P0** — M2 first production asset: create collision.
-- [ ] **IS-39-033 P0** — M2 first production asset: replace procedural mesh.
-- [ ] **IS-39-034 P0** — M2 first production asset: package provenance.
+- [x] **IS-39-033 P0** — M2 first production asset: replace procedural mesh.
+- [x] **IS-39-034 P0** — M2 first production asset: package provenance.
 - [ ] **IS-39-035 P0** — M2 first production asset: test missing/corrupt asset fallback.
 - [ ] **IS-39-036 P0** — M5 district load/unload: partition one district's assets for loading-screen transition.
 - [ ] **IS-39-037 P0** — M5 district load/unload: load the target district asynchronously behind the loading screen.

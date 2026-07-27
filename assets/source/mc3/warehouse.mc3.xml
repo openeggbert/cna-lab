@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mc3 version="0.3" model="IronShadowsWarehouse" unit="meter" coordinate_system="right_handed_y_up">
+  <lights>
+    <directional name="Sun" color="1 0.94 0.82" brightness="1.1" direction="0.35 -1 -0.25"/>
+  </lights>
+  <materials>
+    <material id="warehouse" roughness="0.84" metallic="0.05">
+      <base_color>0.42 0.36 0.31 1</base_color>
+    </material>
+  </materials>
+  <objects>
+    <box name="Warehouse" size="20 9 22" position="0 4.5 0" material="warehouse" collision="static"/>
+  </objects>
+</mc3>

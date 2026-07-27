@@ -3,8 +3,10 @@
 #include "IronShadows/Persistence/SaveGame.hpp"
 
 #include "Microsoft/Xna/Framework/Color.hpp"
+#include "Microsoft/Xna/Framework/Content/ContentManager.hpp"
 #include "Microsoft/Xna/Framework/GameTime.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
+#include "Microsoft/Xna/Framework/Graphics/Model.hpp"
 #include "Microsoft/Xna/Framework/Input/Keyboard.hpp"
 #include "Microsoft/Xna/Framework/Input/Keys.hpp"
 #include "System/TimeSpan.hpp"
@@ -12,6 +14,7 @@
 #include <cmath>
 #include <iostream>
 #include <numbers>
+#include <optional>
 #include <sstream>
 #include <utility>
 
@@ -57,7 +60,25 @@ namespace IronShadows
             std::cout << line->speaker << ": " << line->text << '\n';
         }
 
-        renderer_.Initialize(getGraphicsDeviceProperty(), world_);
+        // Load the warehouse as a generated CNJ model (MC3 -> glTF -> CNJ) if it has been built
+        // via scripts/build-assets.sh; otherwise fall back to the procedural box, so a fresh
+        // checkout that has not run the asset pipeline still runs.
+        std::optional<Graphics::Model> warehouseModel;
+        getContentProperty().setRootDirectoryProperty(assetRoot_ + "/generated/warehouse/cnj");
+        try
+        {
+            warehouseModel = getContentProperty().Load<Graphics::Model>("warehouse");
+            std::cout << "[IronShadows] Loaded generated warehouse.cnj\n";
+        }
+        catch (const std::exception& contentError)
+        {
+            std::cerr << "[IronShadows] " << contentError.what()
+                      << " -- using procedural warehouse box. Run scripts/build-assets.sh"
+                         " assets/source/mc3/warehouse.mc3.xml assets/generated/warehouse to"
+                         " generate it.\n";
+        }
+
+        renderer_.Initialize(getGraphicsDeviceProperty(), world_, std::move(warehouseModel));
         UpdateWindowTitle(10.0F);
     }
 

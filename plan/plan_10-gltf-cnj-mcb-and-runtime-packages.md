@@ -6,7 +6,7 @@ Preserve both render data and gameplay metadata through conversion and packaging
 
 - [ ] **IS-10-001 P0** — Document exactly which MC3 semantics survive glTF export.
 - [ ] **IS-10-002 P0** — Create a sidecar metadata path for semantics not represented in glTF.
-- [ ] **IS-10-003 P0** — Load one converted CNJ model in the game.
+- [x] **IS-10-003 P0** — Load one converted CNJ model in the game.
 - [ ] **IS-10-004 P0** — Define a runtime package manifest with version, dependencies, hashes, and district ownership.
 
 ## glTF validation stage

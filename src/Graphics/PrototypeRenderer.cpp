@@ -5,16 +5,27 @@
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Graphics/RasterizerState.hpp"
 
+#include <utility>
+
 namespace IronShadows
 {
     using namespace Microsoft::Xna::Framework;
     using namespace Microsoft::Xna::Framework::Graphics;
 
-    void PrototypeRenderer::Initialize(GraphicsDevice& device, const PrototypeWorld& world)
+    void PrototypeRenderer::Initialize(GraphicsDevice& device,
+                                       const PrototypeWorld& world,
+                                       std::optional<Model> warehouseModel)
     {
+        warehouseModel_ = std::move(warehouseModel);
+
         MeshBuilder cityBuilder;
         for (const WorldBox& box : world.GetBoxes())
         {
+            if (warehouseModel_.has_value() && box.name == "warehouse")
+            {
+                warehousePosition_ = box.center;
+                continue;
+            }
             cityBuilder.AddBox(box.center, box.size, box.color);
         }
         staticCityMesh_.Upload(device, cityBuilder);
@@ -66,6 +77,11 @@ namespace IronShadows
 
         DrawMesh(device, staticCityMesh_, Matrix::getIdentityProperty());
         DrawMesh(device, vehicleMesh_, Matrix::CreateRotationY(vehicleYaw) * Matrix::CreateTranslation(vehiclePosition));
+
+        if (warehouseModel_.has_value())
+        {
+            warehouseModel_->Draw(Matrix::CreateTranslation(warehousePosition_), view, projection);
+        }
 
         if (drawPlayer)
         {
