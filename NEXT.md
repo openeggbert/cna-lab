@@ -158,9 +158,60 @@ its whole duration, a stronger check than the Idle/Walk clips get (those only ru
 ends, which smoke mode never triggers). Not verified: how the pose actually looks, since this
 environment has no display.
 
-**Gate M6 status after both follow-ups**: locomotion (with blending) and dialogue pose are done;
-vehicle entry/exit animation is the one remaining piece (see "Recommended next session starting
-point" below, now down to one item).
+**Gate M6 status after both follow-ups**: locomotion (with blending) and dialogue pose were done;
+vehicle entry/exit animation was the one remaining piece -- **also completed as a third
+same-session follow-up, gate M6 is now fully done** (at prototype fidelity; see the entry
+directly below).
+
+### Third follow-up in the same session: vehicle entry/exit animation added
+
+`gen_test_character_gltf.py` gained two more one-shot clips: "EnterVehicle" (standing -> sitting,
+both legs bending forward *together* via `quat_x`, unlike Walk's alternating phase) and
+"ExitVehicle" (the reverse). Each is authored as a 1-second clip but only ever played for 0.5s
+(`IronShadowsGame::kVehicleTransitionSeconds`) — deliberately so the motion is still visibly *in
+progress*, not already at its end pose, at the moment the game switches away, and so `LoopEXT`'s
+default-true modulo wraparound (the same "boundary" gotcha noted in
+`ModelAnimationSystem3DEXTTests.cpp`) never has a chance to trigger. `test_character.cnj`
+regenerated with 5 clips total (Idle/Walk/Dialogue/EnterVehicle/ExitVehicle).
+
+Added a small `VehicleTransitionState` (`None`/`Entering`/`Exiting`) enum + two new
+`IronShadowsGame` fields (`vehicleTransitionState_`, `vehicleTransitionSecondsRemaining_`).
+`HandleInteraction()`:
+- Entering: instead of instantly flipping `playerDriving_` true, starts `Entering` and keeps the
+  character visible/on-foot (still `drawPlayer = !playerDriving_ == true`) while "EnterVehicle"
+  plays; `playerDriving_` only flips true (hiding the character) once the clip finishes, in the
+  new `Update()` tick below.
+- Exiting: flips `playerDriving_` false *immediately* (character becomes visible right where the
+  car is) and starts `Exiting` while "ExitVehicle" plays — nothing left to flip once it finishes.
+- Ignores a new interaction entirely while `vehicleTransitionState_ != None` (no double-triggering
+  mid-clip).
+
+`Update()` gained a small tick block (`!transitioning && vehicleTransitionState_ != None`): plays
+the relevant clip via `renderer_.UpdateCharacterAnimation`, counts down
+`vehicleTransitionSecondsRemaining_`, and on reaching zero either flips `playerDriving_` true
+(Entering finishing) or does nothing further (Exiting finishing, already flipped) before resetting
+the state to `None`. The existing on-foot `player_.Update()`/Walk-Idle call is now gated behind
+`vehicleTransitionState_ == None` too (suppressed mid-clip, matching how dialogue already freezes
+movement), and `CheckDistrictExit()` is skipped mid-clip as a defensive guard (position doesn't
+actually change during the 0.5s window since input is suppressed, but avoids stacking an unrelated
+district transition on top of an in-progress vehicle one regardless). `LoadPrototype()`/
+`ResetPrototype()` both reset `vehicleTransitionState_` to `None` for safety (no mid-clip state is
+ever saved).
+
+Verified: two standalone diagnostics (not committed) loaded the regenerated CNJ and confirmed both
+clips' foot-position math at t=0/0.5s matches hand-derived pivot-rotation values exactly (e.g.
+`EnterVehicle@0.5s` and `ExitVehicle@0.5s` both land at the same halfway pose, as expected by
+symmetry — a real, independent numeric cross-check, not just "it compiled"). Full rebuild, all
+`ctest` targets pass, `check-syntax.sh` clean, `--smoke 20` exits 0. **The state machine itself
+(as opposed to the underlying clip math) was verified by careful manual code review of
+`HandleInteraction()`/`Update()`'s new branches, tracing through both the Entering and Exiting
+paths frame-by-frame on paper — not by an automated test.** Smoke mode never presses 'E', and
+`IronShadowsGame` is not unit-testable headlessly today (it's a real `Game` subclass, not a
+pure-logic class like `PlayerController`/`DistrictManager`), so there was no way to exercise the
+actual interaction flow in this environment. **First priority if a display/interactive input ever
+becomes available**: walk up to the sedan, press E, and watch whether the enter/exit animation
+and the `playerDriving_` handoff actually look and feel right — this is the single least-verified
+piece of the entire M6 body of work.
 
 ### Earlier this session: implemented gate M5 (second district)
 
@@ -300,32 +351,31 @@ All three `ctest` targets pass: `iron_shadows_core_tests`, `iron_shadows_missing
 **First priority if a display/interactive input becomes available:** actually play the game
 (`./scripts/run.sh compile-software` or a real backend preset) and check the items in "Explicitly
 not verified" above. Camera offsets, body-mesh offset, Jolt's default vehicle tuning, the loading
-screen (behind the map at roughly `(0,0.5,-47)`), and now the skinned test character's look/scale/
-Idle-Walk switching (walk forward and watch the legs alternate) are all unverified visually — this
-environment has no display, so everything above has only ever been checked via assertions/logs,
-never by actually seeing it happen.
+screen (behind the map at roughly `(0,0.5,-47)`), the skinned test character's look/scale/
+Idle-Walk switching (walk forward and watch the legs alternate), the Dialogue pose, and —
+**especially** — walking up to the sedan and pressing E to actually watch the enter/exit
+animation and `playerDriving_` handoff (the least-verified piece of all of M6, checked only by
+manual code review, not any automated test) are all unverified visually — this environment has no
+display, so everything above has only ever been checked via assertions/logs, never by actually
+seeing it happen.
 
-**If continuing headless/autonomous work, gate M6 (`plan/plan_39-vertical-slice-gates.md`
-`IS-39-007`) has exactly one piece left before it's fully done** — see
-`plan/plan_18-characters-skeletons-and-animation.md` for the itemized list:
+**Gate M6 (`plan/plan_39-vertical-slice-gates.md` `IS-39-007`) is now fully done** at prototype
+fidelity (locomotion + blending + dialogue pose + vehicle entry/exit, all landed as one initial
+pass plus three same-session follow-ups — see above for each). Remaining `plan_18` sub-tasks
+(a real named-bone skeleton convention, layered animation/bone masks, IK, root motion, sit/drive/
+steer poses while actually driving, etc.) are real but not gate-blocking — see that file for the
+itemized list if picking any of them up.
 
-- **Vehicle entry/exit animation** — the character is currently just not drawn at all while
-  `playerDriving_` is true (same as the box it replaced). Needs an actual enter/exit clip
-  (authored in `gen_test_character_gltf.py`, e.g. legs bending as if stepping into a car) and a
-  state machine in `IronShadowsGame`/`PrototypeRenderer` for "play this clip once, non-looping,
-  then switch to driving-hidden" (and the reverse on exit) rather than the current binary
-  show/hide in `HandleInteraction()`.
-
-(Clip blending and a dialogue-pose clip were the other two pieces here — **both done as
-same-session follow-ups**, see above: `ModelAnimationComponentEXT`/`ModelAnimationSystem3DEXT`
-now crossfade via a per-bone `Matrix::Lerp` over `BlendDurationEXT` seconds, and a third
-"Dialogue" clip plays while `DialogueSystem::IsActive()`.)
-
-Before any of that, note the *real* rig used today (`assets/source/gltf/test_character.gltf`) is a
-minimal 3-bone/3-box placeholder, not a proper reusable skeleton (`plan_18` `IS-18-001` is still
-open) — if a real character artist/pipeline becomes available, replacing this rig entirely (rather
-than extending it) is probably the right call once MC3 gains rigging support or a better
-hand-authoring path is found.
+**If continuing headless/autonomous work, the next milestone per `plan.md`'s own order is M7 —
+one data-driven mission** (`plan/plan_39-vertical-slice-gates.md` `IS-39-008`): one data-driven
+mission controls dialogue, objective UI, vehicle entry, destination trigger, checkpoint, and
+completion. The existing `PrototypeMission`/`DialogueSystem` are still hardcoded C++ state
+machines/text, not data-driven — this milestone likely means designing a small mission-definition
+format (JSON/XML, versioned) and a loader, replacing at least the current single hardcoded
+mission with a data-driven equivalent, without inventing a large generic scripting system (see
+`plan.md`'s locked scope decisions on baked lighting/manual authoring/no in-house editor suite for
+the same "keep it small" spirit). Scope the first pass to reproducing today's exact mission
+(briefing -> reach car -> enter -> drive to warehouse) as data, not adding new mission content.
 
 Other open items worth picking up opportunistically (not blocking, not sequenced):
 

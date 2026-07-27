@@ -136,13 +136,24 @@ namespace IronShadows
 
     void IronShadowsGame::HandleInteraction()
     {
+        // Gate M6: ignore a new interaction while an enter/exit clip is already playing, rather
+        // than starting a second transition mid-animation.
+        if (vehicleTransitionState_ != VehicleTransitionState::None)
+        {
+            return;
+        }
+
         if (!playerDriving_)
         {
             if (DistanceSquaredXZ(player_.GetPosition(), vehicle_.GetPosition()) <= 9.0F)
             {
-                playerDriving_ = true;
+                // Stay visible and on-foot for kVehicleTransitionSeconds while "EnterVehicle"
+                // plays; playerDriving_ only flips (hiding the character) once it finishes -- see
+                // the vehicle-transition tick in Update().
+                vehicleTransitionState_ = VehicleTransitionState::Entering;
+                vehicleTransitionSecondsRemaining_ = kVehicleTransitionSeconds;
                 player_.SetPosition(vehicle_.GetPosition(), physics_);
-                transientStatus_ = "Entered sedan";
+                transientStatus_ = "Entering sedan";
                 transientStatusSeconds_ = 2.0F;
             }
             else
@@ -163,9 +174,14 @@ namespace IronShadows
         }
         if (districtManager_.GetWorld().CanOccupy(exitPosition, 0.35F))
         {
+            // Become visible immediately (playerDriving_ = false) so "ExitVehicle" is seen right
+            // where the car is, then play it for kVehicleTransitionSeconds before normal on-foot
+            // Walk/Idle selection resumes.
             playerDriving_ = false;
             player_.SetPosition(exitPosition, physics_);
             player_.SetYaw(vehicle_.GetYaw(), physics_);
+            vehicleTransitionState_ = VehicleTransitionState::Exiting;
+            vehicleTransitionSecondsRemaining_ = kVehicleTransitionSeconds;
             transientStatus_ = "Exited sedan";
         }
         else
@@ -259,6 +275,7 @@ namespace IronShadows
         player_.Reset(snapshot->playerPosition, snapshot->playerYaw, physics_);
         vehicle_.Restore(snapshot->vehiclePosition, snapshot->vehicleYaw, snapshot->vehicleSpeed, physics_);
         playerDriving_ = snapshot->playerDriving;
+        vehicleTransitionState_ = VehicleTransitionState::None; // no mid-clip state is ever saved
         transientStatus_ = "Loaded prototype state";
         transientStatusSeconds_ = 3.0F;
     }
@@ -274,6 +291,7 @@ namespace IronShadows
         mission_.Reset();
         dialogue_.Start();
         playerDriving_ = false;
+        vehicleTransitionState_ = VehicleTransitionState::None;
         transientStatus_ = "Prototype reset";
         transientStatusSeconds_ = 2.0F;
     }
@@ -340,8 +358,11 @@ namespace IronShadows
                 player_.SetPosition(vehicle_.GetPosition(), physics_);
                 player_.SetYaw(vehicle_.GetYaw(), physics_);
             }
-            else
+            else if (vehicleTransitionState_ == VehicleTransitionState::None)
             {
+                // Suppressed while an enter/exit clip is playing (see the vehicle-transition tick
+                // below) -- the character briefly stops responding to on-foot input during the
+                // clip, matching how dialogue already freezes movement.
                 OnFootInput input;
                 input.forward = (keyboard.IsKeyDown(Keys::W) || keyboard.IsKeyDown(Keys::Up) ? 1.0F : 0.0F) -
                                 (keyboard.IsKeyDown(Keys::S) || keyboard.IsKeyDown(Keys::Down) ? 1.0F : 0.0F);
@@ -358,7 +379,13 @@ namespace IronShadows
                 const bool playerIsMoving = input.forward != 0.0F || input.strafe != 0.0F;
                 renderer_.UpdateCharacterAnimation(deltaSeconds, playerIsMoving ? "Walk" : "Idle");
             }
-            CheckDistrictExit();
+            if (vehicleTransitionState_ == VehicleTransitionState::None)
+            {
+                // Skipped mid-clip: position doesn't change during an enter/exit animation (input
+                // is suppressed above), but avoid starting a second, unrelated transition on top
+                // of an in-progress one regardless.
+                CheckDistrictExit();
+            }
         }
 
         // Gate M6 dialogue pose: the on-foot Walk/Idle call above only fires when dialogue is NOT
@@ -367,6 +394,25 @@ namespace IronShadows
         if (!transitioning && dialogue_.IsActive() && !playerDriving_)
         {
             renderer_.UpdateCharacterAnimation(deltaSeconds, "Dialogue");
+        }
+
+        // Gate M6 vehicle entry/exit: play the one-shot clip for kVehicleTransitionSeconds, then
+        // finalize (Entering hides the character by flipping playerDriving_ true; Exiting already
+        // flipped playerDriving_ false in HandleInteraction(), so there is nothing left to flip).
+        if (!transitioning && vehicleTransitionState_ != VehicleTransitionState::None)
+        {
+            const char* clipName =
+                vehicleTransitionState_ == VehicleTransitionState::Entering ? "EnterVehicle" : "ExitVehicle";
+            renderer_.UpdateCharacterAnimation(deltaSeconds, clipName);
+            vehicleTransitionSecondsRemaining_ -= deltaSeconds;
+            if (vehicleTransitionSecondsRemaining_ <= 0.0F)
+            {
+                if (vehicleTransitionState_ == VehicleTransitionState::Entering)
+                {
+                    playerDriving_ = true;
+                }
+                vehicleTransitionState_ = VehicleTransitionState::None;
+            }
         }
 
         if (!transitioning)

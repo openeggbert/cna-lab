@@ -17,6 +17,16 @@
 
 namespace IronShadows
 {
+    // Gate M6 vehicle entry/exit: which one-shot animation clip (if any) is currently playing
+    // while the character briefly stays visible (Entering) or becomes visible again (Exiting)
+    // around the otherwise-instant playerDriving_ show/hide cut.
+    enum class VehicleTransitionState
+    {
+        None,
+        Entering,
+        Exiting,
+    };
+
     class IronShadowsGame final : public Microsoft::Xna::Framework::Game
     {
     public:
@@ -61,5 +71,10 @@ namespace IronShadows
         std::string transientStatus_;
         float transientStatusSeconds_{0.0F};
         int smokeFramesRemaining_{-1};
+
+        // Gate M6 vehicle entry/exit animation state (see VehicleTransitionState's own comment).
+        VehicleTransitionState vehicleTransitionState_{VehicleTransitionState::None};
+        float vehicleTransitionSecondsRemaining_{0.0F};
+        static constexpr float kVehicleTransitionSeconds = 0.5F; // matches EnterVehicle/ExitVehicle's authored clip duration
     };
 }

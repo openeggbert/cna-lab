@@ -173,6 +173,20 @@ dialogue_times_off, dialogue_times_len = add("2f", 0.0, 1.0)
 dialogue_left_off, dialogue_left_len = add_vec4_array([quat_z(DIALOGUE_ANGLE), quat_z(DIALOGUE_ANGLE)])
 dialogue_right_off, dialogue_right_len = add_vec4_array([quat_z(-DIALOGUE_ANGLE), quat_z(-DIALOGUE_ANGLE)])
 
+# "EnterVehicle"/"ExitVehicle": both legs bend forward TOGETHER (unlike Walk's alternating
+# phase), as if sitting into/standing up from a car seat. Authored as a 1-second clip but only
+# ever played for IronShadowsGame::kVehicleTransitionSeconds (0.5s, half the clip) before the
+# game switches away -- deliberately so the motion is still visibly *in progress* (not already
+# holding its end pose) at the moment playerDriving_ flips, and so LoopEXT's default-true modulo
+# wraparound never has a chance to trigger (see the "boundary" gotcha noted in
+# ModelAnimationSystem3DEXTTests.cpp, cna-extended).
+SIT_ANGLE = math.radians(60.0)
+enter_times_off, enter_times_len = add("2f", 0.0, 1.0)
+enter_legs_off, enter_legs_len = add_vec4_array([(0, 0, 0, 1), quat_x(SIT_ANGLE)])  # standing -> sitting
+
+exit_times_off, exit_times_len = add("2f", 0.0, 1.0)
+exit_legs_off, exit_legs_len = add_vec4_array([quat_x(SIT_ANGLE), (0, 0, 0, 1)])  # sitting -> standing
+
 # A trivial 1x1 white PNG -- verbatim bytes from cna's own proven-good kTexturedSkinnedGltf/
 # kSkinnedAnimatedGltf test fixtures. Needed because a skinned mesh with no material at all
 # still gets TextureEnabled=true from cna's importer, which then requires a real bound
@@ -256,6 +270,12 @@ dialogue_times_acc = acc(bv(dialogue_times_off, dialogue_times_len), FLOAT, 2, "
 dialogue_left_acc = acc(bv(dialogue_left_off, dialogue_left_len), FLOAT, 2, "VEC4")
 dialogue_right_acc = acc(bv(dialogue_right_off, dialogue_right_len), FLOAT, 2, "VEC4")
 
+enter_times_acc = acc(bv(enter_times_off, enter_times_len), FLOAT, 2, "SCALAR", ([0.0], [1.0]))
+enter_legs_acc = acc(bv(enter_legs_off, enter_legs_len), FLOAT, 2, "VEC4")
+
+exit_times_acc = acc(bv(exit_times_off, exit_times_len), FLOAT, 2, "SCALAR", ([0.0], [1.0]))
+exit_legs_acc = acc(bv(exit_legs_off, exit_legs_len), FLOAT, 2, "VEC4")
+
 gltf = {
     "asset": {"version": "2.0", "generator": "iron-shadows gen_test_character_gltf.py (hand-authored, bypasses MC3 -- see plan_39/plan_13 M6 notes)"},
     "scene": 0,
@@ -308,6 +328,26 @@ gltf = {
             "channels": [
                 {"sampler": 0, "target": {"node": 1, "path": "rotation"}},
                 {"sampler": 1, "target": {"node": 2, "path": "rotation"}},
+            ],
+        },
+        {
+            "name": "EnterVehicle",
+            "samplers": [
+                {"input": enter_times_acc, "output": enter_legs_acc, "interpolation": "LINEAR"},
+            ],
+            "channels": [
+                {"sampler": 0, "target": {"node": 1, "path": "rotation"}},
+                {"sampler": 0, "target": {"node": 2, "path": "rotation"}},
+            ],
+        },
+        {
+            "name": "ExitVehicle",
+            "samplers": [
+                {"input": exit_times_acc, "output": exit_legs_acc, "interpolation": "LINEAR"},
+            ],
+            "channels": [
+                {"sampler": 0, "target": {"node": 1, "path": "rotation"}},
+                {"sampler": 0, "target": {"node": 2, "path": "rotation"}},
             ],
         },
     ],
