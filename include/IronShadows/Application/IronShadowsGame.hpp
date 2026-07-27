@@ -1,5 +1,6 @@
 #pragma once
 
+#include "IronShadows/Cutscenes/CutscenePlayer.hpp"
 #include "IronShadows/Dialogue/DialogueSystem.hpp"
 #include "IronShadows/Gameplay/PlayerController.hpp"
 #include "IronShadows/Gameplay/VehicleController.hpp"
@@ -64,6 +65,7 @@ namespace IronShadows
         VehicleController vehicle_;
         PrototypeMission mission_;
         DialogueSystem dialogue_;
+        CutscenePlayer cutscene_;
         PrototypeRenderer renderer_;
         Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_{};
         bool playerDriving_{false};

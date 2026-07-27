@@ -72,6 +72,29 @@ namespace IronShadows
             std::cout << line->speaker << ": " << line->text << '\n';
         }
 
+        // Gate M8 (plan_26-cutscenes-and-cinematic-sequencing.md IS-26-001/003): a short,
+        // skippable camera-only sequence panning from an establishing shot of the warehouse
+        // delivery target to the exact framing of the normal gameplay follow-camera at the
+        // player's spawn point (computed by hand to match Draw()'s own camera formula exactly,
+        // so the cut back to gameplay has no visible pop). Falls back to an identical hardcoded
+        // sequence (same convention as dialogue/mission) if the file fails to load.
+        CutsceneSequence introSequence;
+        std::string cutsceneError;
+        if (!LoadCutsceneSequence(assetRoot_ + "/cutscenes/prologue_intro.cutscene.json", introSequence,
+                                  cutsceneError))
+        {
+            std::cerr << "[IronShadows] " << cutsceneError << " -- using built-in fallback cutscene.\n";
+            introSequence = CutsceneSequence{
+                "prologue_intro_fallback",
+                1,
+                2.5F,
+                {
+                    {0.0F, Vector3(25.0F, 12.0F, -34.0F), Vector3(0.0F, 2.0F, -34.0F)},
+                    {2.5F, Vector3(0.0F, 4.65F, 27.5F), Vector3(0.0F, 1.25F, 20.0F)},
+                }};
+        }
+        cutscene_.Start(std::move(introSequence));
+
         // Load the warehouse and sedan as generated CNJ models (MC3 -> glTF -> CNJ) if they have
         // been built via scripts/build-assets.sh; otherwise fall back to procedural geometry, so
         // a fresh checkout that has not run the asset pipeline still runs.
@@ -285,6 +308,10 @@ namespace IronShadows
         player_.Reset(snapshot->playerPosition, snapshot->playerYaw, physics_);
         vehicle_.Restore(snapshot->vehiclePosition, snapshot->vehicleYaw, snapshot->vehicleSpeed, physics_);
         playerDriving_ = snapshot->playerDriving;
+        // Gate M8 save-safety: a save is never taken mid-cutscene by design (nothing writes one
+        // there), but force it to its terminal state anyway so loading can never leave the game
+        // with an active cutscene camera fighting a restored, unrelated player/vehicle position.
+        cutscene_.Skip();
         vehicleTransitionState_ = VehicleTransitionState::None; // no mid-clip state is ever saved
         transientStatus_ = "Loaded prototype state";
         transientStatusSeconds_ = 3.0F;
@@ -300,6 +327,10 @@ namespace IronShadows
                        districtManager_.GetWorld().GetVehicleSpawnYaw(), physics_);
         mission_.Reset();
         dialogue_.Start();
+        // The intro cutscene deliberately does not replay on reset (unlike dialogue) -- "R" is a
+        // developer/QA shortcut back to a clean gameplay-ready state, not a full replay of the
+        // opening cinematic; skipping straight to its terminal state keeps that state consistent.
+        cutscene_.Skip();
         playerDriving_ = false;
         vehicleTransitionState_ = VehicleTransitionState::None;
         transientStatus_ = "Prototype reset";
@@ -328,16 +359,32 @@ namespace IronShadows
         HandleDistrictArrival();
         const bool transitioning = districtManager_.IsTransitioning();
 
-        if (WasPressed(keyboard, Keys::Enter) && dialogue_.IsActive())
+        // Gate M8: ticks independently of dialogue's own pace -- the cutscene has its own short,
+        // fixed duration and naturally hands control back on its own, but pressing Enter while
+        // dialogue has already finished (a player racing through the opening) skips straight to
+        // its terminal camera state instead (IS-26-004).
+        if (!transitioning)
         {
-            dialogue_.Advance();
-            if (const DialogueLine* line = dialogue_.GetCurrentLine())
+            cutscene_.Update(deltaSeconds);
+        }
+
+        if (WasPressed(keyboard, Keys::Enter))
+        {
+            if (dialogue_.IsActive())
             {
-                std::cout << line->speaker << ": " << line->text << '\n';
+                dialogue_.Advance();
+                if (const DialogueLine* line = dialogue_.GetCurrentLine())
+                {
+                    std::cout << line->speaker << ": " << line->text << '\n';
+                }
+            }
+            else if (cutscene_.IsActive())
+            {
+                cutscene_.Skip();
             }
         }
 
-        if (WasPressed(keyboard, Keys::E) && !dialogue_.IsActive() && !transitioning)
+        if (WasPressed(keyboard, Keys::E) && !dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning)
         {
             HandleInteraction();
         }
@@ -354,7 +401,7 @@ namespace IronShadows
             ResetPrototype();
         }
 
-        if (!dialogue_.IsActive() && !transitioning)
+        if (!dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning)
         {
             if (playerDriving_)
             {
@@ -461,6 +508,10 @@ namespace IronShadows
         {
             title << line->speaker << ": " << line->text << " | Enter: continue";
         }
+        else if (cutscene_.IsActive())
+        {
+            title << "..." << " | Enter: skip";
+        }
         else
         {
             title << (playerDriving_ ? "Driving" : "On foot")
@@ -511,7 +562,16 @@ namespace IronShadows
 
         Vector3 target;
         Vector3 camera;
-        if (playerDriving_)
+        if (cutscene_.IsActive())
+        {
+            // Gate M8: the intro cutscene's own camera keyframes override the normal
+            // player/vehicle follow camera entirely while it plays. Its final keyframe is
+            // authored to exactly match the "else" branch below at the player's spawn position,
+            // so the cut back to gameplay has no visible pop.
+            camera = cutscene_.GetCameraPosition();
+            target = cutscene_.GetCameraLookAt();
+        }
+        else if (playerDriving_)
         {
             target = vehicle_.GetPosition() + Vector3(0.0F, 1.0F, 0.0F);
             camera = target - vehicle_.GetForward() * 10.5F + Vector3(0.0F, 4.8F, 0.0F);

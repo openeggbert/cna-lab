@@ -96,6 +96,8 @@ include(cmake/CompilerWarnings.cmake)
 include(cmake/CnaLinking.cmake)
 
 add_library(iron_shadows_core STATIC
+    src/Cutscenes/CutscenePlayer.cpp
+    src/Cutscenes/CutsceneSequence.cpp
     src/Dialogue/DialogueSystem.cpp
     src/Gameplay/PlayerController.cpp
     src/Gameplay/VehicleController.cpp

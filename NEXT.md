@@ -10,7 +10,7 @@ Repo: `/rv/data/development/github.com/openeggbert/iron-shadows`, branch `develo
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
 **No remote configured, nothing pushed** — commit locally only until explicitly told otherwise.
 
-Gates M0-M7 (see `plan.md` milestone order) are done:
+Gates M0-M8 (see `plan.md` milestone order) are done:
 
 - M0/M1: workspace preflight + running procedural scaffold.
 - M2: warehouse building loads as a real CNJ model (`assets/source/mc3/warehouse.mc3.xml` →
@@ -36,7 +36,11 @@ Gates M0-M7 (see `plan.md` milestone order) are done:
   defines its 5 states/objectives/transitions, loaded via new `MissionDefinition`/
   `LoadMissionDefinition` (parsed with sharp-runtime's own `System::Text::Json`), replacing
   `PrototypeMission`'s hardcoded switch statements while preserving its enum-based public API and
-  `SaveGame` compatibility exactly — see "What changed most recently" below.
+  `SaveGame` compatibility exactly.
+- M8: a short in-engine intro cutscene (camera-track only) plays alongside the opening dialogue,
+  panning from an establishing shot of the warehouse delivery target to the exact framing of the
+  normal gameplay camera at the player's spawn — skippable, save-safe, and hands control back to
+  gameplay automatically once finished — see "What changed most recently" below.
 
 Plan size: 2,148 tasks across 41 group files under `plan/`, down from an original 6,380-task
 AAA/open-world-scoped draft — see `plan.md`'s "Locked scope decisions" section for the ten
@@ -44,6 +48,71 @@ scope decisions that drove that cut (Mafia-1 (2002) content scope, Mafia-1-era s
 no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting target, etc.).
 
 ## What changed most recently (this session)
+
+Implemented gate M8 (one in-engine cutscene), entirely within Iron Shadows itself. Scoped down to
+a camera-track-only sequence player (`plan_26-cutscenes-and-cinematic-sequencing.md`'s own IS-26-002
+lists animation/dialogue/audio/event/fade tracks too, but a camera track alone is enough to satisfy
+gate M8's own wording -- "play, skip, save-safe finalize, hand control back" -- without inventing
+a general timeline system in one pass).
+
+- New `CutsceneCameraKeyframe`/`CutsceneSequence` structs + `LoadCutsceneSequence`
+  (`include/`/`src/Cutscenes/CutsceneSequence.hpp/.cpp`): a sequence is a named, versioned list of
+  camera keyframes (time/position/lookAt), parsed with the same sharp-runtime `System::Text::Json`
+  used for missions. Validation (mirroring `LoadMissionDefinition`'s inline-validation
+  convention): rejects an empty keyframe list, a first keyframe not at time 0, non-strictly-
+  ascending keyframe times, and a duration shorter than the last keyframe's time.
+- New `CutscenePlayer` (`include/`/`src/Cutscenes/CutscenePlayer.hpp/.cpp`): `Start`/`Update`/
+  `Skip`/`IsActive`/`GetCameraPosition`/`GetCameraLookAt`. `Update()` advances elapsed time and
+  finishes (`IsActive()` becomes false) the instant it reaches the sequence's duration; `Skip()`
+  jumps straight to the same terminal (last-keyframe) state a natural finish would produce, per
+  IS-26-004's explicit requirement that skip apply the *same* terminal state, not some other
+  "just stop" behavior. Camera position/look-at are linearly interpolated between the two
+  keyframes bracketing the current elapsed time (`Vector3::Lerp`), clamped to the first/last
+  keyframe outside their time range.
+- `assets/cutscenes/prologue_intro.cutscene.json` (new directory): a 2.5-second pan from
+  `(25, 12, -34)` looking at `(0, 2, -34)` (an elevated establishing shot of the warehouse
+  delivery target) to `(0, 4.65, 27.5)` looking at `(0, 1.25, 20)` -- the second keyframe was
+  computed BY HAND to exactly reproduce `Draw()`'s own normal-gameplay camera formula
+  (`target = playerPos + (0,-0.45,0); camera = target - forward*7.5 + (0,3.4,0)`) at the player's
+  actual spawn point `(0, 1.70, 20)`, yaw 0 -- so the cut back to the ordinary follow camera has
+  zero visible pop, verified by a standalone diagnostic confirming the file parses to these exact
+  numbers.
+- `IronShadowsGame::Initialize()` starts the cutscene (loaded from file, falling back to an
+  identical hardcoded sequence built inline on any load/validation failure, same convention as
+  dialogue/mission) right after starting the opening dialogue. `Update()` ticks
+  `cutscene_.Update(deltaSeconds)` every frame (gated only on `!transitioning`, independent of
+  dialogue's own advancement pace -- the cutscene has its own fixed 2.5s duration and finishes on
+  its own regardless of how fast the player clicks through dialogue lines); the existing Enter-key
+  handler now checks dialogue first (unchanged) and, only if dialogue is NOT active, treats Enter
+  as "skip the cutscene" instead. `Draw()` gained an `if (cutscene_.IsActive())` branch at the top
+  of its camera-selection logic that overrides `camera`/`target` with the cutscene's interpolated
+  values instead of the normal player/vehicle follow camera. The existing on-foot/driving
+  gameplay-freeze conditions (`!dialogue_.IsActive() && ... && !transitioning`) all gained a
+  `&& !cutscene_.IsActive()` clause, reusing the exact same freeze mechanism dialogue already
+  established rather than inventing a second one. `LoadPrototype()` and `ResetPrototype()` both
+  force `cutscene_.Skip()` defensively (save-safety, IS-26-016): nothing ever saves mid-cutscene
+  by construction (it only plays for 2.5s at the very start of a fresh game), but this guarantees
+  loading/resetting can never leave an active cutscene camera fighting a freshly restored,
+  unrelated player/vehicle position.
+- New tests in `tests/CoreTests.cpp`: `TestCutscenePlayerAdvancesAndFinishes` (fixed-time updates,
+  asserts exact linear-interpolation numbers halfway through, then the exact terminal keyframe
+  once finished), `TestCutscenePlayerSkipAppliesTerminalState` (Skip() partway through must
+  produce the *identical* terminal camera state a natural finish would), and
+  `TestCutsceneValidationRejectsMalformedData` (5 malformed-data cases + a missing file, all
+  correctly rejected, plus one well-formed sequence that still loads afterward).
+- Verification performed: a standalone diagnostic (not committed) confirmed the real committed
+  file parses to the exact intended keyframe values before writing the corresponding test. Full
+  `compile-software` rebuild (clean, no new warnings), all three `ctest` targets pass,
+  `./scripts/check-syntax.sh` passes on every file, a `--smoke 20` run (covers only the first
+  ~0.3 simulated seconds -- mid-cutscene) and a `--smoke 200` run (covers ~3.3 simulated seconds,
+  past the cutscene's 2.5s duration, confirming it naturally finishes and the game keeps running
+  normally afterward) both exit 0 with no cutscene-load fallback message. **Not verified**: the
+  actual Enter-press skip path in a real running game -- smoke mode's dialogue never becomes
+  inactive on its own (nothing auto-advances it), so the skip branch was only exercised by the
+  standalone unit tests above, not an end-to-end `IronShadowsGame` run -- and, as with every other
+  visual milestone this session, there is no display to check how the pan actually looks.
+
+### Earlier this session: implemented gate M7 (one data-driven mission)
 
 Implemented gate M7 (one data-driven mission), entirely within Iron Shadows itself (no cross-repo
 work needed this time). Found that `assets/missions/prologue.mission.json` already existed as a
@@ -415,39 +484,42 @@ All three `ctest` targets pass: `iron_shadows_core_tests`, `iron_shadows_missing
 (`./scripts/run.sh compile-software` or a real backend preset) and check the items in "Explicitly
 not verified" above. Camera offsets, body-mesh offset, Jolt's default vehicle tuning, the loading
 screen (behind the map at roughly `(0,0.5,-47)`), the skinned test character's look/scale/
-Idle-Walk switching (walk forward and watch the legs alternate), the Dialogue pose, and —
-**especially** — walking up to the sedan and pressing E to actually watch the enter/exit
-animation and `playerDriving_` handoff (the least-verified piece of all of M6, checked only by
-manual code review, not any automated test) are all unverified visually — this environment has no
-display, so everything above has only ever been checked via assertions/logs, never by actually
-seeing it happen.
+Idle-Walk switching (walk forward and watch the legs alternate), the Dialogue pose, walking up to
+the sedan and pressing E to watch the enter/exit animation and `playerDriving_` handoff, and —
+**especially** — the new intro cutscene's camera pan and whether pressing Enter mid-cutscene
+(after dialogue has finished) actually skips it cleanly are all unverified visually — this
+environment has no display, so everything above has only ever been checked via assertions/logs,
+never by actually seeing it happen.
 
-**Gate M6 (`plan/plan_39-vertical-slice-gates.md` `IS-39-007`) is now fully done** at prototype
-fidelity (locomotion + blending + dialogue pose + vehicle entry/exit, all landed as one initial
-pass plus three same-session follow-ups — see above for each). Remaining `plan_18` sub-tasks
-(a real named-bone skeleton convention, layered animation/bone masks, IK, root motion, sit/drive/
-steer poses while actually driving, etc.) are real but not gate-blocking — see that file for the
-itemized list if picking any of them up.
+**Gates M6, M7, and M8 (`plan/plan_39-vertical-slice-gates.md` `IS-39-007`/`008`/`009`) are all
+now fully done** at prototype fidelity — see the entries above for each. Remaining sub-tasks in
+`plan_18` (a real named-bone skeleton convention, layered animation/bone masks, IK, root motion,
+sit/drive/steer poses while actually driving), `plan_24` (typed mission variables, a fuller
+condition/action set, failure/retry policies, checkpoints beyond plain save/load, the campaign
+graph), and `plan_26` (animation/dialogue/audio/event/fade tracks beyond the camera-only track,
+a timeline debug overlay) are real but not gate-blocking — see each file for its itemized list.
 
-**Gate M7 (`plan/plan_39-vertical-slice-gates.md` `IS-39-008`) is also now fully done** at
-prototype fidelity — see the entry above. `plan_24`'s richer sub-tasks (typed mission variables,
-a fuller condition/action set, failure/retry policies, checkpoints beyond plain save/load, the
-15-20 mission campaign graph, etc.) remain open but are not gate-blocking.
-
-**If continuing headless/autonomous work, the next milestone per `plan.md`'s own order is M8 —
-one in-engine cutscene** (`plan/plan_39-vertical-slice-gates.md` `IS-39-009`): one in-engine
-cutscene can play, skip, save-safe finalize, and hand control back correctly. There is no
-cutscene system at all today — this likely means: a minimal way to temporarily take input away
-from the player, play a short scripted camera move and/or dialogue sequence, let the player skip
-it (matching the existing Enter-to-advance-dialogue convention), and hand control back to
-whichever mission state was waiting for it, without breaking save/load mid-cutscene. Scope the
-first pass to one short, skippable cutscene tied into the existing prologue mission (e.g. a brief
-camera pan when the mission completes), not a general cutscene authoring/timeline tool (see
-`plan.md`'s own "no bespoke editor suite" locked scope decision — check for a dedicated
-`plan_2x`-numbered plan group for cutscenes/cameras before designing from scratch).
+**If continuing headless/autonomous work, the next milestone per `plan.md`'s own order is M9 —
+Mafia-1-fidelity traffic, pedestrians, and a police-response scenario** (`plan/plan_39-vertical-slice-gates.md`
+`IS-39-010`, expanded further in `IS-39-044`-`048`): spawn Mafia-1-fidelity traffic following the
+district's lane graph and signals, 10-20 pedestrians with sidewalk navigation and basic flee
+reactions, a witnessed traffic offense triggering a police response, a witnessed crime triggering
+a police chase with one escalation level, and losing police line-of-sight resolving the chase --
+all surviving ten minutes of walking/driving interaction in the first district. This is a
+substantially bigger milestone than M0-M8 (it needs a lane graph / waypoint system, basic AI
+steering/navigation for both vehicles and pedestrians, and a simple police state machine, none of
+which exist at all today) -- check whether a dedicated `plan_2x`-numbered group covers traffic/AI
+(likely named something like "traffic and pedestrian simulation" or "police and wanted system")
+before designing from scratch, and strongly consider scoping the first pass down to the smallest
+slice that proves each piece mechanically (e.g. 2-3 cars on a simple fixed loop, a handful of
+pedestrians walking between two points, one hardcoded police-chase trigger) rather than a fully
+tuned Mafia-1-scale simulation in one pass, matching this session's own "smallest coherent slice"
+discipline for M4-M8.
 
 Other open items worth picking up opportunistically (not blocking, not sequenced):
 
+- `plan_26` `IS-26-002` (animation/dialogue/audio/event/fade tracks beyond the camera-only track
+  this session added), `IS-26-018` (a timeline debug overlay).
 - `plan_24` itself (see above) — typed mission variables, richer conditions/actions, failure/retry,
   a real checkpoint/retry system distinct from plain save/load, the campaign dependency graph.
 - `plan_18` `IS-18-001` (a real named-bone skeleton convention, not this one-off test rig),

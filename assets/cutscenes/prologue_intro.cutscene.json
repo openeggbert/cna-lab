@@ -1,0 +1,17 @@
+{
+  "id": "prologue_intro",
+  "version": 1,
+  "duration": 2.5,
+  "cameraKeyframes": [
+    {
+      "time": 0.0,
+      "position": [25.0, 12.0, -34.0],
+      "lookAt": [0.0, 2.0, -34.0]
+    },
+    {
+      "time": 2.5,
+      "position": [0.0, 4.65, 27.5],
+      "lookAt": [0.0, 1.25, 20.0]
+    }
+  ]
+}

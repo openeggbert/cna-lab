@@ -1,3 +1,5 @@
+#include "IronShadows/Cutscenes/CutscenePlayer.hpp"
+#include "IronShadows/Cutscenes/CutsceneSequence.hpp"
 #include "IronShadows/Dialogue/DialogueSystem.hpp"
 #include "IronShadows/Gameplay/PlayerController.hpp"
 #include "IronShadows/Gameplay/VehicleController.hpp"
@@ -254,6 +256,120 @@ namespace
         std::filesystem::remove(path);
     }
 
+    // Gate M8 / plan_26 (IS-26-001/004): the minimal in-engine sequence player must advance its
+    // camera track over time, interpolating between keyframes, and finish (hand control back) at
+    // the correct instant.
+    void TestCutscenePlayerAdvancesAndFinishes()
+    {
+        IronShadows::CutsceneSequence sequence;
+        sequence.id = "test_sequence";
+        sequence.duration = 2.0F;
+        sequence.cameraKeyframes = {
+            {0.0F, IronShadows::Vector3(0.0F, 0.0F, 0.0F), IronShadows::Vector3(10.0F, 0.0F, 0.0F)},
+            {2.0F, IronShadows::Vector3(4.0F, 8.0F, 0.0F), IronShadows::Vector3(20.0F, 0.0F, 0.0F)},
+        };
+
+        IronShadows::CutscenePlayer player;
+        Require(!player.IsActive(), "a player must not be active before Start()");
+        player.Start(sequence);
+        Require(player.IsActive(), "Start() with a non-empty sequence must become active");
+
+        // Halfway through the 2-second clip: position/lookAt must both be exactly halfway
+        // between the two keyframes (linear interpolation).
+        player.Update(1.0F);
+        Require(player.IsActive(), "the player must still be active before its duration elapses");
+        Require(std::abs(player.GetCameraPosition().X - 2.0F) < 1e-4F &&
+                std::abs(player.GetCameraPosition().Y - 4.0F) < 1e-4F,
+                "camera position must be linearly interpolated halfway between keyframes");
+        Require(std::abs(player.GetCameraLookAt().X - 15.0F) < 1e-4F,
+                "camera look-at must be linearly interpolated halfway between keyframes");
+
+        // Advancing past the duration must finish the sequence and hold the terminal keyframe.
+        player.Update(1.5F);
+        Require(!player.IsActive(), "the player must finish once elapsed time reaches duration");
+        Require(std::abs(player.GetCameraPosition().X - 4.0F) < 1e-4F &&
+                std::abs(player.GetCameraPosition().Y - 8.0F) < 1e-4F,
+                "the terminal camera position must match the last keyframe exactly");
+    }
+
+    // Skip must apply the SAME terminal state a natural finish would (IS-26-004), not some other
+    // arbitrary "stopped" state.
+    void TestCutscenePlayerSkipAppliesTerminalState()
+    {
+        IronShadows::CutsceneSequence sequence;
+        sequence.duration = 5.0F;
+        sequence.cameraKeyframes = {
+            {0.0F, IronShadows::Vector3(0.0F, 0.0F, 0.0F), IronShadows::Vector3(1.0F, 0.0F, 0.0F)},
+            {5.0F, IronShadows::Vector3(9.0F, 0.0F, 0.0F), IronShadows::Vector3(2.0F, 0.0F, 0.0F)},
+        };
+
+        IronShadows::CutscenePlayer player;
+        player.Start(sequence);
+        player.Update(0.2F); // barely started
+        player.Skip();
+
+        Require(!player.IsActive(), "Skip() must finish the sequence immediately");
+        Require(std::abs(player.GetCameraPosition().X - 9.0F) < 1e-4F,
+                "Skip() must jump straight to the last keyframe's camera position");
+        Require(std::abs(player.GetCameraLookAt().X - 2.0F) < 1e-4F,
+                "Skip() must jump straight to the last keyframe's camera look-at");
+    }
+
+    void TestCutsceneValidationRejectsMalformedData()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_shadows_bad_cutscene.json";
+        std::string error;
+        IronShadows::CutsceneSequence sequence;
+
+        WriteTempJson(path, R"JSON({"duration":2.0,"cameraKeyframes":[]})JSON");
+        Require(!IronShadows::LoadCutsceneSequence(path.string(), sequence, error),
+                "an empty cameraKeyframes array must be rejected");
+
+        WriteTempJson(path, R"JSON({"duration":2.0,"cameraKeyframes":[
+            {"time":0.5,"position":[0,0,0],"lookAt":[1,0,0]}
+        ]})JSON");
+        Require(!IronShadows::LoadCutsceneSequence(path.string(), sequence, error),
+                "a first keyframe not at time 0 must be rejected");
+
+        WriteTempJson(path, R"JSON({"duration":2.0,"cameraKeyframes":[
+            {"time":0.0,"position":[0,0,0],"lookAt":[1,0,0]},
+            {"time":0.0,"position":[1,0,0],"lookAt":[1,0,0]}
+        ]})JSON");
+        Require(!IronShadows::LoadCutsceneSequence(path.string(), sequence, error),
+                "keyframes that are not strictly ascending in time must be rejected");
+
+        WriteTempJson(path, R"JSON({"duration":1.0,"cameraKeyframes":[
+            {"time":0.0,"position":[0,0,0],"lookAt":[1,0,0]},
+            {"time":2.0,"position":[1,0,0],"lookAt":[1,0,0]}
+        ]})JSON");
+        Require(!IronShadows::LoadCutsceneSequence(path.string(), sequence, error),
+                "a duration shorter than the last keyframe's time must be rejected");
+
+        WriteTempJson(path, R"JSON({"cameraKeyframes":[{"time":0.0,"position":[0,0,0],"lookAt":[1,0,0]}]})JSON");
+        Require(!IronShadows::LoadCutsceneSequence(path.string(), sequence, error),
+                "a missing \"duration\" must be rejected");
+
+        Require(!IronShadows::LoadCutsceneSequence((path.string() + ".does-not-exist"), sequence, error),
+                "a missing file must be rejected, not crash");
+
+        WriteTempJson(path, R"JSON({
+            "id": "test_cutscene",
+            "version": 1,
+            "duration": 1.5,
+            "cameraKeyframes": [
+                { "time": 0.0, "position": [0, 1, 2], "lookAt": [3, 4, 5] },
+                { "time": 1.5, "position": [6, 7, 8], "lookAt": [9, 10, 11] }
+            ]
+        })JSON");
+        Require(IronShadows::LoadCutsceneSequence(path.string(), sequence, error),
+                "a well-formed minimal cutscene must load successfully: " + error);
+        Require(sequence.cameraKeyframes.size() == 2, "both keyframes must be parsed");
+        Require(std::abs(sequence.cameraKeyframes[0].position.Y - 1.0F) < 1e-4F,
+                "keyframe vector components must round-trip correctly");
+
+        std::filesystem::remove(path);
+    }
+
     void TestDialogueFallback()
     {
         IronShadows::DialogueSystem dialogue;
@@ -305,6 +421,9 @@ int main()
         TestMissionFlow();
         TestMissionLoadsCommittedFile();
         TestMissionValidationRejectsMalformedData();
+        TestCutscenePlayerAdvancesAndFinishes();
+        TestCutscenePlayerSkipAppliesTerminalState();
+        TestCutsceneValidationRejectsMalformedData();
         TestDialogueFallback();
         TestSaveRoundTrip();
         std::cout << "Iron Shadows core tests passed\n";
