@@ -2,6 +2,7 @@
 
 #include "IronShadows/Core/WorldTypes.hpp"
 #include "IronShadows/Physics/PhysicsTypes.hpp"
+#include "IronShadows/World/WaypointPath.hpp"
 
 #include <vector>
 
@@ -35,6 +36,13 @@ namespace IronShadows
         [[nodiscard]] const TriggerZone& GetWarehouseGoal() const noexcept { return warehouseGoal_; }
         [[nodiscard]] const DistrictExit& GetDistrictExit() const noexcept { return districtExit_; }
 
+        // Gate M9 (plan_19-navigation-and-pathfinding.md IS-19-001/002): hand-authored loops for
+        // traffic and pedestrians, following the existing road/sidewalk box geometry exactly.
+        // Empty (WaypointPath::Empty()) in districts with no traffic/pedestrians -- today, only
+        // WarehouseBlock populates these; Countryside has neither.
+        [[nodiscard]] const WaypointPath& GetTrafficLoop() const noexcept { return trafficLoop_; }
+        [[nodiscard]] const std::vector<WaypointPath>& GetSidewalkPaths() const noexcept { return sidewalkPaths_; }
+
         [[nodiscard]] bool CanOccupy(const Vector3& position, float radius) const;
         [[nodiscard]] Vector3 ResolveHorizontalMotion(const Vector3& position,
                                                       const Vector3& delta,
@@ -63,5 +71,7 @@ namespace IronShadows
         float vehicleSpawnYaw_{0.0F};
         TriggerZone warehouseGoal_{"warehouse_delivery", {{0.0F, 0.0F, -34.0F}, {4.5F, 2.0F, 4.5F}}};
         DistrictExit districtExit_{};
+        WaypointPath trafficLoop_{};
+        std::vector<WaypointPath> sidewalkPaths_{};
     };
 }

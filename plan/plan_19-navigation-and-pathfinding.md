@@ -4,9 +4,13 @@
 
 Pedestrian navigation uses a simple waypoint graph authored alongside the sidewalk data in plan 14 — not a baked navmesh, crowd-density system, or danger-cost pathfinding. Vehicles path over the road graph defined in plan 14/21, not this system. This stays intentionally small: Mafia 1's pedestrians did not need more than "walk the sidewalk, use the crossing, avoid the car in front of you."
 
+### Gate M9 status (first pass, vertical slice)
+
+Delivered the smallest possible version of IS-19-001 only: `WaypointPath` (`include/IronShadows/World/WaypointPath.hpp`) is a hand-authored, ordered list of points with a `loop` flag — no graph, no branching, no portals, no async requests, no local avoidance. A shared `AdvanceAlongPath()` free function walks a mover toward its current target and advances/wraps on arrival; it is reused as-is by both `TrafficVehicle` (plan 21) and `Pedestrian` (plan 20). `PrototypeWorld::BuildWarehouseBlock()` authors one traffic loop and two sidewalk back-and-forth paths by hand; `BuildCountryside()` has none (no ambient life there yet). Everything else below — the actual graph/portal/off-mesh-link/local-avoidance/async-path machinery this plan describes — remains not started; the traffic/pedestrian systems built for M9 do not need it yet because they each follow exactly one fixed path.
+
 ## Pedestrian waypoint graph
 
-- [ ] **IS-19-001 P0** — Choose a simple waypoint/graph approach for pedestrian navigation (reuses the sidewalk-graph schema from plan 14).
+- [x] **IS-19-001 P0** — Choose a simple waypoint/graph approach for pedestrian navigation (reuses the sidewalk-graph schema from plan 14). *(Done in the smallest possible form: a single ordered polyline per mover, not a graph — see the Gate M9 status note above.)*
 - [ ] **IS-19-002 P0** — Connect exterior and interior navigation graphs through portals (ties to plan 14's interior portals).
 - [ ] **IS-19-003 P1** — Define agent size, slope, and step-clearance classes for pedestrians (a single "adult pedestrian" class is enough for v1).
 - [ ] **IS-19-004 P1** — Validate a district's navigation graph for disconnected authored destinations at load time.

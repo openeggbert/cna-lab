@@ -1,7 +1,10 @@
 #include "IronShadows/Cutscenes/CutscenePlayer.hpp"
 #include "IronShadows/Cutscenes/CutsceneSequence.hpp"
 #include "IronShadows/Dialogue/DialogueSystem.hpp"
+#include "IronShadows/Gameplay/Pedestrian.hpp"
 #include "IronShadows/Gameplay/PlayerController.hpp"
+#include "IronShadows/Gameplay/PoliceSystem.hpp"
+#include "IronShadows/Gameplay/TrafficVehicle.hpp"
 #include "IronShadows/Gameplay/VehicleController.hpp"
 #include "IronShadows/Missions/MissionDefinition.hpp"
 #include "IronShadows/Missions/PrototypeMission.hpp"
@@ -9,11 +12,13 @@
 #include "IronShadows/Physics/PhysicsWorld.hpp"
 #include "IronShadows/World/DistrictManager.hpp"
 #include "IronShadows/World/PrototypeWorld.hpp"
+#include "IronShadows/World/WaypointPath.hpp"
 
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <numbers>
 #include <stdexcept>
 #include <string>
 
@@ -384,6 +389,180 @@ namespace
         Require(dialogue.IsFinished(), "dialogue must finish after all lines advance");
     }
 
+    // Gate M9 / plan_19 (IS-19-001/002): AdvanceAlongPath must move toward the current target at
+    // the given speed, and only advance (wrapping, since loop=true here) to the next target once
+    // it arrives within arrivalRadius -- checked against hand-computed positions/yaws. Values
+    // below are hand-verified via a standalone diagnostic, not just derived on paper.
+    void TestWaypointPathAdvancesAndWraps()
+    {
+        IronShadows::WaypointPath path;
+        path.points = {IronShadows::Vector3(0.0F, 0.0F, 0.0F), IronShadows::Vector3(10.0F, 0.0F, 0.0F)};
+        path.loop = true;
+
+        // Starting exactly AT points[0] with targetIndex 0 already means "arrived" (distance 0),
+        // so the very first call immediately advances to points[1] before moving -- matching how
+        // TrafficVehicle::Reset()/Pedestrian::Reset() both start a mover exactly at its first
+        // waypoint.
+        IronShadows::Vector3 position(0.0F, 0.0F, 0.0F);
+        std::size_t targetIndex = 0;
+        float yaw = 0.0F;
+
+        yaw = IronShadows::AdvanceAlongPath(path, position, targetIndex, 5.0F, 1.0F, 0.5F, yaw);
+        Require(targetIndex == 1, "starting exactly at the current target must advance to the next one immediately");
+        Require(std::abs(position.X - 5.0F) < 1e-4F, "first step must then move halfway toward the new target");
+        Require(std::abs(yaw - std::numbers::pi_v<float> / 2.0F) < 1e-4F,
+                "yaw facing +X must be +90 degrees under ForwardFromYaw's convention");
+
+        yaw = IronShadows::AdvanceAlongPath(path, position, targetIndex, 5.0F, 1.0F, 0.5F, yaw);
+        Require(std::abs(position.X - 10.0F) < 1e-4F, "second step must land exactly on the target");
+        Require(targetIndex == 1, "the arrival check only runs at the START of a call, one frame later");
+
+        // Third call: now within arrivalRadius (distance 0) at the START of the call, and index 1
+        // is the path's last point, so a looping path must wrap back to index 0.
+        yaw = IronShadows::AdvanceAlongPath(path, position, targetIndex, 5.0F, 1.0F, 0.5F, yaw);
+        Require(targetIndex == 0, "reaching the last point of a looping path must wrap back to index 0");
+        Require(std::abs(position.X - 5.0F) < 1e-4F, "third step must move back toward the wrapped target");
+        Require(std::abs(yaw - (-std::numbers::pi_v<float> / 2.0F)) < 1e-4F,
+                "yaw facing -X must be -90 degrees under ForwardFromYaw's convention");
+    }
+
+    // Gate M9 / plan_21 (IS-21-001/002): a TrafficVehicle must accelerate toward its cruise speed
+    // when clear ahead, and brake to a stop when something is within the minimum gap.
+    void TestTrafficVehicleAcceleratesAndBrakes()
+    {
+        IronShadows::WaypointPath path;
+        path.points = {IronShadows::Vector3(0.0F, 0.0F, 0.0F), IronShadows::Vector3(1000.0F, 0.0F, 0.0F)};
+        path.loop = false;
+
+        IronShadows::TrafficVehicle vehicle;
+        vehicle.Reset(path, 0, 10.0F);
+        Require(std::abs(vehicle.GetForwardSpeed()) < 1e-4F, "a freshly reset vehicle must start at rest");
+
+        constexpr float kNoObstacleAhead = 1000.0F;
+        vehicle.Update(1.0F, kNoObstacleAhead);
+        Require(std::abs(vehicle.GetForwardSpeed() - 6.0F) < 1e-4F,
+                "accelerating for 1s at 6 units/s^2 from rest must reach 6 units/s");
+
+        // Something 1 unit ahead is well inside the minimum gap (3 units) -- must brake to a full
+        // stop in this same 1s step (braking is 12 units/s^2, more than enough to cancel 6).
+        vehicle.Update(1.0F, 1.0F);
+        Require(std::abs(vehicle.GetForwardSpeed()) < 1e-4F,
+                "braking for an obstacle inside the minimum gap must reach zero speed");
+
+        // Clear again: must resume accelerating from rest exactly as the first step did.
+        vehicle.Update(1.0F, kNoObstacleAhead);
+        Require(std::abs(vehicle.GetForwardSpeed() - 6.0F) < 1e-4F,
+                "a vehicle that braked to a stop must accelerate again once the obstacle clears");
+    }
+
+    // Gate M9 / plan_20 (IS-20-001/002/003): a Pedestrian must flee directly away from a threat
+    // for a fixed duration (even after the threat itself is no longer reported present), then
+    // resume its normal path once that duration elapses.
+    void TestPedestrianFleesAndResumesPath()
+    {
+        IronShadows::WaypointPath path;
+        path.points = {IronShadows::Vector3(0.0F, 0.9F, 0.0F), IronShadows::Vector3(0.0F, 0.9F, 50.0F)};
+        path.loop = true;
+
+        IronShadows::Pedestrian pedestrian;
+        pedestrian.Reset(path, 0, 1.6F);
+
+        const IronShadows::Vector3 threatPosition(0.0F, 0.9F, -5.0F);
+        pedestrian.Update(1.0F, true, threatPosition);
+        Require(pedestrian.IsFleeing(), "a pedestrian with a threat present must start fleeing");
+        // away = (0,0,5), distance 5, direction (0,0,1); step = 1.6 * 2.5 * 1.0 = 4.0.
+        Require(std::abs(pedestrian.GetPosition().Z - 4.0F) < 1e-4F,
+                "fleeing must move directly away from the threat position at the flee speed");
+        Require(std::abs(pedestrian.GetYaw() - std::numbers::pi_v<float>) < 1e-4F,
+                "yaw facing -Z (away from the threat, which is further -Z) must be 180 degrees");
+
+        // The threat is no longer reported (hasThreat=false) for the next few calls, but the
+        // pedestrian must keep fleeing off its own timer, away from the ORIGINAL threat position.
+        for (int i = 0; i < 3; ++i)
+        {
+            pedestrian.Update(1.0F, false, IronShadows::Vector3());
+            Require(pedestrian.IsFleeing(), "the flee state must persist for its full duration on its own timer");
+        }
+        Require(std::abs(pedestrian.GetPosition().Z - 16.0F) < 1e-4F,
+                "each subsequent flee second must add another 4.0 units of distance");
+
+        // The flee timer (4s total) expires on this 5th call (1 trigger + 4 no-threat calls);
+        // the pedestrian must resume following its own WaypointPath instead of still fleeing.
+        pedestrian.Update(1.0F, false, IronShadows::Vector3());
+        Require(!pedestrian.IsFleeing(), "the flee state must end once its fixed duration elapses");
+    }
+
+    // Gate M9 / plan_22 (IS-22-001/002/003/004): the full witnessed-offense -> dispatch -> chase
+    // -> escalate -> resolve cycle, with every timer/threshold exercised at its exact boundary.
+    void TestPoliceSystemFullCycle()
+    {
+        IronShadows::PoliceSystem police;
+        police.Reset();
+        Require(police.GetState() == IronShadows::PoliceState::Clear, "a fresh PoliceSystem must start Clear");
+
+        const IronShadows::Vector3 origin(0.0F, 0.0F, 0.0F);
+        const IronShadows::Vector3 spawnPosition(20.0F, 0.0F, 0.0F);
+
+        // Not driving: even a very close, very fast "witness" must never trigger a chase.
+        police.Update(1.0F, false, origin, 120.0F, {IronShadows::Vector3(1.0F, 0.0F, 0.0F)}, spawnPosition);
+        Require(police.GetState() == IronShadows::PoliceState::Clear,
+                "an offense while not driving must never be witnessed");
+
+        // Driving fast, but the only witness is far outside the witness radius (15 units).
+        police.Update(1.0F, true, origin, 120.0F, {IronShadows::Vector3(1000.0F, 0.0F, 0.0F)}, spawnPosition);
+        Require(police.GetState() == IronShadows::PoliceState::Clear,
+                "a witness outside the witness radius must not trigger a chase");
+
+        // Driving over the speed threshold with a witness inside the radius: must dispatch.
+        police.Update(1.0F, true, origin, 100.0F, {IronShadows::Vector3(5.0F, 0.0F, 0.0F)}, spawnPosition);
+        Require(police.GetState() == IronShadows::PoliceState::Dispatched,
+                "speeding witnessed within radius must dispatch a patrol car");
+        Require(police.GetActivePatrolCount() == 1, "dispatch must spawn exactly one patrol car");
+        Require(std::abs(police.GetPatrolPosition(0).X - spawnPosition.X) < 1e-4F,
+                "the dispatched patrol car must appear at the given spawn position");
+
+        // Dispatched has a fixed delay (2s) before patrol cars actually start moving/chasing.
+        police.Update(1.0F, true, origin, 0.0F, {}, spawnPosition);
+        Require(police.GetState() == IronShadows::PoliceState::Dispatched,
+                "the dispatch delay must not elapse after only 1 of its 2 seconds");
+        police.Update(1.5F, true, origin, 0.0F, {}, spawnPosition);
+        Require(police.GetState() == IronShadows::PoliceState::Chasing,
+                "the dispatch delay must elapse and start the chase");
+
+        // One chase tick at normal speed: hand-verified pursuit math (patrol starts 20 units from
+        // the player at (0,0,0); closes 9 units/s for 1s).
+        police.Update(1.0F, true, origin, 0.0F, {}, spawnPosition);
+        Require(std::abs(police.GetPatrolPosition(0).X - 11.0F) < 1e-4F,
+                "the patrol car must close the distance to the player at its own patrol speed");
+
+        // A single long step (19s more, 20s total chase time) must both escalate (a second patrol
+        // car appears) and let both patrol cars close in (clamped so neither overshoots the
+        // player's position).
+        police.Update(19.0F, true, origin, 0.0F, {}, spawnPosition);
+        Require(police.GetActivePatrolCount() == 2,
+                "a chase running for the full escalation timer must add a second patrol car");
+        Require(police.GetPatrolPosition(0).Length() < 1e-4F,
+                "the first patrol car must have closed the full remaining distance to the player");
+        Require(police.GetPatrolPosition(1).Length() < 1e-4F,
+                "the newly escalated patrol car must also close its own distance to the player");
+        Require(police.GetState() == IronShadows::PoliceState::Chasing, "escalating must not end the chase");
+
+        // The player "escapes" to somewhere far away; patrol cars can only close 9 units/s, so
+        // they stay far behind (closestDistance stays well over the 40-unit resolve distance) for
+        // 3 full seconds -- the chase must then resolve back to Clear.
+        const IronShadows::Vector3 farAway(1000.0F, 0.0F, 0.0F);
+        police.Update(1.0F, true, farAway, 0.0F, {}, spawnPosition);
+        Require(police.GetState() == IronShadows::PoliceState::Chasing,
+                "the resolve distance must be sustained, not trigger instantly");
+        police.Update(1.0F, true, farAway, 0.0F, {}, spawnPosition);
+        Require(police.GetState() == IronShadows::PoliceState::Chasing,
+                "resolve must require the full sustain duration (2 of 3 seconds so far)");
+        police.Update(1.0F, true, farAway, 0.0F, {}, spawnPosition);
+        Require(police.GetState() == IronShadows::PoliceState::Clear,
+                "sustaining the resolve distance for the full 3 seconds must clear the chase");
+        Require(police.GetActivePatrolCount() == 0, "clearing a chase must remove all patrol cars");
+    }
+
     void TestSaveRoundTrip()
     {
         const std::filesystem::path path = std::filesystem::current_path() / "iron_shadows_core_test.save";
@@ -425,6 +604,10 @@ int main()
         TestCutscenePlayerSkipAppliesTerminalState();
         TestCutsceneValidationRejectsMalformedData();
         TestDialogueFallback();
+        TestWaypointPathAdvancesAndWraps();
+        TestTrafficVehicleAcceleratesAndBrakes();
+        TestPedestrianFleesAndResumesPath();
+        TestPoliceSystemFullCycle();
         TestSaveRoundTrip();
         std::cout << "Iron Shadows core tests passed\n";
         return 0;

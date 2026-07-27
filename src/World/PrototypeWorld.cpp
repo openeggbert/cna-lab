@@ -98,6 +98,24 @@ namespace IronShadows
         vehicleSpawn_ = {0.0F, 0.65F, 11.0F};
         vehicleSpawnYaw_ = 0.0F;
 
+        // Gate M9 (plan_19-navigation-and-pathfinding.md IS-19-001/002): a traffic oval using
+        // both lanes of road_north_south (X in [-6,6], so lanes at X=+-3 stay clear of the
+        // parked sedan at X=0), and two sidewalk back-and-forth paths (X=+-7.5, matching
+        // sidewalk_west/sidewalk_east exactly). Kept well inside the road's own Z range
+        // ([-45,45]) to stay clear of the district exit trigger at Z=-47 and the warehouse gate
+        // at Z=-36.
+        trafficLoop_.points = {
+            {3.0F, 0.4F, 38.0F},
+            {3.0F, 0.4F, -38.0F},
+            {-3.0F, 0.4F, -38.0F},
+            {-3.0F, 0.4F, 38.0F},
+        };
+        trafficLoop_.loop = true;
+        sidewalkPaths_ = {
+            WaypointPath{{{-7.5F, 0.9F, -38.0F}, {-7.5F, 0.9F, 38.0F}}, true},
+            WaypointPath{{{7.5F, 0.9F, -38.0F}, {7.5F, 0.9F, 38.0F}}, true},
+        };
+
         // The road continues north past the warehouse gate to the district border; a district
         // exit sits there, well clear of the mission's own warehouse-delivery trigger.
         districtExit_.trigger = TriggerZone{"exit_to_countryside", {{0.0F, 0.5F, -47.0F}, {6.0F, 1.5F, 3.0F}}};

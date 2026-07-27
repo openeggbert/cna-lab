@@ -77,6 +77,27 @@ namespace IronShadows
         playerBuilder.AddBox({0.0F, 0.85F, 0.0F}, {0.42F, 0.42F, 0.42F}, Color(209, 177, 143, 255));
         playerMesh_.Upload(device, playerBuilder);
 
+        // Gate M9: a plainer, slightly smaller car than the player's own sedan (fewer parts, flat
+        // slate-blue paint) so traffic reads as background rather than competing with it visually.
+        MeshBuilder trafficVehicleBuilder;
+        trafficVehicleBuilder.AddBox({0.0F, 0.0F, 0.0F}, {1.9F, 0.6F, 3.9F}, Color(70, 82, 97, 255));
+        trafficVehicleBuilder.AddBox({0.0F, 0.55F, -0.10F}, {1.55F, 0.6F, 1.8F}, Color(88, 98, 112, 255));
+        trafficVehicleMesh_.Upload(device, trafficVehicleBuilder);
+
+        // A simple standing box distinct from the player's own two-tone body/head mesh (single
+        // muted tone, no separate head box -- keeps ambient pedestrians cheap and visually minor).
+        MeshBuilder pedestrianBuilder;
+        pedestrianBuilder.AddBox({0.0F, 0.0F, 0.0F}, {0.5F, 1.15F, 0.35F}, Color(120, 108, 96, 255));
+        pedestrianMesh_.Upload(device, pedestrianBuilder);
+
+        // Black-and-white patrol livery so a police response reads clearly against ordinary
+        // traffic even as plain colored boxes.
+        MeshBuilder policeCarBuilder;
+        policeCarBuilder.AddBox({0.0F, 0.0F, 0.0F}, {2.0F, 0.62F, 4.0F}, Color(245, 245, 245, 255));
+        policeCarBuilder.AddBox({0.0F, 0.56F, -0.10F}, {1.6F, 0.62F, 1.9F}, Color(20, 20, 24, 255));
+        policeCarBuilder.AddBox({0.0F, 0.92F, -0.10F}, {0.55F, 0.20F, 0.35F}, Color(200, 40, 40, 255));
+        policeCarMesh_.Upload(device, policeCarBuilder);
+
         effect_ = std::make_unique<BasicEffect>(device);
         effect_->VertexColorEnabled = true;
         device.setRasterizerStateProperty(RasterizerState::CullNone);
@@ -194,6 +215,37 @@ namespace IronShadows
                 const Vector3 playerBodyPosition = playerPosition + Vector3(0.0F, -0.95F, 0.0F);
                 DrawMesh(device, playerMesh_, Matrix::CreateRotationY(playerYaw) * Matrix::CreateTranslation(playerBodyPosition));
             }
+        }
+    }
+
+    void PrototypeRenderer::DrawTraffic(GraphicsDevice& device,
+                                        const Matrix& view,
+                                        const Matrix& projection,
+                                        const std::vector<ActorPose>& trafficVehicles,
+                                        const std::vector<ActorPose>& pedestrians,
+                                        const std::vector<ActorPose>& policeCars)
+    {
+        effect_->View = view;
+        effect_->Projection = projection;
+
+        for (const ActorPose& pose : trafficVehicles)
+        {
+            DrawMesh(device, trafficVehicleMesh_,
+                    Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position));
+        }
+        for (const ActorPose& pose : pedestrians)
+        {
+            // Unlike the player mesh (whose GetPosition() is eye-height, offset down in Draw()
+            // above), sidewalk WaypointPath points are already authored at this mesh's own center
+            // height (see PrototypeWorld::BuildWarehouseBlock's sidewalkPaths_ comment) -- no
+            // extra vertical offset needed here.
+            DrawMesh(device, pedestrianMesh_,
+                    Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position));
+        }
+        for (const ActorPose& pose : policeCars)
+        {
+            DrawMesh(device, policeCarMesh_,
+                    Matrix::CreateRotationY(pose.yaw) * Matrix::CreateTranslation(pose.position));
         }
     }
 }

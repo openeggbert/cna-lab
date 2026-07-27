@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace CNA::Extended::ECS
 {
@@ -23,6 +24,15 @@ namespace CNA::Extended::World3DEXT
 namespace IronShadows
 {
     class PrototypeWorld;
+
+    // Gate M9: the minimal per-actor state PrototypeRenderer needs to draw one traffic vehicle,
+    // pedestrian, or police car this frame -- position/yaw only, matching how the player/vehicle
+    // boxes are already drawn in Draw() below.
+    struct ActorPose
+    {
+        Microsoft::Xna::Framework::Vector3 position;
+        float yaw{0.0F};
+    };
 
     // The current MC3 -> glTF -> CNJ pipeline does not bake per-object node transforms into
     // vertex data, so a multi-object MC3 scene loaded as one CNJ Model loses each object's
@@ -90,6 +100,18 @@ namespace IronShadows
                   const Microsoft::Xna::Framework::Vector3& vehiclePosition,
                   float vehicleYaw);
 
+        // Gate M9 (plan_21/plan_20/plan_22): drawn as a separate pass right after Draw() each
+        // frame, reusing the view/projection Draw() already set up. Each box-based mesh below is
+        // deliberately shaped/colored distinctly from the player's own sedan/character meshes so
+        // the three actor kinds (and the player) stay visually distinguishable in a screenshot
+        // despite all being colored-box debug geometry.
+        void DrawTraffic(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
+                         const Microsoft::Xna::Framework::Matrix& view,
+                         const Microsoft::Xna::Framework::Matrix& projection,
+                         const std::vector<ActorPose>& trafficVehicles,
+                         const std::vector<ActorPose>& pedestrians,
+                         const std::vector<ActorPose>& policeCars);
+
     private:
         void DrawMesh(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
                       PrimitiveMesh& mesh,
@@ -98,6 +120,9 @@ namespace IronShadows
         PrimitiveMesh staticCityMesh_;
         PrimitiveMesh vehicleMesh_;
         PrimitiveMesh playerMesh_;
+        PrimitiveMesh trafficVehicleMesh_;
+        PrimitiveMesh pedestrianMesh_;
+        PrimitiveMesh policeCarMesh_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::BasicEffect> effect_;
 
         std::optional<Microsoft::Xna::Framework::Graphics::Model> warehouseModel_;

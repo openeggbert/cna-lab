@@ -4,10 +4,14 @@
 
 Build lane-based traffic at Mafia-1 (2002) fidelity: cars follow lanes, obey signals, brake for the player and obstacles, and despawn out of attention. No intersection-reservation deadlock avoidance, no AI overtaking/passing maneuvers, and no public transit — those belong to a much larger open-world simulation, not this game.
 
-- [ ] **IS-21-001 P0** — Spawn three to five AI vehicles on a closed lane loop.
-- [ ] **IS-21-002 P0** — Implement lane following, speed target, and following distance.
+### Gate M9 status (first pass, vertical slice)
+
+`TrafficVehicle` (`include/IronShadows/Gameplay/TrafficVehicle.hpp`) is a kinematic (non-Jolt) mover following a fixed `WaypointPath` loop (plan 19) at a cruise speed, braking smoothly when `IronShadowsGame::Update()`'s `DistanceAheadIfInLane()` helper reports something (another traffic vehicle, or the player's own vehicle) ahead in roughly the same lane. No signals/stop-lines (the single intersection in `WarehouseBlock`'s existing geometry has no light), no turning/lane graph, no yield rules, no spawn/despawn-by-attention, no accident/stuck handling, and no debug visualization — those all remain unstarted; this system only needs to prove "follow a loop, brake for what's ahead."
+
+- [ ] **IS-21-001 P0** — Spawn three to five AI vehicles on a closed lane loop. *(Only 2 spawned, not 3-5; see status note above.)*
+- [x] **IS-21-002 P0** — Implement lane following, speed target, and following distance. *(`TrafficVehicle::Update()`: accelerates toward a cruise speed, brakes smoothly starting 10 units from an obstacle ahead, matching the minimum-gap/braking-distance constants in `src/Gameplay/TrafficVehicle.cpp`.)*
 - [ ] **IS-21-003 P0** — Implement stop line and traffic signal compliance.
-- [ ] **IS-21-004 P0** — Implement obstacle braking for the player and blocked traffic.
+- [x] **IS-21-004 P0** — Implement obstacle braking for the player and blocked traffic. *(`DistanceAheadIfInLane()` in `IronShadowsGame.cpp` considers both other `TrafficVehicle`s and the player's own vehicle when driving.)*
 - [ ] **IS-21-005 P1** — Create directed lane graphs with turn connections.
 - [ ] **IS-21-006 P1** — Create simple route selection across intersections using yield/priority rules, not reservation-based deadlock avoidance.
 - [ ] **IS-21-007 P1** — Create traffic-light phases and timing data.

@@ -2,7 +2,10 @@
 
 #include "IronShadows/Cutscenes/CutscenePlayer.hpp"
 #include "IronShadows/Dialogue/DialogueSystem.hpp"
+#include "IronShadows/Gameplay/Pedestrian.hpp"
 #include "IronShadows/Gameplay/PlayerController.hpp"
+#include "IronShadows/Gameplay/PoliceSystem.hpp"
+#include "IronShadows/Gameplay/TrafficVehicle.hpp"
 #include "IronShadows/Gameplay/VehicleController.hpp"
 #include "IronShadows/Graphics/PrototypeRenderer.hpp"
 #include "IronShadows/Missions/PrototypeMission.hpp"
@@ -15,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace IronShadows
 {
@@ -56,6 +60,11 @@ namespace IronShadows
         // Repositions player/vehicle at the new district's spawn points once DistrictManager
         // reports the loading screen's minimum display time has elapsed (IS-13-008/009/017/018).
         void HandleDistrictArrival();
+        // Gate M9: (re)populates trafficVehicles_/pedestrians_ from the current district's
+        // WaypointPath data and resets police_ -- called whenever the world/district changes
+        // (Initialize, district arrival, load, reset), since none of this ambient state is part
+        // of SaveGame (plan_19/20/21/22's own scope note: no NPC/wanted persistence yet).
+        void RespawnTrafficAndPedestrians();
 
         std::unique_ptr<Microsoft::Xna::Framework::GraphicsDeviceManager> graphicsDeviceManager_;
         std::string assetRoot_;
@@ -67,6 +76,12 @@ namespace IronShadows
         DialogueSystem dialogue_;
         CutscenePlayer cutscene_;
         PrototypeRenderer renderer_;
+        // Gate M9 (plan_19/20/21/22-...): ambient traffic/pedestrians and the one police-response
+        // scenario. Empty in districts with no WaypointPath data (e.g. Countryside), so they are
+        // naturally inert there -- see PrototypeWorld::GetTrafficLoop()/GetSidewalkPaths().
+        std::vector<TrafficVehicle> trafficVehicles_;
+        std::vector<Pedestrian> pedestrians_;
+        PoliceSystem police_;
         Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_{};
         bool playerDriving_{false};
         float titleRefreshTimer_{0.0F};

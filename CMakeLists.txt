@@ -99,14 +99,18 @@ add_library(iron_shadows_core STATIC
     src/Cutscenes/CutscenePlayer.cpp
     src/Cutscenes/CutsceneSequence.cpp
     src/Dialogue/DialogueSystem.cpp
+    src/Gameplay/Pedestrian.cpp
     src/Gameplay/PlayerController.cpp
+    src/Gameplay/PoliceSystem.cpp
+    src/Gameplay/TrafficVehicle.cpp
     src/Gameplay/VehicleController.cpp
     src/Missions/MissionDefinition.cpp
     src/Missions/PrototypeMission.cpp
     src/Persistence/SaveGame.cpp
     src/Physics/PhysicsWorld.cpp
     src/World/DistrictManager.cpp
-    src/World/PrototypeWorld.cpp)
+    src/World/PrototypeWorld.cpp
+    src/World/WaypointPath.cpp)
 
 add_library(IronShadows::Core ALIAS iron_shadows_core)
 

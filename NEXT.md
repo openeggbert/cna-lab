@@ -10,7 +10,9 @@ Repo: `/rv/data/development/github.com/openeggbert/iron-shadows`, branch `develo
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
 **No remote configured, nothing pushed** — commit locally only until explicitly told otherwise.
 
-Gates M0-M8 (see `plan.md` milestone order) are done:
+Gates M0-M9 (see `plan.md` milestone order) are done at prototype fidelity (M9's own literal
+"ten-minute soak" criterion is NOT yet verified — see its entry below and
+`plan_39-vertical-slice-gates.md` `IS-39-010`):
 
 - M0/M1: workspace preflight + running procedural scaffold.
 - M2: warehouse building loads as a real CNJ model (`assets/source/mc3/warehouse.mc3.xml` →
@@ -40,7 +42,13 @@ Gates M0-M8 (see `plan.md` milestone order) are done:
 - M8: a short in-engine intro cutscene (camera-track only) plays alongside the opening dialogue,
   panning from an establishing shot of the warehouse delivery target to the exact framing of the
   normal gameplay camera at the player's spawn — skippable, save-safe, and hands control back to
-  gameplay automatically once finished — see "What changed most recently" below.
+  gameplay automatically once finished.
+- M9: 2 `TrafficVehicle`s follow a fixed waypoint loop and brake for each other/the player's
+  vehicle; 2 `Pedestrian`s walk fixed sidewalk paths and flee the player's vehicle within a fixed
+  radius; `PoliceSystem` runs a full `Clear -> Dispatched -> Chasing -> (one escalation) -> Clear`
+  state machine off a simplified fixed-radius "witness" check (not real line-of-sight) — all
+  WarehouseBlock-only, ticking every frame regardless of dialogue/cutscenes, deterministically
+  unit-tested end to end — see "What changed most recently" below.
 
 Plan size: 2,148 tasks across 41 group files under `plan/`, down from an original 6,380-task
 AAA/open-world-scoped draft — see `plan.md`'s "Locked scope decisions" section for the ten
@@ -48,6 +56,75 @@ scope decisions that drove that cut (Mafia-1 (2002) content scope, Mafia-1-era s
 no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting target, etc.).
 
 ## What changed most recently (this session)
+
+Implemented gate M9 (traffic, pedestrians, one police-response scenario) at first-pass/prototype
+fidelity, entirely within Iron Shadows itself. Adopted a "kinematic movers + one shared waypoint
+helper + a simplified radius-based police witness check" architecture -- the smallest slice that
+proves each of the three mechanics (`plan_19`/`plan_20`/`plan_21`/`plan_22`), deliberately not the
+full lane-graph/navmesh/vision-cone/multi-tier-wanted machinery those plan files describe at their
+fullest scope.
+
+- New `include/`/`src/World/WaypointPath.hpp`/`.cpp`: `WaypointPath` is a hand-authored, ordered
+  list of `Vector3` points plus a `loop` flag -- not a graph, no branching, no portals. The shared
+  `AdvanceAlongPath()` free function moves a mover toward its current target at a given speed,
+  advancing (and wrapping, if `loop`) to the next target once within `arrivalRadius`; both
+  `TrafficVehicle` and `Pedestrian` below call it as their only path-following logic. Hand-verified
+  via a standalone diagnostic that starting a mover exactly AT its first waypoint (as `Reset()`
+  does for both movers) immediately wraps to the second waypoint on the very first call -- this
+  surprised an early version of the corresponding unit test, which had the wrong mental model.
+- `PrototypeWorld::BuildWarehouseBlock()` gained `trafficLoop_` (a 4-point rectangular loop using
+  both `road_north_south` lanes, X = +-3) and `sidewalkPaths_` (two 2-point back-and-forth paths
+  along `sidewalk_west`/`sidewalk_east`, X = +-7.5), both new `GetTrafficLoop()`/`GetSidewalkPaths()`
+  accessors. `BuildCountryside()` was NOT touched -- both stay empty there, so Countryside has no
+  ambient traffic/pedestrians by design.
+- New `include/`/`src/Gameplay/TrafficVehicle.hpp`/`.cpp`: a kinematic (non-Jolt) mover that
+  accelerates toward a cruise speed (6 units/s^2) and brakes (12 units/s^2) toward zero when an
+  externally-computed `obstacleDistanceAhead` falls inside a 10-unit braking distance / 3-unit
+  minimum gap.
+- New `include/`/`src/Gameplay/Pedestrian.hpp`/`.cpp`: walks a fixed sidewalk `WaypointPath` at
+  1.6 units/s, overridden by a 4-second "flee directly away from the last-known threat position"
+  state (2.5x speed) that keeps running off its own timer even after the threat is no longer
+  reported present each frame.
+- New `include/`/`src/Gameplay/PoliceSystem.hpp`/`.cpp`: a `Clear -> Dispatched -> Chasing` state
+  machine. Clear: a witnessed offense (player speeding >70 km/h, or within 2.5 units of a witness,
+  while any traffic-vehicle/pedestrian position is within a 15-unit "witness radius") triggers
+  dispatch. Dispatched: a fixed 2-second delay before the chase actually starts. Chasing: up to 2
+  patrol cars drive straight toward the player's current position (ignoring roads -- a documented
+  simplification, not real route-following) at 9 units/s; a second car joins after 20 seconds still
+  chasing (the one locked escalation tier); the chase resolves back to Clear once the CLOSEST
+  patrol car has stayed beyond 40 units from the player for 3 sustained seconds.
+- `IronShadowsGame` wiring: new `trafficVehicles_`/`pedestrians_`/`police_` members;
+  `RespawnTrafficAndPedestrians()` (re)populates them from the current district's `WaypointPath`
+  data and resets `police_`, called from `Initialize()`, `HandleDistrictArrival()`,
+  `LoadPrototype()`, and `ResetPrototype()` (none of this ambient state is part of `SaveGame` --
+  deliberately never persisted, matching the locked M9 scope). All three systems tick every frame
+  gated only on `!transitioning` in `Update()` (they keep running through dialogue/cutscenes,
+  matching Mafia 1's own ambient-city feel) -- a local `DistanceAheadIfInLane()` helper computes
+  each `TrafficVehicle`'s obstacle distance against other traffic vehicles and the player's own
+  vehicle when driving. `Draw()` gained a `renderer_.DrawTraffic(...)` call after the normal
+  `Draw()`. The window title now appends "Police dispatched..."/"WANTED" while not Clear.
+- `PrototypeRenderer` gained a new `ActorPose` struct and `DrawTraffic()` method, plus three new
+  colored-box meshes (`trafficVehicleMesh_`, `pedestrianMesh_`, `policeCarMesh_`) distinct in shape
+  and color from the player's own sedan/character meshes, so all three actor kinds stay visually
+  distinguishable even as plain debug geometry.
+- New tests in `tests/CoreTests.cpp`: `TestWaypointPathAdvancesAndWraps`,
+  `TestTrafficVehicleAcceleratesAndBrakes`, `TestPedestrianFleesAndResumesPath`, and
+  `TestPoliceSystemFullCycle` (the big one -- exercises the FULL Clear -> Dispatched -> Chasing ->
+  escalate -> resolve cycle against hand-computed, standalone-diagnostic-confirmed position/timer
+  values, including two negative cases: not driving, and a witness outside the radius, both
+  correctly never triggering a chase).
+- Verification performed: standalone diagnostics confirmed `AdvanceAlongPath`'s wrap-on-arrival
+  behavior (see above) before the test was corrected to match it. Full `compile-software` rebuild
+  (clean, one pre-existing unrelated warning only), all three `ctest` targets pass,
+  `./scripts/check-syntax.sh` passes on every file, and two `--smoke` runs (30 and 90 draw frames,
+  ~10s and ~25s wall-clock -- this environment's software rasterizer is slow enough per frame that
+  even 90 frames covers a meaningful number of simulated seconds via the engine's fixed-timestep
+  catch-up loop) both exit 0 with no crash while traffic/pedestrians/police ticked every frame.
+  **Not verified**: the actual ten-minute soak the gate's own wording requires (only short smoke
+  runs so far -- see `plan_39` `IS-39-010`/`049`), and, as with every other visual milestone this
+  session, there is no display to check how any of this actually looks.
+
+### Earlier this session: implemented gate M8 (one in-engine cutscene)
 
 Implemented gate M8 (one in-engine cutscene), entirely within Iron Shadows itself. Scoped down to
 a camera-track-only sequence player (`plan_26-cutscenes-and-cinematic-sequencing.md`'s own IS-26-002
@@ -491,30 +568,35 @@ the sedan and pressing E to watch the enter/exit animation and `playerDriving_` 
 environment has no display, so everything above has only ever been checked via assertions/logs,
 never by actually seeing it happen.
 
-**Gates M6, M7, and M8 (`plan/plan_39-vertical-slice-gates.md` `IS-39-007`/`008`/`009`) are all
-now fully done** at prototype fidelity — see the entries above for each. Remaining sub-tasks in
-`plan_18` (a real named-bone skeleton convention, layered animation/bone masks, IK, root motion,
-sit/drive/steer poses while actually driving), `plan_24` (typed mission variables, a fuller
-condition/action set, failure/retry policies, checkpoints beyond plain save/load, the campaign
-graph), and `plan_26` (animation/dialogue/audio/event/fade tracks beyond the camera-only track,
-a timeline debug overlay) are real but not gate-blocking — see each file for its itemized list.
+**Gates M6, M7, M8, and M9 (`plan/plan_39-vertical-slice-gates.md` `IS-39-007`/`008`/`009`/`010`)
+are all done at prototype fidelity** — see the entries above for each. M9's own literal
+"ten-minute soak" wording is the one exception left unchecked for that gate — see below. Remaining
+sub-tasks in `plan_18` (a real named-bone skeleton convention, layered animation/bone masks, IK,
+root motion, sit/drive/steer poses while actually driving), `plan_24` (typed mission variables, a
+fuller condition/action set, failure/retry policies, checkpoints beyond plain save/load, the
+campaign graph), `plan_26` (animation/dialogue/audio/event/fade tracks beyond the camera-only
+track, a timeline debug overlay), and `plan_19`/`plan_20`/`plan_21`/`plan_22` (real lane
+graph/signals, real vision-cone witness perception, 10-20 pedestrians instead of 2, 3-5 traffic
+vehicles instead of 2, local avoidance, route-following patrol cars, save/load persistence of NPC/
+wanted state, debug views — see each file's own "Gate M9 status" note) are real but not
+gate-blocking — see each file for its itemized list.
 
-**If continuing headless/autonomous work, the next milestone per `plan.md`'s own order is M9 —
-Mafia-1-fidelity traffic, pedestrians, and a police-response scenario** (`plan/plan_39-vertical-slice-gates.md`
-`IS-39-010`, expanded further in `IS-39-044`-`048`): spawn Mafia-1-fidelity traffic following the
-district's lane graph and signals, 10-20 pedestrians with sidewalk navigation and basic flee
-reactions, a witnessed traffic offense triggering a police response, a witnessed crime triggering
-a police chase with one escalation level, and losing police line-of-sight resolving the chase --
-all surviving ten minutes of walking/driving interaction in the first district. This is a
-substantially bigger milestone than M0-M8 (it needs a lane graph / waypoint system, basic AI
-steering/navigation for both vehicles and pedestrians, and a simple police state machine, none of
-which exist at all today) -- check whether a dedicated `plan_2x`-numbered group covers traffic/AI
-(likely named something like "traffic and pedestrian simulation" or "police and wanted system")
-before designing from scratch, and strongly consider scoping the first pass down to the smallest
-slice that proves each piece mechanically (e.g. 2-3 cars on a simple fixed loop, a handful of
-pedestrians walking between two points, one hardcoded police-chase trigger) rather than a fully
-tuned Mafia-1-scale simulation in one pass, matching this session's own "smallest coherent slice"
-discipline for M4-M8.
+**If continuing headless/autonomous work, two reasonable next steps:**
+
+1. **Close out M9's own soak-test gap** (`plan_39` `IS-39-010`/`049`): run a genuinely long
+   `--smoke` session (or a longer scripted headless run) covering ten simulated minutes of
+   traffic/pedestrian/police activity and confirm no crash, leak, or stall. Note this
+   environment's software rasterizer is slow enough per real-world second that even a 90-frame
+   smoke run already covers ~25 simulated seconds via the engine's fixed-timestep catch-up loop
+   (see this session's M9 entry above) — a real ten-minute soak may not need anywhere near ten
+   real-world minutes of `--smoke` frame count; measure the actual frames-per-simulated-second
+   ratio first rather than assuming 1:1.
+2. **Move on to gate M10** (`plan/plan_39-vertical-slice-gates.md` `IS-39-011`): the first
+   district's vertical slice uses production-path assets, collision, baked lighting + one dynamic
+   sun + limited shadows, audio, and UI. This is a good point to revisit the user's own concrete
+   feedback earlier this session ("doesn't look like Mafia 1") — M10 is exactly the milestone
+   where visual fidelity work is actually in scope, unlike M0-M9's deliberately placeholder-grade
+   debug-box rendering.
 
 Other open items worth picking up opportunistically (not blocking, not sequenced):
 

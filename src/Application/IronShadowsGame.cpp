@@ -11,17 +11,52 @@
 #include "Microsoft/Xna/Framework/Input/Keys.hpp"
 #include "System/TimeSpan.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <iostream>
 #include <numbers>
 #include <optional>
 #include <sstream>
 #include <utility>
+#include <vector>
 
 namespace IronShadows
 {
     using namespace Microsoft::Xna::Framework;
     using namespace Microsoft::Xna::Framework::Input;
+
+    namespace
+    {
+        // Gate M9: how far ahead (and how far sideways from dead-ahead) something must be to
+        // count as an obstacle a TrafficVehicle should brake for -- a simplified stand-in for a
+        // real forward collision sensor, matching this system's kinematic-mover scope.
+        constexpr float kTrafficLaneHalfWidth = 2.0F;
+        constexpr float kNoObstacleAhead = 1000.0F;
+        // How close the player's vehicle must get to a pedestrian before it flees.
+        constexpr float kPedestrianThreatRadius = 6.0F;
+        // Where a dispatched patrol car first appears: off to the side of the player's own
+        // vehicle spawn point, clear of the road and sidewalks.
+        const Vector3 kPoliceSpawnOffset{10.0F, 0.0F, -6.0F};
+
+        float DistanceAheadIfInLane(const Vector3& fromPosition, float fromYaw, const Vector3& obstaclePosition)
+        {
+            const Vector3 forward = ForwardFromYaw(fromYaw);
+            Vector3 toObstacle = obstaclePosition - fromPosition;
+            toObstacle.Y = 0.0F;
+            const float forwardDistance = Vector3::Dot(forward, toObstacle);
+            if (forwardDistance <= 0.0F)
+            {
+                return kNoObstacleAhead;
+            }
+            const Vector3 lateral = toObstacle - forward * forwardDistance;
+            if (lateral.Length() > kTrafficLaneHalfWidth)
+            {
+                return kNoObstacleAhead;
+            }
+            return forwardDistance;
+        }
+    }
 
     IronShadowsGame::IronShadowsGame(std::string assetRoot)
         : graphicsDeviceManager_(std::make_unique<GraphicsDeviceManager>(this)),
@@ -159,7 +194,40 @@ namespace IronShadows
 
         renderer_.Initialize(getGraphicsDeviceProperty(), districtManager_.GetWorld(),
                              std::move(warehouseModel), std::move(vehicleModels), std::move(characterModel));
+        RespawnTrafficAndPedestrians();
         UpdateWindowTitle(10.0F);
+    }
+
+    void IronShadowsGame::RespawnTrafficAndPedestrians()
+    {
+        const PrototypeWorld& world = districtManager_.GetWorld();
+
+        trafficVehicles_.clear();
+        const WaypointPath& loop = world.GetTrafficLoop();
+        if (!loop.Empty())
+        {
+            constexpr int kTrafficVehicleCount = 2;
+            constexpr float kCruiseSpeed = 6.0F;
+            for (int i = 0; i < kTrafficVehicleCount; ++i)
+            {
+                const std::size_t startIndex =
+                    (loop.points.size() * static_cast<std::size_t>(i)) / static_cast<std::size_t>(kTrafficVehicleCount);
+                TrafficVehicle vehicle;
+                vehicle.Reset(loop, startIndex, kCruiseSpeed);
+                trafficVehicles_.push_back(vehicle);
+            }
+        }
+
+        pedestrians_.clear();
+        constexpr float kWalkSpeed = 1.6F;
+        for (const WaypointPath& sidewalk : world.GetSidewalkPaths())
+        {
+            Pedestrian pedestrian;
+            pedestrian.Reset(sidewalk, 0, kWalkSpeed);
+            pedestrians_.push_back(pedestrian);
+        }
+
+        police_.Reset();
     }
 
     bool IronShadowsGame::WasPressed(const KeyboardState& current, Keys key) const
@@ -259,6 +327,7 @@ namespace IronShadows
         }
 
         renderer_.RebuildStaticGeometry(getGraphicsDeviceProperty(), world);
+        RespawnTrafficAndPedestrians();
         transientStatus_ = "Arrived";
         transientStatusSeconds_ = 2.0F;
     }
@@ -313,6 +382,7 @@ namespace IronShadows
         // with an active cutscene camera fighting a restored, unrelated player/vehicle position.
         cutscene_.Skip();
         vehicleTransitionState_ = VehicleTransitionState::None; // no mid-clip state is ever saved
+        RespawnTrafficAndPedestrians(); // ambient traffic/pedestrian/police state is never saved
         transientStatus_ = "Loaded prototype state";
         transientStatusSeconds_ = 3.0F;
     }
@@ -333,6 +403,7 @@ namespace IronShadows
         cutscene_.Skip();
         playerDriving_ = false;
         vehicleTransitionState_ = VehicleTransitionState::None;
+        RespawnTrafficAndPedestrians();
         transientStatus_ = "Prototype reset";
         transientStatusSeconds_ = 2.0F;
     }
@@ -474,6 +545,57 @@ namespace IronShadows
 
         if (!transitioning)
         {
+            // Gate M9: traffic/pedestrians/police keep ticking through dialogue and cutscenes
+            // (ambient city life, matching Mafia 1's own feel) -- only a district transition
+            // suspends them, same as everything else gated on `transitioning` in this function.
+            for (std::size_t i = 0; i < trafficVehicles_.size(); ++i)
+            {
+                const Vector3 myPosition = trafficVehicles_[i].GetPosition();
+                const float myYaw = trafficVehicles_[i].GetYaw();
+                float obstacleDistance = kNoObstacleAhead;
+                for (std::size_t j = 0; j < trafficVehicles_.size(); ++j)
+                {
+                    if (i == j)
+                    {
+                        continue;
+                    }
+                    obstacleDistance = std::min(obstacleDistance,
+                        DistanceAheadIfInLane(myPosition, myYaw, trafficVehicles_[j].GetPosition()));
+                }
+                if (playerDriving_)
+                {
+                    obstacleDistance = std::min(obstacleDistance,
+                        DistanceAheadIfInLane(myPosition, myYaw, vehicle_.GetPosition()));
+                }
+                trafficVehicles_[i].Update(deltaSeconds, obstacleDistance);
+            }
+
+            std::vector<Vector3> witnessPositions;
+            witnessPositions.reserve(trafficVehicles_.size() + pedestrians_.size());
+            for (const TrafficVehicle& trafficVehicle : trafficVehicles_)
+            {
+                witnessPositions.push_back(trafficVehicle.GetPosition());
+            }
+            for (const Pedestrian& pedestrian : pedestrians_)
+            {
+                witnessPositions.push_back(pedestrian.GetPosition());
+            }
+
+            for (Pedestrian& pedestrian : pedestrians_)
+            {
+                const bool hasThreat = playerDriving_ &&
+                    DistanceSquaredXZ(pedestrian.GetPosition(), vehicle_.GetPosition()) <=
+                        kPedestrianThreatRadius * kPedestrianThreatRadius;
+                pedestrian.Update(deltaSeconds, hasThreat, vehicle_.GetPosition());
+            }
+
+            police_.Update(deltaSeconds,
+                          playerDriving_,
+                          vehicle_.GetPosition(),
+                          vehicle_.GetSpeedKph(),
+                          witnessPositions,
+                          districtManager_.GetWorld().GetVehicleSpawn() + kPoliceSpawnOffset);
+
             mission_.Update(dialogue_.IsFinished(),
                             player_.GetPosition(),
                             vehicle_.GetPosition(),
@@ -519,6 +641,16 @@ namespace IronShadows
             if (playerDriving_)
             {
                 title << " | " << static_cast<int>(std::round(vehicle_.GetSpeedKph())) << " km/h";
+            }
+            // Gate M9: surfaces the police state machine's own progression (Dispatched is the
+            // brief "en route" delay before Chasing actually starts moving patrol cars).
+            if (police_.GetState() == PoliceState::Dispatched)
+            {
+                title << " | Police dispatched...";
+            }
+            else if (police_.GetState() == PoliceState::Chasing)
+            {
+                title << " | WANTED";
             }
             if (transientStatusSeconds_ > 0.0F && !transientStatus_.empty())
             {
@@ -597,6 +729,32 @@ namespace IronShadows
                        !playerDriving_,
                        vehicle_.GetPosition(),
                        vehicle_.GetYaw());
+
+        // Gate M9: drawn even mid-cutscene/dialogue (ambient city life keeps moving, see the
+        // matching tick comment in Update()) -- only suppressed during a district transition,
+        // which this whole function already returns early for above.
+        std::vector<ActorPose> trafficPoses;
+        trafficPoses.reserve(trafficVehicles_.size());
+        for (const TrafficVehicle& trafficVehicle : trafficVehicles_)
+        {
+            trafficPoses.push_back({trafficVehicle.GetPosition(), trafficVehicle.GetYaw()});
+        }
+
+        std::vector<ActorPose> pedestrianPoses;
+        pedestrianPoses.reserve(pedestrians_.size());
+        for (const Pedestrian& pedestrian : pedestrians_)
+        {
+            pedestrianPoses.push_back({pedestrian.GetPosition(), pedestrian.GetYaw()});
+        }
+
+        std::vector<ActorPose> policePoses;
+        policePoses.reserve(static_cast<std::size_t>(police_.GetActivePatrolCount()));
+        for (int i = 0; i < police_.GetActivePatrolCount(); ++i)
+        {
+            policePoses.push_back({police_.GetPatrolPosition(i), police_.GetPatrolYaw(i)});
+        }
+
+        renderer_.DrawTraffic(device, view, projection, trafficPoses, pedestrianPoses, policePoses);
 
         if (smokeFramesRemaining_ > 0)
         {

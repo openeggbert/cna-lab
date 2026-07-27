@@ -4,16 +4,20 @@
 
 Create fair, observable law-enforcement gameplay at Mafia-1 (2002) fidelity: a witnessed offense or crime triggers a chase with one escalation step, then resolves. No multi-tier GTA-style wanted stars, no search-area decay simulation, no roadblocks, and no persistent detective/investigation system — those belong to a much larger open-world simulation, not this game.
 
-- [ ] **IS-22-001 P0** — Define which actions are offenses (speeding, running a light, violence) and how they are detected.
-- [ ] **IS-22-002 P0** — Create witness perception so an officer or civilian must actually see the act, not global instant knowledge.
-- [ ] **IS-22-003 P0** — Create a short dispatch delay between a witnessed offense and police responding.
-- [ ] **IS-22-004 P1** — Create a single wanted state machine: clear -> chased -> resolved (arrested/fined, or escaped by breaking line of sight).
+### Gate M9 status (first pass, vertical slice)
+
+`PoliceSystem` (`include/IronShadows/Gameplay/PoliceSystem.hpp`) implements exactly `Clear -> Dispatched -> Chasing -> (one escalation) -> Clear`, deterministically unit-tested end to end in `tests/CoreTests.cpp`'s `TestPoliceSystemFullCycle`. Offenses are speeding (> 70 km/h) or being within 2.5 units of a witness while driving; witnesses are every `TrafficVehicle`/`Pedestrian` position within a fixed 15-unit radius — a simplified proximity check, **not** a real vision cone/line-of-sight test (documented simplification, see IS-22-002 below). Dispatch has a fixed 2-second delay; patrol cars drive straight toward the player's current position (ignoring roads) at a fixed speed rather than following the traffic lane graph; escalation adds one second patrol car after 20 seconds of chasing; resolution requires the closest patrol car to stay beyond 40 units of the player for 3 sustained seconds. No traffic-stop/ticket flow, no surrender/arrest, no route planning over the lane graph, no mission overrides, no save/checkpoint restoration of wanted state (deliberately never saved — see `IronShadowsGame::LoadPrototype()`'s own comment), and no debug view — those remain unstarted.
+
+- [x] **IS-22-001 P0** — Define which actions are offenses (speeding, running a light, violence) and how they are detected. *(Speeding above a fixed km/h threshold, or close proximity to a witness while driving — no "running a light" (no signals exist yet, see plan 21) or violence detection.)*
+- [ ] **IS-22-002 P0** — Create witness perception so an officer or civilian must actually see the act, not global instant knowledge. *(Simplified to a fixed-radius proximity check instead — a documented simplification, not a real vision cone/line-of-sight test.)*
+- [x] **IS-22-003 P0** — Create a short dispatch delay between a witnessed offense and police responding. *(Fixed 2-second `Dispatched` state before a patrol car starts moving.)*
+- [x] **IS-22-004 P1** — Create a single wanted state machine: clear -> chased -> resolved (arrested/fined, or escaped by breaking line of sight). *(`PoliceState::Clear/Dispatched/Chasing`; resolves back to `Clear` by sustained distance rather than a literal line-of-sight break.)*
 - [ ] **IS-22-005 P1** — Create traffic-stop behavior for minor offenses (pull over, ticket/warning).
 - [ ] **IS-22-006 P1** — Create pursuit behavior for vehicles and on-foot suspects.
 - [ ] **IS-22-007 P1** — Create surrender, arrest, escape, and mission-failure states.
 - [ ] **IS-22-008 P1** — Create police spawn rules that avoid visible pop-in.
 - [ ] **IS-22-009 P1** — Create police route planning that reuses the traffic lane graph.
-- [ ] **IS-22-010 P1** — Create one backup-escalation step (a second officer/car joins an active pursuit) with no further tiers.
+- [x] **IS-22-010 P1** — Create one backup-escalation step (a second officer/car joins an active pursuit) with no further tiers. *(A second patrol car spawns after 20 seconds of chasing; `activePatrolCount_` is capped at 2 with no further escalation.)*
 - [ ] **IS-22-011 P1** — Create false-positive prevention and clear player feedback for why they are being chased.
 - [ ] **IS-22-012 P1** — Create mission overrides for scripted police states.
 - [ ] **IS-22-013 P1** — Create checkpoint-safe wanted-state restoration.
