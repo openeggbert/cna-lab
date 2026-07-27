@@ -5,6 +5,7 @@
 #include "IronShadows/Gameplay/VehicleController.hpp"
 #include "IronShadows/Graphics/PrototypeRenderer.hpp"
 #include "IronShadows/Missions/PrototypeMission.hpp"
+#include "IronShadows/Physics/PhysicsWorld.hpp"
 #include "IronShadows/World/PrototypeWorld.hpp"
 
 #include "Microsoft/Xna/Framework/Game.hpp"
@@ -42,6 +43,7 @@ namespace IronShadows
         std::unique_ptr<Microsoft::Xna::Framework::GraphicsDeviceManager> graphicsDeviceManager_;
         std::string assetRoot_;
         PrototypeWorld world_;
+        Physics::PhysicsWorld physics_;
         PlayerController player_;
         VehicleController vehicle_;
         PrototypeMission mission_;

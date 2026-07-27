@@ -44,8 +44,9 @@ namespace IronShadows
     void IronShadowsGame::Initialize()
     {
         Game::Initialize();
-        player_.Reset(world_.GetPlayerSpawn());
-        vehicle_.Reset(world_.GetVehicleSpawn(), world_.GetVehicleSpawnYaw());
+        world_.BuildPhysicsStaticBodies(physics_);
+        player_.Reset(world_.GetPlayerSpawn(), 0.0F, physics_);
+        vehicle_.Reset(world_.GetVehicleSpawn(), world_.GetVehicleSpawnYaw(), physics_);
         mission_.Reset();
 
         std::string dialogueError;
@@ -121,7 +122,7 @@ namespace IronShadows
             if (DistanceSquaredXZ(player_.GetPosition(), vehicle_.GetPosition()) <= 9.0F)
             {
                 playerDriving_ = true;
-                player_.SetPosition(vehicle_.GetPosition());
+                player_.SetPosition(vehicle_.GetPosition(), physics_);
                 transientStatus_ = "Entered sedan";
                 transientStatusSeconds_ = 2.0F;
             }
@@ -144,8 +145,8 @@ namespace IronShadows
         if (world_.CanOccupy(exitPosition, 0.35F))
         {
             playerDriving_ = false;
-            player_.SetPosition(exitPosition);
-            player_.SetYaw(vehicle_.GetYaw());
+            player_.SetPosition(exitPosition, physics_);
+            player_.SetYaw(vehicle_.GetYaw(), physics_);
             transientStatus_ = "Exited sedan";
         }
         else
@@ -190,8 +191,8 @@ namespace IronShadows
         }
 
         mission_.SetState(snapshot->missionState);
-        player_.Reset(snapshot->playerPosition, snapshot->playerYaw);
-        vehicle_.Restore(snapshot->vehiclePosition, snapshot->vehicleYaw, snapshot->vehicleSpeed);
+        player_.Reset(snapshot->playerPosition, snapshot->playerYaw, physics_);
+        vehicle_.Restore(snapshot->vehiclePosition, snapshot->vehicleYaw, snapshot->vehicleSpeed, physics_);
         playerDriving_ = snapshot->playerDriving;
         transientStatus_ = "Loaded prototype state";
         transientStatusSeconds_ = 3.0F;
@@ -199,8 +200,8 @@ namespace IronShadows
 
     void IronShadowsGame::ResetPrototype()
     {
-        player_.Reset(world_.GetPlayerSpawn());
-        vehicle_.Reset(world_.GetVehicleSpawn(), world_.GetVehicleSpawnYaw());
+        player_.Reset(world_.GetPlayerSpawn(), 0.0F, physics_);
+        vehicle_.Reset(world_.GetVehicleSpawn(), world_.GetVehicleSpawnYaw(), physics_);
         mission_.Reset();
         dialogue_.Start();
         playerDriving_ = false;
@@ -262,9 +263,9 @@ namespace IronShadows
                 input.steering = (keyboard.IsKeyDown(Keys::D) || keyboard.IsKeyDown(Keys::Right) ? 1.0F : 0.0F) -
                                  (keyboard.IsKeyDown(Keys::A) || keyboard.IsKeyDown(Keys::Left) ? 1.0F : 0.0F);
                 input.handbrake = keyboard.IsKeyDown(Keys::Space);
-                vehicle_.Update(deltaSeconds, input, world_);
-                player_.SetPosition(vehicle_.GetPosition());
-                player_.SetYaw(vehicle_.GetYaw());
+                vehicle_.Update(deltaSeconds, input, physics_);
+                player_.SetPosition(vehicle_.GetPosition(), physics_);
+                player_.SetYaw(vehicle_.GetYaw(), physics_);
             }
             else
             {
@@ -276,7 +277,7 @@ namespace IronShadows
                 input.turn = (keyboard.IsKeyDown(Keys::Right) ? 1.0F : 0.0F) -
                              (keyboard.IsKeyDown(Keys::Left) ? 1.0F : 0.0F);
                 input.sprint = keyboard.IsKeyDown(Keys::LeftShift) || keyboard.IsKeyDown(Keys::RightShift);
-                player_.Update(deltaSeconds, input, world_);
+                player_.Update(deltaSeconds, input, physics_);
             }
         }
 

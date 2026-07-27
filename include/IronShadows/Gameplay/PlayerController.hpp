@@ -1,10 +1,14 @@
 #pragma once
 
 #include "IronShadows/Core/WorldTypes.hpp"
+#include "IronShadows/Physics/PhysicsTypes.hpp"
 
 namespace IronShadows
 {
-    class PrototypeWorld;
+    namespace Physics
+    {
+        class PhysicsWorld;
+    }
 
     struct OnFootInput
     {
@@ -14,25 +18,35 @@ namespace IronShadows
         bool sprint{false};
     };
 
+    // Movement and world collision are driven by a Jolt CharacterVirtual capsule behind
+    // Physics::PhysicsWorld (plan_15-physics-integration.md IS-15-021); PlayerController still
+    // owns yaw and turn/sprint input handling itself and only asks physics to resolve the
+    // resulting desired velocity against world geometry.
     class PlayerController final
     {
     public:
-        void Reset(const Vector3& spawnPosition, float yaw = 0.0F);
-        void Update(float deltaSeconds, const OnFootInput& input, const PrototypeWorld& world);
+        // Creates the character body on first call; teleports it (zeroing velocity) on later
+        // calls, e.g. a mission reset or a save/load restore.
+        void Reset(const Vector3& spawnPosition, float yaw, Physics::PhysicsWorld& physics);
+        void Update(float deltaSeconds, const OnFootInput& input, Physics::PhysicsWorld& physics);
 
         [[nodiscard]] const Vector3& GetPosition() const noexcept { return position_; }
         [[nodiscard]] float GetYaw() const noexcept { return yaw_; }
         [[nodiscard]] Vector3 GetForward() const { return ForwardFromYaw(yaw_); }
+        [[nodiscard]] bool IsGrounded() const noexcept { return grounded_; }
 
-        void SetPosition(const Vector3& position) noexcept { position_ = position; }
-        void SetYaw(float yaw) noexcept { yaw_ = yaw; }
+        void SetPosition(const Vector3& position, Physics::PhysicsWorld& physics);
+        void SetYaw(float yaw, Physics::PhysicsWorld& physics);
 
     private:
+        Physics::CharacterHandle characterHandle_;
         Vector3 position_{0.0F, 1.70F, 0.0F};
         float yaw_{0.0F};
+        bool grounded_{true};
         float walkSpeed_{4.2F};
         float sprintMultiplier_{1.65F};
         float turnSpeed_{2.0F};
         float collisionRadius_{0.35F};
+        float capsuleCylinderHalfHeight_{0.5F};
     };
 }

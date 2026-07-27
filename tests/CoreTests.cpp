@@ -3,6 +3,7 @@
 #include "IronShadows/Gameplay/VehicleController.hpp"
 #include "IronShadows/Missions/PrototypeMission.hpp"
 #include "IronShadows/Persistence/SaveGame.hpp"
+#include "IronShadows/Physics/PhysicsWorld.hpp"
 #include "IronShadows/World/PrototypeWorld.hpp"
 
 #include <cmath>
@@ -32,18 +33,51 @@ namespace
     void TestVehicleMotion()
     {
         IronShadows::PrototypeWorld world;
+        IronShadows::Physics::PhysicsWorld physics;
+        world.BuildPhysicsStaticBodies(physics);
         IronShadows::VehicleController vehicle;
-        vehicle.Reset(world.GetVehicleSpawn(), world.GetVehicleSpawnYaw());
+        vehicle.Reset(world.GetVehicleSpawn(), world.GetVehicleSpawnYaw(), physics);
         const IronShadows::Vector3 before = vehicle.GetPosition();
         IronShadows::VehicleInput input;
         input.throttle = 1.0F;
-        for (int i = 0; i < 120; ++i)
+        for (int i = 0; i < 180; ++i)
         {
-            vehicle.Update(1.0F / 60.0F, input, world);
+            vehicle.Update(1.0F / 60.0F, input, physics);
         }
         Require(vehicle.GetSpeed() > 1.0F, "vehicle must accelerate");
         Require(IronShadows::DistanceSquaredXZ(before, vehicle.GetPosition()) > 1.0F,
                 "vehicle must move from spawn");
+    }
+
+    void TestPlayerMotion()
+    {
+        IronShadows::PrototypeWorld world;
+        IronShadows::Physics::PhysicsWorld physics;
+        world.BuildPhysicsStaticBodies(physics);
+        IronShadows::PlayerController player;
+        player.Reset(world.GetPlayerSpawn(), 0.0F, physics);
+        const IronShadows::Vector3 before = player.GetPosition();
+        IronShadows::OnFootInput input;
+        input.forward = 1.0F;
+        for (int i = 0; i < 90; ++i)
+        {
+            player.Update(1.0F / 60.0F, input, physics);
+        }
+        Require(IronShadows::DistanceSquaredXZ(before, player.GetPosition()) > 1.0F,
+                "player must move from spawn when walking forward");
+
+        // Walking straight at the hotel (a static collider spanning X in [-26,-10], Z in
+        // [10,26]) for a long time must not tunnel through its ~16-unit thickness.
+        IronShadows::PlayerController blocked;
+        blocked.Reset({-5.0F, 1.70F, 18.0F}, 0.0F, physics);
+        IronShadows::OnFootInput towardHotel;
+        towardHotel.strafe = -1.0F;
+        for (int i = 0; i < 300; ++i)
+        {
+            blocked.Update(1.0F / 60.0F, towardHotel, physics);
+        }
+        Require(blocked.GetPosition().X > -20.0F,
+                "walking into the hotel collider for 5 seconds must not tunnel through it");
     }
 
     void TestMissionFlow()
@@ -112,6 +146,7 @@ int main()
     {
         TestWorldCollision();
         TestVehicleMotion();
+        TestPlayerMotion();
         TestMissionFlow();
         TestDialogueFallback();
         TestSaveRoundTrip();

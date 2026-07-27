@@ -22,6 +22,7 @@
 #include <Jolt/RegisterTypes.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdarg>
 #include <cstdio>
 #include <iostream>
@@ -470,6 +471,18 @@ namespace IronShadows::Physics
         return it->second->IsSupported();
     }
 
+    void PhysicsWorld::SetCharacterTransform(CharacterHandle handle, const Vector3& position, float yaw)
+    {
+        const auto it = impl_->characters.find(handle.value);
+        if (it == impl_->characters.end())
+        {
+            return;
+        }
+        it->second->SetPosition(JPH::RVec3(ToJolt(position)));
+        it->second->SetRotation(JPH::Quat::sRotation(JPH::Vec3::sAxisY(), yaw));
+        it->second->SetLinearVelocity(JPH::Vec3::sZero());
+    }
+
     VehicleHandle PhysicsWorld::CreateFourWheelVehicle(const Vector3& chassisHalfExtents, float chassisMass,
                                                        const Vector3& position,
                                                        const std::array<Vector3, 4>& wheelLocalPositions,
@@ -484,10 +497,17 @@ namespace IronShadows::Physics
         impl_->bodyInterface().AddBody(chassisBody->GetID(), JPH::EActivation::Activate);
 
         JPH::VehicleConstraintSettings vehicleSettings;
+        // Iron Shadows' own yaw convention (WorldTypes.hpp ForwardFromYaw) treats local -Z as
+        // "forward" at yaw 0 (matching how the sedan's CNJ parts are authored: cabin/windshield/
+        // front wheels all sit at negative local Z). Point Jolt's vehicle forward axis and every
+        // wheel's own rolling-friction forward axis the same way so engine force, tire grip, and
+        // GetVehicleYaw() (see below) all agree with the rest of the game's math.
+        vehicleSettings.mForward = JPH::Vec3(0.0f, 0.0f, -1.0f);
         for (const Vector3& wheelPos : wheelLocalPositions)
         {
             auto* wheel = new JPH::WheelSettingsWV();
             wheel->mPosition = ToJolt(wheelPos);
+            wheel->mWheelForward = JPH::Vec3(0.0f, 0.0f, -1.0f);
             wheel->mRadius = wheelRadius;
             wheel->mWidth = wheelWidth;
             wheel->mSuspensionMinLength = 0.3f;
@@ -561,7 +581,40 @@ namespace IronShadows::Physics
             return 0.0F;
         }
         const JPH::Quat rotation = impl_->bodyInterface().GetRotation(it->second.chassisId);
-        return rotation.GetEulerAngles().GetY();
+        // Negated: see the CreateFourWheelVehicle comment on mForward/mWheelForward. Jolt's own
+        // Y Euler angle is measured against its (0,0,1) reference; Iron Shadows' ForwardFromYaw
+        // is defined against (0,0,-1) at yaw 0, which is the negated angle for a Y-axis rotation.
+        return -rotation.GetEulerAngles().GetY();
+    }
+
+    Vector3 PhysicsWorld::GetVehicleLinearVelocity(VehicleHandle handle) const
+    {
+        const auto it = impl_->vehicles.find(handle.value);
+        if (it == impl_->vehicles.end())
+        {
+            return Vector3{};
+        }
+        return FromJolt(impl_->bodyInterface().GetLinearVelocity(it->second.chassisId));
+    }
+
+    void PhysicsWorld::SetVehicleTransform(VehicleHandle handle, const Vector3& position, float yaw, float speed)
+    {
+        const auto it = impl_->vehicles.find(handle.value);
+        if (it == impl_->vehicles.end())
+        {
+            return;
+        }
+        // Inverse of GetVehicleYaw()'s negation: convert the game's yaw convention to Jolt's own
+        // Y Euler angle before constructing the rotation.
+        const JPH::Quat rotation = JPH::Quat::sRotation(JPH::Vec3::sAxisY(), -yaw);
+        impl_->bodyInterface().SetPositionAndRotation(it->second.chassisId, JPH::RVec3(ToJolt(position)), rotation,
+                                                       JPH::EActivation::Activate);
+        // Iron Shadows' own ForwardFromYaw(yaw) = (sin(yaw), 0, -cos(yaw)); computed directly
+        // here (not by rotating a Jolt reference vector) to avoid a second, independent place
+        // that has to agree with that convention's sign.
+        const JPH::Vec3 forward(std::sin(yaw), 0.0f, -std::cos(yaw));
+        impl_->bodyInterface().SetLinearVelocity(it->second.chassisId, forward * speed);
+        impl_->bodyInterface().SetAngularVelocity(it->second.chassisId, JPH::Vec3::sZero());
     }
 
     std::array<VehicleWheelState, 4> PhysicsWorld::GetVehicleWheelStates(VehicleHandle handle) const

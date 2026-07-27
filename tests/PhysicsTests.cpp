@@ -160,6 +160,8 @@ namespace
             anyWheelContact = anyWheelContact || wheel.hasContact;
         }
         Require(anyWheelContact, "at least one wheel must be in contact with the ground after settling");
+        Require(std::abs(world.GetVehicleYaw(vehicle)) < 0.05F,
+               "a vehicle created with identity rotation must report ~0 yaw");
 
         for (int i = 0; i < 180; ++i)
         {
@@ -170,6 +172,10 @@ namespace
         const Vector3 endPosition = world.GetVehiclePosition(vehicle);
         const float dz = endPosition.Z - startPosition.Z;
         Require(std::abs(dz) > 1.0F, "three seconds of forward throttle must move the vehicle a meaningful distance");
+        // Iron Shadows' ForwardFromYaw(0) == (0, 0, -1): forward throttle at yaw 0 must move the
+        // vehicle toward -Z, matching WorldTypes.hpp's convention (see CreateFourWheelVehicle's
+        // mForward/mWheelForward comment) -- not just "moved some distance in either direction".
+        Require(dz < -1.0F, "forward throttle at yaw 0 must move the vehicle toward -Z, matching ForwardFromYaw(0)");
 
         world.DestroyVehicle(vehicle);
     }

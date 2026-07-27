@@ -35,17 +35,17 @@ A real physics library sits behind Iron Shadows-owned interfaces so vehicle/char
 
 ## Character controller adapter
 
-- [ ] **IS-15-021 P0** — Create a `CharacterBody` adapter (capsule or similar) driven by `PlayerController`. Adapter itself is prototyped and tested (`PhysicsWorld::CreateCharacter`/`MoveCharacter`, a `JPH::CharacterVirtual` capsule proven to be blocked by a wall in `tests/PhysicsTests.cpp`); wiring it to actually drive `PlayerController` instead of the existing simple AABB movement is separate, larger follow-up work.
-- [ ] **IS-15-022 P1** — Handle steps, slopes, and simple stairs within the character controller.
-- [x] **IS-15-023 P1** — Detect grounded/airborne state for movement and animation state (`PhysicsWorld::IsCharacterGrounded`, backed by `CharacterVirtual::IsSupported()`, tested).
-- [ ] **IS-15-024 P1** — Add an integration test that walks the character controller through one hand-authored district without falling through geometry.
+- [x] **IS-15-021 P0** — Create a `CharacterBody` adapter (capsule or similar) driven by `PlayerController`. `PlayerController` now owns a `Physics::CharacterHandle`; `Update()` computes desired velocity from input exactly as before (yaw/turn/sprint math unchanged) and hands it to `PhysicsWorld::MoveCharacter`, then reads position/grounded back from physics. `TestPlayerMotion` in `tests/CoreTests.cpp` walks the character into the hotel's static collider and asserts it does not tunnel through.
+- [ ] **IS-15-022 P1** — Handle steps, slopes, and simple stairs within the character controller (untuned Jolt defaults so far).
+- [x] **IS-15-023 P1** — Detect grounded/airborne state for movement and animation state (`PhysicsWorld::IsCharacterGrounded`, backed by `CharacterVirtual::IsSupported()`, tested; exposed as `PlayerController::IsGrounded()`, not yet consumed by animation since there is no animated character model yet).
+- [ ] **IS-15-024 P1** — Add an integration test that walks the character controller through one hand-authored district without falling through geometry (the hotel-collider tunneling test above covers one building; a full-district soak test is still open).
 
 ## Vehicle physics adapter
 
-- [x] **IS-15-025 P0** — Create a `VehiclePhysics` adapter exposing a chassis rigid body and per-wheel raycast contact points (tuning specifics live in plan 17). Prototyped as `PhysicsWorld::CreateFourWheelVehicle`/`GetVehicleWheelStates` (Jolt `VehicleConstraint` + `WheeledVehicleController` + `VehicleCollisionTesterRay`), proven to drive forward under throttle input in `tests/PhysicsTests.cpp`. Wiring it to replace `VehicleController`'s existing kinematic model is separate, larger follow-up work (plan 17).
-- [ ] **IS-15-026 P1** — Expose suspension spring/damper hook points for `VehicleController` to drive.
-- [ ] **IS-15-027 P1** — Integrate collision response between the vehicle adapter and world/character/vehicle collision layers.
-- [ ] **IS-15-028 P1** — Add an integration test that drives one vehicle through one hand-authored district without tunneling through geometry.
+- [x] **IS-15-025 P0** — Create a `VehiclePhysics` adapter exposing a chassis rigid body and per-wheel raycast contact points (tuning specifics live in plan 17). `VehicleController` now owns a `Physics::VehicleHandle` (chassis half-extents 1.05x0.325x2.1, matching `PrototypeRenderer`'s body box; wheel radius 0.33) and reads position/yaw/speed back from `PhysicsWorld` every frame instead of simulating them itself; `VehicleController::Update()` mirrors Jolt's own `VehicleConstraintTest` sample for forward/brake/reverse input handling.
+- [ ] **IS-15-026 P1** — Expose suspension spring/damper hook points for `VehicleController` to drive (currently Jolt's default spring/damper values).
+- [x] **IS-15-027 P1** — Integrate collision response between the vehicle adapter and world/character/vehicle collision layers (`PrototypeWorld::BuildPhysicsStaticBodies` gives the vehicle a real world to drive on and collide with; found and fixed a real bug along the way -- the ground plane was `collidable=false` in `colliders_` on purpose, for the unrelated XZ-only `CanOccupy` check, so it was silently never getting a physics body at all until this task added a dedicated `groundCollider_`).
+- [ ] **IS-15-028 P1** — Add an integration test that drives one vehicle through one hand-authored district without tunneling through geometry (`TestVehicleMotion` in `tests/CoreTests.cpp` covers straight-line acceleration on the real district's ground plane; a dedicated obstacle-collision test is still open).
 
 ## Debug tooling
 

@@ -11,10 +11,8 @@ namespace IronShadows::Physics
     // Iron Shadows-owned interface over the selected physics library (Jolt Physics, see
     // THIRD_PARTY.md and plan/plan_15-physics-integration.md IS-15-001..003). Jolt's own types
     // never appear in this header or in any calling code -- only PhysicsWorld.cpp includes Jolt
-    // headers. This is the M4 vertical-slice-gate prototype (plan_39 IS-39-005): character,
-    // trigger, raycast, and vehicle behavior proven behind this interface, not yet wired into
-    // PlayerController/VehicleController's existing simple math (that migration is separate,
-    // larger follow-up work under plan_15/plan_16/plan_17).
+    // headers. Drives PlayerController's on-foot movement and VehicleController's driving
+    // (plan_15/plan_16/plan_17).
     class PhysicsWorld final
     {
     public:
@@ -51,6 +49,8 @@ namespace IronShadows::Physics
         void MoveCharacter(CharacterHandle handle, const Vector3& desiredVelocity, float deltaSeconds);
         [[nodiscard]] Vector3 GetCharacterPosition(CharacterHandle handle) const;
         [[nodiscard]] bool IsCharacterGrounded(CharacterHandle handle) const;
+        // Teleport (mission reset, save/load restore, vehicle exit placement); zeroes velocity.
+        void SetCharacterTransform(CharacterHandle handle, const Vector3& position, float yaw);
 
         // Vehicle (JPH::VehicleConstraint + WheeledVehicleController): a 4-wheel chassis. Wheel
         // positions are chassis-local, matching PrototypeRenderer's existing per-part offsets.
@@ -64,7 +64,11 @@ namespace IronShadows::Physics
         void SetVehicleInput(VehicleHandle handle, float forward, float steer, float brake, float handBrake);
         [[nodiscard]] Vector3 GetVehiclePosition(VehicleHandle handle) const;
         [[nodiscard]] float GetVehicleYaw(VehicleHandle handle) const;
+        [[nodiscard]] Vector3 GetVehicleLinearVelocity(VehicleHandle handle) const;
         [[nodiscard]] std::array<VehicleWheelState, 4> GetVehicleWheelStates(VehicleHandle handle) const;
+        // Teleport (mission reset, save/load restore); speed is applied along the yaw's forward
+        // direction as the chassis's linear velocity.
+        void SetVehicleTransform(VehicleHandle handle, const Vector3& position, float yaw, float speed);
 
     private:
         struct Impl;

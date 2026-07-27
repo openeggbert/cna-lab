@@ -1,5 +1,7 @@
 #include "IronShadows/World/PrototypeWorld.hpp"
 
+#include "IronShadows/Physics/PhysicsWorld.hpp"
+
 #include <utility>
 
 namespace IronShadows
@@ -7,6 +9,15 @@ namespace IronShadows
     PrototypeWorld::PrototypeWorld()
     {
         BuildCityBlock();
+    }
+
+    void PrototypeWorld::BuildPhysicsStaticBodies(Physics::PhysicsWorld& physics) const
+    {
+        (void)physics.CreateStaticBody(Physics::ShapeDesc::Box(groundCollider_.halfExtents), groundCollider_.center);
+        for (const Aabb& collider : colliders_)
+        {
+            (void)physics.CreateStaticBody(Physics::ShapeDesc::Box(collider.halfExtents), collider.center);
+        }
     }
 
     void PrototypeWorld::AddBox(std::string name,
@@ -26,6 +37,7 @@ namespace IronShadows
     {
         // Ground and crossing roads.
         AddBox("ground", {0.0F, -0.30F, 0.0F}, {100.0F, 0.50F, 100.0F}, Color(67, 103, 61, 255), false);
+        groundCollider_ = Aabb{{0.0F, -0.30F, 0.0F}, {50.0F, 0.25F, 50.0F}};
         AddBox("road_north_south", {0.0F, -0.02F, 0.0F}, {12.0F, 0.10F, 90.0F}, Color(50, 52, 57, 255), false);
         AddBox("road_east_west", {0.0F, -0.01F, 0.0F}, {90.0F, 0.10F, 12.0F}, Color(50, 52, 57, 255), false);
 
