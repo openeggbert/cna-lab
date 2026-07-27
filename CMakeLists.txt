@@ -99,6 +99,7 @@ add_library(iron_shadows_core STATIC
     src/Dialogue/DialogueSystem.cpp
     src/Gameplay/PlayerController.cpp
     src/Gameplay/VehicleController.cpp
+    src/Missions/MissionDefinition.cpp
     src/Missions/PrototypeMission.cpp
     src/Persistence/SaveGame.cpp
     src/Physics/PhysicsWorld.cpp
@@ -174,6 +175,11 @@ if(IRON_SHADOWS_BUILD_TESTS)
     enable_testing()
     add_executable(iron_shadows_core_tests tests/CoreTests.cpp)
     target_include_directories(iron_shadows_core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    # Gate M7: lets TestMissionLoadsCommittedFile() validate the real, committed
+    # assets/missions/prologue.mission.json (not just a hand-written test fixture), matching
+    # iron_shadows's own IRON_SHADOWS_DEFAULT_ASSET_DIR convention.
+    target_compile_definitions(iron_shadows_core_tests PRIVATE
+        IRON_SHADOWS_SOURCE_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
     target_link_libraries(iron_shadows_core_tests PRIVATE iron_shadows_core)
     iron_shadows_link_final_target(iron_shadows_core_tests)
     iron_shadows_apply_warnings(iron_shadows_core_tests)

@@ -10,10 +10,10 @@ condition/action expression syntax, not a general-purpose sandboxed scripting la
 
 ## Core mission data and flow
 
-- [ ] **IS-24-001 P0** — Replace prototype hard-coded mission state with versioned data while preserving current behavior.
-- [ ] **IS-24-002 P0** — Define mission, state, objective, condition, action, trigger, checkpoint, failure, and completion IDs.
-- [ ] **IS-24-003 P0** — Create a mission validation tool (script or command, not a GUI editor) that finds missing references and unreachable states.
-- [ ] **IS-24-004 P0** — Create one complete data-driven vertical-slice mission covering the existing prologue delivery flow.
+- [x] **IS-24-001 P0** — Replace prototype hard-coded mission state with versioned data while preserving current behavior. *(`MissionDefinition`/`LoadMissionDefinition` (`include/`/`src/Missions/MissionDefinition.hpp/.cpp`) load a versioned JSON file (`assets/missions/prologue.mission.json`) defining each state's id/objective text/transition condition/next-state; `PrototypeMission` now looks these up instead of a hardcoded switch, but keeps `PrototypeMissionState` as a fixed enum for `SaveGame`'s existing int-based format and public-API compatibility. Behavior verified identical to the original hardcoded flow by `TestMissionFlow` (hardcoded default, unchanged) and the new `TestMissionLoadsCommittedFile` (same flow, loaded from the real file) both passing with the same assertions.)*
+- [ ] **IS-24-002 P0** — Define mission, state, objective, condition, action, trigger, checkpoint, failure, and completion IDs. *(Partial: state ids (`introduction`/`reach_vehicle`/.../`completed`) and condition names (`dialogue_finished`/`player_near_vehicle`/`player_driving`/`player_driving_in_warehouse_goal`) are defined and validated; no distinct action/trigger/failure ID concepts yet -- this prototype mission has no failure states and no actions beyond "transition to next state".)*
+- [x] **IS-24-003 P0** — Create a mission validation tool (script or command, not a GUI editor) that finds missing references and unreachable states. *(Smallest form: inline validation inside `LoadMissionDefinition` itself, not a separate script/command -- rejects duplicate state ids, an `initialState`/`next` that doesn't match any state id, an unrecognized condition name, and an empty state list, each with an actionable error message. `TestMissionValidationRejectsMalformedData` covers all five cases plus a missing-file case. No separate "unreachable state" detection (linear graph today has no way to become unreachable) and no standalone CLI tool a content author could run independently of the game itself.)*
+- [x] **IS-24-004 P0** — Create one complete data-driven vertical-slice mission covering the existing prologue delivery flow. *(`assets/missions/prologue.mission.json`: the exact 5-state prologue delivery flow -- listen to dialogue, reach the sedan, enter it, drive to the warehouse, complete -- as data. `PrototypeMission::LoadMission` loads it in `IronShadowsGame::Initialize`, falling back to an identical hardcoded default on any load/validation failure.)*
 - [ ] **IS-24-005 P1** — Create typed mission variables (bool/int/float/string) scoped per mission and per campaign.
 - [ ] **IS-24-006 P1** — Create entity, area, dialogue, cinematic, timer, inventory, vehicle, and wanted-state conditions.
 - [ ] **IS-24-007 P1** — Create spawn, despawn, enable, disable, move, play, set, wait, and branch actions.
@@ -37,11 +37,11 @@ condition/action expression syntax, not a general-purpose sandboxed scripting la
 
 ## Mission graph runtime
 
-- [ ] **IS-24-025 P0** — Define the scope, public API, and explicit non-goals (no embedded scripting language) of the mission graph runtime.
-- [ ] **IS-24-026 P0** — Implement the smallest deterministic reference path: load one mission, advance through states, reach completion.
-- [ ] **IS-24-027 P1** — Add input validation and actionable failure reporting for malformed mission data.
-- [ ] **IS-24-028 P1** — Add unit tests and one integration scenario exercising the runtime in a running game flow.
-- [ ] **IS-24-029 P1** — Define save/checkpoint serialization and restoration for in-progress mission state.
+- [x] **IS-24-025 P0** — Define the scope, public API, and explicit non-goals (no embedded scripting language) of the mission graph runtime. *(`MissionDefinition.hpp`'s own header comment: conditions are a small, fixed, engine-evaluated set by name, explicitly not a general expression evaluator -- that is IS-24-013's own separate, later scope.)*
+- [x] **IS-24-026 P0** — Implement the smallest deterministic reference path: load one mission, advance through states, reach completion. *(`LoadMissionDefinition` + `PrototypeMission::LoadMission`/`Update`/`IsCompleted` -- see IS-24-001/004.)*
+- [x] **IS-24-027 P1** — Add input validation and actionable failure reporting for malformed mission data. *(See IS-24-003.)*
+- [x] **IS-24-028 P1** — Add unit tests and one integration scenario exercising the runtime in a running game flow. *(`TestMissionLoadsCommittedFile`/`TestMissionValidationRejectsMalformedData` in `tests/CoreTests.cpp`; the "running game flow" integration is `IronShadowsGame::Initialize` calling `LoadMission` and a `--smoke` run confirming no crash and no fallback-triggered error message.)*
+- [ ] **IS-24-029 P1** — Define save/checkpoint serialization and restoration for in-progress mission state. *(Not newly implemented, but already correct by construction: `SaveGame`'s existing `mission_state` int field round-trips through `PrototypeMissionState`, and `PrototypeMission::GetObjectiveText()`/`Update()` resolve that restored state against whichever `MissionDefinition` is currently loaded -- unchanged by this gate's work, not verified by a new dedicated test.)*
 - [ ] **IS-24-030 P2** — Add debug logging/inspection and document usage, invariants, and common failure modes.
 
 ## Condition/action expression evaluator

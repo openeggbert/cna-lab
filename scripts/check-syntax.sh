@@ -24,6 +24,7 @@ for source in "${sources[@]}"; do
   echo "syntax: ${source#$project_root/}"
   "$compiler" -std=c++23 -fsyntax-only \
     -DSOUND_ENABLED -DXNA5 -DCNA_BACKEND_SOFTWARE \
+    -DIRON_SHADOWS_SOURCE_ASSET_DIR="\"$project_root/assets\"" \
     -I"$project_root/include" \
     -I"$cna_dir/include" \
     -I"$sharp_dir/include" \

@@ -48,6 +48,16 @@ namespace IronShadows
         player_.Reset(districtManager_.GetWorld().GetPlayerSpawn(), 0.0F, physics_);
         vehicle_.Reset(districtManager_.GetWorld().GetVehicleSpawn(),
                        districtManager_.GetWorld().GetVehicleSpawnYaw(), physics_);
+
+        // Gate M7 (plan_24-mission-framework-and-scripting.md IS-24-001/004): the mission's
+        // states/objectives/transitions now live in data; PrototypeMission ships with a
+        // hardcoded default reproducing the same flow, so a missing/corrupt file degrades to
+        // that rather than breaking the mission.
+        std::string missionError;
+        if (!mission_.LoadMission(assetRoot_ + "/missions/prologue.mission.json", missionError))
+        {
+            std::cerr << "[IronShadows] " << missionError << " -- using built-in fallback mission.\n";
+        }
         mission_.Reset();
 
         std::string dialogueError;

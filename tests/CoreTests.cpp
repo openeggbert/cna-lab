@@ -1,6 +1,7 @@
 #include "IronShadows/Dialogue/DialogueSystem.hpp"
 #include "IronShadows/Gameplay/PlayerController.hpp"
 #include "IronShadows/Gameplay/VehicleController.hpp"
+#include "IronShadows/Missions/MissionDefinition.hpp"
 #include "IronShadows/Missions/PrototypeMission.hpp"
 #include "IronShadows/Persistence/SaveGame.hpp"
 #include "IronShadows/Physics/PhysicsWorld.hpp"
@@ -9,6 +10,7 @@
 
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -157,6 +159,101 @@ namespace
         Require(mission.IsCompleted(), "entering warehouse trigger must complete mission");
     }
 
+    // Gate M7 / plan_24 (IS-24-001/004/026): the mission's states/objectives/transitions now
+    // come from a data file (assets/missions/prologue.mission.json), not a hardcoded switch --
+    // this drives the exact same flow TestMissionFlow() above exercises against the hardcoded
+    // fallback, but through PrototypeMission::LoadMission() against the real, committed file.
+    void TestMissionLoadsCommittedFile()
+    {
+        IronShadows::PrototypeWorld world;
+        IronShadows::PrototypeMission mission;
+
+        std::string error;
+        Require(mission.LoadMission(std::string(IRON_SHADOWS_SOURCE_ASSET_DIR) + "/missions/prologue.mission.json",
+                                    error),
+                "loading the committed mission file must succeed: " + error);
+        mission.Reset();
+
+        mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        Require(mission.GetState() == IronShadows::PrototypeMissionState::ReachVehicle,
+                "loaded mission: dialogue completion must start reach-vehicle objective");
+        mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
+        Require(mission.GetState() == IronShadows::PrototypeMissionState::EnterVehicle,
+                "loaded mission: reaching the car must request entry");
+        mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
+        Require(mission.GetState() == IronShadows::PrototypeMissionState::DriveToWarehouse,
+                "loaded mission: entering the car must start driving objective");
+        mission.Update(true,
+                       world.GetWarehouseGoal().bounds.center,
+                       world.GetWarehouseGoal().bounds.center,
+                       true,
+                       world.GetWarehouseGoal());
+        Require(mission.IsCompleted(), "loaded mission: entering warehouse trigger must complete mission");
+    }
+
+    void WriteTempJson(const std::filesystem::path& path, const std::string& text)
+    {
+        std::ofstream file(path, std::ios::binary);
+        file << text;
+    }
+
+    // Gate M7: LoadMissionDefinition must reject malformed mission data with an actionable
+    // error rather than silently accepting it (IS-24-003's smallest form: inline validation).
+    void TestMissionValidationRejectsMalformedData()
+    {
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_shadows_bad_mission.json";
+        std::string error;
+        IronShadows::MissionDefinition definition;
+
+        WriteTempJson(path, R"JSON({"initialState":"a","states":[{"id":"a","next":"missing"}]})JSON");
+        Require(!IronShadows::LoadMissionDefinition(path.string(), definition, error),
+                "a \"next\" referencing an unknown state id must be rejected");
+
+        WriteTempJson(path, R"JSON({"initialState":"nowhere","states":[{"id":"a"}]})JSON");
+        Require(!IronShadows::LoadMissionDefinition(path.string(), definition, error),
+                "an initialState referencing an unknown state id must be rejected");
+
+        WriteTempJson(path, R"JSON({"initialState":"a","states":[{"id":"a"},{"id":"a"}]})JSON");
+        Require(!IronShadows::LoadMissionDefinition(path.string(), definition, error),
+                "a duplicate state id must be rejected");
+
+        WriteTempJson(path, R"JSON({"initialState":"a","states":[{"id":"a","condition":"not_a_real_condition"}]})JSON");
+        Require(!IronShadows::LoadMissionDefinition(path.string(), definition, error),
+                "an unrecognized condition name must be rejected");
+
+        WriteTempJson(path, R"JSON({"initialState":"a","states":[]})JSON");
+        Require(!IronShadows::LoadMissionDefinition(path.string(), definition, error),
+                "a mission with no states must be rejected");
+
+        Require(!IronShadows::LoadMissionDefinition((path.string() + ".does-not-exist"), definition, error),
+                "a missing file must be rejected, not crash");
+
+        // One well-formed, minimal two-state mission must still succeed after all the rejections
+        // above -- proves failures didn't corrupt LoadMissionDefinition's own state.
+        WriteTempJson(path, R"JSON({
+            "id": "test_mission",
+            "version": 1,
+            "initialState": "start",
+            "states": [
+                { "id": "start", "objective": "Go", "condition": "player_driving", "next": "done" },
+                { "id": "done", "objective": "Done" }
+            ]
+        })JSON");
+        Require(IronShadows::LoadMissionDefinition(path.string(), definition, error),
+                "a well-formed minimal mission must load successfully: " + error);
+        Require(definition.initialState == "start", "initialState must round-trip correctly");
+        Require(definition.states.size() == 2, "both states must be parsed");
+        const IronShadows::MissionStateDefinition* start = definition.FindState("start");
+        Require(start != nullptr && start->condition == IronShadows::MissionCondition::PlayerDriving,
+                "the named condition must resolve to the matching MissionCondition enum value");
+        Require(start->next == "done", "next must round-trip correctly");
+        const IronShadows::MissionStateDefinition* done = definition.FindState("done");
+        Require(done != nullptr && done->next.empty() && done->condition == IronShadows::MissionCondition::None,
+                "a state with no \"next\"/\"condition\" fields must default to terminal/None");
+
+        std::filesystem::remove(path);
+    }
+
     void TestDialogueFallback()
     {
         IronShadows::DialogueSystem dialogue;
@@ -206,6 +303,8 @@ int main()
         TestPlayerMotion();
         TestDistrictTransition();
         TestMissionFlow();
+        TestMissionLoadsCommittedFile();
+        TestMissionValidationRejectsMalformedData();
         TestDialogueFallback();
         TestSaveRoundTrip();
         std::cout << "Iron Shadows core tests passed\n";

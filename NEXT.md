@@ -10,8 +10,7 @@ Repo: `/rv/data/development/github.com/openeggbert/iron-shadows`, branch `develo
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
 **No remote configured, nothing pushed** — commit locally only until explicitly told otherwise.
 
-Gates M0-M5 (see `plan.md` milestone order) are done; M6 has its first proving slice done but is
-not fully done (see below):
+Gates M0-M7 (see `plan.md` milestone order) are done:
 
 - M0/M1: workspace preflight + running procedural scaffold.
 - M2: warehouse building loads as a real CNJ model (`assets/source/mc3/warehouse.mc3.xml` →
@@ -28,11 +27,16 @@ not fully done (see below):
   `WarehouseBlock`) plus `IronShadows::DistrictManager`, which owns the currently loaded
   `PrototypeWorld` and its static physics bodies and drives a synchronous loading-screen
   transition between them.
-- M6 (partial): one skinned test character plays "Idle"/"Walk" clips, replacing the procedural
-  player box. Required extending the `cna-extended` sibling repo (owner's explicit go-ahead) with
-  a new ECS component/system pair, since it had no wrapper for the skinned-playback path cna's own
-  glTF/CNJ tools actually populate. Blending, dialogue pose, and vehicle entry/exit animation are
-  NOT done — see "What changed most recently" below.
+- M6: one skinned test character plays "Idle"/"Walk" (crossfading between them), "Dialogue", and
+  "EnterVehicle"/"ExitVehicle" clips, replacing the procedural player box. Required extending the
+  `cna-extended` sibling repo (owner's explicit go-ahead) with a new ECS component/system pair,
+  since it had no wrapper for the skinned-playback path cna's own glTF/CNJ tools actually
+  populate, later extended with crossfade blending.
+- M7: the one existing mission is now data-driven — `assets/missions/prologue.mission.json`
+  defines its 5 states/objectives/transitions, loaded via new `MissionDefinition`/
+  `LoadMissionDefinition` (parsed with sharp-runtime's own `System::Text::Json`), replacing
+  `PrototypeMission`'s hardcoded switch statements while preserving its enum-based public API and
+  `SaveGame` compatibility exactly — see "What changed most recently" below.
 
 Plan size: 2,148 tasks across 41 group files under `plan/`, down from an original 6,380-task
 AAA/open-world-scoped draft — see `plan.md`'s "Locked scope decisions" section for the ten
@@ -40,6 +44,65 @@ scope decisions that drove that cut (Mafia-1 (2002) content scope, Mafia-1-era s
 no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting target, etc.).
 
 ## What changed most recently (this session)
+
+Implemented gate M7 (one data-driven mission), entirely within Iron Shadows itself (no cross-repo
+work needed this time). Found that `assets/missions/prologue.mission.json` already existed as a
+hand-written stub from the original scaffold, with a comment saying "this file defines the
+intended future data-driven form" and "currently mirrored by PrototypeMission.cpp" — this session
+made that comment true rather than aspirational.
+
+- New `MissionCondition` enum + `MissionStateDefinition`/`MissionDefinition` structs +
+  `LoadMissionDefinition` (`include/`/`src/Missions/MissionDefinition.hpp/.cpp`): a mission is a
+  named, versioned list of states, each with an id, objective text, a named transition condition
+  (`dialogue_finished`/`player_near_vehicle`/`player_driving`/`player_driving_in_warehouse_goal`,
+  or none for a terminal state), and a next-state id. Parsed with sharp-runtime's own
+  `System::Text::Json` (`JsonDocument`/`JsonElement`, backed by vendored `nlohmann::json`) —
+  already a linked dependency via `SHARP_RUNTIME`, discovered by grepping for an existing JSON
+  library before considering hand-rolling a parser (matching this session's established "reuse
+  existing sharp-runtime/CNA machinery" habit).
+- Deliberately NOT a general condition/action expression language: conditions are a small, fixed,
+  engine-evaluated set by name (`plan_24-mission-framework-and-scripting.md`'s own explicit
+  non-goal — "no embedded Lua VM, no script API surface to secure").
+- Inline validation (not a separate tool/script, matching "smallest coherent slice"): rejects
+  duplicate state ids, an `initialState`/`next` that doesn't match any state id, an unrecognized
+  condition name, and an empty state list, each with an actionable error message.
+- `assets/missions/prologue.mission.json` updated from its old stub (just `id`/`objective` per
+  state, no transitions) to the real, active definition: the exact same 5-state flow
+  (introduction → reach_vehicle → enter_vehicle → drive_to_warehouse → completed) the hardcoded
+  C++ already implemented.
+- `PrototypeMission` (`include/`/`src/Missions/PrototypeMission.hpp/.cpp`) rewritten to look up
+  its current state's objective text and transition condition against a `MissionDefinition`
+  instead of a hardcoded switch statement. Kept `PrototypeMissionState` as a fixed enum
+  (Introduction/ReachVehicle/EnterVehicle/DriveToWarehouse/Completed) purely for `SaveGame`'s
+  existing int-based `mission_state` field and public-API compatibility — a bidirectional
+  enum↔state-id mapping bridges the two; `LoadMission()` rejects any mission file introducing a
+  state id outside that fixed set of 5. Ships with a hardcoded default (constructor-initialized,
+  identical to the original switch-based flow) so existing callers/tests that never call
+  `LoadMission()` — including the pre-existing `TestMissionFlow` — keep working completely
+  unchanged, matching `DialogueSystem::LoadFallbackPrologue()`'s "never fully fail" convention.
+- `IronShadowsGame::Initialize()` calls `mission_.LoadMission(assetRoot_ + "/missions/prologue.mission.json", error)`
+  right before `mission_.Reset()` (moved after the load, so `Reset()` picks up whichever
+  definition — loaded file or fallback — ended up active), printing a fallback message on failure
+  the same way dialogue loading already does.
+- New tests in `tests/CoreTests.cpp`: `TestMissionLoadsCommittedFile` (loads the real committed
+  file via a new `IRON_SHADOWS_SOURCE_ASSET_DIR` compile definition — added to both the CMake test
+  target and `scripts/check-syntax.sh` — and drives it through the identical flow
+  `TestMissionFlow` already proves against the hardcoded default) and
+  `TestMissionValidationRejectsMalformedData` (6 cases: dangling `next`, dangling `initialState`,
+  duplicate id, unknown condition, empty states, missing file — all correctly rejected — plus one
+  well-formed minimal mission that still loads correctly afterward, proving a run of failures
+  doesn't corrupt the loader's own state).
+- Verification performed: a standalone diagnostic (not committed) confirmed the real committed
+  file parses to the exact expected 5-state structure before writing the test. Full
+  `compile-software` rebuild (clean, no new warnings), all three `ctest` targets pass,
+  `./scripts/check-syntax.sh` passes on every file, and a `--smoke 20` run exits 0 with **no**
+  mission-load fallback message printed (confirming the real file loads successfully at runtime,
+  not just in the standalone test/diagnostic). **Not verified**: save/load resuming correctly
+  mid-mission with the new data-driven system was reasoned through (the int-enum save format and
+  `SetState()`/`GetState()` are byte-for-byte unchanged) but has no new dedicated test, and there
+  is no display to check the objective-text window title actually updates on screen.
+
+### Earlier this session: implemented gate M6 (one skinned character)
 
 Implemented gate M6's first proving slice (one skinned character), after asking the owner two
 consolidated architecture questions first (both authorized): (1) hand-author a rigged glTF and
@@ -366,24 +429,32 @@ pass plus three same-session follow-ups — see above for each). Remaining `plan
 steer poses while actually driving, etc.) are real but not gate-blocking — see that file for the
 itemized list if picking any of them up.
 
-**If continuing headless/autonomous work, the next milestone per `plan.md`'s own order is M7 —
-one data-driven mission** (`plan/plan_39-vertical-slice-gates.md` `IS-39-008`): one data-driven
-mission controls dialogue, objective UI, vehicle entry, destination trigger, checkpoint, and
-completion. The existing `PrototypeMission`/`DialogueSystem` are still hardcoded C++ state
-machines/text, not data-driven — this milestone likely means designing a small mission-definition
-format (JSON/XML, versioned) and a loader, replacing at least the current single hardcoded
-mission with a data-driven equivalent, without inventing a large generic scripting system (see
-`plan.md`'s locked scope decisions on baked lighting/manual authoring/no in-house editor suite for
-the same "keep it small" spirit). Scope the first pass to reproducing today's exact mission
-(briefing -> reach car -> enter -> drive to warehouse) as data, not adding new mission content.
+**Gate M7 (`plan/plan_39-vertical-slice-gates.md` `IS-39-008`) is also now fully done** at
+prototype fidelity — see the entry above. `plan_24`'s richer sub-tasks (typed mission variables,
+a fuller condition/action set, failure/retry policies, checkpoints beyond plain save/load, the
+15-20 mission campaign graph, etc.) remain open but are not gate-blocking.
+
+**If continuing headless/autonomous work, the next milestone per `plan.md`'s own order is M8 —
+one in-engine cutscene** (`plan/plan_39-vertical-slice-gates.md` `IS-39-009`): one in-engine
+cutscene can play, skip, save-safe finalize, and hand control back correctly. There is no
+cutscene system at all today — this likely means: a minimal way to temporarily take input away
+from the player, play a short scripted camera move and/or dialogue sequence, let the player skip
+it (matching the existing Enter-to-advance-dialogue convention), and hand control back to
+whichever mission state was waiting for it, without breaking save/load mid-cutscene. Scope the
+first pass to one short, skippable cutscene tied into the existing prologue mission (e.g. a brief
+camera pan when the mission completes), not a general cutscene authoring/timeline tool (see
+`plan.md`'s own "no bespoke editor suite" locked scope decision — check for a dedicated
+`plan_2x`-numbered plan group for cutscenes/cameras before designing from scratch).
 
 Other open items worth picking up opportunistically (not blocking, not sequenced):
 
+- `plan_24` itself (see above) — typed mission variables, richer conditions/actions, failure/retry,
+  a real checkpoint/retry system distinct from plain save/load, the campaign dependency graph.
 - `plan_18` `IS-18-001` (a real named-bone skeleton convention, not this one-off test rig),
-  `IS-18-006`/`007`/`008` (enter/exit/sit/drive clips, bone masks, additive layers — mostly
-  blocked on IS-18-004's blending landing first), `IS-18-034` (report an unknown clip name instead
-  of silently holding the last pose), `IS-18-037` (persist animation-clip state in `SaveGame` once
-  clips stop being purely input-derived).
+  `IS-18-006`/`007`/`008` (sit/drive/steer poses while actually driving, bone masks, additive
+  layers), `IS-18-034` (report an unknown clip name instead of silently holding the last pose),
+  `IS-18-037` (persist animation-clip state in `SaveGame` once clips stop being purely
+  input-derived).
 - `plan_13` `IS-13-014` (loading-screen progress feedback — `DistrictManager::GetTransitionProgress()`
   exists but isn't drawn yet), `IS-13-016` (fade instead of hard cut), `IS-13-022`/`023` (per-district
   mutable world state — no doors/pickups/NPCs exist yet to need this), `IS-13-034`/`035`
@@ -398,10 +469,6 @@ Other open items worth picking up opportunistically (not blocking, not sequenced
 - The upstream `cna_tool_gltf_to_cnj` node-transform-baking gap (`IS-10-004b`) — currently worked
   around in Iron Shadows by hand-composing multi-part props; a real fix belongs in the `cna`
   sibling repo, out of scope unless explicitly asked to cross into that repo.
-- Alternatively, if M6 blending/dialogue-pose/vehicle-entry feels like a large enough chunk of new
-  cross-repo work to warrant asking first (it plausibly is, matching the same scope-question
-  pattern used to start this session's M6 work), gate M7 (`plan_39` `IS-39-008`, one data-driven
-  mission) does not depend on any of it and could be picked up instead.
 
 ## Useful commands
 

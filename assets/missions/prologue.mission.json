@@ -1,12 +1,36 @@
 {
   "id": "prototype_delivery",
   "title": "The Quiet Delivery",
-  "implementation": "Currently mirrored by PrototypeMission.cpp; this file defines the intended future data-driven form.",
+  "version": 1,
+  "initialState": "introduction",
   "states": [
-    { "id": "introduction", "objective": "Listen to Mara" },
-    { "id": "reach_vehicle", "objective": "Walk to the sedan" },
-    { "id": "enter_vehicle", "objective": "Enter the sedan" },
-    { "id": "drive_to_warehouse", "objective": "Drive to the warehouse" },
-    { "id": "completed", "objective": "Delivery complete" }
+    {
+      "id": "introduction",
+      "objective": "Listen to Mara (Enter advances dialogue)",
+      "condition": "dialogue_finished",
+      "next": "reach_vehicle"
+    },
+    {
+      "id": "reach_vehicle",
+      "objective": "Walk to the sedan",
+      "condition": "player_near_vehicle",
+      "next": "enter_vehicle"
+    },
+    {
+      "id": "enter_vehicle",
+      "objective": "Press E to enter the sedan",
+      "condition": "player_driving",
+      "next": "drive_to_warehouse"
+    },
+    {
+      "id": "drive_to_warehouse",
+      "objective": "Drive into the green warehouse marker",
+      "condition": "player_driving_in_warehouse_goal",
+      "next": "completed"
+    },
+    {
+      "id": "completed",
+      "objective": "Prototype mission complete"
+    }
   ]
 }
