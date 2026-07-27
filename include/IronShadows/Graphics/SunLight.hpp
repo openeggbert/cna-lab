@@ -20,6 +20,15 @@ namespace IronShadows
     inline constexpr float kSunIntensity = 0.75F;
     inline constexpr float kSunAmbientFloor = 0.35F;
 
+    // How much daylight reaches a surface facing `normal`, clamped to [0,1] -- shared by the
+    // per-actor CPU brightness tint below and the baked lightmap's per-face tile brightness
+    // (LightmapMesh.hpp), so static and dynamic geometry read as consistently lit.
+    [[nodiscard]] inline float ComputeBrightnessForNormal(const Vector3& normal)
+    {
+        const float dot = std::max(0.0F, Vector3::Dot(normal, -kSunDirection));
+        return std::clamp(kSunAmbientFloor + kSunIntensity * dot, 0.0F, 1.0F);
+    }
+
     // A single scalar approximating how much daylight reaches a mostly-upward-facing dynamic
     // actor (player, vehicle, traffic, pedestrians, police) -- a deliberate simplification (one
     // uniform brightness per actor, not real per-face N-dot-L shading). CNA's BasicEffect/
@@ -30,7 +39,6 @@ namespace IronShadows
     // of the lighting-enabled flag).
     [[nodiscard]] inline float ComputeSunBrightness()
     {
-        const float upDot = std::max(0.0F, Vector3::Dot(Vector3::Up, -kSunDirection));
-        return std::clamp(kSunAmbientFloor + kSunIntensity * upDot, 0.0F, 1.0F);
+        return ComputeBrightnessForNormal(Vector3::Up);
     }
 }

@@ -104,6 +104,7 @@ add_library(iron_shadows_core STATIC
     src/Gameplay/PoliceSystem.cpp
     src/Gameplay/TrafficVehicle.cpp
     src/Gameplay/VehicleController.cpp
+    src/Graphics/LightmapMesh.cpp
     src/Missions/MissionDefinition.cpp
     src/Missions/PrototypeMission.cpp
     src/Persistence/SaveGame.cpp

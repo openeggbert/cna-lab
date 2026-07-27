@@ -1,9 +1,12 @@
 #pragma once
 
+#include "IronShadows/Graphics/LightmapMesh.hpp"
 #include "IronShadows/Graphics/PrimitiveMesh.hpp"
 
 #include "Microsoft/Xna/Framework/Graphics/BasicEffect.hpp"
+#include "Microsoft/Xna/Framework/Graphics/DualTextureEffect.hpp"
 #include "Microsoft/Xna/Framework/Graphics/Model.hpp"
+#include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 #include "Microsoft/Xna/Framework/Matrix.hpp"
 
 #include <memory>
@@ -135,7 +138,23 @@ namespace IronShadows
                              float width,
                              float depth);
 
-        PrimitiveMesh staticCityMesh_;
+        // Gate M10 baked lighting: draws staticCityLightmapMesh_ through lightmapEffect_ (a
+        // DualTextureEffect, not the shared BasicEffect effect_ every other mesh uses) -- see
+        // RebuildStaticGeometry()'s own comment for how the lightmap atlas is built.
+        void DrawStaticCityMesh(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
+                                const Microsoft::Xna::Framework::Matrix& view,
+                                const Microsoft::Xna::Framework::Matrix& projection);
+
+        LightmapPrimitiveMesh staticCityLightmapMesh_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::DualTextureEffect> lightmapEffect_;
+        // texture0 for lightmapEffect_: a flat, near-50%-gray 1x1 texture so DualTextureEffect's
+        // `texture0*2` term is close to an identity multiplier (128/255*2 ~= 1.004, a negligible
+        // ~0.4% error) -- the real per-face brightness lives entirely in texture1 (the baked
+        // lightmap atlas, rebuilt per district in RebuildStaticGeometry()). Both are
+        // std::shared_ptr so lightmapEffect_'s SetOwnedTexture()/SetOwnedTexture2() (which take
+        // shared ownership, matching real XNA's GC-tracked Effect.Texture) can keep them alive.
+        std::shared_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> lightmapNeutralTexture_;
+
         PrimitiveMesh vehicleMesh_;
         PrimitiveMesh playerMesh_;
         PrimitiveMesh trafficVehicleMesh_;

@@ -70,6 +70,15 @@ namespace IronShadows
         vehicleModels_ = std::move(vehicleModels);
         characterModel_ = std::move(characterModel);
 
+        // Gate M10 baked lighting: built before RebuildStaticGeometry() below, which assigns the
+        // first district's baked lightmap atlas to lightmapEffect_'s second texture slot.
+        lightmapNeutralTexture_ = std::make_shared<Texture2D>(device, 1, 1);
+        const Color neutralGray(128, 128, 128, 255);
+        lightmapNeutralTexture_->SetData(&neutralGray, 1);
+        lightmapEffect_ = std::make_unique<DualTextureEffect>(device);
+        lightmapEffect_->setVertexColorEnabledProperty(true);
+        lightmapEffect_->SetOwnedTexture(lightmapNeutralTexture_);
+
         if (characterModel_.has_value())
         {
             auto* skinningData = static_cast<SkinningData*>(characterModel_->getTagProperty());
@@ -159,7 +168,10 @@ namespace IronShadows
 
     void PrototypeRenderer::RebuildStaticGeometry(GraphicsDevice& device, const PrototypeWorld& world)
     {
-        MeshBuilder cityBuilder;
+        // Gate M10 baked lighting: one flat-shaded lightmap tile per box face (LightmapMesh.hpp),
+        // not per-vertex vertex color -- MC3-sourced models (warehouseModel_) have no lightmap UV
+        // channel from the current pipeline and stay out of scope for this pass.
+        LightmapMeshBuilder cityBuilder;
         for (const WorldBox& box : world.GetBoxes())
         {
             if (warehouseModel_.has_value() && box.name == "warehouse")
@@ -169,7 +181,13 @@ namespace IronShadows
             }
             cityBuilder.AddBox(box.center, box.size, box.color);
         }
-        staticCityMesh_.Upload(device, cityBuilder);
+        cityBuilder.Finalize();
+        staticCityLightmapMesh_.Upload(device, cityBuilder);
+
+        auto atlasTexture = std::make_shared<Texture2D>(device, cityBuilder.GetAtlasWidth(), cityBuilder.GetAtlasHeight());
+        const auto& atlasPixels = cityBuilder.GetAtlasPixels();
+        atlasTexture->SetData(atlasPixels.data(), static_cast<int>(atlasPixels.size()));
+        lightmapEffect_->SetOwnedTexture2(std::move(atlasTexture));
     }
 
     void PrototypeRenderer::DrawMesh(GraphicsDevice& device,
@@ -183,6 +201,18 @@ namespace IronShadows
         {
             pass.Apply();
             mesh.Draw(device);
+        }
+    }
+
+    void PrototypeRenderer::DrawStaticCityMesh(GraphicsDevice& device, const Matrix& view, const Matrix& projection)
+    {
+        lightmapEffect_->setWorldProperty(Matrix::getIdentityProperty());
+        lightmapEffect_->setViewProperty(view);
+        lightmapEffect_->setProjectionProperty(projection);
+        for (auto& pass : lightmapEffect_->getCurrentTechniqueProperty()->getPassesProperty())
+        {
+            pass.Apply();
+            staticCityLightmapMesh_.Draw(device);
         }
     }
 
@@ -215,13 +245,16 @@ namespace IronShadows
         effect_->Projection = projection;
 
         // Gate M10: one shared brightness scalar for every dynamic actor this frame (see
-        // SunLight.hpp). Static geometry (staticCityMesh_/warehouseModel_) is deliberately left at
-        // full brightness here -- it gets real per-face lighting from the baked lightmap instead
-        // (a later step), not this uniform-per-actor approximation.
+        // SunLight.hpp). warehouseModel_ is deliberately left untinted here -- it has no lightmap
+        // UV channel from the current pipeline and is out of scope for baked lighting this pass,
+        // but it is also not a "dynamic actor", so it is simplest to leave it at full brightness
+        // rather than half-applying either lighting model to it.
         const float sunBrightness = ComputeSunBrightness();
         const Vector3 sunTint(sunBrightness, sunBrightness, sunBrightness);
 
-        DrawMesh(device, staticCityMesh_, Matrix::getIdentityProperty());
+        // The static city mesh gets real per-face baked lighting (DrawStaticCityMesh(), a
+        // DualTextureEffect) instead of the CPU brightness tint below.
+        DrawStaticCityMesh(device, view, projection);
 
         const Matrix vehicleWorld = Matrix::CreateRotationY(vehicleYaw) * Matrix::CreateTranslation(vehiclePosition);
         if (vehicleModels_.has_value())

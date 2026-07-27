@@ -10,6 +10,7 @@
 #include "IronShadows/Missions/PrototypeMission.hpp"
 #include "IronShadows/Persistence/SaveGame.hpp"
 #include "IronShadows/Physics/PhysicsWorld.hpp"
+#include "IronShadows/Graphics/LightmapMesh.hpp"
 #include "IronShadows/Graphics/SunLight.hpp"
 #include "IronShadows/UI/BitmapFont.hpp"
 #include "IronShadows/World/DistrictManager.hpp"
@@ -623,6 +624,67 @@ namespace
                 "ComputeSunBrightness() must match the hand-computed value for the authored sun direction");
     }
 
+    // Gate M10 / plan_39 IS-39-011 (baked lighting): LightmapMeshBuilder must bake one flat-shaded
+    // tile per box face into the atlas at the hand-computed brightness for that face's normal, and
+    // point each face's vertices at the exact center of its own tile. Expected levels below were
+    // cross-checked with a standalone Python calculation against ComputeBrightnessForNormal()'s
+    // own formula before being embedded here.
+    void TestLightmapMeshBuilderBakesPerFaceBrightness()
+    {
+        IronShadows::LightmapMeshBuilder builder;
+        builder.AddBox(IronShadows::Vector3(0.0F, 0.0F, 0.0F), IronShadows::Vector3(2.0F, 2.0F, 2.0F),
+                       IronShadows::Color(200, 200, 200, 255));
+        builder.Finalize();
+
+        Require(builder.GetVertices().size() == 24,
+                "one box must produce 24 vertices -- 4 per face, 6 faces, no vertex sharing across faces");
+        Require(builder.GetIndices().size() == 36, "one box must produce 36 indices (6 per face * 6 faces)");
+        Require(builder.GetAtlasWidth() == IronShadows::kLightmapAtlasColumns * IronShadows::kLightmapTileSize,
+                "atlas width must be columns * tile size");
+        Require(builder.GetAtlasHeight() == IronShadows::kLightmapTileSize,
+                "6 tiles fit in a single row of the 32-column atlas, so atlas height must be exactly one tile tall");
+
+        // AddBox() adds faces in a fixed order: front, back, left, right, bottom, top (tile
+        // indices 0-5). Expected levels hand-computed for kSunDirection/kSunIntensity/
+        // kSunAmbientFloor (SunLight.hpp): front/left/bottom face away from the sun (level 89,
+        // ambient floor only); back/right/top face partially toward it (right and top land on the
+        // exact same value here since kSunDirection's X and Y components are equal).
+        const auto& pixels = builder.GetAtlasPixels();
+        const int atlasWidth = builder.GetAtlasWidth();
+        auto tileLevel = [&](int tileIndex) -> int
+        {
+            const int column = tileIndex % IronShadows::kLightmapAtlasColumns;
+            const int row = tileIndex / IronShadows::kLightmapAtlasColumns;
+            const std::size_t pixelIndex =
+                static_cast<std::size_t>(row * IronShadows::kLightmapTileSize) *
+                    static_cast<std::size_t>(atlasWidth) +
+                static_cast<std::size_t>(column * IronShadows::kLightmapTileSize);
+            return pixels[pixelIndex].getRProperty();
+        };
+        Require(tileLevel(0) == 89, "front face tile must bake to level 89 (ambient floor only)");
+        Require(tileLevel(1) == 190, "back face tile must bake to level 190");
+        Require(tileLevel(2) == 89, "left face tile must bake to level 89 (ambient floor only)");
+        Require(tileLevel(3) == 203, "right face tile must bake to level 203");
+        Require(tileLevel(4) == 89, "bottom face tile must bake to level 89 (ambient floor only)");
+        Require(tileLevel(5) == 203, "top face tile must bake to level 203");
+
+        // The right face's 4 vertices (indices 12-15) must all sample the exact center of tile 3.
+        const auto& rightFaceVertex = builder.GetVertices()[12];
+        constexpr float kExpectedU = 14.0F / 128.0F; // (column 3 * 4 + 2) / atlasWidth 128
+        constexpr float kExpectedV = 2.0F / 4.0F;    // (row 0 * 4 + 2) / atlasHeight 4
+        Require(std::abs(rightFaceVertex.TextureCoordinate.X - kExpectedU) < 1e-4F &&
+                    std::abs(rightFaceVertex.TextureCoordinate.Y - kExpectedV) < 1e-4F,
+                "the right face's vertices must sample the exact center of its own tile");
+
+        for (const auto& vertex : builder.GetVertices())
+        {
+            Require(vertex.Color.getRProperty() == 200 && vertex.Color.getGProperty() == 200 &&
+                        vertex.Color.getBProperty() == 200,
+                    "every vertex must carry the box's own authored color -- baked lighting lives in "
+                    "the atlas texture, not vertex color");
+        }
+    }
+
     void TestSaveRoundTrip()
     {
         const std::filesystem::path path = std::filesystem::current_path() / "iron_shadows_core_test.save";
@@ -670,6 +732,7 @@ int main()
         TestPoliceSystemFullCycle();
         TestBitmapFontGlyphAtlas();
         TestSunBrightnessMatchesHandComputedValue();
+        TestLightmapMeshBuilderBakesPerFaceBrightness();
         TestSaveRoundTrip();
         std::cout << "Iron Shadows core tests passed\n";
         return 0;

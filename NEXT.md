@@ -76,9 +76,45 @@ decisions: a REAL lightmap texture bake (not a vertex-color approximation), and 
 assets via WebSearch/WebFetch (not synthesized placeholder audio) -- both tracked in
 `assets/licenses/asset-registry.csv`.
 
-Planned implementation order: **UI/HUD (done) -> dynamic sun + shadow decals (done, see below) ->
-baked lightmap (next, biggest/most novel) -> audio (needs external CC0 asset sourcing, source
-already picked -- see below)**.
+Planned implementation order: **UI/HUD (done) -> dynamic sun + shadow decals (done) -> baked
+lightmap (done, see below) -> audio (next and last piece; source already picked -- the Nox Sound
+Design "Essentials Series" CC0 pack on itch.io, 988MB, download it and extract only the needed
+files, then delete the rest)**.
+
+### Baked lightmap done this session (`plan_39` `IS-39-011`'s own note)
+
+- New `include/`/`src/Graphics/LightmapMesh.hpp`/`.cpp`: `LightmapMeshBuilder` builds the static
+  city mesh (procedural box geometry only -- ground/roads/sidewalks/buildings/lamps; MC3-sourced
+  models have no lightmap UV channel from the current pipeline and stay out of scope) with 24
+  vertices per box (4 per face, no sharing across faces, since each face needs its own UV), baking
+  one flat-shaded lightmap tile per face from `ComputeBrightnessForNormal()` (a small addition to
+  `SunLight.hpp`, shared with the dynamic-sun tint for visual consistency). Atlas layout: a fixed
+  32-column grid of 4x4-pixel tiles; each face's vertices sample the EXACT CENTER of their own
+  tile (not a spanning quad) so bilinear filtering can never bleed into a neighboring tile
+  regardless of tile size -- `Finalize()` (must be called once, after all `AddBox()` calls, before
+  reading vertices/atlas pixels) resolves final UVs and the atlas pixel buffer once the total tile
+  count is known.
+- New `PrototypeRenderer::lightmapEffect_`: a `DualTextureEffect` (confirmed fully implemented on
+  the SOFTWARE backend, exact blend formula read from `SoftwareGraphicsBackend.cpp`: `finalColor =
+  vertexColor * (texture0*2) * texture1 * diffuseColor`, both textures sampled at the SAME uv --
+  this backend has no genuine 2-UV vertex format) with `texture0` a flat near-50%-gray 1x1 texture
+  (`texture0*2` ~= identity, ~0.4% error) and `texture1` the real baked lightmap atlas, rebuilt per
+  district in `RebuildStaticGeometry()`. The old `staticCityMesh_`/plain-`BasicEffect` static-city
+  draw path is gone entirely, replaced by a new `DrawStaticCityMesh()`.
+- New test: `TestLightmapMeshBuilderBakesPerFaceBrightness` (exact per-face brightness/atlas-pixel-
+  level/UV-center values for a hand-built test box, cross-checked with a standalone Python
+  calculation before being embedded -- verifies all 6 faces of one box bake to the correct level,
+  including that the sun direction's equal X/Y components make the right and top faces bake to the
+  identical level, a real coincidence of the chosen constants worth having a test lock in).
+  Verified: full `compile-software` rebuild (clean), all three `ctest` targets pass,
+  `./scripts/check-syntax.sh` clean, and a `--smoke` run with no crash. **Measured performance
+  cost**: drawing the static city mesh through `DualTextureEffect` (two bilinear texture samples
+  per pixel) instead of the previous plain vertex-color `BasicEffect` path is noticeably slower on
+  this environment's CPU software rasterizer -- a `--smoke 20` run went from ~10s to ~26s
+  wall-clock (roughly 4-5x slower per frame). Not yet profiled against
+  `docs/performance-targets.md` -- that is real gate M12 scope, not this pass. **Not verified**:
+  any visual/interactive check of how the baked lighting actually looks, since this environment
+  has no display.
 
 ### Dynamic sun + shadow decals done this session (`plan_39` `IS-39-011`'s own note)
 
