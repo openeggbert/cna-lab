@@ -108,6 +108,7 @@ add_library(iron_shadows_core STATIC
     src/Missions/PrototypeMission.cpp
     src/Persistence/SaveGame.cpp
     src/Physics/PhysicsWorld.cpp
+    src/UI/BitmapFont.cpp
     src/World/DistrictManager.cpp
     src/World/PrototypeWorld.cpp
     src/World/WaypointPath.cpp)

@@ -10,6 +10,7 @@
 #include "IronShadows/Missions/PrototypeMission.hpp"
 #include "IronShadows/Persistence/SaveGame.hpp"
 #include "IronShadows/Physics/PhysicsWorld.hpp"
+#include "IronShadows/UI/BitmapFont.hpp"
 #include "IronShadows/World/DistrictManager.hpp"
 #include "IronShadows/World/PrototypeWorld.hpp"
 #include "IronShadows/World/WaypointPath.hpp"
@@ -563,6 +564,53 @@ namespace
         Require(police.GetActivePatrolCount() == 0, "clearing a chase must remove all patrol cars");
     }
 
+    // Gate M10 / plan_28 (UI HUD): the hand-built bitmap font's glyph-atlas bit-unpacking is the
+    // part most likely to have an off-by-one or bit-order bug, so it is verified directly against
+    // the exact 'A' glyph bit pattern (hand-derived from the embedded font8x8 data, cross-checked
+    // via a standalone ASCII-art diagnostic before being embedded) -- independent of any
+    // GraphicsDevice/rendering, since BuildFont8x8AtlasPixels() needs neither.
+    void TestBitmapFontGlyphAtlas()
+    {
+        const auto pixels = IronShadows::BuildFont8x8AtlasPixels();
+        Require(pixels.size() ==
+                    static_cast<std::size_t>(IronShadows::kFont8x8AtlasWidth) *
+                        static_cast<std::size_t>(IronShadows::kFont8x8AtlasHeight),
+                "the atlas pixel buffer must be exactly atlasWidth * atlasHeight pixels");
+
+        auto pixelAt = [&](int x, int y) -> const IronShadows::Color&
+        {
+            return pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(IronShadows::kFont8x8AtlasWidth) +
+                         static_cast<std::size_t>(x)];
+        };
+
+        // 'A' is glyph index (0x41 - 0x20) = 33 -> column 33%16=1, row 33/16=2 -> origin (8,16).
+        // Its 8 rows (from font8x8_basic, hand-verified via ASCII art): 0x0C,0x1E,0x33,0x33,0x3F,
+        // 0x33,0x33,0x00 -- row 0 = 0b00001100 (bits 2,3 set), row 2 = 0b00110011 (bits 0,1,4,5 set).
+        constexpr int originX = 8;
+        constexpr int originY = 16;
+
+        Require(pixelAt(originX + 2, originY + 0).getAProperty() == 255,
+                "'A' row 0, column 2 (bit 2 of 0x0C) must be opaque");
+        Require(pixelAt(originX + 3, originY + 0).getAProperty() == 255,
+                "'A' row 0, column 3 (bit 3 of 0x0C) must be opaque");
+        Require(pixelAt(originX + 0, originY + 0).getAProperty() == 0, "'A' row 0, column 0 must be transparent");
+        Require(pixelAt(originX + 5, originY + 0).getAProperty() == 0, "'A' row 0, column 5 must be transparent");
+
+        Require(pixelAt(originX + 0, originY + 2).getAProperty() == 255,
+                "'A' row 2, column 0 (bit 0 of 0x33) must be opaque");
+        Require(pixelAt(originX + 1, originY + 2).getAProperty() == 255,
+                "'A' row 2, column 1 (bit 1 of 0x33) must be opaque");
+        Require(pixelAt(originX + 2, originY + 2).getAProperty() == 0,
+                "'A' row 2, column 2 (bit 2 of 0x33, unset) must be transparent");
+        Require(pixelAt(originX + 4, originY + 2).getAProperty() == 255,
+                "'A' row 2, column 4 (bit 4 of 0x33) must be opaque");
+
+        // Opaque pixels must be white (this font has no grayscale/anti-aliasing).
+        const IronShadows::Color& litPixel = pixelAt(originX + 2, originY + 0);
+        Require(litPixel.getRProperty() == 255 && litPixel.getGProperty() == 255 && litPixel.getBProperty() == 255,
+                "an opaque glyph pixel must be pure white");
+    }
+
     void TestSaveRoundTrip()
     {
         const std::filesystem::path path = std::filesystem::current_path() / "iron_shadows_core_test.save";
@@ -608,6 +656,7 @@ int main()
         TestTrafficVehicleAcceleratesAndBrakes();
         TestPedestrianFleesAndResumesPath();
         TestPoliceSystemFullCycle();
+        TestBitmapFontGlyphAtlas();
         TestSaveRoundTrip();
         std::cout << "Iron Shadows core tests passed\n";
         return 0;

@@ -14,9 +14,12 @@
 
 #include "Microsoft/Xna/Framework/Game.hpp"
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SpriteBatch.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SpriteFont.hpp"
 #include "Microsoft/Xna/Framework/Input/KeyboardState.hpp"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -76,6 +79,14 @@ namespace IronShadows
         DialogueSystem dialogue_;
         CutscenePlayer cutscene_;
         PrototypeRenderer renderer_;
+        // Gate M10 (plan_28-ui-hud-menus-accessibility-and-input-rebinding.md): a real on-screen
+        // HUD replacing the window-title-only display, using a hand-built bitmap SpriteFont (see
+        // IronShadows/UI/BitmapFont.hpp) since CNA has no XNB font content pipeline. Both are
+        // optional (constructed in Initialize(), not default-constructible/assignable in a way
+        // that suits a plain member) rather than needed for any fallback -- unlike Model loads,
+        // there is no "missing asset" case here, the font is always built in-process.
+        std::optional<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
+        std::optional<Microsoft::Xna::Framework::Graphics::SpriteFont> hudFont_;
         // Gate M9 (plan_19/20/21/22-...): ambient traffic/pedestrians and the one police-response
         // scenario. Empty in districts with no WaypointPath data (e.g. Countryside), so they are
         // naturally inert there -- see PrototypeWorld::GetTrafficLoop()/GetSidewalkPaths().

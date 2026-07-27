@@ -12,7 +12,10 @@ someone switched branches outside this session at some point; both exist, `devel
 
 Gates M0-M9 (see `plan.md` milestone order) are done at prototype fidelity, including M9's own
 literal "ten-minute soak" criterion (`plan_39-vertical-slice-gates.md` `IS-39-010`/`049`) — see
-its entry below:
+its entry below. **Gate M10 is IN PROGRESS** (production assets/collision, baked lighting, one
+dynamic sun, limited shadows, audio, UI) — the on-screen HUD piece is done; dynamic sun/shadows,
+the baked lightmap, and audio remain — see "What changed most recently" below for the locked
+architecture and implementation order.
 
 - M0/M1: workspace preflight + running procedural scaffold.
 - M2: warehouse building loads as a real CNJ model (`assets/source/mc3/warehouse.mc3.xml` →
@@ -58,8 +61,50 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
-Implemented gate M9 (traffic, pedestrians, one police-response scenario) at first-pass/prototype
-fidelity, entirely within Iron Shadows itself. Adopted a "kinematic movers + one shared waypoint
+**Gate M10 is now IN PROGRESS** (a much bigger, qualitatively different milestone than M0-M9 --
+production assets/collision, baked lighting, one dynamic sun, limited shadows, audio, UI). Before
+starting, did concrete research against CNA's actual source (not assumptions) to lock a feasible
+architecture for each piece -- see `plan_39-vertical-slice-gates.md` `IS-39-011`'s own inline note
+for the full research writeup (dual-texture lightmap math, why `BasicEffect`'s built-in lighting is
+a no-op on the SOFTWARE backend, why real shadow-mapping isn't achievable without modifying CNA,
+SpriteFont/SoundEffect API details). The user explicitly chose the higher-effort option for two key
+decisions: a REAL lightmap texture bake (not a vertex-color approximation), and real CC0 sound
+assets via WebSearch/WebFetch (not synthesized placeholder audio) -- both tracked in
+`assets/licenses/asset-registry.csv`.
+
+Planned implementation order: **UI/HUD (done, see below) -> dynamic sun + shadow decals (next) ->
+baked lightmap (biggest, most novel) -> audio (needs external CC0 asset sourcing)**.
+
+### UI/HUD done this session (`plan_28` `IS-28-001`/`002`)
+
+- New `include/`/`src/UI/BitmapFont.hpp`/`.cpp`: `BuildBitmapFont8x8(GraphicsDevice&)` builds a
+  real `Microsoft::Xna::Framework::Graphics::SpriteFont` at runtime from the public-domain
+  "font8x8" bitmap font (8x8 monochrome glyphs, printable ASCII range U+0020-U+007E only --
+  fetched directly from its authoritative source, https://github.com/dhepper/font8x8, Public
+  Domain, recorded in `assets/licenses/asset-registry.csv`) -- CNA has no XNB font content
+  pipeline, and rather than vendoring a new TTF-rasterization dependency or sourcing an external
+  font asset/license, this avoids both. The bit-unpacking/atlas-layout math is pulled into its own
+  GraphicsDevice-independent `BuildFont8x8AtlasPixels()` so it's headlessly unit-testable (a
+  standalone ASCII-art diagnostic hand-verified the 'A'/'a'/'1' glyph bit patterns and bit order --
+  bit 0 = leftmost column -- before any of this was written).
+- `IronShadowsGame` gained `spriteBatch_`/`hudFont_` (both `std::optional`, constructed in
+  `Initialize()`), and `Draw()` now draws a real on-screen HUD each frame (objective + driving
+  speed + dialogue subtitle/prompt + cutscene skip prompt + wanted status + transient status),
+  replacing the window-title-only display (the title itself stays, for window-manager/taskbar
+  visibility, but is no longer the sole UI).
+- New test: `TestBitmapFontGlyphAtlas` (exact bit-pattern check against 'A', independent of any
+  GraphicsDevice). Verified: full `ctest` suite, `./scripts/check-syntax.sh`, and a `--smoke` run
+  with no crash while the HUD drew every frame -- noted the CPU software rasterizer has a real,
+  measurable per-frame text-drawing cost (a 30-frame smoke run went from ~10s to ~15s wall-clock
+  after this change), not yet profiled against `docs/performance-targets.md`.
+- Not done yet: menus (pause/settings/save-load/restart/quit), gamepad/rebinding, layout
+  scaling/safe-area, a dedicated on-screen interaction prompt (e.g. "Press E") beyond dialogue/
+  cutscene prompts -- all real `plan_28` scope, not attempted in this pass.
+
+### Earlier this session: implemented gate M9 (traffic, pedestrians, one police-response scenario), then closed its ten-minute soak gap
+
+Implemented gate M9 at first-pass/prototype fidelity, entirely within Iron Shadows itself.
+Adopted a "kinematic movers + one shared waypoint
 helper + a simplified radius-based police witness check" architecture -- the smallest slice that
 proves each of the three mechanics (`plan_19`/`plan_20`/`plan_21`/`plan_22`), deliberately not the
 full lane-graph/navmesh/vision-cone/multi-tier-wanted machinery those plan files describe at their
@@ -589,12 +634,37 @@ route-following patrol cars, save/load persistence of NPC/wanted state, debug vi
 file's own "Gate M9 status" note) are real but not gate-blocking — see each file for its itemized
 list.
 
-**If continuing headless/autonomous work, the next milestone is gate M10**
-(`plan/plan_39-vertical-slice-gates.md` `IS-39-011`): the first district's vertical slice uses
-production-path assets, collision, baked lighting + one dynamic sun + limited shadows, audio, and
-UI. This is a good point to revisit the user's own concrete feedback earlier this session
-("doesn't look like Mafia 1") — M10 is exactly the milestone where visual fidelity work is
-actually in scope, unlike M0-M9's deliberately placeholder-grade debug-box rendering.
+**If continuing headless/autonomous work, gate M10 is already in progress** (see "What changed
+most recently" above for the full locked architecture) — continue in this order:
+
+1. **Dynamic sun + limited shadows** (next): a single shared sun direction/intensity applied as a
+   CPU-computed per-actor brightness scalar (NOT `BasicEffect`'s built-in `DirectionalLight0` --
+   confirmed a no-op on the SOFTWARE backend, see `plan_39` `IS-39-011`'s research note) for
+   dynamic actors (player/vehicle/traffic/pedestrians/police); a simple dark, semi-transparent
+   ground decal beneath the player and vehicle for "shadows" (confirmed AlphaBlend IS implemented
+   on the SOFTWARE backend) -- a period-appropriate "blob shadow," not real shadow-mapping
+   (confirmed not achievable without modifying CNA itself).
+2. **Baked lightmap** (biggest, most novel): `DualTextureEffect` (confirmed fully implemented on
+   the SOFTWARE backend, formula `finalColor = vertexColor * (texture0*2) * texture1 * diffuse`,
+   both textures sampled at the SAME uv) with `texture0` = a flat 50%-gray 1x1 texture (so
+   `texture0*2` = identity) and `texture1` = a lightmap atlas baked IN-PROCESS (no external tool,
+   no JSON round-trip) directly from `PrototypeWorld::GetBoxes()` at renderer build time -- one
+   flat-shaded tile per box face, uploaded via `Texture2D(device,w,h)` + `SetData()`. Needs a new
+   vertex format for the static city mesh (`VertexPositionColorTexture`, already exists in CNA)
+   carrying one UV per vertex into the atlas. Scope: the procedural box city only, not MC3-sourced
+   models (no lightmap UV channel in that pipeline yet).
+3. **Audio** (needs external CC0 asset sourcing via WebSearch/WebFetch, tracked in
+   `assets/licenses/asset-registry.csv` per the user's explicit choice): `SoundEffect::FromStream`
+   (confirmed decodes WAV/OGG/MP3 directly via SDL3_mixer's `MIX_LoadAudio_IO`, no XNB conversion
+   needed) + `SoundEffectInstance`/`CreateInstance()` for looped ambience/engine hum, `Play()` for
+   one-shots (footstep/horn/siren). Wrap in try/catch for `NoAudioHardwareException` (confirmed
+   this environment may have no audio device), matching the established optional-asset fallback
+   convention.
+
+This is a good point to also revisit the user's own concrete feedback earlier this session
+("doesn't look like Mafia 1") once the lightmap/sun/shadow pieces land — M10 is exactly the
+milestone where visual fidelity work is in scope, unlike M0-M9's deliberately placeholder-grade
+debug-box rendering.
 
 Other open items worth picking up opportunistically (not blocking, not sequenced):
 

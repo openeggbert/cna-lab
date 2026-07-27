@@ -1,6 +1,7 @@
 #include "IronShadows/Application/IronShadowsGame.hpp"
 
 #include "IronShadows/Persistence/SaveGame.hpp"
+#include "IronShadows/UI/BitmapFont.hpp"
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Content/ContentManager.hpp"
@@ -195,6 +196,13 @@ namespace IronShadows
         renderer_.Initialize(getGraphicsDeviceProperty(), districtManager_.GetWorld(),
                              std::move(warehouseModel), std::move(vehicleModels), std::move(characterModel));
         RespawnTrafficAndPedestrians();
+
+        // Gate M10: a real on-screen HUD (see BitmapFont.hpp for why this is a hand-built bitmap
+        // font rather than a loaded asset). Always constructed -- there is no "missing asset"
+        // fallback case here, unlike the CNJ models above.
+        spriteBatch_.emplace(getGraphicsDeviceProperty());
+        hudFont_.emplace(BuildBitmapFont8x8(getGraphicsDeviceProperty()));
+
         UpdateWindowTitle(10.0F);
     }
 
@@ -755,6 +763,62 @@ namespace IronShadows
         }
 
         renderer_.DrawTraffic(device, view, projection, trafficPoses, pedestrianPoses, policePoses);
+
+        // Gate M10: a real on-screen HUD, replacing the window-title-only display (which stays,
+        // for window-manager/taskbar visibility, but is no longer the only place this shows).
+        if (spriteBatch_ && hudFont_)
+        {
+            spriteBatch_->Begin();
+            float lineY = 10.0F;
+            constexpr float kLineHeight = 12.0F;
+
+            if (const DialogueLine* line = dialogue_.GetCurrentLine())
+            {
+                spriteBatch_->DrawString(*hudFont_, line->speaker + ": " + line->text, Vector2(10.0F, lineY),
+                                        Color(255, 255, 255, 255));
+                lineY += kLineHeight;
+                spriteBatch_->DrawString(*hudFont_, "Enter: continue", Vector2(10.0F, lineY),
+                                        Color(200, 200, 200, 255));
+            }
+            else if (cutscene_.IsActive())
+            {
+                spriteBatch_->DrawString(*hudFont_, "Enter: skip", Vector2(10.0F, lineY), Color(200, 200, 200, 255));
+            }
+            else
+            {
+                std::ostringstream objective;
+                objective << (playerDriving_ ? "Driving" : "On foot") << " | Objective: " << mission_.GetObjectiveText();
+                spriteBatch_->DrawString(*hudFont_, objective.str(), Vector2(10.0F, lineY), Color(255, 255, 255, 255));
+                lineY += kLineHeight;
+
+                if (playerDriving_)
+                {
+                    std::ostringstream speed;
+                    speed << static_cast<int>(std::round(vehicle_.GetSpeedKph())) << " km/h";
+                    spriteBatch_->DrawString(*hudFont_, speed.str(), Vector2(10.0F, lineY), Color(255, 255, 255, 255));
+                    lineY += kLineHeight;
+                }
+
+                if (police_.GetState() == PoliceState::Dispatched)
+                {
+                    spriteBatch_->DrawString(*hudFont_, "Police dispatched...", Vector2(10.0F, lineY),
+                                            Color(255, 200, 80, 255));
+                    lineY += kLineHeight;
+                }
+                else if (police_.GetState() == PoliceState::Chasing)
+                {
+                    spriteBatch_->DrawString(*hudFont_, "WANTED", Vector2(10.0F, lineY), Color(230, 60, 60, 255));
+                    lineY += kLineHeight;
+                }
+
+                if (transientStatusSeconds_ > 0.0F && !transientStatus_.empty())
+                {
+                    spriteBatch_->DrawString(*hudFont_, transientStatus_, Vector2(10.0F, lineY),
+                                            Color(210, 210, 160, 255));
+                }
+            }
+            spriteBatch_->End();
+        }
 
         if (smokeFramesRemaining_ > 0)
         {
