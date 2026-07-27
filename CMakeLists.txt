@@ -102,6 +102,7 @@ add_library(iron_shadows_core STATIC
     src/Missions/PrototypeMission.cpp
     src/Persistence/SaveGame.cpp
     src/Physics/PhysicsWorld.cpp
+    src/World/DistrictManager.cpp
     src/World/PrototypeWorld.cpp)
 
 add_library(IronShadows::Core ALIAS iron_shadows_core)

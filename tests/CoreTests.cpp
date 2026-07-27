@@ -4,6 +4,7 @@
 #include "IronShadows/Missions/PrototypeMission.hpp"
 #include "IronShadows/Persistence/SaveGame.hpp"
 #include "IronShadows/Physics/PhysicsWorld.hpp"
+#include "IronShadows/World/DistrictManager.hpp"
 #include "IronShadows/World/PrototypeWorld.hpp"
 
 #include <cmath>
@@ -34,7 +35,7 @@ namespace
     {
         IronShadows::PrototypeWorld world;
         IronShadows::Physics::PhysicsWorld physics;
-        world.BuildPhysicsStaticBodies(physics);
+        (void)world.BuildPhysicsStaticBodies(physics);
         IronShadows::VehicleController vehicle;
         vehicle.Reset(world.GetVehicleSpawn(), world.GetVehicleSpawnYaw(), physics);
         const IronShadows::Vector3 before = vehicle.GetPosition();
@@ -53,7 +54,7 @@ namespace
     {
         IronShadows::PrototypeWorld world;
         IronShadows::Physics::PhysicsWorld physics;
-        world.BuildPhysicsStaticBodies(physics);
+        (void)world.BuildPhysicsStaticBodies(physics);
         IronShadows::PlayerController player;
         player.Reset(world.GetPlayerSpawn(), 0.0F, physics);
         const IronShadows::Vector3 before = player.GetPosition();
@@ -78,6 +79,60 @@ namespace
         }
         Require(blocked.GetPosition().X > -20.0F,
                 "walking into the hotel collider for 5 seconds must not tunnel through it");
+    }
+
+    // Gate M5 / plan_13 (IS-13-042 equivalent): transitioning between the two prototype
+    // districts must swap the loaded world, replace its static physics bodies without leaking
+    // the old ones, and honor the loading screen's minimum display time exactly once.
+    void TestDistrictTransition()
+    {
+        IronShadows::Physics::PhysicsWorld physics;
+        IronShadows::DistrictManager districts;
+        districts.Initialize(physics);
+        Require(districts.GetWorld().GetId() == IronShadows::DistrictId::WarehouseBlock,
+                "DistrictManager must start in the warehouse block");
+        // The two districts have different numbers of static bodies (different scenes), so only
+        // a full round trip back to the same district is a valid leak check -- not the raw count
+        // after a one-way swap.
+        const std::size_t warehouseBodyCount = physics.GetBodyCount();
+
+        districts.RequestTransition(physics);
+        Require(districts.GetWorld().GetId() == IronShadows::DistrictId::Countryside,
+                "the warehouse block's exit must lead to the countryside");
+        Require(districts.IsTransitioning(), "requesting a transition must show a loading screen");
+        Require(!districts.ConsumeArrival(),
+                "arrival must not be reported before the loading screen's minimum time elapses");
+
+        for (int i = 0; i < 60; ++i)
+        {
+            districts.Update(1.0F / 60.0F);
+        }
+        Require(!districts.IsTransitioning(), "the loading screen must finish after its minimum display time");
+        Require(districts.ConsumeArrival(), "arrival must be reported once the loading screen finishes");
+        Require(!districts.ConsumeArrival(), "arrival must not be reported a second time");
+        const std::size_t countrysideBodyCount = physics.GetBodyCount();
+
+        // The countryside's own exit must lead back to the warehouse block.
+        districts.RequestTransition(physics);
+        Require(districts.GetWorld().GetId() == IronShadows::DistrictId::WarehouseBlock,
+                "the countryside's exit must lead back to the warehouse block");
+        for (int i = 0; i < 60; ++i)
+        {
+            districts.Update(1.0F / 60.0F);
+        }
+        Require(districts.ConsumeArrival(), "arrival must be reported once the return trip's loading screen finishes");
+        Require(physics.GetBodyCount() == warehouseBodyCount,
+                "round-tripping warehouse -> countryside -> warehouse must not leak static physics bodies");
+
+        // And a second visit to the countryside must reproduce the same body count again.
+        districts.RequestTransition(physics);
+        for (int i = 0; i < 60; ++i)
+        {
+            districts.Update(1.0F / 60.0F);
+        }
+        Require(districts.ConsumeArrival(), "arrival must be reported for the second countryside visit");
+        Require(physics.GetBodyCount() == countrysideBodyCount,
+                "revisiting the countryside must not leak static physics bodies");
     }
 
     void TestMissionFlow()
@@ -127,6 +182,7 @@ namespace
         source.vehicleYaw = -0.5F;
         source.vehicleSpeed = 8.0F;
         source.playerDriving = true;
+        source.districtId = IronShadows::DistrictId::Countryside;
 
         std::string error;
         Require(IronShadows::SaveGame::Write(path.string(), source, error), "save write failed: " + error);
@@ -136,6 +192,7 @@ namespace
         Require(std::abs(loaded->vehicleSpeed - source.vehicleSpeed) < 0.001F,
                 "vehicle speed round-trip failed");
         Require(loaded->playerDriving, "driving flag round-trip failed");
+        Require(loaded->districtId == source.districtId, "district id round-trip failed");
         std::filesystem::remove(path);
     }
 }
@@ -147,6 +204,7 @@ int main()
         TestWorldCollision();
         TestVehicleMotion();
         TestPlayerMotion();
+        TestDistrictTransition();
         TestMissionFlow();
         TestDialogueFallback();
         TestSaveRoundTrip();

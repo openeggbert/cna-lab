@@ -10,7 +10,7 @@ Repo: `/rv/data/development/github.com/openeggbert/iron-shadows`, branch `develo
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
 **No remote configured, nothing pushed** — commit locally only until explicitly told otherwise.
 
-Gates M0-M4 (see `plan.md` milestone order) are done:
+Gates M0-M5 (see `plan.md` milestone order) are done:
 
 - M0/M1: workspace preflight + running procedural scaffold.
 - M2: warehouse building loads as a real CNJ model (`assets/source/mc3/warehouse.mc3.xml` →
@@ -22,8 +22,11 @@ Gates M0-M4 (see `plan.md` milestone order) are done:
 - M4: Jolt Physics v5.6.0 (MIT, pinned commit `e77f175595e64cb44218cc9d9d56fc365ad0e36a`) is
   selected and integrated behind `IronShadows::Physics::PhysicsWorld` (PIMPL, no Jolt types leak
   out of `src/Physics/PhysicsWorld.cpp`). **Beyond the M4 gate's own scope**, `PlayerController`
-  and `VehicleController` are now actually driven by physics (not just standalone-prototyped) —
-  see "What changed most recently" below.
+  and `VehicleController` are actually driven by physics (not just standalone-prototyped).
+- M5: a second, genuinely different district (`Countryside`, alongside the original
+  `WarehouseBlock`) plus `IronShadows::DistrictManager`, which owns the currently loaded
+  `PrototypeWorld` and its static physics bodies and drives a synchronous loading-screen
+  transition between them — see "What changed most recently" below.
 
 Plan size: 2,148 tasks across 41 group files under `plan/`, down from an original 6,380-task
 AAA/open-world-scoped draft — see `plan.md`'s "Locked scope decisions" section for the ten
@@ -31,6 +34,53 @@ scope decisions that drove that cut (Mafia-1 (2002) content scope, Mafia-1-era s
 no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting target, etc.).
 
 ## What changed most recently (this session)
+
+Implemented gate M5 (second district):
+
+- `include/IronShadows/Core/WorldTypes.hpp` gained `DistrictId` (`WarehouseBlock`, `Countryside`)
+  and `DistrictExit` (a `TriggerZone` plus the target district id/entry position/entry yaw).
+- `PrototypeWorld` is now district-parameterized: its constructor takes a `DistrictId` (defaults to
+  `WarehouseBlock`), `BuildCityBlock()` was renamed `BuildWarehouseBlock()` and now also sets
+  `districtExit_` (a trigger behind the map pointing to `Countryside`), and a new
+  `BuildCountryside()` builds a distinct farmland district (ground, dirt road, barn, farmhouse,
+  silo, fence posts) with its own spawn points and its own exit back to `WarehouseBlock`.
+  `BuildPhysicsStaticBodies()` now returns the created body handles (`[[nodiscard]]`) instead of
+  discarding them, so a caller can destroy them later.
+- New `IronShadows::DistrictManager` (`include/`/`src/World/DistrictManager.cpp`) owns the current
+  `PrototypeWorld` and its static body handles. `RequestTransition()` swaps to the current
+  district's own exit target (destroy old bodies → construct new `PrototypeWorld` → rebuild
+  bodies, all synchronous) and starts a 0.6s minimum-display-time loading-screen timer;
+  `LoadDistrict(id)` is a direct-load bypass used by save/load restore and the reset key;
+  `ConsumeArrival()` reports true exactly once when the timer elapses.
+- `PrototypeRenderer` gained `RebuildStaticGeometry()` (extracted from `Initialize()`'s static-mesh
+  loop) so a district swap only rebuilds the static city mesh, not vehicle/player meshes or CNJ
+  content.
+- `SaveSnapshot`/`SaveGame` gained a `districtId` field (additive text key, no format version
+  bump; defaults to `WarehouseBlock` if absent so old saves still load).
+- `IronShadowsGame` replaced its raw `PrototypeWorld world_` with `districtManager_`, added
+  `CheckDistrictExit()` (tests the player/vehicle position against the current district's exit
+  trigger and calls `RequestTransition`) and `HandleDistrictArrival()` (repositions player/vehicle
+  at the new district's spawn, re-snaps the player onto the vehicle if they were driving, rebuilds
+  renderer geometry). Gameplay update/mission logic is gated behind `!IsTransitioning()`; `Draw()`
+  shows a plain dark clear (no 3D scene) while transitioning; `SavePrototype()`/`LoadPrototype()`/
+  `ResetPrototype()` all go through `DistrictManager` now.
+- `PhysicsWorld` gained `GetBodyCount()` (wraps `JPH::PhysicsSystem::GetNumBodies()`) — test/
+  diagnostic only, for leak detection across a district swap.
+- New test `tests/CoreTests.cpp::TestDistrictTransition` (the `IS-13-042` task): does two full
+  round trips (warehouse → countryside → warehouse → countryside) and asserts the district id
+  after each transition, the loading screen's timing/one-shot `ConsumeArrival()` behavior, and
+  that the physics body count returns to exactly its prior value every time the *same* district is
+  revisited. (First draft of this test asserted equal body counts after a one-way swap, which is
+  wrong since the two districts have different numbers of static bodies — caught immediately by
+  the test itself failing, then corrected to only compare counts on same-district revisits.)
+- Verification performed: full `compile-software` rebuild (clean, no new warnings), all three
+  `ctest` targets pass, `./scripts/check-syntax.sh` passes on every file, and
+  `./cmake-build-compile-software/iron_shadows --smoke 120` exits 0 with correct asset-loading
+  logs. **Not verified**: actually walking/driving through an exit trigger interactively (no
+  display access in this environment), or how the loading screen looks beyond a dark clear +
+  "Loading..." window title.
+
+### Earlier this session: wiring PhysicsWorld into gameplay (gate M4 follow-up)
 
 Wired `PhysicsWorld` into actual gameplay (previously it was a proven-but-standalone M4
 prototype):
@@ -123,18 +173,30 @@ All three `ctest` targets pass: `iron_shadows_core_tests`, `iron_shadows_missing
 **First priority if a display/interactive input becomes available:** actually play the game
 (`./scripts/run.sh compile-software` or a real backend preset) and check the items in "Explicitly
 not verified" above. Camera offsets, body-mesh offset, and Jolt's default vehicle tuning are the
-most likely things to need a quick numeric tweak once someone can see them.
+most likely things to need a quick numeric tweak once someone can see them. Also walk/drive
+through the warehouse block's exit trigger (behind the map at roughly `(0,0.5,-47)`) and confirm
+the loading screen appears, the countryside district looks right, and the return trip back to the
+warehouse block works too — this has only been verified via `TestDistrictTransition`'s physics/
+state-machine assertions, never by actually seeing it happen.
 
-**If continuing headless/autonomous work, the next milestone per `plan.md`'s own order is M5 — a
-second district**, which forces the discrete district-loading design (`plan/plan_13-world-partitioning-and-streaming.md`):
-loading screen, unload/reload world+physics static bodies, preserve player/vehicle/mission/save
-state across the transition. This is a genuinely large task (new content authoring + a real
-loading-screen state machine); scope it down to the smallest slice that proves the transition
-mechanism (e.g. two trivial hand-boxed districts before investing in real MC3 content for a
-second real place) rather than trying to fully art/content the second district in one pass.
+**If continuing headless/autonomous work, the next milestone per `plan.md`'s own order is M6 — one
+skinned character** (`plan/plan_39-vertical-slice-gates.md` `IS-39-007`): one skinned character
+plays blended locomotion, dialogue pose, and vehicle entry/exit animations using
+`cna-extended`'s Transform3/skinned-playback. This will need: a skinned-mesh-capable MC3 export
+(or a hand-authored test rig if MC3/Mesh Craft's skinning support needs investigation first —
+check `cna-extended`'s existing skinned-playback API/tests before assuming a gap), replacing the
+player's current invisible-capsule-with-a-box-mesh representation, and wiring animation state to
+`PlayerController`'s existing on-foot/dialogue/vehicle-entry states rather than inventing a new
+state machine. Scope the first pass down to one locomotion blend (idle/walk/run) proving the
+skinned-playback pipeline end to end, before adding dialogue-pose and vehicle-entry animations.
 
 Other open items worth picking up opportunistically (not blocking, not sequenced):
 
+- `plan_13` `IS-13-014` (loading-screen progress feedback — `DistrictManager::GetTransitionProgress()`
+  exists but isn't drawn yet), `IS-13-016` (fade instead of hard cut), `IS-13-022`/`023` (per-district
+  mutable world state — no doors/pickups/NPCs exist yet to need this), `IS-13-034`/`035`
+  (background/async district loading), `IS-13-044` (a real many-iteration soak test, not just the
+  two round trips `TestDistrictTransition` currently does).
 - `plan_15` `IS-15-006`/`007` (deferred body creation, sleep/activation tuning), `IS-15-009`/`010`
   (real MC3-attribute-driven collision role + layer/mask system, currently everything is one
   "static box" treatment), `IS-15-022` (steps/slopes/stairs).

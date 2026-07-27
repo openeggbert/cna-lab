@@ -50,6 +50,7 @@ namespace IronShadows
             text << "vehicle_yaw=" << snapshot.vehicleYaw << "\n";
             text << "vehicle_speed=" << snapshot.vehicleSpeed << "\n";
             text << "player_driving=" << (snapshot.playerDriving ? 1 : 0) << "\n";
+            text << "district_id=" << static_cast<int>(snapshot.districtId) << "\n";
             System::IO::File::WriteAllText(path, text.str());
             return true;
         }
@@ -99,6 +100,10 @@ namespace IronShadows
             snapshot.vehicleYaw = std::stof(values.at("vehicle_yaw"));
             snapshot.vehicleSpeed = std::stof(values.at("vehicle_speed"));
             snapshot.playerDriving = std::stoi(values.at("player_driving")) != 0;
+            const auto districtIt = values.find("district_id");
+            snapshot.districtId = districtIt != values.end()
+                                      ? static_cast<DistrictId>(std::stoi(districtIt->second))
+                                      : DistrictId::WarehouseBlock;
             return snapshot;
         }
         catch (const std::exception& exception)

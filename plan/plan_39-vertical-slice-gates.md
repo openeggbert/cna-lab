@@ -20,7 +20,7 @@ rather than being a one-time final check.
 - [ ] **IS-39-003 P0** — Gate M2: one MC3 building converts to GLB/CNJ, loads at runtime, collides correctly, and replaces debug geometry.
 - [x] **IS-39-004 P0** — Gate M3: one CNJ vehicle renders with separate wheels and preserves the current drivable mission.
 - [x] **IS-39-005 P0** — Gate M4: the selected physics library supports character, trigger, raycast, and vehicle prototypes behind Iron Shadows abstractions.
-- [ ] **IS-39-006 P0** — Gate M5: two districts each load and unload cleanly through a loading-screen transition, with no leaks, crashes, or lost mission/save state.
+- [x] **IS-39-006 P0** — Gate M5: two districts each load and unload cleanly through a loading-screen transition, with no leaks, crashes, or lost mission/save state. *(`DistrictManager` + a second `Countryside` district in `PrototypeWorld`; exit triggers swap districts through a synchronous load with a minimum-display-time loading screen (`IronShadowsGame::Draw`'s transitioning branch), carrying mission/vehicle-driving state across and persisting `districtId` in `SaveGame`. Verified by `TestDistrictTransition` (round-trip physics-body-count leak check, one-shot arrival signaling) and a `--smoke` run with no crash. NOT covered by the gate's own criteria but still open: background/async loading (IS-39-037/038), a soak test beyond two round trips (IS-39-043), and per-district mutable world state beyond spawn/exit points (plan_13 IS-13-022/023) — see plan_13 for the itemized breakdown.)*
 - [ ] **IS-39-007 P0** — Gate M6: one skinned character plays blended locomotion, dialogue pose, and vehicle entry/exit animations using cna-extended's Transform3/skinned-playback.
 - [ ] **IS-39-008 P0** — Gate M7: one data-driven mission controls dialogue, objective UI, vehicle entry, destination trigger, checkpoint, and completion.
 - [ ] **IS-39-009 P0** — Gate M8: one in-engine cutscene can play, skip, save-safe finalize, and hand control back correctly.
@@ -50,14 +50,14 @@ rather than being a one-time final check.
 - [x] **IS-39-033 P0** — M2 first production asset: replace procedural mesh.
 - [x] **IS-39-034 P0** — M2 first production asset: package provenance.
 - [x] **IS-39-035 P0** — M2 first production asset: test missing/corrupt asset fallback (`scripts/test-missing-asset-fallback.sh`, wired into `ctest` as `iron_shadows_missing_asset_fallback`).
-- [ ] **IS-39-036 P0** — M5 district load/unload: partition one district's assets for loading-screen transition.
-- [ ] **IS-39-037 P0** — M5 district load/unload: load the target district asynchronously behind the loading screen.
-- [ ] **IS-39-038 P0** — M5 district load/unload: upload GPU resources safely once loading completes.
-- [ ] **IS-39-039 P0** — M5 district load/unload: unload the previous district's geometry, collision, and entities deterministically.
-- [ ] **IS-39-040 P0** — M5 district load/unload: restore persistent world/save/mission state across the transition.
-- [ ] **IS-39-041 P0** — M5 district load/unload: connect collision/navigation for the newly loaded district.
-- [ ] **IS-39-042 P0** — M5 district load/unload: cancel/ignore stale loading work if the player triggers a second transition quickly.
-- [ ] **IS-39-043 P0** — M5 district load/unload: soak-test repeated back-and-forth transitions between two districts.
+- [x] **IS-39-036 P0** — M5 district load/unload: partition one district's assets for loading-screen transition. *(Each district is its own `PrototypeWorld` (`BuildWarehouseBlock`/`BuildCountryside`), a natural partition since content is manually authored per district, not shared.)*
+- [ ] **IS-39-037 P0** — M5 district load/unload: load the target district asynchronously behind the loading screen. *(Loading is synchronous; the loading screen only enforces a minimum display time, matching `DistrictManager`'s doc comment that there is no real async work yet — see plan_13 IS-13-034/035.)*
+- [ ] **IS-39-038 P0** — M5 district load/unload: upload GPU resources safely once loading completes. *(Not applicable yet since loading is synchronous on the main thread — no cross-thread GPU upload handoff exists to make "safe".)*
+- [x] **IS-39-039 P0** — M5 district load/unload: unload the previous district's geometry, collision, and entities deterministically. *(`DistrictManager::SwapDistrict` destroys all prior static physics bodies before constructing the new world; `TestDistrictTransition` asserts no leaked bodies across round trips. No separate render/entity teardown needed since `RebuildStaticGeometry` fully replaces the renderer's static mesh list.)*
+- [x] **IS-39-040 P0** — M5 district load/unload: restore persistent world/save/mission state across the transition. *(Mission state is untouched by transitions; `SaveSnapshot`/`SaveGame` now persist `districtId` so a reload restores the correct district via `DistrictManager::LoadDistrict`.)*
+- [x] **IS-39-041 P0** — M5 district load/unload: connect collision/navigation for the newly loaded district. *(`SwapDistrict` rebuilds the new district's static physics bodies via `BuildPhysicsStaticBodies`; there is no navigation-mesh system yet in this prototype.)*
+- [ ] **IS-39-042 P0** — M5 district load/unload: cancel/ignore stale loading work if the player triggers a second transition quickly. *(Not applicable yet — loading is synchronous, so there is no in-flight async work to cancel; `IronShadowsGame::CheckDistrictExit` already ignores new exit triggers while `IsTransitioning()`.)*
+- [ ] **IS-39-043 P0** — M5 district load/unload: soak-test repeated back-and-forth transitions between two districts. *(Partial: `TestDistrictTransition` does two full round trips with leak checks, not a long-running many-iteration soak — see plan_13 IS-13-044.)*
 - [ ] **IS-39-044 P0** — M9 living-district proof: spawn Mafia-1-fidelity traffic following the district's lane graph and signals.
 - [ ] **IS-39-045 P0** — M9 living-district proof: spawn 10-20 pedestrians with sidewalk navigation and basic flee reactions.
 - [ ] **IS-39-046 P0** — M9 living-district proof: verify a witnessed traffic offense triggers a police response.

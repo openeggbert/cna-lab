@@ -421,6 +421,8 @@ namespace IronShadows::Physics
         return result;
     }
 
+    std::size_t PhysicsWorld::GetBodyCount() const { return impl_->physicsSystem.GetNumBodies(); }
+
     std::vector<TriggerEvent> PhysicsWorld::ConsumeTriggerEvents() { return impl_->contactListener.Consume(); }
 
     CharacterHandle PhysicsWorld::CreateCharacter(const Vector3& position, float radius, float cylinderHalfHeight)

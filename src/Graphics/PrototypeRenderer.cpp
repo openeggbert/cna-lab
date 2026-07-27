@@ -20,17 +20,7 @@ namespace IronShadows
         warehouseModel_ = std::move(warehouseModel);
         vehicleModels_ = std::move(vehicleModels);
 
-        MeshBuilder cityBuilder;
-        for (const WorldBox& box : world.GetBoxes())
-        {
-            if (warehouseModel_.has_value() && box.name == "warehouse")
-            {
-                warehousePosition_ = box.center;
-                continue;
-            }
-            cityBuilder.AddBox(box.center, box.size, box.color);
-        }
-        staticCityMesh_.Upload(device, cityBuilder);
+        RebuildStaticGeometry(device, world);
 
         MeshBuilder vehicleBuilder;
         vehicleBuilder.AddBox({0.0F, 0.0F, 0.0F}, {2.1F, 0.65F, 4.2F}, Color(116, 26, 30, 255));
@@ -51,6 +41,21 @@ namespace IronShadows
         effect_->VertexColorEnabled = true;
         device.setRasterizerStateProperty(RasterizerState::CullNone);
         device.SetDepthTestEnabled(true);
+    }
+
+    void PrototypeRenderer::RebuildStaticGeometry(GraphicsDevice& device, const PrototypeWorld& world)
+    {
+        MeshBuilder cityBuilder;
+        for (const WorldBox& box : world.GetBoxes())
+        {
+            if (warehouseModel_.has_value() && box.name == "warehouse")
+            {
+                warehousePosition_ = box.center;
+                continue;
+            }
+            cityBuilder.AddBox(box.center, box.size, box.color);
+        }
+        staticCityMesh_.Upload(device, cityBuilder);
     }
 
     void PrototypeRenderer::DrawMesh(GraphicsDevice& device,

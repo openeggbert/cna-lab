@@ -9,19 +9,19 @@ This repository is not a clone of any existing game. It uses the broad genre ide
 The current C++ prototype is intentionally simple but not empty. It provides:
 
 - A CNA `Game` application and 60 Hz update loop.
-- A procedurally rendered 3D city block made from vertex/index buffers.
+- A procedurally rendered 3D city block made from vertex/index buffers, plus a second, genuinely different countryside district.
 - A third-person camera.
-- On-foot movement with simple building collision.
-- A driveable kinematic sedan with acceleration, reverse, steering, drag, handbrake, and collision response.
+- On-foot movement driven by a real Jolt Physics character controller (`JPH::CharacterVirtual` capsule), colliding against static world geometry.
+- A driveable sedan driven by a real Jolt Physics 4-wheel raycast vehicle (`JPH::VehicleConstraint`/`WheeledVehicleController`), with acceleration, reverse, steering, drag, and handbrake.
 - Entering and exiting the vehicle with **E**.
 - A three-line prologue dialogue advanced with **Enter**.
 - A mission flow: hear the briefing → reach the car → enter it → drive into the warehouse marker.
-- Save and load with **F5/F9**, implemented through sharp-runtime `System::IO`.
+- Two discrete districts (a warehouse block and a countryside area) connected by exit triggers and a loading screen, Mafia-1-style — not seamless open-world streaming.
+- Save and load with **F5/F9**, implemented through sharp-runtime `System::IO`; the current district persists across a save/load round trip.
 - A reset key (**R**).
-- Headless core tests for collision, vehicle movement, mission progression, dialogue, and persistence.
+- Headless core tests for collision, on-foot/vehicle physics motion, district transitions, mission progression, dialogue, and persistence.
 - An editable MC3 source scene and an MC3 → GLB → CNJ helper script.
 - Two real production assets: the warehouse building and the sedan (as four composed parts — body/cabin/windshield/wheel) are authored in MC3, converted through the full Mesh Craft → CNA pipeline, and loaded in-engine as CNJ models (with a procedural fallback if a generated asset is missing), replacing their procedural counterparts while driving and the delivery mission still work unchanged.
-- A prototyped Jolt Physics integration (`IronShadows::Physics::PhysicsWorld`) with tested character, trigger, raycast, and 4-wheel vehicle behavior, not yet wired into gameplay movement.
 
 The renderer otherwise uses colored boxes. It is a debug scaffold designed to be replaced incrementally by MC3/glTF/CNJ content, one building at a time, following the warehouse's example.
 
@@ -158,4 +158,6 @@ Gates M2 and M3 are done: the warehouse building and the sedan both load as gene
 
 Gate M4 is done, including the follow-up gameplay migration: **Jolt Physics** (v5.6.0, MIT, pinned in `THIRD_PARTY.md`, shared checkout at `~/deps/jolt`) sits behind `IronShadows::Physics::PhysicsWorld` (`include/`/`src/Physics/`), a PIMPL boundary that keeps every Jolt type out of gameplay code, and now actually drives gameplay: `PlayerController`'s on-foot movement is a `JPH::CharacterVirtual` capsule, and `VehicleController`'s driving is a `JPH::VehicleConstraint`/`WheeledVehicleController` 4-wheel raycast vehicle, both colliding against real static bodies built from `PrototypeWorld`'s geometry (`PrototypeWorld::BuildPhysicsStaticBodies`). `tests/PhysicsTests.cpp` proves the standalone character/trigger/raycast/vehicle prototypes; `tests/CoreTests.cpp`'s `TestPlayerMotion`/`TestVehicleMotion` prove the wired-up gameplay versions don't tunnel through world geometry and do accelerate (`plan/plan_39-vertical-slice-gates.md` gate M4, task `IS-39-005`; `plan/plan_15-physics-integration.md` `IS-15-021`/`IS-15-025`/`IS-15-027`). Vehicle engine/transmission/suspension tuning still uses Jolt's own generic defaults rather than a deliberately-tuned "feel" for this sedan, and has not been visually verified (no display/interactive access in the environment that did this migration) — see `NEXT.md` for what to check first with a real display.
 
-Next: **M5 — a second district**, forcing the discrete district-loading design (loading screen, world/save state preserved across the transition) that gate M2/M3's single always-loaded block never had to prove.
+Gate M5 is done: `IronShadows::DistrictManager` (`include/`/`src/World/`) owns the currently loaded `PrototypeWorld` and its static physics bodies, and a second, genuinely different `Countryside` district was added alongside the original `WarehouseBlock`, each with its own exit trigger back to the other. Requesting a transition destroys the old district's static bodies, constructs the new `PrototypeWorld`, rebuilds its bodies and renderer geometry (`PrototypeRenderer::RebuildStaticGeometry`), and shows a loading screen with a 0.6s minimum display time; mission state and the player's driving/vehicle state carry across unchanged, and `SaveGame` now persists the current district id so a save/load round trip restores the right one. `tests/CoreTests.cpp`'s `TestDistrictTransition` proves two full round trips leak no static physics bodies and that arrival is signaled exactly once per transition (`plan/plan_39-vertical-slice-gates.md` gate M5, task `IS-39-006`; `plan/plan_13-world-partitioning-and-streaming.md` for the itemized breakdown). Still open: background/async loading (loading is currently synchronous, the loading screen only enforces a minimum display time), a longer soak test beyond two round trips, and per-district mutable world state (unlocked doors, taken pickups, etc.) beyond spawn/exit points — none of these existed to test yet in this prototype.
+
+Next: **M6 — one skinned character**, playing blended locomotion, dialogue pose, and vehicle entry/exit animations using `cna-extended`'s Transform3/skinned-playback (`plan/plan_39-vertical-slice-gates.md` gate M6, task `IS-39-007`).

@@ -6,18 +6,30 @@
 
 namespace IronShadows
 {
-    PrototypeWorld::PrototypeWorld()
+    PrototypeWorld::PrototypeWorld(DistrictId id) : id_(id)
     {
-        BuildCityBlock();
+        switch (id_)
+        {
+        case DistrictId::WarehouseBlock:
+            BuildWarehouseBlock();
+            break;
+        case DistrictId::Countryside:
+            BuildCountryside();
+            break;
+        }
     }
 
-    void PrototypeWorld::BuildPhysicsStaticBodies(Physics::PhysicsWorld& physics) const
+    std::vector<Physics::RigidBodyHandle> PrototypeWorld::BuildPhysicsStaticBodies(Physics::PhysicsWorld& physics) const
     {
-        (void)physics.CreateStaticBody(Physics::ShapeDesc::Box(groundCollider_.halfExtents), groundCollider_.center);
+        std::vector<Physics::RigidBodyHandle> handles;
+        handles.reserve(colliders_.size() + 1);
+        handles.push_back(
+            physics.CreateStaticBody(Physics::ShapeDesc::Box(groundCollider_.halfExtents), groundCollider_.center));
         for (const Aabb& collider : colliders_)
         {
-            (void)physics.CreateStaticBody(Physics::ShapeDesc::Box(collider.halfExtents), collider.center);
+            handles.push_back(physics.CreateStaticBody(Physics::ShapeDesc::Box(collider.halfExtents), collider.center));
         }
+        return handles;
     }
 
     void PrototypeWorld::AddBox(std::string name,
@@ -33,11 +45,16 @@ namespace IronShadows
         }
     }
 
-    void PrototypeWorld::BuildCityBlock()
+    void PrototypeWorld::SetGround(const Vector3& center, const Vector3& size, const Color& color)
+    {
+        AddBox("ground", center, size, color, false);
+        groundCollider_ = Aabb{center, Vector3(size.X * 0.5F, size.Y * 0.5F, size.Z * 0.5F)};
+    }
+
+    void PrototypeWorld::BuildWarehouseBlock()
     {
         // Ground and crossing roads.
-        AddBox("ground", {0.0F, -0.30F, 0.0F}, {100.0F, 0.50F, 100.0F}, Color(67, 103, 61, 255), false);
-        groundCollider_ = Aabb{{0.0F, -0.30F, 0.0F}, {50.0F, 0.25F, 50.0F}};
+        SetGround({0.0F, -0.30F, 0.0F}, {100.0F, 0.50F, 100.0F}, Color(67, 103, 61, 255));
         AddBox("road_north_south", {0.0F, -0.02F, 0.0F}, {12.0F, 0.10F, 90.0F}, Color(50, 52, 57, 255), false);
         AddBox("road_east_west", {0.0F, -0.01F, 0.0F}, {90.0F, 0.10F, 12.0F}, Color(50, 52, 57, 255), false);
 
@@ -76,6 +93,60 @@ namespace IronShadows
         }
         AddBox("warehouse_target", warehouseGoal_.bounds.center + Vector3(0.0F, 0.08F, 0.0F),
                {8.0F, 0.12F, 8.0F}, Color(63, 190, 95, 255), false);
+
+        playerSpawn_ = {0.0F, 1.70F, 20.0F};
+        vehicleSpawn_ = {0.0F, 0.65F, 11.0F};
+        vehicleSpawnYaw_ = 0.0F;
+
+        // The road continues north past the warehouse gate to the district border; a district
+        // exit sits there, well clear of the mission's own warehouse-delivery trigger.
+        districtExit_.trigger = TriggerZone{"exit_to_countryside", {{0.0F, 0.5F, -47.0F}, {6.0F, 1.5F, 3.0F}}};
+        districtExit_.targetDistrict = DistrictId::Countryside;
+        districtExit_.targetEntryPosition = {0.0F, 1.70F, 40.0F};
+        districtExit_.targetEntryYaw = 0.0F;
+        AddBox("district_exit_marker", districtExit_.trigger.bounds.center + Vector3(0.0F, 0.05F, 0.0F),
+               {12.0F, 0.10F, 6.0F}, Color(120, 170, 230, 255), false);
+    }
+
+    void PrototypeWorld::BuildCountryside()
+    {
+        // A small farmland crossroads: proves the district-transition mechanism (gate M5) with
+        // real, distinct content, not just a copy of the warehouse block. Full countryside
+        // content production is a much larger, separate content-authoring task (see plan_31);
+        // this is deliberately minimal.
+        SetGround({0.0F, -0.30F, 0.0F}, {120.0F, 0.50F, 120.0F}, Color(92, 110, 58, 255));
+        AddBox("dirt_road", {0.0F, -0.02F, 0.0F}, {8.0F, 0.10F, 110.0F}, Color(107, 88, 63, 255), false);
+
+        AddBox("barn", {-16.0F, 4.0F, -10.0F}, {14.0F, 8.0F, 10.0F}, Color(122, 46, 40, 255));
+        AddBox("barn_roof_trim", {-16.0F, 8.2F, -10.0F}, {15.0F, 0.4F, 11.0F}, Color(70, 26, 22, 255));
+        AddBox("farmhouse", {15.0F, 3.5F, -15.0F}, {10.0F, 7.0F, 8.0F}, Color(214, 202, 180, 255));
+        AddBox("silo", {-14.0F, 6.0F, 4.0F}, {5.0F, 12.0F, 5.0F}, Color(168, 168, 160, 255));
+
+        // Fence line along the road, decorative (matches the lamp-post pattern in the warehouse
+        // block: small, non-collidable posts).
+        for (int i = -4; i <= 4; ++i)
+        {
+            const float z = static_cast<float>(i) * 12.0F;
+            AddBox("fence_west", {-6.0F, 0.6F, z}, {0.2F, 1.2F, 0.2F}, Color(90, 70, 50, 255), false);
+            AddBox("fence_east", {6.0F, 0.6F, z}, {0.2F, 1.2F, 0.2F}, Color(90, 70, 50, 255), false);
+        }
+
+        playerSpawn_ = {0.0F, 1.70F, 40.0F};
+        vehicleSpawn_ = {0.0F, 0.65F, 35.0F};
+        vehicleSpawnYaw_ = 0.0F;
+
+        // No mission-relevant trigger in this district yet; keep it far outside the playable
+        // area so it can never accidentally fire (IronShadowsGame only evaluates the mission's
+        // warehouse-delivery goal while in the WarehouseBlock district, but this keeps the value
+        // itself harmless regardless).
+        warehouseGoal_ = TriggerZone{"none", {{0.0F, -500.0F, 0.0F}, {0.1F, 0.1F, 0.1F}}};
+
+        districtExit_.trigger = TriggerZone{"exit_to_warehouse_block", {{0.0F, 0.5F, 47.0F}, {6.0F, 1.5F, 3.0F}}};
+        districtExit_.targetDistrict = DistrictId::WarehouseBlock;
+        districtExit_.targetEntryPosition = {0.0F, 1.70F, 20.0F};
+        districtExit_.targetEntryYaw = 0.0F;
+        AddBox("district_exit_marker", districtExit_.trigger.bounds.center + Vector3(0.0F, 0.05F, 0.0F),
+               {12.0F, 0.10F, 6.0F}, Color(120, 170, 230, 255), false);
     }
 
     bool PrototypeWorld::CanOccupy(const Vector3& position, float radius) const

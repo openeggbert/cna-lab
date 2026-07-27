@@ -6,7 +6,7 @@
 #include "IronShadows/Graphics/PrototypeRenderer.hpp"
 #include "IronShadows/Missions/PrototypeMission.hpp"
 #include "IronShadows/Physics/PhysicsWorld.hpp"
-#include "IronShadows/World/PrototypeWorld.hpp"
+#include "IronShadows/World/DistrictManager.hpp"
 
 #include "Microsoft/Xna/Framework/Game.hpp"
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
@@ -39,10 +39,16 @@ namespace IronShadows
         void ResetPrototype();
         void UpdateWindowTitle(float deltaSeconds);
         [[nodiscard]] std::string SavePath() const;
+        // Checks the current district's exit trigger against whichever of player/vehicle is
+        // active and requests a transition if it was entered (plan_13 IS-13-002/006).
+        void CheckDistrictExit();
+        // Repositions player/vehicle at the new district's spawn points once DistrictManager
+        // reports the loading screen's minimum display time has elapsed (IS-13-008/009/017/018).
+        void HandleDistrictArrival();
 
         std::unique_ptr<Microsoft::Xna::Framework::GraphicsDeviceManager> graphicsDeviceManager_;
         std::string assetRoot_;
-        PrototypeWorld world_;
+        DistrictManager districtManager_;
         Physics::PhysicsWorld physics_;
         PlayerController player_;
         VehicleController vehicle_;

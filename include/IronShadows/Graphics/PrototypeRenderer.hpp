@@ -39,6 +39,15 @@ namespace IronShadows
                         const PrototypeWorld& world,
                         std::optional<Microsoft::Xna::Framework::Graphics::Model> warehouseModel = std::nullopt,
                         std::optional<VehicleModelSet> vehicleModels = std::nullopt);
+
+        // Rebuilds just the static city mesh for a newly loaded district (a district transition,
+        // see DistrictManager) without touching the vehicle/player meshes or reloading CNJ
+        // content. warehouseModel_/vehicleModels_ keep applying by box name, so re-entering the
+        // district that has the warehouse CNJ model still shows it; a district with no box named
+        // "warehouse" (e.g. the countryside) naturally never matches and stays fully procedural.
+        void RebuildStaticGeometry(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
+                                   const PrototypeWorld& world);
+
         void Draw(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
                   const Microsoft::Xna::Framework::Matrix& view,
                   const Microsoft::Xna::Framework::Matrix& projection,

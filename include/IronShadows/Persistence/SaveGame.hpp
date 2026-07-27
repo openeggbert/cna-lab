@@ -17,6 +17,10 @@ namespace IronShadows
         float vehicleYaw{0.0F};
         float vehicleSpeed{0.0F};
         bool playerDriving{false};
+        // Added for gate M5 (district loading, plan_13). Older save files without this field
+        // (format=iron-shadows-save-v1, same as now -- no version bump for one additive field)
+        // load with a WarehouseBlock default rather than failing.
+        DistrictId districtId{DistrictId::WarehouseBlock};
     };
 
     class SaveGame final

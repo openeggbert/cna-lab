@@ -44,9 +44,10 @@ namespace IronShadows
     void IronShadowsGame::Initialize()
     {
         Game::Initialize();
-        world_.BuildPhysicsStaticBodies(physics_);
-        player_.Reset(world_.GetPlayerSpawn(), 0.0F, physics_);
-        vehicle_.Reset(world_.GetVehicleSpawn(), world_.GetVehicleSpawnYaw(), physics_);
+        districtManager_.Initialize(physics_);
+        player_.Reset(districtManager_.GetWorld().GetPlayerSpawn(), 0.0F, physics_);
+        vehicle_.Reset(districtManager_.GetWorld().GetVehicleSpawn(),
+                       districtManager_.GetWorld().GetVehicleSpawnYaw(), physics_);
         mission_.Reset();
 
         std::string dialogueError;
@@ -106,7 +107,8 @@ namespace IronShadows
                          " for body/cabin/windshield/wheel to generate it.\n";
         }
 
-        renderer_.Initialize(getGraphicsDeviceProperty(), world_, std::move(warehouseModel), std::move(vehicleModels));
+        renderer_.Initialize(getGraphicsDeviceProperty(), districtManager_.GetWorld(),
+                             std::move(warehouseModel), std::move(vehicleModels));
         UpdateWindowTitle(10.0F);
     }
 
@@ -137,12 +139,12 @@ namespace IronShadows
         const Vector3 right = RightFromYaw(vehicle_.GetYaw());
         Vector3 exitPosition = vehicle_.GetPosition() + right * 2.2F;
         exitPosition.Y = 1.70F;
-        if (!world_.CanOccupy(exitPosition, 0.35F))
+        if (!districtManager_.GetWorld().CanOccupy(exitPosition, 0.35F))
         {
             exitPosition = vehicle_.GetPosition() - right * 2.2F;
             exitPosition.Y = 1.70F;
         }
-        if (world_.CanOccupy(exitPosition, 0.35F))
+        if (districtManager_.GetWorld().CanOccupy(exitPosition, 0.35F))
         {
             playerDriving_ = false;
             player_.SetPosition(exitPosition, physics_);
@@ -156,6 +158,45 @@ namespace IronShadows
         transientStatusSeconds_ = 2.0F;
     }
 
+    void IronShadowsGame::CheckDistrictExit()
+    {
+        if (districtManager_.IsTransitioning())
+        {
+            return;
+        }
+        const DistrictExit& exit = districtManager_.GetWorld().GetDistrictExit();
+        const Vector3& checkPosition = playerDriving_ ? vehicle_.GetPosition() : player_.GetPosition();
+        if (exit.trigger.bounds.ContainsXZ(checkPosition))
+        {
+            districtManager_.RequestTransition(physics_);
+            transientStatus_.clear();
+        }
+    }
+
+    void IronShadowsGame::HandleDistrictArrival()
+    {
+        if (!districtManager_.ConsumeArrival())
+        {
+            return;
+        }
+
+        const PrototypeWorld& world = districtManager_.GetWorld();
+        player_.Reset(world.GetPlayerSpawn(), 0.0F, physics_);
+        vehicle_.Reset(world.GetVehicleSpawn(), world.GetVehicleSpawnYaw(), physics_);
+        if (playerDriving_)
+        {
+            // Carry the player's vehicle across (IS-13-018): if they were driving, keep them in
+            // the car at its freshly-spawned position/yaw in the new district instead of leaving
+            // them on foot at the pedestrian spawn point.
+            player_.SetPosition(vehicle_.GetPosition(), physics_);
+            player_.SetYaw(vehicle_.GetYaw(), physics_);
+        }
+
+        renderer_.RebuildStaticGeometry(getGraphicsDeviceProperty(), world);
+        transientStatus_ = "Arrived";
+        transientStatusSeconds_ = 2.0F;
+    }
+
     void IronShadowsGame::SavePrototype()
     {
         SaveSnapshot snapshot;
@@ -166,6 +207,7 @@ namespace IronShadows
         snapshot.vehicleYaw = vehicle_.GetYaw();
         snapshot.vehicleSpeed = vehicle_.GetSpeed();
         snapshot.playerDriving = playerDriving_;
+        snapshot.districtId = districtManager_.GetWorld().GetId();
 
         std::string error;
         if (SaveGame::Write(SavePath(), snapshot, error))
@@ -190,6 +232,12 @@ namespace IronShadows
             return;
         }
 
+        if (snapshot->districtId != districtManager_.GetWorld().GetId())
+        {
+            districtManager_.LoadDistrict(snapshot->districtId, physics_);
+            renderer_.RebuildStaticGeometry(getGraphicsDeviceProperty(), districtManager_.GetWorld());
+        }
+
         mission_.SetState(snapshot->missionState);
         player_.Reset(snapshot->playerPosition, snapshot->playerYaw, physics_);
         vehicle_.Restore(snapshot->vehiclePosition, snapshot->vehicleYaw, snapshot->vehicleSpeed, physics_);
@@ -200,8 +248,12 @@ namespace IronShadows
 
     void IronShadowsGame::ResetPrototype()
     {
-        player_.Reset(world_.GetPlayerSpawn(), 0.0F, physics_);
-        vehicle_.Reset(world_.GetVehicleSpawn(), world_.GetVehicleSpawnYaw(), physics_);
+        districtManager_.LoadDistrict(DistrictId::WarehouseBlock, physics_);
+        renderer_.RebuildStaticGeometry(getGraphicsDeviceProperty(), districtManager_.GetWorld());
+
+        player_.Reset(districtManager_.GetWorld().GetPlayerSpawn(), 0.0F, physics_);
+        vehicle_.Reset(districtManager_.GetWorld().GetVehicleSpawn(),
+                       districtManager_.GetWorld().GetVehicleSpawnYaw(), physics_);
         mission_.Reset();
         dialogue_.Start();
         playerDriving_ = false;
@@ -227,6 +279,10 @@ namespace IronShadows
             return;
         }
 
+        districtManager_.Update(deltaSeconds);
+        HandleDistrictArrival();
+        const bool transitioning = districtManager_.IsTransitioning();
+
         if (WasPressed(keyboard, Keys::Enter) && dialogue_.IsActive())
         {
             dialogue_.Advance();
@@ -236,7 +292,7 @@ namespace IronShadows
             }
         }
 
-        if (WasPressed(keyboard, Keys::E) && !dialogue_.IsActive())
+        if (WasPressed(keyboard, Keys::E) && !dialogue_.IsActive() && !transitioning)
         {
             HandleInteraction();
         }
@@ -253,7 +309,7 @@ namespace IronShadows
             ResetPrototype();
         }
 
-        if (!dialogue_.IsActive())
+        if (!dialogue_.IsActive() && !transitioning)
         {
             if (playerDriving_)
             {
@@ -279,13 +335,17 @@ namespace IronShadows
                 input.sprint = keyboard.IsKeyDown(Keys::LeftShift) || keyboard.IsKeyDown(Keys::RightShift);
                 player_.Update(deltaSeconds, input, physics_);
             }
+            CheckDistrictExit();
         }
 
-        mission_.Update(dialogue_.IsFinished(),
-                        player_.GetPosition(),
-                        vehicle_.GetPosition(),
-                        playerDriving_,
-                        world_.GetWarehouseGoal());
+        if (!transitioning)
+        {
+            mission_.Update(dialogue_.IsFinished(),
+                            player_.GetPosition(),
+                            vehicle_.GetPosition(),
+                            playerDriving_,
+                            districtManager_.GetWorld().GetWarehouseGoal());
+        }
 
         if (transientStatusSeconds_ > 0.0F)
         {
@@ -306,7 +366,11 @@ namespace IronShadows
 
         std::ostringstream title;
         title << "Iron Shadows | ";
-        if (const DialogueLine* line = dialogue_.GetCurrentLine())
+        if (districtManager_.IsTransitioning())
+        {
+            title << "Loading...";
+        }
+        else if (const DialogueLine* line = dialogue_.GetCurrentLine())
         {
             title << line->speaker << ": " << line->text << " | Enter: continue";
         }
@@ -330,6 +394,25 @@ namespace IronShadows
     {
         (void)gameTime;
         Graphics::GraphicsDevice& device = getGraphicsDeviceProperty();
+
+        // IS-13-013: a solid-color loading screen for a district transition's minimum display
+        // time. The 3D scene is deliberately not drawn here -- physics has already swapped to
+        // the new district's static bodies by this point (DistrictManager::RequestTransition()
+        // runs synchronously), so the old renderer geometry would be stale/mismatched.
+        if (districtManager_.IsTransitioning())
+        {
+            device.Clear(Color(18, 18, 22, 255), 1.0F);
+            if (smokeFramesRemaining_ > 0)
+            {
+                --smokeFramesRemaining_;
+                if (smokeFramesRemaining_ == 0)
+                {
+                    Exit();
+                }
+            }
+            return;
+        }
+
         device.Clear(Color(112, 145, 164, 255), 1.0F);
         device.SetDepthTestEnabled(true);
 

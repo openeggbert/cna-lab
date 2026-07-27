@@ -3,6 +3,7 @@
 #include "IronShadows/Physics/PhysicsTypes.hpp"
 
 #include <array>
+#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -38,6 +39,12 @@ namespace IronShadows::Physics
         [[nodiscard]] Vector3 GetBodyLinearVelocity(RigidBodyHandle handle) const;
 
         [[nodiscard]] RaycastHit Raycast(const Vector3& origin, const Vector3& direction, float maxDistance) const;
+
+        // Number of bodies currently registered with the physics system (static + dynamic +
+        // triggers + character controllers' internal bodies + vehicle chassis bodies). Intended
+        // for tests/diagnostics to catch body leaks (e.g. across a district transition), not for
+        // gameplay logic.
+        [[nodiscard]] std::size_t GetBodyCount() const;
 
         // Enter/exit events recorded since the last call; clears the internal queue.
         [[nodiscard]] std::vector<TriggerEvent> ConsumeTriggerEvents();

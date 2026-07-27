@@ -54,6 +54,27 @@ namespace IronShadows
         Aabb bounds{};
     };
 
+    // Iron Shadows uses discrete districts connected by loading screens (Mafia-1 style), not
+    // seamless open-world streaming -- see plan/plan_13-world-partitioning-and-streaming.md.
+    // Two districts is the minimum needed to prove the transition mechanism (gate M5); real
+    // story/content districts are added the same way once this mechanism is proven.
+    enum class DistrictId
+    {
+        WarehouseBlock,
+        Countryside,
+    };
+
+    // A one-way link from the current district to another: a trigger volume that, when entered,
+    // requests a transition landing the player/vehicle at targetEntryPosition/targetEntryYaw in
+    // targetDistrict.
+    struct DistrictExit
+    {
+        TriggerZone trigger;
+        DistrictId targetDistrict{DistrictId::WarehouseBlock};
+        Vector3 targetEntryPosition{};
+        float targetEntryYaw{0.0F};
+    };
+
     [[nodiscard]] inline float DistanceSquaredXZ(const Vector3& a, const Vector3& b)
     {
         const float dx = a.X - b.X;
