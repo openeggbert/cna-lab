@@ -361,6 +361,14 @@ namespace IronShadows
             CheckDistrictExit();
         }
 
+        // Gate M6 dialogue pose: the on-foot Walk/Idle call above only fires when dialogue is NOT
+        // active (movement/physics are frozen during dialogue), so this covers the opposite case.
+        // Not drawn while driving, so skipped there -- matches drawPlayer's own condition.
+        if (!transitioning && dialogue_.IsActive() && !playerDriving_)
+        {
+            renderer_.UpdateCharacterAnimation(deltaSeconds, "Dialogue");
+        }
+
         if (!transitioning)
         {
             mission_.Update(dialogue_.IsFinished(),

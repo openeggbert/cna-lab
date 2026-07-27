@@ -150,7 +150,12 @@ def quat_x(angle_rad):
     return [math.sin(angle_rad / 2.0), 0.0, 0.0, math.cos(angle_rad / 2.0)]
 
 
+def quat_z(angle_rad):
+    return [0.0, 0.0, math.sin(angle_rad / 2.0), math.cos(angle_rad / 2.0)]
+
+
 SWING = math.radians(25.0)
+DIALOGUE_ANGLE = math.radians(8.0)
 
 # "Idle": both legs held at rest (identity rotation) for a 1-second clip.
 idle_times_off, idle_times_len = add("2f", 0.0, 1.0)
@@ -160,6 +165,13 @@ idle_identity_off, idle_identity_len = add_vec4_array([(0, 0, 0, 1), (0, 0, 0, 1
 walk_times_off, walk_times_len = add("3f", 0.0, 0.5, 1.0)
 walk_left_off, walk_left_len = add_vec4_array([quat_x(SWING), quat_x(-SWING), quat_x(SWING)])
 walk_right_off, walk_right_len = add_vec4_array([quat_x(-SWING), quat_x(SWING), quat_x(-SWING)])
+
+# "Dialogue": a static "parade rest" stance -- legs angled slightly toward each other about the
+# local Z axis (a different axis than Walk's X-axis swing, so it reads as a distinct pose, not
+# just a frozen mid-walk frame), held for a 1-second clip like Idle.
+dialogue_times_off, dialogue_times_len = add("2f", 0.0, 1.0)
+dialogue_left_off, dialogue_left_len = add_vec4_array([quat_z(DIALOGUE_ANGLE), quat_z(DIALOGUE_ANGLE)])
+dialogue_right_off, dialogue_right_len = add_vec4_array([quat_z(-DIALOGUE_ANGLE), quat_z(-DIALOGUE_ANGLE)])
 
 # A trivial 1x1 white PNG -- verbatim bytes from cna's own proven-good kTexturedSkinnedGltf/
 # kSkinnedAnimatedGltf test fixtures. Needed because a skinned mesh with no material at all
@@ -240,6 +252,10 @@ walk_times_acc = acc(bv(walk_times_off, walk_times_len), FLOAT, 3, "SCALAR", ([0
 walk_left_acc = acc(bv(walk_left_off, walk_left_len), FLOAT, 3, "VEC4")
 walk_right_acc = acc(bv(walk_right_off, walk_right_len), FLOAT, 3, "VEC4")
 
+dialogue_times_acc = acc(bv(dialogue_times_off, dialogue_times_len), FLOAT, 2, "SCALAR", ([0.0], [1.0]))
+dialogue_left_acc = acc(bv(dialogue_left_off, dialogue_left_len), FLOAT, 2, "VEC4")
+dialogue_right_acc = acc(bv(dialogue_right_off, dialogue_right_len), FLOAT, 2, "VEC4")
+
 gltf = {
     "asset": {"version": "2.0", "generator": "iron-shadows gen_test_character_gltf.py (hand-authored, bypasses MC3 -- see plan_39/plan_13 M6 notes)"},
     "scene": 0,
@@ -277,6 +293,17 @@ gltf = {
             "samplers": [
                 {"input": walk_times_acc, "output": walk_left_acc, "interpolation": "LINEAR"},
                 {"input": walk_times_acc, "output": walk_right_acc, "interpolation": "LINEAR"},
+            ],
+            "channels": [
+                {"sampler": 0, "target": {"node": 1, "path": "rotation"}},
+                {"sampler": 1, "target": {"node": 2, "path": "rotation"}},
+            ],
+        },
+        {
+            "name": "Dialogue",
+            "samplers": [
+                {"input": dialogue_times_acc, "output": dialogue_left_acc, "interpolation": "LINEAR"},
+                {"input": dialogue_times_acc, "output": dialogue_right_acc, "interpolation": "LINEAR"},
             ],
             "channels": [
                 {"sampler": 0, "target": {"node": 1, "path": "rotation"}},

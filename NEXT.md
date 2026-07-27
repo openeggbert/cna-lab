@@ -142,6 +142,26 @@ parallel-run isolation flake, not a regression). In Iron Shadows: full rebuild, 
 targets pass, `check-syntax.sh` clean, `--smoke 20` exits 0. Not verified: how the crossfade
 actually looks, since this environment has no display.
 
+**Second follow-up in the same session: a dialogue-pose clip added.** `gen_test_character_gltf.py`
+gained a third clip, "Dialogue" — a static "parade rest" leg stance rotated about the local Z axis
+(a different axis than Walk's X-axis swing, so it reads as a genuinely distinct pose, not a frozen
+mid-walk frame), regenerated into `test_character.cnj` (now 3 clips: Idle/Walk/Dialogue).
+`IronShadowsGame::Update` calls `renderer_.UpdateCharacterAnimation(deltaSeconds, "Dialogue")`
+whenever `dialogue_.IsActive() && !playerDriving_ && !transitioning` — placed right after the
+existing gameplay-update block (which only runs the Walk/Idle call when dialogue is NOT active,
+so the two calls never race for the same frame). Verified: a standalone diagnostic (not
+committed) confirmed the Dialogue pose's left-foot position matches hand-derived pivot-rotation
+math exactly (`(-0.0747, 0.00876, 0)` at an 8° Z-axis rotation about the hip pivot). Full rebuild,
+all `ctest` targets pass, `check-syntax.sh` clean, `--smoke 20` exits 0 — and since smoke mode
+never dismisses the opening dialogue, this run exercised the new Dialogue clip continuously for
+its whole duration, a stronger check than the Idle/Walk clips get (those only run once dialogue
+ends, which smoke mode never triggers). Not verified: how the pose actually looks, since this
+environment has no display.
+
+**Gate M6 status after both follow-ups**: locomotion (with blending) and dialogue pose are done;
+vehicle entry/exit animation is the one remaining piece (see "Recommended next session starting
+point" below, now down to one item).
+
 ### Earlier this session: implemented gate M5 (second district)
 
 - `include/IronShadows/Core/WorldTypes.hpp` gained `DistrictId` (`WarehouseBlock`, `Countryside`)
@@ -286,20 +306,20 @@ environment has no display, so everything above has only ever been checked via a
 never by actually seeing it happen.
 
 **If continuing headless/autonomous work, gate M6 (`plan/plan_39-vertical-slice-gates.md`
-`IS-39-007`) still has real work left before it's fully done** — see `plan/plan_18-characters-skeletons-and-animation.md`
-for the itemized list, but the two biggest remaining pieces are:
-1. **A dialogue-pose clip** — dialogue currently leaves the character in whatever locomotion clip
-   it was already playing. Needs a new clip authored in `gen_test_character_gltf.py` (or a real
-   asset once one exists) plus a call from wherever `DialogueSystem`'s active/inactive state is
-   already read in `IronShadowsGame::Update()`.
-2. **Vehicle entry/exit animation** — the character is currently just not drawn at all while
-   `playerDriving_` is true (same as the box it replaced). Needs an actual enter/exit clip and a
-   state machine in `IronShadowsGame`/`PrototypeRenderer` for "play this clip once, non-looping,
-   then switch to driving-hidden" rather than the current binary show/hide.
+`IS-39-007`) has exactly one piece left before it's fully done** — see
+`plan/plan_18-characters-skeletons-and-animation.md` for the itemized list:
 
-(Clip blending was the third piece here — **done as a same-session follow-up**, see above:
-`ModelAnimationComponentEXT`/`ModelAnimationSystem3DEXT` now crossfade via a per-bone
-`Matrix::Lerp` over `BlendDurationEXT` seconds, not a hard cut.)
+- **Vehicle entry/exit animation** — the character is currently just not drawn at all while
+  `playerDriving_` is true (same as the box it replaced). Needs an actual enter/exit clip
+  (authored in `gen_test_character_gltf.py`, e.g. legs bending as if stepping into a car) and a
+  state machine in `IronShadowsGame`/`PrototypeRenderer` for "play this clip once, non-looping,
+  then switch to driving-hidden" (and the reverse on exit) rather than the current binary
+  show/hide in `HandleInteraction()`.
+
+(Clip blending and a dialogue-pose clip were the other two pieces here — **both done as
+same-session follow-ups**, see above: `ModelAnimationComponentEXT`/`ModelAnimationSystem3DEXT`
+now crossfade via a per-bone `Matrix::Lerp` over `BlendDurationEXT` seconds, and a third
+"Dialogue" clip plays while `DialogueSystem::IsActive()`.)
 
 Before any of that, note the *real* rig used today (`assets/source/gltf/test_character.gltf`) is a
 minimal 3-bone/3-box placeholder, not a proper reusable skeleton (`plan_18` `IS-18-001` is still
