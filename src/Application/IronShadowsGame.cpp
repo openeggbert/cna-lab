@@ -203,6 +203,40 @@ namespace IronShadows
         spriteBatch_.emplace(getGraphicsDeviceProperty());
         hudFont_.emplace(BuildBitmapFont8x8(getGraphicsDeviceProperty()));
 
+        // Gate M10 audio (plan_27): real CC0 sound assets (assets/licenses/asset-registry.csv),
+        // each optional -- a missing file, or no audio hardware at all (NoAudioHardwareException,
+        // a real risk in this sandboxed environment), degrades to silence, matching the same
+        // try/catch-with-fallback convention used for every other optional asset above.
+        try
+        {
+            engineSound_.emplace(assetRoot_ + "/audio/engine_loop.wav");
+            engineSoundInstance_.emplace(engineSound_->CreateInstance());
+            engineSoundInstance_->setIsLoopedProperty(true);
+            std::cout << "[IronShadows] Loaded engine_loop.wav\n";
+        }
+        catch (const std::exception& audioError)
+        {
+            std::cerr << "[IronShadows] " << audioError.what() << " -- no engine sound.\n";
+        }
+        try
+        {
+            footstepSound_.emplace(assetRoot_ + "/audio/footstep.wav");
+            std::cout << "[IronShadows] Loaded footstep.wav\n";
+        }
+        catch (const std::exception& audioError)
+        {
+            std::cerr << "[IronShadows] " << audioError.what() << " -- no footstep sound.\n";
+        }
+        try
+        {
+            hornSound_.emplace(assetRoot_ + "/audio/horn.wav");
+            std::cout << "[IronShadows] Loaded horn.wav\n";
+        }
+        catch (const std::exception& audioError)
+        {
+            std::cerr << "[IronShadows] " << audioError.what() << " -- no horn sound.\n";
+        }
+
         UpdateWindowTitle(10.0F);
     }
 
@@ -479,6 +513,10 @@ namespace IronShadows
         {
             ResetPrototype();
         }
+        if (WasPressed(keyboard, Keys::H) && playerDriving_ && hornSound_)
+        {
+            hornSound_->Play();
+        }
 
         if (!dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning)
         {
@@ -514,6 +552,27 @@ namespace IronShadows
                 // if the skinned test character model failed to load.
                 const bool playerIsMoving = input.forward != 0.0F || input.strafe != 0.0F;
                 renderer_.UpdateCharacterAnimation(deltaSeconds, playerIsMoving ? "Walk" : "Idle");
+
+                // Gate M10 audio: a one-shot footstep SFX every kFootstepIntervalSeconds while
+                // actually moving; the timer holds at the interval (not reset to 0) while
+                // stationary so the next footstep plays immediately on resuming, not after a
+                // fresh partial-interval wait.
+                if (footstepSound_)
+                {
+                    if (playerIsMoving)
+                    {
+                        footstepTimer_ += deltaSeconds;
+                        if (footstepTimer_ >= kFootstepIntervalSeconds)
+                        {
+                            footstepTimer_ -= kFootstepIntervalSeconds;
+                            footstepSound_->Play();
+                        }
+                    }
+                    else
+                    {
+                        footstepTimer_ = kFootstepIntervalSeconds;
+                    }
+                }
             }
             if (vehicleTransitionState_ == VehicleTransitionState::None)
             {
@@ -521,6 +580,26 @@ namespace IronShadows
                 // is suppressed above), but avoid starting a second, unrelated transition on top
                 // of an in-progress one regardless.
                 CheckDistrictExit();
+            }
+
+            // Gate M10 audio: a looping engine sound tied to playerDriving_, with volume/pitch
+            // scaling by speed for a bit of dynamism -- not real per-RPM engine modeling.
+            if (engineSoundInstance_)
+            {
+                if (playerDriving_)
+                {
+                    if (engineSoundInstance_->getStateProperty() != Audio::SoundState::Playing)
+                    {
+                        engineSoundInstance_->Play();
+                    }
+                    const float speedFactor = std::clamp(vehicle_.GetSpeedKph() / 80.0F, 0.0F, 1.0F);
+                    engineSoundInstance_->setVolumeProperty(0.4F + 0.4F * speedFactor);
+                    engineSoundInstance_->setPitchProperty(-0.15F + 0.3F * speedFactor);
+                }
+                else if (engineSoundInstance_->getStateProperty() == Audio::SoundState::Playing)
+                {
+                    engineSoundInstance_->Stop();
+                }
             }
         }
 

@@ -14,6 +14,8 @@
 
 #include "Microsoft/Xna/Framework/Game.hpp"
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
+#include "Microsoft/Xna/Framework/Audio/SoundEffect.hpp"
+#include "Microsoft/Xna/Framework/Audio/SoundEffectInstance.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SpriteBatch.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SpriteFont.hpp"
 #include "Microsoft/Xna/Framework/Input/KeyboardState.hpp"
@@ -93,6 +95,20 @@ namespace IronShadows
         std::vector<TrafficVehicle> trafficVehicles_;
         std::vector<Pedestrian> pedestrians_;
         PoliceSystem police_;
+
+        // Gate M10 audio (plan_27-audio-music-ambience-and-radio.md): real CC0 sound assets
+        // (Nox Sound Design's "Essentials Series", itch.io, tracked in
+        // assets/licenses/asset-registry.csv), each optional and loaded with the same
+        // try/catch-with-fallback convention as every other optional asset -- a missing file, or
+        // no audio hardware at all (NoAudioHardwareException, a real risk in this sandboxed
+        // environment), degrades to silence rather than a crash. No ambience/siren this pass --
+        // the chosen pack has no matching content; see NEXT.md.
+        std::optional<Microsoft::Xna::Framework::Audio::SoundEffect> engineSound_;
+        std::optional<Microsoft::Xna::Framework::Audio::SoundEffectInstance> engineSoundInstance_;
+        std::optional<Microsoft::Xna::Framework::Audio::SoundEffect> footstepSound_;
+        std::optional<Microsoft::Xna::Framework::Audio::SoundEffect> hornSound_;
+        float footstepTimer_{0.0F};
+        static constexpr float kFootstepIntervalSeconds = 0.4F;
         Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_{};
         bool playerDriving_{false};
         float titleRefreshTimer_{0.0F};

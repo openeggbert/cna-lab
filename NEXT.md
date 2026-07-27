@@ -10,16 +10,13 @@ Repo: `/rv/data/development/github.com/openeggbert/iron-shadows`, branch `develo
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
 **No remote configured, nothing pushed** — commit locally only until explicitly told otherwise.
 
-Gates M0-M9 (see `plan.md` milestone order) are done at prototype fidelity, including M9's own
-literal "ten-minute soak" criterion (`plan_39-vertical-slice-gates.md` `IS-39-010`/`049`) — see
-its entry below. **Gate M10 is IN PROGRESS** (production assets/collision, baked lighting, one
-dynamic sun, limited shadows, audio, UI) — the on-screen HUD, dynamic sun (per-actor CPU
-brightness tint), and limited shadows (ground-decal blob shadows under the player/vehicle) are
-done; the baked lightmap and audio remain — see "What changed most recently" below for the locked
-architecture and implementation order. The user has explicitly chosen the higher-effort path for
-both remaining pieces (a real lightmap texture bake, and real CC0 sound assets downloaded via
-WebSearch/WebFetch, not simplified/synthesized placeholders) — do not substitute the simpler
-option without checking first.
+Gates M0-M10 (see `plan.md` milestone order) are done at prototype/first-pass fidelity, including
+M9's own literal "ten-minute soak" criterion (`plan_39-vertical-slice-gates.md` `IS-39-010`/`049`)
+— see each entry below. Gate M10 (production assets/collision, baked lighting, one dynamic sun,
+limited shadows, audio, UI) is now fully done: on-screen HUD, dynamic sun (per-actor CPU brightness
+tint), limited shadows (ground-decal blob shadows under the player/vehicle), a real baked lightmap
+(`DualTextureEffect`) for the static city mesh, and real CC0 audio (engine/horn/footstep) — see
+"What changed most recently" below for the full writeup of each piece.
 
 - M0/M1: workspace preflight + running procedural scaffold.
 - M2: warehouse building loads as a real CNJ model (`assets/source/mc3/warehouse.mc3.xml` →
@@ -65,7 +62,7 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
-**Gate M10 is now IN PROGRESS** (a much bigger, qualitatively different milestone than M0-M9 --
+**Gate M10 is now FULLY DONE** (a much bigger, qualitatively different milestone than M0-M9 --
 production assets/collision, baked lighting, one dynamic sun, limited shadows, audio, UI). Before
 starting, did concrete research against CNA's actual source (not assumptions) to lock a feasible
 architecture for each piece -- see `plan_39-vertical-slice-gates.md` `IS-39-011`'s own inline note
@@ -73,13 +70,63 @@ for the full research writeup (dual-texture lightmap math, why `BasicEffect`'s b
 a no-op on the SOFTWARE backend, why real shadow-mapping isn't achievable without modifying CNA,
 SpriteFont/SoundEffect API details). The user explicitly chose the higher-effort option for two key
 decisions: a REAL lightmap texture bake (not a vertex-color approximation), and real CC0 sound
-assets via WebSearch/WebFetch (not synthesized placeholder audio) -- both tracked in
-`assets/licenses/asset-registry.csv`.
+assets (not synthesized placeholder audio) -- both tracked in `assets/licenses/asset-registry.csv`.
 
-Planned implementation order: **UI/HUD (done) -> dynamic sun + shadow decals (done) -> baked
-lightmap (done, see below) -> audio (next and last piece; source already picked -- the Nox Sound
-Design "Essentials Series" CC0 pack on itch.io, 988MB, download it and extract only the needed
-files, then delete the rest)**.
+Implementation order: **UI/HUD -> dynamic sun + shadow decals -> baked lightmap -> audio (last
+piece, see below)** -- all done.
+
+### Audio done this session (`plan_27-audio-music-ambience-and-radio.md`, `plan_39` `IS-39-011`'s own note)
+
+Real CC0 sound, not synthesized: Nox Sound Design's "Essentials Series" pack on itch.io (explicit
+CC0, 988MB, single zip). WebSearch/WebFetch located and confirmed the license, but the actual
+download needed a JS-driven "no thanks, just take me to the downloads" payment-bypass step that
+plain `curl` POSTs kept rejecting ("Please select a valid payment method") no matter which form
+fields were tried, and this environment has no connected browser (`mcp__claude-in-chrome__*`
+reported "Browser extension is not connected") to click through it instead -- **the user downloaded
+the pack manually and handed it off** (`/rv/tmp/Essentials_Series_NOX_SOUND.zip`, watched for
+completion via a backgrounded `until` loop). Extracted exactly 3 files (renamed only, audio content
+untouched) into `assets/audio/`:
+- `engine_loop.wav` <- `Vehicle_Essentials_NOX_SOUND/Vehicle_Essential_Car/Vehicle_Car_Engine_Idle_Exterior_Loop_Mono_01.wav`
+- `horn.wav` <- `Vehicle_Essentials_NOX_SOUND/Vehicle_Essential_Car/Vehicle_Car_Horn_Exterior_Mono.wav`
+- `footstep.wav` <- `Footsteps_Essentials_NOX_SOUND/Footsteps_Tile/Footsteps_Tile_Walk/Footsteps_Tile_Walk_01.wav`
+
+All three recorded in `assets/licenses/asset-registry.csv` (CC0, no attribution required, source
+URL, exact original filename for traceability). **No ambience/siren this pass** -- the pack's full
+category tree (Electromagnetic/Footsteps/Iceland/Nature/Sample/Vehicle/Voices) has nothing matching
+city ambience or a police siren, and finding a second clean CC0 source for just those two hit the
+same automated-download friction (Pixabay blocked `WebFetch` with a 403; OpenGameArt's CC0 options
+are scattered across many individually-licensed small submissions needing one-by-one
+verification) -- deferred, not gate-blocking.
+
+`IronShadowsGame` gained `engineSound_`/`engineSoundInstance_`/`footstepSound_`/`hornSound_`
+(all `std::optional`, loaded in `Initialize()` with the same try/catch-with-fallback convention as
+every other optional asset -- `SoundEffect(const std::string&)`, a CNA-specific direct file-path
+constructor, simpler than real XNA's `FromStream(std::istream&)`; SDL3_mixer decodes WAV natively,
+no XNB conversion step). The looped engine sound starts/stops with `playerDriving_` and has its
+volume/pitch scaled by `VehicleController::GetSpeedKph()`; the horn plays once on the H key while
+driving; footsteps play on a fixed `kFootstepIntervalSeconds` timer while walking on foot (the
+timer holds at the interval while stationary so the next step plays immediately on resuming, not
+after a fresh partial wait).
+
+Verified: full `compile-software` rebuild (clean), all three `ctest` targets pass,
+`./scripts/check-syntax.sh` clean, a `--smoke` run with all three files loading successfully
+logged, and -- since `--smoke` mode never simulates key presses, so never actually drives or walks
+-- a standalone diagnostic (not committed) that directly exercised
+`SoundEffectInstance::Play()`/`setVolumeProperty()`/`setPitchProperty()`/`Stop()` and
+`SoundEffect::Play()` against the real files through the real SDL3_mixer-backed pipeline outside
+the full game binary, confirming correct state transitions (`Playing` -> stays `Playing` across a
+300ms loop, since it's set to loop -> `Stopped` after `Stop()`) and successful one-shot playback
+with no exceptions; this environment's real audio hardware initialized successfully
+(`[AudioMixer] Requested format=... negotiated format=...` logged), so `NoAudioHardwareException`'s
+fallback path was never actually exercised, only reasoned about. **Not verified**: how any of this
+actually sounds -- this environment cannot play audio through real speakers for a human to hear,
+only that it loads/plays/transitions state correctly at the API level.
+
+The 988MB zip (`/rv/tmp/Essentials_Series_NOX_SOUND.zip`) and its `.part` file were left in place
+(outside this session's own scratchpad, and downloaded by the user directly) -- not deleted, since
+deleting a file outside the scratchpad that the user fetched themselves is exactly the kind of
+action this session's guidance says to leave alone unless asked. Worth mentioning to the user if a
+future session needs the disk space back.
 
 ### Baked lightmap done this session (`plan_39` `IS-39-011`'s own note)
 
@@ -701,51 +748,39 @@ the sedan and pressing E to watch the enter/exit animation and `playerDriving_` 
 environment has no display, so everything above has only ever been checked via assertions/logs,
 never by actually seeing it happen.
 
-**Gates M6, M7, M8, and M9 (`plan/plan_39-vertical-slice-gates.md` `IS-39-007`/`008`/`009`/`010`)
-are all now fully done at prototype fidelity**, including M9's own literal "ten-minute soak"
-wording (verified via a 980-second/~16.3-minute `--smoke 3000` background run with no crash) —
-see the entries above for each. Remaining sub-tasks in `plan_18` (a real named-bone skeleton
-convention, layered animation/bone masks, IK, root motion, sit/drive/steer poses while actually
-driving), `plan_24` (typed mission variables, a fuller condition/action set, failure/retry
-policies, checkpoints beyond plain save/load, the campaign graph), `plan_26` (animation/dialogue/
-audio/event/fade tracks beyond the camera-only track, a timeline debug overlay), and
-`plan_19`/`plan_20`/`plan_21`/`plan_22` (real lane graph/signals, real vision-cone witness
-perception, 10-20 pedestrians instead of 2, 3-5 traffic vehicles instead of 2, local avoidance,
-route-following patrol cars, save/load persistence of NPC/wanted state, debug views — see each
-file's own "Gate M9 status" note) are real but not gate-blocking — see each file for its itemized
-list.
+**Gates M6 through M10 (`plan/plan_39-vertical-slice-gates.md` `IS-39-007`/`008`/`009`/`010`/`011`)
+are all now fully done at prototype/first-pass fidelity**, including M9's own literal "ten-minute
+soak" wording (verified via a 980-second/~16.3-minute `--smoke 3000` background run with no crash)
+and M10's full five-piece scope (production assets/collision, baked lighting, dynamic sun, limited
+shadows, audio, UI) — see the entries above for each. Remaining sub-tasks in `plan_18` (a real
+named-bone skeleton convention, layered animation/bone masks, IK, root motion, sit/drive/steer
+poses while actually driving), `plan_24` (typed mission variables, a fuller condition/action set,
+failure/retry policies, checkpoints beyond plain save/load, the campaign graph), `plan_26`
+(animation/dialogue/audio/event/fade tracks beyond the camera-only track, a timeline debug
+overlay), `plan_19`/`plan_20`/`plan_21`/`plan_22` (real lane graph/signals, real vision-cone
+witness perception, 10-20 pedestrians instead of 2, 3-5 traffic vehicles instead of 2, local
+avoidance, route-following patrol cars, save/load persistence of NPC/wanted state, debug views),
+and `plan_27`/`plan_28` (no audio bus graph or spatial 3D positioning, no ambience/siren content,
+no menus/gamepad-rebinding) are real but not gate-blocking — see each file's own status note for
+the itemized list.
 
-**If continuing headless/autonomous work, gate M10 is already in progress** (see "What changed
-most recently" above for the full locked architecture) — continue in this order:
+**If continuing headless/autonomous work, the next milestone is gate M11**
+(`plan/plan_39-vertical-slice-gates.md` `IS-39-012`): the first district's complete vertical-slice
+mission passes happy-path, failure, retry, save/load, and cutscene-skip automation. Its own
+itemized breakdown already exists at `IS-39-060` through `IS-39-069` (fresh-start playthrough,
+save/load playthrough, cutscene-skip playthrough, mission-failure retry, vehicle-loss recovery,
+missing-optional-asset behavior, district-transition mid-mission, a ten-minute soak, a performance
+capture against `docs/performance-targets.md`, and a license audit) — unlike M10, this milestone
+is mostly about *proving* what already exists end-to-end (automated playthrough scenarios) rather
+than building new systems, so it may be a smaller lift relatively. Note `IS-39-063`
+"mission-failure retry" and `IS-39-064` "vehicle-loss recovery" may need small new mission-state
+handling if the current data-driven mission format (`plan_24`) has no real failure/retry states
+yet -- check `assets/missions/prologue.mission.json` and `MissionDefinition` before assuming this
+is pure test-writing.
 
-1. **Dynamic sun + limited shadows** (next): a single shared sun direction/intensity applied as a
-   CPU-computed per-actor brightness scalar (NOT `BasicEffect`'s built-in `DirectionalLight0` --
-   confirmed a no-op on the SOFTWARE backend, see `plan_39` `IS-39-011`'s research note) for
-   dynamic actors (player/vehicle/traffic/pedestrians/police); a simple dark, semi-transparent
-   ground decal beneath the player and vehicle for "shadows" (confirmed AlphaBlend IS implemented
-   on the SOFTWARE backend) -- a period-appropriate "blob shadow," not real shadow-mapping
-   (confirmed not achievable without modifying CNA itself).
-2. **Baked lightmap** (biggest, most novel): `DualTextureEffect` (confirmed fully implemented on
-   the SOFTWARE backend, formula `finalColor = vertexColor * (texture0*2) * texture1 * diffuse`,
-   both textures sampled at the SAME uv) with `texture0` = a flat 50%-gray 1x1 texture (so
-   `texture0*2` = identity) and `texture1` = a lightmap atlas baked IN-PROCESS (no external tool,
-   no JSON round-trip) directly from `PrototypeWorld::GetBoxes()` at renderer build time -- one
-   flat-shaded tile per box face, uploaded via `Texture2D(device,w,h)` + `SetData()`. Needs a new
-   vertex format for the static city mesh (`VertexPositionColorTexture`, already exists in CNA)
-   carrying one UV per vertex into the atlas. Scope: the procedural box city only, not MC3-sourced
-   models (no lightmap UV channel in that pipeline yet).
-3. **Audio** (needs external CC0 asset sourcing via WebSearch/WebFetch, tracked in
-   `assets/licenses/asset-registry.csv` per the user's explicit choice): `SoundEffect::FromStream`
-   (confirmed decodes WAV/OGG/MP3 directly via SDL3_mixer's `MIX_LoadAudio_IO`, no XNB conversion
-   needed) + `SoundEffectInstance`/`CreateInstance()` for looped ambience/engine hum, `Play()` for
-   one-shots (footstep/horn/siren). Wrap in try/catch for `NoAudioHardwareException` (confirmed
-   this environment may have no audio device), matching the established optional-asset fallback
-   convention.
-
-This is a good point to also revisit the user's own concrete feedback earlier this session
-("doesn't look like Mafia 1") once the lightmap/sun/shadow pieces land — M10 is exactly the
-milestone where visual fidelity work is in scope, unlike M0-M9's deliberately placeholder-grade
-debug-box rendering.
+This is also a good point to revisit the user's own concrete feedback earlier this session
+("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --
+though still all unverified visually, since this environment has no display.
 
 Other open items worth picking up opportunistically (not blocking, not sequenced):
 

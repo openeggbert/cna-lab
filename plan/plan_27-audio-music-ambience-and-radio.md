@@ -7,10 +7,23 @@ ships as one or two simple looping stations for v1 (fixed track list, no schedul
 no ads, no announcer/interruption rules) — full station scheduling is explicit later
 polish, not a v1 dependency.
 
+### Gate M10 status (first pass, vertical slice)
+
+Iron Shadows now plays real (not synthesized) CC0 sound: a looped vehicle engine idle
+(`assets/audio/engine_loop.wav`, volume/pitch scaled by `VehicleController::GetSpeedKph()`, tied
+to `playerDriving_`) and two one-shots (`horn.wav` on the H key while driving, `footstep.wav` on a
+fixed-interval timer while walking on foot) via `SoundEffect`/`SoundEffectInstance`, loaded
+directly from WAV files with the same optional-asset try/catch convention used for Models/mission/
+cutscene files. No bus graph (master/music/dialogue/ambience/vehicle/effects/UI), no real spatial
+3D positioning (`Apply3D` is not called -- volume/pitch are set directly, not derived from
+listener/emitter position), no ambient zones, no radio, and no ambience/siren content at all (the
+one CC0 pack sourced this pass has no matching category -- see `IS-27-009`/`IS-27-016` below).
+Everything else in this file remains unstarted.
+
 ## Core audio data and flow
 
 - [ ] **IS-27-001 P0** — Create master, music, dialogue, ambience, vehicle, effects, and UI buses.
-- [ ] **IS-27-002 P0** — Play one spatial ambient emitter and one vehicle sound through CNA.
+- [ ] **IS-27-002 P0** — Play one spatial ambient emitter and one vehicle sound through CNA. *(Partial: a vehicle sound plays (looped engine idle, volume/pitch tied to speed), but not through a spatial 3D emitter -- `Apply3D` is not used, and there is no ambient emitter at all this pass; see the Gate M10 status note above.)*
 - [ ] **IS-27-003 P0** — Create listener updates from active camera/player mode.
 - [ ] **IS-27-004 P0** — Create dialogue ducking and subtitle synchronization.
 - [ ] **IS-27-005 P1** — Create audio event definitions separate from raw file paths.
