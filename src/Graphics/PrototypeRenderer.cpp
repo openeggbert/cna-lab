@@ -2,8 +2,18 @@
 
 #include "IronShadows/World/PrototypeWorld.hpp"
 
+#include "CNA/Extended/ECS/Entity.hpp"
+#include "CNA/Extended/ECS/World.hpp"
+#include "CNA/Extended/ECS/WorldBuilder.hpp"
+#include "CNA/Extended/World3DEXT/ModelAnimationComponentEXT.hpp"
+#include "CNA/Extended/World3DEXT/ModelAnimationSystem3DEXT.hpp"
+#include "Microsoft/Xna/Framework/GameTime.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
+#include "Microsoft/Xna/Framework/Graphics/ModelMesh.hpp"
 #include "Microsoft/Xna/Framework/Graphics/RasterizerState.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SkinnedEffect.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SkinnedPbrEffect.hpp"
+#include "System/TimeSpan.hpp"
 
 #include <utility>
 
@@ -12,13 +22,43 @@ namespace IronShadows
     using namespace Microsoft::Xna::Framework;
     using namespace Microsoft::Xna::Framework::Graphics;
 
+    PrototypeRenderer::PrototypeRenderer() = default;
+    PrototypeRenderer::~PrototypeRenderer() = default;
+
     void PrototypeRenderer::Initialize(GraphicsDevice& device,
                                        const PrototypeWorld& world,
                                        std::optional<Model> warehouseModel,
-                                       std::optional<VehicleModelSet> vehicleModels)
+                                       std::optional<VehicleModelSet> vehicleModels,
+                                       std::optional<Model> characterModel)
     {
         warehouseModel_ = std::move(warehouseModel);
         vehicleModels_ = std::move(vehicleModels);
+        characterModel_ = std::move(characterModel);
+
+        if (characterModel_.has_value())
+        {
+            auto* skinningData = static_cast<SkinningData*>(characterModel_->getTagProperty());
+            if (skinningData != nullptr)
+            {
+                characterAnimComponent_ =
+                    std::make_unique<CNA::Extended::World3DEXT::ModelAnimationComponentEXT>(*skinningData);
+                characterAnimComponent_->ModelEXT = &characterModel_.value();
+
+                CNA::Extended::ECS::WorldBuilder builder;
+                builder.AddSystem(std::make_unique<CNA::Extended::World3DEXT::ModelAnimationSystem3DEXT>());
+                characterWorld_ = builder.Build();
+                characterWorld_->Initialize();
+                CNA::Extended::ECS::Entity& entity = characterWorld_->CreateEntity();
+                entity.Attach(characterAnimComponent_.get());
+            }
+            else
+            {
+                // Loaded, but with no SkinningData on Tag -- not a skinned model (e.g. a
+                // malformed/regenerated asset). Fall back to the procedural player box rather
+                // than drawing an un-animatable character.
+                characterModel_.reset();
+            }
+        }
 
         RebuildStaticGeometry(device, world);
 
@@ -41,6 +81,17 @@ namespace IronShadows
         effect_->VertexColorEnabled = true;
         device.setRasterizerStateProperty(RasterizerState::CullNone);
         device.SetDepthTestEnabled(true);
+    }
+
+    void PrototypeRenderer::UpdateCharacterAnimation(float deltaSeconds, const std::string& clipName)
+    {
+        if (!characterWorld_ || !characterAnimComponent_)
+        {
+            return;
+        }
+        characterAnimComponent_->ClipNameEXT = clipName;
+        GameTime gameTime(System::TimeSpan::Zero, System::TimeSpan::FromSeconds(deltaSeconds));
+        characterWorld_->Update(gameTime);
     }
 
     void PrototypeRenderer::RebuildStaticGeometry(GraphicsDevice& device, const PrototypeWorld& world)
@@ -114,8 +165,35 @@ namespace IronShadows
 
         if (drawPlayer)
         {
-            const Vector3 playerBodyPosition = playerPosition + Vector3(0.0F, -0.95F, 0.0F);
-            DrawMesh(device, playerMesh_, Matrix::CreateRotationY(playerYaw) * Matrix::CreateTranslation(playerBodyPosition));
+            if (characterModel_.has_value() && characterAnimComponent_)
+            {
+                // Push freshly computed bone poses onto every skinned effect this model's meshes
+                // use, then draw through the same direct Model::Draw() call warehouseModel_/
+                // vehicleModels_ already use (no RenderSystem3DEXT/Camera3DEXT: this renderer
+                // already has view/projection ready, and needs no other ECS-driven drawing).
+                const auto& skinTransforms = characterAnimComponent_->PlayerEXT.GetSkinTransforms();
+                for (ModelMesh* mesh : characterModel_->getMeshesProperty())
+                {
+                    for (Effect* effect : mesh->getEffectsPropertyMutable())
+                    {
+                        if (auto* skinnedEffect = dynamic_cast<SkinnedEffect*>(effect))
+                        {
+                            skinnedEffect->SetBoneTransforms(skinTransforms);
+                        }
+                        else if (auto* skinnedPbrEffect = dynamic_cast<SkinnedPbrEffect*>(effect))
+                        {
+                            skinnedPbrEffect->SetBoneTransforms(skinTransforms);
+                        }
+                    }
+                }
+                characterModel_->Draw(Matrix::CreateRotationY(playerYaw) * Matrix::CreateTranslation(playerPosition),
+                                      view, projection);
+            }
+            else
+            {
+                const Vector3 playerBodyPosition = playerPosition + Vector3(0.0F, -0.95F, 0.0F);
+                DrawMesh(device, playerMesh_, Matrix::CreateRotationY(playerYaw) * Matrix::CreateTranslation(playerBodyPosition));
+            }
         }
     }
 }

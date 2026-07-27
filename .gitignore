@@ -36,6 +36,11 @@ assets/generated/
 *.bin
 *.glb
 *.gltf
+# ...except assets/source/gltf/, a source tree of its own for hand-authored glTF that bypasses
+# MC3 (Mesh Craft has no rigging/skinning authoring support -- see gen_test_character_gltf.py's
+# own header comment). Unlike every *.glb/*.gltf elsewhere in this repo, these are source, not a
+# regenerable build artifact of the MC3 pipeline.
+!assets/source/gltf/*.gltf
 
 # Editors
 .idea/

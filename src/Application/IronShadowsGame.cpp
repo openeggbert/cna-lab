@@ -107,8 +107,25 @@ namespace IronShadows
                          " for body/cabin/windshield/wheel to generate it.\n";
         }
 
+        // Gate M6: a hand-authored (not MC3 -- Mesh Craft has no rigging/skinning authoring
+        // support) skinned test character, replacing the procedural on-foot player box when
+        // available. See assets/source/gltf/test_character.gltf's own provenance note.
+        std::optional<Graphics::Model> characterModel;
+        try
+        {
+            characterModel = getContentProperty().Load<Graphics::Model>("test_character");
+            std::cout << "[IronShadows] Loaded generated test_character.cnj\n";
+        }
+        catch (const std::exception& contentError)
+        {
+            std::cerr << "[IronShadows] " << contentError.what()
+                      << " -- using procedural player box. Run"
+                         " cna_tool_gltf_to_cnj assets/source/gltf/test_character.gltf"
+                         " assets/generated/models/cnj test_character 1.0 to generate it.\n";
+        }
+
         renderer_.Initialize(getGraphicsDeviceProperty(), districtManager_.GetWorld(),
-                             std::move(warehouseModel), std::move(vehicleModels));
+                             std::move(warehouseModel), std::move(vehicleModels), std::move(characterModel));
         UpdateWindowTitle(10.0F);
     }
 
@@ -334,6 +351,12 @@ namespace IronShadows
                              (keyboard.IsKeyDown(Keys::Left) ? 1.0F : 0.0F);
                 input.sprint = keyboard.IsKeyDown(Keys::LeftShift) || keyboard.IsKeyDown(Keys::RightShift);
                 player_.Update(deltaSeconds, input, physics_);
+
+                // Gate M6: locomotion clip switching (a hard cut, no blending -- see
+                // ModelAnimationSystem3DEXT's own header comment). A no-op if the skinned test
+                // character model failed to load.
+                const bool playerIsMoving = input.forward != 0.0F || input.strafe != 0.0F;
+                renderer_.UpdateCharacterAnimation(deltaSeconds, playerIsMoving ? "Walk" : "Idle");
             }
             CheckDistrictExit();
         }
