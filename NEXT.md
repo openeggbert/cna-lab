@@ -10,9 +10,9 @@ Repo: `/rv/data/development/github.com/openeggbert/iron-shadows`, branch `develo
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
 **No remote configured, nothing pushed** — commit locally only until explicitly told otherwise.
 
-Gates M0-M9 (see `plan.md` milestone order) are done at prototype fidelity (M9's own literal
-"ten-minute soak" criterion is NOT yet verified — see its entry below and
-`plan_39-vertical-slice-gates.md` `IS-39-010`):
+Gates M0-M9 (see `plan.md` milestone order) are done at prototype fidelity, including M9's own
+literal "ten-minute soak" criterion (`plan_39-vertical-slice-gates.md` `IS-39-010`/`049`) — see
+its entry below:
 
 - M0/M1: workspace preflight + running procedural scaffold.
 - M2: warehouse building loads as a real CNJ model (`assets/source/mc3/warehouse.mc3.xml` →
@@ -48,7 +48,8 @@ Gates M0-M9 (see `plan.md` milestone order) are done at prototype fidelity (M9's
   radius; `PoliceSystem` runs a full `Clear -> Dispatched -> Chasing -> (one escalation) -> Clear`
   state machine off a simplified fixed-radius "witness" check (not real line-of-sight) — all
   WarehouseBlock-only, ticking every frame regardless of dialogue/cutscenes, deterministically
-  unit-tested end to end — see "What changed most recently" below.
+  unit-tested end to end, and confirmed surviving a ~16.3-minute continuous soak with no crash —
+  see "What changed most recently" below.
 
 Plan size: 2,148 tasks across 41 group files under `plan/`, down from an original 6,380-task
 AAA/open-world-scoped draft — see `plan.md`'s "Locked scope decisions" section for the ten
@@ -116,13 +117,19 @@ fullest scope.
 - Verification performed: standalone diagnostics confirmed `AdvanceAlongPath`'s wrap-on-arrival
   behavior (see above) before the test was corrected to match it. Full `compile-software` rebuild
   (clean, one pre-existing unrelated warning only), all three `ctest` targets pass,
-  `./scripts/check-syntax.sh` passes on every file, and two `--smoke` runs (30 and 90 draw frames,
-  ~10s and ~25s wall-clock -- this environment's software rasterizer is slow enough per frame that
-  even 90 frames covers a meaningful number of simulated seconds via the engine's fixed-timestep
-  catch-up loop) both exit 0 with no crash while traffic/pedestrians/police ticked every frame.
-  **Not verified**: the actual ten-minute soak the gate's own wording requires (only short smoke
-  runs so far -- see `plan_39` `IS-39-010`/`049`), and, as with every other visual milestone this
-  session, there is no display to check how any of this actually looks.
+  `./scripts/check-syntax.sh` passes on every file, two short `--smoke` runs (30 and 90 draw
+  frames, ~10s and ~25s wall-clock), and the gate's own "ten-minute soak" criterion: a
+  `--smoke 3000` run, launched in the background and timed via `date +%s` before/after, ran for
+  980 real seconds (~16.3 simulated minutes) with `trafficVehicles_`/`pedestrians_`/`police_` all
+  ticking every frame throughout, and exited cleanly (exit 0, no crash, no error, no asset-fallback
+  message) -- confirmed CNA's `Game::Tick()` uses a fixed 1/60s timestep accumulator fed by real
+  elapsed wall-clock time (`cna/src/Microsoft/Xna/Framework/Game.cpp`), so simulated game time
+  tracks real time 1:1 for this workload; there is no way to "compress" a ten-minute soak into a
+  shorter wall-clock run, it genuinely has to run that long. This closes `plan_39` `IS-39-010`/
+  `049` -- gate M9 is now fully done. **Still not verified**: memory-leak growth specifically over
+  the soak run (only crash/stall-freedom was checked, no periodic memory sampling), and, as with
+  every other visual milestone this session, there is no display to check how any of this
+  actually looks.
 
 ### Earlier this session: implemented gate M8 (one in-engine cutscene)
 
@@ -569,34 +576,25 @@ environment has no display, so everything above has only ever been checked via a
 never by actually seeing it happen.
 
 **Gates M6, M7, M8, and M9 (`plan/plan_39-vertical-slice-gates.md` `IS-39-007`/`008`/`009`/`010`)
-are all done at prototype fidelity** — see the entries above for each. M9's own literal
-"ten-minute soak" wording is the one exception left unchecked for that gate — see below. Remaining
-sub-tasks in `plan_18` (a real named-bone skeleton convention, layered animation/bone masks, IK,
-root motion, sit/drive/steer poses while actually driving), `plan_24` (typed mission variables, a
-fuller condition/action set, failure/retry policies, checkpoints beyond plain save/load, the
-campaign graph), `plan_26` (animation/dialogue/audio/event/fade tracks beyond the camera-only
-track, a timeline debug overlay), and `plan_19`/`plan_20`/`plan_21`/`plan_22` (real lane
-graph/signals, real vision-cone witness perception, 10-20 pedestrians instead of 2, 3-5 traffic
-vehicles instead of 2, local avoidance, route-following patrol cars, save/load persistence of NPC/
-wanted state, debug views — see each file's own "Gate M9 status" note) are real but not
-gate-blocking — see each file for its itemized list.
+are all now fully done at prototype fidelity**, including M9's own literal "ten-minute soak"
+wording (verified via a 980-second/~16.3-minute `--smoke 3000` background run with no crash) —
+see the entries above for each. Remaining sub-tasks in `plan_18` (a real named-bone skeleton
+convention, layered animation/bone masks, IK, root motion, sit/drive/steer poses while actually
+driving), `plan_24` (typed mission variables, a fuller condition/action set, failure/retry
+policies, checkpoints beyond plain save/load, the campaign graph), `plan_26` (animation/dialogue/
+audio/event/fade tracks beyond the camera-only track, a timeline debug overlay), and
+`plan_19`/`plan_20`/`plan_21`/`plan_22` (real lane graph/signals, real vision-cone witness
+perception, 10-20 pedestrians instead of 2, 3-5 traffic vehicles instead of 2, local avoidance,
+route-following patrol cars, save/load persistence of NPC/wanted state, debug views — see each
+file's own "Gate M9 status" note) are real but not gate-blocking — see each file for its itemized
+list.
 
-**If continuing headless/autonomous work, two reasonable next steps:**
-
-1. **Close out M9's own soak-test gap** (`plan_39` `IS-39-010`/`049`): run a genuinely long
-   `--smoke` session (or a longer scripted headless run) covering ten simulated minutes of
-   traffic/pedestrian/police activity and confirm no crash, leak, or stall. Note this
-   environment's software rasterizer is slow enough per real-world second that even a 90-frame
-   smoke run already covers ~25 simulated seconds via the engine's fixed-timestep catch-up loop
-   (see this session's M9 entry above) — a real ten-minute soak may not need anywhere near ten
-   real-world minutes of `--smoke` frame count; measure the actual frames-per-simulated-second
-   ratio first rather than assuming 1:1.
-2. **Move on to gate M10** (`plan/plan_39-vertical-slice-gates.md` `IS-39-011`): the first
-   district's vertical slice uses production-path assets, collision, baked lighting + one dynamic
-   sun + limited shadows, audio, and UI. This is a good point to revisit the user's own concrete
-   feedback earlier this session ("doesn't look like Mafia 1") — M10 is exactly the milestone
-   where visual fidelity work is actually in scope, unlike M0-M9's deliberately placeholder-grade
-   debug-box rendering.
+**If continuing headless/autonomous work, the next milestone is gate M10**
+(`plan/plan_39-vertical-slice-gates.md` `IS-39-011`): the first district's vertical slice uses
+production-path assets, collision, baked lighting + one dynamic sun + limited shadows, audio, and
+UI. This is a good point to revisit the user's own concrete feedback earlier this session
+("doesn't look like Mafia 1") — M10 is exactly the milestone where visual fidelity work is
+actually in scope, unlike M0-M9's deliberately placeholder-grade debug-box rendering.
 
 Other open items worth picking up opportunistically (not blocking, not sequenced):
 
