@@ -76,20 +76,20 @@ Guiding philosophy: full Mafia-1 **content** scope, but Mafia-1-era **system** f
 - [20. Pedestrians and ambient AI](plan/plan_20-pedestrians-and-ambient-ai.md) — 60 tasks
 - [21. Traffic simulation](plan/plan_21-traffic-simulation.md) — 60 tasks
 - [22. Police, witnesses, crime, and wanted response](plan/plan_22-police-witnesses-crime-and-wanted-response.md) — 60 tasks
-- [23. Combat, damage, and interaction](plan/plan_23-combat-damage-and-interaction.md) — 164 tasks
+- [23. Combat, damage, and interaction](plan/plan_23-combat-damage-and-interaction.md) — 44 tasks
 - [24. Mission framework and scripting](plan/plan_24-mission-framework-and-scripting.md) — 55 tasks
 - [25. Dialogue, localization, and narrative state](plan/plan_25-dialogue-localization-and-narrative-state.md) — 50 tasks
-- [26. Cutscenes and cinematic sequencing](plan/plan_26-cutscenes-and-cinematic-sequencing.md) — 193 tasks
+- [26. Cutscenes and cinematic sequencing](plan/plan_26-cutscenes-and-cinematic-sequencing.md) — 35 tasks
 - [27. Audio, music, ambience, and radio](plan/plan_27-audio-music-ambience-and-radio.md) — 57 tasks
 - [28. UI, HUD, menus, accessibility, and input rebinding](plan/plan_28-ui-hud-menus-accessibility-and-input-rebinding.md) — 58 tasks
-- [29. Save games, checkpoints, profiles, and migration](plan/plan_29-save-games-checkpoints-profiles-and-migration.md) — 166 tasks
+- [29. Save games, checkpoints, profiles, and migration](plan/plan_29-save-games-checkpoints-profiles-and-migration.md) — 41 tasks
 - [30. Developer tools and editors](plan/plan_30-developer-tools-and-editors.md) — 20 tasks
 - [31. Environment content production](plan/plan_31-environment-content-production.md) — 58 tasks
 - [32. Character and vehicle content production](plan/plan_32-character-and-vehicle-content-production.md) — 98 tasks
 - [33. Story, campaign, and mission content](plan/plan_33-story-campaign-and-mission-content.md) — 143 tasks
 - [34. Automated tests, CI, and regression control](plan/plan_34-automated-tests-ci-and-regression-control.md) — 38 tasks
 - [35. Performance, memory, and scalability](plan/plan_35-performance-memory-and-scalability.md) — 52 tasks
-- [36. Robustness, security, and untrusted content](plan/plan_36-robustness-security-and-untrusted-content.md) — 149 tasks
+- [36. Robustness, security, and untrusted content](plan/plan_36-robustness-security-and-untrusted-content.md) — 37 tasks
 - [37. Platforms, packaging, release, and operations](plan/plan_37-platforms-packaging-release-and-operations.md) — 76 tasks
 - [38. Documentation, contribution, and governance](plan/plan_38-documentation-contribution-and-governance.md) — 22 tasks
 - [39. Vertical-slice gates](plan/plan_39-vertical-slice-gates.md) — 76 tasks
@@ -105,4 +105,4 @@ Guiding philosophy: full Mafia-1 **content** scope, but Mafia-1-era **system** f
 - After every milestone, update analysis.md assumptions, measured budgets, supported backend tiers, and known build requirements.
 - Keep P3 research disabled unless it has a named owner, bounded experiment, and no impact on the vertical-slice critical path.
 
-**Total addressable tasks in this revision: 2663** (down from 6,380 in the pre-scoping revision; see "Locked scope decisions" above).
+**Total addressable tasks in this revision: 2148** (down from 6,380 in the pre-scoping revision; see "Locked scope decisions" above).

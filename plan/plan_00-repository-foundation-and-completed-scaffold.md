@@ -30,11 +30,11 @@ Track what already exists and close the gap between source validation and a full
 - [x] **IS-00-023 P0** — Run C++23 syntax-only validation against the supplied CNA and sharp-runtime headers.
 - [x] **IS-00-024 P0** — Build the supplied sharp-runtime source as a static library.
 - [x] **IS-00-025 P0** — Execute a sharp-runtime file I/O smoke test.
-- [ ] **IS-00-026 P0** — Obtain or initialize a CNA checkout with SDL, SDL_image, and SDL_mixer submodules populated.
-- [ ] **IS-00-027 P0** — Obtain the EasyGL sibling repository for the primary EasyGL preset.
-- [ ] **IS-00-028 P0** — Complete the first fully linked Iron Shadows build against CNA.
-- [ ] **IS-00-029 P0** — Run the graphical prototype and verify controls, mission completion, and save/load.
-- [ ] **IS-00-030 P0** — Run core tests through CTest in the integrated workspace.
+- [x] **IS-00-026 P0** — Obtain or initialize a CNA checkout with SDL, SDL_image, and SDL_mixer submodules populated.
+- [x] **IS-00-027 P0** — Obtain the EasyGL sibling repository for the primary EasyGL preset.
+- [x] **IS-00-028 P0** — Complete the first fully linked Iron Shadows build against CNA (compile-software preset; a real-rendering-backend build/run is still open, see IS-00-029).
+- [ ] **IS-00-029 P0** — Run the graphical prototype on a real rendering backend (EasyGL) and verify controls, mission completion, and save/load.
+- [x] **IS-00-030 P0** — Run core tests through CTest in the integrated workspace.
 - [ ] **IS-00-031 P1** — Capture the first known-good compiler, dependency revisions, backend, and platform matrix.
 - [ ] **IS-00-032 P1** — Create a short gameplay capture of the procedural prototype for regression reference.
 - [ ] **IS-00-033 P1** — Tag the first running scaffold as v0.1.0-prototype.
