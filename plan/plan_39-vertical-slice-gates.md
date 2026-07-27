@@ -19,7 +19,7 @@ rather than being a one-time final check.
 - [ ] **IS-39-002 P0** — Gate M1: the current procedural prototype builds, launches, completes its mission, saves, loads, and passes CTest.
 - [ ] **IS-39-003 P0** — Gate M2: one MC3 building converts to GLB/CNJ, loads at runtime, collides correctly, and replaces debug geometry.
 - [x] **IS-39-004 P0** — Gate M3: one CNJ vehicle renders with separate wheels and preserves the current drivable mission.
-- [ ] **IS-39-005 P0** — Gate M4: the selected physics library supports character, trigger, raycast, and vehicle prototypes behind Iron Shadows abstractions.
+- [x] **IS-39-005 P0** — Gate M4: the selected physics library supports character, trigger, raycast, and vehicle prototypes behind Iron Shadows abstractions.
 - [ ] **IS-39-006 P0** — Gate M5: two districts each load and unload cleanly through a loading-screen transition, with no leaks, crashes, or lost mission/save state.
 - [ ] **IS-39-007 P0** — Gate M6: one skinned character plays blended locomotion, dialogue pose, and vehicle entry/exit animations using cna-extended's Transform3/skinned-playback.
 - [ ] **IS-39-008 P0** — Gate M7: one data-driven mission controls dialogue, objective UI, vehicle entry, destination trigger, checkpoint, and completion.

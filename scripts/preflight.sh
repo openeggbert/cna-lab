@@ -7,6 +7,7 @@ dependency_root="$(cd "$(dirname "$cna_dir")" 2>/dev/null && pwd || dirname "$cn
 sharp_dir="$dependency_root/sharp-runtime"
 easygl_dir="$dependency_root/easy-gl"
 cna_extended_dir="$dependency_root/cna-extended"
+jolt_dir="${IRON_SHADOWS_JOLT_DIR:-$HOME/deps/jolt}"
 mesh_craft_dir="${MESH_CRAFT_SOURCE_DIR:-$dependency_root/mesh-craft}"
 preset="${1:-dev-easygl}"
 errors=0
@@ -23,6 +24,7 @@ printf '  CNA:           %s\n' "$cna_dir"
 printf '  sharp-runtime: %s\n' "$sharp_dir"
 printf '  EasyGL:        %s\n' "$easygl_dir"
 printf '  cna-extended:  %s\n' "$cna_extended_dir"
+printf '  Jolt Physics:  %s\n' "$jolt_dir"
 printf '  Mesh Craft:    %s\n' "$mesh_craft_dir"
 
 if [[ -f "$cna_dir/CMakeLists.txt" ]]; then
@@ -60,6 +62,12 @@ if [[ -f "$cna_extended_dir/CMakeLists.txt" ]]; then
   ok "cna-extended sibling found"
 else
   fail "cna-extended not found. Place it at $cna_extended_dir (required: ECS, Transform3, 3D collision, skinned-model playback)."
+fi
+
+if [[ -f "$jolt_dir/Build/CMakeLists.txt" ]]; then
+  ok "Jolt Physics shared checkout found"
+else
+  fail "Jolt Physics not found at $jolt_dir. Clone it once: git clone --branch v5.6.0 --depth 1 https://github.com/jrouwe/JoltPhysics.git ~/deps/jolt"
 fi
 
 if [[ -f "$mesh_craft_dir/CMakeLists.txt" ]]; then

@@ -46,6 +46,19 @@ if(NOT EXISTS "${IRON_SHADOWS_CNA_EXTENDED_DIR}/CMakeLists.txt")
         "Override with -DIRON_SHADOWS_CNA_EXTENDED_DIR=/absolute/path/to/cna-extended")
 endif()
 
+# Jolt Physics (selected in plan_15-physics-integration.md IS-15-003): a shared checkout under
+# ~/deps/jolt per CLAUDE.md's dependency-reuse convention, not a per-project clone.
+set(IRON_SHADOWS_JOLT_DIR "$ENV{HOME}/deps/jolt" CACHE PATH
+    "Path to a Jolt Physics checkout (pinned to v5.6.0; see ~/deps/<name> convention in CLAUDE.md).")
+
+if(NOT EXISTS "${IRON_SHADOWS_JOLT_DIR}/Build/CMakeLists.txt")
+    message(FATAL_ERROR
+        "Iron Shadows: Jolt Physics was not found at '${IRON_SHADOWS_JOLT_DIR}'.\n"
+        "Clone it once into the shared deps cache:\n"
+        "  git clone --branch v5.6.0 --depth 1 https://github.com/jrouwe/JoltPhysics.git ~/deps/jolt\n"
+        "Override with -DIRON_SHADOWS_JOLT_DIR=/absolute/path/to/JoltPhysics")
+endif()
+
 # Consumer-side choices. The project does not build dependency tests/examples by default.
 set(CNA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(CNA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -55,6 +68,16 @@ set(SHARP_RUNTIME_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(SHARP_RUNTIME_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 set(CNA_EXTENDED_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(CNA_EXTENDED_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+# Jolt defaults INTERPROCEDURAL_OPTIMIZATION ON and expects the *consuming* project to also opt
+# in via CMAKE_INTERPROCEDURAL_OPTIMIZATION; since Iron Shadows does not, disable it for Jolt
+# rather than risk an LTO link mismatch (Jolt's own CMakeLists.txt documents this exact pitfall).
+set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)
+# GPU-compute shader paths (optional hair/cloth demos) are irrelevant to Iron Shadows' CPU rigid-
+# body/character/vehicle use and require dxc/glslc toolchains this workspace does not have.
+set(JPH_USE_DX12 OFF CACHE BOOL "" FORCE)
+set(JPH_USE_VK OFF CACHE BOOL "" FORCE)
+set(JPH_USE_MTL OFF CACHE BOOL "" FORCE)
+set(JPH_USE_CPU_COMPUTE OFF CACHE BOOL "" FORCE)
 
 # EASYGL is the recommended prototype backend. Override with VULKAN where available.
 if(NOT DEFINED CNA_GRAPHICS_BACKEND)
@@ -67,6 +90,8 @@ add_subdirectory("${IRON_SHADOWS_CNA_DIR}" "${CMAKE_BINARY_DIR}/_deps/cna")
 # links against it instead of building its own copy of CNA.
 add_subdirectory("${IRON_SHADOWS_CNA_EXTENDED_DIR}" "${CMAKE_BINARY_DIR}/_deps/cna_extended")
 
+add_subdirectory("${IRON_SHADOWS_JOLT_DIR}/Build" "${CMAKE_BINARY_DIR}/_deps/jolt")
+
 include(cmake/CompilerWarnings.cmake)
 include(cmake/CnaLinking.cmake)
 
@@ -76,6 +101,7 @@ add_library(iron_shadows_core STATIC
     src/Gameplay/VehicleController.cpp
     src/Missions/PrototypeMission.cpp
     src/Persistence/SaveGame.cpp
+    src/Physics/PhysicsWorld.cpp
     src/World/PrototypeWorld.cpp)
 
 add_library(IronShadows::Core ALIAS iron_shadows_core)
@@ -88,7 +114,17 @@ target_link_libraries(iron_shadows_core
     PUBLIC
         CNA
         SHARP_RUNTIME
-        CNA_EXTENDED)
+        CNA_EXTENDED
+    PRIVATE
+        Jolt)
+
+# Jolt's own headers are not warning-clean under this project's strict flags; treat them as
+# system headers (matching sharp-runtime/vendor's existing -isystem treatment) so only Iron
+# Shadows' own code in PhysicsWorld.cpp is held to iron_shadows_apply_warnings() below.
+get_target_property(IRON_SHADOWS_JOLT_INCLUDE_DIRS Jolt INTERFACE_INCLUDE_DIRECTORIES)
+if(IRON_SHADOWS_JOLT_INCLUDE_DIRS)
+    target_include_directories(iron_shadows_core SYSTEM PRIVATE ${IRON_SHADOWS_JOLT_INCLUDE_DIRS})
+endif()
 
 iron_shadows_apply_warnings(iron_shadows_core)
 
@@ -149,6 +185,16 @@ if(IRON_SHADOWS_BUILD_TESTS)
     add_test(NAME iron_shadows_missing_asset_fallback
         COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-missing-asset-fallback.sh" "$<TARGET_FILE:iron_shadows>")
     set_tests_properties(iron_shadows_missing_asset_fallback PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+    # Gate M4 (IS-39-005): character, trigger, raycast, and vehicle prototypes behind PhysicsWorld.
+    add_executable(iron_shadows_physics_tests tests/PhysicsTests.cpp)
+    target_include_directories(iron_shadows_physics_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(iron_shadows_physics_tests PRIVATE iron_shadows_core)
+    iron_shadows_link_final_target(iron_shadows_physics_tests)
+    iron_shadows_apply_warnings(iron_shadows_physics_tests)
+    add_test(NAME iron_shadows_physics_tests COMMAND iron_shadows_physics_tests)
+    set_tests_properties(iron_shadows_physics_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
 endif()
 

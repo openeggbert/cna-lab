@@ -21,6 +21,7 @@ The current C++ prototype is intentionally simple but not empty. It provides:
 - Headless core tests for collision, vehicle movement, mission progression, dialogue, and persistence.
 - An editable MC3 source scene and an MC3 → GLB → CNJ helper script.
 - Two real production assets: the warehouse building and the sedan (as four composed parts — body/cabin/windshield/wheel) are authored in MC3, converted through the full Mesh Craft → CNA pipeline, and loaded in-engine as CNJ models (with a procedural fallback if a generated asset is missing), replacing their procedural counterparts while driving and the delivery mission still work unchanged.
+- A prototyped Jolt Physics integration (`IronShadows::Physics::PhysicsWorld`) with tested character, trigger, raycast, and 4-wheel vehicle behavior, not yet wired into gameplay movement.
 
 The renderer otherwise uses colored boxes. It is a debug scaffold designed to be replaced incrementally by MC3/glTF/CNJ content, one building at a time, following the warehouse's example.
 
@@ -69,6 +70,14 @@ workspace/
 ├── mesh-craft/       # authoring/conversion tool; optional for compiling the game
 └── iron-shadows/
 ```
+
+Jolt Physics (rigid bodies, character controller, vehicle constraint) is not a workspace sibling; it is a shared checkout at `~/deps/jolt`, pinned to `v5.6.0`, per `CLAUDE.md`'s dependency-reuse convention:
+
+```bash
+git clone --branch v5.6.0 --depth 1 https://github.com/jrouwe/JoltPhysics.git ~/deps/jolt
+```
+
+Override either path with `-DIRON_SHADOWS_CNA_DIR=...` / `-DIRON_SHADOWS_JOLT_DIR=...` if your layout differs.
 
 ## Configure, build, test, run
 
@@ -147,4 +156,6 @@ Original repository code and original sample assets are MIT-licensed. Dependenci
 
 Gates M2 and M3 are done: the warehouse building and the sedan both load as generated CNJ models in place of their procedural counterparts, with driving and the delivery mission still working unchanged, asset provenance recorded, and an automated `ctest` regression (`iron_shadows_missing_asset_fallback`) covering the missing-asset fallback path for both (`plan/plan_39-vertical-slice-gates.md` gate M2 tasks `IS-39-026/027/029/030/033/034/035`, gate M3 task `IS-39-004`). Still open from M2: a standalone GLB validation step, and deriving collision from the MC3 `collision` attribute instead of the separate procedural AABB (needs the sidecar/MCB metadata compiler from `plan/plan_10-gltf-cnj-mcb-and-runtime-packages.md`, not a one-off parse). `PbrEffect` materials turned out not to be a gap: CNA's own conversion tool only emits `PbrEffect` when a material has a real normal/metallic-roughness texture, and the current materials are deliberately flat-color, so `BasicEffect` is already the correct choice — revisit once they get real textures (a content task, not a code task). M3 also surfaced a real pipeline gap worth fixing upstream: `cna_tool_gltf_to_cnj` does not bake per-object node transforms, so a multi-part prop currently needs one MC3 file per part plus manual composition code (`IS-10-004b`) instead of one authored scene.
 
-Next: **M4 — select and prototype a physics library** (Jolt is the current recommendation, `analysis.md` §10) behind an Iron Shadows abstraction, covering character, trigger, raycast, and vehicle prototypes, before the second district (M5) forces a real streaming/loading-screen design.
+Gate M4 is also done: **Jolt Physics** (v5.6.0, MIT, pinned in `THIRD_PARTY.md`, shared checkout at `~/deps/jolt`) sits behind `IronShadows::Physics::PhysicsWorld` (`include/`/`src/Physics/`), a PIMPL boundary that keeps every Jolt type out of gameplay code. `tests/PhysicsTests.cpp` proves character (capsule blocked by a wall, grounded detection), trigger (enter/exit events), raycast, and 4-wheel vehicle (settles on its suspension, drives forward under throttle) prototypes all work (`plan/plan_39-vertical-slice-gates.md` gate M4, task `IS-39-005`). Not yet done: wiring `PhysicsWorld` to actually replace `PlayerController`'s AABB movement and `VehicleController`'s kinematic model — that migration is separate, larger follow-up work tracked in `plan/plan_15-physics-integration.md`.
+
+Next: **M5 — a second district**, forcing the discrete district-loading design (loading screen, world/save state preserved across the transition) that gate M2/M3's single always-loaded block never had to prove.
