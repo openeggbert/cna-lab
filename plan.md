@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **220 passing tests across 7 CTest suites** (10 with CNA)
+- 12 modules, three executables, and **224 passing tests across 7 CTest suites** (10 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -43,6 +43,7 @@ checkout, no GPU and no window:
 - a **header-only loader** lets a shipped game read a `.cnascene` without the editor
   ([`docs/DESIGN-SCENE-LOADER.md`](docs/DESIGN-SCENE-LOADER.md)), verified by `scene-loader-demo`
   against the real example project
+- a **History panel** shows the undo stack and jumps to any point in it, undone entries included
 - a **Validation panel** reports what a scene is doing wrong before a build does: broken asset
   references, two cameras both claiming to be primary, a zero scale, an entity that does nothing.
   Every rule describes a legal state, so nothing is refused and nothing is repaired automatically
@@ -51,7 +52,7 @@ checkout, no GPU and no window:
   project, scans its assets, loads a three-entity scene and draws a frame
 
 **Built and run against a real CNA checkout.** With `-DCNA_EDITOR_WITH_CNA=ON` and
-`CNA_GRAPHICS_BACKEND=SOFTWARE`, `cna-editor` opens a window, docks its six panels, and draws them
+`CNA_GRAPHICS_BACKEND=SOFTWARE`, `cna-editor` opens a window, docks its seven panels, and draws them
 entirely through CNA's *public* API — no `CNA::Internal::*`, no authored shader, no per-backend
 renderer:
 
@@ -304,7 +305,7 @@ run four times. What it needs is a build matrix and image diffing, not new archi
 | ED-902 | Format migration framework for `.cnaproject`, `.cnascene`, `.cnaasset` | ⬜ | Version gates and rejection already implemented; migration is not |
 | ED-903 | Crash handling: never lose an unsaved document | ⬜ | |
 | ED-904 | Editor preferences, persisted separately from any project | ⬜ | |
-| ED-905 | Undo history panel | ⬜ | `CommandHistory` already exposes everything needed |
+| ED-905 | Undo history panel | ✅ | Rows are *positions*, not entries, so the state the document was opened in is reachable — it is the one a user asking to "put it back how it was" is aiming at. Undone entries stay on the list rather than disappearing, because they are exactly what a redo is trying to reach. Clicking navigates to that position through the application's own undo, not straight into `CommandHistory`, so a jump prunes the selection like any Ctrl+Z. It does **not** remove one entry from the middle: a command's undo is only valid against the state its `execute()` left behind |
 | ED-906 | Localisation of the UI strings | ⛔ | Deferred: English-only until the panel set stops changing shape |
 | ED-907 | Adopt GoogleTest if the suite needs fixtures or parameterised cases | ⛔ | Deferred: nothing outside `TestHarness.hpp` knows how assertions are spelled, so this stays a contained change (D-12) |
 | ED-908 | Optional content-hash change detection for assets | ⛔ | Deferred: hashing every asset on project open is how an editor comes to take thirty seconds to start (D-08). Add as opt-in when a pipeline needs it |

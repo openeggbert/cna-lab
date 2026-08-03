@@ -119,6 +119,24 @@ namespace CNA::Editor
         /** @brief Returns the label of the entry redo() would apply, or an empty string. */
         [[nodiscard]] std::string getRedoDescription() const;
 
+        /**
+         * @brief Returns the label of entry @p index, or an empty string when out of range.
+         *
+         * Indices run oldest first, and an entry keeps its index whether or not it is currently
+         * applied -- which is what lets the history panel show the undone tail rather than hiding
+         * the very entries a user is trying to get back to.
+         */
+        [[nodiscard]] std::string getDescriptionAt(std::size_t index) const;
+
+        /**
+         * @brief Returns the cursor position the document was last saved at, or -1 for none.
+         *
+         * Negative when the saved state was discarded -- either by a new command overwriting the
+         * redo tail it lived in, or by the retention limit dropping it off the front. Both mean the
+         * same thing to a reader: no position in this history is the file on disk.
+         */
+        [[nodiscard]] std::ptrdiff_t getSavedCursor() const { return savedCursor_; }
+
         /** @brief Drops every entry. Called when a document is closed or reloaded. */
         void clear();
 

@@ -128,6 +128,35 @@ CNA_EDITOR_TEST(HistoryHonoursItsRetentionLimit)
     CNA_EDITOR_EXPECT(history.canUndo());
 }
 
+CNA_EDITOR_TEST(HistoryDescribesEveryEntryAndSaysWhereSavedIs)
+{
+    int executeCount = 0;
+    int undoCount = 0;
+    CommandHistory history;
+
+    // What the history panel is a view over: a label per entry, and a position for the file on
+    // disk. Both have to survive undo, or the panel would relabel itself as the user navigates.
+    history.execute(std::make_unique<CountingCommand>(executeCount, undoCount));
+    history.markSaved();
+    history.execute(std::make_unique<CountingCommand>(executeCount, undoCount));
+
+    CNA_EDITOR_EXPECT_EQ(history.getDescriptionAt(0), std::string{"Counting"});
+    CNA_EDITOR_EXPECT_EQ(history.getDescriptionAt(1), std::string{"Counting"});
+    CNA_EDITOR_EXPECT(history.getDescriptionAt(2).empty());
+    CNA_EDITOR_EXPECT_EQ(history.getSavedCursor(), std::ptrdiff_t{1});
+
+    history.undo();
+    CNA_EDITOR_EXPECT_EQ(history.getSavedCursor(), std::ptrdiff_t{1});
+    CNA_EDITOR_EXPECT_EQ(history.getDescriptionAt(1), std::string{"Counting"});
+
+    // A new command discards the redo tail. When the saved state lived in that tail, no sequence
+    // of undo and redo can return to it, and the panel must stop claiming any row is the file.
+    history.undo();
+    history.execute(std::make_unique<CountingCommand>(executeCount, undoCount));
+    CNA_EDITOR_EXPECT(history.getSavedCursor() < 0);
+    CNA_EDITOR_EXPECT(history.isDirty());
+}
+
 CNA_EDITOR_TEST(CreateEntityCommandUndoesCleanly)
 {
     const ComponentRegistry registry = makeRegistry();

@@ -63,6 +63,11 @@ namespace CNA::Editor
         return canRedo() ? commands_[cursor_]->getDescription() : std::string{};
     }
 
+    std::string CommandHistory::getDescriptionAt(std::size_t index) const
+    {
+        return index < commands_.size() ? commands_[index]->getDescription() : std::string{};
+    }
+
     void CommandHistory::clear()
     {
         commands_.clear();

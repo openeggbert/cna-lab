@@ -24,6 +24,7 @@
 #include "CNA/Editor/Panels/HierarchyPanel.hpp"
 #include "CNA/Editor/Panels/InspectorPanel.hpp"
 #include "CNA/Editor/Panels/MainMenuBar.hpp"
+#include "CNA/Editor/Panels/HistoryPanel.hpp"
 #include "CNA/Editor/Panels/ValidationPanel.hpp"
 #include "CNA/Editor/Panels/ViewportPanel.hpp"
 #include "CNA/Editor/RuntimeBridge/PlayerProcess.hpp"
@@ -213,6 +214,7 @@ namespace CNA::Editor
         HierarchyPanel hierarchyPanel_;
         ViewportPanel viewportPanel_;
         InspectorPanel inspectorPanel_;
+        HistoryPanel historyPanel_;
         AssetBrowserPanel assetBrowserPanel_;
         ValidationPanel validationPanel_;
         ConsolePanel consolePanel_;

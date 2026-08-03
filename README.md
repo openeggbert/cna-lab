@@ -4,7 +4,7 @@ Editor, asset pipeline and tooling for [CNA](https://github.com/openeggbert/cna)
 reimplementation of the XNA 4.0 framework.
 
 > **Status: it opens and it draws.** Built against a real CNA checkout, `cna-editor` opens a
-> window, docks its five panels, and renders them entirely through CNA's *public* API — no
+> window, docks its seven panels, and renders them entirely through CNA's *public* API — no
 > internal headers, no authored shader, no per-backend renderer. The **`cna-player` process** is
 > launched by the editor over a real socket. The document model, undo system, asset database and
 > project format are implemented and tested.

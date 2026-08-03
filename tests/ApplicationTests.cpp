@@ -120,7 +120,7 @@ CNA_EDITOR_TEST(ApplicationDrawsEveryPanelEachFrame)
     ui.endFrame();
 
     const std::vector<std::string>& panels = ui.getLastFramePanels();
-    CNA_EDITOR_EXPECT_EQ(panels.size(), std::size_t{6});
+    CNA_EDITOR_EXPECT_EQ(panels.size(), std::size_t{7});
 
     const auto contains = [&](const std::string& title) {
         return std::find(panels.begin(), panels.end(), title) != panels.end();
@@ -131,6 +131,7 @@ CNA_EDITOR_TEST(ApplicationDrawsEveryPanelEachFrame)
     CNA_EDITOR_EXPECT(contains("Assets"));
     CNA_EDITOR_EXPECT(contains("Console"));
     CNA_EDITOR_EXPECT(contains("Validation"));
+    CNA_EDITOR_EXPECT(contains("History"));
 
     // The viewport must actually have rendered, or --headless would be a no-op rather than a
     // smoke test. NullEditorViewport walks the same transform and bounds code a real one does.
@@ -1856,4 +1857,120 @@ CNA_EDITOR_TEST(TheValidationPanelReportsAnIssueAndSelectsItsEntity)
 
     CNA_EDITOR_EXPECT(ui->sawText("No scene issues."));
     CNA_EDITOR_EXPECT(ui->sawText("No broken asset references."));
+}
+
+CNA_EDITOR_TEST(TheHistoryPanelListsEveryEntryIncludingTheUndoneOnes)
+{
+    auto scripted = std::make_unique<ScriptedUi>();
+    ScriptedUi* ui = scripted.get();
+    EditorApplication application{std::move(scripted), std::make_unique<NullEditorViewport>()};
+
+    EditorOptions options;
+    options.headless = true;
+    CNA_EDITOR_EXPECT(application.initialize(options));
+
+    EditorContext& context = application.getContext();
+    context.getHistory().markSaved();
+
+    for (int index = 0; index < 3; ++index)
+    {
+        EditorEntity entity{Uuid::generate(), "Entity" + std::to_string(index)};
+        entity.addComponent(EditorComponent{BuiltinComponentIds::kTransform});
+        context.execute(std::make_unique<CreateEntityCommand>(context.getScene(), std::move(entity)));
+    }
+
+    application.renderFrame();
+    CNA_EDITOR_EXPECT(ui->sawText("3 of 3 applied, keeping 512"));
+
+    const auto rowLabel = [&](std::size_t position) {
+        const std::string id = "history-" + std::to_string(position);
+        for (std::size_t index = 0; index < ui->drawnStringNodes.size(); ++index)
+        {
+            if (ui->drawnStringNodes[index] == id) { return ui->drawnStringNodeLabels[index]; }
+        }
+        return std::string{};
+    };
+
+    // One row per position rather than per entry, so the state the document was opened in is
+    // reachable -- it is the one a user asking to "put it back" is aiming at.
+    CNA_EDITOR_EXPECT(rowLabel(0).find("Opened") != std::string::npos);
+    CNA_EDITOR_EXPECT(rowLabel(0).find("(saved)") != std::string::npos);
+    CNA_EDITOR_EXPECT(rowLabel(3).find("> ") == 0);
+
+    application.undo();
+    application.undo();
+    application.renderFrame();
+
+    CNA_EDITOR_EXPECT(ui->sawText("1 of 3 applied, keeping 512"));
+
+    // Undone entries stay listed. Hiding them would hide exactly what the user is trying to
+    // get back to.
+    CNA_EDITOR_EXPECT(rowLabel(1).find("> ") == 0);
+    CNA_EDITOR_EXPECT(rowLabel(2).find("(undone)") != std::string::npos);
+    CNA_EDITOR_EXPECT(rowLabel(3).find("(undone)") != std::string::npos);
+}
+
+CNA_EDITOR_TEST(ClickingAHistoryRowMovesTheCursorToIt)
+{
+    auto scripted = std::make_unique<ScriptedUi>();
+    ScriptedUi* ui = scripted.get();
+    EditorApplication application{std::move(scripted), std::make_unique<NullEditorViewport>()};
+
+    EditorOptions options;
+    options.headless = true;
+    CNA_EDITOR_EXPECT(application.initialize(options));
+
+    EditorContext& context = application.getContext();
+    const std::size_t entitiesBefore = context.getScene().getEntityCount();
+
+    std::vector<Uuid> added;
+    for (int index = 0; index < 4; ++index)
+    {
+        EditorEntity entity{Uuid::generate(), "Entity" + std::to_string(index)};
+        entity.addComponent(EditorComponent{BuiltinComponentIds::kTransform});
+        added.push_back(entity.getId());
+        context.execute(std::make_unique<CreateEntityCommand>(context.getScene(), std::move(entity)));
+    }
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), entitiesBefore + 4);
+
+    // Jumping back four positions in one click is the whole point: fifteen presses of Ctrl+Z with
+    // no idea how many are left is how a person loses work they meant to keep.
+    ui->pendingStringNodeClicks.push_back("history-1");
+    application.renderFrame();
+
+    CNA_EDITOR_EXPECT_EQ(context.getHistory().getCursor(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), entitiesBefore + 1);
+    CNA_EDITOR_EXPECT(context.getScene().findEntity(added[0]) != nullptr);
+    CNA_EDITOR_EXPECT(context.getScene().findEntity(added[3]) == nullptr);
+
+    // And forward again, through the same rows.
+    ui->pendingStringNodeClicks.push_back("history-4");
+    application.renderFrame();
+
+    CNA_EDITOR_EXPECT_EQ(context.getHistory().getCursor(), std::size_t{4});
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), entitiesBefore + 4);
+    CNA_EDITOR_EXPECT(context.getScene().findEntity(added[3]) != nullptr);
+
+    // Navigating goes through the application's own undo, so a jump prunes the selection the same
+    // way Ctrl+Z does -- otherwise the inspector would keep showing an entity that no longer exists.
+    context.select(added[3]);
+    ui->pendingStringNodeClicks.push_back("history-0");
+    application.renderFrame();
+
+    CNA_EDITOR_EXPECT_EQ(context.getHistory().getCursor(), std::size_t{0});
+    CNA_EDITOR_EXPECT(context.getSelection().empty());
+}
+
+CNA_EDITOR_TEST(AnEmptyHistorySaysSoRatherThanDrawingNothing)
+{
+    auto scripted = std::make_unique<ScriptedUi>();
+    ScriptedUi* ui = scripted.get();
+    EditorApplication application{std::move(scripted), std::make_unique<NullEditorViewport>()};
+
+    EditorOptions options;
+    options.headless = true;
+    CNA_EDITOR_EXPECT(application.initialize(options));
+
+    application.renderFrame();
+    CNA_EDITOR_EXPECT(ui->sawText("Nothing to undo yet."));
 }

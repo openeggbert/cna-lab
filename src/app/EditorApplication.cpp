@@ -141,6 +141,7 @@ namespace CNA::Editor
           hierarchyPanel_(context_, *ui_, *this),
           viewportPanel_(context_, *ui_, *this),
           inspectorPanel_(context_, *ui_, *this),
+          historyPanel_(context_, *ui_, *this),
           assetBrowserPanel_(context_, *ui_, *this),
           validationPanel_(context_, *ui_, *this),
           consolePanel_(context_, *ui_, *this)
@@ -240,6 +241,7 @@ namespace CNA::Editor
         hierarchyPanel_.draw();
         viewportPanel_.draw();
         inspectorPanel_.draw();
+        historyPanel_.draw();
         assetBrowserPanel_.draw();
         validationPanel_.draw();
         consolePanel_.draw();
