@@ -44,6 +44,7 @@ namespace CNA::Editor
                 if (name == "--project") { options.projectPath = value; continue; }
                 if (name == "--scene") { options.scenePath = value; continue; }
                 if (name == "--ui") { options.uiBackend = value; continue; }
+                if (name == "--screenshot") { options.screenshotPath = value; continue; }
                 if (name == "--frames")
                 {
                     try { options.frameLimit = std::stoi(value); }
@@ -96,6 +97,7 @@ namespace CNA::Editor
             "  --ui=NAME          UI toolkit to use: 'imgui' or 'null'. Default: imgui.\n"
             "  --headless         Run with no window, on the null UI. Implies --ui=null.\n"
             "  --frames=N         Exit after N frames. Useful for smoke tests.\n"
+            "  --screenshot=PATH  Write a PNG of the final frame. Requires --frames.\n"
             "  --list-backends    Print the CNA graphics backends this editor knows about.\n"
             "  --version          Print the version and exit.\n"
             "  -h, --help         Print this help and exit.\n"

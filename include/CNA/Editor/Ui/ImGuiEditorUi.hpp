@@ -115,6 +115,18 @@ namespace CNA::Editor
         /** @brief Asks the editor to exit after the current frame. */
         void requestExit();
 
+        /**
+         * @brief Returns true when a text field has keyboard focus.
+         *
+         * The platform layer starts and stops OS text input from this. Leaving text input on
+         * permanently would keep a mobile on-screen keyboard up for the whole session, and on
+         * desktop it needlessly routes every keystroke through the IME.
+         */
+        [[nodiscard]] bool wantsTextInput() const;
+
+        /** @brief Returns true when the UI, rather than the game viewport, wants the mouse. */
+        [[nodiscard]] bool wantsMouseCapture() const;
+
         /** @brief Returns the console messages accumulated so far. */
         [[nodiscard]] const std::vector<std::pair<LogSeverity, std::string>>& getLog() const;
 

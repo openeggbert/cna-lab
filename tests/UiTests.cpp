@@ -391,3 +391,48 @@ CNA_EDITOR_TEST(ImGuiUiRoutesLogMessagesAndBoundsThem)
 }
 
 #endif  // CNA_EDITOR_HAS_IMGUI
+
+CNA_EDITOR_TEST(ImGuiUiEmitsAQuadForEveryVisibleGlyph)
+{
+    // Diagnostic turned regression test. A screenshot of the hosted editor showed tab labels
+    // reading "iewport" and "nspector" -- the capitals V and I appear nowhere else in the UI, so
+    // the suspicion was that those glyphs were missing from the font atlas. This settles it
+    // without a window: every printable character must contribute one textured quad, so a string
+    // of N distinct characters must produce 4N vertices.
+    ImGuiEditorUi ui;
+    ui.setInput(makeIdleInput());
+
+    CNA_EDITOR_EXPECT(ui.beginFrame());
+    ui.beginDockSpace();
+    if (ui.beginPanel("Glyphs", DockSide::Left)) { ui.text("VIVID"); }
+    ui.endPanel();
+    ui.endDockSpace();
+    ui.endFrame();
+
+    // Warm the atlas, then measure on a later frame so lazy rasterisation cannot skew the count.
+    for (int frame = 0; frame < 3; ++frame)
+    {
+        ui.setInput(makeIdleInput());
+        CNA_EDITOR_EXPECT(ui.beginFrame());
+        ui.beginDockSpace();
+        if (ui.beginPanel("Glyphs", DockSide::Left)) { ui.text("VIVID"); }
+        ui.endPanel();
+        ui.endDockSpace();
+        ui.endFrame();
+    }
+
+    const std::size_t withText = ui.getDrawData().getTotalVertexCount();
+
+    ui.setInput(makeIdleInput());
+    CNA_EDITOR_EXPECT(ui.beginFrame());
+    ui.beginDockSpace();
+    if (ui.beginPanel("Glyphs", DockSide::Left)) { }
+    ui.endPanel();
+    ui.endDockSpace();
+    ui.endFrame();
+
+    const std::size_t withoutText = ui.getDrawData().getTotalVertexCount();
+
+    // "VIVID" is five characters; four vertices each.
+    CNA_EDITOR_EXPECT_EQ(withText - withoutText, std::size_t{20});
+}

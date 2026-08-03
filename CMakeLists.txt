@@ -197,12 +197,26 @@ if(CNA_EDITOR_WITH_CNA)
     # The only module that links CNA. It holds three things: the scene viewport, the UI renderer
     # that draws UiDrawData through CNA's public graphics API, and the platform layer that fills
     # UiInputState from CNA's public input API. See docs/SPIKE-IMGUI-CNA.md for the full mapping.
-    add_library(cna-editor-viewport STATIC
+    set(_cna_editor_viewport_sources
         src/viewport/CnaEditorViewport.cpp
         src/viewport/CnaUiRenderer.cpp
         src/viewport/CnaUiPlatform.cpp)
+
+    # The window host needs both CNA and Dear ImGui, so it only exists when both are built.
+    # Without it the editor still compiles and runs headless -- the CNA-linked renderer and
+    # platform layer are independently useful, and the tests exercise them.
+    if(CNA_EDITOR_WITH_IMGUI)
+        list(APPEND _cna_editor_viewport_sources src/viewport/CnaEditorHost.cpp)
+    endif()
+
+    add_library(cna-editor-viewport STATIC ${_cna_editor_viewport_sources})
     target_link_libraries(cna-editor-viewport PUBLIC cna-editor-scene cna-editor-ui PRIVATE CNA)
     target_compile_definitions(cna-editor-viewport PUBLIC CNA_EDITOR_HAS_CNA=1)
+
+    if(CNA_EDITOR_WITH_IMGUI)
+        target_link_libraries(cna-editor-viewport PUBLIC cna-editor-context cna-editor-ui-imgui)
+        target_compile_definitions(cna-editor-viewport PUBLIC CNA_EDITOR_HAS_HOST=1)
+    endif()
 endif()
 
 # ---------------------------------------------------------------------------------------------

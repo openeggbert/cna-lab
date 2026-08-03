@@ -8,6 +8,8 @@
  * toolkit, under the null UI in CI, and under a future Qt implementation.
  */
 
+#include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 
@@ -15,6 +17,12 @@
 
 #if defined(CNA_EDITOR_HAS_IMGUI)
 #    include "CNA/Editor/Ui/ImGuiEditorUi.hpp"
+#endif
+
+// The window host needs both CNA and Dear ImGui. Without it the editor still runs headless, which
+// is what CI and `--headless` use.
+#if defined(CNA_EDITOR_HAS_HOST)
+#    include "CNA/Editor/Viewport/CnaEditorHost.hpp"
 #endif
 
 namespace
@@ -31,6 +39,34 @@ namespace
             stream << "[" << CNA::Editor::toString(severity) << "] " << message << "\n";
         }
     };
+
+#if defined(CNA_EDITOR_HAS_HOST)
+    /**
+     * @brief Returns where ImGui's dock layout `.ini` should live.
+     *
+     * Under the user's config directory, not the project: where somebody puts their panels is a
+     * property of the person, not of the game they happen to be editing.
+     */
+    std::string resolveLayoutPath()
+    {
+        const char* configHome = std::getenv("XDG_CONFIG_HOME");
+        const char* home = std::getenv("HOME");
+        const char* appData = std::getenv("APPDATA");
+
+        std::filesystem::path base;
+        if (configHome != nullptr && *configHome != '\0') { base = configHome; }
+        else if (appData != nullptr && *appData != '\0') { base = appData; }
+        else if (home != nullptr && *home != '\0') { base = std::filesystem::path{home} / ".config"; }
+        else { return {}; }
+
+        const std::filesystem::path directory = base / "cna-editor";
+        std::error_code errorCode;
+        std::filesystem::create_directories(directory, errorCode);
+        if (errorCode) { return {}; }
+
+        return (directory / "layout.ini").generic_string();
+    }
+#endif
 
     void printBackends()
     {
@@ -99,19 +135,61 @@ int main(int argc, char** argv)
         return 3;
     }
 
+#    if defined(CNA_EDITOR_HAS_HOST)
     if (useImGui)
     {
-        // Presenting the geometry needs a window and a CNA graphics device, which is
-        // cna-editor-viewport's job (plan.md ED-111). Until that is wired, the ImGui UI runs and
-        // produces real draw data -- which is exactly what the headless tests assert on -- but
-        // nothing is on screen yet, and saying so plainly beats opening a blank window.
-        std::cerr << "cna-editor: the ImGui UI is built, but window creation and presentation are "
-                     "not wired up yet (plan.md ED-111).\n"
-                     "The renderer that draws it through CNA's public API is implemented in "
-                     "cna-editor-viewport; build with -DCNA_EDITOR_WITH_CNA=ON to compile it.\n"
-                     "Run with --headless in the meantime.\n";
+        auto application = std::make_unique<CNA::Editor::EditorApplication>(
+            std::make_unique<CNA::Editor::ImGuiEditorUi>(),
+            std::make_unique<CNA::Editor::NullEditorViewport>());
+
+        if (!application->initialize(options)) { return 1; }
+
+        CNA::Editor::CnaEditorHostOptions hostOptions;
+        hostOptions.frameLimit = options.frameLimit;
+        hostOptions.layoutPath = resolveLayoutPath();
+        hostOptions.screenshotPath = options.screenshotPath;
+        hostOptions.windowTitle = application->getContext().hasProject()
+                                      ? "CNA Editor -- " + application->getContext().getProject().getName()
+                                      : "CNA Editor";
+
+        const CNA::Editor::CnaEditorHostResult result =
+            CNA::Editor::runEditorInWindow(hostOptions, std::move(application));
+
+        if (!result.errorMessage.empty()) { std::cerr << "cna-editor: " << result.errorMessage << "\n"; }
+
+        if (!options.screenshotPath.empty() && !result.screenshotWritten)
+        {
+            std::cerr << "cna-editor: no screenshot was written to '" << options.screenshotPath
+                      << "'. --screenshot needs --frames, and the backend must support reading "
+                         "back its own back buffer.\n";
+            return 4;
+        }
+
+        // Printed only for a scripted run. A window that opens, loops and closes having issued
+        // zero draw calls looks identical to a working editor from the outside, so a smoke test
+        // needs the numbers to assert on.
+        if (options.frameLimit > 0)
+        {
+            std::cout << "cna-editor: backend " << result.backend << ", " << result.frames
+                      << " frames, " << result.displayWidth << "x" << result.displayHeight
+                      << " display, " << result.drawCalls << " draw calls, " << result.triangles
+                      << " triangles, " << result.textures << " textures created, "
+                      << result.textureUpdates << " texture updates, " << result.clippedAway
+                      << " commands clipped away\n";
+        }
+        return result.exitCode;
+    }
+#    else
+    if (useImGui)
+    {
+        // The ImGui UI is built and produces real geometry -- that is what the headless tests
+        // assert on -- but presenting it needs a window and a CNA graphics device, which live in
+        // cna-editor-viewport. Saying so plainly beats opening a blank window.
+        std::cerr << "cna-editor: the ImGui UI is built, but this binary has no window host.\n"
+                     "Rebuild with -DCNA_EDITOR_WITH_CNA=ON to get one, or run with --headless.\n";
         return 3;
     }
+#    endif
 #endif
 
     CNA::Editor::EditorApplication application{std::make_unique<ConsoleEditorUi>(),

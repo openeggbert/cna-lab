@@ -295,14 +295,17 @@ CNA_EDITOR_TEST(PlayerBuildDiscoveryFindsTheInstalledBinaries)
     // the backends whose binaries actually exist.
     const std::vector<PlayerBuild> builds = discoverPlayerBuilds(playerDirectory().generic_string());
 
-    bool foundPlayer = false;
+    // At least one player must be discoverable, and every entry must name a real file. The
+    // *backend* deliberately is not asserted: without CNA the binary is the un-suffixed
+    // `cna-player` (reported as "default"), and with CNA it is `cna-player-<backend>`. Pinning
+    // either would make this test pass in one configuration and fail in the other for no reason.
+    CNA_EDITOR_EXPECT(!builds.empty());
     for (const PlayerBuild& build : builds)
     {
-        if (build.backend == "default") { foundPlayer = true; }
+        CNA_EDITOR_EXPECT(!build.backend.empty());
         CNA_EDITOR_EXPECT(!build.executablePath.empty());
+        CNA_EDITOR_EXPECT(std::filesystem::exists(build.executablePath));
     }
-    // This build has no CNA, so the binary is the un-suffixed cna-player.
-    CNA_EDITOR_EXPECT(foundPlayer);
 
     CNA_EDITOR_EXPECT_EQ(discoverPlayerBuilds("/definitely/not/a/directory").size(), std::size_t{0});
 }
@@ -351,9 +354,11 @@ CNA_EDITOR_TEST(EditorLaunchesARealPlayerProcessAndTalksToIt)
     }
 
     CNA_EDITOR_EXPECT(sawReady);
-    // The player reports the backend it was compiled with. Built without CNA it says NONE, which
-    // is still the mechanism the editor uses to detect a mismatched launch.
-    CNA_EDITOR_EXPECT_EQ(player.getReportedBackend(), std::string{"NONE"});
+
+    // The player reports the backend it was compiled with -- "NONE" without CNA, the real backend
+    // name with it. What matters is that *something* was reported: that is the mechanism the
+    // editor uses to detect a mismatched launch, and an empty value would break it silently.
+    CNA_EDITOR_EXPECT(!player.getReportedBackend().empty());
     CNA_EDITOR_EXPECT(sawSceneLog);
 
     player.stop();

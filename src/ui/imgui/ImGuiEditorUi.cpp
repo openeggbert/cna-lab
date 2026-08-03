@@ -119,6 +119,44 @@ namespace CNA::Editor
         std::string layoutPath;
         /** @brief Source of UiTextureIds. Zero stays reserved as the "no texture" sentinel. */
         UiTextureId nextTextureId = 1;
+
+        /** @brief Dock nodes for the default layout, indexed by DockSide. */
+        ImGuiID dockNodes[4] = {};
+
+        /** @brief True during the one frame in which the default layout is being assembled. */
+        bool buildingLayout = false;
+
+        /** @brief Set once a layout exists, whether built here or loaded from the user's `.ini`. */
+        bool layoutReady = false;
+
+        /**
+         * @brief Splits the dock space into the editor's default arrangement.
+         *
+         * Only ever called when no layout exists -- a first run with no saved `.ini`. ImGui's
+         * DockSpace does not place windows by itself, so without this every panel floats at the
+         * same default position, stacked on top of one another. The user's own saved layout always
+         * wins over this one.
+         */
+        void buildDefaultLayout(ImGuiID dockspaceId)
+        {
+            const ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+            ImGui::DockBuilderRemoveNode(dockspaceId);
+            ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dockspaceId, viewport->WorkSize);
+
+            ImGuiID centre = dockspaceId;
+            const ImGuiID left = ImGui::DockBuilderSplitNode(centre, ImGuiDir_Left, 0.20f, nullptr, &centre);
+            const ImGuiID right = ImGui::DockBuilderSplitNode(centre, ImGuiDir_Right, 0.25f, nullptr, &centre);
+            const ImGuiID bottom = ImGui::DockBuilderSplitNode(centre, ImGuiDir_Down, 0.28f, nullptr, &centre);
+
+            dockNodes[static_cast<int>(DockSide::Left)] = left;
+            dockNodes[static_cast<int>(DockSide::Right)] = right;
+            dockNodes[static_cast<int>(DockSide::Bottom)] = bottom;
+            dockNodes[static_cast<int>(DockSide::Center)] = centre;
+
+            buildingLayout = true;
+        }
         bool running = true;
         bool frameActive = false;
         /** @brief Depth of open panels, so endPanel() can pair with a skipped beginPanel(). */
@@ -346,6 +384,18 @@ namespace CNA::Editor
 
     void ImGuiEditorUi::requestExit() { impl_->running = false; }
 
+    bool ImGuiEditorUi::wantsTextInput() const
+    {
+        ImGui::SetCurrentContext(impl_->context);
+        return ImGui::GetIO().WantTextInput;
+    }
+
+    bool ImGuiEditorUi::wantsMouseCapture() const
+    {
+        ImGui::SetCurrentContext(impl_->context);
+        return ImGui::GetIO().WantCaptureMouse;
+    }
+
     const std::vector<std::pair<LogSeverity, std::string>>& ImGuiEditorUi::getLog() const
     {
         return impl_->log;
@@ -398,8 +448,13 @@ namespace CNA::Editor
         ImGui::Begin("##CnaEditorDockHost", nullptr, flags);
         ImGui::PopStyleVar(3);
 
-        ImGui::DockSpace(ImGui::GetID("CnaEditorDockSpace"), ImVec2{0.0f, 0.0f},
-                         ImGuiDockNodeFlags_PassthruCentralNode);
+        const ImGuiID dockspaceId = ImGui::GetID("CnaEditorDockSpace");
+        if (!impl_->layoutReady && ImGui::DockBuilderGetNode(dockspaceId) == nullptr)
+        {
+            impl_->buildDefaultLayout(dockspaceId);
+        }
+
+        ImGui::DockSpace(dockspaceId, ImVec2{0.0f, 0.0f}, ImGuiDockNodeFlags_PassthruCentralNode);
 
         ImGui::BeginMenuBar();
     }
@@ -407,6 +462,17 @@ namespace CNA::Editor
     void ImGuiEditorUi::endDockSpace()
     {
         ImGui::EndMenuBar();
+
+        if (impl_->buildingLayout)
+        {
+            // Finished after every panel has claimed its node, not immediately after the splits:
+            // DockBuilderFinish commits the arrangement, and windows docked afterwards would be
+            // committing into a node that has already been finalised.
+            ImGui::DockBuilderFinish(ImGui::GetID("CnaEditorDockSpace"));
+            impl_->buildingLayout = false;
+        }
+        impl_->layoutReady = true;
+
         ImGui::End();
     }
 
@@ -415,7 +481,11 @@ namespace CNA::Editor
         // The side is a first-run hint only. Once the user has moved a panel, the saved layout
         // wins -- an editor that reasserts its own idea of where a panel belongs on every launch
         // is an editor people stop rearranging.
-        (void)preferredSide;
+        if (impl_->buildingLayout)
+        {
+            const ImGuiID node = impl_->dockNodes[static_cast<int>(preferredSide)];
+            if (node != 0) { ImGui::DockBuilderDockWindow(title.c_str(), node); }
+        }
 
         const bool visible = ImGui::Begin(title.c_str());
         ++impl_->panelDepth;
@@ -683,6 +753,11 @@ namespace CNA::Editor
         impl_->layoutPath = path;
         ImGui::SetCurrentContext(impl_->context);
         ImGui::LoadIniSettingsFromDisk(path.c_str());
+
+        // No need to record that a layout was loaded: beginDockSpace asks DockBuilderGetNode
+        // whether a node already exists, which is true for a restored layout and false for a
+        // first run. Asking here instead would mean calling ImGui::GetID outside a frame, where
+        // there is no current window to hash the string against -- which crashes.
     }
 
     void ImGuiEditorUi::saveLayout() const

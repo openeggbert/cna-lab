@@ -22,25 +22,36 @@
 
 ## Current state
 
-**Phase −1 (foundation) is complete, and most of Phase 0 with it.** This repository builds and
-passes its tests with no CNA checkout, no GPU and no window:
+**Phase 0 is complete: the editor opens in a window and renders.** The repository still builds and
+passes its full suite with no CNA checkout, no GPU and no window:
 
-- 11 modules, two executables, and **96 passing tests across 7 CTest suites**
+- 12 modules, two executables, and **97 passing tests across 7 CTest suites** (9 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
+- the editor renders **identically on two CNA backends** (SOFTWARE and EASYGL), verified by
+  screenshot
 - the **real `cna-player` process** is launched by the editor over a real loopback socket, loads a
   scene on request, and shuts down cleanly
 - `./build/cna-editor --headless --project=examples/HelloSprites/HelloSprites.cnaproject` opens a
   project, scans its assets, loads a three-entity scene and draws a frame
 
-**The ED-100 spike passed**: Dear ImGui renders entirely through CNA's *public* API — no
-`CNA::Internal::*`, no authored shader, no per-backend renderer. `CnaUiRenderer` and
-`CnaUiPlatform` are implemented and compile against real CNA headers. Report:
-[`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md).
+**Built and run against a real CNA checkout.** With `-DCNA_EDITOR_WITH_CNA=ON` and
+`CNA_GRAPHICS_BACKEND=SOFTWARE`, `cna-editor` opens a window, docks its five panels, and draws them
+entirely through CNA's *public* API — no `CNA::Internal::*`, no authored shader, no per-backend
+renderer:
 
-What remains before a *visible* editor is one task: **ED-111**, creating a window and a CNA
-graphics device and presenting the geometry the UI already produces.
+```
+cna-editor: backend SOFTWARE, 56 frames, 1600x900 display, 14 draw calls, 1858 triangles,
+            1 textures created, 0 texture updates, 0 commands clipped away
+```
+
+`--screenshot=PATH` writes a PNG of the final frame through `GraphicsDevice::GetBackBufferData` and
+`Texture2D::SaveAsPng`, so the CI smoke test asserts on an image rather than on a clean exit — a
+window that opens blank and one that works look identical from the outside otherwise.
+
+Report: [`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md). One cosmetic defect is open and
+documented rather than hidden — see ED-119.
 
 ---
 
@@ -108,12 +119,12 @@ Complete. Everything below is implemented, tested and building.
 
 ---
 
-## Phase 0 — Technical prototype 🔄
+## Phase 0 — Technical prototype ✅
 
 **Goal.** Prove CNA can host an editor UI. One window, docked panels, one CNA-rendered viewport.
 
-**Status.** The hard question is answered: ED-100 passed, and the UI, the renderer and the platform
-layer are all built. What is left is window creation (ED-111) and the viewport's own drawing.
+**Status.** Done except the viewport's own scene drawing (ED-120…ED-122), which is Phase 1 work.
+The editor opens, docks and renders through CNA's public API, verified by screenshot.
 
 | Id | Task | Status | Notes |
 |----|------|:------:|-------|
@@ -124,10 +135,13 @@ layer are all built. What is left is window creation (ED-111) and the viewport's
 | ED-116 | `CnaUiRenderer` — draws `UiDrawData` through CNA's public graphics API | ✅ | Compiles against real CNA headers |
 | ED-117 | `CnaUiPlatform` — fills `UiInputState` from CNA's public input API | ✅ | Text via `TextInputEXT`, never synthesised from key codes |
 | ED-130 | Report the CNA public-API gaps the spike uncovered | ✅ | Two, both minor: `Color` is not default-constructible (G-01); clipboard needs `CNA_DEVICES` (G-02) |
-| ED-102 | `CNA_EDITOR_WITH_CNA=ON` build verified against real `../cna` + `../sharp-runtime` checkouts | 🔄 | The CNA-linked sources are compile-verified against real headers; a full link needs CNA's own build (SDL3, sharp-runtime) |
-| ED-111 | **Window, graphics device, event loop; `--ui=imgui` becomes real** | ⬜ | **The one task between here and a visible editor.** Everything it needs already exists |
-| ED-112 | Dock layout persisted between sessions | ⬜ | `loadLayout`/`saveLayout` implemented, not yet called |
-| ED-114 | Console panel: severity filter, scroll-lock, copy | ⬜ | `drawLogView` renders coloured, auto-scrolling messages; filtering and copy remain |
+| ED-102 | `CNA_EDITOR_WITH_CNA=ON` build verified against real `../cna` + `../sharp-runtime` checkouts | ✅ | Fully built and linked, not just compile-checked. Needed SDL3's X11 dev packages and FFmpeg dev headers; CNA's `FATAL_ERROR` guidance for the sibling checkouts proved accurate |
+| ED-111 | **Window, graphics device, event loop; `--ui=imgui` becomes real** | ✅ | `runEditorInWindow` hosts the editor in a `Microsoft::Xna::Framework::Game`. The `Game` subclass stays inside the `.cpp` so CNA remains a *private* link dependency |
+| ED-112 | Default dock layout on first run; user's saved layout respected thereafter | ✅ | ImGui does not place windows into a dock space by itself — without this every panel floated stacked at the same position |
+| ED-114 | Console panel: severity filter, scroll-lock, copy | 🔄 | `drawLogView` renders coloured, auto-scrolling messages; filtering and copy remain |
+| ED-119 | **Leading glyph missing from docked tab labels** | ⬜ | Tabs render as "iewport"/"nspector". Reproduces **identically on SOFTWARE and EASYGL**, so it is this renderer's bug, not CNA's. Also ruled out: missing glyphs, the atlas-update path, clipping, and the scissor conversion — see docs/SPIKE-IMGUI-CNA.md §8, which lists the remaining suspects |
+| ED-124 | Editor verified on a second backend (EASYGL, real OpenGL ES 3.2 under Xvfb) | ✅ | Pixel-identical output to SOFTWARE — the property ED-510's comparison mode will check automatically, confirmed by hand |
+| ED-123 | `--screenshot=PATH` and the `CnaEditorWindowSmoke` CTest | ✅ | The mechanism plan.md ED-510's backend comparison mode will capture through |
 | ED-115 | Persistent `DynamicVertexBuffer`/`DynamicIndexBuffer` in `CnaUiRenderer` | ⛔ | Deferred: `DrawUserIndexedPrimitives` re-uploads per call, which is fine at 20–60 commands a frame. Profiling should ask for this before anyone does it |
 | ED-118 | Quaternion inspector as Euler angles | ⬜ | Needs a stable angle convention and round-trip handling. Showing the honest stored quaternion beats showing angles that silently drift on every edit |
 | ED-120 | `CnaEditorViewport::renderScene` draws sprites through `SpriteBatch` | ⬜ | Skeleton and build wiring in place |

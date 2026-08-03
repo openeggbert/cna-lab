@@ -16,6 +16,11 @@
 > Q-04 (where does `cna-player` live?) are both resolved — see §4. Two new decisions, **D-14** and
 > **D-15**, record what came out of them. The Q-01 spike has its own report:
 > [`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md).
+>
+> **Second update, same day.** The editor now opens in a window and renders, built and *linked*
+> against a real CNA checkout rather than merely compile-checked. Decision **D-16** records how the
+> window host is structured. Two further CNA observations came out of running it for real — F-07
+> below.
 
 ---
 
@@ -190,6 +195,29 @@ Confirmed from `CMakeLists.txt` and the source tree:
 
 This repository matches all of it: C++23, CMake ≥ 3.20, MS-PL SPDX headers, Doxygen comments,
 CTest.
+
+### F-07 — Two things only a real run could find ✅
+
+Compiling against CNA's headers proved the API exists. Actually *running* the editor found two
+things a compile could not.
+
+**A backend can render without a window.** The host first took its drawing size from
+`GameWindow::getClientBoundsProperty()`, which returns 0×0 on the SOFTWARE backend — that backend
+creates no SDL window at all. The editor rendered a zero-sized UI and issued zero draw calls while
+exiting perfectly cleanly. The fix is to take the size from
+`GraphicsDevice::getViewportProperty()`, the surface actually being drawn into. That is more
+correct in general: on a scaled or letterboxed presentation the window and the viewport differ, and
+the viewport is what a renderer needs.
+
+Worth noting the tier table (F-02) predicted this: SOFTWARE is classified *Preview Only* precisely
+because it cannot host an editor UI in the ordinary sense.
+
+**A clean exit proves nothing.** A window that opens, loops and closes having drawn nothing is
+indistinguishable from a working editor unless you look at the pixels. That is why
+`--screenshot=PATH` exists and why `CnaEditorWindowSmoke` asserts on a written PNG rather than on
+an exit code. The same mechanism — `GraphicsDevice::GetBackBufferData` plus
+`Texture2D::SaveAsPng`, both public API — is what plan.md ED-510's backend comparison mode will
+capture through, so building it now costs nothing later.
 
 ### F-06 — No UI toolkit is vendored ⚠️
 
@@ -491,6 +519,29 @@ means and tracks play/pause/step, while drawing belongs to the CNA-linked main l
 message surface is unit-tested headless, and a `cna-player` built *without* CNA still speaks the
 entire protocol — which is what the editor's own end-to-end bridge test runs against.
 
+### D-16 — The window host is a free function, not an exported `Game` subclass
+
+**Decision.** `runEditorInWindow(options, application)` is the public interface. The
+`Microsoft::Xna::Framework::Game` subclass that implements it lives entirely inside
+`src/viewport/CnaEditorHost.cpp`.
+
+**Why a `Game` subclass at all.** The editor is structurally a CNA application: it wants a window,
+a graphics device, a frame loop and input, which is exactly what `Game` provides. Building a
+parallel window/loop abstraction beside it would mean maintaining a path the games being edited
+never exercise — and would quietly weaken D-01, since the editor would stop eating its own dog food
+at the layer most worth testing.
+
+**Why the class is not exported.** A base class cannot be hidden behind a pimpl. Exposing the class
+publicly would put `Game` in the public interface, which forces `cna-editor-viewport` to link CNA
+`PUBLIC` — and then every target linking the viewport can reach CNA headers, and the layering rule
+stops being enforced by the build graph. The free function keeps CNA a *private* link dependency.
+This was found the honest way: the first attempt exported the class and the build broke, which is
+the build system correctly refusing a design that would have weakened D-03.
+
+**Same reasoning applied to `cna-player`.** It needs the compiled-in backend name, which it now
+asks for through `CnaUiRenderer::getBackendName()` rather than by including `CNA/GraphicsBackendType.hpp`
+itself. One module includes CNA; everything else asks that module.
+
 ### D-13 — The editor's own math types, duplicated from CNA's
 
 **Decision.** `EditorVector2/3/4`, `EditorQuaternion`, `EditorColor`, `EditorRectangle` in
@@ -571,9 +622,11 @@ socket** — verified by `FullProjectRoundTripThroughTheApplication`,
 `ImGuiUiProducesValidDrawDataForTheWholeEditor` and
 `EditorLaunchesARealPlayerProcessAndTalksToIt` respectively.
 
-What remains is the part that needs a window: creating one, creating a CNA graphics device, and
-presenting the geometry the UI already produces. That is `plan.md` ED-111, and it is now the single
-task between here and a visible editor.
+The window exists too: built against a real CNA checkout, the editor opens, docks its five panels
+and renders them through CNA's public API, verified by a screenshot rather than by an exit code.
+
+What remains of the original milestone is the *scene* viewport's own drawing — sprites, grid,
+selection outline, gizmo — and the editor-side Play toolbar. Those are `plan.md` Phase 1.
 
 ---
 

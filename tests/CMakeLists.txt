@@ -57,6 +57,33 @@ set_tests_properties(CnaEditorRejectsGraphicsFlag PROPERTIES WILL_FAIL TRUE)
 
 add_test(NAME CnaPlayerHelp COMMAND cna-player --help)
 
+if(CNA_EDITOR_WITH_CNA AND CNA_EDITOR_WITH_IMGUI)
+    # The real thing: open a window, draw the editor through CNA's public API, and write a PNG of
+    # the result. A run that merely exits cleanly cannot tell a working editor from one that opened
+    # a blank window, so the screenshot is the assertion -- if the editor drew nothing, the file
+    # never appears and the test fails.
+    #
+    # SDL_VIDEODRIVER=dummy so this works on a build machine with no display. Backends that need a
+    # real GPU context will not pass under it; SOFTWARE and HEADLESS are the ones meant for CI.
+    add_test(NAME CnaEditorWindowSmoke
+        COMMAND cna-editor
+            --project=${CMAKE_CURRENT_SOURCE_DIR}/../examples/HelloSprites/HelloSprites.cnaproject
+            --frames=20
+            --screenshot=${CMAKE_CURRENT_BINARY_DIR}/editor-smoke.png)
+    set_tests_properties(CnaEditorWindowSmoke PROPERTIES
+        ENVIRONMENT "SDL_VIDEODRIVER=dummy"
+        TIMEOUT 180)
+
+    # --screenshot without --frames has no final frame to capture, and silently writing nothing
+    # would make the smoke test above pass for the wrong reason.
+    add_test(NAME CnaEditorScreenshotNeedsFrameLimit
+        COMMAND cna-editor
+            --project=${CMAKE_CURRENT_SOURCE_DIR}/../examples/HelloSprites/HelloSprites.cnaproject
+            --screenshot=${CMAKE_CURRENT_BINARY_DIR}/never-written.png
+            --headless)
+    set_tests_properties(CnaEditorScreenshotNeedsFrameLimit PROPERTIES TIMEOUT 60)
+endif()
+
 # cna-player requires a project: launching one without is a mistake worth failing on, not
 # something to paper over with a default.
 add_test(NAME CnaPlayerRequiresAProject COMMAND cna-player)

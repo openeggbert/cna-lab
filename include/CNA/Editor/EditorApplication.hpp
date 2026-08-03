@@ -46,6 +46,14 @@ namespace CNA::Editor
         /** @brief Exit after this many frames. Zero means run until the user quits. */
         int frameLimit = 0;
 
+        /**
+         * @brief Write a PNG of the final frame here. Requires a frame limit.
+         *
+         * A smoke test that only checks the process exited cleanly cannot tell a working editor
+         * from one that opened a blank window; an image can.
+         */
+        std::string screenshotPath;
+
         /** @brief Print the backend table and exit. */
         bool listBackends = false;
 

@@ -3,14 +3,16 @@
 Editor, asset pipeline and tooling for [CNA](https://github.com/openeggbert/cna) — the C++
 reimplementation of the XNA 4.0 framework.
 
-> **Status: everything except the window.** The document model, undo system, asset database and
-> project format are implemented and tested. The **Dear ImGui UI** draws every panel and is
-> validated headless in CI. The **`cna-player` process** is launched by the editor over a real
-> socket. The **renderer that draws the UI through CNA's public API** is written and compiles
-> against real CNA headers.
+> **Status: it opens and it draws.** Built against a real CNA checkout, `cna-editor` opens a
+> window, docks its five panels, and renders them entirely through CNA's *public* API — no
+> internal headers, no authored shader, no per-backend renderer. The **`cna-player` process** is
+> launched by the editor over a real socket. The document model, undo system, asset database and
+> project format are implemented and tested.
 >
-> What is missing is creating the window and presenting that geometry — [`plan.md`](plan.md)
-> ED-111, the single task between here and a visible editor.
+> The default build stays dependency-free: no CNA checkout, no GPU, no window, 97 tests in about a
+> second. What is missing is the *scene* viewport's own drawing — [`plan.md`](plan.md) Phase 1.
+
+![cna-editor running on the EASYGL backend](docs/images/editor-easygl.png)
 
 ---
 
@@ -72,8 +74,27 @@ git clone https://github.com/openeggbert/cna.git
 git clone https://github.com/openeggbert/sharp-runtime.git
 cd cna-editor
 
-cmake -S . -B build-cna -DCNA_EDITOR_WITH_CNA=ON
+cmake -S . -B build-cna -DCNA_EDITOR_WITH_CNA=ON -DCNA_DEVICES=ON
 cmake --build build-cna -j
+
+# Opens a real window with the editor in it.
+./build-cna/cna-editor --project=examples/HelloSprites/HelloSprites.cnaproject
+```
+
+CNA itself needs SDL3's build dependencies (on Debian/Ubuntu: `libx11-dev libxext-dev
+libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev libxtst-dev libxkbcommon-dev
+libwayland-dev wayland-protocols libdecor-0-dev`) plus FFmpeg headers (`libavcodec-dev
+libavformat-dev libavutil-dev libswresample-dev`). `-DCNA_DEVICES=ON` is what gives the editor a
+working clipboard.
+
+To prove it drew something without looking at it — which is what CI does:
+
+```bash
+SDL_VIDEODRIVER=dummy ./build-cna/cna-editor \
+    --project=examples/HelloSprites/HelloSprites.cnaproject \
+    --frames=20 --screenshot=editor.png
+# cna-editor: backend SOFTWARE, 56 frames, 1600x900 display, 14 draw calls, 1858 triangles,
+#             1 textures created, 0 texture updates, 0 commands clipped away
 ```
 
 ### Options

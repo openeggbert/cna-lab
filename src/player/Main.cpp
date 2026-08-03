@@ -23,8 +23,11 @@
 #include "CNA/Editor/Player/PlayerHost.hpp"
 #include "CNA/Editor/RuntimeBridge/MessageChannel.hpp"
 
+// Asked through the viewport module rather than by including CNA directly: that keeps CNA a
+// private link dependency of exactly one module, which is what makes the layering rule
+// (ANALYSIS.md decision D-03) checkable by the build graph.
 #if defined(CNA_EDITOR_HAS_CNA)
-#    include "CNA/GraphicsBackendType.hpp"
+#    include "CNA/Editor/Viewport/CnaUiRenderer.hpp"
 #endif
 
 namespace
@@ -129,7 +132,7 @@ namespace
     std::string compiledBackendName()
     {
 #if defined(CNA_EDITOR_HAS_CNA)
-        return std::string{CNA::getCurrentGraphicsBackendName()};
+        return CNA::Editor::CnaUiRenderer::getBackendName();
 #else
         // Built without CNA: the protocol and state machine are exercised, nothing is drawn.
         // This is the configuration the editor's own tests run against.
