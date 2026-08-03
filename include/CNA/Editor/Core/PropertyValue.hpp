@@ -43,7 +43,20 @@ namespace CNA::Editor
         /** @brief A reference to an asset by its stable AssetDatabase id. */
         AssetReference,
         /** @brief A reference to another entity in the same scene document. */
-        EntityReference
+        EntityReference,
+
+        /**
+         * @brief An ordered, homogeneous list of values.
+         *
+         * Added last on purpose. `toString(PropertyType)` is on the editor-to-player wire, so the
+         * names must stay stable, and appending rather than inserting keeps every existing name
+         * where it was.
+         *
+         * The element type is *declared*, on the PropertyDescriptor, rather than inferred from the
+         * first element: a list that is empty has no first element, and a list whose type depended
+         * on its contents could not be edited back from empty.
+         */
+        List
     };
 
     /** @brief Returns the stable textual name of @p type as written into scene files. */
@@ -84,6 +97,23 @@ namespace CNA::Editor
             friend bool operator==(const EntityReference& lhs, const EntityReference& rhs) { return lhs.id == rhs.id; }
         };
 
+        /**
+         * @brief An ordered list of values, all of the declared element type.
+         *
+         * A struct rather than a bare vector so the variant can hold it: `std::vector` of an
+         * incomplete type is well-defined, which is what makes a PropertyValue able to contain
+         * PropertyValues at all.
+         */
+        struct ListValue
+        {
+            std::vector<PropertyValue> items;
+
+            friend bool operator==(const ListValue& lhs, const ListValue& rhs)
+            {
+                return lhs.items == rhs.items;
+            }
+        };
+
         using Storage = std::variant<std::monostate,
                                      bool,
                                      std::int64_t,
@@ -97,7 +127,8 @@ namespace CNA::Editor
                                      EditorQuaternion,
                                      EditorRectangle,
                                      AssetReference,
-                                     EntityReference>;
+                                     EntityReference,
+                                     ListValue>;
 
         PropertyValue() = default;
         PropertyValue(bool value) : storage_(value) {}
@@ -116,6 +147,7 @@ namespace CNA::Editor
         PropertyValue(EditorRectangle value) : storage_(value) {}
         PropertyValue(AssetReference value) : storage_(value) {}
         PropertyValue(EntityReference value) : storage_(value) {}
+        PropertyValue(ListValue value) : storage_(std::move(value)) {}
 
         /** @brief Returns which alternative is held. */
         [[nodiscard]] PropertyType getType() const;
@@ -160,9 +192,13 @@ namespace CNA::Editor
          *
          * @param json The serialised form produced by toJson().
          * @param type The type the ComponentDescriptor declares for this property.
+         * @param elementType The element type when @p type is List; ignored otherwise. None means
+         *        the list reads back empty, which is the honest answer when nothing declared what
+         *        its elements are.
          * @return The parsed value, or an empty PropertyValue when @p json does not fit @p type.
          */
-        static PropertyValue fromJson(const JsonValue& json, PropertyType type);
+        static PropertyValue fromJson(const JsonValue& json, PropertyType type,
+                                      PropertyType elementType = PropertyType::None);
 
         /** @brief Returns the natural zero value for @p type; used when a scene file omits a field. */
         static PropertyValue defaultOf(PropertyType type);

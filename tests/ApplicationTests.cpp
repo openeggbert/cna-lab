@@ -2189,3 +2189,116 @@ CNA_EDITOR_TEST(OptionsParseTheAutosaveAndRecoveryFlags)
     CNA_EDITOR_EXPECT(!clamped.hasError);
     CNA_EDITOR_EXPECT_EQ(clamped.autosaveSeconds, 0.0);
 }
+
+namespace
+{
+    /** @brief Registers a component carrying one `List<String>` property. */
+    void registerTaggedComponent(ComponentRegistry& registry)
+    {
+        ComponentDescriptor descriptor;
+        descriptor.typeId = "Game.Tagged";
+        descriptor.displayName = "Tagged";
+
+        PropertyDescriptor tags;
+        tags.name = "tags";
+        tags.displayName = "Tags";
+        tags.type = PropertyType::List;
+        tags.elementType = PropertyType::String;
+        tags.defaultValue = PropertyValue{PropertyValue::ListValue{}};
+        descriptor.properties.push_back(std::move(tags));
+
+        registry.registerComponent(std::move(descriptor));
+    }
+
+    /** @brief Returns the stored list as "a, b", which the assertion macro can print. */
+    std::string tagsOf(const EditorContext& context, const Uuid& entityId)
+    {
+        const EditorEntity* entity = context.getScene().findEntity(entityId);
+        if (entity == nullptr) { return {}; }
+
+        const EditorComponent* component = entity->findComponent("Game.Tagged");
+        if (component == nullptr) { return {}; }
+
+        std::string joined;
+        for (const PropertyValue& item : component->getProperty("tags").get<PropertyValue::ListValue>().items)
+        {
+            if (!joined.empty()) { joined += ", "; }
+            joined += item.get<std::string>();
+        }
+        return joined;
+    }
+
+    /** @brief Returns how many elements the stored list holds. */
+    std::size_t tagCountOf(const EditorContext& context, const Uuid& entityId)
+    {
+        const EditorEntity* entity = context.getScene().findEntity(entityId);
+        if (entity == nullptr) { return 0; }
+
+        const EditorComponent* component = entity->findComponent("Game.Tagged");
+        if (component == nullptr) { return 0; }
+
+        return component->getProperty("tags").get<PropertyValue::ListValue>().items.size();
+    }
+}
+
+CNA_EDITOR_TEST(TheInspectorAddsRemovesAndReordersListElements)
+{
+    auto scripted = std::make_unique<ScriptedUi>();
+    ScriptedUi* ui = scripted.get();
+    EditorApplication application{std::move(scripted), std::make_unique<NullEditorViewport>()};
+
+    EditorOptions options;
+    options.headless = true;
+    CNA_EDITOR_EXPECT(application.initialize(options));
+
+    EditorContext& context = application.getContext();
+    registerTaggedComponent(context.getComponentRegistry());
+
+    EditorEntity entity{Uuid::generate(), "Tile"};
+    entity.addComponent(EditorComponent{BuiltinComponentIds::kTransform});
+    entity.addComponent(EditorComponent{"Game.Tagged"});
+    const Uuid entityId = context.getScene().addEntity(std::move(entity));
+    context.select(entityId);
+
+    application.renderFrame();
+    CNA_EDITOR_EXPECT(ui->sawStringNode("list-Game.Tagged-tags"));
+
+    // Add twice. Each press is one action and must be one undo entry, or pressing Add three times
+    // would undo in one.
+    ui->pendingClicks.emplace_back("Add##list-Game.Tagged-tags");
+    application.renderFrame();
+    ui->pendingClicks.emplace_back("Add##list-Game.Tagged-tags");
+    application.renderFrame();
+
+    CNA_EDITOR_EXPECT_EQ(tagCountOf(context, entityId), std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(context.getHistory().getCount(), std::size_t{2});
+
+    // The new elements carry the *declared* element type, not the type of whatever was already
+    // there -- an empty list has nothing to copy from, and that is when Add is pressed.
+    ui->pendingEdits.emplace_back("0##list-Game.Tagged-tags-0", PropertyValue{std::string{"ground"}});
+    application.renderFrame();
+    ui->pendingEdits.emplace_back("1##list-Game.Tagged-tags-1", PropertyValue{std::string{"solid"}});
+    application.renderFrame();
+
+    CNA_EDITOR_EXPECT_EQ(tagsOf(context, entityId), std::string{"ground, solid"});
+
+    // Moving is a swap with the neighbour, and the first row has no Up button rather than a dead
+    // one -- a button that does nothing when pressed is a bug report waiting to be filed.
+    CNA_EDITOR_EXPECT(!ui->sawButton("Up##list-Game.Tagged-tags-0"));
+    CNA_EDITOR_EXPECT(ui->sawButton("Up##list-Game.Tagged-tags-1"));
+    CNA_EDITOR_EXPECT(!ui->sawButton("Down##list-Game.Tagged-tags-1"));
+
+    ui->pendingClicks.emplace_back("Up##list-Game.Tagged-tags-1");
+    application.renderFrame();
+    CNA_EDITOR_EXPECT_EQ(tagsOf(context, entityId), std::string{"solid, ground"});
+
+    ui->pendingClicks.emplace_back("Remove##list-Game.Tagged-tags-0");
+    application.renderFrame();
+    CNA_EDITOR_EXPECT_EQ(tagsOf(context, entityId), std::string{"ground"});
+
+    // And every one of those steps undoes on its own.
+    application.undo();
+    CNA_EDITOR_EXPECT_EQ(tagsOf(context, entityId), std::string{"solid, ground"});
+    application.undo();
+    CNA_EDITOR_EXPECT_EQ(tagsOf(context, entityId), std::string{"ground, solid"});
+}

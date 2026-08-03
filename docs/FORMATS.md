@@ -165,12 +165,25 @@ small and readable.
 | `rectangle` | `[x, y, width, height]` | `[0, 0, 32, 32]` |
 | `asset` | UUID string, or `null` | `"67ecaf68-…"` |
 | `entity` | UUID string, or `null` | `"f392a1b2-…"` |
+| `list` | array of the element encoding | `["ground", "solid"]` |
 
 An absent or malformed **quaternion** defaults to identity `[0, 0, 0, 1]`, not to all-zero: an
 all-zero quaternion is not a rotation and would collapse the transform.
 
 An **empty rectangle** (`width` or `height` ≤ 0) means "the whole texture", matching XNA's own
 `SpriteBatch::Draw` convention for a null source rectangle.
+
+A **list** carries no per-element type tag. Its element type is declared once, on the
+`PropertyDescriptor`, and never inferred from the contents — an empty list has no element to infer
+from, and a list whose type followed its contents could never be edited back from empty. A tag per
+element would be a second source of truth, and the first one to disagree would win by accident.
+Lists do not nest: a list of lists is a table, and a table deserves its own type rather than a
+widget that recurses.
+
+Note that a **2-, 3- or 4-element array on an unregistered component** is still read as a vector,
+because nothing declares otherwise and that guess has been the one the editor makes since Phase 0.
+Any other length is read as a list, element by element, which is what makes a scene whose plugin is
+missing save back byte-for-byte instead of losing the field.
 
 ### Loading is forgiving on purpose
 

@@ -28,16 +28,51 @@ namespace CNA::Editor
                 case JsonType::Boolean: return PropertyType::Boolean;
                 case JsonType::Number: return PropertyType::Float;
                 case JsonType::String: return PropertyType::String;
-                case JsonType::Array:
-                    switch (json.getElements().size())
+                case JsonType::Array: {
+                    // A short array of numbers is a vector, which is the guess the editor has made
+                    // since Phase 0 and the overwhelmingly common case. A short array of anything
+                    // else is not: reading ["ground", "solid"] as a Vector2 turns it into (0, 0)
+                    // and writes that back, silently emptying a field on a component whose plugin
+                    // is missing -- the one case the descriptor system promises to survive.
+                    const auto& elements = json.getElements();
+                    const bool allNumbers =
+                        !elements.empty()
+                        && std::all_of(elements.begin(), elements.end(), [](const JsonValue& element)
+                                       { return element.getType() == JsonType::Number; });
+                    if (!allNumbers) { return PropertyType::List; }
+
+                    switch (elements.size())
                     {
                         case 2: return PropertyType::Vector2;
                         case 3: return PropertyType::Vector3;
                         case 4: return PropertyType::Vector4;
-                        default: return PropertyType::String;
+                        default: return PropertyType::List;
                     }
+                }
                 default: return PropertyType::String;
             }
+        }
+
+        /**
+         * @brief Reads a value with no descriptor to say what it is.
+         *
+         * Only reached for a component type that is not registered. The goal is not fidelity of
+         * *meaning* -- nothing here knows what the field means -- but fidelity of *bytes*, so that
+         * opening and saving a scene whose plugin is missing leaves the file as it was.
+         */
+        PropertyValue readUntyped(const JsonValue& json)
+        {
+            const PropertyType type = inferPropertyType(json);
+            if (type != PropertyType::List) { return PropertyValue::fromJson(json, type); }
+
+            // Element by element, because nothing declared what they are. A homogeneous list --
+            // which is what a list in a scene file always is in practice -- comes back exactly.
+            PropertyValue::ListValue list;
+            for (const JsonValue& element : json.getElements())
+            {
+                list.items.push_back(readUntyped(element));
+            }
+            return PropertyValue{std::move(list)};
         }
     }
 
@@ -304,9 +339,17 @@ namespace CNA::Editor
                 {
                     const PropertyDescriptor* property =
                         descriptor != nullptr ? descriptor->findProperty(propertyName) : nullptr;
-                    const PropertyType type =
-                        property != nullptr ? property->type : inferPropertyType(propertyJson);
-                    component.setProperty(propertyName, PropertyValue::fromJson(propertyJson, type));
+                    if (property == nullptr)
+                    {
+                        // No descriptor: read for byte fidelity rather than for meaning, so that
+                        // opening and saving a scene whose plugin is missing leaves the file alone.
+                        component.setProperty(propertyName, readUntyped(propertyJson));
+                        continue;
+                    }
+
+                    component.setProperty(propertyName,
+                                          PropertyValue::fromJson(propertyJson, property->type,
+                                                                  property->elementType));
                 }
 
                 if (descriptor != nullptr) { component.applyDefaults(*descriptor); }
@@ -315,7 +358,7 @@ namespace CNA::Editor
 
             for (const auto& [name, valueJson] : entityJson["editorState"].getMembers())
             {
-                entity.setEditorState(name, PropertyValue::fromJson(valueJson, inferPropertyType(valueJson)));
+                entity.setEditorState(name, readUntyped(valueJson));
             }
 
             if (!addEntity(std::move(entity)).isValid())

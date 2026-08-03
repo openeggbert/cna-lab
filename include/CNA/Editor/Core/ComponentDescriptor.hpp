@@ -47,6 +47,16 @@ namespace CNA::Editor
         std::vector<std::string> enumOptions;
 
         /**
+         * @brief What a List's elements are, when @c type is PropertyType::List.
+         *
+         * Declared rather than inferred from the stored value. An empty list has no element to
+         * infer from, and a list whose type followed its contents could never be edited back from
+         * empty. Nested lists are not allowed: a list of lists is a table, and a table wants its
+         * own type rather than a widget that recurses.
+         */
+        PropertyType elementType = PropertyType::None;
+
+        /**
          * @brief Which kind of asset an AssetReference field accepts, e.g. "Texture2D".
          *
          * Empty means any. Held as a string rather than as an AssetType so that this header stays

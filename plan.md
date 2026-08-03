@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **242 passing tests across 7 CTest suites** (10 with CNA)
+- 12 modules, three executables, and **247 passing tests across 7 CTest suites** (10 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -35,6 +35,8 @@ checkout, no GPU and no window:
 - the scene draws with an adaptive grid, sprites ordered by layer depth, selection outlines, a
   **translate gizmo** whose drag is one undo entry, and **icons** for entities that have no
   geometry to draw
+- **list properties** exist end to end: declared element type, JSON array encoding, and an
+  inspector block that adds, removes and reorders — each press its own undo entry
 - **edits reach the running game**: a property change, its undo, and a texture changed on disk
   are all pushed to the live `cna-player` over the bridge, verified against a real process
 - **play mode works end to end**: the Play toolbar launches a real `cna-player` on a backend chosen
@@ -246,7 +248,7 @@ position in the inspector, undo, save the scene, and run it in a separate CNA Pl
 | ED-308 | Build and publish dialog driving CNA's own CMake targets | ⬜ |
 | ED-309 | Backend diagnostics: report the current build's `GraphicsCapability` set | ⬜ |
 | ED-310 | Scene validation: missing references, duplicate primary cameras, zero scale, empty entities | ✅ | `SceneValidation.hpp` holds the structural rules; missing references stay in `MissingReferences.hpp` because they need the asset database and the rules do not. Both report into one **Validation** panel: a user whose scene misbehaves does not know in advance which of the two is at fault. Every rule describes a *legal* state, so nothing refuses to save and nothing is repaired automatically — a rule that fired on a scene the user meant to write would be worse than no rule. Clicking an issue selects the entity |
-| ED-311 | `PropertyType::List` and `NestedStructure`, with inspector support | ⬜ |
+| ED-311 | `PropertyType::List` and `NestedStructure`, with inspector support | 🔄 | **`List` is done; `NestedStructure` is deliberately not, and this row stays open because of it.** The element type is *declared* on the descriptor, never inferred: an empty list has no element to infer from, and a list whose type followed its contents could never be edited back from empty. `list` was appended to the type-name table rather than inserted, because those names are on the editor-to-player wire. Every change comes back as the whole new list, so add, remove, move and edit are all plain `SetPropertyCommand`s — and structural ones take their own undo entry, or pressing Add three times would undo in one. **`NestedStructure` waits for ED-300**: its only consumer is prefab overrides, and designing a nested schema with nothing to validate it against is how you get it wrong |
 | ED-320 | GPU picking through an id render target | ⛔ |
 
 **ED-320 deferred.** Ray-cast picking (ED-206) is correct and needs no render target or GPU

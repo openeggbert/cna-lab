@@ -16,7 +16,7 @@ namespace CNA::Editor
             const char* name;
         };
 
-        constexpr std::array<TypeName, 14> kTypeNames{{
+        constexpr std::array<TypeName, 15> kTypeNames{{
             {PropertyType::None, "none"},
             {PropertyType::Boolean, "bool"},
             {PropertyType::Integer, "int"},
@@ -31,6 +31,7 @@ namespace CNA::Editor
             {PropertyType::Rectangle, "rectangle"},
             {PropertyType::AssetReference, "asset"},
             {PropertyType::EntityReference, "entity"},
+            {PropertyType::List, "list"},
         }};
 
         /** @brief Reads @p count floats out of a JSON array, leaving missing slots at zero. */
@@ -98,6 +99,7 @@ namespace CNA::Editor
             case 11: return PropertyType::Rectangle;
             case 12: return PropertyType::AssetReference;
             case 13: return PropertyType::EntityReference;
+            case 14: return PropertyType::List;
             default: return PropertyType::None;
         }
     }
@@ -154,11 +156,23 @@ namespace CNA::Editor
                 const Uuid id = get<EntityReference>().id;
                 return id.isValid() ? JsonValue{id.toString()} : JsonValue{};
             }
+            case PropertyType::List: {
+                // A plain JSON array of the elements' own encodings, with no type tag per item.
+                // The descriptor declares the element type, so a tag would be a second source of
+                // truth -- and the first one to disagree wins by accident.
+                JsonValue json = JsonValue::makeArray();
+                for (const PropertyValue& item : get<ListValue>().items)
+                {
+                    json.append(item.toJson());
+                }
+                return json;
+            }
         }
         return JsonValue{};
     }
 
-    PropertyValue PropertyValue::fromJson(const JsonValue& json, PropertyType type)
+    PropertyValue PropertyValue::fromJson(const JsonValue& json, PropertyType type,
+                                          PropertyType elementType)
     {
         switch (type)
         {
@@ -216,6 +230,23 @@ namespace CNA::Editor
                 return PropertyValue{AssetReference{Uuid::parse(json.asString())}};
             case PropertyType::EntityReference:
                 return PropertyValue{EntityReference{Uuid::parse(json.asString())}};
+            case PropertyType::List: {
+                ListValue list;
+
+                // An undeclared element type reads back as an empty list rather than as guessed
+                // values. Guessing would produce a list the inspector cannot edit and the next save
+                // would write out in a shape nothing declared.
+                if (elementType == PropertyType::None || elementType == PropertyType::List)
+                {
+                    return PropertyValue{std::move(list)};
+                }
+
+                for (const JsonValue& element : json.getElements())
+                {
+                    list.items.push_back(fromJson(element, elementType));
+                }
+                return PropertyValue{std::move(list)};
+            }
         }
         return PropertyValue{};
     }
@@ -238,6 +269,7 @@ namespace CNA::Editor
             case PropertyType::Rectangle: return PropertyValue{EditorRectangle{}};
             case PropertyType::AssetReference: return PropertyValue{AssetReference{}};
             case PropertyType::EntityReference: return PropertyValue{EntityReference{}};
+            case PropertyType::List: return PropertyValue{ListValue{}};
         }
         return PropertyValue{};
     }
@@ -288,6 +320,12 @@ namespace CNA::Editor
             case PropertyType::EntityReference: {
                 const Uuid id = get<EntityReference>().id;
                 return id.isValid() ? "entity:" + id.toString() : "entity:<none>";
+            }
+            case PropertyType::List: {
+                // A count rather than the contents. This string ends up in undo labels and console
+                // lines, where a list of two hundred tiles would drown everything around it.
+                const std::size_t count = get<ListValue>().items.size();
+                return count == 1 ? "1 item" : std::to_string(count) + " items";
             }
         }
         return "<none>";

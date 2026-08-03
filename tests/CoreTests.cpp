@@ -415,3 +415,122 @@ CNA_EDITOR_TEST(TheProjectLoaderRunsItsChainToo)
     CNA_EDITOR_EXPECT_EQ(project.getName(), std::string{"Upgraded"});
     CNA_EDITOR_EXPECT(!result.warnings.empty());
 }
+
+// --------------------------------------------------------------------------------------------
+// List properties (plan.md ED-311)
+// --------------------------------------------------------------------------------------------
+
+CNA_EDITOR_TEST(AListRoundTripsThroughJsonWithItsDeclaredElementType)
+{
+    PropertyValue::ListValue tags;
+    tags.items.emplace_back(std::string{"ground"});
+    tags.items.emplace_back(std::string{"solid"});
+
+    const PropertyValue value{tags};
+    CNA_EDITOR_EXPECT(value.getType() == PropertyType::List);
+    CNA_EDITOR_EXPECT_EQ(value.toDisplayString(), std::string{"2 items"});
+
+    // A plain array with no per-element type tag: the descriptor is the one source of truth for
+    // what the elements are.
+    const JsonValue json = value.toJson();
+    CNA_EDITOR_EXPECT(json.isArray());
+    CNA_EDITOR_EXPECT_EQ(json.getElements().size(), std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(json.getElements().front().asString(), std::string{"ground"});
+
+    const PropertyValue read = PropertyValue::fromJson(json, PropertyType::List, PropertyType::String);
+    CNA_EDITOR_EXPECT(read == value);
+
+    // A list of vectors is a list of arrays, and nests exactly one level -- which is all it has to.
+    PropertyValue::ListValue points;
+    points.items.emplace_back(EditorVector2{1.0f, 2.0f});
+    points.items.emplace_back(EditorVector2{3.0f, 4.0f});
+    const PropertyValue vectors{points};
+    CNA_EDITOR_EXPECT(PropertyValue::fromJson(vectors.toJson(), PropertyType::List,
+                                              PropertyType::Vector2) == vectors);
+
+    // One item reads as "1 item", because "1 items" is the kind of detail that makes a UI look
+    // machine-written.
+    PropertyValue::ListValue single;
+    single.items.emplace_back(std::int64_t{7});
+    CNA_EDITOR_EXPECT_EQ(PropertyValue{single}.toDisplayString(), std::string{"1 item"});
+}
+
+CNA_EDITOR_TEST(AListWithNoDeclaredElementTypeReadsBackEmpty)
+{
+    JsonValue json = JsonValue::makeArray();
+    json.append(JsonValue{"ground"});
+    json.append(JsonValue{"solid"});
+
+    // Guessing would produce a list the inspector cannot edit and the next save would write out in
+    // a shape nothing declared. Empty is the honest answer.
+    const PropertyValue read = PropertyValue::fromJson(json, PropertyType::List);
+    CNA_EDITOR_EXPECT(read.getType() == PropertyType::List);
+    CNA_EDITOR_EXPECT(read.get<PropertyValue::ListValue>().items.empty());
+
+    // Nor do lists nest: a list of lists is a table and deserves its own type.
+    CNA_EDITOR_EXPECT(PropertyValue::fromJson(json, PropertyType::List, PropertyType::List)
+                          .get<PropertyValue::ListValue>()
+                          .items.empty());
+}
+
+CNA_EDITOR_TEST(TheListTypeNameIsAppendedRatherThanInserted)
+{
+    // toString(PropertyType) is on the editor-to-player wire, so every existing name has to stay
+    // exactly where it was. This asserts the whole table, which is the only way to notice an
+    // insertion in the middle.
+    CNA_EDITOR_EXPECT_EQ(std::string{toString(PropertyType::List)}, std::string{"list"});
+    CNA_EDITOR_EXPECT(parsePropertyType("list") == PropertyType::List);
+
+    CNA_EDITOR_EXPECT_EQ(std::string{toString(PropertyType::Boolean)}, std::string{"bool"});
+    CNA_EDITOR_EXPECT_EQ(std::string{toString(PropertyType::Vector3)}, std::string{"vector3"});
+    CNA_EDITOR_EXPECT_EQ(std::string{toString(PropertyType::AssetReference)}, std::string{"asset"});
+    CNA_EDITOR_EXPECT_EQ(std::string{toString(PropertyType::EntityReference)}, std::string{"entity"});
+    CNA_EDITOR_EXPECT(parsePropertyType("vector3") == PropertyType::Vector3);
+    CNA_EDITOR_EXPECT(parsePropertyType("nonsense") == PropertyType::None);
+}
+
+CNA_EDITOR_TEST(ASceneRoundTripsAListAndDoesNotLoseAnUnregisteredOne)
+{
+    ComponentRegistry registry;
+    registerBuiltinComponents(registry);
+
+    ComponentDescriptor tagged;
+    tagged.typeId = "Game.Tagged";
+    tagged.displayName = "Tagged";
+    PropertyDescriptor tags;
+    tags.name = "tags";
+    tags.type = PropertyType::List;
+    tags.elementType = PropertyType::String;
+    tags.defaultValue = PropertyValue{PropertyValue::ListValue{}};
+    tagged.properties.push_back(std::move(tags));
+    CNA_EDITOR_EXPECT(registry.registerComponent(tagged));
+
+    PropertyValue::ListValue list;
+    list.items.emplace_back(std::string{"ground"});
+    list.items.emplace_back(std::string{"solid"});
+
+    SceneDocument scene;
+    EditorEntity entity{Uuid::generate(), "Tile"};
+    EditorComponent component{"Game.Tagged"};
+    component.setProperty("tags", PropertyValue{list});
+    entity.addComponent(std::move(component));
+    scene.addEntity(std::move(entity));
+
+    SceneDocument reloaded;
+    CNA_EDITOR_EXPECT(reloaded.loadFromJson(scene.toJson(), registry).succeeded);
+
+    const EditorComponent* readBack = reloaded.getEntities().front().findComponent("Game.Tagged");
+    CNA_EDITOR_EXPECT(readBack != nullptr);
+    CNA_EDITOR_EXPECT(readBack->getProperty("tags") == PropertyValue{list});
+
+    // The same scene opened by a build whose plugin is missing must save back byte for byte.
+    // Before lists existed this array became the empty string and the field was silently lost.
+    ComponentRegistry withoutPlugin;
+    registerBuiltinComponents(withoutPlugin);
+
+    SceneDocument blind;
+    const SceneLoadResult blindLoad = blind.loadFromJson(scene.toJson(), withoutPlugin);
+    CNA_EDITOR_EXPECT(blindLoad.succeeded);
+    CNA_EDITOR_EXPECT(!blindLoad.warnings.empty());
+    CNA_EDITOR_EXPECT_EQ(Json::write(blind.toJson()), Json::write(scene.toJson()));
+}

@@ -36,16 +36,44 @@ namespace CNA::Editor
         /** @brief Draws the "Add Component" picker for @p entity. */
         void drawAddComponentControl(const EditorEntity& entity);
 
+        /** @brief A property change the user made this frame. */
+        struct PropertyEdit
+        {
+            PropertyValue value;
+
+            /**
+             * @brief True when the change is a discrete action rather than a continuous one.
+             *
+             * Adding, removing or moving a list element is one action per press and must be one
+             * undo entry per press. Dragging a slider is one action however many frames it spans,
+             * and merges. The distinction cannot be made from the value alone -- both arrive as
+             * "this property is now that" -- so the row that drew it says which it was.
+             */
+            bool structural = false;
+        };
+
         /**
          * @brief Draws one property row, returning the new value when the user changed it.
          *
-         * Quaternions are shown as Euler angles in degrees; everything else goes straight to the
-         * matching widget.
+         * Quaternions are shown as Euler angles in degrees; lists get a collapsible block of rows;
+         * everything else goes straight to the matching widget.
          */
-        [[nodiscard]] std::optional<PropertyValue> drawPropertyRow(const Uuid& entityId,
-                                                                   const std::string& componentTypeId,
-                                                                   const PropertyDescriptor& property,
-                                                                   const PropertyValue& value);
+        [[nodiscard]] std::optional<PropertyEdit> drawPropertyRow(const Uuid& entityId,
+                                                                  const std::string& componentTypeId,
+                                                                  const PropertyDescriptor& property,
+                                                                  const PropertyValue& value);
+
+        /**
+         * @brief Draws a List property as a collapsible block of element rows.
+         *
+         * Every change -- an element edited, added, removed or moved -- comes back as the whole new
+         * list. Rewriting the list wholesale is what makes each of them a plain SetPropertyCommand
+         * that undoes correctly with no new command type; the lists an editor actually holds are
+         * tens of elements, not millions.
+         */
+        [[nodiscard]] std::optional<PropertyEdit> drawListRows(const std::string& componentTypeId,
+                                                               const PropertyDescriptor& property,
+                                                               const PropertyValue& value);
 
         /**
          * @brief Takes a dropped asset for @p property, if one landed on the widget just drawn.

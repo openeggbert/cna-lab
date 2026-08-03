@@ -719,6 +719,16 @@ namespace CNA::Editor
                 ImGui::TextUnformatted(id.isValid() ? id.toString().c_str() : "(none)");
                 break;
             }
+            case PropertyType::List: {
+                // A summary, not an editor. A list needs rows, an Add and a Remove per row, and
+                // each of those has to become its own undoable command -- which is a panel's job,
+                // not a widget's. InspectorPanel draws the rows and calls back into this function
+                // once per element.
+                ImGui::TextUnformatted(label.c_str());
+                ImGui::SameLine();
+                ImGui::TextUnformatted(value.toDisplayString().c_str());
+                break;
+            }
             case PropertyType::None:
                 ImGui::TextUnformatted(label.c_str());
                 ImGui::SameLine();

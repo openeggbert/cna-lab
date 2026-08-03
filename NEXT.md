@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 242 / 242 (also under Clang Release) |
+| Unit tests | ✅ 247 / 247 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -85,6 +85,15 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-311 (part)** `PropertyType::List`. Element type declared on the descriptor, never
+  inferred. `"list"` appended to the type-name table, not inserted, because those names are on the
+  wire. The inspector draws a collapsible block; every change returns the whole new list, so add,
+  remove, move and edit are all plain `SetPropertyCommand`s, and structural ones take their own
+  undo entry. **`NestedStructure` is not done** and the plan row is 🔄, not ✅.
+  Fixed on the way: an array of non-numbers on an *unregistered* component used to be inferred as a
+  vector, so `["ground", "solid"]` became `(0, 0)` and was written back that way -- silently
+  emptying a field in the one case the descriptor system promises to survive. Inference now only
+  calls a short array a vector when every element is a number.
 - **ED-306 / ED-307** live editing into the running player. One hook does the property half:
   every document change goes through a command (D-06), so `EditorContext`'s new command observer
   sees all of them and the application mirrors the `SetPropertyCommand`s. Undo and redo mirror too,
@@ -163,8 +172,9 @@ Phase 1 closed. Working through the owner's priority order:
    `formatVersion` was bumped; `.cnarecovery` is a *new* format at version 1, not a change to an
    existing one.
 2. ~~**Live editing into the running player**~~ ✅ — ED-306 and ED-307 are done.
-3. **Production 2D tools** ← *current* — ED-311 `PropertyType::List` first, because it unblocks
-   others; then ED-300 prefabs, ED-305 layers and tags, ED-301 tilemap.
+3. **Production 2D tools** ← *current* — `PropertyType::List` is in (ED-311 is 🔄: only
+   `NestedStructure` is left, and it waits for ED-300). Next: ED-305 layers and tags, ED-300
+   prefabs, ED-301 tilemap.
 4. **ED-510** backend comparison mode.
 
 ---
@@ -175,8 +185,11 @@ Phase 1 closed. Working through the owner's priority order:
   console instead of leaving the gizmo silently absent. ED-401.
 - **The inspector's merge boundary is per-property, not per-interaction.** Two separate drags of
   the same slider collapse into one undo entry. The gizmo works around this by opening a new entry
-  on the first edit of a drag (`ViewportPanel::updateGizmoDrag`); the inspector does not. A general
-  fix would give `CommandHistory` an explicit interaction boundary.
+  on the first edit of a drag (`ViewportPanel::updateGizmoDrag`); the inspector does not. ED-311
+  narrowed it -- a *structural* edit (add, remove, move a list element, drop an asset) now opens a
+  new entry via `InspectorPanel::PropertyEdit::structural` -- but a continuous drag still merges
+  with the previous one. A general fix would give `CommandHistory` an explicit interaction
+  boundary.
 - **JPEG dimensions are not read.** `readImageSize` handles PNG and BMP; anything else reports
   unknown, and the inspector shows 0×0 with a tooltip saying why.
 - **`--headless` writes to the project.** Opening a project applies importer facts and may rewrite
@@ -195,21 +208,24 @@ Phase 1 closed. Working through the owner's priority order:
 
 ## Where to start next
 
-Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are closed. The next
-task is **ED-311**, `PropertyType::List`, and it comes first because it unblocks the rest of
-priority 3: a tilemap is a list of tiles, an animation is a list of frames, and tags are a list of
-strings. Adding it means a new `PropertyType`, a representation in `PropertyValue` (a
-`std::vector<PropertyValue>` alternative, with the element type declared on the `PropertyDescriptor`
-rather than inferred), its JSON encoding in `docs/FORMATS.md`, and an inspector widget that can add,
-remove and reorder — each of which is one undoable command, not a rewrite of the whole list.
+Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are closed and
+`PropertyType::List` is in, which was the thing blocking the rest of priority 3.
 
-Two things to decide when starting it, neither blocking:
+The next task is **ED-305, layers and tags**. It is the smallest consumer of the new list type and
+therefore the one that will show whether the type is right before three features depend on it: tags
+are a `List<String>` on a component, and layers are an `Enum` plus a project-level list of layer
+names. Two decisions to make when starting, neither blocking:
 
-- Whether `NestedStructure` lands at the same time. The plan pairs them, but a list of scalars is
-  useful on its own and a list of structures is not needed until prefab overrides (ED-300).
-- Whether reordering is a `SetProperty` of the whole list or its own command. The whole-list form is
-  trivial and undoes correctly; a move command produces a better undo label. Start with the former.
+- Whether the layer list lives in the `.cnaproject` or in the scene. The project, most likely —
+  layers are a property of the game, not of one level — but that makes it the first *project*-level
+  schema the inspector has to edit, and there is no panel for that yet.
+- Whether tags are their own component or fields on every entity. A component keeps the entity
+  model untouched and costs an Add Component press; fields on the entity make them universal but
+  put game concepts into `EditorEntity`, which D-04 argues against.
 
-The one behaviour to preserve while doing it: adding a `PropertyType` must not change what an
-existing scene file serialises to. Every format is at version 1, and ED-902's chains are empty on
-purpose — keep them that way.
+Then **ED-300 prefabs** — which is also where `NestedStructure` finally has a consumer and ED-311
+can close — and **ED-301 tilemap**.
+
+The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
+chains are empty on purpose. Adding a property type must not change what an existing scene file
+serialises to; keep it that way, and do not bump a `formatVersion` without the owner's say-so.

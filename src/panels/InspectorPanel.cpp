@@ -72,16 +72,19 @@ namespace CNA::Editor
             for (const PropertyDescriptor& property : descriptor->properties)
             {
                 const PropertyValue value = component.getPropertyOrDefault(property.name, descriptor);
-                const std::optional<PropertyValue> edited =
+                const std::optional<PropertyEdit> edited =
                     drawPropertyRow(selectedId, component.getTypeId(), property, value);
                 if (!edited) { continue; }
 
-                // Merging means an inspector drag collapses into a single undo entry that
-                // returns to the value the drag started from.
+                // Merging means an inspector drag collapses into a single undo entry that returns
+                // to the value the drag started from. A structural change -- adding, removing or
+                // moving a list element -- is one action per press and gets its own entry, or
+                // pressing Add three times would undo in one.
                 context_.execute(std::make_unique<SetPropertyCommand>(
                                      context_.getScene(), selectedId, component.getTypeId(),
-                                     property.name, *edited),
-                                 MergePolicy::MergeWithPrevious);
+                                     property.name, edited->value),
+                                 edited->structural ? MergePolicy::NewEntry
+                                                    : MergePolicy::MergeWithPrevious);
             }
             ui_.separator();
         }
@@ -98,12 +101,18 @@ namespace CNA::Editor
         }
     }
 
-    std::optional<PropertyValue> InspectorPanel::drawPropertyRow(const Uuid& entityId,
-                                                                     const std::string& componentTypeId,
-                                                                     const PropertyDescriptor& property,
-                                                                     const PropertyValue& value)
+    std::optional<InspectorPanel::PropertyEdit> InspectorPanel::drawPropertyRow(
+        const Uuid& entityId,
+        const std::string& componentTypeId,
+        const PropertyDescriptor& property,
+        const PropertyValue& value)
     {
         const std::string label = property.displayName.empty() ? property.name : property.displayName;
+
+        if (value.getType() == PropertyType::List)
+        {
+            return drawListRows(componentTypeId, property, value);
+        }
 
         if (value.getType() != PropertyType::Quaternion)
         {
@@ -116,11 +125,13 @@ namespace CNA::Editor
             {
                 if (const std::optional<PropertyValue> dropped = acceptAssetDrop(property))
                 {
-                    return dropped;
+                    // A drop is one action, not a drag: it must not fold into whatever edit
+                    // happened to precede it.
+                    return PropertyEdit{*dropped, true};
                 }
             }
 
-            return changed ? std::optional<PropertyValue>{edited} : std::nullopt;
+            return changed ? std::optional<PropertyEdit>{PropertyEdit{edited, false}} : std::nullopt;
         }
 
         // Quaternions are shown as degrees, because four raw components are not something anyone
@@ -144,7 +155,84 @@ namespace CNA::Editor
         const EditorQuaternion produced = quaternionFromEulerDegrees(degrees);
 
         eulerEdit_ = EulerEdit{entityId, componentTypeId, property.name, degrees, produced};
-        return PropertyValue{produced};
+        return PropertyEdit{PropertyValue{produced}, false};
+    }
+
+    std::optional<InspectorPanel::PropertyEdit> InspectorPanel::drawListRows(
+        const std::string& componentTypeId,
+        const PropertyDescriptor& property,
+        const PropertyValue& value)
+    {
+        const std::string label = property.displayName.empty() ? property.name : property.displayName;
+        const std::string id = "list-" + componentTypeId + "-" + property.name;
+
+        PropertyValue::ListValue list = value.get<PropertyValue::ListValue>();
+
+        const UiTreeNodeResult node =
+            ui_.treeNode(id, label + "  (" + value.toDisplayString() + ")", false, false);
+        if (!node.expanded) { return std::nullopt; }
+
+        std::optional<PropertyEdit> edit;
+
+        // Structural changes are recorded and applied after the loop. Erasing or swapping an
+        // element while iterating would draw the rest of the rows against a list the user has not
+        // seen, and the widget ids would shift underneath them mid-frame.
+        std::optional<std::size_t> removeIndex;
+        std::optional<std::size_t> moveUpIndex;
+
+        for (std::size_t index = 0; index < list.items.size(); ++index)
+        {
+            const std::string rowId = "##" + id + "-" + std::to_string(index);
+
+            PropertyValue item = list.items[index];
+            if (ui_.propertyField(std::to_string(index) + rowId, item, property.enumOptions,
+                                  property.readOnly))
+            {
+                list.items[index] = std::move(item);
+                edit = PropertyEdit{PropertyValue{list}, false};
+            }
+
+            if (property.readOnly) { continue; }
+
+            // Not drawn at all at the ends, rather than drawn and ignored. A button that does
+            // nothing when pressed is a bug report waiting to be filed.
+            if (index > 0)
+            {
+                ui_.sameLine();
+                if (ui_.button("Up" + rowId)) { moveUpIndex = index; }
+            }
+            if (index + 1 < list.items.size())
+            {
+                ui_.sameLine();
+                if (ui_.button("Down" + rowId)) { moveUpIndex = index + 1; }
+            }
+
+            ui_.sameLine();
+            if (ui_.button("Remove" + rowId)) { removeIndex = index; }
+        }
+
+        if (!property.readOnly && ui_.button("Add##" + id))
+        {
+            // The declared element type, not the type of whatever is already in there: an empty
+            // list has nothing to copy from, and that is exactly when Add is pressed.
+            list.items.push_back(PropertyValue::defaultOf(property.elementType));
+            edit = PropertyEdit{PropertyValue{list}, true};
+        }
+
+        ui_.treePop();
+
+        if (removeIndex && *removeIndex < list.items.size())
+        {
+            list.items.erase(list.items.begin() + static_cast<std::ptrdiff_t>(*removeIndex));
+            edit = PropertyEdit{PropertyValue{list}, true};
+        }
+        else if (moveUpIndex && *moveUpIndex > 0 && *moveUpIndex < list.items.size())
+        {
+            std::swap(list.items[*moveUpIndex], list.items[*moveUpIndex - 1]);
+            edit = PropertyEdit{PropertyValue{list}, true};
+        }
+
+        return edit;
     }
 
     std::optional<PropertyValue> InspectorPanel::acceptAssetDrop(const PropertyDescriptor& property)
