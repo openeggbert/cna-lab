@@ -10,6 +10,7 @@
 
 #include "TestHarness.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 
@@ -300,6 +301,18 @@ namespace
     public:
         UiImageInteraction interaction;
 
+        /** @brief Buttons to report as clicked, by label. Each entry fires once. */
+        std::vector<std::string> pendingClicks;
+
+        /** @brief Enum choices to apply, as (field label, option) pairs. Each fires once. */
+        std::vector<std::pair<std::string, std::string>> pendingChoices;
+
+        /** @brief Button labels drawn during the most recent frame. */
+        std::vector<std::string> drawnButtons;
+
+        /** @brief Enum options last offered for a field, by label. */
+        std::vector<std::pair<std::string, std::vector<std::string>>> offeredOptions;
+
         UiImageInteraction image(const std::string& id,
                                  UiTextureId texture,
                                  float width,
@@ -312,6 +325,60 @@ namespace
             (void)height;
             (void)flipVertically;
             return interaction;
+        }
+
+        /** @brief Clears the per-frame record. renderFrame() opens the dock space first. */
+        void beginDockSpace() override
+        {
+            drawnButtons.clear();
+            offeredOptions.clear();
+        }
+
+        bool button(const std::string& label) override
+        {
+            drawnButtons.push_back(label);
+
+            for (auto entry = pendingClicks.begin(); entry != pendingClicks.end(); ++entry)
+            {
+                if (*entry != label) { continue; }
+                pendingClicks.erase(entry);
+                return true;
+            }
+            return false;
+        }
+
+        bool propertyField(const std::string& label,
+                           PropertyValue& value,
+                           const std::vector<std::string>& enumOptions = {},
+                           bool readOnly = false) override
+        {
+            (void)readOnly;
+            if (!enumOptions.empty()) { offeredOptions.emplace_back(label, enumOptions); }
+
+            for (auto entry = pendingChoices.begin(); entry != pendingChoices.end(); ++entry)
+            {
+                if (entry->first != label) { continue; }
+                value = PropertyValue{PropertyValue::EnumValue{entry->second}};
+                pendingChoices.erase(entry);
+                return true;
+            }
+            return false;
+        }
+
+        /** @brief Returns true when a button with @p label was drawn last frame. */
+        [[nodiscard]] bool sawButton(const std::string& label) const
+        {
+            return std::find(drawnButtons.begin(), drawnButtons.end(), label) != drawnButtons.end();
+        }
+
+        /** @brief Returns the options last offered for @p label, or an empty list. */
+        [[nodiscard]] std::vector<std::string> optionsFor(const std::string& label) const
+        {
+            for (const auto& [field, options] : offeredOptions)
+            {
+                if (field == label) { return options; }
+            }
+            return {};
         }
     };
 
@@ -669,4 +736,93 @@ CNA_EDITOR_TEST(AnArmedShortcutFiresExactlyOnce)
 
     // Three frames, one duplicate. A shortcut that stayed armed would fill the scene.
     CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), before + 1);
+}
+
+CNA_EDITOR_TEST(AddingAComponentThroughTheInspectorIsUndoable)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    fixture.ui->pendingChoices.emplace_back("##addComponentType", "Rendering / Camera");
+    fixture.step(UiImageInteraction{});
+
+    fixture.ui->pendingClicks.push_back("Add Component");
+    fixture.step(UiImageInteraction{});
+
+    const EditorEntity* entity = context.getScene().findEntity(fixture.entityId);
+    CNA_EDITOR_EXPECT(entity->findComponent(BuiltinComponentIds::kCamera) != nullptr);
+
+    // Every edit goes through a command, so this one undoes like any other (D-06).
+    fixture.ui->pressShortcut(UiKey::Z, withControl());
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(context.getScene().findEntity(fixture.entityId)
+                          ->findComponent(BuiltinComponentIds::kCamera) == nullptr);
+}
+
+CNA_EDITOR_TEST(TheAddPickerDropsAUniqueComponentTheEntityAlreadyHas)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    fixture.step(UiImageInteraction{});
+    const std::vector<std::string> before = fixture.ui->optionsFor("##addComponentType");
+
+    // The transform is unique and already present, so it must never have been on offer.
+    CNA_EDITOR_EXPECT(std::find(before.begin(), before.end(), "Transform") == before.end());
+    CNA_EDITOR_EXPECT(std::find(before.begin(), before.end(), "Rendering / Camera") != before.end());
+
+    fixture.ui->pendingChoices.emplace_back("##addComponentType", "Rendering / Camera");
+    fixture.step(UiImageInteraction{});
+    fixture.ui->pendingClicks.push_back("Add Component");
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+
+    // Offering it again would be offering an entry AddComponentCommand refuses.
+    const std::vector<std::string> after = fixture.ui->optionsFor("##addComponentType");
+    CNA_EDITOR_EXPECT(std::find(after.begin(), after.end(), "Rendering / Camera") == after.end());
+}
+
+CNA_EDITOR_TEST(ARequiredComponentGetsNoRemoveButton)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    fixture.step(UiImageInteraction{});
+
+    // The entity has only its transform, which is required: removing it would leave the entity
+    // with no position at all, so the button is absent rather than present and dead.
+    CNA_EDITOR_EXPECT(!fixture.ui->sawButton("Remove##0"));
+
+    fixture.ui->pendingChoices.emplace_back("##addComponentType", "Rendering / Camera");
+    fixture.step(UiImageInteraction{});
+    fixture.ui->pendingClicks.push_back("Add Component");
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+
+    // The camera is not required, so it gets one -- at its own index.
+    CNA_EDITOR_EXPECT(!fixture.ui->sawButton("Remove##0"));
+    CNA_EDITOR_EXPECT(fixture.ui->sawButton("Remove##1"));
+}
+
+CNA_EDITOR_TEST(RemovingAComponentThroughTheInspectorIsUndoable)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    fixture.ui->pendingChoices.emplace_back("##addComponentType", "Rendering / Camera");
+    fixture.step(UiImageInteraction{});
+    fixture.ui->pendingClicks.push_back("Add Component");
+    fixture.step(UiImageInteraction{});
+
+    fixture.ui->pendingClicks.push_back("Remove##1");
+    fixture.step(UiImageInteraction{});
+
+    const EditorEntity* entity = context.getScene().findEntity(fixture.entityId);
+    CNA_EDITOR_EXPECT(entity->findComponent(BuiltinComponentIds::kCamera) == nullptr);
+
+    // The transform survived: removing index 1 must not have taken index 0 with it.
+    CNA_EDITOR_EXPECT(entity->findComponent(BuiltinComponentIds::kTransform) != nullptr);
+
+    fixture.ui->pressShortcut(UiKey::Z, withControl());
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(context.getScene().findEntity(fixture.entityId)
+                          ->findComponent(BuiltinComponentIds::kCamera) != nullptr);
 }

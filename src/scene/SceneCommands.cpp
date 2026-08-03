@@ -323,6 +323,27 @@ namespace CNA::Editor
         valid_ = true;
     }
 
+    RemoveComponentCommand::RemoveComponentCommand(SceneDocument& document,
+                                                   const ComponentRegistry& registry,
+                                                   Uuid entityId,
+                                                   std::size_t componentIndex)
+        : document_(&document), entityId_(entityId)
+    {
+        const EditorEntity* entity = document_->findEntity(entityId_);
+        if (entity == nullptr) { return; }
+        if (componentIndex >= entity->getComponents().size()) { return; }
+
+        const EditorComponent& component = entity->getComponents()[componentIndex];
+        componentTypeId_ = component.getTypeId();
+
+        const ComponentDescriptor* descriptor = registry.find(componentTypeId_);
+        if (descriptor != nullptr && descriptor->required) { return; }
+
+        removedIndex_ = componentIndex;
+        removed_ = component;
+        valid_ = true;
+    }
+
     void RemoveComponentCommand::execute()
     {
         if (!valid_) { return; }

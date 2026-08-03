@@ -169,6 +169,9 @@ namespace CNA::Editor
         /** @brief Recursively draws @p entityId and its children in the hierarchy tree. */
         void drawHierarchyNode(const Uuid& entityId);
 
+        /** @brief Draws the inspector's "Add Component" picker for @p entity. */
+        void drawAddComponentControl(const EditorEntity& entity);
+
         /**
          * @brief Applies this frame's keyboard shortcuts.
          *
@@ -242,6 +245,14 @@ namespace CNA::Editor
          * (ANALYSIS.md finding F-01): "play this on Vulkan" means "launch `cna-player-vulkan`", so
          * the set of available backends is the set of binaries actually on disk.
          */
+        /**
+         * @brief The component type the inspector's Add picker is showing.
+         *
+         * A type id rather than a list index: the list shortens the moment a unique component is
+         * added, and an index would then quietly refer to a different type than the one on screen.
+         */
+        std::string addComponentChoice_;
+
         std::vector<PlayerBuild> playerBuilds_;
         std::size_t selectedBuild_ = 0;
 

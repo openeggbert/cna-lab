@@ -214,10 +214,23 @@ namespace CNA::Editor
     class RemoveComponentCommand final : public EditorCommand
     {
     public:
+        /** @brief Removes the first component of @p componentTypeId. */
         RemoveComponentCommand(SceneDocument& document,
                                const ComponentRegistry& registry,
                                Uuid entityId,
                                std::string componentTypeId);
+
+        /**
+         * @brief Removes the component at @p componentIndex.
+         *
+         * The inspector uses this one. A type-based remove takes the *first* instance, which is
+         * wrong for a component whose descriptor allows several -- clicking Remove on the second
+         * audio source would delete the first, and the two look identical afterwards.
+         */
+        RemoveComponentCommand(SceneDocument& document,
+                               const ComponentRegistry& registry,
+                               Uuid entityId,
+                               std::size_t componentIndex);
 
         void execute() override;
         void undo() override;

@@ -670,19 +670,38 @@ namespace CNA::Editor
         ui_->text("Id: " + entity->getId().toString());
         ui_->separator();
 
-        for (const EditorComponent& component : entity->getComponents())
+        // Removal is deferred past the loop. Executing it here would mutate the very vector being
+        // iterated, and invalidate the component reference the loop body is holding.
+        std::optional<std::size_t> removeIndex;
+
+        const std::vector<EditorComponent>& components = entity->getComponents();
+        for (std::size_t index = 0; index < components.size(); ++index)
         {
+            const EditorComponent& component = components[index];
             const ComponentDescriptor* descriptor = context_.getComponentRegistry().find(component.getTypeId());
             if (descriptor == nullptr)
             {
                 // An unregistered component still has to be visible, or the user has no way to
-                // discover that a scene depends on a plugin that failed to load.
+                // discover that a scene depends on a plugin that failed to load. It is removable:
+                // dropping a component whose plugin is gone is a legitimate way to fix a scene.
                 ui_->text(component.getTypeId() + "  (unregistered -- data preserved, not editable)");
+                ui_->sameLine();
+                if (ui_->button("Remove##" + std::to_string(index))) { removeIndex = index; }
                 ui_->separator();
                 continue;
             }
 
             ui_->text(descriptor->displayName);
+
+            // A required component is what makes the entity what it is -- removing the transform
+            // would leave it with no position -- so it gets no button rather than a dead one.
+            if (!descriptor->required)
+            {
+                ui_->sameLine();
+                // The "##index" suffix is what keeps two components of the same type from sharing
+                // one button identity; ImGui derives a widget's id from its label.
+                if (ui_->button("Remove##" + std::to_string(index))) { removeIndex = index; }
+            }
 
             for (const PropertyDescriptor& property : descriptor->properties)
             {
@@ -702,7 +721,73 @@ namespace CNA::Editor
             ui_->separator();
         }
 
+        drawAddComponentControl(*entity);
         ui_->endPanel();
+
+        // Past every reference into the entity's component vector, so the mutation is safe.
+        if (removeIndex)
+        {
+            auto command = std::make_unique<RemoveComponentCommand>(
+                context_.getScene(), context_.getComponentRegistry(), selectedId, *removeIndex);
+            if (command->isValid()) { context_.execute(std::move(command)); }
+        }
+    }
+
+    void EditorApplication::drawAddComponentControl(const EditorEntity& entity)
+    {
+        std::vector<std::string> labels;
+        std::vector<std::string> typeIds;
+
+        for (const std::string& typeId : context_.getComponentRegistry().getTypeIds())
+        {
+            const ComponentDescriptor* descriptor = context_.getComponentRegistry().find(typeId);
+            if (descriptor == nullptr) { continue; }
+
+            // A unique component the entity already has cannot be added again, so listing it would
+            // be listing an entry that does nothing -- AddComponentCommand would refuse it anyway.
+            if (descriptor->unique && entity.findComponent(typeId) != nullptr) { continue; }
+
+            labels.push_back(descriptor->category.empty()
+                                 ? descriptor->displayName
+                                 : descriptor->category + " / " + descriptor->displayName);
+            typeIds.push_back(typeId);
+        }
+
+        if (labels.empty())
+        {
+            ui_->text("Every component type is already on this entity.");
+            return;
+        }
+
+        // The choice is remembered as a *type id*, not as an index: the list shortens the moment a
+        // unique component is added, and an index would then silently point at a different type.
+        std::size_t chosen = 0;
+        for (std::size_t index = 0; index < typeIds.size(); ++index)
+        {
+            if (typeIds[index] == addComponentChoice_) { chosen = index; break; }
+        }
+        addComponentChoice_ = typeIds[chosen];
+
+        ui_->setNextItemWidth(190.0f);
+
+        PropertyValue value{PropertyValue::EnumValue{labels[chosen]}};
+        if (ui_->propertyField("##addComponentType", value, labels))
+        {
+            const std::string picked = value.get<PropertyValue::EnumValue>().name;
+            for (std::size_t index = 0; index < labels.size(); ++index)
+            {
+                if (labels[index] == picked) { addComponentChoice_ = typeIds[index]; break; }
+            }
+        }
+
+        ui_->sameLine();
+
+        if (ui_->button("Add Component"))
+        {
+            auto command = std::make_unique<AddComponentCommand>(
+                context_.getScene(), context_.getComponentRegistry(), entity.getId(), addComponentChoice_);
+            if (command->isValid()) { context_.execute(std::move(command)); }
+        }
     }
 
     void EditorApplication::drawAssetBrowserPanel()

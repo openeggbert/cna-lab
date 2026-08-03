@@ -375,3 +375,58 @@ CNA_EDITOR_TEST(AudioSourceIsRepeatableUnlikeTransform)
     CNA_EDITOR_EXPECT_EQ(scene.findEntity(id)->getComponents().size(), std::size_t{2});
     CNA_EDITOR_EXPECT(scene.findEntity(id)->findComponent(BuiltinComponentIds::kAudioSource) != nullptr);
 }
+
+CNA_EDITOR_TEST(RemovingByIndexTakesTheInstanceThatWasAskedFor)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    CommandHistory history;
+
+    const Uuid id = scene.addEntity(makeEntity(registry, "Noisy"));
+
+    for (int instance = 0; instance < 2; ++instance)
+    {
+        auto add = std::make_unique<AddComponentCommand>(scene, registry, id,
+                                                         BuiltinComponentIds::kAudioSource);
+        CNA_EDITOR_EXPECT(add->isValid());
+        history.execute(std::move(add));
+    }
+
+    // Tell the two apart, so "the wrong one was removed" is visible rather than merely plausible.
+    scene.findEntity(id)->getComponents()[1].setProperty("volume", PropertyValue{0.25f});
+    scene.findEntity(id)->getComponents()[2].setProperty("volume", PropertyValue{0.75f});
+
+    // A type-based remove takes the first instance. The inspector needs the one the user clicked,
+    // and the two look identical afterwards, so getting this wrong is silent.
+    auto remove = std::make_unique<RemoveComponentCommand>(scene, registry, id, std::size_t{2});
+    CNA_EDITOR_EXPECT(remove->isValid());
+    history.execute(std::move(remove));
+
+    const EditorEntity* entity = scene.findEntity(id);
+    CNA_EDITOR_EXPECT_EQ(entity->getComponents().size(), std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(entity->getComponents()[1].getProperty("volume").get<float>(), 0.25f);
+
+    // Undo puts it back where it was, so the inspector's ordering survives.
+    history.undo();
+    CNA_EDITOR_EXPECT_EQ(scene.findEntity(id)->getComponents().size(), std::size_t{3});
+    CNA_EDITOR_EXPECT_EQ(scene.findEntity(id)->getComponents()[2].getProperty("volume").get<float>(),
+                         0.75f);
+}
+
+CNA_EDITOR_TEST(RemovingByIndexRefusesARequiredComponentAndAPastTheEndIndex)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    CommandHistory history;
+
+    const Uuid id = scene.addEntity(makeEntity(registry, "Solid"));
+
+    // Index 0 is the transform, which is required: an entity with no position is not an entity.
+    RemoveComponentCommand removeTransform{scene, registry, id, std::size_t{0}};
+    CNA_EDITOR_EXPECT(!removeTransform.isValid());
+
+    RemoveComponentCommand removePastEnd{scene, registry, id, std::size_t{99}};
+    CNA_EDITOR_EXPECT(!removePastEnd.isValid());
+
+    CNA_EDITOR_EXPECT_EQ(scene.findEntity(id)->getComponents().size(), std::size_t{1});
+}
