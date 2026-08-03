@@ -841,6 +841,29 @@ namespace CNA::Editor
         return result;
     }
 
+    bool ImGuiEditorUi::isShortcutPressed(UiKey key, UiKeyModifiers modifiers)
+    {
+        const ImGuiKey imguiKey = toImGuiKey(key);
+        if (imguiKey == ImGuiKey_None) { return false; }
+
+        const ImGuiIO& io = ImGui::GetIO();
+
+        // Never while a text field has the keyboard. Without this, renaming an entity is
+        // impossible: W would switch gizmo mode rather than type a letter, and Delete would
+        // remove the very entity being renamed.
+        if (io.WantTextInput) { return false; }
+
+        // Exact modifiers. Ctrl+Shift+Z is redo in most editors, and matching "at least Ctrl"
+        // would fire the undo bound to Ctrl+Z at the same time.
+        if (io.KeyCtrl != modifiers.control) { return false; }
+        if (io.KeyShift != modifiers.shift) { return false; }
+        if (io.KeyAlt != modifiers.alt) { return false; }
+        if (io.KeySuper != modifiers.super) { return false; }
+
+        // No repeat: holding Delete should remove one entity, not one per frame.
+        return ImGui::IsKeyPressed(imguiKey, false);
+    }
+
     void ImGuiEditorUi::separator() { ImGui::Separator(); }
 
     void ImGuiEditorUi::sameLine() { ImGui::SameLine(); }

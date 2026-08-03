@@ -27,6 +27,7 @@
 #include "CNA/Editor/Core/PropertyValue.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Ui/UiDrawData.hpp"
+#include "CNA/Editor/Ui/UiInputState.hpp"
 
 namespace CNA::Editor
 {
@@ -234,6 +235,23 @@ namespace CNA::Editor
             return UiImageInteraction{};
         }
 
+        /**
+         * @brief Returns true on the frame @p key goes down with exactly @p modifiers held.
+         *
+         * "Exactly" rather than "at least": Ctrl+Shift+Z is redo in most editors, and a shortcut
+         * layer that ignored the extra Shift would fire the undo bound to Ctrl+Z as well.
+         *
+         * An implementation must report false while a text field has the keyboard, or the editor
+         * becomes unusable the first time someone renames an entity -- W would switch gizmo mode
+         * instead of typing a letter, and Delete would remove the entity being renamed.
+         */
+        [[nodiscard]] virtual bool isShortcutPressed(UiKey key, UiKeyModifiers modifiers = {})
+        {
+            (void)key;
+            (void)modifiers;
+            return false;
+        }
+
         /** @brief Draws a horizontal rule. */
         virtual void separator() = 0;
 
@@ -309,6 +327,18 @@ namespace CNA::Editor
         void separator() override {}
         void sameLine() override {}
 
+        [[nodiscard]] bool isShortcutPressed(UiKey key, UiKeyModifiers modifiers = {}) override;
+
+        /**
+         * @brief Arms a shortcut so the next matching isShortcutPressed() reports true.
+         *
+         * The armed shortcut is consumed by that query rather than cleared at a frame boundary,
+         * because tests step the editor by calling renderFrame() directly -- there is no beginFrame()
+         * in that path to hang the clearing off, and a shortcut that stayed armed would fire on
+         * every subsequent frame.
+         */
+        void pressShortcut(UiKey key, UiKeyModifiers modifiers = {});
+
         /**
          * @brief Reports a fixed 1280x720 content region.
          *
@@ -333,8 +363,16 @@ namespace CNA::Editor
         [[nodiscard]] const std::vector<std::string>& getLastFramePanels() const { return lastFramePanels_; }
 
     private:
+        /** @brief A shortcut armed by pressShortcut() and not yet consumed. */
+        struct PendingShortcut
+        {
+            UiKey key = UiKey::None;
+            UiKeyModifiers modifiers;
+        };
+
         bool running_ = true;
         std::uint64_t frameCount_ = 0;
+        std::vector<PendingShortcut> shortcuts_;
         std::vector<LogEntry> log_;
         std::vector<std::string> currentFramePanels_;
         std::vector<std::string> lastFramePanels_;

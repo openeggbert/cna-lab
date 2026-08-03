@@ -57,7 +57,21 @@ namespace CNA::Editor
         bool alt = false;
         /** @brief Command on macOS, Windows key elsewhere. */
         bool super = false;
+
+        friend bool operator==(const UiKeyModifiers& lhs, const UiKeyModifiers& rhs)
+        {
+            return lhs.control == rhs.control && lhs.shift == rhs.shift
+                && lhs.alt == rhs.alt && lhs.super == rhs.super;
+        }
     };
+
+    /** @brief Returns the modifiers for a plain Ctrl-key shortcut. */
+    [[nodiscard]] inline UiKeyModifiers withControl()
+    {
+        UiKeyModifiers modifiers;
+        modifiers.control = true;
+        return modifiers;
+    }
 
     /**
      * @brief A complete input snapshot for one frame.

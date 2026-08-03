@@ -146,7 +146,7 @@ The editor opens, docks and renders through CNA's public API, verified by screen
 | ED-118 | Quaternion inspector as Euler angles | ⬜ | Needs a stable angle convention and round-trip handling. Showing the honest stored quaternion beats showing angles that silently drift on every edit |
 | ED-120 | `CnaSceneRenderer` draws sprites through `SpriteBatch` | ✅ | Layer depth honoured via `SpriteSortMode::BackToFront`, parent transforms composed, tint/origin/flip applied. A sprite whose texture will not load draws a placeholder at the bounds the picker uses, so what you click and what you see agree |
 | ED-121 | Viewport renders into an offscreen target composited into the dock | ✅ | `RenderTarget2D` shared with the UI renderer as a borrowed texture, so the panel draws it with no per-frame blit. Turned up gap G-03 |
-| ED-122 | Editor camera: pan, zoom, frame-selection | 🔄 | `EditorCamera2D` implemented and tested (pan tracks the cursor at any zoom, wheel-zoom anchors under the pointer, framing respects margins). Wheel and drag are wired to the viewport panel; a Frame Selected shortcut is still to come |
+| ED-122 | Editor camera: pan, zoom, frame-selection | ✅ | `EditorCamera2D` implemented and tested (pan tracks the cursor at any zoom, wheel-zoom anchors under the pointer, framing respects margins). Wheel and drag are wired to the viewport panel, and `F` frames the selection — including entities with no drawable geometry, which centre rather than doing nothing |
 | ED-125 | Grid with adaptive 1-2-5 spacing, major lines and axes | ✅ | Fixed world spacing is unusable: solid at low zoom, invisible at high |
 | ED-126 | Click-to-select in the viewport, via ray-cast picking | ✅ | ED-206 in substance; `pickEntityAt` honours layer depth, parent transforms and disabled entities |
 
@@ -172,7 +172,7 @@ real window, shows five docked panels, and renders the three-entity scene in the
 | ED-206 | Ray-cast picking against entity bounds | ✅ | Done as ED-126. CNA-free and unit-tested, so "clicking selects the wrong thing" is caught in CI rather than by hand |
 | ED-207 | Inspector: add and remove components, respecting `unique` and `required` | ⬜ | |
 | ED-208 | Asset drag-and-drop from the browser onto a sprite slot | ⬜ | |
-| ED-209 | Keyboard shortcuts: Ctrl+Z/Y/S/N/D, Delete, F to frame, W/E/R for gizmo modes | ⬜ | |
+| ED-209 | Keyboard shortcuts: Ctrl+Z/Y/S/N/D, Delete, F to frame, W/E/R for gizmo modes | ✅ | Each shortcut and its menu item call the same method, so the two cannot drift apart. Modifiers are matched exactly, so Ctrl+Shift+Z does not also fire Ctrl+Z's undo, and every shortcut is suppressed while a text field has the keyboard. `E`/`R` select modes whose manipulator does not exist yet and say so in the console rather than letting the gizmo silently vanish |
 | ED-210 | Split the panels out of `EditorApplication` into their own classes | ⬜ | Deliberately deferred until there is enough of a panel to be worth separating |
 
 ### Assets

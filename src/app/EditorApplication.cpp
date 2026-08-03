@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/EditorApplication.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <optional>
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -174,6 +176,8 @@ namespace CNA::Editor
 
     void EditorApplication::renderFrame()
     {
+        handleShortcuts();
+
         ui_->beginDockSpace();
 
         drawMainMenu();
@@ -184,6 +188,122 @@ namespace CNA::Editor
         drawConsolePanel();
 
         ui_->endDockSpace();
+    }
+
+    void EditorApplication::handleShortcuts()
+    {
+        // Ctrl-chords first. Each is exact-modifier matched by the UI layer, so Ctrl+Shift+Z does
+        // not also fire the undo bound to Ctrl+Z.
+        if (ui_->isShortcutPressed(UiKey::Z, withControl())) { undo(); }
+        if (ui_->isShortcutPressed(UiKey::Y, withControl())) { redo(); }
+        if (ui_->isShortcutPressed(UiKey::N, withControl())) { context_.newScene(); }
+        if (ui_->isShortcutPressed(UiKey::S, withControl()))
+        {
+            if (!context_.getScenePath().empty()) { context_.saveScene(); }
+        }
+        if (ui_->isShortcutPressed(UiKey::D, withControl())) { duplicateSelection(); }
+
+        if (ui_->isShortcutPressed(UiKey::Delete)) { deleteSelection(); }
+        if (ui_->isShortcutPressed(UiKey::F)) { frameSelection(); }
+
+        if (ui_->isShortcutPressed(UiKey::W)) { setGizmoMode(GizmoMode::Translate); }
+        if (ui_->isShortcutPressed(UiKey::E)) { setGizmoMode(GizmoMode::Rotate); }
+        if (ui_->isShortcutPressed(UiKey::R)) { setGizmoMode(GizmoMode::Scale); }
+    }
+
+    void EditorApplication::undo()
+    {
+        context_.getHistory().undo();
+        context_.pruneSelection();
+    }
+
+    void EditorApplication::redo()
+    {
+        context_.getHistory().redo();
+        context_.pruneSelection();
+    }
+
+    void EditorApplication::duplicateSelection()
+    {
+        // Snapshot the selection: the copies are selected as they are made, so iterating the live
+        // selection would duplicate the copies as well.
+        const std::vector<Uuid> sources = context_.getSelection();
+        std::vector<Uuid> copies;
+
+        for (const Uuid& sourceId : sources)
+        {
+            auto command = std::make_unique<DuplicateEntityCommand>(context_.getScene(), sourceId);
+            if (!command->isValid()) { continue; }
+
+            copies.push_back(command->getEntityId());
+            context_.execute(std::move(command));
+        }
+
+        // Selecting the copies is what makes "duplicate, then drag it somewhere" work without a
+        // trip back to the hierarchy panel.
+        if (!copies.empty()) { context_.setSelection(std::move(copies)); }
+    }
+
+    void EditorApplication::deleteSelection()
+    {
+        for (const Uuid& entityId : context_.getSelection())
+        {
+            // A selected descendant of another selected entity is already gone by now, and asking
+            // to delete it again would add an undo entry that does nothing.
+            if (context_.getScene().findEntity(entityId) == nullptr) { continue; }
+            context_.execute(std::make_unique<DeleteEntityCommand>(context_.getScene(), entityId));
+        }
+        context_.pruneSelection();
+    }
+
+    void EditorApplication::frameSelection()
+    {
+        const std::vector<Uuid>& selection = context_.getSelection();
+        if (selection.empty()) { return; }
+
+        const SpriteSizeProvider sizeProvider = viewport_->makeSizeProvider();
+        std::optional<WorldBounds2D> total;
+
+        for (const Uuid& entityId : selection)
+        {
+            std::optional<WorldBounds2D> bounds =
+                computeHierarchyBounds2D(context_.getScene(), entityId, sizeProvider);
+
+            if (!bounds)
+            {
+                // An entity with no drawable geometry -- a camera, an empty grouping node -- still
+                // has a position, and framing it should centre on it rather than do nothing.
+                const std::optional<WorldTransform> world =
+                    computeWorldTransform(context_.getScene(), entityId);
+                if (!world) { continue; }
+
+                const EditorVector2 point{world->position.x, world->position.y};
+                bounds = WorldBounds2D{point, point};
+            }
+
+            if (!total) { total = bounds; continue; }
+
+            total->min.x = std::min(total->min.x, bounds->min.x);
+            total->min.y = std::min(total->min.y, bounds->min.y);
+            total->max.x = std::max(total->max.x, bounds->max.x);
+            total->max.y = std::max(total->max.y, bounds->max.y);
+        }
+
+        if (total) { viewport_->getCamera().frame(*total); }
+    }
+
+    void EditorApplication::setGizmoMode(GizmoMode mode)
+    {
+        gizmoMode_ = mode;
+
+        // Rotate and scale have no manipulator yet. Saying so beats letting the gizmo silently
+        // disappear and leaving the user to guess whether they broke something.
+        if (mode == GizmoMode::Rotate || mode == GizmoMode::Scale)
+        {
+            context_.log(LogSeverity::Info,
+                         std::string{mode == GizmoMode::Rotate ? "Rotate" : "Scale"}
+                             + " gizmo is not implemented yet; press W for the translate gizmo");
+        }
     }
 
     void EditorApplication::drawMainMenu()
@@ -205,14 +325,33 @@ namespace CNA::Editor
             CommandHistory& history = context_.getHistory();
             if (ui_->menuItem("Undo " + history.getUndoDescription(), "Ctrl+Z", history.canUndo()))
             {
-                history.undo();
-                context_.pruneSelection();
+                undo();
             }
             if (ui_->menuItem("Redo " + history.getRedoDescription(), "Ctrl+Y", history.canRedo()))
             {
-                history.redo();
-                context_.pruneSelection();
+                redo();
             }
+
+            ui_->separator();
+
+            const bool hasSelection = !context_.getSelection().empty();
+            if (ui_->menuItem("Duplicate", "Ctrl+D", hasSelection)) { duplicateSelection(); }
+            if (ui_->menuItem("Delete", "Del", hasSelection)) { deleteSelection(); }
+            ui_->endMenu();
+        }
+
+        if (ui_->beginMenu("View"))
+        {
+            if (ui_->menuItem("Frame Selected", "F", !context_.getSelection().empty()))
+            {
+                frameSelection();
+            }
+
+            ui_->separator();
+
+            if (ui_->menuItem("Translate Gizmo", "W")) { setGizmoMode(GizmoMode::Translate); }
+            if (ui_->menuItem("Rotate Gizmo", "E")) { setGizmoMode(GizmoMode::Rotate); }
+            if (ui_->menuItem("Scale Gizmo", "R")) { setGizmoMode(GizmoMode::Scale); }
             ui_->endMenu();
         }
     }

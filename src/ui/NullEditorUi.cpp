@@ -73,6 +73,22 @@ namespace CNA::Editor
         return false;
     }
 
+    void NullEditorUi::pressShortcut(UiKey key, UiKeyModifiers modifiers)
+    {
+        shortcuts_.push_back(PendingShortcut{key, modifiers});
+    }
+
+    bool NullEditorUi::isShortcutPressed(UiKey key, UiKeyModifiers modifiers)
+    {
+        for (auto entry = shortcuts_.begin(); entry != shortcuts_.end(); ++entry)
+        {
+            if (entry->key != key || !(entry->modifiers == modifiers)) { continue; }
+            shortcuts_.erase(entry);
+            return true;
+        }
+        return false;
+    }
+
     void NullEditorUi::log(LogSeverity severity, const std::string& message)
     {
         log_.push_back(LogEntry{severity, message});

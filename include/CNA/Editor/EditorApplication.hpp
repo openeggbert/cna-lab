@@ -125,6 +125,31 @@ namespace CNA::Editor
         /** @brief Recursively draws @p entityId and its children in the hierarchy tree. */
         void drawHierarchyNode(const Uuid& entityId);
 
+        /**
+         * @brief Applies this frame's keyboard shortcuts.
+         *
+         * Runs before the panels, so a shortcut and the menu item bound to the same operation both
+         * take effect on the frame they are triggered. Each operation lives in a method below and
+         * is called from both places -- a shortcut that quietly does something slightly different
+         * from its menu item is a bug users report as "undo is broken".
+         */
+        void handleShortcuts();
+
+        void undo();
+        void redo();
+
+        /** @brief Duplicates each selected entity's subtree and selects the copy. */
+        void duplicateSelection();
+
+        /** @brief Deletes each selected entity's subtree. */
+        void deleteSelection();
+
+        /** @brief Moves and zooms the camera so the selection fills the viewport. */
+        void frameSelection();
+
+        /** @brief Switches the active manipulator, reporting when it has no implementation yet. */
+        void setGizmoMode(GizmoMode mode);
+
         /** @brief Turns one frame of viewport pointer input into camera moves and selection. */
         void handleViewportInteraction(const UiImageInteraction& interaction);
 

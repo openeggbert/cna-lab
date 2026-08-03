@@ -537,3 +537,136 @@ CNA_EDITOR_TEST(APressAwayFromEveryHandleStillSelects)
     // swallowed by the gizmo.
     CNA_EDITOR_EXPECT(!fixture.application->getContext().getPrimarySelection().isValid());
 }
+
+CNA_EDITOR_TEST(ShortcutsDriveUndoAndRedo)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    fixture.step(leftAt(790.0f, 580.0f, true));
+    fixture.step(leftAt(830.0f, 580.0f, false));
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 140.0f);
+
+    fixture.ui->pressShortcut(UiKey::Z, withControl());
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 100.0f);
+
+    fixture.ui->pressShortcut(UiKey::Y, withControl());
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 140.0f);
+}
+
+CNA_EDITOR_TEST(DeleteRemovesTheSelectionAndClearsIt)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+    const std::size_t before = context.getScene().getEntityCount();
+
+    fixture.ui->pressShortcut(UiKey::Delete);
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), before - 1);
+
+    // The selection must not be left pointing at an entity that is gone: the inspector would go on
+    // showing it, and the next command would target a missing id.
+    CNA_EDITOR_EXPECT(!context.getPrimarySelection().isValid());
+
+    fixture.ui->pressShortcut(UiKey::Z, withControl());
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), before);
+}
+
+CNA_EDITOR_TEST(DuplicateCopiesTheSubtreeWithFreshIdsAndSelectsTheCopy)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    // Give the entity a child, so the duplicate has a subtree to get wrong.
+    EditorEntity child{Uuid::generate(), "Weapon"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+    child.addComponent(std::move(transform));
+    child.setParentId(fixture.entityId);
+    const Uuid childId = context.getScene().addEntity(std::move(child));
+
+    const std::size_t before = context.getScene().getEntityCount();
+
+    fixture.ui->pressShortcut(UiKey::D, withControl());
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), before + 2);
+
+    const Uuid copyId = context.getPrimarySelection();
+    CNA_EDITOR_EXPECT(copyId.isValid());
+    CNA_EDITOR_EXPECT(copyId != fixture.entityId);
+
+    // The copied root is a sibling of the original, not its child.
+    const EditorEntity* copy = context.getScene().findEntity(copyId);
+    CNA_EDITOR_EXPECT_EQ(copy->getParentId().toString(), Uuid{}.toString());
+    CNA_EDITOR_EXPECT_EQ(copy->getName(), std::string{"Player Copy"});
+
+    // The copied child hangs off the *copy*, not off the original -- a remapping mistake here is
+    // invisible until the user moves one of them and both jump.
+    const std::vector<Uuid> copiedChildren = context.getScene().getChildren(copyId);
+    CNA_EDITOR_EXPECT_EQ(copiedChildren.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(copiedChildren.front() != childId);
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getChildren(fixture.entityId).size(), std::size_t{1});
+
+    // One undo entry for the whole subtree.
+    fixture.ui->pressShortcut(UiKey::Z, withControl());
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), before);
+}
+
+CNA_EDITOR_TEST(FrameSelectedBringsTheSelectionIntoView)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    // Look somewhere far away, so framing has real work to do.
+    EditorCamera2D& camera = fixture.application->getViewport().getCamera();
+    camera.setCenter(EditorVector2{9000.0f, 9000.0f});
+
+    fixture.ui->pressShortcut(UiKey::F);
+    fixture.step(UiImageInteraction{});
+
+    // The entity has no sprite, so there are no bounds to fit -- framing must still centre on it
+    // rather than quietly do nothing.
+    CNA_EDITOR_EXPECT_EQ(camera.getCenter().x, 100.0f);
+    CNA_EDITOR_EXPECT_EQ(camera.getCenter().y, 220.0f);
+}
+
+CNA_EDITOR_TEST(GizmoModeShortcutsSwitchTheManipulator)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    fixture.ui->pressShortcut(UiKey::E);
+    fixture.step(UiImageInteraction{});
+
+    // Rotate has no manipulator yet, so the translate gizmo must stop responding -- a press on
+    // where its handle used to be falls through to the picker and clears the selection.
+    fixture.step(leftAt(790.0f, 580.0f, true));
+    fixture.step(leftAt(830.0f, 580.0f, false));
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 100.0f);
+
+    fixture.ui->pressShortcut(UiKey::W);
+    fixture.step(UiImageInteraction{});
+
+    fixture.step(leftAt(790.0f, 580.0f, true));
+    fixture.step(leftAt(830.0f, 580.0f, false));
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 140.0f);
+}
+
+CNA_EDITOR_TEST(AnArmedShortcutFiresExactlyOnce)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+    const std::size_t before = context.getScene().getEntityCount();
+
+    fixture.ui->pressShortcut(UiKey::D, withControl());
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+
+    // Three frames, one duplicate. A shortcut that stayed armed would fill the scene.
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), before + 1);
+}

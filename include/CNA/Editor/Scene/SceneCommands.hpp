@@ -68,6 +68,42 @@ namespace CNA::Editor
         std::vector<EditorEntity> removed_;
     };
 
+    /**
+     * @brief Copies an entity and its whole subtree, as a sibling of the original.
+     *
+     * The clones get fresh ids -- an entity is identified by its Uuid everywhere, so reusing one
+     * would make the scene ambiguous the instant it was saved -- and their parent links are
+     * remapped onto the copies, so the duplicated subtree stands on its own rather than pointing
+     * back into the original.
+     *
+     * The clone ids are decided at construction, not at execute() time, so the caller can select
+     * the copy immediately and so redo restores the same ids the first execute() created.
+     */
+    class DuplicateEntityCommand final : public EditorCommand
+    {
+    public:
+        DuplicateEntityCommand(SceneDocument& document, Uuid sourceId);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+
+        /** @brief Returns false when @p sourceId is not in the document. */
+        [[nodiscard]] bool isValid() const { return valid_; }
+
+        /** @brief Returns the id of the copied root, valid from construction onwards. */
+        [[nodiscard]] Uuid getEntityId() const;
+
+    private:
+        SceneDocument* document_;
+        Uuid sourceId_;
+        std::string sourceName_;
+
+        /** @brief The copies, parents first, so execute() can add them in order. */
+        std::vector<EditorEntity> clones_;
+        bool valid_ = false;
+    };
+
     /** @brief Renames an entity. */
     class RenameEntityCommand final : public EditorCommand
     {

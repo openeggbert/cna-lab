@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 
+#include <unordered_map>
+
 namespace CNA::Editor
 {
     namespace
@@ -65,6 +67,74 @@ namespace CNA::Editor
     std::string DeleteEntityCommand::getDescription() const
     {
         return "Delete entity '" + entityName_ + "'";
+    }
+
+    DuplicateEntityCommand::DuplicateEntityCommand(SceneDocument& document, Uuid sourceId)
+        : document_(&document), sourceId_(sourceId)
+    {
+        const EditorEntity* source = document_->findEntity(sourceId_);
+        if (source == nullptr) { return; }
+
+        sourceName_ = source->getName();
+
+        // Breadth-first from the source, so the clones come out parents first and execute() can
+        // add them in order without ever adding a child whose parent is not there yet.
+        std::unordered_map<Uuid, Uuid> idMap;
+        std::vector<Uuid> pending{sourceId_};
+
+        for (std::size_t index = 0; index < pending.size(); ++index)
+        {
+            const EditorEntity* original = document_->findEntity(pending[index]);
+            if (original == nullptr) { continue; }
+
+            EditorEntity clone = *original;
+            const Uuid cloneId = Uuid::generate();
+            idMap.emplace(original->getId(), cloneId);
+            clone.setId(cloneId);
+
+            if (index == 0)
+            {
+                // The copy is a sibling of the original, and says so in its name. Descendants keep
+                // theirs: their path through the hierarchy already tells them apart.
+                clone.setName(sourceName_ + " Copy");
+            }
+            else
+            {
+                // Every descendant's parent was cloned before it, so the mapping is always there.
+                clone.setParentId(idMap.at(original->getParentId()));
+            }
+
+            clones_.push_back(std::move(clone));
+
+            for (const Uuid& childId : document_->getChildren(original->getId()))
+            {
+                pending.push_back(childId);
+            }
+        }
+
+        valid_ = !clones_.empty();
+    }
+
+    Uuid DuplicateEntityCommand::getEntityId() const
+    {
+        return clones_.empty() ? Uuid{} : clones_.front().getId();
+    }
+
+    void DuplicateEntityCommand::execute()
+    {
+        for (const EditorEntity& clone : clones_) { document_->addEntity(clone); }
+    }
+
+    void DuplicateEntityCommand::undo()
+    {
+        // Recursive removal from the copied root takes the whole subtree, which is exactly what
+        // execute() added. The clones stay held here so redo restores the same ids.
+        document_->removeEntityRecursive(getEntityId());
+    }
+
+    std::string DuplicateEntityCommand::getDescription() const
+    {
+        return "Duplicate entity '" + sourceName_ + "'";
     }
 
     RenameEntityCommand::RenameEntityCommand(SceneDocument& document, Uuid entityId, std::string newName)
