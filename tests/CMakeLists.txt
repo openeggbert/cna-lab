@@ -64,16 +64,33 @@ if(CNA_EDITOR_WITH_CNA AND CNA_EDITOR_WITH_IMGUI)
     # a blank window, so the screenshot is the assertion -- if the editor drew nothing, the file
     # never appears and the test fails.
     #
-    # SDL_VIDEODRIVER=dummy so this works on a build machine with no display. Backends that need a
-    # real GPU context will not pass under it; SOFTWARE and HEADLESS are the ones meant for CI.
     add_test(NAME CnaEditorWindowSmoke
         COMMAND cna-editor
             --project=${CMAKE_CURRENT_SOURCE_DIR}/../examples/HelloSprites/HelloSprites.cnaproject
             --frames=20
             --screenshot=${CMAKE_CURRENT_BINARY_DIR}/editor-smoke.png)
-    set_tests_properties(CnaEditorWindowSmoke PROPERTIES
-        ENVIRONMENT "SDL_VIDEODRIVER=dummy"
-        TIMEOUT 180)
+
+    # How this test reaches a display depends on the backend, and getting it wrong makes the test
+    # fail for reasons that have nothing to do with the editor.
+    #
+    # SOFTWARE and HEADLESS render without a window at all, so SDL's dummy video driver is enough
+    # and the test runs anywhere. Every other backend needs a real graphics context: the dummy
+    # driver cannot provide one, and forcing it there produces a failure that looks like a bug in
+    # the editor and is not. Those get a DISPLAY instead, following the same CNA_TEST_DISPLAY
+    # convention CNA itself uses for its window-creating ctests -- point it at an Xvfb server on a
+    # build machine with no desktop.
+    if(CNA_GRAPHICS_BACKEND STREQUAL "SOFTWARE" OR CNA_GRAPHICS_BACKEND STREQUAL "HEADLESS")
+        set_tests_properties(CnaEditorWindowSmoke PROPERTIES
+            ENVIRONMENT "SDL_VIDEODRIVER=dummy"
+            TIMEOUT 180)
+    else()
+        set(CNA_EDITOR_TEST_DISPLAY ":0" CACHE STRING
+            "DISPLAY used by cna-editor ctests that need a real graphics context")
+        set_tests_properties(CnaEditorWindowSmoke PROPERTIES
+            ENVIRONMENT "DISPLAY=${CNA_EDITOR_TEST_DISPLAY}"
+            LABELS "needs-display"
+            TIMEOUT 180)
+    endif()
 
     # --screenshot without --frames has no final frame to capture, and silently writing nothing
     # would make the smoke test above pass for the wrong reason.
