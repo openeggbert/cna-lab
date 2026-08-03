@@ -3,12 +3,13 @@
 
 /**
  * @file CNA/Editor/EditorApplication.hpp
- * @brief Ties the context, the UI and the viewport together and runs the frame loop.
+ * @brief Ties the context, the UI, the viewport and the panels together and runs the frame loop.
  *
- * The application owns the three things a panel needs and nothing more. It is constructed with an
- * EditorUi and an EditorViewport rather than creating them, so that `--headless` and the unit
- * tests build the exact same application over the null implementations -- there is no separate
- * "test mode" code path that can drift away from the real one.
+ * What is left here after ED-210 is what no single panel owns: the document lifecycle, the
+ * keyboard shortcuts, the play process, and the handful of operations a panel, the menu bar and a
+ * shortcut can all trigger. Those reach a panel through EditorActions rather than through a back
+ * reference to the whole application, which is what keeps a panel from quietly growing a
+ * dependency on the editor's internals.
  */
 
 #include <memory>
@@ -16,8 +17,14 @@
 #include <vector>
 
 #include "CNA/Editor/EditorContext.hpp"
+#include "CNA/Editor/Panels/AssetBrowserPanel.hpp"
+#include "CNA/Editor/Panels/ConsolePanel.hpp"
+#include "CNA/Editor/Panels/EditorPanel.hpp"
+#include "CNA/Editor/Panels/HierarchyPanel.hpp"
+#include "CNA/Editor/Panels/InspectorPanel.hpp"
+#include "CNA/Editor/Panels/MainMenuBar.hpp"
+#include "CNA/Editor/Panels/ViewportPanel.hpp"
 #include "CNA/Editor/RuntimeBridge/PlayerProcess.hpp"
-#include "CNA/Editor/Scene/TranslateGizmo.hpp"
 #include "CNA/Editor/Ui/EditorUi.hpp"
 #include "CNA/Editor/Viewport/EditorViewport.hpp"
 
@@ -87,19 +94,17 @@ namespace CNA::Editor
     /**
      * @brief The editor application.
      *
-     * run() drives frames until the UI reports exit or the frame limit is reached. Each frame
-     * draws the standard panel set; a panel is a method here in Phase 0 and becomes its own class
-     * in Phase 1, once there is enough of one to be worth separating (plan.md ED-210).
+     * Owns the context, the UI, the viewport, the panels and the play process, and runs the frame
+     * loop. It is constructed with an EditorUi and an EditorViewport rather than creating them, so
+     * `--headless` and the unit tests build the exact same application over the null
+     * implementations -- there is no separate "test mode" path that can drift from the real one.
+     *
+     * The panels are classes now (plan.md ED-210); what remains here is what is genuinely shared:
+     * the document lifecycle, the keyboard shortcuts, the play process, and the operations that a
+     * panel, the menu bar and a shortcut can all trigger. It implements EditorActions so that a
+     * panel reaches those through one narrow interface rather than through the whole application.
      */
-    /** @brief What the editor believes the player process is doing. */
-    enum class PlayMode
-    {
-        Stopped,
-        Playing,
-        Paused
-    };
-
-    class EditorApplication
+    class EditorApplication final : public EditorActions
     {
     public:
         /**
@@ -119,7 +124,7 @@ namespace CNA::Editor
 
         [[nodiscard]] EditorContext& getContext() { return context_; }
         [[nodiscard]] EditorUi& getUi() { return *ui_; }
-        [[nodiscard]] EditorViewport& getViewport() { return *viewport_; }
+        [[nodiscard]] EditorViewport& getViewport() override { return *viewport_; }
 
         /**
          * @brief Replaces the viewport.
@@ -131,12 +136,6 @@ namespace CNA::Editor
          */
         void setViewport(std::unique_ptr<EditorViewport> viewport);
 
-        /** @brief Returns the play-mode state the toolbar is showing. */
-        [[nodiscard]] PlayMode getPlayMode() const { return playMode_; }
-
-        /** @brief Returns the player builds found next to the editor. */
-        [[nodiscard]] const std::vector<PlayerBuild>& getPlayerBuilds() const { return playerBuilds_; }
-
         /**
          * @brief Replaces the discovered player builds.
          *
@@ -146,88 +145,38 @@ namespace CNA::Editor
          */
         void setPlayerBuilds(std::vector<PlayerBuild> builds);
 
-        /** @brief Launches the player on the selected build. */
-        void startPlay();
+        // EditorActions. Each of these is reachable from the menu bar, from a keyboard shortcut and
+        // from at least one panel, and must behave identically whichever asked.
+        void undo() override;
+        void redo() override;
+        void newScene() override;
+        void saveScene() override;
+        void duplicateSelection() override;
+        void deleteSelection() override;
+        void frameSelection() override;
+        void beginRename(const Uuid& entityId) override;
 
-        /** @brief Stops the player, if one is running. */
-        void stopPlay();
+        void setGizmoMode(GizmoMode mode) override;
+        [[nodiscard]] GizmoMode getGizmoMode() const override { return gizmoMode_; }
 
-        /** @brief Pauses or resumes the running player. */
-        void setPlayPaused(bool paused);
+        void startPlay() override;
+        void stopPlay() override;
+        void setPlayPaused(bool paused) override;
+        void stepPlayFrame() override;
 
-        /** @brief Asks a paused player to advance exactly one frame. */
-        void stepPlayFrame();
+        [[nodiscard]] PlayMode getPlayMode() const override { return playMode_; }
+        [[nodiscard]] const std::vector<PlayerBuild>& getPlayerBuilds() const override { return playerBuilds_; }
+        [[nodiscard]] std::size_t getSelectedPlayerBuild() const override { return selectedBuild_; }
+        void selectPlayerBuild(std::size_t index) override { selectedBuild_ = index; }
 
     private:
-        void drawMainMenu();
-        void drawSceneHierarchyPanel();
-        void drawInspectorPanel();
-        void drawAssetBrowserPanel();
-        void drawViewportPanel();
-        void drawConsolePanel();
-
-        /** @brief Recursively draws @p entityId and its children in the hierarchy tree. */
-        void drawHierarchyNode(const Uuid& entityId);
-
-        /** @brief Draws the right-click menu for a hierarchy node. */
-        void drawHierarchyContextMenu(const Uuid& entityId);
-
-        /** @brief Puts @p entityId's row into rename mode. */
-        void beginRename(const Uuid& entityId);
-
-        /** @brief Draws the in-place rename field in place of @p entityId's row. */
-        void drawRenameField(const Uuid& entityId);
-
-        /** @brief Runs whatever the hierarchy asked for, once the tree has finished drawing. */
-        void applyPendingHierarchyAction();
-
-        /**
-         * @brief Takes a dropped asset for @p property, if one landed on the widget just drawn.
-         * @return The new reference, or std::nullopt when nothing was dropped or the kind is wrong.
-         */
-        [[nodiscard]] std::optional<PropertyValue> acceptAssetDrop(const PropertyDescriptor& property);
-
-        /** @brief Draws the inspector's "Add Component" picker for @p entity. */
-        void drawAddComponentControl(const EditorEntity& entity);
-
-        /**
-         * @brief Draws one property row, returning the new value when the user changed it.
-         *
-         * Quaternions are shown as Euler angles in degrees; everything else goes straight to the
-         * matching widget.
-         */
-        [[nodiscard]] std::optional<PropertyValue> drawPropertyRow(const Uuid& entityId,
-                                                                   const std::string& componentTypeId,
-                                                                   const PropertyDescriptor& property,
-                                                                   const PropertyValue& value);
-
         /**
          * @brief Applies this frame's keyboard shortcuts.
          *
          * Runs before the panels, so a shortcut and the menu item bound to the same operation both
-         * take effect on the frame they are triggered. Each operation lives in a method below and
-         * is called from both places -- a shortcut that quietly does something slightly different
-         * from its menu item is a bug users report as "undo is broken".
+         * take effect on the frame they are triggered.
          */
         void handleShortcuts();
-
-        void undo();
-        void redo();
-
-        /** @brief Duplicates each selected entity's subtree and selects the copy. */
-        void duplicateSelection();
-
-        /** @brief Deletes each selected entity's subtree. */
-        void deleteSelection();
-
-        /** @brief Moves and zooms the camera so the selection fills the viewport. */
-        void frameSelection();
-
-        /** @brief Switches the active manipulator, reporting when it has no implementation yet. */
-        void setGizmoMode(GizmoMode mode);
-
-        /** @brief Draws the play controls at the top of the viewport panel. */
-        void drawPlayToolbar();
 
         /**
          * @brief Reads whatever the player sent this frame and routes it into the console.
@@ -238,34 +187,18 @@ namespace CNA::Editor
          */
         void pollPlayer();
 
-        /** @brief Turns one frame of viewport pointer input into camera moves and selection. */
-        void handleViewportInteraction(const UiImageInteraction& interaction);
-
-        /**
-         * @brief Starts a gizmo drag if @p cursor is over a handle of the selected entity's gizmo.
-         * @return True when a drag began, in which case the press must not also reach the picker.
-         */
-        bool beginGizmoDrag(const EditorVector2& cursor);
-
-        /** @brief Applies the in-progress drag to the entity's position as one merged command. */
-        void updateGizmoDrag(const EditorVector2& cursor);
-
         EditorContext context_;
         std::unique_ptr<EditorUi> ui_;
         std::unique_ptr<EditorViewport> viewport_;
+
+        MainMenuBar menuBar_;
+        HierarchyPanel hierarchyPanel_;
+        ViewportPanel viewportPanel_;
+        InspectorPanel inspectorPanel_;
+        AssetBrowserPanel assetBrowserPanel_;
+        ConsolePanel consolePanel_;
+
         GizmoMode gizmoMode_ = GizmoMode::Translate;
-
-        TranslateGizmoDrag gizmoDrag_;
-
-        /**
-         * @brief Whether the current drag has already pushed a command.
-         *
-         * The first edit of a drag is a *new* undo entry and every later one merges into it. Without
-         * this, a second drag of the same entity would merge into the first -- the merge key is
-         * entity + component + property and has no notion of where one interaction ends -- and the
-         * two moves would undo together as if they had been one.
-         */
-        bool gizmoDragHasEdited_ = false;
 
         /**
          * @brief The player builds installed beside the editor, and which one Play will launch.
@@ -274,86 +207,6 @@ namespace CNA::Editor
          * (ANALYSIS.md finding F-01): "play this on Vulkan" means "launch `cna-player-vulkan`", so
          * the set of available backends is the set of binaries actually on disk.
          */
-        /**
-         * @brief The component type the inspector's Add picker is showing.
-         *
-         * A type id rather than a list index: the list shortens the moment a unique component is
-         * added, and an index would then quietly refer to a different type than the one on screen.
-         */
-        std::string addComponentChoice_;
-
-        /** @brief Payload type for an entity dragged within the hierarchy. */
-        static constexpr const char* kEntityDragType = "entity";
-
-        /** @brief Payload type for an asset dragged out of the browser. */
-        static constexpr const char* kAssetDragType = "asset";
-
-        /** @brief What the hierarchy asked for while it was drawing. */
-        enum class HierarchyAction
-        {
-            None,
-            Reparent,
-            Delete
-        };
-
-        /**
-         * @brief A structural change the hierarchy requested mid-draw.
-         *
-         * Deferred rather than applied immediately, because a reparent reorders the child lists
-         * the recursion is walking and a delete invalidates them outright. Recording the request
-         * and running it once the tree is drawn keeps the traversal on a document that is not
-         * changing underneath it.
-         */
-        struct PendingHierarchyAction
-        {
-            HierarchyAction kind = HierarchyAction::None;
-            Uuid entityId;
-            Uuid parentId;
-        };
-
-        PendingHierarchyAction pending_;
-
-        /**
-         * @brief The console's own view state.
-         *
-         * Not part of the document and not undoable: what a user chooses to look at is not an
-         * edit to the scene.
-         */
-        LogSeverity consoleMinimumSeverity_ = LogSeverity::Trace;
-        bool consoleAutoScroll_ = true;
-
-        /** @brief The entity whose row is currently a text field, if any. */
-        Uuid renamingEntity_;
-        std::string renameBuffer_;
-        bool renameNeedsFocus_ = false;
-
-        /**
-         * @brief The Euler angles the user last typed, and the quaternion they produced.
-         *
-         * A quaternion has more than one Euler spelling, so converting back and forth every frame
-         * would let the numbers jump while they are being edited -- type 90 into pitch and the yaw
-         * and roll beside it flip to an equivalent pair. Remembering what was typed, and reusing it
-         * for as long as the stored quaternion is still the one it produced, keeps the field
-         * steady while still following an undo, a gizmo drag or a reload the instant one lands.
-         */
-        struct EulerEdit
-        {
-            Uuid entityId;
-            std::string componentTypeId;
-            std::string propertyName;
-            EditorVector3 degrees;
-            EditorQuaternion produced;
-
-            /** @brief Returns true when this cache describes @p propertyName on that component. */
-            [[nodiscard]] bool matches(const Uuid& entity, const std::string& component,
-                                       const std::string& property) const
-            {
-                return entityId == entity && componentTypeId == component && propertyName == property;
-            }
-        };
-
-        EulerEdit eulerEdit_;
-
         std::vector<PlayerBuild> playerBuilds_;
         std::size_t selectedBuild_ = 0;
 

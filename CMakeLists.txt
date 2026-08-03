@@ -229,9 +229,21 @@ endif()
 # Application
 # ---------------------------------------------------------------------------------------------
 
+# Listed once and reused by the test target, which builds the panels alongside the application so
+# the tests drive the real ones (plan.md ED-210).
+set(CNA_EDITOR_PANEL_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/MainMenuBar.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/HierarchyPanel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/InspectorPanel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/AssetBrowserPanel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/ViewportPanel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/ConsolePanel.cpp
+    CACHE INTERNAL "Editor panel sources")
+
 add_executable(cna-editor
     src/app/Main.cpp
-    src/app/EditorApplication.cpp)
+    src/app/EditorApplication.cpp
+    ${CNA_EDITOR_PANEL_SOURCES})
 target_link_libraries(cna-editor PRIVATE
     cna-editor-context
     cna-editor-plugins

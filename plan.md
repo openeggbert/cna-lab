@@ -74,7 +74,7 @@ this turned up and how it was tracked down (ED-119).
 | `cna-editor-plugins` | core | no | Manifest discovery, validation, dynamic loading |
 | `cna-editor-context` | scene, assets, project, ui | no | `EditorContext` — the composition layer |
 | `cna-editor-viewport` | scene, ui | **yes** | The only module that links CNA: scene viewport, `CnaUiRenderer`, `CnaUiPlatform` (D-01, D-03) |
-| `cna-editor` | context, ui-imgui, plugins, bridge, viewport | via viewport | The editor application and its panels |
+| `cna-editor` | context, ui-imgui, plugins, bridge, viewport | via viewport | The editor application, and one class per panel under `src/panels/` |
 | `cna-player` | player, viewport | via viewport | The player executable; one build per backend (F-01, D-15) |
 
 The layering is enforced by the build graph, not by review: a stray `#include <Microsoft/Xna/...>`
@@ -177,7 +177,7 @@ real window, shows five docked panels, and renders the three-entity scene in the
 | ED-207 | Inspector: add and remove components, respecting `unique` and `required` | ✅ | The picker lists only what can actually be added, so a `unique` component already present is never on offer. A `required` component gets no Remove button rather than a dead one. Removal is by index, not by type — clicking Remove on the second audio source has to delete that one, and the two are indistinguishable afterwards if it does not |
 | ED-208 | Asset drag-and-drop from the browser onto a sprite slot | ✅ | A slot declares the asset kind it takes and refuses anything else, naming both kinds. Accepting a sound into a texture slot would give a scene that loads and a sprite that never appears, with nothing to explain it. The kind is a string on `PropertyDescriptor`, not an `AssetType`, so the descriptor header stays below the asset database and a plugin can name a kind the editor never saw |
 | ED-209 | Keyboard shortcuts: Ctrl+Z/Y/S/N/D, Delete, F to frame, W/E/R for gizmo modes | ✅ | Each shortcut and its menu item call the same method, so the two cannot drift apart. Modifiers are matched exactly, so Ctrl+Shift+Z does not also fire Ctrl+Z's undo, and every shortcut is suppressed while a text field has the keyboard. `E`/`R` select modes whose manipulator does not exist yet and say so in the console rather than letting the gizmo silently vanish |
-| ED-210 | Split the panels out of `EditorApplication` into their own classes | ⬜ | The gate has now been reached: `EditorApplication.cpp` is past 1200 lines and holds six panels plus their private state. Guarded by 175 tests that drive the real application, which is the condition that makes this refactor safe to do rather than risky |
+| ED-210 | Split the panels out of `EditorApplication` into their own classes | ✅ | Six panel classes, each owning its own view state. `EditorApplication.cpp` went from 1207 lines to 523 and keeps only what no single panel owns. A panel reaches shared operations through `EditorActions`, a deliberately narrow interface — everything on it is something the menu bar, a shortcut and at least one panel all trigger, so they cannot drift apart |
 
 ### Assets
 

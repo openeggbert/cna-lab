@@ -1,0 +1,116 @@
+// SPDX-License-Identifier: MS-PL
+#pragma once
+
+/**
+ * @file CNA/Editor/Panels/EditorPanel.hpp
+ * @brief The base a panel derives from, and the editor operations it may invoke.
+ *
+ * Panels were methods on EditorApplication through Phase 0, which was right while there was barely
+ * a panel to speak of. They are classes now (plan.md ED-210): each owns its own view state --
+ * which component the inspector's Add picker is showing, which row the hierarchy is renaming,
+ * how the console is filtered -- and none of it is visible to the others.
+ *
+ * What a panel may *do* to the editor goes through EditorActions rather than through a back
+ * reference to the application. That keeps the surface deliberately narrow, and it keeps one rule
+ * enforceable: an operation reachable from a panel, from the menu bar and from a keyboard shortcut
+ * must be the same operation. A panel that reimplemented "delete the selection" slightly
+ * differently is a bug users report as "undo is broken".
+ */
+
+#include <cstddef>
+#include <vector>
+
+#include "CNA/Editor/Core/Uuid.hpp"
+#include "CNA/Editor/RuntimeBridge/PlayerProcess.hpp"
+#include "CNA/Editor/Ui/EditorUi.hpp"
+#include "CNA/Editor/Viewport/EditorViewport.hpp"
+
+namespace CNA::Editor
+{
+    class EditorContext;
+
+    /** @brief What the editor believes the player process is doing. */
+    enum class PlayMode
+    {
+        Stopped,
+        Playing,
+        Paused
+    };
+
+    /**
+     * @brief The editor operations a panel can invoke.
+     *
+     * Narrow on purpose. Everything here is something the menu bar, a keyboard shortcut and at
+     * least one panel all trigger, so it lives in one place and behaves identically whichever
+     * asked for it. An operation only one panel ever performs belongs to that panel instead.
+     */
+    class EditorActions
+    {
+    public:
+        virtual ~EditorActions() = default;
+
+        /**
+         * @brief Returns the current viewport.
+         *
+         * Asked for per use rather than held, because the CNA-backed viewport is installed after
+         * construction (EditorApplication::setViewport) and a panel holding the old one would go
+         * on drawing into a viewport nobody displays.
+         */
+        [[nodiscard]] virtual EditorViewport& getViewport() = 0;
+
+        virtual void undo() = 0;
+        virtual void redo() = 0;
+        virtual void newScene() = 0;
+        virtual void saveScene() = 0;
+
+        virtual void duplicateSelection() = 0;
+        virtual void deleteSelection() = 0;
+
+        /** @brief Moves and zooms the camera so the selection fills the viewport. */
+        virtual void frameSelection() = 0;
+
+        /** @brief Puts @p entityId's hierarchy row into rename mode. */
+        virtual void beginRename(const Uuid& entityId) = 0;
+
+        virtual void setGizmoMode(GizmoMode mode) = 0;
+        [[nodiscard]] virtual GizmoMode getGizmoMode() const = 0;
+
+        virtual void startPlay() = 0;
+        virtual void stopPlay() = 0;
+        virtual void setPlayPaused(bool paused) = 0;
+        virtual void stepPlayFrame() = 0;
+
+        [[nodiscard]] virtual PlayMode getPlayMode() const = 0;
+        [[nodiscard]] virtual const std::vector<PlayerBuild>& getPlayerBuilds() const = 0;
+        [[nodiscard]] virtual std::size_t getSelectedPlayerBuild() const = 0;
+        virtual void selectPlayerBuild(std::size_t index) = 0;
+    };
+
+    /**
+     * @brief One dockable panel.
+     *
+     * Holds references rather than pointers: a panel cannot outlive the application that owns it,
+     * and a null check on every use would be noise guarding against a state that cannot arise.
+     */
+    class EditorPanel
+    {
+    public:
+        EditorPanel(EditorContext& context, EditorUi& ui, EditorActions& actions)
+            : context_(context), ui_(ui), actions_(actions)
+        {
+        }
+
+        virtual ~EditorPanel() = default;
+
+        EditorPanel(const EditorPanel&) = delete;
+        EditorPanel& operator=(const EditorPanel&) = delete;
+
+        /** @brief Draws the panel for one frame. */
+        virtual void draw() = 0;
+
+    protected:
+        EditorContext& context_;
+        EditorUi& ui_;
+        EditorActions& actions_;
+    };
+}

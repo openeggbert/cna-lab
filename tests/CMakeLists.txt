@@ -32,7 +32,9 @@ target_compile_definitions(cna-editor-tests PRIVATE
 
 # The application's panel layer is exercised end-to-end by ApplicationTests.cpp, so the test
 # binary compiles EditorApplication.cpp directly rather than linking the cna-editor executable.
-target_sources(cna-editor-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../src/app/EditorApplication.cpp")
+target_sources(cna-editor-tests PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src/app/EditorApplication.cpp"
+    ${CNA_EDITOR_PANEL_SOURCES})
 
 if(CNA_EDITOR_WITH_IMGUI)
     # The ImGui cases run the real editor UI headless and assert on the geometry it produces.
