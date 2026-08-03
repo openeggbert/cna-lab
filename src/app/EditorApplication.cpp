@@ -335,8 +335,7 @@ namespace CNA::Editor
     void EditorApplication::drawConsolePanel()
     {
         if (!ui_->beginPanel("Console", DockSide::Bottom)) { ui_->endPanel(); return; }
-        // The messages themselves live in the UI implementation, which owns the scroll state and
-        // the severity filter; nothing to draw from here.
+        ui_->drawLogView();
         ui_->endPanel();
     }
 }

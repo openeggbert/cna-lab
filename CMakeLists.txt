@@ -25,6 +25,12 @@ endif()
 # GPU and no window. See ANALYSIS.md decision D-03.
 option(CNA_EDITOR_WITH_CNA "Build the CNA-backed viewport (requires a ../cna sibling checkout)" OFF)
 
+# Default ON, unlike CNA_EDITOR_WITH_CNA. Dear ImGui is vendored in third_party/ and is pure
+# portable C++ with no system dependencies of its own, so building it costs nothing but compile
+# time -- and it lets CI run the *real* editor UI headless, asserting on the geometry it produces
+# with no window and no GPU. See ANALYSIS.md decision D-14.
+option(CNA_EDITOR_WITH_IMGUI "Build the Dear ImGui implementation of EditorUi" ON)
+
 option(CNA_EDITOR_BUILD_TESTS "Build the cna-editor test suite" ON)
 option(CNA_EDITOR_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
@@ -90,16 +96,62 @@ add_library(cna-editor-project STATIC
     src/project/Project.cpp)
 target_link_libraries(cna-editor-project PUBLIC cna-editor-core)
 
-# cna-editor-ui -- the toolkit-independent UI surface plus its null implementation. No panel or
-# plugin may call a toolkit directly; they call this. See ANALYSIS.md decision D-02.
+# cna-editor-ui -- the toolkit-independent UI surface plus its null implementation, and the two
+# types that carry data across the toolkit boundary: UiDrawData (geometry out) and UiInputState
+# (input in). No panel or plugin may call a toolkit directly; they call this. See ANALYSIS.md
+# decisions D-02 and D-14.
 add_library(cna-editor-ui STATIC
-    src/ui/NullEditorUi.cpp)
+    src/ui/NullEditorUi.cpp
+    src/ui/UiDrawData.cpp
+    src/ui/UiInputState.cpp)
 target_link_libraries(cna-editor-ui PUBLIC cna-editor-core)
 
-# cna-editor-runtime-bridge -- the editor/player wire protocol.
+# Dear ImGui itself. Vendored core only -- none of ImGui's own platform or renderer backends are
+# built, because cna-editor supplies its own through CNA's public API (ANALYSIS.md decision D-14).
+if(CNA_EDITOR_WITH_IMGUI)
+    add_library(cna-editor-imgui-vendor STATIC
+        third_party/imgui/imgui.cpp
+        third_party/imgui/imgui_draw.cpp
+        third_party/imgui/imgui_tables.cpp
+        third_party/imgui/imgui_widgets.cpp)
+    target_include_directories(cna-editor-imgui-vendor SYSTEM PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/imgui")
+    target_compile_features(cna-editor-imgui-vendor PUBLIC cxx_std_23)
+    # Third-party code is not held to this project's warning settings; its warnings are not
+    # actionable here and would drown out our own under -Werror.
+    if(NOT MSVC)
+        target_compile_options(cna-editor-imgui-vendor PRIVATE -w)
+    endif()
+
+    # cna-editor-ui-imgui -- the ImGui implementation of EditorUi. Needs ImGui and nothing else:
+    # no window system, no graphics API, no CNA. That is what makes it testable headless.
+    add_library(cna-editor-ui-imgui STATIC
+        src/ui/imgui/ImGuiEditorUi.cpp)
+    target_link_libraries(cna-editor-ui-imgui PUBLIC cna-editor-ui PRIVATE cna-editor-imgui-vendor)
+endif()
+
+# cna-editor-runtime-bridge -- the editor/player wire protocol, its loopback TCP transport, and
+# the editor-side process supervisor. Sockets and process spawning are the only platform-specific
+# code in this repository; both are contained here.
 add_library(cna-editor-runtime-bridge STATIC
-    src/runtime-bridge/EditorProtocol.cpp)
+    src/runtime-bridge/EditorProtocol.cpp
+    src/runtime-bridge/MessageChannel.cpp
+    src/runtime-bridge/PlayerProcess.cpp)
 target_link_libraries(cna-editor-runtime-bridge PUBLIC cna-editor-core)
+if(WIN32)
+    target_link_libraries(cna-editor-runtime-bridge PUBLIC ws2_32)
+endif()
+
+# cna-editor-player -- the player-side protocol and state machine. Deliberately CNA-free, so the
+# whole message-handling surface is unit-testable headless; the CNA-linked half is cna-player's
+# own main loop. See ANALYSIS.md decision D-15.
+add_library(cna-editor-player STATIC
+    src/player/PlayerHost.cpp)
+target_link_libraries(cna-editor-player PUBLIC
+    cna-editor-scene
+    cna-editor-assets
+    cna-editor-project
+    cna-editor-runtime-bridge)
 
 # cna-editor-plugins -- manifest discovery and validation.
 add_library(cna-editor-plugins STATIC
@@ -142,9 +194,14 @@ if(CNA_EDITOR_WITH_CNA)
                    "binary will be fixed to whatever CNA_GRAPHICS_BACKEND is set to")
     add_subdirectory("${CNA_EDITOR_CNA_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/cna")
 
+    # The only module that links CNA. It holds three things: the scene viewport, the UI renderer
+    # that draws UiDrawData through CNA's public graphics API, and the platform layer that fills
+    # UiInputState from CNA's public input API. See docs/SPIKE-IMGUI-CNA.md for the full mapping.
     add_library(cna-editor-viewport STATIC
-        src/viewport/CnaEditorViewport.cpp)
-    target_link_libraries(cna-editor-viewport PUBLIC cna-editor-scene PRIVATE CNA)
+        src/viewport/CnaEditorViewport.cpp
+        src/viewport/CnaUiRenderer.cpp
+        src/viewport/CnaUiPlatform.cpp)
+    target_link_libraries(cna-editor-viewport PUBLIC cna-editor-scene cna-editor-ui PRIVATE CNA)
     target_compile_definitions(cna-editor-viewport PUBLIC CNA_EDITOR_HAS_CNA=1)
 endif()
 
@@ -164,6 +221,31 @@ if(CNA_EDITOR_WITH_CNA)
     target_link_libraries(cna-editor PRIVATE cna-editor-viewport)
 endif()
 
+if(CNA_EDITOR_WITH_IMGUI)
+    target_link_libraries(cna-editor PRIVATE cna-editor-ui-imgui)
+    target_compile_definitions(cna-editor PRIVATE CNA_EDITOR_HAS_IMGUI=1)
+endif()
+
+# ---------------------------------------------------------------------------------------------
+# cna-player
+#
+# Built once per graphics backend in a real installation -- cna-player-easygl,
+# cna-player-software, and so on -- because CNA fixes its backend at compile time. The editor
+# discovers which builds exist and launches the one matching the backend the user asked to
+# preview. Built here without CNA, it still speaks the whole protocol; that configuration is what
+# the editor's own bridge tests run against.
+# ---------------------------------------------------------------------------------------------
+
+add_executable(cna-player src/player/Main.cpp)
+target_link_libraries(cna-player PRIVATE cna-editor-player)
+
+if(CNA_EDITOR_WITH_CNA)
+    target_link_libraries(cna-player PRIVATE cna-editor-viewport)
+    # The binary is named for its backend so that discovery can tell the builds apart on disk.
+    string(TOLOWER "${CNA_GRAPHICS_BACKEND}" _cna_editor_player_suffix)
+    set_target_properties(cna-player PROPERTIES OUTPUT_NAME "cna-player-${_cna_editor_player_suffix}")
+endif()
+
 # ---------------------------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------------------------
@@ -175,4 +257,5 @@ endif()
 
 message(STATUS "cna-editor ${PROJECT_VERSION}")
 message(STATUS "  CNA viewport : ${CNA_EDITOR_WITH_CNA}")
+message(STATUS "  Dear ImGui   : ${CNA_EDITOR_WITH_IMGUI}")
 message(STATUS "  tests        : ${CNA_EDITOR_BUILD_TESTS}")

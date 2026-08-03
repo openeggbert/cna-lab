@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: MS-PL
+#pragma once
+
+/**
+ * @file CNA/Editor/Player/PlayerHost.hpp
+ * @brief The player side of the editor bridge: what `cna-player` does with what the editor sends.
+ *
+ * `cna-player` lives in this repository rather than in CNA (ANALYSIS.md decision D-15). It is
+ * built once per graphics backend, because CNA fixes its backend at compile time (finding F-01),
+ * and the editor launches whichever build matches the backend the user asked to preview.
+ *
+ * This class is the *protocol and state* half, and it is deliberately CNA-free: it decides what a
+ * message means, tracks the play/pause/step state, and reports back. Actually rendering the scene
+ * is the CNA-linked half in `cna-player`'s own main loop. Splitting it this way is what lets the
+ * whole message-handling surface be unit-tested headless -- see `tests/PlayerTests.cpp`.
+ */
+
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "CNA/Editor/Assets/AssetDatabase.hpp"
+#include "CNA/Editor/Project/Project.hpp"
+#include "CNA/Editor/RuntimeBridge/EditorProtocol.hpp"
+#include "CNA/Editor/Scene/SceneDocument.hpp"
+
+namespace CNA::Editor
+{
+    /** @brief Whether the simulation is advancing. */
+    enum class PlayState
+    {
+        /** @brief Advancing normally. */
+        Running,
+        /** @brief Held; only an explicit StepFrame advances it. */
+        Paused,
+        /** @brief The editor asked the player to exit. */
+        Stopping
+    };
+
+    /** @brief Returns the display name of @p state. */
+    const char* toString(PlayState state);
+
+    /**
+     * @brief Applies editor messages to a running game and reports back.
+     *
+     * Constructed with a project already loaded. `handle()` is called for each message the channel
+     * delivers; anything the player wants to send back is returned rather than sent directly, so
+     * that the transport stays injectable and the whole class stays testable with no socket.
+     */
+    class PlayerHost
+    {
+    public:
+        /** @brief Sink for messages the host wants to send to the editor. */
+        using Outbox = std::vector<EditorMessage>;
+
+        PlayerHost();
+        ~PlayerHost();
+
+        PlayerHost(const PlayerHost&) = delete;
+        PlayerHost& operator=(const PlayerHost&) = delete;
+
+        /**
+         * @brief Loads @p projectPath and prepares for messages.
+         * @return False when the project cannot be read; getError() says why.
+         */
+        bool openProject(const std::string& projectPath);
+
+        /**
+         * @brief Handles one message from the editor.
+         * @param message The received message.
+         * @param outbox Replies are appended here.
+         */
+        void handle(const EditorMessage& message, Outbox& outbox);
+
+        /**
+         * @brief Advances one simulated frame if the state allows it.
+         *
+         * @return True when a frame should actually be drawn. False while paused, which is what
+         *         lets the player idle cheaply instead of spinning.
+         */
+        bool tick();
+
+        /** @brief Builds the Ready message announcing this build's backend and capabilities. */
+        [[nodiscard]] EditorMessage makeReady(const std::string& backendName) const;
+
+        [[nodiscard]] PlayState getPlayState() const { return playState_; }
+        [[nodiscard]] const Project& getProject() const { return project_; }
+        [[nodiscard]] const SceneDocument& getScene() const { return scene_; }
+        [[nodiscard]] const std::string& getScenePath() const { return scenePath_; }
+        [[nodiscard]] const std::string& getError() const { return error_; }
+
+        /** @brief Returns the number of frames advanced since start-up. */
+        [[nodiscard]] std::uint64_t getFrameCount() const { return frameCount_; }
+
+        /** @brief Returns the entity the editor last asked to highlight. */
+        [[nodiscard]] const Uuid& getHighlightedEntity() const { return highlightedEntity_; }
+
+        /** @brief Returns true once the editor has asked the player to exit. */
+        [[nodiscard]] bool shouldExit() const { return playState_ == PlayState::Stopping; }
+
+        /** @brief Returns whether a compatible handshake has been received. */
+        [[nodiscard]] bool isHandshakeComplete() const { return handshakeComplete_; }
+
+    private:
+        void handleLoadScene(const EditorMessage& message, Outbox& outbox);
+        void handleSetProperty(const EditorMessage& message, Outbox& outbox);
+
+        Project project_;
+        SceneDocument scene_;
+        ComponentRegistry components_;
+        AssetDatabase assets_;
+        std::string scenePath_;
+        std::string error_;
+        PlayState playState_ = PlayState::Running;
+        Uuid highlightedEntity_;
+        std::uint64_t frameCount_ = 0;
+        /** @brief Frames still owed from StepFrame requests while paused. */
+        int pendingSteps_ = 0;
+        bool handshakeComplete_ = false;
+    };
+}

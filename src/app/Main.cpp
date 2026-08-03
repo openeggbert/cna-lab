@@ -13,6 +13,10 @@
 
 #include "CNA/Editor/EditorApplication.hpp"
 
+#if defined(CNA_EDITOR_HAS_IMGUI)
+#    include "CNA/Editor/Ui/ImGuiEditorUi.hpp"
+#endif
+
 namespace
 {
     /** @brief Prints every log message to stdout. Used by headless runs. */
@@ -74,15 +78,41 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    // Phase 0 ships only the null/console UI. The Dear ImGui implementation registers here once
-    // it exists (plan.md ED-110); everything above and below this line stays unchanged.
-    if (!options.headless && options.uiBackend != "null")
+    // This is the one place that decides which concrete EditorUi and EditorViewport the
+    // application gets. Everything else -- panels, commands, plugins -- is written against the
+    // abstractions and does not change when this does (ANALYSIS.md decision D-02).
+    const bool useImGui = !options.headless && options.uiBackend != "null";
+
+#if !defined(CNA_EDITOR_HAS_IMGUI)
+    if (useImGui)
     {
-        std::cerr << "cna-editor: UI backend '" << options.uiBackend
-                  << "' is not built into this binary yet (see plan.md ED-110).\n"
+        std::cerr << "cna-editor: this binary was built with -DCNA_EDITOR_WITH_IMGUI=OFF, so the "
+                     "'" << options.uiBackend << "' UI is unavailable.\n"
                      "Run with --headless to use the console UI.\n";
         return 3;
     }
+#else
+    if (useImGui && options.uiBackend != "imgui")
+    {
+        std::cerr << "cna-editor: unknown UI backend '" << options.uiBackend
+                  << "'. This binary provides 'imgui' and 'null'.\n";
+        return 3;
+    }
+
+    if (useImGui)
+    {
+        // Presenting the geometry needs a window and a CNA graphics device, which is
+        // cna-editor-viewport's job (plan.md ED-111). Until that is wired, the ImGui UI runs and
+        // produces real draw data -- which is exactly what the headless tests assert on -- but
+        // nothing is on screen yet, and saying so plainly beats opening a blank window.
+        std::cerr << "cna-editor: the ImGui UI is built, but window creation and presentation are "
+                     "not wired up yet (plan.md ED-111).\n"
+                     "The renderer that draws it through CNA's public API is implemented in "
+                     "cna-editor-viewport; build with -DCNA_EDITOR_WITH_CNA=ON to compile it.\n"
+                     "Run with --headless in the meantime.\n";
+        return 3;
+    }
+#endif
 
     CNA::Editor::EditorApplication application{std::make_unique<ConsoleEditorUi>(),
                                                std::make_unique<CNA::Editor::NullEditorViewport>()};

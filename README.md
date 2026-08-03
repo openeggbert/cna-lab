@@ -3,9 +3,14 @@
 Editor, asset pipeline and tooling for [CNA](https://github.com/openeggbert/cna) — the C++
 reimplementation of the XNA 4.0 framework.
 
-> **Status: early foundation.** The document model, undo system, asset database, project format and
-> editor/player protocol are implemented and tested. There is no window yet — the UI toolkit and the
-> CNA-backed viewport are Phase 0 in [`plan.md`](plan.md).
+> **Status: everything except the window.** The document model, undo system, asset database and
+> project format are implemented and tested. The **Dear ImGui UI** draws every panel and is
+> validated headless in CI. The **`cna-player` process** is launched by the editor over a real
+> socket. The **renderer that draws the UI through CNA's public API** is written and compiles
+> against real CNA headers.
+>
+> What is missing is creating the window and presenting that geometry — [`plan.md`](plan.md)
+> ED-111, the single task between here and a visible editor.
 
 ---
 
@@ -16,7 +21,7 @@ CNA, built against the same public API a game uses:
 
 - a **document editor** — scenes, entities, components, undo;
 - an **asset pipeline** — stable ids, importers, dependency tracking;
-- a **runtime bridge** — play mode in a separate process;
+- a **runtime bridge** — play mode in a separate `cna-player` process;
 - a **plugin SDK** — importers, component types, panels, gizmos, exporters.
 
 That framing is the whole design. CNA stays a lightweight XNA-compatible framework you can use with
@@ -75,7 +80,8 @@ cmake --build build-cna -j
 
 | Option | Default | Meaning |
 |--------|:-------:|---------|
-| `CNA_EDITOR_WITH_CNA` | `OFF` | Build the CNA-backed viewport |
+| `CNA_EDITOR_WITH_CNA` | `OFF` | Build the CNA-backed viewport, UI renderer and input platform |
+| `CNA_EDITOR_WITH_IMGUI` | `ON` | Build the Dear ImGui UI (vendored; no system dependencies) |
 | `CNA_EDITOR_BUILD_TESTS` | `ON` | Build the test suite |
 | `CNA_EDITOR_WARNINGS_AS_ERRORS` | `OFF` | `-Werror` / `/WX` |
 | `CNA_EDITOR_CNA_ROOT` | `../cna` | Where to find the CNA checkout |
@@ -117,14 +123,22 @@ Run `cna-editor --list-backends` to see the 14 backends and how each is classifi
 │  Hierarchy      Viewport            Inspector                     │
 │  Assets         Console                                           │
 └───────────────────────────────────────────────────────────────────┘
-        │                    │                        │
-        ▼                    ▼                        ▼
- cna-editor-ui       cna-editor-viewport      cna-editor-context
- (ImGui | Null)      ← the ONLY module        (project, scene,
-                       that links CNA           registry, assets,
-                                                undo, selection)
                              │
-        ┌────────────────────┼────────────────────┐
+        ┌────────────────────┴────────────────────┐
+        ▼                                         ▼
+ cna-editor-ui-imgui                      cna-editor-context
+ (Dear ImGui)                             (project, scene, registry,
+        │                                  assets, undo, selection)
+        │  UiDrawData  ▼   ▲  UiInputState
+        └──────────────┬───┴──────────────┐
+                       ▼                  │
+             cna-editor-viewport ──────────┘
+             ← the ONLY module that links CNA
+               · CnaUiRenderer   (draws the UI)
+               · CnaUiPlatform   (mouse/keys/text)
+               · CnaEditorViewport (draws the scene)
+
+        ┌────────────────────┬────────────────────┐
         ▼                    ▼                    ▼
  cna-editor-scene    cna-editor-assets    cna-editor-project
         └────────────────────┼────────────────────┘
@@ -133,14 +147,19 @@ Run `cna-editor --list-backends` to see the 14 backends and how each is classifi
               (Uuid · JSON · PropertyValue ·
            ComponentDescriptor · CommandHistory)
 
- cna-editor-plugins       cna-editor-runtime-bridge
- (manifest, loading)      (protocol) ──IPC──▶ cna-player process
+ cna-editor-plugins    cna-editor-runtime-bridge    cna-editor-player
+ (manifest, loading)   (protocol, TCP, spawn) ─IPC─▶ (cna-player process)
 ```
 
 Everything except `cna-editor-viewport` is CNA-free. That is enforced by the build graph, not by
 review: a stray `#include <Microsoft/Xna/...>` elsewhere fails to compile.
 
-### Five things worth knowing
+The UI is joined to CNA by two plain data types rather than by an interface — `UiDrawData` carries
+geometry out, `UiInputState` carries input in. So `CnaUiRenderer.cpp` contains **no ImGui header**,
+and "the editor UI renders through CNA's public API" is a property of the build graph rather than a
+claim to re-check by hand.
+
+### Six things worth knowing
 
 **Undo is a hard rule.** Every document mutation is an `EditorCommand` pushed through
 `CommandHistory` — from the inspector, from a gizmo, from a plugin, from the bridge. Retrofitting
@@ -165,30 +184,41 @@ cannot take the editor down, and historical or 32-bit builds become testable.
 choice reversible, makes the panel layer testable with no display, and keeps plugins working across
 a toolkit change.
 
+**The editor's UI is drawn with the same API a game has.** `CnaUiRenderer` uses
+`DrawUserIndexedPrimitives`, `BasicEffect`, `Texture2D`, `RasterizerState::ScissorTestEnable`,
+`BlendState::NonPremultiplied` — no `CNA::Internal::*`, no authored shader, no per-backend code.
+One implementation serves every backend. If CNA could not draw the editor's UI, that would be a gap
+in CNA worth finding; two small ones were, and are filed in
+[`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md).
+
 ---
 
 ## Repository layout
 
 ```
 cna-editor/
-├── ANALYSIS.md              Architecture analysis, findings, and the 13 decisions
+├── ANALYSIS.md              Architecture analysis, findings, and the 15 decisions
 ├── plan.md                  Phased task plan, ED-NNN ids
 ├── docs/
-│   └── FORMATS.md           .cnaproject / .cnascene / .cnaasset / wire protocol
+│   ├── FORMATS.md           .cnaproject / .cnascene / .cnaasset / wire protocol
+│   └── SPIKE-IMGUI-CNA.md   Can ImGui render through CNA's public API? (yes)
 ├── include/CNA/Editor/      Public headers
 │   ├── Core/                Uuid, Json, EditorMath, PropertyValue,
 │   │                        ComponentDescriptor, EditorCommand
 │   ├── Scene/               EditorEntity, SceneDocument, SceneCommands, BuiltinComponents
 │   ├── Assets/              AssetDatabase
 │   ├── Project/             Project, backend capability table
-│   ├── Ui/                  EditorUi, NullEditorUi
-│   ├── Viewport/            EditorViewport, NullEditorViewport
+│   ├── Ui/                  EditorUi, NullEditorUi, ImGuiEditorUi,
+│   │                        UiDrawData, UiInputState
+│   ├── Viewport/            EditorViewport, CnaUiRenderer, CnaUiPlatform
 │   ├── Plugins/             Plugin manifest and host
-│   ├── RuntimeBridge/       EditorProtocol
+│   ├── RuntimeBridge/       EditorProtocol, MessageChannel, PlayerProcess
+│   ├── Player/              PlayerHost
 │   ├── EditorContext.hpp
 │   └── EditorApplication.hpp
 ├── src/                     One directory per module
-├── tests/                   69 tests, no third-party framework
+├── third_party/imgui/       Dear ImGui 1.92.9b, core only
+├── tests/                   96 tests, no third-party framework
 └── examples/HelloSprites/   A project the editor opens end to end
 ```
 
@@ -206,7 +236,8 @@ House rules, matching CNA's own:
 - Doxygen `@brief` on every public type and method.
 - Every document mutation goes through an `EditorCommand`.
 - Only `cna-editor-viewport` may include CNA headers.
-- New behaviour comes with a test. The suite runs headless in under a second — there is no excuse.
+- New behaviour comes with a test. The suite runs headless in about a second — there is no excuse.
+- The UI layer talks to `UiDrawData`/`UiInputState`, never straight to a toolkit or to CNA.
 
 ---
 

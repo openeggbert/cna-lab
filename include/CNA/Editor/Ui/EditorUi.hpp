@@ -151,6 +151,15 @@ namespace CNA::Editor
 
         /** @brief Appends a message to the console panel. */
         virtual void log(LogSeverity severity, const std::string& message) = 0;
+
+        /**
+         * @brief Draws the accumulated console messages.
+         *
+         * Called by the console panel. The messages live in the implementation because the scroll
+         * position, severity colouring and auto-scroll behaviour are all toolkit state -- the
+         * panel decides only *that* a console exists.
+         */
+        virtual void drawLogView() {}
     };
 
     /**

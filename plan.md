@@ -2,7 +2,7 @@
 
 > The reasoning behind this plan is in [`ANALYSIS.md`](ANALYSIS.md). Read that first: it records
 > what was verified against the CNA codebase, where the original architecture discussion was wrong,
-> and the thirteen decisions (D-01 … D-13) every task below rests on.
+> and the fifteen decisions (D-01 … D-15) every task below rests on.
 >
 > **Task ids** use an `ED-NNN` scheme, banded by phase: `ED-0xx` Phase 0, `ED-1xx`/`ED-2xx` Phase 1,
 > `ED-3xx` Phase 2, `ED-4xx` Phase 3, `ED-5xx` Phase 4, `ED-9xx` cross-cutting. Ids are stable and
@@ -22,16 +22,25 @@
 
 ## Current state
 
-**Phase −1 (foundation) is complete.** This repository contains a working, dependency-free C++23
-skeleton that builds and passes its tests with no CNA checkout, no GPU and no window:
+**Phase −1 (foundation) is complete, and most of Phase 0 with it.** This repository builds and
+passes its tests with no CNA checkout, no GPU and no window:
 
-- 8 modules, an application, and 69 passing tests across 5 CTest suites
+- 11 modules, two executables, and **96 passing tests across 7 CTest suites**
 - clean at `-Wall -Wextra -Wpedantic -Werror`
+- the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
+  command-by-command in CI
+- the **real `cna-player` process** is launched by the editor over a real loopback socket, loads a
+  scene on request, and shuts down cleanly
 - `./build/cna-editor --headless --project=examples/HelloSprites/HelloSprites.cnaproject` opens a
-  project, scans its assets, loads a three-entity scene and draws a headless frame
+  project, scans its assets, loads a three-entity scene and draws a frame
 
-What it does *not* have: a window, a UI toolkit, rendering, or a player process. Those are Phase 0
-and Phase 1.
+**The ED-100 spike passed**: Dear ImGui renders entirely through CNA's *public* API — no
+`CNA::Internal::*`, no authored shader, no per-backend renderer. `CnaUiRenderer` and
+`CnaUiPlatform` are implemented and compile against real CNA headers. Report:
+[`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md).
+
+What remains before a *visible* editor is one task: **ED-111**, creating a window and a CNA
+graphics device and presenting the geometry the UI already produces.
 
 ---
 
@@ -43,12 +52,15 @@ and Phase 1.
 | `cna-editor-scene` | core, assets, project, ui | no | `SceneDocument`, `EditorEntity`, scene commands, built-in components |
 | `cna-editor-assets` | core | no | `AssetDatabase`, `.cnaasset` sidecars, importers |
 | `cna-editor-project` | core | no | `.cnaproject`, the backend capability table |
-| `cna-editor-ui` | core | no | `EditorUi` abstraction, `NullEditorUi`; later the ImGui binding |
-| `cna-editor-runtime-bridge` | core | no | `EditorProtocol`, `MessageStreamDecoder`, player process control |
+| `cna-editor-ui` | core | no | `EditorUi` abstraction, `NullEditorUi`, `UiDrawData`, `UiInputState` |
+| `cna-editor-ui-imgui` | ui | no | `ImGuiEditorUi` — the Dear ImGui implementation (D-14) |
+| `cna-editor-runtime-bridge` | core | no | `EditorProtocol`, `MessageChannel` (TCP), `PlayerProcess` |
+| `cna-editor-player` | scene, assets, project, bridge | no | `PlayerHost` — the player's protocol and state machine (D-15) |
 | `cna-editor-plugins` | core | no | Manifest discovery, validation, dynamic loading |
 | `cna-editor-context` | scene, assets, project, ui | no | `EditorContext` — the composition layer |
-| `cna-editor-viewport` | scene | **yes** | The only module that links CNA (D-01, D-03) |
-| `cna-editor` | context, plugins, bridge, viewport | via viewport | The application and its panels |
+| `cna-editor-viewport` | scene, ui | **yes** | The only module that links CNA: scene viewport, `CnaUiRenderer`, `CnaUiPlatform` (D-01, D-03) |
+| `cna-editor` | context, ui-imgui, plugins, bridge, viewport | via viewport | The editor application and its panels |
+| `cna-player` | player, viewport | via viewport | The player executable; one build per backend (F-01, D-15) |
 
 The layering is enforced by the build graph, not by review: a stray `#include <Microsoft/Xna/...>`
 outside `cna-editor-viewport` fails to compile.
@@ -82,6 +94,8 @@ Complete. Everything below is implemented, tested and building.
 | ED-019 | `EditorApplication`, argument parsing, six panels, headless frame loop | ✅ |
 | ED-020 | Test harness and 69 tests; CTest registration | ✅ |
 | ED-021 | `examples/HelloSprites` — a real project the editor opens end to end | ✅ |
+| ED-022 | `UiDrawData` and `UiInputState` — the toolkit boundary (D-14) | ✅ |
+| ED-023 | `MessageChannel` — non-blocking loopback TCP transport, POSIX and Winsock | ✅ |
 
 **Two real bugs were found and fixed during this phase**, both recorded in ANALYSIS.md:
 
@@ -94,26 +108,31 @@ Complete. Everything below is implemented, tested and building.
 
 ---
 
-## Phase 0 — Technical prototype ⬜
+## Phase 0 — Technical prototype 🔄
 
 **Goal.** Prove CNA can host an editor UI. One window, docked panels, one CNA-rendered viewport.
 
-**Explicitly out of scope.** Asset pipeline work, plugins, gizmos, the player process.
+**Status.** The hard question is answered: ED-100 passed, and the UI, the renderer and the platform
+layer are all built. What is left is window creation (ED-111) and the viewport's own drawing.
 
 | Id | Task | Status | Notes |
 |----|------|:------:|-------|
-| ED-100 | **Spike: can Dear ImGui render through CNA's *public* API?** | 🔬 | Blocks ED-110. See Q-01. An ImGui renderer written against `SpriteBatch`/`Texture2D` would be backend-independent by construction — far better than seven per-backend renderers. Needs scissor rects, dynamic vertex buffers, texture binding by handle. Whatever is missing is a CNA gap worth filing, which is the point of D-01 |
-| ED-101 | Vendor Dear ImGui (docking branch) into `third_party/`, matching CNA's vendoring convention | ⬜ | New dependency owned by this repository (F-06) |
-| ED-102 | `CNA_EDITOR_WITH_CNA=ON` build verified against a real `../cna` + `../sharp-runtime` checkout | ⬜ | Also proves the `FATAL_ERROR` guidance in `CMakeLists.txt` is accurate |
-| ED-110 | `ImGuiEditorUi` — implements every `EditorUi` method | ⬜ | Blocked by ED-100. No panel changes: that is the D-02 payoff |
-| ED-111 | Window and event loop; `--ui=imgui` becomes real | ⬜ | |
-| ED-112 | Dock space with the default five-panel layout, persisted between sessions | ⬜ | |
-| ED-113 | `propertyField` widgets for all 13 property types | ⬜ | Sliders where `minimum < maximum`; combo boxes for enums; pickers for references |
-| ED-114 | Console panel: severity filter, scroll-lock, copy | ⬜ | |
-| ED-120 | `CnaEditorViewport::renderScene` draws sprites through `SpriteBatch` | ⬜ | Skeleton and build wiring already in place |
+| ED-100 | **Spike: can Dear ImGui render through CNA's *public* API?** | ✅ | **Yes, completely.** Every capability is present, including proper text input via `TextInputEXT` — the one I expected to be missing. One implementation serves every backend; no per-backend renderer, no authored shader. Report: [`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md) |
+| ED-101 | Vendor Dear ImGui (docking branch) into `third_party/` | ✅ | 1.92.9b, core only — none of ImGui's own backends, because we supply our own |
+| ED-110 | `ImGuiEditorUi` — implements every `EditorUi` method | ✅ | Zero panel changes were needed: the D-02 payoff, collected |
+| ED-113 | `propertyField` widgets for all 13 property types | ✅ | Sliders, combo boxes, colour picker, drag fields. Quaternion-as-Euler is deferred — see note below |
+| ED-116 | `CnaUiRenderer` — draws `UiDrawData` through CNA's public graphics API | ✅ | Compiles against real CNA headers |
+| ED-117 | `CnaUiPlatform` — fills `UiInputState` from CNA's public input API | ✅ | Text via `TextInputEXT`, never synthesised from key codes |
+| ED-130 | Report the CNA public-API gaps the spike uncovered | ✅ | Two, both minor: `Color` is not default-constructible (G-01); clipboard needs `CNA_DEVICES` (G-02) |
+| ED-102 | `CNA_EDITOR_WITH_CNA=ON` build verified against real `../cna` + `../sharp-runtime` checkouts | 🔄 | The CNA-linked sources are compile-verified against real headers; a full link needs CNA's own build (SDL3, sharp-runtime) |
+| ED-111 | **Window, graphics device, event loop; `--ui=imgui` becomes real** | ⬜ | **The one task between here and a visible editor.** Everything it needs already exists |
+| ED-112 | Dock layout persisted between sessions | ⬜ | `loadLayout`/`saveLayout` implemented, not yet called |
+| ED-114 | Console panel: severity filter, scroll-lock, copy | ⬜ | `drawLogView` renders coloured, auto-scrolling messages; filtering and copy remain |
+| ED-115 | Persistent `DynamicVertexBuffer`/`DynamicIndexBuffer` in `CnaUiRenderer` | ⛔ | Deferred: `DrawUserIndexedPrimitives` re-uploads per call, which is fine at 20–60 commands a frame. Profiling should ask for this before anyone does it |
+| ED-118 | Quaternion inspector as Euler angles | ⬜ | Needs a stable angle convention and round-trip handling. Showing the honest stored quaternion beats showing angles that silently drift on every edit |
+| ED-120 | `CnaEditorViewport::renderScene` draws sprites through `SpriteBatch` | ⬜ | Skeleton and build wiring in place |
 | ED-121 | Viewport renders into an offscreen target composited into the dock | ⬜ | |
 | ED-122 | Editor camera: pan, zoom, frame-selection | ⬜ | |
-| ED-130 | Report every CNA public-API gap ED-100 and ED-120 uncover | ⬜ | The deliverable D-01 exists to produce |
 
 **Exit criterion.** `cna-editor --project=examples/HelloSprites/HelloSprites.cnaproject` opens a
 real window, shows five docked panels, and renders the three-entity scene in the viewport.
@@ -154,11 +173,12 @@ real window, shows five docked panels, and renders the three-entity scene in the
 
 | Id | Task | Status | Notes |
 |----|------|:------:|-------|
-| ED-240 | `cna-player` host: loads a project and a scene, speaks the protocol | 🔬 | Q-04: which repository owns this binary |
-| ED-241 | Process spawn and lifetime; a player crash is reported, never fatal to the editor | ⬜ | |
-| ED-242 | Socket transport over `MessageStreamDecoder` | ⬜ | Codec already built and tested |
-| ED-243 | Play / Pause / Step / Stop, with the player's log routed into the console | ⬜ | |
-| ED-244 | Player discovery: find installed `cna-player-<backend>` binaries and offer only those | ⬜ | Direct consequence of F-01 |
+| ED-240 | `cna-player` host: loads a project and a scene, speaks the protocol | ✅ | Lives in this repository (Q-04 resolved, decision D-15). `PlayerHost` is CNA-free, so the whole message surface is unit-tested headless |
+| ED-241 | Process spawn and lifetime; a player crash is reported, never fatal to the editor | ✅ | `PlayerProcess`, POSIX and Windows. `MSG_NOSIGNAL` so a dead player cannot `SIGPIPE` the editor; children are reaped so a long session cannot leak zombies |
+| ED-242 | Socket transport over `MessageStreamDecoder` | ✅ | `MessageChannel`: non-blocking loopback TCP, ephemeral port, listen-before-spawn so there is no connect race |
+| ED-243 | Play / Pause / Step / Stop, with the player's log routed into the console | 🔄 | State machine and messages done and tested; the editor-side toolbar and console routing remain |
+| ED-244 | Player discovery: find installed `cna-player-<backend>` binaries and offer only those | ✅ | `discoverPlayerBuilds()`. Direct consequence of F-01: the editor offers only backends that actually exist |
+| ED-245 | Editor-side Play toolbar wired to `PlayerProcess` | ⬜ | The last piece of play mode the user can see |
 | ED-250 | **Design: how a game consumes a compiled scene** | 🔬 | Q-02. The decision most likely to pull the editor toward being an engine. Needs a written design before this phase closes |
 
 **Exit criterion.** The original minimum milestone, verbatim: *open a project, show docked panels,
@@ -282,7 +302,19 @@ These block specific tasks and are stated in full in ANALYSIS.md §4.
 
 | Id | Question | Blocks |
 |----|----------|--------|
-| Q-01 | Can Dear ImGui render through CNA's public API alone? | ED-100 → ED-110 |
-| Q-02 | How does a game consume a compiled scene? | ED-250 |
-| Q-03 | Which process owns the window in play mode? | ED-241 (Phase 1 answer: a separate top-level window) |
-| Q-04 | Does `cna-player` live here or in `openeggbert/cna`? | ED-240 |
+| ~~Q-01~~ | ~~Can Dear ImGui render through CNA's public API alone?~~ | ✅ **Resolved: yes.** [`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md) |
+| Q-02 | How does a game consume a compiled scene? | ED-250 — still open, and still the decision most likely to pull the editor toward being an engine |
+| Q-03 | Which process owns the window in play mode? | ED-245. Phase 1 answer: a separate top-level window; revisit when it becomes annoying |
+| ~~Q-04~~ | ~~Does `cna-player` live here or in `openeggbert/cna`?~~ | ✅ **Resolved: here.** Decision D-15 |
+
+---
+
+## Gaps found in CNA
+
+Reporting these is a deliverable of decision D-01, not a side effect. Both come from the ED-100
+spike; details in [`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md) §3.
+
+| Id | Gap | Impact | Suggested fix |
+|----|-----|--------|---------------|
+| G-01 | `Microsoft::Xna::Framework::Color` has no default constructor | `std::vector<Color>::resize(n)` does not compile. XNA's `Color` is a struct and *is* default-constructible, so this is a real behavioural difference that will bite any port resizing a colour buffer | Add `Color() = default;` with zero-initialised members |
+| G-02 | `CNA::Devices::Clipboard` is entirely inside `#ifdef CNA_DEVICES`, which defaults to OFF | An editor built against a default CNA has no clipboard; copy/paste in text fields silently does nothing. The editor degrades cleanly and reports it | Document that tooling expects `-DCNA_DEVICES=ON` |

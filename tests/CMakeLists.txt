@@ -10,17 +10,34 @@ add_executable(cna-editor-tests
     SceneTests.cpp
     CommandTests.cpp
     ProjectAndAssetTests.cpp
-    ApplicationTests.cpp)
+    ApplicationTests.cpp
+    UiTests.cpp
+    PlayerTests.cpp)
 
 target_include_directories(cna-editor-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(cna-editor-tests PRIVATE
     cna-editor-context
     cna-editor-plugins
-    cna-editor-runtime-bridge)
+    cna-editor-runtime-bridge
+    cna-editor-player)
+
+# PlayerTests spawns the real cna-player binary, so it must exist before the suite runs -- and
+# the suite must know where it landed. A generator expression over the real target is exact;
+# guessing from the test binary's own directory would silently turn the end-to-end bridge test
+# into a no-op that always passes.
+add_dependencies(cna-editor-tests cna-player)
+target_compile_definitions(cna-editor-tests PRIVATE
+    CNA_EDITOR_TEST_PLAYER_DIR="$<TARGET_FILE_DIR:cna-player>")
 
 # The application's panel layer is exercised end-to-end by ApplicationTests.cpp, so the test
 # binary compiles EditorApplication.cpp directly rather than linking the cna-editor executable.
 target_sources(cna-editor-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../src/app/EditorApplication.cpp")
+
+if(CNA_EDITOR_WITH_IMGUI)
+    # The ImGui cases run the real editor UI headless and assert on the geometry it produces.
+    target_link_libraries(cna-editor-tests PRIVATE cna-editor-ui-imgui)
+    target_compile_definitions(cna-editor-tests PRIVATE CNA_EDITOR_HAS_IMGUI=1)
+endif()
 
 add_test(NAME CnaEditorTests COMMAND cna-editor-tests)
 set_tests_properties(CnaEditorTests PROPERTIES TIMEOUT 120)
@@ -37,3 +54,10 @@ add_test(NAME CnaEditorListBackends COMMAND cna-editor --list-backends)
 # would teach a mental model the framework does not support.
 add_test(NAME CnaEditorRejectsGraphicsFlag COMMAND cna-editor --graphics=vulkan)
 set_tests_properties(CnaEditorRejectsGraphicsFlag PROPERTIES WILL_FAIL TRUE)
+
+add_test(NAME CnaPlayerHelp COMMAND cna-player --help)
+
+# cna-player requires a project: launching one without is a mistake worth failing on, not
+# something to paper over with a default.
+add_test(NAME CnaPlayerRequiresAProject COMMAND cna-player)
+set_tests_properties(CnaPlayerRequiresAProject PROPERTIES WILL_FAIL TRUE)

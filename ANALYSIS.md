@@ -11,6 +11,11 @@
 >
 > **Status legend.** ✅ verified against the codebase · ⚠️ corrects the original discussion ·
 > 🔬 needs a spike before it can be settled.
+>
+> **Update, 2026-08-03.** Questions Q-01 (can Dear ImGui render through CNA's public API?) and
+> Q-04 (where does `cna-player` live?) are both resolved — see §4. Two new decisions, **D-14** and
+> **D-15**, record what came out of them. The Q-01 spike has its own report:
+> [`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md).
 
 ---
 
@@ -437,6 +442,55 @@ GoogleTest is a contained change — nothing outside `TestHarness.hpp` knows how
 spelled. If profiling ever shows JSON parsing dominating project-open time, a vendored fast parser
 is likewise contained behind `Json::parse`.
 
+### D-14 — The toolkit boundary is a data type, not an interface
+
+**Decision.** Dear ImGui produces a `UiDrawData` (geometry) and consumes a `UiInputState` (input).
+`CnaUiRenderer` and `CnaUiPlatform` sit on the other side of those two types. Neither side includes
+the other's headers, and in particular **`CnaUiRenderer.cpp` contains no ImGui header**.
+
+**Why.** The obvious design is for the renderer to implement an abstract `ImGuiRenderer` interface
+and receive `ImDrawData*`. That works, and it was rejected for three reasons:
+
+1. **It makes the D-01 claim uncheckable.** "The editor UI renders through CNA's public API" should
+   be a property of the build graph, not something a reviewer re-verifies by hand each time. With
+   the data seam, a renderer that reached for ImGui internals would not compile.
+2. **It costs nothing.** ImGui's vertex layout and CNA's `VertexPositionColorTexture` differ, so a
+   per-vertex repack is required whichever way this is structured. Doing it while filling
+   `UiDrawData` means it happens exactly once, in the place that was going to pay for it anyway.
+3. **It makes the whole UI testable headless.** `tests/UiTests.cpp` runs the real
+   `EditorApplication` over the real Dear ImGui, drives frames of synthetic input, and validates
+   every draw command's index ranges, vertex offsets and clip rectangles — with no window, no GPU
+   and no CNA checkout. That is why `CNA_EDITOR_WITH_IMGUI` defaults to **ON** while
+   `CNA_EDITOR_WITH_CNA` defaults to OFF: ImGui is portable C++ with no system dependencies, so
+   building it costs only compile time and buys real CI coverage.
+
+**Also decided here.** `ImGuiEditorUi` owns the `UiTextureId` namespace rather than the renderer.
+ImGui 1.92 asserts the moment a draw command references a texture whose id is unset, and draw
+commands are read in the same pass that collects texture requests — so "renderer assigns ids and
+reports them back" cannot work without a two-phase frame. Details in docs/SPIKE-IMGUI-CNA.md §6.
+
+### D-15 — `cna-player` lives in this repository
+
+**Decision.** The player binary is built here, from `src/player/`, not in `openeggbert/cna`.
+
+**Why.** It was a genuine toss-up (recorded as Q-04) and the project owner chose this repository.
+The reasoning that supports it: the player exists *because the editor needs it*, it speaks the
+editor's protocol, and its message-handling half (`PlayerHost`) is pure editor-side logic that
+shares the scene document, the asset database and the project format with the editor itself.
+Splitting those across repositories would mean versioning the protocol *and* the document model
+across a repository boundary for no gain.
+
+**Consequence — the build matrix.** Because CNA fixes its backend at compile time (F-01), a real
+installation ships one player per backend: `cna-player-easygl`, `cna-player-software`,
+`cna-player-d3d11`. The CMake here names the binary after `CNA_GRAPHICS_BACKEND` when built with
+CNA, and `discoverPlayerBuilds()` finds whichever are installed — so the editor offers the user
+only the backends that actually exist, rather than a menu of fourteen of which two work.
+
+**What this bought immediately.** `PlayerHost` is deliberately CNA-free: it decides what a message
+means and tracks play/pause/step, while drawing belongs to the CNA-linked main loop. So the whole
+message surface is unit-tested headless, and a `cna-player` built *without* CNA still speaks the
+entire protocol — which is what the editor's own end-to-end bridge test runs against.
+
 ### D-13 — The editor's own math types, duplicated from CNA's
 
 **Decision.** `EditorVector2/3/4`, `EditorQuaternion`, `EditorColor`, `EditorRectangle` in
@@ -473,12 +527,14 @@ real maintenance tax, accepted because the alternative — a CNA-dependent core 
 
 ## 4. Open questions
 
-🔬 **Q-01 — Does Dear ImGui integrate cleanly with every Editor Supported backend?**
-ImGui needs a per-backend renderer. CNA exposes `SpriteBatch` and `Texture2D` publicly, so an
-ImGui renderer written against *those* would be backend-independent by construction — a much better
-outcome than seven per-backend renderers. Whether CNA's public API is sufficient (scissor rects,
-vertex buffer updates, texture binding by handle) is exactly the kind of gap D-01 exists to find.
-**Resolve with a spike before Phase 0 task ED-110.**
+✅ **Q-01 — Does Dear ImGui integrate cleanly with every Editor Supported backend? — RESOLVED: yes.**
+The spike ran and passed; the renderer and platform layer are implemented and compile against real
+CNA headers. Everything an immediate-mode UI needs is in CNA's public API — including, against
+expectation, proper text input via `TextInputEXT` rather than synthesised key codes. One
+implementation serves every backend; no per-backend renderer, no authored shader. Two minor CNA
+gaps were found and are worth filing upstream: `Color` is not default-constructible (so
+`std::vector<Color>::resize` does not compile), and the clipboard sits behind the optional
+`CNA_DEVICES` feature. Full report and capability table: **docs/SPIKE-IMGUI-CNA.md**.
 
 🔬 **Q-02 — How does a game consume a compiled scene?**
 The editor produces a `RuntimeScene`; something must instantiate it. Options: a header-only
@@ -492,11 +548,11 @@ embedded child window, or a copied framebuffer over the socket. The cheapest fir
 separate top-level window, which is what Phase 1 does. Revisit when it becomes annoying, not
 before.
 
-🔬 **Q-04 — Should `cna-player` live here or in `openeggbert/cna`?**
-It links CNA and is built per backend, which argues for CNA's repository and its existing backend
-build matrix. It speaks the editor protocol, which argues for this one. A reasonable split is that
-the protocol stays here as a header-only library and CNA hosts the binary. **Needs the project
-owner's decision.**
+✅ **Q-04 — Should `cna-player` live here or in `openeggbert/cna`? — RESOLVED: here.**
+Decided by the project owner. See decision **D-15** for the reasoning and for the build-matrix
+consequence. Implemented: `src/player/`, plus `MessageChannel` (loopback TCP transport) and
+`PlayerProcess` (spawn, supervise, discover installed builds) on the editor side. Exercised
+end-to-end by `tests/PlayerTests.cpp`, which starts the real binary over a real socket.
 
 ---
 
@@ -508,11 +564,16 @@ Restating the discussion's own minimum milestone, unchanged, because it is a goo
 > user select an object in the viewport or the hierarchy, change its position in the inspector,
 > undo, save the scene, and run it in a separate CNA Player process.
 
-Of that, the current skeleton already does: open a project, load and save a scene, select, change a
-property through a command, undo, redo, and track the saved/dirty state — all verified end to end
-by `FullProjectRoundTripThroughTheApplication`. What is missing is the parts that need a window: a
-real UI toolkit, real rendering, and the player process. Those are Phase 0 and Phase 1 in
-`plan.md`.
+Of that, the current implementation already does: open a project, load and save a scene, select,
+change a property through a command, undo, redo, track the saved/dirty state, draw every panel
+through the real Dear ImGui, and **run the scene in a separate `cna-player` process over a real
+socket** — verified by `FullProjectRoundTripThroughTheApplication`,
+`ImGuiUiProducesValidDrawDataForTheWholeEditor` and
+`EditorLaunchesARealPlayerProcessAndTalksToIt` respectively.
+
+What remains is the part that needs a window: creating one, creating a CNA graphics device, and
+presenting the geometry the UI already produces. That is `plan.md` ED-111, and it is now the single
+task between here and a visible editor.
 
 ---
 
@@ -531,5 +592,14 @@ real UI toolkit, real rendering, and the player process. Those are Phase 0 and P
 | Vendored third-party set | `cna/third_party/` |
 | `tools/` holds dev utilities, not apps | `cna/tools/` |
 | Sibling repository family | `openeggbert` repository listing |
+| Scissor test implemented in every backend | `cna/src/CNA/Internal/Backends/*/`*GraphicsBackend.cpp* |
+| `DrawUserIndexedPrimitives` overload for `VertexPositionColorTexture` + `uint16_t` | `cna/include/Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp` |
+| `TextInputEXT` exists and delivers UTF-16 | `cna/include/Microsoft/Xna/Framework/Input/TextInputEXT.hpp` |
+| `Color` has no default constructor (gap G-01) | `cna/include/Microsoft/Xna/Framework/Color.hpp`; confirmed by compiling |
+| Clipboard gated on `CNA_DEVICES` (gap G-02) | `cna/include/CNA/Devices/Clipboard.hpp` |
 
 CNA revision inspected: `ac3aaaeb2a5ba27dbd9e22e782c7041e6e40947c`, 2026-08-03.
+sharp-runtime revision: `b797928f81c8542d13856fc98e812a04b20d5f3a`.
+
+The CNA-linked sources (`src/viewport/*.cpp`) were compiled against those real headers with
+`-std=c++23 -Wall -Wextra`, not merely written against the documentation.

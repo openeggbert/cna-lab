@@ -1,0 +1,136 @@
+// SPDX-License-Identifier: MS-PL
+#pragma once
+
+/**
+ * @file CNA/Editor/Ui/ImGuiEditorUi.hpp
+ * @brief The Dear ImGui implementation of EditorUi.
+ *
+ * This is the *only* file in the editor that knows Dear ImGui exists (ANALYSIS.md decision D-02).
+ * It takes a UiInputState in and produces a UiDrawData out, so it depends on neither a windowing
+ * library nor a graphics API -- which means it builds and runs with no CNA checkout, and its
+ * output can be asserted on in CI with no window and no GPU.
+ *
+ * Pairing it with `CnaUiPlatform` (input) and `CnaUiRenderer` (output) is what turns it into a
+ * real editor window; both live in `cna-editor-viewport` because both need CNA.
+ */
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "CNA/Editor/Ui/EditorUi.hpp"
+#include "CNA/Editor/Ui/UiDrawData.hpp"
+#include "CNA/Editor/Ui/UiInputState.hpp"
+
+namespace CNA::Editor
+{
+    /** @brief How ImGuiEditorUi should obtain and release clipboard text. */
+    struct UiClipboardHooks
+    {
+        /** @brief Returns the clipboard's text. Empty when unavailable. */
+        std::string (*getText)() = nullptr;
+
+        /** @brief Sets the clipboard's text. */
+        void (*setText)(const std::string& text) = nullptr;
+    };
+
+    /**
+     * @brief Draws the editor with Dear ImGui, into a toolkit-independent UiDrawData.
+     *
+     * Usage per frame:
+     * @code
+     * ui.setInput(platform.pollInput());
+     * if (!ui.beginFrame()) { break; }
+     * application.renderFrame();
+     * ui.endFrame();
+     * renderer.render(ui.getDrawData());
+     * @endcode
+     */
+    class ImGuiEditorUi final : public EditorUi
+    {
+    public:
+        ImGuiEditorUi();
+        ~ImGuiEditorUi() override;
+
+        ImGuiEditorUi(const ImGuiEditorUi&) = delete;
+        ImGuiEditorUi& operator=(const ImGuiEditorUi&) = delete;
+
+        [[nodiscard]] const char* getBackendName() const override { return "imgui"; }
+        [[nodiscard]] bool isRunning() const override;
+
+        bool beginFrame() override;
+        void endFrame() override;
+
+        void beginDockSpace() override;
+        void endDockSpace() override;
+
+        bool beginPanel(const std::string& title, DockSide preferredSide) override;
+        void endPanel() override;
+
+        void text(const std::string& value) override;
+        bool button(const std::string& label) override;
+        bool checkbox(const std::string& label, bool& value) override;
+
+        bool propertyField(const std::string& label,
+                           PropertyValue& value,
+                           const std::vector<std::string>& enumOptions = {},
+                           bool readOnly = false) override;
+
+        bool treeNode(const Uuid& id,
+                      const std::string& label,
+                      bool selected,
+                      bool leaf,
+                      bool& outClicked) override;
+        void treePop() override;
+
+        bool beginMenu(const std::string& label) override;
+        void endMenu() override;
+        bool menuItem(const std::string& label, const std::string& shortcut = {}, bool enabled = true) override;
+
+        void separator() override;
+        void sameLine() override;
+        void drawLogView() override;
+
+        void log(LogSeverity severity, const std::string& message) override;
+
+        /** @brief Supplies the input for the next frame. Call before beginFrame(). */
+        void setInput(const UiInputState& input);
+
+        /**
+         * @brief Returns the geometry produced by the most recent endFrame().
+         *
+         * Valid until the next endFrame(). Texture request pixel pointers are owned by ImGui and
+         * are only valid for this frame -- the renderer must copy, not retain.
+         *
+         * Texture ids are allocated here rather than by the renderer, so a request always arrives
+         * with its id already set and the renderer never has to report one back. See the comment
+         * on capturePendingTextures for why any other arrangement deadlocks against ImGui's own
+         * assertions.
+         */
+        [[nodiscard]] const UiDrawData& getDrawData() const;
+
+        /** @brief Installs clipboard hooks. Without them, copy and paste do nothing. */
+        void setClipboardHooks(const UiClipboardHooks& hooks);
+
+        /** @brief Asks the editor to exit after the current frame. */
+        void requestExit();
+
+        /** @brief Returns the console messages accumulated so far. */
+        [[nodiscard]] const std::vector<std::pair<LogSeverity, std::string>>& getLog() const;
+
+        /**
+         * @brief Loads ImGui's `.ini` layout from @p path, if it exists.
+         *
+         * Called before the first frame. The dock layout is *not* stored in the project: where a
+         * user puts their panels is a property of the user, not of the game they are editing.
+         */
+        void loadLayout(const std::string& path);
+
+        /** @brief Writes the current dock layout to the path given to loadLayout(). */
+        void saveLayout() const;
+
+    private:
+        struct Impl;
+        std::unique_ptr<Impl> impl_;
+    };
+}
