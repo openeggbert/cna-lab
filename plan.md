@@ -238,7 +238,7 @@ position in the inspector, undo, save the scene, and run it in a separate CNA Pl
 
 ---
 
-## Phase 2 — Production 2D editor ⬜
+## Phase 2 — Production 2D editor 🔄
 
 | Id | Task | Status | Notes |
 |----|------|:------:|-------|

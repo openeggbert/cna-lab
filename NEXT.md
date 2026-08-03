@@ -20,6 +20,8 @@
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
+| **Phase 2** | 🔄 5 of 12 done (ED-300, 305, 306, 307, 310), ED-311 half; ED-301/302/303/304/308/309 open |
+| Owner priorities 1 and 2 | ✅ closed (robustness and data safety; live editing into the player) |
 
 ---
 
