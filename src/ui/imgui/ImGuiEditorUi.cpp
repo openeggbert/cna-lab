@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <unordered_set>
 
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -119,6 +120,15 @@ namespace CNA::Editor
         std::string layoutPath;
         /** @brief Source of UiTextureIds. Zero stays reserved as the "no texture" sentinel. */
         UiTextureId nextTextureId = 1;
+
+        /**
+         * @brief Ids of images whose left button was held at the end of the previous frame.
+         *
+         * Kept here rather than derived from ImGui each frame because "the press began on *this*
+         * image" is the fact a drag needs, and it has to survive the cursor leaving the image --
+         * which is exactly when ImGui's own hover state stops answering the question.
+         */
+        std::unordered_set<std::string> leftHeldImages;
 
 
 
@@ -772,34 +782,56 @@ namespace CNA::Editor
             const ImVec2 uv0{0.0f, flipVertically ? 1.0f : 0.0f};
             const ImVec2 uv1{1.0f, flipVertically ? 0.0f : 1.0f};
             ImGui::Image(static_cast<ImTextureID>(texture), ImVec2{width, height}, uv0, uv1);
+
+            // Rewind so the invisible button below covers exactly the image just drawn.
+            ImGui::SetCursorScreenPos(topLeft);
         }
-        else
-        {
-            // No texture yet -- a viewport that has not rendered, or a build with no renderer.
-            // An invisible button keeps the panel's layout and its interaction identical either
-            // way, so camera and selection handling stay testable without a GPU.
-            ImGui::InvisibleButton(id.c_str(), ImVec2{width, height});
-        }
+
+        // One invisible button in both cases -- with a texture and without. It is what gives the
+        // image an *identity* ImGui can keep active while the pointer leaves the rectangle;
+        // ImGui::Image() alone is not an interactive item, so a gizmo drag would end the moment
+        // the cursor crossed the panel edge. Drawing it either way also keeps the panel's layout
+        // and interaction identical with and without a GPU, which is what makes the camera and
+        // selection paths testable headless.
+        ImGui::InvisibleButton(id.c_str(), ImVec2{width, height},
+                               ImGuiButtonFlags_MouseButtonLeft);
 
         result.hovered = ImGui::IsItemHovered();
 
-        const ImVec2 mouse = ImGui::GetIO().MousePos;
-        result.localMouseX = mouse.x - topLeft.x;
-        result.localMouseY = mouse.y - topLeft.y;
+        const ImGuiIO& io = ImGui::GetIO();
+        result.localMouseX = io.MousePos.x - topLeft.x;
+        result.localMouseY = io.MousePos.y - topLeft.y;
 
-        // Released over the item, and only if the press started here -- otherwise a drag that ends
-        // over the viewport would register as a click and change the selection.
-        result.clicked = ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left)
-                      && !ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+        // A press counts only on the frame the button actually goes down over this item; after
+        // that it is carried by the button still being held. Testing IsItemActive() alone would
+        // report a press when the left button joined a right-drag already in progress.
+        const bool wasHeld = impl_->leftHeldImages.count(id) > 0;
+        const bool held = (wasHeld && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+                       || (ImGui::IsItemActive() && ImGui::IsMouseClicked(ImGuiMouseButton_Left));
 
-        if (result.hovered) { result.wheel = ImGui::GetIO().MouseWheel; }
+        result.leftPressed = held && !wasHeld;
+        result.leftDown = held;
+        result.leftReleased = wasHeld && !held;
+
+        if (held) { impl_->leftHeldImages.insert(id); }
+        else { impl_->leftHeldImages.erase(id); }
+
+        // A click is a press and release that never travelled far enough to be a drag. Measuring
+        // the distance travelled, rather than asking IsMouseDragging() on the release frame -- when
+        // it already reports false because the button is up -- is what stops a gizmo drag from also
+        // re-running the picker and changing the selection out from under the user.
+        result.clicked = result.leftReleased
+                      && io.MouseDragMaxDistanceSqr[ImGuiMouseButton_Left]
+                             < io.MouseDragThreshold * io.MouseDragThreshold;
+
+        if (result.hovered) { result.wheel = io.MouseWheel; }
 
         // Middle or right drag pans. Left is left alone for selection and, later, the gizmo.
         for (const ImGuiMouseButton button : {ImGuiMouseButton_Middle, ImGuiMouseButton_Right})
         {
             if (!ImGui::IsMouseDragging(button)) { continue; }
 
-            const ImVec2 delta = ImGui::GetIO().MouseDelta;
+            const ImVec2 delta = io.MouseDelta;
             result.dragging = true;
             result.dragDeltaX = delta.x;
             result.dragDeltaY = delta.y;

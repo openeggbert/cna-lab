@@ -54,15 +54,12 @@ namespace CNA::Editor
                            const std::vector<Uuid>& selection,
                            GizmoMode gizmoMode) override
         {
-            // plan.md ED-205: the translate gizmo draws in the overlay pass. Accepted and ignored
-            // for now rather than omitted from the interface, so adding it later changes one file.
-            (void)gizmoMode;
-
             if (width <= 0 || height <= 0) { return kUiTextureNone; }
 
             camera_.setViewportSize(EditorVector2{static_cast<float>(width), static_cast<float>(height)});
 
-            const SceneRenderStats stats = renderer_.render(scene, camera_, width, height, selection);
+            const SceneRenderStats stats =
+                renderer_.render(scene, camera_, width, height, selection, gizmoMode);
             lastStats_ = ViewportStats{stats.spritesDrawn, stats.spritesSkipped, stats.gridLines,
                                        stats.missingTextures};
 

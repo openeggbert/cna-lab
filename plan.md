@@ -168,7 +168,7 @@ real window, shows five docked panels, and renders the three-entity scene in the
 | ED-202 | Grid with adaptive spacing | ✅ | Done as ED-125 |
 | ED-203 | Selection outline as an overlay pass | ✅ | Drawn in a third `SpriteBatch` pass after the content, never as scene geometry |
 | ED-204 | Billboarded icons for cameras, lights and audio sources | ⬜ | They have no geometry and would otherwise be unclickable |
-| ED-205 | Translate gizmo, with merged undo across the drag | ⬜ | The merge machinery is already built and tested |
+| ED-205 | Translate gizmo, with merged undo across the drag | ✅ | Geometry, hit-testing and the drag are CNA-free and unit-tested; the drag measures from the grab point rather than accumulating, so it cannot drift. One drag is one undo entry — the first edit opens it and the rest merge in, which is also what keeps two separate drags of the same entity from collapsing together |
 | ED-206 | Ray-cast picking against entity bounds | ✅ | Done as ED-126. CNA-free and unit-tested, so "clicking selects the wrong thing" is caught in CI rather than by hand |
 | ED-207 | Inspector: add and remove components, respecting `unique` and `required` | ⬜ | |
 | ED-208 | Asset drag-and-drop from the browser onto a sprite slot | ⬜ | |

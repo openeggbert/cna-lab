@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "CNA/Editor/EditorContext.hpp"
+#include "CNA/Editor/Scene/TranslateGizmo.hpp"
 #include "CNA/Editor/Ui/EditorUi.hpp"
 #include "CNA/Editor/Viewport/EditorViewport.hpp"
 
@@ -127,10 +128,32 @@ namespace CNA::Editor
         /** @brief Turns one frame of viewport pointer input into camera moves and selection. */
         void handleViewportInteraction(const UiImageInteraction& interaction);
 
+        /**
+         * @brief Starts a gizmo drag if @p cursor is over a handle of the selected entity's gizmo.
+         * @return True when a drag began, in which case the press must not also reach the picker.
+         */
+        bool beginGizmoDrag(const EditorVector2& cursor);
+
+        /** @brief Applies the in-progress drag to the entity's position as one merged command. */
+        void updateGizmoDrag(const EditorVector2& cursor);
+
         EditorContext context_;
         std::unique_ptr<EditorUi> ui_;
         std::unique_ptr<EditorViewport> viewport_;
         GizmoMode gizmoMode_ = GizmoMode::Translate;
+
+        TranslateGizmoDrag gizmoDrag_;
+
+        /**
+         * @brief Whether the current drag has already pushed a command.
+         *
+         * The first edit of a drag is a *new* undo entry and every later one merges into it. Without
+         * this, a second drag of the same entity would merge into the first -- the merge key is
+         * entity + component + property and has no notion of where one interaction ends -- and the
+         * two moves would undo together as if they had been one.
+         */
+        bool gizmoDragHasEdited_ = false;
+
         int frameLimit_ = 0;
         int framesRendered_ = 0;
     };

@@ -17,6 +17,7 @@
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
+#include "CNA/Editor/Scene/TranslateGizmo.hpp"
 
 using namespace CNA::Editor;
 
@@ -390,4 +391,182 @@ CNA_EDITOR_TEST(PickingHonoursParentTransforms)
                                    kNoSizes).entityId == child);
     CNA_EDITOR_EXPECT(!pickEntityAt(scene, camera, camera.worldToScreen(EditorVector2{1010.0f, 520.0f}),
                                     kNoSizes).entityId.isValid());
+}
+
+// ---------------------------------------------------------------------------------------------
+// Translate gizmo
+// ---------------------------------------------------------------------------------------------
+
+CNA_EDITOR_TEST(GizmoLayoutSitsOnTheEntityAndKeepsItsScreenSize)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 300.0f, 120.0f);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+    camera.setCenter(EditorVector2{300.0f, 120.0f});
+
+    const std::optional<TranslateGizmoLayout> layout = computeTranslateGizmoLayout(scene, camera, id);
+    CNA_EDITOR_EXPECT(layout.has_value());
+    CNA_EDITOR_EXPECT(nearlyEqual(layout->origin.x, 400.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(layout->origin.y, 300.0f));
+
+    // Handles are sized in screen pixels, so the gizmo stays grabbable at any zoom. A gizmo that
+    // shrinks as you zoom out is one you cannot grab exactly when you most need to.
+    camera.setZoom(0.1f);
+    const std::optional<TranslateGizmoLayout> zoomedOut = computeTranslateGizmoLayout(scene, camera, id);
+    CNA_EDITOR_EXPECT(nearlyEqual(zoomedOut->axisLength, layout->axisLength));
+    CNA_EDITOR_EXPECT(nearlyEqual(zoomedOut->centerExtent, layout->centerExtent));
+}
+
+CNA_EDITOR_TEST(GizmoHitTestDistinguishesItsHandles)
+{
+    TranslateGizmoLayout layout;
+    layout.origin = EditorVector2{100.0f, 100.0f};
+
+    CNA_EDITOR_EXPECT(hitTestTranslateGizmo(layout, EditorVector2{100.0f, 100.0f}) == GizmoHandle::Both);
+    CNA_EDITOR_EXPECT(hitTestTranslateGizmo(layout, EditorVector2{150.0f, 100.0f}) == GizmoHandle::XAxis);
+    CNA_EDITOR_EXPECT(hitTestTranslateGizmo(layout, EditorVector2{100.0f, 150.0f}) == GizmoHandle::YAxis);
+    CNA_EDITOR_EXPECT(hitTestTranslateGizmo(layout, EditorVector2{300.0f, 300.0f}) == GizmoHandle::None);
+
+    // Past the tip is a miss: the arms are segments, not infinite lines.
+    CNA_EDITOR_EXPECT(hitTestTranslateGizmo(layout, EditorVector2{100.0f + layout.axisLength + 30.0f, 100.0f})
+                      == GizmoHandle::None);
+
+    // Slightly off an arm still counts, within the grab tolerance.
+    CNA_EDITOR_EXPECT(hitTestTranslateGizmo(layout, EditorVector2{150.0f, 104.0f}) == GizmoHandle::XAxis);
+}
+
+CNA_EDITOR_TEST(GizmoDragConstrainsToTheGrabbedAxis)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 0.0f, 0.0f);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    TranslateGizmoDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, camera, id, GizmoHandle::XAxis,
+                                 camera.worldToScreen(EditorVector2{0.0f, 0.0f})));
+    CNA_EDITOR_EXPECT(drag.isActive());
+
+    // A diagonal cursor move on the X arm must move only in X.
+    const std::optional<EditorVector3> moved =
+        drag.update(scene, camera, camera.worldToScreen(EditorVector2{50.0f, 80.0f}));
+    CNA_EDITOR_EXPECT(moved.has_value());
+    CNA_EDITOR_EXPECT(nearlyEqual(moved->x, 50.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(moved->y, 0.0f));
+
+    drag.end();
+    CNA_EDITOR_EXPECT(!drag.isActive());
+    CNA_EDITOR_EXPECT(!drag.update(scene, camera, EditorVector2{0.0f, 0.0f}).has_value());
+}
+
+CNA_EDITOR_TEST(GizmoDragMeasuresFromTheGrabPointNotTheEntityOrigin)
+{
+    // Grabbing an arm away from its root must not teleport the entity to the cursor: the offset
+    // between cursor and entity has to survive the whole drag.
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 10.0f, 20.0f);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    TranslateGizmoDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, camera, id, GizmoHandle::Both,
+                                 camera.worldToScreen(EditorVector2{60.0f, 20.0f})));
+
+    const std::optional<EditorVector3> moved =
+        drag.update(scene, camera, camera.worldToScreen(EditorVector2{70.0f, 25.0f}));
+    CNA_EDITOR_EXPECT(nearlyEqual(moved->x, 20.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(moved->y, 25.0f));
+}
+
+CNA_EDITOR_TEST(GizmoDragDoesNotDriftOverManyUpdates)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 0.0f, 0.0f);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    TranslateGizmoDrag drag;
+    drag.begin(scene, camera, id, GizmoHandle::Both, camera.worldToScreen(EditorVector2{0.0f, 0.0f}));
+
+    // Every update is measured from the grab point, so wandering around and returning must land
+    // exactly back at the start. An implementation that accumulated frame deltas would not.
+    for (int step = 0; step < 200; ++step)
+    {
+        const float t = static_cast<float>(step);
+        drag.update(scene, camera, camera.worldToScreen(EditorVector2{t * 3.0f, -t * 1.5f}));
+    }
+
+    const std::optional<EditorVector3> back =
+        drag.update(scene, camera, camera.worldToScreen(EditorVector2{0.0f, 0.0f}));
+    CNA_EDITOR_EXPECT(nearlyEqual(back->x, 0.0f, 0.001f));
+    CNA_EDITOR_EXPECT(nearlyEqual(back->y, 0.0f, 0.001f));
+}
+
+CNA_EDITOR_TEST(GizmoDragHonoursAScaledParent)
+{
+    // The position property is local. Dragging a child of a 2x parent by 100 world units must
+    // change its stored position by 50, or the gizmo drifts on every child.
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid parent = addEntity(scene, registry, "Parent", 0.0f, 0.0f, 2.0f);
+    const Uuid child = addEntity(scene, registry, "Child", 0.0f, 0.0f);
+    scene.reparentEntity(child, parent);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    TranslateGizmoDrag drag;
+    drag.begin(scene, camera, child, GizmoHandle::Both, camera.worldToScreen(EditorVector2{0.0f, 0.0f}));
+
+    const std::optional<EditorVector3> moved =
+        drag.update(scene, camera, camera.worldToScreen(EditorVector2{100.0f, 0.0f}));
+    CNA_EDITOR_EXPECT(nearlyEqual(moved->x, 50.0f));
+}
+
+CNA_EDITOR_TEST(GizmoDragHonoursARotatedParent)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid parent = addEntity(scene, registry, "Parent", 0.0f, 0.0f);
+    scene.findEntity(parent)->findComponent(BuiltinComponentIds::kTransform)
+        ->setProperty("rotation", PropertyValue{quaternionFromZRotation(3.14159265f * 0.5f)});
+
+    const Uuid child = addEntity(scene, registry, "Child", 0.0f, 0.0f);
+    scene.reparentEntity(child, parent);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    TranslateGizmoDrag drag;
+    drag.begin(scene, camera, child, GizmoHandle::Both, camera.worldToScreen(EditorVector2{0.0f, 0.0f}));
+
+    // Under a parent rotated a quarter turn, moving the child along world +Y is a change along its
+    // own local -X... or +X depending on handedness; either way the magnitude is what is checked,
+    // and the axis the drag did *not* move along must stay put.
+    const std::optional<EditorVector3> moved =
+        drag.update(scene, camera, camera.worldToScreen(EditorVector2{0.0f, 30.0f}));
+    CNA_EDITOR_EXPECT(nearlyEqual(std::fabs(moved->x), 30.0f, 0.01f));
+    CNA_EDITOR_EXPECT(nearlyEqual(moved->y, 0.0f, 0.01f));
+}
+
+CNA_EDITOR_TEST(WorldDeltaToLocalIsIdentityForRootEntities)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Root", 0.0f, 0.0f);
+
+    const EditorVector2 delta = worldDeltaToLocal(scene, id, EditorVector2{12.0f, -34.0f});
+    CNA_EDITOR_EXPECT(nearlyEqual(delta.x, 12.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(delta.y, -34.0f));
 }

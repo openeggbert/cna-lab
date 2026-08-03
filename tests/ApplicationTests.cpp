@@ -283,3 +283,257 @@ CNA_EDITOR_TEST(ApplicationReportsAMissingProjectRatherThanCrashing)
     }
     CNA_EDITOR_EXPECT(sawError);
 }
+
+/**
+ * @brief A null UI that reports whatever viewport interaction a test scripts.
+ *
+ * The gizmo's arithmetic is covered in ViewportTests; what these tests cover is the *wiring* --
+ * that a press on a handle starts a drag rather than a reselection, that the drag survives the
+ * pointer leaving the panel, and that one drag is one undo entry. All of that lives in
+ * EditorApplication and none of it is reachable without a UI that can say "the left button just
+ * went down here".
+ */
+namespace
+{
+    class ScriptedUi final : public NullEditorUi
+    {
+    public:
+        UiImageInteraction interaction;
+
+        UiImageInteraction image(const std::string& id,
+                                 UiTextureId texture,
+                                 float width,
+                                 float height,
+                                 bool flipVertically) override
+        {
+            (void)id;
+            (void)texture;
+            (void)width;
+            (void)height;
+            (void)flipVertically;
+            return interaction;
+        }
+    };
+
+    /** @brief Application, its scripted UI, and the id of the one entity in its scene. */
+    struct GizmoFixture
+    {
+        std::unique_ptr<EditorApplication> application;
+        ScriptedUi* ui = nullptr;
+        Uuid entityId;
+
+        /** @brief Feeds one frame of pointer input at a viewport-local point. */
+        void step(const UiImageInteraction& input)
+        {
+            ui->interaction = input;
+            application->renderFrame();
+        }
+
+        [[nodiscard]] EditorVector3 getPosition() const
+        {
+            return application->getContext().getScene()
+                .findEntity(entityId)->findComponent(BuiltinComponentIds::kTransform)
+                ->getProperty("position").get<EditorVector3>();
+        }
+    };
+
+    /**
+     * @brief Builds an editor holding one entity at world (100, 220), selected.
+     *
+     * With the null UI's 1280x720 content region and the camera's defaults -- centre (0, 0), zoom 1
+     * -- world (100, 220) lands at screen (740, 580), so the gizmo's origin and the coordinates the
+     * tests press at are exact rather than approximate.
+     */
+    GizmoFixture makeGizmoFixture()
+    {
+        GizmoFixture fixture;
+        auto ui = std::make_unique<ScriptedUi>();
+        fixture.ui = ui.get();
+        fixture.application =
+            std::make_unique<EditorApplication>(std::move(ui), std::make_unique<NullEditorViewport>());
+
+        EditorOptions options;
+        options.headless = true;
+        fixture.application->initialize(options);
+
+        EditorContext& context = fixture.application->getContext();
+        EditorEntity entity{Uuid::generate(), "Player"};
+        EditorComponent transform{BuiltinComponentIds::kTransform};
+        transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+        transform.setProperty("position", PropertyValue{EditorVector3{100.0f, 220.0f, 0.0f}});
+        entity.addComponent(std::move(transform));
+
+        fixture.entityId = entity.getId();
+        context.getScene().addEntity(std::move(entity));
+        context.select(fixture.entityId);
+
+        // One frame with no input, so the viewport has sized the camera before any press is
+        // hit-tested against a gizmo whose position depends on that size.
+        fixture.step(UiImageInteraction{});
+        return fixture;
+    }
+
+    /** @brief A hovered frame with the left button down at a viewport-local point. */
+    UiImageInteraction leftAt(float x, float y, bool pressed)
+    {
+        UiImageInteraction input;
+        input.hovered = true;
+        input.localMouseX = x;
+        input.localMouseY = y;
+        input.leftPressed = pressed;
+        input.leftDown = true;
+        return input;
+    }
+}
+
+CNA_EDITOR_TEST(AGizmoDragMovesTheSelectedEntityAlongTheGrabbedAxis)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    // (790, 580) is on the X arm: the origin is at (740, 580) and the arm runs 72 pixels right.
+    fixture.step(leftAt(790.0f, 580.0f, true));
+    fixture.step(leftAt(830.0f, 580.0f, false));
+    fixture.step(leftAt(830.0f, 620.0f, false));
+
+    UiImageInteraction release;
+    release.hovered = true;
+    release.localMouseX = 830.0f;
+    release.localMouseY = 620.0f;
+    release.leftReleased = true;
+    fixture.step(release);
+
+    // Moved 40 along X, and not at all along Y despite the pointer having moved 40 down.
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 140.0f);
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().y, 220.0f);
+}
+
+CNA_EDITOR_TEST(AGizmoDragOnTheCentreHandleMovesOnBothAxes)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    fixture.step(leftAt(740.0f, 580.0f, true));
+    fixture.step(leftAt(765.0f, 605.0f, false));
+
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 125.0f);
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().y, 245.0f);
+}
+
+CNA_EDITOR_TEST(AGizmoDragIsOneUndoEntryThatReturnsToWhereItStarted)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    CommandHistory& history = fixture.application->getContext().getHistory();
+    const std::size_t before = history.getCount();
+
+    fixture.step(leftAt(790.0f, 580.0f, true));
+    for (float x = 795.0f; x <= 830.0f; x += 5.0f) { fixture.step(leftAt(x, 580.0f, false)); }
+
+    UiImageInteraction release;
+    release.hovered = true;
+    release.localMouseX = 830.0f;
+    release.localMouseY = 580.0f;
+    release.leftReleased = true;
+    fixture.step(release);
+
+    // Eight moved frames, one entry: this is what MergePolicy::MergeWithPrevious is for.
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), before + 1);
+    CNA_EDITOR_EXPECT(history.undo());
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 100.0f);
+}
+
+CNA_EDITOR_TEST(TwoGizmoDragsAreTwoUndoEntries)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    CommandHistory& history = fixture.application->getContext().getHistory();
+    const std::size_t before = history.getCount();
+
+    fixture.step(leftAt(790.0f, 580.0f, true));
+    fixture.step(leftAt(810.0f, 580.0f, false));
+    fixture.step(UiImageInteraction{});
+
+    // The second drag grabs the arm at its new place -- the gizmo moved with the entity.
+    fixture.step(leftAt(810.0f, 580.0f, true));
+    fixture.step(leftAt(830.0f, 580.0f, false));
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 140.0f);
+
+    // Two entries, not one. The merge key is entity + component + property and matches across both
+    // drags, so only the interaction boundary keeps them apart -- undoing a move the user made a
+    // minute ago because they later moved the same entity again is a real way to lose work.
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), before + 2);
+    CNA_EDITOR_EXPECT(history.undo());
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 120.0f);
+}
+
+CNA_EDITOR_TEST(AGizmoDragSurvivesThePointerLeavingTheViewport)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    fixture.step(leftAt(790.0f, 580.0f, true));
+
+    // Still held, no longer over the panel. Ending the drag here would drop the entity wherever
+    // the pointer happened to cross the edge.
+    UiImageInteraction outside;
+    outside.hovered = false;
+    outside.leftDown = true;
+    outside.localMouseX = 830.0f;
+    outside.localMouseY = 580.0f;
+    fixture.step(outside);
+
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 140.0f);
+}
+
+CNA_EDITOR_TEST(AGizmoPressDoesNotAlsoChangeTheSelection)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    // The entity has no SpriteRenderer, so the picker would find nothing here and deselect it --
+    // which is exactly what must not happen when the press landed on a handle.
+    UiImageInteraction press = leftAt(790.0f, 580.0f, true);
+    press.clicked = true;
+    fixture.step(press);
+
+    CNA_EDITOR_EXPECT_EQ(fixture.application->getContext().getPrimarySelection().toString(),
+                         fixture.entityId.toString());
+}
+
+CNA_EDITOR_TEST(PressingAHandleWithoutMovingLeavesTheHistoryAlone)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    CommandHistory& history = fixture.application->getContext().getHistory();
+    const std::size_t before = history.getCount();
+
+    fixture.step(leftAt(790.0f, 580.0f, true));
+    fixture.step(leftAt(790.0f, 580.0f, false));
+
+    UiImageInteraction release;
+    release.hovered = true;
+    release.localMouseX = 790.0f;
+    release.localMouseY = 580.0f;
+    release.leftReleased = true;
+    fixture.step(release);
+
+    // An undo entry that restores the position the entity already had costs the user an undo to
+    // reach a change they can actually see.
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), before);
+}
+
+CNA_EDITOR_TEST(APressAwayFromEveryHandleStillSelects)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    UiImageInteraction press = leftAt(200.0f, 200.0f, true);
+    fixture.step(press);
+
+    UiImageInteraction click;
+    click.hovered = true;
+    click.localMouseX = 200.0f;
+    click.localMouseY = 200.0f;
+    click.clicked = true;
+    click.leftReleased = true;
+    fixture.step(click);
+
+    // Nothing is under (200, 200), so the click clears the selection -- proof the press was not
+    // swallowed by the gizmo.
+    CNA_EDITOR_EXPECT(!fixture.application->getContext().getPrimarySelection().isValid());
+}

@@ -26,6 +26,7 @@
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
 #include "CNA/Editor/Ui/UiDrawData.hpp"
+#include "CNA/Editor/Viewport/EditorViewport.hpp"
 
 namespace Microsoft::Xna::Framework::Graphics
 {
@@ -79,12 +80,14 @@ namespace CNA::Editor
          * unaffected.
          *
          * @param selection Entities to outline. Drawn in the overlay pass, never as scene content.
+         * @param gizmoMode Which manipulator to draw on the first selected entity, if any.
          */
         SceneRenderStats render(const SceneDocument& scene,
                                 const EditorCamera2D& camera,
                                 int width,
                                 int height,
-                                const std::vector<Uuid>& selection);
+                                const std::vector<Uuid>& selection,
+                                GizmoMode gizmoMode = GizmoMode::None);
 
         /**
          * @brief Registers the rendered target with @p uiRenderer and returns its UI texture id.

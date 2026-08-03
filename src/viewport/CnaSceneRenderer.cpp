@@ -21,6 +21,7 @@
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
+#include "CNA/Editor/Scene/TranslateGizmo.hpp"
 #include "CNA/Editor/Viewport/CnaUiRenderer.hpp"
 
 namespace Xna = Microsoft::Xna::Framework;
@@ -36,6 +37,11 @@ namespace CNA::Editor
         const Xna::Color kGridMajor{62, 62, 72, 255};
         const Xna::Color kAxis{92, 74, 74, 255};
         const Xna::Color kSelection{255, 158, 46, 255};
+
+        /** @brief Gizmo arm colours: the X/Y/Z-is-red/green/blue convention every editor shares. */
+        const Xna::Color kGizmoX{226, 62, 62, 255};
+        const Xna::Color kGizmoY{104, 204, 92, 255};
+        const Xna::Color kGizmoCenter{236, 226, 96, 255};
 
         /** @brief Drawn where a sprite's texture is missing, so the entity stays visible. */
         const Xna::Color kMissingTexture{200, 60, 140, 255};
@@ -169,6 +175,55 @@ namespace CNA::Editor
             drawRect(Xna::Rectangle{rect.X + rect.Width, rect.Y, thickness, rect.Height}, color);
         }
 
+        /**
+         * @brief Draws the translate gizmo: two arms with arrowheads and a centre square.
+         *
+         * Every dimension comes from the layout, which is the same object the hit-test uses, so
+         * what the user sees and what the user can grab cannot drift apart. The arrowheads are
+         * stepped triangles built from rows of the 1x1 white texture -- there is no line or polygon
+         * primitive in SpriteBatch, and a stepped triangle at this size is indistinguishable from a
+         * smooth one while costing nothing but a handful of quads.
+         */
+        void drawTranslateGizmo(const TranslateGizmoLayout& layout)
+        {
+            const int originX = static_cast<int>(std::round(layout.origin.x));
+            const int originY = static_cast<int>(std::round(layout.origin.y));
+            const int length = static_cast<int>(std::round(layout.axisLength));
+            const int extent = static_cast<int>(std::round(layout.centerExtent));
+
+            // The arms start outside the centre square, so the square reads as a separate handle --
+            // which it is: it is the one that moves on both axes at once.
+            constexpr int kArmThickness = 3;
+            constexpr int kHeadLength = 12;
+            constexpr int kHeadHalfWidth = 6;
+
+            const int armStart = extent + 2;
+            const int armEnd = length - kHeadLength;
+
+            if (armEnd > armStart)
+            {
+                drawRect(Xna::Rectangle{originX + armStart, originY - kArmThickness / 2,
+                                        armEnd - armStart, kArmThickness}, kGizmoX);
+                drawRect(Xna::Rectangle{originX - kArmThickness / 2, originY + armStart,
+                                        kArmThickness, armEnd - armStart}, kGizmoY);
+            }
+
+            // World Y points down (EditorCamera2D's convention, inherited from SpriteBatch), so
+            // "down the screen" is +Y here and no sign flip is needed for either head.
+            for (int step = 0; step < kHeadLength; ++step)
+            {
+                const int half = std::max(1, kHeadHalfWidth * (kHeadLength - step) / kHeadLength);
+
+                drawRect(Xna::Rectangle{originX + armEnd + step, originY - half, 1, half * 2}, kGizmoX);
+                drawRect(Xna::Rectangle{originX - half, originY + armEnd + step, half * 2, 1}, kGizmoY);
+            }
+
+            // Outlined rather than filled: the centre handle sits exactly over the entity's origin,
+            // and a filled square that size would hide the very sprite being positioned.
+            drawOutline(Xna::Rectangle{originX - extent, originY - extent, extent * 2, extent * 2},
+                        kGizmoCenter, 2);
+        }
+
         void drawGrid(const EditorCamera2D& camera, SceneRenderStats& stats)
         {
             // Roughly 90 pixels between minor lines: dense enough to judge distance, sparse enough
@@ -258,7 +313,8 @@ namespace CNA::Editor
                                               const EditorCamera2D& camera,
                                               int width,
                                               int height,
-                                              const std::vector<Uuid>& selection)
+                                              const std::vector<Uuid>& selection,
+                                              GizmoMode gizmoMode)
     {
         SceneRenderStats stats;
         lastStats_ = stats;
@@ -367,6 +423,17 @@ namespace CNA::Editor
                                               static_cast<int>(bottomRight.x - topLeft.x),
                                               static_cast<int>(bottomRight.y - topLeft.y)},
                                kSelection, 2);
+        }
+
+        // The gizmo goes on the *primary* selection only. Drawing one per selected entity would
+        // put several overlapping manipulators on screen with no way to tell which one a press
+        // would grab. Manipulating a whole multi-selection needs a shared pivot first, and is a
+        // separate piece of work (plan.md ED-200's multi-select).
+        if (gizmoMode == GizmoMode::Translate && !selection.empty())
+        {
+            const std::optional<TranslateGizmoLayout> layout =
+                computeTranslateGizmoLayout(scene, camera, selection.front());
+            if (layout) { impl_->drawTranslateGizmo(*layout); }
         }
         impl_->spriteBatch->End();
 

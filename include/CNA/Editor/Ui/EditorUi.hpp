@@ -74,8 +74,23 @@ namespace CNA::Editor
     {
         bool hovered = false;
 
-        /** @brief Set on the frame a left click completes over the image. */
+        /** @brief Set on the frame a left click completes over the image, without a drag. */
         bool clicked = false;
+
+        /** @brief Set on the frame the left button goes down over the image. */
+        bool leftPressed = false;
+
+        /**
+         * @brief True while the left button is held after a press that began over the image.
+         *
+         * Deliberately independent of @c hovered: a gizmo drag that wanders off the panel must
+         * keep going, and must end only when the button is actually released. Tying it to hover
+         * would drop the entity wherever the cursor happened to cross the panel edge.
+         */
+        bool leftDown = false;
+
+        /** @brief Set on the frame such a press is released, wherever the cursor then is. */
+        bool leftReleased = false;
 
         /** @brief Cursor position relative to the image's top-left, in pixels. */
         float localMouseX = 0.0f;

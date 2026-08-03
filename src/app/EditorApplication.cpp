@@ -361,10 +361,24 @@ namespace CNA::Editor
 
     void EditorApplication::handleViewportInteraction(const UiImageInteraction& interaction)
     {
-        if (!interaction.hovered) { return; }
-
         EditorCamera2D& camera = viewport_->getCamera();
         const EditorVector2 cursor{interaction.localMouseX, interaction.localMouseY};
+
+        // A drag in progress owns the pointer, hovered or not. Ending it because the cursor left
+        // the panel would drop the entity wherever it happened to cross the edge, and would leave
+        // the user holding a button that no longer does anything.
+        if (gizmoDrag_.isActive())
+        {
+            if (interaction.leftDown) { updateGizmoDrag(cursor); }
+            else { gizmoDrag_.end(); }
+            return;
+        }
+
+        if (!interaction.hovered) { return; }
+
+        // Checked before the camera and the picker: a press on a handle is a manipulation, and
+        // must not also count as a click that reselects whatever is underneath the gizmo.
+        if (interaction.leftPressed && beginGizmoDrag(cursor)) { return; }
 
         if (interaction.wheel != 0.0f)
         {
@@ -388,6 +402,52 @@ namespace CNA::Editor
             // makes "deselect" reachable without a keyboard.
             context_.select(pick.entityId);
         }
+    }
+
+    bool EditorApplication::beginGizmoDrag(const EditorVector2& cursor)
+    {
+        if (gizmoMode_ != GizmoMode::Translate) { return false; }
+
+        const Uuid selectedId = context_.getPrimarySelection();
+        const std::optional<TranslateGizmoLayout> layout =
+            computeTranslateGizmoLayout(context_.getScene(), viewport_->getCamera(), selectedId);
+        if (!layout) { return false; }
+
+        const GizmoHandle handle = hitTestTranslateGizmo(*layout, cursor);
+        if (handle == GizmoHandle::None) { return false; }
+
+        if (!gizmoDrag_.begin(context_.getScene(), viewport_->getCamera(), selectedId, handle, cursor))
+        {
+            return false;
+        }
+
+        gizmoDragHasEdited_ = false;
+        return true;
+    }
+
+    void EditorApplication::updateGizmoDrag(const EditorVector2& cursor)
+    {
+        const std::optional<EditorVector3> position =
+            gizmoDrag_.update(context_.getScene(), viewport_->getCamera(), cursor);
+        if (!position) { return; }
+
+        // A drag that has not moved yet must not push anything: a press and release on a handle is
+        // not an edit, and an undo entry that restores the position it already had is worse than
+        // no entry -- it costs the user an undo to get back to a change they can actually see.
+        const EditorEntity* entity = context_.getScene().findEntity(gizmoDrag_.getEntityId());
+        if (entity == nullptr) { return; }
+        const EditorComponent* transform = entity->findComponent(BuiltinComponentIds::kTransform);
+        if (transform == nullptr) { return; }
+        if (transform->getProperty("position").get<EditorVector3>() == *position) { return; }
+
+        // The first edit opens a new undo entry; every later one folds into it. The result is one
+        // entry per drag that undoes to where the drag started -- not one per mouse-move event, and
+        // not one shared with the previous drag of the same entity.
+        context_.execute(std::make_unique<SetPropertyCommand>(
+                             context_.getScene(), gizmoDrag_.getEntityId(),
+                             BuiltinComponentIds::kTransform, "position", PropertyValue{*position}),
+                         gizmoDragHasEdited_ ? MergePolicy::MergeWithPrevious : MergePolicy::NewEntry);
+        gizmoDragHasEdited_ = true;
     }
 
     void EditorApplication::drawConsolePanel()
