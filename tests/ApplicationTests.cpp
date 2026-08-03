@@ -1520,3 +1520,42 @@ CNA_EDITOR_TEST(EditingAnImportSettingGoesThroughTheUndoStack)
     fixture.step(UiImageInteraction{});
     CNA_EDITOR_EXPECT(context.getAssets().find(textureId)->importerSettings["filterMode"].isNull());
 }
+
+CNA_EDITOR_TEST(AnExternallyEditedAssetIsReloadedAndReported)
+{
+    const std::filesystem::path directory = makeScratchDirectory("watchapp");
+    writeFile(directory / "HelloSprites.cnaproject",
+              R"({"formatVersion":1,"name":"Watched","kind":"CnaNative","assetDirectory":"Assets"})");
+    writeFile(directory / "Assets" / "Textures" / "Hero.png", "first contents");
+
+    EditorApplication application{std::make_unique<NullEditorUi>(),
+                                 std::make_unique<NullEditorViewport>()};
+    EditorOptions options;
+    options.headless = true;
+    options.projectPath = (directory / "HelloSprites.cnaproject").generic_string();
+    application.initialize(options);
+
+    EditorContext& context = application.getContext();
+    CNA_EDITOR_EXPECT_EQ(context.getAssets().getCount(), std::size_t{1});
+    const std::string path = context.getAssets().getAll().front()->sourcePath;
+
+    application.getAssetWatcher().setInterval(0.0);
+
+    writeFile(directory / "Assets" / "Textures" / "Hero.png",
+              "second contents, a different length entirely");
+
+    application.renderFrame(0.0);
+
+    const auto& ui = static_cast<NullEditorUi&>(application.getUi());
+    bool reported = false;
+    for (const auto& entry : ui.getLog())
+    {
+        if (entry.message.find("Reloaded '" + path + "'") != std::string::npos) { reported = true; }
+    }
+
+    // Without this the editor goes on showing the art from before the edit, and the only fix is
+    // to restart it.
+    CNA_EDITOR_EXPECT(reported);
+
+    std::filesystem::remove_all(directory);
+}

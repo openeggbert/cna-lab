@@ -100,6 +100,15 @@ namespace CNA::Editor
          */
         UiTextureId shareWithUi(CnaUiRenderer& uiRenderer);
 
+        /**
+         * @brief Drops the cached texture for @p assetId, or every texture when @p assetId is nil.
+         *
+         * Also clears the failed-load memory for it: a texture that failed because the file was
+         * missing must get another chance once the file comes back, or restoring it would appear
+         * to do nothing.
+         */
+        void invalidateTexture(const Uuid& assetId);
+
         /** @brief Returns the texel size of @p assetId, or (0, 0) when it cannot be resolved. */
         [[nodiscard]] EditorVector2 getSpriteSize(const Uuid& assetId) const;
 

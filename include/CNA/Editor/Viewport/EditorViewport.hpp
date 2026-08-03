@@ -108,6 +108,17 @@ namespace CNA::Editor
          */
         [[nodiscard]] virtual bool isRenderTextureFlippedVertically() const { return false; }
 
+        /**
+         * @brief Drops any cached GPU resource for @p assetId, so it is loaded afresh.
+         *
+         * Textures are cached for the life of the viewport, which is right until somebody edits
+         * one in another program. Without this the editor goes on showing art that no longer
+         * exists, and the only fix is to restart it.
+         *
+         * A nil id means "everything", which is what a project-wide rescan wants.
+         */
+        virtual void invalidateAsset(const Uuid& assetId) { (void)assetId; }
+
         /** @brief Returns the counters from the most recent render(). */
         [[nodiscard]] virtual ViewportStats getLastStats() const = 0;
     };

@@ -12,6 +12,7 @@
 #include "CNA/Editor/Assets/AssetCommands.hpp"
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
+#include "CNA/Editor/Assets/AssetWatcher.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/MissingReferences.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -727,6 +728,98 @@ CNA_EDITOR_TEST(ImporterFactsAreWrittenOnceAndNotRewrittenOnEveryScan)
     // Nothing changed, so nothing is rewritten. A scan that touched every sidecar on every open
     // would show up as a repository full of spurious diffs.
     CNA_EDITOR_EXPECT_EQ(applyImporterFacts(assets), std::size_t{0});
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(TheWatcherNoticesAnExternalEditExactlyOnce)
+{
+    const std::filesystem::path directory = makeScratchDirectory("watchedit");
+    writeFile(directory / "Textures" / "Hero.png", "first contents");
+
+    AssetDatabase assets;
+    assets.setProjectRoot(directory.generic_string());
+    assets.scan("Textures");
+    const Uuid assetId = assets.getAll().front()->id;
+
+    AssetWatcher watcher;
+    watcher.setInterval(1.0);
+
+    // Nothing has changed and no interval has elapsed, so nothing is polled and nothing reported.
+    CNA_EDITOR_EXPECT(!watcher.poll(assets, 0.1).polled);
+    CNA_EDITOR_EXPECT(!watcher.poll(assets, 2.0).hasChanges());
+
+    writeFile(directory / "Textures" / "Hero.png", "second contents, a different length entirely");
+
+    const AssetWatchResult first = watcher.poll(assets, 2.0);
+    CNA_EDITOR_EXPECT_EQ(first.changed.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(first.changed.front().toString(), assetId.toString());
+
+    // Reported once. The stamp is updated as it is reported, so a console does not fill with the
+    // same line twice a second until something else happens to fix it.
+    CNA_EDITOR_EXPECT(!watcher.poll(assets, 2.0).hasChanges());
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(TheWatcherReportsDisappearanceAndReturnSeparately)
+{
+    const std::filesystem::path directory = makeScratchDirectory("watchgone");
+    writeFile(directory / "Textures" / "Hero.png", "contents");
+
+    AssetDatabase assets;
+    assets.setProjectRoot(directory.generic_string());
+    assets.scan("Textures");
+    const Uuid assetId = assets.getAll().front()->id;
+
+    AssetWatcher watcher;
+    watcher.setInterval(0.0);
+
+    std::filesystem::remove(directory / "Textures" / "Hero.png");
+
+    const AssetWatchResult gone = watcher.poll(assets, 0.0);
+    CNA_EDITOR_EXPECT_EQ(gone.removed.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(gone.changed.empty());
+
+    // Once, not on every poll for the rest of the session.
+    CNA_EDITOR_EXPECT(!watcher.poll(assets, 0.0).hasChanges());
+
+    writeFile(directory / "Textures" / "Hero.png", "contents are back");
+
+    // A file returning is worth telling apart from one being edited: the first fixes a broken
+    // reference, the second means reloading something already on screen.
+    const AssetWatchResult back = watcher.poll(assets, 0.0);
+    CNA_EDITOR_EXPECT_EQ(back.restored.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(back.changed.empty());
+    CNA_EDITOR_EXPECT(!watcher.poll(assets, 0.0).hasChanges());
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(TheWatcherHonoursItsInterval)
+{
+    const std::filesystem::path directory = makeScratchDirectory("watchinterval");
+    writeFile(directory / "Textures" / "Hero.png", "contents");
+
+    AssetDatabase assets;
+    assets.setProjectRoot(directory.generic_string());
+    assets.scan("Textures");
+
+    AssetWatcher watcher;
+    watcher.setInterval(10.0);
+
+    writeFile(directory / "Textures" / "Hero.png", "much longer contents than before");
+
+    // A change that has happened is not reported until a poll is due: the whole point of the
+    // interval is that a frame does not cost one stat call per asset.
+    for (int frame = 0; frame < 5; ++frame)
+    {
+        CNA_EDITOR_EXPECT(!watcher.poll(assets, 1.0).polled);
+    }
+
+    // Unless something asks for one now, which is what a manual "Refresh" would do.
+    watcher.requestImmediatePoll();
+    CNA_EDITOR_EXPECT_EQ(watcher.poll(assets, 0.0).changed.size(), std::size_t{1});
 
     std::filesystem::remove_all(directory);
 }

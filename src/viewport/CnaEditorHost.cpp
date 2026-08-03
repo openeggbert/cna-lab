@@ -209,7 +209,7 @@ namespace CNA::Editor
             return;
         }
 
-        impl_->application->renderFrame();
+        impl_->application->renderFrame(deltaSeconds);
         impl_->ui->endFrame();
         ++impl_->frameCount;
 

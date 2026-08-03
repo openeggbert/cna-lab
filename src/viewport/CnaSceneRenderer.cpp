@@ -392,6 +392,23 @@ namespace CNA::Editor
         impl_->assets = nullptr;
     }
 
+    void CnaSceneRenderer::invalidateTexture(const Uuid& assetId)
+    {
+        if (!assetId.isValid())
+        {
+            impl_->textures.clear();
+            impl_->failedTextures.clear();
+            return;
+        }
+
+        impl_->textures.erase(assetId);
+
+        // Clearing the failure memory matters as much as clearing the texture: a load that failed
+        // because the file was missing must get another chance once it comes back, or restoring
+        // the file would look like it did nothing.
+        impl_->failedTextures.erase(assetId);
+    }
+
     EditorVector2 CnaSceneRenderer::getSpriteSize(const Uuid& assetId) const
     {
         const auto found = impl_->textures.find(assetId);

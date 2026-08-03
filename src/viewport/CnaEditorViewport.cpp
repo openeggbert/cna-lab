@@ -66,6 +66,8 @@ namespace CNA::Editor
             return renderer_.shareWithUi(*uiRenderer_);
         }
 
+        void invalidateAsset(const Uuid& assetId) override { renderer_.invalidateTexture(assetId); }
+
         [[nodiscard]] EditorVector2 getSpriteSize(const Uuid& assetId) const override
         {
             return renderer_.getSpriteSize(assetId);

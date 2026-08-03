@@ -96,6 +96,7 @@ target_link_libraries(cna-editor-scene PUBLIC cna-editor-core)
 add_library(cna-editor-assets STATIC
     src/assets/AssetDatabase.cpp
     src/assets/AssetCommands.cpp
+    src/assets/AssetWatcher.cpp
     src/assets/AssetImporters.cpp)
 target_link_libraries(cna-editor-assets PUBLIC cna-editor-core)
 

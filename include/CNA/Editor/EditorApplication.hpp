@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "CNA/Editor/Assets/AssetWatcher.hpp"
 #include "CNA/Editor/EditorContext.hpp"
 #include "CNA/Editor/Panels/AssetBrowserPanel.hpp"
 #include "CNA/Editor/Panels/ConsolePanel.hpp"
@@ -120,8 +121,16 @@ namespace CNA::Editor
         /** @brief Runs frames until exit. Returns the process exit code. */
         int run();
 
-        /** @brief Draws exactly one frame. Exposed so tests can step the editor deterministically. */
-        void renderFrame();
+        /**
+         * @brief Draws exactly one frame. Exposed so tests can step the editor deterministically.
+         *
+         * @param deltaSeconds Time since the previous frame, which paces the asset watcher. Tests
+         *        pass an explicit value so a poll can be forced without any sleeping.
+         */
+        void renderFrame(double deltaSeconds = 0.0);
+
+        /** @brief Returns the asset watcher, so a test can shorten its interval. */
+        [[nodiscard]] AssetWatcher& getAssetWatcher() { return watcher_; }
 
         [[nodiscard]] EditorContext& getContext() { return context_; }
         [[nodiscard]] EditorUi& getUi() { return *ui_; }
@@ -188,6 +197,14 @@ namespace CNA::Editor
          */
         void pollPlayer();
 
+        /**
+         * @brief Notices assets changed outside the editor and reloads what they affect.
+         *
+         * A texture edited in another program is the common case, and without this the editor goes
+         * on showing the old art until it is restarted.
+         */
+        void pollAssets(double deltaSeconds);
+
         EditorContext context_;
         std::unique_ptr<EditorUi> ui_;
         std::unique_ptr<EditorViewport> viewport_;
@@ -211,6 +228,8 @@ namespace CNA::Editor
          */
         std::vector<PlayerBuild> playerBuilds_;
         std::size_t selectedBuild_ = 0;
+
+        AssetWatcher watcher_;
 
         std::unique_ptr<PlayerProcess> player_;
         PlayMode playMode_ = PlayMode::Stopped;

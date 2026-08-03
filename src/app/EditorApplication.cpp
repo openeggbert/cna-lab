@@ -9,6 +9,7 @@
 #include <optional>
 #include <system_error>
 
+#include "CNA/Editor/Assets/AssetImporters.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 
@@ -225,8 +226,9 @@ namespace CNA::Editor
         return 0;
     }
 
-    void EditorApplication::renderFrame()
+    void EditorApplication::renderFrame(double deltaSeconds)
     {
+        pollAssets(deltaSeconds);
         pollPlayer();
         handleShortcuts();
 
@@ -479,6 +481,46 @@ namespace CNA::Editor
         message.type = EditorMessageType::StepFrame;
         message.payload = JsonValue::makeObject();
         player_->send(message);
+    }
+
+    void EditorApplication::pollAssets(double deltaSeconds)
+    {
+        const AssetWatchResult result = watcher_.poll(context_.getAssets(), deltaSeconds);
+        if (!result.hasChanges()) { return; }
+
+        for (const Uuid& assetId : result.changed)
+        {
+            // Dropping the cached texture is what makes the change visible. Without it the editor
+            // would report the edit and go on drawing the art from before it.
+            viewport_->invalidateAsset(assetId);
+
+            const AssetRecord* record = context_.getAssets().find(assetId);
+            context_.log(LogSeverity::Info,
+                         "Reloaded '" + (record != nullptr ? record->sourcePath : assetId.toString())
+                             + "' after an external change.");
+        }
+
+        for (const Uuid& assetId : result.restored)
+        {
+            viewport_->invalidateAsset(assetId);
+
+            const AssetRecord* record = context_.getAssets().find(assetId);
+            context_.log(LogSeverity::Info,
+                         "'" + (record != nullptr ? record->sourcePath : assetId.toString())
+                             + "' is back.");
+        }
+
+        for (const Uuid& assetId : result.removed)
+        {
+            const AssetRecord* record = context_.getAssets().find(assetId);
+            context_.log(LogSeverity::Warning,
+                         "'" + (record != nullptr ? record->sourcePath : assetId.toString())
+                             + "' has gone missing. Anything referencing it is listed in Missing "
+                               "References.");
+        }
+
+        // The pixel size of a texture that just changed is no longer the one on record.
+        applyImporterFacts(context_.getAssets());
     }
 
     void EditorApplication::pollPlayer()
