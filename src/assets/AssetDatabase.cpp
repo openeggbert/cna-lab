@@ -1,0 +1,378 @@
+// SPDX-License-Identifier: MS-PL
+#include "CNA/Editor/Assets/AssetDatabase.hpp"
+
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cctype>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+
+namespace CNA::Editor
+{
+    namespace
+    {
+        struct AssetTypeName
+        {
+            AssetType type;
+            const char* name;
+        };
+
+        constexpr std::array<AssetTypeName, 9> kAssetTypeNames{{
+            {AssetType::Unknown, "Unknown"},
+            {AssetType::Texture2D, "Texture2D"},
+            {AssetType::SpriteFont, "SpriteFont"},
+            {AssetType::SoundEffect, "SoundEffect"},
+            {AssetType::Song, "Song"},
+            {AssetType::Effect, "Effect"},
+            {AssetType::Model, "Model"},
+            {AssetType::Scene, "Scene"},
+            {AssetType::RawData, "RawData"},
+        }};
+
+        std::string toLowerCase(std::string_view text)
+        {
+            std::string result{text};
+            std::transform(result.begin(), result.end(), result.begin(),
+                           [](unsigned char character) { return static_cast<char>(std::tolower(character)); });
+            return result;
+        }
+
+        /** @brief Converts a filesystem path to the forward-slash form stored in project files. */
+        std::string toPortablePath(const std::filesystem::path& path)
+        {
+            std::string text = path.generic_string();
+            return text;
+        }
+    }
+
+    const char* toString(AssetType type)
+    {
+        for (const auto& entry : kAssetTypeNames)
+        {
+            if (entry.type == type) { return entry.name; }
+        }
+        return "Unknown";
+    }
+
+    AssetType parseAssetType(std::string_view text)
+    {
+        for (const auto& entry : kAssetTypeNames)
+        {
+            if (text == entry.name) { return entry.type; }
+        }
+        return AssetType::Unknown;
+    }
+
+    void AssetDatabase::setProjectRoot(std::string projectRoot)
+    {
+        projectRoot_ = std::move(projectRoot);
+    }
+
+    std::string AssetDatabase::resolvePath(std::string_view relativePath) const
+    {
+        if (projectRoot_.empty()) { return std::string{relativePath}; }
+        return toPortablePath(std::filesystem::path{projectRoot_} / std::filesystem::path{relativePath});
+    }
+
+    AssetType AssetDatabase::guessTypeFromExtension(std::string_view path)
+    {
+        const std::string extension = toLowerCase(std::filesystem::path{path}.extension().string());
+
+        if (extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".bmp"
+            || extension == ".tga" || extension == ".dds" || extension == ".gif")
+        {
+            return AssetType::Texture2D;
+        }
+        if (extension == ".spritefont" || extension == ".fnt" || extension == ".ttf") { return AssetType::SpriteFont; }
+        if (extension == ".wav" || extension == ".xwb" || extension == ".xsb") { return AssetType::SoundEffect; }
+        if (extension == ".ogg" || extension == ".mp3" || extension == ".flac") { return AssetType::Song; }
+        if (extension == ".fx" || extension == ".hlsl" || extension == ".glsl") { return AssetType::Effect; }
+        if (extension == ".gltf" || extension == ".glb" || extension == ".fbx" || extension == ".obj"
+            || extension == ".cnj")
+        {
+            return AssetType::Model;
+        }
+        if (extension == ".cnascene") { return AssetType::Scene; }
+        if (extension == ".json" || extension == ".xml" || extension == ".txt" || extension == ".csv")
+        {
+            return AssetType::RawData;
+        }
+        return AssetType::Unknown;
+    }
+
+    std::string AssetDatabase::defaultImporterFor(AssetType type)
+    {
+        switch (type)
+        {
+            case AssetType::Texture2D: return "CNA.TextureImporter";
+            case AssetType::SpriteFont: return "CNA.SpriteFontImporter";
+            case AssetType::SoundEffect: return "CNA.SoundEffectImporter";
+            case AssetType::Song: return "CNA.SongImporter";
+            case AssetType::Effect: return "CNA.EffectImporter";
+            case AssetType::Model: return "CNA.ModelImporter";
+            case AssetType::Scene: return "CNA.SceneImporter";
+            case AssetType::RawData: return "CNA.RawDataImporter";
+            case AssetType::Unknown: return {};
+        }
+        return {};
+    }
+
+    const AssetRecord* AssetDatabase::find(const Uuid& id) const
+    {
+        const auto found = recordsById_.find(id);
+        return found == recordsById_.end() ? nullptr : &found->second;
+    }
+
+    const AssetRecord* AssetDatabase::findByPath(std::string_view relativePath) const
+    {
+        const auto found = idsByPath_.find(std::string{relativePath});
+        return found == idsByPath_.end() ? nullptr : find(found->second);
+    }
+
+    std::vector<const AssetRecord*> AssetDatabase::getAll() const
+    {
+        std::vector<const AssetRecord*> records;
+        records.reserve(idsByPath_.size());
+        for (const auto& [path, id] : idsByPath_)
+        {
+            if (const AssetRecord* record = find(id)) { records.push_back(record); }
+        }
+        return records;
+    }
+
+    bool AssetDatabase::add(AssetRecord record)
+    {
+        if (!record.id.isValid()) { return false; }
+
+        // A record may be re-added with a new source path (an asset that moved). Drop the stale
+        // path index entry first, or findByPath would keep resolving the old location.
+        if (const auto existing = recordsById_.find(record.id); existing != recordsById_.end())
+        {
+            idsByPath_.erase(existing->second.sourcePath);
+        }
+
+        const Uuid id = record.id;
+        const std::string path = record.sourcePath;
+        recordsById_[id] = std::move(record);
+        if (!path.empty()) { idsByPath_[path] = id; }
+        return true;
+    }
+
+    bool AssetDatabase::isMissing(const Uuid& id) const
+    {
+        const AssetRecord* record = find(id);
+        if (record == nullptr) { return false; }
+        return !std::filesystem::exists(resolvePath(record->sourcePath));
+    }
+
+    std::vector<Uuid> AssetDatabase::getMissingAssets() const
+    {
+        std::vector<Uuid> missing;
+        for (const auto& [id, record] : recordsById_)
+        {
+            if (!std::filesystem::exists(resolvePath(record.sourcePath))) { missing.push_back(id); }
+        }
+        std::sort(missing.begin(), missing.end());
+        return missing;
+    }
+
+    JsonValue AssetDatabase::recordToJson(const AssetRecord& record)
+    {
+        JsonValue json = JsonValue::makeObject();
+        json.set("formatVersion", JsonValue{kFormatVersion});
+        json.set("id", JsonValue{record.id.toString()});
+        json.set("type", JsonValue{toString(record.type)});
+        if (!record.importerId.empty()) { json.set("importer", JsonValue{record.importerId}); }
+        if (!record.importerSettings.isNull()) { json.set("settings", record.importerSettings); }
+
+        if (!record.dependencies.empty())
+        {
+            JsonValue dependencies = JsonValue::makeArray();
+            for (const Uuid& dependency : record.dependencies)
+            {
+                dependencies.append(JsonValue{dependency.toString()});
+            }
+            json.set("dependencies", std::move(dependencies));
+        }
+
+        if (record.sourceSize != 0 || record.sourceModifiedTime != 0)
+        {
+            JsonValue stamp = JsonValue::makeObject();
+            stamp.set("size", JsonValue{static_cast<std::int64_t>(record.sourceSize)});
+            stamp.set("modifiedTime", JsonValue{record.sourceModifiedTime});
+            json.set("sourceStamp", std::move(stamp));
+        }
+        return json;
+    }
+
+    AssetRecord AssetDatabase::recordFromJson(const JsonValue& json, std::string relativePath)
+    {
+        AssetRecord record;
+        record.id = Uuid::parse(json["id"].asString());
+        record.sourcePath = std::move(relativePath);
+        record.type = parseAssetType(json["type"].asString());
+        record.importerId = json["importer"].asString();
+        record.importerSettings = json["settings"];
+
+        for (const JsonValue& dependency : json["dependencies"].getElements())
+        {
+            const Uuid id = Uuid::parse(dependency.asString());
+            if (id.isValid()) { record.dependencies.push_back(id); }
+        }
+
+        const JsonValue& stamp = json["sourceStamp"];
+        record.sourceSize = static_cast<std::uint64_t>(stamp["size"].asNumber());
+        record.sourceModifiedTime = static_cast<std::int64_t>(stamp["modifiedTime"].asNumber());
+        return record;
+    }
+
+    bool AssetDatabase::writeSidecar(const Uuid& id, std::string* errorMessage) const
+    {
+        const AssetRecord* record = find(id);
+        if (record == nullptr)
+        {
+            if (errorMessage != nullptr) { *errorMessage = "unknown asset id " + id.toString(); }
+            return false;
+        }
+
+        const std::string sidecarPath = resolvePath(record->sourcePath) + kSidecarExtension;
+        std::ofstream stream{sidecarPath, std::ios::binary | std::ios::trunc};
+        if (!stream)
+        {
+            if (errorMessage != nullptr) { *errorMessage = "cannot write '" + sidecarPath + "'"; }
+            return false;
+        }
+
+        stream << Json::write(recordToJson(*record), true);
+        return static_cast<bool>(stream);
+    }
+
+    AssetScanResult AssetDatabase::scan(const std::string& relativeAssetDirectory)
+    {
+        AssetScanResult result;
+
+        if (projectRoot_.empty())
+        {
+            result.errorMessage = "no project root set";
+            return result;
+        }
+
+        const std::filesystem::path assetRoot = std::filesystem::path{projectRoot_} / relativeAssetDirectory;
+        std::error_code errorCode;
+        if (!std::filesystem::exists(assetRoot, errorCode))
+        {
+            // An absent asset directory is a perfectly normal state for a brand-new project, so
+            // this succeeds with a warning rather than failing.
+            result.succeeded = true;
+            result.warnings.push_back("asset directory '" + relativeAssetDirectory + "' does not exist yet");
+            return result;
+        }
+
+        std::filesystem::recursive_directory_iterator iterator{
+            assetRoot, std::filesystem::directory_options::skip_permission_denied, errorCode};
+        if (errorCode)
+        {
+            result.errorMessage = "cannot walk '" + toPortablePath(assetRoot) + "': " + errorCode.message();
+            return result;
+        }
+
+        const std::filesystem::path rootPath{projectRoot_};
+        for (const std::filesystem::directory_entry& entry : iterator)
+        {
+            if (!entry.is_regular_file(errorCode)) { continue; }
+
+            const std::filesystem::path& path = entry.path();
+            // Sidecars describe assets; they are not assets themselves.
+            if (path.extension() == kSidecarExtension) { continue; }
+
+            const std::string relativePath = toPortablePath(std::filesystem::relative(path, rootPath, errorCode));
+            if (errorCode || relativePath.empty())
+            {
+                result.warnings.push_back("cannot make '" + toPortablePath(path) + "' relative to the project root");
+                errorCode.clear();
+                continue;
+            }
+
+            ++result.discoveredCount;
+
+            const std::string sidecarPath = toPortablePath(path) + kSidecarExtension;
+            AssetRecord record;
+            bool isNew = true;
+
+            if (std::filesystem::exists(sidecarPath, errorCode))
+            {
+                std::ifstream stream{sidecarPath, std::ios::binary};
+                std::ostringstream buffer;
+                buffer << stream.rdbuf();
+                const JsonParseResult parsed = Json::parse(buffer.str());
+                if (parsed.succeeded)
+                {
+                    record = recordFromJson(parsed.value, relativePath);
+                    isNew = !record.id.isValid();
+                    if (isNew)
+                    {
+                        result.warnings.push_back("sidecar '" + relativePath + kSidecarExtension
+                                                  + "' has no valid id; a new id was assigned");
+                    }
+                }
+                else
+                {
+                    result.warnings.push_back("sidecar '" + relativePath + kSidecarExtension
+                                              + "' is malformed (" + parsed.errorMessage
+                                              + "); a new id was assigned");
+                }
+            }
+
+            if (isNew)
+            {
+                record = AssetRecord{};
+                record.id = Uuid::generate();
+                record.sourcePath = relativePath;
+                record.type = guessTypeFromExtension(relativePath);
+                record.importerId = defaultImporterFor(record.type);
+                ++result.newCount;
+            }
+            else if (const AssetRecord* previous = find(record.id); previous != nullptr
+                     && previous->sourcePath != relativePath)
+            {
+                // The same id now lives at a different path: the file was moved or renamed. Every
+                // scene referencing it keeps working, because scenes reference the id.
+                ++result.movedCount;
+            }
+
+            record.sourceSize = static_cast<std::uint64_t>(entry.file_size(errorCode));
+            if (errorCode) { record.sourceSize = 0; errorCode.clear(); }
+
+            // Stored in seconds, not in the clock's native ticks. A nanosecond count is around
+            // 4.6e18, which is past the range a double represents exactly -- and JSON numbers are
+            // doubles, so the native value would round-trip through the sidecar wrong and make
+            // every asset look modified on every scan. Seconds are exact and are finer-grained
+            // than any reimport decision needs.
+            const auto writeTime = entry.last_write_time(errorCode);
+            record.sourceModifiedTime =
+                errorCode ? 0
+                          : std::chrono::duration_cast<std::chrono::seconds>(writeTime.time_since_epoch()).count();
+            errorCode.clear();
+
+            add(record);
+
+            if (isNew && !writeSidecar(record.id))
+            {
+                result.warnings.push_back("cannot write sidecar for '" + relativePath
+                                          + "'; its id will not survive a restart");
+            }
+        }
+
+        result.missingCount = getMissingAssets().size();
+        result.succeeded = true;
+        return result;
+    }
+
+    void AssetDatabase::clear()
+    {
+        recordsById_.clear();
+        idsByPath_.clear();
+    }
+}

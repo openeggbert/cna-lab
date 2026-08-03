@@ -1,0 +1,246 @@
+// SPDX-License-Identifier: MS-PL
+#include "CNA/Editor/Project/Project.hpp"
+
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+
+namespace CNA::Editor
+{
+    const char* toString(ProjectKind kind)
+    {
+        return kind == ProjectKind::XnaCompatible ? "XnaCompatible" : "CnaNative";
+    }
+
+    ProjectKind parseProjectKind(std::string_view text)
+    {
+        return text == "XnaCompatible" ? ProjectKind::XnaCompatible : ProjectKind::CnaNative;
+    }
+
+    const std::vector<BackendInfo>& getKnownBackends()
+    {
+        // Mirrors CNA's cmake/BackendSelection.cmake as of the CNA revision this editor was
+        // written against. The support column is the editor's own judgement, not CNA's: it
+        // records whether a backend can host a *docked editor UI*, which is a stricter
+        // requirement than being able to run a game.
+        static const std::vector<BackendInfo> backends{
+            {"EASYGL", "easygl", "EasyGL (OpenGL ES)", BackendEditorSupport::EditorSupported,
+             "CNA's default on Linux and Emscripten. The reference target for the editor UI."},
+            {"VULKAN", "vulkan", "Vulkan", BackendEditorSupport::EditorSupported,
+             "Full editor UI support."},
+            {"SDL_RENDERER", "sdlrenderer", "SDL_Renderer (2D only)", BackendEditorSupport::EditorSupported,
+             "CNA's default off Linux. 2D-only, which the editor UI itself does not mind."},
+            {"BGFX", "bgfx", "bgfx", BackendEditorSupport::EditorSupported, "Full editor UI support."},
+            {"SDL_GPU", "sdlgpu", "SDL_GPU", BackendEditorSupport::EditorSupported, "Full editor UI support."},
+            {"D3D11", "d3d11", "Direct3D 11", BackendEditorSupport::EditorSupported,
+             "Windows only. Full editor UI support there."},
+            {"D3D12", "d3d12", "Direct3D 12", BackendEditorSupport::EditorSupported,
+             "Windows only. Full editor UI support there."},
+            {"WEBGPU", "webgpu", "WebGPU", BackendEditorSupport::PreviewOnly,
+             "Experimental in CNA. Useful for previewing a browser build's rendering."},
+            {"D3D9", "d3d9", "Direct3D 9", BackendEditorSupport::PreviewOnly,
+             "Fixed-function-era feature set. Suitable for a player process, not for the editor UI."},
+            {"SOFTWARE", "software", "Software (CPU rasterizer)", BackendEditorSupport::PreviewOnly,
+             "Correct but slow. Ideal as a comparison reference, unusable as an interactive UI host."},
+            {"CANVAS", "canvas", "HTML Canvas 2D", BackendEditorSupport::RuntimeOnly,
+             "Emscripten only; there is no desktop editor process to host."},
+            {"ASCII", "ascii", "ASCII glyph grid", BackendEditorSupport::RuntimeOnly,
+             "A deliberately lossy presentation filter. Meaningful for a game, not for a UI."},
+            {"DX3", "dx3", "DirectX 3 (DirectDraw)", BackendEditorSupport::RuntimeOnly,
+             "Historical backend. Exactly the case the separate player process exists for."},
+            {"HEADLESS", "headless", "Headless (no GPU or window)", BackendEditorSupport::RuntimeOnly,
+             "No window by definition. Used by the editor's own automated tests."},
+        };
+        return backends;
+    }
+
+    const BackendInfo* findBackend(std::string_view name)
+    {
+        const std::vector<BackendInfo>& backends = getKnownBackends();
+        const auto found = std::find_if(backends.begin(), backends.end(),
+                                        [&](const BackendInfo& backend) {
+                                            return backend.commandLineName == name || backend.cmakeName == name;
+                                        });
+        return found == backends.end() ? nullptr : &*found;
+    }
+
+    JsonValue Project::toJson() const
+    {
+        JsonValue json = JsonValue::makeObject();
+        json.set("formatVersion", JsonValue{kFormatVersion});
+        json.set("name", JsonValue{name_});
+        json.set("kind", JsonValue{toString(kind_)});
+        json.set("startupScene", JsonValue{startupScene_});
+        json.set("assetDirectory", JsonValue{assetDirectory_});
+        json.set("sceneDirectory", JsonValue{sceneDirectory_});
+        json.set("defaultGraphicsBackend", JsonValue{defaultGraphicsBackend_});
+
+        JsonValue platforms = JsonValue::makeArray();
+        for (const std::string& platform : targetPlatforms_) { platforms.append(JsonValue{platform}); }
+        json.set("targetPlatforms", std::move(platforms));
+
+        JsonValue modules = JsonValue::makeArray();
+        for (const std::string& module : modules_) { modules.append(JsonValue{module}); }
+        json.set("modules", std::move(modules));
+
+        if (!plugins_.empty())
+        {
+            JsonValue plugins = JsonValue::makeArray();
+            for (const std::string& plugin : plugins_) { plugins.append(JsonValue{plugin}); }
+            json.set("plugins", std::move(plugins));
+        }
+        return json;
+    }
+
+    ProjectLoadResult Project::loadFromJson(const JsonValue& json)
+    {
+        ProjectLoadResult result;
+
+        if (!json.isObject())
+        {
+            result.errorMessage = "project root is not a JSON object";
+            return result;
+        }
+
+        const int formatVersion = json["formatVersion"].asInt(0);
+        if (formatVersion <= 0)
+        {
+            result.errorMessage = "project has no usable 'formatVersion'";
+            return result;
+        }
+        if (formatVersion > kFormatVersion)
+        {
+            result.errorMessage = "project formatVersion " + std::to_string(formatVersion)
+                                + " is newer than this build supports (" + std::to_string(kFormatVersion) + ")";
+            return result;
+        }
+
+        name_ = json["name"].asString("Untitled");
+        kind_ = parseProjectKind(json["kind"].asString("CnaNative"));
+        startupScene_ = json["startupScene"].asString();
+        assetDirectory_ = json["assetDirectory"].asString("Assets");
+        sceneDirectory_ = json["sceneDirectory"].asString("Scenes");
+        defaultGraphicsBackend_ = json["defaultGraphicsBackend"].asString("easygl");
+
+        if (findBackend(defaultGraphicsBackend_) == nullptr)
+        {
+            result.warnings.push_back("unknown defaultGraphicsBackend '" + defaultGraphicsBackend_
+                                      + "'; the Play button will need one chosen explicitly");
+        }
+
+        targetPlatforms_.clear();
+        for (const JsonValue& platform : json["targetPlatforms"].getElements())
+        {
+            targetPlatforms_.push_back(platform.asString());
+        }
+        if (targetPlatforms_.empty()) { targetPlatforms_.push_back("linux-x64"); }
+
+        modules_.clear();
+        for (const JsonValue& module : json["modules"].getElements()) { modules_.push_back(module.asString()); }
+        if (modules_.empty()) { modules_.push_back("cna-core"); }
+
+        plugins_.clear();
+        for (const JsonValue& plugin : json["plugins"].getElements()) { plugins_.push_back(plugin.asString()); }
+
+        if (kind_ == ProjectKind::XnaCompatible && !startupScene_.empty())
+        {
+            result.warnings.push_back("an XnaCompatible project declares a startupScene; the editor will "
+                                      "not use it, because scene loading is the game's own responsibility");
+        }
+
+        result.succeeded = true;
+        return result;
+    }
+
+    ProjectLoadResult Project::loadFromFile(const std::string& path)
+    {
+        ProjectLoadResult result;
+
+        std::ifstream stream{path, std::ios::binary};
+        if (!stream)
+        {
+            result.errorMessage = "cannot open '" + path + "'";
+            return result;
+        }
+
+        std::ostringstream buffer;
+        buffer << stream.rdbuf();
+
+        const JsonParseResult parsed = Json::parse(buffer.str());
+        if (!parsed.succeeded)
+        {
+            result.errorMessage = "'" + path + "': " + parsed.errorMessage + " at offset "
+                                + std::to_string(parsed.errorOffset);
+            return result;
+        }
+
+        result = loadFromJson(parsed.value);
+        if (!result.succeeded) { return result; }
+
+        std::error_code errorCode;
+        const std::filesystem::path absolute = std::filesystem::absolute(path, errorCode);
+        const std::filesystem::path resolved = errorCode ? std::filesystem::path{path} : absolute;
+        filePath_ = resolved.generic_string();
+        rootPath_ = resolved.parent_path().generic_string();
+        return result;
+    }
+
+    bool Project::saveToFile(const std::string& path, std::string* errorMessage)
+    {
+        const std::string target = path.empty() ? filePath_ : path;
+        if (target.empty())
+        {
+            if (errorMessage != nullptr) { *errorMessage = "no project file path set"; }
+            return false;
+        }
+
+        std::error_code errorCode;
+        const std::filesystem::path filePath{target};
+        if (filePath.has_parent_path())
+        {
+            std::filesystem::create_directories(filePath.parent_path(), errorCode);
+            if (errorCode)
+            {
+                if (errorMessage != nullptr) { *errorMessage = "cannot create directory: " + errorCode.message(); }
+                return false;
+            }
+        }
+
+        std::ofstream stream{target, std::ios::binary | std::ios::trunc};
+        if (!stream)
+        {
+            if (errorMessage != nullptr) { *errorMessage = "cannot open '" + target + "' for writing"; }
+            return false;
+        }
+
+        stream << Json::write(toJson(), true);
+        if (!stream)
+        {
+            if (errorMessage != nullptr) { *errorMessage = "write to '" + target + "' failed"; }
+            return false;
+        }
+
+        const std::filesystem::path absolute = std::filesystem::absolute(target, errorCode);
+        const std::filesystem::path resolved = errorCode ? filePath : absolute;
+        filePath_ = resolved.generic_string();
+        rootPath_ = resolved.parent_path().generic_string();
+        return true;
+    }
+
+    std::string Project::resolvePath(std::string_view relativePath) const
+    {
+        if (rootPath_.empty()) { return std::string{relativePath}; }
+        return (std::filesystem::path{rootPath_} / std::filesystem::path{relativePath}).generic_string();
+    }
+
+    Project Project::createDefault(std::string name, std::string rootPath)
+    {
+        Project project;
+        project.name_ = std::move(name);
+        project.rootPath_ = rootPath;
+        project.filePath_ = (std::filesystem::path{rootPath} / (project.name_ + kFileExtension)).generic_string();
+        project.startupScene_ = "Scenes/MainMenu.cnascene";
+        return project;
+    }
+}

@@ -1,0 +1,201 @@
+// SPDX-License-Identifier: MS-PL
+#pragma once
+
+/**
+ * @file CNA/Editor/Scene/SceneCommands.hpp
+ * @brief The concrete undoable operations on a SceneDocument.
+ *
+ * Everything a panel, a gizmo or a plugin does to a scene is one of these, pushed through a
+ * CommandHistory. Nothing else is allowed to touch SceneDocument's mutating methods -- see
+ * EditorCommand.hpp for the rule and ANALYSIS.md decision D-06 for why it is absolute.
+ *
+ * Each command holds a raw SceneDocument pointer rather than owning the document. That is safe
+ * because a CommandHistory is owned by, and cleared with, the document it belongs to; a command
+ * cannot outlive its target.
+ */
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "CNA/Editor/Core/EditorCommand.hpp"
+#include "CNA/Editor/Scene/SceneDocument.hpp"
+
+namespace CNA::Editor
+{
+    /** @brief Adds one entity to a scene. Undo removes it (and, by then, any of its children). */
+    class CreateEntityCommand final : public EditorCommand
+    {
+    public:
+        /**
+         * @param document The target scene; must outlive this command.
+         * @param entity The entity to add. Its id is assigned now, not at execute() time, so that
+         *        the caller can select it immediately and so that redo restores the same id.
+         */
+        CreateEntityCommand(SceneDocument& document, EditorEntity entity);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+
+        /** @brief Returns the id the created entity has, valid from construction onwards. */
+        [[nodiscard]] const Uuid& getEntityId() const { return entity_.getId(); }
+
+    private:
+        SceneDocument* document_;
+        EditorEntity entity_;
+    };
+
+    /**
+     * @brief Removes an entity and its whole subtree.
+     *
+     * Undo restores every removed entity, parents first, so the hierarchy comes back intact --
+     * including the parent links of children that pointed at the deleted entity.
+     */
+    class DeleteEntityCommand final : public EditorCommand
+    {
+    public:
+        DeleteEntityCommand(SceneDocument& document, Uuid entityId);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+
+    private:
+        SceneDocument* document_;
+        Uuid entityId_;
+        std::string entityName_;
+        std::vector<EditorEntity> removed_;
+    };
+
+    /** @brief Renames an entity. */
+    class RenameEntityCommand final : public EditorCommand
+    {
+    public:
+        RenameEntityCommand(SceneDocument& document, Uuid entityId, std::string newName);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+        [[nodiscard]] std::string getMergeKey() const override;
+        bool mergeWith(const EditorCommand& newer) override;
+
+    private:
+        SceneDocument* document_;
+        Uuid entityId_;
+        std::string newName_;
+        std::string oldName_;
+    };
+
+    /**
+     * @brief Moves an entity under a new parent.
+     *
+     * Passing the nil Uuid as the new parent makes the entity a root. A move that would create a
+     * cycle is rejected by SceneDocument and leaves the document unchanged, so pushing such a
+     * command is harmless -- but callers should check first, because a no-op undo entry is
+     * confusing to the user.
+     */
+    class ReparentEntityCommand final : public EditorCommand
+    {
+    public:
+        ReparentEntityCommand(SceneDocument& document, Uuid entityId, Uuid newParentId);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+
+    private:
+        SceneDocument* document_;
+        Uuid entityId_;
+        Uuid newParentId_;
+        Uuid oldParentId_;
+    };
+
+    /**
+     * @brief Sets one property on one component of one entity.
+     *
+     * This single command covers every field of every component type, including plugin-supplied
+     * ones -- that is the payoff of the PropertyValue/ComponentDescriptor design. It is also the
+     * command that merges: its merge key is entity + component + property, so a gizmo drag or a
+     * slider scrub collapses into one undo step that returns to where the interaction began.
+     */
+    class SetPropertyCommand final : public EditorCommand
+    {
+    public:
+        SetPropertyCommand(SceneDocument& document,
+                           Uuid entityId,
+                           std::string componentTypeId,
+                           std::string propertyName,
+                           PropertyValue newValue);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+        [[nodiscard]] std::string getMergeKey() const override;
+        bool mergeWith(const EditorCommand& newer) override;
+
+    private:
+        SceneDocument* document_;
+        Uuid entityId_;
+        std::string componentTypeId_;
+        std::string propertyName_;
+        PropertyValue newValue_;
+        PropertyValue oldValue_;
+        bool hadOldValue_ = false;
+    };
+
+    /** @brief Adds a component to an entity, populated with the descriptor's declared defaults. */
+    class AddComponentCommand final : public EditorCommand
+    {
+    public:
+        AddComponentCommand(SceneDocument& document,
+                            const ComponentRegistry& registry,
+                            Uuid entityId,
+                            std::string componentTypeId);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+
+        /**
+         * @brief Returns false when the add cannot legally happen.
+         *
+         * True refusals are: an unknown type id, and a second instance of a type whose descriptor
+         * declares @c unique. Callers should check this before pushing, so the undo stack never
+         * gains an entry that does nothing.
+         */
+        [[nodiscard]] bool isValid() const { return valid_; }
+
+    private:
+        SceneDocument* document_;
+        Uuid entityId_;
+        std::string componentTypeId_;
+        EditorComponent prototype_;
+        bool valid_ = false;
+    };
+
+    /** @brief Removes a component from an entity, preserving its property values for undo. */
+    class RemoveComponentCommand final : public EditorCommand
+    {
+    public:
+        RemoveComponentCommand(SceneDocument& document,
+                               const ComponentRegistry& registry,
+                               Uuid entityId,
+                               std::string componentTypeId);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+
+        /** @brief Returns false when the component is absent or its descriptor marks it required. */
+        [[nodiscard]] bool isValid() const { return valid_; }
+
+    private:
+        SceneDocument* document_;
+        Uuid entityId_;
+        std::string componentTypeId_;
+        EditorComponent removed_;
+        std::size_t removedIndex_ = 0;
+        bool valid_ = false;
+    };
+}

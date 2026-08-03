@@ -1,0 +1,278 @@
+// SPDX-License-Identifier: MS-PL
+#include "CNA/Editor/Scene/SceneCommands.hpp"
+
+namespace CNA::Editor
+{
+    namespace
+    {
+        /** @brief Finds a component, creating nothing. Returns nullptr when entity or type is absent. */
+        EditorComponent* findComponent(SceneDocument& document, const Uuid& entityId, std::string_view typeId)
+        {
+            EditorEntity* entity = document.findEntity(entityId);
+            return entity != nullptr ? entity->findComponent(typeId) : nullptr;
+        }
+    }
+
+    CreateEntityCommand::CreateEntityCommand(SceneDocument& document, EditorEntity entity)
+        : document_(&document), entity_(std::move(entity))
+    {
+        // The id is assigned now rather than at execute() time so that the caller can select the
+        // entity straight away, and so that redo restores the *same* id -- otherwise every redo
+        // would break references pointing at the entity.
+        if (!entity_.getId().isValid()) { entity_.setId(Uuid::generate()); }
+    }
+
+    void CreateEntityCommand::execute()
+    {
+        document_->addEntity(entity_);
+    }
+
+    void CreateEntityCommand::undo()
+    {
+        // Removing recursively is correct even though execute() added exactly one entity: by the
+        // time undo runs, later commands may have parented other entities under it. Those are
+        // owned by their own commands, which will be undone after this one.
+        document_->removeEntityRecursive(entity_.getId());
+    }
+
+    std::string CreateEntityCommand::getDescription() const
+    {
+        return "Create entity '" + entity_.getName() + "'";
+    }
+
+    DeleteEntityCommand::DeleteEntityCommand(SceneDocument& document, Uuid entityId)
+        : document_(&document), entityId_(entityId)
+    {
+        if (const EditorEntity* entity = document_->findEntity(entityId_))
+        {
+            entityName_ = entity->getName();
+        }
+    }
+
+    void DeleteEntityCommand::execute()
+    {
+        removed_ = document_->removeEntityRecursive(entityId_);
+    }
+
+    void DeleteEntityCommand::undo()
+    {
+        // removeEntityRecursive returns parents first, so re-adding in order never leaves a child
+        // pointing at a parent that is not back yet.
+        for (const EditorEntity& entity : removed_) { document_->addEntity(entity); }
+        removed_.clear();
+    }
+
+    std::string DeleteEntityCommand::getDescription() const
+    {
+        return "Delete entity '" + entityName_ + "'";
+    }
+
+    RenameEntityCommand::RenameEntityCommand(SceneDocument& document, Uuid entityId, std::string newName)
+        : document_(&document), entityId_(entityId), newName_(std::move(newName))
+    {
+        if (const EditorEntity* entity = document_->findEntity(entityId_)) { oldName_ = entity->getName(); }
+    }
+
+    void RenameEntityCommand::execute()
+    {
+        if (EditorEntity* entity = document_->findEntity(entityId_)) { entity->setName(newName_); }
+    }
+
+    void RenameEntityCommand::undo()
+    {
+        if (EditorEntity* entity = document_->findEntity(entityId_)) { entity->setName(oldName_); }
+    }
+
+    std::string RenameEntityCommand::getDescription() const
+    {
+        return "Rename '" + oldName_ + "' to '" + newName_ + "'";
+    }
+
+    std::string RenameEntityCommand::getMergeKey() const
+    {
+        return "rename:" + entityId_.toString();
+    }
+
+    bool RenameEntityCommand::mergeWith(const EditorCommand& newer)
+    {
+        const auto* other = dynamic_cast<const RenameEntityCommand*>(&newer);
+        if (other == nullptr || other->entityId_ != entityId_) { return false; }
+        // Keep this command's original name (the undo target) and adopt the newer final name.
+        newName_ = other->newName_;
+        return true;
+    }
+
+    ReparentEntityCommand::ReparentEntityCommand(SceneDocument& document, Uuid entityId, Uuid newParentId)
+        : document_(&document), entityId_(entityId), newParentId_(newParentId)
+    {
+        if (const EditorEntity* entity = document_->findEntity(entityId_)) { oldParentId_ = entity->getParentId(); }
+    }
+
+    void ReparentEntityCommand::execute()
+    {
+        document_->reparentEntity(entityId_, newParentId_);
+    }
+
+    void ReparentEntityCommand::undo()
+    {
+        document_->reparentEntity(entityId_, oldParentId_);
+    }
+
+    std::string ReparentEntityCommand::getDescription() const
+    {
+        const EditorEntity* entity = document_->findEntity(entityId_);
+        const std::string name = entity != nullptr ? entity->getName() : entityId_.toString();
+        return newParentId_.isValid() ? "Reparent '" + name + "'" : "Unparent '" + name + "'";
+    }
+
+    SetPropertyCommand::SetPropertyCommand(SceneDocument& document,
+                                           Uuid entityId,
+                                           std::string componentTypeId,
+                                           std::string propertyName,
+                                           PropertyValue newValue)
+        : document_(&document),
+          entityId_(entityId),
+          componentTypeId_(std::move(componentTypeId)),
+          propertyName_(std::move(propertyName)),
+          newValue_(std::move(newValue))
+    {
+        if (const EditorComponent* component = findComponent(*document_, entityId_, componentTypeId_))
+        {
+            hadOldValue_ = component->hasProperty(propertyName_);
+            oldValue_ = component->getProperty(propertyName_);
+        }
+    }
+
+    void SetPropertyCommand::execute()
+    {
+        if (EditorComponent* component = findComponent(*document_, entityId_, componentTypeId_))
+        {
+            component->setProperty(propertyName_, newValue_);
+        }
+    }
+
+    void SetPropertyCommand::undo()
+    {
+        EditorComponent* component = findComponent(*document_, entityId_, componentTypeId_);
+        if (component == nullptr) { return; }
+
+        // Restoring "the property was not present at all" matters: a component loaded from a
+        // scene file that omitted an optional field must be able to go back to omitting it, or
+        // an undone edit would silently start writing a field the file never had.
+        if (hadOldValue_) { component->setProperty(propertyName_, oldValue_); }
+        else { component->removeProperty(propertyName_); }
+    }
+
+    std::string SetPropertyCommand::getDescription() const
+    {
+        return "Set " + componentTypeId_ + "." + propertyName_ + " = " + newValue_.toDisplayString();
+    }
+
+    std::string SetPropertyCommand::getMergeKey() const
+    {
+        return "property:" + entityId_.toString() + ":" + componentTypeId_ + ":" + propertyName_;
+    }
+
+    bool SetPropertyCommand::mergeWith(const EditorCommand& newer)
+    {
+        const auto* other = dynamic_cast<const SetPropertyCommand*>(&newer);
+        if (other == nullptr) { return false; }
+        if (other->entityId_ != entityId_ || other->componentTypeId_ != componentTypeId_
+            || other->propertyName_ != propertyName_)
+        {
+            return false;
+        }
+        // Adopt the newer final value; keep this command's original old value as the undo target.
+        newValue_ = other->newValue_;
+        return true;
+    }
+
+    AddComponentCommand::AddComponentCommand(SceneDocument& document,
+                                             const ComponentRegistry& registry,
+                                             Uuid entityId,
+                                             std::string componentTypeId)
+        : document_(&document), entityId_(entityId), componentTypeId_(std::move(componentTypeId))
+    {
+        const ComponentDescriptor* descriptor = registry.find(componentTypeId_);
+        const EditorEntity* entity = document_->findEntity(entityId_);
+        if (descriptor == nullptr || entity == nullptr) { return; }
+        if (descriptor->unique && entity->findComponent(componentTypeId_) != nullptr) { return; }
+
+        prototype_ = EditorComponent{componentTypeId_};
+        prototype_.applyDefaults(*descriptor);
+        valid_ = true;
+    }
+
+    void AddComponentCommand::execute()
+    {
+        if (!valid_) { return; }
+        if (EditorEntity* entity = document_->findEntity(entityId_)) { entity->addComponent(prototype_); }
+    }
+
+    void AddComponentCommand::undo()
+    {
+        if (!valid_) { return; }
+        EditorEntity* entity = document_->findEntity(entityId_);
+        if (entity == nullptr) { return; }
+
+        // Remove the *last* instance of the type, which is the one execute() appended. For a
+        // unique component there is only one; for a repeatable one this is what keeps undo
+        // paired with the matching add.
+        for (std::size_t index = entity->getComponents().size(); index > 0; --index)
+        {
+            if (entity->getComponents()[index - 1].getTypeId() == componentTypeId_)
+            {
+                entity->removeComponentAt(index - 1);
+                return;
+            }
+        }
+    }
+
+    std::string AddComponentCommand::getDescription() const
+    {
+        return "Add component " + componentTypeId_;
+    }
+
+    RemoveComponentCommand::RemoveComponentCommand(SceneDocument& document,
+                                                   const ComponentRegistry& registry,
+                                                   Uuid entityId,
+                                                   std::string componentTypeId)
+        : document_(&document), entityId_(entityId), componentTypeId_(std::move(componentTypeId))
+    {
+        const EditorEntity* entity = document_->findEntity(entityId_);
+        if (entity == nullptr) { return; }
+
+        const ComponentDescriptor* descriptor = registry.find(componentTypeId_);
+        if (descriptor != nullptr && descriptor->required) { return; }
+
+        const std::size_t index = entity->indexOfComponent(componentTypeId_);
+        if (index == static_cast<std::size_t>(-1)) { return; }
+
+        removedIndex_ = index;
+        removed_ = entity->getComponents()[index];
+        valid_ = true;
+    }
+
+    void RemoveComponentCommand::execute()
+    {
+        if (!valid_) { return; }
+        if (EditorEntity* entity = document_->findEntity(entityId_)) { entity->removeComponentAt(removedIndex_); }
+    }
+
+    void RemoveComponentCommand::undo()
+    {
+        if (!valid_) { return; }
+        EditorEntity* entity = document_->findEntity(entityId_);
+        if (entity == nullptr) { return; }
+
+        // Restore at the original index so the inspector's component order survives undo.
+        std::vector<EditorComponent>& components = entity->getComponents();
+        const std::size_t index = std::min(removedIndex_, components.size());
+        components.insert(components.begin() + static_cast<std::ptrdiff_t>(index), removed_);
+    }
+
+    std::string RemoveComponentCommand::getDescription() const
+    {
+        return "Remove component " + componentTypeId_;
+    }
+}

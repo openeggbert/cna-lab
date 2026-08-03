@@ -1,0 +1,135 @@
+// SPDX-License-Identifier: MS-PL
+#pragma once
+
+/**
+ * @file CNA/Editor/EditorContext.hpp
+ * @brief The single object every panel, command and plugin is handed.
+ *
+ * EditorContext owns the open project, the open scene, the component registry, the asset
+ * database, the undo stack and the selection. Panels hold a reference to it and nothing else,
+ * which keeps the panel layer free of globals and makes a panel testable by handing it a context
+ * built over a scratch document.
+ *
+ * It deliberately does *not* own the UI: the context is what the headless build uses, and pulling
+ * a toolkit dependency in here would undo the separation EditorUi exists to create.
+ */
+
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "CNA/Editor/Assets/AssetDatabase.hpp"
+#include "CNA/Editor/Core/ComponentDescriptor.hpp"
+#include "CNA/Editor/Core/EditorCommand.hpp"
+#include "CNA/Editor/Core/Uuid.hpp"
+#include "CNA/Editor/Project/Project.hpp"
+#include "CNA/Editor/Scene/SceneDocument.hpp"
+#include "CNA/Editor/Ui/EditorUi.hpp"
+
+namespace CNA::Editor
+{
+    /**
+     * @brief The editor's shared, non-UI state.
+     *
+     * Selection is a list rather than a single id because multi-select is not something to retrofit:
+     * every command that acts on "the selection" has to be written against a set from the start, or
+     * it will be rewritten later.
+     */
+    class EditorContext
+    {
+    public:
+        /** @brief A console sink. The application installs one that forwards into the UI. */
+        using LogSink = std::function<void(LogSeverity, const std::string&)>;
+
+        EditorContext();
+
+        [[nodiscard]] Project& getProject() { return project_; }
+        [[nodiscard]] const Project& getProject() const { return project_; }
+
+        [[nodiscard]] SceneDocument& getScene() { return scene_; }
+        [[nodiscard]] const SceneDocument& getScene() const { return scene_; }
+
+        [[nodiscard]] ComponentRegistry& getComponentRegistry() { return components_; }
+        [[nodiscard]] const ComponentRegistry& getComponentRegistry() const { return components_; }
+
+        [[nodiscard]] AssetDatabase& getAssets() { return assets_; }
+        [[nodiscard]] const AssetDatabase& getAssets() const { return assets_; }
+
+        [[nodiscard]] CommandHistory& getHistory() { return history_; }
+        [[nodiscard]] const CommandHistory& getHistory() const { return history_; }
+
+        /** @brief Returns true when a project is open. */
+        [[nodiscard]] bool hasProject() const { return !project_.getFilePath().empty(); }
+
+        /** @brief Returns the path of the currently open scene file, or an empty string. */
+        [[nodiscard]] const std::string& getScenePath() const { return scenePath_; }
+
+        /**
+         * @brief Opens a `.cnaproject`, scans its assets and loads its startup scene.
+         *
+         * A failure to load the startup scene is reported but does not fail the open: a project
+         * whose scene file is broken is exactly the project a user needs the editor for.
+         *
+         * @return False only when the project file itself cannot be read.
+         */
+        bool openProject(const std::string& path);
+
+        /** @brief Loads a scene file into the context, clearing the undo history. */
+        bool openScene(const std::string& path);
+
+        /** @brief Saves the open scene back to getScenePath(), or to @p path when supplied. */
+        bool saveScene(const std::string& path = {});
+
+        /** @brief Replaces the open scene with an empty one holding a single camera entity. */
+        void newScene(std::string name = "Untitled");
+
+        /** @brief Runs @p command through the undo stack. */
+        void execute(std::unique_ptr<EditorCommand> command, MergePolicy policy = MergePolicy::NewEntry);
+
+        /** @brief Returns the selected entity ids, in selection order. */
+        [[nodiscard]] const std::vector<Uuid>& getSelection() const { return selection_; }
+
+        /** @brief Returns the first selected id, or the nil Uuid when nothing is selected. */
+        [[nodiscard]] Uuid getPrimarySelection() const;
+
+        /** @brief Returns true when @p id is selected. */
+        [[nodiscard]] bool isSelected(const Uuid& id) const;
+
+        /** @brief Replaces the selection with @p id, or clears it when @p id is nil. */
+        void select(const Uuid& id);
+
+        /** @brief Replaces the selection wholesale. */
+        void setSelection(std::vector<Uuid> ids);
+
+        /** @brief Adds @p id to the selection when absent, removes it when present. */
+        void toggleSelection(const Uuid& id);
+
+        /** @brief Clears the selection. */
+        void clearSelection();
+
+        /**
+         * @brief Drops selected ids that no longer exist in the scene.
+         *
+         * Called after any command that may delete entities. Without it, the inspector would keep
+         * showing a deleted entity, and the next command would target a missing id.
+         */
+        void pruneSelection();
+
+        /** @brief Installs the console sink. Passing an empty function silences logging. */
+        void setLogSink(LogSink sink) { logSink_ = std::move(sink); }
+
+        /** @brief Emits a console message. Safe to call with no sink installed. */
+        void log(LogSeverity severity, const std::string& message) const;
+
+    private:
+        Project project_;
+        SceneDocument scene_;
+        ComponentRegistry components_;
+        AssetDatabase assets_;
+        CommandHistory history_;
+        std::vector<Uuid> selection_;
+        std::string scenePath_;
+        LogSink logSink_;
+    };
+}
