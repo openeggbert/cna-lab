@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
+#include "CNA/Editor/Assets/AssetImporters.hpp"
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
 #include "CNA/Editor/Core/EditorCommand.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
@@ -52,6 +53,16 @@ namespace CNA::Editor
 
         [[nodiscard]] ComponentRegistry& getComponentRegistry() { return components_; }
         [[nodiscard]] const ComponentRegistry& getComponentRegistry() const { return components_; }
+
+        /**
+         * @brief Returns the importer settings schemas.
+         *
+         * A separate registry from the component one: an importer id and a component type id are
+         * different namespaces, and a project that named a component "CNA.TextureImporter" should
+         * not silently become editable as an importer.
+         */
+        [[nodiscard]] ComponentRegistry& getImporterRegistry() { return importers_; }
+        [[nodiscard]] const ComponentRegistry& getImporterRegistry() const { return importers_; }
 
         [[nodiscard]] AssetDatabase& getAssets() { return assets_; }
         [[nodiscard]] const AssetDatabase& getAssets() const { return assets_; }
@@ -99,6 +110,18 @@ namespace CNA::Editor
         /** @brief Replaces the selection with @p id, or clears it when @p id is nil. */
         void select(const Uuid& id);
 
+        /** @brief Returns the asset the inspector is showing, or the nil Uuid. */
+        [[nodiscard]] const Uuid& getSelectedAsset() const { return selectedAsset_; }
+
+        /**
+         * @brief Selects an asset for inspection, clearing any entity selection.
+         *
+         * The inspector shows one thing at a time. Two independent selections would leave the
+         * user unable to tell which of them the panel is about, and the answer would change
+         * depending on which they touched last anyway.
+         */
+        void selectAsset(const Uuid& id);
+
         /** @brief Replaces the selection wholesale. */
         void setSelection(std::vector<Uuid> ids);
 
@@ -126,9 +149,11 @@ namespace CNA::Editor
         Project project_;
         SceneDocument scene_;
         ComponentRegistry components_;
+        ComponentRegistry importers_;
         AssetDatabase assets_;
         CommandHistory history_;
         std::vector<Uuid> selection_;
+        Uuid selectedAsset_;
         std::string scenePath_;
         LogSink logSink_;
     };

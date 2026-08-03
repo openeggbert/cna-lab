@@ -137,6 +137,15 @@ namespace CNA::Editor
         /** @brief Returns the record for @p id, or nullptr when unknown. */
         [[nodiscard]] const AssetRecord* find(const Uuid& id) const;
 
+        /**
+         * @brief Returns a mutable record for @p id, or nullptr when unknown.
+         *
+         * Only commands should use this. Everything else takes the const overload, which is what
+         * keeps "the asset database changes only through the undo stack" checkable by reading the
+         * call sites rather than by trusting them (D-06).
+         */
+        [[nodiscard]] AssetRecord* findMutable(const Uuid& id);
+
         /** @brief Returns the record whose source path is @p relativePath, or nullptr. */
         [[nodiscard]] const AssetRecord* findByPath(std::string_view relativePath) const;
 

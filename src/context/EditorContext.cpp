@@ -11,6 +11,7 @@ namespace CNA::Editor
     EditorContext::EditorContext()
     {
         registerBuiltinComponents(components_);
+        registerBuiltinImporters(importers_);
     }
 
     bool EditorContext::openProject(const std::string& path)
@@ -35,6 +36,10 @@ namespace CNA::Editor
         }
         else
         {
+            // Facts an importer can read out of the file itself -- a texture's dimensions today.
+            // Only what changed is written back, so opening a project twice produces no diff.
+            applyImporterFacts(assets_);
+
             for (const std::string& warning : scan.warnings) { log(LogSeverity::Warning, warning); }
             log(LogSeverity::Info, "Assets: " + std::to_string(scan.discoveredCount) + " found, "
                                        + std::to_string(scan.newCount) + " new, "
@@ -141,8 +146,17 @@ namespace CNA::Editor
 
     void EditorContext::select(const Uuid& id)
     {
+        // Selecting an entity is also a decision about what the inspector is showing.
+        selectedAsset_ = Uuid{};
+
         selection_.clear();
         if (id.isValid()) { selection_.push_back(id); }
+    }
+
+    void EditorContext::selectAsset(const Uuid& id)
+    {
+        selectedAsset_ = id;
+        if (selectedAsset_.isValid()) { selection_.clear(); }
     }
 
     void EditorContext::setSelection(std::vector<Uuid> ids)

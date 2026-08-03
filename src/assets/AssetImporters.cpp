@@ -1,0 +1,219 @@
+// SPDX-License-Identifier: MS-PL
+#include "CNA/Editor/Assets/AssetImporters.hpp"
+
+#include <array>
+#include <cstdint>
+#include <fstream>
+#include <utility>
+
+namespace CNA::Editor
+{
+    namespace
+    {
+        PropertyDescriptor makeProperty(std::string name,
+                                        std::string displayName,
+                                        PropertyType type,
+                                        PropertyValue defaultValue,
+                                        std::string tooltip = {})
+        {
+            PropertyDescriptor property;
+            property.name = std::move(name);
+            property.displayName = std::move(displayName);
+            property.type = type;
+            property.defaultValue = std::move(defaultValue);
+            property.tooltip = std::move(tooltip);
+            return property;
+        }
+
+        ComponentDescriptor makeTextureImporter()
+        {
+            ComponentDescriptor descriptor;
+            descriptor.typeId = ImporterIds::kTexture;
+            descriptor.displayName = "Texture Importer";
+            descriptor.category = "Import";
+
+            PropertyDescriptor wrap = makeProperty("wrapMode", "Wrap Mode", PropertyType::Enum,
+                                                   PropertyValue{PropertyValue::EnumValue{"Clamp"}},
+                                                   "How coordinates outside 0..1 are sampled. "
+                                                   "Matches XNA's TextureAddressMode.");
+            wrap.enumOptions = {"Clamp", "Wrap", "Mirror"};
+
+            PropertyDescriptor filter = makeProperty("filterMode", "Filter Mode", PropertyType::Enum,
+                                                     PropertyValue{PropertyValue::EnumValue{"Linear"}},
+                                                     "Point keeps pixel art crisp; Linear smooths. "
+                                                     "Matches XNA's SamplerState presets.");
+            filter.enumOptions = {"Point", "Linear", "Anisotropic"};
+
+            descriptor.properties = {
+                std::move(wrap),
+                std::move(filter),
+                makeProperty("generateMipmaps", "Generate Mipmaps", PropertyType::Boolean,
+                             PropertyValue{false},
+                             "Costs a third more memory and is wrong for most 2D art, which is "
+                             "drawn at its native size."),
+                makeProperty("premultiplyAlpha", "Premultiply Alpha", PropertyType::Boolean,
+                             PropertyValue{true},
+                             "XNA's SpriteBatch defaults to premultiplied blending, so this is on "
+                             "by default; turning it off means also passing NonPremultiplied when "
+                             "drawing, or the edges of every sprite will halo."),
+
+                // Read-only, because it is a fact about the file rather than a choice about it.
+                // Shown because "why is this sprite blurry" is usually answered by its size.
+                [] {
+                    PropertyDescriptor size = makeProperty("pixelSize", "Pixel Size",
+                                                           PropertyType::Vector2,
+                                                           PropertyValue{EditorVector2{}},
+                                                           "Read from the file's header. Zero means the format is one the editor cannot measure yet.");
+                    size.readOnly = true;
+                    return size;
+                }(),
+            };
+
+            descriptor.unique = true;
+            return descriptor;
+        }
+
+        ComponentDescriptor makeSoundEffectImporter()
+        {
+            ComponentDescriptor descriptor;
+            descriptor.typeId = ImporterIds::kSoundEffect;
+            descriptor.displayName = "Sound Effect Importer";
+            descriptor.category = "Import";
+
+            PropertyDescriptor volume = makeProperty("importVolume", "Import Volume",
+                                                     PropertyType::Float, PropertyValue{1.0f},
+                                                     "Applied once at import rather than at every "
+                                                     "play, so a clip that is simply too loud is "
+                                                     "fixed in one place.");
+            volume.minimum = 0.0;
+            volume.maximum = 1.0;
+
+            descriptor.properties = {
+                std::move(volume),
+                makeProperty("loadIntoMemory", "Load Into Memory", PropertyType::Boolean,
+                             PropertyValue{true},
+                             "Off streams the clip from disk instead, which is right for music-"
+                             "length audio and wrong for a footstep."),
+            };
+            return descriptor;
+        }
+
+        ComponentDescriptor makeModelImporter()
+        {
+            ComponentDescriptor descriptor;
+            descriptor.typeId = ImporterIds::kModel;
+            descriptor.displayName = "Model Importer";
+            descriptor.category = "Import";
+
+            PropertyDescriptor scale = makeProperty("scaleFactor", "Scale Factor",
+                                                    PropertyType::Float, PropertyValue{1.0f},
+                                                    "Applied at import, so a model authored in "
+                                                    "centimetres does not need scaling on every "
+                                                    "entity that uses it.");
+            scale.minimum = 0.0001;
+            scale.maximum = 10000.0;
+
+            descriptor.properties = {
+                std::move(scale),
+                makeProperty("importMaterials", "Import Materials", PropertyType::Boolean,
+                             PropertyValue{true}),
+                makeProperty("importAnimations", "Import Animations", PropertyType::Boolean,
+                             PropertyValue{true}),
+            };
+            return descriptor;
+        }
+    }
+
+    std::optional<ImageSize> readImageSize(const std::string& absolutePath)
+    {
+        std::ifstream stream{absolutePath, std::ios::binary};
+        if (!stream) { return std::nullopt; }
+
+        std::array<char, 32> header{};
+        stream.read(header.data(), static_cast<std::streamsize>(header.size()));
+        const std::size_t read = static_cast<std::size_t>(stream.gcount());
+
+        const auto byteAt = [&](std::size_t index) {
+            return static_cast<std::uint32_t>(static_cast<unsigned char>(header[index]));
+        };
+
+        // PNG: an 8-byte signature, then an IHDR chunk whose first two fields are the width and
+        // the height, big-endian. Fixed offsets, so no parsing is needed.
+        static const std::array<unsigned char, 8> kPngSignature{0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
+        if (read >= 24)
+        {
+            bool isPng = true;
+            for (std::size_t index = 0; index < kPngSignature.size(); ++index)
+            {
+                if (byteAt(index) != kPngSignature[index]) { isPng = false; break; }
+            }
+
+            if (isPng)
+            {
+                const auto bigEndian = [&](std::size_t at) {
+                    return static_cast<int>((byteAt(at) << 24) | (byteAt(at + 1) << 16)
+                                            | (byteAt(at + 2) << 8) | byteAt(at + 3));
+                };
+                return ImageSize{bigEndian(16), bigEndian(20)};
+            }
+        }
+
+        // BMP: "BM", then a DIB header whose width and height are little-endian at fixed offsets.
+        // The height is signed and negative for a top-down image, so its magnitude is what counts.
+        if (read >= 26 && byteAt(0) == 'B' && byteAt(1) == 'M')
+        {
+            const auto littleEndian = [&](std::size_t at) {
+                return static_cast<std::int32_t>(byteAt(at) | (byteAt(at + 1) << 8)
+                                                 | (byteAt(at + 2) << 16) | (byteAt(at + 3) << 24));
+            };
+            const std::int32_t height = littleEndian(22);
+            return ImageSize{static_cast<int>(littleEndian(18)),
+                             static_cast<int>(height < 0 ? -height : height)};
+        }
+
+        return std::nullopt;
+    }
+
+    std::size_t applyImporterFacts(AssetDatabase& assets)
+    {
+        std::size_t changed = 0;
+
+        for (const AssetRecord* record : assets.getAll())
+        {
+            if (record->type != AssetType::Texture2D) { continue; }
+
+            const std::optional<ImageSize> size = readImageSize(assets.resolvePath(record->sourcePath));
+            if (!size) { continue; }
+
+            const EditorVector2 measured{static_cast<float>(size->width),
+                                         static_cast<float>(size->height)};
+
+            const JsonValue& stored = record->importerSettings["pixelSize"];
+            if (!stored.isNull()
+                && PropertyValue::fromJson(stored, PropertyType::Vector2).get<EditorVector2>() == measured)
+            {
+                continue;
+            }
+
+            AssetRecord* mutableRecord = assets.findMutable(record->id);
+            if (mutableRecord == nullptr) { continue; }
+
+            if (mutableRecord->importerSettings.isNull())
+            {
+                mutableRecord->importerSettings = JsonValue::makeObject();
+            }
+            mutableRecord->importerSettings.set("pixelSize", PropertyValue{measured}.toJson());
+            assets.writeSidecar(record->id);
+            ++changed;
+        }
+
+        return changed;
+    }
+
+    void registerBuiltinImporters(ComponentRegistry& registry)
+    {
+        registry.registerComponent(makeTextureImporter());
+        registry.registerComponent(makeSoundEffectImporter());
+        registry.registerComponent(makeModelImporter());
+    }
+}

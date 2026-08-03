@@ -87,6 +87,15 @@ namespace CNA::Editor
         /** @brief Appends or replaces an object member, converting this value to an object first. */
         void set(std::string name, JsonValue value);
 
+        /**
+         * @brief Removes @p name from an object. Returns false when it was not there.
+         *
+         * Needed so that undoing a setting the user added can take it back out, rather than
+         * writing a default in its place -- a file that accumulated every field anyone ever
+         * glanced at would make its every diff noise.
+         */
+        bool remove(std::string_view name);
+
         /** @brief Appends an array element, converting this value to an array first. */
         void append(JsonValue value);
 

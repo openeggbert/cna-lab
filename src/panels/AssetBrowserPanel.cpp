@@ -21,8 +21,14 @@ namespace CNA::Editor
             // widget identity, which is what lets the toolkit tell one row from another when a
             // drag starts on it.
             const std::string label = std::string{toString(record->type)} + "  " + record->sourcePath;
-            ui_.treeNode(record->id, label, false, true);
+            const UiTreeNodeResult row =
+                ui_.treeNode(record->id, label, context_.getSelectedAsset() == record->id, true);
+
             ui_.setDragSource(kAssetDragType, record->id.toString(), label);
+
+            // Selecting an asset is what puts its import settings in the inspector, which is the
+            // only place they can be edited.
+            if (row.clicked) { context_.selectAsset(record->id); }
         }
 
         ui_.endPanel();

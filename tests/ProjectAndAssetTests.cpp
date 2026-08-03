@@ -9,7 +9,9 @@
 #include <filesystem>
 #include <fstream>
 
+#include "CNA/Editor/Assets/AssetCommands.hpp"
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
+#include "CNA/Editor/Assets/AssetImporters.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/MissingReferences.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -548,4 +550,183 @@ CNA_EDITOR_TEST(RelinkingRefusesWhenNothingRefersToTheOldId)
 
     RelinkAssetCommand sameId{scene, Uuid{}, Uuid{}};
     CNA_EDITOR_EXPECT(!sameId.isValid());
+}
+
+CNA_EDITOR_TEST(TheTextureImporterDeclaresItsSettings)
+{
+    ComponentRegistry importers;
+    registerBuiltinImporters(importers);
+
+    const ComponentDescriptor* texture = importers.find(ImporterIds::kTexture);
+    CNA_EDITOR_EXPECT(texture != nullptr);
+
+    const auto property = [&](const std::string& name) -> const PropertyDescriptor* {
+        for (const PropertyDescriptor& candidate : texture->properties)
+        {
+            if (candidate.name == name) { return &candidate; }
+        }
+        return nullptr;
+    };
+
+    // Premultiplied by default, because XNA's SpriteBatch blends that way -- an importer that
+    // defaulted the other way would halo the edge of every sprite in a default project.
+    CNA_EDITOR_EXPECT(property("premultiplyAlpha") != nullptr);
+    CNA_EDITOR_EXPECT(property("premultiplyAlpha")->defaultValue.get<bool>());
+
+    // Mipmaps off, because most 2D art is drawn at its native size and they cost a third more
+    // memory for nothing.
+    CNA_EDITOR_EXPECT(!property("generateMipmaps")->defaultValue.get<bool>());
+
+    // The pixel size is a fact about the file, not a choice about it.
+    CNA_EDITOR_EXPECT(property("pixelSize")->readOnly);
+
+    CNA_EDITOR_EXPECT_EQ(property("wrapMode")->enumOptions.size(), std::size_t{3});
+}
+
+CNA_EDITOR_TEST(ImporterSettingsSurviveTheSidecarAndUndoBackToAbsent)
+{
+    const std::filesystem::path directory = makeScratchDirectory("importsettings");
+    writeFile(directory / "Textures" / "Hero.png", "not really a png");
+
+    AssetDatabase assets;
+    assets.setProjectRoot(directory.generic_string());
+    assets.scan("Textures");
+
+    CNA_EDITOR_EXPECT_EQ(assets.getCount(), std::size_t{1});
+    const Uuid assetId = assets.getAll().front()->id;
+    CNA_EDITOR_EXPECT_EQ(assets.find(assetId)->importerId, std::string{ImporterIds::kTexture});
+
+    CommandHistory history;
+    auto command = std::make_unique<SetImporterSettingCommand>(assets, assetId, "generateMipmaps",
+                                                               PropertyValue{true});
+    CNA_EDITOR_EXPECT(command->isValid());
+    history.execute(std::move(command));
+
+    CNA_EDITOR_EXPECT(assets.find(assetId)->importerSettings["generateMipmaps"].asBoolean(false));
+
+    // Written through, not merely held in memory: a setting that lived only in the session would
+    // be lost on the next scan, and the user could not tell that from it having no effect.
+    AssetDatabase reopened;
+    reopened.setProjectRoot(directory.generic_string());
+    reopened.scan("Textures");
+    CNA_EDITOR_EXPECT(reopened.find(assetId) != nullptr);
+    CNA_EDITOR_EXPECT(reopened.find(assetId)->importerSettings["generateMipmaps"].asBoolean(false));
+
+    // Undo takes the field back out rather than writing a default in its place: a sidecar that
+    // accumulated every field anyone glanced at would make its every diff noise.
+    CNA_EDITOR_EXPECT(history.undo());
+    CNA_EDITOR_EXPECT(assets.find(assetId)->importerSettings["generateMipmaps"].isNull());
+
+    AssetDatabase afterUndo;
+    afterUndo.setProjectRoot(directory.generic_string());
+    afterUndo.scan("Textures");
+    CNA_EDITOR_EXPECT(afterUndo.find(assetId)->importerSettings["generateMipmaps"].isNull());
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(ImporterSettingEditsMergeIntoOneUndoEntry)
+{
+    const std::filesystem::path directory = makeScratchDirectory("importmerge");
+    writeFile(directory / "Audio" / "Jump.wav", "not really a wav");
+
+    AssetDatabase assets;
+    assets.setProjectRoot(directory.generic_string());
+    assets.scan("Audio");
+
+    const Uuid assetId = assets.getAll().front()->id;
+    CommandHistory history;
+
+    for (const float volume : {0.9f, 0.8f, 0.7f, 0.6f})
+    {
+        auto command = std::make_unique<SetImporterSettingCommand>(assets, assetId, "importVolume",
+                                                                   PropertyValue{volume});
+        history.execute(std::move(command), MergePolicy::MergeWithPrevious);
+    }
+
+    // One entry for the drag, undoing to where it started -- the same policy the scene's own
+    // property fields use.
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), std::size_t{1});
+    CNA_EDITOR_EXPECT(history.undo());
+    CNA_EDITOR_EXPECT(assets.find(assetId)->importerSettings["importVolume"].isNull());
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(JsonRemoveTakesAFieldBackOut)
+{
+    JsonValue object = JsonValue::makeObject();
+    object.set("kept", JsonValue{1});
+    object.set("dropped", JsonValue{2});
+
+    CNA_EDITOR_EXPECT(object.remove("dropped"));
+    CNA_EDITOR_EXPECT(object["dropped"].isNull());
+    CNA_EDITOR_EXPECT_EQ(object["kept"].asInt(0), 1);
+
+    // Removing what is not there is not an error, and removing from a non-object is not a crash.
+    CNA_EDITOR_EXPECT(!object.remove("dropped"));
+    JsonValue scalar{5};
+    CNA_EDITOR_EXPECT(!scalar.remove("anything"));
+}
+
+CNA_EDITOR_TEST(ImageSizeIsReadFromThePngHeader)
+{
+    const std::filesystem::path directory = makeScratchDirectory("imagesize");
+
+    // A 3x2 PNG header: the 8-byte signature, then the IHDR length and tag, then the dimensions
+    // big-endian. Only the header matters -- nothing here decodes the image.
+    std::string png;
+    const unsigned char signature[] = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A,
+                                       0x00, 0x00, 0x00, 0x0D, 'I', 'H', 'D', 'R',
+                                       0x00, 0x00, 0x00, 0x03,
+                                       0x00, 0x00, 0x00, 0x02,
+                                       0x08, 0x06, 0x00, 0x00, 0x00};
+    png.assign(reinterpret_cast<const char*>(signature), sizeof(signature));
+    writeFile(directory / "Tiny.png", png);
+
+    const std::optional<ImageSize> size = readImageSize((directory / "Tiny.png").generic_string());
+    CNA_EDITOR_EXPECT(size.has_value());
+    CNA_EDITOR_EXPECT_EQ(size->width, 3);
+    CNA_EDITOR_EXPECT_EQ(size->height, 2);
+
+    // A format the editor cannot measure is unknown, not zero -- the caller has to be able to
+    // tell "I could not read this" from "this image is empty".
+    writeFile(directory / "Photo.jpg", "\xFF\xD8\xFF\xE0 not really a jpeg but long enough to read");
+    CNA_EDITOR_EXPECT(!readImageSize((directory / "Photo.jpg").generic_string()).has_value());
+    CNA_EDITOR_EXPECT(!readImageSize((directory / "Absent.png").generic_string()).has_value());
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(ImporterFactsAreWrittenOnceAndNotRewrittenOnEveryScan)
+{
+    const std::filesystem::path directory = makeScratchDirectory("importerfacts");
+
+    std::string png;
+    const unsigned char signature[] = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A,
+                                       0x00, 0x00, 0x00, 0x0D, 'I', 'H', 'D', 'R',
+                                       0x00, 0x00, 0x00, 0x20,
+                                       0x00, 0x00, 0x00, 0x10,
+                                       0x08, 0x06, 0x00, 0x00, 0x00};
+    png.assign(reinterpret_cast<const char*>(signature), sizeof(signature));
+    writeFile(directory / "Textures" / "Hero.png", png);
+
+    AssetDatabase assets;
+    assets.setProjectRoot(directory.generic_string());
+    assets.scan("Textures");
+
+    CNA_EDITOR_EXPECT_EQ(applyImporterFacts(assets), std::size_t{1});
+
+    const Uuid assetId = assets.getAll().front()->id;
+    const EditorVector2 size =
+        PropertyValue::fromJson(assets.find(assetId)->importerSettings["pixelSize"], PropertyType::Vector2)
+            .get<EditorVector2>();
+    CNA_EDITOR_EXPECT_EQ(size.x, 32.0f);
+    CNA_EDITOR_EXPECT_EQ(size.y, 16.0f);
+
+    // Nothing changed, so nothing is rewritten. A scan that touched every sidecar on every open
+    // would show up as a repository full of spurious diffs.
+    CNA_EDITOR_EXPECT_EQ(applyImporterFacts(assets), std::size_t{0});
+
+    std::filesystem::remove_all(directory);
 }

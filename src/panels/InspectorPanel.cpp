@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 
+#include "CNA/Editor/Assets/AssetCommands.hpp"
 #include "CNA/Editor/EditorContext.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -14,6 +15,13 @@ namespace CNA::Editor
     void InspectorPanel::draw()
     {
         if (!ui_.beginPanel("Inspector", DockSide::Right)) { ui_.endPanel(); return; }
+
+        if (context_.getSelectedAsset().isValid())
+        {
+            drawAssetInspector(context_.getSelectedAsset());
+            ui_.endPanel();
+            return;
+        }
 
         const Uuid selectedId = context_.getPrimarySelection();
         const EditorEntity* entity = context_.getScene().findEntity(selectedId);
@@ -164,6 +172,54 @@ namespace CNA::Editor
         }
 
         return PropertyValue{PropertyValue::AssetReference{assetId}};
+    }
+
+    void InspectorPanel::drawAssetInspector(const Uuid& assetId)
+    {
+        const AssetRecord* record = context_.getAssets().find(assetId);
+        if (record == nullptr)
+        {
+            ui_.text("This asset is no longer in the database.");
+            return;
+        }
+
+        ui_.text("Asset: " + record->sourcePath);
+        ui_.text("Id: " + record->id.toString());
+        ui_.text(std::string{"Type: "} + toString(record->type));
+        ui_.separator();
+
+        const ComponentDescriptor* descriptor = context_.getImporterRegistry().find(record->importerId);
+        if (descriptor == nullptr)
+        {
+            // An importer with no declared settings is not a fault -- most have nothing worth
+            // choosing. Saying so beats an empty form the user waits for something to appear in.
+            ui_.text(record->importerId.empty() ? "No importer for this file type."
+                                                : record->importerId + " has no settings.");
+            return;
+        }
+
+        ui_.text(descriptor->displayName);
+
+        for (const PropertyDescriptor& property : descriptor->properties)
+        {
+            // The stored setting when the sidecar carries one, the declared default otherwise.
+            // Writing every default into the sidecar on first sight would make each asset's diff
+            // noise, so absent stays absent until the user actually chooses something.
+            const JsonValue& stored = record->importerSettings[property.name];
+            PropertyValue value = stored.isNull() ? property.defaultValue
+                                                  : PropertyValue::fromJson(stored, property.type);
+
+            const std::string label = property.displayName.empty() ? property.name : property.displayName;
+            if (!ui_.propertyField(label, value, property.enumOptions, property.readOnly)) { continue; }
+
+            auto command = std::make_unique<SetImporterSettingCommand>(
+                context_.getAssets(), assetId, property.name, value);
+            if (!command->isValid()) { continue; }
+
+            // Merging, like every other inspector field: dragging a slider is one undo entry that
+            // returns to the value the drag started from.
+            context_.execute(std::move(command), MergePolicy::MergeWithPrevious);
+        }
     }
 
     void InspectorPanel::drawAddComponentControl(const EditorEntity& entity)

@@ -79,6 +79,18 @@ namespace CNA::Editor
                            [&](const auto& member) { return member.first == name; });
     }
 
+    bool JsonValue::remove(std::string_view name)
+    {
+        if (type_ != JsonType::Object) { return false; }
+
+        const auto found = std::find_if(object_.begin(), object_.end(),
+                                        [&](const auto& member) { return member.first == name; });
+        if (found == object_.end()) { return false; }
+
+        object_.erase(found);
+        return true;
+    }
+
     void JsonValue::set(std::string name, JsonValue value)
     {
         if (type_ != JsonType::Object)

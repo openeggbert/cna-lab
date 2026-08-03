@@ -94,7 +94,9 @@ target_link_libraries(cna-editor-scene PUBLIC cna-editor-core)
 
 # cna-editor-assets -- stable asset identity, sidecars, dependency and reimport tracking.
 add_library(cna-editor-assets STATIC
-    src/assets/AssetDatabase.cpp)
+    src/assets/AssetDatabase.cpp
+    src/assets/AssetCommands.cpp
+    src/assets/AssetImporters.cpp)
 target_link_libraries(cna-editor-assets PUBLIC cna-editor-core)
 
 # cna-editor-project -- the .cnaproject format and the backend capability table.

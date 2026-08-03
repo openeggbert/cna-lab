@@ -16,6 +16,7 @@
 
 #include "CNA/Editor/EditorApplication.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Assets/AssetImporters.hpp"
 #include "CNA/Editor/Scene/MissingReferences.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -1463,4 +1464,59 @@ CNA_EDITOR_TEST(TheReportSaysSoWhenNothingIsBroken)
     // An empty panel reads as "not implemented yet", which is the wrong thing for a report whose
     // good state is emptiness.
     CNA_EDITOR_EXPECT(fixture.ui->sawText("No broken asset references."));
+}
+
+CNA_EDITOR_TEST(SelectingAnAssetSwitchesTheInspectorToItsImportSettings)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    const Uuid textureId = addAsset(context, "Textures/Hero.png", AssetType::Texture2D);
+    context.getAssets().findMutable(textureId)->importerId = ImporterIds::kTexture;
+
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.ui->sawText("Entity: Player"));
+
+    fixture.ui->pendingNodeClicks.push_back(textureId);
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+
+    // One inspector showing one thing. Two independent selections would leave the user unable to
+    // tell which the panel is about.
+    CNA_EDITOR_EXPECT(fixture.ui->sawText("Asset: Textures/Hero.png"));
+    CNA_EDITOR_EXPECT(!fixture.ui->sawText("Entity: Player"));
+    CNA_EDITOR_EXPECT(context.getSelection().empty());
+
+    // The texture importer's declared settings are what it offers.
+    CNA_EDITOR_EXPECT_EQ(fixture.ui->optionsFor("Wrap Mode").size(), std::size_t{3});
+
+    // And selecting an entity again takes the inspector back.
+    fixture.ui->pendingNodeClicks.push_back(fixture.entityId);
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.ui->sawText("Entity: Player"));
+    CNA_EDITOR_EXPECT(!context.getSelectedAsset().isValid());
+}
+
+CNA_EDITOR_TEST(EditingAnImportSettingGoesThroughTheUndoStack)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    const Uuid textureId = addAsset(context, "Textures/Hero.png", AssetType::Texture2D);
+    context.getAssets().findMutable(textureId)->importerId = ImporterIds::kTexture;
+    context.selectAsset(textureId);
+
+    fixture.ui->pendingEdits.emplace_back("Filter Mode",
+                                          PropertyValue{PropertyValue::EnumValue{"Point"}});
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT_EQ(context.getAssets().find(textureId)->importerSettings["filterMode"].asString(),
+                         std::string{"Point"});
+
+    // The asset database is a document like the scene, so its edits undo like the scene's do --
+    // an editor where some edits undo and others quietly do not is worse than one where none do.
+    fixture.ui->pressShortcut(UiKey::Z, withControl());
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(context.getAssets().find(textureId)->importerSettings["filterMode"].isNull());
 }

@@ -125,6 +125,12 @@ namespace CNA::Editor
         return found == recordsById_.end() ? nullptr : &found->second;
     }
 
+    AssetRecord* AssetDatabase::findMutable(const Uuid& id)
+    {
+        const auto found = recordsById_.find(id);
+        return found == recordsById_.end() ? nullptr : &found->second;
+    }
+
     const AssetRecord* AssetDatabase::findByPath(std::string_view relativePath) const
     {
         const auto found = idsByPath_.find(std::string{relativePath});

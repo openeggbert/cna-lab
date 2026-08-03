@@ -30,6 +30,9 @@ namespace CNA::Editor
         void draw() override;
 
     private:
+        /** @brief Draws the selected asset's import settings, in place of the entity view. */
+        void drawAssetInspector(const Uuid& assetId);
+
         /** @brief Draws the "Add Component" picker for @p entity. */
         void drawAddComponentControl(const EditorEntity& entity);
 
