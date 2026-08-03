@@ -8,6 +8,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 
 #include "CNA/Editor/Assets/AssetCommands.hpp"
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
@@ -1162,4 +1163,54 @@ CNA_EDITOR_TEST(TheDefaultRecoveryDirectoryIsUnderTheUsersState)
     CNA_EDITOR_EXPECT(!directory.empty());
     CNA_EDITOR_EXPECT(directory.find("cna-editor") != std::string::npos);
     CNA_EDITOR_EXPECT(directory.find("recovery") != std::string::npos);
+}
+
+CNA_EDITOR_TEST(ASidecarThisBuildCannotReadKeepsItsIdAndIsLeftAlone)
+{
+    const std::filesystem::path directory = makeScratchDirectory("sidecarversion");
+    writeFile(directory / "Assets" / "hero.png", "hero");
+
+    // A sidecar from a build that knows more than this one. The id is the one thing a scene
+    // references (D-08), so it must survive; the rest may not be safe to read.
+    const Uuid pinned = Uuid::generate();
+    JsonValue sidecar = JsonValue::makeObject();
+    sidecar.set("formatVersion", JsonValue{AssetDatabase::kFormatVersion + 1});
+    sidecar.set("id", JsonValue{pinned.toString()});
+    sidecar.set("type", JsonValue{"Texture2D"});
+    sidecar.set("importer", JsonValue{"Future.Importer"});
+    const std::string original = Json::write(sidecar);
+    writeFile(directory / "Assets" / "hero.png.cnaasset", original);
+
+    AssetDatabase database;
+    database.setProjectRoot(directory.generic_string());
+    const AssetScanResult result = database.scan("Assets");
+
+    CNA_EDITOR_EXPECT(result.succeeded);
+    CNA_EDITOR_EXPECT_EQ(result.newCount, std::size_t{0});
+
+    const AssetRecord* record = database.find(pinned);
+    CNA_EDITOR_EXPECT(record != nullptr);
+    CNA_EDITOR_EXPECT_EQ(record->sourcePath, std::string{"Assets/hero.png"});
+
+    // The unreadable importer was not adopted, and the user was told why.
+    CNA_EDITOR_EXPECT(record->importerId != std::string{"Future.Importer"});
+
+    bool warned = false;
+    for (const std::string& warning : result.warnings)
+    {
+        if (warning.find("newer than this build supports") != std::string::npos
+            && warning.find("its id was kept") != std::string::npos)
+        {
+            warned = true;
+        }
+    }
+    CNA_EDITOR_EXPECT(warned);
+
+    // And the file on disk is untouched, so a build that understands it still can.
+    std::ifstream stream{directory / "Assets" / "hero.png.cnaasset", std::ios::binary};
+    std::ostringstream buffer;
+    buffer << stream.rdbuf();
+    CNA_EDITOR_EXPECT_EQ(buffer.str(), original);
+
+    std::filesystem::remove_all(directory);
 }

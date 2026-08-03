@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 233 / 233 (also under Clang Release) |
+| Unit tests | ✅ 240 / 240 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -85,6 +85,12 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-902** format migration. A chain of single-version steps, run on every load of a
+  `.cnascene`, `.cnaproject` and `.cnaasset`. The gate and the upgrade are one piece of code,
+  because refusing a file from the future and upgrading one from the past both answer "what version
+  is this?". **No `formatVersion` was bumped** and every chain is empty -- that is the intended
+  state, and registering a step is not a licence to bump one. `loadFromJson` takes an optional
+  migrator so a test can prove the loader reads the *upgraded* document, not the original.
 - **ED-903** crash recovery. No signal handler, on purpose -- one serialising a document from
   inside `SIGSEGV` calls `malloc` and the filesystem with a corrupted heap. A `.cnarecovery`
   snapshot instead, written by ordinary code every `--autosave=SECONDS` while the document differs
@@ -144,15 +150,11 @@ Newest first. Each is a single commit on the branch.
 
 Phase 1 closed. Working through the owner's priority order:
 
-1. **Robustness and data safety** ← *current*
-   - ~~**ED-310** scene validation~~ ✅  ~~**ED-905** undo history panel~~ ✅
-     ~~**ED-903** crash recovery~~ ✅
-   - **ED-902** format migration. Reads old versions; does **not** bump `formatVersion`. Last of
-     the four because it is the only one that touches a file format, where the standing constraint
-     applies. Note that `.cnarecovery` (ED-903) is a *new* format at version 1, not a change to an
-     existing one, so it did not need the constraint lifted.
-2. **Live editing into the running player** — ED-306 asset hot-reload, ED-307 live properties. The
-   bridge and protocol exist and are tested; this is mostly wiring.
+1. ~~**Robustness and data safety**~~ ✅ — ED-310, ED-905, ED-903 and ED-902 are all done. No
+   `formatVersion` was bumped; `.cnarecovery` is a *new* format at version 1, not a change to an
+   existing one.
+2. **Live editing into the running player** ← *current* — ED-306 asset hot-reload, ED-307 live
+   properties. The bridge and protocol exist and are tested; this is mostly wiring.
 3. **Production 2D tools** — ED-311 `PropertyType::List` first, because it unblocks others; then
    ED-300 prefabs, ED-305 layers and tags, ED-301 tilemap.
 4. **ED-510** backend comparison mode.
@@ -185,14 +187,17 @@ Phase 1 closed. Working through the owner's priority order:
 
 ## Where to start next
 
-Read this file, then `plan.md`'s *Current state* section. The next task is **ED-902**, the format
-migration framework — the last item under priority 1. Version gating and rejection already exist
-(`SceneDocument::kFormatVersion`, `Project`, `AssetDatabase`, and now `RecoveryStore`); what does
-not exist is an upgrade path, so a file written by an older build is read by today's *permissive*
-loaders rather than by anything that knows what changed. Every format is still at version 1, so
-there is nothing to migrate yet: the deliverable is the mechanism plus a test that exercises it on
-a synthetic version 0, **not** a `formatVersion` bump. The standing constraint applies — do not
-bump a version without the owner's say-so.
+Read this file, then `plan.md`'s *Current state* section. Priority 1 is closed; the next task is
+**ED-306**, asset hot-reload into a running player, then **ED-307**, live property editing.
 
-After that, priority 2: **ED-306** asset hot-reload into a running player, then **ED-307** live
-property editing. The bridge and protocol exist and are tested, so both are mostly wiring.
+Most of what ED-306 needs already exists and is tested. `AssetWatcher` already notices a changed
+file and the editor already drops the viewport's cached texture (`EditorViewport::invalidateAsset`).
+What is missing is telling the *player* about it: the bridge carries `setProperty` today, so the
+work is a new message type, a handler in `PlayerHost` that reloads the named asset, and the editor
+side sending one per watch result. ED-307 is the same shape and should follow immediately, because
+the two share the "only while a player is attached" plumbing.
+
+One design question to settle first, and it is not blocking: whether a reload message names the
+asset by **id** or by **path**. Id is consistent with D-08 and with everything else on the wire;
+path is what the player's own loader takes. Id, with the player resolving it through the same
+database the editor scanned, keeps one answer to "what is this asset" on both sides.

@@ -75,7 +75,8 @@ add_library(cna-editor-core STATIC
     src/core/Json.cpp
     src/core/PropertyValue.cpp
     src/core/ComponentDescriptor.cpp
-    src/core/CommandHistory.cpp)
+    src/core/CommandHistory.cpp
+    src/core/FormatMigration.cpp)
 target_link_libraries(cna-editor-core PUBLIC cna-editor-settings)
 
 # cna-editor-scene -- the scene document, its entities, and every undoable scene operation.

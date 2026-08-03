@@ -6,10 +6,17 @@
 
 #include "TestHarness.hpp"
 
+#include <functional>
+
+#include "CNA/Editor/Assets/AssetDatabase.hpp"
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
+#include "CNA/Editor/Core/FormatMigration.hpp"
 #include "CNA/Editor/Core/Json.hpp"
 #include "CNA/Editor/Core/PropertyValue.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
+#include "CNA/Editor/Project/Project.hpp"
+#include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/SceneDocument.hpp"
 
 using namespace CNA::Editor;
 
@@ -212,4 +219,199 @@ CNA_EDITOR_TEST(ComponentRegistryRejectsEmptyTypeId)
     ComponentRegistry registry;
     CNA_EDITOR_EXPECT(!registry.registerComponent(ComponentDescriptor{}));
     CNA_EDITOR_EXPECT_EQ(registry.getCount(), std::size_t{0});
+}
+
+// --------------------------------------------------------------------------------------------
+// Format migration (plan.md ED-902)
+//
+// Every real format is at version 1, so these run against synthetic chains. That is the point:
+// the mechanism has to be proven before the first real migration is written, not by it.
+// --------------------------------------------------------------------------------------------
+
+namespace
+{
+    /** @brief A document claiming @p version, carrying one renameable field. */
+    JsonValue makeVersionedDocument(int version)
+    {
+        JsonValue document = JsonValue::makeObject();
+        document.set("formatVersion", JsonValue{version});
+        document.set("oldName", JsonValue{"value"});
+        return document;
+    }
+
+    /** @brief A step renaming `oldName` to `newName`. */
+    std::function<bool(JsonValue&, std::string&)> renameField(std::string from, std::string to)
+    {
+        return [from = std::move(from), to = std::move(to)](JsonValue& document, std::string& errorMessage) {
+            if (!document.contains(from))
+            {
+                errorMessage = "'" + from + "' is missing";
+                return false;
+            }
+            document.set(to, document[from]);
+            document.remove(from);
+            return true;
+        };
+    }
+}
+
+CNA_EDITOR_TEST(AMigrationChainUpgradesOneVersionAtATime)
+{
+    FormatMigrator migrator{"scene", 3};
+    CNA_EDITOR_EXPECT(migrator.addMigration(1, "renamed oldName to middleName",
+                                            renameField("oldName", "middleName")));
+    CNA_EDITOR_EXPECT(migrator.addMigration(2, "renamed middleName to newName",
+                                            renameField("middleName", "newName")));
+    CNA_EDITOR_EXPECT_EQ(migrator.getMigrationCount(), std::size_t{2});
+
+    JsonValue document = makeVersionedDocument(1);
+    const FormatMigrationResult result = migrator.migrate(document);
+
+    CNA_EDITOR_EXPECT(result.succeeded);
+    CNA_EDITOR_EXPECT_EQ(result.fromVersion, 1);
+    CNA_EDITOR_EXPECT_EQ(result.toVersion, 3);
+    CNA_EDITOR_EXPECT_EQ(result.applied.size(), std::size_t{2});
+    CNA_EDITOR_EXPECT(result.changedAnything());
+
+    // Both steps ran, in order, and the version was stamped by the migrator rather than by them.
+    CNA_EDITOR_EXPECT_EQ(document["newName"].asString(), std::string{"value"});
+    CNA_EDITOR_EXPECT(!document.contains("oldName"));
+    CNA_EDITOR_EXPECT(!document.contains("middleName"));
+    CNA_EDITOR_EXPECT_EQ(document["formatVersion"].asInt(), 3);
+
+    // Running it again is a no-op, not a second rename. Migration has to be idempotent with
+    // respect to the version it has already reached, or a re-save would corrupt the file.
+    const FormatMigrationResult again = migrator.migrate(document);
+    CNA_EDITOR_EXPECT(again.succeeded);
+    CNA_EDITOR_EXPECT(!again.changedAnything());
+    CNA_EDITOR_EXPECT_EQ(document["newName"].asString(), std::string{"value"});
+}
+
+CNA_EDITOR_TEST(AMigratorRefusesWhatItCannotUpgrade)
+{
+    FormatMigrator migrator{"scene", 3};
+
+    // No step at all: better to refuse than to read a version-1 file with a version-3 reader,
+    // which would silently substitute defaults for fields that moved.
+    JsonValue old = makeVersionedDocument(1);
+    const FormatMigrationResult noStep = migrator.migrate(old);
+    CNA_EDITOR_EXPECT(!noStep.succeeded);
+    CNA_EDITOR_EXPECT(noStep.errorMessage.find("no migration") != std::string::npos);
+
+    // A gap in the chain stops at the gap rather than skipping it.
+    CNA_EDITOR_EXPECT(migrator.addMigration(1, "step one", renameField("oldName", "middleName")));
+    JsonValue gapped = makeVersionedDocument(1);
+    const FormatMigrationResult gap = migrator.migrate(gapped);
+    CNA_EDITOR_EXPECT(!gap.succeeded);
+    CNA_EDITOR_EXPECT_EQ(gapped["formatVersion"].asInt(), 2);
+
+    // A step that refuses reports its own reason.
+    FormatMigrator refusing{"scene", 2};
+    CNA_EDITOR_EXPECT(refusing.addMigration(1, "needs a field that is not there",
+                                            renameField("absent", "present")));
+    JsonValue missing = makeVersionedDocument(1);
+    const FormatMigrationResult refused = refusing.migrate(missing);
+    CNA_EDITOR_EXPECT(!refused.succeeded);
+    CNA_EDITOR_EXPECT(refused.errorMessage.find("'absent' is missing") != std::string::npos);
+
+    // A file from the future is refused by the same code that upgrades one from the past: both
+    // answer "what version is this?", and splitting them is how a loader refuses what it could read.
+    JsonValue future = makeVersionedDocument(9);
+    const FormatMigrationResult ahead = migrator.migrate(future);
+    CNA_EDITOR_EXPECT(!ahead.succeeded);
+    CNA_EDITOR_EXPECT(ahead.errorMessage.find("newer than this build supports") != std::string::npos);
+
+    // As is one with no version at all.
+    JsonValue unversioned = JsonValue::makeObject();
+    CNA_EDITOR_EXPECT(!migrator.migrate(unversioned).succeeded);
+    JsonValue notAnObject{"not an object"};
+    CNA_EDITOR_EXPECT(!migrator.migrate(notAnObject).succeeded);
+}
+
+CNA_EDITOR_TEST(AMigratorRefusesAnUnusableStep)
+{
+    FormatMigrator migrator{"scene", 3};
+
+    CNA_EDITOR_EXPECT(migrator.addMigration(1, "first", renameField("a", "b")));
+
+    // Two steps reading the same version would make the outcome depend on registration order.
+    CNA_EDITOR_EXPECT(!migrator.addMigration(1, "duplicate", renameField("a", "c")));
+
+    // A step that upgrades to or past the current version has nowhere to go.
+    CNA_EDITOR_EXPECT(!migrator.addMigration(3, "at the top", renameField("a", "b")));
+    CNA_EDITOR_EXPECT(!migrator.addMigration(0, "below the first version", renameField("a", "b")));
+    CNA_EDITOR_EXPECT(!migrator.addMigration(2, "no function", {}));
+
+    CNA_EDITOR_EXPECT_EQ(migrator.getMigrationCount(), std::size_t{1});
+}
+
+CNA_EDITOR_TEST(TheRealFormatsRunTheirChainsOnEveryLoad)
+{
+    // Empty today, and that is the intended state: the mechanism exists so that the first real
+    // migration is a small tested addition rather than an emergency.
+    CNA_EDITOR_EXPECT_EQ(getSceneFormatMigrator().getMigrationCount(), std::size_t{0});
+    CNA_EDITOR_EXPECT_EQ(getProjectFormatMigrator().getMigrationCount(), std::size_t{0});
+    CNA_EDITOR_EXPECT_EQ(getAssetFormatMigrator().getMigrationCount(), std::size_t{0});
+
+    CNA_EDITOR_EXPECT_EQ(getSceneFormatMigrator().getCurrentVersion(), SceneDocument::kFormatVersion);
+    CNA_EDITOR_EXPECT_EQ(getProjectFormatMigrator().getCurrentVersion(), Project::kFormatVersion);
+    CNA_EDITOR_EXPECT_EQ(getAssetFormatMigrator().getCurrentVersion(), AssetDatabase::kFormatVersion);
+}
+
+CNA_EDITOR_TEST(TheSceneLoaderReadsTheUpgradedDocumentNotTheOriginal)
+{
+    ComponentRegistry registry;
+    registerBuiltinComponents(registry);
+
+    // A synthetic version 1 whose entity list moved: proof that the loader runs the chain and then
+    // reads what came out of it, rather than running it and reading the original anyway.
+    FormatMigrator migrator{"scene", 2};
+    CNA_EDITOR_EXPECT(migrator.addMigration(1, "moved 'objects' to 'entities'",
+                                            renameField("objects", "entities")));
+
+    JsonValue entity = JsonValue::makeObject();
+    entity.set("id", JsonValue{Uuid::generate().toString()});
+    entity.set("name", JsonValue{"Player"});
+    entity.set("components", JsonValue::makeObject());
+
+    JsonValue objects = JsonValue::makeArray();
+    objects.append(std::move(entity));
+
+    JsonValue document = JsonValue::makeObject();
+    document.set("formatVersion", JsonValue{1});
+    document.set("sceneId", JsonValue{Uuid::generate().toString()});
+    document.set("name", JsonValue{"Level01"});
+    document.set("objects", std::move(objects));
+
+    SceneDocument scene;
+    const SceneLoadResult result = scene.loadFromJson(document, registry, &migrator);
+
+    CNA_EDITOR_EXPECT(result.succeeded);
+    CNA_EDITOR_EXPECT_EQ(scene.getEntityCount(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(scene.getEntities().front().getName(), std::string{"Player"});
+
+    // The upgrade is reported rather than performed silently, and the caller's document is left
+    // exactly as it was -- a loader that edited its input would surprise anyone reusing it.
+    CNA_EDITOR_EXPECT_EQ(result.warnings.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(result.warnings.front().find("moved 'objects' to 'entities'") != std::string::npos);
+    CNA_EDITOR_EXPECT(document.contains("objects"));
+    CNA_EDITOR_EXPECT_EQ(document["formatVersion"].asInt(), 1);
+}
+
+CNA_EDITOR_TEST(TheProjectLoaderRunsItsChainToo)
+{
+    FormatMigrator migrator{"project", 2};
+    CNA_EDITOR_EXPECT(migrator.addMigration(1, "renamed 'title' to 'name'", renameField("title", "name")));
+
+    JsonValue document = JsonValue::makeObject();
+    document.set("formatVersion", JsonValue{1});
+    document.set("title", JsonValue{"Upgraded"});
+    document.set("kind", JsonValue{"CnaNative"});
+
+    Project project;
+    const ProjectLoadResult result = project.loadFromJson(document, &migrator);
+
+    CNA_EDITOR_EXPECT(result.succeeded);
+    CNA_EDITOR_EXPECT_EQ(project.getName(), std::string{"Upgraded"});
+    CNA_EDITOR_EXPECT(!result.warnings.empty());
 }

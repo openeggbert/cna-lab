@@ -252,6 +252,12 @@ namespace CNA::Editor
         return missing;
     }
 
+    const FormatMigrator& getAssetFormatMigrator()
+    {
+        static const FormatMigrator migrator{"asset sidecar", AssetDatabase::kFormatVersion};
+        return migrator;
+    }
+
     JsonValue AssetDatabase::recordToJson(const AssetRecord& record)
     {
         JsonValue json = JsonValue::makeObject();
@@ -380,10 +386,39 @@ namespace CNA::Editor
                 std::ifstream stream{sidecarPath, std::ios::binary};
                 std::ostringstream buffer;
                 buffer << stream.rdbuf();
-                const JsonParseResult parsed = Json::parse(buffer.str());
+                JsonParseResult parsed = Json::parse(buffer.str());
                 if (parsed.succeeded)
                 {
-                    record = recordFromJson(parsed.value, relativePath);
+                    const FormatMigrationResult migration =
+                        getAssetFormatMigrator().migrate(parsed.value);
+
+                    if (migration.succeeded)
+                    {
+                        record = recordFromJson(parsed.value, relativePath);
+                        for (const std::string& step : migration.applied)
+                        {
+                            result.warnings.push_back("sidecar '" + relativePath + kSidecarExtension
+                                                      + "' upgraded from an older format: " + step);
+                        }
+                    }
+                    else
+                    {
+                        // The id survives even when nothing else does. Scenes reference assets by
+                        // id (D-08), so regenerating it would break every reference in the project
+                        // -- a far worse outcome than an importer setting reverting to its default.
+                        // The sidecar is left on disk untouched, so a build that understands it
+                        // still can.
+                        record = AssetRecord{};
+                        record.id = Uuid::parse(parsed.value["id"].asString());
+                        record.sourcePath = relativePath;
+                        record.type = guessTypeFromExtension(relativePath);
+                        record.importerId = defaultImporterFor(record.type);
+
+                        result.warnings.push_back("sidecar '" + relativePath + kSidecarExtension
+                                                  + "': " + migration.errorMessage
+                                                  + "; its id was kept and its settings ignored");
+                    }
+
                     isNew = !record.id.isValid();
                     if (isNew)
                     {

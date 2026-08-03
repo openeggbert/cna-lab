@@ -93,7 +93,13 @@ namespace CNA::Editor
         return json;
     }
 
-    ProjectLoadResult Project::loadFromJson(const JsonValue& json)
+    const FormatMigrator& getProjectFormatMigrator()
+    {
+        static const FormatMigrator migrator{"project", Project::kFormatVersion};
+        return migrator;
+    }
+
+    ProjectLoadResult Project::loadFromJson(const JsonValue& json, const FormatMigrator* migrator)
     {
         ProjectLoadResult result;
 
@@ -103,25 +109,37 @@ namespace CNA::Editor
             return result;
         }
 
-        const int formatVersion = json["formatVersion"].asInt(0);
-        if (formatVersion <= 0)
+        const FormatMigrator& chain = migrator != nullptr ? *migrator : getProjectFormatMigrator();
+
+        JsonValue upgraded;
+        const JsonValue* source = &json;
+
+        if (json["formatVersion"].asInt(0) != chain.getCurrentVersion())
         {
-            result.errorMessage = "project has no usable 'formatVersion'";
-            return result;
-        }
-        if (formatVersion > kFormatVersion)
-        {
-            result.errorMessage = "project formatVersion " + std::to_string(formatVersion)
-                                + " is newer than this build supports (" + std::to_string(kFormatVersion) + ")";
-            return result;
+            upgraded = json;
+
+            const FormatMigrationResult migration = chain.migrate(upgraded);
+            if (!migration.succeeded)
+            {
+                result.errorMessage = migration.errorMessage;
+                return result;
+            }
+            for (const std::string& step : migration.applied)
+            {
+                result.warnings.push_back("upgraded from an older project format: " + step);
+            }
+
+            source = &upgraded;
         }
 
-        name_ = json["name"].asString("Untitled");
-        kind_ = parseProjectKind(json["kind"].asString("CnaNative"));
-        startupScene_ = json["startupScene"].asString();
-        assetDirectory_ = json["assetDirectory"].asString("Assets");
-        sceneDirectory_ = json["sceneDirectory"].asString("Scenes");
-        defaultGraphicsBackend_ = json["defaultGraphicsBackend"].asString("easygl");
+        const JsonValue& document = *source;
+
+        name_ = document["name"].asString("Untitled");
+        kind_ = parseProjectKind(document["kind"].asString("CnaNative"));
+        startupScene_ = document["startupScene"].asString();
+        assetDirectory_ = document["assetDirectory"].asString("Assets");
+        sceneDirectory_ = document["sceneDirectory"].asString("Scenes");
+        defaultGraphicsBackend_ = document["defaultGraphicsBackend"].asString("easygl");
 
         if (findBackend(defaultGraphicsBackend_) == nullptr)
         {
@@ -130,18 +148,18 @@ namespace CNA::Editor
         }
 
         targetPlatforms_.clear();
-        for (const JsonValue& platform : json["targetPlatforms"].getElements())
+        for (const JsonValue& platform : document["targetPlatforms"].getElements())
         {
             targetPlatforms_.push_back(platform.asString());
         }
         if (targetPlatforms_.empty()) { targetPlatforms_.push_back("linux-x64"); }
 
         modules_.clear();
-        for (const JsonValue& module : json["modules"].getElements()) { modules_.push_back(module.asString()); }
+        for (const JsonValue& module : document["modules"].getElements()) { modules_.push_back(module.asString()); }
         if (modules_.empty()) { modules_.push_back("cna-core"); }
 
         plugins_.clear();
-        for (const JsonValue& plugin : json["plugins"].getElements()) { plugins_.push_back(plugin.asString()); }
+        for (const JsonValue& plugin : document["plugins"].getElements()) { plugins_.push_back(plugin.asString()); }
 
         if (kind_ == ProjectKind::XnaCompatible && !startupScene_.empty())
         {
@@ -153,7 +171,7 @@ namespace CNA::Editor
         return result;
     }
 
-    ProjectLoadResult Project::loadFromFile(const std::string& path)
+    ProjectLoadResult Project::loadFromFile(const std::string& path, const FormatMigrator* migrator)
     {
         ProjectLoadResult result;
 
@@ -175,7 +193,7 @@ namespace CNA::Editor
             return result;
         }
 
-        result = loadFromJson(parsed.value);
+        result = loadFromJson(parsed.value, migrator);
         if (!result.succeeded) { return result; }
 
         std::error_code errorCode;

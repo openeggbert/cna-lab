@@ -41,6 +41,14 @@ namespace CNA::Editor
         }
     }
 
+    const FormatMigrator& getSceneFormatMigrator()
+    {
+        // Constructed once. Empty today: the scene format has only ever been at version 1, and a
+        // step is added here the first time that changes.
+        static const FormatMigrator migrator{"scene", SceneDocument::kFormatVersion};
+        return migrator;
+    }
+
     SceneDocument::SceneDocument() : sceneId_(Uuid::generate()) {}
 
     const EditorEntity* SceneDocument::findEntity(const Uuid& id) const
@@ -219,7 +227,8 @@ namespace CNA::Editor
         return root;
     }
 
-    SceneLoadResult SceneDocument::loadFromJson(const JsonValue& json, const ComponentRegistry& registry)
+    SceneLoadResult SceneDocument::loadFromJson(const JsonValue& json, const ComponentRegistry& registry,
+                                                const FormatMigrator* migrator)
     {
         SceneLoadResult result;
 
@@ -229,27 +238,44 @@ namespace CNA::Editor
             return result;
         }
 
-        const int formatVersion = json["formatVersion"].asInt(0);
-        if (formatVersion <= 0)
+        // The version gate and the upgrade path are one thing: refusing a file from the future and
+        // upgrading one from the past are both answers to "what version is this?", and splitting
+        // them is how a loader comes to refuse a file it could have read.
+        const FormatMigrator& chain = migrator != nullptr ? *migrator : getSceneFormatMigrator();
+
+        // Copied only when something has to change it. A file already at the current version is
+        // the overwhelmingly common case and costs nothing.
+        JsonValue upgraded;
+        const JsonValue* source = &json;
+
+        if (json["formatVersion"].asInt(0) != chain.getCurrentVersion())
         {
-            result.errorMessage = "scene has no usable 'formatVersion'";
-            return result;
+            upgraded = json;
+
+            const FormatMigrationResult migration = chain.migrate(upgraded);
+            if (!migration.succeeded)
+            {
+                result.errorMessage = migration.errorMessage;
+                return result;
+            }
+            for (const std::string& step : migration.applied)
+            {
+                result.warnings.push_back("upgraded from an older scene format: " + step);
+            }
+
+            source = &upgraded;
         }
-        if (formatVersion > kFormatVersion)
-        {
-            result.errorMessage = "scene formatVersion " + std::to_string(formatVersion)
-                                + " is newer than this build supports (" + std::to_string(kFormatVersion) + ")";
-            return result;
-        }
+
+        const JsonValue& document = *source;
 
         clear();
 
-        const Uuid sceneId = Uuid::parse(json["sceneId"].asString());
+        const Uuid sceneId = Uuid::parse(document["sceneId"].asString());
         sceneId_ = sceneId.isValid() ? sceneId : Uuid::generate();
         if (!sceneId.isValid()) { result.warnings.push_back("scene had no valid 'sceneId'; a new one was generated"); }
-        name_ = json["name"].asString("Untitled");
+        name_ = document["name"].asString("Untitled");
 
-        for (const JsonValue& entityJson : json["entities"].getElements())
+        for (const JsonValue& entityJson : document["entities"].getElements())
         {
             EditorEntity entity;
             const Uuid id = Uuid::parse(entityJson["id"].asString());
@@ -325,7 +351,8 @@ namespace CNA::Editor
         return result;
     }
 
-    SceneLoadResult SceneDocument::loadFromFile(const std::string& path, const ComponentRegistry& registry)
+    SceneLoadResult SceneDocument::loadFromFile(const std::string& path, const ComponentRegistry& registry,
+                                                const FormatMigrator* migrator)
     {
         SceneLoadResult result;
 
@@ -348,7 +375,7 @@ namespace CNA::Editor
             return result;
         }
 
-        return loadFromJson(parsed.value, registry);
+        return loadFromJson(parsed.value, registry, migrator);
     }
 
     bool SceneDocument::saveToFile(const std::string& path, std::string* errorMessage) const

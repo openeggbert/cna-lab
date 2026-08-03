@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "CNA/Editor/Core/FormatMigration.hpp"
 #include "CNA/Editor/Core/Json.hpp"
 
 namespace CNA::Editor
@@ -107,6 +108,14 @@ namespace CNA::Editor
      * Paths stored here are relative to the project root and use forward slashes, so a
      * `.cnaproject` committed on one platform opens unchanged on another.
      */
+    /**
+     * @brief Returns the migration chain that upgrades a `.cnaproject` to the current version.
+     *
+     * Empty today. Run on every load regardless, so the first real migration is an addition to a
+     * path that already works rather than a path nobody has exercised.
+     */
+    [[nodiscard]] const FormatMigrator& getProjectFormatMigrator();
+
     class Project
     {
     public:
@@ -160,10 +169,10 @@ namespace CNA::Editor
         [[nodiscard]] JsonValue toJson() const;
 
         /** @brief Replaces this project's contents from @p json, without touching the paths. */
-        ProjectLoadResult loadFromJson(const JsonValue& json);
+        ProjectLoadResult loadFromJson(const JsonValue& json, const FormatMigrator* migrator = nullptr);
 
         /** @brief Loads a `.cnaproject` from @p path and records the root and file paths. */
-        ProjectLoadResult loadFromFile(const std::string& path);
+        ProjectLoadResult loadFromFile(const std::string& path, const FormatMigrator* migrator = nullptr);
 
         /** @brief Writes the project back to getFilePath(), or to @p path when one is supplied. */
         [[nodiscard]] bool saveToFile(const std::string& path = {}, std::string* errorMessage = nullptr);

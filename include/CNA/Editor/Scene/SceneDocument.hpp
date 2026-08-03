@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
+#include "CNA/Editor/Core/FormatMigration.hpp"
 #include "CNA/Editor/Core/Json.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Scene/EditorEntity.hpp"
@@ -39,6 +40,15 @@ namespace CNA::Editor
          */
         std::vector<std::string> warnings;
     };
+
+    /**
+     * @brief Returns the migration chain that upgrades a `.cnascene` to the current version.
+     *
+     * Empty today, because the format has only ever been at version 1. It is called on every load
+     * regardless, so the first real migration is a small addition to a path that already runs
+     * rather than a new path nobody has exercised.
+     */
+    [[nodiscard]] const FormatMigrator& getSceneFormatMigrator();
 
     /**
      * @brief The in-memory form of one scene file.
@@ -113,11 +123,17 @@ namespace CNA::Editor
          * @param registry Used to resolve each component's property types. When a component type
          *        is unknown, its properties are still read -- as strings and numbers inferred from
          *        the JSON shape -- and a warning is recorded. Nothing is dropped.
+         * @param migrator The migration chain to upgrade an older file with. Null means the
+         *        format's own chain, which is what every caller outside a test wants; the seam
+         *        exists so that a test can prove the loader really runs migrations and really
+         *        reads the upgraded document rather than the original.
          */
-        SceneLoadResult loadFromJson(const JsonValue& json, const ComponentRegistry& registry);
+        SceneLoadResult loadFromJson(const JsonValue& json, const ComponentRegistry& registry,
+                                     const FormatMigrator* migrator = nullptr);
 
         /** @brief Loads from a file on disk. */
-        SceneLoadResult loadFromFile(const std::string& path, const ComponentRegistry& registry);
+        SceneLoadResult loadFromFile(const std::string& path, const ComponentRegistry& registry,
+                                     const FormatMigrator* migrator = nullptr);
 
         /** @brief Writes to a file on disk, creating parent directories as needed. */
         [[nodiscard]] bool saveToFile(const std::string& path, std::string* errorMessage = nullptr) const;

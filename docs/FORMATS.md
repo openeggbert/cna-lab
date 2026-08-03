@@ -384,5 +384,27 @@ existence are all settled first, and rejection is always reported rather than fa
 | Changing a field's type or units | **Yes**, plus a migration |
 | Changing the meaning of an existing value | **Yes**, plus a migration |
 
-Version gating and rejection are implemented today; the migration framework is `plan.md` ED-902.
-Until it exists, the practical rule is: only make additive changes.
+Both halves are implemented. Gating refuses a file from the future and one with no version at all;
+the migration chain (`CNA/Editor/Core/FormatMigration.hpp`) upgrades one from the past.
+
+A chain is a list of **single-version steps**: 3 becomes 4, then 4 becomes 5. No step knows about
+more than one transition, which is what keeps the twelfth migration the same size as the first —
+one function per `(from, to)` pair grows quadratically and is where migration frameworks go to die.
+Steps run on the parsed JSON, before any of it reaches a document type, because by the time a
+`SceneDocument` exists the fields the old file used are already gone.
+
+Every format here is at version 1, so every chain is empty. That is the intended state: the
+mechanism exists so the first real change is a small, tested, reviewable addition to a path that
+already runs on every load, rather than a new path nobody has exercised. **Registering a step is
+not a licence to bump a version** — formats stay backward compatible unless `plan.md` says
+otherwise, so the practical rule remains: only make additive changes.
+
+Two behaviours worth knowing:
+
+- A migration that **cannot** run is a refusal, not a best-effort read. Reading a version-1 file
+  with a version-3 reader substitutes defaults for fields that moved, and the substitution is
+  written back on the next save — opening the file is how you lose part of it.
+- A **sidecar** is the exception. One this build cannot upgrade keeps its `id`, loses only its
+  importer settings, is reported, and is left on disk untouched. The id is what scenes reference
+  (D-08); regenerating it would break every reference in the project, which is a far worse outcome
+  than an importer setting reverting to its default.

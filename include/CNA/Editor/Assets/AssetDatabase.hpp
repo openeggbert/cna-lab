@@ -21,6 +21,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "CNA/Editor/Core/FormatMigration.hpp"
 #include "CNA/Editor/Core/Json.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
 
@@ -106,6 +107,16 @@ namespace CNA::Editor
      * that is the importers' job, and in the multi-process play mode it is the player's job. The
      * database is pure metadata, which is what keeps it usable from a headless build.
      */
+    /**
+     * @brief Returns the migration chain that upgrades a `.cnaasset` sidecar.
+     *
+     * Empty today. A sidecar this build cannot upgrade keeps its id and loses only its importer
+     * settings -- the id is the one thing scenes reference (D-08), and regenerating it would break
+     * every reference to the asset, which is a far worse outcome than an importer setting reverting
+     * to its default.
+     */
+    [[nodiscard]] const FormatMigrator& getAssetFormatMigrator();
+
     class AssetDatabase
     {
     public:
