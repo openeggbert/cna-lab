@@ -153,25 +153,40 @@ namespace CNA::Editor
 
     UiRenderStats CnaUiRenderer::render(const UiDrawData& drawData)
     {
-        UiRenderStats stats;
+        UiRenderStats stats = applyTextureRequests(drawData);
+        const UiRenderStats geometry = renderGeometry(drawData);
+
+        stats.drawCalls = geometry.drawCalls;
+        stats.triangles = geometry.triangles;
+        stats.clippedAway = geometry.clippedAway;
+
         lastStats_ = stats;
+        return stats;
+    }
 
-        if (impl_->device == nullptr || impl_->effect == nullptr) { return stats; }
-
-        XnaGraphics::GraphicsDevice& device = *impl_->device;
+    UiRenderStats CnaUiRenderer::applyTextureRequests(const UiDrawData& drawData)
+    {
+        UiRenderStats stats;
+        if (impl_->device == nullptr) { return stats; }
 
         for (const UiTextureRequest& request : drawData.textureRequests)
         {
             impl_->applyTextureRequest(request, stats);
         }
+        return stats;
+    }
+
+    UiRenderStats CnaUiRenderer::renderGeometry(const UiDrawData& drawData)
+    {
+        UiRenderStats stats;
+
+        if (impl_->device == nullptr || impl_->effect == nullptr) { return stats; }
+
+        XnaGraphics::GraphicsDevice& device = *impl_->device;
 
         const float framebufferWidth = drawData.displayWidth * drawData.framebufferScaleX;
         const float framebufferHeight = drawData.displayHeight * drawData.framebufferScaleY;
-        if (framebufferWidth <= 0.0f || framebufferHeight <= 0.0f)
-        {
-            lastStats_ = stats;
-            return stats;
-        }
+        if (framebufferWidth <= 0.0f || framebufferHeight <= 0.0f) { return stats; }
 
         // Everything the UI needs from the device, captured so it can be put back afterwards. A
         // caller that draws a scene after the UI must not silently inherit the UI's own state.
@@ -266,7 +281,6 @@ namespace CNA::Editor
         device.setDepthStencilStateProperty(previousDepth);
         device.setBlendStateProperty(previousBlend);
 
-        lastStats_ = stats;
         return stats;
     }
 }

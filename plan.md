@@ -25,7 +25,7 @@
 **Phase 0 is complete: the editor opens in a window and renders.** The repository still builds and
 passes its full suite with no CNA checkout, no GPU and no window:
 
-- 12 modules, two executables, and **97 passing tests across 7 CTest suites** (9 with CNA)
+- 12 modules, two executables, and **98 passing tests across 7 CTest suites** (9 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -50,8 +50,8 @@ cna-editor: backend SOFTWARE, 56 frames, 1600x900 display, 14 draw calls, 1858 t
 `Texture2D::SaveAsPng`, so the CI smoke test asserts on an image rather than on a clean exit — a
 window that opens blank and one that works look identical from the outside otherwise.
 
-Report: [`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md). One cosmetic defect is open and
-documented rather than hidden — see ED-119.
+Report: [`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md), including the one real rendering bug
+this turned up and how it was tracked down (ED-119).
 
 ---
 
@@ -139,7 +139,7 @@ The editor opens, docks and renders through CNA's public API, verified by screen
 | ED-111 | **Window, graphics device, event loop; `--ui=imgui` becomes real** | ✅ | `runEditorInWindow` hosts the editor in a `Microsoft::Xna::Framework::Game`. The `Game` subclass stays inside the `.cpp` so CNA remains a *private* link dependency |
 | ED-112 | Default dock layout on first run; user's saved layout respected thereafter | ✅ | ImGui does not place windows into a dock space by itself — without this every panel floated stacked at the same position |
 | ED-114 | Console panel: severity filter, scroll-lock, copy | 🔄 | `drawLogView` renders coloured, auto-scrolling messages; filtering and copy remain |
-| ED-119 | **Leading glyph missing from docked tab labels** | ⬜ | Tabs render as "iewport"/"nspector". Reproduces **identically on SOFTWARE and EASYGL**, so it is this renderer's bug, not CNA's. Also ruled out: missing glyphs, the atlas-update path, clipping, and the scissor conversion — see docs/SPIKE-IMGUI-CNA.md §8, which lists the remaining suspects |
+| ED-119 | **Leading glyph missing from docked tab labels** | ✅ | Fixed. Texture uploads happened in the draw phase, but Dear ImGui marks a request satisfied the instant it is issued and a fixed-timestep loop runs many update frames without a draw — so glyphs first needed on such a frame were acknowledged and never uploaded. Uploads moved into the update phase; guarded by `ImGuiUiRequestsAnUpdateWhenNewGlyphsAppear`. Full write-up: docs/SPIKE-IMGUI-CNA.md §8 |
 | ED-124 | Editor verified on a second backend (EASYGL, real OpenGL ES 3.2 under Xvfb) | ✅ | Pixel-identical output to SOFTWARE — the property ED-510's comparison mode will check automatically, confirmed by hand |
 | ED-123 | `--screenshot=PATH` and the `CnaEditorWindowSmoke` CTest | ✅ | The mechanism plan.md ED-510's backend comparison mode will capture through |
 | ED-115 | Persistent `DynamicVertexBuffer`/`DynamicIndexBuffer` in `CnaUiRenderer` | ⛔ | Deferred: `DrawUserIndexedPrimitives` re-uploads per call, which is fine at 20–60 commands a frame. Profiling should ask for this before anyone does it |

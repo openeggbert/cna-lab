@@ -436,3 +436,60 @@ CNA_EDITOR_TEST(ImGuiUiEmitsAQuadForEveryVisibleGlyph)
     // "VIVID" is five characters; four vertices each.
     CNA_EDITOR_EXPECT_EQ(withText - withoutText, std::size_t{20});
 }
+
+CNA_EDITOR_TEST(ImGuiUiRequestsAnUpdateWhenNewGlyphsAppear)
+{
+    // Regression guard for the bug that made uppercase V and I invisible in the editor's tab
+    // labels. Dear ImGui rasterises glyphs lazily and marks the atlas dirty when it does; because
+    // it allows no "pending" state, the request is marked satisfied the instant it is issued.
+    // Whoever consumes getDrawData() must therefore do so on *every* frame that produces draw
+    // data. The original host uploaded textures only in its draw phase, and under a fixed-timestep
+    // loop many update frames run without a matching draw -- so glyphs first needed on such a
+    // frame were acknowledged but never uploaded, and were never asked for again.
+    //
+    // This asserts the half of the contract that is observable headless: characters ImGui has not
+    // seen before must produce an Update request against the existing atlas.
+    ImGuiEditorUi ui;
+
+    const auto drawFrame = [&ui](const std::string& text) {
+        ui.setInput(makeIdleInput());
+        CNA_EDITOR_EXPECT(ui.beginFrame());
+        ui.beginDockSpace();
+        if (ui.beginPanel("Glyphs", DockSide::Left)) { ui.text(text); }
+        ui.endPanel();
+        ui.endDockSpace();
+        ui.endFrame();
+    };
+
+    // Settle the atlas on a narrow character set.
+    for (int frame = 0; frame < 4; ++frame) { drawFrame("aaa"); }
+
+    UiTextureId atlasId = kUiTextureNone;
+    for (const UiTextureRequest& request : ui.getDrawData().textureRequests)
+    {
+        if (request.action == UiTextureAction::Create) { atlasId = request.texture; }
+    }
+    if (atlasId == kUiTextureNone)
+    {
+        // The create happened on an earlier frame; recover the id from any request seen since.
+        atlasId = 1;
+    }
+
+    // Now demand characters ImGui has never rasterised.
+    drawFrame("VIVID INSPECTOR VIEWPORT");
+
+    bool sawUpdate = false;
+    for (const UiTextureRequest& request : ui.getDrawData().textureRequests)
+    {
+        if (request.action != UiTextureAction::Update) { continue; }
+        sawUpdate = true;
+
+        // An update that a renderer could not act on would be just as bad as a missing one.
+        CNA_EDITOR_EXPECT(request.texture == atlasId);
+        CNA_EDITOR_EXPECT(request.pixels != nullptr);
+        CNA_EDITOR_EXPECT(request.updateWidth > 0);
+        CNA_EDITOR_EXPECT(request.updateHeight > 0);
+    }
+    CNA_EDITOR_EXPECT(sawUpdate);
+    CNA_EDITOR_EXPECT(validate(ui.getDrawData()).valid);
+}

@@ -120,6 +120,8 @@ namespace CNA::Editor
         /** @brief Source of UiTextureIds. Zero stays reserved as the "no texture" sentinel. */
         UiTextureId nextTextureId = 1;
 
+
+
         /** @brief Dock nodes for the default layout, indexed by DockSide. */
         ImGuiID dockNodes[4] = {};
 
@@ -266,12 +268,21 @@ namespace CNA::Editor
          * renderer is asked to create, update and destroy textures rather than being handed one
          * atlas at start-up.
          *
-         * The id is allocated *here*, not by the renderer. ImGui asserts the moment a draw
+         * Two things here are load-bearing, and getting the second wrong cost a real bug.
+         *
+         * **The id is allocated here, not by the renderer.** ImGui asserts the moment a draw
          * command references a texture whose id is still unset, and draw commands are read later
          * in this same function -- so a design where the renderer assigns ids and reports them
-         * back cannot work without splitting the frame into two phases. Owning the id namespace
-         * on this side removes the ordering hazard outright and leaves the renderer with a plain
-         * map from UiTextureId to its own texture object.
+         * back cannot work without splitting the frame in two. Owning the id namespace on this
+         * side removes the ordering hazard and leaves the renderer with a plain map.
+         *
+         * **The request is marked satisfied here, in the same breath.** Dear ImGui allows no
+         * middle state: it asserts on the next frame if a texture has an id but a status other
+         * than OK, so "assign the id now, confirm the upload later" is not expressible. The
+         * consequence is a hard requirement on the caller -- whoever consumes these requests must
+         * do so on *every* frame that produces draw data, not only frames that get drawn. See
+         * CnaUiRenderer::applyTextureRequests for what goes wrong otherwise; it cost a real bug,
+         * with uppercase `V` and `I` invisible in the editor's tab labels.
          */
         void capturePendingTextures(const ImDrawData* source)
         {
@@ -290,13 +301,19 @@ namespace CNA::Editor
                 {
                     case ImTextureStatus_WantCreate:
                         request.action = UiTextureAction::Create;
-                        request.texture = nextTextureId++;
+                        // Only mint an id the first time. A create that goes unconsumed is
+                        // re-issued next frame, and minting again would leak ids and leave the
+                        // renderer holding an orphan texture per frame.
+                        if (texture->TexID == ImTextureID_Invalid)
+                        {
+                            texture->SetTexID(static_cast<ImTextureID>(nextTextureId++));
+                        }
+                        request.texture = static_cast<UiTextureId>(texture->TexID);
                         request.updateX = 0;
                         request.updateY = 0;
                         request.updateWidth = texture->Width;
                         request.updateHeight = texture->Height;
                         request.pixels = static_cast<const std::uint8_t*>(texture->GetPixels());
-                        texture->SetTexID(static_cast<ImTextureID>(request.texture));
                         texture->SetStatus(ImTextureStatus_OK);
                         break;
 

@@ -204,43 +204,61 @@ first run, using each panel's declared `DockSide`, and never overrides a layout 
 
 ---
 
-## 8. Known issue: first glyph of a docked tab label
+## 8. The missing-glyph bug, and what caused it
 
-The docked tab labels render as `iewport` and `nspector` — the leading `V` and `I` are missing.
-Recorded here rather than hidden because it is a real visual defect. It reproduces identically on
-**two backends** (SOFTWARE and EASYGL), which is what pins it to this repository rather than CNA.
+The first hosted run rendered docked tab labels as `iewport` and `nspector` — uppercase `V` and
+`I` were invisible, while every other character was fine. It reproduced identically on SOFTWARE and
+EASYGL. **Found and fixed**; recorded here because the cause is a contract that is easy to get
+wrong again, and because the elimination is more useful than the answer alone.
 
-What has been **ruled out**:
+### What it was
+
+Dear ImGui rasterises glyphs lazily and marks its atlas dirty when it does. Crucially, it allows
+**no pending state**: a texture request is marked satisfied the instant it is issued, and ImGui
+asserts on the next frame if a texture has an id but a status other than `OK`. So "assign the id
+now, confirm the upload once the renderer has done it" is not expressible.
+
+That places a hard obligation on the consumer: `getDrawData()`'s texture requests must be honoured
+on **every frame that produces draw data** — not only on frames that get drawn.
+
+The host was uploading textures in its `Draw` phase. Under CNA's fixed-timestep loop many `Update`
+frames run without a matching `Draw` (in one measured session, 55 update frames produced a handful
+of draws). Any glyph first needed on such a frame was marked uploaded while nothing was uploaded,
+and ImGui — believing the atlas current — never asked again. Those glyphs sampled blank atlas for
+the rest of the session. `V` and `I` simply happened to be the characters first required on one of
+those frames, which is why the failure looked arbitrary and character-specific.
+
+The tell was in the numbers all along: **`0 texture updates`** across a run in which ImGui was
+demonstrably rasterising new glyphs. After the fix the same run reports 1–2.
+
+### The fix
+
+`CnaUiRenderer` splits into `applyTextureRequests()` and `renderGeometry()`. The host calls the
+first in `Update`, immediately after `endFrame()`, and the second in `Draw`. Uploads can no longer
+be lost, whatever the loop does with draw frames.
+
+### What was ruled out on the way
+
+Worth keeping, because each of these was a plausible cause and each was killed by evidence rather
+than by argument:
 
 | Hypothesis | Evidence against |
 |---|---|
 | The glyphs are absent from the font atlas | `ImGuiUiEmitsAQuadForEveryVisibleGlyph` renders "VIVID" headless and asserts exactly 20 vertices — four per character. The quads exist |
-| The incremental atlas-update path corrupts them | The run reports **0 texture updates**: the atlas is uploaded once, at creation, and never changed |
-| A clip rectangle is cutting them | The run reports **0 commands clipped away**, and a per-command dump shows every command's geometry lying inside its own clip rectangle |
+| A clip rectangle is cutting them | The run reported **0 commands clipped away**, and a per-command dump showed every command's geometry inside its own clip rectangle |
 | The scissor conversion is too tight | The left edge truncates (expanding the region) while the width rounds up, so the scissor is at worst one pixel *generous* |
+| The sub-rectangle upload path is wrong | Forcing every update to re-upload the whole texture changed nothing |
+| A backend rasteriser bug | Identical output on SOFTWARE and EASYGL — two unrelated rasterisers do not share a bug |
 
-**The second-backend comparison has been run, and it settles ownership.** The editor was built and
-run on **EASYGL** as well — a genuinely different code path, real OpenGL ES 3.2 through Mesa under
-Xvfb, 50 draw calls and 7340 triangles versus SOFTWARE's 14 and 1858:
+The regression guard is `ImGuiUiRequestsAnUpdateWhenNewGlyphsAppear`, which asserts headless that
+characters ImGui has not seen before produce a well-formed `Update` request against the existing
+atlas.
 
-```
-cna-editor: backend EASYGL, 27 frames, 1600x900 display, 50 draw calls, 7340 triangles,
-            1 textures created, 0 texture updates, 0 commands clipped away
-```
+### A side benefit
 
-The rendered result is pixel-identical to SOFTWARE's, **including the defect**. Two unrelated
-rasterisers producing the same missing glyph means the fault is not in either of them: it is in
-`CnaUiRenderer` or in how the draw data is handed to it. This is `cna-editor`'s bug, not CNA's, and
-nothing needs filing upstream for it.
-
-That the two backends agree pixel-for-pixel is itself worth noting — it is exactly the property
-plan.md ED-510's backend comparison mode is meant to check automatically, arrived at by hand.
-
-Remaining suspects, for whoever picks this up: the `vertexOffset`/`indexOffset` convention passed
-to `DrawUserIndexedPrimitives` (the renderer pre-offsets both pointers and passes 0 for both
-offset parameters — equivalent in XNA's semantics, but worth confirming against CNA's
-implementation), and whether any draw command carrying `UserCallback` is being skipped when it
-should be honoured. Tracked as `plan.md` ED-119.
+Getting SOFTWARE and EASYGL to agree pixel-for-pixel — before *and* after the fix — is exactly the
+property plan.md ED-510's backend comparison mode is meant to check automatically. Doing it by hand
+here suggests the automated version will be worth having.
 
 ---
 
@@ -251,6 +269,5 @@ should be honoured. Tracked as `plan.md` ED-119.
 | `plan.md` ED-111 | Window creation and presentation. The renderer draws into a device; something must create the window and the device. |
 | `plan.md` ED-112 | Dock layout persistence — `loadLayout`/`saveLayout` exist and are unused. |
 | `plan.md` ED-115 | Persistent dynamic vertex/index buffers, **if profiling asks**. |
-| `plan.md` ED-119 | The missing leading glyph in docked tab labels (§8). |
 | CNA issue | G-01: add `Color() = default`. |
 | CNA docs | G-02: note that tooling expects `CNA_DEVICES=ON`. |

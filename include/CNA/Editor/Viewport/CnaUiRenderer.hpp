@@ -83,9 +83,35 @@ namespace CNA::Editor
          * Restores the device's blend, depth, rasterizer and scissor state before returning, so a
          * caller that draws a scene after the UI is not silently affected by the UI's own state.
          *
+         * Convenience for callers that do both in one place; a host with a separate update and
+         * draw phase should call the two halves below instead, and the reason is not cosmetic --
+         * see applyTextureRequests().
+         *
          * @return Counters for the frame just drawn.
          */
         UiRenderStats render(const UiDrawData& drawData);
+
+        /**
+         * @brief Uploads, updates and releases textures, drawing nothing.
+         *
+         * **Call this every frame that produces draw data, not only frames that get drawn.** Dear
+         * ImGui requires a texture request to be acknowledged in the same frame it was issued, and
+         * under a fixed-timestep game loop many Update frames run without a matching Draw. Doing
+         * the uploads in the draw phase means every glyph first rasterised on an Update-only frame
+         * is acknowledged but never actually uploaded -- and ImGui, believing the texture current,
+         * never asks again. Those glyphs then sample blank atlas for the rest of the session.
+         *
+         * That was a real bug: uppercase `V` and `I` were invisible in the editor's tab labels
+         * because they happened to be the characters first needed on such a frame.
+         */
+        UiRenderStats applyTextureRequests(const UiDrawData& drawData);
+
+        /**
+         * @brief Draws @p drawData's geometry, touching no textures.
+         *
+         * Assumes applyTextureRequests() has already run for this frame's data.
+         */
+        UiRenderStats renderGeometry(const UiDrawData& drawData);
 
         /** @brief Returns the stats from the most recent render(). */
         [[nodiscard]] const UiRenderStats& getLastStats() const { return lastStats_; }

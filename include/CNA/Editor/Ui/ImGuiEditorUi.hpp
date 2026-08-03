@@ -105,7 +105,8 @@ namespace CNA::Editor
          * Texture ids are allocated here rather than by the renderer, so a request always arrives
          * with its id already set and the renderer never has to report one back. See the comment
          * on capturePendingTextures for why any other arrangement deadlocks against ImGui's own
-         * assertions.
+         * assertions -- and for the obligation that puts on the caller: these requests must be
+         * consumed on every frame that produces draw data, not only on frames that get drawn.
          */
         [[nodiscard]] const UiDrawData& getDrawData() const;
 

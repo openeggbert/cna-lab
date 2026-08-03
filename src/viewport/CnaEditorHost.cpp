@@ -205,6 +205,19 @@ namespace CNA::Editor
         impl_->ui->endFrame();
         ++impl_->frameCount;
 
+        // Textures are uploaded here, in the update phase, because Dear ImGui marks a request
+        // satisfied the moment it is issued and under a fixed-timestep loop many Update frames run
+        // without a matching Draw. Uploading in Draw would silently lose every texture produced by
+        // such a frame. See CnaUiRenderer::applyTextureRequests.
+        if (impl_->renderer != nullptr)
+        {
+            const UiRenderStats textureStats = impl_->renderer->applyTextureRequests(impl_->ui->getDrawData());
+
+            impl_->totalStats.texturesCreated += textureStats.texturesCreated;
+            impl_->totalStats.texturesUpdated += textureStats.texturesUpdated;
+            impl_->totalStats.texturesDestroyed += textureStats.texturesDestroyed;
+        }
+
         // Text input is started only while a field has focus: leaving it on would keep a mobile
         // on-screen keyboard up for the whole session, and on desktop it needlessly routes every
         // keystroke through the IME.
@@ -231,13 +244,10 @@ namespace CNA::Editor
 
         if (impl_->contentLoaded && impl_->ui != nullptr && impl_->renderer != nullptr)
         {
-            impl_->lastStats = impl_->renderer->render(impl_->ui->getDrawData());
+            impl_->lastStats = impl_->renderer->renderGeometry(impl_->ui->getDrawData());
 
             impl_->totalStats.drawCalls += impl_->lastStats.drawCalls;
             impl_->totalStats.triangles += impl_->lastStats.triangles;
-            impl_->totalStats.texturesCreated += impl_->lastStats.texturesCreated;
-            impl_->totalStats.texturesUpdated += impl_->lastStats.texturesUpdated;
-            impl_->totalStats.texturesDestroyed += impl_->lastStats.texturesDestroyed;
             impl_->totalStats.clippedAway += impl_->lastStats.clippedAway;
         }
 

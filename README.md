@@ -9,7 +9,7 @@ reimplementation of the XNA 4.0 framework.
 > launched by the editor over a real socket. The document model, undo system, asset database and
 > project format are implemented and tested.
 >
-> The default build stays dependency-free: no CNA checkout, no GPU, no window, 97 tests in about a
+> The default build stays dependency-free: no CNA checkout, no GPU, no window, 98 tests in about a
 > second. What is missing is the *scene* viewport's own drawing — [`plan.md`](plan.md) Phase 1.
 
 ![cna-editor running on the EASYGL backend](docs/images/editor-easygl.png)
