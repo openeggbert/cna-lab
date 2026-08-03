@@ -22,8 +22,9 @@
 
 ## Current state
 
-**Phase 0 is complete and Phase 1 is under way: the editor opens a scene, edits it and plays it.**
-The repository still builds and passes its full suite with no CNA checkout, no GPU and no window:
+**Phases 0 and 1 are complete: the editor opens a project, edits it, plays it, and a shipped game
+can load what it produced.** The repository still builds and passes its full suite with no CNA
+checkout, no GPU and no window:
 
 - 12 modules, three executables, and **206 passing tests across 7 CTest suites** (10 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
@@ -37,6 +38,12 @@ The repository still builds and passes its full suite with no CNA checkout, no G
 - **play mode works end to end**: the Play toolbar launches a real `cna-player` on a backend chosen
   from the binaries actually installed, drives it through Pause, Step and Stop over a real loopback
   socket, and routes the game's own log into the console
+- the **asset browser** shows a derived folder tree with thumbnails and a filter; renaming or
+  moving an asset keeps its id, so no scene is touched (D-08), and both are undoable
+- a **header-only loader** lets a shipped game read a `.cnascene` without the editor
+  ([`docs/DESIGN-SCENE-LOADER.md`](docs/DESIGN-SCENE-LOADER.md)), verified by `scene-loader-demo`
+  against the real example project
+- **CI** builds and tests on Linux under GCC Debug and Clang Release, both at `-Werror`
 - `./build/cna-editor --headless --project=examples/HelloSprites/HelloSprites.cnaproject` opens a
   project, scans its assets, loads a three-entity scene and draws a frame
 
@@ -159,9 +166,15 @@ real window, shows five docked panels, and renders the three-entity scene in the
 
 ---
 
-## Phase 1 — Usable 2D MVP ⬜
+## Phase 1 — Usable 2D MVP ✅
 
 **Goal.** The minimum milestone from the original discussion, in full.
+
+**Status.** Complete. Every exit criterion below is met and covered by a test: a project opens, the
+panels dock, a JSON scene loads, an object is selected in the viewport or the hierarchy, its
+position changes in the inspector, undo returns it, the scene saves, and it runs in a separate
+`cna-player` process. Q-02 is answered, so a shipped game can consume a scene too
+([`docs/DESIGN-SCENE-LOADER.md`](docs/DESIGN-SCENE-LOADER.md)).
 
 ### Editing
 

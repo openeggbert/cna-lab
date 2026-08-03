@@ -15,10 +15,11 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 194 / 194 |
+| Unit tests | ✅ 206 / 206 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
-| CTest (CNA config) | ✅ 9 / 9 |
-| Phase 1 | 🔄 ED-220 and ED-221 thumbnails outstanding; ED-250 decided, not yet written |
+| CTest (CNA config) | ✅ 10 / 10 |
+| CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
+| **Phase 1** | ✅ **complete** — all 23 tasks |
 
 ---
 
@@ -84,6 +85,17 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-221 / ED-220 thumbnails.** Reuse the scene renderer's texture cache, so a preview costs
+  nothing once the sprite using it has been drawn. Needed a *keyed* borrow in the UI renderer —
+  the existing one owns a single slot, right for the render target and wrong for anything there
+  can be many of. Invalidating an asset now releases the UI's borrowed entry first, because the
+  watcher makes a dangling pointer there a routine event rather than a theoretical one.
+- **ED-250** header-only scene loader, and `docs/DESIGN-SCENE-LOADER.md`. Q-02 resolved.
+  `examples/SceneLoaderDemo` is both the documentation and the integration test.
+- **ED-220** asset browser: derived folder tree, filter, rename, move. A move keeps the asset's id
+  and is asserted not to change a scene file by a single byte.
+- **ED-900 (partial)** Linux CI, and this file.
+
 - **ED-223** asset watcher. Polling rather than a native watcher, deliberately — three platform
   implementations with three failure modes, each still needing a polling fallback for the network
   and container mounts where a team's assets often live. The clock is passed in, so tests advance
@@ -109,13 +121,19 @@ Newest first. Each is a single commit on the branch.
 
 ## In progress / immediately next
 
-1. **CI** (ED-900, partial) — GitHub Actions workflow, Linux, standalone build plus the full test
-   suite at `-Werror`.
-2. **ED-220** — asset browser: folder tree, filtering, rename, move. The move must not touch any
-   scene; that is the property to test hardest.
-3. **ED-221** — thumbnails. Needs the CNA-backed renderer, so the CNA-free layer can only decide
-   *which* assets want one and at what size.
-4. **ED-250** — the header-only scene loader and its design document. Closes Phase 1.
+Phase 1 closed. Working through the owner's priority order:
+
+1. **Robustness and data safety** ← *current*
+   - **ED-902** format migration. Reads old versions; does **not** bump `formatVersion`.
+   - **ED-903** never lose an unsaved document on a crash.
+   - **ED-905** undo history panel. `CommandHistory` already exposes everything it needs.
+   - **ED-310** scene validation: duplicate primary cameras, zero scale, empty entities. Missing
+     references are already covered by ED-224.
+2. **Live editing into the running player** — ED-306 asset hot-reload, ED-307 live properties. The
+   bridge and protocol exist and are tested; this is mostly wiring.
+3. **Production 2D tools** — ED-311 `PropertyType::List` first, because it unblocks others; then
+   ED-300 prefabs, ED-305 layers and tags, ED-301 tilemap.
+4. **ED-510** backend comparison mode.
 
 ---
 
