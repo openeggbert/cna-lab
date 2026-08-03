@@ -20,6 +20,7 @@
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/EditorIcons.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Scene/TranslateGizmo.hpp"
 #include "CNA/Editor/Viewport/CnaUiRenderer.hpp"
@@ -37,6 +38,27 @@ namespace CNA::Editor
         const Xna::Color kGridMajor{62, 62, 72, 255};
         const Xna::Color kAxis{92, 74, 74, 255};
         const Xna::Color kSelection{255, 158, 46, 255};
+
+        /** @brief Icon colours. One per kind, so a glance is enough to tell them apart. */
+        const Xna::Color kIconFrame{92, 92, 104, 255};
+        const Xna::Color kIconCamera{124, 190, 255, 255};
+        const Xna::Color kIconLight{250, 218, 110, 255};
+        const Xna::Color kIconAudio{150, 220, 168, 255};
+        const Xna::Color kIconModel{198, 168, 240, 255};
+
+        /** @brief Returns the mark colour for @p kind. */
+        const Xna::Color& iconColor(EditorIconKind kind)
+        {
+            switch (kind)
+            {
+                case EditorIconKind::Camera: return kIconCamera;
+                case EditorIconKind::Light: return kIconLight;
+                case EditorIconKind::AudioSource: return kIconAudio;
+                case EditorIconKind::Model: return kIconModel;
+                case EditorIconKind::None: break;
+            }
+            return kIconFrame;
+        }
 
         /** @brief Gizmo arm colours: the X/Y/Z-is-red/green/blue convention every editor shares. */
         const Xna::Color kGizmoX{226, 62, 62, 255};
@@ -173,6 +195,86 @@ namespace CNA::Editor
                                     rect.Width + thickness * 2, thickness}, color);
             drawRect(Xna::Rectangle{rect.X - thickness, rect.Y, thickness, rect.Height}, color);
             drawRect(Xna::Rectangle{rect.X + rect.Width, rect.Y, thickness, rect.Height}, color);
+        }
+
+        /** @brief Draws a diamond centred on (@p cx, @p cy), as rows of the 1x1 white texture. */
+        void drawDiamond(int cx, int cy, int radius, const Xna::Color& color)
+        {
+            for (int row = -radius; row <= radius; ++row)
+            {
+                const int halfWidth = radius - std::abs(row);
+                drawRect(Xna::Rectangle{cx - halfWidth, cy + row, halfWidth * 2 + 1, 1}, color);
+            }
+        }
+
+        /**
+         * @brief Draws a triangle whose vertical edge is at @p x, widening towards @p direction.
+         *
+         * @param direction +1 for a triangle pointing right, -1 for one pointing left.
+         */
+        void drawTriangleFrom(int x, int cy, int height, int length, int direction,
+                              const Xna::Color& color)
+        {
+            for (int step = 0; step < length; ++step)
+            {
+                const int half = std::max(1, height * (length - step) / (2 * length));
+                drawRect(Xna::Rectangle{x + step * direction, cy - half, 1, half * 2}, color);
+            }
+        }
+
+        /**
+         * @brief Draws one entity icon: a shared badge frame plus a per-kind mark.
+         *
+         * The frame is common on purpose -- it makes the icons read as one family of editor
+         * artefacts rather than as scene content, which matters because they sit in the same
+         * picture as the game's own sprites.
+         */
+        void drawEditorIcon(const EditorIconPlacement& icon, bool selected)
+        {
+            const int cx = static_cast<int>(std::round(icon.center.x));
+            const int cy = static_cast<int>(std::round(icon.center.y));
+            const int extent = static_cast<int>(kEditorIconExtent);
+            const Xna::Color& color = iconColor(icon.kind);
+
+            const Xna::Rectangle badge{cx - extent, cy - extent, extent * 2, extent * 2};
+            drawRect(badge, Xna::Color(20, 20, 24, 190));
+            drawOutline(badge, selected ? kSelection : kIconFrame, selected ? 2 : 1);
+
+            switch (icon.kind)
+            {
+                case EditorIconKind::Camera:
+                    // A body with a lens flaring out of it: the shape of every camera icon since
+                    // the first one, and recognisable at thirteen pixels.
+                    drawRect(Xna::Rectangle{cx - 8, cy - 5, 9, 10}, color);
+                    drawTriangleFrom(cx + 2, cy, 14, 6, +1, color);
+                    break;
+
+                case EditorIconKind::Light:
+                    drawDiamond(cx, cy, 5, color);
+                    // Four rays, so it reads as emitting rather than as a solid object.
+                    drawRect(Xna::Rectangle{cx - 1, cy - 9, 2, 3}, color);
+                    drawRect(Xna::Rectangle{cx - 1, cy + 7, 2, 3}, color);
+                    drawRect(Xna::Rectangle{cx - 9, cy - 1, 3, 2}, color);
+                    drawRect(Xna::Rectangle{cx + 7, cy - 1, 3, 2}, color);
+                    break;
+
+                case EditorIconKind::AudioSource:
+                    drawRect(Xna::Rectangle{cx - 8, cy - 3, 4, 6}, color);
+                    drawTriangleFrom(cx - 1, cy, 14, 5, -1, color);
+                    drawRect(Xna::Rectangle{cx + 4, cy - 4, 2, 8}, color);
+                    drawRect(Xna::Rectangle{cx + 7, cy - 6, 2, 12}, color);
+                    break;
+
+                case EditorIconKind::Model:
+                    // Two offset squares: the cheapest drawing that reads as a box rather than a
+                    // rectangle, and it needs no diagonal.
+                    drawOutline(Xna::Rectangle{cx - 7, cy - 3, 10, 10}, color, 1);
+                    drawOutline(Xna::Rectangle{cx - 3, cy - 7, 10, 10}, color, 1);
+                    break;
+
+                case EditorIconKind::None:
+                    break;
+            }
         }
 
         /**
@@ -411,6 +513,19 @@ namespace CNA::Editor
         // outlines are editor artefacts and must never become part of the scene.
         impl_->spriteBatch->Begin(XnaGraphics::SpriteSortMode::Deferred,
                                   XnaGraphics::BlendState::AlphaBlend);
+
+        // Icons first, so a selection outline or the gizmo lands on top of one rather than under.
+        for (const EditorIconPlacement& icon : collectEditorIcons(scene, camera))
+        {
+            const bool selected =
+                std::find(selection.begin(), selection.end(), icon.entityId) != selection.end();
+
+            // The badge outline is the *only* selection feedback an icon entity gets: a camera has
+            // no bounds, so the outline pass below finds nothing to draw around it.
+            impl_->drawEditorIcon(icon, selected);
+            ++stats.iconsDrawn;
+        }
+
         for (const Uuid& selectedId : selection)
         {
             const std::optional<WorldBounds2D> bounds =

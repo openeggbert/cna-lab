@@ -15,6 +15,7 @@
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
+#include "CNA/Editor/Scene/EditorIcons.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
 #include "CNA/Editor/Scene/TranslateGizmo.hpp"
@@ -52,6 +53,15 @@ namespace
         sprite.setProperty("sourceRectangle", PropertyValue{EditorRectangle{0, 0, width, height}});
         sprite.setProperty("layerDepth", PropertyValue{layerDepth});
         scene.findEntity(entityId)->addComponent(std::move(sprite));
+    }
+
+    /** @brief Adds a component of @p typeId, populated with its declared defaults. */
+    void addComponent(SceneDocument& scene, const ComponentRegistry& registry, const Uuid& entityId,
+                      const char* typeId)
+    {
+        EditorComponent component{typeId};
+        component.applyDefaults(*registry.find(typeId));
+        scene.findEntity(entityId)->addComponent(std::move(component));
     }
 
     bool nearlyEqual(float a, float b, float tolerance = 0.001f)
@@ -569,4 +579,140 @@ CNA_EDITOR_TEST(WorldDeltaToLocalIsIdentityForRootEntities)
     const EditorVector2 delta = worldDeltaToLocal(scene, id, EditorVector2{12.0f, -34.0f});
     CNA_EDITOR_EXPECT(nearlyEqual(delta.x, 12.0f));
     CNA_EDITOR_EXPECT(nearlyEqual(delta.y, -34.0f));
+}
+
+CNA_EDITOR_TEST(CamerasAndLightsGetIconsAndSpritesDoNot)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid cameraId = addEntity(scene, registry, "Camera", 0.0f, 0.0f);
+    addComponent(scene, registry, cameraId, BuiltinComponentIds::kCamera);
+
+    const Uuid lightId = addEntity(scene, registry, "Light", 50.0f, 0.0f);
+    addComponent(scene, registry, lightId, BuiltinComponentIds::kLight);
+
+    const Uuid spriteId = addEntity(scene, registry, "Sprite", 100.0f, 0.0f);
+    addSprite(scene, registry, spriteId, 32, 32);
+
+    CNA_EDITOR_EXPECT(getEditorIconKind(*scene.findEntity(cameraId)) == EditorIconKind::Camera);
+    CNA_EDITOR_EXPECT(getEditorIconKind(*scene.findEntity(lightId)) == EditorIconKind::Light);
+
+    // A sprite is already visible and already clickable, so an icon would be noise.
+    CNA_EDITOR_EXPECT(getEditorIconKind(*scene.findEntity(spriteId)) == EditorIconKind::None);
+}
+
+CNA_EDITOR_TEST(AnEntityWithNoTransformGetsNoIcon)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity entity{Uuid::generate(), "Floating Camera"};
+    EditorComponent camera{BuiltinComponentIds::kCamera};
+    camera.applyDefaults(*registry.find(BuiltinComponentIds::kCamera));
+    entity.addComponent(std::move(camera));
+    const Uuid id = scene.addEntity(std::move(entity));
+
+    // No transform means no position to draw at, and therefore nothing to click.
+    CNA_EDITOR_EXPECT(getEditorIconKind(*scene.findEntity(id)) == EditorIconKind::None);
+
+    EditorCamera2D view;
+    view.setViewportSize(EditorVector2{800.0f, 600.0f});
+    CNA_EDITOR_EXPECT_EQ(collectEditorIcons(scene, view).size(), std::size_t{0});
+}
+
+CNA_EDITOR_TEST(ClickingACameraIconSelectsIt)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid cameraId = addEntity(scene, registry, "Main Camera", 120.0f, 40.0f);
+    addComponent(scene, registry, cameraId, BuiltinComponentIds::kCamera);
+
+    EditorCamera2D view;
+    view.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    // A camera has no bounds at all, so before icons existed this click found nothing and the
+    // entity was reachable only through the hierarchy panel.
+    const EditorVector2 onIcon = view.worldToScreen(EditorVector2{120.0f, 40.0f});
+    CNA_EDITOR_EXPECT_EQ(pickEntityAt(scene, view, onIcon, kNoSizes).entityId.toString(),
+                         cameraId.toString());
+
+    // And just outside the badge, nothing.
+    const EditorVector2 offIcon{onIcon.x + kEditorIconExtent + 4.0f, onIcon.y};
+    CNA_EDITOR_EXPECT(!pickEntityAt(scene, view, offIcon, kNoSizes).entityId.isValid());
+}
+
+CNA_EDITOR_TEST(AnIconWinsOverASpriteBehindIt)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    // A large sprite covering the origin, and a camera parked on top of it.
+    const Uuid backdropId = addEntity(scene, registry, "Backdrop", 0.0f, 0.0f);
+    addSprite(scene, registry, backdropId, 400, 400);
+
+    const Uuid cameraId = addEntity(scene, registry, "Main Camera", 10.0f, 10.0f);
+    addComponent(scene, registry, cameraId, BuiltinComponentIds::kCamera);
+
+    EditorCamera2D view;
+    view.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    // Icons are drawn last, so a click on one must select its entity even where the sprite covers
+    // the same point -- otherwise a camera over the level art is unselectable exactly where it is.
+    const EditorVector2 onIcon = view.worldToScreen(EditorVector2{10.0f, 10.0f});
+    CNA_EDITOR_EXPECT_EQ(pickEntityAt(scene, view, onIcon, kNoSizes).entityId.toString(),
+                         cameraId.toString());
+
+    // Away from the icon the sprite still wins, so the icon steals only what it covers.
+    const EditorVector2 onSprite = view.worldToScreen(EditorVector2{200.0f, 200.0f});
+    CNA_EDITOR_EXPECT_EQ(pickEntityAt(scene, view, onSprite, kNoSizes).entityId.toString(),
+                         backdropId.toString());
+}
+
+CNA_EDITOR_TEST(IconsKeepTheirScreenSizeAtAnyZoom)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid cameraId = addEntity(scene, registry, "Main Camera", 500.0f, 500.0f);
+    addComponent(scene, registry, cameraId, BuiltinComponentIds::kCamera);
+
+    EditorCamera2D view;
+    view.setViewportSize(EditorVector2{800.0f, 600.0f});
+    view.setCenter(EditorVector2{500.0f, 500.0f});
+
+    for (const float zoom : {0.05f, 1.0f, 16.0f})
+    {
+        view.setZoom(zoom);
+
+        const std::vector<EditorIconPlacement> icons = collectEditorIcons(scene, view);
+        CNA_EDITOR_EXPECT_EQ(icons.size(), std::size_t{1});
+        if (icons.empty()) { continue; }
+
+        // The badge is a fixed number of pixels whatever the zoom. One that shrank with the view
+        // would vanish exactly when it is the only way left to find the entity.
+        const EditorVector2 edge{icons.front().center.x + kEditorIconExtent - 1.0f,
+                                 icons.front().center.y};
+        CNA_EDITOR_EXPECT_EQ(pickEntityAt(scene, view, edge, kNoSizes).entityId.toString(),
+                             cameraId.toString());
+    }
+}
+
+CNA_EDITOR_TEST(DisabledEntitiesGetNoIcon)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid cameraId = addEntity(scene, registry, "Main Camera", 0.0f, 0.0f);
+    addComponent(scene, registry, cameraId, BuiltinComponentIds::kCamera);
+    scene.findEntity(cameraId)->setEnabled(false);
+
+    EditorCamera2D view;
+    view.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    // Matching the sprite pass and the picker: what cannot be clicked is not drawn.
+    CNA_EDITOR_EXPECT_EQ(collectEditorIcons(scene, view).size(), std::size_t{0});
+    CNA_EDITOR_EXPECT(!pickEntityAt(scene, view, view.worldToScreen(EditorVector2{0.0f, 0.0f}),
+                                    kNoSizes).entityId.isValid());
 }

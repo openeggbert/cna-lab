@@ -22,17 +22,21 @@
 
 ## Current state
 
-**Phase 0 is complete: the editor opens in a window and renders.** The repository still builds and
-passes its full suite with no CNA checkout, no GPU and no window:
+**Phase 0 is complete and Phase 1 is under way: the editor opens a scene, edits it and plays it.**
+The repository still builds and passes its full suite with no CNA checkout, no GPU and no window:
 
-- 12 modules, two executables, and **115 passing tests across 7 CTest suites** (9 with CNA)
+- 12 modules, two executables, and **148 passing tests across 7 CTest suites** (9 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
 - the editor renders **identically on two CNA backends** (SOFTWARE and EASYGL), verified by
   screenshot
-- the **real `cna-player` process** is launched by the editor over a real loopback socket, loads a
-  scene on request, and shuts down cleanly
+- the scene draws with an adaptive grid, sprites ordered by layer depth, selection outlines, a
+  **translate gizmo** whose drag is one undo entry, and **icons** for entities that have no
+  geometry to draw
+- **play mode works end to end**: the Play toolbar launches a real `cna-player` on a backend chosen
+  from the binaries actually installed, drives it through Pause, Step and Stop over a real loopback
+  socket, and routes the game's own log into the console
 - `./build/cna-editor --headless --project=examples/HelloSprites/HelloSprites.cnaproject` opens a
   project, scans its assets, loads a three-entity scene and draws a frame
 
@@ -167,7 +171,7 @@ real window, shows five docked panels, and renders the three-entity scene in the
 | ED-201 | Sprite rendering resolves textures through `AssetDatabase`, ordered by layer depth | ⬜ | |
 | ED-202 | Grid with adaptive spacing | ✅ | Done as ED-125 |
 | ED-203 | Selection outline as an overlay pass | ✅ | Drawn in a third `SpriteBatch` pass after the content, never as scene geometry |
-| ED-204 | Billboarded icons for cameras, lights and audio sources | ⬜ | They have no geometry and would otherwise be unclickable |
+| ED-204 | Icons for entities the viewport cannot draw | ✅ | Cameras, lights, audio sources — and, until ED-402, model renderers. Sized in screen pixels so they survive any zoom, and the picker tests them *after* sprites so an icon over the level art still wins its own badge. The badge outline doubles as the selection feedback, which is the only kind an entity with no bounds can get |
 | ED-205 | Translate gizmo, with merged undo across the drag | ✅ | Geometry, hit-testing and the drag are CNA-free and unit-tested; the drag measures from the grab point rather than accumulating, so it cannot drift. One drag is one undo entry — the first edit opens it and the rest merge in, which is also what keeps two separate drags of the same entity from collapsing together |
 | ED-206 | Ray-cast picking against entity bounds | ✅ | Done as ED-126. CNA-free and unit-tested, so "clicking selects the wrong thing" is caught in CI rather than by hand |
 | ED-207 | Inspector: add and remove components, respecting `unique` and `required` | ⬜ | |

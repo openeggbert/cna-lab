@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/EditorIcons.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 
 namespace CNA::Editor
@@ -115,6 +116,18 @@ namespace CNA::Editor
                 bestDepth = depth;
                 result.entityId = entity.getId();
             }
+        }
+
+        // Icons are tested last and override whatever the sprite pass found, because they are drawn
+        // last: they are editor artefacts on top of the scene. Losing to a sprite would make a
+        // camera parked over the level art unselectable exactly where the user can see it.
+        //
+        // Within the icons themselves the last match wins, which is document order -- the same
+        // order the renderer draws them in, so the picker and the viewport agree about overlap
+        // without either needing to know how the other sorts.
+        for (const EditorIconPlacement& icon : collectEditorIcons(scene, camera))
+        {
+            if (hitTestEditorIcon(icon.center, screenPoint)) { result.entityId = icon.entityId; }
         }
 
         return result;

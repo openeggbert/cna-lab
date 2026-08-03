@@ -86,6 +86,7 @@ add_library(cna-editor-scene STATIC
     src/scene/BuiltinComponents.cpp
     src/scene/SceneTransform.cpp
     src/scene/EditorCamera2D.cpp
+    src/scene/EditorIcons.cpp
     src/scene/TranslateGizmo.cpp
     src/viewport/NullEditorViewport.cpp)
 target_link_libraries(cna-editor-scene PUBLIC cna-editor-core)

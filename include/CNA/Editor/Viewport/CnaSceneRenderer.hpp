@@ -46,6 +46,9 @@ namespace CNA::Editor
         std::size_t gridLines = 0;
         std::size_t texturesLoaded = 0;
 
+        /** @brief Icons drawn for entities the viewport cannot render, such as cameras and lights. */
+        std::size_t iconsDrawn = 0;
+
         /** @brief Sprites whose texture asset could not be loaded, drawn as a placeholder. */
         std::size_t missingTextures = 0;
     };
