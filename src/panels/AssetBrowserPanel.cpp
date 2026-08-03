@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Panels/AssetBrowserPanel.hpp"
 
+#include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
+#include "CNA/Editor/Assets/AssetCommands.hpp"
 #include "CNA/Editor/EditorContext.hpp"
 
 namespace CNA::Editor
@@ -12,25 +16,181 @@ namespace CNA::Editor
         if (!ui_.beginPanel("Assets", DockSide::Bottom)) { ui_.endPanel(); return; }
 
         const AssetDatabase& assets = context_.getAssets();
-        ui_.text(std::to_string(assets.getCount()) + " assets");
+
+        ui_.setNextItemWidth(220.0f);
+        ui_.inputText("##assetFilter", filter_);
+        ui_.sameLine();
+
+        const AssetFolder root = buildAssetTree(assets, filter_);
+
+        if (filter_.empty())
+        {
+            ui_.text(std::to_string(assets.getCount()) + " assets");
+        }
+        else
+        {
+            // The count of what survived the filter, not of everything -- the number is only
+            // useful as an answer to what was just typed.
+            ui_.text(std::to_string(root.getTotalAssetCount()) + " of "
+                     + std::to_string(assets.getCount()) + " assets");
+        }
+
         ui_.separator();
 
-        for (const AssetRecord* record : assets.getAll())
+        if (assets.getCount() == 0)
         {
-            // A tree leaf rather than a line of text: it carries the asset's own Uuid as its
-            // widget identity, which is what lets the toolkit tell one row from another when a
-            // drag starts on it.
-            const std::string label = std::string{toString(record->type)} + "  " + record->sourcePath;
-            const UiTreeNodeResult row =
-                ui_.treeNode(record->id, label, context_.getSelectedAsset() == record->id, true);
-
-            ui_.setDragSource(kAssetDragType, record->id.toString(), label);
-
-            // Selecting an asset is what puts its import settings in the inspector, which is the
-            // only place they can be edited.
-            if (row.clicked) { context_.selectAsset(record->id); }
+            ui_.text("This project has no assets yet.");
+        }
+        else if (root.isEmpty())
+        {
+            // Said plainly. An empty tree looks identical to a broken one otherwise.
+            ui_.text("Nothing matches '" + filter_ + "'.");
+        }
+        else
+        {
+            drawFolder(root, true);
         }
 
         ui_.endPanel();
+        applyPendingMove();
+    }
+
+    void AssetBrowserPanel::drawFolder(const AssetFolder& folder, bool isRoot)
+    {
+        // The root has no row of its own -- it is the panel. Its contents are drawn flat.
+        if (!isRoot)
+        {
+            const UiTreeNodeResult node =
+                ui_.treeNode("folder:" + folder.path,
+                             folder.name + "  (" + std::to_string(folder.getTotalAssetCount()) + ")",
+                             false, false);
+
+            // Dropping an asset onto a folder moves it there. The drag comes from an asset row in
+            // this same panel, and the payload is the id, so the move never depends on a path.
+            if (const std::optional<std::string> dropped = ui_.acceptDrop(kAssetDragType))
+            {
+                const Uuid draggedId = Uuid::parse(*dropped);
+                if (const AssetRecord* record = context_.getAssets().find(draggedId))
+                {
+                    moveAssetId_ = draggedId;
+                    moveDestination_ = joinAssetPath(folder.path, assetFileName(record->sourcePath));
+                }
+            }
+
+            if (!node.expanded) { return; }
+        }
+
+        for (const AssetFolder& child : folder.folders) { drawFolder(child, false); }
+        for (const Uuid& assetId : folder.assets) { drawAsset(assetId); }
+
+        if (!isRoot) { ui_.treePop(); }
+    }
+
+    void AssetBrowserPanel::drawAsset(const Uuid& assetId)
+    {
+        const AssetRecord* record = context_.getAssets().find(assetId);
+        if (record == nullptr) { return; }
+
+        const std::string fileName = assetFileName(record->sourcePath);
+
+        if (renamingAsset_ == assetId)
+        {
+            const UiTextFieldResult result =
+                ui_.inputText("##rename-" + assetId.toString(), renameBuffer_, renameNeedsFocus_);
+
+            // Only the first frame asks for focus; asking every frame would make the field
+            // impossible to leave, because it would take the keyboard back the instant anything
+            // else claimed it.
+            renameNeedsFocus_ = false;
+            if (!result.committed) { return; }
+
+            renamingAsset_ = Uuid{};
+
+            // An empty name is a slip, not an instruction, and a name with a separator in it is a
+            // move disguised as a rename -- which the folder drop already does, unambiguously.
+            if (renameBuffer_.empty() || renameBuffer_ == fileName) { return; }
+            if (renameBuffer_.find('/') != std::string::npos
+                || renameBuffer_.find('\\') != std::string::npos)
+            {
+                context_.log(LogSeverity::Warning,
+                             "A name cannot contain a path separator. Drag the asset onto a folder "
+                             "to move it.");
+                return;
+            }
+
+            moveAssetId_ = assetId;
+            moveDestination_ = joinAssetPath(assetDirectory(record->sourcePath), renameBuffer_);
+            return;
+        }
+
+        const std::string label = std::string{toString(record->type)} + "  " + fileName;
+        const UiTreeNodeResult row =
+            ui_.treeNode(assetId, label, context_.getSelectedAsset() == assetId, true);
+
+        ui_.setDragSource(kAssetDragType, assetId.toString(), label);
+
+        if (ui_.beginContextMenu("asset-" + assetId.toString()))
+        {
+            // Right-clicking a row acts on that row, so it becomes the selection first. Acting on
+            // something other than what was right-clicked is the classic context-menu bug.
+            context_.selectAsset(assetId);
+
+            if (ui_.menuItem("Rename", "F2"))
+            {
+                renamingAsset_ = assetId;
+                renameBuffer_ = fileName;
+                renameNeedsFocus_ = true;
+            }
+            ui_.endContextMenu();
+        }
+
+        if (row.doubleClicked)
+        {
+            renamingAsset_ = assetId;
+            renameBuffer_ = fileName;
+            renameNeedsFocus_ = true;
+        }
+        else if (row.clicked)
+        {
+            // Selecting an asset is what puts its import settings in the inspector, which is the
+            // only place they can be edited.
+            context_.selectAsset(assetId);
+        }
+    }
+
+    void AssetBrowserPanel::applyPendingMove()
+    {
+        const Uuid assetId = moveAssetId_;
+        const std::string destination = moveDestination_;
+        moveAssetId_ = Uuid{};
+        moveDestination_.clear();
+
+        if (!assetId.isValid() || destination.empty()) { return; }
+
+        const AssetRecord* record = context_.getAssets().find(assetId);
+        if (record == nullptr || record->sourcePath == destination) { return; }
+
+        const std::string from = record->sourcePath;
+        auto command = std::make_unique<MoveAssetCommand>(context_.getAssets(), assetId, destination);
+        if (!command->isValid())
+        {
+            context_.log(LogSeverity::Warning, "Cannot move '" + from + "': " + command->getError());
+            return;
+        }
+
+        MoveAssetCommand& reference = *command;
+        context_.execute(std::move(command));
+
+        // The command retires itself when the filesystem refuses, so this distinguishes "moved"
+        // from "tried and could not" rather than reporting both as success.
+        if (reference.isValid())
+        {
+            context_.log(LogSeverity::Info, "Moved '" + from + "' to '" + destination + "'.");
+        }
+        else
+        {
+            context_.log(LogSeverity::Warning,
+                         "Cannot move '" + from + "': " + reference.getError());
+        }
     }
 }

@@ -730,27 +730,44 @@ namespace CNA::Editor
         return changed;
     }
 
+    namespace
+    {
+        /** @brief Shared body of the two treeNode overloads, once the ImGui id is decided. */
+        UiTreeNodeResult drawTreeNode(ImGuiID nodeId, const std::string& label, bool selected, bool leaf)
+        {
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+            if (selected) { flags |= ImGuiTreeNodeFlags_Selected; }
+            if (leaf) { flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen; }
+
+            const bool open = ImGui::TreeNodeEx(reinterpret_cast<void*>(static_cast<std::uintptr_t>(nodeId)),
+                                                flags, "%s", label.c_str());
+
+            UiTreeNodeResult result;
+            result.clicked = ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen();
+            result.doubleClicked = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)
+                                && ImGui::IsItemHovered() && !ImGui::IsItemToggledOpen();
+
+            // A leaf pushed nothing onto the tree stack, so it must not report "expanded" -- the
+            // caller would pair it with a treePop() that pops somebody else's node.
+            result.expanded = open && !leaf;
+            return result;
+        }
+    }
+
+    UiTreeNodeResult ImGuiEditorUi::treeNode(const std::string& id,
+                                             const std::string& label,
+                                             bool selected,
+                                             bool leaf)
+    {
+        return drawTreeNode(ImGui::GetID(id.c_str()), label, selected, leaf);
+    }
+
     UiTreeNodeResult ImGuiEditorUi::treeNode(const Uuid& id,
                                              const std::string& label,
                                              bool selected,
                                              bool leaf)
     {
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-        if (selected) { flags |= ImGuiTreeNodeFlags_Selected; }
-        if (leaf) { flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen; }
-
-        const bool open = ImGui::TreeNodeEx(reinterpret_cast<void*>(static_cast<std::uintptr_t>(toImGuiId(id))),
-                                            flags, "%s", label.c_str());
-
-        UiTreeNodeResult result;
-        result.clicked = ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen();
-        result.doubleClicked = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered()
-                            && !ImGui::IsItemToggledOpen();
-
-        // A leaf pushed nothing onto the tree stack, so it must not report "expanded" -- the
-        // caller would pair it with a treePop() that pops somebody else's node.
-        result.expanded = open && !leaf;
-        return result;
+        return drawTreeNode(toImGuiId(id), label, selected, leaf);
     }
 
     void ImGuiEditorUi::treePop() { ImGui::TreePop(); }

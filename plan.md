@@ -25,7 +25,7 @@
 **Phase 0 is complete and Phase 1 is under way: the editor opens a scene, edits it and plays it.**
 The repository still builds and passes its full suite with no CNA checkout, no GPU and no window:
 
-- 12 modules, two executables, and **194 passing tests across 7 CTest suites** (9 with CNA)
+- 12 modules, two executables, and **206 passing tests across 7 CTest suites** (9 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -183,7 +183,7 @@ real window, shows five docked panels, and renders the three-entity scene in the
 
 | Id | Task | Status | Notes |
 |----|------|:------:|-------|
-| ED-220 | Asset browser: folder tree, thumbnails, filtering, rename, move | ⬜ | A move must not touch any scene (D-08) |
+| ED-220 | Asset browser: folder tree, thumbnails, filtering, rename, move | 🔄 | Folder tree, filtering, rename and move all done; thumbnails belong to ED-221 and need the CNA renderer. The tree is *derived* from the source paths rather than stored, so moving an asset changes one string and nothing has to be kept in sync. A move keeps the asset's id and is verified not to change a scene file by a single byte (D-08); the source and its sidecar move together or the move is rolled back, because an orphaned file gets a fresh id on the next scan and silently breaks every reference to it |
 | ED-221 | Texture importer: dimensions, mipmaps, premultiplied alpha, thumbnails | 🔄 | Settings declared and editable; dimensions read from the file's header (PNG and BMP state theirs at fixed offsets, so a few dozen bytes answer it — JPEG needs segment walking and belongs with the importer that will decode it for real). Thumbnails remain, and need the CNA-backed renderer |
 | ED-222 | Importer settings surfaced in the inspector, reusing the descriptor system | ✅ | An importer's settings are a named list of typed, defaulted fields — which is what `ComponentDescriptor` already describes, so the inspector needed no new code and a plugin's importer is editable on the same terms as a built-in one. Edits are commands on the same history as the scene's (D-06): an editor where some edits undo and others quietly do not is worse than one where none do |
 | ED-223 | Filesystem watcher; reimport on external change | ✅ | Polling, deliberately: inotify, kqueue and ReadDirectoryChangesW are three implementations with three failure modes, and each still needs a polling fallback for the network and container mounts where a team's assets often live. The clock is passed in, so the tests advance time exactly and never sleep. A change drops the viewport's cached texture — without that the editor reports the edit and goes on drawing the art from before it |

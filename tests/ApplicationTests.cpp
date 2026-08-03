@@ -372,7 +372,9 @@ namespace
             shownValues.clear();
             shownChecks.clear();
             drawnText.clear();
+            drawnTextFields.clear();
             drawnNodes.clear();
+            drawnStringNodes.clear();
             sawRenameField = false;
         }
 
@@ -409,8 +411,41 @@ namespace
         /** @brief Asset payloads to deliver to the next field with a matching label. */
         std::vector<std::pair<std::string, std::string>> pendingAssetDrops;
 
+        /** @brief Folder rows the browser drew, and drops to deliver to them. */
+        std::vector<std::string> drawnStringNodes;
+        std::vector<std::pair<std::string, std::string>> pendingFolderDrops;
+        std::string lastStringNode;
+
+        UiTreeNodeResult treeNode(const std::string& id,
+                                  const std::string& label,
+                                  bool selected,
+                                  bool leaf) override
+        {
+            drawnStringNodes.push_back(id);
+            lastStringNode = id;
+            return NullEditorUi::treeNode(id, label, selected, leaf);
+        }
+
+        /** @brief Returns true when a string-keyed node with @p id was drawn last frame. */
+        [[nodiscard]] bool sawStringNode(const std::string& id) const
+        {
+            return std::find(drawnStringNodes.begin(), drawnStringNodes.end(), id)
+                != drawnStringNodes.end();
+        }
+
         std::optional<std::string> acceptDrop(const std::string& type) override
         {
+            if (type == "asset")
+            {
+                for (auto entry = pendingFolderDrops.begin(); entry != pendingFolderDrops.end(); ++entry)
+                {
+                    if (entry->first != lastStringNode) { continue; }
+                    const std::string payload = entry->second;
+                    pendingFolderDrops.erase(entry);
+                    return payload;
+                }
+            }
+
             if (type == "asset")
             {
                 // Matched against the last field *or* the last tree node: an asset slot in the
@@ -437,11 +472,24 @@ namespace
 
         UiTextFieldResult inputText(const std::string& id, std::string& text, bool takeFocus) override
         {
-            (void)id;
             (void)takeFocus;
-            sawRenameField = true;
+            drawnTextFields.push_back(id);
 
-            if (!pendingRename) { return UiTextFieldResult{}; }
+            // Only a rename field takes the scripted text. The asset browser's filter is an
+            // inputText too, and typing a scripted name into it would silently make the panel
+            // show nothing while the test believed it had renamed something.
+            const bool isRename = id.rfind("##rename-", 0) == 0;
+            if (isRename) { sawRenameField = true; }
+
+            for (auto entry = pendingFieldEdits.begin(); entry != pendingFieldEdits.end(); ++entry)
+            {
+                if (entry->first != id) { continue; }
+                text = entry->second;
+                pendingFieldEdits.erase(entry);
+                return UiTextFieldResult{true, true};
+            }
+
+            if (!isRename || !pendingRename) { return UiTextFieldResult{}; }
 
             UiTextFieldResult result;
             text = pendingRename->first;
@@ -450,6 +498,18 @@ namespace
             if (result.committed) { pendingRename.reset(); }
             return result;
         }
+
+        /** @brief Ids of text fields drawn during the most recent frame. */
+        std::vector<std::string> drawnTextFields;
+
+        /** @brief Text to type into the next field whose id is @p id, committing it. */
+        void typeInto(const std::string& id, std::string text)
+        {
+            pendingFieldEdits.emplace_back(id, std::move(text));
+        }
+
+        /** @brief Scripted edits for fields other than renames, by id. */
+        std::vector<std::pair<std::string, std::string>> pendingFieldEdits;
 
         void text(const std::string& value) override { drawnText.push_back(value); }
 
@@ -1558,4 +1618,169 @@ CNA_EDITOR_TEST(AnExternallyEditedAssetIsReloadedAndReported)
     CNA_EDITOR_EXPECT(reported);
 
     std::filesystem::remove_all(directory);
+}
+
+namespace
+{
+    /** @brief An editor over a real on-disk project with a few tracked assets. */
+    struct BrowserFixture
+    {
+        std::filesystem::path directory;
+        std::unique_ptr<EditorApplication> application;
+        ScriptedUi* ui = nullptr;
+
+        explicit BrowserFixture(const std::string& name)
+        {
+            directory = makeScratchDirectory(name);
+            writeFile(directory / "Game.cnaproject",
+                      R"({"formatVersion":1,"name":"Browsed","kind":"CnaNative","assetDirectory":"Assets"})");
+            writeFile(directory / "Assets" / "Textures" / "hero.png", "hero");
+            writeFile(directory / "Assets" / "Textures" / "enemy.png", "enemy");
+            writeFile(directory / "Assets" / "Audio" / "jump.wav", "jump");
+
+            auto scripted = std::make_unique<ScriptedUi>();
+            ui = scripted.get();
+            application = std::make_unique<EditorApplication>(std::move(scripted),
+                                                             std::make_unique<NullEditorViewport>());
+
+            EditorOptions options;
+            options.headless = true;
+            options.projectPath = (directory / "Game.cnaproject").generic_string();
+            application->initialize(options);
+        }
+
+        ~BrowserFixture()
+        {
+            std::error_code errorCode;
+            std::filesystem::remove_all(directory, errorCode);
+        }
+
+        BrowserFixture(const BrowserFixture&) = delete;
+        BrowserFixture& operator=(const BrowserFixture&) = delete;
+
+        [[nodiscard]] EditorContext& context() { return application->getContext(); }
+
+        void step() { application->renderFrame(0.0); }
+
+        [[nodiscard]] Uuid idOf(const std::string& path) const
+        {
+            const AssetRecord* record =
+                const_cast<BrowserFixture*>(this)->context().getAssets().findByPath(path);
+            return record != nullptr ? record->id : Uuid{};
+        }
+    };
+}
+
+CNA_EDITOR_TEST(TheAssetBrowserShowsAFolderTree)
+{
+    BrowserFixture fixture{"browsertree"};
+    fixture.step();
+
+    CNA_EDITOR_EXPECT_EQ(fixture.context().getAssets().getCount(), std::size_t{3});
+    CNA_EDITOR_EXPECT(fixture.ui->sawStringNode("folder:Assets"));
+    CNA_EDITOR_EXPECT(fixture.ui->sawStringNode("folder:Assets/Textures"));
+    CNA_EDITOR_EXPECT(fixture.ui->sawStringNode("folder:Assets/Audio"));
+    CNA_EDITOR_EXPECT(fixture.ui->sawText("3 assets"));
+}
+
+CNA_EDITOR_TEST(TheAssetBrowserFilterHidesWhatDoesNotMatch)
+{
+    BrowserFixture fixture{"browserfilter"};
+
+    fixture.ui->typeInto("##assetFilter", "audio");
+    fixture.step();
+    fixture.step();
+
+    // Only the matching branch survives; a filtered tree never shows an empty folder.
+    CNA_EDITOR_EXPECT(fixture.ui->sawStringNode("folder:Assets/Audio"));
+    CNA_EDITOR_EXPECT(!fixture.ui->sawStringNode("folder:Assets/Textures"));
+    CNA_EDITOR_EXPECT(fixture.ui->sawText("1 of 3 assets"));
+
+    // A filter matching nothing says so rather than looking like a broken panel.
+    fixture.ui->typeInto("##assetFilter", "zzz");
+    fixture.step();
+    fixture.step();
+    CNA_EDITOR_EXPECT(fixture.ui->sawText("Nothing matches 'zzz'."));
+}
+
+CNA_EDITOR_TEST(DroppingAnAssetOnAFolderMovesTheFileAndNotAnyScene)
+{
+    BrowserFixture fixture{"browsermove"};
+    EditorContext& context = fixture.context();
+
+    const Uuid heroId = fixture.idOf("Assets/Textures/hero.png");
+    CNA_EDITOR_EXPECT(heroId.isValid());
+
+    // Point a scene at it, then move it. The reference is a Uuid, so it must survive untouched.
+    EditorEntity entity{Uuid::generate(), "Player"};
+    EditorComponent sprite{BuiltinComponentIds::kSpriteRenderer};
+    sprite.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kSpriteRenderer));
+    sprite.setProperty("texture", PropertyValue{PropertyValue::AssetReference{heroId}});
+    entity.addComponent(std::move(sprite));
+    context.getScene().addEntity(std::move(entity));
+
+    fixture.step();
+    fixture.ui->pendingFolderDrops.emplace_back("folder:Assets/Audio", heroId.toString());
+    fixture.step();
+
+    CNA_EDITOR_EXPECT_EQ(context.getAssets().find(heroId)->sourcePath,
+                         std::string{"Assets/Audio/hero.png"});
+    CNA_EDITOR_EXPECT(std::filesystem::exists(fixture.directory / "Assets" / "Audio" / "hero.png"));
+
+    // The id never changed, so nothing referencing it broke (D-08).
+    CNA_EDITOR_EXPECT(findMissingReferences(context.getScene(), context.getAssets()).empty());
+
+    // And it undoes like any other document change.
+    fixture.ui->pressShortcut(UiKey::Z, withControl());
+    fixture.step();
+    CNA_EDITOR_EXPECT_EQ(context.getAssets().find(heroId)->sourcePath,
+                         std::string{"Assets/Textures/hero.png"});
+}
+
+CNA_EDITOR_TEST(RenamingAnAssetKeepsItInItsFolder)
+{
+    BrowserFixture fixture{"browserrename"};
+    EditorContext& context = fixture.context();
+
+    const Uuid heroId = fixture.idOf("Assets/Textures/hero.png");
+
+    fixture.ui->pendingNodeDoubleClicks.push_back(heroId);
+    fixture.step();
+
+    fixture.ui->pendingRename = std::make_pair(std::string{"champion.png"}, true);
+    fixture.step();
+
+    CNA_EDITOR_EXPECT_EQ(context.getAssets().find(heroId)->sourcePath,
+                         std::string{"Assets/Textures/champion.png"});
+    CNA_EDITOR_EXPECT(std::filesystem::exists(fixture.directory / "Assets" / "Textures" / "champion.png"));
+    CNA_EDITOR_EXPECT(std::filesystem::exists(fixture.directory / "Assets" / "Textures" / "champion.png.cnaasset"));
+}
+
+CNA_EDITOR_TEST(ARenameContainingASeparatorIsRefusedWithAReason)
+{
+    BrowserFixture fixture{"browserrenamepath"};
+    EditorContext& context = fixture.context();
+
+    const Uuid heroId = fixture.idOf("Assets/Textures/hero.png");
+
+    fixture.ui->pendingNodeDoubleClicks.push_back(heroId);
+    fixture.step();
+
+    fixture.ui->pendingRename = std::make_pair(std::string{"../escaped.png"}, true);
+    fixture.step();
+
+    // A name with a separator in it is a move disguised as a rename, and the folder drop already
+    // does that unambiguously.
+    CNA_EDITOR_EXPECT_EQ(context.getAssets().find(heroId)->sourcePath,
+                         std::string{"Assets/Textures/hero.png"});
+
+    bool explained = false;
+    for (const auto& entry : fixture.ui->getLog())
+    {
+        if (entry.message.find("cannot contain a path separator") != std::string::npos)
+        {
+            explained = true;
+        }
+    }
+    CNA_EDITOR_EXPECT(explained);
 }

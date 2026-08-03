@@ -12,6 +12,7 @@
 #include "CNA/Editor/Assets/AssetCommands.hpp"
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
+#include "CNA/Editor/Assets/AssetTree.hpp"
 #include "CNA/Editor/Assets/AssetWatcher.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/MissingReferences.hpp"
@@ -824,4 +825,233 @@ CNA_EDITOR_TEST(TheWatcherHonoursItsInterval)
     CNA_EDITOR_EXPECT_EQ(watcher.poll(assets, 0.0).changed.size(), std::size_t{1});
 
     std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(MovingAnAssetKeepsItsIdAndTakesItsSidecarAlong)
+{
+    const std::filesystem::path directory = makeScratchDirectory("assetmove");
+    writeFile(directory / "Assets" / "Textures" / "Hero.png", "contents");
+
+    AssetDatabase assets;
+    assets.setProjectRoot(directory.generic_string());
+    assets.scan("Assets");
+
+    const Uuid assetId = assets.getAll().front()->id;
+    CNA_EDITOR_EXPECT(std::filesystem::exists(directory / "Assets" / "Textures" / "Hero.png.cnaasset"));
+
+    std::string error;
+    CNA_EDITOR_EXPECT(assets.moveAsset(assetId, "Assets/Sprites/Player.png", &error));
+
+    // The id is the identity, so nothing that references it needs to know anything moved (D-08).
+    CNA_EDITOR_EXPECT(assets.find(assetId) != nullptr);
+    CNA_EDITOR_EXPECT_EQ(assets.find(assetId)->sourcePath, std::string{"Assets/Sprites/Player.png"});
+    CNA_EDITOR_EXPECT(assets.findByPath("Assets/Textures/Hero.png") == nullptr);
+    CNA_EDITOR_EXPECT(assets.findByPath("Assets/Sprites/Player.png") != nullptr);
+
+    // The sidecar travels with the file. An orphaned source file would be given a fresh id by the
+    // next scan, silently breaking every reference to it.
+    CNA_EDITOR_EXPECT(std::filesystem::exists(directory / "Assets" / "Sprites" / "Player.png"));
+    CNA_EDITOR_EXPECT(std::filesystem::exists(directory / "Assets" / "Sprites" / "Player.png.cnaasset"));
+    CNA_EDITOR_EXPECT(!std::filesystem::exists(directory / "Assets" / "Textures" / "Hero.png"));
+    CNA_EDITOR_EXPECT(!std::filesystem::exists(directory / "Assets" / "Textures" / "Hero.png.cnaasset"));
+
+    // Rescanning finds the same asset with the same id, which is the proof the move was complete.
+    AssetDatabase reopened;
+    reopened.setProjectRoot(directory.generic_string());
+    const AssetScanResult rescan = reopened.scan("Assets");
+    CNA_EDITOR_EXPECT_EQ(reopened.getCount(), std::size_t{1});
+    CNA_EDITOR_EXPECT(reopened.find(assetId) != nullptr);
+    CNA_EDITOR_EXPECT_EQ(rescan.newCount, std::size_t{0});
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(MovingAnAssetDoesNotTouchAnySceneFile)
+{
+    const std::filesystem::path directory = makeScratchDirectory("assetmovescene");
+    writeFile(directory / "Assets" / "Textures" / "Hero.png", "contents");
+
+    AssetDatabase assets;
+    assets.setProjectRoot(directory.generic_string());
+    assets.scan("Assets");
+    const Uuid assetId = assets.getAll().front()->id;
+
+    ComponentRegistry registry;
+    registerBuiltinComponents(registry);
+
+    SceneDocument scene;
+    EditorEntity entity{Uuid::generate(), "Player"};
+    EditorComponent sprite{BuiltinComponentIds::kSpriteRenderer};
+    sprite.applyDefaults(*registry.find(BuiltinComponentIds::kSpriteRenderer));
+    sprite.setProperty("texture", PropertyValue{PropertyValue::AssetReference{assetId}});
+    entity.addComponent(std::move(sprite));
+    scene.addEntity(std::move(entity));
+
+    const std::filesystem::path scenePath = directory / "Scenes" / "Level01.cnascene";
+    std::string errorMessage;
+    CNA_EDITOR_EXPECT(scene.saveToFile(scenePath.generic_string(), &errorMessage));
+
+    std::ifstream before{scenePath, std::ios::binary};
+    const std::string beforeContents{std::istreambuf_iterator<char>{before},
+                                     std::istreambuf_iterator<char>{}};
+
+    CNA_EDITOR_EXPECT(assets.moveAsset(assetId, "Assets/Sprites/Player.png"));
+
+    std::ifstream after{scenePath, std::ios::binary};
+    const std::string afterContents{std::istreambuf_iterator<char>{after},
+                                    std::istreambuf_iterator<char>{}};
+
+    // Byte for byte. An editor that rewrote every scene on a rename would turn tidying an asset
+    // folder into a review of the whole project.
+    CNA_EDITOR_EXPECT_EQ(afterContents, beforeContents);
+
+    // And the reference still resolves, because it was never a path in the first place.
+    CNA_EDITOR_EXPECT(findMissingReferences(scene, assets).empty());
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(MovingAnAssetRefusesRatherThanOverwriting)
+{
+    const std::filesystem::path directory = makeScratchDirectory("assetmoverefuse");
+    writeFile(directory / "Assets" / "A.png", "first");
+    writeFile(directory / "Assets" / "B.png", "second");
+
+    AssetDatabase assets;
+    assets.setProjectRoot(directory.generic_string());
+    assets.scan("Assets");
+    CNA_EDITOR_EXPECT_EQ(assets.getCount(), std::size_t{2});
+
+    const Uuid firstId = assets.findByPath("Assets/A.png")->id;
+
+    std::string error;
+    CNA_EDITOR_EXPECT(!assets.moveAsset(firstId, "Assets/B.png", &error));
+    CNA_EDITOR_EXPECT(!error.empty());
+
+    // Both files are still there, with their contents intact. Silently overwriting one asset with
+    // another is the one outcome a move must never have.
+    CNA_EDITOR_EXPECT(std::filesystem::exists(directory / "Assets" / "A.png"));
+    CNA_EDITOR_EXPECT(std::filesystem::exists(directory / "Assets" / "B.png"));
+    CNA_EDITOR_EXPECT_EQ(assets.find(firstId)->sourcePath, std::string{"Assets/A.png"});
+
+    // Nor may a destination climb out of the project: the sidecar's relative path would stop
+    // meaning anything.
+    CNA_EDITOR_EXPECT(!assets.moveAsset(firstId, "../Escaped.png", &error));
+    CNA_EDITOR_EXPECT(!assets.moveAsset(firstId, "", &error));
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(MovingAnAssetIsUndoable)
+{
+    const std::filesystem::path directory = makeScratchDirectory("assetmoveundo");
+    writeFile(directory / "Assets" / "Textures" / "Hero.png", "contents");
+
+    AssetDatabase assets;
+    assets.setProjectRoot(directory.generic_string());
+    assets.scan("Assets");
+    const Uuid assetId = assets.getAll().front()->id;
+
+    CommandHistory history;
+    auto command = std::make_unique<MoveAssetCommand>(assets, assetId, "Assets/Sprites/Player.png");
+    CNA_EDITOR_EXPECT(command->isValid());
+    history.execute(std::move(command));
+
+    CNA_EDITOR_EXPECT_EQ(assets.find(assetId)->sourcePath, std::string{"Assets/Sprites/Player.png"});
+
+    CNA_EDITOR_EXPECT(history.undo());
+    CNA_EDITOR_EXPECT_EQ(assets.find(assetId)->sourcePath, std::string{"Assets/Textures/Hero.png"});
+    CNA_EDITOR_EXPECT(std::filesystem::exists(directory / "Assets" / "Textures" / "Hero.png"));
+
+    CNA_EDITOR_EXPECT(history.redo());
+    CNA_EDITOR_EXPECT_EQ(assets.find(assetId)->sourcePath, std::string{"Assets/Sprites/Player.png"});
+
+    std::filesystem::remove_all(directory);
+}
+
+namespace
+{
+    /** @brief Registers @p paths as tracked assets, without touching the filesystem. */
+    void trackPaths(AssetDatabase& assets, const std::vector<std::string>& paths)
+    {
+        for (const std::string& path : paths)
+        {
+            AssetRecord record;
+            record.id = Uuid::generate();
+            record.sourcePath = path;
+            record.type = AssetDatabase::guessTypeFromExtension(path);
+            assets.add(std::move(record));
+        }
+    }
+}
+
+CNA_EDITOR_TEST(TheAssetTreeIsDerivedFromThePathsAndOrdered)
+{
+    AssetDatabase assets;
+    trackPaths(assets, {"Assets/Textures/hero.png", "Assets/Textures/enemy.png",
+                        "Assets/Audio/jump.wav", "Assets/Textures/ui/button.png",
+                        "readme.txt"});
+
+    const AssetFolder root = buildAssetTree(assets);
+
+    CNA_EDITOR_EXPECT_EQ(root.getTotalAssetCount(), std::size_t{5});
+
+    // A file with no directory part sits at the root rather than inventing a folder for itself.
+    CNA_EDITOR_EXPECT_EQ(root.assets.size(), std::size_t{1});
+
+    CNA_EDITOR_EXPECT_EQ(root.folders.size(), std::size_t{1});
+    const AssetFolder& assetsFolder = root.folders.front();
+    CNA_EDITOR_EXPECT_EQ(assetsFolder.name, std::string{"Assets"});
+    CNA_EDITOR_EXPECT_EQ(assetsFolder.path, std::string{"Assets"});
+
+    // Ordered by name, so the tree reads the same every frame.
+    CNA_EDITOR_EXPECT_EQ(assetsFolder.folders.size(), std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(assetsFolder.folders[0].name, std::string{"Audio"});
+    CNA_EDITOR_EXPECT_EQ(assetsFolder.folders[1].name, std::string{"Textures"});
+
+    const AssetFolder& textures = assetsFolder.folders[1];
+    CNA_EDITOR_EXPECT_EQ(textures.assets.size(), std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(textures.getTotalAssetCount(), std::size_t{3});
+    CNA_EDITOR_EXPECT_EQ(textures.folders.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(textures.folders.front().path, std::string{"Assets/Textures/ui"});
+}
+
+CNA_EDITOR_TEST(TheAssetFilterIsCaseInsensitiveAndLeavesNoEmptyFolders)
+{
+    AssetDatabase assets;
+    trackPaths(assets, {"Assets/Textures/hero.png", "Assets/Textures/enemy.png",
+                        "Assets/Audio/jump.wav"});
+
+    // Part of a file name finds it wherever it lives.
+    const AssetFolder byName = buildAssetTree(assets, "HERO");
+    CNA_EDITOR_EXPECT_EQ(byName.getTotalAssetCount(), std::size_t{1});
+
+    // A filtered tree contains no empty folders: one that told the user nothing about where the
+    // match is would be worse than no tree at all.
+    CNA_EDITOR_EXPECT_EQ(byName.folders.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(byName.folders.front().folders.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(byName.folders.front().folders.front().name, std::string{"Textures"});
+
+    // A folder name keeps everything under it, because the test is against the whole path.
+    CNA_EDITOR_EXPECT_EQ(buildAssetTree(assets, "audio").getTotalAssetCount(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(buildAssetTree(assets, "textures").getTotalAssetCount(), std::size_t{2});
+
+    // Nothing matching yields an empty tree rather than the whole thing.
+    CNA_EDITOR_EXPECT(buildAssetTree(assets, "nothing here").isEmpty());
+    CNA_EDITOR_EXPECT_EQ(buildAssetTree(assets, "").getTotalAssetCount(), std::size_t{3});
+}
+
+CNA_EDITOR_TEST(AssetPathHelpersSplitAndJoinConsistently)
+{
+    CNA_EDITOR_EXPECT_EQ(assetFileName("Assets/Textures/hero.png"), std::string{"hero.png"});
+    CNA_EDITOR_EXPECT_EQ(assetDirectory("Assets/Textures/hero.png"), std::string{"Assets/Textures"});
+
+    // A bare file name has no directory part, and joining must not invent one -- a leading slash
+    // would look absolute and resolve somewhere else entirely.
+    CNA_EDITOR_EXPECT_EQ(assetFileName("readme.txt"), std::string{"readme.txt"});
+    CNA_EDITOR_EXPECT_EQ(assetDirectory("readme.txt"), std::string{});
+    CNA_EDITOR_EXPECT_EQ(joinAssetPath("", "readme.txt"), std::string{"readme.txt"});
+
+    CNA_EDITOR_EXPECT_EQ(joinAssetPath(assetDirectory("Assets/Textures/hero.png"), "villain.png"),
+                         std::string{"Assets/Textures/villain.png"});
 }

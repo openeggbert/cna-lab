@@ -167,6 +167,24 @@ namespace CNA::Editor
         /** @brief Returns the ids of every tracked asset whose source file is absent. */
         [[nodiscard]] std::vector<Uuid> getMissingAssets() const;
 
+        /**
+         * @brief Moves an asset's source file and its sidecar to @p newRelativePath.
+         *
+         * The asset keeps its id, so **no scene is touched** (ANALYSIS.md decision D-08). That is
+         * the whole point: a reference is a Uuid, and moving a file is a filesystem operation, not
+         * a document one. An editor that rewrote every scene on a rename would turn tidying an
+         * asset folder into a review of the entire project.
+         *
+         * The source file and the sidecar move together or not at all. A half-moved asset -- data
+         * in one place, metadata in another -- is worse than a failed move, because the next scan
+         * would give the orphaned file a new id and silently break every reference to it.
+         *
+         * @return False when the id is unknown, the destination is occupied, the destination
+         *         escapes the project root, or the filesystem refuses; @p errorMessage says which.
+         */
+        bool moveAsset(const Uuid& id, const std::string& newRelativePath,
+                       std::string* errorMessage = nullptr);
+
         /** @brief Writes the sidecar for @p id. Returns false when the id is unknown or I/O fails. */
         bool writeSidecar(const Uuid& id, std::string* errorMessage = nullptr) const;
 

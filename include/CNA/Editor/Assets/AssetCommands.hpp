@@ -20,6 +20,37 @@
 namespace CNA::Editor
 {
     /**
+     * @brief Moves or renames an asset's file, keeping its id.
+     *
+     * Undoable like every other document change (D-06), and undo is simply the move back. No scene
+     * is touched in either direction, which is the property that makes an asset folder safe to
+     * tidy: references are Uuids, so where a file sits is not something a scene knows.
+     */
+    class MoveAssetCommand final : public EditorCommand
+    {
+    public:
+        MoveAssetCommand(AssetDatabase& assets, Uuid assetId, std::string newRelativePath);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+
+        /** @brief Returns false when the asset is unknown or the destination is unusable. */
+        [[nodiscard]] bool isValid() const { return valid_; }
+
+        /** @brief Returns why the command is invalid, or why the last attempt failed. */
+        [[nodiscard]] const std::string& getError() const { return error_; }
+
+    private:
+        AssetDatabase* assets_;
+        Uuid assetId_;
+        std::string oldPath_;
+        std::string newPath_;
+        std::string error_;
+        bool valid_ = false;
+    };
+
+    /**
      * @brief Sets one importer setting on one asset, and rewrites its sidecar.
      *
      * Merges on asset + setting, so dragging a slider produces one undo entry that returns to the

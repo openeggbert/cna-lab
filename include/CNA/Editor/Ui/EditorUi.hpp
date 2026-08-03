@@ -227,6 +227,32 @@ namespace CNA::Editor
                                           const std::string& label,
                                           bool selected,
                                           bool leaf) = 0;
+
+        /**
+         * @brief Draws a tree node identified by a string, for rows that have no Uuid.
+         *
+         * A folder in the asset browser is the case: folders are derived from the tracked paths
+         * and have no identity of their own, so the path itself is what makes one row distinct
+         * from another.
+         *
+         * The default expands everything that is not a leaf, which is what a headless run wants:
+         * the whole tree is walked, so a crash in a deeply nested branch is caught by CI rather
+         * than by the first user to expand it.
+         */
+        virtual UiTreeNodeResult treeNode(const std::string& id,
+                                          const std::string& label,
+                                          bool selected,
+                                          bool leaf)
+        {
+            (void)id;
+            (void)label;
+            (void)selected;
+
+            UiTreeNodeResult result;
+            result.expanded = !leaf;
+            return result;
+        }
+
         virtual void treePop() = 0;
 
         /**
@@ -435,6 +461,10 @@ namespace CNA::Editor
                            PropertyValue& value,
                            const std::vector<std::string>& enumOptions = {},
                            bool readOnly = false) override;
+
+        // Overriding one overload would hide the other; the string-keyed form is inherited as is,
+        // and expands everything that is not a leaf, which is what a headless run wants.
+        using EditorUi::treeNode;
 
         UiTreeNodeResult treeNode(const Uuid& id,
                                   const std::string& label,

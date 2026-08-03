@@ -80,6 +80,10 @@ namespace CNA::Editor
                                   const std::string& label,
                                   bool selected,
                                   bool leaf) override;
+        UiTreeNodeResult treeNode(const std::string& id,
+                                  const std::string& label,
+                                  bool selected,
+                                  bool leaf) override;
         void treePop() override;
 
         UiTextFieldResult inputText(const std::string& id, std::string& text, bool takeFocus = false) override;

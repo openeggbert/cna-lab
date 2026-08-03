@@ -3,6 +3,53 @@
 
 namespace CNA::Editor
 {
+    MoveAssetCommand::MoveAssetCommand(AssetDatabase& assets, Uuid assetId, std::string newRelativePath)
+        : assets_(&assets), assetId_(assetId), newPath_(std::move(newRelativePath))
+    {
+        const AssetRecord* record = assets_->find(assetId_);
+        if (record == nullptr)
+        {
+            error_ = "no asset with that id";
+            return;
+        }
+
+        oldPath_ = record->sourcePath;
+        if (oldPath_ == newPath_)
+        {
+            error_ = "the asset is already there";
+            return;
+        }
+        if (newPath_.empty())
+        {
+            error_ = "destination path is empty";
+            return;
+        }
+
+        valid_ = true;
+    }
+
+    void MoveAssetCommand::execute()
+    {
+        if (!valid_) { return; }
+        if (!assets_->moveAsset(assetId_, newPath_, &error_))
+        {
+            // A move that fails leaves the asset exactly where it was, so the command is retired
+            // rather than left in a state where undo would move something it never moved.
+            valid_ = false;
+        }
+    }
+
+    void MoveAssetCommand::undo()
+    {
+        if (!valid_) { return; }
+        assets_->moveAsset(assetId_, oldPath_, &error_);
+    }
+
+    std::string MoveAssetCommand::getDescription() const
+    {
+        return "Move '" + oldPath_ + "' to '" + newPath_ + "'";
+    }
+
     SetImporterSettingCommand::SetImporterSettingCommand(AssetDatabase& assets,
                                                          Uuid assetId,
                                                          std::string settingName,

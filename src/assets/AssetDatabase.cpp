@@ -166,6 +166,74 @@ namespace CNA::Editor
         return true;
     }
 
+    bool AssetDatabase::moveAsset(const Uuid& id, const std::string& newRelativePath,
+                                  std::string* errorMessage)
+    {
+        const auto fail = [&](std::string reason) {
+            if (errorMessage != nullptr) { *errorMessage = std::move(reason); }
+            return false;
+        };
+
+        AssetRecord* record = findMutable(id);
+        if (record == nullptr) { return fail("no asset with that id"); }
+        if (newRelativePath.empty()) { return fail("destination path is empty"); }
+        if (record->sourcePath == newRelativePath) { return true; }
+
+        // A destination that climbs out of the project would put the asset somewhere the project
+        // cannot describe, and the relative path stored in the sidecar would stop meaning anything.
+        const std::filesystem::path normalised =
+            std::filesystem::path{newRelativePath}.lexically_normal();
+        if (normalised.is_absolute() || normalised.native().rfind("..", 0) == 0)
+        {
+            return fail("destination must stay inside the project");
+        }
+
+        const std::string destination = normalised.generic_string();
+        if (findByPath(destination) != nullptr) { return fail("'" + destination + "' is already tracked"); }
+
+        std::error_code errorCode;
+        const std::filesystem::path from{resolvePath(record->sourcePath)};
+        const std::filesystem::path to{resolvePath(destination)};
+
+        if (std::filesystem::exists(to, errorCode)) { return fail("'" + destination + "' already exists"); }
+
+        std::filesystem::create_directories(to.parent_path(), errorCode);
+        if (errorCode) { return fail("cannot create '" + to.parent_path().generic_string() + "'"); }
+
+        errorCode.clear();
+        std::filesystem::rename(from, to, errorCode);
+        if (errorCode) { return fail("cannot move '" + record->sourcePath + "': " + errorCode.message()); }
+
+        // The sidecar follows the file. If it will not, the move is undone rather than left half
+        // done: an orphaned source file gets a fresh id on the next scan, which silently breaks
+        // every reference to it.
+        const std::filesystem::path sidecarFrom{from.generic_string() + kSidecarExtension};
+        const std::filesystem::path sidecarTo{to.generic_string() + kSidecarExtension};
+
+        errorCode.clear();
+        if (std::filesystem::exists(sidecarFrom, errorCode))
+        {
+            errorCode.clear();
+            std::filesystem::rename(sidecarFrom, sidecarTo, errorCode);
+            if (errorCode)
+            {
+                std::error_code rollback;
+                std::filesystem::rename(to, from, rollback);
+                return fail("cannot move the sidecar for '" + record->sourcePath + "': "
+                            + errorCode.message());
+            }
+        }
+
+        idsByPath_.erase(record->sourcePath);
+        record->sourcePath = destination;
+        idsByPath_[destination] = id;
+
+        // Rewritten because the sidecar records its own path nowhere -- but its stamp is about the
+        // file, and a move is a good moment to be sure the two agree.
+        writeSidecar(id);
+        return true;
+    }
+
     bool AssetDatabase::isMissing(const Uuid& id) const
     {
         const AssetRecord* record = find(id);
