@@ -1214,3 +1214,83 @@ CNA_EDITOR_TEST(ASidecarThisBuildCannotReadKeepsItsIdAndIsLeftAlone)
 
     std::filesystem::remove_all(directory);
 }
+
+// --------------------------------------------------------------------------------------------
+// Layers (plan.md ED-305)
+// --------------------------------------------------------------------------------------------
+
+CNA_EDITOR_TEST(AProjectCarriesItsLayersAndNeverHasNone)
+{
+    Project project = Project::createDefault("Layered", "/tmp/layered");
+    CNA_EDITOR_EXPECT_EQ(project.getLayers().size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(project.getLayers().front(), std::string{Project::kDefaultLayer});
+
+    project.setLayers({"Background", "Default", "Foreground"});
+    CNA_EDITOR_EXPECT_EQ(project.getLayers().size(), std::size_t{3});
+
+    // The order is the meaning -- index 0 draws first -- so it has to survive a round trip exactly.
+    Project reloaded;
+    CNA_EDITOR_EXPECT(reloaded.loadFromJson(project.toJson()).succeeded);
+    CNA_EDITOR_EXPECT_EQ(reloaded.getLayers().front(), std::string{"Background"});
+    CNA_EDITOR_EXPECT_EQ(reloaded.getLayers().back(), std::string{"Foreground"});
+
+    // An empty list is refused rather than accepted and repaired, so a caller that computed one
+    // finds out here instead of later.
+    project.setLayers({});
+    CNA_EDITOR_EXPECT_EQ(project.getLayers().size(), std::size_t{3});
+}
+
+CNA_EDITOR_TEST(AProjectFileWrittenBeforeLayersExistedStillOpens)
+{
+    // The additive-field promise, tested rather than asserted in a comment: no formatVersion was
+    // bumped for layers, so a file from before them has to load and get the default.
+    JsonValue json = JsonValue::makeObject();
+    json.set("formatVersion", JsonValue{Project::kFormatVersion});
+    json.set("name", JsonValue{"Older"});
+    json.set("kind", JsonValue{"CnaNative"});
+
+    Project project;
+    CNA_EDITOR_EXPECT(project.loadFromJson(json).succeeded);
+    CNA_EDITOR_EXPECT_EQ(project.getLayers().size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(project.getLayers().front(), std::string{Project::kDefaultLayer});
+
+    // As does one hand-edited down to nothing, or to blanks.
+    JsonValue blanks = JsonValue::makeArray();
+    blanks.append(JsonValue{""});
+    json.set("layers", std::move(blanks));
+    CNA_EDITOR_EXPECT(project.loadFromJson(json).succeeded);
+    CNA_EDITOR_EXPECT_EQ(project.getLayers().front(), std::string{Project::kDefaultLayer});
+}
+
+CNA_EDITOR_TEST(TheDefaultLayerNameMatchesTheProjects)
+{
+    // Two constants, deliberately: cna-editor-scene links cna-editor-core and nothing else, so
+    // reaching into the project module for one string would trade a duplicated literal for a
+    // dependency the build graph is meant to forbid. This is what keeps them honest.
+    CNA_EDITOR_EXPECT_EQ(std::string{kDefaultLayerName}, std::string{Project::kDefaultLayer});
+}
+
+CNA_EDITOR_TEST(TheLayerComponentOffersWhateverTheProjectDeclares)
+{
+    ComponentRegistry registry;
+    registerBuiltinComponents(registry);
+
+    const ComponentDescriptor* descriptor = registry.find(BuiltinComponentIds::kLayer);
+    CNA_EDITOR_EXPECT(descriptor != nullptr);
+    CNA_EDITOR_EXPECT_EQ(descriptor->findProperty("layer")->enumOptions.size(), std::size_t{1});
+
+    applyProjectLayers(registry, {"Background", "Default", "Foreground"});
+
+    descriptor = registry.find(BuiltinComponentIds::kLayer);
+    CNA_EDITOR_EXPECT(descriptor != nullptr);
+    const PropertyDescriptor* layer = descriptor->findProperty("layer");
+    CNA_EDITOR_EXPECT(layer != nullptr);
+    CNA_EDITOR_EXPECT_EQ(layer->enumOptions.size(), std::size_t{3});
+    CNA_EDITOR_EXPECT_EQ(layer->enumOptions.front(), std::string{"Background"});
+
+    // An empty list is ignored: a component whose enum has no options is one nothing can be set
+    // to, and leaving the previous list in place is the more useful failure.
+    applyProjectLayers(registry, {});
+    CNA_EDITOR_EXPECT_EQ(registry.find(BuiltinComponentIds::kLayer)->findProperty("layer")->enumOptions.size(),
+                         std::size_t{3});
+}

@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **247 passing tests across 7 CTest suites** (10 with CNA)
+- 12 modules, three executables, and **254 passing tests across 7 CTest suites** (10 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -35,6 +35,8 @@ checkout, no GPU and no window:
 - the scene draws with an adaptive grid, sprites ordered by layer depth, selection outlines, a
   **translate gizmo** whose drag is one undo entry, and **icons** for entities that have no
   geometry to draw
+- **layers and tags**: layers are a project-level ordered list that drives the `CNA.Layer`
+  choices, editable and undoable from the Inspector; tags are a `List<String>` component
 - **list properties** exist end to end: declared element type, JSON array encoding, and an
   inspector block that adds, removes and reorders — each press its own undo entry
 - **edits reach the running game**: a property change, its undo, and a texture changed on disk
@@ -242,7 +244,7 @@ position in the inspector, undo, save the scene, and run it in a separate CNA Pl
 | ED-302 | `SpriteFont` preview and importer settings | ⬜ |
 | ED-303 | Sprite animation editor with a timeline | ⬜ |
 | ED-304 | Audio source and listener editing, with preview playback | ⬜ |
-| ED-305 | Layers and tags | ⬜ |
+| ED-305 | Layers and tags | ✅ | Layers live in the `.cnaproject`, because one named in one level and missing from the next would make moving an entity between them silently change what it is; the order is the meaning, so it is a list. The list drives `CNA.Layer`'s choices by re-registering the descriptor — exactly the escape hatch `ComponentRegistry` documents. Renaming a layer leaves entities holding the old name **on purpose**: which of the remaining layers they meant is the user's decision, and the Validation panel reports it rather than the editor guessing. Tags are their own component holding a `List<String>`, not fields on `EditorEntity` — a tag is a game concept and the entity type deliberately is not one (D-04). The idle Inspector now edits project settings instead of saying "Nothing selected", and the layer edit is undoable and written through |
 | ED-306 | Asset hot-reload into a running player over the bridge | ✅ | The watcher already noticed the file and the editor already dropped its own cached texture; what was missing was telling the player. Sent **by id**, like everything else on this wire (D-08), so a reload survives the file being renamed between the change and the message, and both sides resolve it through the database they each scanned. The player rescans before looking the id up — a record still carrying the old stamp would make its next scan think the asset changed again. `PlayerHost::takeReloadedAssets()` is the seam the CNA-linked half drains to drop its caches; **it draws nothing yet**, so today a hot-reload is observable in the player's log and asset database rather than on screen |
 | ED-307 | Live property editing into a running player | ✅ | One hook, because every document change goes through a command (D-06) — there is no second path an edit could take. `EditorContext` gained a command observer; the application mirrors a `SetPropertyCommand` and leaves everything else alone rather than guessing, since a partially applied scene in the player is worse than a stale one. Undo and redo mirror too: a player that saw the edit but not its reversal would be showing a state that exists nowhere. The value is read from the **document**, not from the command, because after an undo the live value is the old one |
 | ED-308 | Build and publish dialog driving CNA's own CMake targets | ⬜ |

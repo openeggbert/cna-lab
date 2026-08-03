@@ -198,6 +198,52 @@ namespace CNA::Editor
             };
             return descriptor;
         }
+
+        ComponentDescriptor makeTags()
+        {
+            ComponentDescriptor descriptor;
+            descriptor.typeId = BuiltinComponentIds::kTags;
+            descriptor.displayName = "Tags";
+            descriptor.category = "Core";
+
+            // Its own component rather than a field on EditorEntity. A tag is a *game* concept,
+            // and the entity type is deliberately not one (D-04); an entity that never needed a
+            // tag should not carry an empty list of them into every scene file.
+            PropertyDescriptor tags = makeProperty(
+                "tags", "Tags", PropertyType::List, PropertyValue{PropertyValue::ListValue{}},
+                "Free-form labels the game can query. Order is not meaningful.");
+            tags.elementType = PropertyType::String;
+
+            descriptor.properties = {std::move(tags)};
+            return descriptor;
+        }
+
+        ComponentDescriptor makeLayer(const std::vector<std::string>& layers)
+        {
+            ComponentDescriptor descriptor;
+            descriptor.typeId = BuiltinComponentIds::kLayer;
+            descriptor.displayName = "Layer";
+            descriptor.category = "Core";
+
+            PropertyDescriptor layer = makeProperty(
+                "layer", "Layer", PropertyType::Enum,
+                PropertyValue{PropertyValue::EnumValue{layers.empty() ? std::string{kDefaultLayerName}
+                                                                      : layers.front()}},
+                "Which of the project's render layers this entity belongs to.");
+            layer.enumOptions = layers;
+
+            descriptor.properties = {std::move(layer)};
+            return descriptor;
+        }
+    }
+
+    void applyProjectLayers(ComponentRegistry& registry, const std::vector<std::string>& layers)
+    {
+        // Ignored rather than obeyed: a component whose enum has no options is one nothing can be
+        // set to, and leaving the previous list in place is the more useful failure.
+        if (layers.empty()) { return; }
+
+        registry.registerComponent(makeLayer(layers));
     }
 
     void registerBuiltinComponents(ComponentRegistry& registry)
@@ -208,5 +254,7 @@ namespace CNA::Editor
         registry.registerComponent(makeAudioSource());
         registry.registerComponent(makeModelRenderer());
         registry.registerComponent(makeLight());
+        registry.registerComponent(makeTags());
+        registry.registerComponent(makeLayer({kDefaultLayerName}));
     }
 }

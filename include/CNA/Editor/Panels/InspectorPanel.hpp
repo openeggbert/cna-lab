@@ -33,6 +33,15 @@ namespace CNA::Editor
         /** @brief Draws the selected asset's import settings, in place of the entity view. */
         void drawAssetInspector(const Uuid& assetId);
 
+        /**
+         * @brief Draws the open project's settings, shown when nothing is selected.
+         *
+         * The idle inspector used to say "Nothing selected" and stop. Project-level settings have
+         * to be editable somewhere, there is no dialog system to put them in, and a panel that is
+         * blank half the time is a panel with room in it.
+         */
+        void drawProjectInspector();
+
         /** @brief Draws the "Add Component" picker for @p entity. */
         void drawAddComponentControl(const EditorEntity& entity);
 

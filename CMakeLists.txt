@@ -179,7 +179,8 @@ target_link_libraries(cna-editor-plugins PUBLIC cna-editor-core)
 # depends on core -- a cycle. Keeping the hub in its own module is what lets the dependency graph
 # stay acyclic and the layering stay checkable by the build system rather than by review.
 add_library(cna-editor-context STATIC
-    src/context/EditorContext.cpp)
+    src/context/EditorContext.cpp
+    src/context/ProjectCommands.cpp)
 target_link_libraries(cna-editor-context PUBLIC
     cna-editor-scene
     cna-editor-assets

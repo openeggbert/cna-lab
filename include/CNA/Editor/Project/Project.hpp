@@ -157,6 +157,24 @@ namespace CNA::Editor
         [[nodiscard]] const std::vector<std::string>& getTargetPlatforms() const { return targetPlatforms_; }
         void setTargetPlatforms(std::vector<std::string> platforms) { targetPlatforms_ = std::move(platforms); }
 
+        /**
+         * @brief Returns the render layers, in back-to-front order.
+         *
+         * A property of the game, not of one level: a layer named in one scene and missing from
+         * the next would make moving an entity between scenes silently change what it is. The
+         * order is the meaning -- index 0 draws first -- so this is a list rather than a set.
+         *
+         * Never empty. A project with no layers could not have a valid entity, so the reader
+         * substitutes the default rather than leaving a state nothing can point at.
+         */
+        [[nodiscard]] const std::vector<std::string>& getLayers() const { return layers_; }
+
+        /** @brief Replaces the layer list. An empty list is refused, leaving the previous one. */
+        void setLayers(std::vector<std::string> layers);
+
+        /** @brief The layer every entity starts on, and the one a project is created with. */
+        static constexpr const char* kDefaultLayer = "Default";
+
         /** @brief CNA modules the game links, e.g. "cna-core", "cna-audio". */
         [[nodiscard]] const std::vector<std::string>& getModules() const { return modules_; }
         void setModules(std::vector<std::string> modules) { modules_ = std::move(modules); }
@@ -193,6 +211,7 @@ namespace CNA::Editor
         std::string sceneDirectory_ = "Scenes";
         std::string defaultGraphicsBackend_ = "easygl";
         std::vector<std::string> targetPlatforms_{"linux-x64"};
+        std::vector<std::string> layers_{kDefaultLayer};
         std::vector<std::string> modules_{"cna-core"};
         std::vector<std::string> plugins_;
     };

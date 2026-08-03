@@ -168,6 +168,44 @@ namespace CNA::Editor
                 "Sprite Renderer has no texture, so it draws nothing."));
         }
 
+        /**
+         * @brief Reports a stored enum value that is not one of the declared options.
+         *
+         * General rather than layer-specific, though renaming a layer is what makes it fire in
+         * practice: the project's layer list drives `CNA.Layer`'s options, so an entity left on
+         * "Background" after that layer was renamed says so here instead of silently belonging to
+         * nothing. The value is *kept*, not repaired -- rewriting it would decide for the user
+         * which of the remaining layers they meant.
+         */
+        void checkEnums(const EditorEntity& entity,
+                        const EditorComponent& component,
+                        const ComponentDescriptor& descriptor,
+                        std::vector<SceneIssue>& issues)
+        {
+            for (const PropertyDescriptor& property : descriptor.properties)
+            {
+                if (property.type != PropertyType::Enum || property.enumOptions.empty()) { continue; }
+
+                const PropertyValue stored = component.getProperty(property.name);
+                if (stored.getType() != PropertyType::Enum) { continue; }
+
+                const std::string& name = stored.get<PropertyValue::EnumValue>().name;
+                if (name.empty()) { continue; }
+                if (std::find(property.enumOptions.begin(), property.enumOptions.end(), name)
+                    != property.enumOptions.end())
+                {
+                    continue;
+                }
+
+                const std::string label =
+                    property.displayName.empty() ? property.name : property.displayName;
+                issues.push_back(makeIssue(
+                    SceneIssue::Severity::Warning, "unknown-enum-value", entity, descriptor.typeId,
+                    label + " is \"" + name + "\", which is not one of the choices this build "
+                            "offers. It was kept rather than replaced."));
+            }
+        }
+
         void checkComponentSet(const EditorEntity& entity,
                                const ComponentRegistry& registry,
                                std::vector<SceneIssue>& issues)
@@ -187,6 +225,8 @@ namespace CNA::Editor
                             "run it -- a plugin is probably missing."));
                     continue;
                 }
+
+                checkEnums(entity, component, *descriptor, issues);
 
                 if (!descriptor->unique) { continue; }
 

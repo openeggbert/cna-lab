@@ -80,6 +80,10 @@ namespace CNA::Editor
         for (const std::string& platform : targetPlatforms_) { platforms.append(JsonValue{platform}); }
         json.set("targetPlatforms", std::move(platforms));
 
+        JsonValue layers = JsonValue::makeArray();
+        for (const std::string& layer : layers_) { layers.append(JsonValue{layer}); }
+        json.set("layers", std::move(layers));
+
         JsonValue modules = JsonValue::makeArray();
         for (const std::string& module : modules_) { modules.append(JsonValue{module}); }
         json.set("modules", std::move(modules));
@@ -97,6 +101,14 @@ namespace CNA::Editor
     {
         static const FormatMigrator migrator{"project", Project::kFormatVersion};
         return migrator;
+    }
+
+    void Project::setLayers(std::vector<std::string> layers)
+    {
+        // Refused rather than accepted and repaired, so a caller that computed an empty list finds
+        // out here instead of discovering later that its change did not take.
+        if (layers.empty()) { return; }
+        layers_ = std::move(layers);
     }
 
     ProjectLoadResult Project::loadFromJson(const JsonValue& json, const FormatMigrator* migrator)
@@ -153,6 +165,21 @@ namespace CNA::Editor
             targetPlatforms_.push_back(platform.asString());
         }
         if (targetPlatforms_.empty()) { targetPlatforms_.push_back("linux-x64"); }
+
+        layers_.clear();
+        for (const JsonValue& layer : document["layers"].getElements())
+        {
+            // A blank name would be a layer nothing could refer to and everything could be
+            // mistaken for, so it is dropped rather than kept as an unnameable entry.
+            const std::string name = layer.asString();
+            if (!name.empty()) { layers_.push_back(name); }
+        }
+        if (layers_.empty())
+        {
+            // Both the "written by a build before layers existed" case and the "hand-edited to
+            // nothing" case. A project with no layers has no valid layer for an entity to be on.
+            layers_.push_back(kDefaultLayer);
+        }
 
         modules_.clear();
         for (const JsonValue& module : document["modules"].getElements()) { modules_.push_back(module.asString()); }

@@ -18,6 +18,7 @@
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
 #include "CNA/Editor/Project/RecoveryStore.hpp"
+#include "CNA/Editor/ProjectCommands.hpp"
 #include "CNA/Editor/Scene/MissingReferences.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -2301,4 +2302,52 @@ CNA_EDITOR_TEST(TheInspectorAddsRemovesAndReordersListElements)
     CNA_EDITOR_EXPECT_EQ(tagsOf(context, entityId), std::string{"solid, ground"});
     application.undo();
     CNA_EDITOR_EXPECT_EQ(tagsOf(context, entityId), std::string{"ground, solid"});
+}
+
+CNA_EDITOR_TEST(TheInspectorEditsTheProjectsLayersWhenNothingIsSelected)
+{
+    RecoveryFixture fixture{"layers", 0.0};
+    EditorContext& context = fixture.context();
+    ScriptedUi* ui = fixture.ui;
+
+    // Nothing selected: the panel used to say so and stop. Project settings have to be editable
+    // somewhere, and a panel that is blank half the time has room in it.
+    context.clearSelection();
+    fixture.application->renderFrame();
+    CNA_EDITOR_EXPECT(ui->sawStringNode("project-layers"));
+    CNA_EDITOR_EXPECT(ui->sawText("Project: Recovered"));
+
+    ui->pendingClicks.emplace_back("Add##project-layers");
+    fixture.application->renderFrame();
+    CNA_EDITOR_EXPECT_EQ(context.getProject().getLayers().size(), std::size_t{2});
+
+    ui->pendingEdits.emplace_back("1##project-layers-1", PropertyValue{std::string{"Foreground"}});
+    fixture.application->renderFrame();
+    CNA_EDITOR_EXPECT_EQ(context.getProject().getLayers().back(), std::string{"Foreground"});
+
+    // The component's choices follow the project, because the descriptor is re-registered.
+    const ComponentDescriptor* layer = context.getComponentRegistry().find(BuiltinComponentIds::kLayer);
+    CNA_EDITOR_EXPECT(layer != nullptr);
+    CNA_EDITOR_EXPECT_EQ(layer->findProperty("layer")->enumOptions.size(), std::size_t{2});
+
+    // Written through, like an importer setting: a project change that lived only in memory would
+    // be lost by a crash the recovery snapshot cannot help with, since that holds the scene.
+    Project onDisk;
+    CNA_EDITOR_EXPECT(onDisk.loadFromFile(fixture.projectPath()).succeeded);
+    CNA_EDITOR_EXPECT_EQ(onDisk.getLayers().size(), std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(onDisk.getLayers().back(), std::string{"Foreground"});
+
+    // And it undoes, in both the project and the registry -- an editor where some edits undo and
+    // others quietly do not is worse than one where nothing does.
+    fixture.application->undo();
+    CNA_EDITOR_EXPECT_EQ(context.getProject().getLayers().back(), std::string{"Layer 1"});
+    fixture.application->undo();
+    CNA_EDITOR_EXPECT_EQ(context.getProject().getLayers().size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(
+        context.getComponentRegistry().find(BuiltinComponentIds::kLayer)->findProperty("layer")->enumOptions.size(),
+        std::size_t{1});
+
+    // The last layer has no Remove button: a project with none has nothing for an entity to be on.
+    fixture.application->renderFrame();
+    CNA_EDITOR_EXPECT(!ui->sawButton("Remove##project-layers-0"));
 }

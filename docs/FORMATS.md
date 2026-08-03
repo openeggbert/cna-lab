@@ -33,6 +33,7 @@ project is relative to it and uses forward slashes on all platforms.
   "assetDirectory": "Assets",
   "sceneDirectory": "Scenes",
   "defaultGraphicsBackend": "easygl",
+  "layers": ["Background", "Default", "Foreground"],
   "targetPlatforms": ["linux-x64", "windows-x64"],
   "modules": ["cna-core", "cna-graphics-2d", "cna-audio"],
   "plugins": ["org.openeggbert.mc3"]
@@ -48,9 +49,26 @@ project is relative to it and uses forward slashes on all platforms.
 | `assetDirectory` | string | `"Assets"` | Scanned by the asset database |
 | `sceneDirectory` | string | `"Scenes"` | Where new scenes are created |
 | `defaultGraphicsBackend` | string | `"easygl"` | Which player build the Play button prefers |
+| `layers` | string[] | `["Default"]` | Render layers, back to front. Never empty |
 | `targetPlatforms` | string[] | `["linux-x64"]` | Offered by the build dialog |
 | `modules` | string[] | `["cna-core"]` | CNA modules the game links |
 | `plugins` | string[] | `[]` | Plugin ids to load for this project |
+
+### `layers`
+
+Layers belong to the project, not to a scene: one named in one level and missing from the next would
+make moving an entity between them silently change what it is. The **order is the meaning** — index
+0 draws first — so this is a list, not a set, and moving an entry is a real edit.
+
+It is never empty. A project with no layers has nothing for an entity to be on, so a file that omits
+the field, or is hand-edited down to nothing or to blanks, gets `["Default"]` back. The field was
+added without a `formatVersion` bump, which is what "additive changes need no migration" means in
+practice; a project written before layers existed opens and gains the default.
+
+The list drives `CNA.Layer`'s choices by re-registering that component's descriptor. Renaming a
+layer therefore leaves entities holding a name that is no longer offered — and they are left that
+way on purpose. Which of the remaining layers the user meant is their decision, not the editor's, so
+the Validation panel reports it (`unknown-enum-value`) instead.
 
 ### `kind`
 

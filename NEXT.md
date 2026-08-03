@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 247 / 247 (also under Clang Release) |
+| Unit tests | ✅ 254 / 254 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -85,6 +85,15 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-305** layers and tags. Layers live in the `.cnaproject` (a property of the game, not of one
+  level) and drive `CNA.Layer`'s choices by re-registering the descriptor. Renaming a layer leaves
+  entities holding the old name deliberately -- which of the remaining layers they meant is the
+  user's decision -- and the new `unknown-enum-value` validation rule reports it. Tags are their own
+  component holding a `List<String>`. `SetProjectLayersCommand` lives in `cna-editor-context`
+  because it has to touch both the project and the registry, and neither of those modules may
+  depend on the other. The idle Inspector now edits project settings instead of saying "Nothing
+  selected". No `formatVersion` bump: `layers` is an additive field, and there is a test that a
+  project file written before it existed still opens.
 - **ED-311 (part)** `PropertyType::List`. Element type declared on the descriptor, never
   inferred. `"list"` appended to the type-name table, not inserted, because those names are on the
   wire. The inspector draws a collapsible block; every change returns the whole new list, so add,
@@ -172,9 +181,9 @@ Phase 1 closed. Working through the owner's priority order:
    `formatVersion` was bumped; `.cnarecovery` is a *new* format at version 1, not a change to an
    existing one.
 2. ~~**Live editing into the running player**~~ ✅ — ED-306 and ED-307 are done.
-3. **Production 2D tools** ← *current* — `PropertyType::List` is in (ED-311 is 🔄: only
-   `NestedStructure` is left, and it waits for ED-300). Next: ED-305 layers and tags, ED-300
-   prefabs, ED-301 tilemap.
+3. **Production 2D tools** ← *current* — `PropertyType::List` (ED-311 🔄) and layers and tags
+   (ED-305 ✅) are in. Next: ED-300 prefabs, which is also where `NestedStructure` finally has a
+   consumer and ED-311 can close; then ED-301 tilemap.
 4. **ED-510** backend comparison mode.
 
 ---
@@ -211,20 +220,26 @@ Phase 1 closed. Working through the owner's priority order:
 Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are closed and
 `PropertyType::List` is in, which was the thing blocking the rest of priority 3.
 
-The next task is **ED-305, layers and tags**. It is the smallest consumer of the new list type and
-therefore the one that will show whether the type is right before three features depend on it: tags
-are a `List<String>` on a component, and layers are an `Enum` plus a project-level list of layer
-names. Two decisions to make when starting, neither blocking:
+The next task is **ED-300, prefabs**, and it is the largest single item left in Phase 2. It is also
+where `NestedStructure` finally has a consumer, so ED-311 can close alongside it.
 
-- Whether the layer list lives in the `.cnaproject` or in the scene. The project, most likely —
-  layers are a property of the game, not of one level — but that makes it the first *project*-level
-  schema the inspector has to edit, and there is no panel for that yet.
-- Whether tags are their own component or fields on every entity. A component keeps the entity
-  model untouched and costs an Add Component press; fields on the entity make them universal but
-  put game concepts into `EditorEntity`, which D-04 argues against.
+What exists to build on: entity duplication (`DuplicateEntityCommand`), asset identity by Uuid
+(D-08), and a component/property model that already round-trips types it was never compiled
+against. What does not exist is any notion of one document referring to part of another.
 
-Then **ED-300 prefabs** — which is also where `NestedStructure` finally has a consumer and ED-311
-can close — and **ED-301 tilemap**.
+Three decisions to make before writing code, and the first is the one that determines the rest:
+
+- **What a prefab file is.** A `.cnaprefab` holding one entity subtree in the same shape a
+  `.cnascene` holds many is the obvious answer, and it means the existing reader works. It also
+  makes a prefab an *asset*, with an id, which is what an instance has to reference.
+- **How an instance stores its overrides.** A per-instance map of (entity path, component,
+  property) to value. That is what needs `NestedStructure`, or a list of small records — decide
+  which when the shape is real, not before.
+- **What "apply" does to instances that already diverged.** The honest answer is usually "leave
+  divergent properties alone and update the rest", but it must be decided rather than discovered.
+
+Whatever the answers, `.cnaprefab` is a **new** format at version 1, not a change to an existing
+one, so it needs no `formatVersion` bump anywhere. Keep ED-902's chains empty.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
 chains are empty on purpose. Adding a property type must not change what an existing scene file

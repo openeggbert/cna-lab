@@ -2,10 +2,12 @@
 #include "CNA/Editor/Panels/InspectorPanel.hpp"
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "CNA/Editor/Assets/AssetCommands.hpp"
 #include "CNA/Editor/EditorContext.hpp"
+#include "CNA/Editor/ProjectCommands.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
@@ -27,7 +29,7 @@ namespace CNA::Editor
         const EditorEntity* entity = context_.getScene().findEntity(selectedId);
         if (entity == nullptr)
         {
-            ui_.text("Nothing selected.");
+            drawProjectInspector();
             ui_.endPanel();
             return;
         }
@@ -260,6 +262,99 @@ namespace CNA::Editor
         }
 
         return PropertyValue{PropertyValue::AssetReference{assetId}};
+    }
+
+    void InspectorPanel::drawProjectInspector()
+    {
+        if (!context_.hasProject())
+        {
+            ui_.text("Nothing selected. Open a project to edit its settings here.");
+            return;
+        }
+
+        const Project& project = context_.getProject();
+        ui_.text("Project: " + project.getName());
+        ui_.text("Root: " + project.getRootPath());
+        ui_.separator();
+
+        std::vector<std::string> layers = project.getLayers();
+        const std::string id = "project-layers";
+
+        const UiTreeNodeResult node =
+            ui_.treeNode(id, "Layers  (" + std::to_string(layers.size()) + ")", false, false);
+        if (!node.expanded) { return; }
+
+        bool changed = false;
+        std::optional<std::size_t> removeIndex;
+        std::optional<std::size_t> moveUpIndex;
+
+        for (std::size_t index = 0; index < layers.size(); ++index)
+        {
+            const std::string rowId = "##" + id + "-" + std::to_string(index);
+
+            PropertyValue name{layers[index]};
+            if (ui_.propertyField(std::to_string(index) + rowId, name))
+            {
+                // A blank name is refused rather than stored: a layer nothing can refer to and
+                // everything can be mistaken for is worse than the name it had.
+                const std::string edited = name.get<std::string>();
+                if (!edited.empty() && edited != layers[index])
+                {
+                    layers[index] = edited;
+                    changed = true;
+                }
+            }
+
+            if (index > 0)
+            {
+                ui_.sameLine();
+                if (ui_.button("Up" + rowId)) { moveUpIndex = index; }
+            }
+            if (index + 1 < layers.size())
+            {
+                ui_.sameLine();
+                if (ui_.button("Down" + rowId)) { moveUpIndex = index + 1; }
+            }
+
+            // The last layer has no Remove button. A project with none has nothing for an entity
+            // to be on, and the command would refuse it anyway -- so it is not offered.
+            if (layers.size() > 1)
+            {
+                ui_.sameLine();
+                if (ui_.button("Remove" + rowId)) { removeIndex = index; }
+            }
+        }
+
+        if (ui_.button("Add##" + id))
+        {
+            layers.push_back("Layer " + std::to_string(layers.size()));
+            changed = true;
+        }
+
+        ui_.treePop();
+
+        if (removeIndex && *removeIndex < layers.size())
+        {
+            layers.erase(layers.begin() + static_cast<std::ptrdiff_t>(*removeIndex));
+            changed = true;
+        }
+        else if (moveUpIndex && *moveUpIndex > 0 && *moveUpIndex < layers.size())
+        {
+            // The order is the meaning -- index 0 draws first -- so moving a layer is a real edit,
+            // not a cosmetic reordering of a list.
+            std::swap(layers[*moveUpIndex], layers[*moveUpIndex - 1]);
+            changed = true;
+        }
+
+        if (!changed) { return; }
+
+        auto command = std::make_unique<SetProjectLayersCommand>(
+            context_.getProject(), context_.getComponentRegistry(), std::move(layers));
+        if (!command->isValid()) { return; }
+
+        const std::string summary = command->getDescription();
+        context_.execute(std::move(command));
+        context_.log(LogSeverity::Info, summary + ".");
     }
 
     void InspectorPanel::drawAssetInspector(const Uuid& assetId)

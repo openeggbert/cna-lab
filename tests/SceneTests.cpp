@@ -13,6 +13,7 @@
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Scene/SceneValidation.hpp"
+#include "CNA/Editor/Project/Project.hpp"
 
 using namespace CNA::Editor;
 
@@ -586,4 +587,67 @@ CNA_EDITOR_TEST(IssuesComeBackInDocumentOrder)
 
     // Pure: the same document must produce the same report, or it cannot be diffed or asserted on.
     CNA_EDITOR_EXPECT(validateScene(scene, registry).size() == issues.size());
+}
+
+CNA_EDITOR_TEST(AnEntityLeftOnARenamedLayerIsReportedNotRewritten)
+{
+    ComponentRegistry registry = makeRegistry();
+    applyProjectLayers(registry, {"Background", "Default"});
+
+    SceneDocument scene;
+    EditorEntity entity = makeEntity(registry, "Backdrop", 0.0f, 0.0f);
+    addComponentWithDefaults(entity, registry, BuiltinComponentIds::kSpriteRenderer);
+    EditorComponent& layer = addComponentWithDefaults(entity, registry, BuiltinComponentIds::kLayer);
+    layer.setProperty("layer", PropertyValue{PropertyValue::EnumValue{"Background"}});
+    const Uuid entityId = scene.addEntity(std::move(entity));
+
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(scene, registry), "unknown-enum-value"), std::size_t{0});
+
+    // Rename the layer out from under it, which is exactly what editing the project's layer list
+    // does. The stored value is kept: which of the remaining layers the user meant is their
+    // decision, not the editor's.
+    applyProjectLayers(registry, {"Backdrop", "Default"});
+
+    const std::vector<SceneIssue> issues = validateScene(scene, registry);
+    CNA_EDITOR_EXPECT_EQ(countRule(issues, "unknown-enum-value"), std::size_t{1});
+
+    const EditorComponent* stored = scene.findEntity(entityId)->findComponent(BuiltinComponentIds::kLayer);
+    CNA_EDITOR_EXPECT_EQ(stored->getProperty("layer").get<PropertyValue::EnumValue>().name,
+                         std::string{"Background"});
+
+    // And it is a warning, not an error: the scene still runs and nothing was lost.
+    CNA_EDITOR_EXPECT_EQ(countIssues(issues, SceneIssue::Severity::Error), std::size_t{0});
+}
+
+CNA_EDITOR_TEST(TagsAreAListOnTheirOwnComponent)
+{
+    const ComponentRegistry registry = makeRegistry();
+
+    // Its own component rather than a field on EditorEntity: a tag is a game concept and the
+    // entity type is deliberately not one (D-04).
+    const ComponentDescriptor* descriptor = registry.find(BuiltinComponentIds::kTags);
+    CNA_EDITOR_EXPECT(descriptor != nullptr);
+
+    const PropertyDescriptor* tags = descriptor->findProperty("tags");
+    CNA_EDITOR_EXPECT(tags != nullptr);
+    CNA_EDITOR_EXPECT(tags->type == PropertyType::List);
+    CNA_EDITOR_EXPECT(tags->elementType == PropertyType::String);
+
+    SceneDocument scene;
+    EditorEntity entity = makeEntity(registry, "Enemy", 0.0f, 0.0f);
+    EditorComponent& component = addComponentWithDefaults(entity, registry, BuiltinComponentIds::kTags);
+
+    PropertyValue::ListValue list;
+    list.items.emplace_back(std::string{"enemy"});
+    list.items.emplace_back(std::string{"spawns-loot"});
+    component.setProperty("tags", PropertyValue{list});
+    scene.addEntity(std::move(entity));
+
+    SceneDocument reloaded;
+    CNA_EDITOR_EXPECT(reloaded.loadFromJson(scene.toJson(), registry).succeeded);
+    CNA_EDITOR_EXPECT(reloaded.getEntities().front().findComponent(BuiltinComponentIds::kTags)
+                          ->getProperty("tags") == PropertyValue{list});
+
+    // An entity carrying only a transform and a tag list still does nothing, and says so.
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(reloaded, registry), "empty-entity"), std::size_t{0});
 }

@@ -27,6 +27,12 @@ namespace CNA::Editor
         log(LogSeverity::Info, "Opened project '" + project_.getName() + "' ("
                                    + toString(project_.getKind()) + ") at " + project_.getRootPath());
 
+        // The project's layer list drives CNA.Layer's choices, and it changes with the project.
+        // Re-registering replaces the descriptor and touches no loaded document, so an entity on a
+        // layer this project does not have keeps its value and is reported by scene validation
+        // rather than silently rewritten to something the user did not choose.
+        applyProjectLayers(components_, project_.getLayers());
+
         assets_.clear();
         assets_.setProjectRoot(project_.getRootPath());
         const AssetScanResult scan = assets_.scan(project_.getAssetDirectory());
