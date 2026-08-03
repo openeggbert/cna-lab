@@ -104,7 +104,8 @@ target_link_libraries(cna-editor-assets PUBLIC cna-editor-core)
 
 # cna-editor-project -- the .cnaproject format and the backend capability table.
 add_library(cna-editor-project STATIC
-    src/project/Project.cpp)
+    src/project/Project.cpp
+    src/project/RecoveryStore.cpp)
 target_link_libraries(cna-editor-project PUBLIC cna-editor-core)
 
 # cna-editor-ui -- the toolkit-independent UI surface plus its null implementation, and the two

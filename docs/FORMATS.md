@@ -246,6 +246,55 @@ permanently break every reference to it, so the database reports it as missing i
 
 ---
 
+## `.cnarecovery`
+
+Not an authoring format. One file per unsaved scene, under the user's *state* directory
+(`$XDG_STATE_HOME/cna-editor/recovery`, or the platform equivalent), written every
+`--autosave=SECONDS` while the open document differs from its file and deleted the moment it
+matches again. Nothing in a project ever references one, and none is ever written beside a project.
+
+```json
+{
+  "formatVersion": 1,
+  "projectPath": "/home/me/MyGame/MyGame.cnaproject",
+  "scenePath": "/home/me/MyGame/Scenes/Level01.cnascene",
+  "sceneName": "Level01",
+  "sceneId": "c486b3f0-2a41-4d6b-9f18-7e0c5a1b4d92",
+  "savedAt": 1754236800,
+  "scene": { "formatVersion": 1, "…": "the whole .cnascene document, verbatim" }
+}
+```
+
+The file name is `<sceneId>.cnarecovery`, so a scene has one snapshot rather than an accumulating
+pile. `projectPath` is what the editor matches on when a project is reopened: the scene someone was
+editing when the process died is not necessarily the project's startup scene, and offering only the
+latter would silently drop the work.
+
+### Written by rename, never in place
+
+A snapshot goes to `<sceneId>.cnarecovery.tmp` and is renamed over the previous one. A crash *during*
+a snapshot therefore leaves the earlier snapshot intact. A half-written recovery file would be worse
+than none at all — it would fail to load at the one moment it is needed, having already convinced
+its owner their work was safe.
+
+### There is no crash handler
+
+The reliable half of crash recovery is the part that runs *before* the crash. A handler serialising
+a document from inside `SIGSEGV` is calling `malloc` and the filesystem with a corrupted heap: the
+situation in which it is least likely to work is exactly the one it exists for. A snapshot written
+by ordinary code every few seconds is already on disk when the process dies and needs nothing from
+the dying process at all.
+
+### Recovery is offered, never applied
+
+On reopening a project with a snapshot, the editor says so and puts two items in the File menu. It
+does not load the snapshot. Replacing what someone opened with something whose provenance they
+cannot see turns one loss into two. While the offer is outstanding, autosave for that scene is
+suspended and says so — the current session's unsaved seconds are worth less than the previous
+session's unsaved hours, and they share a file name.
+
+---
+
 ## Editor ↔ player wire protocol
 
 One JSON object per line over a stream socket. The framing is the newline, so a message body

@@ -155,6 +155,15 @@ namespace CNA::Editor
          */
         void markSaved() { savedCursor_ = static_cast<std::ptrdiff_t>(cursor_); }
 
+        /**
+         * @brief Declares that no position in this history is the file on disk.
+         *
+         * Used after a crash-recovery restore: the document now holds work that was never saved,
+         * and a fresh history whose starting point claimed to be "saved" would tell the user the
+         * opposite of the truth.
+         */
+        void markUnsaved() { savedCursor_ = -1; }
+
         /** @brief Returns true when the document differs from its last-saved state. */
         [[nodiscard]] bool isDirty() const { return static_cast<std::ptrdiff_t>(cursor_) != savedCursor_; }
 

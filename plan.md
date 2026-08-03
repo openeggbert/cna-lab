@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **224 passing tests across 7 CTest suites** (10 with CNA)
+- 12 modules, three executables, and **233 passing tests across 7 CTest suites** (10 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -44,6 +44,9 @@ checkout, no GPU and no window:
   ([`docs/DESIGN-SCENE-LOADER.md`](docs/DESIGN-SCENE-LOADER.md)), verified by `scene-loader-demo`
   against the real example project
 - a **History panel** shows the undo stack and jumps to any point in it, undone entries included
+- **unsaved work survives a crash**: a `.cnarecovery` snapshot is written every thirty seconds
+  while the document differs from its file, and offered — never silently applied — on reopen
+  ([`docs/FORMATS.md`](docs/FORMATS.md))
 - a **Validation panel** reports what a scene is doing wrong before a build does: broken asset
   references, two cameras both claiming to be primary, a zero scale, an entity that does nothing.
   Every rule describes a legal state, so nothing is refused and nothing is repaired automatically
@@ -303,7 +306,7 @@ run four times. What it needs is a build matrix and image diffing, not new archi
 | ED-900 | CI: build and test on Linux, Windows and macOS, warnings as errors | 🔄 | Linux is live: GCC Debug and Clang Release, both at `-Werror`, plus the full suite, CTest, a headless smoke run and a guard that opening the example does not modify it. Windows and macOS remain. The standalone configuration only — a CNA job needs four sibling checkouts, CNA's SDL submodules and an X server, and is worth adding when the editor has a reason to regress there |
 | ED-901 | Doxygen configuration matching CNA's | ⬜ | |
 | ED-902 | Format migration framework for `.cnaproject`, `.cnascene`, `.cnaasset` | ⬜ | Version gates and rejection already implemented; migration is not |
-| ED-903 | Crash handling: never lose an unsaved document | ⬜ | |
+| ED-903 | Crash handling: never lose an unsaved document | ✅ | Deliberately **not** a signal handler: one serialising a document from inside `SIGSEGV` calls `malloc` and the filesystem with a corrupted heap, so the situation it is least likely to survive is the one it exists for. Instead a `.cnarecovery` snapshot written by ordinary code every `--autosave=SECONDS`, atomically by rename so a crash mid-snapshot leaves the previous one intact, in the user's *state* directory and never beside a project. On reopen the work is **offered**, not applied, and autosave for that scene is suspended until the offer is answered — the current session's unsaved seconds are worth less than the previous session's unsaved hours, and they share a file name |
 | ED-904 | Editor preferences, persisted separately from any project | ⬜ | |
 | ED-905 | Undo history panel | ✅ | Rows are *positions*, not entries, so the state the document was opened in is reachable — it is the one a user asking to "put it back how it was" is aiming at. Undone entries stay on the list rather than disappearing, because they are exactly what a redo is trying to reach. Clicking navigates to that position through the application's own undo, not straight into `CommandHistory`, so a jump prunes the selection like any Ctrl+Z. It does **not** remove one entry from the middle: a command's undo is only valid against the state its `execute()` left behind |
 | ED-906 | Localisation of the UI strings | ⛔ | Deferred: English-only until the panel set stops changing shape |

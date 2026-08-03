@@ -16,6 +16,16 @@ namespace CNA::Editor
             {
                 actions_.saveScene();
             }
+            // Only shown when there is something to recover. A permanently greyed-out pair of
+            // items would teach users to ignore the one message that matters after a crash.
+            if (const RecoverySnapshot* snapshot = actions_.getRecoverableScene())
+            {
+                ui_.separator();
+                const std::string when = formatRecoveryTime(snapshot->savedAtSeconds);
+                if (ui_.menuItem("Recover Unsaved Scene (" + when + ")")) { actions_.recoverScene(); }
+                if (ui_.menuItem("Discard Recovered Scene")) { actions_.discardRecoveredScene(); }
+            }
+
             ui_.separator();
             if (ui_.menuItem("Exit", "Alt+F4")) { /* handled by the UI implementation */ }
             ui_.endMenu();

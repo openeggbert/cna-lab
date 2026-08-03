@@ -13,6 +13,7 @@
  */
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -27,6 +28,7 @@
 #include "CNA/Editor/Panels/HistoryPanel.hpp"
 #include "CNA/Editor/Panels/ValidationPanel.hpp"
 #include "CNA/Editor/Panels/ViewportPanel.hpp"
+#include "CNA/Editor/Project/RecoveryStore.hpp"
 #include "CNA/Editor/RuntimeBridge/PlayerProcess.hpp"
 #include "CNA/Editor/Ui/EditorUi.hpp"
 #include "CNA/Editor/Viewport/EditorViewport.hpp"
@@ -73,6 +75,22 @@ namespace CNA::Editor
          * direct consequence of CNA fixing its backend at compile time (ANALYSIS.md finding F-01).
          */
         std::string executablePath;
+
+        /**
+         * @brief Seconds between crash-recovery snapshots of an unsaved scene. Zero disables them.
+         *
+         * The reliable half of crash recovery is the part that runs before the crash: the snapshot
+         * is already on disk when the process dies, and needs nothing from the dying process. This
+         * is how much work a crash can cost.
+         */
+        double autosaveSeconds = 30.0;
+
+        /**
+         * @brief Where snapshots are kept. Empty means the per-user default.
+         *
+         * Set it to keep a sandboxed or portable run from writing outside its own directory.
+         */
+        std::string recoveryDirectory;
 
         /** @brief Print the backend table and exit. */
         bool listBackends = false;
@@ -180,6 +198,16 @@ namespace CNA::Editor
         [[nodiscard]] std::size_t getSelectedPlayerBuild() const override { return selectedBuild_; }
         void selectPlayerBuild(std::size_t index) override { selectedBuild_ = index; }
 
+        [[nodiscard]] const RecoverySnapshot* getRecoverableScene() const override
+        {
+            return recoverable_ ? &*recoverable_ : nullptr;
+        }
+        void recoverScene() override;
+        void discardRecoveredScene() override;
+
+        /** @brief Returns the snapshot store, so a test can point it at a scratch directory. */
+        [[nodiscard]] RecoveryStore& getRecoveryStore() { return recovery_; }
+
     private:
         /**
          * @brief Applies this frame's keyboard shortcuts.
@@ -205,6 +233,17 @@ namespace CNA::Editor
          * on showing the old art until it is restarted.
          */
         void pollAssets(double deltaSeconds);
+
+        /**
+         * @brief Writes a crash-recovery snapshot when one is due, or drops a stale one.
+         *
+         * Only while the document differs from its file: a snapshot of a scene that matches disk
+         * protects nothing and would offer a pointless recovery on the next start-up.
+         */
+        void updateAutosave(double deltaSeconds);
+
+        /** @brief Looks for unsaved work from a previous session and reports what it finds. */
+        void findRecoverableScene();
 
         EditorContext context_;
         std::unique_ptr<EditorUi> ui_;
@@ -238,5 +277,21 @@ namespace CNA::Editor
 
         int frameLimit_ = 0;
         int framesRendered_ = 0;
+
+        RecoveryStore recovery_{getDefaultRecoveryDirectory()};
+        double autosaveInterval_ = 30.0;
+        double autosaveElapsed_ = 0.0;
+
+        /** @brief Unsaved work from a previous session, waiting for the user to accept or drop it. */
+        std::optional<RecoverySnapshot> recoverable_;
+
+        /** @brief Whether a snapshot for the open scene is currently on disk. */
+        bool autosaveWritten_ = false;
+
+        /** @brief Whether the "autosave is suspended" warning has already been said. */
+        bool autosaveSuspensionReported_ = false;
+
+        /** @brief Whether the "cannot write a snapshot" error has already been said. */
+        bool autosaveFailureReported_ = false;
     };
 }

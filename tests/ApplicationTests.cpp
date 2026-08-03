@@ -17,6 +17,7 @@
 #include "CNA/Editor/EditorApplication.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
+#include "CNA/Editor/Project/RecoveryStore.hpp"
 #include "CNA/Editor/Scene/MissingReferences.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -1973,4 +1974,218 @@ CNA_EDITOR_TEST(AnEmptyHistorySaysSoRatherThanDrawingNothing)
 
     application.renderFrame();
     CNA_EDITOR_EXPECT(ui->sawText("Nothing to undo yet."));
+}
+
+namespace
+{
+    /** @brief A project on disk, an editor over it, and a scratch directory for its snapshots. */
+    struct RecoveryFixture
+    {
+        std::filesystem::path directory;
+        std::unique_ptr<EditorApplication> application;
+        ScriptedUi* ui = nullptr;
+
+        explicit RecoveryFixture(const std::string& name, double autosaveSeconds = 1.0)
+        {
+            directory = makeScratchDirectory(name);
+            writeFile(directory / "Game.cnaproject",
+                      R"({"formatVersion":1,"name":"Recovered","kind":"CnaNative",)"
+                      R"("assetDirectory":"Assets","startupScene":"Scenes/Level01.cnascene"})");
+            writeFile(directory / "Scenes" / "Level01.cnascene",
+                      R"({"formatVersion":1,"sceneId":"c486b3f0-2a41-4d6b-9f18-7e0c5a1b4d92",)"
+                      R"("name":"Level01","entities":[]})");
+
+            auto scripted = std::make_unique<ScriptedUi>();
+            ui = scripted.get();
+            application = std::make_unique<EditorApplication>(std::move(scripted),
+                                                             std::make_unique<NullEditorViewport>());
+
+            EditorOptions options;
+            options.headless = true;
+            options.autosaveSeconds = autosaveSeconds;
+            options.recoveryDirectory = (directory / "recovery").generic_string();
+            options.projectPath = (directory / "Game.cnaproject").generic_string();
+            application->initialize(options);
+        }
+
+        ~RecoveryFixture()
+        {
+            application.reset();
+            std::error_code errorCode;
+            std::filesystem::remove_all(directory, errorCode);
+        }
+
+        [[nodiscard]] EditorContext& context() { return application->getContext(); }
+        [[nodiscard]] RecoveryStore store() const
+        {
+            return RecoveryStore{(directory / "recovery").generic_string()};
+        }
+        [[nodiscard]] std::string projectPath() const
+        {
+            return (directory / "Game.cnaproject").generic_string();
+        }
+
+        /** @brief Adds one entity through the undo stack, so the document becomes dirty. */
+        Uuid addEntity(const std::string& name)
+        {
+            EditorEntity entity{Uuid::generate(), name};
+            entity.addComponent(EditorComponent{BuiltinComponentIds::kTransform});
+            const Uuid id = entity.getId();
+            context().execute(std::make_unique<CreateEntityCommand>(context().getScene(), std::move(entity)));
+            return id;
+        }
+    };
+}
+
+CNA_EDITOR_TEST(AnUnsavedSceneIsSnapshottedAndTheSnapshotGoesAwayOnSave)
+{
+    RecoveryFixture fixture{"autosave"};
+
+    // Nothing to rescue while the document matches its file.
+    fixture.application->renderFrame(5.0);
+    CNA_EDITOR_EXPECT(!fixture.store().findForProject(fixture.projectPath()).has_value());
+
+    fixture.addEntity("Player");
+
+    // Below the interval: the clock is passed in, so this is exact rather than a race.
+    fixture.application->renderFrame(0.4);
+    CNA_EDITOR_EXPECT(!fixture.store().findForProject(fixture.projectPath()).has_value());
+
+    fixture.application->renderFrame(0.7);
+    const std::optional<RecoverySnapshot> snapshot = fixture.store().findForProject(fixture.projectPath());
+    CNA_EDITOR_EXPECT(snapshot.has_value());
+    CNA_EDITOR_EXPECT_EQ(snapshot->sceneName, std::string{"Level01"});
+    CNA_EDITOR_EXPECT_EQ(snapshot->scene["entities"].getElements().size(), std::size_t{1});
+
+    // The scene file itself is untouched until the user saves. A snapshot that wrote through to
+    // the document would be an autosave, which is a different feature with different consent.
+    SceneDocument onDisk;
+    ComponentRegistry registry;
+    registerBuiltinComponents(registry);
+    CNA_EDITOR_EXPECT(onDisk.loadFromFile(
+        (fixture.directory / "Scenes" / "Level01.cnascene").generic_string(), registry).succeeded);
+    CNA_EDITOR_EXPECT_EQ(onDisk.getEntityCount(), std::size_t{0});
+
+    // Saving makes the snapshot pointless, and leaving it would train users to click "discard"
+    // on a message they stopped reading.
+    fixture.application->saveScene();
+    fixture.application->renderFrame(2.0);
+    CNA_EDITOR_EXPECT(!fixture.store().findForProject(fixture.projectPath()).has_value());
+}
+
+CNA_EDITOR_TEST(RecoveredWorkIsOfferedRatherThanRestoredBehindTheUsersBack)
+{
+    RecoveryFixture first{"recoveroffer"};
+    first.addEntity("Player");
+    first.application->renderFrame(2.0);
+    CNA_EDITOR_EXPECT(first.store().findForProject(first.projectPath()).has_value());
+
+    // Open the same project again, as if the editor had been killed. The snapshot directory is
+    // the fixture's, so a second application over the same files sees the first one's work.
+    auto scripted = std::make_unique<ScriptedUi>();
+    ScriptedUi* ui = scripted.get();
+    EditorApplication reopened{std::move(scripted), std::make_unique<NullEditorViewport>()};
+
+    EditorOptions options;
+    options.headless = true;
+    options.autosaveSeconds = 1.0;
+    options.recoveryDirectory = (first.directory / "recovery").generic_string();
+    options.projectPath = first.projectPath();
+    CNA_EDITOR_EXPECT(reopened.initialize(options));
+
+    // Offered, not applied: the document is still the file on disk.
+    CNA_EDITOR_EXPECT(reopened.getRecoverableScene() != nullptr);
+    CNA_EDITOR_EXPECT_EQ(reopened.getContext().getScene().getEntityCount(), std::size_t{0});
+
+    bool warned = false;
+    for (const auto& entry : ui->getLog())
+    {
+        if (entry.message.find("Unsaved changes to scene 'Level01'") != std::string::npos)
+        {
+            warned = entry.severity == LogSeverity::Warning;
+        }
+    }
+    CNA_EDITOR_EXPECT(warned);
+
+    // Until it is answered, autosave must not overwrite it: this session's unsaved seconds are
+    // worth less than the previous session's unsaved work.
+    reopened.getContext().getScene().setName("Touched");
+    EditorEntity entity{Uuid::generate(), "Later"};
+    entity.addComponent(EditorComponent{BuiltinComponentIds::kTransform});
+    reopened.getContext().execute(
+        std::make_unique<CreateEntityCommand>(reopened.getContext().getScene(), std::move(entity)));
+    reopened.renderFrame(5.0);
+
+    const RecoveryStore store{options.recoveryDirectory};
+    CNA_EDITOR_EXPECT_EQ(store.findForProject(options.projectPath)->sceneName, std::string{"Level01"});
+
+    // Accepting it brings the work back, leaves the file alone, and reports the document as
+    // holding changes that were never saved.
+    reopened.recoverScene();
+    CNA_EDITOR_EXPECT(reopened.getRecoverableScene() == nullptr);
+    CNA_EDITOR_EXPECT_EQ(reopened.getContext().getScene().getEntityCount(), std::size_t{1});
+    CNA_EDITOR_EXPECT(reopened.getContext().getHistory().isDirty());
+    CNA_EDITOR_EXPECT_EQ(reopened.getContext().getHistory().getCount(), std::size_t{0});
+}
+
+CNA_EDITOR_TEST(DiscardingARecoveredSceneRemovesTheSnapshotForGood)
+{
+    RecoveryFixture first{"recoverydiscard"};
+    first.addEntity("Player");
+    first.application->renderFrame(2.0);
+
+    auto scripted = std::make_unique<ScriptedUi>();
+    EditorApplication reopened{std::move(scripted), std::make_unique<NullEditorViewport>()};
+
+    EditorOptions options;
+    options.headless = true;
+    options.autosaveSeconds = 1.0;
+    options.recoveryDirectory = (first.directory / "recovery").generic_string();
+    options.projectPath = first.projectPath();
+    CNA_EDITOR_EXPECT(reopened.initialize(options));
+    CNA_EDITOR_EXPECT(reopened.getRecoverableScene() != nullptr);
+
+    reopened.discardRecoveredScene();
+
+    CNA_EDITOR_EXPECT(reopened.getRecoverableScene() == nullptr);
+    const RecoveryStore store{options.recoveryDirectory};
+    CNA_EDITOR_EXPECT(!store.findForProject(options.projectPath).has_value());
+
+    // And the editor goes back to protecting the current session.
+    EditorEntity entity{Uuid::generate(), "Later"};
+    entity.addComponent(EditorComponent{BuiltinComponentIds::kTransform});
+    reopened.getContext().execute(
+        std::make_unique<CreateEntityCommand>(reopened.getContext().getScene(), std::move(entity)));
+    reopened.renderFrame(5.0);
+    CNA_EDITOR_EXPECT(store.findForProject(options.projectPath).has_value());
+}
+
+CNA_EDITOR_TEST(AutosaveCanBeTurnedOffEntirely)
+{
+    RecoveryFixture fixture{"autosaveoff", 0.0};
+
+    fixture.addEntity("Player");
+    fixture.application->renderFrame(600.0);
+
+    CNA_EDITOR_EXPECT(!fixture.store().findForProject(fixture.projectPath()).has_value());
+}
+
+CNA_EDITOR_TEST(OptionsParseTheAutosaveAndRecoveryFlags)
+{
+    const char* argv[] = {"cna-editor", "--autosave=5", "--recovery-dir=/tmp/snapshots"};
+    const EditorOptions options = EditorOptions::parse(3, argv);
+
+    CNA_EDITOR_EXPECT(!options.hasError);
+    CNA_EDITOR_EXPECT(options.autosaveSeconds > 4.9 && options.autosaveSeconds < 5.1);
+    CNA_EDITOR_EXPECT_EQ(options.recoveryDirectory, std::string{"/tmp/snapshots"});
+
+    const char* bad[] = {"cna-editor", "--autosave=often"};
+    CNA_EDITOR_EXPECT(EditorOptions::parse(2, bad).hasError);
+
+    // A negative interval is clamped rather than rejected: it means the same thing as zero, and
+    // failing to start over it would be a poor trade.
+    const char* negative[] = {"cna-editor", "--autosave=-1"};
+    const EditorOptions clamped = EditorOptions::parse(2, negative);
+    CNA_EDITOR_EXPECT(!clamped.hasError);
+    CNA_EDITOR_EXPECT_EQ(clamped.autosaveSeconds, 0.0);
 }

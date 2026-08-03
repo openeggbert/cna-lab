@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "CNA/Editor/Core/Uuid.hpp"
+#include "CNA/Editor/Project/RecoveryStore.hpp"
 #include "CNA/Editor/RuntimeBridge/PlayerProcess.hpp"
 #include "CNA/Editor/Ui/EditorUi.hpp"
 #include "CNA/Editor/Viewport/EditorViewport.hpp"
@@ -84,6 +85,21 @@ namespace CNA::Editor
         [[nodiscard]] virtual const std::vector<PlayerBuild>& getPlayerBuilds() const = 0;
         [[nodiscard]] virtual std::size_t getSelectedPlayerBuild() const = 0;
         virtual void selectPlayerBuild(std::size_t index) = 0;
+
+        /**
+         * @brief Returns unsaved work found from a previous session, or nullptr when there is none.
+         *
+         * Offered rather than restored automatically. Silently replacing what the user opened with
+         * something they cannot see the provenance of is how an editor turns a crash into two
+         * losses instead of one.
+         */
+        [[nodiscard]] virtual const RecoverySnapshot* getRecoverableScene() const = 0;
+
+        /** @brief Loads the recovered scene into the editor, leaving the file on disk untouched. */
+        virtual void recoverScene() = 0;
+
+        /** @brief Deletes the snapshot, accepting the file on disk as the truth. */
+        virtual void discardRecoveredScene() = 0;
     };
 
     /**

@@ -19,6 +19,7 @@
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 #include "CNA/Editor/Plugins/Plugin.hpp"
 #include "CNA/Editor/Project/Project.hpp"
+#include "CNA/Editor/Project/RecoveryStore.hpp"
 #include "CNA/Editor/RuntimeBridge/EditorProtocol.hpp"
 
 using namespace CNA::Editor;
@@ -1054,4 +1055,111 @@ CNA_EDITOR_TEST(AssetPathHelpersSplitAndJoinConsistently)
 
     CNA_EDITOR_EXPECT_EQ(joinAssetPath(assetDirectory("Assets/Textures/hero.png"), "villain.png"),
                          std::string{"Assets/Textures/villain.png"});
+}
+
+// --------------------------------------------------------------------------------------------
+// Crash-recovery snapshots (plan.md ED-903)
+// --------------------------------------------------------------------------------------------
+
+namespace
+{
+    /** @brief Builds a snapshot carrying a one-entity scene. */
+    RecoverySnapshot makeSnapshot(const std::string& projectPath,
+                                  const std::string& sceneName,
+                                  std::int64_t savedAt)
+    {
+        RecoverySnapshot snapshot;
+        snapshot.projectPath = projectPath;
+        snapshot.scenePath = projectPath + ".scene";
+        snapshot.sceneName = sceneName;
+        snapshot.sceneId = Uuid::generate();
+        snapshot.savedAtSeconds = savedAt;
+
+        snapshot.scene = JsonValue::makeObject();
+        snapshot.scene.set("formatVersion", JsonValue{1});
+        snapshot.scene.set("name", JsonValue{sceneName});
+        snapshot.scene.set("entities", JsonValue::makeArray());
+        return snapshot;
+    }
+}
+
+CNA_EDITOR_TEST(ARecoverySnapshotRoundTripsAndIsFoundByItsProject)
+{
+    const std::filesystem::path directory = makeScratchDirectory("recovery");
+    const RecoveryStore store{directory.generic_string()};
+
+    const RecoverySnapshot written = makeSnapshot("/games/Alpha.cnaproject", "Level01", 1700000000);
+    std::string errorMessage;
+    CNA_EDITOR_EXPECT(store.write(written, &errorMessage));
+    CNA_EDITOR_EXPECT(errorMessage.empty());
+
+    const std::optional<RecoverySnapshot> found = store.findForProject("/games/Alpha.cnaproject");
+    CNA_EDITOR_EXPECT(found.has_value());
+    CNA_EDITOR_EXPECT_EQ(found->sceneName, std::string{"Level01"});
+    CNA_EDITOR_EXPECT(found->sceneId == written.sceneId);
+    CNA_EDITOR_EXPECT_EQ(found->savedAtSeconds, std::int64_t{1700000000});
+    CNA_EDITOR_EXPECT_EQ(found->scene["name"].asString(), std::string{"Level01"});
+
+    // Another project's snapshot must not be offered: recovering the wrong game's work would be
+    // a worse outcome than recovering nothing.
+    CNA_EDITOR_EXPECT(!store.findForProject("/games/Beta.cnaproject").has_value());
+
+    CNA_EDITOR_EXPECT(store.discard(written.sceneId));
+    CNA_EDITOR_EXPECT(!store.findForProject("/games/Alpha.cnaproject").has_value());
+    CNA_EDITOR_EXPECT(!store.discard(written.sceneId));
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(TheNewestSnapshotWinsAndACorruptOneIsSkipped)
+{
+    const std::filesystem::path directory = makeScratchDirectory("recoverynewest");
+    const RecoveryStore store{directory.generic_string()};
+
+    CNA_EDITOR_EXPECT(store.write(makeSnapshot("/games/Alpha.cnaproject", "Older", 1000)));
+    CNA_EDITOR_EXPECT(store.write(makeSnapshot("/games/Alpha.cnaproject", "Newer", 2000)));
+
+    const std::optional<RecoverySnapshot> found = store.findForProject("/games/Alpha.cnaproject");
+    CNA_EDITOR_EXPECT(found.has_value());
+    CNA_EDITOR_EXPECT_EQ(found->sceneName, std::string{"Newer"});
+
+    // A truncated file is skipped rather than hiding the readable ones. Recovery is a best-effort
+    // path by construction, and one bad file must not cost the others.
+    writeFile(directory / (Uuid::generate().toString() + ".cnarecovery"), "{\"formatVersion\":1,");
+    CNA_EDITOR_EXPECT_EQ(store.list().size(), std::size_t{2});
+
+    // So is one written by a build that knows more than this one does.
+    JsonValue future = JsonValue::makeObject();
+    future.set("formatVersion", JsonValue{RecoveryStore::kFormatVersion + 1});
+    future.set("projectPath", JsonValue{"/games/Alpha.cnaproject"});
+    future.set("sceneId", JsonValue{Uuid::generate().toString()});
+    future.set("scene", JsonValue::makeObject());
+    writeFile(directory / (Uuid::generate().toString() + ".cnarecovery"), Json::write(future));
+    CNA_EDITOR_EXPECT_EQ(store.list().size(), std::size_t{2});
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(AFailedSnapshotIsReportedRatherThanThrown)
+{
+    // No directory at all: an editor that died because it could not autosave would have caused
+    // exactly the loss it was installed to prevent.
+    const RecoveryStore store{""};
+
+    std::string errorMessage;
+    CNA_EDITOR_EXPECT(!store.write(makeSnapshot("/games/Alpha.cnaproject", "Level01", 1), &errorMessage));
+    CNA_EDITOR_EXPECT(!errorMessage.empty());
+    CNA_EDITOR_EXPECT(store.list().empty());
+    CNA_EDITOR_EXPECT(!store.findForProject("/games/Alpha.cnaproject").has_value());
+}
+
+CNA_EDITOR_TEST(TheDefaultRecoveryDirectoryIsUnderTheUsersState)
+{
+    const std::string directory = getDefaultRecoveryDirectory();
+
+    // Never empty on any platform the editor builds for, and never inside a project: an autosave
+    // of unsaved work is not part of the game being edited.
+    CNA_EDITOR_EXPECT(!directory.empty());
+    CNA_EDITOR_EXPECT(directory.find("cna-editor") != std::string::npos);
+    CNA_EDITOR_EXPECT(directory.find("recovery") != std::string::npos);
 }

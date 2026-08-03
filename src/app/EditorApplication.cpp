@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <ctime>
 #include <filesystem>
 #include <iostream>
 #include <optional>
@@ -70,6 +71,18 @@ namespace CNA::Editor
                 if (name == "--scene") { options.scenePath = value; continue; }
                 if (name == "--ui") { options.uiBackend = value; continue; }
                 if (name == "--screenshot") { options.screenshotPath = value; continue; }
+                if (name == "--recovery-dir") { options.recoveryDirectory = value; continue; }
+                if (name == "--autosave")
+                {
+                    try { options.autosaveSeconds = std::stod(value); }
+                    catch (const std::exception&)
+                    {
+                        options.hasError = true;
+                        options.errorMessage = "--autosave expects a number of seconds, got '" + value + "'";
+                    }
+                    if (options.autosaveSeconds < 0.0) { options.autosaveSeconds = 0.0; }
+                    continue;
+                }
                 if (name == "--frames")
                 {
                     try { options.frameLimit = std::stoi(value); }
@@ -123,6 +136,8 @@ namespace CNA::Editor
             "  --headless         Run with no window, on the null UI. Implies --ui=null.\n"
             "  --frames=N         Exit after N frames. Useful for smoke tests.\n"
             "  --screenshot=PATH  Write a PNG of the final frame. Requires --frames.\n"
+            "  --autosave=SECONDS Crash-recovery snapshot interval. 0 disables. Default: 30.\n"
+            "  --recovery-dir=DIR Where snapshots are kept. Default: the per-user state directory.\n"
             "  --list-backends    Print the CNA graphics backends this editor knows about.\n"
             "  --version          Print the version and exit.\n"
             "  -h, --help         Print this help and exit.\n"
@@ -170,6 +185,8 @@ namespace CNA::Editor
     bool EditorApplication::initialize(const EditorOptions& options)
     {
         frameLimit_ = options.frameLimit;
+        autosaveInterval_ = options.autosaveSeconds;
+        if (!options.recoveryDirectory.empty()) { recovery_ = RecoveryStore{options.recoveryDirectory}; }
 
         context_.log(LogSeverity::Info,
                      std::string{"cna-editor starting (ui="} + ui_->getBackendName()
@@ -195,7 +212,142 @@ namespace CNA::Editor
                 std::filesystem::path{options.executablePath}.parent_path().generic_string()));
         }
 
+        findRecoverableScene();
         return true;
+    }
+
+    void EditorApplication::findRecoverableScene()
+    {
+        recoverable_.reset();
+        autosaveSuspensionReported_ = false;
+
+        if (!context_.hasProject() || autosaveInterval_ <= 0.0) { return; }
+
+        recoverable_ = recovery_.findForProject(context_.getProject().getFilePath());
+        if (!recoverable_) { return; }
+
+        // A warning, not information: the alternative reading of this state is that the user's
+        // last session ended without saving, and either way there is work on disk that the
+        // document in front of them does not contain.
+        context_.log(LogSeverity::Warning,
+                     "Unsaved changes to scene '" + recoverable_->sceneName + "' from "
+                         + formatRecoveryTime(recoverable_->savedAtSeconds)
+                         + " were found. File > Recover Unsaved Scene restores them; "
+                           "File > Discard Recovered Scene throws them away.");
+    }
+
+    void EditorApplication::recoverScene()
+    {
+        if (!recoverable_) { return; }
+
+        const RecoverySnapshot snapshot = *recoverable_;
+
+        const SceneLoadResult result =
+            context_.getScene().loadFromJson(snapshot.scene, context_.getComponentRegistry());
+        if (!result.succeeded)
+        {
+            // The snapshot stays. A recovery that failed is not a reason to delete the only copy
+            // of the work it was holding.
+            context_.log(LogSeverity::Error, "Cannot recover the scene: " + result.errorMessage);
+            return;
+        }
+
+        for (const std::string& warning : result.warnings)
+        {
+            context_.log(LogSeverity::Warning, "Recovered scene: " + warning);
+        }
+
+        context_.clearSelection();
+        context_.getHistory().clear();
+
+        // The recovered document was never saved, so no position in the fresh history is the file
+        // on disk. Saying otherwise would let the user close the editor believing it was.
+        context_.getHistory().markUnsaved();
+
+        recoverable_.reset();
+        autosaveSuspensionReported_ = false;
+
+        context_.log(LogSeverity::Info,
+                     "Recovered scene '" + context_.getScene().getName() + "' from "
+                         + formatRecoveryTime(snapshot.savedAtSeconds)
+                         + ". The file on disk is unchanged until you save. Undo history was not "
+                           "recovered.");
+    }
+
+    void EditorApplication::discardRecoveredScene()
+    {
+        if (!recoverable_) { return; }
+
+        const std::string name = recoverable_->sceneName;
+        recovery_.discard(recoverable_->sceneId);
+        recoverable_.reset();
+        autosaveSuspensionReported_ = false;
+
+        context_.log(LogSeverity::Info, "Discarded the recovered copy of '" + name + "'.");
+    }
+
+    void EditorApplication::updateAutosave(double deltaSeconds)
+    {
+        if (autosaveInterval_ <= 0.0) { return; }
+
+        const SceneDocument& scene = context_.getScene();
+
+        if (!context_.getHistory().isDirty())
+        {
+            // The document matches its file, so there is nothing a snapshot could rescue. Dropping
+            // it here is what stops the next start-up offering a recovery of work already saved --
+            // an offer that trains users to click "discard" without reading it.
+            if (autosaveWritten_)
+            {
+                recovery_.discard(scene.getSceneId());
+                autosaveWritten_ = false;
+            }
+            autosaveElapsed_ = 0.0;
+            return;
+        }
+
+        autosaveElapsed_ += deltaSeconds;
+        if (autosaveElapsed_ < autosaveInterval_) { return; }
+        autosaveElapsed_ = 0.0;
+
+        // Never write over work from a previous session that the user has not answered for yet.
+        // The current session's unsaved seconds are worth less than the previous session's unsaved
+        // hours, and the snapshot file is keyed by scene id, so this would overwrite it.
+        if (recoverable_ && recoverable_->sceneId == scene.getSceneId())
+        {
+            if (!autosaveSuspensionReported_)
+            {
+                autosaveSuspensionReported_ = true;
+                context_.log(LogSeverity::Warning,
+                             "Autosave is suspended while recovered work from a previous session is "
+                             "waiting. Recover it or discard it from the File menu.");
+            }
+            return;
+        }
+
+        RecoverySnapshot snapshot;
+        snapshot.projectPath = context_.getProject().getFilePath();
+        snapshot.scenePath = context_.getScenePath();
+        snapshot.sceneName = scene.getName();
+        snapshot.sceneId = scene.getSceneId();
+        snapshot.savedAtSeconds = static_cast<std::int64_t>(std::time(nullptr));
+        snapshot.scene = scene.toJson();
+
+        std::string errorMessage;
+        if (!recovery_.write(snapshot, &errorMessage))
+        {
+            // Said once. An editor that repeats a filesystem complaint every thirty seconds is one
+            // whose console nobody reads.
+            if (!autosaveFailureReported_)
+            {
+                autosaveFailureReported_ = true;
+                context_.log(LogSeverity::Error, "Cannot write a crash-recovery snapshot: " + errorMessage);
+            }
+            return;
+        }
+
+        autosaveWritten_ = true;
+        autosaveFailureReported_ = false;
     }
 
     void EditorApplication::setPlayerBuilds(std::vector<PlayerBuild> builds)
@@ -229,6 +381,7 @@ namespace CNA::Editor
 
     void EditorApplication::renderFrame(double deltaSeconds)
     {
+        updateAutosave(deltaSeconds);
         pollAssets(deltaSeconds);
         pollPlayer();
         handleShortcuts();
@@ -275,7 +428,12 @@ namespace CNA::Editor
         // A scene that has never been saved has no path to save back to. The menu greys the item
         // out; the shortcut has no such affordance, so the guard lives here where both reach it.
         if (context_.getScenePath().empty()) { return; }
-        context_.saveScene();
+        if (!context_.saveScene()) { return; }
+
+        // The file on disk now holds this work, so the snapshot has nothing left to rescue.
+        recovery_.discard(context_.getScene().getSceneId());
+        autosaveWritten_ = false;
+        autosaveElapsed_ = 0.0;
     }
 
     void EditorApplication::beginRename(const Uuid& entityId)

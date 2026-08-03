@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 220 / 220 (also under Clang Release) |
+| Unit tests | ✅ 233 / 233 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -85,6 +85,17 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-903** crash recovery. No signal handler, on purpose -- one serialising a document from
+  inside `SIGSEGV` calls `malloc` and the filesystem with a corrupted heap. A `.cnarecovery`
+  snapshot instead, written by ordinary code every `--autosave=SECONDS` while the document differs
+  from its file, atomically by rename, in the user's state directory. Offered on reopen, never
+  applied: while the offer stands, autosave for that scene is suspended, because the snapshot file
+  is keyed by scene id and the current session's unsaved seconds are worth less than the previous
+  session's unsaved hours. Format documented in `docs/FORMATS.md`.
+- **ED-905** undo history panel. Rows are *positions*, not entries -- one more row than there are
+  commands, and the extra one is the document as opened, which is what someone asking to put it
+  back is aiming at. Clicking navigates through `EditorApplication::undo/redo`, so a jump prunes
+  the selection the way Ctrl+Z does.
 - **ED-310** scene validation. `SceneValidation.hpp` holds the structural rules -- duplicate
   primary cameras, inverted camera planes, zero scale, empty entities, a missing Transform, a
   second copy of a unique component, an unregistered component type, a sprite with no texture.
@@ -134,12 +145,12 @@ Newest first. Each is a single commit on the branch.
 Phase 1 closed. Working through the owner's priority order:
 
 1. **Robustness and data safety** ← *current*
-   - ~~**ED-310** scene validation~~ ✅
-   - **ED-905** undo history panel. `CommandHistory` already exposes everything it needs.
-   - **ED-903** never lose an unsaved document on a crash.
+   - ~~**ED-310** scene validation~~ ✅  ~~**ED-905** undo history panel~~ ✅
+     ~~**ED-903** crash recovery~~ ✅
    - **ED-902** format migration. Reads old versions; does **not** bump `formatVersion`. Last of
      the four because it is the only one that touches a file format, where the standing constraint
-     applies.
+     applies. Note that `.cnarecovery` (ED-903) is a *new* format at version 1, not a change to an
+     existing one, so it did not need the constraint lifted.
 2. **Live editing into the running player** — ED-306 asset hot-reload, ED-307 live properties. The
    bridge and protocol exist and are tested; this is mostly wiring.
 3. **Production 2D tools** — ED-311 `PropertyType::List` first, because it unblocks others; then
@@ -174,8 +185,14 @@ Phase 1 closed. Working through the owner's priority order:
 
 ## Where to start next
 
-Read this file, then `plan.md`'s *Current state* section. The next task is the first still-open
-item under **In progress** — **ED-905**, the undo history panel. `CommandHistory` already exposes
-the count, the cursor and each entry's description, so the panel is a view over state that exists
-rather than new bookkeeping; the interesting decision is what clicking an entry does, and the
-honest answer is *undo or redo to that point*, not *remove that one entry from history*.
+Read this file, then `plan.md`'s *Current state* section. The next task is **ED-902**, the format
+migration framework — the last item under priority 1. Version gating and rejection already exist
+(`SceneDocument::kFormatVersion`, `Project`, `AssetDatabase`, and now `RecoveryStore`); what does
+not exist is an upgrade path, so a file written by an older build is read by today's *permissive*
+loaders rather than by anything that knows what changed. Every format is still at version 1, so
+there is nothing to migrate yet: the deliverable is the mechanism plus a test that exercises it on
+a synthetic version 0, **not** a `formatVersion` bump. The standing constraint applies — do not
+bump a version without the owner's say-so.
+
+After that, priority 2: **ED-306** asset hot-reload into a running player, then **ED-307** live
+property editing. The bridge and protocol exist and are tested, so both are mostly wiring.
