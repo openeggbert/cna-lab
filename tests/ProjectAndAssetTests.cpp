@@ -779,6 +779,7 @@ CNA_EDITOR_TEST(TheWatcherReportsDisappearanceAndReturnSeparately)
 
     const AssetWatchResult gone = watcher.poll(assets, 0.0);
     CNA_EDITOR_EXPECT_EQ(gone.removed.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(gone.removed.front().toString(), assetId.toString());
     CNA_EDITOR_EXPECT(gone.changed.empty());
 
     // Once, not on every poll for the rest of the session.
@@ -790,6 +791,7 @@ CNA_EDITOR_TEST(TheWatcherReportsDisappearanceAndReturnSeparately)
     // reference, the second means reloading something already on screen.
     const AssetWatchResult back = watcher.poll(assets, 0.0);
     CNA_EDITOR_EXPECT_EQ(back.restored.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(back.restored.front().toString(), assetId.toString());
     CNA_EDITOR_EXPECT(back.changed.empty());
     CNA_EDITOR_EXPECT(!watcher.poll(assets, 0.0).hasChanges());
 

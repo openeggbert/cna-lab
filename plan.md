@@ -283,7 +283,7 @@ run four times. What it needs is a build matrix and image diffing, not new archi
 
 | Id | Task | Status | Notes |
 |----|------|:------:|-------|
-| ED-900 | CI: build and test on Linux, Windows and macOS, warnings as errors | ⬜ | `-Werror` already clean |
+| ED-900 | CI: build and test on Linux, Windows and macOS, warnings as errors | 🔄 | Linux is live: GCC Debug and Clang Release, both at `-Werror`, plus the full suite, CTest, a headless smoke run and a guard that opening the example does not modify it. Windows and macOS remain. The standalone configuration only — a CNA job needs four sibling checkouts, CNA's SDL submodules and an X server, and is worth adding when the editor has a reason to regress there |
 | ED-901 | Doxygen configuration matching CNA's | ⬜ | |
 | ED-902 | Format migration framework for `.cnaproject`, `.cnascene`, `.cnaasset` | ⬜ | Version gates and rejection already implemented; migration is not |
 | ED-903 | Crash handling: never lose an unsaved document | ⬜ | |
