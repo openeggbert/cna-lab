@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "CNA/Editor/Core/ComponentDescriptor.hpp"
 #include "CNA/Editor/Core/EditorCommand.hpp"
 #include "CNA/Editor/Core/PropertyValue.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
@@ -86,10 +87,17 @@ namespace CNA::Editor
      *
      * In document order, properties before structure for each entity, so the report reads the same
      * way the inspector does. An empty result means the instance is exactly the prefab.
+     *
+     * @param registry Supplies each component's declared defaults. Needed because "unset" and "set
+     *        to the default" are deliberately indistinguishable in the document model
+     *        (`EditorComponent::getProperty`), so comparing stored values alone would report an
+     *        override every time one side happened to have written a default out and the other
+     *        had not -- which is exactly what a round trip through a file does.
      */
     [[nodiscard]] std::vector<PrefabOverride> findPrefabOverrides(const SceneDocument& scene,
                                                                   const Uuid& instanceRootId,
-                                                                  const PrefabDocument& prefab);
+                                                                  const PrefabDocument& prefab,
+                                                                  const ComponentRegistry& registry);
 
     /**
      * @brief Adds a copy of @p prefab to the scene, under @p parentId.

@@ -241,6 +241,16 @@ namespace CNA::Editor
         return true;
     }
 
+    bool AssetDatabase::removeRecord(const Uuid& id)
+    {
+        const auto found = recordsById_.find(id);
+        if (found == recordsById_.end()) { return false; }
+
+        idsByPath_.erase(found->second.sourcePath);
+        recordsById_.erase(found);
+        return true;
+    }
+
     bool AssetDatabase::isMissing(const Uuid& id) const
     {
         const AssetRecord* record = find(id);

@@ -117,7 +117,8 @@ namespace CNA::Editor
 
     std::vector<PrefabOverride> findPrefabOverrides(const SceneDocument& scene,
                                                     const Uuid& instanceRootId,
-                                                    const PrefabDocument& prefab)
+                                                    const PrefabDocument& prefab,
+                                                    const ComponentRegistry& registry)
     {
         std::vector<PrefabOverride> overrides;
 
@@ -177,10 +178,16 @@ namespace CNA::Editor
                     continue;
                 }
 
+                // Through the descriptor on both sides: "unset" and "set to the default" are
+                // deliberately indistinguishable in the document model, so comparing stored values
+                // alone would report an override every time one side had written a default out and
+                // the other had not -- which is exactly what a round trip through a file does.
+                const ComponentDescriptor* descriptor = registry.find(component.getTypeId());
+
                 for (const std::string& name : unionOfPropertyNames(component, *originalComponent))
                 {
-                    const PropertyValue mine = component.getProperty(name);
-                    const PropertyValue theirs = originalComponent->getProperty(name);
+                    const PropertyValue mine = component.getPropertyOrDefault(name, descriptor);
+                    const PropertyValue theirs = originalComponent->getPropertyOrDefault(name, descriptor);
                     if (mine == theirs) { continue; }
 
                     PrefabOverride changed;

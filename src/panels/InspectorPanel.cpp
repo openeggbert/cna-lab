@@ -7,7 +7,10 @@
 
 #include "CNA/Editor/Assets/AssetCommands.hpp"
 #include "CNA/Editor/EditorContext.hpp"
+#include "CNA/Editor/PrefabWorkflow.hpp"
 #include "CNA/Editor/ProjectCommands.hpp"
+#include "CNA/Editor/Scene/PrefabCommands.hpp"
+#include "CNA/Editor/Scene/PrefabDocument.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
@@ -37,6 +40,8 @@ namespace CNA::Editor
         ui_.text("Entity: " + entity->getName());
         ui_.text("Id: " + entity->getId().toString());
         ui_.separator();
+
+        drawPrefabSection(selectedId);
 
         // Removal is deferred past the loop. Executing it here would mutate the very vector being
         // iterated, and invalidate the component reference the loop body is holding.
@@ -403,6 +408,104 @@ namespace CNA::Editor
             // returns to the value the drag started from.
             context_.execute(std::move(command), MergePolicy::MergeWithPrevious);
         }
+    }
+
+    void InspectorPanel::drawPrefabSection(const Uuid& entityId)
+    {
+        // Answered for the *instance*, not for the entity: selecting a child of an instance should
+        // still tell the user what it is part of and let them act on it.
+        const Uuid instanceRoot = findInstanceRoot(context_.getScene(), entityId);
+        if (!instanceRoot.isValid()) { return; }
+
+        const Uuid assetId = getPrefabAssetOf(context_.getScene(), instanceRoot);
+        const AssetRecord* record = context_.getAssets().find(assetId);
+        if (record == nullptr)
+        {
+            // The link survives the asset going away, so it can be reported instead of vanishing.
+            // An instance whose prefab was deleted is exactly what a user needs told.
+            ui_.text("Prefab: missing (" + assetId.toString() + ")");
+            ui_.separator();
+            return;
+        }
+
+        PrefabDocument prefab;
+        const PrefabLoadResult loaded =
+            prefab.loadFromFile(context_.getAssets().resolvePath(record->sourcePath),
+                                context_.getComponentRegistry());
+        if (!loaded.succeeded)
+        {
+            ui_.text("Prefab: '" + record->sourcePath + "' will not load");
+            ui_.separator();
+            return;
+        }
+
+        const std::vector<PrefabOverride> overrides =
+            findPrefabOverrides(context_.getScene(), instanceRoot, prefab,
+                                context_.getComponentRegistry());
+
+        ui_.text("Prefab: " + prefab.getName());
+        ui_.text(overrides.empty() ? "No changes from the prefab."
+                                   : std::to_string(overrides.size()) + " change(s) from the prefab");
+
+        // Three at most, and a count. The list exists to make the divergence recognisable, not to
+        // enumerate it -- the same reason the missing-reference report shows three users.
+        for (std::size_t index = 0; index < overrides.size() && index < 3; ++index)
+        {
+            const PrefabOverride& entry = overrides[index];
+            std::string line = std::string{"    "} + toString(entry.kind) + ": " + entry.entityName;
+            if (!entry.propertyName.empty()) { line += "." + entry.propertyName; }
+            ui_.text(line);
+        }
+        if (overrides.size() > 3)
+        {
+            ui_.text("    and " + std::to_string(overrides.size() - 3) + " more");
+        }
+
+        bool revert = false;
+        bool apply = false;
+        if (!overrides.empty())
+        {
+            revert = ui_.button("Revert##prefab");
+            ui_.sameLine();
+            apply = ui_.button("Apply##prefab");
+        }
+
+        ui_.separator();
+
+        if (revert)
+        {
+            auto command = std::make_unique<RevertPrefabInstanceCommand>(
+                context_.getScene(), instanceRoot, prefab);
+            if (command->isValid())
+            {
+                const std::string summary = command->getDescription();
+                context_.execute(std::move(command));
+                context_.pruneSelection();
+                context_.log(LogSeverity::Info, summary + ".");
+            }
+            return;
+        }
+
+        if (!apply) { return; }
+
+        auto command = std::make_unique<ApplyPrefabInstanceCommand>(
+            context_.getScene(), context_.getAssets(), context_.getComponentRegistry(), instanceRoot);
+        if (!command->isValid())
+        {
+            context_.log(LogSeverity::Warning, "Cannot apply: " + command->getError());
+            return;
+        }
+
+        const std::string summary = command->getDescription();
+        const ApplyPrefabInstanceCommand* raw = command.get();
+        context_.execute(std::move(command));
+
+        if (!raw->getError().empty())
+        {
+            context_.log(LogSeverity::Error, "Cannot write the prefab: " + raw->getError());
+            return;
+        }
+        context_.log(LogSeverity::Info, summary + ".");
     }
 
     void InspectorPanel::drawAddComponentControl(const EditorEntity& entity)

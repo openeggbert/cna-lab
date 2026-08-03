@@ -174,6 +174,17 @@ namespace CNA::Editor
          */
         bool add(AssetRecord record);
 
+        /**
+         * @brief Removes @p id from the index. Returns true when a record was removed.
+         *
+         * Deliberately narrow: the database does **not** drop a record because its file went
+         * missing (see scan()), because a file gone today may be a `git checkout` away from
+         * returning and deleting the record would break every reference to it. This exists for the
+         * one case where that reasoning does not apply -- undoing the creation of an asset the
+         * editor itself just wrote, where the file is going away too and nothing ever referenced it.
+         */
+        bool removeRecord(const Uuid& id);
+
         /** @brief Returns true when @p id is tracked but its source file is not on disk. */
         [[nodiscard]] bool isMissing(const Uuid& id) const;
 

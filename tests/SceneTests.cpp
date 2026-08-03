@@ -794,7 +794,7 @@ CNA_EDITOR_TEST(InstantiatingAPrefabGivesFreshIdsAndKeepsTheLink)
     CNA_EDITOR_EXPECT(findInstanceRoot(target, children.front()) == instanceRoot);
 
     // A freshly made instance has changed nothing.
-    CNA_EDITOR_EXPECT(findPrefabOverrides(target, instanceRoot, prefab).empty());
+    CNA_EDITOR_EXPECT(findPrefabOverrides(target, instanceRoot, prefab, fixture.registry).empty());
 
     second->undo();
     command->undo();
@@ -827,7 +827,7 @@ CNA_EDITOR_TEST(OverridesAreFoundByComparingRatherThanByRecording)
     const Uuid extraId = target.addEntity(std::move(extra));
     target.reparentEntity(extraId, instanceRoot);
 
-    const std::vector<PrefabOverride> overrides = findPrefabOverrides(target, instanceRoot, prefab);
+    const std::vector<PrefabOverride> overrides = findPrefabOverrides(target, instanceRoot, prefab, fixture.registry);
 
     const auto countKind = [&](PrefabOverride::Kind kind) {
         return static_cast<std::size_t>(
@@ -859,7 +859,7 @@ CNA_EDITOR_TEST(OverridesAreFoundByComparingRatherThanByRecording)
     }
     CNA_EDITOR_EXPECT(weaponId.isValid());
     target.removeEntityRecursive(weaponId);
-    const std::vector<PrefabOverride> afterDelete = findPrefabOverrides(target, instanceRoot, prefab);
+    const std::vector<PrefabOverride> afterDelete = findPrefabOverrides(target, instanceRoot, prefab, fixture.registry);
     CNA_EDITOR_EXPECT(std::any_of(afterDelete.begin(), afterDelete.end(),
                                   [](const PrefabOverride& entry)
                                   { return entry.kind == PrefabOverride::Kind::RemovedEntity; }));
@@ -888,7 +888,7 @@ CNA_EDITOR_TEST(RevertingAnInstancePutsItBackExactlyAndUndoesInOnePress)
     CNA_EDITOR_EXPECT(revert->isValid());
     revert->execute();
 
-    CNA_EDITOR_EXPECT(findPrefabOverrides(target, instanceRoot, prefab).empty());
+    CNA_EDITOR_EXPECT(findPrefabOverrides(target, instanceRoot, prefab, fixture.registry).empty());
     CNA_EDITOR_EXPECT_EQ(target.getEntityCount(), std::size_t{2});
     CNA_EDITOR_EXPECT_EQ(target.findEntity(instanceRoot)->getName(), std::string{"Enemy"});
 

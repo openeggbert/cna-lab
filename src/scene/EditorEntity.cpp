@@ -93,4 +93,13 @@ namespace CNA::Editor
     {
         editorState_[std::move(name)] = std::move(value);
     }
+
+    bool EditorEntity::removeEditorState(std::string_view name)
+    {
+        const auto found = editorState_.find(std::string{name});
+        if (found == editorState_.end()) { return false; }
+
+        editorState_.erase(found);
+        return true;
+    }
 }

@@ -7,6 +7,9 @@
 
 #include "CNA/Editor/EditorContext.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/PrefabWorkflow.hpp"
+#include "CNA/Editor/Scene/PrefabCommands.hpp"
+#include "CNA/Editor/Scene/PrefabDocument.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 
 namespace CNA::Editor
@@ -82,6 +85,15 @@ namespace CNA::Editor
             pending_.parentId = entityId;
         }
 
+        // A prefab dropped from the browser is instantiated under the row it landed on. The same
+        // node is a drop target for two payload types, which is fine: a drag carries exactly one.
+        if (const std::optional<std::string> droppedAsset = ui_.acceptDrop(kAssetDragType))
+        {
+            pending_.kind = Action::InstantiatePrefab;
+            pending_.assetId = Uuid::parse(*droppedAsset);
+            pending_.parentId = entityId;
+        }
+
         drawContextMenu(entityId);
 
         // Double-click first: a double-click also reports a click, and starting a rename must win
@@ -119,6 +131,18 @@ namespace CNA::Editor
             pending_.kind = Action::Reparent;
             pending_.entityId = entityId;
             pending_.parentId = Uuid{};
+        }
+
+        // Offered only where it can work. Nesting a prefab inside a prefab is a real feature and
+        // a large one, and a menu item that reports "already an instance" every time is worse than
+        // one that is not there.
+        if (!findInstanceRoot(context_.getScene(), entityId).isValid())
+        {
+            if (ui_.menuItem("Create Prefab"))
+            {
+                pending_.kind = Action::CreatePrefab;
+                pending_.entityId = entityId;
+            }
         }
 
         ui_.separator();
@@ -193,6 +217,64 @@ namespace CNA::Editor
 
                 context_.execute(std::make_unique<ReparentEntityCommand>(
                     context_.getScene(), action.entityId, action.parentId));
+                return;
+            }
+
+            case Action::CreatePrefab: {
+                auto command = std::make_unique<CreatePrefabCommand>(
+                    context_.getScene(), context_.getAssets(), action.entityId, kPrefabDirectory);
+                if (!command->isValid())
+                {
+                    context_.log(LogSeverity::Warning, "Cannot create a prefab: " + command->getError());
+                    return;
+                }
+
+                const std::string path = command->getRelativePath();
+                const CreatePrefabCommand* raw = command.get();
+                context_.execute(std::move(command));
+
+                // Reported after executing, because the write happens there and a failure has to
+                // reach the user rather than leaving a silent no-op in the undo stack.
+                if (!raw->getError().empty())
+                {
+                    context_.log(LogSeverity::Error, "Cannot write the prefab: " + raw->getError());
+                    return;
+                }
+                context_.log(LogSeverity::Info, "Created '" + path + "'.");
+                return;
+            }
+
+            case Action::InstantiatePrefab: {
+                const AssetRecord* record = context_.getAssets().find(action.assetId);
+                if (record == nullptr) { return; }
+
+                // Any other asset dropped on the hierarchy is ignored in silence: dropping a
+                // texture on an entity is how one is assigned in the *inspector*, and complaining
+                // here would punish a near miss.
+                if (record->type != AssetType::Prefab) { return; }
+
+                PrefabDocument prefab;
+                const PrefabLoadResult loaded = prefab.loadFromFile(
+                    context_.getAssets().resolvePath(record->sourcePath),
+                    context_.getComponentRegistry());
+                if (!loaded.succeeded)
+                {
+                    context_.log(LogSeverity::Error,
+                                 "Cannot read '" + record->sourcePath + "': " + loaded.errorMessage);
+                    return;
+                }
+                for (const std::string& warning : loaded.warnings)
+                {
+                    context_.log(LogSeverity::Warning, record->sourcePath + ": " + warning);
+                }
+
+                auto command = std::make_unique<InstantiatePrefabCommand>(
+                    context_.getScene(), prefab, action.assetId, action.parentId);
+                if (!command->isValid()) { return; }
+
+                const Uuid rootId = command->getRootId();
+                context_.execute(std::move(command));
+                context_.select(rootId);
                 return;
             }
         }

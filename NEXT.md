@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 259 / 259 (also under Clang Release) |
+| Unit tests | ✅ 262 / 262 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -85,6 +85,16 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-300** prefabs, complete. Create Prefab from a hierarchy row, drop one from the browser to
+  instantiate, and an inspector block that reports what an instance has changed with Revert and
+  Apply. Every step undoes, file writes included.
+  Two things worth knowing about Apply, because both were bugs before they were tests: it maps the
+  instance's entity ids *back* through the links before writing (an instantiated instance has fresh
+  ids, and writing those verbatim would leave every link naming an entity the file no longer has),
+  and it strips the instance bookkeeping from what it writes (or every future instance would be
+  born claiming to be an instance of something else). `findPrefabOverrides` compares through the
+  *descriptor* on both sides, because "unset" and "set to the default" are deliberately
+  indistinguishable in the document model and a round trip through a file turns one into the other.
 - **ED-300 (part)** prefabs: the document model and the scene operations. `.cnaprefab` reuses the
   scene's entity encoding through the newly extracted `EntityJson.hpp` -- one codec, because an
   instantiated prefab and a hand-authored entity must be indistinguishable once they are in a scene.
@@ -188,9 +198,11 @@ Phase 1 closed. Working through the owner's priority order:
    `formatVersion` was bumped; `.cnarecovery` is a *new* format at version 1, not a change to an
    existing one.
 2. ~~**Live editing into the running player**~~ ✅ — ED-306 and ED-307 are done.
-3. **Production 2D tools** ← *current* — `PropertyType::List` (ED-311 🔄) and layers and tags
-   (ED-305 ✅) are in. Next: ED-300 prefabs, which is also where `NestedStructure` finally has a
-   consumer and ED-311 can close; then ED-301 tilemap.
+3. **Production 2D tools** ← *current* — ED-311 (`List`) 🔄, ED-305 ✅, ED-300 ✅. Next:
+   ED-301 tilemap, then ED-302 `SpriteFont` and ED-303 the animation editor.
+   Note that `NestedStructure` (the open half of ED-311) turned out **not** to be needed by
+   prefabs: ED-300 computes overrides rather than storing them, so nothing needs a nested schema
+   yet. Leave it unbuilt until something real asks for one.
 4. **ED-510** backend comparison mode.
 
 ---
@@ -227,26 +239,27 @@ Phase 1 closed. Working through the owner's priority order:
 Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are closed and
 `PropertyType::List` is in, which was the thing blocking the rest of priority 3.
 
-The next task is **ED-300, prefabs**, and it is the largest single item left in Phase 2. It is also
-where `NestedStructure` finally has a consumer, so ED-311 can close alongside it.
+The next task is **ED-301, the tilemap component and its painting tool**. It is the last large
+item in Phase 2 and the first one that needs a *tool* in the viewport rather than a panel.
 
-What exists to build on: entity duplication (`DuplicateEntityCommand`), asset identity by Uuid
-(D-08), and a component/property model that already round-trips types it was never compiled
-against. What does not exist is any notion of one document referring to part of another.
+What exists to build on: `PropertyType::List` (a tilemap is a list of tile indices), the asset
+reference machinery for the tile sheet, and a viewport that already hit-tests and drags
+(`ViewportPanel::updateGizmoDrag` is the shape a paint stroke follows). What does not exist is any
+notion of a *tool mode* beyond the gizmo modes.
 
-Three decisions to make before writing code, and the first is the one that determines the rest:
+Three decisions to make before writing code:
 
-- **What a prefab file is.** A `.cnaprefab` holding one entity subtree in the same shape a
-  `.cnascene` holds many is the obvious answer, and it means the existing reader works. It also
-  makes a prefab an *asset*, with an id, which is what an instance has to reference.
-- **How an instance stores its overrides.** A per-instance map of (entity path, component,
-  property) to value. That is what needs `NestedStructure`, or a list of small records — decide
-  which when the shape is real, not before.
-- **What "apply" does to instances that already diverged.** The honest answer is usually "leave
-  divergent properties alone and update the rest", but it must be decided rather than discovered.
+- **How a tilemap stores its grid.** A flat `List<Integer>` plus width and height is the smallest
+  thing that works and diffs readably. A sparse form scales better and diffs worse; do not reach
+  for it before a real map is slow.
+- **Whether a paint stroke is one undo entry or one per tile.** One per stroke, using the existing
+  merge policy the gizmo uses — but the merge key has to include the stroke, not just the property,
+  or two separate strokes would collapse into one.
+- **Where the tool mode lives.** `GizmoMode` is the obvious place and is probably wrong: a paint
+  tool is not a manipulator. A separate `EditorTool` on `EditorActions` keeps them apart.
 
-Whatever the answers, `.cnaprefab` is a **new** format at version 1, not a change to an existing
-one, so it needs no `formatVersion` bump anywhere. Keep ED-902's chains empty.
+Nothing here changes a file format. Every format is at version 1 and ED-902's chains are empty on
+purpose; a tilemap is a new component type, which the descriptor system handles without a bump.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
 chains are empty on purpose. Adding a property type must not change what an existing scene file

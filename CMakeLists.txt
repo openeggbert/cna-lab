@@ -183,7 +183,8 @@ target_link_libraries(cna-editor-plugins PUBLIC cna-editor-core)
 # stay acyclic and the layering stay checkable by the build system rather than by review.
 add_library(cna-editor-context STATIC
     src/context/EditorContext.cpp
-    src/context/ProjectCommands.cpp)
+    src/context/ProjectCommands.cpp
+    src/context/PrefabWorkflow.cpp)
 target_link_libraries(cna-editor-context PUBLIC
     cna-editor-scene
     cna-editor-assets

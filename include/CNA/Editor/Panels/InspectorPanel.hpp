@@ -42,6 +42,14 @@ namespace CNA::Editor
          */
         void drawProjectInspector();
 
+        /**
+         * @brief Draws the prefab block for an entity that is part of an instance.
+         *
+         * Shows what the instance has changed, and offers the two answers to that: Revert puts the
+         * instance back the way the prefab has it, Apply makes the prefab match the instance.
+         */
+        void drawPrefabSection(const Uuid& entityId);
+
         /** @brief Draws the "Add Component" picker for @p entity. */
         void drawAddComponentControl(const EditorEntity& entity);
 

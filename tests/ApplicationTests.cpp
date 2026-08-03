@@ -18,7 +18,10 @@
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
 #include "CNA/Editor/Project/RecoveryStore.hpp"
+#include "CNA/Editor/PrefabWorkflow.hpp"
 #include "CNA/Editor/ProjectCommands.hpp"
+#include "CNA/Editor/Scene/PrefabCommands.hpp"
+#include "CNA/Editor/Scene/PrefabDocument.hpp"
 #include "CNA/Editor/Scene/MissingReferences.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -379,6 +382,7 @@ namespace
             drawnNodes.clear();
             drawnStringNodes.clear();
             drawnStringNodeLabels.clear();
+            drawnMenuItems.clear();
             sawRenameField = false;
         }
 
@@ -574,6 +578,42 @@ namespace
                 if (field == label) { return value; }
             }
             return false;
+        }
+
+        /** @brief Context-menu ids to report as open, and menu-item labels to report as clicked. */
+        std::vector<std::string> openContextMenus;
+        std::vector<std::string> pendingMenuClicks;
+        std::vector<std::string> drawnMenuItems;
+
+        bool beginContextMenu(const std::string& id) override
+        {
+            return std::find(openContextMenus.begin(), openContextMenus.end(), id)
+                != openContextMenus.end();
+        }
+
+        void endContextMenu() override {}
+
+        bool menuItem(const std::string& label,
+                      const std::string& shortcut = {},
+                      bool enabled = true) override
+        {
+            drawnMenuItems.push_back(label);
+            if (!enabled) { return false; }
+
+            for (auto entry = pendingMenuClicks.begin(); entry != pendingMenuClicks.end(); ++entry)
+            {
+                if (*entry != label) { continue; }
+                pendingMenuClicks.erase(entry);
+                return true;
+            }
+            (void)shortcut;
+            return false;
+        }
+
+        /** @brief Returns true when a menu item with @p label was drawn last frame. */
+        [[nodiscard]] bool sawMenuItem(const std::string& label) const
+        {
+            return std::find(drawnMenuItems.begin(), drawnMenuItems.end(), label) != drawnMenuItems.end();
         }
 
         bool button(const std::string& label) override
@@ -2350,4 +2390,208 @@ CNA_EDITOR_TEST(TheInspectorEditsTheProjectsLayersWhenNothingIsSelected)
     // The last layer has no Remove button: a project with none has nothing for an entity to be on.
     fixture.application->renderFrame();
     CNA_EDITOR_EXPECT(!ui->sawButton("Remove##project-layers-0"));
+}
+
+CNA_EDITOR_TEST(APrefabIsMadeFromASelectionAndDroppedBackIntoTheScene)
+{
+    RecoveryFixture fixture{"prefab", 0.0};
+    EditorContext& context = fixture.context();
+    ScriptedUi* ui = fixture.ui;
+
+    // A two-entity subtree, the shape a prefab is actually useful for.
+    EditorEntity root{Uuid::generate(), "Enemy"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+    root.addComponent(std::move(transform));
+    const Uuid rootId = context.getScene().addEntity(std::move(root));
+
+    EditorEntity child{Uuid::generate(), "Weapon"};
+    child.addComponent(EditorComponent{BuiltinComponentIds::kTransform});
+    const Uuid childId = context.getScene().addEntity(std::move(child));
+    CNA_EDITOR_EXPECT(context.getScene().reparentEntity(childId, rootId));
+
+    context.select(rootId);
+    ui->openContextMenus.push_back("entity-" + rootId.toString());
+    ui->pendingMenuClicks.emplace_back("Create Prefab");
+    fixture.application->renderFrame();
+
+    // The file is on disk and tracked, and the entity it was made from is now an instance of it.
+    // Leaving the original unlinked would mean the first edit afterwards silently did not reach
+    // the prefab, which is how users learn not to trust the feature.
+    const std::filesystem::path prefabPath = fixture.directory / "Assets" / "Prefabs" / "Enemy.cnaprefab";
+    CNA_EDITOR_EXPECT(std::filesystem::exists(prefabPath));
+
+    const AssetRecord* record = context.getAssets().findByPath("Assets/Prefabs/Enemy.cnaprefab");
+    CNA_EDITOR_EXPECT(record != nullptr);
+    if (record == nullptr) { return; }
+    CNA_EDITOR_EXPECT(record->type == AssetType::Prefab);
+    CNA_EDITOR_EXPECT(getPrefabAssetOf(context.getScene(), rootId) == record->id);
+    CNA_EDITOR_EXPECT(findInstanceRoot(context.getScene(), childId) == rootId);
+
+    // Dropping it onto another row instantiates a second copy there.
+    const std::size_t before = context.getScene().getEntityCount();
+    ui->openContextMenus.clear();
+    ui->pendingAssetDrops.emplace_back(childId.toString(), record->id.toString());
+    fixture.application->renderFrame();
+
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), before + 2);
+
+    const Uuid instanceRoot = context.getPrimarySelection();
+    CNA_EDITOR_EXPECT(instanceRoot.isValid() && instanceRoot != rootId);
+    CNA_EDITOR_EXPECT(context.getScene().findEntity(instanceRoot)->getParentId() == childId);
+
+    // And it undoes, taking the file with it -- an editor whose undo stack and filesystem disagree
+    // about what exists is worse than one that does not offer undo at all.
+    fixture.application->undo();
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), before);
+
+    fixture.application->undo();
+    CNA_EDITOR_EXPECT(!std::filesystem::exists(prefabPath));
+    CNA_EDITOR_EXPECT(context.getAssets().findByPath("Assets/Prefabs/Enemy.cnaprefab") == nullptr);
+    CNA_EDITOR_EXPECT(!getPrefabAssetOf(context.getScene(), rootId).isValid());
+}
+
+CNA_EDITOR_TEST(TheInspectorReportsOverridesAndRevertsOrAppliesThem)
+{
+    RecoveryFixture fixture{"prefabinspector", 0.0};
+    EditorContext& context = fixture.context();
+    ScriptedUi* ui = fixture.ui;
+
+    EditorEntity root{Uuid::generate(), "Enemy"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+    root.addComponent(std::move(transform));
+    const Uuid rootId = context.getScene().addEntity(std::move(root));
+
+    context.select(rootId);
+    ui->openContextMenus.push_back("entity-" + rootId.toString());
+    ui->pendingMenuClicks.emplace_back("Create Prefab");
+    fixture.application->renderFrame();
+
+    ui->openContextMenus.clear();
+    fixture.application->renderFrame();
+    CNA_EDITOR_EXPECT(ui->sawText("Prefab: Enemy"));
+    CNA_EDITOR_EXPECT(ui->sawText("No changes from the prefab."));
+
+    // Diverge, and the inspector says so -- computed by comparing, not by anything recorded.
+    context.execute(std::make_unique<SetPropertyCommand>(
+        context.getScene(), rootId, BuiltinComponentIds::kTransform, "position",
+        PropertyValue{EditorVector3{40.0f, 8.0f, 0.0f}}));
+    fixture.application->renderFrame();
+    CNA_EDITOR_EXPECT(ui->sawText("1 change(s) from the prefab"));
+
+    // Revert puts it back the way the prefab has it.
+    ui->pendingClicks.emplace_back("Revert##prefab");
+    fixture.application->renderFrame();
+
+    CNA_EDITOR_EXPECT_EQ(context.getScene()
+                             .findEntity(rootId)
+                             ->findComponent(BuiltinComponentIds::kTransform)
+                             ->getProperty("position")
+                             .get<EditorVector3>()
+                             .x,
+                         0.0f);
+
+    // Apply goes the other way: the prefab file is rewritten to match the instance.
+    context.execute(std::make_unique<SetPropertyCommand>(
+        context.getScene(), rootId, BuiltinComponentIds::kTransform, "position",
+        PropertyValue{EditorVector3{7.0f, 0.0f, 0.0f}}));
+    fixture.application->renderFrame();
+
+    ui->pendingClicks.emplace_back("Apply##prefab");
+    fixture.application->renderFrame();
+
+    PrefabDocument onDisk;
+    const std::filesystem::path prefabPath = fixture.directory / "Assets" / "Prefabs" / "Enemy.cnaprefab";
+    CNA_EDITOR_EXPECT(
+        onDisk.loadFromFile(prefabPath.generic_string(), context.getComponentRegistry()).succeeded);
+    CNA_EDITOR_EXPECT_EQ(onDisk.getEntities()
+                             .front()
+                             .findComponent(BuiltinComponentIds::kTransform)
+                             ->getProperty("position")
+                             .get<EditorVector3>()
+                             .x,
+                         7.0f);
+
+    // The instance now matches the prefab, by construction: it *is* the prefab.
+    fixture.application->renderFrame();
+    CNA_EDITOR_EXPECT(ui->sawText("No changes from the prefab."));
+
+    // And applying undoes, restoring the file's previous contents.
+    fixture.application->undo();
+    PrefabDocument restored;
+    CNA_EDITOR_EXPECT(
+        restored.loadFromFile(prefabPath.generic_string(), context.getComponentRegistry()).succeeded);
+    CNA_EDITOR_EXPECT_EQ(restored.getEntities()
+                             .front()
+                             .findComponent(BuiltinComponentIds::kTransform)
+                             ->getProperty("position")
+                             .get<EditorVector3>()
+                             .x,
+                         0.0f);
+}
+
+CNA_EDITOR_TEST(ApplyingAnInstantiatedInstanceKeepsEveryLinkIntact)
+{
+    // The case create-then-apply cannot catch: an instantiated instance has *fresh* entity ids, so
+    // writing them into the prefab verbatim would leave every link naming an entity the file no
+    // longer has -- and the next comparison would report the whole instance as added.
+    RecoveryFixture fixture{"prefabapply", 0.0};
+    EditorContext& context = fixture.context();
+    ScriptedUi* ui = fixture.ui;
+
+    EditorEntity root{Uuid::generate(), "Enemy"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+    root.addComponent(std::move(transform));
+    const Uuid sourceId = context.getScene().addEntity(std::move(root));
+
+    context.select(sourceId);
+    ui->openContextMenus.push_back("entity-" + sourceId.toString());
+    ui->pendingMenuClicks.emplace_back("Create Prefab");
+    fixture.application->renderFrame();
+    ui->openContextMenus.clear();
+
+    const AssetRecord* record = context.getAssets().findByPath("Assets/Prefabs/Enemy.cnaprefab");
+    CNA_EDITOR_EXPECT(record != nullptr);
+    if (record == nullptr) { return; }
+
+    ui->pendingAssetDrops.emplace_back(sourceId.toString(), record->id.toString());
+    fixture.application->renderFrame();
+
+    const Uuid instanceRoot = context.getPrimarySelection();
+    CNA_EDITOR_EXPECT(instanceRoot.isValid() && instanceRoot != sourceId);
+
+    // Add a child to the instance, then apply. The addition has no link, so it earns a fresh
+    // prefab id -- and the live entity has to be told about it.
+    EditorEntity extra{Uuid::generate(), "Shield"};
+    extra.addComponent(EditorComponent{BuiltinComponentIds::kTransform});
+    const Uuid extraId = context.getScene().addEntity(std::move(extra));
+    CNA_EDITOR_EXPECT(context.getScene().reparentEntity(extraId, instanceRoot));
+
+    context.select(instanceRoot);
+    fixture.application->renderFrame();
+    CNA_EDITOR_EXPECT(ui->sawText("1 change(s) from the prefab"));
+
+    ui->pendingClicks.emplace_back("Apply##prefab");
+    fixture.application->renderFrame();
+
+    PrefabDocument onDisk;
+    const std::filesystem::path prefabPath = fixture.directory / "Assets" / "Prefabs" / "Enemy.cnaprefab";
+    CNA_EDITOR_EXPECT(
+        onDisk.loadFromFile(prefabPath.generic_string(), context.getComponentRegistry()).succeeded);
+    CNA_EDITOR_EXPECT_EQ(onDisk.getEntities().size(), std::size_t{2});
+
+    // The prefab carries no instance bookkeeping: leaving it in would make every future instance
+    // born claiming to be an instance of something else.
+    for (const EditorEntity& entity : onDisk.getEntities())
+    {
+        CNA_EDITOR_EXPECT(entity.getEditorState().count(PrefabKeys::kPrefabEntity) == 0);
+        CNA_EDITOR_EXPECT(entity.getEditorState().count(PrefabKeys::kPrefabAsset) == 0);
+    }
+
+    // And the instance now matches it exactly, which is the whole claim Apply makes.
+    fixture.application->renderFrame();
+    CNA_EDITOR_EXPECT(ui->sawText("No changes from the prefab."));
+    CNA_EDITOR_EXPECT(findPrefabOverrides(context.getScene(), instanceRoot, onDisk, context.getComponentRegistry()).empty());
 }

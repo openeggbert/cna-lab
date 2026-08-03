@@ -144,6 +144,15 @@ namespace CNA::Editor
         [[nodiscard]] const std::map<std::string, PropertyValue>& getEditorState() const { return editorState_; }
         void setEditorState(std::string name, PropertyValue value);
 
+        /**
+         * @brief Removes an editor-state key. Returns true when something was removed.
+         *
+         * Needed when a subtree changes role: an instance carries prefab links, and the prefab
+         * rebuilt from it must not, or every future instance would be born claiming to be an
+         * instance of something else.
+         */
+        bool removeEditorState(std::string_view name);
+
     private:
         Uuid id_;
         std::string name_;

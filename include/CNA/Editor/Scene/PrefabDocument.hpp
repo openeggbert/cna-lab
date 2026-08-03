@@ -96,6 +96,15 @@ namespace CNA::Editor
          */
         bool captureFromScene(const SceneDocument& scene, const Uuid& rootId, std::string name);
 
+        /**
+         * @brief Replaces the entities wholesale, root first.
+         *
+         * Used when a prefab is rebuilt from a live instance, where the ids have to be mapped back
+         * to the prefab's own before they are stored. Nothing validates the order here; the loader
+         * repairs a file whose order is wrong, and this is the same contract in memory.
+         */
+        void setEntities(std::vector<EditorEntity> entities) { entities_ = std::move(entities); }
+
         /** @brief Serialises to the `.cnaprefab` JSON documented in docs/FORMATS.md. */
         [[nodiscard]] JsonValue toJson() const;
 

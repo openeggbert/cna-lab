@@ -45,12 +45,22 @@ namespace CNA::Editor
         /** @brief Payload type for an entity dragged within the hierarchy. */
         static constexpr const char* kEntityDragType = "entity";
 
+        /** @brief Payload type for an asset dragged out of the browser. */
+        static constexpr const char* kAssetDragType = "asset";
+
+        /** @brief Where a prefab made from a selection is written, project-relative. */
+        static constexpr const char* kPrefabDirectory = "Assets/Prefabs";
+
         /** @brief What the tree asked for while it was drawing. */
         enum class Action
         {
             None,
             Reparent,
-            Delete
+            Delete,
+            /** @brief Turn the entity into a prefab, and itself into an instance of it. */
+            CreatePrefab,
+            /** @brief Instantiate a prefab asset under the entity. */
+            InstantiatePrefab
         };
 
         struct PendingAction
@@ -58,6 +68,9 @@ namespace CNA::Editor
             Action kind = Action::None;
             Uuid entityId;
             Uuid parentId;
+
+            /** @brief The prefab asset to instantiate, for Action::InstantiatePrefab. */
+            Uuid assetId;
         };
 
         PendingAction pending_;
