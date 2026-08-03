@@ -173,6 +173,17 @@ namespace CNA::Editor
         void drawAddComponentControl(const EditorEntity& entity);
 
         /**
+         * @brief Draws one property row, returning the new value when the user changed it.
+         *
+         * Quaternions are shown as Euler angles in degrees; everything else goes straight to the
+         * matching widget.
+         */
+        [[nodiscard]] std::optional<PropertyValue> drawPropertyRow(const Uuid& entityId,
+                                                                   const std::string& componentTypeId,
+                                                                   const PropertyDescriptor& property,
+                                                                   const PropertyValue& value);
+
+        /**
          * @brief Applies this frame's keyboard shortcuts.
          *
          * Runs before the panels, so a shortcut and the menu item bound to the same operation both
@@ -252,6 +263,33 @@ namespace CNA::Editor
          * added, and an index would then quietly refer to a different type than the one on screen.
          */
         std::string addComponentChoice_;
+
+        /**
+         * @brief The Euler angles the user last typed, and the quaternion they produced.
+         *
+         * A quaternion has more than one Euler spelling, so converting back and forth every frame
+         * would let the numbers jump while they are being edited -- type 90 into pitch and the yaw
+         * and roll beside it flip to an equivalent pair. Remembering what was typed, and reusing it
+         * for as long as the stored quaternion is still the one it produced, keeps the field
+         * steady while still following an undo, a gizmo drag or a reload the instant one lands.
+         */
+        struct EulerEdit
+        {
+            Uuid entityId;
+            std::string componentTypeId;
+            std::string propertyName;
+            EditorVector3 degrees;
+            EditorQuaternion produced;
+
+            /** @brief Returns true when this cache describes @p propertyName on that component. */
+            [[nodiscard]] bool matches(const Uuid& entity, const std::string& component,
+                                       const std::string& property) const
+            {
+                return entityId == entity && componentTypeId == component && propertyName == property;
+            }
+        };
+
+        EulerEdit eulerEdit_;
 
         std::vector<PlayerBuild> playerBuilds_;
         std::size_t selectedBuild_ = 0;

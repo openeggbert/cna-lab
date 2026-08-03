@@ -16,6 +16,7 @@
 
 #include "CNA/Editor/EditorApplication.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/SceneTransform.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 
 using namespace CNA::Editor;
@@ -307,6 +308,12 @@ namespace
         /** @brief Enum choices to apply, as (field label, option) pairs. Each fires once. */
         std::vector<std::pair<std::string, std::string>> pendingChoices;
 
+        /** @brief Non-enum edits to apply, as (field label, new value) pairs. Each fires once. */
+        std::vector<std::pair<std::string, PropertyValue>> pendingEdits;
+
+        /** @brief Values the inspector showed during the most recent frame, by label. */
+        std::vector<std::pair<std::string, PropertyValue>> shownValues;
+
         /** @brief Button labels drawn during the most recent frame. */
         std::vector<std::string> drawnButtons;
 
@@ -332,6 +339,7 @@ namespace
         {
             drawnButtons.clear();
             offeredOptions.clear();
+            shownValues.clear();
         }
 
         bool button(const std::string& label) override
@@ -354,12 +362,21 @@ namespace
         {
             (void)readOnly;
             if (!enumOptions.empty()) { offeredOptions.emplace_back(label, enumOptions); }
+            shownValues.emplace_back(label, value);
 
             for (auto entry = pendingChoices.begin(); entry != pendingChoices.end(); ++entry)
             {
                 if (entry->first != label) { continue; }
                 value = PropertyValue{PropertyValue::EnumValue{entry->second}};
                 pendingChoices.erase(entry);
+                return true;
+            }
+
+            for (auto entry = pendingEdits.begin(); entry != pendingEdits.end(); ++entry)
+            {
+                if (entry->first != label) { continue; }
+                value = entry->second;
+                pendingEdits.erase(entry);
                 return true;
             }
             return false;
@@ -369,6 +386,16 @@ namespace
         [[nodiscard]] bool sawButton(const std::string& label) const
         {
             return std::find(drawnButtons.begin(), drawnButtons.end(), label) != drawnButtons.end();
+        }
+
+        /** @brief Returns the value last shown for @p label. */
+        [[nodiscard]] PropertyValue shownValueFor(const std::string& label) const
+        {
+            for (const auto& [field, value] : shownValues)
+            {
+                if (field == label) { return value; }
+            }
+            return PropertyValue{};
         }
 
         /** @brief Returns the options last offered for @p label, or an empty list. */
@@ -825,4 +852,76 @@ CNA_EDITOR_TEST(RemovingAComponentThroughTheInspectorIsUndoable)
     fixture.step(UiImageInteraction{});
     CNA_EDITOR_EXPECT(context.getScene().findEntity(fixture.entityId)
                           ->findComponent(BuiltinComponentIds::kCamera) != nullptr);
+}
+
+CNA_EDITOR_TEST(RotationIsEditedAsDegreesAndStoredAsAQuaternion)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    fixture.ui->pendingEdits.emplace_back("Rotation (deg)",
+                                          PropertyValue{EditorVector3{0.0f, 0.0f, 45.0f}});
+    fixture.step(UiImageInteraction{});
+
+    const EditorComponent* transform = context.getScene().findEntity(fixture.entityId)
+                                           ->findComponent(BuiltinComponentIds::kTransform);
+    const EditorQuaternion stored = transform->getProperty("rotation").get<EditorQuaternion>();
+
+    // The scene keeps a quaternion; only the inspector deals in degrees. Storing angles would put
+    // the convention in the file, where every reader would have to agree with it forever.
+    CNA_EDITOR_EXPECT(stored == quaternionFromEulerDegrees(EditorVector3{0.0f, 0.0f, 45.0f}));
+
+    fixture.step(UiImageInteraction{});
+    const EditorVector3 shown = fixture.ui->shownValueFor("Rotation (deg)").get<EditorVector3>();
+    CNA_EDITOR_EXPECT_EQ(shown.z, 45.0f);
+}
+
+CNA_EDITOR_TEST(TheInspectorKeepsTheAnglesTheUserTypedAtGimbalLock)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    // A pitch of 90 degrees is a pole: yaw and roll are no longer separable, and reading the
+    // quaternion back reports the same rotation as a *different* (yaw, roll) pair.
+    const EditorVector3 typed{90.0f, 40.0f, 25.0f};
+    fixture.ui->pendingEdits.emplace_back("Rotation (deg)", PropertyValue{typed});
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+
+    const EditorVector3 shown = fixture.ui->shownValueFor("Rotation (deg)").get<EditorVector3>();
+
+    // Recomputing from the quaternion would show roll 0 and a folded yaw, so the two fields beside
+    // the one being edited would jump the instant the pitch reached 90.
+    CNA_EDITOR_EXPECT_EQ(shown.y, 40.0f);
+    CNA_EDITOR_EXPECT_EQ(shown.z, 25.0f);
+
+    // And the honest reading really does differ, which is what makes the cache worth having.
+    CNA_EDITOR_EXPECT(eulerDegreesOf(quaternionFromEulerDegrees(typed)).z != 25.0f);
+}
+
+CNA_EDITOR_TEST(TheAngleCacheStopsApplyingOnceSomethingElseChangesTheRotation)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    fixture.ui->pendingEdits.emplace_back("Rotation (deg)",
+                                          PropertyValue{EditorVector3{90.0f, 40.0f, 25.0f}});
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT_EQ(fixture.ui->shownValueFor("Rotation (deg)").get<EditorVector3>().z, 25.0f);
+
+    // Undo puts back a rotation the cache did not produce, so the cache must stop applying at once
+    // -- otherwise the inspector would go on showing angles for a value the scene no longer holds.
+    fixture.ui->pressShortcut(UiKey::Z, withControl());
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+
+    const EditorComponent* transform = context.getScene().findEntity(fixture.entityId)
+                                           ->findComponent(BuiltinComponentIds::kTransform);
+    const EditorQuaternion stored = transform->getProperty("rotation").get<EditorQuaternion>();
+
+    const EditorVector3 shown = fixture.ui->shownValueFor("Rotation (deg)").get<EditorVector3>();
+    const EditorVector3 honest = eulerDegreesOf(stored);
+    CNA_EDITOR_EXPECT_EQ(shown.x, honest.x);
+    CNA_EDITOR_EXPECT_EQ(shown.y, honest.y);
+    CNA_EDITOR_EXPECT_EQ(shown.z, honest.z);
 }

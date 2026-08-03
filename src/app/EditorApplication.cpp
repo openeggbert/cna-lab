@@ -705,18 +705,17 @@ namespace CNA::Editor
 
             for (const PropertyDescriptor& property : descriptor->properties)
             {
-                PropertyValue value = component.getPropertyOrDefault(property.name, descriptor);
-                const std::string label = property.displayName.empty() ? property.name : property.displayName;
+                const PropertyValue value = component.getPropertyOrDefault(property.name, descriptor);
+                const std::optional<PropertyValue> edited =
+                    drawPropertyRow(selectedId, component.getTypeId(), property, value);
+                if (!edited) { continue; }
 
-                if (ui_->propertyField(label, value, property.enumOptions, property.readOnly))
-                {
-                    // Merging means an inspector drag collapses into a single undo entry that
-                    // returns to the value the drag started from.
-                    context_.execute(std::make_unique<SetPropertyCommand>(
-                                         context_.getScene(), entity->getId(), component.getTypeId(),
-                                         property.name, value),
-                                     MergePolicy::MergeWithPrevious);
-                }
+                // Merging means an inspector drag collapses into a single undo entry that
+                // returns to the value the drag started from.
+                context_.execute(std::make_unique<SetPropertyCommand>(
+                                     context_.getScene(), selectedId, component.getTypeId(),
+                                     property.name, *edited),
+                                 MergePolicy::MergeWithPrevious);
             }
             ui_->separator();
         }
@@ -731,6 +730,47 @@ namespace CNA::Editor
                 context_.getScene(), context_.getComponentRegistry(), selectedId, *removeIndex);
             if (command->isValid()) { context_.execute(std::move(command)); }
         }
+    }
+
+    std::optional<PropertyValue> EditorApplication::drawPropertyRow(const Uuid& entityId,
+                                                                     const std::string& componentTypeId,
+                                                                     const PropertyDescriptor& property,
+                                                                     const PropertyValue& value)
+    {
+        const std::string label = property.displayName.empty() ? property.name : property.displayName;
+
+        if (value.getType() != PropertyType::Quaternion)
+        {
+            PropertyValue edited = value;
+            if (!ui_->propertyField(label, edited, property.enumOptions, property.readOnly))
+            {
+                return std::nullopt;
+            }
+            return edited;
+        }
+
+        // Quaternions are shown as degrees, because four raw components are not something anyone
+        // can author: rotating a sprite by 45 degrees should not require working out a quaternion.
+        const EditorQuaternion stored = value.get<EditorQuaternion>();
+
+        // Reuse what the user typed for as long as the stored value is still exactly the one it
+        // produced. Recomputing every frame would let the other two angles jump to an equivalent
+        // spelling mid-edit; comparing against our own output means an undo, a gizmo drag or a
+        // reload is picked up immediately, because none of those produce that exact quaternion.
+        const bool cacheApplies = eulerEdit_.matches(entityId, componentTypeId, property.name)
+                               && eulerEdit_.produced == stored;
+
+        PropertyValue shown{cacheApplies ? eulerEdit_.degrees : eulerDegreesOf(stored)};
+        if (!ui_->propertyField(label + " (deg)", shown, {}, property.readOnly))
+        {
+            return std::nullopt;
+        }
+
+        const EditorVector3 degrees = shown.get<EditorVector3>();
+        const EditorQuaternion produced = quaternionFromEulerDegrees(degrees);
+
+        eulerEdit_ = EulerEdit{entityId, componentTypeId, property.name, degrees, produced};
+        return PropertyValue{produced};
     }
 
     void EditorApplication::drawAddComponentControl(const EditorEntity& entity)

@@ -512,7 +512,9 @@ CNA_EDITOR_TEST(GizmoDragDoesNotDriftOverManyUpdates)
     for (int step = 0; step < 200; ++step)
     {
         const float t = static_cast<float>(step);
-        drag.update(scene, camera, camera.worldToScreen(EditorVector2{t * 3.0f, -t * 1.5f}));
+        // The result is deliberately dropped: what is being exercised is that these updates leave
+        // no residue behind, which the final one below proves.
+        (void)drag.update(scene, camera, camera.worldToScreen(EditorVector2{t * 3.0f, -t * 1.5f}));
     }
 
     const std::optional<EditorVector3> back =
@@ -715,4 +717,93 @@ CNA_EDITOR_TEST(DisabledEntitiesGetNoIcon)
     CNA_EDITOR_EXPECT_EQ(collectEditorIcons(scene, view).size(), std::size_t{0});
     CNA_EDITOR_EXPECT(!pickEntityAt(scene, view, view.worldToScreen(EditorVector2{0.0f, 0.0f}),
                                     kNoSizes).entityId.isValid());
+}
+
+CNA_EDITOR_TEST(EulerAnglesRoundTripThroughAQuaternion)
+{
+    const EditorVector3 cases[] = {
+        EditorVector3{0.0f, 0.0f, 0.0f},
+        EditorVector3{0.0f, 0.0f, 45.0f},
+        EditorVector3{0.0f, 0.0f, -170.0f},
+        EditorVector3{30.0f, 0.0f, 0.0f},
+        EditorVector3{0.0f, 120.0f, 0.0f},
+        EditorVector3{15.0f, -60.0f, 100.0f},
+        EditorVector3{-89.0f, 33.0f, -12.0f},
+    };
+
+    for (const EditorVector3& degrees : cases)
+    {
+        const EditorVector3 back = eulerDegreesOf(quaternionFromEulerDegrees(degrees));
+        CNA_EDITOR_EXPECT(nearlyEqual(back.x, degrees.x, 0.01f));
+        CNA_EDITOR_EXPECT(nearlyEqual(back.y, degrees.y, 0.01f));
+        CNA_EDITOR_EXPECT(nearlyEqual(back.z, degrees.z, 0.01f));
+    }
+}
+
+CNA_EDITOR_TEST(TheEulerConventionMatchesTheZRotationTheRendererUses)
+{
+    // The renderer passes zRotationOf() to SpriteBatch::Draw, so a roll typed into the inspector
+    // has to be the angle the sprite actually turns by. Two conventions that disagreed here would
+    // make the number in the inspector a decoration.
+    for (const float roll : {0.0f, 30.0f, -90.0f, 150.0f})
+    {
+        const EditorQuaternion rotation = quaternionFromEulerDegrees(EditorVector3{0.0f, 0.0f, roll});
+
+        constexpr float kToDegrees = 180.0f / 3.14159265358979323846f;
+        CNA_EDITOR_EXPECT(nearlyEqual(zRotationOf(rotation) * kToDegrees, roll, 0.01f));
+
+        // And it agrees with the dedicated 2D helper, which is the other way a rotation is built.
+        const EditorQuaternion viaHelper = quaternionFromZRotation(roll / kToDegrees);
+        CNA_EDITOR_EXPECT(nearlyEqual(rotation.z, viaHelper.z, 0.0001f));
+        CNA_EDITOR_EXPECT(nearlyEqual(rotation.w, viaHelper.w, 0.0001f));
+    }
+}
+
+CNA_EDITOR_TEST(EulerExtractionSurvivesGimbalLock)
+{
+    // At a pole, yaw and roll are not separable: every pair with the same sum (or difference)
+    // names the same rotation. Reporting *a* valid answer matters more than which one, but it
+    // must still be one that rebuilds the same rotation.
+    for (const float pitch : {90.0f, -90.0f})
+    {
+        const EditorQuaternion original =
+            quaternionFromEulerDegrees(EditorVector3{pitch, 40.0f, 25.0f});
+
+        const EditorVector3 extracted = eulerDegreesOf(original);
+        CNA_EDITOR_EXPECT(nearlyEqual(extracted.x, pitch, 0.05f));
+        CNA_EDITOR_EXPECT(nearlyEqual(extracted.z, 0.0f, 0.001f));
+
+        const EditorQuaternion rebuilt = quaternionFromEulerDegrees(extracted);
+
+        // q and -q are the same rotation, so compare what they do rather than their components.
+        const EditorVector3 probe{1.0f, 2.0f, 3.0f};
+        const EditorVector3 a = rotate(original, probe);
+        const EditorVector3 b = rotate(rebuilt, probe);
+        CNA_EDITOR_EXPECT(nearlyEqual(a.x, b.x, 0.01f));
+        CNA_EDITOR_EXPECT(nearlyEqual(a.y, b.y, 0.01f));
+        CNA_EDITOR_EXPECT(nearlyEqual(a.z, b.z, 0.01f));
+    }
+}
+
+CNA_EDITOR_TEST(AQuaternionRoundTripsThroughEulerAsTheSameRotation)
+{
+    // The other direction: start from a quaternion nobody typed and check the angles shown for it
+    // rebuild it. This is what the inspector does every frame it is not reusing its cache.
+    const EditorQuaternion rotations[] = {
+        quaternionFromEulerDegrees(EditorVector3{12.0f, 200.0f, -75.0f}),
+        quaternionFromEulerDegrees(EditorVector3{-44.0f, -160.0f, 5.0f}),
+        multiply(quaternionFromZRotation(0.7f), quaternionFromEulerDegrees(EditorVector3{20.0f, 10.0f, 0.0f})),
+    };
+
+    for (const EditorQuaternion& rotation : rotations)
+    {
+        const EditorQuaternion rebuilt = quaternionFromEulerDegrees(eulerDegreesOf(rotation));
+
+        const EditorVector3 probe{0.3f, -1.7f, 2.1f};
+        const EditorVector3 a = rotate(rotation, probe);
+        const EditorVector3 b = rotate(rebuilt, probe);
+        CNA_EDITOR_EXPECT(nearlyEqual(a.x, b.x, 0.001f));
+        CNA_EDITOR_EXPECT(nearlyEqual(a.y, b.y, 0.001f));
+        CNA_EDITOR_EXPECT(nearlyEqual(a.z, b.z, 0.001f));
+    }
 }

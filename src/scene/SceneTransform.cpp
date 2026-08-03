@@ -70,6 +70,75 @@ namespace CNA::Editor
                           1.0f - 2.0f * (rotation.y * rotation.y + rotation.z * rotation.z));
     }
 
+    EditorQuaternion quaternionFromEulerDegrees(const EditorVector3& degrees)
+    {
+        constexpr float kToRadians = 3.14159265358979323846f / 180.0f;
+
+        const float halfPitch = degrees.x * kToRadians * 0.5f;
+        const float halfYaw = degrees.y * kToRadians * 0.5f;
+        const float halfRoll = degrees.z * kToRadians * 0.5f;
+
+        const float sinPitch = std::sin(halfPitch);
+        const float cosPitch = std::cos(halfPitch);
+        const float sinYaw = std::sin(halfYaw);
+        const float cosYaw = std::cos(halfYaw);
+        const float sinRoll = std::sin(halfRoll);
+        const float cosRoll = std::cos(halfRoll);
+
+        // Term for term what XNA's Quaternion.CreateFromYawPitchRoll computes.
+        return EditorQuaternion{
+            (cosYaw * sinPitch * cosRoll) + (sinYaw * cosPitch * sinRoll),
+            (sinYaw * cosPitch * cosRoll) - (cosYaw * sinPitch * sinRoll),
+            (cosYaw * cosPitch * sinRoll) - (sinYaw * sinPitch * cosRoll),
+            (cosYaw * cosPitch * cosRoll) + (sinYaw * sinPitch * sinRoll)};
+    }
+
+    EditorVector3 eulerDegreesOf(const EditorQuaternion& rotation)
+    {
+        constexpr float kToDegrees = 180.0f / 3.14159265358979323846f;
+
+        // asin(-0) and atan2(-0, 1) both give negative zero, which an inspector renders as
+        // "-0.000" -- indistinguishable from a bug to anyone reading it.
+        const auto withoutNegativeZero = [](float value) { return value == 0.0f ? 0.0f : value; };
+
+        const float x = rotation.x;
+        const float y = rotation.y;
+        const float z = rotation.z;
+        const float w = rotation.w;
+
+        // The three matrix entries the Y-X-Z extraction needs, straight from the quaternion. Only
+        // these are built: forming the whole matrix to read four of its nine entries is waste.
+        const float m12 = 2.0f * (y * z - w * x);   // -sin(pitch)
+        const float m10 = 2.0f * (x * y + w * z);   //  cos(pitch) * sin(roll)
+        const float m11 = 1.0f - 2.0f * (x * x + z * z); // cos(pitch) * cos(roll)
+        const float m02 = 2.0f * (x * z + w * y);   //  cos(pitch) * sin(yaw)
+        const float m22 = 1.0f - 2.0f * (x * x + y * y); // cos(pitch) * cos(yaw)
+
+        const float sinPitch = std::clamp(-m12, -1.0f, 1.0f);
+        const float pitch = std::asin(sinPitch);
+
+        // Gimbal lock: with the pitch at a pole, cos(pitch) is zero and yaw and roll are no longer
+        // separable -- every (yaw, roll) pair with the same sum names the same rotation. Splitting
+        // it arbitrarily would make the inspector jitter between equivalent answers as the last
+        // bits of the quaternion moved, so the whole turn is reported as yaw and roll pinned to 0.
+        constexpr float kPoleEpsilon = 1.0e-4f;
+        if (std::fabs(sinPitch) > 1.0f - kPoleEpsilon)
+        {
+            // At +90 the rotation depends only on (yaw - roll), at -90 only on (yaw + roll), which
+            // is why the sign differs between the two poles rather than being one formula.
+            const float m01 = 2.0f * (x * y - w * z);
+            const float m00 = 1.0f - 2.0f * (y * y + z * z);
+            const float yawAtPole = sinPitch > 0.0f ? std::atan2(m01, m00) : std::atan2(-m01, m00);
+
+            return EditorVector3{withoutNegativeZero(pitch * kToDegrees),
+                                 withoutNegativeZero(yawAtPole * kToDegrees), 0.0f};
+        }
+
+        return EditorVector3{withoutNegativeZero(pitch * kToDegrees),
+                             withoutNegativeZero(std::atan2(m02, m22) * kToDegrees),
+                             withoutNegativeZero(std::atan2(m10, m11) * kToDegrees)};
+    }
+
     std::optional<WorldTransform> computeWorldTransform(const SceneDocument& scene, const Uuid& entityId)
     {
         if (scene.findEntity(entityId) == nullptr) { return std::nullopt; }

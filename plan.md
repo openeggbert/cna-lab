@@ -25,7 +25,7 @@
 **Phase 0 is complete and Phase 1 is under way: the editor opens a scene, edits it and plays it.**
 The repository still builds and passes its full suite with no CNA checkout, no GPU and no window:
 
-- 12 modules, two executables, and **154 passing tests across 7 CTest suites** (9 with CNA)
+- 12 modules, two executables, and **161 passing tests across 7 CTest suites** (9 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -147,7 +147,7 @@ The editor opens, docks and renders through CNA's public API, verified by screen
 | ED-124 | Editor verified on a second backend (EASYGL, real OpenGL ES 3.2 under Xvfb) | ✅ | Pixel-identical output to SOFTWARE — the property ED-510's comparison mode will check automatically, confirmed by hand |
 | ED-123 | `--screenshot=PATH` and the `CnaEditorWindowSmoke` CTest | ✅ | The mechanism plan.md ED-510's backend comparison mode will capture through |
 | ED-115 | Persistent `DynamicVertexBuffer`/`DynamicIndexBuffer` in `CnaUiRenderer` | ⛔ | Deferred: `DrawUserIndexedPrimitives` re-uploads per call, which is fine at 20–60 commands a frame. Profiling should ask for this before anyone does it |
-| ED-118 | Quaternion inspector as Euler angles | ⬜ | Needs a stable angle convention and round-trip handling. Showing the honest stored quaternion beats showing angles that silently drift on every edit |
+| ED-118 | Quaternion inspector as Euler angles | ✅ | XNA's own `CreateFromYawPitchRoll` convention, so the angles shown are the ones the game produces. The angles the user typed are cached against the quaternion they produced, so the two fields beside the one being edited cannot jump to an equivalent spelling mid-edit — and the cache stops applying the instant an undo, a gizmo drag or a reload writes a value it did not produce |
 | ED-120 | `CnaSceneRenderer` draws sprites through `SpriteBatch` | ✅ | Layer depth honoured via `SpriteSortMode::BackToFront`, parent transforms composed, tint/origin/flip applied. A sprite whose texture will not load draws a placeholder at the bounds the picker uses, so what you click and what you see agree |
 | ED-121 | Viewport renders into an offscreen target composited into the dock | ✅ | `RenderTarget2D` shared with the UI renderer as a borrowed texture, so the panel draws it with no per-frame blit. Turned up gap G-03 |
 | ED-122 | Editor camera: pan, zoom, frame-selection | ✅ | `EditorCamera2D` implemented and tested (pan tracks the cursor at any zoom, wheel-zoom anchors under the pointer, framing respects margins). Wheel and drag are wired to the viewport panel, and `F` frames the selection — including entities with no drawable geometry, which centre rather than doing nothing |

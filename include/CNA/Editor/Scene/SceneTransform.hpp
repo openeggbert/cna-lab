@@ -73,6 +73,27 @@ namespace CNA::Editor
     [[nodiscard]] float zRotationOf(const EditorQuaternion& rotation);
 
     /**
+     * @brief Returns the quaternion for the Euler angles in @p degrees (x pitch, y yaw, z roll).
+     *
+     * The convention is XNA's own: the composition `Quaternion.CreateFromYawPitchRoll` produces,
+     * which is Y then X then Z applied intrinsically. Matching XNA rather than inventing a
+     * convention matters because the game reads these values back through XNA's types -- an editor
+     * that agreed with itself but not with the runtime would show angles the game does not produce.
+     */
+    [[nodiscard]] EditorQuaternion quaternionFromEulerDegrees(const EditorVector3& degrees);
+
+    /**
+     * @brief Returns the Euler angles in degrees that produce @p rotation.
+     *
+     * The inverse of quaternionFromEulerDegrees, in the same convention. Pitch is clamped into
+     * [-90, 90] and, at the poles, the yaw/roll split is degenerate -- infinitely many pairs give
+     * the same rotation, so roll is pinned to zero and the whole turn is reported as yaw. That is a
+     * property of Euler angles, not a shortcut: the alternative is a value that jitters between
+     * equivalent answers as the last bits of the quaternion move.
+     */
+    [[nodiscard]] EditorVector3 eulerDegreesOf(const EditorQuaternion& rotation);
+
+    /**
      * @brief Composes @p entityId's transform with every ancestor's.
      *
      * @return The world transform, or std::nullopt when @p entityId is not in @p scene.
