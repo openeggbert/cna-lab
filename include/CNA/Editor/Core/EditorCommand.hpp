@@ -129,6 +129,15 @@ namespace CNA::Editor
         [[nodiscard]] std::string getDescriptionAt(std::size_t index) const;
 
         /**
+         * @brief Returns entry @p index, or nullptr when out of range.
+         *
+         * Needed by anything that has to act on *which* change happened rather than on its label:
+         * mirroring an undo into a running player is the case, since an undo is a document change
+         * like any other and the player has to see it.
+         */
+        [[nodiscard]] const EditorCommand* getCommandAt(std::size_t index) const;
+
+        /**
          * @brief Returns the cursor position the document was last saved at, or -1 for none.
          *
          * Negative when the saved state was discarded -- either by a new command overwriting the

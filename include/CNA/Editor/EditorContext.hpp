@@ -95,6 +95,19 @@ namespace CNA::Editor
         /** @brief Replaces the open scene with an empty one holding a single camera entity. */
         void newScene(std::string name = "Untitled");
 
+        /** @brief Notified of each command as it is executed. */
+        using CommandObserver = std::function<void(const EditorCommand&)>;
+
+        /**
+         * @brief Installs the command observer. Passing an empty function removes it.
+         *
+         * Exists so the application can mirror a document change into a running player without the
+         * context having to know what a player is. It is called on every execute(), including the
+         * ones that merge into the previous entry -- a gizmo drag whose intermediate steps never
+         * reached the player would arrive there as one jump at the end.
+         */
+        void setCommandObserver(CommandObserver observer) { commandObserver_ = std::move(observer); }
+
         /** @brief Runs @p command through the undo stack. */
         void execute(std::unique_ptr<EditorCommand> command, MergePolicy policy = MergePolicy::NewEntry);
 
@@ -156,5 +169,6 @@ namespace CNA::Editor
         Uuid selectedAsset_;
         std::string scenePath_;
         LogSink logSink_;
+        CommandObserver commandObserver_;
     };
 }

@@ -305,6 +305,7 @@ contains exactly one and it is last.
 {"type":"ready","payload":{"backend":"SOFTWARE","protocolVersion":1}}
 {"type":"loadScene","payload":{"scenePath":"Scenes/Level01.cnascene"}}
 {"type":"setProperty","payload":{"entityId":"f392…","component":"CNA.Transform","property":"position","valueType":"vector3","value":[100,220,0]}}
+{"type":"reloadAsset","payload":{"assetId":"8d9fb62c-7447-4c22-a190-036691308c8a"}}
 {"type":"reportLog","payload":{"severity":"info","text":"Loaded 3 entities"}}
 ```
 
@@ -331,6 +332,11 @@ revision cannot kill a play session.
 **`setProperty` carries its own `valueType`,** unlike a scene file. The player resolves component
 schemas from its own registry, which may not match the editor's after a plugin reload, so the wire
 has to be self-describing.
+
+**`reloadAsset` names an asset by id, not by path.** Asset identity is a Uuid everywhere in the
+editor (D-08), and a reload that named a path would miss a file renamed between the change and the
+message. Both ends resolve the id through the database they each scanned, so there is one answer to
+"what is this asset" on both sides.
 
 **Reading goes through a stream decoder.** A stream socket delivers arbitrary chunks. A reader that
 assumes one `recv()` equals one message works right up until a message straddles a packet boundary,

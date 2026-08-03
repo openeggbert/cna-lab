@@ -95,6 +95,15 @@ namespace CNA::Editor
         return message;
     }
 
+    EditorMessage EditorMessage::makeReloadAsset(const Uuid& assetId)
+    {
+        EditorMessage message;
+        message.type = EditorMessageType::ReloadAsset;
+        message.payload = JsonValue::makeObject();
+        message.payload.set("assetId", JsonValue{assetId.toString()});
+        return message;
+    }
+
     EditorMessage EditorMessage::makeSetProperty(const Uuid& entityId,
                                                  const std::string& componentTypeId,
                                                  const std::string& propertyName,

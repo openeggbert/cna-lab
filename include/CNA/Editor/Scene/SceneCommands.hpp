@@ -170,6 +170,13 @@ namespace CNA::Editor
         [[nodiscard]] std::string getMergeKey() const override;
         bool mergeWith(const EditorCommand& newer) override;
 
+        // What this command targets. Read by the runtime bridge, which mirrors a property edit
+        // into a running player and has to know which property moved -- not what it moved to,
+        // because after an undo the live value is the old one and the document is the truth.
+        [[nodiscard]] const Uuid& getEntityId() const { return entityId_; }
+        [[nodiscard]] const std::string& getComponentTypeId() const { return componentTypeId_; }
+        [[nodiscard]] const std::string& getPropertyName() const { return propertyName_; }
+
     private:
         SceneDocument* document_;
         Uuid entityId_;

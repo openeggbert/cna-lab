@@ -68,6 +68,11 @@ namespace CNA::Editor
         return index < commands_.size() ? commands_[index]->getDescription() : std::string{};
     }
 
+    const EditorCommand* CommandHistory::getCommandAt(std::size_t index) const
+    {
+        return index < commands_.size() ? commands_[index].get() : nullptr;
+    }
+
     void CommandHistory::clear()
     {
         commands_.clear();

@@ -166,6 +166,10 @@ namespace CNA::Editor
         context_.setLogSink([this](LogSeverity severity, const std::string& message) {
             ui_->log(severity, message);
         });
+
+        // Every document change goes through a command (D-06), so this one hook is enough to keep
+        // a running player in step -- there is no second path a change could take.
+        context_.setCommandObserver([this](const EditorCommand& command) { mirrorToPlayer(command); });
     }
 
     void EditorApplication::setViewport(std::unique_ptr<EditorViewport> viewport)
@@ -443,14 +447,51 @@ namespace CNA::Editor
 
     void EditorApplication::undo()
     {
-        context_.getHistory().undo();
+        CommandHistory& history = context_.getHistory();
+        if (!history.undo()) { return; }
         context_.pruneSelection();
+
+        // An undo is a document change like any other, and a player that saw the edit but not its
+        // reversal would be showing a state that exists nowhere.
+        if (const EditorCommand* entry = history.getCommandAt(history.getCursor()))
+        {
+            mirrorToPlayer(*entry);
+        }
     }
 
     void EditorApplication::redo()
     {
-        context_.getHistory().redo();
+        CommandHistory& history = context_.getHistory();
+        const std::size_t index = history.getCursor();
+        if (!history.redo()) { return; }
         context_.pruneSelection();
+
+        if (const EditorCommand* entry = history.getCommandAt(index)) { mirrorToPlayer(*entry); }
+    }
+
+    void EditorApplication::mirrorToPlayer(const EditorCommand& command)
+    {
+        if (!player_ || playMode_ == PlayMode::Stopped) { return; }
+
+        // A dynamic_cast rather than a virtual on EditorCommand. Asking a command to describe
+        // itself in protocol terms would put the wire format into cna-editor-scene, which links
+        // neither the bridge nor anything that knows a player exists -- and the whole point of
+        // D-03-style layering is that the lower module stays ignorant of the higher one.
+        const auto* setProperty = dynamic_cast<const SetPropertyCommand*>(&command);
+        if (setProperty == nullptr) { return; }
+
+        // The document, not the command's own new value: after an undo the live value is the old
+        // one, and the document is the only thing that is right in both directions.
+        const EditorEntity* entity = context_.getScene().findEntity(setProperty->getEntityId());
+        if (entity == nullptr) { return; }
+
+        const EditorComponent* component = entity->findComponent(setProperty->getComponentTypeId());
+        if (component == nullptr) { return; }
+
+        player_->send(EditorMessage::makeSetProperty(setProperty->getEntityId(),
+                                                     setProperty->getComponentTypeId(),
+                                                     setProperty->getPropertyName(),
+                                                     component->getProperty(setProperty->getPropertyName())));
     }
 
     void EditorApplication::duplicateSelection()
@@ -653,6 +694,7 @@ namespace CNA::Editor
             // Dropping the cached texture is what makes the change visible. Without it the editor
             // would report the edit and go on drawing the art from before it.
             viewport_->invalidateAsset(assetId);
+            reloadAssetInPlayer(assetId);
 
             const AssetRecord* record = context_.getAssets().find(assetId);
             context_.log(LogSeverity::Info,
@@ -663,6 +705,7 @@ namespace CNA::Editor
         for (const Uuid& assetId : result.restored)
         {
             viewport_->invalidateAsset(assetId);
+            reloadAssetInPlayer(assetId);
 
             const AssetRecord* record = context_.getAssets().find(assetId);
             context_.log(LogSeverity::Info,
@@ -681,6 +724,15 @@ namespace CNA::Editor
 
         // The pixel size of a texture that just changed is no longer the one on record.
         applyImporterFacts(context_.getAssets());
+    }
+
+    void EditorApplication::reloadAssetInPlayer(const Uuid& assetId)
+    {
+        // Only while a game is actually running. Sending to a stopped player is not merely useless
+        // -- there is no process to send to, and the failure would be reported as a broken bridge.
+        if (!player_ || playMode_ == PlayMode::Stopped) { return; }
+
+        player_->send(EditorMessage::makeReloadAsset(assetId));
     }
 
     void EditorApplication::pollPlayer()

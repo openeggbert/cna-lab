@@ -245,6 +245,18 @@ namespace CNA::Editor
         /** @brief Looks for unsaved work from a previous session and reports what it finds. */
         void findRecoverableScene();
 
+        /**
+         * @brief Sends a document change to the running player, when it is one the wire can carry.
+         *
+         * Every document change goes through a command (D-06), so this one hook sees all of them.
+         * Only property edits are mirrored today; anything else is left alone rather than guessed
+         * at, because a partially applied scene in the player would be worse than a stale one.
+         */
+        void mirrorToPlayer(const EditorCommand& command);
+
+        /** @brief Tells the running player that one asset changed on disk. */
+        void reloadAssetInPlayer(const Uuid& assetId);
+
         EditorContext context_;
         std::unique_ptr<EditorUi> ui_;
         std::unique_ptr<EditorViewport> viewport_;

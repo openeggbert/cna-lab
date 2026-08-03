@@ -99,12 +99,27 @@ namespace CNA::Editor
         /** @brief Returns true once the editor has asked the player to exit. */
         [[nodiscard]] bool shouldExit() const { return playState_ == PlayState::Stopping; }
 
+        /**
+         * @brief Returns the assets the editor has asked to reload, and clears the list.
+         *
+         * The CNA-linked half of `cna-player` drains this to drop whatever it has cached for those
+         * ids. It is a list rather than a flag because the graphics half runs on its own schedule
+         * and must not miss a reload that arrived between two of its frames.
+         */
+        std::vector<Uuid> takeReloadedAssets()
+        {
+            std::vector<Uuid> taken;
+            taken.swap(reloadedAssets_);
+            return taken;
+        }
+
         /** @brief Returns whether a compatible handshake has been received. */
         [[nodiscard]] bool isHandshakeComplete() const { return handshakeComplete_; }
 
     private:
         void handleLoadScene(const EditorMessage& message, Outbox& outbox);
         void handleSetProperty(const EditorMessage& message, Outbox& outbox);
+        void handleReloadAsset(const EditorMessage& message, Outbox& outbox);
 
         Project project_;
         SceneDocument scene_;
@@ -114,6 +129,9 @@ namespace CNA::Editor
         std::string error_;
         PlayState playState_ = PlayState::Running;
         Uuid highlightedEntity_;
+
+        /** @brief Assets reloaded since the graphics half last drained the list. */
+        std::vector<Uuid> reloadedAssets_;
         std::uint64_t frameCount_ = 0;
         /** @brief Frames still owed from StepFrame requests while paused. */
         int pendingSteps_ = 0;

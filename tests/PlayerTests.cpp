@@ -21,6 +21,7 @@
 #include "CNA/Editor/RuntimeBridge/MessageChannel.hpp"
 #include "CNA/Editor/RuntimeBridge/PlayerProcess.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/SceneCommands.hpp"
 
 using namespace CNA::Editor;
 
@@ -544,4 +545,147 @@ CNA_EDITOR_TEST(PlayerProcessIntroducesItselfOnceConnected)
     CNA_EDITOR_EXPECT(player.isHelloSent());
 
     player.stop();
+}
+
+CNA_EDITOR_TEST(PlayerHostReloadsOneAssetByIdAndReportsWhatItDid)
+{
+    const ScratchProject project{"reloadasset"};
+
+    // An asset the player has never seen: the reload has to rescan before it looks the id up, or
+    // it would answer "unknown" about a file that is right there.
+    const std::filesystem::path assetPath = project.directory / "Assets" / "hero.png";
+    std::filesystem::create_directories(assetPath.parent_path());
+    {
+        std::ofstream stream{assetPath, std::ios::binary | std::ios::trunc};
+        stream << "hero";
+    }
+
+    PlayerHost host;
+    CNA_EDITOR_EXPECT(host.openProject(project.projectPath));
+
+    // Learn the id the same way the editor would: by scanning the same directory.
+    AssetDatabase editorSide;
+    editorSide.setProjectRoot(project.directory.generic_string());
+    CNA_EDITOR_EXPECT(editorSide.scan("Assets").succeeded);
+    const AssetRecord* editorRecord = editorSide.findByPath("Assets/hero.png");
+    CNA_EDITOR_EXPECT(editorRecord != nullptr);
+    if (editorRecord == nullptr) { return; }
+    const Uuid assetId = editorRecord->id;
+
+    PlayerHost::Outbox outbox;
+    host.handle(EditorMessage::makeReloadAsset(assetId), outbox);
+
+    bool reported = false;
+    for (const EditorMessage& message : outbox)
+    {
+        if (message.payload["text"].asString().find("reloaded 'Assets/hero.png'") != std::string::npos)
+        {
+            reported = true;
+        }
+    }
+    CNA_EDITOR_EXPECT(reported);
+
+    // The graphics half drains this to drop what it has cached. A list, not a flag: it runs on its
+    // own schedule and must not miss a reload that arrived between two of its frames.
+    const std::vector<Uuid> reloaded = host.takeReloadedAssets();
+    CNA_EDITOR_EXPECT_EQ(reloaded.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(reloaded.front() == assetId);
+    CNA_EDITOR_EXPECT(host.takeReloadedAssets().empty());
+
+    // An id the player does not know is a timing difference, not a broken session.
+    outbox.clear();
+    host.handle(EditorMessage::makeReloadAsset(Uuid::generate()), outbox);
+    CNA_EDITOR_EXPECT(host.takeReloadedAssets().empty());
+
+    bool warned = false;
+    for (const EditorMessage& message : outbox)
+    {
+        if (message.payload["severity"].asString() == "warn"
+            && message.payload["text"].asString().find("unknown asset") != std::string::npos)
+        {
+            warned = true;
+        }
+    }
+    CNA_EDITOR_EXPECT(warned);
+}
+
+CNA_EDITOR_TEST(LiveEditsAndAssetChangesReachARunningPlayer)
+{
+    // End to end, over a real process and a real socket. Everything else about ED-306 and ED-307
+    // could pass while the editor never sent a single message.
+    const ScratchProject project{"liveedit"};
+
+    const std::filesystem::path assetPath = project.directory / "Assets" / "hero.png";
+    std::filesystem::create_directories(assetPath.parent_path());
+    {
+        std::ofstream stream{assetPath, std::ios::binary | std::ios::trunc};
+        stream << "hero";
+    }
+
+    const std::vector<PlayerBuild> builds = discoverPlayerBuilds(playerDirectory().generic_string());
+    CNA_EDITOR_EXPECT(!builds.empty());
+    if (builds.empty()) { return; }
+
+    auto ui = std::make_unique<NullEditorUi>();
+    NullEditorUi* log = ui.get();
+    EditorApplication application{std::move(ui), std::make_unique<NullEditorViewport>()};
+
+    EditorOptions options;
+    options.headless = true;
+    options.autosaveSeconds = 0.0;
+    options.projectPath = project.projectPath;
+    CNA_EDITOR_EXPECT(application.initialize(options));
+
+    application.setPlayerBuilds(builds);
+    application.getAssetWatcher().setInterval(0.0);
+    application.startPlay();
+    CNA_EDITOR_EXPECT(application.getPlayMode() == PlayMode::Playing);
+
+    EditorContext& context = application.getContext();
+
+    // Wait for the handshake before editing: a message sent before the player is connected is not
+    // queued anywhere, and asserting on it would make this test flaky rather than wrong.
+    const auto sawLog = [&](std::string_view needle) {
+        for (const auto& entry : log->getLog())
+        {
+            if (entry.message.find(needle) != std::string::npos) { return true; }
+        }
+        return false;
+    };
+
+    for (int attempt = 0; attempt < 400 && !sawLog("Player ready"); ++attempt)
+    {
+        application.renderFrame(0.0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    CNA_EDITOR_EXPECT(sawLog("Player ready"));
+
+    // ED-307: an inspector edit is a command, and every command goes through the one hook.
+    context.execute(std::make_unique<SetPropertyCommand>(
+        context.getScene(), project.entityId, BuiltinComponentIds::kTransform, "position",
+        PropertyValue{EditorVector3{40.0f, 8.0f, 0.0f}}));
+
+    for (int attempt = 0; attempt < 400 && !sawLog("set Player.CNA.Transform.position"); ++attempt)
+    {
+        application.renderFrame(0.0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    CNA_EDITOR_EXPECT(sawLog("set Player.CNA.Transform.position"));
+
+    // ED-306: a file changed outside the editor reaches the player as a reload of that one asset.
+    {
+        std::ofstream stream{assetPath, std::ios::binary | std::ios::trunc};
+        stream << "hero-repainted";
+    }
+    application.getAssetWatcher().requestImmediatePoll();
+
+    for (int attempt = 0; attempt < 400 && !sawLog("reloaded 'Assets/hero.png'"); ++attempt)
+    {
+        application.renderFrame(1.0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    CNA_EDITOR_EXPECT(sawLog("reloaded 'Assets/hero.png'"));
+
+    application.stopPlay();
+    CNA_EDITOR_EXPECT(application.getPlayMode() == PlayMode::Stopped);
 }

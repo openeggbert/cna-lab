@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 240 / 240 (also under Clang Release) |
+| Unit tests | ✅ 242 / 242 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -85,6 +85,15 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-306 / ED-307** live editing into the running player. One hook does the property half:
+  every document change goes through a command (D-06), so `EditorContext`'s new command observer
+  sees all of them and the application mirrors the `SetPropertyCommand`s. Undo and redo mirror too,
+  and the value is read from the *document* rather than from the command, because after an undo the
+  live value is the old one. Assets are sent by id, and the player rescans before looking the id up.
+  Verified end to end against a real `cna-player` process, not just at the seams.
+  **Caveat worth knowing:** `cna-player` still draws nothing, so a hot-reload today is observable in
+  its log and asset database rather than on screen. `PlayerHost::takeReloadedAssets()` is the seam
+  its graphics half will drain.
 - **ED-902** format migration. A chain of single-version steps, run on every load of a
   `.cnascene`, `.cnaproject` and `.cnaasset`. The gate and the upgrade are one piece of code,
   because refusing a file from the future and upgrading one from the past both answer "what version
@@ -153,10 +162,9 @@ Phase 1 closed. Working through the owner's priority order:
 1. ~~**Robustness and data safety**~~ ✅ — ED-310, ED-905, ED-903 and ED-902 are all done. No
    `formatVersion` was bumped; `.cnarecovery` is a *new* format at version 1, not a change to an
    existing one.
-2. **Live editing into the running player** ← *current* — ED-306 asset hot-reload, ED-307 live
-   properties. The bridge and protocol exist and are tested; this is mostly wiring.
-3. **Production 2D tools** — ED-311 `PropertyType::List` first, because it unblocks others; then
-   ED-300 prefabs, ED-305 layers and tags, ED-301 tilemap.
+2. ~~**Live editing into the running player**~~ ✅ — ED-306 and ED-307 are done.
+3. **Production 2D tools** ← *current* — ED-311 `PropertyType::List` first, because it unblocks
+   others; then ED-300 prefabs, ED-305 layers and tags, ED-301 tilemap.
 4. **ED-510** backend comparison mode.
 
 ---
@@ -187,17 +195,21 @@ Phase 1 closed. Working through the owner's priority order:
 
 ## Where to start next
 
-Read this file, then `plan.md`'s *Current state* section. Priority 1 is closed; the next task is
-**ED-306**, asset hot-reload into a running player, then **ED-307**, live property editing.
+Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are closed. The next
+task is **ED-311**, `PropertyType::List`, and it comes first because it unblocks the rest of
+priority 3: a tilemap is a list of tiles, an animation is a list of frames, and tags are a list of
+strings. Adding it means a new `PropertyType`, a representation in `PropertyValue` (a
+`std::vector<PropertyValue>` alternative, with the element type declared on the `PropertyDescriptor`
+rather than inferred), its JSON encoding in `docs/FORMATS.md`, and an inspector widget that can add,
+remove and reorder — each of which is one undoable command, not a rewrite of the whole list.
 
-Most of what ED-306 needs already exists and is tested. `AssetWatcher` already notices a changed
-file and the editor already drops the viewport's cached texture (`EditorViewport::invalidateAsset`).
-What is missing is telling the *player* about it: the bridge carries `setProperty` today, so the
-work is a new message type, a handler in `PlayerHost` that reloads the named asset, and the editor
-side sending one per watch result. ED-307 is the same shape and should follow immediately, because
-the two share the "only while a player is attached" plumbing.
+Two things to decide when starting it, neither blocking:
 
-One design question to settle first, and it is not blocking: whether a reload message names the
-asset by **id** or by **path**. Id is consistent with D-08 and with everything else on the wire;
-path is what the player's own loader takes. Id, with the player resolving it through the same
-database the editor scanned, keeps one answer to "what is this asset" on both sides.
+- Whether `NestedStructure` lands at the same time. The plan pairs them, but a list of scalars is
+  useful on its own and a list of structures is not needed until prefab overrides (ED-300).
+- Whether reordering is a `SetProperty` of the whole list or its own command. The whole-list form is
+  trivial and undoes correctly; a move command produces a better undo label. Start with the former.
+
+The one behaviour to preserve while doing it: adding a `PropertyType` must not change what an
+existing scene file serialises to. Every format is at version 1, and ED-902's chains are empty on
+purpose — keep them that way.

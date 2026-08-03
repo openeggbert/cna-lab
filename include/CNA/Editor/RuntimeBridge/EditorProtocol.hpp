@@ -107,6 +107,16 @@ namespace CNA::Editor
         /** @brief Builds a LoadScene message for a project-relative @p scenePath. */
         static EditorMessage makeLoadScene(const std::string& scenePath);
 
+        /**
+         * @brief Builds a ReloadAsset message for one asset id.
+         *
+         * By id rather than by path, like everything else on this wire and everywhere else in the
+         * editor (D-08). The player resolves it through the same database the editor scanned, so
+         * there is one answer to "what is this asset" on both sides -- and a reload survives the
+         * file being renamed between the change and the message.
+         */
+        static EditorMessage makeReloadAsset(const Uuid& assetId);
+
         /** @brief Builds a SetProperty message targeting one property of one live entity. */
         static EditorMessage makeSetProperty(const Uuid& entityId,
                                              const std::string& componentTypeId,

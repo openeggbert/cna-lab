@@ -129,7 +129,20 @@ namespace CNA::Editor
     {
         if (!command) { return; }
         const std::string description = command->getDescription();
+
         history_.execute(std::move(command), policy);
+
+        // The observer is handed the *entry*, not the command that was just pushed -- a merged
+        // command is folded into the previous entry and destroyed, and the entry is what now holds
+        // the change. They target the same property either way, because a merge only happens when
+        // the merge keys match.
+        if (commandObserver_ && history_.getCursor() > 0)
+        {
+            if (const EditorCommand* entry = history_.getCommandAt(history_.getCursor() - 1))
+            {
+                commandObserver_(*entry);
+            }
+        }
         pruneSelection();
         log(LogSeverity::Trace, description);
     }

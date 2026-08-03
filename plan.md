@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **240 passing tests across 7 CTest suites** (10 with CNA)
+- 12 modules, three executables, and **242 passing tests across 7 CTest suites** (10 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -35,6 +35,8 @@ checkout, no GPU and no window:
 - the scene draws with an adaptive grid, sprites ordered by layer depth, selection outlines, a
   **translate gizmo** whose drag is one undo entry, and **icons** for entities that have no
   geometry to draw
+- **edits reach the running game**: a property change, its undo, and a texture changed on disk
+  are all pushed to the live `cna-player` over the bridge, verified against a real process
 - **play mode works end to end**: the Play toolbar launches a real `cna-player` on a backend chosen
   from the binaries actually installed, drives it through Pause, Step and Stop over a real loopback
   socket, and routes the game's own log into the console
@@ -239,8 +241,8 @@ position in the inspector, undo, save the scene, and run it in a separate CNA Pl
 | ED-303 | Sprite animation editor with a timeline | ⬜ |
 | ED-304 | Audio source and listener editing, with preview playback | ⬜ |
 | ED-305 | Layers and tags | ⬜ |
-| ED-306 | Asset hot-reload into a running player over the bridge | ⬜ |
-| ED-307 | Live property editing into a running player | ⬜ |
+| ED-306 | Asset hot-reload into a running player over the bridge | ✅ | The watcher already noticed the file and the editor already dropped its own cached texture; what was missing was telling the player. Sent **by id**, like everything else on this wire (D-08), so a reload survives the file being renamed between the change and the message, and both sides resolve it through the database they each scanned. The player rescans before looking the id up — a record still carrying the old stamp would make its next scan think the asset changed again. `PlayerHost::takeReloadedAssets()` is the seam the CNA-linked half drains to drop its caches; **it draws nothing yet**, so today a hot-reload is observable in the player's log and asset database rather than on screen |
+| ED-307 | Live property editing into a running player | ✅ | One hook, because every document change goes through a command (D-06) — there is no second path an edit could take. `EditorContext` gained a command observer; the application mirrors a `SetPropertyCommand` and leaves everything else alone rather than guessing, since a partially applied scene in the player is worse than a stale one. Undo and redo mirror too: a player that saw the edit but not its reversal would be showing a state that exists nowhere. The value is read from the **document**, not from the command, because after an undo the live value is the old one |
 | ED-308 | Build and publish dialog driving CNA's own CMake targets | ⬜ |
 | ED-309 | Backend diagnostics: report the current build's `GraphicsCapability` set | ⬜ |
 | ED-310 | Scene validation: missing references, duplicate primary cameras, zero scale, empty entities | ✅ | `SceneValidation.hpp` holds the structural rules; missing references stay in `MissingReferences.hpp` because they need the asset database and the rules do not. Both report into one **Validation** panel: a user whose scene misbehaves does not know in advance which of the two is at fault. Every rule describes a *legal* state, so nothing refuses to save and nothing is repaired automatically — a rule that fired on a scene the user meant to write would be worse than no rule. Clicking an issue selects the entity |

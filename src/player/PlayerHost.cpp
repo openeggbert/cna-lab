@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Player/PlayerHost.hpp"
 
+#include <algorithm>
+
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 
 namespace CNA::Editor
@@ -90,13 +92,9 @@ namespace CNA::Editor
                 handleSetProperty(message, outbox);
                 break;
 
-            case EditorMessageType::ReloadAsset: {
-                const Uuid id = Uuid::parse(message.payload["assetId"].asString());
-                assets_.scan(project_.getAssetDirectory());
-                outbox.push_back(EditorMessage::makeReportLog(
-                    "info", "reloaded asset " + (id.isValid() ? id.toString() : std::string{"<all>"})));
+            case EditorMessageType::ReloadAsset:
+                handleReloadAsset(message, outbox);
                 break;
-            }
 
             case EditorMessageType::Pause:
                 playState_ = PlayState::Paused;
@@ -179,6 +177,51 @@ namespace CNA::Editor
                         + std::to_string(scene_.getEntityCount()) + " entities"));
     }
 
+    void PlayerHost::handleReloadAsset(const EditorMessage& message, Outbox& outbox)
+    {
+        const Uuid assetId = Uuid::parse(message.payload["assetId"].asString());
+
+        // Rescan first, then look the id up. The editor sends this because a file changed, and a
+        // record still carrying the old size and timestamp would make the very next scan think the
+        // asset had changed again.
+        const AssetScanResult scanned = assets_.scan(project_.getAssetDirectory());
+        if (!scanned.succeeded)
+        {
+            outbox.push_back(EditorMessage::makeReportLog(
+                "error", "cannot rescan assets: " + scanned.errorMessage));
+            return;
+        }
+
+        // A nil id means "everything", which is what a project-wide change is best reported as
+        // rather than as one message per asset.
+        if (!assetId.isValid())
+        {
+            outbox.push_back(EditorMessage::makeReportLog(
+                "info", "rescanned " + std::to_string(assets_.getCount()) + " assets"));
+            return;
+        }
+
+        const AssetRecord* record = assets_.find(assetId);
+        if (record == nullptr)
+        {
+            // Not fatal. The editor and the player scan the same directory but not necessarily at
+            // the same moment, and an asset the player has not seen yet is a timing difference,
+            // not a broken session.
+            outbox.push_back(EditorMessage::makeReportLog(
+                "warn", "asked to reload unknown asset " + assetId.toString()));
+            return;
+        }
+
+        // Recorded once however many times it changes before the graphics half drains the list:
+        // dropping a cache entry twice achieves nothing, and this is what keeps the list bounded by
+        // the number of distinct assets rather than by the length of the session.
+        if (std::find(reloadedAssets_.begin(), reloadedAssets_.end(), assetId) == reloadedAssets_.end())
+        {
+            reloadedAssets_.push_back(assetId);
+        }
+        outbox.push_back(EditorMessage::makeReportLog("info", "reloaded '" + record->sourcePath + "'"));
+    }
+
     void PlayerHost::handleSetProperty(const EditorMessage& message, Outbox& outbox)
     {
         const Uuid entityId = Uuid::parse(message.payload["entityId"].asString());
@@ -207,6 +250,14 @@ namespace CNA::Editor
         // what makes live editing survive that mismatch.
         const PropertyType type = parsePropertyType(message.payload["valueType"].asString());
         component->setProperty(propertyName, PropertyValue::fromJson(message.payload["value"], type));
+
+        // Trace, not info, because a gizmo drag produces one of these per frame -- and the console
+        // has a severity filter precisely so this can be turned off. It earns its place because
+        // when a live edit does not take effect, this line is the only thing that distinguishes
+        // "the editor never sent it" from "the player would not apply it", which is exactly the
+        // question live editing raises.
+        outbox.push_back(EditorMessage::makeReportLog(
+            "trace", "set " + entity->getName() + "." + componentTypeId + "." + propertyName));
     }
 
     bool PlayerHost::tick()
