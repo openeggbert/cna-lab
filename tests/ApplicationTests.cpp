@@ -130,7 +130,7 @@ CNA_EDITOR_TEST(ApplicationDrawsEveryPanelEachFrame)
     CNA_EDITOR_EXPECT(contains("Inspector"));
     CNA_EDITOR_EXPECT(contains("Assets"));
     CNA_EDITOR_EXPECT(contains("Console"));
-    CNA_EDITOR_EXPECT(contains("Missing References"));
+    CNA_EDITOR_EXPECT(contains("Validation"));
 
     // The viewport must actually have rendered, or --headless would be a no-op rather than a
     // smoke test. NullEditorViewport walks the same transform and bounds code a real one does.
@@ -375,6 +375,7 @@ namespace
             drawnTextFields.clear();
             drawnNodes.clear();
             drawnStringNodes.clear();
+            drawnStringNodeLabels.clear();
             sawRenameField = false;
         }
 
@@ -416,14 +417,34 @@ namespace
         std::vector<std::pair<std::string, std::string>> pendingFolderDrops;
         std::string lastStringNode;
 
+        /** @brief Labels of the string-keyed rows, in draw order, for asserting on wording. */
+        std::vector<std::string> drawnStringNodeLabels;
+
+        /** @brief String-keyed rows to report as clicked, matched on an id prefix. */
+        std::vector<std::string> pendingStringNodeClicks;
+
         UiTreeNodeResult treeNode(const std::string& id,
                                   const std::string& label,
                                   bool selected,
                                   bool leaf) override
         {
             drawnStringNodes.push_back(id);
+            drawnStringNodeLabels.push_back(label);
             lastStringNode = id;
-            return NullEditorUi::treeNode(id, label, selected, leaf);
+
+            UiTreeNodeResult result = NullEditorUi::treeNode(id, label, selected, leaf);
+
+            // Matched on a prefix rather than in full: a validation row carries its position in
+            // the report as part of its id, which a test should not have to predict.
+            for (auto entry = pendingStringNodeClicks.begin();
+                 entry != pendingStringNodeClicks.end(); ++entry)
+            {
+                if (id.rfind(*entry, 0) != 0) { continue; }
+                pendingStringNodeClicks.erase(entry);
+                result.clicked = true;
+                break;
+            }
+            return result;
         }
 
         /** @brief Returns true when a string-keyed node with @p id was drawn last frame. */
@@ -1783,4 +1804,56 @@ CNA_EDITOR_TEST(ARenameContainingASeparatorIsRefusedWithAReason)
         }
     }
     CNA_EDITOR_EXPECT(explained);
+}
+
+CNA_EDITOR_TEST(TheValidationPanelReportsAnIssueAndSelectsItsEntity)
+{
+    auto scripted = std::make_unique<ScriptedUi>();
+    ScriptedUi* ui = scripted.get();
+    EditorApplication application{std::move(scripted), std::make_unique<NullEditorViewport>()};
+
+    EditorOptions options;
+    options.headless = true;
+    CNA_EDITOR_EXPECT(application.initialize(options));
+
+    EditorContext& context = application.getContext();
+
+    // The starting scene already holds a primary camera, so a second one is a conflict rather
+    // than a scene assembled to produce a warning.
+    EditorEntity second{Uuid::generate(), "Cutscene Camera"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+    second.addComponent(std::move(transform));
+    EditorComponent camera{BuiltinComponentIds::kCamera};
+    camera.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kCamera));
+    second.addComponent(std::move(camera));
+    const Uuid secondId = context.getScene().addEntity(std::move(second));
+
+    application.renderFrame();
+
+    CNA_EDITOR_EXPECT(ui->sawText("2 error(s), 0 warning(s)"));
+
+    const auto sawIssueLabel = [&](std::string_view needle) {
+        for (const std::string& label : ui->drawnStringNodeLabels)
+        {
+            if (label.find(needle) != std::string::npos) { return true; }
+        }
+        return false;
+    };
+    CNA_EDITOR_EXPECT(sawIssueLabel("[error] Cutscene Camera: Marked primary"));
+
+    // Clicking the row is the whole point of reporting one: finding which of two hundred entities
+    // carries the fault is the hunt the panel exists to prevent.
+    context.clearSelection();
+    ui->pendingStringNodeClicks.push_back("issue-1-duplicate-primary-camera");
+    application.renderFrame();
+
+    CNA_EDITOR_EXPECT(context.getPrimarySelection() == secondId);
+
+    // Removing the second camera empties the report rather than leaving a stale row behind.
+    context.execute(std::make_unique<DeleteEntityCommand>(context.getScene(), secondId));
+    application.renderFrame();
+
+    CNA_EDITOR_EXPECT(ui->sawText("No scene issues."));
+    CNA_EDITOR_EXPECT(ui->sawText("No broken asset references."));
 }

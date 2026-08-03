@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MS-PL
-#include "CNA/Editor/Panels/MissingReferencesPanel.hpp"
+#include "CNA/Editor/Panels/ValidationPanel.hpp"
 
 #include <memory>
 #include <optional>
@@ -9,13 +9,22 @@
 #include "CNA/Editor/EditorContext.hpp"
 #include "CNA/Editor/Scene/MissingReferences.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
+#include "CNA/Editor/Scene/SceneValidation.hpp"
 
 namespace CNA::Editor
 {
-    void MissingReferencesPanel::draw()
+    void ValidationPanel::draw()
     {
-        if (!ui_.beginPanel("Missing References", DockSide::Bottom)) { ui_.endPanel(); return; }
+        if (!ui_.beginPanel("Validation", DockSide::Bottom)) { ui_.endPanel(); return; }
 
+        drawMissingReferences();
+        drawSceneIssues();
+
+        ui_.endPanel();
+    }
+
+    void ValidationPanel::drawMissingReferences()
+    {
         const std::vector<MissingReference> missing =
             findMissingReferences(context_.getScene(), context_.getAssets());
 
@@ -24,7 +33,7 @@ namespace CNA::Editor
             // Said plainly rather than left blank. An empty panel reads as "not implemented yet",
             // which is exactly the wrong thing for a report whose good state is emptiness.
             ui_.text("No broken asset references.");
-            ui_.endPanel();
+            ui_.separator();
             return;
         }
 
@@ -84,8 +93,6 @@ namespace CNA::Editor
             ui_.separator();
         }
 
-        ui_.endPanel();
-
         if (!relinkFrom.isValid()) { return; }
 
         auto command = std::make_unique<RelinkAssetCommand>(context_.getScene(), relinkFrom, relinkTo);
@@ -94,5 +101,45 @@ namespace CNA::Editor
         const std::string summary = command->getDescription();
         context_.execute(std::move(command));
         context_.log(LogSeverity::Info, summary + ".");
+    }
+
+    void ValidationPanel::drawSceneIssues()
+    {
+        const std::vector<SceneIssue> issues =
+            validateScene(context_.getScene(), context_.getComponentRegistry());
+
+        if (issues.empty())
+        {
+            ui_.text("No scene issues.");
+            return;
+        }
+
+        const std::size_t errors = countIssues(issues, SceneIssue::Severity::Error);
+        const std::size_t warnings = countIssues(issues, SceneIssue::Severity::Warning);
+        ui_.text(std::to_string(errors) + " error(s), " + std::to_string(warnings) + " warning(s)");
+
+        // Applied after the loop, for the same reason the relink is: selecting changes what the
+        // inspector and the viewport draw, and doing it mid-list would leave half the rows drawn
+        // against one selection and half against another.
+        Uuid selectTarget;
+
+        for (std::size_t index = 0; index < issues.size(); ++index)
+        {
+            const SceneIssue& issue = issues[index];
+
+            std::string label = std::string{"["} + toString(issue.severity) + "] ";
+            if (!issue.entityName.empty()) { label += issue.entityName + ": "; }
+            label += issue.message;
+
+            // The index is part of the widget identity because one entity can carry several
+            // issues, and two rows sharing an id would share click state.
+            const UiTreeNodeResult row =
+                ui_.treeNode("issue-" + std::to_string(index) + "-" + issue.ruleId, label,
+                             issue.entityId.isValid() && context_.isSelected(issue.entityId), true);
+
+            if (row.clicked && issue.entityId.isValid()) { selectTarget = issue.entityId; }
+        }
+
+        if (selectTarget.isValid()) { context_.select(selectTarget); }
     }
 }

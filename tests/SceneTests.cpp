@@ -6,11 +6,13 @@
 
 #include "TestHarness.hpp"
 
+#include <algorithm>
 #include <filesystem>
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
+#include "CNA/Editor/Scene/SceneValidation.hpp"
 
 using namespace CNA::Editor;
 
@@ -289,4 +291,299 @@ CNA_EDITOR_TEST(SceneRepairsDanglingParentReferences)
     CNA_EDITOR_EXPECT(result.succeeded);
     CNA_EDITOR_EXPECT_EQ(result.warnings.size(), std::size_t{1});
     CNA_EDITOR_EXPECT_EQ(scene.getRootEntities().size(), std::size_t{1});
+}
+
+// --------------------------------------------------------------------------------------------
+// Scene validation (plan.md ED-310)
+//
+// Every rule describes a state the editor allows the user to reach, so each test asserts both
+// halves: that the offending scene is reported, and that the nearest legitimate scene is not.
+// A validator that cries wolf is turned off, and then it catches nothing at all.
+// --------------------------------------------------------------------------------------------
+
+namespace
+{
+    /** @brief Adds a component of @p typeId with its declared defaults filled in. */
+    EditorComponent& addComponentWithDefaults(EditorEntity& entity,
+                                              const ComponentRegistry& registry,
+                                              const std::string& typeId)
+    {
+        EditorComponent component{typeId};
+        if (const ComponentDescriptor* descriptor = registry.find(typeId))
+        {
+            component.applyDefaults(*descriptor);
+        }
+        return entity.addComponent(std::move(component));
+    }
+
+    /** @brief Returns how many issues carry @p ruleId. */
+    std::size_t countRule(const std::vector<SceneIssue>& issues, const std::string& ruleId)
+    {
+        return static_cast<std::size_t>(
+            std::count_if(issues.begin(), issues.end(),
+                          [&](const SceneIssue& issue) { return issue.ruleId == ruleId; }));
+    }
+}
+
+CNA_EDITOR_TEST(AnEmptySceneReportsNothing)
+{
+    const ComponentRegistry registry = makeRegistry();
+    const SceneDocument scene;
+
+    CNA_EDITOR_EXPECT(validateScene(scene, registry).empty());
+}
+
+CNA_EDITOR_TEST(TwoPrimaryCamerasAreAnError)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity first = makeEntity(registry, "Main Camera", 0.0f, 0.0f);
+    addComponentWithDefaults(first, registry, BuiltinComponentIds::kCamera);
+    scene.addEntity(std::move(first));
+
+    EditorEntity second = makeEntity(registry, "Cutscene Camera", 0.0f, 0.0f);
+    addComponentWithDefaults(second, registry, BuiltinComponentIds::kCamera);
+    scene.addEntity(std::move(second));
+
+    const std::vector<SceneIssue> issues = validateScene(scene, registry);
+
+    // One issue per offending camera, so that either row selects a real entity.
+    CNA_EDITOR_EXPECT_EQ(countRule(issues, "duplicate-primary-camera"), std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(countIssues(issues, SceneIssue::Severity::Error), std::size_t{2});
+
+    // And the ordinary case -- one camera, marked primary -- says nothing at all.
+    SceneDocument single;
+    EditorEntity only = makeEntity(registry, "Main Camera", 0.0f, 0.0f);
+    addComponentWithDefaults(only, registry, BuiltinComponentIds::kCamera);
+    single.addEntity(std::move(only));
+
+    CNA_EDITOR_EXPECT(validateScene(single, registry).empty());
+}
+
+CNA_EDITOR_TEST(SwitchingACameraOffResolvesThePrimaryConflict)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity first = makeEntity(registry, "Main Camera", 0.0f, 0.0f);
+    addComponentWithDefaults(first, registry, BuiltinComponentIds::kCamera);
+    scene.addEntity(std::move(first));
+
+    EditorEntity second = makeEntity(registry, "Cutscene Camera", 0.0f, 0.0f);
+    addComponentWithDefaults(second, registry, BuiltinComponentIds::kCamera);
+    // Switching the entity off is how a person swaps cameras, so it has to count as a resolution.
+    second.setEnabled(false);
+    scene.addEntity(std::move(second));
+
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(scene, registry), "duplicate-primary-camera"),
+                         std::size_t{0});
+}
+
+CNA_EDITOR_TEST(ACameraUnderADisabledParentDoesNotCompete)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity primary = makeEntity(registry, "Main Camera", 0.0f, 0.0f);
+    addComponentWithDefaults(primary, registry, BuiltinComponentIds::kCamera);
+    scene.addEntity(std::move(primary));
+
+    EditorEntity group = makeEntity(registry, "Cutscene", 0.0f, 0.0f);
+    group.setEnabled(false);
+    const Uuid groupId = scene.addEntity(std::move(group));
+
+    EditorEntity child = makeEntity(registry, "Cutscene Camera", 0.0f, 0.0f);
+    addComponentWithDefaults(child, registry, BuiltinComponentIds::kCamera);
+    const Uuid childId = scene.addEntity(std::move(child));
+    CNA_EDITOR_EXPECT(scene.reparentEntity(childId, groupId));
+
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(scene, registry), "duplicate-primary-camera"),
+                         std::size_t{0});
+}
+
+CNA_EDITOR_TEST(ASceneWhoseCamerasAreAllSecondaryIsReported)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity entity = makeEntity(registry, "Camera", 0.0f, 0.0f);
+    EditorComponent& camera = addComponentWithDefaults(entity, registry, BuiltinComponentIds::kCamera);
+    camera.setProperty("isPrimary", PropertyValue{false});
+    scene.addEntity(std::move(entity));
+
+    const std::vector<SceneIssue> issues = validateScene(scene, registry);
+    CNA_EDITOR_EXPECT_EQ(countRule(issues, "no-primary-camera"), std::size_t{1});
+
+    // Scene-wide: there is no offending entity, and blaming one would send the user to the
+    // wrong row.
+    for (const SceneIssue& issue : issues)
+    {
+        if (issue.ruleId == "no-primary-camera") { CNA_EDITOR_EXPECT(!issue.entityId.isValid()); }
+    }
+
+    // A scene with no cameras at all is not reported: it is a fragment, not a broken level.
+    SceneDocument empty;
+    empty.addEntity(makeEntity(registry, "Group", 0.0f, 0.0f));
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(empty, registry), "no-primary-camera"), std::size_t{0});
+}
+
+CNA_EDITOR_TEST(InvertedCameraPlanesAreAnError)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity entity = makeEntity(registry, "Camera", 0.0f, 0.0f);
+    EditorComponent& camera = addComponentWithDefaults(entity, registry, BuiltinComponentIds::kCamera);
+    camera.setProperty("nearPlane", PropertyValue{1000.0f});
+    camera.setProperty("farPlane", PropertyValue{0.1f});
+    scene.addEntity(std::move(entity));
+
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(scene, registry), "camera-planes-inverted"),
+                         std::size_t{1});
+}
+
+CNA_EDITOR_TEST(AZeroScaleIsReportedOnAnyAxis)
+{
+    const ComponentRegistry registry = makeRegistry();
+
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        SceneDocument scene;
+        EditorEntity entity = makeEntity(registry, "Player", 0.0f, 0.0f);
+        addComponentWithDefaults(entity, registry, BuiltinComponentIds::kSpriteRenderer);
+
+        EditorVector3 scale{1.0f, 1.0f, 1.0f};
+        (axis == 0 ? scale.x : axis == 1 ? scale.y : scale.z) = 0.0f;
+        entity.findComponent(BuiltinComponentIds::kTransform)->setProperty("scale", PropertyValue{scale});
+
+        scene.addEntity(std::move(entity));
+
+        CNA_EDITOR_EXPECT_EQ(countRule(validateScene(scene, registry), "zero-scale"), std::size_t{1});
+    }
+
+    // A negative scale is a mirror, not a mistake, and must not be reported.
+    SceneDocument mirrored;
+    EditorEntity entity = makeEntity(registry, "Player", 0.0f, 0.0f);
+    addComponentWithDefaults(entity, registry, BuiltinComponentIds::kSpriteRenderer);
+    entity.findComponent(BuiltinComponentIds::kTransform)
+        ->setProperty("scale", PropertyValue{EditorVector3{-1.0f, 1.0f, 1.0f}});
+    mirrored.addEntity(std::move(entity));
+
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(mirrored, registry), "zero-scale"), std::size_t{0});
+}
+
+CNA_EDITOR_TEST(AnEntityThatDoesNothingIsReportedButAGroupIsNot)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    // A transform and nothing else, with no children: it occupies a row in the hierarchy and
+    // does not exist as far as the game is concerned.
+    scene.addEntity(makeEntity(registry, "Leftover", 0.0f, 0.0f));
+
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(scene, registry), "empty-entity"), std::size_t{1});
+
+    // The same entity with a child is a group, which is the ordinary way to move a set of things
+    // together, and must stay silent.
+    SceneDocument grouped;
+    const Uuid parent = grouped.addEntity(makeEntity(registry, "Enemies", 0.0f, 0.0f));
+
+    EditorEntity child = makeEntity(registry, "Enemy", 0.0f, 0.0f);
+    addComponentWithDefaults(child, registry, BuiltinComponentIds::kSpriteRenderer);
+    const Uuid childId = grouped.addEntity(std::move(child));
+    CNA_EDITOR_EXPECT(grouped.reparentEntity(childId, parent));
+
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(grouped, registry), "empty-entity"), std::size_t{0});
+}
+
+CNA_EDITOR_TEST(ASpriteWithNoTextureIsReported)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity entity = makeEntity(registry, "Player", 0.0f, 0.0f);
+    addComponentWithDefaults(entity, registry, BuiltinComponentIds::kSpriteRenderer);
+    scene.addEntity(std::move(entity));
+
+    const std::vector<SceneIssue> issues = validateScene(scene, registry);
+    CNA_EDITOR_EXPECT_EQ(countRule(issues, "sprite-without-texture"), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(countIssues(issues, SceneIssue::Severity::Error), std::size_t{0});
+
+    // Once it points at something, the rule stops firing -- whether that id resolves is the
+    // missing-reference report's question, not this one's.
+    SceneDocument textured;
+    EditorEntity sprite = makeEntity(registry, "Player", 0.0f, 0.0f);
+    EditorComponent& renderer =
+        addComponentWithDefaults(sprite, registry, BuiltinComponentIds::kSpriteRenderer);
+    renderer.setProperty("texture", PropertyValue{PropertyValue::AssetReference{Uuid::generate()}});
+    textured.addEntity(std::move(sprite));
+
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(textured, registry), "sprite-without-texture"),
+                         std::size_t{0});
+}
+
+CNA_EDITOR_TEST(AnUnregisteredComponentTypeIsReportedRatherThanIgnored)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity entity = makeEntity(registry, "Spawner", 0.0f, 0.0f);
+    entity.addComponent(EditorComponent{"Mc3.SpawnPoint"});
+    scene.addEntity(std::move(entity));
+
+    const std::vector<SceneIssue> issues = validateScene(scene, registry);
+    CNA_EDITOR_EXPECT_EQ(countRule(issues, "unknown-component-type"), std::size_t{1});
+
+    // And it counts as doing something: the editor cannot see what it does, which is not the
+    // same as knowing that it does nothing.
+    CNA_EDITOR_EXPECT_EQ(countRule(issues, "empty-entity"), std::size_t{0});
+}
+
+CNA_EDITOR_TEST(AnEntityWithoutATransformIsAnError)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    // Reachable from a hand-edited file, or from a build older than the Transform requirement.
+    scene.addEntity(EditorEntity{Uuid::generate(), "Ghost"});
+
+    const std::vector<SceneIssue> issues = validateScene(scene, registry);
+    CNA_EDITOR_EXPECT_EQ(countRule(issues, "missing-required-component"), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(countIssues(issues, SceneIssue::Severity::Error), std::size_t{1});
+}
+
+CNA_EDITOR_TEST(ASecondUniqueComponentIsAnError)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity entity = makeEntity(registry, "Player", 0.0f, 0.0f);
+    addComponentWithDefaults(entity, registry, BuiltinComponentIds::kTransform);
+    scene.addEntity(std::move(entity));
+
+    const std::vector<SceneIssue> issues = validateScene(scene, registry);
+
+    // Reported once for the pair, not once per instance: the user has one problem to fix.
+    CNA_EDITOR_EXPECT_EQ(countRule(issues, "duplicate-component"), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(issues.front().componentTypeId, std::string{BuiltinComponentIds::kTransform});
+}
+
+CNA_EDITOR_TEST(IssuesComeBackInDocumentOrder)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    scene.addEntity(makeEntity(registry, "First", 0.0f, 0.0f));
+    scene.addEntity(makeEntity(registry, "Second", 0.0f, 0.0f));
+    scene.addEntity(makeEntity(registry, "Third", 0.0f, 0.0f));
+
+    const std::vector<SceneIssue> issues = validateScene(scene, registry);
+    CNA_EDITOR_EXPECT_EQ(issues.size(), std::size_t{3});
+    CNA_EDITOR_EXPECT_EQ(issues[0].entityName, std::string{"First"});
+    CNA_EDITOR_EXPECT_EQ(issues[1].entityName, std::string{"Second"});
+    CNA_EDITOR_EXPECT_EQ(issues[2].entityName, std::string{"Third"});
+
+    // Pure: the same document must produce the same report, or it cannot be diffed or asserted on.
+    CNA_EDITOR_EXPECT(validateScene(scene, registry).size() == issues.size());
 }

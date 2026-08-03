@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **206 passing tests across 7 CTest suites** (10 with CNA)
+- 12 modules, three executables, and **220 passing tests across 7 CTest suites** (10 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -43,12 +43,15 @@ checkout, no GPU and no window:
 - a **header-only loader** lets a shipped game read a `.cnascene` without the editor
   ([`docs/DESIGN-SCENE-LOADER.md`](docs/DESIGN-SCENE-LOADER.md)), verified by `scene-loader-demo`
   against the real example project
+- a **Validation panel** reports what a scene is doing wrong before a build does: broken asset
+  references, two cameras both claiming to be primary, a zero scale, an entity that does nothing.
+  Every rule describes a legal state, so nothing is refused and nothing is repaired automatically
 - **CI** builds and tests on Linux under GCC Debug and Clang Release, both at `-Werror`
 - `./build/cna-editor --headless --project=examples/HelloSprites/HelloSprites.cnaproject` opens a
   project, scans its assets, loads a three-entity scene and draws a frame
 
 **Built and run against a real CNA checkout.** With `-DCNA_EDITOR_WITH_CNA=ON` and
-`CNA_GRAPHICS_BACKEND=SOFTWARE`, `cna-editor` opens a window, docks its five panels, and draws them
+`CNA_GRAPHICS_BACKEND=SOFTWARE`, `cna-editor` opens a window, docks its six panels, and draws them
 entirely through CNA's *public* API — no `CNA::Internal::*`, no authored shader, no per-backend
 renderer:
 
@@ -222,8 +225,8 @@ position in the inspector, undo, save the scene, and run it in a separate CNA Pl
 
 ## Phase 2 — Production 2D editor ⬜
 
-| Id | Task | Status |
-|----|------|:------:|
+| Id | Task | Status | Notes |
+|----|------|:------:|-------|
 | ED-300 | Prefabs: create, instantiate, override, apply | ⬜ |
 | ED-301 | Tilemap component and tile-painting tool | ⬜ |
 | ED-302 | `SpriteFont` preview and importer settings | ⬜ |
@@ -234,7 +237,7 @@ position in the inspector, undo, save the scene, and run it in a separate CNA Pl
 | ED-307 | Live property editing into a running player | ⬜ |
 | ED-308 | Build and publish dialog driving CNA's own CMake targets | ⬜ |
 | ED-309 | Backend diagnostics: report the current build's `GraphicsCapability` set | ⬜ |
-| ED-310 | Scene validation: missing references, duplicate primary cameras, zero scale, empty entities | ⬜ |
+| ED-310 | Scene validation: missing references, duplicate primary cameras, zero scale, empty entities | ✅ | `SceneValidation.hpp` holds the structural rules; missing references stay in `MissingReferences.hpp` because they need the asset database and the rules do not. Both report into one **Validation** panel: a user whose scene misbehaves does not know in advance which of the two is at fault. Every rule describes a *legal* state, so nothing refuses to save and nothing is repaired automatically — a rule that fired on a scene the user meant to write would be worse than no rule. Clicking an issue selects the entity |
 | ED-311 | `PropertyType::List` and `NestedStructure`, with inspector support | ⬜ |
 | ED-320 | GPU picking through an id render target | ⛔ |
 

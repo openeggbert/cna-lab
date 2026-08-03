@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 206 / 206 (also under Clang Release) |
+| Unit tests | ✅ 220 / 220 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -35,7 +35,7 @@ ctest --test-dir build
 # (git -C ../cna submodule update --init --depth 1).
 cmake -S . -B build-cna -DCNA_EDITOR_WITH_CNA=ON -DCNA_DEVICES=ON -GNinja
 cmake --build build-cna -j8 --target cna-editor cna-editor-tests cna-player
-ctest --test-dir build-cna -R "CnaEditor|CnaPlayer"
+ctest --test-dir build-cna -R "CnaEditor|CnaPlayer|CnaScene"
 
 # The CNA-config ctest has one test labelled needs-display. Configure the display it should use:
 #   cmake -S . -B build-cna -DCNA_EDITOR_TEST_DISPLAY=:99
@@ -85,6 +85,16 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-310** scene validation. `SceneValidation.hpp` holds the structural rules -- duplicate
+  primary cameras, inverted camera planes, zero scale, empty entities, a missing Transform, a
+  second copy of a unique component, an unregistered component type, a sprite with no texture.
+  Missing references stayed where they were, in `MissingReferences.hpp`, because they need the
+  asset database and the rules do not; both now report into one **Validation** panel, since a user
+  whose scene misbehaves does not know in advance which of the two is at fault. Every rule
+  describes a *legal* state, so nothing refuses to save and nothing is repaired automatically, and
+  each rule's test asserts both halves: the offending scene is reported and the nearest legitimate
+  scene is not.
+
 - **ED-221 / ED-220 thumbnails.** Reuse the scene renderer's texture cache, so a preview costs
   nothing once the sprite using it has been drawn. Needed a *keyed* borrow in the UI renderer —
   the existing one owns a single slot, right for the render target and wrong for anything there
@@ -124,11 +134,12 @@ Newest first. Each is a single commit on the branch.
 Phase 1 closed. Working through the owner's priority order:
 
 1. **Robustness and data safety** ← *current*
-   - **ED-902** format migration. Reads old versions; does **not** bump `formatVersion`.
-   - **ED-903** never lose an unsaved document on a crash.
+   - ~~**ED-310** scene validation~~ ✅
    - **ED-905** undo history panel. `CommandHistory` already exposes everything it needs.
-   - **ED-310** scene validation: duplicate primary cameras, zero scale, empty entities. Missing
-     references are already covered by ED-224.
+   - **ED-903** never lose an unsaved document on a crash.
+   - **ED-902** format migration. Reads old versions; does **not** bump `formatVersion`. Last of
+     the four because it is the only one that touches a file format, where the standing constraint
+     applies.
 2. **Live editing into the running player** — ED-306 asset hot-reload, ED-307 live properties. The
    bridge and protocol exist and are tested; this is mostly wiring.
 3. **Production 2D tools** — ED-311 `PropertyType::List` first, because it unblocks others; then
@@ -139,8 +150,6 @@ Phase 1 closed. Working through the owner's priority order:
 
 ## Known problems and limitations
 
-- **ED-221 is partial.** Settings and dimensions are done; thumbnails are not. The row is marked 🔄
-  in `plan.md` rather than ✅ on purpose.
 - **Rotate and scale gizmos do not exist.** Pressing `E` or `R` selects the mode and says so in the
   console instead of leaving the gizmo silently absent. ED-401.
 - **The inspector's merge boundary is per-property, not per-interaction.** Two separate drags of
@@ -165,6 +174,8 @@ Phase 1 closed. Working through the owner's priority order:
 
 ## Where to start next
 
-Read this file, then `plan.md`'s *Current state* section. The next task is whichever of the four
-items under **In progress** is still open — they are listed in dependency order, and ED-250 is last
-because it closes the phase.
+Read this file, then `plan.md`'s *Current state* section. The next task is the first still-open
+item under **In progress** — **ED-905**, the undo history panel. `CommandHistory` already exposes
+the count, the cursor and each entry's description, so the panel is a view over state that exists
+rather than new bookkeeping; the interesting decision is what clicking an entry does, and the
+honest answer is *undo or redo to that point*, not *remove that one entry from history*.
