@@ -8,10 +8,13 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <memory>
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
+#include "CNA/Editor/Scene/PrefabCommands.hpp"
+#include "CNA/Editor/Scene/PrefabDocument.hpp"
 #include "CNA/Editor/Scene/SceneValidation.hpp"
 #include "CNA/Editor/Project/Project.hpp"
 
@@ -650,4 +653,265 @@ CNA_EDITOR_TEST(TagsAreAListOnTheirOwnComponent)
 
     // An entity carrying only a transform and a tag list still does nothing, and says so.
     CNA_EDITOR_EXPECT_EQ(countRule(validateScene(reloaded, registry), "empty-entity"), std::size_t{0});
+}
+
+// --------------------------------------------------------------------------------------------
+// Prefabs (plan.md ED-300)
+// --------------------------------------------------------------------------------------------
+
+namespace
+{
+    /** @brief Builds a two-entity scene: "Enemy" with a sprite, and a child "Weapon". */
+    struct PrefabScene
+    {
+        ComponentRegistry registry = makeRegistry();
+        SceneDocument scene;
+        Uuid rootId;
+        Uuid childId;
+
+        PrefabScene()
+        {
+            EditorEntity root = makeEntity(registry, "Enemy", 10.0f, 20.0f);
+            addComponentWithDefaults(root, registry, BuiltinComponentIds::kSpriteRenderer);
+            rootId = scene.addEntity(std::move(root));
+
+            EditorEntity child = makeEntity(registry, "Weapon", 5.0f, 0.0f);
+            addComponentWithDefaults(child, registry, BuiltinComponentIds::kSpriteRenderer);
+            childId = scene.addEntity(std::move(child));
+            scene.reparentEntity(childId, rootId);
+        }
+
+        [[nodiscard]] PrefabDocument capture(const std::string& name = "Enemy") const
+        {
+            PrefabDocument prefab;
+            prefab.captureFromScene(scene, rootId, name);
+            return prefab;
+        }
+    };
+}
+
+CNA_EDITOR_TEST(APrefabCapturesASubtreeAndRoundTripsThroughAFile)
+{
+    const PrefabScene fixture;
+    const PrefabDocument prefab = fixture.capture();
+
+    CNA_EDITOR_EXPECT_EQ(prefab.getEntities().size(), std::size_t{2});
+    CNA_EDITOR_EXPECT(prefab.getRootId() == fixture.rootId);
+    CNA_EDITOR_EXPECT(prefab.getPrefabId().isValid());
+
+    // The root has no parent inside the prefab: keeping the scene's would make the file describe a
+    // hierarchy that only exists where it was captured from.
+    CNA_EDITOR_EXPECT(!prefab.getEntities().front().getParentId().isValid());
+    CNA_EDITOR_EXPECT(prefab.getEntities().back().getParentId() == fixture.rootId);
+
+    PrefabDocument reloaded;
+    const PrefabLoadResult result = reloaded.loadFromJson(prefab.toJson(), fixture.registry);
+    CNA_EDITOR_EXPECT(result.succeeded);
+    CNA_EDITOR_EXPECT(result.warnings.empty());
+    CNA_EDITOR_EXPECT_EQ(Json::write(reloaded.toJson()), Json::write(prefab.toJson()));
+
+    // Capturing something that is not in the scene fails rather than producing an empty prefab.
+    PrefabDocument missing;
+    CNA_EDITOR_EXPECT(!missing.captureFromScene(fixture.scene, Uuid::generate(), "Nothing"));
+}
+
+CNA_EDITOR_TEST(APrefabRefusesAnEmptyFileAndRepairsABrokenOne)
+{
+    const ComponentRegistry registry = makeRegistry();
+
+    JsonValue json = JsonValue::makeObject();
+    json.set("formatVersion", JsonValue{PrefabDocument::kFormatVersion});
+    json.set("prefabId", JsonValue{Uuid::generate().toString()});
+    json.set("entities", JsonValue::makeArray());
+
+    // A prefab with no entities instantiates to nothing, and the user would have no way to tell
+    // that from an instantiation that silently failed.
+    PrefabDocument empty;
+    CNA_EDITOR_EXPECT(!empty.loadFromJson(json, registry).succeeded);
+
+    // A child whose parent is not in the file is attached to the root rather than dropped: a file
+    // broken by a bad merge is exactly the one somebody needs the editor to open.
+    const Uuid rootId = Uuid::generate();
+
+    JsonValue root = JsonValue::makeObject();
+    root.set("id", JsonValue{rootId.toString()});
+    root.set("name", JsonValue{"Root"});
+    root.set("components", JsonValue::makeObject());
+
+    JsonValue orphan = JsonValue::makeObject();
+    orphan.set("id", JsonValue{Uuid::generate().toString()});
+    orphan.set("name", JsonValue{"Orphan"});
+    orphan.set("parent", JsonValue{Uuid::generate().toString()});
+    orphan.set("components", JsonValue::makeObject());
+
+    JsonValue entities = JsonValue::makeArray();
+    entities.append(std::move(root));
+    entities.append(std::move(orphan));
+    json.set("entities", std::move(entities));
+
+    PrefabDocument repaired;
+    const PrefabLoadResult result = repaired.loadFromJson(json, registry);
+    CNA_EDITOR_EXPECT(result.succeeded);
+    CNA_EDITOR_EXPECT_EQ(result.warnings.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(repaired.getEntities().back().getParentId() == rootId);
+
+    // A file from a newer build is refused by the same gate every other format uses.
+    json.set("formatVersion", JsonValue{PrefabDocument::kFormatVersion + 1});
+    PrefabDocument future;
+    CNA_EDITOR_EXPECT(!future.loadFromJson(json, registry).succeeded);
+    CNA_EDITOR_EXPECT_EQ(getPrefabFormatMigrator().getMigrationCount(), std::size_t{0});
+}
+
+CNA_EDITOR_TEST(InstantiatingAPrefabGivesFreshIdsAndKeepsTheLink)
+{
+    PrefabScene fixture;
+    const PrefabDocument prefab = fixture.capture();
+    const Uuid assetId = Uuid::generate();
+
+    SceneDocument target;
+    auto command = std::make_unique<InstantiatePrefabCommand>(target, prefab, assetId, Uuid{});
+    CNA_EDITOR_EXPECT(command->isValid());
+
+    const Uuid instanceRoot = command->getRootId();
+    command->execute();
+
+    CNA_EDITOR_EXPECT_EQ(target.getEntityCount(), std::size_t{2});
+    CNA_EDITOR_EXPECT(getPrefabAssetOf(target, instanceRoot) == assetId);
+
+    // Fresh ids: two instances of one prefab are two different entities, and reusing the prefab's
+    // would make the second instantiation collide with the first.
+    CNA_EDITOR_EXPECT(instanceRoot != fixture.rootId);
+
+    auto second = std::make_unique<InstantiatePrefabCommand>(target, prefab, assetId, Uuid{});
+    second->execute();
+    CNA_EDITOR_EXPECT_EQ(target.getEntityCount(), std::size_t{4});
+    CNA_EDITOR_EXPECT(second->getRootId() != instanceRoot);
+
+    // Every entity carries its link, so selecting a child still answers questions about the
+    // instance it belongs to.
+    const std::vector<Uuid> children = target.getChildren(instanceRoot);
+    CNA_EDITOR_EXPECT_EQ(children.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(findInstanceRoot(target, children.front()) == instanceRoot);
+
+    // A freshly made instance has changed nothing.
+    CNA_EDITOR_EXPECT(findPrefabOverrides(target, instanceRoot, prefab).empty());
+
+    second->undo();
+    command->undo();
+    CNA_EDITOR_EXPECT_EQ(target.getEntityCount(), std::size_t{0});
+
+    // An empty prefab, or an unknown parent, is refused rather than half-applied.
+    const PrefabDocument nothing;
+    CNA_EDITOR_EXPECT(!InstantiatePrefabCommand(target, nothing, assetId, Uuid{}).isValid());
+    CNA_EDITOR_EXPECT(!InstantiatePrefabCommand(target, prefab, assetId, Uuid::generate()).isValid());
+}
+
+CNA_EDITOR_TEST(OverridesAreFoundByComparingRatherThanByRecording)
+{
+    PrefabScene fixture;
+    const PrefabDocument prefab = fixture.capture();
+
+    SceneDocument target;
+    InstantiatePrefabCommand instantiate{target, prefab, Uuid::generate(), Uuid{}};
+    instantiate.execute();
+    const Uuid instanceRoot = instantiate.getRootId();
+
+    // Change a property, rename an entity, add one and delete one -- four different ways an
+    // instance can diverge, all of them ordinary things a user does.
+    target.findEntity(instanceRoot)
+        ->findComponent(BuiltinComponentIds::kTransform)
+        ->setProperty("position", PropertyValue{EditorVector3{999.0f, 0.0f, 0.0f}});
+    target.findEntity(instanceRoot)->setName("Boss");
+
+    EditorEntity extra = makeEntity(fixture.registry, "Shield", 0.0f, 0.0f);
+    const Uuid extraId = target.addEntity(std::move(extra));
+    target.reparentEntity(extraId, instanceRoot);
+
+    const std::vector<PrefabOverride> overrides = findPrefabOverrides(target, instanceRoot, prefab);
+
+    const auto countKind = [&](PrefabOverride::Kind kind) {
+        return static_cast<std::size_t>(
+            std::count_if(overrides.begin(), overrides.end(),
+                          [kind](const PrefabOverride& entry) { return entry.kind == kind; }));
+    };
+
+    CNA_EDITOR_EXPECT_EQ(countKind(PrefabOverride::Kind::AddedEntity), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(countKind(PrefabOverride::Kind::RemovedEntity), std::size_t{0});
+    CNA_EDITOR_EXPECT(countKind(PrefabOverride::Kind::Property) >= std::size_t{2});
+
+    bool sawRename = false;
+    bool sawPosition = false;
+    for (const PrefabOverride& entry : overrides)
+    {
+        if (entry.propertyName == "name") { sawRename = true; }
+        if (entry.propertyName == "position") { sawPosition = true; }
+    }
+    CNA_EDITOR_EXPECT(sawRename);
+    CNA_EDITOR_EXPECT(sawPosition);
+
+    // Deleting one of the prefab's *own* entities is a removal, not a silent match. Found by its
+    // link rather than by position: the children are ordered by name, and "Shield" sorts before
+    // "Weapon", so an index here would delete the entity the test just added.
+    Uuid weaponId;
+    for (const Uuid& childId : target.getChildren(instanceRoot))
+    {
+        if (target.findEntity(childId)->getName() == "Weapon") { weaponId = childId; }
+    }
+    CNA_EDITOR_EXPECT(weaponId.isValid());
+    target.removeEntityRecursive(weaponId);
+    const std::vector<PrefabOverride> afterDelete = findPrefabOverrides(target, instanceRoot, prefab);
+    CNA_EDITOR_EXPECT(std::any_of(afterDelete.begin(), afterDelete.end(),
+                                  [](const PrefabOverride& entry)
+                                  { return entry.kind == PrefabOverride::Kind::RemovedEntity; }));
+}
+
+CNA_EDITOR_TEST(RevertingAnInstancePutsItBackExactlyAndUndoesInOnePress)
+{
+    PrefabScene fixture;
+    const PrefabDocument prefab = fixture.capture();
+
+    SceneDocument target;
+    InstantiatePrefabCommand instantiate{target, prefab, Uuid::generate(), Uuid{}};
+    instantiate.execute();
+    const Uuid instanceRoot = instantiate.getRootId();
+
+    target.findEntity(instanceRoot)->setName("Boss");
+    target.findEntity(instanceRoot)
+        ->findComponent(BuiltinComponentIds::kTransform)
+        ->setProperty("position", PropertyValue{EditorVector3{999.0f, 0.0f, 0.0f}});
+
+    EditorEntity extra = makeEntity(fixture.registry, "Shield", 0.0f, 0.0f);
+    const Uuid extraId = target.addEntity(std::move(extra));
+    target.reparentEntity(extraId, instanceRoot);
+
+    auto revert = std::make_unique<RevertPrefabInstanceCommand>(target, instanceRoot, prefab);
+    CNA_EDITOR_EXPECT(revert->isValid());
+    revert->execute();
+
+    CNA_EDITOR_EXPECT(findPrefabOverrides(target, instanceRoot, prefab).empty());
+    CNA_EDITOR_EXPECT_EQ(target.getEntityCount(), std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(target.findEntity(instanceRoot)->getName(), std::string{"Enemy"});
+
+    // The added entity is gone. That is deliberate: a revert that left some of the user's changes
+    // in place would not be a revert, and the user who wanted a partial one has undo.
+    CNA_EDITOR_EXPECT(target.findEntity(extraId) == nullptr);
+
+    // The root keeps its id, because the selection and every reference into the instance point at
+    // it -- reverting must not break them.
+    CNA_EDITOR_EXPECT(target.findEntity(instanceRoot) != nullptr);
+    CNA_EDITOR_EXPECT(getPrefabAssetOf(target, instanceRoot).isValid());
+
+    revert->undo();
+    CNA_EDITOR_EXPECT_EQ(target.getEntityCount(), std::size_t{3});
+    CNA_EDITOR_EXPECT_EQ(target.findEntity(instanceRoot)->getName(), std::string{"Boss"});
+    CNA_EDITOR_EXPECT(target.findEntity(extraId) != nullptr);
+
+    // Reverting an instance that has not diverged is refused: an undo entry that undoes to the
+    // state it is already in reads to the user as a broken Ctrl+Z.
+    revert->execute();
+    CNA_EDITOR_EXPECT(!RevertPrefabInstanceCommand(target, instanceRoot, prefab).isValid());
+
+    // As is reverting something that is not an instance at all.
+    const Uuid plain = target.addEntity(makeEntity(fixture.registry, "Plain", 0.0f, 0.0f));
+    CNA_EDITOR_EXPECT(!RevertPrefabInstanceCommand(target, plain, prefab).isValid());
 }

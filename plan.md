@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **254 passing tests across 7 CTest suites** (10 with CNA)
+- 12 modules, three executables, and **259 passing tests across 7 CTest suites** (10 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -239,7 +239,7 @@ position in the inspector, undo, save the scene, and run it in a separate CNA Pl
 
 | Id | Task | Status | Notes |
 |----|------|:------:|-------|
-| ED-300 | Prefabs: create, instantiate, override, apply | ⬜ |
+| ED-300 | Prefabs: create, instantiate, override, apply | 🔄 | **Document model and scene operations are done; the UI to create and instantiate one is not, and this row stays open until it is.** `.cnaprefab` reuses the scene's entity encoding through the extracted `EntityJson.hpp`, because an instantiated prefab and a hand-authored entity must be indistinguishable once they are in a scene. **Overrides are computed, not stored**: the scene holds the instance's real values and "what changed?" is a comparison. A stored list would be a second description of the same fact, free to disagree — and that disagreement surfaces as a property reverting to a value the user never chose. It also meant prefabs added *no* field to the scene format. Revert removes user-added entities on purpose: a revert that kept some changes is not a revert, and whoever wanted a partial one has undo |
 | ED-301 | Tilemap component and tile-painting tool | ⬜ |
 | ED-302 | `SpriteFont` preview and importer settings | ⬜ |
 | ED-303 | Sprite animation editor with a timeline | ⬜ |

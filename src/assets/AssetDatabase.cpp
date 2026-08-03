@@ -19,7 +19,7 @@ namespace CNA::Editor
             const char* name;
         };
 
-        constexpr std::array<AssetTypeName, 9> kAssetTypeNames{{
+        constexpr std::array<AssetTypeName, 10> kAssetTypeNames{{
             {AssetType::Unknown, "Unknown"},
             {AssetType::Texture2D, "Texture2D"},
             {AssetType::SpriteFont, "SpriteFont"},
@@ -28,6 +28,7 @@ namespace CNA::Editor
             {AssetType::Effect, "Effect"},
             {AssetType::Model, "Model"},
             {AssetType::Scene, "Scene"},
+            {AssetType::Prefab, "Prefab"},
             {AssetType::RawData, "RawData"},
         }};
 
@@ -95,6 +96,7 @@ namespace CNA::Editor
             return AssetType::Model;
         }
         if (extension == ".cnascene") { return AssetType::Scene; }
+        if (extension == ".cnaprefab") { return AssetType::Prefab; }
         if (extension == ".json" || extension == ".xml" || extension == ".txt" || extension == ".csv")
         {
             return AssetType::RawData;
@@ -113,6 +115,11 @@ namespace CNA::Editor
             case AssetType::Effect: return "CNA.EffectImporter";
             case AssetType::Model: return "CNA.ModelImporter";
             case AssetType::Scene: return "CNA.SceneImporter";
+
+            // No importer. A prefab is authored by the editor and read by the editor; there is no
+            // conversion step for one, and inventing an importer with no settings would put an
+            // empty section in the inspector for every prefab in the project.
+            case AssetType::Prefab: return {};
             case AssetType::RawData: return "CNA.RawDataImporter";
             case AssetType::Unknown: return {};
         }

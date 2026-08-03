@@ -39,6 +39,8 @@ namespace CNA::Editor
         Effect,
         Model,
         Scene,
+        /** @brief A `.cnaprefab`: one reusable entity subtree, instantiated into scenes. */
+        Prefab,
         /** @brief Any file the project wants tracked verbatim, e.g. a JSON data table. */
         RawData
     };

@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 254 / 254 (also under Clang Release) |
+| Unit tests | ✅ 259 / 259 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -85,6 +85,13 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-300 (part)** prefabs: the document model and the scene operations. `.cnaprefab` reuses the
+  scene's entity encoding through the newly extracted `EntityJson.hpp` -- one codec, because an
+  instantiated prefab and a hand-authored entity must be indistinguishable once they are in a scene.
+  **Overrides are computed, not stored**, so prefabs added no field to the scene format at all.
+  `InstantiatePrefabCommand`, `RevertPrefabInstanceCommand`, `findPrefabOverrides` and the link keys
+  are in and tested. **The UI is not**: nothing yet creates a prefab from a selection or drops one
+  into a scene, so ED-300 is 🔄. See *Where to start next*.
 - **ED-305** layers and tags. Layers live in the `.cnaproject` (a property of the game, not of one
   level) and drive `CNA.Layer`'s choices by re-registering the descriptor. Renaming a layer leaves
   entities holding the old name deliberately -- which of the remaining layers they meant is the

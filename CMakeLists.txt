@@ -82,7 +82,10 @@ target_link_libraries(cna-editor-core PUBLIC cna-editor-settings)
 # cna-editor-scene -- the scene document, its entities, and every undoable scene operation.
 add_library(cna-editor-scene STATIC
     src/scene/EditorEntity.cpp
+    src/scene/EntityJson.cpp
     src/scene/SceneDocument.cpp
+    src/scene/PrefabDocument.cpp
+    src/scene/PrefabCommands.cpp
     src/scene/SceneCommands.cpp
     src/scene/BuiltinComponents.cpp
     src/scene/SceneTransform.cpp

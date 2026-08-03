@@ -221,6 +221,59 @@ file. A scene loads with warnings, never a partial failure:
 
 ---
 
+## `.cnaprefab`
+
+One reusable entity subtree. Its `entities` array uses **exactly** the entity encoding `.cnascene`
+uses — the same code writes both — because an instantiated prefab and a hand-authored entity have to
+be indistinguishable once they are in a scene. Two encodings of one thing would drift, and the
+symptom (an override that appears out of nowhere) is the kind nobody sees until they diff two files
+by hand.
+
+```json
+{
+  "formatVersion": 1,
+  "prefabId": "3c1e9a44-…",
+  "name": "Enemy",
+  "entities": [
+    { "id": "…", "name": "Enemy",  "components": { "…": {} } },
+    { "id": "…", "name": "Weapon", "parent": "…", "components": { "…": {} } }
+  ]
+}
+```
+
+The **first entity is the root**, and the rest are stored parents-before-children so an
+instantiation can walk the array once without ever needing a parent it has not created yet. The
+root has no `parent`: keeping the one it had where it was captured would make the file describe a
+hierarchy that exists only there.
+
+A file with no entities is **refused** — it would instantiate to nothing, and the user could not
+tell that from an instantiation that silently failed. A child whose `parent` is not in the file is
+attached to the root and reported, the same forgiving stance a scene takes toward a dangling parent.
+
+### Overrides are computed, not stored
+
+Nothing here, and nothing in a `.cnascene`, records "this instance has changed X". The scene holds
+each instance's actual values the way it holds every other entity's, and "what has this instance
+changed?" is answered by comparing it against the prefab.
+
+A stored override list would be a second description of the same fact, free to disagree with the
+first — and the way that disagreement surfaces is a property reverting to a value the user never
+chose, which is the worst thing a prefab system can do. It also means prefabs added **no** new field
+to the scene format: a scene written before they existed is still a valid scene.
+
+What an instance does store is the link, in `editorState` because it is editor bookkeeping rather
+than something the game runs (D-07):
+
+| Key | On | Meaning |
+|-----|----|---------|
+| `prefabAsset` | the instance root only | Asset id of the `.cnaprefab` |
+| `prefabEntity` | every entity of the instance | Id of the prefab entity it came from |
+
+The per-entity link is what lets an override be found without depending on names or on sibling
+order, both of which the user is free to change.
+
+---
+
 ## `.cnaasset`
 
 A sidecar named after the full source file name: `player.png` → `player.png.cnaasset`. Commit it
