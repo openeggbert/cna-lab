@@ -25,7 +25,7 @@
 **Phase 0 is complete and Phase 1 is under way: the editor opens a scene, edits it and plays it.**
 The repository still builds and passes its full suite with no CNA checkout, no GPU and no window:
 
-- 12 modules, two executables, and **206 passing tests across 7 CTest suites** (9 with CNA)
+- 12 modules, three executables, and **206 passing tests across 7 CTest suites** (10 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -199,7 +199,7 @@ real window, shows five docked panels, and renders the three-entity scene in the
 | ED-243 | Play / Pause / Step / Stop, with the player's log routed into the console | ✅ | The toolbar sits above the viewport image; the player's own log comes back through `ReportLog` and lands in the console with its severity preserved |
 | ED-244 | Player discovery: find installed `cna-player-<backend>` binaries and offer only those | ✅ | `discoverPlayerBuilds()`. Direct consequence of F-01: the editor offers only backends that actually exist |
 | ED-245 | Editor-side Play toolbar wired to `PlayerProcess` | ✅ | Backend chosen from the player binaries actually installed beside the editor, never from the fourteen CNA knows about. A dirty scene is saved first and the console says so — the player is a separate process reading from disk, so playing what is on screen means writing it there. `TheEditorDrivesARealPlayerThroughPlayPauseStepAndStop` covers it against a real process and a real socket |
-| ED-250 | **Design: how a game consumes a compiled scene** | 🔬 | Q-02. The decision most likely to pull the editor toward being an engine. Needs a written design before this phase closes |
+| ED-250 | **How a game consumes a compiled scene** | ✅ | **Q-02 resolved: a header-only loader shipped from this repository**, so CNA never has to know what a `.cnascene` is and moving it into CNA later stays a relocation rather than a rewrite. Design and the options rejected: [`docs/DESIGN-SCENE-LOADER.md`](docs/DESIGN-SCENE-LOADER.md). `examples/SceneLoaderDemo` is both the documentation and the integration test — it opens a real device, loads `HelloSprites`, and checks the composed world transforms against what the editor's own code produces |
 
 **Exit criterion.** The original minimum milestone, verbatim: *open a project, show docked panels,
 load a JSON scene with three sprites, select an object in the viewport or hierarchy, change its
@@ -323,7 +323,7 @@ These block specific tasks and are stated in full in ANALYSIS.md §4.
 | Id | Question | Blocks |
 |----|----------|--------|
 | ~~Q-01~~ | ~~Can Dear ImGui render through CNA's public API alone?~~ | ✅ **Resolved: yes.** [`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md) |
-| Q-02 | How does a game consume a compiled scene? | ED-250 — still open, and still the decision most likely to pull the editor toward being an engine |
+| ~~Q-02~~ | ~~How does a game consume a compiled scene?~~ | ✅ **Resolved: a header-only loader shipped from `cna-editor`.** [`docs/DESIGN-SCENE-LOADER.md`](docs/DESIGN-SCENE-LOADER.md) |
 | Q-03 | Which process owns the window in play mode? | Answered by ED-245: the player owns its own top-level window. Revisit when it becomes annoying |
 | ~~Q-04~~ | ~~Does `cna-player` live here or in `openeggbert/cna`?~~ | ✅ **Resolved: here.** Decision D-15 |
 

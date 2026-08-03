@@ -94,6 +94,28 @@ if(CNA_EDITOR_WITH_CNA AND CNA_EDITOR_WITH_IMGUI)
             TIMEOUT 180)
     endif()
 
+    # The scene loader, exercised the way a shipped game would use it: a real device, the real
+    # example project, and a check that the world transforms match what the editor's own code
+    # produces. A loader that parsed correctly but composed a child's transform differently would
+    # put a game's sprites somewhere other than where the editor drew them, and nothing short of
+    # comparing two screenshots would show it.
+    add_test(NAME CnaSceneLoaderDemo
+        COMMAND scene-loader-demo
+            --scene=${CMAKE_CURRENT_SOURCE_DIR}/../examples/HelloSprites/Scenes/Level01.cnascene
+            --assets=${CMAKE_CURRENT_SOURCE_DIR}/../examples/HelloSprites
+            --verbose)
+
+    if(CNA_GRAPHICS_BACKEND STREQUAL "SOFTWARE" OR CNA_GRAPHICS_BACKEND STREQUAL "HEADLESS")
+        set_tests_properties(CnaSceneLoaderDemo PROPERTIES
+            ENVIRONMENT "SDL_VIDEODRIVER=dummy"
+            TIMEOUT 180)
+    else()
+        set_tests_properties(CnaSceneLoaderDemo PROPERTIES
+            ENVIRONMENT "DISPLAY=${CNA_EDITOR_TEST_DISPLAY}"
+            LABELS "needs-display"
+            TIMEOUT 180)
+    endif()
+
     # --screenshot without --frames has no final frame to capture, and silently writing nothing
     # would make the smoke test above pass for the wrong reason.
     add_test(NAME CnaEditorScreenshotNeedsFrameLimit

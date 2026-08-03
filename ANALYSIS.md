@@ -587,11 +587,12 @@ gaps were found and are worth filing upstream: `Color` is not default-constructi
 `std::vector<Color>::resize` does not compile), and the clipboard sits behind the optional
 `CNA_DEVICES` feature. Full report and capability table: **docs/SPIKE-IMGUI-CNA.md**.
 
-🔬 **Q-02 — How does a game consume a compiled scene?**
-The editor produces a `RuntimeScene`; something must instantiate it. Options: a header-only
-loader in the editor SDK; a new optional CNA module; or code generation into the game's own source.
-This is the decision most likely to pull the editor back toward being an engine, so it deserves a
-written design before Phase 1 closes. **Blocks ED-250.**
+✅ **Q-02 — How does a game consume a compiled scene? Resolved.**
+A **header-only loader shipped from this repository**: `include/CNA/Editor/Runtime/SceneLoader.hpp`.
+CNA never has to know what a `.cnascene` is, which keeps D-01 and D-03 intact, and the choice is
+reversible — moving the loader into CNA later is a relocation rather than a rewrite, while a format
+that has been part of CNA's public surface for a release cannot be taken back out of it. The
+options rejected and what the decision costs: **docs/DESIGN-SCENE-LOADER.md**. Delivered as ED-250.
 
 🔬 **Q-03 — Which process owns the window in play mode?**
 Embedding the player's output in the editor's viewport panel needs either a shared surface, an

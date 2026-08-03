@@ -265,6 +265,24 @@ if(CNA_EDITOR_WITH_IMGUI)
 endif()
 
 # ---------------------------------------------------------------------------------------------
+# scene-loader-demo
+#
+# What a shipped game does with a scene the editor produced (plan.md ED-250). It is also the
+# loader's integration test: it opens a real device, loads examples/HelloSprites, checks the world
+# transforms against what the editor's own code produces, and draws a frame.
+#
+# Only built with CNA, because that is the only configuration in which a game exists at all.
+# ---------------------------------------------------------------------------------------------
+
+if(CNA_EDITOR_WITH_CNA)
+    add_executable(scene-loader-demo examples/SceneLoaderDemo/Main.cpp)
+
+    # The loader is header-only and needs exactly what its documentation claims: CNA's public API
+    # and cna-editor-core. If this ever needs more, the claim has stopped being true.
+    target_link_libraries(scene-loader-demo PRIVATE cna-editor-core CNA)
+endif()
+
+# ---------------------------------------------------------------------------------------------
 # cna-player
 #
 # Built once per graphics backend in a real installation -- cna-player-easygl,
