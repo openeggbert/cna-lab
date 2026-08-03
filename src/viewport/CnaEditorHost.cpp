@@ -16,6 +16,7 @@
 #include "Microsoft/Xna/Framework/Graphics/Viewport.hpp"
 
 #include "CNA/Editor/Ui/ImGuiEditorUi.hpp"
+#include "CNA/Editor/Viewport/CnaSceneRenderer.hpp"
 #include "CNA/Editor/Viewport/CnaUiPlatform.hpp"
 #include "CNA/Editor/Viewport/CnaUiRenderer.hpp"
 
@@ -155,6 +156,13 @@ namespace CNA::Editor
     {
         impl_->renderer = std::make_unique<CnaUiRenderer>();
         impl_->renderer->initialize(getGraphicsDeviceProperty());
+
+        // The scene viewport can only exist once there is a device and a UI renderer to share its
+        // render target through, so it is installed here rather than at construction. Replacing
+        // the application's viewport in place keeps every panel written against the abstraction.
+        impl_->application->setViewport(createCnaEditorViewport(getGraphicsDeviceProperty(),
+                                                                impl_->application->getContext().getAssets(),
+                                                                *impl_->renderer));
         impl_->contentLoaded = true;
 
         impl_->application->getContext().log(

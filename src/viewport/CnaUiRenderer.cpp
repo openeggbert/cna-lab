@@ -59,6 +59,24 @@ namespace CNA::Editor
         std::unique_ptr<XnaGraphics::BasicEffect> effect;
         std::unordered_map<UiTextureId, std::unique_ptr<XnaGraphics::Texture2D>> textures;
 
+        /**
+         * @brief Textures owned by somebody else -- the scene viewport's render target.
+         *
+         * Kept apart from `textures` so shutdown() never deletes a texture it does not own.
+         */
+        std::unordered_map<UiTextureId, XnaGraphics::Texture2D*> borrowedTextures;
+
+        /**
+         * @brief Ids for borrowed textures, counting down from the top.
+         *
+         * Allocated from the opposite end of the range Dear ImGui's own ids come from, so the two
+         * namespaces cannot collide however many atlases the UI grows.
+         */
+        UiTextureId nextBorrowedId = ~UiTextureId{0};
+
+        /** @brief The single slot borrowed textures reuse. See adoptTexture(). */
+        UiTextureId borrowedSlot = kUiTextureNone;
+
         /** @brief Scratch buffers, reused across frames so a UI frame allocates nothing. */
         std::vector<XnaGraphics::VertexPositionColorTexture> vertexScratch;
         std::vector<std::uint16_t> indexScratch;
@@ -137,12 +155,29 @@ namespace CNA::Editor
 
     void CnaUiRenderer::shutdown()
     {
+        // Borrowed entries are pointers to somebody else's textures; dropping the map is all that
+        // may be done to them.
+        impl_->borrowedTextures.clear();
+        impl_->borrowedSlot = kUiTextureNone;
         impl_->textures.clear();
         impl_->effect.reset();
         impl_->device = nullptr;
     }
 
-    std::size_t CnaUiRenderer::getTextureCount() const { return impl_->textures.size(); }
+    std::size_t CnaUiRenderer::getTextureCount() const
+    {
+        return impl_->textures.size() + impl_->borrowedTextures.size();
+    }
+
+    UiTextureId CnaUiRenderer::adoptTexture(XnaGraphics::Texture2D& texture)
+    {
+        // One slot per renderer instance rather than one per call: the scene target is re-created
+        // on every panel resize, and minting a fresh id each time would grow the map without bound
+        // and leave the UI referencing ids whose texture had already gone.
+        if (impl_->borrowedSlot == kUiTextureNone) { impl_->borrowedSlot = impl_->nextBorrowedId--; }
+        impl_->borrowedTextures[impl_->borrowedSlot] = &texture;
+        return impl_->borrowedSlot;
+    }
 
     std::string CnaUiRenderer::getBackendName()
     {
@@ -246,15 +281,25 @@ namespace CNA::Editor
                     static_cast<int>(std::ceil((clip.right - clip.left) * drawData.framebufferScaleX)),
                     static_cast<int>(std::ceil((clip.bottom - clip.top) * drawData.framebufferScaleY))});
 
-                const auto found = impl_->textures.find(command.texture);
-                if (found == impl_->textures.end())
+                XnaGraphics::Texture2D* texture = nullptr;
+                if (const auto owned = impl_->textures.find(command.texture); owned != impl_->textures.end())
+                {
+                    texture = owned->second.get();
+                }
+                else if (const auto borrowed = impl_->borrowedTextures.find(command.texture);
+                         borrowed != impl_->borrowedTextures.end())
+                {
+                    texture = borrowed->second;
+                }
+
+                if (texture == nullptr)
                 {
                     // A command naming a texture that was never created would otherwise sample
                     // whatever happens to be bound. Skipping loses that one command; drawing it
                     // would show garbage across the whole UI.
                     continue;
                 }
-                impl_->effect->setTextureProperty(found->second.get());
+                impl_->effect->setTextureProperty(texture);
                 impl_->effect->Apply();
 
                 // The vertex offset is folded into the pointer rather than passed separately,

@@ -96,6 +96,39 @@ This is a reasonable place for CNA to draw the line, and the editor degrades cle
 (`CnaUiPlatform::hasClipboard()` reports it), but it is worth knowing that **a usable editor build
 needs `-DCNA_DEVICES=ON`**. Worth documenting on the CNA side as "tooling expects this on".
 
+### G-03 — A `RenderTarget2D` sampled as a texture is not portable
+
+Found when the scene viewport started rendering to an offscreen target and displaying it inside the
+docked viewport panel. The same code produced three different results:
+
+| Backend | Result |
+|---|---|
+| **EASYGL** | Correct content, but **vertically flipped** when sampled |
+| **SOFTWARE** | Sampled as **solid white** — no content at all |
+| (untested) | D3D-family expected upright, by convention |
+
+The flip is the ordinary OpenGL-versus-Direct3D texture-origin difference — bottom-left against
+top-left. CNA normalises this for *presentation* (a game drawing to a render target and then to the
+back buffer looks right on every backend) but not for a render target subsequently **sampled as a
+texture**, which is what "render the scene into a panel" requires.
+
+**Workaround in use:** `EditorViewport::isRenderTextureFlippedVertically()` reports the convention
+per backend, resolved at compile time from `CNA::getCurrentGraphicsBackendType()`, and the UI swaps
+the V coordinates when drawing the image. Swapping UVs rather than geometry keeps the widget
+rectangle unchanged, so hit-testing and the cursor-to-world mapping are unaffected.
+
+That is backend knowledge living in the editor, which decision D-01 would rather avoid. It is here
+because the alternative — probing at run time with a render target and a read-back — costs more to
+learn something CNA already knows.
+
+**SOFTWARE returning white is the more serious half**, and it is a genuine limitation rather than a
+convention difference. It is also consistent with the tier table (F-02): SOFTWARE is classified
+*Preview Only* precisely because it cannot host the editor UI. The editor is not broken there so
+much as unsupported there, which is what the table already said.
+
+**Suggested fix upstream:** normalise render-target texture orientation on sample, or expose the
+convention through `GraphicsCapability` so tooling can ask rather than hard-code a table.
+
 ---
 
 ## 4. Costs, stated honestly

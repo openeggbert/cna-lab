@@ -91,6 +91,13 @@ namespace CNA::Editor
         void sameLine() override;
         void drawLogView() override;
 
+        [[nodiscard]] UiRegion getContentRegion() const override;
+        UiImageInteraction image(const std::string& id,
+                                 UiTextureId texture,
+                                 float width,
+                                 float height,
+                                 bool flipVertically = false) override;
+
         void log(LogSeverity severity, const std::string& message) override;
 
         /** @brief Supplies the input for the next frame. Call before beginFrame(). */

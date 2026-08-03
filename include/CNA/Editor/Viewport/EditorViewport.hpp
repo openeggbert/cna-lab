@@ -10,31 +10,29 @@
  * editor build and its tests run with no CNA checkout, no window and no GPU (ANALYSIS.md
  * decision D-03).
  *
- * Rendering is split into ordered passes rather than one draw call, because the editor's own
- * overlay must never become part of the game's scene. Selection outlines, grids, gizmos and the
- * icons for cameras and lights are editor artefacts: putting them into the scene graph means a
- * build eventually ships with them, and means the game's own render order has to accommodate
- * objects it does not own.
+ * The interface is deliberately coarse: one `render()` call that returns a texture id the panel
+ * can display. An earlier draft exposed the passes individually (`renderGrid`, `renderScene`,
+ * `renderSelectionOutline`, …) and that turned out to be the wrong seam -- the *ordering* of those
+ * passes is a property of the renderer, not a decision for the panel, and every implementation
+ * would have had to be trusted to call them in the right order. The ordering still matters and is
+ * still enforced; it is simply enforced in one place now, inside the implementation.
+ *
+ * Note what is absent: the camera lives in `cna-editor-scene` as `EditorCamera2D`, not here.
+ * Picking, framing and grid spacing all need it, and none of those should require a CNA build.
  */
 
+#include <cstdint>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "CNA/Editor/Core/EditorMath.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
+#include "CNA/Editor/Scene/EditorCamera2D.hpp"
+#include "CNA/Editor/Ui/UiDrawData.hpp"
 
 namespace CNA::Editor
 {
     class SceneDocument;
-
-    /** @brief Which axes the viewport navigates and which gizmos it offers. */
-    enum class ViewportMode
-    {
-        /** @brief Orthographic, XY plane, no rotation gizmo by default. */
-        TwoDimensional,
-        ThreeDimensional
-    };
 
     /** @brief The manipulator currently bound to the mouse. */
     enum class GizmoMode
@@ -45,38 +43,20 @@ namespace CNA::Editor
         Scale
     };
 
-    /** @brief The editor's own camera. Never part of the scene document. */
-    struct ViewportCamera
+    /** @brief Counters from the most recent viewport render, for the profiler and for tests. */
+    struct ViewportStats
     {
-        EditorVector3 position{0.0f, 0.0f, 100.0f};
-        EditorQuaternion rotation;
-
-        /** @brief Visible world height in 2D mode. */
-        float orthographicSize = 600.0f;
-
-        /** @brief Vertical field of view in degrees, used in 3D mode. */
-        float fieldOfView = 45.0f;
-
-        float nearPlane = 0.1f;
-        float farPlane = 10000.0f;
-    };
-
-    /** @brief What a click at a given point hit. */
-    struct PickResult
-    {
-        /** @brief The entity under the cursor, or the nil Uuid when nothing was hit. */
-        Uuid entityId;
-
-        /** @brief Distance along the pick ray. Zero in 2D mode. */
-        float distance = 0.0f;
+        std::size_t spritesDrawn = 0;
+        std::size_t spritesSkipped = 0;
+        std::size_t gridLines = 0;
+        std::size_t missingTextures = 0;
     };
 
     /**
      * @brief The scene preview.
      *
-     * The interface is abstract so the panel layer can be built and tested against
-     * NullEditorViewport, and so a CNA-backed implementation can be swapped in without any panel
-     * changing. Callers drive the passes in order; an implementation may make any of them a no-op.
+     * Abstract so the panel layer can be built and tested against NullEditorViewport, and so a
+     * CNA-backed implementation can be swapped in without any panel changing.
      */
     class EditorViewport
     {
@@ -86,85 +66,92 @@ namespace CNA::Editor
         /** @brief Returns a short name for the implementation, e.g. "cna-easygl" or "null". */
         [[nodiscard]] virtual const char* getBackendName() const = 0;
 
-        /** @brief Resizes the render surface. */
-        virtual void resize(int width, int height) = 0;
-
-        /** @brief Draws the game's own content. */
-        virtual void renderScene(const SceneDocument& scene) = 0;
-
-        /** @brief Draws the reference grid, beneath everything else. */
-        virtual void renderGrid() = 0;
-
-        /** @brief Outlines the selected entities. */
-        virtual void renderSelectionOutline(const std::vector<Uuid>& selection) = 0;
-
-        /** @brief Draws icons for entities with no visible geometry: cameras, lights, audio sources. */
-        virtual void renderIcons(const SceneDocument& scene) = 0;
-
-        /** @brief Draws the active manipulator for the selection. */
-        virtual void renderGizmos(const std::vector<Uuid>& selection, GizmoMode mode) = 0;
+        /**
+         * @brief Draws @p scene into an offscreen surface of @p width by @p height pixels.
+         *
+         * Passes run in a fixed order inside the implementation: grid, then the game's own content,
+         * then the editor's overlay. Editor artefacts are never entities in the scene, so a build
+         * can never ship with them.
+         *
+         * @return A UI texture id the viewport panel can display, or zero when nothing was drawn.
+         */
+        virtual UiTextureId render(const SceneDocument& scene,
+                                   int width,
+                                   int height,
+                                   const std::vector<Uuid>& selection,
+                                   GizmoMode gizmoMode) = 0;
 
         /**
-         * @brief Returns the entity at viewport pixel (@p x, @p y).
+         * @brief Returns the texel size of @p assetId, or (0, 0) when it cannot be resolved.
          *
-         * Phase 1 implementations ray-cast against entity bounds, which needs no render target and
-         * no GPU read-back. GPU picking through an id buffer is a later optimisation for scenes
-         * where the ray cast becomes the bottleneck -- see plan.md ED-320.
+         * Picking and framing need it, and only the viewport has loaded the textures.
          */
-        [[nodiscard]] virtual PickResult pick(const SceneDocument& scene, int x, int y) const = 0;
+        [[nodiscard]] virtual EditorVector2 getSpriteSize(const Uuid& assetId) const = 0;
 
-        [[nodiscard]] virtual ViewportCamera& getCamera() = 0;
-        [[nodiscard]] virtual ViewportMode getMode() const = 0;
-        virtual void setMode(ViewportMode mode) = 0;
+        /** @brief Returns a SpriteSizeProvider bound to this viewport. */
+        [[nodiscard]] SpriteSizeProvider makeSizeProvider() const
+        {
+            return [this](const Uuid& assetId) { return getSpriteSize(assetId); };
+        }
+
+        /** @brief Returns the editor camera. */
+        [[nodiscard]] virtual EditorCamera2D& getCamera() = 0;
+        [[nodiscard]] virtual const EditorCamera2D& getCamera() const = 0;
+
+        /**
+         * @brief Returns true when render()'s texture must be sampled bottom-up.
+         *
+         * A render target's texture origin is not the same on every graphics API: OpenGL-family
+         * backends put it bottom-left, Direct3D-family top-left. CNA does not normalise this for a
+         * render target used as a sampled texture, so the viewport has to say which convention its
+         * result follows. See docs/SPIKE-IMGUI-CNA.md gap G-03.
+         */
+        [[nodiscard]] virtual bool isRenderTextureFlippedVertically() const { return false; }
+
+        /** @brief Returns the counters from the most recent render(). */
+        [[nodiscard]] virtual ViewportStats getLastStats() const = 0;
     };
 
     /**
-     * @brief A viewport that renders nothing.
+     * @brief A viewport that renders nothing but still does all the geometry.
      *
      * Used by `--headless`, by every unit test, and as the fallback when the editor is built
-     * without CNA. Picking always misses, which is correct: with no rendering there is no
-     * geometry to hit.
+     * without CNA. It maintains a real camera and honours resizes, so the panel layer, the picking
+     * path and the framing logic are all exercised without a GPU; only the pixels are missing.
      */
     class NullEditorViewport final : public EditorViewport
     {
     public:
         [[nodiscard]] const char* getBackendName() const override { return "null"; }
 
-        void resize(int width, int height) override { width_ = width; height_ = height; }
+        UiTextureId render(const SceneDocument& scene,
+                           int width,
+                           int height,
+                           const std::vector<Uuid>& selection,
+                           GizmoMode gizmoMode) override;
 
-        void renderScene(const SceneDocument& scene) override { (void)scene; ++sceneRenderCount_; }
-        void renderGrid() override {}
-        void renderSelectionOutline(const std::vector<Uuid>& selection) override { (void)selection; }
-        void renderIcons(const SceneDocument& scene) override { (void)scene; }
-        void renderGizmos(const std::vector<Uuid>& selection, GizmoMode mode) override
+        [[nodiscard]] EditorVector2 getSpriteSize(const Uuid& assetId) const override
         {
-            (void)selection;
-            (void)mode;
+            (void)assetId;
+            return EditorVector2{};
         }
 
-        [[nodiscard]] PickResult pick(const SceneDocument& scene, int x, int y) const override
-        {
-            (void)scene;
-            (void)x;
-            (void)y;
-            return PickResult{};
-        }
+        [[nodiscard]] EditorCamera2D& getCamera() override { return camera_; }
+        [[nodiscard]] const EditorCamera2D& getCamera() const override { return camera_; }
 
-        [[nodiscard]] ViewportCamera& getCamera() override { return camera_; }
-        [[nodiscard]] ViewportMode getMode() const override { return mode_; }
-        void setMode(ViewportMode mode) override { mode_ = mode; }
+        [[nodiscard]] ViewportStats getLastStats() const override { return stats_; }
 
-        /** @brief Returns how many times renderScene() has been called. */
-        [[nodiscard]] std::uint64_t getSceneRenderCount() const { return sceneRenderCount_; }
+        /** @brief Returns how many times render() has been called. */
+        [[nodiscard]] std::uint64_t getRenderCount() const { return renderCount_; }
 
         [[nodiscard]] int getWidth() const { return width_; }
         [[nodiscard]] int getHeight() const { return height_; }
 
     private:
-        ViewportCamera camera_;
-        ViewportMode mode_ = ViewportMode::TwoDimensional;
+        EditorCamera2D camera_;
+        ViewportStats stats_;
+        std::uint64_t renderCount_ = 0;
         int width_ = 0;
         int height_ = 0;
-        std::uint64_t sceneRenderCount_ = 0;
     };
 }

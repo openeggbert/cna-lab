@@ -37,7 +37,7 @@
           "origin": [0, 0],
           "sourceRectangle": [0, 0, 0, 0],
           "spriteEffects": "None",
-          "texture": null,
+          "texture": "8d9fb62c-7447-4c22-a190-036691308c8a",
           "tint": [255, 255, 255, 255]
         }
       },
@@ -51,16 +51,16 @@
       "parent": "f392a1b2-c3d4-4e5f-a607-182930415263",
       "components": {
         "CNA.Transform": {
-          "position": [24, 0, 0],
+          "position": [40, 8, 0],
           "rotation": [0, 0, 0, 1],
-          "scale": [1, 1, 1]
+          "scale": [1.5, 1.5, 1]
         },
         "CNA.SpriteRenderer": {
           "layerDepth": 0.4,
           "origin": [0, 0],
           "sourceRectangle": [0, 0, 0, 0],
           "spriteEffects": "None",
-          "texture": null,
+          "texture": "8d9fb62c-7447-4c22-a190-036691308c8a",
           "tint": [255, 255, 255, 255]
         }
       }

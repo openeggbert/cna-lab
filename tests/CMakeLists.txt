@@ -12,7 +12,8 @@ add_executable(cna-editor-tests
     ProjectAndAssetTests.cpp
     ApplicationTests.cpp
     UiTests.cpp
-    PlayerTests.cpp)
+    PlayerTests.cpp
+    ViewportTests.cpp)
 
 target_include_directories(cna-editor-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(cna-editor-tests PRIVATE

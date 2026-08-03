@@ -103,6 +103,16 @@ namespace CNA::Editor
         [[nodiscard]] EditorUi& getUi() { return *ui_; }
         [[nodiscard]] EditorViewport& getViewport() { return *viewport_; }
 
+        /**
+         * @brief Replaces the viewport.
+         *
+         * The CNA-backed viewport needs a graphics device and a UI renderer, neither of which
+         * exists when the application is constructed. Swapping it in later keeps every panel
+         * written against the abstraction and keeps the construction order honest, rather than
+         * having the application reach out for a device it does not own.
+         */
+        void setViewport(std::unique_ptr<EditorViewport> viewport);
+
     private:
         void drawMainMenu();
         void drawSceneHierarchyPanel();
@@ -113,6 +123,9 @@ namespace CNA::Editor
 
         /** @brief Recursively draws @p entityId and its children in the hierarchy tree. */
         void drawHierarchyNode(const Uuid& entityId);
+
+        /** @brief Turns one frame of viewport pointer input into camera moves and selection. */
+        void handleViewportInteraction(const UiImageInteraction& interaction);
 
         EditorContext context_;
         std::unique_ptr<EditorUi> ui_;

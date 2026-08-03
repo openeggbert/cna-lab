@@ -26,6 +26,7 @@
 #include "CNA/Editor/Core/EditorMath.hpp"
 #include "CNA/Editor/Core/PropertyValue.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
+#include "CNA/Editor/Ui/UiDrawData.hpp"
 
 namespace CNA::Editor
 {
@@ -48,6 +49,47 @@ namespace CNA::Editor
         Right,
         Bottom,
         Center
+    };
+
+    /** @brief A rectangle in panel-local or screen coordinates, in pixels. */
+    struct UiRegion
+    {
+        float x = 0.0f;
+        float y = 0.0f;
+        float width = 0.0f;
+        float height = 0.0f;
+
+        [[nodiscard]] bool isEmpty() const { return width <= 0.0f || height <= 0.0f; }
+    };
+
+    /**
+     * @brief Everything the viewport panel needs to know about one frame of pointer interaction.
+     *
+     * Returned as one struct from a single call rather than as a scatter of queries, because the
+     * viewport needs all of it together and each piece is only meaningful relative to the others:
+     * a wheel delta matters only while hovered, a drag delta only while dragging, and a click only
+     * when it lands on the image rather than on the panel around it.
+     */
+    struct UiImageInteraction
+    {
+        bool hovered = false;
+
+        /** @brief Set on the frame a left click completes over the image. */
+        bool clicked = false;
+
+        /** @brief Cursor position relative to the image's top-left, in pixels. */
+        float localMouseX = 0.0f;
+        float localMouseY = 0.0f;
+
+        /** @brief Wheel movement this frame, in notches. Non-zero only while hovered. */
+        float wheel = 0.0f;
+
+        /** @brief True while a pan drag is in progress. */
+        bool dragging = false;
+
+        /** @brief Cursor movement since the previous frame, while dragging. */
+        float dragDeltaX = 0.0f;
+        float dragDeltaY = 0.0f;
     };
 
     /**
@@ -143,6 +185,40 @@ namespace CNA::Editor
                               const std::string& shortcut = {},
                               bool enabled = true) = 0;
 
+        /**
+         * @brief Returns the space left in the current panel, in panel-local pixels.
+         *
+         * The viewport asks for this so it can render its scene at exactly the panel's size --
+         * rendering at a fixed size and stretching would make the grid non-square and picking
+         * disagree with what is on screen.
+         */
+        [[nodiscard]] virtual UiRegion getContentRegion() const { return UiRegion{}; }
+
+        /**
+         * @brief Draws @p texture filling @p width by @p height, and reports interaction with it.
+         *
+         * @param id Stable identity for the widget.
+         * @param texture Renderer-side texture id, from the scene renderer.
+         */
+        /**
+         * @param flipVertically Sample the texture bottom-up. Needed for render targets on
+         *        backends whose textures originate at the bottom-left; see
+         *        EditorViewport::isRenderTextureFlippedVertically().
+         */
+        virtual UiImageInteraction image(const std::string& id,
+                                         UiTextureId texture,
+                                         float width,
+                                         float height,
+                                         bool flipVertically = false)
+        {
+            (void)id;
+            (void)texture;
+            (void)width;
+            (void)height;
+            (void)flipVertically;
+            return UiImageInteraction{};
+        }
+
         /** @brief Draws a horizontal rule. */
         virtual void separator() = 0;
 
@@ -217,6 +293,15 @@ namespace CNA::Editor
 
         void separator() override {}
         void sameLine() override {}
+
+        /**
+         * @brief Reports a fixed 1280x720 content region.
+         *
+         * Non-zero on purpose: a headless run should exercise the viewport's real sizing and
+         * rendering path, and a zero region would make every panel silently skip its content --
+         * turning the headless smoke test into a no-op exactly where it is most useful.
+         */
+        [[nodiscard]] UiRegion getContentRegion() const override { return UiRegion{0.0f, 0.0f, 1280.0f, 720.0f}; }
 
         void log(LogSeverity severity, const std::string& message) override;
 

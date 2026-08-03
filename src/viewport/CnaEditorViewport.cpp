@@ -1,121 +1,113 @@
 // SPDX-License-Identifier: MS-PL
 /**
  * @file CnaEditorViewport.cpp
- * @brief The CNA-backed viewport -- the one translation unit in the editor that links CNA.
+ * @brief The CNA-backed scene viewport.
  *
- * Built only when CNA_EDITOR_WITH_CNA is ON. Everything here goes through CNA's *public* API --
- * `Microsoft::Xna::Framework::Graphics::GraphicsDevice`, `SpriteBatch`, `Texture2D` -- and never
- * through `CNA::Internal::*`. That restraint is the point: if the editor cannot draw a scene using
- * only the API a game has, then neither can a game, and the gap is a CNA bug worth finding
- * (ANALYSIS.md decision D-01).
- *
- * The implementation is a Phase 0 skeleton: it establishes the seam, the include boundary and the
- * build wiring. The real drawing arrives with plan.md ED-120 and ED-201.
+ * A thin adapter: it owns an `EditorCamera2D` (which is CNA-free and lives in cna-editor-scene) and
+ * delegates the actual drawing to `CnaSceneRenderer`. Keeping the two apart means the renderer can
+ * be reused for asset thumbnails and, later, for the per-backend captures plan.md ED-510 needs,
+ * without dragging the viewport's interaction state along with it.
  */
 
 #include "CNA/Editor/Viewport/EditorViewport.hpp"
 
 #include <string>
 
-#include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
-
-#if defined(CNA_EDITOR_HAS_CNA)
-#    include "CNA/GraphicsBackendType.hpp"
-#endif
+#include "CNA/Editor/Viewport/CnaSceneRenderer.hpp"
+#include "CNA/Editor/Viewport/CnaUiRenderer.hpp"
+#include "CNA/GraphicsBackendType.hpp"
 
 namespace CNA::Editor
 {
-    namespace
+    /**
+     * @brief Draws the scene with CNA and hands the result to the UI as a texture.
+     *
+     * Constructed by the host, which owns the graphics device and the UI renderer the rendered
+     * target has to be shared through.
+     */
+    class CnaEditorViewport final : public EditorViewport
     {
-        /**
-         * @brief Draws a scene through CNA's public graphics API.
-         *
-         * The GraphicsDevice is *borrowed*, never created here. The editor application owns the
-         * window and the device; the viewport only draws into whatever it is handed, which is what
-         * lets the same class serve both the docked editor viewport and an offscreen render used
-         * for asset thumbnails.
-         */
-        class CnaEditorViewport final : public EditorViewport
+    public:
+        CnaEditorViewport(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
+                          const AssetDatabase& assets,
+                          CnaUiRenderer& uiRenderer)
+            : uiRenderer_(&uiRenderer)
         {
-        public:
-            [[nodiscard]] const char* getBackendName() const override
+            renderer_.initialize(device, assets);
+        }
+
+        ~CnaEditorViewport() override { renderer_.shutdown(); }
+
+        [[nodiscard]] const char* getBackendName() const override
+        {
+            // Compile-time: CNA resolves its backend at compile time, so there is exactly one in
+            // this binary (ANALYSIS.md finding F-01).
+            static const std::string name =
+                std::string{"cna-"} + std::string{CNA::getCurrentGraphicsBackendName()};
+            return name.c_str();
+        }
+
+        UiTextureId render(const SceneDocument& scene,
+                           int width,
+                           int height,
+                           const std::vector<Uuid>& selection,
+                           GizmoMode gizmoMode) override
+        {
+            // plan.md ED-205: the translate gizmo draws in the overlay pass. Accepted and ignored
+            // for now rather than omitted from the interface, so adding it later changes one file.
+            (void)gizmoMode;
+
+            if (width <= 0 || height <= 0) { return kUiTextureNone; }
+
+            camera_.setViewportSize(EditorVector2{static_cast<float>(width), static_cast<float>(height)});
+
+            const SceneRenderStats stats = renderer_.render(scene, camera_, width, height, selection);
+            lastStats_ = ViewportStats{stats.spritesDrawn, stats.spritesSkipped, stats.gridLines,
+                                       stats.missingTextures};
+
+            return renderer_.shareWithUi(*uiRenderer_);
+        }
+
+        [[nodiscard]] EditorVector2 getSpriteSize(const Uuid& assetId) const override
+        {
+            return renderer_.getSpriteSize(assetId);
+        }
+
+        [[nodiscard]] bool isRenderTextureFlippedVertically() const override
+        {
+            // Compile-time, from the backend this build was compiled against. Not a runtime probe:
+            // CNA fixes its backend at compile time, so this is a constant, and a probe would
+            // cost a render target and a read-back to learn something already known.
+            switch (CNA::getCurrentGraphicsBackendType())
             {
-#if defined(CNA_EDITOR_HAS_CNA)
-                // CNA resolves this at compile time -- there is exactly one backend in this
-                // binary, and it cannot be changed at run time. See ANALYSIS.md finding F-01.
-                static const std::string name =
-                    std::string{"cna-"} + std::string{CNA::getCurrentGraphicsBackendName()};
-                return name.c_str();
-#else
-                return "cna-unavailable";
-#endif
+                case CNA::GraphicsBackendType::EasyGL:
+                case CNA::GraphicsBackendType::WebGPU:
+                case CNA::GraphicsBackendType::Bgfx:
+                case CNA::GraphicsBackendType::SdlGpu:
+                    return true;
+                default:
+                    return false;
             }
+        }
 
-            void resize(int width, int height) override
-            {
-                width_ = width;
-                height_ = height;
-            }
+        [[nodiscard]] EditorCamera2D& getCamera() override { return camera_; }
+        [[nodiscard]] const EditorCamera2D& getCamera() const override { return camera_; }
 
-            void renderScene(const SceneDocument& scene) override
-            {
-                // plan.md ED-201: walk the entities, resolve each CNA.SpriteRenderer's texture
-                // through the AssetDatabase, and issue one SpriteBatch::Draw per sprite ordered by
-                // layer depth.
-                (void)scene;
-            }
+        [[nodiscard]] ViewportStats getLastStats() const override { return lastStats_; }
 
-            void renderGrid() override
-            {
-                // plan.md ED-202.
-            }
+    private:
+        CnaSceneRenderer renderer_;
+        CnaUiRenderer* uiRenderer_;
+        EditorCamera2D camera_;
+        ViewportStats lastStats_;
+    };
 
-            void renderSelectionOutline(const std::vector<Uuid>& selection) override
-            {
-                // plan.md ED-203. Drawn as an overlay pass, never as scene geometry.
-                (void)selection;
-            }
-
-            void renderIcons(const SceneDocument& scene) override
-            {
-                // plan.md ED-204: billboarded icons for cameras, lights and audio sources, which
-                // have no geometry of their own and would otherwise be unclickable.
-                (void)scene;
-            }
-
-            void renderGizmos(const std::vector<Uuid>& selection, GizmoMode mode) override
-            {
-                // plan.md ED-205 (translate), ED-401 (rotate and scale).
-                (void)selection;
-                (void)mode;
-            }
-
-            [[nodiscard]] PickResult pick(const SceneDocument& scene, int x, int y) const override
-            {
-                // plan.md ED-206: ray-cast against each entity's editor-side bounds. GPU picking
-                // through an id target is deferred to ED-320, and only if profiling asks for it.
-                (void)scene;
-                (void)x;
-                (void)y;
-                return PickResult{};
-            }
-
-            [[nodiscard]] ViewportCamera& getCamera() override { return camera_; }
-            [[nodiscard]] ViewportMode getMode() const override { return mode_; }
-            void setMode(ViewportMode mode) override { mode_ = mode; }
-
-        private:
-            ViewportCamera camera_;
-            ViewportMode mode_ = ViewportMode::TwoDimensional;
-            int width_ = 0;
-            int height_ = 0;
-        };
-    }
-
-    /** @brief Creates the CNA-backed viewport. Declared in the module's own factory header. */
-    std::unique_ptr<EditorViewport> createCnaEditorViewport()
+    std::unique_ptr<EditorViewport> createCnaEditorViewport(
+        Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
+        const AssetDatabase& assets,
+        CnaUiRenderer& uiRenderer)
     {
-        return std::make_unique<CnaEditorViewport>();
+        return std::make_unique<CnaEditorViewport>(device, assets, uiRenderer);
     }
 }

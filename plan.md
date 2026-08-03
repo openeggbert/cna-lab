@@ -25,7 +25,7 @@
 **Phase 0 is complete: the editor opens in a window and renders.** The repository still builds and
 passes its full suite with no CNA checkout, no GPU and no window:
 
-- 12 modules, two executables, and **98 passing tests across 7 CTest suites** (9 with CNA)
+- 12 modules, two executables, and **115 passing tests across 7 CTest suites** (9 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -144,9 +144,11 @@ The editor opens, docks and renders through CNA's public API, verified by screen
 | ED-123 | `--screenshot=PATH` and the `CnaEditorWindowSmoke` CTest | ✅ | The mechanism plan.md ED-510's backend comparison mode will capture through |
 | ED-115 | Persistent `DynamicVertexBuffer`/`DynamicIndexBuffer` in `CnaUiRenderer` | ⛔ | Deferred: `DrawUserIndexedPrimitives` re-uploads per call, which is fine at 20–60 commands a frame. Profiling should ask for this before anyone does it |
 | ED-118 | Quaternion inspector as Euler angles | ⬜ | Needs a stable angle convention and round-trip handling. Showing the honest stored quaternion beats showing angles that silently drift on every edit |
-| ED-120 | `CnaEditorViewport::renderScene` draws sprites through `SpriteBatch` | ⬜ | Skeleton and build wiring in place |
-| ED-121 | Viewport renders into an offscreen target composited into the dock | ⬜ | |
-| ED-122 | Editor camera: pan, zoom, frame-selection | ⬜ | |
+| ED-120 | `CnaSceneRenderer` draws sprites through `SpriteBatch` | ✅ | Layer depth honoured via `SpriteSortMode::BackToFront`, parent transforms composed, tint/origin/flip applied. A sprite whose texture will not load draws a placeholder at the bounds the picker uses, so what you click and what you see agree |
+| ED-121 | Viewport renders into an offscreen target composited into the dock | ✅ | `RenderTarget2D` shared with the UI renderer as a borrowed texture, so the panel draws it with no per-frame blit. Turned up gap G-03 |
+| ED-122 | Editor camera: pan, zoom, frame-selection | 🔄 | `EditorCamera2D` implemented and tested (pan tracks the cursor at any zoom, wheel-zoom anchors under the pointer, framing respects margins). Wheel and drag are wired to the viewport panel; a Frame Selected shortcut is still to come |
+| ED-125 | Grid with adaptive 1-2-5 spacing, major lines and axes | ✅ | Fixed world spacing is unusable: solid at low zoom, invisible at high |
+| ED-126 | Click-to-select in the viewport, via ray-cast picking | ✅ | ED-206 in substance; `pickEntityAt` honours layer depth, parent transforms and disabled entities |
 
 **Exit criterion.** `cna-editor --project=examples/HelloSprites/HelloSprites.cnaproject` opens a
 real window, shows five docked panels, and renders the three-entity scene in the viewport.
@@ -163,11 +165,11 @@ real window, shows five docked panels, and renders the three-entity scene in the
 |----|------|:------:|-------|
 | ED-200 | Hierarchy panel: rename in place, drag-to-reparent, context menu, multi-select | ⬜ | Every operation through a command (D-06) |
 | ED-201 | Sprite rendering resolves textures through `AssetDatabase`, ordered by layer depth | ⬜ | |
-| ED-202 | Grid with adaptive spacing | ⬜ | |
-| ED-203 | Selection outline as an overlay pass | ⬜ | Never scene geometry |
+| ED-202 | Grid with adaptive spacing | ✅ | Done as ED-125 |
+| ED-203 | Selection outline as an overlay pass | ✅ | Drawn in a third `SpriteBatch` pass after the content, never as scene geometry |
 | ED-204 | Billboarded icons for cameras, lights and audio sources | ⬜ | They have no geometry and would otherwise be unclickable |
 | ED-205 | Translate gizmo, with merged undo across the drag | ⬜ | The merge machinery is already built and tested |
-| ED-206 | Ray-cast picking against entity bounds | ⬜ | GPU picking deferred to ED-320 |
+| ED-206 | Ray-cast picking against entity bounds | ✅ | Done as ED-126. CNA-free and unit-tested, so "clicking selects the wrong thing" is caught in CI rather than by hand |
 | ED-207 | Inspector: add and remove components, respecting `unique` and `required` | ⬜ | |
 | ED-208 | Asset drag-and-drop from the browser onto a sprite slot | ⬜ | |
 | ED-209 | Keyboard shortcuts: Ctrl+Z/Y/S/N/D, Delete, F to frame, W/E/R for gizmo modes | ⬜ | |

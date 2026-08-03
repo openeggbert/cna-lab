@@ -83,7 +83,10 @@ add_library(cna-editor-scene STATIC
     src/scene/EditorEntity.cpp
     src/scene/SceneDocument.cpp
     src/scene/SceneCommands.cpp
-    src/scene/BuiltinComponents.cpp)
+    src/scene/BuiltinComponents.cpp
+    src/scene/SceneTransform.cpp
+    src/scene/EditorCamera2D.cpp
+    src/viewport/NullEditorViewport.cpp)
 target_link_libraries(cna-editor-scene PUBLIC cna-editor-core)
 
 # cna-editor-assets -- stable asset identity, sidecars, dependency and reimport tracking.
@@ -199,6 +202,7 @@ if(CNA_EDITOR_WITH_CNA)
     # UiInputState from CNA's public input API. See docs/SPIKE-IMGUI-CNA.md for the full mapping.
     set(_cna_editor_viewport_sources
         src/viewport/CnaEditorViewport.cpp
+        src/viewport/CnaSceneRenderer.cpp
         src/viewport/CnaUiRenderer.cpp
         src/viewport/CnaUiPlatform.cpp)
 

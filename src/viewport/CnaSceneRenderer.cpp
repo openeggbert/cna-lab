@@ -1,0 +1,378 @@
+// SPDX-License-Identifier: MS-PL
+#include "CNA/Editor/Viewport/CnaSceneRenderer.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <exception>
+#include <unordered_map>
+#include <unordered_set>
+
+#include "Microsoft/Xna/Framework/Color.hpp"
+#include "Microsoft/Xna/Framework/Rectangle.hpp"
+#include "Microsoft/Xna/Framework/Vector2.hpp"
+#include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
+#include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
+#include "Microsoft/Xna/Framework/Graphics/RenderTarget2D.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SamplerState.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SpriteBatch.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SpriteEffects.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SpriteSortMode.hpp"
+#include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
+
+#include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/SceneDocument.hpp"
+#include "CNA/Editor/Viewport/CnaUiRenderer.hpp"
+
+namespace Xna = Microsoft::Xna::Framework;
+namespace XnaGraphics = Microsoft::Xna::Framework::Graphics;
+
+namespace CNA::Editor
+{
+    namespace
+    {
+        /** @brief Background behind the scene, distinct from the editor chrome around it. */
+        const Xna::Color kBackground{24, 24, 27, 255};
+        const Xna::Color kGridMinor{45, 45, 52, 255};
+        const Xna::Color kGridMajor{62, 62, 72, 255};
+        const Xna::Color kAxis{92, 74, 74, 255};
+        const Xna::Color kSelection{255, 158, 46, 255};
+
+        /** @brief Drawn where a sprite's texture is missing, so the entity stays visible. */
+        const Xna::Color kMissingTexture{200, 60, 140, 255};
+
+        /**
+         * @brief Returns a grid spacing that keeps lines a sensible distance apart on screen.
+         *
+         * A fixed world spacing is unusable: zoomed out it becomes a solid block, zoomed in it
+         * vanishes. Stepping through 1-2-5 decades is the standard answer and keeps the spacing
+         * a round number, which matters because the user reads coordinates off it.
+         */
+        float chooseGridSpacing(float zoom, float targetPixels)
+        {
+            if (zoom <= 0.0f) { return 0.0f; }
+
+            const float targetWorld = targetPixels / zoom;
+            const float decade = std::pow(10.0f, std::floor(std::log10(std::max(targetWorld, 1e-6f))));
+            const float normalised = targetWorld / decade;
+
+            if (normalised < 2.0f) { return decade; }
+            if (normalised < 5.0f) { return decade * 2.0f; }
+            return decade * 5.0f;
+        }
+
+        Xna::Color toXnaColor(const EditorColor& color)
+        {
+            return Xna::Color(static_cast<int>(color.r), static_cast<int>(color.g),
+                              static_cast<int>(color.b), static_cast<int>(color.a));
+        }
+
+        XnaGraphics::SpriteEffects toSpriteEffects(const std::string& name)
+        {
+            if (name == "FlipHorizontally") { return XnaGraphics::SpriteEffects::FlipHorizontally; }
+            if (name == "FlipVertically") { return XnaGraphics::SpriteEffects::FlipVertically; }
+            if (name == "FlipBoth")
+            {
+                return static_cast<XnaGraphics::SpriteEffects>(
+                    static_cast<int>(XnaGraphics::SpriteEffects::FlipHorizontally)
+                    | static_cast<int>(XnaGraphics::SpriteEffects::FlipVertically));
+            }
+            return XnaGraphics::SpriteEffects::None;
+        }
+    }
+
+    struct CnaSceneRenderer::Impl
+    {
+        XnaGraphics::GraphicsDevice* device = nullptr;
+        const AssetDatabase* assets = nullptr;
+
+        std::unique_ptr<XnaGraphics::RenderTarget2D> target;
+        std::unique_ptr<XnaGraphics::SpriteBatch> spriteBatch;
+
+        /** @brief A 1x1 white texture: every line, outline and placeholder is a stretched quad. */
+        std::unique_ptr<XnaGraphics::Texture2D> pixel;
+
+        std::unordered_map<Uuid, std::unique_ptr<XnaGraphics::Texture2D>> textures;
+
+        /**
+         * @brief Assets whose load already failed.
+         *
+         * Remembered so a broken asset costs one attempt rather than one per frame. An editor that
+         * retries a missing file sixty times a second stalls on exactly the project that most needs
+         * opening.
+         */
+        std::unordered_set<Uuid> failedTextures;
+
+        int targetWidth = 0;
+        int targetHeight = 0;
+
+        /** @brief Ensures the offscreen target matches the requested size. */
+        void ensureTarget(int width, int height)
+        {
+            if (target != nullptr && targetWidth == width && targetHeight == height) { return; }
+
+            target = std::make_unique<XnaGraphics::RenderTarget2D>(*device, width, height);
+            targetWidth = width;
+            targetHeight = height;
+        }
+
+        /** @brief Returns the texture for @p assetId, loading it once, or nullptr. */
+        XnaGraphics::Texture2D* resolveTexture(const Uuid& assetId, SceneRenderStats& stats)
+        {
+            if (!assetId.isValid() || assets == nullptr) { return nullptr; }
+
+            if (const auto found = textures.find(assetId); found != textures.end())
+            {
+                return found->second.get();
+            }
+            if (failedTextures.count(assetId) > 0) { return nullptr; }
+
+            const AssetRecord* record = assets->find(assetId);
+            if (record == nullptr)
+            {
+                failedTextures.insert(assetId);
+                return nullptr;
+            }
+
+            try
+            {
+                auto texture = std::make_unique<XnaGraphics::Texture2D>(
+                    assets->resolvePath(record->sourcePath), *device);
+                XnaGraphics::Texture2D* raw = texture.get();
+                textures.emplace(assetId, std::move(texture));
+                ++stats.texturesLoaded;
+                return raw;
+            }
+            catch (const std::exception&)
+            {
+                // A texture that will not load is a project problem, not an editor crash: the
+                // sprite falls back to a placeholder so the entity is still visible and selectable.
+                failedTextures.insert(assetId);
+                return nullptr;
+            }
+        }
+
+        /** @brief Draws an axis-aligned rectangle in screen space, using the 1x1 white texture. */
+        void drawRect(const Xna::Rectangle& rect, const Xna::Color& color)
+        {
+            spriteBatch->Draw(*pixel, rect, std::nullopt, color, 0.0f,
+                              Xna::Vector2{0.0f, 0.0f}, XnaGraphics::SpriteEffects::None, 0.0f);
+        }
+
+        /** @brief Draws a one-pixel outline just outside @p rect. */
+        void drawOutline(const Xna::Rectangle& rect, const Xna::Color& color, int thickness)
+        {
+            drawRect(Xna::Rectangle{rect.X - thickness, rect.Y - thickness,
+                                    rect.Width + thickness * 2, thickness}, color);
+            drawRect(Xna::Rectangle{rect.X - thickness, rect.Y + rect.Height,
+                                    rect.Width + thickness * 2, thickness}, color);
+            drawRect(Xna::Rectangle{rect.X - thickness, rect.Y, thickness, rect.Height}, color);
+            drawRect(Xna::Rectangle{rect.X + rect.Width, rect.Y, thickness, rect.Height}, color);
+        }
+
+        void drawGrid(const EditorCamera2D& camera, SceneRenderStats& stats)
+        {
+            // Roughly 90 pixels between minor lines: dense enough to judge distance, sparse enough
+            // not to become a texture.
+            const float spacing = chooseGridSpacing(camera.getZoom(), 90.0f);
+            if (spacing <= 0.0f) { return; }
+
+            const WorldBounds2D visible = camera.getVisibleBounds();
+            const float firstX = std::floor(visible.min.x / spacing) * spacing;
+            const float firstY = std::floor(visible.min.y / spacing) * spacing;
+
+            // Bounded so that a pathological zoom cannot ask for a million draw calls.
+            constexpr int kMaxLines = 400;
+
+            int drawn = 0;
+            for (float x = firstX; x <= visible.max.x && drawn < kMaxLines; x += spacing, ++drawn)
+            {
+                const int screenX = static_cast<int>(std::round(camera.worldToScreen(EditorVector2{x, 0.0f}).x));
+                // Every fifth line is emphasised, and the axis itself more so again -- without
+                // that the grid reads as texture rather than as a measurable scale.
+                const bool isMajor = std::fabs(std::fmod(x / spacing, 5.0f)) < 0.001f;
+                const bool isAxis = std::fabs(x) < spacing * 0.001f;
+                drawRect(Xna::Rectangle{screenX, 0, 1, targetHeight},
+                         isAxis ? kAxis : (isMajor ? kGridMajor : kGridMinor));
+                ++stats.gridLines;
+            }
+
+            drawn = 0;
+            for (float y = firstY; y <= visible.max.y && drawn < kMaxLines; y += spacing, ++drawn)
+            {
+                const int screenY = static_cast<int>(std::round(camera.worldToScreen(EditorVector2{0.0f, y}).y));
+                const bool isMajor = std::fabs(std::fmod(y / spacing, 5.0f)) < 0.001f;
+                const bool isAxis = std::fabs(y) < spacing * 0.001f;
+                drawRect(Xna::Rectangle{0, screenY, targetWidth, 1},
+                         isAxis ? kAxis : (isMajor ? kGridMajor : kGridMinor));
+                ++stats.gridLines;
+            }
+        }
+    };
+
+    CnaSceneRenderer::CnaSceneRenderer() : impl_(std::make_unique<Impl>()) {}
+
+    CnaSceneRenderer::~CnaSceneRenderer() { shutdown(); }
+
+    void CnaSceneRenderer::initialize(XnaGraphics::GraphicsDevice& device, const AssetDatabase& assets)
+    {
+        impl_->device = &device;
+        impl_->assets = &assets;
+        impl_->spriteBatch = std::make_unique<XnaGraphics::SpriteBatch>(device);
+
+        impl_->pixel = std::make_unique<XnaGraphics::Texture2D>(device, 1, 1);
+        const Xna::Color white(255, 255, 255, 255);
+        impl_->pixel->SetData(&white, 1);
+    }
+
+    void CnaSceneRenderer::shutdown()
+    {
+        impl_->textures.clear();
+        impl_->failedTextures.clear();
+        impl_->pixel.reset();
+        impl_->spriteBatch.reset();
+        impl_->target.reset();
+        impl_->device = nullptr;
+        impl_->assets = nullptr;
+    }
+
+    EditorVector2 CnaSceneRenderer::getSpriteSize(const Uuid& assetId) const
+    {
+        const auto found = impl_->textures.find(assetId);
+        if (found == impl_->textures.end()) { return EditorVector2{}; }
+        return EditorVector2{static_cast<float>(found->second->getWidthProperty()),
+                             static_cast<float>(found->second->getHeightProperty())};
+    }
+
+    SpriteSizeProvider CnaSceneRenderer::makeSizeProvider() const
+    {
+        return [this](const Uuid& assetId) { return getSpriteSize(assetId); };
+    }
+
+    UiTextureId CnaSceneRenderer::shareWithUi(CnaUiRenderer& uiRenderer)
+    {
+        if (impl_->target == nullptr) { return kUiTextureNone; }
+        return uiRenderer.adoptTexture(*impl_->target);
+    }
+
+    SceneRenderStats CnaSceneRenderer::render(const SceneDocument& scene,
+                                              const EditorCamera2D& camera,
+                                              int width,
+                                              int height,
+                                              const std::vector<Uuid>& selection)
+    {
+        SceneRenderStats stats;
+        lastStats_ = stats;
+
+        if (impl_->device == nullptr || impl_->spriteBatch == nullptr) { return stats; }
+        if (width <= 0 || height <= 0) { return stats; }
+
+        impl_->ensureTarget(width, height);
+
+        XnaGraphics::GraphicsDevice& device = *impl_->device;
+        device.SetRenderTarget(impl_->target.get());
+        device.Clear(kBackground);
+
+        // Pass 1: the grid, beneath everything.
+        impl_->spriteBatch->Begin(XnaGraphics::SpriteSortMode::Deferred,
+                                  XnaGraphics::BlendState::AlphaBlend);
+        impl_->drawGrid(camera, stats);
+        impl_->spriteBatch->End();
+
+        // Pass 2: the game's own content. BackToFront honours SpriteRenderer.layerDepth, which is
+        // XNA's own convention (0 front, 1 back) and the one the game will see at run time.
+        impl_->spriteBatch->Begin(XnaGraphics::SpriteSortMode::BackToFront,
+                                  XnaGraphics::BlendState::NonPremultiplied);
+
+        const SpriteSizeProvider sizeProvider = makeSizeProvider();
+
+        for (const EditorEntity& entity : scene.getEntities())
+        {
+            if (!entity.isEnabled()) { ++stats.spritesSkipped; continue; }
+
+            const EditorComponent* sprite = entity.findComponent(BuiltinComponentIds::kSpriteRenderer);
+            if (sprite == nullptr) { continue; }
+
+            const std::optional<WorldTransform> world = computeWorldTransform(scene, entity.getId());
+            if (!world) { ++stats.spritesSkipped; continue; }
+
+            const Uuid textureId = sprite->getProperty("texture").get<PropertyValue::AssetReference>().id;
+            XnaGraphics::Texture2D* texture = impl_->resolveTexture(textureId, stats);
+
+            const EditorVector2 screenPosition =
+                camera.worldToScreen(EditorVector2{world->position.x, world->position.y});
+            const EditorVector2 origin = sprite->getProperty("origin").get<EditorVector2>();
+            const EditorColor tint = sprite->getProperty("tint").get<EditorColor>();
+            const float layerDepth = sprite->getProperty("layerDepth").get<float>(0.5f);
+            const float rotation = zRotationOf(world->rotation);
+
+            if (texture == nullptr)
+            {
+                // No texture: draw the placeholder at the bounds the picker uses, so what the user
+                // clicks and what the user sees are the same rectangle.
+                ++stats.missingTextures;
+                const std::optional<WorldBounds2D> bounds =
+                    computeEntityBounds2D(scene, entity.getId(), sizeProvider);
+                if (!bounds) { continue; }
+
+                const EditorVector2 topLeft = camera.worldToScreen(bounds->min);
+                const EditorVector2 bottomRight = camera.worldToScreen(bounds->max);
+                impl_->drawRect(Xna::Rectangle{static_cast<int>(topLeft.x), static_cast<int>(topLeft.y),
+                                               static_cast<int>(bottomRight.x - topLeft.x),
+                                               static_cast<int>(bottomRight.y - topLeft.y)},
+                                kMissingTexture);
+                ++stats.spritesDrawn;
+                continue;
+            }
+
+            std::optional<Xna::Rectangle> sourceRectangle;
+            const EditorRectangle source = sprite->getProperty("sourceRectangle").get<EditorRectangle>();
+            if (!source.isEmpty())
+            {
+                sourceRectangle = Xna::Rectangle{source.x, source.y, source.width, source.height};
+            }
+
+            // The camera's zoom folds into the sprite's scale, so one SpriteBatch::Draw covers both
+            // the entity's own scale and the view's -- no separate view matrix needed, and the
+            // result is exactly what the game would draw at that scale.
+            const float scaleX = world->scale.x * camera.getZoom();
+            const float scaleY = world->scale.y * camera.getZoom();
+
+            impl_->spriteBatch->Draw(*texture,
+                                     Xna::Vector2{screenPosition.x, screenPosition.y},
+                                     sourceRectangle,
+                                     toXnaColor(tint),
+                                     rotation,
+                                     Xna::Vector2{origin.x, origin.y},
+                                     Xna::Vector2{scaleX, scaleY},
+                                     toSpriteEffects(sprite->getProperty("spriteEffects")
+                                                         .get<PropertyValue::EnumValue>().name),
+                                     layerDepth);
+            ++stats.spritesDrawn;
+        }
+        impl_->spriteBatch->End();
+
+        // Pass 3: the editor's overlay. Separate from the content pass on purpose -- selection
+        // outlines are editor artefacts and must never become part of the scene.
+        impl_->spriteBatch->Begin(XnaGraphics::SpriteSortMode::Deferred,
+                                  XnaGraphics::BlendState::AlphaBlend);
+        for (const Uuid& selectedId : selection)
+        {
+            const std::optional<WorldBounds2D> bounds =
+                computeEntityBounds2D(scene, selectedId, sizeProvider);
+            if (!bounds) { continue; }
+
+            const EditorVector2 topLeft = camera.worldToScreen(bounds->min);
+            const EditorVector2 bottomRight = camera.worldToScreen(bounds->max);
+            impl_->drawOutline(Xna::Rectangle{static_cast<int>(topLeft.x), static_cast<int>(topLeft.y),
+                                              static_cast<int>(bottomRight.x - topLeft.x),
+                                              static_cast<int>(bottomRight.y - topLeft.y)},
+                               kSelection, 2);
+        }
+        impl_->spriteBatch->End();
+
+        device.SetRenderTarget(nullptr);
+
+        lastStats_ = stats;
+        return stats;
+    }
+}

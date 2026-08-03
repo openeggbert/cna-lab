@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/EditorApplication.hpp"
 
+#include <cmath>
 #include <cstring>
 #include <iostream>
 
@@ -117,6 +118,20 @@ namespace CNA::Editor
         context_.setLogSink([this](LogSeverity severity, const std::string& message) {
             ui_->log(severity, message);
         });
+    }
+
+    void EditorApplication::setViewport(std::unique_ptr<EditorViewport> viewport)
+    {
+        if (!viewport) { return; }
+
+        // Carry the camera across, so installing a real viewport does not throw away wherever the
+        // user had already navigated to.
+        const EditorCamera2D previousCamera = viewport_ ? viewport_->getCamera() : EditorCamera2D{};
+        viewport_ = std::move(viewport);
+        viewport_->getCamera() = previousCamera;
+
+        context_.log(LogSeverity::Info,
+                     std::string{"Viewport: "} + viewport_->getBackendName());
     }
 
     bool EditorApplication::initialize(const EditorOptions& options)
@@ -323,15 +338,56 @@ namespace CNA::Editor
     {
         if (!ui_->beginPanel("Viewport", DockSide::Center)) { ui_->endPanel(); return; }
 
-        // Grid first, then the game's own content, then the editor's overlay on top. The overlay
-        // is a separate pass precisely so its objects never enter the scene document.
-        viewport_->renderGrid();
-        viewport_->renderScene(context_.getScene());
-        viewport_->renderIcons(context_.getScene());
-        viewport_->renderSelectionOutline(context_.getSelection());
-        viewport_->renderGizmos(context_.getSelection(), gizmoMode_);
+        const UiRegion region = ui_->getContentRegion();
+        if (region.isEmpty()) { ui_->endPanel(); return; }
+
+        const int width = static_cast<int>(region.width);
+        const int height = static_cast<int>(region.height);
+
+        // The scene is rendered at exactly the panel's size. Rendering at a fixed size and
+        // stretching would make the grid non-square and, worse, make picking disagree with what
+        // is on screen.
+        const UiTextureId texture =
+            viewport_->render(context_.getScene(), width, height, context_.getSelection(), gizmoMode_);
+
+        const UiImageInteraction interaction =
+            ui_->image("##viewport", texture, region.width, region.height,
+                       viewport_->isRenderTextureFlippedVertically());
+
+        handleViewportInteraction(interaction);
 
         ui_->endPanel();
+    }
+
+    void EditorApplication::handleViewportInteraction(const UiImageInteraction& interaction)
+    {
+        if (!interaction.hovered) { return; }
+
+        EditorCamera2D& camera = viewport_->getCamera();
+        const EditorVector2 cursor{interaction.localMouseX, interaction.localMouseY};
+
+        if (interaction.wheel != 0.0f)
+        {
+            // A constant factor per notch gives geometric zoom, so each notch feels the same
+            // whatever the current scale -- a linear step is unusable at both ends of the range.
+            constexpr float kZoomPerNotch = 1.15f;
+            camera.zoomAt(cursor, std::pow(kZoomPerNotch, interaction.wheel));
+        }
+
+        if (interaction.dragging)
+        {
+            camera.panByScreenDelta(EditorVector2{interaction.dragDeltaX, interaction.dragDeltaY});
+        }
+
+        if (interaction.clicked)
+        {
+            const ScenePickResult pick =
+                pickEntityAt(context_.getScene(), camera, cursor, viewport_->makeSizeProvider());
+
+            // Clicking empty space clears the selection, which is what every editor does and what
+            // makes "deselect" reachable without a keyboard.
+            context_.select(pick.entityId);
+        }
     }
 
     void EditorApplication::drawConsolePanel()

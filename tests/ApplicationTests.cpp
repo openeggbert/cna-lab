@@ -127,10 +127,11 @@ CNA_EDITOR_TEST(ApplicationDrawsEveryPanelEachFrame)
     CNA_EDITOR_EXPECT(contains("Assets"));
     CNA_EDITOR_EXPECT(contains("Console"));
 
-    // The viewport passes must actually have run, or --headless would be a no-op rather than a
-    // smoke test.
+    // The viewport must actually have rendered, or --headless would be a no-op rather than a
+    // smoke test. NullEditorViewport walks the same transform and bounds code a real one does.
     const auto& viewport = static_cast<NullEditorViewport&>(application.getViewport());
-    CNA_EDITOR_EXPECT_EQ(viewport.getSceneRenderCount(), std::uint64_t{1});
+    CNA_EDITOR_EXPECT_EQ(viewport.getRenderCount(), std::uint64_t{1});
+    CNA_EDITOR_EXPECT(viewport.getWidth() > 0);
 }
 
 CNA_EDITOR_TEST(ApplicationHonoursItsFrameLimit)

@@ -747,6 +747,68 @@ namespace CNA::Editor
         if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) { ImGui::SetScrollHereY(1.0f); }
     }
 
+    UiRegion ImGuiEditorUi::getContentRegion() const
+    {
+        const ImVec2 available = ImGui::GetContentRegionAvail();
+        const ImVec2 cursor = ImGui::GetCursorScreenPos();
+        return UiRegion{cursor.x, cursor.y, available.x, available.y};
+    }
+
+    UiImageInteraction ImGuiEditorUi::image(const std::string& id,
+                                            UiTextureId texture,
+                                            float width,
+                                            float height,
+                                            bool flipVertically)
+    {
+        UiImageInteraction result;
+        if (width <= 0.0f || height <= 0.0f) { return result; }
+
+        const ImVec2 topLeft = ImGui::GetCursorScreenPos();
+
+        if (texture != kUiTextureNone)
+        {
+            // Swapping the V coordinates rather than flipping the geometry keeps the widget's
+            // rectangle, and therefore hit-testing and the cursor-to-world mapping, unchanged.
+            const ImVec2 uv0{0.0f, flipVertically ? 1.0f : 0.0f};
+            const ImVec2 uv1{1.0f, flipVertically ? 0.0f : 1.0f};
+            ImGui::Image(static_cast<ImTextureID>(texture), ImVec2{width, height}, uv0, uv1);
+        }
+        else
+        {
+            // No texture yet -- a viewport that has not rendered, or a build with no renderer.
+            // An invisible button keeps the panel's layout and its interaction identical either
+            // way, so camera and selection handling stay testable without a GPU.
+            ImGui::InvisibleButton(id.c_str(), ImVec2{width, height});
+        }
+
+        result.hovered = ImGui::IsItemHovered();
+
+        const ImVec2 mouse = ImGui::GetIO().MousePos;
+        result.localMouseX = mouse.x - topLeft.x;
+        result.localMouseY = mouse.y - topLeft.y;
+
+        // Released over the item, and only if the press started here -- otherwise a drag that ends
+        // over the viewport would register as a click and change the selection.
+        result.clicked = ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left)
+                      && !ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+
+        if (result.hovered) { result.wheel = ImGui::GetIO().MouseWheel; }
+
+        // Middle or right drag pans. Left is left alone for selection and, later, the gizmo.
+        for (const ImGuiMouseButton button : {ImGuiMouseButton_Middle, ImGuiMouseButton_Right})
+        {
+            if (!ImGui::IsMouseDragging(button)) { continue; }
+
+            const ImVec2 delta = ImGui::GetIO().MouseDelta;
+            result.dragging = true;
+            result.dragDeltaX = delta.x;
+            result.dragDeltaY = delta.y;
+            break;
+        }
+
+        return result;
+    }
+
     void ImGuiEditorUi::separator() { ImGui::Separator(); }
 
     void ImGuiEditorUi::sameLine() { ImGui::SameLine(); }

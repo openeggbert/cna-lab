@@ -36,6 +36,7 @@
 namespace Microsoft::Xna::Framework::Graphics
 {
     class GraphicsDevice;
+    class Texture2D;
 }
 
 namespace CNA::Editor
@@ -115,6 +116,18 @@ namespace CNA::Editor
 
         /** @brief Returns the stats from the most recent render(). */
         [[nodiscard]] const UiRenderStats& getLastStats() const { return lastStats_; }
+
+        /**
+         * @brief Gives @p texture a UI texture id without taking ownership of it.
+         *
+         * Used for the scene viewport's render target, which the scene renderer owns and re-creates
+         * whenever the panel is resized. Adopting rather than copying means the UI draws the live
+         * target with no per-frame blit; the borrowed entry is replaced on every call, so a
+         * re-created target never leaves a dangling pointer behind.
+         *
+         * @return A stable id for this renderer's borrowed slot.
+         */
+        UiTextureId adoptTexture(Microsoft::Xna::Framework::Graphics::Texture2D& texture);
 
         /** @brief Returns the number of textures currently held. */
         [[nodiscard]] std::size_t getTextureCount() const;
