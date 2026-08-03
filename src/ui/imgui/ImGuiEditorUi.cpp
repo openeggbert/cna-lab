@@ -508,14 +508,32 @@ namespace CNA::Editor
         // The side is a first-run hint only. Once the user has moved a panel, the saved layout
         // wins -- an editor that reasserts its own idea of where a panel belongs on every launch
         // is an editor people stop rearranging.
+        ImGuiID& sideNode = impl_->dockNodes[static_cast<int>(preferredSide)];
+
         if (impl_->buildingLayout)
         {
-            const ImGuiID node = impl_->dockNodes[static_cast<int>(preferredSide)];
-            if (node != 0) { ImGui::DockBuilderDockWindow(title.c_str(), node); }
+            if (sideNode != 0) { ImGui::DockBuilderDockWindow(title.c_str(), sideNode); }
+        }
+        else if (sideNode != 0)
+        {
+            // A panel added to the editor *after* a user already has a saved layout appears in
+            // nobody's `.ini`, and ImGui would float it over the others. FirstUseEver puts it
+            // beside a panel that shares its side and then never touches it again, so it gets a
+            // home without any of the user's own placements being disturbed.
+            ImGui::SetNextWindowDockID(sideNode, ImGuiCond_FirstUseEver);
         }
 
         const bool visible = ImGui::Begin(title.c_str());
         ++impl_->panelDepth;
+
+        // Remember where this panel actually ended up. The node from a rebuilt default layout is
+        // right for one frame; this keeps the side's node current across a loaded layout too,
+        // which is what a later panel on the same side needs to join it.
+        if (const ImGuiWindow* window = ImGui::GetCurrentWindow(); window != nullptr && window->DockId != 0)
+        {
+            sideNode = window->DockId;
+        }
+
         return visible;
     }
 

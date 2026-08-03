@@ -23,6 +23,7 @@
 #include "CNA/Editor/Panels/HierarchyPanel.hpp"
 #include "CNA/Editor/Panels/InspectorPanel.hpp"
 #include "CNA/Editor/Panels/MainMenuBar.hpp"
+#include "CNA/Editor/Panels/MissingReferencesPanel.hpp"
 #include "CNA/Editor/Panels/ViewportPanel.hpp"
 #include "CNA/Editor/RuntimeBridge/PlayerProcess.hpp"
 #include "CNA/Editor/Ui/EditorUi.hpp"
@@ -196,6 +197,7 @@ namespace CNA::Editor
         ViewportPanel viewportPanel_;
         InspectorPanel inspectorPanel_;
         AssetBrowserPanel assetBrowserPanel_;
+        MissingReferencesPanel missingReferencesPanel_;
         ConsolePanel consolePanel_;
 
         GizmoMode gizmoMode_ = GizmoMode::Translate;

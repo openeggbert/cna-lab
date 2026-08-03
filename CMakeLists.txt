@@ -87,6 +87,7 @@ add_library(cna-editor-scene STATIC
     src/scene/SceneTransform.cpp
     src/scene/EditorCamera2D.cpp
     src/scene/EditorIcons.cpp
+    src/scene/MissingReferences.cpp
     src/scene/TranslateGizmo.cpp
     src/viewport/NullEditorViewport.cpp)
 target_link_libraries(cna-editor-scene PUBLIC cna-editor-core)
@@ -237,6 +238,7 @@ set(CNA_EDITOR_PANEL_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/InspectorPanel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/AssetBrowserPanel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/ViewportPanel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/MissingReferencesPanel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/ConsolePanel.cpp
     CACHE INTERNAL "Editor panel sources")
 

@@ -16,6 +16,7 @@
 
 #include "CNA/Editor/EditorApplication.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/MissingReferences.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 
@@ -118,7 +119,7 @@ CNA_EDITOR_TEST(ApplicationDrawsEveryPanelEachFrame)
     ui.endFrame();
 
     const std::vector<std::string>& panels = ui.getLastFramePanels();
-    CNA_EDITOR_EXPECT_EQ(panels.size(), std::size_t{5});
+    CNA_EDITOR_EXPECT_EQ(panels.size(), std::size_t{6});
 
     const auto contains = [&](const std::string& title) {
         return std::find(panels.begin(), panels.end(), title) != panels.end();
@@ -128,6 +129,7 @@ CNA_EDITOR_TEST(ApplicationDrawsEveryPanelEachFrame)
     CNA_EDITOR_EXPECT(contains("Inspector"));
     CNA_EDITOR_EXPECT(contains("Assets"));
     CNA_EDITOR_EXPECT(contains("Console"));
+    CNA_EDITOR_EXPECT(contains("Missing References"));
 
     // The viewport must actually have rendered, or --headless would be a no-op rather than a
     // smoke test. NullEditorViewport walks the same transform and bounds code a real one does.
@@ -368,6 +370,7 @@ namespace
             offeredOptions.clear();
             shownValues.clear();
             shownChecks.clear();
+            drawnText.clear();
             drawnNodes.clear();
             sawRenameField = false;
         }
@@ -409,9 +412,11 @@ namespace
         {
             if (type == "asset")
             {
+                // Matched against the last field *or* the last tree node: an asset slot in the
+                // inspector is a labelled field, a row in the missing-references report is a node.
                 for (auto entry = pendingAssetDrops.begin(); entry != pendingAssetDrops.end(); ++entry)
                 {
-                    if (entry->first != lastField) { continue; }
+                    if (entry->first != lastField && entry->first != lastNode.toString()) { continue; }
                     const std::string payload = entry->second;
                     pendingAssetDrops.erase(entry);
                     return payload;
@@ -443,6 +448,17 @@ namespace
             result.committed = pendingRename->second;
             if (result.committed) { pendingRename.reset(); }
             return result;
+        }
+
+        void text(const std::string& value) override { drawnText.push_back(value); }
+
+        /** @brief Text drawn during the most recent frame. */
+        std::vector<std::string> drawnText;
+
+        /** @brief Returns true when @p value was drawn last frame. */
+        [[nodiscard]] bool sawText(const std::string& value) const
+        {
+            return std::find(drawnText.begin(), drawnText.end(), value) != drawnText.end();
         }
 
         bool checkbox(const std::string& label, bool& value) override
@@ -1387,4 +1403,64 @@ CNA_EDITOR_TEST(TheConsoleSeverityFilterIsRememberedAcrossFrames)
     CNA_EDITOR_EXPECT_EQ(fixture.ui->shownValueFor("##consoleSeverity")
                              .get<PropertyValue::EnumValue>().name,
                          std::string{"Error"});
+}
+
+CNA_EDITOR_TEST(RelinkingFromTheReportFixesEveryReferenceAtOnce)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    const Uuid goneId = Uuid::generate();
+    const Uuid replacementId = addAsset(context, "Textures/Correct.png", AssetType::Texture2D);
+
+    // Two entities pointing at the same missing texture -- the ordinary shape of the problem.
+    for (int index = 0; index < 2; ++index)
+    {
+        EditorEntity entity{Uuid::generate(), "Broken" + std::to_string(index)};
+        EditorComponent sprite{BuiltinComponentIds::kSpriteRenderer};
+        sprite.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kSpriteRenderer));
+        sprite.setProperty("texture", PropertyValue{PropertyValue::AssetReference{goneId}});
+        entity.addComponent(std::move(sprite));
+        context.getScene().addEntity(std::move(entity));
+    }
+
+    CNA_EDITOR_EXPECT_EQ(findMissingReferences(context.getScene(), context.getAssets()).size(),
+                         std::size_t{2});
+
+    fixture.ui->pendingAssetDrops.emplace_back(goneId.toString(), replacementId.toString());
+    fixture.step(UiImageInteraction{});
+
+    // Both now point at the replacement. Asserting on the stored ids rather than on the report
+    // going empty: the scratch asset has no file behind it, so it would be reported as missing for
+    // an entirely different reason and the test would be checking the wrong thing.
+    const auto texturesInScene = [&] {
+        std::vector<std::string> ids;
+        for (const EditorEntity& entity : context.getScene().getEntities())
+        {
+            if (const EditorComponent* sprite = entity.findComponent(BuiltinComponentIds::kSpriteRenderer))
+            {
+                ids.push_back(sprite->getProperty("texture").get<PropertyValue::AssetReference>().id.toString());
+            }
+        }
+        return ids;
+    };
+
+    CNA_EDITOR_EXPECT_EQ(texturesInScene().size(), std::size_t{2});
+    for (const std::string& id : texturesInScene()) { CNA_EDITOR_EXPECT_EQ(id, replacementId.toString()); }
+
+    // One undo entry for the whole relink: undoing a fix of forty sprites must not be forty
+    // presses of Ctrl+Z.
+    fixture.ui->pressShortcut(UiKey::Z, withControl());
+    fixture.step(UiImageInteraction{});
+    for (const std::string& id : texturesInScene()) { CNA_EDITOR_EXPECT_EQ(id, goneId.toString()); }
+}
+
+CNA_EDITOR_TEST(TheReportSaysSoWhenNothingIsBroken)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    fixture.step(UiImageInteraction{});
+
+    // An empty panel reads as "not implemented yet", which is the wrong thing for a report whose
+    // good state is emptiness.
+    CNA_EDITOR_EXPECT(fixture.ui->sawText("No broken asset references."));
 }

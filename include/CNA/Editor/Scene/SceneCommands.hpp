@@ -180,6 +180,46 @@ namespace CNA::Editor
         bool hadOldValue_ = false;
     };
 
+    /**
+     * @brief Points every reference to one asset id at another, across the whole scene.
+     *
+     * Relinking a broken reference is one action to the user however many entities carry it, so it
+     * is one undo entry. Pushing a SetPropertyCommand per reference would make undoing a relink of
+     * forty sprites forty presses of Ctrl+Z, which is not undo -- it is punishment.
+     *
+     * Passing the nil Uuid as the replacement clears the references instead, which is the right
+     * answer when the asset is simply gone and nothing should take its place.
+     */
+    class RelinkAssetCommand final : public EditorCommand
+    {
+    public:
+        RelinkAssetCommand(SceneDocument& document, Uuid oldAssetId, Uuid newAssetId);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+
+        /** @brief Returns false when nothing in the scene refers to the old id. */
+        [[nodiscard]] bool isValid() const { return !targets_.empty(); }
+
+        /** @brief Returns how many references the command rewrites. */
+        [[nodiscard]] std::size_t getReferenceCount() const { return targets_.size(); }
+
+    private:
+        /** @brief One property the command rewrites. */
+        struct Target
+        {
+            Uuid entityId;
+            std::string componentTypeId;
+            std::string propertyName;
+        };
+
+        SceneDocument* document_;
+        Uuid oldAssetId_;
+        Uuid newAssetId_;
+        std::vector<Target> targets_;
+    };
+
     /** @brief Adds a component to an entity, populated with the descriptor's declared defaults. */
     class AddComponentCommand final : public EditorCommand
     {

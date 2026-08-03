@@ -10,6 +10,9 @@
 #include <fstream>
 
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
+#include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/MissingReferences.hpp"
+#include "CNA/Editor/Scene/SceneCommands.hpp"
 #include "CNA/Editor/Plugins/Plugin.hpp"
 #include "CNA/Editor/Project/Project.hpp"
 #include "CNA/Editor/RuntimeBridge/EditorProtocol.hpp"
@@ -361,4 +364,188 @@ CNA_EDITOR_TEST(PluginHostRejectsIncompatibleManifestsWithoutLoadingThem)
     CNA_EDITOR_EXPECT_EQ(malformedCount, std::size_t{1});
 
     std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(MissingReferencesFindsBrokenAssetSlots)
+{
+    ComponentRegistry registry;
+    registerBuiltinComponents(registry);
+
+    // A real project on disk, so "tracked and present" and "tracked but the file is gone" are
+    // genuinely different states rather than both resolving to absent.
+    const std::filesystem::path directory = makeScratchDirectory("missingrefs");
+    writeFile(directory / "Textures" / "Present.png", "not really a png");
+
+    AssetDatabase assets;
+    assets.setProjectRoot(directory.generic_string());
+
+    const Uuid presentId = Uuid::generate();
+    AssetRecord present;
+    present.id = presentId;
+    present.sourcePath = "Textures/Present.png";
+    present.type = AssetType::Texture2D;
+    assets.add(std::move(present));
+
+    const Uuid strandedId = Uuid::generate();
+    AssetRecord stranded;
+    stranded.id = strandedId;
+    stranded.sourcePath = "Textures/Deleted.png";
+    stranded.type = AssetType::Texture2D;
+    assets.add(std::move(stranded));
+
+    SceneDocument scene;
+    const Uuid goneId = Uuid::generate();
+
+    const auto addSprite = [&](const std::string& name, const Uuid& textureId) {
+        EditorEntity entity{Uuid::generate(), name};
+        EditorComponent transform{BuiltinComponentIds::kTransform};
+        transform.applyDefaults(*registry.find(BuiltinComponentIds::kTransform));
+        entity.addComponent(std::move(transform));
+
+        EditorComponent sprite{BuiltinComponentIds::kSpriteRenderer};
+        sprite.applyDefaults(*registry.find(BuiltinComponentIds::kSpriteRenderer));
+        sprite.setProperty("texture", PropertyValue{PropertyValue::AssetReference{textureId}});
+        entity.addComponent(std::move(sprite));
+        return scene.addEntity(std::move(entity));
+    };
+
+    addSprite("Good", presentId);
+    addSprite("BrokenA", goneId);
+    addSprite("BrokenB", goneId);
+    addSprite("Stranded", strandedId);
+    addSprite("Empty", Uuid{});
+
+    const std::vector<MissingReference> missing = findMissingReferences(scene, assets);
+
+    // The resolvable one is fine, and an empty slot is an ordinary state rather than a fault --
+    // a sprite that has not been given a texture yet is not broken.
+    CNA_EDITOR_EXPECT_EQ(missing.size(), std::size_t{3});
+
+    std::size_t notInDatabase = 0;
+    std::size_t fileMissing = 0;
+    for (const MissingReference& reference : missing)
+    {
+        CNA_EDITOR_EXPECT_EQ(reference.propertyName, std::string{"texture"});
+        if (reference.reason == MissingReference::Reason::NotInDatabase)
+        {
+            ++notInDatabase;
+            CNA_EDITOR_EXPECT_EQ(reference.assetId.toString(), goneId.toString());
+        }
+        else
+        {
+            ++fileMissing;
+            CNA_EDITOR_EXPECT_EQ(reference.assetId.toString(), strandedId.toString());
+        }
+    }
+
+    // The two reasons are genuinely different and both matter: an id deleted from the database is
+    // invisible to AssetDatabase::getMissingAssets(), and a tracked asset whose file vanished is
+    // invisible to a check that only looks the id up.
+    CNA_EDITOR_EXPECT_EQ(notInDatabase, std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(fileMissing, std::size_t{1});
+
+    // Grouped by id, because a broken reference is almost always one asset that many entities
+    // point at, and the fix is the same for all of them.
+    CNA_EDITOR_EXPECT_EQ(collectMissingAssetIds(missing).size(), std::size_t{2});
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(MissingReferencesChecksComponentsWithNoDescriptor)
+{
+    // A component whose plugin failed to load keeps its data and must still have its references
+    // checked -- that scene is the one most likely to be broken.
+    AssetDatabase assets;
+    SceneDocument scene;
+
+    EditorEntity entity{Uuid::generate(), "Exotic"};
+    EditorComponent unknown{"ThirdParty.Decal"};
+    unknown.setProperty("atlas", PropertyValue{PropertyValue::AssetReference{Uuid::generate()}});
+    entity.addComponent(std::move(unknown));
+    scene.addEntity(std::move(entity));
+
+    const std::vector<MissingReference> missing = findMissingReferences(scene, assets);
+    CNA_EDITOR_EXPECT_EQ(missing.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(missing.front().componentTypeId, std::string{"ThirdParty.Decal"});
+}
+
+CNA_EDITOR_TEST(RelinkingRewritesEveryReferenceAsOneUndoEntry)
+{
+    ComponentRegistry registry;
+    registerBuiltinComponents(registry);
+
+    SceneDocument scene;
+    CommandHistory history;
+
+    const Uuid goneId = Uuid::generate();
+    const Uuid replacementId = Uuid::generate();
+
+    std::vector<Uuid> sprites;
+    for (int index = 0; index < 3; ++index)
+    {
+        EditorEntity entity{Uuid::generate(), "Sprite" + std::to_string(index)};
+        EditorComponent sprite{BuiltinComponentIds::kSpriteRenderer};
+        sprite.applyDefaults(*registry.find(BuiltinComponentIds::kSpriteRenderer));
+        sprite.setProperty("texture", PropertyValue{PropertyValue::AssetReference{goneId}});
+        entity.addComponent(std::move(sprite));
+        sprites.push_back(scene.addEntity(std::move(entity)));
+    }
+
+    auto command = std::make_unique<RelinkAssetCommand>(scene, goneId, replacementId);
+    CNA_EDITOR_EXPECT(command->isValid());
+    CNA_EDITOR_EXPECT_EQ(command->getReferenceCount(), std::size_t{3});
+    history.execute(std::move(command));
+
+    const auto textureOf = [&](const Uuid& entityId) {
+        return scene.findEntity(entityId)->findComponent(BuiltinComponentIds::kSpriteRenderer)
+            ->getProperty("texture").get<PropertyValue::AssetReference>().id;
+    };
+
+    for (const Uuid& id : sprites) { CNA_EDITOR_EXPECT_EQ(textureOf(id).toString(), replacementId.toString()); }
+
+    // One entry, not three. Undoing a relink of forty sprites must not be forty presses.
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), std::size_t{1});
+    CNA_EDITOR_EXPECT(history.undo());
+    for (const Uuid& id : sprites) { CNA_EDITOR_EXPECT_EQ(textureOf(id).toString(), goneId.toString()); }
+
+    // Redo rewrites the same set the undo restored, because the targets were found once at
+    // construction. Re-scanning in execute() would find nothing the second time.
+    CNA_EDITOR_EXPECT(history.redo());
+    for (const Uuid& id : sprites) { CNA_EDITOR_EXPECT_EQ(textureOf(id).toString(), replacementId.toString()); }
+}
+
+CNA_EDITOR_TEST(RelinkingToNilClearsTheReferences)
+{
+    ComponentRegistry registry;
+    registerBuiltinComponents(registry);
+
+    SceneDocument scene;
+    const Uuid goneId = Uuid::generate();
+
+    EditorEntity entity{Uuid::generate(), "Sprite"};
+    EditorComponent sprite{BuiltinComponentIds::kSpriteRenderer};
+    sprite.applyDefaults(*registry.find(BuiltinComponentIds::kSpriteRenderer));
+    sprite.setProperty("texture", PropertyValue{PropertyValue::AssetReference{goneId}});
+    entity.addComponent(std::move(sprite));
+    const Uuid entityId = scene.addEntity(std::move(entity));
+
+    RelinkAssetCommand clear{scene, goneId, Uuid{}};
+    CNA_EDITOR_EXPECT(clear.isValid());
+    clear.execute();
+
+    // Clearing is the right answer when the asset is simply gone and nothing should replace it.
+    CNA_EDITOR_EXPECT(!scene.findEntity(entityId)->findComponent(BuiltinComponentIds::kSpriteRenderer)
+                           ->getProperty("texture").get<PropertyValue::AssetReference>().id.isValid());
+}
+
+CNA_EDITOR_TEST(RelinkingRefusesWhenNothingRefersToTheOldId)
+{
+    SceneDocument scene;
+    RelinkAssetCommand nothing{scene, Uuid::generate(), Uuid::generate()};
+
+    // A command that would do nothing must not reach the undo stack.
+    CNA_EDITOR_EXPECT(!nothing.isValid());
+
+    RelinkAssetCommand sameId{scene, Uuid{}, Uuid{}};
+    CNA_EDITOR_EXPECT(!sameId.isValid());
 }

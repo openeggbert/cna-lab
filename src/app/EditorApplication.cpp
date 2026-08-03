@@ -141,6 +141,7 @@ namespace CNA::Editor
           viewportPanel_(context_, *ui_, *this),
           inspectorPanel_(context_, *ui_, *this),
           assetBrowserPanel_(context_, *ui_, *this),
+          missingReferencesPanel_(context_, *ui_, *this),
           consolePanel_(context_, *ui_, *this)
     {
         // Forward every context message into the console panel, so a single log() call reaches
@@ -238,6 +239,7 @@ namespace CNA::Editor
         viewportPanel_.draw();
         inspectorPanel_.draw();
         assetBrowserPanel_.draw();
+        missingReferencesPanel_.draw();
         consolePanel_.draw();
 
         ui_->endDockSpace();

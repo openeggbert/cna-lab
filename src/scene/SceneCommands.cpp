@@ -257,6 +257,62 @@ namespace CNA::Editor
         return true;
     }
 
+    RelinkAssetCommand::RelinkAssetCommand(SceneDocument& document, Uuid oldAssetId, Uuid newAssetId)
+        : document_(&document), oldAssetId_(oldAssetId), newAssetId_(newAssetId)
+    {
+        if (!oldAssetId_.isValid() || oldAssetId_ == newAssetId_) { return; }
+
+        // The targets are found once, at construction, and held. Re-scanning in execute() would
+        // make redo rewrite a different set than the one undo restored, because by then the
+        // properties no longer hold the old id.
+        for (const EditorEntity& entity : document_->getEntities())
+        {
+            for (const EditorComponent& component : entity.getComponents())
+            {
+                for (const auto& [name, value] : component.getProperties())
+                {
+                    if (value.getType() != PropertyType::AssetReference) { continue; }
+                    if (value.get<PropertyValue::AssetReference>().id != oldAssetId_) { continue; }
+
+                    targets_.push_back(Target{entity.getId(), component.getTypeId(), name});
+                }
+            }
+        }
+    }
+
+    void RelinkAssetCommand::execute()
+    {
+        for (const Target& target : targets_)
+        {
+            if (EditorComponent* component =
+                    findComponent(*document_, target.entityId, target.componentTypeId))
+            {
+                component->setProperty(target.propertyName,
+                                       PropertyValue{PropertyValue::AssetReference{newAssetId_}});
+            }
+        }
+    }
+
+    void RelinkAssetCommand::undo()
+    {
+        for (const Target& target : targets_)
+        {
+            if (EditorComponent* component =
+                    findComponent(*document_, target.entityId, target.componentTypeId))
+            {
+                component->setProperty(target.propertyName,
+                                       PropertyValue{PropertyValue::AssetReference{oldAssetId_}});
+            }
+        }
+    }
+
+    std::string RelinkAssetCommand::getDescription() const
+    {
+        const std::string count = std::to_string(targets_.size());
+        return newAssetId_.isValid() ? "Relink " + count + " reference(s)"
+                                     : "Clear " + count + " broken reference(s)";
+    }
+
     AddComponentCommand::AddComponentCommand(SceneDocument& document,
                                              const ComponentRegistry& registry,
                                              Uuid entityId,

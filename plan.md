@@ -25,7 +25,7 @@
 **Phase 0 is complete and Phase 1 is under way: the editor opens a scene, edits it and plays it.**
 The repository still builds and passes its full suite with no CNA checkout, no GPU and no window:
 
-- 12 modules, two executables, and **175 passing tests across 7 CTest suites** (9 with CNA)
+- 12 modules, two executables, and **182 passing tests across 7 CTest suites** (9 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -187,7 +187,7 @@ real window, shows five docked panels, and renders the three-entity scene in the
 | ED-221 | Texture importer: dimensions, mipmaps, premultiplied alpha, thumbnails | ⬜ | |
 | ED-222 | Importer settings surfaced in the inspector, reusing the descriptor system | ⬜ | |
 | ED-223 | Filesystem watcher; reimport on external change | ⬜ | |
-| ED-224 | "Missing references" report, with a relink dialog | ⬜ | |
+| ED-224 | "Missing references" report, with a relink dialog | ✅ | Answers the question `AssetDatabase::getMissingAssets()` does not: which *entities* point at something that will not load. The two overlap but neither contains the other — an id deleted from the database is invisible to that call, and an unused asset whose file vanished is harmless here. Grouped by asset id, because the breakage is almost always one asset that many entities share; relinking is one command, so it undoes in one press. A row is a drop target for the browser |
 
 ### Play mode
 
