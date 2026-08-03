@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Panels/AssetBrowserPanel.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
@@ -123,6 +124,8 @@ namespace CNA::Editor
             return;
         }
 
+        drawThumbnail(*record);
+
         const std::string label = std::string{toString(record->type)} + "  " + fileName;
         const UiTreeNodeResult row =
             ui_.treeNode(assetId, label, context_.getSelectedAsset() == assetId, true);
@@ -156,6 +159,32 @@ namespace CNA::Editor
             // only place they can be edited.
             context_.selectAsset(assetId);
         }
+    }
+
+    void AssetBrowserPanel::drawThumbnail(const AssetRecord& record)
+    {
+        const UiTextureId texture = actions_.getViewport().getAssetThumbnail(record.id);
+        if (texture == kUiTextureNone) { return; }
+
+        // Fitted inside a square box using the pixel size the importer already recorded, so a
+        // wide sprite is not squashed into a square. An asset whose size is unknown -- a format
+        // the editor cannot measure -- falls back to the box, which is no worse than nothing.
+        float width = kThumbnailExtent;
+        float height = kThumbnailExtent;
+
+        const EditorVector2 pixels =
+            PropertyValue::fromJson(record.importerSettings["pixelSize"], PropertyType::Vector2)
+                .get<EditorVector2>();
+
+        if (pixels.x > 0.0f && pixels.y > 0.0f)
+        {
+            const float scale = kThumbnailExtent / std::max(pixels.x, pixels.y);
+            width = pixels.x * scale;
+            height = pixels.y * scale;
+        }
+
+        ui_.image("##thumb-" + record.id.toString(), texture, width, height);
+        ui_.sameLine();
     }
 
     void AssetBrowserPanel::applyPendingMove()

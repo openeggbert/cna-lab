@@ -31,6 +31,7 @@
 #include <memory>
 #include <string>
 
+#include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Ui/UiDrawData.hpp"
 
 namespace Microsoft::Xna::Framework::Graphics
@@ -128,6 +129,23 @@ namespace CNA::Editor
          * @return A stable id for this renderer's borrowed slot.
          */
         UiTextureId adoptTexture(Microsoft::Xna::Framework::Graphics::Texture2D& texture);
+
+        /**
+         * @brief Borrows @p texture under @p key, returning an id stable for that key.
+         *
+         * The unkeyed overload above owns a single slot, which is right for the scene's render
+         * target and wrong for anything there can be many of. Asset thumbnails are the case: each
+         * needs its own id, and that id must stay the same across frames or the UI would see a
+         * different texture every time it drew the same row.
+         *
+         * The renderer does **not** own the texture. Whoever does must call
+         * releaseAdoptedTexture() before destroying it, or this map keeps a dangling pointer.
+         */
+        UiTextureId adoptTexture(const Uuid& key,
+                                 Microsoft::Xna::Framework::Graphics::Texture2D& texture);
+
+        /** @brief Drops the borrowed entry for @p key. Safe to call for a key never adopted. */
+        void releaseAdoptedTexture(const Uuid& key);
 
         /** @brief Returns the number of textures currently held. */
         [[nodiscard]] std::size_t getTextureCount() const;

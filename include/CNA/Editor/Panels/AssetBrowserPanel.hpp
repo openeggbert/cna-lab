@@ -37,6 +37,18 @@ namespace CNA::Editor
         /** @brief Draws one asset row: selection, drag source, context menu, rename field. */
         void drawAsset(const Uuid& assetId);
 
+        /**
+         * @brief Draws @p record's preview, when the viewport can produce one.
+         *
+         * Only image assets have one, and only the CNA-backed viewport can make it -- the null
+         * one returns nothing, which is why a headless run simply shows no pictures rather than
+         * needing a separate code path.
+         */
+        void drawThumbnail(const AssetRecord& record);
+
+        /** @brief Side of the square a thumbnail is fitted into, in pixels. */
+        static constexpr float kThumbnailExtent = 18.0f;
+
         /** @brief Runs whatever the tree asked for, once it has finished drawing. */
         void applyPendingMove();
 

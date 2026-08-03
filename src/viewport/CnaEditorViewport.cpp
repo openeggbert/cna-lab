@@ -66,7 +66,21 @@ namespace CNA::Editor
             return renderer_.shareWithUi(*uiRenderer_);
         }
 
-        void invalidateAsset(const Uuid& assetId) override { renderer_.invalidateTexture(assetId); }
+        void invalidateAsset(const Uuid& assetId) override
+        {
+            // The UI's borrowed entry has to go first: it points at a texture the renderer is
+            // about to destroy, and a map holding a dangling pointer is a crash waiting for the
+            // next frame that happens to draw that row.
+            uiRenderer_->releaseAdoptedTexture(assetId);
+            renderer_.invalidateTexture(assetId);
+        }
+
+        UiTextureId getAssetThumbnail(const Uuid& assetId) override
+        {
+            Microsoft::Xna::Framework::Graphics::Texture2D* texture = renderer_.getOrLoadTexture(assetId);
+            if (texture == nullptr) { return kUiTextureNone; }
+            return uiRenderer_->adoptTexture(assetId, *texture);
+        }
 
         [[nodiscard]] EditorVector2 getSpriteSize(const Uuid& assetId) const override
         {

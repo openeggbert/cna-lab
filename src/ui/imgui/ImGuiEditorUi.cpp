@@ -759,6 +759,11 @@ namespace CNA::Editor
                                              bool selected,
                                              bool leaf)
     {
+        // Open by default, unlike the Uuid-keyed overload. This one exists for structural rows --
+        // folders in the asset browser -- whose whole purpose is to reveal what is inside them. A
+        // browser whose every folder starts closed shows an empty panel on first open, and the
+        // user has to guess that the content is there at all.
+        ImGui::SetNextItemOpen(true, ImGuiCond_FirstUseEver);
         return drawTreeNode(ImGui::GetID(id.c_str()), label, selected, leaf);
     }
 

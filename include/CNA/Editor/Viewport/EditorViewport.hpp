@@ -119,6 +119,18 @@ namespace CNA::Editor
          */
         virtual void invalidateAsset(const Uuid& assetId) { (void)assetId; }
 
+        /**
+         * @brief Returns a UI texture id previewing @p assetId, or zero when it has none.
+         *
+         * Only image assets have one. The id stays the same across frames for the same asset, so
+         * the panel can ask every frame without the UI seeing a different texture each time.
+         */
+        virtual UiTextureId getAssetThumbnail(const Uuid& assetId)
+        {
+            (void)assetId;
+            return kUiTextureNone;
+        }
+
         /** @brief Returns the counters from the most recent render(). */
         [[nodiscard]] virtual ViewportStats getLastStats() const = 0;
     };

@@ -31,6 +31,7 @@
 namespace Microsoft::Xna::Framework::Graphics
 {
     class GraphicsDevice;
+    class Texture2D;
 }
 
 namespace CNA::Editor
@@ -108,6 +109,15 @@ namespace CNA::Editor
          * to do nothing.
          */
         void invalidateTexture(const Uuid& assetId);
+
+        /**
+         * @brief Returns the texture for @p assetId, loading it if it is not already in.
+         *
+         * The same cache the scene pass uses, so a thumbnail costs nothing once the sprite that
+         * uses it has been drawn -- and a project of a hundred textures does not load them twice.
+         * Returns nullptr when the asset is unknown or its file will not open.
+         */
+        [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D* getOrLoadTexture(const Uuid& assetId);
 
         /** @brief Returns the texel size of @p assetId, or (0, 0) when it cannot be resolved. */
         [[nodiscard]] EditorVector2 getSpriteSize(const Uuid& assetId) const;

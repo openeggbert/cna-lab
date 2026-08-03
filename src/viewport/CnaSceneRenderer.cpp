@@ -409,6 +409,14 @@ namespace CNA::Editor
         impl_->failedTextures.erase(assetId);
     }
 
+    XnaGraphics::Texture2D* CnaSceneRenderer::getOrLoadTexture(const Uuid& assetId)
+    {
+        if (impl_->device == nullptr) { return nullptr; }
+
+        SceneRenderStats ignored;
+        return impl_->resolveTexture(assetId, ignored);
+    }
+
     EditorVector2 CnaSceneRenderer::getSpriteSize(const Uuid& assetId) const
     {
         const auto found = impl_->textures.find(assetId);

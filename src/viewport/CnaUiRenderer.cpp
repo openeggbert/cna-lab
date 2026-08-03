@@ -77,6 +77,9 @@ namespace CNA::Editor
         /** @brief The single slot borrowed textures reuse. See adoptTexture(). */
         UiTextureId borrowedSlot = kUiTextureNone;
 
+        /** @brief Ids minted for keyed borrows, so a key keeps the same id across frames. */
+        std::unordered_map<Uuid, UiTextureId> borrowedByKey;
+
         /** @brief Scratch buffers, reused across frames so a UI frame allocates nothing. */
         std::vector<XnaGraphics::VertexPositionColorTexture> vertexScratch;
         std::vector<std::uint16_t> indexScratch;
@@ -158,6 +161,7 @@ namespace CNA::Editor
         // Borrowed entries are pointers to somebody else's textures; dropping the map is all that
         // may be done to them.
         impl_->borrowedTextures.clear();
+        impl_->borrowedByKey.clear();
         impl_->borrowedSlot = kUiTextureNone;
         impl_->textures.clear();
         impl_->effect.reset();
@@ -177,6 +181,26 @@ namespace CNA::Editor
         if (impl_->borrowedSlot == kUiTextureNone) { impl_->borrowedSlot = impl_->nextBorrowedId--; }
         impl_->borrowedTextures[impl_->borrowedSlot] = &texture;
         return impl_->borrowedSlot;
+    }
+
+    UiTextureId CnaUiRenderer::adoptTexture(const Uuid& key, XnaGraphics::Texture2D& texture)
+    {
+        // The id is minted once per key and reused. Minting per call would give the same row a
+        // different texture id every frame, which defeats every cache the UI has.
+        UiTextureId& id = impl_->borrowedByKey[key];
+        if (id == kUiTextureNone) { id = impl_->nextBorrowedId--; }
+
+        impl_->borrowedTextures[id] = &texture;
+        return id;
+    }
+
+    void CnaUiRenderer::releaseAdoptedTexture(const Uuid& key)
+    {
+        const auto found = impl_->borrowedByKey.find(key);
+        if (found == impl_->borrowedByKey.end()) { return; }
+
+        impl_->borrowedTextures.erase(found->second);
+        impl_->borrowedByKey.erase(found);
     }
 
     std::string CnaUiRenderer::getBackendName()
