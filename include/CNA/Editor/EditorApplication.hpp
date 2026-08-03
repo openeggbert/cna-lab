@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "CNA/Editor/EditorContext.hpp"
+#include "CNA/Editor/RuntimeBridge/PlayerProcess.hpp"
 #include "CNA/Editor/Scene/TranslateGizmo.hpp"
 #include "CNA/Editor/Ui/EditorUi.hpp"
 #include "CNA/Editor/Viewport/EditorViewport.hpp"
@@ -55,6 +56,14 @@ namespace CNA::Editor
          */
         std::string screenshotPath;
 
+        /**
+         * @brief argv[0], used to find the `cna-player-*` binaries beside the editor.
+         *
+         * Play mode offers exactly the backends whose player executable is installed, which is a
+         * direct consequence of CNA fixing its backend at compile time (ANALYSIS.md finding F-01).
+         */
+        std::string executablePath;
+
         /** @brief Print the backend table and exit. */
         bool listBackends = false;
 
@@ -82,6 +91,14 @@ namespace CNA::Editor
      * draws the standard panel set; a panel is a method here in Phase 0 and becomes its own class
      * in Phase 1, once there is enough of one to be worth separating (plan.md ED-210).
      */
+    /** @brief What the editor believes the player process is doing. */
+    enum class PlayMode
+    {
+        Stopped,
+        Playing,
+        Paused
+    };
+
     class EditorApplication
     {
     public:
@@ -113,6 +130,33 @@ namespace CNA::Editor
          * having the application reach out for a device it does not own.
          */
         void setViewport(std::unique_ptr<EditorViewport> viewport);
+
+        /** @brief Returns the play-mode state the toolbar is showing. */
+        [[nodiscard]] PlayMode getPlayMode() const { return playMode_; }
+
+        /** @brief Returns the player builds found next to the editor. */
+        [[nodiscard]] const std::vector<PlayerBuild>& getPlayerBuilds() const { return playerBuilds_; }
+
+        /**
+         * @brief Replaces the discovered player builds.
+         *
+         * Discovery scans the editor's own directory, which a unit test has no control over. This
+         * lets a test state what is installed instead of depending on how the build tree happens to
+         * be laid out on the machine running it.
+         */
+        void setPlayerBuilds(std::vector<PlayerBuild> builds);
+
+        /** @brief Launches the player on the selected build. */
+        void startPlay();
+
+        /** @brief Stops the player, if one is running. */
+        void stopPlay();
+
+        /** @brief Pauses or resumes the running player. */
+        void setPlayPaused(bool paused);
+
+        /** @brief Asks a paused player to advance exactly one frame. */
+        void stepPlayFrame();
 
     private:
         void drawMainMenu();
@@ -150,6 +194,18 @@ namespace CNA::Editor
         /** @brief Switches the active manipulator, reporting when it has no implementation yet. */
         void setGizmoMode(GizmoMode mode);
 
+        /** @brief Draws the play controls at the top of the viewport panel. */
+        void drawPlayToolbar();
+
+        /**
+         * @brief Reads whatever the player sent this frame and routes it into the console.
+         *
+         * Also notices the player going away on its own -- the user closing the game window is a
+         * perfectly normal way to end play mode, and the toolbar has to follow it back to Stopped
+         * rather than keep offering Pause for a process that is gone.
+         */
+        void pollPlayer();
+
         /** @brief Turns one frame of viewport pointer input into camera moves and selection. */
         void handleViewportInteraction(const UiImageInteraction& interaction);
 
@@ -178,6 +234,19 @@ namespace CNA::Editor
          * two moves would undo together as if they had been one.
          */
         bool gizmoDragHasEdited_ = false;
+
+        /**
+         * @brief The player builds installed beside the editor, and which one Play will launch.
+         *
+         * A list rather than a single choice because CNA fixes its backend at compile time
+         * (ANALYSIS.md finding F-01): "play this on Vulkan" means "launch `cna-player-vulkan`", so
+         * the set of available backends is the set of binaries actually on disk.
+         */
+        std::vector<PlayerBuild> playerBuilds_;
+        std::size_t selectedBuild_ = 0;
+
+        std::unique_ptr<PlayerProcess> player_;
+        PlayMode playMode_ = PlayMode::Stopped;
 
         int frameLimit_ = 0;
         int framesRendered_ = 0;

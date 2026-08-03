@@ -4,8 +4,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <optional>
+#include <system_error>
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -23,11 +25,30 @@ namespace CNA::Editor
             value = std::string{argument.substr(equals + 1)};
             return true;
         }
+
+        /**
+         * @brief Maps a severity name from the wire onto the console's enumeration.
+         *
+         * An unrecognised name becomes Info rather than being dropped: a player built from a newer
+         * revision that invents a severity should still have its message reach the user.
+         */
+        LogSeverity parseLogSeverity(std::string_view name)
+        {
+            if (name == "error") { return LogSeverity::Error; }
+            if (name == "warn" || name == "warning") { return LogSeverity::Warning; }
+            if (name == "trace") { return LogSeverity::Trace; }
+            return LogSeverity::Info;
+        }
     }
 
     EditorOptions EditorOptions::parse(int argc, const char* const* argv)
     {
         EditorOptions options;
+
+        // argv[0] is how the editor finds the `cna-player-*` binaries beside it. Because CNA fixes
+        // its backend at compile time (finding F-01), the set of backends play mode can offer is
+        // the set of player executables actually installed next to this one.
+        if (argc > 0 && argv[0] != nullptr) { options.executablePath = argv[0]; }
 
         for (int index = 1; index < argc; ++index)
         {
@@ -158,7 +179,29 @@ namespace CNA::Editor
             if (!context_.openScene(options.scenePath)) { return false; }
         }
 
+        if (!options.executablePath.empty())
+        {
+            setPlayerBuilds(discoverPlayerBuilds(
+                std::filesystem::path{options.executablePath}.parent_path().generic_string()));
+        }
+
         return true;
+    }
+
+    void EditorApplication::setPlayerBuilds(std::vector<PlayerBuild> builds)
+    {
+        playerBuilds_ = std::move(builds);
+        selectedBuild_ = 0;
+
+        if (playerBuilds_.empty()) { return; }
+
+        std::string names;
+        for (const PlayerBuild& build : playerBuilds_)
+        {
+            if (!names.empty()) { names += ", "; }
+            names += build.backend;
+        }
+        context_.log(LogSeverity::Info, "Player builds: " + names);
     }
 
     int EditorApplication::run()
@@ -176,6 +219,7 @@ namespace CNA::Editor
 
     void EditorApplication::renderFrame()
     {
+        pollPlayer();
         handleShortcuts();
 
         ui_->beginDockSpace();
@@ -304,6 +348,210 @@ namespace CNA::Editor
                          std::string{mode == GizmoMode::Rotate ? "Rotate" : "Scale"}
                              + " gizmo is not implemented yet; press W for the translate gizmo");
         }
+    }
+
+    void EditorApplication::startPlay()
+    {
+        if (playMode_ != PlayMode::Stopped) { return; }
+
+        if (playerBuilds_.empty())
+        {
+            context_.log(LogSeverity::Warning,
+                         "No cna-player build was found beside the editor. Build one -- play mode "
+                         "runs the game in a separate process, so it needs a player executable.");
+            return;
+        }
+        if (!context_.hasProject())
+        {
+            context_.log(LogSeverity::Warning,
+                         "Play needs an open project: the player is a separate process and loads "
+                         "the project from disk.");
+            return;
+        }
+        if (context_.getScenePath().empty())
+        {
+            context_.log(LogSeverity::Warning,
+                         "Save the scene before playing: the player reads it from disk, so a scene "
+                         "that has never been saved has nothing for it to load.");
+            return;
+        }
+
+        // The player loads from disk, so what is on screen has to be on disk. Saving silently
+        // would hide a real write to the user's file; saying so costs one console line.
+        if (context_.getHistory().isDirty())
+        {
+            if (!context_.saveScene())
+            {
+                context_.log(LogSeverity::Error, "Could not save the scene; not starting the player.");
+                return;
+            }
+            context_.log(LogSeverity::Info, "Saved the scene before playing.");
+        }
+
+        if (selectedBuild_ >= playerBuilds_.size()) { selectedBuild_ = 0; }
+        const PlayerBuild& build = playerBuilds_[selectedBuild_];
+
+        // The player takes the scene relative to the project, not as an absolute path: the two
+        // processes may not agree on a working directory, and the project root is the one anchor
+        // both of them already have.
+        const std::filesystem::path projectFile{context_.getProject().getFilePath()};
+        std::error_code relativeError;
+        const std::filesystem::path relativeScene = std::filesystem::relative(
+            std::filesystem::path{context_.getScenePath()}, projectFile.parent_path(), relativeError);
+
+        auto player = std::make_unique<PlayerProcess>();
+        if (!player->start(build, context_.getProject().getFilePath(),
+                           relativeError ? std::string{} : relativeScene.generic_string()))
+        {
+            context_.log(LogSeverity::Error,
+                         "Could not start '" + build.executablePath + "': " + player->getError());
+            return;
+        }
+
+        player_ = std::move(player);
+        playMode_ = PlayMode::Playing;
+        context_.log(LogSeverity::Info,
+                     "Playing on '" + build.backend + "' (port "
+                         + std::to_string(player_->getPort()) + ")");
+    }
+
+    void EditorApplication::stopPlay()
+    {
+        if (!player_)
+        {
+            playMode_ = PlayMode::Stopped;
+            return;
+        }
+
+        player_->stop();
+        player_.reset();
+        playMode_ = PlayMode::Stopped;
+        context_.log(LogSeverity::Info, "Stopped playing.");
+    }
+
+    void EditorApplication::setPlayPaused(bool paused)
+    {
+        if (!player_ || playMode_ == PlayMode::Stopped) { return; }
+        if ((playMode_ == PlayMode::Paused) == paused) { return; }
+
+        EditorMessage message;
+        message.type = paused ? EditorMessageType::Pause : EditorMessageType::Resume;
+        message.payload = JsonValue::makeObject();
+
+        // Only follow the player's state once the request is actually on the wire. A toolbar that
+        // says "Paused" over a game that never got the message is worse than one that did nothing.
+        if (!player_->send(message)) { return; }
+
+        playMode_ = paused ? PlayMode::Paused : PlayMode::Playing;
+    }
+
+    void EditorApplication::stepPlayFrame()
+    {
+        // Stepping only means something while paused; the player ignores it otherwise, and
+        // offering it while running would suggest a control that does nothing.
+        if (!player_ || playMode_ != PlayMode::Paused) { return; }
+
+        EditorMessage message;
+        message.type = EditorMessageType::StepFrame;
+        message.payload = JsonValue::makeObject();
+        player_->send(message);
+    }
+
+    void EditorApplication::pollPlayer()
+    {
+        if (!player_) { return; }
+
+        for (const EditorMessage& message : player_->poll())
+        {
+            switch (message.type)
+            {
+                case EditorMessageType::Ready:
+                    context_.log(LogSeverity::Info,
+                                 "Player ready: backend " + message.payload["backend"].asString()
+                                     + ", scene '" + message.payload["scene"].asString() + "'");
+                    break;
+
+                case EditorMessageType::ReportLog:
+                    context_.log(parseLogSeverity(message.payload["severity"].asString()),
+                                 "player: " + message.payload["text"].asString());
+                    break;
+
+                case EditorMessageType::ReportException:
+                    context_.log(LogSeverity::Error,
+                                 "player: " + message.payload["message"].asString());
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        if (player_->isRunning()) { return; }
+
+        // The player going away on its own is normal -- the user closed the game window -- but the
+        // toolbar has to follow it back to Stopped rather than keep offering Pause to a process
+        // that no longer exists.
+        const PlayerExitReason reason = player_->getExitReason();
+        context_.log(reason == PlayerExitReason::Crashed ? LogSeverity::Error : LogSeverity::Info,
+                     std::string{"Player: "} + toString(reason));
+
+        player_.reset();
+        playMode_ = PlayMode::Stopped;
+    }
+
+    void EditorApplication::drawPlayToolbar()
+    {
+        if (playMode_ == PlayMode::Stopped)
+        {
+            if (ui_->button("Play")) { startPlay(); }
+        }
+        else
+        {
+            if (ui_->button("Stop")) { stopPlay(); }
+            ui_->sameLine();
+            if (ui_->button(playMode_ == PlayMode::Paused ? "Resume" : "Pause"))
+            {
+                setPlayPaused(playMode_ != PlayMode::Paused);
+            }
+            ui_->sameLine();
+            if (ui_->button("Step")) { stepPlayFrame(); }
+        }
+
+        ui_->sameLine();
+
+        if (playerBuilds_.empty())
+        {
+            ui_->text("no player build found");
+        }
+        else if (playMode_ != PlayMode::Stopped)
+        {
+            ui_->text("running on " + playerBuilds_[selectedBuild_].backend
+                      + (playMode_ == PlayMode::Paused ? " (paused)" : ""));
+        }
+        else
+        {
+            // The choice is an enum over what is installed, not over the fourteen backends CNA
+            // knows about: offering a backend with no player binary would be offering a button
+            // that cannot work.
+            std::vector<std::string> names;
+            names.reserve(playerBuilds_.size());
+            for (const PlayerBuild& build : playerBuilds_) { names.push_back(build.backend); }
+
+            // Wide enough for a backend name, narrow enough to leave the toolbar a toolbar.
+            ui_->setNextItemWidth(150.0f);
+
+            PropertyValue value{PropertyValue::EnumValue{names[selectedBuild_]}};
+            if (ui_->propertyField("Backend", value, names))
+            {
+                const std::string chosen = value.get<PropertyValue::EnumValue>().name;
+                for (std::size_t index = 0; index < names.size(); ++index)
+                {
+                    if (names[index] == chosen) { selectedBuild_ = index; break; }
+                }
+            }
+        }
+
+        ui_->separator();
     }
 
     void EditorApplication::drawMainMenu()
@@ -476,6 +724,10 @@ namespace CNA::Editor
     void EditorApplication::drawViewportPanel()
     {
         if (!ui_->beginPanel("Viewport", DockSide::Center)) { ui_->endPanel(); return; }
+
+        // Above the image, so the scene is rendered into whatever is left. Putting the controls in
+        // their own panel would let the user dock them away from the thing they control.
+        drawPlayToolbar();
 
         const UiRegion region = ui_->getContentRegion();
         if (region.isEmpty()) { ui_->endPanel(); return; }

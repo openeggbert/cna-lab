@@ -252,6 +252,16 @@ namespace CNA::Editor
             return false;
         }
 
+        /**
+         * @brief Constrains the next widget to @p width pixels.
+         *
+         * A hint, not a guarantee: an implementation that has no say over widget width may ignore
+         * it. Needed because the default for an editing widget is "fill the line", which is right
+         * in an inspector column and wrong in a toolbar, where it pushes everything after it off
+         * to the far edge.
+         */
+        virtual void setNextItemWidth(float width) { (void)width; }
+
         /** @brief Draws a horizontal rule. */
         virtual void separator() = 0;
 

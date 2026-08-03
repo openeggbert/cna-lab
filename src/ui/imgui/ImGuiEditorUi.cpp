@@ -864,6 +864,8 @@ namespace CNA::Editor
         return ImGui::IsKeyPressed(imguiKey, false);
     }
 
+    void ImGuiEditorUi::setNextItemWidth(float width) { ImGui::SetNextItemWidth(width); }
+
     void ImGuiEditorUi::separator() { ImGui::Separator(); }
 
     void ImGuiEditorUi::sameLine() { ImGui::SameLine(); }

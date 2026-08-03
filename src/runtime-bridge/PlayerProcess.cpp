@@ -197,6 +197,8 @@ namespace CNA::Editor
     {
         error_.clear();
         reportedBackend_.clear();
+        projectPath_ = projectPath;
+        helloSent_ = false;
         exitReason_ = PlayerExitReason::StillRunning;
 
         // Listen first, spawn second. The port is then known before the player exists, and the
@@ -227,6 +229,13 @@ namespace CNA::Editor
     std::vector<EditorMessage> PlayerProcess::poll()
     {
         std::vector<EditorMessage> messages = channel_.poll();
+
+        // The player announces Ready the moment it connects and then waits for our Hello to
+        // consider the handshake complete, so this has to go out as soon as the channel is up.
+        if (!helloSent_ && channel_.isConnected())
+        {
+            helloSent_ = channel_.send(EditorMessage::makeHello(projectPath_));
+        }
 
         for (const EditorMessage& message : messages)
         {

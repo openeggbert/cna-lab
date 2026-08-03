@@ -16,6 +16,7 @@
 #include <fstream>
 #include <thread>
 
+#include "CNA/Editor/EditorApplication.hpp"
 #include "CNA/Editor/Player/PlayerHost.hpp"
 #include "CNA/Editor/RuntimeBridge/MessageChannel.hpp"
 #include "CNA/Editor/RuntimeBridge/PlayerProcess.hpp"
@@ -386,4 +387,161 @@ CNA_EDITOR_TEST(PlayerProcessReportsAMissingBinaryRatherThanHanging)
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
     CNA_EDITOR_EXPECT(!player.isRunning());
+}
+
+/**
+ * @brief An editor over the null UI, for driving play mode end to end.
+ *
+ * The real EditorApplication, not a stand-in: play mode is exactly the feature where a test double
+ * would let a broken editor pass. Frames are stepped by hand so the test controls when the bridge
+ * is pumped.
+ */
+namespace
+{
+    struct PlayFixture
+    {
+        EditorApplication application{std::make_unique<NullEditorUi>(),
+                                      std::make_unique<NullEditorViewport>()};
+
+        explicit PlayFixture(const std::string& projectPath = {})
+        {
+            EditorOptions options;
+            options.headless = true;
+            options.projectPath = projectPath;
+            application.initialize(options);
+        }
+
+        [[nodiscard]] bool logContains(std::string_view needle) const
+        {
+            const auto& ui = static_cast<const NullEditorUi&>(
+                const_cast<PlayFixture*>(this)->application.getUi());
+            for (const auto& entry : ui.getLog())
+            {
+                if (entry.message.find(needle) != std::string::npos) { return true; }
+            }
+            return false;
+        }
+
+        /** @brief Steps frames, pumping the bridge, until @p predicate holds or the budget runs out. */
+        template <typename Predicate>
+        bool pumpUntil(Predicate predicate)
+        {
+            for (int attempt = 0; attempt < 400; ++attempt)
+            {
+                application.renderFrame();
+                if (predicate()) { return true; }
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+            return false;
+        }
+    };
+}
+
+CNA_EDITOR_TEST(PlayRefusesWithNoProjectAndSaysWhy)
+{
+    PlayFixture fixture;
+    fixture.application.setPlayerBuilds(discoverPlayerBuilds(playerDirectory().generic_string()));
+
+    fixture.application.startPlay();
+
+    CNA_EDITOR_EXPECT(fixture.application.getPlayMode() == PlayMode::Stopped);
+
+    // Saying *why* matters more than refusing: a Play button that does nothing at all is a bug
+    // report, and the reason is something only the editor knows.
+    CNA_EDITOR_EXPECT(fixture.logContains("open project"));
+}
+
+CNA_EDITOR_TEST(PlayRefusesWhenNoPlayerBuildIsInstalled)
+{
+    const ScratchProject project{"noplayerbuild"};
+
+    PlayFixture fixture{project.projectPath};
+    fixture.application.setPlayerBuilds({});
+
+    fixture.application.startPlay();
+
+    CNA_EDITOR_EXPECT(fixture.application.getPlayMode() == PlayMode::Stopped);
+    CNA_EDITOR_EXPECT(fixture.logContains("No cna-player build"));
+}
+
+CNA_EDITOR_TEST(PlayControlsAreInertWhileStopped)
+{
+    const ScratchProject project{"inertcontrols"};
+    PlayFixture fixture{project.projectPath};
+
+    // Nothing is running, so these must be no-ops rather than acting on a null process.
+    fixture.application.setPlayPaused(true);
+    fixture.application.stepPlayFrame();
+    fixture.application.stopPlay();
+
+    CNA_EDITOR_EXPECT(fixture.application.getPlayMode() == PlayMode::Stopped);
+}
+
+CNA_EDITOR_TEST(TheEditorDrivesARealPlayerThroughPlayPauseStepAndStop)
+{
+    // The whole point of ED-245: the toolbar's operations against a real process, a real socket
+    // and the real protocol. Every other test in this file could pass with the toolbar unwired.
+    const ScratchProject project{"playtoolbar"};
+
+    const std::vector<PlayerBuild> builds = discoverPlayerBuilds(playerDirectory().generic_string());
+    CNA_EDITOR_EXPECT(!builds.empty());
+    if (builds.empty()) { return; }
+
+    PlayFixture fixture{project.projectPath};
+    fixture.application.setPlayerBuilds(builds);
+
+    fixture.application.startPlay();
+    CNA_EDITOR_EXPECT(fixture.application.getPlayMode() == PlayMode::Playing);
+    if (fixture.application.getPlayMode() != PlayMode::Playing)
+    {
+        ::CnaEditorTest::reportFailure(__FILE__, __LINE__, "player did not start");
+        return;
+    }
+
+    CNA_EDITOR_EXPECT(fixture.pumpUntil([&] { return fixture.logContains("Player ready"); }));
+
+    fixture.application.setPlayPaused(true);
+    CNA_EDITOR_EXPECT(fixture.application.getPlayMode() == PlayMode::Paused);
+
+    // The player's own log coming back through the console is the proof the message arrived --
+    // the editor changing its own state proves only that it changed its own state.
+    CNA_EDITOR_EXPECT(fixture.pumpUntil([&] { return fixture.logContains("player: paused"); }));
+
+    fixture.application.stepPlayFrame();
+
+    fixture.application.setPlayPaused(false);
+    CNA_EDITOR_EXPECT(fixture.application.getPlayMode() == PlayMode::Playing);
+    CNA_EDITOR_EXPECT(fixture.pumpUntil([&] { return fixture.logContains("player: resumed"); }));
+
+    fixture.application.stopPlay();
+    CNA_EDITOR_EXPECT(fixture.application.getPlayMode() == PlayMode::Stopped);
+}
+
+CNA_EDITOR_TEST(PlayerProcessIntroducesItselfOnceConnected)
+{
+    const ScratchProject project{"handshake"};
+
+    const std::vector<PlayerBuild> builds = discoverPlayerBuilds(playerDirectory().generic_string());
+    CNA_EDITOR_EXPECT(!builds.empty());
+    if (builds.empty()) { return; }
+
+    PlayerProcess player;
+    CNA_EDITOR_EXPECT(player.start(builds.front(), project.projectPath));
+
+    bool sawReady = false;
+    for (int attempt = 0; attempt < 400 && !(sawReady && player.isHelloSent()); ++attempt)
+    {
+        for (const EditorMessage& message : player.poll())
+        {
+            if (message.type == EditorMessageType::Ready) { sawReady = true; }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    // The player treats a missing Hello as an incomplete handshake and says nothing about it, so
+    // forgetting to send one produces a session that looks connected and is quietly degraded.
+    CNA_EDITOR_EXPECT(sawReady);
+    CNA_EDITOR_EXPECT(player.isHelloSent());
+
+    player.stop();
 }

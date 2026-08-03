@@ -192,9 +192,9 @@ real window, shows five docked panels, and renders the three-entity scene in the
 | ED-240 | `cna-player` host: loads a project and a scene, speaks the protocol | ✅ | Lives in this repository (Q-04 resolved, decision D-15). `PlayerHost` is CNA-free, so the whole message surface is unit-tested headless |
 | ED-241 | Process spawn and lifetime; a player crash is reported, never fatal to the editor | ✅ | `PlayerProcess`, POSIX and Windows. `MSG_NOSIGNAL` so a dead player cannot `SIGPIPE` the editor; children are reaped so a long session cannot leak zombies |
 | ED-242 | Socket transport over `MessageStreamDecoder` | ✅ | `MessageChannel`: non-blocking loopback TCP, ephemeral port, listen-before-spawn so there is no connect race |
-| ED-243 | Play / Pause / Step / Stop, with the player's log routed into the console | 🔄 | State machine and messages done and tested; the editor-side toolbar and console routing remain |
+| ED-243 | Play / Pause / Step / Stop, with the player's log routed into the console | ✅ | The toolbar sits above the viewport image; the player's own log comes back through `ReportLog` and lands in the console with its severity preserved |
 | ED-244 | Player discovery: find installed `cna-player-<backend>` binaries and offer only those | ✅ | `discoverPlayerBuilds()`. Direct consequence of F-01: the editor offers only backends that actually exist |
-| ED-245 | Editor-side Play toolbar wired to `PlayerProcess` | ⬜ | The last piece of play mode the user can see |
+| ED-245 | Editor-side Play toolbar wired to `PlayerProcess` | ✅ | Backend chosen from the player binaries actually installed beside the editor, never from the fourteen CNA knows about. A dirty scene is saved first and the console says so — the player is a separate process reading from disk, so playing what is on screen means writing it there. `TheEditorDrivesARealPlayerThroughPlayPauseStepAndStop` covers it against a real process and a real socket |
 | ED-250 | **Design: how a game consumes a compiled scene** | 🔬 | Q-02. The decision most likely to pull the editor toward being an engine. Needs a written design before this phase closes |
 
 **Exit criterion.** The original minimum milestone, verbatim: *open a project, show docked panels,
@@ -320,7 +320,7 @@ These block specific tasks and are stated in full in ANALYSIS.md §4.
 |----|----------|--------|
 | ~~Q-01~~ | ~~Can Dear ImGui render through CNA's public API alone?~~ | ✅ **Resolved: yes.** [`docs/SPIKE-IMGUI-CNA.md`](docs/SPIKE-IMGUI-CNA.md) |
 | Q-02 | How does a game consume a compiled scene? | ED-250 — still open, and still the decision most likely to pull the editor toward being an engine |
-| Q-03 | Which process owns the window in play mode? | ED-245. Phase 1 answer: a separate top-level window; revisit when it becomes annoying |
+| Q-03 | Which process owns the window in play mode? | Answered by ED-245: the player owns its own top-level window. Revisit when it becomes annoying |
 | ~~Q-04~~ | ~~Does `cna-player` live here or in `openeggbert/cna`?~~ | ✅ **Resolved: here.** Decision D-15 |
 
 ---

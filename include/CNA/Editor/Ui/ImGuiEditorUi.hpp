@@ -89,6 +89,8 @@ namespace CNA::Editor
 
         [[nodiscard]] bool isShortcutPressed(UiKey key, UiKeyModifiers modifiers = {}) override;
 
+        void setNextItemWidth(float width) override;
+
         void separator() override;
         void sameLine() override;
         void drawLogView() override;

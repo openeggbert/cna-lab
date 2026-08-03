@@ -91,6 +91,11 @@ namespace CNA::Editor
          *
          * Call once per editor frame. Also completes the connection handshake and reaps the
          * process when it exits.
+         *
+         * The Hello is sent from here, on the first poll after the connection comes up, rather
+         * than being left to the caller: the player treats a missing Hello as an incomplete
+         * handshake, and a caller that forgot it would get a session that looks connected and is
+         * quietly degraded.
          */
         std::vector<EditorMessage> poll();
 
@@ -114,11 +119,22 @@ namespace CNA::Editor
         /** @brief Returns the backend the player reported in its Ready message, if it has. */
         [[nodiscard]] const std::string& getReportedBackend() const { return reportedBackend_; }
 
+        /**
+         * @brief Returns true once the Hello has gone out.
+         *
+         * The player considers the handshake incomplete until it arrives, and nothing it sends
+         * back says so -- without this, "the editor forgot to introduce itself" is a state no test
+         * could observe from this side.
+         */
+        [[nodiscard]] bool isHelloSent() const { return helloSent_; }
+
     private:
         struct Impl;
         std::unique_ptr<Impl> impl_;
         MessageChannel channel_;
         std::string error_;
+        std::string projectPath_;
+        bool helloSent_ = false;
         std::string reportedBackend_;
         PlayerExitReason exitReason_ = PlayerExitReason::StillRunning;
     };
