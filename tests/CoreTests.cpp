@@ -179,8 +179,14 @@ CNA_EDITOR_TEST(ComponentRegistryRegistersFindsAndReplaces)
     ComponentDescriptor descriptor;
     descriptor.typeId = "Game.PlayerSpawn";
     descriptor.displayName = "Player Spawn";
-    descriptor.properties.push_back(
-        PropertyDescriptor{"health", "Health", PropertyType::Integer, PropertyValue{100}, {}, {}, 0.0, 0.0, false});
+    // Named rather than positional: a new PropertyDescriptor field would silently shift every
+    // value along, and the compiler only catches it when the types happen to disagree.
+    PropertyDescriptor health;
+    health.name = "health";
+    health.displayName = "Health";
+    health.type = PropertyType::Integer;
+    health.defaultValue = PropertyValue{100};
+    descriptor.properties.push_back(std::move(health));
 
     CNA_EDITOR_EXPECT(registry.registerComponent(descriptor));
     CNA_EDITOR_EXPECT(registry.contains("Game.PlayerSpawn"));

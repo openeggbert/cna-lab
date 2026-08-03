@@ -314,6 +314,33 @@ namespace
         /** @brief Values the inspector showed during the most recent frame, by label. */
         std::vector<std::pair<std::string, PropertyValue>> shownValues;
 
+        /** @brief Tree nodes to report as clicked, by entity id. Each fires once. */
+        std::vector<Uuid> pendingNodeClicks;
+
+        /** @brief Tree nodes to report as double-clicked, by entity id. Each fires once. */
+        std::vector<Uuid> pendingNodeDoubleClicks;
+
+        /** @brief Drops to deliver, as (drop target entity, dragged payload). Each fires once. */
+        std::vector<std::pair<Uuid, std::string>> pendingDrops;
+
+        /** @brief Text to type into the next rename field, and whether to commit it. */
+        std::optional<std::pair<std::string, bool>> pendingRename;
+
+        /** @brief Modifiers to report as held. */
+        UiKeyModifiers modifiers;
+
+        /** @brief The most recent node drawn, so drag and drop calls can be attributed to it. */
+        Uuid lastNode;
+
+        /** @brief The most recent property field drawn, for the same reason. */
+        std::string lastField;
+
+        /** @brief Entity ids the hierarchy drew a node for during the most recent frame. */
+        std::vector<Uuid> drawnNodes;
+
+        /** @brief True when a rename field was drawn during the most recent frame. */
+        bool sawRenameField = false;
+
         /** @brief Button labels drawn during the most recent frame. */
         std::vector<std::string> drawnButtons;
 
@@ -340,6 +367,112 @@ namespace
             drawnButtons.clear();
             offeredOptions.clear();
             shownValues.clear();
+            shownChecks.clear();
+            drawnNodes.clear();
+            sawRenameField = false;
+        }
+
+        [[nodiscard]] UiKeyModifiers getModifiers() const override { return modifiers; }
+
+        UiTreeNodeResult treeNode(const Uuid& id,
+                                  const std::string& label,
+                                  bool selected,
+                                  bool leaf) override
+        {
+            drawnNodes.push_back(id);
+            lastNode = id;
+
+            UiTreeNodeResult result = NullEditorUi::treeNode(id, label, selected, leaf);
+
+            for (auto entry = pendingNodeClicks.begin(); entry != pendingNodeClicks.end(); ++entry)
+            {
+                if (*entry != id) { continue; }
+                pendingNodeClicks.erase(entry);
+                result.clicked = true;
+                break;
+            }
+            for (auto entry = pendingNodeDoubleClicks.begin();
+                 entry != pendingNodeDoubleClicks.end(); ++entry)
+            {
+                if (*entry != id) { continue; }
+                pendingNodeDoubleClicks.erase(entry);
+                result.doubleClicked = true;
+                break;
+            }
+            return result;
+        }
+
+        /** @brief Asset payloads to deliver to the next field with a matching label. */
+        std::vector<std::pair<std::string, std::string>> pendingAssetDrops;
+
+        std::optional<std::string> acceptDrop(const std::string& type) override
+        {
+            if (type == "asset")
+            {
+                for (auto entry = pendingAssetDrops.begin(); entry != pendingAssetDrops.end(); ++entry)
+                {
+                    if (entry->first != lastField) { continue; }
+                    const std::string payload = entry->second;
+                    pendingAssetDrops.erase(entry);
+                    return payload;
+                }
+                return std::nullopt;
+            }
+
+            for (auto entry = pendingDrops.begin(); entry != pendingDrops.end(); ++entry)
+            {
+                if (entry->first != lastNode) { continue; }
+                const std::string payload = entry->second;
+                pendingDrops.erase(entry);
+                return payload;
+            }
+            return std::nullopt;
+        }
+
+        UiTextFieldResult inputText(const std::string& id, std::string& text, bool takeFocus) override
+        {
+            (void)id;
+            (void)takeFocus;
+            sawRenameField = true;
+
+            if (!pendingRename) { return UiTextFieldResult{}; }
+
+            UiTextFieldResult result;
+            text = pendingRename->first;
+            result.changed = true;
+            result.committed = pendingRename->second;
+            if (result.committed) { pendingRename.reset(); }
+            return result;
+        }
+
+        bool checkbox(const std::string& label, bool& value) override
+        {
+            shownChecks.emplace_back(label, value);
+
+            for (auto entry = pendingChecks.begin(); entry != pendingChecks.end(); ++entry)
+            {
+                if (entry->first != label) { continue; }
+                value = entry->second;
+                pendingChecks.erase(entry);
+                return true;
+            }
+            return false;
+        }
+
+        /** @brief Checkbox states to apply, as (label, new value) pairs. Each fires once. */
+        std::vector<std::pair<std::string, bool>> pendingChecks;
+
+        /** @brief Checkbox states shown during the most recent frame. */
+        std::vector<std::pair<std::string, bool>> shownChecks;
+
+        /** @brief Returns the state @p label was drawn with, defaulting to false. */
+        [[nodiscard]] bool shownCheckFor(const std::string& label) const
+        {
+            for (const auto& [field, value] : shownChecks)
+            {
+                if (field == label) { return value; }
+            }
+            return false;
         }
 
         bool button(const std::string& label) override
@@ -363,6 +496,7 @@ namespace
             (void)readOnly;
             if (!enumOptions.empty()) { offeredOptions.emplace_back(label, enumOptions); }
             shownValues.emplace_back(label, value);
+            lastField = label;
 
             for (auto entry = pendingChoices.begin(); entry != pendingChoices.end(); ++entry)
             {
@@ -421,6 +555,16 @@ namespace
         {
             ui->interaction = input;
             application->renderFrame();
+        }
+
+        /** @brief Returns true when any console message contains @p needle. */
+        [[nodiscard]] bool logContains(std::string_view needle) const
+        {
+            for (const auto& entry : ui->getLog())
+            {
+                if (entry.message.find(needle) != std::string::npos) { return true; }
+            }
+            return false;
         }
 
         [[nodiscard]] EditorVector3 getPosition() const
@@ -924,4 +1068,323 @@ CNA_EDITOR_TEST(TheAngleCacheStopsApplyingOnceSomethingElseChangesTheRotation)
     CNA_EDITOR_EXPECT_EQ(shown.x, honest.x);
     CNA_EDITOR_EXPECT_EQ(shown.y, honest.y);
     CNA_EDITOR_EXPECT_EQ(shown.z, honest.z);
+}
+
+namespace
+{
+    /** @brief Adds a child entity named @p name under @p parentId and returns its id. */
+    Uuid addChildEntity(EditorContext& context, const Uuid& parentId, const std::string& name)
+    {
+        EditorEntity entity{Uuid::generate(), name};
+        EditorComponent transform{BuiltinComponentIds::kTransform};
+        transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+        entity.addComponent(std::move(transform));
+        entity.setParentId(parentId);
+        return context.getScene().addEntity(std::move(entity));
+    }
+}
+
+CNA_EDITOR_TEST(DoubleClickingAHierarchyNodeRenamesItInPlace)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    fixture.ui->pendingNodeDoubleClicks.push_back(fixture.entityId);
+    fixture.step(UiImageInteraction{});
+
+    // The row is now a text field rather than a tree node.
+    fixture.ui->pendingRename = std::make_pair(std::string{"Hero"}, true);
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.ui->sawRenameField);
+
+    CNA_EDITOR_EXPECT_EQ(context.getScene().findEntity(fixture.entityId)->getName(),
+                         std::string{"Hero"});
+
+    // And the field is gone once the edit commits.
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(!fixture.ui->sawRenameField);
+
+    fixture.ui->pressShortcut(UiKey::Z, withControl());
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT_EQ(context.getScene().findEntity(fixture.entityId)->getName(),
+                         std::string{"Player"});
+}
+
+CNA_EDITOR_TEST(AnEmptyRenameIsTreatedAsASlipAndKeepsTheOldName)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+    const std::size_t before = context.getHistory().getCount();
+
+    fixture.ui->pressShortcut(UiKey::F2);
+    fixture.step(UiImageInteraction{});
+
+    fixture.ui->pendingRename = std::make_pair(std::string{}, true);
+    fixture.step(UiImageInteraction{});
+
+    // An unnamed row in the hierarchy is unusable, and the old name is still right there to keep.
+    CNA_EDITOR_EXPECT_EQ(context.getScene().findEntity(fixture.entityId)->getName(),
+                         std::string{"Player"});
+    CNA_EDITOR_EXPECT_EQ(context.getHistory().getCount(), before);
+}
+
+CNA_EDITOR_TEST(DraggingAnEntityOntoAnotherReparentsIt)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    const Uuid otherId = addChildEntity(context, Uuid{}, "Crate");
+
+    // Drop the Player onto the Crate.
+    fixture.ui->pendingDrops.emplace_back(otherId, fixture.entityId.toString());
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT_EQ(context.getScene().findEntity(fixture.entityId)->getParentId().toString(),
+                         otherId.toString());
+
+    fixture.ui->pressShortcut(UiKey::Z, withControl());
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(!context.getScene().findEntity(fixture.entityId)->getParentId().isValid());
+}
+
+CNA_EDITOR_TEST(DroppingAParentOntoItsOwnChildIsRefusedWithoutAnUndoEntry)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    const Uuid childId = addChildEntity(context, fixture.entityId, "Weapon");
+    const std::size_t before = context.getHistory().getCount();
+
+    // Dropping the parent onto its own child would make a cycle. SceneDocument would refuse it
+    // anyway, but the command would still land in the undo stack having done nothing.
+    fixture.ui->pendingDrops.emplace_back(childId, fixture.entityId.toString());
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT(!context.getScene().findEntity(fixture.entityId)->getParentId().isValid());
+    CNA_EDITOR_EXPECT_EQ(context.getScene().findEntity(childId)->getParentId().toString(),
+                         fixture.entityId.toString());
+    CNA_EDITOR_EXPECT_EQ(context.getHistory().getCount(), before);
+    CNA_EDITOR_EXPECT(fixture.logContains("under one of its own children"));
+}
+
+CNA_EDITOR_TEST(DroppingAnEntityOntoItselfDoesNothing)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+    const std::size_t before = context.getHistory().getCount();
+
+    fixture.ui->pendingDrops.emplace_back(fixture.entityId, fixture.entityId.toString());
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT_EQ(context.getHistory().getCount(), before);
+}
+
+CNA_EDITOR_TEST(CtrlClickExtendsTheHierarchySelection)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    const Uuid otherId = addChildEntity(context, Uuid{}, "Crate");
+
+    fixture.ui->modifiers = withControl();
+    fixture.ui->pendingNodeClicks.push_back(otherId);
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT_EQ(context.getSelection().size(), std::size_t{2});
+    CNA_EDITOR_EXPECT(context.isSelected(fixture.entityId));
+    CNA_EDITOR_EXPECT(context.isSelected(otherId));
+
+    // Without the modifier a click replaces the selection, which is the ordinary case.
+    fixture.ui->modifiers = UiKeyModifiers{};
+    fixture.ui->pendingNodeClicks.push_back(otherId);
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT_EQ(context.getSelection().size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(context.isSelected(otherId));
+}
+
+CNA_EDITOR_TEST(TheHierarchyKeepsDrawingWhileAReparentIsPending)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    const Uuid otherId = addChildEntity(context, Uuid{}, "Crate");
+    const Uuid childId = addChildEntity(context, fixture.entityId, "Weapon");
+
+    fixture.ui->pendingDrops.emplace_back(otherId, fixture.entityId.toString());
+    fixture.step(UiImageInteraction{});
+
+    // The reparent runs after the tree has finished drawing, so the traversal never walked a
+    // child list that was being reordered underneath it. Every entity is still reachable.
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT_EQ(fixture.ui->drawnNodes.size(), context.getScene().getEntityCount());
+    CNA_EDITOR_EXPECT_EQ(context.getScene().findEntity(childId)->getParentId().toString(),
+                         fixture.entityId.toString());
+}
+
+namespace
+{
+    /** @brief Registers an asset of @p type at @p path and returns its id. */
+    Uuid addAsset(EditorContext& context, const std::string& path, AssetType type)
+    {
+        AssetRecord record;
+        record.id = Uuid::generate();
+        record.sourcePath = path;
+        record.type = type;
+
+        const Uuid id = record.id;
+        context.getAssets().add(std::move(record));
+        return id;
+    }
+}
+
+CNA_EDITOR_TEST(DroppingATextureOntoASpriteSlotSetsIt)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    fixture.ui->pendingChoices.emplace_back("##addComponentType", "Rendering / Sprite Renderer");
+    fixture.step(UiImageInteraction{});
+    fixture.ui->pendingClicks.push_back("Add Component");
+    fixture.step(UiImageInteraction{});
+
+    const Uuid textureId = addAsset(context, "Textures/Player.png", AssetType::Texture2D);
+
+    fixture.ui->pendingAssetDrops.emplace_back("Texture", textureId.toString());
+    fixture.step(UiImageInteraction{});
+
+    const EditorComponent* sprite = context.getScene().findEntity(fixture.entityId)
+                                        ->findComponent(BuiltinComponentIds::kSpriteRenderer);
+    CNA_EDITOR_EXPECT_EQ(sprite->getProperty("texture").get<PropertyValue::AssetReference>().id.toString(),
+                         textureId.toString());
+
+    // Setting a reference by drop is an edit like any other.
+    fixture.ui->pressShortcut(UiKey::Z, withControl());
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(!context.getScene().findEntity(fixture.entityId)
+                           ->findComponent(BuiltinComponentIds::kSpriteRenderer)
+                           ->getProperty("texture").get<PropertyValue::AssetReference>().id.isValid());
+}
+
+CNA_EDITOR_TEST(ASlotRefusesAnAssetOfTheWrongKindAndSaysWhy)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    fixture.ui->pendingChoices.emplace_back("##addComponentType", "Rendering / Sprite Renderer");
+    fixture.step(UiImageInteraction{});
+    fixture.ui->pendingClicks.push_back("Add Component");
+    fixture.step(UiImageInteraction{});
+
+    const Uuid soundId = addAsset(context, "Audio/Jump.wav", AssetType::SoundEffect);
+
+    fixture.ui->pendingAssetDrops.emplace_back("Texture", soundId.toString());
+    fixture.step(UiImageInteraction{});
+
+    // Accepting it would give a scene that loads and a sprite that never appears, with nothing
+    // anywhere to explain why.
+    const EditorComponent* sprite = context.getScene().findEntity(fixture.entityId)
+                                        ->findComponent(BuiltinComponentIds::kSpriteRenderer);
+    CNA_EDITOR_EXPECT(!sprite->getProperty("texture").get<PropertyValue::AssetReference>().id.isValid());
+    CNA_EDITOR_EXPECT(fixture.logContains("this field takes a Texture2D"));
+}
+
+CNA_EDITOR_TEST(ASlotWithNoDeclaredKindTakesAnything)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    fixture.ui->pendingChoices.emplace_back("##addComponentType", "Rendering (3D) / Model Renderer");
+    fixture.step(UiImageInteraction{});
+    fixture.ui->pendingClicks.push_back("Add Component");
+    fixture.step(UiImageInteraction{});
+
+    // The material override declares no kind, because materials are not a tracked asset type yet.
+    const Uuid rawId = addAsset(context, "Materials/Brick.json", AssetType::RawData);
+
+    fixture.ui->pendingAssetDrops.emplace_back("Material Override", rawId.toString());
+    fixture.step(UiImageInteraction{});
+
+    const EditorComponent* model = context.getScene().findEntity(fixture.entityId)
+                                       ->findComponent(BuiltinComponentIds::kModelRenderer);
+    CNA_EDITOR_EXPECT_EQ(model->getProperty("material").get<PropertyValue::AssetReference>().id.toString(),
+                         rawId.toString());
+}
+
+CNA_EDITOR_TEST(TheConsoleCopiesWhatItIsShowing)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    context.log(LogSeverity::Trace, "a trace line");
+    context.log(LogSeverity::Warning, "a warning line");
+    context.log(LogSeverity::Error, "an error line");
+
+    fixture.ui->pendingClicks.push_back("Copy");
+    fixture.step(UiImageInteraction{});
+
+    // Unfiltered, Copy takes everything.
+    CNA_EDITOR_EXPECT(fixture.ui->getClipboardText().find("a trace line") != std::string::npos);
+    CNA_EDITOR_EXPECT(fixture.ui->getClipboardText().find("an error line") != std::string::npos);
+
+    fixture.ui->pendingChoices.emplace_back("##consoleSeverity", "Warning");
+    fixture.step(UiImageInteraction{});
+
+    fixture.ui->pendingClicks.push_back("Copy");
+    fixture.step(UiImageInteraction{});
+
+    // Filtered, it takes what the user can see. Copying hidden messages would be a surprise.
+    CNA_EDITOR_EXPECT(fixture.ui->getClipboardText().find("a trace line") == std::string::npos);
+    CNA_EDITOR_EXPECT(fixture.ui->getClipboardText().find("a warning line") != std::string::npos);
+    CNA_EDITOR_EXPECT(fixture.ui->getClipboardText().find("an error line") != std::string::npos);
+}
+
+CNA_EDITOR_TEST(TheConsoleClearButtonEmptiesIt)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    context.log(LogSeverity::Info, "something happened");
+    CNA_EDITOR_EXPECT(!fixture.ui->getLog().empty());
+
+    fixture.ui->pendingClicks.push_back("Clear");
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT(fixture.ui->getLog().empty());
+}
+
+CNA_EDITOR_TEST(TheConsoleScrollLockIsRememberedAcrossFrames)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.ui->shownCheckFor("Auto-scroll"));
+
+    fixture.ui->pendingChecks.emplace_back("Auto-scroll", false);
+    fixture.step(UiImageInteraction{});
+
+    // The setting is the console's own state, so it has to survive frames that do not touch it.
+    // A checkbox that reset every frame would be a scroll-lock that never locks.
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(!fixture.ui->shownCheckFor("Auto-scroll"));
+
+    fixture.ui->pendingChecks.emplace_back("Auto-scroll", true);
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.ui->shownCheckFor("Auto-scroll"));
+}
+
+CNA_EDITOR_TEST(TheConsoleSeverityFilterIsRememberedAcrossFrames)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    fixture.ui->pendingChoices.emplace_back("##consoleSeverity", "Error");
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT_EQ(fixture.ui->shownValueFor("##consoleSeverity")
+                             .get<PropertyValue::EnumValue>().name,
+                         std::string{"Error"});
 }

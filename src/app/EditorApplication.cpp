@@ -27,6 +27,34 @@ namespace CNA::Editor
         }
 
         /**
+         * @brief Returns the console filter's display name for @p severity.
+         *
+         * Distinct from toString(), which produces the short prefix a log line carries ("warn").
+         * Reusing that here would leave the combo's current value absent from its own option list,
+         * and a combo whose selection matches nothing renders empty.
+         */
+        const char* severityDisplayName(LogSeverity severity)
+        {
+            switch (severity)
+            {
+                case LogSeverity::Trace: return "Trace";
+                case LogSeverity::Info: return "Info";
+                case LogSeverity::Warning: return "Warning";
+                case LogSeverity::Error: return "Error";
+            }
+            return "Trace";
+        }
+
+        /** @brief Maps a display name from the console's filter back onto the enumeration. */
+        LogSeverity parseLogSeverityName(std::string_view name)
+        {
+            if (name == "Error") { return LogSeverity::Error; }
+            if (name == "Warning") { return LogSeverity::Warning; }
+            if (name == "Info") { return LogSeverity::Info; }
+            return LogSeverity::Trace;
+        }
+
+        /**
          * @brief Maps a severity name from the wire onto the console's enumeration.
          *
          * An unrecognised name becomes Info rather than being dropped: a player built from a newer
@@ -248,6 +276,7 @@ namespace CNA::Editor
         if (ui_->isShortcutPressed(UiKey::D, withControl())) { duplicateSelection(); }
 
         if (ui_->isShortcutPressed(UiKey::Delete)) { deleteSelection(); }
+        if (ui_->isShortcutPressed(UiKey::F2)) { beginRename(context_.getPrimarySelection()); }
         if (ui_->isShortcutPressed(UiKey::F)) { frameSelection(); }
 
         if (ui_->isShortcutPressed(UiKey::W)) { setGizmoMode(GizmoMode::Translate); }
@@ -632,6 +661,10 @@ namespace CNA::Editor
         for (const Uuid& rootId : context_.getScene().getRootEntities()) { drawHierarchyNode(rootId); }
 
         ui_->endPanel();
+
+        // Applied after the whole tree is drawn, never inside the recursion: a reparent reorders
+        // the very lists drawHierarchyNode() is walking, and a delete invalidates them outright.
+        applyPendingHierarchyAction();
     }
 
     void EditorApplication::drawHierarchyNode(const Uuid& entityId)
@@ -640,16 +673,150 @@ namespace CNA::Editor
         if (entity == nullptr) { return; }
 
         const std::vector<Uuid> children = context_.getScene().getChildren(entityId);
-        bool clicked = false;
-        const bool expanded = ui_->treeNode(entityId, entity->getName(), context_.isSelected(entityId),
-                                            children.empty(), clicked);
 
-        if (clicked) { context_.select(entityId); }
-
-        if (expanded)
+        if (renamingEntity_ == entityId)
         {
+            // A row being renamed is a text field, not a tree node, so nothing is pushed and
+            // nothing is popped. Its children still draw, so the tree does not appear to lose a
+            // subtree for as long as the field is open.
+            drawRenameField(entityId);
             for (const Uuid& childId : children) { drawHierarchyNode(childId); }
-            ui_->treePop();
+            return;
+        }
+
+        const UiTreeNodeResult node =
+            ui_->treeNode(entityId, entity->getName(), context_.isSelected(entityId), children.empty());
+
+        // Whether the node pushed onto the tree stack is settled here and read nowhere else.
+        // Pairing the pop with renamingEntity_ instead would be wrong in both directions: starting
+        // a rename below would skip a pop that is owed, and committing one would add a pop that is
+        // not -- and ImGui's tree stack does not survive either mistake.
+        const bool pushed = node.expanded;
+
+        // The drag source and the drop target are both the node just drawn: dragging one entity
+        // onto another is how a hierarchy is rearranged, and both roles belong to every node.
+        ui_->setDragSource(kEntityDragType, entityId.toString(), entity->getName());
+
+        if (const std::optional<std::string> dropped = ui_->acceptDrop(kEntityDragType))
+        {
+            pending_.kind = HierarchyAction::Reparent;
+            pending_.entityId = Uuid::parse(*dropped);
+            pending_.parentId = entityId;
+        }
+
+        drawHierarchyContextMenu(entityId);
+
+        // Double-click first: a double-click also reports a click, and starting a rename must win
+        // over merely reselecting what is already selected.
+        if (node.doubleClicked) { beginRename(entityId); }
+        else if (node.clicked)
+        {
+            // Ctrl extends the selection rather than replacing it, which is what every editor does
+            // and what makes "these three, not that one" reachable at all.
+            if (ui_->getModifiers().control) { context_.toggleSelection(entityId); }
+            else { context_.select(entityId); }
+        }
+
+        if (!pushed) { return; }
+
+        for (const Uuid& childId : children) { drawHierarchyNode(childId); }
+        ui_->treePop();
+    }
+
+    void EditorApplication::drawHierarchyContextMenu(const Uuid& entityId)
+    {
+        if (!ui_->beginContextMenu("entity-" + entityId.toString())) { return; }
+
+        // Right-clicking a node acts on that node, so it becomes the selection first. Acting on
+        // something other than what was right-clicked is the classic context-menu bug.
+        if (!context_.isSelected(entityId)) { context_.select(entityId); }
+
+        if (ui_->menuItem("Rename", "F2")) { beginRename(entityId); }
+        if (ui_->menuItem("Duplicate", "Ctrl+D")) { duplicateSelection(); }
+
+        const bool hasParent = context_.getScene().findEntity(entityId) != nullptr
+                            && context_.getScene().findEntity(entityId)->getParentId().isValid();
+        if (ui_->menuItem("Move to Root", {}, hasParent))
+        {
+            pending_.kind = HierarchyAction::Reparent;
+            pending_.entityId = entityId;
+            pending_.parentId = Uuid{};
+        }
+
+        ui_->separator();
+        if (ui_->menuItem("Delete", "Del")) { pending_.kind = HierarchyAction::Delete; }
+
+        ui_->endContextMenu();
+    }
+
+    void EditorApplication::beginRename(const Uuid& entityId)
+    {
+        const EditorEntity* entity = context_.getScene().findEntity(entityId);
+        if (entity == nullptr) { return; }
+
+        renamingEntity_ = entityId;
+        renameBuffer_ = entity->getName();
+        renameNeedsFocus_ = true;
+        context_.select(entityId);
+    }
+
+    void EditorApplication::drawRenameField(const Uuid& entityId)
+    {
+        const UiTextFieldResult result =
+            ui_->inputText("##rename-" + entityId.toString(), renameBuffer_, renameNeedsFocus_);
+
+        // Only the first frame asks for focus. Asking every frame would make the field impossible
+        // to leave, because it would take the keyboard back the instant anything else claimed it.
+        renameNeedsFocus_ = false;
+
+        if (!result.committed) { return; }
+
+        renamingEntity_ = Uuid{};
+
+        // An empty name is a slip, not an instruction: an unnamed row in the hierarchy is
+        // unusable, and the old name is still right there to keep.
+        const EditorEntity* entity = context_.getScene().findEntity(entityId);
+        if (entity == nullptr || renameBuffer_.empty() || renameBuffer_ == entity->getName()) { return; }
+
+        context_.execute(std::make_unique<RenameEntityCommand>(context_.getScene(), entityId, renameBuffer_));
+    }
+
+    void EditorApplication::applyPendingHierarchyAction()
+    {
+        const PendingHierarchyAction action = pending_;
+        pending_ = PendingHierarchyAction{};
+
+        switch (action.kind)
+        {
+            case HierarchyAction::None:
+                return;
+
+            case HierarchyAction::Delete:
+                deleteSelection();
+                return;
+
+            case HierarchyAction::Reparent: {
+                if (!action.entityId.isValid()) { return; }
+                if (action.entityId == action.parentId) { return; }
+
+                // Dropping a parent onto its own descendant would make a cycle. SceneDocument
+                // rejects it, but a command that does nothing still lands in the undo stack, and
+                // an entry the user cannot see the effect of is worse than no entry.
+                if (action.parentId.isValid()
+                    && context_.getScene().isAncestorOf(action.entityId, action.parentId))
+                {
+                    context_.log(LogSeverity::Warning,
+                                 "Cannot move an entity under one of its own children.");
+                    return;
+                }
+
+                const EditorEntity* entity = context_.getScene().findEntity(action.entityId);
+                if (entity == nullptr || entity->getParentId() == action.parentId) { return; }
+
+                context_.execute(std::make_unique<ReparentEntityCommand>(
+                    context_.getScene(), action.entityId, action.parentId));
+                return;
+            }
         }
     }
 
@@ -742,11 +909,19 @@ namespace CNA::Editor
         if (value.getType() != PropertyType::Quaternion)
         {
             PropertyValue edited = value;
-            if (!ui_->propertyField(label, edited, property.enumOptions, property.readOnly))
+            const bool changed = ui_->propertyField(label, edited, property.enumOptions, property.readOnly);
+
+            // An asset slot is also a drop target for the browser, which is the only way to fill
+            // one without copying a Uuid by hand.
+            if (property.type == PropertyType::AssetReference && !property.readOnly)
             {
-                return std::nullopt;
+                if (const std::optional<PropertyValue> dropped = acceptAssetDrop(property))
+                {
+                    return dropped;
+                }
             }
-            return edited;
+
+            return changed ? std::optional<PropertyValue>{edited} : std::nullopt;
         }
 
         // Quaternions are shown as degrees, because four raw components are not something anyone
@@ -771,6 +946,33 @@ namespace CNA::Editor
 
         eulerEdit_ = EulerEdit{entityId, componentTypeId, property.name, degrees, produced};
         return PropertyValue{produced};
+    }
+
+    std::optional<PropertyValue> EditorApplication::acceptAssetDrop(const PropertyDescriptor& property)
+    {
+        const std::optional<std::string> dropped = ui_->acceptDrop(kAssetDragType);
+        if (!dropped) { return std::nullopt; }
+
+        const Uuid assetId = Uuid::parse(*dropped);
+        const AssetRecord* record = context_.getAssets().find(assetId);
+        if (record == nullptr)
+        {
+            context_.log(LogSeverity::Warning, "Dropped asset is no longer in the database.");
+            return std::nullopt;
+        }
+
+        // A slot that declares what it takes refuses everything else, and says which is which.
+        // Silently accepting a sound into a texture slot would produce a scene that loads and a
+        // sprite that never appears, with nothing anywhere to explain it.
+        if (!property.assetType.empty() && property.assetType != toString(record->type))
+        {
+            context_.log(LogSeverity::Warning,
+                         "'" + record->sourcePath + "' is a " + std::string{toString(record->type)}
+                             + "; this field takes a " + property.assetType + ".");
+            return std::nullopt;
+        }
+
+        return PropertyValue{PropertyValue::AssetReference{assetId}};
     }
 
     void EditorApplication::drawAddComponentControl(const EditorEntity& entity)
@@ -840,7 +1042,12 @@ namespace CNA::Editor
 
         for (const AssetRecord* record : assets.getAll())
         {
-            ui_->text(std::string{toString(record->type)} + "  " + record->sourcePath);
+            // A tree leaf rather than a line of text: it carries the asset's own Uuid as its
+            // widget identity, which is what lets the toolkit tell one row from another when a
+            // drag starts on it.
+            const std::string label = std::string{toString(record->type)} + "  " + record->sourcePath;
+            ui_->treeNode(record->id, label, false, true);
+            ui_->setDragSource(kAssetDragType, record->id.toString(), label);
         }
 
         ui_->endPanel();
@@ -969,7 +1176,32 @@ namespace CNA::Editor
     void EditorApplication::drawConsolePanel()
     {
         if (!ui_->beginPanel("Console", DockSide::Bottom)) { ui_->endPanel(); return; }
-        ui_->drawLogView();
+
+        if (ui_->button("Copy")) { ui_->setClipboardText(ui_->getLogText(consoleMinimumSeverity_)); }
+        ui_->sameLine();
+        if (ui_->button("Clear")) { ui_->clearLog(); }
+        ui_->sameLine();
+        ui_->checkbox("Auto-scroll", consoleAutoScroll_);
+        ui_->sameLine();
+
+        // The filter is the console's own state, not a document property, so it is not a command
+        // and does not belong in the undo stack -- what a user chooses to look at is not an edit.
+        static const std::vector<std::string> kSeverities{"Trace", "Info", "Warning", "Error"};
+        ui_->setNextItemWidth(110.0f);
+
+        PropertyValue severity{PropertyValue::EnumValue{severityDisplayName(consoleMinimumSeverity_)}};
+        if (ui_->propertyField("##consoleSeverity", severity, kSeverities))
+        {
+            consoleMinimumSeverity_ = parseLogSeverityName(severity.get<PropertyValue::EnumValue>().name);
+        }
+
+        ui_->separator();
+
+        UiLogViewOptions options;
+        options.minimumSeverity = consoleMinimumSeverity_;
+        options.autoScroll = consoleAutoScroll_;
+        ui_->drawLogView(options);
+
         ui_->endPanel();
     }
 }

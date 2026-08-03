@@ -50,19 +50,20 @@ namespace CNA::Editor
         return false;
     }
 
-    bool NullEditorUi::treeNode(const Uuid& id,
-                                const std::string& label,
-                                bool selected,
-                                bool leaf,
-                                bool& outClicked)
+    UiTreeNodeResult NullEditorUi::treeNode(const Uuid& id,
+                                            const std::string& label,
+                                            bool selected,
+                                            bool leaf)
     {
         (void)id;
         (void)label;
         (void)selected;
-        outClicked = false;
+
         // Expanding everything means a headless run walks the whole hierarchy, so a crash in a
         // deeply nested subtree is caught by CI rather than by the first user to expand it.
-        return !leaf;
+        UiTreeNodeResult result;
+        result.expanded = !leaf;
+        return result;
     }
 
     bool NullEditorUi::menuItem(const std::string& label, const std::string& shortcut, bool enabled)
@@ -92,5 +93,17 @@ namespace CNA::Editor
     void NullEditorUi::log(LogSeverity severity, const std::string& message)
     {
         log_.push_back(LogEntry{severity, message});
+    }
+
+    std::string NullEditorUi::getLogText(LogSeverity minimumSeverity) const
+    {
+        std::string text;
+        for (const LogEntry& entry : log_)
+        {
+            if (entry.severity < minimumSeverity) { continue; }
+            text += entry.message;
+            text += '\n';
+        }
+        return text;
     }
 }

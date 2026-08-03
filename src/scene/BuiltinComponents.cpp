@@ -60,10 +60,13 @@ namespace CNA::Editor
                                                    "Mirrors Microsoft::Xna::Framework::Graphics::SpriteEffects.");
             flip.enumOptions = {"None", "FlipHorizontally", "FlipVertically", "FlipBoth"};
 
+            PropertyDescriptor texture = makeProperty("texture", "Texture", PropertyType::AssetReference,
+                                                       PropertyValue{PropertyValue::AssetReference{}},
+                                                       "Texture2D asset drawn by this sprite.");
+            texture.assetType = "Texture2D";
+
             descriptor.properties = {
-                makeProperty("texture", "Texture", PropertyType::AssetReference,
-                             PropertyValue{PropertyValue::AssetReference{}},
-                             "Texture2D asset drawn by this sprite."),
+                std::move(texture),
                 makeProperty("sourceRectangle", "Source Rectangle", PropertyType::Rectangle,
                              PropertyValue{EditorRectangle{}},
                              "Sub-region of the texture to draw. An empty rectangle means the whole texture."),
@@ -133,9 +136,13 @@ namespace CNA::Editor
             pitch.minimum = -1.0;
             pitch.maximum = 1.0;
 
+            PropertyDescriptor clip = makeProperty("clip", "Clip", PropertyType::AssetReference,
+                                                    PropertyValue{PropertyValue::AssetReference{}},
+                                                    "SoundEffect asset to play.");
+            clip.assetType = "SoundEffect";
+
             descriptor.properties = {
-                makeProperty("clip", "Clip", PropertyType::AssetReference,
-                             PropertyValue{PropertyValue::AssetReference{}}, "SoundEffect asset to play."),
+                std::move(clip),
                 makeProperty("playOnAwake", "Play On Awake", PropertyType::Boolean, PropertyValue{false}),
                 makeProperty("loop", "Loop", PropertyType::Boolean, PropertyValue{false}),
                 std::move(volume),
@@ -154,9 +161,13 @@ namespace CNA::Editor
             descriptor.typeId = BuiltinComponentIds::kModelRenderer;
             descriptor.displayName = "Model Renderer";
             descriptor.category = "Rendering (3D)";
+            PropertyDescriptor model = makeProperty("model", "Model", PropertyType::AssetReference,
+                                                     PropertyValue{PropertyValue::AssetReference{}},
+                                                     "Model asset to draw.");
+            model.assetType = "Model";
+
             descriptor.properties = {
-                makeProperty("model", "Model", PropertyType::AssetReference,
-                             PropertyValue{PropertyValue::AssetReference{}}, "Model asset to draw."),
+                std::move(model),
                 makeProperty("material", "Material Override", PropertyType::AssetReference,
                              PropertyValue{PropertyValue::AssetReference{}},
                              "Optional single material override. A per-mesh material list arrives with "

@@ -169,6 +169,24 @@ namespace CNA::Editor
         /** @brief Recursively draws @p entityId and its children in the hierarchy tree. */
         void drawHierarchyNode(const Uuid& entityId);
 
+        /** @brief Draws the right-click menu for a hierarchy node. */
+        void drawHierarchyContextMenu(const Uuid& entityId);
+
+        /** @brief Puts @p entityId's row into rename mode. */
+        void beginRename(const Uuid& entityId);
+
+        /** @brief Draws the in-place rename field in place of @p entityId's row. */
+        void drawRenameField(const Uuid& entityId);
+
+        /** @brief Runs whatever the hierarchy asked for, once the tree has finished drawing. */
+        void applyPendingHierarchyAction();
+
+        /**
+         * @brief Takes a dropped asset for @p property, if one landed on the widget just drawn.
+         * @return The new reference, or std::nullopt when nothing was dropped or the kind is wrong.
+         */
+        [[nodiscard]] std::optional<PropertyValue> acceptAssetDrop(const PropertyDescriptor& property);
+
         /** @brief Draws the inspector's "Add Component" picker for @p entity. */
         void drawAddComponentControl(const EditorEntity& entity);
 
@@ -263,6 +281,51 @@ namespace CNA::Editor
          * added, and an index would then quietly refer to a different type than the one on screen.
          */
         std::string addComponentChoice_;
+
+        /** @brief Payload type for an entity dragged within the hierarchy. */
+        static constexpr const char* kEntityDragType = "entity";
+
+        /** @brief Payload type for an asset dragged out of the browser. */
+        static constexpr const char* kAssetDragType = "asset";
+
+        /** @brief What the hierarchy asked for while it was drawing. */
+        enum class HierarchyAction
+        {
+            None,
+            Reparent,
+            Delete
+        };
+
+        /**
+         * @brief A structural change the hierarchy requested mid-draw.
+         *
+         * Deferred rather than applied immediately, because a reparent reorders the child lists
+         * the recursion is walking and a delete invalidates them outright. Recording the request
+         * and running it once the tree is drawn keeps the traversal on a document that is not
+         * changing underneath it.
+         */
+        struct PendingHierarchyAction
+        {
+            HierarchyAction kind = HierarchyAction::None;
+            Uuid entityId;
+            Uuid parentId;
+        };
+
+        PendingHierarchyAction pending_;
+
+        /**
+         * @brief The console's own view state.
+         *
+         * Not part of the document and not undoable: what a user chooses to look at is not an
+         * edit to the scene.
+         */
+        LogSeverity consoleMinimumSeverity_ = LogSeverity::Trace;
+        bool consoleAutoScroll_ = true;
+
+        /** @brief The entity whose row is currently a text field, if any. */
+        Uuid renamingEntity_;
+        std::string renameBuffer_;
+        bool renameNeedsFocus_ = false;
 
         /**
          * @brief The Euler angles the user last typed, and the quaternion they produced.

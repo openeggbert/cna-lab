@@ -712,11 +712,10 @@ namespace CNA::Editor
         return changed;
     }
 
-    bool ImGuiEditorUi::treeNode(const Uuid& id,
-                                 const std::string& label,
-                                 bool selected,
-                                 bool leaf,
-                                 bool& outClicked)
+    UiTreeNodeResult ImGuiEditorUi::treeNode(const Uuid& id,
+                                             const std::string& label,
+                                             bool selected,
+                                             bool leaf)
     {
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
         if (selected) { flags |= ImGuiTreeNodeFlags_Selected; }
@@ -724,14 +723,100 @@ namespace CNA::Editor
 
         const bool open = ImGui::TreeNodeEx(reinterpret_cast<void*>(static_cast<std::uintptr_t>(toImGuiId(id))),
                                             flags, "%s", label.c_str());
-        outClicked = ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen();
+
+        UiTreeNodeResult result;
+        result.clicked = ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen();
+        result.doubleClicked = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered()
+                            && !ImGui::IsItemToggledOpen();
 
         // A leaf pushed nothing onto the tree stack, so it must not report "expanded" -- the
         // caller would pair it with a treePop() that pops somebody else's node.
-        return open && !leaf;
+        result.expanded = open && !leaf;
+        return result;
     }
 
     void ImGuiEditorUi::treePop() { ImGui::TreePop(); }
+
+    UiTextFieldResult ImGuiEditorUi::inputText(const std::string& id, std::string& text, bool takeFocus)
+    {
+        // Sized like the inspector's string field, and for the same reason: a name is short, and a
+        // heap allocation per frame to hold one is not worth avoiding a fixed buffer.
+        char buffer[512];
+        std::snprintf(buffer, sizeof(buffer), "%s", text.c_str());
+
+        // Only on the frame the field appears. Asking every frame would make it impossible to
+        // click into anything else, because focus would be taken back immediately.
+        if (takeFocus) { ImGui::SetKeyboardFocusHere(); }
+
+        UiTextFieldResult result;
+        if (ImGui::InputText(id.c_str(), buffer, sizeof(buffer),
+                             ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll))
+        {
+            text = buffer;
+            result.changed = true;
+            result.committed = true;
+            return result;
+        }
+
+        if (std::strcmp(buffer, text.c_str()) != 0)
+        {
+            text = buffer;
+            result.changed = true;
+        }
+
+        // Losing focus commits too. Clicking away from a rename field is as much an approval of
+        // the name as pressing Enter is, and treating it as a cancel throws the edit away.
+        result.committed = ImGui::IsItemDeactivatedAfterEdit() || ImGui::IsItemDeactivated();
+        return result;
+    }
+
+    UiKeyModifiers ImGuiEditorUi::getModifiers() const
+    {
+        const ImGuiIO& io = ImGui::GetIO();
+        UiKeyModifiers modifiers;
+        modifiers.control = io.KeyCtrl;
+        modifiers.shift = io.KeyShift;
+        modifiers.alt = io.KeyAlt;
+        modifiers.super = io.KeySuper;
+        return modifiers;
+    }
+
+    void ImGuiEditorUi::setDragSource(const std::string& type,
+                                      const std::string& payload,
+                                      const std::string& label)
+    {
+        if (!ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) { return; }
+
+        // The payload travels as bytes including its terminator, so acceptDrop() can build a
+        // std::string from it without needing the length separately.
+        ImGui::SetDragDropPayload(type.c_str(), payload.c_str(), payload.size() + 1);
+        ImGui::TextUnformatted(label.c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    std::optional<std::string> ImGuiEditorUi::acceptDrop(const std::string& type)
+    {
+        if (!ImGui::BeginDragDropTarget()) { return std::nullopt; }
+
+        std::optional<std::string> result;
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(type.c_str()))
+        {
+            if (payload->Data != nullptr && payload->DataSize > 0)
+            {
+                result = std::string{static_cast<const char*>(payload->Data)};
+            }
+        }
+
+        ImGui::EndDragDropTarget();
+        return result;
+    }
+
+    bool ImGuiEditorUi::beginContextMenu(const std::string& id)
+    {
+        return ImGui::BeginPopupContextItem(id.c_str());
+    }
+
+    void ImGuiEditorUi::endContextMenu() { ImGui::EndPopup(); }
 
     bool ImGuiEditorUi::beginMenu(const std::string& label) { return ImGui::BeginMenu(label.c_str()); }
 
@@ -742,19 +827,46 @@ namespace CNA::Editor
         return ImGui::MenuItem(label.c_str(), shortcut.empty() ? nullptr : shortcut.c_str(), false, enabled);
     }
 
-    void ImGuiEditorUi::drawLogView()
+    void ImGuiEditorUi::drawLogView(const UiLogViewOptions& options)
     {
-        // Rendered here rather than in the panel layer because the scroll position, the severity
-        // colours and the auto-scroll behaviour are all toolkit state; the panel only decides
-        // *that* a console exists, not how it scrolls.
+        // Rendered here rather than in the panel layer because the scroll position and the
+        // severity colours are toolkit state; the panel decides *that* a console exists and what
+        // it should show, and passes the latter in.
         for (const auto& [severity, message] : impl_->log)
         {
+            if (severity < options.minimumSeverity) { continue; }
+
             ImGui::PushStyleColor(ImGuiCol_Text, toImGuiColor(severity));
             ImGui::TextUnformatted(message.c_str());
             ImGui::PopStyleColor();
         }
 
-        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) { ImGui::SetScrollHereY(1.0f); }
+        // Only follow the tail when asked, and only when already at it: a user who has scrolled up
+        // to read something is reading it, and dragging them back down is how a console becomes
+        // useless exactly when it matters.
+        if (options.autoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+        {
+            ImGui::SetScrollHereY(1.0f);
+        }
+    }
+
+    std::string ImGuiEditorUi::getLogText(LogSeverity minimumSeverity) const
+    {
+        std::string text;
+        for (const auto& [severity, message] : impl_->log)
+        {
+            if (severity < minimumSeverity) { continue; }
+            text += message;
+            text += '\n';
+        }
+        return text;
+    }
+
+    void ImGuiEditorUi::clearLog() { impl_->log.clear(); }
+
+    void ImGuiEditorUi::setClipboardText(const std::string& text)
+    {
+        ImGui::SetClipboardText(text.c_str());
     }
 
     UiRegion ImGuiEditorUi::getContentRegion() const

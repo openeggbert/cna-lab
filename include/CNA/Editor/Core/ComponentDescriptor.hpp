@@ -46,6 +46,19 @@ namespace CNA::Editor
         /** @brief Allowed names when type is PropertyType::Enum; ignored otherwise. */
         std::vector<std::string> enumOptions;
 
+        /**
+         * @brief Which kind of asset an AssetReference field accepts, e.g. "Texture2D".
+         *
+         * Empty means any. Held as a string rather than as an AssetType so that this header stays
+         * in `cna-editor-core`, below the asset database that owns that enumeration -- and so a
+         * plugin can name an asset kind the editor was never compiled against.
+         *
+         * The inspector uses it to refuse a drop of the wrong kind. Nothing enforces it in the
+         * document model: a scene file that points a texture slot at a sound still loads, because
+         * refusing to open a project over a bad reference is worse than showing it.
+         */
+        std::string assetType;
+
         /** @brief Tooltip shown in the inspector. */
         std::string tooltip;
 

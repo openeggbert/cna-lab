@@ -25,7 +25,7 @@
 **Phase 0 is complete and Phase 1 is under way: the editor opens a scene, edits it and plays it.**
 The repository still builds and passes its full suite with no CNA checkout, no GPU and no window:
 
-- 12 modules, two executables, and **161 passing tests across 7 CTest suites** (9 with CNA)
+- 12 modules, two executables, and **175 passing tests across 7 CTest suites** (9 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -142,7 +142,7 @@ The editor opens, docks and renders through CNA's public API, verified by screen
 | ED-102 | `CNA_EDITOR_WITH_CNA=ON` build verified against real `../cna` + `../sharp-runtime` checkouts | ✅ | Fully built and linked, not just compile-checked. Needed SDL3's X11 dev packages and FFmpeg dev headers; CNA's `FATAL_ERROR` guidance for the sibling checkouts proved accurate |
 | ED-111 | **Window, graphics device, event loop; `--ui=imgui` becomes real** | ✅ | `runEditorInWindow` hosts the editor in a `Microsoft::Xna::Framework::Game`. The `Game` subclass stays inside the `.cpp` so CNA remains a *private* link dependency |
 | ED-112 | Default dock layout on first run; user's saved layout respected thereafter | ✅ | ImGui does not place windows into a dock space by itself — without this every panel floated stacked at the same position |
-| ED-114 | Console panel: severity filter, scroll-lock, copy | 🔄 | `drawLogView` renders coloured, auto-scrolling messages; filtering and copy remain |
+| ED-114 | Console panel: severity filter, scroll-lock, copy | ✅ | Copy takes what the filter is showing, not everything — copying hidden messages would be a surprise. Auto-scroll only follows the tail when already at it, so scrolling up to read an error is not undone by the next frame's logging |
 | ED-119 | **Leading glyph missing from docked tab labels** | ✅ | Fixed. Texture uploads happened in the draw phase, but Dear ImGui marks a request satisfied the instant it is issued and a fixed-timestep loop runs many update frames without a draw — so glyphs first needed on such a frame were acknowledged and never uploaded. Uploads moved into the update phase; guarded by `ImGuiUiRequestsAnUpdateWhenNewGlyphsAppear`. Full write-up: docs/SPIKE-IMGUI-CNA.md §8 |
 | ED-124 | Editor verified on a second backend (EASYGL, real OpenGL ES 3.2 under Xvfb) | ✅ | Pixel-identical output to SOFTWARE — the property ED-510's comparison mode will check automatically, confirmed by hand |
 | ED-123 | `--screenshot=PATH` and the `CnaEditorWindowSmoke` CTest | ✅ | The mechanism plan.md ED-510's backend comparison mode will capture through |
@@ -167,7 +167,7 @@ real window, shows five docked panels, and renders the three-entity scene in the
 
 | Id | Task | Status | Notes |
 |----|------|:------:|-------|
-| ED-200 | Hierarchy panel: rename in place, drag-to-reparent, context menu, multi-select | ⬜ | Every operation through a command (D-06) |
+| ED-200 | Hierarchy panel: rename in place, drag-to-reparent, context menu, multi-select | ✅ | Every operation through a command (D-06). Structural changes are deferred to the end of the frame — a reparent reorders the child lists the recursion is walking. An empty rename is treated as a slip and keeps the old name; dropping a parent onto its own descendant is refused with a reason rather than pushing a command that does nothing |
 | ED-201 | Sprite rendering resolves textures through `AssetDatabase`, ordered by layer depth | ⬜ | |
 | ED-202 | Grid with adaptive spacing | ✅ | Done as ED-125 |
 | ED-203 | Selection outline as an overlay pass | ✅ | Drawn in a third `SpriteBatch` pass after the content, never as scene geometry |
@@ -175,7 +175,7 @@ real window, shows five docked panels, and renders the three-entity scene in the
 | ED-205 | Translate gizmo, with merged undo across the drag | ✅ | Geometry, hit-testing and the drag are CNA-free and unit-tested; the drag measures from the grab point rather than accumulating, so it cannot drift. One drag is one undo entry — the first edit opens it and the rest merge in, which is also what keeps two separate drags of the same entity from collapsing together |
 | ED-206 | Ray-cast picking against entity bounds | ✅ | Done as ED-126. CNA-free and unit-tested, so "clicking selects the wrong thing" is caught in CI rather than by hand |
 | ED-207 | Inspector: add and remove components, respecting `unique` and `required` | ✅ | The picker lists only what can actually be added, so a `unique` component already present is never on offer. A `required` component gets no Remove button rather than a dead one. Removal is by index, not by type — clicking Remove on the second audio source has to delete that one, and the two are indistinguishable afterwards if it does not |
-| ED-208 | Asset drag-and-drop from the browser onto a sprite slot | ⬜ | |
+| ED-208 | Asset drag-and-drop from the browser onto a sprite slot | ✅ | A slot declares the asset kind it takes and refuses anything else, naming both kinds. Accepting a sound into a texture slot would give a scene that loads and a sprite that never appears, with nothing to explain it. The kind is a string on `PropertyDescriptor`, not an `AssetType`, so the descriptor header stays below the asset database and a plugin can name a kind the editor never saw |
 | ED-209 | Keyboard shortcuts: Ctrl+Z/Y/S/N/D, Delete, F to frame, W/E/R for gizmo modes | ✅ | Each shortcut and its menu item call the same method, so the two cannot drift apart. Modifiers are matched exactly, so Ctrl+Shift+Z does not also fire Ctrl+Z's undo, and every shortcut is suppressed while a text field has the keyboard. `E`/`R` select modes whose manipulator does not exist yet and say so in the console rather than letting the gizmo silently vanish |
 | ED-210 | Split the panels out of `EditorApplication` into their own classes | ⬜ | Deliberately deferred until there is enough of a panel to be worth separating |
 

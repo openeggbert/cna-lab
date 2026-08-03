@@ -20,6 +20,7 @@
  */
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -108,6 +109,50 @@ namespace CNA::Editor
         float dragDeltaY = 0.0f;
     };
 
+    /** @brief How the console panel wants its messages shown. */
+    struct UiLogViewOptions
+    {
+        /** @brief Messages below this severity are hidden. */
+        LogSeverity minimumSeverity = LogSeverity::Trace;
+
+        /**
+         * @brief Keep the newest message in view.
+         *
+         * Turned off, the view stays where the user put it. That is the whole point of a
+         * scroll-lock: reading an error is impossible if every new frame's logging drags the
+         * view away from it.
+         */
+        bool autoScroll = true;
+    };
+
+    /** @brief What happened to a tree node during one frame. */
+    struct UiTreeNodeResult
+    {
+        /** @brief True when the node is expanded and its children should be drawn. */
+        bool expanded = false;
+
+        /** @brief True on the frame the node is clicked. */
+        bool clicked = false;
+
+        /** @brief True on the frame the node is double-clicked, which starts a rename. */
+        bool doubleClicked = false;
+    };
+
+    /** @brief What happened to a text field during one frame. */
+    struct UiTextFieldResult
+    {
+        /** @brief True when the text was edited this frame. */
+        bool changed = false;
+
+        /**
+         * @brief True when the edit ended -- Enter pressed, or focus moved elsewhere.
+         *
+         * The two are one signal on purpose: clicking away from a rename field is as much a
+         * "yes, that is the name" as pressing Enter is, and treating it as a cancel loses work.
+         */
+        bool committed = false;
+    };
+
     /**
      * @brief The immediate-mode UI surface.
      *
@@ -177,15 +222,65 @@ namespace CNA::Editor
          * @param label Displayed text.
          * @param selected Whether the node is currently selected.
          * @param leaf When true the node draws no expander.
-         * @param[out] outClicked Set when the user clicked the node this frame.
-         * @return True when the node is expanded and its children should be drawn.
          */
-        virtual bool treeNode(const Uuid& id,
-                              const std::string& label,
-                              bool selected,
-                              bool leaf,
-                              bool& outClicked) = 0;
+        virtual UiTreeNodeResult treeNode(const Uuid& id,
+                                          const std::string& label,
+                                          bool selected,
+                                          bool leaf) = 0;
         virtual void treePop() = 0;
+
+        /**
+         * @brief Draws a single-line text field.
+         *
+         * @param id Stable identity for the field.
+         * @param text Edited in place.
+         * @param takeFocus Ask for keyboard focus, for a field that has only just appeared.
+         */
+        virtual UiTextFieldResult inputText(const std::string& id, std::string& text, bool takeFocus = false)
+        {
+            (void)id;
+            (void)text;
+            (void)takeFocus;
+            return UiTextFieldResult{};
+        }
+
+        /** @brief Returns the modifier keys held this frame. */
+        [[nodiscard]] virtual UiKeyModifiers getModifiers() const { return UiKeyModifiers{}; }
+
+        /**
+         * @brief Offers the widget just drawn as a drag source carrying @p payload.
+         *
+         * @param type A short key naming what is being dragged, e.g. "entity" or "asset". A drop
+         *        target accepts one type, so a scene entity cannot be dropped onto a texture slot.
+         * @param payload The dragged value, as text. A Uuid in every current use.
+         * @param label What to show under the cursor while dragging.
+         */
+        virtual void setDragSource(const std::string& type,
+                                   const std::string& payload,
+                                   const std::string& label)
+        {
+            (void)type;
+            (void)payload;
+            (void)label;
+        }
+
+        /**
+         * @brief Accepts a drop of @p type onto the widget just drawn.
+         * @return The payload on the frame a drop completes, otherwise std::nullopt.
+         */
+        [[nodiscard]] virtual std::optional<std::string> acceptDrop(const std::string& type)
+        {
+            (void)type;
+            return std::nullopt;
+        }
+
+        /**
+         * @brief Opens a right-click context menu attached to the widget just drawn.
+         * @return False when the menu is closed; the caller must then skip its items but must
+         *         still not call endContextMenu().
+         */
+        virtual bool beginContextMenu(const std::string& id) { (void)id; return false; }
+        virtual void endContextMenu() {}
 
         /** @brief Begins a menu in the main menu bar. */
         virtual bool beginMenu(const std::string& label) = 0;
@@ -275,10 +370,28 @@ namespace CNA::Editor
          * @brief Draws the accumulated console messages.
          *
          * Called by the console panel. The messages live in the implementation because the scroll
-         * position, severity colouring and auto-scroll behaviour are all toolkit state -- the
-         * panel decides only *that* a console exists.
+         * position and severity colouring are toolkit state; the panel decides *that* a console
+         * exists and what it should show, and passes the latter in.
          */
-        virtual void drawLogView() {}
+        virtual void drawLogView(const UiLogViewOptions& options = {}) { (void)options; }
+
+        /**
+         * @brief Returns the console's messages as one block of text, newest last.
+         *
+         * Used by the console's Copy button. Filtered the same way the view is, so what lands on
+         * the clipboard is what the user can see -- copying hidden messages would be a surprise.
+         */
+        [[nodiscard]] virtual std::string getLogText(LogSeverity minimumSeverity = LogSeverity::Trace) const
+        {
+            (void)minimumSeverity;
+            return {};
+        }
+
+        /** @brief Discards every console message. */
+        virtual void clearLog() {}
+
+        /** @brief Puts @p text on the system clipboard. */
+        virtual void setClipboardText(const std::string& text) { (void)text; }
     };
 
     /**
@@ -323,11 +436,10 @@ namespace CNA::Editor
                            const std::vector<std::string>& enumOptions = {},
                            bool readOnly = false) override;
 
-        bool treeNode(const Uuid& id,
-                      const std::string& label,
-                      bool selected,
-                      bool leaf,
-                      bool& outClicked) override;
+        UiTreeNodeResult treeNode(const Uuid& id,
+                                  const std::string& label,
+                                  bool selected,
+                                  bool leaf) override;
         void treePop() override {}
 
         bool beginMenu(const std::string& label) override { (void)label; return false; }
@@ -360,6 +472,13 @@ namespace CNA::Editor
 
         void log(LogSeverity severity, const std::string& message) override;
 
+        [[nodiscard]] std::string getLogText(LogSeverity minimumSeverity = LogSeverity::Trace) const override;
+        void clearLog() override { log_.clear(); }
+        void setClipboardText(const std::string& text) override { clipboard_ = text; }
+
+        /** @brief Returns whatever was last copied. Lets a test assert on the Copy button. */
+        [[nodiscard]] const std::string& getClipboardText() const { return clipboard_; }
+
         /** @brief Asks the next beginFrame() to report exit. Used by `--frames N` and by tests. */
         void requestExit() { running_ = false; }
 
@@ -384,6 +503,7 @@ namespace CNA::Editor
         std::uint64_t frameCount_ = 0;
         std::vector<PendingShortcut> shortcuts_;
         std::vector<LogEntry> log_;
+        std::string clipboard_;
         std::vector<std::string> currentFramePanels_;
         std::vector<std::string> lastFramePanels_;
     };

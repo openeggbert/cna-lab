@@ -76,12 +76,23 @@ namespace CNA::Editor
                            const std::vector<std::string>& enumOptions = {},
                            bool readOnly = false) override;
 
-        bool treeNode(const Uuid& id,
-                      const std::string& label,
-                      bool selected,
-                      bool leaf,
-                      bool& outClicked) override;
+        UiTreeNodeResult treeNode(const Uuid& id,
+                                  const std::string& label,
+                                  bool selected,
+                                  bool leaf) override;
         void treePop() override;
+
+        UiTextFieldResult inputText(const std::string& id, std::string& text, bool takeFocus = false) override;
+
+        [[nodiscard]] UiKeyModifiers getModifiers() const override;
+
+        void setDragSource(const std::string& type,
+                           const std::string& payload,
+                           const std::string& label) override;
+        [[nodiscard]] std::optional<std::string> acceptDrop(const std::string& type) override;
+
+        bool beginContextMenu(const std::string& id) override;
+        void endContextMenu() override;
 
         bool beginMenu(const std::string& label) override;
         void endMenu() override;
@@ -93,7 +104,10 @@ namespace CNA::Editor
 
         void separator() override;
         void sameLine() override;
-        void drawLogView() override;
+        void drawLogView(const UiLogViewOptions& options = {}) override;
+        [[nodiscard]] std::string getLogText(LogSeverity minimumSeverity = LogSeverity::Trace) const override;
+        void clearLog() override;
+        void setClipboardText(const std::string& text) override;
 
         [[nodiscard]] UiRegion getContentRegion() const override;
         UiImageInteraction image(const std::string& id,
