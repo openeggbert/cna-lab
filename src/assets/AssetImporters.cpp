@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Assets/AssetImporters.hpp"
 
+#include "CNA/Editor/Assets/ModelImport.hpp"
+
 #include <array>
 #include <cstdint>
 #include <fstream>
@@ -67,11 +69,31 @@ namespace CNA::Editor
         }
 
         /**
+         * @brief Merges @p facts into @p record's sidecar, but only where a value would change.
+         *
+         * @return True when something was written.
+         */
+        bool writeFactsIfChanged(AssetDatabase& assets, const AssetRecord& record,
+                                 const JsonValue& facts);
+
+        /**
          * @brief Writes what a `.spritefont` says about itself into its sidecar.
          *
          * @return True when something changed, so that opening a project twice produces no diff.
          */
         bool applySpriteFontFacts(AssetDatabase& assets, const AssetRecord& record);
+
+        /**
+         * @brief Writes what a model file says about itself into its sidecar.
+         *
+         * The most expensive facts pass the editor has, because glTF states none of these in a
+         * header -- a triangle count is the sum of every primitive's, so the whole file has to be
+         * read to find it. `writeFactsIfChanged` is what keeps that cost from turning into sidecar
+         * churn on every open.
+         *
+         * @return True when something changed.
+         */
+        bool applyModelFacts(AssetDatabase& assets, const AssetRecord& record);
     }
 
     namespace
@@ -215,12 +237,36 @@ namespace CNA::Editor
             scale.minimum = 0.0001;
             scale.maximum = 10000.0;
 
+            // What the file says about itself, read by `Detail::applyModelFacts`. Read-only for
+            // the reason the sprite font's are: these are answers taken from the file, and an
+            // editable copy would be a second answer to a settled question. They are also the only
+            // way to tell a model that imported cleanly from one whose geometry was skipped --
+            // "0 triangles" beside a 4 MB file is the whole diagnosis.
+            const auto fact = [](std::string name, std::string display, PropertyType type,
+                                 PropertyValue defaultValue, std::string tooltip) {
+                PropertyDescriptor property = makeProperty(std::move(name), std::move(display), type,
+                                                           std::move(defaultValue), std::move(tooltip));
+                property.readOnly = true;
+                return property;
+            };
+
             descriptor.properties = {
                 std::move(scale),
                 makeProperty("importMaterials", "Import Materials", PropertyType::Boolean,
                              PropertyValue{true}),
                 makeProperty("importAnimations", "Import Animations", PropertyType::Boolean,
-                             PropertyValue{true}),
+                             PropertyValue{true},
+                             "Declared but not yet read: animation needs a skeleton to drive, and "
+                             "the imported mesh has no node hierarchy to be one. See ED-405."),
+                fact("meshCount", "Meshes", PropertyType::Integer, PropertyValue{0},
+                     "Drawable parts -- one per glTF primitive, since a primitive is the largest "
+                     "span with a single material."),
+                fact("vertexCount", "Vertices", PropertyType::Integer, PropertyValue{0}, ""),
+                fact("triangleCount", "Triangles", PropertyType::Integer, PropertyValue{0}, ""),
+                fact("materialCount", "Materials", PropertyType::Integer, PropertyValue{0}, ""),
+                fact("modelSize", "Size", PropertyType::Vector3, PropertyValue{EditorVector3{}},
+                     "The model's extent in world units, after Scale Factor. Answers \"why is this "
+                     "thing the size of a building\" without placing it in a scene first."),
             };
             return descriptor;
         }
@@ -366,23 +412,13 @@ namespace CNA::Editor
         return std::nullopt;
     }
 
-    bool Detail::applySpriteFontFacts(AssetDatabase& assets, const AssetRecord& record)
+    bool Detail::writeFactsIfChanged(AssetDatabase& assets, const AssetRecord& record,
+                                     const JsonValue& facts)
     {
-        const std::optional<SpriteFontDescription> description =
-            readSpriteFontDescription(assets.resolvePath(record.sourcePath));
-        if (!description) { return false; }
-
-        JsonValue facts = JsonValue::makeObject();
-        facts.set("fontName", JsonValue{description->fontName});
-        facts.set("pointSize", JsonValue{static_cast<double>(description->pointSize)});
-        facts.set("spacing", JsonValue{static_cast<double>(description->spacing)});
-        facts.set("useKerning", JsonValue{description->useKerning});
-        facts.set("characterRange", JsonValue{std::to_string(description->firstCharacter) + "-"
-                                              + std::to_string(description->lastCharacter)});
-
-        // Compared before writing, so that opening a project twice produces no diff -- the same
-        // rule the texture facts follow, and the one that keeps `--headless` safe to run against a
-        // repository you want left alone.
+        // Compared before writing, so that opening a project twice produces no diff. That is the
+        // rule every facts pass follows, and the one that keeps `--headless` safe to run against a
+        // repository you want left alone -- which is why it is one function rather than a passage
+        // copied into each of them.
         bool unchanged = true;
         for (const auto& [name, value] : facts.getMembers())
         {
@@ -407,6 +443,51 @@ namespace CNA::Editor
         }
         assets.writeSidecar(record.id);
         return true;
+    }
+
+    bool Detail::applySpriteFontFacts(AssetDatabase& assets, const AssetRecord& record)
+    {
+        const std::optional<SpriteFontDescription> description =
+            readSpriteFontDescription(assets.resolvePath(record.sourcePath));
+        if (!description) { return false; }
+
+        JsonValue facts = JsonValue::makeObject();
+        facts.set("fontName", JsonValue{description->fontName});
+        facts.set("pointSize", JsonValue{static_cast<double>(description->pointSize)});
+        facts.set("spacing", JsonValue{static_cast<double>(description->spacing)});
+        facts.set("useKerning", JsonValue{description->useKerning});
+        facts.set("characterRange", JsonValue{std::to_string(description->firstCharacter) + "-"
+                                              + std::to_string(description->lastCharacter)});
+
+        return writeFactsIfChanged(assets, record, facts);
+    }
+
+    bool Detail::applyModelFacts(AssetDatabase& assets, const AssetRecord& record)
+    {
+        // The model's own `scaleFactor` decides what its size *means*, so the facts are gathered
+        // with the setting the sidecar already holds. Reporting a size measured at 1.0 next to a
+        // scale factor of 100 would be two answers to one question, which is the thing the
+        // fact/setting split exists to prevent.
+        ModelImportSettings settings;
+        const JsonValue& storedScale = record.importerSettings["scaleFactor"];
+        if (!storedScale.isNull())
+        {
+            settings.scaleFactor =
+                PropertyValue::fromJson(storedScale, PropertyType::Float).get<float>();
+        }
+
+        const std::optional<ModelDescription> description =
+            readModelDescription(assets.resolvePath(record.sourcePath), settings);
+        if (!description) { return false; }
+
+        JsonValue facts = JsonValue::makeObject();
+        facts.set("meshCount", JsonValue{static_cast<double>(description->partCount)});
+        facts.set("vertexCount", JsonValue{static_cast<double>(description->vertexCount)});
+        facts.set("triangleCount", JsonValue{static_cast<double>(description->triangleCount)});
+        facts.set("materialCount", JsonValue{static_cast<double>(description->materialCount)});
+        facts.set("modelSize", PropertyValue{description->size}.toJson());
+
+        return writeFactsIfChanged(assets, record, facts);
     }
 
     std::optional<SpriteFontDescription> readSpriteFontDescription(const std::string& path)
@@ -454,6 +535,11 @@ namespace CNA::Editor
             if (record->type == AssetType::SpriteFont)
             {
                 changed += Detail::applySpriteFontFacts(assets, *record) ? 1 : 0;
+                continue;
+            }
+            if (record->type == AssetType::Model)
+            {
+                changed += Detail::applyModelFacts(assets, *record) ? 1 : 0;
                 continue;
             }
             if (record->type != AssetType::Texture2D) { continue; }

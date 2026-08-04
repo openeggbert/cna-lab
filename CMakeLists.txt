@@ -91,6 +91,7 @@ add_library(cna-editor-core STATIC
     src/core/CommandHistory.cpp
     src/core/FormatMigration.cpp
     src/core/ImageDiff.cpp
+    src/core/MeshData.cpp
     src/core/EditorMatrix.cpp)
 target_link_libraries(cna-editor-core PUBLIC cna-editor-settings)
 
@@ -118,14 +119,31 @@ add_library(cna-editor-scene STATIC
     src/viewport/NullEditorViewport.cpp)
 target_link_libraries(cna-editor-scene PUBLIC cna-editor-core)
 
+# cgltf, vendored. Header-only C99, so the one translation unit that instantiates it is ours;
+# see THIRD_PARTY_NOTICES.md. Built unconditionally and with no option to turn it off, unlike
+# ImGui and unlike CNA: it has no system dependencies, it is what makes the glTF importer work in
+# the default CNA-free build, and an importer that some builds have and others do not would be a
+# second configuration to reason about for no gain. Warnings off, as the ImGui vendor target is.
+add_library(cna-editor-cgltf-vendor STATIC third_party/cgltf/cgltf_impl.cpp)
+target_include_directories(cna-editor-cgltf-vendor SYSTEM PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/cgltf")
+target_compile_features(cna-editor-cgltf-vendor PUBLIC cxx_std_23)
+if(NOT MSVC)
+    target_compile_options(cna-editor-cgltf-vendor PRIVATE -w)
+endif()
+
 # cna-editor-assets -- stable asset identity, sidecars, dependency and reimport tracking.
+# cgltf is linked PRIVATE: it is an implementation detail of ModelImport.cpp, and `MeshData` --
+# the thing every other module actually wants -- is in cna-editor-core and mentions no cgltf type.
 add_library(cna-editor-assets STATIC
     src/assets/AssetDatabase.cpp
     src/assets/AssetCommands.cpp
     src/assets/AssetWatcher.cpp
     src/assets/AssetImporters.cpp
+    src/assets/ModelImport.cpp
+    src/assets/MeshCache.cpp
     src/assets/AssetTree.cpp)
-target_link_libraries(cna-editor-assets PUBLIC cna-editor-core)
+target_link_libraries(cna-editor-assets PUBLIC cna-editor-core PRIVATE cna-editor-cgltf-vendor)
 
 # cna-editor-project -- the .cnaproject format and the backend capability table.
 add_library(cna-editor-project STATIC

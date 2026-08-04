@@ -10,6 +10,7 @@ add_executable(cna-editor-tests
     SceneTests.cpp
     CommandTests.cpp
     ProjectAndAssetTests.cpp
+    ModelImportTests.cpp
     ApplicationTests.cpp
     UiTests.cpp
     PlayerTests.cpp
@@ -62,6 +63,20 @@ set_tests_properties(CnaEditorHeadlessSmoke3D PROPERTIES TIMEOUT 60)
 # that cannot see the window it asked for, and a typo there must not pass quietly.
 add_test(NAME CnaEditorRejectsUnknownView COMMAND cna-editor --view=isometric)
 set_tests_properties(CnaEditorRejectsUnknownView PROPERTIES WILL_FAIL TRUE)
+
+# The same rule for --orbit, and for the same reason: it exists to make a 3D screenshot
+# reproducible, so a run that quietly kept the default angle would produce a picture that looks
+# fine and shows the wrong thing.
+add_test(NAME CnaEditorRejectsMalformedOrbit COMMAND cna-editor --view=3d --orbit=35)
+set_tests_properties(CnaEditorRejectsMalformedOrbit PROPERTIES WILL_FAIL TRUE)
+
+# And the flag working, headless, over a project with a model in it -- which is also the smoke
+# test for ED-405's mesh path: the wireframe builder walks a real imported glTF here rather than
+# the bounding box it drew before.
+add_test(NAME CnaEditorHeadlessSmoke3DOrbited
+    COMMAND cna-editor --headless --view=3d --orbit=35,25
+        --project=${CMAKE_CURRENT_SOURCE_DIR}/../examples/HelloSprites/HelloSprites.cnaproject)
+set_tests_properties(CnaEditorHeadlessSmoke3DOrbited PROPERTIES TIMEOUT 60)
 
 add_test(NAME CnaEditorHelp COMMAND cna-editor --help)
 add_test(NAME CnaEditorListBackends COMMAND cna-editor --list-backends)
