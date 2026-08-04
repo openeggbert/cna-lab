@@ -1192,6 +1192,78 @@ CNA_EDITOR_TEST(AScaleDragResizesTheSelectedEntity)
     CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 100.0f);
 }
 
+namespace
+{
+    /** @brief Adds a transform-only entity, optionally parented, and returns its id. */
+    Uuid addPlainEntity(EditorContext& context, const std::string& name, const Uuid& parentId)
+    {
+        EditorEntity entity{Uuid::generate(), name};
+        EditorComponent transform{BuiltinComponentIds::kTransform};
+        transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+        entity.addComponent(std::move(transform));
+
+        const Uuid id = context.getScene().addEntity(std::move(entity));
+        if (parentId.isValid()) { context.getScene().reparentEntity(id, parentId); }
+        return id;
+    }
+}
+
+CNA_EDITOR_TEST(DuplicatingASelectionIsOneUndoEntry)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+    CommandHistory& history = context.getHistory();
+
+    const Uuid crate = addPlainEntity(context, "Crate", Uuid{});
+    addPlainEntity(context, "Lid", crate);
+    const std::size_t populated = context.getScene().getEntityCount();
+
+    context.setSelection({fixture.entityId, crate});
+    fixture.step(UiImageInteraction{});
+
+    const std::size_t before = history.getCount();
+    fixture.ui->pressShortcut(UiKey::D, withControl());
+    fixture.step(UiImageInteraction{});
+
+    // Two entities duplicated -- three new ones, since the crate brings its lid -- and one undo
+    // entry for the lot, rather than one per entity.
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), before + 1);
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), populated + 3);
+
+    CNA_EDITOR_EXPECT(history.undo());
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), populated);
+}
+
+CNA_EDITOR_TEST(DeletingASelectionIsOneUndoEntry)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+    CommandHistory& history = context.getHistory();
+
+    const Uuid crate = addPlainEntity(context, "Crate", Uuid{});
+    const Uuid lid = addPlainEntity(context, "Lid", crate);
+    const std::size_t populated = context.getScene().getEntityCount();
+
+    // Three selected, one of them a child of another.
+    context.setSelection({fixture.entityId, crate, lid});
+    fixture.step(UiImageInteraction{});
+
+    const std::size_t before = history.getCount();
+    fixture.ui->pressShortcut(UiKey::Delete);
+    fixture.step(UiImageInteraction{});
+
+    // All three gone, in one entry: deleting a child whose parent is also selected is not a second
+    // command, because the parent's delete took the subtree with it.
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), before + 1);
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), populated - 3);
+
+    // And one Ctrl+Z brings all of them back, rather than one at a time through arrangements the
+    // scene was never in.
+    CNA_EDITOR_EXPECT(history.undo());
+    CNA_EDITOR_EXPECT_EQ(context.getScene().getEntityCount(), populated);
+    CNA_EDITOR_EXPECT(context.getScene().findEntity(lid) != nullptr);
+}
+
 CNA_EDITOR_TEST(AGizmoDragOnAMultiSelectionMovesEveryEntityAsOneUndoEntry)
 {
     GizmoFixture fixture = makeGizmoFixture();

@@ -539,7 +539,14 @@ CNA_EDITOR_TEST(TwoRealPlayersAreComparedAgainstEachOther)
     // is made unique by the run itself, which is what lets the reader tell them apart.
     const ImageReader reader = [](const std::string& path) {
         ImageBuffer image = makeSolidImage(4, 4, 10, 20, 30);
-        if (path.find("-2") != std::string::npos) { setPixel(image, 0, 0, 200, 20, 30); }
+
+        // The *stem*, not the whole path: the scratch directory's name contains a Uuid, and a Uuid
+        // that happened to contain "-2" made both captures look like the second one -- which made
+        // this test pass or fail depending on random hex.
+        if (std::filesystem::path{path}.stem().generic_string().ends_with("-2"))
+        {
+            setPixel(image, 0, 0, 200, 20, 30);
+        }
         return image;
     };
 

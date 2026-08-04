@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 341 / 341 (also under Clang Release) |
+| Unit tests | ✅ 343 / 343 (also under Clang Release) |
 | CTest (standalone) | ✅ 8 / 8 |
 | CTest (CNA config) | ✅ 12 / 12 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -89,6 +89,15 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **Delete and duplicate a selection as one undo entry**, plus JPEG dimensions. Both already acted
+  on the whole selection; what they did not do was undo as one action. `CompositeCommand` (new, in
+  core) holds several commands and undoes them in reverse, which is also what makes it safe to build
+  out of commands that depend on each other's effects. Delete takes the selection's *roots* -- the
+  same helper the gizmo uses -- since a delete carries the subtree with it and asking again for a
+  child would push a command that finds nothing.
+  Fixed on the way: `TwoRealPlayersAreComparedAgainstEachOther` was flaky. It told the two captures
+  apart by looking for "-2" anywhere in the path, and the scratch directory's name contains a Uuid
+  -- so the test passed or failed depending on random hex. It matches the filename stem now.
 - **A gizmo on a multi-selection.** With Ctrl+click able to build one, the gizmo being stuck on the
   primary selection had become the obvious gap. It now sits on the selection's **shared pivot** --
   the average of the members' world positions, not the bounding box's centre, which would move when
@@ -440,9 +449,6 @@ What follows is a judgement call rather than a queue.
 2. **A snap setting in the viewport toolbar.** Ctrl snaps to the visible grid, 15 degrees and
    tenths, all fixed. A project that lays out on a 16-pixel tile grid wants to say so once rather
    than zooming until the grid happens to agree.
-3. **Duplicate and delete for a whole selection.** `Ctrl+D` and `Delete` still act on the primary
-   selection; now that Ctrl+click builds a real multi-selection and the gizmo honours it, those two
-   are the obvious next things to notice.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
 chains are empty on purpose. Adding a property type must not change what an existing scene file

@@ -588,14 +588,23 @@ namespace CNA::Editor
         const std::vector<Uuid> sources = context_.getSelection();
         std::vector<Uuid> copies;
 
+        // One entry for the whole action. Duplicating five entities is one press of Ctrl+D, so
+        // undoing it is one press of Ctrl+Z -- and five separate entries would put the copies back
+        // one at a time, through states that never existed.
+        auto batch = std::make_unique<CompositeCommand>(
+            "Duplicate " + std::to_string(sources.size())
+            + (sources.size() == 1 ? " entity" : " entities"));
+
         for (const Uuid& sourceId : sources)
         {
             auto command = std::make_unique<DuplicateEntityCommand>(context_.getScene(), sourceId);
             if (!command->isValid()) { continue; }
 
             copies.push_back(command->getEntityId());
-            context_.execute(std::move(command));
+            batch->add(std::move(command));
         }
+
+        if (!batch->isEmpty()) { context_.execute(std::move(batch)); }
 
         // Selecting the copies is what makes "duplicate, then drag it somewhere" work without a
         // trip back to the hierarchy panel.
@@ -604,13 +613,27 @@ namespace CNA::Editor
 
     void EditorApplication::deleteSelection()
     {
-        for (const Uuid& entityId : context_.getSelection())
+        // Roots only: a delete takes the whole subtree with it, so a selected descendant of a
+        // selected entity is already accounted for. Asking to delete it separately would push a
+        // command that finds nothing. This is the same rule the multi-selection gizmo follows, and
+        // the same helper.
+        const std::vector<Uuid> doomed = findSelectionRoots(context_.getScene(), context_.getSelection());
+        if (doomed.empty()) { return; }
+
+        auto batch = std::make_unique<CompositeCommand>(
+            "Delete " + std::to_string(doomed.size()) + (doomed.size() == 1 ? " entity" : " entities"));
+
+        for (const Uuid& entityId : doomed)
         {
-            // A selected descendant of another selected entity is already gone by now, and asking
-            // to delete it again would add an undo entry that does nothing.
             if (context_.getScene().findEntity(entityId) == nullptr) { continue; }
-            context_.execute(std::make_unique<DeleteEntityCommand>(context_.getScene(), entityId));
+            batch->add(std::make_unique<DeleteEntityCommand>(context_.getScene(), entityId));
         }
+
+        if (batch->isEmpty()) { return; }
+
+        // One entry for the whole action, undone in reverse so each subtree comes back into a
+        // document shaped the way its command left it.
+        context_.execute(std::move(batch));
         context_.pruneSelection();
     }
 

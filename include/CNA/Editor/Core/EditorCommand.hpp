@@ -64,6 +64,53 @@ namespace CNA::Editor
         virtual bool mergeWith(const EditorCommand& newer) { (void)newer; return false; }
     };
 
+    /**
+     * @brief Several commands that undo and redo as one.
+     *
+     * For actions that are one thing to the user and several to the document: deleting a selection
+     * of five entities is one press of Delete, and undoing it should be one press of Ctrl+Z rather
+     * than five. Five separate entries would also undo *one at a time*, walking the document back
+     * through arrangements it was never in.
+     *
+     * Undone in reverse order, which is what makes a composite safe to build out of commands that
+     * depend on each other's effects.
+     */
+    class CompositeCommand final : public EditorCommand
+    {
+    public:
+        explicit CompositeCommand(std::string description) : description_(std::move(description)) {}
+
+        /** @brief Adds a command. Ignores null, so a caller can add the result of a failed build. */
+        void add(std::unique_ptr<EditorCommand> command)
+        {
+            if (command) { commands_.push_back(std::move(command)); }
+        }
+
+        [[nodiscard]] bool isEmpty() const { return commands_.empty(); }
+        [[nodiscard]] std::size_t getCount() const { return commands_.size(); }
+
+        void execute() override
+        {
+            for (const std::unique_ptr<EditorCommand>& command : commands_) { command->execute(); }
+        }
+
+        void undo() override
+        {
+            // Reverse order: a later command may depend on what an earlier one did, so undoing
+            // forwards would ask the earlier one to reverse a state it never produced.
+            for (auto command = commands_.rbegin(); command != commands_.rend(); ++command)
+            {
+                (*command)->undo();
+            }
+        }
+
+        [[nodiscard]] std::string getDescription() const override { return description_; }
+
+    private:
+        std::vector<std::unique_ptr<EditorCommand>> commands_;
+        std::string description_;
+    };
+
     /** @brief Whether a pushed command may collapse into the previous one. */
     enum class MergePolicy
     {
