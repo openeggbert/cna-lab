@@ -53,6 +53,8 @@ namespace CNA::Editor
                 case UiKey::F1: return ImGuiKey_F1;
                 case UiKey::F2: return ImGuiKey_F2;
                 case UiKey::F5: return ImGuiKey_F5;
+                case UiKey::Digit2: return ImGuiKey_2;
+                case UiKey::Digit3: return ImGuiKey_3;
                 case UiKey::None:
                 case UiKey::Count: break;
             }

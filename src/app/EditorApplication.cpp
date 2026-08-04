@@ -517,10 +517,16 @@ namespace CNA::Editor
         if (ui_->isShortcutPressed(UiKey::F2)) { beginRename(context_.getPrimarySelection()); }
         if (ui_->isShortcutPressed(UiKey::F)) { frameSelection(); }
 
+        // The view itself, on the digits that name it. Two keys rather than one toggle, unlike X
+        // below: a user coming back to the editor can press the view they want without first
+        // working out which one they are in. Digits also stay free while flying, which is exactly
+        // what W, E and R do not.
+        if (ui_->isShortcutPressed(UiKey::Digit2)) { setThreeDimensionalView(false); }
+        if (ui_->isShortcutPressed(UiKey::Digit3)) { setThreeDimensionalView(true); }
+
         // Not while the 3D view is on: there W, E and R fly the camera, and a key that both flew
-        // and silently changed which manipulator the 2D view would show on return is the kind of
-        // hidden state change that makes an editor feel haunted. There is no 3D gizmo to switch
-        // yet in any case (ED-401 covers the 2D three).
+        // and silently changed which manipulator was active is the kind of hidden state change
+        // that makes an editor feel haunted. The 3D view changes manipulator from the toolbar.
         if (!threeDimensionalView_)
         {
             if (ui_->isShortcutPressed(UiKey::W)) { setGizmoMode(GizmoMode::Translate); }

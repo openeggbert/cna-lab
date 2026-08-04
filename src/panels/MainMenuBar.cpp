@@ -62,7 +62,10 @@ namespace CNA::Editor
 
             // Same rule as the space item below: named for what pressing it does, because a menu
             // has no checkmark here to carry the state. The toolbar is where the state is shown.
-            if (ui_.menuItem(actions_.isThreeDimensionalView() ? "2D View" : "3D View"))
+            // The key that selects the view the item offers, not the one the user is in: the
+            // item and its shortcut have to do the same thing or the shortcut column is a lie.
+            if (ui_.menuItem(actions_.isThreeDimensionalView() ? "2D View" : "3D View",
+                             actions_.isThreeDimensionalView() ? "2" : "3"))
             {
                 actions_.setThreeDimensionalView(!actions_.isThreeDimensionalView());
             }

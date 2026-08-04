@@ -46,6 +46,10 @@ namespace CNA::Editor
         A, C, V, X, Y, Z,
         D, F, N, Q, S, W, E, R,
         F1, F2, F5,
+
+        // Digits, named rather than spelt, because an enumerator cannot begin with one. Appended
+        // rather than inserted, like every other addition to a list something else counts through.
+        Digit2, Digit3,
         Count
     };
 

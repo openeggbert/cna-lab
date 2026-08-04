@@ -3772,6 +3772,29 @@ CNA_EDITOR_TEST(TheGizmoKeysFlyRatherThanSwitchingManipulatorInTheThreeDimension
     CNA_EDITOR_EXPECT(fixture.application->getGizmoMode() == GizmoMode::Translate);
 }
 
+CNA_EDITOR_TEST(TheDigitsSelectTheViewAndKeepWorkingWhileFlying)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    CNA_EDITOR_EXPECT(!fixture.application->isThreeDimensionalView());
+
+    fixture.ui->pressShortcut(UiKey::Digit3);
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.application->isThreeDimensionalView());
+
+    // Pressed again it is not a toggle: a key named for the view it selects has to be safe to
+    // press when the user is already there.
+    fixture.ui->pressShortcut(UiKey::Digit3);
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.application->isThreeDimensionalView());
+
+    // And unlike W, E and R, it still works while the 3D view has the keyboard for flying.
+    fixture.application->setGizmoMode(GizmoMode::Scale);
+    fixture.ui->pressShortcut(UiKey::Digit2);
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(!fixture.application->isThreeDimensionalView());
+    CNA_EDITOR_EXPECT(fixture.application->getGizmoMode() == GizmoMode::Scale);
+}
+
 CNA_EDITOR_TEST(FramingAndPickingFollowWhicheverCameraIsOnScreen)
 {
     GizmoFixture fixture = makeGizmoFixture();
