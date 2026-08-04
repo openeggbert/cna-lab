@@ -34,7 +34,8 @@ namespace CNA::Editor
 
     SceneModelBatch buildSceneModelBatch(const SceneDocument& scene, const EditorCamera3D& camera,
                                          const MeshProvider& meshProvider,
-                                         const std::vector<Uuid>& selection)
+                                         const std::vector<Uuid>& selection,
+                                         const MaterialProvider& materialProvider)
     {
         SceneModelBatch batch;
         batch.environment = scene.getEnvironment();
@@ -89,6 +90,16 @@ namespace CNA::Editor
                 EditorVector3{static_cast<float>(scene.getEnvironment().ambientColor.r) / 255.0f,
                               static_cast<float>(scene.getEnvironment().ambientColor.g) / 255.0f,
                               static_cast<float>(scene.getEnvironment().ambientColor.b) / 255.0f};
+            // The override, when the entity names one and it can be resolved. An entity pointing at
+            // a material that has not loaded draws with its model's own rather than not at all --
+            // the same answer `MeshProvider` returning nullptr gets from the mesh side.
+            if (materialProvider)
+            {
+                const Uuid materialId =
+                    renderer->getProperty("material").get<PropertyValue::AssetReference>().id;
+                if (materialId.isValid()) { draw.materialOverride = materialProvider(materialId); }
+            }
+
             draw.selected =
                 std::find(selection.begin(), selection.end(), entity.getId()) != selection.end();
 

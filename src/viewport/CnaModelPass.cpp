@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <array>
+#include <optional>
 #include <vector>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
@@ -312,17 +313,31 @@ namespace CNA::Editor
         }
 
         /** @brief Applies @p material, or a neutral default when the part named none. */
-        void applyMaterial(const MeshData& mesh, int materialIndex, ModelPassStats& stats)
+        void applyMaterial(const MeshData& mesh, int materialIndex, ModelPassStats& stats,
+                           const std::optional<MeshMaterial>& override)
         {
+            // An override replaces every part's material, which is the only thing one material can
+            // mean for a model of several parts. ED-410's per-mesh list is the other answer.
+            if (override.has_value())
+            {
+                applyResolvedMaterial(*override, stats);
+                return;
+            }
+
             const bool named = materialIndex >= 0
                                && static_cast<std::size_t>(materialIndex) < mesh.materials.size();
 
             // glTF says an unnamed material means the *default* material, so a part with none is
             // drawn white rather than skipped -- MeshData.hpp's note on `materialIndex` says the
             // same thing to every consumer.
-            const MeshMaterial material = named ? mesh.materials[static_cast<std::size_t>(materialIndex)]
-                                                : MeshMaterial{};
+            applyResolvedMaterial(named ? mesh.materials[static_cast<std::size_t>(materialIndex)]
+                                        : MeshMaterial{},
+                                  stats);
+        }
 
+        /** @brief Sets @p material on whichever effect this build has. */
+        void applyResolvedMaterial(const MeshMaterial& material, ModelPassStats& stats)
+        {
             XnaGraphics::Texture2D* diffuse = resolveTexture(material.diffuseTexturePath, stats);
 
             if (pbr != nullptr)
@@ -613,7 +628,7 @@ namespace CNA::Editor
 
             for (const Impl::GpuPart& part : model->parts)
             {
-                impl_->applyMaterial(*draw.mesh, part.materialIndex, stats);
+                impl_->applyMaterial(*draw.mesh, part.materialIndex, stats, draw.materialOverride);
                 impl_->applyEffect();
 
                 device.SetVertexBuffer(part.vertices.get());

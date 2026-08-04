@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/EditorContext.hpp"
 
+#include <fstream>
+#include <iterator>
+
 #include <algorithm>
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
@@ -207,5 +210,47 @@ namespace CNA::Editor
     void EditorContext::log(LogSeverity severity, const std::string& message) const
     {
         if (logSink_) { logSink_(severity, message); }
+    }
+}
+
+namespace CNA::Editor
+{
+    MaterialProvider EditorContext::makeMaterialProvider()
+    {
+        return [this](const Uuid& assetId) -> std::optional<MeshMaterial>
+        {
+            const AssetRecord* record = assets_.find(assetId);
+            if (record == nullptr || record->type != AssetType::Material) { return std::nullopt; }
+
+            std::ifstream stream{assets_.resolvePath(record->sourcePath)};
+            if (!stream) { return std::nullopt; }
+
+            const std::string text{std::istreambuf_iterator<char>{stream},
+                                   std::istreambuf_iterator<char>{}};
+            const JsonParseResult parsed = Json::parse(text);
+            if (!parsed.succeeded) { return std::nullopt; }
+
+            MaterialDocument material;
+            if (!material.loadFromJson(parsed.value)) { return std::nullopt; }
+
+            MeshMaterial resolved = material.toMeshMaterial();
+
+            // The one thing the document cannot do for itself: it speaks in asset ids and the
+            // renderer wants paths, because that is the currency `MeshMaterial` uses for a texture
+            // the glTF importer found beside a model. Resolving ids to paths here is what lets the
+            // model pass stay one code path over both kinds of material.
+            const auto pathOf = [this](const Uuid& textureId)
+            {
+                const AssetRecord* texture = textureId.isValid() ? assets_.find(textureId) : nullptr;
+                return texture != nullptr ? texture->sourcePath : std::string{};
+            };
+
+            resolved.diffuseTexturePath = pathOf(material.diffuseTexture);
+            resolved.normalTexturePath = pathOf(material.normalTexture);
+            resolved.metallicRoughnessTexturePath = pathOf(material.metallicRoughnessTexture);
+            resolved.emissiveTexturePath = pathOf(material.emissiveTexture);
+
+            return resolved;
+        };
     }
 }

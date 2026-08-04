@@ -19,7 +19,7 @@ namespace CNA::Editor
             const char* name;
         };
 
-        constexpr std::array<AssetTypeName, 10> kAssetTypeNames{{
+        constexpr std::array<AssetTypeName, 11> kAssetTypeNames{{
             {AssetType::Unknown, "Unknown"},
             {AssetType::Texture2D, "Texture2D"},
             {AssetType::SpriteFont, "SpriteFont"},
@@ -29,6 +29,7 @@ namespace CNA::Editor
             {AssetType::Model, "Model"},
             {AssetType::Scene, "Scene"},
             {AssetType::Prefab, "Prefab"},
+            {AssetType::Material, "Material"},
             {AssetType::RawData, "RawData"},
         }};
 
@@ -97,6 +98,7 @@ namespace CNA::Editor
         }
         if (extension == ".cnascene") { return AssetType::Scene; }
         if (extension == ".cnaprefab") { return AssetType::Prefab; }
+        if (extension == ".cnamaterial") { return AssetType::Material; }
         if (extension == ".json" || extension == ".xml" || extension == ".txt" || extension == ".csv")
         {
             return AssetType::RawData;
@@ -120,6 +122,10 @@ namespace CNA::Editor
             // conversion step for one, and inventing an importer with no settings would put an
             // empty section in the inspector for every prefab in the project.
             case AssetType::Prefab: return {};
+
+            // Same reasoning as a prefab: a `.cnamaterial` is the editor's own output, read
+            // directly, so there is nothing to import and no settings to offer for importing it.
+            case AssetType::Material: return {};
             case AssetType::RawData: return "CNA.RawDataImporter";
             case AssetType::Unknown: return {};
         }

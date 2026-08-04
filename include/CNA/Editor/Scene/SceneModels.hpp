@@ -25,6 +25,8 @@
  */
 
 #include <cstddef>
+#include <optional>
+#include <functional>
 #include <vector>
 
 #include "CNA/Editor/Core/EditorMatrix.hpp"
@@ -37,6 +39,14 @@
 namespace CNA::Editor
 {
     class SceneDocument;
+
+    /**
+     * @brief Supplies an authored material by asset id, or nothing when it is not available.
+     *
+     * The material counterpart of `MeshProvider`, and nothing is a normal answer for the same
+     * reasons: an asset not scanned yet, or a reference to a file that has gone.
+     */
+    using MaterialProvider = std::function<std::optional<MeshMaterial>(const Uuid& assetId)>;
 
     /** @brief One model to draw: its geometry, where it goes, and what lights it. */
     struct ModelDraw
@@ -67,6 +77,19 @@ namespace CNA::Editor
          * long as the scene's lights.
          */
         EffectLighting lighting;
+
+        /**
+         * @brief The material asset a `ModelRenderer` overrides its model's own with, or none.
+         *
+         * `CNA.ModelRenderer` has declared this reference since Phase 1 and nothing could satisfy
+         * it until ED-403 gave materials a file of their own. When set, it replaces the material of
+         * **every** part -- which is what a single override can mean, and why ED-410's per-mesh
+         * list is a separate row rather than a refinement of this one.
+         *
+         * Carried as a resolved material rather than as an id, so the viewport does not need a
+         * second way to read an asset: the batch is built where the database is.
+         */
+        std::optional<MeshMaterial> materialOverride;
 
         /** @brief True when this entity is in the selection, so the viewport can mark it. */
         bool selected = false;
@@ -124,6 +147,10 @@ namespace CNA::Editor
      *        nullptr, and counted in `pendingMeshes` so the viewport can say how many models are
      *        still importing rather than leaving a user wondering where their crate went.
      * @param selection Entities to mark as selected. Order is not significant.
+     * @param materialProvider Resolves a material asset id to the material it holds, or nothing.
+     *        Injected for the same reason `meshProvider` is: this module has no asset database and
+     *        an entity naming a material that has not loaded should draw with its model's own
+     *        rather than not at all.
      *
      * Disabled entities are skipped, matching every other pass. An entity with a `ModelRenderer`
      * but no transform is skipped too: there is nowhere to put it, and the origin is not a guess
@@ -132,5 +159,6 @@ namespace CNA::Editor
     [[nodiscard]] SceneModelBatch buildSceneModelBatch(const SceneDocument& scene,
                                                        const EditorCamera3D& camera,
                                                        const MeshProvider& meshProvider,
-                                                       const std::vector<Uuid>& selection = {});
+                                                       const std::vector<Uuid>& selection = {},
+                                                       const MaterialProvider& materialProvider = {});
 }

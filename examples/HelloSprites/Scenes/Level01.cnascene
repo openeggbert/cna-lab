@@ -113,7 +113,7 @@
     },
     "CNA.ModelRenderer": {
      "castShadows": true,
-     "material": "00000000-0000-0000-0000-000000000000",
+     "material": "4f454361-ddf7-4706-9633-b08a2deaf399",
      "model": "3eaac087-d4b1-4f13-9b05-0fcc79ea4956",
      "receiveShadows": true
     }

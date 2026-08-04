@@ -144,6 +144,7 @@ add_library(cna-editor-assets STATIC
     src/assets/AssetWatcher.cpp
     src/assets/AssetImporters.cpp
     src/assets/ModelImport.cpp
+    src/assets/MaterialDocument.cpp
     src/assets/MeshCache.cpp
     src/assets/AssetTree.cpp)
 target_link_libraries(cna-editor-assets PUBLIC cna-editor-core PRIVATE cna-editor-cgltf-vendor)

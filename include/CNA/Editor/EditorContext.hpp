@@ -21,7 +21,9 @@
 
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
+#include "CNA/Editor/Assets/MaterialDocument.hpp"
 #include "CNA/Editor/Assets/MeshCache.hpp"
+#include "CNA/Editor/Scene/SceneModels.hpp"
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
 #include "CNA/Editor/Core/EditorCommand.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
@@ -85,6 +87,16 @@ namespace CNA::Editor
         {
             return meshes_.makeProvider(assets_);
         }
+
+        /**
+         * @brief Returns a `MaterialProvider` that reads `.cnamaterial` assets (ED-403).
+         *
+         * Read on each ask rather than cached, unlike meshes. A material is a few dozen bytes of
+         * JSON against a mesh's megabytes, and the cache a mesh needs exists to stop a whole-file
+         * parse happening sixty times a second -- the same cache here would buy microseconds and
+         * cost a second thing to invalidate when a file changes on disk.
+         */
+        [[nodiscard]] MaterialProvider makeMaterialProvider();
 
         [[nodiscard]] CommandHistory& getHistory() { return history_; }
         [[nodiscard]] const CommandHistory& getHistory() const { return history_; }

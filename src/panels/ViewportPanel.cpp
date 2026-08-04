@@ -196,7 +196,8 @@ namespace CNA::Editor
         // it is handed. A build with no CNA ignores the batch and draws the wireframe alone, which
         // is what this view showed before there were models.
         lastModelBatch_ = buildSceneModelBatch(context_.getScene(), camera,
-                                               context_.makeMeshProvider(), context_.getSelection());
+                                               context_.makeMeshProvider(), context_.getSelection(),
+                                               context_.makeMaterialProvider());
 
         // And the sprites, as quads in the scene's own plane. The 3D view showed none until now,
         // because `SpriteBatch` cannot draw the trapezoid a sprite becomes from an angle -- what

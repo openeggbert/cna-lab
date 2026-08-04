@@ -14,6 +14,7 @@
 
 #include "CNA/Editor/Assets/AssetCommands.hpp"
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
+#include "CNA/Editor/Assets/MaterialDocument.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
 #include "CNA/Editor/Assets/AssetTree.hpp"
 #include "CNA/Editor/Assets/AssetWatcher.hpp"
@@ -1640,4 +1641,57 @@ CNA_EDITOR_TEST(SettingTheGridSnapUndoesAndReachesTheFile)
 
     std::error_code cleanup;
     std::filesystem::remove_all(root, cleanup);
+}
+
+/**
+ * @brief ED-403: a `.cnamaterial` round-trips, and converts to what the model pass already draws.
+ *
+ * The conversion is the half worth checking. A material asset stores metallic-roughness and the
+ * renderer may be drawing through `BasicEffect` (gap G-05), so `toMeshMaterial` derives the
+ * Blinn-Phong pair rather than storing a second copy that could disagree with the first. A metal
+ * reflects its own colour and a dielectric reflects white; that is the one line of the PBR model
+ * that survives the trip meaning what it meant, and it is what this asserts.
+ */
+CNA_EDITOR_TEST(AMaterialAssetRoundTripsAndDerivesItsBlinnPhongHalf)
+{
+    MaterialDocument material;
+    material.name = "Brushed Steel";
+    material.diffuseColor = EditorVector3{0.9f, 0.9f, 0.95f};
+    material.emissiveColor = EditorVector3{0.0f, 0.05f, 0.1f};
+    material.metallic = 0.95f;
+    material.roughness = 0.2f;
+    material.alpha = 0.8f;
+    material.diffuseTexture = Uuid::generate();
+
+    MaterialDocument reloaded;
+    CNA_EDITOR_EXPECT(reloaded.loadFromJson(material.toJson()));
+
+    CNA_EDITOR_EXPECT_EQ(reloaded.name, std::string{"Brushed Steel"});
+    CNA_EDITOR_EXPECT(reloaded.diffuseTexture == material.diffuseTexture);
+    CNA_EDITOR_EXPECT(std::fabs(reloaded.metallic - 0.95f) < 0.001f);
+    CNA_EDITOR_EXPECT(std::fabs(reloaded.alpha - 0.8f) < 0.001f);
+
+    // A texture that was never set is absent from the file rather than written as a nil id, and
+    // reads back as nil either way -- the two mean the same thing and only one of them is noise.
+    CNA_EDITOR_EXPECT(material.toJson()["normalTexture"].asString("absent") == "absent");
+    CNA_EDITOR_EXPECT(!reloaded.normalTexture.isValid());
+
+    const MeshMaterial mesh = reloaded.toMeshMaterial();
+    CNA_EDITOR_EXPECT(mesh.specularColor.x > 0.8f);
+    CNA_EDITOR_EXPECT(mesh.specularPower > 16.0f);
+
+    // The paths stay empty: this document speaks in ids, and resolving one to a file belongs to
+    // whoever holds the asset database.
+    CNA_EDITOR_EXPECT(mesh.diffuseTexturePath.empty());
+}
+
+/** @brief A material from a newer editor is refused rather than silently rewritten with less in it. */
+CNA_EDITOR_TEST(AMaterialFromAFutureFormatVersionIsRefused)
+{
+    MaterialDocument material;
+    JsonValue future = material.toJson();
+    future.set("formatVersion", JsonValue{MaterialDocument::kFormatVersion + 1});
+
+    MaterialDocument reloaded;
+    CNA_EDITOR_EXPECT(!reloaded.loadFromJson(future));
 }

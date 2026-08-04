@@ -41,6 +41,8 @@ namespace CNA::Editor
         Scene,
         /** @brief A `.cnaprefab`: one reusable entity subtree, instantiated into scenes. */
         Prefab,
+        /** @brief A `.cnamaterial`: an authored material a `ModelRenderer` can override with. */
+        Material,
         /** @brief Any file the project wants tracked verbatim, e.g. a JSON data table. */
         RawData
     };
