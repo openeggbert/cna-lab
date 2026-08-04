@@ -30,8 +30,11 @@
 ## Start here
 
 You are picking up a branch with nothing half-finished on it: the working tree is clean, every
-commit is pushed, and all 413 tests pass in three configurations. There is no rescue work to do
+commit is pushed, and all 432 tests pass in three configurations. There is no rescue work to do
 first.
+
+Phase 3 is eleven rows of thirteen. What is left is **ED-410** (per-mesh material lists, which is
+finally designable because ED-403 gave it a material asset to list) and the **two plugin rows**.
 
 1. Read the rest of this file, then `plan.md`'s *Current state*. `ANALYSIS.md` only when a
    *why* is unclear — its decisions (D-01 … D-15, findings F-01/F-02) are cited by id everywhere.
@@ -151,6 +154,42 @@ demonstrated only by its own tests is one nobody can look at. Its effect shows i
 crate is dimmer under a real point light at distance than under the default rig. That cost the
 scene-loader demo its hardcoded count of four, updated to five with a check that a light carries no
 sprite: it is the third shape of entity that loader has to survive.
+
+**8. ED-407 — the scene's own ambient and fog.** A field on the *scene*, not a component on a
+designated entity: a cave is dark and a moor is foggy, and neither is a property of anything
+standing in one. The alternative is how a scene comes to have a mandatory entity that must not be
+deleted. **Additive in both directions**, and the second direction is the one with a test: a scene
+written before ED-407 has no `environment` object, reads as the defaults, and is written back out
+*without* one — a loader that read a default and then serialised it would turn every existing scene
+into a modified file the first time it was opened. What fog can do is bounded by `IEffectFog`: a
+colour and a linear band. Sprites are fogged too, or one would look like it was floating in front of
+the fog rather than standing in it.
+
+**9. ED-406 — a model asset's thumbnail is *drawn*, not decoded.** The ED-402 pass into its own
+square target, framed on the model's own bounds from three-quarters on, lit by the default rig
+rather than the open scene's — a thumbnail is a picture of the asset, and one that changed because
+somebody moved a lamp in the level they have open would be a picture of something else. Its own
+target rather than the viewport's, because the browser draws thumbnails in the same frame the
+viewport draws the scene.
+
+This needed **`--panel=TITLE`** to be verifiable at all, on the same argument that put `--view=3d`
+and `--orbit` here. Two attempts were wrong first, and the reason is worth keeping: a focus set
+before a panel's own `Begin`, or during the frame the dock layout is built, is undone when
+`DockBuilderFinish` commits the arrangement and the last window docked into a node takes its tab. It
+has to be applied **by name, after that**.
+
+**10. ED-403 — materials are assets now, and the override the inspector promised works.**
+`CNA.ModelRenderer` has declared a material reference since Phase 1 with nothing able to satisfy it.
+A `.cnamaterial` satisfies it: a new format at version 1, fields deliberately identical to
+`MeshMaterial` so the pass stays one code path, textures by `Uuid` rather than by path because an id
+survives a rename (D-08). Editing and creating both go through commands that write the file and undo
+by replaying the previous bytes — the shape ED-300's prefab Apply established.
+
+**The mistake worth recording**: the first version of the document carried a `materialId` of its
+own. An asset's identity is the `Uuid` in its `.cnaasset` sidecar, so that was a second answer to
+"which material is this", free to disagree with the first. It was found by pointing the example's
+crate at the document's id and getting back an unchanged brown crate. The example now has a
+`PaintedRed.cnamaterial` and the crate is red, which is the whole feature in one picture.
 
 ---
 
