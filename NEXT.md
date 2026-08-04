@@ -623,6 +623,9 @@ grabbable when its axis is edge-on. Budget them as one task each, not as a pair.
 
 Also unblocked and smaller:
 
+- **A ground-plane grid option**, for when scenes stop being flat. `buildSceneGrid` draws the
+  scene's XY plane, which is right while everything lives in XY and wrong the moment ED-402 puts a
+  model above a floor. The choice belongs in `WireframeOptions`, not in a second function.
 - **A keyboard shortcut for the 2D/3D toggle.** It has a toolbar button and a View menu item and no
   key. `UiKey` has no digits, so this needs an enum entry first -- additive, like `Q` was.
 - **The 3D view has no tile tools and no animation preview**, deliberately: both are 2D ideas. If
