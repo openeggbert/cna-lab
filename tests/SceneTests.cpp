@@ -13,6 +13,7 @@
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/EditorCamera3D.hpp"
+#include "CNA/Editor/Scene/SceneLighting.hpp"
 #include "CNA/Editor/Scene/SceneWireframe.hpp"
 #include "CNA/Editor/Scene/TransformGizmos3D.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -2535,4 +2536,158 @@ CNA_EDITOR_TEST(AThreeDimensionalTurnIsAppliedInTheWorldRatherThanTheEntitysOwnF
     // And its own X axis, which started in the XY plane, stays in it.
     const EditorVector3 localX = rotate(*turned, EditorVector3{1.0f, 0.0f, 0.0f});
     CNA_EDITOR_EXPECT(cameraNearlyEqual(localX.z, 0.0f, 0.02f));
+}
+
+namespace
+{
+    /** @brief Adds a `CNA.Light` to @p entity with the given kind, intensity and range. */
+    void addLight(const ComponentRegistry& registry, EditorEntity& entity, const std::string& kind,
+                  float intensity, float range, EditorColor color = EditorColor{255, 255, 255, 255})
+    {
+        EditorComponent light{BuiltinComponentIds::kLight};
+        light.applyDefaults(*registry.find(BuiltinComponentIds::kLight));
+        light.setProperty("kind", PropertyValue{PropertyValue::EnumValue{kind}});
+        light.setProperty("intensity", PropertyValue{intensity});
+        light.setProperty("range", PropertyValue{range});
+        light.setProperty("color", PropertyValue{color});
+        entity.addComponent(std::move(light));
+    }
+}
+
+/**
+ * @brief ED-402/ED-404: a scene with no light asks for the default rather than for darkness.
+ *
+ * The commonest scene there is -- one somebody has just dropped a model into -- has no light in
+ * it, and a model rendered black in that scene is indistinguishable from a renderer that does not
+ * work. So "no lights" is a distinct answer the renderer acts on, not zero lights applied.
+ */
+CNA_EDITOR_TEST(ASceneWithNoLightsAsksForTheDefaultLightingRatherThanForNone)
+{
+    const EffectLighting empty = computeEffectLighting({}, EditorVector3{0.0f, 0.0f, 0.0f});
+    CNA_EDITOR_EXPECT(empty.useDefaultLighting);
+    CNA_EDITOR_EXPECT_EQ(empty.lightCount, std::size_t{0});
+
+    // And so does a scene whose only lamp is out of range of what is being drawn: "unlit" and "too
+    // far from the light" look identical to a user, and both are better answered by something
+    // visible than by black.
+    SceneLight distant;
+    distant.kind = SceneLightKind::Point;
+    distant.position = EditorVector3{1000.0f, 0.0f, 0.0f};
+    distant.range = 5.0f;
+
+    const EffectLighting outOfRange =
+        computeEffectLighting({distant}, EditorVector3{0.0f, 0.0f, 0.0f});
+    CNA_EDITOR_EXPECT(outOfRange.useDefaultLighting);
+}
+
+/** @brief A light entity's rotation is what aims it, so turning it in the viewport turns the light. */
+CNA_EDITOR_TEST(ADirectionalLightShinesAlongItsEntitysOwnForwardAxis)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity entity = makeEntity(registry, "Sun", 0.0f, 0.0f);
+    addLight(registry, entity, "Directional", 1.0f, 10.0f);
+    const Uuid id = scene.addEntity(std::move(entity));
+
+    const std::vector<SceneLight> unrotated = collectSceneLights(scene);
+    CNA_EDITOR_EXPECT_EQ(unrotated.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(unrotated[0].entityId == id);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(unrotated[0].direction.z, 1.0f, 0.001f));
+
+    // Turned a half turn about Y, it must shine back the other way. Asserting the property rather
+    // than a number: whatever convention the transform uses, a light spun 180 degrees cannot go on
+    // pointing where it did.
+    EditorEntity* stored = scene.findEntity(id);
+    CNA_EDITOR_EXPECT(stored != nullptr);
+    EditorComponent* transform = stored->findComponent(BuiltinComponentIds::kTransform);
+    CNA_EDITOR_EXPECT(transform != nullptr);
+    transform->setProperty("rotation",
+                           PropertyValue{quaternionFromEulerDegrees(EditorVector3{0.0f, 180.0f, 0.0f})});
+
+    const std::vector<SceneLight> turned = collectSceneLights(scene);
+    CNA_EDITOR_EXPECT_EQ(turned.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(turned[0].direction.z, -1.0f, 0.001f));
+}
+
+/**
+ * @brief A disabled entity's light does not light anything.
+ *
+ * The same rule the rest of the viewport follows for what it draws. A user who disables an entity
+ * has said "pretend this is not here", and a lamp that goes on shining is the editor disagreeing.
+ */
+CNA_EDITOR_TEST(ALightOnADisabledEntityIsNotCollected)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity entity = makeEntity(registry, "Lamp", 0.0f, 0.0f);
+    addLight(registry, entity, "Point", 1.0f, 10.0f);
+    const Uuid id = scene.addEntity(std::move(entity));
+
+    CNA_EDITOR_EXPECT_EQ(collectSceneLights(scene).size(), std::size_t{1});
+
+    scene.findEntity(id)->setEnabled(false);
+    CNA_EDITOR_EXPECT(collectSceneLights(scene).empty());
+}
+
+/**
+ * @brief `IEffectLights` holds three lights, so a fourth has to lose -- and the dimmest is the one.
+ *
+ * Brightest wins rather than nearest or first-in-document. Document order is not something a user
+ * arranges deliberately, and dropping the sun because a dim lamp was added earlier is a picture
+ * nobody could account for from what is on screen.
+ */
+CNA_EDITOR_TEST(WhereMoreThanThreeLightsApplyTheThreeBrightestWin)
+{
+    std::vector<SceneLight> lights;
+    for (int i = 0; i < 4; ++i)
+    {
+        SceneLight light;
+        light.kind = SceneLightKind::Directional;
+        // The first is the dimmest, so a correct answer cannot also be "the first three".
+        light.intensity = 0.1f + static_cast<float>(i);
+        lights.push_back(light);
+    }
+
+    const EffectLighting lighting = computeEffectLighting(lights, EditorVector3{0.0f, 0.0f, 0.0f});
+    CNA_EDITOR_EXPECT(!lighting.useDefaultLighting);
+    CNA_EDITOR_EXPECT_EQ(lighting.lightCount, std::size_t{3});
+
+    // Brightest first, and the one left out is the dimmest.
+    CNA_EDITOR_EXPECT(lighting.lights[0].diffuseColor.x > lighting.lights[1].diffuseColor.x);
+    CNA_EDITOR_EXPECT(lighting.lights[1].diffuseColor.x > lighting.lights[2].diffuseColor.x);
+    CNA_EDITOR_EXPECT(lighting.lights[2].diffuseColor.x > 1.0f);
+}
+
+/**
+ * @brief A point light is resolved against the thing being lit, which is what makes it a point light.
+ *
+ * `IEffectLights` has no point light, so one is approximated as a directional light aimed at
+ * whatever is being drawn. The property that makes the approximation worth having is exactly this:
+ * two objects on opposite sides of a lamp must be lit from opposite directions. An implementation
+ * that used the light's own forward axis would pass every other test here and fail this one.
+ */
+CNA_EDITOR_TEST(APointLightAimsAtWhateverIsBeingLitRatherThanAlongItsOwnAxis)
+{
+    SceneLight lamp;
+    lamp.kind = SceneLightKind::Point;
+    lamp.position = EditorVector3{0.0f, 0.0f, 0.0f};
+    lamp.range = 100.0f;
+    lamp.intensity = 1.0f;
+
+    const EffectLighting left = computeEffectLighting({lamp}, EditorVector3{-10.0f, 0.0f, 0.0f});
+    const EffectLighting right = computeEffectLighting({lamp}, EditorVector3{10.0f, 0.0f, 0.0f});
+
+    CNA_EDITOR_EXPECT(!left.useDefaultLighting);
+    CNA_EDITOR_EXPECT(!right.useDefaultLighting);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(left.lights[0].direction.x, -1.0f, 0.001f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(right.lights[0].direction.x, 1.0f, 0.001f));
+
+    // And it dims with distance, reaching exactly nothing at its range rather than tinting the
+    // whole level faintly forever -- which is what makes the range control do something visible.
+    const EffectLighting near = computeEffectLighting({lamp}, EditorVector3{10.0f, 0.0f, 0.0f});
+    const EffectLighting far = computeEffectLighting({lamp}, EditorVector3{90.0f, 0.0f, 0.0f});
+    CNA_EDITOR_EXPECT(near.lights[0].diffuseColor.x > far.lights[0].diffuseColor.x);
+    CNA_EDITOR_EXPECT(computeEffectLighting({lamp}, EditorVector3{101.0f, 0.0f, 0.0f}).useDefaultLighting);
 }
