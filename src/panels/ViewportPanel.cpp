@@ -595,6 +595,15 @@ namespace CNA::Editor
 
         if (threeDimensional)
         {
+            // Said rather than left to be discovered. Switching to Scale here makes the manipulator
+            // vanish, and "nothing happened" is the worst possible answer to a mode change -- the
+            // same reason the build panel states its problem before offering its button.
+            if (actions_.getGizmoMode() == GizmoMode::Scale)
+            {
+                ui_.sameLine();
+                ui_.text("(no 3D scale manipulator yet)");
+            }
+
             // A wireframe that ran out of room looks exactly like a scene missing half its
             // entities, so the one place it can be seen says so.
             if (lastWireframe_.truncated)
