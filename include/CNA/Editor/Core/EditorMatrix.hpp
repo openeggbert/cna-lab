@@ -58,6 +58,27 @@ namespace CNA::Editor
      */
     [[nodiscard]] std::optional<EditorMatrix> invert(const EditorMatrix& matrix);
 
+    /**
+     * @brief Returns @p matrix with its rows and columns exchanged.
+     *
+     * Here for the one thing that genuinely needs it: a normal is not transformed by the matrix
+     * that transforms positions but by that matrix's inverse transpose, and under non-uniform
+     * scale the difference is visible -- normals on a squashed model tilt away from the surface
+     * and light it wrongly. `inverseTranspose` is the composition worth naming; this is the half
+     * of it that had no name yet.
+     */
+    [[nodiscard]] EditorMatrix transpose(const EditorMatrix& matrix);
+
+    /**
+     * @brief Returns the matrix that transforms normals under @p matrix, or std::nullopt when
+     *        @p matrix is singular.
+     *
+     * The inverse transpose. A singular transform -- a node scaled to zero on some axis -- has no
+     * such matrix, and the optional says so rather than returning something that would silently
+     * flatten every normal it touched.
+     */
+    [[nodiscard]] std::optional<EditorMatrix> inverseTranspose(const EditorMatrix& matrix);
+
     /** @brief Returns @p point transformed by @p matrix, treating it as a position (w = 1). */
     [[nodiscard]] EditorVector3 transformPosition(const EditorMatrix& matrix, const EditorVector3& point);
 
