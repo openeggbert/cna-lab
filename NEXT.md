@@ -27,19 +27,43 @@
 
 ---
 
+## Start here
+
+You are picking up a branch with nothing half-finished on it: the working tree is clean, every
+commit is pushed, and all 346 tests pass in three configurations. There is no rescue work to do
+first.
+
+1. Read the rest of this file, then `plan.md`'s *Current state*. `ANALYSIS.md` only when a
+   *why* is unclear — its decisions (D-01 … D-15, findings F-01/F-02) are cited by id everywhere.
+2. Rebuild and run the checks in *Validation commands* below before changing anything, so a later
+   failure is yours rather than inherited. The standalone build needs no CNA checkout at all.
+3. Pick from *Where to start next* at the bottom. Nothing there is blocked on anything in this
+   repository except where it says so.
+
+**Standing constraints** (owner's, still in force): develop and push only on
+`claude/cna-editor-architecture-plan-l4jza7`; **no pull request**; everything in this repository is
+written in English; do not bump a `formatVersion` without the owner's say-so; do not open issues or
+pull requests against `openeggbert/cna` — the CNA gaps G-01…G-04 stay documented here.
+
+---
+
 ## What landed in the most recent session
 
-Eleven commits, newest last, each validated in three configurations before it was pushed:
+Fourteen commits, each validated in three configurations before it was pushed:
 
 `ED-401` rotate and scale gizmos with a local/world toggle · `ED-246` **`cna-player` draws the scene**
 · `ED-510` backend comparison · `ED-511` the same from the command line, with an exit code ·
 `ED-513` per-backend player builds from one configure · gizmo snapping and Ctrl+click selection ·
 an interaction boundary on `CommandHistory` · an audio preview that can actually be stopped · a
-gizmo that manipulates a whole selection · JPEG dimensions · delete and duplicate as one undo entry.
+gizmo that manipulates a whole selection · JPEG dimensions · delete and duplicate as one undo entry
+· the gizmo mode and space shown in the viewport toolbar · two validation rules for states that
+otherwise fail in silence.
 
 The two that matter most to anyone picking this up: **the player draws now**, so play mode and hot
 reload are things you can look at rather than read about in a log; and the **backend comparison
 works against two real backends**, which is what finding F-01 was always supposed to buy.
+
+Nothing in that list changed a file format. Every format is still at version 1.
 
 ---
 
@@ -484,14 +508,28 @@ What follows is a judgement call rather than a queue.
 - **The rest of Phase 3** -- ED-400's perspective camera, ED-402's model rendering, ED-404's lights
   -- waits on CNA's 3D API, which is the precondition `plan.md` states for the phase.
 
-**Small and unblocked, in the order I would take them:**
+**Small and unblocked, in the order I would take them.** The first is written out in enough detail
+to start on without re-deriving anything.
 
-1. **Hear the audio preview on a machine with a sound device.** It was rewritten to hold a
+1. **A snap *step* the project can set.** Ctrl currently snaps to the visible grid, 15 degrees and
+   tenths, all three fixed in `ViewportPanel::getSnap`. A project laying out on a 16-pixel tile grid
+   wants to say so once. The shape, following `layers` exactly:
+   - `Project` gains `gridSnap` (a float, 0 meaning "use the visible grid"), serialised as an
+     *additive* field in `.cnaproject` — **no `formatVersion` bump**, and a test that a project file
+     written before it existed still opens, like `layers` has.
+   - A `SetProjectGridSnapCommand` beside `SetProjectLayersCommand` in `cna-editor-context`, so the
+     edit undoes like everything else (D-06).
+   - The idle Inspector already edits project settings; the field goes there. `getSnap` then reads
+     the project and falls back to `chooseGridSpacing` when it is zero.
+   - Tests: the fallback still snaps to the visible grid; a set step wins over it; the round trip
+     through a file keeps it.
+2. **Hear the audio preview on a machine with a sound device.** It was rewritten to hold a
    `SoundEffectInstance` so Stop actually stops, but this container has none, so that path has been
    compiled and reasoned about rather than heard.
-2. **A snap *step* the project can set.** Ctrl snaps to the visible grid, 15 degrees and tenths,
-   all fixed. A project that lays out on a 16-pixel tile grid wants to say so once, in the
-   `.cnaproject` beside `layers`, rather than zooming until the grid happens to agree.
+3. **A second look at `findSelectionRoots`.** It is a *selection* utility living in
+   `TransformGizmos.hpp` because the gizmo needed it first; `deleteSelection` now uses it too. If a
+   third caller turns up, move it somewhere it belongs rather than adding a fourth include of the
+   gizmos.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
 chains are empty on purpose. Adding a property type must not change what an existing scene file

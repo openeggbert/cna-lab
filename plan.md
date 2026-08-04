@@ -22,8 +22,11 @@
 
 ## Current state
 
-**Phases 0 and 1 are complete: the editor opens a project, edits it, plays it, and a shipped game
-can load what it produced.** The repository still builds and passes its full suite with no CNA
+**Phases 0 and 1 are complete, Phase 2 is ten rows of twelve, and every priority the owner named is
+closed** — robustness and data safety, live editing into the running player, the production 2D
+tools, and the backend comparison mode. The editor opens a project, edits it, plays it *and sees the
+game drawn* (ED-246), compares how two graphics backends render it (ED-510/511/513), and a shipped
+game can load what it produced. The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
 - 12 modules, three executables, and **346 passing tests across 8 CTest suites** (12 with CNA)
