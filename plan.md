@@ -283,8 +283,10 @@ have to be written per backend, which is exactly the kind of cost F-01 makes wor
 ## Phase 3 — Basic 3D 🔄
 
 **Precondition.** CNA's 3D API is stable and the glTF conformance work is done. This phase comes
-*after* that, as the original discussion argued — not before. **ED-401 is the exception and was
-built early**, because it is not a 3D task at all in a 2D viewport: `E` and `R` had been selecting
+*after* that, as the original discussion argued — not before. **The owner opened ED-400 on
+2026-08-04**, on the grounds that CNA does ship `BasicEffect`, `VertexBuffer`/`DynamicVertexBuffer`
+and the rest of the Graphics surface a camera needs; ED-402 and ED-404 still wait on the model
+pipeline. **ED-401 was the other exception and was built early**, because it is not a 3D task at all in a 2D viewport: `E` and `R` had been selecting
 a manipulator that did not exist since Phase 1, which is a promise the editor was making and not
 keeping. Nothing else here has moved.
 

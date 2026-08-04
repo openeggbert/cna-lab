@@ -110,6 +110,20 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 ---
 
+## Decisions taken by the owner (2026-08-04, for the next session)
+
+| Question | Answer |
+|----------|--------|
+| Phase 3, given that CNA ships `BasicEffect`, `VertexBuffer` and the rest | **Start ED-400**: perspective/orthographic viewport camera with orbit and fly navigation. Do the maths CNA-free first, as `EditorCamera2D` was done — it needs no model pipeline. ED-402/ED-404 still wait. |
+| Additive fields in `.cnaproject` / `.cnascene` / `.cnaasset` | **Allowed without asking**, exactly as `layers` was added: no `formatVersion` bump, old files still open, and a round-trip test proving it. Changing or removing an existing field, or bumping a version, still waits for the owner. |
+| How far play mode goes | **Add input forwarding**: keyboard and mouse reach the running player and the editor reports what it sees. No scripting or behaviour hook — that question shapes the document model and stays closed. |
+| Branch and pull request | Unchanged: `claude/cna-editor-architecture-plan-l4jza7`, **no pull request**. |
+| CI | Unchanged: standalone configuration only — no sibling checkouts, no Xvfb, no backend-comparison job. |
+| CNA gaps G-01…G-04 | Unchanged: documented here, **no issues or pull requests against `openeggbert/cna`**. |
+| Verification | Keep screenshot-verifying UI work on EASYGL under Xvfb. |
+
+---
+
 ## Decisions taken by the owner (2026-08-03)
 
 | Question | Answer |
@@ -508,7 +522,12 @@ What follows is a judgement call rather than a queue.
 - **The rest of Phase 3** -- ED-400's perspective camera, ED-402's model rendering, ED-404's lights
   -- waits on CNA's 3D API, which is the precondition `plan.md` states for the phase.
 
-**Small and unblocked, in the order I would take them.** The first is written out in enough detail
+**The owner has chosen the next two** (see the 2026-08-04 decisions above): **ED-400**, the 3D
+viewport camera, and **input forwarding into the running player**. Take ED-400 first — it is the
+one with a CNA-free half that can be built and tested before any window is involved, and the
+2D camera (`EditorCamera2D`) is the pattern to follow.
+
+**Then, small and unblocked, in the order I would take them.** The first is written out in enough detail
 to start on without re-deriving anything.
 
 1. **A snap *step* the project can set.** Ctrl currently snaps to the visible grid, 15 degrees and
