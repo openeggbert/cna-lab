@@ -151,6 +151,36 @@ namespace CNA::Editor
         return false;
     }
 
+    namespace
+    {
+        /** @brief Writes an `EditorColor` as the four-number array every other colour uses. */
+        JsonValue colorToJson(const EditorColor& color)
+        {
+            JsonValue array = JsonValue::makeArray();
+            array.append(JsonValue{static_cast<double>(color.r)});
+            array.append(JsonValue{static_cast<double>(color.g)});
+            array.append(JsonValue{static_cast<double>(color.b)});
+            array.append(JsonValue{static_cast<double>(color.a)});
+            return array;
+        }
+
+        /** @brief Reads a four-number colour array, keeping @p fallback for anything missing. */
+        EditorColor colorFromJson(const JsonValue& json, const EditorColor& fallback)
+        {
+            if (!json.isArray() || json.getElements().size() < 4) { return fallback; }
+
+            const auto channel = [](const JsonValue& value, std::uint8_t otherwise)
+            {
+                const double clamped = std::min(255.0, std::max(0.0, value.asNumber(static_cast<double>(otherwise))));
+                return static_cast<std::uint8_t>(clamped);
+            };
+
+            const std::vector<JsonValue>& elements = json.getElements();
+            return EditorColor{channel(elements[0], fallback.r), channel(elements[1], fallback.g),
+                               channel(elements[2], fallback.b), channel(elements[3], fallback.a)};
+        }
+    }
+
     JsonValue SceneDocument::toJson() const
     {
         JsonValue root = JsonValue::makeObject();
@@ -165,6 +195,21 @@ namespace CNA::Editor
         }
 
         root.set("entities", std::move(entitiesJson));
+
+        // Written only when it is not the default (ED-407). A scene that never touched its
+        // environment must come back out byte for byte as it went in, or opening every existing
+        // scene once would rewrite every existing scene once.
+        if (!environment_.isDefault())
+        {
+            JsonValue environmentJson = JsonValue::makeObject();
+            environmentJson.set("ambientColor", colorToJson(environment_.ambientColor));
+            environmentJson.set("fogEnabled", JsonValue{environment_.fogEnabled});
+            environmentJson.set("fogColor", colorToJson(environment_.fogColor));
+            environmentJson.set("fogStart", JsonValue{static_cast<double>(environment_.fogStart)});
+            environmentJson.set("fogEnd", JsonValue{static_cast<double>(environment_.fogEnd)});
+            root.set("environment", std::move(environmentJson));
+        }
+
         return root;
     }
 
@@ -215,6 +260,23 @@ namespace CNA::Editor
         sceneId_ = sceneId.isValid() ? sceneId : Uuid::generate();
         if (!sceneId.isValid()) { result.warnings.push_back("scene had no valid 'sceneId'; a new one was generated"); }
         name_ = document["name"].asString("Untitled");
+
+        // Absent is the ordinary case, not an error: every scene written before ED-407 has no
+        // `environment`, and reads as the defaults (ED-407 in SceneEnvironment.hpp says why that
+        // has to stay true in both directions).
+        environment_ = SceneEnvironment{};
+        if (const JsonValue& environmentJson = document["environment"]; environmentJson.isObject())
+        {
+            const SceneEnvironment defaults;
+            environment_.ambientColor =
+                colorFromJson(environmentJson["ambientColor"], defaults.ambientColor);
+            environment_.fogEnabled = environmentJson["fogEnabled"].asBoolean(defaults.fogEnabled);
+            environment_.fogColor = colorFromJson(environmentJson["fogColor"], defaults.fogColor);
+            environment_.fogStart = static_cast<float>(
+                environmentJson["fogStart"].asNumber(static_cast<double>(defaults.fogStart)));
+            environment_.fogEnd = static_cast<float>(
+                environmentJson["fogEnd"].asNumber(static_cast<double>(defaults.fogEnd)));
+        }
 
         for (const JsonValue& entityJson : document["entities"].getElements())
         {

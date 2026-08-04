@@ -15,13 +15,13 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 428 / 428 (also under Clang Release) |
+| Unit tests | ✅ 430 / 430 (also under Clang Release) |
 | CTest (standalone) | ✅ 12 / 12 |
 | CTest (CNA config) | ✅ 17 / 17 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
-| **Phase 3** | 🔄 8 done — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) and **ED-413** (sprites in the 3D view). Nothing left in the phase is blocked |
+| **Phase 3** | 🔄 9 done — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) **ED-413** (sprites in the 3D view) and **ED-407** (environment and fog). Nothing left in the phase is blocked |
 | **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
 | **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
 
@@ -871,9 +871,7 @@ remains is in this order:
 2. **ED-406 mesh preview in the asset browser.** Small now: `CnaModelPass` already draws a
    `SceneModelBatch` into whatever target is bound, so a thumbnail is a batch of one at a fixed
    camera.
-3. **ED-407 environment and fog.** Also small: `IEffectFog` is on both effects already and
-   `PbrEffect::FillGpuDrawParams` forwards it.
-4. **ED-411 / ED-412 plugin loading**, the last of Phase 3 and the largest. Discovery and
+3. **ED-411 / ED-412 plugin loading**, the last of Phase 3 and the largest. Discovery and
    validation are done (ED-017); this is `dlopen`/`LoadLibrary`, the `extern "C"` entry, unload and
    hot-reload, then the extension points.
 

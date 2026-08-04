@@ -209,6 +209,36 @@ namespace CNA::Editor
      * drags of the same five entities is only that the user let go in between. The viewport passes
      * a drag id; `CommandHistory::endInteraction()` closes the chain when the pointer is released.
      */
+    /**
+     * @brief Sets the scene's ambient light and fog (plan.md ED-407).
+     *
+     * A command like every other document change (D-06), not a setter, even though the environment
+     * belongs to no entity. An editor where the layer list undoes and the fog does not is worse
+     * than one where nothing undoes, because the user has to remember which is which.
+     *
+     * Merges with itself, so dragging a fog distance is one undo entry rather than one per pixel of
+     * cursor movement -- the same bargain the transform commands strike, and the merge key names
+     * the *field* so that changing the colour after the distance stays two entries.
+     */
+    class SetSceneEnvironmentCommand final : public EditorCommand
+    {
+    public:
+        SetSceneEnvironmentCommand(SceneDocument& document, SceneEnvironment environment,
+                                   std::string fieldName);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+        [[nodiscard]] std::string getMergeKey() const override;
+        bool mergeWith(const EditorCommand& newer) override;
+
+    private:
+        SceneDocument* document_;
+        SceneEnvironment newEnvironment_;
+        SceneEnvironment oldEnvironment_;
+        std::string fieldName_;
+    };
+
     class TransformEntitiesCommand final : public EditorCommand
     {
     public:

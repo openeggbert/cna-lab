@@ -23,6 +23,7 @@
 #include "CNA/Editor/Core/Json.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Scene/EditorEntity.hpp"
+#include "CNA/Editor/Scene/SceneEnvironment.hpp"
 
 namespace CNA::Editor
 {
@@ -70,6 +71,10 @@ namespace CNA::Editor
 
         [[nodiscard]] const std::string& getName() const { return name_; }
         void setName(std::string name) { name_ = std::move(name); }
+
+        /** @brief The scene's ambient light and fog (plan.md ED-407). */
+        [[nodiscard]] const SceneEnvironment& getEnvironment() const { return environment_; }
+        void setEnvironment(const SceneEnvironment& environment) { environment_ = environment; }
 
         /** @brief Returns every entity, in serialisation order. */
         [[nodiscard]] const std::vector<EditorEntity>& getEntities() const { return entities_; }
@@ -146,6 +151,18 @@ namespace CNA::Editor
 
         Uuid sceneId_;
         std::string name_ = "Untitled";
+
+        /**
+         * @brief Written only when it differs from the defaults (ED-407).
+         *
+         * An *additive* field, which is the permission the owner gave and not a version bump: a
+         * scene written before ED-407 has no `environment` object, reads as the defaults, and comes
+         * back out without one. That last part is the half that is easy to lose -- a loader that
+         * read a default and then wrote it would turn every existing scene file into a modified one
+         * the first time it was opened, and a diff full of scenes nobody edited is how a format
+         * change gets blamed on the wrong commit.
+         */
+        SceneEnvironment environment_;
         std::vector<EditorEntity> entities_;
         std::unordered_map<Uuid, std::size_t> indexById_;
     };

@@ -19,6 +19,7 @@
 #include "Microsoft/Xna/Framework/Graphics/DepthStencilState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/DirectionalLight.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
+#include "Microsoft/Xna/Framework/Graphics/IEffectFog.hpp"
 #include "Microsoft/Xna/Framework/Graphics/IndexBuffer.hpp"
 #include "Microsoft/Xna/Framework/Graphics/IndexElementSize.hpp"
 #include "Microsoft/Xna/Framework/Graphics/PbrEffect.hpp"
@@ -246,6 +247,32 @@ namespace CNA::Editor
                 ++stats.missingTextures;
                 return nullptr;
             }
+        }
+
+        /**
+         * @brief Applies @p environment's fog to whichever effect this build has.
+         *
+         * Linear between a start and an end distance, which is the whole of what `IEffectFog`
+         * offers and therefore the whole of what this editor can promise. Both effects implement
+         * that interface, so this is the one place in the pass that needs no branch on which one
+         * was constructed.
+         */
+        void applyFog(const SceneEnvironment& environment)
+        {
+            XnaGraphics::IEffectFog* fog = pbr != nullptr
+                                               ? static_cast<XnaGraphics::IEffectFog*>(pbr.get())
+                                               : static_cast<XnaGraphics::IEffectFog*>(basic.get());
+            if (fog == nullptr) { return; }
+
+            fog->setFogEnabledProperty(environment.fogEnabled);
+            if (!environment.fogEnabled) { return; }
+
+            fog->setFogColorProperty(
+                toXna(EditorVector3{static_cast<float>(environment.fogColor.r) / 255.0f,
+                                    static_cast<float>(environment.fogColor.g) / 255.0f,
+                                    static_cast<float>(environment.fogColor.b) / 255.0f}));
+            fog->setFogStartProperty(environment.fogStart);
+            fog->setFogEndProperty(environment.fogEnd);
         }
 
         /** @brief Applies @p lighting to whichever effect this build has. */
@@ -532,6 +559,10 @@ namespace CNA::Editor
             const std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
 
             impl_->applyMatrices(EditorMatrix{}, batch.view, batch.projection);
+
+            // Sprites are fogged too. A sprite that stayed crisp in a scene where the models faded
+            // would look like it was floating in front of the fog rather than standing in it.
+            impl_->applyFog(batch.environment);
             impl_->applySpriteMaterial(quad.tint, texture);
             impl_->applyEffect();
 
@@ -578,6 +609,7 @@ namespace CNA::Editor
 
             impl_->applyMatrices(draw.world, batch.view, batch.projection);
             impl_->applyLighting(draw.lighting);
+            impl_->applyFog(batch.environment);
 
             for (const Impl::GpuPart& part : model->parts)
             {

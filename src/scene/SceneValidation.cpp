@@ -139,6 +139,35 @@ namespace CNA::Editor
             }
         }
 
+        /**
+         * @brief Reports fog that is switched on and cannot do anything (ED-407).
+         *
+         * The first rule here that belongs to no entity, which is why it builds its `SceneIssue`
+         * by hand rather than through `makeIssue`: the scene's environment is a property of the
+         * scene, so there is nothing for the panel's click-to-select to select. That is honest
+         * rather than awkward -- an issue naming an entity that has nothing to do with it would be
+         * worse.
+         *
+         * Both effects treat a zero-width fog band as no fog at all, so nothing is broken and
+         * nothing needs guarding against. What is worth reporting is that a user who switched fog
+         * on will otherwise keep checking the box they already checked.
+         */
+        void checkEnvironment(const SceneDocument& scene, std::vector<SceneIssue>& issues)
+        {
+            const SceneEnvironment& environment = scene.getEnvironment();
+            if (!environment.fogEnabled) { return; }
+            if (environment.fogEnd > environment.fogStart) { return; }
+
+            SceneIssue issue;
+            issue.severity = SceneIssue::Severity::Warning;
+            issue.ruleId = "fog-band-is-empty";
+            issue.message =
+                "Fog is enabled, but it ends (" + std::to_string(environment.fogEnd)
+                + ") at or before it starts (" + std::to_string(environment.fogStart)
+                + "), so nothing is fogged.";
+            issues.push_back(std::move(issue));
+        }
+
         void checkCameraPlanes(const EditorEntity& entity,
                                const EditorComponent& camera,
                                const ComponentDescriptor* descriptor,
@@ -395,6 +424,7 @@ namespace CNA::Editor
     {
         std::vector<SceneIssue> issues;
 
+        checkEnvironment(scene, issues);
         checkCameras(scene, registry, issues);
         checkListeners(scene, issues);
 

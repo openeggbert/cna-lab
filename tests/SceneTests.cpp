@@ -3032,3 +3032,85 @@ CNA_EDITOR_TEST(ASpriteWithNoKnownSizeIsCountedRatherThanGuessedAt)
     CNA_EDITOR_EXPECT(batch.quads.empty());
     CNA_EDITOR_EXPECT_EQ(batch.skipped, std::size_t{1});
 }
+
+/**
+ * @brief ED-407: a scene's environment round-trips, and a scene that has none stays that way.
+ *
+ * The second half is the one worth a test. `environment` is an *additive* field, which means a
+ * scene written before ED-407 must read as the defaults and be written back out **without** the
+ * object -- a loader that read a default and then serialised it would turn every existing scene
+ * into a modified file the first time it was opened, and a diff full of scenes nobody touched is
+ * how a format change gets blamed on the wrong commit.
+ */
+CNA_EDITOR_TEST(ASceneWithoutAnEnvironmentDoesNotGrowOneByBeingOpened)
+{
+    const ComponentRegistry registry = makeRegistry();
+
+    SceneDocument fresh;
+    fresh.setName("Level01");
+    fresh.addEntity(makeEntity(registry, "Player", 1.0f, 2.0f));
+
+    // Nothing set: the serialised form must not mention the environment at all.
+    const JsonValue bare = fresh.toJson();
+    CNA_EDITOR_EXPECT(!bare["environment"].isObject());
+
+    SceneDocument reloaded;
+    reloaded.loadFromJson(bare, registry, nullptr);
+    CNA_EDITOR_EXPECT(reloaded.getEnvironment().isDefault());
+    CNA_EDITOR_EXPECT(!reloaded.toJson()["environment"].isObject());
+
+    // And once it is set, every field survives the trip.
+    SceneEnvironment foggy;
+    foggy.ambientColor = EditorColor{40, 44, 60, 255};
+    foggy.fogEnabled = true;
+    foggy.fogColor = EditorColor{200, 190, 180, 255};
+    foggy.fogStart = 250.0f;
+    foggy.fogEnd = 900.0f;
+    fresh.setEnvironment(foggy);
+
+    SceneDocument roundTripped;
+    roundTripped.loadFromJson(fresh.toJson(), registry, nullptr);
+
+    const SceneEnvironment& back = roundTripped.getEnvironment();
+    CNA_EDITOR_EXPECT(!back.isDefault());
+    CNA_EDITOR_EXPECT(back.fogEnabled);
+    CNA_EDITOR_EXPECT(back.ambientColor == foggy.ambientColor);
+    CNA_EDITOR_EXPECT(back.fogColor == foggy.fogColor);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(back.fogStart, 250.0f, 0.001f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(back.fogEnd, 900.0f, 0.001f));
+
+    // The formatVersion is untouched: this is an additive field, not a new version of the format.
+    CNA_EDITOR_EXPECT_EQ(fresh.toJson()["formatVersion"].asNumber(0.0),
+                         bare["formatVersion"].asNumber(-1.0));
+}
+
+/** @brief The scene's ambient reaches the model batch, because a cave is dark for everything in it. */
+CNA_EDITOR_TEST(TheScenesAmbientReachesEveryModelDrawnInIt)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const MeshData mesh = makeTinyMesh();
+    const Uuid modelId = Uuid::generate();
+
+    EditorEntity entity = makeEntity(registry, "Crate", 0.0f, 0.0f);
+    addModelRenderer(registry, entity, modelId);
+    scene.addEntity(std::move(entity));
+
+    SceneEnvironment dim;
+    dim.ambientColor = EditorColor{255, 0, 0, 255};
+    scene.setEnvironment(dim);
+
+    EditorCamera3D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const MeshProvider provider = [&](const Uuid& id) { return id == modelId ? &mesh : nullptr; };
+    const SceneModelBatch batch = buildSceneModelBatch(scene, camera, provider);
+
+    CNA_EDITOR_EXPECT_EQ(batch.draws.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(batch.draws[0].lighting.ambientColor.x, 1.0f, 0.001f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(batch.draws[0].lighting.ambientColor.y, 0.0f, 0.001f));
+
+    // And the fog settings ride on the batch rather than on each draw: fog is a property of the
+    // level, so a per-draw copy would be the same numbers repeated with nothing able to differ.
+    CNA_EDITOR_EXPECT(batch.environment.ambientColor == dim.ambientColor);
+}

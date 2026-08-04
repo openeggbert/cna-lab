@@ -51,6 +51,9 @@ namespace CNA::Editor
          */
         void drawProjectInspector();
 
+        /** @brief The scene's ambient and fog (ED-407), in the idle inspector. */
+        void drawSceneEnvironment();
+
         /**
          * @brief Draws the animation preview for an entity carrying `CNA.SpriteAnimation`.
          *

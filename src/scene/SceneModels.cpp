@@ -37,6 +37,7 @@ namespace CNA::Editor
                                          const std::vector<Uuid>& selection)
     {
         SceneModelBatch batch;
+        batch.environment = scene.getEnvironment();
         batch.viewProjection = camera.getViewProjectionMatrix();
         batch.view = camera.getViewMatrix();
 
@@ -80,6 +81,14 @@ namespace CNA::Editor
             draw.mesh = mesh;
             draw.world = toWorldMatrix(*world);
             draw.lighting = computeEffectLighting(lights, world->position);
+
+            // The scene's ambient overrides the lighting's own default. It is a property of the
+            // level -- a cave is dark -- so it belongs to the scene rather than to whichever
+            // lights happen to be in it.
+            draw.lighting.ambientColor =
+                EditorVector3{static_cast<float>(scene.getEnvironment().ambientColor.r) / 255.0f,
+                              static_cast<float>(scene.getEnvironment().ambientColor.g) / 255.0f,
+                              static_cast<float>(scene.getEnvironment().ambientColor.b) / 255.0f};
             draw.selected =
                 std::find(selection.begin(), selection.end(), entity.getId()) != selection.end();
 

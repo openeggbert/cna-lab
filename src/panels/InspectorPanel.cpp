@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Panels/InspectorPanel.hpp"
 
+#include "CNA/Editor/Scene/SceneEnvironment.hpp"
+
 #include <memory>
 #include <optional>
 #include <vector>
@@ -287,6 +289,82 @@ namespace CNA::Editor
         return PropertyValue{PropertyValue::AssetReference{assetId}};
     }
 
+    void InspectorPanel::drawSceneEnvironment()
+    {
+        // Here, in the idle inspector beside the project settings, because that is where a setting
+        // belonging to no entity already lives. It is the *scene's* though, not the project's, and
+        // the heading says so -- two levels of one game can be lit differently and a user who
+        // assumed otherwise would light them all at once.
+        const UiTreeNodeResult node =
+            ui_.treeNode("scene-environment", "Scene Environment", false, false);
+        if (!node.expanded) { return; }
+
+        SceneEnvironment environment = context_.getScene().getEnvironment();
+
+        const auto apply = [&](const SceneEnvironment& edited, const std::string& field)
+        {
+            auto command = std::make_unique<SetSceneEnvironmentCommand>(context_.getScene(), edited,
+                                                                        field);
+            context_.execute(std::move(command));
+        };
+
+        PropertyValue ambient{environment.ambientColor};
+        if (ui_.propertyField("Ambient", ambient))
+        {
+            SceneEnvironment edited = environment;
+            edited.ambientColor = ambient.get<EditorColor>();
+            apply(edited, "ambient light");
+        }
+
+        PropertyValue fogEnabled{environment.fogEnabled};
+        if (ui_.propertyField("Fog", fogEnabled))
+        {
+            SceneEnvironment edited = environment;
+            edited.fogEnabled = fogEnabled.get<bool>();
+            apply(edited, "fog");
+        }
+
+        // The three fog fields only when fog is on. A colour and two distances that do nothing are
+        // three controls a user has to test to discover are inert.
+        if (environment.fogEnabled)
+        {
+            PropertyValue fogColor{environment.fogColor};
+            if (ui_.propertyField("Fog Color", fogColor))
+            {
+                SceneEnvironment edited = environment;
+                edited.fogColor = fogColor.get<EditorColor>();
+                apply(edited, "fog colour");
+            }
+
+            PropertyValue fogStart{environment.fogStart};
+            if (ui_.propertyField("Fog Start", fogStart))
+            {
+                SceneEnvironment edited = environment;
+                edited.fogStart = fogStart.get<float>(edited.fogStart);
+                apply(edited, "fog start");
+            }
+
+            PropertyValue fogEnd{environment.fogEnd};
+            if (ui_.propertyField("Fog End", fogEnd))
+            {
+                SceneEnvironment edited = environment;
+                edited.fogEnd = fogEnd.get<float>(edited.fogEnd);
+                apply(edited, "fog end");
+            }
+
+            if (environment.fogEnd <= environment.fogStart)
+            {
+                // Said here as well as in the Validation panel: this is the one place the two
+                // numbers are next to each other, and a user who has just typed them is the one
+                // who can fix it in a second.
+                ui_.text("    Fog ends before it starts, so nothing is fogged.");
+            }
+        }
+
+        ui_.treePop();
+        ui_.separator();
+    }
+
     void InspectorPanel::drawProjectInspector()
     {
         if (!context_.hasProject())
@@ -318,6 +396,8 @@ namespace CNA::Editor
                      ? "    World units a Ctrl-drag rounds to."
                      : "    Zero: a Ctrl-drag rounds to the grid the viewport is drawing.");
         ui_.separator();
+
+        drawSceneEnvironment();
 
         std::vector<std::string> layers = project.getLayers();
         const std::string id = "project-layers";

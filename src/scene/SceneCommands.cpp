@@ -517,3 +517,41 @@ namespace CNA::Editor
         return "Remove component " + componentTypeId_;
     }
 }
+
+namespace CNA::Editor
+{
+    SetSceneEnvironmentCommand::SetSceneEnvironmentCommand(SceneDocument& document,
+                                                           SceneEnvironment environment,
+                                                           std::string fieldName)
+        : document_(&document), newEnvironment_(environment), oldEnvironment_(document.getEnvironment()),
+          fieldName_(std::move(fieldName))
+    {
+    }
+
+    void SetSceneEnvironmentCommand::execute() { document_->setEnvironment(newEnvironment_); }
+
+    void SetSceneEnvironmentCommand::undo() { document_->setEnvironment(oldEnvironment_); }
+
+    std::string SetSceneEnvironmentCommand::getDescription() const
+    {
+        return "Set " + fieldName_;
+    }
+
+    std::string SetSceneEnvironmentCommand::getMergeKey() const
+    {
+        // The field, not just "environment": changing the fog colour after dragging its distance
+        // is two things the user did and should be two things to undo.
+        return "scene-environment:" + fieldName_;
+    }
+
+    bool SetSceneEnvironmentCommand::mergeWith(const EditorCommand& newer)
+    {
+        const auto* other = dynamic_cast<const SetSceneEnvironmentCommand*>(&newer);
+        if (other == nullptr) { return false; }
+
+        // The newer value wins and the *older* undo state is kept, so one Ctrl+Z goes back to
+        // before the whole drag rather than to the middle of it.
+        newEnvironment_ = other->newEnvironment_;
+        return true;
+    }
+}

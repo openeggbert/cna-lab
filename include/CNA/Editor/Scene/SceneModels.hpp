@@ -31,6 +31,7 @@
 #include "CNA/Editor/Core/MeshData.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Scene/EditorCamera3D.hpp"
+#include "CNA/Editor/Scene/SceneEnvironment.hpp"
 #include "CNA/Editor/Scene/SceneLighting.hpp"
 
 namespace CNA::Editor
@@ -99,6 +100,15 @@ namespace CNA::Editor
          */
         EditorMatrix view;
         EditorMatrix projection;
+
+        /**
+         * @brief The scene's ambient and fog (ED-407), carried so the viewport need not ask twice.
+         *
+         * On the batch rather than on each draw: fog is a property of the level, so every model in
+         * one frame is fogged by the same numbers, and a per-draw copy would be the same struct
+         * repeated once per entity with nothing able to make them differ.
+         */
+        SceneEnvironment environment;
 
         /** @brief Entities that name a model whose geometry is not available yet. */
         std::size_t pendingMeshes = 0;
