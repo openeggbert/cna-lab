@@ -7,14 +7,23 @@ reimplementation of the XNA 4.0 framework.
 > `cna-editor` opens a window, docks its panels, and renders them entirely through CNA's *public*
 > API — no internal headers, no authored shader, no per-backend renderer. The scene viewport draws
 > sprites, tilemaps and manipulators; a **3D viewport** draws the same scene as a wireframe with
-> translate, rotate and scale gizmos of its own. The **`cna-player` process** is launched by the
-> editor over a real socket, **draws the game**, and takes live edits while it runs.
+> translate, rotate and scale gizmos of its own, and **imports glTF**, so a model renderer draws
+> its own geometry rather than a box. The **`cna-player` process** is launched by the editor over a
+> real socket, **draws the game**, and takes live edits while it runs.
 >
-> The default build stays dependency-free: no CNA checkout, no GPU, no window, 392 tests in about a
-> second. What is missing is 3D *content* — models, materials and lights ([`plan.md`](plan.md)
-> Phase 3), which wait on a model pipeline.
+> The default build stays dependency-free: no CNA checkout, no GPU, no window, 413 tests in about a
+> second — the glTF importer included, since it needs no CNA either. What is missing is *shaded* 3D
+> — lighting the imported meshes, materials and lights ([`plan.md`](plan.md) Phase 3, ED-402
+> onward). The geometry is there; nothing is lit yet.
 
 ![cna-editor running on the EASYGL backend](docs/images/editor-easygl.png)
+
+The 3D viewport, orbited, with the example project's imported `Crate.gltf` standing in the grid
+beside the two sprites. The crate is the model's own triangles; the flat rectangles are the sprites,
+which are still drawn as bounds because `SpriteBatch` cannot draw the trapezoid one becomes when
+seen from an angle.
+
+![the 3D viewport drawing an imported glTF model](docs/images/editor-3d-models.png)
 
 ---
 
@@ -282,6 +291,7 @@ cna-editor/
 │   └── EditorApplication.hpp
 ├── src/                     One directory per module
 ├── third_party/imgui/       Dear ImGui 1.92.9b, core only
+├── third_party/cgltf/       cgltf 1.15, with its symbols prefixed (see THIRD_PARTY_NOTICES.md)
 ├── tests/                   392 tests, no third-party framework
 └── examples/HelloSprites/   A project the editor opens end to end
 ```

@@ -293,17 +293,19 @@ and the rest of the Graphics surface a camera needs; ED-402 and ED-404 still wai
 pipeline. **ED-401 was the other exception and was built early**, because it is not a 3D task at all in a 2D viewport: `E` and `R` had been selecting
 a manipulator that did not exist since Phase 1, which is a promise the editor was making and not
 keeping. **ED-408 and ED-409 followed ED-400** for the same kind of reason: a view you can select
-in but not move things in is a viewer rather than an editor. Four rows of thirteen are done; the
-nine that remain all wait on the model pipeline.
+in but not move things in is a viewer rather than an editor. **ED-405 broke the deadlock the other
+eight were in**: they waited on a model pipeline, and it was the importer that had to exist first,
+because nothing can draw a mesh before something has read one. Five rows of thirteen are done, and
+what the remaining eight wait on is now ED-402 rather than the pipeline itself.
 
 | Id | Task | Status | Notes |
 |----|------|:------:|-------|
 | ED-400 | Perspective and orthographic viewport camera, orbit and fly navigation | ✅ | `EditorCamera3D` in `cna-editor-scene`, CNA-free like the 2D one and tested the same way; `EditorMatrix` in core is the arithmetic under it, mirroring XNA's `Matrix` field for field. Orbit and fly are not modes but two ways of moving one state -- pivot, distance, yaw, pitch -- so a user can orbit, fly and orbit again without the camera turning about a point it left minutes ago. What the view draws is `SceneWireframe.hpp`, also CNA-free and also tested; the renderer only strokes the segments it is handed. `--view=2d` or `3d` starts in either, which is what lets the result be photographed |
 | ED-401 | Rotate and scale gizmos; local/world space toggle | ✅ | |
-| ED-402 | `ModelRenderer` rendering | ⬜ | |
+| ED-402 | `ModelRenderer` rendering | ⬜ | **Next**, and much of its groundwork is now paid for. The geometry exists and is cached (`MeshCache`, in the context because a `MeshData` needs no CNA), the Y mirror is applied at import so a model already agrees with the grid and the gizmos, and triangle winding survives that mirror -- which is the thing that only becomes visible when this row turns backface culling on. What remains is genuinely the CNA half: build a `Model` from `MeshData` through the public `VertexBuffer`/`ModelMesh`/`Model` constructors, light it with `BasicEffect`, and draw it through the same mirrored view-projection the wireframe uses. `MeshMaterial` already carries as much of a glTF material as a `BasicEffect` can express |
 | ED-403 | Material editing and preview | ⬜ | |
 | ED-404 | Light components with viewport visualisation | ⬜ | |
-| ED-405 | glTF importer built on CNA's own `cgltf` integration | ⬜ | **Next task, and it comes before ED-402** (owner's decision, 2026-08-04): the meshes have to exist before anything can draw them, and this route does not depend on the content pipeline. An importer, so it belongs in `cna-editor-assets` beside the existing ones. Design the seam that carries mesh data to the CNA-linking viewport *before* writing the parser -- getting it wrong means writing ED-402 twice |
+| ED-405 | glTF importer built on CNA's own `cgltf` integration | ✅ | **The seam came first, as the row demanded**, and it is `MeshData.hpp` in `cna-editor-core` -- not beside the importer that produces it or the viewport that will draw it, because those two modules cannot see each other and must not need to. Three decisions are recorded there and both consumers inherit them: geometry arrives *already in the editor's world convention* (Y mirrored once, in the data, so no consumer has to remember), a vertex matches `VertexPositionNormalTexture` field for field so ED-402's upload is a copy rather than a translation, and there is deliberately **no node hierarchy** -- transforms are baked, because a schema with no consumer is the ED-311 mistake again. **cgltf is vendored** in `third_party/cgltf/` rather than reached for across the sibling checkout: the default build has no CNA in it (D-03), and CNA's own reader is `CNA::Internal::GltfImport`, which D-01 forbids. Its symbols are prefixed (`cgltf_prefixed.h`) because CNA vendors the same library inside `extern "C"`, and a build linking both fails outright -- a clash the standalone configuration and CI cannot see. **The seam is proved by a consumer, not by assertion**: `SceneWireframe` draws a `ModelRenderer`'s real mesh through `MeshProvider`, CNA-free and checked in CI with no GPU, so ED-402 inherits a `MeshData` already known to survive the trip |
 | ED-406 | Mesh preview in the asset browser | ⬜ | |
 | ED-407 | Environment and fog settings | ⬜ | |
 | ED-408 | 3D translate gizmo | ✅ | Added during the ED-400 session, because a view you can select in but not move things in is a viewer rather than an editor. `TransformGizmos3D.hpp`: a separate file from the 2D manipulators because almost nothing is shared -- those lay out in screen space against `EditorCamera2D`, this one lays out in the world and asks a different question each frame, *where along this world line is the cursor pointing*. Arms are sized in pixels and converted to world units at the entity's own depth, so the manipulator is the same size on screen wherever the entity is; an arm pointing at the camera is refused rather than answered, since a pixel of movement there would fling the entity across the level |
@@ -312,9 +314,12 @@ nine that remain all wait on the model pipeline.
 | ED-411 | **Plugin dynamic loading**: `dlopen`/`LoadLibrary`, `extern "C"` entry, unload, hot-reload | ⬜ | |
 | ED-412 | Plugin extension points: importers, component types, panels, menu commands, gizmos, exporters | ⬜ | |
 
-**ED-400's boundary is worth stating**, because the row is done and the phase is not. The 3D view
-draws a ground grid and a box per entity, and that is the honest whole of it: until ED-402 brings a
-model pipeline there is no mesh to draw, and `SpriteBatch` cannot draw the trapezoid a sprite
+**ED-400's boundary was worth stating, and ED-405 moved it.** The 3D view drew a ground grid and a
+box per entity, and that was the honest whole of it while there was no mesh to read. There is one
+now: a `ModelRenderer` whose asset has been imported is drawn as its own triangle edges, each edge
+once, sampled at a stride when a dense model would not fit the segment budget so that what appears
+is the whole shape drawn sparsely rather than one corner of it drawn completely. What has *not*
+moved is sprites, and for the original reason: `SpriteBatch` cannot draw the trapezoid a sprite
 becomes when seen from an angle. What the camera *does* answer is the question a 3D view exists for
 -- where is everything, in relation to everything else -- and picking, framing and navigation all
 work against it. Manipulating followed as its own tasks rather than as parameters on the 2D ones:
@@ -341,12 +346,26 @@ fixes the vertical and puts world +X on the left. Because the mirror lives in th
 view-projection that `worldToScreen` and `screenToRay` both go through, picking, the gizmo and the
 wireframe cannot disagree with what is drawn.
 
-**The cost lands on ED-402.** XNA's 3D side is Y-up: `CreateLookAt`, `BasicEffect` and every loaded
-model assume it. The model pass will have to apply the same mirror, or models will disagree with
-everything around them. A ground-plane grid becomes the useful one at that point too, and it is
-built and waiting: `WireframeOptions::gridPlane`, offered from the View menu while the 3D view is
-on. The default stays the scene's own plane, because that is where everything this editor can
-currently place lives.
+**The cost was billed to ED-402 and ED-405 paid it.** XNA's 3D side is Y-up: `CreateLookAt`,
+`BasicEffect` and every loaded model assume it. The mirror is now applied **at import, into the
+data**, rather than at draw time -- which is the choice worth recording, because the alternative
+looked equivalent and is not. Mirroring in the model pass means the wireframe path and the CNA path
+each have to remember, and the day one of them forgets is the day models are upside down in one
+view and not the other; mirroring once in the importer means every consumer, present and future,
+inherits a mesh that already stands the right way up.
+
+The consequence that is easy to miss came with it: **mirroring one axis reverses the handedness of
+every triangle in the file**, so the importer reverses the winding back. That is invisible in
+wireframe and becomes visible the moment ED-402 turns backface culling on -- which is exactly why
+it is pinned by a test now (`TriangleWindingIsReversedToSurviveTheYMirror`) rather than found then.
+A node that is *already* mirrored -- a negative scale, which authoring tools produce routinely --
+has flipped once already and the two cancel, so the test is on the sign of the whole transform
+rather than on the mirror alone.
+
+A ground-plane grid becomes the useful one now that models can stand on it, and it is built and
+waiting: `WireframeOptions::gridPlane`, offered from the View menu while the 3D view is on. The
+default stays the scene's own plane, because that is still where everything else this editor places
+lives.
 
 **ED-401** ships all three manipulators as one CNA-free module — layout, hit-test, drag — so what
 a user can grab is tested in CI and only the pixels need a GPU. Three decisions inside it are worth
