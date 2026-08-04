@@ -109,6 +109,7 @@ add_library(cna-editor-scene STATIC
     src/scene/SceneTransform.cpp
     src/scene/EditorCamera2D.cpp
     src/scene/EditorCamera3D.cpp
+    src/scene/SceneModels.cpp
     src/scene/SceneLighting.cpp
     src/scene/SceneWireframe.cpp
     src/scene/GameCamera.cpp
@@ -261,6 +262,7 @@ if(CNA_EDITOR_WITH_CNA)
         src/viewport/CnaEditorViewport.cpp
         src/viewport/CnaEditorAudio.cpp
         src/viewport/CnaPlayerHost.cpp
+        src/viewport/CnaModelPass.cpp
         src/viewport/CnaSceneRenderer.cpp
         src/viewport/CnaUiRenderer.cpp
         src/viewport/CnaUiPlatform.cpp)

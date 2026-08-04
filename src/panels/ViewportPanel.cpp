@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Panels/ViewportPanel.hpp"
 
+#include "CNA/Editor/Scene/SceneModels.hpp"
+
 #include <algorithm>
 #include <array>
 
@@ -188,7 +190,15 @@ namespace CNA::Editor
             lastWireframe_.segments.insert(lastWireframe_.segments.end(), handles.begin(), handles.end());
         }
 
-        return actions_.getViewport().renderWireframe(lastWireframe_.segments, width, height);
+        // The solid half of the 3D view (ED-402), decided the same way and in the same place as
+        // the lines: `buildSceneModelBatch` is CNA-free and tested, and the viewport uploads what
+        // it is handed. A build with no CNA ignores the batch and draws the wireframe alone, which
+        // is what this view showed before there were models.
+        lastModelBatch_ = buildSceneModelBatch(context_.getScene(), camera,
+                                               context_.makeMeshProvider(), context_.getSelection());
+
+        return actions_.getViewport().renderScene3D(lastModelBatch_, lastWireframe_.segments, width,
+                                                    height);
     }
 
     void ViewportPanel::handleInteraction(const UiImageInteraction& interaction)

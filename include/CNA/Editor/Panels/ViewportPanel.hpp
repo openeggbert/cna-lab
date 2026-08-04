@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "CNA/Editor/Scene/SceneModels.hpp"
 #include "CNA/Editor/Scene/SceneWireframe.hpp"
 #include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Scene/TransformGizmos.hpp"
@@ -245,6 +246,9 @@ namespace CNA::Editor
 
         /** @brief What the last 3D frame drew, so the toolbar can report a truncated wireframe. */
         WireframeResult lastWireframe_;
+
+        /** @brief What the 3D view drew solid last frame, kept for the status line and the tests. */
+        SceneModelBatch lastModelBatch_;
 
         /** @brief The in-progress 3D translate drag, if any. */
         TranslateGizmo3DDrag translate3DDrag_;

@@ -14,6 +14,7 @@
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/EditorCamera3D.hpp"
 #include "CNA/Editor/Scene/SceneLighting.hpp"
+#include "CNA/Editor/Scene/SceneModels.hpp"
 #include "CNA/Editor/Scene/SceneWireframe.hpp"
 #include "CNA/Editor/Scene/TransformGizmos3D.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -2690,4 +2691,143 @@ CNA_EDITOR_TEST(APointLightAimsAtWhateverIsBeingLitRatherThanAlongItsOwnAxis)
     const EffectLighting far = computeEffectLighting({lamp}, EditorVector3{90.0f, 0.0f, 0.0f});
     CNA_EDITOR_EXPECT(near.lights[0].diffuseColor.x > far.lights[0].diffuseColor.x);
     CNA_EDITOR_EXPECT(computeEffectLighting({lamp}, EditorVector3{101.0f, 0.0f, 0.0f}).useDefaultLighting);
+}
+
+namespace
+{
+    /** @brief A one-triangle mesh, enough for a batch to have something real to carry. */
+    MeshData makeTinyMesh()
+    {
+        MeshPart part;
+        part.vertices = {MeshVertex{EditorVector3{0.0f, 0.0f, 0.0f}, EditorVector3{0.0f, 0.0f, -1.0f}, {}},
+                         MeshVertex{EditorVector3{1.0f, 0.0f, 0.0f}, EditorVector3{0.0f, 0.0f, -1.0f}, {}},
+                         MeshVertex{EditorVector3{0.0f, 1.0f, 0.0f}, EditorVector3{0.0f, 0.0f, -1.0f}, {}}};
+        part.indices = {0, 1, 2};
+
+        MeshData mesh;
+        mesh.parts.push_back(std::move(part));
+        recomputeMeshBounds(mesh);
+        return mesh;
+    }
+
+    /** @brief Adds a `CNA.ModelRenderer` naming @p modelId to @p entity. */
+    void addModelRenderer(const ComponentRegistry& registry, EditorEntity& entity, const Uuid& modelId)
+    {
+        EditorComponent renderer{BuiltinComponentIds::kModelRenderer};
+        renderer.applyDefaults(*registry.find(BuiltinComponentIds::kModelRenderer));
+        renderer.setProperty("model", PropertyValue{PropertyValue::AssetReference{modelId}});
+        entity.addComponent(std::move(renderer));
+    }
+}
+
+/**
+ * @brief ED-402: the batch carries the camera's own view-projection, mirror and all.
+ *
+ * The single most important property of this seam, and the cheapest to get wrong. The 3D camera's
+ * view-projection already contains the Y mirror that converts XNA's Y-up 3D frame to this editor's
+ * Y-down world; a model pass that built its own matrix, or applied the mirror a second time, would
+ * draw models upside down relative to the grid and the gizmos -- or, worse, right way up but
+ * somewhere a click could not reach them.
+ */
+CNA_EDITOR_TEST(TheModelBatchDrawsThroughTheSameViewProjectionAsEverythingElse)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const MeshData mesh = makeTinyMesh();
+    const Uuid modelId = Uuid::generate();
+
+    EditorEntity entity = makeEntity(registry, "Crate", 3.0f, 4.0f);
+    addModelRenderer(registry, entity, modelId);
+    scene.addEntity(std::move(entity));
+
+    EditorCamera3D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+    camera.orbit(35.0f, 25.0f);
+
+    const MeshProvider provider = [&](const Uuid& id) { return id == modelId ? &mesh : nullptr; };
+    const SceneModelBatch batch = buildSceneModelBatch(scene, camera, provider);
+
+    CNA_EDITOR_EXPECT_EQ(batch.draws.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(batch.viewProjection == camera.getViewProjectionMatrix());
+    CNA_EDITOR_EXPECT_EQ(batch.triangleCount, std::size_t{1});
+    CNA_EDITOR_EXPECT(batch.draws[0].mesh == &mesh);
+}
+
+/**
+ * @brief The world matrix in a draw maps model space exactly where the scene transform says.
+ *
+ * The property, not the sixteen numbers: a local point pushed through the matrix must land where
+ * composing the entity's own scale, rotation and translation puts it. Written this way because the
+ * failure it guards against is a *different composition order* -- rotate-then-scale instead of
+ * scale-then-rotate -- which is invisible on an unrotated or unscaled entity and puts a rotated,
+ * non-uniformly scaled one somewhere its own gizmo does not agree with.
+ */
+CNA_EDITOR_TEST(AModelDrawsWhereTheSceneTransformSaysItIs)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const MeshData mesh = makeTinyMesh();
+    const Uuid modelId = Uuid::generate();
+
+    EditorEntity entity = makeEntity(registry, "Crate", 3.0f, 4.0f);
+    addModelRenderer(registry, entity, modelId);
+    const Uuid id = scene.addEntity(std::move(entity));
+
+    EditorComponent* transform = scene.findEntity(id)->findComponent(BuiltinComponentIds::kTransform);
+    transform->setProperty("scale", PropertyValue{EditorVector3{2.0f, 3.0f, 1.0f}});
+    transform->setProperty("rotation",
+                           PropertyValue{quaternionFromEulerDegrees(EditorVector3{0.0f, 0.0f, 90.0f})});
+
+    EditorCamera3D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const MeshProvider provider = [&](const Uuid& queried) { return queried == modelId ? &mesh : nullptr; };
+    const SceneModelBatch batch = buildSceneModelBatch(scene, camera, provider);
+    CNA_EDITOR_EXPECT_EQ(batch.draws.size(), std::size_t{1});
+
+    // (1, 0, 0) scaled by 2 on X, then turned a quarter turn about Z, then moved to (3, 4, 0).
+    const std::optional<WorldTransform> world = computeWorldTransform(scene, id);
+    CNA_EDITOR_EXPECT(world.has_value());
+
+    const EditorVector3 local{1.0f, 0.0f, 0.0f};
+    const EditorVector3 expected =
+        add(rotate(world->rotation,
+                   EditorVector3{local.x * world->scale.x, local.y * world->scale.y,
+                                 local.z * world->scale.z}),
+            world->position);
+    const EditorVector3 actual = transformPosition(batch.draws[0].world, local);
+
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(actual.x, expected.x, 0.001f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(actual.y, expected.y, 0.001f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(actual.z, expected.z, 0.001f));
+}
+
+/**
+ * @brief A model still importing is counted, not silently dropped.
+ *
+ * "Still importing" and "this entity has no model" look identical on screen and only one of them
+ * is worth waiting for, so the batch keeps a count the viewport can report rather than leaving a
+ * user to wonder where their crate went.
+ */
+CNA_EDITOR_TEST(AnEntityWhoseMeshHasNotArrivedIsCountedRatherThanDropped)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity entity = makeEntity(registry, "Crate", 0.0f, 0.0f);
+    addModelRenderer(registry, entity, Uuid::generate());
+    const Uuid id = scene.addEntity(std::move(entity));
+
+    EditorCamera3D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const MeshProvider none = [](const Uuid&) -> const MeshData* { return nullptr; };
+    const SceneModelBatch pending = buildSceneModelBatch(scene, camera, none);
+    CNA_EDITOR_EXPECT(pending.draws.empty());
+    CNA_EDITOR_EXPECT_EQ(pending.pendingMeshes, std::size_t{1});
+
+    // And a disabled entity is not pending either -- it is simply not there, like everywhere else.
+    scene.findEntity(id)->setEnabled(false);
+    const SceneModelBatch disabled = buildSceneModelBatch(scene, camera, none);
+    CNA_EDITOR_EXPECT_EQ(disabled.pendingMeshes, std::size_t{0});
 }

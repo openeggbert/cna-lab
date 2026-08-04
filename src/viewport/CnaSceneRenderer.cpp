@@ -13,9 +13,12 @@
 #include "Microsoft/Xna/Framework/Rectangle.hpp"
 #include "Microsoft/Xna/Framework/Vector2.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
+#include "Microsoft/Xna/Framework/Graphics/ClearOptions.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Graphics/RenderTarget2D.hpp"
+#include "Microsoft/Xna/Framework/Graphics/DepthFormat.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SamplerState.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SurfaceFormat.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SpriteBatch.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SpriteEffects.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SpriteSortMode.hpp"
@@ -27,6 +30,7 @@
 #include "CNA/Editor/Scene/EditorIcons.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Scene/TransformGizmos.hpp"
+#include "CNA/Editor/Viewport/CnaModelPass.hpp"
 #include "CNA/Editor/Viewport/CnaUiRenderer.hpp"
 
 namespace Xna = Microsoft::Xna::Framework;
@@ -121,14 +125,47 @@ namespace CNA::Editor
         int targetWidth = 0;
         int targetHeight = 0;
 
-        /** @brief Ensures the offscreen target matches the requested size. */
-        void ensureTarget(int width, int height)
-        {
-            if (target != nullptr && targetWidth == width && targetHeight == height) { return; }
+        /** @brief Whether the current target carries a depth buffer, which only the 3D view needs. */
+        bool targetHasDepth = false;
 
-            target = std::make_unique<XnaGraphics::RenderTarget2D>(*device, width, height);
+        /** @brief The solid model pass (ED-402). Initialised with the renderer, drawn in 3D only. */
+        CnaModelPass modelPass;
+
+        /** @brief Ensures the offscreen target matches the requested size. */
+        /**
+         * @brief Makes sure the offscreen target is @p width by @p height, with depth if asked.
+         *
+         * @param withDepth The 3D view needs one and the 2D view does not. Sprites sort by draw
+         *        order, so the two-argument `RenderTarget2D` constructor -- documented as "no
+         *        depth buffer" -- is exactly right for them; models sort per pixel, and without a
+         *        depth buffer a crate draws its own back faces through its front.
+         *
+         * One target that is recreated when the requirement changes, rather than two kept side by
+         * side. Switching between the 2D and 3D view is something a user does seconds apart, not
+         * per frame, and two targets would be two things to keep the same size as the panel.
+         */
+        void ensureTarget(int width, int height, bool withDepth = false)
+        {
+            if (target != nullptr && targetWidth == width && targetHeight == height
+                && targetHasDepth == withDepth)
+            {
+                return;
+            }
+
+            if (withDepth)
+            {
+                target = std::make_unique<XnaGraphics::RenderTarget2D>(
+                    *device, width, height, false, XnaGraphics::SurfaceFormat::Color,
+                    XnaGraphics::DepthFormat::Depth24Stencil8);
+            }
+            else
+            {
+                target = std::make_unique<XnaGraphics::RenderTarget2D>(*device, width, height);
+            }
+
             targetWidth = width;
             targetHeight = height;
+            targetHasDepth = withDepth;
         }
 
         /** @brief Returns the texture for @p assetId, loading it once, or nullptr. */
@@ -498,6 +535,10 @@ namespace CNA::Editor
         impl_->pixel = std::make_unique<XnaGraphics::Texture2D>(device, 1, 1);
         const Xna::Color white(255, 255, 255, 255);
         impl_->pixel->SetData(&white, 1);
+
+        // Here rather than on first use, so a build that cannot construct a PbrEffect has found
+        // that out before the first frame instead of during it (ED-402).
+        impl_->modelPass.initialize(device, assets);
     }
 
     void CnaSceneRenderer::shutdown()
@@ -606,6 +647,63 @@ namespace CNA::Editor
         lastStats_.gridLines = segments.size();
 
         impl_->device->SetRenderTarget(nullptr);
+    }
+
+    ModelPassStats CnaSceneRenderer::renderScene3D(const SceneModelBatch& models,
+                                                   const std::vector<WireSegment>& segments,
+                                                   int width, int height)
+    {
+        lastStats_ = SceneRenderStats{};
+        ModelPassStats modelStats;
+        modelStats.effect = impl_->modelPass.getEffectName();
+
+        if (impl_->device == nullptr || impl_->spriteBatch == nullptr) { return modelStats; }
+        if (width <= 0 || height <= 0) { return modelStats; }
+
+        // With depth, unlike every other pass this class runs.
+        impl_->ensureTarget(width, height, true);
+        impl_->device->SetRenderTarget(impl_->target.get());
+
+        // The depth buffer as well as the colour, which the one-argument `Clear` does not touch.
+        // Leaving it means the first model's depth test runs against whatever the last frame -- or
+        // nothing at all -- left there, and the honest description of the result is "the models
+        // are drawn and then rejected": no error, no draw call missing, nothing on screen.
+        impl_->device->Clear(XnaGraphics::ClearOptions::Target | XnaGraphics::ClearOptions::DepthBuffer,
+                             kBackground, 1.0f, 0);
+
+        // Models first, then the lines over them. Not the other way round and not interleaved: the
+        // wireframe is the editor's *overlay* -- grid, gizmo, selection outline -- and an overlay
+        // that a model could occlude would leave a user unable to see the handle they are dragging
+        // whenever it passed behind geometry. It is drawn with the depth test off for that reason.
+        modelStats = impl_->modelPass.render(models);
+
+        impl_->spriteBatch->Begin(XnaGraphics::SpriteSortMode::Deferred,
+                                  XnaGraphics::BlendState::AlphaBlend);
+
+        for (const WireSegment& segment : segments)
+        {
+            impl_->drawLine(segment.from, segment.to, segment.thickness,
+                            Xna::Color{segment.color.r, segment.color.g, segment.color.b,
+                                       segment.color.a});
+        }
+
+        impl_->spriteBatch->End();
+
+        lastStats_.gridLines = segments.size();
+        lastStats_.missingTextures = modelStats.missingTextures;
+
+        impl_->device->SetRenderTarget(nullptr);
+        return modelStats;
+    }
+
+    void CnaSceneRenderer::invalidateModel(const Uuid& assetId)
+    {
+        impl_->modelPass.invalidateModel(assetId);
+    }
+
+    const std::string& CnaSceneRenderer::getModelEffectName() const
+    {
+        return impl_->modelPass.getEffectName();
     }
 
     SceneRenderStats CnaSceneRenderer::renderPasses(const SceneDocument& scene,

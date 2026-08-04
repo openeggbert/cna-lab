@@ -26,7 +26,9 @@
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
+#include "CNA/Editor/Scene/SceneModels.hpp"
 #include "CNA/Editor/Scene/SceneWireframe.hpp"
+#include "CNA/Editor/Viewport/CnaModelPass.hpp"
 #include "CNA/Editor/Ui/UiDrawData.hpp"
 #include "CNA/Editor/Viewport/EditorViewport.hpp"
 
@@ -137,6 +139,28 @@ namespace CNA::Editor
          * `Begin`, a loop over `drawLine`, and an `End`.
          */
         void renderWireframe(const std::vector<WireSegment>& segments, int width, int height);
+
+        /**
+         * @brief Draws @p models solid and @p segments over them: the whole 3D view (ED-402).
+         *
+         * Two passes into one target, in this order and not the other. The wireframe carries the
+         * editor's *overlay* -- grid, gizmo arms, selection outline -- and an overlay a model could
+         * occlude would leave a user unable to see the handle they are dragging the moment it
+         * passed behind geometry. So models are drawn depth-tested and the lines are laid over them
+         * with the test off.
+         *
+         * The target is recreated with a depth buffer for this, since the one the 2D view uses has
+         * none: sprites sort by draw order and models sort per pixel.
+         */
+        ModelPassStats renderScene3D(const SceneModelBatch& models,
+                                     const std::vector<WireSegment>& segments,
+                                     int width, int height);
+
+        /** @brief Drops the GPU buffers for @p assetId, or all of them when it is nil. */
+        void invalidateModel(const Uuid& assetId);
+
+        /** @brief Which effect the model pass got: "PbrEffect", "BasicEffect" or "none". */
+        [[nodiscard]] const std::string& getModelEffectName() const;
 
         /**
          * @brief Registers the rendered target with @p uiRenderer and returns its UI texture id.

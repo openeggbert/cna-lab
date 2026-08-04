@@ -30,6 +30,7 @@
 #include "CNA/Editor/Core/ImageDiff.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
+#include "CNA/Editor/Scene/SceneModels.hpp"
 #include "CNA/Editor/Scene/SceneWireframe.hpp"
 #include "CNA/Editor/Scene/SpriteAnimation.hpp"
 #include "CNA/Editor/Scene/TransformGizmos.hpp"
@@ -159,6 +160,26 @@ namespace CNA::Editor
             (void)height;
             return 0;
         }
+
+        /**
+         * @brief Draws @p models solid with @p segments over them, and returns the UI texture.
+         *
+         * The 3D view once ED-402 gave it geometry to draw. The default implementation *ignores
+         * the models and draws the wireframe alone*, which is not a stub: a viewport with no CNA
+         * has no vertex buffer to upload into, and the wireframe is exactly what this view drew
+         * before models existed. So the standalone build, the null viewport and every headless
+         * test keep working and keep showing something true.
+         */
+        virtual UiTextureId renderScene3D(const SceneModelBatch& models,
+                                          const std::vector<WireSegment>& segments,
+                                          int width, int height)
+        {
+            (void)models;
+            return renderWireframe(segments, width, height);
+        }
+
+        /** @brief Which effect the model pass uses, or "none" in a build that has no model pass. */
+        [[nodiscard]] virtual std::string getModelEffectName() const { return "none"; }
 
         /**
          * @brief Returns true when render()'s texture must be sampled bottom-up.

@@ -77,6 +77,26 @@ namespace CNA::Editor
             return renderer_.shareWithUi(*uiRenderer_);
         }
 
+        UiTextureId renderScene3D(const SceneModelBatch& models,
+                                  const std::vector<WireSegment>& segments, int width,
+                                  int height) override
+        {
+            if (width <= 0 || height <= 0) { return kUiTextureNone; }
+
+            const ModelPassStats modelStats = renderer_.renderScene3D(models, segments, width, height);
+
+            const SceneRenderStats& stats = renderer_.getLastStats();
+            lastStats_ = ViewportStats{modelStats.modelsDrawn, stats.spritesSkipped, stats.gridLines,
+                                       modelStats.missingTextures};
+
+            return renderer_.shareWithUi(*uiRenderer_);
+        }
+
+        [[nodiscard]] std::string getModelEffectName() const override
+        {
+            return renderer_.getModelEffectName();
+        }
+
         void invalidateAsset(const Uuid& assetId) override
         {
             // The UI's borrowed entry has to go first: it points at a texture the renderer is
@@ -84,6 +104,13 @@ namespace CNA::Editor
             // next frame that happens to draw that row.
             uiRenderer_->releaseAdoptedTexture(assetId);
             renderer_.invalidateTexture(assetId);
+
+            // And its geometry, if it had any. One entry point rather than two, because the
+            // watcher knows an asset changed and not what kind it is -- and a `.gltf` edited with
+            // the editor open must be re-uploaded, or the 3D view goes on drawing the old shape
+            // while the console reports the change. The mesh cache is dropped separately, in the
+            // context; this is the GPU copy of it.
+            renderer_.invalidateModel(assetId);
         }
 
         UiTextureId getAssetThumbnail(const Uuid& assetId) override
