@@ -9,7 +9,8 @@ namespace CNA::Editor
 
         command->execute();
 
-        if (policy == MergePolicy::MergeWithPrevious && cursor_ > 0 && cursor_ == commands_.size())
+        if (policy == MergePolicy::MergeWithPrevious && mergeChainOpen_ && cursor_ > 0
+            && cursor_ == commands_.size())
         {
             EditorCommand& previous = *commands_[cursor_ - 1];
             const std::string mergeKey = command->getMergeKey();
@@ -34,6 +35,10 @@ namespace CNA::Editor
 
         commands_.push_back(std::move(command));
         cursor_ = commands_.size();
+
+        // A command that landed opens the chain: whatever follows it *within the same interaction*
+        // may fold into it. endInteraction() closes it again.
+        mergeChainOpen_ = true;
         trimToLimit();
     }
 

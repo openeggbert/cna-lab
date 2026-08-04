@@ -409,6 +409,8 @@ namespace CNA::Editor
 
     void ImGuiEditorUi::setClipboardHooks(const UiClipboardHooks& hooks) { clipboardHooks() = hooks; }
 
+    bool ImGuiEditorUi::isAnyItemActive() const { return ImGui::IsAnyItemActive(); }
+
     void ImGuiEditorUi::requestExit() { impl_->running = false; }
 
     bool ImGuiEditorUi::wantsTextInput() const

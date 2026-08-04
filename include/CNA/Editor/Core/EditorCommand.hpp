@@ -101,6 +101,20 @@ namespace CNA::Editor
          */
         void execute(std::unique_ptr<EditorCommand> command, MergePolicy policy = MergePolicy::NewEntry);
 
+        /**
+         * @brief Ends the current interaction, so the next command cannot merge into the last one.
+         *
+         * The merge key answers "is this the same *edit*" -- entity, component, property. It cannot
+         * answer "is this the same *interaction*", because two drags of one slider are identical by
+         * every property the key can see and differ only in that the user let go in between. Undoing
+         * a change made a minute ago because the same field was touched again is a real way to lose
+         * work, so the boundary has to be marked from outside.
+         *
+         * Cheap and idempotent: the application calls it on every frame where no widget is being
+         * dragged, which is the moment a mouse-driven interaction actually ends.
+         */
+        void endInteraction() { mergeChainOpen_ = false; }
+
         /** @brief Returns true when there is at least one entry to undo. */
         [[nodiscard]] bool canUndo() const { return cursor_ > 0; }
 
@@ -183,6 +197,16 @@ namespace CNA::Editor
         [[nodiscard]] std::size_t getLimit() const { return limit_; }
 
     private:
+        /**
+         * @brief Whether a command may still merge into the previous entry.
+         *
+         * Opened by every command that lands and closed by endInteraction(). Without it, merging is
+         * decided by the key alone -- which is right for "the same edit" and wrong for "the same
+         * gesture".
+         */
+        bool mergeChainOpen_ = false;
+
+
         void trimToLimit();
 
         std::vector<std::unique_ptr<EditorCommand>> commands_;

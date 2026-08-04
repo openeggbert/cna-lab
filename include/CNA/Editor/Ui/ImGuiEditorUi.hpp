@@ -150,6 +150,8 @@ namespace CNA::Editor
         void setClipboardHooks(const UiClipboardHooks& hooks);
 
         /** @brief Asks the editor to exit after the current frame. */
+        [[nodiscard]] bool isAnyItemActive() const override;
+
         void requestExit() override;
 
         /**

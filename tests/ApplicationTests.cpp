@@ -364,6 +364,16 @@ namespace
         /** @brief Enum options last offered for a field, by label. */
         std::vector<std::pair<std::string, std::vector<std::string>>> offeredOptions;
 
+        /**
+         * @brief Reports the scripted pointer as the thing being interacted with.
+         *
+         * The real UI answers this from ImGui, where the viewport image is an item and is active
+         * for the whole of a drag. Here the scripted interaction *is* the pointer, so a held button
+         * is exactly the same fact -- and without it every frame would look like the end of an
+         * interaction, which would stop a drag from merging into one undo entry.
+         */
+        [[nodiscard]] bool isAnyItemActive() const override { return interaction.leftDown; }
+
         UiImageInteraction image(const std::string& id,
                                  UiTextureId texture,
                                  float width,
@@ -1179,6 +1189,43 @@ CNA_EDITOR_TEST(AScaleDragResizesTheSelectedEntity)
 
     CNA_EDITOR_EXPECT(std::fabs(fixture.getScale().x - 2.0f) < 0.01f);
     CNA_EDITOR_EXPECT(std::fabs(fixture.getScale().y - 1.0f) < 0.01f);
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 100.0f);
+}
+
+CNA_EDITOR_TEST(TwoInspectorDragsOfOneFieldAreTwoUndoEntries)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    CommandHistory& history = fixture.application->getContext().getHistory();
+    const std::size_t before = history.getCount();
+
+    // A drag of a slider: several edits with the widget still held. They fold into one entry, which
+    // is what MergeWithPrevious is for -- one undo should undo the whole drag.
+    UiImageInteraction held;
+    held.leftDown = true;
+
+    for (float x : {110.0f, 120.0f, 130.0f})
+    {
+        fixture.ui->pendingEdits.emplace_back("Position",
+                                              PropertyValue{EditorVector3{x, 220.0f, 0.0f}});
+        fixture.step(held);
+    }
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), before + 1);
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 130.0f);
+
+    // Let go, then drag the same field again. The merge key is identical -- same entity, same
+    // component, same property -- so only the interaction boundary keeps the two apart.
+    fixture.step(UiImageInteraction{});
+
+    fixture.ui->pendingEdits.emplace_back("Position", PropertyValue{EditorVector3{200.0f, 220.0f, 0.0f}});
+    fixture.step(held);
+
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), before + 2);
+
+    // And the first drag is still there to come back to. Undoing a change made a minute ago because
+    // the same field was touched again is a real way to lose work.
+    CNA_EDITOR_EXPECT(history.undo());
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 130.0f);
+    CNA_EDITOR_EXPECT(history.undo());
     CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 100.0f);
 }
 

@@ -469,6 +469,13 @@ namespace CNA::Editor
         comparisonPanel_.draw();
 
         ui_->endDockSpace();
+
+        // The end of an interaction, marked once per frame in the one place that can see the whole
+        // UI. While a widget is held, edits fold into one undo entry; the moment nothing is held,
+        // the chain closes, so picking the same slider up again starts a new entry rather than
+        // quietly extending the last one. The gizmos have always done this for themselves; this is
+        // the same rule for every other continuous control, including ones not written yet.
+        if (!ui_->isAnyItemActive()) { context_.getHistory().endInteraction(); }
     }
 
     void EditorApplication::handleShortcuts()

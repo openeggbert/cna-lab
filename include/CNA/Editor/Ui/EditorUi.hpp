@@ -184,6 +184,19 @@ namespace CNA::Editor
         [[nodiscard]] virtual bool isRunning() const = 0;
 
         /**
+         * @brief Returns true while a widget is being dragged or typed into.
+         *
+         * What the undo stack needs to tell two slider drags apart: they are identical by every
+         * property a merge key can see and differ only in that the user let go in between. The UI
+         * is the only layer that knows, so it says.
+         *
+         * Defaulted to false, which means "no interaction is in progress" -- the safe answer for a
+         * headless UI, since it makes every edit its own undo entry rather than silently merging
+         * edits that should not have been.
+         */
+        [[nodiscard]] virtual bool isAnyItemActive() const { return false; }
+
+        /**
          * @brief Asks the editor to close after this frame.
          *
          * On the interface rather than only on the implementations, because a *task* can finish --

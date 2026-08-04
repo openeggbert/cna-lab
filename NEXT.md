@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 333 / 333 (also under Clang Release) |
+| Unit tests | ✅ 334 / 334 (also under Clang Release) |
 | CTest (standalone) | ✅ 8 / 8 |
 | CTest (CNA config) | ✅ 12 / 12 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -89,6 +89,17 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **An interaction boundary on `CommandHistory`**, which closes the oldest known problem in this
+  file: two separate drags of one inspector slider collapsed into a single undo entry. The merge key
+  answers "is this the same *edit*" -- entity, component, property -- and cannot answer "is this the
+  same *gesture*", because two drags of one field are identical by everything it can see and differ
+  only in that the user let go in between.
+  `endInteraction()` marks that boundary, and the application calls it once per frame on every frame
+  where no widget is active. The signal is new: `EditorUi::isAnyItemActive()`, answered by ImGui's
+  own `IsAnyItemActive()` -- which already covers viewport drags, since the viewport image is an
+  ImGui item and stays active for the whole of one. The gizmos have always opened a new entry on the
+  first edit of a drag; this is the same rule for every other continuous control, including ones
+  nobody has written yet.
 - **Gizmo snapping and Ctrl+click selection**, both of which were waiting on the same missing piece:
   `UiImageInteraction` carried no modifier state. It now carries `control` and `shift`, filled by the
   ImGui backend from `ImGuiIO` and settable by tests.
@@ -369,13 +380,6 @@ Phase 1 closed. Working through the owner's priority order:
 - **No gizmo on a multi-selection.** A gizmo is drawn on the *primary* selection only, and now that
   Ctrl+click can build a multi-selection that is more visible than it was. Manipulating the whole
   set needs a shared pivot first, which is part of ED-200's multi-select rather than of the gizmos.
-- **The inspector's merge boundary is per-property, not per-interaction.** Two separate drags of
-  the same slider collapse into one undo entry. The gizmo works around this by opening a new entry
-  on the first edit of a drag (`ViewportPanel::updateGizmoDrag`); the inspector does not. ED-311
-  narrowed it -- a *structural* edit (add, remove, move a list element, drop an asset) now opens a
-  new entry via `InspectorPanel::PropertyEdit::structural` -- but a continuous drag still merges
-  with the previous one. A general fix would give `CommandHistory` an explicit interaction
-  boundary.
 - **JPEG dimensions are not read.** `readImageSize` handles PNG and BMP; anything else reports
   unknown, and the inspector shows 0×0 with a tooltip saying why.
 - **`--headless` writes to the project.** Opening a project applies importer facts and may rewrite
@@ -395,46 +399,36 @@ Phase 1 closed. Working through the owner's priority order:
 
 ## Where to start next
 
-Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are closed and
-`PropertyType::List` is in, which was the thing blocking the rest of priority 3.
+Read this file, then `plan.md`'s *Current state* section.
 
-Phase 2's remaining work is now mostly *finishing* rather than starting. In rough order of value:
+**Every priority the owner named is closed.** Robustness and data safety; live editing into the
+running player; the production 2D tools; and the backend comparison mode, which now runs from a
+panel (ED-510), from the command line with an exit code (ED-511), and against players the build
+produces itself (ED-513). Phase 1 is complete, Phase 2 is ten of twelve, and the two open rows are
+each half built and each blocked on something outside this repository.
 
-**Phase 2 is effectively done.** Ten of its twelve rows are closed; the two that are not are each
-half built and each blocked on something outside this repository, not on effort here:
+What follows is a judgement call rather than a queue.
 
-1. **ED-311's `NestedStructure`** if anything ever needs it, and **ED-302's glyph preview** if CNA
-   closes G-04. Both are blocked on something real rather than on effort here.
-2. **Audio `stop()` cannot actually stop a clip** (see ED-304 above). Small, and worth doing the
-   moment anyone previews something long enough to want it cut short.
+**Blocked, not forgotten:**
 
-**ED-401 is now done**, which was the one Phase 3 row that did not need 3D. What is left there does:
-ED-400's perspective camera, ED-402's model rendering, ED-404's lights. All of them wait on CNA's 3D
-API, which is the precondition `plan.md` states for the phase and is not this repository's to move.
+- **ED-302's glyph preview** needs a public way to build a `SpriteFont` from a `.spritefont`. CNA
+  has none; recorded as gap G-04.
+- **ED-311's `NestedStructure`** has no consumer. ED-300 computes prefab overrides by comparison
+  rather than storing them, so nothing needs a nested schema. Designing one against no consumer is
+  how you get it wrong.
+- **The rest of Phase 3** -- ED-400's perspective camera, ED-402's model rendering, ED-404's lights
+  -- waits on CNA's 3D API, which is the precondition `plan.md` states for the phase.
 
-**Every priority the owner named is now closed.** Robustness and data safety, live editing into the
-player, the production 2D tools, and — with ED-510 — the backend comparison mode. What follows is a
-judgement call rather than a queue, and these are the candidates in the order I would take them:
+**Small and unblocked, in the order I would take them:**
 
-1. **An interaction boundary on `CommandHistory`.** The gizmos work around its absence by opening a
-   new entry on the first edit of a drag; the inspector cannot, so two separate slider drags still
-   collapse into one undo entry. Making the boundary explicit fixes both at once.
-2. **The rest of Phase 3** — ED-400's perspective camera, ED-402's model rendering, ED-404's lights.
-   All of them wait on CNA's 3D API, which is the precondition `plan.md` states for the phase and is
-   not this repository's to move.
-
-Two smaller things are worth doing before or alongside it, and both are the same shape — a gap in
-the *UI abstraction* rather than in a feature:
-
-- **Modifier keys on `UiImageInteraction`.** Shift and Ctrl over the viewport image would give the
-  gizmos snapping (15-degree rotation, round-number scale) and would let the picker add to a
-  selection rather than replace it. One field each on the struct and one read in the ImGui backend.
-- **An interaction boundary on `CommandHistory`.** The gizmos work around its absence by opening a
-  new entry on the first edit of a drag; the inspector cannot, so two separate slider drags still
-  collapse into one undo entry. Making the boundary explicit fixes both at once.
-
-Nothing above changes a file format. Every format is at version 1 and ED-902's chains are empty on
-purpose; a new component type is something the descriptor system handles without a bump.
+1. **Audio `stop()` cannot actually stop a clip.** CNA's fire-and-forget `Play()` returns no handle;
+   tracking a `SoundEffectInstance` is the shape. Worth doing the moment anyone previews something
+   long enough to want it cut short.
+2. **A gizmo on a multi-selection.** Ctrl+click can now build one, which makes its absence more
+   visible: the gizmo is drawn on the primary selection only. Manipulating the whole set needs a
+   shared pivot, which is ED-200's multi-select rather than the gizmos'.
+3. **JPEG dimensions.** `readImageSize` handles PNG and BMP and reports honestly for everything
+   else; a JPEG SOF scan is an afternoon.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
 chains are empty on purpose. Adding a property type must not change what an existing scene file
