@@ -1021,6 +1021,7 @@ namespace CNA::Editor
 
         // Which button is panning, for the 3D viewport, whose gesture turns on the answer.
         result.rightDown = ImGui::IsMouseDown(ImGuiMouseButton_Right);
+        result.middleDown = ImGui::IsMouseDown(ImGuiMouseButton_Middle);
 
         // Middle or right drag pans. Left is left alone for selection and, later, the gizmo.
         for (const ImGuiMouseButton button : {ImGuiMouseButton_Middle, ImGuiMouseButton_Right})

@@ -38,16 +38,6 @@ namespace CNA::Editor
         return result;
     }
 
-    EditorMatrix transpose(const EditorMatrix& matrix)
-    {
-        EditorMatrix result;
-        result.m11 = matrix.m11; result.m12 = matrix.m21; result.m13 = matrix.m31; result.m14 = matrix.m41;
-        result.m21 = matrix.m12; result.m22 = matrix.m22; result.m23 = matrix.m32; result.m24 = matrix.m42;
-        result.m31 = matrix.m13; result.m32 = matrix.m23; result.m33 = matrix.m33; result.m34 = matrix.m43;
-        result.m41 = matrix.m14; result.m42 = matrix.m24; result.m43 = matrix.m34; result.m44 = matrix.m44;
-        return result;
-    }
-
     std::optional<EditorMatrix> invert(const EditorMatrix& matrix)
     {
         // Cofactor expansion, written out. A general inverse rather than the cheaper affine one

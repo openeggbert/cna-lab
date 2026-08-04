@@ -49,9 +49,6 @@ namespace CNA::Editor
     /** @brief Returns the transform @p a followed by the transform @p b, i.e. the product `a * b`. */
     [[nodiscard]] EditorMatrix multiply(const EditorMatrix& a, const EditorMatrix& b);
 
-    /** @brief Returns @p matrix with its rows and columns exchanged. */
-    [[nodiscard]] EditorMatrix transpose(const EditorMatrix& matrix);
-
     /**
      * @brief Returns the inverse of @p matrix, or std::nullopt when it is singular.
      *

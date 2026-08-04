@@ -105,13 +105,15 @@ namespace CNA::Editor
         bool dragging = false;
 
         /**
-         * @brief True while the right button is held over the image.
+         * @brief True while the right or middle button is held over the image.
          *
          * Carried separately from @c dragging, which cannot say *which* button is panning. The 3D
          * viewport needs to know: right-drag turns the camera in place and middle-drag orbits it,
-         * and those are different gestures with different results (ED-400).
+         * and those are different gestures with different results (ED-400). The middle button is
+         * carried because a game may want it -- the editor itself only asks about the right one.
          */
         bool rightDown = false;
+        bool middleDown = false;
 
         /** @brief Cursor movement since the previous frame, while dragging. */
         float dragDeltaX = 0.0f;

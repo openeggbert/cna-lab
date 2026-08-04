@@ -466,6 +466,7 @@ namespace CNA::Editor
             snapshot.surfaceHeight = region.height;
             snapshot.leftButton = interaction.leftDown;
             snapshot.rightButton = interaction.rightDown;
+            snapshot.middleButton = interaction.middleDown;
             snapshot.wheel = interaction.wheel;
         }
 
