@@ -127,7 +127,7 @@ CNA_EDITOR_TEST(ApplicationDrawsEveryPanelEachFrame)
     ui.endFrame();
 
     const std::vector<std::string>& panels = ui.getLastFramePanels();
-    CNA_EDITOR_EXPECT_EQ(panels.size(), std::size_t{7});
+    CNA_EDITOR_EXPECT_EQ(panels.size(), std::size_t{8});
 
     const auto contains = [&](const std::string& title) {
         return std::find(panels.begin(), panels.end(), title) != panels.end();
@@ -139,6 +139,7 @@ CNA_EDITOR_TEST(ApplicationDrawsEveryPanelEachFrame)
     CNA_EDITOR_EXPECT(contains("Console"));
     CNA_EDITOR_EXPECT(contains("Validation"));
     CNA_EDITOR_EXPECT(contains("History"));
+    CNA_EDITOR_EXPECT(contains("Diagnostics"));
 
     // The viewport must actually have rendered, or --headless would be a no-op rather than a
     // smoke test. NullEditorViewport walks the same transform and bounds code a real one does.
@@ -2936,4 +2937,37 @@ CNA_EDITOR_TEST(AFillDraggedBackwardsAndPastTheEdgeStillFillsWhatExists)
 
     CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(0, 0), std::int64_t{5});
     CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(7, 0), std::int64_t{5});
+}
+
+CNA_EDITOR_TEST(TheDiagnosticsPanelReportsWhatThisBuildIsAndCanDo)
+{
+    auto scripted = std::make_unique<ScriptedUi>();
+    ScriptedUi* ui = scripted.get();
+    EditorApplication application{std::move(scripted), std::make_unique<NullEditorViewport>()};
+
+    EditorOptions options;
+    options.headless = true;
+    CNA_EDITOR_EXPECT(application.initialize(options));
+
+    std::vector<PlayerBuild> builds;
+    builds.push_back(PlayerBuild{"software", "/opt/cna/cna-player-software"});
+    application.setPlayerBuilds(std::move(builds));
+
+    application.renderFrame();
+
+    CNA_EDITOR_EXPECT(ui->sawText("Editor UI: null"));
+    CNA_EDITOR_EXPECT(ui->sawText("Viewport: null"));
+
+    // Because CNA fixes its backend at compile time, which player binaries exist is a real
+    // question with a real answer, and this is where the user sees it.
+    CNA_EDITOR_EXPECT(ui->sawText("Player builds found: 1"));
+    CNA_EDITOR_EXPECT(ui->sawText("    software  /opt/cna/cna-player-software"));
+
+    // The whole backend table, not only the one this binary was built against: the editor has to
+    // be able to talk about a backend it cannot itself run.
+    CNA_EDITOR_EXPECT(ui->sawText("Backends this editor knows about"));
+
+    // A headless run has no device to ask, and says so rather than showing an empty list that
+    // reads as "not implemented".
+    CNA_EDITOR_EXPECT(ui->sawText("No graphics device, so no capabilities to report."));
 }

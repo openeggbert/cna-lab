@@ -15,12 +15,12 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 286 / 286 (also under Clang Release) |
+| Unit tests | ✅ 287 / 287 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
-| **Phase 2** | 🔄 7 of 12 done (ED-300, 301, 303, 305, 306, 307, 310); ED-302 and ED-311 half; ED-304/308/309 open |
+| **Phase 2** | 🔄 8 of 12 done (ED-300, 301, 303, 305, 306, 307, 309, 310); ED-302 and ED-311 half; ED-304 and ED-308 open |
 | Owner priorities 1 and 2 | ✅ closed (robustness and data safety; live editing into the player) |
 
 ---
@@ -87,6 +87,11 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-309** backend diagnostics. Capabilities are asked of the *device* rather than derived from
+  the backend's name -- several vary by driver within one backend. EASYGL correctly reports no
+  wireframe fill mode (OpenGL ES has no `glPolygonMode`), which a name-keyed table would have got
+  wrong. They cross the module boundary as strings, so nothing outside the CNA-linking module knows
+  `GraphicsCapability` exists.
 - **Tilemap eyedropper and rectangle fill**, and the `ViewportPanel::handleInteraction` split
   that had been marked due. The split came first, deliberately: the *ordering* between interaction
   modes is load-bearing -- a drag in progress outranks everything, a tool outranks the gizmo, the
@@ -282,9 +287,17 @@ Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are
 
 Phase 2's remaining work is now mostly *finishing* rather than starting. In rough order of value:
 
-1. **ED-309 backend diagnostics** is nearly free: the capability set is already printed at start-up,
-   and showing it in a panel is a view over data that exists. Then **ED-304** audio source editing
-   with preview playback, and **ED-308**, the build dialog.
+1. **ED-304** audio source editing with preview playback. The component and its importer settings
+   exist; what does not is any way to hear a clip. Playing one needs CNA's `SoundEffect`, which is
+   the CNA-linking module's business, so the shape is the same one the animation preview took: the
+   panel asks, the viewport module does it. Check first whether `SoundEffect` can be built from a
+   `.wav` through CNA's *public* API — if it needs the content pipeline, this is gap G-04 again for
+   audio, and the honest deliverable is the settings without the preview.
+2. **ED-308** the build and publish dialog, which drives CNA's own CMake targets. The largest
+   remaining Phase 2 item and the one most likely to need decisions: where a build goes, whether the
+   editor shells out to `cmake` or writes a script, and what it does when the toolchain is missing.
+3. **ED-311's `NestedStructure`** if anything ever needs it, and **ED-302's glyph preview** if CNA
+   closes G-04. Both are blocked on something real rather than on effort here.
 
 Nothing above changes a file format. Every format is at version 1 and ED-902's chains are empty on
 purpose; a new component type is something the descriptor system handles without a bump.

@@ -255,6 +255,7 @@ set(CNA_EDITOR_PANEL_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/ValidationPanel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/HistoryPanel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/ConsolePanel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/DiagnosticsPanel.cpp
     CACHE INTERNAL "Editor panel sources")
 
 add_executable(cna-editor

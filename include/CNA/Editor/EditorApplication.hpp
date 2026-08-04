@@ -21,6 +21,7 @@
 #include "CNA/Editor/EditorContext.hpp"
 #include "CNA/Editor/Panels/AssetBrowserPanel.hpp"
 #include "CNA/Editor/Panels/ConsolePanel.hpp"
+#include "CNA/Editor/Panels/DiagnosticsPanel.hpp"
 #include "CNA/Editor/Panels/EditorPanel.hpp"
 #include "CNA/Editor/Panels/HierarchyPanel.hpp"
 #include "CNA/Editor/Panels/InspectorPanel.hpp"
@@ -281,6 +282,7 @@ namespace CNA::Editor
         AssetBrowserPanel assetBrowserPanel_;
         ValidationPanel validationPanel_;
         ConsolePanel consolePanel_;
+        DiagnosticsPanel diagnosticsPanel_;
 
         GizmoMode gizmoMode_ = GizmoMode::Translate;
         EditorTool tool_ = EditorTool::Select;

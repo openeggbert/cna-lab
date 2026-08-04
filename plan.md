@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **286 passing tests across 7 CTest suites** (10 with CNA)
+- 12 modules, three executables, and **287 passing tests across 7 CTest suites** (10 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -35,6 +35,9 @@ checkout, no GPU and no window:
 - the scene draws with an adaptive grid, sprites ordered by layer depth, selection outlines, a
   **translate gizmo** whose drag is one undo entry, and **icons** for entities that have no
   geometry to draw
+- a **Diagnostics panel** reports what this build actually is: its UI toolkit, its viewport
+  backend, that backend's real capability set queried from the device, and the player builds
+  found beside it
 - **sprite animation**: a clip of sheet frame indices, an inspector preview that plays, pauses
   and steps, and the viewport drawing the same frame — with playback deliberately outside the
   document
@@ -72,7 +75,7 @@ checkout, no GPU and no window:
   project, scans its assets, loads a three-entity scene and draws a frame
 
 **Built and run against a real CNA checkout.** With `-DCNA_EDITOR_WITH_CNA=ON` and
-`CNA_GRAPHICS_BACKEND=SOFTWARE`, `cna-editor` opens a window, docks its seven panels, and draws them
+`CNA_GRAPHICS_BACKEND=SOFTWARE`, `cna-editor` opens a window, docks its eight panels, and draws them
 entirely through CNA's *public* API — no `CNA::Internal::*`, no authored shader, no per-backend
 renderer:
 
@@ -257,7 +260,7 @@ position in the inspector, undo, save the scene, and run it in a separate CNA Pl
 | ED-306 | Asset hot-reload into a running player over the bridge | ✅ | The watcher already noticed the file and the editor already dropped its own cached texture; what was missing was telling the player. Sent **by id**, like everything else on this wire (D-08), so a reload survives the file being renamed between the change and the message, and both sides resolve it through the database they each scanned. The player rescans before looking the id up — a record still carrying the old stamp would make its next scan think the asset changed again. `PlayerHost::takeReloadedAssets()` is the seam the CNA-linked half drains to drop its caches; **it draws nothing yet**, so today a hot-reload is observable in the player's log and asset database rather than on screen |
 | ED-307 | Live property editing into a running player | ✅ | One hook, because every document change goes through a command (D-06) — there is no second path an edit could take. `EditorContext` gained a command observer; the application mirrors a `SetPropertyCommand` and leaves everything else alone rather than guessing, since a partially applied scene in the player is worse than a stale one. Undo and redo mirror too: a player that saw the edit but not its reversal would be showing a state that exists nowhere. The value is read from the **document**, not from the command, because after an undo the live value is the old one |
 | ED-308 | Build and publish dialog driving CNA's own CMake targets | ⬜ |
-| ED-309 | Backend diagnostics: report the current build's `GraphicsCapability` set | ⬜ |
+| ED-309 | Backend diagnostics: report the current build's `GraphicsCapability` set | ✅ | Asked of the **device**, not derived from the backend's name: several of these vary by driver within one backend, so a table keyed on the backend would confidently report what the machine cannot do. Verified on EASYGL, which correctly reports no wireframe fill mode — OpenGL ES has no `glPolygonMode`, and a name-keyed table would have claimed otherwise. The panel also lists the player builds discovery found and the whole backend table, because with a compile-time backend (F-01) "which of these can I actually run" is a real question with a real answer. Capabilities cross the module boundary as strings, so nothing outside the CNA-linking module knows `GraphicsCapability` exists and the list keeps working when CNA adds an entry |
 | ED-310 | Scene validation: missing references, duplicate primary cameras, zero scale, empty entities | ✅ | `SceneValidation.hpp` holds the structural rules; missing references stay in `MissingReferences.hpp` because they need the asset database and the rules do not. Both report into one **Validation** panel: a user whose scene misbehaves does not know in advance which of the two is at fault. Every rule describes a *legal* state, so nothing refuses to save and nothing is repaired automatically — a rule that fired on a scene the user meant to write would be worse than no rule. Clicking an issue selects the entity |
 | ED-311 | `PropertyType::List` and `NestedStructure`, with inspector support | 🔄 | **`List` is done; `NestedStructure` is deliberately not, and this row stays open because of it.** The element type is *declared* on the descriptor, never inferred: an empty list has no element to infer from, and a list whose type followed its contents could never be edited back from empty. `list` was appended to the type-name table rather than inserted, because those names are on the editor-to-player wire. Every change comes back as the whole new list, so add, remove, move and edit are all plain `SetPropertyCommand`s — and structural ones take their own undo entry, or pressing Add three times would undo in one. **`NestedStructure` has no consumer.** It was expected to be prefab overrides — but ED-300 computes those by comparison rather than storing them, so nothing needs a nested schema. It stays open, and deliberately unbuilt, until something real asks for one: designing a schema against no consumer is how you get it wrong |
 | ED-320 | GPU picking through an id render target | ⛔ |

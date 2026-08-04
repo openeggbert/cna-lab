@@ -16,7 +16,13 @@
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Viewport/CnaSceneRenderer.hpp"
 #include "CNA/Editor/Viewport/CnaUiRenderer.hpp"
+#include <iterator>
+#include <utility>
+#include <vector>
+
 #include "CNA/GraphicsBackendType.hpp"
+#include "CNA/GraphicsCapability.hpp"
+#include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 
 namespace CNA::Editor
 {
@@ -33,7 +39,7 @@ namespace CNA::Editor
                           const AssetDatabase& assets,
                           const ComponentRegistry& components,
                           CnaUiRenderer& uiRenderer)
-            : uiRenderer_(&uiRenderer)
+            : device_(&device), uiRenderer_(&uiRenderer)
         {
             renderer_.initialize(device, assets, components);
         }
@@ -84,6 +90,31 @@ namespace CNA::Editor
             return uiRenderer_->adoptTexture(assetId, *texture);
         }
 
+        [[nodiscard]] std::vector<ViewportCapability> getBackendCapabilities() const override
+        {
+            // Asked of the *device*, not derived from the backend name. Several of these vary by
+            // driver within one backend -- anisotropic filtering and MSAA especially -- so a table
+            // keyed on the backend would confidently report what this machine cannot do.
+            static const std::pair<CNA::GraphicsCapability, const char*> kCapabilities[] = {
+                {CNA::GraphicsCapability::ThreeD, "3D pipeline"},
+                {CNA::GraphicsCapability::DepthStencilBuffer, "Depth/stencil buffer"},
+                {CNA::GraphicsCapability::MultiSampleAntiAliasing, "MSAA"},
+                {CNA::GraphicsCapability::MultipleRenderTargets, "Multiple render targets"},
+                {CNA::GraphicsCapability::AnisotropicFiltering, "Anisotropic filtering"},
+                {CNA::GraphicsCapability::WireFrame, "Wireframe fill mode"},
+                {CNA::GraphicsCapability::OcclusionQuery, "Occlusion queries"},
+                {CNA::GraphicsCapability::CustomEffects, "Custom SpriteBatch effects"},
+            };
+
+            std::vector<ViewportCapability> capabilities;
+            capabilities.reserve(std::size(kCapabilities));
+            for (const auto& [capability, name] : kCapabilities)
+            {
+                capabilities.push_back(ViewportCapability{name, device_->SupportsCapability(capability)});
+            }
+            return capabilities;
+        }
+
         [[nodiscard]] EditorVector2 getSpriteSize(const Uuid& assetId) const override
         {
             return renderer_.getSpriteSize(assetId);
@@ -113,6 +144,7 @@ namespace CNA::Editor
 
     private:
         CnaSceneRenderer renderer_;
+        Microsoft::Xna::Framework::Graphics::GraphicsDevice* device_;
         CnaUiRenderer* uiRenderer_;
         EditorCamera2D camera_;
         ViewportStats lastStats_;

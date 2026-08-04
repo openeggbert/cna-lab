@@ -159,7 +159,8 @@ namespace CNA::Editor
           historyPanel_(context_, *ui_, *this),
           assetBrowserPanel_(context_, *ui_, *this),
           validationPanel_(context_, *ui_, *this),
-          consolePanel_(context_, *ui_, *this)
+          consolePanel_(context_, *ui_, *this),
+          diagnosticsPanel_(context_, *ui_, *this)
     {
         // Forward every context message into the console panel, so a single log() call reaches
         // both the UI and, through the UI implementation, stdout in headless runs.
@@ -403,6 +404,7 @@ namespace CNA::Editor
         assetBrowserPanel_.draw();
         validationPanel_.draw();
         consolePanel_.draw();
+        diagnosticsPanel_.draw();
 
         ui_->endDockSpace();
     }

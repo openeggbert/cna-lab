@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "CNA/Editor/Core/EditorMath.hpp"
@@ -34,6 +35,13 @@
 namespace CNA::Editor
 {
     class SceneDocument;
+
+    /** @brief One graphics feature, and whether this build's backend has it. */
+    struct ViewportCapability
+    {
+        std::string name;
+        bool supported = false;
+    };
 
     /** @brief The manipulator currently bound to the mouse. */
     enum class GizmoMode
@@ -85,6 +93,18 @@ namespace CNA::Editor
                                    const std::vector<Uuid>& selection,
                                    GizmoMode gizmoMode,
                                    const AnimationPreview& preview = {}) = 0;
+
+        /**
+         * @brief Returns what the backend this build was compiled against can actually do.
+         *
+         * Empty for a viewport with no device. The names are CNA's own `GraphicsCapability`
+         * entries, carried as strings so that nothing outside the CNA-linking module has to know
+         * that enumeration exists -- and so the list keeps working when CNA adds an entry.
+         */
+        [[nodiscard]] virtual std::vector<ViewportCapability> getBackendCapabilities() const
+        {
+            return {};
+        }
 
         /**
          * @brief Returns the texel size of @p assetId, or (0, 0) when it cannot be resolved.
