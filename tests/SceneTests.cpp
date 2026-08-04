@@ -530,6 +530,68 @@ CNA_EDITOR_TEST(ASpriteWithNoTextureIsReported)
                          std::size_t{0});
 }
 
+CNA_EDITOR_TEST(ATilemapWithNoTileSizeIsReported)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity entity = makeEntity(registry, "Level", 0.0f, 0.0f);
+    EditorComponent& tilemap = addComponentWithDefaults(entity, registry, BuiltinComponentIds::kTilemap);
+    tilemap.setProperty(TilemapKeys::kTileWidth, PropertyValue{std::int64_t{0}});
+    scene.addEntity(std::move(entity));
+
+    // A tile size of zero draws nothing and swallows every brush stroke, neither of which says
+    // why. That is the whole reason this rule exists.
+    const std::vector<SceneIssue> issues = validateScene(scene, registry);
+    CNA_EDITOR_EXPECT_EQ(countRule(issues, "tilemap-without-tile-size"), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(countIssues(issues, SceneIssue::Severity::Error), std::size_t{0});
+
+    // A tilemap with a real tile size is not reported, whether or not it has any tiles in it yet.
+    SceneDocument sized;
+    EditorEntity ok = makeEntity(registry, "Level", 0.0f, 0.0f);
+    addComponentWithDefaults(ok, registry, BuiltinComponentIds::kTilemap);
+    sized.addEntity(std::move(ok));
+
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(sized, registry), "tilemap-without-tile-size"),
+                         std::size_t{0});
+}
+
+CNA_EDITOR_TEST(AnAnimationWithNoSheetOrNoFramesIsReported)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity entity = makeEntity(registry, "Hero", 0.0f, 0.0f);
+    addComponentWithDefaults(entity, registry, BuiltinComponentIds::kSpriteRenderer);
+    addComponentWithDefaults(entity, registry, BuiltinComponentIds::kSpriteAnimation);
+    scene.addEntity(std::move(entity));
+
+    // Both halves fire on a freshly added component, and each is worth its own line: a sheet with
+    // no frames plays nothing, and frames with no sheet leave the sprite drawing a placeholder --
+    // which looks exactly like a broken asset reference and is a different problem.
+    const std::vector<SceneIssue> issues = validateScene(scene, registry);
+    CNA_EDITOR_EXPECT_EQ(countRule(issues, "animation-without-sheet"), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(countRule(issues, "animation-without-frames"), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(countIssues(issues, SceneIssue::Severity::Error), std::size_t{0});
+
+    SceneDocument ready;
+    EditorEntity animated = makeEntity(registry, "Hero", 0.0f, 0.0f);
+    addComponentWithDefaults(animated, registry, BuiltinComponentIds::kSpriteRenderer);
+    EditorComponent& animation =
+        addComponentWithDefaults(animated, registry, BuiltinComponentIds::kSpriteAnimation);
+    animation.setProperty(SpriteAnimationKeys::kSheet,
+                          PropertyValue{PropertyValue::AssetReference{Uuid::generate()}});
+
+    PropertyValue::ListValue frames;
+    frames.items.push_back(PropertyValue{std::int64_t{0}});
+    animation.setProperty(SpriteAnimationKeys::kFrames, PropertyValue{frames});
+    ready.addEntity(std::move(animated));
+
+    const std::vector<SceneIssue> readyIssues = validateScene(ready, registry);
+    CNA_EDITOR_EXPECT_EQ(countRule(readyIssues, "animation-without-sheet"), std::size_t{0});
+    CNA_EDITOR_EXPECT_EQ(countRule(readyIssues, "animation-without-frames"), std::size_t{0});
+}
+
 CNA_EDITOR_TEST(AnUnregisteredComponentTypeIsReportedRatherThanIgnored)
 {
     const ComponentRegistry registry = makeRegistry();

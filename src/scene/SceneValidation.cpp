@@ -6,6 +6,8 @@
 #include <unordered_set>
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/SpriteAnimation.hpp"
+#include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 
 namespace CNA::Editor
@@ -198,6 +200,67 @@ namespace CNA::Editor
         }
 
         /**
+         * @brief Reports a tilemap that can never draw or be painted into.
+         *
+         * A tile size of zero is the trap the renderer's own comment warns about: the map draws
+         * nothing, a brush lands on no cell, and neither says why. It is a *warning* rather than an
+         * error because a tilemap added a moment ago and not yet configured is a normal state --
+         * what is not normal is finding out about it by wondering why painting does nothing.
+         */
+        void checkTilemap(const EditorEntity& entity,
+                          const EditorComponent& tilemap,
+                          const ComponentDescriptor* descriptor,
+                          std::vector<SceneIssue>& issues)
+        {
+            const auto width = tilemap.getPropertyOrDefault(TilemapKeys::kTileWidth, descriptor)
+                                   .get<std::int64_t>(0);
+            const auto height = tilemap.getPropertyOrDefault(TilemapKeys::kTileHeight, descriptor)
+                                   .get<std::int64_t>(0);
+
+            if (width > 0 && height > 0) { return; }
+
+            issues.push_back(makeIssue(
+                SceneIssue::Severity::Warning, "tilemap-without-tile-size", entity,
+                BuiltinComponentIds::kTilemap,
+                "Tilemap has a tile size of " + std::to_string(width) + "x" + std::to_string(height)
+                    + ", so it draws nothing and cannot be painted into."));
+        }
+
+        /**
+         * @brief Reports a sprite animation with no sheet, or with no frames to play.
+         *
+         * The animation drives the sprite it sits beside -- its sheet replaces the texture -- so an
+         * animation without one leaves the entity drawing the placeholder and looking like a broken
+         * asset reference, which is a different problem with a different fix.
+         */
+        void checkAnimation(const EditorEntity& entity,
+                            const EditorComponent& animation,
+                            std::vector<SceneIssue>& issues)
+        {
+            const PropertyValue sheet = animation.getProperty(SpriteAnimationKeys::kSheet);
+            if (sheet.getType() != PropertyType::AssetReference
+                || !sheet.get<PropertyValue::AssetReference>().id.isValid())
+            {
+                issues.push_back(makeIssue(
+                    SceneIssue::Severity::Warning, "animation-without-sheet", entity,
+                    BuiltinComponentIds::kSpriteAnimation,
+                    "Sprite Animation has no sheet, so the sprite beside it draws a placeholder."));
+            }
+
+            const PropertyValue frames = animation.getProperty(SpriteAnimationKeys::kFrames);
+            if (frames.getType() == PropertyType::List
+                && !frames.get<PropertyValue::ListValue>().items.empty())
+            {
+                return;
+            }
+
+            issues.push_back(makeIssue(
+                SceneIssue::Severity::Warning, "animation-without-frames", entity,
+                BuiltinComponentIds::kSpriteAnimation,
+                "Sprite Animation has no frames, so there is nothing to play."));
+        }
+
+        /**
          * @brief Reports a stored enum value that is not one of the declared options.
          *
          * General rather than layer-specific, though renaming a layer is what makes it fire in
@@ -355,6 +418,17 @@ namespace CNA::Editor
             if (const EditorComponent* sprite = entity.findComponent(BuiltinComponentIds::kSpriteRenderer))
             {
                 checkSprite(entity, *sprite, issues);
+            }
+
+            if (const EditorComponent* tilemap = entity.findComponent(BuiltinComponentIds::kTilemap))
+            {
+                checkTilemap(entity, *tilemap, registry.find(BuiltinComponentIds::kTilemap), issues);
+            }
+
+            if (const EditorComponent* animation =
+                    entity.findComponent(BuiltinComponentIds::kSpriteAnimation))
+            {
+                checkAnimation(entity, *animation, issues);
             }
 
             if (const EditorComponent* camera = entity.findComponent(BuiltinComponentIds::kCamera))

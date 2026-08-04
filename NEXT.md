@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 344 / 344 (also under Clang Release) |
+| Unit tests | ✅ 346 / 346 (also under Clang Release) |
 | CTest (standalone) | ✅ 8 / 8 |
 | CTest (CNA config) | ✅ 12 / 12 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -117,6 +117,12 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **Two validation rules for states that fail silently.** A tilemap with a tile size of zero draws
+  nothing *and* swallows every brush stroke, saying neither; an animation with no sheet leaves the
+  sprite beside it drawing a placeholder, which looks exactly like a broken asset reference and is a
+  different problem with a different fix. Both are warnings, since a component added a moment ago
+  and not yet configured is a normal state -- what is not normal is finding out by wondering why
+  painting does nothing.
 - **The viewport toolbar shows the gizmo mode and space.** `W`/`E`/`R` and `X` could change them
   and the menu could set them, but nothing *displayed* them -- a user who could not see which
   manipulator was active had to press a key to find out what it had been. The space button is
