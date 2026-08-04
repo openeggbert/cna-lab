@@ -48,11 +48,19 @@ namespace
 
         check(scene.getName() == "Level01", "scene name is Level01");
 
-        // Four: a camera, two sprites and the Crate that ED-405 added so the 3D view has a real
-        // model in it. The count is asserted rather than ignored because this demo exists to prove
-        // a shipped game reads the same scene the editor wrote -- an entity the loader silently
-        // dropped is exactly the failure it is here to catch.
-        check(scene.getEntities().size() == 4, "four entities");
+        // Five: a camera, two sprites, the Crate that ED-405 added so the 3D view has a real model
+        // in it, and the Key Light that ED-404 added so it has something lighting that model. The
+        // count is asserted rather than ignored because this demo exists to prove a shipped game
+        // reads the same scene the editor wrote -- an entity the loader silently dropped is exactly
+        // the failure it is here to catch, and a count that was allowed to drift would catch none.
+        check(scene.getEntities().size() == 5, "five entities");
+
+        // A light carries no sprite and no model, which makes it the third shape of entity this
+        // loader has to survive. It is here because a loader that assumed every entity draws
+        // something would have failed on it in a game rather than in a test.
+        const Runtime::SceneEntity* light = scene.findEntity(std::string_view{"Key Light"});
+        check(light != nullptr, "Key Light is present");
+        if (light != nullptr) { check(!light->sprite.has_value(), "Key Light has no sprite"); }
 
         // A model renderer carries no sprite, so a loader that assumed every entity had one would
         // fail here rather than in a game.

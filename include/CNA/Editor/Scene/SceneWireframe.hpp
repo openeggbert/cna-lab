@@ -25,6 +25,7 @@
 
 #include "CNA/Editor/Core/MeshData.hpp"
 #include "CNA/Editor/Scene/EditorCamera3D.hpp"
+#include "CNA/Editor/Scene/SceneLighting.hpp"
 #include "CNA/Editor/Scene/EditorIcons.hpp"
 
 namespace CNA::Editor
@@ -67,6 +68,16 @@ namespace CNA::Editor
 
         /** @brief A selected entity's bounding box. Matches the 2D viewport's selection colour. */
         inline constexpr EditorColor kSelected{255, 190, 60, 255};
+
+        /**
+         * @brief A light's direction arrow and range ring (ED-404).
+         *
+         * The same yellow the 2D viewport's light icon uses, so the arrow reads as belonging to the
+         * badge it comes out of rather than as one more piece of scene geometry. Dimmer than the
+         * badge, because a ring is a much longer line than an icon and the two at equal weight
+         * would make the ring the loudest thing in a lit scene.
+         */
+        inline constexpr EditorColor kLight{190, 168, 84, 255};
     }
 
     /**
@@ -111,6 +122,15 @@ namespace CNA::Editor
 
         /** @brief Draw a box per entity. */
         bool drawEntityBounds = true;
+
+        /**
+         * @brief Draw each light's direction and range (ED-404).
+         *
+         * On by default, and worth a switch because a scene lit by a dozen lamps is a dozen rings
+         * over the geometry they light -- useful while aiming one and noise once they are all
+         * aimed.
+         */
+        bool drawLightGizmos = true;
 
         /**
          * @brief World units between grid lines, or 0 to choose one from the camera's distance.
@@ -166,6 +186,26 @@ namespace CNA::Editor
      */
     [[nodiscard]] std::optional<std::pair<EditorVector2, EditorVector2>> projectSegment(
         const EditorCamera3D& camera, const EditorVector3& from, const EditorVector3& to);
+
+    /**
+     * @brief Appends the lines that show where @p light points and how far it reaches (ED-404).
+     *
+     * The half of ED-404 that ED-402 did not do. The lighting itself is read by
+     * `SceneLighting.hpp`, and a light whose effect can be seen but whose *aim* cannot is one a
+     * user has to point by typing Euler angles and re-rendering. So: an arrow along the direction,
+     * starting at the entity, and -- for a light that has a range -- one ring at that range.
+     *
+     * One ring in the scene's own plane rather than three about the three axes. Three describe the
+     * sphere more completely and put two of them edge-on in the view this editor opens in, where
+     * they collapse into lines through the middle of the badge. A directional light gets no ring at
+     * all: it reaches everything, and a boundary the user can drag that means nothing is worse than
+     * no boundary.
+     *
+     * @return How many segments were appended, which is at most @p budget.
+     */
+    std::size_t appendLightVisualisation(std::vector<WireSegment>& segments,
+                                         const EditorCamera3D& camera, const SceneLight& light,
+                                         const EditorColor& color, std::size_t budget);
 
     /**
      * @brief Returns the grid alone: the XY plane at world Z = 0, centred on the camera's pivot.

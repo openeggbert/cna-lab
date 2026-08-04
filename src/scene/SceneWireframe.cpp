@@ -2,6 +2,7 @@
 #include "CNA/Editor/Scene/SceneWireframe.hpp"
 
 #include <algorithm>
+#include <unordered_map>
 #include <cmath>
 #include <limits>
 #include <unordered_set>
@@ -10,6 +11,7 @@
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
+#include "CNA/Editor/Scene/SceneLighting.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
 
 namespace CNA::Editor
@@ -75,6 +77,37 @@ namespace CNA::Editor
             return provider(modelId);
         }
 
+        /**
+         * @brief Returns how many world units one viewport pixel spans at @p point's depth.
+         *
+         * The same arithmetic `TransformGizmos3D` uses to size a gizmo arm, and here for the same
+         * reason: a light's arrow has to be legible in a scene laid out in hundreds of units and in
+         * one laid out in single figures, and only a screen-space size is both.
+         */
+        float worldUnitsPerPixelNear(const EditorCamera3D& camera, const EditorVector3& point)
+        {
+            const EditorVector2 viewport = camera.getViewportSize();
+            if (viewport.y <= 0.0f) { return 1.0f; }
+
+            if (camera.getProjection() == CameraProjection::Orthographic)
+            {
+                return camera.getOrthographicHeight() / viewport.y;
+            }
+
+            const float depth = dot(subtract(point, camera.getEye()), camera.getForward());
+            const float usable = std::max(depth, camera.getNearPlane());
+            return 2.0f * usable * std::tan(camera.getFieldOfView() * 0.5f) / viewport.y;
+        }
+
+        /** @brief Returns two unit vectors spanning the plane whose normal is @p normal. */
+        std::pair<EditorVector3, EditorVector3> makePlaneBasisForLight(const EditorVector3& normal)
+        {
+            const EditorVector3 seed = std::abs(normal.x) < 0.9f ? EditorVector3{1.0f, 0.0f, 0.0f}
+                                                                 : EditorVector3{0.0f, 1.0f, 0.0f};
+            const EditorVector3 planeX = normalize(cross(seed, normal));
+            return {planeX, normalize(cross(normal, planeX))};
+        }
+
         /** @brief Composes @p transform into the matrix that takes model space to world space. */
         EditorMatrix toWorldMatrix(const WorldTransform& transform)
         {
@@ -86,6 +119,68 @@ namespace CNA::Editor
                                      createFromQuaternion(transform.rotation)),
                             createTranslation(transform.position));
         }
+    }
+
+    std::size_t appendLightVisualisation(std::vector<WireSegment>& segments,
+                                        const EditorCamera3D& camera, const SceneLight& light,
+                                        const EditorColor& color, std::size_t budget)
+    {
+        if (budget == 0) { return 0; }
+
+        std::size_t drawn = 0;
+        const auto append = [&](const EditorVector3& from, const EditorVector3& to)
+        {
+            if (drawn >= budget) { return; }
+            if (const auto projected = projectSegment(camera, from, to))
+            {
+                segments.push_back(WireSegment{projected->first, projected->second, color, 1.0f});
+                ++drawn;
+            }
+        };
+
+        // A directional light has no position that matters, so what is worth drawing is the one
+        // thing a user can change and cannot otherwise see: which way it points. The line starts at
+        // the entity, because that is where the badge and the gizmo are.
+        //
+        // Sized in *pixels* and converted to world units at the light's own depth, exactly as the
+        // 3D manipulators size their arms. A fixed world length cannot work: this editor's scenes
+        // are laid out in pixel-like units running to the hundreds, and the same constant that
+        // reads well in a scene measured in metres is invisible in one measured in sprites.
+        constexpr float kDirectionPixels = 70.0f;
+        const float kDirectionLength = kDirectionPixels * worldUnitsPerPixelNear(camera, light.position);
+        const EditorVector3 tip = add(light.position, scale(light.direction, kDirectionLength));
+        append(light.position, tip);
+
+        // A small arrowhead, so the line reads as an arrow rather than as an edge of something.
+        const auto [armX, armY] = makePlaneBasisForLight(light.direction);
+        const float kHead = kDirectionLength * 0.18f;
+        const EditorVector3 back = add(light.position, scale(light.direction, kDirectionLength - kHead));
+        append(tip, add(back, scale(armX, kHead * 0.5f)));
+        append(tip, add(back, scale(armX, -kHead * 0.5f)));
+        append(tip, add(back, scale(armY, kHead * 0.5f)));
+        append(tip, add(back, scale(armY, -kHead * 0.5f)));
+
+        // Only a light that *has* a range gets a circle. A directional light reaches everything,
+        // and a ring around one would be a boundary the user could move that means nothing.
+        if (light.kind == SceneLightKind::Directional || light.range <= 0.0f) { return drawn; }
+
+        // One ring in the scene's own plane rather than three about the three axes. Three would
+        // describe the sphere more completely and would also put two rings edge-on in the view
+        // this editor opens in, where they collapse to lines through the middle of the badge.
+        constexpr std::size_t kRingSamples = 32;
+        EditorVector3 previous{light.position.x + light.range, light.position.y, light.position.z};
+        for (std::size_t i = 1; i <= kRingSamples; ++i)
+        {
+            const float angle = 2.0f * 3.14159265358979323846f * static_cast<float>(i)
+                                / static_cast<float>(kRingSamples);
+            const EditorVector3 point{light.position.x + std::cos(angle) * light.range,
+                                      light.position.y + std::sin(angle) * light.range,
+                                      light.position.z};
+            append(previous, point);
+            previous = point;
+        }
+
+        return drawn;
     }
 
     std::size_t appendMeshEdges(std::vector<WireSegment>& segments, const EditorCamera3D& camera,
@@ -354,6 +449,18 @@ namespace CNA::Editor
 
         if (!options.drawEntityBounds) { return result; }
 
+        // Collected once for the whole frame rather than read per entity: `collectSceneLights`
+        // already walks the scene, and doing it inside the loop would make it a walk per entity.
+        // Keyed by entity so the loop can ask "is this one of them" without a second search order.
+        std::unordered_map<Uuid, SceneLight> lights;
+        if (options.drawLightGizmos)
+        {
+            for (const SceneLight& light : collectSceneLights(scene))
+            {
+                lights.emplace(light.entityId, light);
+            }
+        }
+
         for (const EditorEntity& entity : scene.getEntities())
         {
             if (result.segments.size() >= options.maxSegments)
@@ -394,6 +501,18 @@ namespace CNA::Editor
                     if (drawn > 0) { ++result.entitiesDrawn; }
                     continue;
                 }
+            }
+
+            // A light gets its aim drawn as well as its badge (ED-404). Before the badge, so the
+            // badge is the thing on top where the two overlap -- the badge is what a user clicks.
+            if (const auto found = lights.find(entity.getId()); found != lights.end())
+            {
+                const std::size_t budget = options.maxSegments > result.segments.size()
+                                               ? options.maxSegments - result.segments.size()
+                                               : 0;
+                appendLightVisualisation(result.segments, camera, found->second,
+                                         selected ? WireColors::kSelected : WireColors::kLight,
+                                         budget);
             }
 
             // An entity that draws nothing gets a badge rather than a box: a camera and a light
