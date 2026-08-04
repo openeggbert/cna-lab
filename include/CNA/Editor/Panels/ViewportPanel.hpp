@@ -71,8 +71,17 @@ namespace CNA::Editor
 
         [[nodiscard]] std::optional<TranslateGizmo3DLayout> getTranslateGizmo3DLayout() const;
 
-        /** @brief Applies one frame of a 3D translate drag, to one entity or to a whole selection. */
-        void updateTranslate3DDrag(const EditorVector2& cursor, const GizmoSnap& snap);
+        /** @brief Applies one frame of an in-progress 3D drag to a whole selection, as one command. */
+        void updateMulti3DDrag(const EditorVector2& cursor, const GizmoSnap& snap);
+
+        /**
+         * @brief Returns where the 3D manipulator sits, when that is not the entity's own position.
+         *
+         * Nothing for a selection of one. For several, their shared pivot -- and while a drag is
+         * running, the one it captured at the press rather than a fresh average, which would chase
+         * the entities as they move.
+         */
+        [[nodiscard]] std::optional<EditorVector3> getGizmo3DPivot() const;
 
         /**
          * @brief Hit-tests the 3D manipulator under @p cursor and starts a drag on a press.
@@ -240,8 +249,8 @@ namespace CNA::Editor
         /** @brief The in-progress 3D translate drag, if any. */
         TranslateGizmo3DDrag translate3DDrag_;
 
-        /** @brief Its selection-wide half, active only when several entities are selected. */
-        MultiTranslate3D multi3DDrag_;
+        /** @brief The selection-wide half of any 3D drag, active only when several are selected. */
+        MultiTransform3D multi3DDrag_;
 
         /** @brief The in-progress 3D rotate drag, if any. */
         RotateGizmo3DDrag rotate3DDrag_;

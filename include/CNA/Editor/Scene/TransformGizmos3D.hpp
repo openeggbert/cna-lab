@@ -93,10 +93,14 @@ namespace CNA::Editor
      *
      * @param space World points the arms along the world axes; Local points them along the
      *        entity's own, which is what a user placing something inside a rotated rig wants.
+     * @param pivotWorld Where to put the manipulator, when that is not the entity's own position
+     *        -- the shared pivot of a multi-selection. Where a gizmo is *drawn* is where it must be
+     *        grabbed, so this belongs to the layout rather than to the drawing.
      */
     [[nodiscard]] std::optional<TranslateGizmo3DLayout> computeTranslateGizmo3DLayout(
         const SceneDocument& scene, const EditorCamera3D& camera, const Uuid& entityId,
-        GizmoSpace space = GizmoSpace::World);
+        GizmoSpace space = GizmoSpace::World,
+        const std::optional<EditorVector3>& pivotWorld = std::nullopt);
 
     /**
      * @brief Returns which arm @p screenPoint is over, or None.
@@ -175,7 +179,8 @@ namespace CNA::Editor
     /** @brief Returns the rotate layout for @p entityId, or nothing when it has no transform. */
     [[nodiscard]] std::optional<RotateGizmo3DLayout> computeRotateGizmo3DLayout(
         const SceneDocument& scene, const EditorCamera3D& camera, const Uuid& entityId,
-        GizmoSpace space = GizmoSpace::World);
+        GizmoSpace space = GizmoSpace::World,
+        const std::optional<EditorVector3>& pivotWorld = std::nullopt);
 
     /** @brief Returns which ring @p screenPoint is over, or None. Nearest ring wins. */
     [[nodiscard]] GizmoAxis3D hitTestRotateGizmo3D(const RotateGizmo3DLayout& layout,
@@ -217,6 +222,20 @@ namespace CNA::Editor
                                                              const EditorCamera3D& camera,
                                                              const EditorVector2& cursor,
                                                              const GizmoSnap& snap);
+
+        /**
+         * @brief Returns how far the drag has turned, in radians, or nothing when it has not.
+         *
+         * The *gesture*, as `TranslateGizmo3DDrag::getWorldDelta` is: what a whole selection turns
+         * by, measured once, so twenty entities cannot each solve the cursor ray against their own
+         * ring and drift apart.
+         */
+        [[nodiscard]] std::optional<float> getDeltaAngle(const EditorCamera3D& camera,
+                                                         const EditorVector2& cursor,
+                                                         const GizmoSnap& snap) const;
+
+        /** @brief Returns the grabbed ring's world normal: the axis a selection turns about. */
+        [[nodiscard]] const EditorVector3& getNormal() const { return normal_; }
 
         void end() { axis_ = GizmoAxis3D::None; }
 
@@ -315,7 +334,8 @@ namespace CNA::Editor
      * rotation.
      */
     [[nodiscard]] std::optional<ScaleGizmo3DLayout> computeScaleGizmo3DLayout(
-        const SceneDocument& scene, const EditorCamera3D& camera, const Uuid& entityId);
+        const SceneDocument& scene, const EditorCamera3D& camera, const Uuid& entityId,
+        const std::optional<EditorVector3>& pivotWorld = std::nullopt);
 
     /**
      * @brief Returns which handle @p screenPoint is over, or None.
@@ -386,43 +406,90 @@ namespace CNA::Editor
     };
 
     /**
-     * @brief The selection-wide half of a 3D translate drag.
+     * @brief Returns the shared pivot for @p entityIds: the average of their world positions.
      *
-     * Runs *beside* TranslateGizmo3DDrag rather than instead of it, exactly as `MultiTransformDrag`
-     * runs beside the 2D drags: that one computes the gesture -- how far along the axis the cursor
-     * went -- and this turns one gesture into the edits a whole selection needs. One quantity, many
-     * entities, so twenty of them cannot disagree about how far they moved.
+     * The 3D form of `computeSelectionPivot`, and the same choice for the same reasons: the average
+     * rather than the first entity's position, because a pivot that jumps as the selection order
+     * changes is one a user cannot predict; and rather than the centre of the bounding box, because
+     * that moves when an entity is merely *rotated*, with nothing having been asked to move.
+     *
+     * Returns nothing when no selected entity has a transform.
      */
-    class MultiTranslate3D
+    [[nodiscard]] std::optional<EditorVector3> computeSelectionPivot3D(const SceneDocument& scene,
+                                                                        const std::vector<Uuid>& entityIds);
+
+    /**
+     * @brief The selection-wide half of a 3D drag.
+     *
+     * Runs *beside* the single-entity drags rather than instead of them, exactly as
+     * `MultiTransformDrag` runs beside the 2D ones: those compute the gesture -- how far along the
+     * axis, through what angle, by what factor -- and this turns one gesture into the edits a whole
+     * selection needs. One quantity, many entities, so twenty of them cannot disagree about what
+     * the cursor did.
+     *
+     * Rotate and scale carry their members *around* the pivot as well as changing them, which is
+     * the difference between turning an arrangement and spinning each of its parts in place.
+     */
+    class MultiTransform3D
     {
     public:
         /**
-         * @brief Captures @p entityIds and where each of them starts.
+         * @brief Captures @p entityIds, as they are now, about @p pivotWorld.
          *
          * Only the selection's *roots*: a child carried by a selected parent would otherwise be
-         * moved twice, once by its parent and once on its own account.
+         * transformed twice, once by its parent and once on its own account.
+         *
+         * @return False when nothing in the selection can be transformed.
          */
-        void begin(const SceneDocument& scene, const std::vector<Uuid>& entityIds);
+        bool begin(const SceneDocument& scene, const std::vector<Uuid>& entityIds,
+                   const EditorVector3& pivotWorld);
 
         [[nodiscard]] bool isActive() const { return !entries_.empty(); }
         [[nodiscard]] std::size_t getEntityCount() const { return entries_.size(); }
+
+        /** @brief Returns the pivot the gesture is measured about. */
+        [[nodiscard]] const EditorVector3& getPivot() const { return pivot_; }
 
         /** @brief Returns the edits that move every captured entity by @p worldDelta. */
         [[nodiscard]] std::vector<EntityTransformEdit> translate(const SceneDocument& scene,
                                                                  const EditorVector3& worldDelta) const;
 
+        /** @brief Returns the edits for a turn of @p radians about @p axis through the pivot. */
+        [[nodiscard]] std::vector<EntityTransformEdit> rotate(const SceneDocument& scene,
+                                                              const EditorVector3& axis,
+                                                              float radians) const;
+
+        /**
+         * @brief Returns the edits for scaling by @p factor about the pivot, in the frame @p axes.
+         *
+         * The frame is the gizmo's own -- the arms the user actually grabbed -- because the offsets
+         * from the pivot have to grow along the same directions the sizes do. Each member's own
+         * scale then takes the factor axis for axis, which is exact when it shares that frame and
+         * the closest a position/rotation/scale transform can come when it does not: the exact
+         * answer there is a shear, which such a transform cannot hold.
+         */
+        [[nodiscard]] std::vector<EntityTransformEdit> scale(const SceneDocument& scene,
+                                                             const std::array<EditorVector3, 3>& axes,
+                                                             const EditorVector3& factor) const;
+
         void end() { entries_.clear(); }
 
     private:
+        /** @brief One selected root, as it was when the drag began. */
         struct Entry
         {
             Uuid entityId;
 
-            /** @brief The position the drag started from, so every frame is measured from the press. */
+            /** @brief Where the drag started, so every frame is measured from the press. */
+            EditorVector3 startWorldPosition;
             EditorVector3 startLocal;
+            EditorQuaternion startWorldRotation;
+            EditorQuaternion inverseParentRotation;
+            EditorVector3 startLocalScale{1.0f, 1.0f, 1.0f};
         };
 
         std::vector<Entry> entries_;
+        EditorVector3 pivot_;
     };
 
     /**

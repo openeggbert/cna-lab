@@ -2223,6 +2223,74 @@ CNA_EDITOR_TEST(TheThreeDimensionalRotateRingsAreGrabbedWhereTheyAreDrawn)
     CNA_EDITOR_EXPECT(!drag.update(scene, camera, zRing.front(), GizmoSnap{}).has_value());
 }
 
+CNA_EDITOR_TEST(AThreeDimensionalSelectionTurnsAndGrowsAboutItsSharedPivot)
+{
+    ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid leftId = scene.addEntity(makeEntity(registry, "Left", -100.0f, 0.0f));
+    const Uuid rightId = scene.addEntity(makeEntity(registry, "Right", 100.0f, 0.0f));
+
+    const std::optional<EditorVector3> pivot = computeSelectionPivot3D(scene, {leftId, rightId});
+    CNA_EDITOR_EXPECT(pivot.has_value());
+    if (!pivot) { return; }
+
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(pivot->x, 0.0f, 0.001f));
+
+    MultiTransform3D drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, {leftId, rightId}, *pivot));
+    CNA_EDITOR_EXPECT_EQ(drag.getEntityCount(), std::size_t{2});
+
+    // A quarter turn about world Z carries both members *around* the pivot as well as turning
+    // them, which is the difference between turning an arrangement and spinning each of its parts
+    // where it stands.
+    const std::vector<EntityTransformEdit> turned =
+        drag.rotate(scene, EditorVector3{0.0f, 0.0f, 1.0f}, 1.5707963f);
+    CNA_EDITOR_EXPECT_EQ(turned.size(), std::size_t{2});
+
+    for (const EntityTransformEdit& edit : turned)
+    {
+        CNA_EDITOR_EXPECT(edit.position.has_value());
+        CNA_EDITOR_EXPECT(edit.rotation.has_value());
+        if (!edit.position || !edit.rotation) { continue; }
+
+        const float expectedY = edit.entityId == leftId ? -100.0f : 100.0f;
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(edit.position->x, 0.0f, 0.01f));
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(edit.position->y, expectedY, 0.01f));
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(zRotationOf(*edit.rotation), 1.5707963f, 0.01f));
+    }
+
+    // Scaling grows the distances from the pivot with the entities themselves. Without that half,
+    // a group scaled up stays where it was and overlaps itself.
+    const std::array<EditorVector3, 3> axes{EditorVector3{1.0f, 0.0f, 0.0f},
+                                            EditorVector3{0.0f, 1.0f, 0.0f},
+                                            EditorVector3{0.0f, 0.0f, 1.0f}};
+    const std::vector<EntityTransformEdit> grown =
+        drag.scale(scene, axes, EditorVector3{2.0f, 1.0f, 1.0f});
+    CNA_EDITOR_EXPECT_EQ(grown.size(), std::size_t{2});
+
+    for (const EntityTransformEdit& edit : grown)
+    {
+        CNA_EDITOR_EXPECT(edit.position.has_value());
+        CNA_EDITOR_EXPECT(edit.scale.has_value());
+        if (!edit.position || !edit.scale) { continue; }
+
+        const float expectedX = edit.entityId == leftId ? -200.0f : 200.0f;
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(edit.position->x, expectedX, 0.01f));
+
+        // Only the axis the gesture named: the other two are left exactly as they were.
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(edit.scale->x, 2.0f, 0.01f));
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(edit.scale->y, 1.0f, 0.001f));
+    }
+
+    // A child of a selected entity is carried by its parent, so taking it on its own account as
+    // well would transform it twice. Only the selection's roots are captured.
+    CNA_EDITOR_EXPECT(scene.reparentEntity(rightId, leftId));
+    MultiTransform3D nested;
+    CNA_EDITOR_EXPECT(nested.begin(scene, {leftId, rightId}, *pivot));
+    CNA_EDITOR_EXPECT_EQ(nested.getEntityCount(), std::size_t{1});
+}
+
 CNA_EDITOR_TEST(TheThreeDimensionalScaleArmsShortenRatherThanVanishWhenSeenEdgeOn)
 {
     ComponentRegistry registry = makeRegistry();

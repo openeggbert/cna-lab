@@ -3855,6 +3855,85 @@ CNA_EDITOR_TEST(AThreeDimensionalGizmoDragMovesTheEntityAndUndoesAsOneEntry)
     CNA_EDITOR_EXPECT(fixture.application->getContext().getSelection().empty());
 }
 
+CNA_EDITOR_TEST(AThreeDimensionalTurnCarriesAWholeSelectionAboutItsPivot)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    EditorEntity second{Uuid::generate(), "Crate"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+    transform.setProperty("position", PropertyValue{EditorVector3{-160.0f, 220.0f, 0.0f}});
+    second.addComponent(std::move(transform));
+    const Uuid secondId = second.getId();
+    context.getScene().addEntity(std::move(second));
+
+    context.select(fixture.entityId);
+    context.toggleSelection(secondId);
+
+    fixture.application->setThreeDimensionalView(true);
+    fixture.application->setGizmoMode(GizmoMode::Rotate);
+
+    const std::optional<EditorVector3> pivot =
+        computeSelectionPivot3D(context.getScene(), context.getSelection());
+    CNA_EDITOR_EXPECT(pivot.has_value());
+    if (!pivot) { return; }
+
+    // Looking straight at the XY plane, so the Z ring faces the camera and is the one a click on
+    // the ring lands on.
+    EditorCamera3D& camera = fixture.application->getViewport().getCamera3D();
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+    camera.setPivot(*pivot);
+    camera.setDistance(500.0f);
+    fixture.step(UiImageInteraction{});
+
+    const auto positionOf = [&context](const Uuid& id) {
+        return context.getScene().findEntity(id)
+            ->findComponent(BuiltinComponentIds::kTransform)
+            ->getProperty("position")
+            .get<EditorVector3>();
+    };
+    const auto distanceFromPivot = [&pivot](const EditorVector3& position) {
+        return length(subtract(position, *pivot));
+    };
+
+    const std::optional<RotateGizmo3DLayout> layout = computeRotateGizmo3DLayout(
+        context.getScene(), camera, fixture.entityId, GizmoSpace::World, pivot);
+    CNA_EDITOR_EXPECT(layout.has_value());
+    if (!layout) { return; }
+
+    const std::vector<EditorVector2>& ring = layout->rings[2];
+    CNA_EDITOR_EXPECT(ring.size() > 8);
+    if (ring.size() <= 8) { return; }
+
+    const EditorVector3 firstBefore = positionOf(fixture.entityId);
+    const EditorVector3 secondBefore = positionOf(secondId);
+
+    fixture.step(leftAt(ring.front().x, ring.front().y, true));
+    fixture.step(leftAt(ring[ring.size() / 8].x, ring[ring.size() / 8].y, false));
+
+    const EditorVector3 firstAfter = positionOf(fixture.entityId);
+    const EditorVector3 secondAfter = positionOf(secondId);
+
+    // Both were carried around the pivot rather than left where they were and merely turned...
+    CNA_EDITOR_EXPECT(length(subtract(firstAfter, firstBefore)) > 1.0f);
+    CNA_EDITOR_EXPECT(length(subtract(secondAfter, secondBefore)) > 1.0f);
+
+    // ...and the arrangement kept its shape: turning a group must not scatter it.
+    CNA_EDITOR_EXPECT(std::abs(distanceFromPivot(firstAfter) - distanceFromPivot(firstBefore)) < 0.5f);
+    CNA_EDITOR_EXPECT(std::abs(distanceFromPivot(secondAfter) - distanceFromPivot(secondBefore)) < 0.5f);
+
+    CNA_EDITOR_EXPECT(std::abs(fixture.getRotationZ()) > 0.01f);
+
+    // And one Ctrl+Z puts the whole gesture back.
+    fixture.step(UiImageInteraction{});
+    fixture.application->undo();
+    CNA_EDITOR_EXPECT(length(subtract(positionOf(fixture.entityId), firstBefore)) < 0.01f);
+    CNA_EDITOR_EXPECT(length(subtract(positionOf(secondId), secondBefore)) < 0.01f);
+    CNA_EDITOR_EXPECT(std::abs(fixture.getRotationZ()) < 0.001f);
+}
+
 CNA_EDITOR_TEST(AThreeDimensionalScaleDragResizesTheEntityAndUndoesAsOneEntry)
 {
     GizmoFixture fixture = makeGizmoFixture();
@@ -3932,8 +4011,18 @@ CNA_EDITOR_TEST(AThreeDimensionalDragMovesAWholeSelectionAsOneUndoEntry)
             .get<EditorVector3>();
     };
 
+    // Drawn on the selection's shared pivot, so that is where it has to be grabbed -- and where a
+    // rotate or scale of the group turns and grows about.
+    const std::optional<EditorVector3> pivot =
+        computeSelectionPivot3D(context.getScene(), context.getSelection());
+    CNA_EDITOR_EXPECT(pivot.has_value());
+    if (!pivot) { return; }
+
+    CNA_EDITOR_EXPECT(std::abs(pivot->x - (-30.0f)) < 0.001f);
+
     const std::optional<TranslateGizmo3DLayout> layout =
-        computeTranslateGizmo3DLayout(context.getScene(), camera, fixture.entityId);
+        computeTranslateGizmo3DLayout(context.getScene(), camera, fixture.entityId, GizmoSpace::World,
+                                      pivot);
     CNA_EDITOR_EXPECT(layout.has_value());
     if (!layout) { return; }
 

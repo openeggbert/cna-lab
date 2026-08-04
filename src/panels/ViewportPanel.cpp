@@ -149,8 +149,9 @@ namespace CNA::Editor
                 const GizmoAxis3D active =
                     rotate3DDrag_.isActive() ? rotate3DDrag_.getAxis() : hovered3DAxis_;
 
-                if (const auto layout = computeRotateGizmo3DLayout(context_.getScene(), camera, subject,
-                                                                   actions_.getGizmoSpace()))
+                if (const auto layout =
+                        computeRotateGizmo3DLayout(context_.getScene(), camera, subject,
+                                                   actions_.getGizmoSpace(), getGizmo3DPivot()))
                 {
                     handles = buildRotateGizmo3DSegments(*layout, active);
                 }
@@ -160,7 +161,8 @@ namespace CNA::Editor
                 const GizmoAxis3D active =
                     scale3DDrag_.isActive() ? scale3DDrag_.getAxis() : hovered3DAxis_;
 
-                if (const auto layout = computeScaleGizmo3DLayout(context_.getScene(), camera, subject))
+                if (const auto layout =
+                        computeScaleGizmo3DLayout(context_.getScene(), camera, subject, getGizmo3DPivot()))
                 {
                     handles = buildScaleGizmo3DSegments(*layout, active);
                 }
@@ -291,35 +293,72 @@ namespace CNA::Editor
         }
     }
 
-    void ViewportPanel::updateTranslate3DDrag(const EditorVector2& cursor, const GizmoSnap& snap)
+    void ViewportPanel::updateMulti3DDrag(const EditorVector2& cursor, const GizmoSnap& snap)
     {
         const SceneDocument& scene = context_.getScene();
         const EditorCamera3D& camera = actions_.getViewport().getCamera3D();
 
-        if (multi3DDrag_.isActive())
+        std::vector<EntityTransformEdit> edits;
+
+        if (translate3DDrag_.isActive())
         {
             const std::optional<EditorVector3> delta = translate3DDrag_.getWorldDelta(camera, cursor, snap);
             if (!delta) { return; }
-
-            std::vector<EntityTransformEdit> edits = multi3DDrag_.translate(scene, *delta);
-            if (edits.empty()) { return; }
-
-            // One command for the whole selection, and one undo entry for the whole drag -- the
-            // same rule the 2D multi-drag follows, and for the same reason: undoing one drag one
-            // entity at a time walks the scene through arrangements it was never in.
-            auto command = std::make_unique<TransformEntitiesCommand>(
-                context_.getScene(), std::move(edits), "transform-many:" + std::to_string(multiDragId_));
-
-            context_.execute(std::move(command), gizmoDragHasEdited_ ? MergePolicy::MergeWithPrevious
-                                                                     : MergePolicy::NewEntry);
-            gizmoDragHasEdited_ = true;
-            return;
+            edits = multi3DDrag_.translate(scene, *delta);
         }
-
-        if (const auto position = translate3DDrag_.update(scene, camera, cursor, snap))
+        else if (rotate3DDrag_.isActive())
         {
-            commitGizmoEdit(translate3DDrag_.getEntityId(), "position", PropertyValue{*position});
+            const std::optional<float> radians = rotate3DDrag_.getDeltaAngle(camera, cursor, snap);
+            if (!radians) { return; }
+
+            // About the ring's own normal, which is the axis the user grabbed, and about the pivot
+            // the drag captured at the press -- not a fresh centroid, which would chase the
+            // entities as they move and turn a steady drag into a spiral.
+            edits = multi3DDrag_.rotate(scene, rotate3DDrag_.getNormal(), *radians);
         }
+        else if (scale3DDrag_.isActive())
+        {
+            const std::optional<ScaleGizmo3DLayout> layout =
+                computeScaleGizmo3DLayout(scene, camera, scale3DDrag_.getEntityId(), getGizmo3DPivot());
+            if (!layout) { return; }
+
+            const float factor = scale3DDrag_.getFactor(*layout, cursor, snap);
+            const GizmoAxis3D axis = scale3DDrag_.getAxis();
+
+            // Only the grabbed axis, or all three for the centre handle: the same rule the single
+            // entity follows, applied to a set.
+            EditorVector3 factors{1.0f, 1.0f, 1.0f};
+            if (axis == GizmoAxis3D::All) { factors = EditorVector3{factor, factor, factor}; }
+            else if (axis == GizmoAxis3D::X) { factors.x = factor; }
+            else if (axis == GizmoAxis3D::Y) { factors.y = factor; }
+            else { factors.z = factor; }
+
+            edits = multi3DDrag_.scale(scene, layout->axes, factors);
+        }
+
+        if (edits.empty()) { return; }
+
+        // One command for the whole selection, and one undo entry for the whole drag -- the same
+        // rule the 2D multi-drag follows, and for the same reason: undoing one drag one entity at
+        // a time walks the scene through arrangements it was never in.
+        auto command = std::make_unique<TransformEntitiesCommand>(
+            context_.getScene(), std::move(edits), "transform-many:" + std::to_string(multiDragId_));
+
+        context_.execute(std::move(command),
+                         gizmoDragHasEdited_ ? MergePolicy::MergeWithPrevious : MergePolicy::NewEntry);
+        gizmoDragHasEdited_ = true;
+    }
+
+    std::optional<EditorVector3> ViewportPanel::getGizmo3DPivot() const
+    {
+        // The pivot captured when the drag began, not a fresh centroid: the entities are moving as
+        // the drag proceeds, and a centre recomputed from them would chase itself.
+        if (multi3DDrag_.isActive()) { return multi3DDrag_.getPivot(); }
+
+        // Nothing for a selection of one, where the gizmo's own origin already is the entity's
+        // position and an average of one is a longer way to say the same thing.
+        if (context_.getSelection().size() < 2) { return std::nullopt; }
+        return computeSelectionPivot3D(context_.getScene(), context_.getSelection());
     }
 
     bool ViewportPanel::isGizmo3DDragActive() const
@@ -339,7 +378,10 @@ namespace CNA::Editor
     bool ViewportPanel::beginGizmo3DDrag(const UiImageInteraction& interaction,
                                          const EditorVector2& cursor)
     {
+        // Cleared first and every frame, including the frames the pointer is elsewhere: a
+        // highlight left behind says the cursor is on a handle it left minutes ago.
         hovered3DAxis_ = GizmoAxis3D::None;
+        if (!interaction.hovered) { return false; }
 
         const Uuid subject = getGizmo3DSubject();
         if (!subject.isValid()) { return false; }
@@ -367,8 +409,8 @@ namespace CNA::Editor
 
             case GizmoMode::Rotate:
             {
-                const std::optional<RotateGizmo3DLayout> layout =
-                    computeRotateGizmo3DLayout(scene, camera, subject, actions_.getGizmoSpace());
+                const std::optional<RotateGizmo3DLayout> layout = computeRotateGizmo3DLayout(
+                    scene, camera, subject, actions_.getGizmoSpace(), getGizmo3DPivot());
                 if (!layout) { break; }
 
                 hovered3DAxis_ = hitTestRotateGizmo3D(*layout, cursor);
@@ -380,7 +422,7 @@ namespace CNA::Editor
             case GizmoMode::Scale:
             {
                 const std::optional<ScaleGizmo3DLayout> layout =
-                    computeScaleGizmo3DLayout(scene, camera, subject);
+                    computeScaleGizmo3DLayout(scene, camera, subject, getGizmo3DPivot());
                 if (!layout) { break; }
 
                 hovered3DAxis_ = hitTestScaleGizmo3D(*layout, cursor);
@@ -397,10 +439,9 @@ namespace CNA::Editor
         // The selection-wide half runs beside the single-entity one, and only when there is more
         // than one thing to move: for a selection of one they would compute the same edit twice,
         // and the multi path's command carries a heavier merge key.
-        if (translate3DDrag_.isActive() && context_.getSelection().size() > 1)
+        if (const std::optional<EditorVector3> pivot = getGizmo3DPivot())
         {
-            multi3DDrag_.begin(scene, context_.getSelection());
-            ++multiDragId_;
+            if (multi3DDrag_.begin(scene, context_.getSelection(), *pivot)) { ++multiDragId_; }
         }
 
         gizmoDragHasEdited_ = false;
@@ -409,6 +450,12 @@ namespace CNA::Editor
 
     void ViewportPanel::updateGizmo3DDrag(const EditorVector2& cursor, const GizmoSnap& snap)
     {
+        if (multi3DDrag_.isActive())
+        {
+            updateMulti3DDrag(cursor, snap);
+            return;
+        }
+
         const SceneDocument& scene = context_.getScene();
         const EditorCamera3D& camera = actions_.getViewport().getCamera3D();
 
@@ -429,6 +476,7 @@ namespace CNA::Editor
             // and that lives inside the drag.
             const std::optional<ScaleGizmo3DLayout> layout =
                 computeScaleGizmo3DLayout(scene, camera, scale3DDrag_.getEntityId());
+
             if (!layout) { return; }
 
             if (const auto scaled = scale3DDrag_.update(*layout, cursor, snap))
@@ -438,7 +486,10 @@ namespace CNA::Editor
             return;
         }
 
-        updateTranslate3DDrag(cursor, snap);
+        if (const auto position = translate3DDrag_.update(scene, camera, cursor, snap))
+        {
+            commitGizmoEdit(translate3DDrag_.getEntityId(), "position", PropertyValue{*position});
+        }
     }
 
     Uuid ViewportPanel::getGizmo3DSubject() const
@@ -457,7 +508,7 @@ namespace CNA::Editor
         if (!subject.isValid()) { return std::nullopt; }
 
         return computeTranslateGizmo3DLayout(context_.getScene(), actions_.getViewport().getCamera3D(),
-                                             subject, actions_.getGizmoSpace());
+                                             subject, actions_.getGizmoSpace(), getGizmo3DPivot());
     }
 
     void ViewportPanel::handleInteraction3D(const UiImageInteraction& interaction,
@@ -483,7 +534,7 @@ namespace CNA::Editor
         // A press on a handle is a manipulation, and must not also count as a click that reselects
         // whatever the handle happens to be drawn over -- which, for a gizmo sitting on its own
         // entity, is that entity's own box.
-        if (interaction.hovered && beginGizmo3DDrag(interaction, cursor)) { return; }
+        if (beginGizmo3DDrag(interaction, cursor)) { return; }
 
         if (interaction.wheel != 0.0f)
         {

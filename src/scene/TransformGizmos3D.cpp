@@ -168,16 +168,18 @@ namespace CNA::Editor
         return "None";
     }
 
-    std::optional<TranslateGizmo3DLayout> computeTranslateGizmo3DLayout(const SceneDocument& scene,
-                                                                        const EditorCamera3D& camera,
-                                                                        const Uuid& entityId,
-                                                                        GizmoSpace space)
+    std::optional<TranslateGizmo3DLayout> computeTranslateGizmo3DLayout(
+        const SceneDocument& scene, const EditorCamera3D& camera, const Uuid& entityId,
+        GizmoSpace space, const std::optional<EditorVector3>& pivotWorld)
     {
         const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
         if (!world) { return std::nullopt; }
 
         TranslateGizmo3DLayout layout;
-        layout.origin = world->position;
+
+        // The shared pivot when there is one, and the entity's own position otherwise. The axes
+        // stay the primary selection's either way: a selection has no rotation of its own.
+        layout.origin = pivotWorld.value_or(world->position);
 
         if (space == GizmoSpace::Local)
         {
@@ -265,15 +267,15 @@ namespace CNA::Editor
         return EditorQuaternion{unit.x * sine, unit.y * sine, unit.z * sine, std::cos(half)};
     }
 
-    std::optional<RotateGizmo3DLayout> computeRotateGizmo3DLayout(const SceneDocument& scene,
-                                                                  const EditorCamera3D& camera,
-                                                                  const Uuid& entityId, GizmoSpace space)
+    std::optional<RotateGizmo3DLayout> computeRotateGizmo3DLayout(
+        const SceneDocument& scene, const EditorCamera3D& camera, const Uuid& entityId,
+        GizmoSpace space, const std::optional<EditorVector3>& pivotWorld)
     {
         const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
         if (!world) { return std::nullopt; }
 
         RotateGizmo3DLayout layout;
-        layout.origin = world->position;
+        layout.origin = pivotWorld.value_or(world->position);
 
         if (space == GizmoSpace::Local)
         {
@@ -406,10 +408,9 @@ namespace CNA::Editor
         return true;
     }
 
-    std::optional<EditorQuaternion> RotateGizmo3DDrag::update(const SceneDocument& scene,
-                                                              const EditorCamera3D& camera,
-                                                              const EditorVector2& cursor,
-                                                              const GizmoSnap& snap)
+    std::optional<float> RotateGizmo3DDrag::getDeltaAngle(const EditorCamera3D& camera,
+                                                          const EditorVector2& cursor,
+                                                          const GizmoSnap& snap) const
     {
         if (!isActive()) { return std::nullopt; }
 
@@ -428,6 +429,21 @@ namespace CNA::Editor
         // whatever the drag touched the moment it was grabbed.
         if (snap.rotate > 0.0f) { delta = std::round(delta / snap.rotate) * snap.rotate; }
         if (delta == 0.0f) { return std::nullopt; }
+
+        return delta;
+    }
+
+    std::optional<EditorQuaternion> RotateGizmo3DDrag::update(const SceneDocument& scene,
+                                                              const EditorCamera3D& camera,
+                                                              const EditorVector2& cursor,
+                                                              const GizmoSnap& snap)
+    {
+        // The single-entity answer, computed from the same gesture a whole selection uses, so one
+        // entity and twenty cannot disagree about how far the cursor turned.
+        const std::optional<float> turn = getDeltaAngle(camera, cursor, snap);
+        if (!turn) { return std::nullopt; }
+
+        const float delta = *turn;
 
         // Turned in world space, stored in the parent's frame: the cursor described a world angle,
         // and a child of a rotated parent applying it locally would turn by a rotated fraction.
@@ -450,15 +466,15 @@ namespace CNA::Editor
         return multiply(inverse, world);
     }
 
-    std::optional<ScaleGizmo3DLayout> computeScaleGizmo3DLayout(const SceneDocument& scene,
-                                                                 const EditorCamera3D& camera,
-                                                                 const Uuid& entityId)
+    std::optional<ScaleGizmo3DLayout> computeScaleGizmo3DLayout(
+        const SceneDocument& scene, const EditorCamera3D& camera, const Uuid& entityId,
+        const std::optional<EditorVector3>& pivotWorld)
     {
         const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
         if (!world) { return std::nullopt; }
 
         ScaleGizmo3DLayout layout;
-        layout.origin = world->position;
+        layout.origin = pivotWorld.value_or(world->position);
 
         // Always the entity's own axes. There is no space toggle to consult: a non-uniform scale
         // in world space is a shear, which this transform cannot express.
@@ -759,9 +775,30 @@ namespace CNA::Editor
         return true;
     }
 
-    void MultiTranslate3D::begin(const SceneDocument& scene, const std::vector<Uuid>& entityIds)
+    std::optional<EditorVector3> computeSelectionPivot3D(const SceneDocument& scene,
+                                                          const std::vector<Uuid>& entityIds)
+    {
+        EditorVector3 total;
+        std::size_t counted = 0;
+
+        for (const Uuid& entityId : entityIds)
+        {
+            const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
+            if (!world) { continue; }
+
+            total = add(total, world->position);
+            ++counted;
+        }
+
+        if (counted == 0) { return std::nullopt; }
+        return scale(total, 1.0f / static_cast<float>(counted));
+    }
+
+    bool MultiTransform3D::begin(const SceneDocument& scene, const std::vector<Uuid>& entityIds,
+                                 const EditorVector3& pivotWorld)
     {
         end();
+        pivot_ = pivotWorld;
 
         for (const Uuid& entityId : findSelectionRoots(scene, entityIds))
         {
@@ -771,11 +808,36 @@ namespace CNA::Editor
             const EditorComponent* transform = entity->findComponent(BuiltinComponentIds::kTransform);
             if (transform == nullptr) { continue; }
 
-            entries_.push_back(Entry{entityId, transform->getProperty("position").get<EditorVector3>()});
+            const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
+            if (!world) { continue; }
+
+            Entry entry;
+            entry.entityId = entityId;
+            entry.startWorldPosition = world->position;
+            entry.startLocal = transform->getProperty("position").get<EditorVector3>();
+            entry.startWorldRotation = world->rotation;
+            entry.startLocalScale =
+                transform->getProperty("scale").get<EditorVector3>(EditorVector3{1.0f, 1.0f, 1.0f});
+
+            EditorQuaternion parentRotation;
+            if (entity->getParentId().isValid())
+            {
+                if (const std::optional<WorldTransform> parent =
+                        computeWorldTransform(scene, entity->getParentId()))
+                {
+                    parentRotation = parent->rotation;
+                }
+            }
+            entry.inverseParentRotation = EditorQuaternion{-parentRotation.x, -parentRotation.y,
+                                                           -parentRotation.z, parentRotation.w};
+
+            entries_.push_back(std::move(entry));
         }
+
+        return isActive();
     }
 
-    std::vector<EntityTransformEdit> MultiTranslate3D::translate(const SceneDocument& scene,
+    std::vector<EntityTransformEdit> MultiTransform3D::translate(const SceneDocument& scene,
                                                                  const EditorVector3& worldDelta) const
     {
         std::vector<EntityTransformEdit> edits;
@@ -790,6 +852,73 @@ namespace CNA::Editor
             edit.entityId = entry.entityId;
             edit.position = add(entry.startLocal, worldDeltaToLocal3D(scene, entry.entityId, worldDelta));
             edits.push_back(edit);
+        }
+
+        return edits;
+    }
+
+    std::vector<EntityTransformEdit> MultiTransform3D::rotate(const SceneDocument& scene,
+                                                              const EditorVector3& axis,
+                                                              float radians) const
+    {
+        std::vector<EntityTransformEdit> edits;
+        edits.reserve(entries_.size());
+
+        const EditorQuaternion turn = quaternionFromAxisAngle(axis, radians);
+
+        for (const Entry& entry : entries_)
+        {
+            // Carried around the pivot...
+            const EditorVector3 moved =
+                add(pivot_, CNA::Editor::rotate(turn, subtract(entry.startWorldPosition, pivot_)));
+
+            EntityTransformEdit edit;
+            edit.entityId = entry.entityId;
+            edit.position =
+                add(entry.startLocal,
+                    worldDeltaToLocal3D(scene, entry.entityId, subtract(moved, entry.startWorldPosition)));
+
+            // ...and turned by the same angle, in the world and then expressed in its parent's
+            // frame, which is where `rotation` is stored and the only reason the inverse is kept.
+            edit.rotation = multiply(entry.inverseParentRotation, multiply(turn, entry.startWorldRotation));
+            edits.push_back(std::move(edit));
+        }
+
+        return edits;
+    }
+
+    std::vector<EntityTransformEdit> MultiTransform3D::scale(const SceneDocument& scene,
+                                                             const std::array<EditorVector3, 3>& axes,
+                                                             const EditorVector3& factor) const
+    {
+        std::vector<EntityTransformEdit> edits;
+        edits.reserve(entries_.size());
+
+        const std::array<float, 3> factors{factor.x, factor.y, factor.z};
+
+        for (const Entry& entry : entries_)
+        {
+            // Distances from the pivot grow with the entities, or scaling a group up would leave
+            // every member where it was and overlapping its neighbours. Along the *gizmo's* axes,
+            // which are the arms the user grabbed: measuring the offset in world components would
+            // stretch a selection along axes nobody touched whenever the primary is rotated.
+            const EditorVector3 offset = subtract(entry.startWorldPosition, pivot_);
+
+            EditorVector3 moved = pivot_;
+            for (std::size_t index = 0; index < 3; ++index)
+            {
+                moved = add(moved, CNA::Editor::scale(axes[index], dot(offset, axes[index]) * factors[index]));
+            }
+
+            EntityTransformEdit edit;
+            edit.entityId = entry.entityId;
+            edit.position =
+                add(entry.startLocal,
+                    worldDeltaToLocal3D(scene, entry.entityId, subtract(moved, entry.startWorldPosition)));
+            edit.scale = EditorVector3{keepScalable(entry.startLocalScale.x * factor.x),
+                                       keepScalable(entry.startLocalScale.y * factor.y),
+                                       keepScalable(entry.startLocalScale.z * factor.z)};
+            edits.push_back(std::move(edit));
         }
 
         return edits;
