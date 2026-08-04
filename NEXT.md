@@ -15,13 +15,13 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 413 / 413 (also under Clang Release) |
+| Unit tests | ✅ 424 / 424 (also under Clang Release) |
 | CTest (standalone) | ✅ 12 / 12 |
 | CTest (CNA config) | ✅ 17 / 17 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
-| **Phase 3** | 🔄 5 of 13 done — ED-400 (3D camera and wireframe view), ED-401 (2D gizmos), ED-408 (3D translate), ED-409 (3D rotate **and scale**), ED-405 (**glTF importer, and the 3D view drawing what it imports**). The eight that remain wait on ED-402 rather than on the pipeline, which now exists |
+| **Phase 3** | 🔄 6 done and ED-404 half done — ED-400, ED-401, ED-408, ED-409, ED-405, and now **ED-402: the 3D view draws solid, lit models**. Nothing left in the phase is blocked |
 | **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
 | **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
 
@@ -49,92 +49,80 @@ pull requests against `openeggbert/cna` — the CNA gaps G-01…G-04 stay docume
 
 ## What landed in this session
 
-**ED-405 is closed: the editor imports glTF, and the 3D view draws what it imports.** That is the
-task the owner named after the wireframe screenshots — *make the 3D view look like a 3D view* — and
-the honest scope of it is that a `ModelRenderer` is now its own geometry instead of a badge. It is
-not yet lit, shaded or textured; that is ED-402, and it is next.
+**ED-402 is closed: the 3D view draws solid, lit models instead of wire boxes.** That is the thing
+the owner reacted to after the wireframe screenshots, and it is verified by screenshot on EASYGL —
+the example crate is a shaded box where it was a cage.
 
-**1. The seam, before the parser — which is what plan.md's ED-405 row insisted on.**
-`CNA/Editor/Core/MeshData.hpp` is the interface between the importer that produces geometry and the
-two things that will draw it. Three decisions are recorded there, and every consumer inherits each
-one rather than deciding for itself:
+**1. The split follows the wireframe's, and it is what made the task checkable.**
+`SceneModels.hpp` in `cna-editor-scene` decides *what* to draw, *where*, and *lit by what*; it is
+CNA-free and tested in CI with no device. `CnaModelPass` in the viewport uploads and draws it. The
+things most likely to be wrong in a model pass — the world matrix, which mirror is applied, whether
+an entity is lit from the right side — are all arithmetic, and a screenshot is a poor instrument
+for checking arithmetic.
 
-- **It lives in `cna-editor-core`, which is neither party's module.** The producer is
-  `cna-editor-assets` and the first consumer is `cna-editor-scene`; those two link nothing but core
-  and cannot see each other. Core is the only place both can reach — the same reason `EditorMatrix`
-  is in core while the camera that uses it is in scene.
-- **The geometry arrives already in the editor's world convention.** glTF is Y-up; this editor's
-  world is Y-down so the 2D and 3D views agree about which way is down. The mirror is applied
-  **once, into the data**, at import. Mirroring at draw time instead would mean the wireframe path
-  and the CNA path each have to remember, and the day one of them forgets is the day models are
-  upside down in one view and not the other.
-- **No node hierarchy.** glTF has one; the importer bakes it into vertex positions. A hierarchy is
-  worth keeping only if something animates it, nothing does, and a schema designed against no
-  consumer is exactly the mistake ED-311's `NestedStructure` is parked to avoid. It comes back as a
-  field beside `parts` when skeletal animation is a real task, and nothing already written changes.
+**2. Four things were found by running it rather than by writing it**, and each one cost a picture
+of an empty viewport. They are worth reading before touching this code:
 
-A vertex matches XNA's `VertexPositionNormalTexture` field for field. That is the whole of the
-concession this CNA-free file makes to CNA, and it costs nothing: ED-402's upload becomes a copy
-rather than a translation.
+- **The offscreen target had no depth buffer, and `Clear(color)` does not clear depth anyway.**
+  The 2D view never needed one — sprites sort by draw order — and models sort per pixel. The
+  failure mode is the one worth naming: every draw call issued, nothing rejected loudly, nothing
+  on screen.
+- **`CullCounterClockwiseFace` is right *because* of the Y mirror, not despite it.** The importer
+  winds outward faces counter-clockwise in world space, the mirror reverses apparent winding, and
+  the two cancel. That was reasoned out and then *measured*: the triangle count drops by 1113 on
+  the example scene when culling is on, which is the back faces going away.
+- **`PbrEffect` draws nothing on EASYGL** — gap **G-05**, below. It constructs, accepts every
+  parameter, issues its draw calls and puts no pixels anywhere, while `BasicEffect` renders the
+  same geometry, matrices and lights correctly in the same frame. So the PBR path is written,
+  complete, and **off behind one constant** (`kPreferPbrEffect` in `CnaModelPass.cpp`). Flipping
+  it is how PBR is re-tested when CNA changes; nothing else has to move.
+- **A second CNA bug found on the way**, also in G-05: `PbrEffect::FillGpuDrawParams` sets
+  `textureEnabled = true` unconditionally while binding `texture0` only when a texture exists, so
+  a material with a base-colour *factor* and no map — most hand-authored glTF, including this
+  repository's own crate — samples an unbound texture. Worked around by binding a white texel,
+  which is also the arithmetically correct answer: glTF multiplies factor by map, and the identity
+  for that multiply is 1.
 
-**2. The consequence of the mirror that is easy to miss, and why the importer got a test suite
-rather than a smoke test.** Mirroring one axis reverses the handedness of every triangle in the
-file. Left alone, every model is inside-out the moment ED-402 turns backface culling on — and looks
-perfectly correct until then, in wireframe, where winding does not matter. So the importer reverses
-the winding back, and `meshWindingMatchesNormals` states the property that reversal exists to keep.
-A node that is *already* mirrored — a negative scale, which authoring tools produce routinely — has
-flipped once already and the two cancel, so the test is on the sign of the whole transform rather
-than on the mirror alone. Both cases are pinned, and both were **confirmed to fail with the fix
-removed**: a test that still passes when the code is deleted is not a test.
+**3. ED-404's lighting half landed with it.** `CNA.Light` had been a component descriptor since
+Phase 1 with nothing reading it. `SceneLighting.hpp` reads it and performs the reduction the API
+forces: `IEffectLights` is XNA's fixed-function rig — an ambient colour and exactly three
+directional lights, no point light, no spot light, no cone. So a point or spot light becomes a
+**directional light aimed at whatever is being drawn**, dimmed by distance. That is genuinely
+position-dependent, which is what a point light *is* — two objects either side of a lamp are lit
+from opposite directions, and a test fails for any implementation that uses the light's own axis
+instead. Its limit is equally real and stated in the header: one large model is lit as though it
+sat at its own origin.
 
-**3. cgltf, vendored — and its symbols prefixed, which is not decoration.** `third_party/cgltf/`
-holds the same version CNA vendors, copied rather than reached for across the sibling checkout: the
-default build has no CNA in it (D-03), and CNA's own reader is `CNA::Internal::GltfImport`, which
-D-01 forbids. cgltf declares its whole API inside `extern "C"`, so a build linking both copies fails
-outright with *multiple definition of `cgltf_parse`*; `cgltf_prefixed.h` renames ours.
+Three smaller decisions inside it, each with a plausible alternative:
+- **Falloff reaches zero at the range** rather than following inverse square, which never does.
+  Physical is the wrong answer here: it leaves a lamp faintly tinting the far side of the level and
+  the range control in the inspector doing nothing anyone can see.
+- **The three brightest lights at that point win**, not the nearest and not the first three.
+  Document order is not something a user arranges deliberately, and losing the sun because a dim
+  lamp was added earlier is a picture nothing on screen accounts for.
+- **No lights, or none in range, asks for XNA's `EnableDefaultLighting()`** rather than applying
+  zero lights. Same arithmetic, completely different screen: black models read as a broken
+  renderer, and the commonest scene of all is one a model has just been dropped into.
 
-**That failure appears only in the CNA configuration, and only at the final link** — the standalone
-build and CI both link cleanly with the clash present. It was found by building `build-cna` before
-committing, which is the argument for that step rather than a story about it. Anyone vendoring a
-second library CNA also vendors should expect the same and check the same way.
+**4. The importer carries both descriptions of a material now.** The metallic-roughness factors and
+the normal, ORM and emissive maps were being read and discarded; they are kept, *beside* the
+Blinn-Phong fields rather than instead of them. Which gets drawn is a property of the build, and a
+material holding only the PBR half would render as untextured grey on the fallback — a bug that
+appears on one machine and not another. The Blinn-Phong pair is derived from the PBR pair in
+`convertMaterial`, so the two cannot describe different materials. An occlusion map in its own
+image is reported rather than half-applied.
 
-**4. The seam is proved by a consumer, not by assertion.** `SceneWireframe` draws a
-`ModelRenderer`'s real mesh through `MeshProvider` — each edge once, since an interior edge shared
-by two faces drawn twice makes a dense model a solid blob. A model too dense for the segment budget
-is sampled at a **stride** rather than cut off, so what appears is the whole shape drawn sparsely;
-stopping at the budget would show a model with a bite out of it, which reads as broken geometry
-rather than as a full view.
-
-This matters more than one more feature. It means ED-402 inherits a `MeshData` already known to
-survive the trip, checked in CI with no GPU, instead of discovering the seam's problems while also
-writing a `VertexBuffer` pass. `MeshCache` sits in `EditorContext` rather than the viewport for the
-same reason — a mesh needs no CNA, so the **standalone** build draws real models too.
-
-**5. Things found by using it, rather than designed in.**
-
-- **A remembered "no" must not outlive its reason.** `MeshCache` caches failures so a broken file is
-  not re-parsed every frame — but *not* the case where the database has never heard of the id. That
-  answer changes on its own (an asset mid-import, a scene opened before the scan finished), and
-  caching it would leave a model permanently invisible after the scan that would have found it. A
-  test asking for an entry count is what surfaced the distinction.
-- **`--orbit=YAW,PITCH`.** The same argument that put `--view=3d` here, one step further: that flag
-  makes the 3D view reachable from a script, this one makes it reachable from an angle. A 3D feature
-  photographed head-on is photographed in the one pose where a mesh and a flat sprite look alike, so
-  it could not show whether the models had arrived. The screenshot verifying this session used it.
-- **The asset watcher drops cached meshes too.** It already dropped cached *textures* on an
-  external edit, for the reason written beside it — otherwise the editor reports the change and
-  goes on drawing the art from before it. A mesh is the same bargain, and was noticed while writing
-  up what was left undone rather than while writing the cache. Editing a `.gltf` with the editor
-  open now refreshes the 3D view; a model whose file is deleted stops being drawn.
-- **The example project has a crate in it.** `Assets/Models/Crate.gltf` and an entity in `Level01`:
-  the 3D view had nothing to draw otherwise, and a pipeline demonstrated only by its own tests is
-  one nobody can look at. It cost the scene-loader demo its hardcoded "three entities" — updated,
-  and given a check that a model renderer carries no sprite, which is what a loader assuming
-  otherwise would get wrong.
+**5. What the UI now says, because a decision came with an obligation.** The owner chose "editor
+viewport only", which means a `ModelRenderer` is visible while authoring and absent when the game
+runs. That is exactly the silent difference this editor exists to prevent, so the 3D toolbar says
+it in words beside the models, along with how many meshes are still loading. The Diagnostics panel
+reports which effect the model pass actually got — with PBR being a CNA extension and fourteen
+backends across three support tiers, "why does it look different on that machine" deserves an
+answer that is not a screenshot comparison.
 
 ---
 
-## What landed in the previous session
+## What landed in the session before this one
 
 **ED-409 is closed and the 3D view is a complete editor**, plus two of the smaller items that were
 queued behind it. Five commits, each validated in the standalone, CNA and Clang-Release
@@ -353,8 +341,12 @@ DISPLAY=:99 ./build-cna/cna-editor --project=examples/HelloSprites/HelloSprites.
 # a real mesh and a flat sprite look alike, so it cannot show whether models arrived.
 DISPLAY=:99 ./build-cna/cna-editor --project=examples/HelloSprites/HelloSprites.cnaproject \
     --view=3d --orbit=35,25 --frames=40 --screenshot=/tmp/editor3d.png
-# The example's Crate entity is the model to look for: a cube with visible triangle edges, quite
-# unlike the flat rectangles the two sprites draw.
+# Since ED-402 the Crate is a *solid, lit* box rather than a cage -- that is what this picture is
+# for. A crate that comes back as a wireframe outline with nothing inside means the model pass
+# drew nothing; check the Diagnostics panel's "Model effect" line first, then the depth clear.
+#
+# To re-test CNA's PBR path when it changes (gap G-05): flip `kPreferPbrEffect` to true in
+# src/viewport/CnaModelPass.cpp, rebuild, and take this same picture. Nothing else moves.
 ```
 
 Do **not** run `cmake --build build-cna` without a target list: CNA's own examples fail to compile
@@ -772,9 +764,9 @@ Phase 1 closed. Working through the owner's priority order:
 4. ~~**ED-510** backend comparison mode~~ ✅ — with ED-511 and ED-513 beside it.
 
 Everything on that list is closed, and so is the 3D work the owner opened afterwards — including
-ED-405, the model pipeline the owner named after seeing the wireframe screenshots. **ED-402 is the
-next task**, and for the first time it is not blocked on anything: the meshes exist. See *Where to
-start next*.
+ED-405, the model pipeline the owner named after seeing the wireframe screenshots. **ED-402 is done**, and with it the
+lighting half of ED-404. The 3D view draws solid, lit models. See *Where to start next* — the
+owner picked sprites in the 3D view as what follows.
 
 ---
 
@@ -803,6 +795,7 @@ start next*.
 | G-01 | `Microsoft::Xna::Framework::Color` has no default constructor | `std::vector<Color>::resize(n)` does not compile. XNA's `Color` *is* default-constructible, so this is a real behavioural difference. Worked around with `assign`. |
 | G-02 | `CNA::Devices::Clipboard` sits inside `#ifdef CNA_DEVICES`, default OFF | An editor built against a default CNA has no clipboard. Degrades cleanly and is reported. |
 | G-03 | `RenderTarget2D` sampled as a texture is not origin-normalised across backends | EASYGL renders it flipped, SOFTWARE does not. Worked around by `EditorViewport::isRenderTextureFlippedVertically()`, which is a compile-time constant per backend. |
+| G-05 | `PbrEffect` draws nothing on EASYGL, silently | The 3D model pass cannot use PBR (ED-402). It constructs, accepts every parameter, issues its draw calls and puts no pixels on screen; `BasicEffect` renders the same geometry, matrices and lights correctly in the same frame. Culling and an unbound sampler were both ruled out first. Second bug in the same place: `FillGpuDrawParams` sets `textureEnabled` unconditionally while binding `texture0` only when a texture exists, so a base-colour factor with no map samples nothing — worked around with a white texel. The PBR path here is complete and off behind `kPreferPbrEffect` |
 | G-04 | No public way to build a `SpriteFont` | `SpriteFont`'s constructor takes an already-built glyph atlas, and the only reader that produces one is `CNA::Internal::Xnb::SpriteFontReader` -- which D-01 forbids the editor from touching. So the editor can describe a `.spritefont` but not preview its glyphs (ED-302). A public `ContentManager::Load<SpriteFont>` specialisation, or a public font builder, would close it. |
 
 ---
@@ -829,65 +822,55 @@ first thing ED-402 can get wrong and the last thing anyone would suspect.
 
 ## Where to start next
 
-Read this file, then `plan.md`'s *Current state* section.
+Read this file, then `plan.md`'s *Current state*.
 
-**ED-402 — model rendering. It is next, it is unblocked, and that is new.** Every previous version
-of this section had to say that the rest of Phase 3 waited on a model pipeline. It does not any
-more: ED-405 built one, and what ED-402 needs from this repository now exists and is tested.
+**Sprites in the 3D view — the owner picked it, and it is next.** It has no plan row yet; give it
+one. Today the 3D view shows no sprites *at all*, because `SpriteBatch` cannot draw the trapezoid a
+sprite becomes when seen from an angle — so the view shows the models and not the scene around
+them. What ED-402 built is exactly what removes the obstacle: a sprite is a textured quad, and
+there is now a `VertexBuffer`/effect path to draw one through. Four things are already paid for:
+the vertex format (`VertexPositionNormalTexture`, which a quad uses as-is), the texture cache in
+`CnaSceneRenderer` that already resolves a sprite's `Uuid`, the depth-tested target, and
+`CnaModelPass`'s upload-and-draw shape to copy.
 
-**What is already paid for**, so that the task is not re-derived:
+Two decisions it has to make, and both are worth making deliberately rather than discovering:
+**whether a sprite faces the camera or lies in the scene's XY plane** — billboarding is what makes
+a sprite look right from any angle and lying flat is what makes the 3D view agree with the 2D one,
+and they disagree the moment the camera orbits — and **how a sprite sorts against a model**, since
+a transparent quad drawn into a depth buffer either occludes what is behind it or does not,
+depending on draw order.
 
-- **The geometry, cached.** `EditorContext::makeMeshProvider()` hands out a `MeshProvider`;
-  `MeshCache` imports each model once and holds it. A `MeshData` needs no CNA, which is why the
-  cache is in the context rather than the viewport.
-- **The Y mirror, applied at import.** A `MeshData` is already in the editor's Y-down world, so the
-  model pass feeds the same mirrored view-projection everything else goes through and does *not*
-  mirror again. `TheThreeDimensionalViewAgreesWithTheTwoDimensionalOneAboutWhichWayIsDown` still
-  guards the projection; `TheGltfImporterMirrorsGltfsYUpIntoTheEditorsYDownWorld` guards the data.
-- **Triangle winding that survives that mirror.** This is the one to keep in mind while writing the
-  draw call, because it is invisible until it is not: the importer already reverses the winding, so
-  the meshes are wound counter-clockwise-from-outside and `CullMode::CullCounterClockwiseFace` is
-  the setting that matches them. If models come out inside-out, suspect the cull mode rather than
-  the importer — `meshWindingMatchesNormals` is asserted over every fixture.
-- **A vertex laid out as `VertexPositionNormalTexture`.** Field for field, deliberately, so the
-  upload is a copy. CNA's `Model`, `ModelMesh`, `ModelMeshPart` and `VertexBuffer` all have public
-  constructors (`Model`'s is `NOXNA` but public), so a model can be built by hand — no content
-  pipeline and no `CNA::Internal` needed. That was checked before ED-405 chose this shape.
-- **Materials, reduced to what a `BasicEffect` can express.** `MeshMaterial` carries diffuse,
-  emissive, specular, specular power, alpha and a base-colour texture *path*. Resolving that path
-  to a `Uuid` is the caller's job: the importer has no asset database and must not pretend to.
-- **Somewhere to look.** The example project has `Assets/Models/Crate.gltf` and a `Crate` entity in
-  `Level01`, and `--orbit` takes the picture.
+**The rest of Phase 3, in the order I would take it:**
 
-**The decision ED-402 still has to make**, and it is worth making deliberately: *what a `.cnascene`
-says about a model*. Today `CNA.ModelRenderer` holds one asset reference and one optional material
-override. A per-mesh material list is ED-410, which needs ED-311's `NestedStructure` — and a
-material list is exactly the first real consumer that schema has ever had, which is what makes it
-designable now when it was not before. Whether that lands with ED-402 or after it is the owner's
-call, since it touches the document model.
+1. **ED-404's remaining half**: draw a light's direction and range in the viewport, so a lamp can
+   be aimed by looking rather than by typing numbers. The reading half is done; this is the
+   *visualisation* the row is named for. `SceneWireframe` is where it goes, and `getEditorIconKind`
+   already gives lights a badge to hang it off.
+2. **ED-403 / ED-410 materials**, which is where `NestedStructure` (ED-311) finally gets the real
+   consumer it has been parked waiting for. Touches the scene format additively.
+3. **ED-406 mesh preview in the asset browser** and **ED-407 environment and fog**. Both are small
+   now that the machinery exists — `IEffectFog` is on both effects already.
 
 **Blocked, not forgotten:**
 
-- **ED-302's glyph preview** needs a public way to build a `SpriteFont` from a `.spritefont`. CNA
-  has none; recorded as gap G-04.
-- **ED-311's `NestedStructure`** still has no consumer *in this repository* — but see above: ED-410's
-  material list is the one that would justify it, and it is now one task away rather than several.
-- **Animation.** `CNA.ModelImporter` declares `importAnimations` and `loadModel` ignores it, which
-  is stated in the header rather than left to be discovered. An animation needs a skeleton to drive
-  and `MeshData` has no node hierarchy on purpose. When it becomes a task it arrives as fields
-  beside `MeshData::parts`; `loadModel`'s signature does not change.
+- **`PbrEffect` (G-05).** The path is written and one constant away. It needs a CNA fix, not work
+  here. Re-test by flipping `kPreferPbrEffect` in `CnaModelPass.cpp` and taking the screenshot in
+  *Validation commands*.
+- **ED-302's glyph preview** needs a public way to build a `SpriteFont` (G-04).
+- **Animation.** `MeshData` still has no node hierarchy, on purpose. When skeletal animation is a
+  real task it arrives as fields beside `MeshData::parts`, and `loadModel`'s signature does not
+  change.
 
-**Smaller, unblocked, in the order I would take them:**
+**Smaller, unblocked:**
 
-1. **Hear the audio preview on a machine with a sound device.** Still compiled and reasoned about
-   rather than heard; this container has none.
-2. **A second look at `findSelectionRoots`.** Unchanged from last session: move it to the scene
-   module when a *fourth*, non-gizmo caller appears. Until then the include is honest.
-3. **The 3D view has no tile tools and no animation preview**, deliberately: both are 2D ideas.
-   `beginGizmo3DDrag` and `handleInteraction3D` are where that would be decided.
+1. **Hear the audio preview on a machine with a sound device.** Still only reasoned about.
+2. **A second look at `findSelectionRoots`** — move it to the scene module when a *fourth*,
+   non-gizmo caller appears.
+3. **A model's material override is still ignored by the model pass.** `CNA.ModelRenderer` declares
+   one and `CnaModelPass` draws the mesh's own materials. That is ED-403's job rather than a bug,
+   but it is a promise the inspector is currently making and the viewport is not keeping.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
-chains are empty on purpose. ED-405 added only *additive* sidecar fields — the model facts — which
-is the permission the owner already gave. Adding a property type must not change what an existing
-scene file serialises to; keep it that way, and do not bump a `formatVersion` without the owner's
-say-so.
+chains are empty on purpose. ED-402 added no persisted field at all — the PBR material fields live
+in the in-memory seam, and the model sidecar records counts rather than materials. Keep it that
+way, and do not bump a `formatVersion` without the owner's say-so.
