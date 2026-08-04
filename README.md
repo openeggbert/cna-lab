@@ -32,7 +32,7 @@ which it is:
 
 | Project kind | What the editor offers |
 |--------------|------------------------|
-| `CnaNative` | Scenes, entities, components, inspector, gizmos, prefabs, play mode |
+| `CnaNative` | Scenes, entities, components, inspector, gizmos, prefabs, play mode, a 2D and a 3D viewport |
 | `XnaCompatible` | Asset browser, importer settings, content preview, backend configuration, Play — and nothing else. The game keeps its own `Initialize`/`LoadContent`/`Update`/`Draw` |
 
 A pure XNA port is never forced through the entity model to use the tooling.
@@ -97,7 +97,22 @@ SDL_VIDEODRIVER=dummy ./build-cna/cna-editor \
 #             1 textures created, 0 texture updates, 0 commands clipped away
 ```
 
-### Options
+### Command-line options
+
+| Option | Meaning |
+|--------|---------|
+| `--project=PATH` | Open this `.cnaproject` at start-up |
+| `--scene=PATH` | Open this `.cnascene`, overriding the project's startup scene |
+| `--view=2d\|3d` | Which viewport camera to start in. Defaults to `2d` |
+| `--headless` | Run with no window, on the null UI |
+| `--frames=N` | Exit after N frames |
+| `--screenshot=PATH` | Write a PNG of the final frame. Needs `--frames` |
+| `--compare-backends` | Compare every installed player build and exit non-zero when they differ |
+| `--tolerance=N` | How close two backends' pixels have to be to count as the same |
+| `--autosave=SECONDS` | How often to write a `.cnarecovery` snapshot of unsaved work |
+| `--list-backends` | Print the backends this build knows about |
+
+### Build options
 
 | Option | Default | Meaning |
 |--------|:-------:|---------|

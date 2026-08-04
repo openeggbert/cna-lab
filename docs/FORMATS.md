@@ -34,6 +34,7 @@ project is relative to it and uses forward slashes on all platforms.
   "sceneDirectory": "Scenes",
   "defaultGraphicsBackend": "easygl",
   "layers": ["Background", "Default", "Foreground"],
+  "gridSnap": 16.0,
   "targetPlatforms": ["linux-x64", "windows-x64"],
   "modules": ["cna-core", "cna-graphics-2d", "cna-audio"],
   "plugins": ["org.openeggbert.mc3"]
@@ -50,9 +51,24 @@ project is relative to it and uses forward slashes on all platforms.
 | `sceneDirectory` | string | `"Scenes"` | Where new scenes are created |
 | `defaultGraphicsBackend` | string | `"easygl"` | Which player build the Play button prefers |
 | `layers` | string[] | `["Default"]` | Render layers, back to front. Never empty |
+| `gridSnap` | number | `0` | World units a snapped drag rounds to. `0` means the viewport's visible grid. Written only when set |
 | `targetPlatforms` | string[] | `["linux-x64"]` | Offered by the build dialog |
 | `modules` | string[] | `["cna-core"]` | CNA modules the game links |
 | `plugins` | string[] | `[]` | Plugin ids to load for this project |
+
+### `gridSnap`
+
+What a Ctrl-drag in the viewport rounds to, in world units. A project laid out on a 16-unit tile
+grid says so once instead of having every user zoom until the drawn grid happens to agree.
+
+Zero is **not** "no snapping" — Ctrl is what turns snapping on. It is "use the grid the viewport is
+drawing", which is what the editor did before the setting existed and therefore what a project
+written before it means. A separate enabled flag would have been a second way to say the same thing
+and a second thing to get out of step.
+
+Additive, like `layers`: no `formatVersion` bump, and the field is written only when it is set, so
+the first save of an existing project is not a diff that says nothing. A negative value is refused
+rather than clamped — it is not a smaller step, it is a value with no meaning.
 
 ### `layers`
 
