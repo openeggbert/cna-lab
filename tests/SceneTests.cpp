@@ -2111,3 +2111,57 @@ CNA_EDITOR_TEST(TheThreeDimensionalViewAgreesWithTheTwoDimensionalOneAboutWhichW
         CNA_EDITOR_EXPECT(cameraNearlyEqual(back->y, pixel.y, 0.5f));
     }
 }
+
+CNA_EDITOR_TEST(EntitiesThatDrawNothingGetABadgeRatherThanACube)
+{
+    ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid cameraId = scene.addEntity(makeEntity(registry, "Main Camera", 0.0f, 0.0f));
+    EditorComponent cameraComponent{BuiltinComponentIds::kCamera};
+    cameraComponent.applyDefaults(*registry.find(BuiltinComponentIds::kCamera));
+    scene.findEntity(cameraId)->addComponent(std::move(cameraComponent));
+
+    const Uuid emptyId = scene.addEntity(makeEntity(registry, "Spawn Point", 200.0f, 0.0f));
+
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{100.0f, 0.0f, 0.0f});
+    camera.setDistance(600.0f);
+
+    const SpriteSizeProvider sizes = [](const Uuid&) { return EditorVector2{32.0f, 32.0f}; };
+
+    WireframeOptions options;
+    options.drawGrid = false;
+
+    const WireframeResult result = buildSceneWireframe(scene, camera, {}, sizes, options);
+    CNA_EDITOR_EXPECT_EQ(result.entitiesDrawn, std::size_t{2});
+
+    // The camera is a badge and the bare Transform is still a box: twelve edges for one, the
+    // camera's silhouette for the other, so the two cannot be confused for each other. Ten
+    // entities that draw nothing were ten identical cubes before this.
+    const std::size_t cameraSegments =
+        buildIconBadge(EditorIconKind::Camera, EditorVector2{}, WireColors::kEntity).size();
+    CNA_EDITOR_EXPECT(cameraSegments > 0);
+    CNA_EDITOR_EXPECT_EQ(result.segments.size(), cameraSegments + std::size_t{12});
+
+    // Every icon kind draws something, and None draws nothing at all -- a badge for "this entity
+    // has no icon" would be a badge on every entity in the scene.
+    for (const EditorIconKind kind : {EditorIconKind::Camera, EditorIconKind::Light,
+                                      EditorIconKind::AudioSource, EditorIconKind::Model})
+    {
+        CNA_EDITOR_EXPECT(!buildIconBadge(kind, EditorVector2{400.0f, 300.0f}, WireColors::kEntity).empty());
+    }
+    CNA_EDITOR_EXPECT(buildIconBadge(EditorIconKind::None, EditorVector2{}, WireColors::kEntity).empty());
+
+    // The badge is a fixed size in pixels: it must not change when the camera moves away, or a
+    // camera at the far end of a level becomes invisible and one nearby swallows the screen.
+    const std::vector<WireSegment> near =
+        buildIconBadge(EditorIconKind::Light, EditorVector2{100.0f, 100.0f}, WireColors::kEntity);
+    const std::vector<WireSegment> far =
+        buildIconBadge(EditorIconKind::Light, EditorVector2{900.0f, 700.0f}, WireColors::kEntity);
+    CNA_EDITOR_EXPECT_EQ(near.size(), far.size());
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(near.front().to.x - near.front().from.x,
+                                        far.front().to.x - far.front().from.x));
+
+    static_cast<void>(emptyId);
+}

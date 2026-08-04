@@ -83,6 +83,73 @@ namespace CNA::Editor
         return std::make_pair(*screenFrom, *screenTo);
     }
 
+    std::vector<WireSegment> buildIconBadge(EditorIconKind kind, const EditorVector2& screenPoint,
+                                            const EditorColor& color)
+    {
+        std::vector<WireSegment> segments;
+        if (kind == EditorIconKind::None) { return segments; }
+
+        const float extent = kEditorIconExtent;
+        const auto at = [&screenPoint](float x, float y) {
+            return EditorVector2{screenPoint.x + x, screenPoint.y + y};
+        };
+        const auto line = [&segments, &color](const EditorVector2& from, const EditorVector2& to) {
+            segments.push_back(WireSegment{from, to, color, 1.0f});
+        };
+        const auto box = [&line, &at](float halfWidth, float halfHeight) {
+            line(at(-halfWidth, -halfHeight), at(halfWidth, -halfHeight));
+            line(at(halfWidth, -halfHeight), at(halfWidth, halfHeight));
+            line(at(halfWidth, halfHeight), at(-halfWidth, halfHeight));
+            line(at(-halfWidth, halfHeight), at(-halfWidth, -halfHeight));
+        };
+
+        switch (kind)
+        {
+            case EditorIconKind::Camera:
+                // A body and the lens cone beside it: the silhouette everything from a film camera
+                // to a viewport widget uses, and recognisable at thirteen pixels.
+                box(extent * 0.6f, extent * 0.5f);
+                line(at(extent * 0.6f, -extent * 0.5f), at(extent, -extent * 0.85f));
+                line(at(extent, -extent * 0.85f), at(extent, extent * 0.85f));
+                line(at(extent, extent * 0.85f), at(extent * 0.6f, extent * 0.5f));
+                break;
+
+            case EditorIconKind::Light:
+                // A point with rays. Four is enough to read as a light and few enough that a scene
+                // full of them is still a scene rather than a haystack.
+                box(extent * 0.35f, extent * 0.35f);
+                line(at(0.0f, -extent * 0.55f), at(0.0f, -extent));
+                line(at(0.0f, extent * 0.55f), at(0.0f, extent));
+                line(at(-extent * 0.55f, 0.0f), at(-extent, 0.0f));
+                line(at(extent * 0.55f, 0.0f), at(extent, 0.0f));
+                break;
+
+            case EditorIconKind::AudioSource:
+                // A cone opening to the right, with one wavefront in front of it.
+                line(at(-extent * 0.7f, -extent * 0.35f), at(-extent * 0.7f, extent * 0.35f));
+                line(at(-extent * 0.7f, -extent * 0.35f), at(0.0f, -extent * 0.8f));
+                line(at(-extent * 0.7f, extent * 0.35f), at(0.0f, extent * 0.8f));
+                line(at(0.0f, -extent * 0.8f), at(0.0f, extent * 0.8f));
+                line(at(extent * 0.5f, -extent * 0.5f), at(extent * 0.5f, extent * 0.5f));
+                break;
+
+            case EditorIconKind::Model:
+                // A cube drawn flat: a wireframe box in *screen* space, which reads as "a mesh
+                // belongs here" without pretending to be the mesh, since ED-402 has not landed.
+                box(extent * 0.75f, extent * 0.75f);
+                line(at(-extent * 0.75f, -extent * 0.75f), at(-extent * 0.35f, -extent));
+                line(at(extent * 0.75f, -extent * 0.75f), at(extent, -extent));
+                line(at(-extent * 0.35f, -extent), at(extent, -extent));
+                line(at(extent, -extent), at(extent, extent * 0.35f));
+                line(at(extent, extent * 0.35f), at(extent * 0.75f, extent * 0.75f));
+                break;
+
+            case EditorIconKind::None: break;
+        }
+
+        return segments;
+    }
+
     std::vector<WireSegment> buildSceneGrid(const EditorCamera3D& camera, const WireframeOptions& options)
     {
         std::vector<WireSegment> segments;
@@ -175,10 +242,26 @@ namespace CNA::Editor
 
             const bool selected =
                 std::find(selection.begin(), selection.end(), entity.getId()) != selection.end();
+            const EditorColor color = selected ? WireColors::kSelected : WireColors::kEntity;
 
-            const std::size_t drawn =
-                appendBox(result.segments, camera, *bounds,
-                          selected ? WireColors::kSelected : WireColors::kEntity, selected ? 2.0f : 1.0f);
+            // An entity that draws nothing gets a badge rather than a box: a camera and a light
+            // both have the same non-existent size, so boxing them says only "something is here",
+            // which is the one thing a scene of them makes obvious anyway.
+            const EditorIconKind icon = getEditorIconKind(entity);
+            if (icon != EditorIconKind::None)
+            {
+                const std::optional<EditorVector2> screenPoint =
+                    camera.worldToScreen(bounds->getCenter());
+                if (!screenPoint) { continue; }
+
+                const std::vector<WireSegment> badge = buildIconBadge(icon, *screenPoint, color);
+                result.segments.insert(result.segments.end(), badge.begin(), badge.end());
+                if (!badge.empty()) { ++result.entitiesDrawn; }
+                continue;
+            }
+
+            const std::size_t drawn = appendBox(result.segments, camera, *bounds, color,
+                                                selected ? 2.0f : 1.0f);
             if (drawn > 0) { ++result.entitiesDrawn; }
         }
 

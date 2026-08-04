@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 380 / 380 (also under Clang Release) |
+| Unit tests | ✅ 382 / 382 (also under Clang Release) |
 | CTest (standalone) | ✅ 10 / 10 |
 | CTest (CNA config) | ✅ 15 / 15 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -623,8 +623,6 @@ grabbable when its axis is edge-on. Budget them as one task each, not as a pair.
 
 Also unblocked and smaller:
 
-- **Icons in the 3D view.** A camera and a light are both a plain cube there. The 2D viewport has
-  `EditorIcons.hpp` for exactly this question and the 3D one ignores it.
 - **A keyboard shortcut for the 2D/3D toggle.** It has a toolbar button and a View menu item and no
   key. `UiKey` has no digits, so this needs an enum entry first -- additive, like `Q` was.
 - **The 3D view has no tile tools and no animation preview**, deliberately: both are 2D ideas. If

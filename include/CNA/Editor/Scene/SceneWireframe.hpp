@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "CNA/Editor/Scene/EditorCamera3D.hpp"
+#include "CNA/Editor/Scene/EditorIcons.hpp"
 
 namespace CNA::Editor
 {
@@ -126,6 +127,19 @@ namespace CNA::Editor
      */
     [[nodiscard]] std::vector<WireSegment> buildSceneGrid(const EditorCamera3D& camera,
                                                           const WireframeOptions& options = {});
+
+    /**
+     * @brief Returns the screen-space badge for @p kind, centred on @p screenPoint.
+     *
+     * Drawn in pixels rather than in the world, exactly as the 2D viewport's icons are and for the
+     * same reason: a camera has no size, so a badge scaled by distance would vanish at the far end
+     * of a level and swallow the screen at the near end. Ten entities that draw nothing are ten
+     * identical cubes without this -- and "which of these is the camera" is the first question a
+     * 3D view of such a scene is asked.
+     */
+    [[nodiscard]] std::vector<WireSegment> buildIconBadge(EditorIconKind kind,
+                                                          const EditorVector2& screenPoint,
+                                                          const EditorColor& color);
 
     /**
      * @brief Returns everything the 3D viewport draws for @p scene.
