@@ -3,14 +3,16 @@
 Editor, asset pipeline and tooling for [CNA](https://github.com/openeggbert/cna) — the C++
 reimplementation of the XNA 4.0 framework.
 
-> **Status: it opens and it draws.** Built against a real CNA checkout, `cna-editor` opens a
-> window, docks its seven panels, and renders them entirely through CNA's *public* API — no
-> internal headers, no authored shader, no per-backend renderer. The **`cna-player` process** is
-> launched by the editor over a real socket. The document model, undo system, asset database and
-> project format are implemented and tested.
+> **Status: it edits, it plays, and it draws the game.** Built against a real CNA checkout,
+> `cna-editor` opens a window, docks its panels, and renders them entirely through CNA's *public*
+> API — no internal headers, no authored shader, no per-backend renderer. The scene viewport draws
+> sprites, tilemaps and manipulators; a **3D viewport** draws the same scene as a wireframe with
+> translate, rotate and scale gizmos of its own. The **`cna-player` process** is launched by the
+> editor over a real socket, **draws the game**, and takes live edits while it runs.
 >
-> The default build stays dependency-free: no CNA checkout, no GPU, no window, 98 tests in about a
-> second. What is missing is the *scene* viewport's own drawing — [`plan.md`](plan.md) Phase 1.
+> The default build stays dependency-free: no CNA checkout, no GPU, no window, 392 tests in about a
+> second. What is missing is 3D *content* — models, materials and lights ([`plan.md`](plan.md)
+> Phase 3), which wait on a model pipeline.
 
 ![cna-editor running on the EASYGL backend](docs/images/editor-easygl.png)
 
@@ -280,7 +282,7 @@ cna-editor/
 │   └── EditorApplication.hpp
 ├── src/                     One directory per module
 ├── third_party/imgui/       Dear ImGui 1.92.9b, core only
-├── tests/                   96 tests, no third-party framework
+├── tests/                   392 tests, no third-party framework
 └── examples/HelloSprites/   A project the editor opens end to end
 ```
 

@@ -15,13 +15,13 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 383 / 383 (also under Clang Release) |
+| Unit tests | ✅ 392 / 392 (also under Clang Release) |
 | CTest (standalone) | ✅ 10 / 10 |
 | CTest (CNA config) | ✅ 15 / 15 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
-| **Phase 3** | 🔄 3 of 12 done and one half — ED-400 (3D camera and wireframe view), ED-401 (2D gizmos), ED-408 (3D translate gizmo); ED-409 has its rotate gizmo and no scale one |
+| **Phase 3** | 🔄 4 of 13 done — ED-400 (3D camera and wireframe view), ED-401 (2D gizmos), ED-408 (3D translate), ED-409 (3D rotate **and scale**). The nine that remain all wait on the model pipeline |
 | **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
 | **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
 
@@ -30,7 +30,7 @@
 ## Start here
 
 You are picking up a branch with nothing half-finished on it: the working tree is clean, every
-commit is pushed, and all 346 tests pass in three configurations. There is no rescue work to do
+commit is pushed, and all 392 tests pass in three configurations. There is no rescue work to do
 first.
 
 1. Read the rest of this file, then `plan.md`'s *Current state*. `ANALYSIS.md` only when a
@@ -49,8 +49,70 @@ pull requests against `openeggbert/cna` — the CNA gaps G-01…G-04 stay docume
 
 ## What landed in this session
 
-**Both of the owner's choices are done, and three more things with them.** Every commit was
-validated in the standalone, CNA and Clang-Release configurations before it was pushed.
+**ED-409 is closed and the 3D view is a complete editor**, plus two of the smaller items that were
+queued behind it. Five commits, each validated in the standalone, CNA and Clang-Release
+configurations before it was pushed.
+
+**1. A bug in last session's rotate gizmo, found by writing the selection-wide half.**
+`RotateGizmo3DDrag::update` composed the turn as `start * delta`, which applies the angle about the
+entity's *own* axes; the header, the comment beside the line and the 2D gizmo it was written to
+mirror all say the turn happens in world space. The two orders differ by exactly the rotation the
+entity already has, so the existing test -- which turns an entity at identity -- could not see it.
+Anything already lying on its side turned about a ring nobody had drawn. The new test pins the
+*property* rather than an angle: a turn about world Z leaves anything pointing along world Z where
+it is, whatever angle the drag came out as.
+
+**2. ED-409's scale gizmo**, the last of the three manipulators and the one whose problem the other
+two do not have. The resolution is that it does not need the world at all. Translate needs a *line*
+to slide along and refuses when the arm points at the camera; rotate needs a *plane* to measure an
+angle in and drops a ring seen edge-on; a scale factor is a **ratio of screen distances**, and the
+screen always has one.
+
+So an arm here is never dropped and never refuses. Its *direction* is the true projection of the
+axis, clipped against the near plane through the wireframe's own `projectSegment`; its *length* was
+a chosen constant to begin with, so it is bounded at both ends -- floored at thirty pixels so an
+edge-on handle stays clear of the centre one, capped so an arm pointing nearly at the eye does not
+throw its handle off the panel. Foreshortening fades toward a floor rather than to nothing, which is
+the honest thing to say about an axis that is still there and has little room left to be precise in.
+The one case an arm *is* dropped is an axis pointing exactly through the eye, where it projects onto
+its own origin; the centre handle (`GizmoAxis3D::All`, which scales all three axes) covers those
+pixels, and it is what a press in the middle of a gizmo means anyway.
+
+The panel's 3D interaction was turned inside out on the way: hover and grab now ask one question of
+one layout in `beginGizmo3DDrag`, instead of one layout per manipulator computed in parallel and two
+near-identical begin-a-drag blocks.
+
+**Verified by screenshot on EASYGL**: red, green and blue arms with square handles, the white centre
+square, and the near-edge-on Z arm sitting at its floor instead of vanishing under the middle.
+
+**3. All three 3D manipulators act on a whole selection**, about its shared pivot. `MultiTranslate3D`
+is now `MultiTransform3D` and answers all three gestures, as `MultiTransformDrag` has in 2D: the
+single-entity drags compute the gesture and this turns one gesture into the edits a selection needs.
+Rotate and scale carry their members *around* the pivot as well as changing them. Scale does that in
+the **gizmo's** frame rather than in world components, because the offsets have to grow along the
+same arms the sizes do.
+
+That needed the gizmo to move too, so the pivot is an argument to the three layout functions rather
+than something the drawing does afterwards -- where a gizmo is drawn is where it must be grabbed.
+While a drag runs the pivot is the one captured at the press, not a fresh average, which would chase
+the entities and bend a steady drag into a spiral.
+
+**4. A grid the 3D view can put on the floor.** `WireframeOptions::gridPlane`, offered from the View
+menu and only in the 3D view. The default is unchanged and stays the scene's own XY plane, because
+that is where everything this editor can currently place lives; the floor is what ED-402 will want.
+One function either way -- the two planes differ by which pair of axes is in the plane and nothing
+else, so a second function would be the same loop twice, free to drift.
+
+**5. A key for the 2D/3D view**, on the digits that name it: `2` and `3`, two keys rather than one
+toggle, because a key named for the view it selects is safe to press when the user is already there.
+Digits are also free while flying, which W, E and R are not. `UiKey` gained `Digit2` and `Digit3`,
+appended rather than inserted.
+
+---
+
+## What landed in the previous session
+
+**Both of the owner's choices were done, and three more things with them.**
 
 **1. ED-400, the 3D viewport.**
 
@@ -113,8 +175,8 @@ polyline serves both the drawing and the hit-test, so what a user sees is what t
 of. A ring seen edge-on is dropped: it would project to a line through the centre, overlap the
 other two, and have no plane a drag could measure an angle in. The drag turns in world space and
 stores in the parent's frame, wraps its delta into (-pi, pi], and snaps the *turn* rather than the
-absolute angle. **Scale is not built** and rotate has no selection-wide half — see the queue at the
-bottom.
+absolute angle. Scale and the selection-wide halves landed this session, along with a fix to the
+order that turn was composed in.
 
 **Icons, so the 3D view is not ten identical cubes.** A camera, a light and an audio source all
 draw nothing and were all the same wire box. Each has a badge now — camera body and lens, point
@@ -143,7 +205,7 @@ fail rather than start quietly in 2D.
 
 ---
 
-## What landed in the previous session
+## Before that
 
 Fourteen commits, each validated in three configurations before it was pushed:
 
@@ -254,6 +316,27 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 ## Recently completed
 
 Newest first. Each is a single commit on the branch.
+
+- **A key for the 2D/3D view.** `2` and `3`, two keys rather than one toggle: a key named for the
+  view it selects is safe to press when the user is already there, and digits stay free while flying
+  where W, E and R do not. `UiKey` gained `Digit2` and `Digit3`, appended rather than inserted.
+- **A grid the 3D view can put on the floor.** `WireframeOptions::gridPlane`, on the View menu and
+  only while the 3D view is on -- the 2D viewport has one plane and no decision to make about it.
+  The default is unchanged. The test pins it through the property that made that default worth
+  having: a camera with no pitch lies *in* the ground plane and sees one line where the scene's own
+  plane fills the view, and tipping it over the floor swaps the two round.
+- **All three 3D manipulators act on a whole selection**, about its shared pivot. `MultiTranslate3D`
+  became `MultiTransform3D`; rotate and scale carry their members *around* the pivot as well as
+  changing them, and scale does that in the gizmo's frame rather than in world components, since the
+  offsets have to grow along the same arms the sizes do. The pivot is an argument to the layout
+  functions rather than something the drawing does afterwards: where a gizmo is drawn is where it
+  must be grabbed.
+- **ED-409's scale gizmo**, the last of the three. An arm is never dropped and never refuses,
+  because a scale is a ratio of screen distances and the screen always has one; it shortens to a
+  thirty-pixel floor and fades instead. Verified by screenshot on EASYGL.
+- **The 3D rotate gizmo turns in the world, as it always said it did.** `start * delta` applies the
+  angle about the entity's own axes; the two orders differ by exactly the rotation the entity
+  already has, which is why a test at identity could not see it.
 
 - **Two validation rules for states that fail silently.** A tilemap with a tile size of zero draws
   nothing *and* swallows every brush stroke, saying neither; an animation with no sheet leaves the
@@ -562,12 +645,15 @@ Phase 1 closed. Working through the owner's priority order:
    `formatVersion` was bumped; `.cnarecovery` is a *new* format at version 1, not a change to an
    existing one.
 2. ~~**Live editing into the running player**~~ ✅ — ED-306 and ED-307 are done.
-3. **Production 2D tools** ← *current* — ED-300, ED-301, ED-303, ED-305 ✅; ED-302 and
-   ED-311 🔄. Next: ED-309 backend diagnostics, ED-304 audio, ED-308 the build dialog.
+3. ~~**Production 2D tools**~~ ✅ — ED-300, ED-301, ED-303, ED-304, ED-305, ED-308 and ED-309 are
+   done; ED-302 and ED-311 🔄 and both blocked, see below.
    Note that `NestedStructure` (the open half of ED-311) turned out **not** to be needed by
    prefabs: ED-300 computes overrides rather than storing them, so nothing needs a nested schema
    yet. Leave it unbuilt until something real asks for one.
-4. **ED-510** backend comparison mode.
+4. ~~**ED-510** backend comparison mode~~ ✅ — with ED-511 and ED-513 beside it.
+
+Everything on that list is closed, and so is the 3D work the owner opened afterwards. See *Where to
+start next*.
 
 ---
 
@@ -604,13 +690,15 @@ Phase 1 closed. Working through the owner's priority order:
 
 Read this file, then `plan.md`'s *Current state* section.
 
-**Every priority the owner named is closed.** Robustness and data safety; live editing into the
-running player; the production 2D tools; and the backend comparison mode, which now runs from a
-panel (ED-510), from the command line with an exit code (ED-511), and against players the build
-produces itself (ED-513). Phase 1 is complete, Phase 2 is ten of twelve, and the two open rows are
-each half built and each blocked on something outside this repository.
+**Every priority the owner named is closed**, and so is everything the owner chose on 2026-08-04.
+Robustness and data safety; live editing into the running player; the production 2D tools; the
+backend comparison mode; the 3D viewport, its three manipulators and input forwarding. Phase 1 is
+complete, Phase 2 is ten of twelve, Phase 3 is four of thirteen, and every open row anywhere is
+either half built and blocked on something outside this repository, or waiting on the model
+pipeline.
 
-What follows is a judgement call rather than a queue.
+**There is no obvious next task, and that is worth saying plainly rather than inventing one.** What
+follows is a judgement call.
 
 **Blocked, not forgotten:**
 
@@ -619,53 +707,42 @@ What follows is a judgement call rather than a queue.
 - **ED-311's `NestedStructure`** has no consumer. ED-300 computes prefab overrides by comparison
   rather than storing them, so nothing needs a nested schema. Designing one against no consumer is
   how you get it wrong.
-- **The rest of Phase 3** -- ED-402's model rendering, ED-403's materials, ED-404's lights -- waits
-  on a model pipeline. ED-400 did not need one, which is why the owner opened it: a camera, a grid
-  and a box per entity need no mesh. A *3D gizmo* is likewise unbuilt: `TransformGizmos.hpp` lays
-  out in screen space against `EditorCamera2D`, and the 3D view deliberately leaves the left mouse
-  button free for one.
+- **The rest of Phase 3 waits on a model pipeline** -- ED-402's model rendering, ED-403's materials,
+  ED-404's lights, ED-405's glTF importer, ED-406's mesh preview, ED-407's environment settings.
+  ED-400, ED-408 and ED-409 did not need one, which is why they were opened first: a camera, a grid,
+  a box per entity and three manipulators need no mesh. Everything that remains does.
 
-**Everything the owner chose on 2026-08-04 is done**, and so are the first two items that were
-queued behind it. What follows is a judgement call rather than a queue.
+**ED-402 is the honest next big thing, and it is a decision rather than a task.** The groundwork it
+would land on is in place and two pieces of it are already paid for:
 
-**ED-409 is half done: the 3D rotate gizmo is in, the scale one is not.** Rotate is three rings,
-sampled and projected, with the same polyline serving the drawing and the grab; a ring seen edge-on
-is dropped, because it would project to a line through the centre and have no plane a drag could
-measure an angle in.
+- **The Y-down mirror is a bill ED-402 inherits.** XNA's 3D side is Y-up -- `CreateLookAt`,
+  `BasicEffect`, every loaded model -- and this editor's 3D projection mirrors Y so the two views
+  agree about which way is down. The model pass must apply the same mirror or models will disagree
+  with everything around them. `TheThreeDimensionalViewAgreesWithTheTwoDimensionalOneAboutWhichWayIsDown`
+  is the test that will catch it.
+- **The ground-plane grid is built and waiting.** `WireframeOptions::gridPlane`, on the View menu.
+  The default stays the scene's own plane until there is something with height to stand on a floor.
 
-**Scale is the next task, and it is not a copy of either.** Its handle has to stay grabbable when
-its axis is edge-on -- the case rotate solves by hiding the ring, which a scale handle cannot do,
-since an axis pointing at the camera is still an axis the user may want to scale along. The likely
-answer is a uniform-scale handle at the centre plus per-axis handles that fade out rather than
-vanish, but that is a design decision, not a derivation. Two other things to carry over: the 3D
-rotate drag acts on the **primary selection only** (translate has `MultiTranslate3D`; rotate has no
-selection-wide half yet, and it needs one that turns entities *about a shared pivot* the way the 2D
-`MultiTransformDrag::rotate` does), and the gizmo mode in the 3D view is changed only from the
-toolbar, because W/E/R fly there.
+Before starting it, someone should decide **what a `.cnascene` says about a model** -- an asset id
+and a material list, presumably -- and that touches the document model, which is the owner's call.
+ED-410's per-mesh material lists is the row where that question is written down, and it depends on
+ED-311's `NestedStructure`, which has no consumer *yet*. That is the shape of the dependency: the
+first real consumer of a nested schema is a material list, and designing the schema against it is
+the way to get it right.
 
-Also unblocked and smaller:
+**Smaller, unblocked, in the order I would take them:**
 
-- **A ground-plane grid option**, for when scenes stop being flat. `buildSceneGrid` draws the
-  scene's XY plane, which is right while everything lives in XY and wrong the moment ED-402 puts a
-  model above a floor. The choice belongs in `WireframeOptions`, not in a second function.
-- **A keyboard shortcut for the 2D/3D toggle.** It has a toolbar button and a View menu item and no
-  key. `UiKey` has no digits, so this needs an enum entry first -- additive, like `Q` was.
-- **The 3D view has no tile tools and no animation preview**, deliberately: both are 2D ideas. If
-  that ever stops being true, `handleInteraction3D` is where it would be decided.
-
-**Then, small and unblocked, in the order I would take them.** The first is written out in enough detail
-to start on without re-deriving anything.
-
-1. ~~**A snap step the project can set.**~~ ✅ Done this session: `gridSnap`, additive, undoable,
-   in the idle Inspector.
-2. **Hear the audio preview on a machine with a sound device.** It was rewritten to hold a
+1. **Hear the audio preview on a machine with a sound device.** It was rewritten to hold a
    `SoundEffectInstance` so Stop actually stops, but this container has none, so that path has been
    compiled and reasoned about rather than heard.
-3. **A second look at `findSelectionRoots`.** It is a *selection* utility living in
-   `TransformGizmos.hpp` because the gizmo needed it first; `deleteSelection` uses it, and as of
-   this session so does `MultiTranslate3D`. That is the third caller the note asked to wait for --
-   but two of the three are gizmo code, so the case is weaker than it looks. Move it to the scene
-   module when a *fourth*, non-gizmo caller appears; until then the include is honest.
+2. **A second look at `findSelectionRoots`.** It is a *selection* utility living in
+   `TransformGizmos.hpp` because the gizmo needed it first; `deleteSelection` uses it, and so does
+   `MultiTransform3D`. Two of the three callers are gizmo code, so the case for moving it is still
+   weaker than the count suggests. Move it to the scene module when a *fourth*, non-gizmo caller
+   appears; until then the include is honest.
+3. **The 3D view has no tile tools and no animation preview**, deliberately: both are 2D ideas. If
+   that ever stops being true, `beginGizmo3DDrag` and `handleInteraction3D` are where it would be
+   decided.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
 chains are empty on purpose. Adding a property type must not change what an existing scene file

@@ -29,7 +29,7 @@ game drawn* (ED-246), compares how two graphics backends render it (ED-510/511/5
 game can load what it produced. The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **346 passing tests across 8 CTest suites** (12 with CNA)
+- 12 modules, three executables, and **392 passing tests across 10 CTest suites** (15 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -38,6 +38,10 @@ checkout, no GPU and no window:
 - the scene draws with an adaptive grid, sprites ordered by layer depth, selection outlines,
   **translate, rotate and scale gizmos** — each drag one undo entry, each grabbable in world or in
   the entity's own axes — and **icons** for entities that have no geometry to draw
+- a **3D viewport** with the same three manipulators (ED-408/409), each acting on one entity or on
+  a whole selection about its shared pivot, a grid that can sit on the scene's plane or on a floor,
+  orbit and fly navigation, and picking through the 3D projection — all of it CNA-free geometry, so
+  what a user can grab is tested in CI and only the pixels need a GPU
 - a **Build panel** configures and builds the open project by driving its own CMake, shows the
   commands before running them, and tails the build log
 - **audio preview**: an artist can hear a clip from the inspector, either as the component will
@@ -288,7 +292,9 @@ have to be written per backend, which is exactly the kind of cost F-01 makes wor
 and the rest of the Graphics surface a camera needs; ED-402 and ED-404 still wait on the model
 pipeline. **ED-401 was the other exception and was built early**, because it is not a 3D task at all in a 2D viewport: `E` and `R` had been selecting
 a manipulator that did not exist since Phase 1, which is a promise the editor was making and not
-keeping. Nothing else here has moved.
+keeping. **ED-408 and ED-409 followed ED-400** for the same kind of reason: a view you can select
+in but not move things in is a viewer rather than an editor. Four rows of thirteen are done; the
+nine that remain all wait on the model pipeline.
 
 | Id | Task | Status | Notes |
 |----|------|:------:|-------|
@@ -301,7 +307,7 @@ keeping. Nothing else here has moved.
 | ED-406 | Mesh preview in the asset browser | ⬜ | |
 | ED-407 | Environment and fog settings | ⬜ | |
 | ED-408 | 3D translate gizmo | ✅ | Added during the ED-400 session, because a view you can select in but not move things in is a viewer rather than an editor. `TransformGizmos3D.hpp`: a separate file from the 2D manipulators because almost nothing is shared -- those lay out in screen space against `EditorCamera2D`, this one lays out in the world and asks a different question each frame, *where along this world line is the cursor pointing*. Arms are sized in pixels and converted to world units at the entity's own depth, so the manipulator is the same size on screen wherever the entity is; an arm pointing at the camera is refused rather than answered, since a pixel of movement there would fling the entity across the level |
-| ED-409 | 3D rotate and scale gizmos | 🔄 | **Rotate is done.** Three rings, *sampled and projected* rather than described, because a circle in the world is an ellipse on screen and the grab has to answer in pixels -- one polyline serves both the drawing and the hit-test, so what a user sees is exactly what they can take hold of. A ring seen edge-on is dropped: it would project to a line through the centre, overlap the other two, and have no plane a drag could measure an angle in. Turns in world space and stores in the parent's frame, like the 2D rotate gizmo. **Scale is not built** -- its handle has to stay grabbable edge-on, which is the same problem in a shape that cannot simply be hidden |
+| ED-409 | 3D rotate and scale gizmos | ✅ | **Rotate** is three rings, *sampled and projected* rather than described, because a circle in the world is an ellipse on screen and the grab has to answer in pixels -- one polyline serves both the drawing and the hit-test, so what a user sees is exactly what they can take hold of. A ring seen edge-on is dropped: it would project to a line through the centre, overlap the other two, and have no plane a drag could measure an angle in. **Scale** is the one whose problem the other two do not have, and the resolution is that it does not need the world at all: a factor is a ratio of screen distances, and the screen always has one. So an arm is never dropped and never refuses -- its direction is the true projection of the axis, near-plane clipped through the wireframe's own `projectSegment`, and its length is floored at thirty pixels so an edge-on handle stays clear of the centre one and capped so an arm pointing at the eye does not throw its handle off the panel. Foreshortening fades toward a floor rather than to nothing. The centre handle (`GizmoAxis3D::All`) scales all three axes; scale takes no `GizmoSpace`, for the reason it takes none in 2D. All three manipulators act on a **whole selection** through `MultiTransform3D`, about the shared pivot the gizmo is drawn on |
 | ED-410 | Per-mesh material lists (needs ED-311) | ⬜ | |
 | ED-411 | **Plugin dynamic loading**: `dlopen`/`LoadLibrary`, `extern "C"` entry, unload, hot-reload | ⬜ | |
 | ED-412 | Plugin extension points: importers, component types, panels, menu commands, gizmos, exporters | ⬜ | |
@@ -312,9 +318,16 @@ model pipeline there is no mesh to draw, and `SpriteBatch` cannot draw the trape
 becomes when seen from an angle. What the camera *does* answer is the question a 3D view exists for
 -- where is everything, in relation to everything else -- and picking, framing and navigation all
 work against it. Manipulating followed as its own tasks rather than as parameters on the 2D ones:
-ED-408 for translate, ED-409 for rotate, and scale still open. Entities that draw nothing get a
-screen-space badge per icon kind rather than a wire box, keyed off the same `getEditorIconKind` the
-2D viewport asks, so the two views cannot disagree about what an entity is.
+ED-408 for translate and ED-409 for rotate and scale, all three now acting on a whole selection
+about its shared pivot. Entities that draw nothing get a screen-space badge per icon kind rather
+than a wire box, keyed off the same `getEditorIconKind` the 2D viewport asks, so the two views
+cannot disagree about what an entity is.
+
+**What each manipulator needs from the world is what makes them three tasks and not one.** Translate
+needs a *line* to slide along and refuses when the arm points at the camera; rotate needs a *plane*
+to measure an angle in and drops a ring seen edge-on; scale needs neither, because a factor is a
+ratio of screen distances. That is why the edge-on case, which the other two answer by refusing, is
+survivable for scale -- and why its arms fade and shorten instead of disappearing.
 
 One convention was chosen and must not drift: **the 3D camera is Y-down, like the 2D one and like
 `SpriteBatch`**, and its grid is the scene's own XY plane rather than a ground plane under it. An
@@ -330,8 +343,10 @@ wireframe cannot disagree with what is drawn.
 
 **The cost lands on ED-402.** XNA's 3D side is Y-up: `CreateLookAt`, `BasicEffect` and every loaded
 model assume it. The model pass will have to apply the same mirror, or models will disagree with
-everything around them. A ground-plane grid becomes the useful one at that point too, and
-`buildSceneGrid` is where that choice lives.
+everything around them. A ground-plane grid becomes the useful one at that point too, and it is
+built and waiting: `WireframeOptions::gridPlane`, offered from the View menu while the 3D view is
+on. The default stays the scene's own plane, because that is where everything this editor can
+currently place lives.
 
 **ED-401** ships all three manipulators as one CNA-free module — layout, hit-test, drag — so what
 a user can grab is tested in CI and only the pixels need a GPU. Three decisions inside it are worth
