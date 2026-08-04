@@ -81,11 +81,24 @@ and boxes around all three entities of HelloSprites.
    scene laid out away from the origin. It now frames the scene on first entry -- only the first,
    so a later toggle does not throw away an orbit.
 
-**One convention to hold on to**, recorded in `plan.md` too: the 3D camera is Y-up (XNA's 3D
-convention) and the 2D camera is Y-down (`SpriteBatch`'s). They disagree *in the framework itself*.
-A 2D scene therefore appears in the 3D view with its sprites standing in a vertical plane, mirrored
-about the horizontal. Hiding that behind a negation would make the editor disagree with the runtime
-the first time a model and a sprite shared a scene.
+**One convention to hold on to**, recorded in `plan.md` too, and *changed late in the session at
+the owner's instruction* ("ano, ať 3D odpovídá 2D vizuálně"): **the 3D camera is Y-down**, like the
+2D one and like `SpriteBatch`, and its grid is the scene's own XY plane rather than a ground plane
+under it. So an entity below another in the 2D viewport is below it in the 3D one, and a 3D camera
+at yaw and pitch zero shows exactly what the 2D camera shows -- which is also why the default pitch
+is now zero: the user orbits away from a picture they recognise.
+
+The arithmetic stays Y-up and right-handed; the *projection's* Y is mirrored, which is the actual
+conversion between the two frames. Mirroring the view's up vector instead would have been a
+180-degree roll -- vertical fixed, world +X on the left. The mirror is inside the one
+view-projection that `worldToScreen` and `screenToRay` both use, so picking, the gizmo and the
+wireframe cannot disagree with what is drawn; `TheThreeDimensionalViewAgreesWithTheTwoDimensionalOneAboutWhichWayIsDown`
+pins all of it.
+
+**This is a bill ED-402 will have to pay.** XNA's 3D side is Y-up -- `CreateLookAt`, `BasicEffect`,
+every loaded model -- so the model pass must apply the same mirror or models will disagree with
+everything around them. A ground-plane grid probably becomes the right one then; `buildSceneGrid`
+is where that choice lives.
 
 **2. ED-408, a 3D translate gizmo** — added because a view you can select in but not move things in
 is a viewer rather than an editor. `TransformGizmos3D.hpp`, separate from the 2D manipulators

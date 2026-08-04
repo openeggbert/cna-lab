@@ -314,12 +314,22 @@ becomes when seen from an angle. What the camera *does* answer is the question a
 work against it. The gizmos remain 2D: `TransformGizmos.hpp` lays out in screen space against
 `EditorCamera2D`, and a 3D manipulator is its own task rather than a parameter.
 
-One convention was chosen and must not drift. The 3D camera is Y-up, right-handed, looking down its
-own -Z -- XNA's convention, and the runtime's. The 2D camera is Y-down, matching `SpriteBatch`.
-Those two disagree *in the framework itself*, so a 2D scene seen in the 3D view has its sprites
-standing in a vertical plane, mirrored about the horizontal from where the 2D view shows them. That
-is what the document actually says; hiding it behind a negation somewhere would make the editor
-disagree with the runtime the first time a model and a sprite shared a scene.
+One convention was chosen and must not drift: **the 3D camera is Y-down, like the 2D one and like
+`SpriteBatch`**, and its grid is the scene's own XY plane rather than a ground plane under it. An
+entity below another in the 2D viewport is below it in the 3D one, and a 3D camera at yaw and pitch
+zero shows exactly what the 2D camera shows -- the user orbits away from a picture they recognise.
+
+The arithmetic underneath stays Y-up and right-handed; what is mirrored is the *projection's* Y,
+which is precisely the conversion between the two frames. That choice is deliberate and the
+alternative is worth recording: mirroring the view's up vector instead is a 180-degree roll, which
+fixes the vertical and puts world +X on the left. Because the mirror lives in the one
+view-projection that `worldToScreen` and `screenToRay` both go through, picking, the gizmo and the
+wireframe cannot disagree with what is drawn.
+
+**The cost lands on ED-402.** XNA's 3D side is Y-up: `CreateLookAt`, `BasicEffect` and every loaded
+model assume it. The model pass will have to apply the same mirror, or models will disagree with
+everything around them. A ground-plane grid becomes the useful one at that point too, and
+`buildSceneGrid` is where that choice lives.
 
 **ED-401** ships all three manipulators as one CNA-free module — layout, hit-test, drag — so what
 a user can grab is tested in CI and only the pixels need a GPU. Three decisions inside it are worth

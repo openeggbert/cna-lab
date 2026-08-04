@@ -49,8 +49,8 @@ namespace CNA::Editor
         /** @brief The world X axis. Red, as every 3D tool since the first one. */
         inline constexpr EditorColor kAxisX{196, 84, 84, 255};
 
-        /** @brief The world Z axis. */
-        inline constexpr EditorColor kAxisZ{84, 116, 196, 255};
+        /** @brief The world Y axis. Green, matching the gizmo's Y arm. */
+        inline constexpr EditorColor kAxisY{92, 170, 92, 255};
 
         /** @brief An entity's bounding box. */
         inline constexpr EditorColor kEntity{130, 138, 150, 255};
@@ -62,7 +62,7 @@ namespace CNA::Editor
     /** @brief What to include in a wireframe. */
     struct WireframeOptions
     {
-        /** @brief Draw the ground plane grid at world Y = 0. */
+        /** @brief Draw the scene-plane grid at world Z = 0. */
         bool drawGrid = true;
 
         /** @brief Draw a box per entity. */
@@ -112,9 +112,20 @@ namespace CNA::Editor
     [[nodiscard]] std::optional<std::pair<EditorVector2, EditorVector2>> projectSegment(
         const EditorCamera3D& camera, const EditorVector3& from, const EditorVector3& to);
 
-    /** @brief Returns the ground grid alone, at world Y = 0, centred under the camera's pivot. */
-    [[nodiscard]] std::vector<WireSegment> buildGroundGrid(const EditorCamera3D& camera,
-                                                           const WireframeOptions& options = {});
+    /**
+     * @brief Returns the grid alone: the XY plane at world Z = 0, centred on the camera's pivot.
+     *
+     * The *scene's* plane, not a ground plane under it. Everything this editor can currently place
+     * lives in XY -- sprites, tilemaps, the 2D camera's whole world -- so a grid on XZ would be a
+     * floor beneath a scene that has no floor, and an unrotated 3D camera would look along it
+     * edge-on and show nothing. On this plane, a 3D camera at yaw and pitch zero shows exactly what
+     * the 2D viewport shows, which is what makes the two views recognisably the same scene.
+     *
+     * When ED-402 brings models and scenes stop being flat, a ground plane becomes the useful one
+     * and this is where that choice would live.
+     */
+    [[nodiscard]] std::vector<WireSegment> buildSceneGrid(const EditorCamera3D& camera,
+                                                          const WireframeOptions& options = {});
 
     /**
      * @brief Returns everything the 3D viewport draws for @p scene.

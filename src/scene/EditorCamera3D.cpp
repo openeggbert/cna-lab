@@ -95,10 +95,11 @@ namespace CNA::Editor
 
     EditorVector3 EditorCamera3D::getForward() const
     {
-        // Yaw about world Y, then pitch. Positive pitch looks down, which is what a user dragging
-        // downwards on an orbit expects to happen to the horizon.
+        // Yaw about world Y, then pitch. Positive pitch looks *downward on screen*, which is what a
+        // user dragging downwards on an orbit expects to happen to the horizon -- and in this
+        // camera's Y-down world, downward on screen is towards +Y.
         const float cosPitch = std::cos(pitch_);
-        return EditorVector3{-std::sin(yaw_) * cosPitch, -std::sin(pitch_), -std::cos(yaw_) * cosPitch};
+        return EditorVector3{-std::sin(yaw_) * cosPitch, std::sin(pitch_), -std::cos(yaw_) * cosPitch};
     }
 
     EditorVector3 EditorCamera3D::getRight() const
@@ -106,7 +107,13 @@ namespace CNA::Editor
         return normalize(cross(getForward(), EditorVector3{0.0f, 1.0f, 0.0f}));
     }
 
-    EditorVector3 EditorCamera3D::getUp() const { return normalize(cross(getRight(), getForward())); }
+    EditorVector3 EditorCamera3D::getUp() const
+    {
+        // Up *on screen*, which in this camera's Y-down world points towards -Y. The order of the
+        // cross product is what carries that: the other order gives the Y-up basis vector, and a
+        // fly control built on it would move the camera down when the user asked for up.
+        return normalize(cross(getForward(), getRight()));
+    }
 
     EditorVector3 EditorCamera3D::getEye() const
     {
@@ -149,7 +156,17 @@ namespace CNA::Editor
 
     EditorMatrix EditorCamera3D::getViewProjectionMatrix() const
     {
-        return multiply(getViewMatrix(), getProjectionMatrix());
+        // The Y mirror that makes this a Y-down camera. It belongs in the projection rather than
+        // in the view: mirroring the view's up vector is a 180-degree roll, which fixes the
+        // vertical and puts world +X on the left, while a projection mirror is the actual
+        // conversion between a Y-down and a Y-up frame and leaves X alone.
+        //
+        // Everything downstream inherits it for free -- worldToScreen and screenToRay both go
+        // through this one matrix, so picking, the gizmo and the wireframe cannot disagree with
+        // what is drawn.
+        static const EditorMatrix kFlipY = createScale(EditorVector3{1.0f, -1.0f, 1.0f});
+
+        return multiply(getViewMatrix(), multiply(getProjectionMatrix(), kFlipY));
     }
 
     std::optional<EditorVector2> EditorCamera3D::worldToScreen(const EditorVector3& world) const

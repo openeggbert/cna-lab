@@ -17,10 +17,18 @@
  * a consistent camera behind, so the user can orbit, fly, orbit again and never find the camera
  * spinning about a point it left minutes ago.
  *
- * **Coordinate conventions** are XNA's, which are also the runtime's: right-handed, Y up, and the
- * camera looks down its own -Z. Note that this is *not* the 2D camera's convention, where Y points
- * down to match `SpriteBatch`; those two disagree in the framework itself, and pretending otherwise
- * here would only move the discrepancy somewhere less obvious.
+ * **Coordinate conventions: Y grows downward**, exactly as in `EditorCamera2D` and in every
+ * `SpriteBatch` coordinate a game already uses. So an entity at y = 300 is *below* the origin in
+ * both views, and switching between them moves the camera without moving the scene.
+ *
+ * That is a decision, not an accident, and it is worth knowing what it costs. XNA's 3D side is
+ * Y-up: `Matrix::CreateLookAt`, `BasicEffect` and every model a game loads assume it. This camera
+ * keeps the underlying arithmetic Y-up -- the view matrix, the axes, the ray casts are all
+ * ordinary right-handed maths -- and mirrors the *projection's* Y, which is precisely the
+ * conversion between a Y-down and a Y-up frame. The two views therefore agree with each other and
+ * with the 2D runtime, at the price that the image is a mirror of what a Y-up 3D renderer would
+ * produce from the same numbers. When ED-402 draws real models through `BasicEffect`, that pass
+ * has to apply the same mirror, or the models will disagree with everything around them.
  */
 
 #include <optional>
@@ -123,7 +131,7 @@ namespace CNA::Editor
         [[nodiscard]] float getYaw() const { return yaw_; }
         void setYaw(float radians);
 
-        /** @brief Returns the pitch in radians, positive looking down. */
+        /** @brief Returns the pitch in radians, positive looking downward on screen. */
         [[nodiscard]] float getPitch() const { return pitch_; }
 
         /** @brief Sets the pitch, clamped to +/-kMaxPitchRadians. */
@@ -138,7 +146,7 @@ namespace CNA::Editor
         /** @brief Returns the camera's unit right vector. */
         [[nodiscard]] EditorVector3 getRight() const;
 
-        /** @brief Returns the camera's unit up vector. */
+        /** @brief Returns the camera's unit up vector, meaning up *on screen* (towards -Y). */
         [[nodiscard]] EditorVector3 getUp() const;
 
         [[nodiscard]] CameraProjection getProjection() const { return projection_; }
@@ -248,7 +256,9 @@ namespace CNA::Editor
         EditorVector3 pivot_;
         float distance_ = 10.0f;
         float yaw_ = 0.0f;
-        float pitch_ = 0.4363323f;  // 25 degrees, looking slightly down at the origin.
+        // Straight at the scene plane, so entering the 3D view shows what the 2D one was showing
+        // and the user orbits *away* from a picture they recognise rather than towards one.
+        float pitch_ = 0.0f;
         float fieldOfView_ = kDefaultFieldOfView;
         float nearPlane_ = 0.1f;
         float farPlane_ = 5000.0f;

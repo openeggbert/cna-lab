@@ -83,7 +83,7 @@ namespace CNA::Editor
         return std::make_pair(*screenFrom, *screenTo);
     }
 
-    std::vector<WireSegment> buildGroundGrid(const EditorCamera3D& camera, const WireframeOptions& options)
+    std::vector<WireSegment> buildSceneGrid(const EditorCamera3D& camera, const WireframeOptions& options)
     {
         std::vector<WireSegment> segments;
         if (options.gridHalfExtent <= 0) { return segments; }
@@ -101,10 +101,10 @@ namespace CNA::Editor
         }
         if (spacing <= 0.0f) { return segments; }
 
-        // Centred under the pivot and snapped to the spacing, so flying across a level does not
-        // drag the grid's origin along and turn the lines into a shimmering mess.
+        // Centred on the pivot and snapped to the spacing, so flying across a level does not drag
+        // the grid's origin along and turn the lines into a shimmering mess.
         const float centerX = std::round(camera.getPivot().x / spacing) * spacing;
-        const float centerZ = std::round(camera.getPivot().z / spacing) * spacing;
+        const float centerY = std::round(camera.getPivot().y / spacing) * spacing;
 
         const int extent = options.gridHalfExtent;
         const float half = static_cast<float>(extent) * spacing;
@@ -113,33 +113,33 @@ namespace CNA::Editor
         {
             const float offset = static_cast<float>(step) * spacing;
             const float x = centerX + offset;
-            const float z = centerZ + offset;
+            const float y = centerY + offset;
 
             // The world axes win over the grid, and every tenth line over an ordinary one. Without
             // that a user cannot tell where the origin is, which is the one landmark a 3D view has.
             const bool xIsAxis = std::abs(x) < spacing * 0.5f;
-            const bool zIsAxis = std::abs(z) < spacing * 0.5f;
+            const bool yIsAxis = std::abs(y) < spacing * 0.5f;
             const bool isMajor = (step % 10) == 0;
 
-            const EditorColor alongZ =
-                xIsAxis ? WireColors::kAxisZ : (isMajor ? WireColors::kGridMajor : WireColors::kGrid);
+            const EditorColor alongY =
+                xIsAxis ? WireColors::kAxisY : (isMajor ? WireColors::kGridMajor : WireColors::kGrid);
             const EditorColor alongX =
-                zIsAxis ? WireColors::kAxisX : (isMajor ? WireColors::kGridMajor : WireColors::kGrid);
+                yIsAxis ? WireColors::kAxisX : (isMajor ? WireColors::kGridMajor : WireColors::kGrid);
 
-            const std::optional<std::pair<EditorVector2, EditorVector2>> lineAlongZ = projectSegment(
-                camera, EditorVector3{x, 0.0f, centerZ - half}, EditorVector3{x, 0.0f, centerZ + half});
-            if (lineAlongZ)
+            const std::optional<std::pair<EditorVector2, EditorVector2>> lineAlongY = projectSegment(
+                camera, EditorVector3{x, centerY - half, 0.0f}, EditorVector3{x, centerY + half, 0.0f});
+            if (lineAlongY)
             {
-                segments.push_back(WireSegment{lineAlongZ->first, lineAlongZ->second, alongZ,
+                segments.push_back(WireSegment{lineAlongY->first, lineAlongY->second, alongY,
                                                xIsAxis ? 2.0f : 1.0f});
             }
 
             const std::optional<std::pair<EditorVector2, EditorVector2>> lineAlongX = projectSegment(
-                camera, EditorVector3{centerX - half, 0.0f, z}, EditorVector3{centerX + half, 0.0f, z});
+                camera, EditorVector3{centerX - half, y, 0.0f}, EditorVector3{centerX + half, y, 0.0f});
             if (lineAlongX)
             {
                 segments.push_back(WireSegment{lineAlongX->first, lineAlongX->second, alongX,
-                                               zIsAxis ? 2.0f : 1.0f});
+                                               yIsAxis ? 2.0f : 1.0f});
             }
         }
 
@@ -153,7 +153,7 @@ namespace CNA::Editor
     {
         WireframeResult result;
 
-        if (options.drawGrid) { result.segments = buildGroundGrid(camera, options); }
+        if (options.drawGrid) { result.segments = buildSceneGrid(camera, options); }
 
         if (!options.drawEntityBounds) { return result; }
 

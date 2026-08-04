@@ -1488,10 +1488,13 @@ CNA_EDITOR_TEST(TheEyeIsDerivedFromThePivotDistanceAndAngles)
     CNA_EDITOR_EXPECT(cameraNearlyEqual(eye.y, 1.0f));
     CNA_EDITOR_EXPECT(cameraNearlyEqual(eye.z, 18.0f));
 
-    // Positive pitch looks down, which is what dragging downwards on an orbit has to do.
+    // Positive pitch looks down on screen, which is what dragging downwards on an orbit has to do
+    // -- and in this camera's Y-down world, downward on screen is towards +Y, so the eye sits at
+    // the *smaller* Y. Both of these read backwards against XNA's 3D convention and are correct
+    // against the one the document and the 2D viewport actually use.
     camera.setPitch(0.5f);
-    CNA_EDITOR_EXPECT(camera.getForward().y < 0.0f);
-    CNA_EDITOR_EXPECT(camera.getEye().y > camera.getPivot().y);
+    CNA_EDITOR_EXPECT(camera.getForward().y > 0.0f);
+    CNA_EDITOR_EXPECT(camera.getEye().y < camera.getPivot().y);
 
     // The basis stays orthonormal whatever the angles, or every projection built on it shears.
     const EditorVector3 right = camera.getRight();
@@ -1781,7 +1784,7 @@ CNA_EDITOR_TEST(ASegmentCrossingTheNearPlaneIsShortenedRatherThanDropped)
     if (ahead) { CNA_EDITOR_EXPECT(ahead->first.x < ahead->second.x); }
 }
 
-CNA_EDITOR_TEST(TheGroundGridIsCentredUnderThePivotAndMarksTheAxes)
+CNA_EDITOR_TEST(TheSceneGridIsCentredOnThePivotAndMarksTheAxes)
 {
     EditorCamera3D camera = makeCamera();
     camera.setPitch(0.6f);
@@ -1790,7 +1793,7 @@ CNA_EDITOR_TEST(TheGroundGridIsCentredUnderThePivotAndMarksTheAxes)
     options.gridSpacing = 10.0f;
     options.gridHalfExtent = 5;
 
-    const std::vector<WireSegment> atOrigin = buildGroundGrid(camera, options);
+    const std::vector<WireSegment> atOrigin = buildSceneGrid(camera, options);
 
     // Eleven lines each way, minus whatever the near plane took. The axes must be among them, or
     // the view has no landmark at all: an orbiting camera with no origin marker is disorienting
@@ -1801,12 +1804,12 @@ CNA_EDITOR_TEST(TheGroundGridIsCentredUnderThePivotAndMarksTheAxes)
                            [&color](const WireSegment& segment) { return segment.color == color; });
     };
     CNA_EDITOR_EXPECT(hasColor(WireColors::kAxisX));
-    CNA_EDITOR_EXPECT(hasColor(WireColors::kAxisZ));
+    CNA_EDITOR_EXPECT(hasColor(WireColors::kAxisY));
 
     // Flying away carries the grid: snapped to the spacing, so the lines do not shimmer, but
     // centred on the pivot, so a level laid out far from the origin still has a floor.
-    camera.setPivot(EditorVector3{1000.0f, 0.0f, 1000.0f});
-    const std::vector<WireSegment> farAway = buildGroundGrid(camera, options);
+    camera.setPivot(EditorVector3{1000.0f, 1000.0f, 0.0f});
+    const std::vector<WireSegment> farAway = buildSceneGrid(camera, options);
     CNA_EDITOR_EXPECT(!farAway.empty());
 
     // No spacing given means one is chosen from the camera's distance, exactly as the 2D grid
@@ -1814,7 +1817,7 @@ CNA_EDITOR_TEST(TheGroundGridIsCentredUnderThePivotAndMarksTheAxes)
     WireframeOptions automatic;
     automatic.gridHalfExtent = 4;
     camera.setPivot(EditorVector3{});
-    CNA_EDITOR_EXPECT(!buildGroundGrid(camera, automatic).empty());
+    CNA_EDITOR_EXPECT(!buildSceneGrid(camera, automatic).empty());
 }
 
 CNA_EDITOR_TEST(TheWireframeBoxesEveryEntityAndMarksTheSelection)
@@ -2060,4 +2063,51 @@ CNA_EDITOR_TEST(AThreeDimensionalDragOfAChildStoresTheParentRelativePosition)
     // A root entity is its own frame, so the delta passes through untouched.
     CNA_EDITOR_EXPECT(worldDeltaToLocal3D(scene, parentId, EditorVector3{10.0f, 0.0f, 0.0f})
                       == (EditorVector3{10.0f, 0.0f, 0.0f}));
+}
+
+CNA_EDITOR_TEST(TheThreeDimensionalViewAgreesWithTheTwoDimensionalOneAboutWhichWayIsDown)
+{
+    // The property the whole Y-down decision exists for: an entity below another one in the 2D
+    // viewport is below it in the 3D one too. Switching views moves the camera, not the scene.
+    EditorCamera2D flat;
+    flat.setViewportSize(EditorVector2{1600.0f, 900.0f});
+
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{});
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+    camera.setDistance(500.0f);
+
+    const EditorVector3 lower{0.0f, 200.0f, 0.0f};  // y grows downward, as SpriteBatch has it.
+    const EditorVector3 higher{0.0f, -200.0f, 0.0f};
+
+    CNA_EDITOR_EXPECT(flat.worldToScreen(EditorVector2{lower.x, lower.y}).y
+                      > flat.worldToScreen(EditorVector2{higher.x, higher.y}).y);
+
+    const std::optional<EditorVector2> lowerOnScreen = camera.worldToScreen(lower);
+    const std::optional<EditorVector2> higherOnScreen = camera.worldToScreen(higher);
+    CNA_EDITOR_EXPECT(lowerOnScreen.has_value() && higherOnScreen.has_value());
+    if (!lowerOnScreen || !higherOnScreen) { return; }
+
+    CNA_EDITOR_EXPECT(lowerOnScreen->y > higherOnScreen->y);
+
+    // And so does X, which is the half a mirrored "up" vector would have broken: a 180-degree roll
+    // fixes the vertical and puts world +X on the left, which is why the mirror is in the
+    // projection instead.
+    const std::optional<EditorVector2> right = camera.worldToScreen(EditorVector3{200.0f, 0.0f, 0.0f});
+    CNA_EDITOR_EXPECT(right.has_value());
+    if (right) { CNA_EDITOR_EXPECT(right->x > 800.0f); }
+
+    CNA_EDITOR_EXPECT(flat.worldToScreen(EditorVector2{200.0f, 0.0f}).x > 800.0f);
+
+    // A ray still comes back to the pixel it came from: the mirror is in the view-projection both
+    // directions go through, so picking cannot disagree with what is drawn.
+    const EditorVector2 pixel{1100.0f, 300.0f};
+    const std::optional<EditorVector2> back = camera.worldToScreen(camera.screenToRay(pixel).at(400.0f));
+    CNA_EDITOR_EXPECT(back.has_value());
+    if (back)
+    {
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(back->x, pixel.x, 0.5f));
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(back->y, pixel.y, 0.5f));
+    }
 }
