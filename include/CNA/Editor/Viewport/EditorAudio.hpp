@@ -53,10 +53,22 @@ namespace CNA::Editor
          */
         virtual bool play(const Uuid& assetId, float volume, float pitch, float pan) = 0;
 
-        /** @brief Stops whatever is playing. Safe when nothing is. */
+        /**
+         * @brief Stops whatever is playing. Safe when nothing is.
+         *
+         * Actually stops it: the CNA implementation holds a `SoundEffectInstance` rather than using
+         * the fire-and-forget `SoundEffect::Play()`, which hands back no handle and would leave
+         * this able to change nothing but the editor's own belief about what is audible.
+         */
         virtual void stop() = 0;
 
-        /** @brief Returns true while a preview is audible. */
+        /**
+         * @brief Returns true while a preview is audible.
+         *
+         * A question about the *device*, not a remembered flag: a clip that has simply reached its
+         * end is no longer playing, and a panel offering to stop a sound that finished seconds ago
+         * is offering something that cannot happen.
+         */
         [[nodiscard]] virtual bool isPlaying() const = 0;
     };
 

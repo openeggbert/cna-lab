@@ -203,9 +203,10 @@ Newest first. Each is a single commit on the branch.
   neutral ones, because that is the file as imported rather than as some entity plays it.
   `CNA.AudioListener` takes its position from the Transform rather than repeating it, and a second
   enabled listener is an error for the same reason a second primary camera is.
-  **Known limitation:** `stop()` only changes the editor's belief. CNA's fire-and-forget `Play()`
-  hands back no handle; tracking a `SoundEffectInstance` is the shape to reach for when someone
-  asks to actually cut a clip short.
+  The preview now holds a **`SoundEffectInstance`** rather than calling the fire-and-forget
+  `SoundEffect::Play()`, so Stop stops the clip and `isPlaying()` asks the device instead of
+  reporting a remembered flag. **Not exercised here:** this container has no audio device, so the
+  change is verified by compiling and by reading CNA's API, not by hearing it.
 - **ED-309** backend diagnostics. Capabilities are asked of the *device* rather than derived from
   the backend's name -- several vary by driver within one backend. EASYGL correctly reports no
   wireframe fill mode (OpenGL ES has no `glPolygonMode`), which a name-keyed table would have got
@@ -421,9 +422,9 @@ What follows is a judgement call rather than a queue.
 
 **Small and unblocked, in the order I would take them:**
 
-1. **Audio `stop()` cannot actually stop a clip.** CNA's fire-and-forget `Play()` returns no handle;
-   tracking a `SoundEffectInstance` is the shape. Worth doing the moment anyone previews something
-   long enough to want it cut short.
+1. **Hear the audio preview on a machine with a sound device.** It was rewritten to hold a
+   `SoundEffectInstance` so Stop actually stops, but this container has none, so that path has been
+   compiled and reasoned about rather than heard.
 2. **A gizmo on a multi-selection.** Ctrl+click can now build one, which makes its absence more
    visible: the gizmo is drawn on the primary selection only. Manipulating the whole set needs a
    shared pivot, which is ED-200's multi-select rather than the gizmos'.

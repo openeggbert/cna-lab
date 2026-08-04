@@ -19,6 +19,7 @@
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
 #include "Microsoft/Xna/Framework/Audio/SoundEffect.hpp"
 #include "Microsoft/Xna/Framework/Audio/SoundEffectInstance.hpp"
+#include "Microsoft/Xna/Framework/Audio/SoundState.hpp"
 
 namespace CNA::Editor
 {
@@ -47,28 +48,54 @@ namespace CNA::Editor
 
             try
             {
-                // XNA's own parameter order and ranges, taken straight from the component being
-                // previewed, so what the editor plays is what the game will play.
-                playing_ = effect->Play(volume, pitch, pan);
+                // An *instance*, not SoundEffect::Play(). The fire-and-forget call hands back no
+                // handle, so an editor using it can only ever change its own belief about what is
+                // audible -- Stop would stop nothing, and a clip that ended would still be
+                // reported as playing. An instance is the thing that can actually be stopped and
+                // actually be asked.
+                instance_ = std::make_unique<XnaAudio::SoundEffectInstance>(effect->CreateInstance());
+
+                // XNA's own ranges, taken straight from the component being previewed, so what the
+                // editor plays is what the game will play.
+                instance_->setVolumeProperty(volume);
+                instance_->setPitchProperty(pitch);
+                instance_->setPanProperty(pan);
+                instance_->Play();
+                return true;
             }
             catch (const std::exception&)
             {
                 // A device that refuses a clip is a report, not a crash: an editor that died
                 // because a preview would not play would be worse than one that stays quiet.
-                playing_ = false;
+                instance_.reset();
+                return false;
             }
-            return playing_;
         }
 
         void stop() override
         {
-            // CNA's fire-and-forget Play() hands back no handle, so there is nothing to stop but
-            // the editor's own belief about it. Tracking a SoundEffectInstance instead would let
-            // the editor stop a preview, and is the shape to reach for when someone asks for it.
-            playing_ = false;
+            if (!instance_) { return; }
+
+            try
+            {
+                instance_->Stop();
+            }
+            catch (const std::exception&)
+            {
+                // Nothing useful to do with a device that will not stop a clip, and dropping the
+                // instance below is the strongest thing available anyway.
+            }
+            instance_.reset();
         }
 
-        [[nodiscard]] bool isPlaying() const override { return playing_; }
+        [[nodiscard]] bool isPlaying() const override
+        {
+            // Asked of the instance rather than remembered, so a clip that has simply finished
+            // stops being reported as playing. A remembered flag would leave the panel showing a
+            // Stop button for a sound that ended seconds ago.
+            if (!instance_) { return false; }
+            return instance_->getStateProperty() == XnaAudio::SoundState::Playing;
+        }
 
     private:
         /** @brief Returns the loaded effect for @p assetId, loading it once. */
@@ -99,7 +126,14 @@ namespace CNA::Editor
         const AssetDatabase* assets_;
         std::unordered_map<Uuid, std::unique_ptr<XnaAudio::SoundEffect>> effects_;
         std::unordered_set<Uuid> failed_;
-        bool playing_ = false;
+
+        /**
+         * @brief The one preview that can be audible, or nothing.
+         *
+         * Replaced on every play(), which is what makes "one clip at a time" true rather than
+         * merely intended: the previous instance is destroyed and its track goes with it.
+         */
+        std::unique_ptr<XnaAudio::SoundEffectInstance> instance_;
     };
 
     std::unique_ptr<EditorAudio> createCnaEditorAudio(const AssetDatabase& assets)
