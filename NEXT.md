@@ -807,6 +807,27 @@ start next*.
 
 ---
 
+## ED-402: assumptions, not decisions (2026-08-04)
+
+The owner was asked four questions about model rendering and did not answer them; the reply was
+"continue". These are the assumptions the next session should start on. **Each is reversible and
+each is a guess** -- if the owner contradicts one, it is cheaper to change now than after the
+importer has been written around it.
+
+| Question | Assumed answer | Why, and what it costs to reverse |
+|----------|----------------|-----------------------------------|
+| Which effect draws a model? | **`PbrEffect`, falling back to `BasicEffect`** when the backend or build has none. | It is the only one of the three options that answers "make the 3D view look like a 3D view", which is what the owner reacted to when they saw the wireframe screenshots. Needs additive `MeshMaterial` fields (metallic, roughness, normal/ORM/emissive paths) -- additive is pre-approved (2026-08-04). Reversing later means the importer has already been taught to carry fields nothing reads: harmless, but wasted. |
+| Where does light come from? | **Scene `CNA.Light` entities, with XNA's three-point default when the scene has no enabled light.** | Pulls ED-404 forward into ED-402. A scene with no lights must not be black -- that reads as a broken renderer, not as an unlit scene. |
+| Does the *game* render 3D, or only the editor? | **Editor viewport only.** | Smallest scope, and it leaves `CNA.Camera` and `cna-player` untouched. The consequence has to be said out loud in the UI: a `ModelRenderer` is visible while authoring and invisible when the game runs, which is exactly the kind of silent difference this editor exists to prevent. If that reads as wrong once it is on screen, the fix is an additive projection field on `CNA.Camera` plus a model pass in the player. |
+| What follows ED-402? | **Sprites drawn correctly in the 3D view.** | Not a plan row yet. Today the 3D view shows *no* sprites, because `SpriteBatch` cannot draw the trapezoid a sprite becomes from an angle -- but once a `VertexBuffer` path exists for models, a sprite is a textured quad through the same path. Without it the 3D view shows the models and not the scene. |
+
+**The one thing that is not an assumption**, because it is already written into `plan.md`: the model
+pass must apply the *same* Y mirror as the rest of the 3D view (`EditorCamera3D`'s projection
+flip). XNA's 3D side is Y-up and this camera is Y-down; a model pass that skips the mirror will
+render models upside down relative to the grid, the gizmos and every sprite around them.
+
+---
+
 ## Where to start next
 
 Read this file, then `plan.md`'s *Current state* section.
