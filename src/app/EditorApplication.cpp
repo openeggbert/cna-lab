@@ -108,6 +108,31 @@ namespace CNA::Editor
                     }
                     continue;
                 }
+                if (name == "--orbit")
+                {
+                    // "yaw,pitch". Rejected rather than partly accepted: this flag exists to make
+                    // a screenshot reproducible, and a run that silently kept the default angle
+                    // would produce a picture that looks fine and shows the wrong thing.
+                    const std::size_t comma = value.find(',');
+                    bool parsed = comma != std::string::npos;
+                    if (parsed)
+                    {
+                        try
+                        {
+                            options.orbitDegrees =
+                                EditorVector2{std::stof(value.substr(0, comma)),
+                                              std::stof(value.substr(comma + 1))};
+                        }
+                        catch (const std::exception&) { parsed = false; }
+                    }
+                    if (!parsed)
+                    {
+                        options.hasError = true;
+                        options.errorMessage =
+                            "--orbit expects YAW,PITCH in degrees, got '" + value + "'";
+                    }
+                    continue;
+                }
                 if (name == "--frames")
                 {
                     try { options.frameLimit = std::stoi(value); }
@@ -160,6 +185,7 @@ namespace CNA::Editor
             "  --ui=NAME          UI toolkit to use: 'imgui' or 'null'. Default: imgui.\n"
             "  --headless         Run with no window, on the null UI. Implies --ui=null.\n"
             "  --view=2d|3d       Which viewport camera to start in. Defaults to 2d.\n"
+            "  --orbit=YAW,PITCH  Orbit the 3D camera to these angles, in degrees. Needs --view=3d.\n"
             "  --frames=N         Exit after N frames. Useful for smoke tests.\n"
             "  --screenshot=PATH  Write a PNG of the final frame. Requires --frames.\n"
             "  --autosave=SECONDS Crash-recovery snapshot interval. 0 disables. Default: 30.\n"
@@ -261,6 +287,16 @@ namespace CNA::Editor
         // After the scene is loaded, not beside the flag that requested it: framing an empty
         // document would point the camera at nothing and then leave it there.
         if (threeDimensionalView_) { frameSceneInThreeDimensions(); }
+
+        // After the framing, not before: framing chooses a distance and a pivot, and the angles
+        // are what the user then orbits to from there. Setting them first would have the framing
+        // overwrite them.
+        if (threeDimensionalView_ && options.orbitDegrees && viewport_ != nullptr)
+        {
+            constexpr float kDegreesToRadians = 3.14159265358979323846f / 180.0f;
+            viewport_->getCamera3D().setYaw(options.orbitDegrees->x * kDegreesToRadians);
+            viewport_->getCamera3D().setPitch(options.orbitDegrees->y * kDegreesToRadians);
+        }
 
         comparisonMode_ = options.compareBackends;
         comparisonPanel_.setTolerance(options.comparisonTolerance);
@@ -907,8 +943,11 @@ namespace CNA::Editor
         for (const Uuid& assetId : result.changed)
         {
             // Dropping the cached texture is what makes the change visible. Without it the editor
-            // would report the edit and go on drawing the art from before it.
+            // would report the edit and go on drawing the art from before it. A mesh is the same
+            // bargain in the 3D view: `MeshCache` holds an imported model until told otherwise, so
+            // an edited .gltf would keep drawing the shape it had when the project was opened.
             viewport_->invalidateAsset(assetId);
+            context_.getMeshes().invalidate(assetId);
             reloadAssetInPlayer(assetId);
 
             const AssetRecord* record = context_.getAssets().find(assetId);
@@ -920,6 +959,7 @@ namespace CNA::Editor
         for (const Uuid& assetId : result.restored)
         {
             viewport_->invalidateAsset(assetId);
+            context_.getMeshes().invalidate(assetId);
             reloadAssetInPlayer(assetId);
 
             const AssetRecord* record = context_.getAssets().find(assetId);
@@ -930,6 +970,10 @@ namespace CNA::Editor
 
         for (const Uuid& assetId : result.removed)
         {
+            // Forgotten rather than kept: a model whose file has gone should stop being drawn, and
+            // a cache that held the last good copy would show a mesh that is no longer there.
+            context_.getMeshes().invalidate(assetId);
+
             const AssetRecord* record = context_.getAssets().find(assetId);
             context_.log(LogSeverity::Warning,
                          "'" + (record != nullptr ? record->sourcePath : assetId.toString())

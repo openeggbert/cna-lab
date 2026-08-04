@@ -75,6 +75,20 @@ namespace CNA::Editor
         bool threeDimensionalView = false;
 
         /**
+         * @brief Yaw and pitch, in degrees, to orbit the 3D camera to before drawing.
+         *
+         * The same argument that put `--view=3d` here, taken one step further. That flag makes the
+         * 3D view *reachable* from a script; this one makes it reachable from an angle. A 3D
+         * feature photographed head-on is photographed in the one pose where it looks like the 2D
+         * view -- which is exactly the pose that cannot tell a mesh from the flat rectangle a
+         * sprite draws, and so cannot show whether ED-405's models arrived.
+         *
+         * Empty leaves the camera where start-up put it. Ignored without `--view=3d`, because the
+         * 2D camera has no pitch to set.
+         */
+        std::optional<EditorVector2> orbitDegrees;
+
+        /**
          * @brief Write a PNG of the final frame here. Requires a frame limit.
          *
          * A smoke test that only checks the process exited cleanly cannot tell a working editor

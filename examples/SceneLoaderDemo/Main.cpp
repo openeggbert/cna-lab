@@ -47,7 +47,23 @@ namespace
         };
 
         check(scene.getName() == "Level01", "scene name is Level01");
-        check(scene.getEntities().size() == 3, "three entities");
+
+        // Four: a camera, two sprites and the Crate that ED-405 added so the 3D view has a real
+        // model in it. The count is asserted rather than ignored because this demo exists to prove
+        // a shipped game reads the same scene the editor wrote -- an entity the loader silently
+        // dropped is exactly the failure it is here to catch.
+        check(scene.getEntities().size() == 4, "four entities");
+
+        // A model renderer carries no sprite, so a loader that assumed every entity had one would
+        // fail here rather than in a game.
+        const Runtime::SceneEntity* crate = scene.findEntity(std::string_view{"Crate"});
+        check(crate != nullptr, "Crate is present");
+        if (crate != nullptr)
+        {
+            check(nearlyEqual(crate->position.X, 400.0f), "Crate world X is 400");
+            check(nearlyEqual(crate->position.Y, 340.0f), "Crate world Y is 340");
+            check(!crate->sprite.has_value(), "Crate has no sprite");
+        }
 
         const Runtime::SceneEntity* player = scene.findEntity(std::string_view{"Player"});
         check(player != nullptr, "Player is present");
