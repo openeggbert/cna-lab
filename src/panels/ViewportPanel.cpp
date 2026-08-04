@@ -719,8 +719,17 @@ namespace CNA::Editor
         if (!interaction.control) { return {}; }
 
         GizmoSnap snap;
-        snap.translate = chooseGridSpacing(actions_.getViewport().getCamera().getZoom(),
-                                           kGridTargetPixels);
+
+        // The project's step when it has one, and the visible grid when it does not. A project laid
+        // out on a 16-pixel tile grid says so once; everything else keeps the old behaviour, which
+        // is to snap to the lines the user can actually see.
+        const float projectStep =
+            context_.hasProject() ? context_.getProject().getGridSnap() : 0.0f;
+
+        snap.translate = projectStep > 0.0f
+                             ? projectStep
+                             : chooseGridSpacing(actions_.getViewport().getCamera().getZoom(),
+                                                 kGridTargetPixels);
         snap.rotate = kDefaultRotationSnap;
         snap.scale = kDefaultScaleSnap;
         return snap;

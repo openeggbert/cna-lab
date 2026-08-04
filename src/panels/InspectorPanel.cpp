@@ -300,6 +300,25 @@ namespace CNA::Editor
         ui_.text("Root: " + project.getRootPath());
         ui_.separator();
 
+        // Before the layer tree, because it is one field rather than a list and a user looking for
+        // a setting should not have to collapse a tree to find out there is one below it.
+        PropertyValue snap{project.getGridSnap()};
+        if (ui_.propertyField("Grid Snap", snap))
+        {
+            const float step = snap.get<float>(0.0f);
+            auto snapCommand = std::make_unique<SetProjectGridSnapCommand>(context_.getProject(), step);
+            if (snapCommand->isValid())
+            {
+                const std::string summary = snapCommand->getDescription();
+                context_.execute(std::move(snapCommand));
+                context_.log(LogSeverity::Info, summary + ".");
+            }
+        }
+        ui_.text(project.getGridSnap() > 0.0f
+                     ? "    World units a Ctrl-drag rounds to."
+                     : "    Zero: a Ctrl-drag rounds to the grid the viewport is drawing.");
+        ui_.separator();
+
         std::vector<std::string> layers = project.getLayers();
         const std::string id = "project-layers";
 

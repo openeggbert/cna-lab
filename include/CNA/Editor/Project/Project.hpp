@@ -169,6 +169,19 @@ namespace CNA::Editor
          */
         [[nodiscard]] const std::vector<std::string>& getLayers() const { return layers_; }
 
+        /**
+         * @brief Returns the world-space step a snapped drag rounds to, or 0 for the visible grid.
+         *
+         * A project laid out on a 16-pixel tile grid wants to say so once rather than have every
+         * user zoom until the drawn grid happens to agree. Zero is not "no snapping" -- Ctrl is
+         * what turns snapping on -- it is "use the grid the viewport is drawing", which is what
+         * the editor did before this setting existed and therefore what an older project means.
+         */
+        [[nodiscard]] float getGridSnap() const { return gridSnap_; }
+
+        /** @brief Sets the snap step. Negative values are refused; zero restores the visible grid. */
+        void setGridSnap(float step);
+
         /** @brief Replaces the layer list. An empty list is refused, leaving the previous one. */
         void setLayers(std::vector<std::string> layers);
 
@@ -212,6 +225,9 @@ namespace CNA::Editor
         std::string defaultGraphicsBackend_ = "easygl";
         std::vector<std::string> targetPlatforms_{"linux-x64"};
         std::vector<std::string> layers_{kDefaultLayer};
+
+        /** @brief World units a snapped drag rounds to. Zero means the viewport's visible grid. */
+        float gridSnap_ = 0.0f;
         std::vector<std::string> modules_{"cna-core"};
         std::vector<std::string> plugins_;
     };

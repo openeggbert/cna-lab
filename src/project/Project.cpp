@@ -84,6 +84,11 @@ namespace CNA::Editor
         for (const std::string& layer : layers_) { layers.append(JsonValue{layer}); }
         json.set("layers", std::move(layers));
 
+        // Written only when set. An additive field that appears in every file the moment the
+        // editor touches it would make the first save of every existing project a diff -- and
+        // zero is exactly the behaviour of a project that has never heard of the setting.
+        if (gridSnap_ > 0.0f) { json.set("gridSnap", JsonValue{static_cast<double>(gridSnap_)}); }
+
         JsonValue modules = JsonValue::makeArray();
         for (const std::string& module : modules_) { modules.append(JsonValue{module}); }
         json.set("modules", std::move(modules));
@@ -101,6 +106,14 @@ namespace CNA::Editor
     {
         static const FormatMigrator migrator{"project", Project::kFormatVersion};
         return migrator;
+    }
+
+    void Project::setGridSnap(float step)
+    {
+        // Negative is refused rather than clamped: it is not a smaller step, it is a value with no
+        // meaning, and rounding to it would move an entity to a coordinate nothing else agrees on.
+        if (step < 0.0f) { return; }
+        gridSnap_ = step;
     }
 
     void Project::setLayers(std::vector<std::string> layers)
@@ -165,6 +178,10 @@ namespace CNA::Editor
             targetPlatforms_.push_back(platform.asString());
         }
         if (targetPlatforms_.empty()) { targetPlatforms_.push_back("linux-x64"); }
+
+        // Absent in every project written before the setting existed, and absent again in any
+        // project that never sets it, so the fallback is the behaviour those files already had.
+        gridSnap_ = std::max(0.0f, document["gridSnap"].asFloat(0.0f));
 
         layers_.clear();
         for (const JsonValue& layer : document["layers"].getElements())

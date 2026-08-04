@@ -3760,3 +3760,48 @@ CNA_EDITOR_TEST(FramingAndPickingFollowWhicheverCameraIsOnScreen)
     fixture.step(click);
     CNA_EDITOR_EXPECT(fixture.application->getContext().getSelection().empty());
 }
+
+CNA_EDITOR_TEST(AProjectsOwnSnapStepWinsOverTheVisibleGrid)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    // The fixture has no project, so the snap is the drawn grid's 50 units -- the case the test
+    // above covers. A project that lays out on a 16-unit tile grid says so once instead.
+    const std::filesystem::path root =
+        std::filesystem::temp_directory_path() / ("cna-snap-" + Uuid::generate().toString());
+    std::filesystem::create_directories(root);
+
+    EditorContext& context = fixture.application->getContext();
+    context.getProject() = Project::createDefault("Tiles", root.generic_string());
+    CNA_EDITOR_EXPECT(context.getProject().saveToFile((root / "Tiles.cnaproject").generic_string()));
+    context.getProject().setGridSnap(16.0f);
+
+    UiImageInteraction press = leftAt(790.0f, 580.0f, true);
+    press.control = true;
+    fixture.step(press);
+
+    UiImageInteraction drag = leftAt(853.0f, 580.0f, false);
+    drag.control = true;
+    fixture.step(drag);
+
+    // Dragged 63 along X from 100: 163 rounds to 160 on a 16-unit step, where the drawn grid
+    // would have put it on 150.
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 160.0f);
+
+    // Zero is not "no snapping" -- Ctrl is what turns snapping on -- it is "use the visible grid",
+    // which is what the editor did before the setting existed and what an older project means.
+    context.getProject().setGridSnap(0.0f);
+    fixture.step(UiImageInteraction{});
+
+    UiImageInteraction pressAgain = leftAt(850.0f, 580.0f, true);
+    pressAgain.control = true;
+    fixture.step(pressAgain);
+
+    UiImageInteraction dragAgain = leftAt(893.0f, 580.0f, false);
+    dragAgain.control = true;
+    fixture.step(dragAgain);
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 200.0f);
+
+    std::error_code cleanup;
+    std::filesystem::remove_all(root, cleanup);
+}

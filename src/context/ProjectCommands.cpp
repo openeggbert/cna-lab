@@ -47,4 +47,37 @@ namespace CNA::Editor
         if (newLayers_.size() < oldLayers_.size()) { return "Remove layer"; }
         return "Rename layer";
     }
+
+    SetProjectGridSnapCommand::SetProjectGridSnapCommand(Project& project, float step)
+        : project_(&project), newStep_(step), oldStep_(project.getGridSnap())
+    {
+        // An unchanged value would put an entry in the history that undoes to the state it is
+        // already in, which reads to the user as a broken Ctrl+Z.
+        valid_ = step >= 0.0f && step != oldStep_;
+    }
+
+    void SetProjectGridSnapCommand::execute()
+    {
+        if (valid_) { apply(newStep_); }
+    }
+
+    void SetProjectGridSnapCommand::undo()
+    {
+        if (valid_) { apply(oldStep_); }
+    }
+
+    void SetProjectGridSnapCommand::apply(float step)
+    {
+        project_->setGridSnap(step);
+
+        // Written through, like the layer list beside it and for the same reason: the recovery
+        // snapshot holds the scene, not the project, so a project change that lived only in
+        // memory is a project change a crash loses entirely.
+        savedToDisk_ = project_->saveToFile();
+    }
+
+    std::string SetProjectGridSnapCommand::getDescription() const
+    {
+        return newStep_ > 0.0f ? "Set grid snap" : "Use the visible grid for snapping";
+    }
 }

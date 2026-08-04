@@ -23,6 +23,7 @@
 #include "CNA/Editor/Plugins/Plugin.hpp"
 #include "CNA/Editor/Project/BuildRunner.hpp"
 #include "CNA/Editor/Project/Project.hpp"
+#include "CNA/Editor/ProjectCommands.hpp"
 #include "CNA/Editor/Project/RecoveryStore.hpp"
 #include "CNA/Editor/RuntimeBridge/EditorProtocol.hpp"
 
@@ -1568,4 +1569,75 @@ CNA_EDITOR_TEST(ABuildRunsItsStepsAndReportsTheOutcome)
     CNA_EDITOR_EXPECT(process.getState() == BuildState::Failed);
 
     std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(TheGridSnapIsAnAdditiveFieldThatOlderProjectsSimplyLack)
+{
+    JsonValue json = JsonValue::makeObject();
+    json.set("formatVersion", JsonValue{Project::kFormatVersion});
+    json.set("name", JsonValue{"Older"});
+    json.set("kind", JsonValue{"CnaNative"});
+
+    // The same additive-field promise layers were held to, and no formatVersion bump here either.
+    // Zero is not "no snapping" -- Ctrl turns snapping on -- it is "use the grid the viewport is
+    // drawing", which is exactly what the editor did before the setting existed.
+    Project project;
+    CNA_EDITOR_EXPECT(project.loadFromJson(json).succeeded);
+    CNA_EDITOR_EXPECT_EQ(project.getGridSnap(), 0.0f);
+
+    // A project that never sets one must not start writing the field, or the first save of every
+    // existing project would be a diff that says nothing.
+    CNA_EDITOR_EXPECT(!project.toJson().contains("gridSnap"));
+
+    project.setGridSnap(16.0f);
+    CNA_EDITOR_EXPECT_EQ(project.getGridSnap(), 16.0f);
+
+    Project reloaded;
+    CNA_EDITOR_EXPECT(reloaded.loadFromJson(project.toJson()).succeeded);
+    CNA_EDITOR_EXPECT_EQ(reloaded.getGridSnap(), 16.0f);
+
+    // Negative is refused rather than clamped: it is not a smaller step, it is a value with no
+    // meaning, and rounding to it would land an entity where nothing else agrees it is.
+    reloaded.setGridSnap(-4.0f);
+    CNA_EDITOR_EXPECT_EQ(reloaded.getGridSnap(), 16.0f);
+
+    // Zero puts it back, and takes the field back out of the file with it.
+    reloaded.setGridSnap(0.0f);
+    CNA_EDITOR_EXPECT(!reloaded.toJson().contains("gridSnap"));
+}
+
+CNA_EDITOR_TEST(SettingTheGridSnapUndoesAndReachesTheFile)
+{
+    const std::filesystem::path root =
+        std::filesystem::temp_directory_path() / ("cna-snap-" + Uuid::generate().toString());
+    std::filesystem::create_directories(root);
+
+    Project project = Project::createDefault("Snappy", root.generic_string());
+    CNA_EDITOR_EXPECT(project.saveToFile((root / "Snappy.cnaproject").generic_string()));
+
+    SetProjectGridSnapCommand command{project, 16.0f};
+    CNA_EDITOR_EXPECT(command.isValid());
+    command.execute();
+    CNA_EDITOR_EXPECT_EQ(project.getGridSnap(), 16.0f);
+    CNA_EDITOR_EXPECT(command.wasSavedToDisk());
+
+    // Written through rather than held in memory: the recovery snapshot holds the scene, not the
+    // project, so a project change that never reached disk is one a crash loses entirely.
+    Project fromDisk;
+    CNA_EDITOR_EXPECT(fromDisk.loadFromFile((root / "Snappy.cnaproject").generic_string()).succeeded);
+    CNA_EDITOR_EXPECT_EQ(fromDisk.getGridSnap(), 16.0f);
+
+    command.undo();
+    CNA_EDITOR_EXPECT_EQ(project.getGridSnap(), 0.0f);
+
+    // Setting what is already set is not an edit. An undo entry that restores the state it is
+    // already in reads to a user as a broken Ctrl+Z.
+    SetProjectGridSnapCommand unchanged{project, 0.0f};
+    CNA_EDITOR_EXPECT(!unchanged.isValid());
+
+    SetProjectGridSnapCommand negative{project, -1.0f};
+    CNA_EDITOR_EXPECT(!negative.isValid());
+
+    std::error_code cleanup;
+    std::filesystem::remove_all(root, cleanup);
 }
