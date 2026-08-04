@@ -22,8 +22,24 @@
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
 | **Phase 3** | 🔄 1 of 11 — ED-401 only, built early because it is not a 3D task in a 2D viewport |
-| **Owner priority 4** | ✅ closed — ED-510, the backend comparison mode |
-| Owner priorities 1 and 2 | ✅ closed (robustness and data safety; live editing into the player) |
+| **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
+| **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
+
+---
+
+## What landed in the most recent session
+
+Eleven commits, newest last, each validated in three configurations before it was pushed:
+
+`ED-401` rotate and scale gizmos with a local/world toggle · `ED-246` **`cna-player` draws the scene**
+· `ED-510` backend comparison · `ED-511` the same from the command line, with an exit code ·
+`ED-513` per-backend player builds from one configure · gizmo snapping and Ctrl+click selection ·
+an interaction boundary on `CommandHistory` · an audio preview that can actually be stopped · a
+gizmo that manipulates a whole selection · JPEG dimensions · delete and duplicate as one undo entry.
+
+The two that matter most to anyone picking this up: **the player draws now**, so play mode and hot
+reload are things you can look at rather than read about in a log; and the **backend comparison
+works against two real backends**, which is what finding F-01 was always supposed to buy.
 
 ---
 
@@ -45,6 +61,18 @@ ctest --test-dir build-cna -R "CnaEditor|CnaPlayer|CnaScene"
 #   cmake -S . -B build-cna -DCNA_EDITOR_TEST_DISPLAY=:99
 # and have a server there:  Xvfb :99 -screen 0 1600x900x24 &
 # `xvfb-run -a` works for one-off runs but picks its own display, which that test will not see.
+
+# Two backends, and the comparison between them. The second player is a full CNA build, so this
+# is minutes rather than seconds.
+cmake -S . -B build-cna -DCNA_EDITOR_WITH_CNA=ON -DCNA_EDITOR_PLAYER_BACKENDS="SOFTWARE" -GNinja
+cmake --build build-cna -j8 --target cna-player-backends
+DISPLAY=:99 ./build-cna/cna-editor --compare-backends \
+    --project=examples/HelloSprites/HelloSprites.cnaproject
+# Exit 5 when they differ, 0 when they agree. --tolerance=N sets how close counts as the same.
+
+# The player, drawing the game on its own.
+DISPLAY=:99 ./build-cna/cna-player-easygl --project=examples/HelloSprites/HelloSprites.cnaproject \
+    --frames=20 --screenshot=/tmp/player.png
 
 # Headless smoke, and a screenshot of the real window.
 ./build/cna-editor --headless --project=examples/HelloSprites/HelloSprites.cnaproject
