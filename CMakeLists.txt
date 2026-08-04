@@ -95,7 +95,7 @@ add_library(cna-editor-scene STATIC
     src/scene/EditorIcons.cpp
     src/scene/MissingReferences.cpp
     src/scene/SceneValidation.cpp
-    src/scene/TranslateGizmo.cpp
+    src/scene/TransformGizmos.cpp
     src/viewport/NullEditorViewport.cpp)
 target_link_libraries(cna-editor-scene PUBLIC cna-editor-core)
 

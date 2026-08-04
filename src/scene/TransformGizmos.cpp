@@ -1,0 +1,416 @@
+// SPDX-License-Identifier: MS-PL
+#include "CNA/Editor/Scene/TransformGizmos.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <utility>
+
+#include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/SceneDocument.hpp"
+
+namespace CNA::Editor
+{
+    namespace
+    {
+        /** @brief Returns the distance from @p point to the segment @p a -- @p b. */
+        float distanceToSegment(const EditorVector2& point, const EditorVector2& a, const EditorVector2& b)
+        {
+            const float dx = b.x - a.x;
+            const float dy = b.y - a.y;
+            const float lengthSquared = dx * dx + dy * dy;
+            if (lengthSquared <= 0.0f)
+            {
+                return std::hypot(point.x - a.x, point.y - a.y);
+            }
+
+            // Projection parameter, clamped so the nearest point stays on the segment rather than
+            // on its infinite line -- otherwise the arms would be grabbable far past their tips.
+            const float t = std::clamp(((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared,
+                                       0.0f, 1.0f);
+            return std::hypot(point.x - (a.x + dx * t), point.y - (a.y + dy * t));
+        }
+
+        /** @brief Returns true when @p point is inside the square of half-extent @p extent at @p center. */
+        bool insideSquare(const EditorVector2& point, const EditorVector2& center, float extent)
+        {
+            return std::fabs(point.x - center.x) <= extent && std::fabs(point.y - center.y) <= extent;
+        }
+
+        /** @brief Returns the transform component of @p entityId, or nullptr. */
+        const EditorComponent* transformOf(const SceneDocument& scene, const Uuid& entityId)
+        {
+            const EditorEntity* entity = scene.findEntity(entityId);
+            if (entity == nullptr) { return nullptr; }
+            return entity->findComponent(BuiltinComponentIds::kTransform);
+        }
+
+        /**
+         * @brief Returns the entity's world Z rotation, or 0 when there is nothing to read.
+         *
+         * Only Z, because that is the only axis a 2D viewport can show a turn about. A pitched or
+         * yawed entity still gets a usable gizmo -- its arms are its Z-projected axes -- rather
+         * than none at all, which is the honest 2D answer until the 3D viewport lands (ED-400).
+         */
+        float worldAngleOf(const SceneDocument& scene, const Uuid& entityId)
+        {
+            const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
+            return world ? zRotationOf(world->rotation) : 0.0f;
+        }
+
+        /**
+         * @brief Returns the two screen-space arm directions for @p angle.
+         *
+         * The camera has no rotation and Y points down in both spaces, so a world angle is a screen
+         * angle unchanged. If a rotating camera ever arrives, this is the one place that has to
+         * learn about it.
+         */
+        std::pair<EditorVector2, EditorVector2> axesForAngle(float angle)
+        {
+            const float cosine = std::cos(angle);
+            const float sine = std::sin(angle);
+            return {EditorVector2{cosine, sine}, EditorVector2{-sine, cosine}};
+        }
+
+        /** @brief Returns the inverse of the unit quaternion @p rotation. */
+        EditorQuaternion inverseOf(const EditorQuaternion& rotation)
+        {
+            return EditorQuaternion{-rotation.x, -rotation.y, -rotation.z, rotation.w};
+        }
+
+        /** @brief Returns the parent's world rotation, or identity for a root entity. */
+        EditorQuaternion parentWorldRotation(const SceneDocument& scene, const Uuid& entityId)
+        {
+            const EditorEntity* entity = scene.findEntity(entityId);
+            if (entity == nullptr) { return EditorQuaternion{}; }
+
+            const Uuid parentId = entity->getParentId();
+            if (!parentId.isValid()) { return EditorQuaternion{}; }
+
+            const std::optional<WorldTransform> parent = computeWorldTransform(scene, parentId);
+            return parent ? parent->rotation : EditorQuaternion{};
+        }
+
+        /**
+         * @brief Keeps a scale factor away from exactly zero, sign intact.
+         *
+         * Dragging a handle through the origin flips the entity, which is a legitimate edit and one
+         * XNA's own negative scale supports. Landing *on* zero is not: the entity vanishes, its
+         * bounds collapse, and it can no longer be clicked to get it back.
+         */
+        float keepScalable(float factor)
+        {
+            constexpr float kSmallest = 0.001f;
+            if (std::fabs(factor) >= kSmallest) { return factor; }
+            return factor < 0.0f ? -kSmallest : kSmallest;
+        }
+    }
+
+    const char* toString(GizmoSpace space)
+    {
+        return space == GizmoSpace::Local ? "Local" : "World";
+    }
+
+    EditorVector2 RotateGizmoLayout::getPointAt(float radians) const
+    {
+        return EditorVector2{origin.x + std::cos(radians) * radius, origin.y + std::sin(radians) * radius};
+    }
+
+    std::optional<TranslateGizmoLayout> computeTranslateGizmoLayout(const SceneDocument& scene,
+                                                                    const EditorCamera2D& camera,
+                                                                    const Uuid& entityId,
+                                                                    GizmoSpace space)
+    {
+        if (transformOf(scene, entityId) == nullptr) { return std::nullopt; }
+
+        const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
+        if (!world) { return std::nullopt; }
+
+        TranslateGizmoLayout layout;
+        layout.origin = camera.worldToScreen(EditorVector2{world->position.x, world->position.y});
+
+        if (space == GizmoSpace::Local)
+        {
+            const auto [xAxis, yAxis] = axesForAngle(zRotationOf(world->rotation));
+            layout.xAxis = xAxis;
+            layout.yAxis = yAxis;
+        }
+        return layout;
+    }
+
+    std::optional<RotateGizmoLayout> computeRotateGizmoLayout(const SceneDocument& scene,
+                                                              const EditorCamera2D& camera,
+                                                              const Uuid& entityId)
+    {
+        if (transformOf(scene, entityId) == nullptr) { return std::nullopt; }
+
+        const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
+        if (!world) { return std::nullopt; }
+
+        RotateGizmoLayout layout;
+        layout.origin = camera.worldToScreen(EditorVector2{world->position.x, world->position.y});
+        layout.angle = zRotationOf(world->rotation);
+        return layout;
+    }
+
+    std::optional<ScaleGizmoLayout> computeScaleGizmoLayout(const SceneDocument& scene,
+                                                            const EditorCamera2D& camera,
+                                                            const Uuid& entityId)
+    {
+        if (transformOf(scene, entityId) == nullptr) { return std::nullopt; }
+
+        const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
+        if (!world) { return std::nullopt; }
+
+        ScaleGizmoLayout layout;
+        layout.origin = camera.worldToScreen(EditorVector2{world->position.x, world->position.y});
+
+        // Always local: see GizmoSpace. The arms are the axes the stored numbers actually belong to.
+        const auto [xAxis, yAxis] = axesForAngle(zRotationOf(world->rotation));
+        layout.xAxis = xAxis;
+        layout.yAxis = yAxis;
+        return layout;
+    }
+
+    GizmoHandle hitTestTranslateGizmo(const TranslateGizmoLayout& layout, const EditorVector2& screenPoint)
+    {
+        // The centre is tested first and wins where it overlaps the arms: it is the smaller target,
+        // and it is what a user aiming at the middle expects. The arms stay reachable along the
+        // rest of their length.
+        if (insideSquare(screenPoint, layout.origin, layout.centerExtent)) { return GizmoHandle::Both; }
+
+        if (distanceToSegment(screenPoint, layout.origin, layout.getXTip()) <= layout.grabTolerance)
+        {
+            return GizmoHandle::XAxis;
+        }
+        if (distanceToSegment(screenPoint, layout.origin, layout.getYTip()) <= layout.grabTolerance)
+        {
+            return GizmoHandle::YAxis;
+        }
+
+        return GizmoHandle::None;
+    }
+
+    GizmoHandle hitTestRotateGizmo(const RotateGizmoLayout& layout, const EditorVector2& screenPoint)
+    {
+        // A band around the ring, not a disc: the inside of the circle is where the entity is, and
+        // grabbing there would make the sprite itself unclickable at every zoom.
+        const float distance = std::hypot(screenPoint.x - layout.origin.x, screenPoint.y - layout.origin.y);
+        return std::fabs(distance - layout.radius) <= layout.grabTolerance ? GizmoHandle::ZAxis
+                                                                           : GizmoHandle::None;
+    }
+
+    GizmoHandle hitTestScaleGizmo(const ScaleGizmoLayout& layout, const EditorVector2& screenPoint)
+    {
+        if (insideSquare(screenPoint, layout.origin, layout.centerExtent)) { return GizmoHandle::Both; }
+
+        // The end squares are tested before the arms, so a press that is a hair off the arm's line
+        // but plainly on its handle still counts -- the square is the part the eye aims at.
+        if (insideSquare(screenPoint, layout.getXTip(), layout.handleExtent)) { return GizmoHandle::XAxis; }
+        if (insideSquare(screenPoint, layout.getYTip(), layout.handleExtent)) { return GizmoHandle::YAxis; }
+
+        if (distanceToSegment(screenPoint, layout.origin, layout.getXTip()) <= layout.grabTolerance)
+        {
+            return GizmoHandle::XAxis;
+        }
+        if (distanceToSegment(screenPoint, layout.origin, layout.getYTip()) <= layout.grabTolerance)
+        {
+            return GizmoHandle::YAxis;
+        }
+
+        return GizmoHandle::None;
+    }
+
+    EditorVector2 worldDeltaToLocal(const SceneDocument& scene,
+                                    const Uuid& entityId,
+                                    const EditorVector2& worldDelta)
+    {
+        const EditorEntity* entity = scene.findEntity(entityId);
+        if (entity == nullptr) { return worldDelta; }
+
+        const Uuid parentId = entity->getParentId();
+        if (!parentId.isValid()) { return worldDelta; }
+
+        const std::optional<WorldTransform> parent = computeWorldTransform(scene, parentId);
+        if (!parent) { return worldDelta; }
+
+        // Undo the parent's rotation, then its scale -- the inverse of how a local offset becomes a
+        // world one in computeWorldTransform. Skipping this gives a gizmo that is exact on root
+        // entities and drifts on every child of a rotated or scaled parent.
+        const EditorVector3 unrotated =
+            rotate(inverseOf(parent->rotation), EditorVector3{worldDelta.x, worldDelta.y, 0.0f});
+
+        const float scaleX = parent->scale.x != 0.0f ? parent->scale.x : 1.0f;
+        const float scaleY = parent->scale.y != 0.0f ? parent->scale.y : 1.0f;
+        return EditorVector2{unrotated.x / scaleX, unrotated.y / scaleY};
+    }
+
+    bool TranslateGizmoDrag::begin(const SceneDocument& scene,
+                                   const EditorCamera2D& camera,
+                                   const Uuid& entityId,
+                                   GizmoHandle handle,
+                                   const EditorVector2& screenPoint,
+                                   GizmoSpace space)
+    {
+        end();
+        if (handle == GizmoHandle::None) { return false; }
+
+        const EditorComponent* transform = transformOf(scene, entityId);
+        if (transform == nullptr) { return false; }
+
+        handle_ = handle;
+        entityId_ = entityId;
+        grabWorld_ = camera.screenToWorld(screenPoint);
+        startLocalPosition_ = transform->getProperty("position").get<EditorVector3>();
+
+        // The constraint is recorded at the press and never recomputed, so nothing that changes the
+        // entity's rotation mid-drag can bend the axis it is already moving along.
+        const auto [xAxis, yAxis] =
+            axesForAngle(space == GizmoSpace::Local ? worldAngleOf(scene, entityId) : 0.0f);
+        constraintAxis_ = handle == GizmoHandle::YAxis ? yAxis : xAxis;
+        return true;
+    }
+
+    std::optional<EditorVector3> TranslateGizmoDrag::update(const SceneDocument& scene,
+                                                            const EditorCamera2D& camera,
+                                                            const EditorVector2& screenPoint) const
+    {
+        if (!isActive()) { return std::nullopt; }
+
+        // Measured from where the drag *began*, never accumulated frame to frame. Accumulating is
+        // the classic source of gizmo drift: rounding compounds and the object separates from the
+        // cursor over a long drag.
+        const EditorVector2 nowWorld = camera.screenToWorld(screenPoint);
+        EditorVector2 worldDelta{nowWorld.x - grabWorld_.x, nowWorld.y - grabWorld_.y};
+
+        if (handle_ == GizmoHandle::XAxis || handle_ == GizmoHandle::YAxis)
+        {
+            // Projected onto the arm rather than zeroed component-wise, because in local space the
+            // arm is not a coordinate axis. In world space the two are the same arithmetic.
+            const float along = worldDelta.x * constraintAxis_.x + worldDelta.y * constraintAxis_.y;
+            worldDelta = EditorVector2{constraintAxis_.x * along, constraintAxis_.y * along};
+        }
+
+        const EditorVector2 localDelta = worldDeltaToLocal(scene, entityId_, worldDelta);
+        return EditorVector3{startLocalPosition_.x + localDelta.x,
+                             startLocalPosition_.y + localDelta.y,
+                             startLocalPosition_.z};
+    }
+
+    bool RotateGizmoDrag::begin(const SceneDocument& scene,
+                                const RotateGizmoLayout& layout,
+                                const Uuid& entityId,
+                                const EditorVector2& screenPoint)
+    {
+        end();
+
+        if (transformOf(scene, entityId) == nullptr) { return false; }
+
+        const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
+        if (!world) { return false; }
+
+        const float dx = screenPoint.x - layout.origin.x;
+        const float dy = screenPoint.y - layout.origin.y;
+
+        // An angle needs a direction, and a press within a pixel of the centre has none. Refusing
+        // beats starting a drag that snaps the entity to whatever atan2 made of the noise.
+        if (std::hypot(dx, dy) < 1.0f) { return false; }
+
+        active_ = true;
+        entityId_ = entityId;
+        startPointerAngle_ = std::atan2(dy, dx);
+        startWorldRotation_ = world->rotation;
+        inverseParentRotation_ = inverseOf(parentWorldRotation(scene, entityId));
+        return true;
+    }
+
+    float RotateGizmoDrag::getDeltaAngle(const RotateGizmoLayout& layout,
+                                         const EditorVector2& screenPoint) const
+    {
+        if (!active_) { return 0.0f; }
+
+        const float now = std::atan2(screenPoint.y - layout.origin.y, screenPoint.x - layout.origin.x);
+
+        // Wrapped into (-pi, pi]: without this, dragging across the -pi/+pi seam would report a
+        // turn of nearly a full circle in the wrong direction, and the entity would spin.
+        constexpr float kPi = 3.14159265358979323846f;
+        float delta = now - startPointerAngle_;
+        while (delta > kPi) { delta -= 2.0f * kPi; }
+        while (delta <= -kPi) { delta += 2.0f * kPi; }
+        return delta;
+    }
+
+    std::optional<EditorQuaternion> RotateGizmoDrag::update(const RotateGizmoLayout& layout,
+                                                            const EditorVector2& screenPoint) const
+    {
+        if (!active_) { return std::nullopt; }
+
+        // The turn happens in world space -- the cursor is describing a world angle -- and is then
+        // expressed in the parent's frame, since `rotation` is stored relative to the parent. For a
+        // root entity the parent term is identity and this is just the world turn.
+        const EditorQuaternion turned =
+            multiply(quaternionFromZRotation(getDeltaAngle(layout, screenPoint)), startWorldRotation_);
+        return multiply(inverseParentRotation_, turned);
+    }
+
+    bool ScaleGizmoDrag::begin(const SceneDocument& scene,
+                               const ScaleGizmoLayout& layout,
+                               const Uuid& entityId,
+                               GizmoHandle handle,
+                               const EditorVector2& screenPoint)
+    {
+        end();
+        if (handle == GizmoHandle::None) { return false; }
+
+        const EditorComponent* transform = transformOf(scene, entityId);
+        if (transform == nullptr) { return false; }
+
+        const EditorVector2 offset{screenPoint.x - layout.origin.x, screenPoint.y - layout.origin.y};
+
+        // How far out the grab was, measured exactly the way update() measures: along the arm for a
+        // single axis, radially for the uniform handle.
+        float distance = 0.0f;
+        switch (handle)
+        {
+            case GizmoHandle::XAxis: distance = offset.x * layout.xAxis.x + offset.y * layout.xAxis.y; break;
+            case GizmoHandle::YAxis: distance = offset.x * layout.yAxis.x + offset.y * layout.yAxis.y; break;
+            default: distance = std::hypot(offset.x, offset.y); break;
+        }
+
+        // Every factor below is a division by this. A grab at the origin would scale by infinity,
+        // so it is not a drag at all -- the press falls through to whatever is underneath.
+        constexpr float kSmallestGrab = 4.0f;
+        if (std::fabs(distance) < kSmallestGrab) { return false; }
+
+        handle_ = handle;
+        entityId_ = entityId;
+        grabDistance_ = distance;
+        startLocalScale_ =
+            transform->getProperty("scale").get<EditorVector3>(EditorVector3{1.0f, 1.0f, 1.0f});
+        return true;
+    }
+
+    std::optional<EditorVector3> ScaleGizmoDrag::update(const ScaleGizmoLayout& layout,
+                                                        const EditorVector2& screenPoint) const
+    {
+        if (!isActive()) { return std::nullopt; }
+
+        const EditorVector2 offset{screenPoint.x - layout.origin.x, screenPoint.y - layout.origin.y};
+
+        float distance = 0.0f;
+        switch (handle_)
+        {
+            case GizmoHandle::XAxis: distance = offset.x * layout.xAxis.x + offset.y * layout.xAxis.y; break;
+            case GizmoHandle::YAxis: distance = offset.x * layout.yAxis.x + offset.y * layout.yAxis.y; break;
+            default: distance = std::hypot(offset.x, offset.y); break;
+        }
+
+        // A ratio, not a difference: screen pixels are not scale units, and only the ratio is
+        // independent of the zoom the drag happens to be at.
+        const float factor = keepScalable(distance / grabDistance_);
+
+        EditorVector3 scale = startLocalScale_;
+        if (handle_ != GizmoHandle::YAxis) { scale.x = keepScalable(startLocalScale_.x * factor); }
+        if (handle_ != GizmoHandle::XAxis) { scale.y = keepScalable(startLocalScale_.y * factor); }
+        return scale;
+    }
+}

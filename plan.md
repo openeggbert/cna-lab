@@ -26,15 +26,15 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **294 passing tests across 7 CTest suites** (10 with CNA)
+- 12 modules, three executables, and **312 passing tests across 7 CTest suites** (10 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
 - the editor renders **identically on two CNA backends** (SOFTWARE and EASYGL), verified by
   screenshot
-- the scene draws with an adaptive grid, sprites ordered by layer depth, selection outlines, a
-  **translate gizmo** whose drag is one undo entry, and **icons** for entities that have no
-  geometry to draw
+- the scene draws with an adaptive grid, sprites ordered by layer depth, selection outlines,
+  **translate, rotate and scale gizmos** — each drag one undo entry, each grabbable in world or in
+  the entity's own axes — and **icons** for entities that have no geometry to draw
 - a **Build panel** configures and builds the open project by driving its own CMake, shows the
   commands before running them, and tails the build log
 - **audio preview**: an artist can hear a clip from the inspector, either as the component will
@@ -220,7 +220,7 @@ position changes in the inspector, undo returns it, the scene saves, and it runs
 | ED-206 | Ray-cast picking against entity bounds | ✅ | Done as ED-126. CNA-free and unit-tested, so "clicking selects the wrong thing" is caught in CI rather than by hand |
 | ED-207 | Inspector: add and remove components, respecting `unique` and `required` | ✅ | The picker lists only what can actually be added, so a `unique` component already present is never on offer. A `required` component gets no Remove button rather than a dead one. Removal is by index, not by type — clicking Remove on the second audio source has to delete that one, and the two are indistinguishable afterwards if it does not |
 | ED-208 | Asset drag-and-drop from the browser onto a sprite slot | ✅ | A slot declares the asset kind it takes and refuses anything else, naming both kinds. Accepting a sound into a texture slot would give a scene that loads and a sprite that never appears, with nothing to explain it. The kind is a string on `PropertyDescriptor`, not an `AssetType`, so the descriptor header stays below the asset database and a plugin can name a kind the editor never saw |
-| ED-209 | Keyboard shortcuts: Ctrl+Z/Y/S/N/D, Delete, F to frame, W/E/R for gizmo modes | ✅ | Each shortcut and its menu item call the same method, so the two cannot drift apart. Modifiers are matched exactly, so Ctrl+Shift+Z does not also fire Ctrl+Z's undo, and every shortcut is suppressed while a text field has the keyboard. `E`/`R` select modes whose manipulator does not exist yet and say so in the console rather than letting the gizmo silently vanish |
+| ED-209 | Keyboard shortcuts: Ctrl+Z/Y/S/N/D, Delete, F to frame, W/E/R for gizmo modes, X for the gizmo space | ✅ | Each shortcut and its menu item call the same method, so the two cannot drift apart. Modifiers are matched exactly, so Ctrl+Shift+Z does not also fire Ctrl+Z's undo, and every shortcut is suppressed while a text field has the keyboard. `X` toggles rather than selecting — there are two spaces, so a toggle needs no second binding to get back — and says which one it landed on, since the two look identical on an unrotated entity |
 | ED-210 | Split the panels out of `EditorApplication` into their own classes | ✅ | Six panel classes, each owning its own view state. `EditorApplication.cpp` went from 1207 lines to 523 and keeps only what no single panel owns. A panel reaches shared operations through `EditorActions`, a deliberately narrow interface — everything on it is something the menu bar, a shortcut and at least one panel all trigger, so they cannot drift apart |
 
 ### Assets
@@ -275,15 +275,18 @@ have to be written per backend, which is exactly the kind of cost F-01 makes wor
 
 ---
 
-## Phase 3 — Basic 3D ⬜
+## Phase 3 — Basic 3D 🔄
 
 **Precondition.** CNA's 3D API is stable and the glTF conformance work is done. This phase comes
-*after* that, as the original discussion argued — not before.
+*after* that, as the original discussion argued — not before. **ED-401 is the exception and was
+built early**, because it is not a 3D task at all in a 2D viewport: `E` and `R` had been selecting
+a manipulator that did not exist since Phase 1, which is a promise the editor was making and not
+keeping. Nothing else here has moved.
 
 | Id | Task | Status |
 |----|------|:------:|
 | ED-400 | Perspective and orthographic viewport camera, orbit and fly navigation | ⬜ |
-| ED-401 | Rotate and scale gizmos; local/world space toggle | ⬜ |
+| ED-401 | Rotate and scale gizmos; local/world space toggle | ✅ |
 | ED-402 | `ModelRenderer` rendering | ⬜ |
 | ED-403 | Material editing and preview | ⬜ |
 | ED-404 | Light components with viewport visualisation | ⬜ |
@@ -293,6 +296,25 @@ have to be written per backend, which is exactly the kind of cost F-01 makes wor
 | ED-410 | Per-mesh material lists (needs ED-311) | ⬜ |
 | ED-411 | **Plugin dynamic loading**: `dlopen`/`LoadLibrary`, `extern "C"` entry, unload, hot-reload | ⬜ |
 | ED-412 | Plugin extension points: importers, component types, panels, menu commands, gizmos, exporters | ⬜ |
+
+**ED-401** ships all three manipulators as one CNA-free module — layout, hit-test, drag — so what
+a user can grab is tested in CI and only the pixels need a GPU. Three decisions inside it are worth
+recording, because each had a plausible alternative:
+
+- **Rotate turns in world space and stores the result in the parent's frame.** The cursor is
+  describing a world angle; a child of a rotated parent that applied that angle locally would turn
+  by a rotated fraction of it and visibly lag its own cursor.
+- **Scale is a ratio in screen space, not a difference.** Scale is unitless, and only a ratio is
+  independent of the zoom the drag happens to be at. Dragging through the pivot flips the entity
+  rather than collapsing it — negative scale is a legitimate edit that XNA's own `SpriteBatch`
+  honours — but never lands exactly on zero, which would make the entity invisible *and*
+  unclickable.
+- **Scale has no local/world toggle.** A non-uniform scale applied in world space needs a shear,
+  which a position/rotation/scale transform cannot express. A "world scale" could only be a lie in
+  the one place a user is entitled to exact numbers, so the arms are always the entity's own axes.
+
+The space toggle itself (`X`) is one setting shared by every manipulator rather than one per gizmo:
+it is a way of working, not a property of a tool.
 
 **ED-411** is where discovery-and-validation (ED-017, done) becomes real loading. Validation was
 built first deliberately: an ABI mismatch that reaches `dlopen` is a crash, not an error message

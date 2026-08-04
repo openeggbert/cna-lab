@@ -11,6 +11,7 @@
 #include "TestHarness.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 
@@ -716,9 +717,33 @@ namespace
 
         [[nodiscard]] EditorVector3 getPosition() const
         {
+            return getTransformProperty("position").get<EditorVector3>();
+        }
+
+        [[nodiscard]] EditorVector3 getScale() const
+        {
+            return getTransformProperty("scale").get<EditorVector3>(EditorVector3{1.0f, 1.0f, 1.0f});
+        }
+
+        /** @brief Returns the entity's local rotation about Z, in radians. */
+        [[nodiscard]] float getRotationZ() const
+        {
+            return zRotationOf(getTransformProperty("rotation").get<EditorQuaternion>());
+        }
+
+        /** @brief Sets the entity's local rotation, as the scene itself would hold it. */
+        void setRotationZ(float radians)
+        {
+            application->getContext().getScene()
+                .findEntity(entityId)->findComponent(BuiltinComponentIds::kTransform)
+                ->setProperty("rotation", PropertyValue{quaternionFromZRotation(radians)});
+        }
+
+        [[nodiscard]] PropertyValue getTransformProperty(const std::string& name) const
+        {
             return application->getContext().getScene()
                 .findEntity(entityId)->findComponent(BuiltinComponentIds::kTransform)
-                ->getProperty("position").get<EditorVector3>();
+                ->getProperty(name);
         }
     };
 
@@ -1027,8 +1052,9 @@ CNA_EDITOR_TEST(GizmoModeShortcutsSwitchTheManipulator)
     fixture.ui->pressShortcut(UiKey::E);
     fixture.step(UiImageInteraction{});
 
-    // Rotate has no manipulator yet, so the translate gizmo must stop responding -- a press on
-    // where its handle used to be falls through to the picker and clears the selection.
+    // Only the manipulator on screen can be grabbed. (790, 580) is on the translate gizmo's X arm
+    // and inside the rotate gizmo's ring, so in rotate mode the press must do nothing to the
+    // position -- a mode switch that left the old handles live would be invisible and awful.
     fixture.step(leftAt(790.0f, 580.0f, true));
     fixture.step(leftAt(830.0f, 580.0f, false));
     CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 100.0f);
@@ -1039,6 +1065,121 @@ CNA_EDITOR_TEST(GizmoModeShortcutsSwitchTheManipulator)
     fixture.step(leftAt(790.0f, 580.0f, true));
     fixture.step(leftAt(830.0f, 580.0f, false));
     CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 140.0f);
+}
+
+CNA_EDITOR_TEST(ARotateDragTurnsTheSelectedEntity)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    fixture.ui->pressShortcut(UiKey::E);
+    fixture.step(UiImageInteraction{});
+
+    // The ring is 68 pixels out from the origin at (740, 580). Grab it at its rightmost point and
+    // sweep a quarter turn to its lowest -- world Y points down, so that is a positive turn.
+    fixture.step(leftAt(808.0f, 580.0f, true));
+    fixture.step(leftAt(740.0f, 648.0f, false));
+
+    CNA_EDITOR_EXPECT(std::fabs(fixture.getRotationZ() - 3.14159265f * 0.5f) < 0.01f);
+
+    // Rotating must not shift the entity: the pivot is the entity's own position.
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 100.0f);
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().y, 220.0f);
+}
+
+CNA_EDITOR_TEST(ARotateDragIsOneUndoEntryThatReturnsToWhereItStarted)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    CommandHistory& history = fixture.application->getContext().getHistory();
+
+    fixture.ui->pressShortcut(UiKey::E);
+    fixture.step(UiImageInteraction{});
+    const std::size_t before = history.getCount();
+
+    fixture.step(leftAt(808.0f, 580.0f, true));
+    for (float y = 590.0f; y <= 640.0f; y += 10.0f) { fixture.step(leftAt(800.0f, y, false)); }
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), before + 1);
+    CNA_EDITOR_EXPECT(history.undo());
+    CNA_EDITOR_EXPECT(std::fabs(fixture.getRotationZ()) < 0.001f);
+}
+
+CNA_EDITOR_TEST(APressInsideTheRotateRingStillReachesThePicker)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    fixture.ui->pressShortcut(UiKey::E);
+    fixture.step(UiImageInteraction{});
+
+    // Well inside the ring, which is deliberately not a target: the entity lives there, and a
+    // gizmo that swallowed presses over its own subject would make it unclickable.
+    UiImageInteraction press = leftAt(750.0f, 590.0f, true);
+    fixture.step(press);
+
+    UiImageInteraction click;
+    click.hovered = true;
+    click.localMouseX = 750.0f;
+    click.localMouseY = 590.0f;
+    click.clicked = true;
+    click.leftReleased = true;
+    fixture.step(click);
+
+    CNA_EDITOR_EXPECT(!fixture.application->getContext().getPrimarySelection().isValid());
+}
+
+CNA_EDITOR_TEST(AScaleDragResizesTheSelectedEntity)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    fixture.ui->pressShortcut(UiKey::R);
+    fixture.step(UiImageInteraction{});
+
+    // The X handle sits 64 pixels right of the origin at (740, 580). Dragging it to twice that
+    // distance doubles the X scale and leaves Y alone.
+    fixture.step(leftAt(804.0f, 580.0f, true));
+    fixture.step(leftAt(868.0f, 580.0f, false));
+
+    CNA_EDITOR_EXPECT(std::fabs(fixture.getScale().x - 2.0f) < 0.01f);
+    CNA_EDITOR_EXPECT(std::fabs(fixture.getScale().y - 1.0f) < 0.01f);
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 100.0f);
+}
+
+CNA_EDITOR_TEST(TheGizmoSpaceShortcutTogglesBothWays)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    CNA_EDITOR_EXPECT(fixture.application->getGizmoSpace() == GizmoSpace::World);
+
+    fixture.ui->pressShortcut(UiKey::X);
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.application->getGizmoSpace() == GizmoSpace::Local);
+
+    // Said out loud, because on an unrotated entity the two spaces look identical -- a user who
+    // toggled and saw nothing would reasonably conclude the key was broken.
+    CNA_EDITOR_EXPECT(fixture.logContains("Gizmo space: Local"));
+
+    fixture.ui->pressShortcut(UiKey::X);
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.application->getGizmoSpace() == GizmoSpace::World);
+}
+
+CNA_EDITOR_TEST(ALocalSpaceDragFollowsTheEntitysOwnAxis)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    // Half a right angle, so the entity's own X arm runs diagonally and neither space can be
+    // mistaken for the other.
+    fixture.setRotationZ(3.14159265f * 0.25f);
+    fixture.ui->pressShortcut(UiKey::X);
+    fixture.step(UiImageInteraction{});
+
+    // 50 pixels out along that diagonal arm from the origin at (740, 580).
+    fixture.step(leftAt(775.36f, 615.36f, true));
+    fixture.step(leftAt(815.36f, 615.36f, false));
+
+    // A purely horizontal cursor move of 40 projects onto the arm as 28.28, which is 20 along each
+    // world axis. In world space that press would have hit no handle at all.
+    CNA_EDITOR_EXPECT(std::fabs(fixture.getPosition().x - 120.0f) < 0.1f);
+    CNA_EDITOR_EXPECT(std::fabs(fixture.getPosition().y - 240.0f) < 0.1f);
 }
 
 CNA_EDITOR_TEST(AnArmedShortcutFiresExactlyOnce)

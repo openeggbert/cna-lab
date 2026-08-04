@@ -15,12 +15,13 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 294 / 294 (also under Clang Release) |
+| Unit tests | ✅ 312 / 312 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
+| **Phase 3** | 🔄 1 of 11 — ED-401 only, built early because it is not a 3D task in a 2D viewport |
 | Owner priorities 1 and 2 | ✅ closed (robustness and data safety; live editing into the player) |
 
 ---
@@ -87,6 +88,24 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-401** rotate and scale gizmos, and the local/world space toggle (`X`). Built out of phase
+  order because it is not a 3D task in a 2D viewport: `E` and `R` had been selecting a manipulator
+  that did not exist since Phase 1. `TranslateGizmo.hpp` became `TransformGizmos.hpp` and now holds
+  all three -- one layout, one hit-test, one drag each, all CNA-free, so what a user can grab is
+  tested in CI and only the pixels need a GPU.
+  Rotate turns in **world** space and stores the result in the parent's frame, or a child of a
+  rotated parent would turn by a rotated fraction of the angle the cursor described; the delta is
+  wrapped into (-pi, pi] so dragging across the seam does not spin it. Scale is a **ratio in screen
+  space**, since scale is unitless and only a ratio is zoom-independent; dragging through the pivot
+  flips the entity (negative scale is legitimate and `SpriteBatch` honours it) but never lands on
+  zero, which would make it invisible *and* unclickable.
+  **Scale deliberately has no space toggle**: a non-uniform scale in world space needs a shear,
+  which a position/rotation/scale transform cannot express, so its arms are always the entity's own
+  axes. The translate gizmo's arms are now stored directions rather than assumed ones, which is what
+  lets the drawing, the hit-test and the drag read the same two vectors in either space; the
+  renderer grew a rotated-quad `drawLine`, since SpriteBatch has no line primitive and an arm that
+  is not axis-aligned cannot be a rectangle. Verified by screenshot on EASYGL: ring, rotated arms
+  and arrowheads, and the scale gizmo's square handles.
 - **ED-308** the build panel. Shells out to `cmake` rather than writing a script, because that
   gives the editor the exit code and the output; drives the *project's own* `CMakeLists`,
   contributing only the backend and the output directory; and reports a missing toolchain before
@@ -273,8 +292,11 @@ Phase 1 closed. Working through the owner's priority order:
 
 ## Known problems and limitations
 
-- **Rotate and scale gizmos do not exist.** Pressing `E` or `R` selects the mode and says so in the
-  console instead of leaving the gizmo silently absent. ED-401.
+- **No gizmo snapping, and no gizmo on a multi-selection.** Rotate has no 15-degree step and scale
+  has no round-number step, because `UiImageInteraction` carries no modifier state -- adding Shift
+  and Ctrl to it is the prerequisite, and is a change to the UI abstraction rather than to the
+  gizmos. A gizmo is drawn on the *primary* selection only; manipulating a whole multi-selection
+  needs a shared pivot first (part of ED-200's multi-select).
 - **The inspector's merge boundary is per-property, not per-interaction.** Two separate drags of
   the same slider collapse into one undo entry. The gizmo works around this by opening a new entry
   on the first edit of a drag (`ViewportPanel::updateGizmoDrag`); the inspector does not. ED-311
@@ -314,12 +336,24 @@ half built and each blocked on something outside this repository, not on effort 
 2. **Audio `stop()` cannot actually stop a clip** (see ED-304 above). Small, and worth doing the
    moment anyone previews something long enough to want it cut short.
 
-So the honest next move is **Phase 3**, whose rows are the 3D ones (ED-401 rotate and scale gizmos,
-ED-402 lights, ED-404 model rendering) — or **ED-510**, the backend comparison mode, which is the
-last item on the owner's original priority list and the one that makes the compile-time-backend
-constraint (F-01) pay off rather than merely cost. ED-401 is the most immediately useful of them:
-pressing `E` or `R` today selects a gizmo mode and says so in the console instead of drawing
-anything, which is a promise the editor has been making since Phase 1 without keeping.
+**ED-401 is now done**, which was the one Phase 3 row that did not need 3D. What is left there does:
+ED-400's perspective camera, ED-402's model rendering, ED-404's lights. All of them wait on CNA's 3D
+API, which is the precondition `plan.md` states for the phase and is not this repository's to move.
+
+So the honest next move is **ED-510**, the backend comparison mode — the last item on the owner's
+original priority list, and the one that makes the compile-time-backend constraint (F-01) pay off
+rather than merely cost. Everything it needs already exists: several player binaries are discovered
+and launched today, and the bridge speaks line-delimited JSON to each.
+
+Two smaller things are worth doing before or alongside it, and both are the same shape — a gap in
+the *UI abstraction* rather than in a feature:
+
+- **Modifier keys on `UiImageInteraction`.** Shift and Ctrl over the viewport image would give the
+  gizmos snapping (15-degree rotation, round-number scale) and would let the picker add to a
+  selection rather than replace it. One field each on the struct and one read in the ImGui backend.
+- **An interaction boundary on `CommandHistory`.** The gizmos work around its absence by opening a
+  new entry on the first edit of a drag; the inspector cannot, so two separate slider drags still
+  collapse into one undo entry. Making the boundary explicit fixes both at once.
 
 Nothing above changes a file format. Every format is at version 1 and ED-902's chains are empty on
 purpose; a new component type is something the descriptor system handles without a bump.

@@ -2,8 +2,10 @@
 #include "CNA/Editor/Viewport/CnaSceneRenderer.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <exception>
+#include <utility>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -24,7 +26,7 @@
 #include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Scene/EditorIcons.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
-#include "CNA/Editor/Scene/TranslateGizmo.hpp"
+#include "CNA/Editor/Scene/TransformGizmos.hpp"
 #include "CNA/Editor/Viewport/CnaUiRenderer.hpp"
 
 namespace Xna = Microsoft::Xna::Framework;
@@ -66,6 +68,9 @@ namespace CNA::Editor
         const Xna::Color kGizmoX{226, 62, 62, 255};
         const Xna::Color kGizmoY{104, 204, 92, 255};
         const Xna::Color kGizmoCenter{236, 226, 96, 255};
+
+        /** @brief The rotate ring, in the blue every editor gives the Z axis. */
+        const Xna::Color kGizmoRing{104, 164, 240, 255};
 
         /** @brief Drawn where a sprite's texture is missing, so the entity stays visible. */
         const Xna::Color kMissingTexture{200, 60, 140, 255};
@@ -189,6 +194,28 @@ namespace CNA::Editor
                               Xna::Vector2{0.0f, 0.0f}, XnaGraphics::SpriteEffects::None, 0.0f);
         }
 
+        /**
+         * @brief Draws a line of @p thickness pixels from @p from to @p to.
+         *
+         * The 1x1 texture again, but stretched *and rotated*: SpriteBatch has no line primitive,
+         * and a rotated quad is the only way to draw an arm that does not lie along a screen axis
+         * -- which is every arm once the gizmo follows the entity's own rotation.
+         */
+        void drawLine(const EditorVector2& from, const EditorVector2& to, float thickness,
+                      const Xna::Color& color)
+        {
+            const float dx = to.x - from.x;
+            const float dy = to.y - from.y;
+            const float length = std::hypot(dx, dy);
+            if (length <= 0.0f) { return; }
+
+            // Origin at the middle of the left edge, so the quad grows along the line and is
+            // centred across it -- a thick line then straddles the line rather than hanging below.
+            spriteBatch->Draw(*pixel, Xna::Vector2{from.x, from.y}, std::nullopt, color,
+                              std::atan2(dy, dx), Xna::Vector2{0.0f, 0.5f},
+                              Xna::Vector2{length, thickness}, XnaGraphics::SpriteEffects::None, 0.0f);
+        }
+
         /** @brief Draws a one-pixel outline just outside @p rect. */
         void drawOutline(const Xna::Rectangle& rect, const Xna::Color& color, int thickness)
         {
@@ -280,52 +307,158 @@ namespace CNA::Editor
             }
         }
 
+        /** @brief Returns @p point advanced by @p distance along the unit direction @p axis. */
+        static EditorVector2 along(const EditorVector2& point, const EditorVector2& axis, float distance)
+        {
+            return EditorVector2{point.x + axis.x * distance, point.y + axis.y * distance};
+        }
+
+        /**
+         * @brief Draws an arrowhead of @p length pixels ending at @p tip, pointing along @p axis.
+         *
+         * A stack of shortening crossbars rather than a polygon: SpriteBatch has no triangle
+         * primitive, and at twelve pixels the stepping is invisible while costing a handful of
+         * quads. The crossbars are drawn along the axis's perpendicular, so the head follows a
+         * rotated arm exactly as the shaft does.
+         */
+        void drawArrowHead(const EditorVector2& tip, const EditorVector2& axis, float length,
+                           float halfWidth, const Xna::Color& color)
+        {
+            const EditorVector2 perpendicular{-axis.y, axis.x};
+
+            for (float step = 0.0f; step < length; step += 1.0f)
+            {
+                const float half = std::max(1.0f, halfWidth * (length - step) / length);
+                const EditorVector2 center = along(tip, axis, -step);
+                drawLine(along(center, perpendicular, -half), along(center, perpendicular, half), 1.0f,
+                         color);
+            }
+        }
+
+        /** @brief Draws a square of half-extent @p extent centred at @p center, rotated by @p axis. */
+        void drawHandleSquare(const EditorVector2& center, const EditorVector2& axis, float extent,
+                              const Xna::Color& color)
+        {
+            const EditorVector2 perpendicular{-axis.y, axis.x};
+
+            // Filled by drawing rows across it: the handle is out at the end of an arm where it
+            // hides nothing, and a solid square reads as "grab here" far better than an outline.
+            for (float offset = -extent; offset <= extent; offset += 1.0f)
+            {
+                const EditorVector2 center2 = along(center, perpendicular, offset);
+                drawLine(along(center2, axis, -extent), along(center2, axis, extent), 1.0f, color);
+            }
+        }
+
         /**
          * @brief Draws the translate gizmo: two arms with arrowheads and a centre square.
          *
          * Every dimension comes from the layout, which is the same object the hit-test uses, so
-         * what the user sees and what the user can grab cannot drift apart. The arrowheads are
-         * stepped triangles built from rows of the 1x1 white texture -- there is no line or polygon
-         * primitive in SpriteBatch, and a stepped triangle at this size is indistinguishable from a
-         * smooth one while costing nothing but a handful of quads.
+         * what the user sees and what the user can grab cannot drift apart -- including the arm
+         * directions, which follow the entity's rotation in local space.
          */
         void drawTranslateGizmo(const TranslateGizmoLayout& layout)
         {
-            const int originX = static_cast<int>(std::round(layout.origin.x));
-            const int originY = static_cast<int>(std::round(layout.origin.y));
-            const int length = static_cast<int>(std::round(layout.axisLength));
-            const int extent = static_cast<int>(std::round(layout.centerExtent));
+            constexpr float kArmThickness = 3.0f;
+            constexpr float kHeadLength = 12.0f;
+            constexpr float kHeadHalfWidth = 6.0f;
 
             // The arms start outside the centre square, so the square reads as a separate handle --
             // which it is: it is the one that moves on both axes at once.
-            constexpr int kArmThickness = 3;
-            constexpr int kHeadLength = 12;
-            constexpr int kHeadHalfWidth = 6;
+            const float armStart = layout.centerExtent + 2.0f;
+            const float armEnd = layout.axisLength - kHeadLength;
 
-            const int armStart = extent + 2;
-            const int armEnd = length - kHeadLength;
+            const std::array<std::pair<EditorVector2, const Xna::Color*>, 2> arms{
+                std::pair{layout.xAxis, &kGizmoX}, std::pair{layout.yAxis, &kGizmoY}};
 
-            if (armEnd > armStart)
+            for (const auto& [axis, color] : arms)
             {
-                drawRect(Xna::Rectangle{originX + armStart, originY - kArmThickness / 2,
-                                        armEnd - armStart, kArmThickness}, kGizmoX);
-                drawRect(Xna::Rectangle{originX - kArmThickness / 2, originY + armStart,
-                                        kArmThickness, armEnd - armStart}, kGizmoY);
-            }
-
-            // World Y points down (EditorCamera2D's convention, inherited from SpriteBatch), so
-            // "down the screen" is +Y here and no sign flip is needed for either head.
-            for (int step = 0; step < kHeadLength; ++step)
-            {
-                const int half = std::max(1, kHeadHalfWidth * (kHeadLength - step) / kHeadLength);
-
-                drawRect(Xna::Rectangle{originX + armEnd + step, originY - half, 1, half * 2}, kGizmoX);
-                drawRect(Xna::Rectangle{originX - half, originY + armEnd + step, half * 2, 1}, kGizmoY);
+                if (armEnd > armStart)
+                {
+                    drawLine(along(layout.origin, axis, armStart), along(layout.origin, axis, armEnd),
+                             kArmThickness, *color);
+                }
+                drawArrowHead(along(layout.origin, axis, layout.axisLength), axis, kHeadLength,
+                              kHeadHalfWidth, *color);
             }
 
             // Outlined rather than filled: the centre handle sits exactly over the entity's origin,
             // and a filled square that size would hide the very sprite being positioned.
-            drawOutline(Xna::Rectangle{originX - extent, originY - extent, extent * 2, extent * 2},
+            const int extent = static_cast<int>(std::round(layout.centerExtent));
+            drawOutline(Xna::Rectangle{static_cast<int>(std::round(layout.origin.x)) - extent,
+                                       static_cast<int>(std::round(layout.origin.y)) - extent,
+                                       extent * 2, extent * 2},
+                        kGizmoCenter, 2);
+        }
+
+        /**
+         * @brief Draws the rotate gizmo: a ring, a mark showing the current angle, and a hub.
+         *
+         * The ring is a fan of short chords. Sixty-four of them is smooth at any radius the layout
+         * uses and, unlike a stepped circle of rectangles, stays smooth when the ring is large.
+         *
+         * The mark is what makes the gizmo readable: a bare circle cannot show that anything
+         * happened, so rotating a symmetrical sprite would give no feedback at all.
+         */
+        void drawRotateGizmo(const RotateGizmoLayout& layout)
+        {
+            constexpr int kSegments = 64;
+            constexpr float kTwoPi = 6.28318530717958647692f;
+
+            for (int segment = 0; segment < kSegments; ++segment)
+            {
+                const float from = kTwoPi * static_cast<float>(segment) / kSegments;
+                const float to = kTwoPi * static_cast<float>(segment + 1) / kSegments;
+                drawLine(layout.getPointAt(from), layout.getPointAt(to), 2.0f, kGizmoRing);
+            }
+
+            // A spoke out to the ring plus a blob on it: the spoke says which way is "zero degrees
+            // for this entity", the blob is what the eye tracks while dragging.
+            const EditorVector2 mark = layout.getPointAt(layout.angle);
+            drawLine(layout.origin, mark, 1.0f, kGizmoRing);
+            drawDiamond(static_cast<int>(std::round(mark.x)), static_cast<int>(std::round(mark.y)), 5,
+                        kGizmoCenter);
+
+            // A small hub, so the pivot the turn happens about is visible rather than implied.
+            drawDiamond(static_cast<int>(std::round(layout.origin.x)),
+                        static_cast<int>(std::round(layout.origin.y)), 3, kGizmoCenter);
+        }
+
+        /**
+         * @brief Draws the scale gizmo: two arms ending in solid squares, and a centre square.
+         *
+         * Squares rather than arrowheads, deliberately. The arrowhead means "this points
+         * somewhere"; the square means "this end goes in and out", which is the whole difference
+         * between moving a thing and resizing it -- and the only cue distinguishing the two gizmos
+         * at a glance, since both are a pair of arms on the same origin.
+         */
+        void drawScaleGizmo(const ScaleGizmoLayout& layout)
+        {
+            constexpr float kArmThickness = 3.0f;
+
+            const float armStart = layout.centerExtent + 2.0f;
+            const float armEnd = layout.axisLength - layout.handleExtent;
+
+            const std::array<std::pair<EditorVector2, const Xna::Color*>, 2> arms{
+                std::pair{layout.xAxis, &kGizmoX}, std::pair{layout.yAxis, &kGizmoY}};
+
+            for (const auto& [axis, color] : arms)
+            {
+                if (armEnd > armStart)
+                {
+                    drawLine(along(layout.origin, axis, armStart), along(layout.origin, axis, armEnd),
+                             kArmThickness, *color);
+                }
+                drawHandleSquare(along(layout.origin, axis, layout.axisLength), axis,
+                                 layout.handleExtent, *color);
+            }
+
+            drawOutline(Xna::Rectangle{static_cast<int>(std::round(layout.origin.x))
+                                           - static_cast<int>(std::round(layout.centerExtent)),
+                                       static_cast<int>(std::round(layout.origin.y))
+                                           - static_cast<int>(std::round(layout.centerExtent)),
+                                       static_cast<int>(std::round(layout.centerExtent)) * 2,
+                                       static_cast<int>(std::round(layout.centerExtent)) * 2},
                         kGizmoCenter, 2);
         }
 
@@ -448,6 +581,7 @@ namespace CNA::Editor
                                               int height,
                                               const std::vector<Uuid>& selection,
                                               GizmoMode gizmoMode,
+                                              GizmoSpace gizmoSpace,
                                               const AnimationPreview& preview)
     {
         SceneRenderStats stats;
@@ -683,11 +817,36 @@ namespace CNA::Editor
         // put several overlapping manipulators on screen with no way to tell which one a press
         // would grab. Manipulating a whole multi-selection needs a shared pivot first, and is a
         // separate piece of work (plan.md ED-200's multi-select).
-        if (gizmoMode == GizmoMode::Translate && !selection.empty())
+        if (!selection.empty())
         {
-            const std::optional<TranslateGizmoLayout> layout =
-                computeTranslateGizmoLayout(scene, camera, selection.front());
-            if (layout) { impl_->drawTranslateGizmo(*layout); }
+            const Uuid& gizmoTarget = selection.front();
+            switch (gizmoMode)
+            {
+                case GizmoMode::Translate:
+                    if (const auto layout =
+                            computeTranslateGizmoLayout(scene, camera, gizmoTarget, gizmoSpace))
+                    {
+                        impl_->drawTranslateGizmo(*layout);
+                    }
+                    break;
+
+                case GizmoMode::Rotate:
+                    if (const auto layout = computeRotateGizmoLayout(scene, camera, gizmoTarget))
+                    {
+                        impl_->drawRotateGizmo(*layout);
+                    }
+                    break;
+
+                case GizmoMode::Scale:
+                    if (const auto layout = computeScaleGizmoLayout(scene, camera, gizmoTarget))
+                    {
+                        impl_->drawScaleGizmo(*layout);
+                    }
+                    break;
+
+                case GizmoMode::None:
+                    break;
+            }
         }
         impl_->spriteBatch->End();
 

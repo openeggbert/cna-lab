@@ -437,6 +437,13 @@ namespace CNA::Editor
         if (ui_->isShortcutPressed(UiKey::W)) { setGizmoMode(GizmoMode::Translate); }
         if (ui_->isShortcutPressed(UiKey::E)) { setGizmoMode(GizmoMode::Rotate); }
         if (ui_->isShortcutPressed(UiKey::R)) { setGizmoMode(GizmoMode::Scale); }
+
+        // X toggles rather than selecting, which is what every editor with this key does: there
+        // are two spaces, and a toggle needs no second binding to get back.
+        if (ui_->isShortcutPressed(UiKey::X))
+        {
+            setGizmoSpace(gizmoSpace_ == GizmoSpace::World ? GizmoSpace::Local : GizmoSpace::World);
+        }
     }
 
     void EditorApplication::setEditorTool(EditorTool tool)
@@ -588,15 +595,18 @@ namespace CNA::Editor
     void EditorApplication::setGizmoMode(GizmoMode mode)
     {
         gizmoMode_ = mode;
+    }
 
-        // Rotate and scale have no manipulator yet. Saying so beats letting the gizmo silently
-        // disappear and leaving the user to guess whether they broke something.
-        if (mode == GizmoMode::Rotate || mode == GizmoMode::Scale)
-        {
-            context_.log(LogSeverity::Info,
-                         std::string{mode == GizmoMode::Rotate ? "Rotate" : "Scale"}
-                             + " gizmo is not implemented yet; press W for the translate gizmo");
-        }
+    void EditorApplication::setGizmoSpace(GizmoSpace space)
+    {
+        if (gizmoSpace_ == space) { return; }
+
+        gizmoSpace_ = space;
+
+        // Worth a line in the console: the two spaces look identical on an unrotated entity, so a
+        // user who toggles while nothing is turned would otherwise see no evidence it did anything
+        // -- and would reasonably conclude the key is broken.
+        context_.log(LogSeverity::Info, std::string{"Gizmo space: "} + toString(space));
     }
 
     void EditorApplication::startPlay()

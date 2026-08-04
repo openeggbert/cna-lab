@@ -199,6 +199,9 @@ namespace CNA::Editor
         void setGizmoMode(GizmoMode mode) override;
         [[nodiscard]] GizmoMode getGizmoMode() const override { return gizmoMode_; }
 
+        void setGizmoSpace(GizmoSpace space) override;
+        [[nodiscard]] GizmoSpace getGizmoSpace() const override { return gizmoSpace_; }
+
         void startPlay() override;
         void stopPlay() override;
         void setPlayPaused(bool paused) override;
@@ -297,6 +300,7 @@ namespace CNA::Editor
         BuildPanel buildPanel_;
 
         GizmoMode gizmoMode_ = GizmoMode::Translate;
+        GizmoSpace gizmoSpace_ = GizmoSpace::World;
         EditorTool tool_ = EditorTool::Select;
         std::int64_t paintTile_ = 0;
         AnimationPreview animationPreview_;

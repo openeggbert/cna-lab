@@ -30,6 +30,7 @@
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
 #include "CNA/Editor/Scene/SpriteAnimation.hpp"
+#include "CNA/Editor/Scene/TransformGizmos.hpp"
 #include "CNA/Editor/Ui/UiDrawData.hpp"
 
 namespace CNA::Editor
@@ -82,6 +83,9 @@ namespace CNA::Editor
          * then the editor's overlay. Editor artefacts are never entities in the scene, so a build
          * can never ship with them.
          *
+         * @param gizmoSpace Which frame the drawn gizmo's arms point along. Passed beside the mode
+         *        rather than folded into it, because the two are independent choices: a user picks
+         *        a manipulator far more often than they change the space it works in.
          * @param preview Which animation frame to draw for the entity being previewed. Passed in
          *        rather than read from the document, because playback is editor state and must not
          *        travel in a scene -- the same reason the selection is passed rather than stored.
@@ -92,6 +96,7 @@ namespace CNA::Editor
                                    int height,
                                    const std::vector<Uuid>& selection,
                                    GizmoMode gizmoMode,
+                                   GizmoSpace gizmoSpace = GizmoSpace::World,
                                    const AnimationPreview& preview = {}) = 0;
 
         /**
@@ -177,6 +182,7 @@ namespace CNA::Editor
                            int height,
                            const std::vector<Uuid>& selection,
                            GizmoMode gizmoMode,
+                           GizmoSpace gizmoSpace = GizmoSpace::World,
                            const AnimationPreview& preview = {}) override;
 
         [[nodiscard]] EditorVector2 getSpriteSize(const Uuid& assetId) const override

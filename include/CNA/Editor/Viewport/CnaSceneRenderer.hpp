@@ -96,6 +96,7 @@ namespace CNA::Editor
          *
          * @param selection Entities to outline. Drawn in the overlay pass, never as scene content.
          * @param gizmoMode Which manipulator to draw on the first selected entity, if any.
+         * @param gizmoSpace Which frame that manipulator's arms point along.
          */
         SceneRenderStats render(const SceneDocument& scene,
                                 const EditorCamera2D& camera,
@@ -103,6 +104,7 @@ namespace CNA::Editor
                                 int height,
                                 const std::vector<Uuid>& selection,
                                 GizmoMode gizmoMode = GizmoMode::None,
+                                GizmoSpace gizmoSpace = GizmoSpace::World,
                                 const AnimationPreview& preview = {});
 
         /**

@@ -60,6 +60,7 @@ namespace CNA::Editor
                            int height,
                            const std::vector<Uuid>& selection,
                            GizmoMode gizmoMode,
+                           GizmoSpace gizmoSpace,
                            const AnimationPreview& preview) override
         {
             if (width <= 0 || height <= 0) { return kUiTextureNone; }
@@ -67,7 +68,7 @@ namespace CNA::Editor
             camera_.setViewportSize(EditorVector2{static_cast<float>(width), static_cast<float>(height)});
 
             const SceneRenderStats stats =
-                renderer_.render(scene, camera_, width, height, selection, gizmoMode, preview);
+                renderer_.render(scene, camera_, width, height, selection, gizmoMode, gizmoSpace, preview);
             lastStats_ = ViewportStats{stats.spritesDrawn, stats.spritesSkipped, stats.gridLines,
                                        stats.missingTextures};
 

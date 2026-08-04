@@ -112,6 +112,16 @@ namespace CNA::Editor
         virtual void setGizmoMode(GizmoMode mode) = 0;
         [[nodiscard]] virtual GizmoMode getGizmoMode() const = 0;
 
+        /**
+         * @brief Sets which frame the gizmo's arms point along.
+         *
+         * One setting shared by every manipulator rather than one per gizmo, because it is a way
+         * of working rather than a property of a tool: a user who thinks in an object's own axes
+         * thinks that way whether they are moving it or turning it.
+         */
+        virtual void setGizmoSpace(GizmoSpace space) = 0;
+        [[nodiscard]] virtual GizmoSpace getGizmoSpace() const = 0;
+
         virtual void startPlay() = 0;
         virtual void stopPlay() = 0;
         virtual void setPlayPaused(bool paused) = 0;

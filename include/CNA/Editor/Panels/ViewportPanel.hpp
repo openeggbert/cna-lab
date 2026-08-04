@@ -11,7 +11,7 @@
 #include <optional>
 
 #include "CNA/Editor/Scene/Tilemap.hpp"
-#include "CNA/Editor/Scene/TranslateGizmo.hpp"
+#include "CNA/Editor/Scene/TransformGizmos.hpp"
 
 namespace CNA::Editor
 {
@@ -55,12 +55,33 @@ namespace CNA::Editor
 
         /**
          * @brief Starts a gizmo drag if @p cursor is over a handle of the selected entity's gizmo.
+         *
+         * Dispatches on the active mode: exactly one manipulator is on screen, so exactly one can
+         * be grabbed, and each knows only about its own handles.
+         *
          * @return True when a drag began, in which case the press must not also reach the picker.
          */
         bool beginGizmoDrag(const EditorVector2& cursor);
 
-        /** @brief Applies the in-progress drag to the entity's position as one merged command. */
+        /** @brief Returns true while any of the three manipulators is being dragged. */
+        [[nodiscard]] bool isGizmoDragActive() const;
+
+        /** @brief Ends whichever drag is in progress. */
+        void endGizmoDrag();
+
+        /** @brief Applies the in-progress drag to the entity, as one merged command per drag. */
         void updateGizmoDrag(const EditorVector2& cursor);
+
+        /**
+         * @brief Pushes @p value into the selected entity's transform, merging within one drag.
+         *
+         * Shared by all three manipulators because the undo rule is theirs jointly: the first edit
+         * of a drag opens an entry and every later one folds into it, and a drag that has not
+         * changed anything must push nothing at all -- an undo entry restoring a value the entity
+         * already had costs the user an undo to reach a change they can actually see.
+         */
+        void commitGizmoEdit(const Uuid& entityId, const std::string& property,
+                             const PropertyValue& value);
 
         /** @brief Draws the tool picker and the tile index the paint tool writes. */
         void drawToolbar();
@@ -88,7 +109,9 @@ namespace CNA::Editor
          */
         void paintTileAt(const EditorVector2& cursor, bool startStroke);
 
-        TranslateGizmoDrag gizmoDrag_;
+        TranslateGizmoDrag translateDrag_;
+        RotateGizmoDrag rotateDrag_;
+        ScaleGizmoDrag scaleDrag_;
 
         /**
          * @brief Whether the current drag has already pushed a command.

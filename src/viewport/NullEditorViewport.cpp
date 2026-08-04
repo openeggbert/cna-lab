@@ -11,10 +11,12 @@ namespace CNA::Editor
                                            int height,
                                            const std::vector<Uuid>& selection,
                                            GizmoMode gizmoMode,
+                                           GizmoSpace gizmoSpace,
                                            const AnimationPreview& preview)
     {
         (void)selection;
         (void)gizmoMode;
+        (void)gizmoSpace;
         (void)preview;
 
         width_ = width;

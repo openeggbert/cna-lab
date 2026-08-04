@@ -19,7 +19,7 @@
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
 #include "CNA/Editor/Scene/SpriteAnimation.hpp"
-#include "CNA/Editor/Scene/TranslateGizmo.hpp"
+#include "CNA/Editor/Scene/TransformGizmos.hpp"
 
 using namespace CNA::Editor;
 
@@ -68,6 +68,16 @@ namespace
     bool nearlyEqual(float a, float b, float tolerance = 0.001f)
     {
         return std::fabs(a - b) <= tolerance;
+    }
+
+    /** @brief A quarter turn about Z, in radians: the rotation every local-space test uses. */
+    constexpr float kQuarterTurn = 3.14159265f * 0.5f;
+
+    /** @brief Sets @p entityId's local rotation to @p radians about Z. */
+    void setZRotation(SceneDocument& scene, const Uuid& entityId, float radians)
+    {
+        scene.findEntity(entityId)->findComponent(BuiltinComponentIds::kTransform)
+            ->setProperty("rotation", PropertyValue{quaternionFromZRotation(radians)});
     }
 
     /** @brief A size provider that reports nothing, exercising the unknown-size fallback. */
@@ -571,6 +581,275 @@ CNA_EDITOR_TEST(GizmoDragHonoursARotatedParent)
         drag.update(scene, camera, camera.worldToScreen(EditorVector2{0.0f, 30.0f}));
     CNA_EDITOR_EXPECT(nearlyEqual(std::fabs(moved->x), 30.0f, 0.01f));
     CNA_EDITOR_EXPECT(nearlyEqual(moved->y, 0.0f, 0.01f));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Local space, rotate gizmo and scale gizmo (ED-401)
+// ---------------------------------------------------------------------------------------------
+
+CNA_EDITOR_TEST(LocalSpaceArmsFollowTheEntityRotation)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 0.0f, 0.0f);
+    setZRotation(scene, id, kQuarterTurn);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    // World space ignores the entity's rotation entirely: the arms are the screen's own axes.
+    const auto world = computeTranslateGizmoLayout(scene, camera, id, GizmoSpace::World);
+    CNA_EDITOR_EXPECT(nearlyEqual(world->xAxis.x, 1.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(world->xAxis.y, 0.0f));
+
+    // Local space turns them with it: a quarter turn puts the X arm straight down the screen.
+    const auto local = computeTranslateGizmoLayout(scene, camera, id, GizmoSpace::Local);
+    CNA_EDITOR_EXPECT(nearlyEqual(local->xAxis.x, 0.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(local->xAxis.y, 1.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(local->yAxis.x, -1.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(local->yAxis.y, 0.0f));
+
+    // The tips are still the arm length away, so the gizmo is the same size in both spaces.
+    CNA_EDITOR_EXPECT(nearlyEqual(std::hypot(local->getXTip().x - local->origin.x,
+                                             local->getXTip().y - local->origin.y),
+                                  local->axisLength));
+}
+
+CNA_EDITOR_TEST(ALocalSpaceDragProjectsOntoTheRotatedArm)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 0.0f, 0.0f);
+    setZRotation(scene, id, kQuarterTurn);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    TranslateGizmoDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, camera, id, GizmoHandle::XAxis,
+                                 camera.worldToScreen(EditorVector2{0.0f, 0.0f}), GizmoSpace::Local));
+
+    // The entity's own X points along world +Y after a quarter turn, so a diagonal cursor move
+    // must move it only in world Y -- and, being a root entity, that is its stored position too.
+    const std::optional<EditorVector3> moved =
+        drag.update(scene, camera, camera.worldToScreen(EditorVector2{50.0f, 80.0f}));
+    CNA_EDITOR_EXPECT(nearlyEqual(moved->x, 0.0f, 0.01f));
+    CNA_EDITOR_EXPECT(nearlyEqual(moved->y, 80.0f, 0.01f));
+}
+
+CNA_EDITOR_TEST(RotateGizmoHitTestGrabsTheRingAndNotItsInterior)
+{
+    RotateGizmoLayout layout;
+    layout.origin = EditorVector2{100.0f, 100.0f};
+
+    CNA_EDITOR_EXPECT(hitTestRotateGizmo(layout, layout.getPointAt(0.0f)) == GizmoHandle::ZAxis);
+    CNA_EDITOR_EXPECT(hitTestRotateGizmo(layout, layout.getPointAt(2.0f)) == GizmoHandle::ZAxis);
+
+    // Inside the ring is where the entity is. Grabbing there would make the sprite itself
+    // unclickable whenever the rotate gizmo is up.
+    CNA_EDITOR_EXPECT(hitTestRotateGizmo(layout, layout.origin) == GizmoHandle::None);
+    CNA_EDITOR_EXPECT(hitTestRotateGizmo(layout, EditorVector2{100.0f, 130.0f}) == GizmoHandle::None);
+
+    // And well outside it is a miss too -- the band is a band, not a half-plane.
+    CNA_EDITOR_EXPECT(hitTestRotateGizmo(layout, EditorVector2{100.0f, 300.0f}) == GizmoHandle::None);
+}
+
+CNA_EDITOR_TEST(ARotateDragTurnsByTheAngleTheCursorSwept)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 0.0f, 0.0f);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const auto layout = computeRotateGizmoLayout(scene, camera, id);
+    CNA_EDITOR_EXPECT(layout.has_value());
+
+    RotateGizmoDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, *layout, id, layout->getPointAt(0.0f)));
+
+    const std::optional<EditorQuaternion> turned = drag.update(*layout, layout->getPointAt(kQuarterTurn));
+    CNA_EDITOR_EXPECT(turned.has_value());
+    CNA_EDITOR_EXPECT(nearlyEqual(zRotationOf(*turned), kQuarterTurn, 0.001f));
+
+    // Sweeping back to where it started restores the original rotation exactly: every update is
+    // measured from the press, so a long drag leaves no residue.
+    const std::optional<EditorQuaternion> back = drag.update(*layout, layout->getPointAt(0.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(zRotationOf(*back), 0.0f, 0.001f));
+}
+
+CNA_EDITOR_TEST(ARotateDragCrossingTheAngleSeamDoesNotSpin)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 0.0f, 0.0f);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const auto layout = computeRotateGizmoLayout(scene, camera, id);
+
+    RotateGizmoDrag drag;
+    // Just below +pi, dragged just past it. atan2 wraps to -pi there, so an implementation that
+    // subtracted raw angles would report nearly a full turn backwards.
+    const float almostPi = 3.14159265f - 0.05f;
+    CNA_EDITOR_EXPECT(drag.begin(scene, *layout, id, layout->getPointAt(almostPi)));
+
+    const std::optional<EditorQuaternion> turned =
+        drag.update(*layout, layout->getPointAt(-almostPi));
+    CNA_EDITOR_EXPECT(nearlyEqual(std::fabs(zRotationOf(*turned)), 0.1f, 0.01f));
+}
+
+CNA_EDITOR_TEST(ARotateDragOnAChildTurnsItByTheSameWorldAngle)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid parent = addEntity(scene, registry, "Parent", 0.0f, 0.0f);
+    setZRotation(scene, parent, kQuarterTurn);
+
+    const Uuid child = addEntity(scene, registry, "Child", 0.0f, 0.0f);
+    scene.reparentEntity(child, parent);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const auto layout = computeRotateGizmoLayout(scene, camera, child);
+
+    RotateGizmoDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, *layout, child, layout->getPointAt(0.0f)));
+
+    const std::optional<EditorQuaternion> turned = drag.update(*layout, layout->getPointAt(0.5f));
+    CNA_EDITOR_EXPECT(turned.has_value());
+
+    // The stored value is local, so it holds the turn alone -- the parent's quarter is not in it.
+    CNA_EDITOR_EXPECT(nearlyEqual(zRotationOf(*turned), 0.5f, 0.001f));
+
+    // And the entity really did end up half a radian round in the world, which is what the user
+    // was pointing at. Getting this wrong gives a child that lags or races its own cursor.
+    scene.findEntity(child)->findComponent(BuiltinComponentIds::kTransform)
+        ->setProperty("rotation", PropertyValue{*turned});
+    CNA_EDITOR_EXPECT(nearlyEqual(zRotationOf(computeWorldTransform(scene, child)->rotation),
+                                  kQuarterTurn + 0.5f, 0.001f));
+}
+
+CNA_EDITOR_TEST(ScaleGizmoHitTestFindsItsHandles)
+{
+    ScaleGizmoLayout layout;
+    layout.origin = EditorVector2{100.0f, 100.0f};
+
+    CNA_EDITOR_EXPECT(hitTestScaleGizmo(layout, EditorVector2{100.0f, 100.0f}) == GizmoHandle::Both);
+    CNA_EDITOR_EXPECT(hitTestScaleGizmo(layout, layout.getXTip()) == GizmoHandle::XAxis);
+    CNA_EDITOR_EXPECT(hitTestScaleGizmo(layout, layout.getYTip()) == GizmoHandle::YAxis);
+    CNA_EDITOR_EXPECT(hitTestScaleGizmo(layout, EditorVector2{140.0f, 100.0f}) == GizmoHandle::XAxis);
+    CNA_EDITOR_EXPECT(hitTestScaleGizmo(layout, EditorVector2{300.0f, 300.0f}) == GizmoHandle::None);
+
+    // The end square is a real target, so a press a few pixels off the arm's line but plainly on
+    // its handle still counts -- that is what the square is drawn for.
+    CNA_EDITOR_EXPECT(hitTestScaleGizmo(layout, EditorVector2{layout.getXTip().x, 105.0f})
+                      == GizmoHandle::XAxis);
+}
+
+CNA_EDITOR_TEST(AScaleDragIsARatioOfHowFarTheHandleMoved)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 0.0f, 0.0f);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const auto layout = computeScaleGizmoLayout(scene, camera, id);
+    CNA_EDITOR_EXPECT(layout.has_value());
+
+    ScaleGizmoDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, *layout, id, GizmoHandle::XAxis, layout->getXTip()));
+
+    // Twice as far out is twice the scale, and the axis not grabbed is untouched.
+    const EditorVector2 doubled{layout->origin.x + (layout->getXTip().x - layout->origin.x) * 2.0f,
+                                layout->origin.y};
+    const std::optional<EditorVector3> scaled = drag.update(*layout, doubled);
+    CNA_EDITOR_EXPECT(nearlyEqual(scaled->x, 2.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(scaled->y, 1.0f));
+
+    // Dragging through the origin flips the entity rather than sticking at zero: negative scale is
+    // a legitimate edit and XNA's own SpriteBatch honours it.
+    const EditorVector2 through{layout->origin.x - (layout->getXTip().x - layout->origin.x),
+                                layout->origin.y};
+    CNA_EDITOR_EXPECT(nearlyEqual(drag.update(*layout, through)->x, -1.0f));
+}
+
+CNA_EDITOR_TEST(TheUniformScaleHandleScalesBothAxesTogether)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 0.0f, 0.0f, 3.0f);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const auto layout = computeScaleGizmoLayout(scene, camera, id);
+
+    ScaleGizmoDrag drag;
+    const EditorVector2 grab{layout->origin.x + 8.0f, layout->origin.y};
+    CNA_EDITOR_EXPECT(drag.begin(scene, *layout, id, GizmoHandle::Both, grab));
+
+    // Half the distance, half the scale -- and it multiplies what was already there rather than
+    // replacing it, which is why an entity already at 3 lands on 1.5 rather than on 0.5.
+    const std::optional<EditorVector3> scaled =
+        drag.update(*layout, EditorVector2{layout->origin.x + 4.0f, layout->origin.y});
+    CNA_EDITOR_EXPECT(nearlyEqual(scaled->x, 1.5f));
+    CNA_EDITOR_EXPECT(nearlyEqual(scaled->y, 1.5f));
+}
+
+CNA_EDITOR_TEST(AScaleGrabAtTheOriginIsRefused)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 0.0f, 0.0f);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const auto layout = computeScaleGizmoLayout(scene, camera, id);
+
+    // Every factor is a division by how far out the grab was, so a grab on the pivot would scale
+    // by infinity. Refusing lets the press fall through to whatever is underneath instead.
+    ScaleGizmoDrag drag;
+    CNA_EDITOR_EXPECT(!drag.begin(scene, *layout, id, GizmoHandle::Both, layout->origin));
+    CNA_EDITOR_EXPECT(!drag.isActive());
+}
+
+CNA_EDITOR_TEST(ScaleGizmoArmsAreAlwaysLocal)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 0.0f, 0.0f);
+    setZRotation(scene, id, kQuarterTurn);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    // There is no space parameter to get wrong: a non-uniform scale in world space is not
+    // representable in a position/rotation/scale transform, so the arms are the axes the stored
+    // numbers actually belong to and nothing else.
+    const auto layout = computeScaleGizmoLayout(scene, camera, id);
+    CNA_EDITOR_EXPECT(nearlyEqual(layout->xAxis.x, 0.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(layout->xAxis.y, 1.0f));
+}
+
+CNA_EDITOR_TEST(EveryGizmoLayoutRefusesAnEntityWithNoTransform)
+{
+    SceneDocument scene;
+    const Uuid id = scene.addEntity(EditorEntity{Uuid::generate(), "Bare"});
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    CNA_EDITOR_EXPECT(!computeTranslateGizmoLayout(scene, camera, id).has_value());
+    CNA_EDITOR_EXPECT(!computeRotateGizmoLayout(scene, camera, id).has_value());
+    CNA_EDITOR_EXPECT(!computeScaleGizmoLayout(scene, camera, id).has_value());
 }
 
 CNA_EDITOR_TEST(WorldDeltaToLocalIsIdentityForRootEntities)

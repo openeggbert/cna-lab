@@ -106,7 +106,8 @@ namespace CNA::Editor
         // is on screen.
         const UiTextureId texture =
             actions_.getViewport().render(context_.getScene(), width, height, context_.getSelection(),
-                                          actions_.getGizmoMode(), actions_.getAnimationPreview());
+                                          actions_.getGizmoMode(), actions_.getGizmoSpace(),
+                                          actions_.getAnimationPreview());
 
         const UiImageInteraction interaction =
             ui_.image("##viewport", texture, region.width, region.height,
@@ -153,10 +154,10 @@ namespace CNA::Editor
 
     bool ViewportPanel::updateActiveDrag(const UiImageInteraction& interaction, const EditorVector2& cursor)
     {
-        if (gizmoDrag_.isActive())
+        if (isGizmoDragActive())
         {
             if (interaction.leftDown) { updateGizmoDrag(cursor); }
-            else { gizmoDrag_.end(); }
+            else { endGizmoDrag(); }
             return true;
         }
 
@@ -388,49 +389,133 @@ namespace CNA::Editor
         context_.log(LogSeverity::Info, "Filled " + std::to_string(cells) + " tile(s).");
     }
 
+    bool ViewportPanel::isGizmoDragActive() const
+    {
+        return translateDrag_.isActive() || rotateDrag_.isActive() || scaleDrag_.isActive();
+    }
+
+    void ViewportPanel::endGizmoDrag()
+    {
+        translateDrag_.end();
+        rotateDrag_.end();
+        scaleDrag_.end();
+    }
+
     bool ViewportPanel::beginGizmoDrag(const EditorVector2& cursor)
     {
-        if (actions_.getGizmoMode() != GizmoMode::Translate) { return false; }
-
         const Uuid selectedId = context_.getPrimarySelection();
-        const std::optional<TranslateGizmoLayout> layout =
-            computeTranslateGizmoLayout(context_.getScene(), actions_.getViewport().getCamera(), selectedId);
-        if (!layout) { return false; }
+        const SceneDocument& scene = context_.getScene();
+        const EditorCamera2D& camera = actions_.getViewport().getCamera();
 
-        const GizmoHandle handle = hitTestTranslateGizmo(*layout, cursor);
-        if (handle == GizmoHandle::None) { return false; }
-
-        if (!gizmoDrag_.begin(context_.getScene(), actions_.getViewport().getCamera(), selectedId, handle, cursor))
+        // Only the manipulator that is actually drawn can be grabbed. Hit-testing the others would
+        // let a press land on a handle nobody can see, which is indistinguishable from a bug.
+        switch (actions_.getGizmoMode())
         {
-            return false;
+            case GizmoMode::Translate:
+            {
+                const auto layout =
+                    computeTranslateGizmoLayout(scene, camera, selectedId, actions_.getGizmoSpace());
+                if (!layout) { return false; }
+
+                const GizmoHandle handle = hitTestTranslateGizmo(*layout, cursor);
+                if (!translateDrag_.begin(scene, camera, selectedId, handle, cursor,
+                                          actions_.getGizmoSpace()))
+                {
+                    return false;
+                }
+                break;
+            }
+
+            case GizmoMode::Rotate:
+            {
+                const auto layout = computeRotateGizmoLayout(scene, camera, selectedId);
+                if (!layout) { return false; }
+                if (hitTestRotateGizmo(*layout, cursor) == GizmoHandle::None) { return false; }
+                if (!rotateDrag_.begin(scene, *layout, selectedId, cursor)) { return false; }
+                break;
+            }
+
+            case GizmoMode::Scale:
+            {
+                const auto layout = computeScaleGizmoLayout(scene, camera, selectedId);
+                if (!layout) { return false; }
+
+                const GizmoHandle handle = hitTestScaleGizmo(*layout, cursor);
+                if (!scaleDrag_.begin(scene, *layout, selectedId, handle, cursor)) { return false; }
+                break;
+            }
+
+            case GizmoMode::None:
+                return false;
         }
 
         gizmoDragHasEdited_ = false;
         return true;
     }
 
-    void ViewportPanel::updateGizmoDrag(const EditorVector2& cursor)
+    void ViewportPanel::commitGizmoEdit(const Uuid& entityId, const std::string& property,
+                                        const PropertyValue& value)
     {
-        const std::optional<EditorVector3> position =
-            gizmoDrag_.update(context_.getScene(), actions_.getViewport().getCamera(), cursor);
-        if (!position) { return; }
-
-        // A drag that has not moved yet must not push anything: a press and release on a handle is
-        // not an edit, and an undo entry that restores the position it already had is worse than
-        // no entry -- it costs the user an undo to get back to a change they can actually see.
-        const EditorEntity* entity = context_.getScene().findEntity(gizmoDrag_.getEntityId());
+        const EditorEntity* entity = context_.getScene().findEntity(entityId);
         if (entity == nullptr) { return; }
+
         const EditorComponent* transform = entity->findComponent(BuiltinComponentIds::kTransform);
         if (transform == nullptr) { return; }
-        if (transform->getProperty("position").get<EditorVector3>() == *position) { return; }
+
+        // A drag that has not moved yet must not push anything: a press and release on a handle is
+        // not an edit, and an undo entry that restores the value it already had is worse than no
+        // entry -- it costs the user an undo to get back to a change they can actually see.
+        if (transform->getProperty(property) == value) { return; }
 
         // The first edit opens a new undo entry; every later one folds into it. The result is one
         // entry per drag that undoes to where the drag started -- not one per mouse-move event, and
         // not one shared with the previous drag of the same entity.
-        context_.execute(std::make_unique<SetPropertyCommand>(
-                             context_.getScene(), gizmoDrag_.getEntityId(),
-                             BuiltinComponentIds::kTransform, "position", PropertyValue{*position}),
+        context_.execute(std::make_unique<SetPropertyCommand>(context_.getScene(), entityId,
+                                                              BuiltinComponentIds::kTransform,
+                                                              property, value),
                          gizmoDragHasEdited_ ? MergePolicy::MergeWithPrevious : MergePolicy::NewEntry);
         gizmoDragHasEdited_ = true;
+    }
+
+    void ViewportPanel::updateGizmoDrag(const EditorVector2& cursor)
+    {
+        const SceneDocument& scene = context_.getScene();
+        const EditorCamera2D& camera = actions_.getViewport().getCamera();
+
+        if (translateDrag_.isActive())
+        {
+            if (const auto position = translateDrag_.update(scene, camera, cursor))
+            {
+                commitGizmoEdit(translateDrag_.getEntityId(), "position", PropertyValue{*position});
+            }
+            return;
+        }
+
+        if (rotateDrag_.isActive())
+        {
+            // The layout is recomputed each frame rather than kept from the press, so the ring
+            // stays under the entity if something else moves it -- a parent being animated by the
+            // running player, say. The drag's own start angle is what must not be recomputed, and
+            // that lives in the drag.
+            const auto layout = computeRotateGizmoLayout(scene, camera, rotateDrag_.getEntityId());
+            if (!layout) { return; }
+
+            if (const auto rotation = rotateDrag_.update(*layout, cursor))
+            {
+                commitGizmoEdit(rotateDrag_.getEntityId(), "rotation", PropertyValue{*rotation});
+            }
+            return;
+        }
+
+        if (scaleDrag_.isActive())
+        {
+            const auto layout = computeScaleGizmoLayout(scene, camera, scaleDrag_.getEntityId());
+            if (!layout) { return; }
+
+            if (const auto scale = scaleDrag_.update(*layout, cursor))
+            {
+                commitGizmoEdit(scaleDrag_.getEntityId(), "scale", PropertyValue{*scale});
+            }
+        }
     }
 }

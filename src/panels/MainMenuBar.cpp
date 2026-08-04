@@ -63,6 +63,19 @@ namespace CNA::Editor
             if (ui_.menuItem("Translate Gizmo", "W")) { actions_.setGizmoMode(GizmoMode::Translate); }
             if (ui_.menuItem("Rotate Gizmo", "E")) { actions_.setGizmoMode(GizmoMode::Rotate); }
             if (ui_.menuItem("Scale Gizmo", "R")) { actions_.setGizmoMode(GizmoMode::Scale); }
+
+            ui_.separator();
+
+            // Named for what pressing it does rather than for the state it is in, since the menu
+            // has no checkmark to carry the state.
+            if (ui_.menuItem(actions_.getGizmoSpace() == GizmoSpace::World ? "Use Local Space"
+                                                                          : "Use World Space",
+                             "X"))
+            {
+                actions_.setGizmoSpace(actions_.getGizmoSpace() == GizmoSpace::World
+                                           ? GizmoSpace::Local
+                                           : GizmoSpace::World);
+            }
             ui_.endMenu();
         }
     }
