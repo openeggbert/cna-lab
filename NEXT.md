@@ -15,12 +15,12 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 270 / 270 (also under Clang Release) |
+| Unit tests | ✅ 273 / 273 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
-| **Phase 2** | 🔄 6 of 12 done (ED-300, 301, 305, 306, 307, 310), ED-311 half; ED-302/303/304/308/309 open |
+| **Phase 2** | 🔄 6 of 12 done (ED-300, 301, 305, 306, 307, 310), ED-302 and ED-311 half; ED-303/304/308/309 open |
 | Owner priorities 1 and 2 | ✅ closed (robustness and data safety; live editing into the player) |
 
 ---
@@ -87,6 +87,13 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-302 (part)** sprite fonts. The `.spritefont` description is read and reported in the
+  inspector, all of it **read-only** -- the file is the content pipeline's own input, so an
+  editable copy in the sidecar would be a second answer to a question the build asks the file.
+  Read by a targeted tag scan, not an XML parser, and guarded by a structural check so an ordinary
+  XML file with a `<Size>` element is not read as a font. **The glyph preview is not done** and
+  ED-302 is 🔄: it needs a built `SpriteFont`, and CNA exposes no public way to make one from a
+  `.spritefont` -- recorded as gap G-04.
 - **ED-301** tilemaps. Flat `List<Integer>` grid on an ordinary component, so no new serialised
   structure and nothing else had to learn a new type. A stroke is one undo entry and the merge key
   carries the *stroke id* -- entity + property alone cannot tell two drags apart. Painting is an
@@ -241,6 +248,7 @@ Phase 1 closed. Working through the owner's priority order:
 | G-01 | `Microsoft::Xna::Framework::Color` has no default constructor | `std::vector<Color>::resize(n)` does not compile. XNA's `Color` *is* default-constructible, so this is a real behavioural difference. Worked around with `assign`. |
 | G-02 | `CNA::Devices::Clipboard` sits inside `#ifdef CNA_DEVICES`, default OFF | An editor built against a default CNA has no clipboard. Degrades cleanly and is reported. |
 | G-03 | `RenderTarget2D` sampled as a texture is not origin-normalised across backends | EASYGL renders it flipped, SOFTWARE does not. Worked around by `EditorViewport::isRenderTextureFlippedVertically()`, which is a compile-time constant per backend. |
+| G-04 | No public way to build a `SpriteFont` | `SpriteFont`'s constructor takes an already-built glyph atlas, and the only reader that produces one is `CNA::Internal::Xnb::SpriteFontReader` -- which D-01 forbids the editor from touching. So the editor can describe a `.spritefont` but not preview its glyphs (ED-302). A public `ContentManager::Load<SpriteFont>` specialisation, or a public font builder, would close it. |
 
 ---
 
@@ -250,8 +258,8 @@ Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are
 `PropertyType::List` is in, which was the thing blocking the rest of priority 3.
 
 The next task is **ED-303, the sprite animation editor**, and it is the one remaining item in
-Phase 2 with real design in it. ED-302 (`SpriteFont` preview) is smaller and could go first if a
-short task suits better.
+Phase 2 with real design in it. (ED-302's editable half is done; only its preview is left, and that
+is blocked on CNA gap G-04 rather than on effort here.)
 
 What exists to build on: `PropertyType::List` (an animation is a list of frames), the tilemap's
 source-rectangle arithmetic (a sprite sheet and a tile sheet are addressed identically), and

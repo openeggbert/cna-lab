@@ -1294,3 +1294,107 @@ CNA_EDITOR_TEST(TheLayerComponentOffersWhateverTheProjectDeclares)
     CNA_EDITOR_EXPECT_EQ(registry.find(BuiltinComponentIds::kLayer)->findProperty("layer")->enumOptions.size(),
                          std::size_t{3});
 }
+
+// --------------------------------------------------------------------------------------------
+// Sprite fonts (plan.md ED-302)
+// --------------------------------------------------------------------------------------------
+
+CNA_EDITOR_TEST(ASpriteFontDescribesItselfAndTheEditorReportsIt)
+{
+    const std::filesystem::path directory = makeScratchDirectory("spritefont");
+    writeFile(directory / "Assets" / "Menu.spritefont",
+              R"(<?xml version="1.0" encoding="utf-8"?>)"
+              R"(<XnaContent xmlns:Graphics="Microsoft.Xna.Framework.Content.Pipeline.Graphics">)"
+              R"(<Asset Type="Graphics:FontDescription">)"
+              R"(<FontName>Segoe UI</FontName>)"
+              R"(<Size>14</Size>)"
+              R"(<Spacing>2</Spacing>)"
+              R"(<UseKerning>false</UseKerning>)"
+              R"(<CharacterRegions><CharacterRegion>)"
+              R"(<Start>&#32;</Start><End>&#126;</End>)"
+              R"(</CharacterRegion></CharacterRegions>)"
+              R"(</Asset></XnaContent>)");
+
+    const std::optional<SpriteFontDescription> description =
+        readSpriteFontDescription((directory / "Assets" / "Menu.spritefont").generic_string());
+    CNA_EDITOR_EXPECT(description.has_value());
+    if (!description) { return; }
+
+    CNA_EDITOR_EXPECT_EQ(description->fontName, std::string{"Segoe UI"});
+    CNA_EDITOR_EXPECT_EQ(description->pointSize, 14.0f);
+    CNA_EDITOR_EXPECT_EQ(description->spacing, 2.0f);
+    CNA_EDITOR_EXPECT(!description->useKerning);
+
+    // The entity form is the common one, because the usual region starts at a space -- and a space
+    // written literally between two tags is exactly what whitespace trimming would eat.
+    CNA_EDITOR_EXPECT_EQ(description->firstCharacter, 32);
+    CNA_EDITOR_EXPECT_EQ(description->lastCharacter, 126);
+
+    // Scanning writes the facts into the sidecar, where the inspector shows them read-only.
+    AssetDatabase database;
+    database.setProjectRoot(directory.generic_string());
+    CNA_EDITOR_EXPECT(database.scan("Assets").succeeded);
+    CNA_EDITOR_EXPECT_EQ(applyImporterFacts(database), std::size_t{1});
+
+    const AssetRecord* record = database.findByPath("Assets/Menu.spritefont");
+    CNA_EDITOR_EXPECT(record != nullptr);
+    if (record == nullptr) { return; }
+
+    CNA_EDITOR_EXPECT(record->type == AssetType::SpriteFont);
+    CNA_EDITOR_EXPECT_EQ(record->importerSettings["fontName"].asString(), std::string{"Segoe UI"});
+    CNA_EDITOR_EXPECT_EQ(record->importerSettings["characterRange"].asString(), std::string{"32-126"});
+
+    // Nothing changed the second time, so opening a project twice produces no diff -- the rule that
+    // keeps --headless safe to run against a repository you want left alone.
+    CNA_EDITOR_EXPECT_EQ(applyImporterFacts(database), std::size_t{0});
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(AnXmlFileThatIsNotASpriteFontIsNotReadAsOne)
+{
+    const std::filesystem::path directory = makeScratchDirectory("notaspritefont");
+
+    // Without a structural check, any XML with a <Size> element would be read as a sprite font and
+    // the inspector would report confident nonsense about it.
+    writeFile(directory / "config.xml", "<Settings><Size>14</Size></Settings>");
+    CNA_EDITOR_EXPECT(!readSpriteFontDescription((directory / "config.xml").generic_string()).has_value());
+    CNA_EDITOR_EXPECT(!readSpriteFontDescription((directory / "absent.spritefont").generic_string()).has_value());
+
+    // A real one missing half its fields is read for what it does say rather than refused: an
+    // asset the editor cannot fully describe is still one it must not hide.
+    writeFile(directory / "Bare.spritefont",
+              R"(<Asset Type="Graphics:SpriteFontDescription"><FontName>Arial</FontName></Asset>)");
+    const std::optional<SpriteFontDescription> bare =
+        readSpriteFontDescription((directory / "Bare.spritefont").generic_string());
+    CNA_EDITOR_EXPECT(bare.has_value());
+    if (bare)
+    {
+        CNA_EDITOR_EXPECT_EQ(bare->fontName, std::string{"Arial"});
+        CNA_EDITOR_EXPECT_EQ(bare->pointSize, 0.0f);
+        CNA_EDITOR_EXPECT(bare->useKerning);
+    }
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(TheSpriteFontImporterOffersFactsAndNoSettings)
+{
+    ComponentRegistry registry;
+    registerBuiltinImporters(registry);
+
+    const ComponentDescriptor* descriptor = registry.find(ImporterIds::kSpriteFont);
+    CNA_EDITOR_EXPECT(descriptor != nullptr);
+    if (descriptor == nullptr) { return; }
+
+    // Every field read-only, and that is the design. A .spritefont is the content pipeline's own
+    // input; an editable copy of its fields in the sidecar would be a second answer to a question
+    // the build asks the file.
+    CNA_EDITOR_EXPECT(!descriptor->properties.empty());
+    for (const PropertyDescriptor& property : descriptor->properties)
+    {
+        CNA_EDITOR_EXPECT(property.readOnly);
+    }
+    CNA_EDITOR_EXPECT(descriptor->findProperty("fontName") != nullptr);
+    CNA_EDITOR_EXPECT(descriptor->findProperty("characterRange") != nullptr);
+}

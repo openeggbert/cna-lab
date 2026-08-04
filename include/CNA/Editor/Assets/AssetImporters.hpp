@@ -44,6 +44,35 @@ namespace CNA::Editor
      */
     void registerBuiltinImporters(ComponentRegistry& registry);
 
+    /**
+     * @brief What a `.spritefont` file declares about itself.
+     *
+     * Everything here is a *fact about the file*, never a setting. XNA's `.spritefont` is the
+     * content pipeline's own input, so the editor keeping an editable copy of these would produce
+     * two answers to one question -- and the one the build actually reads is the file's.
+     */
+    struct SpriteFontDescription
+    {
+        std::string fontName;
+        float pointSize = 0.0f;
+        float spacing = 0.0f;
+        bool useKerning = true;
+
+        /** @brief Inclusive character-code range, as declared by the first `CharacterRegion`. */
+        int firstCharacter = 0;
+        int lastCharacter = 0;
+    };
+
+    /**
+     * @brief Reads a `.spritefont` description, or returns nothing when the file is not one.
+     *
+     * A targeted tag scan rather than an XML parser. The schema is fixed, tiny and machine-written,
+     * six fields are wanted from it, and taking on an XML dependency to read six fields would be
+     * the larger risk. A file that does not look like a `.spritefont` is reported as such rather
+     * than guessed at.
+     */
+    [[nodiscard]] std::optional<SpriteFontDescription> readSpriteFontDescription(const std::string& path);
+
     /** @brief An image's dimensions in pixels. */
     struct ImageSize
     {

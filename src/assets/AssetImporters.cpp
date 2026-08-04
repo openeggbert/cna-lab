@@ -4,10 +4,75 @@
 #include <array>
 #include <cstdint>
 #include <fstream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace CNA::Editor
 {
+    /** @brief Helpers shared by the sprite-font reader and the facts pass. */
+    namespace Detail
+    {
+        /** @brief Returns the text between `<tag>` and `</tag>`, or an empty string. */
+        std::string readTag(const std::string& text, std::string_view tag)
+        {
+            const std::string open = "<" + std::string{tag} + ">";
+            const std::string close = "</" + std::string{tag} + ">";
+
+            const std::size_t start = text.find(open);
+            if (start == std::string::npos) { return {}; }
+
+            const std::size_t from = start + open.size();
+            const std::size_t end = text.find(close, from);
+            if (end == std::string::npos) { return {}; }
+
+            std::string value = text.substr(from, end - from);
+            const std::size_t first = value.find_first_not_of(" \t\r\n");
+            const std::size_t last = value.find_last_not_of(" \t\r\n");
+            if (first == std::string::npos) { return {}; }
+            return value.substr(first, last - first + 1);
+        }
+
+        /** @brief Parses a number, answering zero rather than throwing on anything else. */
+        float toFloat(const std::string& text)
+        {
+            try { return std::stof(text); }
+            catch (const std::exception&) { return 0.0f; }
+        }
+
+        /**
+         * @brief Turns a `CharacterRegion` bound into a character code.
+         *
+         * XNA writes these either as the character itself or as an XML entity, and a file written
+         * by hand may use either -- so both are read. The space at the start of the usual region
+         * is exactly the case that makes the entity form common.
+         */
+        int toCharacterCode(const std::string& text)
+        {
+            if (text.empty()) { return 0; }
+
+            if (text.size() > 3 && text.rfind("&#", 0) == 0 && text.back() == ';')
+            {
+                const bool hexadecimal = text[2] == 'x' || text[2] == 'X';
+                try
+                {
+                    return std::stoi(text.substr(hexadecimal ? 3 : 2, text.size() - (hexadecimal ? 4 : 3)),
+                                     nullptr, hexadecimal ? 16 : 10);
+                }
+                catch (const std::exception&) { return 0; }
+            }
+            return static_cast<unsigned char>(text.front());
+        }
+
+        /**
+         * @brief Writes what a `.spritefont` says about itself into its sidecar.
+         *
+         * @return True when something changed, so that opening a project twice produces no diff.
+         */
+        bool applySpriteFontFacts(AssetDatabase& assets, const AssetRecord& record);
+    }
+
     namespace
     {
         PropertyDescriptor makeProperty(std::string name,
@@ -70,6 +135,42 @@ namespace CNA::Editor
             };
 
             descriptor.unique = true;
+            return descriptor;
+        }
+
+        ComponentDescriptor makeSpriteFontImporter()
+        {
+            ComponentDescriptor descriptor;
+            descriptor.typeId = ImporterIds::kSpriteFont;
+            descriptor.displayName = "Sprite Font Importer";
+            descriptor.category = "Import";
+
+            // Every field here is read-only, and that is the design rather than an omission. A
+            // `.spritefont` is the content pipeline's own input: it already declares the font, the
+            // size, the spacing and the character range, and an editable copy in the sidecar would
+            // be a second answer to a question the build asks the file. So the editor reports what
+            // the file says instead -- which is the part a person actually wants, since "what font
+            // is this and does it cover the characters I need" is otherwise an XML file away.
+            const auto fact = [](std::string name, std::string display, PropertyType type,
+                                 PropertyValue defaultValue, std::string tooltip) {
+                PropertyDescriptor property = makeProperty(std::move(name), std::move(display), type,
+                                                           std::move(defaultValue), std::move(tooltip));
+                property.readOnly = true;
+                return property;
+            };
+
+            descriptor.properties = {
+                fact("fontName", "Font", PropertyType::String, PropertyValue{std::string{}},
+                     "The typeface the .spritefont asks the content pipeline to rasterise."),
+                fact("pointSize", "Size", PropertyType::Float, PropertyValue{0.0f}, "In points."),
+                fact("spacing", "Spacing", PropertyType::Float, PropertyValue{0.0f},
+                     "Extra horizontal space between glyphs, in pixels."),
+                fact("useKerning", "Kerning", PropertyType::Boolean, PropertyValue{true},
+                     "Whether the pipeline applies the font's own kerning pairs."),
+                fact("characterRange", "Characters", PropertyType::String, PropertyValue{std::string{}},
+                     "The first CharacterRegion the file declares, as a code range. Answers "
+                     "\"why does this text render as boxes\" without opening the XML."),
+            };
             return descriptor;
         }
 
@@ -174,12 +275,96 @@ namespace CNA::Editor
         return std::nullopt;
     }
 
+    bool Detail::applySpriteFontFacts(AssetDatabase& assets, const AssetRecord& record)
+    {
+        const std::optional<SpriteFontDescription> description =
+            readSpriteFontDescription(assets.resolvePath(record.sourcePath));
+        if (!description) { return false; }
+
+        JsonValue facts = JsonValue::makeObject();
+        facts.set("fontName", JsonValue{description->fontName});
+        facts.set("pointSize", JsonValue{static_cast<double>(description->pointSize)});
+        facts.set("spacing", JsonValue{static_cast<double>(description->spacing)});
+        facts.set("useKerning", JsonValue{description->useKerning});
+        facts.set("characterRange", JsonValue{std::to_string(description->firstCharacter) + "-"
+                                              + std::to_string(description->lastCharacter)});
+
+        // Compared before writing, so that opening a project twice produces no diff -- the same
+        // rule the texture facts follow, and the one that keeps `--headless` safe to run against a
+        // repository you want left alone.
+        bool unchanged = true;
+        for (const auto& [name, value] : facts.getMembers())
+        {
+            if (Json::write(record.importerSettings[name], false) != Json::write(value, false))
+            {
+                unchanged = false;
+                break;
+            }
+        }
+        if (unchanged) { return false; }
+
+        AssetRecord* mutableRecord = assets.findMutable(record.id);
+        if (mutableRecord == nullptr) { return false; }
+
+        if (mutableRecord->importerSettings.isNull())
+        {
+            mutableRecord->importerSettings = JsonValue::makeObject();
+        }
+        for (const auto& [name, value] : facts.getMembers())
+        {
+            mutableRecord->importerSettings.set(name, value);
+        }
+        assets.writeSidecar(record.id);
+        return true;
+    }
+
+    std::optional<SpriteFontDescription> readSpriteFontDescription(const std::string& path)
+    {
+        std::ifstream stream{path, std::ios::binary};
+        if (!stream) { return std::nullopt; }
+
+        std::ostringstream buffer;
+        buffer << stream.rdbuf();
+        const std::string text = buffer.str();
+
+        // The one structural check. Without it any XML file with a <Size> element would be read as
+        // a sprite font, and the inspector would report confident nonsense about it. Matched on the
+        // suffix because XNA writes `Graphics:FontDescription` while hand-written and
+        // MonoGame-flavoured files often say `SpriteFontDescription`; both are the same asset.
+        if (text.find("<Asset") == std::string::npos
+            || text.find("FontDescription") == std::string::npos)
+        {
+            return std::nullopt;
+        }
+
+        SpriteFontDescription description;
+        description.fontName = Detail::readTag(text, "FontName");
+
+        const std::string size = Detail::readTag(text, "Size");
+        if (!size.empty()) { description.pointSize = Detail::toFloat(size); }
+
+        const std::string spacing = Detail::readTag(text, "Spacing");
+        if (!spacing.empty()) { description.spacing = Detail::toFloat(spacing); }
+
+        const std::string kerning = Detail::readTag(text, "UseKerning");
+        if (!kerning.empty()) { description.useKerning = kerning != "false" && kerning != "False"; }
+
+        description.firstCharacter = Detail::toCharacterCode(Detail::readTag(text, "Start"));
+        description.lastCharacter = Detail::toCharacterCode(Detail::readTag(text, "End"));
+        return description;
+    }
+
     std::size_t applyImporterFacts(AssetDatabase& assets)
     {
         std::size_t changed = 0;
 
         for (const AssetRecord* record : assets.getAll())
         {
+            if (record->type == AssetType::SpriteFont)
+            {
+                changed += Detail::applySpriteFontFacts(assets, *record) ? 1 : 0;
+                continue;
+            }
             if (record->type != AssetType::Texture2D) { continue; }
 
             const std::optional<ImageSize> size = readImageSize(assets.resolvePath(record->sourcePath));
@@ -213,6 +398,7 @@ namespace CNA::Editor
     void registerBuiltinImporters(ComponentRegistry& registry)
     {
         registry.registerComponent(makeTextureImporter());
+        registry.registerComponent(makeSpriteFontImporter());
         registry.registerComponent(makeSoundEffectImporter());
         registry.registerComponent(makeModelImporter());
     }
