@@ -22,6 +22,7 @@
 #include "CNA/Editor/ProjectCommands.hpp"
 #include "CNA/Editor/Scene/PrefabCommands.hpp"
 #include "CNA/Editor/Scene/PrefabDocument.hpp"
+#include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Scene/MissingReferences.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -2594,4 +2595,164 @@ CNA_EDITOR_TEST(ApplyingAnInstantiatedInstanceKeepsEveryLinkIntact)
     fixture.application->renderFrame();
     CNA_EDITOR_EXPECT(ui->sawText("No changes from the prefab."));
     CNA_EDITOR_EXPECT(findPrefabOverrides(context.getScene(), instanceRoot, onDisk, context.getComponentRegistry()).empty());
+}
+
+namespace
+{
+    /**
+     * @brief Builds an editor holding one selected 8x8 tilemap whose origin is at world (0, 0).
+     *
+     * With the null UI's 1280x720 content region and the camera's defaults -- centre (0, 0), zoom 1
+     * -- world (0, 0) lands at screen (640, 360), so tile (0, 0) covers screen x 640..671 and
+     * y 360..391. Every coordinate the test presses at is exact rather than approximate.
+     */
+    GizmoFixture makeTilemapFixture()
+    {
+        GizmoFixture fixture;
+        auto ui = std::make_unique<ScriptedUi>();
+        fixture.ui = ui.get();
+        fixture.application =
+            std::make_unique<EditorApplication>(std::move(ui), std::make_unique<NullEditorViewport>());
+
+        EditorOptions options;
+        options.headless = true;
+        fixture.application->initialize(options);
+
+        EditorContext& context = fixture.application->getContext();
+        const ComponentRegistry& registry = context.getComponentRegistry();
+
+        EditorEntity entity{Uuid::generate(), "Ground"};
+        EditorComponent transform{BuiltinComponentIds::kTransform};
+        transform.applyDefaults(*registry.find(BuiltinComponentIds::kTransform));
+        entity.addComponent(std::move(transform));
+
+        EditorComponent tilemap{BuiltinComponentIds::kTilemap};
+        tilemap.applyDefaults(*registry.find(BuiltinComponentIds::kTilemap));
+        tilemap.setProperty(TilemapKeys::kColumns, PropertyValue{std::int64_t{8}});
+        tilemap.setProperty(TilemapKeys::kRows, PropertyValue{std::int64_t{8}});
+        entity.addComponent(std::move(tilemap));
+
+        fixture.entityId = entity.getId();
+        context.getScene().addEntity(std::move(entity));
+        context.select(fixture.entityId);
+
+        fixture.step(UiImageInteraction{});
+        return fixture;
+    }
+
+    /** @brief Reads the tilemap grid off the fixture's entity. */
+    TilemapGrid gridOf(const GizmoFixture& fixture)
+    {
+        const EditorContext& context = fixture.application->getContext();
+        const EditorComponent* tilemap = context.getScene()
+                                             .findEntity(fixture.entityId)
+                                             ->findComponent(BuiltinComponentIds::kTilemap);
+        return readTilemapGrid(*tilemap, context.getComponentRegistry().find(BuiltinComponentIds::kTilemap));
+    }
+}
+
+CNA_EDITOR_TEST(TheBrushPaintsAcrossADragAsOneUndoEntry)
+{
+    GizmoFixture fixture = makeTilemapFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    fixture.application->setEditorTool(EditorTool::PaintTiles);
+    fixture.application->setPaintTile(4);
+
+    const std::size_t before = context.getHistory().getCount();
+
+    // A drag straight across the first row: tiles are 32 wide and (0, 0) starts at screen x 640.
+    fixture.step(leftAt(650.0f, 370.0f, true));
+    fixture.step(leftAt(682.0f, 370.0f, false));
+    fixture.step(leftAt(714.0f, 370.0f, false));
+
+    UiImageInteraction release;
+    release.hovered = true;
+    release.localMouseX = 714.0f;
+    release.localMouseY = 370.0f;
+    release.leftReleased = true;
+    fixture.step(release);
+
+    const TilemapGrid grid = gridOf(fixture);
+    CNA_EDITOR_EXPECT_EQ(grid.at(0, 0), std::int64_t{4});
+    CNA_EDITOR_EXPECT_EQ(grid.at(1, 0), std::int64_t{4});
+    CNA_EDITOR_EXPECT_EQ(grid.at(2, 0), std::int64_t{4});
+    CNA_EDITOR_EXPECT_EQ(grid.at(3, 0), kEmptyTile);
+
+    // One stroke, one entry. Three would make undoing a drag three presses, which is not what the
+    // user did.
+    CNA_EDITOR_EXPECT_EQ(context.getHistory().getCount(), before + 1);
+
+    fixture.application->undo();
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(1, 0), kEmptyTile);
+
+    // A second stroke is its own entry: the merge key carries the stroke, not just the property.
+    fixture.application->redo();
+    fixture.step(leftAt(650.0f, 402.0f, true));
+    fixture.step(leftAt(682.0f, 402.0f, false));
+    CNA_EDITOR_EXPECT_EQ(context.getHistory().getCount(), before + 2);
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(0, 1), std::int64_t{4});
+
+    fixture.application->undo();
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(0, 1), kEmptyTile);
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(0, 0), std::int64_t{4});
+}
+
+CNA_EDITOR_TEST(TheEraserClearsAndTheBrushDoesNotSelectOrPickTheCamera)
+{
+    GizmoFixture fixture = makeTilemapFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    fixture.application->setEditorTool(EditorTool::PaintTiles);
+    fixture.application->setPaintTile(2);
+    fixture.step(leftAt(650.0f, 370.0f, true));
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(0, 0), std::int64_t{2});
+
+    // While a brush is active a press paints and nothing else. Clearing the selection here would
+    // take away the very tilemap being painted into.
+    UiImageInteraction click;
+    click.hovered = true;
+    click.localMouseX = 1200.0f;
+    click.localMouseY = 700.0f;
+    click.clicked = true;
+    fixture.step(click);
+    CNA_EDITOR_EXPECT(context.getPrimarySelection() == fixture.entityId);
+
+    fixture.application->setEditorTool(EditorTool::EraseTiles);
+    fixture.step(leftAt(650.0f, 370.0f, true));
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(0, 0), kEmptyTile);
+
+    // Painting outside the map does nothing rather than growing it: a map's size is a property the
+    // user set, not something a stray drag should change.
+    const std::size_t entries = context.getHistory().getCount();
+    fixture.application->setEditorTool(EditorTool::PaintTiles);
+    fixture.step(leftAt(300.0f, 370.0f, true));
+    CNA_EDITOR_EXPECT_EQ(context.getHistory().getCount(), entries);
+}
+
+CNA_EDITOR_TEST(TheBrushSaysSoWhenTheSelectionHasNoTilemap)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    fixture.application->setEditorTool(EditorTool::PaintTiles);
+    fixture.step(leftAt(700.0f, 400.0f, true));
+
+    // Once per stroke, not once per frame: a brush over a sprite is a near miss, and sixty lines a
+    // second about it is how a console stops being read.
+    CNA_EDITOR_EXPECT(fixture.logContains("Select an entity with a Tilemap component"));
+
+    std::size_t mentions = 0;
+    for (const auto& entry : fixture.ui->getLog())
+    {
+        if (entry.message.find("Select an entity with a Tilemap") != std::string::npos) { ++mentions; }
+    }
+    fixture.step(leftAt(710.0f, 400.0f, false));
+    fixture.step(leftAt(720.0f, 400.0f, false));
+
+    std::size_t after = 0;
+    for (const auto& entry : fixture.ui->getLog())
+    {
+        if (entry.message.find("Select an entity with a Tilemap") != std::string::npos) { ++after; }
+    }
+    CNA_EDITOR_EXPECT_EQ(after, mentions);
 }

@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
+#include "CNA/Editor/Core/ComponentDescriptor.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
 #include "CNA/Editor/Ui/UiDrawData.hpp"
 #include "CNA/Editor/Viewport/EditorViewport.hpp"
@@ -52,6 +53,9 @@ namespace CNA::Editor
 
         /** @brief Sprites whose texture asset could not be loaded, drawn as a placeholder. */
         std::size_t missingTextures = 0;
+
+        /** @brief Non-empty tilemap cells drawn this frame, after culling to the viewport. */
+        std::size_t tilesDrawn = 0;
     };
 
     /**
@@ -70,9 +74,16 @@ namespace CNA::Editor
         CnaSceneRenderer(const CnaSceneRenderer&) = delete;
         CnaSceneRenderer& operator=(const CnaSceneRenderer&) = delete;
 
-        /** @brief Binds the renderer to a device and an asset database. */
+        /**
+         * @brief Binds the renderer to a device, an asset database and a component registry.
+         *
+         * The registry supplies declared defaults. A tilemap authored by hand may omit its tile
+         * size, and reading zero there would draw nothing with no explanation -- the descriptor is
+         * the only thing that knows what the field means when the file does not say.
+         */
         void initialize(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
-                        const AssetDatabase& assets);
+                        const AssetDatabase& assets,
+                        const ComponentRegistry& components);
 
         /** @brief Releases the render target and every loaded texture. */
         void shutdown();
@@ -141,11 +152,13 @@ namespace CNA::Editor
      *
      * @param device The graphics device; must outlive the viewport.
      * @param assets Where sprite textures are resolved from.
+     * @param components Supplies declared property defaults for the components it draws.
      * @param uiRenderer The UI renderer the rendered target is shared through, so the viewport
      *        panel can display it as an ordinary image.
      */
     std::unique_ptr<EditorViewport> createCnaEditorViewport(
         Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
         const AssetDatabase& assets,
+        const ComponentRegistry& components,
         CnaUiRenderer& uiRenderer);
 }

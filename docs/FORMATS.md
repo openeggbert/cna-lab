@@ -191,6 +191,13 @@ all-zero quaternion is not a rotation and would collapse the transform.
 An **empty rectangle** (`width` or `height` ≤ 0) means "the whole texture", matching XNA's own
 `SpriteBatch::Draw` convention for a null source rectangle.
 
+A **tilemap**'s grid is one of these: `CNA.Tilemap.tiles` is a `list` of `int`, row-major, `-1` for
+an empty cell, sized by the component's own `columns` and `rows`. Empty is negative rather than zero
+so that tile 0 — the first tile in every sheet anyone draws — stays usable. A stored list of the
+wrong length is padded or truncated on load rather than rejected: a hand-edited scene one row short
+should open and be fixable. There is no sparse form; it would scale better and diff worse, and is
+not worth reaching for before a real map is measurably slow.
+
 A **list** carries no per-element type tag. Its element type is declared once, on the
 `PropertyDescriptor`, and never inferred from the contents — an empty list has no element to infer
 from, and a list whose type followed its contents could never be edited back from empty. A tag per

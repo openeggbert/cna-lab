@@ -218,6 +218,59 @@ namespace CNA::Editor
             return descriptor;
         }
 
+        ComponentDescriptor makeTilemap()
+        {
+            ComponentDescriptor descriptor;
+            descriptor.typeId = BuiltinComponentIds::kTilemap;
+            descriptor.displayName = "Tilemap";
+            descriptor.category = "Rendering";
+
+            PropertyDescriptor tileSet = makeProperty("tileSet", "Tile Set", PropertyType::AssetReference,
+                                                       PropertyValue{PropertyValue::AssetReference{}},
+                                                       "Texture2D holding the tiles, in a grid.");
+            tileSet.assetType = "Texture2D";
+
+            PropertyDescriptor columns = makeProperty("columns", "Columns", PropertyType::Integer,
+                                                      PropertyValue{std::int64_t{16}},
+                                                      "Map width, in tiles.");
+            columns.minimum = 0.0;
+            columns.maximum = 4096.0;
+
+            PropertyDescriptor rows = makeProperty("rows", "Rows", PropertyType::Integer,
+                                                   PropertyValue{std::int64_t{16}}, "Map height, in tiles.");
+            rows.minimum = 0.0;
+            rows.maximum = 4096.0;
+
+            PropertyDescriptor sheetColumns =
+                makeProperty("sheetColumns", "Sheet Columns", PropertyType::Integer,
+                             PropertyValue{std::int64_t{8}},
+                             "How many tiles across the tile set is. Together with the tile size "
+                             "this turns a tile index into a source rectangle.");
+            sheetColumns.minimum = 1.0;
+            sheetColumns.maximum = 4096.0;
+
+            // A flat list of indices, in an ordinary List property. No new serialised structure and
+            // no new property type, so a scene holding a tilemap is readable by anything that could
+            // already read a scene.
+            PropertyDescriptor tiles = makeProperty(
+                "tiles", "Tiles", PropertyType::List, PropertyValue{PropertyValue::ListValue{}},
+                "Row-major tile indices; -1 is empty. Painted in the viewport rather than typed.");
+            tiles.elementType = PropertyType::Integer;
+            tiles.readOnly = true;
+
+            descriptor.properties = {
+                std::move(tileSet),
+                makeProperty("tileWidth", "Tile Width", PropertyType::Integer, PropertyValue{std::int64_t{32}},
+                             "Tile size in pixels, in the sheet and on screen."),
+                makeProperty("tileHeight", "Tile Height", PropertyType::Integer, PropertyValue{std::int64_t{32}}),
+                std::move(sheetColumns),
+                std::move(columns),
+                std::move(rows),
+                std::move(tiles),
+            };
+            return descriptor;
+        }
+
         ComponentDescriptor makeLayer(const std::vector<std::string>& layers)
         {
             ComponentDescriptor descriptor;
@@ -255,6 +308,7 @@ namespace CNA::Editor
         registry.registerComponent(makeModelRenderer());
         registry.registerComponent(makeLight());
         registry.registerComponent(makeTags());
+        registry.registerComponent(makeTilemap());
         registry.registerComponent(makeLayer({kDefaultLayerName}));
     }
 }

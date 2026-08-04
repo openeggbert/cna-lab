@@ -7,6 +7,8 @@
  */
 
 #include "CNA/Editor/Panels/EditorPanel.hpp"
+#include <cstdint>
+
 #include "CNA/Editor/Scene/TranslateGizmo.hpp"
 
 namespace CNA::Editor
@@ -35,6 +37,17 @@ namespace CNA::Editor
         /** @brief Applies the in-progress drag to the entity's position as one merged command. */
         void updateGizmoDrag(const EditorVector2& cursor);
 
+        /** @brief Draws the tool picker and the tile index the paint tool writes. */
+        void drawToolbar();
+
+        /**
+         * @brief Paints or erases the tile under @p cursor on the selected tilemap.
+         *
+         * @param startStroke True on the frame the button went down, which begins a new undo entry.
+         *        Every frame after it merges into that entry, so one drag is one Ctrl+Z.
+         */
+        void paintTileAt(const EditorVector2& cursor, bool startStroke);
+
         TranslateGizmoDrag gizmoDrag_;
 
         /**
@@ -46,5 +59,14 @@ namespace CNA::Editor
          * and the two moves would undo together as if they had been one.
          */
         bool gizmoDragHasEdited_ = false;
+
+        /**
+         * @brief Which paint stroke is in progress, and whether it has pushed a command yet.
+         *
+         * The stroke id is part of the merge key, which is what keeps two separate drags from
+         * collapsing into one undo entry -- the property alone cannot tell them apart.
+         */
+        std::uint64_t paintStroke_ = 0;
+        bool paintStrokeHasEdited_ = false;
     };
 }

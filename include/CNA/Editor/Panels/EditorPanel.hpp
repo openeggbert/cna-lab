@@ -18,6 +18,7 @@
  */
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "CNA/Editor/Core/Uuid.hpp"
@@ -37,6 +38,26 @@ namespace CNA::Editor
         Playing,
         Paused
     };
+
+    /**
+     * @brief What a press in the viewport means.
+     *
+     * Kept apart from GizmoMode on purpose. A gizmo mode picks *which manipulator* acts on the
+     * selection; a tool decides whether a press manipulates anything at all. Folding a paint brush
+     * into the gizmo enumeration would make "no gizmo" and "painting" the same state.
+     */
+    enum class EditorTool
+    {
+        /** @brief Pick entities and drag the gizmo. The default. */
+        Select,
+        /** @brief Set the tile under the cursor on the selected tilemap. */
+        PaintTiles,
+        /** @brief Clear the tile under the cursor. */
+        EraseTiles
+    };
+
+    /** @brief Returns the display name of @p tool. */
+    const char* toString(EditorTool tool);
 
     /**
      * @brief The editor operations a panel can invoke.
@@ -100,6 +121,13 @@ namespace CNA::Editor
 
         /** @brief Deletes the snapshot, accepting the file on disk as the truth. */
         virtual void discardRecoveredScene() = 0;
+
+        virtual void setEditorTool(EditorTool tool) = 0;
+        [[nodiscard]] virtual EditorTool getEditorTool() const = 0;
+
+        /** @brief The tile index the paint tool writes. Ignored by every other tool. */
+        virtual void setPaintTile(std::int64_t tile) = 0;
+        [[nodiscard]] virtual std::int64_t getPaintTile() const = 0;
     };
 
     /**

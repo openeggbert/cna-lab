@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **262 passing tests across 7 CTest suites** (10 with CNA)
+- 12 modules, three executables, and **270 passing tests across 7 CTest suites** (10 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -35,6 +35,8 @@ checkout, no GPU and no window:
 - the scene draws with an adaptive grid, sprites ordered by layer depth, selection outlines, a
   **translate gizmo** whose drag is one undo entry, and **icons** for entities that have no
   geometry to draw
+- **tilemaps**: a `CNA.Tilemap` component, a viewport brush and eraser with one undo entry per
+  stroke, and rendering in the content pass so tiles and sprites sort against each other
 - **prefabs**: Create Prefab from a hierarchy row writes a `.cnaprefab` and makes the original
   an instance; dropping one from the browser instantiates it; the inspector reports what an
   instance has changed and offers Revert and Apply. Every step undoes, file writes included
@@ -243,7 +245,7 @@ position in the inspector, undo, save the scene, and run it in a separate CNA Pl
 | Id | Task | Status | Notes |
 |----|------|:------:|-------|
 | ED-300 | Prefabs: create, instantiate, override, apply | ✅ | `.cnaprefab` reuses the scene's entity encoding through the extracted `EntityJson.hpp`, because an instantiated prefab and a hand-authored entity must be indistinguishable once they are in a scene. **Overrides are computed, not stored**: the scene holds the instance's real values and "what changed?" is a comparison. A stored list would be a second description of the same fact, free to disagree — and that disagreement surfaces as a property reverting to a value the user never chose. It also meant prefabs added *no* field to the scene format. Revert removes user-added entities on purpose: a revert that kept some changes is not a revert, and whoever wanted a partial one has undo. Apply maps the instance's ids *back* through the links before writing, or every link would name an entity the file no longer has; it strips the instance bookkeeping, or every future instance would be born claiming to be an instance of something else |
-| ED-301 | Tilemap component and tile-painting tool | ⬜ |
+| ED-301 | Tilemap component and tile-painting tool | ✅ | The grid is a flat `List<Integer>` on an ordinary component — no new serialised structure, so a scene holding a tilemap is readable by anything that could already read a scene. A paint stroke is **one** undo entry however many cells it crosses, and the merge key carries the *stroke* as well as the property: entity + property alone cannot tell two drags apart, and one Ctrl+Z would lose both. Painting is an `EditorTool`, deliberately not a `GizmoMode` — a gizmo mode picks which manipulator acts on the selection, a tool decides whether a press manipulates anything at all. While a brush is active it also suppresses the gizmo, because a tilemap's gizmo sits over its own first tiles and the first stroke would otherwise drag the map |
 | ED-302 | `SpriteFont` preview and importer settings | ⬜ |
 | ED-303 | Sprite animation editor with a timeline | ⬜ |
 | ED-304 | Audio source and listener editing, with preview playback | ⬜ |

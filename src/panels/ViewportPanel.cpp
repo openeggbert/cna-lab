@@ -9,10 +9,23 @@
 
 #include "CNA/Editor/EditorContext.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/Tilemap.hpp"
+#include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 
 namespace CNA::Editor
 {
+    const char* toString(EditorTool tool)
+    {
+        switch (tool)
+        {
+            case EditorTool::Select: return "Select";
+            case EditorTool::PaintTiles: return "Paint Tiles";
+            case EditorTool::EraseTiles: return "Erase Tiles";
+        }
+        return "Select";
+    }
+
     void ViewportPanel::drawPlayToolbar()
     {
         if (actions_.getPlayMode() == PlayMode::Stopped)
@@ -75,6 +88,7 @@ namespace CNA::Editor
         // Above the image, so the scene is rendered into whatever is left. Putting the controls in
         // their own panel would let the user dock them away from the thing they control.
         drawPlayToolbar();
+        drawToolbar();
 
         const UiRegion region = ui_.getContentRegion();
         if (region.isEmpty()) { ui_.endPanel(); return; }
@@ -112,11 +126,33 @@ namespace CNA::Editor
             return;
         }
 
+        // A paint stroke owns the pointer the same way a gizmo drag does, and for the same reason:
+        // a stroke that stopped at the panel edge would leave a half-painted line the user has to
+        // notice and finish by hand.
+        if (paintStrokeHasEdited_ && interaction.leftDown)
+        {
+            paintTileAt(cursor, false);
+            return;
+        }
+        if (paintStrokeHasEdited_ && !interaction.leftDown) { paintStrokeHasEdited_ = false; }
+
         if (!interaction.hovered) { return; }
 
+        // While a brush is active a left press paints and does nothing else. Zoom and pan still
+        // work -- a paint tool you cannot scroll is unusable -- but click-to-select does not, or
+        // the first press would take away the very tilemap being painted into.
+        const bool painting = actions_.getEditorTool() != EditorTool::Select;
+        if (painting)
+        {
+            if (interaction.leftPressed) { paintTileAt(cursor, true); }
+            else if (interaction.leftDown) { paintTileAt(cursor, false); }
+        }
+
         // Checked before the camera and the picker: a press on a handle is a manipulation, and
-        // must not also count as a click that reselects whatever is underneath the gizmo.
-        if (interaction.leftPressed && beginGizmoDrag(cursor)) { return; }
+        // must not also count as a click that reselects whatever is underneath the gizmo. Not while
+        // a brush is active, though -- a tilemap's gizmo sits over its own first tiles, so the
+        // first stroke would drag the map instead of painting into it.
+        if (!painting && interaction.leftPressed && beginGizmoDrag(cursor)) { return; }
 
         if (interaction.wheel != 0.0f)
         {
@@ -131,7 +167,7 @@ namespace CNA::Editor
             camera.panByScreenDelta(EditorVector2{interaction.dragDeltaX, interaction.dragDeltaY});
         }
 
-        if (interaction.clicked)
+        if (interaction.clicked && !painting)
         {
             const ScenePickResult pick =
                 pickEntityAt(context_.getScene(), camera, cursor, actions_.getViewport().makeSizeProvider());
@@ -140,6 +176,91 @@ namespace CNA::Editor
             // makes "deselect" reachable without a keyboard.
             context_.select(pick.entityId);
         }
+    }
+
+    void ViewportPanel::drawToolbar()
+    {
+        static const std::vector<std::string> kTools{toString(EditorTool::Select),
+                                                     toString(EditorTool::PaintTiles),
+                                                     toString(EditorTool::EraseTiles)};
+
+        ui_.setNextItemWidth(130.0f);
+        PropertyValue chosen{PropertyValue::EnumValue{toString(actions_.getEditorTool())}};
+        if (ui_.propertyField("##tool", chosen, kTools))
+        {
+            const std::string name = chosen.get<PropertyValue::EnumValue>().name;
+            if (name == kTools[1]) { actions_.setEditorTool(EditorTool::PaintTiles); }
+            else if (name == kTools[2]) { actions_.setEditorTool(EditorTool::EraseTiles); }
+            else { actions_.setEditorTool(EditorTool::Select); }
+        }
+
+        // Only where it means something. A tile index beside the Select tool is a control that
+        // does nothing, which is worse than one that is not there.
+        if (actions_.getEditorTool() != EditorTool::PaintTiles) { return; }
+
+        ui_.sameLine();
+        ui_.setNextItemWidth(90.0f);
+        PropertyValue tile{actions_.getPaintTile()};
+        if (ui_.propertyField("Tile", tile))
+        {
+            actions_.setPaintTile(std::max<std::int64_t>(0, tile.get<std::int64_t>(0)));
+        }
+    }
+
+    void ViewportPanel::paintTileAt(const EditorVector2& cursor, bool startStroke)
+    {
+        const Uuid selectedId = context_.getPrimarySelection();
+        const EditorEntity* entity = context_.getScene().findEntity(selectedId);
+        if (entity == nullptr) { return; }
+
+        const EditorComponent* tilemap = entity->findComponent(BuiltinComponentIds::kTilemap);
+        if (tilemap == nullptr)
+        {
+            // Said once per stroke rather than per frame: a brush over a sprite is a near miss, and
+            // sixty lines a second about it is how a console stops being read.
+            if (startStroke)
+            {
+                context_.log(LogSeverity::Warning,
+                             "Select an entity with a Tilemap component to paint into.");
+            }
+            return;
+        }
+
+        const ComponentDescriptor* descriptor =
+            context_.getComponentRegistry().find(BuiltinComponentIds::kTilemap);
+        const std::optional<WorldTransform> transform =
+            computeWorldTransform(context_.getScene(), selectedId);
+        if (!transform) { return; }
+
+        const EditorVector2 world = actions_.getViewport().getCamera().screenToWorld(cursor);
+        const TileCoordinate cell = worldToTile(
+            *transform,
+            static_cast<int>(tilemap->getPropertyOrDefault(TilemapKeys::kTileWidth, descriptor)
+                                 .get<std::int64_t>(0)),
+            static_cast<int>(tilemap->getPropertyOrDefault(TilemapKeys::kTileHeight, descriptor)
+                                 .get<std::int64_t>(0)),
+            world);
+
+        if (startStroke)
+        {
+            ++paintStroke_;
+            paintStrokeHasEdited_ = false;
+        }
+
+        const std::int64_t value =
+            actions_.getEditorTool() == EditorTool::EraseTiles ? kEmptyTile : actions_.getPaintTile();
+
+        auto command = std::make_unique<PaintTilesCommand>(context_.getScene(),
+                                                           context_.getComponentRegistry(),
+                                                           selectedId, paintStroke_);
+        if (!command->paint(cell.x, cell.y, value)) { return; }
+
+        // The first cell of a stroke opens a new entry and every later one merges into it, which is
+        // what makes a drag across forty tiles one Ctrl+Z.
+        const MergePolicy policy =
+            paintStrokeHasEdited_ ? MergePolicy::MergeWithPrevious : MergePolicy::NewEntry;
+        paintStrokeHasEdited_ = true;
+        context_.execute(std::move(command), policy);
     }
 
     bool ViewportPanel::beginGizmoDrag(const EditorVector2& cursor)

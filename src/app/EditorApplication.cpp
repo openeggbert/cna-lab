@@ -425,6 +425,14 @@ namespace CNA::Editor
         if (ui_->isShortcutPressed(UiKey::R)) { setGizmoMode(GizmoMode::Scale); }
     }
 
+    void EditorApplication::setEditorTool(EditorTool tool)
+    {
+        if (tool_ == tool) { return; }
+
+        tool_ = tool;
+        context_.log(LogSeverity::Info, std::string{"Tool: "} + toString(tool));
+    }
+
     void EditorApplication::newScene() { context_.newScene(); }
 
     void EditorApplication::saveScene()

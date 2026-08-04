@@ -16,6 +16,7 @@
 #include "CNA/Editor/Scene/PrefabCommands.hpp"
 #include "CNA/Editor/Scene/PrefabDocument.hpp"
 #include "CNA/Editor/Scene/SceneValidation.hpp"
+#include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Project/Project.hpp"
 
 using namespace CNA::Editor;
@@ -914,4 +915,210 @@ CNA_EDITOR_TEST(RevertingAnInstancePutsItBackExactlyAndUndoesInOnePress)
     // As is reverting something that is not an instance at all.
     const Uuid plain = target.addEntity(makeEntity(fixture.registry, "Plain", 0.0f, 0.0f));
     CNA_EDITOR_EXPECT(!RevertPrefabInstanceCommand(target, plain, prefab).isValid());
+}
+
+// --------------------------------------------------------------------------------------------
+// Tilemaps (plan.md ED-301)
+// --------------------------------------------------------------------------------------------
+
+namespace
+{
+    /** @brief Builds a scene with one 4x3 tilemap entity at the origin, 32px tiles. */
+    struct TilemapScene
+    {
+        ComponentRegistry registry = makeRegistry();
+        SceneDocument scene;
+        Uuid entityId;
+
+        TilemapScene()
+        {
+            EditorEntity entity = makeEntity(registry, "Ground", 0.0f, 0.0f);
+            EditorComponent& tilemap = addComponentWithDefaults(entity, registry, BuiltinComponentIds::kTilemap);
+            tilemap.setProperty(TilemapKeys::kColumns, PropertyValue{std::int64_t{4}});
+            tilemap.setProperty(TilemapKeys::kRows, PropertyValue{std::int64_t{3}});
+            entityId = scene.addEntity(std::move(entity));
+        }
+
+        [[nodiscard]] TilemapGrid grid()
+        {
+            return readTilemapGrid(*scene.findEntity(entityId)->findComponent(BuiltinComponentIds::kTilemap),
+                                   registry.find(BuiltinComponentIds::kTilemap));
+        }
+    };
+}
+
+CNA_EDITOR_TEST(ATilemapGridReadsPadsAndResizesByCoordinate)
+{
+    TilemapScene fixture;
+
+    // A tilemap that has never been painted reads as a full grid of empty cells, not as nothing:
+    // the paint tool needs somewhere to put the first tile.
+    TilemapGrid grid = fixture.grid();
+    CNA_EDITOR_EXPECT_EQ(grid.columns, 4);
+    CNA_EDITOR_EXPECT_EQ(grid.rows, 3);
+    CNA_EDITOR_EXPECT_EQ(grid.tiles.size(), std::size_t{12});
+    CNA_EDITOR_EXPECT_EQ(grid.at(0, 0), kEmptyTile);
+
+    // Out of range answers empty rather than failing: the cursor leaves the map constantly.
+    CNA_EDITOR_EXPECT_EQ(grid.at(-1, 0), kEmptyTile);
+    CNA_EDITOR_EXPECT_EQ(grid.at(4, 0), kEmptyTile);
+    grid.set(9, 9, 5);
+    CNA_EDITOR_EXPECT_EQ(grid.tiles.size(), std::size_t{12});
+
+    grid.set(0, 0, 7);
+    grid.set(3, 2, 8);
+    CNA_EDITOR_EXPECT_EQ(grid.at(0, 0), std::int64_t{7});
+    CNA_EDITOR_EXPECT_EQ(grid.at(3, 2), std::int64_t{8});
+
+    // Resizing keeps tiles where they were on screen. Copying a flat list without remapping shifts
+    // every row sideways, which turns "one column wider" into "scramble the level".
+    const TilemapGrid wider = resizeTilemapGrid(grid, 6, 3);
+    CNA_EDITOR_EXPECT_EQ(wider.at(0, 0), std::int64_t{7});
+    CNA_EDITOR_EXPECT_EQ(wider.at(3, 2), std::int64_t{8});
+    CNA_EDITOR_EXPECT_EQ(wider.at(5, 2), kEmptyTile);
+
+    // And shrinking drops what no longer fits rather than wrapping it somewhere unexpected.
+    const TilemapGrid smaller = resizeTilemapGrid(grid, 2, 2);
+    CNA_EDITOR_EXPECT_EQ(smaller.at(0, 0), std::int64_t{7});
+    CNA_EDITOR_EXPECT_EQ(smaller.tiles.size(), std::size_t{4});
+
+    // A stored list of the wrong length is padded, not rejected: a hand-edited scene one row short
+    // should open and be fixable.
+    EditorComponent* component =
+        fixture.scene.findEntity(fixture.entityId)->findComponent(BuiltinComponentIds::kTilemap);
+    PropertyValue::ListValue truncated;
+    truncated.items.emplace_back(std::int64_t{3});
+    component->setProperty(TilemapKeys::kTiles, PropertyValue{truncated});
+
+    const TilemapGrid padded = fixture.grid();
+    CNA_EDITOR_EXPECT_EQ(padded.tiles.size(), std::size_t{12});
+    CNA_EDITOR_EXPECT_EQ(padded.at(0, 0), std::int64_t{3});
+    CNA_EDITOR_EXPECT_EQ(padded.at(1, 0), kEmptyTile);
+}
+
+CNA_EDITOR_TEST(WorldPointsMapToTilesIncludingOutsideTheMap)
+{
+    WorldTransform transform;
+    transform.position = EditorVector3{100.0f, 200.0f, 0.0f};
+
+    CNA_EDITOR_EXPECT_EQ(worldToTile(transform, 32, 32, EditorVector2{100.0f, 200.0f}).x, 0);
+    CNA_EDITOR_EXPECT_EQ(worldToTile(transform, 32, 32, EditorVector2{131.0f, 200.0f}).x, 0);
+    CNA_EDITOR_EXPECT_EQ(worldToTile(transform, 32, 32, EditorVector2{132.0f, 200.0f}).x, 1);
+
+    // Grows downward, matching how SpriteBatch addresses the screen and how tile editors number
+    // their rows.
+    CNA_EDITOR_EXPECT_EQ(worldToTile(transform, 32, 32, EditorVector2{100.0f, 233.0f}).y, 1);
+
+    // Floored rather than truncated: truncation folds -0.5 and +0.5 onto the same cell, so a click
+    // just left of the origin would land on the first column instead of outside the map.
+    CNA_EDITOR_EXPECT_EQ(worldToTile(transform, 32, 32, EditorVector2{99.0f, 200.0f}).x, -1);
+
+    // Scale is honoured, because zooming a map by scaling its entity is ordinary.
+    transform.scale = EditorVector3{2.0f, 2.0f, 1.0f};
+    CNA_EDITOR_EXPECT_EQ(worldToTile(transform, 32, 32, EditorVector2{163.0f, 200.0f}).x, 0);
+    CNA_EDITOR_EXPECT_EQ(worldToTile(transform, 32, 32, EditorVector2{165.0f, 200.0f}).x, 1);
+
+    // A zero tile size would divide by zero, and a hand-edited scene can hold one.
+    CNA_EDITOR_EXPECT_EQ(worldToTile(transform, 0, 32, EditorVector2{100.0f, 200.0f}).x, -1);
+}
+
+CNA_EDITOR_TEST(APaintStrokeIsOneUndoEntryAndTwoStrokesAreTwo)
+{
+    TilemapScene fixture;
+    CommandHistory history;
+
+    const auto paint = [&](int x, int y, std::int64_t tile, std::uint64_t stroke, bool first) {
+        auto command = std::make_unique<PaintTilesCommand>(fixture.scene, fixture.registry,
+                                                            fixture.entityId, stroke);
+        if (!command->paint(x, y, tile)) { return; }
+        history.execute(std::move(command),
+                        first ? MergePolicy::NewEntry : MergePolicy::MergeWithPrevious);
+    };
+
+    // One drag across three cells.
+    paint(0, 0, 5, 1, true);
+    paint(1, 0, 5, 1, false);
+    paint(2, 0, 5, 1, false);
+
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(fixture.grid().at(1, 0), std::int64_t{5});
+
+    // A second drag, on a different stroke, must not fold into the first -- one Ctrl+Z would then
+    // lose both, and the merge key of entity + property alone cannot tell them apart.
+    paint(0, 1, 6, 2, true);
+    paint(1, 1, 6, 2, false);
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), std::size_t{2});
+
+    history.undo();
+    CNA_EDITOR_EXPECT_EQ(fixture.grid().at(0, 1), kEmptyTile);
+    CNA_EDITOR_EXPECT_EQ(fixture.grid().at(0, 0), std::int64_t{5});
+
+    history.undo();
+    CNA_EDITOR_EXPECT_EQ(fixture.grid().at(0, 0), kEmptyTile);
+    CNA_EDITOR_EXPECT_EQ(fixture.grid().at(2, 0), kEmptyTile);
+
+    history.redo();
+    CNA_EDITOR_EXPECT_EQ(fixture.grid().at(2, 0), std::int64_t{5});
+}
+
+CNA_EDITOR_TEST(PaintingIgnoresNoOpCellsAndRemembersTheValueTheStrokeStartedFrom)
+{
+    TilemapScene fixture;
+
+    PaintTilesCommand first{fixture.scene, fixture.registry, fixture.entityId, 1};
+    CNA_EDITOR_EXPECT(first.paint(0, 0, 3));
+    first.execute();
+    CNA_EDITOR_EXPECT_EQ(fixture.grid().at(0, 0), std::int64_t{3});
+
+    // Painting a cell the value it already holds records nothing: an undo entry that changes
+    // nothing is one the user cannot see the effect of.
+    PaintTilesCommand same{fixture.scene, fixture.registry, fixture.entityId, 2};
+    CNA_EDITOR_EXPECT(!same.paint(0, 0, 3));
+    CNA_EDITOR_EXPECT(!same.isValid());
+
+    // Nor does a cell outside the grid.
+    CNA_EDITOR_EXPECT(!same.paint(99, 99, 4));
+
+    // Crossing the same cell twice within one stroke keeps the value it had *before* the stroke,
+    // so one Ctrl+Z goes back to before the drag rather than to the middle of it.
+    PaintTilesCommand wobble{fixture.scene, fixture.registry, fixture.entityId, 3};
+    CNA_EDITOR_EXPECT(wobble.paint(0, 0, 7));
+    CNA_EDITOR_EXPECT(wobble.paint(0, 0, 8));
+    CNA_EDITOR_EXPECT_EQ(wobble.getCells().size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(wobble.getCells().front().oldTile, std::int64_t{3});
+
+    wobble.execute();
+    CNA_EDITOR_EXPECT_EQ(fixture.grid().at(0, 0), std::int64_t{8});
+    wobble.undo();
+    CNA_EDITOR_EXPECT_EQ(fixture.grid().at(0, 0), std::int64_t{3});
+}
+
+CNA_EDITOR_TEST(ATilemapRoundTripsThroughASceneFile)
+{
+    TilemapScene fixture;
+
+    PaintTilesCommand stroke{fixture.scene, fixture.registry, fixture.entityId, 1};
+    stroke.paint(0, 0, 1);
+    stroke.paint(3, 2, 2);
+    stroke.execute();
+
+    SceneDocument reloaded;
+    CNA_EDITOR_EXPECT(reloaded.loadFromJson(fixture.scene.toJson(), fixture.registry).succeeded);
+
+    const EditorComponent* tilemap =
+        reloaded.getEntities().front().findComponent(BuiltinComponentIds::kTilemap);
+    CNA_EDITOR_EXPECT(tilemap != nullptr);
+
+    const TilemapGrid grid =
+        readTilemapGrid(*tilemap, fixture.registry.find(BuiltinComponentIds::kTilemap));
+    CNA_EDITOR_EXPECT_EQ(grid.at(0, 0), std::int64_t{1});
+    CNA_EDITOR_EXPECT_EQ(grid.at(3, 2), std::int64_t{2});
+    CNA_EDITOR_EXPECT_EQ(grid.at(1, 1), kEmptyTile);
+
+    // No new serialised structure: the grid is an ordinary List property, so a scene holding a
+    // tilemap is readable by anything that could already read a scene.
+    CNA_EDITOR_EXPECT(fixture.scene.toJson()["entities"]
+                          .getElements()
+                          .front()["components"]["CNA.Tilemap"]["tiles"]
+                          .isArray());
 }

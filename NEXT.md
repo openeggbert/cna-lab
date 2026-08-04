@@ -15,12 +15,12 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 262 / 262 (also under Clang Release) |
+| Unit tests | ✅ 270 / 270 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
-| **Phase 2** | 🔄 5 of 12 done (ED-300, 305, 306, 307, 310), ED-311 half; ED-301/302/303/304/308/309 open |
+| **Phase 2** | 🔄 6 of 12 done (ED-300, 301, 305, 306, 307, 310), ED-311 half; ED-302/303/304/308/309 open |
 | Owner priorities 1 and 2 | ✅ closed (robustness and data safety; live editing into the player) |
 
 ---
@@ -87,6 +87,14 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-301** tilemaps. Flat `List<Integer>` grid on an ordinary component, so no new serialised
+  structure and nothing else had to learn a new type. A stroke is one undo entry and the merge key
+  carries the *stroke id* -- entity + property alone cannot tell two drags apart. Painting is an
+  `EditorTool`, not a `GizmoMode`, and while a brush is active it suppresses both the gizmo and
+  click-to-select: a tilemap's gizmo sits over its own first tiles, so the first stroke would
+  otherwise drag the map instead of painting it. That was a real bug the test caught.
+  Rendering shares the sprite pass, with viewport culling -- a 200x200 map is forty thousand draw
+  calls a frame otherwise. Verified by screenshot on EASYGL.
 - **ED-300** prefabs, complete. Create Prefab from a hierarchy row, drop one from the browser to
   instantiate, and an inspector block that reports what an instance has changed with Revert and
   Apply. Every step undoes, file writes included.
@@ -200,8 +208,8 @@ Phase 1 closed. Working through the owner's priority order:
    `formatVersion` was bumped; `.cnarecovery` is a *new* format at version 1, not a change to an
    existing one.
 2. ~~**Live editing into the running player**~~ ✅ — ED-306 and ED-307 are done.
-3. **Production 2D tools** ← *current* — ED-311 (`List`) 🔄, ED-305 ✅, ED-300 ✅. Next:
-   ED-301 tilemap, then ED-302 `SpriteFont` and ED-303 the animation editor.
+3. **Production 2D tools** ← *current* — ED-311 (`List`) 🔄, ED-305 ✅, ED-300 ✅, ED-301 ✅.
+   Next: ED-302 `SpriteFont` preview and ED-303 the sprite animation editor.
    Note that `NestedStructure` (the open half of ED-311) turned out **not** to be needed by
    prefabs: ED-300 computes overrides rather than storing them, so nothing needs a nested schema
    yet. Leave it unbuilt until something real asks for one.
@@ -241,27 +249,32 @@ Phase 1 closed. Working through the owner's priority order:
 Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are closed and
 `PropertyType::List` is in, which was the thing blocking the rest of priority 3.
 
-The next task is **ED-301, the tilemap component and its painting tool**. It is the last large
-item in Phase 2 and the first one that needs a *tool* in the viewport rather than a panel.
+The next task is **ED-303, the sprite animation editor**, and it is the one remaining item in
+Phase 2 with real design in it. ED-302 (`SpriteFont` preview) is smaller and could go first if a
+short task suits better.
 
-What exists to build on: `PropertyType::List` (a tilemap is a list of tile indices), the asset
-reference machinery for the tile sheet, and a viewport that already hit-tests and drags
-(`ViewportPanel::updateGizmoDrag` is the shape a paint stroke follows). What does not exist is any
-notion of a *tool mode* beyond the gizmo modes.
+What exists to build on: `PropertyType::List` (an animation is a list of frames), the tilemap's
+source-rectangle arithmetic (a sprite sheet and a tile sheet are addressed identically), and
+`EditorTool`, which showed that adding a *mode* to the viewport is now cheap.
 
-Three decisions to make before writing code:
+Two decisions to make before writing code:
 
-- **How a tilemap stores its grid.** A flat `List<Integer>` plus width and height is the smallest
-  thing that works and diffs readably. A sparse form scales better and diffs worse; do not reach
-  for it before a real map is slow.
-- **Whether a paint stroke is one undo entry or one per tile.** One per stroke, using the existing
-  merge policy the gizmo uses — but the merge key has to include the stroke, not just the property,
-  or two separate strokes would collapse into one.
-- **Where the tool mode lives.** `GizmoMode` is the obvious place and is probably wrong: a paint
-  tool is not a manipulator. A separate `EditorTool` on `EditorActions` keeps them apart.
+- **Whether a frame is a source rectangle or an index into a sheet.** An index is far smaller to
+  author and matches what the tilemap already does; a rectangle handles sheets that are not a
+  uniform grid. Index first, and let a rectangle-per-frame form come when a real sheet needs it.
+- **Where playback state lives.** A preview that plays in the editor is *editor* state, not
+  document state (D-07) — it must never be saved into the scene, or every save would carry
+  whatever frame the artist happened to be looking at.
+
+Two smaller things worth doing whenever there is an appetite for tidying rather than building:
+
+- The **tilemap has no eyedropper and no rectangle fill**. Both are small, obvious additions now
+  that `EditorTool` exists, and both are what a person reaches for within a minute of painting.
+- **`ViewportPanel` is getting long.** The paint tool made it the third interaction mode in one
+  `handleInteraction`; a third one after that is the point to split it.
 
 Nothing here changes a file format. Every format is at version 1 and ED-902's chains are empty on
-purpose; a tilemap is a new component type, which the descriptor system handles without a bump.
+purpose; a new component type is something the descriptor system handles without a bump.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
 chains are empty on purpose. Adding a property type must not change what an existing scene file

@@ -20,6 +20,7 @@
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Scene/EditorIcons.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Scene/TranslateGizmo.hpp"
@@ -112,6 +113,7 @@ namespace CNA::Editor
     {
         XnaGraphics::GraphicsDevice* device = nullptr;
         const AssetDatabase* assets = nullptr;
+        const ComponentRegistry* components = nullptr;
 
         std::unique_ptr<XnaGraphics::RenderTarget2D> target;
         std::unique_ptr<XnaGraphics::SpriteBatch> spriteBatch;
@@ -370,10 +372,13 @@ namespace CNA::Editor
 
     CnaSceneRenderer::~CnaSceneRenderer() { shutdown(); }
 
-    void CnaSceneRenderer::initialize(XnaGraphics::GraphicsDevice& device, const AssetDatabase& assets)
+    void CnaSceneRenderer::initialize(XnaGraphics::GraphicsDevice& device,
+                                      const AssetDatabase& assets,
+                                      const ComponentRegistry& components)
     {
         impl_->device = &device;
         impl_->assets = &assets;
+        impl_->components = &components;
         impl_->spriteBatch = std::make_unique<XnaGraphics::SpriteBatch>(device);
 
         impl_->pixel = std::make_unique<XnaGraphics::Texture2D>(device, 1, 1);
@@ -531,6 +536,83 @@ namespace CNA::Editor
                                                          .get<PropertyValue::EnumValue>().name),
                                      layerDepth);
             ++stats.spritesDrawn;
+        }
+
+        // Tilemaps share the content pass, so a tile and a sprite at the same layer depth sort
+        // against each other exactly as they will at run time.
+        for (const EditorEntity& entity : scene.getEntities())
+        {
+            if (!entity.isEnabled()) { continue; }
+
+            const EditorComponent* tilemap = entity.findComponent(BuiltinComponentIds::kTilemap);
+            if (tilemap == nullptr) { continue; }
+
+            const std::optional<WorldTransform> world = computeWorldTransform(scene, entity.getId());
+            if (!world) { continue; }
+
+            const ComponentDescriptor* descriptor =
+                impl_->components != nullptr ? impl_->components->find(BuiltinComponentIds::kTilemap)
+                                             : nullptr;
+
+            const TilemapGrid grid = readTilemapGrid(*tilemap, descriptor);
+            if (grid.isEmpty()) { continue; }
+
+            const int tileWidth = static_cast<int>(
+                tilemap->getPropertyOrDefault(TilemapKeys::kTileWidth, descriptor).get<std::int64_t>(0));
+            const int tileHeight = static_cast<int>(
+                tilemap->getPropertyOrDefault(TilemapKeys::kTileHeight, descriptor).get<std::int64_t>(0));
+            const int sheetColumns = static_cast<int>(
+                tilemap->getPropertyOrDefault(TilemapKeys::kSheetColumns, descriptor).get<std::int64_t>(1));
+            if (tileWidth <= 0 || tileHeight <= 0 || sheetColumns <= 0) { continue; }
+
+            const Uuid textureId =
+                tilemap->getProperty(TilemapKeys::kTileSet).get<PropertyValue::AssetReference>().id;
+            XnaGraphics::Texture2D* sheet = impl_->resolveTexture(textureId, stats);
+            if (sheet == nullptr) { continue; }
+
+            // Only the cells the viewport can actually show. A 200x200 map is forty thousand draw
+            // calls a frame otherwise, nearly all of them offscreen.
+            const TileCoordinate first = worldToTile(*world, tileWidth, tileHeight,
+                                                     camera.screenToWorld(EditorVector2{0.0f, 0.0f}));
+            const TileCoordinate last =
+                worldToTile(*world, tileWidth, tileHeight,
+                            camera.screenToWorld(EditorVector2{static_cast<float>(width),
+                                                                static_cast<float>(height)}));
+
+            const int minX = std::max(0, std::min(first.x, last.x));
+            const int maxX = std::min(grid.columns - 1, std::max(first.x, last.x));
+            const int minY = std::max(0, std::min(first.y, last.y));
+            const int maxY = std::min(grid.rows - 1, std::max(first.y, last.y));
+
+            const float scaleX = world->scale.x * camera.getZoom();
+            const float scaleY = world->scale.y * camera.getZoom();
+
+            for (int y = minY; y <= maxY; ++y)
+            {
+                for (int x = minX; x <= maxX; ++x)
+                {
+                    const std::int64_t tile = grid.at(x, y);
+                    if (tile < 0) { continue; }
+
+                    const int sheetX = static_cast<int>(tile % sheetColumns) * tileWidth;
+                    const int sheetY = static_cast<int>(tile / sheetColumns) * tileHeight;
+
+                    const EditorVector2 cell = camera.worldToScreen(EditorVector2{
+                        world->position.x + static_cast<float>(x * tileWidth) * world->scale.x,
+                        world->position.y + static_cast<float>(y * tileHeight) * world->scale.y});
+
+                    impl_->spriteBatch->Draw(*sheet,
+                                             Xna::Vector2{cell.x, cell.y},
+                                             Xna::Rectangle{sheetX, sheetY, tileWidth, tileHeight},
+                                             toXnaColor(EditorColor{}),
+                                             0.0f,
+                                             Xna::Vector2{0.0f, 0.0f},
+                                             Xna::Vector2{scaleX, scaleY},
+                                             XnaGraphics::SpriteEffects::None,
+                                             0.9f);
+                    ++stats.tilesDrawn;
+                }
+            }
         }
         impl_->spriteBatch->End();
 

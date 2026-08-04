@@ -31,10 +31,11 @@ namespace CNA::Editor
     public:
         CnaEditorViewport(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
                           const AssetDatabase& assets,
+                          const ComponentRegistry& components,
                           CnaUiRenderer& uiRenderer)
             : uiRenderer_(&uiRenderer)
         {
-            renderer_.initialize(device, assets);
+            renderer_.initialize(device, assets, components);
         }
 
         ~CnaEditorViewport() override { renderer_.shutdown(); }
@@ -119,8 +120,9 @@ namespace CNA::Editor
     std::unique_ptr<EditorViewport> createCnaEditorViewport(
         Microsoft::Xna::Framework::Graphics::GraphicsDevice& device,
         const AssetDatabase& assets,
+        const ComponentRegistry& components,
         CnaUiRenderer& uiRenderer)
     {
-        return std::make_unique<CnaEditorViewport>(device, assets, uiRenderer);
+        return std::make_unique<CnaEditorViewport>(device, assets, components, uiRenderer);
     }
 }

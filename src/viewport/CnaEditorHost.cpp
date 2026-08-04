@@ -160,9 +160,11 @@ namespace CNA::Editor
         // The scene viewport can only exist once there is a device and a UI renderer to share its
         // render target through, so it is installed here rather than at construction. Replacing
         // the application's viewport in place keeps every panel written against the abstraction.
-        impl_->application->setViewport(createCnaEditorViewport(getGraphicsDeviceProperty(),
-                                                                impl_->application->getContext().getAssets(),
-                                                                *impl_->renderer));
+        impl_->application->setViewport(
+            createCnaEditorViewport(getGraphicsDeviceProperty(),
+                                    impl_->application->getContext().getAssets(),
+                                    impl_->application->getContext().getComponentRegistry(),
+                                    *impl_->renderer));
         impl_->contentLoaded = true;
 
         impl_->application->getContext().log(
