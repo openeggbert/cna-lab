@@ -546,6 +546,7 @@ namespace CNA::Editor
         diagnosticsPanel_.draw();
         buildPanel_.draw();
         comparisonPanel_.draw();
+        drawPluginPanels();
 
         ui_->endDockSpace();
 
@@ -1066,13 +1067,53 @@ namespace CNA::Editor
 {
     EditorApplication::~EditorApplication() { unloadPlugins(); }
 
+    void EditorApplication::drawPluginPanels()
+    {
+        // Copied rather than iterated in place (ED-412). A plugin panel's draw callback holds the
+        // context, so it may register or remove a panel while this loop runs -- and a plugin that
+        // draws a "Reload" button in its own panel does exactly that. Iterating the live vector
+        // would then walk memory the registry had reallocated underneath it.
+        const std::vector<PluginPanel> panels = context_.getPluginExtensions().getPanels();
+
+        for (const PluginPanel& panel : panels)
+        {
+            if (!panel.draw) { continue; }
+
+            if (ui_->beginPanel(panel.title, panel.preferredSide))
+            {
+                try
+                {
+                    panel.draw(*ui_, context_);
+                }
+                catch (const std::exception& thrown)
+                {
+                    // Reported inside the panel rather than thrown on: an exception escaping here
+                    // would take down the whole frame, so the plugin's panel is the one thing that
+                    // stops working and it says why.
+                    ui_->text(std::string{"This panel threw: "} + thrown.what());
+                }
+            }
+            ui_->endPanel();
+        }
+    }
+
     void EditorApplication::loadPlugins(const EditorOptions& options)
     {
-        const std::string directory =
-            options.pluginDirectory.empty()
-                ? (std::filesystem::path{options.executablePath}.parent_path() / "plugins")
-                      .generic_string()
-                : options.pluginDirectory;
+        std::string directory = options.pluginDirectory;
+
+        if (directory.empty())
+        {
+            // "Beside the editor" needs to know where the editor is. With no executable path --
+            // which is every embedded and test caller -- the same expression would resolve to
+            // "plugins" relative to the *working directory*, so an editor started from the wrong
+            // folder would load a stranger's plugins and one started from the right one would
+            // behave differently for reasons nothing on screen explains. Found by a test that
+            // passed from the repository root and failed under ctest.
+            if (options.executablePath.empty()) { return; }
+
+            directory = (std::filesystem::path{options.executablePath}.parent_path() / "plugins")
+                            .generic_string();
+        }
 
         std::error_code errorCode;
         if (!std::filesystem::is_directory(directory, errorCode))

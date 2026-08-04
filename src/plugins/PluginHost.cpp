@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Plugins/Plugin.hpp"
 
+#include "CNA/Editor/EditorContext.hpp"
+
 #if defined(_WIN32)
 #include <windows.h>
 #else
@@ -363,6 +365,12 @@ namespace CNA::Editor
             if (entry.destroy != nullptr) { entry.destroy(entry.plugin); }
             entry.plugin = nullptr;
         }
+
+        // Whatever the plugin registered and its own shutdown did not remove (ED-412). A panel or
+        // a menu command outliving its library is a `std::function` whose code has been unmapped,
+        // and it fails on the next frame that draws it rather than at the moment of the mistake --
+        // so the host takes them away rather than trusting every plugin to.
+        context.getPluginExtensions().removeAllFrom(entry.id);
 
         entry.library.close();
 

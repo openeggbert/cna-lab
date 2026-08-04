@@ -4262,12 +4262,52 @@ CNA_EDITOR_TEST(APluginIsLoadedFromARealLibraryAndUnloadsCleanly)
     CNA_EDITOR_EXPECT(descriptor != nullptr);
     CNA_EDITOR_EXPECT_EQ(descriptor->displayName, std::string{"Plugin Component"});
 
+    // ED-412's two extension points that needed a registry: a panel and a menu command.
+    CNA_EDITOR_EXPECT_EQ(context.getPluginExtensions().getPanels().size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(context.getPluginExtensions().getPanels()[0].title,
+                         std::string{"Test Plugin Panel"});
+    CNA_EDITOR_EXPECT_EQ(context.getPluginExtensions().getMenuCommands().size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(context.getPluginExtensions().getMenuNames().size(), std::size_t{1});
+
     host.unloadAll(context);
     CNA_EDITOR_EXPECT_EQ(host.getActiveCount(), std::size_t{0});
 
     // Gone. A descriptor left registered past dlclose points into unmapped memory, which is why
     // shutdown() removing everything is a requirement rather than a courtesy.
     CNA_EDITOR_EXPECT(context.getComponentRegistry().find("Test.PluginComponent") == nullptr);
+
+    // And so are the panel and the command -- a `std::function` outliving its library is the same
+    // failure wearing different clothes, and it would not show until the next frame drew it.
+    CNA_EDITOR_EXPECT(context.getPluginExtensions().getPanels().empty());
+    CNA_EDITOR_EXPECT(context.getPluginExtensions().getMenuCommands().empty());
+}
+
+/**
+ * @brief The host removes a plugin's registrations even when the plugin forgets to (ED-412).
+ *
+ * A backstop rather than the contract: `shutdown` is required to clean up, and a plugin author who
+ * relies on this would leak everywhere the backstop does not reach. It exists because the failure
+ * it prevents is not an error message -- it is a `std::function` pointing into unmapped code,
+ * which fails on the next frame that draws it rather than at the moment of the mistake.
+ */
+CNA_EDITOR_TEST(TheHostRemovesRegistrationsAPluginForgotToRemove)
+{
+    EditorContext context;
+    PluginHost host;
+
+    host.discover(CNA_EDITOR_TEST_PLUGIN_DIR);
+    CNA_EDITOR_EXPECT_EQ(host.loadAll(context), std::size_t{1});
+
+    // Something the plugin never registered and will never clean up, under its id.
+    PluginPanel stray;
+    stray.ownerId = "org.openeggbert.testplugin";
+    stray.title = "Forgotten Panel";
+    stray.draw = [](EditorUi&, EditorContext&) {};
+    context.getPluginExtensions().addPanel(std::move(stray));
+    CNA_EDITOR_EXPECT_EQ(context.getPluginExtensions().getPanels().size(), std::size_t{2});
+
+    host.unloadAll(context);
+    CNA_EDITOR_EXPECT(context.getPluginExtensions().getPanels().empty());
 }
 
 /**

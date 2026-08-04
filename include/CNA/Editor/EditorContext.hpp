@@ -22,6 +22,7 @@
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
 #include "CNA/Editor/Assets/MaterialDocument.hpp"
+#include "CNA/Editor/Plugins/PluginExtensions.hpp"
 #include "CNA/Editor/Assets/MeshCache.hpp"
 #include "CNA/Editor/Scene/SceneModels.hpp"
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
@@ -64,6 +65,13 @@ namespace CNA::Editor
          * different namespaces, and a project that named a component "CNA.TextureImporter" should
          * not silently become editable as an importer.
          */
+        /** @brief Panels and menu commands contributed by plugins (ED-412). */
+        [[nodiscard]] PluginExtensionRegistry& getPluginExtensions() { return pluginExtensions_; }
+        [[nodiscard]] const PluginExtensionRegistry& getPluginExtensions() const
+        {
+            return pluginExtensions_;
+        }
+
         [[nodiscard]] ComponentRegistry& getImporterRegistry() { return importers_; }
         [[nodiscard]] const ComponentRegistry& getImporterRegistry() const { return importers_; }
 
@@ -193,6 +201,7 @@ namespace CNA::Editor
         Project project_;
         SceneDocument scene_;
         ComponentRegistry components_;
+        PluginExtensionRegistry pluginExtensions_;
         ComponentRegistry importers_;
         AssetDatabase assets_;
         MeshCache meshes_;

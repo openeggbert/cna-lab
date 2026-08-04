@@ -102,5 +102,45 @@ namespace CNA::Editor
             }
             ui_.endMenu();
         }
+
+        drawPluginMenus();
+    }
+
+    void MainMenuBar::drawPluginMenus()
+    {
+        // After the editor's own three, so a plugin cannot push File out from under the cursor of
+        // somebody who has been using this editor for a year (ED-412).
+        const PluginExtensionRegistry& extensions = context_.getPluginExtensions();
+
+        // Copied, because invoking a command may unload the plugin that registered it -- a
+        // "Reload Plugin" command does exactly that -- and the vector it lives in would be gone
+        // underneath the loop.
+        const std::vector<PluginMenuCommand> commands = extensions.getMenuCommands();
+
+        for (const std::string& menu : extensions.getMenuNames())
+        {
+            if (!ui_.beginMenu(menu)) { continue; }
+
+            for (const PluginMenuCommand& command : commands)
+            {
+                if (command.menu != menu || !command.invoke) { continue; }
+                if (!ui_.menuItem(command.label)) { continue; }
+
+                try
+                {
+                    command.invoke(context_);
+                }
+                catch (const std::exception& thrown)
+                {
+                    // A plugin command that throws is a plugin problem and is reported as one.
+                    // Letting it escape would end the frame inside a menu, with the menu stack
+                    // half unwound.
+                    context_.log(LogSeverity::Warning,
+                                 "Plugin command '" + command.label + "' failed: " + thrown.what());
+                }
+            }
+
+            ui_.endMenu();
+        }
     }
 }

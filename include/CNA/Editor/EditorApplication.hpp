@@ -401,6 +401,9 @@ namespace CNA::Editor
         ~EditorApplication();
 
     private:
+        /** @brief Draws every panel a plugin registered (ED-412). */
+        void drawPluginPanels();
+
         /** @brief Discovers and loads plugins, reporting each failure by name (ED-411). */
         void loadPlugins(const EditorOptions& options);
 

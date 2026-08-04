@@ -15,13 +15,13 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 441 / 441 (also under Clang Release) |
+| Unit tests | ✅ 442 / 442 (also under Clang Release) |
 | CTest (standalone) | ✅ 12 / 12 |
 | CTest (CNA config) | ✅ 17 / 17 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 11 of 12 done — **ED-311 closed** when ED-410 gave `NestedStructure` its first real consumer. Only ED-302 remains, blocked on CNA gap G-04 |
-| **Phase 3** | 🔄 13 done — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) **ED-413** (sprites in the 3D view) **ED-407** (environment and fog) **ED-406** (mesh thumbnails) **ED-403** (materials as assets) **ED-410** (per-part material lists) and **ED-411** (plugins really load). Only ED-412's extension points are left |
+| **Phase 3** | ✅ **complete** — 13 of 13 — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) **ED-413** (sprites in the 3D view) **ED-407** (environment and fog) **ED-406** (mesh thumbnails) **ED-403** (materials as assets) **ED-410** (per-part material lists) **ED-411** (plugins really load) and **ED-412** (panels, menus, component types and importers from a plugin) |
 | **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
 | **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
 
@@ -214,6 +214,39 @@ nothing is detectable, so entries matching nothing are **kept** rather than drop
   returned a silently empty part name rather than crashing. `SceneModels` happened to bind a
   reference and was fine; `SceneValidation` did not. The trap is documented on `find()` itself,
   because the next person will write the inline form first.
+
+**12. ED-411 and ED-412 — plugins load, and can add to the editor.** Discovery and validation were
+built in Phase 1 *deliberately first*, on the grounds that an ABI mismatch reaching `dlopen` is a
+crash rather than an error message (D-11). This is what went behind that gate.
+
+- **`loaded` and `active` are two flags now.** A manifest can pass every check that runs without
+  executing the plugin's code and still fail to open. A manifest a user can fix and a build a user
+  can fix are different problems.
+- **Unload order is the thing that crashes when reversed**, so it is stated where it happens:
+  `shutdown()` while the code is still mapped, destroy through the plugin's *own* function so
+  allocation and deallocation land in one runtime, then close the library. `EditorApplication`
+  gained its only destructor because a plugin's `shutdown` is handed the context.
+- **A plugin must not link the editor's static libraries.** It would get its own copy of every
+  registry, so the component it registered would go into a `ComponentRegistry` the editor has never
+  heard of — a failure that reads as "initialize ran and nothing happened". It leaves the symbols
+  undefined and the host resolves them, which is why `cna-editor` is built with `ENABLE_EXPORTS`.
+  Found by running it: a perfectly good plugin failing with "undefined symbol" naming a function
+  the editor plainly contains.
+- **ED-412's six extension points needed three answers.** Component types and importer settings
+  needed *nothing new*. Panels and menu commands needed a registry. Exporters are a menu command
+  that writes a file. **Gizmos are deliberately not built** — a gizmo draws, hit-tests, owns a drag
+  across frames and turns it into undoable commands, so a registry for one would have to expose the
+  viewport's interaction loop. When a plugin needs one, that plugin is what it should be designed
+  against — the argument that kept `NestedStructure` unbuilt until ED-410 asked, and was right.
+- **The host removes a plugin's registrations as a backstop**, though `shutdown` is still the
+  contract. A panel outliving its library is a `std::function` pointing into unmapped code, and it
+  fails on the next frame drawn rather than at the moment of the mistake.
+- Found by a test that **passed from the repository root and failed under ctest**: with no
+  executable path, "plugins beside the editor" resolved relative to the *working directory*. The
+  editor now declines to guess rather than loading a stranger's plugins.
+
+Verified against a real `.so` built beside the suite — nothing here can be checked against a double
+— and by screenshot: a **Tools** menu and a **Test Plugin Panel** in the running editor.
 
 ---
 
@@ -922,40 +955,42 @@ first thing ED-402 can get wrong and the last thing anyone would suspect.
 
 Read this file, then `plan.md`'s *Current state*.
 
-**Phase 3 is twelve rows of thirteen and Phase 2 is eleven of twelve.** What is left in either is
-the two plugin rows and one thing blocked on CNA.
+**Phase 3 is complete and Phase 2 is eleven rows of twelve.** The one thing left in either is
+blocked on CNA. So the next session picks its own direction, and these are the candidates in the
+order I would take them:
 
-1. **ED-411 — plugin dynamic loading. Start here.** `dlopen`/`LoadLibrary`, an `extern "C"` entry
-   point, unload, and hot-reload. Discovery and validation are already done (ED-017) and were
-   deliberately built first: an ABI mismatch that reaches `dlopen` is a crash rather than an error
-   message (D-11), so the checks have to run before the load, not after it. This is the largest
-   single row left in the plan.
-2. **ED-412 — the extension points**: importers, component types, panels, menu commands, gizmos,
-   exporters. Follows ED-411 and is mostly a matter of deciding which registries a plugin may write
-   to. `ComponentRegistry` already documents re-registration as a supported escape hatch (ED-305
-   uses it for layers), so component types are the cheapest one to do first.
+1. **ED-900 — CI on Windows and macOS.** Linux has been green all along and the other two have
+   never been built. This is the highest-value unglamorous row left: every platform-specific thing
+   written this session (`dlopen`/`LoadLibrary` in `PluginHost`, `ENABLE_EXPORTS`, the shared-module
+   suffix in the test plugin's manifest) has only ever run on Linux, and the Windows half is
+   written from documentation rather than from a passing build.
+2. **ED-904 — editor preferences, persisted separately from any project.** Small, self-contained,
+   and the editor has accumulated several settings that currently live nowhere: the grid plane, the
+   gizmo space, which view it opens in.
+3. **ED-901 — Doxygen matching CNA's.** The headers are written for it already.
+4. **Phase 4** proper, if the owner wants features over foundations: ED-500 (animation timeline),
+   ED-502 (particles), ED-505 (frame debugger over the bridge, which the bridge already supports).
 
 **Blocked, not forgotten:**
 
 - **ED-302's glyph preview** needs a public way to build a `SpriteFont` from a `.spritefont`. CNA
   has none (gap **G-04**). It is the only thing keeping Phase 2 from closing.
-- **`PbrEffect` (G-05).** The PBR path is written and one constant away — `kPreferPbrEffect` in
-  `CnaModelPass.cpp`. Needs a CNA fix, not work here.
+- **`PbrEffect` (G-05)** draws nothing on EASYGL. The PBR path here is written and one constant
+  away — `kPreferPbrEffect` in `CnaModelPass.cpp`.
 - **Animation.** `MeshData` still has no node hierarchy, on purpose. CNA ships `SkinnedEffect`,
   `SkinnedModelEXT` and `AnimationPlayer`, so the framework side is further along than this
-  repository is; when it becomes a task it arrives as fields beside `MeshData::parts`.
+  repository is.
+- **Plugin gizmos**, above: waiting for a plugin that needs one.
 
 **Smaller, unblocked:**
 
 1. **Hear the audio preview on a machine with a sound device.** Still only reasoned about.
 2. **Sprite picking uses the axis-aligned box, not the rotated quad**, so a rotated sprite has a
-   slightly generous hit area in the 3D view. Correct enough to ship; worth tightening if it annoys
-   anyone.
+   slightly generous hit area in the 3D view.
 3. **A second look at `findSelectionRoots`** — move it to the scene module when a *fourth*,
    non-gizmo caller appears.
-4. **The example project now carries a material per demonstrated feature** (`PaintedRed` for the
-   whole-model override, `PartGreen` for the per-part list). If it grows a third, consider whether
-   the example is still an example or has become a test fixture.
+4. **The example project carries a material per demonstrated feature.** If it grows a third,
+   consider whether it is still an example or has become a test fixture.
 
 The one behaviour to preserve throughout: every `formatVersion` is at 1, and ED-902's migration
 chains are empty on purpose. This session added `.cnamaterial` as a *new* format at version 1, and

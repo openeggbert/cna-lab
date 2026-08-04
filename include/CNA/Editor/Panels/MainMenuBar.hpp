@@ -22,5 +22,9 @@ namespace CNA::Editor
         using EditorPanel::EditorPanel;
 
         void draw() override;
+
+    private:
+        /** @brief Draws the menus and commands plugins registered (ED-412). */
+        void drawPluginMenus();
     };
 }

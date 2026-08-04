@@ -216,7 +216,8 @@ target_link_libraries(cna-editor-player PUBLIC
 
 # cna-editor-plugins -- manifest discovery and validation.
 add_library(cna-editor-plugins STATIC
-    src/plugins/PluginHost.cpp)
+    src/plugins/PluginHost.cpp
+    src/plugins/PluginExtensions.cpp)
 target_link_libraries(cna-editor-plugins PUBLIC cna-editor-core)
 
 # cna-editor-context -- the composition layer: one object holding the open project, the open

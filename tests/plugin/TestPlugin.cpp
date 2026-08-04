@@ -38,6 +38,25 @@ namespace
             descriptor.properties = {property};
 
             context.getComponentRegistry().registerComponent(std::move(descriptor));
+
+            // A panel and a menu command (ED-412), so a test can check the two extension points
+            // that needed a registry of their own. Both are keyed by this plugin's id, which is
+            // how unloading takes exactly these away and nothing else.
+            CNA::Editor::PluginPanel panel;
+            panel.ownerId = getId();
+            panel.title = "Test Plugin Panel";
+            panel.preferredSide = CNA::Editor::DockSide::Right;
+            panel.draw = [](CNA::Editor::EditorUi& ui, CNA::Editor::EditorContext&)
+            { ui.text("Drawn by the test plugin."); };
+            context.getPluginExtensions().addPanel(std::move(panel));
+
+            CNA::Editor::PluginMenuCommand command;
+            command.ownerId = getId();
+            command.menu = "Tools";
+            command.label = "Test Plugin Command";
+            command.invoke = [](CNA::Editor::EditorContext& target)
+            { target.log(CNA::Editor::LogSeverity::Info, "Test plugin command ran."); };
+            context.getPluginExtensions().addMenuCommand(std::move(command));
         }
 
         void shutdown(CNA::Editor::EditorContext& context) override
@@ -47,6 +66,11 @@ namespace
             // library, and leaving it registered past dlclose leaves the registry pointing at
             // unmapped memory.
             context.getComponentRegistry().unregisterComponent(kComponentTypeId);
+
+            // The host removes these too, as a backstop -- but a plugin removing its own is the
+            // contract, and a plugin that relied on the backstop would be one that leaked
+            // everywhere the backstop does not reach.
+            context.getPluginExtensions().removeAllFrom(getId());
         }
 
         [[nodiscard]] std::string getId() const override { return "org.openeggbert.testplugin"; }
