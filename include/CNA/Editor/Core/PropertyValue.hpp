@@ -13,6 +13,7 @@
  */
 
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -56,7 +57,26 @@ namespace CNA::Editor
          * first element: a list that is empty has no first element, and a list whose type depended
          * on its contents could not be edited back from empty.
          */
-        List
+        List,
+
+        /**
+         * @brief A fixed set of *named* fields, whose schema the descriptor declares.
+         *
+         * Appended after List for the reason List was appended after everything: `toString` is on
+         * the editor-to-player wire, so inserting a name would renumber nothing but would change
+         * what a name means in a build that had not been updated.
+         *
+         * **This exists because ED-410 asked for it**, and that is the whole justification. It was
+         * left unbuilt through all of Phase 2 (ED-311) precisely because nothing needed it, and a
+         * schema designed against no consumer is a schema designed wrong. The consumer is a
+         * `ModelRenderer`'s per-part material list, whose element is a part name and a material
+         * reference -- two fields of different types, which no list of a single type can carry.
+         *
+         * A structure's fields may not themselves be structures or lists. One level, for the same
+         * reason `elementType` forbids a list of lists: two levels is a document model, and this
+         * one has exactly one consumer to answer to.
+         */
+        Structure
     };
 
     /** @brief Returns the stable textual name of @p type as written into scene files. */
@@ -104,6 +124,60 @@ namespace CNA::Editor
          * incomplete type is well-defined, which is what makes a PropertyValue able to contain
          * PropertyValues at all.
          */
+        /**
+         * @brief A structure's fields, in the order the descriptor declares them.
+         *
+         * A vector of name/value pairs rather than a map, and the order is load-bearing twice: the
+         * inspector draws fields in it, and the JSON it writes comes out in it, so a document
+         * round-trips byte for byte instead of in whatever order a hash landed on.
+         */
+        struct StructureValue
+        {
+            /**
+             * @brief A field: its name and its value.
+             *
+             * A `std::pair` inside a vector rather than a named struct with a `PropertyValue`
+             * member, and the reason is a language rule rather than a preference: `PropertyValue`
+             * is incomplete inside its own definition, so it cannot be a direct member of anything
+             * declared here. `std::vector` accepts an incomplete element type and `ListValue`
+             * already relies on exactly that.
+             */
+            using Field = std::pair<std::string, PropertyValue>;
+
+            std::vector<Field> fields;
+
+            /**
+             * @brief Returns the field named @p name, or nullptr.
+             *
+             * **The pointer is into this structure, so this structure has to outlive it.** That is
+             * ordinary, and it is a trap in one specific shape worth naming: `PropertyValue::get`
+             * hands back a *copy*, so
+             *
+             * ```
+             * const PropertyValue* p = value.get<StructureValue>().find("part");  // dangling
+             * ```
+             *
+             * leaves `p` pointing into a temporary that dies at the end of that statement. The read
+             * that follows returns whatever is left there, which is not a crash and not obviously
+             * wrong -- in the case that found this, a silently empty part name. Bind the structure
+             * first:
+             *
+             * ```
+             * const auto& structure = value.get<StructureValue>();
+             * const PropertyValue* p = structure.find("part");                    // fine
+             * ```
+             */
+            [[nodiscard]] const PropertyValue* find(std::string_view name) const;
+
+            /** @brief Sets @p name, appending it when it is not already there. */
+            void set(std::string name, PropertyValue value);
+
+            friend bool operator==(const StructureValue& lhs, const StructureValue& rhs)
+            {
+                return lhs.fields == rhs.fields;
+            }
+        };
+
         struct ListValue
         {
             std::vector<PropertyValue> items;
@@ -128,9 +202,11 @@ namespace CNA::Editor
                                      EditorRectangle,
                                      AssetReference,
                                      EntityReference,
-                                     ListValue>;
+                                     ListValue,
+                                     StructureValue>;
 
         PropertyValue() = default;
+        PropertyValue(StructureValue value) : storage_(std::move(value)) {}
         PropertyValue(bool value) : storage_(value) {}
         PropertyValue(int value) : storage_(static_cast<std::int64_t>(value)) {}
         PropertyValue(std::int64_t value) : storage_(value) {}

@@ -105,8 +105,16 @@ namespace CNA::Editor
 
     void ValidationPanel::drawSceneIssues()
     {
-        const std::vector<SceneIssue> issues =
+        std::vector<SceneIssue> issues =
             validateScene(context_.getScene(), context_.getComponentRegistry());
+
+        // Appended rather than reported in their own section: a user whose model has the wrong
+        // material on it does not know in advance whether that is a structural problem or a
+        // geometry one, which is the same argument that put the missing-reference rules and the
+        // structural rules in one panel to begin with (ED-310).
+        const std::vector<SceneIssue> partIssues =
+            validateModelPartMaterials(context_.getScene(), context_.makeMeshProvider());
+        issues.insert(issues.end(), partIssues.begin(), partIssues.end());
 
         if (issues.empty())
         {

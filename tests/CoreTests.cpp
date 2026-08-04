@@ -675,3 +675,106 @@ CNA_EDITOR_TEST(ProjectionsMapTheDepthRangeToZeroAndOne)
     CNA_EDITOR_EXPECT(matrixNearlyEqual(edge.y, 1.0f));
     CNA_EDITOR_EXPECT(matrixNearlyEqual(edge.z, 0.0f));
 }
+
+/**
+ * @brief ED-311's `Structure`, built at last because ED-410 asked: it round-trips against a schema.
+ *
+ * Two properties, and the second is the one that matters. A structure encodes as a plain JSON
+ * object, so writing needs no schema -- a value knows its own field names. *Reading* does, and the
+ * read is driven by the schema rather than by the file: a field the JSON omits comes back as its
+ * declared default, so a structure can gain a field without every document already written
+ * becoming a document with a hole in it, and a field the schema does not declare is dropped rather
+ * than carried through into a shape nothing can read back.
+ */
+CNA_EDITOR_TEST(AStructureRoundTripsAgainstItsDeclaredSchemaRatherThanItsFile)
+{
+    PropertyDescriptor part;
+    part.name = "part";
+    part.type = PropertyType::String;
+    part.defaultValue = PropertyValue{std::string{"Body"}};
+
+    PropertyDescriptor material;
+    material.name = "material";
+    material.type = PropertyType::AssetReference;
+    material.defaultValue = PropertyValue{PropertyValue::AssetReference{}};
+
+    PropertyDescriptor entry;
+    entry.name = "entry";
+    entry.type = PropertyType::Structure;
+    entry.structureFields = {part, material};
+
+    const Uuid materialId = Uuid::generate();
+
+    PropertyValue::StructureValue value;
+    value.set("part", PropertyValue{std::string{"Lid"}});
+    value.set("material", PropertyValue{PropertyValue::AssetReference{materialId}});
+
+    const JsonValue encoded = PropertyValue{value}.toJson();
+    const PropertyValue decoded = propertyValueFromJson(encoded, entry);
+
+    CNA_EDITOR_EXPECT(decoded.getType() == PropertyType::Structure);
+    const auto& fields = decoded.get<PropertyValue::StructureValue>();
+    CNA_EDITOR_EXPECT_EQ(fields.find("part")->get<std::string>(), std::string{"Lid"});
+    CNA_EDITOR_EXPECT(fields.find("material")->get<PropertyValue::AssetReference>().id == materialId);
+
+    // A field the file never had reads as the declared default, not as nothing.
+    JsonValue partial = JsonValue::makeObject();
+    partial.set("material", JsonValue{materialId.toString()});
+    const PropertyValue defaulted = propertyValueFromJson(partial, entry);
+    CNA_EDITOR_EXPECT_EQ(defaulted.get<PropertyValue::StructureValue>().find("part")->get<std::string>(),
+                         std::string{"Body"});
+
+    // A field the *schema* never had is dropped rather than carried through.
+    JsonValue extra = encoded;
+    extra.set("unexpected", JsonValue{std::string{"kept?"}});
+    const PropertyValue trimmed = propertyValueFromJson(extra, entry);
+
+    // Held in a named value rather than re-read through `get<>()` per assertion: `get<>()` hands
+    // back a copy, and `EXPECT_EQ` binds a reference to what it is given -- so indexing into a
+    // temporary's vector would leave that reference dangling. It crashed exactly that way once.
+    const PropertyValue::StructureValue trimmedFields = trimmed.get<PropertyValue::StructureValue>();
+
+    CNA_EDITOR_EXPECT(trimmedFields.find("unexpected") == nullptr);
+    CNA_EDITOR_EXPECT_EQ(trimmedFields.fields.size(), std::size_t{2});
+
+    // The field order is the declared order, both in the value and in the JSON it writes -- which
+    // is what lets a document round-trip in the shape it arrived in rather than in hash order.
+    CNA_EDITOR_EXPECT_EQ(trimmedFields.fields[0].first, std::string{"part"});
+}
+
+/** @brief A list of structures decodes element by element against the same schema. */
+CNA_EDITOR_TEST(AListOfStructuresDecodesEveryElementAgainstTheSchema)
+{
+    PropertyDescriptor part;
+    part.name = "part";
+    part.type = PropertyType::String;
+    part.defaultValue = PropertyValue{std::string{}};
+
+    PropertyDescriptor list;
+    list.name = "materials";
+    list.type = PropertyType::List;
+    list.elementType = PropertyType::Structure;
+    list.structureFields = {part};
+
+    JsonValue array = JsonValue::makeArray();
+    for (const char* name : {"Lid", "Body"})
+    {
+        JsonValue element = JsonValue::makeObject();
+        element.set("part", JsonValue{std::string{name}});
+        array.append(element);
+    }
+
+    const PropertyValue decoded = propertyValueFromJson(array, list);
+    CNA_EDITOR_EXPECT(decoded.getType() == PropertyType::List);
+
+    const PropertyValue::ListValue list_ = decoded.get<PropertyValue::ListValue>();
+    CNA_EDITOR_EXPECT_EQ(list_.items.size(), std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(
+        list_.items[0].get<PropertyValue::StructureValue>().find("part")->get<std::string>(),
+        std::string{"Lid"});
+
+    // The type name is on the editor-to-player wire, so it has to be the appended one rather than
+    // anything inserted among the names that were already there.
+    CNA_EDITOR_EXPECT_EQ(std::string{toString(PropertyType::Structure)}, std::string{"structure"});
+    CNA_EDITOR_EXPECT(parsePropertyType("structure") == PropertyType::Structure);
+}

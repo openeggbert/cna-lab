@@ -745,6 +745,11 @@ namespace CNA::Editor
                 ImGui::TextUnformatted(id.isValid() ? id.toString().c_str() : "(none)");
                 break;
             }
+            case PropertyType::Structure:
+                // Same bargain as a list below, and for the same reason: a structure needs one row
+                // per declared field, each field's edit is its own undoable command, and which
+                // fields exist is on the descriptor rather than on the value. InspectorPanel draws
+                // the fields and calls back here once per field.
             case PropertyType::List: {
                 // A summary, not an editor. A list needs rows, an Add and a Remove per row, and
                 // each of those has to become its own undoable command -- which is a panel's job,

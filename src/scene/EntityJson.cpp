@@ -142,9 +142,10 @@ namespace CNA::Editor
                     continue;
                 }
 
-                component.setProperty(propertyName,
-                                      PropertyValue::fromJson(propertyJson, property->type,
-                                                              property->elementType));
+                // Through the descriptor-aware reader, not `PropertyValue::fromJson`: a structure
+                // cannot be decoded without the field schema, and that schema is on the descriptor
+                // this loop already has in hand (ED-410).
+                component.setProperty(propertyName, propertyValueFromJson(propertyJson, *property));
             }
 
             if (descriptor != nullptr) { component.applyDefaults(*descriptor); }

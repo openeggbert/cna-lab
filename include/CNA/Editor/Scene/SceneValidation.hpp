@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
+#include "CNA/Editor/Core/MeshData.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
 
 namespace CNA::Editor
@@ -91,6 +92,25 @@ namespace CNA::Editor
      */
     [[nodiscard]] std::vector<SceneIssue> validateScene(const SceneDocument& scene,
                                                         const ComponentRegistry& registry);
+
+    /**
+     * @brief Reports per-part material entries naming a part their model does not have (ED-410).
+     *
+     * Separate from `validateScene` because it needs the *geometry*, and the structural rules
+     * deliberately need nothing but the document -- the same split that keeps `MissingReferences`
+     * out of that function.
+     *
+     * **This rule is the reason the list is keyed by part name rather than by index.** An
+     * index-keyed override that shifted after a reimport still points at a part, just the wrong
+     * one, and there is nothing anywhere for a rule to notice. A name that matches nothing is
+     * detectable, and this is what detects it.
+     *
+     * Silent about a model whose mesh is not available: "not imported yet" is not "wrong", and a
+     * rule that fired while an asset scan was still running would report every model in the
+     * project.
+     */
+    [[nodiscard]] std::vector<SceneIssue> validateModelPartMaterials(const SceneDocument& scene,
+                                                                     const MeshProvider& meshes);
 
     /** @brief Returns how many of @p issues have the given severity. */
     [[nodiscard]] std::size_t countIssues(const std::vector<SceneIssue>& issues,

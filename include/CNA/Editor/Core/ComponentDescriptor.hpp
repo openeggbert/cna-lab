@@ -57,6 +57,20 @@ namespace CNA::Editor
         PropertyType elementType = PropertyType::None;
 
         /**
+         * @brief The fields of a structure, when @c type -- or @c elementType -- is Structure.
+         *
+         * Declared here rather than inferred from a stored value, for the reason `elementType` is:
+         * a structure that has never been written has no fields to infer from, and one whose shape
+         * followed its contents could not be edited back from empty.
+         *
+         * `std::vector<PropertyDescriptor>` of an incomplete type, which is legal and is the same
+         * trick `PropertyValue::ListValue` uses. A field may not itself be a structure or a list;
+         * nothing enforces that at compile time, and `ED-410` is the only consumer, so the rule is
+         * stated rather than checked.
+         */
+        std::vector<PropertyDescriptor> structureFields;
+
+        /**
          * @brief Which kind of asset an AssetReference field accepts, e.g. "Texture2D".
          *
          * Empty means any. Held as a string rather than as an AssetType so that this header stays
@@ -87,6 +101,23 @@ namespace CNA::Editor
         bool readOnly = false;
     };
 
+    /**
+     * @brief Reads @p json as the value @p descriptor declares, structures included.
+     *
+     * A free function rather than an overload of `PropertyValue::fromJson`, and the reason is a
+     * layering one: decoding a structure needs the *field schema*, that schema lives on a
+     * `PropertyDescriptor`, and `PropertyDescriptor` is declared here -- above `PropertyValue`'s
+     * header rather than below it. So the structured reader is where both are in scope, and
+     * everything flat still goes through the original.
+     *
+     * A field the JSON does not mention comes back as its declared default rather than as nothing,
+     * which is what lets a structure gain a field without every document already written becoming
+     * a document with a hole in it. A field the *schema* does not mention is dropped: keeping it
+     * would mean writing back a shape nothing declared, and the next reader would have no way to
+     * know what it meant.
+     */
+    [[nodiscard]] PropertyValue propertyValueFromJson(const JsonValue& json,
+                                                      const PropertyDescriptor& descriptor);
     /**
      * @brief The metadata for one component type.
      *

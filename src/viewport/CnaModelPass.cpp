@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <exception>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <array>
@@ -118,6 +119,15 @@ namespace CNA::Editor
             int vertexCount = 0;
             int triangleCount = 0;
             int materialIndex = -1;
+
+            /**
+             * @brief The mesh part's name, kept so ED-410's per-part overrides can be matched.
+             *
+             * Copied at upload rather than looked up in the `MeshData` at draw time: the buffers
+             * are cached per asset and the parts that produced them may have been skipped, so the
+             * index into `mesh.parts` and the index into `parts` here are not the same number.
+             */
+            std::string name;
         };
 
         struct GpuModel
@@ -177,6 +187,7 @@ namespace CNA::Editor
                 gpuPart.vertexCount = static_cast<int>(vertices.size());
                 gpuPart.triangleCount = static_cast<int>(part.indices.size() / 3);
                 gpuPart.materialIndex = part.materialIndex;
+                gpuPart.name = part.name;
 
                 try
                 {
@@ -314,10 +325,23 @@ namespace CNA::Editor
 
         /** @brief Applies @p material, or a neutral default when the part named none. */
         void applyMaterial(const MeshData& mesh, int materialIndex, ModelPassStats& stats,
-                           const std::optional<MeshMaterial>& override)
+                           const std::optional<MeshMaterial>& override,
+                           const std::string& partName,
+                           const std::vector<std::pair<std::string, MeshMaterial>>& partMaterials)
         {
+            // The per-part list first, because it is the more specific answer: the single override
+            // means "this whole model" and the list means "except these parts" (ED-410).
+            for (const auto& [name, material] : partMaterials)
+            {
+                if (name == partName)
+                {
+                    applyResolvedMaterial(material, stats);
+                    return;
+                }
+            }
+
             // An override replaces every part's material, which is the only thing one material can
-            // mean for a model of several parts. ED-410's per-mesh list is the other answer.
+            // mean for a model of several parts.
             if (override.has_value())
             {
                 applyResolvedMaterial(*override, stats);
@@ -628,7 +652,8 @@ namespace CNA::Editor
 
             for (const Impl::GpuPart& part : model->parts)
             {
-                impl_->applyMaterial(*draw.mesh, part.materialIndex, stats, draw.materialOverride);
+                impl_->applyMaterial(*draw.mesh, part.materialIndex, stats, draw.materialOverride,
+                                     part.name, draw.partMaterials);
                 impl_->applyEffect();
 
                 device.SetVertexBuffer(part.vertices.get());

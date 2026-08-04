@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
 
+#include "CNA/Editor/Core/Json.hpp"
+
 #include <algorithm>
 
 namespace CNA::Editor
@@ -38,5 +40,71 @@ namespace CNA::Editor
     bool ComponentRegistry::unregisterComponent(std::string_view typeId)
     {
         return descriptors_.erase(std::string{typeId}) > 0;
+    }
+}
+
+namespace CNA::Editor
+{
+    PropertyValue propertyValueFromJson(const JsonValue& json, const PropertyDescriptor& descriptor);
+
+    namespace
+    {
+        /** @brief Reads one structure from @p json against @p fields. */
+        PropertyValue::StructureValue readStructure(const JsonValue& json,
+                                                    const std::vector<PropertyDescriptor>& fields)
+        {
+            PropertyValue::StructureValue structure;
+
+            // Driven by the *schema*, not by the JSON. Walking the JSON instead would carry
+            // through whatever a file happened to contain, including fields no descriptor
+            // declares -- and the next save would write out a shape nothing can read back.
+            for (const PropertyDescriptor& field : fields)
+            {
+                const JsonValue& fieldJson = json[std::string_view{field.name}];
+
+                // Absent is not the same as present-and-empty. A field the document never carried
+                // takes the descriptor's declared default -- which is what lets a structure gain a
+                // field later without every document already written becoming one with a hole in
+                // it. A field that *is* there is read even when its value is empty, because an
+                // empty string somebody typed is a choice they made.
+                if (fieldJson.isNull())
+                {
+                    structure.set(field.name, field.defaultValue);
+                    continue;
+                }
+
+                structure.set(field.name, propertyValueFromJson(fieldJson, field));
+            }
+
+            return structure;
+        }
+    }
+
+    PropertyValue propertyValueFromJson(const JsonValue& json, const PropertyDescriptor& descriptor)
+    {
+        if (descriptor.type == PropertyType::Structure)
+        {
+            // An absent or non-object value reads as the declared defaults rather than as an
+            // empty structure: a field missing from a document is a field the document was written
+            // before, and defaulting it is the only reading that keeps old files opening.
+            if (!json.isObject())
+            {
+                return PropertyValue{readStructure(JsonValue{}, descriptor.structureFields)};
+            }
+            return PropertyValue{readStructure(json, descriptor.structureFields)};
+        }
+
+        if (descriptor.type == PropertyType::List
+            && descriptor.elementType == PropertyType::Structure)
+        {
+            PropertyValue::ListValue list;
+            for (const JsonValue& element : json.getElements())
+            {
+                list.items.push_back(PropertyValue{readStructure(element, descriptor.structureFields)});
+            }
+            return PropertyValue{std::move(list)};
+        }
+
+        return PropertyValue::fromJson(json, descriptor.type, descriptor.elementType);
     }
 }

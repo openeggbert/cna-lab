@@ -3114,3 +3114,155 @@ CNA_EDITOR_TEST(TheScenesAmbientReachesEveryModelDrawnInIt)
     // level, so a per-draw copy would be the same numbers repeated with nothing able to differ.
     CNA_EDITOR_EXPECT(batch.environment.ambientColor == dim.ambientColor);
 }
+
+/**
+ * @brief ED-410: a per-part material lands on the part it names and leaves the others alone.
+ *
+ * The behaviour that makes the list worth having, and the one an index-keyed list gets wrong
+ * silently. It is checked here rather than by screenshot because which material reaches which part
+ * is a lookup, not a colour -- and a lookup is exactly the kind of thing a picture is bad at
+ * disproving.
+ */
+CNA_EDITOR_TEST(APerPartMaterialAppliesToItsOwnPartAndNoOther)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    // Two parts, so "only this one" has something to be distinguished from.
+    MeshData mesh = makeTinyMesh();
+    mesh.parts[0].name = "Body";
+    MeshPart lid = mesh.parts[0];
+    lid.name = "Lid";
+    mesh.parts.push_back(std::move(lid));
+
+    const Uuid modelId = Uuid::generate();
+    const Uuid lidMaterialId = Uuid::generate();
+
+    EditorEntity entity = makeEntity(registry, "Crate", 0.0f, 0.0f);
+    addModelRenderer(registry, entity, modelId);
+
+    PropertyValue::StructureValue lidEntry;
+    lidEntry.set("part", PropertyValue{std::string{"Lid"}});
+    lidEntry.set("material", PropertyValue{PropertyValue::AssetReference{lidMaterialId}});
+
+    PropertyValue::ListValue materials;
+    materials.items.push_back(PropertyValue{lidEntry});
+
+    EditorComponent* renderer = entity.findComponent(BuiltinComponentIds::kModelRenderer);
+    renderer->setProperty("materials", PropertyValue{materials});
+    scene.addEntity(std::move(entity));
+
+    EditorCamera3D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const MeshProvider meshes = [&](const Uuid& id) { return id == modelId ? &mesh : nullptr; };
+    const MaterialProvider materialsProvider =
+        [&](const Uuid& id) -> std::optional<MeshMaterial>
+    {
+        if (id != lidMaterialId) { return std::nullopt; }
+        MeshMaterial material;
+        material.name = "Lid Paint";
+        return material;
+    };
+
+    const SceneModelBatch batch =
+        buildSceneModelBatch(scene, camera, meshes, {}, materialsProvider);
+
+    CNA_EDITOR_EXPECT_EQ(batch.draws.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(batch.draws[0].partMaterials.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(batch.draws[0].partMaterials[0].first, std::string{"Lid"});
+    CNA_EDITOR_EXPECT_EQ(batch.draws[0].partMaterials[0].second.name, std::string{"Lid Paint"});
+
+    // The whole-model override is untouched: the two compose as "this model, except these parts".
+    CNA_EDITOR_EXPECT(!batch.draws[0].materialOverride.has_value());
+}
+
+/**
+ * @brief A per-part entry naming a part the model does not have is kept, not quietly dropped.
+ *
+ * The reason the list is keyed by name at all. An entry that matches nothing is *detectable* --
+ * validation can say so, and a user can fix it -- whereas an index-keyed entry that shifted after a
+ * reimport still matches a part, just the wrong one, and there is nothing anywhere to notice.
+ * Dropping it here would throw away the very evidence that makes the choice worth making.
+ */
+CNA_EDITOR_TEST(APerPartMaterialNamingAMissingPartSurvivesSoItCanBeReported)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const MeshData mesh = makeTinyMesh();
+    const Uuid modelId = Uuid::generate();
+    const Uuid materialId = Uuid::generate();
+
+    EditorEntity entity = makeEntity(registry, "Crate", 0.0f, 0.0f);
+    addModelRenderer(registry, entity, modelId);
+
+    PropertyValue::StructureValue entry;
+    entry.set("part", PropertyValue{std::string{"NoSuchPart"}});
+    entry.set("material", PropertyValue{PropertyValue::AssetReference{materialId}});
+
+    PropertyValue::ListValue materials;
+    materials.items.push_back(PropertyValue{entry});
+    entity.findComponent(BuiltinComponentIds::kModelRenderer)
+        ->setProperty("materials", PropertyValue{materials});
+    scene.addEntity(std::move(entity));
+
+    EditorCamera3D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const MeshProvider meshes = [&](const Uuid& id) { return id == modelId ? &mesh : nullptr; };
+    const MaterialProvider materialsProvider = [&](const Uuid&) { return MeshMaterial{}; };
+
+    const SceneModelBatch batch =
+        buildSceneModelBatch(scene, camera, meshes, {}, materialsProvider);
+
+    CNA_EDITOR_EXPECT_EQ(batch.draws.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(batch.draws[0].partMaterials.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(batch.draws[0].partMaterials[0].first, std::string{"NoSuchPart"});
+}
+
+/**
+ * @brief The rule that makes name-keying worth its cost: a part that is not there is reported.
+ *
+ * Without this the argument for keying by name over index is only half made. An index-keyed
+ * override that shifted after a reimport still points at *a* part and there is nothing to notice;
+ * a name that matches nothing is detectable, and this is what detects it.
+ */
+CNA_EDITOR_TEST(AMaterialAssignedToAPartTheModelDoesNotHaveIsReported)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    MeshData mesh = makeTinyMesh();
+    mesh.parts[0].name = "Body";
+    const Uuid modelId = Uuid::generate();
+
+    EditorEntity entity = makeEntity(registry, "Crate", 0.0f, 0.0f);
+    addModelRenderer(registry, entity, modelId);
+
+    PropertyValue::StructureValue entry;
+    entry.set("part", PropertyValue{std::string{"Lid"}});
+    entry.set("material", PropertyValue{PropertyValue::AssetReference{Uuid::generate()}});
+
+    PropertyValue::ListValue materials;
+    materials.items.push_back(PropertyValue{entry});
+    entity.findComponent(BuiltinComponentIds::kModelRenderer)
+        ->setProperty("materials", PropertyValue{materials});
+    scene.addEntity(std::move(entity));
+
+    const MeshProvider meshes = [&](const Uuid& id) { return id == modelId ? &mesh : nullptr; };
+
+    const std::vector<SceneIssue> issues = validateModelPartMaterials(scene, meshes);
+    CNA_EDITOR_EXPECT_EQ(issues.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(issues[0].ruleId, std::string{"model-part-not-found"});
+    CNA_EDITOR_EXPECT(issues[0].message.find("Lid") != std::string::npos);
+
+    // A part that *is* there says nothing at all.
+    mesh.parts[0].name = "Lid";
+    CNA_EDITOR_EXPECT(validateModelPartMaterials(scene, meshes).empty());
+
+    // And a model whose mesh has not been imported says nothing either: "not imported yet" is not
+    // "wrong", and a rule that fired mid-scan would report every model in the project.
+    const MeshProvider none = [](const Uuid&) -> const MeshData* { return nullptr; };
+    CNA_EDITOR_EXPECT(validateModelPartMaterials(scene, none).empty());
+}

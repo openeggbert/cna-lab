@@ -26,6 +26,8 @@
 
 #include <cstddef>
 #include <optional>
+#include <string>
+#include <utility>
 #include <functional>
 #include <vector>
 
@@ -90,6 +92,18 @@ namespace CNA::Editor
          * second way to read an asset: the batch is built where the database is.
          */
         std::optional<MeshMaterial> materialOverride;
+
+        /**
+         * @brief Per-part overrides, keyed by the part's name (ED-410).
+         *
+         * Applied *after* `materialOverride` and only to the parts it names, so the two compose the
+         * way a user would predict: the single override is "this whole model", the list is "except
+         * these parts". A name that matches nothing is left here rather than dropped, so validation
+         * can report it -- which is the reason the list is keyed by name at all. An index-keyed
+         * list survives a reimport that inserts a part by silently pointing at a different one,
+         * and nothing can notice.
+         */
+        std::vector<std::pair<std::string, MeshMaterial>> partMaterials;
 
         /** @brief True when this entity is in the selection, so the viewport can mark it. */
         bool selected = false;

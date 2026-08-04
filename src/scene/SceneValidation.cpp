@@ -479,3 +479,66 @@ namespace CNA::Editor
                           [severity](const SceneIssue& issue) { return issue.severity == severity; }));
     }
 }
+
+namespace CNA::Editor
+{
+    std::vector<SceneIssue> validateModelPartMaterials(const SceneDocument& scene,
+                                                       const MeshProvider& meshes)
+    {
+        std::vector<SceneIssue> issues;
+        if (!meshes) { return issues; }
+
+        for (const EditorEntity& entity : scene.getEntities())
+        {
+            const EditorComponent* renderer =
+                entity.findComponent(BuiltinComponentIds::kModelRenderer);
+            if (renderer == nullptr) { continue; }
+
+            const PropertyValue& listValue = renderer->getProperty("materials");
+            if (listValue.getType() != PropertyType::List) { continue; }
+
+            const auto& items = listValue.get<PropertyValue::ListValue>().items;
+            if (items.empty()) { continue; }
+
+            const Uuid modelId =
+                renderer->getProperty("model").get<PropertyValue::AssetReference>().id;
+            const MeshData* mesh = modelId.isValid() ? meshes(modelId) : nullptr;
+
+            // Not imported yet is not wrong. A rule that fired while a scan was still running
+            // would report every model in the project, once, for no reason a user could act on.
+            if (mesh == nullptr) { continue; }
+
+            for (const PropertyValue& item : items)
+            {
+                if (item.getType() != PropertyType::Structure) { continue; }
+
+                // Bound to a named reference rather than used inline. `get<T>()` hands back a
+                // *copy*, so a pointer from `find` into `item.get<...>().find(...)` points into a
+                // temporary that dies at the end of the expression -- and the read that follows
+                // returns whatever is left, which here was a silently empty part name. It cost a
+                // debugging session; `SceneModels` gets it right by binding the same way.
+                const auto& structure = item.get<PropertyValue::StructureValue>();
+                const PropertyValue* partName = structure.find("part");
+                if (partName == nullptr) { continue; }
+
+                const std::string name = partName->get<std::string>();
+                if (name.empty()) { continue; }
+
+                bool found = false;
+                for (const MeshPart& part : mesh->parts)
+                {
+                    if (part.name == name) { found = true; break; }
+                }
+                if (found) { continue; }
+
+                issues.push_back(makeIssue(
+                    SceneIssue::Severity::Warning, "model-part-not-found", entity,
+                    BuiltinComponentIds::kModelRenderer,
+                    "A material is assigned to a part named '" + name
+                        + "', which this model does not have. It was probably renamed or removed."));
+            }
+        }
+
+        return issues;
+    }
+}

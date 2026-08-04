@@ -166,12 +166,40 @@ namespace CNA::Editor
                                                      "Model asset to draw.");
             model.assetType = "Model";
 
-            descriptor.properties = {
-                std::move(model),
+            PropertyDescriptor material =
                 makeProperty("material", "Material Override", PropertyType::AssetReference,
                              PropertyValue{PropertyValue::AssetReference{}},
-                             "Optional single material override. A per-mesh material list arrives with "
-                             "the PropertyType::List support planned for plan.md Phase 3."),
+                             "Replaces the material of every part. For one part at a time, use the "
+                             "Part Materials list below.");
+            material.assetType = "Material";
+
+            // ED-410. Keyed by the part's *name* rather than by its index, which is the decision
+            // worth recording because indices are the obvious choice and are wrong here. A model
+            // reimported with a mesh added in the middle shifts every index after it, and an
+            // index-keyed override then points at a different part while still looking perfectly
+            // valid -- there is nothing for validation to notice. A name that no longer matches
+            // anything is detectable, and a wrong answer that can be reported beats a wrong answer
+            // that cannot.
+            PropertyDescriptor part = makeProperty("part", "Part", PropertyType::String,
+                                                   PropertyValue{std::string{}},
+                                                   "The mesh part's name, as the importer read it.");
+            PropertyDescriptor partMaterial =
+                makeProperty("material", "Material", PropertyType::AssetReference,
+                             PropertyValue{PropertyValue::AssetReference{}});
+            partMaterial.assetType = "Material";
+
+            PropertyDescriptor materials =
+                makeProperty("materials", "Part Materials", PropertyType::List,
+                             PropertyValue{PropertyValue::ListValue{}},
+                             "A material per named mesh part. Overrides the single Material "
+                             "Override for the parts it names, and leaves the rest alone.");
+            materials.elementType = PropertyType::Structure;
+            materials.structureFields = {std::move(part), std::move(partMaterial)};
+
+            descriptor.properties = {
+                std::move(model),
+                std::move(material),
+                std::move(materials),
                 makeProperty("castShadows", "Cast Shadows", PropertyType::Boolean, PropertyValue{true}),
                 makeProperty("receiveShadows", "Receive Shadows", PropertyType::Boolean, PropertyValue{true}),
             };

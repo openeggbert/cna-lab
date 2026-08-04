@@ -98,6 +98,33 @@ namespace CNA::Editor
                 const Uuid materialId =
                     renderer->getProperty("material").get<PropertyValue::AssetReference>().id;
                 if (materialId.isValid()) { draw.materialOverride = materialProvider(materialId); }
+
+                // ED-410: the per-part list, resolved the same way. Each entry is a structure of
+                // a part name and a material reference -- which is what `PropertyType::Structure`
+                // was finally built for, ED-311 having deliberately left it unbuilt until
+                // something real asked.
+                const PropertyValue& listValue = renderer->getProperty("materials");
+                if (listValue.getType() == PropertyType::List)
+                {
+                    for (const PropertyValue& item : listValue.get<PropertyValue::ListValue>().items)
+                    {
+                        if (item.getType() != PropertyType::Structure) { continue; }
+
+                        const auto& structure = item.get<PropertyValue::StructureValue>();
+                        const PropertyValue* partName = structure.find("part");
+                        const PropertyValue* partMaterial = structure.find("material");
+                        if (partName == nullptr || partMaterial == nullptr) { continue; }
+
+                        const std::string name = partName->get<std::string>();
+                        const Uuid id = partMaterial->get<PropertyValue::AssetReference>().id;
+                        if (name.empty() || !id.isValid()) { continue; }
+
+                        if (const std::optional<MeshMaterial> resolved = materialProvider(id))
+                        {
+                            draw.partMaterials.emplace_back(name, *resolved);
+                        }
+                    }
+                }
             }
 
             draw.selected =

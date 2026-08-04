@@ -16,7 +16,7 @@ namespace CNA::Editor
             const char* name;
         };
 
-        constexpr std::array<TypeName, 15> kTypeNames{{
+        constexpr std::array<TypeName, 16> kTypeNames{{
             {PropertyType::None, "none"},
             {PropertyType::Boolean, "bool"},
             {PropertyType::Integer, "int"},
@@ -32,6 +32,7 @@ namespace CNA::Editor
             {PropertyType::AssetReference, "asset"},
             {PropertyType::EntityReference, "entity"},
             {PropertyType::List, "list"},
+            {PropertyType::Structure, "structure"},
         }};
 
         /** @brief Reads @p count floats out of a JSON array, leaving missing slots at zero. */
@@ -100,6 +101,7 @@ namespace CNA::Editor
             case 12: return PropertyType::AssetReference;
             case 13: return PropertyType::EntityReference;
             case 14: return PropertyType::List;
+            case 15: return PropertyType::Structure;
             default: return PropertyType::None;
         }
     }
@@ -155,6 +157,17 @@ namespace CNA::Editor
             case PropertyType::EntityReference: {
                 const Uuid id = get<EntityReference>().id;
                 return id.isValid() ? JsonValue{id.toString()} : JsonValue{};
+            }
+            case PropertyType::Structure: {
+                // A JSON object keyed by the field names the value itself carries. No descriptor is
+                // needed to *write* one, unlike to read one: a value knows what its fields are
+                // called, and reading is where a name has to be matched against a declared schema.
+                JsonValue json = JsonValue::makeObject();
+                for (const StructureValue::Field& field : get<StructureValue>().fields)
+                {
+                    json.set(field.first, field.second.toJson());
+                }
+                return json;
             }
             case PropertyType::List: {
                 // A plain JSON array of the elements' own encodings, with no type tag per item.
@@ -230,6 +243,12 @@ namespace CNA::Editor
                 return PropertyValue{AssetReference{Uuid::parse(json.asString())}};
             case PropertyType::EntityReference:
                 return PropertyValue{EntityReference{Uuid::parse(json.asString())}};
+            case PropertyType::Structure:
+                // Undecodable without the field schema, which this overload does not have. The
+                // one that does is `propertyValueFromJson` in ComponentDescriptor.hpp; returning
+                // an empty structure here is what a caller that has not been updated gets, and it
+                // is a visible nothing rather than a silently wrong something.
+                return PropertyValue{StructureValue{}};
             case PropertyType::List: {
                 ListValue list;
 
@@ -270,6 +289,7 @@ namespace CNA::Editor
             case PropertyType::AssetReference: return PropertyValue{AssetReference{}};
             case PropertyType::EntityReference: return PropertyValue{EntityReference{}};
             case PropertyType::List: return PropertyValue{ListValue{}};
+            case PropertyType::Structure: return PropertyValue{StructureValue{}};
         }
         return PropertyValue{};
     }
@@ -327,7 +347,50 @@ namespace CNA::Editor
                 const std::size_t count = get<ListValue>().items.size();
                 return count == 1 ? "1 item" : std::to_string(count) + " items";
             }
+            case PropertyType::Structure: {
+                // The fields' own display strings, comma-separated and named. A structure is small
+                // by construction -- it has as many fields as a descriptor declared -- so unlike a
+                // list there is nothing here that could drown an undo label.
+                std::string text = "{";
+                bool first = true;
+                for (const StructureValue::Field& field : get<StructureValue>().fields)
+                {
+                    if (!first) { text += ", "; }
+                    first = false;
+                    text += field.first + ": " + field.second.toDisplayString();
+                }
+                return text + "}";
+            }
         }
         return "<none>";
+    }
+}
+
+namespace CNA::Editor
+{
+    const PropertyValue* PropertyValue::StructureValue::find(std::string_view name) const
+    {
+        for (const Field& field : fields)
+        {
+            if (field.first == name) { return &field.second; }
+        }
+        return nullptr;
+    }
+
+    void PropertyValue::StructureValue::set(std::string name, PropertyValue value)
+    {
+        for (Field& field : fields)
+        {
+            if (field.first == name)
+            {
+                field.second = std::move(value);
+                return;
+            }
+        }
+
+        // Appended rather than inserted in some sorted position: the declared order is what the
+        // inspector draws and what the JSON comes out in, so a field arriving late belongs at the
+        // end where a reader will notice it rather than in the middle where it looks original.
+        fields.emplace_back(std::move(name), std::move(value));
     }
 }

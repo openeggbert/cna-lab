@@ -115,7 +115,13 @@
      "castShadows": true,
      "material": "4f454361-ddf7-4706-9633-b08a2deaf399",
      "model": "3eaac087-d4b1-4f13-9b05-0fcc79ea4956",
-     "receiveShadows": true
+     "receiveShadows": true,
+     "materials": [
+      {
+       "part": "Crate",
+       "material": "2272bcd9-6504-406f-abbe-8ab0a9a2bead"
+      }
+     ]
     }
    }
   },

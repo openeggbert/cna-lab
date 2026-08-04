@@ -1944,7 +1944,58 @@ CNA_EDITOR_TEST(ASlotRefusesAnAssetOfTheWrongKindAndSaysWhy)
     CNA_EDITOR_EXPECT(fixture.logContains("this field takes a Texture2D"));
 }
 
+/**
+ * @brief A slot that declares no kind takes anything -- which now needs a descriptor of its own.
+ *
+ * This test used to drop a `RawData` asset onto `ModelRenderer`'s Material Override, because that
+ * slot declared no kind: materials were not a tracked asset type. ED-403 made them one, so that
+ * slot now declares "Material" and correctly refuses -- which left the *rule* untested rather than
+ * the component.
+ *
+ * So the rule gets a component of its own. That is the better test anyway: the behaviour belongs to
+ * the descriptor's contract ("empty means any", so a plugin can name a kind this build was never
+ * compiled against), not to whichever built-in happened to leave the field blank.
+ */
 CNA_EDITOR_TEST(ASlotWithNoDeclaredKindTakesAnything)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    ComponentDescriptor anything;
+    anything.typeId = "Test.AnyAsset";
+    anything.displayName = "Any Asset";
+    anything.category = "Test";
+
+    PropertyDescriptor slot;
+    slot.name = "payload";
+    slot.displayName = "Payload";
+    slot.type = PropertyType::AssetReference;
+    slot.defaultValue = PropertyValue{PropertyValue::AssetReference{}};
+    // No assetType: this is the whole point of the test.
+    anything.properties = {slot};
+
+    context.getComponentRegistry().registerComponent(anything);
+
+    fixture.ui->pendingChoices.emplace_back("##addComponentType", "Test / Any Asset");
+    fixture.step(UiImageInteraction{});
+    fixture.ui->pendingClicks.push_back("Add Component");
+    fixture.step(UiImageInteraction{});
+
+    const Uuid rawId = addAsset(context, "Data/Table.json", AssetType::RawData);
+
+    fixture.ui->pendingAssetDrops.emplace_back("Payload", rawId.toString());
+    fixture.step(UiImageInteraction{});
+
+    const EditorComponent* component =
+        context.getScene().findEntity(fixture.entityId)->findComponent("Test.AnyAsset");
+    CNA_EDITOR_EXPECT(component != nullptr);
+    CNA_EDITOR_EXPECT_EQ(
+        component->getProperty("payload").get<PropertyValue::AssetReference>().id.toString(),
+        rawId.toString());
+}
+
+/** @brief ED-403 tightened the Material Override slot, so it takes a material and nothing else. */
+CNA_EDITOR_TEST(TheMaterialOverrideSlotTakesAMaterialAndRefusesEverythingElse)
 {
     GizmoFixture fixture = makeGizmoFixture();
     EditorContext& context = fixture.application->getContext();
@@ -1954,16 +2005,24 @@ CNA_EDITOR_TEST(ASlotWithNoDeclaredKindTakesAnything)
     fixture.ui->pendingClicks.push_back("Add Component");
     fixture.step(UiImageInteraction{});
 
-    // The material override declares no kind, because materials are not a tracked asset type yet.
     const Uuid rawId = addAsset(context, "Materials/Brick.json", AssetType::RawData);
-
     fixture.ui->pendingAssetDrops.emplace_back("Material Override", rawId.toString());
     fixture.step(UiImageInteraction{});
 
     const EditorComponent* model = context.getScene().findEntity(fixture.entityId)
                                        ->findComponent(BuiltinComponentIds::kModelRenderer);
-    CNA_EDITOR_EXPECT_EQ(model->getProperty("material").get<PropertyValue::AssetReference>().id.toString(),
-                         rawId.toString());
+    CNA_EDITOR_EXPECT(
+        !model->getProperty("material").get<PropertyValue::AssetReference>().id.isValid());
+
+    const Uuid materialId = addAsset(context, "Materials/Brick.cnamaterial", AssetType::Material);
+    fixture.ui->pendingAssetDrops.emplace_back("Material Override", materialId.toString());
+    fixture.step(UiImageInteraction{});
+
+    model = context.getScene().findEntity(fixture.entityId)
+                ->findComponent(BuiltinComponentIds::kModelRenderer);
+    CNA_EDITOR_EXPECT_EQ(
+        model->getProperty("material").get<PropertyValue::AssetReference>().id.toString(),
+        materialId.toString());
 }
 
 CNA_EDITOR_TEST(TheConsoleCopiesWhatItIsShowing)
