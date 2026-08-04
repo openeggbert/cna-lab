@@ -54,6 +54,9 @@ namespace CNA::Editor
         Scale
     };
 
+    /** @brief Returns the display name of @p mode. */
+    const char* toString(GizmoMode mode);
+
     /** @brief Counters from the most recent viewport render, for the profiler and for tests. */
     struct ViewportStats
     {

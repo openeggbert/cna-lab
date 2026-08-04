@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 343 / 343 (also under Clang Release) |
+| Unit tests | ✅ 344 / 344 (also under Clang Release) |
 | CTest (standalone) | ✅ 8 / 8 |
 | CTest (CNA config) | ✅ 12 / 12 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -117,6 +117,11 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **The viewport toolbar shows the gizmo mode and space.** `W`/`E`/`R` and `X` could change them
+  and the menu could set them, but nothing *displayed* them -- a user who could not see which
+  manipulator was active had to press a key to find out what it had been. The space button is
+  labelled with the space it is in rather than the one pressing it selects, because a toolbar
+  reports state; the menu still says "Use Local Space", because a menu item is an instruction.
 - **Delete and duplicate a selection as one undo entry**, plus JPEG dimensions. Both already acted
   on the whole selection; what they did not do was undo as one action. `CompositeCommand` (new, in
   core) holds several commands and undoes them in reverse, which is also what makes it safe to build
@@ -474,9 +479,9 @@ What follows is a judgement call rather than a queue.
 1. **Hear the audio preview on a machine with a sound device.** It was rewritten to hold a
    `SoundEffectInstance` so Stop actually stops, but this container has none, so that path has been
    compiled and reasoned about rather than heard.
-2. **A snap setting in the viewport toolbar.** Ctrl snaps to the visible grid, 15 degrees and
-   tenths, all fixed. A project that lays out on a 16-pixel tile grid wants to say so once rather
-   than zooming until the grid happens to agree.
+2. **A snap *step* the project can set.** Ctrl snaps to the visible grid, 15 degrees and tenths,
+   all fixed. A project that lays out on a 16-pixel tile grid wants to say so once, in the
+   `.cnaproject` beside `layers`, rather than zooming until the grid happens to agree.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
 chains are empty on purpose. Adding a property type must not change what an existing scene file

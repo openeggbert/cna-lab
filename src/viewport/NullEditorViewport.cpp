@@ -6,6 +6,18 @@
 
 namespace CNA::Editor
 {
+    const char* toString(GizmoMode mode)
+    {
+        switch (mode)
+        {
+            case GizmoMode::None: return "None";
+            case GizmoMode::Translate: return "Translate";
+            case GizmoMode::Rotate: return "Rotate";
+            case GizmoMode::Scale: return "Scale";
+        }
+        return "None";
+    }
+
     UiTextureId NullEditorViewport::render(const SceneDocument& scene,
                                            int width,
                                            int height,

@@ -1461,6 +1461,31 @@ CNA_EDITOR_TEST(CtrlClickingAddsToTheSelectionAndClickingEmptySpaceWithItDoesNot
     CNA_EDITOR_EXPECT(context.isSelected(secondId));
 }
 
+CNA_EDITOR_TEST(TheViewportToolbarShowsAndSetsTheGizmoModeAndSpace)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    // The toolbar reports state the keys and the menu can only change. A user who cannot see which
+    // manipulator is active has to press a key to find out what it was.
+    fixture.ui->pendingChoices.emplace_back("##gizmo", "Scale");
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.application->getGizmoMode() == GizmoMode::Scale);
+
+    // The space button is labelled with the space it is *in*, so pressing "World" leaves Local.
+    fixture.ui->pendingClicks.emplace_back("World##space");
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.application->getGizmoSpace() == GizmoSpace::Local);
+
+    fixture.ui->pendingClicks.emplace_back("Local##space");
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.application->getGizmoSpace() == GizmoSpace::World);
+
+    // And the keys still work, so the toolbar is a second way in rather than the only one.
+    fixture.ui->pressShortcut(UiKey::W);
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.application->getGizmoMode() == GizmoMode::Translate);
+}
+
 CNA_EDITOR_TEST(TheGizmoSpaceShortcutTogglesBothWays)
 {
     GizmoFixture fixture = makeGizmoFixture();

@@ -257,6 +257,38 @@ namespace CNA::Editor
             }
         }
 
+        // The manipulator and the space it works in, beside the tool. They have keys (W/E/R and X)
+        // and menu items already; what neither of those does is *show* which one is active, and a
+        // user who cannot see the state has to press a key to find out what it was.
+        static const std::array<GizmoMode, 3> kModes{GizmoMode::Translate, GizmoMode::Rotate,
+                                                     GizmoMode::Scale};
+
+        std::vector<std::string> modeNames;
+        modeNames.reserve(kModes.size());
+        for (const GizmoMode mode : kModes) { modeNames.emplace_back(toString(mode)); }
+
+        ui_.sameLine();
+        ui_.setNextItemWidth(110.0f);
+        PropertyValue mode{PropertyValue::EnumValue{toString(actions_.getGizmoMode())}};
+        if (ui_.propertyField("##gizmo", mode, modeNames))
+        {
+            const std::string name = mode.get<PropertyValue::EnumValue>().name;
+            for (std::size_t index = 0; index < kModes.size(); ++index)
+            {
+                if (modeNames[index] == name) { actions_.setGizmoMode(kModes[index]); }
+            }
+        }
+
+        // Labelled with the space it is *in*, not the one pressing it selects: a toolbar reports
+        // state, and a button that named the other space would read as a claim about the current
+        // one. The menu says "Use Local Space" instead, because a menu item is an instruction.
+        ui_.sameLine();
+        const GizmoSpace space = actions_.getGizmoSpace();
+        if (ui_.button(std::string{toString(space)} + "##space"))
+        {
+            actions_.setGizmoSpace(space == GizmoSpace::World ? GizmoSpace::Local : GizmoSpace::World);
+        }
+
         // Only where it means something. A tile index beside the Select tool is a control that
         // does nothing, which is worse than one that is not there. The eraser has no index either;
         // the eyedropper sets one rather than reading it.
