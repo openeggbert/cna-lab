@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **334 passing tests across 8 CTest suites** (12 with CNA)
+- 12 modules, three executables, and **341 passing tests across 8 CTest suites** (12 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -212,7 +212,7 @@ position changes in the inspector, undo returns it, the scene saves, and it runs
 
 | Id | Task | Status | Notes |
 |----|------|:------:|-------|
-| ED-200 | Hierarchy panel: rename in place, drag-to-reparent, context menu, multi-select | ✅ | Every operation through a command (D-06). Structural changes are deferred to the end of the frame — a reparent reorders the child lists the recursion is walking. An empty rename is treated as a slip and keeps the old name; dropping a parent onto its own descendant is refused with a reason rather than pushing a command that does nothing |
+| ED-200 | Hierarchy panel: rename in place, drag-to-reparent, context menu, multi-select | ✅ | Every operation through a command (D-06). Structural changes are deferred to the end of the frame — a reparent reorders the child lists the recursion is walking. An empty rename is treated as a slip and keeps the old name; dropping a parent onto its own descendant is refused with a reason rather than pushing a command that does nothing. A multi-selection is now also *manipulable*: the gizmo sits on the selection's shared pivot, drags move, turn and scale every member about it, and the whole drag is one `TransformEntitiesCommand` -- one undo entry, since a command per entity would take N presses of Ctrl+Z and would pass through arrangements the scene was never in. Descendants of selected entities are left alone: a child is carried by its parent, and transforming both moves it twice |
 | ED-201 | Sprite rendering resolves textures through `AssetDatabase`, ordered by layer depth | ✅ | Done as part of ED-121. `SpriteSortMode::BackToFront` honours `layerDepth` on XNA's own convention (0 front, 1 back), so the editor's ordering is the one the game will see. A texture that fails to load is remembered as failed, costing one attempt rather than one per frame |
 | ED-202 | Grid with adaptive spacing | ✅ | Done as ED-125 |
 | ED-203 | Selection outline as an overlay pass | ✅ | Drawn in a third `SpriteBatch` pass after the content, never as scene geometry |

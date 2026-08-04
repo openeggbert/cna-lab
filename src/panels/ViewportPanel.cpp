@@ -408,6 +408,20 @@ namespace CNA::Editor
         translateDrag_.end();
         rotateDrag_.end();
         scaleDrag_.end();
+        multiDrag_.end();
+    }
+
+    std::optional<EditorVector2> ViewportPanel::getGizmoPivot() const
+    {
+        const std::vector<Uuid>& selection = context_.getSelection();
+        if (selection.empty()) { return std::nullopt; }
+        if (selection.size() == 1)
+        {
+            const std::optional<WorldTransform> world = computeWorldTransform(context_.getScene(), selection.front());
+            if (!world) { return std::nullopt; }
+            return EditorVector2{world->position.x, world->position.y};
+        }
+        return computeSelectionPivot(context_.getScene(), selection);
     }
 
     bool ViewportPanel::beginGizmoDrag(const EditorVector2& cursor)
@@ -416,15 +430,21 @@ namespace CNA::Editor
         const SceneDocument& scene = context_.getScene();
         const EditorCamera2D& camera = actions_.getViewport().getCamera();
 
+        // The shared pivot, when several entities are selected. Where the gizmo is *drawn* is where
+        // it must be grabbed, and the renderer places it the same way.
+        const std::optional<EditorVector2> pivot =
+            context_.getSelection().size() > 1 ? getGizmoPivot() : std::nullopt;
+
         // Only the manipulator that is actually drawn can be grabbed. Hit-testing the others would
         // let a press land on a handle nobody can see, which is indistinguishable from a bug.
         switch (actions_.getGizmoMode())
         {
             case GizmoMode::Translate:
             {
-                const auto layout =
+                auto layout =
                     computeTranslateGizmoLayout(scene, camera, selectedId, actions_.getGizmoSpace());
                 if (!layout) { return false; }
+                if (pivot) { placeGizmoAt(*layout, camera, *pivot); }
 
                 const GizmoHandle handle = hitTestTranslateGizmo(*layout, cursor);
                 if (!translateDrag_.begin(scene, camera, selectedId, handle, cursor,
@@ -437,8 +457,10 @@ namespace CNA::Editor
 
             case GizmoMode::Rotate:
             {
-                const auto layout = computeRotateGizmoLayout(scene, camera, selectedId);
+                auto layout = computeRotateGizmoLayout(scene, camera, selectedId);
                 if (!layout) { return false; }
+                if (pivot) { placeGizmoAt(*layout, camera, *pivot); }
+
                 if (hitTestRotateGizmo(*layout, cursor) == GizmoHandle::None) { return false; }
                 if (!rotateDrag_.begin(scene, *layout, selectedId, cursor)) { return false; }
                 break;
@@ -446,8 +468,9 @@ namespace CNA::Editor
 
             case GizmoMode::Scale:
             {
-                const auto layout = computeScaleGizmoLayout(scene, camera, selectedId);
+                auto layout = computeScaleGizmoLayout(scene, camera, selectedId);
                 if (!layout) { return false; }
+                if (pivot) { placeGizmoAt(*layout, camera, *pivot); }
 
                 const GizmoHandle handle = hitTestScaleGizmo(*layout, cursor);
                 if (!scaleDrag_.begin(scene, *layout, selectedId, handle, cursor)) { return false; }
@@ -459,6 +482,19 @@ namespace CNA::Editor
         }
 
         gizmoDragHasEdited_ = false;
+
+        // A multi-selection drag runs beside the single-entity one: that computes the gesture, this
+        // turns it into the edits a whole selection needs. Started only when there is more than one
+        // entity, so a single selection takes exactly the path it always did.
+        multiDrag_.end();
+        if (context_.getSelection().size() > 1)
+        {
+            if (const std::optional<EditorVector2> pivot = getGizmoPivot())
+            {
+                multiDrag_.begin(scene, context_.getSelection(), *pivot);
+                ++multiDragId_;
+            }
+        }
         return true;
     }
 
@@ -498,8 +534,62 @@ namespace CNA::Editor
         return snap;
     }
 
+    void ViewportPanel::updateMultiDrag(const EditorVector2& cursor, const GizmoSnap& snap)
+    {
+        const SceneDocument& scene = context_.getScene();
+        const EditorCamera2D& camera = actions_.getViewport().getCamera();
+
+        std::vector<EntityTransformEdit> edits;
+
+        if (translateDrag_.isActive())
+        {
+            edits = multiDrag_.translate(scene, translateDrag_.getWorldDelta(camera, cursor, snap));
+        }
+        else if (rotateDrag_.isActive())
+        {
+            auto layout = computeRotateGizmoLayout(scene, camera, rotateDrag_.getEntityId());
+            if (!layout) { return; }
+
+            // The pivot captured when the drag began, not a fresh centroid: the entities are moving
+            // as the drag proceeds, and a centre recomputed from them would chase itself.
+            placeGizmoAt(*layout, camera, multiDrag_.getPivot());
+            edits = multiDrag_.rotate(scene, rotateDrag_.getDeltaAngle(*layout, cursor, snap));
+        }
+        else if (scaleDrag_.isActive())
+        {
+            auto layout = computeScaleGizmoLayout(scene, camera, scaleDrag_.getEntityId());
+            if (!layout) { return; }
+            placeGizmoAt(*layout, camera, multiDrag_.getPivot());
+
+            const float factor = scaleDrag_.getFactor(*layout, cursor, snap);
+            const GizmoHandle handle = scaleDrag_.getHandle();
+            edits = multiDrag_.scale(scene,
+                                     EditorVector2{handle == GizmoHandle::YAxis ? 1.0f : factor,
+                                                   handle == GizmoHandle::XAxis ? 1.0f : factor});
+        }
+
+        if (edits.empty()) { return; }
+
+        // One command for the whole selection, and one undo entry for the whole drag. A command per
+        // entity would make undoing one drag several presses of Ctrl+Z -- and would undo them one
+        // at a time, through arrangements the scene was never in.
+        auto command = std::make_unique<TransformEntitiesCommand>(
+            context_.getScene(), std::move(edits),
+            "transform-many:" + std::to_string(multiDragId_));
+
+        context_.execute(std::move(command),
+                         gizmoDragHasEdited_ ? MergePolicy::MergeWithPrevious : MergePolicy::NewEntry);
+        gizmoDragHasEdited_ = true;
+    }
+
     void ViewportPanel::updateGizmoDrag(const EditorVector2& cursor, const GizmoSnap& snap)
     {
+        if (multiDrag_.isActive())
+        {
+            updateMultiDrag(cursor, snap);
+            return;
+        }
+
         const SceneDocument& scene = context_.getScene();
         const EditorCamera2D& camera = actions_.getViewport().getCamera();
 

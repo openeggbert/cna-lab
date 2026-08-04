@@ -931,6 +931,111 @@ CNA_EDITOR_TEST(ASnappedScaleLandsOnRoundNumbers)
     CNA_EDITOR_EXPECT(nearlyEqual(drag.update(*layout, cursor)->x, 1.93f, 0.0001f));
 }
 
+CNA_EDITOR_TEST(ASelectionsPivotIsTheAverageOfItsEntities)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid a = addEntity(scene, registry, "A", 0.0f, 0.0f);
+    const Uuid b = addEntity(scene, registry, "B", 100.0f, 40.0f);
+
+    const std::optional<EditorVector2> pivot = computeSelectionPivot(scene, {a, b});
+    CNA_EDITOR_EXPECT(pivot.has_value());
+    CNA_EDITOR_EXPECT(nearlyEqual(pivot->x, 50.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(pivot->y, 20.0f));
+
+    // Nothing selected, or nothing with a transform, has no pivot at all.
+    CNA_EDITOR_EXPECT(!computeSelectionPivot(scene, {}).has_value());
+}
+
+CNA_EDITOR_TEST(ASelectionsRootsExcludeDescendantsOfOtherSelectedEntities)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid parent = addEntity(scene, registry, "Parent", 0.0f, 0.0f);
+    const Uuid child = addEntity(scene, registry, "Child", 10.0f, 0.0f);
+    const Uuid grandchild = addEntity(scene, registry, "Grandchild", 10.0f, 0.0f);
+    const Uuid loner = addEntity(scene, registry, "Loner", 500.0f, 0.0f);
+    scene.reparentEntity(child, parent);
+    scene.reparentEntity(grandchild, child);
+
+    // A child moves when its parent does, so transforming both would move it twice -- once by the
+    // parent's transform and once by its own.
+    const std::vector<Uuid> roots = findSelectionRoots(scene, {parent, child, grandchild, loner});
+    CNA_EDITOR_EXPECT_EQ(roots.size(), std::size_t{2});
+    CNA_EDITOR_EXPECT(roots[0] == parent);
+    CNA_EDITOR_EXPECT(roots[1] == loner);
+
+    // A child selected without its parent is a root of the selection, whatever the hierarchy says.
+    const std::vector<Uuid> orphaned = findSelectionRoots(scene, {grandchild});
+    CNA_EDITOR_EXPECT_EQ(orphaned.size(), std::size_t{1});
+}
+
+CNA_EDITOR_TEST(AMultiDragMovesEveryEntityByTheSameWorldDelta)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid a = addEntity(scene, registry, "A", 0.0f, 0.0f);
+    const Uuid b = addEntity(scene, registry, "B", 100.0f, 40.0f);
+
+    MultiTransformDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, {a, b}, *computeSelectionPivot(scene, {a, b})));
+    CNA_EDITOR_EXPECT_EQ(drag.getEntityCount(), std::size_t{2});
+
+    const std::vector<EntityTransformEdit> edits = drag.translate(scene, EditorVector2{25.0f, -5.0f});
+    CNA_EDITOR_EXPECT_EQ(edits.size(), std::size_t{2});
+    CNA_EDITOR_EXPECT(nearlyEqual(edits[0].position->x, 25.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(edits[0].position->y, -5.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(edits[1].position->x, 125.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(edits[1].position->y, 35.0f));
+
+    // Nothing else is touched: a move is a move.
+    CNA_EDITOR_EXPECT(!edits[0].rotation.has_value());
+    CNA_EDITOR_EXPECT(!edits[0].scale.has_value());
+}
+
+CNA_EDITOR_TEST(AMultiRotationCarriesEntitiesAroundThePivotAndTurnsThem)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid a = addEntity(scene, registry, "A", -100.0f, 0.0f);
+    const Uuid b = addEntity(scene, registry, "B", 100.0f, 0.0f);
+
+    MultiTransformDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, {a, b}, *computeSelectionPivot(scene, {a, b})));
+
+    // A quarter turn about the origin between them: each swaps its X offset for a Y one, and each
+    // is turned by the same quarter. Rotating a group in place instead would leave them side by
+    // side, which is not what rotating an arrangement means.
+    const std::vector<EntityTransformEdit> edits = drag.rotate(scene, kQuarterTurn);
+
+    CNA_EDITOR_EXPECT(nearlyEqual(edits[0].position->x, 0.0f, 0.01f));
+    CNA_EDITOR_EXPECT(nearlyEqual(edits[0].position->y, -100.0f, 0.01f));
+    CNA_EDITOR_EXPECT(nearlyEqual(edits[1].position->x, 0.0f, 0.01f));
+    CNA_EDITOR_EXPECT(nearlyEqual(edits[1].position->y, 100.0f, 0.01f));
+    CNA_EDITOR_EXPECT(nearlyEqual(zRotationOf(*edits[0].rotation), kQuarterTurn, 0.001f));
+}
+
+CNA_EDITOR_TEST(AMultiScaleSpreadsEntitiesAwayFromThePivot)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid a = addEntity(scene, registry, "A", -100.0f, 0.0f);
+    const Uuid b = addEntity(scene, registry, "B", 100.0f, 0.0f);
+
+    MultiTransformDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, {a, b}, *computeSelectionPivot(scene, {a, b})));
+
+    const std::vector<EntityTransformEdit> edits = drag.scale(scene, EditorVector2{2.0f, 2.0f});
+
+    // Both the entities and the distances between them: a group scaled up with everything left in
+    // place would simply overlap itself.
+    CNA_EDITOR_EXPECT(nearlyEqual(edits[0].position->x, -200.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(edits[1].position->x, 200.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(edits[0].scale->x, 2.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(edits[0].scale->y, 2.0f));
+}
+
 CNA_EDITOR_TEST(EveryGizmoLayoutRefusesAnEntityWithNoTransform)
 {
     SceneDocument scene;

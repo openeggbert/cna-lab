@@ -276,12 +276,11 @@ namespace CNA::Editor
         return true;
     }
 
-    std::optional<EditorVector3> TranslateGizmoDrag::update(const SceneDocument& scene,
-                                                            const EditorCamera2D& camera,
-                                                            const EditorVector2& screenPoint,
-                                                            const GizmoSnap& snap) const
+    EditorVector2 TranslateGizmoDrag::getWorldDelta(const EditorCamera2D& camera,
+                                                    const EditorVector2& screenPoint,
+                                                    const GizmoSnap& snap) const
     {
-        if (!isActive()) { return std::nullopt; }
+        if (!isActive()) { return EditorVector2{}; }
 
         // Measured from where the drag *began*, never accumulated frame to frame. Accumulating is
         // the classic source of gizmo drift: rounding compounds and the object separates from the
@@ -293,6 +292,38 @@ namespace CNA::Editor
         {
             // Projected onto the arm rather than zeroed component-wise, because in local space the
             // arm is not a coordinate axis. In world space the two are the same arithmetic.
+            const float along = worldDelta.x * constraintAxis_.x + worldDelta.y * constraintAxis_.y;
+            worldDelta = EditorVector2{constraintAxis_.x * along, constraintAxis_.y * along};
+        }
+
+        // A snapped *world* delta is what a multi-selection needs: rounding each entity's own
+        // position would spread a group out onto the grid instead of moving it as one thing.
+        if (snap.translate > 0.0f)
+        {
+            if (handle_ != GizmoHandle::YAxis)
+            {
+                worldDelta.x = snapTo(worldDelta.x, snap.translate);
+            }
+            if (handle_ != GizmoHandle::XAxis)
+            {
+                worldDelta.y = snapTo(worldDelta.y, snap.translate);
+            }
+        }
+        return worldDelta;
+    }
+
+    std::optional<EditorVector3> TranslateGizmoDrag::update(const SceneDocument& scene,
+                                                            const EditorCamera2D& camera,
+                                                            const EditorVector2& screenPoint,
+                                                            const GizmoSnap& snap) const
+    {
+        if (!isActive()) { return std::nullopt; }
+
+        const EditorVector2 nowWorld = camera.screenToWorld(screenPoint);
+        EditorVector2 worldDelta{nowWorld.x - grabWorld_.x, nowWorld.y - grabWorld_.y};
+
+        if (handle_ == GizmoHandle::XAxis || handle_ == GizmoHandle::YAxis)
+        {
             const float along = worldDelta.x * constraintAxis_.x + worldDelta.y * constraintAxis_.y;
             worldDelta = EditorVector2{constraintAxis_.x * along, constraintAxis_.y * along};
         }
@@ -415,6 +446,29 @@ namespace CNA::Editor
         return true;
     }
 
+    float ScaleGizmoDrag::getFactor(const ScaleGizmoLayout& layout,
+                                    const EditorVector2& screenPoint,
+                                    const GizmoSnap& snap) const
+    {
+        if (!isActive()) { return 1.0f; }
+
+        const EditorVector2 offset{screenPoint.x - layout.origin.x, screenPoint.y - layout.origin.y};
+
+        float distance = 0.0f;
+        switch (handle_)
+        {
+            case GizmoHandle::XAxis: distance = offset.x * layout.xAxis.x + offset.y * layout.xAxis.y; break;
+            case GizmoHandle::YAxis: distance = offset.x * layout.yAxis.x + offset.y * layout.yAxis.y; break;
+            default: distance = std::hypot(offset.x, offset.y); break;
+        }
+
+        // A ratio, not a difference: screen pixels are not scale units, and only the ratio is
+        // independent of the zoom the drag happens to be at. Snapped here for a multi-selection,
+        // where the factor is the shared quantity -- rounding each entity's own scale would leave a
+        // group at different sizes than it started in proportion to each other.
+        return keepScalable(snapTo(distance / grabDistance_, snap.scale));
+    }
+
     std::optional<EditorVector3> ScaleGizmoDrag::update(const ScaleGizmoLayout& layout,
                                                         const EditorVector2& screenPoint,
                                                         const GizmoSnap& snap) const
@@ -431,8 +485,6 @@ namespace CNA::Editor
             default: distance = std::hypot(offset.x, offset.y); break;
         }
 
-        // A ratio, not a difference: screen pixels are not scale units, and only the ratio is
-        // independent of the zoom the drag happens to be at.
         const float factor = keepScalable(distance / grabDistance_);
 
         EditorVector3 scale = startLocalScale_;
@@ -448,5 +500,173 @@ namespace CNA::Editor
             scale.y = keepScalable(snapTo(startLocalScale_.y * factor, snap.scale));
         }
         return scale;
+    }
+
+    std::optional<EditorVector2> computeSelectionPivot(const SceneDocument& scene,
+                                                       const std::vector<Uuid>& entityIds)
+    {
+        EditorVector2 total;
+        std::size_t counted = 0;
+
+        for (const Uuid& entityId : entityIds)
+        {
+            const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
+            if (!world) { continue; }
+
+            total.x += world->position.x;
+            total.y += world->position.y;
+            ++counted;
+        }
+
+        if (counted == 0) { return std::nullopt; }
+        return EditorVector2{total.x / static_cast<float>(counted),
+                             total.y / static_cast<float>(counted)};
+    }
+
+    std::vector<Uuid> findSelectionRoots(const SceneDocument& scene, const std::vector<Uuid>& entityIds)
+    {
+        std::vector<Uuid> roots;
+
+        for (const Uuid& entityId : entityIds)
+        {
+            // Walk up to the scene root looking for another selected entity. The chain is a
+            // handful of links deep, and the bound is the entity count, so a cycle -- which the
+            // document forbids but a hand-edited file could still contain -- cannot hang this.
+            bool hasSelectedAncestor = false;
+            const EditorEntity* entity = scene.findEntity(entityId);
+
+            for (std::size_t step = 0; entity != nullptr && step <= scene.getEntityCount(); ++step)
+            {
+                const Uuid parentId = entity->getParentId();
+                if (!parentId.isValid()) { break; }
+
+                if (std::find(entityIds.begin(), entityIds.end(), parentId) != entityIds.end())
+                {
+                    hasSelectedAncestor = true;
+                    break;
+                }
+                entity = scene.findEntity(parentId);
+            }
+
+            if (!hasSelectedAncestor) { roots.push_back(entityId); }
+        }
+        return roots;
+    }
+
+    bool MultiTransformDrag::begin(const SceneDocument& scene,
+                                   const std::vector<Uuid>& entityIds,
+                                   const EditorVector2& pivotWorld)
+    {
+        end();
+        pivot_ = pivotWorld;
+
+        for (const Uuid& entityId : findSelectionRoots(scene, entityIds))
+        {
+            const EditorComponent* transform = transformOf(scene, entityId);
+            if (transform == nullptr) { continue; }
+
+            const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
+            if (!world) { continue; }
+
+            Entry entry;
+            entry.entityId = entityId;
+            entry.startWorldPosition = EditorVector2{world->position.x, world->position.y};
+            entry.startLocalPosition = transform->getProperty("position").get<EditorVector3>();
+            entry.startWorldRotation = world->rotation;
+            entry.inverseParentRotation = inverseOf(parentWorldRotation(scene, entityId));
+            entry.startLocalScale =
+                transform->getProperty("scale").get<EditorVector3>(EditorVector3{1.0f, 1.0f, 1.0f});
+            entries_.push_back(std::move(entry));
+        }
+
+        return isActive();
+    }
+
+    std::vector<EntityTransformEdit> MultiTransformDrag::translate(const SceneDocument& scene,
+                                                                   const EditorVector2& worldDelta) const
+    {
+        std::vector<EntityTransformEdit> edits;
+        edits.reserve(entries_.size());
+
+        for (const Entry& entry : entries_)
+        {
+            // Every entity moves by the same *world* delta and turns it into its own local units,
+            // so a selection spanning several parents keeps its shape.
+            const EditorVector2 localDelta = worldDeltaToLocal(scene, entry.entityId, worldDelta);
+
+            EntityTransformEdit edit;
+            edit.entityId = entry.entityId;
+            edit.position = EditorVector3{entry.startLocalPosition.x + localDelta.x,
+                                          entry.startLocalPosition.y + localDelta.y,
+                                          entry.startLocalPosition.z};
+            edits.push_back(std::move(edit));
+        }
+        return edits;
+    }
+
+    std::vector<EntityTransformEdit> MultiTransformDrag::rotate(const SceneDocument& scene,
+                                                                float radians) const
+    {
+        std::vector<EntityTransformEdit> edits;
+        edits.reserve(entries_.size());
+
+        const float cosine = std::cos(radians);
+        const float sine = std::sin(radians);
+
+        for (const Entry& entry : entries_)
+        {
+            // Carried around the pivot...
+            const float offsetX = entry.startWorldPosition.x - pivot_.x;
+            const float offsetY = entry.startWorldPosition.y - pivot_.y;
+            const EditorVector2 movedWorld{pivot_.x + offsetX * cosine - offsetY * sine,
+                                           pivot_.y + offsetX * sine + offsetY * cosine};
+
+            const EditorVector2 worldDelta{movedWorld.x - entry.startWorldPosition.x,
+                                           movedWorld.y - entry.startWorldPosition.y};
+            const EditorVector2 localDelta = worldDeltaToLocal(scene, entry.entityId, worldDelta);
+
+            EntityTransformEdit edit;
+            edit.entityId = entry.entityId;
+            edit.position = EditorVector3{entry.startLocalPosition.x + localDelta.x,
+                                          entry.startLocalPosition.y + localDelta.y,
+                                          entry.startLocalPosition.z};
+
+            // ...and turned by the same angle, expressed in its parent's frame like every other
+            // rotation this editor writes.
+            edit.rotation = multiply(entry.inverseParentRotation,
+                                     multiply(quaternionFromZRotation(radians), entry.startWorldRotation));
+            edits.push_back(std::move(edit));
+        }
+        return edits;
+    }
+
+    std::vector<EntityTransformEdit> MultiTransformDrag::scale(const SceneDocument& scene,
+                                                               const EditorVector2& factor) const
+    {
+        std::vector<EntityTransformEdit> edits;
+        edits.reserve(entries_.size());
+
+        for (const Entry& entry : entries_)
+        {
+            // Distances from the pivot scale with the entities. Without this, scaling a group up
+            // would leave every member in place and overlapping its neighbours.
+            const EditorVector2 movedWorld{pivot_.x + (entry.startWorldPosition.x - pivot_.x) * factor.x,
+                                           pivot_.y + (entry.startWorldPosition.y - pivot_.y) * factor.y};
+
+            const EditorVector2 worldDelta{movedWorld.x - entry.startWorldPosition.x,
+                                           movedWorld.y - entry.startWorldPosition.y};
+            const EditorVector2 localDelta = worldDeltaToLocal(scene, entry.entityId, worldDelta);
+
+            EntityTransformEdit edit;
+            edit.entityId = entry.entityId;
+            edit.position = EditorVector3{entry.startLocalPosition.x + localDelta.x,
+                                          entry.startLocalPosition.y + localDelta.y,
+                                          entry.startLocalPosition.z};
+            edit.scale = EditorVector3{keepScalable(entry.startLocalScale.x * factor.x),
+                                       keepScalable(entry.startLocalScale.y * factor.y),
+                                       entry.startLocalScale.z};
+            edits.push_back(std::move(edit));
+        }
+        return edits;
     }
 }

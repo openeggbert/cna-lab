@@ -1192,6 +1192,82 @@ CNA_EDITOR_TEST(AScaleDragResizesTheSelectedEntity)
     CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 100.0f);
 }
 
+CNA_EDITOR_TEST(AGizmoDragOnAMultiSelectionMovesEveryEntityAsOneUndoEntry)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+    CommandHistory& history = context.getHistory();
+
+    // A second entity 200 units to the right of the fixture's own, so the shared pivot is 100
+    // units right of the first -- screen 840 with the null UI's 1280-wide viewport.
+    EditorEntity second{Uuid::generate(), "Crate"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+    transform.setProperty("position", PropertyValue{EditorVector3{300.0f, 220.0f, 0.0f}});
+    second.addComponent(std::move(transform));
+
+    const Uuid secondId = context.getScene().addEntity(std::move(second));
+    context.setSelection({fixture.entityId, secondId});
+    fixture.step(UiImageInteraction{});
+
+    const std::size_t before = history.getCount();
+
+    // The gizmo sits on the pivot at world x=200, screen 840. Grab its X arm 50 pixels along and
+    // drag 30 to the right.
+    fixture.step(leftAt(890.0f, 580.0f, true));
+    fixture.step(leftAt(920.0f, 580.0f, false));
+    fixture.step(UiImageInteraction{});
+
+    const auto positionOf = [&](const Uuid& id) {
+        return context.getScene().findEntity(id)->findComponent(BuiltinComponentIds::kTransform)
+            ->getProperty("position").get<EditorVector3>();
+    };
+
+    // Both moved, by the same amount: a selection keeps its shape.
+    CNA_EDITOR_EXPECT_EQ(positionOf(fixture.entityId).x, 130.0f);
+    CNA_EDITOR_EXPECT_EQ(positionOf(secondId).x, 330.0f);
+
+    // One drag, one entry -- and it undoes both at once. A command per entity would take two
+    // presses of Ctrl+Z and would pass through an arrangement the scene was never in.
+    CNA_EDITOR_EXPECT_EQ(history.getCount(), before + 1);
+    CNA_EDITOR_EXPECT(history.undo());
+    CNA_EDITOR_EXPECT_EQ(positionOf(fixture.entityId).x, 100.0f);
+    CNA_EDITOR_EXPECT_EQ(positionOf(secondId).x, 300.0f);
+}
+
+CNA_EDITOR_TEST(AMultiSelectionGizmoLeavesAChildOfASelectedParentAlone)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    EditorEntity child{Uuid::generate(), "Hat"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+    transform.setProperty("position", PropertyValue{EditorVector3{0.0f, -20.0f, 0.0f}});
+    child.addComponent(std::move(transform));
+
+    const Uuid childId = context.getScene().addEntity(std::move(child));
+    context.getScene().reparentEntity(childId, fixture.entityId);
+    context.setSelection({fixture.entityId, childId});
+    fixture.step(UiImageInteraction{});
+
+    // The pivot is the average of parent (100, 220) and child (100, 200) -- world (100, 210),
+    // screen (740, 570). Grab the X arm and drag 30 right.
+    fixture.step(leftAt(790.0f, 570.0f, true));
+    fixture.step(leftAt(820.0f, 570.0f, false));
+    fixture.step(UiImageInteraction{});
+
+    const auto positionOf = [&](const Uuid& id) {
+        return context.getScene().findEntity(id)->findComponent(BuiltinComponentIds::kTransform)
+            ->getProperty("position").get<EditorVector3>();
+    };
+
+    // The parent moved and the child's *local* position did not: it is carried by its parent, and
+    // moving it too would move it twice.
+    CNA_EDITOR_EXPECT_EQ(positionOf(fixture.entityId).x, 130.0f);
+    CNA_EDITOR_EXPECT_EQ(positionOf(childId).x, 0.0f);
+}
+
 CNA_EDITOR_TEST(TwoInspectorDragsOfOneFieldAreTwoUndoEntries)
 {
     GizmoFixture fixture = makeGizmoFixture();

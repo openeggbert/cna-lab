@@ -118,9 +118,32 @@ namespace CNA::Editor
          */
         void paintTileAt(const EditorVector2& cursor, bool startStroke);
 
+        /**
+         * @brief Returns the world point the gizmo sits on, and whether it is a shared pivot.
+         *
+         * One entity selected: its own position. Several: their average, and the drag then moves
+         * all of them about it.
+         */
+        [[nodiscard]] std::optional<EditorVector2> getGizmoPivot() const;
+
+        /** @brief Applies an in-progress multi-selection drag as one command. */
+        void updateMultiDrag(const EditorVector2& cursor, const GizmoSnap& snap);
+
         TranslateGizmoDrag translateDrag_;
         RotateGizmoDrag rotateDrag_;
         ScaleGizmoDrag scaleDrag_;
+
+        /**
+         * @brief The selection-wide half of a drag, active only when several entities are selected.
+         *
+         * Runs *beside* the single-entity drags rather than instead of them: those still compute
+         * the gesture -- how far, how much, by what angle -- and this turns one gesture into the
+         * edits a whole selection needs. One quantity, many entities, so they cannot drift apart.
+         */
+        MultiTransformDrag multiDrag_;
+
+        /** @brief Distinguishes one multi-selection drag from the next, for merging. */
+        std::uint64_t multiDragId_ = 0;
 
         /**
          * @brief Whether the current drag has already pushed a command.

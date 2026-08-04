@@ -25,7 +25,10 @@
 
 #include "CNA/Editor/Core/EditorMath.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
+#include <vector>
+
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
+#include "CNA/Editor/Scene/SceneCommands.hpp"
 
 namespace CNA::Editor
 {
@@ -301,6 +304,17 @@ namespace CNA::Editor
                                                           const EditorVector2& screenPoint,
                                                           const GizmoSnap& snap = {}) const;
 
+        /**
+         * @brief Returns the world-space movement the drag describes, before it is made local.
+         *
+         * The quantity a *multi-selection* needs: every selected entity moves by the same world
+         * delta, and each turns it into its own local units. Exposed rather than recomputed so one
+         * drag and many entities cannot disagree about how far the cursor went.
+         */
+        [[nodiscard]] EditorVector2 getWorldDelta(const EditorCamera2D& camera,
+                                                  const EditorVector2& screenPoint,
+                                                  const GizmoSnap& snap = {}) const;
+
         /** @brief Ends the drag. */
         void end() { handle_ = GizmoHandle::None; }
 
@@ -390,6 +404,11 @@ namespace CNA::Editor
                                                           const EditorVector2& screenPoint,
                                                           const GizmoSnap& snap = {}) const;
 
+        /** @brief Returns the factor the drag describes, for a caller applying it to several things. */
+        [[nodiscard]] float getFactor(const ScaleGizmoLayout& layout,
+                                      const EditorVector2& screenPoint,
+                                      const GizmoSnap& snap = {}) const;
+
         /** @brief Ends the drag. */
         void end() { handle_ = GizmoHandle::None; }
 
@@ -400,5 +419,108 @@ namespace CNA::Editor
 
         /** @brief How far the grab was from the origin, along the handle's own direction. */
         float grabDistance_ = 1.0f;
+    };
+
+    /**
+     * @brief Moves @p layout's origin onto @p pivotWorld.
+     *
+     * How a gizmo ends up on a *shared* pivot: the layout is computed for the primary selection as
+     * usual, then placed. Everything else about it -- arm directions, handle sizes, the hit-test --
+     * is unchanged, which is what keeps one code path for one entity and for twenty.
+     */
+    template <typename Layout>
+    void placeGizmoAt(Layout& layout, const EditorCamera2D& camera, const EditorVector2& pivotWorld)
+    {
+        layout.origin = camera.worldToScreen(pivotWorld);
+    }
+
+    /**
+     * @brief Returns the shared pivot for @p entityIds: the average of their world positions.
+     *
+     * What a gizmo on a multi-selection sits at. The average rather than the first entity's
+     * position, because a pivot that jumps as the selection order changes is one a user cannot
+     * predict; and rather than the centre of the bounding box, because that moves when an entity is
+     * *rotated* without anything having been asked to move.
+     *
+     * Returns nothing when no selected entity has a transform.
+     */
+    [[nodiscard]] std::optional<EditorVector2> computeSelectionPivot(const SceneDocument& scene,
+                                                                     const std::vector<Uuid>& entityIds);
+
+    /**
+     * @brief Returns the entities in @p entityIds that no other selected entity is an ancestor of.
+     *
+     * A child moves when its parent does. Applying a drag to both would move it twice -- once by
+     * the parent's transform and once by its own -- which is why every editor transforms the roots
+     * of a selection rather than all of it.
+     */
+    [[nodiscard]] std::vector<Uuid> findSelectionRoots(const SceneDocument& scene,
+                                                       const std::vector<Uuid>& entityIds);
+
+    /**
+     * @brief Turns one gesture into the edits it implies for a whole selection.
+     *
+     * Captures each root's starting transform at `begin()` and answers every later question from
+     * that, so a long drag cannot drift and an undo returns to exactly where the drag started --
+     * the same rule the single-entity drags follow, applied to a set.
+     */
+    class MultiTransformDrag
+    {
+    public:
+        /**
+         * @brief Captures the starting state of @p entityIds around @p pivotWorld.
+         * @return False when nothing in the selection can be transformed.
+         */
+        bool begin(const SceneDocument& scene,
+                   const std::vector<Uuid>& entityIds,
+                   const EditorVector2& pivotWorld);
+
+        [[nodiscard]] bool isActive() const { return !entries_.empty(); }
+
+        /** @brief Returns the pivot the gesture is measured about. */
+        [[nodiscard]] const EditorVector2& getPivot() const { return pivot_; }
+
+        /** @brief Returns how many entities the drag will move. */
+        [[nodiscard]] std::size_t getEntityCount() const { return entries_.size(); }
+
+        /** @brief Returns the edits for a translation of @p worldDelta. */
+        [[nodiscard]] std::vector<EntityTransformEdit> translate(const SceneDocument& scene,
+                                                                 const EditorVector2& worldDelta) const;
+
+        /**
+         * @brief Returns the edits for a turn of @p radians about the pivot.
+         *
+         * Both halves: an entity away from the pivot is carried around it as well as turned, which
+         * is what makes rotating a group behave like rotating one object rather than like spinning
+         * each of them in place.
+         */
+        [[nodiscard]] std::vector<EntityTransformEdit> rotate(const SceneDocument& scene,
+                                                              float radians) const;
+
+        /**
+         * @brief Returns the edits for scaling by @p factor about the pivot.
+         *
+         * Again both halves: distances from the pivot scale with the entities, or a group scaled up
+         * would overlap itself.
+         */
+        [[nodiscard]] std::vector<EntityTransformEdit> scale(const SceneDocument& scene,
+                                                             const EditorVector2& factor) const;
+
+        void end() { entries_.clear(); }
+
+    private:
+        /** @brief One selected root, as it was when the drag began. */
+        struct Entry
+        {
+            Uuid entityId;
+            EditorVector2 startWorldPosition;
+            EditorVector3 startLocalPosition;
+            EditorQuaternion startWorldRotation;
+            EditorQuaternion inverseParentRotation;
+            EditorVector3 startLocalScale{1.0f, 1.0f, 1.0f};
+        };
+
+        std::vector<Entry> entries_;
+        EditorVector2 pivot_;
     };
 }

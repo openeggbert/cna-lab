@@ -15,6 +15,7 @@
  */
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -185,6 +186,57 @@ namespace CNA::Editor
         PropertyValue newValue_;
         PropertyValue oldValue_;
         bool hadOldValue_ = false;
+    };
+
+    /** @brief One entity's new transform values. An unset field is left alone. */
+    struct EntityTransformEdit
+    {
+        Uuid entityId;
+        std::optional<EditorVector3> position;
+        std::optional<EditorQuaternion> rotation;
+        std::optional<EditorVector3> scale;
+    };
+
+    /**
+     * @brief Moves, turns or resizes several entities as one undo entry.
+     *
+     * Dragging a gizmo with five entities selected is *one* action to the user, so it has to be one
+     * entry: five `SetPropertyCommand`s would be five presses of Ctrl+Z to undo one drag, and --
+     * worse -- they would undo one entity at a time, leaving the scene in arrangements that never
+     * existed.
+     *
+     * The merge key is supplied by the caller rather than derived, because what distinguishes two
+     * drags of the same five entities is only that the user let go in between. The viewport passes
+     * a drag id; `CommandHistory::endInteraction()` closes the chain when the pointer is released.
+     */
+    class TransformEntitiesCommand final : public EditorCommand
+    {
+    public:
+        TransformEntitiesCommand(SceneDocument& document,
+                                 std::vector<EntityTransformEdit> edits,
+                                 std::string mergeKey);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+        [[nodiscard]] std::string getMergeKey() const override { return mergeKey_; }
+        bool mergeWith(const EditorCommand& newer) override;
+
+        /** @brief Returns true when there is anything to apply. */
+        [[nodiscard]] bool isValid() const { return !edits_.empty(); }
+
+        /** @brief Returns what this command will write, for a caller that has to report on it. */
+        [[nodiscard]] const std::vector<EntityTransformEdit>& getEdits() const { return edits_; }
+
+    private:
+        /** @brief Captures the values @p execute() is about to overwrite, once. */
+        void captureOldValues();
+
+        SceneDocument* document_;
+        std::vector<EntityTransformEdit> edits_;
+        std::vector<EntityTransformEdit> oldValues_;
+        std::string mergeKey_;
+        bool captured_ = false;
     };
 
     /**

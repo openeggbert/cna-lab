@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 
+#include "CNA/Editor/Scene/BuiltinComponents.hpp"
+
 #include <unordered_map>
 
 namespace CNA::Editor
@@ -254,6 +256,98 @@ namespace CNA::Editor
         }
         // Adopt the newer final value; keep this command's original old value as the undo target.
         newValue_ = other->newValue_;
+        return true;
+    }
+
+    namespace
+    {
+        /** @brief Returns @p entityId's transform component, or nullptr. */
+        EditorComponent* findTransform(SceneDocument& document, const Uuid& entityId)
+        {
+            EditorEntity* entity = document.findEntity(entityId);
+            if (entity == nullptr) { return nullptr; }
+            return entity->findComponent(BuiltinComponentIds::kTransform);
+        }
+    }
+
+    TransformEntitiesCommand::TransformEntitiesCommand(SceneDocument& document,
+                                                       std::vector<EntityTransformEdit> edits,
+                                                       std::string mergeKey)
+        : document_(&document), edits_(std::move(edits)), mergeKey_(std::move(mergeKey))
+    {
+    }
+
+    void TransformEntitiesCommand::captureOldValues()
+    {
+        if (captured_) { return; }
+        captured_ = true;
+
+        // Captured at the first execute() rather than at construction, and only for the fields this
+        // command actually writes: undoing must restore exactly what execute() found, and nothing
+        // else.
+        for (const EntityTransformEdit& edit : edits_)
+        {
+            const EditorComponent* transform = findTransform(*document_, edit.entityId);
+            if (transform == nullptr) { continue; }
+
+            EntityTransformEdit old;
+            old.entityId = edit.entityId;
+            if (edit.position) { old.position = transform->getProperty("position").get<EditorVector3>(); }
+            if (edit.rotation)
+            {
+                old.rotation = transform->getProperty("rotation").get<EditorQuaternion>();
+            }
+            if (edit.scale)
+            {
+                old.scale = transform->getProperty("scale").get<EditorVector3>(EditorVector3{1.0f, 1.0f, 1.0f});
+            }
+            oldValues_.push_back(std::move(old));
+        }
+    }
+
+    void TransformEntitiesCommand::execute()
+    {
+        captureOldValues();
+
+        for (const EntityTransformEdit& edit : edits_)
+        {
+            EditorComponent* transform = findTransform(*document_, edit.entityId);
+            if (transform == nullptr) { continue; }
+
+            if (edit.position) { transform->setProperty("position", PropertyValue{*edit.position}); }
+            if (edit.rotation) { transform->setProperty("rotation", PropertyValue{*edit.rotation}); }
+            if (edit.scale) { transform->setProperty("scale", PropertyValue{*edit.scale}); }
+        }
+    }
+
+    void TransformEntitiesCommand::undo()
+    {
+        for (const EntityTransformEdit& old : oldValues_)
+        {
+            EditorComponent* transform = findTransform(*document_, old.entityId);
+            if (transform == nullptr) { continue; }
+
+            if (old.position) { transform->setProperty("position", PropertyValue{*old.position}); }
+            if (old.rotation) { transform->setProperty("rotation", PropertyValue{*old.rotation}); }
+            if (old.scale) { transform->setProperty("scale", PropertyValue{*old.scale}); }
+        }
+    }
+
+    std::string TransformEntitiesCommand::getDescription() const
+    {
+        return "Transform " + std::to_string(edits_.size()) + " entities";
+    }
+
+    bool TransformEntitiesCommand::mergeWith(const EditorCommand& newer)
+    {
+        const auto* other = dynamic_cast<const TransformEntitiesCommand*>(&newer);
+        if (other == nullptr) { return false; }
+
+        // Adopt the newer final values and keep this command's captured originals, so one drag
+        // undoes to where it started however many frames it took. The *set* of entities is the
+        // newer one's: a drag cannot change it, and if some other path ever did, following the
+        // newer command is the only answer that leaves the document consistent.
+        edits_ = other->edits_;
         return true;
     }
 

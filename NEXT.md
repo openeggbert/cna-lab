@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 334 / 334 (also under Clang Release) |
+| Unit tests | ✅ 341 / 341 (also under Clang Release) |
 | CTest (standalone) | ✅ 8 / 8 |
 | CTest (CNA config) | ✅ 12 / 12 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -89,6 +89,20 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **A gizmo on a multi-selection.** With Ctrl+click able to build one, the gizmo being stuck on the
+  primary selection had become the obvious gap. It now sits on the selection's **shared pivot** --
+  the average of the members' world positions, not the bounding box's centre, which would move when
+  an entity was merely rotated -- and a drag moves, turns or scales all of them about it. Rotation
+  and scale carry the members *around* the pivot as well as changing them, which is the difference
+  between rotating an arrangement and spinning each of its parts in place.
+  Two things make it correct rather than merely working. The whole drag is one
+  `TransformEntitiesCommand`, so one Ctrl+Z undoes it: a command per entity would undo them one at a
+  time, through arrangements the scene was never in. And descendants of selected entities are
+  excluded (`findSelectionRoots`), because a child is already carried by its parent and transforming
+  both moves it twice.
+  The single-entity drags still compute the *gesture* -- how far, what angle, what factor -- and the
+  new `MultiTransformDrag` turns one gesture into the edits a whole selection needs, so twenty
+  entities cannot disagree about how far the cursor went.
 - **An interaction boundary on `CommandHistory`**, which closes the oldest known problem in this
   file: two separate drags of one inspector slider collapsed into a single undo entry. The merge key
   answers "is this the same *edit*" -- entity, component, property -- and cannot answer "is this the
@@ -378,9 +392,6 @@ Phase 1 closed. Working through the owner's priority order:
   it is off by default because each entry compiles CNA again -- minutes, not seconds. Anyone who
   presses Compare on a default build will be told it needs another build, which is correct and still
   worth knowing before it happens.
-- **No gizmo on a multi-selection.** A gizmo is drawn on the *primary* selection only, and now that
-  Ctrl+click can build a multi-selection that is more visible than it was. Manipulating the whole
-  set needs a shared pivot first, which is part of ED-200's multi-select rather than of the gizmos.
 - **JPEG dimensions are not read.** `readImageSize` handles PNG and BMP; anything else reports
   unknown, and the inspector shows 0×0 with a tooltip saying why.
 - **`--headless` writes to the project.** Opening a project applies importer facts and may rewrite
@@ -425,10 +436,7 @@ What follows is a judgement call rather than a queue.
 1. **Hear the audio preview on a machine with a sound device.** It was rewritten to hold a
    `SoundEffectInstance` so Stop actually stops, but this container has none, so that path has been
    compiled and reasoned about rather than heard.
-2. **A gizmo on a multi-selection.** Ctrl+click can now build one, which makes its absence more
-   visible: the gizmo is drawn on the primary selection only. Manipulating the whole set needs a
-   shared pivot, which is ED-200's multi-select rather than the gizmos'.
-3. **JPEG dimensions.** `readImageSize` handles PNG and BMP and reports honestly for everything
+2. **JPEG dimensions.** `readImageSize` handles PNG and BMP and reports honestly for everything
    else; a JPEG SOF scan is an afternoon.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration

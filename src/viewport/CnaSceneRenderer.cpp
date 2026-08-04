@@ -840,26 +840,36 @@ namespace CNA::Editor
         if (!selection.empty())
         {
             const Uuid& gizmoTarget = selection.front();
+
+            // With several entities selected the gizmo sits on their shared pivot -- the average of
+            // their positions -- and manipulates all of them about it. The layout is still computed
+            // for the primary selection, so its arms follow that entity's rotation in local space;
+            // only the origin moves.
+            const std::optional<EditorVector2> pivot =
+                selection.size() > 1 ? computeSelectionPivot(scene, selection) : std::nullopt;
+
             switch (gizmoMode)
             {
                 case GizmoMode::Translate:
-                    if (const auto layout =
-                            computeTranslateGizmoLayout(scene, camera, gizmoTarget, gizmoSpace))
+                    if (auto layout = computeTranslateGizmoLayout(scene, camera, gizmoTarget, gizmoSpace))
                     {
+                        if (pivot) { placeGizmoAt(*layout, camera, *pivot); }
                         impl_->drawTranslateGizmo(*layout);
                     }
                     break;
 
                 case GizmoMode::Rotate:
-                    if (const auto layout = computeRotateGizmoLayout(scene, camera, gizmoTarget))
+                    if (auto layout = computeRotateGizmoLayout(scene, camera, gizmoTarget))
                     {
+                        if (pivot) { placeGizmoAt(*layout, camera, *pivot); }
                         impl_->drawRotateGizmo(*layout);
                     }
                     break;
 
                 case GizmoMode::Scale:
-                    if (const auto layout = computeScaleGizmoLayout(scene, camera, gizmoTarget))
+                    if (auto layout = computeScaleGizmoLayout(scene, camera, gizmoTarget))
                     {
+                        if (pivot) { placeGizmoAt(*layout, camera, *pivot); }
                         impl_->drawScaleGizmo(*layout);
                     }
                     break;
