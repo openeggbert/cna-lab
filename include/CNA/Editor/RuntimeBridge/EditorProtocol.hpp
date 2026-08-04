@@ -123,6 +123,16 @@ namespace CNA::Editor
                                              const std::string& propertyName,
                                              const PropertyValue& value);
 
+        /**
+         * @brief Builds a Screenshot message asking the player to capture a frame to @p path.
+         *
+         * The path is the *player's* filesystem, which is the same machine today and may not be
+         * once ED-512's remote preview exists; the reply says whether it was written rather than
+         * leaving the asking side to look for the file, since a stale file from an earlier run
+         * answers that question wrongly.
+         */
+        static EditorMessage makeScreenshot(const std::string& path);
+
         /** @brief Builds a ReportLog message. */
         static EditorMessage makeReportLog(const std::string& severity, const std::string& text);
     };

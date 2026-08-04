@@ -268,6 +268,60 @@ CNA_EDITOR_TEST(PlayerHostReportsRatherThanCrashingOnBadRequests)
     }
 }
 
+CNA_EDITOR_TEST(AScreenshotIsQueuedForTheGraphicsHalfRatherThanAnsweredOnTheSpot)
+{
+    const ScratchProject project{"playershot"};
+
+    PlayerHost host;
+    CNA_EDITOR_EXPECT(host.openProject(project.projectPath));
+
+    PlayerHost::Outbox outbox;
+    EditorMessage request = EditorMessage::makeScreenshot("/tmp/frame.png");
+    request.requestId = 42;
+    host.handle(request, outbox);
+
+    // Nothing goes back yet. Only the CNA-linked loop can read a back buffer, and a ScreenshotReady
+    // sent from here would tell the editor a file exists before anything had been written to it --
+    // a lie nothing later on the wire would correct.
+    CNA_EDITOR_EXPECT(outbox.empty());
+
+    std::vector<PlayerHost::ScreenshotRequest> queued = host.takeScreenshotRequests();
+    CNA_EDITOR_EXPECT_EQ(queued.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(queued.front().path, std::string{"/tmp/frame.png"});
+    CNA_EDITOR_EXPECT_EQ(queued.front().requestId, std::uint64_t{42});
+
+    // Drained, so the graphics half cannot take the same capture twice.
+    CNA_EDITOR_EXPECT(host.takeScreenshotRequests().empty());
+
+    // The reply carries the request id back, so it can be matched with several in flight, and says
+    // whether the file was written rather than leaving the editor to look for it.
+    const EditorMessage written = PlayerHost::makeScreenshotReply(queued.front());
+    CNA_EDITOR_EXPECT(written.type == EditorMessageType::ScreenshotReady);
+    CNA_EDITOR_EXPECT_EQ(written.requestId, std::uint64_t{42});
+    CNA_EDITOR_EXPECT(written.payload["written"].asBoolean(false));
+
+    const EditorMessage failed = PlayerHost::makeScreenshotReply(queued.front(), "no device");
+    CNA_EDITOR_EXPECT(!failed.payload["written"].asBoolean(true));
+    CNA_EDITOR_EXPECT_EQ(failed.payload["error"].asString(), std::string{"no device"});
+}
+
+CNA_EDITOR_TEST(AScreenshotWithNoPathIsReportedRatherThanQueued)
+{
+    const ScratchProject project{"playershotpath"};
+
+    PlayerHost host;
+    CNA_EDITOR_EXPECT(host.openProject(project.projectPath));
+
+    PlayerHost::Outbox outbox;
+    host.handle(EditorMessage::makeScreenshot(""), outbox);
+
+    // Queuing a capture with nowhere to write it would produce a reply saying it failed, one frame
+    // later, for a reason the editor could have been told immediately.
+    CNA_EDITOR_EXPECT(host.takeScreenshotRequests().empty());
+    CNA_EDITOR_EXPECT_EQ(outbox.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(outbox.front().type == EditorMessageType::ReportLog);
+}
+
 CNA_EDITOR_TEST(PlayerHostReportsAProtocolVersionMismatch)
 {
     const ScratchProject project{"playerversion"};

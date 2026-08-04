@@ -15,9 +15,9 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 312 / 312 (also under Clang Release) |
+| Unit tests | ✅ 319 / 319 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
-| CTest (CNA config) | ✅ 10 / 10 |
+| CTest (CNA config) | ✅ 11 / 11 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
@@ -88,6 +88,25 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-246** `cna-player` draws. It has spoken the whole protocol since ED-240 and shown nothing
+  the whole time, which quietly made three finished rows half true -- play mode ran a game with a
+  blank window, and a live edit or a hot reload was observable in a log rather than in a picture.
+  The window host mirrors the editor's exactly: a `Game` subclass hidden behind a free function, so
+  CNA stays a private link dependency of one module. It draws through the **same**
+  `CnaSceneRenderer`, via a new `renderGameView` that runs the content pass and skips the grid and
+  overlay ones -- the separation was already structural, so this is not running two passes rather
+  than filtering anything. A second renderer would have been a second answer to "what does this
+  look like when it runs", which is the property the editor exists to guarantee.
+  The view is the scene's own: `computeGameView` finds the primary camera, reads `orthographicSize`
+  as the visible **height** (so a wider window shows more world instead of stretching it), takes the
+  camera's world transform so a camera on a rig works, and clears to that camera's `clearColor`.
+  Screenshots changed shape: `PlayerHost` **queues** them and the frame loop that owns the device
+  takes them, so `screenshotReady` now means pixels are on disk. A failed or impossible capture
+  answers `written: false` with a reason, because an editor waiting for a reply that never arrives
+  is worse off than one told no. No window to be had degrades to running with nothing drawn and says
+  so -- which is exactly what the bridge tests, which have no display, now exercise.
+  This is also ED-510's missing half: comparing backends means capturing frames from N players, and
+  until now there were no frames.
 - **ED-401** rotate and scale gizmos, and the local/world space toggle (`X`). Built out of phase
   order because it is not a 3D task in a 2D viewport: `E` and `R` had been selecting a manipulator
   that did not exist since Phase 1. `TranslateGizmo.hpp` became `TransformGizmos.hpp` and now holds
@@ -209,9 +228,8 @@ Newest first. Each is a single commit on the branch.
   and the value is read from the *document* rather than from the command, because after an undo the
   live value is the old one. Assets are sent by id, and the player rescans before looking the id up.
   Verified end to end against a real `cna-player` process, not just at the seams.
-  **Caveat worth knowing:** `cna-player` still draws nothing, so a hot-reload today is observable in
-  its log and asset database rather than on screen. `PlayerHost::takeReloadedAssets()` is the seam
-  its graphics half will drain.
+  `PlayerHost::takeReloadedAssets()` is the seam the graphics half drains, and since ED-246 it does:
+  a texture changed on disk is visible in the running game rather than only in its log.
 - **ED-902** format migration. A chain of single-version steps, run on every load of a
   `.cnascene`, `.cnaproject` and `.cnaasset`. The gate and the upgrade are one piece of code,
   because refusing a file from the future and upgrading one from the past both answer "what version
@@ -342,8 +360,12 @@ API, which is the precondition `plan.md` states for the phase and is not this re
 
 So the honest next move is **ED-510**, the backend comparison mode — the last item on the owner's
 original priority list, and the one that makes the compile-time-backend constraint (F-01) pay off
-rather than merely cost. Everything it needs already exists: several player binaries are discovered
-and launched today, and the bridge speaks line-delimited JSON to each.
+rather than merely cost. Everything it needs now exists: several player binaries are discovered and
+launched today, the bridge speaks line-delimited JSON to each, and since **ED-246** each of them
+draws the scene and can be asked for a PNG of it over that wire. What is left is the comparison
+itself — spawn N, ask each for the same frame, diff the images, and show where they differ. The
+diff is ordinary arithmetic over two pixel buffers and belongs in a CNA-free module so it can be
+tested against synthetic images rather than against a GPU.
 
 Two smaller things are worth doing before or alongside it, and both are the same shape — a gap in
 the *UI abstraction* rather than in a feature:

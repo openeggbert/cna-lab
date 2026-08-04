@@ -92,6 +92,7 @@ add_library(cna-editor-scene STATIC
     src/scene/BuiltinComponents.cpp
     src/scene/SceneTransform.cpp
     src/scene/EditorCamera2D.cpp
+    src/scene/GameCamera.cpp
     src/scene/EditorIcons.cpp
     src/scene/MissingReferences.cpp
     src/scene/SceneValidation.cpp
@@ -221,6 +222,7 @@ if(CNA_EDITOR_WITH_CNA)
     set(_cna_editor_viewport_sources
         src/viewport/CnaEditorViewport.cpp
         src/viewport/CnaEditorAudio.cpp
+        src/viewport/CnaPlayerHost.cpp
         src/viewport/CnaSceneRenderer.cpp
         src/viewport/CnaUiRenderer.cpp
         src/viewport/CnaUiPlatform.cpp)
@@ -233,7 +235,11 @@ if(CNA_EDITOR_WITH_CNA)
     endif()
 
     add_library(cna-editor-viewport STATIC ${_cna_editor_viewport_sources})
-    target_link_libraries(cna-editor-viewport PUBLIC cna-editor-scene cna-editor-assets cna-editor-ui PRIVATE CNA)
+    # cna-editor-player is here for the player's window host: it draws a PlayerHost's scene, and
+    # PlayerHost is the CNA-free half that owns it. The dependency runs one way only -- the player
+    # module knows nothing about the viewport -- so this adds no cycle.
+    target_link_libraries(cna-editor-viewport
+        PUBLIC cna-editor-scene cna-editor-assets cna-editor-ui cna-editor-player PRIVATE CNA)
     target_compile_definitions(cna-editor-viewport PUBLIC CNA_EDITOR_HAS_CNA=1)
 
     if(CNA_EDITOR_WITH_IMGUI)

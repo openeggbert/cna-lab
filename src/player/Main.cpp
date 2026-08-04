@@ -27,6 +27,7 @@
 // private link dependency of exactly one module, which is what makes the layering rule
 // (ANALYSIS.md decision D-03) checkable by the build graph.
 #if defined(CNA_EDITOR_HAS_CNA)
+#    include "CNA/Editor/Viewport/CnaPlayerHost.hpp"
 #    include "CNA/Editor/Viewport/CnaUiRenderer.hpp"
 #endif
 
@@ -37,6 +38,7 @@ namespace
         std::string projectPath;
         std::string scenePath;
         std::string requestedBackend;
+        std::string screenshotPath;
         std::uint16_t editorPort = 0;
         int frameLimit = 0;
         bool headless = false;
@@ -83,6 +85,7 @@ namespace
                     }
                     continue;
                 }
+                if (name == "--screenshot") { options.screenshotPath = value; continue; }
                 if (name == "--frames")
                 {
                     try { options.frameLimit = std::stoi(value); }
@@ -124,6 +127,8 @@ namespace
             "  --editor-port=N      Connect to cna-editor on 127.0.0.1:N. Without it the player\n"
             "                       runs standalone, with no bridge.\n"
             "  --frames=N           Exit after N frames. Used by tests.\n"
+            "  --screenshot=PATH    Write a PNG of the final frame. Needs --frames, so there is a\n"
+            "                       defined frame to capture.\n"
             "  --headless           Run with no window.\n"
             "  -h, --help           Print this help and exit.\n";
     }
@@ -197,8 +202,12 @@ int main(int argc, char** argv)
     bool announced = false;
     int framesRun = 0;
 
-    while (!host.shouldExit())
-    {
+    // One pump, shared by the windowed loop and the headless one. The bridge is the player's only
+    // input, so a second copy of "what arrived and what goes back" would be a second place for the
+    // two configurations to disagree about the protocol.
+    //
+    // Returns false when the session should end: the editor asked, or it went away.
+    const auto pumpBridge = [&]() -> bool {
         if (options.editorPort != 0)
         {
             const std::vector<CNA::Editor::EditorMessage> incoming = channel.poll();
@@ -218,14 +227,67 @@ int main(int argc, char** argv)
                 // The editor went away. A player that kept running would be an orphan window the
                 // user has to hunt down and close.
                 std::cout << "cna-player: editor disconnected (" << channel.getError() << "); exiting\n";
-                break;
+                return false;
             }
         }
+        return !host.shouldExit();
+    };
+
+    // Screenshots without a device. The graphics build takes them for real; this one has to answer
+    // anyway, because an editor waiting for a reply that never comes is worse off than one told no.
+    const auto refuseScreenshots = [&]() {
+        for (const CNA::Editor::PlayerHost::ScreenshotRequest& request : host.takeScreenshotRequests())
+        {
+            channel.send(CNA::Editor::PlayerHost::makeScreenshotReply(
+                request, "this cna-player build has no graphics device to capture from"));
+        }
+    };
+
+#if defined(CNA_EDITOR_HAS_CNA)
+    if (!options.headless)
+    {
+        CNA::Editor::CnaPlayerHostOptions hostOptions;
+        hostOptions.windowTitle = "cna-player -- " + host.getProject().getName() + " (" + backend + ")";
+        hostOptions.frameLimit = options.frameLimit;
+        hostOptions.screenshotPath = options.screenshotPath;
+
+        const CNA::Editor::CnaPlayerHostResult result = CNA::Editor::runPlayerInWindow(
+            hostOptions, host, pumpBridge,
+            [&](const CNA::Editor::EditorMessage& message) { channel.send(message); });
+
+        if (result.errorMessage.empty())
+        {
+            std::cout << "cna-player: ran " << result.frames << " frames, " << result.spritesDrawn
+                      << " sprites and " << result.tilesDrawn << " tiles on the last one\n";
+
+            if (!options.screenshotPath.empty() && !result.screenshotWritten)
+            {
+                std::cerr << "cna-player: no screenshot was written to '" << options.screenshotPath
+                          << "'. --screenshot needs --frames, and the backend must support reading "
+                             "back its own back buffer.\n";
+                return 4;
+            }
+            return result.exitCode;
+        }
+
+        // No window to be had -- a headless container, a build machine, an X server that is not
+        // running. Falling through to the loop below runs the game with nothing drawn, which is
+        // exactly what a player built without CNA does, and keeps the editor's session alive.
+        std::cerr << "cna-player: no window available (" << result.errorMessage
+                  << "); continuing with nothing drawn\n";
+    }
+#endif
+
+    while (true)
+    {
+        if (!pumpBridge()) { break; }
+        refuseScreenshots();
 
         if (host.tick())
         {
-            // Where the CNA-linked build draws a frame. Without CNA this is the protocol and
-            // state machine running on their own, which is exactly what the tests exercise.
+            // No device here by construction: this is either a build without CNA or an explicit
+            // --headless, and both run the protocol and state machine with nothing drawn. That is
+            // exactly the configuration the editor's own bridge tests use.
             ++framesRun;
             if (options.frameLimit > 0 && framesRun >= options.frameLimit) { break; }
         }

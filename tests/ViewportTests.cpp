@@ -16,6 +16,7 @@
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
 #include "CNA/Editor/Scene/EditorIcons.hpp"
+#include "CNA/Editor/Scene/GameCamera.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
 #include "CNA/Editor/Scene/SpriteAnimation.hpp"
@@ -861,6 +862,107 @@ CNA_EDITOR_TEST(WorldDeltaToLocalIsIdentityForRootEntities)
     const EditorVector2 delta = worldDeltaToLocal(scene, id, EditorVector2{12.0f, -34.0f});
     CNA_EDITOR_EXPECT(nearlyEqual(delta.x, 12.0f));
     CNA_EDITOR_EXPECT(nearlyEqual(delta.y, -34.0f));
+}
+
+// ---------------------------------------------------------------------------------------------
+// The game's own camera
+// ---------------------------------------------------------------------------------------------
+
+CNA_EDITOR_TEST(TheGameViewComesFromThePrimaryCamera)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid camera = addEntity(scene, registry, "Main Camera", 400.0f, 300.0f);
+    addComponent(scene, registry, camera, BuiltinComponentIds::kCamera);
+    scene.findEntity(camera)->findComponent(BuiltinComponentIds::kCamera)
+        ->setProperty("orthographicSize", PropertyValue{600.0f});
+
+    const GameView view = computeGameView(scene, EditorVector2{1280.0f, 720.0f});
+    CNA_EDITOR_EXPECT(view.hasCamera());
+    CNA_EDITOR_EXPECT(view.cameraId == camera);
+
+    // Centred on the camera entity, and zoomed so the orthographic size is the visible *height*.
+    // Reading it as a width would show the right amount of world on a square window and the wrong
+    // amount on every other one.
+    CNA_EDITOR_EXPECT(nearlyEqual(view.camera.getCenter().x, 400.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(view.camera.getCenter().y, 300.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(view.camera.getZoom(), 720.0f / 600.0f));
+
+    // A wider window at the same height shows more world sideways rather than stretching what was
+    // already there.
+    const GameView wider = computeGameView(scene, EditorVector2{1920.0f, 720.0f});
+    CNA_EDITOR_EXPECT(nearlyEqual(wider.camera.getZoom(), view.camera.getZoom()));
+}
+
+CNA_EDITOR_TEST(TheGameViewClearsToTheCamerasOwnColour)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid camera = addEntity(scene, registry, "Main Camera", 0.0f, 0.0f);
+    addComponent(scene, registry, camera, BuiltinComponentIds::kCamera);
+    scene.findEntity(camera)->findComponent(BuiltinComponentIds::kCamera)
+        ->setProperty("clearColor", PropertyValue{EditorColor{10, 20, 30, 255}});
+
+    const GameView view = computeGameView(scene, EditorVector2{800.0f, 600.0f});
+    CNA_EDITOR_EXPECT_EQ(static_cast<int>(view.clearColor.r), 10);
+    CNA_EDITOR_EXPECT_EQ(static_cast<int>(view.clearColor.g), 20);
+    CNA_EDITOR_EXPECT_EQ(static_cast<int>(view.clearColor.b), 30);
+}
+
+CNA_EDITOR_TEST(TheGameViewIgnoresDisabledAndNonPrimaryCameras)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid disabled = addEntity(scene, registry, "Cutscene Camera", 900.0f, 900.0f);
+    addComponent(scene, registry, disabled, BuiltinComponentIds::kCamera);
+    scene.findEntity(disabled)->setEnabled(false);
+
+    const Uuid secondary = addEntity(scene, registry, "Minimap Camera", 700.0f, 700.0f);
+    addComponent(scene, registry, secondary, BuiltinComponentIds::kCamera);
+    scene.findEntity(secondary)->findComponent(BuiltinComponentIds::kCamera)
+        ->setProperty("isPrimary", PropertyValue{false});
+
+    const Uuid primary = addEntity(scene, registry, "Main Camera", 100.0f, 100.0f);
+    addComponent(scene, registry, primary, BuiltinComponentIds::kCamera);
+
+    // A disabled entity is not in the game at all, so its camera is not either; and the one that
+    // claims to be primary wins over one that does not, whatever the document order.
+    const GameView view = computeGameView(scene, EditorVector2{800.0f, 600.0f});
+    CNA_EDITOR_EXPECT(view.cameraId == primary);
+}
+
+CNA_EDITOR_TEST(ASceneWithNoCameraStillGetsAView)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    addEntity(scene, registry, "Player", 50.0f, 50.0f);
+
+    // A player that refused to draw would be unable to show the very scene the user is trying to
+    // fix. Drawing from the origin at 1:1 is wrong in a way they can see and act on.
+    const GameView view = computeGameView(scene, EditorVector2{800.0f, 600.0f});
+    CNA_EDITOR_EXPECT(!view.hasCamera());
+    CNA_EDITOR_EXPECT(nearlyEqual(view.camera.getZoom(), 1.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(view.camera.getCenter().x, 0.0f));
+}
+
+CNA_EDITOR_TEST(TheGameViewFollowsACameraParentedToSomethingElse)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid rig = addEntity(scene, registry, "Camera Rig", 500.0f, 0.0f);
+    const Uuid camera = addEntity(scene, registry, "Main Camera", 20.0f, 30.0f);
+    addComponent(scene, registry, camera, BuiltinComponentIds::kCamera);
+    scene.reparentEntity(camera, rig);
+
+    // The world transform, not the local position: a camera on a rig is the ordinary way to move
+    // one, and reading its local offset would leave the view sitting at the origin.
+    const GameView view = computeGameView(scene, EditorVector2{800.0f, 600.0f});
+    CNA_EDITOR_EXPECT(nearlyEqual(view.camera.getCenter().x, 520.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(view.camera.getCenter().y, 30.0f));
 }
 
 CNA_EDITOR_TEST(CamerasAndLightsGetIconsAndSpritesDoNot)

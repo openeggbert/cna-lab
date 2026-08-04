@@ -54,6 +54,20 @@ namespace CNA::Editor
         /** @brief Sink for messages the host wants to send to the editor. */
         using Outbox = std::vector<EditorMessage>;
 
+        /**
+         * @brief One capture the editor asked for and the graphics half has still to take.
+         *
+         * Queued rather than answered on the spot, because only the CNA-linked loop can read a
+         * back buffer -- and a `ScreenshotReady` sent before any pixels reached disk would be a lie
+         * the editor has no way to detect. The request id travels with it so a reply can be
+         * matched to its request even with several in flight.
+         */
+        struct ScreenshotRequest
+        {
+            std::uint64_t requestId = 0;
+            std::string path;
+        };
+
         PlayerHost();
         ~PlayerHost();
 
@@ -87,6 +101,17 @@ namespace CNA::Editor
         [[nodiscard]] PlayState getPlayState() const { return playState_; }
         [[nodiscard]] const Project& getProject() const { return project_; }
         [[nodiscard]] const SceneDocument& getScene() const { return scene_; }
+
+        /**
+         * @brief The database and registry the graphics half draws through.
+         *
+         * Exposed because rendering needs both -- a sprite's texture is resolved by asset id, and a
+         * component's declared defaults are the only thing that knows what a field means when the
+         * file omits it -- and because the alternative is the graphics half scanning the project a
+         * second time and disagreeing with this one about what it found.
+         */
+        [[nodiscard]] const AssetDatabase& getAssets() const { return assets_; }
+        [[nodiscard]] const ComponentRegistry& getComponentRegistry() const { return components_; }
         [[nodiscard]] const std::string& getScenePath() const { return scenePath_; }
         [[nodiscard]] const std::string& getError() const { return error_; }
 
@@ -113,6 +138,30 @@ namespace CNA::Editor
             return taken;
         }
 
+        /**
+         * @brief Returns the captures the editor has asked for, and clears the list.
+         *
+         * Drained by the CNA-linked loop, which takes each one and answers it with
+         * `makeScreenshotReply`. A build with no graphics drains it too and answers honestly that
+         * it cannot capture -- an editor left waiting for a reply that will never come is worse
+         * than one told no.
+         */
+        std::vector<ScreenshotRequest> takeScreenshotRequests()
+        {
+            std::vector<ScreenshotRequest> taken;
+            taken.swap(screenshotRequests_);
+            return taken;
+        }
+
+        /**
+         * @brief Builds the reply to @p request.
+         *
+         * @param errorMessage Empty when the file was written; otherwise why it was not. Carried in
+         *        the message rather than only logged, so the asking side can act on it.
+         */
+        [[nodiscard]] static EditorMessage makeScreenshotReply(const ScreenshotRequest& request,
+                                                               const std::string& errorMessage = {});
+
         /** @brief Returns whether a compatible handshake has been received. */
         [[nodiscard]] bool isHandshakeComplete() const { return handshakeComplete_; }
 
@@ -132,6 +181,9 @@ namespace CNA::Editor
 
         /** @brief Assets reloaded since the graphics half last drained the list. */
         std::vector<Uuid> reloadedAssets_;
+
+        /** @brief Captures asked for and not yet taken. */
+        std::vector<ScreenshotRequest> screenshotRequests_;
         std::uint64_t frameCount_ = 0;
         /** @brief Frames still owed from StepFrame requests while paused. */
         int pendingSteps_ = 0;

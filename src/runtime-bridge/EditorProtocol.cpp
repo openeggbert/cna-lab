@@ -104,6 +104,15 @@ namespace CNA::Editor
         return message;
     }
 
+    EditorMessage EditorMessage::makeScreenshot(const std::string& path)
+    {
+        EditorMessage message;
+        message.type = EditorMessageType::Screenshot;
+        message.payload = JsonValue::makeObject();
+        message.payload.set("path", JsonValue{path});
+        return message;
+    }
+
     EditorMessage EditorMessage::makeSetProperty(const Uuid& entityId,
                                                  const std::string& componentTypeId,
                                                  const std::string& propertyName,

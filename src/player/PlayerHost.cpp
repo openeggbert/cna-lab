@@ -47,6 +47,23 @@ namespace CNA::Editor
         return true;
     }
 
+    EditorMessage PlayerHost::makeScreenshotReply(const ScreenshotRequest& request,
+                                                  const std::string& errorMessage)
+    {
+        EditorMessage reply;
+        reply.type = EditorMessageType::ScreenshotReady;
+        reply.requestId = request.requestId;
+        reply.payload = JsonValue::makeObject();
+        reply.payload.set("path", JsonValue{request.path});
+
+        // Both fields, always. A reply carrying only a path would make "written" something the
+        // editor has to infer from whether the file happens to be there, which is a different
+        // question with its own answers -- a stale file from a previous run, for one.
+        reply.payload.set("written", JsonValue{errorMessage.empty()});
+        if (!errorMessage.empty()) { reply.payload.set("error", JsonValue{errorMessage}); }
+        return reply;
+    }
+
     EditorMessage PlayerHost::makeReady(const std::string& backendName) const
     {
         EditorMessage message;
@@ -123,15 +140,21 @@ namespace CNA::Editor
                 break;
 
             case EditorMessageType::Screenshot: {
-                // The capture itself belongs to the CNA-linked main loop, which owns the device.
-                // Acknowledging here keeps the request/reply correlation honest even when the
-                // player is built without graphics.
-                EditorMessage reply;
-                reply.type = EditorMessageType::ScreenshotReady;
-                reply.requestId = message.requestId;
-                reply.payload = JsonValue::makeObject();
-                reply.payload.set("path", message.payload["path"]);
-                outbox.push_back(std::move(reply));
+                // Queued, not answered. The capture belongs to the CNA-linked main loop, which owns
+                // the device and the back buffer; replying here would tell the editor a file exists
+                // before anything had been written to it, and nothing on the wire would ever
+                // correct that. The loop drains the queue and answers each request with
+                // makeScreenshotReply -- including a build with no graphics, which answers that it
+                // cannot capture rather than leaving the editor waiting.
+                const std::string path = message.payload["path"].asString();
+                if (path.empty())
+                {
+                    outbox.push_back(
+                        EditorMessage::makeReportLog("error", "screenshot without a path"));
+                    break;
+                }
+
+                screenshotRequests_.push_back(ScreenshotRequest{message.requestId, path});
                 break;
             }
 

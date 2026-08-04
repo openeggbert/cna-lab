@@ -584,23 +584,56 @@ namespace CNA::Editor
                                               GizmoSpace gizmoSpace,
                                               const AnimationPreview& preview)
     {
+        return renderPasses(scene, camera, width, height, selection, gizmoMode, gizmoSpace, preview,
+                            true, true);
+    }
+
+    SceneRenderStats CnaSceneRenderer::renderGameView(const SceneDocument& scene,
+                                                      const EditorCamera2D& camera,
+                                                      int width,
+                                                      int height)
+    {
+        static const std::vector<Uuid> kNothingSelected;
+        return renderPasses(scene, camera, width, height, kNothingSelected, GizmoMode::None,
+                            GizmoSpace::World, AnimationPreview{}, false, false);
+    }
+
+    SceneRenderStats CnaSceneRenderer::renderPasses(const SceneDocument& scene,
+                                                    const EditorCamera2D& camera,
+                                                    int width,
+                                                    int height,
+                                                    const std::vector<Uuid>& selection,
+                                                    GizmoMode gizmoMode,
+                                                    GizmoSpace gizmoSpace,
+                                                    const AnimationPreview& preview,
+                                                    bool editorOverlays,
+                                                    bool offscreen)
+    {
         SceneRenderStats stats;
         lastStats_ = stats;
 
         if (impl_->device == nullptr || impl_->spriteBatch == nullptr) { return stats; }
         if (width <= 0 || height <= 0) { return stats; }
 
-        impl_->ensureTarget(width, height);
-
         XnaGraphics::GraphicsDevice& device = *impl_->device;
-        device.SetRenderTarget(impl_->target.get());
-        device.Clear(kBackground);
 
-        // Pass 1: the grid, beneath everything.
-        impl_->spriteBatch->Begin(XnaGraphics::SpriteSortMode::Deferred,
-                                  XnaGraphics::BlendState::AlphaBlend);
-        impl_->drawGrid(camera, stats);
-        impl_->spriteBatch->End();
+        if (offscreen)
+        {
+            impl_->ensureTarget(width, height);
+            device.SetRenderTarget(impl_->target.get());
+            device.Clear(kBackground);
+        }
+
+        // Pass 1: the grid, beneath everything. An editor artefact, so the game view has none --
+        // and skipping the pass is the whole of "the player must not draw editor chrome", because
+        // the separation is structural rather than a filter applied to a shared list.
+        if (editorOverlays)
+        {
+            impl_->spriteBatch->Begin(XnaGraphics::SpriteSortMode::Deferred,
+                                      XnaGraphics::BlendState::AlphaBlend);
+            impl_->drawGrid(camera, stats);
+            impl_->spriteBatch->End();
+        }
 
         // Pass 2: the game's own content. BackToFront honours SpriteRenderer.layerDepth, which is
         // XNA's own convention (0 front, 1 back) and the one the game will see at run time.
@@ -784,6 +817,13 @@ namespace CNA::Editor
 
         // Pass 3: the editor's overlay. Separate from the content pass on purpose -- selection
         // outlines are editor artefacts and must never become part of the scene.
+        if (!editorOverlays)
+        {
+            if (offscreen) { device.SetRenderTarget(nullptr); }
+            lastStats_ = stats;
+            return stats;
+        }
+
         impl_->spriteBatch->Begin(XnaGraphics::SpriteSortMode::Deferred,
                                   XnaGraphics::BlendState::AlphaBlend);
 
@@ -850,7 +890,7 @@ namespace CNA::Editor
         }
         impl_->spriteBatch->End();
 
-        device.SetRenderTarget(nullptr);
+        if (offscreen) { device.SetRenderTarget(nullptr); }
 
         lastStats_ = stats;
         return stats;

@@ -108,6 +108,27 @@ namespace CNA::Editor
                                 const AnimationPreview& preview = {});
 
         /**
+         * @brief Draws @p scene the way the *game* sees it: into the current target, no overlays.
+         *
+         * What `cna-player` uses. Two differences from render(), and both are the point:
+         *
+         * - **No editor artefacts.** No grid, no icons, no selection outline, no gizmo. The
+         *   separation was already enforced by the pass structure, so this is a matter of not
+         *   running two of the three passes rather than of filtering anything out.
+         * - **The current render target**, normally the back buffer, rather than an offscreen one.
+         *   The player's window shows the game and nothing else, so there is nothing to compose it
+         *   with -- and drawing straight to the back buffer is what makes
+         *   `GraphicsDevice::GetBackBufferData` a screenshot of the game (plan.md ED-510).
+         *
+         * The caller clears; the game's own camera decides the colour, and this class has no
+         * opinion about it.
+         */
+        SceneRenderStats renderGameView(const SceneDocument& scene,
+                                        const EditorCamera2D& camera,
+                                        int width,
+                                        int height);
+
+        /**
          * @brief Registers the rendered target with @p uiRenderer and returns its UI texture id.
          *
          * The id is what the viewport panel passes to `EditorUi::image()`. Zero when nothing has
@@ -143,6 +164,24 @@ namespace CNA::Editor
         [[nodiscard]] const SceneRenderStats& getLastStats() const { return lastStats_; }
 
     private:
+        /**
+         * @brief The one implementation behind render() and renderGameView().
+         *
+         * Both draw the same content pass, and a second copy of it would be a second place for
+         * "what the game looks like" to drift from what the editor shows -- which is the single
+         * property the editor exists to guarantee.
+         */
+        SceneRenderStats renderPasses(const SceneDocument& scene,
+                                      const EditorCamera2D& camera,
+                                      int width,
+                                      int height,
+                                      const std::vector<Uuid>& selection,
+                                      GizmoMode gizmoMode,
+                                      GizmoSpace gizmoSpace,
+                                      const AnimationPreview& preview,
+                                      bool editorOverlays,
+                                      bool offscreen);
+
         struct Impl;
         std::unique_ptr<Impl> impl_;
         SceneRenderStats lastStats_;

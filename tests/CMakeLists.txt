@@ -116,6 +116,27 @@ if(CNA_EDITOR_WITH_CNA AND CNA_EDITOR_WITH_IMGUI)
             TIMEOUT 180)
     endif()
 
+    # The player, doing the thing it exists to do: open a window, draw the example scene through
+    # its own camera, and write a PNG of it. Until this existed the player ran the protocol and
+    # drew nothing, which is a state no exit code could tell apart from a working one -- so the
+    # assertion is the capture: the process exits non-zero when no file was written.
+    add_test(NAME CnaPlayerWindowSmoke
+        COMMAND cna-player
+            --project=${CMAKE_CURRENT_SOURCE_DIR}/../examples/HelloSprites/HelloSprites.cnaproject
+            --frames=20
+            --screenshot=${CMAKE_CURRENT_BINARY_DIR}/player-smoke.png)
+
+    if(CNA_GRAPHICS_BACKEND STREQUAL "SOFTWARE" OR CNA_GRAPHICS_BACKEND STREQUAL "HEADLESS")
+        set_tests_properties(CnaPlayerWindowSmoke PROPERTIES
+            ENVIRONMENT "SDL_VIDEODRIVER=dummy"
+            TIMEOUT 180)
+    else()
+        set_tests_properties(CnaPlayerWindowSmoke PROPERTIES
+            ENVIRONMENT "DISPLAY=${CNA_EDITOR_TEST_DISPLAY}"
+            LABELS "needs-display"
+            TIMEOUT 180)
+    endif()
+
     # --screenshot without --frames has no final frame to capture, and silently writing nothing
     # would make the smoke test above pass for the wrong reason.
     add_test(NAME CnaEditorScreenshotNeedsFrameLimit

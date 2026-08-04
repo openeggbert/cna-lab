@@ -404,6 +404,8 @@ contains exactly one and it is last.
 {"type":"setProperty","payload":{"entityId":"f392…","component":"CNA.Transform","property":"position","valueType":"vector3","value":[100,220,0]}}
 {"type":"reloadAsset","payload":{"assetId":"8d9fb62c-7447-4c22-a190-036691308c8a"}}
 {"type":"reportLog","payload":{"severity":"info","text":"Loaded 3 entities"}}
+{"type":"screenshot","requestId":7,"payload":{"path":"/tmp/easygl-frame.png"}}
+{"type":"screenshotReady","requestId":7,"payload":{"path":"/tmp/easygl-frame.png","written":true}}
 ```
 
 | Field | Type | Meaning |
@@ -434,6 +436,15 @@ has to be self-describing.
 editor (D-08), and a reload that named a path would miss a file renamed between the change and the
 message. Both ends resolve the id through the database they each scanned, so there is one answer to
 "what is this asset" on both sides.
+
+**`screenshotReady` says whether the file was written, and is sent only once it has been.** The
+player queues the request and answers it from the frame loop that owns the device, because that is
+the only place a back buffer can be read; a reply sent when the message arrived would claim a file
+existed before anything had been written to it. When the capture fails -- a build with no graphics,
+a backend that cannot read its own back buffer -- the reply carries `written: false` and an `error`
+string rather than nothing at all, since an editor waiting for a reply that never comes is worse
+off than one told no. The asking side must not fall back to looking for the file: a stale one from
+an earlier run answers a different question.
 
 **Reading goes through a stream decoder.** A stream socket delivers arbitrary chunks. A reader that
 assumes one `recv()` equals one message works right up until a message straddles a packet boundary,
