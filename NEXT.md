@@ -15,13 +15,13 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 432 / 432 (also under Clang Release) |
+| Unit tests | ✅ 439 / 439 (also under Clang Release) |
 | CTest (standalone) | ✅ 12 / 12 |
 | CTest (CNA config) | ✅ 17 / 17 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
-| **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
-| **Phase 3** | 🔄 11 done — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) **ED-413** (sprites in the 3D view) **ED-407** (environment and fog) **ED-406** (mesh thumbnails) and **ED-403** (materials as assets). What is left is ED-410 and the two plugin rows |
+| **Phase 2** | 🔄 11 of 12 done — **ED-311 closed** when ED-410 gave `NestedStructure` its first real consumer. Only ED-302 remains, blocked on CNA gap G-04 |
+| **Phase 3** | 🔄 12 done — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) **ED-413** (sprites in the 3D view) **ED-407** (environment and fog) **ED-406** (mesh thumbnails) **ED-403** (materials as assets) and **ED-410** (per-part material lists). Only the two plugin rows are left |
 | **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
 | **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
 
@@ -190,6 +190,30 @@ own. An asset's identity is the `Uuid` in its `.cnaasset` sidecar, so that was a
 "which material is this", free to disagree with the first. It was found by pointing the example's
 crate at the document's id and getting back an unchanged brown crate. The example now has a
 `PaintedRed.cnamaterial` and the crate is red, which is the whole feature in one picture.
+
+**11. ED-410, and the `NestedStructure` that waited three phases for a consumer.** ED-311 declared
+`List` and deliberately left the nested half unbuilt, on the grounds that a schema designed against
+no consumer is a schema designed wrong. This is the consumer: a per-part material list whose element
+is a part *name* and a material reference — two fields of different types, which no list of a single
+type can carry. So the type was built now, shaped by what actually needed it. **Waiting was right**:
+a schema designed in Phase 2 would have been designed for prefab overrides, which turned out to be
+computed rather than stored and never needed one.
+
+**Keyed by part name, not by index**, and the row turns on that. Indices are the obvious choice and
+fail *silently* — a model reimported with a mesh added in the middle shifts every index after it,
+the override then points at a different part, and nothing anywhere can notice. A name that matches
+nothing is detectable, so entries matching nothing are **kept** rather than dropped and
+`validateModelPartMaterials` reports them.
+
+**Two bugs found by running it, both worth inheriting:**
+
+- The scene loader was still calling the schema-blind reader, so the list decoded as empty and the
+  crate stayed the wrong colour. `EntityJson` now uses `propertyValueFromJson`.
+- **`PropertyValue::get<T>` returns a *copy*.** So `value.get<StructureValue>().find("part")` leaves
+  a pointer into a temporary that dies at the end of the statement — and the read that follows
+  returned a silently empty part name rather than crashing. `SceneModels` happened to bind a
+  reference and was fine; `SceneValidation` did not. The trap is documented on `find()` itself,
+  because the next person will write the inline form first.
 
 ---
 
@@ -898,44 +922,42 @@ first thing ED-402 can get wrong and the last thing anyone would suspect.
 
 Read this file, then `plan.md`'s *Current state*.
 
-**Phase 3 has nothing blocked left in it.** ED-402, ED-404 and ED-413 all closed this session, so
-the 3D view draws solid lit models, the sprites around them, and the lights that light both. What
-remains is in this order:
+**Phase 3 is twelve rows of thirteen and Phase 2 is eleven of twelve.** What is left in either is
+the two plugin rows and one thing blocked on CNA.
 
-1. **ED-410 — per-mesh material lists.** **Start here.** It is what finally gives ED-311's
-   `NestedStructure` the real consumer it has been parked waiting for, which is the only reason
-   that schema is designable now when it was not before. Everything under it now exists: a
-   `.cnamaterial` is a real asset (ED-403), `ModelDraw::materialOverride` already replaces every
-   part's material, and what ED-410 changes is that one override becoming a list indexed by part.
-   Additive to the scene format, which the owner has already permitted.
-2. **ED-411 / ED-412 plugin loading**, the last of Phase 3 and the largest. Discovery and
-   validation are done (ED-017); this is `dlopen`/`LoadLibrary`, the `extern "C"` entry, unload and
-   hot-reload, then the extension points.
+1. **ED-411 — plugin dynamic loading. Start here.** `dlopen`/`LoadLibrary`, an `extern "C"` entry
+   point, unload, and hot-reload. Discovery and validation are already done (ED-017) and were
+   deliberately built first: an ABI mismatch that reaches `dlopen` is a crash rather than an error
+   message (D-11), so the checks have to run before the load, not after it. This is the largest
+   single row left in the plan.
+2. **ED-412 — the extension points**: importers, component types, panels, menu commands, gizmos,
+   exporters. Follows ED-411 and is mostly a matter of deciding which registries a plugin may write
+   to. `ComponentRegistry` already documents re-registration as a supported escape hatch (ED-305
+   uses it for layers), so component types are the cheapest one to do first.
 
 **Blocked, not forgotten:**
 
+- **ED-302's glyph preview** needs a public way to build a `SpriteFont` from a `.spritefont`. CNA
+  has none (gap **G-04**). It is the only thing keeping Phase 2 from closing.
 - **`PbrEffect` (G-05).** The PBR path is written and one constant away — `kPreferPbrEffect` in
-  `CnaModelPass.cpp`. It needs a CNA fix, not work here. Re-test by flipping it and taking the
-  3D screenshot in *Validation commands*.
-- **ED-302's glyph preview** needs a public way to build a `SpriteFont` (G-04).
-- **Animation.** `MeshData` still has no node hierarchy, on purpose. When skeletal animation is a
-  real task it arrives as fields beside `MeshData::parts` and `loadModel`'s signature does not
-  change. Note that CNA ships `SkinnedEffect`, `SkinnedModelEXT` and `AnimationPlayer`, so the
-  framework side of that is further along than this repository is.
+  `CnaModelPass.cpp`. Needs a CNA fix, not work here.
+- **Animation.** `MeshData` still has no node hierarchy, on purpose. CNA ships `SkinnedEffect`,
+  `SkinnedModelEXT` and `AnimationPlayer`, so the framework side is further along than this
+  repository is; when it becomes a task it arrives as fields beside `MeshData::parts`.
 
 **Smaller, unblocked:**
 
 1. **Hear the audio preview on a machine with a sound device.** Still only reasoned about.
-2. **A second look at `findSelectionRoots`** — move it to the scene module when a *fourth*,
+2. **Sprite picking uses the axis-aligned box, not the rotated quad**, so a rotated sprite has a
+   slightly generous hit area in the 3D view. Correct enough to ship; worth tightening if it annoys
+   anyone.
+3. **A second look at `findSelectionRoots`** — move it to the scene module when a *fourth*,
    non-gizmo caller appears.
-3. **The 3D view has no tile tools and no animation preview scrubbing**, deliberately: both are 2D
-   ideas. `beginGizmo3DDrag` and `handleInteraction3D` are where that would be decided.
-4. **Sprite quads are not picked against.** Picking still uses `computeEntityBounds3D`, which is
-   the axis-aligned box rather than the rotated quad — so a rotated sprite has a slightly generous
-   hit area in the 3D view. Correct enough to ship and worth tightening if it annoys anyone.
+4. **The example project now carries a material per demonstrated feature** (`PaintedRed` for the
+   whole-model override, `PartGreen` for the per-part list). If it grows a third, consider whether
+   the example is still an example or has become a test fixture.
 
-The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
-chains are empty on purpose. This session added no persisted field at all — the PBR material fields
-live in the in-memory seam, and the model sidecar records counts rather than materials. The example
-*scene* gained a light entity, which is data rather than a format change. Keep it that way, and do
-not bump a `formatVersion` without the owner's say-so.
+The one behaviour to preserve throughout: every `formatVersion` is at 1, and ED-902's migration
+chains are empty on purpose. This session added `.cnamaterial` as a *new* format at version 1, and
+`environment` and `materials` as *additive* fields — the permission the owner already gave. Keep it
+that way, and do not bump a `formatVersion` without asking.

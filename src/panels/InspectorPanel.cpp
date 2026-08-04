@@ -217,8 +217,40 @@ namespace CNA::Editor
             const std::string rowId = "##" + id + "-" + std::to_string(index);
 
             PropertyValue item = list.items[index];
-            if (ui_.propertyField(std::to_string(index) + rowId, item, property.enumOptions,
-                                  property.readOnly))
+
+            // A structure element is one row per declared field rather than one widget: which
+            // fields exist is on the descriptor, and only the descriptor knows what each of them
+            // takes -- an asset field needs its kind filter, an enum needs its options.
+            if (property.elementType == PropertyType::Structure)
+            {
+                PropertyValue::StructureValue structure = item.get<PropertyValue::StructureValue>();
+                bool structureChanged = false;
+
+                for (const PropertyDescriptor& field : property.structureFields)
+                {
+                    const PropertyValue* current = structure.find(field.name);
+                    PropertyValue fieldValue = current != nullptr ? *current : field.defaultValue;
+
+                    const std::string fieldLabel =
+                        (field.displayName.empty() ? field.name : field.displayName)
+                        + rowId + "-" + field.name;
+
+                    if (ui_.propertyField(fieldLabel, fieldValue, field.enumOptions,
+                                          property.readOnly || field.readOnly))
+                    {
+                        structure.set(field.name, std::move(fieldValue));
+                        structureChanged = true;
+                    }
+                }
+
+                if (structureChanged)
+                {
+                    list.items[index] = PropertyValue{std::move(structure)};
+                    edit = PropertyEdit{PropertyValue{list}, false};
+                }
+            }
+            else if (ui_.propertyField(std::to_string(index) + rowId, item, property.enumOptions,
+                                       property.readOnly))
             {
                 list.items[index] = std::move(item);
                 edit = PropertyEdit{PropertyValue{list}, false};
@@ -247,7 +279,22 @@ namespace CNA::Editor
         {
             // The declared element type, not the type of whatever is already in there: an empty
             // list has nothing to copy from, and that is exactly when Add is pressed.
-            list.items.push_back(PropertyValue::defaultOf(property.elementType));
+            // A structure starts as its declared fields at their declared defaults rather than
+            // as an empty one: an element with no fields cannot be edited into having any, since
+            // which fields exist is the descriptor's answer and not the value's.
+            if (property.elementType == PropertyType::Structure)
+            {
+                PropertyValue::StructureValue fresh;
+                for (const PropertyDescriptor& field : property.structureFields)
+                {
+                    fresh.set(field.name, field.defaultValue);
+                }
+                list.items.push_back(PropertyValue{std::move(fresh)});
+            }
+            else
+            {
+                list.items.push_back(PropertyValue::defaultOf(property.elementType));
+            }
             edit = PropertyEdit{PropertyValue{list}, true};
         }
 

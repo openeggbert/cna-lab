@@ -4176,3 +4176,49 @@ CNA_EDITOR_TEST(AThreeDimensionalDragMovesAWholeSelectionAsOneUndoEntry)
     CNA_EDITOR_EXPECT(std::abs(positionOf(fixture.entityId).x - firstBefore.x) < 0.001f);
     CNA_EDITOR_EXPECT(std::abs(positionOf(secondId).x - secondBefore.x) < 0.001f);
 }
+
+/**
+ * @brief ED-311/ED-410: a structure element is edited field by field, and each edit is its own undo.
+ *
+ * The inspector half of `NestedStructure`. It matters that the *descriptor* drives the rows rather
+ * than the stored value: a structure that has never been written has no fields to draw, and one
+ * whose fields followed its contents could not be edited into having any.
+ */
+CNA_EDITOR_TEST(APerPartMaterialRowIsEditedFieldByField)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    fixture.ui->pendingChoices.emplace_back("##addComponentType", "Rendering (3D) / Model Renderer");
+    fixture.step(UiImageInteraction{});
+    fixture.ui->pendingClicks.push_back("Add Component");
+    fixture.step(UiImageInteraction{});
+
+    // Adding a row gives a structure with its declared fields at their declared defaults, not an
+    // empty one -- an element with no fields could never be edited into having any. The null UI
+    // expands every tree, so the list's rows are drawn without asking.
+    fixture.ui->pendingClicks.push_back("Add##list-CNA.ModelRenderer-materials");
+    fixture.step(UiImageInteraction{});
+
+    const auto readList = [&]
+    {
+        const EditorComponent* model = context.getScene().findEntity(fixture.entityId)
+                                           ->findComponent(BuiltinComponentIds::kModelRenderer);
+        return model->getProperty("materials").get<PropertyValue::ListValue>();
+    };
+
+    const PropertyValue::ListValue afterAdd = readList();
+    CNA_EDITOR_EXPECT_EQ(afterAdd.items.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(afterAdd.items[0].getType() == PropertyType::Structure);
+
+    const PropertyValue::StructureValue fresh =
+        afterAdd.items[0].get<PropertyValue::StructureValue>();
+    CNA_EDITOR_EXPECT(fresh.find("part") != nullptr);
+    CNA_EDITOR_EXPECT(fresh.find("material") != nullptr);
+
+    // Adding a row is its own undo entry: pressing Add three times must not undo in one.
+    CNA_EDITOR_EXPECT(context.getHistory().undo());
+    CNA_EDITOR_EXPECT(readList().items.empty());
+    CNA_EDITOR_EXPECT(context.getHistory().redo());
+    CNA_EDITOR_EXPECT_EQ(readList().items.size(), std::size_t{1});
+}
