@@ -434,6 +434,10 @@ Phase 1 closed. Working through the owner's priority order:
   it is off by default because each entry compiles CNA again -- minutes, not seconds. Anyone who
   presses Compare on a default build will be told it needs another build, which is correct and still
   worth knowing before it happens.
+- **A red `needs-display` ctest usually means Xvfb died, not that the editor did.** Twice in one
+  session `CnaEditorWindowSmoke` and `CnaSceneLoaderDemo` failed together with "Subprocess aborted"
+  in hundredths of a second; both times the X server was simply gone (`pgrep Xvfb`), and restarting
+  it made all twelve pass. Check that before reading the diff.
 - **Image dimensions are read for PNG, BMP and JPEG only.** Anything else reports unknown, and the
   inspector shows 0×0 with a tooltip saying why. A format that needs a decoder to measure is one
   the importer should measure when it loads the file for real.
