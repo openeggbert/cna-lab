@@ -8,7 +8,9 @@
 
 #include "CNA/Editor/Panels/EditorPanel.hpp"
 #include <cstdint>
+#include <optional>
 
+#include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Scene/TranslateGizmo.hpp"
 
 namespace CNA::Editor
@@ -25,8 +27,31 @@ namespace CNA::Editor
         /** @brief Draws the play controls at the top of the panel. */
         void drawPlayToolbar();
 
-        /** @brief Turns one frame of pointer input into camera moves, selection and gizmo drags. */
+        /**
+         * @brief Turns one frame of pointer input into camera moves, selection, gizmos and tools.
+         *
+         * Split into the pieces below rather than written as one function, because the *ordering*
+         * between them is load-bearing and was becoming impossible to see: a drag in progress
+         * outranks everything, a tool outranks the gizmo, and the gizmo outranks the picker. Each
+         * of those is a real rule with a reason, and each is now one line here.
+         */
         void handleInteraction(const UiImageInteraction& interaction);
+
+        /**
+         * @brief Continues a gizmo drag or a paint stroke already in progress.
+         *
+         * @return True when one was active, in which case the pointer belongs to it and nothing
+         *         else this frame may look at it. Deliberately independent of hover: a drag that
+         *         wandered off the panel must keep going and end only on release, or the entity is
+         *         dropped wherever the cursor happened to cross the edge.
+         */
+        bool updateActiveDrag(const UiImageInteraction& interaction, const EditorVector2& cursor);
+
+        /** @brief Applies this frame's input to the active tool. */
+        void applyToolInput(const UiImageInteraction& interaction, const EditorVector2& cursor);
+
+        /** @brief Applies wheel zoom and drag panning, which every tool leaves alone. */
+        void updateCamera(const UiImageInteraction& interaction, const EditorVector2& cursor);
 
         /**
          * @brief Starts a gizmo drag if @p cursor is over a handle of the selected entity's gizmo.
@@ -39,6 +64,21 @@ namespace CNA::Editor
 
         /** @brief Draws the tool picker and the tile index the paint tool writes. */
         void drawToolbar();
+
+        /** @brief Takes the tile under @p cursor as the brush and returns to painting. */
+        void pickTileAt(const EditorVector2& cursor);
+
+        /** @brief Fills the rectangle between the press cell and @p cursor, as one undo entry. */
+        void fillTilesTo(const EditorVector2& cursor);
+
+        /**
+         * @brief Returns the tilemap cell under @p cursor, or nothing when there is none to paint.
+         *
+         * Shared by every tile tool, because "which cell is this, on which entity" is the same
+         * question for all of them and answering it four times is four chances to differ.
+         */
+        [[nodiscard]] std::optional<TileCoordinate> tileUnder(const EditorVector2& cursor,
+                                                              bool reportWhenMissing);
 
         /**
          * @brief Paints or erases the tile under @p cursor on the selected tilemap.
@@ -68,5 +108,8 @@ namespace CNA::Editor
          */
         std::uint64_t paintStroke_ = 0;
         bool paintStrokeHasEdited_ = false;
+
+        /** @brief Where a fill drag began, while one is in progress. */
+        std::optional<TileCoordinate> fillStart_;
     };
 }

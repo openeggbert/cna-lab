@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Panels/ViewportPanel.hpp"
 
+#include <algorithm>
+#include <array>
+
 #include <cmath>
 #include <memory>
 #include <optional>
@@ -22,6 +25,8 @@ namespace CNA::Editor
             case EditorTool::Select: return "Select";
             case EditorTool::PaintTiles: return "Paint Tiles";
             case EditorTool::EraseTiles: return "Erase Tiles";
+            case EditorTool::PickTile: return "Pick Tile";
+            case EditorTool::FillTiles: return "Fill Tiles";
         }
         return "Select";
     }
@@ -114,46 +119,98 @@ namespace CNA::Editor
 
     void ViewportPanel::handleInteraction(const UiImageInteraction& interaction)
     {
-        EditorCamera2D& camera = actions_.getViewport().getCamera();
         const EditorVector2 cursor{interaction.localMouseX, interaction.localMouseY};
 
-        // A drag in progress owns the pointer, hovered or not. Ending it because the cursor left
-        // the panel would drop the entity wherever it happened to cross the edge, and would leave
-        // the user holding a button that no longer does anything.
+        // Highest priority first, and each rule below is a real one with a reason.
+        if (updateActiveDrag(interaction, cursor)) { return; }
+        if (!interaction.hovered) { return; }
+
+        // A tool outranks the gizmo. A tilemap's gizmo sits directly over its own first tiles, so
+        // without this the opening press of every stroke would drag the map instead of painting it.
+        const bool toolActive = actions_.getEditorTool() != EditorTool::Select;
+        if (toolActive) { applyToolInput(interaction, cursor); }
+
+        // The gizmo outranks the picker: a press on a handle is a manipulation, and must not also
+        // count as a click that reselects whatever is underneath the gizmo.
+        else if (interaction.leftPressed && beginGizmoDrag(cursor)) { return; }
+
+        // Zoom and pan work whatever is active. A paint tool you cannot scroll is unusable.
+        updateCamera(interaction, cursor);
+
+        // Click-to-select does not, though: while a brush is active the first press would take
+        // away the very tilemap being painted into.
+        if (interaction.clicked && !toolActive)
+        {
+            const ScenePickResult pick =
+                pickEntityAt(context_.getScene(), actions_.getViewport().getCamera(), cursor,
+                             actions_.getViewport().makeSizeProvider());
+
+            // Clicking empty space clears the selection, which is what every editor does and what
+            // makes "deselect" reachable without a keyboard.
+            context_.select(pick.entityId);
+        }
+    }
+
+    bool ViewportPanel::updateActiveDrag(const UiImageInteraction& interaction, const EditorVector2& cursor)
+    {
         if (gizmoDrag_.isActive())
         {
             if (interaction.leftDown) { updateGizmoDrag(cursor); }
             else { gizmoDrag_.end(); }
-            return;
+            return true;
         }
 
-        // A paint stroke owns the pointer the same way a gizmo drag does, and for the same reason:
-        // a stroke that stopped at the panel edge would leave a half-painted line the user has to
-        // notice and finish by hand.
-        if (paintStrokeHasEdited_ && interaction.leftDown)
+        if (paintStrokeHasEdited_)
         {
-            paintTileAt(cursor, false);
-            return;
+            if (interaction.leftDown)
+            {
+                paintTileAt(cursor, false);
+                return true;
+            }
+            paintStrokeHasEdited_ = false;
         }
-        if (paintStrokeHasEdited_ && !interaction.leftDown) { paintStrokeHasEdited_ = false; }
 
-        if (!interaction.hovered) { return; }
-
-        // While a brush is active a left press paints and does nothing else. Zoom and pan still
-        // work -- a paint tool you cannot scroll is unusable -- but click-to-select does not, or
-        // the first press would take away the very tilemap being painted into.
-        const bool painting = actions_.getEditorTool() != EditorTool::Select;
-        if (painting)
+        // A fill is drawn by dragging and applied on release, so the drag belongs to it until then
+        // -- including the frames where the cursor has left the panel, since the release still
+        // decides the rectangle.
+        if (fillStart_)
         {
-            if (interaction.leftPressed) { paintTileAt(cursor, true); }
-            else if (interaction.leftDown) { paintTileAt(cursor, false); }
+            if (interaction.leftDown) { return true; }
+
+            fillTilesTo(cursor);
+            fillStart_.reset();
+            return true;
         }
 
-        // Checked before the camera and the picker: a press on a handle is a manipulation, and
-        // must not also count as a click that reselects whatever is underneath the gizmo. Not while
-        // a brush is active, though -- a tilemap's gizmo sits over its own first tiles, so the
-        // first stroke would drag the map instead of painting into it.
-        if (!painting && interaction.leftPressed && beginGizmoDrag(cursor)) { return; }
+        return false;
+    }
+
+    void ViewportPanel::applyToolInput(const UiImageInteraction& interaction, const EditorVector2& cursor)
+    {
+        switch (actions_.getEditorTool())
+        {
+            case EditorTool::PaintTiles:
+            case EditorTool::EraseTiles:
+                if (interaction.leftPressed) { paintTileAt(cursor, true); }
+                else if (interaction.leftDown) { paintTileAt(cursor, false); }
+                return;
+
+            case EditorTool::PickTile:
+                if (interaction.leftPressed) { pickTileAt(cursor); }
+                return;
+
+            case EditorTool::FillTiles:
+                if (interaction.leftPressed) { fillStart_ = tileUnder(cursor, true); }
+                return;
+
+            case EditorTool::Select:
+                return;
+        }
+    }
+
+    void ViewportPanel::updateCamera(const UiImageInteraction& interaction, const EditorVector2& cursor)
+    {
+        EditorCamera2D& camera = actions_.getViewport().getCamera();
 
         if (interaction.wheel != 0.0f)
         {
@@ -167,37 +224,34 @@ namespace CNA::Editor
         {
             camera.panByScreenDelta(EditorVector2{interaction.dragDeltaX, interaction.dragDeltaY});
         }
-
-        if (interaction.clicked && !painting)
-        {
-            const ScenePickResult pick =
-                pickEntityAt(context_.getScene(), camera, cursor, actions_.getViewport().makeSizeProvider());
-
-            // Clicking empty space clears the selection, which is what every editor does and what
-            // makes "deselect" reachable without a keyboard.
-            context_.select(pick.entityId);
-        }
     }
 
     void ViewportPanel::drawToolbar()
     {
-        static const std::vector<std::string> kTools{toString(EditorTool::Select),
-                                                     toString(EditorTool::PaintTiles),
-                                                     toString(EditorTool::EraseTiles)};
+        static const std::array<EditorTool, 5> kOrder{EditorTool::Select, EditorTool::PaintTiles,
+                                                      EditorTool::EraseTiles, EditorTool::PickTile,
+                                                      EditorTool::FillTiles};
+
+        std::vector<std::string> names;
+        names.reserve(kOrder.size());
+        for (const EditorTool tool : kOrder) { names.emplace_back(toString(tool)); }
 
         ui_.setNextItemWidth(130.0f);
         PropertyValue chosen{PropertyValue::EnumValue{toString(actions_.getEditorTool())}};
-        if (ui_.propertyField("##tool", chosen, kTools))
+        if (ui_.propertyField("##tool", chosen, names))
         {
             const std::string name = chosen.get<PropertyValue::EnumValue>().name;
-            if (name == kTools[1]) { actions_.setEditorTool(EditorTool::PaintTiles); }
-            else if (name == kTools[2]) { actions_.setEditorTool(EditorTool::EraseTiles); }
-            else { actions_.setEditorTool(EditorTool::Select); }
+            for (std::size_t index = 0; index < kOrder.size(); ++index)
+            {
+                if (names[index] == name) { actions_.setEditorTool(kOrder[index]); }
+            }
         }
 
         // Only where it means something. A tile index beside the Select tool is a control that
-        // does nothing, which is worse than one that is not there.
-        if (actions_.getEditorTool() != EditorTool::PaintTiles) { return; }
+        // does nothing, which is worse than one that is not there. The eraser has no index either;
+        // the eyedropper sets one rather than reading it.
+        const EditorTool active = actions_.getEditorTool();
+        if (active != EditorTool::PaintTiles && active != EditorTool::FillTiles) { return; }
 
         ui_.sameLine();
         ui_.setNextItemWidth(90.0f);
@@ -208,39 +262,47 @@ namespace CNA::Editor
         }
     }
 
-    void ViewportPanel::paintTileAt(const EditorVector2& cursor, bool startStroke)
+    std::optional<TileCoordinate> ViewportPanel::tileUnder(const EditorVector2& cursor,
+                                                           bool reportWhenMissing)
     {
         const Uuid selectedId = context_.getPrimarySelection();
         const EditorEntity* entity = context_.getScene().findEntity(selectedId);
-        if (entity == nullptr) { return; }
+        const EditorComponent* tilemap =
+            entity != nullptr ? entity->findComponent(BuiltinComponentIds::kTilemap) : nullptr;
 
-        const EditorComponent* tilemap = entity->findComponent(BuiltinComponentIds::kTilemap);
         if (tilemap == nullptr)
         {
-            // Said once per stroke rather than per frame: a brush over a sprite is a near miss, and
+            // Said once per press rather than per frame: a brush over a sprite is a near miss, and
             // sixty lines a second about it is how a console stops being read.
-            if (startStroke)
+            if (reportWhenMissing)
             {
                 context_.log(LogSeverity::Warning,
                              "Select an entity with a Tilemap component to paint into.");
             }
-            return;
+            return std::nullopt;
         }
+
+        const std::optional<WorldTransform> transform =
+            computeWorldTransform(context_.getScene(), selectedId);
+        if (!transform) { return std::nullopt; }
 
         const ComponentDescriptor* descriptor =
             context_.getComponentRegistry().find(BuiltinComponentIds::kTilemap);
-        const std::optional<WorldTransform> transform =
-            computeWorldTransform(context_.getScene(), selectedId);
-        if (!transform) { return; }
 
         const EditorVector2 world = actions_.getViewport().getCamera().screenToWorld(cursor);
-        const TileCoordinate cell = worldToTile(
+        return worldToTile(
             *transform,
             static_cast<int>(tilemap->getPropertyOrDefault(TilemapKeys::kTileWidth, descriptor)
                                  .get<std::int64_t>(0)),
             static_cast<int>(tilemap->getPropertyOrDefault(TilemapKeys::kTileHeight, descriptor)
                                  .get<std::int64_t>(0)),
             world);
+    }
+
+    void ViewportPanel::paintTileAt(const EditorVector2& cursor, bool startStroke)
+    {
+        const std::optional<TileCoordinate> cell = tileUnder(cursor, startStroke);
+        if (!cell) { return; }
 
         if (startStroke)
         {
@@ -253,8 +315,8 @@ namespace CNA::Editor
 
         auto command = std::make_unique<PaintTilesCommand>(context_.getScene(),
                                                            context_.getComponentRegistry(),
-                                                           selectedId, paintStroke_);
-        if (!command->paint(cell.x, cell.y, value)) { return; }
+                                                           context_.getPrimarySelection(), paintStroke_);
+        if (!command->paint(cell->x, cell->y, value)) { return; }
 
         // The first cell of a stroke opens a new entry and every later one merges into it, which is
         // what makes a drag across forty tiles one Ctrl+Z.
@@ -262,6 +324,68 @@ namespace CNA::Editor
             paintStrokeHasEdited_ ? MergePolicy::MergeWithPrevious : MergePolicy::NewEntry;
         paintStrokeHasEdited_ = true;
         context_.execute(std::move(command), policy);
+    }
+
+    void ViewportPanel::pickTileAt(const EditorVector2& cursor)
+    {
+        const std::optional<TileCoordinate> cell = tileUnder(cursor, true);
+        if (!cell) { return; }
+
+        const Uuid selectedId = context_.getPrimarySelection();
+        const EditorComponent* tilemap =
+            context_.getScene().findEntity(selectedId)->findComponent(BuiltinComponentIds::kTilemap);
+
+        const TilemapGrid grid = readTilemapGrid(
+            *tilemap, context_.getComponentRegistry().find(BuiltinComponentIds::kTilemap));
+
+        const std::int64_t picked = grid.at(cell->x, cell->y);
+        if (picked < 0)
+        {
+            // An empty cell is not a tile. Taking -1 as the brush would silently turn the
+            // eyedropper into an eraser, which is a different tool the user did not choose.
+            context_.log(LogSeverity::Info, "That cell is empty; the brush was left alone.");
+            return;
+        }
+
+        actions_.setPaintTile(picked);
+
+        // Straight back to painting, which is what every editor does and what makes the eyedropper
+        // worth reaching for: picking a tile is never the goal, painting with it is.
+        actions_.setEditorTool(EditorTool::PaintTiles);
+        context_.log(LogSeverity::Info, "Brush set to tile " + std::to_string(picked) + ".");
+    }
+
+    void ViewportPanel::fillTilesTo(const EditorVector2& cursor)
+    {
+        if (!fillStart_) { return; }
+
+        const std::optional<TileCoordinate> end = tileUnder(cursor, false);
+        if (!end) { return; }
+
+        const int minX = std::min(fillStart_->x, end->x);
+        const int maxX = std::max(fillStart_->x, end->x);
+        const int minY = std::min(fillStart_->y, end->y);
+        const int maxY = std::max(fillStart_->y, end->y);
+
+        ++paintStroke_;
+
+        auto command = std::make_unique<PaintTilesCommand>(context_.getScene(),
+                                                           context_.getComponentRegistry(),
+                                                           context_.getPrimarySelection(), paintStroke_);
+
+        // Every cell into one command, so a fill is one undo entry however large the rectangle.
+        // Cells outside the map are refused by the command itself, so dragging past the edge fills
+        // what exists rather than nothing.
+        for (int y = minY; y <= maxY; ++y)
+        {
+            for (int x = minX; x <= maxX; ++x) { command->paint(x, y, actions_.getPaintTile()); }
+        }
+
+        if (!command->isValid()) { return; }
+
+        const std::size_t cells = command->getCells().size();
+        context_.execute(std::move(command));
+        context_.log(LogSeverity::Info, "Filled " + std::to_string(cells) + " tile(s).");
     }
 
     bool ViewportPanel::beginGizmoDrag(const EditorVector2& cursor)

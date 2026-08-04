@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 283 / 283 (also under Clang Release) |
+| Unit tests | ✅ 286 / 286 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -87,6 +87,14 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **Tilemap eyedropper and rectangle fill**, and the `ViewportPanel::handleInteraction` split
+  that had been marked due. The split came first, deliberately: the *ordering* between interaction
+  modes is load-bearing -- a drag in progress outranks everything, a tool outranks the gizmo, the
+  gizmo outranks the picker -- and adding two more modes to one long function would have buried
+  three real rules. Each is now one line with its reason beside it. The eyedropper hands the brush
+  back to the paint tool, because picking a tile is never the goal; an empty cell is refused rather
+  than taken as -1, which would silently turn it into an eraser. A fill applies on release, so the
+  rectangle can be adjusted before it lands, and is one undo entry however large.
 - **ED-303** sprite animation, complete. A frame is an index into a sheet, not a rectangle -- the
   same arithmetic the tilemap already does, and far smaller to author. The frame list is an
   ordinary `List<Integer>`, so reordering and adding frames needed no new widget. Playback is a
@@ -274,17 +282,9 @@ Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are
 
 Phase 2's remaining work is now mostly *finishing* rather than starting. In rough order of value:
 
-1. **Tilemap eyedropper and rectangle fill.** Both are small now that `EditorTool` exists, and both
-   are what a person reaches for within a minute of painting.
-2. **ED-309 backend diagnostics** is nearly free: the capability set is already printed at start-up,
+1. **ED-309 backend diagnostics** is nearly free: the capability set is already printed at start-up,
    and showing it in a panel is a view over data that exists. Then **ED-304** audio source editing
    with preview playback, and **ED-308**, the build dialog.
-
-One piece of tidying is now due rather than optional: **`ViewportPanel::handleInteraction` carries
-three interaction modes** (gizmo drag, paint stroke, camera and selection) in one function, and the
-ordering between them is load-bearing — a brush has to suppress the gizmo, and the gizmo has to
-suppress the picker. A fourth mode is the point at which that ordering stops being readable, and
-the next person to add one should split it first.
 
 Nothing above changes a file format. Every format is at version 1 and ED-902's chains are empty on
 purpose; a new component type is something the descriptor system handles without a bump.

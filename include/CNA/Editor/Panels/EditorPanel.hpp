@@ -54,7 +54,11 @@ namespace CNA::Editor
         /** @brief Set the tile under the cursor on the selected tilemap. */
         PaintTiles,
         /** @brief Clear the tile under the cursor. */
-        EraseTiles
+        EraseTiles,
+        /** @brief Take the tile under the cursor as the brush, then go back to painting. */
+        PickTile,
+        /** @brief Fill the rectangle a drag encloses, applied on release. */
+        FillTiles
     };
 
     /** @brief Returns the display name of @p tool. */

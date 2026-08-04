@@ -2824,3 +2824,116 @@ CNA_EDITOR_TEST(TheInspectorPreviewsAnAnimationWithoutPuttingItInTheDocument)
     application.renderFrame();
     CNA_EDITOR_EXPECT(ui->sawText("Frame 1 of 4  (400 ms)"));
 }
+
+CNA_EDITOR_TEST(TheEyedropperTakesATileAndGoesBackToPainting)
+{
+    GizmoFixture fixture = makeTilemapFixture();
+    fixture.application->setEditorTool(EditorTool::PaintTiles);
+    fixture.application->setPaintTile(3);
+    fixture.step(leftAt(650.0f, 370.0f, true));
+
+    UiImageInteraction release;
+    release.hovered = true;
+    release.localMouseX = 650.0f;
+    release.localMouseY = 370.0f;
+    release.leftReleased = true;
+    fixture.step(release);
+
+    fixture.application->setPaintTile(9);
+    fixture.application->setEditorTool(EditorTool::PickTile);
+    fixture.step(leftAt(650.0f, 370.0f, true));
+
+    // Picking a tile is never the goal; painting with it is. So the eyedropper hands the brush
+    // back to the paint tool, which is what every editor does.
+    CNA_EDITOR_EXPECT_EQ(fixture.application->getPaintTile(), std::int64_t{3});
+    CNA_EDITOR_EXPECT(fixture.application->getEditorTool() == EditorTool::PaintTiles);
+
+    // An empty cell is not a tile. Taking -1 as the brush would silently turn the eyedropper into
+    // an eraser, which is a different tool the user did not choose.
+    fixture.application->setEditorTool(EditorTool::PickTile);
+    fixture.step(leftAt(714.0f, 370.0f, true));
+    CNA_EDITOR_EXPECT_EQ(fixture.application->getPaintTile(), std::int64_t{3});
+    CNA_EDITOR_EXPECT(fixture.application->getEditorTool() == EditorTool::PickTile);
+    CNA_EDITOR_EXPECT(fixture.logContains("That cell is empty"));
+
+    // And painting is unaffected by the excursion.
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(0, 0), std::int64_t{3});
+}
+
+CNA_EDITOR_TEST(AFillCoversTheDraggedRectangleAsOneUndoEntry)
+{
+    GizmoFixture fixture = makeTilemapFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    fixture.application->setEditorTool(EditorTool::FillTiles);
+    fixture.application->setPaintTile(6);
+
+    const std::size_t before = context.getHistory().getCount();
+
+    // Press on tile (0, 0) and release on (2, 1): a three-by-two rectangle.
+    fixture.step(leftAt(650.0f, 370.0f, true));
+
+    // Nothing is applied while the drag is in progress. A fill that painted as it went would be a
+    // brush with extra steps, and could not be adjusted before release.
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(0, 0), kEmptyTile);
+
+    fixture.step(leftAt(714.0f, 402.0f, false));
+
+    UiImageInteraction release;
+    release.hovered = true;
+    release.localMouseX = 714.0f;
+    release.localMouseY = 402.0f;
+    release.leftReleased = true;
+    fixture.step(release);
+
+    const TilemapGrid grid = gridOf(fixture);
+    CNA_EDITOR_EXPECT_EQ(grid.at(0, 0), std::int64_t{6});
+    CNA_EDITOR_EXPECT_EQ(grid.at(2, 1), std::int64_t{6});
+    CNA_EDITOR_EXPECT_EQ(grid.at(3, 0), kEmptyTile);
+    CNA_EDITOR_EXPECT_EQ(grid.at(0, 2), kEmptyTile);
+
+    // One entry however large the rectangle, and one press of Ctrl+Z takes all six back.
+    CNA_EDITOR_EXPECT_EQ(context.getHistory().getCount(), before + 1);
+    CNA_EDITOR_EXPECT(fixture.logContains("Filled 6 tile(s)."));
+
+    fixture.application->undo();
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(0, 0), kEmptyTile);
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(2, 1), kEmptyTile);
+}
+
+CNA_EDITOR_TEST(AFillDraggedBackwardsAndPastTheEdgeStillFillsWhatExists)
+{
+    GizmoFixture fixture = makeTilemapFixture();
+
+    fixture.application->setEditorTool(EditorTool::FillTiles);
+    fixture.application->setPaintTile(2);
+
+    // Started at (2, 1) and released at (0, 0): a rectangle is a rectangle whichever corner it was
+    // dragged from.
+    fixture.step(leftAt(714.0f, 402.0f, true));
+
+    UiImageInteraction release;
+    release.hovered = true;
+    release.localMouseX = 650.0f;
+    release.localMouseY = 370.0f;
+    release.leftReleased = true;
+    fixture.step(release);
+
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(0, 0), std::int64_t{2});
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(2, 1), std::int64_t{2});
+
+    // Dragging past the edge fills what exists rather than nothing: the cells outside are refused
+    // by the command, not by the tool.
+    fixture.application->setPaintTile(5);
+    fixture.step(leftAt(650.0f, 370.0f, true));
+
+    UiImageInteraction outside;
+    outside.hovered = true;
+    outside.localMouseX = 1270.0f;
+    outside.localMouseY = 370.0f;
+    outside.leftReleased = true;
+    fixture.step(outside);
+
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(0, 0), std::int64_t{5});
+    CNA_EDITOR_EXPECT_EQ(gridOf(fixture).at(7, 0), std::int64_t{5});
+}
