@@ -15,6 +15,7 @@
 #include "CNA/Editor/Scene/EditorCamera3D.hpp"
 #include "CNA/Editor/Scene/SceneLighting.hpp"
 #include "CNA/Editor/Scene/SceneModels.hpp"
+#include "CNA/Editor/Scene/SceneSprites3D.hpp"
 #include "CNA/Editor/Scene/SceneWireframe.hpp"
 #include "CNA/Editor/Scene/TransformGizmos3D.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -2876,4 +2877,158 @@ CNA_EDITOR_TEST(TheModelBatchsSplitCameraMultipliesBackToItsProduct)
     // must send world +Y to screen -Y, which is the whole reason the 2D and 3D views agree about
     // which way is down.
     CNA_EDITOR_EXPECT(batch.projection.m22 < 0.0f);
+}
+
+namespace
+{
+    /** @brief Adds a `CNA.SpriteRenderer` naming @p textureId, with an optional origin. */
+    void addSpriteRenderer(const ComponentRegistry& registry, EditorEntity& entity,
+                           const Uuid& textureId, EditorVector2 origin = {})
+    {
+        EditorComponent sprite{BuiltinComponentIds::kSpriteRenderer};
+        sprite.applyDefaults(*registry.find(BuiltinComponentIds::kSpriteRenderer));
+        sprite.setProperty("texture", PropertyValue{PropertyValue::AssetReference{textureId}});
+        sprite.setProperty("origin", PropertyValue{origin});
+        entity.addComponent(std::move(sprite));
+    }
+}
+
+/**
+ * @brief A sprite's quad is the rectangle the picker already thinks the sprite is.
+ *
+ * The property worth pinning, because the alternative -- billboarding -- passes every other test
+ * and fails this one. `computeEntityBounds3D`, the gizmos and the ray picker all treat a sprite as
+ * a flat box in the scene's XY plane; a quad drawn anywhere else is a sprite drawn where it cannot
+ * be clicked.
+ */
+CNA_EDITOR_TEST(ASpriteQuadIsTheRectangleThePickerAlreadyThinksItIs)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid textureId = Uuid::generate();
+
+    EditorEntity entity = makeEntity(registry, "Orb", 5.0f, 7.0f);
+    addSpriteRenderer(registry, entity, textureId);
+    const Uuid id = scene.addEntity(std::move(entity));
+
+    EditorCamera3D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+    camera.orbit(30.0f, 20.0f);
+
+    const SpriteSizeProvider sizes = [&](const Uuid& queried)
+    { return queried == textureId ? EditorVector2{32.0f, 16.0f} : EditorVector2{}; };
+
+    const SceneSpriteBatch3D batch = buildSceneSpriteQuads(scene, camera, sizes, {}, {}, &registry);
+    CNA_EDITOR_EXPECT_EQ(batch.quads.size(), std::size_t{1});
+
+    const std::optional<WorldBounds3D> bounds = computeEntityBounds3D(scene, id, sizes);
+    CNA_EDITOR_EXPECT(bounds.has_value());
+
+    // Every corner lies inside what the picker calls this entity, and the quad spans the whole of
+    // it -- so the two describe one rectangle rather than two that happen to overlap.
+    float minX = batch.quads[0].corners[0].x, maxX = minX;
+    float minY = batch.quads[0].corners[0].y, maxY = minY;
+    for (const EditorVector3& corner : batch.quads[0].corners)
+    {
+        minX = std::min(minX, corner.x);
+        maxX = std::max(maxX, corner.x);
+        minY = std::min(minY, corner.y);
+        maxY = std::max(maxY, corner.y);
+
+        // And it is flat in the scene plane: a sprite that turned to face the camera would not be.
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(corner.z, 0.0f, 0.001f));
+    }
+
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(minX, bounds->min.x, 0.01f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(maxX, bounds->max.x, 0.01f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(minY, bounds->min.y, 0.01f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(maxY, bounds->max.y, 0.01f));
+}
+
+/**
+ * @brief Pitch and roll on the entity do not tilt the sprite, because `SpriteBatch` cannot.
+ *
+ * The 3D view is allowed to show more than the 2D one and not more than the *game*. A quad honouring
+ * the full world rotation would look better and would be the editor drawing something the player
+ * will render flat.
+ */
+CNA_EDITOR_TEST(ASpriteIgnoresEverythingButItsZRotation)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid textureId = Uuid::generate();
+
+    EditorEntity entity = makeEntity(registry, "Orb", 0.0f, 0.0f);
+    addSpriteRenderer(registry, entity, textureId);
+    const Uuid id = scene.addEntity(std::move(entity));
+
+    scene.findEntity(id)
+        ->findComponent(BuiltinComponentIds::kTransform)
+        ->setProperty("rotation",
+                      PropertyValue{quaternionFromEulerDegrees(EditorVector3{60.0f, 45.0f, 0.0f})});
+
+    EditorCamera3D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const SpriteSizeProvider sizes = [&](const Uuid&) { return EditorVector2{16.0f, 16.0f}; };
+    const SceneSpriteBatch3D batch = buildSceneSpriteQuads(scene, camera, sizes, {}, {}, &registry);
+
+    CNA_EDITOR_EXPECT_EQ(batch.quads.size(), std::size_t{1});
+    for (const EditorVector3& corner : batch.quads[0].corners)
+    {
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(corner.z, 0.0f, 0.001f));
+    }
+}
+
+/**
+ * @brief Sprites come back furthest first, because transparency does not commute.
+ *
+ * Two overlapping transparent quads blended in the wrong order give a different picture, and the
+ * one that looks right is furthest first. This is the ordering the viewport relies on and does not
+ * re-derive.
+ */
+CNA_EDITOR_TEST(SpriteQuadsArriveFurthestFromTheCameraFirst)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid textureId = Uuid::generate();
+
+    // Added near-first, so a correct answer cannot also be "document order".
+    EditorEntity near = makeEntity(registry, "Near", 0.0f, 0.0f);
+    addSpriteRenderer(registry, near, textureId);
+    scene.addEntity(std::move(near));
+
+    EditorEntity far = makeEntity(registry, "Far", 400.0f, 0.0f);
+    addSpriteRenderer(registry, far, textureId);
+    scene.addEntity(std::move(far));
+
+    EditorCamera3D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const SpriteSizeProvider sizes = [&](const Uuid&) { return EditorVector2{8.0f, 8.0f}; };
+    const SceneSpriteBatch3D batch = buildSceneSpriteQuads(scene, camera, sizes, {}, {}, &registry);
+
+    CNA_EDITOR_EXPECT_EQ(batch.quads.size(), std::size_t{2});
+    CNA_EDITOR_EXPECT(batch.quads[0].cameraDistance >= batch.quads[1].cameraDistance);
+}
+
+/** @brief A sprite whose texture cannot be sized is counted, never drawn at a guessed size. */
+CNA_EDITOR_TEST(ASpriteWithNoKnownSizeIsCountedRatherThanGuessedAt)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity entity = makeEntity(registry, "Orb", 0.0f, 0.0f);
+    addSpriteRenderer(registry, entity, Uuid::generate());
+    scene.addEntity(std::move(entity));
+
+    EditorCamera3D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const SpriteSizeProvider unknown = [](const Uuid&) { return EditorVector2{}; };
+    const SceneSpriteBatch3D batch =
+        buildSceneSpriteQuads(scene, camera, unknown, {}, {}, &registry);
+
+    CNA_EDITOR_EXPECT(batch.quads.empty());
+    CNA_EDITOR_EXPECT_EQ(batch.skipped, std::size_t{1});
 }
