@@ -111,7 +111,8 @@ target_link_libraries(cna-editor-assets PUBLIC cna-editor-core)
 # cna-editor-project -- the .cnaproject format and the backend capability table.
 add_library(cna-editor-project STATIC
     src/project/Project.cpp
-    src/project/RecoveryStore.cpp)
+    src/project/RecoveryStore.cpp
+    src/project/BuildRunner.cpp)
 target_link_libraries(cna-editor-project PUBLIC cna-editor-core)
 
 # cna-editor-ui -- the toolkit-independent UI surface plus its null implementation, and the two
@@ -257,6 +258,7 @@ set(CNA_EDITOR_PANEL_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/HistoryPanel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/ConsolePanel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/DiagnosticsPanel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/BuildPanel.cpp
     CACHE INTERNAL "Editor panel sources")
 
 add_executable(cna-editor

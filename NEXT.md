@@ -15,12 +15,12 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 290 / 290 (also under Clang Release) |
+| Unit tests | ✅ 294 / 294 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
-| **Phase 2** | 🔄 9 of 12 done (ED-300, 301, 303, 304, 305, 306, 307, 309, 310); ED-302 and ED-311 half; ED-308 open |
+| **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
 | Owner priorities 1 and 2 | ✅ closed (robustness and data safety; live editing into the player) |
 
 ---
@@ -87,6 +87,15 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-308** the build panel. Shells out to `cmake` rather than writing a script, because that
+  gives the editor the exit code and the output; drives the *project's own* `CMakeLists`,
+  contributing only the backend and the output directory; and reports a missing toolchain before
+  offering the button, since CMake's own message for that says nothing a user can act on. The
+  commands are shown before they run. `planBuild` is pure, so the part that carries the knowledge
+  is tested without a compiler; the process half is exercised against a real `cmake` over a
+  `project(... NONE)` probe, which needs no compiler either.
+  `findCMake()` is resolved once by the panel and cached -- it walks every directory on the PATH,
+  and the panel draws every frame.
 - **ED-304** audio. The preview plays through CNA's *public* `SoundEffect(path)` constructor, so
   unlike the sprite-font preview there was nothing forbidden in the way -- worth checking before
   assuming a second G-04. `EditorAudio` sits beside `EditorViewport` in the one CNA-linking module.
@@ -297,20 +306,20 @@ Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are
 
 Phase 2's remaining work is now mostly *finishing* rather than starting. In rough order of value:
 
-1. **ED-308** the build and publish dialog, the last open Phase 2 item and the one most likely to
-   need decisions rather than typing. Three to settle before writing code:
-   - **Shell out to `cmake`, or write a script the user runs?** Shelling out gives the editor the
-     output to show and the exit code to report; writing a script is honest about the fact that a
-     real build has options the editor does not model. `PlayerProcess` already spawns and pumps a
-     child process, so the machinery for the first exists.
-   - **Where a build goes.** A directory beside the project is the obvious answer and the one that
-     needs a `.gitignore` entry the editor cannot add for the user.
-   - **What happens when the toolchain is missing.** This is the common case for anyone who
-     installed the editor and not a compiler, and "nothing happened" is the worst answer.
-2. **ED-311's `NestedStructure`** if anything ever needs it, and **ED-302's glyph preview** if CNA
+**Phase 2 is effectively done.** Ten of its twelve rows are closed; the two that are not are each
+half built and each blocked on something outside this repository, not on effort here:
+
+1. **ED-311's `NestedStructure`** if anything ever needs it, and **ED-302's glyph preview** if CNA
    closes G-04. Both are blocked on something real rather than on effort here.
-3. **Audio `stop()` cannot actually stop a clip** (see ED-304 above). Small, and worth doing the
+2. **Audio `stop()` cannot actually stop a clip** (see ED-304 above). Small, and worth doing the
    moment anyone previews something long enough to want it cut short.
+
+So the honest next move is **Phase 3**, whose rows are the 3D ones (ED-401 rotate and scale gizmos,
+ED-402 lights, ED-404 model rendering) — or **ED-510**, the backend comparison mode, which is the
+last item on the owner's original priority list and the one that makes the compile-time-backend
+constraint (F-01) pay off rather than merely cost. ED-401 is the most immediately useful of them:
+pressing `E` or `R` today selects a gizmo mode and says so in the console instead of drawing
+anything, which is a promise the editor has been making since Phase 1 without keeping.
 
 Nothing above changes a file format. Every format is at version 1 and ED-902's chains are empty on
 purpose; a new component type is something the descriptor system handles without a bump.

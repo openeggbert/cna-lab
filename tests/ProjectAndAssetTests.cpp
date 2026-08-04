@@ -6,8 +6,10 @@
 
 #include "TestHarness.hpp"
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <thread>
 #include <sstream>
 
 #include "CNA/Editor/Assets/AssetCommands.hpp"
@@ -19,6 +21,7 @@
 #include "CNA/Editor/Scene/MissingReferences.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 #include "CNA/Editor/Plugins/Plugin.hpp"
+#include "CNA/Editor/Project/BuildRunner.hpp"
 #include "CNA/Editor/Project/Project.hpp"
 #include "CNA/Editor/Project/RecoveryStore.hpp"
 #include "CNA/Editor/RuntimeBridge/EditorProtocol.hpp"
@@ -1397,4 +1400,151 @@ CNA_EDITOR_TEST(TheSpriteFontImporterOffersFactsAndNoSettings)
     }
     CNA_EDITOR_EXPECT(descriptor->findProperty("fontName") != nullptr);
     CNA_EDITOR_EXPECT(descriptor->findProperty("characterRange") != nullptr);
+}
+
+// --------------------------------------------------------------------------------------------
+// Building (plan.md ED-308)
+// --------------------------------------------------------------------------------------------
+
+CNA_EDITOR_TEST(ABuildPlanIsTwoCommandsWithTheOptionsTheEditorActuallyKnows)
+{
+    const std::filesystem::path directory = makeScratchDirectory("buildplan");
+    writeFile(directory / "CMakeLists.txt", "cmake_minimum_required(VERSION 3.20)\n");
+
+    BuildRequest request;
+    request.projectRoot = directory.generic_string();
+    request.targetPlatform = "linux-x64";
+    request.graphicsBackend = "EASYGL";
+    request.configuration = "RelWithDebInfo";
+    request.cmakePath = findCMake();
+
+    // Skipped rather than failed when there is no cmake: the plan is about *which* options are
+    // passed, and asserting that on a machine without a toolchain would be testing the machine.
+    if (request.cmakePath.empty())
+    {
+        CNA_EDITOR_EXPECT(!describeBuildProblem(request).empty());
+        std::filesystem::remove_all(directory);
+        return;
+    }
+
+    request.buildDirectory = getDefaultBuildDirectory(request);
+    CNA_EDITOR_EXPECT(describeBuildProblem(request).empty());
+
+    // Beside the project and keyed by platform: a build people iterate on has to be incremental,
+    // and two platforms must not overwrite each other.
+    CNA_EDITOR_EXPECT(request.buildDirectory.find("/build/linux-x64") != std::string::npos);
+
+    const std::vector<BuildStep> steps = planBuild(request);
+    CNA_EDITOR_EXPECT_EQ(steps.size(), std::size_t{2});
+    if (steps.size() != 2) { return; }
+
+    const std::string configure = steps.front().toCommandLine();
+    CNA_EDITOR_EXPECT(configure.find("-S " + request.projectRoot) != std::string::npos);
+    CNA_EDITOR_EXPECT(configure.find("-DCMAKE_BUILD_TYPE=RelWithDebInfo") != std::string::npos);
+
+    // The one option the editor genuinely knows about. Passing more would be guessing at somebody
+    // else's CMakeLists.
+    CNA_EDITOR_EXPECT(configure.find("-DCNA_GRAPHICS_BACKEND=EASYGL") != std::string::npos);
+
+    // --config as well as CMAKE_BUILD_TYPE: single-config generators read the first and
+    // multi-config ones read the second, and a build that produced a Debug binary on one
+    // developer's machine and a Release one on another's is the bug this avoids.
+    const std::string build = steps.back().toCommandLine();
+    CNA_EDITOR_EXPECT(build.find("--build") != std::string::npos);
+    CNA_EDITOR_EXPECT(build.find("--config RelWithDebInfo") != std::string::npos);
+    CNA_EDITOR_EXPECT(build.find("--parallel") != std::string::npos);
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(ABuildSaysWhyItCannotRunBeforeItIsOffered)
+{
+    BuildRequest empty;
+    CNA_EDITOR_EXPECT_EQ(describeBuildProblem(empty), std::string{"no project is open"});
+    CNA_EDITOR_EXPECT(planBuild(empty).empty());
+
+    BuildRequest missing;
+    missing.projectRoot = "/definitely/not/a/directory";
+    CNA_EDITOR_EXPECT(describeBuildProblem(missing).find("does not exist") != std::string::npos);
+
+    // A project directory with no CMakeLists is the case CMake reports worst: a wall of text about
+    // a missing file that says nothing about what the user should do.
+    const std::filesystem::path directory = makeScratchDirectory("buildproblem");
+    BuildRequest noCMakeLists;
+    noCMakeLists.projectRoot = directory.generic_string();
+    CNA_EDITOR_EXPECT(describeBuildProblem(noCMakeLists).find("no CMakeLists.txt") != std::string::npos);
+
+    // And a cmake that is not there is named plainly rather than left to fail on exec.
+    writeFile(directory / "CMakeLists.txt", "cmake_minimum_required(VERSION 3.20)\n");
+    BuildRequest badCMake;
+    badCMake.projectRoot = directory.generic_string();
+    badCMake.cmakePath = (directory / "not-cmake").generic_string();
+    CNA_EDITOR_EXPECT(describeBuildProblem(badCMake).find("is not an executable file")
+                      != std::string::npos);
+
+    std::filesystem::remove_all(directory);
+}
+
+CNA_EDITOR_TEST(ABuildRunsItsStepsAndReportsTheOutcome)
+{
+    const std::filesystem::path directory = makeScratchDirectory("buildrun");
+
+    // A CMakeLists that configures and builds nothing. Enough to prove the editor drives cmake,
+    // reaps it, advances to the second step and reports success -- without needing a compiler.
+    writeFile(directory / "CMakeLists.txt",
+              "cmake_minimum_required(VERSION 3.20)\n"
+              "project(BuildRunnerProbe NONE)\n");
+
+    BuildRequest request;
+    request.projectRoot = directory.generic_string();
+    request.targetPlatform = "probe";
+    request.configuration = "Release";
+    request.cmakePath = findCMake();
+    request.buildDirectory = getDefaultBuildDirectory(request);
+
+    if (request.cmakePath.empty())
+    {
+        std::filesystem::remove_all(directory);
+        return;
+    }
+
+    BuildProcess process;
+    std::string errorMessage;
+    CNA_EDITOR_EXPECT(process.start(request, &errorMessage));
+    CNA_EDITOR_EXPECT(errorMessage.empty());
+    CNA_EDITOR_EXPECT(process.getState() == BuildState::Running);
+
+    // A build must never block the editor, so poll() is called until it finishes rather than
+    // waited on. Bounded so a hung cmake fails the test instead of hanging it.
+    for (int attempt = 0; attempt < 2000 && process.getState() == BuildState::Running; ++attempt)
+    {
+        process.poll();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    CNA_EDITOR_EXPECT(process.getState() == BuildState::Succeeded);
+    CNA_EDITOR_EXPECT_EQ(process.getStepNumber(), std::size_t{2});
+    CNA_EDITOR_EXPECT(std::filesystem::exists(process.getLogPath()));
+
+    // The log opens with the commands that were run, so a build that failed an hour ago is still
+    // explainable from the file alone.
+    const std::vector<std::string> tail = process.readLogTail(200);
+    CNA_EDITOR_EXPECT(!tail.empty());
+
+    bool sawHeader = false;
+    for (const std::string& line : tail)
+    {
+        if (line.find("cna-editor build: probe, Release") != std::string::npos) { sawHeader = true; }
+    }
+    CNA_EDITOR_EXPECT(sawHeader);
+
+    // Starting a second build over a finished one is allowed; over a running one is not.
+    CNA_EDITOR_EXPECT(process.start(request, &errorMessage));
+    CNA_EDITOR_EXPECT(!process.start(request, &errorMessage));
+    CNA_EDITOR_EXPECT_EQ(errorMessage, std::string{"a build is already running"});
+
+    process.cancel();
+    CNA_EDITOR_EXPECT(process.getState() == BuildState::Failed);
+
+    std::filesystem::remove_all(directory);
 }

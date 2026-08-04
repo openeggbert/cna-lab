@@ -20,6 +20,7 @@
 #include "CNA/Editor/Assets/AssetWatcher.hpp"
 #include "CNA/Editor/EditorContext.hpp"
 #include "CNA/Editor/Panels/AssetBrowserPanel.hpp"
+#include "CNA/Editor/Panels/BuildPanel.hpp"
 #include "CNA/Editor/Panels/ConsolePanel.hpp"
 #include "CNA/Editor/Panels/DiagnosticsPanel.hpp"
 #include "CNA/Editor/Panels/EditorPanel.hpp"
@@ -293,6 +294,7 @@ namespace CNA::Editor
         ValidationPanel validationPanel_;
         ConsolePanel consolePanel_;
         DiagnosticsPanel diagnosticsPanel_;
+        BuildPanel buildPanel_;
 
         GizmoMode gizmoMode_ = GizmoMode::Translate;
         EditorTool tool_ = EditorTool::Select;

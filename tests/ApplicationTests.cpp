@@ -17,6 +17,7 @@
 #include "CNA/Editor/EditorApplication.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
+#include "CNA/Editor/Project/BuildRunner.hpp"
 #include "CNA/Editor/Project/RecoveryStore.hpp"
 #include "CNA/Editor/PrefabWorkflow.hpp"
 #include "CNA/Editor/ProjectCommands.hpp"
@@ -128,7 +129,7 @@ CNA_EDITOR_TEST(ApplicationDrawsEveryPanelEachFrame)
     ui.endFrame();
 
     const std::vector<std::string>& panels = ui.getLastFramePanels();
-    CNA_EDITOR_EXPECT_EQ(panels.size(), std::size_t{8});
+    CNA_EDITOR_EXPECT_EQ(panels.size(), std::size_t{9});
 
     const auto contains = [&](const std::string& title) {
         return std::find(panels.begin(), panels.end(), title) != panels.end();
@@ -141,6 +142,7 @@ CNA_EDITOR_TEST(ApplicationDrawsEveryPanelEachFrame)
     CNA_EDITOR_EXPECT(contains("Validation"));
     CNA_EDITOR_EXPECT(contains("History"));
     CNA_EDITOR_EXPECT(contains("Diagnostics"));
+    CNA_EDITOR_EXPECT(contains("Build"));
 
     // The viewport must actually have rendered, or --headless would be a no-op rather than a
     // smoke test. NullEditorViewport walks the same transform and bounds code a real one does.
@@ -3063,4 +3065,47 @@ CNA_EDITOR_TEST(AnEntityWithNoClipIsToldRatherThanOfferedADeadButton)
     fixture.application->renderFrame();
     CNA_EDITOR_EXPECT(fixture.ui->sawText("Assign a clip to hear it."));
     CNA_EDITOR_EXPECT(!fixture.ui->sawButton("Play##audio"));
+}
+
+CNA_EDITOR_TEST(TheBuildPanelExplainsItselfBeforeOfferingToBuild)
+{
+    RecoveryFixture fixture{"buildpanel", 0.0};
+    ScriptedUi* ui = fixture.ui;
+
+    fixture.application->renderFrame();
+
+    // The example-shaped project has no CMakeLists, and that is said plainly instead of the button
+    // being offered and CMake producing a wall of text about a missing file.
+    CNA_EDITOR_EXPECT(ui->sawText("Cannot build: the project has no CMakeLists.txt, so there is "
+                                 "nothing for the editor to build. A CNA game's build is the "
+                                 "game's own -- the editor only runs it."));
+    CNA_EDITOR_EXPECT(!ui->sawButton("Build##build"));
+
+    // Give it one, and the panel shows the exact commands. A real build has options the editor
+    // does not model, and someone who needs one has to be able to take the command away.
+    writeFile(fixture.directory / "CMakeLists.txt", "cmake_minimum_required(VERSION 3.20)\n");
+    fixture.application->renderFrame();
+
+    if (findCMake().empty())
+    {
+        // No toolchain on this machine: the panel says so rather than offering a dead button.
+        CNA_EDITOR_EXPECT(!ui->sawButton("Build##build"));
+        return;
+    }
+
+    CNA_EDITOR_EXPECT(ui->sawButton("Build##build"));
+
+    bool sawCommand = false;
+    bool sawOutput = false;
+    for (const std::string& line : ui->drawnText)
+    {
+        if (line.find("-DCMAKE_BUILD_TYPE=Release") != std::string::npos) { sawCommand = true; }
+        if (line.find("Output: ") != std::string::npos
+            && line.find("/build/linux-x64") != std::string::npos)
+        {
+            sawOutput = true;
+        }
+    }
+    CNA_EDITOR_EXPECT(sawCommand);
+    CNA_EDITOR_EXPECT(sawOutput);
 }
