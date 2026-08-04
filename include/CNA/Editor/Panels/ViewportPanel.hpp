@@ -114,6 +114,15 @@ namespace CNA::Editor
         void commitGizmoEdit(const Uuid& entityId, const std::string& property,
                              const PropertyValue& value);
 
+        /**
+         * @brief Sends the pointer and keyboard to the running player.
+         *
+         * Built from the same interaction the editor's own tools read, so what the game is told
+         * about the pointer is what the editor did with it -- and only while the pointer is over
+         * the viewport, because a click on the hierarchy is not a click in the game.
+         */
+        void forwardInputToPlayer(const UiImageInteraction& interaction, const UiRegion& region);
+
         /** @brief Draws the tool picker and the tile index the paint tool writes. */
         void drawToolbar();
 

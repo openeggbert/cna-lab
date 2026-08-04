@@ -51,6 +51,8 @@ namespace CNA::Editor
         Screenshot,
         /** @brief Ask the player to shut down cleanly. */
         Quit,
+        /** @brief The pointer and keyboard as the editor sees them, for the game to read. */
+        Input,
 
         // Player -> editor.
         /** @brief Handshake reply. Carries the player's CNA backend and capabilities. */
@@ -62,7 +64,9 @@ namespace CNA::Editor
         /** @brief Periodic frame timing, for the profiler panel. */
         ReportFrameStats,
         /** @brief A requested screenshot is written and ready to read. */
-        ScreenshotReady
+        ScreenshotReady,
+        /** @brief What the player made of the last Input: the editor's half of the round trip. */
+        ReportInput
     };
 
     /** @brief Returns the wire name of @p type, e.g. "loadScene". */
@@ -70,6 +74,63 @@ namespace CNA::Editor
 
     /** @brief Parses the wire name produced by toString(). */
     EditorMessageType parseEditorMessageType(std::string_view text);
+
+    /**
+     * @brief The pointer and keyboard at one instant, as one side of the bridge sees them.
+     *
+     * **State, not events.** A game built on XNA polls -- `Keyboard::GetState()`, `Mouse::GetState()`
+     * -- so state is the shape the receiving side actually wants, and it is also the shape that
+     * survives a dropped or coalesced message: a lost key-down event leaves a key stuck forever,
+     * while a lost snapshot is corrected by the next one.
+     *
+     * The pointer is carried with the surface it was measured against rather than normalised at the
+     * sender, because the receiver knows its own window and the sender does not. Normalising twice
+     * loses the pixel the user was actually pointing at, and rounding it back is not the same
+     * number.
+     */
+    struct PlayerInputSnapshot
+    {
+        /** @brief Keys held, by the editor's own key names. Order is not significant. */
+        std::vector<std::string> keys;
+
+        float mouseX = 0.0f;
+        float mouseY = 0.0f;
+
+        /** @brief The surface the pointer was measured against. Zero means "no pointer". */
+        float surfaceWidth = 0.0f;
+        float surfaceHeight = 0.0f;
+
+        bool leftButton = false;
+        bool middleButton = false;
+        bool rightButton = false;
+
+        /** @brief Wheel notches since the previous snapshot, positive away from the user. */
+        float wheel = 0.0f;
+
+        /** @brief True when a pointer position was measured at all. */
+        [[nodiscard]] bool hasPointer() const { return surfaceWidth > 0.0f && surfaceHeight > 0.0f; }
+
+        /** @brief Returns true when @p key is held. */
+        [[nodiscard]] bool isKeyDown(const std::string& key) const;
+
+        /**
+         * @brief Returns this snapshot with its pointer expressed in a surface of the given size.
+         *
+         * What the player does with what the editor sends: the editor's viewport panel and the
+         * player's window are different sizes, and a game asking where the pointer is means *its*
+         * window. A snapshot with no pointer is returned unchanged rather than mapped to a corner.
+         */
+        [[nodiscard]] PlayerInputSnapshot mapToSurface(float width, float height) const;
+
+        [[nodiscard]] JsonValue toJson() const;
+        [[nodiscard]] static PlayerInputSnapshot fromJson(const JsonValue& value);
+
+        friend bool operator==(const PlayerInputSnapshot& lhs, const PlayerInputSnapshot& rhs);
+        friend bool operator!=(const PlayerInputSnapshot& lhs, const PlayerInputSnapshot& rhs)
+        {
+            return !(lhs == rhs);
+        }
+    };
 
     /**
      * @brief One protocol message.
@@ -132,6 +193,12 @@ namespace CNA::Editor
          * answers that question wrongly.
          */
         static EditorMessage makeScreenshot(const std::string& path);
+
+        /** @brief Builds an Input message carrying @p snapshot. */
+        static EditorMessage makeInput(const PlayerInputSnapshot& snapshot);
+
+        /** @brief Builds the player's ReportInput reply, carrying the snapshot it now holds. */
+        static EditorMessage makeReportInput(const PlayerInputSnapshot& snapshot);
 
         /** @brief Builds a ReportLog message. */
         static EditorMessage makeReportLog(const std::string& severity, const std::string& text);

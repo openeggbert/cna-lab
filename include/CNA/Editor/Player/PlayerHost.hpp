@@ -162,6 +162,25 @@ namespace CNA::Editor
         [[nodiscard]] static EditorMessage makeScreenshotReply(const ScreenshotRequest& request,
                                                                const std::string& errorMessage = {});
 
+        /**
+         * @brief Tells the host how big the window it draws into is.
+         *
+         * Called by the CNA-linked loop, which owns the window; this half has no way to ask. The
+         * size is what forwarded input is mapped into -- a game asking where the pointer is means
+         * *its* window, not the editor panel the user was pointing at.
+         */
+        void setSurfaceSize(int width, int height);
+
+        /**
+         * @brief Returns the pointer and keyboard as last forwarded by the editor.
+         *
+         * Already mapped into this player's surface. This is where a game would read them once
+         * there is a way to attach game code to an entity -- that question is open (see NEXT.md)
+         * and deliberately not answered here. Until it is, the value's purpose is to be reported
+         * back, so the editor can show what the game would see.
+         */
+        [[nodiscard]] const PlayerInputSnapshot& getInput() const { return input_; }
+
         /** @brief Returns whether a compatible handshake has been received. */
         [[nodiscard]] bool isHandshakeComplete() const { return handshakeComplete_; }
 
@@ -169,6 +188,14 @@ namespace CNA::Editor
         void handleLoadScene(const EditorMessage& message, Outbox& outbox);
         void handleSetProperty(const EditorMessage& message, Outbox& outbox);
         void handleReloadAsset(const EditorMessage& message, Outbox& outbox);
+        void handleInput(const EditorMessage& message, Outbox& outbox);
+
+        /** @brief The pointer and keyboard the editor last forwarded, in this player's surface. */
+        PlayerInputSnapshot input_;
+
+        /** @brief The window's size, as the graphics half last reported it. */
+        float surfaceWidth_ = 0.0f;
+        float surfaceHeight_ = 0.0f;
 
         Project project_;
         SceneDocument scene_;

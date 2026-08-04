@@ -11,6 +11,8 @@
 
 #include "TestHarness.hpp"
 
+#include <algorithm>
+
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -912,6 +914,33 @@ CNA_EDITOR_TEST(PlayerHostReloadsOneAssetByIdAndReportsWhatItDid)
     CNA_EDITOR_EXPECT(warned);
 }
 
+namespace
+{
+    /** @brief A null UI that can report keys held and a hovered viewport, for input forwarding. */
+    class InputScriptedUi final : public NullEditorUi
+    {
+    public:
+        std::vector<UiKey> heldKeys;
+        UiImageInteraction interaction;
+
+        [[nodiscard]] bool isKeyDown(UiKey key) const override
+        {
+            return std::find(heldKeys.begin(), heldKeys.end(), key) != heldKeys.end();
+        }
+
+        UiImageInteraction image(const std::string& id, UiTextureId texture, float width, float height,
+                                 bool flipVertically = false) override
+        {
+            (void)id;
+            (void)texture;
+            (void)width;
+            (void)height;
+            (void)flipVertically;
+            return interaction;
+        }
+    };
+}
+
 CNA_EDITOR_TEST(LiveEditsAndAssetChangesReachARunningPlayer)
 {
     // End to end, over a real process and a real socket. Everything else about ED-306 and ED-307
@@ -929,9 +958,10 @@ CNA_EDITOR_TEST(LiveEditsAndAssetChangesReachARunningPlayer)
     CNA_EDITOR_EXPECT(!builds.empty());
     if (builds.empty()) { return; }
 
-    auto ui = std::make_unique<NullEditorUi>();
-    NullEditorUi* log = ui.get();
-    EditorApplication application{std::move(ui), std::make_unique<NullEditorViewport>()};
+    auto scripted = std::make_unique<InputScriptedUi>();
+    InputScriptedUi* ui = scripted.get();
+    NullEditorUi* log = scripted.get();
+    EditorApplication application{std::move(scripted), std::make_unique<NullEditorViewport>()};
 
     EditorOptions options;
     options.headless = true;
@@ -989,6 +1019,105 @@ CNA_EDITOR_TEST(LiveEditsAndAssetChangesReachARunningPlayer)
     }
     CNA_EDITOR_EXPECT(sawLog("reloaded 'Assets/hero.png'"));
 
+    // Input forwarding, on the same running process rather than in a test of its own: a second
+    // player costs a second handshake and proves nothing this one does not. Driven through the
+    // viewport panel rather than by calling forwardInputToPlayer directly, because the panel
+    // forwards a snapshot every frame -- a hand-sent one would be overwritten by the next frame's
+    // empty one, which is the feature working rather than the test failing.
+    ui->heldKeys = {UiKey::W};
+    ui->interaction = UiImageInteraction{};
+    ui->interaction.hovered = true;
+    ui->interaction.localMouseX = 320.0f;
+    ui->interaction.localMouseY = 180.0f;
+    ui->interaction.leftDown = true;
+
+    for (int attempt = 0; attempt < 400 && !application.getPlayerInput().isKeyDown("W"); ++attempt)
+    {
+        application.renderFrame(0.0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    const PlayerInputSnapshot& seen = application.getPlayerInput();
+    CNA_EDITOR_EXPECT(seen.isKeyDown("W"));
+    CNA_EDITOR_EXPECT(seen.leftButton);
+
+    // A headless player has no window, so it reports back the surface it was given rather than
+    // inventing one -- and the pointer is still a quarter of the way across it.
+    CNA_EDITOR_EXPECT(seen.hasPointer());
+    CNA_EDITOR_EXPECT(std::abs(seen.mouseX / seen.surfaceWidth - 0.25f) < 0.01f);
+
     application.stopPlay();
     CNA_EDITOR_EXPECT(application.getPlayMode() == PlayMode::Stopped);
+}
+
+CNA_EDITOR_TEST(AnInputSnapshotSurvivesTheWireAndIsMappedIntoThePlayersWindow)
+{
+    PlayerInputSnapshot sent;
+    sent.keys = {"W", "Space"};
+    sent.mouseX = 100.0f;
+    sent.mouseY = 50.0f;
+    sent.surfaceWidth = 400.0f;
+    sent.surfaceHeight = 200.0f;
+    sent.leftButton = true;
+    sent.wheel = -2.0f;
+
+    const std::optional<EditorMessage> decoded =
+        EditorMessage::decode(EditorMessage::makeInput(sent).encode());
+    CNA_EDITOR_EXPECT(decoded.has_value());
+    if (!decoded) { return; }
+
+    CNA_EDITOR_EXPECT(decoded->type == EditorMessageType::Input);
+    CNA_EDITOR_EXPECT(PlayerInputSnapshot::fromJson(decoded->payload) == sent);
+
+    // The mapping is the whole point of sending the surface with the pointer: a quarter of the way
+    // across the editor's panel is a quarter of the way across the game's window, whatever the two
+    // are measured in.
+    const PlayerInputSnapshot mapped = sent.mapToSurface(1280.0f, 720.0f);
+    CNA_EDITOR_EXPECT(std::abs(mapped.mouseX - 320.0f) < 0.01f);
+    CNA_EDITOR_EXPECT(std::abs(mapped.mouseY - 180.0f) < 0.01f);
+    CNA_EDITOR_EXPECT(mapped.isKeyDown("W") && !mapped.isKeyDown("A"));
+
+    // No pointer stays no pointer. Mapping it would put the cursor in a corner of the game window
+    // and leave it there, which is worse than saying nothing.
+    PlayerInputSnapshot keysOnly;
+    keysOnly.keys = {"Escape"};
+    CNA_EDITOR_EXPECT(!keysOnly.hasPointer());
+    CNA_EDITOR_EXPECT(keysOnly.mapToSurface(1280.0f, 720.0f) == keysOnly);
+}
+
+CNA_EDITOR_TEST(ThePlayerMapsForwardedInputAndReportsWhatItHolds)
+{
+    PlayerHost host;
+
+    PlayerInputSnapshot sent;
+    sent.keys = {"D"};
+    sent.mouseX = 470.5f;
+    sent.mouseY = 270.5f;
+    sent.surfaceWidth = 941.0f;
+    sent.surfaceHeight = 541.0f;
+    sent.rightButton = true;
+
+    // Before any frame has run, the host does not know how big its window is. It stores what it
+    // was sent rather than mapping by a zero, and says so by reporting the sender's surface back.
+    PlayerHost::Outbox outbox;
+    host.handle(EditorMessage::makeInput(sent), outbox);
+    CNA_EDITOR_EXPECT_EQ(outbox.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(host.getInput() == sent);
+
+    outbox.clear();
+    host.setSurfaceSize(1280, 720);
+    host.handle(EditorMessage::makeInput(sent), outbox);
+
+    CNA_EDITOR_EXPECT_EQ(outbox.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(outbox.front().type == EditorMessageType::ReportInput);
+
+    const PlayerInputSnapshot held = host.getInput();
+    CNA_EDITOR_EXPECT(std::abs(held.surfaceWidth - 1280.0f) < 0.01f);
+    CNA_EDITOR_EXPECT(std::abs(held.mouseX - 470.5f * (1280.0f / 941.0f)) < 0.01f);
+    CNA_EDITOR_EXPECT(held.isKeyDown("D"));
+    CNA_EDITOR_EXPECT(held.rightButton);
+
+    // The reply carries exactly what the player holds, so the editor can show the game's own view
+    // rather than an echo of what it sent.
+    CNA_EDITOR_EXPECT(PlayerInputSnapshot::fromJson(outbox.front().payload) == held);
 }

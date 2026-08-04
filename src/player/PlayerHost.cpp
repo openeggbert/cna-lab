@@ -135,6 +135,10 @@ namespace CNA::Editor
                 highlightedEntity_ = Uuid::parse(message.payload["entityId"].asString());
                 break;
 
+            case EditorMessageType::Input:
+                handleInput(message, outbox);
+                break;
+
             case EditorMessageType::Quit:
                 playState_ = PlayState::Stopping;
                 break;
@@ -165,11 +169,34 @@ namespace CNA::Editor
             case EditorMessageType::ReportLog:
             case EditorMessageType::ReportFrameStats:
             case EditorMessageType::ScreenshotReady:
+            case EditorMessageType::ReportInput:
             case EditorMessageType::Unknown:
                 outbox.push_back(EditorMessage::makeReportLog(
                     "warn", std::string{"ignoring unexpected message '"} + toString(message.type) + "'"));
                 break;
         }
+    }
+
+    void PlayerHost::setSurfaceSize(int width, int height)
+    {
+        surfaceWidth_ = static_cast<float>(std::max(0, width));
+        surfaceHeight_ = static_cast<float>(std::max(0, height));
+    }
+
+    void PlayerHost::handleInput(const EditorMessage& message, Outbox& outbox)
+    {
+        const PlayerInputSnapshot sent = PlayerInputSnapshot::fromJson(message.payload);
+
+        // Mapped here rather than at the editor, because the editor does not know how big this
+        // window is -- and cannot, since the player may have been resized since it was launched.
+        input_ = surfaceWidth_ > 0.0f ? sent.mapToSurface(surfaceWidth_, surfaceHeight_) : sent;
+
+        // Answered every time rather than only on a change. The editor sends only when something
+        // moved, so the traffic is already bounded, and an unanswered forward would leave the
+        // editor unable to tell "the player ignored it" from "the player has not run a frame yet".
+        EditorMessage reply = EditorMessage::makeReportInput(input_);
+        reply.requestId = message.requestId;
+        outbox.push_back(std::move(reply));
     }
 
     void PlayerHost::handleLoadScene(const EditorMessage& message, Outbox& outbox)

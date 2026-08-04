@@ -255,6 +255,9 @@ namespace CNA::Editor
         void setGizmoSpace(GizmoSpace space) override;
         [[nodiscard]] GizmoSpace getGizmoSpace() const override { return gizmoSpace_; }
 
+        void forwardInputToPlayer(const PlayerInputSnapshot& snapshot) override;
+        [[nodiscard]] const PlayerInputSnapshot& getPlayerInput() const override { return playerInput_; }
+
         void setThreeDimensionalView(bool enabled) override;
 
         /**
@@ -391,6 +394,18 @@ namespace CNA::Editor
          * wireframe is the right first sight of a scene with models in it, not of a tilemap.
          */
         bool threeDimensionalView_ = false;
+
+        /**
+         * @brief What the player reported it makes of the input last forwarded to it.
+         *
+         * The player's own view, in the player's own window coordinates, rather than a copy of
+         * what was sent: the two differ by exactly the mapping the player applied, and the
+         * mapping is the part worth showing.
+         */
+        PlayerInputSnapshot playerInput_;
+
+        /** @brief The last snapshot actually sent, so an unchanged one is not sent again. */
+        PlayerInputSnapshot lastForwardedInput_;
 
         /** @brief Whether the 3D camera has been aimed at the scene yet. See the method above. */
         bool threeDimensionalCameraPlaced_ = false;

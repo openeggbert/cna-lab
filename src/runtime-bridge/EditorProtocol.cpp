@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/RuntimeBridge/EditorProtocol.hpp"
 
+#include <algorithm>
+
 #include <array>
 
 namespace CNA::Editor
@@ -13,7 +15,7 @@ namespace CNA::Editor
             const char* name;
         };
 
-        constexpr std::array<MessageTypeName, 16> kMessageTypeNames{{
+        constexpr std::array<MessageTypeName, 18> kMessageTypeNames{{
             {EditorMessageType::Unknown, "unknown"},
             {EditorMessageType::Hello, "hello"},
             {EditorMessageType::LoadScene, "loadScene"},
@@ -25,11 +27,13 @@ namespace CNA::Editor
             {EditorMessageType::SelectEntity, "selectEntity"},
             {EditorMessageType::Screenshot, "screenshot"},
             {EditorMessageType::Quit, "quit"},
+            {EditorMessageType::Input, "input"},
             {EditorMessageType::Ready, "ready"},
             {EditorMessageType::ReportException, "reportException"},
             {EditorMessageType::ReportLog, "reportLog"},
             {EditorMessageType::ReportFrameStats, "reportFrameStats"},
             {EditorMessageType::ScreenshotReady, "screenshotReady"},
+            {EditorMessageType::ReportInput, "reportInput"},
         }};
     }
 
@@ -129,6 +133,89 @@ namespace CNA::Editor
         // plugin reload, so the wire must be self-describing.
         message.payload.set("valueType", JsonValue{toString(value.getType())});
         message.payload.set("value", value.toJson());
+        return message;
+    }
+
+    bool PlayerInputSnapshot::isKeyDown(const std::string& key) const
+    {
+        return std::find(keys.begin(), keys.end(), key) != keys.end();
+    }
+
+    PlayerInputSnapshot PlayerInputSnapshot::mapToSurface(float width, float height) const
+    {
+        PlayerInputSnapshot mapped = *this;
+        if (!hasPointer() || width <= 0.0f || height <= 0.0f) { return mapped; }
+
+        mapped.mouseX = mouseX * (width / surfaceWidth);
+        mapped.mouseY = mouseY * (height / surfaceHeight);
+        mapped.surfaceWidth = width;
+        mapped.surfaceHeight = height;
+        return mapped;
+    }
+
+    JsonValue PlayerInputSnapshot::toJson() const
+    {
+        JsonValue json = JsonValue::makeObject();
+
+        JsonValue held = JsonValue::makeArray();
+        for (const std::string& key : keys) { held.append(JsonValue{key}); }
+        json.set("keys", held);
+
+        json.set("mouseX", JsonValue{static_cast<double>(mouseX)});
+        json.set("mouseY", JsonValue{static_cast<double>(mouseY)});
+        json.set("surfaceWidth", JsonValue{static_cast<double>(surfaceWidth)});
+        json.set("surfaceHeight", JsonValue{static_cast<double>(surfaceHeight)});
+        json.set("left", JsonValue{leftButton});
+        json.set("middle", JsonValue{middleButton});
+        json.set("right", JsonValue{rightButton});
+        json.set("wheel", JsonValue{static_cast<double>(wheel)});
+        return json;
+    }
+
+    PlayerInputSnapshot PlayerInputSnapshot::fromJson(const JsonValue& value)
+    {
+        PlayerInputSnapshot snapshot;
+
+        for (const JsonValue& key : value["keys"].getElements())
+        {
+            // Empty names dropped rather than stored: a held key that is not any key would answer
+            // isKeyDown("") true, and "" is what a malformed message yields.
+            const std::string name = key.asString();
+            if (!name.empty()) { snapshot.keys.push_back(name); }
+        }
+
+        snapshot.mouseX = value["mouseX"].asFloat(0.0f);
+        snapshot.mouseY = value["mouseY"].asFloat(0.0f);
+        snapshot.surfaceWidth = value["surfaceWidth"].asFloat(0.0f);
+        snapshot.surfaceHeight = value["surfaceHeight"].asFloat(0.0f);
+        snapshot.leftButton = value["left"].asBoolean(false);
+        snapshot.middleButton = value["middle"].asBoolean(false);
+        snapshot.rightButton = value["right"].asBoolean(false);
+        snapshot.wheel = value["wheel"].asFloat(0.0f);
+        return snapshot;
+    }
+
+    bool operator==(const PlayerInputSnapshot& lhs, const PlayerInputSnapshot& rhs)
+    {
+        return lhs.keys == rhs.keys && lhs.mouseX == rhs.mouseX && lhs.mouseY == rhs.mouseY
+               && lhs.surfaceWidth == rhs.surfaceWidth && lhs.surfaceHeight == rhs.surfaceHeight
+               && lhs.leftButton == rhs.leftButton && lhs.middleButton == rhs.middleButton
+               && lhs.rightButton == rhs.rightButton && lhs.wheel == rhs.wheel;
+    }
+
+    EditorMessage EditorMessage::makeInput(const PlayerInputSnapshot& snapshot)
+    {
+        EditorMessage message;
+        message.type = EditorMessageType::Input;
+        message.payload = snapshot.toJson();
+        return message;
+    }
+
+    EditorMessage EditorMessage::makeReportInput(const PlayerInputSnapshot& snapshot)
+    {
+        EditorMessage message;
+        message.type = EditorMessageType::ReportInput;
+        message.payload = snapshot.toJson();
         return message;
     }
 

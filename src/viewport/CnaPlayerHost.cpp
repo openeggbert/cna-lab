@@ -73,6 +73,13 @@ namespace CNA::Editor
             {
                 Game::Update(gameTime);
 
+                // Before the socket is pumped, so an input message arriving this frame is mapped
+                // into the size the window actually is rather than into whatever it was last
+                // frame. The device is the only thing that knows, and only this half has it.
+                const XnaGraphics::Viewport& surface =
+                    getGraphicsDeviceProperty().getViewportProperty();
+                host_.setSurfaceSize(surface.getWidthProperty(), surface.getHeightProperty());
+
                 // The caller's socket first: a message that arrived this frame should affect this
                 // frame, not the next one. A paused player still pumps, or Resume would never be
                 // heard by the process it was sent to.

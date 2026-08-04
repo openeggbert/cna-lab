@@ -118,6 +118,10 @@ namespace CNA::Editor
 
         handleInteraction(interaction);
 
+        // After the editor's own handling, not instead of it: play mode leaves the scene editable,
+        // and a drag that moves an entity is also a drag the game may want to know about.
+        forwardInputToPlayer(interaction, region);
+
         ui_.endPanel();
     }
 
@@ -329,6 +333,46 @@ namespace CNA::Editor
         {
             camera.panByScreenDelta(EditorVector2{interaction.dragDeltaX, interaction.dragDeltaY});
         }
+    }
+
+    void ViewportPanel::forwardInputToPlayer(const UiImageInteraction& interaction,
+                                             const UiRegion& region)
+    {
+        if (actions_.getPlayMode() == PlayMode::Stopped) { return; }
+
+        // The keys a game plays with, and nothing else. Forwarding every key the editor can name
+        // would send Ctrl+S to the game as an S -- which is exactly the sort of thing that gets
+        // blamed on the game rather than on the editor that invented the keystroke.
+        static constexpr std::array<std::pair<UiKey, const char*>, 12> kForwarded{{
+            {UiKey::W, "W"}, {UiKey::A, "A"}, {UiKey::S, "S"}, {UiKey::D, "D"},
+            {UiKey::Q, "Q"}, {UiKey::E, "E"}, {UiKey::R, "R"}, {UiKey::F, "F"},
+            {UiKey::Space, "Space"}, {UiKey::Enter, "Enter"}, {UiKey::Escape, "Escape"},
+            {UiKey::Tab, "Tab"}}};
+
+        PlayerInputSnapshot snapshot;
+        for (const auto& [key, name] : kForwarded)
+        {
+            if (ui_.isKeyDown(key)) { snapshot.keys.emplace_back(name); }
+        }
+
+        // The pointer only while it is over the viewport. A cursor resting on the inspector is not
+        // hovering the game, and reporting its last position there would leave the game acting on
+        // a pointer that has not been near it for minutes.
+        if (interaction.hovered)
+        {
+            // The region the image was drawn into, passed in rather than asked for again: by this
+            // point in the frame the panel's remaining content region is what is left *below* the
+            // image, which is not the surface the pointer was measured against.
+            snapshot.mouseX = interaction.localMouseX;
+            snapshot.mouseY = interaction.localMouseY;
+            snapshot.surfaceWidth = region.width;
+            snapshot.surfaceHeight = region.height;
+            snapshot.leftButton = interaction.leftDown;
+            snapshot.rightButton = interaction.rightDown;
+            snapshot.wheel = interaction.wheel;
+        }
+
+        actions_.forwardInputToPlayer(snapshot);
     }
 
     void ViewportPanel::drawToolbar()

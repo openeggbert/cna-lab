@@ -129,6 +129,18 @@ namespace CNA::Editor
          * mode is: the View menu offers it, the toolbar shows it, and a second copy of "which
          * camera is the user looking through" would be a second thing to keep in step.
          */
+        /**
+         * @brief Sends the pointer and keyboard to the running player, if one is running.
+         *
+         * Sent only when something changed, which is decided by the implementation rather than by
+         * every caller. A panel forwarding sixty identical snapshots a second would be a panel
+         * that had to remember the previous one.
+         */
+        virtual void forwardInputToPlayer(const PlayerInputSnapshot& snapshot) = 0;
+
+        /** @brief Returns what the player last reported it makes of that input. */
+        [[nodiscard]] virtual const PlayerInputSnapshot& getPlayerInput() const = 0;
+
         virtual void setThreeDimensionalView(bool enabled) = 0;
         [[nodiscard]] virtual bool isThreeDimensionalView() const = 0;
 

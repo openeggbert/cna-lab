@@ -45,6 +45,47 @@ namespace CNA::Editor
         }
         ui_.separator();
 
+        // What the *player* makes of the input the editor forwards. Reported rather than assumed:
+        // the editor's viewport panel and the game's window are different sizes, so the pointer
+        // the game sees is not the pointer the user is looking at, and the difference between the
+        // two is exactly what a user debugging "my game does not respond" needs to see.
+        if (actions_.getPlayMode() == PlayMode::Stopped)
+        {
+            ui_.text("Player input: no player is running.");
+        }
+        else
+        {
+            const PlayerInputSnapshot& input = actions_.getPlayerInput();
+
+            std::string keys;
+            for (const std::string& key : input.keys)
+            {
+                if (!keys.empty()) { keys += ", "; }
+                keys += key;
+            }
+
+            ui_.text("Player input -- keys: " + (keys.empty() ? std::string{"none"} : keys));
+
+            if (!input.hasPointer())
+            {
+                ui_.text("    pointer: not over the viewport");
+            }
+            else
+            {
+                std::string buttons;
+                if (input.leftButton) { buttons += " left"; }
+                if (input.middleButton) { buttons += " middle"; }
+                if (input.rightButton) { buttons += " right"; }
+
+                ui_.text("    pointer: " + std::to_string(static_cast<int>(input.mouseX)) + ", "
+                         + std::to_string(static_cast<int>(input.mouseY)) + " of "
+                         + std::to_string(static_cast<int>(input.surfaceWidth)) + "x"
+                         + std::to_string(static_cast<int>(input.surfaceHeight))
+                         + (buttons.empty() ? std::string{"  (no buttons)"} : "  buttons:" + buttons));
+            }
+        }
+        ui_.separator();
+
         ui_.text("Backends this editor knows about");
         for (const BackendInfo& backend : getKnownBackends())
         {

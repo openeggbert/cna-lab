@@ -588,6 +588,19 @@ namespace CNA::Editor
         if (const EditorCommand* entry = history.getCommandAt(index)) { mirrorToPlayer(*entry); }
     }
 
+    void EditorApplication::forwardInputToPlayer(const PlayerInputSnapshot& snapshot)
+    {
+        if (!player_ || playMode_ == PlayMode::Stopped) { return; }
+
+        // Only on a change, and a wheel notch always counts as one. Sixty identical snapshots a
+        // second would be sixty round trips that told the player nothing -- and the player answers
+        // every one of them, so the waste would be doubled.
+        if (snapshot == lastForwardedInput_ && snapshot.wheel == 0.0f) { return; }
+
+        lastForwardedInput_ = snapshot;
+        player_->send(EditorMessage::makeInput(snapshot));
+    }
+
     void EditorApplication::mirrorToPlayer(const EditorCommand& command)
     {
         if (!player_ || playMode_ == PlayMode::Stopped) { return; }
@@ -953,6 +966,13 @@ namespace CNA::Editor
                 case EditorMessageType::ReportException:
                     context_.log(LogSeverity::Error,
                                  "player: " + message.payload["message"].asString());
+                    break;
+
+                case EditorMessageType::ReportInput:
+                    // Kept rather than logged. Input changes many times a second, and a console
+                    // line per change would bury every other message the player ever sends; the
+                    // Diagnostics panel shows the current value instead.
+                    playerInput_ = PlayerInputSnapshot::fromJson(message.payload);
                     break;
 
                 default:
