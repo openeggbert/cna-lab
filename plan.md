@@ -303,7 +303,7 @@ nine that remain all wait on the model pipeline.
 | ED-402 | `ModelRenderer` rendering | ⬜ | |
 | ED-403 | Material editing and preview | ⬜ | |
 | ED-404 | Light components with viewport visualisation | ⬜ | |
-| ED-405 | glTF importer built on CNA's own `cgltf` integration | ⬜ | |
+| ED-405 | glTF importer built on CNA's own `cgltf` integration | ⬜ | **Next task, and it comes before ED-402** (owner's decision, 2026-08-04): the meshes have to exist before anything can draw them, and this route does not depend on the content pipeline. An importer, so it belongs in `cna-editor-assets` beside the existing ones. Design the seam that carries mesh data to the CNA-linking viewport *before* writing the parser -- getting it wrong means writing ED-402 twice |
 | ED-406 | Mesh preview in the asset browser | ⬜ | |
 | ED-407 | Environment and fog settings | ⬜ | |
 | ED-408 | 3D translate gizmo | ✅ | Added during the ED-400 session, because a view you can select in but not move things in is a viewer rather than an editor. `TransformGizmos3D.hpp`: a separate file from the 2D manipulators because almost nothing is shared -- those lay out in screen space against `EditorCamera2D`, this one lays out in the world and asks a different question each frame, *where along this world line is the cursor pointing*. Arms are sized in pixels and converted to world units at the entity's own depth, so the manipulator is the same size on screen wherever the entity is; an arm pointing at the camera is refused rather than answered, since a pixel of movement there would fling the entity across the level |

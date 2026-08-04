@@ -272,6 +272,34 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 ---
 
+## Decisions taken by the owner (2026-08-04, later — after seeing the 3D screenshots)
+
+The owner's reaction to the wireframe screenshots was "a v tomto mám vyvíjet 3D AAA hry???". The
+answer given, and not softened: no. CNA is XNA-class, the reference titles are Terraria and
+Stardew, and no amount of work here turns it into Unreal. What *was* conceded is that the 3D view
+showing wireframe boxes is a consequence of the model pipeline being unbuilt, not of the framework's
+ceiling. The decisions below follow from that.
+
+| Question | Answer |
+|----------|--------|
+| Target | **Still XNA class, but make the 3D view look like a 3D view.** The priority is that it draws real models instead of wire boxes. |
+| Next task | **ED-402 — model rendering.** |
+| Where the meshes come from | **ED-405 first: the glTF importer**, built on the `cgltf` CNA already integrates. The longer road, and the one that does not depend on the content pipeline. So the order is ED-405, then ED-402. |
+| Branch, CI, CNA gaps, additive fields | All unchanged: same branch and no pull request; CI standalone only; no issues against `openeggbert/cna`; additive fields in the persisted formats need no permission. |
+
+**The one precondition to get right on day one**, already in `plan.md`: the model pass must apply
+the same Y mirror the rest of the 3D view uses. XNA's 3D side is Y-up, this camera is Y-down, and a
+model pass that skipped the mirror would put models upside down relative to the grid, the gizmos
+and every sprite around them.
+
+**Where to start**, concretely: ED-405 is an *importer*, so it lands in `cna-editor-assets` beside
+the existing ones and produces an asset record plus a sidecar, exactly as textures do. Read
+`AssetImporters.hpp` first. The mesh data it produces then needs a home the CNA-linking viewport
+can read — that is the seam to design before writing the parser, because getting it wrong means
+writing ED-402 twice.
+
+---
+
 ## Decisions taken by the owner (2026-08-04, for the next session)
 
 | Question | Answer |
