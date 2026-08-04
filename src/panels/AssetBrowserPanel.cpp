@@ -163,6 +163,27 @@ namespace CNA::Editor
 
     void AssetBrowserPanel::drawThumbnail(const AssetRecord& record)
     {
+        // A model is drawn rather than decoded (ED-406). Its geometry comes from the same cache the
+        // 3D view draws from, so a model already on screen costs nothing extra -- and a model that
+        // has not been imported yet simply has no thumbnail, which is what the browser already
+        // shows for an image it cannot read.
+        if (record.importerId == ImporterIds::kModel)
+        {
+            const MeshProvider meshes = context_.makeMeshProvider();
+            const MeshData* mesh = meshes ? meshes(record.id) : nullptr;
+            if (mesh == nullptr || mesh->isEmpty()) { return; }
+
+            const UiTextureId model = actions_.getViewport().getModelThumbnail(
+                record.id, *mesh, static_cast<int>(kThumbnailExtent));
+            if (model == kUiTextureNone) { return; }
+
+            // Square, because the render target is: a model has no aspect ratio the way an image
+            // does, and framing it inside the square is the camera's job rather than the layout's.
+            ui_.image("##thumb-" + record.id.toString(), model, kThumbnailExtent, kThumbnailExtent);
+            ui_.sameLine();
+            return;
+        }
+
         const UiTextureId texture = actions_.getViewport().getAssetThumbnail(record.id);
         if (texture == kUiTextureNone) { return; }
 

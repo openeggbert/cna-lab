@@ -21,7 +21,7 @@
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
-| **Phase 3** | 🔄 9 done — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) **ED-413** (sprites in the 3D view) and **ED-407** (environment and fog). Nothing left in the phase is blocked |
+| **Phase 3** | 🔄 10 done — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) **ED-413** (sprites in the 3D view) **ED-407** (environment and fog) and **ED-406** (mesh thumbnails). What is left is ED-403/ED-410 and the two plugin rows |
 | **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
 | **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
 
@@ -368,6 +368,9 @@ DISPLAY=:99 ./build-cna/cna-player-easygl --project=examples/HelloSprites/HelloS
 DISPLAY=:99 ./build-cna/cna-editor --project=examples/HelloSprites/HelloSprites.cnaproject \
     --frames=40 --screenshot=/tmp/editor.png
 
+# A docked panel that shares a tab bar cannot be photographed unless it is brought forward:
+#   --panel=Assets   (exact title; ED-406's model thumbnails are only visible this way)
+#
 # The 3D viewport (ED-400). --view=3d exists so this picture can be taken at all, and
 # --orbit=YAW,PITCH (ED-405) so it can be taken from an angle -- head-on is the one pose in which
 # a real mesh and a flat sprite look alike, so it cannot show whether models arrived.
@@ -868,10 +871,7 @@ remains is in this order:
    inspector offers it, and `CnaModelPass` ignores it and draws the mesh's own materials. That is
    ED-403's job rather than a bug, but it is a promise the editor is currently making and not
    keeping.
-2. **ED-406 mesh preview in the asset browser.** Small now: `CnaModelPass` already draws a
-   `SceneModelBatch` into whatever target is bound, so a thumbnail is a batch of one at a fixed
-   camera.
-3. **ED-411 / ED-412 plugin loading**, the last of Phase 3 and the largest. Discovery and
+2. **ED-411 / ED-412 plugin loading**, the last of Phase 3 and the largest. Discovery and
    validation are done (ED-017); this is `dlopen`/`LoadLibrary`, the `extern "C"` entry, unload and
    hot-reload, then the extension points.
 

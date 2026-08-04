@@ -42,6 +42,9 @@ namespace CNA::Editor
     {
         /** @brief Background behind the scene, distinct from the editor chrome around it. */
         const Xna::Color kBackground{24, 24, 27, 255};
+
+        /** @brief Behind a model thumbnail: lighter than the viewport, so a dark model still reads. */
+        const Xna::Color kThumbnailBackground{52, 52, 60, 255};
         const Xna::Color kGridMinor{45, 45, 52, 255};
         const Xna::Color kGridMajor{62, 62, 72, 255};
         const Xna::Color kAxis{92, 74, 74, 255};
@@ -124,6 +127,21 @@ namespace CNA::Editor
 
         int targetWidth = 0;
         int targetHeight = 0;
+
+        /** @brief The square target model thumbnails are drawn into (ED-406). */
+        std::unique_ptr<XnaGraphics::RenderTarget2D> thumbnailTarget;
+        int thumbnailExtent = 0;
+
+        /** @brief Makes sure the thumbnail target is @p extent square, with depth. */
+        void ensureThumbnailTarget(int extent)
+        {
+            if (thumbnailTarget != nullptr && thumbnailExtent == extent) { return; }
+
+            thumbnailTarget = std::make_unique<XnaGraphics::RenderTarget2D>(
+                *device, extent, extent, false, XnaGraphics::SurfaceFormat::Color,
+                XnaGraphics::DepthFormat::Depth24Stencil8);
+            thumbnailExtent = extent;
+        }
 
         /** @brief Whether the current target carries a depth buffer, which only the 3D view needs. */
         bool targetHasDepth = false;
@@ -713,6 +731,50 @@ namespace CNA::Editor
 
         impl_->device->SetRenderTarget(nullptr);
         return modelStats;
+    }
+
+    XnaGraphics::Texture2D* CnaSceneRenderer::renderModelThumbnail(const Uuid& assetId,
+                                                                   const MeshData& mesh, int extent)
+    {
+        if (impl_->device == nullptr || extent <= 0 || mesh.isEmpty()) { return nullptr; }
+
+        impl_->ensureThumbnailTarget(extent);
+        if (impl_->thumbnailTarget == nullptr) { return nullptr; }
+
+        // A camera framing this model and nothing else, from three-quarters on. Head-on is the one
+        // angle at which a cube and a flat square are the same picture, and telling those apart is
+        // the entire job of a thumbnail.
+        EditorCamera3D camera;
+        camera.setViewportSize(EditorVector2{static_cast<float>(extent), static_cast<float>(extent)});
+        camera.orbit(35.0f, 25.0f);
+        camera.frame(WorldBounds3D{mesh.boundsMin, mesh.boundsMax});
+
+        SceneModelBatch batch;
+        batch.viewProjection = camera.getViewProjectionMatrix();
+        batch.view = camera.getViewMatrix();
+        batch.projection =
+            multiply(camera.getProjectionMatrix(), createScale(EditorVector3{1.0f, -1.0f, 1.0f}));
+
+        ModelDraw draw;
+        draw.modelId = assetId;
+        draw.mesh = &mesh;
+
+        // Default lighting rather than the open scene's: a thumbnail is a picture of the *asset*,
+        // and one that changed because somebody moved a lamp in the level they happen to have open
+        // would be a picture of something else.
+        draw.lighting = EffectLighting{};
+        batch.draws.push_back(draw);
+
+        // No previous target is saved and restored, because every caller of this sets its own
+        // before drawing anything -- the viewport passes do it on entry, and a thumbnail drawn in
+        // the middle of the UI pass is drawn before the UI renderer binds the back buffer again.
+        impl_->device->SetRenderTarget(impl_->thumbnailTarget.get());
+        impl_->device->Clear(XnaGraphics::ClearOptions::Target | XnaGraphics::ClearOptions::DepthBuffer,
+                             kThumbnailBackground, 1.0f, 0);
+        impl_->modelPass.render(batch);
+        impl_->device->SetRenderTarget(nullptr);
+
+        return impl_->thumbnailTarget.get();
     }
 
     void CnaSceneRenderer::invalidateModel(const Uuid& assetId)

@@ -64,6 +64,8 @@ namespace CNA::Editor
         void beginDockSpace() override;
         void endDockSpace() override;
 
+        void requestPanelFocus(const std::string& title) override;
+
         bool beginPanel(const std::string& title, DockSide preferredSide) override;
         void endPanel() override;
 

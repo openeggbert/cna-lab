@@ -108,6 +108,11 @@ namespace CNA::Editor
                     }
                     continue;
                 }
+                if (name == "--panel")
+                {
+                    options.focusPanel = value;
+                    continue;
+                }
                 if (name == "--orbit")
                 {
                     // "yaw,pitch". Rejected rather than partly accepted: this flag exists to make
@@ -196,6 +201,7 @@ namespace CNA::Editor
             "                     Needs a graphics device, so it does not combine with --headless.\n"
             "  --tolerance=N      Largest per-channel difference --compare-backends still counts as\n"
             "                     identical. Default: 2, because two backends are never bit-equal.\n"
+            "  --panel=TITLE      Bring the panel with this exact title to the front, e.g. Assets.\n"
             "  --version          Print the version and exit.\n"
             "  -h, --help         Print this help and exit.\n"
             "\n"
@@ -291,6 +297,10 @@ namespace CNA::Editor
         // After the framing, not before: framing chooses a distance and a pivot, and the angles
         // are what the user then orbits to from there. Setting them first would have the framing
         // overwrite them.
+        // Asked for once, here, rather than every frame: the UI clears the request as soon as the
+        // named panel draws, so this is "start with that tab in front" and not "keep it there".
+        if (!options.focusPanel.empty()) { ui_->requestPanelFocus(options.focusPanel); }
+
         if (threeDimensionalView_ && options.orbitDegrees && viewport_ != nullptr)
         {
             constexpr float kDegreesToRadians = 3.14159265358979323846f / 180.0f;

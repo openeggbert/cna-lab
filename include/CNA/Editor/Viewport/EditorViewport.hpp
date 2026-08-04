@@ -181,6 +181,30 @@ namespace CNA::Editor
             return renderWireframe(segments, width, height);
         }
 
+        /**
+         * @brief Renders @p mesh as a square thumbnail and returns it as a UI texture (ED-406).
+         *
+         * @param mesh The geometry, passed in rather than looked up: the mesh cache lives in
+         *        `EditorContext` because a `MeshData` needs no CNA, and a viewport that reached
+         *        for it would be the CNA-linking module depending on the context.
+         * @param extent The square's side in pixels. Rendered at that size rather than rendered
+         *        large and scaled down, since a thumbnail is drawn every frame the browser is open.
+         *
+         * The camera frames the model's own bounds from a fixed three-quarter angle -- the pose in
+         * which a box looks like a box. Head-on is the one angle where a cube and a flat square are
+         * the same picture, which is exactly what a thumbnail is there to tell apart.
+         *
+         * Returns zero in a build with no model pass, which the browser treats as "no thumbnail"
+         * exactly as it treats an image it cannot decode.
+         */
+        virtual UiTextureId getModelThumbnail(const Uuid& assetId, const MeshData& mesh, int extent)
+        {
+            (void)assetId;
+            (void)mesh;
+            (void)extent;
+            return 0;
+        }
+
         /** @brief Which effect the model pass uses, or "none" in a build that has no model pass. */
         [[nodiscard]] virtual std::string getModelEffectName() const { return "none"; }
 

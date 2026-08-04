@@ -470,6 +470,16 @@ namespace CNA::Editor
         virtual void setNextItemWidth(float width) { (void)width; }
 
         /** @brief Draws a horizontal rule. */
+        /**
+         * @brief Brings the panel titled @p title to the front of whatever tab bar it is docked in.
+         *
+         * Applies on the *next* frame the panel draws and then stops -- a request, not a state. A
+         * toolkit that cannot do this ignores it, which costs a caller nothing: everything that
+         * asks is asking so that a screenshot shows a particular panel, and a screenshot of the
+         * wrong tab is a wrong picture rather than a broken editor.
+         */
+        virtual void requestPanelFocus(const std::string& title) { (void)title; }
+
         virtual void separator() = 0;
 
         /** @brief Places the next widget on the same line as the previous one. */

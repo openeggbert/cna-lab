@@ -160,6 +160,18 @@ namespace CNA::Editor
         /** @brief Drops the GPU buffers for @p assetId, or all of them when it is nil. */
         void invalidateModel(const Uuid& assetId);
 
+        /**
+         * @brief Renders @p mesh into a square thumbnail target and returns it (ED-406).
+         *
+         * Its own target rather than the viewport's: the browser draws thumbnails in the same
+         * frame the viewport draws the scene, and one target serving both would have each
+         * overwriting the other's pixels between the two `image()` calls that display them.
+         *
+         * Returns nullptr when there is no device or no model pass.
+         */
+        [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D* renderModelThumbnail(
+            const Uuid& assetId, const MeshData& mesh, int extent);
+
         /** @brief Which effect the model pass got: "PbrEffect", "BasicEffect" or "none". */
         [[nodiscard]] const std::string& getModelEffectName() const;
 

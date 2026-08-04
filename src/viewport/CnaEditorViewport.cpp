@@ -93,6 +93,17 @@ namespace CNA::Editor
             return renderer_.shareWithUi(*uiRenderer_);
         }
 
+        UiTextureId getModelThumbnail(const Uuid& assetId, const MeshData& mesh, int extent) override
+        {
+            Microsoft::Xna::Framework::Graphics::Texture2D* texture =
+                renderer_.renderModelThumbnail(assetId, mesh, extent);
+            if (texture == nullptr) { return kUiTextureNone; }
+
+            // Adopted under the asset's own id, exactly as a sprite thumbnail is, so the UI
+            // renderer holds one entry per asset and `invalidateAsset` already releases it.
+            return uiRenderer_->adoptTexture(assetId, *texture);
+        }
+
         [[nodiscard]] std::string getModelEffectName() const override
         {
             return renderer_.getModelEffectName();

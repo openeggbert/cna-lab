@@ -141,6 +141,9 @@ namespace CNA::Editor
         /** @brief True during the one frame in which the default layout is being assembled. */
         bool buildingLayout = false;
 
+        /** @brief A panel to bring forward on its next draw, then cleared. See requestPanelFocus. */
+        std::string focusRequest;
+
         /** @brief Set once a layout exists, whether built here or loaded from the user's `.ini`. */
         bool layoutReady = false;
 
@@ -503,9 +506,24 @@ namespace CNA::Editor
             ImGui::DockBuilderFinish(ImGui::GetID("CnaEditorDockSpace"));
             impl_->buildingLayout = false;
         }
+        // Here rather than before the panel's own `Begin`: a focus set on the frame the dock
+        // builder runs is undone when `DockBuilderFinish` commits the arrangement and the last
+        // window docked into a node takes its tab. By this point the named window exists from the
+        // frame before, so focusing it by name selects its tab and nothing re-selects another.
+        if (!impl_->focusRequest.empty() && !impl_->buildingLayout)
+        {
+            ImGui::SetWindowFocus(impl_->focusRequest.c_str());
+            impl_->focusRequest.clear();
+        }
+
         impl_->layoutReady = true;
 
         ImGui::End();
+    }
+
+    void ImGuiEditorUi::requestPanelFocus(const std::string& title)
+    {
+        impl_->focusRequest = title;
     }
 
     bool ImGuiEditorUi::beginPanel(const std::string& title, DockSide preferredSide)
@@ -528,6 +546,9 @@ namespace CNA::Editor
             ImGui::SetNextWindowDockID(sideNode, ImGuiCond_FirstUseEver);
         }
 
+        // Honoured once and then forgotten: `--panel=` exists so a docked panel sharing a tab bar
+        // can be photographed, and a focus that reasserted itself every frame would be an editor
+        // that fought the user for which tab is in front.
         const bool visible = ImGui::Begin(title.c_str());
         ++impl_->panelDepth;
 

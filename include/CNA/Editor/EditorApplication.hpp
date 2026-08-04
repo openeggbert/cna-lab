@@ -89,6 +89,15 @@ namespace CNA::Editor
         std::optional<EditorVector2> orbitDegrees;
 
         /**
+         * @brief A panel to bring to the front before drawing, by its exact title.
+         *
+         * The third flag on the same argument as `--view=3d` and `--orbit`: a docked panel sharing
+         * a tab bar with five others cannot be photographed at all otherwise, because the tab that
+         * happens to be in front is whichever docked last. Empty leaves the layout alone.
+         */
+        std::string focusPanel;
+
+        /**
          * @brief Write a PNG of the final frame here. Requires a frame limit.
          *
          * A smoke test that only checks the process exited cleanly cannot tell a working editor
