@@ -31,6 +31,7 @@
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
 #include "CNA/Editor/Scene/SceneModels.hpp"
+#include "CNA/Editor/Scene/SceneSprites3D.hpp"
 #include "CNA/Editor/Scene/SceneWireframe.hpp"
 #include "CNA/Editor/Scene/SpriteAnimation.hpp"
 #include "CNA/Editor/Scene/TransformGizmos.hpp"
@@ -171,10 +172,12 @@ namespace CNA::Editor
          * test keep working and keep showing something true.
          */
         virtual UiTextureId renderScene3D(const SceneModelBatch& models,
+                                          const SceneSpriteBatch3D& sprites,
                                           const std::vector<WireSegment>& segments,
                                           int width, int height)
         {
             (void)models;
+            (void)sprites;
             return renderWireframe(segments, width, height);
         }
 

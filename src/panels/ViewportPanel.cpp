@@ -2,6 +2,7 @@
 #include "CNA/Editor/Panels/ViewportPanel.hpp"
 
 #include "CNA/Editor/Scene/SceneModels.hpp"
+#include "CNA/Editor/Scene/SceneSprites3D.hpp"
 
 #include <algorithm>
 #include <array>
@@ -197,8 +198,17 @@ namespace CNA::Editor
         lastModelBatch_ = buildSceneModelBatch(context_.getScene(), camera,
                                                context_.makeMeshProvider(), context_.getSelection());
 
-        return actions_.getViewport().renderScene3D(lastModelBatch_, lastWireframe_.segments, width,
-                                                    height);
+        // And the sprites, as quads in the scene's own plane. The 3D view showed none until now,
+        // because `SpriteBatch` cannot draw the trapezoid a sprite becomes from an angle -- what
+        // ED-402 built is the path that can.
+        lastSpriteBatch_ = buildSceneSpriteQuads(context_.getScene(), camera,
+                                                 actions_.getViewport().makeSizeProvider(),
+                                                 actions_.getAnimationPreview(),
+                                                 context_.getSelection(),
+                                                 &context_.getComponentRegistry());
+
+        return actions_.getViewport().renderScene3D(lastModelBatch_, lastSpriteBatch_,
+                                                    lastWireframe_.segments, width, height);
     }
 
     void ViewportPanel::handleInteraction(const UiImageInteraction& interaction)

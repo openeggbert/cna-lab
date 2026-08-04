@@ -5,6 +5,7 @@
 #include <exception>
 #include <unordered_map>
 #include <unordered_set>
+#include <array>
 #include <vector>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
@@ -328,6 +329,45 @@ namespace CNA::Editor
             basic->setTextureEnabledProperty(diffuse != nullptr);
         }
 
+        /**
+         * @brief Sets a sprite's tint and texture, unlit.
+         *
+         * Unlit deliberately: a sprite's art already has its lighting painted into it, which is
+         * what a 2D game *is*, and running it through the same directional rig as the models would
+         * darken every sprite by an amount that depends on where the sun happens to be. The tint
+         * goes in as the emissive colour so it survives lighting being off.
+         */
+        void applySpriteMaterial(const EditorColor& tint, XnaGraphics::Texture2D* texture)
+        {
+            const EditorVector3 colour{static_cast<float>(tint.r) / 255.0f,
+                                       static_cast<float>(tint.g) / 255.0f,
+                                       static_cast<float>(tint.b) / 255.0f};
+            const float alpha = static_cast<float>(tint.a) / 255.0f;
+
+            if (pbr != nullptr)
+            {
+                pbr->setLightingEnabledProperty(false);
+                pbr->setDiffuseColorProperty(toXna(colour));
+                pbr->setEmissiveFactorProperty(toXna(colour));
+                pbr->setAlphaProperty(alpha);
+                pbr->setTextureProperty(texture);
+                pbr->setNormalMapProperty(nullptr);
+                pbr->setMetallicRoughnessMapProperty(nullptr);
+                pbr->setEmissiveMapProperty(nullptr);
+                return;
+            }
+
+            if (basic == nullptr) { return; }
+
+            basic->setLightingEnabledProperty(false);
+            basic->setDiffuseColorProperty(toXna(colour));
+            basic->setEmissiveColorProperty(toXna(colour));
+            basic->setSpecularColorProperty(toXna(EditorVector3{0.0f, 0.0f, 0.0f}));
+            basic->setAlphaProperty(alpha);
+            basic->setTextureProperty(texture);
+            basic->setTextureEnabledProperty(true);
+        }
+
         /** @brief Sets the world/view/projection the effect draws @p world with. */
         void applyMatrices(const EditorMatrix& world, const EditorMatrix& view,
                            const EditorMatrix& projection)
@@ -439,6 +479,76 @@ namespace CNA::Editor
     }
 
     const std::string& CnaModelPass::getEffectName() const { return impl_->effectName; }
+
+    ModelPassStats CnaModelPass::renderSprites(
+        const SceneSpriteBatch3D& sprites, const SceneModelBatch& batch,
+        const std::function<XnaGraphics::Texture2D*(const Uuid&)>& resolveTexture)
+    {
+        ModelPassStats stats;
+        stats.effect = impl_->effectName;
+
+        if (!isReady() || sprites.quads.empty() || !resolveTexture) { return stats; }
+
+        XnaGraphics::GraphicsDevice& device = *impl_->device;
+
+        // Depth *tested* so a model in front of a sprite hides it, depth *writes off* so a
+        // sprite's own transparent corners do not punch a hole later sprites cannot draw through.
+        device.setDepthStencilStateProperty(XnaGraphics::DepthStencilState::DepthRead);
+        device.setBlendStateProperty(XnaGraphics::BlendState::AlphaBlend);
+        device.getSamplerStatesProperty()[0] = XnaGraphics::SamplerState::PointClamp;
+
+        // Both sides. A sprite is a flat thing with no inside, and half of them would otherwise
+        // vanish the moment the camera orbited past their plane -- which is the one thing a user
+        // orbiting a 2D scene will certainly do.
+        XnaGraphics::RasterizerState rasterizer;
+        rasterizer.setCullModeProperty(XnaGraphics::CullMode::None);
+        device.setRasterizerStateProperty(rasterizer);
+
+        // One quad at a time, in the order the batch sorted them. Batching by texture would be
+        // faster and would also reorder them, and back-to-front order is the whole reason a
+        // transparent pass looks right.
+        for (const SpriteQuad3D& quad : sprites.quads)
+        {
+            XnaGraphics::Texture2D* texture = resolveTexture(quad.textureId);
+            if (texture == nullptr)
+            {
+                ++stats.missingTextures;
+                continue;
+            }
+
+            std::array<XnaGraphics::VertexPositionNormalTexture, 4> vertices{};
+            for (std::size_t i = 0; i < 4; ++i)
+            {
+                vertices[i].Position = toXna(quad.corners[i]);
+
+                // Facing back along -Z, which is where the unrotated camera is. A sprite is lit by
+                // nothing in particular -- see the emissive setting below -- so this exists to be
+                // a well-defined normal rather than to be shaded by.
+                vertices[i].Normal = Xna::Vector3{0.0f, 0.0f, -1.0f};
+                vertices[i].TextureCoordinate =
+                    Xna::Vector2{quad.texCoords[i].x, quad.texCoords[i].y};
+            }
+
+            const std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+
+            impl_->applyMatrices(EditorMatrix{}, batch.view, batch.projection);
+            impl_->applySpriteMaterial(quad.tint, texture);
+            impl_->applyEffect();
+
+            // DrawUserIndexedPrimitives rather than a cached buffer per sprite: the corners move
+            // whenever the entity does, so a buffer would be rewritten every frame anyway, and one
+            // per entity is a GPU allocation per entity for four vertices.
+            device.DrawUserIndexedPrimitives(XnaGraphics::PrimitiveType::TriangleList,
+                                             vertices.data(), 0, 4, indices.data(), 0, 2);
+
+            ++stats.spritesDrawn;
+            stats.trianglesDrawn += 2;
+        }
+
+        device.setDepthStencilStateProperty(XnaGraphics::DepthStencilState::None);
+        device.setBlendStateProperty(XnaGraphics::BlendState::AlphaBlend);
+        return stats;
+    }
 
     ModelPassStats CnaModelPass::render(const SceneModelBatch& batch)
     {

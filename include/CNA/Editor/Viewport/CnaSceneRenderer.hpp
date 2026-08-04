@@ -153,6 +153,7 @@ namespace CNA::Editor
          * none: sprites sort by draw order and models sort per pixel.
          */
         ModelPassStats renderScene3D(const SceneModelBatch& models,
+                                     const SceneSpriteBatch3D& sprites,
                                      const std::vector<WireSegment>& segments,
                                      int width, int height);
 

@@ -77,17 +77,18 @@ namespace CNA::Editor
             return renderer_.shareWithUi(*uiRenderer_);
         }
 
-        UiTextureId renderScene3D(const SceneModelBatch& models,
+        UiTextureId renderScene3D(const SceneModelBatch& models, const SceneSpriteBatch3D& sprites,
                                   const std::vector<WireSegment>& segments, int width,
                                   int height) override
         {
             if (width <= 0 || height <= 0) { return kUiTextureNone; }
 
-            const ModelPassStats modelStats = renderer_.renderScene3D(models, segments, width, height);
+            const ModelPassStats modelStats =
+                renderer_.renderScene3D(models, sprites, segments, width, height);
 
             const SceneRenderStats& stats = renderer_.getLastStats();
-            lastStats_ = ViewportStats{modelStats.modelsDrawn, stats.spritesSkipped, stats.gridLines,
-                                       modelStats.missingTextures};
+            lastStats_ = ViewportStats{modelStats.modelsDrawn + modelStats.spritesDrawn,
+                                       sprites.skipped, stats.gridLines, modelStats.missingTextures};
 
             return renderer_.shareWithUi(*uiRenderer_);
         }

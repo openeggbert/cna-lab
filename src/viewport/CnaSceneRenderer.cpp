@@ -650,6 +650,7 @@ namespace CNA::Editor
     }
 
     ModelPassStats CnaSceneRenderer::renderScene3D(const SceneModelBatch& models,
+                                                   const SceneSpriteBatch3D& sprites,
                                                    const std::vector<WireSegment>& segments,
                                                    int width, int height)
     {
@@ -677,6 +678,23 @@ namespace CNA::Editor
         // whenever it passed behind geometry. It is drawn with the depth test off for that reason.
         modelStats = impl_->modelPass.render(models);
 
+        // Sprites after the opaque models and before the overlay: transparency has to be blended
+        // against what is already there, so it cannot go first, and it is scene content rather
+        // than editor chrome, so it cannot go last.
+        const ModelPassStats spriteStats = impl_->modelPass.renderSprites(
+            sprites, models,
+            [this, &modelStats](const Uuid& assetId)
+            {
+                // The renderer's own texture cache, which already holds every sprite the 2D view
+                // has drawn. A second cache here would load the whole project twice.
+                (void)modelStats;
+                return getOrLoadTexture(assetId);
+            });
+
+        modelStats.spritesDrawn = spriteStats.spritesDrawn;
+        modelStats.trianglesDrawn += spriteStats.trianglesDrawn;
+        modelStats.missingTextures += spriteStats.missingTextures;
+
         impl_->spriteBatch->Begin(XnaGraphics::SpriteSortMode::Deferred,
                                   XnaGraphics::BlendState::AlphaBlend);
 
@@ -691,6 +709,7 @@ namespace CNA::Editor
 
         lastStats_.gridLines = segments.size();
         lastStats_.missingTextures = modelStats.missingTextures;
+        lastStats_.spritesDrawn = modelStats.spritesDrawn;
 
         impl_->device->SetRenderTarget(nullptr);
         return modelStats;

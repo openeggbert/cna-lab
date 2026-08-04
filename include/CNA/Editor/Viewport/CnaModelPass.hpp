@@ -38,11 +38,13 @@
  */
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <string>
 
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Scene/SceneModels.hpp"
+#include "CNA/Editor/Scene/SceneSprites3D.hpp"
 
 namespace Microsoft::Xna::Framework::Graphics
 {
@@ -68,6 +70,9 @@ namespace CNA::Editor
 
         /** @brief Draws whose material named a texture that could not be resolved. */
         std::size_t missingTextures = 0;
+
+        /** @brief Sprite quads drawn after the models, blended back to front. */
+        std::size_t spritesDrawn = 0;
 
         /**
          * @brief Which effect the pass is using: "PbrEffect", "BasicEffect", or "none".
@@ -113,6 +118,24 @@ namespace CNA::Editor
          * own target would have nowhere to put the other.
          */
         ModelPassStats render(const SceneModelBatch& batch);
+
+        /**
+         * @brief Draws @p sprites as textured quads, after @p batch's models.
+         *
+         * After, and with **depth writing off while depth testing stays on**. Both halves matter.
+         * Testing on is what lets a model stand in front of a sprite behind it. Writing off is what
+         * stops a sprite's own transparent corners from punching a hole in the depth buffer that a
+         * sprite drawn later cannot draw through -- the classic symptom being a rectangle of
+         * background around every sprite that overlaps another.
+         *
+         * @param resolveTexture How a sprite's `Uuid` becomes a texture. Injected rather than
+         *        looked up here, because the renderer beside this one already caches every sprite
+         *        texture in the project and a second cache would load them all twice.
+         */
+        ModelPassStats renderSprites(
+            const SceneSpriteBatch3D& sprites, const SceneModelBatch& batch,
+            const std::function<Microsoft::Xna::Framework::Graphics::Texture2D*(const Uuid&)>&
+                resolveTexture);
 
         /** @brief Drops the GPU buffers for @p assetId, or all of them when it is nil. */
         void invalidateModel(const Uuid& assetId);
