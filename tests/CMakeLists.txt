@@ -50,6 +50,19 @@ set_tests_properties(CnaEditorTests PROPERTIES TIMEOUT 120)
 add_test(NAME CnaEditorHeadlessSmoke COMMAND cna-editor --headless)
 set_tests_properties(CnaEditorHeadlessSmoke PROPERTIES TIMEOUT 60)
 
+# The same run through the 3D viewport (ED-400). A separate case rather than a flag on the one
+# above, because the two share no drawing at all: one composes sprites, the other builds a
+# wireframe and projects it. A crash in the second would be invisible from the first.
+add_test(NAME CnaEditorHeadlessSmoke3D
+    COMMAND cna-editor --headless --view=3d
+        --project=${CMAKE_CURRENT_SOURCE_DIR}/../examples/HelloSprites/HelloSprites.cnaproject)
+set_tests_properties(CnaEditorHeadlessSmoke3D PROPERTIES TIMEOUT 60)
+
+# A bad --view is an error rather than a silent 2D start: the flag exists to be set from a script
+# that cannot see the window it asked for, and a typo there must not pass quietly.
+add_test(NAME CnaEditorRejectsUnknownView COMMAND cna-editor --view=isometric)
+set_tests_properties(CnaEditorRejectsUnknownView PROPERTIES WILL_FAIL TRUE)
+
 add_test(NAME CnaEditorHelp COMMAND cna-editor --help)
 add_test(NAME CnaEditorListBackends COMMAND cna-editor --list-backends)
 
@@ -89,6 +102,26 @@ if(CNA_EDITOR_WITH_CNA AND CNA_EDITOR_WITH_IMGUI)
         set(CNA_EDITOR_TEST_DISPLAY ":0" CACHE STRING
             "DISPLAY used by cna-editor ctests that need a real graphics context")
         set_tests_properties(CnaEditorWindowSmoke PROPERTIES
+            ENVIRONMENT "DISPLAY=${CNA_EDITOR_TEST_DISPLAY}"
+            LABELS "needs-display"
+            TIMEOUT 180)
+    endif()
+
+    # The 3D viewport against a real device. It draws through a different path from the 2D one --
+    # every line is a rotated quad rather than a sprite -- so a backend that cannot do that would
+    # pass the smoke test above and fail here.
+    add_test(NAME CnaEditorWindowSmoke3D
+        COMMAND cna-editor --view=3d
+            --project=${CMAKE_CURRENT_SOURCE_DIR}/../examples/HelloSprites/HelloSprites.cnaproject
+            --frames=20
+            --screenshot=${CMAKE_CURRENT_BINARY_DIR}/editor-smoke-3d.png)
+
+    if(CNA_GRAPHICS_BACKEND STREQUAL "SOFTWARE")
+        set_tests_properties(CnaEditorWindowSmoke3D PROPERTIES
+            ENVIRONMENT "SDL_VIDEODRIVER=dummy"
+            TIMEOUT 180)
+    else()
+        set_tests_properties(CnaEditorWindowSmoke3D PROPERTIES
             ENVIRONMENT "DISPLAY=${CNA_EDITOR_TEST_DISPLAY}"
             LABELS "needs-display"
             TIMEOUT 180)

@@ -16,8 +16,8 @@
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
 | Unit tests | ✅ 380 / 380 (also under Clang Release) |
-| CTest (standalone) | ✅ 8 / 8 |
-| CTest (CNA config) | ✅ 12 / 12 |
+| CTest (standalone) | ✅ 10 / 10 |
+| CTest (CNA config) | ✅ 15 / 15 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
