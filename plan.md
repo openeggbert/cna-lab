@@ -300,6 +300,8 @@ keeping. Nothing else here has moved.
 | ED-405 | glTF importer built on CNA's own `cgltf` integration | ⬜ | |
 | ED-406 | Mesh preview in the asset browser | ⬜ | |
 | ED-407 | Environment and fog settings | ⬜ | |
+| ED-408 | 3D translate gizmo | ✅ | Added during the ED-400 session, because a view you can select in but not move things in is a viewer rather than an editor. `TransformGizmos3D.hpp`: a separate file from the 2D manipulators because almost nothing is shared -- those lay out in screen space against `EditorCamera2D`, this one lays out in the world and asks a different question each frame, *where along this world line is the cursor pointing*. Arms are sized in pixels and converted to world units at the entity's own depth, so the manipulator is the same size on screen wherever the entity is; an arm pointing at the camera is refused rather than answered, since a pixel of movement there would fling the entity across the level |
+| ED-409 | 3D rotate and scale gizmos | ⬜ | Their own gestures: a ring picked in screen space, and a handle that stays grabbable edge-on. The 3D view leaves the rest of the mouse free for them |
 | ED-410 | Per-mesh material lists (needs ED-311) | ⬜ | |
 | ED-411 | **Plugin dynamic loading**: `dlopen`/`LoadLibrary`, `extern "C"` entry, unload, hot-reload | ⬜ | |
 | ED-412 | Plugin extension points: importers, component types, panels, menu commands, gizmos, exporters | ⬜ | |

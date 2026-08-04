@@ -114,6 +114,7 @@ add_library(cna-editor-scene STATIC
     src/scene/MissingReferences.cpp
     src/scene/SceneValidation.cpp
     src/scene/TransformGizmos.cpp
+    src/scene/TransformGizmos3D.cpp
     src/viewport/NullEditorViewport.cpp)
 target_link_libraries(cna-editor-scene PUBLIC cna-editor-core)
 

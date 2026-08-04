@@ -136,6 +136,17 @@ namespace CNA::Editor
         lastWireframe_ = buildSceneWireframe(context_.getScene(), camera, context_.getSelection(),
                                              actions_.getViewport().makeSizeProvider());
 
+        // The manipulator on top of the scene, in the same currency, so the 3D viewport draws its
+        // gizmo through exactly the path it draws everything else through.
+        if (const std::optional<TranslateGizmo3DLayout> layout = getTranslateGizmo3DLayout())
+        {
+            const GizmoAxis3D active =
+                translate3DDrag_.isActive() ? translate3DDrag_.getAxis() : hovered3DAxis_;
+
+            const std::vector<WireSegment> arms = buildTranslateGizmo3DSegments(*layout, active);
+            lastWireframe_.segments.insert(lastWireframe_.segments.end(), arms.begin(), arms.end());
+        }
+
         return actions_.getViewport().renderWireframe(lastWireframe_.segments, width, height);
     }
 
@@ -248,10 +259,59 @@ namespace CNA::Editor
         }
     }
 
+    std::optional<TranslateGizmo3DLayout> ViewportPanel::getTranslateGizmo3DLayout() const
+    {
+        // The dragged entity while a drag is running, so releasing the pointer over empty space
+        // does not make the manipulator vanish mid-gesture; otherwise the primary selection.
+        const Uuid subject = translate3DDrag_.isActive() ? translate3DDrag_.getEntityId()
+                                                         : (context_.getSelection().empty()
+                                                                ? Uuid{}
+                                                                : context_.getSelection().front());
+        if (!subject.isValid()) { return std::nullopt; }
+
+        return computeTranslateGizmo3DLayout(context_.getScene(), actions_.getViewport().getCamera3D(),
+                                             subject, actions_.getGizmoSpace());
+    }
+
     void ViewportPanel::handleInteraction3D(const UiImageInteraction& interaction,
                                             const EditorVector2& cursor)
     {
         EditorCamera3D& camera = actions_.getViewport().getCamera3D();
+
+        // A drag in progress outranks everything, and deliberately ignores hover: a drag that
+        // wandered off the panel must keep going and end on release, or the entity is dropped
+        // wherever the cursor happened to cross the edge. The same rule the 2D viewport has.
+        if (translate3DDrag_.isActive())
+        {
+            if (interaction.leftDown)
+            {
+                if (const auto position =
+                        translate3DDrag_.update(context_.getScene(), camera, cursor, getSnap(interaction)))
+                {
+                    commitGizmoEdit(translate3DDrag_.getEntityId(), "position", PropertyValue{*position});
+                }
+                return;
+            }
+
+            translate3DDrag_.end();
+            gizmoDragHasEdited_ = false;
+            return;
+        }
+
+        const std::optional<TranslateGizmo3DLayout> layout = getTranslateGizmo3DLayout();
+        hovered3DAxis_ = layout && interaction.hovered ? hitTestTranslateGizmo3D(*layout, cursor)
+                                                       : GizmoAxis3D::None;
+
+        // A press on an arm is a manipulation, and must not also count as a click that reselects
+        // whatever the arm happens to be drawn over -- which, for a gizmo sitting on its own
+        // entity, is that entity's own box.
+        if (interaction.hovered && interaction.leftPressed && layout
+            && translate3DDrag_.begin(context_.getScene(), camera, *layout,
+                                      context_.getSelection().front(), cursor))
+        {
+            gizmoDragHasEdited_ = false;
+            return;
+        }
 
         if (interaction.wheel != 0.0f)
         {

@@ -14,6 +14,7 @@
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/EditorCamera3D.hpp"
 #include "CNA/Editor/Scene/SceneWireframe.hpp"
+#include "CNA/Editor/Scene/TransformGizmos3D.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Scene/PrefabCommands.hpp"
@@ -1922,4 +1923,141 @@ CNA_EDITOR_TEST(TheSlabTestHandlesFlatBoxesAndRaysStartingInside)
 
     const WorldRay parallel{EditorVector3{0.0f, 0.0f, 5.0f}, EditorVector3{1.0f, 0.0f, 0.0f}};
     CNA_EDITOR_EXPECT(!intersectRayWithBounds(parallel, flat).has_value());
+}
+
+CNA_EDITOR_TEST(TheThreeDimensionalGizmoIsSizedInPixelsAndGrabbedInPixels)
+{
+    ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid entityId = scene.addEntity(makeEntity(registry, "Crate", 0.0f, 0.0f));
+
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{});
+    camera.setYaw(0.6f);
+    camera.setPitch(0.4f);
+    camera.setDistance(100.0f);
+
+    const std::optional<TranslateGizmo3DLayout> near =
+        computeTranslateGizmo3DLayout(scene, camera, entityId);
+    CNA_EDITOR_EXPECT(near.has_value());
+    if (!near) { return; }
+
+    // Twice as far away, the arms are twice as long in world units -- which is what keeps them the
+    // same length on screen, the property that makes them grabbable at any distance.
+    camera.setDistance(200.0f);
+    const std::optional<TranslateGizmo3DLayout> far =
+        computeTranslateGizmo3DLayout(scene, camera, entityId);
+    CNA_EDITOR_EXPECT(far.has_value());
+    if (!far) { return; }
+
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(far->armLength / near->armLength, 2.0f, 0.05f));
+
+    const float nearScreenLength =
+        length(subtract(EditorVector3{near->screenTips[0].x, near->screenTips[0].y, 0.0f},
+                        EditorVector3{near->screenOrigin.x, near->screenOrigin.y, 0.0f}));
+    const float farScreenLength =
+        length(subtract(EditorVector3{far->screenTips[0].x, far->screenTips[0].y, 0.0f},
+                        EditorVector3{far->screenOrigin.x, far->screenOrigin.y, 0.0f}));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(nearScreenLength, farScreenLength, 2.0f));
+
+    // Grabbing is decided on the screen: on an arm is a grab, well away from all three is not.
+    const EditorVector2 alongX{(far->screenOrigin.x + far->screenTips[0].x) * 0.5f,
+                               (far->screenOrigin.y + far->screenTips[0].y) * 0.5f};
+    CNA_EDITOR_EXPECT(hitTestTranslateGizmo3D(*far, alongX) == GizmoAxis3D::X);
+    CNA_EDITOR_EXPECT(hitTestTranslateGizmo3D(*far, EditorVector2{5.0f, 5.0f}) == GizmoAxis3D::None);
+
+    // An entity behind the eye has no manipulator at all, rather than one at a plausible-looking
+    // screen position the user would be able to grab.
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+    camera.setDistance(100.0f);
+    camera.setPivot(EditorVector3{0.0f, 0.0f, -200.0f});  // Eye at z = -100, looking further away.
+    CNA_EDITOR_EXPECT(!computeTranslateGizmo3DLayout(scene, camera, entityId).has_value());
+}
+
+CNA_EDITOR_TEST(AThreeDimensionalDragFollowsTheCursorAlongTheGrabbedAxis)
+{
+    ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid entityId = scene.addEntity(makeEntity(registry, "Crate", 0.0f, 0.0f));
+
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{});
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+    camera.setDistance(100.0f);
+
+    const std::optional<TranslateGizmo3DLayout> layout =
+        computeTranslateGizmo3DLayout(scene, camera, entityId);
+    CNA_EDITOR_EXPECT(layout.has_value());
+    if (!layout) { return; }
+
+    // Looking down -Z with no pitch: world +X is screen right, so grabbing the X arm and dragging
+    // right must move the entity along +X. A sign error here is the classic gizmo bug -- it works
+    // and moves everything the wrong way.
+    const EditorVector2 grab{(layout->screenOrigin.x + layout->screenTips[0].x) * 0.5f,
+                             layout->screenOrigin.y};
+
+    TranslateGizmo3DDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, camera, *layout, entityId, grab));
+    CNA_EDITOR_EXPECT(drag.getAxis() == GizmoAxis3D::X);
+
+    // Not moved yet: a drag that has not moved must push nothing, or one Ctrl+Z is spent undoing
+    // a change the user cannot see.
+    CNA_EDITOR_EXPECT(!drag.update(scene, camera, grab, GizmoSnap{}).has_value());
+
+    const std::optional<EditorVector3> moved =
+        drag.update(scene, camera, EditorVector2{grab.x + 60.0f, grab.y}, GizmoSnap{});
+    CNA_EDITOR_EXPECT(moved.has_value());
+    if (!moved) { return; }
+
+    CNA_EDITOR_EXPECT(moved->x > 1.0f);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(moved->y, 0.0f, 0.001f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(moved->z, 0.0f, 0.001f));
+
+    // Snapping rounds the result rather than the movement, so the entity lands on the grid rather
+    // than a grid-sized distance from where it happened to start.
+    GizmoSnap snap;
+    snap.translate = 10.0f;
+    const std::optional<EditorVector3> snapped =
+        drag.update(scene, camera, EditorVector2{grab.x + 60.0f, grab.y}, snap);
+    CNA_EDITOR_EXPECT(snapped.has_value());
+    if (snapped) { CNA_EDITOR_EXPECT(cameraNearlyEqual(std::fmod(snapped->x, 10.0f), 0.0f, 0.001f)); }
+
+    // An arm pointing straight at the camera has no answer -- a pixel of movement would otherwise
+    // fling the entity across the level -- so the drag refuses rather than inventing one.
+    const WorldRay downZ{EditorVector3{0.0f, 0.0f, 100.0f}, EditorVector3{0.0f, 0.0f, -1.0f}};
+    CNA_EDITOR_EXPECT(
+        !closestPointOnAxis(downZ, EditorVector3{}, EditorVector3{0.0f, 0.0f, 1.0f}).has_value());
+
+    // And the ordinary case has the answer the geometry says: a ray straight down at x = 30 meets
+    // the X axis thirty units along it.
+    const WorldRay downwards{EditorVector3{30.0f, 50.0f, 0.0f}, EditorVector3{0.0f, -1.0f, 0.0f}};
+    const std::optional<float> where =
+        closestPointOnAxis(downwards, EditorVector3{}, EditorVector3{1.0f, 0.0f, 0.0f});
+    CNA_EDITOR_EXPECT(where.has_value());
+    if (where) { CNA_EDITOR_EXPECT(cameraNearlyEqual(*where, 30.0f)); }
+}
+
+CNA_EDITOR_TEST(AThreeDimensionalDragOfAChildStoresTheParentRelativePosition)
+{
+    ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid parentId = scene.addEntity(makeEntity(registry, "Rig", 0.0f, 0.0f));
+    scene.findEntity(parentId)->findComponent(BuiltinComponentIds::kTransform)
+        ->setProperty("rotation", PropertyValue{quaternionFromEulerDegrees(EditorVector3{0.0f, 90.0f, 0.0f})});
+
+    const Uuid childId = scene.addEntity(makeEntity(registry, "Mount", 0.0f, 0.0f));
+    CNA_EDITOR_EXPECT(scene.reparentEntity(childId, parentId));
+
+    // A world delta along X, under a parent turned 90 degrees about Y, is a local delta along the
+    // child's own Z. A gizmo that skipped this works perfectly on roots and drifts on every child.
+    const EditorVector3 local = worldDeltaToLocal3D(scene, childId, EditorVector3{10.0f, 0.0f, 0.0f});
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(std::abs(local.z), 10.0f, 0.01f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(local.x, 0.0f, 0.01f));
+
+    // A root entity is its own frame, so the delta passes through untouched.
+    CNA_EDITOR_EXPECT(worldDeltaToLocal3D(scene, parentId, EditorVector3{10.0f, 0.0f, 0.0f})
+                      == (EditorVector3{10.0f, 0.0f, 0.0f}));
 }

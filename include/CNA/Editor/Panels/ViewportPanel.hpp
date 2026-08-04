@@ -13,6 +13,7 @@
 #include "CNA/Editor/Scene/SceneWireframe.hpp"
 #include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Scene/TransformGizmos.hpp"
+#include "CNA/Editor/Scene/TransformGizmos3D.hpp"
 
 namespace CNA::Editor
 {
@@ -58,6 +59,15 @@ namespace CNA::Editor
          * is not built yet).
          */
         void handleInteraction3D(const UiImageInteraction& interaction, const EditorVector2& cursor);
+
+        /**
+         * @brief Returns the 3D manipulator's layout for whatever it is currently acting on.
+         *
+         * The dragged entity while a drag runs, the primary selection otherwise. Asking for the
+         * selection mid-drag would make the manipulator vanish the moment a drag carried the
+         * pointer over something else.
+         */
+        [[nodiscard]] std::optional<TranslateGizmo3DLayout> getTranslateGizmo3DLayout() const;
 
         /**
          * @brief Continues a gizmo drag or a paint stroke already in progress.
@@ -200,5 +210,11 @@ namespace CNA::Editor
 
         /** @brief What the last 3D frame drew, so the toolbar can report a truncated wireframe. */
         WireframeResult lastWireframe_;
+
+        /** @brief The in-progress 3D translate drag, if any. */
+        TranslateGizmo3DDrag translate3DDrag_;
+
+        /** @brief Which 3D arm the cursor is over, so the drawn gizmo can say so before it is grabbed. */
+        GizmoAxis3D hovered3DAxis_ = GizmoAxis3D::None;
     };
 }

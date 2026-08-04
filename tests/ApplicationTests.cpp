@@ -17,6 +17,7 @@
 
 #include "CNA/Editor/EditorApplication.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/TransformGizmos3D.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
 #include "CNA/Editor/Project/BuildRunner.hpp"
 #include "CNA/Editor/Project/RecoveryStore.hpp"
@@ -3804,4 +3805,52 @@ CNA_EDITOR_TEST(AProjectsOwnSnapStepWinsOverTheVisibleGrid)
 
     std::error_code cleanup;
     std::filesystem::remove_all(root, cleanup);
+}
+
+CNA_EDITOR_TEST(AThreeDimensionalGizmoDragMovesTheEntityAndUndoesAsOneEntry)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    fixture.application->setThreeDimensionalView(true);
+    fixture.step(UiImageInteraction{});
+
+    // Looking down -Z with no pitch, so world +X is screen right and the X arm is horizontal.
+    EditorCamera3D& camera = fixture.application->getViewport().getCamera3D();
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+    camera.setPivot(EditorVector3{100.0f, 220.0f, 0.0f});
+    camera.setDistance(400.0f);
+    fixture.step(UiImageInteraction{});
+
+    const std::optional<TranslateGizmo3DLayout> layout = computeTranslateGizmo3DLayout(
+        fixture.application->getContext().getScene(), camera, fixture.entityId);
+    CNA_EDITOR_EXPECT(layout.has_value());
+    if (!layout) { return; }
+
+    const float startX = fixture.getPosition().x;
+    const EditorVector2 grab{(layout->screenOrigin.x + layout->screenTips[0].x) * 0.5f,
+                             layout->screenOrigin.y};
+
+    fixture.step(leftAt(grab.x, grab.y, true));
+    fixture.step(leftAt(grab.x + 40.0f, grab.y, false));
+
+    CNA_EDITOR_EXPECT(fixture.getPosition().x > startX + 1.0f);
+
+    // A press on an arm is a manipulation and must not also reselect: the gizmo sits on its own
+    // entity's box, so a press that fell through would pick that box and look like nothing.
+    CNA_EDITOR_EXPECT_EQ(fixture.application->getContext().getSelection().size(), std::size_t{1});
+
+    // One drag is one undo entry, exactly as in 2D. Releasing and dragging again must not merge
+    // into it -- the merge key cannot tell two gestures apart, so the boundary has to.
+    fixture.step(UiImageInteraction{});
+    fixture.application->undo();
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, startX);
+
+    // And a click on empty space still selects nothing, so the gizmo has not swallowed the picker.
+    UiImageInteraction click;
+    click.hovered = true;
+    click.clicked = true;
+    click.localMouseX = 4.0f;
+    click.localMouseY = 4.0f;
+    fixture.step(click);
+    CNA_EDITOR_EXPECT(fixture.application->getContext().getSelection().empty());
 }
