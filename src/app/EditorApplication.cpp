@@ -64,6 +64,7 @@ namespace CNA::Editor
             if (argument == "--version") { options.showVersion = true; continue; }
             if (argument == "--headless") { options.headless = true; continue; }
             if (argument == "--list-backends") { options.listBackends = true; continue; }
+            if (argument == "--compare-backends") { options.compareBackends = true; continue; }
 
             if (splitOption(argument, name, value))
             {
@@ -81,6 +82,16 @@ namespace CNA::Editor
                         options.errorMessage = "--autosave expects a number of seconds, got '" + value + "'";
                     }
                     if (options.autosaveSeconds < 0.0) { options.autosaveSeconds = 0.0; }
+                    continue;
+                }
+                if (name == "--tolerance")
+                {
+                    try { options.comparisonTolerance = std::stoi(value); }
+                    catch (const std::exception&)
+                    {
+                        options.hasError = true;
+                        options.errorMessage = "--tolerance expects a number, got '" + value + "'";
+                    }
                     continue;
                 }
                 if (name == "--frames")
@@ -139,6 +150,11 @@ namespace CNA::Editor
             "  --autosave=SECONDS Crash-recovery snapshot interval. 0 disables. Default: 30.\n"
             "  --recovery-dir=DIR Where snapshots are kept. Default: the per-user state directory.\n"
             "  --list-backends    Print the CNA graphics backends this editor knows about.\n"
+            "  --compare-backends Run the open scene on every installed cna-player build, compare\n"
+            "                     the frames, print the result and exit non-zero if they differ.\n"
+            "                     Needs a graphics device, so it does not combine with --headless.\n"
+            "  --tolerance=N      Largest per-channel difference --compare-backends still counts as\n"
+            "                     identical. Default: 2, because two backends are never bit-equal.\n"
             "  --version          Print the version and exit.\n"
             "  -h, --help         Print this help and exit.\n"
             "\n"
@@ -220,7 +236,36 @@ namespace CNA::Editor
         }
 
         findRecoverableScene();
+
+        comparisonMode_ = options.compareBackends;
+        comparisonPanel_.setTolerance(options.comparisonTolerance);
+
         return true;
+    }
+
+    void EditorApplication::updateBackendComparison()
+    {
+        if (!comparisonMode_) { return; }
+
+        if (!comparisonStarted_)
+        {
+            comparisonStarted_ = true;
+            startBackendComparison();
+
+            // Still Idle means the panel refused before launching anything -- no project, or a
+            // scene that has never been saved. It has said why; there is nothing to wait for.
+            if (getBackendComparison().getState() != ComparisonState::Idle) { return; }
+        }
+        else
+        {
+            const ComparisonState state = getBackendComparison().getState();
+            if (state == ComparisonState::Launching || state == ComparisonState::Capturing) { return; }
+        }
+
+        // The run has a verdict, and this editor exists only to produce it.
+        if (comparisonReport_) { comparisonReport_(getBackendComparison()); }
+        comparisonMode_ = false;
+        ui_->requestExit();
     }
 
     void EditorApplication::findRecoverableScene()
@@ -401,6 +446,7 @@ namespace CNA::Editor
         updateAutosave(deltaSeconds);
         buildPanel_.poll();
         comparisonPanel_.poll(elapsedSeconds_);
+        updateBackendComparison();
         pollAssets(deltaSeconds);
         pollPlayer();
         handleShortcuts();
@@ -600,6 +646,13 @@ namespace CNA::Editor
     void EditorApplication::setGizmoMode(GizmoMode mode)
     {
         gizmoMode_ = mode;
+    }
+
+    void EditorApplication::startBackendComparison() { comparisonPanel_.startComparison(); }
+
+    const BackendComparison& EditorApplication::getBackendComparison() const
+    {
+        return comparisonPanel_.getComparison();
     }
 
     void EditorApplication::setGizmoSpace(GizmoSpace space)

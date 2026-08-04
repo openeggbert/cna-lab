@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **326 passing tests across 7 CTest suites** (11 with CNA)
+- 12 modules, three executables, and **328 passing tests across 8 CTest suites** (12 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -336,7 +336,7 @@ built first deliberately: an ABI mismatch that reaches `dlopen` is a crash, not 
 | ED-505 | Frame debugger over the bridge | ⬜ | |
 | ED-506 | Profiler panel fed by `ReportFrameStats` | ⬜ | |
 | ED-510 | **Backend comparison mode** | ✅ | Built early, and cheaply, exactly as this section predicted: it is play mode run several times over. `BackendComparison` launches one player per installed build, waits for each handshake, asks all of them for the same frame over the bridge and compares what comes back against the first to answer. The pixel arithmetic is `ImageDiff` in `cna-editor-core` — CNA-free and tested against images built in the test — and decoding a capture is injected, because it needs a graphics API and only one module may have one (D-03). The tolerance is the load-bearing detail: two backends are not required to be bit-identical and never will be, so a comparison with none reports every backend as different from every other, which is true and useless. What is reported is how many pixels differ, by how much, **where** — the bounding box is usually the whole diagnosis — and a difference image written beside the captures |
-| ED-511 | Backend conformance harness built on ED-510 | ⬜ | Could feed CNA's own CI |
+| ED-511 | Backend conformance harness built on ED-510 | ✅ | `cna-editor --compare-backends` runs exactly what the Backends panel runs — the same call, not a parallel path that could pass while the panel was broken — prints one line per backend and **exits non-zero when they disagree**. The exit code is the assertion: a build server needs to read none of the output. `--tolerance=N` is on the command line because the threshold is a policy a project sets, not a constant this editor is entitled to choose for it. Refused up front on a headless run: comparing means decoding the captures, decoding needs a device, and reporting every capture as unreadable is a confusing way to say 'wrong configuration' |
 | ED-512 | Remote device preview (Android, browser) | ⬜ | |
 | ED-520 | MC3 / Mesh-Craft plugin: import/export, primitive editor, CSG preview, glTF export | ⬜ | Lives outside the editor core, by design (D-11) |
 | ED-521 | Terrain and world tools | ⬜ | |
@@ -345,8 +345,8 @@ built first deliberately: an ABI mismatch that reaches `dlopen` is a crash, not 
 predicted: once preview means "spawn a player process", spawning four of them from four per-backend
 builds is the same mechanism run four times. It needed no new architecture — a sequence over
 `PlayerProcess`, one new protocol reply that actually waits for pixels, and arithmetic over two
-buffers. **ED-511**, the conformance harness, is now a matter of running that sequence from CI
-rather than from a panel.
+buffers. **ED-511**, the conformance harness, is that sequence run from the command line: same call, one
+line per backend, and an exit code a build server can assert on.
 
 ---
 

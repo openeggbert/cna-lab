@@ -38,10 +38,21 @@ namespace CNA::Editor
          */
         void poll(double nowSeconds) { comparison_.poll(nowSeconds); }
 
-    private:
-        /** @brief Starts a run over every discovered player build. */
+        /**
+         * @brief Starts a run over every discovered player build.
+         *
+         * Public because `--compare-backends` (ED-511) drives it. A command-line harness that took
+         * its own path to the same result would be a second implementation to keep honest.
+         */
         void startComparison();
 
+        /** @brief Returns the run, so a caller can report on it. */
+        [[nodiscard]] const BackendComparison& getComparison() const { return comparison_; }
+
+        /** @brief Sets the per-channel tolerance the next run uses. */
+        void setTolerance(int tolerance) { tolerance_ = tolerance; }
+
+    private:
         /** @brief Draws one backend's row. */
         void drawEntry(const ComparisonEntry& entry);
 

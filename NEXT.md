@@ -15,9 +15,9 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 326 / 326 (also under Clang Release) |
-| CTest (standalone) | ✅ 7 / 7 |
-| CTest (CNA config) | ✅ 11 / 11 |
+| Unit tests | ✅ 328 / 328 (also under Clang Release) |
+| CTest (standalone) | ✅ 8 / 8 |
+| CTest (CNA config) | ✅ 12 / 12 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
@@ -89,6 +89,16 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-511** the conformance harness. `cna-editor --compare-backends` runs *exactly* what the
+  Backends panel runs -- `ComparisonPanel::startComparison`, called directly, not a second path that
+  could pass while the panel was broken -- prints one line per backend, and **exits non-zero when
+  they disagree**. The exit code is the assertion; a build server reads none of the output.
+  `--tolerance=N` is on the command line because the threshold is a policy a project sets, not a
+  constant this editor should choose for it. A headless run is refused up front: comparing means
+  decoding captures, decoding needs a device, and "every capture was unreadable" is a confusing way
+  to say "wrong configuration". Verified against the two real player builds: exit 5 with the diff
+  reported, and exit 0 at `--tolerance=64`, which is exactly the largest difference the two backends
+  actually produce.
 - **ED-510** backend comparison, the last item on the owner's priority list. `BackendComparison`
   launches one player per installed build, waits for each handshake, asks all of them for the same
   frame over the bridge and compares what comes back against the first to answer. It needed no new
@@ -387,10 +397,12 @@ API, which is the precondition `plan.md` states for the phase and is not this re
 player, the production 2D tools, and — with ED-510 — the backend comparison mode. What follows is a
 judgement call rather than a queue, and these are the candidates in the order I would take them:
 
-1. **ED-511, the conformance harness.** The cheapest valuable thing left: ED-510's sequence already
-   runs headlessly apart from the image decode, so a `--compare-backends` entry point that exits
-   non-zero on a disagreement turns the panel into something CI can run. It is also the one item
-   here that could feed CNA's own CI rather than only this editor's.
+1. **A build that produces more than one player binary.** ED-510 and ED-511 are finished and were
+   verified against two real backends, but the second one had to be built by hand into a scratch
+   directory (`-DCNA_GRAPHICS_BACKEND=SOFTWARE`, target `cna-player`) and copied beside the editor.
+   Until the build does that itself, the comparison's first message to most people is that it needs
+   another build -- and CI cannot run it at all. A `CNA_EDITOR_PLAYER_BACKENDS` list driving one
+   ExternalProject per backend is the shape; the work is in CMake, not in C++.
 2. **Modifier keys on `UiImageInteraction`.** Shift and Ctrl over the viewport image would give the
    gizmos snapping and let the picker add to a selection rather than replace it. One field each on
    the struct, one read in the ImGui backend.

@@ -150,7 +150,7 @@ namespace CNA::Editor
         void setClipboardHooks(const UiClipboardHooks& hooks);
 
         /** @brief Asks the editor to exit after the current frame. */
-        void requestExit();
+        void requestExit() override;
 
         /**
          * @brief Returns true when a text field has keyboard focus.

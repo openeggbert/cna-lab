@@ -147,6 +147,13 @@ if(CNA_EDITOR_WITH_CNA AND CNA_EDITOR_WITH_IMGUI)
     set_tests_properties(CnaEditorScreenshotNeedsFrameLimit PROPERTIES TIMEOUT 60)
 endif()
 
+# Comparing backends means decoding the captures, and decoding needs a graphics device. A run that
+# went ahead headless would report that every capture was unreadable, which is a confusing way to
+# say "wrong configuration".
+add_test(NAME CnaEditorComparisonNeedsADevice
+    COMMAND cna-editor --compare-backends --headless)
+set_tests_properties(CnaEditorComparisonNeedsADevice PROPERTIES WILL_FAIL TRUE TIMEOUT 60)
+
 # cna-player requires a project: launching one without is a mistake worth failing on, not
 # something to paper over with a default.
 add_test(NAME CnaPlayerRequiresAProject COMMAND cna-player)

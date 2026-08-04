@@ -172,6 +172,16 @@ namespace CNA::Editor
         /** @brief Returns false once the user has asked to close the editor. */
         [[nodiscard]] virtual bool isRunning() const = 0;
 
+        /**
+         * @brief Asks the editor to close after this frame.
+         *
+         * On the interface rather than only on the implementations, because a *task* can finish --
+         * `--compare-backends` runs to a result and then has nothing more to do -- and it has no
+         * business knowing which toolkit is bound. Defaulted to nothing so an implementation that
+         * cannot be closed from inside is still a valid one.
+         */
+        virtual void requestExit() {}
+
         /** @brief Begins a frame. Returns false when the application should exit. */
         virtual bool beginFrame() = 0;
 
@@ -537,7 +547,7 @@ namespace CNA::Editor
         [[nodiscard]] const std::string& getClipboardText() const { return clipboard_; }
 
         /** @brief Asks the next beginFrame() to report exit. Used by `--frames N` and by tests. */
-        void requestExit() { running_ = false; }
+        void requestExit() override { running_ = false; }
 
         /** @brief Returns every message logged so far. */
         [[nodiscard]] const std::vector<LogEntry>& getLog() const { return log_; }

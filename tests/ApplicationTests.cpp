@@ -1046,6 +1046,43 @@ CNA_EDITOR_TEST(FrameSelectedBringsTheSelectionIntoView)
     CNA_EDITOR_EXPECT_EQ(camera.getCenter().y, 220.0f);
 }
 
+CNA_EDITOR_TEST(TheComparisonHarnessIsOffUnlessAskedFor)
+{
+    const EditorOptions plain = EditorOptions::parse(0, nullptr);
+    CNA_EDITOR_EXPECT(!plain.compareBackends);
+    CNA_EDITOR_EXPECT_EQ(plain.comparisonTolerance, kDefaultImageTolerance);
+
+    const char* argv[] = {"cna-editor", "--compare-backends", "--tolerance=7"};
+    const EditorOptions asked = EditorOptions::parse(3, argv);
+    CNA_EDITOR_EXPECT(asked.compareBackends);
+    CNA_EDITOR_EXPECT_EQ(asked.comparisonTolerance, 7);
+    CNA_EDITOR_EXPECT(!asked.hasError);
+
+    // A tolerance that is not a number is a mistake worth reporting: silently taking the default
+    // would run the comparison at a threshold the user did not choose and never be mentioned.
+    const char* bad[] = {"cna-editor", "--tolerance=loose"};
+    CNA_EDITOR_EXPECT(EditorOptions::parse(2, bad).hasError);
+}
+
+CNA_EDITOR_TEST(TheComparisonHarnessReportsWhenItCannotRun)
+{
+    auto ui = std::make_unique<ScriptedUi>();
+    ScriptedUi* rawUi = ui.get();
+    EditorApplication application{std::move(ui), std::make_unique<NullEditorViewport>()};
+
+    EditorOptions options;
+    options.headless = true;
+    options.compareBackends = true;
+    CNA_EDITOR_EXPECT(application.initialize(options));
+
+    application.renderFrame();
+
+    // No project and no player builds, so the run refuses before launching anything -- and the
+    // harness must not then sit waiting for a verdict that cannot arrive.
+    CNA_EDITOR_EXPECT(!rawUi->isRunning());
+    CNA_EDITOR_EXPECT(application.getBackendComparison().getState() == ComparisonState::Idle);
+}
+
 CNA_EDITOR_TEST(GizmoModeShortcutsSwitchTheManipulator)
 {
     GizmoFixture fixture = makeGizmoFixture();

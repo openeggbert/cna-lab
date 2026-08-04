@@ -12,6 +12,7 @@
  * dependency on the editor's internals.
  */
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -21,6 +22,7 @@
 #include "CNA/Editor/EditorContext.hpp"
 #include "CNA/Editor/Panels/AssetBrowserPanel.hpp"
 #include "CNA/Editor/Panels/BuildPanel.hpp"
+#include "CNA/Editor/Core/ImageDiff.hpp"
 #include "CNA/Editor/Panels/ComparisonPanel.hpp"
 #include "CNA/Editor/Panels/ConsolePanel.hpp"
 #include "CNA/Editor/Panels/DiagnosticsPanel.hpp"
@@ -94,6 +96,22 @@ namespace CNA::Editor
          * Set it to keep a sandboxed or portable run from writing outside its own directory.
          */
         std::string recoveryDirectory;
+
+        /**
+         * @brief Run a backend comparison instead of editing, and exit with its verdict.
+         *
+         * plan.md ED-511: the same run the Backends panel performs, driven from the command line so
+         * a build server can assert that a scene renders identically on every installed backend.
+         * The exit code is the assertion -- non-zero when they disagree or when the run could not
+         * happen at all.
+         *
+         * It needs a graphics device, because comparing captures means decoding them, so it does
+         * not combine with `--headless`.
+         */
+        bool compareBackends = false;
+
+        /** @brief Largest per-channel difference `--compare-backends` still counts as identical. */
+        int comparisonTolerance = kDefaultImageTolerance;
 
         /** @brief Print the backend table and exit. */
         bool listBackends = false;
@@ -199,6 +217,31 @@ namespace CNA::Editor
 
         void setGizmoMode(GizmoMode mode) override;
         [[nodiscard]] GizmoMode getGizmoMode() const override { return gizmoMode_; }
+
+        /**
+         * @brief Starts a backend comparison, as pressing Compare in the Backends panel does.
+         *
+         * Exposed so `--compare-backends` drives exactly the same code a user does, rather than a
+         * parallel path that could pass while the panel was broken.
+         */
+        void startBackendComparison();
+
+        /** @brief Drives a `--compare-backends` run: start it, wait for it, report, exit. */
+        void updateBackendComparison();
+
+        /** @brief Returns the comparison the panel owns, for a caller that has to report on it. */
+        [[nodiscard]] const BackendComparison& getBackendComparison() const;
+
+        /** @brief Called once when a `--compare-backends` run reaches a verdict. */
+        using ComparisonReport = std::function<void(const BackendComparison&)>;
+
+        /**
+         * @brief Sets who to tell when a comparison run finishes.
+         *
+         * A callback rather than a value the caller reads afterwards, because in a windowed run the
+         * application is owned by the host and is gone by the time `runEditorInWindow` returns.
+         */
+        void setComparisonReport(ComparisonReport report) { comparisonReport_ = std::move(report); }
 
         void setGizmoSpace(GizmoSpace space) override;
         [[nodiscard]] GizmoSpace getGizmoSpace() const override { return gizmoSpace_; }
@@ -309,6 +352,11 @@ namespace CNA::Editor
          * frame deltas, and never has to sleep.
          */
         double elapsedSeconds_ = 0.0;
+
+        /** @brief `--compare-backends`: run a comparison instead of editing, then exit. */
+        bool comparisonMode_ = false;
+        bool comparisonStarted_ = false;
+        ComparisonReport comparisonReport_;
 
         GizmoMode gizmoMode_ = GizmoMode::Translate;
         GizmoSpace gizmoSpace_ = GizmoSpace::World;
