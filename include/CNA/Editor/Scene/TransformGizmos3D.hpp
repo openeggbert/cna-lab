@@ -221,8 +221,9 @@ namespace CNA::Editor
         EditorVector3 planeY_;
 
         float startAngle_ = 0.0f;
+
+        /** @brief The entity's world rotation at the press: what the turn is applied on top of. */
         EditorQuaternion startWorld_;
-        EditorQuaternion startLocal_;
     };
 
     /**

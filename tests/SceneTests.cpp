@@ -2222,3 +2222,51 @@ CNA_EDITOR_TEST(TheThreeDimensionalRotateRingsAreGrabbedWhereTheyAreDrawn)
     // costs the user a Ctrl+Z to reach a change they can see.
     CNA_EDITOR_EXPECT(!drag.update(scene, camera, zRing.front(), GizmoSnap{}).has_value());
 }
+
+CNA_EDITOR_TEST(AThreeDimensionalTurnIsAppliedInTheWorldRatherThanTheEntitysOwnFrame)
+{
+    ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid entityId = scene.addEntity(makeEntity(registry, "Crate", 0.0f, 0.0f));
+
+    // Already lying on its side. An unrotated entity cannot tell the two compositions apart --
+    // they differ by exactly the rotation the entity already has -- which is why the gizmo passed
+    // its first test while turning things about the wrong axes.
+    scene.findEntity(entityId)
+        ->findComponent(BuiltinComponentIds::kTransform)
+        ->setProperty("rotation",
+                      PropertyValue{quaternionFromEulerDegrees(EditorVector3{90.0f, 0.0f, 0.0f})});
+
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{});
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+    camera.setDistance(300.0f);
+
+    const std::optional<RotateGizmo3DLayout> layout =
+        computeRotateGizmo3DLayout(scene, camera, entityId, GizmoSpace::World);
+    CNA_EDITOR_EXPECT(layout.has_value());
+    if (!layout) { return; }
+
+    const std::vector<EditorVector2>& zRing = layout->rings[2];
+    CNA_EDITOR_EXPECT(zRing.size() > 8);
+
+    RotateGizmo3DDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, camera, *layout, entityId, zRing.front()));
+
+    const std::optional<EditorQuaternion> turned =
+        drag.update(scene, camera, zRing[zRing.size() / 4], GizmoSnap{});
+    CNA_EDITOR_EXPECT(turned.has_value());
+    if (!turned) { return; }
+
+    // A turn about world Z leaves anything already pointing along world Z exactly where it is.
+    // The entity's own Y axis is one such thing after a 90-degree tip about X, so this holds
+    // whatever the drag's angle turned out to be -- and fails outright if the turn went in about
+    // the entity's local axes instead, where the same drag would swing it a quarter turn away.
+    const EditorVector3 localY = rotate(*turned, EditorVector3{0.0f, 1.0f, 0.0f});
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(localY.z, 1.0f, 0.02f));
+
+    // And its own X axis, which started in the XY plane, stays in it.
+    const EditorVector3 localX = rotate(*turned, EditorVector3{1.0f, 0.0f, 0.0f});
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(localX.z, 0.0f, 0.02f));
+}

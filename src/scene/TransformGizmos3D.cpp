@@ -341,7 +341,6 @@ namespace CNA::Editor
         planeY_ = planeY;
         startAngle_ = *angle;
         startWorld_ = world->rotation;
-        startLocal_ = transform->getProperty("rotation").get<EditorQuaternion>();
         return true;
     }
 
@@ -370,7 +369,13 @@ namespace CNA::Editor
 
         // Turned in world space, stored in the parent's frame: the cursor described a world angle,
         // and a child of a rotated parent applying it locally would turn by a rotated fraction.
-        const EditorQuaternion world = multiply(startWorld_, quaternionFromAxisAngle(normal_, delta));
+        //
+        // The turn goes on the *left*, which is what makes it a world turn at all: multiply(a, b)
+        // applies b first and then a, so the entity's existing rotation runs inside the new one.
+        // The other order turns it about its own axes -- an entity already lying on its side would
+        // then spin about a ring nobody drew, which is the same mistake as skipping the parent
+        // frame, one level further in.
+        const EditorQuaternion world = multiply(quaternionFromAxisAngle(normal_, delta), startWorld_);
 
         const EditorEntity* entity = scene.findEntity(entityId_);
         if (entity == nullptr || !entity->getParentId().isValid()) { return world; }
@@ -380,7 +385,6 @@ namespace CNA::Editor
 
         const EditorQuaternion inverse{-parent->rotation.x, -parent->rotation.y, -parent->rotation.z,
                                        parent->rotation.w};
-        static_cast<void>(startLocal_);
         return multiply(inverse, world);
     }
 
