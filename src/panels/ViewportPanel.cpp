@@ -100,7 +100,8 @@ namespace CNA::Editor
         // stretching would make the grid non-square and, worse, make picking disagree with what
         // is on screen.
         const UiTextureId texture =
-            actions_.getViewport().render(context_.getScene(), width, height, context_.getSelection(), actions_.getGizmoMode());
+            actions_.getViewport().render(context_.getScene(), width, height, context_.getSelection(),
+                                          actions_.getGizmoMode(), actions_.getAnimationPreview());
 
         const UiImageInteraction interaction =
             ui_.image("##viewport", texture, region.width, region.height,

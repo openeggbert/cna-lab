@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 279 / 279 (also under Clang Release) |
+| Unit tests | ✅ 280 / 280 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -93,8 +93,13 @@ Newest first. Each is a single commit on the branch.
   plain value the inspector owns and throws away, never the document's (D-07), and the clock is
   passed in so the test steps it exactly. `EditorUi::imageRegion` is new: it draws one sub-rectangle
   of a sheet, in texels, because everything on this side of the boundary already speaks texels.
-  **Open:** per-frame durations (the plan says "timeline") and playback in the *viewport* rather
-  than only in the inspector. Both are additive; neither changes a format.
+  The viewport draws the previewed frame too: the inspector publishes the *result* through
+  `EditorActions` while keeping the playback itself, which is the same shape the selection already
+  uses and for the same reason. An animated sprite is sized by its frame rather than by its sheet,
+  or a sixteen-frame walk cycle would be sixteen times too wide to click and Frame Selected would
+  zoom out to fit a strip nobody is looking at.
+  **Open:** per-frame durations, which is what the plan's word "timeline" implies. Additive; it
+  changes no format.
 - **ED-302 (part)** sprite fonts. The `.spritefont` description is read and reported in the
   inspector, all of it **read-only** -- the file is the content pipeline's own input, so an
   editable copy in the sidecar would be a second answer to a question the build asks the file.
@@ -267,20 +272,15 @@ Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are
 
 Phase 2's remaining work is now mostly *finishing* rather than starting. In rough order of value:
 
-1. **Animation playback in the viewport** (closes the useful half of ED-303). The inspector plays a
-   clip; the scene does not. The renderer already draws a tilemap by computing a source rectangle
-   per cell, and an animated sprite is the same computation once per entity — the only real
-   question is where the preview frame comes from, since it is *editor* state and must not travel
-   in the document. A small `AnimationPreviewState` passed into `render()` alongside the selection
-   is the shape that fits; the selection is already passed that way for the same reason.
-2. **Per-frame durations** (the "timeline" half of ED-303). A parallel `List<Float>` is the smallest
-   form and diffs readably; make it optional, so a clip with no durations keeps using
-   `framesPerSecond` and no existing scene changes.
-3. **Tilemap eyedropper and rectangle fill.** Both are small now that `EditorTool` exists, and both
+1. **Per-frame durations** (the "timeline" half of ED-303, and all that is left of it). A parallel
+   `List<Float>` is the smallest form and diffs readably; make it **optional**, so a clip with no
+   durations keeps using `framesPerSecond` and no existing scene changes. `AnimationPlayback` is
+   the only thing that has to learn about it — `advance()` currently divides by a single rate.
+2. **Tilemap eyedropper and rectangle fill.** Both are small now that `EditorTool` exists, and both
    are what a person reaches for within a minute of painting.
-4. **ED-304** audio source editing with preview playback, and **ED-308/ED-309**, the build dialog
-   and backend diagnostics. ED-309 is nearly free: the capability set is already printed at
-   start-up, and showing it in a panel is a view over data that exists.
+3. **ED-309 backend diagnostics** is nearly free: the capability set is already printed at start-up,
+   and showing it in a panel is a view over data that exists. Then **ED-304** audio source editing
+   with preview playback, and **ED-308**, the build dialog.
 
 One piece of tidying is now due rather than optional: **`ViewportPanel::handleInteraction` carries
 three interaction modes** (gizmo drag, paint stroke, camera and selection) in one function, and the

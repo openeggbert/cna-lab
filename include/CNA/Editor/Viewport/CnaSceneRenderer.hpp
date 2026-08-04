@@ -102,7 +102,8 @@ namespace CNA::Editor
                                 int width,
                                 int height,
                                 const std::vector<Uuid>& selection,
-                                GizmoMode gizmoMode = GizmoMode::None);
+                                GizmoMode gizmoMode = GizmoMode::None,
+                                const AnimationPreview& preview = {});
 
         /**
          * @brief Registers the rendered target with @p uiRenderer and returns its UI texture id.

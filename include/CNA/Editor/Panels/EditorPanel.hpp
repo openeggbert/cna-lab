@@ -23,6 +23,7 @@
 
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Project/RecoveryStore.hpp"
+#include "CNA/Editor/Scene/SpriteAnimation.hpp"
 #include "CNA/Editor/RuntimeBridge/PlayerProcess.hpp"
 #include "CNA/Editor/Ui/EditorUi.hpp"
 #include "CNA/Editor/Viewport/EditorViewport.hpp"
@@ -128,6 +129,16 @@ namespace CNA::Editor
         /** @brief The tile index the paint tool writes. Ignored by every other tool. */
         virtual void setPaintTile(std::int64_t tile) = 0;
         [[nodiscard]] virtual std::int64_t getPaintTile() const = 0;
+
+        /**
+         * @brief Publishes which animation frame the viewport should draw.
+         *
+         * The panel that owns the playback keeps owning it -- this carries only the *result*, so
+         * the viewport draws the frame the preview shows without either side knowing about the
+         * other. Editor state throughout: none of it reaches the document (D-07).
+         */
+        virtual void setAnimationPreview(const AnimationPreview& preview) = 0;
+        [[nodiscard]] virtual const AnimationPreview& getAnimationPreview() const = 0;
     };
 
     /**

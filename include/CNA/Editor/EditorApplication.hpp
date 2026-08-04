@@ -211,6 +211,12 @@ namespace CNA::Editor
         void setPaintTile(std::int64_t tile) override { paintTile_ = tile; }
         [[nodiscard]] std::int64_t getPaintTile() const override { return paintTile_; }
 
+        void setAnimationPreview(const AnimationPreview& preview) override { animationPreview_ = preview; }
+        [[nodiscard]] const AnimationPreview& getAnimationPreview() const override
+        {
+            return animationPreview_;
+        }
+
         /** @brief Returns the snapshot store, so a test can point it at a scratch directory. */
         [[nodiscard]] RecoveryStore& getRecoveryStore() { return recovery_; }
 
@@ -279,6 +285,7 @@ namespace CNA::Editor
         GizmoMode gizmoMode_ = GizmoMode::Translate;
         EditorTool tool_ = EditorTool::Select;
         std::int64_t paintTile_ = 0;
+        AnimationPreview animationPreview_;
 
         /**
          * @brief The player builds installed beside the editor, and which one Play will launch.

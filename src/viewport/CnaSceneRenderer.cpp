@@ -20,6 +20,7 @@
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/SpriteAnimation.hpp"
 #include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Scene/EditorIcons.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
@@ -446,7 +447,8 @@ namespace CNA::Editor
                                               int width,
                                               int height,
                                               const std::vector<Uuid>& selection,
-                                              GizmoMode gizmoMode)
+                                              GizmoMode gizmoMode,
+                                              const AnimationPreview& preview)
     {
         SceneRenderStats stats;
         lastStats_ = stats;
@@ -483,7 +485,36 @@ namespace CNA::Editor
             const std::optional<WorldTransform> world = computeWorldTransform(scene, entity.getId());
             if (!world) { ++stats.spritesSkipped; continue; }
 
-            const Uuid textureId = sprite->getProperty("texture").get<PropertyValue::AssetReference>().id;
+            // An animation drives the sprite it sits beside: its sheet replaces the texture and its
+            // current frame replaces the source rectangle. That is what makes the viewport show the
+            // same frame the inspector's preview does -- and which frame *is* current comes in as a
+            // parameter, because playback is editor state and must never travel in a scene.
+            const EditorComponent* animation =
+                entity.findComponent(BuiltinComponentIds::kSpriteAnimation);
+
+            SpriteAnimationClip clip;
+            if (animation != nullptr)
+            {
+                clip = readSpriteAnimationClip(
+                    *animation,
+                    impl_->components != nullptr
+                        ? impl_->components->find(BuiltinComponentIds::kSpriteAnimation)
+                        : nullptr);
+            }
+            const bool animated = animation != nullptr && !clip.isEmpty();
+
+            // Frame zero for every animated entity except the one being previewed. An editor that
+            // played every clip at once would be unreadable, and one that showed nothing until a
+            // preview started would hide the art.
+            const std::size_t framePosition =
+                animated && preview.isActive() && preview.entityId == entity.getId()
+                    ? std::min(preview.position, clip.frames.size() - 1)
+                    : 0;
+
+            const Uuid textureId =
+                animated
+                    ? animation->getProperty(SpriteAnimationKeys::kSheet).get<PropertyValue::AssetReference>().id
+                    : sprite->getProperty("texture").get<PropertyValue::AssetReference>().id;
             XnaGraphics::Texture2D* texture = impl_->resolveTexture(textureId, stats);
 
             const EditorVector2 screenPosition =
@@ -513,7 +544,8 @@ namespace CNA::Editor
             }
 
             std::optional<Xna::Rectangle> sourceRectangle;
-            const EditorRectangle source = sprite->getProperty("sourceRectangle").get<EditorRectangle>();
+            const EditorRectangle source = animated ? clip.getFrameRectangle(framePosition)
+                                                    : sprite->getProperty("sourceRectangle").get<EditorRectangle>();
             if (!source.isEmpty())
             {
                 sourceRectangle = Xna::Rectangle{source.x, source.y, source.width, source.height};

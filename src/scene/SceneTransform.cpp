@@ -209,8 +209,27 @@ namespace CNA::Editor
         // import must still be clickable, or the entity cannot be selected and therefore cannot be
         // fixed.
         EditorVector2 size;
+
+        // An animation drives the sprite, so its frame size is the sprite's size. Without this the
+        // clickable rectangle would be the whole sheet -- a sixteen-frame walk cycle would be
+        // sixteen times too wide to click accurately, and Frame Selected would zoom out to fit it.
+        const EditorComponent* animation = entity->findComponent(BuiltinComponentIds::kSpriteAnimation);
+        if (animation != nullptr)
+        {
+            const auto frameWidth = animation->getProperty("frameWidth").get<std::int64_t>(0);
+            const auto frameHeight = animation->getProperty("frameHeight").get<std::int64_t>(0);
+            if (frameWidth > 0 && frameHeight > 0)
+            {
+                size = EditorVector2{static_cast<float>(frameWidth), static_cast<float>(frameHeight)};
+            }
+        }
+
         const EditorRectangle source = sprite->getProperty("sourceRectangle").get<EditorRectangle>();
-        if (!source.isEmpty())
+        if (size.x > 0.0f && size.y > 0.0f)
+        {
+            // Already answered by the animation.
+        }
+        else if (!source.isEmpty())
         {
             size = EditorVector2{static_cast<float>(source.width), static_cast<float>(source.height)};
         }

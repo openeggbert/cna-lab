@@ -18,6 +18,7 @@
 #include "CNA/Editor/Scene/EditorIcons.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
+#include "CNA/Editor/Scene/SpriteAnimation.hpp"
 #include "CNA/Editor/Scene/TranslateGizmo.hpp"
 
 using namespace CNA::Editor;
@@ -806,4 +807,45 @@ CNA_EDITOR_TEST(AQuaternionRoundTripsThroughEulerAsTheSameRotation)
         CNA_EDITOR_EXPECT(nearlyEqual(a.y, b.y, 0.001f));
         CNA_EDITOR_EXPECT(nearlyEqual(a.z, b.z, 0.001f));
     }
+}
+
+CNA_EDITOR_TEST(AnAnimatedSpriteIsSizedByItsFrameNotItsSheet)
+{
+    ComponentRegistry registry;
+    registerBuiltinComponents(registry);
+
+    SceneDocument scene;
+    EditorEntity entity{Uuid::generate(), "Hero"};
+
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*registry.find(BuiltinComponentIds::kTransform));
+    entity.addComponent(std::move(transform));
+
+    EditorComponent sprite{BuiltinComponentIds::kSpriteRenderer};
+    sprite.applyDefaults(*registry.find(BuiltinComponentIds::kSpriteRenderer));
+    const Uuid sheetId = Uuid::generate();
+    sprite.setProperty("texture", PropertyValue{PropertyValue::AssetReference{sheetId}});
+    entity.addComponent(std::move(sprite));
+
+    EditorComponent animation{BuiltinComponentIds::kSpriteAnimation};
+    animation.applyDefaults(*registry.find(BuiltinComponentIds::kSpriteAnimation));
+    animation.setProperty(SpriteAnimationKeys::kFrameWidth, PropertyValue{std::int64_t{32}});
+    animation.setProperty(SpriteAnimationKeys::kFrameHeight, PropertyValue{std::int64_t{48}});
+    entity.addComponent(std::move(animation));
+
+    const Uuid entityId = scene.addEntity(std::move(entity));
+
+    // The sheet is sixteen frames wide. Without the animation the bounds would be the whole sheet,
+    // which is sixteen times too wide to click accurately and would make Frame Selected zoom out
+    // to fit a strip nobody is looking at.
+    const SpriteSizeProvider sheetSize = [&](const Uuid& id) {
+        return id == sheetId ? EditorVector2{512.0f, 48.0f} : EditorVector2{};
+    };
+
+    const std::optional<WorldBounds2D> bounds = computeEntityBounds2D(scene, entityId, sheetSize);
+    CNA_EDITOR_EXPECT(bounds.has_value());
+    if (!bounds) { return; }
+
+    CNA_EDITOR_EXPECT_EQ(bounds->max.x - bounds->min.x, 32.0f);
+    CNA_EDITOR_EXPECT_EQ(bounds->max.y - bounds->min.y, 48.0f);
 }

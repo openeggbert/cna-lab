@@ -21,6 +21,7 @@
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
 #include "CNA/Editor/Core/EditorMath.hpp"
 #include "CNA/Editor/Core/PropertyValue.hpp"
+#include "CNA/Editor/Core/Uuid.hpp"
 
 namespace CNA::Editor
 {
@@ -68,6 +69,23 @@ namespace CNA::Editor
     /** @brief Reads the clip from @p component. */
     [[nodiscard]] SpriteAnimationClip readSpriteAnimationClip(const EditorComponent& component,
                                                               const ComponentDescriptor* descriptor);
+
+    /**
+     * @brief Which entity is being previewed, and on which frame.
+     *
+     * Published by whichever panel owns the playback so the viewport can draw the same frame the
+     * preview shows. A *snapshot*, not the playback itself: the panel keeps deciding when time
+     * passes, and the viewport only has to know what to draw.
+     */
+    struct AnimationPreview
+    {
+        Uuid entityId;
+
+        /** @brief Position in the clip's frame list. */
+        std::size_t position = 0;
+
+        [[nodiscard]] bool isActive() const { return entityId.isValid(); }
+    };
 
     /**
      * @brief Where a preview has got to. Editor state, never serialised.

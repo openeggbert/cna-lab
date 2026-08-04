@@ -33,6 +33,10 @@ namespace CNA::Editor
             playback_ = AnimationPlayback{};
         }
 
+        // Cleared here and set again below when there is something to preview, so the viewport
+        // never keeps drawing a frame from a clip the inspector has stopped showing.
+        actions_.setAnimationPreview(AnimationPreview{});
+
         if (context_.getSelectedAsset().isValid())
         {
             drawAssetInspector(context_.getSelectedAsset());
@@ -444,6 +448,10 @@ namespace CNA::Editor
             ui_.separator();
             return;
         }
+
+        // Published so the viewport draws the same frame this preview shows. The playback stays
+        // here; only the result travels.
+        actions_.setAnimationPreview(AnimationPreview{entityId, playback_.position});
 
         ui_.text("Frame " + std::to_string(playback_.position + 1) + " of "
                  + std::to_string(clip.frames.size()) + "  ("

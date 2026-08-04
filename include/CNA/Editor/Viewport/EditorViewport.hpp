@@ -28,6 +28,7 @@
 #include "CNA/Editor/Core/EditorMath.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
+#include "CNA/Editor/Scene/SpriteAnimation.hpp"
 #include "CNA/Editor/Ui/UiDrawData.hpp"
 
 namespace CNA::Editor
@@ -73,13 +74,17 @@ namespace CNA::Editor
          * then the editor's overlay. Editor artefacts are never entities in the scene, so a build
          * can never ship with them.
          *
+         * @param preview Which animation frame to draw for the entity being previewed. Passed in
+         *        rather than read from the document, because playback is editor state and must not
+         *        travel in a scene -- the same reason the selection is passed rather than stored.
          * @return A UI texture id the viewport panel can display, or zero when nothing was drawn.
          */
         virtual UiTextureId render(const SceneDocument& scene,
                                    int width,
                                    int height,
                                    const std::vector<Uuid>& selection,
-                                   GizmoMode gizmoMode) = 0;
+                                   GizmoMode gizmoMode,
+                                   const AnimationPreview& preview = {}) = 0;
 
         /**
          * @brief Returns the texel size of @p assetId, or (0, 0) when it cannot be resolved.
@@ -151,7 +156,8 @@ namespace CNA::Editor
                            int width,
                            int height,
                            const std::vector<Uuid>& selection,
-                           GizmoMode gizmoMode) override;
+                           GizmoMode gizmoMode,
+                           const AnimationPreview& preview = {}) override;
 
         [[nodiscard]] EditorVector2 getSpriteSize(const Uuid& assetId) const override
         {
