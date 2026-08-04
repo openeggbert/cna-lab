@@ -578,6 +578,36 @@ namespace CNA::Editor
                             GizmoSpace::World, AnimationPreview{}, false, false);
     }
 
+    void CnaSceneRenderer::renderWireframe(const std::vector<WireSegment>& segments, int width, int height)
+    {
+        lastStats_ = SceneRenderStats{};
+
+        if (impl_->device == nullptr || impl_->spriteBatch == nullptr) { return; }
+        if (width <= 0 || height <= 0) { return; }
+
+        impl_->ensureTarget(width, height);
+        impl_->device->SetRenderTarget(impl_->target.get());
+        impl_->device->Clear(kBackground);
+
+        impl_->spriteBatch->Begin(XnaGraphics::SpriteSortMode::Deferred,
+                                  XnaGraphics::BlendState::AlphaBlend);
+
+        for (const WireSegment& segment : segments)
+        {
+            impl_->drawLine(segment.from, segment.to, segment.thickness,
+                            Xna::Color{segment.color.r, segment.color.g, segment.color.b,
+                                       segment.color.a});
+        }
+
+        impl_->spriteBatch->End();
+
+        // Counted as grid lines because that is what nearly all of them are, and a viewport that
+        // reported zero of everything while visibly drawing would be lying about its own work.
+        lastStats_.gridLines = segments.size();
+
+        impl_->device->SetRenderTarget(nullptr);
+    }
+
     SceneRenderStats CnaSceneRenderer::renderPasses(const SceneDocument& scene,
                                                     const EditorCamera2D& camera,
                                                     int width,

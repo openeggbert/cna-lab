@@ -210,8 +210,25 @@ namespace CNA::Editor
             }
         }
 
+        UiTextureId renderWireframe(const std::vector<WireSegment>& segments, int width,
+                                    int height) override
+        {
+            if (width <= 0 || height <= 0) { return kUiTextureNone; }
+
+            renderer_.renderWireframe(segments, width, height);
+
+            const SceneRenderStats& stats = renderer_.getLastStats();
+            lastStats_ = ViewportStats{stats.spritesDrawn, stats.spritesSkipped, stats.gridLines,
+                                       stats.missingTextures};
+
+            return renderer_.shareWithUi(*uiRenderer_);
+        }
+
         [[nodiscard]] EditorCamera2D& getCamera() override { return camera_; }
         [[nodiscard]] const EditorCamera2D& getCamera() const override { return camera_; }
+
+        [[nodiscard]] EditorCamera3D& getCamera3D() override { return camera3D_; }
+        [[nodiscard]] const EditorCamera3D& getCamera3D() const override { return camera3D_; }
 
         [[nodiscard]] ViewportStats getLastStats() const override { return lastStats_; }
 
@@ -220,6 +237,7 @@ namespace CNA::Editor
         Microsoft::Xna::Framework::Graphics::GraphicsDevice* device_;
         CnaUiRenderer* uiRenderer_;
         EditorCamera2D camera_;
+        EditorCamera3D camera3D_;
         ViewportStats lastStats_;
     };
 

@@ -44,7 +44,7 @@ namespace CNA::Editor
         PageUp, PageDown, Home, End,
         Insert, Delete, Backspace, Space, Enter, Escape,
         A, C, V, X, Y, Z,
-        D, F, N, S, W, E, R,
+        D, F, N, Q, S, W, E, R,
         F1, F2, F5,
         Count
     };

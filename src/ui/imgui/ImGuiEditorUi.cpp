@@ -46,6 +46,7 @@ namespace CNA::Editor
                 case UiKey::F: return ImGuiKey_F;
                 case UiKey::N: return ImGuiKey_N;
                 case UiKey::S: return ImGuiKey_S;
+                case UiKey::Q: return ImGuiKey_Q;
                 case UiKey::W: return ImGuiKey_W;
                 case UiKey::E: return ImGuiKey_E;
                 case UiKey::R: return ImGuiKey_R;
@@ -1018,6 +1019,9 @@ namespace CNA::Editor
         result.control = io.KeyCtrl;
         result.shift = io.KeyShift;
 
+        // Which button is panning, for the 3D viewport, whose gesture turns on the answer.
+        result.rightDown = ImGui::IsMouseDown(ImGuiMouseButton_Right);
+
         // Middle or right drag pans. Left is left alone for selection and, later, the gizmo.
         for (const ImGuiMouseButton button : {ImGuiMouseButton_Middle, ImGuiMouseButton_Right})
         {
@@ -1031,6 +1035,18 @@ namespace CNA::Editor
         }
 
         return result;
+    }
+
+    bool ImGuiEditorUi::isKeyDown(UiKey key) const
+    {
+        const ImGuiKey imguiKey = toImGuiKey(key);
+        if (imguiKey == ImGuiKey_None) { return false; }
+
+        // Never while a text field has the keyboard, for the same reason isShortcutPressed() is
+        // not: typing "was" into a rename box must not fly the camera across the level.
+        if (ImGui::GetIO().WantCaptureKeyboard) { return false; }
+
+        return ImGui::IsKeyDown(imguiKey);
     }
 
     bool ImGuiEditorUi::isShortcutPressed(UiKey key, UiKeyModifiers modifiers)

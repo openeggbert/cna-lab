@@ -105,9 +105,12 @@ namespace CNA::Editor
         // stretching would make the grid non-square and, worse, make picking disagree with what
         // is on screen.
         const UiTextureId texture =
-            actions_.getViewport().render(context_.getScene(), width, height, context_.getSelection(),
-                                          actions_.getGizmoMode(), actions_.getGizmoSpace(),
-                                          actions_.getAnimationPreview());
+            actions_.isThreeDimensionalView()
+                ? drawThreeDimensionalView(width, height)
+                : actions_.getViewport().render(context_.getScene(), width, height,
+                                                context_.getSelection(), actions_.getGizmoMode(),
+                                                actions_.getGizmoSpace(),
+                                                actions_.getAnimationPreview());
 
         const UiImageInteraction interaction =
             ui_.image("##viewport", texture, region.width, region.height,
@@ -118,9 +121,32 @@ namespace CNA::Editor
         ui_.endPanel();
     }
 
+    UiTextureId ViewportPanel::drawThreeDimensionalView(int width, int height)
+    {
+        EditorCamera3D& camera = actions_.getViewport().getCamera3D();
+        camera.setViewportSize(EditorVector2{static_cast<float>(width), static_cast<float>(height)});
+
+        // Built here and drawn there: which lines to draw is a decision, and decisions live in the
+        // CNA-free scene module where they are tested (SceneWireframe.hpp). The viewport is handed
+        // finished screen-space segments and does nothing but stroke them.
+        lastWireframe_ = buildSceneWireframe(context_.getScene(), camera, context_.getSelection(),
+                                             actions_.getViewport().makeSizeProvider());
+
+        return actions_.getViewport().renderWireframe(lastWireframe_.segments, width, height);
+    }
+
     void ViewportPanel::handleInteraction(const UiImageInteraction& interaction)
     {
         const EditorVector2 cursor{interaction.localMouseX, interaction.localMouseY};
+
+        // The 3D view shares nothing with the 2D one below: no gizmo, no tile brush, and a camera
+        // with three more degrees of freedom. Branching here rather than threading a mode through
+        // six functions keeps each of them about one thing.
+        if (actions_.isThreeDimensionalView())
+        {
+            handleInteraction3D(interaction, cursor);
+            return;
+        }
 
         // Highest priority first, and each rule below is a real one with a reason.
         if (updateActiveDrag(interaction, cursor)) { return; }
@@ -218,6 +244,75 @@ namespace CNA::Editor
         }
     }
 
+    void ViewportPanel::handleInteraction3D(const UiImageInteraction& interaction,
+                                            const EditorVector2& cursor)
+    {
+        EditorCamera3D& camera = actions_.getViewport().getCamera3D();
+
+        if (interaction.wheel != 0.0f)
+        {
+            // Geometric, like the 2D zoom and for the same reason: one notch has to feel the same
+            // close up and far away. Scrolling up moves the eye towards the pivot, so the factor
+            // is below one.
+            constexpr float kDollyPerNotch = 1.15f;
+            camera.dolly(std::pow(kDollyPerNotch, -interaction.wheel));
+        }
+
+        if (interaction.dragging)
+        {
+            const EditorVector2 delta{interaction.dragDeltaX, interaction.dragDeltaY};
+
+            // Radians per pixel. A full turn across a 900-pixel panel is the rate every 3D editor
+            // has converged on, and it is deliberately independent of the panel's size: a rate
+            // derived from the width would turn faster in a narrow panel than a wide one.
+            constexpr float kRadiansPerPixel = 0.007f;
+
+            if (interaction.shift) { camera.panByScreenDelta(delta); }
+            else if (interaction.rightDown)
+            {
+                // Right-drag turns the camera in place -- the gesture that goes with flying, and
+                // the reason look() exists beside orbit().
+                camera.look(-delta.x * kRadiansPerPixel, delta.y * kRadiansPerPixel);
+            }
+            else { camera.orbit(-delta.x * kRadiansPerPixel, delta.y * kRadiansPerPixel); }
+        }
+
+        // Flying, while the right button is held: the modifier is what keeps W, A, S and D from
+        // meaning two things at once, since they are the gizmo shortcuts everywhere else.
+        if (interaction.rightDown)
+        {
+            // Proportional to the orbit distance, so one press crosses the same fraction of what
+            // is on screen whether the camera is inside a room or above a level.
+            const float step = std::max(0.05f, camera.getDistance() * 0.04f);
+
+            EditorVector3 move;
+            if (ui_.isKeyDown(UiKey::W)) { move.z += step; }
+            if (ui_.isKeyDown(UiKey::S)) { move.z -= step; }
+            if (ui_.isKeyDown(UiKey::D)) { move.x += step; }
+            if (ui_.isKeyDown(UiKey::A)) { move.x -= step; }
+            if (ui_.isKeyDown(UiKey::E)) { move.y += step; }
+            if (ui_.isKeyDown(UiKey::Q)) { move.y -= step; }
+
+            if (move != EditorVector3{}) { camera.moveLocal(move); }
+        }
+
+        if (!interaction.clicked) { return; }
+
+        const Uuid picked = pickEntityAt3D(context_.getScene(), camera, cursor,
+                                           actions_.getViewport().makeSizeProvider());
+
+        // The same two selection rules the 2D viewport has, because they are rules about
+        // selecting rather than about a projection: Ctrl adds and removes, and Ctrl on empty space
+        // leaves a half-assembled selection alone.
+        if (interaction.control)
+        {
+            if (picked.isValid()) { context_.toggleSelection(picked); }
+            return;
+        }
+
+        context_.select(picked);
+    }
+
     void ViewportPanel::updateCamera(const UiImageInteraction& interaction, const EditorVector2& cursor)
     {
         EditorCamera2D& camera = actions_.getViewport().getCamera();
@@ -287,6 +382,27 @@ namespace CNA::Editor
         if (ui_.button(std::string{toString(space)} + "##space"))
         {
             actions_.setGizmoSpace(space == GizmoSpace::World ? GizmoSpace::Local : GizmoSpace::World);
+        }
+
+        // The view the user is in, on the same "a toolbar reports state" rule as the space button
+        // beside it. It comes last of the three because it is the one changed least often.
+        ui_.sameLine();
+        const bool threeDimensional = actions_.isThreeDimensionalView();
+        if (ui_.button(threeDimensional ? "3D##view" : "2D##view"))
+        {
+            actions_.setThreeDimensionalView(!threeDimensional);
+        }
+
+        if (threeDimensional)
+        {
+            // A wireframe that ran out of room looks exactly like a scene missing half its
+            // entities, so the one place it can be seen says so.
+            if (lastWireframe_.truncated)
+            {
+                ui_.sameLine();
+                ui_.text("(too much to draw; showing part of the scene)");
+            }
+            return;
         }
 
         // Only where it means something. A tile index beside the Select tool is a control that

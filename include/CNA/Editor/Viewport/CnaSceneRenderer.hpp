@@ -26,6 +26,7 @@
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
+#include "CNA/Editor/Scene/SceneWireframe.hpp"
 #include "CNA/Editor/Ui/UiDrawData.hpp"
 #include "CNA/Editor/Viewport/EditorViewport.hpp"
 
@@ -127,6 +128,15 @@ namespace CNA::Editor
                                         const EditorCamera2D& camera,
                                         int width,
                                         int height);
+
+        /**
+         * @brief Draws @p segments into the offscreen target, over the same background (ED-400).
+         *
+         * The whole of the 3D viewport's drawing. Everything it shows is a line, and which lines
+         * was decided in `cna-editor-scene` where it can be tested with no GPU -- so this is one
+         * `Begin`, a loop over `drawLine`, and an `End`.
+         */
+        void renderWireframe(const std::vector<WireSegment>& segments, int width, int height);
 
         /**
          * @brief Registers the rendered target with @p uiRenderer and returns its UI texture id.

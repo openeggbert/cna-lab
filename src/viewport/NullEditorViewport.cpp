@@ -67,4 +67,17 @@ namespace CNA::Editor
         // No texture: the panel renders no image, which is the honest result of drawing nothing.
         return kUiTextureNone;
     }
+
+    UiTextureId NullEditorViewport::renderWireframe(const std::vector<WireSegment>& segments, int width,
+                                                    int height)
+    {
+        // Counted rather than ignored: the geometry is the part worth testing, and a headless run
+        // that built a wireframe and dropped it silently could not be told from one that built
+        // nothing at all.
+        wireframeSegments_ = segments.size();
+        width_ = width;
+        height_ = height;
+        ++renderCount_;
+        return kUiTextureNone;
+    }
 }

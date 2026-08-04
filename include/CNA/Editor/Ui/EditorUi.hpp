@@ -104,6 +104,15 @@ namespace CNA::Editor
         /** @brief True while a pan drag is in progress. */
         bool dragging = false;
 
+        /**
+         * @brief True while the right button is held over the image.
+         *
+         * Carried separately from @c dragging, which cannot say *which* button is panning. The 3D
+         * viewport needs to know: right-drag turns the camera in place and middle-drag orbits it,
+         * and those are different gestures with different results (ED-400).
+         */
+        bool rightDown = false;
+
         /** @brief Cursor movement since the previous frame, while dragging. */
         float dragDeltaX = 0.0f;
         float dragDeltaY = 0.0f;
@@ -427,6 +436,20 @@ namespace CNA::Editor
          * becomes unusable the first time someone renames an entity -- W would switch gizmo mode
          * instead of typing a letter, and Delete would remove the entity being renamed.
          */
+        /**
+         * @brief Returns true while @p key is held, ignoring modifiers.
+         *
+         * Distinct from isShortcutPressed(), which fires once on the press. Flying a camera needs
+         * the held state -- a fly control driven by press events moves in single steps -- and
+         * nothing else in the editor does, which is why this arrived with ED-400 rather than
+         * with the shortcut system.
+         */
+        [[nodiscard]] virtual bool isKeyDown(UiKey key) const
+        {
+            (void)key;
+            return false;
+        }
+
         [[nodiscard]] virtual bool isShortcutPressed(UiKey key, UiKeyModifiers modifiers = {})
         {
             (void)key;

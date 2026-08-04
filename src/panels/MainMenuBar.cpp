@@ -60,6 +60,15 @@ namespace CNA::Editor
 
             ui_.separator();
 
+            // Same rule as the space item below: named for what pressing it does, because a menu
+            // has no checkmark here to carry the state. The toolbar is where the state is shown.
+            if (ui_.menuItem(actions_.isThreeDimensionalView() ? "2D View" : "3D View"))
+            {
+                actions_.setThreeDimensionalView(!actions_.isThreeDimensionalView());
+            }
+
+            ui_.separator();
+
             if (ui_.menuItem("Translate Gizmo", "W")) { actions_.setGizmoMode(GizmoMode::Translate); }
             if (ui_.menuItem("Rotate Gizmo", "E")) { actions_.setGizmoMode(GizmoMode::Rotate); }
             if (ui_.menuItem("Scale Gizmo", "R")) { actions_.setGizmoMode(GizmoMode::Scale); }

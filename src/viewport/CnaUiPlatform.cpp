@@ -75,6 +75,7 @@ namespace CNA::Editor
                 {UiKey::N, XnaInput::Keys::N},
                 {UiKey::S, XnaInput::Keys::S},
                 {UiKey::W, XnaInput::Keys::W},
+                {UiKey::Q, XnaInput::Keys::Q},
                 {UiKey::E, XnaInput::Keys::E},
                 {UiKey::R, XnaInput::Keys::R},
                 {UiKey::F1, XnaInput::Keys::F1},

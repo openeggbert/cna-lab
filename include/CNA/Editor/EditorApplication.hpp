@@ -66,6 +66,15 @@ namespace CNA::Editor
         int frameLimit = 0;
 
         /**
+         * @brief Start with the viewport in its 3D camera (plan.md ED-400).
+         *
+         * On the command line because it is the only way to *see* the 3D view from a script: the
+         * screenshot path takes a picture of whatever the editor is showing, and every UI feature
+         * here has been verified by taking one.
+         */
+        bool threeDimensionalView = false;
+
+        /**
          * @brief Write a PNG of the final frame here. Requires a frame limit.
          *
          * A smoke test that only checks the process exited cleanly cannot tell a working editor
@@ -246,6 +255,20 @@ namespace CNA::Editor
         void setGizmoSpace(GizmoSpace space) override;
         [[nodiscard]] GizmoSpace getGizmoSpace() const override { return gizmoSpace_; }
 
+        void setThreeDimensionalView(bool enabled) override;
+
+        /**
+         * @brief Points the 3D camera at the whole scene.
+         *
+         * Called the first time the 3D view is entered, and only then. A default camera shows an
+         * empty grid of any scene laid out away from the origin, and "it is pointing the wrong
+         * way" is not a conclusion a user reaches -- they conclude the view is broken. Doing it on
+         * every toggle instead would throw away an orbit the user still wanted; after the first
+         * time, Frame Selected is how the camera is aimed, as it is in the 2D view.
+         */
+        void frameSceneInThreeDimensions();
+        [[nodiscard]] bool isThreeDimensionalView() const override { return threeDimensionalView_; }
+
         void startPlay() override;
         void stopPlay() override;
         void setPlayPaused(bool paused) override;
@@ -360,6 +383,17 @@ namespace CNA::Editor
 
         GizmoMode gizmoMode_ = GizmoMode::Translate;
         GizmoSpace gizmoSpace_ = GizmoSpace::World;
+
+        /**
+         * @brief Whether the viewport looks through the 3D camera. Never serialised (D-07).
+         *
+         * Off by default: every scene this editor can currently draw is a 2D one, and a 3D
+         * wireframe is the right first sight of a scene with models in it, not of a tilemap.
+         */
+        bool threeDimensionalView_ = false;
+
+        /** @brief Whether the 3D camera has been aimed at the scene yet. See the method above. */
+        bool threeDimensionalCameraPlaced_ = false;
         EditorTool tool_ = EditorTool::Select;
         std::int64_t paintTile_ = 0;
         AnimationPreview animationPreview_;

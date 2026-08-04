@@ -122,6 +122,16 @@ namespace CNA::Editor
         virtual void setGizmoSpace(GizmoSpace space) = 0;
         [[nodiscard]] virtual GizmoSpace getGizmoSpace() const = 0;
 
+        /**
+         * @brief Switches the viewport between the 2D camera and the 3D one (plan.md ED-400).
+         *
+         * Application state rather than the viewport panel's own, for the same reason the gizmo
+         * mode is: the View menu offers it, the toolbar shows it, and a second copy of "which
+         * camera is the user looking through" would be a second thing to keep in step.
+         */
+        virtual void setThreeDimensionalView(bool enabled) = 0;
+        [[nodiscard]] virtual bool isThreeDimensionalView() const = 0;
+
         virtual void startPlay() = 0;
         virtual void stopPlay() = 0;
         virtual void setPlayPaused(bool paused) = 0;

@@ -30,6 +30,7 @@
 #include "CNA/Editor/Core/ImageDiff.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
+#include "CNA/Editor/Scene/SceneWireframe.hpp"
 #include "CNA/Editor/Scene/SpriteAnimation.hpp"
 #include "CNA/Editor/Scene/TransformGizmos.hpp"
 #include "CNA/Editor/Ui/UiDrawData.hpp"
@@ -133,6 +134,33 @@ namespace CNA::Editor
         [[nodiscard]] virtual const EditorCamera2D& getCamera() const = 0;
 
         /**
+         * @brief Returns the 3D editor camera (plan.md ED-400).
+         *
+         * Kept beside the 2D one rather than replacing it, and both are alive at once: a user who
+         * switches to the 3D view, orbits, and switches back must find their 2D framing exactly as
+         * they left it. One camera converted back and forth could not promise that -- the 2D view
+         * has no way to represent a pitch.
+         */
+        [[nodiscard]] virtual EditorCamera3D& getCamera3D() = 0;
+        [[nodiscard]] virtual const EditorCamera3D& getCamera3D() const = 0;
+
+        /**
+         * @brief Draws @p segments into an offscreen target and returns it as a UI texture.
+         *
+         * The whole of the 3D viewport's drawing, because everything it shows is a line and the
+         * decisions about which lines were made in `cna-editor-scene` where they can be tested
+         * (SceneWireframe.hpp). A viewport with no device draws nothing and says so by returning
+         * zero, exactly as render() does.
+         */
+        virtual UiTextureId renderWireframe(const std::vector<WireSegment>& segments, int width, int height)
+        {
+            (void)segments;
+            (void)width;
+            (void)height;
+            return 0;
+        }
+
+        /**
          * @brief Returns true when render()'s texture must be sampled bottom-up.
          *
          * A render target's texture origin is not the same on every graphics API: OpenGL-family
@@ -220,6 +248,12 @@ namespace CNA::Editor
         [[nodiscard]] EditorCamera2D& getCamera() override { return camera_; }
         [[nodiscard]] const EditorCamera2D& getCamera() const override { return camera_; }
 
+        [[nodiscard]] EditorCamera3D& getCamera3D() override { return camera3D_; }
+        [[nodiscard]] const EditorCamera3D& getCamera3D() const override { return camera3D_; }
+
+        UiTextureId renderWireframe(const std::vector<WireSegment>& segments, int width,
+                                    int height) override;
+
         [[nodiscard]] ViewportStats getLastStats() const override { return stats_; }
 
         /** @brief Returns how many times render() has been called. */
@@ -228,10 +262,15 @@ namespace CNA::Editor
         [[nodiscard]] int getWidth() const { return width_; }
         [[nodiscard]] int getHeight() const { return height_; }
 
+        /** @brief Returns how many line segments the last renderWireframe() was given. */
+        [[nodiscard]] std::size_t getLastWireframeSegments() const { return wireframeSegments_; }
+
     private:
         EditorCamera2D camera_;
+        EditorCamera3D camera3D_;
         ViewportStats stats_;
         std::uint64_t renderCount_ = 0;
+        std::size_t wireframeSegments_ = 0;
         int width_ = 0;
         int height_ = 0;
     };

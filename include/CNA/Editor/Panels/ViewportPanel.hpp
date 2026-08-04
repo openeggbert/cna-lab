@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "CNA/Editor/Scene/SceneWireframe.hpp"
 #include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Scene/TransformGizmos.hpp"
 
@@ -36,6 +37,27 @@ namespace CNA::Editor
          * of those is a real rule with a reason, and each is now one line here.
          */
         void handleInteraction(const UiImageInteraction& interaction);
+
+        /**
+         * @brief Draws the scene through the 3D camera, as a wireframe, and returns its texture.
+         *
+         * A separate path rather than a branch inside the 2D one: the two share no drawing at all
+         * -- one composes sprites, the other projects line segments -- and the only thing they have
+         * in common is the panel they land in.
+         */
+        UiTextureId drawThreeDimensionalView(int width, int height);
+
+        /**
+         * @brief Turns one frame of pointer and key input into 3D camera moves and selection.
+         *
+         * The bindings are the ones every 3D editor has settled on, and each avoids a collision
+         * rather than being chosen for its own sake: middle-drag orbits, right-drag turns the
+         * camera in place, Shift with either pans, the wheel dollies, and W/A/S/D with Q and E fly
+         * while the right button is held. The left button is left entirely alone, which is what
+         * keeps click-to-select working and leaves room for a 3D gizmo (ED-401 in three dimensions
+         * is not built yet).
+         */
+        void handleInteraction3D(const UiImageInteraction& interaction, const EditorVector2& cursor);
 
         /**
          * @brief Continues a gizmo drag or a paint stroke already in progress.
@@ -166,5 +188,8 @@ namespace CNA::Editor
 
         /** @brief Where a fill drag began, while one is in progress. */
         std::optional<TileCoordinate> fillStart_;
+
+        /** @brief What the last 3D frame drew, so the toolbar can report a truncated wireframe. */
+        WireframeResult lastWireframe_;
     };
 }

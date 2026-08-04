@@ -94,6 +94,20 @@ namespace CNA::Editor
                     }
                     continue;
                 }
+                if (name == "--view")
+                {
+                    // Only the two the viewport has. A typo here is worth an error rather than a
+                    // silent 2D start, because the flag exists precisely to be checked from a
+                    // script that cannot see the window it asked for.
+                    if (value == "3d" || value == "3D") { options.threeDimensionalView = true; }
+                    else if (value == "2d" || value == "2D") { options.threeDimensionalView = false; }
+                    else
+                    {
+                        options.hasError = true;
+                        options.errorMessage = "--view expects 2d or 3d, got '" + value + "'";
+                    }
+                    continue;
+                }
                 if (name == "--frames")
                 {
                     try { options.frameLimit = std::stoi(value); }
@@ -145,6 +159,7 @@ namespace CNA::Editor
             "  --scene=PATH       Open this .cnascene, overriding the project's startup scene.\n"
             "  --ui=NAME          UI toolkit to use: 'imgui' or 'null'. Default: imgui.\n"
             "  --headless         Run with no window, on the null UI. Implies --ui=null.\n"
+            "  --view=2d|3d       Which viewport camera to start in. Defaults to 2d.\n"
             "  --frames=N         Exit after N frames. Useful for smoke tests.\n"
             "  --screenshot=PATH  Write a PNG of the final frame. Requires --frames.\n"
             "  --autosave=SECONDS Crash-recovery snapshot interval. 0 disables. Default: 30.\n"
@@ -195,11 +210,15 @@ namespace CNA::Editor
     {
         if (!viewport) { return; }
 
-        // Carry the camera across, so installing a real viewport does not throw away wherever the
-        // user had already navigated to.
+        // Carry the cameras across, so installing a real viewport does not throw away wherever the
+        // user had already navigated to. Both of them: the windowed host swaps its viewport in
+        // *after* initialize() has run, so a --view=3d start-up had already aimed the 3D camera at
+        // the scene by then, and dropping it left the user looking at empty grid.
         const EditorCamera2D previousCamera = viewport_ ? viewport_->getCamera() : EditorCamera2D{};
+        const EditorCamera3D previousCamera3D = viewport_ ? viewport_->getCamera3D() : EditorCamera3D{};
         viewport_ = std::move(viewport);
         viewport_->getCamera() = previousCamera;
+        viewport_->getCamera3D() = previousCamera3D;
 
         context_.log(LogSeverity::Info,
                      std::string{"Viewport: "} + viewport_->getBackendName());
@@ -208,6 +227,8 @@ namespace CNA::Editor
     bool EditorApplication::initialize(const EditorOptions& options)
     {
         frameLimit_ = options.frameLimit;
+        threeDimensionalView_ = options.threeDimensionalView;
+
         autosaveInterval_ = options.autosaveSeconds;
         if (!options.recoveryDirectory.empty()) { recovery_ = RecoveryStore{options.recoveryDirectory}; }
 
@@ -236,6 +257,10 @@ namespace CNA::Editor
         }
 
         findRecoverableScene();
+
+        // After the scene is loaded, not beside the flag that requested it: framing an empty
+        // document would point the camera at nothing and then leave it there.
+        if (threeDimensionalView_) { frameSceneInThreeDimensions(); }
 
         comparisonMode_ = options.compareBackends;
         comparisonPanel_.setTolerance(options.comparisonTolerance);
@@ -492,9 +517,16 @@ namespace CNA::Editor
         if (ui_->isShortcutPressed(UiKey::F2)) { beginRename(context_.getPrimarySelection()); }
         if (ui_->isShortcutPressed(UiKey::F)) { frameSelection(); }
 
-        if (ui_->isShortcutPressed(UiKey::W)) { setGizmoMode(GizmoMode::Translate); }
-        if (ui_->isShortcutPressed(UiKey::E)) { setGizmoMode(GizmoMode::Rotate); }
-        if (ui_->isShortcutPressed(UiKey::R)) { setGizmoMode(GizmoMode::Scale); }
+        // Not while the 3D view is on: there W, E and R fly the camera, and a key that both flew
+        // and silently changed which manipulator the 2D view would show on return is the kind of
+        // hidden state change that makes an editor feel haunted. There is no 3D gizmo to switch
+        // yet in any case (ED-401 covers the 2D three).
+        if (!threeDimensionalView_)
+        {
+            if (ui_->isShortcutPressed(UiKey::W)) { setGizmoMode(GizmoMode::Translate); }
+            if (ui_->isShortcutPressed(UiKey::E)) { setGizmoMode(GizmoMode::Rotate); }
+            if (ui_->isShortcutPressed(UiKey::R)) { setGizmoMode(GizmoMode::Scale); }
+        }
 
         // X toggles rather than selecting, which is what every editor with this key does: there
         // are two spaces, and a toggle needs no second binding to get back.
@@ -643,6 +675,23 @@ namespace CNA::Editor
         if (selection.empty()) { return; }
 
         const SpriteSizeProvider sizeProvider = viewport_->makeSizeProvider();
+
+        // Frame Selected has to mean the camera the user is looking through. Framing the 2D one
+        // while the 3D view is on screen would look exactly like a key that does nothing.
+        if (threeDimensionalView_)
+        {
+            std::optional<WorldBounds3D> total3D;
+            for (const Uuid& entityId : selection)
+            {
+                const std::optional<WorldBounds3D> bounds =
+                    computeHierarchyBounds3D(context_.getScene(), entityId, sizeProvider);
+                if (!bounds) { continue; }
+                total3D = total3D ? WorldBounds3D::combine(*total3D, *bounds) : bounds;
+            }
+
+            if (total3D) { viewport_->getCamera3D().frame(*total3D); }
+            return;
+        }
         std::optional<WorldBounds2D> total;
 
         for (const Uuid& entityId : selection)
@@ -683,6 +732,33 @@ namespace CNA::Editor
     const BackendComparison& EditorApplication::getBackendComparison() const
     {
         return comparisonPanel_.getComparison();
+    }
+
+    void EditorApplication::frameSceneInThreeDimensions()
+    {
+        if (viewport_ == nullptr) { return; }
+
+        const std::optional<WorldBounds3D> bounds =
+            computeSceneBounds3D(context_.getScene(), viewport_->makeSizeProvider());
+        if (!bounds) { return; }
+
+        threeDimensionalCameraPlaced_ = true;
+        viewport_->getCamera3D().frame(*bounds);
+    }
+
+    void EditorApplication::setThreeDimensionalView(bool enabled)
+    {
+        if (threeDimensionalView_ == enabled) { return; }
+
+        threeDimensionalView_ = enabled;
+
+        if (enabled && !threeDimensionalCameraPlaced_) { frameSceneInThreeDimensions(); }
+
+        // Said out loud, because the two views share a panel and the change is dramatic enough
+        // that a user who pressed it by accident deserves to be told what they pressed.
+        context_.log(LogSeverity::Info,
+                     enabled ? "Viewport: 3D. Drag to orbit, middle-drag to pan, wheel to zoom."
+                             : "Viewport: 2D.");
     }
 
     void EditorApplication::setGizmoSpace(GizmoSpace space)

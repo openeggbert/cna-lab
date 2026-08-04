@@ -322,6 +322,14 @@ namespace
         /** @brief Buttons to report as clicked, by label. Each entry fires once. */
         std::vector<std::string> pendingClicks;
 
+        /** @brief Keys to report as held, for the 3D viewport's fly controls. */
+        std::vector<UiKey> heldKeys;
+
+        [[nodiscard]] bool isKeyDown(UiKey key) const override
+        {
+            return std::find(heldKeys.begin(), heldKeys.end(), key) != heldKeys.end();
+        }
+
         /** @brief Enum choices to apply, as (field label, option) pairs. Each fires once. */
         std::vector<std::pair<std::string, std::string>> pendingChoices;
 
@@ -3591,4 +3599,164 @@ CNA_EDITOR_TEST(TheBuildPanelExplainsItselfBeforeOfferingToBuild)
     }
     CNA_EDITOR_EXPECT(sawCommand);
     CNA_EDITOR_EXPECT(sawOutput);
+}
+
+namespace
+{
+    /** @brief A hovered frame with a middle or right drag of the given screen delta. */
+    UiImageInteraction dragBy(float dx, float dy, bool rightButton = false)
+    {
+        UiImageInteraction input;
+        input.hovered = true;
+        input.localMouseX = 640.0f;
+        input.localMouseY = 360.0f;
+        input.dragging = true;
+        input.dragDeltaX = dx;
+        input.dragDeltaY = dy;
+        input.rightDown = rightButton;
+        return input;
+    }
+}
+
+CNA_EDITOR_TEST(TheThreeDimensionalViewIsAToggleThatLeavesTheTwoDimensionalCameraAlone)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    CNA_EDITOR_EXPECT(!fixture.application->isThreeDimensionalView());
+
+    // The 2D framing has to survive the round trip. A user who glances at a scene in 3D and comes
+    // back must find their view exactly as they left it, which is why both cameras are alive at
+    // once rather than one being converted into the other.
+    EditorCamera2D& camera2D = fixture.application->getViewport().getCamera();
+    camera2D.setCenter(EditorVector2{321.0f, -654.0f});
+    camera2D.setZoom(3.0f);
+
+    fixture.application->setThreeDimensionalView(true);
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT(fixture.application->isThreeDimensionalView());
+
+    // The wireframe reached the viewport: the ground grid alone is many segments, and a headless
+    // run that built one and dropped it silently would look just like one that built nothing.
+    const auto& viewport = static_cast<NullEditorViewport&>(fixture.application->getViewport());
+    CNA_EDITOR_EXPECT(viewport.getLastWireframeSegments() > 0);
+
+    fixture.application->setThreeDimensionalView(false);
+    fixture.step(UiImageInteraction{});
+
+    CNA_EDITOR_EXPECT_EQ(camera2D.getCenter().x, 321.0f);
+    CNA_EDITOR_EXPECT_EQ(camera2D.getZoom(), 3.0f);
+}
+
+CNA_EDITOR_TEST(ThreeDimensionalNavigationOrbitsFliesAndPans)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    fixture.application->setThreeDimensionalView(true);
+    fixture.step(UiImageInteraction{});
+
+    EditorCamera3D& camera = fixture.application->getViewport().getCamera3D();
+    camera.setPivot(EditorVector3{});
+    camera.setDistance(50.0f);
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+
+    // Middle-drag orbits: the pivot stays, the eye swings round it.
+    fixture.step(dragBy(100.0f, 0.0f));
+    CNA_EDITOR_EXPECT(std::abs(camera.getYaw()) > 0.1f);
+    CNA_EDITOR_EXPECT(std::abs(camera.getDistance() - 50.0f) < 0.001f);
+    CNA_EDITOR_EXPECT(camera.getPivot() == EditorVector3{});
+
+    // Shift with the same drag pans instead, and must not turn the camera at all.
+    const float yawAfterOrbit = camera.getYaw();
+    UiImageInteraction pan = dragBy(0.0f, 60.0f);
+    pan.shift = true;
+    fixture.step(pan);
+    CNA_EDITOR_EXPECT_EQ(camera.getYaw(), yawAfterOrbit);
+    CNA_EDITOR_EXPECT(camera.getPivot() != EditorVector3{});
+
+    // Right-drag turns in place: the eye is what stays put.
+    camera.setPivot(EditorVector3{});
+    const EditorVector3 eyeBefore = camera.getEye();
+    fixture.step(dragBy(80.0f, 0.0f, true));
+    CNA_EDITOR_EXPECT(std::abs(length(subtract(camera.getEye(), eyeBefore))) < 0.01f);
+
+    // W with the right button held flies forward. Without the button it must not, or the gizmo
+    // shortcut and the fly control would fire on the same press.
+    const EditorVector3 pivotBeforeFly = camera.getPivot();
+    fixture.ui->heldKeys = {UiKey::W};
+
+    UiImageInteraction hoverOnly;
+    hoverOnly.hovered = true;
+    fixture.step(hoverOnly);
+    CNA_EDITOR_EXPECT(camera.getPivot() == pivotBeforeFly);
+
+    UiImageInteraction flying;
+    flying.hovered = true;
+    flying.rightDown = true;
+    fixture.step(flying);
+    CNA_EDITOR_EXPECT(length(subtract(camera.getPivot(), pivotBeforeFly)) > 0.1f);
+
+    // The wheel dollies, and scrolling up moves the eye closer.
+    fixture.ui->heldKeys.clear();
+    const float distanceBefore = camera.getDistance();
+    UiImageInteraction wheel;
+    wheel.hovered = true;
+    wheel.wheel = 1.0f;
+    fixture.step(wheel);
+    CNA_EDITOR_EXPECT(camera.getDistance() < distanceBefore);
+}
+
+CNA_EDITOR_TEST(TheGizmoKeysFlyRatherThanSwitchingManipulatorInTheThreeDimensionalView)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    fixture.application->setGizmoMode(GizmoMode::Scale);
+    fixture.application->setThreeDimensionalView(true);
+
+    // Pressing W while flying must not quietly leave the 2D view on a different manipulator than
+    // the user left it on -- a hidden state change is exactly what makes an editor feel haunted.
+    fixture.ui->pressShortcut(UiKey::W);
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.application->getGizmoMode() == GizmoMode::Scale);
+
+    // Back in 2D the key means what it always did.
+    fixture.application->setThreeDimensionalView(false);
+    fixture.ui->pressShortcut(UiKey::W);
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.application->getGizmoMode() == GizmoMode::Translate);
+}
+
+CNA_EDITOR_TEST(FramingAndPickingFollowWhicheverCameraIsOnScreen)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    fixture.application->setThreeDimensionalView(true);
+    fixture.step(UiImageInteraction{});
+
+    EditorCamera3D& camera = fixture.application->getViewport().getCamera3D();
+    camera.setPivot(EditorVector3{9999.0f, 9999.0f, 9999.0f});
+    camera.setDistance(10000.0f);
+
+    // Frame Selected has to move the camera the user is looking through. Framing the 2D one while
+    // the 3D view is on screen would look exactly like a key that does nothing.
+    fixture.application->frameSelection();
+    CNA_EDITOR_EXPECT(length(subtract(camera.getPivot(), EditorVector3{9999.0f, 9999.0f, 9999.0f}))
+                      > 1.0f);
+    CNA_EDITOR_EXPECT(camera.getDistance() < 10000.0f);
+
+    // And a click picks through the 3D projection: after framing, the entity is at the centre of
+    // the panel, so a click there selects it and a click in the corner clears the selection.
+    fixture.application->getContext().select(Uuid{});
+    fixture.step(UiImageInteraction{});
+
+    UiImageInteraction click;
+    click.hovered = true;
+    click.clicked = true;
+    click.localMouseX = 640.0f;
+    click.localMouseY = 360.0f;
+    fixture.step(click);
+    CNA_EDITOR_EXPECT(fixture.application->getContext().getSelection().size() == 1);
+
+    click.localMouseX = 4.0f;
+    click.localMouseY = 4.0f;
+    fixture.step(click);
+    CNA_EDITOR_EXPECT(fixture.application->getContext().getSelection().empty());
 }

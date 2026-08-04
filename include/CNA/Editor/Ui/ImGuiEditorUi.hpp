@@ -102,6 +102,7 @@ namespace CNA::Editor
         void endMenu() override;
         bool menuItem(const std::string& label, const std::string& shortcut = {}, bool enabled = true) override;
 
+        [[nodiscard]] bool isKeyDown(UiKey key) const override;
         [[nodiscard]] bool isShortcutPressed(UiKey key, UiKeyModifiers modifiers = {}) override;
 
         void setNextItemWidth(float width) override;
