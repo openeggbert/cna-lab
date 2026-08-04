@@ -106,6 +106,32 @@ SDL_VIDEODRIVER=dummy ./build-cna/cna-editor \
 | `CNA_EDITOR_BUILD_TESTS` | `ON` | Build the test suite |
 | `CNA_EDITOR_WARNINGS_AS_ERRORS` | `OFF` | `-Werror` / `/WX` |
 | `CNA_EDITOR_CNA_ROOT` | `../cna` | Where to find the CNA checkout |
+| `CNA_EDITOR_PLAYER_BACKENDS` | *(empty)* | Extra backends to build `cna-player` for, e.g. `SOFTWARE;EASYGL`. Each is a full CNA build |
+
+### More than one backend
+
+CNA fixes its graphics backend at compile time, so "run this on Software as well" means "build a
+second `cna-player`". `CNA_EDITOR_PLAYER_BACKENDS` does that: one nested build per backend, each
+producing a `cna-player-<backend>` beside the editor, which is where discovery looks.
+
+```bash
+cmake -S . -B build-cna -DCNA_EDITOR_WITH_CNA=ON \
+    -DCNA_GRAPHICS_BACKEND=EASYGL -DCNA_EDITOR_PLAYER_BACKENDS="SOFTWARE"
+cmake --build build-cna -j
+
+# Play mode now offers both, and the comparison has something to compare.
+./build-cna/cna-editor --compare-backends \
+    --project=examples/HelloSprites/HelloSprites.cnaproject
+# cna-editor: backend comparison against 'easygl'
+#   software
+#       496 of 921600 pixels differ, largest channel difference 64
+# cna-editor: the backends do not agree.   (exit 5)
+```
+
+It is minutes per backend, not seconds — each one compiles CNA again — which is why the list is
+empty by default. `--tolerance=N` sets how large a per-channel difference still counts as the same
+picture; two backends are never bit-identical, so the useful question is always "different enough
+to matter".
 
 ---
 

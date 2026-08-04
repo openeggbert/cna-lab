@@ -32,6 +32,19 @@ option(CNA_EDITOR_WITH_CNA "Build the CNA-backed viewport (requires a ../cna sib
 option(CNA_EDITOR_WITH_IMGUI "Build the Dear ImGui implementation of EditorUi" ON)
 
 option(CNA_EDITOR_BUILD_TESTS "Build the cna-editor test suite" ON)
+
+# Empty by default, and expensive when it is not. Each entry is a *separate build of CNA*, because
+# CNA fixes its graphics backend at compile time (ANALYSIS.md finding F-01): a second backend means
+# a second cna-player binary, which means compiling CNA again. That is minutes, not seconds, which
+# is why nobody gets it without asking.
+#
+# What it buys is the thing F-01 otherwise makes impossible: play mode offering a real choice, and
+# the backend comparison (plan.md ED-510/ED-511) having something to compare. With one player
+# binary installed the comparison can only report that a backend matches itself.
+#
+#   cmake -S . -B build -DCNA_EDITOR_WITH_CNA=ON -DCNA_EDITOR_PLAYER_BACKENDS="SOFTWARE;EASYGL"
+set(CNA_EDITOR_PLAYER_BACKENDS "" CACHE STRING
+    "Extra CNA backends to build cna-player for, e.g. SOFTWARE;EASYGL. Each is a full CNA build.")
 option(CNA_EDITOR_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 set(CNA_EDITOR_CNA_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../cna"
@@ -327,6 +340,63 @@ if(CNA_EDITOR_WITH_CNA)
 endif()
 
 # ---------------------------------------------------------------------------------------------
+# Extra per-backend players
+#
+# One nested build of this same source tree per requested backend, each producing one
+# cna-player-<backend> beside the editor. A nested build rather than more targets in this one,
+# because CNA_GRAPHICS_BACKEND is a *cache* variable of CNA's build: there is exactly one value per
+# build tree, and no arrangement of targets here can change that.
+#
+# Each child is told to build nothing but the player -- no ImGui, no tests, and an empty
+# CNA_EDITOR_PLAYER_BACKENDS so it cannot spawn children of its own.
+# ---------------------------------------------------------------------------------------------
+
+if(CNA_EDITOR_WITH_CNA AND CNA_EDITOR_PLAYER_BACKENDS)
+    include(ExternalProject)
+
+    add_custom_target(cna-player-backends ALL)
+
+    foreach(_cna_editor_extra_backend IN LISTS CNA_EDITOR_PLAYER_BACKENDS)
+        string(TOUPPER "${_cna_editor_extra_backend}" _cna_editor_extra_upper)
+        string(TOLOWER "${_cna_editor_extra_backend}" _cna_editor_extra_lower)
+
+        # This build tree already produces one. Building it twice would be minutes spent to
+        # overwrite a binary with itself.
+        if(_cna_editor_extra_upper STREQUAL "${CNA_GRAPHICS_BACKEND}")
+            message(STATUS "cna-editor: skipping player backend ${_cna_editor_extra_upper}; "
+                           "this build tree already produces it")
+            continue()
+        endif()
+
+        ExternalProject_Add(cna-player-${_cna_editor_extra_lower}
+            SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
+            BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/players/${_cna_editor_extra_lower}"
+            DOWNLOAD_COMMAND ""
+            UPDATE_COMMAND ""
+            CMAKE_ARGS
+                -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+                -DCNA_EDITOR_WITH_CNA=ON
+                -DCNA_EDITOR_CNA_ROOT=${CNA_EDITOR_CNA_ROOT}
+                -DCNA_GRAPHICS_BACKEND=${_cna_editor_extra_upper}
+                -DCNA_EDITOR_WITH_IMGUI=OFF
+                -DCNA_EDITOR_BUILD_TESTS=OFF
+                -DCNA_EDITOR_PLAYER_BACKENDS=
+            BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target cna-player
+            INSTALL_COMMAND ${CMAKE_COMMAND} -E copy
+                <BINARY_DIR>/cna-player-${_cna_editor_extra_lower}
+                $<TARGET_FILE_DIR:cna-editor>
+            BUILD_ALWAYS TRUE
+            USES_TERMINAL_BUILD TRUE)
+
+        # Beside the editor, because that is where discovery looks: the set of backends play mode
+        # offers is the set of player binaries installed next to it.
+        add_dependencies(cna-player-${_cna_editor_extra_lower} cna-editor)
+        add_dependencies(cna-player-backends cna-player-${_cna_editor_extra_lower})
+    endforeach()
+endif()
+
+# ---------------------------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------------------------
 
@@ -339,3 +409,4 @@ message(STATUS "cna-editor ${PROJECT_VERSION}")
 message(STATUS "  CNA viewport : ${CNA_EDITOR_WITH_CNA}")
 message(STATUS "  Dear ImGui   : ${CNA_EDITOR_WITH_IMGUI}")
 message(STATUS "  tests        : ${CNA_EDITOR_BUILD_TESTS}")
+message(STATUS "  extra players: ${CNA_EDITOR_PLAYER_BACKENDS}")
