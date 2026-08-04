@@ -118,4 +118,20 @@ namespace CNA::Editor
                                                const EditorCamera2D& camera,
                                                const EditorVector2& screenPoint,
                                                const SpriteSizeProvider& sizeProvider);
+
+    /**
+     * @brief Returns a world-space grid spacing that keeps lines about @p targetPixels apart.
+     *
+     * Here rather than in the renderer because two things need the same answer: the grid the user
+     * *sees* and the grid a snapped drag lands on. Two implementations of "how far apart are the
+     * lines" would be two chances for a snap to put an entity somewhere no line is drawn.
+     *
+     * A fixed world spacing is unusable -- zoomed out it becomes a solid block, zoomed in it
+     * vanishes. Stepping through 1-2-5 decades is the standard answer and keeps the spacing a round
+     * number, which matters because the user reads coordinates off it.
+     */
+    [[nodiscard]] float chooseGridSpacing(float zoom, float targetPixels);
+
+    /** @brief The screen spacing the editor's grid and its snapping are both built around. */
+    inline constexpr float kGridTargetPixels = 90.0f;
 }

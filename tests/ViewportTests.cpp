@@ -840,6 +840,97 @@ CNA_EDITOR_TEST(ScaleGizmoArmsAreAlwaysLocal)
     CNA_EDITOR_EXPECT(nearlyEqual(layout->xAxis.y, 1.0f));
 }
 
+CNA_EDITOR_TEST(SnappingRoundsTheResultRatherThanTheMovement)
+{
+    CNA_EDITOR_EXPECT(nearlyEqual(snapTo(13.7f, 10.0f), 10.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(snapTo(16.0f, 10.0f), 20.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(snapTo(-13.0f, 10.0f), -10.0f));
+
+    // A step of zero means "do not snap", which is what an unmodified drag passes.
+    CNA_EDITOR_EXPECT(nearlyEqual(snapTo(13.7f, 0.0f), 13.7f));
+
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 3.0f, 7.0f);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    TranslateGizmoDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, camera, id, GizmoHandle::Both,
+                                 camera.worldToScreen(EditorVector2{3.0f, 7.0f})));
+
+    GizmoSnap snap;
+    snap.translate = 10.0f;
+
+    // An entity that started at (3, 7) and was dragged by (9, 6) lands on (10, 10) -- not on
+    // (13, 17), which is where snapping the *movement* would have put it. A grid is a set of
+    // places things sit, not a set of distances they travel.
+    const std::optional<EditorVector3> moved =
+        drag.update(scene, camera, camera.worldToScreen(EditorVector2{12.0f, 13.0f}), snap);
+    CNA_EDITOR_EXPECT(nearlyEqual(moved->x, 10.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(moved->y, 10.0f));
+}
+
+CNA_EDITOR_TEST(ASnappedRotationTurnsByWholeStepsFromWhereItStarted)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 0.0f, 0.0f);
+
+    // Deliberately not on a step: what a snapped rotation must preserve is the *turn*, so an
+    // entity at 7 degrees turned by a snapped quarter lands on 97, not straightened to 90.
+    const float start = 7.0f * 3.14159265f / 180.0f;
+    setZRotation(scene, id, start);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const auto layout = computeRotateGizmoLayout(scene, camera, id);
+
+    RotateGizmoDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, *layout, id, layout->getPointAt(0.0f)));
+
+    GizmoSnap snap;
+    snap.rotate = kDefaultRotationSnap;
+
+    // Swept 20 degrees, which snaps to 15.
+    const float swept = 20.0f * 3.14159265f / 180.0f;
+    CNA_EDITOR_EXPECT(nearlyEqual(drag.getDeltaAngle(*layout, layout->getPointAt(swept), snap),
+                                  kDefaultRotationSnap, 0.001f));
+
+    const std::optional<EditorQuaternion> turned =
+        drag.update(*layout, layout->getPointAt(swept), snap);
+    CNA_EDITOR_EXPECT(nearlyEqual(zRotationOf(*turned), start + kDefaultRotationSnap, 0.001f));
+}
+
+CNA_EDITOR_TEST(ASnappedScaleLandsOnRoundNumbers)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid id = addEntity(scene, registry, "Target", 0.0f, 0.0f);
+
+    EditorCamera2D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+
+    const auto layout = computeScaleGizmoLayout(scene, camera, id);
+
+    ScaleGizmoDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, *layout, id, GizmoHandle::XAxis, layout->getXTip()));
+
+    GizmoSnap snap;
+    snap.scale = kDefaultScaleSnap;
+
+    // 1.93 of the way out, which is 1.9 once snapped -- what a user wants from a snapped scale is
+    // an entity at a round number, not one at an arbitrary number times a round factor.
+    const EditorVector2 cursor{layout->origin.x + (layout->getXTip().x - layout->origin.x) * 1.93f,
+                               layout->origin.y};
+    CNA_EDITOR_EXPECT(nearlyEqual(drag.update(*layout, cursor, snap)->x, 1.9f, 0.0001f));
+
+    // And without the modifier it is exactly where the cursor is.
+    CNA_EDITOR_EXPECT(nearlyEqual(drag.update(*layout, cursor)->x, 1.93f, 0.0001f));
+}
+
 CNA_EDITOR_TEST(EveryGizmoLayoutRefusesAnEntityWithNoTransform)
 {
     SceneDocument scene;

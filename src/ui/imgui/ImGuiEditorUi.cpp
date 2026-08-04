@@ -1010,6 +1010,12 @@ namespace CNA::Editor
 
         if (result.hovered) { result.wheel = io.MouseWheel; }
 
+        // Reported whatever the pointer is doing, including mid-drag: a user who starts a gizmo
+        // drag and *then* presses Ctrl expects it to start snapping, which is what every editor
+        // with a snap modifier does.
+        result.control = io.KeyCtrl;
+        result.shift = io.KeyShift;
+
         // Middle or right drag pans. Left is left alone for selection and, later, the gizmo.
         for (const ImGuiMouseButton button : {ImGuiMouseButton_Middle, ImGuiMouseButton_Right})
         {

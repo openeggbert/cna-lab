@@ -146,6 +146,15 @@ namespace CNA::Editor
                 pickEntityAt(context_.getScene(), actions_.getViewport().getCamera(), cursor,
                              actions_.getViewport().makeSizeProvider());
 
+            // Ctrl adds and removes rather than replacing, which is how a multi-selection is built
+            // anywhere else. Ctrl on empty space does nothing at all: clearing a selection the user
+            // is halfway through assembling is the one outcome they cannot have meant.
+            if (interaction.control)
+            {
+                if (pick.entityId.isValid()) { context_.toggleSelection(pick.entityId); }
+                return;
+            }
+
             // Clicking empty space clears the selection, which is what every editor does and what
             // makes "deselect" reachable without a keyboard.
             context_.select(pick.entityId);
@@ -156,7 +165,7 @@ namespace CNA::Editor
     {
         if (isGizmoDragActive())
         {
-            if (interaction.leftDown) { updateGizmoDrag(cursor); }
+            if (interaction.leftDown) { updateGizmoDrag(cursor, getSnap(interaction)); }
             else { endGizmoDrag(); }
             return true;
         }
@@ -477,14 +486,26 @@ namespace CNA::Editor
         gizmoDragHasEdited_ = true;
     }
 
-    void ViewportPanel::updateGizmoDrag(const EditorVector2& cursor)
+    GizmoSnap ViewportPanel::getSnap(const UiImageInteraction& interaction) const
+    {
+        if (!interaction.control) { return {}; }
+
+        GizmoSnap snap;
+        snap.translate = chooseGridSpacing(actions_.getViewport().getCamera().getZoom(),
+                                           kGridTargetPixels);
+        snap.rotate = kDefaultRotationSnap;
+        snap.scale = kDefaultScaleSnap;
+        return snap;
+    }
+
+    void ViewportPanel::updateGizmoDrag(const EditorVector2& cursor, const GizmoSnap& snap)
     {
         const SceneDocument& scene = context_.getScene();
         const EditorCamera2D& camera = actions_.getViewport().getCamera();
 
         if (translateDrag_.isActive())
         {
-            if (const auto position = translateDrag_.update(scene, camera, cursor))
+            if (const auto position = translateDrag_.update(scene, camera, cursor, snap))
             {
                 commitGizmoEdit(translateDrag_.getEntityId(), "position", PropertyValue{*position});
             }
@@ -500,7 +521,7 @@ namespace CNA::Editor
             const auto layout = computeRotateGizmoLayout(scene, camera, rotateDrag_.getEntityId());
             if (!layout) { return; }
 
-            if (const auto rotation = rotateDrag_.update(*layout, cursor))
+            if (const auto rotation = rotateDrag_.update(*layout, cursor, snap))
             {
                 commitGizmoEdit(rotateDrag_.getEntityId(), "rotation", PropertyValue{*rotation});
             }
@@ -512,7 +533,7 @@ namespace CNA::Editor
             const auto layout = computeScaleGizmoLayout(scene, camera, scaleDrag_.getEntityId());
             if (!layout) { return; }
 
-            if (const auto scale = scaleDrag_.update(*layout, cursor))
+            if (const auto scale = scaleDrag_.update(*layout, cursor, snap))
             {
                 commitGizmoEdit(scaleDrag_.getEntityId(), "scale", PropertyValue{*scale});
             }

@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 328 / 328 (also under Clang Release) |
+| Unit tests | ✅ 333 / 333 (also under Clang Release) |
 | CTest (standalone) | ✅ 8 / 8 |
 | CTest (CNA config) | ✅ 12 / 12 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -89,6 +89,19 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **Gizmo snapping and Ctrl+click selection**, both of which were waiting on the same missing piece:
+  `UiImageInteraction` carried no modifier state. It now carries `control` and `shift`, filled by the
+  ImGui backend from `ImGuiIO` and settable by tests.
+  Holding Ctrl rounds a drag -- translation to the **visible** grid (the same `chooseGridSpacing` the
+  renderer draws with, moved into the scene module so there is one answer to "how far apart are the
+  lines"), rotation to 15 degrees, scale to tenths. A modifier rather than a mode, because "line this
+  up with that, now nudge it" happens seconds apart. The *result* is snapped rather than the movement
+  -- except for rotation, where the *turn* is, since snapping the absolute angle would straighten
+  whatever it touched -- and only on the axes the handle allows. That last one was a real bug the
+  test caught: an X-constrained drag was snapping Y as well, moving the entity along the one axis the
+  user had just excluded, where they were not looking.
+  Ctrl+click on the scene adds and removes from the selection; Ctrl on empty space does nothing,
+  since clearing a half-assembled selection is the one thing that cannot have been meant.
 - **ED-513** per-backend player builds from one configure. `CNA_EDITOR_PLAYER_BACKENDS="SOFTWARE"`
   now builds the second player itself instead of leaving it to a hand-run CMake in a scratch
   directory. A *nested* build per backend, because `CNA_GRAPHICS_BACKEND` is a cache variable of
@@ -353,11 +366,9 @@ Phase 1 closed. Working through the owner's priority order:
   it is off by default because each entry compiles CNA again -- minutes, not seconds. Anyone who
   presses Compare on a default build will be told it needs another build, which is correct and still
   worth knowing before it happens.
-- **No gizmo snapping, and no gizmo on a multi-selection.** Rotate has no 15-degree step and scale
-  has no round-number step, because `UiImageInteraction` carries no modifier state -- adding Shift
-  and Ctrl to it is the prerequisite, and is a change to the UI abstraction rather than to the
-  gizmos. A gizmo is drawn on the *primary* selection only; manipulating a whole multi-selection
-  needs a shared pivot first (part of ED-200's multi-select).
+- **No gizmo on a multi-selection.** A gizmo is drawn on the *primary* selection only, and now that
+  Ctrl+click can build a multi-selection that is more visible than it was. Manipulating the whole
+  set needs a shared pivot first, which is part of ED-200's multi-select rather than of the gizmos.
 - **The inspector's merge boundary is per-property, not per-interaction.** Two separate drags of
   the same slider collapse into one undo entry. The gizmo works around this by opening a new entry
   on the first edit of a drag (`ViewportPanel::updateGizmoDrag`); the inspector does not. ED-311
@@ -405,13 +416,10 @@ API, which is the precondition `plan.md` states for the phase and is not this re
 player, the production 2D tools, and — with ED-510 — the backend comparison mode. What follows is a
 judgement call rather than a queue, and these are the candidates in the order I would take them:
 
-1. **Modifier keys on `UiImageInteraction`.** Shift and Ctrl over the viewport image would give the
-   gizmos snapping and let the picker add to a selection rather than replace it. One field each on
-   the struct, one read in the ImGui backend.
-2. **An interaction boundary on `CommandHistory`.** The gizmos work around its absence by opening a
+1. **An interaction boundary on `CommandHistory`.** The gizmos work around its absence by opening a
    new entry on the first edit of a drag; the inspector cannot, so two separate slider drags still
    collapse into one undo entry. Making the boundary explicit fixes both at once.
-3. **The rest of Phase 3** — ED-400's perspective camera, ED-402's model rendering, ED-404's lights.
+2. **The rest of Phase 3** — ED-400's perspective camera, ED-402's model rendering, ED-404's lights.
    All of them wait on CNA's 3D API, which is the precondition `plan.md` states for the phase and is
    not this repository's to move.
 

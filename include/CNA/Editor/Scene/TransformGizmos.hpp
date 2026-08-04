@@ -69,6 +69,41 @@ namespace CNA::Editor
     const char* toString(GizmoSpace space);
 
     /**
+     * @brief How much a drag rounds by while the snap modifier is held.
+     *
+     * Zero on any field means that manipulator does not snap, which is what an unmodified drag
+     * passes. Snapping is a *modifier* rather than a mode on purpose: the two are wanted a few
+     * seconds apart -- line this up with that, now nudge it -- and a mode would have to be turned
+     * off again every time.
+     */
+    struct GizmoSnap
+    {
+        /** @brief World units a translate lands on. Normally the visible grid spacing. */
+        float translate = 0.0f;
+
+        /** @brief Radians a rotation lands on. */
+        float rotate = 0.0f;
+
+        /** @brief Steps a scale factor lands on, e.g. 0.1 for tenths. */
+        float scale = 0.0f;
+
+        /** @brief Returns true when nothing at all is snapped. */
+        [[nodiscard]] bool isEmpty() const
+        {
+            return translate <= 0.0f && rotate <= 0.0f && scale <= 0.0f;
+        }
+    };
+
+    /** @brief Fifteen degrees, in radians: the rotation step every editor snaps to. */
+    inline constexpr float kDefaultRotationSnap = 3.14159265358979323846f / 12.0f;
+
+    /** @brief Tenths: fine enough to be useful, coarse enough to be a round number. */
+    inline constexpr float kDefaultScaleSnap = 0.1f;
+
+    /** @brief Returns @p value rounded to the nearest multiple of @p step, or unchanged when it is 0. */
+    [[nodiscard]] float snapTo(float value, float step);
+
+    /**
      * @brief The translate gizmo's screen-space layout. All values are pixels.
      *
      * The axis directions are stored rather than assumed, because in local space the arms follow
@@ -263,7 +298,8 @@ namespace CNA::Editor
          */
         [[nodiscard]] std::optional<EditorVector3> update(const SceneDocument& scene,
                                                           const EditorCamera2D& camera,
-                                                          const EditorVector2& screenPoint) const;
+                                                          const EditorVector2& screenPoint,
+                                                          const GizmoSnap& snap = {}) const;
 
         /** @brief Ends the drag. */
         void end() { handle_ = GizmoHandle::None; }
@@ -304,11 +340,13 @@ namespace CNA::Editor
          * fraction of it.
          */
         [[nodiscard]] std::optional<EditorQuaternion> update(const RotateGizmoLayout& layout,
-                                                             const EditorVector2& screenPoint) const;
+                                                             const EditorVector2& screenPoint,
+                                                             const GizmoSnap& snap = {}) const;
 
         /** @brief Returns the turn so far in radians, for showing the user a number. */
         [[nodiscard]] float getDeltaAngle(const RotateGizmoLayout& layout,
-                                          const EditorVector2& screenPoint) const;
+                                          const EditorVector2& screenPoint,
+                                          const GizmoSnap& snap = {}) const;
 
         /** @brief Ends the drag. */
         void end() { active_ = false; }
@@ -349,7 +387,8 @@ namespace CNA::Editor
          * dragging a handle to twice its distance doubles the scale at any zoom.
          */
         [[nodiscard]] std::optional<EditorVector3> update(const ScaleGizmoLayout& layout,
-                                                          const EditorVector2& screenPoint) const;
+                                                          const EditorVector2& screenPoint,
+                                                          const GizmoSnap& snap = {}) const;
 
         /** @brief Ends the drag. */
         void end() { handle_ = GizmoHandle::None; }

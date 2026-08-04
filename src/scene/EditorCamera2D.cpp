@@ -2,6 +2,7 @@
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
@@ -131,5 +132,18 @@ namespace CNA::Editor
         }
 
         return result;
+    }
+
+    float chooseGridSpacing(float zoom, float targetPixels)
+    {
+        if (zoom <= 0.0f) { return 0.0f; }
+
+        const float targetWorld = targetPixels / zoom;
+        const float decade = std::pow(10.0f, std::floor(std::log10(std::max(targetWorld, 1e-6f))));
+        const float normalised = targetWorld / decade;
+
+        if (normalised < 2.0f) { return decade; }
+        if (normalised < 5.0f) { return decade * 2.0f; }
+        return decade * 5.0f;
     }
 }

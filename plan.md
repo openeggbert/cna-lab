@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **328 passing tests across 8 CTest suites** (12 with CNA)
+- 12 modules, three executables, and **333 passing tests across 8 CTest suites** (12 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -317,6 +317,21 @@ recording, because each had a plausible alternative:
 
 The space toggle itself (`X`) is one setting shared by every manipulator rather than one per gizmo:
 it is a way of working, not a property of a tool.
+
+**Snapping** arrived with the modifier keys the UI abstraction was missing. Holding Ctrl over the
+viewport rounds a drag: translation to the *visible* grid — the same `chooseGridSpacing` the renderer
+draws with, so a snapped entity always lands on a line that exists — rotation to 15 degrees, scale to
+tenths. Three details are load-bearing. It is a **modifier, not a mode**, because "line this up with
+that, now nudge it" happens seconds apart. The **result** is snapped rather than the movement, or an
+entity that started at 3.7 would land on 13.7 instead of on 10 — except for rotation, where the
+**turn** is snapped instead, since snapping the absolute angle would silently straighten whatever it
+touched. And only the axes the handle allows: snapping one the drag deliberately constrained out
+moves the entity along an axis the user just said not to touch, invisibly, because they are watching
+the other arm. That last one was a bug the test caught.
+
+The same modifier work gave the picker **Ctrl+click to add or remove**, which is how a multi-selection
+is built everywhere else. Ctrl on empty space does nothing at all: clearing a selection somebody is
+halfway through assembling is the one outcome they cannot have meant.
 
 **ED-411** is where discovery-and-validation (ED-017, done) becomes real loading. Validation was
 built first deliberately: an ABI mismatch that reaches `dlopen` is a crash, not an error message

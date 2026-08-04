@@ -70,7 +70,16 @@ namespace CNA::Editor
         void endGizmoDrag();
 
         /** @brief Applies the in-progress drag to the entity, as one merged command per drag. */
-        void updateGizmoDrag(const EditorVector2& cursor);
+        void updateGizmoDrag(const EditorVector2& cursor, const GizmoSnap& snap);
+
+        /**
+         * @brief Returns what a drag should round to this frame.
+         *
+         * Translation snaps to the *visible* grid rather than to a constant: the lines the user can
+         * see are the ones they are lining things up with, and the two are the same function
+         * (`chooseGridSpacing`) so a snapped entity always lands on a line that is drawn.
+         */
+        [[nodiscard]] GizmoSnap getSnap(const UiImageInteraction& interaction) const;
 
         /**
          * @brief Pushes @p value into the selected entity's transform, merging within one drag.

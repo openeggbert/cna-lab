@@ -1182,6 +1182,90 @@ CNA_EDITOR_TEST(AScaleDragResizesTheSelectedEntity)
     CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 100.0f);
 }
 
+CNA_EDITOR_TEST(HoldingTheSnapModifierRoundsAGizmoDragToTheGrid)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+
+    // The entity is at (100, 220) and the camera is at 1:1, so the grid the renderer draws is 50
+    // world units apart -- and the snap uses that same function, which is the point of sharing it.
+    UiImageInteraction press = leftAt(790.0f, 580.0f, true);
+    press.control = true;
+    fixture.step(press);
+
+    UiImageInteraction drag = leftAt(853.0f, 580.0f, false);
+    drag.control = true;
+    fixture.step(drag);
+
+    // Dragged 63 along X from 100, which lands on 150 rather than on 163.
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 150.0f);
+
+    // Y is untouched: the drag was constrained to the X arm, and snapping an axis the user
+    // constrained out would move the entity somewhere they cannot see it going.
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().y, 220.0f);
+
+    // Without the modifier the next drag lands exactly where the cursor put it. The gizmo has
+    // moved with the entity, so its X arm now starts at screen 790.
+    fixture.step(UiImageInteraction{});
+    fixture.step(leftAt(840.0f, 580.0f, true));
+    fixture.step(leftAt(850.0f, 580.0f, false));
+    CNA_EDITOR_EXPECT_EQ(fixture.getPosition().x, 160.0f);
+}
+
+CNA_EDITOR_TEST(CtrlClickingAddsToTheSelectionAndClickingEmptySpaceWithItDoesNot)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    // A second entity with a sprite, so the picker has something to find. The fixture's own entity
+    // has no bounds at all, which is what makes "clicking empty space" easy to arrange.
+    EditorEntity second{Uuid::generate(), "Prop"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+    transform.setProperty("position", PropertyValue{EditorVector3{-300.0f, -100.0f, 0.0f}});
+    second.addComponent(std::move(transform));
+
+    EditorComponent sprite{BuiltinComponentIds::kSpriteRenderer};
+    sprite.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kSpriteRenderer));
+    sprite.setProperty("sourceRectangle", PropertyValue{EditorRectangle{0, 0, 64, 64}});
+    second.addComponent(std::move(sprite));
+
+    const Uuid secondId = context.getScene().addEntity(std::move(second));
+    fixture.step(UiImageInteraction{});
+
+    // World (-300, -100) is screen (340, 260) at the null UI's 1280x720 with the default camera.
+    UiImageInteraction click;
+    click.hovered = true;
+    click.localMouseX = 340.0f;
+    click.localMouseY = 260.0f;
+    click.clicked = true;
+    click.leftReleased = true;
+    click.control = true;
+    fixture.step(click);
+
+    CNA_EDITOR_EXPECT_EQ(context.getSelection().size(), std::size_t{2});
+    CNA_EDITOR_EXPECT(context.isSelected(fixture.entityId));
+    CNA_EDITOR_EXPECT(context.isSelected(secondId));
+
+    // Ctrl on empty space does nothing: clearing a selection somebody is halfway through
+    // assembling is the one outcome they cannot have meant.
+    UiImageInteraction empty = click;
+    empty.localMouseX = 1000.0f;
+    empty.localMouseY = 100.0f;
+    fixture.step(empty);
+    CNA_EDITOR_EXPECT_EQ(context.getSelection().size(), std::size_t{2});
+
+    // Ctrl again on the same entity removes it, which is what makes the modifier a toggle.
+    fixture.step(click);
+    CNA_EDITOR_EXPECT_EQ(context.getSelection().size(), std::size_t{1});
+
+    // And a plain click still replaces the whole selection.
+    UiImageInteraction plain = click;
+    plain.control = false;
+    fixture.step(plain);
+    CNA_EDITOR_EXPECT_EQ(context.getSelection().size(), std::size_t{1});
+    CNA_EDITOR_EXPECT(context.isSelected(secondId));
+}
+
 CNA_EDITOR_TEST(TheGizmoSpaceShortcutTogglesBothWays)
 {
     GizmoFixture fixture = makeGizmoFixture();

@@ -107,6 +107,17 @@ namespace CNA::Editor
         /** @brief Cursor movement since the previous frame, while dragging. */
         float dragDeltaX = 0.0f;
         float dragDeltaY = 0.0f;
+
+        /**
+         * @brief Modifiers held this frame.
+         *
+         * On the *interaction* rather than read from a keyboard API, because what they mean depends
+         * on what the pointer is doing: Ctrl over a gizmo snaps the drag, Ctrl over the scene adds
+         * to the selection. A panel that had to ask a global "is Ctrl down" would be reading state
+         * that has nothing to do with the press it is handling.
+         */
+        bool control = false;
+        bool shift = false;
     };
 
     /** @brief How the console panel wants its messages shown. */

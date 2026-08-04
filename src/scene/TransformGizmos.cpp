@@ -105,6 +105,12 @@ namespace CNA::Editor
         }
     }
 
+    float snapTo(float value, float step)
+    {
+        if (step <= 0.0f) { return value; }
+        return std::round(value / step) * step;
+    }
+
     const char* toString(GizmoSpace space)
     {
         return space == GizmoSpace::Local ? "Local" : "World";
@@ -272,7 +278,8 @@ namespace CNA::Editor
 
     std::optional<EditorVector3> TranslateGizmoDrag::update(const SceneDocument& scene,
                                                             const EditorCamera2D& camera,
-                                                            const EditorVector2& screenPoint) const
+                                                            const EditorVector2& screenPoint,
+                                                            const GizmoSnap& snap) const
     {
         if (!isActive()) { return std::nullopt; }
 
@@ -291,9 +298,22 @@ namespace CNA::Editor
         }
 
         const EditorVector2 localDelta = worldDeltaToLocal(scene, entityId_, worldDelta);
-        return EditorVector3{startLocalPosition_.x + localDelta.x,
-                             startLocalPosition_.y + localDelta.y,
-                             startLocalPosition_.z};
+        EditorVector3 position{startLocalPosition_.x + localDelta.x,
+                               startLocalPosition_.y + localDelta.y,
+                               startLocalPosition_.z};
+
+        // The *result* is snapped, not the delta. Snapping the movement would land an entity that
+        // started at 3.7 on 13.7 rather than on 10 -- which is not what a grid is for.
+        //
+        // Only the axes the handle allows, though. Snapping one the drag deliberately constrained
+        // out would move the entity along an axis the user just said not to touch -- and it is
+        // *invisible*, because the arm being dragged is the one they are watching.
+        if (snap.translate > 0.0f)
+        {
+            if (handle_ != GizmoHandle::YAxis) { position.x = snapTo(position.x, snap.translate); }
+            if (handle_ != GizmoHandle::XAxis) { position.y = snapTo(position.y, snap.translate); }
+        }
+        return position;
     }
 
     bool RotateGizmoDrag::begin(const SceneDocument& scene,
@@ -324,7 +344,8 @@ namespace CNA::Editor
     }
 
     float RotateGizmoDrag::getDeltaAngle(const RotateGizmoLayout& layout,
-                                         const EditorVector2& screenPoint) const
+                                         const EditorVector2& screenPoint,
+                                         const GizmoSnap& snap) const
     {
         if (!active_) { return 0.0f; }
 
@@ -336,11 +357,16 @@ namespace CNA::Editor
         float delta = now - startPointerAngle_;
         while (delta > kPi) { delta -= 2.0f * kPi; }
         while (delta <= -kPi) { delta += 2.0f * kPi; }
-        return delta;
+
+        // The turn is snapped, not the resulting angle: an entity that was at 7 degrees and is
+        // turned by a snapped 15 lands on 22, which is what "rotate it by a quarter" means. The
+        // alternative -- snapping the absolute angle -- silently straightens whatever it touches.
+        return snapTo(delta, snap.rotate);
     }
 
     std::optional<EditorQuaternion> RotateGizmoDrag::update(const RotateGizmoLayout& layout,
-                                                            const EditorVector2& screenPoint) const
+                                                            const EditorVector2& screenPoint,
+                                                            const GizmoSnap& snap) const
     {
         if (!active_) { return std::nullopt; }
 
@@ -348,7 +374,7 @@ namespace CNA::Editor
         // expressed in the parent's frame, since `rotation` is stored relative to the parent. For a
         // root entity the parent term is identity and this is just the world turn.
         const EditorQuaternion turned =
-            multiply(quaternionFromZRotation(getDeltaAngle(layout, screenPoint)), startWorldRotation_);
+            multiply(quaternionFromZRotation(getDeltaAngle(layout, screenPoint, snap)), startWorldRotation_);
         return multiply(inverseParentRotation_, turned);
     }
 
@@ -390,7 +416,8 @@ namespace CNA::Editor
     }
 
     std::optional<EditorVector3> ScaleGizmoDrag::update(const ScaleGizmoLayout& layout,
-                                                        const EditorVector2& screenPoint) const
+                                                        const EditorVector2& screenPoint,
+                                                        const GizmoSnap& snap) const
     {
         if (!isActive()) { return std::nullopt; }
 
@@ -409,8 +436,17 @@ namespace CNA::Editor
         const float factor = keepScalable(distance / grabDistance_);
 
         EditorVector3 scale = startLocalScale_;
-        if (handle_ != GizmoHandle::YAxis) { scale.x = keepScalable(startLocalScale_.x * factor); }
-        if (handle_ != GizmoHandle::XAxis) { scale.y = keepScalable(startLocalScale_.y * factor); }
+
+        // The resulting scale is snapped, not the factor: what a user wants from a snapped scale
+        // drag is an entity at exactly 2, not one at 1.7 multiplied by a round number.
+        if (handle_ != GizmoHandle::YAxis)
+        {
+            scale.x = keepScalable(snapTo(startLocalScale_.x * factor, snap.scale));
+        }
+        if (handle_ != GizmoHandle::XAxis)
+        {
+            scale.y = keepScalable(snapTo(startLocalScale_.y * factor, snap.scale));
+        }
         return scale;
     }
 }

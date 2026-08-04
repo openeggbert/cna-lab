@@ -75,26 +75,6 @@ namespace CNA::Editor
         /** @brief Drawn where a sprite's texture is missing, so the entity stays visible. */
         const Xna::Color kMissingTexture{200, 60, 140, 255};
 
-        /**
-         * @brief Returns a grid spacing that keeps lines a sensible distance apart on screen.
-         *
-         * A fixed world spacing is unusable: zoomed out it becomes a solid block, zoomed in it
-         * vanishes. Stepping through 1-2-5 decades is the standard answer and keeps the spacing
-         * a round number, which matters because the user reads coordinates off it.
-         */
-        float chooseGridSpacing(float zoom, float targetPixels)
-        {
-            if (zoom <= 0.0f) { return 0.0f; }
-
-            const float targetWorld = targetPixels / zoom;
-            const float decade = std::pow(10.0f, std::floor(std::log10(std::max(targetWorld, 1e-6f))));
-            const float normalised = targetWorld / decade;
-
-            if (normalised < 2.0f) { return decade; }
-            if (normalised < 5.0f) { return decade * 2.0f; }
-            return decade * 5.0f;
-        }
-
         Xna::Color toXnaColor(const EditorColor& color)
         {
             return Xna::Color(static_cast<int>(color.r), static_cast<int>(color.g),
@@ -466,7 +446,7 @@ namespace CNA::Editor
         {
             // Roughly 90 pixels between minor lines: dense enough to judge distance, sparse enough
             // not to become a texture.
-            const float spacing = chooseGridSpacing(camera.getZoom(), 90.0f);
+            const float spacing = chooseGridSpacing(camera.getZoom(), kGridTargetPixels);
             if (spacing <= 0.0f) { return; }
 
             const WorldBounds2D visible = camera.getVisibleBounds();
