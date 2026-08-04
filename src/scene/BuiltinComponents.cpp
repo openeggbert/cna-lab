@@ -218,6 +218,27 @@ namespace CNA::Editor
             return descriptor;
         }
 
+        ComponentDescriptor makeAudioListener()
+        {
+            ComponentDescriptor descriptor;
+            descriptor.typeId = BuiltinComponentIds::kAudioListener;
+            descriptor.displayName = "Audio Listener";
+            descriptor.category = "Audio";
+
+            // Position and orientation come from the entity's Transform rather than being repeated
+            // here: two places to say where the listener is would be two places to disagree, and
+            // the one the scene draws is the transform. Only velocity is its own field, because
+            // nothing else in the editor carries it.
+            descriptor.properties = {
+                makeProperty("velocity", "Velocity", PropertyType::Vector3, PropertyValue{EditorVector3{}},
+                             "For Doppler. The listener's position and orientation come from the "
+                             "entity's Transform."),
+                makeProperty("dopplerScale", "Doppler Scale", PropertyType::Float, PropertyValue{1.0f},
+                             "Multiplies the pitch shift. Zero turns Doppler off entirely."),
+            };
+            return descriptor;
+        }
+
         ComponentDescriptor makeTilemap()
         {
             ComponentDescriptor descriptor;
@@ -365,6 +386,7 @@ namespace CNA::Editor
         registry.registerComponent(makeSpriteRenderer());
         registry.registerComponent(makeCamera());
         registry.registerComponent(makeAudioSource());
+        registry.registerComponent(makeAudioListener());
         registry.registerComponent(makeModelRenderer());
         registry.registerComponent(makeLight());
         registry.registerComponent(makeTags());

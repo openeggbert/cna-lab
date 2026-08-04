@@ -219,6 +219,7 @@ if(CNA_EDITOR_WITH_CNA)
     # UiInputState from CNA's public input API. See docs/SPIKE-IMGUI-CNA.md for the full mapping.
     set(_cna_editor_viewport_sources
         src/viewport/CnaEditorViewport.cpp
+        src/viewport/CnaEditorAudio.cpp
         src/viewport/CnaSceneRenderer.cpp
         src/viewport/CnaUiRenderer.cpp
         src/viewport/CnaUiPlatform.cpp)
@@ -231,7 +232,7 @@ if(CNA_EDITOR_WITH_CNA)
     endif()
 
     add_library(cna-editor-viewport STATIC ${_cna_editor_viewport_sources})
-    target_link_libraries(cna-editor-viewport PUBLIC cna-editor-scene cna-editor-ui PRIVATE CNA)
+    target_link_libraries(cna-editor-viewport PUBLIC cna-editor-scene cna-editor-assets cna-editor-ui PRIVATE CNA)
     target_compile_definitions(cna-editor-viewport PUBLIC CNA_EDITOR_HAS_CNA=1)
 
     if(CNA_EDITOR_WITH_IMGUI)

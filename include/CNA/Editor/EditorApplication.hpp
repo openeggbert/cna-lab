@@ -155,6 +155,15 @@ namespace CNA::Editor
         [[nodiscard]] EditorContext& getContext() { return context_; }
         [[nodiscard]] EditorUi& getUi() { return *ui_; }
         [[nodiscard]] EditorViewport& getViewport() override { return *viewport_; }
+        [[nodiscard]] EditorAudio& getAudio() override { return *audio_; }
+
+        /**
+         * @brief Replaces the audio preview.
+         *
+         * Installed after construction like the viewport, because the CNA-backed one needs an
+         * asset database the application does not have until a project is open.
+         */
+        void setAudio(std::unique_ptr<EditorAudio> audio);
 
         /**
          * @brief Replaces the viewport.
@@ -273,6 +282,7 @@ namespace CNA::Editor
         EditorContext context_;
         std::unique_ptr<EditorUi> ui_;
         std::unique_ptr<EditorViewport> viewport_;
+        std::unique_ptr<EditorAudio> audio_ = std::make_unique<NullEditorAudio>();
 
         MainMenuBar menuBar_;
         HierarchyPanel hierarchyPanel_;

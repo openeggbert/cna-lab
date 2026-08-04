@@ -23,6 +23,7 @@
 #include "CNA/Editor/Scene/PrefabCommands.hpp"
 #include "CNA/Editor/Scene/PrefabDocument.hpp"
 #include "CNA/Editor/Scene/SpriteAnimation.hpp"
+#include "CNA/Editor/Viewport/EditorAudio.hpp"
 #include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Scene/MissingReferences.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
@@ -2970,4 +2971,96 @@ CNA_EDITOR_TEST(TheDiagnosticsPanelReportsWhatThisBuildIsAndCanDo)
     // A headless run has no device to ask, and says so rather than showing an empty list that
     // reads as "not implemented".
     CNA_EDITOR_EXPECT(ui->sawText("No graphics device, so no capabilities to report."));
+}
+
+CNA_EDITOR_TEST(TheInspectorPreviewsAClipWithTheSettingsTheComponentDeclares)
+{
+    RecoveryFixture fixture{"audio", 0.0};
+    EditorContext& context = fixture.context();
+    ScriptedUi* ui = fixture.ui;
+
+    // The null audio is what --headless uses too, so the panel code that offers a preview runs
+    // identically with and without a device.
+    auto audio = std::make_unique<NullEditorAudio>();
+    NullEditorAudio* recorded = audio.get();
+    fixture.application->setAudio(std::move(audio));
+
+    writeFile(fixture.directory / "Assets" / "jump.wav", "not really a wav");
+    CNA_EDITOR_EXPECT(context.getAssets().scan("Assets").succeeded);
+
+    const AssetRecord* clip = context.getAssets().findByPath("Assets/jump.wav");
+    CNA_EDITOR_EXPECT(clip != nullptr);
+    if (clip == nullptr) { return; }
+
+    EditorEntity entity{Uuid::generate(), "Footstep"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+    entity.addComponent(std::move(transform));
+
+    EditorComponent source{BuiltinComponentIds::kAudioSource};
+    source.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kAudioSource));
+    source.setProperty("clip", PropertyValue{PropertyValue::AssetReference{clip->id}});
+    source.setProperty("volume", PropertyValue{0.25f});
+    source.setProperty("pan", PropertyValue{-1.0f});
+    entity.addComponent(std::move(source));
+
+    const Uuid entityId = entity.getId();
+    context.getScene().addEntity(std::move(entity));
+    context.select(entityId);
+
+    fixture.application->renderFrame();
+    ui->pendingClicks.emplace_back("Play##audio");
+    fixture.application->renderFrame();
+
+    CNA_EDITOR_EXPECT_EQ(recorded->getRequests().size(), std::size_t{1});
+    if (recorded->getRequests().empty()) { return; }
+
+    // The component's own settings, not neutral ones. A preview at some other level is a preview
+    // of a different sound, and "why is this quiet in game" is what a preview exists to answer.
+    const NullEditorAudio::Request& request = recorded->getRequests().front();
+    CNA_EDITOR_EXPECT(request.assetId == clip->id);
+    CNA_EDITOR_EXPECT_EQ(request.volume, 0.25f);
+    CNA_EDITOR_EXPECT_EQ(request.pan, -1.0f);
+    CNA_EDITOR_EXPECT(recorded->isPlaying());
+
+    ui->pendingClicks.emplace_back("Stop##audio");
+    fixture.application->renderFrame();
+    CNA_EDITOR_EXPECT(!recorded->isPlaying());
+
+    // Selecting the asset itself offers the same preview, with nothing an entity chose applied:
+    // hearing a clip is most often wanted right after importing it, when no entity uses it yet.
+    context.selectAsset(clip->id);
+    fixture.application->renderFrame();
+    ui->pendingClicks.emplace_back("Play##assetAudio");
+    fixture.application->renderFrame();
+
+    CNA_EDITOR_EXPECT_EQ(recorded->getRequests().size(), std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(recorded->getRequests().back().volume, 1.0f);
+
+    // A clip that will not load is reported, because it and a clip of silence sound identical and
+    // only one of them is the user's problem to fix.
+    CNA_EDITOR_EXPECT(fixture.ui->getLog().size() > 0);
+}
+
+CNA_EDITOR_TEST(AnEntityWithNoClipIsToldRatherThanOfferedADeadButton)
+{
+    RecoveryFixture fixture{"audioempty", 0.0};
+    EditorContext& context = fixture.context();
+
+    EditorEntity entity{Uuid::generate(), "Silent"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+    entity.addComponent(std::move(transform));
+
+    EditorComponent source{BuiltinComponentIds::kAudioSource};
+    source.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kAudioSource));
+    entity.addComponent(std::move(source));
+
+    const Uuid entityId = entity.getId();
+    context.getScene().addEntity(std::move(entity));
+    context.select(entityId);
+
+    fixture.application->renderFrame();
+    CNA_EDITOR_EXPECT(fixture.ui->sawText("Assign a clip to hear it."));
+    CNA_EDITOR_EXPECT(!fixture.ui->sawButton("Play##audio"));
 }

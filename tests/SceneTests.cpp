@@ -1357,3 +1357,32 @@ CNA_EDITOR_TEST(AClipWithoutDurationsSerialisesExactlyAsItDidBefore)
     CNA_EDITOR_EXPECT(!clip.hasFrameDurations());
     CNA_EDITOR_EXPECT_EQ(clip.getFrameDuration(0), clip.getFrameDuration(1));
 }
+
+CNA_EDITOR_TEST(TwoEnabledAudioListenersAreAnError)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    EditorEntity first = makeEntity(registry, "Player", 0.0f, 0.0f);
+    addComponentWithDefaults(first, registry, BuiltinComponentIds::kAudioListener);
+    scene.addEntity(std::move(first));
+
+    // One listener is the ordinary case and says nothing.
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(scene, registry), "duplicate-audio-listener"),
+                         std::size_t{0});
+
+    EditorEntity second = makeEntity(registry, "Camera Rig", 0.0f, 0.0f);
+    addComponentWithDefaults(second, registry, BuiltinComponentIds::kAudioListener);
+    scene.addEntity(std::move(second));
+
+    // XNA mixes 3D audio relative to one listener. Two is not louder or wider -- it is a choice
+    // the runtime makes for the user, exactly as invisible as two primary cameras.
+    const std::vector<SceneIssue> issues = validateScene(scene, registry);
+    CNA_EDITOR_EXPECT_EQ(countRule(issues, "duplicate-audio-listener"), std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(countIssues(issues, SceneIssue::Severity::Error), std::size_t{2});
+
+    // Switching one off resolves it, the same way it resolves a second primary camera.
+    scene.findEntity(scene.getEntities().back().getId())->setEnabled(false);
+    CNA_EDITOR_EXPECT_EQ(countRule(validateScene(scene, registry), "duplicate-audio-listener"),
+                         std::size_t{0});
+}

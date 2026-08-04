@@ -25,6 +25,7 @@ namespace CNA::Editor
         inline constexpr const char* kSpriteRenderer = "CNA.SpriteRenderer";
         inline constexpr const char* kCamera = "CNA.Camera";
         inline constexpr const char* kAudioSource = "CNA.AudioSource";
+        inline constexpr const char* kAudioListener = "CNA.AudioListener";
         inline constexpr const char* kModelRenderer = "CNA.ModelRenderer";
         inline constexpr const char* kLight = "CNA.Light";
         inline constexpr const char* kTags = "CNA.Tags";

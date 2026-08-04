@@ -26,6 +26,7 @@
 #include "CNA/Editor/Scene/SpriteAnimation.hpp"
 #include "CNA/Editor/RuntimeBridge/PlayerProcess.hpp"
 #include "CNA/Editor/Ui/EditorUi.hpp"
+#include "CNA/Editor/Viewport/EditorAudio.hpp"
 #include "CNA/Editor/Viewport/EditorViewport.hpp"
 
 namespace CNA::Editor
@@ -84,6 +85,15 @@ namespace CNA::Editor
          * on drawing into a viewport nobody displays.
          */
         [[nodiscard]] virtual EditorViewport& getViewport() = 0;
+
+        /**
+         * @brief Returns the audio preview.
+         *
+         * Asked for per use rather than held, for the same reason the viewport is: the CNA-backed
+         * one is installed after construction, and a panel holding the old one would play into
+         * nothing.
+         */
+        [[nodiscard]] virtual EditorAudio& getAudio() = 0;
 
         virtual void undo() = 0;
         virtual void redo() = 0;

@@ -59,6 +59,7 @@ namespace CNA::Editor
 
         drawPrefabSection(selectedId);
         drawAnimationPreview(selectedId, frameDelta_);
+        drawAudioPreview(selectedId);
 
         // Removal is deferred past the loop. Executing it here would mutate the very vector being
         // iterated, and invalidate the component reference the loop body is holding.
@@ -391,6 +392,24 @@ namespace CNA::Editor
         ui_.text("Asset: " + record->sourcePath);
         ui_.text("Id: " + record->id.toString());
         ui_.text(std::string{"Type: "} + toString(record->type));
+
+        // Offered on the asset itself as well as on a component that references it. Hearing a clip
+        // is most often wanted right after importing it, when no entity uses it yet.
+        if (record->type == AssetType::SoundEffect || record->type == AssetType::Song)
+        {
+            if (ui_.button("Play##assetAudio"))
+            {
+                // Neutral settings here, unlike the component preview: this is the file as
+                // imported, with nothing an entity chose applied to it.
+                const bool started = actions_.getAudio().play(assetId, 1.0f, 0.0f, 0.0f);
+                context_.log(started ? LogSeverity::Info : LogSeverity::Warning,
+                             started ? "Playing '" + record->sourcePath + "'."
+                                     : "Cannot play '" + record->sourcePath + "'.");
+            }
+            ui_.sameLine();
+            if (ui_.button("Stop##assetAudio")) { actions_.getAudio().stop(); }
+        }
+
         ui_.separator();
 
         const ComponentDescriptor* descriptor = context_.getImporterRegistry().find(record->importerId);
@@ -498,6 +517,49 @@ namespace CNA::Editor
 
         constexpr float kPreviewSize = 128.0f;
         ui_.imageRegion("animation-preview", texture, frame, sheetSize, kPreviewSize, kPreviewSize);
+
+        ui_.separator();
+    }
+
+    void InspectorPanel::drawAudioPreview(const Uuid& entityId)
+    {
+        const EditorEntity* entity = context_.getScene().findEntity(entityId);
+        const EditorComponent* source =
+            entity != nullptr ? entity->findComponent(BuiltinComponentIds::kAudioSource) : nullptr;
+        if (source == nullptr) { return; }
+
+        const ComponentDescriptor* descriptor =
+            context_.getComponentRegistry().find(BuiltinComponentIds::kAudioSource);
+
+        const Uuid clipId = source->getProperty("clip").get<PropertyValue::AssetReference>().id;
+        const AssetRecord* record = context_.getAssets().find(clipId);
+        if (record == nullptr)
+        {
+            ui_.text("Assign a clip to hear it.");
+            ui_.separator();
+            return;
+        }
+
+        if (ui_.button("Play##audio"))
+        {
+            // The component's own settings, not neutral ones: a preview at some other level is a
+            // preview of a different sound, and "why is this quiet in game" is exactly the question
+            // a preview exists to answer.
+            const bool started = actions_.getAudio().play(
+                clipId,
+                source->getPropertyOrDefault("volume", descriptor).get<float>(1.0f),
+                source->getPropertyOrDefault("pitch", descriptor).get<float>(0.0f),
+                source->getPropertyOrDefault("pan", descriptor).get<float>(0.0f));
+
+            // Reported rather than swallowed: a clip that will not load and a clip of silence
+            // sound identical, and only one of them is the user's problem to fix.
+            context_.log(started ? LogSeverity::Info : LogSeverity::Warning,
+                         started ? "Playing '" + record->sourcePath + "'."
+                                 : "Cannot play '" + record->sourcePath + "'.");
+        }
+
+        ui_.sameLine();
+        if (ui_.button("Stop##audio")) { actions_.getAudio().stop(); }
 
         ui_.separator();
     }

@@ -61,6 +61,14 @@ namespace CNA::Editor
         void drawAnimationPreview(const Uuid& entityId, double deltaSeconds);
 
         /**
+         * @brief Draws Play and Stop for an entity carrying `CNA.AudioSource`.
+         *
+         * Uses the component's own volume, pitch and pan, so what the editor plays is what the
+         * game will play -- a preview at some other level is a preview of a different sound.
+         */
+        void drawAudioPreview(const Uuid& entityId);
+
+        /**
          * @brief Draws the prefab block for an entity that is part of an instance.
          *
          * Shows what the instance has changed, and offers the two answers to that: Revert puts the

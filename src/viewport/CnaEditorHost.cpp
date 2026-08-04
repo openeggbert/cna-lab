@@ -17,6 +17,7 @@
 
 #include "CNA/Editor/Ui/ImGuiEditorUi.hpp"
 #include "CNA/Editor/Viewport/CnaSceneRenderer.hpp"
+#include "CNA/Editor/Viewport/EditorAudio.hpp"
 #include "CNA/Editor/Viewport/CnaUiPlatform.hpp"
 #include "CNA/Editor/Viewport/CnaUiRenderer.hpp"
 
@@ -165,6 +166,12 @@ namespace CNA::Editor
                                     impl_->application->getContext().getAssets(),
                                     impl_->application->getContext().getComponentRegistry(),
                                     *impl_->renderer));
+
+        // Installed here for the same reason the viewport is: it needs the asset database, which
+        // only exists once a project is open.
+        impl_->application->setAudio(
+            createCnaEditorAudio(impl_->application->getContext().getAssets()));
+
         impl_->contentLoaded = true;
 
         impl_->application->getContext().log(

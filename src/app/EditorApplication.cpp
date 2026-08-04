@@ -355,6 +355,14 @@ namespace CNA::Editor
         autosaveFailureReported_ = false;
     }
 
+    void EditorApplication::setAudio(std::unique_ptr<EditorAudio> audio)
+    {
+        if (!audio) { return; }
+
+        audio_ = std::move(audio);
+        context_.log(LogSeverity::Info, std::string{"Audio: "} + audio_->getBackendName());
+    }
+
     void EditorApplication::setPlayerBuilds(std::vector<PlayerBuild> builds)
     {
         playerBuilds_ = std::move(builds);

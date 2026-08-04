@@ -15,12 +15,12 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 287 / 287 (also under Clang Release) |
+| Unit tests | ✅ 290 / 290 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
-| **Phase 2** | 🔄 8 of 12 done (ED-300, 301, 303, 305, 306, 307, 309, 310); ED-302 and ED-311 half; ED-304 and ED-308 open |
+| **Phase 2** | 🔄 9 of 12 done (ED-300, 301, 303, 304, 305, 306, 307, 309, 310); ED-302 and ED-311 half; ED-308 open |
 | Owner priorities 1 and 2 | ✅ closed (robustness and data safety; live editing into the player) |
 
 ---
@@ -87,6 +87,16 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-304** audio. The preview plays through CNA's *public* `SoundEffect(path)` constructor, so
+  unlike the sprite-font preview there was nothing forbidden in the way -- worth checking before
+  assuming a second G-04. `EditorAudio` sits beside `EditorViewport` in the one CNA-linking module.
+  The component preview uses the component's own volume, pitch and pan; the asset preview uses
+  neutral ones, because that is the file as imported rather than as some entity plays it.
+  `CNA.AudioListener` takes its position from the Transform rather than repeating it, and a second
+  enabled listener is an error for the same reason a second primary camera is.
+  **Known limitation:** `stop()` only changes the editor's belief. CNA's fire-and-forget `Play()`
+  hands back no handle; tracking a `SoundEffectInstance` is the shape to reach for when someone
+  asks to actually cut a clip short.
 - **ED-309** backend diagnostics. Capabilities are asked of the *device* rather than derived from
   the backend's name -- several vary by driver within one backend. EASYGL correctly reports no
   wireframe fill mode (OpenGL ES has no `glPolygonMode`), which a name-keyed table would have got
@@ -287,17 +297,20 @@ Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are
 
 Phase 2's remaining work is now mostly *finishing* rather than starting. In rough order of value:
 
-1. **ED-304** audio source editing with preview playback. The component and its importer settings
-   exist; what does not is any way to hear a clip. Playing one needs CNA's `SoundEffect`, which is
-   the CNA-linking module's business, so the shape is the same one the animation preview took: the
-   panel asks, the viewport module does it. Check first whether `SoundEffect` can be built from a
-   `.wav` through CNA's *public* API — if it needs the content pipeline, this is gap G-04 again for
-   audio, and the honest deliverable is the settings without the preview.
-2. **ED-308** the build and publish dialog, which drives CNA's own CMake targets. The largest
-   remaining Phase 2 item and the one most likely to need decisions: where a build goes, whether the
-   editor shells out to `cmake` or writes a script, and what it does when the toolchain is missing.
-3. **ED-311's `NestedStructure`** if anything ever needs it, and **ED-302's glyph preview** if CNA
+1. **ED-308** the build and publish dialog, the last open Phase 2 item and the one most likely to
+   need decisions rather than typing. Three to settle before writing code:
+   - **Shell out to `cmake`, or write a script the user runs?** Shelling out gives the editor the
+     output to show and the exit code to report; writing a script is honest about the fact that a
+     real build has options the editor does not model. `PlayerProcess` already spawns and pumps a
+     child process, so the machinery for the first exists.
+   - **Where a build goes.** A directory beside the project is the obvious answer and the one that
+     needs a `.gitignore` entry the editor cannot add for the user.
+   - **What happens when the toolchain is missing.** This is the common case for anyone who
+     installed the editor and not a compiler, and "nothing happened" is the worst answer.
+2. **ED-311's `NestedStructure`** if anything ever needs it, and **ED-302's glyph preview** if CNA
    closes G-04. Both are blocked on something real rather than on effort here.
+3. **Audio `stop()` cannot actually stop a clip** (see ED-304 above). Small, and worth doing the
+   moment anyone previews something long enough to want it cut short.
 
 Nothing above changes a file format. Every format is at version 1 and ED-902's chains are empty on
 purpose; a new component type is something the descriptor system handles without a bump.

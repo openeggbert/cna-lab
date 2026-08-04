@@ -108,6 +108,35 @@ namespace CNA::Editor
             }
         }
 
+        /**
+          * @brief Reports a scene with more than one enabled audio listener.
+          *
+          * XNA mixes 3D audio relative to one listener. Two is not louder or wider -- it is a
+          * choice the runtime makes for the user, the same failure as two primary cameras, and
+          * exactly as invisible until something sounds wrong from the wrong direction.
+          */
+        void checkListeners(const SceneDocument& scene, std::vector<SceneIssue>& issues)
+        {
+            std::vector<const EditorEntity*> listeners;
+            for (const EditorEntity& entity : scene.getEntities())
+            {
+                if (entity.findComponent(BuiltinComponentIds::kAudioListener) == nullptr) { continue; }
+                if (!isEffectivelyEnabled(scene, entity)) { continue; }
+                listeners.push_back(&entity);
+            }
+
+            if (listeners.size() < 2) { return; }
+
+            for (const EditorEntity* entity : listeners)
+            {
+                issues.push_back(makeIssue(
+                    SceneIssue::Severity::Error, "duplicate-audio-listener", *entity,
+                    BuiltinComponentIds::kAudioListener,
+                    "One of " + std::to_string(listeners.size()) +
+                        " enabled audio listeners. Which one the mix is relative to is arbitrary."));
+            }
+        }
+
         void checkCameraPlanes(const EditorEntity& entity,
                                const EditorComponent& camera,
                                const ComponentDescriptor* descriptor,
@@ -304,6 +333,7 @@ namespace CNA::Editor
         std::vector<SceneIssue> issues;
 
         checkCameras(scene, registry, issues);
+        checkListeners(scene, issues);
 
         // Derived once rather than per entity: getChildren() is a scan, and asking it for every
         // entity would turn the report into O(n^2) on exactly the large scenes that need it most.
