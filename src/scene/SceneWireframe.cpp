@@ -4,9 +4,13 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <unordered_set>
 
+#include "CNA/Editor/Core/EditorMatrix.hpp"
+#include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
+#include "CNA/Editor/Scene/SceneTransform.hpp"
 
 namespace CNA::Editor
 {
@@ -49,6 +53,109 @@ namespace CNA::Editor
             }
             return drawn;
         }
+
+        /**
+         * @brief Returns the mesh a @p entity's `ModelRenderer` names, or nullptr.
+         *
+         * Every step is a real "no": no component, no asset reference, no provider, nothing
+         * imported yet. All of them mean the same thing to the caller -- draw the badge instead --
+         * so they are one return value rather than four.
+         */
+        const MeshData* findEntityMesh(const EditorEntity& entity, const MeshProvider& provider)
+        {
+            if (!provider) { return nullptr; }
+
+            const EditorComponent* renderer = entity.findComponent(BuiltinComponentIds::kModelRenderer);
+            if (renderer == nullptr) { return nullptr; }
+
+            const Uuid modelId =
+                renderer->getProperty("model").get<PropertyValue::AssetReference>().id;
+            if (!modelId.isValid()) { return nullptr; }
+
+            return provider(modelId);
+        }
+
+        /** @brief Composes @p transform into the matrix that takes model space to world space. */
+        EditorMatrix toWorldMatrix(const WorldTransform& transform)
+        {
+            // Scale, then rotate, then translate -- the order every transform in this editor
+            // composes in, and the one `computeWorldTransform` itself assumes when it accumulates
+            // a hierarchy. Any other order here would place a rotated child somewhere the gizmo
+            // that moved it does not agree with.
+            return multiply(multiply(createScale(transform.scale),
+                                     createFromQuaternion(transform.rotation)),
+                            createTranslation(transform.position));
+        }
+    }
+
+    std::size_t appendMeshEdges(std::vector<WireSegment>& segments, const EditorCamera3D& camera,
+                                const MeshData& mesh, const EditorMatrix& world,
+                                const EditorColor& color, float thickness, std::size_t budget,
+                                bool& outTruncated)
+    {
+        if (budget == 0)
+        {
+            outTruncated = true;
+            return 0;
+        }
+
+        // Three edges per triangle before deduplication. A closed mesh shares almost every edge
+        // between two faces, so the real count is nearer half that -- but sizing the stride off
+        // the optimistic figure would blow the budget on exactly the open, shell-like models that
+        // share fewest edges.
+        const std::size_t triangles = mesh.getTriangleCount();
+        const std::size_t stride = triangles * 3 > budget ? (triangles * 3 + budget - 1) / budget : 1;
+        if (stride > 1) { outTruncated = true; }
+
+        std::size_t drawn = 0;
+        for (const MeshPart& part : mesh.parts)
+        {
+            // Per part rather than per mesh: indices are part-local, so a key built from them is
+            // only unique within one. Clearing per part costs nothing and is what makes the key
+            // correct.
+            std::unordered_set<std::uint64_t> seen;
+
+            for (std::size_t triangle = 0; triangle + 2 < part.indices.size(); triangle += 3 * stride)
+            {
+                const std::uint32_t corner[3] = {part.indices[triangle], part.indices[triangle + 1],
+                                                 part.indices[triangle + 2]};
+                if (corner[0] >= part.vertices.size() || corner[1] >= part.vertices.size()
+                    || corner[2] >= part.vertices.size())
+                {
+                    continue;
+                }
+
+                for (int edge = 0; edge < 3; ++edge)
+                {
+                    const std::uint32_t from = corner[edge];
+                    const std::uint32_t to = corner[(edge + 1) % 3];
+
+                    // Ordered low-to-high, so that the same edge reached from either of the two
+                    // triangles that share it produces the same key.
+                    const std::uint64_t key = (static_cast<std::uint64_t>(std::min(from, to)) << 32)
+                                              | static_cast<std::uint64_t>(std::max(from, to));
+                    if (!seen.insert(key).second) { continue; }
+
+                    if (drawn >= budget)
+                    {
+                        outTruncated = true;
+                        return drawn;
+                    }
+
+                    const std::optional<std::pair<EditorVector2, EditorVector2>> projected =
+                        projectSegment(camera,
+                                       transformPosition(world, part.vertices[from].position),
+                                       transformPosition(world, part.vertices[to].position));
+                    if (!projected) { continue; }
+
+                    segments.push_back(
+                        WireSegment{projected->first, projected->second, color, thickness});
+                    ++drawn;
+                }
+            }
+        }
+
+        return drawn;
     }
 
     std::optional<std::pair<EditorVector2, EditorVector2>> projectSegment(const EditorCamera3D& camera,
@@ -267,9 +374,32 @@ namespace CNA::Editor
                 std::find(selection.begin(), selection.end(), entity.getId()) != selection.end();
             const EditorColor color = selected ? WireColors::kSelected : WireColors::kEntity;
 
+            // A model that has actually been imported is drawn as itself. This is the first thing
+            // in the 3D view that is neither a box nor a badge, and the whole point of ED-405
+            // coming before ED-402: until there was a mesh to draw, every entity here was a
+            // rectangle with a label on it.
+            if (const MeshData* mesh = findEntityMesh(entity, options.meshProvider);
+                mesh != nullptr && !mesh->isEmpty())
+            {
+                const std::optional<WorldTransform> world =
+                    computeWorldTransform(scene, entity.getId());
+                if (world)
+                {
+                    const std::size_t budget = options.maxSegments > result.segments.size()
+                                                   ? options.maxSegments - result.segments.size()
+                                                   : 0;
+                    const std::size_t drawn =
+                        appendMeshEdges(result.segments, camera, *mesh, toWorldMatrix(*world), color,
+                                        selected ? 2.0f : 1.0f, budget, result.truncated);
+                    if (drawn > 0) { ++result.entitiesDrawn; }
+                    continue;
+                }
+            }
+
             // An entity that draws nothing gets a badge rather than a box: a camera and a light
             // both have the same non-existent size, so boxing them says only "something is here",
-            // which is the one thing a scene of them makes obvious anyway.
+            // which is the one thing a scene of them makes obvious anyway. A model renderer with
+            // no mesh loaded lands here too, which is the honest picture of it.
             const EditorIconKind icon = getEditorIconKind(entity);
             if (icon != EditorIconKind::None)
             {

@@ -21,6 +21,7 @@
 
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
+#include "CNA/Editor/Assets/MeshCache.hpp"
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
 #include "CNA/Editor/Core/EditorCommand.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
@@ -66,6 +67,24 @@ namespace CNA::Editor
 
         [[nodiscard]] AssetDatabase& getAssets() { return assets_; }
         [[nodiscard]] const AssetDatabase& getAssets() const { return assets_; }
+
+        /**
+         * @brief Returns the imported-model cache (plan.md ED-405).
+         *
+         * Here rather than in the viewport, beside the sprite sizes it resembles, for one reason:
+         * a `MeshData` needs no CNA. Keeping it in the context means the *standalone* build draws
+         * real models -- `--headless --view=3d` and the CI wireframe tests included -- and that
+         * when ED-402 arrives it uploads what this already holds instead of reading every file a
+         * second way.
+         */
+        [[nodiscard]] MeshCache& getMeshes() { return meshes_; }
+        [[nodiscard]] const MeshCache& getMeshes() const { return meshes_; }
+
+        /** @brief Returns a mesh provider bound to this context's cache and asset database. */
+        [[nodiscard]] MeshProvider makeMeshProvider()
+        {
+            return meshes_.makeProvider(assets_);
+        }
 
         [[nodiscard]] CommandHistory& getHistory() { return history_; }
         [[nodiscard]] const CommandHistory& getHistory() const { return history_; }
@@ -164,6 +183,7 @@ namespace CNA::Editor
         ComponentRegistry components_;
         ComponentRegistry importers_;
         AssetDatabase assets_;
+        MeshCache meshes_;
         CommandHistory history_;
         std::vector<Uuid> selection_;
         Uuid selectedAsset_;

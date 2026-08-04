@@ -135,6 +135,10 @@ namespace CNA::Editor
         // finished screen-space segments and does nothing but stroke them.
         WireframeOptions options;
         options.gridPlane = actions_.getGridPlane();
+        // What turns a `ModelRenderer` from a badge into its own geometry (plan.md ED-405). The
+        // cache is in the context rather than the viewport because a mesh needs no CNA, which is
+        // what lets the standalone build draw one at all.
+        options.meshProvider = context_.makeMeshProvider();
 
         lastWireframe_ = buildSceneWireframe(context_.getScene(), camera, context_.getSelection(),
                                              actions_.getViewport().makeSizeProvider(), options);

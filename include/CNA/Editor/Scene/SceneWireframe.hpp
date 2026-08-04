@@ -19,15 +19,21 @@
  */
 
 #include <cstddef>
+#include <functional>
 #include <optional>
 #include <vector>
 
+#include "CNA/Editor/Core/MeshData.hpp"
 #include "CNA/Editor/Scene/EditorCamera3D.hpp"
 #include "CNA/Editor/Scene/EditorIcons.hpp"
 
 namespace CNA::Editor
 {
     class SceneDocument;
+
+    // `MeshProvider` comes from MeshData.hpp: it is the seam's own callback, and this module is one
+    // of its consumers rather than its owner. The same relationship `SpriteSizeProvider` has with
+    // the scene -- this module knows what a scene says, not what is on disk, and asks.
 
     /** @brief One line to draw, in viewport pixels. */
     struct WireSegment
@@ -125,6 +131,17 @@ namespace CNA::Editor
          * looks exactly like a scene with half its entities missing.
          */
         std::size_t maxSegments = 20000;
+
+        /**
+         * @brief Where a `ModelRenderer`'s geometry comes from, or empty to draw boxes as before.
+         *
+         * In the options rather than beside `sizeProvider` in the parameter list, which is where
+         * its symmetry with that callback would put it. The reason is narrow and worth stating:
+         * this field is additive and a parameter would not be, so every existing caller -- and
+         * every test that pins the box-drawing behaviour -- keeps compiling and keeps meaning what
+         * it meant. Empty is the pre-ED-405 behaviour exactly.
+         */
+        MeshProvider meshProvider;
     };
 
     /** @brief The segments to draw, and what had to be left out to produce them. */
@@ -178,6 +195,25 @@ namespace CNA::Editor
     [[nodiscard]] std::vector<WireSegment> buildIconBadge(EditorIconKind kind,
                                                           const EditorVector2& screenPoint,
                                                           const EditorColor& color);
+
+    /**
+     * @brief Appends @p mesh's triangle edges, placed by @p world, to @p segments.
+     *
+     * Each edge once rather than once per triangle that owns it: an interior edge is shared by two
+     * faces, so drawing them naively doubles both the work and the apparent line weight, and a
+     * dense model comes out looking like a solid blob.
+     *
+     * @param budget The most segments this call may add. When the mesh needs more, triangles are
+     *        sampled at a stride so that what appears is the whole shape drawn sparsely rather
+     *        than one corner of it drawn completely -- a wireframe that stopped at the budget would
+     *        show a model with a bite taken out of it, which reads as broken geometry rather than
+     *        as a full view. `outTruncated` is set when that happens.
+     * @return The number of segments appended.
+     */
+    std::size_t appendMeshEdges(std::vector<WireSegment>& segments, const EditorCamera3D& camera,
+                                const MeshData& mesh, const EditorMatrix& world,
+                                const EditorColor& color, float thickness, std::size_t budget,
+                                bool& outTruncated);
 
     /**
      * @brief Returns everything the 3D viewport draws for @p scene.
