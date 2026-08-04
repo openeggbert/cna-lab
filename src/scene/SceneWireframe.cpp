@@ -150,6 +150,16 @@ namespace CNA::Editor
         return segments;
     }
 
+    const char* toString(GridPlane plane)
+    {
+        switch (plane)
+        {
+            case GridPlane::SceneXY: return "Scene Plane";
+            case GridPlane::Ground: return "Ground Plane";
+        }
+        return "Scene Plane";
+    }
+
     std::vector<WireSegment> buildSceneGrid(const EditorCamera3D& camera, const WireframeOptions& options)
     {
         std::vector<WireSegment> segments;
@@ -168,10 +178,18 @@ namespace CNA::Editor
         }
         if (spacing <= 0.0f) { return segments; }
 
+        // The two axes that lie *in* the plane. X is in both, so only the second one differs, and
+        // the loop below never mentions a plane again.
+        const bool ground = options.gridPlane == GridPlane::Ground;
+        const auto pointAt = [ground](float u, float v) {
+            return ground ? EditorVector3{u, 0.0f, v} : EditorVector3{u, v, 0.0f};
+        };
+
         // Centred on the pivot and snapped to the spacing, so flying across a level does not drag
         // the grid's origin along and turn the lines into a shimmering mess.
-        const float centerX = std::round(camera.getPivot().x / spacing) * spacing;
-        const float centerY = std::round(camera.getPivot().y / spacing) * spacing;
+        const float centerU = std::round(camera.getPivot().x / spacing) * spacing;
+        const float centerV =
+            std::round((ground ? camera.getPivot().z : camera.getPivot().y) / spacing) * spacing;
 
         const int extent = options.gridHalfExtent;
         const float half = static_cast<float>(extent) * spacing;
@@ -179,34 +197,39 @@ namespace CNA::Editor
         for (int step = -extent; step <= extent; ++step)
         {
             const float offset = static_cast<float>(step) * spacing;
-            const float x = centerX + offset;
-            const float y = centerY + offset;
+            const float u = centerU + offset;
+            const float v = centerV + offset;
 
             // The world axes win over the grid, and every tenth line over an ordinary one. Without
             // that a user cannot tell where the origin is, which is the one landmark a 3D view has.
-            const bool xIsAxis = std::abs(x) < spacing * 0.5f;
-            const bool yIsAxis = std::abs(y) < spacing * 0.5f;
+            const bool uIsAxis = std::abs(u) < spacing * 0.5f;
+            const bool vIsAxis = std::abs(v) < spacing * 0.5f;
             const bool isMajor = (step % 10) == 0;
 
-            const EditorColor alongY =
-                xIsAxis ? WireColors::kAxisY : (isMajor ? WireColors::kGridMajor : WireColors::kGrid);
-            const EditorColor alongX =
-                yIsAxis ? WireColors::kAxisX : (isMajor ? WireColors::kGridMajor : WireColors::kGrid);
+            // Named for the axis each line *runs along*, which is the axis it is when it passes
+            // through the origin: down the middle of the ground plane that is Z, and of the
+            // scene's own plane, Y.
+            const EditorColor inPlaneAxis = ground ? WireColors::kAxisZ : WireColors::kAxisY;
 
-            const std::optional<std::pair<EditorVector2, EditorVector2>> lineAlongY = projectSegment(
-                camera, EditorVector3{x, centerY - half, 0.0f}, EditorVector3{x, centerY + half, 0.0f});
-            if (lineAlongY)
+            const EditorColor alongV =
+                uIsAxis ? inPlaneAxis : (isMajor ? WireColors::kGridMajor : WireColors::kGrid);
+            const EditorColor alongU =
+                vIsAxis ? WireColors::kAxisX : (isMajor ? WireColors::kGridMajor : WireColors::kGrid);
+
+            const std::optional<std::pair<EditorVector2, EditorVector2>> lineAlongV =
+                projectSegment(camera, pointAt(u, centerV - half), pointAt(u, centerV + half));
+            if (lineAlongV)
             {
-                segments.push_back(WireSegment{lineAlongY->first, lineAlongY->second, alongY,
-                                               xIsAxis ? 2.0f : 1.0f});
+                segments.push_back(WireSegment{lineAlongV->first, lineAlongV->second, alongV,
+                                               uIsAxis ? 2.0f : 1.0f});
             }
 
-            const std::optional<std::pair<EditorVector2, EditorVector2>> lineAlongX = projectSegment(
-                camera, EditorVector3{centerX - half, y, 0.0f}, EditorVector3{centerX + half, y, 0.0f});
-            if (lineAlongX)
+            const std::optional<std::pair<EditorVector2, EditorVector2>> lineAlongU =
+                projectSegment(camera, pointAt(centerU - half, v), pointAt(centerU + half, v));
+            if (lineAlongU)
             {
-                segments.push_back(WireSegment{lineAlongX->first, lineAlongX->second, alongX,
-                                               yIsAxis ? 2.0f : 1.0f});
+                segments.push_back(WireSegment{lineAlongU->first, lineAlongU->second, alongU,
+                                               vIsAxis ? 2.0f : 1.0f});
             }
         }
 

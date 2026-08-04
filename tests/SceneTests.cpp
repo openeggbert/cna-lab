@@ -2223,6 +2223,67 @@ CNA_EDITOR_TEST(TheThreeDimensionalRotateRingsAreGrabbedWhereTheyAreDrawn)
     CNA_EDITOR_EXPECT(!drag.update(scene, camera, zRing.front(), GizmoSnap{}).has_value());
 }
 
+CNA_EDITOR_TEST(TheGridIsDrawnOnWhicheverPlaneTheOptionsName)
+{
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{});
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+    camera.setDistance(500.0f);
+
+    WireframeOptions scenePlane;
+    scenePlane.gridSpacing = 100.0f;
+    scenePlane.gridHalfExtent = 8;
+
+    WireframeOptions ground = scenePlane;
+    ground.gridPlane = GridPlane::Ground;
+
+    const std::vector<WireSegment> sceneLines = buildSceneGrid(camera, scenePlane);
+    const std::vector<WireSegment> groundLines = buildSceneGrid(camera, ground);
+
+    CNA_EDITOR_EXPECT(!sceneLines.empty());
+    CNA_EDITOR_EXPECT(!groundLines.empty());
+
+    const auto verticalSpan = [](const std::vector<WireSegment>& segments) {
+        float lowest = segments.front().from.y;
+        float highest = lowest;
+        for (const WireSegment& segment : segments)
+        {
+            for (const float y : {segment.from.y, segment.to.y})
+            {
+                lowest = std::min(lowest, y);
+                highest = std::max(highest, y);
+            }
+        }
+        return highest - lowest;
+    };
+
+    // A camera with no pitch is *in* the ground plane, so it looks along it edge-on and sees one
+    // line where the scene's own plane fills the view. That is the whole reason the choice exists
+    // rather than a floor being drawn unconditionally.
+    CNA_EDITOR_EXPECT(verticalSpan(sceneLines) > 200.0f);
+    CNA_EDITOR_EXPECT(verticalSpan(groundLines) < 2.0f);
+
+    const auto contains = [](const std::vector<WireSegment>& segments, const EditorColor& color) {
+        for (const WireSegment& segment : segments)
+        {
+            if (segment.color == color) { return true; }
+        }
+        return false;
+    };
+
+    // Each plane names the axis running down the middle of it, so the origin is findable in both.
+    CNA_EDITOR_EXPECT(contains(sceneLines, WireColors::kAxisY));
+    CNA_EDITOR_EXPECT(!contains(sceneLines, WireColors::kAxisZ));
+    CNA_EDITOR_EXPECT(contains(groundLines, WireColors::kAxisZ));
+    CNA_EDITOR_EXPECT(contains(groundLines, WireColors::kAxisX));
+
+    // Tipped over the floor, the two swap roles: the ground grid opens out and the scene's own
+    // plane is the one seen edge-on.
+    camera.setPitch(1.4f);
+    CNA_EDITOR_EXPECT(verticalSpan(buildSceneGrid(camera, ground)) > 200.0f);
+}
+
 CNA_EDITOR_TEST(AThreeDimensionalSelectionTurnsAndGrowsAboutItsSharedPivot)
 {
     ComponentRegistry registry = makeRegistry();

@@ -607,6 +607,22 @@ namespace
             return false;
         }
 
+        /**
+         * @brief Menu-bar labels to report as open, so a test can see what is inside one.
+         *
+         * Opt-in rather than "every menu is always open", because what a menu *offers* is itself
+         * a decision worth asserting on -- an item that appears only in the 3D view has to be
+         * absent in 2D, and a UI that opened everything could not tell the two apart.
+         */
+        std::vector<std::string> openMenus;
+
+        bool beginMenu(const std::string& label) override
+        {
+            return std::find(openMenus.begin(), openMenus.end(), label) != openMenus.end();
+        }
+
+        void endMenu() override {}
+
         /** @brief Context-menu ids to report as open, and menu-item labels to report as clicked. */
         std::vector<std::string> openContextMenus;
         std::vector<std::string> pendingMenuClicks;
@@ -3647,6 +3663,36 @@ CNA_EDITOR_TEST(TheThreeDimensionalViewIsAToggleThatLeavesTheTwoDimensionalCamer
 
     CNA_EDITOR_EXPECT_EQ(camera2D.getCenter().x, 321.0f);
     CNA_EDITOR_EXPECT_EQ(camera2D.getZoom(), 3.0f);
+}
+
+CNA_EDITOR_TEST(TheGridPlaneIsOfferedOnlyWhereItChangesSomething)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    fixture.ui->openMenus.emplace_back("View");
+
+    // The scene's own plane by default: everything this editor can place today lives in XY.
+    CNA_EDITOR_EXPECT(fixture.application->getGridPlane() == GridPlane::SceneXY);
+
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(!fixture.ui->sawMenuItem("Grid on Ground Plane"));
+
+    fixture.application->setThreeDimensionalView(true);
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.ui->sawMenuItem("Grid on Ground Plane"));
+
+    fixture.ui->pendingMenuClicks.emplace_back("Grid on Ground Plane");
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.application->getGridPlane() == GridPlane::Ground);
+
+    // Named for what pressing it does, so once the grid is a floor the item offers the way back.
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(fixture.ui->sawMenuItem("Grid on Scene Plane"));
+
+    // Back in 2D the choice is gone rather than merely ignored: one plane, no decision to make,
+    // and a menu item that changes nothing visible is a bug report waiting to be filed.
+    fixture.application->setThreeDimensionalView(false);
+    fixture.step(UiImageInteraction{});
+    CNA_EDITOR_EXPECT(!fixture.ui->sawMenuItem("Grid on Scene Plane"));
 }
 
 CNA_EDITOR_TEST(ThreeDimensionalNavigationOrbitsFliesAndPans)

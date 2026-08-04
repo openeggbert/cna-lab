@@ -272,6 +272,9 @@ namespace CNA::Editor
         void frameSceneInThreeDimensions();
         [[nodiscard]] bool isThreeDimensionalView() const override { return threeDimensionalView_; }
 
+        void setGridPlane(GridPlane plane) override { gridPlane_ = plane; }
+        [[nodiscard]] GridPlane getGridPlane() const override { return gridPlane_; }
+
         void startPlay() override;
         void stopPlay() override;
         void setPlayPaused(bool paused) override;
@@ -394,6 +397,14 @@ namespace CNA::Editor
          * wireframe is the right first sight of a scene with models in it, not of a tilemap.
          */
         bool threeDimensionalView_ = false;
+
+        /**
+         * @brief Which plane the 3D grid is drawn on. Never serialised (D-07), for the same reason.
+         *
+         * The scene's own plane by default, because that is where everything this editor can place
+         * today lives; a floor is the useful one once ED-402 brings models with height.
+         */
+        GridPlane gridPlane_ = GridPlane::SceneXY;
 
         /**
          * @brief What the player reported it makes of the input last forwarded to it.

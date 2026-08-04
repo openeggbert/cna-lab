@@ -123,13 +123,6 @@ namespace CNA::Editor
         [[nodiscard]] virtual GizmoSpace getGizmoSpace() const = 0;
 
         /**
-         * @brief Switches the viewport between the 2D camera and the 3D one (plan.md ED-400).
-         *
-         * Application state rather than the viewport panel's own, for the same reason the gizmo
-         * mode is: the View menu offers it, the toolbar shows it, and a second copy of "which
-         * camera is the user looking through" would be a second thing to keep in step.
-         */
-        /**
          * @brief Sends the pointer and keyboard to the running player, if one is running.
          *
          * Sent only when something changed, which is decided by the implementation rather than by
@@ -141,8 +134,25 @@ namespace CNA::Editor
         /** @brief Returns what the player last reported it makes of that input. */
         [[nodiscard]] virtual const PlayerInputSnapshot& getPlayerInput() const = 0;
 
+        /**
+         * @brief Switches the viewport between the 2D camera and the 3D one (plan.md ED-400).
+         *
+         * Application state rather than the viewport panel's own, for the same reason the gizmo
+         * mode is: the View menu offers it, the toolbar shows it, and a second copy of "which
+         * camera is the user looking through" would be a second thing to keep in step.
+         */
         virtual void setThreeDimensionalView(bool enabled) = 0;
         [[nodiscard]] virtual bool isThreeDimensionalView() const = 0;
+
+        /**
+         * @brief Chooses which plane the 3D grid is drawn on, and returns it.
+         *
+         * Application state for the same reason, and a *view* setting rather than a document one:
+         * which plane a user wants under a scene is about what they are doing to it this minute,
+         * not about the scene, so nothing here is written to a file.
+         */
+        virtual void setGridPlane(GridPlane plane) = 0;
+        [[nodiscard]] virtual GridPlane getGridPlane() const = 0;
 
         virtual void startPlay() = 0;
         virtual void stopPlay() = 0;

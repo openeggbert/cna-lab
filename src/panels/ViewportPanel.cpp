@@ -133,8 +133,11 @@ namespace CNA::Editor
         // Built here and drawn there: which lines to draw is a decision, and decisions live in the
         // CNA-free scene module where they are tested (SceneWireframe.hpp). The viewport is handed
         // finished screen-space segments and does nothing but stroke them.
+        WireframeOptions options;
+        options.gridPlane = actions_.getGridPlane();
+
         lastWireframe_ = buildSceneWireframe(context_.getScene(), camera, context_.getSelection(),
-                                             actions_.getViewport().makeSizeProvider());
+                                             actions_.getViewport().makeSizeProvider(), options);
 
         // The manipulator on top of the scene, in the same currency, so the 3D viewport draws its
         // gizmo through exactly the path it draws everything else through.

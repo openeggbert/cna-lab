@@ -67,6 +67,18 @@ namespace CNA::Editor
                 actions_.setThreeDimensionalView(!actions_.isThreeDimensionalView());
             }
 
+            // Offered only where it does something. The 2D viewport has one plane and no choice to
+            // make about it, and a menu item that changes nothing visible is a bug report waiting
+            // to be filed.
+            if (actions_.isThreeDimensionalView())
+            {
+                const bool ground = actions_.getGridPlane() == GridPlane::Ground;
+                if (ui_.menuItem(ground ? "Grid on Scene Plane" : "Grid on Ground Plane"))
+                {
+                    actions_.setGridPlane(ground ? GridPlane::SceneXY : GridPlane::Ground);
+                }
+            }
+
             ui_.separator();
 
             if (ui_.menuItem("Translate Gizmo", "W")) { actions_.setGizmoMode(GizmoMode::Translate); }

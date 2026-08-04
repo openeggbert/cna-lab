@@ -53,6 +53,9 @@ namespace CNA::Editor
         /** @brief The world Y axis. Green, matching the gizmo's Y arm. */
         inline constexpr EditorColor kAxisY{92, 170, 92, 255};
 
+        /** @brief The world Z axis. Blue, and drawn only by the ground grid, where Z is in-plane. */
+        inline constexpr EditorColor kAxisZ{84, 116, 196, 255};
+
         /** @brief An entity's bounding box. */
         inline constexpr EditorColor kEntity{130, 138, 150, 255};
 
@@ -60,11 +63,45 @@ namespace CNA::Editor
         inline constexpr EditorColor kSelected{255, 190, 60, 255};
     }
 
+    /**
+     * @brief Which plane the 3D grid is drawn on.
+     *
+     * Not a cosmetic choice: the grid is the only landmark a 3D view has, and it has to lie in the
+     * plane the scene is actually laid out in. Everything this editor can place today lives in XY,
+     * so that is the default; the moment ED-402 puts a model above a floor, a floor is what a user
+     * needs to see it standing on.
+     */
+    enum class GridPlane
+    {
+        /**
+         * @brief The scene's own XY plane at world Z = 0.
+         *
+         * Where sprites, tilemaps and the 2D camera's whole world live. On this plane a 3D camera
+         * at yaw and pitch zero shows exactly what the 2D viewport shows, which is what makes the
+         * two views recognisably the same scene.
+         */
+        SceneXY,
+
+        /**
+         * @brief A floor: the XZ plane at world Y = 0.
+         *
+         * Right for a scene with height in it, and wrong for a flat one -- an unrotated camera
+         * looks along it edge-on and sees a single line where a flat scene's grid would be.
+         */
+        Ground
+    };
+
+    /** @brief Returns the display name of @p plane. */
+    [[nodiscard]] const char* toString(GridPlane plane);
+
     /** @brief What to include in a wireframe. */
     struct WireframeOptions
     {
-        /** @brief Draw the scene-plane grid at world Z = 0. */
+        /** @brief Draw the grid. */
         bool drawGrid = true;
+
+        /** @brief Which plane to draw it on. */
+        GridPlane gridPlane = GridPlane::SceneXY;
 
         /** @brief Draw a box per entity. */
         bool drawEntityBounds = true;
@@ -122,8 +159,9 @@ namespace CNA::Editor
      * edge-on and show nothing. On this plane, a 3D camera at yaw and pitch zero shows exactly what
      * the 2D viewport shows, which is what makes the two views recognisably the same scene.
      *
-     * When ED-402 brings models and scenes stop being flat, a ground plane becomes the useful one
-     * and this is where that choice would live.
+     * `options.gridPlane` chooses: the scene's plane by default, a floor for a scene with height
+     * in it. One function either way, because the two differ by which pair of axes is in the plane
+     * and nothing else -- a second function would be the same loop twice, free to drift.
      */
     [[nodiscard]] std::vector<WireSegment> buildSceneGrid(const EditorCamera3D& camera,
                                                           const WireframeOptions& options = {});
