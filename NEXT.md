@@ -15,13 +15,13 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 370 / 370 (also under Clang Release) |
+| Unit tests | ✅ 380 / 380 (also under Clang Release) |
 | CTest (standalone) | ✅ 8 / 8 |
 | CTest (CNA config) | ✅ 12 / 12 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
-| **Phase 3** | 🔄 2 of 11 — ED-401 and now **ED-400**, the 3D camera and the wireframe view it draws |
+| **Phase 3** | 🔄 3 of 12 — ED-400 (3D camera and wireframe view), ED-401 (2D gizmos), ED-408 (3D translate gizmo, added this session) |
 | **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
 | **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
 
@@ -49,8 +49,10 @@ pull requests against `openeggbert/cna` — the CNA gaps G-01…G-04 stay docume
 
 ## What landed in this session
 
-**ED-400 is done**: the editor has a 3D viewport. Three commits, each validated in both
-configurations before it was pushed.
+**Both of the owner's choices are done, and three more things with them.** Every commit was
+validated in the standalone, CNA and Clang-Release configurations before it was pushed.
+
+**1. ED-400, the 3D viewport.**
 
 - **`EditorMatrix` and `EditorCamera3D`.** The repository had no matrix type and not one vector
   operation before this -- an orthographic view of a plane gets by on scalars. Both mirror XNA's
@@ -84,6 +86,33 @@ convention) and the 2D camera is Y-down (`SpriteBatch`'s). They disagree *in the
 A 2D scene therefore appears in the 3D view with its sprites standing in a vertical plane, mirrored
 about the horizontal. Hiding that behind a negation would make the editor disagree with the runtime
 the first time a model and a sprite shared a scene.
+
+**2. ED-408, a 3D translate gizmo** — added because a view you can select in but not move things in
+is a viewer rather than an editor. `TransformGizmos3D.hpp`, separate from the 2D manipulators
+because almost nothing is shared: those lay out in screen space, this one lays out in the world and
+asks *where along this world line is the cursor pointing*. Arms are sized in pixels and converted at
+the entity's own depth; an arm pointing at the camera is refused rather than answered; a child
+stores a parent-relative position (`worldDeltaToLocal3D`). A whole selection drags as one undo
+entry, through `MultiTranslate3D` beside the single-entity drag, exactly as the 2D viewport does it.
+**Rotate and scale in 3D are not built** — that is ED-409, and the 3D view leaves the left mouse
+button free for them.
+
+**3. Input forwarding into the running player** (the owner's second choice). State, not events,
+because an XNA game polls and because a lost snapshot is corrected by the next one while a lost
+key-down leaves a key stuck forever. The pointer travels with the surface it was measured against;
+the *player* maps it into its own window, and the reply carries the player's own view, which the
+Diagnostics panel shows. What the player does with it is deliberately nothing: `PlayerHost::getInput()`
+is where a game would read it once there is a way to attach game code to an entity, and that
+question stays closed.
+
+**4. A project-settable snap step.** `gridSnap` in `.cnaproject`, additive exactly as `layers` was,
+with `SetProjectGridSnapCommand` beside `SetProjectLayersCommand` and the field in the idle
+Inspector. Zero means "use the visible grid", which is what an older project means.
+
+**5. Documentation and two loose ends.** `docs/FORMATS.md` gained `gridSnap`; the README gained a
+command-line options table (it had none, despite using the flags in its own examples).
+`EditorMatrix::transpose` was removed as dead code, and `PlayerInputSnapshot::middleButton` -- on
+the wire, compared, printed, and never set -- is now filled from the interaction.
 
 ---
 
@@ -569,31 +598,38 @@ What follows is a judgement call rather than a queue.
   out in screen space against `EditorCamera2D`, and the 3D view deliberately leaves the left mouse
   button free for one.
 
-**ED-400 is done** (see the top of this file). The owner's other choice, **input forwarding into
-the running player**, is next and is where this session went after it.
+**Everything the owner chose on 2026-08-04 is done**, and so are the first two items that were
+queued behind it. What follows is a judgement call rather than a queue.
+
+**The strongest candidate is ED-409: rotate and scale gizmos for the 3D view.** The translate one
+(ED-408) proved the shape -- layout and hit-test CNA-free, segments handed to the renderer, the
+gesture computed once and applied to a whole selection -- and the two missing manipulators are the
+obvious gap a user meets straight after moving something. They are not a copy of ED-408: a rotate
+ring has to be *picked* in screen space against a projected ellipse, and a scale handle has to stay
+grabbable when its axis is edge-on. Budget them as one task each, not as a pair.
+
+Also unblocked and smaller:
+
+- **Icons in the 3D view.** A camera and a light are both a plain cube there. The 2D viewport has
+  `EditorIcons.hpp` for exactly this question and the 3D one ignores it.
+- **A keyboard shortcut for the 2D/3D toggle.** It has a toolbar button and a View menu item and no
+  key. `UiKey` has no digits, so this needs an enum entry first -- additive, like `Q` was.
+- **The 3D view has no tile tools and no animation preview**, deliberately: both are 2D ideas. If
+  that ever stops being true, `handleInteraction3D` is where it would be decided.
 
 **Then, small and unblocked, in the order I would take them.** The first is written out in enough detail
 to start on without re-deriving anything.
 
-1. **A snap *step* the project can set.** Ctrl currently snaps to the visible grid, 15 degrees and
-   tenths, all three fixed in `ViewportPanel::getSnap`. A project laying out on a 16-pixel tile grid
-   wants to say so once. The shape, following `layers` exactly:
-   - `Project` gains `gridSnap` (a float, 0 meaning "use the visible grid"), serialised as an
-     *additive* field in `.cnaproject` — **no `formatVersion` bump**, and a test that a project file
-     written before it existed still opens, like `layers` has.
-   - A `SetProjectGridSnapCommand` beside `SetProjectLayersCommand` in `cna-editor-context`, so the
-     edit undoes like everything else (D-06).
-   - The idle Inspector already edits project settings; the field goes there. `getSnap` then reads
-     the project and falls back to `chooseGridSpacing` when it is zero.
-   - Tests: the fallback still snaps to the visible grid; a set step wins over it; the round trip
-     through a file keeps it.
+1. ~~**A snap step the project can set.**~~ ✅ Done this session: `gridSnap`, additive, undoable,
+   in the idle Inspector.
 2. **Hear the audio preview on a machine with a sound device.** It was rewritten to hold a
    `SoundEffectInstance` so Stop actually stops, but this container has none, so that path has been
    compiled and reasoned about rather than heard.
 3. **A second look at `findSelectionRoots`.** It is a *selection* utility living in
-   `TransformGizmos.hpp` because the gizmo needed it first; `deleteSelection` now uses it too. If a
-   third caller turns up, move it somewhere it belongs rather than adding a fourth include of the
-   gizmos.
+   `TransformGizmos.hpp` because the gizmo needed it first; `deleteSelection` uses it, and as of
+   this session so does `MultiTranslate3D`. That is the third caller the note asked to wait for --
+   but two of the three are gizmo code, so the case is weaker than it looks. Move it to the scene
+   module when a *fourth*, non-gizmo caller appears; until then the include is honest.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
 chains are empty on purpose. Adding a property type must not change what an existing scene file
