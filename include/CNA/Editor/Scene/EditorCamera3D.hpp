@@ -161,6 +161,15 @@ namespace CNA::Editor
         [[nodiscard]] float getOrthographicHeight() const;
 
         [[nodiscard]] float getNearPlane() const { return nearPlane_; }
+
+        /**
+         * @brief Returns the distance along the view direction at which geometry becomes visible.
+         *
+         * Negative under the orthographic projection, whose near plane sits *behind* the eye --
+         * see getProjectionMatrix(). Anything clipping against the near plane has to ask rather
+         * than read `getNearPlane()`, or an orthographic view loses everything beside the camera.
+         */
+        [[nodiscard]] float getNearClipDistance() const;
         [[nodiscard]] float getFarPlane() const { return farPlane_; }
 
         /** @brief Sets the depth range. Ignored unless 0 < @p nearPlane < @p farPlane. */

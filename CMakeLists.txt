@@ -108,6 +108,7 @@ add_library(cna-editor-scene STATIC
     src/scene/SceneTransform.cpp
     src/scene/EditorCamera2D.cpp
     src/scene/EditorCamera3D.cpp
+    src/scene/SceneWireframe.cpp
     src/scene/GameCamera.cpp
     src/scene/EditorIcons.cpp
     src/scene/MissingReferences.cpp

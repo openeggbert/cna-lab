@@ -13,6 +13,7 @@
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/EditorCamera3D.hpp"
+#include "CNA/Editor/Scene/SceneWireframe.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Scene/PrefabCommands.hpp"
@@ -1749,4 +1750,176 @@ CNA_EDITOR_TEST(SceneBoundsCoverEntitiesThatDrawNothing)
     // An unknown entity has no bounds, rather than bounds at the origin that would drag every
     // union towards it.
     CNA_EDITOR_EXPECT(!computeEntityBounds3D(scene, Uuid::generate(), noSizes).has_value());
+}
+
+CNA_EDITOR_TEST(ASegmentCrossingTheNearPlaneIsShortenedRatherThanDropped)
+{
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{});
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+    camera.setDistance(10.0f);
+
+    // The eye is at (0, 0, 10) looking down -Z. A line running from well behind the camera to well
+    // in front of it is the grid line under the user's feet: dropping it whole leaves a wedge of
+    // missing floor exactly where they are looking.
+    const std::optional<std::pair<EditorVector2, EditorVector2>> crossing =
+        projectSegment(camera, EditorVector3{0.0f, -5.0f, 40.0f}, EditorVector3{0.0f, -5.0f, -40.0f});
+    CNA_EDITOR_EXPECT(crossing.has_value());
+
+    // Entirely behind the eye there is nothing to draw, and the projected coordinates of such a
+    // segment are mirrored through the origin -- plausible numbers describing the wrong line.
+    CNA_EDITOR_EXPECT(!projectSegment(camera, EditorVector3{0.0f, 0.0f, 20.0f},
+                                      EditorVector3{0.0f, 0.0f, 15.0f})
+                           .has_value());
+
+    // Entirely in front, nothing is clipped and both ends survive as they are.
+    const std::optional<std::pair<EditorVector2, EditorVector2>> ahead =
+        projectSegment(camera, EditorVector3{-5.0f, 0.0f, -10.0f}, EditorVector3{5.0f, 0.0f, -10.0f});
+    CNA_EDITOR_EXPECT(ahead.has_value());
+    if (ahead) { CNA_EDITOR_EXPECT(ahead->first.x < ahead->second.x); }
+}
+
+CNA_EDITOR_TEST(TheGroundGridIsCentredUnderThePivotAndMarksTheAxes)
+{
+    EditorCamera3D camera = makeCamera();
+    camera.setPitch(0.6f);
+
+    WireframeOptions options;
+    options.gridSpacing = 10.0f;
+    options.gridHalfExtent = 5;
+
+    const std::vector<WireSegment> atOrigin = buildGroundGrid(camera, options);
+
+    // Eleven lines each way, minus whatever the near plane took. The axes must be among them, or
+    // the view has no landmark at all: an orbiting camera with no origin marker is disorienting
+    // in a way no amount of grid is.
+    CNA_EDITOR_EXPECT(!atOrigin.empty());
+    const auto hasColor = [&atOrigin](const EditorColor& color) {
+        return std::any_of(atOrigin.begin(), atOrigin.end(),
+                           [&color](const WireSegment& segment) { return segment.color == color; });
+    };
+    CNA_EDITOR_EXPECT(hasColor(WireColors::kAxisX));
+    CNA_EDITOR_EXPECT(hasColor(WireColors::kAxisZ));
+
+    // Flying away carries the grid: snapped to the spacing, so the lines do not shimmer, but
+    // centred on the pivot, so a level laid out far from the origin still has a floor.
+    camera.setPivot(EditorVector3{1000.0f, 0.0f, 1000.0f});
+    const std::vector<WireSegment> farAway = buildGroundGrid(camera, options);
+    CNA_EDITOR_EXPECT(!farAway.empty());
+
+    // No spacing given means one is chosen from the camera's distance, exactly as the 2D grid
+    // chooses one from its zoom -- and it must be a round number a user can read coordinates off.
+    WireframeOptions automatic;
+    automatic.gridHalfExtent = 4;
+    camera.setPivot(EditorVector3{});
+    CNA_EDITOR_EXPECT(!buildGroundGrid(camera, automatic).empty());
+}
+
+CNA_EDITOR_TEST(TheWireframeBoxesEveryEntityAndMarksTheSelection)
+{
+    ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid firstId = scene.addEntity(makeEntity(registry, "First", 0.0f, 0.0f));
+    const Uuid secondId = scene.addEntity(makeEntity(registry, "Second", 60.0f, 0.0f));
+    const Uuid disabledId = scene.addEntity(makeEntity(registry, "Disabled", -60.0f, 0.0f));
+    scene.findEntity(disabledId)->setEnabled(false);
+
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{});
+    camera.setDistance(400.0f);
+    camera.setPitch(0.5f);
+
+    const SpriteSizeProvider sizes = [](const Uuid&) { return EditorVector2{32.0f, 32.0f}; };
+
+    WireframeOptions options;
+    options.drawGrid = false;
+
+    const WireframeResult result = buildSceneWireframe(scene, camera, {secondId}, sizes, options);
+
+    // Two enabled entities, twelve edges each. A disabled entity is not drawn, for the same reason
+    // it gets no icon in the 2D viewport: it is not part of the running game.
+    CNA_EDITOR_EXPECT_EQ(result.entitiesDrawn, std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(result.segments.size(), std::size_t{24});
+    CNA_EDITOR_EXPECT(!result.truncated);
+
+    const std::size_t selected =
+        static_cast<std::size_t>(std::count_if(result.segments.begin(), result.segments.end(),
+                                               [](const WireSegment& segment) {
+                                                   return segment.color == WireColors::kSelected;
+                                               }));
+    CNA_EDITOR_EXPECT_EQ(selected, std::size_t{12});
+    static_cast<void>(firstId);
+
+    // The ceiling is announced rather than reached quietly, or a half-drawn scene reads as a scene
+    // with half its entities missing.
+    WireframeOptions tiny = options;
+    tiny.maxSegments = 5;
+    CNA_EDITOR_EXPECT(buildSceneWireframe(scene, camera, {}, sizes, tiny).truncated);
+}
+
+CNA_EDITOR_TEST(PickingInThreeDimensionsTakesTheNearestBox)
+{
+    ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    // Two entities one behind the other along the view direction. The near one has to win --
+    // "nearest" rather than the 2D viewport's "topmost", because depth is a real quantity here
+    // and layer order is not.
+    const Uuid nearId = scene.addEntity(makeEntity(registry, "Near", 0.0f, 0.0f));
+    scene.findEntity(nearId)->findComponent(BuiltinComponentIds::kTransform)
+        ->setProperty("position", PropertyValue{EditorVector3{0.0f, 0.0f, 40.0f}});
+
+    const Uuid farId = scene.addEntity(makeEntity(registry, "Far", 0.0f, 0.0f));
+    scene.findEntity(farId)->findComponent(BuiltinComponentIds::kTransform)
+        ->setProperty("position", PropertyValue{EditorVector3{0.0f, 0.0f, -40.0f}});
+
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{});
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+    camera.setDistance(200.0f);
+
+    const SpriteSizeProvider sizes = [](const Uuid&) { return EditorVector2{32.0f, 32.0f}; };
+    const EditorVector2 centre{800.0f, 450.0f};
+
+    CNA_EDITOR_EXPECT(pickEntityAt3D(scene, camera, centre, sizes) == nearId);
+
+    // Turned around, the other one is nearest. Nothing about the entities changed.
+    camera.setYaw(3.14159265f);
+    CNA_EDITOR_EXPECT(pickEntityAt3D(scene, camera, centre, sizes) == farId);
+
+    // A ray into empty space hits nothing, and says so with the nil Uuid rather than the last
+    // entity it happened to test.
+    CNA_EDITOR_EXPECT(!pickEntityAt3D(scene, camera, EditorVector2{5.0f, 5.0f}, sizes).isValid());
+}
+
+CNA_EDITOR_TEST(TheSlabTestHandlesFlatBoxesAndRaysStartingInside)
+{
+    const WorldBounds3D box{EditorVector3{-1.0f, -1.0f, -1.0f}, EditorVector3{1.0f, 1.0f, 1.0f}};
+
+    const WorldRay towards{EditorVector3{0.0f, 0.0f, 10.0f}, EditorVector3{0.0f, 0.0f, -1.0f}};
+    const std::optional<float> hit = intersectRayWithBounds(towards, box);
+    CNA_EDITOR_EXPECT(hit.has_value());
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(*hit, 9.0f));
+
+    // Behind the ray is a miss, not a hit at a negative distance -- which would let a click select
+    // whatever happened to be behind the camera.
+    const WorldRay away{EditorVector3{0.0f, 0.0f, 10.0f}, EditorVector3{0.0f, 0.0f, 1.0f}};
+    CNA_EDITOR_EXPECT(!intersectRayWithBounds(away, box).has_value());
+
+    // Starting inside is a hit at zero distance, not a miss.
+    const WorldRay inside{EditorVector3{}, EditorVector3{1.0f, 0.0f, 0.0f}};
+    const std::optional<float> fromInside = intersectRayWithBounds(inside, box);
+    CNA_EDITOR_EXPECT(fromInside.has_value());
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(*fromInside, 0.0f));
+
+    // A sprite is a box with no thickness, so the axis-parallel case is the common one rather
+    // than the exotic one: get it wrong and no sprite can be clicked from the side.
+    const WorldBounds3D flat{EditorVector3{-1.0f, -1.0f, 0.0f}, EditorVector3{1.0f, 1.0f, 0.0f}};
+    CNA_EDITOR_EXPECT(intersectRayWithBounds(towards, flat).has_value());
+
+    const WorldRay parallel{EditorVector3{0.0f, 0.0f, 5.0f}, EditorVector3{1.0f, 0.0f, 0.0f}};
+    CNA_EDITOR_EXPECT(!intersectRayWithBounds(parallel, flat).has_value());
 }

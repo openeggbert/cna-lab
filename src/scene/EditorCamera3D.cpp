@@ -123,6 +123,11 @@ namespace CNA::Editor
         return createLookAt(getEye(), pivot_, EditorVector3{0.0f, 1.0f, 0.0f});
     }
 
+    float EditorCamera3D::getNearClipDistance() const
+    {
+        return projection_ == CameraProjection::Orthographic ? -farPlane_ : nearPlane_;
+    }
+
     EditorMatrix EditorCamera3D::getProjectionMatrix() const
     {
         const float aspect =
@@ -136,7 +141,7 @@ namespace CNA::Editor
             // camera cannot see what is beside it, so a near plane in front of the eye costs it
             // nothing; an orthographic one can, and clipping away everything between the eye and
             // the pivot would hide exactly the half of the scene the user dollied towards.
-            return createOrthographic(height * aspect, height, -farPlane_, farPlane_);
+            return createOrthographic(height * aspect, height, getNearClipDistance(), farPlane_);
         }
 
         return createPerspectiveFieldOfView(fieldOfView_, aspect, nearPlane_, farPlane_);
