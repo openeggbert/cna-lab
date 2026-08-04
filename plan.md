@@ -311,8 +311,10 @@ draws a ground grid and a box per entity, and that is the honest whole of it: un
 model pipeline there is no mesh to draw, and `SpriteBatch` cannot draw the trapezoid a sprite
 becomes when seen from an angle. What the camera *does* answer is the question a 3D view exists for
 -- where is everything, in relation to everything else -- and picking, framing and navigation all
-work against it. The gizmos remain 2D: `TransformGizmos.hpp` lays out in screen space against
-`EditorCamera2D`, and a 3D manipulator is its own task rather than a parameter.
+work against it. Manipulating followed as its own tasks rather than as parameters on the 2D ones:
+ED-408 for translate, ED-409 for rotate, and scale still open. Entities that draw nothing get a
+screen-space badge per icon kind rather than a wire box, keyed off the same `getEditorIconKind` the
+2D viewport asks, so the two views cannot disagree about what an entity is.
 
 One convention was chosen and must not drift: **the 3D camera is Y-down, like the 2D one and like
 `SpriteBatch`**, and its grid is the scene's own XY plane rather than a ground plane under it. An

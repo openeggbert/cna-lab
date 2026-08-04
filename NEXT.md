@@ -21,7 +21,7 @@
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
-| **Phase 3** | 🔄 3 of 12 — ED-400 (3D camera and wireframe view), ED-401 (2D gizmos), ED-408 (3D translate gizmo, added this session) |
+| **Phase 3** | 🔄 3 of 12 done and one half — ED-400 (3D camera and wireframe view), ED-401 (2D gizmos), ED-408 (3D translate gizmo); ED-409 has its rotate gizmo and no scale one |
 | **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
 | **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
 
@@ -107,8 +107,20 @@ asks *where along this world line is the cursor pointing*. Arms are sized in pix
 the entity's own depth; an arm pointing at the camera is refused rather than answered; a child
 stores a parent-relative position (`worldDeltaToLocal3D`). A whole selection drags as one undo
 entry, through `MultiTranslate3D` beside the single-entity drag, exactly as the 2D viewport does it.
-**Rotate and scale in 3D are not built** — that is ED-409, and the 3D view leaves the left mouse
-button free for them.
+**Rotate followed it** (ED-409, half): three rings, *sampled and projected* rather than described,
+because a circle in the world is an ellipse on screen and the grab has to answer in pixels — one
+polyline serves both the drawing and the hit-test, so what a user sees is what they can take hold
+of. A ring seen edge-on is dropped: it would project to a line through the centre, overlap the
+other two, and have no plane a drag could measure an angle in. The drag turns in world space and
+stores in the parent's frame, wraps its delta into (-pi, pi], and snaps the *turn* rather than the
+absolute angle. **Scale is not built** and rotate has no selection-wide half — see the queue at the
+bottom.
+
+**Icons, so the 3D view is not ten identical cubes.** A camera, a light and an audio source all
+draw nothing and were all the same wire box. Each has a badge now — camera body and lens, point
+with four rays, cone with a wavefront, flat-drawn cube for a model — sized in *pixels*, like the 2D
+viewport's icons and for the same reason, and keyed off the same `getEditorIconKind` so the two
+views cannot disagree about what an entity is.
 
 **3. Input forwarding into the running player** (the owner's second choice). State, not events,
 because an XNA game polls and because a lost snapshot is corrected by the next one while a lost
@@ -122,10 +134,12 @@ question stays closed.
 with `SetProjectGridSnapCommand` beside `SetProjectLayersCommand` and the field in the idle
 Inspector. Zero means "use the visible grid", which is what an older project means.
 
-**5. Documentation and two loose ends.** `docs/FORMATS.md` gained `gridSnap`; the README gained a
+**5. Documentation, smoke tests and two loose ends.** `docs/FORMATS.md` gained `gridSnap`; the README gained a
 command-line options table (it had none, despite using the flags in its own examples).
 `EditorMatrix::transpose` was removed as dead code, and `PlayerInputSnapshot::middleButton` -- on
-the wire, compared, printed, and never set -- is now filled from the interaction.
+the wire, compared, printed, and never set -- is now filled from the interaction. ctest gained
+three cases for the 3D path: headless, against a real device, and `--view=isometric`, which must
+fail rather than start quietly in 2D.
 
 ---
 
