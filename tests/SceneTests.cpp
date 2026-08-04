@@ -2165,3 +2165,60 @@ CNA_EDITOR_TEST(EntitiesThatDrawNothingGetABadgeRatherThanACube)
 
     static_cast<void>(emptyId);
 }
+
+CNA_EDITOR_TEST(TheThreeDimensionalRotateRingsAreGrabbedWhereTheyAreDrawn)
+{
+    ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid entityId = scene.addEntity(makeEntity(registry, "Crate", 0.0f, 0.0f));
+
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{});
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+    camera.setDistance(300.0f);
+
+    const std::optional<RotateGizmo3DLayout> layout =
+        computeRotateGizmo3DLayout(scene, camera, entityId);
+    CNA_EDITOR_EXPECT(layout.has_value());
+    if (!layout) { return; }
+
+    // The Z ring faces the camera, so it is drawn in full and is the one a click lands on.
+    const std::vector<EditorVector2>& zRing = layout->rings[2];
+    CNA_EDITOR_EXPECT(zRing.size() > 8);
+
+    CNA_EDITOR_EXPECT(hitTestRotateGizmo3D(*layout, zRing.front()) != GizmoAxis3D::None);
+    CNA_EDITOR_EXPECT(hitTestRotateGizmo3D(*layout, EditorVector2{800.0f, 450.0f}) == GizmoAxis3D::None);
+
+    // What is drawn is what can be grabbed: the segments are the same polyline the hit-test walks,
+    // so a ring the user can see is a ring the user can take hold of.
+    const std::vector<WireSegment> segments = buildRotateGizmo3DSegments(*layout);
+    CNA_EDITOR_EXPECT(!segments.empty());
+    CNA_EDITOR_EXPECT(hitTestRotateGizmo3D(*layout, segments.front().from) != GizmoAxis3D::None);
+
+    // Dragging around the ring turns the entity, and the turn is snapped rather than the angle --
+    // snapping the absolute angle would straighten whatever was grabbed the moment it was grabbed.
+    RotateGizmo3DDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, camera, *layout, entityId, zRing.front()));
+
+    const EditorVector2 quarter = zRing[zRing.size() / 4];
+    const std::optional<EditorQuaternion> turned = drag.update(scene, camera, quarter, GizmoSnap{});
+    CNA_EDITOR_EXPECT(turned.has_value());
+    if (!turned) { return; }
+
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(std::abs(zRotationOf(*turned)), 1.5707963f, 0.05f));
+
+    GizmoSnap snap;
+    snap.rotate = kDefaultRotationSnap;
+    const std::optional<EditorQuaternion> snapped = drag.update(scene, camera, quarter, snap);
+    CNA_EDITOR_EXPECT(snapped.has_value());
+    if (snapped)
+    {
+        const float degrees = zRotationOf(*snapped) * 57.29578f;
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(std::fmod(std::abs(degrees), 15.0f), 0.0f, 0.05f));
+    }
+
+    // Not moved is no edit at all: an undo entry restoring a rotation the entity already had
+    // costs the user a Ctrl+Z to reach a change they can see.
+    CNA_EDITOR_EXPECT(!drag.update(scene, camera, zRing.front(), GizmoSnap{}).has_value());
+}

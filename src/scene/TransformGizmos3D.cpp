@@ -52,6 +52,36 @@ namespace CNA::Editor
             return 2.0f * usable * std::tan(camera.getFieldOfView() * 0.5f) / viewport.y;
         }
 
+        /** @brief Returns two unit vectors spanning the plane whose normal is @p normal. */
+        std::pair<EditorVector3, EditorVector3> makePlaneBasis(const EditorVector3& normal)
+        {
+            // Any perpendicular will do -- the ring is a circle, so where it starts is arbitrary --
+            // but it must not be parallel to the normal, which is what the choice below guarantees.
+            const EditorVector3 seed =
+                std::abs(normal.x) < 0.9f ? EditorVector3{1.0f, 0.0f, 0.0f} : EditorVector3{0.0f, 1.0f, 0.0f};
+
+            const EditorVector3 planeX = normalize(cross(seed, normal));
+            return {planeX, normalize(cross(normal, planeX))};
+        }
+
+        /**
+         * @brief Returns where @p ray meets the plane through @p origin, as an angle in its basis.
+         *
+         * Nothing when the ray runs along the plane -- a ring seen exactly edge-on, where the
+         * intersection is a line rather than a point and any angle would be a guess.
+         */
+        std::optional<float> angleOnPlane(const WorldRay& ray, const EditorVector3& origin,
+                                          const EditorVector3& normal, const EditorVector3& planeX,
+                                          const EditorVector3& planeY)
+        {
+            const float denominator = dot(normal, ray.direction);
+            if (std::abs(denominator) < 1e-4f) { return std::nullopt; }
+
+            const float distance = dot(subtract(origin, ray.origin), normal) / denominator;
+            const EditorVector3 offset = subtract(ray.at(distance), origin);
+            return std::atan2(dot(offset, planeY), dot(offset, planeX));
+        }
+
         /** @brief Returns @p index's axis enumerator. */
         GizmoAxis3D axisAt(std::size_t index)
         {
@@ -163,6 +193,195 @@ namespace CNA::Editor
         }
 
         return segments;
+    }
+
+    EditorQuaternion quaternionFromAxisAngle(const EditorVector3& axis, float radians)
+    {
+        const EditorVector3 unit = normalize(axis);
+        const float half = radians * 0.5f;
+        const float sine = std::sin(half);
+        return EditorQuaternion{unit.x * sine, unit.y * sine, unit.z * sine, std::cos(half)};
+    }
+
+    std::optional<RotateGizmo3DLayout> computeRotateGizmo3DLayout(const SceneDocument& scene,
+                                                                  const EditorCamera3D& camera,
+                                                                  const Uuid& entityId, GizmoSpace space)
+    {
+        const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
+        if (!world) { return std::nullopt; }
+
+        RotateGizmo3DLayout layout;
+        layout.origin = world->position;
+
+        if (space == GizmoSpace::Local)
+        {
+            layout.axes = {rotate(world->rotation, EditorVector3{1.0f, 0.0f, 0.0f}),
+                           rotate(world->rotation, EditorVector3{0.0f, 1.0f, 0.0f}),
+                           rotate(world->rotation, EditorVector3{0.0f, 0.0f, 1.0f})};
+        }
+
+        layout.radius = kGizmo3DScreenLength * worldUnitsPerPixelAt(camera, layout.origin);
+
+        if (!camera.worldToScreen(layout.origin)) { return std::nullopt; }
+
+        for (std::size_t index = 0; index < 3; ++index)
+        {
+            // A ring seen edge-on projects to a straight line through the centre, where it overlaps
+            // the other two and cannot be told apart from them -- and its plane is then nearly
+            // parallel to the cursor ray, so a drag on it has no angle to measure. Dropped rather
+            // than drawn: a handle that is on screen and cannot be used is worse than one that is
+            // not there, and this is the same case the translate arm refuses.
+            const float facing =
+                std::abs(dot(layout.axes[index], normalize(subtract(layout.origin, camera.getEye()))));
+            if (facing < 0.2f) { continue; }
+
+            const auto [planeX, planeY] = makePlaneBasis(layout.axes[index]);
+
+            std::vector<EditorVector2> ring;
+            ring.reserve(static_cast<std::size_t>(kRotateGizmo3DSamples) + 1);
+
+            for (int sample = 0; sample <= kRotateGizmo3DSamples; ++sample)
+            {
+                const float angle = 6.2831853f * static_cast<float>(sample)
+                                    / static_cast<float>(kRotateGizmo3DSamples);
+                const EditorVector3 point =
+                    add(layout.origin, add(scale(planeX, std::cos(angle) * layout.radius),
+                                           scale(planeY, std::sin(angle) * layout.radius)));
+
+                const std::optional<EditorVector2> screen = camera.worldToScreen(point);
+
+                // A sample behind the eye ends the ring rather than wrapping to a wrong pixel: the
+                // polyline is what the hit-test measures against, so a fabricated point would be a
+                // place the user could grab and nothing would happen.
+                if (!screen) { break; }
+                ring.push_back(*screen);
+            }
+
+            if (ring.size() >= 2) { layout.rings[index] = std::move(ring); }
+        }
+
+        return layout;
+    }
+
+    GizmoAxis3D hitTestRotateGizmo3D(const RotateGizmo3DLayout& layout, const EditorVector2& screenPoint)
+    {
+        GizmoAxis3D best = GizmoAxis3D::None;
+        float bestDistance = layout.grabTolerance;
+
+        for (std::size_t index = 0; index < 3; ++index)
+        {
+            const std::vector<EditorVector2>& ring = layout.rings[index];
+
+            for (std::size_t sample = 0; sample + 1 < ring.size(); ++sample)
+            {
+                const float distance = distanceToSegment(screenPoint, ring[sample], ring[sample + 1]);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = axisAt(index);
+                }
+            }
+        }
+
+        return best;
+    }
+
+    std::vector<WireSegment> buildRotateGizmo3DSegments(const RotateGizmo3DLayout& layout,
+                                                        GizmoAxis3D active)
+    {
+        std::vector<WireSegment> segments;
+
+        for (std::size_t index = 0; index < 3; ++index)
+        {
+            const std::vector<EditorVector2>& ring = layout.rings[index];
+            const bool highlighted = active == axisAt(index);
+
+            for (std::size_t sample = 0; sample + 1 < ring.size(); ++sample)
+            {
+                segments.push_back(WireSegment{ring[sample], ring[sample + 1],
+                                               highlighted ? kActiveColor : kAxisColors[index],
+                                               highlighted ? 3.0f : 2.0f});
+            }
+        }
+
+        return segments;
+    }
+
+    bool RotateGizmo3DDrag::begin(const SceneDocument& scene, const EditorCamera3D& camera,
+                                  const RotateGizmo3DLayout& layout, const Uuid& entityId,
+                                  const EditorVector2& cursor)
+    {
+        end();
+
+        const GizmoAxis3D grabbed = hitTestRotateGizmo3D(layout, cursor);
+        if (grabbed == GizmoAxis3D::None) { return false; }
+
+        const EditorEntity* entity = scene.findEntity(entityId);
+        if (entity == nullptr) { return false; }
+
+        const EditorComponent* transform = entity->findComponent(BuiltinComponentIds::kTransform);
+        if (transform == nullptr) { return false; }
+
+        const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
+        if (!world) { return false; }
+
+        const std::size_t index = grabbed == GizmoAxis3D::X ? 0 : (grabbed == GizmoAxis3D::Y ? 1 : 2);
+        const EditorVector3 normal = layout.axes[index];
+        const auto [planeX, planeY] = makePlaneBasis(normal);
+
+        const std::optional<float> angle =
+            angleOnPlane(camera.screenToRay(cursor), layout.origin, normal, planeX, planeY);
+        if (!angle) { return false; }
+
+        axis_ = grabbed;
+        entityId_ = entityId;
+        normal_ = normal;
+        origin_ = layout.origin;
+        planeX_ = planeX;
+        planeY_ = planeY;
+        startAngle_ = *angle;
+        startWorld_ = world->rotation;
+        startLocal_ = transform->getProperty("rotation").get<EditorQuaternion>();
+        return true;
+    }
+
+    std::optional<EditorQuaternion> RotateGizmo3DDrag::update(const SceneDocument& scene,
+                                                              const EditorCamera3D& camera,
+                                                              const EditorVector2& cursor,
+                                                              const GizmoSnap& snap)
+    {
+        if (!isActive()) { return std::nullopt; }
+
+        const std::optional<float> angle =
+            angleOnPlane(camera.screenToRay(cursor), origin_, normal_, planeX_, planeY_);
+        if (!angle) { return std::nullopt; }
+
+        // Wrapped into (-pi, pi]: without it, dragging across the seam reports nearly a full turn
+        // and the entity spins.
+        float delta = *angle - startAngle_;
+        constexpr float twoPi = 6.2831853f;
+        while (delta <= -3.14159265f) { delta += twoPi; }
+        while (delta > 3.14159265f) { delta -= twoPi; }
+
+        // The *turn* is snapped, not the absolute angle: snapping the angle would straighten
+        // whatever the drag touched the moment it was grabbed.
+        if (snap.rotate > 0.0f) { delta = std::round(delta / snap.rotate) * snap.rotate; }
+        if (delta == 0.0f) { return std::nullopt; }
+
+        // Turned in world space, stored in the parent's frame: the cursor described a world angle,
+        // and a child of a rotated parent applying it locally would turn by a rotated fraction.
+        const EditorQuaternion world = multiply(startWorld_, quaternionFromAxisAngle(normal_, delta));
+
+        const EditorEntity* entity = scene.findEntity(entityId_);
+        if (entity == nullptr || !entity->getParentId().isValid()) { return world; }
+
+        const std::optional<WorldTransform> parent = computeWorldTransform(scene, entity->getParentId());
+        if (!parent) { return world; }
+
+        const EditorQuaternion inverse{-parent->rotation.x, -parent->rotation.y, -parent->rotation.z,
+                                       parent->rotation.w};
+        static_cast<void>(startLocal_);
+        return multiply(inverse, world);
     }
 
     EditorVector3 worldDeltaToLocal3D(const SceneDocument& scene, const Uuid& entityId,

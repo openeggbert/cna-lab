@@ -138,13 +138,37 @@ namespace CNA::Editor
 
         // The manipulator on top of the scene, in the same currency, so the 3D viewport draws its
         // gizmo through exactly the path it draws everything else through.
-        if (const std::optional<TranslateGizmo3DLayout> layout = getTranslateGizmo3DLayout())
+        const Uuid subject = getGizmo3DSubject();
+        if (subject.isValid())
         {
-            const GizmoAxis3D active =
-                translate3DDrag_.isActive() ? translate3DDrag_.getAxis() : hovered3DAxis_;
+            const GizmoMode mode = actions_.getGizmoMode();
+            std::vector<WireSegment> handles;
 
-            const std::vector<WireSegment> arms = buildTranslateGizmo3DSegments(*layout, active);
-            lastWireframe_.segments.insert(lastWireframe_.segments.end(), arms.begin(), arms.end());
+            if (mode == GizmoMode::Rotate)
+            {
+                const GizmoAxis3D active =
+                    rotate3DDrag_.isActive() ? rotate3DDrag_.getAxis() : hovered3DAxis_;
+
+                if (const auto layout = computeRotateGizmo3DLayout(context_.getScene(), camera, subject,
+                                                                   actions_.getGizmoSpace()))
+                {
+                    handles = buildRotateGizmo3DSegments(*layout, active);
+                }
+            }
+            else if (mode == GizmoMode::Translate)
+            {
+                const GizmoAxis3D active =
+                    translate3DDrag_.isActive() ? translate3DDrag_.getAxis() : hovered3DAxis_;
+
+                if (const auto layout = getTranslateGizmo3DLayout())
+                {
+                    handles = buildTranslateGizmo3DSegments(*layout, active);
+                }
+            }
+            // Scale draws nothing: its 3D handle has to stay grabbable edge-on, which is its own
+            // problem, and a manipulator that is on screen but does not work is worse than none.
+
+            lastWireframe_.segments.insert(lastWireframe_.segments.end(), handles.begin(), handles.end());
         }
 
         return actions_.getViewport().renderWireframe(lastWireframe_.segments, width, height);
@@ -290,14 +314,18 @@ namespace CNA::Editor
         }
     }
 
-    std::optional<TranslateGizmo3DLayout> ViewportPanel::getTranslateGizmo3DLayout() const
+    Uuid ViewportPanel::getGizmo3DSubject() const
     {
         // The dragged entity while a drag is running, so releasing the pointer over empty space
         // does not make the manipulator vanish mid-gesture; otherwise the primary selection.
-        const Uuid subject = translate3DDrag_.isActive() ? translate3DDrag_.getEntityId()
-                                                         : (context_.getSelection().empty()
-                                                                ? Uuid{}
-                                                                : context_.getSelection().front());
+        if (translate3DDrag_.isActive()) { return translate3DDrag_.getEntityId(); }
+        if (rotate3DDrag_.isActive()) { return rotate3DDrag_.getEntityId(); }
+        return context_.getSelection().empty() ? Uuid{} : context_.getSelection().front();
+    }
+
+    std::optional<TranslateGizmo3DLayout> ViewportPanel::getTranslateGizmo3DLayout() const
+    {
+        const Uuid subject = getGizmo3DSubject();
         if (!subject.isValid()) { return std::nullopt; }
 
         return computeTranslateGizmo3DLayout(context_.getScene(), actions_.getViewport().getCamera3D(),
@@ -312,23 +340,53 @@ namespace CNA::Editor
         // A drag in progress outranks everything, and deliberately ignores hover: a drag that
         // wandered off the panel must keep going and end on release, or the entity is dropped
         // wherever the cursor happened to cross the edge. The same rule the 2D viewport has.
-        if (translate3DDrag_.isActive())
+        if (translate3DDrag_.isActive() || rotate3DDrag_.isActive())
         {
             if (interaction.leftDown)
             {
-                updateTranslate3DDrag(cursor, getSnap(interaction));
+                const GizmoSnap snap = getSnap(interaction);
+
+                if (rotate3DDrag_.isActive())
+                {
+                    if (const auto rotation = rotate3DDrag_.update(context_.getScene(), camera, cursor, snap))
+                    {
+                        commitGizmoEdit(rotate3DDrag_.getEntityId(), "rotation", PropertyValue{*rotation});
+                    }
+                }
+                else { updateTranslate3DDrag(cursor, snap); }
                 return;
             }
 
             translate3DDrag_.end();
+            rotate3DDrag_.end();
             multi3DDrag_.end();
             gizmoDragHasEdited_ = false;
             return;
         }
 
-        const std::optional<TranslateGizmo3DLayout> layout = getTranslateGizmo3DLayout();
-        hovered3DAxis_ = layout && interaction.hovered ? hitTestTranslateGizmo3D(*layout, cursor)
-                                                       : GizmoAxis3D::None;
+        const bool rotating = actions_.getGizmoMode() == GizmoMode::Rotate;
+        const Uuid subject = getGizmo3DSubject();
+
+        const std::optional<RotateGizmo3DLayout> ring =
+            rotating && subject.isValid() ? computeRotateGizmo3DLayout(context_.getScene(), camera, subject,
+                                                                        actions_.getGizmoSpace())
+                                          : std::nullopt;
+        const std::optional<TranslateGizmo3DLayout> layout =
+            rotating ? std::nullopt : getTranslateGizmo3DLayout();
+
+        hovered3DAxis_ = GizmoAxis3D::None;
+        if (interaction.hovered)
+        {
+            if (ring) { hovered3DAxis_ = hitTestRotateGizmo3D(*ring, cursor); }
+            else if (layout) { hovered3DAxis_ = hitTestTranslateGizmo3D(*layout, cursor); }
+        }
+
+        if (interaction.hovered && interaction.leftPressed && ring
+            && rotate3DDrag_.begin(context_.getScene(), camera, *ring, subject, cursor))
+        {
+            gizmoDragHasEdited_ = false;
+            return;
+        }
 
         // A press on an arm is a manipulation, and must not also count as a click that reselects
         // whatever the arm happens to be drawn over -- which, for a gizmo sitting on its own

@@ -15,10 +15,9 @@
  * question each frame: where along this world-space line is the cursor pointing? The only genuine
  * overlap is `GizmoSnap`, which is reused rather than redeclared.
  *
- * **Translate only, deliberately.** Rotating and scaling in three dimensions need their own
- * gestures -- a ring that has to be picked in screen space and a handle that has to stay grabbable
- * edge-on -- and shipping one manipulator that is right beats three that are approximately right.
- * The 3D view leaves the rest of the mouse alone for them (see ED-409).
+ * **Translate and rotate.** Scaling is not here yet: its handle has to stay grabbable when its
+ * axis is edge-on, which is its own problem, and shipping manipulators that are right beats
+ * shipping three that are approximately right (ED-409 keeps the row open for it).
  */
 
 #include <optional>
@@ -127,6 +126,104 @@ namespace CNA::Editor
      */
     [[nodiscard]] std::optional<float> closestPointOnAxis(const WorldRay& ray, const EditorVector3& origin,
                                                           const EditorVector3& axis);
+
+    /**
+     * @brief Where the 3D rotate gizmo is: three rings, sampled and projected.
+     *
+     * Sampled rather than described, because a circle in the world is an *ellipse* on screen and
+     * the hit-test has to answer in pixels. A polyline of samples is one representation both the
+     * drawing and the grab can use, so what a user sees is exactly what they can grab.
+     */
+    struct RotateGizmo3DLayout
+    {
+        /** @brief The entity's world position: the centre of all three rings. */
+        EditorVector3 origin;
+
+        /** @brief Unit world normals of the X, Y and Z rings, in that order. */
+        std::array<EditorVector3, 3> axes{EditorVector3{1.0f, 0.0f, 0.0f}, EditorVector3{0.0f, 1.0f, 0.0f},
+                                          EditorVector3{0.0f, 0.0f, 1.0f}};
+
+        /** @brief Ring radius in world units, chosen so it is a constant size on screen. */
+        float radius = 1.0f;
+
+        /**
+         * @brief Each ring's projected samples, in viewport pixels.
+         *
+         * Empty for a ring seen edge-on: it would project to a line through the centre, overlap
+         * the other two and have no plane a drag could measure an angle in.
+         */
+        std::array<std::vector<EditorVector2>, 3> rings;
+
+        /** @brief How far from a ring, in pixels, still counts as grabbing it. */
+        float grabTolerance = 8.0f;
+    };
+
+    /** @brief How many points each ring is sampled at. Enough that the polyline reads as a circle. */
+    inline constexpr int kRotateGizmo3DSamples = 48;
+
+    /** @brief Returns the rotate layout for @p entityId, or nothing when it has no transform. */
+    [[nodiscard]] std::optional<RotateGizmo3DLayout> computeRotateGizmo3DLayout(
+        const SceneDocument& scene, const EditorCamera3D& camera, const Uuid& entityId,
+        GizmoSpace space = GizmoSpace::World);
+
+    /** @brief Returns which ring @p screenPoint is over, or None. Nearest ring wins. */
+    [[nodiscard]] GizmoAxis3D hitTestRotateGizmo3D(const RotateGizmo3DLayout& layout,
+                                                   const EditorVector2& screenPoint);
+
+    /** @brief Returns the segments that draw @p layout, with @p active drawn highlighted. */
+    [[nodiscard]] std::vector<WireSegment> buildRotateGizmo3DSegments(
+        const RotateGizmo3DLayout& layout, GizmoAxis3D active = GizmoAxis3D::None);
+
+    /** @brief Returns the rotation of @p radians about the unit axis @p axis. */
+    [[nodiscard]] EditorQuaternion quaternionFromAxisAngle(const EditorVector3& axis, float radians);
+
+    /**
+     * @brief One in-progress 3D rotate drag.
+     *
+     * Turns in **world** space and stores the result in the parent's frame, exactly as the 2D
+     * rotate gizmo does: the cursor is describing a world angle, and a child of a rotated parent
+     * that applied that angle locally would turn by a rotated fraction of it.
+     */
+    class RotateGizmo3DDrag
+    {
+    public:
+        [[nodiscard]] bool isActive() const { return axis_ != GizmoAxis3D::None; }
+        [[nodiscard]] const Uuid& getEntityId() const { return entityId_; }
+        [[nodiscard]] GizmoAxis3D getAxis() const { return axis_; }
+
+        /** @brief Starts a drag on the ring under @p cursor. Returns true when one was grabbed. */
+        bool begin(const SceneDocument& scene, const EditorCamera3D& camera,
+                   const RotateGizmo3DLayout& layout, const Uuid& entityId,
+                   const EditorVector2& cursor);
+
+        /**
+         * @brief Returns the entity's new *local* rotation, or nothing when it has not turned.
+         *
+         * The angle is measured from the press rather than accumulated frame to frame, and the
+         * delta is wrapped into (-pi, pi] so dragging across the seam does not spin the entity.
+         */
+        [[nodiscard]] std::optional<EditorQuaternion> update(const SceneDocument& scene,
+                                                             const EditorCamera3D& camera,
+                                                             const EditorVector2& cursor,
+                                                             const GizmoSnap& snap);
+
+        void end() { axis_ = GizmoAxis3D::None; }
+
+    private:
+        Uuid entityId_;
+        GizmoAxis3D axis_ = GizmoAxis3D::None;
+
+        EditorVector3 normal_;
+        EditorVector3 origin_;
+
+        /** @brief The in-plane basis the angle is measured in, fixed at the press. */
+        EditorVector3 planeX_;
+        EditorVector3 planeY_;
+
+        float startAngle_ = 0.0f;
+        EditorQuaternion startWorld_;
+        EditorQuaternion startLocal_;
+    };
 
     /**
      * @brief The selection-wide half of a 3D translate drag.

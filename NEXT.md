@@ -15,7 +15,7 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 382 / 382 (also under Clang Release) |
+| Unit tests | ✅ 383 / 383 (also under Clang Release) |
 | CTest (standalone) | ✅ 10 / 10 |
 | CTest (CNA config) | ✅ 15 / 15 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
@@ -614,12 +614,20 @@ What follows is a judgement call rather than a queue.
 **Everything the owner chose on 2026-08-04 is done**, and so are the first two items that were
 queued behind it. What follows is a judgement call rather than a queue.
 
-**The strongest candidate is ED-409: rotate and scale gizmos for the 3D view.** The translate one
-(ED-408) proved the shape -- layout and hit-test CNA-free, segments handed to the renderer, the
-gesture computed once and applied to a whole selection -- and the two missing manipulators are the
-obvious gap a user meets straight after moving something. They are not a copy of ED-408: a rotate
-ring has to be *picked* in screen space against a projected ellipse, and a scale handle has to stay
-grabbable when its axis is edge-on. Budget them as one task each, not as a pair.
+**ED-409 is half done: the 3D rotate gizmo is in, the scale one is not.** Rotate is three rings,
+sampled and projected, with the same polyline serving the drawing and the grab; a ring seen edge-on
+is dropped, because it would project to a line through the centre and have no plane a drag could
+measure an angle in.
+
+**Scale is the next task, and it is not a copy of either.** Its handle has to stay grabbable when
+its axis is edge-on -- the case rotate solves by hiding the ring, which a scale handle cannot do,
+since an axis pointing at the camera is still an axis the user may want to scale along. The likely
+answer is a uniform-scale handle at the centre plus per-axis handles that fade out rather than
+vanish, but that is a design decision, not a derivation. Two other things to carry over: the 3D
+rotate drag acts on the **primary selection only** (translate has `MultiTranslate3D`; rotate has no
+selection-wide half yet, and it needs one that turns entities *about a shared pivot* the way the 2D
+`MultiTransformDrag::rotate` does), and the gizmo mode in the 3D view is changed only from the
+toolbar, because W/E/R fly there.
 
 Also unblocked and smaller:
 

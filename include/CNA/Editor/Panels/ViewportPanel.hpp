@@ -67,6 +67,9 @@ namespace CNA::Editor
          * selection mid-drag would make the manipulator vanish the moment a drag carried the
          * pointer over something else.
          */
+        /** @brief Returns the entity the 3D manipulator acts on: the dragged one, else the primary. */
+        [[nodiscard]] Uuid getGizmo3DSubject() const;
+
         [[nodiscard]] std::optional<TranslateGizmo3DLayout> getTranslateGizmo3DLayout() const;
 
         /** @brief Applies one frame of a 3D translate drag, to one entity or to a whole selection. */
@@ -219,6 +222,9 @@ namespace CNA::Editor
 
         /** @brief Its selection-wide half, active only when several entities are selected. */
         MultiTranslate3D multi3DDrag_;
+
+        /** @brief The in-progress 3D rotate drag, if any. */
+        RotateGizmo3DDrag rotate3DDrag_;
 
         /** @brief Which 3D arm the cursor is over, so the drawn gizmo can say so before it is grabbed. */
         GizmoAxis3D hovered3DAxis_ = GizmoAxis3D::None;
