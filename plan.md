@@ -22,8 +22,8 @@
 
 ## Current state
 
-**Phases 0 and 1 are complete, Phase 2 is ten rows of twelve, and every priority the owner named is
-closed** — robustness and data safety, live editing into the running player, the production 2D
+**Phases 0, 1 and 3 are complete, Phase 2 is eleven rows of twelve, and every priority the owner
+named is closed** — robustness and data safety, live editing into the running player, the production 2D
 tools, and the backend comparison mode. The editor opens a project, edits it, plays it *and sees the
 game drawn* (ED-246), compares how two graphics backends render it (ED-510/511/513), and a shipped
 game can load what it produced. The repository still builds and passes its full suite with no CNA
@@ -289,7 +289,7 @@ have to be written per backend, which is exactly the kind of cost F-01 makes wor
 
 ---
 
-## Phase 3 — Basic 3D 🔄
+## Phase 3 — Basic 3D ✅
 
 **Precondition.** CNA's 3D API is stable and the glTF conformance work is done. This phase comes
 *after* that, as the original discussion argued — not before. **The owner opened ED-400 on
