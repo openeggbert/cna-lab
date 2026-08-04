@@ -3854,3 +3854,65 @@ CNA_EDITOR_TEST(AThreeDimensionalGizmoDragMovesTheEntityAndUndoesAsOneEntry)
     fixture.step(click);
     CNA_EDITOR_EXPECT(fixture.application->getContext().getSelection().empty());
 }
+
+CNA_EDITOR_TEST(AThreeDimensionalDragMovesAWholeSelectionAsOneUndoEntry)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    EditorContext& context = fixture.application->getContext();
+
+    // A second entity, well away from the first, and both selected.
+    EditorEntity second{Uuid::generate(), "Crate"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*context.getComponentRegistry().find(BuiltinComponentIds::kTransform));
+    transform.setProperty("position", PropertyValue{EditorVector3{-160.0f, 220.0f, 0.0f}});
+    second.addComponent(std::move(transform));
+    const Uuid secondId = second.getId();
+    context.getScene().addEntity(std::move(second));
+
+    context.select(fixture.entityId);
+    context.toggleSelection(secondId);
+    CNA_EDITOR_EXPECT_EQ(context.getSelection().size(), std::size_t{2});
+
+    fixture.application->setThreeDimensionalView(true);
+
+    EditorCamera3D& camera = fixture.application->getViewport().getCamera3D();
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+    camera.setPivot(EditorVector3{100.0f, 220.0f, 0.0f});
+    camera.setDistance(500.0f);
+    fixture.step(UiImageInteraction{});
+
+    const auto positionOf = [&context](const Uuid& id) {
+        return context.getScene().findEntity(id)
+            ->findComponent(BuiltinComponentIds::kTransform)
+            ->getProperty("position")
+            .get<EditorVector3>();
+    };
+
+    const std::optional<TranslateGizmo3DLayout> layout =
+        computeTranslateGizmo3DLayout(context.getScene(), camera, fixture.entityId);
+    CNA_EDITOR_EXPECT(layout.has_value());
+    if (!layout) { return; }
+
+    const EditorVector3 firstBefore = positionOf(fixture.entityId);
+    const EditorVector3 secondBefore = positionOf(secondId);
+
+    const EditorVector2 grab{(layout->screenOrigin.x + layout->screenTips[0].x) * 0.5f,
+                             layout->screenOrigin.y};
+    fixture.step(leftAt(grab.x, grab.y, true));
+    fixture.step(leftAt(grab.x + 50.0f, grab.y, false));
+
+    // Both moved, and by the same world delta: one gesture, many entities, so twenty of them
+    // cannot disagree about how far the cursor went.
+    const float firstDelta = positionOf(fixture.entityId).x - firstBefore.x;
+    const float secondDelta = positionOf(secondId).x - secondBefore.x;
+    CNA_EDITOR_EXPECT(firstDelta > 1.0f);
+    CNA_EDITOR_EXPECT(std::abs(firstDelta - secondDelta) < 0.01f);
+
+    // And one Ctrl+Z puts both back. A command per entity would undo them one at a time, through
+    // arrangements the scene was never in.
+    fixture.step(UiImageInteraction{});
+    fixture.application->undo();
+    CNA_EDITOR_EXPECT(std::abs(positionOf(fixture.entityId).x - firstBefore.x) < 0.001f);
+    CNA_EDITOR_EXPECT(std::abs(positionOf(secondId).x - secondBefore.x) < 0.001f);
+}

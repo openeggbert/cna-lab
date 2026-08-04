@@ -259,6 +259,37 @@ namespace CNA::Editor
         }
     }
 
+    void ViewportPanel::updateTranslate3DDrag(const EditorVector2& cursor, const GizmoSnap& snap)
+    {
+        const SceneDocument& scene = context_.getScene();
+        const EditorCamera3D& camera = actions_.getViewport().getCamera3D();
+
+        if (multi3DDrag_.isActive())
+        {
+            const std::optional<EditorVector3> delta = translate3DDrag_.getWorldDelta(camera, cursor, snap);
+            if (!delta) { return; }
+
+            std::vector<EntityTransformEdit> edits = multi3DDrag_.translate(scene, *delta);
+            if (edits.empty()) { return; }
+
+            // One command for the whole selection, and one undo entry for the whole drag -- the
+            // same rule the 2D multi-drag follows, and for the same reason: undoing one drag one
+            // entity at a time walks the scene through arrangements it was never in.
+            auto command = std::make_unique<TransformEntitiesCommand>(
+                context_.getScene(), std::move(edits), "transform-many:" + std::to_string(multiDragId_));
+
+            context_.execute(std::move(command), gizmoDragHasEdited_ ? MergePolicy::MergeWithPrevious
+                                                                     : MergePolicy::NewEntry);
+            gizmoDragHasEdited_ = true;
+            return;
+        }
+
+        if (const auto position = translate3DDrag_.update(scene, camera, cursor, snap))
+        {
+            commitGizmoEdit(translate3DDrag_.getEntityId(), "position", PropertyValue{*position});
+        }
+    }
+
     std::optional<TranslateGizmo3DLayout> ViewportPanel::getTranslateGizmo3DLayout() const
     {
         // The dragged entity while a drag is running, so releasing the pointer over empty space
@@ -285,15 +316,12 @@ namespace CNA::Editor
         {
             if (interaction.leftDown)
             {
-                if (const auto position =
-                        translate3DDrag_.update(context_.getScene(), camera, cursor, getSnap(interaction)))
-                {
-                    commitGizmoEdit(translate3DDrag_.getEntityId(), "position", PropertyValue{*position});
-                }
+                updateTranslate3DDrag(cursor, getSnap(interaction));
                 return;
             }
 
             translate3DDrag_.end();
+            multi3DDrag_.end();
             gizmoDragHasEdited_ = false;
             return;
         }
@@ -309,6 +337,15 @@ namespace CNA::Editor
             && translate3DDrag_.begin(context_.getScene(), camera, *layout,
                                       context_.getSelection().front(), cursor))
         {
+            // The selection-wide half runs beside the single-entity one, and only when there is
+            // more than one thing to move: for a selection of one they would compute the same
+            // edit twice, and the multi path's command carries a heavier merge key.
+            if (context_.getSelection().size() > 1)
+            {
+                multi3DDrag_.begin(context_.getScene(), context_.getSelection());
+                ++multiDragId_;
+            }
+
             gizmoDragHasEdited_ = false;
             return;
         }

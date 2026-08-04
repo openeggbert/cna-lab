@@ -238,10 +238,45 @@ namespace CNA::Editor
         return true;
     }
 
-    std::optional<EditorVector3> TranslateGizmo3DDrag::update(const SceneDocument& scene,
-                                                              const EditorCamera3D& camera,
-                                                              const EditorVector2& cursor,
-                                                              const GizmoSnap& snap)
+    void MultiTranslate3D::begin(const SceneDocument& scene, const std::vector<Uuid>& entityIds)
+    {
+        end();
+
+        for (const Uuid& entityId : findSelectionRoots(scene, entityIds))
+        {
+            const EditorEntity* entity = scene.findEntity(entityId);
+            if (entity == nullptr) { continue; }
+
+            const EditorComponent* transform = entity->findComponent(BuiltinComponentIds::kTransform);
+            if (transform == nullptr) { continue; }
+
+            entries_.push_back(Entry{entityId, transform->getProperty("position").get<EditorVector3>()});
+        }
+    }
+
+    std::vector<EntityTransformEdit> MultiTranslate3D::translate(const SceneDocument& scene,
+                                                                 const EditorVector3& worldDelta) const
+    {
+        std::vector<EntityTransformEdit> edits;
+        edits.reserve(entries_.size());
+
+        for (const Entry& entry : entries_)
+        {
+            // Converted per entity, because the same world delta is a different local one under
+            // each parent -- two siblings under differently rotated rigs move together in the
+            // world and store different numbers.
+            EntityTransformEdit edit;
+            edit.entityId = entry.entityId;
+            edit.position = add(entry.startLocal, worldDeltaToLocal3D(scene, entry.entityId, worldDelta));
+            edits.push_back(edit);
+        }
+
+        return edits;
+    }
+
+    std::optional<EditorVector3> TranslateGizmo3DDrag::getWorldDelta(const EditorCamera3D& camera,
+                                                                     const EditorVector2& cursor,
+                                                                     const GizmoSnap& snap) const
     {
         if (!isActive()) { return std::nullopt; }
 
@@ -264,7 +299,20 @@ namespace CNA::Editor
 
         const EditorVector3 delta = subtract(world, startWorld_);
         if (delta == EditorVector3{}) { return std::nullopt; }
-
-        return add(startLocal_, worldDeltaToLocal3D(scene, entityId_, delta));
+        return delta;
     }
+
+    std::optional<EditorVector3> TranslateGizmo3DDrag::update(const SceneDocument& scene,
+                                                              const EditorCamera3D& camera,
+                                                              const EditorVector2& cursor,
+                                                              const GizmoSnap& snap)
+    {
+        // The single-entity answer, computed from the same gesture a whole selection uses, so one
+        // entity and twenty cannot disagree about how far the cursor went.
+        const std::optional<EditorVector3> delta = getWorldDelta(camera, cursor, snap);
+        if (!delta) { return std::nullopt; }
+
+        return add(startLocal_, worldDeltaToLocal3D(scene, entityId_, *delta));
+    }
+
 }

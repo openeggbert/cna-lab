@@ -69,6 +69,9 @@ namespace CNA::Editor
          */
         [[nodiscard]] std::optional<TranslateGizmo3DLayout> getTranslateGizmo3DLayout() const;
 
+        /** @brief Applies one frame of a 3D translate drag, to one entity or to a whole selection. */
+        void updateTranslate3DDrag(const EditorVector2& cursor, const GizmoSnap& snap);
+
         /**
          * @brief Continues a gizmo drag or a paint stroke already in progress.
          *
@@ -213,6 +216,9 @@ namespace CNA::Editor
 
         /** @brief The in-progress 3D translate drag, if any. */
         TranslateGizmo3DDrag translate3DDrag_;
+
+        /** @brief Its selection-wide half, active only when several entities are selected. */
+        MultiTranslate3D multi3DDrag_;
 
         /** @brief Which 3D arm the cursor is over, so the drawn gizmo can say so before it is grabbed. */
         GizmoAxis3D hovered3DAxis_ = GizmoAxis3D::None;

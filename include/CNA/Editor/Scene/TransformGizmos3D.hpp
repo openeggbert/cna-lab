@@ -26,6 +26,7 @@
 
 #include "CNA/Editor/Scene/EditorCamera3D.hpp"
 #include "CNA/Editor/Scene/SceneWireframe.hpp"
+#include "CNA/Editor/Scene/SceneCommands.hpp"
 #include "CNA/Editor/Scene/TransformGizmos.hpp"
 
 namespace CNA::Editor
@@ -128,6 +129,46 @@ namespace CNA::Editor
                                                           const EditorVector3& axis);
 
     /**
+     * @brief The selection-wide half of a 3D translate drag.
+     *
+     * Runs *beside* TranslateGizmo3DDrag rather than instead of it, exactly as `MultiTransformDrag`
+     * runs beside the 2D drags: that one computes the gesture -- how far along the axis the cursor
+     * went -- and this turns one gesture into the edits a whole selection needs. One quantity, many
+     * entities, so twenty of them cannot disagree about how far they moved.
+     */
+    class MultiTranslate3D
+    {
+    public:
+        /**
+         * @brief Captures @p entityIds and where each of them starts.
+         *
+         * Only the selection's *roots*: a child carried by a selected parent would otherwise be
+         * moved twice, once by its parent and once on its own account.
+         */
+        void begin(const SceneDocument& scene, const std::vector<Uuid>& entityIds);
+
+        [[nodiscard]] bool isActive() const { return !entries_.empty(); }
+        [[nodiscard]] std::size_t getEntityCount() const { return entries_.size(); }
+
+        /** @brief Returns the edits that move every captured entity by @p worldDelta. */
+        [[nodiscard]] std::vector<EntityTransformEdit> translate(const SceneDocument& scene,
+                                                                 const EditorVector3& worldDelta) const;
+
+        void end() { entries_.clear(); }
+
+    private:
+        struct Entry
+        {
+            Uuid entityId;
+
+            /** @brief The position the drag started from, so every frame is measured from the press. */
+            EditorVector3 startLocal;
+        };
+
+        std::vector<Entry> entries_;
+    };
+
+    /**
      * @brief One in-progress 3D translate drag.
      *
      * Holds where the drag began, in world and local space, so every update is computed from the
@@ -162,6 +203,17 @@ namespace CNA::Editor
                                                           const EditorCamera3D& camera,
                                                           const EditorVector2& cursor,
                                                           const GizmoSnap& snap);
+
+        /**
+         * @brief Returns how far the world has moved since the press, or nothing when it has not.
+         *
+         * The *gesture*, which is what a multi-selection needs: update() answers "where does this
+         * one entity go", and twenty entities asking that separately would each solve the ray
+         * against their own position and drift apart.
+         */
+        [[nodiscard]] std::optional<EditorVector3> getWorldDelta(const EditorCamera3D& camera,
+                                                                 const EditorVector2& cursor,
+                                                                 const GizmoSnap& snap) const;
 
         void end() { axis_ = GizmoAxis3D::None; }
 
