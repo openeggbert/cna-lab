@@ -160,6 +160,47 @@ namespace CNA::Editor
          * point at.
          */
         std::string diffuseTexturePath;
+
+        /**
+         * @brief glTF's metallic factor, 0 for a dielectric and 1 for a metal.
+         *
+         * This and the four fields below are what ED-402 added, and they are the reason to read
+         * the paragraph above about lossiness twice: the Blinn-Phong fields are *still* filled in
+         * and still lossy, because CNA's `PbrEffect` is an extension (`NOXNA`) and a build whose
+         * backend has no PBR path falls back to `BasicEffect`. So a material carries both
+         * descriptions of itself, and each renderer reads the one it can use.
+         *
+         * Carrying both is not duplication to be cleaned up later. `specularColor` and
+         * `specularPower` are *derived* from these two by `convertMaterial`, so they cannot
+         * disagree -- and deriving them at draw time instead would put the conversion in the one
+         * place that must not have to know about glTF at all.
+         */
+        float metallic = 0.0f;
+
+        /** @brief glTF's roughness factor, 0 for a mirror and 1 for fully diffuse. */
+        float roughness = 1.0f;
+
+        /**
+         * @brief The tangent-space normal map's URI, relative to the model file, or empty.
+         *
+         * A path and not a `Uuid`, for the reason `diffuseTexturePath` gives: the importer has no
+         * asset database and must not pretend to. A `BasicEffect` fallback ignores this, which is
+         * the honest degradation -- a normal map cannot be approximated into a Blinn-Phong term.
+         */
+        std::string normalTexturePath;
+
+        /**
+         * @brief The occlusion-roughness-metallic map's URI, or empty.
+         *
+         * glTF packs occlusion in R, roughness in G and metallic in B, and permits the occlusion
+         * map to be a *separate* image. Only the packed form is carried: `PbrEffect` takes one
+         * metallic-roughness texture and one occlusion texture, and a file that separates them
+         * gets a warning rather than a silently half-applied material.
+         */
+        std::string metallicRoughnessTexturePath;
+
+        /** @brief The emissive map's URI, or empty. Multiplies `emissiveColor`. */
+        std::string emissiveTexturePath;
     };
 
     /**

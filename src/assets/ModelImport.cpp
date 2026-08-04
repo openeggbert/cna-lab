@@ -210,8 +210,38 @@ namespace CNA::Editor
             part.indices = std::move(indices);
         }
 
-        /** @brief Converts one glTF material into as much of it as a `BasicEffect` can express. */
-        MeshMaterial convertMaterial(const cgltf_material& source)
+        /**
+         * @brief Returns @p view's image URI, or empty when there is no file to point at.
+         *
+         * A data URI is the texture *itself* rather than a path to one, and reporting it as a path
+         * would have a caller trying to resolve a hundred kilobytes of base64 against the project
+         * directory. Empty is the honest answer in that case, and in the `.glb`-embedded case, for
+         * the same reason: there is no file.
+         */
+        std::string textureUri(const cgltf_texture_view& view)
+        {
+            if (view.texture == nullptr || view.texture->image == nullptr
+                || view.texture->image->uri == nullptr)
+            {
+                return {};
+            }
+
+            const std::string_view uri{view.texture->image->uri};
+            if (uri.starts_with("data:")) { return {}; }
+            return std::string{uri};
+        }
+
+        /**
+         * @brief Converts one glTF material into both descriptions of itself.
+         *
+         * Both, because which one gets drawn is not this function's decision: ED-402 draws through
+         * CNA's `PbrEffect` where the build has one and falls back to `BasicEffect` where it does
+         * not, so the metallic-roughness fields and the Blinn-Phong ones are filled in together.
+         * The Blinn-Phong pair is *derived* from the PBR pair right here, which is what stops the
+         * two from ever describing different materials.
+         */
+        MeshMaterial convertMaterial(const cgltf_material& source,
+                                     std::vector<ModelImportWarning>& warnings)
         {
             MeshMaterial material;
             material.name = source.name != nullptr ? source.name : std::string{};
@@ -228,6 +258,7 @@ namespace CNA::Editor
                 // one line of metallic-roughness that survives the trip to Blinn-Phong meaning what
                 // it meant, so it is the one that is carried across.
                 const float metallic = pbr.metallic_factor;
+                material.metallic = std::clamp(metallic, 0.0f, 1.0f);
                 material.specularColor = EditorVector3{
                     metallic * material.diffuseColor.x + (1.0f - metallic) * 0.04f,
                     metallic * material.diffuseColor.y + (1.0f - metallic) * 0.04f,
@@ -240,22 +271,35 @@ namespace CNA::Editor
                 const float roughness = std::clamp(pbr.roughness_factor, 0.03f, 1.0f);
                 material.specularPower = std::clamp(2.0f / (roughness * roughness) - 2.0f, 1.0f, 1024.0f);
 
-                if (pbr.base_color_texture.texture != nullptr
-                    && pbr.base_color_texture.texture->image != nullptr
-                    && pbr.base_color_texture.texture->image->uri != nullptr)
-                {
-                    const std::string_view uri{pbr.base_color_texture.texture->image->uri};
-                    // A data URI is the texture itself rather than a path to one, and reporting it
-                    // as a path would have a caller trying to resolve a hundred kilobytes of
-                    // base64 against the project directory. Empty is the honest answer: there is
-                    // no file to point at.
-                    if (!uri.starts_with("data:")) { material.diffuseTexturePath = std::string{uri}; }
-                }
+                // The *unclamped* roughness, unlike the exponent above. The clamp exists because
+                // roughness 0 sends that division to infinity; a PBR renderer wants the number the
+                // file actually says, and 0 is a legitimate one there.
+                material.roughness = std::clamp(pbr.roughness_factor, 0.0f, 1.0f);
+
+                material.diffuseTexturePath = textureUri(pbr.base_color_texture);
+                material.metallicRoughnessTexturePath = textureUri(pbr.metallic_roughness_texture);
             }
 
             material.emissiveColor = EditorVector3{source.emissive_factor[0],
                                                    source.emissive_factor[1],
                                                    source.emissive_factor[2]};
+            material.normalTexturePath = textureUri(source.normal_texture);
+            material.emissiveTexturePath = textureUri(source.emissive_texture);
+
+            // glTF lets the occlusion map be its own image, and `PbrEffect` takes one. Where it is
+            // the *same* image as the metallic-roughness map -- the packed ORM layout, which is
+            // what nearly every exporter writes -- there is nothing to report, because the caller
+            // already has that texture. Where it is a different file, say so rather than apply
+            // half a material and leave the model looking subtly flat with no explanation.
+            const std::string occlusionUri = textureUri(source.occlusion_texture);
+            if (!occlusionUri.empty() && occlusionUri != material.metallicRoughnessTexturePath)
+            {
+                warnings.push_back(ModelImportWarning{
+                    material.name.empty() ? occlusionUri : material.name,
+                    "the occlusion map is a separate image from the metallic-roughness map, and "
+                    "only the packed occlusion-roughness-metallic form is carried"});
+            }
+
             return material;
         }
 
@@ -513,7 +557,8 @@ namespace CNA::Editor
             loader.result.mesh.materials.reserve(handle.data->materials_count);
             for (cgltf_size i = 0; i < handle.data->materials_count; ++i)
             {
-                loader.result.mesh.materials.push_back(convertMaterial(handle.data->materials[i]));
+                loader.result.mesh.materials.push_back(
+                    convertMaterial(handle.data->materials[i], loader.result.warnings));
             }
         }
 

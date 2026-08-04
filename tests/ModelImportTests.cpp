@@ -134,6 +134,19 @@ namespace
 
         bool withMaterial = false;
 
+        /**
+         * @brief Emit a material carrying the maps and factors `PbrEffect` reads (ED-402).
+         *
+         * Its own flag rather than an addition to `withMaterial`, so the older test above goes on
+         * asserting what it always asserted -- that a material with *no* PBR maps still produces
+         * the Blinn-Phong description a `BasicEffect` fallback needs. Folding the two together
+         * would have left nothing checking the plain case.
+         */
+        bool withPbrMaps = false;
+
+        /** @brief Write the occlusion map as its own image rather than packed with the ORM one. */
+        bool withSeparateOcclusionMap = false;
+
         /** @brief Points the buffer at a file beside the `.gltf` instead of embedding it. */
         std::string externalBufferUri;
 
@@ -248,7 +261,22 @@ namespace
         if (fixture.withMaterial) { json << R"(,"material":0)"; }
         json << R"(}]}],)";
 
-        if (fixture.withMaterial)
+        if (fixture.withMaterial && fixture.withPbrMaps)
+        {
+            // Image 1 is the packed occlusion-roughness-metallic map and image 2 the normal map;
+            // image 3 exists only when the fixture is asked for the separated-occlusion case the
+            // importer warns about.
+            json << R"("materials":[{"name":"Brushed","pbrMetallicRoughness":)"
+                 << R"({"baseColorFactor":[1,1,1,1],"metallicFactor":0.9,"roughnessFactor":0.25,)"
+                 << R"("baseColorTexture":{"index":0},"metallicRoughnessTexture":{"index":1}},)"
+                 << R"("normalTexture":{"index":2},"emissiveTexture":{"index":0},)"
+                 << R"("occlusionTexture":{"index":)" << (fixture.withSeparateOcclusionMap ? 3 : 1)
+                 << R"(},"emissiveFactor":[0,0,0]}],)"
+                 << R"("textures":[{"source":0},{"source":1},{"source":2},{"source":3}],)"
+                 << R"("images":[{"uri":"paint.png"},{"uri":"orm.png"},{"uri":"normal.png"},)"
+                 << R"({"uri":"ao.png"}],)";
+        }
+        else if (fixture.withMaterial)
         {
             json << R"("materials":[{"name":"Painted","pbrMetallicRoughness":)"
                  << R"({"baseColorFactor":[0.25,0.5,0.75,0.5],"metallicFactor":0,"roughnessFactor":1,)"
@@ -655,6 +683,84 @@ CNA_EDITOR_TEST(MaterialsComeAcrossAsMuchAsABasicEffectCanExpress)
     const ModelImportResult bare = loadModel(path.string(), withoutMaterials);
     CNA_EDITOR_EXPECT(bare.mesh.materials.empty());
     CNA_EDITOR_EXPECT_EQ(bare.mesh.parts[0].materialIndex, -1);
+
+    // The material above has no PBR maps, and the fields ED-402 added must still be the neutral
+    // values a renderer can use rather than whatever was left in memory. Roughness 1 and metallic
+    // 0 is glTF's own default: fully diffuse, non-metal.
+    CNA_EDITOR_EXPECT(nearlyEqual(material.metallic, 0.0f));
+    CNA_EDITOR_EXPECT(nearlyEqual(material.roughness, 1.0f));
+    CNA_EDITOR_EXPECT(material.normalTexturePath.empty());
+    CNA_EDITOR_EXPECT(material.metallicRoughnessTexturePath.empty());
+
+    std::filesystem::remove_all(directory);
+}
+
+/**
+ * @brief ED-402: the metallic-roughness half of a material survives, beside the Blinn-Phong half.
+ *
+ * Both descriptions, because which one is drawn is a property of the *build*: `PbrEffect` is a CNA
+ * extension and a backend without it falls back to `BasicEffect`. A material that carried only the
+ * PBR fields would render as untextured grey on that fallback, which is a rendering bug that
+ * appears on one machine and not another -- the worst kind to be told about.
+ */
+CNA_EDITOR_TEST(APbrMaterialCarriesItsMapsAndItsBlinnPhongApproximationTogether)
+{
+    const std::filesystem::path directory = makeScratchDirectory("gltfpbr");
+    GltfFixture fixture = makeTriangleFixture();
+    fixture.withMaterial = true;
+    fixture.withPbrMaps = true;
+    fixture.texCoords = {{{0.0f, 0.0f}}, {{1.0f, 0.0f}}, {{0.5f, 1.0f}}};
+
+    const std::filesystem::path path = writeGltf(directory, fixture);
+    const ModelImportResult imported = loadModel(path.string());
+
+    CNA_EDITOR_EXPECT(imported.succeeded);
+    CNA_EDITOR_EXPECT_EQ(imported.mesh.materials.size(), std::size_t{1});
+
+    const MeshMaterial& material = imported.mesh.materials[0];
+    CNA_EDITOR_EXPECT(nearlyEqual(material.metallic, 0.9f));
+    CNA_EDITOR_EXPECT(nearlyEqual(material.roughness, 0.25f));
+    CNA_EDITOR_EXPECT_EQ(material.metallicRoughnessTexturePath, std::string{"orm.png"});
+    CNA_EDITOR_EXPECT_EQ(material.normalTexturePath, std::string{"normal.png"});
+    CNA_EDITOR_EXPECT_EQ(material.emissiveTexturePath, std::string{"paint.png"});
+
+    // The derived half. A metal reflects its own base colour, so a metallic of 0.9 against a white
+    // base must give a specular near white rather than the 0.04 a dielectric reflects -- that is
+    // the one line of metallic-roughness that means the same thing in Blinn-Phong, and if the two
+    // halves ever disagree it is because someone stopped deriving one from the other.
+    CNA_EDITOR_EXPECT(material.specularColor.x > 0.8f);
+    CNA_EDITOR_EXPECT(material.specularPower > 16.0f);
+
+    // A packed ORM map is the ordinary case and says nothing.
+    for (const ModelImportWarning& warning : imported.warnings)
+    {
+        CNA_EDITOR_EXPECT(warning.reason.find("occlusion") == std::string::npos);
+    }
+
+    std::filesystem::remove_all(directory);
+}
+
+/** @brief An occlusion map in its own file is reported, because only the packed form is carried. */
+CNA_EDITOR_TEST(AnOcclusionMapInItsOwnFileIsReportedRatherThanHalfApplied)
+{
+    const std::filesystem::path directory = makeScratchDirectory("gltfao");
+    GltfFixture fixture = makeTriangleFixture();
+    fixture.withMaterial = true;
+    fixture.withPbrMaps = true;
+    fixture.withSeparateOcclusionMap = true;
+    fixture.texCoords = {{{0.0f, 0.0f}}, {{1.0f, 0.0f}}, {{0.5f, 1.0f}}};
+
+    const std::filesystem::path path = writeGltf(directory, fixture);
+    const ModelImportResult imported = loadModel(path.string());
+
+    CNA_EDITOR_EXPECT(imported.succeeded);
+
+    bool reported = false;
+    for (const ModelImportWarning& warning : imported.warnings)
+    {
+        if (warning.reason.find("occlusion") != std::string::npos) { reported = true; }
+    }
+    CNA_EDITOR_EXPECT(reported);
 
     std::filesystem::remove_all(directory);
 }
