@@ -44,6 +44,9 @@ namespace CNA::Editor
          * one returns nothing, which is why a headless run simply shows no pictures rather than
          * needing a separate code path.
          */
+        /** @brief Writes a new `.cnamaterial` and rescans so it gets an id (ED-403). */
+        void createMaterial();
+
         void drawThumbnail(const AssetRecord& record);
 
         /** @brief Side of the square a thumbnail is fitted into, in pixels. */

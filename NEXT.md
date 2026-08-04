@@ -15,13 +15,13 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 430 / 430 (also under Clang Release) |
+| Unit tests | ✅ 432 / 432 (also under Clang Release) |
 | CTest (standalone) | ✅ 12 / 12 |
 | CTest (CNA config) | ✅ 17 / 17 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
-| **Phase 3** | 🔄 10 done — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) **ED-413** (sprites in the 3D view) **ED-407** (environment and fog) and **ED-406** (mesh thumbnails). What is left is ED-403/ED-410 and the two plugin rows |
+| **Phase 3** | 🔄 11 done — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) **ED-413** (sprites in the 3D view) **ED-407** (environment and fog) **ED-406** (mesh thumbnails) and **ED-403** (materials as assets). What is left is ED-410 and the two plugin rows |
 | **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
 | **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
 
@@ -863,14 +863,12 @@ Read this file, then `plan.md`'s *Current state*.
 the 3D view draws solid lit models, the sprites around them, and the lights that light both. What
 remains is in this order:
 
-1. **ED-403 — material editing and preview**, and **ED-410 — per-mesh material lists**. Take them
-   together: ED-410 is what finally gives ED-311's `NestedStructure` the real consumer it has been
-   parked waiting for, which is the only reason that schema is designable now when it was not
-   before. Additive to the scene format, which the owner has already permitted. **Start here**, and
-   note the promise already outstanding: `CNA.ModelRenderer` declares a material override, the
-   inspector offers it, and `CnaModelPass` ignores it and draws the mesh's own materials. That is
-   ED-403's job rather than a bug, but it is a promise the editor is currently making and not
-   keeping.
+1. **ED-410 — per-mesh material lists.** **Start here.** It is what finally gives ED-311's
+   `NestedStructure` the real consumer it has been parked waiting for, which is the only reason
+   that schema is designable now when it was not before. Everything under it now exists: a
+   `.cnamaterial` is a real asset (ED-403), `ModelDraw::materialOverride` already replaces every
+   part's material, and what ED-410 changes is that one override becoming a list indexed by part.
+   Additive to the scene format, which the owner has already permitted.
 2. **ED-411 / ED-412 plugin loading**, the last of Phase 3 and the largest. Discovery and
    validation are done (ED-017); this is `dlopen`/`LoadLibrary`, the `extern "C"` entry, unload and
    hot-reload, then the extension points.

@@ -15,6 +15,7 @@
 
 namespace CNA::Editor
 {
+    struct AssetRecord;
     class EditorEntity;
 
     /**
@@ -53,6 +54,9 @@ namespace CNA::Editor
 
         /** @brief The scene's ambient and fog (ED-407), in the idle inspector. */
         void drawSceneEnvironment();
+
+        /** @brief A `.cnamaterial`'s own fields, which no importer declares (ED-403). */
+        void drawMaterialAsset(const AssetRecord& record);
 
         /**
          * @brief Draws the animation preview for an entity carrying `CNA.SpriteAnimation`.

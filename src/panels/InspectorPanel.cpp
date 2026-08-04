@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Panels/InspectorPanel.hpp"
 
+#include <fstream>
+#include <iterator>
+
+#include "CNA/Editor/Assets/AssetCommands.hpp"
+#include "CNA/Editor/Assets/MaterialDocument.hpp"
 #include "CNA/Editor/Scene/SceneEnvironment.hpp"
 
 #include <memory>
@@ -479,6 +484,94 @@ namespace CNA::Editor
         context_.log(LogSeverity::Info, summary + ".");
     }
 
+    void InspectorPanel::drawMaterialAsset(const AssetRecord& record)
+    {
+        const std::string path = context_.getAssets().resolvePath(record.sourcePath);
+
+        std::ifstream stream{path};
+        if (!stream)
+        {
+            ui_.text("This material's file cannot be opened.");
+            return;
+        }
+
+        const std::string text{std::istreambuf_iterator<char>{stream}, std::istreambuf_iterator<char>{}};
+        const JsonParseResult parsed = Json::parse(text);
+
+        MaterialDocument material;
+        if (!parsed.succeeded || !material.loadFromJson(parsed.value))
+        {
+            // Refused rather than shown as defaults. Offering an editable form over a file this
+            // build could not read is offering to overwrite it with less than it holds.
+            ui_.text("This material was written by a newer editor, or is not valid JSON.");
+            return;
+        }
+
+        const auto apply = [&](const MaterialDocument& edited, const std::string& field)
+        {
+            auto command = std::make_unique<SetMaterialCommand>(path, edited, field);
+            context_.execute(std::move(command));
+
+            // Nothing to invalidate. The material provider reads the file on every ask rather than
+            // caching it (see `EditorContext::makeMaterialProvider`), which is exactly what makes
+            // an edit visible on the next frame with no cache to tell.
+        };
+
+        PropertyValue name{material.name};
+        if (ui_.propertyField("Name", name))
+        {
+            MaterialDocument edited = material;
+            edited.name = name.get<std::string>(edited.name);
+            apply(edited, "name");
+        }
+
+        PropertyValue diffuse{material.diffuseColor};
+        if (ui_.propertyField("Base Color", diffuse))
+        {
+            MaterialDocument edited = material;
+            edited.diffuseColor = diffuse.get<EditorVector3>();
+            apply(edited, "base colour");
+        }
+
+        PropertyValue emissive{material.emissiveColor};
+        if (ui_.propertyField("Emissive", emissive))
+        {
+            MaterialDocument edited = material;
+            edited.emissiveColor = emissive.get<EditorVector3>();
+            apply(edited, "emissive");
+        }
+
+        PropertyValue metallic{material.metallic};
+        if (ui_.propertyField("Metallic", metallic))
+        {
+            MaterialDocument edited = material;
+            edited.metallic = metallic.get<float>(edited.metallic);
+            apply(edited, "metallic");
+        }
+
+        PropertyValue roughness{material.roughness};
+        if (ui_.propertyField("Roughness", roughness))
+        {
+            MaterialDocument edited = material;
+            edited.roughness = roughness.get<float>(edited.roughness);
+            apply(edited, "roughness");
+        }
+
+        PropertyValue alpha{material.alpha};
+        if (ui_.propertyField("Alpha", alpha))
+        {
+            MaterialDocument edited = material;
+            edited.alpha = alpha.get<float>(edited.alpha);
+            apply(edited, "alpha");
+        }
+
+        // Said plainly rather than left to be discovered: which effect a build got decides whether
+        // metallic and roughness reach the screen at all, and on a BasicEffect build they are
+        // still not wasted -- the specular colour and power are derived from them.
+        ui_.separator();
+        ui_.text("Drawn through " + actions_.getViewport().getModelEffectName() + ".");
+    }
+
     void InspectorPanel::drawAssetInspector(const Uuid& assetId)
     {
         const AssetRecord* record = context_.getAssets().find(assetId);
@@ -507,6 +600,15 @@ namespace CNA::Editor
             }
             ui_.sameLine();
             if (ui_.button("Stop##assetAudio")) { actions_.getAudio().stop(); }
+        }
+
+        // A material is the editor's own document rather than something imported, so it gets its
+        // fields here instead of an importer's settings form (ED-403).
+        if (record->type == AssetType::Material)
+        {
+            ui_.separator();
+            drawMaterialAsset(*record);
+            return;
         }
 
         ui_.separator();

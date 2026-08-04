@@ -14,6 +14,7 @@
 #include <string>
 
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
+#include "CNA/Editor/Assets/MaterialDocument.hpp"
 #include "CNA/Editor/Core/EditorCommand.hpp"
 #include "CNA/Editor/Core/PropertyValue.hpp"
 
@@ -56,6 +57,47 @@ namespace CNA::Editor
      * Merges on asset + setting, so dragging a slider produces one undo entry that returns to the
      * value the drag started from -- the same policy the inspector's scene properties use.
      */
+    /**
+     * @brief Writes a `.cnamaterial` file (plan.md ED-403).
+     *
+     * A command, like every other document change (D-06), even though what it edits is a file
+     * rather than the open scene. The precedent is ED-300's prefab Apply, which also writes a file
+     * and also undoes: an editor where some edits undo and others quietly do not is worse than one
+     * where nothing does, because the user has to remember which is which.
+     *
+     * Undo rewrites the previous contents rather than deleting the file, which is the only correct
+     * answer for an *edit*. Deleting would be right for a create and wrong here, and the two are
+     * distinguishable: `existedBefore` records which this was.
+     *
+     * Merges per field, so dragging a colour is one undo entry and changing the roughness
+     * afterwards is a second -- the same bargain `SetSceneEnvironmentCommand` strikes.
+     */
+    class SetMaterialCommand final : public EditorCommand
+    {
+    public:
+        SetMaterialCommand(std::string absolutePath, MaterialDocument material,
+                           std::string fieldName);
+
+        void execute() override;
+        void undo() override;
+        [[nodiscard]] std::string getDescription() const override;
+        [[nodiscard]] std::string getMergeKey() const override;
+        bool mergeWith(const EditorCommand& newer) override;
+
+        /** @brief False when the file could not be written, so the caller can say so. */
+        [[nodiscard]] bool succeeded() const { return succeeded_; }
+
+    private:
+        std::string absolutePath_;
+        MaterialDocument newMaterial_;
+
+        /** @brief The bytes that were there before, replayed verbatim by undo. */
+        std::string previousText_;
+        bool existedBefore_ = false;
+        bool succeeded_ = false;
+        std::string fieldName_;
+    };
+
     class SetImporterSettingCommand final : public EditorCommand
     {
     public:

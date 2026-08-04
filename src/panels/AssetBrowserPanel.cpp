@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MS-PL
 #include "CNA/Editor/Panels/AssetBrowserPanel.hpp"
 
+#include <filesystem>
+
+#include "CNA/Editor/Assets/AssetCommands.hpp"
+#include "CNA/Editor/Assets/MaterialDocument.hpp"
+
 #include <algorithm>
 #include <memory>
 #include <optional>
@@ -34,6 +39,15 @@ namespace CNA::Editor
             // useful as an answer to what was just typed.
             ui_.text(std::to_string(root.getTotalAssetCount()) + " of "
                      + std::to_string(assets.getCount()) + " assets");
+        }
+
+        // The one thing this browser *creates* rather than discovers (ED-403). A material is the
+        // editor's own document, so there is no file for a user to bring in from elsewhere -- and
+        // an inspector that edits materials with no way to make one is a form nobody can reach.
+        ui_.sameLine();
+        if (context_.hasProject() && ui_.button("New Material"))
+        {
+            createMaterial();
         }
 
         ui_.separator();
@@ -159,6 +173,40 @@ namespace CNA::Editor
             // only place they can be edited.
             context_.selectAsset(assetId);
         }
+    }
+
+    void AssetBrowserPanel::createMaterial()
+    {
+        // Numbered until the name is free rather than overwriting: pressing the button twice is
+        // two materials, which is what pressing it twice means everywhere else.
+        const std::string directory = context_.getAssets().resolvePath("Assets/Materials");
+        std::string name = "Material";
+        std::string path = directory + "/" + name + ".cnamaterial";
+
+        for (int suffix = 1; std::filesystem::exists(path) && suffix < 1000; ++suffix)
+        {
+            name = "Material" + std::to_string(suffix);
+            path = directory + "/" + name + ".cnamaterial";
+        }
+
+        MaterialDocument material;
+        material.name = name;
+
+        auto command = std::make_unique<SetMaterialCommand>(path, material, "created");
+        SetMaterialCommand* raw = command.get();
+        context_.execute(std::move(command));
+
+        if (!raw->succeeded())
+        {
+            context_.log(LogSeverity::Warning, "Could not write '" + path + "'.");
+            return;
+        }
+
+        // The scan is what gives the new file its id and sidecar, and until it runs the material
+        // exists on disk and not in the database -- which is a state no other part of the editor
+        // is written to expect.
+        context_.getAssets().scan(context_.getProject().getAssetDirectory());
+        context_.log(LogSeverity::Info, "Created material '" + name + "'.");
     }
 
     void AssetBrowserPanel::drawThumbnail(const AssetRecord& record)
