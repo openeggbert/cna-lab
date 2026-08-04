@@ -3,7 +3,7 @@
 
 /**
  * @file CNA/Editor/Scene/TransformGizmos3D.hpp
- * @brief The translate manipulator for the 3D viewport (plan.md ED-408).
+ * @brief The translate, rotate and scale manipulators for the 3D viewport (ED-408, ED-409).
  *
  * The 3D counterpart of `TransformGizmos.hpp`, and split the same way: layout, hit-test and drag
  * are here, CNA-free and tested in CI, and the renderer is handed finished line segments. What a
@@ -15,9 +15,11 @@
  * question each frame: where along this world-space line is the cursor pointing? The only genuine
  * overlap is `GizmoSnap`, which is reused rather than redeclared.
  *
- * **Translate and rotate.** Scaling is not here yet: its handle has to stay grabbable when its
- * axis is edge-on, which is its own problem, and shipping manipulators that are right beats
- * shipping three that are approximately right (ED-409 keeps the row open for it).
+ * All three manipulators are here. They do not share a solver, because each needs a different
+ * thing from the world: translate needs a *line* to slide along, rotate needs a *plane* to measure
+ * an angle in, and scale needs neither -- a scale factor is a unitless ratio, and the screen always
+ * has one. That is why the edge-on case, which forces rotate to drop a ring altogether, costs scale
+ * nothing but contrast.
  */
 
 #include <optional>
@@ -30,13 +32,22 @@
 
 namespace CNA::Editor
 {
-    /** @brief Which arm of the 3D translate gizmo a cursor is over. */
+    /** @brief Which arm of a 3D manipulator a cursor is over. */
     enum class GizmoAxis3D
     {
         None,
         X,
         Y,
-        Z
+        Z,
+
+        /**
+         * @brief All three axes at once. Only the scale gizmo has such a handle.
+         *
+         * Translating or rotating "along everything" means nothing -- there is no direction and no
+         * plane -- but scaling by one factor on all three axes is the commonest scale of all, and
+         * the 2D gizmo has had the same handle since ED-401.
+         */
+        All
     };
 
     /** @brief Returns the stable name of @p axis, for logs and tests. */
@@ -224,6 +235,154 @@ namespace CNA::Editor
 
         /** @brief The entity's world rotation at the press: what the turn is applied on top of. */
         EditorQuaternion startWorld_;
+    };
+
+    /**
+     * @brief Where the 3D scale gizmo is: three arms ending in handles, and one at the centre.
+     *
+     * The arms are **always the entity's own axes**, for the reason the 2D scale gizmo has no space
+     * toggle either: a non-uniform scale in world space needs a shear, which a
+     * position/rotation/scale transform cannot express, so a "world scale" would have to quietly do
+     * something else in the one place a user is entitled to exact numbers.
+     *
+     * The edge-on case is what makes this a different shape from the other two. A ring seen edge-on
+     * is dropped, because a rotation needs a plane to measure an angle in and an edge-on ring has
+     * none; an arm pointing at the camera refuses a translate, because there is no line to slide
+     * along. A scale needs neither: it is a ratio of screen distances, and the screen always has
+     * one. So an arm here is never dropped and never refuses -- it **shortens to a floor** so its
+     * handle stays clear of the centre one, and fades, which is the honest report that it has
+     * little room left to say anything precise with.
+     */
+    struct ScaleGizmo3DLayout
+    {
+        /** @brief The entity's world position: where the three arms meet. */
+        EditorVector3 origin;
+
+        /** @brief Unit world directions of the entity's own X, Y and Z axes, in that order. */
+        std::array<EditorVector3, 3> axes{EditorVector3{1.0f, 0.0f, 0.0f}, EditorVector3{0.0f, 1.0f, 0.0f},
+                                          EditorVector3{0.0f, 0.0f, 1.0f}};
+
+        /** @brief Length of each arm in world units, chosen so it is a constant size on screen. */
+        float armLength = 1.0f;
+
+        /** @brief The origin in viewport pixels. */
+        EditorVector2 screenOrigin;
+
+        /** @brief Where each arm's handle is drawn, in viewport pixels. */
+        std::array<EditorVector2, 3> screenHandles{};
+
+        /**
+         * @brief Whether each arm has a direction on screen at all.
+         *
+         * False only for an axis pointing exactly through the eye, where the arm projects onto its
+         * own origin and there is no direction to drag along -- not a foreshortened arm, which is
+         * shortened and faded but still usable. Reaching it takes an exact alignment and a hair of
+         * orbiting leaves it; the centre handle covers those pixels meanwhile.
+         */
+        std::array<bool, 3> armVisible{true, true, true};
+
+        /**
+         * @brief How much of its full screen length each arm has left, from 0 to 1.
+         *
+         * Drives the fade. It is the arm's own foreshortening rather than an angle to the camera,
+         * because that is the quantity the user is affected by: a short arm is a coarse control.
+         */
+        std::array<float, 3> armFade{1.0f, 1.0f, 1.0f};
+
+        /** @brief Half-extent of the square at the end of each arm. */
+        float handleExtent = 6.0f;
+
+        /** @brief Half-extent of the centre square, which scales all three axes together. */
+        float centerExtent = 10.0f;
+
+        /** @brief How far from an arm, in pixels, still counts as grabbing it. */
+        float grabTolerance = 7.0f;
+    };
+
+    /**
+     * @brief The shortest an arm is drawn, in pixels, however edge-on its axis is.
+     *
+     * Comfortably outside the centre handle, because the whole point of the floor is that the two
+     * stay separately grabbable: an arm allowed to collapse onto the centre square is an axis the
+     * user can see and cannot reach.
+     */
+    inline constexpr float kScaleGizmo3DMinimumArmPixels = 30.0f;
+
+    /**
+     * @brief Returns the scale layout for @p entityId, or nothing when it has no transform.
+     *
+     * Takes no `GizmoSpace`: scale is always local, so the arms always follow the entity's own
+     * rotation.
+     */
+    [[nodiscard]] std::optional<ScaleGizmo3DLayout> computeScaleGizmo3DLayout(
+        const SceneDocument& scene, const EditorCamera3D& camera, const Uuid& entityId);
+
+    /**
+     * @brief Returns which handle @p screenPoint is over, or None.
+     *
+     * The centre wins where it overlaps an arm, exactly as in 2D: it is the smaller target, it is
+     * what a user aiming at the middle of the gizmo means, and the arms stay reachable along the
+     * whole of the rest of their length.
+     */
+    [[nodiscard]] GizmoAxis3D hitTestScaleGizmo3D(const ScaleGizmo3DLayout& layout,
+                                                  const EditorVector2& screenPoint);
+
+    /** @brief Returns the segments that draw @p layout, with @p active drawn highlighted. */
+    [[nodiscard]] std::vector<WireSegment> buildScaleGizmo3DSegments(
+        const ScaleGizmo3DLayout& layout, GizmoAxis3D active = GizmoAxis3D::None);
+
+    /**
+     * @brief One in-progress 3D scale drag.
+     *
+     * Solved entirely on the screen, unlike the other two. Scale is unitless, so the only
+     * zoom-independent measure of it is a *ratio* of screen distances -- drag a handle to twice the
+     * distance it was grabbed at and the entity doubles, at any camera and any depth. That is also
+     * what makes the foreshortened case survivable: a ratio along a short arm is still a ratio.
+     */
+    class ScaleGizmo3DDrag
+    {
+    public:
+        [[nodiscard]] bool isActive() const { return axis_ != GizmoAxis3D::None; }
+        [[nodiscard]] const Uuid& getEntityId() const { return entityId_; }
+        [[nodiscard]] GizmoAxis3D getAxis() const { return axis_; }
+
+        /**
+         * @brief Starts a drag on the handle under @p cursor.
+         *
+         * @return False when nothing was grabbed, when the entity has no transform, or when the
+         *         press landed too near the origin for a ratio to mean anything -- every factor
+         *         below is a division by how far out the grab was.
+         */
+        bool begin(const SceneDocument& scene, const ScaleGizmo3DLayout& layout, const Uuid& entityId,
+                   const EditorVector2& cursor);
+
+        /** @brief Returns the entity's new *local* scale, or nothing when it has not changed. */
+        [[nodiscard]] std::optional<EditorVector3> update(const ScaleGizmo3DLayout& layout,
+                                                           const EditorVector2& cursor,
+                                                           const GizmoSnap& snap) const;
+
+        /**
+         * @brief Returns the factor the drag describes, for a caller applying it to several things.
+         *
+         * The *gesture*, as `TranslateGizmo3DDrag::getWorldDelta` is: one quantity, so a selection
+         * of twenty cannot disagree about how far the cursor went.
+         */
+        [[nodiscard]] float getFactor(const ScaleGizmo3DLayout& layout, const EditorVector2& cursor,
+                                      const GizmoSnap& snap) const;
+
+        void end() { axis_ = GizmoAxis3D::None; }
+
+    private:
+        Uuid entityId_;
+        GizmoAxis3D axis_ = GizmoAxis3D::None;
+
+        EditorVector3 startLocalScale_{1.0f, 1.0f, 1.0f};
+
+        /** @brief The grabbed arm's unit screen direction, fixed at the press. */
+        EditorVector2 direction_{1.0f, 0.0f};
+
+        /** @brief How far out the grab was, along that direction. Every factor divides by it. */
+        float grabDistance_ = 1.0f;
     };
 
     /**

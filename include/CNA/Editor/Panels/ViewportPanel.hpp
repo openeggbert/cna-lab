@@ -54,9 +54,8 @@ namespace CNA::Editor
          * The bindings are the ones every 3D editor has settled on, and each avoids a collision
          * rather than being chosen for its own sake: middle-drag orbits, right-drag turns the
          * camera in place, Shift with either pans, the wheel dollies, and W/A/S/D with Q and E fly
-         * while the right button is held. The left button is left entirely alone, which is what
-         * keeps click-to-select working and leaves room for a 3D gizmo (ED-401 in three dimensions
-         * is not built yet).
+         * while the right button is held. The left button belongs to the gizmo and the picker,
+         * which is why none of the navigation bindings uses it.
          */
         void handleInteraction3D(const UiImageInteraction& interaction, const EditorVector2& cursor);
 
@@ -74,6 +73,27 @@ namespace CNA::Editor
 
         /** @brief Applies one frame of a 3D translate drag, to one entity or to a whole selection. */
         void updateTranslate3DDrag(const EditorVector2& cursor, const GizmoSnap& snap);
+
+        /**
+         * @brief Hit-tests the 3D manipulator under @p cursor and starts a drag on a press.
+         *
+         * Hover and grab together because they ask the same question of the same layout, and the
+         * layout is not cheap: a rotate ring is a hundred and fifty projected points. Computing it
+         * once per frame rather than once to highlight and again to grab also removes the chance
+         * that the two disagree about what is under the cursor.
+         *
+         * @return True when a drag began, in which case the press must not also reach the picker.
+         */
+        bool beginGizmo3DDrag(const UiImageInteraction& interaction, const EditorVector2& cursor);
+
+        /** @brief Returns true while any of the three 3D manipulators is being dragged. */
+        [[nodiscard]] bool isGizmo3DDragActive() const;
+
+        /** @brief Ends whichever 3D drag is in progress, and its selection-wide half. */
+        void endGizmo3DDrag();
+
+        /** @brief Applies one frame of whichever 3D drag is in progress. */
+        void updateGizmo3DDrag(const EditorVector2& cursor, const GizmoSnap& snap);
 
         /**
          * @brief Continues a gizmo drag or a paint stroke already in progress.
@@ -225,6 +245,9 @@ namespace CNA::Editor
 
         /** @brief The in-progress 3D rotate drag, if any. */
         RotateGizmo3DDrag rotate3DDrag_;
+
+        /** @brief The in-progress 3D scale drag, if any. */
+        ScaleGizmo3DDrag scale3DDrag_;
 
         /** @brief Which 3D arm the cursor is over, so the drawn gizmo can say so before it is grabbed. */
         GizmoAxis3D hovered3DAxis_ = GizmoAxis3D::None;

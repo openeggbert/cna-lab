@@ -2223,6 +2223,143 @@ CNA_EDITOR_TEST(TheThreeDimensionalRotateRingsAreGrabbedWhereTheyAreDrawn)
     CNA_EDITOR_EXPECT(!drag.update(scene, camera, zRing.front(), GizmoSnap{}).has_value());
 }
 
+CNA_EDITOR_TEST(TheThreeDimensionalScaleArmsShortenRatherThanVanishWhenSeenEdgeOn)
+{
+    ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid entityId = scene.addEntity(makeEntity(registry, "Crate", 0.0f, 0.0f));
+
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{});
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+    camera.setDistance(300.0f);
+
+    const std::optional<ScaleGizmo3DLayout> straightOn = computeScaleGizmo3DLayout(scene, camera, entityId);
+    CNA_EDITOR_EXPECT(straightOn.has_value());
+    if (!straightOn) { return; }
+
+    // Looking straight down the Z axis at an entity in the middle of the screen: X and Y lie across
+    // the view, and Z runs exactly through the eye, where it projects onto its own origin and has
+    // no direction to be dragged along at all. That is the one case an arm is dropped.
+    CNA_EDITOR_EXPECT(straightOn->armVisible[0]);
+    CNA_EDITOR_EXPECT(straightOn->armVisible[1]);
+    CNA_EDITOR_EXPECT(!straightOn->armVisible[2]);
+
+    // The pixels it vacated belong to the centre handle, so the middle of the gizmo still does
+    // something -- and it is the thing a press in the middle of a gizmo means.
+    CNA_EDITOR_EXPECT(hitTestScaleGizmo3D(*straightOn, straightOn->screenOrigin) == GizmoAxis3D::All);
+    CNA_EDITOR_EXPECT(hitTestScaleGizmo3D(*straightOn, straightOn->screenHandles[0]) == GizmoAxis3D::X);
+    CNA_EDITOR_EXPECT(hitTestScaleGizmo3D(*straightOn, EditorVector2{5.0f, 5.0f}) == GizmoAxis3D::None);
+
+    // A degree of orbit and the arm is back: shortened to its floor and faded almost out, but on
+    // screen and grabbable. This is where the rotate gizmo hides a ring instead -- a turn needs a
+    // plane to measure an angle in, and a scale needs only a ratio, which the screen always has.
+    camera.setYaw(0.02f);
+    const std::optional<ScaleGizmo3DLayout> tilted = computeScaleGizmo3DLayout(scene, camera, entityId);
+    CNA_EDITOR_EXPECT(tilted.has_value());
+    if (!tilted) { return; }
+
+    CNA_EDITOR_EXPECT(tilted->armVisible[2]);
+
+    const float pixels = std::hypot(tilted->screenHandles[2].x - tilted->screenOrigin.x,
+                                    tilted->screenHandles[2].y - tilted->screenOrigin.y);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(pixels, kScaleGizmo3DMinimumArmPixels, 0.5f));
+    CNA_EDITOR_EXPECT(pixels > tilted->centerExtent + tilted->handleExtent);
+    CNA_EDITOR_EXPECT(tilted->armFade[2] < 0.2f);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(tilted->armFade[0], 1.0f, 0.001f));
+
+    // What is drawn is what can be grabbed, the same invariant the rings hold: the handle sits on
+    // the X arm's line at this angle, and the square still wins, because a square is what the eye
+    // was aiming at.
+    CNA_EDITOR_EXPECT(hitTestScaleGizmo3D(*tilted, tilted->screenHandles[2]) == GizmoAxis3D::Z);
+    CNA_EDITOR_EXPECT(!buildScaleGizmo3DSegments(*tilted, GizmoAxis3D::Z).empty());
+}
+
+CNA_EDITOR_TEST(AThreeDimensionalScaleDragIsARatioOfScreenDistances)
+{
+    ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const Uuid entityId = scene.addEntity(makeEntity(registry, "Crate", 0.0f, 0.0f));
+
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{});
+    camera.setYaw(0.6f);
+    camera.setPitch(0.4f);
+    camera.setDistance(300.0f);
+
+    const std::optional<ScaleGizmo3DLayout> layout = computeScaleGizmo3DLayout(scene, camera, entityId);
+    CNA_EDITOR_EXPECT(layout.has_value());
+    if (!layout) { return; }
+
+    const EditorVector2 handle = layout->screenHandles[0];
+    const EditorVector2 arm{handle.x - layout->screenOrigin.x, handle.y - layout->screenOrigin.y};
+
+    ScaleGizmo3DDrag drag;
+    CNA_EDITOR_EXPECT(drag.begin(scene, *layout, entityId, handle));
+    CNA_EDITOR_EXPECT(drag.getAxis() == GizmoAxis3D::X);
+
+    // Not moved is no edit at all.
+    CNA_EDITOR_EXPECT(!drag.update(*layout, handle, GizmoSnap{}).has_value());
+
+    // Twice as far out along the arm is twice the size -- a ratio, which is the only measure of a
+    // unitless quantity that means the same thing at every camera distance.
+    const EditorVector2 twiceOut{layout->screenOrigin.x + arm.x * 2.0f,
+                                 layout->screenOrigin.y + arm.y * 2.0f};
+    const std::optional<EditorVector3> doubled = drag.update(*layout, twiceOut, GizmoSnap{});
+    CNA_EDITOR_EXPECT(doubled.has_value());
+    if (!doubled) { return; }
+
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(doubled->x, 2.0f, 0.01f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(doubled->y, 1.0f, 0.001f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(doubled->z, 1.0f, 0.001f));
+
+    // Dragging back through the origin flips the entity, which is a legitimate edit XNA's own
+    // negative scale supports -- but it never lands on zero, where the entity would be invisible
+    // *and* unclickable, with nothing left to grab to get it back.
+    const EditorVector2 behind{layout->screenOrigin.x - arm.x, layout->screenOrigin.y - arm.y};
+    const std::optional<EditorVector3> flipped = drag.update(*layout, behind, GizmoSnap{});
+    CNA_EDITOR_EXPECT(flipped.has_value());
+    if (flipped) { CNA_EDITOR_EXPECT(flipped->x < 0.0f); }
+
+    const std::optional<EditorVector3> atOrigin =
+        drag.update(*layout, layout->screenOrigin, GizmoSnap{});
+    CNA_EDITOR_EXPECT(atOrigin.has_value());
+    if (atOrigin) { CNA_EDITOR_EXPECT(atOrigin->x != 0.0f); }
+
+    // Snapped to tenths, and the *factor* is what is rounded: the shared quantity, so a selection
+    // cannot end up at sizes that are round one at a time and not in proportion to each other.
+    GizmoSnap snap;
+    snap.scale = kDefaultScaleSnap;
+    const EditorVector2 awkward{layout->screenOrigin.x + arm.x * 1.73f,
+                                layout->screenOrigin.y + arm.y * 1.73f};
+    const std::optional<EditorVector3> snapped = drag.update(*layout, awkward, snap);
+    CNA_EDITOR_EXPECT(snapped.has_value());
+    if (snapped) { CNA_EDITOR_EXPECT(cameraNearlyEqual(snapped->x, 1.7f, 0.001f)); }
+
+    // The centre handle scales all three at once, which is the commonest scale there is.
+    ScaleGizmo3DDrag uniform;
+    const EditorVector2 nearCentre{layout->screenOrigin.x + 8.0f, layout->screenOrigin.y};
+    CNA_EDITOR_EXPECT(uniform.begin(scene, *layout, entityId, nearCentre));
+    CNA_EDITOR_EXPECT(uniform.getAxis() == GizmoAxis3D::All);
+
+    const std::optional<EditorVector3> bigger =
+        uniform.update(*layout, EditorVector2{layout->screenOrigin.x + 16.0f, layout->screenOrigin.y},
+                       GizmoSnap{});
+    CNA_EDITOR_EXPECT(bigger.has_value());
+    if (bigger)
+    {
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(bigger->x, 2.0f, 0.01f));
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(bigger->y, 2.0f, 0.01f));
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(bigger->z, 2.0f, 0.01f));
+    }
+
+    // A press exactly on the origin is not a drag: every factor is a division by how far out the
+    // grab was, so a grab at the centre would scale by infinity. The press falls through instead.
+    ScaleGizmo3DDrag atCentre;
+    CNA_EDITOR_EXPECT(!atCentre.begin(scene, *layout, entityId, layout->screenOrigin));
+}
+
 CNA_EDITOR_TEST(AThreeDimensionalTurnIsAppliedInTheWorldRatherThanTheEntitysOwnFrame)
 {
     ComponentRegistry registry = makeRegistry();

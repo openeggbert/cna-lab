@@ -18,6 +18,9 @@ namespace CNA::Editor
         /** @brief The colour of the arm being dragged or hovered. */
         constexpr EditorColor kActiveColor{255, 210, 70, 255};
 
+        /** @brief The scale gizmo's centre handle: no axis, so no axis colour. */
+        constexpr EditorColor kUniformColor{210, 210, 216, 255};
+
         /** @brief Returns the distance from @p point to the segment @p from -> @p to, in pixels. */
         float distanceToSegment(const EditorVector2& point, const EditorVector2& from,
                                 const EditorVector2& to)
@@ -92,6 +95,64 @@ namespace CNA::Editor
                 default: return GizmoAxis3D::Z;
             }
         }
+
+        /** @brief Returns @p axis's index, or 3 for None and All. */
+        std::size_t indexOf(GizmoAxis3D axis)
+        {
+            switch (axis)
+            {
+                case GizmoAxis3D::X: return 0;
+                case GizmoAxis3D::Y: return 1;
+                case GizmoAxis3D::Z: return 2;
+                default: return 3;
+            }
+        }
+
+        /** @brief Returns true when @p point is inside the square of half-extent @p extent at @p center. */
+        bool insideSquare(const EditorVector2& point, const EditorVector2& center, float extent)
+        {
+            return std::abs(point.x - center.x) <= extent && std::abs(point.y - center.y) <= extent;
+        }
+
+        /**
+         * @brief Keeps a scale factor away from exactly zero, sign intact.
+         *
+         * The same rule the 2D gizmo follows: dragging a handle through the origin flips the
+         * entity, which XNA's own negative scale supports and a user may well mean. Landing *on*
+         * zero is not the same thing -- the entity vanishes, its bounds collapse, and it can no
+         * longer be clicked to get it back.
+         */
+        float keepScalable(float factor)
+        {
+            constexpr float kSmallest = 0.001f;
+            if (std::abs(factor) >= kSmallest) { return factor; }
+            return factor < 0.0f ? -kSmallest : kSmallest;
+        }
+
+        /** @brief Returns @p color at the alpha a fade of @p fade implies. */
+        EditorColor faded(const EditorColor& color, float fade)
+        {
+            // Down to a floor rather than to nothing. An arm that faded out completely would be an
+            // axis the user has stopped being told about while it is still there to be dragged.
+            constexpr float kFloor = 90.0f;
+            const float alpha = kFloor + (255.0f - kFloor) * std::max(0.0f, std::min(1.0f, fade));
+            return EditorColor{color.r, color.g, color.b, static_cast<std::uint8_t>(alpha)};
+        }
+
+        /** @brief Appends the four sides of the square of half-extent @p extent at @p center. */
+        void appendSquare(std::vector<WireSegment>& out, const EditorVector2& center, float extent,
+                          const EditorColor& color, float thickness)
+        {
+            const EditorVector2 topLeft{center.x - extent, center.y - extent};
+            const EditorVector2 topRight{center.x + extent, center.y - extent};
+            const EditorVector2 bottomRight{center.x + extent, center.y + extent};
+            const EditorVector2 bottomLeft{center.x - extent, center.y + extent};
+
+            out.push_back(WireSegment{topLeft, topRight, color, thickness});
+            out.push_back(WireSegment{topRight, bottomRight, color, thickness});
+            out.push_back(WireSegment{bottomRight, bottomLeft, color, thickness});
+            out.push_back(WireSegment{bottomLeft, topLeft, color, thickness});
+        }
     }
 
     const char* toString(GizmoAxis3D axis)
@@ -102,6 +163,7 @@ namespace CNA::Editor
             case GizmoAxis3D::X: return "X";
             case GizmoAxis3D::Y: return "Y";
             case GizmoAxis3D::Z: return "Z";
+            case GizmoAxis3D::All: return "All";
         }
         return "None";
     }
@@ -386,6 +448,242 @@ namespace CNA::Editor
         const EditorQuaternion inverse{-parent->rotation.x, -parent->rotation.y, -parent->rotation.z,
                                        parent->rotation.w};
         return multiply(inverse, world);
+    }
+
+    std::optional<ScaleGizmo3DLayout> computeScaleGizmo3DLayout(const SceneDocument& scene,
+                                                                 const EditorCamera3D& camera,
+                                                                 const Uuid& entityId)
+    {
+        const std::optional<WorldTransform> world = computeWorldTransform(scene, entityId);
+        if (!world) { return std::nullopt; }
+
+        ScaleGizmo3DLayout layout;
+        layout.origin = world->position;
+
+        // Always the entity's own axes. There is no space toggle to consult: a non-uniform scale
+        // in world space is a shear, which this transform cannot express.
+        layout.axes = {rotate(world->rotation, EditorVector3{1.0f, 0.0f, 0.0f}),
+                       rotate(world->rotation, EditorVector3{0.0f, 1.0f, 0.0f}),
+                       rotate(world->rotation, EditorVector3{0.0f, 0.0f, 1.0f})};
+
+        layout.armLength = kGizmo3DScreenLength * worldUnitsPerPixelAt(camera, layout.origin);
+
+        const std::optional<EditorVector2> screenOrigin = camera.worldToScreen(layout.origin);
+        if (!screenOrigin) { return std::nullopt; }
+        layout.screenOrigin = *screenOrigin;
+
+        for (std::size_t index = 0; index < 3; ++index)
+        {
+            const EditorVector3 tip = add(layout.origin, scale(layout.axes[index], layout.armLength));
+
+            // Clipped against the near plane rather than dropped when the far end is behind it,
+            // which is the wireframe's own rule and the reason `projectSegment` is shared: every
+            // point left after the clip is in front of the eye, so the arm still projects onto one
+            // ray from the origin and only its length has changed.
+            const std::optional<std::pair<EditorVector2, EditorVector2>> projected =
+                projectSegment(camera, layout.origin, tip);
+
+            if (!projected)
+            {
+                layout.armVisible[index] = false;
+                layout.screenHandles[index] = layout.screenOrigin;
+                continue;
+            }
+
+            const EditorVector2 offset{projected->second.x - layout.screenOrigin.x,
+                                       projected->second.y - layout.screenOrigin.y};
+            const float pixels = std::hypot(offset.x, offset.y);
+
+            // An axis pointing exactly through the eye projects onto its own origin: no direction,
+            // so nothing to draw along and nothing to drag along. The only case an arm is dropped,
+            // and it takes an exact alignment to reach.
+            if (pixels < 1e-3f)
+            {
+                layout.armVisible[index] = false;
+                layout.screenHandles[index] = layout.screenOrigin;
+                continue;
+            }
+
+            layout.armFade[index] = std::min(1.0f, pixels / kGizmo3DScreenLength);
+
+            // The *direction* is the projection's, exactly; the *length* was a chosen constant to
+            // begin with, so bounding it costs no truth and buys a handle that is neither hidden
+            // under the centre one nor thrown off the panel by an arm pointing at the camera.
+            constexpr float kMaximumArmPixels = kGizmo3DScreenLength * 1.5f;
+            const float drawn =
+                std::max(kScaleGizmo3DMinimumArmPixels, std::min(pixels, kMaximumArmPixels));
+
+            layout.screenHandles[index] = EditorVector2{layout.screenOrigin.x + offset.x / pixels * drawn,
+                                                        layout.screenOrigin.y + offset.y / pixels * drawn};
+        }
+
+        return layout;
+    }
+
+    GizmoAxis3D hitTestScaleGizmo3D(const ScaleGizmo3DLayout& layout, const EditorVector2& screenPoint)
+    {
+        // The centre first, as in 2D: it is the smaller target, it is what a press in the middle of
+        // the gizmo means, and every arm is still reachable along the rest of its length. It is
+        // also what covers the pixels an axis pointing through the eye has vacated.
+        if (insideSquare(screenPoint, layout.screenOrigin, layout.centerExtent)) { return GizmoAxis3D::All; }
+
+        // The end squares before the arms, so a press a hair off an arm's line but plainly on its
+        // handle still counts -- the square is the part the eye aims at.
+        for (std::size_t index = 0; index < 3; ++index)
+        {
+            if (!layout.armVisible[index]) { continue; }
+            if (insideSquare(screenPoint, layout.screenHandles[index], layout.handleExtent))
+            {
+                return axisAt(index);
+            }
+        }
+
+        GizmoAxis3D best = GizmoAxis3D::None;
+        float bestDistance = layout.grabTolerance;
+
+        for (std::size_t index = 0; index < 3; ++index)
+        {
+            if (!layout.armVisible[index]) { continue; }
+
+            const float distance =
+                distanceToSegment(screenPoint, layout.screenOrigin, layout.screenHandles[index]);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                best = axisAt(index);
+            }
+        }
+
+        return best;
+    }
+
+    std::vector<WireSegment> buildScaleGizmo3DSegments(const ScaleGizmo3DLayout& layout,
+                                                       GizmoAxis3D active)
+    {
+        std::vector<WireSegment> segments;
+        segments.reserve(19);
+
+        for (std::size_t index = 0; index < 3; ++index)
+        {
+            if (!layout.armVisible[index]) { continue; }
+
+            const bool highlighted = active == axisAt(index);
+            const float thickness = highlighted ? 3.0f : 2.0f;
+
+            // The fade is not applied to a highlighted arm: the user is holding it, so how much
+            // room it has left to be precise in is no longer the thing being reported.
+            const EditorColor color = highlighted
+                                          ? kActiveColor
+                                          : faded(kAxisColors[index], layout.armFade[index]);
+
+            segments.push_back(WireSegment{layout.screenOrigin, layout.screenHandles[index], color,
+                                           thickness});
+            appendSquare(segments, layout.screenHandles[index], layout.handleExtent, color, thickness);
+        }
+
+        // Last, so it draws over the arms that start underneath it -- which is also the order the
+        // hit-test resolves them in.
+        const bool uniform = active == GizmoAxis3D::All;
+        appendSquare(segments, layout.screenOrigin, layout.centerExtent,
+                     uniform ? kActiveColor : kUniformColor, uniform ? 3.0f : 2.0f);
+
+        return segments;
+    }
+
+    bool ScaleGizmo3DDrag::begin(const SceneDocument& scene, const ScaleGizmo3DLayout& layout,
+                                 const Uuid& entityId, const EditorVector2& cursor)
+    {
+        end();
+
+        const GizmoAxis3D grabbed = hitTestScaleGizmo3D(layout, cursor);
+        if (grabbed == GizmoAxis3D::None) { return false; }
+
+        const EditorEntity* entity = scene.findEntity(entityId);
+        if (entity == nullptr) { return false; }
+
+        const EditorComponent* transform = entity->findComponent(BuiltinComponentIds::kTransform);
+        if (transform == nullptr) { return false; }
+
+        const EditorVector2 offset{cursor.x - layout.screenOrigin.x, cursor.y - layout.screenOrigin.y};
+
+        EditorVector2 direction{1.0f, 0.0f};
+        float distance = 0.0f;
+
+        if (grabbed == GizmoAxis3D::All)
+        {
+            // Radially: the uniform handle has no axis, so how far out the cursor is, in any
+            // direction, is the whole of what it can be measuring.
+            distance = std::hypot(offset.x, offset.y);
+        }
+        else
+        {
+            const std::size_t index = indexOf(grabbed);
+            const EditorVector2 arm{layout.screenHandles[index].x - layout.screenOrigin.x,
+                                    layout.screenHandles[index].y - layout.screenOrigin.y};
+            const float armPixels = std::hypot(arm.x, arm.y);
+            if (armPixels <= 0.0f) { return false; }
+
+            direction = EditorVector2{arm.x / armPixels, arm.y / armPixels};
+            distance = offset.x * direction.x + offset.y * direction.y;
+        }
+
+        // Every factor below is a division by this. A grab at the origin would scale by infinity,
+        // so it is not a drag at all and the press falls through to whatever is underneath.
+        constexpr float kSmallestGrab = 4.0f;
+        if (std::abs(distance) < kSmallestGrab) { return false; }
+
+        axis_ = grabbed;
+        entityId_ = entityId;
+        direction_ = direction;
+        grabDistance_ = distance;
+        startLocalScale_ =
+            transform->getProperty("scale").get<EditorVector3>(EditorVector3{1.0f, 1.0f, 1.0f});
+        return true;
+    }
+
+    float ScaleGizmo3DDrag::getFactor(const ScaleGizmo3DLayout& layout, const EditorVector2& cursor,
+                                      const GizmoSnap& snap) const
+    {
+        if (!isActive()) { return 1.0f; }
+
+        const EditorVector2 offset{cursor.x - layout.screenOrigin.x, cursor.y - layout.screenOrigin.y};
+
+        const float distance = axis_ == GizmoAxis3D::All
+                                   ? std::hypot(offset.x, offset.y)
+                                   : offset.x * direction_.x + offset.y * direction_.y;
+
+        // A ratio, not a difference: screen pixels are not scale units, and only a ratio is
+        // independent of the camera the drag happens to be looking through. Snapped here rather
+        // than per entity, because for a selection the factor is the quantity they share.
+        return keepScalable(snapTo(distance / grabDistance_, snap.scale));
+    }
+
+    std::optional<EditorVector3> ScaleGizmo3DDrag::update(const ScaleGizmo3DLayout& layout,
+                                                          const EditorVector2& cursor,
+                                                          const GizmoSnap& snap) const
+    {
+        if (!isActive()) { return std::nullopt; }
+
+        const float factor = getFactor(layout, cursor, snap);
+
+        EditorVector3 result = startLocalScale_;
+        switch (axis_)
+        {
+            case GizmoAxis3D::X: result.x = keepScalable(startLocalScale_.x * factor); break;
+            case GizmoAxis3D::Y: result.y = keepScalable(startLocalScale_.y * factor); break;
+            case GizmoAxis3D::Z: result.z = keepScalable(startLocalScale_.z * factor); break;
+            case GizmoAxis3D::All:
+                result = EditorVector3{keepScalable(startLocalScale_.x * factor),
+                                       keepScalable(startLocalScale_.y * factor),
+                                       keepScalable(startLocalScale_.z * factor)};
+                break;
+            case GizmoAxis3D::None: return std::nullopt;
+        }
+
+        // Unchanged is not an edit: an undo entry restoring the size the entity already was costs
+        // the user a Ctrl+Z to reach a change they can see.
+        if (result == startLocalScale_) { return std::nullopt; }
+        return result;
     }
 
     EditorVector3 worldDeltaToLocal3D(const SceneDocument& scene, const Uuid& entityId,

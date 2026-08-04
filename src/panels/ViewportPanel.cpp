@@ -155,6 +155,16 @@ namespace CNA::Editor
                     handles = buildRotateGizmo3DSegments(*layout, active);
                 }
             }
+            else if (mode == GizmoMode::Scale)
+            {
+                const GizmoAxis3D active =
+                    scale3DDrag_.isActive() ? scale3DDrag_.getAxis() : hovered3DAxis_;
+
+                if (const auto layout = computeScaleGizmo3DLayout(context_.getScene(), camera, subject))
+                {
+                    handles = buildScaleGizmo3DSegments(*layout, active);
+                }
+            }
             else if (mode == GizmoMode::Translate)
             {
                 const GizmoAxis3D active =
@@ -165,8 +175,6 @@ namespace CNA::Editor
                     handles = buildTranslateGizmo3DSegments(*layout, active);
                 }
             }
-            // Scale draws nothing: its 3D handle has to stay grabbable edge-on, which is its own
-            // problem, and a manipulator that is on screen but does not work is worse than none.
 
             lastWireframe_.segments.insert(lastWireframe_.segments.end(), handles.begin(), handles.end());
         }
@@ -314,12 +322,132 @@ namespace CNA::Editor
         }
     }
 
+    bool ViewportPanel::isGizmo3DDragActive() const
+    {
+        return translate3DDrag_.isActive() || rotate3DDrag_.isActive() || scale3DDrag_.isActive();
+    }
+
+    void ViewportPanel::endGizmo3DDrag()
+    {
+        translate3DDrag_.end();
+        rotate3DDrag_.end();
+        scale3DDrag_.end();
+        multi3DDrag_.end();
+        gizmoDragHasEdited_ = false;
+    }
+
+    bool ViewportPanel::beginGizmo3DDrag(const UiImageInteraction& interaction,
+                                         const EditorVector2& cursor)
+    {
+        hovered3DAxis_ = GizmoAxis3D::None;
+
+        const Uuid subject = getGizmo3DSubject();
+        if (!subject.isValid()) { return false; }
+
+        const SceneDocument& scene = context_.getScene();
+        const EditorCamera3D& camera = actions_.getViewport().getCamera3D();
+
+        bool began = false;
+
+        // Only the manipulator that is actually drawn is hit-tested, exactly as in 2D: testing the
+        // others would let a press land on a handle nobody can see, which from the outside is
+        // indistinguishable from a bug.
+        switch (actions_.getGizmoMode())
+        {
+            case GizmoMode::Translate:
+            {
+                const std::optional<TranslateGizmo3DLayout> layout = getTranslateGizmo3DLayout();
+                if (!layout) { break; }
+
+                hovered3DAxis_ = hitTestTranslateGizmo3D(*layout, cursor);
+                began = interaction.leftPressed
+                        && translate3DDrag_.begin(scene, camera, *layout, subject, cursor);
+                break;
+            }
+
+            case GizmoMode::Rotate:
+            {
+                const std::optional<RotateGizmo3DLayout> layout =
+                    computeRotateGizmo3DLayout(scene, camera, subject, actions_.getGizmoSpace());
+                if (!layout) { break; }
+
+                hovered3DAxis_ = hitTestRotateGizmo3D(*layout, cursor);
+                began = interaction.leftPressed
+                        && rotate3DDrag_.begin(scene, camera, *layout, subject, cursor);
+                break;
+            }
+
+            case GizmoMode::Scale:
+            {
+                const std::optional<ScaleGizmo3DLayout> layout =
+                    computeScaleGizmo3DLayout(scene, camera, subject);
+                if (!layout) { break; }
+
+                hovered3DAxis_ = hitTestScaleGizmo3D(*layout, cursor);
+                began = interaction.leftPressed && scale3DDrag_.begin(scene, *layout, subject, cursor);
+                break;
+            }
+
+            case GizmoMode::None:
+                break;
+        }
+
+        if (!began) { return false; }
+
+        // The selection-wide half runs beside the single-entity one, and only when there is more
+        // than one thing to move: for a selection of one they would compute the same edit twice,
+        // and the multi path's command carries a heavier merge key.
+        if (translate3DDrag_.isActive() && context_.getSelection().size() > 1)
+        {
+            multi3DDrag_.begin(scene, context_.getSelection());
+            ++multiDragId_;
+        }
+
+        gizmoDragHasEdited_ = false;
+        return true;
+    }
+
+    void ViewportPanel::updateGizmo3DDrag(const EditorVector2& cursor, const GizmoSnap& snap)
+    {
+        const SceneDocument& scene = context_.getScene();
+        const EditorCamera3D& camera = actions_.getViewport().getCamera3D();
+
+        if (rotate3DDrag_.isActive())
+        {
+            if (const auto rotation = rotate3DDrag_.update(scene, camera, cursor, snap))
+            {
+                commitGizmoEdit(rotate3DDrag_.getEntityId(), "rotation", PropertyValue{*rotation});
+            }
+            return;
+        }
+
+        if (scale3DDrag_.isActive())
+        {
+            // Recomputed each frame rather than kept from the press, like every other layout here:
+            // the entity may be moving for reasons of its own -- a parent animated by the running
+            // player -- and the gizmo has to stay on it. What must not be recomputed is the grab,
+            // and that lives inside the drag.
+            const std::optional<ScaleGizmo3DLayout> layout =
+                computeScaleGizmo3DLayout(scene, camera, scale3DDrag_.getEntityId());
+            if (!layout) { return; }
+
+            if (const auto scaled = scale3DDrag_.update(*layout, cursor, snap))
+            {
+                commitGizmoEdit(scale3DDrag_.getEntityId(), "scale", PropertyValue{*scaled});
+            }
+            return;
+        }
+
+        updateTranslate3DDrag(cursor, snap);
+    }
+
     Uuid ViewportPanel::getGizmo3DSubject() const
     {
         // The dragged entity while a drag is running, so releasing the pointer over empty space
         // does not make the manipulator vanish mid-gesture; otherwise the primary selection.
         if (translate3DDrag_.isActive()) { return translate3DDrag_.getEntityId(); }
         if (rotate3DDrag_.isActive()) { return rotate3DDrag_.getEntityId(); }
+        if (scale3DDrag_.isActive()) { return scale3DDrag_.getEntityId(); }
         return context_.getSelection().empty() ? Uuid{} : context_.getSelection().front();
     }
 
@@ -340,73 +468,22 @@ namespace CNA::Editor
         // A drag in progress outranks everything, and deliberately ignores hover: a drag that
         // wandered off the panel must keep going and end on release, or the entity is dropped
         // wherever the cursor happened to cross the edge. The same rule the 2D viewport has.
-        if (translate3DDrag_.isActive() || rotate3DDrag_.isActive())
+        if (isGizmo3DDragActive())
         {
             if (interaction.leftDown)
             {
-                const GizmoSnap snap = getSnap(interaction);
-
-                if (rotate3DDrag_.isActive())
-                {
-                    if (const auto rotation = rotate3DDrag_.update(context_.getScene(), camera, cursor, snap))
-                    {
-                        commitGizmoEdit(rotate3DDrag_.getEntityId(), "rotation", PropertyValue{*rotation});
-                    }
-                }
-                else { updateTranslate3DDrag(cursor, snap); }
+                updateGizmo3DDrag(cursor, getSnap(interaction));
                 return;
             }
 
-            translate3DDrag_.end();
-            rotate3DDrag_.end();
-            multi3DDrag_.end();
-            gizmoDragHasEdited_ = false;
+            endGizmo3DDrag();
             return;
         }
 
-        const bool rotating = actions_.getGizmoMode() == GizmoMode::Rotate;
-        const Uuid subject = getGizmo3DSubject();
-
-        const std::optional<RotateGizmo3DLayout> ring =
-            rotating && subject.isValid() ? computeRotateGizmo3DLayout(context_.getScene(), camera, subject,
-                                                                        actions_.getGizmoSpace())
-                                          : std::nullopt;
-        const std::optional<TranslateGizmo3DLayout> layout =
-            rotating ? std::nullopt : getTranslateGizmo3DLayout();
-
-        hovered3DAxis_ = GizmoAxis3D::None;
-        if (interaction.hovered)
-        {
-            if (ring) { hovered3DAxis_ = hitTestRotateGizmo3D(*ring, cursor); }
-            else if (layout) { hovered3DAxis_ = hitTestTranslateGizmo3D(*layout, cursor); }
-        }
-
-        if (interaction.hovered && interaction.leftPressed && ring
-            && rotate3DDrag_.begin(context_.getScene(), camera, *ring, subject, cursor))
-        {
-            gizmoDragHasEdited_ = false;
-            return;
-        }
-
-        // A press on an arm is a manipulation, and must not also count as a click that reselects
-        // whatever the arm happens to be drawn over -- which, for a gizmo sitting on its own
+        // A press on a handle is a manipulation, and must not also count as a click that reselects
+        // whatever the handle happens to be drawn over -- which, for a gizmo sitting on its own
         // entity, is that entity's own box.
-        if (interaction.hovered && interaction.leftPressed && layout
-            && translate3DDrag_.begin(context_.getScene(), camera, *layout,
-                                      context_.getSelection().front(), cursor))
-        {
-            // The selection-wide half runs beside the single-entity one, and only when there is
-            // more than one thing to move: for a selection of one they would compute the same
-            // edit twice, and the multi path's command carries a heavier merge key.
-            if (context_.getSelection().size() > 1)
-            {
-                multi3DDrag_.begin(context_.getScene(), context_.getSelection());
-                ++multiDragId_;
-            }
-
-            gizmoDragHasEdited_ = false;
-            return;
-        }
+        if (interaction.hovered && beginGizmo3DDrag(interaction, cursor)) { return; }
 
         if (interaction.wheel != 0.0f)
         {
@@ -595,15 +672,6 @@ namespace CNA::Editor
 
         if (threeDimensional)
         {
-            // Said rather than left to be discovered. Switching to Scale here makes the manipulator
-            // vanish, and "nothing happened" is the worst possible answer to a mode change -- the
-            // same reason the build panel states its problem before offering its button.
-            if (actions_.getGizmoMode() == GizmoMode::Scale)
-            {
-                ui_.sameLine();
-                ui_.text("(no 3D scale manipulator yet)");
-            }
-
             // A wireframe that ran out of room looks exactly like a scene missing half its
             // entities, so the one place it can be seen says so.
             if (lastWireframe_.truncated)

@@ -3855,6 +3855,49 @@ CNA_EDITOR_TEST(AThreeDimensionalGizmoDragMovesTheEntityAndUndoesAsOneEntry)
     CNA_EDITOR_EXPECT(fixture.application->getContext().getSelection().empty());
 }
 
+CNA_EDITOR_TEST(AThreeDimensionalScaleDragResizesTheEntityAndUndoesAsOneEntry)
+{
+    GizmoFixture fixture = makeGizmoFixture();
+    fixture.application->setThreeDimensionalView(true);
+    fixture.application->setGizmoMode(GizmoMode::Scale);
+    fixture.step(UiImageInteraction{});
+
+    // Orbited off the axes, so all three arms have room on screen. Straight down -Z the Z arm
+    // would be the degenerate one, which is a property the scene tests pin rather than this one.
+    EditorCamera3D& camera = fixture.application->getViewport().getCamera3D();
+    camera.setYaw(0.6f);
+    camera.setPitch(0.4f);
+    camera.setPivot(EditorVector3{100.0f, 220.0f, 0.0f});
+    camera.setDistance(400.0f);
+    fixture.step(UiImageInteraction{});
+
+    const std::optional<ScaleGizmo3DLayout> layout = computeScaleGizmo3DLayout(
+        fixture.application->getContext().getScene(), camera, fixture.entityId);
+    CNA_EDITOR_EXPECT(layout.has_value());
+    if (!layout) { return; }
+
+    const EditorVector2 handle = layout->screenHandles[0];
+    const EditorVector2 arm{handle.x - layout->screenOrigin.x, handle.y - layout->screenOrigin.y};
+
+    CNA_EDITOR_EXPECT(std::abs(fixture.getScale().x - 1.0f) < 0.001f);
+
+    fixture.step(leftAt(handle.x, handle.y, true));
+    fixture.step(leftAt(layout->screenOrigin.x + arm.x * 1.5f, layout->screenOrigin.y + arm.y * 1.5f,
+                        false));
+
+    // Half again as far out is half again the size, and only on the grabbed axis.
+    CNA_EDITOR_EXPECT(std::abs(fixture.getScale().x - 1.5f) < 0.05f);
+    CNA_EDITOR_EXPECT(std::abs(fixture.getScale().y - 1.0f) < 0.001f);
+
+    // A press on a handle is a manipulation and must not also reselect what it is drawn over.
+    CNA_EDITOR_EXPECT_EQ(fixture.application->getContext().getSelection().size(), std::size_t{1});
+
+    // One drag is one undo entry, exactly as translate and rotate are.
+    fixture.step(UiImageInteraction{});
+    fixture.application->undo();
+    CNA_EDITOR_EXPECT(std::abs(fixture.getScale().x - 1.0f) < 0.001f);
+}
+
 CNA_EDITOR_TEST(AThreeDimensionalDragMovesAWholeSelectionAsOneUndoEntry)
 {
     GizmoFixture fixture = makeGizmoFixture();
