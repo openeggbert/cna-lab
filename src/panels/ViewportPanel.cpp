@@ -747,6 +747,26 @@ namespace CNA::Editor
                 ui_.sameLine();
                 ui_.text("(too much to draw; showing part of the scene)");
             }
+
+            // What ED-402 draws, and -- deliberately -- what it does not. The owner's decision was
+            // that models render in the editor and not yet in the running game, and a
+            // ModelRenderer that is there while authoring and gone when the game runs is exactly
+            // the silent difference this editor exists to prevent. So it is said here, beside the
+            // models, rather than left to be discovered by pressing Play.
+            if (!lastModelBatch_.draws.empty())
+            {
+                ui_.sameLine();
+                ui_.text("| " + std::to_string(lastModelBatch_.draws.size())
+                         + " model(s), editor view only -- the player does not draw them yet");
+            }
+
+            // A model still importing looks identical to an entity that never had one, and only
+            // one of the two is worth waiting for.
+            if (lastModelBatch_.pendingMeshes > 0)
+            {
+                ui_.sameLine();
+                ui_.text("| " + std::to_string(lastModelBatch_.pendingMeshes) + " still loading");
+            }
             return;
         }
 

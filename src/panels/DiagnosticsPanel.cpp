@@ -14,6 +14,12 @@ namespace CNA::Editor
 
         ui_.text(std::string{"Editor UI: "} + ui_.getBackendName());
         ui_.text(std::string{"Viewport: "} + actions_.getViewport().getBackendName());
+
+        // Which effect the 3D model pass got (ED-402). Reported rather than assumed: PbrEffect is
+        // a CNA extension, this editor supports backends of three support tiers, and "why does a
+        // model look different on that machine" deserves an answer that is not a screenshot
+        // comparison. "none" is what a build with no CNA says, and is the honest word for it.
+        ui_.text(std::string{"Model effect: "} + actions_.getViewport().getModelEffectName());
         ui_.separator();
 
         const std::vector<ViewportCapability> capabilities = actions_.getViewport().getBackendCapabilities();

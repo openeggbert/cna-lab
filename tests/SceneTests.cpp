@@ -2831,3 +2831,49 @@ CNA_EDITOR_TEST(AnEntityWhoseMeshHasNotArrivedIsCountedRatherThanDropped)
     const SceneModelBatch disabled = buildSceneModelBatch(scene, camera, none);
     CNA_EDITOR_EXPECT_EQ(disabled.pendingMeshes, std::size_t{0});
 }
+
+/**
+ * @brief The batch's split camera multiplies back to the product it is drawn through.
+ *
+ * `SceneModelBatch` carries the camera twice -- as one view-projection and as the view and
+ * projection separately -- because CNA's `PbrEffect` inverts the view to recover the eye position
+ * and an identity view is a camera claiming to sit at the origin. Two descriptions of one thing
+ * that could drift is exactly the bug this seam was arranged to avoid, so the invariant is pinned
+ * rather than trusted: the mirror lives in the projection, and the product is the matrix
+ * everything else in the editor already positions against.
+ */
+CNA_EDITOR_TEST(TheModelBatchsSplitCameraMultipliesBackToItsProduct)
+{
+    const ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+    const MeshData mesh = makeTinyMesh();
+    const Uuid modelId = Uuid::generate();
+
+    EditorEntity entity = makeEntity(registry, "Crate", 1.0f, 2.0f);
+    addModelRenderer(registry, entity, modelId);
+    scene.addEntity(std::move(entity));
+
+    EditorCamera3D camera;
+    camera.setViewportSize(EditorVector2{800.0f, 600.0f});
+    camera.orbit(40.0f, -20.0f);
+
+    const MeshProvider provider = [&](const Uuid& id) { return id == modelId ? &mesh : nullptr; };
+    const SceneModelBatch batch = buildSceneModelBatch(scene, camera, provider);
+
+    const EditorMatrix product = multiply(batch.view, batch.projection);
+
+    // Compared through a point rather than field by field: what has to agree is where a world
+    // point lands, and a matrix comparison would fail on floating-point noise that moves nothing.
+    const EditorVector3 probe{3.0f, -2.0f, 5.0f};
+    const EditorVector3 throughProduct = transformPosition(product, probe);
+    const EditorVector3 throughCombined = transformPosition(batch.viewProjection, probe);
+
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(throughProduct.x, throughCombined.x, 0.0005f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(throughProduct.y, throughCombined.y, 0.0005f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(throughProduct.z, throughCombined.z, 0.0005f));
+
+    // And the mirror really is in the projection half, not left to the caller: a camera at rest
+    // must send world +Y to screen -Y, which is the whole reason the 2D and 3D views agree about
+    // which way is down.
+    CNA_EDITOR_EXPECT(batch.projection.m22 < 0.0f);
+}
