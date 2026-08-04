@@ -15,13 +15,13 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 424 / 424 (also under Clang Release) |
+| Unit tests | ✅ 428 / 428 (also under Clang Release) |
 | CTest (standalone) | ✅ 12 / 12 |
 | CTest (CNA config) | ✅ 17 / 17 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
-| **Phase 3** | 🔄 6 done and ED-404 half done — ED-400, ED-401, ED-408, ED-409, ED-405, and now **ED-402: the 3D view draws solid, lit models**. Nothing left in the phase is blocked |
+| **Phase 3** | 🔄 8 done — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) and **ED-413** (sprites in the 3D view). Nothing left in the phase is blocked |
 | **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
 | **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
 
@@ -119,6 +119,38 @@ it in words beside the models, along with how many meshes are still loading. The
 reports which effect the model pass actually got — with PBR being a CNA extension and fourteen
 backends across three support tiers, "why does it look different on that machine" deserves an
 answer that is not a screenshot comparison.
+
+**6. Sprites in the 3D view (ED-413), which the owner picked as what follows ED-402.** The view
+showed *no* sprites at all before, and the reason was real rather than an oversight: `SpriteBatch`
+cannot draw the trapezoid a sprite becomes seen from an angle. ED-402 removed the obstacle rather
+than the reason — through a `VertexBuffer` a sprite is an ordinary textured quad. Three decisions:
+
+- **A sprite lies in the scene's XY plane and does not billboard.** Billboarding is the more
+  flattering choice and wrong twice: the picker, `computeEntityBounds3D` and the gizmos already
+  treat a sprite as a flat box in that plane, so a billboarded one is drawn where it cannot be
+  clicked — and the *game* draws through `SpriteBatch`, so it would be a picture the game never
+  produces. A sprite seen edge-on is a line; that is the truth about a flat thing.
+- **Only the Z rotation is honoured**, because that is all `SpriteBatch` applies. The 3D view is
+  allowed to show more than the 2D one and never more than the game.
+- **Depth-tested, depth writes off, culling off, unlit.** Writes off so a sprite's transparent
+  corners do not punch a hole later sprites cannot draw through; culling off because half of them
+  would vanish the moment the camera orbited past their plane; unlit with the tint as the emissive
+  colour, because a sprite's art has its lighting painted into it and the models' directional rig
+  would darken every sprite by wherever the sun happens to be.
+
+**7. ED-404 is now closed, both halves.** The visualisation is an arrow along the light's direction
+and one ring at its range. The arrow is sized in **pixels** converted at the light's own depth, as
+the manipulators size their arms — the first attempt used a fixed two world units and was invisible,
+because this editor's scenes are laid out in pixel-like hundreds. One ring in the scene's plane
+rather than three about the axes, since two of three would be edge-on in the view this editor opens
+in; a directional light gets none at all, because a boundary that means nothing is worse than no
+boundary.
+
+The example scene gained a **Key Light**, on the same argument the Crate was added on: a feature
+demonstrated only by its own tests is one nobody can look at. Its effect shows immediately — the
+crate is dimmer under a real point light at distance than under the default rig. That cost the
+scene-loader demo its hardcoded count of four, updated to five with a check that a light carries no
+sprite: it is the third shape of entity that loader has to survive.
 
 ---
 
@@ -824,53 +856,51 @@ first thing ED-402 can get wrong and the last thing anyone would suspect.
 
 Read this file, then `plan.md`'s *Current state*.
 
-**Sprites in the 3D view — the owner picked it, and it is next.** It has no plan row yet; give it
-one. Today the 3D view shows no sprites *at all*, because `SpriteBatch` cannot draw the trapezoid a
-sprite becomes when seen from an angle — so the view shows the models and not the scene around
-them. What ED-402 built is exactly what removes the obstacle: a sprite is a textured quad, and
-there is now a `VertexBuffer`/effect path to draw one through. Four things are already paid for:
-the vertex format (`VertexPositionNormalTexture`, which a quad uses as-is), the texture cache in
-`CnaSceneRenderer` that already resolves a sprite's `Uuid`, the depth-tested target, and
-`CnaModelPass`'s upload-and-draw shape to copy.
+**Phase 3 has nothing blocked left in it.** ED-402, ED-404 and ED-413 all closed this session, so
+the 3D view draws solid lit models, the sprites around them, and the lights that light both. What
+remains is in this order:
 
-Two decisions it has to make, and both are worth making deliberately rather than discovering:
-**whether a sprite faces the camera or lies in the scene's XY plane** — billboarding is what makes
-a sprite look right from any angle and lying flat is what makes the 3D view agree with the 2D one,
-and they disagree the moment the camera orbits — and **how a sprite sorts against a model**, since
-a transparent quad drawn into a depth buffer either occludes what is behind it or does not,
-depending on draw order.
-
-**The rest of Phase 3, in the order I would take it:**
-
-1. **ED-404's remaining half**: draw a light's direction and range in the viewport, so a lamp can
-   be aimed by looking rather than by typing numbers. The reading half is done; this is the
-   *visualisation* the row is named for. `SceneWireframe` is where it goes, and `getEditorIconKind`
-   already gives lights a badge to hang it off.
-2. **ED-403 / ED-410 materials**, which is where `NestedStructure` (ED-311) finally gets the real
-   consumer it has been parked waiting for. Touches the scene format additively.
-3. **ED-406 mesh preview in the asset browser** and **ED-407 environment and fog**. Both are small
-   now that the machinery exists — `IEffectFog` is on both effects already.
+1. **ED-403 — material editing and preview**, and **ED-410 — per-mesh material lists**. Take them
+   together: ED-410 is what finally gives ED-311's `NestedStructure` the real consumer it has been
+   parked waiting for, which is the only reason that schema is designable now when it was not
+   before. Additive to the scene format, which the owner has already permitted. **Start here**, and
+   note the promise already outstanding: `CNA.ModelRenderer` declares a material override, the
+   inspector offers it, and `CnaModelPass` ignores it and draws the mesh's own materials. That is
+   ED-403's job rather than a bug, but it is a promise the editor is currently making and not
+   keeping.
+2. **ED-406 mesh preview in the asset browser.** Small now: `CnaModelPass` already draws a
+   `SceneModelBatch` into whatever target is bound, so a thumbnail is a batch of one at a fixed
+   camera.
+3. **ED-407 environment and fog.** Also small: `IEffectFog` is on both effects already and
+   `PbrEffect::FillGpuDrawParams` forwards it.
+4. **ED-411 / ED-412 plugin loading**, the last of Phase 3 and the largest. Discovery and
+   validation are done (ED-017); this is `dlopen`/`LoadLibrary`, the `extern "C"` entry, unload and
+   hot-reload, then the extension points.
 
 **Blocked, not forgotten:**
 
-- **`PbrEffect` (G-05).** The path is written and one constant away. It needs a CNA fix, not work
-  here. Re-test by flipping `kPreferPbrEffect` in `CnaModelPass.cpp` and taking the screenshot in
-  *Validation commands*.
+- **`PbrEffect` (G-05).** The PBR path is written and one constant away — `kPreferPbrEffect` in
+  `CnaModelPass.cpp`. It needs a CNA fix, not work here. Re-test by flipping it and taking the
+  3D screenshot in *Validation commands*.
 - **ED-302's glyph preview** needs a public way to build a `SpriteFont` (G-04).
 - **Animation.** `MeshData` still has no node hierarchy, on purpose. When skeletal animation is a
-  real task it arrives as fields beside `MeshData::parts`, and `loadModel`'s signature does not
-  change.
+  real task it arrives as fields beside `MeshData::parts` and `loadModel`'s signature does not
+  change. Note that CNA ships `SkinnedEffect`, `SkinnedModelEXT` and `AnimationPlayer`, so the
+  framework side of that is further along than this repository is.
 
 **Smaller, unblocked:**
 
 1. **Hear the audio preview on a machine with a sound device.** Still only reasoned about.
 2. **A second look at `findSelectionRoots`** — move it to the scene module when a *fourth*,
    non-gizmo caller appears.
-3. **A model's material override is still ignored by the model pass.** `CNA.ModelRenderer` declares
-   one and `CnaModelPass` draws the mesh's own materials. That is ED-403's job rather than a bug,
-   but it is a promise the inspector is currently making and the viewport is not keeping.
+3. **The 3D view has no tile tools and no animation preview scrubbing**, deliberately: both are 2D
+   ideas. `beginGizmo3DDrag` and `handleInteraction3D` are where that would be decided.
+4. **Sprite quads are not picked against.** Picking still uses `computeEntityBounds3D`, which is
+   the axis-aligned box rather than the rotated quad — so a rotated sprite has a slightly generous
+   hit area in the 3D view. Correct enough to ship and worth tightening if it annoys anyone.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
-chains are empty on purpose. ED-402 added no persisted field at all — the PBR material fields live
-in the in-memory seam, and the model sidecar records counts rather than materials. Keep it that
-way, and do not bump a `formatVersion` without the owner's say-so.
+chains are empty on purpose. This session added no persisted field at all — the PBR material fields
+live in the in-memory seam, and the model sidecar records counts rather than materials. The example
+*scene* gained a light entity, which is data rather than a format change. Keep it that way, and do
+not bump a `formatVersion` without the owner's say-so.
