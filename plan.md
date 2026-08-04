@@ -290,19 +290,34 @@ pipeline. **ED-401 was the other exception and was built early**, because it is 
 a manipulator that did not exist since Phase 1, which is a promise the editor was making and not
 keeping. Nothing else here has moved.
 
-| Id | Task | Status |
-|----|------|:------:|
-| ED-400 | Perspective and orthographic viewport camera, orbit and fly navigation | ⬜ |
-| ED-401 | Rotate and scale gizmos; local/world space toggle | ✅ |
-| ED-402 | `ModelRenderer` rendering | ⬜ |
-| ED-403 | Material editing and preview | ⬜ |
-| ED-404 | Light components with viewport visualisation | ⬜ |
-| ED-405 | glTF importer built on CNA's own `cgltf` integration | ⬜ |
-| ED-406 | Mesh preview in the asset browser | ⬜ |
-| ED-407 | Environment and fog settings | ⬜ |
-| ED-410 | Per-mesh material lists (needs ED-311) | ⬜ |
-| ED-411 | **Plugin dynamic loading**: `dlopen`/`LoadLibrary`, `extern "C"` entry, unload, hot-reload | ⬜ |
-| ED-412 | Plugin extension points: importers, component types, panels, menu commands, gizmos, exporters | ⬜ |
+| Id | Task | Status | Notes |
+|----|------|:------:|-------|
+| ED-400 | Perspective and orthographic viewport camera, orbit and fly navigation | ✅ | `EditorCamera3D` in `cna-editor-scene`, CNA-free like the 2D one and tested the same way; `EditorMatrix` in core is the arithmetic under it, mirroring XNA's `Matrix` field for field. Orbit and fly are not modes but two ways of moving one state -- pivot, distance, yaw, pitch -- so a user can orbit, fly and orbit again without the camera turning about a point it left minutes ago. What the view draws is `SceneWireframe.hpp`, also CNA-free and also tested; the renderer only strokes the segments it is handed. `--view=2d` or `3d` starts in either, which is what lets the result be photographed |
+| ED-401 | Rotate and scale gizmos; local/world space toggle | ✅ | |
+| ED-402 | `ModelRenderer` rendering | ⬜ | |
+| ED-403 | Material editing and preview | ⬜ | |
+| ED-404 | Light components with viewport visualisation | ⬜ | |
+| ED-405 | glTF importer built on CNA's own `cgltf` integration | ⬜ | |
+| ED-406 | Mesh preview in the asset browser | ⬜ | |
+| ED-407 | Environment and fog settings | ⬜ | |
+| ED-410 | Per-mesh material lists (needs ED-311) | ⬜ | |
+| ED-411 | **Plugin dynamic loading**: `dlopen`/`LoadLibrary`, `extern "C"` entry, unload, hot-reload | ⬜ | |
+| ED-412 | Plugin extension points: importers, component types, panels, menu commands, gizmos, exporters | ⬜ | |
+
+**ED-400's boundary is worth stating**, because the row is done and the phase is not. The 3D view
+draws a ground grid and a box per entity, and that is the honest whole of it: until ED-402 brings a
+model pipeline there is no mesh to draw, and `SpriteBatch` cannot draw the trapezoid a sprite
+becomes when seen from an angle. What the camera *does* answer is the question a 3D view exists for
+-- where is everything, in relation to everything else -- and picking, framing and navigation all
+work against it. The gizmos remain 2D: `TransformGizmos.hpp` lays out in screen space against
+`EditorCamera2D`, and a 3D manipulator is its own task rather than a parameter.
+
+One convention was chosen and must not drift. The 3D camera is Y-up, right-handed, looking down its
+own -Z -- XNA's convention, and the runtime's. The 2D camera is Y-down, matching `SpriteBatch`.
+Those two disagree *in the framework itself*, so a 2D scene seen in the 3D view has its sprites
+standing in a vertical plane, mirrored about the horizontal from where the 2D view shows them. That
+is what the document actually says; hiding it behind a negation somewhere would make the editor
+disagree with the runtime the first time a model and a sprite shared a scene.
 
 **ED-401** ships all three manipulators as one CNA-free module — layout, hit-test, drag — so what
 a user can grab is tested in CI and only the pixels need a GPU. Three decisions inside it are worth

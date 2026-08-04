@@ -15,13 +15,13 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 346 / 346 (also under Clang Release) |
+| Unit tests | ✅ 370 / 370 (also under Clang Release) |
 | CTest (standalone) | ✅ 8 / 8 |
 | CTest (CNA config) | ✅ 12 / 12 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
-| **Phase 3** | 🔄 1 of 11 — ED-401 only, built early because it is not a 3D task in a 2D viewport |
+| **Phase 3** | 🔄 2 of 11 — ED-401 and now **ED-400**, the 3D camera and the wireframe view it draws |
 | **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
 | **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
 
@@ -47,7 +47,47 @@ pull requests against `openeggbert/cna` — the CNA gaps G-01…G-04 stay docume
 
 ---
 
-## What landed in the most recent session
+## What landed in this session
+
+**ED-400 is done**: the editor has a 3D viewport. Three commits, each validated in both
+configurations before it was pushed.
+
+- **`EditorMatrix` and `EditorCamera3D`.** The repository had no matrix type and not one vector
+  operation before this -- an orthographic view of a plane gets by on scalars. Both mirror XNA's
+  conventions exactly (row-major, row vectors on the left, right-handed, depth to [0, 1]), because
+  a camera that agreed with itself but not with the runtime would show the scene mirrored the
+  moment anyone pressed Play. Orbit and fly are two ways of moving one state rather than two modes.
+- **`SceneWireframe.hpp`**: which lines the 3D view draws, decided CNA-free and tested in CI, with
+  the renderer reduced to stroking segments. Near-plane clipping shortens a segment rather than
+  dropping it, the grid spacing is the 2D viewport's own `chooseGridSpacing`, and a truncated
+  wireframe says so. 3D picking (ray against bounds, nearest wins) came with it.
+- **The view, wired in**: a 2D/3D button in the viewport toolbar, a View menu item, `--view=3d`,
+  navigation (middle-drag orbits, right-drag turns in place, Shift pans, wheel dollies, WASD+QE fly
+  while the right button is held), picking through the 3D projection, and Frame Selected following
+  whichever camera is on screen.
+
+**Verified by screenshot on EASYGL**: perspective ground grid to a horizon, red X and blue Z axes,
+and boxes around all three entities of HelloSprites.
+
+**Two bugs the screenshot found**, neither of which any test would have:
+
+1. `setViewport()` carried the 2D camera across a viewport swap and dropped the 3D one. The
+   windowed host installs its real viewport *after* `initialize()`, so `--view=3d` aimed the camera
+   at the scene and then threw the aim away. Three screenshots of an empty grid before it was
+   understood.
+2. Entering the 3D view left the camera at its constructed default, which shows empty grid for any
+   scene laid out away from the origin. It now frames the scene on first entry -- only the first,
+   so a later toggle does not throw away an orbit.
+
+**One convention to hold on to**, recorded in `plan.md` too: the 3D camera is Y-up (XNA's 3D
+convention) and the 2D camera is Y-down (`SpriteBatch`'s). They disagree *in the framework itself*.
+A 2D scene therefore appears in the 3D view with its sprites standing in a vertical plane, mirrored
+about the horizontal. Hiding that behind a negation would make the editor disagree with the runtime
+the first time a model and a sprite shared a scene.
+
+---
+
+## What landed in the previous session
 
 Fourteen commits, each validated in three configurations before it was pushed:
 
@@ -102,6 +142,10 @@ DISPLAY=:99 ./build-cna/cna-player-easygl --project=examples/HelloSprites/HelloS
 ./build/cna-editor --headless --project=examples/HelloSprites/HelloSprites.cnaproject
 DISPLAY=:99 ./build-cna/cna-editor --project=examples/HelloSprites/HelloSprites.cnaproject \
     --frames=40 --screenshot=/tmp/editor.png
+
+# The 3D viewport (ED-400). --view=3d exists so this picture can be taken at all.
+DISPLAY=:99 ./build-cna/cna-editor --project=examples/HelloSprites/HelloSprites.cnaproject \
+    --view=3d --frames=40 --screenshot=/tmp/editor3d.png
 ```
 
 Do **not** run `cmake --build build-cna` without a target list: CNA's own examples fail to compile
@@ -519,13 +563,14 @@ What follows is a judgement call rather than a queue.
 - **ED-311's `NestedStructure`** has no consumer. ED-300 computes prefab overrides by comparison
   rather than storing them, so nothing needs a nested schema. Designing one against no consumer is
   how you get it wrong.
-- **The rest of Phase 3** -- ED-400's perspective camera, ED-402's model rendering, ED-404's lights
-  -- waits on CNA's 3D API, which is the precondition `plan.md` states for the phase.
+- **The rest of Phase 3** -- ED-402's model rendering, ED-403's materials, ED-404's lights -- waits
+  on a model pipeline. ED-400 did not need one, which is why the owner opened it: a camera, a grid
+  and a box per entity need no mesh. A *3D gizmo* is likewise unbuilt: `TransformGizmos.hpp` lays
+  out in screen space against `EditorCamera2D`, and the 3D view deliberately leaves the left mouse
+  button free for one.
 
-**The owner has chosen the next two** (see the 2026-08-04 decisions above): **ED-400**, the 3D
-viewport camera, and **input forwarding into the running player**. Take ED-400 first — it is the
-one with a CNA-free half that can be built and tested before any window is involved, and the
-2D camera (`EditorCamera2D`) is the pattern to follow.
+**ED-400 is done** (see the top of this file). The owner's other choice, **input forwarding into
+the running player**, is next and is where this session went after it.
 
 **Then, small and unblocked, in the order I would take them.** The first is written out in enough detail
 to start on without re-deriving anything.
