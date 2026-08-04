@@ -14,8 +14,12 @@
  *
  * Layout is chosen to match the CNA types member-for-member, so that conversion stays a field
  * copy and never a reinterpretation.
+ *
+ * The arithmetic at the bottom of the file is named rather than operator-overloaded, matching
+ * `SceneTransform.hpp`'s `multiply` and `rotate`: this codebase spells its maths out.
  */
 
+#include <cmath>
 #include <cstdint>
 
 namespace CNA::Editor
@@ -109,4 +113,52 @@ namespace CNA::Editor
         }
         friend bool operator!=(const EditorRectangle& lhs, const EditorRectangle& rhs) { return !(lhs == rhs); }
     };
+
+    /** @brief Returns @p a + @p b. */
+    [[nodiscard]] inline EditorVector3 add(const EditorVector3& a, const EditorVector3& b)
+    {
+        return EditorVector3{a.x + b.x, a.y + b.y, a.z + b.z};
+    }
+
+    /** @brief Returns @p a - @p b. */
+    [[nodiscard]] inline EditorVector3 subtract(const EditorVector3& a, const EditorVector3& b)
+    {
+        return EditorVector3{a.x - b.x, a.y - b.y, a.z - b.z};
+    }
+
+    /** @brief Returns @p vector scaled by @p factor. */
+    [[nodiscard]] inline EditorVector3 scale(const EditorVector3& vector, float factor)
+    {
+        return EditorVector3{vector.x * factor, vector.y * factor, vector.z * factor};
+    }
+
+    /** @brief Returns the dot product of @p a and @p b. */
+    [[nodiscard]] inline float dot(const EditorVector3& a, const EditorVector3& b)
+    {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+
+    /** @brief Returns the right-handed cross product @p a x @p b. */
+    [[nodiscard]] inline EditorVector3 cross(const EditorVector3& a, const EditorVector3& b)
+    {
+        return EditorVector3{a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
+    }
+
+    /** @brief Returns the length of @p vector. */
+    [[nodiscard]] inline float length(const EditorVector3& vector) { return std::sqrt(dot(vector, vector)); }
+
+    /**
+     * @brief Returns @p vector scaled to unit length, or (0, 0, 0) when it has no length.
+     *
+     * Returning zero rather than a NaN-filled vector is deliberate: a degenerate direction is a
+     * state a camera can genuinely reach (an eye exactly on its target), and a caller that checks
+     * for it can recover, while one handed NaNs cannot -- the poison spreads into the view matrix
+     * and from there into every projected point, with nothing left to point at the cause.
+     */
+    [[nodiscard]] inline EditorVector3 normalize(const EditorVector3& vector)
+    {
+        const float magnitude = length(vector);
+        if (magnitude <= 0.0f) { return EditorVector3{}; }
+        return scale(vector, 1.0f / magnitude);
+    }
 }

@@ -90,7 +90,8 @@ add_library(cna-editor-core STATIC
     src/core/ComponentDescriptor.cpp
     src/core/CommandHistory.cpp
     src/core/FormatMigration.cpp
-    src/core/ImageDiff.cpp)
+    src/core/ImageDiff.cpp
+    src/core/EditorMatrix.cpp)
 target_link_libraries(cna-editor-core PUBLIC cna-editor-settings)
 
 # cna-editor-scene -- the scene document, its entities, and every undoable scene operation.
@@ -106,6 +107,7 @@ add_library(cna-editor-scene STATIC
     src/scene/BuiltinComponents.cpp
     src/scene/SceneTransform.cpp
     src/scene/EditorCamera2D.cpp
+    src/scene/EditorCamera3D.cpp
     src/scene/GameCamera.cpp
     src/scene/EditorIcons.cpp
     src/scene/MissingReferences.cpp

@@ -6,17 +6,20 @@
 
 #include "TestHarness.hpp"
 
+#include <cmath>
 #include <functional>
 
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
 #include "CNA/Editor/Core/FormatMigration.hpp"
+#include "CNA/Editor/Core/EditorMatrix.hpp"
 #include "CNA/Editor/Core/Json.hpp"
 #include "CNA/Editor/Core/PropertyValue.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Project/Project.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
+#include "CNA/Editor/Scene/SceneTransform.hpp"
 
 using namespace CNA::Editor;
 
@@ -533,4 +536,142 @@ CNA_EDITOR_TEST(ASceneRoundTripsAListAndDoesNotLoseAnUnregisteredOne)
     CNA_EDITOR_EXPECT(blindLoad.succeeded);
     CNA_EDITOR_EXPECT(!blindLoad.warnings.empty());
     CNA_EDITOR_EXPECT_EQ(Json::write(blind.toJson()), Json::write(scene.toJson()));
+}
+
+namespace
+{
+    /** @brief Returns true when @p a and @p b agree to within @p tolerance. */
+    bool matrixNearlyEqual(float a, float b, float tolerance = 0.0005f)
+    {
+        return std::abs(a - b) <= tolerance;
+    }
+
+    /** @brief Fails unless every field of @p actual matches @p expected. */
+    void expectMatrixNearlyEqual(const EditorMatrix& actual, const EditorMatrix& expected)
+    {
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m11, expected.m11));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m12, expected.m12));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m13, expected.m13));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m14, expected.m14));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m21, expected.m21));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m22, expected.m22));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m23, expected.m23));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m24, expected.m24));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m31, expected.m31));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m32, expected.m32));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m33, expected.m33));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m34, expected.m34));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m41, expected.m41));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m42, expected.m42));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m43, expected.m43));
+        CNA_EDITOR_EXPECT(matrixNearlyEqual(actual.m44, expected.m44));
+    }
+}
+
+CNA_EDITOR_TEST(MatrixMultiplicationAppliesTheLeftTransformFirst)
+{
+    const EditorMatrix translate = createTranslation(EditorVector3{10.0f, 0.0f, 0.0f});
+    const EditorMatrix scaleBy = createScale(EditorVector3{2.0f, 2.0f, 2.0f});
+
+    // Row vectors: `multiply(a, b)` is "a, then b". Translating and *then* scaling scales the
+    // translation as well; the other order does not. If these two ever agree, the convention has
+    // been transposed somewhere and every camera built on it is subtly wrong.
+    const EditorVector3 translateThenScale =
+        transformPosition(multiply(translate, scaleBy), EditorVector3{});
+    const EditorVector3 scaleThenTranslate =
+        transformPosition(multiply(scaleBy, translate), EditorVector3{});
+
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(translateThenScale.x, 20.0f));
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(scaleThenTranslate.x, 10.0f));
+
+    // Identity on either side leaves a matrix alone.
+    expectMatrixNearlyEqual(multiply(translate, EditorMatrix{}), translate);
+    expectMatrixNearlyEqual(multiply(EditorMatrix{}, translate), translate);
+}
+
+CNA_EDITOR_TEST(MatrixInverseUndoesTheMatrix)
+{
+    const EditorMatrix composed =
+        multiply(multiply(createScale(EditorVector3{2.0f, 3.0f, 4.0f}),
+                          createFromQuaternion(quaternionFromEulerDegrees(EditorVector3{20.0f, 35.0f, 10.0f}))),
+                 createTranslation(EditorVector3{5.0f, -2.0f, 7.0f}));
+
+    const std::optional<EditorMatrix> inverse = invert(composed);
+    CNA_EDITOR_EXPECT(inverse.has_value());
+    expectMatrixNearlyEqual(multiply(composed, *inverse), EditorMatrix{});
+
+    // A projection is not affine, and screen-to-world inverts exactly that one.
+    const EditorMatrix projection = createPerspectiveFieldOfView(0.9f, 16.0f / 9.0f, 0.1f, 1000.0f);
+    const std::optional<EditorMatrix> projectionInverse = invert(projection);
+    CNA_EDITOR_EXPECT(projectionInverse.has_value());
+    expectMatrixNearlyEqual(multiply(projection, *projectionInverse), EditorMatrix{});
+
+    // A singular matrix reports that it is singular rather than returning something plausible.
+    CNA_EDITOR_EXPECT(!invert(createScale(EditorVector3{1.0f, 0.0f, 1.0f})).has_value());
+}
+
+CNA_EDITOR_TEST(MatrixRotationAgreesWithQuaternionRotation)
+{
+    // Two implementations of "rotate this vector" have to agree, or the gizmos and the camera
+    // would each be right about a different world.
+    const EditorQuaternion rotation = quaternionFromEulerDegrees(EditorVector3{15.0f, -40.0f, 25.0f});
+    const EditorVector3 sample{1.0f, 2.0f, -3.0f};
+
+    const EditorVector3 byQuaternion = rotate(rotation, sample);
+    const EditorVector3 byMatrix = transformDirection(createFromQuaternion(rotation), sample);
+
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(byQuaternion.x, byMatrix.x));
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(byQuaternion.y, byMatrix.y));
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(byQuaternion.z, byMatrix.z));
+}
+
+CNA_EDITOR_TEST(LookAtPutsTheTargetDownTheNegativeZAxis)
+{
+    const EditorMatrix view = createLookAt(EditorVector3{0.0f, 0.0f, 10.0f}, EditorVector3{},
+                                           EditorVector3{0.0f, 1.0f, 0.0f});
+
+    // Right-handed: the camera looks down its own -Z, so a target ten units away sits at z = -10.
+    // Getting the sign wrong yields a view that renders the scene mirrored and otherwise correct.
+    const EditorVector3 target = transformPosition(view, EditorVector3{});
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(target.x, 0.0f));
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(target.y, 0.0f));
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(target.z, -10.0f));
+
+    // World +X is to the camera's right when it looks down -Z from +Z.
+    const EditorVector3 right = transformPosition(view, EditorVector3{3.0f, 0.0f, 0.0f});
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(right.x, 3.0f));
+
+    // Looking straight down is the degenerate case for the up vector, and must still produce a
+    // usable matrix rather than a field of NaNs an orbit would carry into every projected point.
+    const EditorMatrix fromAbove = createLookAt(EditorVector3{0.0f, 10.0f, 0.0f}, EditorVector3{},
+                                                EditorVector3{0.0f, 1.0f, 0.0f});
+    const EditorVector3 below = transformPosition(fromAbove, EditorVector3{});
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(below.z, -10.0f));
+}
+
+CNA_EDITOR_TEST(ProjectionsMapTheDepthRangeToZeroAndOne)
+{
+    const EditorMatrix perspective = createPerspectiveFieldOfView(1.0f, 1.0f, 1.0f, 100.0f);
+
+    // XNA's convention, not OpenGL's: the near plane is 0 and the far plane is 1.
+    float w = 0.0f;
+    const EditorVector3 atNear = transformWithPerspective(perspective, EditorVector3{0.0f, 0.0f, -1.0f}, w);
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(atNear.z, 0.0f));
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(w, 1.0f));
+
+    const EditorVector3 atFar = transformWithPerspective(perspective, EditorVector3{0.0f, 0.0f, -100.0f}, w);
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(atFar.z, 1.0f));
+
+    // Behind the eye, w goes negative -- which is the only signal a caller has that the divided
+    // coordinate it just computed is meaningless rather than merely off-screen.
+    const EditorVector3 behind =
+        transformWithPerspective(perspective, EditorVector3{0.0f, 0.0f, 5.0f}, w);
+    static_cast<void>(behind);
+    CNA_EDITOR_EXPECT(w < 0.0f);
+
+    const EditorMatrix orthographic = createOrthographic(20.0f, 10.0f, 1.0f, 100.0f);
+    const EditorVector3 edge = transformPosition(orthographic, EditorVector3{10.0f, 5.0f, -1.0f});
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(edge.x, 1.0f));
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(edge.y, 1.0f));
+    CNA_EDITOR_EXPECT(matrixNearlyEqual(edge.z, 0.0f));
 }

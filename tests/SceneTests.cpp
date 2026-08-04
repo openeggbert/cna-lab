@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
+#include "CNA/Editor/Scene/EditorCamera3D.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
 #include "CNA/Editor/Scene/SceneDocument.hpp"
 #include "CNA/Editor/Scene/PrefabCommands.hpp"
@@ -1447,4 +1448,305 @@ CNA_EDITOR_TEST(TwoEnabledAudioListenersAreAnError)
     scene.findEntity(scene.getEntities().back().getId())->setEnabled(false);
     CNA_EDITOR_EXPECT_EQ(countRule(validateScene(scene, registry), "duplicate-audio-listener"),
                          std::size_t{0});
+}
+
+namespace
+{
+    /** @brief Returns true when @p a and @p b agree to within @p tolerance. */
+    bool cameraNearlyEqual(float a, float b, float tolerance = 0.01f) { return std::abs(a - b) <= tolerance; }
+
+    /** @brief Fails unless @p actual matches @p expected on every axis. */
+    void expectVectorEquals(const EditorVector3& actual, const EditorVector3& expected)
+    {
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(actual.x, expected.x));
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(actual.y, expected.y));
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(actual.z, expected.z));
+    }
+
+    /** @brief A camera over a 1600x900 viewport, looking at the origin from ten units away. */
+    EditorCamera3D makeCamera()
+    {
+        EditorCamera3D camera;
+        camera.setViewportSize(EditorVector2{1600.0f, 900.0f});
+        return camera;
+    }
+}
+
+CNA_EDITOR_TEST(TheEyeIsDerivedFromThePivotDistanceAndAngles)
+{
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{5.0f, 1.0f, -2.0f});
+    camera.setDistance(20.0f);
+    camera.setYaw(0.0f);
+    camera.setPitch(0.0f);
+
+    // Yaw zero, pitch zero: looking down -Z, so the eye is twenty units along +Z from the pivot.
+    const EditorVector3 eye = camera.getEye();
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(eye.x, 5.0f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(eye.y, 1.0f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(eye.z, 18.0f));
+
+    // Positive pitch looks down, which is what dragging downwards on an orbit has to do.
+    camera.setPitch(0.5f);
+    CNA_EDITOR_EXPECT(camera.getForward().y < 0.0f);
+    CNA_EDITOR_EXPECT(camera.getEye().y > camera.getPivot().y);
+
+    // The basis stays orthonormal whatever the angles, or every projection built on it shears.
+    const EditorVector3 right = camera.getRight();
+    const EditorVector3 up = camera.getUp();
+    const EditorVector3 forward = camera.getForward();
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(length(right), 1.0f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(length(up), 1.0f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(dot(right, up), 0.0f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(dot(right, forward), 0.0f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(dot(up, forward), 0.0f));
+}
+
+CNA_EDITOR_TEST(PitchIsClampedJustShortOfVertical)
+{
+    EditorCamera3D camera = makeCamera();
+
+    // Straight down is where the up vector and the view direction become parallel and the view
+    // matrix stops being defined. Clamping short of it is cheaper than handling it everywhere.
+    camera.orbit(0.0f, 100.0f);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getPitch(), EditorCamera3D::kMaxPitchRadians));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(length(camera.getRight()), 1.0f));
+
+    camera.orbit(0.0f, -100.0f);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getPitch(), -EditorCamera3D::kMaxPitchRadians));
+
+    // Yaw wraps rather than clamping: it has no ends, and letting it grow costs precision.
+    camera.setYaw(0.0f);
+    camera.orbit(100.0f, 0.0f);
+    CNA_EDITOR_EXPECT(std::abs(camera.getYaw()) <= 3.1416f);
+}
+
+CNA_EDITOR_TEST(ThePivotProjectsToTheCentreOfTheViewport)
+{
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{3.0f, -4.0f, 12.0f});
+    camera.orbit(0.7f, -0.2f);
+
+    const std::optional<EditorVector2> centre = camera.worldToScreen(camera.getPivot());
+    CNA_EDITOR_EXPECT(centre.has_value());
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(centre->x, 800.0f, 0.5f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(centre->y, 450.0f, 0.5f));
+
+    // Behind the eye there is no answer. Returning one would send a line across the screen the
+    // moment a vertex passed the camera, which is the classic wireframe artefact.
+    const EditorVector3 behind = add(camera.getEye(), scale(camera.getForward(), -5.0f));
+    CNA_EDITOR_EXPECT(!camera.worldToScreen(behind).has_value());
+
+    // Up on screen is up in the world: a point above the pivot lands above the centre, where
+    // screen Y is smaller. The Y flip between clip space and the panel is easy to lose.
+    const std::optional<EditorVector2> above =
+        camera.worldToScreen(add(camera.getPivot(), scale(camera.getUp(), 1.0f)));
+    CNA_EDITOR_EXPECT(above.has_value());
+    CNA_EDITOR_EXPECT(above->y < centre->y);
+}
+
+CNA_EDITOR_TEST(ARayThroughAPixelComesBackToThatPixel)
+{
+    for (const CameraProjection projection : {CameraProjection::Perspective, CameraProjection::Orthographic})
+    {
+        EditorCamera3D camera = makeCamera();
+        camera.setProjection(projection);
+        camera.setPivot(EditorVector3{2.0f, 3.0f, -1.0f});
+        camera.orbit(0.5f, 0.3f);
+
+        const EditorVector2 pixel{1180.0f, 260.0f};
+        const WorldRay ray = camera.screenToRay(pixel);
+
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(length(ray.direction), 1.0f));
+
+        // Round trip: a point along the ray must project back to the pixel it came from. This is
+        // the property picking depends on, and it is the one an inverted projection gets wrong.
+        const std::optional<EditorVector2> back = camera.worldToScreen(ray.at(25.0f));
+        CNA_EDITOR_EXPECT(back.has_value());
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(back->x, pixel.x, 0.5f));
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(back->y, pixel.y, 0.5f));
+    }
+
+    // An orthographic ray starts wherever the pixel is, not at the eye -- which is why the ray is
+    // unprojected at both depth limits rather than fired from the camera position.
+    EditorCamera3D orthographic = makeCamera();
+    orthographic.setProjection(CameraProjection::Orthographic);
+    const WorldRay corner = orthographic.screenToRay(EditorVector2{0.0f, 0.0f});
+    const WorldRay middle = orthographic.screenToRay(EditorVector2{800.0f, 450.0f});
+    CNA_EDITOR_EXPECT(length(subtract(corner.origin, middle.origin)) > 1.0f);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(dot(corner.direction, middle.direction), 1.0f));
+}
+
+CNA_EDITOR_TEST(OrbitTurnsAboutThePivotAndFlyingCarriesItAlong)
+{
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{1.0f, 2.0f, 3.0f});
+    camera.setDistance(15.0f);
+
+    const EditorVector3 pivotBefore = camera.getPivot();
+    const EditorVector3 eyeBefore = camera.getEye();
+
+    camera.orbit(0.9f, 0.1f);
+    expectVectorEquals(camera.getPivot(), pivotBefore);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getDistance(), 15.0f));
+    CNA_EDITOR_EXPECT(length(subtract(camera.getEye(), eyeBefore)) > 1.0f);
+
+    // Looking is the mirror image: the eye stays put and the pivot swings round in front of it,
+    // so that a following orbit turns about what the user is now looking at.
+    const EditorVector3 eyeBeforeLook = camera.getEye();
+    camera.look(0.4f, -0.2f);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getEye().x, eyeBeforeLook.x));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getEye().y, eyeBeforeLook.y));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getEye().z, eyeBeforeLook.z));
+    CNA_EDITOR_EXPECT(length(subtract(camera.getPivot(), pivotBefore)) > 0.5f);
+
+    // Flying forward closes the gap to whatever is ahead without changing the orbit radius.
+    const EditorVector3 forward = camera.getForward();
+    const EditorVector3 eyeBeforeMove = camera.getEye();
+    camera.moveLocal(EditorVector3{0.0f, 0.0f, 4.0f});
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getDistance(), 15.0f));
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(length(subtract(camera.getEye(), eyeBeforeMove)), 4.0f));
+    CNA_EDITOR_EXPECT(dot(subtract(camera.getEye(), eyeBeforeMove), forward) > 0.0f);
+}
+
+CNA_EDITOR_TEST(PanningKeepsThePivotUnderTheCursor)
+{
+    for (const CameraProjection projection : {CameraProjection::Perspective, CameraProjection::Orthographic})
+    {
+        EditorCamera3D camera = makeCamera();
+        camera.setProjection(projection);
+        camera.orbit(0.6f, 0.35f);
+
+        const EditorVector3 pivotBefore = camera.getPivot();
+        const float yawBefore = camera.getYaw();
+        const float pitchBefore = camera.getPitch();
+        camera.panByScreenDelta(EditorVector2{120.0f, -45.0f});
+
+        // A drag moves the world with the cursor: the point that was at the centre is now exactly
+        // as far from it as the cursor travelled. Anything else is drift, which is the whole
+        // reason the delta is taken in pixels rather than converted by the caller.
+        const std::optional<EditorVector2> moved = camera.worldToScreen(pivotBefore);
+        CNA_EDITOR_EXPECT(moved.has_value());
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(moved->x, 800.0f + 120.0f, 0.5f));
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(moved->y, 450.0f - 45.0f, 0.5f));
+
+        // Panning slides the camera; it never turns it.
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getYaw(), yawBefore));
+        CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getPitch(), pitchBefore));
+    }
+}
+
+CNA_EDITOR_TEST(DollyingScalesTheDistanceAndStopsAtTheLimits)
+{
+    EditorCamera3D camera = makeCamera();
+    camera.setDistance(10.0f);
+
+    camera.dolly(0.5f);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getDistance(), 5.0f));
+
+    // Multiplying rather than subtracting is what makes one wheel notch feel the same close up
+    // and far away -- a fixed step crawls across a level and lands inside a model.
+    camera.dolly(2.0f);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getDistance(), 10.0f));
+
+    for (int step = 0; step < 200; ++step) { camera.dolly(0.5f); }
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getDistance(), EditorCamera3D::kMinDistance, 0.001f));
+
+    // A factor of zero or less would put the eye on the pivot or behind it; it is refused rather
+    // than clamped, because there is no sensible interpretation of a negative zoom.
+    camera.setDistance(10.0f);
+    camera.dolly(0.0f);
+    camera.dolly(-1.0f);
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(camera.getDistance(), 10.0f));
+}
+
+CNA_EDITOR_TEST(FramingFitsTheWholeBoxOnScreen)
+{
+    for (const CameraProjection projection : {CameraProjection::Perspective, CameraProjection::Orthographic})
+    {
+        EditorCamera3D camera = makeCamera();
+        camera.setProjection(projection);
+        camera.orbit(0.8f, 0.4f);
+
+        const WorldBounds3D bounds{EditorVector3{-30.0f, 10.0f, -5.0f}, EditorVector3{50.0f, 40.0f, 25.0f}};
+        camera.frame(bounds);
+
+        expectVectorEquals(camera.getPivot(), bounds.getCenter());
+
+        // Every corner has to land inside the panel, not merely the centre: framing that fits the
+        // middle of a box and clips its ends is the failure this is here to catch.
+        for (int corner = 0; corner < 8; ++corner)
+        {
+            const EditorVector3 point{(corner & 1) != 0 ? bounds.max.x : bounds.min.x,
+                                      (corner & 2) != 0 ? bounds.max.y : bounds.min.y,
+                                      (corner & 4) != 0 ? bounds.max.z : bounds.min.z};
+            const std::optional<EditorVector2> screen = camera.worldToScreen(point);
+            CNA_EDITOR_EXPECT(screen.has_value());
+            if (!screen) { continue; }
+            CNA_EDITOR_EXPECT(screen->x >= 0.0f && screen->x <= 1600.0f);
+            CNA_EDITOR_EXPECT(screen->y >= 0.0f && screen->y <= 900.0f);
+        }
+    }
+
+    // An empty box is not a request to look at nothing: it is a caller with no selection, and the
+    // camera it already has is a better answer than an arbitrary one.
+    EditorCamera3D unchanged = makeCamera();
+    unchanged.setPivot(EditorVector3{7.0f, 7.0f, 7.0f});
+    unchanged.frame(WorldBounds3D::makeEmpty());
+    expectVectorEquals(unchanged.getPivot(), EditorVector3{7.0f, 7.0f, 7.0f});
+}
+
+CNA_EDITOR_TEST(SwitchingProjectionKeepsTheSubjectTheSameSize)
+{
+    EditorCamera3D camera = makeCamera();
+    camera.setPivot(EditorVector3{0.0f, 0.0f, 0.0f});
+    camera.setDistance(30.0f);
+    camera.orbit(0.0f, 0.0f);
+
+    // The orthographic height is the perspective extent *at the pivot*, so a toggle is a change of
+    // projection rather than a jump cut -- which is the point of having the toggle at all.
+    const EditorVector3 sample = add(camera.getPivot(), scale(camera.getUp(), 4.0f));
+
+    const std::optional<EditorVector2> inPerspective = camera.worldToScreen(sample);
+    camera.setProjection(CameraProjection::Orthographic);
+    const std::optional<EditorVector2> inOrthographic = camera.worldToScreen(sample);
+
+    CNA_EDITOR_EXPECT(inPerspective.has_value() && inOrthographic.has_value());
+    CNA_EDITOR_EXPECT(cameraNearlyEqual(inPerspective->y, inOrthographic->y, 1.0f));
+
+    // An orthographic camera can see what is beside it, so its near plane sits behind the eye:
+    // clipping at the eye would hide everything the user just dollied towards.
+    const EditorVector3 besideTheEye = add(camera.getEye(), scale(camera.getRight(), 3.0f));
+    CNA_EDITOR_EXPECT(camera.worldToScreen(besideTheEye).has_value());
+}
+
+CNA_EDITOR_TEST(SceneBoundsCoverEntitiesThatDrawNothing)
+{
+    ComponentRegistry registry = makeRegistry();
+    SceneDocument scene;
+
+    const Uuid spriteId = scene.addEntity(makeEntity(registry, "Sprite", 100.0f, 0.0f));
+    EditorComponent renderer{BuiltinComponentIds::kSpriteRenderer};
+    renderer.applyDefaults(*registry.find(BuiltinComponentIds::kSpriteRenderer));
+    scene.findEntity(spriteId)->addComponent(std::move(renderer));
+
+    // A bare Transform -- a camera, a light, an empty parent. The 2D viewport leaves these out of
+    // framing because it draws them as fixed-size icons, but in a 3D view they are often the only
+    // thing a scene contains, and "nothing to look at" would be the wrong answer.
+    const Uuid emptyId = scene.addEntity(makeEntity(registry, "Spawn Point", -400.0f, 0.0f));
+
+    const SpriteSizeProvider noSizes = [](const Uuid&) { return EditorVector2{32.0f, 32.0f}; };
+
+    const std::optional<WorldBounds3D> empty = computeEntityBounds3D(scene, emptyId, noSizes);
+    CNA_EDITOR_EXPECT(empty.has_value());
+    CNA_EDITOR_EXPECT(empty->contains(EditorVector3{-400.0f, 0.0f, 0.0f}));
+
+    const std::optional<WorldBounds3D> whole = computeSceneBounds3D(scene, noSizes);
+    CNA_EDITOR_EXPECT(whole.has_value());
+    CNA_EDITOR_EXPECT(whole->min.x <= -400.0f);
+    CNA_EDITOR_EXPECT(whole->max.x >= 100.0f);
+
+    // An unknown entity has no bounds, rather than bounds at the origin that would drag every
+    // union towards it.
+    CNA_EDITOR_EXPECT(!computeEntityBounds3D(scene, Uuid::generate(), noSizes).has_value());
 }
