@@ -7,10 +7,25 @@
 
 namespace CNA::Editor
 {
+    float SpriteAnimationClip::getFrameDuration(std::size_t position) const
+    {
+        if (hasFrameDurations() && position < frameDurations.size() && frameDurations[position] > 0.0f)
+        {
+            return frameDurations[position];
+        }
+        return framesPerSecond > 0.0f ? 1.0f / framesPerSecond : 0.0f;
+    }
+
     float SpriteAnimationClip::getDuration() const
     {
-        if (isEmpty() || framesPerSecond <= 0.0f) { return 0.0f; }
-        return static_cast<float>(frames.size()) / framesPerSecond;
+        if (isEmpty()) { return 0.0f; }
+
+        float total = 0.0f;
+        for (std::size_t position = 0; position < frames.size(); ++position)
+        {
+            total += getFrameDuration(position);
+        }
+        return total;
     }
 
     EditorRectangle SpriteAnimationClip::getFrameRectangle(std::size_t position) const
@@ -51,6 +66,15 @@ namespace CNA::Editor
                 clip.frames.push_back(item.get<std::int64_t>(0));
             }
         }
+
+        const PropertyValue durations = component.getProperty(SpriteAnimationKeys::kFrameDurations);
+        if (durations.getType() == PropertyType::List)
+        {
+            for (const PropertyValue& item : durations.get<PropertyValue::ListValue>().items)
+            {
+                clip.frameDurations.push_back(item.get<float>(0.0f));
+            }
+        }
         return clip;
     }
 
@@ -85,36 +109,41 @@ namespace CNA::Editor
 
     bool AnimationPlayback::advance(const SpriteAnimationClip& clip, float deltaSeconds)
     {
-        if (!playing || clip.isEmpty() || clip.framesPerSecond <= 0.0f) { return false; }
+        if (!playing || clip.isEmpty()) { return false; }
+        if (clip.getFrameDuration(position) <= 0.0f) { return false; }
 
         elapsed += deltaSeconds;
-
-        const float secondsPerFrame = 1.0f / clip.framesPerSecond;
-        if (elapsed < secondsPerFrame) { return false; }
-
-        // How many frames the elapsed time covers, not one. A frame rate faster than the editor's
-        // own would otherwise play in slow motion, and a long stall would crawl back rather than
-        // catching up.
-        const auto steps = static_cast<std::size_t>(elapsed / secondsPerFrame);
-        elapsed -= static_cast<float>(steps) * secondsPerFrame;
 
         const std::size_t count = clip.frames.size();
         const std::size_t before = position;
 
-        if (clip.loop)
+        // One frame at a time, because each may be held for a different length. Bounded by the
+        // frames a whole clip's worth of time could cover, so a duration list of near-zeroes cannot
+        // spin here -- and a long stall still catches up rather than crawling back.
+        for (std::size_t guard = 0; guard <= count; ++guard)
         {
-            position = (position + steps) % count;
-        }
-        else if (position + steps >= count - 1)
-        {
+            const float held = clip.getFrameDuration(position);
+            if (held <= 0.0f || elapsed < held) { break; }
+
+            elapsed -= held;
+
+            if (position + 1 < count)
+            {
+                ++position;
+                continue;
+            }
+
+            if (clip.loop)
+            {
+                position = 0;
+                continue;
+            }
+
             // Held on the last frame rather than wrapped, and playback stops: a non-looping clip
             // that quietly restarted would be indistinguishable from a looping one.
-            position = count - 1;
             playing = false;
-        }
-        else
-        {
-            position += steps;
+            elapsed = 0.0f;
+            break;
         }
 
         return position != before;

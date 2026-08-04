@@ -191,6 +191,12 @@ all-zero quaternion is not a rotation and would collapse the transform.
 An **empty rectangle** (`width` or `height` ≤ 0) means "the whole texture", matching XNA's own
 `SpriteBatch::Draw` convention for a null source rectangle.
 
+A **sprite animation**'s `frames` is one of these: `CNA.SpriteAnimation.frames` is a `list` of `int`,
+each an index into the sheet. `frameDurations` is an optional parallel `list` of `float`, in seconds,
+and is **ignored unless it is exactly as long as `frames`** — a clip that never needed a hold on one
+frame should not carry a list of identical numbers, and a scene written before durations existed has
+no such list at all, so absence has to keep working exactly as it did.
+
 A **tilemap**'s grid is one of these: `CNA.Tilemap.tiles` is a `list` of `int`, row-major, `-1` for
 an empty cell, sized by the component's own `columns` and `rows`. Empty is negative rather than zero
 so that tile 0 — the first tile in every sheet anyone draws — stays usable. A stored list of the

@@ -453,9 +453,19 @@ namespace CNA::Editor
         // here; only the result travels.
         actions_.setAnimationPreview(AnimationPreview{entityId, playback_.position});
 
-        ui_.text("Frame " + std::to_string(playback_.position + 1) + " of "
-                 + std::to_string(clip.frames.size()) + "  ("
-                 + std::to_string(static_cast<int>(clip.getDuration() * 1000.0f)) + " ms)");
+        std::string heading = "Frame " + std::to_string(playback_.position + 1) + " of "
+                            + std::to_string(clip.frames.size()) + "  ("
+                            + std::to_string(static_cast<int>(clip.getDuration() * 1000.0f)) + " ms)";
+
+        // The current frame's own hold, but only when the frames differ. Repeating one number for
+        // every frame of a uniform clip is noise.
+        if (clip.hasFrameDurations())
+        {
+            heading += "  this frame "
+                     + std::to_string(static_cast<int>(clip.getFrameDuration(playback_.position) * 1000.0f))
+                     + " ms";
+        }
+        ui_.text(heading);
 
         if (ui_.button(playback_.playing ? "Pause##anim" : "Play##anim"))
         {

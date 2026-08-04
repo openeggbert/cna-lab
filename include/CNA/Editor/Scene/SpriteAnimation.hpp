@@ -35,6 +35,7 @@ namespace CNA::Editor
         inline constexpr const char* kFrameHeight = "frameHeight";
         inline constexpr const char* kSheetColumns = "sheetColumns";
         inline constexpr const char* kFrames = "frames";
+        inline constexpr const char* kFrameDurations = "frameDurations";
         inline constexpr const char* kFramesPerSecond = "framesPerSecond";
         inline constexpr const char* kLoop = "loop";
     }
@@ -44,6 +45,16 @@ namespace CNA::Editor
     {
         /** @brief Frame indices into the sheet, in playback order. */
         std::vector<std::int64_t> frames;
+
+        /**
+         * @brief Per-frame durations in seconds, or empty for a uniform rate.
+         *
+         * Optional on purpose, and ignored unless it is exactly as long as @c frames. A clip that
+         * never needed a hold on one frame should not carry a list of identical numbers, and an
+         * existing scene has no such list at all -- so absence has to keep working exactly as it
+         * did rather than being an error to fix.
+         */
+        std::vector<float> frameDurations;
 
         int frameWidth = 0;
         int frameHeight = 0;
@@ -56,6 +67,21 @@ namespace CNA::Editor
 
         /** @brief Returns the clip's length in seconds, or zero when it cannot play. */
         [[nodiscard]] float getDuration() const;
+
+        /**
+         * @brief Returns how long the frame at @p position is held, in seconds.
+         *
+         * The per-frame duration when the clip declares a usable one, the uniform rate otherwise.
+         * Never zero for a clip that can play at all: a zero-length frame would spin the playback
+         * loop forever looking for the next one.
+         */
+        [[nodiscard]] float getFrameDuration(std::size_t position) const;
+
+        /** @brief Returns true when the clip declares a usable per-frame duration list. */
+        [[nodiscard]] bool hasFrameDurations() const
+        {
+            return !frameDurations.empty() && frameDurations.size() == frames.size();
+        }
 
         /**
          * @brief Returns the source rectangle for the frame at @p position in the list.

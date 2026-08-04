@@ -305,6 +305,16 @@ namespace CNA::Editor
                 "Frame indices into the sheet, in playback order.");
             frames.elementType = PropertyType::Integer;
 
+            // Optional, and ignored unless it is exactly as long as the frame list. A clip that
+            // never needed a hold on one frame should not carry a list of identical numbers, and no
+            // existing scene has one at all -- so absence keeps working exactly as it did.
+            PropertyDescriptor durations = makeProperty(
+                "frameDurations", "Frame Durations", PropertyType::List,
+                PropertyValue{PropertyValue::ListValue{}},
+                "Seconds per frame, one entry per frame. Leave empty to use Frames Per Second for "
+                "all of them; a list of a different length is ignored.");
+            durations.elementType = PropertyType::Float;
+
             descriptor.properties = {
                 std::move(sheet),
                 makeProperty("frameWidth", "Frame Width", PropertyType::Integer,
@@ -313,6 +323,7 @@ namespace CNA::Editor
                              PropertyValue{std::int64_t{32}}),
                 std::move(sheetColumns),
                 std::move(frames),
+                std::move(durations),
                 std::move(rate),
                 makeProperty("loop", "Loop", PropertyType::Boolean, PropertyValue{true},
                              "Off holds the last frame instead of restarting."),

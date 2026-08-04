@@ -7,6 +7,7 @@
 #include "TestHarness.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <memory>
 
@@ -1268,4 +1269,91 @@ CNA_EDITOR_TEST(AnAnimationClipRoundTripsThroughAComponent)
     CNA_EDITOR_EXPECT_EQ(clip.frames.front(), std::int64_t{4});
     CNA_EDITOR_EXPECT_EQ(clip.framesPerSecond, 24.0f);
     CNA_EDITOR_EXPECT(clip.loop);
+}
+
+CNA_EDITOR_TEST(PerFrameDurationsAreOptionalAndIgnoredWhenTheyDoNotFit)
+{
+    SpriteAnimationClip clip = makeClip();
+
+    // No durations: the uniform rate applies, which is what every scene written before this
+    // existed relies on.
+    CNA_EDITOR_EXPECT(!clip.hasFrameDurations());
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameDuration(0), 0.1f);
+    CNA_EDITOR_EXPECT_EQ(clip.getDuration(), 0.4f);
+
+    // A list of the wrong length is ignored rather than partly applied: half a clip at one rate
+    // and half at another is a state nobody asked for.
+    clip.frameDurations = {0.5f, 0.5f};
+    CNA_EDITOR_EXPECT(!clip.hasFrameDurations());
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameDuration(0), 0.1f);
+
+    clip.frameDurations = {0.5f, 0.1f, 0.1f, 0.1f};
+    CNA_EDITOR_EXPECT(clip.hasFrameDurations());
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameDuration(0), 0.5f);
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameDuration(1), 0.1f);
+    // Summed rather than multiplied, so the comparison has to tolerate the last bit.
+    CNA_EDITOR_EXPECT(std::fabs(clip.getDuration() - 0.8f) < 1e-5f);
+
+    // A zero entry falls back to the uniform rate rather than becoming a frame of no length, which
+    // would spin the playback loop forever looking for the next one.
+    clip.frameDurations[2] = 0.0f;
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameDuration(2), 0.1f);
+}
+
+CNA_EDITOR_TEST(PlaybackHoldsEachFrameForItsOwnDuration)
+{
+    SpriteAnimationClip clip = makeClip();
+    clip.frameDurations = {0.5f, 0.1f, 0.1f, 0.1f};
+
+    AnimationPlayback playback;
+    playback.playing = true;
+
+    // The long first frame is held through what would have been four uniform frames.
+    CNA_EDITOR_EXPECT(!playback.advance(clip, 0.4f));
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{0});
+
+    CNA_EDITOR_EXPECT(playback.advance(clip, 0.1f));
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{1});
+
+    // Then the short ones go by three times as fast.
+    CNA_EDITOR_EXPECT(playback.advance(clip, 0.2f));
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{3});
+
+    // A rate of zero with no durations cannot play, and says so by not moving rather than by
+    // dividing by it.
+    SpriteAnimationClip stopped = makeClip();
+    stopped.framesPerSecond = 0.0f;
+    AnimationPlayback stuck;
+    stuck.playing = true;
+    CNA_EDITOR_EXPECT(!stuck.advance(stopped, 10.0f));
+    CNA_EDITOR_EXPECT_EQ(stuck.position, std::size_t{0});
+}
+
+CNA_EDITOR_TEST(AClipWithoutDurationsSerialisesExactlyAsItDidBefore)
+{
+    const ComponentRegistry registry = makeRegistry();
+
+    EditorEntity entity = makeEntity(registry, "Hero", 0.0f, 0.0f);
+    EditorComponent& component =
+        addComponentWithDefaults(entity, registry, BuiltinComponentIds::kSpriteAnimation);
+
+    PropertyValue::ListValue frames;
+    frames.items.emplace_back(std::int64_t{0});
+    frames.items.emplace_back(std::int64_t{1});
+    component.setProperty(SpriteAnimationKeys::kFrames, PropertyValue{frames});
+
+    SceneDocument scene;
+    scene.addEntity(std::move(entity));
+
+    SceneDocument reloaded;
+    CNA_EDITOR_EXPECT(reloaded.loadFromJson(scene.toJson(), registry).succeeded);
+
+    const SpriteAnimationClip clip = readSpriteAnimationClip(
+        *reloaded.getEntities().front().findComponent(BuiltinComponentIds::kSpriteAnimation),
+        registry.find(BuiltinComponentIds::kSpriteAnimation));
+
+    // The default is an empty list, which round-trips as an empty list and changes nothing about
+    // how the clip plays.
+    CNA_EDITOR_EXPECT(!clip.hasFrameDurations());
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameDuration(0), clip.getFrameDuration(1));
 }

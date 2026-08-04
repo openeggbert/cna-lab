@@ -15,12 +15,12 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 280 / 280 (also under Clang Release) |
+| Unit tests | ✅ 283 / 283 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
-| **Phase 2** | 🔄 6 of 12 done (ED-300, 301, 305, 306, 307, 310); ED-302, ED-303 and ED-311 half; ED-304/308/309 open |
+| **Phase 2** | 🔄 7 of 12 done (ED-300, 301, 303, 305, 306, 307, 310); ED-302 and ED-311 half; ED-304/308/309 open |
 | Owner priorities 1 and 2 | ✅ closed (robustness and data safety; live editing into the player) |
 
 ---
@@ -87,7 +87,7 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
-- **ED-303 (part)** sprite animation. A frame is an index into a sheet, not a rectangle -- the
+- **ED-303** sprite animation, complete. A frame is an index into a sheet, not a rectangle -- the
   same arithmetic the tilemap already does, and far smaller to author. The frame list is an
   ordinary `List<Integer>`, so reordering and adding frames needed no new widget. Playback is a
   plain value the inspector owns and throws away, never the document's (D-07), and the clock is
@@ -98,8 +98,10 @@ Newest first. Each is a single commit on the branch.
   uses and for the same reason. An animated sprite is sized by its frame rather than by its sheet,
   or a sixteen-frame walk cycle would be sixteen times too wide to click and Frame Selected would
   zoom out to fit a strip nobody is looking at.
-  **Open:** per-frame durations, which is what the plan's word "timeline" implies. Additive; it
-  changes no format.
+  Per-frame durations close the row: an **optional** parallel list, ignored unless it is exactly
+  as long as the frame list, so a scene written before it existed plays identically. Playback walks
+  one frame at a time now rather than dividing by a single rate, bounded so a list of near-zeroes
+  cannot spin it.
 - **ED-302 (part)** sprite fonts. The `.spritefont` description is read and reported in the
   inspector, all of it **read-only** -- the file is the content pipeline's own input, so an
   editable copy in the sidecar would be a second answer to a question the build asks the file.
@@ -228,8 +230,8 @@ Phase 1 closed. Working through the owner's priority order:
    `formatVersion` was bumped; `.cnarecovery` is a *new* format at version 1, not a change to an
    existing one.
 2. ~~**Live editing into the running player**~~ ✅ — ED-306 and ED-307 are done.
-3. **Production 2D tools** ← *current* — ED-311 (`List`) 🔄, ED-305 ✅, ED-300 ✅, ED-301 ✅.
-   Next: ED-302 `SpriteFont` preview and ED-303 the sprite animation editor.
+3. **Production 2D tools** ← *current* — ED-300, ED-301, ED-303, ED-305 ✅; ED-302 and
+   ED-311 🔄. Next: ED-309 backend diagnostics, ED-304 audio, ED-308 the build dialog.
    Note that `NestedStructure` (the open half of ED-311) turned out **not** to be needed by
    prefabs: ED-300 computes overrides rather than storing them, so nothing needs a nested schema
    yet. Leave it unbuilt until something real asks for one.
@@ -272,13 +274,9 @@ Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are
 
 Phase 2's remaining work is now mostly *finishing* rather than starting. In rough order of value:
 
-1. **Per-frame durations** (the "timeline" half of ED-303, and all that is left of it). A parallel
-   `List<Float>` is the smallest form and diffs readably; make it **optional**, so a clip with no
-   durations keeps using `framesPerSecond` and no existing scene changes. `AnimationPlayback` is
-   the only thing that has to learn about it — `advance()` currently divides by a single rate.
-2. **Tilemap eyedropper and rectangle fill.** Both are small now that `EditorTool` exists, and both
+1. **Tilemap eyedropper and rectangle fill.** Both are small now that `EditorTool` exists, and both
    are what a person reaches for within a minute of painting.
-3. **ED-309 backend diagnostics** is nearly free: the capability set is already printed at start-up,
+2. **ED-309 backend diagnostics** is nearly free: the capability set is already printed at start-up,
    and showing it in a panel is a view over data that exists. Then **ED-304** audio source editing
    with preview playback, and **ED-308**, the build dialog.
 
