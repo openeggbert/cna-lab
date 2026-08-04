@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <fstream>
+#include <istream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -225,6 +226,88 @@ namespace CNA::Editor
         }
     }
 
+    namespace
+    {
+        /**
+         * @brief Reads a JPEG's size by walking its segments, @p stream positioned after the header.
+         *
+         * A JPEG has no fixed offset to walk to: the dimensions live in a "start of frame" segment
+         * that sits after an arbitrary chain of others -- quantisation tables, application data,
+         * comments -- each carrying its own length. Walking them is the only way, which is why this
+         * takes the stream rather than the fixed header block every other format is read from.
+         *
+         * Returns nothing on anything unexpected. A file that turns out not to be a JPEG after all
+         * is a size the editor does not know, not an error worth stopping an import for.
+         */
+        std::optional<ImageSize> readJpegSize(std::istream& stream)
+        {
+            const auto readByte = [&]() -> int {
+                const int value = stream.get();
+                return stream ? value : -1;
+            };
+
+            // Back to just after the two-byte start-of-image marker, since the caller read a whole
+            // header block looking for signatures.
+            stream.clear();
+            stream.seekg(2, std::ios::beg);
+
+            // Bounded rather than "until it works": a corrupt file can otherwise send this walking
+            // for as long as the file is long, and a stuck importer is worse than an unknown size.
+            constexpr int kMaximumSegments = 256;
+
+            for (int segment = 0; segment < kMaximumSegments; ++segment)
+            {
+                // Segments start with 0xFF, and any number of 0xFF bytes is legal padding before
+                // the marker itself.
+                int marker = readByte();
+                while (marker == 0xFF) { marker = readByte(); }
+                if (marker < 0) { return std::nullopt; }
+
+                // Standalone markers carry no length: restart intervals and the start of image.
+                if ((marker >= 0xD0 && marker <= 0xD9) || marker == 0x01) { continue; }
+
+                const int lengthHigh = readByte();
+                const int lengthLow = readByte();
+                if (lengthHigh < 0 || lengthLow < 0) { return std::nullopt; }
+
+                const int length = (lengthHigh << 8) | lengthLow;
+                if (length < 2) { return std::nullopt; }
+
+                // The start-of-frame markers, of which there are many -- baseline, progressive,
+                // lossless, arithmetic-coded -- and every one of them carries the size in the same
+                // place. 0xC4, 0xC8 and 0xCC are not frames: they are Huffman tables, JPEG-LS
+                // extensions and arithmetic-coding tables.
+                const bool isStartOfFrame = marker >= 0xC0 && marker <= 0xCF && marker != 0xC4
+                                            && marker != 0xC8 && marker != 0xCC;
+
+                if (isStartOfFrame)
+                {
+                    std::array<char, 5> frame{};
+                    stream.read(frame.data(), static_cast<std::streamsize>(frame.size()));
+                    if (stream.gcount() < static_cast<std::streamsize>(frame.size()))
+                    {
+                        return std::nullopt;
+                    }
+
+                    const auto at = [&](std::size_t index) {
+                        return static_cast<int>(static_cast<unsigned char>(frame[index]));
+                    };
+
+                    // One byte of sample precision, then height and width, big-endian and in that
+                    // order -- the reverse of PNG's, which is the classic way to get this wrong.
+                    const int height = (at(1) << 8) | at(2);
+                    const int width = (at(3) << 8) | at(4);
+                    if (width <= 0 || height <= 0) { return std::nullopt; }
+                    return ImageSize{width, height};
+                }
+
+                stream.seekg(length - 2, std::ios::cur);
+                if (!stream) { return std::nullopt; }
+            }
+            return std::nullopt;
+        }
+    }
+
     std::optional<ImageSize> readImageSize(const std::string& absolutePath)
     {
         std::ifstream stream{absolutePath, std::ios::binary};
@@ -257,6 +340,14 @@ namespace CNA::Editor
                 };
                 return ImageSize{bigEndian(16), bigEndian(20)};
             }
+        }
+
+        // JPEG: no fixed offsets at all. The size lives in a "start of frame" segment somewhere
+        // after a chain of others whose lengths have to be walked -- which is why this needs the
+        // stream rather than the header block above.
+        if (read >= 2 && byteAt(0) == 0xFF && byteAt(1) == 0xD8)
+        {
+            return readJpegSize(stream);
         }
 
         // BMP: "BM", then a DIB header whose width and height are little-endian at fixed offsets.

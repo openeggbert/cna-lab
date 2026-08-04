@@ -696,10 +696,31 @@ CNA_EDITOR_TEST(ImageSizeIsReadFromThePngHeader)
     CNA_EDITOR_EXPECT_EQ(size->width, 3);
     CNA_EDITOR_EXPECT_EQ(size->height, 2);
 
-    // A format the editor cannot measure is unknown, not zero -- the caller has to be able to
-    // tell "I could not read this" from "this image is empty".
-    writeFile(directory / "Photo.jpg", "\xFF\xD8\xFF\xE0 not really a jpeg but long enough to read");
-    CNA_EDITOR_EXPECT(!readImageSize((directory / "Photo.jpg").generic_string()).has_value());
+    // JPEG: no fixed offset to read from. The size lives in a start-of-frame segment that sits
+    // after a chain of others -- here an APP0 and a quantisation table -- each of which has to be
+    // stepped over by its own length.
+    static const unsigned char kJpeg[] = {
+        0xFF, 0xD8,
+        0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00, 0x01, 0x01, 0x00,
+        0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
+        0xFF, 0xDB, 0x00, 0x04, 0x00, 0x00,
+        // SOF0: precision 8, height 0x0040, width 0x0060 -- height first, which is the reverse of
+        // PNG's order and the classic way to get this wrong.
+        0xFF, 0xC0, 0x00, 0x11, 0x08, 0x00, 0x40, 0x00, 0x60, 0x03,
+        0x01, 0x11, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01};
+    writeFile(directory / "Photo.jpg",
+              std::string{reinterpret_cast<const char*>(kJpeg), sizeof(kJpeg)});
+
+    const std::optional<ImageSize> jpeg = readImageSize((directory / "Photo.jpg").generic_string());
+    CNA_EDITOR_EXPECT(jpeg.has_value());
+    CNA_EDITOR_EXPECT_EQ(jpeg->width, 96);
+    CNA_EDITOR_EXPECT_EQ(jpeg->height, 64);
+
+    // A format the editor cannot measure is unknown, not zero -- the caller has to be able to tell
+    // "I could not read this" from "this image is empty". A truncated JPEG is the same answer: the
+    // walk runs off the end of the file rather than reading whatever happens to be there.
+    writeFile(directory / "Broken.jpg", "\xFF\xD8\xFF\xE0 not really a jpeg but long enough to read");
+    CNA_EDITOR_EXPECT(!readImageSize((directory / "Broken.jpg").generic_string()).has_value());
     CNA_EDITOR_EXPECT(!readImageSize((directory / "Absent.png").generic_string()).has_value());
 
     std::filesystem::remove_all(directory);

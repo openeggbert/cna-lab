@@ -83,13 +83,14 @@ namespace CNA::Editor
     /**
      * @brief Reads an image's dimensions from its header, without decoding it.
      *
-     * PNG and BMP only, which is deliberate rather than a stub: both state their size in a fixed
-     * header, so a few dozen bytes answer the question. JPEG requires walking its segments and
-     * anything else requires a decoder -- neither belongs in the editor's CNA-free layer, and
-     * both are better answered by the importer that will eventually load the file for real.
+     * PNG, BMP and JPEG. The first two state their size in a fixed header, so a few dozen bytes
+     * answer the question; a JPEG has no fixed offset at all and its segments are walked until a
+     * start-of-frame turns up, bounded so a corrupt file cannot send the walk to the end of a
+     * hundred megabytes. Anything else needs a decoder, which does not belong in the editor's
+     * CNA-free layer and is better answered by the importer that will load the file for real.
      *
      * @return The size, or std::nullopt when the file cannot be read or its format is not one of
-     *         those two. Callers must treat "unknown" as unknown rather than as zero.
+     *         those three. Callers must treat "unknown" as unknown rather than as zero.
      */
     [[nodiscard]] std::optional<ImageSize> readImageSize(const std::string& absolutePath);
 

@@ -392,8 +392,9 @@ Phase 1 closed. Working through the owner's priority order:
   it is off by default because each entry compiles CNA again -- minutes, not seconds. Anyone who
   presses Compare on a default build will be told it needs another build, which is correct and still
   worth knowing before it happens.
-- **JPEG dimensions are not read.** `readImageSize` handles PNG and BMP; anything else reports
-  unknown, and the inspector shows 0×0 with a tooltip saying why.
+- **Image dimensions are read for PNG, BMP and JPEG only.** Anything else reports unknown, and the
+  inspector shows 0×0 with a tooltip saying why. A format that needs a decoder to measure is one
+  the importer should measure when it loads the file for real.
 - **`--headless` writes to the project.** Opening a project applies importer facts and may rewrite
   a sidecar. This is intended (it corrected a stale stamp in the example) but worth knowing before
   running the editor against a repository you want left alone.
@@ -436,8 +437,12 @@ What follows is a judgement call rather than a queue.
 1. **Hear the audio preview on a machine with a sound device.** It was rewritten to hold a
    `SoundEffectInstance` so Stop actually stops, but this container has none, so that path has been
    compiled and reasoned about rather than heard.
-2. **JPEG dimensions.** `readImageSize` handles PNG and BMP and reports honestly for everything
-   else; a JPEG SOF scan is an afternoon.
+2. **A snap setting in the viewport toolbar.** Ctrl snaps to the visible grid, 15 degrees and
+   tenths, all fixed. A project that lays out on a 16-pixel tile grid wants to say so once rather
+   than zooming until the grid happens to agree.
+3. **Duplicate and delete for a whole selection.** `Ctrl+D` and `Delete` still act on the primary
+   selection; now that Ctrl+click builds a real multi-selection and the gizmo honours it, those two
+   are the obvious next things to notice.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration
 chains are empty on purpose. Adding a property type must not change what an existing scene file
