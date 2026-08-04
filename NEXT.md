@@ -15,13 +15,13 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 439 / 439 (also under Clang Release) |
+| Unit tests | ✅ 441 / 441 (also under Clang Release) |
 | CTest (standalone) | ✅ 12 / 12 |
 | CTest (CNA config) | ✅ 17 / 17 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 11 of 12 done — **ED-311 closed** when ED-410 gave `NestedStructure` its first real consumer. Only ED-302 remains, blocked on CNA gap G-04 |
-| **Phase 3** | 🔄 12 done — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) **ED-413** (sprites in the 3D view) **ED-407** (environment and fog) **ED-406** (mesh thumbnails) **ED-403** (materials as assets) and **ED-410** (per-part material lists). Only the two plugin rows are left |
+| **Phase 3** | 🔄 13 done — ED-400, ED-401, ED-408, ED-409, ED-405, **ED-402** (solid lit models), **ED-404** (lights, read and drawn) **ED-413** (sprites in the 3D view) **ED-407** (environment and fog) **ED-406** (mesh thumbnails) **ED-403** (materials as assets) **ED-410** (per-part material lists) and **ED-411** (plugins really load). Only ED-412's extension points are left |
 | **Phase 5** | 🔄 ED-510, ED-511 and ED-513 done — the backend comparison mode, end to end |
 | **Owner priorities** | ✅ **all four closed**: robustness and data safety; live editing into the player; production 2D tools; backend comparison |
 

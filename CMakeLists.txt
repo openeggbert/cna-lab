@@ -319,6 +319,14 @@ target_link_libraries(cna-editor PRIVATE
     cna-editor-plugins
     cna-editor-runtime-bridge)
 
+# Required for plugins to load at all (ED-411), not an optimisation. A plugin must not link the
+# editor's static libraries -- it would get its own copy of every registry, and the component it
+# registered would go into a ComponentRegistry the editor has never heard of. So a plugin leaves
+# those symbols undefined and the *host* resolves them at load time, which needs the host to have
+# exported them. Without this a perfectly good plugin fails with "undefined symbol" naming a
+# function the editor plainly contains.
+set_target_properties(cna-editor PROPERTIES ENABLE_EXPORTS ON)
+
 if(CNA_EDITOR_WITH_CNA)
     target_link_libraries(cna-editor PRIVATE cna-editor-viewport)
 endif()

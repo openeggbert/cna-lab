@@ -20,6 +20,7 @@
 
 #include "CNA/Editor/Assets/AssetWatcher.hpp"
 #include "CNA/Editor/EditorContext.hpp"
+#include "CNA/Editor/Plugins/Plugin.hpp"
 #include "CNA/Editor/Panels/AssetBrowserPanel.hpp"
 #include "CNA/Editor/Panels/BuildPanel.hpp"
 #include "CNA/Editor/Core/ImageDiff.hpp"
@@ -96,6 +97,15 @@ namespace CNA::Editor
          * happens to be in front is whichever docked last. Empty leaves the layout alone.
          */
         std::string focusPanel;
+
+        /**
+         * @brief Where to look for plugins. Defaults to `plugins/` beside the executable.
+         *
+         * The same convention player builds are discovered by, and for the same reason: an editor
+         * and the things that extend it are installed together. On the command line so a test or a
+         * developer can point at a build tree without installing anything.
+         */
+        std::string pluginDirectory;
 
         /**
          * @brief Write a PNG of the final frame here. Requires a frame limit.
@@ -379,7 +389,35 @@ namespace CNA::Editor
         /** @brief Tells the running player that one asset changed on disk. */
         void reloadAssetInPlayer(const Uuid& assetId);
 
+    public:
+        /**
+         * @brief Unloads every plugin before anything they registered into goes away.
+         *
+         * The only reason this class needs a destructor at all. A plugin's `shutdown` is handed
+         * the `EditorContext`, so it has to run while the context is still alive -- and member
+         * destruction alone would release the library handles without ever calling it, leaving
+         * the registries pointing into unmapped code.
+         */
+        ~EditorApplication();
+
+    private:
+        /** @brief Discovers and loads plugins, reporting each failure by name (ED-411). */
+        void loadPlugins(const EditorOptions& options);
+
+        /** @brief Unloads every plugin while the context they were given is still alive. */
+        void unloadPlugins();
+
         EditorContext context_;
+
+        /**
+         * @brief The plugins this editor loaded (ED-411).
+         *
+         * Declared *after* the context and therefore destroyed *before* it, which is the ordering
+         * that matters: a plugin's `shutdown` is handed the context, so the context has to still
+         * be there when the host unloads. Getting this the other way round is a crash at exit and
+         * only at exit.
+         */
+        PluginHost plugins_;
         std::unique_ptr<EditorUi> ui_;
         std::unique_ptr<EditorViewport> viewport_;
         std::unique_ptr<EditorAudio> audio_ = std::make_unique<NullEditorAudio>();

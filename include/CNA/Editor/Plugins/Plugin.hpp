@@ -14,6 +14,7 @@
  * to match. See ANALYSIS.md decision D-11.
  */
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -110,29 +111,104 @@ namespace CNA::Editor
         /** @brief False when the plugin was rejected; @c error then says why. */
         bool loaded = false;
         std::string error;
+
+        /**
+         * @brief True once the library is open and `initialize` has run (ED-411).
+         *
+         * Distinct from `loaded`, which means "passed validation and would load". A plugin can
+         * pass every check and still fail to open -- a missing dependency of its *own*, a symbol
+         * it does not export -- and the two failures need different things from a user: one is a
+         * manifest to fix, the other is a build to fix.
+         */
+        bool active = false;
     };
 
     /**
-     * @brief Discovers, validates and (in a later phase) loads plugins.
+     * @brief Discovers, validates and loads plugins (ED-017, ED-411).
      *
-     * The Phase 1 implementation stops short of `dlopen`: it discovers manifests, validates the
-     * API version and dependency order, and reports what *would* load. That is deliberate --
-     * getting discovery and rejection right first means the eventual dynamic loading has nothing
-     * left to get wrong except the loading itself. See plan.md ED-411.
+     * Discovery and validation were built first and deliberately: an ABI mismatch that reaches
+     * `dlopen` is a crash rather than an error message (D-11), so the manifest is read and checked
+     * *before* any of the plugin's code runs. ED-411 added the loading behind that gate, so the
+     * only thing loading can get wrong is the loading.
+     *
+     * **Unload order is load-bearing and is the one thing here that crashes when reversed.** A
+     * plugin's `shutdown` runs first, so everything it registered is removed while its code is
+     * still mapped; then the object is destroyed *through the plugin's own* destroy function, so
+     * the allocation and the deallocation happen in the same runtime; and only then is the library
+     * closed. Closing first unmaps the code that the destructor was about to run.
      */
     class PluginHost
     {
     public:
+        // Both defined in the .cpp rather than defaulted here: the member holding open libraries
+        // is a `vector<unique_ptr<Open>>`, and `Open` is deliberately incomplete in this header --
+        // it names a platform library handle, which nothing including this file should have to.
+        PluginHost();
+        ~PluginHost();
+
+        // Holds open library handles, which are not copyable and whose lifetime is the host's.
+        PluginHost(const PluginHost&) = delete;
+        PluginHost& operator=(const PluginHost&) = delete;
+
         /**
          * @brief Scans @p directory for immediate subdirectories containing a `plugin.json`.
          * @return One entry per manifest found, in dependency order where it can be determined.
          */
         std::vector<LoadedPlugin> discover(const std::string& directory);
 
+        /**
+         * @brief Opens and initialises every plugin `discover` accepted (ED-411).
+         *
+         * In the order `discover` returned, which is dependency order: a plugin that registers a
+         * component another plugin extends has to have registered it first.
+         *
+         * A plugin that will not open, does not export the entry points, refuses the API version
+         * or throws out of `initialize` is reported and left inactive; the rest still load. One
+         * bad plugin disabling every other one is the failure mode that makes people stop using
+         * plugins at all.
+         *
+         * @return How many became active.
+         */
+        std::size_t loadAll(EditorContext& context);
+
+        /**
+         * @brief Shuts down and closes every active plugin, in reverse load order.
+         *
+         * Reverse, for the reason dependency order exists at all: a plugin that depends on another
+         * must let go of it before that other one is unmapped.
+         */
+        void unloadAll(EditorContext& context);
+
+        /**
+         * @brief Unloads @p pluginId, then loads it again from the same manifest.
+         *
+         * The whole of hot-reload, and honest about what it is: the plugin's state is gone and its
+         * registrations are made afresh. Anything the editor held that the plugin owned -- a
+         * descriptor, a panel -- is invalid across the call, which is why `shutdown` is required to
+         * remove all of it rather than encouraged to.
+         *
+         * @return True when the plugin was found and came back active.
+         */
+        bool reload(EditorContext& context, const std::string& pluginId);
+
         /** @brief Returns everything discover() found on its most recent call. */
         [[nodiscard]] const std::vector<LoadedPlugin>& getPlugins() const { return plugins_; }
 
+        /** @brief How many plugins are open and initialised right now. */
+        [[nodiscard]] std::size_t getActiveCount() const;
+
     private:
+        struct Open;
+
         std::vector<LoadedPlugin> plugins_;
+
+        /** @brief One entry per *active* plugin, in load order. */
+        std::vector<std::unique_ptr<Open>> open_;
+
+        /** @brief Opens and initialises the plugin at @p index, filling in its error on failure. */
+        bool activate(EditorContext& context, std::size_t index);
+
+        /** @brief Shuts down, destroys and closes @p entry. Never throws. */
+        void deactivate(EditorContext& context, Open& entry);
     };
 }

@@ -16,6 +16,39 @@ add_executable(cna-editor-tests
     PlayerTests.cpp
     ViewportTests.cpp)
 
+# A *real* shared library for ED-411's loading tests. Nothing about dlopen, symbol resolution,
+# cross-runtime allocation or unload order can be checked against a test double -- a double would
+# exercise the host's bookkeeping and none of the things that actually break.
+#
+# It links **none** of the editor's libraries, and that is the important part rather than a way
+# around a linker error. A plugin that statically linked cna-editor-core would get its own copy of
+# every registry and every global in it, so the component it registered would go into a
+# ComponentRegistry the editor has never heard of -- and the failure would look like "initialize()
+# ran and nothing happened". Instead it includes the headers and leaves the symbols undefined, and
+# the host resolves them at load time from its own exported symbols. That is what ENABLE_EXPORTS on
+# the test executable is for, and it is the same arrangement a real plugin has to use.
+add_library(cna-editor-test-plugin MODULE plugin/TestPlugin.cpp)
+target_link_libraries(cna-editor-test-plugin PRIVATE cna-editor-settings)
+target_link_options(cna-editor-test-plugin PRIVATE "LINKER:--allow-shlib-undefined")
+set_target_properties(cna-editor-tests PROPERTIES ENABLE_EXPORTS ON)
+set_target_properties(cna-editor-test-plugin PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/plugins/testplugin"
+    PREFIX "")
+
+# The manifest beside it, written at configure time so the test has a directory to discover.
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/plugins/testplugin/plugin.json"
+"{\n"
+"  \"id\": \"org.openeggbert.testplugin\",\n"
+"  \"name\": \"Test Plugin\",\n"
+"  \"version\": \"1.0.0\",\n"
+"  \"editorApiVersion\": 1,\n"
+"  \"library\": \"cna-editor-test-plugin${CMAKE_SHARED_MODULE_SUFFIX}\"\n"
+"}\n")
+
+add_dependencies(cna-editor-tests cna-editor-test-plugin)
+target_compile_definitions(cna-editor-tests PRIVATE
+    CNA_EDITOR_TEST_PLUGIN_DIR="${CMAKE_CURRENT_BINARY_DIR}/plugins")
+
 target_include_directories(cna-editor-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(cna-editor-tests PRIVATE
     cna-editor-context

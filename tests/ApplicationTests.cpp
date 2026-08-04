@@ -16,6 +16,7 @@
 #include <fstream>
 
 #include "CNA/Editor/EditorApplication.hpp"
+#include "CNA/Editor/Plugins/Plugin.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/TransformGizmos3D.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
@@ -4222,3 +4223,80 @@ CNA_EDITOR_TEST(APerPartMaterialRowIsEditedFieldByField)
     CNA_EDITOR_EXPECT(context.getHistory().redo());
     CNA_EDITOR_EXPECT_EQ(readList().items.size(), std::size_t{1});
 }
+
+#ifdef CNA_EDITOR_TEST_PLUGIN_DIR
+/**
+ * @brief ED-411: a real shared library is opened, initialised, and closed in the right order.
+ *
+ * Against a *real* `.so` rather than a double, because nothing that actually breaks in a plugin
+ * system -- `dlopen`, symbol resolution, allocating in one runtime and freeing in another, unload
+ * order -- can be checked against a fake. A double would exercise the host's bookkeeping and none
+ * of it.
+ *
+ * The observable proof is a component descriptor: present in the registry only while the plugin is
+ * active, which makes "initialize ran" and "shutdown cleaned up" the same assertion read twice.
+ */
+CNA_EDITOR_TEST(APluginIsLoadedFromARealLibraryAndUnloadsCleanly)
+{
+    EditorContext context;
+    PluginHost host;
+
+    const std::vector<LoadedPlugin> found = host.discover(CNA_EDITOR_TEST_PLUGIN_DIR);
+    CNA_EDITOR_EXPECT_EQ(found.size(), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(found[0].manifest.id, std::string{"org.openeggbert.testplugin"});
+    CNA_EDITOR_EXPECT(found[0].loaded);
+
+    // Discovered is not active: the manifest passed its checks, and nothing has been opened.
+    CNA_EDITOR_EXPECT(!found[0].active);
+    CNA_EDITOR_EXPECT(context.getComponentRegistry().find("Test.PluginComponent") == nullptr);
+
+    CNA_EDITOR_EXPECT_EQ(host.loadAll(context), std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(host.getActiveCount(), std::size_t{1});
+    CNA_EDITOR_EXPECT(host.getPlugins()[0].active);
+    CNA_EDITOR_EXPECT(host.getPlugins()[0].error.empty());
+
+    // The plugin's own component is in the editor's registry -- and it is the *editor's*, which is
+    // the thing a plugin linking the editor statically would silently fail at.
+    const ComponentDescriptor* descriptor =
+        context.getComponentRegistry().find("Test.PluginComponent");
+    CNA_EDITOR_EXPECT(descriptor != nullptr);
+    CNA_EDITOR_EXPECT_EQ(descriptor->displayName, std::string{"Plugin Component"});
+
+    host.unloadAll(context);
+    CNA_EDITOR_EXPECT_EQ(host.getActiveCount(), std::size_t{0});
+
+    // Gone. A descriptor left registered past dlclose points into unmapped memory, which is why
+    // shutdown() removing everything is a requirement rather than a courtesy.
+    CNA_EDITOR_EXPECT(context.getComponentRegistry().find("Test.PluginComponent") == nullptr);
+}
+
+/**
+ * @brief Hot-reload is an unload and a load, and says so: the plugin comes back registered afresh.
+ *
+ * What the test pins is that reload leaves the editor in the state a fresh load would -- one copy
+ * of the component, not two, and not none. A reload that re-registered without unregistering, or
+ * unregistered without coming back, both look fine for one cycle.
+ */
+CNA_EDITOR_TEST(ReloadingAPluginLeavesItRegisteredExactlyOnce)
+{
+    EditorContext context;
+    PluginHost host;
+
+    host.discover(CNA_EDITOR_TEST_PLUGIN_DIR);
+    CNA_EDITOR_EXPECT_EQ(host.loadAll(context), std::size_t{1});
+
+    for (int cycle = 0; cycle < 3; ++cycle)
+    {
+        CNA_EDITOR_EXPECT(host.reload(context, "org.openeggbert.testplugin"));
+        CNA_EDITOR_EXPECT_EQ(host.getActiveCount(), std::size_t{1});
+        CNA_EDITOR_EXPECT(context.getComponentRegistry().find("Test.PluginComponent") != nullptr);
+    }
+
+    // An id nobody has is a failure rather than a silent no-op: a user who typed it wrong would
+    // otherwise be told nothing and believe the reload happened.
+    CNA_EDITOR_EXPECT(!host.reload(context, "org.openeggbert.nosuchplugin"));
+
+    host.unloadAll(context);
+    CNA_EDITOR_EXPECT(context.getComponentRegistry().find("Test.PluginComponent") == nullptr);
+}
+#endif

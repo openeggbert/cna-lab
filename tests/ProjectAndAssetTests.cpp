@@ -13,6 +13,7 @@
 #include <sstream>
 
 #include "CNA/Editor/Assets/AssetCommands.hpp"
+#include "CNA/Editor/EditorContext.hpp"
 #include "CNA/Editor/Assets/AssetDatabase.hpp"
 #include "CNA/Editor/Assets/MaterialDocument.hpp"
 #include "CNA/Editor/Assets/AssetImporters.hpp"
@@ -363,16 +364,31 @@ CNA_EDITOR_TEST(PluginHostRejectsIncompatibleManifestsWithoutLoadingThem)
 
     std::size_t apiMismatchCount = 0;
     std::size_t malformedCount = 0;
+    std::size_t acceptedCount = 0;
     for (const LoadedPlugin& plugin : plugins)
     {
         if (plugin.error.find("editor API version") != std::string::npos) { ++apiMismatchCount; }
         if (plugin.error.find("malformed") != std::string::npos) { ++malformedCount; }
-        // Nothing loads yet, by design: an ABI mismatch that reaches dlopen is a crash, not an
-        // error message, so validation has to be right before loading exists at all.
-        CNA_EDITOR_EXPECT(!plugin.loaded);
+        if (plugin.loaded) { ++acceptedCount; }
+
+        // Rejected or accepted, *nothing has been opened*: `loaded` means the manifest passed
+        // every check that can be made without running the plugin's code. An ABI mismatch that
+        // reaches dlopen is a crash rather than an error message (D-11), so the gate comes first.
+        CNA_EDITOR_EXPECT(!plugin.active);
     }
     CNA_EDITOR_EXPECT_EQ(apiMismatchCount, std::size_t{1});
     CNA_EDITOR_EXPECT_EQ(malformedCount, std::size_t{1});
+    CNA_EDITOR_EXPECT_EQ(acceptedCount, std::size_t{1});
+
+    // And the accepted one still does not *open*: its "library" is a text file. That is the whole
+    // reason `loaded` and `active` are two flags -- a manifest a user can fix and a build a user
+    // can fix are different problems, and telling them apart is the point.
+    EditorContext context;
+    CNA_EDITOR_EXPECT_EQ(host.loadAll(context), std::size_t{0});
+    for (const LoadedPlugin& plugin : host.getPlugins())
+    {
+        CNA_EDITOR_EXPECT(!plugin.active);
+    }
 
     std::filesystem::remove_all(directory);
 }

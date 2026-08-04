@@ -108,6 +108,11 @@ namespace CNA::Editor
                     }
                     continue;
                 }
+                if (name == "--plugins")
+                {
+                    options.pluginDirectory = value;
+                    continue;
+                }
                 if (name == "--panel")
                 {
                     options.focusPanel = value;
@@ -202,6 +207,7 @@ namespace CNA::Editor
             "  --tolerance=N      Largest per-channel difference --compare-backends still counts as\n"
             "                     identical. Default: 2, because two backends are never bit-equal.\n"
             "  --panel=TITLE      Bring the panel with this exact title to the front, e.g. Assets.\n"
+            "  --plugins=DIR      Where to look for plugins. Defaults to plugins/ beside the editor.\n"
             "  --version          Print the version and exit.\n"
             "  -h, --help         Print this help and exit.\n"
             "\n"
@@ -287,6 +293,8 @@ namespace CNA::Editor
             setPlayerBuilds(discoverPlayerBuilds(
                 std::filesystem::path{options.executablePath}.parent_path().generic_string()));
         }
+
+        loadPlugins(options);
 
         findRecoverableScene();
 
@@ -1051,5 +1059,60 @@ namespace CNA::Editor
 
         player_.reset();
         playMode_ = PlayMode::Stopped;
+    }
+}
+
+namespace CNA::Editor
+{
+    EditorApplication::~EditorApplication() { unloadPlugins(); }
+
+    void EditorApplication::loadPlugins(const EditorOptions& options)
+    {
+        const std::string directory =
+            options.pluginDirectory.empty()
+                ? (std::filesystem::path{options.executablePath}.parent_path() / "plugins")
+                      .generic_string()
+                : options.pluginDirectory;
+
+        std::error_code errorCode;
+        if (!std::filesystem::is_directory(directory, errorCode))
+        {
+            // Silent. Having no plugins is the ordinary case, and an editor that logged a warning
+            // about a directory nobody created would train its users to ignore warnings.
+            return;
+        }
+
+        const std::vector<LoadedPlugin> found = plugins_.discover(directory);
+        if (found.empty()) { return; }
+
+        for (const LoadedPlugin& plugin : found)
+        {
+            if (plugin.loaded) { continue; }
+
+            // Reported per plugin, with the manifest's own words for what is wrong. A single
+            // "some plugins failed" is a message a user cannot act on.
+            context_.log(LogSeverity::Warning,
+                         "Plugin '" + plugin.manifest.id + "' was not loaded: " + plugin.error);
+        }
+
+        const std::size_t active = plugins_.loadAll(context_);
+
+        for (const LoadedPlugin& plugin : plugins_.getPlugins())
+        {
+            if (!plugin.loaded || plugin.active) { continue; }
+            context_.log(LogSeverity::Warning,
+                         "Plugin '" + plugin.manifest.id + "' failed to load: " + plugin.error);
+        }
+
+        context_.log(LogSeverity::Info,
+                     "Plugins: " + std::to_string(active) + " of " + std::to_string(found.size())
+                         + " loaded from " + directory + ".");
+    }
+
+    void EditorApplication::unloadPlugins()
+    {
+        // While the context is still alive, which is the whole reason this is a named step rather
+        // than something left to a destructor: a plugin's shutdown() is handed the context.
+        plugins_.unloadAll(context_);
     }
 }
