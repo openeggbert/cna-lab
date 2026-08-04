@@ -21,6 +21,18 @@ namespace CNA::Editor
     {
         if (!ui_.beginPanel("Inspector", DockSide::Right)) { ui_.endPanel(); return; }
 
+        // The animation preview belongs to whatever the inspector is showing, and is reset here
+        // rather than inside the preview itself -- that code is not reached when an asset, or
+        // nothing, is selected, and a preview left running against an entity the user navigated
+        // away from would resume mid-clip on a frame nobody chose.
+        const Uuid showing =
+            context_.getSelectedAsset().isValid() ? Uuid{} : context_.getPrimarySelection();
+        if (previewEntity_ != showing)
+        {
+            previewEntity_ = showing;
+            playback_ = AnimationPlayback{};
+        }
+
         if (context_.getSelectedAsset().isValid())
         {
             drawAssetInspector(context_.getSelectedAsset());
@@ -42,6 +54,7 @@ namespace CNA::Editor
         ui_.separator();
 
         drawPrefabSection(selectedId);
+        drawAnimationPreview(selectedId, frameDelta_);
 
         // Removal is deferred past the loop. Executing it here would mutate the very vector being
         // iterated, and invalidate the component reference the loop body is holding.
@@ -408,6 +421,67 @@ namespace CNA::Editor
             // returns to the value the drag started from.
             context_.execute(std::move(command), MergePolicy::MergeWithPrevious);
         }
+    }
+
+    void InspectorPanel::drawAnimationPreview(const Uuid& entityId, double deltaSeconds)
+    {
+        const EditorEntity* entity = context_.getScene().findEntity(entityId);
+        const EditorComponent* animation =
+            entity != nullptr ? entity->findComponent(BuiltinComponentIds::kSpriteAnimation) : nullptr;
+        if (animation == nullptr) { return; }
+
+        const SpriteAnimationClip clip = readSpriteAnimationClip(
+            *animation, context_.getComponentRegistry().find(BuiltinComponentIds::kSpriteAnimation));
+
+        // The frame list is editable while the preview runs, and shortening it can leave the
+        // position past the end.
+        playback_.clampTo(clip);
+        playback_.advance(clip, static_cast<float>(deltaSeconds));
+
+        if (clip.frames.empty())
+        {
+            ui_.text("Animation: no frames yet.");
+            ui_.separator();
+            return;
+        }
+
+        ui_.text("Frame " + std::to_string(playback_.position + 1) + " of "
+                 + std::to_string(clip.frames.size()) + "  ("
+                 + std::to_string(static_cast<int>(clip.getDuration() * 1000.0f)) + " ms)");
+
+        if (ui_.button(playback_.playing ? "Pause##anim" : "Play##anim"))
+        {
+            playback_.playing = !playback_.playing;
+        }
+        ui_.sameLine();
+        if (ui_.button("<##anim")) { playback_.step(clip, -1); }
+        ui_.sameLine();
+        if (ui_.button(">##anim")) { playback_.step(clip, 1); }
+
+        const Uuid sheetId =
+            animation->getProperty(SpriteAnimationKeys::kSheet).get<PropertyValue::AssetReference>().id;
+        const AssetRecord* record = context_.getAssets().find(sheetId);
+        if (record == nullptr)
+        {
+            ui_.text("Assign a sheet to see the frames.");
+            ui_.separator();
+            return;
+        }
+
+        // The sheet's size comes from the importer's recorded fact rather than from the renderer:
+        // it is the one place that already knows, and asking the renderer would mean the preview
+        // could not be drawn at all in a headless run.
+        const EditorVector2 sheetSize =
+            PropertyValue::fromJson(record->importerSettings["pixelSize"], PropertyType::Vector2)
+                .get<EditorVector2>();
+
+        const UiTextureId texture = actions_.getViewport().getAssetThumbnail(sheetId);
+        const EditorRectangle frame = clip.getFrameRectangle(playback_.position);
+
+        constexpr float kPreviewSize = 128.0f;
+        ui_.imageRegion("animation-preview", texture, frame, sheetSize, kPreviewSize, kPreviewSize);
+
+        ui_.separator();
     }
 
     void InspectorPanel::drawPrefabSection(const Uuid& entityId)

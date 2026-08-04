@@ -16,6 +16,7 @@
 #include "CNA/Editor/Scene/PrefabCommands.hpp"
 #include "CNA/Editor/Scene/PrefabDocument.hpp"
 #include "CNA/Editor/Scene/SceneValidation.hpp"
+#include "CNA/Editor/Scene/SpriteAnimation.hpp"
 #include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Project/Project.hpp"
 
@@ -1121,4 +1122,150 @@ CNA_EDITOR_TEST(ATilemapRoundTripsThroughASceneFile)
                           .getElements()
                           .front()["components"]["CNA.Tilemap"]["tiles"]
                           .isArray());
+}
+
+// --------------------------------------------------------------------------------------------
+// Sprite animation (plan.md ED-303)
+// --------------------------------------------------------------------------------------------
+
+namespace
+{
+    /** @brief A four-frame clip at 10 fps, frames 0..3 of an 8-wide sheet of 32px cells. */
+    SpriteAnimationClip makeClip(bool loop = true)
+    {
+        SpriteAnimationClip clip;
+        clip.frames = {0, 1, 2, 3};
+        clip.frameWidth = 32;
+        clip.frameHeight = 32;
+        clip.sheetColumns = 8;
+        clip.framesPerSecond = 10.0f;
+        clip.loop = loop;
+        return clip;
+    }
+}
+
+CNA_EDITOR_TEST(AClipTurnsAFrameIndexIntoASourceRectangle)
+{
+    SpriteAnimationClip clip = makeClip();
+    clip.frames = {0, 7, 8, 15};
+
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameRectangle(0).x, 0);
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameRectangle(0).y, 0);
+
+    // The last cell of the first row, then the first of the second: the wrap is what makes an
+    // index cheaper to author than a rectangle.
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameRectangle(1).x, 224);
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameRectangle(1).y, 0);
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameRectangle(2).x, 0);
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameRectangle(2).y, 32);
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameRectangle(3).y, 32);
+
+    // Out of range draws nothing rather than clamping: a caller that has lost track of where it is
+    // should show that, not silently show frame zero.
+    CNA_EDITOR_EXPECT(clip.getFrameRectangle(99).isEmpty());
+
+    CNA_EDITOR_EXPECT_EQ(clip.getFrameCount(), std::size_t{4});
+    CNA_EDITOR_EXPECT_EQ(clip.getDuration(), 0.4f);
+}
+
+CNA_EDITOR_TEST(PlaybackAdvancesOnTheClockItIsGivenAndCatchesUp)
+{
+    const SpriteAnimationClip clip = makeClip();
+    AnimationPlayback playback;
+
+    // Not playing: the clock passes and nothing moves.
+    CNA_EDITOR_EXPECT(!playback.advance(clip, 1.0f));
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{0});
+
+    playback.playing = true;
+    CNA_EDITOR_EXPECT(!playback.advance(clip, 0.05f));
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{0});
+
+    CNA_EDITOR_EXPECT(playback.advance(clip, 0.05f));
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{1});
+
+    // A long stall covers the frames it spans rather than crawling back one at a time: at 10 fps a
+    // quarter-second gap is two and a half frames.
+    CNA_EDITOR_EXPECT(playback.advance(clip, 0.25f));
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{3});
+
+    // Looping wraps and keeps playing.
+    CNA_EDITOR_EXPECT(playback.advance(clip, 0.1f));
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{0});
+    CNA_EDITOR_EXPECT(playback.playing);
+}
+
+CNA_EDITOR_TEST(ANonLoopingClipHoldsItsLastFrameAndStops)
+{
+    const SpriteAnimationClip clip = makeClip(false);
+    AnimationPlayback playback;
+    playback.playing = true;
+
+    playback.advance(clip, 1.0f);
+
+    // Held, not wrapped, and stopped -- a non-looping clip that quietly restarted would be
+    // indistinguishable from a looping one.
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{3});
+    CNA_EDITOR_EXPECT(!playback.playing);
+}
+
+CNA_EDITOR_TEST(SteppingWrapsBothWaysAndStopsPlayback)
+{
+    const SpriteAnimationClip clip = makeClip();
+    AnimationPlayback playback;
+    playback.playing = true;
+
+    playback.step(clip, 1);
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{1});
+
+    // A step is a deliberate look at one frame, so it stops playback rather than fighting it.
+    CNA_EDITOR_EXPECT(!playback.playing);
+
+    playback.step(clip, -1);
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{0});
+    playback.step(clip, -1);
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{3});
+
+    // A frame list shortened while the preview was past its new end is clamped, not left dangling.
+    SpriteAnimationClip shorter = clip;
+    shorter.frames = {0, 1};
+    playback.clampTo(shorter);
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{1});
+
+    SpriteAnimationClip empty = clip;
+    empty.frames.clear();
+    playback.clampTo(empty);
+    CNA_EDITOR_EXPECT_EQ(playback.position, std::size_t{0});
+}
+
+CNA_EDITOR_TEST(AnAnimationClipRoundTripsThroughAComponent)
+{
+    const ComponentRegistry registry = makeRegistry();
+
+    EditorEntity entity = makeEntity(registry, "Hero", 0.0f, 0.0f);
+    EditorComponent& component =
+        addComponentWithDefaults(entity, registry, BuiltinComponentIds::kSpriteAnimation);
+
+    PropertyValue::ListValue frames;
+    frames.items.emplace_back(std::int64_t{4});
+    frames.items.emplace_back(std::int64_t{5});
+    component.setProperty(SpriteAnimationKeys::kFrames, PropertyValue{frames});
+    component.setProperty(SpriteAnimationKeys::kFramesPerSecond, PropertyValue{24.0f});
+
+    SceneDocument scene;
+    scene.addEntity(std::move(entity));
+
+    SceneDocument reloaded;
+    CNA_EDITOR_EXPECT(reloaded.loadFromJson(scene.toJson(), registry).succeeded);
+
+    const EditorComponent* readBack =
+        reloaded.getEntities().front().findComponent(BuiltinComponentIds::kSpriteAnimation);
+    CNA_EDITOR_EXPECT(readBack != nullptr);
+
+    const SpriteAnimationClip clip =
+        readSpriteAnimationClip(*readBack, registry.find(BuiltinComponentIds::kSpriteAnimation));
+    CNA_EDITOR_EXPECT_EQ(clip.frames.size(), std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(clip.frames.front(), std::int64_t{4});
+    CNA_EDITOR_EXPECT_EQ(clip.framesPerSecond, 24.0f);
+    CNA_EDITOR_EXPECT(clip.loop);
 }

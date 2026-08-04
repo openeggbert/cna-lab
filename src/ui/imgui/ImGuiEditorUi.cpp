@@ -926,6 +926,28 @@ namespace CNA::Editor
         return UiRegion{cursor.x, cursor.y, available.x, available.y};
     }
 
+    void ImGuiEditorUi::imageRegion(const std::string& id,
+                                    UiTextureId texture,
+                                    const EditorRectangle& source,
+                                    const EditorVector2& sourceSize,
+                                    float width,
+                                    float height)
+    {
+        if (texture == kUiTextureNone || width <= 0.0f || height <= 0.0f) { return; }
+        if (sourceSize.x <= 0.0f || sourceSize.y <= 0.0f || source.width <= 0 || source.height <= 0)
+        {
+            return;
+        }
+
+        ImGui::PushID(id.c_str());
+        const ImVec2 uv0{static_cast<float>(source.x) / sourceSize.x,
+                         static_cast<float>(source.y) / sourceSize.y};
+        const ImVec2 uv1{static_cast<float>(source.x + source.width) / sourceSize.x,
+                         static_cast<float>(source.y + source.height) / sourceSize.y};
+        ImGui::Image(static_cast<ImTextureID>(texture), ImVec2{width, height}, uv0, uv1);
+        ImGui::PopID();
+    }
+
     UiImageInteraction ImGuiEditorUi::image(const std::string& id,
                                             UiTextureId texture,
                                             float width,

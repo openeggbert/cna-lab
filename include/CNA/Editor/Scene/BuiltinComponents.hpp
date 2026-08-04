@@ -30,6 +30,7 @@ namespace CNA::Editor
         inline constexpr const char* kTags = "CNA.Tags";
         inline constexpr const char* kLayer = "CNA.Layer";
         inline constexpr const char* kTilemap = "CNA.Tilemap";
+        inline constexpr const char* kSpriteAnimation = "CNA.SpriteAnimation";
     }
 
     /**

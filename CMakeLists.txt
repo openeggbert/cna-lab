@@ -87,6 +87,7 @@ add_library(cna-editor-scene STATIC
     src/scene/PrefabDocument.cpp
     src/scene/PrefabCommands.cpp
     src/scene/Tilemap.cpp
+    src/scene/SpriteAnimation.cpp
     src/scene/SceneCommands.cpp
     src/scene/BuiltinComponents.cpp
     src/scene/SceneTransform.cpp

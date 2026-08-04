@@ -11,6 +11,7 @@
 
 #include "CNA/Editor/Core/ComponentDescriptor.hpp"
 #include "CNA/Editor/Panels/EditorPanel.hpp"
+#include "CNA/Editor/Scene/SpriteAnimation.hpp"
 
 namespace CNA::Editor
 {
@@ -29,6 +30,14 @@ namespace CNA::Editor
 
         void draw() override;
 
+        /**
+         * @brief Sets the frame time the animation preview advances on.
+         *
+         * Passed in rather than read from a clock, so a test steps the preview exactly and never
+         * sleeps -- the same rule the asset watcher follows.
+         */
+        void setFrameDelta(double seconds) { frameDelta_ = seconds; }
+
     private:
         /** @brief Draws the selected asset's import settings, in place of the entity view. */
         void drawAssetInspector(const Uuid& assetId);
@@ -41,6 +50,15 @@ namespace CNA::Editor
          * blank half the time is a panel with room in it.
          */
         void drawProjectInspector();
+
+        /**
+         * @brief Draws the animation preview for an entity carrying `CNA.SpriteAnimation`.
+         *
+         * Playback lives here, in the panel, and is thrown away with it. A scene that recorded
+         * which frame an artist happened to be paused on would carry that into every save and
+         * every diff (D-07).
+         */
+        void drawAnimationPreview(const Uuid& entityId, double deltaSeconds);
 
         /**
          * @brief Draws the prefab block for an entity that is part of an instance.
@@ -100,6 +118,11 @@ namespace CNA::Editor
 
         /** @brief Payload type for an asset dragged out of the browser. */
         static constexpr const char* kAssetDragType = "asset";
+
+        /** @brief Which entity's animation is being previewed, and where the preview has got to. */
+        Uuid previewEntity_;
+        AnimationPlayback playback_;
+        double frameDelta_ = 0.0;
 
         /**
          * @brief The component type the Add picker is showing.

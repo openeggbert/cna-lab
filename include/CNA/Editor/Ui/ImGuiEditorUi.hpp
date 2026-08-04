@@ -114,6 +114,13 @@ namespace CNA::Editor
         void setClipboardText(const std::string& text) override;
 
         [[nodiscard]] UiRegion getContentRegion() const override;
+        void imageRegion(const std::string& id,
+                         UiTextureId texture,
+                         const EditorRectangle& source,
+                         const EditorVector2& sourceSize,
+                         float width,
+                         float height) override;
+
         UiImageInteraction image(const std::string& id,
                                  UiTextureId texture,
                                  float width,

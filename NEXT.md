@@ -15,12 +15,12 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 273 / 273 (also under Clang Release) |
+| Unit tests | ✅ 279 / 279 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 10 / 10 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
-| **Phase 2** | 🔄 6 of 12 done (ED-300, 301, 305, 306, 307, 310), ED-302 and ED-311 half; ED-303/304/308/309 open |
+| **Phase 2** | 🔄 6 of 12 done (ED-300, 301, 305, 306, 307, 310); ED-302, ED-303 and ED-311 half; ED-304/308/309 open |
 | Owner priorities 1 and 2 | ✅ closed (robustness and data safety; live editing into the player) |
 
 ---
@@ -87,6 +87,14 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-303 (part)** sprite animation. A frame is an index into a sheet, not a rectangle -- the
+  same arithmetic the tilemap already does, and far smaller to author. The frame list is an
+  ordinary `List<Integer>`, so reordering and adding frames needed no new widget. Playback is a
+  plain value the inspector owns and throws away, never the document's (D-07), and the clock is
+  passed in so the test steps it exactly. `EditorUi::imageRegion` is new: it draws one sub-rectangle
+  of a sheet, in texels, because everything on this side of the boundary already speaks texels.
+  **Open:** per-frame durations (the plan says "timeline") and playback in the *viewport* rather
+  than only in the inspector. Both are additive; neither changes a format.
 - **ED-302 (part)** sprite fonts. The `.spritefont` description is read and reported in the
   inspector, all of it **read-only** -- the file is the content pipeline's own input, so an
   editable copy in the sidecar would be a second answer to a question the build asks the file.
@@ -257,31 +265,30 @@ Phase 1 closed. Working through the owner's priority order:
 Read this file, then `plan.md`'s *Current state* section. Priorities 1 and 2 are closed and
 `PropertyType::List` is in, which was the thing blocking the rest of priority 3.
 
-The next task is **ED-303, the sprite animation editor**, and it is the one remaining item in
-Phase 2 with real design in it. (ED-302's editable half is done; only its preview is left, and that
-is blocked on CNA gap G-04 rather than on effort here.)
+Phase 2's remaining work is now mostly *finishing* rather than starting. In rough order of value:
 
-What exists to build on: `PropertyType::List` (an animation is a list of frames), the tilemap's
-source-rectangle arithmetic (a sprite sheet and a tile sheet are addressed identically), and
-`EditorTool`, which showed that adding a *mode* to the viewport is now cheap.
+1. **Animation playback in the viewport** (closes the useful half of ED-303). The inspector plays a
+   clip; the scene does not. The renderer already draws a tilemap by computing a source rectangle
+   per cell, and an animated sprite is the same computation once per entity — the only real
+   question is where the preview frame comes from, since it is *editor* state and must not travel
+   in the document. A small `AnimationPreviewState` passed into `render()` alongside the selection
+   is the shape that fits; the selection is already passed that way for the same reason.
+2. **Per-frame durations** (the "timeline" half of ED-303). A parallel `List<Float>` is the smallest
+   form and diffs readably; make it optional, so a clip with no durations keeps using
+   `framesPerSecond` and no existing scene changes.
+3. **Tilemap eyedropper and rectangle fill.** Both are small now that `EditorTool` exists, and both
+   are what a person reaches for within a minute of painting.
+4. **ED-304** audio source editing with preview playback, and **ED-308/ED-309**, the build dialog
+   and backend diagnostics. ED-309 is nearly free: the capability set is already printed at
+   start-up, and showing it in a panel is a view over data that exists.
 
-Two decisions to make before writing code:
+One piece of tidying is now due rather than optional: **`ViewportPanel::handleInteraction` carries
+three interaction modes** (gizmo drag, paint stroke, camera and selection) in one function, and the
+ordering between them is load-bearing — a brush has to suppress the gizmo, and the gizmo has to
+suppress the picker. A fourth mode is the point at which that ordering stops being readable, and
+the next person to add one should split it first.
 
-- **Whether a frame is a source rectangle or an index into a sheet.** An index is far smaller to
-  author and matches what the tilemap already does; a rectangle handles sheets that are not a
-  uniform grid. Index first, and let a rectangle-per-frame form come when a real sheet needs it.
-- **Where playback state lives.** A preview that plays in the editor is *editor* state, not
-  document state (D-07) — it must never be saved into the scene, or every save would carry
-  whatever frame the artist happened to be looking at.
-
-Two smaller things worth doing whenever there is an appetite for tidying rather than building:
-
-- The **tilemap has no eyedropper and no rectangle fill**. Both are small, obvious additions now
-  that `EditorTool` exists, and both are what a person reaches for within a minute of painting.
-- **`ViewportPanel` is getting long.** The paint tool made it the third interaction mode in one
-  `handleInteraction`; a third one after that is the point to split it.
-
-Nothing here changes a file format. Every format is at version 1 and ED-902's chains are empty on
+Nothing above changes a file format. Every format is at version 1 and ED-902's chains are empty on
 purpose; a new component type is something the descriptor system handles without a bump.
 
 The one behaviour to preserve throughout: every format is at version 1, and ED-902's migration

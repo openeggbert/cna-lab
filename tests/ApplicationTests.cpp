@@ -22,6 +22,7 @@
 #include "CNA/Editor/ProjectCommands.hpp"
 #include "CNA/Editor/Scene/PrefabCommands.hpp"
 #include "CNA/Editor/Scene/PrefabDocument.hpp"
+#include "CNA/Editor/Scene/SpriteAnimation.hpp"
 #include "CNA/Editor/Scene/Tilemap.hpp"
 #include "CNA/Editor/Scene/MissingReferences.hpp"
 #include "CNA/Editor/Scene/SceneTransform.hpp"
@@ -2755,4 +2756,71 @@ CNA_EDITOR_TEST(TheBrushSaysSoWhenTheSelectionHasNoTilemap)
         if (entry.message.find("Select an entity with a Tilemap") != std::string::npos) { ++after; }
     }
     CNA_EDITOR_EXPECT_EQ(after, mentions);
+}
+
+CNA_EDITOR_TEST(TheInspectorPreviewsAnAnimationWithoutPuttingItInTheDocument)
+{
+    auto scripted = std::make_unique<ScriptedUi>();
+    ScriptedUi* ui = scripted.get();
+    EditorApplication application{std::move(scripted), std::make_unique<NullEditorViewport>()};
+
+    EditorOptions options;
+    options.headless = true;
+    CNA_EDITOR_EXPECT(application.initialize(options));
+
+    EditorContext& context = application.getContext();
+    const ComponentRegistry& registry = context.getComponentRegistry();
+
+    EditorEntity entity{Uuid::generate(), "Hero"};
+    EditorComponent transform{BuiltinComponentIds::kTransform};
+    transform.applyDefaults(*registry.find(BuiltinComponentIds::kTransform));
+    entity.addComponent(std::move(transform));
+
+    EditorComponent animation{BuiltinComponentIds::kSpriteAnimation};
+    animation.applyDefaults(*registry.find(BuiltinComponentIds::kSpriteAnimation));
+    PropertyValue::ListValue frames;
+    for (std::int64_t index = 0; index < 4; ++index) { frames.items.emplace_back(index); }
+    animation.setProperty(SpriteAnimationKeys::kFrames, PropertyValue{frames});
+    animation.setProperty(SpriteAnimationKeys::kFramesPerSecond, PropertyValue{10.0f});
+    entity.addComponent(std::move(animation));
+
+    const Uuid entityId = entity.getId();
+    context.getScene().addEntity(std::move(entity));
+    context.select(entityId);
+
+    application.renderFrame();
+    CNA_EDITOR_EXPECT(ui->sawText("Frame 1 of 4  (400 ms)"));
+    CNA_EDITOR_EXPECT(ui->sawButton("Play##anim"));
+
+    // Stepping is a deliberate look at one frame.
+    ui->pendingClicks.emplace_back(">##anim");
+    application.renderFrame();
+
+    // The counter is drawn above the buttons, so the new frame shows on the next pass. That is
+    // ordinary immediate-mode ordering, not a bug worth reordering the panel for.
+    application.renderFrame();
+    CNA_EDITOR_EXPECT(ui->sawText("Frame 2 of 4  (400 ms)"));
+
+    // Playing advances on the frame clock the application is given, so this is exact rather than
+    // a race with wall time.
+    ui->pendingClicks.emplace_back("Play##anim");
+    application.renderFrame();
+    application.renderFrame(0.25);
+    CNA_EDITOR_EXPECT(ui->sawText("Frame 4 of 4  (400 ms)"));
+
+    // And none of it reached the document. A scene that recorded the frame an artist happened to
+    // be paused on would carry it into every save and every diff.
+    const EditorComponent* stored =
+        context.getScene().findEntity(entityId)->findComponent(BuiltinComponentIds::kSpriteAnimation);
+    CNA_EDITOR_EXPECT(!stored->hasProperty("position"));
+    CNA_EDITOR_EXPECT(!stored->hasProperty("playing"));
+    CNA_EDITOR_EXPECT(!context.getHistory().isDirty());
+
+    // Selecting something else stops the preview rather than leaving it running against a clip
+    // nobody is looking at.
+    context.clearSelection();
+    application.renderFrame(1.0);
+    context.select(entityId);
+    application.renderFrame();
+    CNA_EDITOR_EXPECT(ui->sawText("Frame 1 of 4  (400 ms)"));
 }

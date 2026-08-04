@@ -271,6 +271,55 @@ namespace CNA::Editor
             return descriptor;
         }
 
+        ComponentDescriptor makeSpriteAnimation()
+        {
+            ComponentDescriptor descriptor;
+            descriptor.typeId = BuiltinComponentIds::kSpriteAnimation;
+            descriptor.displayName = "Sprite Animation";
+            descriptor.category = "Rendering";
+
+            PropertyDescriptor sheet = makeProperty("sheet", "Sheet", PropertyType::AssetReference,
+                                                     PropertyValue{PropertyValue::AssetReference{}},
+                                                     "Texture2D holding the frames, in a grid.");
+            sheet.assetType = "Texture2D";
+
+            PropertyDescriptor sheetColumns =
+                makeProperty("sheetColumns", "Sheet Columns", PropertyType::Integer,
+                             PropertyValue{std::int64_t{8}},
+                             "How many frames across the sheet is. With the frame size this turns "
+                             "a frame index into a source rectangle.");
+            sheetColumns.minimum = 1.0;
+            sheetColumns.maximum = 4096.0;
+
+            PropertyDescriptor rate = makeProperty("framesPerSecond", "Frames Per Second",
+                                                   PropertyType::Float, PropertyValue{12.0f});
+            rate.minimum = 0.0;
+            rate.maximum = 240.0;
+
+            // Indices into the sheet, not rectangles. A sheet is a uniform grid in every case
+            // anyone authors by hand, an index is far smaller to author, and it is the same
+            // arithmetic the tilemap already does. Editable as an ordinary list, so reordering and
+            // adding frames needed no new widget.
+            PropertyDescriptor frames = makeProperty(
+                "frames", "Frames", PropertyType::List, PropertyValue{PropertyValue::ListValue{}},
+                "Frame indices into the sheet, in playback order.");
+            frames.elementType = PropertyType::Integer;
+
+            descriptor.properties = {
+                std::move(sheet),
+                makeProperty("frameWidth", "Frame Width", PropertyType::Integer,
+                             PropertyValue{std::int64_t{32}}, "Frame size in pixels within the sheet."),
+                makeProperty("frameHeight", "Frame Height", PropertyType::Integer,
+                             PropertyValue{std::int64_t{32}}),
+                std::move(sheetColumns),
+                std::move(frames),
+                std::move(rate),
+                makeProperty("loop", "Loop", PropertyType::Boolean, PropertyValue{true},
+                             "Off holds the last frame instead of restarting."),
+            };
+            return descriptor;
+        }
+
         ComponentDescriptor makeLayer(const std::vector<std::string>& layers)
         {
             ComponentDescriptor descriptor;
@@ -309,6 +358,7 @@ namespace CNA::Editor
         registry.registerComponent(makeLight());
         registry.registerComponent(makeTags());
         registry.registerComponent(makeTilemap());
+        registry.registerComponent(makeSpriteAnimation());
         registry.registerComponent(makeLayer({kDefaultLayerName}));
     }
 }

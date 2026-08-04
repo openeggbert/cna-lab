@@ -357,6 +357,33 @@ namespace CNA::Editor
         }
 
         /**
+         * @brief Draws one sub-rectangle of @p texture, scaled to @p width by @p height.
+         *
+         * For a sheet: one animation frame, one tile. Given in *texels* rather than in normalised
+         * coordinates, because everything on this side of the boundary -- the animation clip, the
+         * tilemap, the importer's recorded pixel size -- already speaks texels, and converting in
+         * one place is one place to get it wrong rather than several.
+         *
+         * @param sourceSize The texture's full size in texels. Zero in either axis draws nothing:
+         *        without it there is no way to turn a texel rectangle into UVs, and guessing would
+         *        show a frame from somewhere other than where the user pointed.
+         */
+        virtual void imageRegion(const std::string& id,
+                                 UiTextureId texture,
+                                 const EditorRectangle& source,
+                                 const EditorVector2& sourceSize,
+                                 float width,
+                                 float height)
+        {
+            (void)id;
+            (void)texture;
+            (void)source;
+            (void)sourceSize;
+            (void)width;
+            (void)height;
+        }
+
+        /**
          * @brief Returns true on the frame @p key goes down with exactly @p modifiers held.
          *
          * "Exactly" rather than "at least": Ctrl+Shift+Z is redo in most editors, and a shortcut

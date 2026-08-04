@@ -397,6 +397,7 @@ namespace CNA::Editor
         menuBar_.draw();
         hierarchyPanel_.draw();
         viewportPanel_.draw();
+        inspectorPanel_.setFrameDelta(deltaSeconds);
         inspectorPanel_.draw();
         historyPanel_.draw();
         assetBrowserPanel_.draw();
