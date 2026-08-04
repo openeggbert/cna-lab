@@ -446,6 +446,11 @@ string rather than nothing at all, since an editor waiting for a reply that neve
 off than one told no. The asking side must not fall back to looking for the file: a stale one from
 an earlier run answers a different question.
 
+**The comparison mode is this protocol used several times at once.** ED-510 launches one player per
+installed backend, waits for each `ready`, sends each the same `screenshot`, and compares the files
+named in the `screenshotReady` replies. Nothing was added to the wire for it beyond `written`: what
+made it possible was the reply becoming truthful.
+
 **Reading goes through a stream decoder.** A stream socket delivers arbitrary chunks. A reader that
 assumes one `recv()` equals one message works right up until a message straddles a packet boundary,
 and then fails in a way that is very hard to reproduce.

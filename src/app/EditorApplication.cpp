@@ -161,7 +161,8 @@ namespace CNA::Editor
           validationPanel_(context_, *ui_, *this),
           consolePanel_(context_, *ui_, *this),
           diagnosticsPanel_(context_, *ui_, *this),
-          buildPanel_(context_, *ui_, *this)
+          buildPanel_(context_, *ui_, *this),
+          comparisonPanel_(context_, *ui_, *this)
     {
         // Forward every context message into the console panel, so a single log() call reaches
         // both the UI and, through the UI implementation, stdout in headless runs.
@@ -395,8 +396,11 @@ namespace CNA::Editor
 
     void EditorApplication::renderFrame(double deltaSeconds)
     {
+        elapsedSeconds_ += deltaSeconds;
+
         updateAutosave(deltaSeconds);
         buildPanel_.poll();
+        comparisonPanel_.poll(elapsedSeconds_);
         pollAssets(deltaSeconds);
         pollPlayer();
         handleShortcuts();
@@ -416,6 +420,7 @@ namespace CNA::Editor
         consolePanel_.draw();
         diagnosticsPanel_.draw();
         buildPanel_.draw();
+        comparisonPanel_.draw();
 
         ui_->endDockSpace();
     }

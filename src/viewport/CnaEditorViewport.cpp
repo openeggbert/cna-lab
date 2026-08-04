@@ -22,7 +22,9 @@
 
 #include "CNA/GraphicsBackendType.hpp"
 #include "CNA/GraphicsCapability.hpp"
+#include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
+#include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 
 namespace CNA::Editor
 {
@@ -89,6 +91,76 @@ namespace CNA::Editor
             Microsoft::Xna::Framework::Graphics::Texture2D* texture = renderer_.getOrLoadTexture(assetId);
             if (texture == nullptr) { return kUiTextureNone; }
             return uiRenderer_->adoptTexture(assetId, *texture);
+        }
+
+        [[nodiscard]] ImageBuffer readImageFile(const std::string& path) const override
+        {
+            if (device_ == nullptr) { return {}; }
+
+            try
+            {
+                // Through Texture2D rather than a decoder of our own: the file was written by CNA
+                // in another process, and reading it back with the same library is the one way to
+                // be sure a difference is in the *picture* rather than in two people's idea of PNG.
+                Microsoft::Xna::Framework::Graphics::Texture2D texture{path, *device_};
+
+                const int width = texture.getWidthProperty();
+                const int height = texture.getHeightProperty();
+                if (width <= 0 || height <= 0) { return {}; }
+
+                const auto pixelCount = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+
+                // Color has no default constructor (gap G-01), so the buffer is filled, not sized.
+                std::vector<Microsoft::Xna::Framework::Color> pixels(
+                    pixelCount, Microsoft::Xna::Framework::Color(0, 0, 0, 255));
+                texture.GetData(pixels.data(), static_cast<int>(pixelCount));
+
+                ImageBuffer image;
+                image.width = width;
+                image.height = height;
+                image.pixels.resize(pixelCount * 4);
+                for (std::size_t pixel = 0; pixel < pixelCount; ++pixel)
+                {
+                    image.pixels[pixel * 4 + 0] = static_cast<std::uint8_t>(pixels[pixel].getRProperty());
+                    image.pixels[pixel * 4 + 1] = static_cast<std::uint8_t>(pixels[pixel].getGProperty());
+                    image.pixels[pixel * 4 + 2] = static_cast<std::uint8_t>(pixels[pixel].getBProperty());
+                    image.pixels[pixel * 4 + 3] = static_cast<std::uint8_t>(pixels[pixel].getAProperty());
+                }
+                return image;
+            }
+            catch (const std::exception&)
+            {
+                // A file that will not decode is a result, not a crash: the comparison reports
+                // that this backend produced nothing readable and carries on with the others.
+                return {};
+            }
+        }
+
+        bool writeImageFile(const std::string& path, const ImageBuffer& image) override
+        {
+            if (device_ == nullptr || !image.isWellFormed()) { return false; }
+
+            try
+            {
+                std::vector<Microsoft::Xna::Framework::Color> pixels;
+                pixels.reserve(image.getPixelCount());
+                for (std::size_t pixel = 0; pixel < image.getPixelCount(); ++pixel)
+                {
+                    pixels.emplace_back(static_cast<int>(image.pixels[pixel * 4 + 0]),
+                                        static_cast<int>(image.pixels[pixel * 4 + 1]),
+                                        static_cast<int>(image.pixels[pixel * 4 + 2]),
+                                        static_cast<int>(image.pixels[pixel * 4 + 3]));
+                }
+
+                Microsoft::Xna::Framework::Graphics::Texture2D texture{*device_, image.width, image.height};
+                texture.SetData(pixels.data(), static_cast<int>(pixels.size()));
+                texture.SaveAsPng(path);
+                return true;
+            }
+            catch (const std::exception&)
+            {
+                return false;
+            }
         }
 
         [[nodiscard]] std::vector<ViewportCapability> getBackendCapabilities() const override

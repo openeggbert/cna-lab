@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "CNA/Editor/Core/EditorMath.hpp"
+#include "CNA/Editor/Core/ImageDiff.hpp"
 #include "CNA/Editor/Core/Uuid.hpp"
 #include "CNA/Editor/Scene/EditorCamera2D.hpp"
 #include "CNA/Editor/Scene/SpriteAnimation.hpp"
@@ -159,6 +160,28 @@ namespace CNA::Editor
         {
             (void)assetId;
             return kUiTextureNone;
+        }
+
+        /**
+         * @brief Reads an image file into memory, or returns an empty buffer.
+         *
+         * Here rather than in a file utility because decoding a PNG needs a graphics API, and this
+         * is the module allowed to have one (D-03). What needs it is the backend comparison
+         * (plan.md ED-510): it compares frames written by *other processes*, so somebody has to
+         * turn those files back into pixels.
+         */
+        [[nodiscard]] virtual ImageBuffer readImageFile(const std::string& path) const
+        {
+            (void)path;
+            return {};
+        }
+
+        /** @brief Writes @p image to @p path as a PNG. Returns false when it cannot. */
+        virtual bool writeImageFile(const std::string& path, const ImageBuffer& image)
+        {
+            (void)path;
+            (void)image;
+            return false;
         }
 
         /** @brief Returns the counters from the most recent render(). */

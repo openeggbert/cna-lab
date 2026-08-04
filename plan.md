@@ -26,7 +26,7 @@
 can load what it produced.** The repository still builds and passes its full suite with no CNA
 checkout, no GPU and no window:
 
-- 12 modules, three executables, and **319 passing tests across 7 CTest suites** (11 with CNA)
+- 12 modules, three executables, and **326 passing tests across 7 CTest suites** (11 with CNA)
 - clean at `-Wall -Wextra -Wpedantic -Werror`
 - the **real Dear ImGui UI** draws every editor panel headless, and its geometry is validated
   command-by-command in CI
@@ -183,8 +183,8 @@ The editor opens, docks and renders through CNA's public API, verified by screen
 | ED-112 | Default dock layout on first run; user's saved layout respected thereafter | ✅ | ImGui does not place windows into a dock space by itself — without this every panel floated stacked at the same position |
 | ED-114 | Console panel: severity filter, scroll-lock, copy | ✅ | Copy takes what the filter is showing, not everything — copying hidden messages would be a surprise. Auto-scroll only follows the tail when already at it, so scrolling up to read an error is not undone by the next frame's logging |
 | ED-119 | **Leading glyph missing from docked tab labels** | ✅ | Fixed. Texture uploads happened in the draw phase, but Dear ImGui marks a request satisfied the instant it is issued and a fixed-timestep loop runs many update frames without a draw — so glyphs first needed on such a frame were acknowledged and never uploaded. Uploads moved into the update phase; guarded by `ImGuiUiRequestsAnUpdateWhenNewGlyphsAppear`. Full write-up: docs/SPIKE-IMGUI-CNA.md §8 |
-| ED-124 | Editor verified on a second backend (EASYGL, real OpenGL ES 3.2 under Xvfb) | ✅ | Pixel-identical output to SOFTWARE — the property ED-510's comparison mode will check automatically, confirmed by hand |
-| ED-123 | `--screenshot=PATH` and the `CnaEditorWindowSmoke` CTest | ✅ | The mechanism plan.md ED-510's backend comparison mode will capture through |
+| ED-124 | Editor verified on a second backend (EASYGL, real OpenGL ES 3.2 under Xvfb) | ✅ | Pixel-identical output to SOFTWARE — confirmed by hand then, and checked automatically now: ED-510's comparison mode reports the two backends drawing the *game* differ on 0.05% of pixels, all of them on anti-aliased sprite outlines |
+| ED-123 | `--screenshot=PATH` and the `CnaEditorWindowSmoke` CTest | ✅ | The mechanism ED-510's backend comparison mode captures through, now also on `cna-player` (ED-246) |
 | ED-115 | Persistent `DynamicVertexBuffer`/`DynamicIndexBuffer` in `CnaUiRenderer` | ⛔ | Deferred: `DrawUserIndexedPrimitives` re-uploads per call, which is fine at 20–60 commands a frame. Profiling should ask for this before anyone does it |
 | ED-118 | Quaternion inspector as Euler angles | ✅ | XNA's own `CreateFromYawPitchRoll` convention, so the angles shown are the ones the game produces. The angles the user typed are cached against the quaternion they produced, so the two fields beside the one being edited cannot jump to an equivalent spelling mid-edit — and the cache stops applying the instant an undo, a gizmo drag or a reload writes a value it did not produce |
 | ED-120 | `CnaSceneRenderer` draws sprites through `SpriteBatch` | ✅ | Layer depth honoured via `SpriteSortMode::BackToFront`, parent transforms composed, tint/origin/flip applied. A sprite whose texture will not load draws a placeholder at the bounds the picker uses, so what you click and what you see agree |
@@ -335,15 +335,18 @@ built first deliberately: an ABI mismatch that reaches `dlopen` is a crash, not 
 | ED-504 | Shader editor with live compilation | ⬜ | |
 | ED-505 | Frame debugger over the bridge | ⬜ | |
 | ED-506 | Profiler panel fed by `ReportFrameStats` | ⬜ | |
-| ED-510 | **Backend comparison mode** | ⬜ | Spawn N players from N per-backend builds, capture screenshots, diff |
+| ED-510 | **Backend comparison mode** | ✅ | Built early, and cheaply, exactly as this section predicted: it is play mode run several times over. `BackendComparison` launches one player per installed build, waits for each handshake, asks all of them for the same frame over the bridge and compares what comes back against the first to answer. The pixel arithmetic is `ImageDiff` in `cna-editor-core` — CNA-free and tested against images built in the test — and decoding a capture is injected, because it needs a graphics API and only one module may have one (D-03). The tolerance is the load-bearing detail: two backends are not required to be bit-identical and never will be, so a comparison with none reports every backend as different from every other, which is true and useless. What is reported is how many pixels differ, by how much, **where** — the bounding box is usually the whole diagnosis — and a difference image written beside the captures |
 | ED-511 | Backend conformance harness built on ED-510 | ⬜ | Could feed CNA's own CI |
 | ED-512 | Remote device preview (Android, browser) | ⬜ | |
 | ED-520 | MC3 / Mesh-Craft plugin: import/export, primitive editor, CSG preview, glTF export | ⬜ | Lives outside the editor core, by design (D-11) |
 | ED-521 | Terrain and world tools | ⬜ | |
 
-**ED-510 is cheaper than it looks.** F-01 turned out to be an enabler here: once preview means
-"spawn a player process", spawning four of them from four per-backend builds is the same mechanism
-run four times. What it needs is a build matrix and image diffing, not new architecture.
+**ED-510 was cheaper than it looked, and it is done.** F-01 turned out to be an enabler exactly as
+predicted: once preview means "spawn a player process", spawning four of them from four per-backend
+builds is the same mechanism run four times. It needed no new architecture — a sequence over
+`PlayerProcess`, one new protocol reply that actually waits for pixels, and arithmetic over two
+buffers. **ED-511**, the conformance harness, is now a matter of running that sequence from CI
+rather than from a panel.
 
 ---
 

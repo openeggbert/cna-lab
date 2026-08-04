@@ -21,6 +21,7 @@
 #include "CNA/Editor/EditorContext.hpp"
 #include "CNA/Editor/Panels/AssetBrowserPanel.hpp"
 #include "CNA/Editor/Panels/BuildPanel.hpp"
+#include "CNA/Editor/Panels/ComparisonPanel.hpp"
 #include "CNA/Editor/Panels/ConsolePanel.hpp"
 #include "CNA/Editor/Panels/DiagnosticsPanel.hpp"
 #include "CNA/Editor/Panels/EditorPanel.hpp"
@@ -298,6 +299,16 @@ namespace CNA::Editor
         ConsolePanel consolePanel_;
         DiagnosticsPanel diagnosticsPanel_;
         BuildPanel buildPanel_;
+        ComparisonPanel comparisonPanel_;
+
+        /**
+         * @brief Seconds since the application started, accumulated from the frame delta.
+         *
+         * The comparison's timeout is measured against this rather than against a wall clock, for
+         * the reason every clock in this editor is passed in: a test drives it by handing over
+         * frame deltas, and never has to sleep.
+         */
+        double elapsedSeconds_ = 0.0;
 
         GizmoMode gizmoMode_ = GizmoMode::Translate;
         GizmoSpace gizmoSpace_ = GizmoSpace::World;

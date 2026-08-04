@@ -15,13 +15,14 @@
 |---|---|
 | Build (standalone, no CNA) | ✅ clean at `-Wall -Wextra -Wpedantic -Werror` |
 | Build (`-DCNA_EDITOR_WITH_CNA=ON`) | ✅ clean |
-| Unit tests | ✅ 319 / 319 (also under Clang Release) |
+| Unit tests | ✅ 326 / 326 (also under Clang Release) |
 | CTest (standalone) | ✅ 7 / 7 |
 | CTest (CNA config) | ✅ 11 / 11 |
 | CI | ✅ Linux, GCC Debug + Clang Release, `-Werror` |
 | **Phase 1** | ✅ **complete** — all 23 tasks |
 | **Phase 2** | 🔄 10 of 12 done; only ED-302 and ED-311 remain, and both are half done and blocked on something real |
 | **Phase 3** | 🔄 1 of 11 — ED-401 only, built early because it is not a 3D task in a 2D viewport |
+| **Owner priority 4** | ✅ closed — ED-510, the backend comparison mode |
 | Owner priorities 1 and 2 | ✅ closed (robustness and data safety; live editing into the player) |
 
 ---
@@ -88,6 +89,25 @@ build issue, unrelated to the editor, and naming the editor targets sidesteps it
 
 Newest first. Each is a single commit on the branch.
 
+- **ED-510** backend comparison, the last item on the owner's priority list. `BackendComparison`
+  launches one player per installed build, waits for each handshake, asks all of them for the same
+  frame over the bridge and compares what comes back against the first to answer. It needed no new
+  architecture, exactly as `plan.md` predicted: play mode already spawns and supervises a player, so
+  this is that, several times over.
+  The pixel arithmetic is `ImageDiff` in `cna-editor-core` -- CNA-free and tested against images the
+  test builds itself. Decoding a capture is *injected* (`ImageReader`/`ImageWriter`, supplied by the
+  viewport), because turning a PNG back into pixels needs a graphics API and one module may have one.
+  **The tolerance is the load-bearing detail.** Two backends drawing the same scene are not required
+  to be bit-identical and never will be -- different rasterisation rules, different filtering
+  precision -- so a comparison with no tolerance reports every backend as different from every other,
+  which is true and useless. What is reported is how many pixels differ, by how much, and *where*:
+  the bounding box is usually the whole diagnosis, and a difference image is written beside the
+  captures with the matching picture dimmed and the differing pixels in magenta.
+  **Verified against two real backends**, not just at the seams: a `cna-player-software` built into
+  the scratch directory and installed beside `cna-player-easygl`. They disagree on 496 of 921600
+  pixels (0.05%), largest channel difference 64, inside a 103x64 box -- and the difference image
+  shows why at a glance: it is the anti-aliased outline of the two sprites and nothing else. That is
+  a real, explainable difference between CNA's backends, found by pressing a button.
 - **ED-246** `cna-player` draws. It has spoken the whole protocol since ED-240 and shown nothing
   the whole time, which quietly made three finished rows half true -- play mode ran a game with a
   blank window, and a live edit or a hot reload was observable in a log rather than in a picture.
@@ -310,6 +330,11 @@ Phase 1 closed. Working through the owner's priority order:
 
 ## Known problems and limitations
 
+- **The backend comparison needs two player builds, and this repository produces one.** ED-510 is
+  finished and was verified against a real second backend, but that binary was built into a scratch
+  directory by hand (`-DCNA_GRAPHICS_BACKEND=SOFTWARE`, target `cna-player`) and copied beside the
+  editor. Until the build produces several player binaries by itself, the panel's first message to
+  most people will be that it needs another build.
 - **No gizmo snapping, and no gizmo on a multi-selection.** Rotate has no 15-degree step and scale
   has no round-number step, because `UiImageInteraction` carries no modifier state -- adding Shift
   and Ctrl to it is the prerequisite, and is a change to the UI abstraction rather than to the
@@ -358,14 +383,23 @@ half built and each blocked on something outside this repository, not on effort 
 ED-400's perspective camera, ED-402's model rendering, ED-404's lights. All of them wait on CNA's 3D
 API, which is the precondition `plan.md` states for the phase and is not this repository's to move.
 
-So the honest next move is **ED-510**, the backend comparison mode — the last item on the owner's
-original priority list, and the one that makes the compile-time-backend constraint (F-01) pay off
-rather than merely cost. Everything it needs now exists: several player binaries are discovered and
-launched today, the bridge speaks line-delimited JSON to each, and since **ED-246** each of them
-draws the scene and can be asked for a PNG of it over that wire. What is left is the comparison
-itself — spawn N, ask each for the same frame, diff the images, and show where they differ. The
-diff is ordinary arithmetic over two pixel buffers and belongs in a CNA-free module so it can be
-tested against synthetic images rather than against a GPU.
+**Every priority the owner named is now closed.** Robustness and data safety, live editing into the
+player, the production 2D tools, and — with ED-510 — the backend comparison mode. What follows is a
+judgement call rather than a queue, and these are the candidates in the order I would take them:
+
+1. **ED-511, the conformance harness.** The cheapest valuable thing left: ED-510's sequence already
+   runs headlessly apart from the image decode, so a `--compare-backends` entry point that exits
+   non-zero on a disagreement turns the panel into something CI can run. It is also the one item
+   here that could feed CNA's own CI rather than only this editor's.
+2. **Modifier keys on `UiImageInteraction`.** Shift and Ctrl over the viewport image would give the
+   gizmos snapping and let the picker add to a selection rather than replace it. One field each on
+   the struct, one read in the ImGui backend.
+3. **An interaction boundary on `CommandHistory`.** The gizmos work around its absence by opening a
+   new entry on the first edit of a drag; the inspector cannot, so two separate slider drags still
+   collapse into one undo entry. Making the boundary explicit fixes both at once.
+4. **The rest of Phase 3** — ED-400's perspective camera, ED-402's model rendering, ED-404's lights.
+   All of them wait on CNA's 3D API, which is the precondition `plan.md` states for the phase and is
+   not this repository's to move.
 
 Two smaller things are worth doing before or alongside it, and both are the same shape — a gap in
 the *UI abstraction* rather than in a feature:

@@ -76,7 +76,8 @@ add_library(cna-editor-core STATIC
     src/core/PropertyValue.cpp
     src/core/ComponentDescriptor.cpp
     src/core/CommandHistory.cpp
-    src/core/FormatMigration.cpp)
+    src/core/FormatMigration.cpp
+    src/core/ImageDiff.cpp)
 target_link_libraries(cna-editor-core PUBLIC cna-editor-settings)
 
 # cna-editor-scene -- the scene document, its entities, and every undoable scene operation.
@@ -156,7 +157,8 @@ endif()
 add_library(cna-editor-runtime-bridge STATIC
     src/runtime-bridge/EditorProtocol.cpp
     src/runtime-bridge/MessageChannel.cpp
-    src/runtime-bridge/PlayerProcess.cpp)
+    src/runtime-bridge/PlayerProcess.cpp
+    src/runtime-bridge/BackendComparison.cpp)
 target_link_libraries(cna-editor-runtime-bridge PUBLIC cna-editor-core)
 if(WIN32)
     target_link_libraries(cna-editor-runtime-bridge PUBLIC ws2_32)
@@ -265,6 +267,7 @@ set(CNA_EDITOR_PANEL_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/ConsolePanel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/DiagnosticsPanel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/BuildPanel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/panels/ComparisonPanel.cpp
     CACHE INTERNAL "Editor panel sources")
 
 add_executable(cna-editor

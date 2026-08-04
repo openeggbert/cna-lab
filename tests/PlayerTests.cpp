@@ -19,6 +19,7 @@
 #include "CNA/Editor/EditorApplication.hpp"
 #include "CNA/Editor/Player/PlayerHost.hpp"
 #include "CNA/Editor/RuntimeBridge/MessageChannel.hpp"
+#include "CNA/Editor/RuntimeBridge/BackendComparison.hpp"
 #include "CNA/Editor/RuntimeBridge/PlayerProcess.hpp"
 #include "CNA/Editor/Scene/BuiltinComponents.hpp"
 #include "CNA/Editor/Scene/SceneCommands.hpp"
@@ -342,6 +343,247 @@ CNA_EDITOR_TEST(PlayerHostReportsAProtocolVersionMismatch)
     outbox.clear();
     host.handle(EditorMessage::makeHello(project.directory.generic_string()), outbox);
     CNA_EDITOR_EXPECT(host.isHandshakeComplete());
+}
+
+// ---------------------------------------------------------------------------------------------
+// Backend comparison (ED-510)
+// ---------------------------------------------------------------------------------------------
+
+namespace
+{
+    /** @brief Builds a solid image, so a test can say exactly what two frames differ by. */
+    ImageBuffer makeSolidImage(int width, int height, std::uint8_t red, std::uint8_t green,
+                               std::uint8_t blue)
+    {
+        ImageBuffer image;
+        image.width = width;
+        image.height = height;
+        image.pixels.assign(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4, 255);
+
+        for (std::size_t pixel = 0; pixel < image.getPixelCount(); ++pixel)
+        {
+            image.pixels[pixel * 4 + 0] = red;
+            image.pixels[pixel * 4 + 1] = green;
+            image.pixels[pixel * 4 + 2] = blue;
+            image.pixels[pixel * 4 + 3] = 255;
+        }
+        return image;
+    }
+
+    /** @brief Sets one pixel, for the tests that care about *where* two images differ. */
+    void setPixel(ImageBuffer& image, int x, int y, std::uint8_t red, std::uint8_t green,
+                  std::uint8_t blue)
+    {
+        const auto offset = (static_cast<std::size_t>(y) * static_cast<std::size_t>(image.width)
+                             + static_cast<std::size_t>(x)) * 4;
+        image.pixels[offset + 0] = red;
+        image.pixels[offset + 1] = green;
+        image.pixels[offset + 2] = blue;
+    }
+}
+
+CNA_EDITOR_TEST(IdenticalFramesCompareEqualAndTinyDifferencesAreWithinTolerance)
+{
+    const ImageBuffer reference = makeSolidImage(8, 8, 100, 149, 237);
+
+    const ImageDifference same = compareImages(reference, reference, 0);
+    CNA_EDITOR_EXPECT(same.comparable);
+    CNA_EDITOR_EXPECT(same.matches());
+    CNA_EDITOR_EXPECT_EQ(same.totalPixels, std::size_t{64});
+
+    // Two backends drawing the same scene routinely differ by a step or two in a channel. A
+    // comparison with no tolerance reports every backend as different from every other, which is
+    // true and useless.
+    const ImageBuffer nearly = makeSolidImage(8, 8, 101, 149, 238);
+    CNA_EDITOR_EXPECT(compareImages(reference, nearly, 2).matches());
+    CNA_EDITOR_EXPECT(!compareImages(reference, nearly, 0).matches());
+
+    // The largest delta is reported even when everything is within tolerance: it is the number
+    // that says whether two backends are *identical* or merely close enough.
+    CNA_EDITOR_EXPECT_EQ(compareImages(reference, nearly, 2).maxChannelDelta, 1);
+}
+
+CNA_EDITOR_TEST(ADifferenceReportsHowManyPixelsAndWhere)
+{
+    const ImageBuffer reference = makeSolidImage(10, 10, 0, 0, 0);
+    ImageBuffer other = reference;
+    setPixel(other, 3, 4, 255, 255, 255);
+    setPixel(other, 6, 8, 255, 255, 255);
+
+    const ImageDifference difference = compareImages(reference, other);
+    CNA_EDITOR_EXPECT_EQ(difference.differingPixels, std::size_t{2});
+    CNA_EDITOR_EXPECT_EQ(difference.maxChannelDelta, 255);
+
+    // The bounding box is usually the diagnosis: a band along one edge is a viewport or scissor
+    // problem, a scattering over one sprite is a filtering one.
+    CNA_EDITOR_EXPECT_EQ(difference.boundingBox.x, 3);
+    CNA_EDITOR_EXPECT_EQ(difference.boundingBox.y, 4);
+    CNA_EDITOR_EXPECT_EQ(difference.boundingBox.width, 4);
+    CNA_EDITOR_EXPECT_EQ(difference.boundingBox.height, 5);
+}
+
+CNA_EDITOR_TEST(ImagesOfDifferentSizesAreIncomparableRatherThanDifferent)
+{
+    // Not the same fact, and not the same action: a size mismatch means the capture went wrong,
+    // not that the backends disagree about how to draw.
+    const ImageDifference difference =
+        compareImages(makeSolidImage(4, 4, 0, 0, 0), makeSolidImage(4, 5, 0, 0, 0));
+
+    CNA_EDITOR_EXPECT(!difference.comparable);
+    CNA_EDITOR_EXPECT(!difference.matches());
+    CNA_EDITOR_EXPECT(!difference.incomparableReason.empty());
+    CNA_EDITOR_EXPECT(compareImages(ImageBuffer{}, ImageBuffer{}).incomparableReason.size() > 0);
+}
+
+CNA_EDITOR_TEST(TheDifferenceImageMarksTheDifferingPixelsOnADimmedCopy)
+{
+    const ImageBuffer reference = makeSolidImage(4, 4, 200, 200, 200);
+    ImageBuffer other = reference;
+    setPixel(other, 1, 1, 0, 0, 0);
+
+    const ImageBuffer marked = makeDifferenceImage(reference, other);
+    CNA_EDITOR_EXPECT(marked.isWellFormed());
+
+    // Magenta where they differ: it appears in no rendered scene by accident, so it cannot be
+    // mistaken for part of the picture.
+    const std::size_t differing = (1 * 4 + 1) * 4;
+    CNA_EDITOR_EXPECT_EQ(static_cast<int>(marked.pixels[differing + 0]), 255);
+    CNA_EDITOR_EXPECT_EQ(static_cast<int>(marked.pixels[differing + 1]), 0);
+    CNA_EDITOR_EXPECT_EQ(static_cast<int>(marked.pixels[differing + 2]), 255);
+
+    // And a dimmed copy everywhere else, because the matching picture is the context that makes
+    // the marked pixels mean anything.
+    CNA_EDITOR_EXPECT_EQ(static_cast<int>(marked.pixels[0]), 50);
+}
+
+CNA_EDITOR_TEST(AComparisonNeedsMoreThanOneBackend)
+{
+    const ScratchProject project{"comparefew"};
+
+    ComparisonRequest request;
+    request.projectPath = project.projectPath;
+    request.outputDirectory = (project.directory / "comparison").generic_string();
+    request.builds = {PlayerBuild{"software", "/nowhere/cna-player-software"}};
+
+    // One player is not a comparison, and saying so beats launching it and reporting the useless
+    // truth that a backend matches itself.
+    CNA_EDITOR_EXPECT(!describeComparisonProblem(request).empty());
+
+    BackendComparison comparison;
+    CNA_EDITOR_EXPECT(!comparison.start(request, {}));
+    CNA_EDITOR_EXPECT(comparison.getState() == ComparisonState::Failed);
+    CNA_EDITOR_EXPECT(!comparison.getError().empty());
+}
+
+CNA_EDITOR_TEST(AComparisonReportsPlayersThatProduceNoFrame)
+{
+    const ScratchProject project{"comparemissing"};
+
+    ComparisonRequest request;
+    request.projectPath = project.projectPath;
+    request.outputDirectory = (project.directory / "comparison").generic_string();
+    request.builds = {PlayerBuild{"ghost", "/nowhere/cna-player-ghost"},
+                      PlayerBuild{"phantom", "/nowhere/cna-player-phantom"}};
+    request.warmupFrames = 0;
+
+    BackendComparison comparison;
+    CNA_EDITOR_EXPECT(comparison.start(request, {}));
+
+    // Spawning a missing binary fails in the child, not in the parent, so the failure arrives as
+    // an exit rather than as a refused start. It must not hold the run open for the whole timeout:
+    // a dead player has answered as definitively as a live one.
+    double now = 0.0;
+    for (int step = 0; step < 500 && comparison.getState() != ComparisonState::Finished; ++step)
+    {
+        now += 0.01;
+        comparison.poll(now);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    CNA_EDITOR_EXPECT(comparison.getState() == ComparisonState::Finished);
+    CNA_EDITOR_EXPECT(now < 20.0);
+
+    // Each entry says what happened to it, rather than the run reporting one opaque failure.
+    CNA_EDITOR_EXPECT_EQ(comparison.getEntries().size(), std::size_t{2});
+    for (const ComparisonEntry& entry : comparison.getEntries())
+    {
+        CNA_EDITOR_EXPECT(!entry.errorMessage.empty());
+        CNA_EDITOR_EXPECT(!entry.captured);
+    }
+    CNA_EDITOR_EXPECT(!comparison.allBackendsAgree());
+}
+
+CNA_EDITOR_TEST(TwoRealPlayersAreComparedAgainstEachOther)
+{
+    // The end-to-end case, with the one player build this repository produces standing in for two.
+    // Pointing both entries at the same binary is not a cheat: what is being tested is the
+    // sequence -- launch, handshake, ask each for the same frame, read both back, compare -- and
+    // that sequence does not know or care that the two paths are equal. Whether two *different*
+    // backends agree is a question about CNA, and it needs two backend builds installed.
+    const ScratchProject project{"comparereal"};
+
+    const std::vector<PlayerBuild> discovered = discoverPlayerBuilds(playerDirectory().generic_string());
+    CNA_EDITOR_EXPECT(!discovered.empty());
+    if (discovered.empty()) { return; }
+
+    ComparisonRequest request;
+    request.projectPath = project.projectPath;
+    request.outputDirectory = (project.directory / "comparison").generic_string();
+    request.builds = {discovered.front(), discovered.front()};
+    request.warmupFrames = 0;
+    request.timeoutSeconds = 20.0;
+
+    // Synthetic images rather than real captures: a test binary has no graphics device, so it
+    // cannot decode a PNG -- which is exactly why the reader is injected in the first place. Every
+    // path here is the real one apart from the two bytes at the very end. The second entry's stem
+    // is made unique by the run itself, which is what lets the reader tell them apart.
+    const ImageReader reader = [](const std::string& path) {
+        ImageBuffer image = makeSolidImage(4, 4, 10, 20, 30);
+        if (path.find("-2") != std::string::npos) { setPixel(image, 0, 0, 200, 20, 30); }
+        return image;
+    };
+
+    BackendComparison comparison;
+    CNA_EDITOR_EXPECT(comparison.start(request, reader));
+
+    double now = 0.0;
+    for (int step = 0; step < 2000 && comparison.getState() != ComparisonState::Finished; ++step)
+    {
+        now += 0.01;
+        comparison.poll(now);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    CNA_EDITOR_EXPECT(comparison.getState() == ComparisonState::Finished);
+    CNA_EDITOR_EXPECT_EQ(comparison.getEntries().size(), std::size_t{2});
+    CNA_EDITOR_EXPECT(!comparison.getReferenceBackend().empty());
+
+    // Two players were launched, handshaken and asked for the same frame over real sockets. What
+    // they answer depends on how this repository was built, and both answers are correct:
+    const bool captured = comparison.getEntries().front().captured;
+    if (captured)
+    {
+        // Built with CNA: each player really wrote a PNG. The injected reader gives the second one
+        // a different pixel, so the run must report a disagreement -- proof it compares what came
+        // back rather than assuming a match.
+        for (const ComparisonEntry& entry : comparison.getEntries())
+        {
+            CNA_EDITOR_EXPECT(entry.captured);
+            CNA_EDITOR_EXPECT(entry.errorMessage.empty());
+        }
+        CNA_EDITOR_EXPECT(!comparison.allBackendsAgree());
+        CNA_EDITOR_EXPECT_EQ(comparison.getEntries()[1].difference.differingPixels, std::size_t{1});
+    }
+    else
+    {
+        // Built without CNA: the player has no device to capture from and says so, rather than
+        // leaving the editor waiting for a reply that will never come. That refusal is the whole
+        // reason `screenshotReady` carries `written` at all.
+        for (const ComparisonEntry& entry : comparison.getEntries())
+        {
+            CNA_EDITOR_EXPECT(!entry.errorMessage.empty());
+        }
+    }
 }
 
 CNA_EDITOR_TEST(PlayerBuildDiscoveryFindsTheInstalledBinaries)

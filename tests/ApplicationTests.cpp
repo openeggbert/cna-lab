@@ -130,7 +130,7 @@ CNA_EDITOR_TEST(ApplicationDrawsEveryPanelEachFrame)
     ui.endFrame();
 
     const std::vector<std::string>& panels = ui.getLastFramePanels();
-    CNA_EDITOR_EXPECT_EQ(panels.size(), std::size_t{9});
+    CNA_EDITOR_EXPECT_EQ(panels.size(), std::size_t{10});
 
     const auto contains = [&](const std::string& title) {
         return std::find(panels.begin(), panels.end(), title) != panels.end();
@@ -143,6 +143,7 @@ CNA_EDITOR_TEST(ApplicationDrawsEveryPanelEachFrame)
     CNA_EDITOR_EXPECT(contains("Validation"));
     CNA_EDITOR_EXPECT(contains("History"));
     CNA_EDITOR_EXPECT(contains("Diagnostics"));
+    CNA_EDITOR_EXPECT(contains("Backends"));
     CNA_EDITOR_EXPECT(contains("Build"));
 
     // The viewport must actually have rendered, or --headless would be a no-op rather than a
