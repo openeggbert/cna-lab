@@ -1,4 +1,4 @@
-#include "IronShadows/Graphics/PrimitiveMesh.hpp"
+#include "IronGang/Graphics/PrimitiveMesh.hpp"
 
 #include "Microsoft/Xna/Framework/Graphics/BufferUsage.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
@@ -8,7 +8,7 @@
 #include <limits>
 #include <stdexcept>
 
-namespace IronShadows
+namespace IronGang
 {
     using namespace Microsoft::Xna::Framework;
     using namespace Microsoft::Xna::Framework::Graphics;

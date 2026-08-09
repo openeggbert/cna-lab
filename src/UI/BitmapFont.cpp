@@ -1,4 +1,4 @@
-#include "IronShadows/UI/BitmapFont.hpp"
+#include "IronGang/UI/BitmapFont.hpp"
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Rectangle.hpp"
@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace IronShadows
+namespace IronGang
 {
     using Microsoft::Xna::Framework::Color;
     using Microsoft::Xna::Framework::Rectangle;

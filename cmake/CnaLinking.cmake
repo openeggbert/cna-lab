@@ -1,7 +1,7 @@
 # CNA and some graphics backend static libraries currently contain genuine circular
 # references. CNA's own examples use a GNU/Clang linker group on Linux. Keep the same
 # consumer-side rule here until CNA exports a single cycle-safe facade target.
-function(iron_shadows_link_final_target target)
+function(iron_gang_link_final_target target)
     set(_backend_target "")
     if(CNA_GRAPHICS_BACKEND STREQUAL "EASYGL")
         set(_backend_target cna_backend_graphics_easygl)

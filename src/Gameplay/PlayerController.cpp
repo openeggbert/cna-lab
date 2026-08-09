@@ -1,10 +1,10 @@
-#include "IronShadows/Gameplay/PlayerController.hpp"
+#include "IronGang/Gameplay/PlayerController.hpp"
 
-#include "IronShadows/Physics/PhysicsWorld.hpp"
+#include "IronGang/Physics/PhysicsWorld.hpp"
 
 #include <numbers>
 
-namespace IronShadows
+namespace IronGang
 {
     void PlayerController::Reset(const Vector3& spawnPosition, float yaw, Physics::PhysicsWorld& physics)
     {
@@ -65,7 +65,7 @@ namespace IronShadows
         physics.MoveCharacter(characterHandle_, desiredVelocity, deltaSeconds);
 
         // Only one of PlayerController::Update()/VehicleController::Update() runs per game frame
-        // (IronShadowsGame::Update() branches on playerDriving_), so it is safe -- and required,
+        // (IronGangGame::Update() branches on playerDriving_), so it is safe -- and required,
         // since nothing else does -- for each to step the shared PhysicsWorld exactly once here.
         physics.Step(deltaSeconds);
 

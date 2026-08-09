@@ -1,8 +1,8 @@
-#include "IronShadows/Cutscenes/CutscenePlayer.hpp"
+#include "IronGang/Cutscenes/CutscenePlayer.hpp"
 
 #include <algorithm>
 
-namespace IronShadows
+namespace IronGang
 {
     void CutscenePlayer::Start(CutsceneSequence sequence)
     {

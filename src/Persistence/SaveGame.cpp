@@ -1,4 +1,4 @@
-#include "IronShadows/Persistence/SaveGame.hpp"
+#include "IronGang/Persistence/SaveGame.hpp"
 
 #include "System/IO/Directory.hpp"
 #include "System/IO/File.hpp"
@@ -7,7 +7,7 @@
 #include <sstream>
 #include <unordered_map>
 
-namespace IronShadows
+namespace IronGang
 {
     namespace
     {
@@ -42,7 +42,7 @@ namespace IronShadows
             }
 
             std::ostringstream text;
-            text << "format=iron-shadows-save-v1\n";
+            text << "format=iron-gang-save-v1\n";
             text << "mission_state=" << static_cast<int>(snapshot.missionState) << "\n";
             text << "player_position=" << VectorToText(snapshot.playerPosition) << "\n";
             text << "player_yaw=" << snapshot.playerYaw << "\n";
@@ -82,7 +82,7 @@ namespace IronShadows
                 }
             }
 
-            if (values["format"] != "iron-shadows-save-v1")
+            if (values["format"] != "iron-gang-save-v1")
             {
                 errorMessage = "Unsupported save format";
                 return std::nullopt;

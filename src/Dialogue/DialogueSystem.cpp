@@ -1,10 +1,10 @@
-#include "IronShadows/Dialogue/DialogueSystem.hpp"
+#include "IronGang/Dialogue/DialogueSystem.hpp"
 
 #include "System/IO/File.hpp"
 
 #include <sstream>
 
-namespace IronShadows
+namespace IronGang
 {
     bool DialogueSystem::LoadFromFile(const std::string& path, std::string& errorMessage)
     {

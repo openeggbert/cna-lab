@@ -16,7 +16,7 @@
         "CNA_BUILD_TESTS": "OFF",
         "CNA_BUILD_EXAMPLES": "OFF",
         "CNA_ENABLE_NET": "OFF",
-        "IRON_SHADOWS_BUILD_TESTS": "ON"
+        "IRON_GANG_BUILD_TESTS": "ON"
       }
     },
     {
@@ -57,7 +57,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CNA_GRAPHICS_BACKEND": "EASYGL",
-        "IRON_SHADOWS_BUILD_TESTS": "OFF"
+        "IRON_GANG_BUILD_TESTS": "OFF"
       }
     }
   ],

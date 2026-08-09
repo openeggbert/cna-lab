@@ -1,10 +1,10 @@
-#include "IronShadows/Gameplay/PoliceSystem.hpp"
+#include "IronGang/Gameplay/PoliceSystem.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace IronShadows
+namespace IronGang
 {
     namespace
     {

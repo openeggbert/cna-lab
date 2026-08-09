@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Regression test for IS-39-035: the game must not crash or hang when the generated
+# Regression test for IG-39-035: the game must not crash or hang when the generated
 # warehouse.cnj / vehicle_*.cnj assets (produced by scripts/build-assets.sh) have not been built.
 # It should log a warning and fall back to procedural geometry instead.
 
-executable="${1:?Usage: test-missing-asset-fallback.sh <path-to-iron_shadows>}"
+executable="${1:?Usage: test-missing-asset-fallback.sh <path-to-iron_gang>}"
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 work_dir="$(mktemp -d)"
@@ -23,7 +23,7 @@ set -e
 echo "$output"
 
 if [[ $status -ne 0 ]]; then
-  echo "FAIL: iron_shadows exited with status $status when the generated asset was missing" >&2
+  echo "FAIL: iron_gang exited with status $status when the generated asset was missing" >&2
   exit 1
 fi
 

@@ -1,8 +1,8 @@
-// Gate M4 (plan_39 IS-39-005): character, trigger, raycast, and vehicle prototypes proven behind
-// IronShadows::Physics::PhysicsWorld (Jolt Physics, see plan_15-physics-integration.md). Headless
+// Gate M4 (plan_39 IG-39-005): character, trigger, raycast, and vehicle prototypes proven behind
+// IronGang::Physics::PhysicsWorld (Jolt Physics, see plan_15-physics-integration.md). Headless
 // -- Jolt is a pure CPU library, no GraphicsDevice/window needed, matching CoreTests.cpp's style.
 
-#include "IronShadows/Physics/PhysicsWorld.hpp"
+#include "IronGang/Physics/PhysicsWorld.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -11,7 +11,7 @@
 
 namespace
 {
-    using namespace IronShadows::Physics;
+    using namespace IronGang::Physics;
     using Microsoft::Xna::Framework::Vector3;
 
     void Require(bool condition, const std::string& message)
@@ -172,7 +172,7 @@ namespace
         const Vector3 endPosition = world.GetVehiclePosition(vehicle);
         const float dz = endPosition.Z - startPosition.Z;
         Require(std::abs(dz) > 1.0F, "three seconds of forward throttle must move the vehicle a meaningful distance");
-        // Iron Shadows' ForwardFromYaw(0) == (0, 0, -1): forward throttle at yaw 0 must move the
+        // Iron Gang's ForwardFromYaw(0) == (0, 0, -1): forward throttle at yaw 0 must move the
         // vehicle toward -Z, matching WorldTypes.hpp's convention (see CreateFourWheelVehicle's
         // mForward/mWheelForward comment) -- not just "moved some distance in either direction".
         Require(dz < -1.0F, "forward throttle at yaw 0 must move the vehicle toward -Z, matching ForwardFromYaw(0)");

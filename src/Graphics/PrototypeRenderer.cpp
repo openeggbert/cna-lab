@@ -1,7 +1,7 @@
-#include "IronShadows/Graphics/PrototypeRenderer.hpp"
+#include "IronGang/Graphics/PrototypeRenderer.hpp"
 
-#include "IronShadows/Graphics/SunLight.hpp"
-#include "IronShadows/World/PrototypeWorld.hpp"
+#include "IronGang/Graphics/SunLight.hpp"
+#include "IronGang/World/PrototypeWorld.hpp"
 
 #include "CNA/Extended/ECS/Entity.hpp"
 #include "CNA/Extended/ECS/World.hpp"
@@ -20,7 +20,7 @@
 
 #include <utility>
 
-namespace IronShadows
+namespace IronGang
 {
     using namespace Microsoft::Xna::Framework;
     using namespace Microsoft::Xna::Framework::Graphics;

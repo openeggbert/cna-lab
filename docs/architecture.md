@@ -9,9 +9,9 @@ sharp-runtime
       ↓
 cna-extended (ECS, Transform3 hierarchy, 3D collision/octree, skinned-model playback)
       ↓
-Iron Shadows reusable systems (`iron_shadows_core`)
+Iron Gang reusable systems (`iron_gang_core`)
       ↓
-Iron Shadows game application and original content
+Iron Gang game application and original content
 ```
 
 `cna-extended` is a sibling dependency (`../cna-extended`), not a fork of CNA. It supplies

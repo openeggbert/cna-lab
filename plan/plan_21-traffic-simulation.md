@@ -6,65 +6,65 @@ Build lane-based traffic at Mafia-1 (2002) fidelity: cars follow lanes, obey sig
 
 ### Gate M9 status (first pass, vertical slice)
 
-`TrafficVehicle` (`include/IronShadows/Gameplay/TrafficVehicle.hpp`) is a kinematic (non-Jolt) mover following a fixed `WaypointPath` loop (plan 19) at a cruise speed, braking smoothly when `IronShadowsGame::Update()`'s `DistanceAheadIfInLane()` helper reports something (another traffic vehicle, or the player's own vehicle) ahead in roughly the same lane. No signals/stop-lines (the single intersection in `WarehouseBlock`'s existing geometry has no light), no turning/lane graph, no yield rules, no spawn/despawn-by-attention, no accident/stuck handling, and no debug visualization — those all remain unstarted; this system only needs to prove "follow a loop, brake for what's ahead."
+`TrafficVehicle` (`include/IronGang/Gameplay/TrafficVehicle.hpp`) is a kinematic (non-Jolt) mover following a fixed `WaypointPath` loop (plan 19) at a cruise speed, braking smoothly when `IronGangGame::Update()`'s `DistanceAheadIfInLane()` helper reports something (another traffic vehicle, or the player's own vehicle) ahead in roughly the same lane. No signals/stop-lines (the single intersection in `WarehouseBlock`'s existing geometry has no light), no turning/lane graph, no yield rules, no spawn/despawn-by-attention, no accident/stuck handling, and no debug visualization — those all remain unstarted; this system only needs to prove "follow a loop, brake for what's ahead."
 
-- [ ] **IS-21-001 P0** — Spawn three to five AI vehicles on a closed lane loop. *(Only 2 spawned, not 3-5; see status note above.)*
-- [x] **IS-21-002 P0** — Implement lane following, speed target, and following distance. *(`TrafficVehicle::Update()`: accelerates toward a cruise speed, brakes smoothly starting 10 units from an obstacle ahead, matching the minimum-gap/braking-distance constants in `src/Gameplay/TrafficVehicle.cpp`.)*
-- [ ] **IS-21-003 P0** — Implement stop line and traffic signal compliance.
-- [x] **IS-21-004 P0** — Implement obstacle braking for the player and blocked traffic. *(`DistanceAheadIfInLane()` in `IronShadowsGame.cpp` considers both other `TrafficVehicle`s and the player's own vehicle when driving.)*
-- [ ] **IS-21-005 P1** — Create directed lane graphs with turn connections.
-- [ ] **IS-21-006 P1** — Create simple route selection across intersections using yield/priority rules, not reservation-based deadlock avoidance.
-- [ ] **IS-21-007 P1** — Create traffic-light phases and timing data.
-- [ ] **IS-21-008 P1** — Create stop-sign and priority-junction yield behavior.
-- [ ] **IS-21-009 P1** — Create lane-change rules only where roads support them.
-- [ ] **IS-21-010 P1** — Create parked vehicle slots and departure/arrival behavior.
-- [ ] **IS-21-011 P1** — Create traffic spawn/despawn outside player attention.
-- [ ] **IS-21-012 P1** — Create blocked-road rerouting onto an alternate lane segment.
-- [ ] **IS-21-013 P1** — Create stuck detection and bounded recovery.
-- [ ] **IS-21-014 P1** — Create simple accident/disabled-vehicle handling after a player collision.
-- [ ] **IS-21-015 P1** — Create emergency-vehicle priority hooks for later police use.
-- [ ] **IS-21-016 P1** — Create debug lane, route, and target-speed visualization.
-- [ ] **IS-21-017 P1** — Create deterministic per-intersection scenario tests (signal compliance, yield, braking).
-- [ ] **IS-21-018 P2** — Create honking and simple social driving reactions.
-- [ ] **IS-21-019 P2** — Create overtaking only on selected multi-lane roads, added after core flow is stable.
-- [ ] **IS-21-020 P2** — Create parking maneuvers after core flow is robust.
-- [ ] **IS-21-021 P1** — Define the scope, public API, and explicit non-goals of the lane follower.
-- [ ] **IS-21-022 P1** — Define versioned configuration/data for the lane follower.
-- [ ] **IS-21-023 P1** — Implement the smallest deterministic reference path for the lane follower.
-- [ ] **IS-21-024 P1** — Add focused unit tests and one integration scenario for the lane follower.
-- [ ] **IS-21-025 P1** — Define save/checkpoint serialization and restoration for the lane follower.
-- [ ] **IS-21-026 P2** — Add logging, counters, and a debug view for the lane follower.
-- [ ] **IS-21-027 P2** — Define CPU/memory/latency budgets for the lane follower and profile a worst-case scene.
-- [ ] **IS-21-028 P2** — Document usage examples and common failure modes for the lane follower.
-- [ ] **IS-21-029 P1** — Define the scope, public API, and explicit non-goals of the traffic routing and signal system.
-- [ ] **IS-21-030 P1** — Define versioned configuration/data for the traffic routing and signal system.
-- [ ] **IS-21-031 P1** — Implement the smallest deterministic reference path for the traffic routing and signal system.
-- [ ] **IS-21-032 P1** — Add focused unit tests and one integration scenario for the traffic routing and signal system.
-- [ ] **IS-21-033 P1** — Define save/checkpoint serialization and restoration for the traffic routing and signal system.
-- [ ] **IS-21-034 P2** — Add logging, counters, and a debug view for the traffic routing and signal system.
-- [ ] **IS-21-035 P2** — Define CPU/memory/latency budgets for the traffic routing and signal system and profile a worst-case scene.
-- [ ] **IS-21-036 P2** — Document usage examples and common failure modes for the traffic routing and signal system.
-- [ ] **IS-21-037 P1** — Define the scope, public API, and explicit non-goals of the vehicle spacing controller.
-- [ ] **IS-21-038 P1** — Define versioned configuration/data for the vehicle spacing controller.
-- [ ] **IS-21-039 P1** — Implement the smallest deterministic reference path for the vehicle spacing controller.
-- [ ] **IS-21-040 P1** — Add focused unit tests and one integration scenario for the vehicle spacing controller.
-- [ ] **IS-21-041 P1** — Define save/checkpoint serialization and restoration for the vehicle spacing controller.
-- [ ] **IS-21-042 P2** — Add logging, counters, and a debug view for the vehicle spacing controller.
-- [ ] **IS-21-043 P2** — Define CPU/memory/latency budgets for the vehicle spacing controller and profile a worst-case scene.
-- [ ] **IS-21-044 P2** — Document usage examples and common failure modes for the vehicle spacing controller.
-- [ ] **IS-21-045 P1** — Define the scope, public API, and explicit non-goals of the traffic population and recovery manager.
-- [ ] **IS-21-046 P1** — Define versioned configuration/data for the traffic population and recovery manager.
-- [ ] **IS-21-047 P1** — Implement the smallest deterministic reference path for the traffic population and recovery manager.
-- [ ] **IS-21-048 P1** — Add focused unit tests and one integration scenario for the traffic population and recovery manager.
-- [ ] **IS-21-049 P1** — Define save/checkpoint serialization and restoration for the traffic population and recovery manager.
-- [ ] **IS-21-050 P2** — Add logging, counters, and a debug view for the traffic population and recovery manager.
-- [ ] **IS-21-051 P2** — Define CPU/memory/latency budgets for the traffic population and recovery manager and profile a worst-case scene.
-- [ ] **IS-21-052 P2** — Document usage examples and common failure modes for the traffic population and recovery manager.
-- [ ] **IS-21-053 P2** — Define the scope, public API, and explicit non-goals of the parking and arrival system.
-- [ ] **IS-21-054 P2** — Define versioned configuration/data for the parking and arrival system.
-- [ ] **IS-21-055 P2** — Implement the smallest deterministic reference path for the parking and arrival system.
-- [ ] **IS-21-056 P2** — Add focused unit tests and one integration scenario for the parking and arrival system.
-- [ ] **IS-21-057 P2** — Define save/checkpoint serialization and restoration for the parking and arrival system.
-- [ ] **IS-21-058 P2** — Add logging, counters, and a debug view for the parking and arrival system.
-- [ ] **IS-21-059 P2** — Define CPU/memory/latency budgets for the parking and arrival system and profile a worst-case scene.
-- [ ] **IS-21-060 P2** — Document usage examples and common failure modes for the parking and arrival system.
+- [ ] **IG-21-001 P0** — Spawn three to five AI vehicles on a closed lane loop. *(Only 2 spawned, not 3-5; see status note above.)*
+- [x] **IG-21-002 P0** — Implement lane following, speed target, and following distance. *(`TrafficVehicle::Update()`: accelerates toward a cruise speed, brakes smoothly starting 10 units from an obstacle ahead, matching the minimum-gap/braking-distance constants in `src/Gameplay/TrafficVehicle.cpp`.)*
+- [ ] **IG-21-003 P0** — Implement stop line and traffic signal compliance.
+- [x] **IG-21-004 P0** — Implement obstacle braking for the player and blocked traffic. *(`DistanceAheadIfInLane()` in `IronGangGame.cpp` considers both other `TrafficVehicle`s and the player's own vehicle when driving.)*
+- [ ] **IG-21-005 P1** — Create directed lane graphs with turn connections.
+- [ ] **IG-21-006 P1** — Create simple route selection across intersections using yield/priority rules, not reservation-based deadlock avoidance.
+- [ ] **IG-21-007 P1** — Create traffic-light phases and timing data.
+- [ ] **IG-21-008 P1** — Create stop-sign and priority-junction yield behavior.
+- [ ] **IG-21-009 P1** — Create lane-change rules only where roads support them.
+- [ ] **IG-21-010 P1** — Create parked vehicle slots and departure/arrival behavior.
+- [ ] **IG-21-011 P1** — Create traffic spawn/despawn outside player attention.
+- [ ] **IG-21-012 P1** — Create blocked-road rerouting onto an alternate lane segment.
+- [ ] **IG-21-013 P1** — Create stuck detection and bounded recovery.
+- [ ] **IG-21-014 P1** — Create simple accident/disabled-vehicle handling after a player collision.
+- [ ] **IG-21-015 P1** — Create emergency-vehicle priority hooks for later police use.
+- [ ] **IG-21-016 P1** — Create debug lane, route, and target-speed visualization.
+- [ ] **IG-21-017 P1** — Create deterministic per-intersection scenario tests (signal compliance, yield, braking).
+- [ ] **IG-21-018 P2** — Create honking and simple social driving reactions.
+- [ ] **IG-21-019 P2** — Create overtaking only on selected multi-lane roads, added after core flow is stable.
+- [ ] **IG-21-020 P2** — Create parking maneuvers after core flow is robust.
+- [ ] **IG-21-021 P1** — Define the scope, public API, and explicit non-goals of the lane follower.
+- [ ] **IG-21-022 P1** — Define versioned configuration/data for the lane follower.
+- [ ] **IG-21-023 P1** — Implement the smallest deterministic reference path for the lane follower.
+- [ ] **IG-21-024 P1** — Add focused unit tests and one integration scenario for the lane follower.
+- [ ] **IG-21-025 P1** — Define save/checkpoint serialization and restoration for the lane follower.
+- [ ] **IG-21-026 P2** — Add logging, counters, and a debug view for the lane follower.
+- [ ] **IG-21-027 P2** — Define CPU/memory/latency budgets for the lane follower and profile a worst-case scene.
+- [ ] **IG-21-028 P2** — Document usage examples and common failure modes for the lane follower.
+- [ ] **IG-21-029 P1** — Define the scope, public API, and explicit non-goals of the traffic routing and signal system.
+- [ ] **IG-21-030 P1** — Define versioned configuration/data for the traffic routing and signal system.
+- [ ] **IG-21-031 P1** — Implement the smallest deterministic reference path for the traffic routing and signal system.
+- [ ] **IG-21-032 P1** — Add focused unit tests and one integration scenario for the traffic routing and signal system.
+- [ ] **IG-21-033 P1** — Define save/checkpoint serialization and restoration for the traffic routing and signal system.
+- [ ] **IG-21-034 P2** — Add logging, counters, and a debug view for the traffic routing and signal system.
+- [ ] **IG-21-035 P2** — Define CPU/memory/latency budgets for the traffic routing and signal system and profile a worst-case scene.
+- [ ] **IG-21-036 P2** — Document usage examples and common failure modes for the traffic routing and signal system.
+- [ ] **IG-21-037 P1** — Define the scope, public API, and explicit non-goals of the vehicle spacing controller.
+- [ ] **IG-21-038 P1** — Define versioned configuration/data for the vehicle spacing controller.
+- [ ] **IG-21-039 P1** — Implement the smallest deterministic reference path for the vehicle spacing controller.
+- [ ] **IG-21-040 P1** — Add focused unit tests and one integration scenario for the vehicle spacing controller.
+- [ ] **IG-21-041 P1** — Define save/checkpoint serialization and restoration for the vehicle spacing controller.
+- [ ] **IG-21-042 P2** — Add logging, counters, and a debug view for the vehicle spacing controller.
+- [ ] **IG-21-043 P2** — Define CPU/memory/latency budgets for the vehicle spacing controller and profile a worst-case scene.
+- [ ] **IG-21-044 P2** — Document usage examples and common failure modes for the vehicle spacing controller.
+- [ ] **IG-21-045 P1** — Define the scope, public API, and explicit non-goals of the traffic population and recovery manager.
+- [ ] **IG-21-046 P1** — Define versioned configuration/data for the traffic population and recovery manager.
+- [ ] **IG-21-047 P1** — Implement the smallest deterministic reference path for the traffic population and recovery manager.
+- [ ] **IG-21-048 P1** — Add focused unit tests and one integration scenario for the traffic population and recovery manager.
+- [ ] **IG-21-049 P1** — Define save/checkpoint serialization and restoration for the traffic population and recovery manager.
+- [ ] **IG-21-050 P2** — Add logging, counters, and a debug view for the traffic population and recovery manager.
+- [ ] **IG-21-051 P2** — Define CPU/memory/latency budgets for the traffic population and recovery manager and profile a worst-case scene.
+- [ ] **IG-21-052 P2** — Document usage examples and common failure modes for the traffic population and recovery manager.
+- [ ] **IG-21-053 P2** — Define the scope, public API, and explicit non-goals of the parking and arrival system.
+- [ ] **IG-21-054 P2** — Define versioned configuration/data for the parking and arrival system.
+- [ ] **IG-21-055 P2** — Implement the smallest deterministic reference path for the parking and arrival system.
+- [ ] **IG-21-056 P2** — Add focused unit tests and one integration scenario for the parking and arrival system.
+- [ ] **IG-21-057 P2** — Define save/checkpoint serialization and restoration for the parking and arrival system.
+- [ ] **IG-21-058 P2** — Add logging, counters, and a debug view for the parking and arrival system.
+- [ ] **IG-21-059 P2** — Define CPU/memory/latency budgets for the parking and arrival system and profile a worst-case scene.
+- [ ] **IG-21-060 P2** — Document usage examples and common failure modes for the parking and arrival system.

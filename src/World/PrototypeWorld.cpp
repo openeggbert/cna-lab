@@ -1,10 +1,10 @@
-#include "IronShadows/World/PrototypeWorld.hpp"
+#include "IronGang/World/PrototypeWorld.hpp"
 
-#include "IronShadows/Physics/PhysicsWorld.hpp"
+#include "IronGang/Physics/PhysicsWorld.hpp"
 
 #include <utility>
 
-namespace IronShadows
+namespace IronGang
 {
     PrototypeWorld::PrototypeWorld(DistrictId id) : id_(id)
     {
@@ -98,7 +98,7 @@ namespace IronShadows
         vehicleSpawn_ = {0.0F, 0.65F, 11.0F};
         vehicleSpawnYaw_ = 0.0F;
 
-        // Gate M9 (plan_19-navigation-and-pathfinding.md IS-19-001/002): a traffic oval using
+        // Gate M9 (plan_19-navigation-and-pathfinding.md IG-19-001/002): a traffic oval using
         // both lanes of road_north_south (X in [-6,6], so lanes at X=+-3 stay clear of the
         // parked sedan at X=0), and two sidewalk back-and-forth paths (X=+-7.5, matching
         // sidewalk_west/sidewalk_east exactly). Kept well inside the road's own Z range
@@ -154,7 +154,7 @@ namespace IronShadows
         vehicleSpawnYaw_ = 0.0F;
 
         // No mission-relevant trigger in this district yet; keep it far outside the playable
-        // area so it can never accidentally fire (IronShadowsGame only evaluates the mission's
+        // area so it can never accidentally fire (IronGangGame only evaluates the mission's
         // warehouse-delivery goal while in the WarehouseBlock district, but this keeps the value
         // itself harmless regardless).
         warehouseGoal_ = TriggerZone{"none", {{0.0F, -500.0F, 0.0F}, {0.1F, 0.1F, 0.1F}}};

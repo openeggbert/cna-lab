@@ -1,8 +1,8 @@
-#include "IronShadows/Gameplay/Pedestrian.hpp"
+#include "IronGang/Gameplay/Pedestrian.hpp"
 
 #include <cmath>
 
-namespace IronShadows
+namespace IronGang
 {
     namespace
     {

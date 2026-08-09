@@ -1,11 +1,11 @@
-#include "IronShadows/Missions/MissionDefinition.hpp"
+#include "IronGang/Missions/MissionDefinition.hpp"
 
 #include "System/IO/File.hpp"
 #include "System/Text/Json/JsonDocument.hpp"
 
 #include <unordered_set>
 
-namespace IronShadows
+namespace IronGang
 {
     using System::Text::Json::JsonDocument;
     using System::Text::Json::JsonElement;
@@ -126,7 +126,7 @@ namespace IronShadows
             return false;
         }
 
-        // Validation (IS-24-003's smallest form: inline checks, not a separate tool): unique ids,
+        // Validation (IG-24-003's smallest form: inline checks, not a separate tool): unique ids,
         // initialState and every non-empty `next` must refer to a real state, and a terminal
         // state (empty `next`) must not also claim a condition (it would never be evaluated).
         std::unordered_set<std::string> seenIds;

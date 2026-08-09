@@ -1,10 +1,10 @@
-#include "IronShadows/World/DistrictManager.hpp"
+#include "IronGang/World/DistrictManager.hpp"
 
-#include "IronShadows/Physics/PhysicsWorld.hpp"
+#include "IronGang/Physics/PhysicsWorld.hpp"
 
 #include <algorithm>
 
-namespace IronShadows
+namespace IronGang
 {
     DistrictManager::DistrictManager(DistrictId initial) : world_(std::make_unique<PrototypeWorld>(initial)) {}
 

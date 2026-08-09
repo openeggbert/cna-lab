@@ -1,4 +1,4 @@
-# NEXT.md — Iron Shadows continuity document
+# NEXT.md — Iron Gang continuity document
 
 Primary short-term continuity doc for autonomous/resumed work sessions. Read this before
 `plan.md`/`plan/plan_NN-*.md`. Update it whenever project state changes materially — do not wait
@@ -6,13 +6,13 @@ until the end of a session to reconstruct it from memory.
 
 ## Where things stand (as of this entry)
 
-Repo: `/rv/data/development/github.com/openeggbert/iron-shadows`, branch `develop` (not `master` —
+Repo: `/rv/data/development/github.com/openeggbert/iron-gang`, branch `develop` (not `master` —
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
 **No remote configured, nothing pushed** — commit locally only until explicitly told otherwise.
 
 Gates M0-M11 (see `plan.md` milestone order) are done at prototype/first-pass fidelity, including
 M9's and M11's own literal "ten-minute soak" criteria (`plan_39-vertical-slice-gates.md`
-`IS-39-010`/`049`, `IS-39-067`) — see each entry below. Gate M10 (production assets/collision,
+`IG-39-010`/`049`, `IG-39-067`) — see each entry below. Gate M10 (production assets/collision,
 baked lighting, one dynamic sun, limited shadows, audio, UI) is fully done: on-screen HUD, dynamic
 sun (per-actor CPU brightness tint), limited shadows (ground-decal blob shadows under the
 player/vehicle), a real baked lightmap (`DualTextureEffect`) for the static city mesh, and real
@@ -29,13 +29,13 @@ for the full writeup of each piece.
 - M3: sedan loads as 4 composed CNJ models (`vehicle_body`/`cabin`/`windshield`/`wheel` — one MC3
   file per part, not one multi-object scene, because `cna_tool_gltf_to_cnj` does not bake
   per-object node transforms into vertex data; see `plan/plan_10-gltf-cnj-mcb-and-runtime-packages.md`
-  `IS-10-004b` for the confirmed upstream gap).
+  `IG-10-004b` for the confirmed upstream gap).
 - M4: Jolt Physics v5.6.0 (MIT, pinned commit `e77f175595e64cb44218cc9d9d56fc365ad0e36a`) is
-  selected and integrated behind `IronShadows::Physics::PhysicsWorld` (PIMPL, no Jolt types leak
+  selected and integrated behind `IronGang::Physics::PhysicsWorld` (PIMPL, no Jolt types leak
   out of `src/Physics/PhysicsWorld.cpp`). **Beyond the M4 gate's own scope**, `PlayerController`
   and `VehicleController` are actually driven by physics (not just standalone-prototyped).
 - M5: a second, genuinely different district (`Countryside`, alongside the original
-  `WarehouseBlock`) plus `IronShadows::DistrictManager`, which owns the currently loaded
+  `WarehouseBlock`) plus `IronGang::DistrictManager`, which owns the currently loaded
   `PrototypeWorld` and its static physics bodies and drives a synchronous loading-screen
   transition between them.
 - M6: one skinned test character plays "Idle"/"Walk" (crossfading between them), "Dialogue", and
@@ -68,39 +68,39 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 ## What changed most recently (this session)
 
 **Gate M11 is now FULLY DONE** (mission happy-path/failure/retry/save-load/cutscene-skip
-automation, `plan_39` `IS-39-012`, itemized in `IS-39-060`-`069`). Unlike M0-M10, this gate needed
+automation, `plan_39` `IG-39-012`, itemized in `IG-39-060`-`069`). Unlike M0-M10, this gate needed
 almost no new production code -- it's mostly proving what already exists end-to-end:
 
-- **Fresh-start playthrough** (`IS-39-060`): already covered by the existing `TestMissionFlow`/
+- **Fresh-start playthrough** (`IG-39-060`): already covered by the existing `TestMissionFlow`/
   `TestMissionLoadsCommittedFile` -- no new test needed.
-- **Save/load playthrough** (`IS-39-061`): new `TestSaveLoadMidMissionPlaythrough` saves mid-
+- **Save/load playthrough** (`IG-39-061`): new `TestSaveLoadMidMissionPlaythrough` saves mid-
   mission (`DriveToWarehouse`), loads into a FRESH `PrototypeMission`, and proves the loaded
   mission can still progress to `Completed` -- not just that the state enum round-trips
   (`TestSaveRoundTrip` already covered that in isolation).
-- **Cutscene-skip playthrough** (`IS-39-062`): new `TestCutsceneSkipDoesNotBlockMissionProgression`
+- **Cutscene-skip playthrough** (`IG-39-062`): new `TestCutsceneSkipDoesNotBlockMissionProgression`
   confirms `PrototypeMission::Update()`'s architectural independence from cutscene state (it takes
   no cutscene parameter at all) with an actual regression test, not just an assumption.
-- **Mission-failure retry** (`IS-39-063`): this prototype's one mission has no real failure/
+- **Mission-failure retry** (`IG-39-063`): this prototype's one mission has no real failure/
   branching state (a locked, deliberately simple linear delivery mission -- `plan_24`'s own
   non-goal on bespoke scripting). New `TestMissionResetActsAsRetry` proves "retry" at the level
   that actually exists: `Reset()` (the "R" key) returns a mid-mission run to the initial state, and
   the mission can complete again afterward.
-- **Vehicle-loss recovery** (`IS-39-064`): no vehicle-destruction mechanic exists (no combat/damage
+- **Vehicle-loss recovery** (`IG-39-064`): no vehicle-destruction mechanic exists (no combat/damage
   system yet, `plan_23`). New `TestVehicleStatePersistsIndependentlyOfPlayer` proves "recovery" at
   the level that actually exists: a save made on foot, far from a parked vehicle, restores both
   positions independently on load.
-- **Missing optional asset behavior** (`IS-39-065`): already covered by the existing
-  `iron_shadows_missing_asset_fallback` CTest, re-confirmed passing with every M10 addition.
-- **District-transition mid-mission** (`IS-39-066`): new `TestDistrictTransitionPreservesMissionState`
+- **Missing optional asset behavior** (`IG-39-065`): already covered by the existing
+  `iron_gang_missing_asset_fallback` CTest, re-confirmed passing with every M10 addition.
+- **District-transition mid-mission** (`IG-39-066`): new `TestDistrictTransitionPreservesMissionState`
   does a full WarehouseBlock -> Countryside -> WarehouseBlock round trip mid-mission and confirms
   the mission's state is untouched throughout.
-- **Ten-minute soak** (`IS-39-067`): a `--smoke 3000` background run. The M10 lightmap draw path
+- **Ten-minute soak** (`IG-39-067`): a `--smoke 3000` background run. The M10 lightmap draw path
   made this dramatically slower per frame than the M9 baseline, so it hadn't consumed all 3000
   frames after 65 minutes (3925s) of continuous execution -- at which point it was deliberately
   stopped (`TaskStop`, not a crash), since 65 minutes already exceeds "ten minutes" more than six
   times over. All assets (models, audio) loaded successfully; no error/crash in the log at any
   point during that window.
-- **Performance capture** (`IS-39-068`): `/usr/bin/time -v ./iron_shadows --smoke 60` measured
+- **Performance capture** (`IG-39-068`): `/usr/bin/time -v ./iron_gang --smoke 60` measured
   **55988 KB (~55MB) maximum resident set size** -- far under the ~2-4GB budget in
   `docs/performance-targets.md` (expected at this content scale). **~1.55s/frame average** on this
   environment's CPU `SOFTWARE` rasterizer, dominated by the new baked-lightmap `DualTextureEffect`
@@ -110,9 +110,9 @@ almost no new production code -- it's mostly proving what already exists end-to-
   display), not one of the real target backends (`dev-easygl`/`dev-vulkan`), which remain
   build-unverified here (`docs/validation.md`'s own note). Memory is the one number from this
   capture that's meaningfully comparable to the budget, and it passes with a huge margin.
-- **License audit** (`IS-39-069`): found and fixed two real gaps. `assets/licenses/asset-registry.csv`
+- **License audit** (`IG-39-069`): found and fixed two real gaps. `assets/licenses/asset-registry.csv`
   was missing rows for `assets/missions/prologue.mission.json` and
-  `assets/cutscenes/prologue_intro.cutscene.json` (both original Iron Shadows content, same
+  `assets/cutscenes/prologue_intro.cutscene.json` (both original Iron Gang content, same
   convention as the already-tracked dialogue file) -- added. `THIRD_PARTY.md` still claimed "no
   external textures, sounds, music, fonts... currently bundled", which became false as of gate M10
   (the font8x8 Public Domain font, the Nox Sound Design CC0 audio) -- corrected to name both.
@@ -122,12 +122,12 @@ almost no new production code -- it's mostly proving what already exists end-to-
 Verified across all of the above: full `compile-software` rebuild (clean), all three `ctest`
 targets pass (5 new tests added), `./scripts/check-syntax.sh` clean.
 
-### Gate M10 done earlier this session (`plan_39` `IS-39-011`)
+### Gate M10 done earlier this session (`plan_39` `IG-39-011`)
 
 **Gate M10** (a much bigger, qualitatively different milestone than M0-M9 --
 production assets/collision, baked lighting, one dynamic sun, limited shadows, audio, UI). Before
 starting, did concrete research against CNA's actual source (not assumptions) to lock a feasible
-architecture for each piece -- see `plan_39-vertical-slice-gates.md` `IS-39-011`'s own inline note
+architecture for each piece -- see `plan_39-vertical-slice-gates.md` `IG-39-011`'s own inline note
 for the full research writeup (dual-texture lightmap math, why `BasicEffect`'s built-in lighting is
 a no-op on the SOFTWARE backend, why real shadow-mapping isn't achievable without modifying CNA,
 SpriteFont/SoundEffect API details). The user explicitly chose the higher-effort option for two key
@@ -137,7 +137,7 @@ assets (not synthesized placeholder audio) -- both tracked in `assets/licenses/a
 Implementation order: **UI/HUD -> dynamic sun + shadow decals -> baked lightmap -> audio (last
 piece, see below)** -- all done.
 
-### Audio done this session (`plan_27-audio-music-ambience-and-radio.md`, `plan_39` `IS-39-011`'s own note)
+### Audio done this session (`plan_27-audio-music-ambience-and-radio.md`, `plan_39` `IG-39-011`'s own note)
 
 Real CC0 sound, not synthesized: Nox Sound Design's "Essentials Series" pack on itch.io (explicit
 CC0, 988MB, single zip). WebSearch/WebFetch located and confirmed the license, but the actual
@@ -160,7 +160,7 @@ same automated-download friction (Pixabay blocked `WebFetch` with a 403; OpenGam
 are scattered across many individually-licensed small submissions needing one-by-one
 verification) -- deferred, not gate-blocking.
 
-`IronShadowsGame` gained `engineSound_`/`engineSoundInstance_`/`footstepSound_`/`hornSound_`
+`IronGangGame` gained `engineSound_`/`engineSoundInstance_`/`footstepSound_`/`hornSound_`
 (all `std::optional`, loaded in `Initialize()` with the same try/catch-with-fallback convention as
 every other optional asset -- `SoundEffect(const std::string&)`, a CNA-specific direct file-path
 constructor, simpler than real XNA's `FromStream(std::istream&)`; SDL3_mixer decodes WAV natively,
@@ -190,7 +190,7 @@ deleting a file outside the scratchpad that the user fetched themselves is exact
 action this session's guidance says to leave alone unless asked. Worth mentioning to the user if a
 future session needs the disk space back.
 
-### Baked lightmap done this session (`plan_39` `IS-39-011`'s own note)
+### Baked lightmap done this session (`plan_39` `IG-39-011`'s own note)
 
 - New `include/`/`src/Graphics/LightmapMesh.hpp`/`.cpp`: `LightmapMeshBuilder` builds the static
   city mesh (procedural box geometry only -- ground/roads/sidewalks/buildings/lamps; MC3-sourced
@@ -225,15 +225,15 @@ future session needs the disk space back.
   any visual/interactive check of how the baked lighting actually looks, since this environment
   has no display.
 
-### Dynamic sun + shadow decals done this session (`plan_39` `IS-39-011`'s own note)
+### Dynamic sun + shadow decals done this session (`plan_39` `IG-39-011`'s own note)
 
-- New `include/IronShadows/Graphics/SunLight.hpp`: a single shared, fixed sun direction/intensity
+- New `include/IronGang/Graphics/SunLight.hpp`: a single shared, fixed sun direction/intensity
   (`kSunDirection`/`kSunIntensity`/`kSunAmbientFloor`, hand-normalized literal constants -- no
   day/night cycle, that is real `plan_08`/`plan_31` scope, not attempted here) and
   `ComputeSunBrightness()`, a plain scalar (`ambientFloor + intensity * max(0, dot(Up,
   -sunDirection))`, clamped to [0,1]) approximating how much daylight reaches a mostly-upward-
   facing dynamic actor. This exists because `BasicEffect`'s built-in `DirectionalLight0`/
-  `EnableDefaultLighting()` is confirmed a no-op on the SOFTWARE backend Iron Shadows targets (its
+  `EnableDefaultLighting()` is confirmed a no-op on the SOFTWARE backend Iron Gang targets (its
   own source comment says so), so real per-light shading would silently do nothing; instead this
   scalar is applied as a `DiffuseColor` multiplier, which the SOFTWARE backend DOES apply
   unconditionally (`vertexColor*diffuseColor*texture0`, confirmed by reading
@@ -265,7 +265,7 @@ future session needs the disk space back.
   environment has no display -- unlike some earlier milestones this session, no screenshot was
   captured for this piece (time-boxed to keep momentum on the remaining, larger M10 pieces).
 
-### UI/HUD done this session (`plan_28` `IS-28-001`/`002`)
+### UI/HUD done this session (`plan_28` `IG-28-001`/`002`)
 
 - New `include/`/`src/UI/BitmapFont.hpp`/`.cpp`: `BuildBitmapFont8x8(GraphicsDevice&)` builds a
   real `Microsoft::Xna::Framework::Graphics::SpriteFont` at runtime from the public-domain
@@ -277,7 +277,7 @@ future session needs the disk space back.
   GraphicsDevice-independent `BuildFont8x8AtlasPixels()` so it's headlessly unit-testable (a
   standalone ASCII-art diagnostic hand-verified the 'A'/'a'/'1' glyph bit patterns and bit order --
   bit 0 = leftmost column -- before any of this was written).
-- `IronShadowsGame` gained `spriteBatch_`/`hudFont_` (both `std::optional`, constructed in
+- `IronGangGame` gained `spriteBatch_`/`hudFont_` (both `std::optional`, constructed in
   `Initialize()`), and `Draw()` now draws a real on-screen HUD each frame (objective + driving
   speed + dialogue subtitle/prompt + cutscene skip prompt + wanted status + transient status),
   replacing the window-title-only display (the title itself stays, for window-manager/taskbar
@@ -293,7 +293,7 @@ future session needs the disk space back.
 
 ### Earlier this session: implemented gate M9 (traffic, pedestrians, one police-response scenario), then closed its ten-minute soak gap
 
-Implemented gate M9 at first-pass/prototype fidelity, entirely within Iron Shadows itself.
+Implemented gate M9 at first-pass/prototype fidelity, entirely within Iron Gang itself.
 Adopted a "kinematic movers + one shared waypoint
 helper + a simplified radius-based police witness check" architecture -- the smallest slice that
 proves each of the three mechanics (`plan_19`/`plan_20`/`plan_21`/`plan_22`), deliberately not the
@@ -329,7 +329,7 @@ fullest scope.
   simplification, not real route-following) at 9 units/s; a second car joins after 20 seconds still
   chasing (the one locked escalation tier); the chase resolves back to Clear once the CLOSEST
   patrol car has stayed beyond 40 units from the player for 3 sustained seconds.
-- `IronShadowsGame` wiring: new `trafficVehicles_`/`pedestrians_`/`police_` members;
+- `IronGangGame` wiring: new `trafficVehicles_`/`pedestrians_`/`police_` members;
   `RespawnTrafficAndPedestrians()` (re)populates them from the current district's `WaypointPath`
   data and resets `police_`, called from `Initialize()`, `HandleDistrictArrival()`,
   `LoadPrototype()`, and `ResetPrototype()` (none of this ambient state is part of `SaveGame` --
@@ -360,7 +360,7 @@ fullest scope.
   message) -- confirmed CNA's `Game::Tick()` uses a fixed 1/60s timestep accumulator fed by real
   elapsed wall-clock time (`cna/src/Microsoft/Xna/Framework/Game.cpp`), so simulated game time
   tracks real time 1:1 for this workload; there is no way to "compress" a ten-minute soak into a
-  shorter wall-clock run, it genuinely has to run that long. This closes `plan_39` `IS-39-010`/
+  shorter wall-clock run, it genuinely has to run that long. This closes `plan_39` `IG-39-010`/
   `049` -- gate M9 is now fully done. **Still not verified**: memory-leak growth specifically over
   the soak run (only crash/stall-freedom was checked, no periodic memory sampling), and, as with
   every other visual milestone this session, there is no display to check how any of this
@@ -368,8 +368,8 @@ fullest scope.
 
 ### Earlier this session: implemented gate M8 (one in-engine cutscene)
 
-Implemented gate M8 (one in-engine cutscene), entirely within Iron Shadows itself. Scoped down to
-a camera-track-only sequence player (`plan_26-cutscenes-and-cinematic-sequencing.md`'s own IS-26-002
+Implemented gate M8 (one in-engine cutscene), entirely within Iron Gang itself. Scoped down to
+a camera-track-only sequence player (`plan_26-cutscenes-and-cinematic-sequencing.md`'s own IG-26-002
 lists animation/dialogue/audio/event/fade tracks too, but a camera track alone is enough to satisfy
 gate M8's own wording -- "play, skip, save-safe finalize, hand control back" -- without inventing
 a general timeline system in one pass).
@@ -384,7 +384,7 @@ a general timeline system in one pass).
   `Skip`/`IsActive`/`GetCameraPosition`/`GetCameraLookAt`. `Update()` advances elapsed time and
   finishes (`IsActive()` becomes false) the instant it reaches the sequence's duration; `Skip()`
   jumps straight to the same terminal (last-keyframe) state a natural finish would produce, per
-  IS-26-004's explicit requirement that skip apply the *same* terminal state, not some other
+  IG-26-004's explicit requirement that skip apply the *same* terminal state, not some other
   "just stop" behavior. Camera position/look-at are linearly interpolated between the two
   keyframes bracketing the current elapsed time (`Vector3::Lerp`), clamped to the first/last
   keyframe outside their time range.
@@ -396,7 +396,7 @@ a general timeline system in one pass).
   actual spawn point `(0, 1.70, 20)`, yaw 0 -- so the cut back to the ordinary follow camera has
   zero visible pop, verified by a standalone diagnostic confirming the file parses to these exact
   numbers.
-- `IronShadowsGame::Initialize()` starts the cutscene (loaded from file, falling back to an
+- `IronGangGame::Initialize()` starts the cutscene (loaded from file, falling back to an
   identical hardcoded sequence built inline on any load/validation failure, same convention as
   dialogue/mission) right after starting the opening dialogue. `Update()` ticks
   `cutscene_.Update(deltaSeconds)` every frame (gated only on `!transitioning`, independent of
@@ -409,7 +409,7 @@ a general timeline system in one pass).
   gameplay-freeze conditions (`!dialogue_.IsActive() && ... && !transitioning`) all gained a
   `&& !cutscene_.IsActive()` clause, reusing the exact same freeze mechanism dialogue already
   established rather than inventing a second one. `LoadPrototype()` and `ResetPrototype()` both
-  force `cutscene_.Skip()` defensively (save-safety, IS-26-016): nothing ever saves mid-cutscene
+  force `cutscene_.Skip()` defensively (save-safety, IG-26-016): nothing ever saves mid-cutscene
   by construction (it only plays for 2.5s at the very start of a fresh game), but this guarantees
   loading/resetting can never leave an active cutscene camera fighting a freshly restored,
   unrelated player/vehicle position.
@@ -428,12 +428,12 @@ a general timeline system in one pass).
   normally afterward) both exit 0 with no cutscene-load fallback message. **Not verified**: the
   actual Enter-press skip path in a real running game -- smoke mode's dialogue never becomes
   inactive on its own (nothing auto-advances it), so the skip branch was only exercised by the
-  standalone unit tests above, not an end-to-end `IronShadowsGame` run -- and, as with every other
+  standalone unit tests above, not an end-to-end `IronGangGame` run -- and, as with every other
   visual milestone this session, there is no display to check how the pan actually looks.
 
 ### Earlier this session: implemented gate M7 (one data-driven mission)
 
-Implemented gate M7 (one data-driven mission), entirely within Iron Shadows itself (no cross-repo
+Implemented gate M7 (one data-driven mission), entirely within Iron Gang itself (no cross-repo
 work needed this time). Found that `assets/missions/prologue.mission.json` already existed as a
 hand-written stub from the original scaffold, with a comment saying "this file defines the
 intended future data-driven form" and "currently mirrored by PrototypeMission.cpp" — this session
@@ -468,12 +468,12 @@ made that comment true rather than aspirational.
   identical to the original switch-based flow) so existing callers/tests that never call
   `LoadMission()` — including the pre-existing `TestMissionFlow` — keep working completely
   unchanged, matching `DialogueSystem::LoadFallbackPrologue()`'s "never fully fail" convention.
-- `IronShadowsGame::Initialize()` calls `mission_.LoadMission(assetRoot_ + "/missions/prologue.mission.json", error)`
+- `IronGangGame::Initialize()` calls `mission_.LoadMission(assetRoot_ + "/missions/prologue.mission.json", error)`
   right before `mission_.Reset()` (moved after the load, so `Reset()` picks up whichever
   definition — loaded file or fallback — ended up active), printing a fallback message on failure
   the same way dialogue loading already does.
 - New tests in `tests/CoreTests.cpp`: `TestMissionLoadsCommittedFile` (loads the real committed
-  file via a new `IRON_SHADOWS_SOURCE_ASSET_DIR` compile definition — added to both the CMake test
+  file via a new `IRON_GANG_SOURCE_ASSET_DIR` compile definition — added to both the CMake test
   target and `scripts/check-syntax.sh` — and drives it through the identical flow
   `TestMissionFlow` already proves against the hardcoded default) and
   `TestMissionValidationRejectsMalformedData` (6 cases: dangling `next`, dangling `initialState`,
@@ -497,7 +497,7 @@ consolidated architecture questions first (both authorized): (1) hand-author a r
 bypass MC3 entirely for this one asset, since Mesh Craft has no rigging/skinning authoring support
 at all (confirmed by checking `mc3.xsd` for any skin/bone/joint concept and finding none); (2)
 extend the `cna-extended` sibling repo with a real `Model`/`AnimationPlayer` ECS wrapper, rather
-than reusing the existing Avatar-specific path or building a purely-local Iron Shadows-side
+than reusing the existing Avatar-specific path or building a purely-local Iron Gang-side
 workaround.
 
 **In `cna-extended`** (commit `1c91d75`, its own repo, own git history — see that repo's own
@@ -523,7 +523,7 @@ workaround.
   `cna-extended` suite re-run clean: 2367 tests, 1 unrelated pre-existing parallel-run flake
   (`TexturePackerFileReaderTests`, passes solo).
 
-**In Iron Shadows**:
+**In Iron Gang**:
 
 - `assets/source/gltf/gen_test_character_gltf.py` (new) generates `assets/source/gltf/test_character.gltf`:
   a blocky 3-bone/3-box test humanoid (Root/LeftLeg/RightLeg, torso+head box rigid to Root, one
@@ -545,10 +545,10 @@ workaround.
   `Update()`, not `Draw()` (`Draw()` has no time step of its own). `Draw()`'s player branch draws
   the character via a direct `Model::Draw()` call (after pushing bone transforms onto its
   `SkinnedEffect`s by hand) — matching the *existing* pattern `warehouseModel_`/`vehicleModels_`
-  already use, **not** `RenderSystem3DEXT`/`Camera3DEXT`: Iron Shadows has no other ECS-driven
+  already use, **not** `RenderSystem3DEXT`/`Camera3DEXT`: Iron Gang has no other ECS-driven
   rendering to justify bridging its own view/projection into `Camera3DEXT` when it already has
   the exact matrices ready to use.
-- `IronShadowsGame::Initialize()` loads `test_character.cnj` the same try/catch way as
+- `IronGangGame::Initialize()` loads `test_character.cnj` the same try/catch way as
   warehouse/vehicle (procedural-box fallback on failure). `Update()`'s on-foot branch computes
   `playerIsMoving` from the current frame's `OnFootInput` and calls
   `renderer_.UpdateCharacterAnimation(deltaSeconds, playerIsMoving ? "Walk" : "Idle")` — a hard
@@ -558,7 +558,7 @@ workaround.
   match hand-derived pivot-rotation math (`y≈0.084`, `z≈±0.380` at the swing extremes) — the legs
   really do swing in opposite phase around the hip joint, not just "move some amount". Full
   `compile-software` rebuild (clean), all three `ctest` targets pass, `./scripts/check-syntax.sh`
-  passes on every file, and a `--smoke 30` run exits 0 with `[IronShadows] Loaded generated
+  passes on every file, and a `--smoke 30` run exits 0 with `[IronGang] Loaded generated
   test_character.cnj` logged. **A scary-looking apparent hang during this verification turned out
   to be real system load, not a bug**: this machine is shared with several other concurrent
   Claude/Codex sessions (`load average` ~5 on 16 cores at the time), and the CPU software
@@ -575,11 +575,11 @@ workaround.
   check of how the character actually looks or moves — this environment has no display.
 
 **Follow-up in the same session: clip blending added.** The paragraph above originally shipped
-with a hard cut only; blending was added right after (`cna-extended` commit `2ff3cff`, iron-shadows
+with a hard cut only; blending was added right after (`cna-extended` commit `2ff3cff`, iron-gang
 same commit as the rest of this M6 work). `ModelAnimationComponentEXT` gained `BlendDurationEXT`
 (seconds, default 0.25; 0 = hard cut), `BlendFromSkinTransformsEXT` (a frozen outgoing-pose
 snapshot), and `BlendedSkinTransformsEXT` (the actual per-frame output — `RenderSystem3DEXT` and
-Iron Shadows' `PrototypeRenderer` both read this now, not `PlayerEXT.GetSkinTransforms()`
+Iron Gang's `PrototypeRenderer` both read this now, not `PlayerEXT.GetSkinTransforms()`
 directly). `ModelAnimationSystem3DEXT::Update()` snapshots the outgoing pose the instant
 `ClipNameEXT` changes to a different clip, then writes a per-bone `Matrix::Lerp` between that
 snapshot and the new clip's live pose each frame. `Matrix::Lerp` (matching real XNA's own
@@ -589,7 +589,7 @@ not a substitute for a real blend-space/layered system. Verified: 2 new `cna-ext
 (a hand-verified two-named-clip glTF fixture, proving the blend math numerically at
 t=0/halfway/finished, plus a `BlendDurationEXT=0` hard-cut case) — full suite 2369/2369, including
 the previously-flaky `TexturePackerFileReaderTests` case now passing (confirms that was a
-parallel-run isolation flake, not a regression). In Iron Shadows: full rebuild, all `ctest`
+parallel-run isolation flake, not a regression). In Iron Gang: full rebuild, all `ctest`
 targets pass, `check-syntax.sh` clean, `--smoke 20` exits 0. Not verified: how the crossfade
 actually looks, since this environment has no display.
 
@@ -597,7 +597,7 @@ actually looks, since this environment has no display.
 gained a third clip, "Dialogue" — a static "parade rest" leg stance rotated about the local Z axis
 (a different axis than Walk's X-axis swing, so it reads as a genuinely distinct pose, not a frozen
 mid-walk frame), regenerated into `test_character.cnj` (now 3 clips: Idle/Walk/Dialogue).
-`IronShadowsGame::Update` calls `renderer_.UpdateCharacterAnimation(deltaSeconds, "Dialogue")`
+`IronGangGame::Update` calls `renderer_.UpdateCharacterAnimation(deltaSeconds, "Dialogue")`
 whenever `dialogue_.IsActive() && !playerDriving_ && !transitioning` — placed right after the
 existing gameplay-update block (which only runs the Walk/Idle call when dialogue is NOT active,
 so the two calls never race for the same frame). Verified: a standalone diagnostic (not
@@ -619,14 +619,14 @@ directly below).
 `gen_test_character_gltf.py` gained two more one-shot clips: "EnterVehicle" (standing -> sitting,
 both legs bending forward *together* via `quat_x`, unlike Walk's alternating phase) and
 "ExitVehicle" (the reverse). Each is authored as a 1-second clip but only ever played for 0.5s
-(`IronShadowsGame::kVehicleTransitionSeconds`) — deliberately so the motion is still visibly *in
+(`IronGangGame::kVehicleTransitionSeconds`) — deliberately so the motion is still visibly *in
 progress*, not already at its end pose, at the moment the game switches away, and so `LoopEXT`'s
 default-true modulo wraparound (the same "boundary" gotcha noted in
 `ModelAnimationSystem3DEXTTests.cpp`) never has a chance to trigger. `test_character.cnj`
 regenerated with 5 clips total (Idle/Walk/Dialogue/EnterVehicle/ExitVehicle).
 
 Added a small `VehicleTransitionState` (`None`/`Entering`/`Exiting`) enum + two new
-`IronShadowsGame` fields (`vehicleTransitionState_`, `vehicleTransitionSecondsRemaining_`).
+`IronGangGame` fields (`vehicleTransitionState_`, `vehicleTransitionSecondsRemaining_`).
 `HandleInteraction()`:
 - Entering: instead of instantly flipping `playerDriving_` true, starts `Entering` and keeps the
   character visible/on-foot (still `drawPlayer = !playerDriving_ == true`) while "EnterVehicle"
@@ -657,7 +657,7 @@ symmetry — a real, independent numeric cross-check, not just "it compiled"). F
 (as opposed to the underlying clip math) was verified by careful manual code review of
 `HandleInteraction()`/`Update()`'s new branches, tracing through both the Entering and Exiting
 paths frame-by-frame on paper — not by an automated test.** Smoke mode never presses 'E', and
-`IronShadowsGame` is not unit-testable headlessly today (it's a real `Game` subclass, not a
+`IronGangGame` is not unit-testable headlessly today (it's a real `Game` subclass, not a
 pure-logic class like `PlayerController`/`DistrictManager`), so there was no way to exercise the
 actual interaction flow in this environment. **First priority if a display/interactive input ever
 becomes available**: walk up to the sedan, press E, and watch whether the enter/exit animation
@@ -666,7 +666,7 @@ piece of the entire M6 body of work.
 
 ### Earlier this session: implemented gate M5 (second district)
 
-- `include/IronShadows/Core/WorldTypes.hpp` gained `DistrictId` (`WarehouseBlock`, `Countryside`)
+- `include/IronGang/Core/WorldTypes.hpp` gained `DistrictId` (`WarehouseBlock`, `Countryside`)
   and `DistrictExit` (a `TriggerZone` plus the target district id/entry position/entry yaw).
 - `PrototypeWorld` is now district-parameterized: its constructor takes a `DistrictId` (defaults to
   `WarehouseBlock`), `BuildCityBlock()` was renamed `BuildWarehouseBlock()` and now also sets
@@ -675,7 +675,7 @@ piece of the entire M6 body of work.
   silo, fence posts) with its own spawn points and its own exit back to `WarehouseBlock`.
   `BuildPhysicsStaticBodies()` now returns the created body handles (`[[nodiscard]]`) instead of
   discarding them, so a caller can destroy them later.
-- New `IronShadows::DistrictManager` (`include/`/`src/World/DistrictManager.cpp`) owns the current
+- New `IronGang::DistrictManager` (`include/`/`src/World/DistrictManager.cpp`) owns the current
   `PrototypeWorld` and its static body handles. `RequestTransition()` swaps to the current
   district's own exit target (destroy old bodies → construct new `PrototypeWorld` → rebuild
   bodies, all synchronous) and starts a 0.6s minimum-display-time loading-screen timer;
@@ -686,7 +686,7 @@ piece of the entire M6 body of work.
   content.
 - `SaveSnapshot`/`SaveGame` gained a `districtId` field (additive text key, no format version
   bump; defaults to `WarehouseBlock` if absent so old saves still load).
-- `IronShadowsGame` replaced its raw `PrototypeWorld world_` with `districtManager_`, added
+- `IronGangGame` replaced its raw `PrototypeWorld world_` with `districtManager_`, added
   `CheckDistrictExit()` (tests the player/vehicle position against the current district's exit
   trigger and calls `RequestTransition`) and `HandleDistrictArrival()` (repositions player/vehicle
   at the new district's spawn, re-snaps the player onto the vehicle if they were driving, rebuilds
@@ -695,7 +695,7 @@ piece of the entire M6 body of work.
   `ResetPrototype()` all go through `DistrictManager` now.
 - `PhysicsWorld` gained `GetBodyCount()` (wraps `JPH::PhysicsSystem::GetNumBodies()`) — test/
   diagnostic only, for leak detection across a district swap.
-- New test `tests/CoreTests.cpp::TestDistrictTransition` (the `IS-13-042` task): does two full
+- New test `tests/CoreTests.cpp::TestDistrictTransition` (the `IG-13-042` task): does two full
   round trips (warehouse → countryside → warehouse → countryside) and asserts the district id
   after each transition, the loading screen's timing/one-shot `ConsumeArrival()` behavior, and
   that the physics body count returns to exactly its prior value every time the *same* district is
@@ -704,7 +704,7 @@ piece of the entire M6 body of work.
   the test itself failing, then corrected to only compare counts on same-district revisits.)
 - Verification performed: full `compile-software` rebuild (clean, no new warnings), all three
   `ctest` targets pass, `./scripts/check-syntax.sh` passes on every file, and
-  `./cmake-build-compile-software/iron_shadows --smoke 120` exits 0 with correct asset-loading
+  `./cmake-build-compile-software/iron_gang --smoke 120` exits 0 with correct asset-loading
   logs. **Not verified**: actually walking/driving through an exit trigger interactively (no
   display access in this environment), or how the loading screen looks beyond a dark clear +
   "Loading..." window title.
@@ -725,7 +725,7 @@ prototype):
   own `VehicleConstraintTest` sample's forward/brake-on-direction-reversal logic) and reads
   position/yaw/speed back from physics instead of simulating them itself.
 - `PrototypeWorld::BuildPhysicsStaticBodies()` builds real Jolt static bodies from the world's
-  existing `colliders_` list, called once in `IronShadowsGame::Initialize()`.
+  existing `colliders_` list, called once in `IronGangGame::Initialize()`.
 
 **Two real bugs found and fixed during this migration** (not hypothetical — confirmed via a
 throwaway diagnostic program and via `ctest` failures before the fix):
@@ -736,7 +736,7 @@ throwaway diagnostic program and via `ctest` failures before the fix):
    `BuildPhysicsStaticBodies()` never created a floor at all — the vehicle/character had nothing
    to stand on. Fixed with a dedicated `groundCollider_` member set alongside the render box,
    independent of `colliders_`, and physics now creates one extra static body for it.
-2. Iron Shadows' own `ForwardFromYaw(yaw)` convention (`WorldTypes.hpp`; local -Z is "forward" at
+2. Iron Gang's own `ForwardFromYaw(yaw)` convention (`WorldTypes.hpp`; local -Z is "forward" at
    yaw 0, matching how the CNJ sedan parts are authored — cabin/windshield/front-wheels all sit at
    negative local Z) does not match Jolt's default vehicle-forward axis `(0,0,1)`. Fixed by
    setting `VehicleConstraintSettings::mForward` and each `WheelSettingsWV::mWheelForward` to
@@ -749,8 +749,8 @@ New tests: `tests/CoreTests.cpp` gained `TestPlayerMotion` (walks forward from s
 walks straight at the hotel's static collider for 5 simulated seconds and asserts no tunneling).
 `TestVehicleMotion` was updated to build real physics static bodies and drive on them.
 
-All three `ctest` targets pass: `iron_shadows_core_tests`, `iron_shadows_missing_asset_fallback`,
-`iron_shadows_physics_tests`.
+All three `ctest` targets pass: `iron_gang_core_tests`, `iron_gang_missing_asset_fallback`,
+`iron_gang_physics_tests`.
 
 **Explicitly not verified — no display/interactive input in this environment:**
 
@@ -776,11 +776,11 @@ All three `ctest` targets pass: `iron_shadows_core_tests`, `iron_shadows_missing
 ## Known architectural notes for future sessions
 
 - `PhysicsWorld::Step()` must be called exactly once per game frame. It currently is, because
-  `IronShadowsGame::Update()` only ever calls one of `PlayerController::Update()` /
+  `IronGangGame::Update()` only ever calls one of `PlayerController::Update()` /
   `VehicleController::Update()` per frame (mutually exclusive on `playerDriving_`), and each of
   those calls `physics.Step(deltaSeconds)` once internally. **If a future change makes both
   callable in the same frame, physics would step twice — restructure to a single explicit
-  `physics_.Step()` call in `IronShadowsGame::Update()` instead before that happens.**
+  `physics_.Step()` call in `IronGangGame::Update()` instead before that happens.**
 - `JPH::CharacterVirtual::Update()` (the non-Extended variant, which is what `PhysicsWorld::Step()`
   calls) does **not** auto-accumulate gravity into the character's own velocity — only the
   caller-supplied `SetLinearVelocity()` value is used for movement each step; gravity is only used
@@ -794,7 +794,7 @@ All three `ctest` targets pass: `iron_shadows_core_tests`, `iron_shadows_missing
   advances the whole `PhysicsSystem`, not just one body. So the parked vehicle settles under
   gravity even while the player is walking (not driving) and vice versa — this was relied upon,
   not accidental.
-- No debug renderer/wireframe overlay exists yet (`plan_15` `IS-15-029`) — if handling feels wrong
+- No debug renderer/wireframe overlay exists yet (`plan_15` `IG-15-029`) — if handling feels wrong
   once visually tested, that would be the fastest way to see suspension/contact/capsule state.
 
 ## Recommended next session starting point
@@ -810,7 +810,7 @@ the sedan and pressing E to watch the enter/exit animation and `playerDriving_` 
 environment has no display, so everything above has only ever been checked via assertions/logs,
 never by actually seeing it happen.
 
-**Gates M6 through M11 (`plan/plan_39-vertical-slice-gates.md` `IS-39-007`/`008`/`009`/`010`/`011`/
+**Gates M6 through M11 (`plan/plan_39-vertical-slice-gates.md` `IG-39-007`/`008`/`009`/`010`/`011`/
 `012`) are all now fully done at prototype/first-pass fidelity**, including M9's AND M11's own
 literal "ten-minute soak" wording (M9: a 980-second/~16.3-minute `--smoke 3000` background run
 with no crash; M11: the same technique ran for 65 minutes -- deliberately stopped, not crashed,
@@ -831,7 +831,7 @@ audio bus graph or spatial 3D positioning, no ambience/siren content, no menus/g
 are real but not gate-blocking — see each file's own status note for the itemized list.
 
 **If continuing headless/autonomous work, the next milestone is gate M12**
-(`plan/plan_39-vertical-slice-gates.md` `IS-39-013`): frame-time, memory (~2-4GB RAM), VRAM
+(`plan/plan_39-vertical-slice-gates.md` `IG-39-013`): frame-time, memory (~2-4GB RAM), VRAM
 (~512MB-1GB), and district-load-time budgets from `docs/performance-targets.md` pass on the
 primary target hardware/backend (Linux EasyGL). This is the gate where the M11 performance
 capture's own caveat becomes directly relevant: real frame-time verification needs an actual
@@ -847,28 +847,28 @@ though still all unverified visually, since this environment has no display.
 
 Other open items worth picking up opportunistically (not blocking, not sequenced):
 
-- `plan_26` `IS-26-002` (animation/dialogue/audio/event/fade tracks beyond the camera-only track
-  this session added), `IS-26-018` (a timeline debug overlay).
+- `plan_26` `IG-26-002` (animation/dialogue/audio/event/fade tracks beyond the camera-only track
+  this session added), `IG-26-018` (a timeline debug overlay).
 - `plan_24` itself (see above) — typed mission variables, richer conditions/actions, failure/retry,
   a real checkpoint/retry system distinct from plain save/load, the campaign dependency graph.
-- `plan_18` `IS-18-001` (a real named-bone skeleton convention, not this one-off test rig),
-  `IS-18-006`/`007`/`008` (sit/drive/steer poses while actually driving, bone masks, additive
-  layers), `IS-18-034` (report an unknown clip name instead of silently holding the last pose),
-  `IS-18-037` (persist animation-clip state in `SaveGame` once clips stop being purely
+- `plan_18` `IG-18-001` (a real named-bone skeleton convention, not this one-off test rig),
+  `IG-18-006`/`007`/`008` (sit/drive/steer poses while actually driving, bone masks, additive
+  layers), `IG-18-034` (report an unknown clip name instead of silently holding the last pose),
+  `IG-18-037` (persist animation-clip state in `SaveGame` once clips stop being purely
   input-derived).
-- `plan_13` `IS-13-014` (loading-screen progress feedback — `DistrictManager::GetTransitionProgress()`
-  exists but isn't drawn yet), `IS-13-016` (fade instead of hard cut), `IS-13-022`/`023` (per-district
-  mutable world state — no doors/pickups/NPCs exist yet to need this), `IS-13-034`/`035`
-  (background/async district loading), `IS-13-044` (a real many-iteration soak test, not just the
+- `plan_13` `IG-13-014` (loading-screen progress feedback — `DistrictManager::GetTransitionProgress()`
+  exists but isn't drawn yet), `IG-13-016` (fade instead of hard cut), `IG-13-022`/`023` (per-district
+  mutable world state — no doors/pickups/NPCs exist yet to need this), `IG-13-034`/`035`
+  (background/async district loading), `IG-13-044` (a real many-iteration soak test, not just the
   two round trips `TestDistrictTransition` currently does).
-- `plan_15` `IS-15-006`/`007` (deferred body creation, sleep/activation tuning), `IS-15-009`/`010`
+- `plan_15` `IG-15-006`/`007` (deferred body creation, sleep/activation tuning), `IG-15-009`/`010`
   (real MC3-attribute-driven collision role + layer/mask system, currently everything is one
-  "static box" treatment), `IS-15-022` (steps/slopes/stairs).
-- `plan_39` `IS-39-028` (standalone GLB validation step), `IS-39-032` (collision derived from MC3
+  "static box" treatment), `IG-15-022` (steps/slopes/stairs).
+- `plan_39` `IG-39-028` (standalone GLB validation step), `IG-39-032` (collision derived from MC3
   `collision` attribute instead of the separate procedural AABB — needs the sidecar/MCB metadata
-  compiler from `plan_10` `IS-10-001`/`002`).
-- The upstream `cna_tool_gltf_to_cnj` node-transform-baking gap (`IS-10-004b`) — currently worked
-  around in Iron Shadows by hand-composing multi-part props; a real fix belongs in the `cna`
+  compiler from `plan_10` `IG-10-001`/`002`).
+- The upstream `cna_tool_gltf_to_cnj` node-transform-baking gap (`IG-10-004b`) — currently worked
+  around in Iron Gang by hand-composing multi-part props; a real fix belongs in the `cna`
   sibling repo, out of scope unless explicitly asked to cross into that repo.
 
 ## Useful commands
@@ -878,8 +878,8 @@ Other open items worth picking up opportunistically (not blocking, not sequenced
 ./scripts/check-syntax.sh                    # fast syntax-only pass over every .cpp
 cmake --preset compile-software && cmake --build --preset compile-software   # -j4, ccache
 ctest --preset compile-software --output-on-failure
-./cmake-build-compile-software/iron_shadows --smoke 60     # headless-safe smoke run
-./cmake-build-compile-software/iron_shadows_physics_tests  # standalone physics prototypes
+./cmake-build-compile-software/iron_gang --smoke 60     # headless-safe smoke run
+./cmake-build-compile-software/iron_gang_physics_tests  # standalone physics prototypes
 ```
 
 Jolt lives at `~/deps/jolt` (shared checkout, not a repo sibling) — clone with

@@ -4,64 +4,64 @@
 
 Replace debug boxes with a scalable scene renderer sized for one Mafia-1-fidelity district at a time, not an open-world streaming renderer. Decals, particles, reflection probes, GPU-indirect drawing, and shader-permutation caching are explicitly deferred; see `plan_06` for the CNA/cna-extended integration this depends on.
 
-- [ ] **IS-07-001 P0** — Create a runtime asset handle rather than storing raw graphics-resource pointers in gameplay objects.
-- [ ] **IS-07-002 P0** — Load one CNJ static model and replace one procedural building.
-- [ ] **IS-07-003 P0** — Load one CNJ vehicle model and attach it to the current vehicle transform.
-- [ ] **IS-07-004 P0** — Create a fallback error mesh and material.
-- [ ] **IS-07-005 P0** — Create explicit render-world extraction from gameplay/world state.
-- [ ] **IS-07-006 P1** — Create renderable components for static, skinned, and instanced geometry.
-- [ ] **IS-07-007 P1** — Create frustum culling using CNA bounding primitives.
-- [ ] **IS-07-008 P1** — Create stable opaque and transparent render queues with material/state sorting.
-- [ ] **IS-07-009 P1** — Create per-view constants for the main view and the single shadow view.
-- [ ] **IS-07-010 P2** — Create camera-relative rendering or origin rebasing only if precision tests show it is needed at a district's scale.
-- [ ] **IS-07-011 P1** — Create LOD selection with hysteresis for buildings, props, and characters.
-- [ ] **IS-07-012 P1** — Create instance batching for lamps, windows, street props, and vegetation.
-- [ ] **IS-07-013 P1** — Create visibility layers for gameplay, debug, and cinematic views.
-- [ ] **IS-07-014 P1** — Create resource lifetime fences around asynchronous uploads.
-- [ ] **IS-07-015 P1** — Create safe placeholders while a district's streamed resources are pending at load time.
-- [ ] **IS-07-016 P1** — Create GPU resource accounting by asset and district.
-- [ ] **IS-07-017 P2** — Create render-pass timing markers.
-- [ ] **IS-07-018 P1** — Create render-scene capture for regression tests.
-- [ ] **IS-07-019 P3** — Defer decal rendering (signs, dirt, damage, road markings); ship the first playable district without decals.
-- [ ] **IS-07-020 P3** — Defer a general particle system (dust, smoke, sparks, weather, impacts); use at most a couple of hand-authored sprite effects for v1.
-- [ ] **IS-07-021 P3** — Defer reflection probes, GPU-indirect drawing, occlusion queries, and shader-permutation caching indefinitely; revisit only if profiling the first district shows a bottleneck they would actually fix.
-- [ ] **IS-07-022 P1** — Define the scope, API, and explicit non-goals of the render-world extractor.
-- [ ] **IS-07-023 P1** — Implement the smallest deterministic reference path for the render-world extractor.
-- [ ] **IS-07-024 P1** — Add focused unit tests for the render-world extractor.
-- [ ] **IS-07-025 P1** — Add an integration scenario that exercises the render-world extractor in a running game flow.
-- [ ] **IS-07-026 P2** — Add logging/counters for the render-world extractor and profile it against the first district.
-- [ ] **IS-07-027 P1** — Define the scope, API, and explicit non-goals of the static mesh renderer.
-- [ ] **IS-07-028 P1** — Implement the smallest deterministic reference path for the static mesh renderer.
-- [ ] **IS-07-029 P1** — Add focused unit tests for the static mesh renderer.
-- [ ] **IS-07-030 P1** — Add an integration scenario that exercises the static mesh renderer in a running game flow.
-- [ ] **IS-07-031 P2** — Add logging/counters for the static mesh renderer and profile it against the first district.
-- [ ] **IS-07-032 P1** — Define the scope, API, and explicit non-goals of the skinned mesh renderer.
-- [ ] **IS-07-033 P1** — Implement the smallest deterministic reference path for the skinned mesh renderer.
-- [ ] **IS-07-034 P1** — Add focused unit tests for the skinned mesh renderer.
-- [ ] **IS-07-035 P1** — Add an integration scenario that exercises the skinned mesh renderer in a running game flow.
-- [ ] **IS-07-036 P2** — Add logging/counters for the skinned mesh renderer and profile it against the first district.
-- [ ] **IS-07-037 P1** — Define the scope, API, and explicit non-goals of the instance batch renderer.
-- [ ] **IS-07-038 P1** — Implement the smallest deterministic reference path for the instance batch renderer.
-- [ ] **IS-07-039 P1** — Add focused unit tests for the instance batch renderer.
-- [ ] **IS-07-040 P1** — Add an integration scenario that exercises the instance batch renderer in a running game flow.
-- [ ] **IS-07-041 P2** — Add logging/counters for the instance batch renderer and profile it against the first district.
-- [ ] **IS-07-042 P1** — Define the scope, API, and explicit non-goals of the LOD selector.
-- [ ] **IS-07-043 P1** — Implement the smallest deterministic reference path for the LOD selector.
-- [ ] **IS-07-044 P1** — Add focused unit tests for the LOD selector.
-- [ ] **IS-07-045 P1** — Add an integration scenario that exercises the LOD selector in a running game flow.
-- [ ] **IS-07-046 P2** — Add logging/counters for the LOD selector and profile it against the first district.
-- [ ] **IS-07-047 P1** — Define the scope, API, and explicit non-goals of the visibility culler.
-- [ ] **IS-07-048 P1** — Implement the smallest deterministic reference path for the visibility culler.
-- [ ] **IS-07-049 P1** — Add focused unit tests for the visibility culler.
-- [ ] **IS-07-050 P1** — Add an integration scenario that exercises the visibility culler in a running game flow.
-- [ ] **IS-07-051 P2** — Add logging/counters for the visibility culler and profile it against the first district.
-- [ ] **IS-07-052 P1** — Define the scope, API, and explicit non-goals of the debug geometry renderer.
-- [ ] **IS-07-053 P1** — Implement the smallest deterministic reference path for the debug geometry renderer.
-- [ ] **IS-07-054 P1** — Add focused unit tests for the debug geometry renderer.
-- [ ] **IS-07-055 P1** — Add an integration scenario that exercises the debug geometry renderer in a running game flow.
-- [ ] **IS-07-056 P2** — Add logging/counters for the debug geometry renderer and profile it against the first district.
-- [ ] **IS-07-057 P2** — Define the scope, API, and explicit non-goals of camera and view management.
-- [ ] **IS-07-058 P2** — Implement the smallest deterministic reference path for camera and view management.
-- [ ] **IS-07-059 P2** — Add focused unit tests for camera and view management.
-- [ ] **IS-07-060 P2** — Add an integration scenario that exercises camera and view management in a running game flow.
-- [ ] **IS-07-061 P2** — Add logging/counters for camera and view management and profile it against the first district.
+- [ ] **IG-07-001 P0** — Create a runtime asset handle rather than storing raw graphics-resource pointers in gameplay objects.
+- [ ] **IG-07-002 P0** — Load one CNJ static model and replace one procedural building.
+- [ ] **IG-07-003 P0** — Load one CNJ vehicle model and attach it to the current vehicle transform.
+- [ ] **IG-07-004 P0** — Create a fallback error mesh and material.
+- [ ] **IG-07-005 P0** — Create explicit render-world extraction from gameplay/world state.
+- [ ] **IG-07-006 P1** — Create renderable components for static, skinned, and instanced geometry.
+- [ ] **IG-07-007 P1** — Create frustum culling using CNA bounding primitives.
+- [ ] **IG-07-008 P1** — Create stable opaque and transparent render queues with material/state sorting.
+- [ ] **IG-07-009 P1** — Create per-view constants for the main view and the single shadow view.
+- [ ] **IG-07-010 P2** — Create camera-relative rendering or origin rebasing only if precision tests show it is needed at a district's scale.
+- [ ] **IG-07-011 P1** — Create LOD selection with hysteresis for buildings, props, and characters.
+- [ ] **IG-07-012 P1** — Create instance batching for lamps, windows, street props, and vegetation.
+- [ ] **IG-07-013 P1** — Create visibility layers for gameplay, debug, and cinematic views.
+- [ ] **IG-07-014 P1** — Create resource lifetime fences around asynchronous uploads.
+- [ ] **IG-07-015 P1** — Create safe placeholders while a district's streamed resources are pending at load time.
+- [ ] **IG-07-016 P1** — Create GPU resource accounting by asset and district.
+- [ ] **IG-07-017 P2** — Create render-pass timing markers.
+- [ ] **IG-07-018 P1** — Create render-scene capture for regression tests.
+- [ ] **IG-07-019 P3** — Defer decal rendering (signs, dirt, damage, road markings); ship the first playable district without decals.
+- [ ] **IG-07-020 P3** — Defer a general particle system (dust, smoke, sparks, weather, impacts); use at most a couple of hand-authored sprite effects for v1.
+- [ ] **IG-07-021 P3** — Defer reflection probes, GPU-indirect drawing, occlusion queries, and shader-permutation caching indefinitely; revisit only if profiling the first district shows a bottleneck they would actually fix.
+- [ ] **IG-07-022 P1** — Define the scope, API, and explicit non-goals of the render-world extractor.
+- [ ] **IG-07-023 P1** — Implement the smallest deterministic reference path for the render-world extractor.
+- [ ] **IG-07-024 P1** — Add focused unit tests for the render-world extractor.
+- [ ] **IG-07-025 P1** — Add an integration scenario that exercises the render-world extractor in a running game flow.
+- [ ] **IG-07-026 P2** — Add logging/counters for the render-world extractor and profile it against the first district.
+- [ ] **IG-07-027 P1** — Define the scope, API, and explicit non-goals of the static mesh renderer.
+- [ ] **IG-07-028 P1** — Implement the smallest deterministic reference path for the static mesh renderer.
+- [ ] **IG-07-029 P1** — Add focused unit tests for the static mesh renderer.
+- [ ] **IG-07-030 P1** — Add an integration scenario that exercises the static mesh renderer in a running game flow.
+- [ ] **IG-07-031 P2** — Add logging/counters for the static mesh renderer and profile it against the first district.
+- [ ] **IG-07-032 P1** — Define the scope, API, and explicit non-goals of the skinned mesh renderer.
+- [ ] **IG-07-033 P1** — Implement the smallest deterministic reference path for the skinned mesh renderer.
+- [ ] **IG-07-034 P1** — Add focused unit tests for the skinned mesh renderer.
+- [ ] **IG-07-035 P1** — Add an integration scenario that exercises the skinned mesh renderer in a running game flow.
+- [ ] **IG-07-036 P2** — Add logging/counters for the skinned mesh renderer and profile it against the first district.
+- [ ] **IG-07-037 P1** — Define the scope, API, and explicit non-goals of the instance batch renderer.
+- [ ] **IG-07-038 P1** — Implement the smallest deterministic reference path for the instance batch renderer.
+- [ ] **IG-07-039 P1** — Add focused unit tests for the instance batch renderer.
+- [ ] **IG-07-040 P1** — Add an integration scenario that exercises the instance batch renderer in a running game flow.
+- [ ] **IG-07-041 P2** — Add logging/counters for the instance batch renderer and profile it against the first district.
+- [ ] **IG-07-042 P1** — Define the scope, API, and explicit non-goals of the LOD selector.
+- [ ] **IG-07-043 P1** — Implement the smallest deterministic reference path for the LOD selector.
+- [ ] **IG-07-044 P1** — Add focused unit tests for the LOD selector.
+- [ ] **IG-07-045 P1** — Add an integration scenario that exercises the LOD selector in a running game flow.
+- [ ] **IG-07-046 P2** — Add logging/counters for the LOD selector and profile it against the first district.
+- [ ] **IG-07-047 P1** — Define the scope, API, and explicit non-goals of the visibility culler.
+- [ ] **IG-07-048 P1** — Implement the smallest deterministic reference path for the visibility culler.
+- [ ] **IG-07-049 P1** — Add focused unit tests for the visibility culler.
+- [ ] **IG-07-050 P1** — Add an integration scenario that exercises the visibility culler in a running game flow.
+- [ ] **IG-07-051 P2** — Add logging/counters for the visibility culler and profile it against the first district.
+- [ ] **IG-07-052 P1** — Define the scope, API, and explicit non-goals of the debug geometry renderer.
+- [ ] **IG-07-053 P1** — Implement the smallest deterministic reference path for the debug geometry renderer.
+- [ ] **IG-07-054 P1** — Add focused unit tests for the debug geometry renderer.
+- [ ] **IG-07-055 P1** — Add an integration scenario that exercises the debug geometry renderer in a running game flow.
+- [ ] **IG-07-056 P2** — Add logging/counters for the debug geometry renderer and profile it against the first district.
+- [ ] **IG-07-057 P2** — Define the scope, API, and explicit non-goals of camera and view management.
+- [ ] **IG-07-058 P2** — Implement the smallest deterministic reference path for camera and view management.
+- [ ] **IG-07-059 P2** — Add focused unit tests for camera and view management.
+- [ ] **IG-07-060 P2** — Add an integration scenario that exercises camera and view management in a running game flow.
+- [ ] **IG-07-061 P2** — Add logging/counters for camera and view management and profile it against the first district.

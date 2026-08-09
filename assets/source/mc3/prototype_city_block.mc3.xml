@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<mc3 version="0.3" model="IronShadowsPrototypeBlock" unit="meter" coordinate_system="right_handed_y_up">
+<mc3 version="0.3" model="IronGangPrototypeBlock" unit="meter" coordinate_system="right_handed_y_up">
   <lights>
     <directional name="Sun" color="1 0.94 0.82" brightness="1.1" direction="0.35 -1 -0.25"/>
   </lights>

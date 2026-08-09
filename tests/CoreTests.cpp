@@ -1,21 +1,21 @@
-#include "IronShadows/Cutscenes/CutscenePlayer.hpp"
-#include "IronShadows/Cutscenes/CutsceneSequence.hpp"
-#include "IronShadows/Dialogue/DialogueSystem.hpp"
-#include "IronShadows/Gameplay/Pedestrian.hpp"
-#include "IronShadows/Gameplay/PlayerController.hpp"
-#include "IronShadows/Gameplay/PoliceSystem.hpp"
-#include "IronShadows/Gameplay/TrafficVehicle.hpp"
-#include "IronShadows/Gameplay/VehicleController.hpp"
-#include "IronShadows/Missions/MissionDefinition.hpp"
-#include "IronShadows/Missions/PrototypeMission.hpp"
-#include "IronShadows/Persistence/SaveGame.hpp"
-#include "IronShadows/Physics/PhysicsWorld.hpp"
-#include "IronShadows/Graphics/LightmapMesh.hpp"
-#include "IronShadows/Graphics/SunLight.hpp"
-#include "IronShadows/UI/BitmapFont.hpp"
-#include "IronShadows/World/DistrictManager.hpp"
-#include "IronShadows/World/PrototypeWorld.hpp"
-#include "IronShadows/World/WaypointPath.hpp"
+#include "IronGang/Cutscenes/CutscenePlayer.hpp"
+#include "IronGang/Cutscenes/CutsceneSequence.hpp"
+#include "IronGang/Dialogue/DialogueSystem.hpp"
+#include "IronGang/Gameplay/Pedestrian.hpp"
+#include "IronGang/Gameplay/PlayerController.hpp"
+#include "IronGang/Gameplay/PoliceSystem.hpp"
+#include "IronGang/Gameplay/TrafficVehicle.hpp"
+#include "IronGang/Gameplay/VehicleController.hpp"
+#include "IronGang/Missions/MissionDefinition.hpp"
+#include "IronGang/Missions/PrototypeMission.hpp"
+#include "IronGang/Persistence/SaveGame.hpp"
+#include "IronGang/Physics/PhysicsWorld.hpp"
+#include "IronGang/Graphics/LightmapMesh.hpp"
+#include "IronGang/Graphics/SunLight.hpp"
+#include "IronGang/UI/BitmapFont.hpp"
+#include "IronGang/World/DistrictManager.hpp"
+#include "IronGang/World/PrototypeWorld.hpp"
+#include "IronGang/World/WaypointPath.hpp"
 
 #include <cmath>
 #include <filesystem>
@@ -37,53 +37,53 @@ namespace
 
     void TestWorldCollision()
     {
-        IronShadows::PrototypeWorld world;
-        const IronShadows::Vector3 insideHotel(-18.0F, 1.70F, 18.0F);
+        IronGang::PrototypeWorld world;
+        const IronGang::Vector3 insideHotel(-18.0F, 1.70F, 18.0F);
         Require(!world.CanOccupy(insideHotel, 0.35F), "hotel collider must reject occupancy");
         Require(world.CanOccupy(world.GetPlayerSpawn(), 0.35F), "player spawn must be free");
     }
 
     void TestVehicleMotion()
     {
-        IronShadows::PrototypeWorld world;
-        IronShadows::Physics::PhysicsWorld physics;
+        IronGang::PrototypeWorld world;
+        IronGang::Physics::PhysicsWorld physics;
         (void)world.BuildPhysicsStaticBodies(physics);
-        IronShadows::VehicleController vehicle;
+        IronGang::VehicleController vehicle;
         vehicle.Reset(world.GetVehicleSpawn(), world.GetVehicleSpawnYaw(), physics);
-        const IronShadows::Vector3 before = vehicle.GetPosition();
-        IronShadows::VehicleInput input;
+        const IronGang::Vector3 before = vehicle.GetPosition();
+        IronGang::VehicleInput input;
         input.throttle = 1.0F;
         for (int i = 0; i < 180; ++i)
         {
             vehicle.Update(1.0F / 60.0F, input, physics);
         }
         Require(vehicle.GetSpeed() > 1.0F, "vehicle must accelerate");
-        Require(IronShadows::DistanceSquaredXZ(before, vehicle.GetPosition()) > 1.0F,
+        Require(IronGang::DistanceSquaredXZ(before, vehicle.GetPosition()) > 1.0F,
                 "vehicle must move from spawn");
     }
 
     void TestPlayerMotion()
     {
-        IronShadows::PrototypeWorld world;
-        IronShadows::Physics::PhysicsWorld physics;
+        IronGang::PrototypeWorld world;
+        IronGang::Physics::PhysicsWorld physics;
         (void)world.BuildPhysicsStaticBodies(physics);
-        IronShadows::PlayerController player;
+        IronGang::PlayerController player;
         player.Reset(world.GetPlayerSpawn(), 0.0F, physics);
-        const IronShadows::Vector3 before = player.GetPosition();
-        IronShadows::OnFootInput input;
+        const IronGang::Vector3 before = player.GetPosition();
+        IronGang::OnFootInput input;
         input.forward = 1.0F;
         for (int i = 0; i < 90; ++i)
         {
             player.Update(1.0F / 60.0F, input, physics);
         }
-        Require(IronShadows::DistanceSquaredXZ(before, player.GetPosition()) > 1.0F,
+        Require(IronGang::DistanceSquaredXZ(before, player.GetPosition()) > 1.0F,
                 "player must move from spawn when walking forward");
 
         // Walking straight at the hotel (a static collider spanning X in [-26,-10], Z in
         // [10,26]) for a long time must not tunnel through its ~16-unit thickness.
-        IronShadows::PlayerController blocked;
+        IronGang::PlayerController blocked;
         blocked.Reset({-5.0F, 1.70F, 18.0F}, 0.0F, physics);
-        IronShadows::OnFootInput towardHotel;
+        IronGang::OnFootInput towardHotel;
         towardHotel.strafe = -1.0F;
         for (int i = 0; i < 300; ++i)
         {
@@ -93,15 +93,15 @@ namespace
                 "walking into the hotel collider for 5 seconds must not tunnel through it");
     }
 
-    // Gate M5 / plan_13 (IS-13-042 equivalent): transitioning between the two prototype
+    // Gate M5 / plan_13 (IG-13-042 equivalent): transitioning between the two prototype
     // districts must swap the loaded world, replace its static physics bodies without leaking
     // the old ones, and honor the loading screen's minimum display time exactly once.
     void TestDistrictTransition()
     {
-        IronShadows::Physics::PhysicsWorld physics;
-        IronShadows::DistrictManager districts;
+        IronGang::Physics::PhysicsWorld physics;
+        IronGang::DistrictManager districts;
         districts.Initialize(physics);
-        Require(districts.GetWorld().GetId() == IronShadows::DistrictId::WarehouseBlock,
+        Require(districts.GetWorld().GetId() == IronGang::DistrictId::WarehouseBlock,
                 "DistrictManager must start in the warehouse block");
         // The two districts have different numbers of static bodies (different scenes), so only
         // a full round trip back to the same district is a valid leak check -- not the raw count
@@ -109,7 +109,7 @@ namespace
         const std::size_t warehouseBodyCount = physics.GetBodyCount();
 
         districts.RequestTransition(physics);
-        Require(districts.GetWorld().GetId() == IronShadows::DistrictId::Countryside,
+        Require(districts.GetWorld().GetId() == IronGang::DistrictId::Countryside,
                 "the warehouse block's exit must lead to the countryside");
         Require(districts.IsTransitioning(), "requesting a transition must show a loading screen");
         Require(!districts.ConsumeArrival(),
@@ -126,7 +126,7 @@ namespace
 
         // The countryside's own exit must lead back to the warehouse block.
         districts.RequestTransition(physics);
-        Require(districts.GetWorld().GetId() == IronShadows::DistrictId::WarehouseBlock,
+        Require(districts.GetWorld().GetId() == IronGang::DistrictId::WarehouseBlock,
                 "the countryside's exit must lead back to the warehouse block");
         for (int i = 0; i < 60; ++i)
         {
@@ -149,17 +149,17 @@ namespace
 
     void TestMissionFlow()
     {
-        IronShadows::PrototypeWorld world;
-        IronShadows::PrototypeMission mission;
+        IronGang::PrototypeWorld world;
+        IronGang::PrototypeMission mission;
         mission.Reset();
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::ReachVehicle,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::ReachVehicle,
                 "dialogue completion must start reach-vehicle objective");
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::EnterVehicle,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::EnterVehicle,
                 "reaching the car must request entry");
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::DriveToWarehouse,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::DriveToWarehouse,
                 "entering the car must start driving objective");
         mission.Update(true,
                        world.GetWarehouseGoal().bounds.center,
@@ -169,29 +169,29 @@ namespace
         Require(mission.IsCompleted(), "entering warehouse trigger must complete mission");
     }
 
-    // Gate M7 / plan_24 (IS-24-001/004/026): the mission's states/objectives/transitions now
+    // Gate M7 / plan_24 (IG-24-001/004/026): the mission's states/objectives/transitions now
     // come from a data file (assets/missions/prologue.mission.json), not a hardcoded switch --
     // this drives the exact same flow TestMissionFlow() above exercises against the hardcoded
     // fallback, but through PrototypeMission::LoadMission() against the real, committed file.
     void TestMissionLoadsCommittedFile()
     {
-        IronShadows::PrototypeWorld world;
-        IronShadows::PrototypeMission mission;
+        IronGang::PrototypeWorld world;
+        IronGang::PrototypeMission mission;
 
         std::string error;
-        Require(mission.LoadMission(std::string(IRON_SHADOWS_SOURCE_ASSET_DIR) + "/missions/prologue.mission.json",
+        Require(mission.LoadMission(std::string(IRON_GANG_SOURCE_ASSET_DIR) + "/missions/prologue.mission.json",
                                     error),
                 "loading the committed mission file must succeed: " + error);
         mission.Reset();
 
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::ReachVehicle,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::ReachVehicle,
                 "loaded mission: dialogue completion must start reach-vehicle objective");
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::EnterVehicle,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::EnterVehicle,
                 "loaded mission: reaching the car must request entry");
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::DriveToWarehouse,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::DriveToWarehouse,
                 "loaded mission: entering the car must start driving objective");
         mission.Update(true,
                        world.GetWarehouseGoal().bounds.center,
@@ -208,34 +208,34 @@ namespace
     }
 
     // Gate M7: LoadMissionDefinition must reject malformed mission data with an actionable
-    // error rather than silently accepting it (IS-24-003's smallest form: inline validation).
+    // error rather than silently accepting it (IG-24-003's smallest form: inline validation).
     void TestMissionValidationRejectsMalformedData()
     {
-        const std::filesystem::path path = std::filesystem::current_path() / "iron_shadows_bad_mission.json";
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_bad_mission.json";
         std::string error;
-        IronShadows::MissionDefinition definition;
+        IronGang::MissionDefinition definition;
 
         WriteTempJson(path, R"JSON({"initialState":"a","states":[{"id":"a","next":"missing"}]})JSON");
-        Require(!IronShadows::LoadMissionDefinition(path.string(), definition, error),
+        Require(!IronGang::LoadMissionDefinition(path.string(), definition, error),
                 "a \"next\" referencing an unknown state id must be rejected");
 
         WriteTempJson(path, R"JSON({"initialState":"nowhere","states":[{"id":"a"}]})JSON");
-        Require(!IronShadows::LoadMissionDefinition(path.string(), definition, error),
+        Require(!IronGang::LoadMissionDefinition(path.string(), definition, error),
                 "an initialState referencing an unknown state id must be rejected");
 
         WriteTempJson(path, R"JSON({"initialState":"a","states":[{"id":"a"},{"id":"a"}]})JSON");
-        Require(!IronShadows::LoadMissionDefinition(path.string(), definition, error),
+        Require(!IronGang::LoadMissionDefinition(path.string(), definition, error),
                 "a duplicate state id must be rejected");
 
         WriteTempJson(path, R"JSON({"initialState":"a","states":[{"id":"a","condition":"not_a_real_condition"}]})JSON");
-        Require(!IronShadows::LoadMissionDefinition(path.string(), definition, error),
+        Require(!IronGang::LoadMissionDefinition(path.string(), definition, error),
                 "an unrecognized condition name must be rejected");
 
         WriteTempJson(path, R"JSON({"initialState":"a","states":[]})JSON");
-        Require(!IronShadows::LoadMissionDefinition(path.string(), definition, error),
+        Require(!IronGang::LoadMissionDefinition(path.string(), definition, error),
                 "a mission with no states must be rejected");
 
-        Require(!IronShadows::LoadMissionDefinition((path.string() + ".does-not-exist"), definition, error),
+        Require(!IronGang::LoadMissionDefinition((path.string() + ".does-not-exist"), definition, error),
                 "a missing file must be rejected, not crash");
 
         // One well-formed, minimal two-state mission must still succeed after all the rejections
@@ -249,35 +249,35 @@ namespace
                 { "id": "done", "objective": "Done" }
             ]
         })JSON");
-        Require(IronShadows::LoadMissionDefinition(path.string(), definition, error),
+        Require(IronGang::LoadMissionDefinition(path.string(), definition, error),
                 "a well-formed minimal mission must load successfully: " + error);
         Require(definition.initialState == "start", "initialState must round-trip correctly");
         Require(definition.states.size() == 2, "both states must be parsed");
-        const IronShadows::MissionStateDefinition* start = definition.FindState("start");
-        Require(start != nullptr && start->condition == IronShadows::MissionCondition::PlayerDriving,
+        const IronGang::MissionStateDefinition* start = definition.FindState("start");
+        Require(start != nullptr && start->condition == IronGang::MissionCondition::PlayerDriving,
                 "the named condition must resolve to the matching MissionCondition enum value");
         Require(start->next == "done", "next must round-trip correctly");
-        const IronShadows::MissionStateDefinition* done = definition.FindState("done");
-        Require(done != nullptr && done->next.empty() && done->condition == IronShadows::MissionCondition::None,
+        const IronGang::MissionStateDefinition* done = definition.FindState("done");
+        Require(done != nullptr && done->next.empty() && done->condition == IronGang::MissionCondition::None,
                 "a state with no \"next\"/\"condition\" fields must default to terminal/None");
 
         std::filesystem::remove(path);
     }
 
-    // Gate M8 / plan_26 (IS-26-001/004): the minimal in-engine sequence player must advance its
+    // Gate M8 / plan_26 (IG-26-001/004): the minimal in-engine sequence player must advance its
     // camera track over time, interpolating between keyframes, and finish (hand control back) at
     // the correct instant.
     void TestCutscenePlayerAdvancesAndFinishes()
     {
-        IronShadows::CutsceneSequence sequence;
+        IronGang::CutsceneSequence sequence;
         sequence.id = "test_sequence";
         sequence.duration = 2.0F;
         sequence.cameraKeyframes = {
-            {0.0F, IronShadows::Vector3(0.0F, 0.0F, 0.0F), IronShadows::Vector3(10.0F, 0.0F, 0.0F)},
-            {2.0F, IronShadows::Vector3(4.0F, 8.0F, 0.0F), IronShadows::Vector3(20.0F, 0.0F, 0.0F)},
+            {0.0F, IronGang::Vector3(0.0F, 0.0F, 0.0F), IronGang::Vector3(10.0F, 0.0F, 0.0F)},
+            {2.0F, IronGang::Vector3(4.0F, 8.0F, 0.0F), IronGang::Vector3(20.0F, 0.0F, 0.0F)},
         };
 
-        IronShadows::CutscenePlayer player;
+        IronGang::CutscenePlayer player;
         Require(!player.IsActive(), "a player must not be active before Start()");
         player.Start(sequence);
         Require(player.IsActive(), "Start() with a non-empty sequence must become active");
@@ -300,18 +300,18 @@ namespace
                 "the terminal camera position must match the last keyframe exactly");
     }
 
-    // Skip must apply the SAME terminal state a natural finish would (IS-26-004), not some other
+    // Skip must apply the SAME terminal state a natural finish would (IG-26-004), not some other
     // arbitrary "stopped" state.
     void TestCutscenePlayerSkipAppliesTerminalState()
     {
-        IronShadows::CutsceneSequence sequence;
+        IronGang::CutsceneSequence sequence;
         sequence.duration = 5.0F;
         sequence.cameraKeyframes = {
-            {0.0F, IronShadows::Vector3(0.0F, 0.0F, 0.0F), IronShadows::Vector3(1.0F, 0.0F, 0.0F)},
-            {5.0F, IronShadows::Vector3(9.0F, 0.0F, 0.0F), IronShadows::Vector3(2.0F, 0.0F, 0.0F)},
+            {0.0F, IronGang::Vector3(0.0F, 0.0F, 0.0F), IronGang::Vector3(1.0F, 0.0F, 0.0F)},
+            {5.0F, IronGang::Vector3(9.0F, 0.0F, 0.0F), IronGang::Vector3(2.0F, 0.0F, 0.0F)},
         };
 
-        IronShadows::CutscenePlayer player;
+        IronGang::CutscenePlayer player;
         player.Start(sequence);
         player.Update(0.2F); // barely started
         player.Skip();
@@ -325,39 +325,39 @@ namespace
 
     void TestCutsceneValidationRejectsMalformedData()
     {
-        const std::filesystem::path path = std::filesystem::current_path() / "iron_shadows_bad_cutscene.json";
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_bad_cutscene.json";
         std::string error;
-        IronShadows::CutsceneSequence sequence;
+        IronGang::CutsceneSequence sequence;
 
         WriteTempJson(path, R"JSON({"duration":2.0,"cameraKeyframes":[]})JSON");
-        Require(!IronShadows::LoadCutsceneSequence(path.string(), sequence, error),
+        Require(!IronGang::LoadCutsceneSequence(path.string(), sequence, error),
                 "an empty cameraKeyframes array must be rejected");
 
         WriteTempJson(path, R"JSON({"duration":2.0,"cameraKeyframes":[
             {"time":0.5,"position":[0,0,0],"lookAt":[1,0,0]}
         ]})JSON");
-        Require(!IronShadows::LoadCutsceneSequence(path.string(), sequence, error),
+        Require(!IronGang::LoadCutsceneSequence(path.string(), sequence, error),
                 "a first keyframe not at time 0 must be rejected");
 
         WriteTempJson(path, R"JSON({"duration":2.0,"cameraKeyframes":[
             {"time":0.0,"position":[0,0,0],"lookAt":[1,0,0]},
             {"time":0.0,"position":[1,0,0],"lookAt":[1,0,0]}
         ]})JSON");
-        Require(!IronShadows::LoadCutsceneSequence(path.string(), sequence, error),
+        Require(!IronGang::LoadCutsceneSequence(path.string(), sequence, error),
                 "keyframes that are not strictly ascending in time must be rejected");
 
         WriteTempJson(path, R"JSON({"duration":1.0,"cameraKeyframes":[
             {"time":0.0,"position":[0,0,0],"lookAt":[1,0,0]},
             {"time":2.0,"position":[1,0,0],"lookAt":[1,0,0]}
         ]})JSON");
-        Require(!IronShadows::LoadCutsceneSequence(path.string(), sequence, error),
+        Require(!IronGang::LoadCutsceneSequence(path.string(), sequence, error),
                 "a duration shorter than the last keyframe's time must be rejected");
 
         WriteTempJson(path, R"JSON({"cameraKeyframes":[{"time":0.0,"position":[0,0,0],"lookAt":[1,0,0]}]})JSON");
-        Require(!IronShadows::LoadCutsceneSequence(path.string(), sequence, error),
+        Require(!IronGang::LoadCutsceneSequence(path.string(), sequence, error),
                 "a missing \"duration\" must be rejected");
 
-        Require(!IronShadows::LoadCutsceneSequence((path.string() + ".does-not-exist"), sequence, error),
+        Require(!IronGang::LoadCutsceneSequence((path.string() + ".does-not-exist"), sequence, error),
                 "a missing file must be rejected, not crash");
 
         WriteTempJson(path, R"JSON({
@@ -369,7 +369,7 @@ namespace
                 { "time": 1.5, "position": [6, 7, 8], "lookAt": [9, 10, 11] }
             ]
         })JSON");
-        Require(IronShadows::LoadCutsceneSequence(path.string(), sequence, error),
+        Require(IronGang::LoadCutsceneSequence(path.string(), sequence, error),
                 "a well-formed minimal cutscene must load successfully: " + error);
         Require(sequence.cameraKeyframes.size() == 2, "both keyframes must be parsed");
         Require(std::abs(sequence.cameraKeyframes[0].position.Y - 1.0F) < 1e-4F,
@@ -380,7 +380,7 @@ namespace
 
     void TestDialogueFallback()
     {
-        IronShadows::DialogueSystem dialogue;
+        IronGang::DialogueSystem dialogue;
         dialogue.LoadFallbackPrologue();
         dialogue.Start();
         Require(dialogue.IsActive(), "fallback dialogue must start");
@@ -392,52 +392,52 @@ namespace
         Require(dialogue.IsFinished(), "dialogue must finish after all lines advance");
     }
 
-    // Gate M9 / plan_19 (IS-19-001/002): AdvanceAlongPath must move toward the current target at
+    // Gate M9 / plan_19 (IG-19-001/002): AdvanceAlongPath must move toward the current target at
     // the given speed, and only advance (wrapping, since loop=true here) to the next target once
     // it arrives within arrivalRadius -- checked against hand-computed positions/yaws. Values
     // below are hand-verified via a standalone diagnostic, not just derived on paper.
     void TestWaypointPathAdvancesAndWraps()
     {
-        IronShadows::WaypointPath path;
-        path.points = {IronShadows::Vector3(0.0F, 0.0F, 0.0F), IronShadows::Vector3(10.0F, 0.0F, 0.0F)};
+        IronGang::WaypointPath path;
+        path.points = {IronGang::Vector3(0.0F, 0.0F, 0.0F), IronGang::Vector3(10.0F, 0.0F, 0.0F)};
         path.loop = true;
 
         // Starting exactly AT points[0] with targetIndex 0 already means "arrived" (distance 0),
         // so the very first call immediately advances to points[1] before moving -- matching how
         // TrafficVehicle::Reset()/Pedestrian::Reset() both start a mover exactly at its first
         // waypoint.
-        IronShadows::Vector3 position(0.0F, 0.0F, 0.0F);
+        IronGang::Vector3 position(0.0F, 0.0F, 0.0F);
         std::size_t targetIndex = 0;
         float yaw = 0.0F;
 
-        yaw = IronShadows::AdvanceAlongPath(path, position, targetIndex, 5.0F, 1.0F, 0.5F, yaw);
+        yaw = IronGang::AdvanceAlongPath(path, position, targetIndex, 5.0F, 1.0F, 0.5F, yaw);
         Require(targetIndex == 1, "starting exactly at the current target must advance to the next one immediately");
         Require(std::abs(position.X - 5.0F) < 1e-4F, "first step must then move halfway toward the new target");
         Require(std::abs(yaw - std::numbers::pi_v<float> / 2.0F) < 1e-4F,
                 "yaw facing +X must be +90 degrees under ForwardFromYaw's convention");
 
-        yaw = IronShadows::AdvanceAlongPath(path, position, targetIndex, 5.0F, 1.0F, 0.5F, yaw);
+        yaw = IronGang::AdvanceAlongPath(path, position, targetIndex, 5.0F, 1.0F, 0.5F, yaw);
         Require(std::abs(position.X - 10.0F) < 1e-4F, "second step must land exactly on the target");
         Require(targetIndex == 1, "the arrival check only runs at the START of a call, one frame later");
 
         // Third call: now within arrivalRadius (distance 0) at the START of the call, and index 1
         // is the path's last point, so a looping path must wrap back to index 0.
-        yaw = IronShadows::AdvanceAlongPath(path, position, targetIndex, 5.0F, 1.0F, 0.5F, yaw);
+        yaw = IronGang::AdvanceAlongPath(path, position, targetIndex, 5.0F, 1.0F, 0.5F, yaw);
         Require(targetIndex == 0, "reaching the last point of a looping path must wrap back to index 0");
         Require(std::abs(position.X - 5.0F) < 1e-4F, "third step must move back toward the wrapped target");
         Require(std::abs(yaw - (-std::numbers::pi_v<float> / 2.0F)) < 1e-4F,
                 "yaw facing -X must be -90 degrees under ForwardFromYaw's convention");
     }
 
-    // Gate M9 / plan_21 (IS-21-001/002): a TrafficVehicle must accelerate toward its cruise speed
+    // Gate M9 / plan_21 (IG-21-001/002): a TrafficVehicle must accelerate toward its cruise speed
     // when clear ahead, and brake to a stop when something is within the minimum gap.
     void TestTrafficVehicleAcceleratesAndBrakes()
     {
-        IronShadows::WaypointPath path;
-        path.points = {IronShadows::Vector3(0.0F, 0.0F, 0.0F), IronShadows::Vector3(1000.0F, 0.0F, 0.0F)};
+        IronGang::WaypointPath path;
+        path.points = {IronGang::Vector3(0.0F, 0.0F, 0.0F), IronGang::Vector3(1000.0F, 0.0F, 0.0F)};
         path.loop = false;
 
-        IronShadows::TrafficVehicle vehicle;
+        IronGang::TrafficVehicle vehicle;
         vehicle.Reset(path, 0, 10.0F);
         Require(std::abs(vehicle.GetForwardSpeed()) < 1e-4F, "a freshly reset vehicle must start at rest");
 
@@ -458,19 +458,19 @@ namespace
                 "a vehicle that braked to a stop must accelerate again once the obstacle clears");
     }
 
-    // Gate M9 / plan_20 (IS-20-001/002/003): a Pedestrian must flee directly away from a threat
+    // Gate M9 / plan_20 (IG-20-001/002/003): a Pedestrian must flee directly away from a threat
     // for a fixed duration (even after the threat itself is no longer reported present), then
     // resume its normal path once that duration elapses.
     void TestPedestrianFleesAndResumesPath()
     {
-        IronShadows::WaypointPath path;
-        path.points = {IronShadows::Vector3(0.0F, 0.9F, 0.0F), IronShadows::Vector3(0.0F, 0.9F, 50.0F)};
+        IronGang::WaypointPath path;
+        path.points = {IronGang::Vector3(0.0F, 0.9F, 0.0F), IronGang::Vector3(0.0F, 0.9F, 50.0F)};
         path.loop = true;
 
-        IronShadows::Pedestrian pedestrian;
+        IronGang::Pedestrian pedestrian;
         pedestrian.Reset(path, 0, 1.6F);
 
-        const IronShadows::Vector3 threatPosition(0.0F, 0.9F, -5.0F);
+        const IronGang::Vector3 threatPosition(0.0F, 0.9F, -5.0F);
         pedestrian.Update(1.0F, true, threatPosition);
         Require(pedestrian.IsFleeing(), "a pedestrian with a threat present must start fleeing");
         // away = (0,0,5), distance 5, direction (0,0,1); step = 1.6 * 2.5 * 1.0 = 4.0.
@@ -483,7 +483,7 @@ namespace
         // pedestrian must keep fleeing off its own timer, away from the ORIGINAL threat position.
         for (int i = 0; i < 3; ++i)
         {
-            pedestrian.Update(1.0F, false, IronShadows::Vector3());
+            pedestrian.Update(1.0F, false, IronGang::Vector3());
             Require(pedestrian.IsFleeing(), "the flee state must persist for its full duration on its own timer");
         }
         Require(std::abs(pedestrian.GetPosition().Z - 16.0F) < 1e-4F,
@@ -491,34 +491,34 @@ namespace
 
         // The flee timer (4s total) expires on this 5th call (1 trigger + 4 no-threat calls);
         // the pedestrian must resume following its own WaypointPath instead of still fleeing.
-        pedestrian.Update(1.0F, false, IronShadows::Vector3());
+        pedestrian.Update(1.0F, false, IronGang::Vector3());
         Require(!pedestrian.IsFleeing(), "the flee state must end once its fixed duration elapses");
     }
 
-    // Gate M9 / plan_22 (IS-22-001/002/003/004): the full witnessed-offense -> dispatch -> chase
+    // Gate M9 / plan_22 (IG-22-001/002/003/004): the full witnessed-offense -> dispatch -> chase
     // -> escalate -> resolve cycle, with every timer/threshold exercised at its exact boundary.
     void TestPoliceSystemFullCycle()
     {
-        IronShadows::PoliceSystem police;
+        IronGang::PoliceSystem police;
         police.Reset();
-        Require(police.GetState() == IronShadows::PoliceState::Clear, "a fresh PoliceSystem must start Clear");
+        Require(police.GetState() == IronGang::PoliceState::Clear, "a fresh PoliceSystem must start Clear");
 
-        const IronShadows::Vector3 origin(0.0F, 0.0F, 0.0F);
-        const IronShadows::Vector3 spawnPosition(20.0F, 0.0F, 0.0F);
+        const IronGang::Vector3 origin(0.0F, 0.0F, 0.0F);
+        const IronGang::Vector3 spawnPosition(20.0F, 0.0F, 0.0F);
 
         // Not driving: even a very close, very fast "witness" must never trigger a chase.
-        police.Update(1.0F, false, origin, 120.0F, {IronShadows::Vector3(1.0F, 0.0F, 0.0F)}, spawnPosition);
-        Require(police.GetState() == IronShadows::PoliceState::Clear,
+        police.Update(1.0F, false, origin, 120.0F, {IronGang::Vector3(1.0F, 0.0F, 0.0F)}, spawnPosition);
+        Require(police.GetState() == IronGang::PoliceState::Clear,
                 "an offense while not driving must never be witnessed");
 
         // Driving fast, but the only witness is far outside the witness radius (15 units).
-        police.Update(1.0F, true, origin, 120.0F, {IronShadows::Vector3(1000.0F, 0.0F, 0.0F)}, spawnPosition);
-        Require(police.GetState() == IronShadows::PoliceState::Clear,
+        police.Update(1.0F, true, origin, 120.0F, {IronGang::Vector3(1000.0F, 0.0F, 0.0F)}, spawnPosition);
+        Require(police.GetState() == IronGang::PoliceState::Clear,
                 "a witness outside the witness radius must not trigger a chase");
 
         // Driving over the speed threshold with a witness inside the radius: must dispatch.
-        police.Update(1.0F, true, origin, 100.0F, {IronShadows::Vector3(5.0F, 0.0F, 0.0F)}, spawnPosition);
-        Require(police.GetState() == IronShadows::PoliceState::Dispatched,
+        police.Update(1.0F, true, origin, 100.0F, {IronGang::Vector3(5.0F, 0.0F, 0.0F)}, spawnPosition);
+        Require(police.GetState() == IronGang::PoliceState::Dispatched,
                 "speeding witnessed within radius must dispatch a patrol car");
         Require(police.GetActivePatrolCount() == 1, "dispatch must spawn exactly one patrol car");
         Require(std::abs(police.GetPatrolPosition(0).X - spawnPosition.X) < 1e-4F,
@@ -526,10 +526,10 @@ namespace
 
         // Dispatched has a fixed delay (2s) before patrol cars actually start moving/chasing.
         police.Update(1.0F, true, origin, 0.0F, {}, spawnPosition);
-        Require(police.GetState() == IronShadows::PoliceState::Dispatched,
+        Require(police.GetState() == IronGang::PoliceState::Dispatched,
                 "the dispatch delay must not elapse after only 1 of its 2 seconds");
         police.Update(1.5F, true, origin, 0.0F, {}, spawnPosition);
-        Require(police.GetState() == IronShadows::PoliceState::Chasing,
+        Require(police.GetState() == IronGang::PoliceState::Chasing,
                 "the dispatch delay must elapse and start the chase");
 
         // One chase tick at normal speed: hand-verified pursuit math (patrol starts 20 units from
@@ -548,20 +548,20 @@ namespace
                 "the first patrol car must have closed the full remaining distance to the player");
         Require(police.GetPatrolPosition(1).Length() < 1e-4F,
                 "the newly escalated patrol car must also close its own distance to the player");
-        Require(police.GetState() == IronShadows::PoliceState::Chasing, "escalating must not end the chase");
+        Require(police.GetState() == IronGang::PoliceState::Chasing, "escalating must not end the chase");
 
         // The player "escapes" to somewhere far away; patrol cars can only close 9 units/s, so
         // they stay far behind (closestDistance stays well over the 40-unit resolve distance) for
         // 3 full seconds -- the chase must then resolve back to Clear.
-        const IronShadows::Vector3 farAway(1000.0F, 0.0F, 0.0F);
+        const IronGang::Vector3 farAway(1000.0F, 0.0F, 0.0F);
         police.Update(1.0F, true, farAway, 0.0F, {}, spawnPosition);
-        Require(police.GetState() == IronShadows::PoliceState::Chasing,
+        Require(police.GetState() == IronGang::PoliceState::Chasing,
                 "the resolve distance must be sustained, not trigger instantly");
         police.Update(1.0F, true, farAway, 0.0F, {}, spawnPosition);
-        Require(police.GetState() == IronShadows::PoliceState::Chasing,
+        Require(police.GetState() == IronGang::PoliceState::Chasing,
                 "resolve must require the full sustain duration (2 of 3 seconds so far)");
         police.Update(1.0F, true, farAway, 0.0F, {}, spawnPosition);
-        Require(police.GetState() == IronShadows::PoliceState::Clear,
+        Require(police.GetState() == IronGang::PoliceState::Clear,
                 "sustaining the resolve distance for the full 3 seconds must clear the chase");
         Require(police.GetActivePatrolCount() == 0, "clearing a chase must remove all patrol cars");
     }
@@ -573,15 +573,15 @@ namespace
     // GraphicsDevice/rendering, since BuildFont8x8AtlasPixels() needs neither.
     void TestBitmapFontGlyphAtlas()
     {
-        const auto pixels = IronShadows::BuildFont8x8AtlasPixels();
+        const auto pixels = IronGang::BuildFont8x8AtlasPixels();
         Require(pixels.size() ==
-                    static_cast<std::size_t>(IronShadows::kFont8x8AtlasWidth) *
-                        static_cast<std::size_t>(IronShadows::kFont8x8AtlasHeight),
+                    static_cast<std::size_t>(IronGang::kFont8x8AtlasWidth) *
+                        static_cast<std::size_t>(IronGang::kFont8x8AtlasHeight),
                 "the atlas pixel buffer must be exactly atlasWidth * atlasHeight pixels");
 
-        auto pixelAt = [&](int x, int y) -> const IronShadows::Color&
+        auto pixelAt = [&](int x, int y) -> const IronGang::Color&
         {
-            return pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(IronShadows::kFont8x8AtlasWidth) +
+            return pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(IronGang::kFont8x8AtlasWidth) +
                          static_cast<std::size_t>(x)];
         };
 
@@ -608,40 +608,40 @@ namespace
                 "'A' row 2, column 4 (bit 4 of 0x33) must be opaque");
 
         // Opaque pixels must be white (this font has no grayscale/anti-aliasing).
-        const IronShadows::Color& litPixel = pixelAt(originX + 2, originY + 0);
+        const IronGang::Color& litPixel = pixelAt(originX + 2, originY + 0);
         Require(litPixel.getRProperty() == 255 && litPixel.getGProperty() == 255 && litPixel.getBProperty() == 255,
                 "an opaque glyph pixel must be pure white");
     }
 
-    // Gate M10 / plan_39 IS-39-011 (dynamic sun): ComputeSunBrightness() is a plain deterministic
+    // Gate M10 / plan_39 IG-39-011 (dynamic sun): ComputeSunBrightness() is a plain deterministic
     // function of the hand-authored kSunDirection/kSunIntensity/kSunAmbientFloor constants --
     // hand-computed here (upDot = -kSunDirection.Y = 0.5997; brightness = 0.35 + 0.75*0.5997 =
     // 0.799775) so a future change to those constants can't silently drift without a test noticing.
     void TestSunBrightnessMatchesHandComputedValue()
     {
-        const float brightness = IronShadows::ComputeSunBrightness();
+        const float brightness = IronGang::ComputeSunBrightness();
         Require(std::abs(brightness - 0.799775F) < 1e-4F,
                 "ComputeSunBrightness() must match the hand-computed value for the authored sun direction");
     }
 
-    // Gate M10 / plan_39 IS-39-011 (baked lighting): LightmapMeshBuilder must bake one flat-shaded
+    // Gate M10 / plan_39 IG-39-011 (baked lighting): LightmapMeshBuilder must bake one flat-shaded
     // tile per box face into the atlas at the hand-computed brightness for that face's normal, and
     // point each face's vertices at the exact center of its own tile. Expected levels below were
     // cross-checked with a standalone Python calculation against ComputeBrightnessForNormal()'s
     // own formula before being embedded here.
     void TestLightmapMeshBuilderBakesPerFaceBrightness()
     {
-        IronShadows::LightmapMeshBuilder builder;
-        builder.AddBox(IronShadows::Vector3(0.0F, 0.0F, 0.0F), IronShadows::Vector3(2.0F, 2.0F, 2.0F),
-                       IronShadows::Color(200, 200, 200, 255));
+        IronGang::LightmapMeshBuilder builder;
+        builder.AddBox(IronGang::Vector3(0.0F, 0.0F, 0.0F), IronGang::Vector3(2.0F, 2.0F, 2.0F),
+                       IronGang::Color(200, 200, 200, 255));
         builder.Finalize();
 
         Require(builder.GetVertices().size() == 24,
                 "one box must produce 24 vertices -- 4 per face, 6 faces, no vertex sharing across faces");
         Require(builder.GetIndices().size() == 36, "one box must produce 36 indices (6 per face * 6 faces)");
-        Require(builder.GetAtlasWidth() == IronShadows::kLightmapAtlasColumns * IronShadows::kLightmapTileSize,
+        Require(builder.GetAtlasWidth() == IronGang::kLightmapAtlasColumns * IronGang::kLightmapTileSize,
                 "atlas width must be columns * tile size");
-        Require(builder.GetAtlasHeight() == IronShadows::kLightmapTileSize,
+        Require(builder.GetAtlasHeight() == IronGang::kLightmapTileSize,
                 "6 tiles fit in a single row of the 32-column atlas, so atlas height must be exactly one tile tall");
 
         // AddBox() adds faces in a fixed order: front, back, left, right, bottom, top (tile
@@ -653,12 +653,12 @@ namespace
         const int atlasWidth = builder.GetAtlasWidth();
         auto tileLevel = [&](int tileIndex) -> int
         {
-            const int column = tileIndex % IronShadows::kLightmapAtlasColumns;
-            const int row = tileIndex / IronShadows::kLightmapAtlasColumns;
+            const int column = tileIndex % IronGang::kLightmapAtlasColumns;
+            const int row = tileIndex / IronGang::kLightmapAtlasColumns;
             const std::size_t pixelIndex =
-                static_cast<std::size_t>(row * IronShadows::kLightmapTileSize) *
+                static_cast<std::size_t>(row * IronGang::kLightmapTileSize) *
                     static_cast<std::size_t>(atlasWidth) +
-                static_cast<std::size_t>(column * IronShadows::kLightmapTileSize);
+                static_cast<std::size_t>(column * IronGang::kLightmapTileSize);
             return pixels[pixelIndex].getRProperty();
         };
         Require(tileLevel(0) == 89, "front face tile must bake to level 89 (ambient floor only)");
@@ -685,24 +685,24 @@ namespace
         }
     }
 
-    // Gate M11 / plan_39 IS-39-061 (save/load playthrough): saving mid-mission and loading into a
+    // Gate M11 / plan_39 IG-39-061 (save/load playthrough): saving mid-mission and loading into a
     // FRESH PrototypeMission must not just round-trip the state enum (TestSaveRoundTrip already
     // covers that in isolation) -- the loaded mission must actually keep progressing correctly
     // afterward, proving a save/load cycle doesn't leave it stuck or in a state it can't advance
     // from.
     void TestSaveLoadMidMissionPlaythrough()
     {
-        IronShadows::PrototypeWorld world;
-        IronShadows::PrototypeMission mission;
+        IronGang::PrototypeWorld world;
+        IronGang::PrototypeMission mission;
         mission.Reset();
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::DriveToWarehouse,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::DriveToWarehouse,
                 "setup: mission must reach DriveToWarehouse before saving");
 
-        const std::filesystem::path path = std::filesystem::current_path() / "iron_shadows_playthrough_test.save";
-        IronShadows::SaveSnapshot snapshot;
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_playthrough_test.save";
+        IronGang::SaveSnapshot snapshot;
         snapshot.missionState = mission.GetState();
         snapshot.playerPosition = world.GetVehicleSpawn();
         snapshot.vehiclePosition = world.GetVehicleSpawn();
@@ -710,13 +710,13 @@ namespace
         snapshot.districtId = world.GetId();
 
         std::string error;
-        Require(IronShadows::SaveGame::Write(path.string(), snapshot, error), "save write failed: " + error);
-        const auto loaded = IronShadows::SaveGame::Read(path.string(), error);
+        Require(IronGang::SaveGame::Write(path.string(), snapshot, error), "save write failed: " + error);
+        const auto loaded = IronGang::SaveGame::Read(path.string(), error);
         Require(loaded.has_value(), "save read failed: " + error);
 
-        IronShadows::PrototypeMission resumedMission;
+        IronGang::PrototypeMission resumedMission;
         resumedMission.SetState(loaded->missionState);
-        Require(resumedMission.GetState() == IronShadows::PrototypeMissionState::DriveToWarehouse,
+        Require(resumedMission.GetState() == IronGang::PrototypeMissionState::DriveToWarehouse,
                 "the loaded mission state must match what was saved");
 
         // Continuing from the loaded state must still complete the mission correctly.
@@ -727,50 +727,50 @@ namespace
         std::filesystem::remove(path);
     }
 
-    // Gate M11 / plan_39 IS-39-062 (cutscene-skip playthrough): CutscenePlayer and PrototypeMission
+    // Gate M11 / plan_39 IG-39-062 (cutscene-skip playthrough): CutscenePlayer and PrototypeMission
     // are independent by construction (Mission::Update() takes no cutscene state at all) -- proves
     // that rather than just assuming it: skipping a cutscene immediately must not prevent the
     // mission from progressing normally right afterward.
     void TestCutsceneSkipDoesNotBlockMissionProgression()
     {
-        IronShadows::CutsceneSequence sequence;
+        IronGang::CutsceneSequence sequence;
         sequence.duration = 2.5F;
         sequence.cameraKeyframes = {
-            {0.0F, IronShadows::Vector3(0.0F, 0.0F, 0.0F), IronShadows::Vector3(1.0F, 0.0F, 0.0F)},
-            {2.5F, IronShadows::Vector3(1.0F, 0.0F, 0.0F), IronShadows::Vector3(2.0F, 0.0F, 0.0F)},
+            {0.0F, IronGang::Vector3(0.0F, 0.0F, 0.0F), IronGang::Vector3(1.0F, 0.0F, 0.0F)},
+            {2.5F, IronGang::Vector3(1.0F, 0.0F, 0.0F), IronGang::Vector3(2.0F, 0.0F, 0.0F)},
         };
-        IronShadows::CutscenePlayer cutscene;
+        IronGang::CutscenePlayer cutscene;
         cutscene.Start(sequence);
         cutscene.Skip();
         Require(!cutscene.IsActive(), "Skip() must finish the cutscene immediately");
 
-        IronShadows::PrototypeWorld world;
-        IronShadows::PrototypeMission mission;
+        IronGang::PrototypeWorld world;
+        IronGang::PrototypeMission mission;
         mission.Reset();
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::ReachVehicle,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::ReachVehicle,
                 "mission progression must work normally immediately after a cutscene is skipped");
     }
 
-    // Gate M11 / plan_39 IS-39-063 (mission-failure retry): this prototype's one mission has no
+    // Gate M11 / plan_39 IG-39-063 (mission-failure retry): this prototype's one mission has no
     // real failure state (a locked, deliberately simple linear delivery mission -- see
     // plan_24-mission-framework-and-scripting.md's own non-goal on bespoke scripting), so "retry"
-    // is proven at the level that actually exists: Reset() (the "R" key in IronShadowsGame) must
+    // is proven at the level that actually exists: Reset() (the "R" key in IronGangGame) must
     // return a mid-mission run all the way back to the mission's own initial state, and the
     // mission must still be able to complete again afterward.
     void TestMissionResetActsAsRetry()
     {
-        IronShadows::PrototypeWorld world;
-        IronShadows::PrototypeMission mission;
+        IronGang::PrototypeWorld world;
+        IronGang::PrototypeMission mission;
         mission.Reset();
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), true, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::DriveToWarehouse,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::DriveToWarehouse,
                 "setup: mission must be mid-flight before retrying");
 
         mission.Reset();
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::Introduction,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::Introduction,
                 "Reset() must return a mid-mission run to the mission's own initial state");
 
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
@@ -781,7 +781,7 @@ namespace
         Require(mission.IsCompleted(), "a retried mission must be able to complete again");
     }
 
-    // Gate M11 / plan_39 IS-39-064 (vehicle-loss recovery): this prototype has no vehicle-
+    // Gate M11 / plan_39 IG-39-064 (vehicle-loss recovery): this prototype has no vehicle-
     // destruction mechanic (no combat/damage system exists yet, plan_23), so "recovery" is proven
     // at the level that actually exists: if the player saves while separated from their own
     // vehicle (on foot, vehicle parked somewhere else), loading must restore BOTH independently
@@ -790,25 +790,25 @@ namespace
     void TestVehicleStatePersistsIndependentlyOfPlayer()
     {
         const std::filesystem::path path =
-            std::filesystem::current_path() / "iron_shadows_vehicle_recovery_test.save";
-        IronShadows::SaveSnapshot snapshot;
-        snapshot.missionState = IronShadows::PrototypeMissionState::ReachVehicle;
+            std::filesystem::current_path() / "iron_gang_vehicle_recovery_test.save";
+        IronGang::SaveSnapshot snapshot;
+        snapshot.missionState = IronGang::PrototypeMissionState::ReachVehicle;
         snapshot.playerPosition = {50.0F, 1.70F, -10.0F}; // far from the vehicle
         snapshot.playerYaw = 1.2F;
         snapshot.vehiclePosition = {0.0F, 0.65F, 11.0F};
         snapshot.vehicleYaw = 0.3F;
         snapshot.vehicleSpeed = 0.0F;
         snapshot.playerDriving = false;
-        snapshot.districtId = IronShadows::DistrictId::WarehouseBlock;
+        snapshot.districtId = IronGang::DistrictId::WarehouseBlock;
 
         std::string error;
-        Require(IronShadows::SaveGame::Write(path.string(), snapshot, error), "save write failed: " + error);
-        const auto loaded = IronShadows::SaveGame::Read(path.string(), error);
+        Require(IronGang::SaveGame::Write(path.string(), snapshot, error), "save write failed: " + error);
+        const auto loaded = IronGang::SaveGame::Read(path.string(), error);
         Require(loaded.has_value(), "save read failed: " + error);
 
-        Require(IronShadows::DistanceSquaredXZ(loaded->playerPosition, snapshot.playerPosition) < 1e-4F,
+        Require(IronGang::DistanceSquaredXZ(loaded->playerPosition, snapshot.playerPosition) < 1e-4F,
                 "the player's own position must survive independently of the vehicle's");
-        Require(IronShadows::DistanceSquaredXZ(loaded->vehiclePosition, snapshot.vehiclePosition) < 1e-4F,
+        Require(IronGang::DistanceSquaredXZ(loaded->vehiclePosition, snapshot.vehiclePosition) < 1e-4F,
                 "the vehicle's own position must survive independently of the player's, even when parked far away");
         Require(!loaded->playerDriving,
                 "a save made on foot, away from the vehicle, must not silently mark the player as driving");
@@ -816,22 +816,22 @@ namespace
         std::filesystem::remove(path);
     }
 
-    // Gate M11 / plan_39 IS-39-066 (district-transition mid-mission): leaving and returning to the
+    // Gate M11 / plan_39 IG-39-066 (district-transition mid-mission): leaving and returning to the
     // original district must not disturb an in-progress mission's state. DistrictManager and
     // PrototypeMission are independent objects by construction, but this is worth a direct
     // regression test rather than an assumption.
     void TestDistrictTransitionPreservesMissionState()
     {
-        IronShadows::PrototypeWorld world;
-        IronShadows::PrototypeMission mission;
+        IronGang::PrototypeWorld world;
+        IronGang::PrototypeMission mission;
         mission.Reset();
         mission.Update(true, world.GetPlayerSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
         mission.Update(true, world.GetVehicleSpawn(), world.GetVehicleSpawn(), false, world.GetWarehouseGoal());
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::EnterVehicle,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::EnterVehicle,
                 "setup: mission must be mid-flight before transitioning districts");
 
-        IronShadows::Physics::PhysicsWorld physics;
-        IronShadows::DistrictManager districts;
+        IronGang::Physics::PhysicsWorld physics;
+        IronGang::DistrictManager districts;
         districts.Initialize(physics);
 
         districts.RequestTransition(physics); // WarehouseBlock -> Countryside
@@ -840,7 +840,7 @@ namespace
             districts.Update(1.0F / 60.0F);
         }
         Require(districts.ConsumeArrival(), "arrival must be reported once the loading screen finishes");
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::EnterVehicle,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::EnterVehicle,
                 "leaving the district must not disturb the mission's state");
 
         districts.RequestTransition(physics); // Countryside -> WarehouseBlock
@@ -849,26 +849,26 @@ namespace
             districts.Update(1.0F / 60.0F);
         }
         Require(districts.ConsumeArrival(), "arrival must be reported once the return trip's loading screen finishes");
-        Require(mission.GetState() == IronShadows::PrototypeMissionState::EnterVehicle,
+        Require(mission.GetState() == IronGang::PrototypeMissionState::EnterVehicle,
                 "returning to the original district must not disturb the mission's state either");
     }
 
     void TestSaveRoundTrip()
     {
-        const std::filesystem::path path = std::filesystem::current_path() / "iron_shadows_core_test.save";
-        IronShadows::SaveSnapshot source;
-        source.missionState = IronShadows::PrototypeMissionState::DriveToWarehouse;
+        const std::filesystem::path path = std::filesystem::current_path() / "iron_gang_core_test.save";
+        IronGang::SaveSnapshot source;
+        source.missionState = IronGang::PrototypeMissionState::DriveToWarehouse;
         source.playerPosition = {1.0F, 1.7F, 2.0F};
         source.playerYaw = 0.25F;
         source.vehiclePosition = {3.0F, 0.65F, 4.0F};
         source.vehicleYaw = -0.5F;
         source.vehicleSpeed = 8.0F;
         source.playerDriving = true;
-        source.districtId = IronShadows::DistrictId::Countryside;
+        source.districtId = IronGang::DistrictId::Countryside;
 
         std::string error;
-        Require(IronShadows::SaveGame::Write(path.string(), source, error), "save write failed: " + error);
-        const auto loaded = IronShadows::SaveGame::Read(path.string(), error);
+        Require(IronGang::SaveGame::Write(path.string(), source, error), "save write failed: " + error);
+        const auto loaded = IronGang::SaveGame::Read(path.string(), error);
         Require(loaded.has_value(), "save read failed: " + error);
         Require(loaded->missionState == source.missionState, "mission state round-trip failed");
         Require(std::abs(loaded->vehicleSpeed - source.vehicleSpeed) < 0.001F,
@@ -907,12 +907,12 @@ int main()
         TestVehicleStatePersistsIndependentlyOfPlayer();
         TestDistrictTransitionPreservesMissionState();
         TestSaveRoundTrip();
-        std::cout << "Iron Shadows core tests passed\n";
+        std::cout << "Iron Gang core tests passed\n";
         return 0;
     }
     catch (const std::exception& exception)
     {
-        std::cerr << "Iron Shadows core test failure: " << exception.what() << '\n';
+        std::cerr << "Iron Gang core test failure: " << exception.what() << '\n';
         return 1;
     }
 }

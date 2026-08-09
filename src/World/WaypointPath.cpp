@@ -1,9 +1,9 @@
-#include "IronShadows/World/WaypointPath.hpp"
+#include "IronGang/World/WaypointPath.hpp"
 
 #include <algorithm>
 #include <cmath>
 
-namespace IronShadows
+namespace IronGang
 {
     float AdvanceAlongPath(const WaypointPath& path,
                            Vector3& position,

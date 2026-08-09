@@ -1,9 +1,9 @@
-#include "IronShadows/Cutscenes/CutsceneSequence.hpp"
+#include "IronGang/Cutscenes/CutsceneSequence.hpp"
 
 #include "System/IO/File.hpp"
 #include "System/Text/Json/JsonDocument.hpp"
 
-namespace IronShadows
+namespace IronGang
 {
     using System::Text::Json::JsonDocument;
     using System::Text::Json::JsonElement;

@@ -1,4 +1,4 @@
-#include "IronShadows/Physics/PhysicsWorld.hpp"
+#include "IronGang/Physics/PhysicsWorld.hpp"
 
 // The Jolt headers don't include Jolt.h. Always include Jolt.h before any other Jolt header.
 #include <Jolt/Jolt.h>
@@ -32,7 +32,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace IronShadows::Physics
+namespace IronGang::Physics
 {
     namespace
     {
@@ -499,7 +499,7 @@ namespace IronShadows::Physics
         impl_->bodyInterface().AddBody(chassisBody->GetID(), JPH::EActivation::Activate);
 
         JPH::VehicleConstraintSettings vehicleSettings;
-        // Iron Shadows' own yaw convention (WorldTypes.hpp ForwardFromYaw) treats local -Z as
+        // Iron Gang's own yaw convention (WorldTypes.hpp ForwardFromYaw) treats local -Z as
         // "forward" at yaw 0 (matching how the sedan's CNJ parts are authored: cabin/windshield/
         // front wheels all sit at negative local Z). Point Jolt's vehicle forward axis and every
         // wheel's own rolling-friction forward axis the same way so engine force, tire grip, and
@@ -584,7 +584,7 @@ namespace IronShadows::Physics
         }
         const JPH::Quat rotation = impl_->bodyInterface().GetRotation(it->second.chassisId);
         // Negated: see the CreateFourWheelVehicle comment on mForward/mWheelForward. Jolt's own
-        // Y Euler angle is measured against its (0,0,1) reference; Iron Shadows' ForwardFromYaw
+        // Y Euler angle is measured against its (0,0,1) reference; Iron Gang's ForwardFromYaw
         // is defined against (0,0,-1) at yaw 0, which is the negated angle for a Y-axis rotation.
         return -rotation.GetEulerAngles().GetY();
     }
@@ -611,7 +611,7 @@ namespace IronShadows::Physics
         const JPH::Quat rotation = JPH::Quat::sRotation(JPH::Vec3::sAxisY(), -yaw);
         impl_->bodyInterface().SetPositionAndRotation(it->second.chassisId, JPH::RVec3(ToJolt(position)), rotation,
                                                        JPH::EActivation::Activate);
-        // Iron Shadows' own ForwardFromYaw(yaw) = (sin(yaw), 0, -cos(yaw)); computed directly
+        // Iron Gang's own ForwardFromYaw(yaw) = (sin(yaw), 0, -cos(yaw)); computed directly
         // here (not by rotating a Jolt reference vector) to avoid a second, independent place
         // that has to agree with that convention's sign.
         const JPH::Vec3 forward(std::sin(yaw), 0.0f, -std::cos(yaw));

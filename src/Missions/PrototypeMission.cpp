@@ -1,6 +1,6 @@
-#include "IronShadows/Missions/PrototypeMission.hpp"
+#include "IronGang/Missions/PrototypeMission.hpp"
 
-namespace IronShadows
+namespace IronGang
 {
     namespace
     {

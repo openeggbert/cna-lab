@@ -10,4 +10,4 @@ case "$preset" in
   *) echo "Unknown preset: $preset" >&2; exit 2 ;;
 esac
 
-exec "./${build_dir}/iron_shadows" --assets "$(pwd)/assets" "${@:2}"
+exec "./${build_dir}/iron_gang" --assets "$(pwd)/assets" "${@:2}"

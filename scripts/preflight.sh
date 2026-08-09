@@ -2,12 +2,12 @@
 set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cna_dir="${IRON_SHADOWS_CNA_DIR:-$project_root/../cna}"
+cna_dir="${IRON_GANG_CNA_DIR:-$project_root/../cna}"
 dependency_root="$(cd "$(dirname "$cna_dir")" 2>/dev/null && pwd || dirname "$cna_dir")"
 sharp_dir="$dependency_root/sharp-runtime"
 easygl_dir="$dependency_root/easy-gl"
 cna_extended_dir="$dependency_root/cna-extended"
-jolt_dir="${IRON_SHADOWS_JOLT_DIR:-$HOME/deps/jolt}"
+jolt_dir="${IRON_GANG_JOLT_DIR:-$HOME/deps/jolt}"
 mesh_craft_dir="${MESH_CRAFT_SOURCE_DIR:-$dependency_root/mesh-craft}"
 preset="${1:-dev-easygl}"
 errors=0
@@ -17,7 +17,7 @@ warn() { printf 'WARNING: %s\n' "$1" >&2; }
 fail() { printf 'ERROR: %s\n' "$1" >&2; errors=$((errors + 1)); }
 nonempty_dir() { [[ -d "$1" ]] && find "$1" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null | grep -q .; }
 
-printf 'Iron Shadows dependency preflight\n'
+printf 'Iron Gang dependency preflight\n'
 printf '  preset:        %s\n' "$preset"
 printf '  project:       %s\n' "$project_root"
 printf '  CNA:           %s\n' "$cna_dir"
@@ -30,7 +30,7 @@ printf '  Mesh Craft:    %s\n' "$mesh_craft_dir"
 if [[ -f "$cna_dir/CMakeLists.txt" ]]; then
   ok "CNA source tree found"
 else
-  fail "CNA not found. Set IRON_SHADOWS_CNA_DIR or place CNA at ../cna."
+  fail "CNA not found. Set IRON_GANG_CNA_DIR or place CNA at ../cna."
 fi
 
 if [[ -f "$sharp_dir/CMakeLists.txt" ]]; then

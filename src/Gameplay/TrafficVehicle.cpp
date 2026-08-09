@@ -1,8 +1,8 @@
-#include "IronShadows/Gameplay/TrafficVehicle.hpp"
+#include "IronGang/Gameplay/TrafficVehicle.hpp"
 
 #include <algorithm>
 
-namespace IronShadows
+namespace IronGang
 {
     namespace
     {

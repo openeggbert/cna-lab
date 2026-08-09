@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Generates assets/source/gltf/test_character.gltf for Iron Shadows gate M6.
+"""Generates assets/source/gltf/test_character.gltf for Iron Gang gate M6.
 
 Hand-authored (bypasses Mesh Craft/MC3, which has no rigging/skinning concept at all --
-see plan/plan_10-gltf-cnj-mcb-and-runtime-packages.md IS-10-004b's sibling note in
+see plan/plan_10-gltf-cnj-mcb-and-runtime-packages.md IG-10-004b's sibling note in
 plan_39/analysis.md for the equivalent M6 deviation record). A minimal blocky humanoid:
 a torso+head box rigid to a Root bone, and two leg boxes each rigid to their own hip-pivot
 bone, with an "Idle" (static) and "Walk" (alternating leg-swing) clip -- enough to prove
-Iron Shadows' skinned-character pipeline end to end (MC3-bypass glTF -> cna_tool_gltf_to_cnj
+Iron Gang's skinned-character pipeline end to end (MC3-bypass glTF -> cna_tool_gltf_to_cnj
 -> CNJ -> cna-extended's ModelAnimationComponentEXT/ModelAnimationSystem3DEXT) without
 claiming to be final character art.
 
@@ -175,7 +175,7 @@ dialogue_right_off, dialogue_right_len = add_vec4_array([quat_z(-DIALOGUE_ANGLE)
 
 # "EnterVehicle"/"ExitVehicle": both legs bend forward TOGETHER (unlike Walk's alternating
 # phase), as if sitting into/standing up from a car seat. Authored as a 1-second clip but only
-# ever played for IronShadowsGame::kVehicleTransitionSeconds (0.5s, half the clip) before the
+# ever played for IronGangGame::kVehicleTransitionSeconds (0.5s, half the clip) before the
 # game switches away -- deliberately so the motion is still visibly *in progress* (not already
 # holding its end pose) at the moment playerDriving_ flips, and so LoopEXT's default-true modulo
 # wraparound never has a chance to trigger (see the "boundary" gotcha noted in
@@ -277,7 +277,7 @@ exit_times_acc = acc(bv(exit_times_off, exit_times_len), FLOAT, 2, "SCALAR", ([0
 exit_legs_acc = acc(bv(exit_legs_off, exit_legs_len), FLOAT, 2, "VEC4")
 
 gltf = {
-    "asset": {"version": "2.0", "generator": "iron-shadows gen_test_character_gltf.py (hand-authored, bypasses MC3 -- see plan_39/plan_13 M6 notes)"},
+    "asset": {"version": "2.0", "generator": "iron-gang gen_test_character_gltf.py (hand-authored, bypasses MC3 -- see plan_39/plan_13 M6 notes)"},
     "scene": 0,
     "scenes": [{"nodes": [0, 3]}],
     "nodes": [
