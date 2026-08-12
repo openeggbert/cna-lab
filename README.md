@@ -52,28 +52,30 @@ openeggbert/
 - SQLite 3 development files (e.g. `libsqlite3-dev` on Debian/Ubuntu) — used for world persistence
   (see §5); found via CMake's built-in `FindSQLite3` module, no vendoring/network fetch needed
 
-3D rendering is implemented on three of CNA's backends — pick any one at configure time:
-`EASYGL` (OpenGL), `VULKAN`, or `BGFX`. `SDL_RENDERER` remains 2D-only.
+3D rendering is implemented on three of CNA's renderers — pick any one at configure time:
+the OpenGL family (`OPENGLES3` default on Linux, or `OPENGLES2`/`OPENGL33`), `VULKAN`, or `BGFX`.
+`SDL_RENDERER` remains 2D-only.
 
 ## 4. Build
 
 ```bash
 git submodule update --init --recursive   # only needed the first time, inside ../cna
-cmake -S . -B build -DCNA_GRAPHICS_BACKEND=EASYGL   # or VULKAN, or BGFX
+cmake -S . -B build -DCNA_GRAPHICS_RENDERER=OPENGLES3   # or VULKAN, or BGFX
 cmake --build build --target CnaCraft
 ```
 
 ### 4.1 Web build (Emscripten / WebAssembly)
 
-The game also builds to WebAssembly and runs in the browser on WebGL 2 (via CNA's EasyGL
-backend), with terrain streaming, ambient occlusion, the day/night sky and the full HUD intact:
+The game also builds to WebAssembly and runs in the browser on WebGL 2 (via CNA's shared EasyGL
+implementation, publicly selected as `WEBGL2`), with terrain streaming, ambient occlusion, the
+day/night sky and the full HUD intact:
 
 ```bash
 source /path/to/emsdk/emsdk_env.sh
 embuilder build zlib                          # one-off: sharp-runtime needs zlib
 
 # -pthread must reach EVERY object (SDL/CNA/sharp-runtime/game), so pass it via CFLAGS/CXXFLAGS:
-CFLAGS=-pthread CXXFLAGS=-pthread emcmake cmake -S . -B build-web -DCNA_GRAPHICS_BACKEND=EASYGL
+CFLAGS=-pthread CXXFLAGS=-pthread emcmake cmake -S . -B build-web -DCNA_GRAPHICS_RENDERER=WEBGL2
 cmake --build build-web --target CnaCraft
 
 python3 web/serve.py 8000 build-web           # then open http://localhost:8000/CnaCraft.html

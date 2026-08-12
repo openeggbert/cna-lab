@@ -82,8 +82,8 @@ endif()
 # =============================================================================
 # CnaCraft — graphical executable (CNA-dependent).
 #
-# Build with one of the three 3D-capable backends:
-#   cmake -S . -B build -DCNA_GRAPHICS_BACKEND=EASYGL   # or VULKAN, or BGFX
+# Build with one of the three 3D-capable renderers:
+#   cmake -S . -B build -DCNA_GRAPHICS_RENDERER=OPENGLES3   # or VULKAN, or BGFX
 #   cmake --build build --target CnaCraft
 #
 # Requires ../cna and ../sharp-runtime checked out as siblings of this repo
@@ -130,23 +130,33 @@ if(CNA_CRAFT_BUILD_GAME)
 endif()
 
 if(CNA_CRAFT_BUILD_GAME)
-    # 3D rendering is implemented on EASYGL, VULKAN, and BGFX (pick any one at
-    # configure time); SDL_RENDERER remains 2D-only as of this writing (see
+    # 3D rendering is implemented on the GL family (via CNA's shared EasyGL
+    # implementation, publicly selected as OPENGLES3/OPENGLES2/OPENGL33 on
+    # native builds or WEBGL1/WEBGL2 under Emscripten -- "EASYGL" itself is no
+    # longer a public CNA_GRAPHICS_RENDERER value, see ../cna/cmake/
+    # RendererSelection.cmake), VULKAN, and BGFX (pick any one at configure
+    # time); SDL_RENDERER remains 2D-only as of this writing (see
     # ../cna/examples/house3d_demo.cpp and analysis.md).
-    set(CNA_CRAFT_3D_BACKENDS EASYGL VULKAN BGFX)
-    if(NOT CNA_GRAPHICS_BACKEND)
-        set(CNA_GRAPHICS_BACKEND "EASYGL" CACHE STRING
-            "Graphics backend CnaCraft is built against (EASYGL, VULKAN, or BGFX)." FORCE)
+    if(EMSCRIPTEN)
+        set(CNA_CRAFT_3D_RENDERERS WEBGL1 WEBGL2 VULKAN BGFX)
+        set(_cna_craft_default_renderer "WEBGL2")
+    else()
+        set(CNA_CRAFT_3D_RENDERERS OPENGLES2 OPENGLES3 OPENGL33 VULKAN BGFX)
+        set(_cna_craft_default_renderer "OPENGLES3")
     endif()
-    set_property(CACHE CNA_GRAPHICS_BACKEND PROPERTY STRINGS ${CNA_CRAFT_3D_BACKENDS} SDL_RENDERER)
-    if(NOT CNA_GRAPHICS_BACKEND IN_LIST CNA_CRAFT_3D_BACKENDS)
+    if(NOT CNA_GRAPHICS_RENDERER)
+        set(CNA_GRAPHICS_RENDERER "${_cna_craft_default_renderer}" CACHE STRING
+            "Graphics renderer CnaCraft is built against (OPENGLES3, OPENGLES2, OPENGL33, WEBGL1, WEBGL2, VULKAN, or BGFX)." FORCE)
+    endif()
+    set_property(CACHE CNA_GRAPHICS_RENDERER PROPERTY STRINGS ${CNA_CRAFT_3D_RENDERERS} SDL_RENDERER)
+    if(NOT CNA_GRAPHICS_RENDERER IN_LIST CNA_CRAFT_3D_RENDERERS)
         message(WARNING
-            "CnaCraft: 3D rendering requires one of ${CNA_CRAFT_3D_BACKENDS}; "
-            "CNA_GRAPHICS_BACKEND is currently '${CNA_GRAPHICS_BACKEND}'.")
+            "CnaCraft: 3D rendering requires one of ${CNA_CRAFT_3D_RENDERERS}; "
+            "CNA_GRAPHICS_RENDERER is currently '${CNA_GRAPHICS_RENDERER}'.")
     endif()
 
     message(STATUS "CNA source: ${CNA_HOME}")
-    message(STATUS "CnaCraft graphics backend: ${CNA_GRAPHICS_BACKEND}")
+    message(STATUS "CnaCraft graphics renderer: ${CNA_GRAPHICS_RENDERER}")
 
     set(CNA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(CNA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -246,15 +256,18 @@ if(CNA_CRAFT_BUILD_GAME)
     )
     target_include_directories(CnaCraft PRIVATE src)
 
+    # Target names per ../cna/cmake/RendererSelection.cmake: the GL-family
+    # public renderers (OPENGLES2/OPENGLES3/OPENGL33/WEBGL1/WEBGL2) all share
+    # the single cna_renderer_easygl implementation target.
     set(_cna_craft_backend_target "")
-    if(CNA_GRAPHICS_BACKEND STREQUAL "SDL_RENDERER")
-        set(_cna_craft_backend_target "cna_backend_graphics_sdl_renderer")
-    elseif(CNA_GRAPHICS_BACKEND STREQUAL "EASYGL")
-        set(_cna_craft_backend_target "cna_backend_graphics_easygl")
-    elseif(CNA_GRAPHICS_BACKEND STREQUAL "BGFX")
-        set(_cna_craft_backend_target "cna_backend_graphics_bgfx")
-    elseif(CNA_GRAPHICS_BACKEND STREQUAL "VULKAN")
-        set(_cna_craft_backend_target "cna_backend_graphics_vulkan")
+    if(CNA_GRAPHICS_RENDERER STREQUAL "SDL_RENDERER")
+        set(_cna_craft_backend_target "cna_renderer_sdl_renderer")
+    elseif(CNA_GRAPHICS_RENDERER MATCHES "^(OPENGLES2|OPENGLES3|OPENGL33|WEBGL1|WEBGL2)$")
+        set(_cna_craft_backend_target "cna_renderer_easygl")
+    elseif(CNA_GRAPHICS_RENDERER STREQUAL "BGFX")
+        set(_cna_craft_backend_target "cna_renderer_bgfx")
+    elseif(CNA_GRAPHICS_RENDERER STREQUAL "VULKAN")
+        set(_cna_craft_backend_target "cna_renderer_vulkan")
     endif()
 
     # CNA and its backend static library have circular symbol references
