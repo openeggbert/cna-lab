@@ -1,0 +1,13 @@
+.DS_Store
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+.idea/
+*.nupkg
+dist/
+build/
