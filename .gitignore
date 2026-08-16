@@ -1,0 +1,36 @@
+# Gradle
+.gradle/
+build/
+bin/
+
+# Kotlin
+.kotlin/
+kotlin-js-store/
+
+# IDEs
+.idea/
+*.iml
+*.iws
+.project
+.classpath
+.settings/
+.vscode/
+
+# Android
+.cxx/
+captures/
+output.json
+*.apk
+*.aar
+*.ap_
+*.dex
+local.properties
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Web
+dist/
+node_modules/
+package-lock.json
