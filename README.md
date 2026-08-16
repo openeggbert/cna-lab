@@ -1,6 +1,6 @@
 # cna-kotlin-template
 
-> **Status: In progress - ZATÍM NEFUNKČNÍ**
+> **Status: In progress - NOT YET FUNCTIONAL**
 
 
 Modern cross-platform Kotlin Multiplatform (KMP) starter template for the [CNA](https://github.com/openeggbert/cna) framework, following XNA 4.0 patterns.
