@@ -1,5 +1,8 @@
 # CNA VB.NET Template
 
+> **Status: In progress - ZATÍM NEFUNKČNÍ**
+
+
 A cross-platform game template for VB.NET using the CNA (Common Native Abstraction) framework.
 
 ## Features
