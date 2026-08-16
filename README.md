@@ -1,3 +1,3 @@
 # cna-kotlin
 
-> **Status: In progress - ZATÍM NEFUNKČNÍ**
+> **Status: In progress - NOT YET FUNCTIONAL**
