@@ -1,6 +1,6 @@
 # CNA VB.NET Template
 
-> **Status: In progress - ZATÍM NEFUNKČNÍ**
+> **Status: In progress - NOT YET FUNCTIONAL**
 
 
 A cross-platform game template for VB.NET using the CNA (Common Native Abstraction) framework.
