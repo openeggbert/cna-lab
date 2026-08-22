@@ -103,12 +103,19 @@ option(CNA_CRAFT_BUILD_GAME "Build the graphical CnaCraft executable (requires .
 # everything built in this tree; CNA's SDL prebuilt is a separate cmake
 # invocation that inherits only the ENVIRONMENT, which is why the documented
 # configure line also exports CFLAGS/CXXFLAGS (see README §4.1). Opt out with
-# -DCNA_CRAFT_WASM_THREADS=OFF for hosting that cannot send COOP/COEP headers;
-# the game then falls back to synchronous generation/meshing on the main
-# thread (visibly stuttery while terrain streams -- that is exactly the
-# regression item 37 fixed).
+# The portable default leaves threads off: Firefox can start a threaded Wasm
+# build but may permanently stall after worker-heavy terrain streaming. Opt in
+# with -DCNA_CRAFT_WASM_THREADS=ON on tested Chromium hosting; that needs
+# COOP/COEP headers. Without threads generation/meshing runs on the main
+# thread, so terrain streaming can visibly stutter.
 if(EMSCRIPTEN)
-    option(CNA_CRAFT_WASM_THREADS "Build the web target with Emscripten pthreads (needs COOP/COEP hosting)" ON)
+    option(CNA_CRAFT_WASM_THREADS "Build the web target with Emscripten pthreads (needs COOP/COEP hosting)" OFF)
+    # Keep the render loop on the browser thread by default. Firefox accepts
+    # the threaded Wasm module but does not present Emscripten's proxied
+    # offscreen framebuffer reliably; background generation/meshing still
+    # uses the normal pthread worker pool in this mode.
+    option(CNA_CRAFT_WASM_PROXY_TO_PTHREAD
+           "Run CnaCraft's main/render loop on a pthread (experimental; Chromium-oriented)" OFF)
     if(CNA_CRAFT_WASM_THREADS)
         add_compile_options(-pthread)
         add_link_options(-pthread)
@@ -310,6 +317,14 @@ if(CNA_CRAFT_BUILD_GAME)
             CnaCraftWorlds
             CnaCraftNetTransport
         )
+        # CNA configures the current Emscripten Wasm exception ABI in its
+        # own directory scope. CnaCraft is a parent-directory target, so it
+        # must explicitly compile and link with the same ABI; otherwise
+        # wasm-ld cannot resolve CNA's __cpp_exception symbols.
+        target_compile_options(CnaCraft PRIVATE
+            -fwasm-exceptions
+            -sWASM_LEGACY_EXCEPTIONS=0
+        )
         target_link_options(CnaCraft PRIVATE
             # FIXED 512 MB heap, deliberately NO -sALLOW_MEMORY_GROWTH: a
             # growable wasm heap is backed by a RESIZABLE ArrayBuffer, and
@@ -330,27 +345,17 @@ if(CNA_CRAFT_BUILD_GAME)
             # (kMaxColumnLoadsPerFrame=2 + kMaxMeshDispatchesPerFrame=8, plus
             # slack): a main thread that outruns the pool would have to block
             # to spawn a worker, and blocking the browser's main thread
-            # deadlocks. Harmless when threads are off (the flag is ignored).
-            -sPTHREAD_POOL_SIZE=16
-            # PROXY_TO_PTHREAD moves main()/the game loop off the browser
-            # main thread onto a worker -- required to fix the SDL pointer-
-            # event mutex deadlock (item 37 follow-up). Once main() runs on
-            # a worker, GL calls from it need OFFSCREEN_FRAMEBUFFER to reach
-            # the real canvas, which the main thread still fully owns --
-            # this proxies GL commands across the thread boundary (a real
-            # but small per-call cost) without transferring the canvas.
-            # Deliberately NOT -sOFFSCREENCANVAS_SUPPORT: that variant
-            # hands the canvas itself to the worker via
-            # transferControlToOffscreen(), which (a) aborted during
-            # worker init in Firefox, (b) threw a DOMException in Chrome
-            # the instant any JS on the main thread touched canvas.width/
-            # height (shell.html's own resize handler did exactly that),
-            # and (c) broke SDL's mouse/pointer-lock handling on the
-            # now-placeholder main-thread canvas -- a real user-reported
-            # regression from an earlier version of this build. Don't
-            # re-add it without solving all three.
-            $<$<BOOL:${CNA_CRAFT_WASM_THREADS}>:-sPROXY_TO_PTHREAD>
-            $<$<BOOL:${CNA_CRAFT_WASM_THREADS}>:-sOFFSCREEN_FRAMEBUFFER=1>
+            # deadlocks. It is meaningless for the compatible single-thread
+            # build, so do not pass it there.
+            $<$<BOOL:${CNA_CRAFT_WASM_THREADS}>:-sPTHREAD_POOL_SIZE=16>
+            -fwasm-exceptions
+            -sWASM_LEGACY_EXCEPTIONS=0
+            # When explicitly requested, move main() to a worker and proxy
+            # its GL calls through an offscreen framebuffer. The default is
+            # browser-main-thread rendering: it works in Firefox and still
+            # keeps the terrain generation/meshing workers threaded.
+            $<$<AND:$<BOOL:${CNA_CRAFT_WASM_THREADS}>,$<BOOL:${CNA_CRAFT_WASM_PROXY_TO_PTHREAD}>>:-sPROXY_TO_PTHREAD>
+            $<$<AND:$<BOOL:${CNA_CRAFT_WASM_THREADS}>,$<BOOL:${CNA_CRAFT_WASM_PROXY_TO_PTHREAD}>>:-sOFFSCREEN_FRAMEBUFFER=1>
             "SHELL:--pre-js ${CMAKE_CURRENT_SOURCE_DIR}/web/pre.js"
             "SHELL:--shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html"
         )

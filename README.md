@@ -79,22 +79,21 @@ day/night sky and the full HUD intact:
 source /path/to/emsdk/emsdk_env.sh
 embuilder build zlib                          # one-off: sharp-runtime needs zlib
 
-# -pthread must reach EVERY object (SDL/CNA/sharp-runtime/game), so pass it via CFLAGS/CXXFLAGS:
-CFLAGS=-pthread CXXFLAGS=-pthread emcmake cmake -S . -B build-web -DCNA_GRAPHICS_RENDERER=WEBGL2
+# Portable single-thread build (the default): works in Firefox and Chromium.
+emcmake cmake -S . -B build-web -DCNA_GRAPHICS_RENDERER=WEBGL2
 cmake --build build-web --target CnaCraft
 
 python3 web/serve.py 8000 build-web           # then open http://localhost:8000/CnaCraft.html
 ```
 
-The web build uses **real threads** (Emscripten pthreads = Web Workers over a shared heap), so
-chunk generation and meshing run in the background exactly like the desktop build — a continuous
-60-second flight streaming new terrain measured a steady 60 FPS with no frame over 100 ms. Those
-threads need a `SharedArrayBuffer`, which browsers only grant to *cross-origin isolated* pages, so
-the server must send `Cross-Origin-Opener-Policy: same-origin` and
-`Cross-Origin-Embedder-Policy: require-corp` — `web/serve.py` does exactly that (plain
-`python3 -m http.server` does not, and the page then refuses to start). If your host cannot send
-those headers, build without `-pthread`: the game still runs, but generation/meshing fall back to
-the main thread and the picture stutters whenever new terrain streams in.
+The default web build is **single-threaded**, which is the reliable choice for Firefox and needs
+no special response headers. Generation and meshing happen on the main thread, so frames can
+stutter while new terrain streams in, but the page stays responsive. For a tested Chromium-only
+deployment, enable Emscripten pthreads with
+`CFLAGS=-pthread CXXFLAGS=-pthread emcmake cmake -S . -B build-web -DCNA_GRAPHICS_RENDERER=WEBGL2 -DCNA_CRAFT_WASM_THREADS=ON`.
+That mode needs a `SharedArrayBuffer`, so the server must send
+`Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` —
+`web/serve.py` does exactly that (plain `python3 -m http.server` does not).
 
 Other web-specific differences, all deliberate: **single-player only** (a browser page cannot host
 or open raw TCP sockets, so `--server` and `CnaCraftServer` are native-only) and **edits are not
