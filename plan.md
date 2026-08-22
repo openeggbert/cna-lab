@@ -22,6 +22,10 @@ similar emulation core is permitted in the application, build, or test suite.
     egg-device renderer.
   - Add low-write JSON persistence, backup/recovery, platform save locations,
     smoke tests, and a protected virtual reset control.
+  - Update the integration for the current modular `../cna` and
+    `../sharp-runtime`: link `CNA::Runtime` plus only the selected renderer,
+    provide the required sharp-runtime component closure, and disable the
+    unused Draco path.
 
 - [x] **2. P1 target decision**
   - Select international P1 (1997), rather than P2 or a hybrid.
@@ -73,6 +77,9 @@ similar emulation core is permitted in the application, build, or test suite.
     P1 character cell and three separately drawn, anchored idle phases. One
     captured Mametchi idle trace is represented as one-bit frame data and is
     covered by a focused catalogue test.
+  - [x] Manually transcribe the observed asymmetric first egg silhouette from
+    a visual P1 LCD trace and protect its crown, crack, and lower shell with a
+    catalogue regression test.
   - Compare and replace every remaining provisional home redraw before calling
     the character catalogue visually faithful; then capture its distinct care
     action frames rather than reusing home-idle art.
@@ -128,16 +135,16 @@ similar emulation core is permitted in the application, build, or test suite.
     accurately labelled illustrations.
 
 - [ ] **10. Verification and release readiness**
-  - Run domain, persistence, display, and smoke tests with at most three build
+  - Run domain, persistence, display, and smoke tests with at most two build
     jobs; avoid unnecessary clean builds and large generated files.
   - Compare all visible flows against the captured international P1 reference.
   - Document remaining desktop-only safeguards and known deviations clearly.
 
 ## Immediate next task
 
-Follow the ordered visual and behaviour backlog in [next.md](next.md). The
-first implementation task is to capture and compare the remaining
-international-P1 character idle frames. The fixed-cell renderer removes the
-incorrect bobbing behaviour, but its non-Mametchi redraws and all care-action
-animations still need a frame-by-frame comparison before they can be described
-as exact.
+Follow the ordered visual and behaviour backlog in [next.md](next.md). Begin
+by completing the egg's remaining observed idle phases, then capture and
+compare the remaining international-P1 character idle frames. The fixed-cell
+renderer removes the incorrect bobbing behaviour, but its non-Mametchi redraws
+and all care-action animations still need a frame-by-frame comparison before
+they can be described as exact.

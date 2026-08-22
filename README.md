@@ -263,17 +263,31 @@ push is performed until a remote exists and the user explicitly requests it.
 
 ```bash
 cmake --preset sdl-renderer
-cmake --build --preset sdl-renderer --parallel 3
+cmake --build --preset sdl-renderer --parallel 2
 ./cmake-build-sdl-renderer/CnaTamagotchi
 ```
 
 Pass `--smoke-test` to exit after three rendered frames.
 
+For an isolated visual check on a headless Linux host, run the SDL build on an
+Xvfb display, forcing X11 rather than the host Wayland session:
+
+```bash
+Xvfb :99 -screen 0 1024x768x24 -nolisten tcp &
+env -u WAYLAND_DISPLAY SDL_VIDEODRIVER=x11 \
+  XDG_DATA_HOME=/tmp/cna-tamagotchi-visual DISPLAY=:99 \
+  ./cmake-build-sdl-renderer/CnaTamagotchi
+```
+
+The normal first run opens `SET`; hold `C` briefly to confirm the clock and
+start the egg. An Xvfb root capture can occasionally see the GL backbuffer, so
+repeat a capture that shows a blank LCD.
+
 ## Tests
 
 ```bash
-cmake --build --preset sdl-renderer --parallel 3 --target CnaTamagotchiDomainTests CnaTamagotchiCreatureCatalogTests CnaTamagotchiDisplayTests CnaTamagotchiSaveLocationTests CnaTamagotchiPersistenceTests
-ctest --test-dir cmake-build-sdl-renderer --output-on-failure
+cmake --build --preset sdl-renderer --parallel 2 --target CnaTamagotchiDomainTests CnaTamagotchiCreatureCatalogTests CnaTamagotchiDisplayTests CnaTamagotchiSaveLocationTests CnaTamagotchiPersistenceTests
+ctest --test-dir cmake-build-sdl-renderer --output-on-failure --parallel 2
 ```
 
 ## Repository layout

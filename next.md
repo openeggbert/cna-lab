@@ -6,17 +6,45 @@ The active product target is the international English Tamagotchi P1 (1997),
 implemented as a clean, data-driven C++ behaviour engine. The LCD framebuffer
 is exactly 32 × 16 and one bit. The home renderer now uses a centred 16 × 10
 cell with three independent idle frames, so it no longer fakes motion by
-shifting a static creature around the LCD. A Mametchi idle sequence has been
-visually transcribed from a P1 reference trace; the other character redraws
-remain provisional.
+shifting a static creature around the LCD. A Mametchi idle sequence and the
+first asymmetric egg silhouette have been visually transcribed from P1
+reference traces; the remaining egg phases and other character redraws remain
+provisional.
 
 The project must never ship a P1 ROM, a ROM-derived binary asset, TamaLIB, or
 another emulator core. A reference program may be viewed externally only to
 write and verify the clean implementation.
 
+## Context handoff — 2026-08-22
+
+- The CMake integration was updated for the current sibling `../cna` and its
+  modular `../sharp-runtime`. `CNA_GRAPHICS_RENDERER` accepts only
+  `SDL_RENDERER` or `HEADLESS`; the application links `CNA::Runtime` plus the
+  chosen renderer rather than CNA's compatibility umbrella. The explicit
+  sharp-runtime closure and `CNA_ENABLE_DRACO=OFF` are intentional.
+- The SDL renderer preset configures, builds, and passes all nine CTest tests
+  with `--parallel 2`. Keep the two-job ceiling. An initial two-job build saw
+  a transient static-library archiving failure, but an unchanged incremental
+  rerun succeeded; investigate only if that failure recurs.
+- A clean SDL application run was checked on Xvfb with
+  `SDL_VIDEODRIVER=x11`, `WAYLAND_DISPLAY` unset, and an isolated
+  `XDG_DATA_HOME` under `/tmp`. The initial clock setup needs a held virtual
+  `C` input; an instantaneous synthetic key can be missed by the polling loop.
+  Root-window captures can alternate with an empty GL backbuffer under Xvfb;
+  capture again before treating a frame as absent.
+- TamaTool v0.1 was used only as an external visual reference in a separate
+  Xvfb display. Do not add its executable, ROM, screenshots, extracted data,
+  TamaLIB, or any other emulator artefact to this repository. The egg rows in
+  `P1SpriteCatalog.cpp` were manually written from the visible LCD grid, not
+  imported or algorithmically extracted.
+- The next concrete visual task is to observe and transcribe the remaining
+  egg phases, then build a per-form reference ledger before changing further
+  provisional sprites. Retain a focused test for each manually verified row.
+
 ## Priority 1 — Make the home LCD visually faithful
 
-1. Create a visual-reference ledger for each P1 home form: egg, Babytchi,
+1. Complete the egg's remaining idle phases, then create a visual-reference
+   ledger for each P1 home form: egg, Babytchi,
    Marutchi, Tamatchi, Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi,
    Kuchipatchi, Nyorotchi, Tarakotchi, and Bill.
 2. For each form, identify the stable 32 × 16 cell origin, its true idle-frame
@@ -74,7 +102,7 @@ an executable trace, and a stated target revision.
 
 ## Priority 4 — Validate and document a usable release candidate
 
-1. Keep all builds incremental and use at most three CPU jobs. Do not clean
+1. Keep all builds incremental and use at most two CPU jobs. Do not clean
    the existing build directory or generate large derived image sets.
 2. Run the domain, persistence, display, sprite-catalogue, controller, and
    smoke tests after each cohesive change.

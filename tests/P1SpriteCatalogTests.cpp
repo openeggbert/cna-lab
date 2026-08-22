@@ -61,12 +61,27 @@ void testEveryKnownP1CharacterHasUsableFrames()
     }
 }
 
+void testEggKeepsItsObservedP1Silhouette()
+{
+    const P1Sprite& egg = P1SpriteCatalog::spriteForCharacter("egg");
+
+    // This is a hand transcription of a visual P1 LCD observation, rather
+    // than data imported from a ROM or another emulator implementation.
+    expect(egg.idleFrame(0).rows[0] == "......##........",
+        "the P1 egg must retain its observed two-pixel crown");
+    expect(egg.idleFrame(0).rows[4] == ".##.##.#####....",
+        "the P1 egg must retain its asymmetric middle crack");
+    expect(egg.idleFrame(0).rows[9] == "..##########....",
+        "the P1 egg must retain its wide lower shell");
+}
+
 } // namespace
 
 int main()
 {
     testP1FramesAreFixedCellAnimations();
     testEveryKnownP1CharacterHasUsableFrames();
+    testEggKeepsItsObservedP1Silhouette();
 
     if (failures == 0) {
         std::cout << "P1SpriteCatalogTests passed\n";

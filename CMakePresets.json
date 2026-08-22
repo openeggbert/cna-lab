@@ -16,7 +16,7 @@
       "inherits": "base",
       "binaryDir": "${sourceDir}/cmake-build-sdl-renderer",
       "cacheVariables": {
-        "CNA_GRAPHICS_BACKEND": "SDL_RENDERER"
+        "CNA_GRAPHICS_RENDERER": "SDL_RENDERER"
       }
     },
     {
@@ -26,7 +26,7 @@
       "inherits": "base",
       "binaryDir": "${sourceDir}/cmake-build-headless",
       "cacheVariables": {
-        "CNA_GRAPHICS_BACKEND": "HEADLESS"
+        "CNA_GRAPHICS_RENDERER": "HEADLESS"
       }
     }
   ],

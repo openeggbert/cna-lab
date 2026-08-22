@@ -23,9 +23,12 @@ constexpr P1Sprite sprite(const P1SpriteFrame first, const P1SpriteFrame second,
 // is the visual language of the original display, unlike translating a static
 // contemporary sprite around the field.
 constexpr P1Sprite Egg = sprite(
-    frame("................", "......####......", "....##....##....", "...##......##...",
-          "...##......##...", "...##..##..##...", "....##....##....", ".....########...",
-          "................", "................"),
+    // Manually transcribed from a visual 32x16 LCD observation of the
+    // selected P1 reference.  It includes the asymmetric shell and crack;
+    // a smooth, symmetric outline is not what the original idle egg shows.
+    frame("......##........", "....######......", "...#.####.#.....", "..#..####..#....",
+          ".##.##.#####....", ".#####.#####....", ".#..##..##.#....", "..##.####.#.....",
+          "...######.#.....", "..##########...."),
     frame("................", "......####......", "....##....##....", "...##......##...",
           "...##..#...##...", "...##.###..##...", "....##....##....", ".....########...",
           "................", "................"),

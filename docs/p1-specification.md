@@ -66,11 +66,12 @@ Each entry has a confidence status:
 
 The roster is corroborated by historical character references. The application
 now renders a 16 × 10 fixed-cell, three-phase home animation rather than
-translating one static picture around the screen; one Mametchi idle trace was
-visually transcribed from the selected P1 reference. The remaining character
-redraws, all care-action frames, and every branch condition remain open until
-they are compared frame by frame with the selected target programme. No ROM,
-emulator core, or reference-programme data is included in this project.
+translating one static picture around the screen; one Mametchi idle trace and
+one egg silhouette were visually transcribed from the selected P1 reference.
+The remaining egg phases, character redraws, all care-action frames, and every
+branch condition remain open until they are compared frame by frame with the
+selected target programme. No ROM, emulator core, or reference-programme data
+is included in this project.
 
 ## Evolution-rule representation
 
