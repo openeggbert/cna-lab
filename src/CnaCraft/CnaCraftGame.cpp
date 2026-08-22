@@ -43,7 +43,14 @@ constexpr float kPiOver4 = 0.78539816339744830962f;
 // degrees) for unrelated reasons; kZoomFov keeps the same "much narrower"
 // relationship instead.
 constexpr float kZoomFov = 0.26179938779914943654f; // 15 degrees, in radians
+// Browser pointer-lock reports raw physical-pixel deltas. The desktop-tuned
+// value made a full turn take roughly 2,500 pixels in Firefox, so use a
+// practical two-times multiplier there without changing native controls.
+#ifdef __EMSCRIPTEN__
+constexpr float kMouseSensitivity = 0.0050f;
+#else
 constexpr float kMouseSensitivity = 0.0025f;
+#endif
 // Matches Craft's own hardcoded hit-test distance exactly (main.c) --
 // changed from an earlier 6.0f approximation per user decision 2026-07-10
 // to minimize differences from Craft.
@@ -71,8 +78,17 @@ constexpr float kOrthoViewHeight = 24.0f; // world units (blocks) of vertical vi
 // source of truth every streaming/fog computation reads, seeded from these
 // two constants in Initialize() and mutated at runtime by the `/view`
 // command.
+// The compatible web build generates and meshes on the browser thread. A
+// 13x13 column view is fine on native and threaded WebAssembly, but makes
+// input noticeably sluggish in that fallback. Start it at a 9x9 view; `/view`
+// remains available to trade responsiveness for distance explicitly.
+#if defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)
+constexpr int kCreateRadius = 4;
+constexpr int kDeleteRadius = 7;
+#else
 constexpr int kCreateRadius = 6;
 constexpr int kDeleteRadius = 9;
+#endif
 // Budget cap on new column loads per frame, even while this whole pass
 // stays synchronous (a later phase backgrounds it) -- bounds worst-case
 // frame cost from a fast fly-mode dash into unloaded territory. The
@@ -80,7 +96,11 @@ constexpr int kDeleteRadius = 9;
 // everything within radii_.createRadius up front, all at once, matching
 // Craft's own startup force_chunks call, so the player never sees an empty
 // world even briefly).
+#if defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)
+constexpr int kMaxColumnLoadsPerFrame = 1;
+#else
 constexpr int kMaxColumnLoadsPerFrame = 2;
+#endif
 
 // Distance fog (CRAFT_PARITY.md §5.2): Craft's own block_vertex.glsl fades
 // toward a sampled sky-texture color by camera distance, with
@@ -811,7 +831,10 @@ void CnaCraftGame::DispatchMeshingForDirtyChunks() {
     // ChunkRenderer::Rebuild -- reading the LIVE world is safe here
     // precisely because nothing else runs concurrently. Same per-frame
     // cap; glow-count bookkeeping mirrors PollMeshJobs' apply step.
-    constexpr int kMaxSyncMeshesPerFrame = 8;
+    // Keep an interactive browser frame between synchronous mesh builds.
+    // Eight is a good desktop/worker budget but can monopolize the browser
+    // thread long enough to make pointer movement feel stuck.
+    constexpr int kMaxSyncMeshesPerFrame = 2;
     auto& device = getGraphicsDeviceProperty();
     int meshedThisFrame = 0;
     for (auto& [key, renderers] : chunkRenderers_) {

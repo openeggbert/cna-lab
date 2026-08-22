@@ -65,40 +65,53 @@
       // (and thus its aspect ratio) follows the browser, not the shell default.
       function resize() {
         var dpr = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(window.innerWidth * dpr);
-        canvas.height = Math.floor(window.innerHeight * dpr);
+        var cssWidth = Math.max(1, window.innerWidth);
+        var cssHeight = Math.max(1, window.innerHeight);
+        // A retina/fullscreen backing buffer can otherwise be several times
+        // 1080p. Limit it to 1080p while retaining the browser's CSS size;
+        // this avoids a fill-rate bottleneck in the single-thread WebGL build.
+        var maxPixels = 1920 * 1080;
+        var scale = Math.min(dpr, Math.sqrt(maxPixels / (cssWidth * cssHeight)));
+        canvas.width = Math.max(1, Math.floor(cssWidth * scale));
+        canvas.height = Math.max(1, Math.floor(cssHeight * scale));
       }
       resize();
       window.addEventListener('resize', resize);
 
+      function requestGamePointerLock() {
+        if (document.pointerLockElement === canvas) return;
+        // Pointer Lock must originate directly from this input event. SDL's
+        // deferred request is made while C++ initializes, before the player
+        // has clicked, and Firefox does not replay it for an overlay click.
+        // The method returned void in older Firefox and a Promise in newer
+        // implementations, so use pointerlockerror for the common failure
+        // path rather than assuming a Promise exists.
+        var request = canvas.requestPointerLock();
+        if (request && typeof request.catch === 'function') request.catch(function () {});
+      }
+
       overlay.addEventListener('click', function () {
-        overlay.classList.add('hidden');
         canvas.focus();
-        // Deliberately NOT calling canvas.requestPointerLock() here (an
-        // earlier version of this file did, and it was a real bug): the
-        // game itself already asks for relative mouse mode during
-        // Initialize() (Mouse.setIsRelativeMouseModeEXTProperty(true) ->
-        // SDL_SetWindowRelativeMouseMode -> emscripten_request_pointerlock
-        // with Emscripten's own deferUntilInEventHandler=1). That runs long
-        // before this overlay is ever clicked, so the browser denies it
-        // (Pointer Lock requires an active user gesture) -- but Emscripten
-        // queues the request and reruns it automatically the moment ANY
-        // subsequent Emscripten-registered event handler fires while
-        // navigator.userActivation.isActive is true, which this very click
-        // satisfies (mousedown/mouseup bubble to document regardless of
-        // which element was clicked). A second, JS-side
-        // canvas.requestPointerLock() call here raced that queued retry on
-        // the exact same user gesture and could get rejected by the
-        // browser as a duplicate -- removing it lets Emscripten's own,
-        // purpose-built retry own this entirely. If it still doesn't
-        // engage on this first click (browser-dependent), the player's
-        // very next real click -- e.g. to break a block -- lands directly
-        // on the canvas and satisfies it then.
+        requestGamePointerLock();
       });
+      // Reacquire after Esc or a lost browser focus. This is intentionally a
+      // native canvas event (not an asynchronous callback), so it retains the
+      // user activation Firefox requires for pointer lock.
+      canvas.addEventListener('mousedown', requestGamePointerLock);
       // Esc releases the cursor (the game's own convention) -- show the overlay
       // again so the player knows how to get back in.
       document.addEventListener('pointerlockchange', function () {
-        if (document.pointerLockElement !== canvas && ready) overlay.classList.remove('hidden');
+        if (document.pointerLockElement === canvas) {
+          overlay.classList.add('hidden');
+        } else if (ready) {
+          overlay.classList.remove('hidden');
+        }
+      });
+      document.addEventListener('pointerlockerror', function () {
+        if (ready) {
+          statusEl.textContent = 'Pointer lock was blocked. Click the game again.';
+          overlay.classList.remove('hidden');
+        }
       });
 
       // Keep browser default key actions from stealing input away from the
