@@ -100,7 +100,8 @@ world state + the single sqlite connection (handlers enqueue into it —
   `System::Net::Sockets::TcpClient`/`TcpListener`/`NetworkStream`
   (POSIX + Winsock, `sharp-runtime/src/System/Net/Sockets/`), and
   `System::IO::StreamReader::ReadLine()` / `StreamWriter` give line framing
-  for free. `CnaCraft` already links `SHARP_RUNTIME` — zero CMake changes.
+  for free. `CnaCraft` selects the modular `SharpRuntime::Net.Sockets` target,
+  rather than sharp-runtime's legacy full `SHARP_RUNTIME` umbrella.
   (Caveats: keep the `shared_ptr<NetworkStream>` alive while a reader holds
   its raw `Stream*`; Emscripten throws — desktop-only feature.)
 - **Threading**: `System::Threading::Thread` (explicit `Start`/`Join`;
@@ -324,7 +325,7 @@ one field, no other changes; day length itself also comes from `E`.
 ## 10. Phasing (each independently buildable + testable)
 
 - **M0 — Protocol module**: `Net/Protocol` parse/format + exhaustive unit
-  tests (worlds-style CTest binary, links SHARP_RUNTIME). No game changes.
+  tests (worlds-style CTest binary, no CNA or sharp-runtime). No game changes.
 - **M1 — GameClient transport**: thread + queue + loopback CTest against a
   scripted `TcpListener` echo server (sharp-runtime SocketTests pattern).
 - **M2 — Server skeleton**: `CnaCraftServer` accepting connections, V/A/U/E

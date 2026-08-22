@@ -212,10 +212,12 @@ cna-craft/
 set(CNA_HOME "${CMAKE_CURRENT_SOURCE_DIR}/../cna" CACHE PATH "...")
 set(CNA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(CNA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-add_subdirectory("${CNA_HOME}" CNA_dep)   # CNA's own CMakeLists.txt pulls in ../sharp-runtime
+set(CNA_ENABLE_NET OFF CACHE BOOL "" FORCE) # CnaCraft uses its own TCP transport, not ENet
+set(SHARP_RUNTIME_COMPONENTS "...;Net.Sockets") # exact modular runtime closure
+add_subdirectory("${CNA_HOME}" CNA_dep)   # CNA's own CMakeLists.txt pulls in sharp-runtime
 ...
 target_link_libraries(CnaCraft PRIVATE
-    -Wl,--start-group CNA ${BACKEND_TARGET} -Wl,--end-group SHARP_RUNTIME CnaCraftWorlds)
+    CNA::Runtime CnaCraftWorlds CnaCraftNetTransport)
 ```
 
 `CnaCraftWorlds` is a small static library target with **no** dependency on `CNA`/`SDL3`, built
@@ -223,7 +225,7 @@ unconditionally; `worlds_smoke_test` links only that and runs as a `ctest` — t
 can be compiled and verified in any environment, including one without a GPU or windowing system.
 The full `CnaCraft` graphical executable additionally requires `../cna` and `../sharp-runtime`
 checked out as siblings, and one of the three 3D-capable backends selected at configure time via
-`-DCNA_GRAPHICS_BACKEND=EASYGL` (or `VULKAN`, or `BGFX`) — `SDL_RENDERER` remains 2D-only, per
+`-DCNA_GRAPHICS_RENDERER=OPENGLES3` (or `VULKAN`, or `BGFX`) — `SDL_RENDERER` remains 2D-only, per
 `house3d_demo.cpp`.
 
 ## 9. Milestones

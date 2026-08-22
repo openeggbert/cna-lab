@@ -175,7 +175,7 @@ generalization).
 `net_worldsync_smoke_test` **34** (incl. a server-restart persistence
 cycle), `persistence_smoke_test` **40**. Protocol + worlds + persistence
 run standalone with `-DCNA_CRAFT_BUILD_GAME=OFF`; the socket-using suites
-need the game-enabled tree (SHARP_RUNTIME).
+need the game-enabled tree (`SharpRuntime::Net.Sockets`).
 
 **plan.md §12.1 status as of this session's end** (36 items):
 **ALL 36 `completed`.** Item 18 (multiplayer, phases M0-M7, §3 item 22)
@@ -989,7 +989,7 @@ Expect: `WorldsSmokeTest` (303 `ok:` lines) and `PersistenceSmokeTest`
 
 ```bash
 # Full graphical game (requires ../cna and ../sharp-runtime as siblings):
-cmake -S . -B build-easygl -DCNA_GRAPHICS_BACKEND=EASYGL
+cmake -S . -B build-easygl -DCNA_GRAPHICS_RENDERER=OPENGLES3
 cmake --build build-easygl --target CnaCraft -j"$(nproc)"
 SDL_VIDEODRIVER=x11 DISPLAY=:0 ./build-easygl/CnaCraft          # interactive
 SDL_VIDEODRIVER=x11 DISPLAY=:0 ./build-easygl/CnaCraft --smoke 30
@@ -1008,7 +1008,7 @@ SDL_VIDEODRIVER=x11 DISPLAY=:0 ./build-easygl/CnaCraft --server 127.0.0.1 4080
 # SharedArrayBuffer requires -- plain http.server will NOT work.
 source ~/emsdk/emsdk_env.sh
 embuilder build zlib                       # one-off (sharp-runtime links zlib)
-CFLAGS=-pthread CXXFLAGS=-pthread emcmake cmake -S . -B build-web -DCNA_GRAPHICS_BACKEND=EASYGL
+CFLAGS=-pthread CXXFLAGS=-pthread emcmake cmake -S . -B build-web -DCNA_GRAPHICS_RENDERER=WEBGL2
 cmake --build build-web --target CnaCraft
 python3 web/serve.py 8000 build-web        # open /CnaCraft.html
 ```

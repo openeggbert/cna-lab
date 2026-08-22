@@ -39,7 +39,8 @@ target_include_directories(CnaCraftWorlds PUBLIC src)
 # sockets, no sharp-runtime, no CNA -- so it builds and tests in the
 # worlds-only configuration exactly like CnaCraftWorlds. The socket-using
 # transport (Net/GameClient) is deliberately NOT in this library: it needs
-# SHARP_RUNTIME, which only exists when the game build pulls in the CNA tree.
+# SharpRuntime::Net.Sockets, which only exists when the game build pulls in
+# the CNA tree.
 # =============================================================================
 add_library(CnaCraftNetProtocol STATIC
     src/CnaCraft/Net/Protocol.cpp
@@ -117,7 +118,7 @@ endif()
 if(CNA_CRAFT_BUILD_GAME)
     set(CNA_HOME "" CACHE PATH "Path to the CNA source directory. Defaults to ../cna.")
     if(NOT CNA_HOME)
-        set(CNA_HOME "${CMAKE_CURRENT_SOURCE_DIR}/../cna")
+        set(CNA_HOME "${CMAKE_CURRENT_SOURCE_DIR}/../cnanext")
     endif()
 
     if(NOT EXISTS "${CNA_HOME}/CMakeLists.txt")
@@ -160,9 +161,35 @@ if(CNA_CRAFT_BUILD_GAME)
 
     set(CNA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(CNA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    if(NOT TARGET CNA)
-        # CNA's own CMakeLists.txt pulls in ../sharp-runtime (relative to
-        # CNA_HOME) and defines the CNA + backend + SHARP_RUNTIME targets.
+
+    # CNA and sharp-runtime are both modular now. CnaCraft uses CNA's Game
+    # runtime (which closes over graphics/input/content/audio) and implements
+    # its own TCP multiplayer transport, not CNA's ENet Net/GamerServices.
+    # Selecting an explicit closure prevents sharp-runtime's unrelated All
+    # bundle (HTTP, XML, JSON, compression, process management) from building.
+    set(CNA_ENABLE_NET OFF CACHE BOOL "CnaCraft uses its own TCP transport, not CNA Net/ENet" FORCE)
+    set(CNA_CRAFT_SHARP_RUNTIME_COMPONENTS
+        Core.Base
+        IO
+        Collections.Core
+        Collections.ObjectModel
+        Runtime
+        Threading
+        Text
+        Globalization
+        Storage
+        Security.Cryptography
+        Net.Sockets
+        CACHE STRING
+        "Semicolon-separated Sharp Runtime components required by CnaCraft and its selected CNA modules")
+    # CNA reads this ordinary variable while it configures sharp-runtime.
+    # The CnaCraft-specific cache knob above avoids the legacy SHARP_RUNTIME
+    # umbrella and allows an intentional override when a new feature needs it.
+    set(SHARP_RUNTIME_COMPONENTS "${CNA_CRAFT_SHARP_RUNTIME_COMPONENTS}")
+
+    if(NOT TARGET CNA::Runtime)
+        # CNA exposes modular CNA::<Module> and SharpRuntime::<Component>
+        # targets after it has added its sibling sharp-runtime project.
         add_subdirectory("${CNA_HOME}" CNA_dep)
     endif()
 
@@ -188,16 +215,19 @@ if(CNA_CRAFT_BUILD_GAME)
     # =========================================================================
     # CnaCraftNetTransport -- the socket-using half of Net/ (MULTIPLAYER_PLAN.md
     # §5): LineSocket framing + GameClient. Lives inside the game-enabled
-    # branch because it needs SHARP_RUNTIME (System::Net::Sockets), which only
-    # exists once the CNA tree is added. Pure protocol parse/format stays in
-    # CnaCraftNetProtocol above, testable without any of this.
+    # branch because it needs SharpRuntime::Net.Sockets, which only exists
+    # once the CNA tree adds the sibling sharp-runtime project. Pure protocol
+    # parse/format stays in CnaCraftNetProtocol above, testable without this.
     # =========================================================================
     add_library(CnaCraftNetTransport STATIC
         src/CnaCraft/Net/LineSocket.cpp
         src/CnaCraft/Net/GameClient.cpp
     )
     target_include_directories(CnaCraftNetTransport PUBLIC src)
-    target_link_libraries(CnaCraftNetTransport PUBLIC CnaCraftNetProtocol SHARP_RUNTIME)
+    target_link_libraries(CnaCraftNetTransport PUBLIC
+        CnaCraftNetProtocol
+        SharpRuntime::Net.Sockets
+    )
 
     # CnaCraftServer -- the authoritative headless game server
     # (MULTIPLAYER_PLAN.md §6): no CNA/graphics, just Worlds/ + Persistence/
@@ -256,23 +286,10 @@ if(CNA_CRAFT_BUILD_GAME)
     )
     target_include_directories(CnaCraft PRIVATE src)
 
-    # Target names per ../cna/cmake/RendererSelection.cmake: the GL-family
-    # public renderers (OPENGLES2/OPENGLES3/OPENGL33/WEBGL1/WEBGL2) all share
-    # the single cna_renderer_easygl implementation target.
-    set(_cna_craft_backend_target "")
-    if(CNA_GRAPHICS_RENDERER STREQUAL "SDL_RENDERER")
-        set(_cna_craft_backend_target "cna_renderer_sdl_renderer")
-    elseif(CNA_GRAPHICS_RENDERER MATCHES "^(OPENGLES2|OPENGLES3|OPENGL33|WEBGL1|WEBGL2)$")
-        set(_cna_craft_backend_target "cna_renderer_easygl")
-    elseif(CNA_GRAPHICS_RENDERER STREQUAL "BGFX")
-        set(_cna_craft_backend_target "cna_renderer_bgfx")
-    elseif(CNA_GRAPHICS_RENDERER STREQUAL "VULKAN")
-        set(_cna_craft_backend_target "cna_renderer_vulkan")
-    endif()
-
-    # CNA and its backend static library have circular symbol references
-    # (mirrors ../cna/CMakeLists.txt's own examples and
-    # ../galaxy-eggbert/CMakeLists.txt's GalaxyEggbertCNA target).
+    # CNA::Runtime is the narrow framework surface this game uses. Its public
+    # dependency graph supplies graphics/input/content/audio and its selected
+    # renderer (including static-library link cycles), so neither the legacy
+    # CNA umbrella nor a handwritten backend target is needed here.
     if(EMSCRIPTEN)
         # Web build (plan.md §12.1 item 18 follow-up): same target shape as
         # CNA's own verified web demos (../cna/CMakeLists.txt's cna_demo_2d
@@ -285,14 +302,14 @@ if(CNA_CRAFT_BUILD_GAME)
         # With it, sharp-runtime defines __EMSCRIPTEN_PTHREADS__, its TaskT
         # stops throwing, and the game takes its NORMAL backgrounded
         # generation/meshing path in the browser -- no wasm-specific code.
-        # SDL3 (CNA's vendored static libSDL3.a) flows in transitively
-        # through the backend target's own link interface, same as the
-        # native build below -- naming SDL3::SDL3 here directly would fail
-        # at generate time (it's an imported target scoped to the CNA
-        # subdirectory).
+        # SDL3 (CNA's vendored static libSDL3.a) flows transitively through
+        # CNA::Runtime. Naming SDL3::SDL3 here directly would fail at generate
+        # time because it is imported only in the CNA subdirectory.
         target_link_libraries(CnaCraft PRIVATE
-            CNA ${_cna_craft_backend_target} SHARP_RUNTIME
-            CnaCraftWorlds CnaCraftNetTransport)
+            CNA::Runtime
+            CnaCraftWorlds
+            CnaCraftNetTransport
+        )
         target_link_options(CnaCraft PRIVATE
             # FIXED 512 MB heap, deliberately NO -sALLOW_MEMORY_GROWTH: a
             # growable wasm heap is backed by a RESIZABLE ArrayBuffer, and
@@ -341,13 +358,11 @@ if(CNA_CRAFT_BUILD_GAME)
                      "${CMAKE_CURRENT_SOURCE_DIR}/web/pre.js"
                      "${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html")
     else()
-        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT WIN32 AND _cna_craft_backend_target)
-            target_link_libraries(CnaCraft PRIVATE
-                -Wl,--start-group CNA ${_cna_craft_backend_target} -Wl,--end-group
-                SHARP_RUNTIME CnaCraftWorlds CnaCraftNetTransport)
-        else()
-            target_link_libraries(CnaCraft PRIVATE CNA SHARP_RUNTIME CnaCraftWorlds CnaCraftNetTransport)
-        endif()
+        target_link_libraries(CnaCraft PRIVATE
+            CNA::Runtime
+            CnaCraftWorlds
+            CnaCraftNetTransport
+        )
         target_link_libraries(CnaCraft PRIVATE SQLite::SQLite3)
         if(TARGET SDL3::SDL3main)
             target_link_libraries(CnaCraft PRIVATE SDL3::SDL3main)

@@ -43,7 +43,7 @@ CNA Craft builds against sibling checkouts, following the same convention as
 openeggbert/
 ├── cna-craft/        (this repo)
 ├── cna/              (engine — https://github.com/openeggbert/cna)
-└── sharp-runtime/     (utility/runtime layer, pulled in automatically by cna's CMakeLists.txt)
+└── sharp-runtime/     (modular utility/runtime layer, pulled in automatically by CNA)
 ```
 
 - CMake 3.21+
@@ -51,6 +51,11 @@ openeggbert/
 - `../cna` and `../sharp-runtime` present next to this repo (or pass `-DCNA_HOME=<path>`)
 - SQLite 3 development files (e.g. `libsqlite3-dev` on Debian/Ubuntu) — used for world persistence
   (see §5); found via CMake's built-in `FindSQLite3` module, no vendoring/network fetch needed
+
+The build consumes `CNA::Runtime` rather than CNA's historical full-framework umbrella. It disables
+CNA's unused ENet multiplayer module and selects the closure required by CNA's chosen runtime
+modules plus sharp-runtime's `Net.Sockets` component for CnaCraft's TCP transport; sharp-runtime's
+`All` bundle and unrelated HTTP, XML, JSON, compression, and process facilities are not selected.
 
 3D rendering is implemented on three of CNA's renderers — pick any one at configure time:
 the OpenGL family (`OPENGLES3` default on Linux, or `OPENGLES2`/`OPENGL33`), `VULKAN`, or `BGFX`.
