@@ -11,7 +11,8 @@ This is the long-horizon implementation backlog for the provisional **Iron Shado
 - `[x]` means implemented or validated in the initial scaffold.
 - `[ ]` means open. A task may still need decomposition into code-review-sized work.
 - Prefer completing a vertical-slice gate over starting unrelated subsystems.
-- Move genuinely reusable framework work to CNA/cna-extended only after its general contract is clear; do not design a new "CNA EXT" engine layer from scratch (see group 06).
+- Move genuinely reusable framework work to CNA only after its general contract is clear; keep
+  game-specific orchestration in Iron Gang and do not pull broad optional module sets into the game.
 - Preserve persistent `cmake-build-*` directories, ccache, and at most four build jobs.
 - Never create build trees under `/tmp`, `/var/tmp`, or `/dev/shm`.
 - Every external asset requires provenance and license approval before it can ship.
@@ -20,7 +21,12 @@ This is the long-horizon implementation backlog for the provisional **Iron Shado
 
 This plan was cut down from an earlier 6,380-task revision that had drifted toward AAA/open-world scale. The project owner locked the following decisions; every group below must stay consistent with them rather than re-introducing the cut ambition. Full reasoning is in `analysis.md`.
 
-1. **Engine layer:** depend on `cna-extended` (sibling repo, already wired into `CMakeLists.txt`) for ECS, `Transform3` scene hierarchy, 3D collision/octree, and skinned-model playback. Materials, shadows, instancing, and post-processing are integrated from CNA's existing `PbrEffect`/`SkinnedPbrEffect`/shadow-mapping/instancing examples, not designed as a new "CNA EXT" layer.
+1. **Engine layer:** consume the modular `cnanext` checkout through the narrow
+   `CNA::GraphicsCore` and `CNA::Runtime` targets, with Jolt for physics and small game-owned
+   orchestration where no reusable framework abstraction is needed. The former whole-repository
+   `cna-extended` dependency was removed during the 2026-08-22 modular migration. Older detailed
+   plan entries describing its adoption are historical design context and must be re-evaluated
+   against the modular CNA API before implementation.
 2. **World structure:** Mafia-1 style — several discrete districts/chapters connected by loading screens, not a seamless open-world streaming map.
 3. **Traffic AI:** Mafia-1 fidelity — lane-following, signals, obstacle braking. No intersection-reservation deadlock avoidance, overtaking, or public transit.
 4. **Police/wanted:** Mafia-1 fidelity — a witnessed offense triggers a chase with one escalation level. No multi-tier wanted stars, search-area decay, roadblocks, or detective persistence.
@@ -59,7 +65,7 @@ Guiding philosophy: full Mafia-1 **content** scope, but Mafia-1-era **system** f
 - [03. Architecture and module boundaries](plan/plan_03-architecture-and-module-boundaries.md) — 25 tasks
 - [04. Core runtime services](plan/plan_04-core-runtime-services.md) — 20 tasks
 - [05. CNA integration and backend policy](plan/plan_05-cna-integration-and-backend-policy.md) — 17 tasks
-- [06. CNA and cna-extended integration roadmap](plan/plan_06-cna-ext-collaboration-roadmap.md) — 27 tasks
+- [06. Historical CNA/cna-extended integration roadmap](plan/plan_06-cna-ext-collaboration-roadmap.md) — 27 tasks; re-evaluate against modular CNA
 - [07. Rendering foundation](plan/plan_07-rendering-foundation.md) — 61 tasks
 - [08. Materials, textures, lighting, shadows, and post-processing](plan/plan_08-materials-textures-lighting-shadows-and-post-processing.md) — 78 tasks
 - [09. Mesh Craft and MC3 source pipeline](plan/plan_09-mesh-craft-and-mc3-source-pipeline.md) — 50 tasks

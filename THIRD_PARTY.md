@@ -1,13 +1,12 @@
 # Third-party dependencies
 
-Iron Gang'ss original source code is MIT-licensed. Dependencies keep their own licenses and are not relicensed by this repository.
+Iron Gang's original source code is MIT-licensed. Dependencies keep their own licenses and are not relicensed by this repository.
 
 | Dependency | Role | Expected repository relationship | License handling |
 |---|---|---|---|
-| CNA | Game loop, graphics, input, audio, content | Sibling checkout | Keep CNA copyright and license notices |
-| sharp-runtime | .NET-like C++ runtime services | Sibling checkout required by CNA | Keep sharp-runtime copyright and license notices |
-| easy-gl | Recommended CNA OpenGL backend | Sibling checkout when using EASYGL | Keep easy-gl notices |
-| cna-extended | ECS, Transform3 scene hierarchy, 3D collision/octree, skinned-model playback | Sibling checkout | Keep cna-extended (MIT) copyright and license notices |
+| CNA (`cnanext`) | Modular game loop, graphics, input, audio, and content; Iron Gang directly links only `CNA::GraphicsCore` and `CNA::Runtime` | Sibling checkout | Keep CNA copyright and license notices |
+| sharp-runtime | Modular .NET-like C++ runtime services; Iron Gang directly links only `SharpRuntime::IO` and `SharpRuntime::Text.Json`, plus CNA's transitive component closure | Sibling checkout required by CNA | Keep sharp-runtime copyright and license notices |
+| easy-gl | Recommended CNA OpenGL backend | Sibling checkout when using the `OPENGLES3` renderer | Keep easy-gl notices |
 | Jolt Physics | Rigid bodies, character controller, vehicle constraint, raycast/trigger queries (`plan/plan_15-physics-integration.md`) | Shared checkout at `~/deps/jolt`, pinned to tag `v5.6.0` (commit `e77f175595e64cb44218cc9d9d56fc365ad0e36a`) | MIT license (Copyright 2021 Jorrit Rouwe); keep Jolt copyright and license notices |
 | Mesh Craft | Authoring MC3 scenes and conversion to glTF/GLB | External tool/sibling checkout; not linked into the prototype | Keep Mesh Craft notices and record generated-source provenance |
 | SDL and CNA transitive dependencies | Platform, windowing, media, compression | Provided by CNA's build | Distribute required notices with releases |

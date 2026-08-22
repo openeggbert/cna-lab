@@ -548,9 +548,8 @@ namespace IronGang
                 input.sprint = keyboard.IsKeyDown(Keys::LeftShift) || keyboard.IsKeyDown(Keys::RightShift);
                 player_.Update(deltaSeconds, input, physics_);
 
-                // Gate M6: locomotion clip switching, crossfaded over ModelAnimationComponentEXT's
-                // BlendDurationEXT (see ModelAnimationSystem3DEXT's own header comment). A no-op
-                // if the skinned test character model failed to load.
+                // Gate M6: locomotion clip switching, crossfaded by the renderer's small
+                // AnimationPlayer-backed state. A no-op if the skinned test character failed to load.
                 const bool playerIsMoving = input.forward != 0.0F || input.strafe != 0.0F;
                 renderer_.UpdateCharacterAnimation(deltaSeconds, playerIsMoving ? "Walk" : "Idle");
 

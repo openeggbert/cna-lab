@@ -13,19 +13,18 @@ option(IRON_GANG_BUILD_TESTS "Build Iron Gang core tests" ON)
 option(IRON_GANG_WARNINGS_AS_ERRORS "Treat Iron Gang warnings as errors" OFF)
 option(IRON_GANG_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
-set(IRON_GANG_CNA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../cna" CACHE PATH
-    "Path to the CNA source tree. CNA expects sharp-runtime next to itself.")
+set(IRON_GANG_CNA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../cnanext" CACHE PATH
+    "Path to the modular CNA source tree. CNA expects sharp-runtime next to itself.")
 
 if(NOT EXISTS "${IRON_GANG_CNA_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
-        "Iron Gang: CNA was not found at '${IRON_GANG_CNA_DIR}'.\n"
+        "Iron Gang: modular CNA was not found at '${IRON_GANG_CNA_DIR}'.\n"
         "Recommended workspace layout:\n"
-        "  workspace/cna\n"
+        "  workspace/cnanext\n"
         "  workspace/sharp-runtime\n"
-        "  workspace/easy-gl       # for EASYGL\n"
-        "  workspace/cna-extended\n"
+        "  workspace/easy-gl       # for OPENGLES3\n"
         "  workspace/iron-gang\n"
-        "Override with -DIRON_GANG_CNA_DIR=/absolute/path/to/cna")
+        "Override with -DIRON_GANG_CNA_DIR=/absolute/path/to/cnanext")
 endif()
 
 get_filename_component(IRON_GANG_DEPENDENCY_ROOT "${IRON_GANG_CNA_DIR}/.." ABSOLUTE)
@@ -34,16 +33,6 @@ if(NOT EXISTS "${IRON_GANG_DEPENDENCY_ROOT}/sharp-runtime/CMakeLists.txt")
         "Iron Gang: sharp-runtime must be a sibling of CNA at\n"
         "  ${IRON_GANG_DEPENDENCY_ROOT}/sharp-runtime\n"
         "This is required by CNA's current build contract.")
-endif()
-
-set(IRON_GANG_CNA_EXTENDED_DIR "${IRON_GANG_DEPENDENCY_ROOT}/cna-extended" CACHE PATH
-    "Path to the cna-extended repository (ECS, 3D transform hierarchy, 3D collision/octree, skinned-model playback).")
-
-if(NOT EXISTS "${IRON_GANG_CNA_EXTENDED_DIR}/CMakeLists.txt")
-    message(FATAL_ERROR
-        "Iron Gang: cna-extended must be a sibling of CNA at\n"
-        "  ${IRON_GANG_CNA_EXTENDED_DIR}\n"
-        "Override with -DIRON_GANG_CNA_EXTENDED_DIR=/absolute/path/to/cna-extended")
 endif()
 
 # Jolt Physics (selected in plan_15-physics-integration.md IG-15-003): a shared checkout under
@@ -64,10 +53,17 @@ set(CNA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(CNA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(CNA_ENABLE_NET OFF CACHE BOOL "" FORCE)
 set(CNA_DEVICES OFF CACHE BOOL "" FORCE)
+set(CNA_CNAEXT OFF CACHE BOOL "" FORCE)
+set(CNA_ENABLE_DRACO OFF CACHE BOOL "" FORCE)
 set(SHARP_RUNTIME_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(SHARP_RUNTIME_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
-set(CNA_EXTENDED_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(CNA_EXTENDED_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+# CNA's modules name their own narrow Sharp Runtime dependencies. Its renderer target currently
+# consumes CNA's documented framework closure; Iron Gang adds only Text.Json for mission and
+# cutscene data. Setting the selection before adding CNA prevents sharp-runtime's `All` umbrella
+# from instantiating unrelated networking, diagnostics, XML, compression, and process modules.
+set(SHARP_RUNTIME_COMPONENTS
+    "Core.Base;IO;Collections.Core;Collections.ObjectModel;Runtime;Threading;Text;Text.Json;Globalization;Storage;Security.Cryptography"
+    CACHE STRING "Sharp Runtime components required by modular CNA and Iron Gang" FORCE)
 # Jolt defaults INTERPROCEDURAL_OPTIMIZATION ON and expects the *consuming* project to also opt
 # in via CMAKE_INTERPROCEDURAL_OPTIMIZATION; since Iron Gang does not, disable it for Jolt
 # rather than risk an LTO link mismatch (Jolt's own CMakeLists.txt documents this exact pitfall).
@@ -79,21 +75,20 @@ set(JPH_USE_VK OFF CACHE BOOL "" FORCE)
 set(JPH_USE_MTL OFF CACHE BOOL "" FORCE)
 set(JPH_USE_CPU_COMPUTE OFF CACHE BOOL "" FORCE)
 
-# EASYGL is the recommended prototype backend. Override with VULKAN where available.
-if(NOT DEFINED CNA_GRAPHICS_BACKEND)
-    set(CNA_GRAPHICS_BACKEND "EASYGL" CACHE STRING "CNA graphics backend")
+# OPENGLES3 uses CNA's EasyGL implementation and remains the recommended prototype renderer.
+# Override with VULKAN where available.
+if(NOT DEFINED CNA_GRAPHICS_RENDERER)
+    set(CNA_GRAPHICS_RENDERER "OPENGLES3" CACHE STRING "CNA graphics renderer")
 endif()
 
-add_subdirectory("${IRON_GANG_CNA_DIR}" "${CMAKE_BINARY_DIR}/_deps/cna")
-
-# cna-extended detects the `CNA` target this project just defined above and
-# links against it instead of building its own copy of CNA.
-add_subdirectory("${IRON_GANG_CNA_EXTENDED_DIR}" "${CMAKE_BINARY_DIR}/_deps/cna_extended")
+# Keep CNA's module targets available, but do not make every module/tool part of Iron Gang's
+# default `all` target. Only the module closure reached from CNA::GraphicsCore/CNA::Runtime below
+# is built; optional Devices, GraphicsExt, C API, tools, and descriptor gates remain opt-in.
+add_subdirectory("${IRON_GANG_CNA_DIR}" "${CMAKE_BINARY_DIR}/_deps/cna" EXCLUDE_FROM_ALL)
 
 add_subdirectory("${IRON_GANG_JOLT_DIR}/Build" "${CMAKE_BINARY_DIR}/_deps/jolt")
 
 include(cmake/CompilerWarnings.cmake)
-include(cmake/CnaLinking.cmake)
 
 add_library(iron_gang_core STATIC
     src/Cutscenes/CutscenePlayer.cpp
@@ -122,10 +117,10 @@ target_include_directories(iron_gang_core
 
 target_link_libraries(iron_gang_core
     PUBLIC
-        CNA
-        SHARP_RUNTIME
-        CNA_EXTENDED
+        CNA::GraphicsCore
     PRIVATE
+        SharpRuntime::IO
+        SharpRuntime::Text.Json
         Jolt)
 
 # Jolt's own headers are not warning-clean under this project's strict flags; treat them as
@@ -154,8 +149,15 @@ target_compile_definitions(iron_gang PRIVATE
     IRON_GANG_VERSION="${PROJECT_VERSION}"
     IRON_GANG_DEFAULT_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
 
-target_link_libraries(iron_gang PRIVATE iron_gang_core)
-iron_gang_link_final_target(iron_gang)
+target_link_libraries(iron_gang PRIVATE
+    iron_gang_core
+    CNA::Runtime)
+# Game.hpp reaches sharp-runtime's Decimal.hpp through CNA's public content headers. Mark that
+# dependency include root as external for Iron Gang so -Wpedantic diagnoses our sources, not the
+# dependency's intentional GNU __int128 implementation (sharp-runtime itself still builds with
+# its own strict warning policy).
+target_include_directories(iron_gang SYSTEM PRIVATE
+    "${IRON_GANG_DEPENDENCY_ROOT}/sharp-runtime/modules/core/include")
 iron_gang_apply_warnings(iron_gang)
 
 if(TARGET SDL3::SDL3main)
@@ -189,7 +191,6 @@ if(IRON_GANG_BUILD_TESTS)
     target_compile_definitions(iron_gang_core_tests PRIVATE
         IRON_GANG_SOURCE_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
     target_link_libraries(iron_gang_core_tests PRIVATE iron_gang_core)
-    iron_gang_link_final_target(iron_gang_core_tests)
     iron_gang_apply_warnings(iron_gang_core_tests)
     add_test(NAME iron_gang_core_tests COMMAND iron_gang_core_tests)
     set_tests_properties(iron_gang_core_tests PROPERTIES
@@ -200,13 +201,15 @@ if(IRON_GANG_BUILD_TESTS)
     add_test(NAME iron_gang_missing_asset_fallback
         COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/scripts/test-missing-asset-fallback.sh" "$<TARGET_FILE:iron_gang>")
     set_tests_properties(iron_gang_missing_asset_fallback PROPERTIES
-        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        # A regression test must not depend on the host's PulseAudio/PipeWire permissions. CNA's
+        # SDL3 audio path is still exercised, through SDL's deterministic no-hardware driver.
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy")
 
     # Gate M4 (IG-39-005): character, trigger, raycast, and vehicle prototypes behind PhysicsWorld.
     add_executable(iron_gang_physics_tests tests/PhysicsTests.cpp)
     target_include_directories(iron_gang_physics_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
     target_link_libraries(iron_gang_physics_tests PRIVATE iron_gang_core)
-    iron_gang_link_final_target(iron_gang_physics_tests)
     iron_gang_apply_warnings(iron_gang_physics_tests)
     add_test(NAME iron_gang_physics_tests COMMAND iron_gang_physics_tests)
     set_tests_properties(iron_gang_physics_tests PROPERTIES

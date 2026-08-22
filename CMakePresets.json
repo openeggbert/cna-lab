@@ -26,7 +26,7 @@
       "binaryDir": "${sourceDir}/cmake-build-dev-easygl",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CNA_GRAPHICS_BACKEND": "EASYGL"
+        "CNA_GRAPHICS_RENDERER": "OPENGLES3"
       }
     },
     {
@@ -36,7 +36,7 @@
       "binaryDir": "${sourceDir}/cmake-build-dev-vulkan",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CNA_GRAPHICS_BACKEND": "VULKAN"
+        "CNA_GRAPHICS_RENDERER": "VULKAN"
       }
     },
     {
@@ -46,7 +46,7 @@
       "binaryDir": "${sourceDir}/cmake-build-compile-software",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CNA_GRAPHICS_BACKEND": "SOFTWARE"
+        "CNA_GRAPHICS_RENDERER": "SOFTWARE"
       }
     },
     {
@@ -56,7 +56,7 @@
       "binaryDir": "${sourceDir}/cmake-build-release-easygl",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CNA_GRAPHICS_BACKEND": "EASYGL",
+        "CNA_GRAPHICS_RENDERER": "OPENGLES3",
         "IRON_GANG_BUILD_TESTS": "OFF"
       }
     }

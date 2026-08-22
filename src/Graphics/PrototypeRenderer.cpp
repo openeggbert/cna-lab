@@ -3,12 +3,7 @@
 #include "IronGang/Graphics/SunLight.hpp"
 #include "IronGang/World/PrototypeWorld.hpp"
 
-#include "CNA/Extended/ECS/Entity.hpp"
-#include "CNA/Extended/ECS/World.hpp"
-#include "CNA/Extended/ECS/WorldBuilder.hpp"
-#include "CNA/Extended/World3DEXT/ModelAnimationComponentEXT.hpp"
-#include "CNA/Extended/World3DEXT/ModelAnimationSystem3DEXT.hpp"
-#include "Microsoft/Xna/Framework/GameTime.hpp"
+#include "Microsoft/Xna/Framework/Graphics/AnimationPlayer.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Graphics/ModelMesh.hpp"
@@ -18,12 +13,73 @@
 #include "Microsoft/Xna/Framework/Graphics/SkinnedPbrEffect.hpp"
 #include "System/TimeSpan.hpp"
 
+#include <algorithm>
 #include <utility>
 
 namespace IronGang
 {
     using namespace Microsoft::Xna::Framework;
     using namespace Microsoft::Xna::Framework::Graphics;
+
+    struct CharacterAnimationState
+    {
+        explicit CharacterAnimationState(const SkinningData& data)
+            : skinningData(&data), player(data), blendedSkinTransforms(player.GetSkinTransforms())
+        {
+        }
+
+        void Update(float deltaSeconds, const std::string& requestedClip)
+        {
+            const auto clipIt = skinningData->AnimationClips.find(requestedClip);
+            if (clipIt == skinningData->AnimationClips.end())
+            {
+                return;
+            }
+
+            const AnimationClip* playingClip = player.getCurrentClipProperty();
+            if (playingClip != &clipIt->second)
+            {
+                if (playingClip != nullptr && blendDuration > 0.0F)
+                {
+                    blendFromSkinTransforms = player.GetSkinTransforms();
+                    blendElapsed = 0.0F;
+                }
+                else
+                {
+                    blendFromSkinTransforms.clear();
+                }
+                player.StartClip(clipIt->second);
+            }
+
+            player.Update(System::TimeSpan::FromSeconds(deltaSeconds), true, true);
+            const auto& target = player.GetSkinTransforms();
+            if (blendFromSkinTransforms.empty())
+            {
+                blendedSkinTransforms = target;
+                return;
+            }
+
+            blendElapsed += deltaSeconds;
+            const float amount = std::clamp(blendElapsed / blendDuration, 0.0F, 1.0F);
+            const std::size_t boneCount = std::min(blendFromSkinTransforms.size(), target.size());
+            blendedSkinTransforms.resize(boneCount);
+            for (std::size_t i = 0; i < boneCount; ++i)
+            {
+                blendedSkinTransforms[i] = Matrix::Lerp(blendFromSkinTransforms[i], target[i], amount);
+            }
+            if (amount >= 1.0F)
+            {
+                blendFromSkinTransforms.clear();
+            }
+        }
+
+        const SkinningData* skinningData;
+        AnimationPlayer player;
+        float blendDuration{0.25F};
+        float blendElapsed{0.0F};
+        std::vector<Matrix> blendFromSkinTransforms;
+        std::vector<Matrix> blendedSkinTransforms;
+    };
 
     namespace
     {
@@ -84,16 +140,7 @@ namespace IronGang
             auto* skinningData = static_cast<SkinningData*>(characterModel_->getTagProperty());
             if (skinningData != nullptr)
             {
-                characterAnimComponent_ =
-                    std::make_unique<CNA::Extended::World3DEXT::ModelAnimationComponentEXT>(*skinningData);
-                characterAnimComponent_->ModelEXT = &characterModel_.value();
-
-                CNA::Extended::ECS::WorldBuilder builder;
-                builder.AddSystem(std::make_unique<CNA::Extended::World3DEXT::ModelAnimationSystem3DEXT>());
-                characterWorld_ = builder.Build();
-                characterWorld_->Initialize();
-                CNA::Extended::ECS::Entity& entity = characterWorld_->CreateEntity();
-                entity.Attach(characterAnimComponent_.get());
+                characterAnimation_ = std::make_unique<CharacterAnimationState>(*skinningData);
             }
             else
             {
@@ -157,13 +204,11 @@ namespace IronGang
 
     void PrototypeRenderer::UpdateCharacterAnimation(float deltaSeconds, const std::string& clipName)
     {
-        if (!characterWorld_ || !characterAnimComponent_)
+        if (!characterAnimation_)
         {
             return;
         }
-        characterAnimComponent_->ClipNameEXT = clipName;
-        GameTime gameTime(System::TimeSpan::Zero, System::TimeSpan::FromSeconds(deltaSeconds));
-        characterWorld_->Update(gameTime);
+        characterAnimation_->Update(deltaSeconds, clipName);
     }
 
     void PrototypeRenderer::RebuildStaticGeometry(GraphicsDevice& device, const PrototypeWorld& world)
@@ -291,13 +336,13 @@ namespace IronGang
 
         if (drawPlayer)
         {
-            if (characterModel_.has_value() && characterAnimComponent_)
+            if (characterModel_.has_value() && characterAnimation_)
             {
                 // Push freshly computed bone poses onto every skinned effect this model's meshes
                 // use, then draw through the same direct Model::Draw() call warehouseModel_/
-                // vehicleModels_ already use (no RenderSystem3DEXT/Camera3DEXT: this renderer
-                // already has view/projection ready, and needs no other ECS-driven drawing).
-                const auto& skinTransforms = characterAnimComponent_->BlendedSkinTransformsEXT;
+                // vehicleModels_ already use. The animation state uses CNA::GraphicsCore's
+                // AnimationPlayer directly, so no separate ECS/rendering framework is needed.
+                const auto& skinTransforms = characterAnimation_->blendedSkinTransforms;
                 for (ModelMesh* mesh : characterModel_->getMeshesProperty())
                 {
                     for (Effect* effect : mesh->getEffectsPropertyMutable())

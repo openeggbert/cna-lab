@@ -874,7 +874,7 @@ Other open items worth picking up opportunistically (not blocking, not sequenced
 ## Useful commands
 
 ```bash
-./scripts/preflight.sh compile-software      # verify CNA/sharp-runtime/cna-extended/jolt/mesh-craft
+./scripts/preflight.sh compile-software      # verify cnanext/sharp-runtime/jolt/mesh-craft
 ./scripts/check-syntax.sh                    # fast syntax-only pass over every .cpp
 cmake --preset compile-software && cmake --build --preset compile-software   # -j4, ccache
 ctest --preset compile-software --output-on-failure

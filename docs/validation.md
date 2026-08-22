@@ -1,5 +1,27 @@
 # Validation record
 
+## Current modular dependency baseline (2026-08-22)
+
+Iron Gang now configures against the sibling `../cnanext` and modular `../sharp-runtime`
+checkouts. Its own CMake graph names `CNA::GraphicsCore`, `CNA::Runtime`,
+`SharpRuntime::IO`, and `SharpRuntime::Text.Json`; CNA is added `EXCLUDE_FROM_ALL`, so its
+unrelated Devices, GraphicsExt, C API, examples, and tools are absent from Iron Gang's default
+`all` target. The former `cna-extended` animation wrapper was replaced by a small game-owned
+state over CNA's `AnimationPlayer`, preserving the existing 0.25-second clip crossfade.
+
+Validated against `cnanext` 0.1.0-alpha.1 and `sharp-runtime` 0.1.0-alpha.1:
+
+- a fresh `compile-software` configure and full build completed successfully;
+- the default build graph contains only Iron Gang, its selected CNA/Sharp Runtime module closure,
+  and Jolt—not unused CNA devices, extensions, examples, or tools;
+- `./scripts/check-syntax.sh` passed all 23 Iron Gang source/test translation units;
+- all three CTest targets passed; and
+- `iron_gang --smoke 5` loaded both districts' prototype assets, the skinned character and its
+  animation clips, textures, and audio, then exited successfully.
+
+The historical entries below describe the milestone state at the time each gate was completed;
+references there to the old `../cna`/`cna-extended` graph are not current build instructions.
+
 ## Completed for this scaffold
 
 - Every Iron Gang `.cpp` file passed a C++23 syntax-only compile against the actual supplied CNA and sharp-runtime headers with software-backend definitions.
@@ -27,7 +49,7 @@
 
 ## Full CNA-linked build status
 
-A full Iron Gang executable (`iron_gang`) now links successfully in this workspace using the `compile-software` preset. The CNA-vendored SDL/SDL_image/SDL_mixer submodules are populated here, and both `easy-gl` and `cna-extended` are present as siblings, so the earlier missing-submodule/missing-sibling limitation no longer applies in this environment. The `dev-easygl`/`dev-vulkan` presets (real rendering backends) have not yet been build-verified here; only `compile-software` has been exercised end to end.
+A full Iron Gang executable (`iron_gang`) links successfully in this workspace using the `compile-software` preset against `../cnanext` and `../sharp-runtime`. The CNA-vendored SDL/SDL_image/SDL_mixer submodules are populated here; `cna-extended` is no longer required. The `dev-easygl` preset now selects CNA's public `OPENGLES3` renderer name (whose implementation is EasyGL), while `dev-vulkan` selects `VULKAN`. Only `compile-software` has been exercised end to end in this validation environment.
 
 ## Reproduction
 

@@ -3,22 +3,21 @@
 The repository deliberately separates framework code, reusable open-city systems, and game-specific content.
 
 ```text
-sharp-runtime
+sharp-runtime modules (`Core.Base`, `IO`, `Text.Json`, CNA's transitive closure)
       ↓
-     CNA (materials, shadows, instancing, post-processing already available)
+cnanext modules (`GraphicsCore` for the library, `Runtime` for the game)
       ↓
-cna-extended (ECS, Transform3 hierarchy, 3D collision/octree, skinned-model playback)
-      ↓
-Iron Gang reusable systems (`iron_gang_core`)
+Iron Gang reusable systems (`iron_gang_core`) + Jolt Physics
       ↓
 Iron Gang game application and original content
 ```
 
-`cna-extended` is a sibling dependency (`../cna-extended`), not a fork of CNA. It supplies
-scene/ECS boilerplate a small team should not rewrite, but it does not provide materials,
-shadows, instancing, or post-processing — those already exist in CNA itself
-(`PbrEffect`, `SkinnedPbrEffect`, shadow-mapping and instancing examples) and should be
-integrated directly rather than reimplemented under a separate "CNA EXT" layer.
+Iron Gang consumes the modular `../cnanext` checkout through named CMake targets, not CNA's
+compatibility umbrella. `iron_gang_core` exposes `CNA::GraphicsCore`, uses the Sharp Runtime
+`IO`/`Text.Json` components privately, and only the executable adds `CNA::Runtime`. CNA is added with
+`EXCLUDE_FROM_ALL`, so unrelated Devices, GraphicsExt, C API, examples, and tools are not part of
+the game's default build. Character playback uses `GraphicsCore`'s `AnimationPlayer` directly;
+the former whole-repository `cna-extended` dependency is no longer needed.
 
 The current prototype includes a small but real vertical path:
 
