@@ -50,6 +50,7 @@ namespace WolfCna
         int gold_ = 0;
         int score_ = 0;
         int lives_ = 3;
+        bool hasSecurityCard_ = false;
         bool completed_ = false;
         enum class Weapon { Knife, Sidearm };
         Weapon weapon_ = Weapon::Sidearm;

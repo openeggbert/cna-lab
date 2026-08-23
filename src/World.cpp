@@ -199,8 +199,10 @@ namespace WolfCna
                 result.health += 25;
             else if (pickup.type == PickupType::Ammo)
                 result.ammo += 6;
-            else
+            else if (pickup.type == PickupType::Gold)
                 result.gold += 100;
+            else
+                ++result.accessCards;
         }
 
         return result;
@@ -219,7 +221,10 @@ namespace WolfCna
         return false;
     }
 
-    void World::TryActivate(const Vector3& playerPosition, const Vector3& lookDirection)
+    void World::TryActivate(
+        const Vector3& playerPosition,
+        const Vector3& lookDirection,
+        bool hasSecurityCard)
     {
         Door* target = nullptr;
         float closestDistanceSquared = ActivationRange * ActivationRange;
@@ -244,7 +249,7 @@ namespace WolfCna
             closestDistanceSquared = distanceSquared;
         }
 
-        if (target)
+        if (target && (target->material != Material::SecurityDoor || hasSecurityCard))
             target->opening = true;
     }
 
@@ -527,12 +532,16 @@ namespace WolfCna
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
             {
                 const char symbol = map_[z][x];
-                if (symbol != 'H' && symbol != 'A' && symbol != 'T')
+            if (symbol != 'H' && symbol != 'A' && symbol != 'T' && symbol != 'C')
                     continue;
 
                 pickups_.push_back({
                     Vector3(static_cast<float>(x) + 0.5f, 0.08f, static_cast<float>(z) + 0.5f),
-                    symbol == 'H' ? PickupType::Health : symbol == 'A' ? PickupType::Ammo : PickupType::Gold});
+                    symbol == 'H'
+                        ? PickupType::Health
+                        : symbol == 'A'
+                            ? PickupType::Ammo
+                            : symbol == 'T' ? PickupType::Gold : PickupType::AccessCard});
             }
         }
     }
@@ -924,7 +933,9 @@ namespace WolfCna
                     ? Vector3(0.22f, 0.82f, 0.3f)
                     : pickup.type == PickupType::Ammo
                         ? Vector3(0.92f, 0.76f, 0.12f)
-                        : Vector3(0.98f, 0.54f, 0.08f));
+                        : pickup.type == PickupType::Gold
+                            ? Vector3(0.98f, 0.54f, 0.08f)
+                            : Vector3(0.28f, 0.72f, 0.94f));
 
             for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
             {

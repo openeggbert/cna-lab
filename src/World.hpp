@@ -27,6 +27,7 @@ namespace WolfCna
             int health = 0;
             int ammo = 0;
             int gold = 0;
+            int accessCards = 0;
         };
 
         explicit World(const LevelDefinition& level);
@@ -55,7 +56,8 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         void TryActivate(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
-            const Microsoft::Xna::Framework::Vector3& lookDirection);
+            const Microsoft::Xna::Framework::Vector3& lookDirection,
+            bool hasSecurityCard);
 
     private:
         enum class Material : int
@@ -109,7 +111,8 @@ namespace WolfCna
         {
             Health,
             Ammo,
-            Gold
+            Gold,
+            AccessCard
         };
 
         struct Pickup

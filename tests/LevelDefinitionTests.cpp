@@ -59,7 +59,7 @@ int main()
     const Microsoft::Xna::Framework::Vector3 lookDirection(1.0f, 0.0f, 0.0f);
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "closed door blocks movement");
 
-    doorWorld.TryActivate(playerPosition, lookDirection);
+    doorWorld.TryActivate(playerPosition, lookDirection, false);
     static_cast<void>(doorWorld.Update(0.2f, playerPosition));
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "partly open door still blocks movement");
 
@@ -73,7 +73,10 @@ int main()
         "#####\n#PQ.#\n#####\n",
         "security-door.level"));
     Expect(securityDoorWorld.Collides(2.5f, 1.5f, 0.1f), "closed security door blocks movement");
-    securityDoorWorld.TryActivate(playerPosition, lookDirection);
+    securityDoorWorld.TryActivate(playerPosition, lookDirection, false);
+    static_cast<void>(securityDoorWorld.Update(0.5f, playerPosition));
+    Expect(securityDoorWorld.Collides(2.5f, 1.5f, 0.1f), "security door needs an access card");
+    securityDoorWorld.TryActivate(playerPosition, lookDirection, true);
     static_cast<void>(securityDoorWorld.Update(0.5f, playerPosition));
     Expect(!securityDoorWorld.Collides(2.5f, 1.5f, 0.1f), "security door opens safely");
 
@@ -86,6 +89,13 @@ int main()
         Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f));
     Expect(healthPickup.health == 25 && healthPickup.ammo == 0, "health pickup is collected once");
     Expect(ammoPickup.health == 0 && ammoPickup.ammo == 6, "ammo pickup is collected once");
+
+    WolfCna::World cardWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PC.#\n#####\n",
+        "card.level"));
+    const WolfCna::World::PickupResult cardPickup = cardWorld.CollectPickups(
+        Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f));
+    Expect(cardPickup.accessCards == 1, "security card is collected once");
 
     WolfCna::World exitWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PET#\n#####\n",

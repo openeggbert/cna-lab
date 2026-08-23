@@ -409,7 +409,7 @@ namespace WolfCna
 
         const bool actionIsDown = keyboard.IsKeyDown(Keys::Space);
         if (actionIsDown && !actionWasDown_)
-            world_.TryActivate(playerPosition_, LookDirection());
+            world_.TryActivate(playerPosition_, LookDirection(), hasSecurityCard_);
         actionWasDown_ = actionIsDown;
 
         if (keyboard.IsKeyDown(Keys::D1))
@@ -483,7 +483,8 @@ namespace WolfCna
         health_ = std::min(100, health_ + pickups.health);
         ammo_ = std::min(12, ammo_ + pickups.ammo);
         gold_ += pickups.gold;
-        if ((pickups.health + pickups.ammo + pickups.gold) > 0 && pickupSound_)
+        hasSecurityCard_ = hasSecurityCard_ || pickups.accessCards > 0;
+        if ((pickups.health + pickups.ammo + pickups.gold + pickups.accessCards) > 0 && pickupSound_)
             static_cast<void>(pickupSound_->Play(0.28f, 0.0f, 0.0f));
         completed_ = completed_ || world_.ReachedExit(playerPosition_);
 
