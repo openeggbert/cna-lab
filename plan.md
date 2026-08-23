@@ -952,6 +952,16 @@ Acceptance:
 - pickups are collected once on contact and update player health/ammo with caps;
 - the HUD shows the current health and ammunition supplies.
 
+### WOLF-010 — first 5-minute level
+
+Status: in progress.
+
+Current progress:
+
+- the starter level contains a gold pickup and a visible exit;
+- reaching the exit marks the run complete in the HUD;
+- the remaining work is combat challenge, a player death/restart loop, audio and a longer authored route.
+
 ---
 
 # 19. Long-term identity

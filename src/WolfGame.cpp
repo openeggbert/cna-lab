@@ -206,6 +206,10 @@ namespace WolfCna
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(14, panelY + 2, health_, 4), Color(55, 212, 82, 255));
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(132, panelY, 76, 8), Color(28, 25, 17, 255));
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(134, panelY + 2, ammo_ * 6, 4), Color(236, 190, 44, 255));
+        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(224, panelY, 76, 8), Color(30, 22, 14, 255));
+        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(226, panelY + 2, std::min(72, gold_ / 10), 4), Color(246, 133, 26, 255));
+        if (completed_)
+            hudSpriteBatch_->Draw(*hudPixel_, Rectangle(0, 8, viewport.getWidthProperty(), 4), Color(92, 226, 244, 255));
         hudSpriteBatch_->End();
     }
 
@@ -315,6 +319,8 @@ namespace WolfCna
         const World::PickupResult pickups = world_.CollectPickups(playerPosition_);
         health_ = std::min(100, health_ + pickups.health);
         ammo_ = std::min(12, ammo_ + pickups.ammo);
+        gold_ += pickups.gold;
+        completed_ = completed_ || world_.ReachedExit(playerPosition_);
 
         Game::Update(gameTime);
     }

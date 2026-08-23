@@ -42,6 +42,8 @@ namespace WolfCna
         float yaw_ = 0.0f;
         int health_ = 100;
         int ammo_ = 12;
+        int gold_ = 0;
+        bool completed_ = false;
         bool actionWasDown_ = false;
         bool attackWasDown_ = false;
         bool fullScreenWasDown_ = false;

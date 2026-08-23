@@ -79,5 +79,15 @@ int main()
     Expect(healthPickup.health == 25 && healthPickup.ammo == 0, "health pickup is collected once");
     Expect(ammoPickup.health == 0 && ammoPickup.ammo == 6, "ammo pickup is collected once");
 
+    WolfCna::World exitWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PET#\n#####\n",
+        "exit.level"));
+    Expect(
+        exitWorld.ReachedExit(Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f)),
+        "exit is reached on contact");
+    const WolfCna::World::PickupResult goldPickup = exitWorld.CollectPickups(
+        Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f));
+    Expect(goldPickup.gold == 100, "gold pickup is collected");
+
     return EXIT_SUCCESS;
 }

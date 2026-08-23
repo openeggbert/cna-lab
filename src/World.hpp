@@ -26,6 +26,7 @@ namespace WolfCna
         {
             int health = 0;
             int ammo = 0;
+            int gold = 0;
         };
 
         explicit World(const LevelDefinition& level);
@@ -47,6 +48,8 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& lookDirection);
         [[nodiscard]] PickupResult CollectPickups(
             const Microsoft::Xna::Framework::Vector3& playerPosition);
+        [[nodiscard]] bool ReachedExit(
+            const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         void TryActivate(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection);
@@ -95,7 +98,8 @@ namespace WolfCna
         enum class PickupType
         {
             Health,
-            Ammo
+            Ammo,
+            Gold
         };
 
         struct Pickup
@@ -120,6 +124,7 @@ namespace WolfCna
         std::vector<std::uint16_t> impactIndices_;
         std::vector<Enemy> enemies_;
         std::vector<Pickup> pickups_;
+        std::vector<Microsoft::Xna::Framework::Vector3> exits_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> enemyVertices_;
         std::vector<std::uint16_t> enemyIndices_;
 
@@ -140,6 +145,7 @@ namespace WolfCna
         void BuildImpactGeometry();
         void BuildEnemies();
         void BuildPickups();
+        void BuildExits();
         void BuildEnemyGeometry();
         [[nodiscard]] bool HasLineOfSight(
             const Microsoft::Xna::Framework::Vector3& from,

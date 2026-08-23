@@ -42,6 +42,8 @@ have the same width and use only these symbols:
 - `G`: guard spawn
 - `H`: health pickup
 - `A`: ammunition pickup
+- `T`: gold pickup
+- `E`: level exit
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 
