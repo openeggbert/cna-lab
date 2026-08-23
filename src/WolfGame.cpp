@@ -218,6 +218,11 @@ namespace WolfCna
             return;
         }
 
+        const bool fullScreenIsDown = keyboard.IsKeyDown(Keys::F11);
+        if (fullScreenIsDown && !fullScreenWasDown_)
+            graphics_->ToggleFullScreen();
+        fullScreenWasDown_ = fullScreenIsDown;
+
         const bool actionIsDown = keyboard.IsKeyDown(Keys::Space);
         if (actionIsDown && !actionWasDown_)
             world_.TryActivate(playerPosition_, LookDirection());

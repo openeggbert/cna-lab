@@ -173,6 +173,7 @@ Controls in the starter:
 - `Left/Right`: turn left/right
 - `Space`: open the door in front of you
 - `Left/Right Ctrl`: fire/knife attack (reserved until combat exists)
+- `F11`: toggle fullscreen
 - `Escape`: quit
 
 This is milestone M0/M1, not yet a game.
