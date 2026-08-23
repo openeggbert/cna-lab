@@ -171,7 +171,7 @@ Controls in the starter:
 
 - `Up/Down`: forward/backward
 - `Left/Right`: turn left/right
-- `Space`: action (reserved until interactive objects exist)
+- `Space`: open the door in front of you
 - `Left/Right Ctrl`: fire/knife attack (reserved until combat exists)
 - `Escape`: quit
 
@@ -888,6 +888,8 @@ Acceptance:
 - level loader contains no rendering code.
 
 ### WOLF-004 — door
+
+Status: complete.
 
 Acceptance:
 

@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include "LevelDefinition.hpp"
+#include "World.hpp"
 
 namespace
 {
@@ -50,6 +51,20 @@ int main()
     ExpectParseFailure("#####\n#X.P#\n#####\n", "unknown symbol");
     ExpectParseFailure("#####\n#...#\n#####\n", "no player spawn");
     ExpectParseFailure("#####\n#P.P#\n#####\n", "more than one player spawn");
+
+    WolfCna::World doorWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PD.#\n#####\n",
+        "door.level"));
+    const Microsoft::Xna::Framework::Vector3 playerPosition(1.5f, 0.62f, 1.5f);
+    const Microsoft::Xna::Framework::Vector3 lookDirection(1.0f, 0.0f, 0.0f);
+    Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "closed door blocks movement");
+
+    doorWorld.TryActivate(playerPosition, lookDirection);
+    doorWorld.Update(0.2f);
+    Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "partly open door still blocks movement");
+
+    doorWorld.Update(0.3f);
+    Expect(!doorWorld.Collides(2.5f, 1.5f, 0.1f), "sufficiently open door allows movement");
 
     return EXIT_SUCCESS;
 }

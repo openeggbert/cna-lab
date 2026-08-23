@@ -53,9 +53,11 @@ configure_file(
 enable_testing()
 add_executable(level-definition-tests
     src/LevelDefinition.cpp
+    src/World.cpp
     tests/LevelDefinitionTests.cpp
 )
 target_include_directories(level-definition-tests PRIVATE src)
+target_link_libraries(level-definition-tests PRIVATE CNA)
 add_test(NAME level-definition-tests COMMAND level-definition-tests)
 set_tests_properties(level-definition-tests PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")

@@ -23,7 +23,7 @@ This starter is deliberately small. It proves the basic direction before local A
 
 - up/down arrow keys: forward / backward
 - left/right arrow keys: turn left / right
-- `Space`: action (reserved until interactive objects are added)
+- `Space`: open the door in front of you
 - left or right `Ctrl`: fire / knife attack (reserved until combat is added)
 - `Escape`: quit
 
@@ -35,6 +35,7 @@ have the same width and use only these symbols:
 - `#`: solid wall
 - `.`: empty floor
 - `P`: the single player spawn
+- `D`: closed sliding door
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 

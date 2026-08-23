@@ -218,6 +218,11 @@ namespace WolfCna
             return;
         }
 
+        const bool actionIsDown = keyboard.IsKeyDown(Keys::Space);
+        if (actionIsDown && !actionWasDown_)
+            world_.TryActivate(playerPosition_, LookDirection());
+        actionWasDown_ = actionIsDown;
+
         const float turnStep = KeyboardTurnSpeed * elapsedSeconds;
 
         if (keyboard.IsKeyDown(Keys::Left))
@@ -251,7 +256,9 @@ namespace WolfCna
             static_cast<float>(gameTime.getElapsedGameTimeProperty().getTotalSecondsProperty());
 
         // Clamp unusually long frames so a debugger pause cannot launch the player through walls.
-        HandleInput(std::min(elapsed, 0.05f));
+        const float clampedElapsed = std::min(elapsed, 0.05f);
+        world_.Update(clampedElapsed);
+        HandleInput(clampedElapsed);
 
         Game::Update(gameTime);
     }

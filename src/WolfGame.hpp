@@ -37,6 +37,7 @@ namespace WolfCna
         Microsoft::Xna::Framework::Vector3 playerPosition_;
 
         float yaw_ = 0.0f;
+        bool actionWasDown_ = false;
 
         static constexpr float PlayerRadius = 0.22f;
         static constexpr float WalkSpeed = 2.4f;
