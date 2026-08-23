@@ -75,8 +75,10 @@ namespace WolfCna
             case 'L': return {"100", "100", "100", "100", "111"};
             case 'M': return {"101", "111", "111", "101", "101"};
             case 'O': return {"111", "101", "101", "101", "111"};
+            case 'P': return {"110", "101", "110", "100", "100"};
             case 'R': return {"110", "101", "110", "101", "101"};
             case 'S': return {"111", "100", "111", "001", "111"};
+            case 'T': return {"111", "010", "010", "010", "010"};
             case 'V': return {"101", "101", "101", "101", "010"};
             case '0': return {"111", "101", "101", "101", "111"};
             case '1': return {"010", "110", "010", "010", "111"};
@@ -366,7 +368,17 @@ namespace WolfCna
             Rectangle(weaponCenter - 30, panelY + 12, 60, 60),
             Color(255, 255, 255, 255));
         if (completed_)
-            hudSpriteBatch_->Draw(*hudPixel_, Rectangle(0, 8, viewport.getWidthProperty(), 4), Color(92, 226, 244, 255));
+        {
+            constexpr std::string_view message = "LEVEL COMPLETE";
+            const int messageWidth = HudTextWidth(message);
+            const int messageX = centerX - messageWidth / 2;
+            const int messageY = centerY - 34;
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(messageX - 15, messageY - 11, messageWidth + 30, 39),
+                Color(17, 59, 116, 255));
+            DrawHudText(*hudSpriteBatch_, *hudPixel_, messageX, messageY, message, Color(184, 238, 255, 255));
+        }
         hudSpriteBatch_->End();
     }
 

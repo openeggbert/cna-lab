@@ -967,8 +967,9 @@ Current progress:
 - the red security door is a locked route; its cyan access card is placed before it;
 - opened doors close automatically, except when a dead guard or hound remains in the doorway;
 - score has no cap: gold awards 100, guards 100, hounds 200 and the exit awards a one-time 1000-point bonus;
+- reaching the exit presents a centered completion card while preserving the final score in the status bar;
 - the starter level is now an authored maze route with distributed guards, hounds, pickups, gold, normal doors, a security door and an exit;
-- the remaining work is balance, encounter pacing and a second objective loop.
+- next: playtest balance and encounter pacing, add a second objective loop before the exit, then broaden the level with another authored route.
 
 ---
 

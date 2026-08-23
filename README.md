@@ -18,6 +18,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - centered crosshair and a generated retro status bar with sidearm icon
 - generated CNA sound effects for shots, defeated enemies, pickups, doors, locks and player damage
 - uncapped score for gold, defeated enemies and completing the level
+- a centered completion card appears at the level exit
 - grid collision with wall sliding
 - level loaded from a validated text file
 - an authored bunker route with guards, hounds, pickups, sliding doors, a security door, and an exit
