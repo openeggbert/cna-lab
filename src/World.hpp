@@ -14,12 +14,14 @@
 #include "Microsoft/Xna/Framework/Graphics/VertexBuffer.hpp"
 #include "Microsoft/Xna/Framework/Graphics/VertexPositionTexture.hpp"
 
+#include "LevelDefinition.hpp"
+
 namespace WolfCna
 {
     class World final
     {
     public:
-        World();
+        explicit World(const LevelDefinition& level);
 
         void Upload(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
 

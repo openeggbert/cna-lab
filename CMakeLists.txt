@@ -36,6 +36,7 @@ set(EASYGL_BUILD_EXAMPLES OFF CACHE BOOL "Build EasyGL examples" FORCE)
 add_subdirectory("${CNA_ROOT}" "${CMAKE_BINARY_DIR}/cna-build")
 
 add_executable(wolf-cna
+    src/LevelDefinition.cpp
     src/Program.cpp
     src/WolfGame.cpp
     src/World.cpp
@@ -43,6 +44,21 @@ add_executable(wolf-cna
 
 target_include_directories(wolf-cna PRIVATE src)
 target_link_libraries(wolf-cna PRIVATE CNA)
+
+configure_file(
+    assets/levels/starter.level
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/levels/starter.level"
+    COPYONLY)
+
+enable_testing()
+add_executable(level-definition-tests
+    src/LevelDefinition.cpp
+    tests/LevelDefinitionTests.cpp
+)
+target_include_directories(level-definition-tests PRIVATE src)
+add_test(NAME level-definition-tests COMMAND level-definition-tests)
+set_tests_properties(level-definition-tests PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
 if(TARGET SDL3::SDL3main)
     target_link_libraries(wolf-cna PRIVATE SDL3::SDL3main)

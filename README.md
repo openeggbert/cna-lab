@@ -16,6 +16,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - classic arrow-key movement
 - keyboard turning with a fixed horizon
 - grid collision with wall sliding
+- level loaded from a validated text file
 - no external copyrighted game assets
 
 ## Controls
@@ -25,6 +26,17 @@ This starter is deliberately small. It proves the basic direction before local A
 - `Space`: action (reserved until interactive objects are added)
 - left or right `Ctrl`: fire / knife attack (reserved until combat is added)
 - `Escape`: quit
+
+## Level files
+
+The starter level is [`assets/levels/starter.level`](assets/levels/starter.level). Each row must
+have the same width and use only these symbols:
+
+- `#`: solid wall
+- `.`: empty floor
+- `P`: the single player spawn
+
+The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 
 ## Expected checkout layout
 

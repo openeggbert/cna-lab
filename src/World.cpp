@@ -1,6 +1,5 @@
 #include "World.hpp"
 
-#include <array>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -19,60 +18,15 @@ namespace WolfCna
     namespace
     {
         constexpr float WallHeight = 1.0f;
-
-        const std::array<const char*, 15> StarterMap = {
-            "######################",
-            "#P......#...........##",
-            "#.####..#.#########..#",
-            "#....#..#.........#..#",
-            "####.#..#####.###.#..#",
-            "#....#......#...#.#..#",
-            "#.#########.#.#.#.#..#",
-            "#.........#.#.#...#..#",
-            "#.#######.#.#.######.#",
-            "#.#.....#.#.#........#",
-            "#.#.###.#.#.########.#",
-            "#...#...#........#...#",
-            "###.#.##########.#.###",
-            "#.................#..#",
-            "######################"
-        };
     }
 
-    World::World()
+    World::World(const LevelDefinition& level)
+        : map_(level.Rows())
+        , playerStart_(
+            static_cast<float>(level.PlayerStartX()) + 0.5f,
+            0.62f,
+            static_cast<float>(level.PlayerStartZ()) + 0.5f)
     {
-        map_.reserve(StarterMap.size());
-        for (const char* row : StarterMap)
-            map_.emplace_back(row);
-
-        const std::size_t width = map_.front().size();
-        bool foundStart = false;
-
-        for (std::size_t z = 0; z < map_.size(); ++z)
-        {
-            if (map_[z].size() != width)
-                throw std::runtime_error("Starter map rows must have equal width.");
-
-            for (std::size_t x = 0; x < map_[z].size(); ++x)
-            {
-                if (map_[z][x] == 'P')
-                {
-                    if (foundStart)
-                        throw std::runtime_error("Starter map contains multiple player spawns.");
-
-                    playerStart_ = Vector3(
-                        static_cast<float>(x) + 0.5f,
-                        0.62f,
-                        static_cast<float>(z) + 0.5f);
-
-                    map_[z][x] = '.';
-                    foundStart = true;
-                }
-            }
-        }
-
-        if (!foundStart)
-            throw std::runtime_error("Starter map does not contain a player spawn.");
 
         BuildMesh();
     }

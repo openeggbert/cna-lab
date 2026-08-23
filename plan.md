@@ -878,6 +878,8 @@ Acceptance:
 
 ### WOLF-003 — level file
 
+Status: complete.
+
 Acceptance:
 
 - exact starter map can be loaded from a data file;

@@ -33,7 +33,7 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::BasicEffect> effect_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> atlas_;
 
-        World world_;
+        World world_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
         Microsoft::Xna::Framework::Vector3 playerPosition_;
 
         float yaw_ = 0.0f;
