@@ -1,0 +1,6 @@
+<Project>
+  <!-- Repository-only sibling-checkout convenience. The dotnet-new template excludes this file. -->
+  <PropertyGroup>
+    <CnaCsRoot Condition="'$(CnaCsRoot)' == '' and Exists('$(MSBuildThisFileDirectory)..\cna-cs\src\CNA.XnaCompat\CNA.XnaCompat.csproj')">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\cna-cs'))</CnaCsRoot>
+  </PropertyGroup>
+</Project>

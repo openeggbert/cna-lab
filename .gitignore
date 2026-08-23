@@ -1,6 +1,8 @@
 .DS_Store
 [Bb]in/
 [Oo]bj/
+[Tt]est[Rr]esults/
+.templateengine/
 *.user
 *.suo
 *.userosscache

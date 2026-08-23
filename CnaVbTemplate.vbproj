@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>CnaVbTemplate</RootNamespace>
+    <AssemblyName>CnaVbTemplate</AssemblyName>
+    <StartupObject>CnaVbTemplate.Program</StartupObject>
+
+    <OptionStrict>On</OptionStrict>
+    <OptionExplicit>On</OptionExplicit>
+    <OptionInfer>On</OptionInfer>
+    <OptionCompare>Binary</OptionCompare>
+    <LangVersion>latest</LangVersion>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
+<!--#if (consumerMode == "Development")-->
+    <CnaConsumerMode Condition="'$(CnaConsumerMode)' == ''">Development</CnaConsumerMode>
+    <!-- This is the explicit source-checkout hook used by repository/default development mode. -->
+    <CnaCsRoot Condition="'$(CnaCsRoot)' == '' and '$(CNA_CS_ROOT)' != ''">$(CNA_CS_ROOT)</CnaCsRoot>
+<!--#endif-->
+<!--#if (consumerMode == "Package")-->
+    <CnaConsumerMode Condition="'$(CnaConsumerMode)' == ''">Package</CnaConsumerMode>
+    <CnaPackageVersion Condition="'$(CnaPackageVersion)' == ''">0.1.0-local.1</CnaPackageVersion>
+<!--#endif-->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src/**/*.vb" />
+  </ItemGroup>
+
+<!--#if (consumerMode == "Development")-->
+  <ItemGroup Condition="'$(CnaConsumerMode)' == 'Development' and '$(CnaCsRoot)' != ''">
+    <ProjectReference Include="$(CnaCsRoot)/src/CNA.XnaCompat/CNA.XnaCompat.csproj" />
+  </ItemGroup>
+<!--#endif-->
+
+<!--#if (consumerMode == "Package")-->
+  <ItemGroup Condition="'$(CnaConsumerMode)' == 'Package'">
+    <PackageReference Include="CNA.XnaCompat" Version="$(CnaPackageVersion)" />
+  </ItemGroup>
+<!--#endif-->
+
+  <ItemGroup>
+    <None Update="Content/**/*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+<!--#if (consumerMode == "Development")-->
+  <Target Name="ValidateCnaReference" BeforeTargets="ResolveProjectReferences"
+          Condition="'$(CnaConsumerMode)' == 'Development'">
+    <Error Condition="'$(CnaCsRoot)' == ''"
+           Text="CNA.XnaCompat was not found. Set CNA_CS_ROOT or pass -p:CnaCsRoot=/path/to/cna-cs." />
+    <Error Condition="'$(CnaCsRoot)' != '' and !Exists('$(CnaCsRoot)/src/CNA.XnaCompat/CNA.XnaCompat.csproj')"
+           Text="CnaCsRoot='$(CnaCsRoot)' does not contain src/CNA.XnaCompat/CNA.XnaCompat.csproj." />
+  </Target>
+<!--#endif-->
+
+</Project>

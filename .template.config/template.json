@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "openeggbert",
+  "classifications": ["Games", "CNA", "XNA", "Visual Basic"],
+  "identity": "OpenEggbert.CNA.Game.VisualBasic",
+  "name": "CNA VB.NET XNA-style game",
+  "shortName": "cna-game-vb",
+  "sourceName": "CnaVbTemplate",
+  "preferNameDirectory": true,
+  "description": "A native-CNA-backed VB.NET game using CNA.XnaCompat directly.",
+  "primaryOutputs": [
+    { "path": "CnaVbTemplate.vbproj" }
+  ],
+  "symbols": {
+    "consumerMode": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "Development",
+      "description": "Choose source/project-reference development or isolated local-package consumption.",
+      "choices": [
+        { "choice": "Development", "description": "Reference a CNA-CS source checkout." },
+        { "choice": "Package", "description": "Reference CNA.XnaCompat from a configured NuGet feed." }
+      ]
+    },
+    "cnaPackageVersion": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "0.1.0-local.1",
+      "description": "CNA.XnaCompat version used in Package consumer mode.",
+      "replaces": "0.1.0-local.1"
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            ".git/**",
+            ".agents/**",
+            ".codex/**",
+            "bin/**",
+            "obj/**",
+            "Directory.Build.props",
+            "scripts/**",
+            "tests/**",
+            "README.md",
+            "plan.md",
+            "NEXT.md"
+          ]
+        }
+      ]
+    }
+  ]
+}
