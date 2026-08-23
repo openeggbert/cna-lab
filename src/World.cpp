@@ -33,6 +33,8 @@ namespace WolfCna
         constexpr float EnemyAttackRange = 0.85f;
         constexpr float EnemySpeed = 0.8f;
         constexpr float EnemyPathRefreshSeconds = 0.35f;
+        constexpr float EnemyAttackInterval = 0.9f;
+        constexpr int EnemyAttackDamage = 12;
         constexpr float PickupRadius = 0.42f;
         constexpr float ExitRadius = 0.45f;
     }
@@ -246,9 +248,10 @@ namespace WolfCna
             target->opening = true;
     }
 
-    void World::Update(float elapsedSeconds, const Vector3& playerPosition)
+    int World::Update(float elapsedSeconds, const Vector3& playerPosition)
     {
         bool changed = false;
+        int damage = 0;
 
         for (Door& door : doors_)
         {
@@ -285,6 +288,16 @@ namespace WolfCna
                 enemy.state = EnemyState::Attack;
             else if (enemy.state == EnemyState::Attack && distanceSquared > EnemyAttackRange * EnemyAttackRange)
                 enemy.state = EnemyState::Chase;
+
+            if (enemy.state == EnemyState::Attack)
+            {
+                enemy.attackCooldown -= elapsedSeconds;
+                if (enemy.attackCooldown <= 0.0f)
+                {
+                    damage += EnemyAttackDamage;
+                    enemy.attackCooldown = EnemyAttackInterval;
+                }
+            }
 
             if (enemy.state != EnemyState::Chase || distanceSquared <= 0.0f)
                 continue;
@@ -330,6 +343,8 @@ namespace WolfCna
             if (!Collides(enemy.position.X, nextZ, 0.2f))
                 enemy.position.Z = nextZ;
         }
+
+        return damage;
     }
 
     void World::AddQuad(

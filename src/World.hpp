@@ -31,7 +31,9 @@ namespace WolfCna
 
         explicit World(const LevelDefinition& level);
 
-        void Update(float elapsedSeconds, const Microsoft::Xna::Framework::Vector3& playerPosition);
+        [[nodiscard]] int Update(
+            float elapsedSeconds,
+            const Microsoft::Xna::Framework::Vector3& playerPosition);
         void Upload(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
 
         void Draw(
@@ -93,6 +95,7 @@ namespace WolfCna
             std::vector<std::pair<int, int>> path;
             std::size_t pathIndex = 0;
             float pathRefreshTime = 0.0f;
+            float attackCooldown = 0.0f;
         };
 
         enum class PickupType

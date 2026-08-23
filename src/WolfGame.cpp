@@ -314,7 +314,15 @@ namespace WolfCna
 
         // Clamp unusually long frames so a debugger pause cannot launch the player through walls.
         const float clampedElapsed = std::min(elapsed, 0.05f);
-        world_.Update(clampedElapsed, playerPosition_);
+        health_ -= world_.Update(clampedElapsed, playerPosition_);
+        if (health_ <= 0)
+        {
+            health_ = 100;
+            ammo_ = 12;
+            gold_ = 0;
+            playerPosition_ = world_.PlayerStart();
+            completed_ = false;
+        }
         HandleInput(clampedElapsed);
         const World::PickupResult pickups = world_.CollectPickups(playerPosition_);
         health_ = std::min(100, health_ + pickups.health);

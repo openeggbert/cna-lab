@@ -60,10 +60,10 @@ int main()
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "closed door blocks movement");
 
     doorWorld.TryActivate(playerPosition, lookDirection);
-    doorWorld.Update(0.2f, playerPosition);
+    static_cast<void>(doorWorld.Update(0.2f, playerPosition));
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "partly open door still blocks movement");
 
-    doorWorld.Update(0.3f, playerPosition);
+    static_cast<void>(doorWorld.Update(0.3f, playerPosition));
     Expect(!doorWorld.Collides(2.5f, 1.5f, 0.1f), "sufficiently open door allows movement");
     Expect(
         doorWorld.FireHitscan(playerPosition, Microsoft::Xna::Framework::Vector3(-1.0f, 0.0f, 0.0f)),
@@ -88,6 +88,13 @@ int main()
     const WolfCna::World::PickupResult goldPickup = exitWorld.CollectPickups(
         Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f));
     Expect(goldPickup.gold == 100, "gold pickup is collected");
+
+    WolfCna::World combatWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PG.#\n#####\n",
+        "combat.level"));
+    const Microsoft::Xna::Framework::Vector3 combatPlayer(1.5f, 0.62f, 1.5f);
+    static_cast<void>(combatWorld.Update(0.3f, combatPlayer));
+    Expect(combatWorld.Update(1.0f, combatPlayer) > 0, "guard damages a nearby player");
 
     return EXIT_SUCCESS;
 }
