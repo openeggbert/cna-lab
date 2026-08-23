@@ -41,6 +41,7 @@ have the same width and use only these symbols:
 - `.`: empty floor
 - `P`: the single player spawn
 - `D`: closed sliding door
+- `Q`: closed red security door
 - `G`: guard spawn
 - `K`: hound spawn
 - `H`: health pickup

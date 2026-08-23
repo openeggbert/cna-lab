@@ -69,6 +69,7 @@ namespace WolfCna
                 case 'D':
                 case 'G':
                 case 'K':
+                case 'Q':
                 case 'H':
                 case 'A':
                 case 'T':

@@ -69,6 +69,14 @@ int main()
         doorWorld.FireHitscan(playerPosition, Microsoft::Xna::Framework::Vector3(-1.0f, 0.0f, 0.0f)),
         "hitscan hits the first wall");
 
+    WolfCna::World securityDoorWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PQ.#\n#####\n",
+        "security-door.level"));
+    Expect(securityDoorWorld.Collides(2.5f, 1.5f, 0.1f), "closed security door blocks movement");
+    securityDoorWorld.TryActivate(playerPosition, lookDirection);
+    static_cast<void>(securityDoorWorld.Update(0.5f, playerPosition));
+    Expect(!securityDoorWorld.Collides(2.5f, 1.5f, 0.1f), "security door opens safely");
+
     WolfCna::World pickupWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PHA#\n#####\n",
         "pickup.level"));

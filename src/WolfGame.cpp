@@ -29,7 +29,7 @@ namespace WolfCna
     namespace
     {
         constexpr int PanelSize = 32;
-        constexpr int PanelCount = 3;
+        constexpr int PanelCount = 5;
         constexpr int AtlasWidth = PanelSize * PanelCount;
         constexpr int AtlasHeight = PanelSize;
 
@@ -237,6 +237,24 @@ namespace WolfCna
                     }
 
                     pixels[static_cast<std::size_t>(y * AtlasWidth + ax)] = c;
+                }
+
+                // Panel 3: blue bunker door.
+                {
+                    const int ax = x + PanelSize * 3;
+                    const bool seam = x < 3 || x > PanelSize - 4 || (y % 8) == 0;
+                    pixels[static_cast<std::size_t>(y * AtlasWidth + ax)] = seam
+                        ? Color(31, 50, 78, 255)
+                        : Color(ByteClamp(49 + noise), ByteClamp(86 + noise), ByteClamp(128 + noise), ByteClamp(255));
+                }
+
+                // Panel 4: red security door.
+                {
+                    const int ax = x + PanelSize * 4;
+                    const bool seam = x < 3 || x > PanelSize - 4 || (y % 8) == 0;
+                    pixels[static_cast<std::size_t>(y * AtlasWidth + ax)] = seam
+                        ? Color(76, 25, 28, 255)
+                        : Color(ByteClamp(132 + noise), ByteClamp(46 + noise), ByteClamp(50 + noise), ByteClamp(255));
                 }
             }
         }

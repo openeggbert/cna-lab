@@ -359,7 +359,7 @@ namespace WolfCna
 
         const auto base = static_cast<std::uint16_t>(vertices_.size());
 
-        constexpr float panelWidth = 1.0f / 3.0f;
+        constexpr float panelWidth = 1.0f / 5.0f;
         const float u0 = panelWidth * static_cast<int>(material);
         const float u1 = u0 + panelWidth;
 
@@ -380,19 +380,21 @@ namespace WolfCna
         const Vector3& a,
         const Vector3& b,
         const Vector3& c,
-        const Vector3& d)
+        const Vector3& d,
+        Material material)
     {
         if (doorVertices_.size() > static_cast<std::size_t>(std::numeric_limits<std::uint16_t>::max() - 4))
             throw std::runtime_error("Door geometry exceeded the 16-bit vertex index limit.");
 
         const auto base = static_cast<std::uint16_t>(doorVertices_.size());
-        constexpr float wallU0 = 0.0f;
-        constexpr float wallU1 = 1.0f / 3.0f;
+        constexpr float panelWidth = 1.0f / 5.0f;
+        const float u0 = panelWidth * static_cast<int>(material);
+        const float u1 = u0 + panelWidth;
 
-        doorVertices_.emplace_back(a, Vector2(wallU0, 1.0f));
-        doorVertices_.emplace_back(b, Vector2(wallU1, 1.0f));
-        doorVertices_.emplace_back(c, Vector2(wallU1, 0.0f));
-        doorVertices_.emplace_back(d, Vector2(wallU0, 0.0f));
+        doorVertices_.emplace_back(a, Vector2(u0, 1.0f));
+        doorVertices_.emplace_back(b, Vector2(u1, 1.0f));
+        doorVertices_.emplace_back(c, Vector2(u1, 0.0f));
+        doorVertices_.emplace_back(d, Vector2(u0, 0.0f));
 
         doorIndices_.push_back(base + 0);
         doorIndices_.push_back(base + 1);
@@ -408,13 +410,14 @@ namespace WolfCna
         {
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
             {
-                if (map_[z][x] != 'D')
+                if (map_[z][x] != 'D' && map_[z][x] != 'Q')
                     continue;
 
                 doors_.push_back({
                     x,
                     z,
-                    IsStaticWallCell(x, z - 1) && IsStaticWallCell(x, z + 1)});
+                    IsStaticWallCell(x, z - 1) && IsStaticWallCell(x, z + 1),
+                    map_[z][x] == 'Q' ? Material::SecurityDoor : Material::Door});
             }
         }
     }
@@ -445,12 +448,12 @@ namespace WolfCna
             const Vector3 upperSouthWest(minimumX, maximumY, maximumZ);
             const Vector3 upperSouthEast(maximumX, maximumY, maximumZ);
 
-            AddDoorQuad(lowerNorthEast, lowerNorthWest, upperNorthWest, upperNorthEast);
-            AddDoorQuad(lowerSouthWest, lowerSouthEast, upperSouthEast, upperSouthWest);
-            AddDoorQuad(lowerNorthWest, lowerSouthWest, upperSouthWest, upperNorthWest);
-            AddDoorQuad(lowerSouthEast, lowerNorthEast, upperNorthEast, upperSouthEast);
-            AddDoorQuad(upperNorthWest, upperNorthEast, upperSouthEast, upperSouthWest);
-            AddDoorQuad(lowerNorthWest, lowerSouthWest, lowerSouthEast, lowerNorthEast);
+            AddDoorQuad(lowerNorthEast, lowerNorthWest, upperNorthWest, upperNorthEast, door.material);
+            AddDoorQuad(lowerSouthWest, lowerSouthEast, upperSouthEast, upperSouthWest, door.material);
+            AddDoorQuad(lowerNorthWest, lowerSouthWest, upperSouthWest, upperNorthWest, door.material);
+            AddDoorQuad(lowerSouthEast, lowerNorthEast, upperNorthEast, upperSouthEast, door.material);
+            AddDoorQuad(upperNorthWest, upperNorthEast, upperSouthEast, upperSouthWest, door.material);
+            AddDoorQuad(lowerNorthWest, lowerSouthWest, lowerSouthEast, lowerNorthEast, door.material);
         }
     }
 
@@ -489,10 +492,10 @@ namespace WolfCna
                 Vector2(0.0f, 1.0f));
             impactVertices_[vertexBase + 1] = VertexPositionTexture(
                 center + horizontal - vertical,
-                Vector2(1.0f / 3.0f, 1.0f));
+                Vector2(1.0f / 5.0f, 1.0f));
             impactVertices_[vertexBase + 2] = VertexPositionTexture(
                 center + horizontal + vertical,
-                Vector2(1.0f / 3.0f, 0.0f));
+                Vector2(1.0f / 5.0f, 0.0f));
             impactVertices_[vertexBase + 3] = VertexPositionTexture(
                 center - horizontal + vertical,
                 Vector2(0.0f, 0.0f));
@@ -631,8 +634,8 @@ namespace WolfCna
     {
         const auto base = static_cast<std::uint16_t>(enemyVertices_.size());
         enemyVertices_.emplace_back(a, Vector2(0.0f, 1.0f));
-        enemyVertices_.emplace_back(b, Vector2(1.0f / 3.0f, 1.0f));
-        enemyVertices_.emplace_back(c, Vector2(1.0f / 3.0f, 0.0f));
+        enemyVertices_.emplace_back(b, Vector2(1.0f / 5.0f, 1.0f));
+        enemyVertices_.emplace_back(c, Vector2(1.0f / 5.0f, 0.0f));
         enemyVertices_.emplace_back(d, Vector2(0.0f, 0.0f));
         enemyIndices_.insert(enemyIndices_.end(), {base, static_cast<std::uint16_t>(base + 1), static_cast<std::uint16_t>(base + 2), base, static_cast<std::uint16_t>(base + 2), static_cast<std::uint16_t>(base + 3)});
     }

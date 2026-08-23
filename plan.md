@@ -963,6 +963,7 @@ Current progress:
 - the HUD now has level, score, lives, health and ammunition readouts plus a generated sidearm icon;
 - `1`/`2` switch between the generated knife and sidearm icons; the knife has a short attack range;
 - generated CNA effects cover shots and pickups, and combat includes player death/restart;
+- ordinary blue bunker doors and red security doors use distinct generated atlas panels;
 - the remaining work is a longer authored route and additional encounter variety.
 
 ---

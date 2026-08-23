@@ -62,7 +62,9 @@ namespace WolfCna
         {
             Wall = 0,
             Floor = 1,
-            Ceiling = 2
+            Ceiling = 2,
+            Door = 3,
+            SecurityDoor = 4
         };
 
         struct Door
@@ -70,6 +72,7 @@ namespace WolfCna
             int x = 0;
             int z = 0;
             bool blocksAlongX = true;
+            Material material = Material::Door;
             bool opening = false;
             float openAmount = 0.0f;
         };
@@ -173,7 +176,8 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& a,
             const Microsoft::Xna::Framework::Vector3& b,
             const Microsoft::Xna::Framework::Vector3& c,
-            const Microsoft::Xna::Framework::Vector3& d);
+            const Microsoft::Xna::Framework::Vector3& d,
+            Material material);
         void AddEnemyQuad(
             const Microsoft::Xna::Framework::Vector3& a,
             const Microsoft::Xna::Framework::Vector3& b,
