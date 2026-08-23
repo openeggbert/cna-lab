@@ -16,7 +16,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - classic arrow-key movement
 - keyboard turning with a fixed horizon
 - centered crosshair and a generated retro status bar with sidearm icon
-- generated CNA sound effects for shots and pickups
+- generated CNA sound effects for shots, pickups, doors, locks and player damage
 - grid collision with wall sliding
 - level loaded from a validated text file
 - an authored bunker route with guards, hounds, pickups, sliding doors, a security door, and an exit
@@ -26,7 +26,7 @@ This starter is deliberately small. It proves the basic direction before local A
 
 - up/down arrow keys: forward / backward
 - left/right arrow keys: turn left / right
-- `Space`: open the door in front of you
+- `Space`: open the door in front of you (doors close automatically unless a body blocks them)
 - left or right `Ctrl`: fire the sidearm
 - `1` / `2`: knife / sidearm
 - `F11`: toggle fullscreen

@@ -23,6 +23,8 @@ namespace WolfCna
         constexpr float DoorThickness = 0.12f;
         constexpr float DoorOpenSpeed = 1.8f;
         constexpr float DoorPassableAt = 0.78f;
+        constexpr float DoorAutoCloseDelay = 2.5f;
+        constexpr float DoorBodyHoldRadius = 0.45f;
         constexpr float ActivationRange = 1.5f;
         constexpr float ActivationDotThreshold = 0.5f;
         constexpr float HitScanRange = 12.0f;
@@ -80,6 +82,25 @@ namespace WolfCna
         {
             if (door.x == x && door.z == z)
                 return door.openAmount < DoorPassableAt;
+        }
+
+        return false;
+    }
+
+    bool World::HasDeadEnemyInDoorway(const Door& door) const
+    {
+        const float centerX = static_cast<float>(door.x) + 0.5f;
+        const float centerZ = static_cast<float>(door.z) + 0.5f;
+
+        for (const Enemy& enemy : enemies_)
+        {
+            if (enemy.state != EnemyState::Dead)
+                continue;
+
+            const float dx = enemy.position.X - centerX;
+            const float dz = enemy.position.Z - centerZ;
+            if (dx * dx + dz * dz <= DoorBodyHoldRadius * DoorBodyHoldRadius)
+                return true;
         }
 
         return false;
@@ -221,7 +242,7 @@ namespace WolfCna
         return false;
     }
 
-    void World::TryActivate(
+    World::DoorActivation World::TryActivate(
         const Vector3& playerPosition,
         const Vector3& lookDirection,
         bool hasSecurityCard)
@@ -249,8 +270,15 @@ namespace WolfCna
             closestDistanceSquared = distanceSquared;
         }
 
-        if (target && (target->material != Material::SecurityDoor || hasSecurityCard))
-            target->opening = true;
+        if (!target)
+            return DoorActivation::None;
+
+        if (target->material == Material::SecurityDoor && !hasSecurityCard)
+            return DoorActivation::Locked;
+
+        target->opening = true;
+        target->closeDelay = DoorAutoCloseDelay;
+        return DoorActivation::Opened;
     }
 
     int World::Update(float elapsedSeconds, const Vector3& playerPosition)
@@ -260,11 +288,36 @@ namespace WolfCna
 
         for (Door& door : doors_)
         {
-            if (!door.opening || door.openAmount >= 1.0f)
+            if (door.opening)
+            {
+                const float previousAmount = door.openAmount;
+                door.openAmount = std::min(1.0f, door.openAmount + DoorOpenSpeed * elapsedSeconds);
+                changed = changed || door.openAmount != previousAmount;
+                if (door.openAmount >= 1.0f)
+                {
+                    door.opening = false;
+                    door.closeDelay = DoorAutoCloseDelay;
+                }
+                continue;
+            }
+
+            if (door.openAmount <= 0.0f)
                 continue;
 
+            if (HasDeadEnemyInDoorway(door))
+            {
+                door.closeDelay = DoorAutoCloseDelay;
+                continue;
+            }
+
+            if (door.closeDelay > 0.0f)
+            {
+                door.closeDelay = std::max(0.0f, door.closeDelay - elapsedSeconds);
+                continue;
+            }
+
             const float previousAmount = door.openAmount;
-            door.openAmount = std::min(1.0f, door.openAmount + DoorOpenSpeed * elapsedSeconds);
+            door.openAmount = std::max(0.0f, door.openAmount - DoorOpenSpeed * elapsedSeconds);
             changed = changed || door.openAmount != previousAmount;
         }
 
@@ -894,15 +947,19 @@ namespace WolfCna
 
         for (const Enemy& enemy : enemies_)
         {
-            if (enemy.state == EnemyState::Dead)
-                continue;
-
             effect.setWorldProperty(
-                (enemy.type == Enemy::Type::Hound
-                    ? Matrix::CreateScale(1.15f, 0.48f, 1.45f)
-                    : Matrix::getIdentityProperty()) * Matrix::CreateTranslation(enemy.position));
+                (enemy.state == EnemyState::Dead
+                    ? Matrix::CreateScale(
+                        enemy.type == Enemy::Type::Hound ? 1.15f : 1.0f,
+                        0.12f,
+                        enemy.type == Enemy::Type::Hound ? 1.45f : 1.0f)
+                    : enemy.type == Enemy::Type::Hound
+                        ? Matrix::CreateScale(1.15f, 0.48f, 1.45f)
+                        : Matrix::getIdentityProperty()) * Matrix::CreateTranslation(enemy.position));
             effect.setDiffuseColorProperty(
-                enemy.type == Enemy::Type::Hound
+                enemy.state == EnemyState::Dead
+                    ? Vector3(0.26f, 0.11f, 0.08f)
+                    : enemy.type == Enemy::Type::Hound
                     ? Vector3(0.72f, 0.42f, 0.16f)
                     : enemy.state == EnemyState::Attack
                     ? Vector3(0.95f, 0.24f, 0.12f)

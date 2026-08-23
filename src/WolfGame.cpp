@@ -306,6 +306,18 @@ namespace WolfCna
             MakeTone(660.0f, 2400),
             22050,
             AudioChannels::Mono);
+        doorSound_ = std::make_unique<SoundEffect>(
+            MakeTone(210.0f, 3600),
+            22050,
+            AudioChannels::Mono);
+        lockedSound_ = std::make_unique<SoundEffect>(
+            MakeTone(90.0f, 1800),
+            22050,
+            AudioChannels::Mono);
+        hurtSound_ = std::make_unique<SoundEffect>(
+            MakeTone(120.0f, 2200),
+            22050,
+            AudioChannels::Mono);
     }
 
     void WolfGame::DrawHud()
@@ -409,7 +421,14 @@ namespace WolfCna
 
         const bool actionIsDown = keyboard.IsKeyDown(Keys::Space);
         if (actionIsDown && !actionWasDown_)
-            world_.TryActivate(playerPosition_, LookDirection(), hasSecurityCard_);
+        {
+            const World::DoorActivation activation =
+                world_.TryActivate(playerPosition_, LookDirection(), hasSecurityCard_);
+            if (activation == World::DoorActivation::Opened && doorSound_)
+                static_cast<void>(doorSound_->Play(0.22f, -0.2f, 0.0f));
+            else if (activation == World::DoorActivation::Locked && lockedSound_)
+                static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
+        }
         actionWasDown_ = actionIsDown;
 
         if (keyboard.IsKeyDown(Keys::D1))
@@ -468,7 +487,10 @@ namespace WolfCna
 
         // Clamp unusually long frames so a debugger pause cannot launch the player through walls.
         const float clampedElapsed = std::min(elapsed, 0.05f);
-        health_ -= world_.Update(clampedElapsed, playerPosition_);
+        const int incomingDamage = world_.Update(clampedElapsed, playerPosition_);
+        health_ -= incomingDamage;
+        if (incomingDamage > 0 && hurtSound_)
+            static_cast<void>(hurtSound_->Play(0.3f, -0.25f, 0.0f));
         if (health_ <= 0)
         {
             lives_ = std::max(0, lives_ - 1);

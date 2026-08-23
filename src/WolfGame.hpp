@@ -40,6 +40,9 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> knifeIcon_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> shotSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> pickupSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> doorSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> lockedSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> hurtSound_;
 
         World world_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
         Microsoft::Xna::Framework::Vector3 playerPosition_;

@@ -22,6 +22,13 @@ namespace WolfCna
     class World final
     {
     public:
+        enum class DoorActivation
+        {
+            None,
+            Opened,
+            Locked
+        };
+
         struct PickupResult
         {
             int health = 0;
@@ -54,7 +61,7 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& playerPosition);
         [[nodiscard]] bool ReachedExit(
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
-        void TryActivate(
+        [[nodiscard]] DoorActivation TryActivate(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection,
             bool hasSecurityCard);
@@ -77,6 +84,7 @@ namespace WolfCna
             Material material = Material::Door;
             bool opening = false;
             float openAmount = 0.0f;
+            float closeDelay = 0.0f;
         };
 
         struct Impact
@@ -152,6 +160,7 @@ namespace WolfCna
 
         [[nodiscard]] bool IsStaticWallCell(int x, int z) const;
         [[nodiscard]] bool IsBlockedCell(int x, int z) const;
+        [[nodiscard]] bool HasDeadEnemyInDoorway(const Door& door) const;
         void BuildMesh();
         void BuildDoors();
         void RebuildDoorGeometry();
