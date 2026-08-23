@@ -318,6 +318,10 @@ namespace WolfCna
             MakeTone(120.0f, 2200),
             22050,
             AudioChannels::Mono);
+        enemyDefeatedSound_ = std::make_unique<SoundEffect>(
+            MakeTone(105.0f, 3200),
+            22050,
+            AudioChannels::Mono);
     }
 
     void WolfGame::DrawHud()
@@ -440,16 +444,22 @@ namespace WolfCna
             keyboard.IsKeyDown(Keys::LeftControl) || keyboard.IsKeyDown(Keys::RightControl);
         if (attackIsDown && !attackWasDown_ && weapon_ == Weapon::Knife)
         {
-            score_ += world_.FireHitscan(playerPosition_, LookDirection(), 0.9f).score;
+            const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection(), 0.9f);
+            score_ += attack.score;
             if (shotSound_)
                 static_cast<void>(shotSound_->Play(0.18f, -0.45f, 0.0f));
+            if (attack.score > 0 && enemyDefeatedSound_)
+                static_cast<void>(enemyDefeatedSound_->Play(0.28f, -0.3f, 0.0f));
         }
         else if (attackIsDown && !attackWasDown_ && ammo_ > 0)
         {
             --ammo_;
-            score_ += world_.FireHitscan(playerPosition_, LookDirection()).score;
+            const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection());
+            score_ += attack.score;
             if (shotSound_)
                 static_cast<void>(shotSound_->Play(0.35f, 0.0f, 0.0f));
+            if (attack.score > 0 && enemyDefeatedSound_)
+                static_cast<void>(enemyDefeatedSound_->Play(0.28f, -0.3f, 0.0f));
         }
         attackWasDown_ = attackIsDown;
 
