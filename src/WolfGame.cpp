@@ -7,6 +7,7 @@
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/MathHelper.hpp"
+#include "Microsoft/Xna/Framework/Rectangle.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/DepthStencilState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
@@ -75,6 +76,7 @@ namespace WolfCna
         effect_ = std::make_unique<BasicEffect>(device);
         world_.Upload(device);
         CreateProceduralAtlas();
+        CreateHudResources();
 
         Game::LoadContent();
     }
@@ -168,6 +170,38 @@ namespace WolfCna
         }
 
         atlas_->SetData(pixels.data(), static_cast<int>(pixels.size()));
+    }
+
+    void WolfGame::CreateHudResources()
+    {
+        auto& device = getGraphicsDeviceProperty();
+
+        hudSpriteBatch_ = std::make_unique<SpriteBatch>(device);
+        hudPixel_ = std::make_unique<Texture2D>(device, 1, 1);
+        const Color pixel(255, 255, 255, 255);
+        hudPixel_->SetData(&pixel, 1);
+    }
+
+    void WolfGame::DrawHud()
+    {
+        if (!hudSpriteBatch_ || !hudPixel_)
+            return;
+
+        const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
+        const int centerX = viewport.getXProperty() + viewport.getWidthProperty() / 2;
+        const int centerY = viewport.getYProperty() + viewport.getHeightProperty() / 2;
+        const Color crosshairColor(238, 211, 132, 255);
+
+        hudSpriteBatch_->Begin();
+        hudSpriteBatch_->Draw(
+            *hudPixel_,
+            Rectangle(centerX - 8, centerY, 17, 1),
+            crosshairColor);
+        hudSpriteBatch_->Draw(
+            *hudPixel_,
+            Rectangle(centerX, centerY - 8, 1, 17),
+            crosshairColor);
+        hudSpriteBatch_->End();
     }
 
     Vector3 WolfGame::LookDirection() const
@@ -287,6 +321,8 @@ namespace WolfCna
                 ProjectionMatrix(),
                 *atlas_);
         }
+
+        DrawHud();
 
         Game::Draw(gameTime);
     }

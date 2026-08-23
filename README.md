@@ -15,6 +15,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - first-person camera
 - classic arrow-key movement
 - keyboard turning with a fixed horizon
+- centered HUD crosshair
 - grid collision with wall sliding
 - level loaded from a validated text file
 - no external copyrighted game assets

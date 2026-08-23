@@ -9,6 +9,7 @@
 #include "Microsoft/Xna/Framework/Matrix.hpp"
 #include "Microsoft/Xna/Framework/Vector3.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BasicEffect.hpp"
+#include "Microsoft/Xna/Framework/Graphics/SpriteBatch.hpp"
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 
 #include "World.hpp"
@@ -32,6 +33,8 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::GraphicsDeviceManager> graphics_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::BasicEffect> effect_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> atlas_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> hudSpriteBatch_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> hudPixel_;
 
         World world_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
         Microsoft::Xna::Framework::Vector3 playerPosition_;
@@ -52,5 +55,7 @@ namespace WolfCna
         [[nodiscard]] Microsoft::Xna::Framework::Matrix ProjectionMatrix();
 
         void CreateProceduralAtlas();
+        void CreateHudResources();
+        void DrawHud();
     };
 }

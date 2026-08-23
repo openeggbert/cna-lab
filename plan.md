@@ -902,6 +902,16 @@ Acceptance:
 
 After these three tasks, begin the first combat vertical slice.
 
+### WOLF-005 — minimal HUD/crosshair
+
+Status: complete.
+
+Acceptance:
+
+- a centered crosshair remains centered after a viewport/fullscreen change;
+- the overlay uses CNA `SpriteBatch` only;
+- no gameplay values are displayed until health and ammunition systems exist.
+
 ---
 
 # 19. Long-term identity
