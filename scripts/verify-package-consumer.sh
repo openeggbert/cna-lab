@@ -70,6 +70,7 @@ DOTNET_COMMAND="$dotnet_command" \
 CNA_PACKAGE_SOURCE_ROOT="$cna_cs_root" \
 CNA_TEMPLATE_USE_XVFB="${CNA_TEMPLATE_USE_XVFB:-0}" \
 CNA_TEMPLATE_RUN_STABILITY="${CNA_TEMPLATE_RUN_STABILITY:-1}" \
+CNA_TEMPLATE_REQUIRE_3D="${CNA_TEMPLATE_REQUIRE_3D:-0}" \
     "$repository_root/scripts/verify-template.sh" \
         --mode package --package-feed "$feed" --package-version "$package_version"
 

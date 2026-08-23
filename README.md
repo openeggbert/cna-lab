@@ -12,8 +12,9 @@ VB.NET game
     -> CNA C++
 ```
 
-There is no CNA-VB binding and none is needed. The game contains no duplicate XNA types, native
-declarations, renderer guesses, or CNA-specific gameplay calls.
+There is no CNA-VB binding and none is needed. The game contains no duplicate XNA types or native
+declarations. Its one CNA-specific capability query uses CNA-CS's typed extension API and is
+isolated in `EngineDiagnostics.vb`; normal gameplay remains strict XNA API.
 
 ## Measured status
 
@@ -22,9 +23,11 @@ qualification is Linux x64 with CNA's OPENGLES3 renderer under Xvfb. Windows, ma
 and Web have not been verified by this repository.
 
 The game creates a real `GraphicsDeviceManager`, decodes the checked `Content/logo.png` with
-`Texture2D.FromStream`, draws it with `SpriteBatch.Begin/Draw/End`, and polls keyboard, mouse, and
-gamepad state. The decoded 128 x 128 dimensions are reported at startup. `Texture2D` and
-`SpriteBatch` are explicitly released during `UnloadContent`, including partial-load failure paths.
+`Texture2D.FromStream`, and polls keyboard, mouse, and gamepad state. A 3D-capable renderer draws
+the logo on a rotating 36-vertex `BasicEffect` cube through `DrawUserPrimitives`; other renderers
+use the real `SpriteBatch.Begin/Draw/End` bouncing-logo fallback. The decoded 128 x 128 dimensions
+and selected rendering path are reported at startup. All graphics resources are explicitly
+released during `UnloadContent`, including partial-load failure paths.
 
 ## Development/source mode
 
@@ -54,8 +57,8 @@ CNA_NATIVE_LIBRARY=/path/to/libcna_c_api.so dotnet run --project CnaVbTemplate.v
 CNA_NATIVE_DIR=/path/to/native-directory dotnet run --project CnaVbTemplate.vbproj
 ```
 
-Escape or the first gamepad's Back button exits interactive mode. Holding the left mouse button
-moves the logo; otherwise it bounces inside the current viewport.
+Escape or the first gamepad's Back button exits interactive mode. In the 2D fallback, holding the
+left mouse button moves the logo; otherwise it bounces inside the current viewport.
 
 Deterministic modes exit by rendered-frame count, not elapsed time:
 
@@ -114,6 +117,7 @@ DOTNET_COMMAND=/path/to/dotnet \
 CNA_CS_ROOT=/path/to/cna-cs \
 CNA_NATIVE_LIBRARY=/absolute/path/to/libcna_c_api.so \
 CNA_TEMPLATE_USE_XVFB=1 \
+CNA_TEMPLATE_REQUIRE_3D=1 \
 scripts/verify-package-consumer.sh
 ```
 
@@ -132,7 +136,8 @@ The generated Package-mode project contains `PackageReference` only: no `CnaCsRo
 `scripts/verify-template.sh` installs the template into an isolated hive, generates
 `FreshVbGame`, audits its paths, and builds it. Development mode also builds/runs the VB probe.
 With a native library configured it runs both source and generated runtime checks. Set
-`CNA_TEMPLATE_RUN_STABILITY=1` for the 600-frame runs and `CNA_TEMPLATE_USE_XVFB=1` on Linux CI:
+`CNA_TEMPLATE_RUN_STABILITY=1` for the 600-frame runs, `CNA_TEMPLATE_USE_XVFB=1` on Linux CI, and
+`CNA_TEMPLATE_REQUIRE_3D=1` to make the test fail unless the real cube path is selected:
 
 ```bash
 DOTNET_COMMAND=/path/to/dotnet \
@@ -140,6 +145,7 @@ CNA_CS_ROOT=/path/to/cna-cs \
 CNA_NATIVE_LIBRARY=/absolute/path/to/libcna_c_api.so \
 CNA_TEMPLATE_USE_XVFB=1 \
 CNA_TEMPLATE_RUN_STABILITY=1 \
+CNA_TEMPLATE_REQUIRE_3D=1 \
 scripts/verify-template.sh --mode development
 ```
 

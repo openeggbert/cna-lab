@@ -16,7 +16,8 @@ usage() {
         "  CNA_NATIVE_LIBRARY          Exact native CNA C ABI library" \
         "  CNA_NATIVE_DIR              Directory containing the native CNA C ABI library" \
         "  CNA_TEMPLATE_USE_XVFB=1     Run native tests under xvfb-run" \
-        "  CNA_TEMPLATE_RUN_STABILITY=1  Also run 600-frame tests"
+        "  CNA_TEMPLATE_RUN_STABILITY=1  Also run 600-frame tests" \
+        "  CNA_TEMPLATE_REQUIRE_3D=1   Require the verified 3D cube path"
 }
 
 while (($# > 0)); do
@@ -93,10 +94,18 @@ run_game() {
     shift 2
 
     local command=("$dotnet_command" run --project "$project_path" --no-build --no-restore "$@" -- "$frame_option")
+    local runtime_log
+    runtime_log="$(mktemp "$verification_root/runtime.XXXXXXXX")"
     if [[ "${CNA_TEMPLATE_USE_XVFB:-0}" == "1" ]]; then
-        xvfb-run -a "${command[@]}"
+        xvfb-run -a "${command[@]}" 2>&1 | tee "$runtime_log"
     else
-        "${command[@]}"
+        "${command[@]}" 2>&1 | tee "$runtime_log"
+    fi
+
+    if [[ "${CNA_TEMPLATE_REQUIRE_3D:-0}" == "1" ]] && \
+       ! grep -Fq 'rendering path  : 3D logo cube' "$runtime_log"; then
+        printf '%s\n' 'Runtime did not select the required 3D logo cube path.' >&2
+        return 1
     fi
 }
 

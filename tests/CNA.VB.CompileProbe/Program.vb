@@ -106,12 +106,18 @@ Friend NotInheritable Class ProbeGame
         Dim model As Model = content.Load(Of Model)("model")
         Dim sound As SoundEffect = content.Load(Of SoundEffect)("sound")
         Dim vertex As New VertexPositionColor(Vector3.Zero, Color.White)
+        Dim texturedVertices As VertexPositionTexture() = {
+            New VertexPositionTexture(Vector3.Zero, Vector2.Zero),
+            New VertexPositionTexture(Vector3.UnitX, Vector2.UnitX),
+            New VertexPositionTexture(Vector3.UnitY, Vector2.UnitY)
+        }
         Dim primitiveType As PrimitiveType = PrimitiveType.TriangleList
         Dim keyboardState As KeyboardState = Keyboard.GetState()
         Dim mouseState As MouseState = Mouse.GetState()
         Dim gamePadState As GamePadState = GamePad.GetState(PlayerIndex.One)
 
         AddHandler resource.Disposing, AddressOf HandleExiting
+        device.DrawUserPrimitives(primitiveType, texturedVertices, 0, 1)
         Return resource
     End Function
 End Class

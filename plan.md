@@ -6,8 +6,8 @@ normative plan.
 ## Current verified state
 
 - One strict `net8.0` VB.NET game directly consumes `CNA.XnaCompat`.
-- Raw PNG decoding, real `SpriteBatch` drawing, XNA input, exact 60/600-frame exits, and explicit
-  cleanup pass in both source and generated projects.
+- Raw PNG decoding, a real textured `BasicEffect` cube, real `SpriteBatch` fallback, XNA input,
+  exact 60/600-frame exits, and explicit cleanup pass in both source and generated projects.
 - The compile probe builds and asserts the exact `CnaVbTemplate.HelloGame` namespace.
 - Development/project-reference and isolated local-package consumers both pass.
 - Linux x64 OPENGLES3 is the only runtime-qualified platform.
@@ -25,9 +25,11 @@ ownership machinery.
 
 ## Template goals
 
-- Keep `HelloGame` a small pure-XNA 2D starter.
+- Keep `HelloGame` aligned with the verified C# template: real XNA 3D on capable renderers and a
+  small real-XNA 2D fallback.
 - Preserve strict VB compilation and deliberate root-namespace handling.
 - Exercise real content, device/window lifecycle, viewport movement, input, and cleanup.
+- Keep the typed CNA capability diagnostic isolated from the otherwise portable game source.
 - Keep generated projects free of repository verification infrastructure and embedded local paths.
 
 ## Development reference mode
@@ -49,7 +51,8 @@ mode opt-in until packages are published; do not imply general RID support.
   package asset.
 - Run 60 frames for smoke and 600 for stability, with exact completion output.
 - Verify both this repository and a freshly generated project.
-- Continue checking decoded image dimensions and explicit `SpriteBatch`/`Texture2D` release.
+- Require the 3D path on qualified renderers and retain a truthful 2D fallback.
+- Continue checking decoded image dimensions and explicit effect/texture/batch release.
 
 ## VB.NET compile compatibility
 
@@ -84,7 +87,7 @@ without measured value.
 
 - Direct CNA.XnaCompat reference; zero VB binding or duplicated XNA/native surface.
 - Game and compile probe build with zero warnings.
-- Real PNG decoding and SpriteBatch drawing pass for 60 and 600 frames.
+- Real PNG decoding and textured primitive drawing pass for 60 and 600 frames.
 - Resources unload cleanly for source and generated projects.
 - Isolated template install, generation, path audit, build, and 60-frame run pass.
 - Local package acceptance passes without source references or native-path environment variables.

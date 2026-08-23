@@ -1,5 +1,23 @@
 # CNA VB.NET template session history
 
+## 2026-08-23 — align the VB game with the verified C# 3D path
+
+- Re-inspected current `cna-cs-template` revision
+  `13ddd695bcafac61fe76bc501a81e66242b5306c` plus its active template-mode changes.
+- Translated its real 3D path into strict VB.NET: 36 `VertexPositionTexture` vertices, textured
+  `BasicEffect`, world/view/projection matrices, depth/rasterizer/blend state, effect passes, and
+  `GraphicsDevice.DrawUserPrimitives`.
+- Isolated the existing typed `CNA.XnaCompat.Extensions` renderer/capability calls in
+  `EngineDiagnostics.vb`; `HelloGame.vb` continues to import only XNA namespaces for gameplay.
+- Preserved the real SpriteBatch-based 2D fallback and added a five-second banner using the actual
+  renderer identity instead of a hardcoded name.
+- Extended the VB compile probe with the generic textured-primitive overload and added an optional
+  `CNA_TEMPLATE_REQUIRE_3D=1` runtime gate.
+- Full Development verification passed for source and generated games at 60 and 600 frames; every
+  run selected `3D logo cube` and explicitly released the effect, batch, and texture resources.
+- Isolated Package verification also passed at 60 and 600 frames with the packaged Linux-x64 native
+  asset, no source reference, and both native-path environment variables unset.
+
 ## 2026-08-23 — replace the fake VB binding scaffold
 
 ### Baseline inspected
