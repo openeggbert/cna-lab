@@ -1,36 +1,15 @@
-# Gradle
-.gradle/
-build/
-bin/
-
-# Kotlin
-.kotlin/
-kotlin-js-store/
-
-# IDEs
+/.gradle/
+/.kotlin/
+/build/
+/.cna-repository/
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.log
+__pycache__/
+*.pyc
 .idea/
-*.iml
-*.iws
-.project
-.classpath
-.settings/
 .vscode/
-
-# Android
-.cxx/
-captures/
-output.json
-*.apk
-*.aar
-*.ap_
-*.dex
-local.properties
-
-# OS
+*.iml
 .DS_Store
 Thumbs.db
-
-# Web
-dist/
-node_modules/
-package-lock.json

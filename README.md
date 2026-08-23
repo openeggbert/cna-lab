@@ -1,77 +1,66 @@
-# cna-kotlin-template
+# CNA-Kotlin desktop starter
 
-> **Status: In progress - NOT YET FUNCTIONAL**
+This is the end-to-end Kotlin/JVM canary and reusable starter for
+`org.openeggbert:cna-kotlin:0.1.0-SNAPSHOT`. It uses the actual CNA-Java classes
+under `Microsoft.Xna.Framework.*`; CNA-Kotlin contributes only optional extension functions.
 
+## Verified scope
 
-Modern cross-platform Kotlin Multiplatform (KMP) starter template for the [CNA](https://github.com/openeggbert/cna) framework, following XNA 4.0 patterns.
+The starter follows the current CNA-Java desktop canary: a real `Game` lifecycle,
+`GraphicsDeviceManager`, mapped window title, keyboard and mouse polling, raw PNG decoding through
+`Texture2D.FromStream`, `GraphicsDevice.Clear`, a moving `SpriteBatch` texture, deterministic
+resource close, and 60/600-frame modes. Movement uses CNA-Kotlin's delegating `Vector2.plus`
+operator, so a native run exercises both artifacts before CNA-Java enters its own JNI bridge.
 
-## Features
+It does not claim XNB texture content, 3D, renderer capabilities, Android, iOS, or browser support.
 
-- **Multi-platform support**: Windows, Linux, macOS, Android, iOS, and Web.
-- **Kotlin Multiplatform**: Shared code between Desktop, Android, and Web.
-- **XNA 4.0 API Style**: Familiar lifecycle (Initialize, LoadContent, Update, Draw) using PascalCase naming.
-- **Adaptive Graphics**:
-  - **3D**: Renders a rotating textured cube on hardware with 3D capabilities.
-  - **2D**: Falling back to a bouncing animated logo on 2D-only renderers.
-- **Integrated Renderer Banner**: Displays the active graphics driver name using an internal bitmap font.
-- **Gradle Kotlin DSL**: Modern build configuration using `.gradle.kts`.
-- **Smoke Test Mode**: Automatic termination for CI/CD validation using the `--smoke-test` flag.
+| Target | Status |
+| --- | --- |
+| Linux x86-64/JVM, CNA 0.7.0 HEADLESS/NULL | Runtime verified: 60 and 600 frames |
+| Windows/JVM | Planned; inherited from future CNA-Java runtime evidence |
+| macOS/JVM | Planned; inherited from future CNA-Java runtime evidence |
+| Android | Planned only after CNA-Java ships and verifies an Android backend/package |
+| Kotlin/JS/browser | Not supported by this architecture; use the CNA-TS ecosystem |
+| Kotlin/Native/iOS | Not supported by this architecture; use CNA-Swift for Apple-native work |
 
-## Project Structure
+## Build and run
 
-- `game/`: Shared Kotlin Multiplatform module containing game logic.
-  - `src/commonMain/kotlin/`: Shared `HelloGame` logic.
-- `android/`: Android-specific module and Activity.
-- `desktop/`: JVM launcher for Windows, Linux, and macOS.
-- `web/`: Kotlin/JS project for running in the browser.
-
-## Getting Started
-
-### Prerequisites
-
-- [JDK 17](https://adoptium.net/) or newer.
-- [Gradle](https://gradle.org/install/) (or use the included wrapper).
-
-### Building and Running (Desktop)
-
-To run the game on your desktop:
+JDK 17 or newer is required. Supply a Maven repository containing the exact CNA-Kotlin and
+CNA-Java publications; the sibling verification workflow uses a fresh temporary repository rather
+than the global Maven cache.
 
 ```bash
-./gradlew :desktop:run
+./gradlew clean check -PcnaRepository=/absolute/path/to/a/maven/repository
 ```
 
-### Running a Smoke Test
-
-To verify the game starts and renders correctly:
+CNA-Java owns native discovery. Use its existing variables—there is no Kotlin-specific loader:
 
 ```bash
-./gradlew :desktop:run --args="--smoke-test"
+CNA_JNI_LIBRARY=/path/to/libcna_java_jni.so \
+CNA_NATIVE_LIBRARY=/path/to/libcna_c_api.so \
+./gradlew run \
+  -PcnaRepository=/absolute/path/to/a/maven/repository \
+  --args='--smoke-test'
 ```
 
-### Android
+Modes are `--smoke-test` (60 frames), `--stability-test` (600 frames), and `--frames N` or
+`--frames=N`. Without a limit, the game runs until the platform requests exit.
 
-To build the Android APK:
+## Generate a standalone project
 
 ```bash
-./gradlew :android:assembleDebug
+python3 scripts/generate_project.py \
+  --output /tmp/asteroids-kotlin \
+  --project-name 'Asteroids Kotlin' \
+  --package com.example.asteroids.game \
+  --main-package com.example.asteroids.desktop \
+  --game-class AsteroidsGame \
+  --group com.example \
+  --artifact-id asteroids-kotlin
 ```
 
-### Web (Kotlin/JS)
+The generated copy has no sibling or absolute-path dependency. Build it with the same
+`-PcnaRepository=...` argument. When the CNA-Java native libraries are supplied, the generated
+project supports the same real 60/600-frame runs.
 
-To run the game in your browser using Vite/Webpack (development):
-
-```bash
-./gradlew :web:jsBrowserRun
-```
-
-To build a production distribution:
-
-```bash
-./gradlew :web:jsBrowserDistribution
-```
-
-The output will be in `web/build/distributions/`.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Licensed under the [MIT License](LICENSE).
