@@ -19,7 +19,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - generated CNA sound effects for shots and pickups
 - grid collision with wall sliding
 - level loaded from a validated text file
-- one original guard with idle/chase/attack/dead states
+- an authored bunker route with guards, hounds, pickups, sliding doors, a security door, and an exit
 - no external copyrighted game assets
 
 ## Controls

@@ -964,7 +964,8 @@ Current progress:
 - `1`/`2` switch between the generated knife and sidearm icons; the knife has a short attack range;
 - generated CNA effects cover shots and pickups, and combat includes player death/restart;
 - ordinary blue bunker doors and red security doors use distinct generated atlas panels;
-- the remaining work is a longer authored route and additional encounter variety.
+- the starter level is now an authored maze route with distributed guards, hounds, pickups, gold, normal doors, a security door and an exit;
+- the remaining work is balance, encounter pacing and a second objective loop.
 
 ---
 
