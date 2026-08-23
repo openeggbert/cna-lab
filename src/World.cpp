@@ -24,6 +24,10 @@ namespace WolfCna
         constexpr float DoorPassableAt = 0.78f;
         constexpr float ActivationRange = 1.5f;
         constexpr float ActivationDotThreshold = 0.5f;
+        constexpr float HitScanRange = 12.0f;
+        constexpr float HitScanStep = 0.02f;
+        constexpr float ImpactHalfSize = 0.075f;
+        constexpr float ImpactSurfaceOffset = 0.003f;
     }
 
     World::World(const LevelDefinition& level)
@@ -33,9 +37,11 @@ namespace WolfCna
             0.62f,
             static_cast<float>(level.PlayerStartZ()) + 0.5f)
     {
+        impacts_.reserve(MaxImpactCount);
         BuildDoors();
         BuildMesh();
         RebuildDoorGeometry();
+        BuildImpactGeometry();
     }
 
     Vector3 World::PlayerStart() const
@@ -85,6 +91,62 @@ namespace WolfCna
             const int cellZ = static_cast<int>(std::floor(worldZ + p.Y));
             if (IsBlockedCell(cellX, cellZ))
                 return true;
+        }
+
+        return false;
+    }
+
+    bool World::FireHitscan(const Vector3& playerPosition, const Vector3& lookDirection)
+    {
+        int previousCellX = static_cast<int>(std::floor(playerPosition.X));
+        int previousCellZ = static_cast<int>(std::floor(playerPosition.Z));
+
+        for (float distance = HitScanStep; distance <= HitScanRange; distance += HitScanStep)
+        {
+            const float rayX = playerPosition.X + lookDirection.X * distance;
+            const float rayZ = playerPosition.Z + lookDirection.Z * distance;
+            const int cellX = static_cast<int>(std::floor(rayX));
+            const int cellZ = static_cast<int>(std::floor(rayZ));
+
+            if (!IsStaticWallCell(cellX, cellZ))
+            {
+                previousCellX = cellX;
+                previousCellZ = cellZ;
+                continue;
+            }
+
+            Vector3 normal(0.0f, 0.0f, 0.0f);
+            float impactX = rayX;
+            float impactZ = rayZ;
+
+            if (cellX != previousCellX)
+            {
+                normal.X = lookDirection.X > 0.0f ? -1.0f : 1.0f;
+                impactX = normal.X < 0.0f ? static_cast<float>(cellX) : static_cast<float>(cellX + 1);
+            }
+            else if (cellZ != previousCellZ)
+            {
+                normal.Z = lookDirection.Z > 0.0f ? -1.0f : 1.0f;
+                impactZ = normal.Z < 0.0f ? static_cast<float>(cellZ) : static_cast<float>(cellZ + 1);
+            }
+            else
+            {
+                return false;
+            }
+
+            if (impacts_.size() == MaxImpactCount)
+                impacts_.erase(impacts_.begin());
+            impacts_.push_back({Vector3(impactX, 0.62f, impactZ), normal});
+            BuildImpactGeometry();
+
+            if (impactVertexBuffer_)
+            {
+                impactVertexBuffer_->SetData(
+                    impactVertices_.data(),
+                    static_cast<int>(impactVertices_.size()));
+            }
+
+            return true;
         }
 
         return false;
@@ -248,6 +310,51 @@ namespace WolfCna
         }
     }
 
+    void World::BuildImpactGeometry()
+    {
+        impactVertices_.resize(MaxImpactCount * 4);
+        impactIndices_.resize(MaxImpactCount * 6);
+
+        for (std::size_t index = 0; index < MaxImpactCount; ++index)
+        {
+            const auto vertexBase = static_cast<std::uint16_t>(index * 4);
+            const std::size_t indexBase = index * 6;
+            impactIndices_[indexBase + 0] = vertexBase + 0;
+            impactIndices_[indexBase + 1] = vertexBase + 1;
+            impactIndices_[indexBase + 2] = vertexBase + 2;
+            impactIndices_[indexBase + 3] = vertexBase + 0;
+            impactIndices_[indexBase + 4] = vertexBase + 2;
+            impactIndices_[indexBase + 5] = vertexBase + 3;
+        }
+
+        for (std::size_t index = 0; index < impacts_.size(); ++index)
+        {
+            const Impact& impact = impacts_[index];
+            const Vector3 center = impact.position + impact.normal * ImpactSurfaceOffset;
+            Vector3 horizontal;
+
+            if (impact.normal.X != 0.0f)
+                horizontal = Vector3(0.0f, 0.0f, ImpactHalfSize);
+            else
+                horizontal = Vector3(ImpactHalfSize, 0.0f, 0.0f);
+
+            const Vector3 vertical(0.0f, ImpactHalfSize, 0.0f);
+            const std::size_t vertexBase = index * 4;
+            impactVertices_[vertexBase + 0] = VertexPositionTexture(
+                center - horizontal - vertical,
+                Vector2(0.0f, 1.0f));
+            impactVertices_[vertexBase + 1] = VertexPositionTexture(
+                center + horizontal - vertical,
+                Vector2(1.0f / 3.0f, 1.0f));
+            impactVertices_[vertexBase + 2] = VertexPositionTexture(
+                center + horizontal + vertical,
+                Vector2(1.0f / 3.0f, 0.0f));
+            impactVertices_[vertexBase + 3] = VertexPositionTexture(
+                center - horizontal + vertical,
+                Vector2(0.0f, 0.0f));
+        }
+    }
+
     void World::BuildMesh()
     {
         for (int z = 0; z < static_cast<int>(map_.size()); ++z)
@@ -351,22 +458,36 @@ namespace WolfCna
 
         indexBuffer_->SetData(indices_.data(), static_cast<int>(indices_.size()));
 
-        if (doorVertices_.empty())
-            return;
+        if (!doorVertices_.empty())
+        {
+            doorVertexBuffer_ = std::make_unique<VertexBuffer>(
+                device,
+                VertexPositionTexture::getVertexDeclarationStatic(),
+                static_cast<int>(doorVertices_.size()),
+                BufferUsage::None);
+            doorVertexBuffer_->SetData(doorVertices_.data(), static_cast<int>(doorVertices_.size()));
 
-        doorVertexBuffer_ = std::make_unique<VertexBuffer>(
+            doorIndexBuffer_ = std::make_unique<IndexBuffer>(
+                device,
+                IndexElementSize::SixteenBits,
+                static_cast<int>(doorIndices_.size()),
+                BufferUsage::None);
+            doorIndexBuffer_->SetData(doorIndices_.data(), static_cast<int>(doorIndices_.size()));
+        }
+
+        impactVertexBuffer_ = std::make_unique<VertexBuffer>(
             device,
             VertexPositionTexture::getVertexDeclarationStatic(),
-            static_cast<int>(doorVertices_.size()),
+            static_cast<int>(impactVertices_.size()),
             BufferUsage::None);
-        doorVertexBuffer_->SetData(doorVertices_.data(), static_cast<int>(doorVertices_.size()));
+        impactVertexBuffer_->SetData(impactVertices_.data(), static_cast<int>(impactVertices_.size()));
 
-        doorIndexBuffer_ = std::make_unique<IndexBuffer>(
+        impactIndexBuffer_ = std::make_unique<IndexBuffer>(
             device,
             IndexElementSize::SixteenBits,
-            static_cast<int>(doorIndices_.size()),
+            static_cast<int>(impactIndices_.size()),
             BufferUsage::None);
-        doorIndexBuffer_->SetData(doorIndices_.data(), static_cast<int>(doorIndices_.size()));
+        impactIndexBuffer_->SetData(impactIndices_.data(), static_cast<int>(impactIndices_.size()));
     }
 
     void World::Draw(
@@ -404,11 +525,31 @@ namespace WolfCna
                 static_cast<int>(indices_.size() / 3));
         }
 
-        if (!doorVertexBuffer_ || !doorIndexBuffer_ || doorIndices_.empty())
+        if (doorVertexBuffer_ && doorIndexBuffer_ && !doorIndices_.empty())
+        {
+            device.SetVertexBuffer(doorVertexBuffer_.get());
+            device.setIndicesProperty(doorIndexBuffer_.get());
+
+            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+            {
+                pass.Apply();
+
+                device.DrawIndexedPrimitives(
+                    PrimitiveType::TriangleList,
+                    0,
+                    0,
+                    static_cast<int>(doorVertices_.size()),
+                    0,
+                    static_cast<int>(doorIndices_.size() / 3));
+            }
+        }
+
+        if (impacts_.empty() || !impactVertexBuffer_ || !impactIndexBuffer_)
             return;
 
-        device.SetVertexBuffer(doorVertexBuffer_.get());
-        device.setIndicesProperty(doorIndexBuffer_.get());
+        effect.setDiffuseColorProperty(Vector3(0.9f, 0.16f, 0.1f));
+        device.SetVertexBuffer(impactVertexBuffer_.get());
+        device.setIndicesProperty(impactIndexBuffer_.get());
 
         for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
         {
@@ -418,9 +559,9 @@ namespace WolfCna
                 PrimitiveType::TriangleList,
                 0,
                 0,
-                static_cast<int>(doorVertices_.size()),
+                static_cast<int>(impacts_.size() * 4),
                 0,
-                static_cast<int>(doorIndices_.size() / 3));
+                static_cast<int>(impacts_.size() * 2));
         }
     }
 }

@@ -25,7 +25,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - up/down arrow keys: forward / backward
 - left/right arrow keys: turn left / right
 - `Space`: open the door in front of you
-- left or right `Ctrl`: fire / knife attack (reserved until combat is added)
+- left or right `Ctrl`: fire the sidearm
 - `F11`: toggle fullscreen
 - `Escape`: quit
 

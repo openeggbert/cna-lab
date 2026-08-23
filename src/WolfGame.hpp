@@ -41,6 +41,7 @@ namespace WolfCna
 
         float yaw_ = 0.0f;
         bool actionWasDown_ = false;
+        bool attackWasDown_ = false;
         bool fullScreenWasDown_ = false;
 
         static constexpr float PlayerRadius = 0.22f;

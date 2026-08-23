@@ -65,6 +65,9 @@ int main()
 
     doorWorld.Update(0.3f);
     Expect(!doorWorld.Collides(2.5f, 1.5f, 0.1f), "sufficiently open door allows movement");
+    Expect(
+        doorWorld.FireHitscan(playerPosition, Microsoft::Xna::Framework::Vector3(-1.0f, 0.0f, 0.0f)),
+        "hitscan hits the first wall");
 
     return EXIT_SUCCESS;
 }

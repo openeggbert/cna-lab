@@ -262,6 +262,12 @@ namespace WolfCna
             world_.TryActivate(playerPosition_, LookDirection());
         actionWasDown_ = actionIsDown;
 
+        const bool attackIsDown =
+            keyboard.IsKeyDown(Keys::LeftControl) || keyboard.IsKeyDown(Keys::RightControl);
+        if (attackIsDown && !attackWasDown_)
+            static_cast<void>(world_.FireHitscan(playerPosition_, LookDirection()));
+        attackWasDown_ = attackIsDown;
+
         const float turnStep = KeyboardTurnSpeed * elapsedSeconds;
 
         if (keyboard.IsKeyDown(Keys::Left))

@@ -172,7 +172,7 @@ Controls in the starter:
 - `Up/Down`: forward/backward
 - `Left/Right`: turn left/right
 - `Space`: open the door in front of you
-- `Left/Right Ctrl`: fire/knife attack (reserved until combat exists)
+- `Left/Right Ctrl`: fire the sidearm
 - `F11`: toggle fullscreen
 - `Escape`: quit
 
@@ -911,6 +911,16 @@ Acceptance:
 - a centered crosshair remains centered after a viewport/fullscreen change;
 - the overlay uses CNA `SpriteBatch` only;
 - no gameplay values are displayed until health and ammunition systems exist.
+
+### WOLF-006 — hitscan sidearm and impact marker
+
+Status: complete.
+
+Acceptance:
+
+- Ctrl fires one hitscan shot per press using the current view direction;
+- the first static wall hit receives a visible 3D impact marker;
+- impact markers are bounded and upload to the GPU only when a shot lands.
 
 ---
 

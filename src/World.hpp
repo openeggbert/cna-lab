@@ -35,6 +35,9 @@ namespace WolfCna
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 PlayerStart() const;
         [[nodiscard]] bool Collides(float worldX, float worldZ, float radius) const;
+        [[nodiscard]] bool FireHitscan(
+            const Microsoft::Xna::Framework::Vector3& playerPosition,
+            const Microsoft::Xna::Framework::Vector3& lookDirection);
         void TryActivate(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection);
@@ -56,6 +59,14 @@ namespace WolfCna
             float openAmount = 0.0f;
         };
 
+        struct Impact
+        {
+            Microsoft::Xna::Framework::Vector3 position;
+            Microsoft::Xna::Framework::Vector3 normal;
+        };
+
+        static constexpr std::size_t MaxImpactCount = 24;
+
         std::vector<std::string> map_;
         Microsoft::Xna::Framework::Vector3 playerStart_;
 
@@ -64,17 +75,23 @@ namespace WolfCna
         std::vector<Door> doors_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> doorVertices_;
         std::vector<std::uint16_t> doorIndices_;
+        std::vector<Impact> impacts_;
+        std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> impactVertices_;
+        std::vector<std::uint16_t> impactIndices_;
 
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> vertexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> indexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> doorVertexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> doorIndexBuffer_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> impactVertexBuffer_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> impactIndexBuffer_;
 
         [[nodiscard]] bool IsStaticWallCell(int x, int z) const;
         [[nodiscard]] bool IsBlockedCell(int x, int z) const;
         void BuildMesh();
         void BuildDoors();
         void RebuildDoorGeometry();
+        void BuildImpactGeometry();
 
         void AddQuad(
             const Microsoft::Xna::Framework::Vector3& a,
