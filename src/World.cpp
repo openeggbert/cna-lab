@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <queue>
 #include <stdexcept>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
@@ -31,6 +32,7 @@ namespace WolfCna
         constexpr float EnemyWakeRange = 7.0f;
         constexpr float EnemyAttackRange = 0.85f;
         constexpr float EnemySpeed = 0.8f;
+        constexpr float EnemyPathRefreshSeconds = 0.35f;
     }
 
     World::World(const LevelDefinition& level)
@@ -244,10 +246,42 @@ namespace WolfCna
             if (enemy.state != EnemyState::Chase || distanceSquared <= 0.0f)
                 continue;
 
-            const float inverseDistance = 1.0f / std::sqrt(distanceSquared);
+            Vector3 target = playerPosition;
+            if (!canSeePlayer)
+            {
+                enemy.pathRefreshTime -= elapsedSeconds;
+                if (enemy.pathRefreshTime <= 0.0f)
+                {
+                    enemy.path = FindPath(
+                        static_cast<int>(std::floor(enemy.position.X)),
+                        static_cast<int>(std::floor(enemy.position.Z)),
+                        static_cast<int>(std::floor(playerPosition.X)),
+                        static_cast<int>(std::floor(playerPosition.Z)));
+                    enemy.pathIndex = 0;
+                    enemy.pathRefreshTime = EnemyPathRefreshSeconds;
+                }
+
+                if (enemy.pathIndex < enemy.path.size())
+                {
+                    const auto [cellX, cellZ] = enemy.path[enemy.pathIndex];
+                    target = Vector3(static_cast<float>(cellX) + 0.5f, 0.0f, static_cast<float>(cellZ) + 0.5f);
+                    const float targetX = target.X - enemy.position.X;
+                    const float targetZ = target.Z - enemy.position.Z;
+                    if (targetX * targetX + targetZ * targetZ < 0.04f)
+                        ++enemy.pathIndex;
+                }
+            }
+
+            const float moveX = target.X - enemy.position.X;
+            const float moveZ = target.Z - enemy.position.Z;
+            const float moveDistanceSquared = moveX * moveX + moveZ * moveZ;
+            if (moveDistanceSquared <= 0.0f)
+                continue;
+
+            const float inverseDistance = 1.0f / std::sqrt(moveDistanceSquared);
             const float step = EnemySpeed * elapsedSeconds;
-            const float nextX = enemy.position.X + dx * inverseDistance * step;
-            const float nextZ = enemy.position.Z + dz * inverseDistance * step;
+            const float nextX = enemy.position.X + moveX * inverseDistance * step;
+            const float nextZ = enemy.position.Z + moveZ * inverseDistance * step;
             if (!Collides(nextX, enemy.position.Z, 0.2f))
                 enemy.position.X = nextX;
             if (!Collides(enemy.position.X, nextZ, 0.2f))
@@ -438,6 +472,66 @@ namespace WolfCna
         }
 
         return true;
+    }
+
+    std::vector<std::pair<int, int>> World::FindPath(
+        int startX,
+        int startZ,
+        int goalX,
+        int goalZ) const
+    {
+        const int width = static_cast<int>(map_.front().size());
+        const int height = static_cast<int>(map_.size());
+        const auto toIndex = [width](int x, int z) { return z * width + x; };
+        const int start = toIndex(startX, startZ);
+        const int goal = toIndex(goalX, goalZ);
+        std::vector<int> parent(static_cast<std::size_t>(width * height), -1);
+        std::vector<int> cost(static_cast<std::size_t>(width * height), std::numeric_limits<int>::max());
+        using QueueItem = std::pair<int, int>;
+        std::priority_queue<QueueItem, std::vector<QueueItem>, std::greater<>> open;
+
+        cost[static_cast<std::size_t>(start)] = 0;
+        open.push({0, start});
+        constexpr std::array<std::pair<int, int>, 4> neighbors = {
+            std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1}, std::pair{0, -1}};
+
+        while (!open.empty())
+        {
+            const int current = open.top().second;
+            open.pop();
+            if (current == goal)
+                break;
+
+            const int x = current % width;
+            const int z = current / width;
+            for (const auto [offsetX, offsetZ] : neighbors)
+            {
+                const int nextX = x + offsetX;
+                const int nextZ = z + offsetZ;
+                if (nextX < 0 || nextX >= width || nextZ < 0 || nextZ >= height ||
+                    IsBlockedCell(nextX, nextZ))
+                    continue;
+
+                const int next = toIndex(nextX, nextZ);
+                const int nextCost = cost[static_cast<std::size_t>(current)] + 1;
+                if (nextCost >= cost[static_cast<std::size_t>(next)])
+                    continue;
+
+                cost[static_cast<std::size_t>(next)] = nextCost;
+                parent[static_cast<std::size_t>(next)] = current;
+                const int estimate = std::abs(goalX - nextX) + std::abs(goalZ - nextZ);
+                open.push({nextCost + estimate, next});
+            }
+        }
+
+        if (parent[static_cast<std::size_t>(goal)] == -1 && goal != start)
+            return {};
+
+        std::vector<std::pair<int, int>> path;
+        for (int current = goal; current != start; current = parent[static_cast<std::size_t>(current)])
+            path.emplace_back(current % width, current / width);
+        std::reverse(path.begin(), path.end());
+        return path;
     }
 
     void World::AddEnemyQuad(const Vector3& a, const Vector3& b, const Vector3& c, const Vector3& d)

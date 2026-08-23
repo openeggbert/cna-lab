@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Microsoft/Xna/Framework/Matrix.hpp"
@@ -78,6 +79,9 @@ namespace WolfCna
             Microsoft::Xna::Framework::Vector3 position;
             EnemyState state = EnemyState::Idle;
             int health = 3;
+            std::vector<std::pair<int, int>> path;
+            std::size_t pathIndex = 0;
+            float pathRefreshTime = 0.0f;
         };
 
         static constexpr std::size_t MaxImpactCount = 24;
@@ -117,6 +121,11 @@ namespace WolfCna
         [[nodiscard]] bool HasLineOfSight(
             const Microsoft::Xna::Framework::Vector3& from,
             const Microsoft::Xna::Framework::Vector3& to) const;
+        [[nodiscard]] std::vector<std::pair<int, int>> FindPath(
+            int startX,
+            int startZ,
+            int goalX,
+            int goalZ) const;
 
         void AddQuad(
             const Microsoft::Xna::Framework::Vector3& a,

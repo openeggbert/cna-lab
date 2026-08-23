@@ -932,6 +932,16 @@ Acceptance:
 - a visible guard wakes only with direct line-of-sight and moves through the grid;
 - sidearm hits damage the guard and remove it after three hits.
 
+### WOLF-008 — A* navigation
+
+Status: complete.
+
+Acceptance:
+
+- a chasing guard follows direct sight when possible and a four-direction A* path when it is lost;
+- paths treat walls and closed doors as impassable;
+- path searches are refreshed at a bounded interval instead of every frame.
+
 ---
 
 # 19. Long-term identity
