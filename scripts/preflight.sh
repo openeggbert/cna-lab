@@ -4,7 +4,10 @@ set -euo pipefail
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cna_dir="${IRON_GANG_CNA_DIR:-$project_root/../cnanext}"
 dependency_root="$(cd "$(dirname "$cna_dir")" 2>/dev/null && pwd || dirname "$cna_dir")"
-sharp_dir="$dependency_root/sharp-runtime"
+sharp_dir="${IRON_GANG_SHARP_RUNTIME_DIR:-$dependency_root/sharp-runtimenext}"
+if [[ ! -f "$sharp_dir/CMakeLists.txt" && -f "$dependency_root/sharp-runtime/CMakeLists.txt" ]]; then
+  sharp_dir="$dependency_root/sharp-runtime"
+fi
 easygl_dir="$dependency_root/easy-gl"
 jolt_dir="${IRON_GANG_JOLT_DIR:-$HOME/deps/jolt}"
 mesh_craft_dir="${MESH_CRAFT_SOURCE_DIR:-$dependency_root/mesh-craft}"

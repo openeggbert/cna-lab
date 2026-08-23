@@ -14,7 +14,7 @@ option(IRON_GANG_WARNINGS_AS_ERRORS "Treat Iron Gang warnings as errors" OFF)
 option(IRON_GANG_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
 set(IRON_GANG_CNA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../cnanext" CACHE PATH
-    "Path to the modular CNA source tree. CNA expects sharp-runtime next to itself.")
+    "Path to the modular CNA source tree.")
 
 if(NOT EXISTS "${IRON_GANG_CNA_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
@@ -28,11 +28,19 @@ if(NOT EXISTS "${IRON_GANG_CNA_DIR}/CMakeLists.txt")
 endif()
 
 get_filename_component(IRON_GANG_DEPENDENCY_ROOT "${IRON_GANG_CNA_DIR}/.." ABSOLUTE)
-if(NOT EXISTS "${IRON_GANG_DEPENDENCY_ROOT}/sharp-runtime/CMakeLists.txt")
+set(IRON_GANG_SHARP_RUNTIME_DIR "${IRON_GANG_DEPENDENCY_ROOT}/sharp-runtimenext" CACHE PATH
+    "Path to the sharp-runtime checkout consumed by CNA")
+if(NOT EXISTS "${IRON_GANG_SHARP_RUNTIME_DIR}/CMakeLists.txt")
+    set(_iron_gang_legacy_sharp_runtime "${IRON_GANG_DEPENDENCY_ROOT}/sharp-runtime")
+    if(EXISTS "${_iron_gang_legacy_sharp_runtime}/CMakeLists.txt")
+        set(IRON_GANG_SHARP_RUNTIME_DIR "${_iron_gang_legacy_sharp_runtime}" CACHE PATH
+            "Path to the sharp-runtime checkout consumed by CNA" FORCE)
+    endif()
+endif()
+if(NOT EXISTS "${IRON_GANG_SHARP_RUNTIME_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
-        "Iron Gang: sharp-runtime must be a sibling of CNA at\n"
-        "  ${IRON_GANG_DEPENDENCY_ROOT}/sharp-runtime\n"
-        "This is required by CNA's current build contract.")
+        "Iron Gang: sharp-runtime was not found at '${IRON_GANG_SHARP_RUNTIME_DIR}'.\n"
+        "Override with -DIRON_GANG_SHARP_RUNTIME_DIR=/absolute/path/to/sharp-runtimenext")
 endif()
 
 # Jolt Physics (selected in plan_15-physics-integration.md IG-15-003): a shared checkout under
@@ -64,6 +72,8 @@ set(SHARP_RUNTIME_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 set(SHARP_RUNTIME_COMPONENTS
     "Core.Base;IO;Collections.Core;Collections.ObjectModel;Runtime;Threading;Text;Text.Json;Globalization;Storage;Security.Cryptography"
     CACHE STRING "Sharp Runtime components required by modular CNA and Iron Gang" FORCE)
+set(CNA_SHARP_RUNTIME_ROOT "${IRON_GANG_SHARP_RUNTIME_DIR}" CACHE PATH
+    "Path to the sharp-runtime checkout consumed by CNA" FORCE)
 # Jolt defaults INTERPROCEDURAL_OPTIMIZATION ON and expects the *consuming* project to also opt
 # in via CMAKE_INTERPROCEDURAL_OPTIMIZATION; since Iron Gang does not, disable it for Jolt
 # rather than risk an LTO link mismatch (Jolt's own CMakeLists.txt documents this exact pitfall).
@@ -157,11 +167,25 @@ target_link_libraries(iron_gang PRIVATE
 # dependency's intentional GNU __int128 implementation (sharp-runtime itself still builds with
 # its own strict warning policy).
 target_include_directories(iron_gang SYSTEM PRIVATE
-    "${IRON_GANG_DEPENDENCY_ROOT}/sharp-runtime/modules/core/include")
+    "${IRON_GANG_SHARP_RUNTIME_DIR}/modules/core/include")
 iron_gang_apply_warnings(iron_gang)
 
 if(TARGET SDL3::SDL3main)
     target_link_libraries(iron_gang PRIVATE SDL3::SDL3main)
+endif()
+
+if(EMSCRIPTEN)
+    # CNA's browser path uses SDL3 + WebGL2. Keep the game's data beside the generated
+    # launcher so the same relative assetRoot ("assets") works in the browser filesystem.
+    target_link_options(iron_gang PRIVATE
+        "--preload-file=${CMAKE_CURRENT_SOURCE_DIR}/assets@assets"
+        "-sUSE_WEBGL2=1"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sINITIAL_MEMORY=268435456"
+        "-sNO_EXIT_RUNTIME=1")
+    set_target_properties(iron_gang PROPERTIES
+        SUFFIX ".js"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/web/build")
 endif()
 
 if(WIN32)

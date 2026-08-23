@@ -59,6 +59,27 @@
         "CNA_GRAPHICS_RENDERER": "OPENGLES3",
         "IRON_GANG_BUILD_TESTS": "OFF"
       }
+    },
+    {
+      "name": "web-emscripten",
+      "displayName": "Web - Emscripten / WebGL2",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/cmake-build-web-emscripten",
+      "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CNA_USE_CCACHE": "OFF",
+        "CNA_BUILD_TESTS": "OFF",
+        "CNA_BUILD_EXAMPLES": "OFF",
+        "CNA_ENABLE_NET": "OFF",
+        "CNA_ENABLE_VIDEO": "OFF",
+        "CNA_PLATFORM_RATCHET": "OFF",
+        "CNA_PLATFORM": "SDL3",
+        "CNA_GRAPHICS_RENDERER": "WEBGL2",
+        "IRON_GANG_BUILD_TESTS": "OFF",
+        "IRON_GANG_SHARP_RUNTIME_DIR": "${sourceDir}/../sharp-runtimenext"
+      }
     }
   ],
   "buildPresets": [
@@ -80,6 +101,11 @@
     {
       "name": "release-easygl",
       "configurePreset": "release-easygl",
+      "jobs": 4
+    },
+    {
+      "name": "web-emscripten",
+      "configurePreset": "web-emscripten",
       "jobs": 4
     }
   ],

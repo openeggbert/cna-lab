@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Iron Gang — a cinematic open-city action adventure in development." />
+    <meta name="theme-color" content="#11100e" />
+    <title>IRON GANG / A city that remembers</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+    <header class="topbar">
+      <a class="wordmark" href="#top" aria-label="Iron Gang home"><span>IG</span> / IRON GANG</a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#world">THE WORLD</a>
+        <a href="#story">THE STORY</a>
+        <a href="#status">STATUS</a>
+      </nav>
+      <a class="top-cta" href="#status">FOLLOW DEVELOPMENT <span>↗</span></a>
+    </header>
+
+    <main id="top">
+      <section class="hero section-wrap">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="pulse"></span> ORIGINAL OPEN-CITY ACTION ADVENTURE</p>
+          <h1>THE CITY<br /><em>OWES YOU</em><br />NOTHING.</h1>
+          <p class="hero-intro">A cinematic story of wheels, work, and the people who refuse to disappear. Make a delivery. Pick a side. Leave a mark.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#world">ENTER THE CITY <span>→</span></a>
+            <a class="text-link" href="#story">READ THE DOSSIER <span>↘</span></a>
+          </div>
+        </div>
+        <div class="hero-art" aria-label="A stylized night city street illustration" role="img">
+          <div class="sun"></div>
+          <div class="moon-label">DISTRICT 01 / WAREHOUSE BLOCK</div>
+          <div class="tower tower-one"></div><div class="tower tower-two"></div><div class="tower tower-three"></div>
+          <div class="warehouse"><span>IRON<br />WORKS</span></div>
+          <div class="street"></div>
+          <div class="car"><i></i><b></b><strong></strong></div>
+          <div class="route route-one"></div><div class="route route-two"></div>
+          <div class="coordinates">49°11'22.4"N<br />16°36'45.7"E</div>
+        </div>
+        <div class="hero-index">01 <span>/</span> 04</div>
+      </section>
+
+      <section class="ticker" aria-label="Game features">
+        <div>WALK THE BLOCKS</div><span>✳</span><div>DRIVE THE BACKROADS</div><span>✳</span><div>CHOOSE YOUR CREW</div><span>✳</span><div>LIVE WITH THE CONSEQUENCES</div><span>✳</span>
+      </section>
+
+      <section class="world section-wrap" id="world">
+        <div class="section-heading"><p class="eyebrow">01 / THE WORLD</p><h2>TWO DISTRICTS.<br /><span>ONE WAY OUT.</span></h2></div>
+        <div class="world-content">
+          <div class="map-card">
+            <div class="map-grid"></div><div class="map-river"></div><div class="map-road road-a"></div><div class="map-road road-b"></div><div class="map-road road-c"></div>
+            <div class="map-pin pin-a">01 <small>WAREHOUSE BLOCK</small></div><div class="map-pin pin-b">02 <small>COUNTRYSIDE</small></div>
+            <div class="map-legend"><span class="legend-dot"></span> ACTIVE ROUTE <span class="legend-line"></span> DISTRICT EXIT</div>
+          </div>
+          <div class="district-copy">
+            <div class="district-tabs"><button class="active" data-district="warehouse">WAREHOUSE BLOCK</button><button data-district="countryside">COUNTRYSIDE</button></div>
+            <article class="district-panel active" id="warehouse"><p class="mono-label">D01 / 06:42 PM / RAIN INCOMING</p><h3>Steel, sodium light, and a delivery you can’t miss.</h3><p>The city starts at the loading bay. Traffic circles the block, windows glow above the street, and every shortcut has a witness.</p><div class="stat-row"><div><strong>02</strong><span>ACTIVE DISTRICTS</span></div><div><strong>60</strong><span>FRAMES / SEC TARGET</span></div><div><strong>01</strong><span>WAY OUT</span></div></div></article>
+            <article class="district-panel" id="countryside"><p class="mono-label">D02 / 07:18 PM / CLEAR SKIES</p><h3>Past the last streetlight, the rules get quieter.</h3><p>A hard turn out of town opens onto fields, old roads, and enough distance to decide what you actually came here for.</p><div class="stat-row"><div><strong>02</strong><span>ACTIVE DISTRICTS</span></div><div><strong>04</strong><span>WHEELS ON THE ROAD</span></div><div><strong>∞</strong><span>ROOM TO RUN</span></div></div></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="story section-wrap" id="story">
+        <div class="section-heading"><p class="eyebrow">02 / THE DOSSIER</p><h2>NO HEROES.<br /><span>JUST PEOPLE.</span></h2></div>
+        <div class="story-grid">
+          <div class="story-note"><span class="stamp">FIELD NOTE / 001</span><p>“The first job is always simple. It’s the second thing that changes your life.”</p><span class="signed">— M.</span></div>
+          <div class="mission-panel"><div class="mission-top"><span>PROLOGUE / MISSION 01</span><span>ACTIVE</span></div><h3>THE LONG WAY HOME</h3><p>Hear the briefing. Reach the car. Get the package across town before the city wakes up.</p><div class="mission-progress"><span></span></div><div class="mission-footer"><span>5 OBJECTIVES</span><span>EST. 18 MIN</span><span>RISK / MEDIUM</span></div></div>
+          <div class="story-list"><div><b>01</b><span>Dialogue that remembers what you said.</span></div><div><b>02</b><span>Vehicles with somewhere else to be.</span></div><div><b>03</b><span>A city built to be crossed, not conquered.</span></div></div>
+        </div>
+      </section>
+
+      <section class="status section-wrap" id="status">
+        <div class="status-card"><div><p class="eyebrow">03 / DEVELOPMENT STATUS</p><h2>THE ENGINE<br /><em>IS RUNNING.</em></h2><p class="status-copy">Iron Gang is an original C++ prototype in active development. The first vertical slice already has a living city block, a second district, real physics, missions, cutscenes, ambient traffic, pedestrians, and a driveable sedan.</p><a class="button button-primary" href="https://github.com/openeggbert/iron-gang" target="_blank" rel="noreferrer">VIEW THE PROJECT <span>↗</span></a></div><div class="status-meters"><div class="meter-label"><span>VERTICAL SLICE</span><strong>11 / 12 GATES</strong></div><div class="meter"><span style="width: 91.6%"></span></div><div class="meter-label"><span>BUILD</span><strong class="green">PASSING</strong></div><div class="build-line"><span class="green-dot"></span> CORE TESTS / PHYSICS / SAVE LOAD / SMOKE</div><div class="status-stamp">IN<br />PROGRESS</div></div></div>
+      </section>
+      <a class="button button-primary" href="./play.html">PLAY THE WEB BUILD <span>→</span></a>
+    </main>
+    <footer class="footer section-wrap"><span>IRON GANG © 2026</span><span>MADE FOR THE LONG WAY HOME</span><span>BRNO / CZ</span></footer>
+    <script src="./script.js"></script>
+  </body>
+</html>
