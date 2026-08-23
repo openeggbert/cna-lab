@@ -23,7 +23,7 @@ namespace WolfCna
     public:
         explicit World(const LevelDefinition& level);
 
-        void Update(float elapsedSeconds);
+        void Update(float elapsedSeconds, const Microsoft::Xna::Framework::Vector3& playerPosition);
         void Upload(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
 
         void Draw(
@@ -65,6 +65,21 @@ namespace WolfCna
             Microsoft::Xna::Framework::Vector3 normal;
         };
 
+        enum class EnemyState
+        {
+            Idle,
+            Chase,
+            Attack,
+            Dead
+        };
+
+        struct Enemy
+        {
+            Microsoft::Xna::Framework::Vector3 position;
+            EnemyState state = EnemyState::Idle;
+            int health = 3;
+        };
+
         static constexpr std::size_t MaxImpactCount = 24;
 
         std::vector<std::string> map_;
@@ -78,6 +93,9 @@ namespace WolfCna
         std::vector<Impact> impacts_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> impactVertices_;
         std::vector<std::uint16_t> impactIndices_;
+        std::vector<Enemy> enemies_;
+        std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> enemyVertices_;
+        std::vector<std::uint16_t> enemyIndices_;
 
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> vertexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> indexBuffer_;
@@ -85,6 +103,8 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> doorIndexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> impactVertexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> impactIndexBuffer_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> enemyVertexBuffer_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> enemyIndexBuffer_;
 
         [[nodiscard]] bool IsStaticWallCell(int x, int z) const;
         [[nodiscard]] bool IsBlockedCell(int x, int z) const;
@@ -92,6 +112,11 @@ namespace WolfCna
         void BuildDoors();
         void RebuildDoorGeometry();
         void BuildImpactGeometry();
+        void BuildEnemies();
+        void BuildEnemyGeometry();
+        [[nodiscard]] bool HasLineOfSight(
+            const Microsoft::Xna::Framework::Vector3& from,
+            const Microsoft::Xna::Framework::Vector3& to) const;
 
         void AddQuad(
             const Microsoft::Xna::Framework::Vector3& a,
@@ -100,6 +125,11 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& d,
             Material material);
         void AddDoorQuad(
+            const Microsoft::Xna::Framework::Vector3& a,
+            const Microsoft::Xna::Framework::Vector3& b,
+            const Microsoft::Xna::Framework::Vector3& c,
+            const Microsoft::Xna::Framework::Vector3& d);
+        void AddEnemyQuad(
             const Microsoft::Xna::Framework::Vector3& a,
             const Microsoft::Xna::Framework::Vector3& b,
             const Microsoft::Xna::Framework::Vector3& c,

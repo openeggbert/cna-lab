@@ -67,6 +67,7 @@ namespace WolfCna
                 case '#':
                 case '.':
                 case 'D':
+                case 'G':
                     break;
                 case 'P':
                     if (level.playerStartX_ >= 0)

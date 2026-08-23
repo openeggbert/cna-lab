@@ -60,10 +60,10 @@ int main()
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "closed door blocks movement");
 
     doorWorld.TryActivate(playerPosition, lookDirection);
-    doorWorld.Update(0.2f);
+    doorWorld.Update(0.2f, playerPosition);
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "partly open door still blocks movement");
 
-    doorWorld.Update(0.3f);
+    doorWorld.Update(0.3f, playerPosition);
     Expect(!doorWorld.Collides(2.5f, 1.5f, 0.1f), "sufficiently open door allows movement");
     Expect(
         doorWorld.FireHitscan(playerPosition, Microsoft::Xna::Framework::Vector3(-1.0f, 0.0f, 0.0f)),

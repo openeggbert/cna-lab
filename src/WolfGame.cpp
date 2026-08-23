@@ -302,7 +302,7 @@ namespace WolfCna
 
         // Clamp unusually long frames so a debugger pause cannot launch the player through walls.
         const float clampedElapsed = std::min(elapsed, 0.05f);
-        world_.Update(clampedElapsed);
+        world_.Update(clampedElapsed, playerPosition_);
         HandleInput(clampedElapsed);
 
         Game::Update(gameTime);

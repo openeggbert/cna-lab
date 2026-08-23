@@ -922,6 +922,16 @@ Acceptance:
 - the first static wall hit receives a visible 3D impact marker;
 - impact markers are bounded and upload to the GPU only when a shot lands.
 
+### WOLF-007 — first enemy state machine
+
+Status: complete.
+
+Acceptance:
+
+- `G` spawns an original guard with idle, chase, attack and dead states;
+- a visible guard wakes only with direct line-of-sight and moves through the grid;
+- sidearm hits damage the guard and remove it after three hits.
+
 ---
 
 # 19. Long-term identity

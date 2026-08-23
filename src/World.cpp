@@ -28,6 +28,9 @@ namespace WolfCna
         constexpr float HitScanStep = 0.02f;
         constexpr float ImpactHalfSize = 0.075f;
         constexpr float ImpactSurfaceOffset = 0.003f;
+        constexpr float EnemyWakeRange = 7.0f;
+        constexpr float EnemyAttackRange = 0.85f;
+        constexpr float EnemySpeed = 0.8f;
     }
 
     World::World(const LevelDefinition& level)
@@ -39,9 +42,11 @@ namespace WolfCna
     {
         impacts_.reserve(MaxImpactCount);
         BuildDoors();
+        BuildEnemies();
         BuildMesh();
         RebuildDoorGeometry();
         BuildImpactGeometry();
+        BuildEnemyGeometry();
     }
 
     Vector3 World::PlayerStart() const
@@ -107,6 +112,21 @@ namespace WolfCna
             const float rayZ = playerPosition.Z + lookDirection.Z * distance;
             const int cellX = static_cast<int>(std::floor(rayX));
             const int cellZ = static_cast<int>(std::floor(rayZ));
+
+            for (Enemy& enemy : enemies_)
+            {
+                if (enemy.state == EnemyState::Dead)
+                    continue;
+
+                const float enemyX = enemy.position.X - rayX;
+                const float enemyZ = enemy.position.Z - rayZ;
+                if (enemyX * enemyX + enemyZ * enemyZ > 0.08f)
+                    continue;
+
+                --enemy.health;
+                enemy.state = enemy.health <= 0 ? EnemyState::Dead : EnemyState::Chase;
+                return true;
+            }
 
             if (!IsStaticWallCell(cellX, cellZ))
             {
@@ -181,7 +201,7 @@ namespace WolfCna
             target->opening = true;
     }
 
-    void World::Update(float elapsedSeconds)
+    void World::Update(float elapsedSeconds, const Vector3& playerPosition)
     {
         bool changed = false;
 
@@ -195,12 +215,44 @@ namespace WolfCna
             changed = changed || door.openAmount != previousAmount;
         }
 
-        if (!changed)
-            return;
+        if (changed)
+        {
+            RebuildDoorGeometry();
+            if (doorVertexBuffer_)
+                doorVertexBuffer_->SetData(doorVertices_.data(), static_cast<int>(doorVertices_.size()));
+        }
 
-        RebuildDoorGeometry();
-        if (doorVertexBuffer_)
-            doorVertexBuffer_->SetData(doorVertices_.data(), static_cast<int>(doorVertices_.size()));
+        for (Enemy& enemy : enemies_)
+        {
+            if (enemy.state == EnemyState::Dead)
+                continue;
+
+            const float dx = playerPosition.X - enemy.position.X;
+            const float dz = playerPosition.Z - enemy.position.Z;
+            const float distanceSquared = dx * dx + dz * dz;
+            const bool canSeePlayer =
+                distanceSquared <= EnemyWakeRange * EnemyWakeRange &&
+                HasLineOfSight(enemy.position, playerPosition);
+
+            if (enemy.state == EnemyState::Idle && canSeePlayer)
+                enemy.state = EnemyState::Chase;
+            if (enemy.state == EnemyState::Chase && distanceSquared <= EnemyAttackRange * EnemyAttackRange)
+                enemy.state = EnemyState::Attack;
+            else if (enemy.state == EnemyState::Attack && distanceSquared > EnemyAttackRange * EnemyAttackRange)
+                enemy.state = EnemyState::Chase;
+
+            if (enemy.state != EnemyState::Chase || distanceSquared <= 0.0f)
+                continue;
+
+            const float inverseDistance = 1.0f / std::sqrt(distanceSquared);
+            const float step = EnemySpeed * elapsedSeconds;
+            const float nextX = enemy.position.X + dx * inverseDistance * step;
+            const float nextZ = enemy.position.Z + dz * inverseDistance * step;
+            if (!Collides(nextX, enemy.position.Z, 0.2f))
+                enemy.position.X = nextX;
+            if (!Collides(enemy.position.X, nextZ, 0.2f))
+                enemy.position.Z = nextZ;
+        }
     }
 
     void World::AddQuad(
@@ -355,6 +407,60 @@ namespace WolfCna
         }
     }
 
+    void World::BuildEnemies()
+    {
+        for (int z = 0; z < static_cast<int>(map_.size()); ++z)
+        {
+            for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
+            {
+                if (map_[z][x] == 'G')
+                    enemies_.push_back({Vector3(static_cast<float>(x) + 0.5f, 0.0f, static_cast<float>(z) + 0.5f)});
+            }
+        }
+    }
+
+    bool World::HasLineOfSight(const Vector3& from, const Vector3& to) const
+    {
+        const float dx = to.X - from.X;
+        const float dz = to.Z - from.Z;
+        const float distance = std::sqrt(dx * dx + dz * dz);
+        if (distance <= 0.0f)
+            return true;
+
+        const float stepX = dx / distance * HitScanStep;
+        const float stepZ = dz / distance * HitScanStep;
+        for (float traveled = HitScanStep; traveled < distance; traveled += HitScanStep)
+        {
+            const int x = static_cast<int>(std::floor(from.X + stepX * (traveled / HitScanStep)));
+            const int z = static_cast<int>(std::floor(from.Z + stepZ * (traveled / HitScanStep)));
+            if (IsBlockedCell(x, z))
+                return false;
+        }
+
+        return true;
+    }
+
+    void World::AddEnemyQuad(const Vector3& a, const Vector3& b, const Vector3& c, const Vector3& d)
+    {
+        const auto base = static_cast<std::uint16_t>(enemyVertices_.size());
+        enemyVertices_.emplace_back(a, Vector2(0.0f, 1.0f));
+        enemyVertices_.emplace_back(b, Vector2(1.0f / 3.0f, 1.0f));
+        enemyVertices_.emplace_back(c, Vector2(1.0f / 3.0f, 0.0f));
+        enemyVertices_.emplace_back(d, Vector2(0.0f, 0.0f));
+        enemyIndices_.insert(enemyIndices_.end(), {base, static_cast<std::uint16_t>(base + 1), static_cast<std::uint16_t>(base + 2), base, static_cast<std::uint16_t>(base + 2), static_cast<std::uint16_t>(base + 3)});
+    }
+
+    void World::BuildEnemyGeometry()
+    {
+        constexpr float half = 0.22f;
+        constexpr float height = 0.82f;
+        AddEnemyQuad(Vector3(-half, 0, -half), Vector3(half, 0, -half), Vector3(half, height, -half), Vector3(-half, height, -half));
+        AddEnemyQuad(Vector3(half, 0, half), Vector3(-half, 0, half), Vector3(-half, height, half), Vector3(half, height, half));
+        AddEnemyQuad(Vector3(-half, 0, half), Vector3(-half, 0, -half), Vector3(-half, height, -half), Vector3(-half, height, half));
+        AddEnemyQuad(Vector3(half, 0, -half), Vector3(half, 0, half), Vector3(half, height, half), Vector3(half, height, -half));
+        AddEnemyQuad(Vector3(-half, height, -half), Vector3(half, height, -half), Vector3(half, height, half), Vector3(-half, height, half));
+    }
+
     void World::BuildMesh()
     {
         for (int z = 0; z < static_cast<int>(map_.size()); ++z)
@@ -488,6 +594,22 @@ namespace WolfCna
             static_cast<int>(impactIndices_.size()),
             BufferUsage::None);
         impactIndexBuffer_->SetData(impactIndices_.data(), static_cast<int>(impactIndices_.size()));
+
+        if (!enemies_.empty())
+        {
+            enemyVertexBuffer_ = std::make_unique<VertexBuffer>(
+                device,
+                VertexPositionTexture::getVertexDeclarationStatic(),
+                static_cast<int>(enemyVertices_.size()),
+                BufferUsage::None);
+            enemyVertexBuffer_->SetData(enemyVertices_.data(), static_cast<int>(enemyVertices_.size()));
+            enemyIndexBuffer_ = std::make_unique<IndexBuffer>(
+                device,
+                IndexElementSize::SixteenBits,
+                static_cast<int>(enemyIndices_.size()),
+                BufferUsage::None);
+            enemyIndexBuffer_->SetData(enemyIndices_.data(), static_cast<int>(enemyIndices_.size()));
+        }
     }
 
     void World::Draw(
@@ -544,24 +666,55 @@ namespace WolfCna
             }
         }
 
-        if (impacts_.empty() || !impactVertexBuffer_ || !impactIndexBuffer_)
+        if (!impacts_.empty() && impactVertexBuffer_ && impactIndexBuffer_)
+        {
+            effect.setDiffuseColorProperty(Vector3(0.9f, 0.16f, 0.1f));
+            device.SetVertexBuffer(impactVertexBuffer_.get());
+            device.setIndicesProperty(impactIndexBuffer_.get());
+
+            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+            {
+                pass.Apply();
+
+                device.DrawIndexedPrimitives(
+                    PrimitiveType::TriangleList,
+                    0,
+                    0,
+                    static_cast<int>(impacts_.size() * 4),
+                    0,
+                    static_cast<int>(impacts_.size() * 2));
+            }
+        }
+
+        if (!enemyVertexBuffer_ || !enemyIndexBuffer_)
             return;
 
-        effect.setDiffuseColorProperty(Vector3(0.9f, 0.16f, 0.1f));
-        device.SetVertexBuffer(impactVertexBuffer_.get());
-        device.setIndicesProperty(impactIndexBuffer_.get());
+        device.SetVertexBuffer(enemyVertexBuffer_.get());
+        device.setIndicesProperty(enemyIndexBuffer_.get());
+        effect.setTextureEnabledProperty(false);
 
-        for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+        for (const Enemy& enemy : enemies_)
         {
-            pass.Apply();
+            if (enemy.state == EnemyState::Dead)
+                continue;
 
-            device.DrawIndexedPrimitives(
-                PrimitiveType::TriangleList,
-                0,
-                0,
-                static_cast<int>(impacts_.size() * 4),
-                0,
-                static_cast<int>(impacts_.size() * 2));
+            effect.setWorldProperty(Matrix::CreateTranslation(enemy.position));
+            effect.setDiffuseColorProperty(
+                enemy.state == EnemyState::Attack
+                    ? Vector3(0.95f, 0.24f, 0.12f)
+                    : Vector3(0.32f, 0.72f, 0.36f));
+
+            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+            {
+                pass.Apply();
+                device.DrawIndexedPrimitives(
+                    PrimitiveType::TriangleList,
+                    0,
+                    0,
+                    static_cast<int>(enemyVertices_.size()),
+                    0,
+                    static_cast<int>(enemyIndices_.size() / 3));
+            }
         }
     }
 }

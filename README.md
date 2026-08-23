@@ -18,6 +18,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - centered HUD crosshair
 - grid collision with wall sliding
 - level loaded from a validated text file
+- one original guard with idle/chase/attack/dead states
 - no external copyrighted game assets
 
 ## Controls
@@ -38,6 +39,7 @@ have the same width and use only these symbols:
 - `.`: empty floor
 - `P`: the single player spawn
 - `D`: closed sliding door
+- `G`: guard spawn
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 
