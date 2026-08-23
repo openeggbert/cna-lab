@@ -40,6 +40,8 @@ namespace WolfCna
         Microsoft::Xna::Framework::Vector3 playerPosition_;
 
         float yaw_ = 0.0f;
+        int health_ = 100;
+        int ammo_ = 12;
         bool actionWasDown_ = false;
         bool attackWasDown_ = false;
         bool fullScreenWasDown_ = false;

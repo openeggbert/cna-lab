@@ -33,6 +33,7 @@ namespace WolfCna
         constexpr float EnemyAttackRange = 0.85f;
         constexpr float EnemySpeed = 0.8f;
         constexpr float EnemyPathRefreshSeconds = 0.35f;
+        constexpr float PickupRadius = 0.42f;
     }
 
     World::World(const LevelDefinition& level)
@@ -45,6 +46,7 @@ namespace WolfCna
         impacts_.reserve(MaxImpactCount);
         BuildDoors();
         BuildEnemies();
+        BuildPickups();
         BuildMesh();
         RebuildDoorGeometry();
         BuildImpactGeometry();
@@ -172,6 +174,30 @@ namespace WolfCna
         }
 
         return false;
+    }
+
+    World::PickupResult World::CollectPickups(const Vector3& playerPosition)
+    {
+        PickupResult result;
+
+        for (Pickup& pickup : pickups_)
+        {
+            if (pickup.collected)
+                continue;
+
+            const float dx = pickup.position.X - playerPosition.X;
+            const float dz = pickup.position.Z - playerPosition.Z;
+            if (dx * dx + dz * dz > PickupRadius * PickupRadius)
+                continue;
+
+            pickup.collected = true;
+            if (pickup.type == PickupType::Health)
+                result.health += 25;
+            else
+                result.ammo += 6;
+        }
+
+        return result;
     }
 
     void World::TryActivate(const Vector3& playerPosition, const Vector3& lookDirection)
@@ -453,6 +479,23 @@ namespace WolfCna
         }
     }
 
+    void World::BuildPickups()
+    {
+        for (int z = 0; z < static_cast<int>(map_.size()); ++z)
+        {
+            for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
+            {
+                const char symbol = map_[z][x];
+                if (symbol != 'H' && symbol != 'A')
+                    continue;
+
+                pickups_.push_back({
+                    Vector3(static_cast<float>(x) + 0.5f, 0.08f, static_cast<float>(z) + 0.5f),
+                    symbol == 'H' ? PickupType::Health : PickupType::Ammo});
+            }
+        }
+    }
+
     bool World::HasLineOfSight(const Vector3& from, const Vector3& to) const
     {
         const float dx = to.X - from.X;
@@ -689,7 +732,7 @@ namespace WolfCna
             BufferUsage::None);
         impactIndexBuffer_->SetData(impactIndices_.data(), static_cast<int>(impactIndices_.size()));
 
-        if (!enemies_.empty())
+        if (!enemies_.empty() || !pickups_.empty())
         {
             enemyVertexBuffer_ = std::make_unique<VertexBuffer>(
                 device,
@@ -797,6 +840,31 @@ namespace WolfCna
                 enemy.state == EnemyState::Attack
                     ? Vector3(0.95f, 0.24f, 0.12f)
                     : Vector3(0.32f, 0.72f, 0.36f));
+
+            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+            {
+                pass.Apply();
+                device.DrawIndexedPrimitives(
+                    PrimitiveType::TriangleList,
+                    0,
+                    0,
+                    static_cast<int>(enemyVertices_.size()),
+                    0,
+                    static_cast<int>(enemyIndices_.size() / 3));
+            }
+        }
+
+        for (const Pickup& pickup : pickups_)
+        {
+            if (pickup.collected)
+                continue;
+
+            effect.setWorldProperty(
+                Matrix::CreateScale(0.38f) * Matrix::CreateTranslation(pickup.position));
+            effect.setDiffuseColorProperty(
+                pickup.type == PickupType::Health
+                    ? Vector3(0.22f, 0.82f, 0.3f)
+                    : Vector3(0.92f, 0.76f, 0.12f));
 
             for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
             {

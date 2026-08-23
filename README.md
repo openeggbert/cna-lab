@@ -40,6 +40,8 @@ have the same width and use only these symbols:
 - `P`: the single player spawn
 - `D`: closed sliding door
 - `G`: guard spawn
+- `H`: health pickup
+- `A`: ammunition pickup
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 

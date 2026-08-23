@@ -22,6 +22,12 @@ namespace WolfCna
     class World final
     {
     public:
+        struct PickupResult
+        {
+            int health = 0;
+            int ammo = 0;
+        };
+
         explicit World(const LevelDefinition& level);
 
         void Update(float elapsedSeconds, const Microsoft::Xna::Framework::Vector3& playerPosition);
@@ -39,6 +45,8 @@ namespace WolfCna
         [[nodiscard]] bool FireHitscan(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection);
+        [[nodiscard]] PickupResult CollectPickups(
+            const Microsoft::Xna::Framework::Vector3& playerPosition);
         void TryActivate(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection);
@@ -84,6 +92,19 @@ namespace WolfCna
             float pathRefreshTime = 0.0f;
         };
 
+        enum class PickupType
+        {
+            Health,
+            Ammo
+        };
+
+        struct Pickup
+        {
+            Microsoft::Xna::Framework::Vector3 position;
+            PickupType type = PickupType::Health;
+            bool collected = false;
+        };
+
         static constexpr std::size_t MaxImpactCount = 24;
 
         std::vector<std::string> map_;
@@ -98,6 +119,7 @@ namespace WolfCna
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> impactVertices_;
         std::vector<std::uint16_t> impactIndices_;
         std::vector<Enemy> enemies_;
+        std::vector<Pickup> pickups_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> enemyVertices_;
         std::vector<std::uint16_t> enemyIndices_;
 
@@ -117,6 +139,7 @@ namespace WolfCna
         void RebuildDoorGeometry();
         void BuildImpactGeometry();
         void BuildEnemies();
+        void BuildPickups();
         void BuildEnemyGeometry();
         [[nodiscard]] bool HasLineOfSight(
             const Microsoft::Xna::Framework::Vector3& from,

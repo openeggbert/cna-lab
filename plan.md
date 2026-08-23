@@ -942,6 +942,16 @@ Acceptance:
 - paths treat walls and closed doors as impassable;
 - path searches are refreshed at a bounded interval instead of every frame.
 
+### WOLF-009 — health/ammo pickups
+
+Status: complete.
+
+Acceptance:
+
+- `H` and `A` spawn visible health and ammunition pickups;
+- pickups are collected once on contact and update player health/ammo with caps;
+- the HUD shows the current health and ammunition supplies.
+
 ---
 
 # 19. Long-term identity

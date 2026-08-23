@@ -69,5 +69,15 @@ int main()
         doorWorld.FireHitscan(playerPosition, Microsoft::Xna::Framework::Vector3(-1.0f, 0.0f, 0.0f)),
         "hitscan hits the first wall");
 
+    WolfCna::World pickupWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PHA#\n#####\n",
+        "pickup.level"));
+    const WolfCna::World::PickupResult healthPickup = pickupWorld.CollectPickups(
+        Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f));
+    const WolfCna::World::PickupResult ammoPickup = pickupWorld.CollectPickups(
+        Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f));
+    Expect(healthPickup.health == 25 && healthPickup.ammo == 0, "health pickup is collected once");
+    Expect(ammoPickup.health == 0 && ammoPickup.ammo == 6, "ammo pickup is collected once");
+
     return EXIT_SUCCESS;
 }

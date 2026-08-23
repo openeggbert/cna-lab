@@ -201,6 +201,11 @@ namespace WolfCna
             *hudPixel_,
             Rectangle(centerX, centerY - 8, 1, 17),
             crosshairColor);
+        const int panelY = viewport.getYProperty() + viewport.getHeightProperty() - 22;
+        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(12, panelY, 104, 8), Color(20, 26, 22, 255));
+        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(14, panelY + 2, health_, 4), Color(55, 212, 82, 255));
+        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(132, panelY, 76, 8), Color(28, 25, 17, 255));
+        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(134, panelY + 2, ammo_ * 6, 4), Color(236, 190, 44, 255));
         hudSpriteBatch_->End();
     }
 
@@ -264,8 +269,11 @@ namespace WolfCna
 
         const bool attackIsDown =
             keyboard.IsKeyDown(Keys::LeftControl) || keyboard.IsKeyDown(Keys::RightControl);
-        if (attackIsDown && !attackWasDown_)
+        if (attackIsDown && !attackWasDown_ && ammo_ > 0)
+        {
+            --ammo_;
             static_cast<void>(world_.FireHitscan(playerPosition_, LookDirection()));
+        }
         attackWasDown_ = attackIsDown;
 
         const float turnStep = KeyboardTurnSpeed * elapsedSeconds;
@@ -304,6 +312,9 @@ namespace WolfCna
         const float clampedElapsed = std::min(elapsed, 0.05f);
         world_.Update(clampedElapsed, playerPosition_);
         HandleInput(clampedElapsed);
+        const World::PickupResult pickups = world_.CollectPickups(playerPosition_);
+        health_ = std::min(100, health_ + pickups.health);
+        ammo_ = std::min(12, ammo_ + pickups.ammo);
 
         Game::Update(gameTime);
     }
