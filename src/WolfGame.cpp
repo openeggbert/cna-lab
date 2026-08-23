@@ -352,7 +352,7 @@ namespace WolfCna
             DrawHudText(*hudSpriteBatch_, *hudPixel_, center - HudTextWidth(value) / 2, panelY + 47, value, valueColor);
         };
         drawReadout(0, "LEVEL", "1");
-        drawReadout(1, "SCORE", std::to_string(score_ + gold_));
+        drawReadout(1, "SCORE", std::to_string(score_));
         drawReadout(2, "LIVES", std::to_string(lives_));
         drawReadout(3, "HEALTH", std::to_string(health_) + "%");
         drawReadout(4, "AMMO", std::to_string(ammo_));
@@ -440,14 +440,14 @@ namespace WolfCna
             keyboard.IsKeyDown(Keys::LeftControl) || keyboard.IsKeyDown(Keys::RightControl);
         if (attackIsDown && !attackWasDown_ && weapon_ == Weapon::Knife)
         {
-            static_cast<void>(world_.FireHitscan(playerPosition_, LookDirection(), 0.9f));
+            score_ += world_.FireHitscan(playerPosition_, LookDirection(), 0.9f).score;
             if (shotSound_)
                 static_cast<void>(shotSound_->Play(0.18f, -0.45f, 0.0f));
         }
         else if (attackIsDown && !attackWasDown_ && ammo_ > 0)
         {
             --ammo_;
-            static_cast<void>(world_.FireHitscan(playerPosition_, LookDirection()));
+            score_ += world_.FireHitscan(playerPosition_, LookDirection()).score;
             if (shotSound_)
                 static_cast<void>(shotSound_->Play(0.35f, 0.0f, 0.0f));
         }
@@ -496,7 +496,6 @@ namespace WolfCna
             lives_ = std::max(0, lives_ - 1);
             health_ = 100;
             ammo_ = 12;
-            gold_ = 0;
             playerPosition_ = world_.PlayerStart();
             completed_ = false;
         }
@@ -504,11 +503,15 @@ namespace WolfCna
         const World::PickupResult pickups = world_.CollectPickups(playerPosition_);
         health_ = std::min(100, health_ + pickups.health);
         ammo_ = std::min(12, ammo_ + pickups.ammo);
-        gold_ += pickups.gold;
+        score_ += pickups.gold;
         hasSecurityCard_ = hasSecurityCard_ || pickups.accessCards > 0;
         if ((pickups.health + pickups.ammo + pickups.gold + pickups.accessCards) > 0 && pickupSound_)
             static_cast<void>(pickupSound_->Play(0.28f, 0.0f, 0.0f));
-        completed_ = completed_ || world_.ReachedExit(playerPosition_);
+        if (!completed_ && world_.ReachedExit(playerPosition_))
+        {
+            completed_ = true;
+            score_ += 1000;
+        }
 
         Game::Update(gameTime);
     }

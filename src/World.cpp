@@ -23,7 +23,7 @@ namespace WolfCna
         constexpr float DoorThickness = 0.12f;
         constexpr float DoorOpenSpeed = 1.8f;
         constexpr float DoorPassableAt = 0.78f;
-        constexpr float DoorAutoCloseDelay = 2.5f;
+        constexpr float DoorAutoCloseDelay = 4.0f;
         constexpr float DoorBodyHoldRadius = 0.45f;
         constexpr float ActivationRange = 1.5f;
         constexpr float ActivationDotThreshold = 0.5f;
@@ -130,7 +130,10 @@ namespace WolfCna
         return false;
     }
 
-    bool World::FireHitscan(const Vector3& playerPosition, const Vector3& lookDirection, float range)
+    World::AttackResult World::FireHitscan(
+        const Vector3& playerPosition,
+        const Vector3& lookDirection,
+        float range)
     {
         int previousCellX = static_cast<int>(std::floor(playerPosition.X));
         int previousCellZ = static_cast<int>(std::floor(playerPosition.Z));
@@ -154,7 +157,9 @@ namespace WolfCna
 
                 --enemy.health;
                 enemy.state = enemy.health <= 0 ? EnemyState::Dead : EnemyState::Chase;
-                return true;
+                return {true, enemy.state == EnemyState::Dead
+                    ? enemy.type == Enemy::Type::Hound ? 200 : 100
+                    : 0};
             }
 
             if (!IsStaticWallCell(cellX, cellZ))
@@ -180,7 +185,7 @@ namespace WolfCna
             }
             else
             {
-                return false;
+                return {};
             }
 
             if (impacts_.size() == MaxImpactCount)
@@ -195,10 +200,10 @@ namespace WolfCna
                     static_cast<int>(impactVertices_.size()));
             }
 
-            return true;
+            return {true, 0};
         }
 
-        return false;
+        return {};
     }
 
     World::PickupResult World::CollectPickups(const Vector3& playerPosition)

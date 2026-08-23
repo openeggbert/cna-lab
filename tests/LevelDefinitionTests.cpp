@@ -71,7 +71,7 @@ int main()
         doorWorld.FireHitscan(playerPosition, Microsoft::Xna::Framework::Vector3(-1.0f, 0.0f, 0.0f)),
         "hitscan hits the first wall");
     static_cast<void>(doorWorld.Update(0.1f, playerPosition));
-    static_cast<void>(doorWorld.Update(2.5f, playerPosition));
+    static_cast<void>(doorWorld.Update(4.0f, playerPosition));
     static_cast<void>(doorWorld.Update(0.5f, playerPosition));
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "door closes after its delay");
 
@@ -86,7 +86,7 @@ int main()
     Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "first shot hits doorway guard");
     Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "second shot hits doorway guard");
     Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "third shot kills doorway guard");
-    static_cast<void>(bodyDoorWorld.Update(2.5f, playerPosition));
+    static_cast<void>(bodyDoorWorld.Update(4.0f, playerPosition));
     static_cast<void>(bodyDoorWorld.Update(0.5f, playerPosition));
     Expect(!bodyDoorWorld.Collides(2.5f, 1.5f, 0.1f), "dead guard keeps the door open");
 
@@ -136,8 +136,20 @@ int main()
         "#####\n#PG.#\n#####\n",
         "combat.level"));
     const Microsoft::Xna::Framework::Vector3 combatPlayer(1.5f, 0.62f, 1.5f);
-    static_cast<void>(combatWorld.Update(0.3f, combatPlayer));
-    Expect(combatWorld.Update(1.0f, combatPlayer) > 0, "guard damages a nearby player");
+    Expect(combatWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "wounding a guard has no score");
+    Expect(combatWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "second guard wound has no score");
+    Expect(combatWorld.FireHitscan(combatPlayer, lookDirection).score == 100, "guard kill awards score");
+
+    WolfCna::World houndWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PK.#\n#####\n",
+        "hound.level"));
+    Expect(houndWorld.FireHitscan(combatPlayer, lookDirection).score == 200, "hound kill awards score");
+
+    WolfCna::World damageWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PG.#\n#####\n",
+        "damage.level"));
+    Expect(damageWorld.Update(0.3f, combatPlayer) == 0, "guard starts pursuing a player");
+    Expect(damageWorld.Update(1.0f, combatPlayer) > 0, "guard damages a nearby player");
 
     return EXIT_SUCCESS;
 }

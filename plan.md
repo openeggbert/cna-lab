@@ -966,6 +966,7 @@ Current progress:
 - ordinary blue bunker doors and red security doors use distinct generated atlas panels;
 - the red security door is a locked route; its cyan access card is placed before it;
 - opened doors close automatically, except when a dead guard or hound remains in the doorway;
+- score has no cap: gold awards 100, guards 100, hounds 200 and the exit awards a one-time 1000-point bonus;
 - the starter level is now an authored maze route with distributed guards, hounds, pickups, gold, normal doors, a security door and an exit;
 - the remaining work is balance, encounter pacing and a second objective loop.
 

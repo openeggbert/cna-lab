@@ -37,6 +37,14 @@ namespace WolfCna
             int accessCards = 0;
         };
 
+        struct AttackResult
+        {
+            bool hit = false;
+            int score = 0;
+
+            operator bool() const { return hit; }
+        };
+
         explicit World(const LevelDefinition& level);
 
         [[nodiscard]] int Update(
@@ -53,7 +61,7 @@ namespace WolfCna
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 PlayerStart() const;
         [[nodiscard]] bool Collides(float worldX, float worldZ, float radius) const;
-        [[nodiscard]] bool FireHitscan(
+        [[nodiscard]] AttackResult FireHitscan(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection,
             float range = 12.0f);

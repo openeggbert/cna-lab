@@ -50,7 +50,6 @@ namespace WolfCna
         float yaw_ = 0.0f;
         int health_ = 100;
         int ammo_ = 12;
-        int gold_ = 0;
         int score_ = 0;
         int lives_ = 3;
         bool hasSecurityCard_ = false;
