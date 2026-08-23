@@ -15,7 +15,8 @@ This starter is deliberately small. It proves the basic direction before local A
 - first-person camera
 - classic arrow-key movement
 - keyboard turning with a fixed horizon
-- centered HUD crosshair
+- centered crosshair and a generated retro status bar with sidearm icon
+- generated CNA sound effects for shots and pickups
 - grid collision with wall sliding
 - level loaded from a validated text file
 - one original guard with idle/chase/attack/dead states

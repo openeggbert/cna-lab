@@ -1,13 +1,16 @@
 #include "WolfGame.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <vector>
+#include <string_view>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/MathHelper.hpp"
 #include "Microsoft/Xna/Framework/Rectangle.hpp"
+#include "Microsoft/Xna/Framework/Audio/AudioChannels.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/DepthStencilState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
@@ -19,6 +22,7 @@
 namespace WolfCna
 {
     using namespace Microsoft::Xna::Framework;
+    using namespace Microsoft::Xna::Framework::Audio;
     using namespace Microsoft::Xna::Framework::Graphics;
     using namespace Microsoft::Xna::Framework::Input;
 
@@ -39,6 +43,67 @@ namespace WolfCna
         std::uint8_t ByteClamp(int value)
         {
             return static_cast<std::uint8_t>(std::clamp(value, 0, 255));
+        }
+
+        std::vector<SharpRuntime::bytecs> MakeTone(float frequency, int sampleCount)
+        {
+            constexpr float sampleRate = 22050.0f;
+            std::vector<SharpRuntime::bytecs> pcm;
+            pcm.reserve(static_cast<std::size_t>(sampleCount * 2));
+
+            for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
+            {
+                const float phase = 2.0f * MathHelper::Pi * frequency * sampleIndex / sampleRate;
+                const float envelope = 1.0f - static_cast<float>(sampleIndex) / sampleCount;
+                const auto sample = static_cast<std::int16_t>(std::sin(phase) * envelope * 14000.0f);
+                pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
+                pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
+            }
+
+            return pcm;
+        }
+
+        std::array<std::string_view, 5> Glyph(char c)
+        {
+            switch (c)
+            {
+            case 'A': return {"010", "101", "111", "101", "101"};
+            case 'C': return {"111", "100", "100", "100", "111"};
+            case 'E': return {"111", "100", "110", "100", "111"};
+            case 'H': return {"101", "101", "111", "101", "101"};
+            case 'I': return {"111", "010", "010", "010", "111"};
+            case 'L': return {"100", "100", "100", "100", "111"};
+            case 'M': return {"101", "111", "111", "101", "101"};
+            case 'O': return {"111", "101", "101", "101", "111"};
+            case 'R': return {"110", "101", "110", "101", "101"};
+            case 'S': return {"111", "100", "111", "001", "111"};
+            case 'V': return {"101", "101", "101", "101", "010"};
+            case '0': return {"111", "101", "101", "101", "111"};
+            case '1': return {"010", "110", "010", "010", "111"};
+            case '2': return {"111", "001", "111", "100", "111"};
+            case '3': return {"111", "001", "111", "001", "111"};
+            case '4': return {"101", "101", "111", "001", "001"};
+            case '5': return {"111", "100", "111", "001", "111"};
+            case '6': return {"111", "100", "111", "101", "111"};
+            case '7': return {"111", "001", "010", "010", "010"};
+            case '8': return {"111", "101", "111", "101", "111"};
+            case '9': return {"111", "101", "111", "001", "111"};
+            default: return {"000", "000", "000", "000", "000"};
+            }
+        }
+
+        void DrawHudText(SpriteBatch& batch, Texture2D& pixel, int x, int y, std::string_view text, Color color)
+        {
+            constexpr int scale = 2;
+            for (char character : text)
+            {
+                const auto glyph = Glyph(character);
+                for (int row = 0; row < 5; ++row)
+                    for (int column = 0; column < 3; ++column)
+                        if (glyph[row][column] == '1')
+                            batch.Draw(pixel, Rectangle(x + column * scale, y + row * scale, scale, scale), color);
+                x += 8;
+            }
         }
     }
 
@@ -77,6 +142,7 @@ namespace WolfCna
         world_.Upload(device);
         CreateProceduralAtlas();
         CreateHudResources();
+        CreateSoundEffects();
 
         Game::LoadContent();
     }
@@ -180,11 +246,36 @@ namespace WolfCna
         hudPixel_ = std::make_unique<Texture2D>(device, 1, 1);
         const Color pixel(255, 255, 255, 255);
         hudPixel_->SetData(&pixel, 1);
+
+        constexpr int iconSize = 40;
+        weaponIcon_ = std::make_unique<Texture2D>(device, iconSize, iconSize);
+        std::vector<Color> iconPixels(iconSize * iconSize, Color(0, 0, 0, 0));
+        for (int y = 7; y < 21; ++y)
+            for (int x = 15; x < 30; ++x)
+                if (y < 13 || x < 23)
+                    iconPixels[y * iconSize + x] = Color(82, 88, 98, 255);
+        for (int y = 18; y < 35; ++y)
+            for (int x = 11; x < 24; ++x)
+                if (x > 15 || y > 24)
+                    iconPixels[y * iconSize + x] = Color(184, 126, 83, 255);
+        weaponIcon_->SetData(iconPixels.data(), static_cast<int>(iconPixels.size()));
+    }
+
+    void WolfGame::CreateSoundEffects()
+    {
+        shotSound_ = std::make_unique<SoundEffect>(
+            MakeTone(150.0f, 1800),
+            22050,
+            AudioChannels::Mono);
+        pickupSound_ = std::make_unique<SoundEffect>(
+            MakeTone(660.0f, 2400),
+            22050,
+            AudioChannels::Mono);
     }
 
     void WolfGame::DrawHud()
     {
-        if (!hudSpriteBatch_ || !hudPixel_)
+        if (!hudSpriteBatch_ || !hudPixel_ || !weaponIcon_)
             return;
 
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
@@ -201,13 +292,23 @@ namespace WolfCna
             *hudPixel_,
             Rectangle(centerX, centerY - 8, 1, 17),
             crosshairColor);
-        const int panelY = viewport.getYProperty() + viewport.getHeightProperty() - 22;
-        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(12, panelY, 104, 8), Color(20, 26, 22, 255));
-        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(14, panelY + 2, health_, 4), Color(55, 212, 82, 255));
-        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(132, panelY, 76, 8), Color(28, 25, 17, 255));
-        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(134, panelY + 2, ammo_ * 6, 4), Color(236, 190, 44, 255));
-        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(224, panelY, 76, 8), Color(30, 22, 14, 255));
-        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(226, panelY + 2, std::min(72, gold_ / 10), 4), Color(246, 133, 26, 255));
+        const int panelHeight = 56;
+        const int panelY = viewport.getYProperty() + viewport.getHeightProperty() - panelHeight;
+        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), panelY, viewport.getWidthProperty(), panelHeight), Color(31, 62, 137, 255));
+        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), panelY, viewport.getWidthProperty(), 3), Color(14, 25, 70, 255));
+        const Color labelColor(188, 213, 255, 255);
+        const Color valueColor(255, 233, 136, 255);
+        DrawHudText(*hudSpriteBatch_, *hudPixel_, 12, panelY + 11, "LEVEL", labelColor);
+        DrawHudText(*hudSpriteBatch_, *hudPixel_, 12, panelY + 29, "1", valueColor);
+        DrawHudText(*hudSpriteBatch_, *hudPixel_, 82, panelY + 11, "SCORE", labelColor);
+        DrawHudText(*hudSpriteBatch_, *hudPixel_, 82, panelY + 29, std::to_string(score_ + gold_), valueColor);
+        DrawHudText(*hudSpriteBatch_, *hudPixel_, 168, panelY + 11, "LIVES", labelColor);
+        DrawHudText(*hudSpriteBatch_, *hudPixel_, 168, panelY + 29, std::to_string(lives_), valueColor);
+        DrawHudText(*hudSpriteBatch_, *hudPixel_, 250, panelY + 11, "HEALTH", labelColor);
+        DrawHudText(*hudSpriteBatch_, *hudPixel_, 250, panelY + 29, std::to_string(health_), valueColor);
+        DrawHudText(*hudSpriteBatch_, *hudPixel_, 350, panelY + 11, "AMMO", labelColor);
+        DrawHudText(*hudSpriteBatch_, *hudPixel_, 350, panelY + 29, std::to_string(ammo_), valueColor);
+        hudSpriteBatch_->Draw(*weaponIcon_, Rectangle(centerX - 20, panelY + 8, 40, 40), Color(255, 255, 255, 255));
         if (completed_)
             hudSpriteBatch_->Draw(*hudPixel_, Rectangle(0, 8, viewport.getWidthProperty(), 4), Color(92, 226, 244, 255));
         hudSpriteBatch_->End();
@@ -277,6 +378,8 @@ namespace WolfCna
         {
             --ammo_;
             static_cast<void>(world_.FireHitscan(playerPosition_, LookDirection()));
+            if (shotSound_)
+                static_cast<void>(shotSound_->Play(0.35f, 0.0f, 0.0f));
         }
         attackWasDown_ = attackIsDown;
 
@@ -317,6 +420,7 @@ namespace WolfCna
         health_ -= world_.Update(clampedElapsed, playerPosition_);
         if (health_ <= 0)
         {
+            lives_ = std::max(0, lives_ - 1);
             health_ = 100;
             ammo_ = 12;
             gold_ = 0;
@@ -328,6 +432,8 @@ namespace WolfCna
         health_ = std::min(100, health_ + pickups.health);
         ammo_ = std::min(12, ammo_ + pickups.ammo);
         gold_ += pickups.gold;
+        if ((pickups.health + pickups.ammo + pickups.gold) > 0 && pickupSound_)
+            static_cast<void>(pickupSound_->Play(0.28f, 0.0f, 0.0f));
         completed_ = completed_ || world_.ReachedExit(playerPosition_);
 
         Game::Update(gameTime);

@@ -960,7 +960,9 @@ Current progress:
 
 - the starter level contains a gold pickup and a visible exit;
 - reaching the exit marks the run complete in the HUD;
-- the remaining work is combat challenge, a player death/restart loop, audio and a longer authored route.
+- the HUD now has level, score, lives, health and ammunition readouts plus a generated sidearm icon;
+- generated CNA effects cover shots and pickups, and combat includes player death/restart;
+- the remaining work is a longer authored route and additional encounter variety.
 
 ---
 

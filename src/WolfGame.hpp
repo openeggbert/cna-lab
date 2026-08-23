@@ -11,6 +11,7 @@
 #include "Microsoft/Xna/Framework/Graphics/BasicEffect.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SpriteBatch.hpp"
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
+#include "Microsoft/Xna/Framework/Audio/SoundEffect.hpp"
 
 #include "World.hpp"
 
@@ -35,6 +36,9 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> atlas_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> hudSpriteBatch_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> hudPixel_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> weaponIcon_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> shotSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> pickupSound_;
 
         World world_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
         Microsoft::Xna::Framework::Vector3 playerPosition_;
@@ -43,6 +47,8 @@ namespace WolfCna
         int health_ = 100;
         int ammo_ = 12;
         int gold_ = 0;
+        int score_ = 0;
+        int lives_ = 3;
         bool completed_ = false;
         bool actionWasDown_ = false;
         bool attackWasDown_ = false;
@@ -61,6 +67,7 @@ namespace WolfCna
 
         void CreateProceduralAtlas();
         void CreateHudResources();
+        void CreateSoundEffects();
         void DrawHud();
     };
 }
