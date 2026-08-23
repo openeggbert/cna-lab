@@ -109,12 +109,12 @@ namespace WolfCna
         return false;
     }
 
-    bool World::FireHitscan(const Vector3& playerPosition, const Vector3& lookDirection)
+    bool World::FireHitscan(const Vector3& playerPosition, const Vector3& lookDirection, float range)
     {
         int previousCellX = static_cast<int>(std::floor(playerPosition.X));
         int previousCellZ = static_cast<int>(std::floor(playerPosition.Z));
 
-        for (float distance = HitScanStep; distance <= HitScanRange; distance += HitScanStep)
+        for (float distance = HitScanStep; distance <= std::min(HitScanRange, range); distance += HitScanStep)
         {
             const float rayX = playerPosition.X + lookDirection.X * distance;
             const float rayZ = playerPosition.Z + lookDirection.Z * distance;

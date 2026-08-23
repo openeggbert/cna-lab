@@ -47,7 +47,8 @@ namespace WolfCna
         [[nodiscard]] bool Collides(float worldX, float worldZ, float radius) const;
         [[nodiscard]] bool FireHitscan(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
-            const Microsoft::Xna::Framework::Vector3& lookDirection);
+            const Microsoft::Xna::Framework::Vector3& lookDirection,
+            float range = 12.0f);
         [[nodiscard]] PickupResult CollectPickups(
             const Microsoft::Xna::Framework::Vector3& playerPosition);
         [[nodiscard]] bool ReachedExit(

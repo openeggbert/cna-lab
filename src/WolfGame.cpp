@@ -88,13 +88,14 @@ namespace WolfCna
             case '7': return {"111", "001", "010", "010", "010"};
             case '8': return {"111", "101", "111", "101", "111"};
             case '9': return {"111", "101", "111", "001", "111"};
+            case '%': return {"101", "001", "010", "100", "101"};
             default: return {"000", "000", "000", "000", "000"};
             }
         }
 
         void DrawHudText(SpriteBatch& batch, Texture2D& pixel, int x, int y, std::string_view text, Color color)
         {
-            constexpr int scale = 2;
+            constexpr int scale = 3;
             for (char character : text)
             {
                 const auto glyph = Glyph(character);
@@ -102,8 +103,13 @@ namespace WolfCna
                     for (int column = 0; column < 3; ++column)
                         if (glyph[row][column] == '1')
                             batch.Draw(pixel, Rectangle(x + column * scale, y + row * scale, scale, scale), color);
-                x += 8;
+                x += 12;
             }
+        }
+
+        int HudTextWidth(std::string_view text)
+        {
+            return text.empty() ? 0 : static_cast<int>(text.size()) * 12 - 3;
         }
     }
 
@@ -259,6 +265,17 @@ namespace WolfCna
                 if (x > 15 || y > 24)
                     iconPixels[y * iconSize + x] = Color(184, 126, 83, 255);
         weaponIcon_->SetData(iconPixels.data(), static_cast<int>(iconPixels.size()));
+
+        knifeIcon_ = std::make_unique<Texture2D>(device, iconSize, iconSize);
+        std::fill(iconPixels.begin(), iconPixels.end(), Color(0, 0, 0, 0));
+        for (int y = 4; y < 25; ++y)
+            for (int x = 20; x < 24; ++x)
+                iconPixels[y * iconSize + x] = Color(202, 208, 218, 255);
+        for (int y = 22; y < 35; ++y)
+            for (int x = 13; x < 28; ++x)
+                if (x > 16 || y > 27)
+                    iconPixels[y * iconSize + x] = Color(184, 126, 83, 255);
+        knifeIcon_->SetData(iconPixels.data(), static_cast<int>(iconPixels.size()));
     }
 
     void WolfGame::CreateSoundEffects()
@@ -275,7 +292,7 @@ namespace WolfCna
 
     void WolfGame::DrawHud()
     {
-        if (!hudSpriteBatch_ || !hudPixel_ || !weaponIcon_)
+        if (!hudSpriteBatch_ || !hudPixel_ || !weaponIcon_ || !knifeIcon_)
             return;
 
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
@@ -292,23 +309,28 @@ namespace WolfCna
             *hudPixel_,
             Rectangle(centerX, centerY - 8, 1, 17),
             crosshairColor);
-        const int panelHeight = 56;
+        const int panelHeight = 84;
         const int panelY = viewport.getYProperty() + viewport.getHeightProperty() - panelHeight;
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), panelY, viewport.getWidthProperty(), panelHeight), Color(31, 62, 137, 255));
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), panelY, viewport.getWidthProperty(), 3), Color(14, 25, 70, 255));
         const Color labelColor(188, 213, 255, 255);
         const Color valueColor(255, 233, 136, 255);
-        DrawHudText(*hudSpriteBatch_, *hudPixel_, 12, panelY + 11, "LEVEL", labelColor);
-        DrawHudText(*hudSpriteBatch_, *hudPixel_, 12, panelY + 29, "1", valueColor);
-        DrawHudText(*hudSpriteBatch_, *hudPixel_, 82, panelY + 11, "SCORE", labelColor);
-        DrawHudText(*hudSpriteBatch_, *hudPixel_, 82, panelY + 29, std::to_string(score_ + gold_), valueColor);
-        DrawHudText(*hudSpriteBatch_, *hudPixel_, 168, panelY + 11, "LIVES", labelColor);
-        DrawHudText(*hudSpriteBatch_, *hudPixel_, 168, panelY + 29, std::to_string(lives_), valueColor);
-        DrawHudText(*hudSpriteBatch_, *hudPixel_, 250, panelY + 11, "HEALTH", labelColor);
-        DrawHudText(*hudSpriteBatch_, *hudPixel_, 250, panelY + 29, std::to_string(health_), valueColor);
-        DrawHudText(*hudSpriteBatch_, *hudPixel_, 350, panelY + 11, "AMMO", labelColor);
-        DrawHudText(*hudSpriteBatch_, *hudPixel_, 350, panelY + 29, std::to_string(ammo_), valueColor);
-        hudSpriteBatch_->Draw(*weaponIcon_, Rectangle(centerX - 20, panelY + 8, 40, 40), Color(255, 255, 255, 255));
+        const auto drawReadout = [&](int slot, std::string_view label, const std::string& value)
+        {
+            const int center = viewport.getXProperty() + viewport.getWidthProperty() * (slot * 2 + 1) / 12;
+            DrawHudText(*hudSpriteBatch_, *hudPixel_, center - HudTextWidth(label) / 2, panelY + 17, label, labelColor);
+            DrawHudText(*hudSpriteBatch_, *hudPixel_, center - HudTextWidth(value) / 2, panelY + 47, value, valueColor);
+        };
+        drawReadout(0, "LEVEL", "1");
+        drawReadout(1, "SCORE", std::to_string(score_ + gold_));
+        drawReadout(2, "LIVES", std::to_string(lives_));
+        drawReadout(3, "HEALTH", std::to_string(health_) + "%");
+        drawReadout(5, "AMMO", std::to_string(ammo_));
+        const int weaponCenter = viewport.getXProperty() + viewport.getWidthProperty() * 9 / 12;
+        hudSpriteBatch_->Draw(
+            weapon_ == Weapon::Sidearm ? *weaponIcon_ : *knifeIcon_,
+            Rectangle(weaponCenter - 30, panelY + 12, 60, 60),
+            Color(255, 255, 255, 255));
         if (completed_)
             hudSpriteBatch_->Draw(*hudPixel_, Rectangle(0, 8, viewport.getWidthProperty(), 4), Color(92, 226, 244, 255));
         hudSpriteBatch_->End();
@@ -372,9 +394,20 @@ namespace WolfCna
             world_.TryActivate(playerPosition_, LookDirection());
         actionWasDown_ = actionIsDown;
 
+        if (keyboard.IsKeyDown(Keys::D1))
+            weapon_ = Weapon::Knife;
+        if (keyboard.IsKeyDown(Keys::D2))
+            weapon_ = Weapon::Sidearm;
+
         const bool attackIsDown =
             keyboard.IsKeyDown(Keys::LeftControl) || keyboard.IsKeyDown(Keys::RightControl);
-        if (attackIsDown && !attackWasDown_ && ammo_ > 0)
+        if (attackIsDown && !attackWasDown_ && weapon_ == Weapon::Knife)
+        {
+            static_cast<void>(world_.FireHitscan(playerPosition_, LookDirection(), 0.9f));
+            if (shotSound_)
+                static_cast<void>(shotSound_->Play(0.18f, -0.45f, 0.0f));
+        }
+        else if (attackIsDown && !attackWasDown_ && ammo_ > 0)
         {
             --ammo_;
             static_cast<void>(world_.FireHitscan(playerPosition_, LookDirection()));
