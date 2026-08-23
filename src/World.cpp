@@ -294,7 +294,7 @@ namespace WolfCna
                 enemy.attackCooldown -= elapsedSeconds;
                 if (enemy.attackCooldown <= 0.0f)
                 {
-                    damage += EnemyAttackDamage;
+                    damage += enemy.type == Enemy::Type::Hound ? EnemyAttackDamage + 6 : EnemyAttackDamage;
                     enemy.attackCooldown = EnemyAttackInterval;
                 }
             }
@@ -335,7 +335,7 @@ namespace WolfCna
                 continue;
 
             const float inverseDistance = 1.0f / std::sqrt(moveDistanceSquared);
-            const float step = EnemySpeed * elapsedSeconds;
+            const float step = (enemy.type == Enemy::Type::Hound ? EnemySpeed * 1.8f : EnemySpeed) * elapsedSeconds;
             const float nextX = enemy.position.X + moveX * inverseDistance * step;
             const float nextZ = enemy.position.Z + moveZ * inverseDistance * step;
             if (!Collides(nextX, enemy.position.Z, 0.2f))
@@ -505,8 +505,14 @@ namespace WolfCna
         {
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
             {
-                if (map_[z][x] == 'G')
-                    enemies_.push_back({Vector3(static_cast<float>(x) + 0.5f, 0.0f, static_cast<float>(z) + 0.5f)});
+                if (map_[z][x] == 'G' || map_[z][x] == 'K')
+                {
+                    Enemy enemy;
+                    enemy.position = Vector3(static_cast<float>(x) + 0.5f, 0.0f, static_cast<float>(z) + 0.5f);
+                    enemy.type = map_[z][x] == 'K' ? Enemy::Type::Hound : Enemy::Type::Guard;
+                    enemy.health = enemy.type == Enemy::Type::Hound ? 1 : 3;
+                    enemies_.push_back(std::move(enemy));
+                }
             }
         }
     }
@@ -879,9 +885,14 @@ namespace WolfCna
             if (enemy.state == EnemyState::Dead)
                 continue;
 
-            effect.setWorldProperty(Matrix::CreateTranslation(enemy.position));
+            effect.setWorldProperty(
+                (enemy.type == Enemy::Type::Hound
+                    ? Matrix::CreateScale(1.15f, 0.48f, 1.45f)
+                    : Matrix::getIdentityProperty()) * Matrix::CreateTranslation(enemy.position));
             effect.setDiffuseColorProperty(
-                enemy.state == EnemyState::Attack
+                enemy.type == Enemy::Type::Hound
+                    ? Vector3(0.72f, 0.42f, 0.16f)
+                    : enemy.state == EnemyState::Attack
                     ? Vector3(0.95f, 0.24f, 0.12f)
                     : Vector3(0.32f, 0.72f, 0.36f));
 

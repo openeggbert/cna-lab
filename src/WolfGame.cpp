@@ -325,8 +325,8 @@ namespace WolfCna
         drawReadout(1, "SCORE", std::to_string(score_ + gold_));
         drawReadout(2, "LIVES", std::to_string(lives_));
         drawReadout(3, "HEALTH", std::to_string(health_) + "%");
-        drawReadout(5, "AMMO", std::to_string(ammo_));
-        const int weaponCenter = viewport.getXProperty() + viewport.getWidthProperty() * 9 / 12;
+        drawReadout(4, "AMMO", std::to_string(ammo_));
+        const int weaponCenter = viewport.getXProperty() + viewport.getWidthProperty() * 11 / 12;
         hudSpriteBatch_->Draw(
             weapon_ == Weapon::Sidearm ? *weaponIcon_ : *knifeIcon_,
             Rectangle(weaponCenter - 30, panelY + 12, 60, 60),

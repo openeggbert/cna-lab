@@ -42,6 +42,7 @@ have the same width and use only these symbols:
 - `P`: the single player spawn
 - `D`: closed sliding door
 - `G`: guard spawn
+- `K`: hound spawn
 - `H`: health pickup
 - `A`: ammunition pickup
 - `T`: gold pickup

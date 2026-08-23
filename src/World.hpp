@@ -90,7 +90,10 @@ namespace WolfCna
 
         struct Enemy
         {
+            enum class Type { Guard, Hound };
+
             Microsoft::Xna::Framework::Vector3 position;
+            Type type = Type::Guard;
             EnemyState state = EnemyState::Idle;
             int health = 3;
             std::vector<std::pair<int, int>> path;
