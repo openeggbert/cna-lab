@@ -13,17 +13,17 @@ This starter is deliberately small. It proves the basic direction before local A
 - depth testing
 - generated wall/floor/ceiling texture atlas
 - first-person camera
-- WASD movement
-- keyboard look
+- classic arrow-key movement
+- keyboard turning with a fixed horizon
 - grid collision with wall sliding
 - no external copyrighted game assets
 
 ## Controls
 
-- `W` / `S`: forward / backward
-- `A` / `D`: strafe
-- arrow keys: look
-- `Left Shift`: run
+- up/down arrow keys: forward / backward
+- left/right arrow keys: turn left / right
+- `Space`: action (reserved until interactive objects are added)
+- left or right `Ctrl`: fire / knife attack (reserved until combat is added)
 - `Escape`: quit
 
 ## Expected checkout layout

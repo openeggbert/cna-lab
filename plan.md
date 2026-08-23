@@ -161,19 +161,18 @@ The starter created with this plan already contains:
 - runtime-generated texture atlas;
 - depth testing;
 - first-person camera;
-- keyboard movement;
-- yaw/pitch camera control;
+- classic arrow-key movement;
+- yaw-only camera control with a fixed horizon;
 - radius-based collision against solid cells;
 - isolated axis collision so the player slides along walls;
 - zero copyrighted external game assets.
 
 Controls in the starter:
 
-- `W/S`: forward/backward
-- `A/D`: strafe
-- `Left/Right`: yaw
-- `Up/Down`: pitch
-- `Shift`: run
+- `Up/Down`: forward/backward
+- `Left/Right`: turn left/right
+- `Space`: action (reserved until interactive objects exist)
+- `Left/Right Ctrl`: fire/knife attack (reserved until combat exists)
 - `Escape`: quit
 
 This is milestone M0/M1, not yet a game.
@@ -404,7 +403,7 @@ Status: starter implementation included.
 
 Tasks:
 
-- mouse look using CNA input;
+- mouse yaw using CNA input;
 - mouse capture/recenter or relative mode through CNA public API;
 - configurable sensitivity;
 - acceleration-independent movement;
@@ -871,11 +870,11 @@ Recommended sequence for local agents:
 
 Acceptance:
 
-- mouse controls yaw/pitch;
+- mouse controls yaw while the horizon remains fixed;
 - cursor does not escape while captured;
 - Escape releases/quits according to chosen UX;
 - implementation uses CNA input only;
-- keyboard look remains available as fallback.
+- keyboard turning remains available as fallback.
 
 ### WOLF-003 — level file
 

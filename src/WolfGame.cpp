@@ -172,12 +172,10 @@ namespace WolfCna
 
     Vector3 WolfGame::LookDirection() const
     {
-        const float cosPitch = std::cos(pitch_);
-
         return Vector3(
-            std::sin(yaw_) * cosPitch,
-            std::sin(pitch_),
-            -std::cos(yaw_) * cosPitch);
+            std::sin(yaw_),
+            0.0f,
+            -std::cos(yaw_));
     }
 
     Matrix WolfGame::ViewMatrix() const
@@ -220,57 +218,29 @@ namespace WolfCna
             return;
         }
 
-        const float lookStep = KeyboardLookSpeed * elapsedSeconds;
+        const float turnStep = KeyboardTurnSpeed * elapsedSeconds;
 
         if (keyboard.IsKeyDown(Keys::Left))
-            yaw_ -= lookStep;
+            yaw_ -= turnStep;
         if (keyboard.IsKeyDown(Keys::Right))
-            yaw_ += lookStep;
-        if (keyboard.IsKeyDown(Keys::Up))
-            pitch_ += lookStep;
-        if (keyboard.IsKeyDown(Keys::Down))
-            pitch_ -= lookStep;
-
-        pitch_ = std::clamp(
-            pitch_,
-            MathHelper::ToRadians(-75.0f),
-            MathHelper::ToRadians(75.0f));
-
-        const float speed =
-            (keyboard.IsKeyDown(Keys::LeftShift) || keyboard.IsKeyDown(Keys::RightShift))
-                ? RunSpeed
-                : WalkSpeed;
+            yaw_ += turnStep;
 
         float forwardInput = 0.0f;
-        float strafeInput = 0.0f;
 
-        if (keyboard.IsKeyDown(Keys::W))
+        if (keyboard.IsKeyDown(Keys::Up))
             forwardInput += 1.0f;
-        if (keyboard.IsKeyDown(Keys::S))
+        if (keyboard.IsKeyDown(Keys::Down))
             forwardInput -= 1.0f;
-        if (keyboard.IsKeyDown(Keys::D))
-            strafeInput += 1.0f;
-        if (keyboard.IsKeyDown(Keys::A))
-            strafeInput -= 1.0f;
 
-        const float inputLength = std::sqrt(
-            forwardInput * forwardInput + strafeInput * strafeInput);
-
-        if (inputLength <= 0.0f)
+        if (forwardInput == 0.0f)
             return;
-
-        // Prevent diagonal movement from being faster.
-        forwardInput /= inputLength;
-        strafeInput /= inputLength;
 
         const float forwardX = std::sin(yaw_);
         const float forwardZ = -std::cos(yaw_);
-        const float rightX = std::cos(yaw_);
-        const float rightZ = std::sin(yaw_);
 
-        const float distance = speed * elapsedSeconds;
-        const float dx = (forwardX * forwardInput + rightX * strafeInput) * distance;
-        const float dz = (forwardZ * forwardInput + rightZ * strafeInput) * distance;
+        const float distance = WalkSpeed * elapsedSeconds;
+        const float dx = forwardX * forwardInput * distance;
+        const float dz = forwardZ * forwardInput * distance;
 
         TryMove(dx, dz);
     }

@@ -37,12 +37,10 @@ namespace WolfCna
         Microsoft::Xna::Framework::Vector3 playerPosition_;
 
         float yaw_ = 0.0f;
-        float pitch_ = 0.0f;
 
         static constexpr float PlayerRadius = 0.22f;
         static constexpr float WalkSpeed = 2.4f;
-        static constexpr float RunSpeed = 4.2f;
-        static constexpr float KeyboardLookSpeed = 1.65f;
+        static constexpr float KeyboardTurnSpeed = 1.65f;
 
         void HandleInput(float elapsedSeconds);
         void TryMove(float dx, float dz);
