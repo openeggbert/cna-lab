@@ -1063,3 +1063,12 @@ Xvfb run reported `Mesa`, `llvmpipe (LLVM 19.1.7, 256 bits)`, and the same API/M
 profile/report hashes are `b1550832…c8559` and `3f1abf5a…629ad`. Although that report was labelled
 `Discrete GPU physical-display claim`, it still emitted the machine-derived software-renderer
 blocker. Both integrations avoided the visible host display and remain diagnostic.
+
+A following 30-draw integration ran the complete Linux DRM wrapper with the new profile fields.
+It retained 100 complete samples from 146 attempts, excluding four fd read races, and measured a
+51,982,336 B (49.57 MiB) process-residency peak. `vram_evidence.py` semantically reconstructed the
+raw samples and verified the enriched profile; the release report displayed both the Radeon runtime
+and `Headless / no`, then correctly kept the run diagnostic. Original/raw/manifest/complete/report
+hashes are `c59ce404…3b9791`, `d5b7f85a…3a84d7`, `2d462a15…3def0b`, `37a7071f…174b0c`, and
+`ef6e225d…ab50a0`. This proves the additive machine evidence survives the real four-file binding
+path without turning an offscreen hardware run into physical-presentation evidence.

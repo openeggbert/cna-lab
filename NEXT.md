@@ -84,6 +84,13 @@ with a proof scope that explicitly excludes physical-display claims.
   the active context rather than operator prose. Neither integration touched the visible display or
   supplies physical M12 evidence.
 - Report 7/7, comparator 7/7, the EasyGL build, and full isolated CTest 8/8 pass.
+- A subsequent 30-draw real DRM-wrapper integration proved the new fields survive the complete
+  original/raw/manifest/enriched binding path. It retained 100 complete samples from 146 attempts
+  (four fd read races excluded), measured a 51,982,336 B (49.57 MiB) peak, and semantically verified
+  the enriched profile. Original/raw/manifest/complete/report hashes are `c59ce404…3b9791`,
+  `d5b7f85a…3a84d7`, `2d462a15…3def0b`, `37a7071f…174b0c`, and `ef6e225d…ab50a0`.
+  The report row passes its direct frame/CPU/RAM/VRAM/swap checks but remains `FAIL` locally because
+  the machine window evidence is `Headless / no`; the overall report stays `DIAGNOSTIC`.
 
 **M12 profiles now carry machine-readable native-window evidence.** Hardware-label filtering alone
 could reject an honestly named offscreen run, but it could not detect an offscreen capture renamed

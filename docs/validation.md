@@ -532,6 +532,9 @@ the current EasyGL context. A no-window AMD run reported the Radeon 780M/radeons
 Xvfb reported Mesa llvmpipe. The latter remained software-blocked under the intentionally misleading
 label `Discrete GPU physical-display claim`, demonstrating that classification no longer depends
 on operator prose. Old diagnostics remain readable but missing runtime identity cannot qualify.
+A complete short DRM-wrapper follow-up then retained 100 samples, bound a 49.57 MiB peak, verified
+the enriched profile, and reported Radeon runtime plus `Headless/false`; all direct metrics passed
+while the presentation classification remained diagnostic. No visible display was used.
 
 ## Full CNA-linked build status
 

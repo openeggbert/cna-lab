@@ -77,7 +77,9 @@ rather than being a one-time final check.
     version strings; missing/unknown identities and known software rasterizers block qualification,
     and repeated qualifying runs must agree. Real no-window AMD identified Radeon 780M/radeonsi;
     isolated Xvfb identified llvmpipe and stayed blocked under a misleading discrete-GPU label. No
-    visible window or physical capture was added.*
+    visible window or physical capture was added. A subsequent real short DRM-wrapper integration
+    preserved both machine-evidence blocks through raw/manifest/enriched semantic verification and
+    complete residency accounting, while still refusing the Headless presentation path.*
     *Schema-type follow-up: capture `schema_version` must be an actual JSON integer equal to 8;
     floating-point `8.0` exits 2 and no capture was added.*
     *Frame-maximum follow-up: the stored maximum must occupy the highest non-empty pacing bucket;
