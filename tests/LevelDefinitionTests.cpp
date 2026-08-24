@@ -102,6 +102,21 @@ int main()
     static_cast<void>(doorWorld.Update(0.5f, playerPosition));
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "door closes after its delay");
 
+    WolfCna::World occupiedDoorWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PD.#\n#####\n",
+        "occupied-door.level"));
+    Expect(
+        occupiedDoorWorld.TryActivate(playerPosition, lookDirection, false) ==
+            WolfCna::World::InteractionResult::DoorOpened,
+        "occupied door activates");
+    const Microsoft::Xna::Framework::Vector3 playerInDoorway(2.5f, 0.62f, 1.5f);
+    static_cast<void>(occupiedDoorWorld.Update(0.6f, playerInDoorway));
+    static_cast<void>(occupiedDoorWorld.Update(8.0f, playerInDoorway));
+    Expect(!occupiedDoorWorld.Collides(2.5f, 1.5f, 0.1f), "door remains open around the player");
+    static_cast<void>(occupiedDoorWorld.Update(4.0f, playerPosition));
+    static_cast<void>(occupiedDoorWorld.Update(0.6f, playerPosition));
+    Expect(occupiedDoorWorld.Collides(2.5f, 1.5f, 0.1f), "door closes after the player leaves");
+
     WolfCna::World secretWorld(WolfCna::LevelDefinition::Parse(
         "######\n#PS..#\n######\n",
         "secret.level"));
@@ -122,7 +137,8 @@ int main()
         bodyDoorWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::DoorOpened,
         "body door activates");
     static_cast<void>(bodyDoorWorld.Update(0.5f, playerPosition));
-    Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "shot kills doorway hound");
+    Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "first shot hits doorway hound");
+    Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "second shot kills doorway hound");
     static_cast<void>(bodyDoorWorld.Update(4.0f, playerPosition));
     static_cast<void>(bodyDoorWorld.Update(0.5f, playerPosition));
     Expect(!bodyDoorWorld.Collides(2.5f, 1.5f, 0.1f), "dead hound keeps the door open");
@@ -211,7 +227,8 @@ int main()
     WolfCna::World houndWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PK.#\n#####\n",
         "hound.level"));
-    Expect(houndWorld.FireHitscan(combatPlayer, lookDirection).score == 200, "hound kill awards score");
+    Expect(houndWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "first shot wounds a hound");
+    Expect(houndWorld.FireHitscan(combatPlayer, lookDirection).score == 200, "second hound shot awards score");
 
     WolfCna::World damageWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PG.#\n#####\n",

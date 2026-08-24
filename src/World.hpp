@@ -245,6 +245,9 @@ namespace WolfCna
         [[nodiscard]] bool IsStaticWallCell(int x, int z) const;
         [[nodiscard]] bool IsBlockedCell(int x, int z) const;
         [[nodiscard]] bool HasDeadEnemyInDoorway(const Door& door) const;
+        [[nodiscard]] bool HasPlayerInDoorway(
+            const Door& door,
+            const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         void BuildMesh();
         void BuildDoors();
         void RebuildDoorGeometry();

@@ -986,7 +986,10 @@ Current progress:
 - guards and hounds emit generated alert sounds; hounds also emit an attack sound on close-range hits;
 - ordinary blue bunker doors and red security doors use distinct generated atlas panels;
 - the red security door is a locked route; its cyan access card is placed before it;
-- opened doors close automatically, except when a dead guard or hound remains in the doorway;
+- opened doors close automatically, except while the player or a dead guard or
+  hound overlaps the doorway;
+- guards require three sidearm hits and hounds require two, so neither enemy type
+  is removed by a single pistol shot;
 - score has no cap: gold awards 100, guards 100, hounds 200 and the exit awards a one-time 1000-point bonus; every 40,000 points awards an extra life;
 - reaching the exit presents a centered completion card while preserving the final score in the status bar;
 - an amber terminal must be activated before the exit comes online; activation changes it cyan and has generated CNA audio;
@@ -1110,9 +1113,10 @@ props and sector-specific variants remain.
 
 ### WOLF-016 — illustrated title screen
 
-Status: complete. The title screen uses an original generated bunker illustration
-with aspect-preserving center crop, a dark readability veil and a large code-rendered
-`WOLF CNA` heading. Full generation provenance is recorded.
+Status: complete. A dedicated splash uses an original generated bunker illustration
+with aspect-preserving center crop, a dark readability veil, a large code-rendered
+`WOLF CNA` heading and an Enter/click button. Only after confirmation is the
+separate main menu shown. Full generation provenance is recorded.
 
 - show `WOLF CNA` in large, sharp letters as the dominant title-menu element;
 - place an original generated bunker-action illustration behind the menu;
@@ -1121,3 +1125,16 @@ with aspect-preserving center crop, a dark readability veil and a large code-ren
 - record the image-generation prompt and provenance;
 - include no copied characters, logos, uniforms, prohibited symbols or other
   proprietary Wolfenstein material.
+
+### WOLF-017 — 64×64 sector footprint
+
+The original Wolfenstein 3D source defines `MAPSIZE` as 64, with 64×64 map
+storage. wolf-cna therefore targets the same logical floor footprint while using
+entirely original room layouts and real polygonal 3D rendering.
+
+- expand every campaign sector from its compact prototype to exactly 64×64 cells;
+- use the additional area for authored rooms, loops, landmarks and optional secrets,
+  not inert wall padding;
+- retain rectangular validation while requiring 64×64 for shipping campaign files;
+- keep smaller maps valid for focused unit tests and developer fixtures;
+- add validation tests that pin all shipping sector dimensions to 64×64.

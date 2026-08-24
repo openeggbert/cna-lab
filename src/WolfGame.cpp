@@ -18,6 +18,7 @@
 #include "Microsoft/Xna/Framework/Graphics/SamplerState.hpp"
 #include "Microsoft/Xna/Framework/Input/Keyboard.hpp"
 #include "Microsoft/Xna/Framework/Input/Keys.hpp"
+#include "Microsoft/Xna/Framework/Input/Mouse.hpp"
 
 namespace WolfCna
 {
@@ -905,7 +906,7 @@ namespace WolfCna
         const int height = viewport.getHeightProperty();
         const int left = viewport.getXProperty() + std::max(16, width / 2 - 160);
         const int top = viewport.getYProperty() + std::max(16, height / 2 - 130);
-        const Color background(8, 18, 48, screen_ == Screen::Title ? 224 : 255);
+        const Color background(8, 18, 48, 255);
         const Color border(92, 150, 225, 255);
         const Color title(255, 211, 104, 255);
         const Color normal(202, 223, 255, 255);
@@ -914,7 +915,7 @@ namespace WolfCna
         hudSpriteBatch_->Begin();
         const Rectangle viewportRectangle(
             viewport.getXProperty(), viewport.getYProperty(), width, height);
-        if (screen_ == Screen::Title && titleBackground_)
+        if (screen_ == Screen::Splash && titleBackground_)
         {
             const int imageWidth = titleBackground_->getWidthProperty();
             const int imageHeight = titleBackground_->getHeightProperty();
@@ -938,6 +939,45 @@ namespace WolfCna
                 Rectangle(sourceX, sourceY, sourceWidth, sourceHeight),
                 Color(255, 255, 255, 255));
             hudSpriteBatch_->Draw(*hudPixel_, viewportRectangle, Color(2, 5, 12, 82));
+
+            const int titleScale = std::clamp(width / 72, 5, 10);
+            constexpr std::string_view splashTitle = "WOLF CNA";
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                viewport.getXProperty() + width / 2 - HudTextWidth(splashTitle, titleScale) / 2,
+                viewport.getYProperty() + std::max(28, height / 7),
+                splashTitle,
+                title,
+                titleScale);
+
+            constexpr int buttonWidth = 180;
+            constexpr int buttonHeight = 42;
+            const int buttonX = viewport.getXProperty() + (width - buttonWidth) / 2;
+            const int buttonY = viewport.getYProperty() + height * 3 / 4;
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(buttonX, buttonY, buttonWidth, buttonHeight),
+                Color(10, 24, 54, 224));
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(buttonX, buttonY, buttonWidth, 3),
+                border);
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(buttonX, buttonY + buttonHeight - 3, buttonWidth, 3),
+                border);
+            constexpr std::string_view enterText = "ENTER";
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                buttonX + buttonWidth / 2 - HudTextWidth(enterText, 3) / 2,
+                buttonY + 11,
+                enterText,
+                selected,
+                3);
+            hudSpriteBatch_->End();
+            return;
         }
         else
         {
@@ -951,22 +991,10 @@ namespace WolfCna
         {
             DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 160 - HudTextWidth(text) / 2, y, text, color);
         };
-        const auto centeredScaled = [&](int y, std::string_view text, Color color, int scale)
-        {
-            DrawHudText(
-                *hudSpriteBatch_,
-                *hudPixel_,
-                left + 160 - HudTextWidth(text, scale) / 2,
-                y,
-                text,
-                color,
-                scale);
-        };
-
         if (screen_ == Screen::Title)
         {
-            centeredScaled(top + 13, "WOLF CNA", title, 6);
-            centered(top + 65, "BUNKER OPERATIONS", normal);
+            centered(top + 22, "MAIN MENU", title);
+            centered(top + 58, "BUNKER OPERATIONS", normal);
             const std::array<std::string, 4> options{
                 "START RUN",
                 "CONTROLS",
@@ -974,7 +1002,7 @@ namespace WolfCna
                 "QUIT"};
             for (int index = 0; index < static_cast<int>(options.size()); ++index)
             {
-                const int y = top + 98 + index * 30;
+                const int y = top + 90 + index * 30;
                 const Color color = menuSelection_ == index ? selected : normal;
                 if (menuSelection_ == index)
                     DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 45, y, ">", selected);
@@ -1164,12 +1192,32 @@ namespace WolfCna
     void WolfGame::HandleMenuInput()
     {
         const KeyboardState keyboard = Keyboard::GetState();
+        const MouseState mouse = Mouse::GetState();
         const bool upIsDown = keyboard.IsKeyDown(Keys::Up);
         const bool downIsDown = keyboard.IsKeyDown(Keys::Down);
         const bool confirmIsDown = keyboard.IsKeyDown(Keys::Enter) || keyboard.IsKeyDown(Keys::Space);
         const bool escapeIsDown = keyboard.IsKeyDown(Keys::Escape);
+        const bool mouseIsDown = mouse.getLeftButtonProperty() == ButtonState::Pressed;
 
-        if (screen_ == Screen::Title)
+        if (screen_ == Screen::Splash)
+        {
+            const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
+            constexpr int buttonWidth = 180;
+            constexpr int buttonHeight = 42;
+            const int buttonX = viewport.getXProperty() + (viewport.getWidthProperty() - buttonWidth) / 2;
+            const int buttonY = viewport.getYProperty() + viewport.getHeightProperty() * 3 / 4;
+            const bool clicked = mouseIsDown && !mouseWasDown_ &&
+                mouse.getXProperty() >= buttonX && mouse.getXProperty() < buttonX + buttonWidth &&
+                mouse.getYProperty() >= buttonY && mouse.getYProperty() < buttonY + buttonHeight;
+            if ((confirmIsDown && !confirmWasDown_) || clicked)
+            {
+                screen_ = Screen::Title;
+                menuSelection_ = 0;
+            }
+            if (escapeIsDown && !escapeWasDown_)
+                Exit();
+        }
+        else if (screen_ == Screen::Title)
         {
             if (upIsDown && !upWasDown_)
                 menuSelection_ = (menuSelection_ + 3) % 4;
@@ -1245,6 +1293,7 @@ namespace WolfCna
         downWasDown_ = downIsDown;
         confirmWasDown_ = confirmIsDown;
         escapeWasDown_ = escapeIsDown;
+        mouseWasDown_ = mouseIsDown;
     }
 
     void WolfGame::HandleInput(float elapsedSeconds)
@@ -1441,7 +1490,7 @@ namespace WolfCna
             graphics_->ToggleFullScreen();
         fullScreenWasDown_ = fullScreenIsDown;
 
-        if (screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
+        if (screen_ == Screen::Splash || screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
             screen_ == Screen::Difficulty || screen_ == Screen::Controls)
         {
             HandleMenuInput();
@@ -1556,7 +1605,7 @@ namespace WolfCna
                 playerPosition_);
         }
 
-        if (screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
+        if (screen_ == Screen::Splash || screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
             screen_ == Screen::Difficulty || screen_ == Screen::Controls)
             DrawMenu();
         else

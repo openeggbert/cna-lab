@@ -90,6 +90,7 @@ namespace WolfCna
         bool completed_ = false;
         enum class Screen
         {
+            Splash,
             Title,
             SectorSelect,
             Difficulty,
@@ -104,7 +105,7 @@ namespace WolfCna
             Operative,
             Veteran
         };
-        Screen screen_ = Screen::Title;
+        Screen screen_ = Screen::Splash;
         Difficulty difficulty_ = Difficulty::Operative;
         int menuSelection_ = 0;
         enum class Weapon { Knife, Sidearm, Repeater, HeavyAutomatic };
@@ -121,6 +122,7 @@ namespace WolfCna
         bool downWasDown_ = false;
         bool confirmWasDown_ = false;
         bool escapeWasDown_ = false;
+        bool mouseWasDown_ = false;
         bool soundEnabled_ = true;
         float cheatMessageSeconds_ = 0.0f;
         float weaponFlashSeconds_ = 0.0f;

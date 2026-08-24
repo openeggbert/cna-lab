@@ -30,6 +30,7 @@ namespace WolfCna
         constexpr float DoorPassableAt = 0.78f;
         constexpr float DoorAutoCloseDelay = 4.0f;
         constexpr float DoorBodyHoldRadius = 0.45f;
+        constexpr float DoorPlayerClearance = 0.22f;
         constexpr float ActivationRange = 1.5f;
         constexpr float ActivationDotThreshold = 0.5f;
         constexpr float HitScanRange = 12.0f;
@@ -117,6 +118,15 @@ namespace WolfCna
         }
 
         return false;
+    }
+
+    bool World::HasPlayerInDoorway(const Door& door, const Vector3& playerPosition) const
+    {
+        const float centerX = static_cast<float>(door.x) + 0.5f;
+        const float centerZ = static_cast<float>(door.z) + 0.5f;
+        const float doorwayHalfExtent = 0.5f + DoorPlayerClearance;
+        return std::abs(playerPosition.X - centerX) <= doorwayHalfExtent &&
+            std::abs(playerPosition.Z - centerZ) <= doorwayHalfExtent;
     }
 
     bool World::Collides(float worldX, float worldZ, float radius) const
@@ -410,7 +420,7 @@ namespace WolfCna
             if (door.isSecret)
                 continue;
 
-            if (HasDeadEnemyInDoorway(door))
+            if (HasDeadEnemyInDoorway(door) || HasPlayerInDoorway(door, playerPosition))
             {
                 door.closeDelay = DoorAutoCloseDelay;
                 continue;
@@ -733,7 +743,7 @@ namespace WolfCna
                     Enemy enemy;
                     enemy.position = Vector3(static_cast<float>(x) + 0.5f, 0.0f, static_cast<float>(z) + 0.5f);
                     enemy.type = map_[z][x] == 'K' ? Enemy::Type::Hound : Enemy::Type::Guard;
-                    enemy.health = enemy.type == Enemy::Type::Hound ? 1 : 3;
+                    enemy.health = enemy.type == Enemy::Type::Hound ? 2 : 3;
                     enemies_.push_back(std::move(enemy));
                 }
             }

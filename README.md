@@ -31,7 +31,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - guards fire visible ranged projectiles; hounds remain close-range attackers
 - no external copyrighted game assets
 - original title menu with difficulty selection before a run begins
-- illustrated title menu with a generated original bunker background and a large sharp `WOLF CNA` heading
+- illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
 - persistent sector selection: a fresh profile starts with sector 1 and completing a sector unlocks the next one
 
 ## Controls
@@ -40,7 +40,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - left/right arrow keys: turn left / right
 - title/sector/difficulty menus: arrows select, `Enter` or `Space` confirms, `Escape` backs out; the title menu also has a master sound toggle
 - three difficulty modes: Scout (70% enemy damage), Operative (normal), Veteran (140% enemy damage)
-- `Space`: open the door in front of you (doors close after four seconds unless a body blocks them)
+- `Space`: open the door in front of you (doors close after four seconds unless the player or a body blocks them)
 - left or right `Ctrl`: attack with the selected weapon; empty firearms automatically fall back to the knife
 - `1` / `2` / `3` / `4`: knife / sidearm / three-round repeater / five-round heavy automatic; weapons 3 and 4 must be found first
 - collecting ammunition after reaching zero restores the last firearm automatically
@@ -89,6 +89,8 @@ have the same width and use only these symbols:
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 
 An exit is red while its terminal objective is incomplete and turns cyan when it is online.
+The current authored sectors are compact prototypes; the planned final floor size
+is the classic 64×64-cell grid.
 
 ## Expected checkout layout
 
