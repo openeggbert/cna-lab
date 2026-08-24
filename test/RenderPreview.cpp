@@ -49,28 +49,6 @@ int main(const int argc, const char* const argv[]) {
     renderer.render(session);
     writePpm(renderer.canvas(), outputDirectory / "message.ppm");
 
-    place(session, "trailhead", {410, 228});
-    session.performVerb(e2d::Verb::take);
-    renderer.render(session);
-    writePpm(renderer.canvas(), outputDirectory / "take-pose.ppm");
-
-    place(session, "cabin", {294, 220});
-    session.jumpOrContext();
-    renderer.render(session);
-    writePpm(renderer.canvas(), outputDirectory / "mara-speech.ppm");
-    session.advanceMessage();
-    renderer.render(session);
-    writePpm(renderer.canvas(), outputDirectory / "player-speech.ppm");
-
-    place(session, "generator", {250, 220});
-    auto powered = session.snapshot();
-    powered.flags["fuse_installed"] = true;
-    powered.flags["cable_installed"] = true;
-    if (!session.restore(powered)) throw std::runtime_error{"cannot preview generator startup"};
-    session.jumpOrContext();
-    renderer.render(session);
-    writePpm(renderer.canvas(), outputDirectory / "generator-start.ppm");
-
     for (const auto& [roomId, room] : world.rooms) {
         place(session, roomId, room.defaultSpawn);
         session.cancel();

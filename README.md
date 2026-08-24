@@ -1,48 +1,49 @@
 # Black Pine
 
-Black Pine is an original C++23 demonstration game for the **Explore2D**
-2D exploration/adventure engine. Its purpose is to exercise the engine's room,
-inventory, exploration and persistent-state model with a small game that can be
-played from start to finish.
+Black Pine: The Long Silence is an original full-length C++23 exploration and
+puzzle adventure for the **Explore2D** engine. It expands the original vertical
+slice into 124 fixed, non-scrolling screens and a five-act story that can be
+played from the storm gate to the summit transmitter.
 
 No Tajná mise rooms, story, dialogue or art are reused.
 
 ## Premise
 
-A storm has knocked the Black Pine mountain radio relay off the air. Starting at
-the trailhead, you must reach the caretaker, find a way through the relay yard,
-repair the generator, climb the tower, realign the antenna, and bring the
-emergency radio net back online.
+A storm has knocked the Black Pine mountain radio relay off the air and forced
+rescue helicopter Kestrel Six down beyond the ridge. Technician Iris Bell first
+repairs the local relay, then discovers that Gideon Voss deliberately revived
+Nightjar's dangerous Quiet Field. The investigation crosses forest, quarry,
+logging railway, dam, mine, observatory, bunker and summit tower before Iris can
+invert the field and reopen the emergency network.
 
-There is also optional material to discover and one deliberately dangerous side
-route.
+## Implemented game scope
 
-## What the demo exercises
-
-- Seven fixed connected screens.
-- Six inventory items, including optional/non-usable discoveries.
+- Exactly 124 numbered, fixed connected screens plus title, settings, map,
+  help, death and ending states.
+- Ten visually distinct code-drawn regions and 17 travel-map anchors.
+- More than 50 inventory and evidence items, including optional discoveries.
 - USE / EXAMINE / TAKE.
-- A character with state-dependent dialogue.
-- Compact blue dialogue bubbles that alternate between Mara and the player.
-- Examination that reveals a hidden key.
-- Overlapping hotspots (the key sits on the desk) to exercise action-aware
-  target resolution.
-- A locked conditional exit.
-- Using the key on the gate.
-- Installing/consuming a fuse and patch cable.
-- Contextually operating a generator lever.
-- A contextual ladder transition to a separate tower-top screen.
-- Using a tool to repair/alignment state.
-- A final condition-gated win interaction.
+- Main characters Mara, Theo, Nell, Owen, Lila, June, Jonah, Sable, Miriam
+  Kline, Gideon Voss and dispatcher Elias, with anchored dialogue bubbles.
+- Multi-region repairs, rescues, investigation, non-combat patrol solutions,
+  environmental hazards and persistent revisits.
+- A generator repair requiring fuse, cable, battery, fuel and feeder isolation;
+  a logging-engine rebuild; dam drainage; mine and lift power routing;
+  observatory infiltration; and the Nightjar shutdown sequence.
+- A final summit assembly using grounding, phase coil, prism, calibration fork,
+  beacon reference, antenna alignment and protected sequence `4-1-3`.
+- Two successful epilogues: the evidence broadcast is optional, while restoring
+  the rescue carrier is mandatory.
 - Visited-location fast travel.
-- A ravine hazard, death and restart.
+- Twelve designed hazard families with readable warning states.
 - Save/load through the Explore2D host.
 - A configurable code-drawn title/menu screen before play begins.
-- Seven original code-drawn scenes using only the fixed 16-colour EGA palette.
-- Visible state changes for the gate, installed generator components, power
-  lamps, tower beacon and antenna alignment.
-- Selective animation: generator startup and antenna alignment are one-shot
-  actions; powered lamps, console scan and tower beacon loop while appropriate.
+- 124 original procedural scenes using only the fixed 16-colour EGA palette.
+- Persistent code-drawn state overlays for completed repairs and activated
+  machinery, including the generator chain, pumps, lift, Nightjar systems and
+  summit transmitter.
+- Low-bandwidth two-frame scene motion in the QBasic style, with interaction
+  sound cues reserved for story-bearing actions and machinery.
 - Monophonic QBasic/PC-speaker-style cues for menu, movement actions, pickups,
   repairs, warnings, death, save/load and victory, played through CNA.
 - Entirely procedural graphics; there are no external art assets.
@@ -88,8 +89,9 @@ cmake --build build-core -j
 ctest --test-dir build-core --output-on-failure
 ```
 
-The scenario test scripts the complete required puzzle chain through victory and
-also verifies the hazard/death/restart path.
+The scenario test scripts the complete five-act puzzle chain through the
+evidence-broadcast victory and renders representative rooms from all ten visual
+regions.
 
 ## Controls
 
@@ -112,10 +114,10 @@ also verifies the hazard/death/restart path.
 | Left / Right in Settings | change language |
 
 Black Pine inherits Explore2D's fixed 640×350 display, room/inventory/action
-layout and palette. Its mountain, forest, cabin, machinery and title artwork are
-original combinations of rectangles, lines, circles, ellipses and bitmap text
-declared in `BlackPineWorld.cpp`. Only story-relevant actions and machinery are
-animated; static scenery deliberately remains static.
+layout and palette. Its mountain, forest, quarry, railway, waterworks, mine,
+laboratory, bunker and tower artwork consists only of code-defined EGA
+primitives in `BlackPineFullWorld.cpp`; the canonical 124-screen catalogue lives
+in `BlackPineContent.hpp`.
 
 ## Language settings
 
@@ -128,14 +130,16 @@ English is the canonical fallback. Czech is supplied as UTF-8 text and rendered
 by Explore2D's code-drawn bitmap font, including Czech diacritics. The
 pre-production `docs/GAME_DESIGN.md` intentionally remains English-only.
 
-## Suggested route if you are testing mechanics
+## Playing and navigation
 
-Explore the trailhead, talk to Mara in the cabin, inspect the desk, open the yard
-gate, repair both missing parts of the generator circuit, operate the main lever,
-climb the tower, align the antenna mount, and use the relay console.
+Rooms are numbered `001` through `124` in the scene artwork. Left and right move
+between adjacent screens; important milestones become map anchors. Several
+puzzles deliberately require returning to earlier equipment—for example, the
+generator can only start after downstream battery, fuel and transformer work,
+and the observatory dome key is found beyond the dome itself.
 
 The game intentionally does not print a full item-by-item solution in its HUD;
-EXAMINE is expected to matter.
+EXAMINE, conversations and revisiting locations are expected to matter.
 
 If you become stuck, press **F1**. Explore2D pauses the action and Black Pine
 selects the highest-priority unfinished objective whose conditions match the

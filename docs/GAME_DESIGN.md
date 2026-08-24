@@ -1,6 +1,12 @@
 # Black Pine — Full Game Narrative and Content Design
 
-Status: pre-production narrative specification; no gameplay implementation is authorized by this document.
+Status: implemented narrative specification for Black Pine 0.2.0.
+
+The canonical 124-screen catalogue is implemented in
+`src/BlackPineContent.hpp`; procedural scenes, inventory, interactions,
+dialogue, hazards, hints and the complete five-act state graph are implemented
+in `src/BlackPineFullWorld.cpp`. `test/ScenarioTests.cpp` performs the required
+route through the evidence-broadcast ending and verifies every numbered screen.
 
 ## 1. Scope and reference target
 
@@ -1001,21 +1007,19 @@ All permanent scene mutations must be saveable. Animation playback position need
 - The player may discover items before learning their uses. Dialogue adapts rather than blocking pickup artificially.
 - Humour comes from character perspective, labels, and understatement, never from mocking injury or failure.
 
-## 18. Production boundaries for the future implementation
+## 18. Production status
 
-This document does **not** request implementation yet. When production begins, content should be delivered region by region with a playable route and tests for each stable state. The first seven-screen demo should not simply be duplicated 17 times; every new screen needs a navigational, narrative, visual, or puzzle purpose recorded above.
+The complete 124-screen route is implemented. Content was delivered region by
+region, with each screen serving a navigational, narrative, visual, or puzzle
+purpose from this design. The original seven-screen prototype was replaced by
+the canonical world rather than duplicated as filler.
 
-Recommended future implementation order:
+The implementation locks the screen IDs and region topology, supports all 17
+travel anchors, and carries the five-act state graph through the bunker and
+summit finales. Optional evidence changes the ending without blocking the
+critical path. Automated scenario and rendering tests cover the full catalogue.
 
-1. Lock screen IDs, region topology, and save-state naming.
-2. Implement screens 1–24 as the expanded onboarding and first complete mystery turn.
-3. Add one region at a time, including its items, interactions, dialogue, animations, hazards, and scenario tests.
-4. Add global travel only after physical topology is tested.
-5. Implement bunker and finale after all prerequisite item/state routes are stable.
-6. Add optional keepsakes and epilogue variants without placing them on the critical path.
-7. Verify exactly 124 gameplay rooms and separately test title/menu/map/death/ending states.
-
-### Acceptance criteria for the eventual full game
+### Acceptance criteria
 
 - Exactly 124 numbered, playable, fixed screens.
 - All screens reachable in at least one valid state; no decorative duplicate rooms used only to inflate the count.
@@ -1031,6 +1035,6 @@ Recommended future implementation order:
 
 ## 19. Canonical count statement
 
-For planning, testing, website copy, and future README updates, the authoritative statement is:
+For planning, testing, website copy, and README updates, the authoritative statement is:
 
-> *Tajná mise* has 124 numbered gameplay screens. The planned full version of *Black Pine: The Long Silence* also has exactly 124 numbered gameplay screens, plus separate title, menu, map, failure, ending, and credits presentation states.
+> *Tajná mise* has 124 numbered gameplay screens. *Black Pine: The Long Silence* also has exactly 124 numbered gameplay screens, plus separate title, menu, map, failure, ending, and credits presentation states.

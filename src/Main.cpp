@@ -15,7 +15,7 @@ int main(const int argc, const char* const argv[]) {
     }
 
     explore2d::cna::HostConfig host;
-    host.windowTitle = "Black Pine - Explore2D demo";
+    host.windowTitle = "Black Pine: The Long Silence";
     host.presentationScale = 2;
     host.savePath = "black-pine.e2dsave";
     host.settingsPath = "black-pine.e2dsettings";

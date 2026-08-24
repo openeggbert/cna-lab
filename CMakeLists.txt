@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25...3.31)
-project(BlackPine VERSION 0.1.0 LANGUAGES CXX)
+project(BlackPine VERSION 0.2.0 LANGUAGES CXX)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "In-source builds are unsupported; use cmake -S . -B build")
@@ -22,7 +22,7 @@ endif()
 set(EXPLORE2D_BUILD_TESTS OFF CACHE BOOL "Tests are owned by this top-level build" FORCE)
 add_subdirectory("${EXPLORE2D_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/_deps/explore2d")
 
-add_library(black_pine_world src/BlackPineWorld.cpp)
+add_library(black_pine_world src/BlackPineFullWorld.cpp)
 target_include_directories(black_pine_world PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(black_pine_world PUBLIC Explore2D::Core)
 target_compile_features(black_pine_world PUBLIC cxx_std_23)
