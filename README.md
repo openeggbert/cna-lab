@@ -131,6 +131,13 @@ export CNA_BUILD_DIR=/path/to/cnanext/cmake-build-tools
 ./scripts/build-assets.sh assets/source/mc3/vehicle_wheel.mc3.xml assets/generated/models
 ```
 
+Before conversion, `build-assets.sh` validates the MC3 schema and the matching versioned entry in
+`assets/content-budgets.json`. Run `./scripts/content_budget.py` directly to check every registered
+MC3/glTF source. Current bootstrap limits cover the warehouse, grouped sedan, test character, and
+default district prototype; an unregistered source or unsupported primitive fails rather than
+receiving a guessed triangle cost. Texture count is enforced, while per-texture resolution awaits
+representative production textures and remains covered only by aggregate M12 VRAM tracking.
+
 This runs, for every input listed above:
 
 ```text

@@ -122,6 +122,17 @@ CTest covers diagnostic Xvfb, a synthetic two-capture pass, swap/VRAM failures, 
 histogram mismatch. The real isolated capture correctly remains diagnostic with one-run,
 virtual-display, rejected-swap, and incomplete-VRAM blockers.
 
+The content-budget follow-up adds versioned `assets/content-budgets.json` plus standard-library
+`scripts/content_budget.py`. Exact committed baselines pass: district prototype 96 triangles/5
+materials/0 textures, warehouse 12/1/0, grouped sedan 48/4/0, and test character 36/1/1. Bootstrap
+triangle ceilings are 4x current geometry; material/texture-count reserves are documented and not
+claimed as final production limits. `build-assets.sh` now requires a matching passing budget group
+after XSD validation and before conversion. New `iron_gang_content_budget_tests` makes CTest 5/5
+and proves real-source integration, actionable overflow, unsupported-MC3 rejection, malformed glTF
+triangle rejection, and unregistered-source rejection. Texture resolution remains deliberately
+outside this first policy until representative production textures exist; aggregate M12 VRAM
+tracking remains authoritative.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

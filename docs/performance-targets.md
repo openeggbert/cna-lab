@@ -432,3 +432,38 @@ known RAM, complete VRAM accounting within budget, and a real passing district t
 mixed capture. It reports `FAIL` when a declared qualification misses any condition and exits zero
 because the report was generated successfully; malformed/stale input exits 2. `PASS` is therefore
 a strict evidence summary, while successful command execution alone is not a gate result.
+
+### Bootstrap source-content budgets
+
+`assets/content-budgets.json` is the versioned first-pass policy consumed by
+`scripts/content_budget.py`. The ceilings are guardrails around today's deliberately simple source
+assets, not claimed final production limits:
+
+| Asset group | Category | Current triangles / limit | Current materials / limit | Current textures / limit |
+| --- | --- | ---: | ---: | ---: |
+| Prototype city block | District prototype | 96 / 384 | 5 / 20 | 0 / 8 |
+| Warehouse | Building | 12 / 48 | 1 / 4 | 0 / 4 |
+| Four-part sedan | Vehicle | 48 / 192 | 4 / 8 | 0 / 8 |
+| Test character | Character | 36 / 144 | 1 / 4 | 1 / 4 |
+
+Triangle ceilings provide 4x the current committed geometry. Material limits provide 4x headroom
+except the grouped sedan's 2x reserve. Texture limits reserve a small number of conventional
+authored resources per group; they count texture resources only. They do **not** yet constrain each
+texture's dimensions or decoded bytes because the current MC3 building/vehicle sources have no
+textures and the character has only a 1x1 crash-prevention fixture—not representative production
+evidence. Aggregate tracked texture memory remains under the M12 VRAM guard, and per-texture size
+limits must be added when the first representative production textures are authored.
+
+Validate all registered source assets or the budget group containing one import input:
+
+```bash
+./scripts/content_budget.py
+./scripts/content_budget.py --source assets/source/mc3/vehicle_body.mc3.xml
+```
+
+`scripts/build-assets.sh` runs the filtered validation after MC3 schema validation and before
+conversion, so a new source must first receive a reviewed policy entry. Exit 0 means every selected
+group passes, exit 1 is an actionable limit failure, and exit 2 is invalid policy/source data. MC3
+boxes/cubes and glTF triangle lists/strips/fans have exact counting rules. Any other MC3 primitive
+or non-triangle glTF mode fails with a request to add exact triangulation logic; the validator never
+guesses a cost.

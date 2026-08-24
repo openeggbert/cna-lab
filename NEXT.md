@@ -67,6 +67,22 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has a complete smallest-scope source content-budget validator (`IG-35-014`,
+`045`-`047`).** `assets/content-budgets.json` versions bootstrap triangle/material/texture-count
+limits; `scripts/content_budget.py` exactly counts MC3 boxes/cubes and glTF triangle primitives,
+groups the four sedan parts, and fails unknown primitives/modes rather than guessing. Current
+baselines pass: district prototype 96/5/0, warehouse 12/1/0, sedan 48/4/0, character 36/1/1
+(triangles/materials/textures). Geometry has 4x headroom; other reserves and their rationale are
+explicitly documented as first-pass, not final production limits.
+
+- `build-assets.sh` now validates the selected source's complete budget group after MC3 XSD and
+  before conversion; a new source needs a reviewed policy entry. The new fifth CTest covers real
+  sources, limit overflow, unknown MC3 primitives, malformed glTF triangle counts, and unregistered
+  input. Software CTest is 5/5.
+- Texture count is enforced. Per-texture dimensions/decoded bytes are deliberately deferred until
+  representative production textures exist (current MC3 models have none; the character has a 1x1
+  fixture); aggregate schema-8 VRAM tracking remains the current memory guard.
+
 **M12 now has a complete smallest-scope release performance report generator (`IG-35-016`,
 `042`-`044`).** `scripts/performance_report.py` consumes schema-8 captures and emits deterministic
 Markdown with per-capture frame/CPU/RAM/VRAM/load/hitch/presentation evidence. It independently
@@ -1077,9 +1093,10 @@ physical-hardware capture should first require `swap_interval.apply_succeeded`, 
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside
-budget. The next safe code-side M12 slice is the content-budget validator (`IG-35-014`,
-`045`-`047`): enforce first-pass triangle/texture/material ceilings against committed authoring and
-runtime assets, with actionable failures and no invented production-scale limits. Do not mark M12
+budget. The next safe code-side M12 slice is the smallest memory-leak soak harness
+(`IG-35-013`, `051`-`052`): exercise repeated district round trips plus mission/save-load cycles,
+sample current/high-water RSS at fixed checkpoints, and keep duration bounded for CI while
+documenting that long physical-hardware soak qualification remains separate. Do not mark M12
 complete until repeated mixed workloads pass 33.333 ms p95 on named minimum hardware and VRAM
 tracking is complete.
 

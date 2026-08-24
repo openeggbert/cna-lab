@@ -220,6 +220,11 @@ if(IRON_GANG_BUILD_TESTS)
         COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_performance_report.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/performance_report.py")
+    add_test(NAME iron_gang_content_budget_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_content_budget.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/content_budget.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
 
     add_executable(iron_gang_core_tests tests/CoreTests.cpp)
     target_include_directories(iron_gang_core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
