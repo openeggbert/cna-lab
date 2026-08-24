@@ -60,14 +60,19 @@ int main(const int argc, const char* const argv[]) {
     auto repaired = session.snapshot();
     for (const auto* flag : {"vehicle_gate_open", "cable_patched", "fuse_installed",
              "battery_linked", "fuel_valve_open", "feeder_isolated", "workshop_open",
-             "nightjar_signal_found", "power_on", "mast_calibrated", "act1_complete"}) {
+             "nightjar_signal_found", "power_on", "mast_calibrated", "act1_complete",
+             "bandage_cache_found", "fir_cut", "theo_freed", "theo_rescued", "theo_briefed",
+             "echo_route_solved", "quarry_trace_found", "bear_gone", "weather_data_read",
+             "lookout_briefed"}) {
         repaired.flags[flag] = true;
     }
     if (!session.restore(repaired)) throw std::runtime_error{"cannot create repaired relay preview"};
     constexpr std::array repairedRooms{
         "old_service_road_fork", "vehicle_gate", "cable_trench", "generator_shed",
         "battery_room", "fuel_pump_alcove", "transformer_pad", "relay_workshop",
-        "lower_relay_hall", "local_control_room",
+        "lower_relay_hall", "local_control_room", "fallen_fir", "mossy_hollow",
+        "echo_grove", "buried_cable_ridge", "bear_meadow", "automatic_weather_station",
+        "north_fire_lookout",
     };
     for (const auto* roomId : repairedRooms) {
         const auto* repairedRoom = world.room(roomId);

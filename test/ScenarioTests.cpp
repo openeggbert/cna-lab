@@ -122,6 +122,10 @@ static void portal(e2d::AdventureSession& session, const e2d::WorldDefinition& w
     walkToTarget(session, world, targetId);
     session.jumpOrContext();
     dismiss(session);
+    if (session.currentRoomId() != destinationRoom) {
+        std::cerr << "Portal " << targetId << " stayed in " << session.currentRoomId()
+                  << " instead of entering " << destinationRoom << '\n';
+    }
     assert(session.currentRoomId() == destinationRoom);
 }
 
@@ -197,6 +201,10 @@ int main() {
     const auto& trenchLadder = hotspot(world, "s015_trench_ladder");
     const auto& generatorPath = hotspot(world, "s016_generator_path");
     const auto& controlStairs = hotspot(world, "s023_control_stairs");
+    const auto& kilnPath = hotspot(world, "s026_kiln_path");
+    const auto& blindPath = hotspot(world, "s028_blind_path");
+    const auto& cachePath = hotspot(world, "s030_cache_path");
+    const auto& ravinePath = hotspot(world, "s036_ravine_path");
     assert(ringingPhone.visuals.size() >= 10);
     assert(answeredPhone.visuals.size() >= 10);
     assert(markedDeerPath.visuals.size() >= 7);
@@ -209,6 +217,10 @@ int main() {
     assert(trenchLadder.visuals.size() >= 7);
     assert(generatorPath.visuals.size() >= 2);
     assert(controlStairs.visuals.size() >= 6);
+    assert(kilnPath.visuals.size() >= 2);
+    assert(blindPath.visuals.size() >= 2);
+    assert(cachePath.visuals.size() >= 2);
+    assert(ravinePath.visuals.size() >= 2);
     assert(world.room("caretaker_cabin_main")->decorations.size() >= 30);
     assert(world.room("cabin_radio_nook")->decorations.size() >= 20);
     assert(world.room("caretaker_tool_shed")->decorations.size() >= 20);
@@ -242,7 +254,7 @@ int main() {
             assert(candidate.interactionArea.bottom() == 260.0F);
         }
         anchors += current->travelAnchor ? 1U : 0U;
-        const bool authoredHub = spec.number >= 6 && spec.number <= 25;
+        const bool authoredHub = spec.number >= 6 && spec.number <= 39;
         if (i > 0 && !authoredHub) {
             assert(std::ranges::any_of(current->exits, [i](const e2d::ExitDefinition& exit) {
                 return exit.direction == e2d::Direction::left
@@ -287,6 +299,25 @@ int main() {
     }
     assert(hasExit("north_service_road", e2d::Direction::left, "old_service_road_fork"));
     assert(hasExit("north_service_road", e2d::Direction::right, "burned_pine_stand"));
+    assert(hasExit("burned_pine_stand", e2d::Direction::left, "north_service_road"));
+    assert(hasExit("burned_pine_stand", e2d::Direction::right, "fallen_fir"));
+    assert(hasExit("fallen_fir", e2d::Direction::left, "burned_pine_stand"));
+    assert(hasExit("fallen_fir", e2d::Direction::right, "cold_creek_crossing"));
+    assert(hasExit("cold_creek_crossing", e2d::Direction::left, "fallen_fir"));
+    assert(world.room("cold_creek_crossing")->exits.size() == 1);
+    for (const int branch : {29, 30, 31, 32, 33}) {
+        assert(world.room(black_pine::content::screens[static_cast<std::size_t>(branch - 1)].id)->exits.empty());
+    }
+    assert(hasExit("buried_cable_ridge", e2d::Direction::left, "echo_grove"));
+    assert(hasExit("buried_cable_ridge", e2d::Direction::right, "bear_meadow"));
+    assert(hasExit("bear_meadow", e2d::Direction::left, "buried_cable_ridge"));
+    assert(hasExit("bear_meadow", e2d::Direction::right, "firebreak_junction"));
+    assert(hasExit("firebreak_junction", e2d::Direction::left, "bear_meadow"));
+    assert(world.room("firebreak_junction")->exits.size() == 1);
+    assert(world.room("automatic_weather_station")->exits.empty());
+    assert(world.room("north_fire_lookout")->exits.empty());
+    assert(hasExit("ravine_west_lip", e2d::Direction::left, "firebreak_junction"));
+    assert(hasExit("ravine_west_lip", e2d::Direction::right, "broken_service_bridge"));
     assert(anchors == 17);
     assert(visiblePickups >= 45);
     assert(animatedRooms > 80 && animatedRooms < world.rooms.size());
@@ -370,22 +401,40 @@ int main() {
     assert(session.flag("forest_route_entered"));
 
     // Act II — rescue Theo, cross the forest and take the stolen phase coil.
+    examine(session, world, "s025_survey_ribbon", "survey_ribbon_recorded");
+    examine(session, world, "s026_boot_cache", "bandage_cache_found");
     take(session, world, "s026_take_bandage_roll", "bandage_roll");
+    portal(session, world, "s026_kiln_path", "charcoal_kiln_ruin");
+    take(session, world, "s032_take_charcoal", "charcoal");
+    portal(session, world, "s032_pine_path", "burned_pine_stand");
     use(session, world, "s027_fallen_fir", "pruning_saw", "fir_cut");
+    portal(session, world, "s028_blind_path", "hunters_blind");
     take(session, world, "s029_take_signal_flare", "signal_flare");
+    portal(session, world, "s029_hollow_path", "mossy_hollow");
     use(session, world, "s030_theo_branch", "pruning_saw", "theo_freed");
     use(session, world, "s030_theo_wound", "bandage_roll", "theo_rescued");
     context(session, world, "s030_theo", "theo_briefed");
+    portal(session, world, "s030_cache_path", "ranger_cache");
     take(session, world, "s031_take_climbing_rope", "climbing_rope");
     take(session, world, "s031_take_iron_hook", "iron_hook");
     take(session, world, "s031_take_mine_lamp", "mine_lamp");
     take(session, world, "s031_take_compass", "compass");
     take(session, world, "s031_take_ranger_patch", "ranger_patch");
-    take(session, world, "s032_take_charcoal", "charcoal");
+    portal(session, world, "s031_hollow_path", "mossy_hollow");
+    portal(session, world, "s030_blind_path", "hunters_blind");
+    portal(session, world, "s029_creek_path", "cold_creek_crossing");
+    portal(session, world, "s028_grove_path", "echo_grove");
     use(session, world, "s033_bearing_route", "compass", "echo_route_solved");
+    portal(session, world, "s033_ridge_path", "buried_cable_ridge");
     use(session, world, "s034_cable_posts", "multimeter", "quarry_trace_found");
     use(session, world, "s035_bear_wind", "signal_flare", "bear_gone");
+    portal(session, world, "s036_weather_path", "automatic_weather_station");
+    use(session, world, "s037_weather_recorder", "hand_crank_torch", "weather_data_read");
+    portal(session, world, "s037_junction_path", "firebreak_junction");
+    portal(session, world, "s036_lookout_path", "north_fire_lookout");
     context(session, world, "s038_nell", "lookout_briefed");
+    portal(session, world, "s038_junction_path", "firebreak_junction");
+    portal(session, world, "s036_ravine_path", "ravine_west_lip");
     use(session, world, "s039_anchor_eye", "iron_hook", "hook_fixed");
     use(session, world, "s039_fixed_hook", "climbing_rope", "ravine_rope_fixed");
     context(session, world, "s039_rope_descent", "ravine_descended");

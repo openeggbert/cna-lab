@@ -1956,11 +1956,188 @@ void addActOne(e2d::WorldDefinition& world) {
 }
 
 void addActTwo(e2d::WorldDefinition& world) {
+    // The north forest is a looped exploration region: the road reaches the
+    // creek, Theo and his cache; the kiln and Echo Grove form a second loop;
+    // the firebreak then branches to weather evidence, Nell and the ravine.
+    setHorizontalRoute(world, 25, 12, 26);
+    setHorizontalRoute(world, 26, 25, 27);
+    setHorizontalRoute(world, 27, 26, 28);
+    setHorizontalRoute(world, 28, 27, std::nullopt);
+    for (int branch = 29; branch <= 33; ++branch) {
+        setHorizontalRoute(world, branch, std::nullopt, std::nullopt);
+    }
+    setHorizontalRoute(world, 34, 33, 35);
+    setHorizontalRoute(world, 35, 34, 36);
+    setHorizontalRoute(world, 36, 35, std::nullopt);
+    setHorizontalRoute(world, 37, std::nullopt, std::nullopt);
+    setHorizontalRoute(world, 38, std::nullopt, std::nullopt);
+    setHorizontalRoute(world, 39, 36, 40);
+
+    addPortal(world, 26, "kiln_path", "WEST LOOP TO CHARCOAL KILN", "ZÁPADNÍ OKRUH K MILÍŘI",
+        {174, 154, 144, 106}, 32, {
+            e2d::PolygonVisual{{{184, 181}, {276, 181}, {302, 195}, {276, 209}, {184, 209}}, amber, true},
+            label(196, 190, tr("KILN LOOP", "OKRUH K MILÍŘI"), P::black),
+        });
+    addPortal(world, 32, "pine_path", "PATH TO BURNED PINES", "CESTA KE SPÁLENÝM BOROVICÍM",
+        {0, 151, 116, 109}, 26, {
+            e2d::PolygonVisual{{{8, 195}, {31, 181}, {102, 181}, {102, 209}, {31, 209}}, amber, true},
+            label(34, 190, tr("PINES", "BOROVICE"), P::black),
+        });
+    addPortal(world, 32, "grove_path", "PATH TO ECHO GROVE", "CESTA DO HÁJE OZVĚN",
+        {370, 151, 114, 109}, 33, {
+            e2d::PolygonVisual{{{380, 181}, {445, 181}, {474, 195}, {445, 209}, {380, 209}}, signalBlue, true},
+            label(391, 190, tr("GROVE", "HÁJ"), P::black),
+        });
+
+    addPortal(world, 28, "blind_path", "PATH TO HUNTER'S BLIND", "CESTA K LOVECKÉMU POSEDU",
+        {153, 151, 148, 109}, 29, {
+            e2d::PolygonVisual{{{163, 181}, {258, 181}, {284, 195}, {258, 209}, {163, 209}}, amber, true},
+            label(179, 190, tr("BLIND", "POSED"), P::black),
+        });
+    addPortal(world, 28, "grove_path", "PATH TO ECHO GROVE", "CESTA DO HÁJE OZVĚN",
+        {326, 151, 158, 109}, 33, {
+            e2d::PolygonVisual{{{337, 181}, {438, 181}, {469, 195}, {438, 209}, {337, 209}}, signalBlue, true},
+            label(354, 190, tr("ECHO GROVE", "HÁJ OZVĚN"), P::black),
+        });
+    addPortal(world, 29, "creek_path", "PATH TO COLD CREEK", "CESTA KE STUDENÉMU POTOKU",
+        {0, 151, 112, 109}, 28, {
+            e2d::PolygonVisual{{{8, 195}, {31, 181}, {101, 181}, {101, 209}, {31, 209}}, signalBlue, true},
+            label(34, 190, tr("CREEK", "POTOK"), P::black),
+        });
+    addPortal(world, 29, "hollow_path", "PATH TO MOSSY HOLLOW", "CESTA DO MECHOVÉ PROHLUBNĚ",
+        {368, 151, 116, 109}, 30, {
+            e2d::PolygonVisual{{{378, 181}, {444, 181}, {473, 195}, {444, 209}, {378, 209}}, amber, true},
+            label(389, 190, tr("THEO", "THEO"), P::black),
+        });
+    addPortal(world, 30, "blind_path", "PATH TO HUNTER'S BLIND", "CESTA K LOVECKÉMU POSEDU",
+        {0, 151, 110, 109}, 29, {
+            e2d::PolygonVisual{{{8, 195}, {31, 181}, {100, 181}, {100, 209}, {31, 209}}, amber, true},
+            label(34, 190, tr("BLIND", "POSED"), P::black),
+        });
+    auto& cachePath = addPortal(world, 30, "cache_path", "PATH TO RANGER CACHE", "CESTA KE SKRÝŠI STRÁŽCŮ",
+        {368, 151, 116, 109}, 31, {
+            e2d::PolygonVisual{{{378, 181}, {444, 181}, {473, 195}, {444, 209}, {378, 209}}, signalBlue, true},
+            label(389, 190, tr("CACHE", "SKRÝŠ"), P::black),
+        }, {e2d::Condition::flag("theo_briefed")});
+    world.addInteraction({e2d::Verb::context, cachePath.id, std::nullopt,
+        {e2d::Condition::notFlag("theo_briefed")},
+        {inspect(tr("Theo knows the cache combination, but he cannot speak until he is freed and bandaged.",
+            "Theo zná kombinaci ke skrýši, ale nepromluví, dokud ho neuvolníš a neošetříš."))},
+        {}, 10, {}});
+    addPortal(world, 31, "hollow_path", "PATH TO MOSSY HOLLOW", "CESTA DO MECHOVÉ PROHLUBNĚ",
+        {0, 151, 112, 109}, 30, {
+            e2d::PolygonVisual{{{8, 195}, {31, 181}, {101, 181}, {101, 209}, {31, 209}}, amber, true},
+            label(34, 190, tr("THEO", "THEO"), P::black),
+        });
+    addPortal(world, 31, "firebreak_path", "PATH TO FIREBREAK JUNCTION", "CESTA K PROSEKU",
+        {360, 151, 124, 109}, 36, {
+            e2d::PolygonVisual{{{370, 181}, {442, 181}, {473, 195}, {442, 209}, {370, 209}}, signalBlue, true},
+            label(381, 190, tr("FIREBREAK", "PROSEK"), P::black),
+        });
+
+    addPortal(world, 33, "kiln_path", "PATH TO CHARCOAL KILN", "CESTA K MILÍŘI",
+        {0, 151, 108, 109}, 32, {
+            e2d::PolygonVisual{{{8, 195}, {31, 181}, {98, 181}, {98, 209}, {31, 209}}, amber, true},
+            label(34, 190, tr("KILN", "MILÍŘ"), P::black),
+        });
+    addPortal(world, 33, "creek_path", "PATH TO COLD CREEK", "CESTA KE STUDENÉMU POTOKU",
+        {174, 151, 138, 109}, 28, {
+            box(184, 181, 118, 28, signalBlue), label(205, 190, tr("CREEK", "POTOK"), P::black),
+        });
+    auto& ridgePath = addPortal(world, 33, "ridge_path", "BEARING PATH TO CABLE RIDGE", "CESTA PODLE NÁMĚRU KE KABELU",
+        {366, 151, 118, 109}, 34, {
+            e2d::PolygonVisual{{{376, 181}, {444, 181}, {474, 195}, {444, 209}, {376, 209}}, P::brightGreen, true},
+            label(388, 190, tr("017", "017"), P::black),
+        }, {e2d::Condition::flag("echo_route_solved")});
+    world.addInteraction({e2d::Verb::context, ridgePath.id, std::nullopt,
+        {e2d::Condition::notFlag("echo_route_solved")},
+        {inspect(tr("Every unmeasured path echoes back to this grove. Use Theo's compass on the bearing marker.",
+            "Každá nezměřená cesta se vrací do tohoto háje. Použij Theův kompas na značce náměru."))},
+        {}, 10, {}});
+
+    addPortal(world, 36, "cache_path", "PATH TO RANGER CACHE", "CESTA KE SKRÝŠI STRÁŽCŮ",
+        {4, 151, 91, 109}, 31, {
+            e2d::PolygonVisual{{{8, 195}, {30, 181}, {99, 181}, {99, 209}, {30, 209}}, amber, true},
+            label(32, 190, tr("CACHE", "SKRÝŠ"), P::black),
+        });
+    addPortal(world, 36, "weather_path", "PATH TO WEATHER STATION", "CESTA K METEOSTANICI",
+        {120, 151, 95, 109}, 37, {
+            box(124, 181, 99, 28, pale), label(133, 190, tr("WEATHER", "METEO"), P::black),
+        });
+    addPortal(world, 36, "lookout_path", "PATH TO NORTH LOOKOUT", "CESTA K SEVERNÍ HLÁSCE",
+        {240, 151, 95, 109}, 38, {
+            box(244, 181, 99, 28, amber), label(257, 190, tr("LOOKOUT", "HLÁSKA"), P::black),
+        });
+    auto& ravinePath = addPortal(world, 36, "ravine_path", "MARKED PATH TO RAVINE", "OZNAČENÁ CESTA K ROKLI",
+        {360, 151, 124, 109}, 39, {
+            e2d::PolygonVisual{{{367, 181}, {443, 181}, {474, 195}, {443, 209}, {367, 209}}, signalBlue, true},
+            label(379, 190, tr("RAVINE", "ROKLE"), P::black),
+        }, {e2d::Condition::flag("lookout_briefed")});
+    world.addInteraction({e2d::Verb::context, ravinePath.id, std::nullopt,
+        {e2d::Condition::notFlag("lookout_briefed")},
+        {inspect(tr("The firebreak sign has been turned. Nell can identify the safe ravine approach from the lookout.",
+            "Ukazatel na proseku je otočený. Nell může z hlásky určit bezpečný přístup k rokli."))},
+        {}, 10, {}});
+    addPortal(world, 37, "junction_path", "PATH TO FIREBREAK JUNCTION", "CESTA K PROSEKU",
+        {0, 151, 119, 109}, 36, {
+            e2d::PolygonVisual{{{8, 195}, {31, 181}, {109, 181}, {109, 209}, {31, 209}}, amber, true},
+            label(34, 190, tr("JUNCTION", "PROSEK"), P::black),
+        });
+    addPortal(world, 38, "junction_path", "PATH TO FIREBREAK JUNCTION", "CESTA K PROSEKU",
+        {0, 151, 119, 109}, 36, {
+            e2d::PolygonVisual{{{8, 195}, {31, 181}, {109, 181}, {109, 209}, {31, 209}}, amber, true},
+            label(34, 190, tr("JUNCTION", "PROSEK"), P::black),
+        });
+
+    auto& bootCache = ensureHotspot(world, 26, "boot_cache",
+        tr("ASH-COVERED RANGER BOOT", "POPELEM POKRYTÁ BOTA STRÁŽCE"),
+        {58, 177, 102, 83}, e2d::HotspotKind::scenery, 0);
+    bootCache.visuals = {
+        ellipse(106, 255, 34, 5, P::black), box(82, 224, 31, 25, P::brown),
+        box(108, 238, 36, 12, P::brown), line(83, 224, 112, 238, P::lightGray),
+        line(75, 250, 145, 250, P::darkGray),
+    };
+    world.addInteraction({e2d::Verb::examine, bootCache.id, std::nullopt,
+        {e2d::Condition::notFlag("bandage_cache_found")},
+        {inspect(tr("A sealed bandage roll is tucked inside the ranger boot, protected from ash and rain.",
+            "Uvnitř boty strážce je před popelem a deštěm chráněná uzavřená role obvazu."))},
+        {e2d::Mutation::setFlag("bandage_cache_found")}, 30, {}});
+
+    auto& surveyRibbon = ensureHotspot(world, 25, "survey_ribbon",
+        tr("DISCARDED SURVEY RIBBON", "ODHOZENÁ PRŮZKUMNICKÁ STUHA"),
+        {335, 176, 108, 84}, e2d::HotspotKind::scenery, 3);
+    surveyRibbon.visuals = {
+        line(363, 211, 397, 166, P::brown), line(397, 166, 414, 174, danger),
+        line(397, 166, 405, 185, danger), line(405, 185, 419, 194, P::red),
+        line(401, 176, 409, 176, pale),
+    };
+    world.addInteraction({e2d::Verb::examine, surveyRibbon.id, std::nullopt,
+        {e2d::Condition::notFlag("survey_ribbon_recorded")},
+        {inspect(tr("The red survey ribbon bears the same triangular mark as the cut tie below the cabin. Iris records it as evidence.",
+            "Červená průzkumnická stuha nese stejný trojúhelník jako přeříznutá páska pod chatou. Iris ji zaznamená jako důkaz."))},
+        {e2d::Mutation::setFlag("survey_ribbon_recorded")}, 30, {}});
+
     addPickup(world, 26, "bandage_roll", "A sealed ranger bandage waits inside the hidden boot cache.",
-        "V ukryté schránce čeká uzavřený obvaz strážců.", 0);
+        "V ukryté schránce čeká uzavřený obvaz strážců.", 0,
+        {e2d::Condition::flag("bandage_cache_found")});
     addUse(world, 27, "fallen_fir", "FALLEN FIR", "PADLÁ JEDLE", "pruning_saw", "fir_cut",
         "The saw frees a short section that rolls into a permanent step.",
         "Pila uvolní krátký díl, který se skutálí do podoby trvalého schodu.");
+    auto& fallenFir = ensureHotspot(world, 27, "fallen_fir",
+        tr("FALLEN FIR", "PADLÁ JEDLE"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    fallenFir.visibleWhen = {e2d::Condition::notFlag("fir_cut")};
+    fallenFir.visuals = {
+        line(58, 231, 169, 163, P::brown), line(63, 239, 174, 171, P::brown),
+        line(90, 214, 76, 192, P::brightGreen), line(116, 198, 103, 174, P::brightGreen),
+        line(141, 183, 129, 161, P::brightGreen), circle(113, 203, 7, amber, false),
+    };
+    auto& cutFir = ensureHotspot(world, 27, "fallen_fir_complete",
+        tr("CUT FIR STEP", "SCHOD Z ROZŘEZANÉ JEDLE"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    cutFir.visuals = {
+        line(58, 231, 101, 205, P::brown), line(63, 239, 106, 213, P::brown),
+        line(132, 198, 174, 171, P::brown), line(137, 206, 179, 179, P::brown),
+        circle(104, 209, 12, amber, false), circle(134, 202, 12, amber, false),
+    };
     gateRight(world, 27, {e2d::Condition::flag("fir_cut")},
         "The fallen fir blocks the service road.", "Padlá jedle blokuje servisní cestu.");
     addPickup(world, 29, "signal_flare", "The emergency box still contains one dry signal flare.",
@@ -1980,9 +2157,6 @@ void addActTwo(e2d::WorldDefinition& world) {
         speech(tr("Theo: Combination 2-7-1. Nell at the lookout can mark the ravine.",
             "Theo: Kombinace 2-7-1. Nell na hlásce ti označí rokli.")),
     }, {e2d::Condition::flag("theo_rescued")});
-    gateRight(world, 30, {e2d::Condition::flag("theo_briefed")},
-        "Theo still needs to be freed, bandaged and questioned.",
-        "Thea je ještě nutné osvobodit, ošetřit a vyslechnout.");
     addPickup(world, 31, "climbing_rope", "Theo's climbing rope is dry inside the cache.",
         "Theovo horolezecké lano je ve skladu suché.", 0, {e2d::Condition::flag("theo_briefed")});
     addPickup(world, 31, "iron_hook", "You take the iron service-anchor hook.",
@@ -2000,20 +2174,102 @@ void addActTwo(e2d::WorldDefinition& world) {
         "With the mast bearing, Iris chooses north-east, north, then east.",
         "Podle náměru ze stožáru Iris zvolí severovýchod, sever a východ.",
         {e2d::Condition::flag("mast_calibrated")});
-    gateRight(world, 33, {e2d::Condition::flag("echo_route_solved")},
-        "The identical pines loop back. Compass bearing 017 is needed.",
-        "Stejné borovice vedou zpět. Je potřeba kompas a náměr 017.");
+    auto& bearingMarker = ensureHotspot(world, 33, "bearing_route",
+        tr("ECHO GROVE BEARING", "NÁMĚR V HÁJI OZVĚN"),
+        {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    bearingMarker.visibleWhen = {e2d::Condition::notFlag("echo_route_solved")};
+    bearingMarker.visuals = {
+        circle(111, 190, 31, P::lightGray, false), circle(111, 190, 5, amber),
+        line(111, 190, 128, 166, danger), line(111, 190, 96, 216, signalBlue),
+        label(94, 226, tr("017?", "017?"), amber),
+    };
+    auto& solvedBearing = ensureHotspot(world, 33, "bearing_route_complete",
+        tr("SOLVED BEARING 017", "VYŘEŠENÝ NÁMĚR 017"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    solvedBearing.visuals = {
+        circle(111, 190, 31, P::lightGray, false), circle(111, 190, 5, amber),
+        line(111, 190, 128, 166, P::brightGreen),
+        label(94, 226, tr("017", "017"), P::brightGreen),
+    };
     addUse(world, 34, "cable_posts", "BURIED CABLE POSTS", "SLOUPKY ZAKOPANÉHO KABELU", "multimeter", "quarry_trace_found",
         "Three rising readings point away from the tower and into the quarry.",
         "Tři rostoucí hodnoty míří od věže do lomu.");
+    auto& cablePosts = ensureHotspot(world, 34, "cable_posts",
+        tr("BURIED CABLE POSTS", "SLOUPKY ZAKOPANÉHO KABELU"),
+        {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    cablePosts.visibleWhen = {e2d::Condition::notFlag("quarry_trace_found")};
+    cablePosts.visuals = {
+        box(73, 171, 13, 69, P::lightGray), box(105, 157, 13, 83, P::lightGray),
+        box(137, 143, 13, 97, P::lightGray), circle(79, 166, 5, signalBlue),
+        circle(111, 152, 5, amber), circle(143, 138, 5, danger),
+        e2d::PolylineVisual{{{79, 227}, {111, 216}, {143, 202}}, signalBlue, false},
+    };
+    auto& tracedCable = ensureHotspot(world, 34, "cable_posts_complete",
+        tr("TRACED CABLE TO QUARRY", "KABEL VYSTOPOVANÝ K LOMU"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    tracedCable.visuals = {
+        box(73, 171, 13, 69, P::lightGray), box(105, 157, 13, 83, P::lightGray),
+        box(137, 143, 13, 97, P::lightGray), circle(79, 166, 5, P::brightGreen),
+        circle(111, 152, 5, P::brightGreen), circle(143, 138, 5, P::brightGreen),
+        e2d::PolylineVisual{{{79, 227}, {111, 216}, {143, 202}}, P::brightGreen, false},
+    };
     addUse(world, 35, "bear_wind", "UPWIND EDGE", "NÁVĚTRNÁ HRANA", "signal_flare", "bear_gone",
         "The flare burns from upwind. The bear sniffs, turns and leaves unharmed.",
         "Světlice hoří proti větru. Medvěd zavětří, otočí se a bez úhony odejde.", {}, true);
-    addHazard(world, 35, "bear", "bear_gone",
-        "Iris ignores the bear's warning once too often.", "Iris příliš dlouho ignoruje medvědovo varování.");
+    auto& bearMeadow = room(world, 35);
+    bearMeadow.decorations.clear();
+    bearMeadow.solids.clear();
+    bearMeadow.animations.clear();
+    addForestArt(bearMeadow, 35, false);
+    auto& upwindEdge = ensureHotspot(world, 35, "bear_wind",
+        tr("UPWIND EDGE", "NÁVĚTRNÁ HRANA"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    upwindEdge.visibleWhen = {e2d::Condition::notFlag("bear_gone")};
+    upwindEdge.visuals = {
+        e2d::PolygonVisual{{{55, 183}, {137, 183}, {158, 197}, {137, 211}, {55, 211}}, signalBlue, true},
+        label(68, 192, tr("UPWIND", "NÁVĚTŘÍ"), P::black),
+        line(74, 165, 102, 157, pale), line(102, 157, 124, 165, pale),
+        ellipse(287, 198, 67, 39, P::black), circle(342, 171, 31, P::black),
+        circle(328, 143, 11, P::black), circle(354, 143, 11, P::black),
+        circle(353, 168, 3, amber), line(248, 225, 248, 253, P::black),
+        line(312, 225, 312, 253, P::black),
+    };
+    auto& clearedMeadow = ensureHotspot(world, 35, "bear_wind_complete",
+        tr("CLEAR MEADOW PATH", "VOLNÁ CESTA PŘES LOUKU"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    clearedMeadow.visuals = {
+        e2d::PolygonVisual{{{331, 183}, {418, 183}, {449, 197}, {418, 211}, {331, 211}}, P::brightGreen, true},
+        label(347, 192, tr("TRAIL CLEAR", "CESTA VOLNÁ"), P::black),
+        ellipse(461, 211, 18, 10, P::black), circle(477, 204, 8, P::black),
+    };
+    bearMeadow.animations.push_back({targetId(35, "bear_warning"), true, true,
+        {e2d::Condition::notFlag("bear_gone")}, {
+            {12, {line(365, 178, 384, 182, danger), line(84, 165, 107, 157, pale)}},
+            {12, {line(365, 182, 384, 178, danger), line(84, 157, 107, 165, pale)}},
+        }});
     gateRight(world, 35, {e2d::Condition::flag("bear_gone")},
-        "The bear blocks the path. Observe the wind and use the flare.",
-        "Cestu blokuje medvěd. Sleduj vítr a použij světlici.");
+        "Iris backs away from the bear. Observe the wind ribbon and use the flare from the UPWIND marker.",
+        "Iris před medvědem ustoupí. Sleduj stužku ve větru a použij světlici u značky NÁVĚTŘÍ.");
+    addUse(world, 37, "weather_recorder", "STORM DATA RECORDER", "ZÁZNAMNÍK BOUŘKOVÝCH DAT",
+        "hand_crank_torch", "weather_data_read",
+        "The torch's charging lead wakes the chart drum: the sabotage began at 02:11, six minutes before the storm front.",
+        "Nabíjecí kabel svítilny probudí buben: sabotáž začala ve 02:11, šest minut před bouřkovou frontou.");
+    auto& weatherRecorder = ensureHotspot(world, 37, "weather_recorder",
+        tr("STORM DATA RECORDER", "ZÁZNAMNÍK BOUŘKOVÝCH DAT"),
+        {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    weatherRecorder.visibleWhen = {e2d::Condition::notFlag("weather_data_read")};
+    weatherRecorder.visuals = {
+        box(71, 151, 80, 91, P::lightGray), box(79, 159, 64, 75, P::black),
+        circle(96, 183, 13, pale, false), line(96, 183, 104, 173, danger),
+        box(116, 171, 19, 49, pale), line(119, 179, 132, 179, P::blue),
+        line(119, 189, 132, 189, P::blue), line(119, 199, 132, 199, P::blue),
+    };
+    auto& recordedWeather = ensureHotspot(world, 37, "weather_recorder_complete",
+        tr("RECORDED STORM DATA 02:11", "ZAZNAMENANÁ DATA BOUŘE 02:11"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    recordedWeather.visuals = {
+        box(71, 151, 80, 91, P::lightGray), box(79, 159, 64, 75, P::black),
+        circle(96, 183, 13, P::brightGreen, false), line(96, 183, 105, 175, P::brightGreen),
+        box(112, 169, 31, 55, pale), line(116, 179, 138, 179, P::blue),
+        line(116, 189, 138, 189, P::blue), label(115, 207, tr("02:11", "02:11"), danger),
+        circle(84, 223, 4, P::brightGreen),
+    };
     addCharacter(world, 38, "nell", "NELL HARKER", "NELL HARKEROVÁ", "lookout_briefed", {
         speech(tr("Nell: Three false surveyors, one quarry hoist, and a red light moving underground.",
             "Nell: Tři falešní průzkumníci, jeden lomový naviják a červené světlo v podzemí.")),
@@ -2022,8 +2278,6 @@ void addActTwo(e2d::WorldDefinition& world) {
         speech(tr("Iris: Keep watching the beacon. I will open the old infrastructure.",
             "Iris: Sleduj maják. Já otevřu starou infrastrukturu."), e2d::MessageSpeaker::player),
     });
-    gateRight(world, 38, {e2d::Condition::flag("lookout_briefed")},
-        "Nell must mark the safe ravine approach.", "Nell musí označit bezpečný přístup roklí.");
     addUse(world, 39, "anchor_eye", "ANCHOR EYE", "KOTEVNÍ OKO", "iron_hook", "hook_fixed",
         "The iron hook seats behind the service anchor with a solid knock.",
         "Železný hák pevně zapadne za servisní kotvu.", {}, true);
@@ -2734,13 +2988,42 @@ void addHints(e2d::WorldDefinition& world) {
         "V Místním velíně spusť směrový panel po proměření trasy Nightjar.");
     next("forest_route_entered", "Return to Old Service Road Fork and press ENTER at the FOREST barrier.",
         "Vrať se na Rozcestí staré servisní cesty a stiskni ENTER u závory LES.");
-    next("theo_briefed", "In Mossy Hollow, free Theo with the saw and bandage, then speak to him.",
-        "V Mechové prohlubni osvoboď Thea pilou a obvazem a pak s ním promluv.");
-    next("echo_route_solved", "In Echo Grove, USE Theo's compass with bearing 017.",
-        "V Háji ozvěn POUŽIJ Theův kompas a náměr 017.");
-    next("bear_gone", "In Bear Meadow, USE the signal flare from the upwind edge.",
-        "Na Medvědí louce POUŽIJ signální světlici z návětrné hrany.");
-    next("lookout_briefed", "Speak to Nell at North Fire Lookout.", "Promluv s Nell na Severní požární hlásce.");
+    next("survey_ribbon_recorded", "On North Service Road, EXAMINE the red survey ribbon tied to the broken branch.",
+        "Na Severní servisní cestě PROZKOUMEJ červenou průzkumnickou stuhu na zlomené větvi.");
+    next("bandage_cache_found", "At Burned Pine Stand, EXAMINE the ash-covered ranger boot.",
+        "U Spáleného borového porostu PROZKOUMEJ popelem pokrytou botu strážce.");
+    next("taken_bandage_roll", "TAKE the sealed bandage revealed in the ranger boot.",
+        "SEBER uzavřený obvaz odkrytý v botě strážce.");
+    next("fir_cut", "Continue east and USE the pruning saw on the Fallen Fir.",
+        "Pokračuj na východ a na Padlou jedli POUŽIJ prořezávací pilu.");
+    next("taken_signal_flare", "At Cold Creek follow BLIND, then TAKE the signal flare from the emergency box.",
+        "U Studeného potoka sleduj POSED a pak SEBER signální světlici z nouzové skříňky.");
+    next("theo_freed", "Follow THEO to Mossy Hollow and USE the pruning saw on the branch pinning him.",
+        "Sleduj šipku THEO do Mechové prohlubně a na větev, která ho svírá, POUŽIJ pilu.");
+    next("theo_rescued", "In Mossy Hollow, USE the bandage roll on Theo's wound.",
+        "V Mechové prohlubni POUŽIJ obvaz na Theovo zranění.");
+    next("theo_briefed", "Speak to the bandaged Theo with ENTER, then follow CACHE.",
+        "Promluv s ošetřeným Theem klávesou ENTER a potom sleduj šipku SKRÝŠ.");
+    next("taken_climbing_rope", "In Ranger Cache, TAKE Theo's climbing rope.",
+        "Ve Skrýši strážců SEBER Theovo horolezecké lano.");
+    next("taken_iron_hook", "In Ranger Cache, TAKE the iron service hook.",
+        "Ve Skrýši strážců SEBER železný servisní hák.");
+    next("taken_mine_lamp", "In Ranger Cache, TAKE the rugged mine lamp.",
+        "Ve Skrýši strážců SEBER odolnou důlní lampu.");
+    next("taken_compass", "In Ranger Cache, TAKE Theo's compass.",
+        "Ve Skrýši strážců SEBER Theův kompas.");
+    next("taken_charcoal", "From Burned Pine Stand follow KILN LOOP and TAKE clean charcoal at the ruin.",
+        "Od Spáleného porostu sleduj OKRUH K MILÍŘI a v ruině SEBER čisté dřevěné uhlí.");
+    next("echo_route_solved", "Return to Cold Creek, follow ECHO GROVE and USE Theo's compass on the 017 marker.",
+        "Vrať se ke Studenému potoku, sleduj HÁJ OZVĚN a na značce 017 POUŽIJ Theův kompas.");
+    next("quarry_trace_found", "Follow the green 017 path and USE the multimeter on the buried cable posts.",
+        "Sleduj zelenou cestu 017 a na sloupcích zakopaného kabelu POUŽIJ multimetr.");
+    next("bear_gone", "At Bear Meadow, USE the signal flare from the marked UPWIND edge; approaching the bear only makes Iris retreat.",
+        "Na Medvědí louce POUŽIJ světlici u označené NÁVĚTRNÉ hrany; při přiblížení k medvědovi Iris pouze ustoupí.");
+    next("weather_data_read", "At Firebreak Junction follow WEATHER and USE the hand-crank torch on the recorder.",
+        "Na Rozcestí proseku sleduj METEO a na záznamníku POUŽIJ ruční svítilnu.");
+    next("lookout_briefed", "Return to Firebreak Junction, follow LOOKOUT and speak to Nell.",
+        "Vrať se na Rozcestí proseku, sleduj HLÁSKU a promluv s Nell.");
     next("ravine_rope_fixed", "At the Service Ravine West Lip, fix the iron hook first, then the climbing rope.",
         "Na Západní hraně servisní rokle upevni nejprve železný hák a potom lano.");
     next("brant_secured", "Free Owen, sound the crusher horn, then USE the brass key on Brant's cage.",

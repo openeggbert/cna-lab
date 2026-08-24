@@ -25,7 +25,7 @@ A region is human-playable only when all of the following are true:
 |---|---:|---|---|
 | Storm gate and caretaker hub | 1–12 | Audited | Safe opening route, visible phone and pickups, enterable cabin, distinct cabin/radio/shed/cellar interiors, authored hub portals and a gated three-way service-road fork. |
 | Relay yard and local power | 13–24 | Audited | The yard, trench, generator, battery, pump, transformer, workshop, hall and control-room branches use visible labelled portals. Repair targets have persistent before/after artwork and the physical scenario traverses the complete route. |
-| North forest | 25–38 | Scripted, not audited | Author the rescue and cache branches, visible clues, harmless bear solution and lookout route. |
+| North forest | 25–38 | Audited | The creek, Theo, cache, kiln, Echo Grove, weather station and lookout are connected by visible routes. Hidden supplies require exploration, the bear solution is harmless, and the scenario follows the physical loop. |
 | Quarry and ravine | 39–50 | Scripted, not audited | Author vertical rope/hoist topology, water route, guard positions and crusher-safe path. |
 | Logging railway | 51–63 | Scripted, not audited | Build the sawmill/camp/engine hub, visibly persistent five-part engine repair and trestle sequence. |
 | Reservoir and dam | 64–75 | Scripted, not audited | Build gatehouse/turbine/pump branches, water-state artwork and safe return paths. |
@@ -52,7 +52,18 @@ A region is human-playable only when all of the following are true:
   and trace-console states have dedicated 16-colour before/after drawings.
 - The render-preview utility emits repaired-state frames for the relay region,
   and the scenario test now walks through the same portals as a player.
+- Screens 25–38 now form the documented forest loops instead of a linear road:
+  the creek branches to Theo and Echo Grove, while Firebreak Junction branches
+  to the cache, weather station, lookout and Nell's marked ravine route.
+- The ranger boot must be examined before its dry bandage appears, the survey
+  ribbon is a visible evidence clue, and all cache supplies are visibly gated
+  by Theo's combination.
+- The bear is no longer a lethal proximity trap. It blocks only the east path,
+  makes Iris retreat safely, leaves after the upwind flare solution, and has a
+  persistent cleared-meadow drawing.
+- Fallen-fir, compass-bearing, buried-cable and weather-recorder actions have
+  recognisable 16-colour artwork and persistent completion states.
 
-The next implementation pass starts with the North Forest (screens 25–38),
-where the rescue/cache branches and Echo Grove route still differ from the
-documented geography.
+The next implementation pass starts with the Service Ravine and Quarry
+(screens 39–50), where the rope descent, waterfall branch, crusher and hoist
+still differ from the documented geography.
