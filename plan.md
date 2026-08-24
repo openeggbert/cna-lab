@@ -1007,7 +1007,7 @@ Current progress:
 - amber terminals and violet relays are optional bunker systems with generated CNA audio and independent progress tracking;
 - each shipping exit is a three-sided steel elevator cabin whose raised gate and
   cyan marker make the immediately usable goal readable;
-- secret moving walls use the wall material, stay open once found and award 500 score for hidden rewards;
+- secret moving walls use a full polygonal wall block, travel permanently into up to two empty cells and award 500 score for hidden rewards;
 - the starter level is an authored room-and-corridor route with distributed guards, hounds, pickups, gold, a normal door, a security door and an exit;
 - the game now starts at an original blue-and-amber title menu, with a short controls page and three difficulty choices; Scout takes 70% enemy damage, Operative is the baseline and Veteran takes 130%;
 - six original external level files now form a two-chapter room-and-corridor campaign with five main sectors and one hidden branch; exits preserve score, lives, health, ammunition and weapon selection;
@@ -1594,10 +1594,28 @@ expanded economy. All four new PNGs have genuine alpha and recorded prompts.
 
 ### WOLF-040 — physical push-wall secrets
 
-Status: planned. Replace secret-door lifting with a real polygonal wall section
-that slides horizontally into valid free cells and permanently reveals a passage.
-The movement, collision, automap and secret counter must describe the same physical
-state.
+Status: complete. `S` is now a full-cell polygonal wall block rather than a thin
+door panel that rises vertically. Using the action key determines the horizontal
+grid direction from the player's approach and moves the block permanently through
+one or two consecutive empty cells at a fixed physical speed. The parser rejects a
+push wall that has no empty destination plus a walkable opposite approach; authored
+secrets in the starter and archive sectors gained safe space behind their walls.
+
+Continuous circle-versus-moving-box collision keeps the block solid at its exact
+interpolated position. Activation is rejected when a player or enemy already occupies
+the destination, and bounded movement substeps pause before either can be overlapped;
+ordinary doors cannot be destinations because only authored `.` cells are accepted,
+and activated push walls reserve their full paths against each other.
+Navigation, sight, shots and player/enemy collision all consult the moving block.
+The explored map queries the same physical occupancy, clears the activated source and
+shows a destination only if that cell was already visited. Secret scoring and counting
+happen exactly once.
+
+Run-save version 4 records cardinal direction, normalized progress and one/two-cell
+travel distance. Versions 1–3 still parse; an activated legacy lifting-wall record is
+migrated to a deterministic valid push direction when its world state is restored.
+Focused tests cover invalid authoring, a blocked destination, interpolated/final
+collision, actor-safe pause/resume, one-time activation, automap state and save restore.
 
 - validate a push direction and at least one safe destination at load time;
 - animate the wall across one or more grid cells without rebuilding static geometry per frame;

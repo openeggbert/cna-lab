@@ -38,6 +38,7 @@ namespace WolfCna
             TerminalActivated,
             RelayActivated,
             SecretRevealed,
+            SecretBlocked,
             ExitActivated,
             SecretExitActivated,
             ExitSealed
@@ -135,6 +136,9 @@ namespace WolfCna
             bool opening = false;
             float openAmount = 0.0f;
             float closeDelay = 0.0f;
+            int pushDirectionX = 0;
+            int pushDirectionZ = 0;
+            int pushDistanceCells = 0;
         };
 
         struct EnemySaveState
@@ -282,6 +286,8 @@ namespace WolfCna
         [[nodiscard]] int ConsumeGuardShotCount();
         [[nodiscard]] EnemyAudioEvents ConsumeEnemyAudioEvents();
         [[nodiscard]] int ActiveEnemyImpactCount() const;
+        [[nodiscard]] bool IsPushWallAtCell(int x, int z) const;
+        [[nodiscard]] bool IsActivatedPushWallSource(int x, int z) const;
         [[nodiscard]] InteractionResult TryActivate(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection,
@@ -313,6 +319,9 @@ namespace WolfCna
             float openAmount = 0.0f;
             float closeDelay = 0.0f;
             int requiredAccess = 0;
+            int pushDirectionX = 0;
+            int pushDirectionZ = 0;
+            int pushDistanceCells = 0;
         };
 
         struct Impact
@@ -492,6 +501,24 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> bloodPoolIndexBuffer_;
 
         [[nodiscard]] bool IsStaticWallCell(int x, int z) const;
+        [[nodiscard]] bool IsPushWallDestinationCell(int x, int z) const;
+        [[nodiscard]] bool PushWallOccupiesCell(const Door& door, int x, int z) const;
+        [[nodiscard]] bool PushWallIntersectsCircle(
+            const Door& door,
+            float openAmount,
+            float worldX,
+            float worldZ,
+            float radius) const;
+        [[nodiscard]] int PushWallDistanceForDirection(
+            const Door& door,
+            int directionX,
+            int directionZ) const;
+        [[nodiscard]] bool PushWallPathOccupied(
+            const Door& door,
+            int directionX,
+            int directionZ,
+            int distanceCells,
+            const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         [[nodiscard]] bool IsBlockedCell(int x, int z) const;
         [[nodiscard]] bool IsNavigationBlockedCell(
             int x,

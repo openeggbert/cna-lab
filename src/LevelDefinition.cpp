@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 
 namespace WolfCna
 {
@@ -138,6 +139,17 @@ namespace WolfCna
                 x >= 0 && x < static_cast<int>(level.rows_[static_cast<std::size_t>(z)].size()) &&
                 level.rows_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == '#';
         };
+        const auto isBlocked = [&level](int x, int z)
+        {
+            if (z < 0 || z >= static_cast<int>(level.rows_.size()) ||
+                x < 0 || x >= static_cast<int>(level.rows_[static_cast<std::size_t>(z)].size()))
+                return true;
+            const char symbol = level.rows_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)];
+            return symbol == '#' || symbol == 'Y' || symbol == 'D' || symbol == 'Q' ||
+                symbol == 'q' || symbol == 'S' || symbol == 'E' || symbol == 'X';
+        };
+        constexpr std::pair<int, int> directions[] = {
+            {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         for (int z = 0; z < static_cast<int>(level.rows_.size()); ++z)
         {
             for (int x = 0; x < static_cast<int>(level.rows_[static_cast<std::size_t>(z)].size()); ++x)
@@ -151,6 +163,35 @@ namespace WolfCna
                         sourceName,
                         "line " + std::to_string(z + 1) +
                             " has a wall decoration without an adjacent wall");
+                }
+
+                if (symbol == 'S')
+                {
+                    bool hasSafePushDirection = false;
+                    for (const auto [directionX, directionZ] : directions)
+                    {
+                        const int destinationX = x + directionX;
+                        const int destinationZ = z + directionZ;
+                        const bool destinationIsEmpty = destinationZ >= 0 &&
+                            destinationZ < static_cast<int>(level.rows_.size()) &&
+                            destinationX >= 0 && destinationX < static_cast<int>(
+                                level.rows_[static_cast<std::size_t>(destinationZ)].size()) &&
+                            level.rows_[static_cast<std::size_t>(destinationZ)]
+                                [static_cast<std::size_t>(destinationX)] == '.';
+                        if (destinationIsEmpty &&
+                            !isBlocked(x - directionX, z - directionZ))
+                        {
+                            hasSafePushDirection = true;
+                            break;
+                        }
+                    }
+                    if (!hasSafePushDirection)
+                    {
+                        throw LevelError(
+                            sourceName,
+                            "line " + std::to_string(z + 1) +
+                                " has a push wall without a safe destination and approach");
+                    }
                 }
 
                 if (symbol != '^' && symbol != '>' && symbol != 'v' && symbol != '<')

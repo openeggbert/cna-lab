@@ -62,12 +62,14 @@
 - Every sector now uses 10/25-health pickups, 4/8-round supplies and a 1,000-point peace prism; rare recovery beacons grant full health plus one life.
 - Ammo and duplicate weapons respect the 99 cap, while enemy drops depend on archetype, difficulty and the strongest carried weapon; card-aware BFS tests keep every route solvable.
 - Four new genuine-alpha AI-generated pickup sprites are committed with complete provenance.
+- Secret `S` cells are now full polygonal push-wall blocks that move one or two cells away from the player, pause before actors and never return.
+- Push-wall collision, navigation and visited-cell automap state share the same interpolated position; run-save version 4 persists it and migrates versions 1–3.
 
 ## Next tasks
 
-1. Implement WOLF-040 physical push-wall secrets.
-2. Continue through WOLF-041–WOLF-044 in the dependency order recorded in `plan.md`.
-3. Subjectively playtest all three deterministic difficulty profiles, save slots, life loss and the full six-sector route including the hidden branch.
+1. Implement WOLF-041 distance-aware deterministic weapon combat.
+2. Continue through WOLF-042–WOLF-044 in the dependency order recorded in `plan.md`.
+3. Subjectively playtest all three deterministic difficulty profiles, save slots, life loss, push walls and the full six-sector route including the hidden branch.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.

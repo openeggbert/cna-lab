@@ -878,7 +878,20 @@ int main()
     Expect(
         WolfCna::RunSave::Serialize(*parsedRunSave) == serializedRunSave,
         "run save serialization is a deterministic round trip");
-    std::string versionTwoRunSave = serializedRunSave;
+    WolfCna::RunSaveState legacyFormatRunSaveState = runSaveState;
+    legacyFormatRunSaveState.world.doors.clear();
+    std::string versionThreeRunSave = WolfCna::RunSave::Serialize(legacyFormatRunSaveState);
+    versionThreeRunSave.replace(
+        versionThreeRunSave.find("WOLF-CNA-RUN-SAVE-4"),
+        std::string("WOLF-CNA-RUN-SAVE-4").size(),
+        "WOLF-CNA-RUN-SAVE-3");
+    const std::optional<WolfCna::RunSaveState> parsedVersionThreeRunSave =
+        WolfCna::RunSave::Parse(versionThreeRunSave, saveError);
+    Expect(
+        parsedVersionThreeRunSave.has_value() &&
+            parsedVersionThreeRunSave->world.doors.empty(),
+        "version three run saves migrate without push-wall direction fields");
+    std::string versionTwoRunSave = versionThreeRunSave;
     versionTwoRunSave.replace(
         versionTwoRunSave.find("WOLF-CNA-RUN-SAVE-3"),
         std::string("WOLF-CNA-RUN-SAVE-3").size(),
@@ -1003,6 +1016,12 @@ int main()
     ExpectParseFailure(
         "#####\n#P.>#\n#####\n",
         "patrol marker pointing into a blocked cell");
+    ExpectParseFailure(
+        "#####\n#PS##\n#####\n",
+        "push wall without a safe destination and approach");
+    ExpectParseFailure(
+        "######\n#PSD.#\n######\n",
+        "push wall without a safe destination and approach");
 
     WolfCna::World doorWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PD.#\n#####\n",
@@ -1043,17 +1062,106 @@ int main()
     Expect(occupiedDoorWorld.Collides(2.5f, 1.5f, 0.1f), "door closes after the player leaves");
 
     WolfCna::World secretWorld(WolfCna::LevelDefinition::Parse(
-        "######\n#PS..#\n######\n",
+        "#######\n#PS...#\n#######\n",
         "secret.level"));
     Expect(secretWorld.Collides(2.5f, 1.5f, 0.1f), "secret wall blocks movement before it is found");
+    Expect(secretWorld.IsPushWallAtCell(2, 1), "unactivated push wall occupies its authored cell");
     Expect(
         secretWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::SecretRevealed,
-        "secret wall is revealed through interaction");
-    static_cast<void>(secretWorld.Update(0.5f, playerPosition));
-    static_cast<void>(secretWorld.Update(5.0f, playerPosition));
-    Expect(!secretWorld.Collides(2.5f, 1.5f, 0.1f), "secret wall remains open after discovery");
+        "secret wall starts moving away from the player");
+    static_cast<void>(secretWorld.Update(0.7f, playerPosition));
+    Expect(
+        secretWorld.Collides(2.55f, 1.5f, 0.1f) &&
+            secretWorld.IsPushWallAtCell(2, 1) && secretWorld.IsPushWallAtCell(3, 1),
+        "moving push wall has physical collision across both touched cells");
+    static_cast<void>(secretWorld.Update(3.0f, playerPosition));
+    Expect(
+        !secretWorld.Collides(2.5f, 1.5f, 0.1f) &&
+            !secretWorld.Collides(3.5f, 1.5f, 0.1f) &&
+            secretWorld.Collides(4.5f, 1.5f, 0.1f),
+        "push wall permanently clears its source and intermediate passage");
+    Expect(
+        secretWorld.IsActivatedPushWallSource(2, 1) &&
+            !secretWorld.IsPushWallAtCell(2, 1) && secretWorld.IsPushWallAtCell(4, 1),
+        "automap queries track the push wall's final physical cell");
     const WolfCna::World::CompletionStats secretStats = secretWorld.GetCompletionStats();
     Expect(secretStats.foundSecrets == 1 && secretStats.totalSecrets == 1, "secret discovery is counted once");
+    Expect(
+        secretWorld.TryActivate(playerPosition, lookDirection, false) ==
+            WolfCna::World::InteractionResult::None &&
+            secretWorld.GetCompletionStats().foundSecrets == 1,
+        "an activated push wall cannot be triggered or counted twice");
+    const WolfCna::World::SaveState pushedSecretSave = secretWorld.CaptureSaveState();
+    WolfCna::World restoredSecretWorld(WolfCna::LevelDefinition::Parse(
+        "#######\n#PS...#\n#######\n",
+        "restored-secret.level"));
+    Expect(
+        restoredSecretWorld.RestoreSaveState(pushedSecretSave) &&
+            restoredSecretWorld.IsPushWallAtCell(4, 1) &&
+            !restoredSecretWorld.IsPushWallAtCell(2, 1),
+        "save state restores push direction, distance and final collision");
+
+    WolfCna::World pausedSecretWorld(WolfCna::LevelDefinition::Parse(
+        "#######\n#PS...#\n#######\n",
+        "paused-secret.level"));
+    Expect(
+        pausedSecretWorld.TryActivate(playerPosition, lookDirection, false) ==
+            WolfCna::World::InteractionResult::SecretRevealed,
+        "moving-obstacle push-wall fixture activates");
+    static_cast<void>(pausedSecretWorld.Update(0.4f, playerPosition));
+    const Microsoft::Xna::Framework::Vector3 playerInPushPath(4.0f, 0.62f, 1.5f);
+    static_cast<void>(pausedSecretWorld.Update(3.0f, playerInPushPath));
+    Expect(
+        pausedSecretWorld.CaptureSaveState().doors.front().opening &&
+            !pausedSecretWorld.Collides(4.0f, 1.5f, 0.22f),
+        "moving push wall pauses before overlapping a player in its path");
+    static_cast<void>(pausedSecretWorld.Update(3.0f, playerPosition));
+    Expect(
+        !pausedSecretWorld.CaptureSaveState().doors.front().opening &&
+            pausedSecretWorld.IsPushWallAtCell(4, 1),
+        "paused push wall resumes and completes after the path clears");
+
+    WolfCna::World oneCellSecretWorld(WolfCna::LevelDefinition::Parse(
+        "######\n#PS.##\n######\n",
+        "one-cell-secret.level"));
+    Expect(
+        oneCellSecretWorld.TryActivate(playerPosition, lookDirection, false) ==
+            WolfCna::World::InteractionResult::SecretRevealed,
+        "a push wall accepts one safe destination when a second is unavailable");
+    static_cast<void>(oneCellSecretWorld.Update(2.0f, playerPosition));
+    Expect(
+        oneCellSecretWorld.CaptureSaveState().doors.front().pushDistanceCells == 1 &&
+            !oneCellSecretWorld.Collides(2.5f, 1.5f, 0.1f) &&
+            oneCellSecretWorld.Collides(3.5f, 1.5f, 0.1f),
+        "one-cell push distance clears only the authored source");
+
+    WolfCna::World blockedSecretWorld(WolfCna::LevelDefinition::Parse(
+        "########\n#PS..G.#\n########\n",
+        "blocked-secret.level"));
+    WolfCna::World::SaveState blockedSecretState = blockedSecretWorld.CaptureSaveState();
+    blockedSecretState.enemies.front().positionX = 3.5f;
+    blockedSecretState.enemies.front().positionZ = 1.5f;
+    blockedSecretState.enemies.front().lastKnownX = 3.5f;
+    blockedSecretState.enemies.front().lastKnownZ = 1.5f;
+    Expect(
+        blockedSecretWorld.RestoreSaveState(blockedSecretState) &&
+            blockedSecretWorld.TryActivate(playerPosition, lookDirection, false) ==
+                WolfCna::World::InteractionResult::SecretBlocked &&
+            blockedSecretWorld.GetCompletionStats().foundSecrets == 0,
+        "an occupied destination blocks push-wall activation without counting a secret");
+
+    WolfCna::World crossingSecretWorld(WolfCna::LevelDefinition::Parse(
+        "##########\n#PS...S..#\n##########\n",
+        "crossing-secret.level"));
+    Expect(
+        crossingSecretWorld.TryActivate(playerPosition, lookDirection, false) ==
+            WolfCna::World::InteractionResult::SecretRevealed &&
+            crossingSecretWorld.TryActivate(
+                Microsoft::Xna::Framework::Vector3(7.5f, 0.62f, 1.5f),
+                Microsoft::Xna::Framework::Vector3(-1.0f, 0.0f, 0.0f),
+                false) == WolfCna::World::InteractionResult::SecretBlocked &&
+            crossingSecretWorld.GetCompletionStats().foundSecrets == 1,
+        "a reserved push-wall path prevents two moving wall blocks from overlapping");
 
     WolfCna::World bodyDoorWorld(WolfCna::LevelDefinition::Parse(
         "######\n#PDK.#\n######\n",

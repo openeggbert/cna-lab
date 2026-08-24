@@ -1327,13 +1327,16 @@ namespace WolfCna
 
                 const char symbol = rows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)];
                 Color floorColor(29, 58, 91, 255);
-                if (symbol == 'D')
+                const bool occupiedByPushWall = world_.IsPushWallAtCell(x, z);
+                if (occupiedByPushWall)
+                    floorColor = secretColor;
+                else if (symbol == 'D')
                     floorColor = doorColor;
                 else if (symbol == 'Q')
                     floorColor = lockedDoorColor;
                 else if (symbol == 'q')
                     floorColor = Color(226, 143, 42, 255);
-                else if (symbol == 'S')
+                else if (symbol == 'S' && !world_.IsActivatedPushWallSource(x, z))
                     floorColor = secretColor;
                 else if (symbol == 'E' || symbol == 'M')
                     floorColor = Color(36, 173, 177, 255);
@@ -1342,12 +1345,13 @@ namespace WolfCna
                 const int top = mapTop + z * cellSize;
                 hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left, top, cellSize, cellSize), floorColor);
 
-                const auto isWall = [&rows](int wallX, int wallZ)
+                const auto isWall = [this, &rows](int wallX, int wallZ)
                 {
                     return wallZ < 0 || wallX < 0 ||
                         wallZ >= static_cast<int>(rows.size()) ||
                         wallX >= static_cast<int>(rows[static_cast<std::size_t>(wallZ)].size()) ||
-                        rows[static_cast<std::size_t>(wallZ)][static_cast<std::size_t>(wallX)] == '#';
+                        rows[static_cast<std::size_t>(wallZ)][static_cast<std::size_t>(wallX)] == '#' ||
+                        world_.IsPushWallAtCell(wallX, wallZ);
                 };
                 const Color wallColor(119, 148, 180, 255);
                 if (isWall(x, z - 1))
@@ -2587,6 +2591,13 @@ namespace WolfCna
                 AwardScore(500);
                 if (secretSound_)
                     static_cast<void>(secretSound_->Play(0.3f, 0.45f, 0.0f));
+            }
+            else if (activation == World::InteractionResult::SecretBlocked)
+            {
+                if (lockedSound_)
+                    static_cast<void>(lockedSound_->Play(0.18f, -0.5f, 0.0f));
+                objectiveMessage_ = "PUSH WALL BLOCKED";
+                objectiveMessageSeconds_ = 2.0f;
             }
         }
         actionWasDown_ = actionIsDown;

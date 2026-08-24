@@ -24,6 +24,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - uncapped run score for treasure, defeated enemies, secrets and deterministic sector bonuses; every 40,000 points awards another life
 - a centered completion card shows kill, treasure and secret percentages plus clear, target-time and perfect-category awards
 - grid collision with wall sliding
+- full-cell polygonal push walls slide away from the player by up to two safe cells, pause before overlapping actors and permanently expose their passage
 - level loaded from a validated text file
 - five progressively unlocked authored bunker sectors plus a discoverable hidden sector, deterministic return route, original boss encounter and campaign-ending screen
 - original transparent pixel-art guard, hound, rapid-trooper, heavy-unit and Bunker Warden sprites rendered as camera-facing polygons in the 3D world
@@ -100,7 +101,8 @@ working directory. Invalid progress data safely falls back to sector 1 with an e
 score table; profile versions 1–5 migrate into the current version 6 format.
 Run slots are stored as `wolf-cna-save-1.dat` through `wolf-cna-save-3.dat`.
 Malformed, incompatible or sector-mismatched saves are rejected without replacing
-the current run.
+the current run. The current run-save version 4 persists push-wall direction and
+travel while migrating versions 1–3.
 
 ## Level files
 
@@ -123,7 +125,7 @@ have the same width and use only these symbols:
 - `c`: amber access-card pickup, required to open `q`
 - `M`: optional amber bunker terminal
 - `O`: optional violet power relay
-- `S`: secret moving wall; use it to expose a hidden reward
+- `S`: secret full-cell push wall; approach it from a walkable side and use the action key to move it into one or two adjacent `.` cells
 - `G`: guard spawn
 - `K`: hound spawn
 - `F`: rapid-fire trooper spawn

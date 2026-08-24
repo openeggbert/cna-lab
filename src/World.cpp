@@ -31,6 +31,9 @@ namespace WolfCna
         constexpr float DoorAutoCloseDelay = 4.0f;
         constexpr float DoorBodyHoldRadius = 0.45f;
         constexpr float DoorPlayerClearance = 0.22f;
+        constexpr float PushWallSpeed = 0.72f;
+        constexpr int MaximumPushWallDistance = 2;
+        constexpr float PushWallCollisionEpsilon = 0.0001f;
         constexpr float ActivationRange = 1.5f;
         constexpr float ActivationDotThreshold = 0.5f;
         constexpr float HitScanRange = 12.0f;
@@ -99,6 +102,119 @@ namespace WolfCna
         return map_[z][x] == '#';
     }
 
+    bool World::IsPushWallDestinationCell(int x, int z) const
+    {
+        return z >= 0 && z < static_cast<int>(map_.size()) &&
+            x >= 0 && x < static_cast<int>(map_[static_cast<std::size_t>(z)].size()) &&
+            map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == '.';
+    }
+
+    bool World::PushWallOccupiesCell(const Door& door, int x, int z) const
+    {
+        if (!door.isSecret)
+            return false;
+
+        const float travel = door.openAmount * static_cast<float>(door.pushDistanceCells);
+        const float minimumX = static_cast<float>(door.x) +
+            static_cast<float>(door.pushDirectionX) * travel;
+        const float minimumZ = static_cast<float>(door.z) +
+            static_cast<float>(door.pushDirectionZ) * travel;
+        const float maximumX = minimumX + 1.0f;
+        const float maximumZ = minimumZ + 1.0f;
+        return maximumX > static_cast<float>(x) + PushWallCollisionEpsilon &&
+            minimumX < static_cast<float>(x + 1) - PushWallCollisionEpsilon &&
+            maximumZ > static_cast<float>(z) + PushWallCollisionEpsilon &&
+            minimumZ < static_cast<float>(z + 1) - PushWallCollisionEpsilon;
+    }
+
+    bool World::PushWallIntersectsCircle(
+        const Door& door,
+        float openAmount,
+        float worldX,
+        float worldZ,
+        float radius) const
+    {
+        const float travel = openAmount * static_cast<float>(door.pushDistanceCells);
+        const float minimumX = static_cast<float>(door.x) +
+            static_cast<float>(door.pushDirectionX) * travel;
+        const float minimumZ = static_cast<float>(door.z) +
+            static_cast<float>(door.pushDirectionZ) * travel;
+        const float nearestX = std::clamp(worldX, minimumX, minimumX + 1.0f);
+        const float nearestZ = std::clamp(worldZ, minimumZ, minimumZ + 1.0f);
+        const float dx = worldX - nearestX;
+        const float dz = worldZ - nearestZ;
+        return dx * dx + dz * dz < radius * radius;
+    }
+
+    int World::PushWallDistanceForDirection(
+        const Door& door,
+        int directionX,
+        int directionZ) const
+    {
+        int distance = 0;
+        for (int step = 1; step <= MaximumPushWallDistance; ++step)
+        {
+            if (!IsPushWallDestinationCell(
+                    door.x + directionX * step,
+                    door.z + directionZ * step))
+                break;
+            distance = step;
+        }
+        return distance;
+    }
+
+    bool World::PushWallPathOccupied(
+        const Door& door,
+        int directionX,
+        int directionZ,
+        int distanceCells,
+        const Vector3& playerPosition) const
+    {
+        const auto occupiesDestination =
+            [&door, directionX, directionZ, distanceCells](const Vector3& position)
+        {
+            const int cellX = static_cast<int>(std::floor(position.X));
+            const int cellZ = static_cast<int>(std::floor(position.Z));
+            for (int step = 1; step <= distanceCells; ++step)
+            {
+                if (cellX == door.x + directionX * step &&
+                    cellZ == door.z + directionZ * step)
+                    return true;
+            }
+            return false;
+        };
+
+        if (occupiesDestination(playerPosition))
+            return true;
+        if (std::any_of(enemies_.begin(), enemies_.end(), [&occupiesDestination](const Enemy& enemy)
+        {
+            return occupiesDestination(enemy.position);
+        }))
+            return true;
+
+        for (const Door& other : doors_)
+        {
+            if (&other == &door || !other.isSecret)
+                continue;
+            for (int step = 1; step <= distanceCells; ++step)
+            {
+                const int destinationX = door.x + directionX * step;
+                const int destinationZ = door.z + directionZ * step;
+                if (PushWallOccupiesCell(other, destinationX, destinationZ))
+                    return true;
+                if (!other.opening && other.openAmount <= 0.0f)
+                    continue;
+                for (int otherStep = 0; otherStep <= other.pushDistanceCells; ++otherStep)
+                {
+                    if (destinationX == other.x + other.pushDirectionX * otherStep &&
+                        destinationZ == other.z + other.pushDirectionZ * otherStep)
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
+
     bool World::IsBlockedCell(int x, int z) const
     {
         if (IsStaticWallCell(x, z))
@@ -114,7 +230,9 @@ namespace WolfCna
 
         for (const Door& door : doors_)
         {
-            if (door.x == x && door.z == z)
+            if (door.isSecret && PushWallOccupiesCell(door, x, z))
+                return true;
+            if (!door.isSecret && door.x == x && door.z == z)
                 return door.openAmount < DoorPassableAt;
         }
 
@@ -134,6 +252,12 @@ namespace WolfCna
 
         for (const Door& door : doors_)
         {
+            if (door.isSecret)
+            {
+                if (PushWallOccupiesCell(door, x, z))
+                    return true;
+                continue;
+            }
             if (door.x != x || door.z != z || door.openAmount >= DoorPassableAt)
                 continue;
             if (allowOrdinaryDoors && door.material == Material::Door && !door.isSecret)
@@ -214,7 +338,29 @@ namespace WolfCna
         {
             const int cellX = static_cast<int>(std::floor(worldX + p.X));
             const int cellZ = static_cast<int>(std::floor(worldZ + p.Y));
-            if (IsBlockedCell(cellX, cellZ))
+            if (IsStaticWallCell(cellX, cellZ))
+                return true;
+            if (cellZ < 0 || cellZ >= static_cast<int>(map_.size()) ||
+                cellX < 0 || cellX >= static_cast<int>(map_[static_cast<std::size_t>(cellZ)].size()) ||
+                map_[static_cast<std::size_t>(cellZ)][static_cast<std::size_t>(cellX)] == 'Y')
+                return true;
+            for (const Exit& exit : exits_)
+            {
+                if (exit.x == cellX && exit.z == cellZ && exit.openAmount < DoorPassableAt)
+                    return true;
+            }
+            for (const Door& door : doors_)
+            {
+                if (!door.isSecret && door.x == cellX && door.z == cellZ &&
+                    door.openAmount < DoorPassableAt)
+                    return true;
+            }
+        }
+
+        for (const Door& door : doors_)
+        {
+            if (door.isSecret &&
+                PushWallIntersectsCircle(door, door.openAmount, worldX, worldZ, radius))
                 return true;
         }
 
@@ -550,7 +696,15 @@ namespace WolfCna
         state.foundSecrets = foundSecrets_;
         state.doors.reserve(doors_.size());
         for (const Door& door : doors_)
-            state.doors.push_back({door.opening, door.openAmount, door.closeDelay});
+        {
+            state.doors.push_back({
+                .opening = door.opening,
+                .openAmount = door.openAmount,
+                .closeDelay = door.closeDelay,
+                .pushDirectionX = door.pushDirectionX,
+                .pushDirectionZ = door.pushDirectionZ,
+                .pushDistanceCells = door.pushDistanceCells});
+        }
         state.enemies.reserve(enemies_.size());
         for (const Enemy& enemy : enemies_)
         {
@@ -632,11 +786,39 @@ namespace WolfCna
             state.foundSecrets < 0 || state.foundSecrets > totalSecrets_)
             return false;
 
-        for (const DoorSaveState& door : state.doors)
+        for (std::size_t index = 0; index < state.doors.size(); ++index)
         {
-            if (!finite(door.openAmount) || door.openAmount < 0.0f || door.openAmount > 1.0f ||
-                !finite(door.closeDelay) || door.closeDelay < 0.0f || door.closeDelay > 60.0f)
+            const DoorSaveState& saved = state.doors[index];
+            const Door& authored = doors_[index];
+            if (!finite(saved.openAmount) || saved.openAmount < 0.0f || saved.openAmount > 1.0f ||
+                !finite(saved.closeDelay) || saved.closeDelay < 0.0f || saved.closeDelay > 60.0f)
                 return false;
+            const bool hasCardinalPushDirection =
+                std::abs(saved.pushDirectionX) + std::abs(saved.pushDirectionZ) == 1;
+            const bool hasLegacyPushState = authored.isSecret &&
+                (saved.opening || saved.openAmount > 0.0f) &&
+                saved.pushDirectionX == 0 && saved.pushDirectionZ == 0 &&
+                saved.pushDistanceCells == 0;
+            if (!authored.isSecret &&
+                (saved.pushDirectionX != 0 || saved.pushDirectionZ != 0 ||
+                    saved.pushDistanceCells != 0))
+                return false;
+            if (authored.isSecret && !hasLegacyPushState)
+            {
+                const bool activated = saved.opening || saved.openAmount > 0.0f;
+                if (!activated &&
+                    (saved.pushDirectionX != 0 || saved.pushDirectionZ != 0 ||
+                        saved.pushDistanceCells != 0))
+                    return false;
+                if (activated &&
+                    (!hasCardinalPushDirection || saved.pushDistanceCells < 1 ||
+                        saved.pushDistanceCells > MaximumPushWallDistance ||
+                        PushWallDistanceForDirection(
+                            authored,
+                            saved.pushDirectionX,
+                            saved.pushDirectionZ) != saved.pushDistanceCells))
+                    return false;
+            }
         }
         int savedDeadEnemies = 0;
         for (const EnemySaveState& enemy : state.enemies)
@@ -728,9 +910,38 @@ namespace WolfCna
 
         for (std::size_t index = 0; index < doors_.size(); ++index)
         {
-            doors_[index].opening = state.doors[index].opening;
-            doors_[index].openAmount = state.doors[index].openAmount;
-            doors_[index].closeDelay = state.doors[index].closeDelay;
+            Door& door = doors_[index];
+            const DoorSaveState& saved = state.doors[index];
+            door.opening = saved.opening;
+            door.openAmount = saved.openAmount;
+            door.closeDelay = saved.closeDelay;
+            door.pushDirectionX = saved.pushDirectionX;
+            door.pushDirectionZ = saved.pushDirectionZ;
+            door.pushDistanceCells = saved.pushDistanceCells;
+            if (door.isSecret && (door.opening || door.openAmount > 0.0f) &&
+                door.pushDistanceCells == 0)
+            {
+                constexpr std::array<std::pair<int, int>, 4> directions = {
+                    std::pair{1, 0},
+                    std::pair{-1, 0},
+                    std::pair{0, 1},
+                    std::pair{0, -1}};
+                for (const auto [directionX, directionZ] : directions)
+                {
+                    const int distance = PushWallDistanceForDirection(
+                        door,
+                        directionX,
+                        directionZ);
+                    if (distance <= 0)
+                        continue;
+                    door.pushDirectionX = directionX;
+                    door.pushDirectionZ = directionZ;
+                    door.pushDistanceCells = distance;
+                    break;
+                }
+                if (door.pushDistanceCells == 0)
+                    return false;
+            }
         }
         for (std::size_t index = 0; index < enemies_.size(); ++index)
         {
@@ -811,6 +1022,23 @@ namespace WolfCna
     int World::ActiveEnemyImpactCount() const
     {
         return static_cast<int>(enemyImpacts_.size());
+    }
+
+    bool World::IsPushWallAtCell(int x, int z) const
+    {
+        return std::any_of(doors_.begin(), doors_.end(), [this, x, z](const Door& door)
+        {
+            return PushWallOccupiesCell(door, x, z);
+        });
+    }
+
+    bool World::IsActivatedPushWallSource(int x, int z) const
+    {
+        return std::any_of(doors_.begin(), doors_.end(), [x, z](const Door& door)
+        {
+            return door.isSecret && door.x == x && door.z == z &&
+                (door.opening || door.openAmount > 0.0f);
+        });
     }
 
     void World::AddEnemyImpact(const Vector3& position, bool hitPlayer)
@@ -939,6 +1167,33 @@ namespace WolfCna
         if (!target)
             return InteractionResult::None;
 
+        if (target->isSecret)
+        {
+            const float offsetX = static_cast<float>(target->x) + 0.5f - playerPosition.X;
+            const float offsetZ = static_cast<float>(target->z) + 0.5f - playerPosition.Z;
+            const bool pushesAlongX = std::abs(offsetX) >= std::abs(offsetZ);
+            const int directionX = pushesAlongX ? (offsetX >= 0.0f ? 1 : -1) : 0;
+            const int directionZ = pushesAlongX ? 0 : (offsetZ >= 0.0f ? 1 : -1);
+            const int pushDistance = PushWallDistanceForDirection(
+                *target,
+                directionX,
+                directionZ);
+            if (pushDistance <= 0 || PushWallPathOccupied(
+                    *target,
+                    directionX,
+                    directionZ,
+                    pushDistance,
+                    playerPosition))
+                return InteractionResult::SecretBlocked;
+
+            target->pushDirectionX = directionX;
+            target->pushDirectionZ = directionZ;
+            target->pushDistanceCells = pushDistance;
+            target->opening = true;
+            ++foundSecrets_;
+            return InteractionResult::SecretRevealed;
+        }
+
         if (target->requiredAccess != 0 &&
             (accessMask & target->requiredAccess) == 0)
         {
@@ -949,11 +1204,6 @@ namespace WolfCna
 
         target->opening = true;
         target->closeDelay = DoorAutoCloseDelay;
-        if (target->isSecret)
-        {
-            ++foundSecrets_;
-            return InteractionResult::SecretRevealed;
-        }
         return InteractionResult::DoorOpened;
     }
 
@@ -966,6 +1216,50 @@ namespace WolfCna
 
         for (Door& door : doors_)
         {
+            if (door.isSecret)
+            {
+                if (!door.opening || door.pushDistanceCells <= 0)
+                    continue;
+
+                float physicalTravelRemaining = PushWallSpeed * elapsedSeconds;
+                while (physicalTravelRemaining > 0.0f && door.openAmount < 1.0f)
+                {
+                    const float physicalStep = std::min(0.05f, physicalTravelRemaining);
+                    const float proposedAmount = std::min(
+                        1.0f,
+                        door.openAmount + physicalStep /
+                            static_cast<float>(door.pushDistanceCells));
+                    const bool hitsPlayer = PushWallIntersectsCircle(
+                        door,
+                        proposedAmount,
+                        playerPosition.X,
+                        playerPosition.Z,
+                        DoorPlayerClearance);
+                    const bool hitsEnemy = std::any_of(
+                        enemies_.begin(),
+                        enemies_.end(),
+                        [this, &door, proposedAmount](const Enemy& enemy)
+                        {
+                            return PushWallIntersectsCircle(
+                                door,
+                                proposedAmount,
+                                enemy.position.X,
+                                enemy.position.Z,
+                                0.24f);
+                        });
+                    if (hitsPlayer || hitsEnemy)
+                        break;
+
+                    const float previousAmount = door.openAmount;
+                    door.openAmount = proposedAmount;
+                    changed = changed || door.openAmount != previousAmount;
+                    physicalTravelRemaining -= physicalStep;
+                }
+                if (door.openAmount >= 1.0f)
+                    door.opening = false;
+                continue;
+            }
+
             if (door.opening)
             {
                 const float previousAmount = door.openAmount;
@@ -980,9 +1274,6 @@ namespace WolfCna
             }
 
             if (door.openAmount <= 0.0f)
-                continue;
-
-            if (door.isSecret)
                 continue;
 
             if (HasDeadEnemyInDoorway(door) || HasPlayerInDoorway(door, playerPosition))
@@ -1513,6 +1804,21 @@ namespace WolfCna
 
         for (const Door& door : doors_)
         {
+            if (door.isSecret)
+            {
+                const float travel = door.openAmount *
+                    static_cast<float>(door.pushDistanceCells);
+                const float minimumX = static_cast<float>(door.x) +
+                    static_cast<float>(door.pushDirectionX) * travel;
+                const float minimumZ = static_cast<float>(door.z) +
+                    static_cast<float>(door.pushDirectionZ) * travel;
+                AddDoorBox(
+                    Vector3(minimumX, 0.0f, minimumZ),
+                    Vector3(minimumX + 1.0f, WallHeight, minimumZ + 1.0f),
+                    door.material);
+                continue;
+            }
+
             const float centerX = static_cast<float>(door.x) + 0.5f;
             const float centerZ = static_cast<float>(door.z) + 0.5f;
             const float halfThickness = DoorThickness * 0.5f;

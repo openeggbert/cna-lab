@@ -14,6 +14,7 @@ namespace WolfCna
         constexpr std::string_view MagicV1 = "WOLF-CNA-RUN-SAVE-1";
         constexpr std::string_view MagicV2 = "WOLF-CNA-RUN-SAVE-2";
         constexpr std::string_view MagicV3 = "WOLF-CNA-RUN-SAVE-3";
+        constexpr std::string_view MagicV4 = "WOLF-CNA-RUN-SAVE-4";
         constexpr std::size_t MaximumRecordCount = 65536;
 
         bool ReadTag(std::istream& input, std::string_view expected, std::string& error)
@@ -99,7 +100,7 @@ namespace WolfCna
     {
         std::ostringstream output;
         output << std::setprecision(std::numeric_limits<float>::max_digits10);
-        output << MagicV3 << '\n';
+        output << MagicV4 << '\n';
         output << "GAME " << state.levelIndex << ' ' << state.difficulty << ' '
             << state.playerX << ' ' << state.playerY << ' ' << state.playerZ << ' '
             << state.yaw << ' ' << state.health << ' ' << state.ammunition << ' '
@@ -116,7 +117,11 @@ namespace WolfCna
             << state.world.collectedGold << ' ' << state.world.foundSecrets << '\n';
         output << "DOORS " << state.world.doors.size() << '\n';
         for (const World::DoorSaveState& door : state.world.doors)
-            output << door.opening << ' ' << door.openAmount << ' ' << door.closeDelay << '\n';
+        {
+            output << door.opening << ' ' << door.openAmount << ' ' << door.closeDelay << ' '
+                << door.pushDirectionX << ' ' << door.pushDirectionZ << ' '
+                << door.pushDistanceCells << '\n';
+        }
         output << "ENEMIES " << state.world.enemies.size() << '\n';
         for (const World::EnemySaveState& enemy : state.world.enemies)
         {
@@ -166,7 +171,7 @@ namespace WolfCna
         RunSaveState state;
         std::string magic;
         if (!(input >> magic) ||
-            (magic != MagicV1 && magic != MagicV2 && magic != MagicV3))
+            (magic != MagicV1 && magic != MagicV2 && magic != MagicV3 && magic != MagicV4))
         {
             error = "save has an unsupported header";
             return std::nullopt;
@@ -180,7 +185,7 @@ namespace WolfCna
                 error = "save has an invalid GAME section";
             return std::nullopt;
         }
-        if (magic == MagicV2 || magic == MagicV3)
+        if (magic == MagicV2 || magic == MagicV3 || magic == MagicV4)
         {
             if (!(input >> state.sectorEntryScore >> state.sectorEntryNextExtraLifeScore))
             {
@@ -198,7 +203,7 @@ namespace WolfCna
             error = "save has an invalid GAME section";
             return std::nullopt;
         }
-        if (magic == MagicV3)
+        if (magic == MagicV3 || magic == MagicV4)
         {
             if (!(input >> state.accessMask))
             {
@@ -251,6 +256,13 @@ namespace WolfCna
             if (!ReadBool(input, door.opening, error) ||
                 !(input >> door.openAmount >> door.closeDelay))
                 return std::nullopt;
+            if (magic == MagicV4 &&
+                !(input >> door.pushDirectionX >> door.pushDirectionZ >>
+                    door.pushDistanceCells))
+            {
+                error = "save has an invalid push-wall record";
+                return std::nullopt;
+            }
         }
 
         if (!ReadTag(input, "ENEMIES", error) || !ReadCount(input, count, error))
