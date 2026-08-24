@@ -2278,38 +2278,249 @@ void addActTwo(e2d::WorldDefinition& world) {
         speech(tr("Iris: Keep watching the beacon. I will open the old infrastructure.",
             "Iris: Sleduj maják. Já otevřu starou infrastrukturu."), e2d::MessageSpeaker::player),
     });
+
+    // Ravine access descends below the broken bridge, then climbs through the
+    // quarry. Doors, ladders and the hoist walkway express vertical links that
+    // cannot be represented honestly by catalogue-order edge exits.
+    setHorizontalRoute(world, 39, 36, 40);
+    setHorizontalRoute(world, 40, 39, 44);
+    setHorizontalRoute(world, 41, std::nullopt, 42);
+    setHorizontalRoute(world, 42, 41, 43);
+    setHorizontalRoute(world, 43, 42, 44);
+    setHorizontalRoute(world, 44, 43, std::nullopt);
+    for (int branch = 45; branch <= 48; ++branch) {
+        setHorizontalRoute(world, branch, std::nullopt, std::nullopt);
+    }
+    setHorizontalRoute(world, 49, 47, 50);
+    setHorizontalRoute(world, 50, 49, 51);
+
+    addPortal(world, 41, "cliff_rope", "FIXED ROPE TO RAVINE LIP", "PEVNÉ LANO K HRANĚ ROKLE",
+        {365, 132, 119, 128}, 39, {
+            circle(421, 143, 11, P::lightGray, false),
+            e2d::PolylineVisual{{{421, 154}, {407, 180}, {430, 204}, {410, 257}}, amber, false},
+            label(383, 219, tr("CLIMB", "VYLÉZT"), amber),
+        }, {e2d::Condition::flag("ravine_rope_fixed")});
+    addPortal(world, 44, "quarry_path", "STAIRS TO QUARRY GATE", "SCHODY K BRÁNĚ LOMU",
+        {350, 132, 134, 128}, 45, {
+            line(365, 250, 452, 151, amber), line(389, 250, 476, 151, amber),
+            line(378, 232, 402, 232, pale), line(393, 214, 417, 214, pale),
+            line(409, 196, 433, 196, pale), line(425, 178, 449, 178, pale),
+            label(370, 137, tr("QUARRY", "LOM"), amber),
+        });
+    auto& bridgePath = addPortal(world, 44, "bridge_path", "HOIST WALKWAY TO WEST BRIDGE",
+        "LÁVKA NAVIJÁKU K ZÁPADNÍMU MOSTU", {42, 151, 166, 109}, 40, {
+            e2d::PolygonVisual{{{50, 195}, {75, 181}, {190, 181}, {190, 209}, {75, 209}}, signalBlue, true},
+            label(78, 190, tr("WEST BRIDGE", "ZÁPADNÍ MOST"), P::black),
+        }, {e2d::Condition::flag("hoist_running")});
+    world.addInteraction({e2d::Verb::context, bridgePath.id, std::nullopt,
+        {e2d::Condition::notFlag("hoist_running")},
+        {inspect(tr("Only empty hoist cables cross the flooded span. The east landing must deploy its walkway.",
+            "Přes rozvodněný úsek vedou jen prázdná lana navijáku. Východní stanice musí vysunout lávku."))},
+        {}, 10, {}});
+
+    addPortal(world, 45, "floor_path", "STAIRS TO RAVINE FLOOR", "SCHODY NA DNO ROKLE",
+        {0, 132, 84, 128}, 44, {
+            line(9, 151, 66, 250, amber), line(30, 151, 87, 250, amber),
+            line(21, 173, 43, 173, pale), line(33, 193, 55, 193, pale),
+            line(45, 213, 67, 213, pale), label(9, 137, tr("DOWN", "DOLŮ"), amber),
+        });
+    auto& officeGate = addPortal(world, 45, "office_gate", "OPEN GATE TO QUARRY OFFICE",
+        "OTEVŘENÁ BRÁNA KE KANCELÁŘI LOMU", {370, 132, 114, 128}, 46, {
+            box(382, 151, 90, 104, P::lightGray, false),
+            line(390, 159, 464, 247, P::lightGray), line(464, 159, 390, 247, P::lightGray),
+            label(391, 137, tr("OFFICE", "KANCELÁŘ"), amber),
+        }, {e2d::Condition::flag("quarry_gate_open")});
+    world.addInteraction({e2d::Verb::context, officeGate.id, std::nullopt,
+        {e2d::Condition::notFlag("quarry_gate_open")},
+        {inspect(tr("A rusted chain seals the quarry gate. The key is caught behind the waterfall sluice.",
+            "Rezavý řetěz uzavírá bránu lomu. Klíč vězí za stavidlem u vodopádu."))},
+        {}, 10, {}});
+    addPortal(world, 46, "gate_path", "DOOR TO QUARRY GATE", "DVEŘE K BRÁNĚ LOMU",
+        {0, 126, 72, 134}, 45, {
+            box(10, 136, 50, 124, P::brown), circle(50, 199, 3, amber),
+            label(15, 150, tr("GATE", "BRÁNA"), pale),
+        });
+    addPortal(world, 46, "crusher_door", "DOOR TO CRUSHER DECK", "DVEŘE K DRTIČI",
+        {390, 126, 94, 134}, 47, {
+            box(402, 136, 71, 124, P::red), circle(463, 199, 3, amber),
+            label(409, 150, tr("CRUSHER", "DRTIČ"), pale),
+        });
+    addPortal(world, 47, "office_door", "DOOR TO QUARRY OFFICE", "DVEŘE DO KANCELÁŘE LOMU",
+        {0, 126, 55, 134}, 46, {
+            box(8, 136, 39, 124, P::brown), circle(39, 199, 3, amber),
+            label(9, 150, tr("OFFICE", "KANCELÁŘ"), pale),
+        });
+    auto& magazineDoor = addPortal(world, 47, "magazine_door", "DOOR TO EQUIPMENT MAGAZINE",
+        "DVEŘE DO SKLADU VYBAVENÍ", {375, 126, 109, 134}, 48, {
+            box(387, 136, 86, 124, P::brown), circle(463, 199, 3, amber),
+            label(395, 150, tr("MAGAZINE", "SKLAD"), pale),
+        }, {e2d::Condition::flag("brant_secured")});
+    world.addInteraction({e2d::Verb::context, magazineDoor.id, std::nullopt,
+        {e2d::Condition::notFlag("brant_secured")},
+        {warning(tr("Brant and the moving crusher block the magazine. Use Owen's horn plan first.",
+            "Brant a pohybující se drtič blokují sklad. Nejprve použij Owenův plán s houkačkou."))},
+        {}, 10, {}, "warning"});
+    addPortal(world, 47, "tunnel_path", "MARKED PATH TO QUARRY TUNNEL", "OZNAČENÁ CESTA DO LOMOVÉHO TUNELU",
+        {174, 151, 82, 109}, 49, {
+            e2d::PolygonVisual{{{181, 181}, {233, 181}, {251, 195}, {233, 209}, {181, 209}}, signalBlue, true},
+            label(186, 190, tr("TUNNEL", "TUNEL"), P::black),
+        }, {e2d::Condition::flag("brant_secured")});
+    addPortal(world, 48, "crusher_door", "DOOR TO CRUSHER DECK", "DVEŘE K DRTIČI",
+        {0, 126, 78, 134}, 47, {
+            box(10, 136, 56, 124, P::brown), circle(56, 199, 3, amber),
+            label(15, 150, tr("CRUSHER", "DRTIČ"), pale),
+        });
+    auto& westWalkway = addPortal(world, 50, "bridge_walkway", "CABLE WALKWAY TO WEST BRIDGE",
+        "KABELOVÁ LÁVKA K ZÁPADNÍMU MOSTU", {320, 132, 164, 128}, 40, {
+            box(401, 146, 48, 91, P::darkGray, false),
+            line(407, 152, 443, 231, P::lightGray), line(443, 152, 407, 231, P::lightGray),
+            label(333, 225, tr("WEST BRIDGE", "ZÁPADNÍ MOST"), amber),
+        }, {e2d::Condition::flag("hoist_running")});
+    world.addInteraction({e2d::Verb::context, westWalkway.id, std::nullopt,
+        {e2d::Condition::notFlag("hoist_running")},
+        {inspect(tr("The west cable walkway is still folded against the hoist frame.",
+            "Západní kabelová lávka je stále složená u rámu navijáku."))}, {}, 10, {}});
+    room(world, 50).hotspots.push_back({targetId(50, "bridge_walkway_deployed"),
+        tr("DEPLOYED WEST WALKWAY", "VYSUNUTÁ ZÁPADNÍ LÁVKA"), {0, 0, 0, 0},
+        e2d::HotspotKind::scenery, {e2d::Condition::flag("hoist_running")}, {
+            line(333, 184, 470, 184, amber), line(333, 218, 470, 218, amber),
+            line(333, 184, 333, 218, P::lightGray), line(470, 184, 470, 218, P::lightGray),
+            line(350, 184, 369, 218, P::lightGray), line(369, 218, 388, 184, P::lightGray),
+            line(407, 184, 426, 218, P::lightGray), line(426, 218, 445, 184, P::lightGray),
+            label(351, 225, tr("WEST BRIDGE", "ZÁPADNÍ MOST"), P::brightGreen),
+        }});
+    auto& hoistWalkway = addPortal(world, 40, "hoist_walkway", "CABLE WALKWAY TO EAST HOIST",
+        "KABELOVÁ LÁVKA K VÝCHODNÍMU NAVIJÁKU", {310, 132, 174, 128}, 50, {
+            line(322, 184, 371, 218, P::lightGray), line(322, 218, 371, 184, P::lightGray),
+            line(422, 184, 470, 218, P::lightGray), line(422, 218, 470, 184, P::lightGray),
+            label(343, 225, tr("EAST HOIST", "VÝCHODNÍ NAVIJÁK"), danger),
+        }, {e2d::Condition::flag("hoist_running")});
+    world.addInteraction({e2d::Verb::context, hoistWalkway.id, std::nullopt,
+        {e2d::Condition::notFlag("hoist_running")},
+        {inspect(tr("The bridge ends above floodwater. The quarry hoist must deploy a cable walkway.",
+            "Most končí nad rozvodněnou vodou. Lomový naviják musí vysunout kabelovou lávku."))}, {}, 10, {}});
+    room(world, 40).hotspots.push_back({targetId(40, "hoist_walkway_deployed"),
+        tr("DEPLOYED EAST WALKWAY", "VYSUNUTÁ VÝCHODNÍ LÁVKA"), {0, 0, 0, 0},
+        e2d::HotspotKind::scenery, {e2d::Condition::flag("hoist_running")}, {
+            line(322, 184, 470, 184, amber), line(322, 218, 470, 218, amber),
+            line(322, 184, 322, 218, P::lightGray), line(470, 184, 470, 218, P::lightGray),
+            line(341, 184, 360, 218, P::lightGray), line(360, 218, 379, 184, P::lightGray),
+            line(398, 184, 417, 218, P::lightGray), line(417, 218, 436, 184, P::lightGray),
+            label(343, 225, tr("EAST HOIST", "VÝCHODNÍ NAVIJÁK"), P::brightGreen),
+        }});
+
     addUse(world, 39, "anchor_eye", "ANCHOR EYE", "KOTEVNÍ OKO", "iron_hook", "hook_fixed",
         "The iron hook seats behind the service anchor with a solid knock.",
         "Železný hák pevně zapadne za servisní kotvu.", {}, true);
+    auto& anchorEye = ensureHotspot(world, 39, "anchor_eye",
+        tr("ANCHOR EYE", "KOTEVNÍ OKO"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    anchorEye.visibleWhen = {e2d::Condition::notFlag("hook_fixed")};
+    anchorEye.visuals = {
+        circle(111, 181, 19, P::lightGray, false), circle(111, 181, 8, P::black, false),
+        line(92, 181, 69, 226, P::darkGray), line(130, 181, 153, 226, P::darkGray),
+        label(84, 232, tr("ANCHOR", "KOTVA"), amber),
+    };
     addUse(world, 39, "fixed_hook", "FIXED IRON HOOK", "UPEVNĚNÝ ŽELEZNÝ HÁK", "climbing_rope", "ravine_rope_fixed",
         "Iris ties, tests and fixes the climbing rope down the ravine wall.",
         "Iris lano uváže, vyzkouší a upevní dolů po stěně rokle.",
         {e2d::Condition::flag("hook_fixed")}, true, 1);
+    auto& fixedHook = ensureHotspot(world, 39, "fixed_hook",
+        tr("FIXED IRON HOOK", "UPEVNĚNÝ ŽELEZNÝ HÁK"),
+        {164, 135, 96, 125}, e2d::HotspotKind::mechanism, 1);
+    fixedHook.visibleWhen = {e2d::Condition::flag("hook_fixed"), e2d::Condition::notFlag("ravine_rope_fixed")};
+    fixedHook.visuals = {
+        circle(212, 181, 19, P::lightGray, false),
+        e2d::PolylineVisual{{{206, 173}, {218, 181}, {208, 193}, {197, 184}}, amber, false},
+        label(189, 214, tr("HOOK", "HÁK"), amber),
+    };
     addContext(world, 39, "rope_descent", "FIXED DESCENT ROPE", "PEVNÉ SESTUPOVÉ LANO",
         "ravine_descended", {inspect(tr("Iris descends below the broken bridge and reaches the west ravine floor.",
             "Iris sestoupí pod zřícený most a dorazí na západní dno rokle."))},
         {e2d::Condition::flag("ravine_rope_fixed")},
         {e2d::Mutation::moveTo(std::string{screen(41).id})}, 3, "climb");
-    gateRight(world, 39, {e2d::Condition::flag("ravine_rope_fixed")},
-        "The ravine descent needs the iron hook and climbing rope.",
-        "Sestup do rokle potřebuje železný hák a horolezecké lano.");
-    addHazard(world, 40, "flooded_span", "hoist_running",
-        "The broken span drops Iris into the flooded ravine.", "Zřícený most shodí Iris do rozvodněné rokle.");
+    auto& descentRope = ensureHotspot(world, 39, "rope_descent",
+        tr("FIXED DESCENT ROPE", "PEVNÉ SESTUPOVÉ LANO"),
+        {369, 137, 92, 123}, e2d::HotspotKind::mechanism, 3);
+    descentRope.visibleWhen = {e2d::Condition::flag("ravine_rope_fixed")};
+    descentRope.visuals = {
+        circle(414, 151, 12, P::lightGray, false),
+        e2d::PolylineVisual{{{414, 163}, {393, 188}, {422, 214}, {398, 259}}, amber, false},
+        label(378, 225, tr("DESCEND", "SESTOUPIT"), amber),
+    };
+    world.addInteraction({e2d::Verb::context, descentRope.id, std::nullopt,
+        {e2d::Condition::flag("ravine_rope_fixed"), e2d::Condition::flag("ravine_descended")}, {},
+        {e2d::Mutation::moveTo(std::string{screen(41).id})}, 20, {}, "climb"});
+    gateRight(world, 40, {e2d::Condition::flag("hoist_running")},
+        "The bridge ends safely at the missing span. The quarry hoist must deploy its walkway.",
+        "Most bezpečně končí u chybějící části. Lomový naviják musí vysunout lávku.");
     addPickup(world, 41, "old_relay_badge", "You rinse a silted 1964 relay badge and keep the mountain's older memory.",
         "Opláchneš z nánosu odznak převaděče z roku 1964 a uchováš starší paměť hory.", 0,
         {e2d::Condition::flag("ravine_rope_fixed")});
+    addUse(world, 42, "dark_culvert", "DARK CULVERT MARKERS", "TMAVÉ ZNAČKY V PROPUSTKU",
+        "hand_crank_torch", "culvert_lit",
+        "The crank torch reveals red survey paint through the culvert and rats scatter harmlessly into a drain.",
+        "Ruční svítilna odhalí červenou průzkumnickou barvu v propustku a krysy neškodně utečou do odtoku.");
+    auto& darkCulvert = ensureHotspot(world, 42, "dark_culvert",
+        tr("DARK CULVERT MARKERS", "TMAVÉ ZNAČKY V PROPUSTKU"),
+        {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    darkCulvert.visibleWhen = {e2d::Condition::notFlag("culvert_lit")};
+    darkCulvert.visuals = {
+        e2d::ArcVisual{{111, 234}, {42, 73}, 3.14159F, 6.28318F, P::darkGray},
+        box(69, 191, 84, 49, P::black), circle(111, 210, 6, P::darkGray),
+        label(85, 228, tr("DARK", "TMA"), P::lightGray),
+    };
+    auto& litCulvert = ensureHotspot(world, 42, "dark_culvert_complete",
+        tr("LIT CULVERT ROUTE", "OSVĚTLENÁ CESTA PROPUSTKEM"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    litCulvert.visuals = {
+        e2d::ArcVisual{{111, 234}, {42, 73}, 3.14159F, 6.28318F, P::lightGray},
+        e2d::PolygonVisual{{{79, 234}, {142, 234}, {126, 183}, {96, 183}}, amber, true},
+        line(94, 217, 135, 204, danger), circle(111, 210, 6, pale),
+    };
+    gateRight(world, 42, {e2d::Condition::flag("culvert_lit")},
+        "The culvert is too dark to cross without a portable light.",
+        "Propustek je příliš tmavý, než aby jím šlo projít bez přenosného světla.");
     addUse(world, 43, "sluice", "SMALL SLUICE", "MALÉ STAVIDLO", "wrench", "sluice_closed",
         "The wrench closes the sluice and weakens the waterfall current.",
         "Klíč zavře stavidlo a oslabí proud vodopádu.");
+    auto& sluice = ensureHotspot(world, 43, "sluice",
+        tr("SMALL SLUICE", "MALÉ STAVIDLO"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    sluice.visibleWhen = {e2d::Condition::notFlag("sluice_closed")};
+    sluice.visuals = {
+        box(72, 171, 78, 67, P::lightGray), box(80, 179, 62, 51, signalBlue),
+        circle(111, 186, 22, danger, false), circle(111, 186, 5, amber),
+        line(89, 186, 133, 186, danger), line(111, 164, 111, 208, danger),
+    };
+    auto& closedSluice = ensureHotspot(world, 43, "sluice_complete",
+        tr("CLOSED SLUICE", "ZAVŘENÉ STAVIDLO"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    closedSluice.visuals = {
+        box(72, 171, 78, 67, P::lightGray), box(80, 179, 62, 51, P::blue),
+        circle(111, 186, 22, P::brightGreen, false), circle(111, 186, 5, amber),
+        line(96, 171, 126, 201, P::brightGreen), line(126, 171, 96, 201, P::brightGreen),
+        box(82, 214, 58, 12, P::darkGray),
+    };
+    gateRight(world, 43, {e2d::Condition::flag("sluice_closed")},
+        "The waterfall current pushes Iris safely back to the shelf. Close the small sluice first.",
+        "Proud vodopádu bezpečně zatlačí Iris zpět na římsu. Nejprve zavři malé stavidlo.");
     addPickup(world, 43, "quarry_office_key", "The quarry office key comes free from the quiet grate.",
         "Klíč od kanceláře lomu se uvolní z klidné mříže.", 2,
         {e2d::Condition::flag("sluice_closed")});
     addUse(world, 45, "quarry_gate", "QUARRY GATE", "BRÁNA LOMU", "quarry_office_key", "quarry_gate_open",
         "The rusted key opens the quarry. Voss's field radio lights at once.",
         "Rezavý klíč otevře lom. Vossovo polní rádio se okamžitě rozsvítí.");
-    gateRight(world, 45, {e2d::Condition::flag("quarry_gate_open")},
-        "The quarry gate needs the key hidden at the waterfall sluice.",
-        "Brána lomu potřebuje klíč ukrytý u stavidla za vodopádem.");
+    auto& lockedQuarryGate = ensureHotspot(world, 45, "quarry_gate",
+        tr("QUARRY GATE", "BRÁNA LOMU"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    lockedQuarryGate.visibleWhen = {e2d::Condition::notFlag("quarry_gate_open")};
+    lockedQuarryGate.visuals = {
+        line(74, 190, 148, 190, P::lightGray), line(79, 181, 143, 201, P::lightGray),
+        box(99, 177, 27, 32, amber), circle(112, 188, 4, P::black),
+        label(85, 218, tr("LOCKED", "ZAMČENO"), danger),
+    };
+    auto& openQuarryGate = ensureHotspot(world, 45, "quarry_gate_complete",
+        tr("OPEN QUARRY GATE", "OTEVŘENÁ BRÁNA LOMU"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    openQuarryGate.visuals = {
+        box(99, 177, 27, 32, P::brightGreen, false),
+        label(82, 218, tr("GATE OPEN", "BRÁNA OTEVŘENA"), P::brightGreen),
+    };
     addCharacter(world, 46, "owen", "OWEN FINCH", "OWEN FINCH", "owen_freed", {
         speech(tr("Owen: Voss locked me in here when I refused to run the crusher for him.",
             "Owen: Voss mě tu zamkl, když jsem mu odmítl spustit drtič.")),
@@ -2329,17 +2540,59 @@ void addActTwo(e2d::WorldDefinition& world) {
     addHazard(world, 47, "crusher_belt", "brant_secured",
         "The active crusher belt carries Iris beneath the descending jaw.",
         "Aktivní pás odnese Iris pod klesající čelist drtiče.");
-    gateRight(world, 47, {e2d::Condition::flag("brant_secured")},
-        "Brant and the active crusher block the magazine.", "Brant a aktivní drtič blokují sklad.");
     addPickup(world, 48, "red_phase_coil", "You lift Nightjar's pulsing red phase coil into its padded case.",
         "Uložíš pulzující červenou fázovou cívku Nightjaru do pouzdra.", 0);
     addPickup(world, 48, "survey_notebook", "Voss's notebook links the false survey crew to Nightjar.",
         "Vossův zápisník spojuje falešné průzkumníky s Nightjarem.", 1);
     addPickup(world, 48, "quartz_sample", "A blue quartz shard catches the mine lamp.",
         "Modrý úlomek křemene zachytí světlo důlní lampy.", 2);
+    addPickup(world, 48, "siphon_hose", "A spare fuel-safe siphon hose hangs inside the dry magazine.",
+        "Ve suchém skladu visí náhradní hadice vhodná pro přečerpávání paliva.", 3);
+    addUse(world, 49, "tunnel_lamp", "DARK TUNNEL LAMP MARKERS", "TMAVÉ ZNAČKY V TUNELU",
+        "mine_lamp", "quarry_tunnel_lit",
+        "Theo's mine lamp reveals the signal cabinet and a harmless cart shadow on the curved wall.",
+        "Theova důlní lampa odhalí signální skříň a neškodný stín vozíku na zakřivené stěně.");
+    auto& tunnelLamp = ensureHotspot(world, 49, "tunnel_lamp",
+        tr("DARK TUNNEL LAMP MARKERS", "TMAVÉ ZNAČKY V TUNELU"),
+        {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    tunnelLamp.visibleWhen = {e2d::Condition::notFlag("quarry_tunnel_lit")};
+    tunnelLamp.visuals = {
+        e2d::ArcVisual{{111, 236}, {43, 78}, 3.14159F, 6.28318F, P::darkGray},
+        box(68, 192, 86, 48, P::black), circle(111, 211, 6, P::darkGray),
+        label(84, 229, tr("NO LIGHT", "BEZ SVĚTLA"), P::lightGray),
+    };
+    auto& litTunnel = ensureHotspot(world, 49, "tunnel_lamp_complete",
+        tr("LIT QUARRY TUNNEL", "OSVĚTLENÝ LOMOVÝ TUNEL"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    litTunnel.visuals = {
+        e2d::ArcVisual{{111, 236}, {43, 78}, 3.14159F, 6.28318F, P::lightGray},
+        e2d::PolygonVisual{{{77, 236}, {145, 236}, {128, 181}, {94, 181}}, amber, true},
+        circle(111, 211, 7, pale),
+    };
     addUse(world, 49, "hoist_signal", "BROKEN HOIST SIGNAL", "PŘERUŠENÁ SIGNALIZACE NAVIJÁKU", "multimeter", "hoist_signal_fixed",
         "The meter identifies the crossed pair; Iris restores a steady green signal.",
-        "Multimetr najde zkřížený pár a Iris obnoví stálý zelený signál.");
+        "Multimetr najde zkřížený pár a Iris obnoví stálý zelený signál.",
+        {e2d::Condition::flag("quarry_tunnel_lit")}, false, 2);
+    auto& hoistSignal = ensureHotspot(world, 49, "hoist_signal",
+        tr("BROKEN HOIST SIGNAL", "PŘERUŠENÁ SIGNALIZACE NAVIJÁKU"),
+        {265, 135, 96, 125}, e2d::HotspotKind::mechanism, 2);
+    hoistSignal.visibleWhen = {e2d::Condition::flag("quarry_tunnel_lit"), e2d::Condition::notFlag("hoist_signal_fixed")};
+    hoistSignal.visuals = {
+        box(275, 156, 76, 81, P::darkGray), box(283, 164, 60, 65, P::black),
+        circle(299, 184, 8, danger), circle(327, 184, 8, P::darkGray),
+        line(291, 214, 307, 202, signalBlue), line(319, 202, 335, 214, signalBlue),
+        label(287, 221, tr("SIGNAL", "SIGNÁL"), danger),
+    };
+    auto& fixedHoistSignal = ensureHotspot(world, 49, "hoist_signal_complete",
+        tr("GREEN HOIST SIGNAL", "ZELENÁ SIGNALIZACE NAVIJÁKU"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    fixedHoistSignal.visuals = {
+        box(275, 156, 76, 81, P::darkGray), box(283, 164, 60, 65, P::black),
+        circle(299, 184, 8, P::darkGray), circle(327, 184, 8, P::brightGreen),
+        line(291, 214, 335, 202, P::brightGreen),
+        label(287, 221, tr("SIGNAL", "SIGNÁL"), P::brightGreen),
+    };
+    gateRight(world, 49, {e2d::Condition::flag("quarry_tunnel_lit"), e2d::Condition::flag("hoist_signal_fixed")},
+        "The east landing needs light and a repaired green hoist signal.",
+        "Východní stanice vyžaduje světlo a opravenou zelenou signalizaci navijáku.");
     addUse(world, 50, "hoist_pulley", "HOIST PULLEY", "KLADKA NAVIJÁKU", "pulley_pin", "pulley_repaired",
         "The machined pin restores the hoist pulley.", "Obrobený čep obnoví kladku navijáku.", {}, true);
     addContext(world, 50, "hoist_controls", "HOIST CONTROLS", "OVLÁDÁNÍ NAVIJÁKU", "hoist_running", {
@@ -3024,12 +3277,38 @@ void addHints(e2d::WorldDefinition& world) {
         "Na Rozcestí proseku sleduj METEO a na záznamníku POUŽIJ ruční svítilnu.");
     next("lookout_briefed", "Return to Firebreak Junction, follow LOOKOUT and speak to Nell.",
         "Vrať se na Rozcestí proseku, sleduj HLÁSKU a promluv s Nell.");
-    next("ravine_rope_fixed", "At the Service Ravine West Lip, fix the iron hook first, then the climbing rope.",
-        "Na Západní hraně servisní rokle upevni nejprve železný hák a potom lano.");
-    next("brant_secured", "Free Owen, sound the crusher horn, then USE the brass key on Brant's cage.",
-        "Osvoboď Owena, spusť houkačku a POUŽIJ mosazný klíč na Brantovu klec.");
-    next("act2_complete", "Repair the signal in Quarry Tunnel and the pulley at East Hoist Landing, then run the hoist.",
-        "Oprav signalizaci v Lomovém tunelu a kladku ve Východní stanici navijáku, potom naviják spusť.");
+    next("hook_fixed", "At Firebreak Junction follow RAVINE, then USE the iron hook on the anchor eye.",
+        "Na Rozcestí proseku sleduj ROKLI a potom na kotevním oku POUŽIJ železný hák.");
+    next("ravine_rope_fixed", "At the ravine lip, USE the climbing rope on the fixed hook.",
+        "Na hraně rokle POUŽIJ horolezecké lano na upevněný hák.");
+    next("ravine_descended", "Press ENTER at the labelled DESCEND rope to reach Ravine Floor West.",
+        "Stiskni ENTER u lana označeného SESTOUPIT a dostaň se na Západní dno rokle.");
+    next("culvert_lit", "Continue east and USE the hand-crank torch on the dark Culvert markers.",
+        "Pokračuj na východ a na tmavých značkách v Propustku POUŽIJ ruční svítilnu.");
+    next("sluice_closed", "At Waterfall Shelf, USE the wrench on the small sluice.",
+        "Na Římse za vodopádem POUŽIJ montážní klíč na malé stavidlo.");
+    next("taken_quarry_office_key", "After closing the sluice, TAKE the quarry office key from the quiet grate.",
+        "Po zavření stavidla SEBER klíč od kanceláře lomu z klidné mříže.");
+    next("quarry_gate_open", "At Ravine Floor East follow QUARRY and USE its office key on the gate.",
+        "Na Východním dně rokle sleduj LOM a na bráně POUŽIJ klíč od kanceláře.");
+    next("owen_freed", "Enter OFFICE through the open gate and speak to Owen with ENTER.",
+        "Vstup otevřenou bránou do KANCELÁŘE a promluv s Owenem klávesou ENTER.");
+    next("horn_sounded", "Follow CRUSHER and pull Owen's crusher horn with ENTER.",
+        "Sleduj DRTIČ a klávesou ENTER zatáhni za houkačku podle Owenova plánu.");
+    next("brant_secured", "After the horn sounds, USE the brass key on Brant's inspection cage.",
+        "Po zaznění houkačky POUŽIJ mosazný klíč na Brantovu kontrolní klec.");
+    next("taken_red_phase_coil", "Enter MAGAZINE and TAKE the pulsing red phase coil.",
+        "Vstup do SKLADU a SEBER pulzující červenou fázovou cívku.");
+    next("taken_survey_notebook", "In the Equipment Magazine, TAKE Voss's survey notebook.",
+        "Ve Skladu vybavení SEBER Vossův průzkumnický zápisník.");
+    next("quarry_tunnel_lit", "Return to CRUSHER, follow TUNNEL and USE Theo's mine lamp on its dark markers.",
+        "Vrať se k DRTIČI, sleduj TUNEL a na tmavých značkách POUŽIJ Theovu důlní lampu.");
+    next("hoist_signal_fixed", "In Quarry Tunnel, USE the multimeter on the broken hoist signal.",
+        "V Lomovém tunelu POUŽIJ multimetr na přerušenou signalizaci navijáku.");
+    next("pulley_repaired", "Continue east and USE Owen's pulley pin on the East Hoist pulley.",
+        "Pokračuj na východ a na kladce Východního navijáku POUŽIJ Owenův čep.");
+    next("act2_complete", "At East Hoist Landing, operate the repaired hoist controls with ENTER.",
+        "Ve Východní stanici navijáku spusť opravené ovládání klávesou ENTER.");
     next("logging_engine_running", "Fill a can at the Boiler House, install fuel, belt, plug and oil, align Rail Spur West, then start the Logging Engine.",
         "Naplň kanystr v Kotelně, namontuj palivo, řemen, svíčku a olej, srovnej Západní vlečku a spusť Lesní lokomotivu.");
     next("trestle_brake_fixed", "At Trestle Approach, sound June's whistle and repair the brake linkage.",

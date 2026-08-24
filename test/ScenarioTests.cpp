@@ -205,6 +205,10 @@ int main() {
     const auto& blindPath = hotspot(world, "s028_blind_path");
     const auto& cachePath = hotspot(world, "s030_cache_path");
     const auto& ravinePath = hotspot(world, "s036_ravine_path");
+    const auto& cliffRope = hotspot(world, "s041_cliff_rope");
+    const auto& quarryPath = hotspot(world, "s044_quarry_path");
+    const auto& magazineDoor = hotspot(world, "s047_magazine_door");
+    const auto& bridgeWalkway = hotspot(world, "s050_bridge_walkway");
     assert(ringingPhone.visuals.size() >= 10);
     assert(answeredPhone.visuals.size() >= 10);
     assert(markedDeerPath.visuals.size() >= 7);
@@ -221,6 +225,10 @@ int main() {
     assert(blindPath.visuals.size() >= 2);
     assert(cachePath.visuals.size() >= 2);
     assert(ravinePath.visuals.size() >= 2);
+    assert(cliffRope.visuals.size() >= 3);
+    assert(quarryPath.visuals.size() >= 6);
+    assert(magazineDoor.visuals.size() >= 3);
+    assert(bridgeWalkway.visuals.size() >= 4);
     assert(world.room("caretaker_cabin_main")->decorations.size() >= 30);
     assert(world.room("cabin_radio_nook")->decorations.size() >= 20);
     assert(world.room("caretaker_tool_shed")->decorations.size() >= 20);
@@ -254,7 +262,7 @@ int main() {
             assert(candidate.interactionArea.bottom() == 260.0F);
         }
         anchors += current->travelAnchor ? 1U : 0U;
-        const bool authoredHub = spec.number >= 6 && spec.number <= 39;
+        const bool authoredHub = spec.number >= 6 && spec.number <= 50;
         if (i > 0 && !authoredHub) {
             assert(std::ranges::any_of(current->exits, [i](const e2d::ExitDefinition& exit) {
                 return exit.direction == e2d::Direction::left
@@ -318,6 +326,23 @@ int main() {
     assert(world.room("north_fire_lookout")->exits.empty());
     assert(hasExit("ravine_west_lip", e2d::Direction::left, "firebreak_junction"));
     assert(hasExit("ravine_west_lip", e2d::Direction::right, "broken_service_bridge"));
+    assert(hasExit("broken_service_bridge", e2d::Direction::left, "ravine_west_lip"));
+    assert(hasExit("broken_service_bridge", e2d::Direction::right, "ravine_floor_east"));
+    assert(hasExit("ravine_floor_west", e2d::Direction::right, "culvert_mouth"));
+    assert(world.room("ravine_floor_west")->exits.size() == 1);
+    assert(hasExit("culvert_mouth", e2d::Direction::left, "ravine_floor_west"));
+    assert(hasExit("culvert_mouth", e2d::Direction::right, "waterfall_shelf"));
+    assert(hasExit("waterfall_shelf", e2d::Direction::left, "culvert_mouth"));
+    assert(hasExit("waterfall_shelf", e2d::Direction::right, "ravine_floor_east"));
+    assert(hasExit("ravine_floor_east", e2d::Direction::left, "waterfall_shelf"));
+    assert(world.room("ravine_floor_east")->exits.size() == 1);
+    for (const int branch : {45, 46, 47, 48}) {
+        assert(world.room(black_pine::content::screens[static_cast<std::size_t>(branch - 1)].id)->exits.empty());
+    }
+    assert(hasExit("quarry_tunnel", e2d::Direction::left, "crusher_deck"));
+    assert(hasExit("quarry_tunnel", e2d::Direction::right, "east_hoist_landing"));
+    assert(hasExit("east_hoist_landing", e2d::Direction::left, "quarry_tunnel"));
+    assert(hasExit("east_hoist_landing", e2d::Direction::right, "logging_road"));
     assert(anchors == 17);
     assert(visiblePickups >= 45);
     assert(animatedRooms > 80 && animatedRooms < world.rooms.size());
@@ -439,19 +464,29 @@ int main() {
     use(session, world, "s039_fixed_hook", "climbing_rope", "ravine_rope_fixed");
     context(session, world, "s039_rope_descent", "ravine_descended");
     take(session, world, "s041_take_old_relay_badge", "old_relay_badge");
+    use(session, world, "s042_dark_culvert", "hand_crank_torch", "culvert_lit");
     use(session, world, "s043_sluice", "wrench", "sluice_closed");
     take(session, world, "s043_take_quarry_office_key", "quarry_office_key");
+    portal(session, world, "s044_quarry_path", "quarry_gate");
     use(session, world, "s045_quarry_gate", "quarry_office_key", "quarry_gate_open");
+    portal(session, world, "s045_office_gate", "quarry_office");
     context(session, world, "s046_owen", "owen_freed");
+    portal(session, world, "s046_crusher_door", "crusher_deck");
     context(session, world, "s047_crusher_horn", "horn_sounded");
     use(session, world, "s047_inspection_cage", "brass_key", "brant_secured");
+    portal(session, world, "s047_magazine_door", "quarry_magazine");
     take(session, world, "s048_take_red_phase_coil", "red_phase_coil");
     take(session, world, "s048_take_survey_notebook", "survey_notebook");
+    portal(session, world, "s048_crusher_door", "crusher_deck");
+    portal(session, world, "s047_tunnel_path", "quarry_tunnel");
+    use(session, world, "s049_tunnel_lamp", "mine_lamp", "quarry_tunnel_lit");
     use(session, world, "s049_hoist_signal", "multimeter", "hoist_signal_fixed");
     use(session, world, "s050_hoist_pulley", "pulley_pin", "pulley_repaired");
     context(session, world, "s050_hoist_controls", "hoist_running");
     assert(session.flag("act2_complete"));
+    portal(session, world, "s050_bridge_walkway", "broken_service_bridge");
     examine(session, world, "s040_story", "observed_broken_service_bridge");
+    portal(session, world, "s040_hoist_walkway", "east_hoist_landing");
 
     // Act III — logging railway, dam, mine and freight lift.
     context(session, world, "s052_lila", "met_lila");

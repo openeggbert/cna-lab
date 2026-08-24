@@ -26,7 +26,7 @@ A region is human-playable only when all of the following are true:
 | Storm gate and caretaker hub | 1–12 | Audited | Safe opening route, visible phone and pickups, enterable cabin, distinct cabin/radio/shed/cellar interiors, authored hub portals and a gated three-way service-road fork. |
 | Relay yard and local power | 13–24 | Audited | The yard, trench, generator, battery, pump, transformer, workshop, hall and control-room branches use visible labelled portals. Repair targets have persistent before/after artwork and the physical scenario traverses the complete route. |
 | North forest | 25–38 | Audited | The creek, Theo, cache, kiln, Echo Grove, weather station and lookout are connected by visible routes. Hidden supplies require exploration, the bear solution is harmless, and the scenario follows the physical loop. |
-| Quarry and ravine | 39–50 | Scripted, not audited | Author vertical rope/hoist topology, water route, guard positions and crusher-safe path. |
+| Quarry and ravine | 39–50 | Audited | The rope descent, lit culvert, safe waterfall route, gate/office/crusher branches, magazine, tunnel and two-way hoist shortcut are physically traversed and visibly labelled. |
 | Logging railway | 51–63 | Scripted, not audited | Build the sawmill/camp/engine hub, visibly persistent five-part engine repair and trestle sequence. |
 | Reservoir and dam | 64–75 | Scripted, not audited | Build gatehouse/turbine/pump branches, water-state artwork and safe return paths. |
 | Mine and underground power | 76–90 | Scripted, not audited | Build mine branches, readable gas/electrical warnings, lift and switchgear topology. |
@@ -63,7 +63,17 @@ A region is human-playable only when all of the following are true:
   persistent cleared-meadow drawing.
 - Fallen-fir, compass-bearing, buried-cable and weather-recorder actions have
   recognisable 16-colour artwork and persistent completion states.
+- Screens 39–50 now use the authored vertical geography: a visible rope reaches
+  the west ravine floor, stairs reach the quarry, and the crusher deck branches
+  separately to the office, equipment magazine and tunnel.
+- The dark culvert and tunnel require their documented portable lights. The
+  waterfall pushes Iris back safely until its visible sluice is closed.
+- Brant still makes the active crusher belt dangerous, but labelled routes keep
+  the player on the horn-and-cage solution. The magazine remains inaccessible
+  until he is contained without injury.
+- Running the east hoist visibly deploys the missing-span walkway in both
+  directions, creating tested shortcuts from landing to bridge and east floor.
 
-The next implementation pass starts with the Service Ravine and Quarry
-(screens 39–50), where the rope descent, waterfall branch, crusher and hoist
-still differ from the documented geography.
+The next implementation pass starts with the Logging Camp and Railway
+(screens 51–63), where the sawmill, pond, bunkhouse, mess hall and rail yard are
+still presented as a linear sequence.
