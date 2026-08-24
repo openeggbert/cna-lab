@@ -1406,3 +1406,20 @@ system state after teleport destination lookup.
 - preserve optional relay and terminal interactions without gating progress;
 - keep the goal cheat free of gameplay-state side effects;
 - remove obsolete locked-goal colors and offline feedback from the automap and HUD.
+
+### WOLF-032 — expanded deterministic difficulty
+
+Status: planned. Replace the current incoming-damage-only difficulty adjustment
+with a broader deterministic combat and resource profile. Difficulty must also
+change the number of active enemies, enemy health, enemy movement speed, enemy
+firing cadence and the amount of ammunition available in a sector. Authored maps
+remain the source of encounter placement, while explicit difficulty metadata or
+stable spawn tiers decide which enemies appear; no unseeded runtime variation is
+allowed.
+
+- retain the current incoming-damage scaling as one part of the difficulty profile;
+- increase active enemy count and health across harder settings;
+- increase enemy movement speed and firing frequency across harder settings;
+- reduce fixed and dropped ammunition on harder settings without making a full clear impossible;
+- keep every difficulty deterministic for repeatable tests and playtesting;
+- add campaign audits for enemy counts, ammunition budgets and monotonic difficulty changes.

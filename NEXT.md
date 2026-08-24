@@ -53,6 +53,7 @@
 1. Subjectively playtest the updated health placement and 130% Veteran damage.
 2. Playtest sprite motion amplitudes together with the authored combat route.
 3. Playtest the full four-sector optional-systems exploration route and completion pacing against the deterministic guardrails.
+4. Implement WOLF-032 so difficulty also changes enemy count, enemy health, movement speed, firing cadence and available ammunition.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.
