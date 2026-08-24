@@ -1,5 +1,9 @@
 # Black Pine
 
+> **Development status:** Black Pine is still in active development. It is
+> unfinished and only partially playable, and the current builds may contain
+> bugs, incomplete interactions, progression blockers, or other problems.
+
 Black Pine: The Long Silence is an original full-length C++23 exploration and
 puzzle adventure for the **Explore2D** engine. It expands the original vertical
 slice into 124 fixed, non-scrolling screens and a five-act story that can be
@@ -15,6 +19,17 @@ repairs the local relay, then discovers that Gideon Voss deliberately revived
 Nightjar's dangerous Quiet Field. The investigation crosses forest, quarry,
 logging railway, dam, mine, observatory, bunker and summit tower before Iris can
 invert the field and reopen the emergency network.
+
+## Screenshots
+
+All screenshots below are captured directly from the current Explore2D
+renderer at its native 640×350 virtual resolution.
+
+| | |
+|---|---|
+| ![Black Pine title screen](docs/screenshots/title-screen.png)<br>*Title screen and main menu* | ![Storm Gate Trailhead](docs/screenshots/storm-gate-trailhead.png)<br>*The journey begins at Storm Gate Trailhead* |
+| ![Caretaker Cabin](docs/screenshots/caretaker-cabin.png)<br>*Searching Mara's caretaker cabin* | ![Repaired Generator Shed](docs/screenshots/generator-shed-repaired.png)<br>*The repaired relay generator* |
+| ![Bear Meadow](docs/screenshots/bear-meadow.png)<br>*A dangerous encounter in the north forest* | ![Repaired East Hoist Landing](docs/screenshots/east-hoist-landing-repaired.png)<br>*The quarry hoist after restoration* |
 
 ## Implemented game scope
 
@@ -47,7 +62,8 @@ invert the field and reopen the emergency network.
   wildlife, signals and machinery; static scenery deliberately remains still.
 - Monophonic QBasic/PC-speaker-style cues for menu, movement actions, pickups,
   repairs, warnings, death, save/load and victory, played through CNA.
-- Entirely procedural graphics; there are no external art assets.
+- Entirely procedural runtime graphics; the PNG screenshots are documentation
+  captures rather than game art assets.
 - Complete English and Czech localization for the current game, including
   menus, settings, room and hotspot names, inventory, descriptions, dialogue,
   system feedback, hazards and ending text.
