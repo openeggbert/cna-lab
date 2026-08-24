@@ -31,6 +31,7 @@ from performance_report import (
     _write_text_atomic,
     _verify_report_inputs_unchanged,
     load_capture,
+    representative_sample_blocker,
     swap_interval_acknowledged,
     validate_complete_vram_evidence,
 )
@@ -194,6 +195,9 @@ def require_compatible(
                 "qualifying candidate capture session must follow the baseline session"
             )
         for label, capture in (("baseline", baseline), ("candidate", candidate)):
+            sample_blocker = representative_sample_blocker(capture)
+            if sample_blocker is not None:
+                raise ReportError(f"{label} qualifying {sample_blocker}")
             if not swap_interval_acknowledged(capture):
                 raise ReportError(f"{label} qualifying capture lacks acknowledged presentation")
             if not _boolean(capture, "memory", "known"):

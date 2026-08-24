@@ -87,6 +87,9 @@ rather than being a one-time final check.
     *Sample-window follow-up: qualifying mixed evidence requires at least 899 frame, budgeted-CPU,
     and workload-summary samples from the locked 900-draw representative command. A short coherent
     capture yields `FAIL`; no physical capture was added.*
+    *Comparison-window follow-up: the same floor applies to both sides of a qualifying comparison;
+    a rebound four-interval candidate exits 2 while diagnostic comparison stays flexible. No
+    physical capture was added.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).

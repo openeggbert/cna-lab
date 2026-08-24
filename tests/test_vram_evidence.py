@@ -248,6 +248,53 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertIn("Overall result: **NO REGRESSION**", comparison.stdout)
             self.assertIn(sha256(second_artifact_path), comparison.stdout)
 
+            short_second_capture = json.loads(json.dumps(second_capture))
+            short_second_capture["measurements"]["frame_interval"]["samples"] = 4
+            short_second_capture["frame_pacing"]["samples"] = 4
+            short_histogram = short_second_capture["frame_pacing"]["histogram"]
+            short_histogram["at_or_below_recommended_budget"]["count"] = 1
+            short_histogram[
+                "above_recommended_at_or_below_minimum_budget"
+            ]["count"] = 3
+            second_capture_path.write_text(
+                json.dumps(short_second_capture), encoding="utf-8"
+            )
+            second_evidence_path.write_text(
+                json.dumps(evidence_fixture(second_capture_path, second_artifact_path)),
+                encoding="utf-8",
+            )
+            second_binding = self.run_binding(
+                second_capture_path,
+                second_evidence_path,
+                second_artifact_path,
+                second_path,
+            )
+            self.assertEqual(second_binding.returncode, 0, second_binding.stderr)
+            comparison = subprocess.run(
+                comparison_arguments,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(comparison.returncode, 2)
+            self.assertIn(
+                "candidate qualifying representative mixed capture requires at least 899 samples",
+                comparison.stderr,
+            )
+
+            second_capture_path.write_text(json.dumps(second_capture), encoding="utf-8")
+            second_evidence_path.write_text(
+                json.dumps(evidence_fixture(second_capture_path, second_artifact_path)),
+                encoding="utf-8",
+            )
+            second_binding = self.run_binding(
+                second_capture_path,
+                second_evidence_path,
+                second_artifact_path,
+                second_path,
+            )
+            self.assertEqual(second_binding.returncode, 0, second_binding.stderr)
+
             reused_artifact_hardlink = directory / "reused-artifact-hardlink.bin"
             reused_artifact_hardlink.hardlink_to(artifact_path)
             reused_artifact_arguments = comparison_arguments.copy()

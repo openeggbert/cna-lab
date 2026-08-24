@@ -632,6 +632,20 @@ and gets `FAIL`; the synthetic full-window pair still passes. Report 7/7, compar
 short-window blocker, while the retained mission diagnostic is unchanged. Full isolated CTest
 passes 8/8 with its smoke process inside Xvfb; no physical evidence was added.
 
+## 2026-08-24 — qualifying comparison sample floor
+
+The comparator's `qualifying` kind now uses the same representative-sample evaluator as release
+reporting. A mixed baseline or candidate with fewer than 899 frame, budgeted-CPU, or workload
+samples is rejected before metrics are compared, so archive completeness cannot turn a short p95
+into a qualifying `NO REGRESSION` claim.
+
+The VRAM integration rebinds an otherwise valid independent candidate after reducing it to four
+frame intervals and proves comparison exit 2, then restores the full candidate and continues its
+archive-hardlink/chronology checks. Report 7/7, comparator 7/7, and VRAM 6/6 pass. Diagnostic mode
+remains intentionally flexible: the retained 539-interval Xvfb self-comparison still returns
+`NO REGRESSION`. Full isolated CTest passes 8/8 with its smoke process inside Xvfb; no physical
+evidence was added.
+
 ## 2026-08-24 — capture-session independence
 
 The synthetic release `PASS` previously used two metric-distinct JSON objects but left both at PID

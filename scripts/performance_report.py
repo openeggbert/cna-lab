@@ -1259,6 +1259,29 @@ def load_capture(path: Path) -> dict[str, Any]:
     return capture
 
 
+def representative_sample_blocker(capture: dict[str, Any]) -> str | None:
+    if _path(capture, "scenario") != "mixed":
+        return None
+    short_sample_groups: list[str] = []
+    for metric in ("frame_interval", *CPU_BUDGETS_MS):
+        samples = _integer(capture, "measurements", metric, "samples")
+        if samples < QUALIFICATION_MINIMUM_REPRESENTATIVE_SAMPLES:
+            short_sample_groups.append(f"{metric}={samples}")
+    for section, (_, metrics) in WORKLOAD_SCHEMAS.items():
+        minimum_samples = min(
+            _integer(capture, section, metric, "samples") for metric in metrics
+        )
+        if minimum_samples < QUALIFICATION_MINIMUM_REPRESENTATIVE_SAMPLES:
+            short_sample_groups.append(f"{section}={minimum_samples}")
+    if not short_sample_groups:
+        return None
+    return (
+        "representative mixed capture requires at least 899 samples for frame cadence, "
+        "budgeted CPU metrics, and workload summaries; short groups: "
+        + ", ".join(short_sample_groups)
+    )
+
+
 def capture_blockers(path: Path, capture: dict[str, Any], hardware: str) -> list[str]:
     prefix = f"{path.name}: "
     blockers: list[str] = []
@@ -1320,26 +1343,11 @@ def capture_blockers(path: Path, capture: dict[str, Any], hardware: str) -> list
         if tracked_vram > VRAM_BUDGET_BYTES:
             blockers.append(prefix + "VRAM exceeds 512 MiB")
 
-    if _path(capture, "scenario") == "mixed":
-        short_sample_groups: list[str] = []
-        for metric in ("frame_interval", *CPU_BUDGETS_MS):
-            samples = _integer(capture, "measurements", metric, "samples")
-            if samples < QUALIFICATION_MINIMUM_REPRESENTATIVE_SAMPLES:
-                short_sample_groups.append(f"{metric}={samples}")
-        for section, (_, metrics) in WORKLOAD_SCHEMAS.items():
-            minimum_samples = min(
-                _integer(capture, section, metric, "samples") for metric in metrics
-            )
-            if minimum_samples < QUALIFICATION_MINIMUM_REPRESENTATIVE_SAMPLES:
-                short_sample_groups.append(f"{section}={minimum_samples}")
-        if short_sample_groups:
-            blockers.append(
-                prefix
-                + "representative mixed capture requires at least 899 samples for frame cadence, "
-                "budgeted CPU metrics, and workload summaries; short groups: "
-                + ", ".join(short_sample_groups)
-            )
+    sample_blocker = representative_sample_blocker(capture)
+    if sample_blocker is not None:
+        blockers.append(prefix + sample_blocker)
 
+    if _path(capture, "scenario") == "mixed":
         load_samples = _integer(capture, "measurements", "district_load_cpu", "samples")
         load_p95 = _number(capture, "measurements", "district_load_cpu", "p95_ms")
         load_check = _path(capture, "checks", "district_load_pass")

@@ -722,8 +722,11 @@ build configuration, scenario, resolution, timing, requested/applied presentatio
 support/scope, budget and hitch-threshold definitions, RAM observability, VRAM completeness/
 coverage, and optional GPU/load/transition measurement availability. A qualifying comparison also
 rejects virtual/software display labels, unacknowledged presentation, unknown RAM, and incomplete
-VRAM. Use `--baseline-kind diagnostic --candidate-kind diagnostic` for Xvfb or other non-qualifying
-engineering runs; diagnostic and qualifying evidence can never be mixed.
+VRAM. When its scenario is `mixed`, each side must also meet the same 899-sample representative
+floor as release qualification; a shorter structurally valid capture is rejected before its p95 is
+compared. Use `--baseline-kind diagnostic --candidate-kind diagnostic` for Xvfb or other
+non-qualifying engineering runs; those comparisons intentionally retain shorter capture support,
+and diagnostic and qualifying evidence can never be mixed.
 Budget metadata is validated against the locked schema-8 values before compatibility comparison,
 so two consistently edited policies are invalid rather than self-consistent evidence.
 Both inputs first pass the same request/v-sync/applied consistency validator as the release report,

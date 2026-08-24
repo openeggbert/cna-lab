@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 qualifying comparisons now enforce the representative sample window too.** The release report
+rejected short `mixed` evidence, but the comparator's `qualifying` kind previously checked archives,
+hardware, presentation, RAM/VRAM, and chronology without applying that sample floor.
+
+- Release reporting and qualifying comparison now share one sample-coverage evaluator. A rebound
+  four-interval candidate with otherwise valid independent VRAM evidence exits 2 before comparison.
+- Diagnostic comparisons intentionally remain unrestricted: the retained 539-interval Xvfb
+  self-comparison still returns `NO REGRESSION` with its original capture hash.
+- Report 7/7, comparator 7/7, and VRAM 6/6 pass; full isolated CTest passes 8/8 with its smoke
+  process inside Xvfb.
+
 **M12 qualification now requires a full representative sample window.** A structurally coherent
 capture with only one or a handful of frame/CPU samples could previously contribute to release
 `PASS`, despite the locked representative command using `--smoke 900`.
