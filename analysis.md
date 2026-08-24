@@ -787,10 +787,14 @@ Initial local dependency inspection on 2026-08-24 found:
 - `SDL_RENDERER` is CNA's mature 2D-focused initial lane; game code still links
   only the public `CNA` target.
 
-Current embedded-consumer issues are recorded in `plan.md`: CNA's layout
-validator incorrectly examines the consumer root for `src/`/`include/`, and its
-vendored `cgltf`/`stb` paths also use the consumer source root. The project uses
-`game/` plus a narrow inherited include workaround without modifying CNA.
+Two initially recorded embedded-consumer issues were already resolved inside
+the pinned CNA history by upstream commit
+`6000e7936aaa3d364a233aa1066f9aa7c766e40e`: both the layout validator and
+vendored `cgltf`/`stb` include paths use `CNA_SOURCE_DIR`. A minimal consumer
+with its own root `src/main.cpp` configured successfully against the pinned CNA,
+and Copper Boots builds `cna_content` without inherited include workarounds.
+The existing `game/` and `gameplay/` organization remains a project choice, not
+a CNA constraint.
 
 ## Testing and compatibility strategy
 
@@ -821,6 +825,10 @@ a genuine non-SDL renderer even though this configuration deliberately retains
 the SDL3 platform services for input and audio. Both matrix rows ran all five
 project CTests at CNA `1bb2145d99ed572dd4eb15009c34e2e5f410fcf0` and
 sharp-runtime `54578590b328aa9612fe38bfddca9fd8ca795144` on 2026-08-24.
+No orientation, first-use, render-target preservation or point-sampling defect
+was reproduced, so `MAR-CNA-003` is closed rather than carrying a speculative
+framework bug. A future visual mismatch requires capture-level expected/actual
+evidence before that task is reopened.
 
 The initial Debug build configured with CMake/Ninja and
 `CNA_GRAPHICS_RENDERER=SDL_RENDERER`, then built with two jobs. Renderer-free

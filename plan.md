@@ -79,11 +79,17 @@ not mistake descriptor compilation for runtime support.
 Measure the original executable when a legal local DOSBox path is available,
 then compare its observed motion to the deterministic modern controller.
 
-**Current: M11 — framework consumer reproductions**
+**M11 — framework consumer reproductions — ACHIEVED**
 
 Turn the two known embedded-CNA integration workarounds into minimal, isolated
 reproductions before considering any dependency change. Continue game work in
 parallel only where it does not conceal those framework issues.
+
+**Current: M12 — Factory stage and campaign path**
+
+Return to player-facing work by adding a second original stage that introduces
+an independently measurable mechanic, then connect explicit stage progression
+without coupling campaign state to rendering.
 
 ## Foundation and research
 
@@ -369,7 +375,7 @@ Acceptance:
 - Levels declare one initial and optional later checkpoints.
 - Activation and respawn persist only intended state; tests cover both.
 
-### MAR-036 — Additional original stages — DEFERRED
+### MAR-036 — Additional original stages — DOING
 
 Acceptance:
 
@@ -607,13 +613,14 @@ Acceptance:
 
 ## Framework issue ledger
 
-### MAR-CNA-001 — Embedded consumer root-layout validator — TODO
+### MAR-CNA-001 — Embedded consumer root-layout validator — DONE
 
-Observed at CNA `1bb2145d99ed572dd4eb15009c34e2e5f410fcf0`.
+Resolved in the history of pinned CNA
+`1bb2145d99ed572dd4eb15009c34e2e5f410fcf0` by upstream commit
+`6000e7936aaa3d364a233aa1066f9aa7c766e40e`.
 
-CNA's module-layout validator checks `${CMAKE_SOURCE_DIR}/src` and `/include`.
-When CNA is added as a subdirectory, `CMAKE_SOURCE_DIR` is the game consumer, so
-conventional consumer directories falsely look like forbidden legacy CNA trees.
+The validator now checks `${CNA_SOURCE_DIR}/src` and `/include`, so an embedded
+consumer's conventional root directories are not mistaken for CNA legacy trees.
 
 Acceptance for upstream resolution:
 
@@ -621,28 +628,34 @@ Acceptance for upstream resolution:
 - CNA standalone validator still detects an actual legacy tree in CNA itself.
 - Copper Boots can move from `game/src` if that later improves clarity.
 
-Current workaround: use `game/src` and `game/include`; no CNA modification.
+Evidence: a `/tmp` minimal consumer with root `src/main.cpp` configured against
+the pinned CNA SOFTWARE renderer. The upstream guard still checks CNA's own
+root, and the fixing commit records standalone tests/examples configuration.
+Copper Boots' `game/` layout remains an organizational choice; its obsolete
+configure-time rejection was removed.
 
-### MAR-CNA-002 — Embedded vendored-header source-root paths — TODO
+### MAR-CNA-002 — Embedded vendored-header source-root paths — DONE
 
-Observed at the same CNA revision. CNA content paths for `cgltf` and `stb` are
-formed from `${CMAKE_SOURCE_DIR}`, which points at the consumer during embedded
-builds.
+Resolved by the same upstream commit. CNA content paths for `cgltf` and `stb`
+are formed from `${CNA_SOURCE_DIR}`, which identifies CNA during embedded builds.
 
 Acceptance for upstream resolution:
 
 - CNA uses its own project/source root for vendored include paths.
 - Embedded consumer builds content module without inherited include workaround.
 
-Current workaround: add only `${CNA_ROOT_DIR}/third_party/cgltf` and `/stb` as
-inherited include directories before `add_subdirectory`.
+Evidence: Copper Boots configures and builds the CNA content module after
+removing both inherited include directories from its root CMake file.
 
-### MAR-CNA-003 — 320x180 render-target/point-scale validation — TODO
+### MAR-CNA-003 — 320x180 render-target/point-scale validation — DONE
 
-Not yet a confirmed defect. Build a minimal public-API reproduction if any
-renderer differs in orientation, first-use content, resizing, point sampling,
-or render-target preservation. Record renderer/platform, exact expected/actual
-pixels, CNA commit, and capability report before proposing a dependency change.
+No defect was reproduced. The public-API game/display smoke creates, binds and
+samples the 320x180 target with `PointClamp`, then exercises resize, minimize,
+restore and fullscreen state where the platform supports them. SDL_RENDERER and
+SOFTWARE each configured, built, started and passed all five tests at the pinned
+CNA revision; the real SDL_RENDERER desktop lifecycle also passed. Any future
+pixel difference must reopen this item with renderer/platform and expected versus
+actual capture evidence rather than a game-side backend workaround.
 
 ### MAR-SR-001 — sharp-runtime consumer blocker placeholder — DEFERRED
 
@@ -652,7 +665,7 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Revisit `MAR-CNA-001` through `MAR-CNA-003` only with minimal upstream
-   reproductions; none currently blocks gameplay work.
-2. Resume deferred original-content work only as a consciously selected
-   milestone, beginning with `MAR-036` rather than release packaging.
+1. Build the Factory slice of `MAR-036` around one existing measured mechanic,
+   then add an explicit Green Ruins -> Factory campaign transition.
+2. Keep the remaining MAR-CNA/MAR-SR ledger closed unless a concrete public-API
+   failure appears.

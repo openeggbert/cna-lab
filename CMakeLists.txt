@@ -24,17 +24,6 @@ if(NOT EXISTS "${CNA_ROOT_DIR}/CMakeLists.txt")
         "Place CNA beside mario-cna or pass -DCNA_ROOT_DIR=/path/to/cna.")
 endif()
 
-# CNA currently interprets a consumer's root-level src/include directories as
-# its own forbidden legacy layout (MAR-CNA-001). Keep our code under game/ and
-# gameplay/ until the upstream validator uses CNA's own project root.
-foreach(_reserved IN ITEMS src include)
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_reserved}")
-        message(FATAL_ERROR
-            "Copper Boots: root '${_reserved}/' triggers CNA MAR-CNA-001; "
-            "use game/ or gameplay/ until the pinned CNA revision is fixed.")
-    endif()
-endforeach()
-
 if(NOT DEFINED CNA_GRAPHICS_RENDERER OR CNA_GRAPHICS_RENDERER STREQUAL "")
     set(CNA_GRAPHICS_RENDERER "SDL_RENDERER" CACHE STRING
         "CNA graphics renderer" FORCE)
@@ -66,14 +55,6 @@ if(EXISTS "${_cna_sharp_runtime_consumption}")
             CACHE STRING "Sharp Runtime components required by CNA")
     endif()
 endif()
-
-# Narrow workaround for CNA MAR-CNA-002: these vendored include roots are
-# otherwise resolved relative to this consumer by the pinned CNA revision.
-foreach(_vendored_header IN ITEMS cgltf stb)
-    if(EXISTS "${CNA_ROOT_DIR}/third_party/${_vendored_header}")
-        include_directories("${CNA_ROOT_DIR}/third_party/${_vendored_header}")
-    endif()
-endforeach()
 
 add_subdirectory("${CNA_ROOT_DIR}" CNA)
 
