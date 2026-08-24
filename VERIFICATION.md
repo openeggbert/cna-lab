@@ -310,3 +310,26 @@ CTests, including the CNA runtime smoke. Dependency state was CNA HEAD
 uncommitted external graphics changes recorded under PEO-071; People did not
 edit or depend on them. No new visual acceptance or framework blocker is
 claimed for this simulation-only increment.
+
+## 2026-08-24: PEO-074 deterministic tile-grid A*
+
+`AStarPathfinder` searches the static floor snapshot with unit cardinal costs
+and a Manhattan heuristic. Returned successful routes include both start and
+goal; `start == goal` returns a one-tile route without expanding the search.
+Failures distinguish outside-grid and blocked start/goal conditions from a
+valid but unreachable destination, and never return a misleading partial path.
+
+The open queue compares total cost, remaining heuristic, then a monotonic
+insertion sequence. Combined with North, East, South, West neighbor enumeration
+and preservation of the first equal-cost predecessor, this gives reproducible
+ties. Dedicated tests repeat an ambiguous open-map route 32 times, assert an
+exact shortest fixed-obstacle detour, validate every returned edge, cover all
+input failures and `start == goal`, and prove a complete barrier returns
+`NoPath` after expanding exactly its reachable component.
+
+HEADLESS and SDL_RENDERER/SDL3 configurations both built and passed 11/11
+CTests, including the CNA runtime smoke. Verification used CNA HEAD
+`b6cbfcd87c08a6e0172eaf866358bf95bec277b1` with the same five unrelated dirty
+graphics files and clean sharp-runtime HEAD
+`54578590b328aa9612fe38bfddca9fd8ca795144`. People did not modify either
+dependency. No new visual result or framework blocker is claimed.

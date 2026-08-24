@@ -479,6 +479,12 @@ turns its wall edge into a portal. Neighbor enumeration is always North, East,
 South, West. Topology, door, or object mutations affect routing only after a
 controlled snapshot rebuild, avoiding partially updated route queries.
 
+A route result contains both endpoints and a precise failure category for
+outside/blocked endpoints versus exhausted search. A* uses unit cardinal cost,
+Manhattan distance, and an increasing insertion sequence after total-cost and
+heuristic comparisons. Equal-cost predecessors are not replaced, so the grid's
+stable neighbor order produces reproducible paths and expanded-node counts.
+
 Dynamic people should be a soft occupancy cost initially rather than permanent
 walls, with local waiting/replan to avoid deadlock. Exclusive destinations are
 protected by reservations before route execution. Stairs later add explicit
