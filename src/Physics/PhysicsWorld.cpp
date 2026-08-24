@@ -22,6 +22,7 @@
 #include <Jolt/RegisterTypes.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
@@ -131,17 +132,45 @@ namespace IronGang::Physics
         class TriggerContactListener final : public JPH::ContactListener
         {
         public:
+            void SetProfilingEnabled(bool enabled)
+            {
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    activeContacts_.clear();
+                }
+                profilingEnabled_.store(enabled, std::memory_order_relaxed);
+            }
+
+            // Bodies/sensors are created and destroyed only outside PhysicsSystem::Update, so
+            // these never overlap the listener's job-thread reads (the original trigger contract).
             void RegisterSensor(JPH::BodyID id) { sensorIds_.insert(id); }
+
             void UnregisterSensor(JPH::BodyID id) { sensorIds_.erase(id); }
 
-            void OnContactAdded(const JPH::Body& body1, const JPH::Body& body2, const JPH::ContactManifold&,
+            void OnContactAdded(const JPH::Body& body1, const JPH::Body& body2,
+                               const JPH::ContactManifold& manifold,
                                JPH::ContactSettings&) override
             {
+                TrackContact(JPH::SubShapeIDPair(body1.GetID(), manifold.mSubShapeID1,
+                                                 body2.GetID(), manifold.mSubShapeID2));
                 RecordEvent(body1.GetID(), body2.GetID(), true);
+            }
+
+            void OnContactPersisted(const JPH::Body& body1, const JPH::Body& body2,
+                                   const JPH::ContactManifold& manifold,
+                                   JPH::ContactSettings&) override
+            {
+                TrackContact(JPH::SubShapeIDPair(body1.GetID(), manifold.mSubShapeID1,
+                                                 body2.GetID(), manifold.mSubShapeID2));
             }
 
             void OnContactRemoved(const JPH::SubShapeIDPair& pair) override
             {
+                if (profilingEnabled_.load(std::memory_order_relaxed))
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    activeContacts_.erase(pair);
+                }
                 RecordEvent(pair.GetBody1ID(), pair.GetBody2ID(), false);
             }
 
@@ -153,7 +182,23 @@ namespace IronGang::Physics
                 return out;
             }
 
+            [[nodiscard]] std::size_t GetActiveContactCount() const
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                return activeContacts_.size();
+            }
+
         private:
+            void TrackContact(const JPH::SubShapeIDPair& pair)
+            {
+                if (!profilingEnabled_.load(std::memory_order_relaxed))
+                {
+                    return;
+                }
+                std::lock_guard<std::mutex> lock(mutex_);
+                activeContacts_.insert(pair);
+            }
+
             void RecordEvent(JPH::BodyID id1, JPH::BodyID id2, bool entered)
             {
                 const bool sensor1 = sensorIds_.contains(id1);
@@ -168,9 +213,11 @@ namespace IronGang::Physics
                 events_.push_back(TriggerEvent{HandleFromBodyId(sensorId), HandleFromBodyId(otherId), entered});
             }
 
-            std::mutex mutex_;
+            mutable std::mutex mutex_;
             std::vector<TriggerEvent> events_;
             std::unordered_set<JPH::BodyID> sensorIds_;
+            std::unordered_set<JPH::SubShapeIDPair> activeContacts_;
+            std::atomic<bool> profilingEnabled_{false};
         };
 
         [[nodiscard]] JPH::RefConst<JPH::Shape> MakeShape(const ShapeDesc& desc)
@@ -296,6 +343,12 @@ namespace IronGang::Physics
         static constexpr float kFixedStep = 1.0F / 60.0F;
         static constexpr int kMaxStepsPerCall = 4; // avoid a spiral of death after a long stall
 
+        std::atomic<bool> profilingEnabled{false};
+        std::atomic<std::uint64_t> profiledFixedSteps{0};
+        std::atomic<std::uint64_t> profiledPublicRaycasts{0};
+        std::atomic<std::uint64_t> profiledCharacterCollisionUpdates{0};
+        std::atomic<std::uint64_t> profiledVehicleWheelRaycasts{0};
+
         std::uint32_t nextCharacterHandle = 0;
         std::unordered_map<std::uint32_t, JPH::Ref<JPH::CharacterVirtual>> characters;
 
@@ -306,19 +359,76 @@ namespace IronGang::Physics
     PhysicsWorld::PhysicsWorld() : impl_(std::make_unique<Impl>()) {}
     PhysicsWorld::~PhysicsWorld() = default;
 
+    void PhysicsWorld::SetProfilingEnabled(bool enabled) noexcept
+    {
+        impl_->profiledFixedSteps.store(0, std::memory_order_relaxed);
+        impl_->profiledPublicRaycasts.store(0, std::memory_order_relaxed);
+        impl_->profiledCharacterCollisionUpdates.store(0, std::memory_order_relaxed);
+        impl_->profiledVehicleWheelRaycasts.store(0, std::memory_order_relaxed);
+        impl_->contactListener.SetProfilingEnabled(enabled);
+        impl_->profilingEnabled.store(enabled, std::memory_order_relaxed);
+    }
+
+    PhysicsProfileSnapshot PhysicsWorld::CaptureProfileSnapshot()
+    {
+        PhysicsProfileSnapshot snapshot;
+        snapshot.bodyCount = impl_->physicsSystem.GetNumBodies();
+        snapshot.activeRigidBodyCount =
+            impl_->physicsSystem.GetNumActiveBodies(JPH::EBodyType::RigidBody);
+        snapshot.rigidBodyContactManifoldCount = impl_->contactListener.GetActiveContactCount();
+        for (const auto& [handle, character] : impl_->characters)
+        {
+            (void)handle;
+            for (const JPH::CharacterContact& contact : character->GetActiveContacts())
+            {
+                if (contact.mHadCollision)
+                {
+                    ++snapshot.characterContactCount;
+                }
+            }
+        }
+        snapshot.fixedStepCount = impl_->profiledFixedSteps.exchange(0, std::memory_order_relaxed);
+        snapshot.publicRaycastCount = impl_->profiledPublicRaycasts.exchange(0, std::memory_order_relaxed);
+        snapshot.characterCollisionUpdateCount =
+            impl_->profiledCharacterCollisionUpdates.exchange(0, std::memory_order_relaxed);
+        snapshot.vehicleWheelRaycastCount =
+            impl_->profiledVehicleWheelRaycasts.exchange(0, std::memory_order_relaxed);
+        return snapshot;
+    }
+
     void PhysicsWorld::Step(float deltaSeconds)
     {
         impl_->accumulatedSeconds += deltaSeconds;
         int steps = 0;
         while (impl_->accumulatedSeconds >= Impl::kFixedStep && steps < Impl::kMaxStepsPerCall)
         {
+            if (impl_->profilingEnabled.load(std::memory_order_relaxed))
+            {
+                std::uint64_t wheelRaycasts = 0;
+                for (const auto& [handle, vehicle] : impl_->vehicles)
+                {
+                    (void)handle;
+                    wheelRaycasts += vehicle.constraint->GetWheels().size();
+                }
+                impl_->profiledVehicleWheelRaycasts.fetch_add(wheelRaycasts, std::memory_order_relaxed);
+            }
             impl_->physicsSystem.Update(Impl::kFixedStep, 1, &impl_->tempAllocator, &impl_->jobSystem);
 
             for (auto& [handle, character] : impl_->characters)
             {
+                (void)handle;
                 character->Update(Impl::kFixedStep, impl_->physicsSystem.GetGravity(),
                                   JPH::BroadPhaseLayerFilter{}, JPH::ObjectLayerFilter{},
                                   JPH::BodyFilter{}, JPH::ShapeFilter{}, impl_->tempAllocator);
+                if (impl_->profilingEnabled.load(std::memory_order_relaxed))
+                {
+                    impl_->profiledCharacterCollisionUpdates.fetch_add(1, std::memory_order_relaxed);
+                }
+            }
+
+            if (impl_->profilingEnabled.load(std::memory_order_relaxed))
+            {
+                impl_->profiledFixedSteps.fetch_add(1, std::memory_order_relaxed);
             }
 
             impl_->accumulatedSeconds -= Impl::kFixedStep;
@@ -399,6 +509,10 @@ namespace IronGang::Physics
 
     RaycastHit PhysicsWorld::Raycast(const Vector3& origin, const Vector3& direction, float maxDistance) const
     {
+        if (impl_->profilingEnabled.load(std::memory_order_relaxed))
+        {
+            impl_->profiledPublicRaycasts.fetch_add(1, std::memory_order_relaxed);
+        }
         RaycastHit result;
         const JPH::RRayCast ray(JPH::RVec3(ToJolt(origin)), ToJolt(direction) * maxDistance);
         JPH::RayCastResult joltHit;
@@ -528,6 +642,10 @@ namespace IronGang::Physics
         VehicleRuntime runtime;
         runtime.chassisId = chassisBody->GetID();
         runtime.constraint = new JPH::VehicleConstraint(*chassisBody, vehicleSettings);
+        // Keep both intervals at one explicitly: the profiler can then count one actual
+        // suspension raycast per wheel and fixed step without reaching into Jolt internals.
+        runtime.constraint->SetNumStepsBetweenCollisionTestActive(1);
+        runtime.constraint->SetNumStepsBetweenCollisionTestInactive(1);
         runtime.collisionTester = new JPH::VehicleCollisionTesterRay(Layers::kMoving);
         runtime.constraint->SetVehicleCollisionTester(runtime.collisionTester);
 

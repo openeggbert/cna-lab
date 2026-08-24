@@ -67,6 +67,24 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has a complete smallest-scope physics profiler (`IG-35-008`, `034`-`036`).** JSON schema
+5 retains the existing `physics_cpu` timer and adds per-update `physics_workload`: current rigid
+bodies/active bodies/body-contact manifolds/actual CharacterVirtual contacts, plus consumed
+fixed-step/public-raycast/character-collision-update/vehicle-wheel-raycast operation counts. These
+categories stay separate rather than inventing a generic query total; CharacterVirtual is not a
+Jolt body and is not mislabeled as one. Instrumentation is enabled only by `--profile`, with an
+atomic early-out before contact-counter locking in ordinary play.
+
+- A deterministic physics integration test proves 3 bodies, live contacts, one step, 2 public
+  rays, one character update, and 4 wheel rays; a second snapshot retains body state but consumes
+  all operation counters.
+- A 540-frame Release EasyGL `mixed` run only on isolated Xvfb/X11 sampled 542 updates. Physics CPU
+  was 0.136 ms average / 0.206 ms p95 / 2.605 ms maximum; workload p95/max reached 9 bodies, 1 active
+  body, 2 character contacts, 1 fixed step, 1 character collision update, and 4 wheel rays. Zero
+  body manifolds and public rays correctly describe this CharacterVirtual/raycast-vehicle route.
+- Software plus all 3 CTest targets, strict syntax, Release/development EasyGL, Web/Emscripten, and
+  the isolated real mixed flow pass. No GUI run used the visible host display.
+
 **M12 now has a complete smallest-scope district-load profiler (`IG-35-007`, `031`-`033`).**
 JSON schema 4 records every real exit/save-load/reset district change by source, target and reason,
 with separate world/static-physics unload+activation CPU and renderer static-geometry/lightmap
@@ -980,10 +998,10 @@ physical-hardware capture should first require `swap_interval.apply_succeeded`, 
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside
-budget. The next safe code-side M12 slice is the smallest physics profiler (`IG-35-008`,
-`034`-`036`): retain the existing physics-step timing and add exact body/contact/query evidence
-without changing simulation behavior. Do not mark M12 complete until repeated mixed workloads
-pass 33.333 ms p95 on named minimum hardware and VRAM tracking is complete.
+budget. The next safe code-side M12 slice is the smallest AI profiler (`IG-35-037`-`039`): retain
+the existing AI update timing and add exact per-update pedestrian/traffic/police state/work
+evidence without changing behavior. Do not mark M12 complete until repeated mixed workloads pass
+33.333 ms p95 on named minimum hardware and VRAM tracking is complete.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --

@@ -4,11 +4,26 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
 namespace IronGang::Physics
 {
+    // Exact workload snapshot at the Iron Gang/Jolt seam. Contact counts are current state;
+    // steps and query counts cover work since the preceding snapshot and reset on capture.
+    struct PhysicsProfileSnapshot
+    {
+        std::uint64_t bodyCount{0};
+        std::uint64_t activeRigidBodyCount{0};
+        std::uint64_t rigidBodyContactManifoldCount{0};
+        std::uint64_t characterContactCount{0};
+        std::uint64_t fixedStepCount{0};
+        std::uint64_t publicRaycastCount{0};
+        std::uint64_t characterCollisionUpdateCount{0};
+        std::uint64_t vehicleWheelRaycastCount{0};
+    };
+
     // Iron Gang-owned interface over the selected physics library (Jolt Physics, see
     // THIRD_PARTY.md and plan/plan_15-physics-integration.md IG-15-001..003). Jolt's own types
     // never appear in this header or in any calling code -- only PhysicsWorld.cpp includes Jolt
@@ -29,6 +44,11 @@ namespace IronGang::Physics
         // physics updates, decoupled from the render frame rate (IG-15-004).
         void Step(float deltaSeconds);
 
+        // Profiling is opt-in so ordinary play does not maintain diagnostic contact/query state.
+        // Capture returns current body/contact state and atomically consumes operation counters.
+        void SetProfilingEnabled(bool enabled) noexcept;
+        [[nodiscard]] PhysicsProfileSnapshot CaptureProfileSnapshot();
+
         [[nodiscard]] RigidBodyHandle CreateStaticBody(const ShapeDesc& shape, const Vector3& position);
         [[nodiscard]] RigidBodyHandle CreateDynamicBody(const ShapeDesc& shape, const Vector3& position, float mass);
         [[nodiscard]] RigidBodyHandle CreateTrigger(const ShapeDesc& shape, const Vector3& position);
@@ -40,10 +60,10 @@ namespace IronGang::Physics
 
         [[nodiscard]] RaycastHit Raycast(const Vector3& origin, const Vector3& direction, float maxDistance) const;
 
-        // Number of bodies currently registered with the physics system (static + dynamic +
-        // triggers + character controllers' internal bodies + vehicle chassis bodies). Intended
-        // for tests/diagnostics to catch body leaks (e.g. across a district transition), not for
-        // gameplay logic.
+        // Number of rigid bodies currently registered with the physics system (static + dynamic +
+        // triggers + vehicle chassis bodies). CharacterVirtual controllers are query-driven, not
+        // registered rigid bodies, and their contacts are reported separately by the profiler.
+        // Intended for tests/diagnostics, not gameplay logic.
         [[nodiscard]] std::size_t GetBodyCount() const;
 
         // Enter/exit events recorded since the last call; clears the internal queue.

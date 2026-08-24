@@ -74,6 +74,16 @@ no package. Software plus 3/3 CTest, strict syntax, Release/development EasyGL, 
 the isolated real flow pass. Initialization is now solely `startup_cpu`, correcting the older
 district p95 that accidentally included broad startup work.
 
+The physics-profiler follow-up adds JSON schema 5 and an opt-in Jolt-seam snapshot. A deterministic
+physics test proves exact body, fixed-step, public-raycast, character-update, and four-wheel-raycast
+counts; it also verifies operation counters are consumed while current body state is retained.
+Actual rigid-body and CharacterVirtual contacts are covered separately. One isolated 540-frame
+Release EasyGL `mixed` run sampled 542 updates, reaching 9 bodies, 1 active rigid body, 2 character
+contacts, 1 fixed step, 1 character collision update, and 4 wheel rays per update at p95/max where
+applicable; physics CPU was 0.206 ms p95. Software plus 3/3 CTest, strict syntax, Release/development
+EasyGL, Web/Emscripten, and the isolated real flow pass. Ordinary play keeps profiling disabled and
+does not take the contact-counter mutex.
+
 ## Current modular dependency baseline (2026-08-22)
 
 Iron Gang now configures against the sibling `../cnanext` and modular `../sharp-runtime`

@@ -305,6 +305,20 @@ no serialized runtime package: their transition constructs `PrototypeWorld` in m
 They must become real measured phases if district files/packages are added later; `null` must not
 be converted to a misleading measured zero.
 
+JSON schema 5 adds `physics_workload` sampled once per game `Update()`. `bodies` and
+`active_rigid_bodies` are current Jolt rigid-body state; they deliberately exclude the separately
+managed `CharacterVirtual`. `rigid_body_contact_manifolds` is the current set of Jolt body-contact
+pairs, while `character_contacts` counts actual contacts reported by each CharacterVirtual's most
+recent collision update. These are different collision mechanisms and remain separate.
+
+The remaining physics fields count operations since the preceding sample and reset when captured:
+`fixed_steps`, public gameplay `public_raycasts`, `character_collision_updates`, and
+`vehicle_wheel_raycasts`. Wheel-ray counts are exact for the current vehicle setup because each of
+its four wheels is configured for a collision test on every active and inactive step. The profiler
+does not fabricate one generic “query count” by adding semantically different operations. Physics
+CPU p95 remains the budgeted time; these workload counters explain that time and provide a stable
+baseline for later content growth.
+
 The current CNA/EasyGL API does not expose complete GPU residency. The report records the exact
 logical size of known Iron Gang-owned meshes/lightmaps/HUD resources plus imported CNJ vertex and
 index buffers and textures bound by CNA's built-in or generic effects. Imported resources are

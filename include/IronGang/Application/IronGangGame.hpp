@@ -80,6 +80,7 @@ namespace IronGang
         // of SaveGame (plan_19/20/21/22's own scope note: no NPC/wanted persistence yet).
         void RespawnTrafficAndPedestrians();
         void RecordRenderWorkload();
+        void RecordPhysicsWorkload();
         void CaptureSwapIntervalAcceptance();
         void RecordDistrictLoadSample(const char* reason,
                                       DistrictId sourceDistrict,

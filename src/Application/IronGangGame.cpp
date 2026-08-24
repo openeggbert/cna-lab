@@ -109,7 +109,9 @@ namespace IronGang
     void IronGangGame::EnablePerformanceProfile(std::string reportPath)
     {
         performanceReportPath_ = std::move(reportPath);
-        performanceProfiler_.SetEnabled(!performanceReportPath_.empty());
+        const bool enabled = !performanceReportPath_.empty();
+        performanceProfiler_.SetEnabled(enabled);
+        physics_.SetProfilingEnabled(enabled);
     }
 
     bool IronGangGame::WritePerformanceReport(std::string& error) const
@@ -204,6 +206,30 @@ namespace IronGang
         performanceProfiler_.RecordRenderWorkload(RenderWorkloadMetric::Triangles, workload.triangles);
         performanceProfiler_.RecordRenderWorkload(RenderWorkloadMetric::Instances, workload.instances);
         performanceProfiler_.RecordRenderWorkload(RenderWorkloadMetric::VisibleObjects, workload.visibleObjects);
+    }
+
+    void IronGangGame::RecordPhysicsWorkload()
+    {
+        if (!performanceProfiler_.IsEnabled())
+        {
+            return;
+        }
+
+        const Physics::PhysicsProfileSnapshot workload = physics_.CaptureProfileSnapshot();
+        performanceProfiler_.RecordPhysicsWorkload(PhysicsWorkloadMetric::Bodies, workload.bodyCount);
+        performanceProfiler_.RecordPhysicsWorkload(
+            PhysicsWorkloadMetric::ActiveRigidBodies, workload.activeRigidBodyCount);
+        performanceProfiler_.RecordPhysicsWorkload(
+            PhysicsWorkloadMetric::RigidBodyContactManifolds, workload.rigidBodyContactManifoldCount);
+        performanceProfiler_.RecordPhysicsWorkload(
+            PhysicsWorkloadMetric::CharacterContacts, workload.characterContactCount);
+        performanceProfiler_.RecordPhysicsWorkload(PhysicsWorkloadMetric::FixedSteps, workload.fixedStepCount);
+        performanceProfiler_.RecordPhysicsWorkload(
+            PhysicsWorkloadMetric::PublicRaycasts, workload.publicRaycastCount);
+        performanceProfiler_.RecordPhysicsWorkload(
+            PhysicsWorkloadMetric::CharacterCollisionUpdates, workload.characterCollisionUpdateCount);
+        performanceProfiler_.RecordPhysicsWorkload(
+            PhysicsWorkloadMetric::VehicleWheelRaycasts, workload.vehicleWheelRaycastCount);
     }
 
     std::uint64_t IronGangGame::GetTrackedRendererVideoMemoryBytes() const
@@ -1044,6 +1070,7 @@ namespace IronGang
             performanceProfiler_.Record(PerformanceMetric::AiCpu, 0.0);
         }
         performanceProfiler_.Record(PerformanceMetric::AudioCpu, audioCpuMilliseconds);
+        RecordPhysicsWorkload();
         if (performanceScenario_ != PerformanceScenario::InteractiveOrIntro)
         {
             ++performanceScenarioUpdate_;

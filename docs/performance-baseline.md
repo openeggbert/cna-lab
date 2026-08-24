@@ -208,3 +208,32 @@ The target is generated in memory and reads zero district files, so I/O, decompr
 durations are reported as `null`/not applicable rather than measured zero. Xvfb remains unsuitable
 for graphics-hardware qualification, but this CPU/resource-lifecycle path is the real integrated
 transition and passes the 1000 ms district-load budget by a wide margin.
+
+## 2026-08-24 — physics workload follow-up
+
+JSON schema 5 adds opt-in physics state and operation counters at the Iron Gang/Jolt boundary
+without changing simulation behavior. State counters retain total/active rigid bodies, live
+rigid-body contact manifolds, and actual CharacterVirtual contacts. Operation counters are consumed
+once per game update and separately report fixed steps, public gameplay raycasts, character
+collision updates, and vehicle wheel raycasts. The existing `physics_cpu` timer remains the
+budgeted duration; unlike query types are not collapsed into a synthetic total.
+
+A 540-frame Release EasyGL `mixed` run, executed only on isolated Xvfb/X11 with v-sync requested
+off, produced 542 update samples:
+
+| Physics workload per update | Average | p95 | Maximum |
+| --- | ---: | ---: | ---: |
+| Rigid bodies | 8.652 | 9 | 9 |
+| Active rigid bodies | 0.906 | 1 | 1 |
+| Rigid-body contact manifolds | 0.000 | 0 | 0 |
+| Character contacts | 1.041 | 2 | 2 |
+| Fixed steps | 0.930 | 1 | 1 |
+| Public gameplay raycasts | 0.000 | 0 | 0 |
+| Character collision updates | 0.930 | 1 | 1 |
+| Vehicle wheel raycasts | 3.720 | 4 | 4 |
+
+Physics CPU averaged 0.136 ms, with 0.206 ms p95 and 2.605 ms maximum. Zero rigid-body manifolds is
+expected for this route: the player uses CharacterVirtual contacts and the sedan uses a raycast
+vehicle. Zero public raycasts is also real—the current integrated route makes none outside those
+separately counted character/wheel paths. Xvfb still cannot qualify graphics hardware, but these
+CPU-side Jolt counters exercise the real mixed gameplay flow and establish the workload baseline.

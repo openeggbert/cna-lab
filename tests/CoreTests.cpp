@@ -929,6 +929,15 @@ namespace
         profiler.RecordRenderWorkload(IronGang::RenderWorkloadMetric::Triangles, 1200);
         profiler.RecordRenderWorkload(IronGang::RenderWorkloadMetric::Instances, 8);
         profiler.RecordRenderWorkload(IronGang::RenderWorkloadMetric::VisibleObjects, 42);
+        profiler.RecordPhysicsWorkload(IronGang::PhysicsWorkloadMetric::Bodies, 7);
+        profiler.RecordPhysicsWorkload(IronGang::PhysicsWorkloadMetric::Bodies, 9);
+        profiler.RecordPhysicsWorkload(IronGang::PhysicsWorkloadMetric::ActiveRigidBodies, 2);
+        profiler.RecordPhysicsWorkload(IronGang::PhysicsWorkloadMetric::RigidBodyContactManifolds, 3);
+        profiler.RecordPhysicsWorkload(IronGang::PhysicsWorkloadMetric::CharacterContacts, 1);
+        profiler.RecordPhysicsWorkload(IronGang::PhysicsWorkloadMetric::FixedSteps, 1);
+        profiler.RecordPhysicsWorkload(IronGang::PhysicsWorkloadMetric::PublicRaycasts, 0);
+        profiler.RecordPhysicsWorkload(IronGang::PhysicsWorkloadMetric::CharacterCollisionUpdates, 1);
+        profiler.RecordPhysicsWorkload(IronGang::PhysicsWorkloadMetric::VehicleWheelRaycasts, 4);
 
         const IronGang::PerformanceStatistics frame =
             profiler.GetStatistics(IronGang::PerformanceMetric::FrameInterval);
@@ -949,6 +958,11 @@ namespace
         Require(drawCalls.sampleCount == 2 && std::abs(drawCalls.average - 11.0) < 1e-9 &&
                     std::abs(drawCalls.p95 - 12.0) < 1e-9 && std::abs(drawCalls.maximum - 12.0) < 1e-9,
                 "render workload statistics must retain integer counts and use nearest-rank p95");
+        const IronGang::PhysicsWorkloadStatistics bodies =
+            profiler.GetPhysicsWorkloadStatistics(IronGang::PhysicsWorkloadMetric::Bodies);
+        Require(bodies.sampleCount == 2 && std::abs(bodies.average - 8.0) < 1e-9 &&
+                    std::abs(bodies.p95 - 9.0) < 1e-9 && std::abs(bodies.maximum - 9.0) < 1e-9,
+                "physics workload statistics must retain per-update counts and use nearest-rank p95");
 
         IronGang::PerformanceReportContext context;
         context.backend = "TEST";
@@ -984,7 +998,7 @@ namespace
         const std::string report((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
         Require(report.find("\"backend\": \"TEST\"") != std::string::npos,
                 "performance report must identify its graphics backend");
-        Require(report.find("\"schema_version\": 4") != std::string::npos &&
+        Require(report.find("\"schema_version\": 5") != std::string::npos &&
                     report.find("\"draw_calls\": {\"samples\": 2, \"average\": 11.000, \"p95\": 12.000") !=
                         std::string::npos &&
                     report.find("\"state_change_calls\": {\"samples\": 1, \"average\": 31.000") !=
@@ -993,6 +1007,16 @@ namespace
                         std::string::npos &&
                     report.find("excludes Clear, HUD SpriteBatch internal batching") != std::string::npos,
                 "performance report must expose scoped 3D workload counts without claiming backend counters");
+        Require(report.find("\"bodies\": {\"samples\": 2, \"average\": 8.000, \"p95\": 9.000") !=
+                        std::string::npos &&
+                    report.find("\"rigid_body_contact_manifolds\": {\"samples\": 1, \"average\": 3.000") !=
+                        std::string::npos &&
+                    report.find("\"vehicle_wheel_raycasts\": {\"samples\": 1, \"average\": 4.000") !=
+                        std::string::npos &&
+                    report.find("contact points within a manifold are not counted separately") !=
+                        std::string::npos &&
+                    report.find("separate because their granularities differ") != std::string::npos,
+                "performance report must preserve exact, separately-scoped physics state and query counts");
         Require(report.find("\"district_world_physics_cpu\": {\"samples\": 1, \"average_ms\": 4.500") !=
                         std::string::npos &&
                     report.find("\"district_renderer_upload_cpu\": {\"samples\": 1, \"average_ms\": 8.000") !=

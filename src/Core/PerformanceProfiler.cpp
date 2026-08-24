@@ -68,6 +68,32 @@ namespace IronGang
             return "unknown";
         }
 
+        const char* PhysicsWorkloadMetricName(PhysicsWorkloadMetric metric)
+        {
+            switch (metric)
+            {
+            case PhysicsWorkloadMetric::Bodies:
+                return "bodies";
+            case PhysicsWorkloadMetric::ActiveRigidBodies:
+                return "active_rigid_bodies";
+            case PhysicsWorkloadMetric::RigidBodyContactManifolds:
+                return "rigid_body_contact_manifolds";
+            case PhysicsWorkloadMetric::CharacterContacts:
+                return "character_contacts";
+            case PhysicsWorkloadMetric::FixedSteps:
+                return "fixed_steps";
+            case PhysicsWorkloadMetric::PublicRaycasts:
+                return "public_raycasts";
+            case PhysicsWorkloadMetric::CharacterCollisionUpdates:
+                return "character_collision_updates";
+            case PhysicsWorkloadMetric::VehicleWheelRaycasts:
+                return "vehicle_wheel_raycasts";
+            case PhysicsWorkloadMetric::Count:
+                break;
+            }
+            return "unknown";
+        }
+
         std::string EscapeJson(const std::string& value)
         {
             std::string escaped;
@@ -228,6 +254,15 @@ namespace IronGang
         renderWorkloadSamples_[RenderWorkloadMetricIndex(metric)].push_back(static_cast<double>(count));
     }
 
+    void PerformanceProfiler::RecordPhysicsWorkload(PhysicsWorkloadMetric metric, std::uint64_t count)
+    {
+        if (!enabled_ || metric == PhysicsWorkloadMetric::Count)
+        {
+            return;
+        }
+        physicsWorkloadSamples_[PhysicsWorkloadMetricIndex(metric)].push_back(static_cast<double>(count));
+    }
+
     void PerformanceProfiler::RecordDistrictLoad(DistrictLoadSample sample)
     {
         if (!enabled_ || !std::isfinite(sample.worldPhysicsMilliseconds) ||
@@ -307,6 +342,38 @@ namespace IronGang
         return result;
     }
 
+    PhysicsWorkloadStatistics
+    PerformanceProfiler::GetPhysicsWorkloadStatistics(PhysicsWorkloadMetric metric) const
+    {
+        PhysicsWorkloadStatistics result;
+        if (metric == PhysicsWorkloadMetric::Count)
+        {
+            return result;
+        }
+
+        const std::vector<double>& samples = physicsWorkloadSamples_[PhysicsWorkloadMetricIndex(metric)];
+        result.sampleCount = samples.size();
+        if (samples.empty())
+        {
+            return result;
+        }
+
+        double total = 0.0;
+        for (const double sample : samples)
+        {
+            total += sample;
+            result.maximum = std::max(result.maximum, sample);
+        }
+        result.average = total / static_cast<double>(samples.size());
+
+        std::vector<double> sorted = samples;
+        std::sort(sorted.begin(), sorted.end());
+        const std::size_t percentileIndex = static_cast<std::size_t>(
+            std::ceil(0.95 * static_cast<double>(sorted.size()))) - 1U;
+        result.p95 = sorted[percentileIndex];
+        return result;
+    }
+
     bool PerformanceProfiler::WriteJsonReport(const std::string& path,
                                                const PerformanceReportContext& context,
                                                std::string& error) const
@@ -339,7 +406,7 @@ namespace IronGang
 
             output << std::fixed << std::setprecision(3);
             output << "{\n"
-                   << "  \"schema_version\": 4,\n"
+                   << "  \"schema_version\": 5,\n"
                    << "  \"backend\": \"" << EscapeJson(context.backend) << "\",\n"
                    << "  \"build_configuration\": \"" << EscapeJson(context.buildConfiguration) << "\",\n"
                    << "  \"scenario\": \"" << EscapeJson(context.scenario) << "\",\n"
@@ -465,6 +532,23 @@ namespace IronGang
                        << ", \"p95\": " << statistics.p95
                        << ", \"maximum\": " << statistics.maximum << "}";
                 output << (index + 1U == static_cast<std::size_t>(RenderWorkloadMetric::Count) ? "\n" : ",\n");
+            }
+
+            output << "  },\n"
+                   << "  \"physics_workload\": {\n"
+                   << "    \"scope\": \"per game Update; body/contact fields are current state and step/query fields are operations consumed since the previous sample\",\n"
+                   << "    \"contact_scope\": \"Jolt rigid-body/subshape contact manifolds plus actual CharacterVirtual contacts; contact points within a manifold are not counted separately\",\n"
+                   << "    \"query_scope\": \"public PhysicsWorld raycasts, actual vehicle suspension raycasts, and CharacterVirtual collision-update batches are separate because their granularities differ\",\n";
+
+            for (std::size_t index = 0; index < static_cast<std::size_t>(PhysicsWorkloadMetric::Count); ++index)
+            {
+                const auto metric = static_cast<PhysicsWorkloadMetric>(index);
+                const PhysicsWorkloadStatistics statistics = GetPhysicsWorkloadStatistics(metric);
+                output << "    \"" << PhysicsWorkloadMetricName(metric) << "\": {\"samples\": "
+                       << statistics.sampleCount << ", \"average\": " << statistics.average
+                       << ", \"p95\": " << statistics.p95
+                       << ", \"maximum\": " << statistics.maximum << "}";
+                output << (index + 1U == static_cast<std::size_t>(PhysicsWorkloadMetric::Count) ? "\n" : ",\n");
             }
 
             output << "  },\n"

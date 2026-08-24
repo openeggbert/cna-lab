@@ -179,6 +179,57 @@ namespace
 
         world.DestroyVehicle(vehicle);
     }
+
+    void TestProfileSnapshotCountsStateAndConsumesOperations()
+    {
+        PhysicsWorld world;
+        world.SetProfilingEnabled(true);
+        (void)world.CreateStaticBody(
+            ShapeDesc::Box(Vector3(50.0F, 0.5F, 50.0F)), Vector3(0.0F, 0.0F, 0.0F));
+        const RigidBodyHandle box = world.CreateDynamicBody(
+            ShapeDesc::Box(Vector3(0.5F, 0.5F, 0.5F)), Vector3(0.0F, 0.9F, 0.0F), 10.0F);
+        const CharacterHandle character = world.CreateCharacter(Vector3(3.0F, 1.4F, 0.0F), 0.3F, 0.6F);
+
+        const std::array<Vector3, 4> wheelPositions = {
+            Vector3(1.0F, -0.3F, 1.8F), Vector3(-1.0F, -0.3F, 1.8F),
+            Vector3(1.0F, -0.3F, -1.8F), Vector3(-1.0F, -0.3F, -1.8F),
+        };
+        const VehicleHandle vehicle = world.CreateFourWheelVehicle(
+            Vector3(1.0F, 0.3F, 2.1F), 1200.0F, Vector3(6.0F, 1.2F, 0.0F),
+            wheelPositions, 0.35F, 0.3F);
+
+        (void)world.Raycast(Vector3(0.0F, 5.0F, 0.0F), Vector3(0.0F, -1.0F, 0.0F), 10.0F);
+        (void)world.Raycast(Vector3(0.0F, 5.0F, 0.0F), Vector3(1.0F, 0.0F, 0.0F), 1.0F);
+        world.MoveCharacter(character, Vector3(0.0F, -1.0F, 0.0F), 1.0F / 60.0F);
+        world.Step(1.0F / 60.0F);
+
+        const PhysicsProfileSnapshot first = world.CaptureProfileSnapshot();
+        Require(first.bodyCount == 3,
+                "profile body count must include floor, dynamic box, and vehicle chassis but not CharacterVirtual");
+        Require(first.activeRigidBodyCount >= 2,
+                "the newly-created dynamic box and vehicle chassis must both be active");
+        Require(first.rigidBodyContactManifoldCount >= 1,
+                "the overlapping dynamic box must produce at least one rigid-body contact manifold");
+        Require(first.characterContactCount >= 1,
+                "the grounded virtual character must expose at least one actual character contact");
+        Require(first.fixedStepCount == 1, "one fixed-step call must be counted exactly once");
+        Require(first.publicRaycastCount == 2, "public PhysicsWorld raycasts must be counted exactly");
+        Require(first.characterCollisionUpdateCount == 1,
+                "one virtual-character collision update must be counted exactly");
+        Require(first.vehicleWheelRaycastCount == 4,
+                "one four-wheel vehicle step must perform four full suspension raycasts");
+
+        const PhysicsProfileSnapshot second = world.CaptureProfileSnapshot();
+        Require(second.bodyCount == first.bodyCount,
+                "capturing a profile snapshot must not consume current body state");
+        Require(second.fixedStepCount == 0 && second.publicRaycastCount == 0 &&
+                    second.characterCollisionUpdateCount == 0 && second.vehicleWheelRaycastCount == 0,
+                "capturing a profile snapshot must consume only operation counters");
+
+        world.DestroyCharacter(character);
+        world.DestroyVehicle(vehicle);
+        world.DestroyBody(box);
+    }
 }
 
 int main()
@@ -189,6 +240,7 @@ int main()
         {"TriggerFiresEnterAndExit", TestTriggerFiresEnterAndExit},
         {"CharacterControllerIsBlockedByWallAndGrounded", TestCharacterControllerIsBlockedByWallAndGrounded},
         {"VehicleDrivesForward", TestVehicleDrivesForward},
+        {"ProfileSnapshotCountsStateAndConsumesOperations", TestProfileSnapshotCountsStateAndConsumesOperations},
     };
 
     int failures = 0;
