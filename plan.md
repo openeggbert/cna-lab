@@ -140,6 +140,9 @@ similar emulation core is permitted in the application, build, or test suite.
 - [ ] **10. Verification and release readiness**
   - Run domain, persistence, display, and smoke tests with at most two build
     jobs; avoid unnecessary clean builds and large generated files.
+  - [x] Configure and compile the selected modular framework closure with both
+    `SDL_RENDERER` and `HEADLESS`; retain the renderer-specific targets rather
+    than restoring CNA's compatibility umbrella.
   - Compare all visible flows against the captured international P1 reference.
   - Document remaining desktop-only safeguards and known deviations clearly.
 

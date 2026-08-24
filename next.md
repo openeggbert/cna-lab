@@ -23,10 +23,12 @@ write and verify the clean implementation.
   `SDL_RENDERER` or `HEADLESS`; the application links `CNA::Runtime` plus the
   chosen renderer rather than CNA's compatibility umbrella. The explicit
   sharp-runtime closure and `CNA_ENABLE_DRACO=OFF` are intentional.
-- The SDL renderer preset configures, builds, and passes all nine CTest tests
-  with `--parallel 2`. Keep the two-job ceiling. An initial two-job build saw
-  a transient static-library archiving failure, but an unchanged incremental
-  rerun succeeded; investigate only if that failure recurs.
+- Both supported modular renderer presets configure and build: SDL also passes
+  all nine CTest tests with `--parallel 2`, and a fresh HEADLESS application
+  build completed on 2026-08-24. Keep the two-job ceiling. This runner can
+  intermittently fail while `ar` replaces a static library (observed with both
+  two and one job); retry the unchanged incremental build before attributing
+  that message to a source or dependency change.
 - A clean SDL application run was checked on Xvfb with
   `SDL_VIDEODRIVER=x11`, `WAYLAND_DISPLAY` unset, and an isolated
   `XDG_DATA_HOME` under `/tmp`. The initial clock setup needs a held virtual
