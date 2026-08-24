@@ -15,8 +15,8 @@ This starter is deliberately small. It proves the basic direction before local A
 - first-person camera
 - classic arrow-key movement
 - keyboard turning with a fixed horizon
-- centered crosshair and a generated retro status bar with sidearm icon
-- generated CNA sound effects for weapons, enemy alerts and attacks, defeated enemies, pickups, doors, locks and player damage
+- crosshair-free play view with a large generated knife, sidearm or repeater in the lower center
+- clearly audible generated CNA effects for firearm shots, knife attacks, ammunition, enemy alerts and attacks, defeated enemies, doors, locks and player damage
 - a generated looping bunker ambience, with a master sound on/off control in the title menu
 - uncapped score for gold, defeated enemies and completing the level; every 40,000 points awards another life
 - a centered completion card appears at the level exit
@@ -35,7 +35,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - title menu: arrows select, `Enter` or `Space` confirms, `Escape` backs out; it also has a master sound toggle
 - three difficulty modes: Scout (70% enemy damage), Operative (normal), Veteran (140% enemy damage)
 - `Space`: open the door in front of you (doors close after four seconds unless a body blocks them)
-- left or right `Ctrl`: fire the sidearm
+- left or right `Ctrl`: attack with the selected weapon; empty firearms automatically fall back to the knife
 - `1` / `2` / `3`: knife / sidearm / three-round repeater
 - `F11`: toggle fullscreen
 - `P`: pause / resume

@@ -40,8 +40,13 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> weaponIcon_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> knifeIcon_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterIcon_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> sidearmView_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> knifeView_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterView_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> shotSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> knifeSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> pickupSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> ammoPickupSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> doorSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> lockedSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> hurtSound_;
@@ -102,6 +107,7 @@ namespace WolfCna
         bool escapeWasDown_ = false;
         bool soundEnabled_ = true;
         float cheatMessageSeconds_ = 0.0f;
+        float weaponFlashSeconds_ = 0.0f;
 
         static constexpr float PlayerRadius = 0.22f;
         static constexpr float WalkSpeed = 2.4f;

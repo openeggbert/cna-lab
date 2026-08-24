@@ -68,6 +68,70 @@ namespace WolfCna
             return pcm;
         }
 
+        std::vector<SharpRuntime::bytecs> MakeGunshot()
+        {
+            constexpr float sampleRate = 22050.0f;
+            constexpr int sampleCount = 4200;
+            std::vector<SharpRuntime::bytecs> pcm;
+            pcm.reserve(static_cast<std::size_t>(sampleCount * 2));
+            std::uint32_t noiseState = 0x4f1bbcdcu;
+
+            for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
+            {
+                noiseState = noiseState * 1664525u + 1013904223u;
+                const float noise = static_cast<float>(static_cast<int>((noiseState >> 16u) & 0xffffu) - 32768) / 32768.0f;
+                const float progress = static_cast<float>(sampleIndex) / sampleCount;
+                const float envelope = (1.0f - progress) * (1.0f - progress);
+                const float body = std::sin(2.0f * MathHelper::Pi * 92.0f * sampleIndex / sampleRate);
+                const auto sample = static_cast<std::int16_t>(
+                    std::clamp((noise * 0.78f + body * 0.22f) * envelope, -1.0f, 1.0f) * 28000.0f);
+                pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
+                pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
+            }
+            return pcm;
+        }
+
+        std::vector<SharpRuntime::bytecs> MakeDoorMovement()
+        {
+            constexpr float sampleRate = 22050.0f;
+            constexpr int sampleCount = 9000;
+            std::vector<SharpRuntime::bytecs> pcm;
+            pcm.reserve(static_cast<std::size_t>(sampleCount * 2));
+
+            for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
+            {
+                const float time = static_cast<float>(sampleIndex) / sampleRate;
+                const float progress = static_cast<float>(sampleIndex) / sampleCount;
+                const float motor = std::sin(2.0f * MathHelper::Pi * (72.0f + 24.0f * progress) * time);
+                const float teeth = std::sin(2.0f * MathHelper::Pi * 310.0f * time) > 0.0f ? 1.0f : -1.0f;
+                const float envelope = std::sin(MathHelper::Pi * progress);
+                const auto sample = static_cast<std::int16_t>((motor * 0.72f + teeth * 0.18f) * envelope * 22000.0f);
+                pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
+                pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
+            }
+            return pcm;
+        }
+
+        std::vector<SharpRuntime::bytecs> MakeAmmoPickup()
+        {
+            constexpr float sampleRate = 22050.0f;
+            constexpr int sampleCount = 5200;
+            std::vector<SharpRuntime::bytecs> pcm;
+            pcm.reserve(static_cast<std::size_t>(sampleCount * 2));
+
+            for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
+            {
+                const float progress = static_cast<float>(sampleIndex) / sampleCount;
+                const float frequency = progress < 0.5f ? 440.0f : 660.0f;
+                const float phase = 2.0f * MathHelper::Pi * frequency * sampleIndex / sampleRate;
+                const float envelope = 1.0f - progress;
+                const auto sample = static_cast<std::int16_t>(std::sin(phase) * envelope * 23000.0f);
+                pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
+                pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
+            }
+            return pcm;
+        }
+
         std::vector<SharpRuntime::bytecs> MakeAmbientLoop()
         {
             constexpr float sampleRate = 22050.0f;
@@ -386,20 +450,74 @@ namespace WolfCna
                 if (x > 17 || y > 24)
                     iconPixels[y * iconSize + x] = Color(166, 112, 72, 255);
         repeaterIcon_->SetData(iconPixels.data(), static_cast<int>(iconPixels.size()));
+
+        constexpr int viewSize = 96;
+        std::vector<Color> viewPixels(viewSize * viewSize, Color(0, 0, 0, 0));
+        const auto fill = [&](int left, int top, int right, int bottom, Color color)
+        {
+            for (int y = std::max(0, top); y < std::min(viewSize, bottom); ++y)
+                for (int x = std::max(0, left); x < std::min(viewSize, right); ++x)
+                    viewPixels[static_cast<std::size_t>(y * viewSize + x)] = color;
+        };
+        const Color skin(194, 128, 82, 255);
+        const Color shadowSkin(132, 79, 55, 255);
+        const Color steel(106, 119, 134, 255);
+        const Color darkSteel(42, 51, 62, 255);
+
+        knifeView_ = std::make_unique<Texture2D>(device, viewSize, viewSize);
+        for (int y = 8; y < 66; ++y)
+        {
+            const int center = 50 + (66 - y) / 8;
+            fill(center - 4, y, center + 5, y + 1, y < 16 ? Color(224, 232, 240, 255) : steel);
+        }
+        fill(31, 64, 70, 70, darkSteel);
+        fill(42, 69, 62, 96, shadowSkin);
+        fill(46, 72, 68, 96, skin);
+        knifeView_->SetData(viewPixels.data(), static_cast<int>(viewPixels.size()));
+
+        std::fill(viewPixels.begin(), viewPixels.end(), Color(0, 0, 0, 0));
+        sidearmView_ = std::make_unique<Texture2D>(device, viewSize, viewSize);
+        fill(37, 13, 61, 24, darkSteel);
+        fill(41, 17, 58, 56, steel);
+        fill(36, 25, 63, 50, darkSteel);
+        fill(42, 28, 58, 48, Color(78, 91, 108, 255));
+        fill(45, 49, 63, 78, shadowSkin);
+        fill(40, 71, 69, 96, skin);
+        fill(34, 78, 45, 96, shadowSkin);
+        sidearmView_->SetData(viewPixels.data(), static_cast<int>(viewPixels.size()));
+
+        std::fill(viewPixels.begin(), viewPixels.end(), Color(0, 0, 0, 0));
+        repeaterView_ = std::make_unique<Texture2D>(device, viewSize, viewSize);
+        fill(28, 17, 68, 56, darkSteel);
+        fill(32, 21, 64, 51, Color(71, 84, 99, 255));
+        fill(34, 8, 44, 35, steel);
+        fill(52, 8, 62, 35, steel);
+        fill(38, 51, 59, 78, shadowSkin);
+        fill(20, 72, 44, 96, skin);
+        fill(53, 72, 77, 96, skin);
+        repeaterView_->SetData(viewPixels.data(), static_cast<int>(viewPixels.size()));
     }
 
     void WolfGame::CreateSoundEffects()
     {
         shotSound_ = std::make_unique<SoundEffect>(
-            MakeTone(150.0f, 1800),
+            MakeGunshot(),
+            22050,
+            AudioChannels::Mono);
+        knifeSound_ = std::make_unique<SoundEffect>(
+            MakeTone(185.0f, 2400),
             22050,
             AudioChannels::Mono);
         pickupSound_ = std::make_unique<SoundEffect>(
             MakeTone(660.0f, 2400),
             22050,
             AudioChannels::Mono);
+        ammoPickupSound_ = std::make_unique<SoundEffect>(
+            MakeAmmoPickup(),
+            22050,
+            AudioChannels::Mono);
         doorSound_ = std::make_unique<SoundEffect>(
-            MakeTone(210.0f, 3600),
+            MakeDoorMovement(),
             22050,
             AudioChannels::Mono);
         lockedSound_ = std::make_unique<SoundEffect>(
@@ -458,25 +576,30 @@ namespace WolfCna
 
     void WolfGame::DrawHud()
     {
-        if (!hudSpriteBatch_ || !hudPixel_ || !weaponIcon_ || !knifeIcon_ || !repeaterIcon_)
+        if (!hudSpriteBatch_ || !hudPixel_ || !weaponIcon_ || !knifeIcon_ || !repeaterIcon_ ||
+            !sidearmView_ || !knifeView_ || !repeaterView_)
             return;
 
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
         const int centerX = viewport.getXProperty() + viewport.getWidthProperty() / 2;
         const int centerY = viewport.getYProperty() + viewport.getHeightProperty() / 2;
-        const Color crosshairColor(238, 211, 132, 255);
-
         hudSpriteBatch_->Begin();
-        hudSpriteBatch_->Draw(
-            *hudPixel_,
-            Rectangle(centerX - 8, centerY, 17, 1),
-            crosshairColor);
-        hudSpriteBatch_->Draw(
-            *hudPixel_,
-            Rectangle(centerX, centerY - 8, 1, 17),
-            crosshairColor);
         const int panelHeight = 84;
         const int panelY = viewport.getYProperty() + viewport.getHeightProperty() - panelHeight;
+        const int viewSize = std::clamp(viewport.getHeightProperty() / 3, 144, 236);
+        Texture2D* viewTexture = weapon_ == Weapon::Knife
+            ? knifeView_.get()
+            : weapon_ == Weapon::Sidearm ? sidearmView_.get() : repeaterView_.get();
+        hudSpriteBatch_->Draw(
+            *viewTexture,
+            Rectangle(centerX - viewSize / 2, panelY - viewSize + 18, viewSize, viewSize),
+            Color(255, 255, 255, 255));
+        if (weaponFlashSeconds_ > 0.0f && weapon_ != Weapon::Knife)
+        {
+            const int muzzleY = panelY - viewSize + 14;
+            hudSpriteBatch_->Draw(*hudPixel_, Rectangle(centerX - 7, muzzleY - 20, 15, 31), Color(255, 239, 119, 255));
+            hudSpriteBatch_->Draw(*hudPixel_, Rectangle(centerX - 18, muzzleY - 10, 37, 12), Color(255, 143, 42, 255));
+        }
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), panelY, viewport.getWidthProperty(), panelHeight), Color(31, 62, 137, 255));
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), panelY, viewport.getWidthProperty(), 3), Color(14, 25, 70, 255));
         const Color labelColor(188, 213, 255, 255);
@@ -898,7 +1021,7 @@ namespace WolfCna
             const World::InteractionResult activation =
                 world_.TryActivate(playerPosition_, LookDirection(), hasSecurityCard_);
             if (activation == World::InteractionResult::DoorOpened && doorSound_)
-                static_cast<void>(doorSound_->Play(0.22f, -0.2f, 0.0f));
+                static_cast<void>(doorSound_->Play(0.68f, -0.15f, 0.0f));
             else if (activation == World::InteractionResult::DoorLocked && lockedSound_)
                 static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
             else if (activation == World::InteractionResult::TerminalActivated && terminalSound_)
@@ -912,11 +1035,13 @@ namespace WolfCna
         }
         actionWasDown_ = actionIsDown;
 
+        if (ammo_ <= 0)
+            weapon_ = Weapon::Knife;
         if (keyboard.IsKeyDown(Keys::D1))
             weapon_ = Weapon::Knife;
-        if (keyboard.IsKeyDown(Keys::D2))
+        if (ammo_ > 0 && keyboard.IsKeyDown(Keys::D2))
             weapon_ = Weapon::Sidearm;
-        if (keyboard.IsKeyDown(Keys::D3))
+        if (ammo_ > 0 && keyboard.IsKeyDown(Keys::D3))
             weapon_ = Weapon::Repeater;
 
         const bool attackIsDown =
@@ -925,8 +1050,9 @@ namespace WolfCna
         {
             const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection(), 0.9f);
             AwardScore(attack.score);
-            if (shotSound_)
-                static_cast<void>(shotSound_->Play(0.18f, -0.45f, 0.0f));
+            weaponFlashSeconds_ = 0.11f;
+            if (knifeSound_)
+                static_cast<void>(knifeSound_->Play(0.62f, -0.2f, 0.0f));
             if (attack.score > 0 && enemyDefeatedSound_)
                 static_cast<void>(enemyDefeatedSound_->Play(0.28f, -0.3f, 0.0f));
         }
@@ -944,8 +1070,9 @@ namespace WolfCna
                         Vector3(std::sin(shotYaw), 0.0f, -std::cos(shotYaw))).score;
                 }
                 AwardScore(defeatedScore);
+                weaponFlashSeconds_ = 0.09f;
                 if (shotSound_)
-                    static_cast<void>(shotSound_->Play(0.48f, 0.16f, 0.0f));
+                    static_cast<void>(shotSound_->Play(0.95f, -0.04f, 0.0f));
                 if (defeatedScore > 0 && enemyDefeatedSound_)
                     static_cast<void>(enemyDefeatedSound_->Play(0.32f, -0.22f, 0.0f));
             }
@@ -954,12 +1081,15 @@ namespace WolfCna
                 --ammo_;
                 const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection());
                 AwardScore(attack.score);
+                weaponFlashSeconds_ = 0.08f;
                 if (shotSound_)
-                    static_cast<void>(shotSound_->Play(0.35f, 0.0f, 0.0f));
+                    static_cast<void>(shotSound_->Play(0.9f, -0.12f, 0.0f));
                 if (attack.score > 0 && enemyDefeatedSound_)
                     static_cast<void>(enemyDefeatedSound_->Play(0.28f, -0.3f, 0.0f));
             }
         }
+        if (ammo_ <= 0)
+            weapon_ = Weapon::Knife;
         attackWasDown_ = attackIsDown;
 
         const float turnStep = KeyboardTurnSpeed * elapsedSeconds;
@@ -1018,6 +1148,7 @@ namespace WolfCna
 
         levelElapsedSeconds_ += clampedElapsed;
         cheatMessageSeconds_ = std::max(0.0f, cheatMessageSeconds_ - clampedElapsed);
+        weaponFlashSeconds_ = std::max(0.0f, weaponFlashSeconds_ - clampedElapsed);
         const int incomingDamage = world_.Update(clampedElapsed, playerPosition_, DamageMultiplier());
         if (world_.ConsumeGuardShotCount() > 0 && guardShotSound_)
             static_cast<void>(guardShotSound_->Play(0.18f, 0.12f, 0.0f));
@@ -1053,7 +1184,9 @@ namespace WolfCna
         ammo_ = std::min(12, ammo_ + pickups.ammo);
         AwardScore(pickups.gold);
         hasSecurityCard_ = hasSecurityCard_ || pickups.accessCards > 0;
-        if ((pickups.health + pickups.ammo + pickups.gold + pickups.accessCards) > 0 && pickupSound_)
+        if (pickups.ammo > 0 && ammoPickupSound_)
+            static_cast<void>(ammoPickupSound_->Play(0.72f, 0.0f, 0.0f));
+        if ((pickups.health + pickups.gold + pickups.accessCards) > 0 && pickupSound_)
             static_cast<void>(pickupSound_->Play(0.28f, 0.0f, 0.0f));
         if (!completed_ && world_.ReachedExit(playerPosition_))
         {

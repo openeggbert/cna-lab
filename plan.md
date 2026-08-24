@@ -969,7 +969,7 @@ Acceptance:
 
 ### WOLF-010 — first 5-minute level
 
-Status: in progress.
+Status: complete.
 
 Current progress:
 
@@ -1020,3 +1020,63 @@ Distinctive wolf-cna mechanics should eventually include several of:
 - enemies reacting to security state.
 
 The retro grid readability is the starting grammar. CNA real 3D is what allows the game to grow beyond it.
+
+---
+
+# 20. Wolf-like presentation and campaign progression
+
+This work follows the readable 1992 DOS FPS grammar while keeping all names,
+maps, sprites, textures, sounds and symbols original to wolf-cna. Prohibited
+totalitarian symbols must never appear; wall banners and decorative emblems use
+an original peace symbol instead.
+
+### WOLF-011 — immediate presentation and feedback
+
+Status: complete.
+
+- remove the aiming crosshair;
+- automatically select the knife when ammunition reaches zero;
+- render a large first-person knife/sidearm/automatic weapon in the lower center;
+- replace quiet placeholder tones with clearly audible generated gunshot, door
+  movement and ammunition-pickup effects;
+- keep all audio on CNA public APIs.
+
+Acceptance:
+
+- firing a firearm, opening a door and collecting ammunition are clearly audible;
+- no crosshair is drawn;
+- an empty firearm falls back to the knife;
+- the currently selected weapon is unmistakably visible in the play view.
+
+### WOLF-012 — selectable locked sectors
+
+- show a sector selection screen after starting a run and before difficulty;
+- only sector 1 is unlocked on a fresh profile;
+- completing sector N permanently unlocks sector N+1;
+- locked sectors are visible but cannot be selected;
+- store the highest unlocked sector in a tiny validated project-owned progress file;
+- starting an unlocked later sector creates a fresh run at that sector.
+
+### WOLF-013 — original sprite presentation
+
+- replace colored enemy cuboids with camera-facing textured polygon billboards;
+- create original transparent pixel-art guards, hounds and weapon view sprites;
+- animate idle/chase/attack/death and weapon attack frames;
+- retain true polygonal 3D world geometry and CNA rendering;
+- record generated-asset provenance and never derive pixels from proprietary data.
+
+### WOLF-014 — combat variety
+
+- add original security guard, rapid-fire trooper and heavy-unit archetypes;
+- add knife, sidearm, automatic weapon and heavy automatic weapon;
+- weapons must be discovered before their number key becomes active;
+- give each enemy readable health, speed, attack cadence and sound behavior;
+- rebalance ammunition capacity and pickups for sustained campaign play.
+
+### WOLF-015 — rooms and decorations
+
+- add generated paintings, ceiling lamps, tables, plants and treasure props;
+- add original wall banners carrying a peace symbol only;
+- give each sector its own decoration/material set;
+- decorations may block movement only when their silhouette clearly communicates it;
+- authored rooms should use landmarks and decoration placement for navigation.
