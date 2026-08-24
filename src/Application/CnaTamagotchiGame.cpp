@@ -38,10 +38,8 @@ constexpr int DisplayX = (WindowWidth - DisplayPixelWidth) / 2;
 constexpr int DisplayY = 280;
 constexpr int IconBandHeight = 34;
 constexpr int LcdModulePadding = 12;
-constexpr int IconAtlasCellWidth = 38;
-constexpr int IconAtlasCellHeight = 36;
 constexpr int IconDrawWidth = 32;
-constexpr int IconDrawHeight = 30;
+constexpr int IconDrawHeight = 22;
 
 struct Rgb final {
     std::uint8_t red;
@@ -67,6 +65,7 @@ Color asColor(const Display::LcdColour colour) noexcept
 
 struct ButtonPosition final {
     int x;
+    int y;
 };
 
 constexpr int IconCount = 8;
@@ -78,7 +77,7 @@ constexpr int ResetButtonRadius = 10;
 constexpr float ResetHoldSeconds = 1.5F;
 constexpr int ButtonHitRadius = 29;
 constexpr std::array<ButtonPosition, 3> ButtonPositions{{
-    {202}, {270}, {338},
+    {202, ButtonY}, {270, ButtonY + 12}, {338, ButtonY},
 }};
 
 const Domain::ProgramDefinition& activeProgramme() noexcept
@@ -459,7 +458,7 @@ CnaTamagotchiGame::buttonAtWindowPosition(const float x, const float y) const no
         / static_cast<float>(clientBounds.Height);
     for (std::size_t index = 0; index < ButtonPositions.size(); ++index) {
         const float deltaX = deviceX - static_cast<float>(ButtonPositions[index].x);
-        const float deltaY = deviceY - static_cast<float>(ButtonY);
+        const float deltaY = deviceY - static_cast<float>(ButtonPositions[index].y);
         if (deltaX * deltaX + deltaY * deltaY
             <= static_cast<float>(ButtonHitRadius * ButtonHitRadius)) {
             return static_cast<DeviceButton>(index);
@@ -1058,7 +1057,7 @@ void CnaTamagotchiGame::drawDevice()
     // The atlas is a transparency mask derived from the reference device's
     // eight face icons. CNA applies one of two outline colours at draw time:
     // muted grey when inactive and near-black when selected or urgent.
-    const Color iconInactive(104, 104, 104, 255);
+    const Color iconInactive = Ink;
     for (int index = 0; index < IconCount; ++index) {
         const int slot = index % 4;
         const bool topBand = index < 4;
@@ -1083,9 +1082,9 @@ void CnaTamagotchiGame::drawDevice()
 
     // Three physical controls: A changes selection, B confirms, C clears it.
     for (const ButtonPosition button : ButtonPositions) {
-        drawEllipse(button.x, ButtonY + 4, 25, 25, ShellOutline);
-        drawEllipse(button.x, ButtonY, 20, 20, ButtonMain);
-        drawEllipse(button.x - 3, ButtonY - 4, 8, 8, ButtonHighlight);
+        drawEllipse(button.x, button.y + 4, 25, 25, ShellOutline);
+        drawEllipse(button.x, button.y, 20, 20, ButtonMain);
+        drawEllipse(button.x - 3, button.y - 4, 8, 8, ButtonHighlight);
     }
 
     // A small recessed reset pinhole sits apart from the three care controls.
