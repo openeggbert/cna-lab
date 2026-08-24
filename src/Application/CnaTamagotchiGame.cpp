@@ -38,10 +38,9 @@ constexpr int DisplayX = (WindowWidth - DisplayPixelWidth) / 2;
 constexpr int DisplayY = 280;
 constexpr int IconBandHeight = 34;
 constexpr int LcdModulePadding = 12;
-constexpr int IconAtlasCellWidth = 38;
-constexpr int IconAtlasCellHeight = 36;
-constexpr int IconDrawWidth = 32;
-constexpr int IconDrawHeight = 30;
+constexpr int IconGlyphWidth = 15;
+constexpr int IconGlyphHeight = 10;
+constexpr int IconGlyphScale = 2;
 
 struct Rgb final {
     std::uint8_t red;
@@ -82,6 +81,17 @@ constexpr std::array<ButtonPosition, 3> ButtonPositions{{
     {202, ButtonY}, {270, ButtonY + 12}, {338, ButtonY},
 }};
 
+constexpr std::array<std::array<std::string_view, IconGlyphHeight>, IconCount> P1IconRows{{
+    {{".#.#.....###...", ".#.#....#...#..", ".###....#...#..", "..#......###...", "..#.......#....", "..#.......#....", "..#.......#....", "..#.......#....", "...............", "..............."}},
+    {{"......#........", "..#...#...#....", "...#.###.#.....", "....#...#......", ".#..#.#.#..#...", "....#...#......", "...#.###.#.....", "......#........", ".....###.......", "..............."}},
+    {{"...........##..", "..........#..#.", "....##.....##..", "...####........", "..######.......", "...####........", "....##.........", ".....##........", "......##.......", ".......##......"}},
+    {{".........##....", "........####...", ".......##..##..", "......##..##...", ".....##..##....", "....##..##.....", "...##..##......", "..##..##.......", ".####..........", "..##..........."}},
+    {{"..######.......", "..#....#.......", "..#....####....", "..######..##...", ".....#.....#...", ".....#######...", "......#####....", ".......###.....", ".......###.....", ".....#######..."}},
+    {{"....#######....", "..##.......##..", ".#...#...#...#.", ".#....###....#.", ".#.....#.....#.", "..##.......##..", "....#######....", ".....#####.....", "....#######....", "..............."}},
+    {{"..##...........", ".####.....#.....", ".#..#....###....", ".####.....#.....", "..##....#####..", "...#......#....", "..###.....#....", ".#.#.#....#....", "...#...........", "..............."}},
+    {{"....#####......", "...#.....#.....", "..#..#.#..#....", "..#.......#....", "...#..#..#.....", "....#####......", "......#........", ".....###.......", "......#........", ".....###......."}},
+}};
+
 const Domain::ProgramDefinition& activeProgramme() noexcept
 {
     // The application has one selected programme today. All programme-specific
@@ -105,23 +115,6 @@ std::filesystem::path defaultSavePath()
     }
     return Persistence::SaveLocation::resolveSlot(
         workingDirectory, Persistence::SaveLocation::platformDataDirectory());
-}
-
-std::filesystem::path iconAtlasPath()
-{
-    constexpr std::array<std::string_view, 2> candidates{{
-        "assets/p1-icon-atlas.png",
-        "../assets/p1-icon-atlas.png",
-    }};
-    std::error_code error;
-    for (const std::string_view candidate : candidates) {
-        const std::filesystem::path path(candidate);
-        if (std::filesystem::exists(path, error) && !error) {
-            return path;
-        }
-        error.clear();
-    }
-    return std::filesystem::path(candidates.front());
 }
 
 } // namespace
@@ -149,7 +142,6 @@ void CnaTamagotchiGame::LoadContent()
     pixelTexture_.emplace(getGraphicsDeviceProperty(), 1, 1);
     const Color white(255, 255, 255, 255);
     pixelTexture_->SetData(&white, 1);
-    iconAtlasTexture_.emplace(iconAtlasPath().string(), getGraphicsDeviceProperty());
 }
 
 void CnaTamagotchiGame::Update(GameTime& gameTime)
@@ -1065,30 +1057,39 @@ void CnaTamagotchiGame::drawDevice()
         }
     }
 
-    // The atlas is a transparency mask derived from the reference device's
-    // eight face icons. CNA applies one of two outline colours at draw time:
-    // muted grey when inactive and near-black when selected or urgent.
-    const Color iconInactive = Ink;
+    // The P1 face icons are authored as one-bit glyphs. Only set pixels are
+    // drawn, so the two LCD bands remain fully visible through every cell.
     for (int index = 0; index < IconCount; ++index) {
         const int slot = index % 4;
         const bool topBand = index < 4;
         const int bandY = topBand ? DisplayY - IconBandHeight : DisplayY + DisplayPixelHeight;
         const int slotWidth = DisplayPixelWidth / 4;
+        const int glyphWidth = IconGlyphWidth * IconGlyphScale;
+        const int glyphHeight = IconGlyphHeight * IconGlyphScale;
+        const int glyphX = DisplayX + slot * slotWidth + (slotWidth - glyphWidth) / 2;
+        const int glyphY = bandY + (IconBandHeight - glyphHeight) / 2;
+        for (int row = 0; row < IconGlyphHeight; ++row) {
+            for (int column = 0; column < IconGlyphWidth; ++column) {
+                if (P1IconRows[static_cast<std::size_t>(index)][static_cast<std::size_t>(row)]
+                        [static_cast<std::size_t>(column)] == '#') {
+                    drawRect(Rectangle(glyphX + column * IconGlyphScale,
+                        glyphY + row * IconGlyphScale, IconGlyphScale, IconGlyphScale), lcdOn);
+                }
+            }
+        }
+
         const bool urgent = (index == 3 && pet_.sick)
             || (index == 4 && pet_.wasteCount > 0)
             || (index == 7 && pet_.attentionReason != Domain::ProgramAttentionReason::None);
-        const bool active = index == selectedIcon_ || urgent;
-        const Rectangle source((index % 4) * IconAtlasCellWidth,
-            (index / 4) * IconAtlasCellHeight, IconAtlasCellWidth, IconAtlasCellHeight);
-        // Keep the photographed face art centred and close to its native
-        // aspect ratio.  Stretching a 38x36 mask across a 48x32 cell made
-        // the icons squat and put their outlines against the band edges.
-        const Rectangle destination(DisplayX + slot * slotWidth
-                + (slotWidth - IconDrawWidth) / 2,
-            bandY + (IconBandHeight - IconDrawHeight) / 2,
-            IconDrawWidth, IconDrawHeight);
-        spriteBatch_->Draw(*iconAtlasTexture_, destination, source,
-            active ? lcdOn : iconInactive);
+        if (index == selectedIcon_ || urgent) {
+            if (topBand) {
+                drawRect(Rectangle(glyphX + 12, bandY + IconBandHeight - 5, 6, 2), lcdOn);
+                drawRect(Rectangle(glyphX + 14, bandY + IconBandHeight - 3, 2, 2), lcdOn);
+            } else {
+                drawRect(Rectangle(glyphX + 14, bandY + 1, 2, 2), lcdOn);
+                drawRect(Rectangle(glyphX + 12, bandY + 3, 6, 2), lcdOn);
+            }
+        }
     }
 
     // Three physical controls: A changes selection, B confirms, C clears it.

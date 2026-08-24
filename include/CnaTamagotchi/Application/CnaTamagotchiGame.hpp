@@ -93,7 +93,6 @@ private:
     std::filesystem::path savePath_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
     std::optional<Microsoft::Xna::Framework::Graphics::Texture2D> pixelTexture_;
-    std::optional<Microsoft::Xna::Framework::Graphics::Texture2D> iconAtlasTexture_;
     Display::LcdPalette lcdPalette_{Display::LcdPalette::ClassicOlive};
     float backgroundTimeSeconds_{0.0F};
     float simulationSeconds_{0.0F};
