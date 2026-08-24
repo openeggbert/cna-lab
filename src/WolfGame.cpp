@@ -334,6 +334,7 @@ namespace WolfCna
             static_cast<int>(CampaignLevelFiles.size()));
         highestUnlockedLevel_ = profile.highestUnlocked;
         soundVolumeStep_ = profile.soundVolume;
+        fieldOfViewDegrees_ = profile.fieldOfView;
         difficulty_ = static_cast<Difficulty>(profile.difficulty);
     }
 
@@ -1381,14 +1382,15 @@ namespace WolfCna
         {
             centered(top + 22, "MAIN MENU", title);
             centered(top + 58, "BUNKER OPERATIONS", normal);
-            const std::array<std::string, 4> options{
+            const std::array<std::string, 5> options{
                 "START RUN",
                 "CONTROLS",
                 "SOUND " + std::to_string(soundVolumeStep_ * 25) + "%",
+                "VIEW " + std::to_string(fieldOfViewDegrees_) + " DEG",
                 "QUIT"};
             for (int index = 0; index < static_cast<int>(options.size()); ++index)
             {
-                const int y = top + 90 + index * 30;
+                const int y = top + 88 + index * 27;
                 const Color color = menuSelection_ == index ? selected : normal;
                 if (menuSelection_ == index)
                     DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 45, y, ">", selected);
@@ -1470,7 +1472,7 @@ namespace WolfCna
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
 
         return Matrix::CreatePerspectiveFieldOfView(
-            MathHelper::ToRadians(72.0f),
+            MathHelper::ToRadians(static_cast<float>(fieldOfViewDegrees_)),
             viewport.getAspectRatioProperty(),
             0.03f,
             100.0f);
@@ -1576,7 +1578,8 @@ namespace WolfCna
             CampaignProfile{
                 .highestUnlocked = highestUnlockedLevel_,
                 .soundVolume = soundVolumeStep_,
-                .difficulty = static_cast<int>(difficulty_)},
+                .difficulty = static_cast<int>(difficulty_),
+                .fieldOfView = fieldOfViewDegrees_},
             static_cast<int>(CampaignLevelFiles.size()));
     }
 
@@ -1637,9 +1640,9 @@ namespace WolfCna
         else if (screen_ == Screen::Title)
         {
             if (upIsDown && !upWasDown_)
-                menuSelection_ = (menuSelection_ + 3) % 4;
+                menuSelection_ = (menuSelection_ + 4) % 5;
             if (downIsDown && !downWasDown_)
-                menuSelection_ = (menuSelection_ + 1) % 4;
+                menuSelection_ = (menuSelection_ + 1) % 5;
             if (confirmIsDown && !confirmWasDown_)
             {
                 if (menuSelection_ == 0)
@@ -1656,6 +1659,13 @@ namespace WolfCna
                     soundVolumeStep_ = (soundVolumeStep_ + 1) % 5;
                     SoundEffect::setMasterVolumeProperty(
                         static_cast<float>(soundVolumeStep_) / 4.0f);
+                    SaveCampaignProfile();
+                }
+                else if (menuSelection_ == 3)
+                {
+                    fieldOfViewDegrees_ = fieldOfViewDegrees_ >= 96
+                        ? 60
+                        : fieldOfViewDegrees_ + 12;
                     SaveCampaignProfile();
                 }
                 else

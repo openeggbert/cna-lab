@@ -244,27 +244,44 @@ int main()
     const WolfCna::CampaignProfile legacyProfile = WolfCna::CampaignProgress::Parse(
         "WOLF-CNA-PROGRESS-1\n1\n", 3);
     Expect(
-        legacyProfile.highestUnlocked == 1 && legacyProfile.soundVolume == 4 && legacyProfile.difficulty == 1,
+        legacyProfile.highestUnlocked == 1 && legacyProfile.soundVolume == 4 &&
+            legacyProfile.difficulty == 1 && legacyProfile.fieldOfView == 72,
         "legacy campaign progress retains default settings");
     const WolfCna::CampaignProfile booleanSoundProfile = WolfCna::CampaignProgress::Parse(
         "WOLF-CNA-PROGRESS-2\n1\n0\n2\n", 3);
     Expect(
         booleanSoundProfile.highestUnlocked == 1 && booleanSoundProfile.soundVolume == 0 &&
-            booleanSoundProfile.difficulty == 2,
+            booleanSoundProfile.difficulty == 2 && booleanSoundProfile.fieldOfView == 72,
         "version two sound toggle migrates to volume");
+    const WolfCna::CampaignProfile volumeProfile = WolfCna::CampaignProgress::Parse(
+        "WOLF-CNA-PROGRESS-3\n1\n2\n0\n", 3);
+    Expect(
+        volumeProfile.highestUnlocked == 1 && volumeProfile.soundVolume == 2 &&
+            volumeProfile.difficulty == 0 && volumeProfile.fieldOfView == 72,
+        "version three profile migrates to the default view angle");
     const WolfCna::CampaignProfile savedProfile = WolfCna::CampaignProgress::Parse(
         WolfCna::CampaignProgress::Serialize(
-            WolfCna::CampaignProfile{.highestUnlocked = 8, .soundVolume = 3, .difficulty = 2},
+            WolfCna::CampaignProfile{
+                .highestUnlocked = 8,
+                .soundVolume = 3,
+                .difficulty = 2,
+                .fieldOfView = 84},
             3),
         3);
     Expect(
-        savedProfile.highestUnlocked == 2 && savedProfile.soundVolume == 3 && savedProfile.difficulty == 2,
-        "campaign profile restores clamped unlocks, volume and difficulty");
+        savedProfile.highestUnlocked == 2 && savedProfile.soundVolume == 3 &&
+            savedProfile.difficulty == 2 && savedProfile.fieldOfView == 84,
+        "campaign profile restores clamped unlocks, volume, difficulty and view angle");
     const WolfCna::CampaignProfile invalidProfile = WolfCna::CampaignProgress::Parse(
-        "WOLF-CNA-PROGRESS-3\n2\n5\n1\n", 3);
+        "WOLF-CNA-PROGRESS-4\n2\n5\n1\n72\n", 3);
     Expect(
         invalidProfile.highestUnlocked == 0 && invalidProfile.soundVolume == 4 && invalidProfile.difficulty == 1,
         "invalid campaign profile safely restores defaults");
+    const WolfCna::CampaignProfile invalidViewProfile = WolfCna::CampaignProgress::Parse(
+        "WOLF-CNA-PROGRESS-4\n2\n4\n1\n73\n", 3);
+    Expect(
+        invalidViewProfile.highestUnlocked == 0 && invalidViewProfile.fieldOfView == 72,
+        "unsupported view angle safely restores defaults");
 
     const WolfCna::LevelDefinition starterLevel = WolfCna::LevelDefinition::LoadFromFile(
         "assets/levels/starter.level");

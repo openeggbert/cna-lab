@@ -553,8 +553,8 @@ damage. Four authored sectors now run in sequence while carrying score, lives,
 health, ammunition and weapon selection; a sector-specific access card resets at
 each elevator transition. Each exit now presents time plus kill, treasure and
 secret completion ratios. A versioned, validated profile persists sector unlocks,
-five-step master volume and the last selected difficulty while accepting both older
-profile formats.
+five-step master volume, view angle and the last selected difficulty while accepting
+all older profile formats.
 In-run save/load and additional settings remain.
 
 ## M10 — procedural/roguelite mode
@@ -1361,3 +1361,16 @@ Profile format 3 stores the selected step and strictly validates it, while forma
 - apply one master value consistently to effects, ambience and fanfare;
 - preserve backward compatibility with every previously shipped profile format;
 - reject malformed volume values safely.
+
+### WOLF-029 — persisted view-angle setting
+
+Status: complete. The title menu now offers 60, 72, 84 and 96-degree perspective
+choices while retaining yaw-only arrow-key control and a fixed horizon. Projection
+continues through CNA `Matrix`/`BasicEffect`; no backend API is introduced. Profile
+format 4 strictly stores a supported value and migrates formats 1–3 to the original
+72-degree default.
+
+- offer readable narrow through wide views without introducing mouse-look;
+- keep 72 degrees as the backward-compatible default;
+- persist the setting independently from difficulty and master volume;
+- reject arbitrary or unsafe projection values at the profile boundary.

@@ -11,6 +11,7 @@ namespace WolfCna
         int highestUnlocked = 0;
         int soundVolume = 4;
         int difficulty = 1;
+        int fieldOfView = 72;
     };
 
     class CampaignProgress final

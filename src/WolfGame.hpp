@@ -162,6 +162,7 @@ namespace WolfCna
         bool escapeWasDown_ = false;
         bool mouseWasDown_ = false;
         int soundVolumeStep_ = 4;
+        int fieldOfViewDegrees_ = 72;
         float cheatMessageSeconds_ = 0.0f;
         std::string objectiveMessage_;
         float objectiveMessageSeconds_ = 0.0f;
