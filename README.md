@@ -39,7 +39,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - the original Bunker Warden boss has a dedicated health bar, 32-point base health, four generated visual states and a deterministic three-projectile fan attack
 - optional relay and terminal state never blocks an elevator; only the Warden Core's explicit boss lockdown holds its final elevator until the Warden is defeated
 - defeated guards, rapid troopers and heavy units drop difficulty-scaled ammunition; hounds do not drop ammunition
-- health, ammunition, three treasures, access cards and both weapon pickups use original transparent pixel-art sprites instead of colored blocks
+- two health sizes, ammunition, four treasure tiers, cyan/amber access cards, a rare recovery beacon and both weapon pickups use original transparent pixel-art sprites instead of colored blocks
 - terminals, power relays, sector exits and enemy projectiles use original transparent sprites with readable state tinting instead of colored cuboids
 - health kits remain in the level at 100% health and can be collected after the player takes damage
 - every sector provides at least two health kits, while the knife fallback keeps a deterministic full clear possible at every ammunition budget
@@ -47,7 +47,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - original title menu with three deterministic difficulty profiles that change enemy count, health, speed, firing cadence, incoming damage and ammunition supply
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
 - persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume, view angle, last selected difficulty, validated controls and the best eight campaign scores survive restarts
-- three versioned in-run save slots preserve the player, inventory, score, lives, sector time, enemies and AI state, pickups, doors, projectiles, objectives and explored automap; the title and pause menus can load them
+- three versioned in-run save slots preserve the player, both access colors, inventory, score, lives, sector time, enemies and AI state, pickups, doors, projectiles, objectives and explored automap; the title and pause menus can load them
 - holding the map key (`Tab` by default) shows a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
 - every `GOAL` corresponds to a steel elevator cabin whose raised gate allows immediate Wolf-like action activation or physical entry
 
@@ -73,7 +73,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - hold the configured map key (`Tab` by default): show the explored-area map; releasing it resumes play; it includes a marker legend, optional `POWER`/`TERMINAL` progress and an always-cyan `GOAL`
 - quitting the application is an explicit `QUIT` choice in the main menu
 - `I` + `L` + `M` together: retro loadout cheat — full health, all weapons,
-  access card, heavy automatic selected, ammunition set to 99, and score reset to zero
+  both access cards, heavy automatic selected, ammunition set to 99, and score reset to zero
 - `G` + `O` + `A` + `L` together: teleport to the free cell immediately outside
   the current sector elevator and face its doors; objective state is unchanged
 
@@ -84,8 +84,8 @@ restarts the current sector from its authored state: enemies, pickups, doors,
 objectives, secrets and automap reset; score returns to its sector-entry value and
 the player receives full health, knife, sidearm and the difficulty's starting ammo.
 At a standard sector exit, the configured action key takes the run to the next sector;
-score, lives, health, ammunition and the selected weapon carry forward, while sector
-access cards do not.
+score, lives, health, ammunition and the selected weapon carry forward, while both
+sector access cards reset.
 The foundry also hides a three-sided `X` elevator behind a moving secret wall. It
 branches to the Hidden Reservoir and its standard elevator returns to the Labs,
 without exposing the hidden sector in the normal sector-selection menu.
@@ -117,8 +117,10 @@ have the same width and use only these symbols:
 - `.`: empty floor
 - `P`: the single player spawn
 - `D`: closed sliding door
-- `Q`: closed red security door
+- `Q`: closed cyan-access security door
+- `q`: closed amber-access security door with its own amber atlas panel
 - `C`: cyan security-card pickup, required to open `Q`
+- `c`: amber access-card pickup, required to open `q`
 - `M`: optional amber bunker terminal
 - `O`: optional violet power relay
 - `S`: secret moving wall; use it to expose a hidden reward
@@ -129,19 +131,23 @@ have the same width and use only these symbols:
 - `Z`: original Bunker Warden boss spawn
 - `g` / `k` / `f` / `u`: matching ambush enemy, initially facing away from the player spawn and ignoring weapon noise until it sees, touches or is hit by the player
 - `^` / `>` / `v` / `<`: invisible logical patrol direction; place the first marker next to an uppercase enemy and keep its destination walkable
-- `H`: health pickup
-- `A`: ammunition pickup
+- `H`: large health kit worth up to 25 health
+- `h`: small field dressing worth up to 10 health
+- `A`: large ammunition pickup worth 8 Operative rounds
+- `a`: small ammunition pickup worth 4 Operative rounds
 - `T`: gold-bars pickup worth 100 score
 - `J`: golden-goblet pickup worth 250 score
 - `N`: peace-medallion pickup worth 500 score
+- `p`: peace-prism pickup worth 1,000 score
+- `r`: rare recovery beacon that restores 100% health and grants one life
 - `E`: steel elevator cabin and level exit; shipping levels enclose it on three sides
 - `X`: hidden-sector elevator; it looks like an ordinary exit but follows the sector metadata's secret route
 - `R`: wall-mounted framed landscape painting; must be next to a wall
 - `B`: wall-mounted banner with an original peace symbol; must be next to a wall
 - `I`: freestanding decorative plant using the current sector's original sprite
 - `L`: ceiling lamp
-- `W`: repeater weapon pickup with six rounds
-- `V`: heavy automatic weapon pickup with ten rounds
+- `W`: repeater weapon pickup with 8 Operative rounds
+- `V`: heavy automatic weapon pickup with 14 Operative rounds
 - `Y`: solid freestanding polygonal table using an original dark-oak material
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
@@ -149,6 +155,13 @@ It also rejects patrol arrows that point directly into a wall or another blocked
 Enemy symbols remain authored encounter positions. Their stable row-major encounter
 tier determines whether they appear on Scout, Operative or Veteran, so selecting a
 difficulty never introduces random or unauthored spawn locations.
+
+Fixed ammunition and weapon-pickup values scale with difficulty. Defeated guards,
+rapid troopers, heavy units and the Warden have distinct base drops; those drops also
+increase for a carried repeater or heavy automatic. Shared ammunition never exceeds
+99, full ammo pickups remain in place, and duplicate weapons convert to their listed
+ammunition value instead of re-awarding ownership. Health items likewise remain when
+health is already 100%.
 
 An elevator is available from the beginning of a sector. Its gate starts raised,
 and entering the cabin or pressing `Space` while facing it completes the sector.

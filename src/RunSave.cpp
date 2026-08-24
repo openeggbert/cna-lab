@@ -13,6 +13,7 @@ namespace WolfCna
     {
         constexpr std::string_view MagicV1 = "WOLF-CNA-RUN-SAVE-1";
         constexpr std::string_view MagicV2 = "WOLF-CNA-RUN-SAVE-2";
+        constexpr std::string_view MagicV3 = "WOLF-CNA-RUN-SAVE-3";
         constexpr std::size_t MaximumRecordCount = 65536;
 
         bool ReadTag(std::istream& input, std::string_view expected, std::string& error)
@@ -72,6 +73,7 @@ namespace WolfCna
                 state.sectorEntryNextExtraLifeScore > state.nextExtraLifeScore ||
                 !IsFinite(state.levelElapsedSeconds) ||
                 state.levelElapsedSeconds < 0.0f || state.levelElapsedSeconds > 10000000.0f ||
+                state.accessMask < 0 || state.accessMask > World::AllAccess ||
                 state.weapon < 0 || state.weapon > 3 ||
                 state.lastFirearm < 1 || state.lastFirearm > 3 ||
                 state.exploredCells.size() > MaximumRecordCount)
@@ -97,13 +99,13 @@ namespace WolfCna
     {
         std::ostringstream output;
         output << std::setprecision(std::numeric_limits<float>::max_digits10);
-        output << MagicV2 << '\n';
+        output << MagicV3 << '\n';
         output << "GAME " << state.levelIndex << ' ' << state.difficulty << ' '
             << state.playerX << ' ' << state.playerY << ' ' << state.playerZ << ' '
             << state.yaw << ' ' << state.health << ' ' << state.ammunition << ' '
             << state.score << ' ' << state.lives << ' ' << state.nextExtraLifeScore << ' '
             << state.sectorEntryScore << ' ' << state.sectorEntryNextExtraLifeScore << ' '
-            << state.levelElapsedSeconds << ' ' << state.hasSecurityCard << ' '
+            << state.levelElapsedSeconds << ' ' << state.accessMask << ' '
             << state.weapon << ' ' << state.lastFirearm << ' ' << state.hasRepeater << ' '
             << state.hasHeavyWeapon << '\n';
         output << "EXPLORED " << state.exploredCells.size() << ' ';
@@ -163,7 +165,8 @@ namespace WolfCna
         std::istringstream input{std::string(text)};
         RunSaveState state;
         std::string magic;
-        if (!(input >> magic) || (magic != MagicV1 && magic != MagicV2))
+        if (!(input >> magic) ||
+            (magic != MagicV1 && magic != MagicV2 && magic != MagicV3))
         {
             error = "save has an unsupported header";
             return std::nullopt;
@@ -177,7 +180,7 @@ namespace WolfCna
                 error = "save has an invalid GAME section";
             return std::nullopt;
         }
-        if (magic == MagicV2)
+        if (magic == MagicV2 || magic == MagicV3)
         {
             if (!(input >> state.sectorEntryScore >> state.sectorEntryNextExtraLifeScore))
             {
@@ -190,9 +193,27 @@ namespace WolfCna
             state.sectorEntryScore = state.score;
             state.sectorEntryNextExtraLifeScore = state.nextExtraLifeScore;
         }
-        if (!(input >> state.levelElapsedSeconds) ||
-            !ReadBool(input, state.hasSecurityCard, error) ||
-            !(input >> state.weapon >> state.lastFirearm) ||
+        if (!(input >> state.levelElapsedSeconds))
+        {
+            error = "save has an invalid GAME section";
+            return std::nullopt;
+        }
+        if (magic == MagicV3)
+        {
+            if (!(input >> state.accessMask))
+            {
+                error = "save has an invalid access-card mask";
+                return std::nullopt;
+            }
+        }
+        else
+        {
+            bool legacySecurityCard = false;
+            if (!ReadBool(input, legacySecurityCard, error))
+                return std::nullopt;
+            state.accessMask = legacySecurityCard ? World::CyanAccess : 0;
+        }
+        if (!(input >> state.weapon >> state.lastFirearm) ||
             !ReadBool(input, state.hasRepeater, error) ||
             !ReadBool(input, state.hasHeavyWeapon, error))
         {

@@ -316,12 +316,19 @@ namespace WolfCna
 
     World::PickupResult World::CollectPickups(
         const Vector3& playerPosition,
-        int currentHealth)
+        int currentHealth,
+        int currentAmmunition,
+        int carriedWeaponTier,
+        int currentAccessMask,
+        bool hasRepeater,
+        bool hasHeavyWeapon)
     {
+        constexpr int MaximumAmmunition = 99;
         PickupResult result;
 
-        for (Pickup& pickup : pickups_)
+        for (std::size_t pickupIndex = 0; pickupIndex < pickups_.size(); ++pickupIndex)
         {
+            Pickup& pickup = pickups_[pickupIndex];
             if (pickup.collected)
                 continue;
 
@@ -330,45 +337,76 @@ namespace WolfCna
             if (dx * dx + dz * dz > PickupRadius * PickupRadius)
                 continue;
 
-            if (pickup.type == PickupType::Health)
+            if (pickup.type == PickupType::HealthLarge ||
+                pickup.type == PickupType::HealthSmall)
             {
                 const int missingHealth = 100 - currentHealth - result.health;
                 if (missingHealth <= 0)
                     continue;
                 pickup.collected = true;
-                result.health += std::min(25, missingHealth);
+                result.health += std::min(pickup.amount, missingHealth);
             }
             else if (pickup.type == PickupType::Ammo)
             {
+                const int missingAmmunition = MaximumAmmunition -
+                    currentAmmunition - result.ammo;
+                if (missingAmmunition <= 0)
+                    continue;
+                int amount = pickup.amount;
+                if (pickupIndex >= basePickupCount_)
+                {
+                    constexpr std::array carriedWeaponPercent{100, 100, 120, 150};
+                    const int tier = std::clamp(carriedWeaponTier, 0, 3);
+                    amount = std::max(1, (amount * carriedWeaponPercent[static_cast<std::size_t>(tier)] + 99) / 100);
+                }
                 pickup.collected = true;
-                result.ammo += pickup.amount;
+                result.ammo += std::min(amount, missingAmmunition);
             }
             else if (pickup.type == PickupType::GoldBars ||
                 pickup.type == PickupType::GoldenGoblet ||
-                pickup.type == PickupType::PeaceMedallion)
+                pickup.type == PickupType::PeaceMedallion ||
+                pickup.type == PickupType::PeacePrism)
             {
                 pickup.collected = true;
-                result.gold += pickup.type == PickupType::GoldBars
-                    ? 100
-                    : pickup.type == PickupType::GoldenGoblet ? 250 : 500;
+                result.gold += pickup.amount;
                 ++collectedGold_;
             }
-            else if (pickup.type == PickupType::AccessCard)
+            else if (pickup.type == PickupType::CyanAccessCard ||
+                pickup.type == PickupType::AmberAccessCard)
             {
+                const int card = pickup.type == PickupType::CyanAccessCard
+                    ? CyanAccess
+                    : AmberAccess;
+                if ((result.accessMask | currentAccessMask) & card)
+                    continue;
                 pickup.collected = true;
-                ++result.accessCards;
+                result.accessMask |= card;
             }
             else if (pickup.type == PickupType::RepeaterWeapon)
             {
+                const int missingAmmunition = MaximumAmmunition -
+                    currentAmmunition - result.ammo;
+                if (hasRepeater && missingAmmunition <= 0)
+                    continue;
                 pickup.collected = true;
-                ++result.repeaterWeapons;
-                result.ammo += pickup.amount;
+                result.repeaterWeapons += hasRepeater ? 0 : 1;
+                result.ammo += std::min(pickup.amount, std::max(0, missingAmmunition));
             }
-            else
+            else if (pickup.type == PickupType::HeavyWeapon)
+            {
+                const int missingAmmunition = MaximumAmmunition -
+                    currentAmmunition - result.ammo;
+                if (hasHeavyWeapon && missingAmmunition <= 0)
+                    continue;
+                pickup.collected = true;
+                result.heavyWeapons += hasHeavyWeapon ? 0 : 1;
+                result.ammo += std::min(pickup.amount, std::max(0, missingAmmunition));
+            }
+            else if (pickup.type == PickupType::RecoveryBeacon)
             {
                 pickup.collected = true;
-                ++result.heavyWeapons;
-                result.ammo += pickup.amount;
+                result.health += std::max(0, 100 - currentHealth - result.health);
+                ++result.extraLives;
             }
         }
 
@@ -637,7 +675,7 @@ namespace WolfCna
         {
             const PickupSaveState& pickup = state.pickups[index];
             if (!validPosition(pickup.positionX, pickup.positionZ) || pickup.type < 0 ||
-                pickup.type > static_cast<int>(PickupType::HeavyWeapon) ||
+                pickup.type > static_cast<int>(PickupType::RecoveryBeacon) ||
                 pickup.amount < 0 || pickup.amount > 999)
                 return false;
             if (index < basePickupCount_)
@@ -655,8 +693,9 @@ namespace WolfCna
             }
             if (pickup.collected &&
                 (pickup.type == static_cast<int>(PickupType::GoldBars) ||
-                    pickup.type == static_cast<int>(PickupType::GoldenGoblet) ||
-                    pickup.type == static_cast<int>(PickupType::PeaceMedallion)))
+                pickup.type == static_cast<int>(PickupType::GoldenGoblet) ||
+                pickup.type == static_cast<int>(PickupType::PeaceMedallion) ||
+                pickup.type == static_cast<int>(PickupType::PeacePrism)))
                 ++savedCollectedGold;
         }
         if (savedCollectedGold != state.collectedGold)
@@ -785,7 +824,7 @@ namespace WolfCna
     World::InteractionResult World::TryActivate(
         const Vector3& playerPosition,
         const Vector3& lookDirection,
-        bool hasSecurityCard)
+        int accessMask)
     {
         Door* target = nullptr;
         Terminal* targetTerminal = nullptr;
@@ -900,8 +939,13 @@ namespace WolfCna
         if (!target)
             return InteractionResult::None;
 
-        if (target->material == Material::SecurityDoor && !hasSecurityCard)
-            return InteractionResult::DoorLocked;
+        if (target->requiredAccess != 0 &&
+            (accessMask & target->requiredAccess) == 0)
+        {
+            return target->requiredAccess == AmberAccess
+                ? InteractionResult::AmberDoorLocked
+                : InteractionResult::DoorLocked;
+        }
 
         target->opening = true;
         target->closeDelay = DoorAutoCloseDelay;
@@ -1438,18 +1482,25 @@ namespace WolfCna
         {
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
             {
-                if (map_[z][x] != 'D' && map_[z][x] != 'Q' && map_[z][x] != 'S')
+                if (map_[z][x] != 'D' && map_[z][x] != 'Q' &&
+                    map_[z][x] != 'q' && map_[z][x] != 'S')
                     continue;
 
+                const char symbol = map_[z][x];
                 doors_.push_back({
-                    x,
-                    z,
-                    IsStaticWallCell(x, z - 1) && IsStaticWallCell(x, z + 1),
-                    map_[z][x] == 'Q'
+                    .x = x,
+                    .z = z,
+                    .blocksAlongX = IsStaticWallCell(x, z - 1) && IsStaticWallCell(x, z + 1),
+                    .material = symbol == 'Q'
                         ? Material::SecurityDoor
-                        : map_[z][x] == 'S' ? WallMaterialForCell(x, z) : Material::Door,
-                    map_[z][x] == 'S'});
-                if (map_[z][x] == 'S')
+                        : symbol == 'q'
+                            ? Material::AmberSecurityDoor
+                            : symbol == 'S' ? WallMaterialForCell(x, z) : Material::Door,
+                    .isSecret = symbol == 'S',
+                    .requiredAccess = symbol == 'Q'
+                        ? CyanAccess
+                        : symbol == 'q' ? AmberAccess : 0});
+                if (symbol == 'S')
                     ++totalSecrets_;
             }
         }
@@ -1732,12 +1783,16 @@ namespace WolfCna
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
             {
                 const char symbol = map_[z][x];
-                if (symbol != 'H' && symbol != 'A' && symbol != 'T' && symbol != 'J' &&
-                    symbol != 'N' && symbol != 'C' && symbol != 'W' && symbol != 'V')
+                if (symbol != 'H' && symbol != 'h' && symbol != 'A' && symbol != 'a' &&
+                    symbol != 'T' && symbol != 'J' && symbol != 'N' && symbol != 'p' &&
+                    symbol != 'C' && symbol != 'c' && symbol != 'W' && symbol != 'V' &&
+                    symbol != 'r')
                     continue;
 
-                PickupType type = PickupType::Health;
-                if (symbol == 'A')
+                PickupType type = PickupType::HealthLarge;
+                if (symbol == 'h')
+                    type = PickupType::HealthSmall;
+                else if (symbol == 'A' || symbol == 'a')
                     type = PickupType::Ammo;
                 else if (symbol == 'T')
                     type = PickupType::GoldBars;
@@ -1745,15 +1800,31 @@ namespace WolfCna
                     type = PickupType::GoldenGoblet;
                 else if (symbol == 'N')
                     type = PickupType::PeaceMedallion;
+                else if (symbol == 'p')
+                    type = PickupType::PeacePrism;
                 else if (symbol == 'C')
-                    type = PickupType::AccessCard;
+                    type = PickupType::CyanAccessCard;
+                else if (symbol == 'c')
+                    type = PickupType::AmberAccessCard;
                 else if (symbol == 'W')
                     type = PickupType::RepeaterWeapon;
                 else if (symbol == 'V')
                     type = PickupType::HeavyWeapon;
+                else if (symbol == 'r')
+                    type = PickupType::RecoveryBeacon;
 
-                int amount = symbol == 'V' ? 10 : 6;
-                if (symbol == 'A' || symbol == 'W' || symbol == 'V')
+                int amount = symbol == 'H' ? 25
+                    : symbol == 'h' ? 10
+                    : symbol == 'A' ? 8
+                    : symbol == 'a' ? 4
+                    : symbol == 'T' ? 100
+                    : symbol == 'J' ? 250
+                    : symbol == 'N' ? 500
+                    : symbol == 'p' ? 1000
+                    : symbol == 'W' ? 8
+                    : symbol == 'V' ? 14
+                    : 0;
+                if (symbol == 'A' || symbol == 'a' || symbol == 'W' || symbol == 'V')
                 {
                     amount = ScalePositiveAmount(amount, difficultyProfile_.ammunitionMultiplier);
                     fixedAmmunition_ += amount;
@@ -1763,7 +1834,7 @@ namespace WolfCna
                     type,
                     false,
                     amount});
-                if (symbol == 'T' || symbol == 'J' || symbol == 'N')
+                if (symbol == 'T' || symbol == 'J' || symbol == 'N' || symbol == 'p')
                     ++totalGold_;
             }
         }
@@ -2288,10 +2359,14 @@ namespace WolfCna
         Texture2D& defeatedBossSprite,
         Texture2D& ammoPickupSprite,
         Texture2D& healthPickupSprite,
+        Texture2D& fieldDressingSprite,
         Texture2D& goldBarsSprite,
         Texture2D& goldenGobletSprite,
         Texture2D& peaceMedallionSprite,
+        Texture2D& peacePrismSprite,
         Texture2D& accessCardSprite,
+        Texture2D& amberAccessCardSprite,
+        Texture2D& recoveryBeaconSprite,
         Texture2D& repeaterPickupSprite,
         Texture2D& heavyWeaponPickupSprite,
         Texture2D& terminalSprite,
@@ -2689,10 +2764,16 @@ namespace WolfCna
                     pickupTexture = &ammoPickupSprite;
                     width = 0.66f;
                 }
-                else if (pickup.type == PickupType::Health)
+                else if (pickup.type == PickupType::HealthLarge)
                 {
                     pickupTexture = &healthPickupSprite;
                     width = 0.68f;
+                }
+                else if (pickup.type == PickupType::HealthSmall)
+                {
+                    pickupTexture = &fieldDressingSprite;
+                    width = 0.5f;
+                    height = 0.38f;
                 }
                 else if (pickup.type == PickupType::GoldBars)
                 {
@@ -2711,11 +2792,29 @@ namespace WolfCna
                     width = 0.5f;
                     height = 0.64f;
                 }
-                else if (pickup.type == PickupType::AccessCard)
+                else if (pickup.type == PickupType::PeacePrism)
+                {
+                    pickupTexture = &peacePrismSprite;
+                    width = 0.5f;
+                    height = 0.7f;
+                }
+                else if (pickup.type == PickupType::CyanAccessCard)
                 {
                     pickupTexture = &accessCardSprite;
                     width = 0.58f;
                     height = 0.4f;
+                }
+                else if (pickup.type == PickupType::AmberAccessCard)
+                {
+                    pickupTexture = &amberAccessCardSprite;
+                    width = 0.62f;
+                    height = 0.42f;
+                }
+                else if (pickup.type == PickupType::RecoveryBeacon)
+                {
+                    pickupTexture = &recoveryBeaconSprite;
+                    width = 0.62f;
+                    height = 0.62f;
                 }
                 else if (pickup.type == PickupType::RepeaterWeapon)
                 {

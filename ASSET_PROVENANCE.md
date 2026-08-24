@@ -837,3 +837,62 @@ Avoid: character redesign, dismemberment, cropped body, opaque or checkerboard b
 
 The first defeated export painted a checkerboard. A `background-extraction` edit
 removed only that checkerboard and produced the committed genuine-alpha PNG.
+
+## WOLF-039 expanded pickup sprites
+
+These four original project assets were generated with the built-in OpenAI image
+generation tool on 2026-08-24. Each committed PNG was visually inspected and verified
+to contain genuine non-opaque alpha. No third-party reference image or third-party
+pixel was used.
+
+### `assets/pickups/field-dressing.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS pickup sprite
+Primary request: an original compact field dressing pickup, a neatly folded pale bandage roll with a small teal medical clasp, clearly smaller and less powerful-looking than a full health kit
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered object, three-quarter front view, generous transparent padding, complete silhouette
+Lighting/mood: soft neutral bunker lighting, restrained highlights
+Color palette: off-white cloth, teal clasp, muted navy shadows; no red cross
+Constraints: genuinely transparent background and preserved alpha, no text, no logo, no watermark, no symbols associated with real organizations, no people, no weapons, entirely original design
+```
+
+### `assets/pickups/amber-access-card.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS pickup sprite
+Primary request: an original amber access credential card for an underground bunker, a rugged compact rectangular smart card with clipped corners, copper contact strips, a bright amber edge and a small abstract peace-dove emblem
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, readable at small size
+Composition/framing: single centered card in slight three-quarter view, complete silhouette, generous transparent padding
+Lighting/mood: subtle neutral bunker lighting with controlled metallic highlights
+Color palette: amber, copper, charcoal and small cream accents
+Constraints: genuinely transparent background and preserved alpha, no readable text, no numbers, no logos, no watermark, no military or extremist insignia, entirely original design
+```
+
+### `assets/pickups/recovery-beacon.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS rare pickup sprite
+Primary request: an original rare emergency recovery beacon that restores full health and grants an extra life, a compact teal-and-gold portable rescue unit with a glowing circular core and two folded handles
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, prestigious and immediately rarer than an ordinary health kit
+Composition/framing: single centered object, three-quarter front view, complete clear silhouette, generous transparent padding
+Lighting/mood: restrained warm glow from the core, neutral bunker lighting
+Color palette: deep teal casing, aged gold trim, pale cyan core, navy shadows
+Constraints: genuinely transparent background and preserved alpha, no text, no logos, no watermark, no cross symbol, no skull, no weapons, entirely original design
+```
+
+### `assets/pickups/peace-prism.png`
+
+```text
+Use case: stylized-concept
+Asset type: transparent retro FPS high-value treasure pickup sprite
+Primary request: an original high-value peace prism treasure, a faceted amber crystal held in a small art-deco gold frame whose silhouette subtly suggests radiating harmony, clearly more valuable than bars, a goblet or a medallion
+Style/medium: sharp high-resolution hand-painted pixel art, late-1980s inspired original retro game sprite, crisp clustered pixels, luxurious but grounded
+Composition/framing: single centered treasure in three-quarter front view, complete silhouette, generous transparent padding
+Lighting/mood: controlled warm glints and a subtle amber internal glow
+Color palette: amber crystal, aged gold, muted teal accent, deep navy shadows
+Constraints: genuinely transparent background and preserved alpha, no text, no logos, no watermark, no religious, military, extremist or national symbols, entirely original design
+```

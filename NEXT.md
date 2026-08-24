@@ -13,7 +13,7 @@
 - All four player weapons now use dedicated original attack frames instead of a rectangular muzzle-flash overlay.
 - Ceiling lamps now cast a warm, softly fading pool of light onto the floor below.
 - Only one visible ranged enemy attacks at a time, with lower damage and slower archetype-specific cadences.
-- Health, ammunition and three treasure values now use original transparent sprites instead of colored blocks.
+- Health, ammunition and four treasure values now use original transparent sprites instead of colored blocks.
 - Holding Ctrl repeats repeater and heavy-automatic bursts at distinct bounded cadences; knife and sidearm remain one attack per press.
 - Health kits are preserved when the player is already at 100% and can be collected after later damage.
 - Weapon sprites now lunge or recoil during attacks instead of remaining completely static.
@@ -58,11 +58,15 @@
 - `A`/`D` now strafe while arrows retain classic movement and turning; diagonal walking and run-plus-strafe are speed-normalized.
 - The CNA control screen rebinds ten actions with conflict swapping, reserved system keys, classic-default restoration and five keyboard turn speeds.
 - Profile version 6 migrates versions 1–5 and strictly persists unique bindings, turn speed and the existing high-score table.
+- Cyan and amber cards now have matching locked doors, independent HUD icons and a version-3 run-save access mask with V1/V2 migration.
+- Every sector now uses 10/25-health pickups, 4/8-round supplies and a 1,000-point peace prism; rare recovery beacons grant full health plus one life.
+- Ammo and duplicate weapons respect the 99 cap, while enemy drops depend on archetype, difficulty and the strongest carried weapon; card-aware BFS tests keep every route solvable.
+- Four new genuine-alpha AI-generated pickup sprites are committed with complete provenance.
 
 ## Next tasks
 
-1. Implement WOLF-039 expanded pickups, access cards and resource economy.
-2. Continue through WOLF-040–WOLF-044 in the dependency order recorded in `plan.md`.
+1. Implement WOLF-040 physical push-wall secrets.
+2. Continue through WOLF-041–WOLF-044 in the dependency order recorded in `plan.md`.
 3. Subjectively playtest all three deterministic difficulty profiles, save slots, life loss and the full six-sector route including the hidden branch.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from

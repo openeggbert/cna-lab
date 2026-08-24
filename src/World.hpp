@@ -24,13 +24,17 @@ namespace WolfCna
     class World final
     {
     public:
-        static constexpr int MaterialPanelCount = 9;
+        static constexpr int MaterialPanelCount = 10;
+        static constexpr int CyanAccess = 1;
+        static constexpr int AmberAccess = 2;
+        static constexpr int AllAccess = CyanAccess | AmberAccess;
 
         enum class InteractionResult
         {
             None,
             DoorOpened,
             DoorLocked,
+            AmberDoorLocked,
             TerminalActivated,
             RelayActivated,
             SecretRevealed,
@@ -50,9 +54,10 @@ namespace WolfCna
             int health = 0;
             int ammo = 0;
             int gold = 0;
-            int accessCards = 0;
+            int accessMask = 0;
             int repeaterWeapons = 0;
             int heavyWeapons = 0;
+            int extraLives = 0;
         };
 
         struct AttackResult
@@ -223,10 +228,14 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::Texture2D& defeatedBossSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& ammoPickupSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& healthPickupSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& fieldDressingSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& goldBarsSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& goldenGobletSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& peaceMedallionSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& peacePrismSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& accessCardSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& amberAccessCardSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& recoveryBeaconSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& repeaterPickupSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& heavyWeaponPickupSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& terminalSprite,
@@ -251,7 +260,12 @@ namespace WolfCna
             bool emitsNoise = true);
         [[nodiscard]] PickupResult CollectPickups(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
-            int currentHealth = 0);
+            int currentHealth = 0,
+            int currentAmmunition = 0,
+            int carriedWeaponTier = 1,
+            int currentAccessMask = 0,
+            bool hasRepeater = false,
+            bool hasHeavyWeapon = false);
         [[nodiscard]] bool ReachedExit(
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         [[nodiscard]] std::optional<ExitRoute> ReachedExitRoute(
@@ -271,7 +285,7 @@ namespace WolfCna
         [[nodiscard]] InteractionResult TryActivate(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection,
-            bool hasSecurityCard);
+            int accessMask);
 
     private:
         enum class Material : int
@@ -284,7 +298,8 @@ namespace WolfCna
             Ceiling = 5,
             Door = 6,
             SecurityDoor = 7,
-            Wood = 8
+            Wood = 8,
+            AmberSecurityDoor = 9
         };
 
         struct Door
@@ -297,6 +312,7 @@ namespace WolfCna
             bool opening = false;
             float openAmount = 0.0f;
             float closeDelay = 0.0f;
+            int requiredAccess = 0;
         };
 
         struct Impact
@@ -369,22 +385,26 @@ namespace WolfCna
             bool hitPlayer = false;
         };
 
-        enum class PickupType
+        enum class PickupType : int
         {
-            Health,
-            Ammo,
-            GoldBars,
-            GoldenGoblet,
-            PeaceMedallion,
-            AccessCard,
-            RepeaterWeapon,
-            HeavyWeapon
+            HealthLarge = 0,
+            Ammo = 1,
+            GoldBars = 2,
+            GoldenGoblet = 3,
+            PeaceMedallion = 4,
+            CyanAccessCard = 5,
+            RepeaterWeapon = 6,
+            HeavyWeapon = 7,
+            HealthSmall = 8,
+            PeacePrism = 9,
+            AmberAccessCard = 10,
+            RecoveryBeacon = 11
         };
 
         struct Pickup
         {
             Microsoft::Xna::Framework::Vector3 position;
-            PickupType type = PickupType::Health;
+            PickupType type = PickupType::HealthLarge;
             bool collected = false;
             int amount = 6;
         };

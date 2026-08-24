@@ -65,10 +65,14 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> defeatedBossSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> ammoPickupSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> healthPickupSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> fieldDressingSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> goldBarsSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> goldenGobletSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> peaceMedallionSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> peacePrismSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> accessCardSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> amberAccessCardSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> recoveryBeaconSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterPickupSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyWeaponPickupSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> terminalSprite_;
@@ -134,7 +138,7 @@ namespace WolfCna
         int selectedLevelIndex_ = 0;
         int highestUnlockedLevel_ = 0;
         float levelElapsedSeconds_ = 0.0f;
-        bool hasSecurityCard_ = false;
+        int accessMask_ = 0;
         bool completed_ = false;
         CampaignExitRoute completedExitRoute_ = CampaignExitRoute::Standard;
         CompletionScore completionScore_;

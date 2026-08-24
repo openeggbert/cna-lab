@@ -551,7 +551,7 @@ Status: started. The original title menu and its Scout / Operative / Veteran
 difficulty selection are implemented. A shared deterministic profile changes incoming
 damage, active encounter tiers, enemy health, movement speed, firing cadence and
 ammunition supply. Five main sectors and a hidden branch now carry score, lives,
-health, ammunition and weapon selection; a sector-specific access card resets at
+health, ammunition and weapon selection; both sector-specific access colors reset at
 each elevator transition. Each exit now presents time plus kill, treasure and secret
 percentages with clear, speed and perfect-category awards. Profile version 6 persists
 sector unlocks, five-step master volume, view angle, last selected difficulty, validated
@@ -996,8 +996,8 @@ Current progress:
 - losing the last life presents `GAME OVER`; Space creates a clean new run with the original level state;
 - guards attack with visible ranged projectiles that cause damage only on impact, while hounds attack at close range;
 - guards and hounds emit generated alert sounds; hounds also emit an attack sound on close-range hits;
-- ordinary blue bunker doors and red security doors use distinct generated atlas panels;
-- the red security door is a locked route; its cyan access card is placed before it;
+- ordinary blue doors, cyan-access security doors and amber-access security doors use distinct generated atlas panels;
+- cyan and amber credentials are placed on solvable routes before their matching locked areas and appear independently in the HUD;
 - opened doors close automatically, except while the player or a dead guard or
   hound overlaps the doorway;
 - guards require three sidearm hits and hounds require two, so neither enemy type
@@ -1561,10 +1561,30 @@ extension; no backend API was introduced.
 
 ### WOLF-039 — expanded pickups, keys and resource economy
 
-Status: planned. Add multiple original key/access-card types, locked-door variants,
-health item sizes, four readable treasure tiers and a rare extra-life/full-recovery
-pickup. Enemy ammunition drops must depend on archetype, carried weapon and selected
-difficulty.
+Status: complete. Cyan `C` and amber `c` credentials now open only their matching
+`Q`/`q` polygonal security doors. The amber lock has a dedicated generated atlas
+panel, both original transparent card sprites appear independently beneath the HUD
+level readout and acquisition/locked prompts name the required color. The `I+L+M`
+loadout cheat grants both colors, sector transitions and life restarts clear both,
+and run-save version 3 migrates the former boolean card from versions 1–2 to cyan
+access while strictly preserving the new two-bit mask.
+
+Large `H` kits heal 25, generated small `h` dressings heal 10, and neither is consumed
+at 100 percent. Large/small ammo supplies grant 8/4 Operative rounds; the shared cap
+is enforced before collection so a full supply remains available. New weapons grant
+8 repeater or 14 heavy rounds at baseline, while owned duplicates remain at 99 and
+later convert only into the missing amount. Enemy drops retain archetype values and
+difficulty scaling, then receive a deterministic 120/150-percent adjustment for the
+strongest carried repeater/heavy automatic. Hounds still drop nothing.
+
+Treasure now has four readable 100/250/500/1,000-point tiers, including the generated
+peace prism. Hidden Reservoir and Warden Core contain a generated rare recovery beacon
+that fills health and grants one life. Every sector now authors both health sizes, a
+peace prism and small ammo; late sectors use amber access and Warden Core exercises
+both lock colors. A stateful access-card BFS proves every main, hidden and boss exit is
+reachable, while existing per-difficulty enemy/ammunition audits and focused pickup,
+cap, duplicate, card, recovery, treasure, drop and save-migration tests cover the
+expanded economy. All four new PNGs have genuine alpha and recorded prompts.
 
 - prevent health items from being consumed when they cannot heal;
 - make each access type visible in the HUD and on its matching door;

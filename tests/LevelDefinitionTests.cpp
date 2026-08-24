@@ -62,6 +62,67 @@ namespace
         return distances;
     }
 
+    bool CanReachCampaignExitWithAuthoredAccess(const WolfCna::LevelDefinition& level)
+    {
+        struct State
+        {
+            int x = 0;
+            int z = 0;
+            int access = 0;
+        };
+
+        const auto& rows = level.Rows();
+        std::vector<std::vector<std::array<bool, 4>>> visited(
+            rows.size(),
+            std::vector<std::array<bool, 4>>(rows.front().size()));
+        std::queue<State> frontier;
+        frontier.push({level.PlayerStartX(), level.PlayerStartZ(), 0});
+        visited[static_cast<std::size_t>(level.PlayerStartZ())]
+            [static_cast<std::size_t>(level.PlayerStartX())][0] = true;
+        constexpr std::array<std::pair<int, int>, 4> Directions = {
+            std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1}, std::pair{0, -1}};
+
+        while (!frontier.empty())
+        {
+            const State state = frontier.front();
+            frontier.pop();
+            for (const auto [dx, dz] : Directions)
+            {
+                const int x = state.x + dx;
+                const int z = state.z + dz;
+                if (x < 0 || z < 0 || z >= static_cast<int>(rows.size()) ||
+                    x >= static_cast<int>(rows[static_cast<std::size_t>(z)].size()))
+                {
+                    continue;
+                }
+                const char symbol = rows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)];
+                if (symbol == '#' || symbol == 'Y' ||
+                    (symbol == 'Q' && (state.access & WolfCna::World::CyanAccess) == 0) ||
+                    (symbol == 'q' && (state.access & WolfCna::World::AmberAccess) == 0))
+                {
+                    continue;
+                }
+                if (symbol == 'E' || symbol == 'X')
+                    return true;
+
+                int access = state.access;
+                if (symbol == 'C')
+                    access |= WolfCna::World::CyanAccess;
+                else if (symbol == 'c')
+                    access |= WolfCna::World::AmberAccess;
+                if (visited[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)]
+                    [static_cast<std::size_t>(access)])
+                {
+                    continue;
+                }
+                visited[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)]
+                    [static_cast<std::size_t>(access)] = true;
+                frontier.push({x, z, access});
+            }
+        }
+        return false;
+    }
+
     void Expect(bool condition, std::string_view message)
     {
         if (!condition)
@@ -113,7 +174,8 @@ namespace
         int plants = 0;
         int tables = 0;
         int healthPickups = 0;
-        int ammoPickups = 0;
+        int largeAmmoPickups = 0;
+        int smallAmmoPickups = 0;
         int repeaterPickups = 0;
         int heavyWeaponPickups = 0;
         int guards = 0;
@@ -152,14 +214,16 @@ namespace
                     ++plants;
                 else if (symbol == 'Y')
                     ++tables;
-                else if (symbol == 'H')
+                else if (symbol == 'H' || symbol == 'h')
                 {
                     ++healthPickups;
                     healthDistances.push_back(
                         startDistances[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)]);
                 }
                 else if (symbol == 'A')
-                    ++ammoPickups;
+                    ++largeAmmoPickups;
+                else if (symbol == 'a')
+                    ++smallAmmoPickups;
                 else if (symbol == 'W')
                     ++repeaterPickups;
                 else if (symbol == 'V')
@@ -255,7 +319,8 @@ namespace
             std::string(name) + " has a substantial but bounded objective route");
 
         const int guaranteedAmmo =
-            ammoPickups * 6 + repeaterPickups * 6 + heavyWeaponPickups * 10 +
+            largeAmmoPickups * 8 + smallAmmoPickups * 4 +
+            repeaterPickups * 8 + heavyWeaponPickups * 14 +
             guards * 3 + rapidTroopers * 5 + heavyUnits * 8;
         const int hitsToClear = guards * 3 + hounds * 2 + rapidTroopers * 4 + heavyUnits * 8;
         Expect(
@@ -605,6 +670,28 @@ int main()
         &wardenCore};
     for (const WolfCna::LevelDefinition* campaignLevel : campaignLevels)
     {
+        Expect(
+            CanReachCampaignExitWithAuthoredAccess(*campaignLevel),
+            "campaign exit remains reachable while respecting both access-card colors");
+        const std::string campaignSymbols = [&]()
+        {
+            std::string symbols;
+            for (const std::string& row : campaignLevel->Rows())
+                symbols += row;
+            return symbols;
+        }();
+        Expect(
+            campaignSymbols.find('p') != std::string::npos &&
+                campaignSymbols.find('H') != std::string::npos &&
+                campaignSymbols.find('h') != std::string::npos,
+            "each campaign sector includes the fourth treasure and both health sizes");
+        if (campaignSymbols.find('Q') != std::string::npos)
+            Expect(campaignSymbols.find('C') != std::string::npos,
+                "every cyan lock has an authored cyan card");
+        if (campaignSymbols.find('q') != std::string::npos)
+            Expect(campaignSymbols.find('c') != std::string::npos,
+                "every amber lock has an authored amber card");
+
         const WolfCna::World scoutWorld(*campaignLevel, WolfCna::Difficulty::Scout);
         const WolfCna::World operativeWorld(*campaignLevel, WolfCna::Difficulty::Operative);
         const WolfCna::World veteranWorld(*campaignLevel, WolfCna::Difficulty::Veteran);
@@ -664,8 +751,8 @@ int main()
             focusedVeteran.totalEnemyHealth == 16,
         "focused enemy health is scaled after spawn-tier selection");
     Expect(
-        focusedScout.fixedAmmunition == 20 && focusedOperative.fixedAmmunition == 12 &&
-            focusedVeteran.fixedAmmunition == 8,
+        focusedScout.fixedAmmunition == 26 && focusedOperative.fixedAmmunition == 16 &&
+            focusedVeteran.fixedAmmunition == 12,
         "focused fixed ammunition follows the selected resource profile");
     Expect(
         focusedScout.potentialDroppedAmmunition == 10 &&
@@ -739,7 +826,7 @@ int main()
         "save fixture collects health before snapshot");
     Expect(
         saveWorld.CollectPickups(
-            Microsoft::Xna::Framework::Vector3(5.5f, 0.62f, 1.5f)).ammo == 6,
+            Microsoft::Xna::Framework::Vector3(5.5f, 0.62f, 1.5f)).ammo == 8,
         "save fixture collects fixed ammunition before snapshot");
     Expect(
         saveWorld.TryActivate(
@@ -771,7 +858,7 @@ int main()
         .sectorEntryScore = 1000,
         .sectorEntryNextExtraLifeScore = 40000,
         .levelElapsedSeconds = 42.5f,
-        .hasSecurityCard = false,
+        .accessMask = WolfCna::World::CyanAccess,
         .weapon = 1,
         .lastFirearm = 1,
         .hasRepeater = false,
@@ -785,12 +872,24 @@ int main()
     Expect(parsedRunSave.has_value() && saveError.empty(), "versioned run save parses");
     Expect(
         parsedRunSave->sectorEntryScore == 1000 &&
-            parsedRunSave->sectorEntryNextExtraLifeScore == 40000,
-        "run save preserves the sector restart checkpoint");
+            parsedRunSave->sectorEntryNextExtraLifeScore == 40000 &&
+            parsedRunSave->accessMask == WolfCna::World::CyanAccess,
+        "run save preserves the sector restart checkpoint and access cards");
     Expect(
         WolfCna::RunSave::Serialize(*parsedRunSave) == serializedRunSave,
         "run save serialization is a deterministic round trip");
-    std::string legacyRunSave = serializedRunSave;
+    std::string versionTwoRunSave = serializedRunSave;
+    versionTwoRunSave.replace(
+        versionTwoRunSave.find("WOLF-CNA-RUN-SAVE-3"),
+        std::string("WOLF-CNA-RUN-SAVE-3").size(),
+        "WOLF-CNA-RUN-SAVE-2");
+    const std::optional<WolfCna::RunSaveState> parsedVersionTwoRunSave =
+        WolfCna::RunSave::Parse(versionTwoRunSave, saveError);
+    Expect(
+        parsedVersionTwoRunSave.has_value() &&
+            parsedVersionTwoRunSave->accessMask == WolfCna::World::CyanAccess,
+        "version two security-card state migrates to cyan access");
+    std::string legacyRunSave = versionTwoRunSave;
     legacyRunSave.replace(
         legacyRunSave.find("WOLF-CNA-RUN-SAVE-2"),
         std::string("WOLF-CNA-RUN-SAVE-2").size(),
@@ -847,6 +946,19 @@ int main()
     Expect(
         !WolfCna::RunSave::Parse(serializedRunSave + "TRAILING\n", saveError).has_value(),
         "run save rejects trailing data");
+    WolfCna::RunSaveState maximumLivesSave = runSaveState;
+    maximumLivesSave.lives = 99;
+    Expect(
+        WolfCna::RunSave::Parse(
+            WolfCna::RunSave::Serialize(maximumLivesSave),
+            saveError).has_value(),
+        "run save accepts the capped maximum of 99 lives");
+    maximumLivesSave.lives = 100;
+    Expect(
+        !WolfCna::RunSave::Parse(
+            WolfCna::RunSave::Serialize(maximumLivesSave),
+            saveError).has_value(),
+        "run save rejects lives above the gameplay cap");
 
     const std::filesystem::path saveTestPath =
         std::filesystem::temp_directory_path() / "wolf-cna-run-save-test.dat";
@@ -966,8 +1078,11 @@ int main()
     static_cast<void>(securityDoorWorld.Update(0.5f, playerPosition));
     Expect(securityDoorWorld.Collides(2.5f, 1.5f, 0.1f), "security door needs an access card");
     Expect(
-        securityDoorWorld.TryActivate(playerPosition, lookDirection, true) == WolfCna::World::InteractionResult::DoorOpened,
-        "security door activates with an access card");
+        securityDoorWorld.TryActivate(
+            playerPosition,
+            lookDirection,
+            WolfCna::World::CyanAccess) == WolfCna::World::InteractionResult::DoorOpened,
+        "cyan security door activates with its matching access card");
     static_cast<void>(securityDoorWorld.Update(0.5f, playerPosition));
     Expect(!securityDoorWorld.Collides(2.5f, 1.5f, 0.1f), "security door opens safely");
 
@@ -979,7 +1094,23 @@ int main()
     const WolfCna::World::PickupResult ammoPickup = pickupWorld.CollectPickups(
         Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f));
     Expect(healthPickup.health == 25 && healthPickup.ammo == 0, "health pickup is collected once");
-    Expect(ammoPickup.health == 0 && ammoPickup.ammo == 6, "ammo pickup is collected once");
+    Expect(ammoPickup.health == 0 && ammoPickup.ammo == 8, "large ammo pickup grants eight rounds");
+
+    WolfCna::World smallSupplyWorld(WolfCna::LevelDefinition::Parse(
+        "######\n#Pha.#\n######\n",
+        "small-supply.level"));
+    Expect(
+        smallSupplyWorld.CollectPickups(
+            Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f),
+            94).health == 6,
+        "small field dressing heals up to ten without exceeding 100 percent");
+    const Microsoft::Xna::Framework::Vector3 smallAmmoPosition(3.5f, 0.62f, 1.5f);
+    Expect(
+        smallSupplyWorld.CollectPickups(smallAmmoPosition, 100, 99).ammo == 0,
+        "ammunition remains available while the shared supply is full");
+    Expect(
+        smallSupplyWorld.CollectPickups(smallAmmoPosition, 100, 97).ammo == 2,
+        "small ammunition pickup fills only the remaining capacity");
 
     WolfCna::World fullHealthPickupWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PH.#\n#####\n",
@@ -1003,18 +1134,53 @@ int main()
     const WolfCna::World::PickupResult heavyWeaponPickup = weaponPickupWorld.CollectPickups(
         Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f));
     Expect(
-        repeaterPickup.repeaterWeapons == 1 && repeaterPickup.ammo == 6,
-        "repeater pickup grants the weapon and six rounds");
+        repeaterPickup.repeaterWeapons == 1 && repeaterPickup.ammo == 8,
+        "repeater pickup grants the weapon and eight rounds");
     Expect(
-        heavyWeaponPickup.heavyWeapons == 1 && heavyWeaponPickup.ammo == 10,
-        "heavy weapon pickup grants the weapon and ten rounds");
+        heavyWeaponPickup.heavyWeapons == 1 && heavyWeaponPickup.ammo == 14,
+        "heavy weapon pickup grants the weapon and fourteen rounds");
+
+    WolfCna::World duplicateWeaponWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PW.#\n#####\n",
+        "duplicate-weapon.level"));
+    const Microsoft::Xna::Framework::Vector3 duplicateWeaponPosition(2.5f, 0.62f, 1.5f);
+    Expect(
+        duplicateWeaponWorld.CollectPickups(
+            duplicateWeaponPosition, 100, 99, 2, 0, true, false).ammo == 0,
+        "owned weapon pickup remains while ammunition is full");
+    const WolfCna::World::PickupResult duplicateWeaponPickup =
+        duplicateWeaponWorld.CollectPickups(
+            duplicateWeaponPosition, 100, 95, 2, 0, true, false);
+    Expect(
+        duplicateWeaponPickup.repeaterWeapons == 0 && duplicateWeaponPickup.ammo == 4,
+        "duplicate repeater converts into documented ammunition up to the cap");
 
     WolfCna::World cardWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PC.#\n#####\n",
         "card.level"));
     const WolfCna::World::PickupResult cardPickup = cardWorld.CollectPickups(
         Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f));
-    Expect(cardPickup.accessCards == 1, "security card is collected once");
+    Expect(
+        cardPickup.accessMask == WolfCna::World::CyanAccess,
+        "cyan security card is collected once");
+
+    WolfCna::World amberDoorWorld(WolfCna::LevelDefinition::Parse(
+        "######\n#Pcq.#\n######\n",
+        "amber-door.level"));
+    const WolfCna::World::PickupResult amberCard = amberDoorWorld.CollectPickups(
+        Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f));
+    Expect(
+        amberCard.accessMask == WolfCna::World::AmberAccess &&
+            amberDoorWorld.TryActivate(
+                Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f),
+                lookDirection,
+                WolfCna::World::CyanAccess) ==
+                WolfCna::World::InteractionResult::AmberDoorLocked &&
+            amberDoorWorld.TryActivate(
+                Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f),
+                lookDirection,
+                amberCard.accessMask) == WolfCna::World::InteractionResult::DoorOpened,
+        "amber card is distinct and opens only the matching amber door");
 
     WolfCna::World goalCheatWorld(WolfCna::LevelDefinition::Parse(
         "########\n#POM..E#\n########\n",
@@ -1126,7 +1292,7 @@ int main()
         "gold collection appears in completion statistics");
 
     WolfCna::World treasureWorld(WolfCna::LevelDefinition::Parse(
-        "######\n#PTJN#\n######\n",
+        "#######\n#PTJNp#\n#######\n",
         "treasure.level"));
     Expect(
         treasureWorld.CollectPickups(Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f)).gold == 100,
@@ -1138,9 +1304,22 @@ int main()
         treasureWorld.CollectPickups(Microsoft::Xna::Framework::Vector3(4.5f, 0.62f, 1.5f)).gold == 500,
         "peace medallion awards 500 score");
     Expect(
-        treasureWorld.GetCompletionStats().collectedGold == 3 &&
-            treasureWorld.GetCompletionStats().totalGold == 3,
+        treasureWorld.CollectPickups(Microsoft::Xna::Framework::Vector3(5.5f, 0.62f, 1.5f)).gold == 1000,
+        "peace prism awards 1000 score");
+    Expect(
+        treasureWorld.GetCompletionStats().collectedGold == 4 &&
+            treasureWorld.GetCompletionStats().totalGold == 4,
         "all treasure variants appear in completion statistics");
+
+    WolfCna::World recoveryWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#Pr.#\n#####\n",
+        "recovery.level"));
+    const WolfCna::World::PickupResult recoveryPickup = recoveryWorld.CollectPickups(
+        Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f),
+        37);
+    Expect(
+        recoveryPickup.health == 63 && recoveryPickup.extraLives == 1,
+        "rare recovery beacon restores full health and grants one life");
 
     WolfCna::World terminalWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PME#\n#####\n",
@@ -1202,6 +1381,16 @@ int main()
     Expect(
         combatWorld.CollectPickups(enemyDropPosition).ammo == 0,
         "guard ammunition drop is collected once");
+
+    WolfCna::World carriedWeaponDropWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PG.#\n#####\n",
+        "carried-weapon-drop.level"));
+    for (int hit = 0; hit < 3; ++hit)
+        static_cast<void>(carriedWeaponDropWorld.FireHitscan(combatPlayer, lookDirection));
+    Expect(
+        carriedWeaponDropWorld.CollectPickups(
+            enemyDropPosition, 100, 0, 3).ammo == 5,
+        "guard drop scales upward for the carried heavy automatic");
 
     WolfCna::World houndWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PK.#\n#####\n",

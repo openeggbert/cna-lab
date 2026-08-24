@@ -381,10 +381,14 @@ namespace WolfCna
         defeatedBossSprite_ = std::make_unique<Texture2D>("assets/sprites/bunker-warden-defeated.png", device);
         ammoPickupSprite_ = std::make_unique<Texture2D>("assets/pickups/ammo-box.png", device);
         healthPickupSprite_ = std::make_unique<Texture2D>("assets/pickups/health-kit.png", device);
+        fieldDressingSprite_ = std::make_unique<Texture2D>("assets/pickups/field-dressing.png", device);
         goldBarsSprite_ = std::make_unique<Texture2D>("assets/pickups/gold-bars.png", device);
         goldenGobletSprite_ = std::make_unique<Texture2D>("assets/pickups/golden-goblet.png", device);
         peaceMedallionSprite_ = std::make_unique<Texture2D>("assets/pickups/peace-medallion.png", device);
+        peacePrismSprite_ = std::make_unique<Texture2D>("assets/pickups/peace-prism.png", device);
         accessCardSprite_ = std::make_unique<Texture2D>("assets/props/access-card.png", device);
+        amberAccessCardSprite_ = std::make_unique<Texture2D>("assets/pickups/amber-access-card.png", device);
+        recoveryBeaconSprite_ = std::make_unique<Texture2D>("assets/pickups/recovery-beacon.png", device);
         repeaterPickupSprite_ = std::make_unique<Texture2D>("assets/props/repeater-pickup.png", device);
         heavyWeaponPickupSprite_ = std::make_unique<Texture2D>("assets/props/heavy-automatic-pickup.png", device);
         terminalSprite_ = std::make_unique<Texture2D>("assets/props/terminal.png", device);
@@ -530,6 +534,22 @@ namespace WolfCna
                     pixels[static_cast<std::size_t>(y * AtlasWidth + ax)] = seam
                         ? Color(securityR / 2, securityG / 2, securityB / 2, 255)
                         : Color(ByteClamp(securityR + noise), ByteClamp(securityG + noise), ByteClamp(securityB + noise), ByteClamp(255));
+                }
+
+                // Panel 9: amber access door, distinct from the cyan-card security door.
+                {
+                    const int ax = x + PanelSize * 9;
+                    const bool seam = x < 3 || x > PanelSize - 4 || (y % 8) == 0;
+                    const bool contact = y > 22 && y < 42 && x > 24 && x < 40;
+                    pixels[static_cast<std::size_t>(y * AtlasWidth + ax)] = seam
+                        ? Color(72, 42, 15, 255)
+                        : contact
+                            ? Color(238, 185, 68, 255)
+                            : Color(
+                                ByteClamp(154 + noise),
+                                ByteClamp(91 + noise / 2),
+                                ByteClamp(30 + noise / 3),
+                                ByteClamp(255));
                 }
             }
         }
@@ -870,7 +890,8 @@ namespace WolfCna
     {
         if (!hudSpriteBatch_ || !hudPixel_ || !sidearmView_ || !knifeView_ ||
             !repeaterView_ || !heavyWeaponView_ || !knifeAttackView_ ||
-            !sidearmAttackView_ || !repeaterAttackView_ || !heavyWeaponAttackView_)
+            !sidearmAttackView_ || !repeaterAttackView_ || !heavyWeaponAttackView_ ||
+            !accessCardSprite_ || !amberAccessCardSprite_)
             return;
 
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
@@ -968,6 +989,21 @@ namespace WolfCna
         drawReadout(2, "LIVES", std::to_string(lives_));
         drawReadout(3, "HEALTH", std::to_string(health_) + "%");
         drawReadout(4, "AMMO", std::to_string(ammo_));
+        const int levelCenter = viewport.getXProperty() + viewport.getWidthProperty() / 12;
+        if ((accessMask_ & World::CyanAccess) != 0)
+        {
+            hudSpriteBatch_->Draw(
+                *accessCardSprite_,
+                Rectangle(levelCenter - 29, panelY + 63, 26, 18),
+                Color(255, 255, 255, 255));
+        }
+        if ((accessMask_ & World::AmberAccess) != 0)
+        {
+            hudSpriteBatch_->Draw(
+                *amberAccessCardSprite_,
+                Rectangle(levelCenter + 3, panelY + 63, 26, 18),
+                Color(255, 255, 255, 255));
+        }
         const int weaponCenter = viewport.getXProperty() + viewport.getWidthProperty() * 11 / 12;
         hudSpriteBatch_->Draw(
             *idleTexture,
@@ -1295,6 +1331,8 @@ namespace WolfCna
                     floorColor = doorColor;
                 else if (symbol == 'Q')
                     floorColor = lockedDoorColor;
+                else if (symbol == 'q')
+                    floorColor = Color(226, 143, 42, 255);
                 else if (symbol == 'S')
                     floorColor = secretColor;
                 else if (symbol == 'E' || symbol == 'M')
@@ -1761,7 +1799,7 @@ namespace WolfCna
         playerPosition_ = world_.PlayerStart();
         static_cast<void>(exploration_.Visit(playerPosition_.X, playerPosition_.Z));
         yaw_ = 0.0f;
-        hasSecurityCard_ = false;
+        accessMask_ = 0;
         completed_ = false;
         completedExitRoute_ = CampaignExitRoute::Standard;
         completionScore_ = {};
@@ -1868,7 +1906,7 @@ namespace WolfCna
         lastFirearm_ = Weapon::Sidearm;
         hasRepeater_ = false;
         hasHeavyWeapon_ = false;
-        hasSecurityCard_ = false;
+        accessMask_ = 0;
         defeatTransitionSeconds_ = 0.0f;
         LoadCampaignLevel(levelIndex_);
     }
@@ -1904,7 +1942,7 @@ namespace WolfCna
             .sectorEntryScore = sectorEntryScore_,
             .sectorEntryNextExtraLifeScore = sectorEntryNextExtraLifeScore_,
             .levelElapsedSeconds = levelElapsedSeconds_,
-            .hasSecurityCard = hasSecurityCard_,
+            .accessMask = accessMask_,
             .weapon = static_cast<int>(weapon_),
             .lastFirearm = static_cast<int>(lastFirearm_),
             .hasRepeater = hasRepeater_,
@@ -1969,7 +2007,7 @@ namespace WolfCna
         sectorEntryScore_ = state.sectorEntryScore;
         sectorEntryNextExtraLifeScore_ = state.sectorEntryNextExtraLifeScore;
         levelElapsedSeconds_ = state.levelElapsedSeconds;
-        hasSecurityCard_ = state.hasSecurityCard;
+        accessMask_ = state.accessMask;
         weapon_ = static_cast<Weapon>(state.weapon);
         lastFirearm_ = static_cast<Weapon>(state.lastFirearm);
         hasRepeater_ = state.hasRepeater;
@@ -2030,7 +2068,7 @@ namespace WolfCna
         score_ += points;
         while (score_ >= nextExtraLifeScore_)
         {
-            ++lives_;
+            lives_ = std::min(99, lives_ + 1);
             nextExtraLifeScore_ += 40000;
             if (extraLifeSound_)
                 static_cast<void>(extraLifeSound_->Play(0.34f, 0.3f, 0.0f));
@@ -2454,7 +2492,7 @@ namespace WolfCna
             nextExtraLifeScore_ = 40000;
             sectorEntryScore_ = 0;
             sectorEntryNextExtraLifeScore_ = 40000;
-            hasSecurityCard_ = true;
+            accessMask_ = World::AllAccess;
             hasRepeater_ = true;
             hasHeavyWeapon_ = true;
             weapon_ = Weapon::HeavyAutomatic;
@@ -2494,11 +2532,19 @@ namespace WolfCna
         if (actionIsDown && !actionWasDown_)
         {
             const World::InteractionResult activation =
-                world_.TryActivate(playerPosition_, LookDirection(), hasSecurityCard_);
+                world_.TryActivate(playerPosition_, LookDirection(), accessMask_);
             if (activation == World::InteractionResult::DoorOpened && doorSound_)
                 static_cast<void>(doorSound_->Play(0.68f, -0.15f, 0.0f));
-            else if (activation == World::InteractionResult::DoorLocked && lockedSound_)
-                static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
+            else if (activation == World::InteractionResult::DoorLocked ||
+                activation == World::InteractionResult::AmberDoorLocked)
+            {
+                if (lockedSound_)
+                    static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
+                objectiveMessage_ = activation == World::InteractionResult::AmberDoorLocked
+                    ? "AMBER ACCESS REQUIRED"
+                    : "CYAN ACCESS REQUIRED";
+                objectiveMessageSeconds_ = 2.0f;
+            }
             else if (activation == World::InteractionResult::ExitActivated)
             {
                 CompleteLevel();
@@ -2767,7 +2813,14 @@ namespace WolfCna
         }
         HandleInput(clampedElapsed);
         static_cast<void>(exploration_.Visit(playerPosition_.X, playerPosition_.Z));
-        const World::PickupResult pickups = world_.CollectPickups(playerPosition_, health_);
+        const World::PickupResult pickups = world_.CollectPickups(
+            playerPosition_,
+            health_,
+            ammo_,
+            hasHeavyWeapon_ ? 3 : hasRepeater_ ? 2 : 1,
+            accessMask_,
+            hasRepeater_,
+            hasHeavyWeapon_);
         const bool wasOutOfAmmo = ammo_ <= 0;
         health_ = std::min(100, health_ + pickups.health);
         ammo_ = std::min(MaxAmmo, ammo_ + pickups.ammo);
@@ -2786,10 +2839,21 @@ namespace WolfCna
             lastFirearm_ = Weapon::HeavyAutomatic;
         }
         AwardScore(pickups.gold);
-        hasSecurityCard_ = hasSecurityCard_ || pickups.accessCards > 0;
+        const int previousAccessMask = accessMask_;
+        accessMask_ |= pickups.accessMask;
+        lives_ = std::min(99, lives_ + pickups.extraLives);
+        if (pickups.extraLives > 0 && extraLifeSound_)
+            static_cast<void>(extraLifeSound_->Play(0.48f, 0.45f, 0.0f));
+        if (accessMask_ != previousAccessMask)
+        {
+            objectiveMessage_ = (pickups.accessMask & World::AmberAccess) != 0
+                ? "AMBER ACCESS ACQUIRED"
+                : "CYAN ACCESS ACQUIRED";
+            objectiveMessageSeconds_ = 2.0f;
+        }
         if (pickups.ammo > 0 && ammoPickupSound_)
             static_cast<void>(ammoPickupSound_->Play(0.72f, 0.0f, 0.0f));
-        if ((pickups.health + pickups.gold + pickups.accessCards +
+        if ((pickups.health + pickups.gold + pickups.accessMask + pickups.extraLives +
             pickups.repeaterWeapons + pickups.heavyWeapons) > 0 && pickupSound_)
             static_cast<void>(pickupSound_->Play(0.28f, 0.0f, 0.0f));
         if (!completed_)
@@ -2828,9 +2892,10 @@ namespace WolfCna
             rapidTrooperPainSprite_ && heavyUnitPainSprite_ && bossPainSprite_ &&
             defeatedGuardSprite_ && defeatedHoundSprite_ &&
             defeatedRapidTrooperSprite_ && defeatedHeavyUnitSprite_ && defeatedBossSprite_ &&
-            ammoPickupSprite_ && healthPickupSprite_ && goldBarsSprite_ &&
-            goldenGobletSprite_ && peaceMedallionSprite_ &&
-            accessCardSprite_ && repeaterPickupSprite_ && heavyWeaponPickupSprite_ &&
+            ammoPickupSprite_ && healthPickupSprite_ && fieldDressingSprite_ && goldBarsSprite_ &&
+            goldenGobletSprite_ && peaceMedallionSprite_ && peacePrismSprite_ &&
+            accessCardSprite_ && amberAccessCardSprite_ && recoveryBeaconSprite_ &&
+            repeaterPickupSprite_ && heavyWeaponPickupSprite_ &&
             terminalSprite_ && relaySprite_ && exitSprite_ && enemyProjectileSprite_ &&
             enemyImpactSprite_ &&
             paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_ && lampLightTexture_ &&
@@ -2864,10 +2929,14 @@ namespace WolfCna
                 *defeatedBossSprite_,
                 *ammoPickupSprite_,
                 *healthPickupSprite_,
+                *fieldDressingSprite_,
                 *goldBarsSprite_,
                 *goldenGobletSprite_,
                 *peaceMedallionSprite_,
+                *peacePrismSprite_,
                 *accessCardSprite_,
+                *amberAccessCardSprite_,
+                *recoveryBeaconSprite_,
                 *repeaterPickupSprite_,
                 *heavyWeaponPickupSprite_,
                 *terminalSprite_,

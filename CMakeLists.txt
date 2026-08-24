@@ -193,6 +193,10 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/health-kit.png"
     COPYONLY)
 configure_file(
+    assets/pickups/field-dressing.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/field-dressing.png"
+    COPYONLY)
+configure_file(
     assets/pickups/gold-bars.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/gold-bars.png"
     COPYONLY)
@@ -203,6 +207,18 @@ configure_file(
 configure_file(
     assets/pickups/peace-medallion.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/peace-medallion.png"
+    COPYONLY)
+configure_file(
+    assets/pickups/peace-prism.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/peace-prism.png"
+    COPYONLY)
+configure_file(
+    assets/pickups/amber-access-card.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/amber-access-card.png"
+    COPYONLY)
+configure_file(
+    assets/pickups/recovery-beacon.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/recovery-beacon.png"
     COPYONLY)
 configure_file(
     assets/materials/wall-stone.png

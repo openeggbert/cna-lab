@@ -74,13 +74,19 @@ namespace WolfCna
                 case 'M':
                 case 'O':
                 case 'Q':
+                case 'q':
                 case 'S':
                 case 'C':
+                case 'c':
                 case 'H':
+                case 'h':
                 case 'A':
+                case 'a':
                 case 'T':
                 case 'J':
                 case 'N':
+                case 'p':
+                case 'r':
                 case 'E':
                 case 'X':
                 case 'R':
@@ -163,6 +169,7 @@ namespace WolfCna
                     : '#';
                 if (!destinationInBounds || destination == '#' || destination == 'Y' ||
                     destination == 'D' || destination == 'Q' || destination == 'S' ||
+                    destination == 'q' ||
                     destination == 'E' || destination == 'X')
                 {
                     throw LevelError(
