@@ -153,19 +153,23 @@ void testEggKeepsItsObservedP1Silhouette()
 void testBabytchiKeepsItsObservedMovingTrace()
 {
     const P1Sprite& babytchi = P1SpriteCatalog::spriteForCharacter("babytchi");
-    constexpr std::array<int, 20> expectedOrigins{{
+    constexpr std::array<int, 36> expectedOrigins{{
         11, 9, 13, 16,
         18, 15, 14, 11,
         6, 11, 9, 13,
         15, 18, 16, 14,
         10, 6, 12, 9,
+        12, 15, 20, 16,
+        13, 10, 8, 12,
+        9, 12, 16, 20,
+        15, 13, 11, 8,
     }};
     constexpr std::array<std::string_view, 6> expectedFull{{
         ".####.", "#.##.#", "######", "##..##", "##..##", "######",
     }};
 
     expect(babytchi.idleFrameCount == expectedOrigins.size(),
-           "Babytchi must retain all twenty consecutive observed stable phases");
+           "Babytchi must retain its complete thirty-six-phase observed cycle");
     expect(babytchi.idleFrameSeconds == 0.46F,
            "Babytchi must retain the cadence inferred from its 30 fps trace");
 
@@ -191,7 +195,7 @@ void testBabytchiKeepsItsObservedMovingTrace()
     }
 
     expect(!framesDiffer(babytchi.idleFrame(expectedOrigins.size()), babytchi.idleFrame(0)),
-           "the observed Babytchi trace must wrap at its declared active count");
+           "the observed Babytchi cycle must wrap at its declared active count");
 }
 
 } // namespace

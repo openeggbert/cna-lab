@@ -27,7 +27,7 @@ struct P1SpriteFrame final {
 };
 
 struct P1Sprite final {
-    static constexpr std::size_t MaximumIdleFrameCount = 24;
+    static constexpr std::size_t MaximumIdleFrameCount = 36;
     static constexpr float DefaultIdleFrameSeconds = 0.42F;
 
     // Frame count and timing belong to the observed sequence, not to the

@@ -7,8 +7,8 @@ implemented as a clean, data-driven C++ behaviour engine. The LCD framebuffer
 is exactly 32 × 16 and one bit. The home renderer uses explicit geometry and
 an explicit per-sequence frame count, so it no longer fakes motion by shifting
 a static creature around the LCD. Most provisional frames use the centred
-16 × 10 cell. The egg's two stable silhouettes, twenty consecutive stable
-Babytchi phases, and a Mametchi idle sequence have been visually transcribed
+16 × 10 cell. The egg's two stable silhouettes, Babytchi's complete 36-phase
+home cycle, and a Mametchi idle sequence have been visually transcribed
 from P1 reference traces; the other character redraws remain provisional.
 
 The project must never ship a P1 ROM, a ROM-derived binary asset, TamaLIB, or
@@ -63,14 +63,13 @@ write and verify the clean implementation.
 - A confirmed activation and post-hatch capture established Babytchi's real
   home motion. At 1× it repeats two full 6 × 6 poses at `y=10`, then two
   squashed 4 × 1 poses at `y=15`, while moving through observed horizontal
-  origins. Twenty consecutive stable phases are hand-transcribed at an inferred
+  origins. Its complete 36-phase cycle is hand-transcribed at an inferred
   0.46-second cadence; focused tests protect every row, origin, bound, count,
-  and the local wrap.
-- The phase-20 wrap is deliberately recorded as an implementation boundary,
-  not evidence that the original path repeats there. A five-second normal-scale
-  application trace confirms both poses stay inside the LCD without touching
-  the icon bands. Capture a longer reference continuation, then continue the
-  per-form ledger with Marutchi.
+  and wrap. A separate clean 30-second trace showed the full origin sequence
+  repeat and resolved the former phase-20 uncertainty.
+- A five-second normal-scale application trace confirms both poses stay inside
+  the LCD without touching the icon bands. Continue the per-form home ledger
+  with Marutchi; capture Babytchi care-action sequences under Priority 2.
 
 ## Priority 0 — Add selectable physical shell variants
 
@@ -95,9 +94,9 @@ shell-control path does not mutate P1 state or framebuffer data.
 ## Priority 1 — Make the home LCD visually faithful
 
 1. [x] Complete and regression-check the egg's two stable idle phases.
-2. [x] Capture and transcribe twenty consecutive stable Babytchi home phases,
-   including its true full/squashed geometry, observed horizontal origins,
-   cadence, and partial-write exclusion.
+2. [x] Capture and transcribe Babytchi's complete 36-phase home cycle, including
+   its true full/squashed geometry, horizontal path, cadence, wrap, and
+   partial-write exclusion.
 3. Create a visual-reference ledger for each remaining P1 home form: Marutchi,
    Tamatchi, Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi,
    Kuchipatchi, Nyorotchi, Tarakotchi, and Bill.

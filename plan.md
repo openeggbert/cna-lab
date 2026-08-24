@@ -81,10 +81,9 @@ similar emulation core is permitted in the application, build, or test suite.
     LCD trace, represent their true two-phase count and 0.625-second cadence,
     and protect their distinct geometry and rows with catalogue regression
     tests.
-  - [x] Transcribe twenty consecutive stable Babytchi home phases from a
-    confirmed post-hatch 1× trace, including its alternating 6 × 6 full and
-    4 × 1 squashed poses, observed horizontal origins, and 0.46-second cadence;
-    preserve the unverified phase-20 wrap as an explicit uncertainty.
+  - [x] Transcribe Babytchi's complete 36-phase home cycle from confirmed
+    post-hatch 1× traces, including its alternating 6 × 6 full and 4 × 1
+    squashed poses, horizontal path, 0.46-second cadence, and observed wrap.
   - [x] Replace the previous generic pink desktop shell treatment with a
     reusable CNA renderer and five independently authored P1 colour families;
     persist the selected shell without changing the LCD or P1 controls.
@@ -154,8 +153,7 @@ similar emulation core is permitted in the application, build, or test suite.
 ## Immediate next task
 
 Follow the ordered visual and behaviour backlog in [next.md](next.md). Next,
-extend Babytchi's trace beyond the current twenty-phase implementation
-boundary, and then capture Marutchi. The
+capture and compare Marutchi's home cycle. The
 explicit-frame renderer removes the incorrect generic bobbing behaviour, but
 the remaining provisional character redraws and all care-action animations
 still need a frame-by-frame comparison before they can be described as exact.

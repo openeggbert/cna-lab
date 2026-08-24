@@ -83,8 +83,8 @@ constexpr P1Sprite Egg = twoPhaseSprite(
                  "...#..#####.##..", "....#..######...", ".....###...#....", "....#########..."),
     0.625F);
 
-// Twenty consecutive stable phases from a fresh post-hatch trace. The
-// one-host-frame incremental LCD writes between them are deliberately omitted.
+// One complete 36-phase cycle from a fresh post-hatch trace. The cycle repeated
+// in a 30-second capture; one-host-frame incremental LCD writes are omitted.
 constexpr P1Sprite Babytchi = sequence(
     0.46F,
     babytchiFullFrame(11), babytchiFullFrame(9),
@@ -96,7 +96,15 @@ constexpr P1Sprite Babytchi = sequence(
     babytchiFullFrame(15), babytchiFullFrame(18),
     babytchiSquashFrame(16), babytchiSquashFrame(14),
     babytchiFullFrame(10), babytchiFullFrame(6),
-    babytchiSquashFrame(12), babytchiSquashFrame(9));
+    babytchiSquashFrame(12), babytchiSquashFrame(9),
+    babytchiFullFrame(12), babytchiFullFrame(15),
+    babytchiSquashFrame(20), babytchiSquashFrame(16),
+    babytchiFullFrame(13), babytchiFullFrame(10),
+    babytchiSquashFrame(8), babytchiSquashFrame(12),
+    babytchiFullFrame(9), babytchiFullFrame(12),
+    babytchiSquashFrame(16), babytchiSquashFrame(20),
+    babytchiFullFrame(15), babytchiFullFrame(13),
+    babytchiSquashFrame(11), babytchiSquashFrame(8));
 
 constexpr P1Sprite Marutchi = sprite(
     frame("................", ".....######.....", "....##....##....", "...##..##..##...",
