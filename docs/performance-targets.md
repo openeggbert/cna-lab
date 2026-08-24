@@ -352,12 +352,20 @@ Its mutually exclusive histogram buckets end at the recommended 16.667 ms budget
 ms budget, 50 ms hitch threshold, and 100 ms severe-hitch threshold, followed by an unbounded final
 bucket. A minimum-budget miss is strictly greater than 33.333 ms, a hitch strictly greater than 50
 ms, and a severe hitch strictly greater than 100 ms; exact threshold values stay in the lower bucket.
+The report-side schema validator treats those five mutually exclusive bucket counts as the stored
+source of truth. Their sum must equal `frame_interval.samples`; fixed bound metadata must remain
+16.667/33.333/50/100 ms; and `minimum_budget_misses`, `hitches`, and `severe_hitches` counts and
+three-decimal percentages are re-derived from the buckets. A changed derived count, percentage,
+comparison, or threshold makes the capture malformed (exit 2).
 
 Each synchronous `RecordDistrictLoad` marks the index of the first frame-interval sample recorded
 after it. `district_transition_boundaries` reports total transitions, boundaries actually measured
 before capture end, how many crossed the 50 ms hitch threshold, and their maximum. A transition on
 the final unpresented update remains counted but unmeasured (`measured_samples < transitions`)
 instead of borrowing a neighboring frame or inventing zero duration.
+The validator also requires boundary `transitions == district_load_cpu.samples`, measured samples
+no greater than transitions, hitch count no greater than measured samples, `maximum_ms:null` when
+none were measured, and maximum/hitch state to agree at the strict 50 ms threshold.
 
 Schema 8 captures now also include a backward-compatible `capture_session` object. It records the
 `iron_gang` executable, the current process ID where the platform exposes one, and microsecond UTC
@@ -550,6 +558,8 @@ checks every recorded digest again after parsing and after Markdown construction
 before output, so the table cannot silently describe files changed during report generation.
 The successful presentation row means the exact requested 0/1 interval was acknowledged and
 recorded as applied; a merely non-null but different integer is malformed evidence, not a pass.
+Displayed hitch/severe/boundary values likewise come from a histogram and boundary summary whose
+internal derivations were checked before report evaluation.
 Renaming, copying, or changing only JSON whitespace cannot turn one capture into the two independent
 runs required for repeatability. Canonical performance identity is independent of file path and key
 ordering and normalizes externally bound VRAM metadata, so rebinding the same original profile to a

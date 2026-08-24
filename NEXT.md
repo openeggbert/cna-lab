@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 frame-pacing summaries are now internally derived and cross-checked.** The report parser
+validates every 16.667/33.333/50/100 ms histogram bound, re-derives minimum misses/hitches/severe
+hitches and percentages from bucket counts, and correlates district-boundary transitions with
+`district_load_cpu` samples plus measured/max/hitch state.
+
+- Tests reject an independently changed hitch count, threshold, and transition count. Report 7/7,
+  comparator 6/6, and VRAM 6/6 focused suites pass.
+- Both locally retained Xvfb captures pass the stricter parser with their prior diagnostic results;
+  no graphical process was launched.
+- This protects stored summary integrity but does not add the still-missing physical measurement.
+
 **M12 presentation acknowledgement now means the requested interval was actually the applied
 interval.** The shared schema-8 loader restricts `swap_interval.requested` to 0/1, correlates it
 with `timing.vertical_sync_requested`, validates known/success/null state combinations, and

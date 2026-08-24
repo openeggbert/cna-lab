@@ -491,3 +491,10 @@ The schema-8 presentation contract is now checked rather than inferred from any 
 hand-edited request-1/applied-0 capture and a v-sync/request contradiction both exit 2. The shared
 loader gives the comparator and VRAM binder the same protection. Both locally retained Xvfb
 diagnostics still parse normally and retain their rejected-swap blocker.
+
+Frame-pacing summaries are now resistant to independent derived-field edits. The parser verifies
+all 16.667/33.333/50/100 ms bucket bounds, re-derives minimum-budget misses, hitches, severe hitches,
+and their percentages, and correlates transition-boundary counts with `district_load_cpu` samples
+and maximum/hitch state. Tests reject a changed hitch count, changed hitch threshold, and transition
+count disconnected from load samples. Both locally retained Xvfb diagnostics pass the stricter
+parser with their existing one-hitch results unchanged.

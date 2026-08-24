@@ -65,15 +65,48 @@ def capture_fixture() -> dict:
         "frame_pacing": {
             "samples": 4,
             "histogram": {
-                "at_or_below_recommended_budget": {"count": 1},
-                "above_recommended_at_or_below_minimum_budget": {"count": 3},
-                "above_minimum_at_or_below_hitch": {"count": 0},
-                "above_hitch_at_or_below_severe_hitch": {"count": 0},
-                "above_severe_hitch": {"count": 0},
+                "at_or_below_recommended_budget": {"upper_bound_ms": 16.667, "count": 1},
+                "above_recommended_at_or_below_minimum_budget": {
+                    "lower_bound_exclusive_ms": 16.667,
+                    "upper_bound_ms": 33.333,
+                    "count": 3,
+                },
+                "above_minimum_at_or_below_hitch": {
+                    "lower_bound_exclusive_ms": 33.333,
+                    "upper_bound_ms": 50.0,
+                    "count": 0,
+                },
+                "above_hitch_at_or_below_severe_hitch": {
+                    "lower_bound_exclusive_ms": 50.0,
+                    "upper_bound_ms": 100.0,
+                    "count": 0,
+                },
+                "above_severe_hitch": {"lower_bound_exclusive_ms": 100.0, "count": 0},
             },
-            "hitches": {"count": 0},
-            "severe_hitches": {"count": 0},
-            "district_transition_boundaries": {"maximum_ms": 17.0},
+            "minimum_budget_misses": {
+                "threshold_ms": 33.333,
+                "comparison": "greater_than",
+                "count": 0,
+                "percent": 0.0,
+            },
+            "hitches": {
+                "threshold_ms": 50.0,
+                "comparison": "greater_than",
+                "count": 0,
+                "percent": 0.0,
+            },
+            "severe_hitches": {
+                "threshold_ms": 100.0,
+                "comparison": "greater_than",
+                "count": 0,
+                "percent": 0.0,
+            },
+            "district_transition_boundaries": {
+                "transitions": 1,
+                "measured_samples": 1,
+                "hitch_count": 0,
+                "maximum_ms": 17.0,
+            },
         },
         "memory": {
             "peak_resident_bytes": 128 * 1024 * 1024,
@@ -318,6 +351,25 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_histogram], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("do not match frame_interval samples", result.stderr)
+
+        bad_hitch_count = capture_fixture()
+        bad_hitch_count["frame_pacing"]["hitches"]["count"] = 1
+        bad_hitch_count["frame_pacing"]["hitches"]["percent"] = 25.0
+        result = self.run_report([bad_hitch_count], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("hitches.count does not match", result.stderr)
+
+        bad_hitch_threshold = capture_fixture()
+        bad_hitch_threshold["frame_pacing"]["hitches"]["threshold_ms"] = 49.0
+        result = self.run_report([bad_hitch_threshold], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("hitches.threshold_ms must be 50.000", result.stderr)
+
+        bad_boundary_count = capture_fixture()
+        bad_boundary_count["frame_pacing"]["district_transition_boundaries"]["transitions"] = 0
+        result = self.run_report([bad_boundary_count], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("transitions must match district_load_cpu samples", result.stderr)
 
         mismatched_swap = capture_fixture()
         mismatched_swap["swap_interval"]["applied"] = 0

@@ -210,6 +210,12 @@ request-1/applied-0 and v-sync/request contradictions; comparator coverage indep
 the shared refusal. Report 7/7, comparator 6/6, VRAM 6/6, and both existing real Xvfb diagnostics
 pass parsing with their honest rejected-acknowledgement blocker.
 
+Frame-pacing derived fields are now validated against their stored histogram rather than trusted
+independently. Fixed bucket bounds, minimum-miss/hitch/severe counts and percentages, comparison
+operators, district transition/load sample equality, measured/hitch count bounds, and boundary
+maximum/hitch consistency are enforced. Report tests reject a forged hitch count, threshold, and
+transition count; both retained Xvfb captures still parse with unchanged diagnostic output.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

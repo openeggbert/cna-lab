@@ -269,3 +269,6 @@ report generation.
 Presentation acknowledgement is also schema-checked: `swap_interval.requested` must be 0 or 1,
 must agree with `timing.vertical_sync_requested`, and a successful `applied` value must exactly
 equal the request. Inconsistent hand-edited captures are rejected rather than promoted.
+Frame-pacing metadata is checked the same way: fixed histogram bounds, derived minimum-miss/hitch/
+severe counts and percentages, and district-boundary counts must agree with the underlying bucket
+and district-load sample counts.

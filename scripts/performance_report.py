@@ -27,6 +27,10 @@ RECOMMENDED_HEIGHT = 1080
 RAM_BUDGET_BYTES = 2 * 1024 * 1024 * 1024
 VRAM_BUDGET_BYTES = 512 * 1024 * 1024
 DISTRICT_LOAD_BUDGET_MS = 1000.0
+FRAME_HITCH_MS = 50.0
+SEVERE_FRAME_HITCH_MS = 100.0
+SCHEMA_MINIMUM_FRAME_MS = 33.333
+SCHEMA_RECOMMENDED_FRAME_MS = 16.667
 CPU_BUDGETS_MS = {
     "update_cpu": 8.0,
     "physics_cpu": 3.0,
@@ -281,6 +285,149 @@ def swap_interval_acknowledged(capture: dict[str, Any]) -> bool:
     return result_known and apply_succeeded is True
 
 
+def _require_schema_number(
+    value: dict[str, Any],
+    keys: tuple[str, ...],
+    expected: float,
+) -> None:
+    actual = _number(value, *keys)
+    if not math.isclose(actual, expected, rel_tol=0.0, abs_tol=0.000001):
+        raise ReportError(f"{'.'.join(keys)} must be {expected:.3f}")
+
+
+def _validate_pacing_counter(
+    capture: dict[str, Any],
+    key: str,
+    expected_count: int,
+    threshold_ms: float,
+    sample_count: int,
+) -> None:
+    _require_schema_number(capture, ("frame_pacing", key, "threshold_ms"), threshold_ms)
+    if _non_empty_string(capture, "frame_pacing", key, "comparison") != "greater_than":
+        raise ReportError(f"frame_pacing.{key}.comparison must be greater_than")
+    actual_count = _integer(capture, "frame_pacing", key, "count")
+    if actual_count != expected_count:
+        raise ReportError(
+            f"frame_pacing.{key}.count does not match the frame-pacing histogram"
+        )
+    expected_percent = 0.0 if sample_count == 0 else 100.0 * expected_count / sample_count
+    actual_percent = _number(capture, "frame_pacing", key, "percent")
+    if not math.isclose(actual_percent, expected_percent, rel_tol=0.0, abs_tol=0.0005):
+        raise ReportError(
+            f"frame_pacing.{key}.percent does not match count/samples"
+        )
+
+
+def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
+    frame_samples = _integer(capture, "measurements", "frame_interval", "samples")
+    pacing_samples = _integer(capture, "frame_pacing", "samples")
+    histogram = _mapping(_path(capture, "frame_pacing", "histogram"), "frame_pacing.histogram")
+    counts = {
+        bucket: _integer(histogram, bucket, "count") for bucket in HISTOGRAM_BUCKETS
+    }
+    histogram_total = sum(counts.values())
+    if pacing_samples != frame_samples or histogram_total != frame_samples:
+        raise ReportError(
+            f"{path}: frame-pacing samples/histogram ({pacing_samples}/{histogram_total}) "
+            f"do not match frame_interval samples ({frame_samples})"
+        )
+
+    _require_schema_number(
+        histogram,
+        ("at_or_below_recommended_budget", "upper_bound_ms"),
+        SCHEMA_RECOMMENDED_FRAME_MS,
+    )
+    _require_schema_number(
+        histogram,
+        ("above_recommended_at_or_below_minimum_budget", "lower_bound_exclusive_ms"),
+        SCHEMA_RECOMMENDED_FRAME_MS,
+    )
+    _require_schema_number(
+        histogram,
+        ("above_recommended_at_or_below_minimum_budget", "upper_bound_ms"),
+        SCHEMA_MINIMUM_FRAME_MS,
+    )
+    _require_schema_number(
+        histogram,
+        ("above_minimum_at_or_below_hitch", "lower_bound_exclusive_ms"),
+        SCHEMA_MINIMUM_FRAME_MS,
+    )
+    _require_schema_number(
+        histogram,
+        ("above_minimum_at_or_below_hitch", "upper_bound_ms"),
+        FRAME_HITCH_MS,
+    )
+    _require_schema_number(
+        histogram,
+        ("above_hitch_at_or_below_severe_hitch", "lower_bound_exclusive_ms"),
+        FRAME_HITCH_MS,
+    )
+    _require_schema_number(
+        histogram,
+        ("above_hitch_at_or_below_severe_hitch", "upper_bound_ms"),
+        SEVERE_FRAME_HITCH_MS,
+    )
+    _require_schema_number(
+        histogram,
+        ("above_severe_hitch", "lower_bound_exclusive_ms"),
+        SEVERE_FRAME_HITCH_MS,
+    )
+
+    minimum_misses = (
+        counts["above_minimum_at_or_below_hitch"]
+        + counts["above_hitch_at_or_below_severe_hitch"]
+        + counts["above_severe_hitch"]
+    )
+    hitches = (
+        counts["above_hitch_at_or_below_severe_hitch"]
+        + counts["above_severe_hitch"]
+    )
+    severe_hitches = counts["above_severe_hitch"]
+    _validate_pacing_counter(
+        capture,
+        "minimum_budget_misses",
+        minimum_misses,
+        SCHEMA_MINIMUM_FRAME_MS,
+        frame_samples,
+    )
+    _validate_pacing_counter(capture, "hitches", hitches, FRAME_HITCH_MS, frame_samples)
+    _validate_pacing_counter(
+        capture,
+        "severe_hitches",
+        severe_hitches,
+        SEVERE_FRAME_HITCH_MS,
+        frame_samples,
+    )
+
+    transitions = _integer(capture, "frame_pacing", "district_transition_boundaries", "transitions")
+    measured = _integer(
+        capture, "frame_pacing", "district_transition_boundaries", "measured_samples"
+    )
+    boundary_hitches = _integer(
+        capture, "frame_pacing", "district_transition_boundaries", "hitch_count"
+    )
+    load_samples = _integer(capture, "measurements", "district_load_cpu", "samples")
+    if transitions != load_samples:
+        raise ReportError(
+            "frame_pacing.district_transition_boundaries.transitions must match "
+            "district_load_cpu samples"
+        )
+    if measured > transitions or boundary_hitches > measured:
+        raise ReportError("district-transition boundary counts are inconsistent")
+    raw_maximum = _path(capture, "frame_pacing", "district_transition_boundaries", "maximum_ms")
+    if measured == 0:
+        if raw_maximum is not None:
+            raise ReportError("unmeasured district-transition boundaries require maximum_ms null")
+    else:
+        maximum = _number(
+            capture, "frame_pacing", "district_transition_boundaries", "maximum_ms"
+        )
+        if (maximum > FRAME_HITCH_MS) != (boundary_hitches > 0):
+            raise ReportError(
+                "district-transition boundary hitch_count does not match maximum_ms"
+            )
+
+
 def validate_complete_vram_evidence(
     capture: dict[str, Any],
     hardware: str | None = None,
@@ -356,18 +503,6 @@ def load_capture(path: Path) -> dict[str, Any]:
             f"{path}: schema_version must be {SCHEMA_VERSION}, got {capture.get('schema_version')!r}"
         )
 
-    frame_samples = _integer(capture, "measurements", "frame_interval", "samples")
-    pacing_samples = _integer(capture, "frame_pacing", "samples")
-    histogram = _mapping(_path(capture, "frame_pacing", "histogram"), "frame_pacing.histogram")
-    histogram_total = 0
-    for bucket in HISTOGRAM_BUCKETS:
-        histogram_total += _integer(histogram, bucket, "count")
-    if pacing_samples != frame_samples or histogram_total != frame_samples:
-        raise ReportError(
-            f"{path}: frame-pacing samples/histogram ({pacing_samples}/{histogram_total}) "
-            f"do not match frame_interval samples ({frame_samples})"
-        )
-
     for metric in (
         "frame_interval",
         *CPU_BUDGETS_MS,
@@ -377,13 +512,12 @@ def load_capture(path: Path) -> dict[str, Any]:
     ):
         _integer(capture, "measurements", metric, "samples")
         _number(capture, "measurements", metric, "p95_ms")
+    validate_frame_pacing(capture, path)
     _number(capture, "memory", "peak_resident_bytes")
     _number(capture, "video_memory", "tracked_bytes")
     swap_interval_acknowledged(capture)
     validate_capture_session(capture, required=False)
     validate_complete_vram_evidence(capture)
-    _integer(capture, "frame_pacing", "hitches", "count")
-    _integer(capture, "frame_pacing", "severe_hitches", "count")
     return capture
 
 

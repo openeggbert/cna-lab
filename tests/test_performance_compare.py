@@ -56,15 +56,28 @@ def capture_fixture() -> dict:
         "frame_pacing": {
             "samples": 100,
             "histogram": {
-                "at_or_below_recommended_budget": {"count": 80},
-                "above_recommended_at_or_below_minimum_budget": {"count": 20},
-                "above_minimum_at_or_below_hitch": {"count": 0},
-                "above_hitch_at_or_below_severe_hitch": {"count": 0},
-                "above_severe_hitch": {"count": 0},
+                "at_or_below_recommended_budget": {"upper_bound_ms": 16.667, "count": 80},
+                "above_recommended_at_or_below_minimum_budget": {
+                    "lower_bound_exclusive_ms": 16.667,
+                    "upper_bound_ms": 33.333,
+                    "count": 20,
+                },
+                "above_minimum_at_or_below_hitch": {
+                    "lower_bound_exclusive_ms": 33.333,
+                    "upper_bound_ms": 50.0,
+                    "count": 0,
+                },
+                "above_hitch_at_or_below_severe_hitch": {
+                    "lower_bound_exclusive_ms": 50.0,
+                    "upper_bound_ms": 100.0,
+                    "count": 0,
+                },
+                "above_severe_hitch": {"lower_bound_exclusive_ms": 100.0, "count": 0},
             },
             "minimum_budget_misses": {
                 "threshold_ms": 33.333,
                 "comparison": "greater_than",
+                "count": 0,
                 "percent": 0.0,
             },
             "hitches": {
@@ -79,7 +92,12 @@ def capture_fixture() -> dict:
                 "count": 0,
                 "percent": 0.0,
             },
-            "district_transition_boundaries": {"maximum_ms": 17.0},
+            "district_transition_boundaries": {
+                "transitions": 1,
+                "measured_samples": 1,
+                "hitch_count": 0,
+                "maximum_ms": 17.0,
+            },
         },
         "memory": {"peak_resident_bytes": 128 * 1024 * 1024, "known": True},
         "video_memory": {
