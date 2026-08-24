@@ -366,6 +366,62 @@ other render-target or transient allocations, driver padding, and physical resid
 available through the public API. A backend counter or external GPU capture is still required to
 qualify the VRAM gate; the tracked budget check is only an early lower-bound guard.
 
+### Binding complete external VRAM evidence
+
+Neither CNA/EasyGL nor the generic OpenGL extensions available to Iron Gang expose complete
+per-process residency. Global adapter capacity/free-memory counters and API-object tracers are not
+equivalent: they omit or conflate driver allocations, residency, and other processes. A qualifying
+capture therefore needs an authoritative vendor/OS profiler whose documented scope is the peak
+complete graphics residency of the specific Iron Gang process.
+
+Keep the profiler's raw artifact and write a small evidence manifest alongside the original
+schema-8 capture:
+
+```json
+{
+  "schema_version": 1,
+  "measurement_scope": "complete_process_gpu_residency_peak",
+  "hardware_identity": "<CPU, GPU, driver, display/compositor identity>",
+  "tool": {"name": "<profiler>", "version": "<version>"},
+  "process": {"executable": "iron_gang", "pid": 1234},
+  "measurement": {
+    "peak_resident_bytes": 268435456,
+    "started_utc": "2026-08-24T10:00:00Z",
+    "ended_utc": "2026-08-24T10:15:00Z"
+  },
+  "profile_capture_sha256": "<sha256 of original profile JSON>",
+  "source_artifact": {
+    "file_name": "<raw profiler artifact file name>",
+    "sha256": "<sha256 of raw profiler artifact>"
+  }
+}
+```
+
+Generate the two hashes with `sha256sum`, then bind and validate all three inputs without modifying
+the original capture:
+
+```bash
+sha256sum runtime/performance/m12-mixed-01.json runtime/performance/vendor-capture-01.bin
+./scripts/vram_evidence.py \
+  --capture runtime/performance/m12-mixed-01.json \
+  --evidence runtime/performance/m12-vram-evidence-01.json \
+  --artifact runtime/performance/vendor-capture-01.bin \
+  --output runtime/performance/m12-mixed-01-complete.json
+```
+
+The binder verifies schema, exact capture and raw-artifact hashes, positive process/peak values,
+UTC interval ordering, and the exact measurement scope. The enriched `tracked_bytes` is the
+conservative maximum of Iron Gang's logical total and the external peak; only that output sets
+`tracking_complete=true`. The release-summary hardware label must exactly match
+`hardware_identity`, and capture comparison also requires the same profiler name, version, source,
+and scope on both sides.
+
+This contract binds evidence; it does not certify a profiler's semantics or fabricate a
+measurement. `apitrace`, adapter-global free-memory queries, Xvfb/llvmpipe, and a hand-authored
+manifest without an authoritative complete-residency artifact remain non-qualifying. Archive the
+original profile JSON, raw profiler artifact, evidence manifest, and enriched JSON together; later
+report generation validates embedded hashes and metadata but cannot recreate a missing raw file.
+
 A repeatable representative capture is:
 
 ```bash

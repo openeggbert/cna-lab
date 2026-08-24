@@ -6,7 +6,9 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +31,8 @@ CPU_BUDGETS_MS = {
     "render_cpu": 8.0,
 }
 DIAGNOSTIC_HARDWARE_TERMS = ("xvfb", "llvmpipe", "software rasterizer")
+COMPLETE_VRAM_SCOPE = "complete_process_gpu_residency_peak"
+SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 HISTOGRAM_BUCKETS = (
     "at_or_below_recommended_budget",
     "above_recommended_at_or_below_minimum_budget",
@@ -83,6 +87,82 @@ def _boolean(value: dict[str, Any], *keys: str) -> bool:
     return result
 
 
+def _non_empty_string(value: dict[str, Any], *keys: str) -> str:
+    result = _path(value, *keys)
+    if not isinstance(result, str) or not result.strip():
+        raise ReportError(f"{'.'.join(keys)} must be a non-empty string")
+    return result.strip()
+
+
+def _utc_timestamp(value: dict[str, Any], *keys: str) -> datetime:
+    text = _non_empty_string(value, *keys)
+    if not text.endswith("Z"):
+        raise ReportError(f"{'.'.join(keys)} must be an ISO-8601 UTC timestamp ending in Z")
+    try:
+        return datetime.fromisoformat(text[:-1] + "+00:00")
+    except ValueError as error:
+        raise ReportError(f"{'.'.join(keys)} must be an ISO-8601 UTC timestamp") from error
+
+
+def validate_complete_vram_evidence(
+    capture: dict[str, Any],
+    hardware: str | None = None,
+) -> None:
+    if not _boolean(capture, "video_memory", "tracking_complete"):
+        return
+
+    evidence = _mapping(
+        _path(capture, "video_memory", "complete_evidence"),
+        "video_memory.complete_evidence",
+    )
+    if _integer(evidence, "schema_version") != 1:
+        raise ReportError("video_memory.complete_evidence.schema_version must be 1")
+    if _non_empty_string(evidence, "source") != "external_capture":
+        raise ReportError("video_memory.complete_evidence.source must be external_capture")
+    if _non_empty_string(evidence, "measurement_scope") != COMPLETE_VRAM_SCOPE:
+        raise ReportError(
+            "video_memory.complete_evidence.measurement_scope must be " + COMPLETE_VRAM_SCOPE
+        )
+    evidence_hardware = _non_empty_string(evidence, "hardware_identity")
+    _non_empty_string(evidence, "tool", "name")
+    _non_empty_string(evidence, "tool", "version")
+    _non_empty_string(evidence, "process", "executable")
+    if _integer(evidence, "process", "pid") == 0:
+        raise ReportError("video_memory.complete_evidence.process.pid must be positive")
+    started = _utc_timestamp(evidence, "measurement", "started_utc")
+    ended = _utc_timestamp(evidence, "measurement", "ended_utc")
+    if ended < started:
+        raise ReportError(
+            "video_memory.complete_evidence.measurement.ended_utc must not precede started_utc"
+        )
+    peak_resident_bytes = _integer(evidence, "measurement", "peak_resident_bytes")
+    if peak_resident_bytes == 0:
+        raise ReportError(
+            "video_memory.complete_evidence.measurement.peak_resident_bytes must be positive"
+        )
+    logical_tracked_bytes = _integer(capture, "video_memory", "logical_tracked_bytes")
+    tracked_bytes = _integer(capture, "video_memory", "tracked_bytes")
+    if tracked_bytes != max(logical_tracked_bytes, peak_resident_bytes):
+        raise ReportError(
+            "video_memory.tracked_bytes must equal the conservative maximum of logical and "
+            "externally measured complete residency"
+        )
+    for key in ("profile_capture_sha256", "evidence_manifest_sha256"):
+        digest = _non_empty_string(evidence, key)
+        if SHA256_PATTERN.fullmatch(digest) is None:
+            raise ReportError(f"video_memory.complete_evidence.{key} must be lowercase SHA-256")
+    _non_empty_string(evidence, "source_artifact", "file_name")
+    source_digest = _non_empty_string(evidence, "source_artifact", "sha256")
+    if SHA256_PATTERN.fullmatch(source_digest) is None:
+        raise ReportError(
+            "video_memory.complete_evidence.source_artifact.sha256 must be lowercase SHA-256"
+        )
+    if hardware is not None and evidence_hardware != hardware.strip():
+        raise ReportError(
+            "external VRAM evidence hardware identity does not match the report hardware label"
+        )
+
+
 def load_capture(path: Path) -> dict[str, Any]:
     try:
         with path.open("r", encoding="utf-8") as source:
@@ -118,12 +198,13 @@ def load_capture(path: Path) -> dict[str, Any]:
         _number(capture, "measurements", metric, "p95_ms")
     _number(capture, "memory", "peak_resident_bytes")
     _number(capture, "video_memory", "tracked_bytes")
+    validate_complete_vram_evidence(capture)
     _integer(capture, "frame_pacing", "hitches", "count")
     _integer(capture, "frame_pacing", "severe_hitches", "count")
     return capture
 
 
-def capture_blockers(path: Path, capture: dict[str, Any]) -> list[str]:
+def capture_blockers(path: Path, capture: dict[str, Any], hardware: str) -> list[str]:
     prefix = f"{path.name}: "
     blockers: list[str] = []
     if _path(capture, "backend") != "OPENGLES3":
@@ -165,8 +246,13 @@ def capture_blockers(path: Path, capture: dict[str, Any]) -> list[str]:
     tracked_vram = int(_number(capture, "video_memory", "tracked_bytes"))
     if not _boolean(capture, "video_memory", "tracking_complete"):
         blockers.append(prefix + "VRAM tracking is incomplete")
-    elif tracked_vram > VRAM_BUDGET_BYTES:
-        blockers.append(prefix + "VRAM exceeds 512 MiB")
+    else:
+        try:
+            validate_complete_vram_evidence(capture, hardware)
+        except ReportError as error:
+            blockers.append(prefix + str(error))
+        if tracked_vram > VRAM_BUDGET_BYTES:
+            blockers.append(prefix + "VRAM exceeds 512 MiB")
 
     if _path(capture, "scenario") == "mixed":
         load_samples = _integer(capture, "measurements", "district_load_cpu", "samples")
@@ -205,7 +291,7 @@ def build_markdown(
         blockers.append("the hardware label identifies a diagnostic software/virtual display")
     per_capture_blockers: list[list[str]] = []
     for path, capture in zip(capture_paths, captures):
-        current = capture_blockers(path, capture)
+        current = capture_blockers(path, capture, hardware)
         per_capture_blockers.append(current)
         blockers.extend(current)
 

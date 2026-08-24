@@ -67,6 +67,24 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has a complete external-VRAM evidence binding seam.** CNA/EasyGL exposes no complete
+per-process GPU-residency counter, and adapter-global free-memory extensions or API-object tracing
+cannot honestly substitute for one. New `scripts/vram_evidence.py` binds an original schema-8
+profile, a versioned evidence manifest, and the raw vendor/OS profiler artifact using SHA-256. It
+validates the exact `complete_process_gpu_residency_peak` scope, process/hardware/tool/time metadata,
+refuses every input-overwrite path, and writes an enriched capture atomically with the conservative
+maximum of logical and external bytes.
+
+- Report and comparison tooling independently validate complete evidence. Hardware identity must
+  match the report label; comparable complete captures must also use the same source/scope and tool
+  name/version.
+- Five focused CLI tests plus the expanded report/comparison tests pass; CTest is now 8/8. These
+  use synthetic complete evidence only. No physical artifact was fabricated, so real Xvfb captures
+  remain explicitly incomplete and M12 remains open.
+- The public runbook archives all four objects: original profile, raw tool artifact, manifest, and
+  enriched output. Only a profiler whose documented scope is complete Iron Gang process graphics
+  residency may populate the seam; global free-memory queries and `apitrace` do not qualify.
+
 **M12 now has a representative end-to-end mission capture (mission portion of `IG-35-012`).**
 `--profile-scenario mission` retains the real opening dialogue/cutscene, advances dialogue at fixed
 simulated intervals, walks the Jolt character to the sedan, enters through the real interaction and
@@ -1130,8 +1148,9 @@ are real but not gate-blocking — see each file's own status note for the itemi
 **If continuing autonomous work, remain on gate M12** (`plan_39` `IG-39-013`). Phase-labelled
 scenarios, direct Present/GPU timing, and public-resource VRAM accounting now exist, but graphical
 automation in this workspace must stay on isolated Xvfb (never the visible host display). The
-remaining code-side residency seam is complete backend VRAM accounting; do not duplicate the CNJ
-buffer/texture, GPU timer, render-workload, or swap-acknowledgement work now completed. The next
+remaining code-side residency seam is now closed by the external complete-residency evidence
+contract; do not duplicate the CNJ buffer/texture, GPU timer, render-workload, swap-acknowledgement,
+or evidence-binding work now completed. The next
 physical-hardware capture should first require `swap_interval.apply_succeeded`, then use
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
@@ -1139,9 +1158,10 @@ subsystem and district-load optimization is not justified by current evidence; a
 budget. Automated compatible comparison and the dedicated mission capture are now complete. All
 representative workloads that currently exist in the prototype have a scenario; the interior part
 of `IG-35-012` remains explicitly pending because there is no interior gameplay space to measure.
-The next M12 investigation is the remaining backend/external VRAM residency seam; physical capture
-still requires named hardware and an acknowledged swap interval. Do not mark M12 complete until
-repeated mixed workloads pass 33.333 ms p95 on named minimum hardware and VRAM tracking is complete.
+The next M12 action is an actual controlled physical capture: it requires named hardware, an
+acknowledged swap interval, repeated mixed profiles, and a raw authoritative complete-process VRAM
+artifact bound through `scripts/vram_evidence.py`. Do not mark M12 complete until repeated mixed
+workloads pass 33.333 ms p95 on named minimum hardware and VRAM tracking is complete.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --

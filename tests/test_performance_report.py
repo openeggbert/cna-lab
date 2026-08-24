@@ -62,7 +62,24 @@ def capture_fixture() -> dict:
         },
         "video_memory": {
             "tracked_bytes": 64 * 1024 * 1024,
+            "logical_tracked_bytes": 64 * 1024 * 1024,
             "tracking_complete": True,
+            "complete_evidence": {
+                "schema_version": 1,
+                "source": "external_capture",
+                "measurement_scope": "complete_process_gpu_residency_peak",
+                "hardware_identity": "Minimum Linux EasyGL GPU",
+                "tool": {"name": "Test VRAM tool", "version": "1.0"},
+                "process": {"executable": "iron_gang", "pid": 123},
+                "measurement": {
+                    "peak_resident_bytes": 64 * 1024 * 1024,
+                    "started_utc": "2026-08-24T10:00:00Z",
+                    "ended_utc": "2026-08-24T10:01:00Z",
+                },
+                "profile_capture_sha256": "a" * 64,
+                "source_artifact": {"file_name": "capture.bin", "sha256": "b" * 64},
+                "evidence_manifest_sha256": "c" * 64,
+            },
         },
     }
 
@@ -119,6 +136,18 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertIn("Overall status: **FAIL**", result.stdout)
         self.assertIn("lacks a successful platform acknowledgement", result.stdout)
         self.assertIn("VRAM tracking is incomplete", result.stdout)
+
+    def test_complete_evidence_must_match_hardware_label(self) -> None:
+        first = capture_fixture()
+        second = deepcopy(first)
+        result = self.run_report(
+            [first, second],
+            "Different physical GPU",
+            "--qualifying-hardware",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Overall status: **FAIL**", result.stdout)
+        self.assertIn("external VRAM evidence hardware identity does not match", result.stdout)
 
     def test_schema_and_histogram_mismatch_is_rejected(self) -> None:
         bad_schema = capture_fixture()

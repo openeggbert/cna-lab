@@ -79,8 +79,25 @@ def capture_fixture() -> dict:
         "memory": {"peak_resident_bytes": 128 * 1024 * 1024, "known": True},
         "video_memory": {
             "tracked_bytes": 64 * 1024 * 1024,
+            "logical_tracked_bytes": 64 * 1024 * 1024,
             "tracking_complete": True,
             "coverage": "complete test coverage",
+            "complete_evidence": {
+                "schema_version": 1,
+                "source": "external_capture",
+                "measurement_scope": "complete_process_gpu_residency_peak",
+                "hardware_identity": "Test GPU",
+                "tool": {"name": "Test VRAM tool", "version": "1.0"},
+                "process": {"executable": "iron_gang", "pid": 123},
+                "measurement": {
+                    "peak_resident_bytes": 64 * 1024 * 1024,
+                    "started_utc": "2026-08-24T10:00:00Z",
+                    "ended_utc": "2026-08-24T10:01:00Z",
+                },
+                "profile_capture_sha256": "a" * 64,
+                "source_artifact": {"file_name": "capture.bin", "sha256": "b" * 64},
+                "evidence_manifest_sha256": "c" * 64,
+            },
         },
         "workload": {
             "physics_bodies": 9,
@@ -237,6 +254,12 @@ class PerformanceCompareTests(unittest.TestCase):
         result = self.run_compare(baseline, candidate)
         self.assertEqual(result.returncode, 2)
         self.assertIn("incompatible gpu_render sample availability", result.stderr)
+
+        candidate = deepcopy(baseline)
+        candidate["video_memory"]["complete_evidence"]["tool"]["version"] = "2.0"
+        result = self.run_compare(baseline, candidate)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("incompatible video_memory.complete_evidence.tool.version", result.stderr)
 
     def test_qualifying_mode_rejects_incomplete_evidence(self) -> None:
         baseline = capture_fixture()

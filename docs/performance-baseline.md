@@ -414,3 +414,26 @@ cycle trend). These numbers are process-local diagnostics and can vary by alloca
 thresholded result and absence of continued growth matter more than the absolute 7.6-7.7 MiB RSS.
 This lifecycle test excludes rendering, audio hardware, backend allocations, and physical GPU
 residency, so it does not replace the still-required integrated target-hardware M12 qualification.
+
+## 2026-08-24 — external complete-VRAM evidence contract
+
+An audit of the public CNA/EasyGL seam found no complete per-process GPU-residency counter. The
+available OpenGL extension families expose adapter-global capacity/free memory at best; `apitrace`
+tracks API resources rather than physical residency, and no usable vendor per-process profiler is
+installed in this workspace. Treating any of those as the missing complete measurement would make
+the M12 result misleading.
+
+`scripts/vram_evidence.py` now supplies the smallest honest external seam. It binds one original
+schema-8 capture, one evidence manifest, and one raw vendor/OS profiler artifact by SHA-256, checks
+the exact `complete_process_gpu_residency_peak` scope and UTC/process metadata, and writes a new
+enriched capture atomically. It never overwrites an input. The complete tracked total is
+`max(Iron Gang logical bytes, external peak residency)`, so an unexpectedly smaller external value
+cannot weaken the existing lower bound.
+
+The report and comparator independently validate the embedded evidence structure. Reports require
+an exact hardware-label match; comparisons additionally require matching profiler name/version,
+source, and measurement scope. Five focused CLI tests cover the qualifying synthetic path, capture
+hash refusal, scope/time refusal, raw-artifact mutation, conservative flooring, and input-overwrite
+protection. This is contract/plumbing coverage only: no qualifying physical artifact was invented,
+and the real Xvfb captures correctly remain `tracking_complete=false`. M12 still needs repeated
+mixed captures plus authoritative complete-residency artifacts on named physical minimum hardware.

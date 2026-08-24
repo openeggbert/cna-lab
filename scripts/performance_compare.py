@@ -18,6 +18,7 @@ from performance_report import (
     _number,
     _path,
     load_capture,
+    validate_complete_vram_evidence,
 )
 
 
@@ -162,6 +163,8 @@ def require_compatible(
         raise ReportError("hardware identities differ; cross-hardware comparison is refused")
     if baseline_kind != candidate_kind:
         raise ReportError("capture kinds differ; diagnostic-vs-qualifying comparison is refused")
+    for capture in (baseline, candidate):
+        validate_complete_vram_evidence(capture, baseline_hardware.strip())
     if baseline_kind == "qualifying":
         lowered = baseline_hardware.lower()
         if any(term in lowered for term in DIAGNOSTIC_HARDWARE_TERMS):
@@ -194,6 +197,16 @@ def require_compatible(
         candidate_available = _integer(candidate, "measurements", metric, "samples") > 0
         if baseline_available != candidate_available:
             raise ReportError(f"incompatible {metric} sample availability")
+
+    if _boolean(baseline, "video_memory", "tracking_complete"):
+        for path in (
+            ("video_memory", "complete_evidence", "source"),
+            ("video_memory", "complete_evidence", "measurement_scope"),
+            ("video_memory", "complete_evidence", "tool", "name"),
+            ("video_memory", "complete_evidence", "tool", "version"),
+        ):
+            if _path(baseline, *path) != _path(candidate, *path):
+                raise ReportError(f"incompatible {_format_path(path)}")
 
     baseline_boundary = _path(
         baseline, "frame_pacing", "district_transition_boundaries", "maximum_ms"

@@ -158,6 +158,15 @@ peak RSS, and no accidental district transition. The schema-8 output passes both
 comparison tooling. This validates the full production mission route but remains a virtual-display
 diagnostic, not physical M12 qualification.
 
+The complete-VRAM follow-up adds `scripts/vram_evidence.py` and an eighth CTest. The binder requires
+an original schema-8 profile, a versioned manifest, and the raw vendor/OS capture; SHA-256 binds both
+artifacts, exact scope/process/time metadata is validated, inputs cannot be overwritten, and the
+enriched total conservatively keeps the larger of logical bytes and external peak residency.
+Five CLI tests cover a synthetic report-qualified flow plus capture hash, scope/time, raw-artifact,
+flooring, and overwrite failures. Report/comparison tests validate evidence structure, hardware
+identity, and profiler compatibility. No physical profiler artifact exists in this workspace, so
+the real Xvfb evidence remains incomplete and this plumbing does not close M12.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The
