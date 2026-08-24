@@ -18,16 +18,6 @@ enum class ProgramStage : std::uint8_t {
     End,
 };
 
-enum class ProgramGameKind : std::uint8_t {
-    Character,
-    Number,
-};
-
-enum class ProgramEndScreen : std::uint8_t {
-    AngelStars,
-    Ufo,
-};
-
 // P1 records a hidden A/B lineage when the child becomes a teen.  This is a
 // programme fact, not a UI species choice: later adult rules may constrain the
 // lineage in addition to accumulated care and the visible discipline meter.
@@ -68,7 +58,6 @@ struct FoodDefinition final {
 };
 
 struct GameDefinition final {
-    ProgramGameKind kind;
     int rounds{0};
     int winsNeededForHappiness{0};
     int happinessHeartDeltaOnWin{0};
@@ -133,7 +122,6 @@ struct ProgramDefinition final {
     DisplayDefinition display;
     LifecycleDefinition lifecycle;
     GameDefinition game;
-    ProgramEndScreen endScreen;
     std::span<const FoodDefinition> food;
     std::span<const CreatureDefinition> creatures;
     std::span<const EvolutionRule> evolutionRules;

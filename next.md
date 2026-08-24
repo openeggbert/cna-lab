@@ -27,6 +27,11 @@ remain faint, illness uses the P1 skull rather than the action-feedback cross,
 and the bottom-left care function is consistently named Toilet rather than
 the prototype-oriented Clean label.
 
+The last P2-only programme discriminators are gone: the unused `Number` game
+and `Ufo` ending enum values, their fields, initialisers, and negative tests
+were removed. The current data model now states only behaviour the selected
+international P1 package can actually execute.
+
 The project must never ship a P1 ROM, a ROM-derived binary asset, TamaLIB, or
 another emulator core. A reference program may be viewed externally only to
 write and verify the clean implementation.

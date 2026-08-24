@@ -144,7 +144,9 @@ similar emulation core is permitted in the application, build, or test suite.
     visible outcome must enter the P1 reset and clock-setup flow.
 
 - [ ] **7. P1 Character game and evolution**
-  - Remove Number and all P2 game behaviour.
+  - [x] Remove Number, UFO ending, and all remaining P2-only discriminator
+    values from the programme model; the selected programme exposes only the
+    international P1 Character-game and angel-ending behaviour.
   - Implement the five-round Character game, including left/right choices,
     result rules, happiness effect, and weight effect.
   - [x] Add a programme-data evolution-rule schema and deterministic traces for

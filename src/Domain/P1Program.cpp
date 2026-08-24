@@ -130,13 +130,11 @@ constexpr ProgramDefinition Definition{
         .babySecondWasteMinute = 45,
     },
     .game = GameDefinition{
-        .kind = ProgramGameKind::Character,
         .rounds = 5,
         .winsNeededForHappiness = 3,
         .happinessHeartDeltaOnWin = 1,
         .weightDeltaOnCompletion = -1,
     },
-    .endScreen = ProgramEndScreen::AngelStars,
     .food = Foods,
     .creatures = Creatures,
     .evolutionRules = EvolutionRules,
