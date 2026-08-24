@@ -58,6 +58,14 @@ endif()
 
 add_subdirectory("${CNA_ROOT_DIR}" CNA)
 
+# MAR-CNA-004: pinned CNA's vendored Draco 1.5.7 uses std::all_of in
+# ply_reader.cc without including <algorithm>. Emscripten 6.0.3 no longer
+# supplies that declaration transitively. Keep the workaround target-local and
+# remove it once CNA's pinned source gains the missing include.
+if(EMSCRIPTEN AND TARGET draco_io)
+    target_compile_options(draco_io PRIVATE -include algorithm)
+endif()
+
 add_library(copper_boots_gameplay STATIC
     gameplay/src/Camera2D.cpp
     gameplay/src/GameSettings.cpp
@@ -92,6 +100,23 @@ if(COMMAND cna_copy_renderer_runtime)
     cna_copy_renderer_runtime(copper-boots)
 endif()
 
+if(EMSCRIPTEN)
+    # Emit a directly serveable browser page and preload the project-created
+    # content into Emscripten's virtual filesystem for CNA TitleContainer.
+    set_target_properties(copper-boots PROPERTIES SUFFIX ".html")
+    # MAR-CNA-006: CNA's Emscripten exception ABI options are directory-local
+    # when CNA is embedded, so apply the same ABI to consumer-owned objects and
+    # the final link until CNA publishes them through its public target.
+    target_compile_options(copper_boots_gameplay PRIVATE
+        -fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=0)
+    target_compile_options(copper-boots PRIVATE
+        -fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=0)
+    target_link_options(copper-boots PRIVATE
+        -fwasm-exceptions -sWASM_LEGACY_EXCEPTIONS=0
+        -sALLOW_MEMORY_GROWTH=1
+        "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/Content@/Content")
+endif()
+
 add_custom_target(copper_boots_content
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/Content"
@@ -107,6 +132,15 @@ else()
         -Wall -Wextra -Werror)
     target_compile_options(copper-boots PRIVATE
         -Wall -Wextra -Werror)
+    # MAR-CNA-005: Clang 22 diagnoses three issues in transitive pinned-CNA
+    # public headers. Preserve -Werror for Copper Boots while leaving these
+    # dependency-owned diagnostics visible as warnings in the web build.
+    if(EMSCRIPTEN)
+        target_compile_options(copper-boots PRIVATE
+            -Wno-error=defaulted-function-deleted
+            -Wno-error=inconsistent-missing-override
+            -Wno-error=overloaded-virtual)
+    endif()
 endif()
 
 if(COPPER_BOOTS_BUILD_TESTS)

@@ -87,6 +87,15 @@ int main(const int argc, char* argv[])
         }
     }
 
+#if defined(__EMSCRIPTEN__)
+    // CNA's browser loop uses emscripten_set_main_loop(..., 1), which unwinds
+    // this stack frame while retaining the Game pointer. Keep the web game off
+    // the stack so the browser callback never observes reclaimed storage.
+    auto* game = new CopperBoots::CopperBootsGame(
+        smokeTest, audioEnabled, settingsEnabled, displaySmokeTest,
+        initialStage);
+    game->Run();
+#else
     CopperBoots::CopperBootsGame game(
         smokeTest, audioEnabled, settingsEnabled, displaySmokeTest,
         initialStage);
@@ -96,5 +105,6 @@ int main(const int argc, char* argv[])
         std::cout << "Copper Boots: smoke test completed\n";
     if (displaySmokeTest)
         std::cout << "Copper Boots: display lifecycle smoke test completed\n";
+#endif
     return 0;
 }

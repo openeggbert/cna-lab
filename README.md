@@ -117,6 +117,31 @@ ctest --test-dir build-software --output-on-failure -j2
 `SOFTWARE` is the graphics renderer; the current Linux lane still uses CNA's
 SDL3 platform implementation for input and audio and has no visible OS window.
 
+The browser build uses CNA's CANVAS renderer and Emscripten. Activate a current
+emsdk first; CNA's pinned Draco dependency also expects `EMSCRIPTEN` to name
+the compiler-toolchain directory:
+
+```bash
+source /path/to/emsdk/emsdk_env.sh
+export EMSCRIPTEN="$EMSDK/upstream/emscripten"
+
+emcmake cmake -S . -B build-web -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCNA_ROOT_DIR=../cna \
+  -DCNA_GRAPHICS_RENDERER=CANVAS \
+  -DCOPPER_BOOTS_BUILD_TESTS=OFF
+cmake --build build-web --parallel 2
+python3 -m http.server 8000 --directory build-web
+```
+
+Then open `http://127.0.0.1:8000/copper-boots.html`; browsers should not load
+the generated page directly through `file://`. The package consists of
+`copper-boots.html`, `.js`, `.wasm` and `.data`; the data archive contains both
+original project levels. Emscripten 6.0.3 and Chrome 151 were used for the
+recorded CANVAS startup/render check. Current narrowly scoped dependency
+workarounds are tracked as `MAR-CNA-004` through `MAR-CNA-006` in
+[plan.md](plan.md).
+
 Run `./build/copper-boots --no-audio` for an explicit silent configuration.
 Failure to initialize or play CNA audio also degrades to silence instead of
 terminating gameplay.

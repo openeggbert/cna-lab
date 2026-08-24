@@ -842,17 +842,44 @@ capabilities. Later compatibility records use:
 |---|---|---|---|---|---|---|---|---|---|---|
 | SDL_RENDERER / SDL3 | pass, Debug | pass, game + tests | pass offscreen and real Linux desktop | API smoke pass | generated 1x1 pass | 320x180 bind/sample pass | API smoke pass | keyboard + disconnected gamepad pass | generated `SoundEffect` pass on dummy device | offscreen cannot minimize/restore or find an exclusive-fullscreen mode; real desktop lifecycle passes; no pixel readback in game test |
 | SOFTWARE / SDL3 | pass, Debug | pass, game + tests | pass, CPU framebuffer/no renderer window | API smoke pass | generated 1x1 pass | 320x180 bind/sample pass | API smoke pass | keyboard + disconnected gamepad pass through CNA SDL3 platform | generated `SoundEffect` pass on dummy CNA SDL3 audio | no visible OS presentation by renderer design, so fullscreen is not visually validated; no pixel readback in game test |
+| CANVAS / Emscripten browser | pass, Release, Emscripten 6.0.3 | pass, game package; tests disabled while cross-compiling | pass over local HTTP in Chrome 151 | visible scene pass | generated 1x1 visible | 320x180 visible | point-scaled scene visible | CNA browser polling initialized; no automated key injection | generated effects initialized through CNA/Web Audio | six-second automated startup/render capture, not a full interactive playthrough; default Emscripten shell retained |
 
 Only available/mature lanes are tested; a compile result is never mislabeled as
 a runtime result. The renderer and platform are separate CNA axes: SOFTWARE is
 a genuine non-SDL renderer even though this configuration deliberately retains
-the SDL3 platform services for input and audio. Both matrix rows ran all six
-project CTests at CNA `1bb2145d99ed572dd4eb15009c34e2e5f410fcf0` and
+the SDL3 platform services for input and audio. Both native matrix rows ran all
+six project CTests at CNA
+`1bb2145d99ed572dd4eb15009c34e2e5f410fcf0` and
 sharp-runtime `54578590b328aa9612fe38bfddca9fd8ca795144` on 2026-08-24.
 No orientation, first-use, render-target preservation or point-sampling defect
 was reproduced, so `MAR-CNA-003` is closed rather than carrying a speculative
 framework bug. A future visual mismatch requires capture-level expected/actual
 evidence before that task is reopened.
+
+The web lane was configured with Emscripten 6.0.3 and CNA's `CANVAS` renderer,
+then linked as an Emscripten HTML shell with `Content` preloaded at
+`/Content`. The final package hashes were:
+
+| Artifact | Approximate size | SHA-256 |
+|---|---:|---|
+| `copper-boots.html` | 20 KiB | `2e430d4845f6f1a2c380d632c3d8f88ca765a7d4c7c1cfcadeb2b1c0bb507a6b` |
+| `copper-boots.js` | 196 KiB | `4e773d62f3afd2941c350ba40af1d9945d7e86ce564dd0b235472fa0e7367162` |
+| `copper-boots.wasm` | 3.3 MiB | `26fd6c64166afdbdb7745b0a4b0a1e1c14a6fb8388edca7b58d2f5467d50b204` |
+| `copper-boots.data` | 3.5 KiB | `b1972ca4bc522780c25e11aefcf8ebc01c245882c21e90fd2eacf022479982ca` |
+
+Chrome 151 loaded both external level paths from the virtual filesystem,
+initialized generated CNA audio and drew Green Ruins through the 320x180
+logical target. The first browser attempt exposed a game-lifetime bug:
+Emscripten's simulated infinite loop unwinds `main`, invalidating a stack-local
+`Game` while CNA retains its pointer. The Emscripten entry point now follows
+CNA's documented contract and heap-allocates the long-lived game; the repeated
+run had no JavaScript or WebAssembly exception.
+
+Three build issues remain precisely isolated in the consumer and are tracked as
+`MAR-CNA-004` through `006`: vendored Draco lacks its own `<algorithm>` include,
+Clang 22 reports three flaws in transitive public headers under `-Werror`, and
+CNA's embedded build does not propagate its WebAssembly exception ABI options
+to consumer targets. None requires game code to access a backend or native API.
 
 The initial Debug build configured with CMake/Ninja and
 `CNA_GRAPHICS_RENDERER=SDL_RENDERER`, then built with two jobs. Renderer-free

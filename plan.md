@@ -91,10 +91,17 @@ Brassworks Shift is a second original external stage built around moving
 platform timing and pits. A renderer-free campaign table connects Green Ruins
 to Factory progression, with direct stage selection and runtime smoke coverage.
 
-**Current: M13 — Web build validation**
+**M13 — Web build validation — ACHIEVED**
 
-Configure and build the current two-stage game for CNA's available web target,
-record exact artifacts and limitations, and avoid backend APIs in game code.
+The two-stage game configures and builds with Emscripten 6.0.3 against CNA's
+CANVAS renderer. Its generated HTML/JavaScript/WebAssembly/data package was
+served over HTTP and rendered Green Ruins for six virtual-time seconds in
+Chrome 151 with generated audio and both external levels preloaded.
+
+**Current: M14 — Underground campaign stage**
+
+Create the third original stage around maintenance-conduit transitions, tighter
+navigation and aimed projectiles, then extend campaign progression and coverage.
 
 ## Foundation and research
 
@@ -621,12 +628,20 @@ and simulation bounds. CNA's offscreen platform explicitly reports
 minimize/restore and exclusive fullscreen as unavailable; a real Linux desktop
 SDL_RENDERER run completed those operations and returned to windowed 960x540.
 
-### MAR-074 — Cross-platform build lanes — DOING
+### MAR-074 — Cross-platform build lanes — DONE
 
 Acceptance:
 
 - Linux is runtime-tested; available Windows/macOS/web configurations are built
   and runtime-tested where actual environments exist, with limitations stated.
+
+Evidence: Linux SDL_RENDERER and SOFTWARE lanes configure, build and pass all
+six tests. The available web environment uses Emscripten 6.0.3 and CNA CANVAS;
+it produced `copper-boots.html`, `.js`, `.wasm` and `.data`, preloaded both
+shipping levels, and rendered the playable 320x180 Green Ruins scene in Chrome
+151 without a console exception. The browser check is an automated six-second
+startup/render capture, not a complete manual web playthrough. Windows and
+macOS environments were not available and are not claimed as tested.
 
 ### MAR-075 — First complete playable release — DEFERRED
 
@@ -691,6 +706,45 @@ CNA revision; the real SDL_RENDERER desktop lifecycle also passed. Any future
 pixel difference must reopen this item with renderer/platform and expected versus
 actual capture evidence rather than a game-side backend workaround.
 
+### MAR-CNA-004 — Emscripten Draco missing algorithm include — TODO
+
+CNA's pinned vendored Draco 1.5.7 `ply_reader.cc` calls `std::all_of` without
+including `<algorithm>`. Emscripten 6.0.3 therefore fails while building
+`draco_io`. Copper Boots applies `-include algorithm` only to that target in an
+Emscripten consumer build; native targets are untouched.
+
+Acceptance for upstream resolution:
+
+- The vendored translation unit includes every standard declaration it uses.
+- Remove the target-local workaround and rebuild CNA CANVAS successfully.
+
+### MAR-CNA-005 — Clang 22 public-header diagnostics — TODO
+
+Three transitive CNA/sharp-runtime public-header diagnostics become fatal under
+Copper Boots' `-Werror`: a deleted default constructor, a hidden `Equals`
+overload and a missing `override`. The web consumer keeps each diagnostic
+visible while downgrading only those exact dependency-owned warnings.
+
+Acceptance for upstream resolution:
+
+- Pinned public headers compile cleanly under Emscripten Clang 22 with these
+  warnings enabled.
+- Remove the three `-Wno-error=*` consumer exceptions.
+
+### MAR-CNA-006 — Embedded Emscripten exception ABI propagation — TODO
+
+CNA applies its WebAssembly-exception compile/link options directory-locally.
+When embedded by Copper Boots, consumer-owned objects and the final executable
+do not inherit them, causing unresolved `__cpp_exception` symbols at link time.
+The game currently mirrors CNA's `-fwasm-exceptions` and
+`WASM_LEGACY_EXCEPTIONS=0` settings only in Emscripten builds.
+
+Acceptance for upstream resolution:
+
+- CNA's public consumer target propagates the required exception ABI to an
+  embedded Emscripten executable and its linked consumer library.
+- Remove the mirrored consumer options and rebuild/run the CANVAS package.
+
 ### MAR-SR-001 — sharp-runtime consumer blocker placeholder — DEFERRED
 
 No sharp-runtime defect currently blocks the game. Create a concrete issue only
@@ -699,8 +753,8 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Complete `MAR-074` by producing and validating the available CNA web build,
-   recording exact artifacts and runtime limitations.
-2. Start `MAR-036B` with a compact underground transition/projectile slice.
-3. Keep the remaining MAR-CNA/MAR-SR ledger closed unless a concrete public-API
-   failure appears.
+1. Complete `MAR-036B` with a compact underground transition/projectile slice.
+2. Manually play through Brassworks Shift and the web lane when interactive
+   time is available; automated coverage must remain the regression floor.
+3. Upstream or retire `MAR-CNA-004` through `006` when the pinned dependency
+   changes; do not broaden their target-local Emscripten workarounds.
