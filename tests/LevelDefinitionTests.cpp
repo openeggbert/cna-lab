@@ -152,6 +152,20 @@ int main()
     Expect(healthPickup.health == 25 && healthPickup.ammo == 0, "health pickup is collected once");
     Expect(ammoPickup.health == 0 && ammoPickup.ammo == 6, "ammo pickup is collected once");
 
+    WolfCna::World weaponPickupWorld(WolfCna::LevelDefinition::Parse(
+        "######\n#PWV.#\n######\n",
+        "weapon-pickup.level"));
+    const WolfCna::World::PickupResult repeaterPickup = weaponPickupWorld.CollectPickups(
+        Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f));
+    const WolfCna::World::PickupResult heavyWeaponPickup = weaponPickupWorld.CollectPickups(
+        Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f));
+    Expect(
+        repeaterPickup.repeaterWeapons == 1 && repeaterPickup.ammo == 6,
+        "repeater pickup grants the weapon and six rounds");
+    Expect(
+        heavyWeaponPickup.heavyWeapons == 1 && heavyWeaponPickup.ammo == 10,
+        "heavy weapon pickup grants the weapon and ten rounds");
+
     WolfCna::World cardWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PC.#\n#####\n",
         "card.level"));

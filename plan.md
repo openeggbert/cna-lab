@@ -977,7 +977,9 @@ Current progress:
 - reaching the exit marks the run complete in the HUD;
 - the HUD now has level, score, lives, health and ammunition readouts plus a generated sidearm icon;
 - `1`/`2` switch between the generated knife and sidearm icons; the knife has a short attack range;
-- `3` switches to a generated three-round repeater icon; it consumes three shared ammunition units for a spread burst;
+- `3` selects a discovered generated three-round repeater and `4` selects a
+  discovered generated five-round heavy automatic weapon; both have distinct
+  first-person views and consume shared ammunition for spread bursts;
 - generated CNA effects cover player and guard shots, defeated enemies, pickups, doors, locks and player damage; combat includes player death/restart;
 - losing the last life presents `GAME OVER`; Space creates a clean new run with the original level state;
 - guards attack with visible ranged projectiles that cause damage only on impact, while hounds attack at close range;
@@ -994,7 +996,9 @@ Current progress:
 - the game now starts at an original blue-and-amber title menu, with a short controls page and three difficulty choices; Scout takes 70% enemy damage, Operative is the baseline and Veteran takes 140%;
 - three original external level files now form a short room-and-corridor campaign; exits advance with Space and preserve score, lives, health, ammunition and weapon selection;
 - every sector exit now presents a completion card with time and kill, treasure and secret ratios; each category is independently tracked in `World` and covered by unit tests;
-- the in-game `I` + `L` + `M` retro loadout cheat restores health and ammunition, grants the sector card, selects the repeater and resets score, matching the original cheat's gameplay role with wolf-cna's own systems and message;
+- the in-game `I` + `L` + `M` retro loadout cheat restores health, grants all
+  weapons plus the sector card, selects the heavy automatic, fills ammunition
+  to 99 and resets score;
 - the ammunition capacity is 99 and the `I` + `L` + `M` loadout cheat fills it
   to that maximum rather than to the ordinary starting supply;
 - a generated looping bunker-ambient layer now runs through CNA `SoundEffectInstance`; the title menu can toggle master sound on/off;
@@ -1078,6 +1082,12 @@ textured floor decal. Animation frames and weapon sprite sheets remain.
 - record generated-asset provenance and never derive pixels from proprietary data.
 
 ### WOLF-014 — combat variety
+
+Status: in progress. The knife and sidearm are always available, while the
+three-round repeater and five-round heavy automatic must now be discovered from
+validated level pickups. Both have distinct procedural HUD/view artwork, carry
+through sector transitions and are granted by the loadout cheat. Additional
+enemy archetypes and automatic hold-to-fire cadence remain.
 
 - add original security guard, rapid-fire trooper and heavy-unit archetypes;
 - add knife, sidearm, automatic weapon and heavy automatic weapon;

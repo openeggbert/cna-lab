@@ -48,9 +48,11 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> weaponIcon_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> knifeIcon_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterIcon_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyWeaponIcon_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> sidearmView_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> knifeView_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterView_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyWeaponView_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> shotSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> knifeSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> pickupSound_;
@@ -105,9 +107,11 @@ namespace WolfCna
         Screen screen_ = Screen::Title;
         Difficulty difficulty_ = Difficulty::Operative;
         int menuSelection_ = 0;
-        enum class Weapon { Knife, Sidearm, Repeater };
+        enum class Weapon { Knife, Sidearm, Repeater, HeavyAutomatic };
         Weapon weapon_ = Weapon::Sidearm;
         Weapon lastFirearm_ = Weapon::Sidearm;
+        bool hasRepeater_ = false;
+        bool hasHeavyWeapon_ = false;
         bool actionWasDown_ = false;
         bool attackWasDown_ = false;
         bool fullScreenWasDown_ = false;

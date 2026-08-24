@@ -15,7 +15,8 @@ This starter is deliberately small. It proves the basic direction before local A
 - first-person camera
 - classic arrow-key movement
 - keyboard turning with a fixed horizon
-- crosshair-free play view with a large generated knife, sidearm or repeater in the lower center
+- crosshair-free play view with a large generated knife, sidearm, repeater or heavy automatic in the lower center
+- discoverable repeater and heavy automatic weapon with distinct first-person views and HUD icons
 - clearly audible generated CNA effects for firearm shots, knife attacks, ammunition, enemy alerts and attacks, defeated enemies, doors, locks and player damage
 - a generated looping bunker ambience, with a master sound on/off control in the title menu
 - uncapped score for gold, defeated enemies and completing the level; every 40,000 points awards another life
@@ -41,12 +42,13 @@ This starter is deliberately small. It proves the basic direction before local A
 - three difficulty modes: Scout (70% enemy damage), Operative (normal), Veteran (140% enemy damage)
 - `Space`: open the door in front of you (doors close after four seconds unless a body blocks them)
 - left or right `Ctrl`: attack with the selected weapon; empty firearms automatically fall back to the knife
-- `1` / `2` / `3`: knife / sidearm / three-round repeater; collecting ammunition after reaching zero restores the last firearm automatically
+- `1` / `2` / `3` / `4`: knife / sidearm / three-round repeater / five-round heavy automatic; weapons 3 and 4 must be found first
+- collecting ammunition after reaching zero restores the last firearm automatically
 - `F11`: toggle fullscreen
 - `P`: pause / resume
 - `Escape`: quit
-- `I` + `L` + `M` together: retro loadout cheat — full health and ammunition,
-  access card, repeater selected, ammunition set to 99, and score reset to zero
+- `I` + `L` + `M` together: retro loadout cheat — full health, all weapons,
+  access card, heavy automatic selected, ammunition set to 99, and score reset to zero
 
 After all lives are lost, press `Space` to return to the title menu and start a new run.
 At a sector exit, `Space` takes the run to the next sector; score, lives, health,
@@ -81,6 +83,8 @@ have the same width and use only these symbols:
 - `R`: wall-mounted framed landscape painting; must be next to a wall
 - `B`: wall-mounted banner with an original peace symbol; must be next to a wall
 - `L`: ceiling lamp
+- `W`: repeater weapon pickup with six rounds
+- `V`: heavy automatic weapon pickup with ten rounds
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 

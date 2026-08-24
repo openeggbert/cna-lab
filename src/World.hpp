@@ -37,6 +37,8 @@ namespace WolfCna
             int ammo = 0;
             int gold = 0;
             int accessCards = 0;
+            int repeaterWeapons = 0;
+            int heavyWeapons = 0;
         };
 
         struct AttackResult
@@ -167,7 +169,9 @@ namespace WolfCna
             Health,
             Ammo,
             Gold,
-            AccessCard
+            AccessCard,
+            RepeaterWeapon,
+            HeavyWeapon
         };
 
         struct Pickup

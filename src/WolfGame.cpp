@@ -609,6 +609,22 @@ namespace WolfCna
                     iconPixels[y * iconSize + x] = Color(166, 112, 72, 255);
         repeaterIcon_->SetData(iconPixels.data(), static_cast<int>(iconPixels.size()));
 
+        heavyWeaponIcon_ = std::make_unique<Texture2D>(device, iconSize, iconSize);
+        std::fill(iconPixels.begin(), iconPixels.end(), Color(0, 0, 0, 0));
+        for (int barrel = 0; barrel < 4; ++barrel)
+            for (int y = 4; y < 20; ++y)
+                for (int x = 8 + barrel * 6; x < 12 + barrel * 6; ++x)
+                    iconPixels[y * iconSize + x] = barrel % 2 == 0
+                        ? Color(121, 132, 145, 255)
+                        : Color(62, 72, 84, 255);
+        for (int y = 18; y < 31; ++y)
+            for (int x = 7; x < 34; ++x)
+                iconPixels[y * iconSize + x] = Color(54, 62, 74, 255);
+        for (int y = 28; y < 38; ++y)
+            for (int x = 16; x < 26; ++x)
+                iconPixels[y * iconSize + x] = Color(166, 112, 72, 255);
+        heavyWeaponIcon_->SetData(iconPixels.data(), static_cast<int>(iconPixels.size()));
+
         constexpr int viewSize = 96;
         std::vector<Color> viewPixels(viewSize * viewSize, Color(0, 0, 0, 0));
         const auto fill = [&](int left, int top, int right, int bottom, Color color)
@@ -654,6 +670,17 @@ namespace WolfCna
         fill(20, 72, 44, 96, skin);
         fill(53, 72, 77, 96, skin);
         repeaterView_->SetData(viewPixels.data(), static_cast<int>(viewPixels.size()));
+
+        std::fill(viewPixels.begin(), viewPixels.end(), Color(0, 0, 0, 0));
+        heavyWeaponView_ = std::make_unique<Texture2D>(device, viewSize, viewSize);
+        fill(22, 28, 74, 64, darkSteel);
+        fill(26, 32, 70, 59, Color(63, 75, 89, 255));
+        for (int barrel = 0; barrel < 4; ++barrel)
+            fill(29 + barrel * 10, 4, 36 + barrel * 10, 39, barrel % 2 == 0 ? steel : darkSteel);
+        fill(42, 57, 57, 82, shadowSkin);
+        fill(14, 72, 42, 96, skin);
+        fill(55, 72, 83, 96, skin);
+        heavyWeaponView_->SetData(viewPixels.data(), static_cast<int>(viewPixels.size()));
     }
 
     void WolfGame::CreateSoundEffects()
@@ -735,7 +762,7 @@ namespace WolfCna
     void WolfGame::DrawHud()
     {
         if (!hudSpriteBatch_ || !hudPixel_ || !weaponIcon_ || !knifeIcon_ || !repeaterIcon_ ||
-            !sidearmView_ || !knifeView_ || !repeaterView_)
+            !heavyWeaponIcon_ || !sidearmView_ || !knifeView_ || !repeaterView_ || !heavyWeaponView_)
             return;
 
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
@@ -747,7 +774,9 @@ namespace WolfCna
         const int viewSize = std::clamp(viewport.getHeightProperty() / 3, 144, 236);
         Texture2D* viewTexture = weapon_ == Weapon::Knife
             ? knifeView_.get()
-            : weapon_ == Weapon::Sidearm ? sidearmView_.get() : repeaterView_.get();
+            : weapon_ == Weapon::Sidearm
+                ? sidearmView_.get()
+                : weapon_ == Weapon::Repeater ? repeaterView_.get() : heavyWeaponView_.get();
         hudSpriteBatch_->Draw(
             *viewTexture,
             Rectangle(centerX - viewSize / 2, panelY - viewSize + 18, viewSize, viewSize),
@@ -776,7 +805,9 @@ namespace WolfCna
         const int weaponCenter = viewport.getXProperty() + viewport.getWidthProperty() * 11 / 12;
         hudSpriteBatch_->Draw(
             weapon_ == Weapon::Sidearm ? *weaponIcon_
-                : weapon_ == Weapon::Knife ? *knifeIcon_ : *repeaterIcon_,
+                : weapon_ == Weapon::Knife
+                    ? *knifeIcon_
+                    : weapon_ == Weapon::Repeater ? *repeaterIcon_ : *heavyWeaponIcon_,
             Rectangle(weaponCenter - 30, panelY + 12, 60, 60),
             Color(255, 255, 255, 255));
         if (cheatMessageSeconds_ > 0.0f)
@@ -996,7 +1027,7 @@ namespace WolfCna
             centered(top + 118, "LEFT RIGHT TURN", normal);
             centered(top + 142, "SPACE ACTION", normal);
             centered(top + 166, "CTRL ATTACK", normal);
-            centered(top + 190, "1 2 3 WEAPONS", normal);
+            centered(top + 190, "1 2 3 4 WEAPONS", normal);
             centered(top + 214, "F11 FULLSCREEN", normal);
             centered(top + 238, "ENTER OR ESC BACK", selected);
         }
@@ -1050,6 +1081,8 @@ namespace WolfCna
         nextExtraLifeScore_ = 40000;
         weapon_ = Weapon::Sidearm;
         lastFirearm_ = Weapon::Sidearm;
+        hasRepeater_ = false;
+        hasHeavyWeapon_ = false;
         LoadCampaignLevel(selectedLevelIndex_);
     }
 
@@ -1268,8 +1301,10 @@ namespace WolfCna
             score_ = 0;
             nextExtraLifeScore_ = 40000;
             hasSecurityCard_ = true;
-            weapon_ = Weapon::Repeater;
-            lastFirearm_ = Weapon::Repeater;
+            hasRepeater_ = true;
+            hasHeavyWeapon_ = true;
+            weapon_ = Weapon::HeavyAutomatic;
+            lastFirearm_ = Weapon::HeavyAutomatic;
             cheatMessageSeconds_ = 2.0f;
         }
         ilmWasDown_ = ilmIsDown;
@@ -1302,10 +1337,15 @@ namespace WolfCna
             weapon_ = Weapon::Sidearm;
             lastFirearm_ = Weapon::Sidearm;
         }
-        if (ammo_ > 0 && keyboard.IsKeyDown(Keys::D3))
+        if (ammo_ > 0 && hasRepeater_ && keyboard.IsKeyDown(Keys::D3))
         {
             weapon_ = Weapon::Repeater;
             lastFirearm_ = Weapon::Repeater;
+        }
+        if (ammo_ > 0 && hasHeavyWeapon_ && keyboard.IsKeyDown(Keys::D4))
+        {
+            weapon_ = Weapon::HeavyAutomatic;
+            lastFirearm_ = Weapon::HeavyAutomatic;
         }
 
         const bool attackIsDown =
@@ -1322,25 +1362,30 @@ namespace WolfCna
         }
         else if (attackIsDown && !attackWasDown_ && ammo_ > 0)
         {
-            if (weapon_ == Weapon::Repeater && ammo_ >= 3)
+            if (weapon_ == Weapon::Repeater || weapon_ == Weapon::HeavyAutomatic)
             {
-                ammo_ -= 3;
+                const bool isHeavy = weapon_ == Weapon::HeavyAutomatic;
+                const int shotCount = std::min(ammo_, isHeavy ? 5 : 3);
+                ammo_ -= shotCount;
                 int defeatedScore = 0;
-                for (const float spread : {-0.09f, 0.0f, 0.09f})
+                const float spreadStep = isHeavy ? 0.055f : 0.09f;
+                for (int shot = 0; shot < shotCount; ++shot)
                 {
+                    const float spread =
+                        (static_cast<float>(shot) - static_cast<float>(shotCount - 1) * 0.5f) * spreadStep;
                     const float shotYaw = yaw_ + spread;
                     defeatedScore += world_.FireHitscan(
                         playerPosition_,
                         Vector3(std::sin(shotYaw), 0.0f, -std::cos(shotYaw))).score;
                 }
                 AwardScore(defeatedScore);
-                weaponFlashSeconds_ = 0.09f;
+                weaponFlashSeconds_ = isHeavy ? 0.12f : 0.09f;
                 if (shotSound_)
-                    static_cast<void>(shotSound_->Play(0.95f, -0.04f, 0.0f));
+                    static_cast<void>(shotSound_->Play(isHeavy ? 1.0f : 0.95f, isHeavy ? 0.08f : -0.04f, 0.0f));
                 if (defeatedScore > 0 && enemyDefeatedSound_)
                     static_cast<void>(enemyDefeatedSound_->Play(0.32f, -0.22f, 0.0f));
             }
-            else if (weapon_ != Weapon::Repeater)
+            else
             {
                 --ammo_;
                 const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection());
@@ -1439,6 +1484,7 @@ namespace WolfCna
             {
                 health_ = 100;
                 ammo_ = 12;
+                weapon_ = lastFirearm_;
                 playerPosition_ = world_.PlayerStart();
                 completed_ = false;
             }
@@ -1450,11 +1496,24 @@ namespace WolfCna
         ammo_ = std::min(MaxAmmo, ammo_ + pickups.ammo);
         if (pickups.ammo > 0 && wasOutOfAmmo && ammo_ > 0)
             weapon_ = lastFirearm_;
+        if (pickups.repeaterWeapons > 0)
+        {
+            hasRepeater_ = true;
+            weapon_ = Weapon::Repeater;
+            lastFirearm_ = Weapon::Repeater;
+        }
+        if (pickups.heavyWeapons > 0)
+        {
+            hasHeavyWeapon_ = true;
+            weapon_ = Weapon::HeavyAutomatic;
+            lastFirearm_ = Weapon::HeavyAutomatic;
+        }
         AwardScore(pickups.gold);
         hasSecurityCard_ = hasSecurityCard_ || pickups.accessCards > 0;
         if (pickups.ammo > 0 && ammoPickupSound_)
             static_cast<void>(ammoPickupSound_->Play(0.72f, 0.0f, 0.0f));
-        if ((pickups.health + pickups.gold + pickups.accessCards) > 0 && pickupSound_)
+        if ((pickups.health + pickups.gold + pickups.accessCards +
+            pickups.repeaterWeapons + pickups.heavyWeapons) > 0 && pickupSound_)
             static_cast<void>(pickupSound_->Play(0.28f, 0.0f, 0.0f));
         if (!completed_ && world_.ReachedExit(playerPosition_))
         {

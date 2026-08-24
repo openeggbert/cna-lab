@@ -244,8 +244,18 @@ namespace WolfCna
                 result.gold += 100;
                 ++collectedGold_;
             }
-            else
+            else if (pickup.type == PickupType::AccessCard)
                 ++result.accessCards;
+            else if (pickup.type == PickupType::RepeaterWeapon)
+            {
+                ++result.repeaterWeapons;
+                result.ammo += 6;
+            }
+            else
+            {
+                ++result.heavyWeapons;
+                result.ammo += 10;
+            }
         }
 
         return result;
@@ -737,7 +747,8 @@ namespace WolfCna
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
             {
                 const char symbol = map_[z][x];
-            if (symbol != 'H' && symbol != 'A' && symbol != 'T' && symbol != 'C')
+                if (symbol != 'H' && symbol != 'A' && symbol != 'T' && symbol != 'C' &&
+                    symbol != 'W' && symbol != 'V')
                     continue;
 
                 pickups_.push_back({
@@ -746,7 +757,13 @@ namespace WolfCna
                         ? PickupType::Health
                         : symbol == 'A'
                             ? PickupType::Ammo
-                            : symbol == 'T' ? PickupType::Gold : PickupType::AccessCard});
+                            : symbol == 'T'
+                                ? PickupType::Gold
+                                : symbol == 'C'
+                                    ? PickupType::AccessCard
+                                    : symbol == 'W'
+                                        ? PickupType::RepeaterWeapon
+                                        : PickupType::HeavyWeapon});
                 if (symbol == 'T')
                     ++totalGold_;
             }
@@ -1407,7 +1424,11 @@ namespace WolfCna
                         ? Vector3(0.92f, 0.76f, 0.12f)
                         : pickup.type == PickupType::Gold
                             ? Vector3(0.98f, 0.54f, 0.08f)
-                            : Vector3(0.28f, 0.72f, 0.94f));
+                            : pickup.type == PickupType::AccessCard
+                                ? Vector3(0.28f, 0.72f, 0.94f)
+                                : pickup.type == PickupType::RepeaterWeapon
+                                    ? Vector3(0.66f, 0.36f, 0.92f)
+                                    : Vector3(0.94f, 0.22f, 0.2f));
 
             for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
             {
