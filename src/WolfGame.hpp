@@ -51,6 +51,7 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> guardAlertSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAlertSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAttackSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> extraLifeSound_;
 
         LevelDefinition level_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
         World world_{level_};
@@ -61,6 +62,7 @@ namespace WolfCna
         int ammo_ = 12;
         int score_ = 0;
         int lives_ = 3;
+        int nextExtraLifeScore_ = 40000;
         bool hasSecurityCard_ = false;
         bool completed_ = false;
         bool gameOver_ = false;
@@ -77,6 +79,7 @@ namespace WolfCna
         void HandleInput(float elapsedSeconds);
         void TryMove(float dx, float dz);
         void ResetRun();
+        void AwardScore(int points);
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 LookDirection() const;
         [[nodiscard]] Microsoft::Xna::Framework::Matrix ViewMatrix() const;

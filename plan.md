@@ -978,7 +978,7 @@ Current progress:
 - ordinary blue bunker doors and red security doors use distinct generated atlas panels;
 - the red security door is a locked route; its cyan access card is placed before it;
 - opened doors close automatically, except when a dead guard or hound remains in the doorway;
-- score has no cap: gold awards 100, guards 100, hounds 200 and the exit awards a one-time 1000-point bonus;
+- score has no cap: gold awards 100, guards 100, hounds 200 and the exit awards a one-time 1000-point bonus; every 40,000 points awards an extra life;
 - reaching the exit presents a centered completion card while preserving the final score in the status bar;
 - an amber terminal must be activated before the exit comes online; activation changes it cyan and has generated CNA audio;
 - secret moving walls use the wall material, stay open once found and award 500 score for hidden rewards;

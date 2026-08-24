@@ -360,6 +360,10 @@ namespace WolfCna
             MakeTone(105.0f, 1500),
             22050,
             AudioChannels::Mono);
+        extraLifeSound_ = std::make_unique<SoundEffect>(
+            MakeTone(880.0f, 5200),
+            22050,
+            AudioChannels::Mono);
     }
 
     void WolfGame::DrawHud()
@@ -467,10 +471,26 @@ namespace WolfCna
         ammo_ = 12;
         score_ = 0;
         lives_ = 3;
+        nextExtraLifeScore_ = 40000;
         hasSecurityCard_ = false;
         completed_ = false;
         gameOver_ = false;
         weapon_ = Weapon::Sidearm;
+    }
+
+    void WolfGame::AwardScore(int points)
+    {
+        if (points <= 0)
+            return;
+
+        score_ += points;
+        while (score_ >= nextExtraLifeScore_)
+        {
+            ++lives_;
+            nextExtraLifeScore_ += 40000;
+            if (extraLifeSound_)
+                static_cast<void>(extraLifeSound_->Play(0.34f, 0.3f, 0.0f));
+        }
     }
 
     void WolfGame::HandleInput(float elapsedSeconds)
@@ -509,7 +529,7 @@ namespace WolfCna
                 static_cast<void>(terminalSound_->Play(0.32f, 0.25f, 0.0f));
             else if (activation == World::InteractionResult::SecretRevealed)
             {
-                score_ += 500;
+                AwardScore(500);
                 if (secretSound_)
                     static_cast<void>(secretSound_->Play(0.3f, 0.45f, 0.0f));
             }
@@ -528,7 +548,7 @@ namespace WolfCna
         if (attackIsDown && !attackWasDown_ && weapon_ == Weapon::Knife)
         {
             const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection(), 0.9f);
-            score_ += attack.score;
+            AwardScore(attack.score);
             if (shotSound_)
                 static_cast<void>(shotSound_->Play(0.18f, -0.45f, 0.0f));
             if (attack.score > 0 && enemyDefeatedSound_)
@@ -547,7 +567,7 @@ namespace WolfCna
                         playerPosition_,
                         Vector3(std::sin(shotYaw), 0.0f, -std::cos(shotYaw))).score;
                 }
-                score_ += defeatedScore;
+                AwardScore(defeatedScore);
                 if (shotSound_)
                     static_cast<void>(shotSound_->Play(0.48f, 0.16f, 0.0f));
                 if (defeatedScore > 0 && enemyDefeatedSound_)
@@ -557,7 +577,7 @@ namespace WolfCna
             {
                 --ammo_;
                 const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection());
-                score_ += attack.score;
+                AwardScore(attack.score);
                 if (shotSound_)
                     static_cast<void>(shotSound_->Play(0.35f, 0.0f, 0.0f));
                 if (attack.score > 0 && enemyDefeatedSound_)
@@ -640,14 +660,14 @@ namespace WolfCna
         const World::PickupResult pickups = world_.CollectPickups(playerPosition_);
         health_ = std::min(100, health_ + pickups.health);
         ammo_ = std::min(12, ammo_ + pickups.ammo);
-        score_ += pickups.gold;
+        AwardScore(pickups.gold);
         hasSecurityCard_ = hasSecurityCard_ || pickups.accessCards > 0;
         if ((pickups.health + pickups.ammo + pickups.gold + pickups.accessCards) > 0 && pickupSound_)
             static_cast<void>(pickupSound_->Play(0.28f, 0.0f, 0.0f));
         if (!completed_ && world_.ReachedExit(playerPosition_))
         {
             completed_ = true;
-            score_ += 1000;
+            AwardScore(1000);
         }
 
         Game::Update(gameTime);
