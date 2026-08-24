@@ -67,6 +67,15 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 external-VRAM archives now require physically distinct source roles.** Original profile,
+evidence manifest, and raw profiler artifact may not be the same path or hardlinked inode; the raw
+artifact must be a non-empty regular file. Binder output may not hardlink an input either.
+
+- VRAM 6/6 covers empty artifact, raw→profile hardlink, and output→profile hardlink refusal while
+  preserving input bytes. Report-driven bundle verification inherits the same rules.
+- This blocks structurally fake/degenerate archives, but still does not certify profiler semantics
+  or provide a real physical artifact.
+
 **M12 frame-pacing summaries are now internally derived and cross-checked.** The report parser
 validates every 16.667/33.333/50/100 ms histogram bound, re-derives minimum misses/hitches/severe
 hitches and percentages from bucket counts, and correlates district-boundary transitions with

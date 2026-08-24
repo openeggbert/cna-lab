@@ -272,3 +272,5 @@ equal the request. Inconsistent hand-edited captures are rejected rather than pr
 Frame-pacing metadata is checked the same way: fixed histogram bounds, derived minimum-miss/hitch/
 severe counts and percentages, and district-boundary counts must agree with the underlying bucket
 and district-load sample counts.
+The original profile, evidence manifest, and raw VRAM profiler artifact must be three distinct
+files (hardlink aliases do not count), and the raw artifact must be a non-empty regular file.

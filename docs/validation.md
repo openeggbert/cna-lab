@@ -216,6 +216,12 @@ operators, district transition/load sample equality, measured/hitch count bounds
 maximum/hitch consistency are enforced. Report tests reject a forged hitch count, threshold, and
 transition count; both retained Xvfb captures still parse with unchanged diagnostic output.
 
+VRAM archive roles now require three distinct source files/inodes and a non-empty regular raw
+profiler artifact. The binder/verifier and report-driven verification all inherit the check.
+Expanded VRAM CLI coverage rejects an empty artifact, a raw-artifact hardlink to the original
+profile, and an output hardlink to an input while proving source bytes remain unchanged; 6/6 tests
+pass.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

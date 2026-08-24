@@ -18,6 +18,7 @@ from performance_report import (
     _integer,
     _mapping,
     _non_empty_string,
+    _same_file,
     _strict_json_load,
     load_capture,
     validate_complete_vram_evidence,
@@ -126,15 +127,20 @@ def main(arguments: list[str] | None = None) -> int:
     options = parse_args(sys.argv[1:] if arguments is None else arguments)
     temporary_path: Path | None = None
     try:
-        input_paths = {
-            "original capture": options.capture.resolve(),
-            "evidence manifest": options.evidence.resolve(),
-            "raw evidence artifact": options.artifact.resolve(),
-        }
+        input_paths = (
+            ("original capture", options.capture),
+            ("evidence manifest", options.evidence),
+            ("raw evidence artifact", options.artifact),
+        )
+        for index, (left_label, left_path) in enumerate(input_paths):
+            for right_label, right_path in input_paths[index + 1 :]:
+                if _same_file(left_path, right_path):
+                    raise ReportError(f"{left_label} and {right_label} must be distinct files")
+        if not options.artifact.is_file() or options.artifact.stat().st_size == 0:
+            raise ReportError("raw evidence artifact must be a non-empty regular file")
         if options.output is not None:
-            output_path = options.output.resolve()
-            for input_label, input_path in input_paths.items():
-                if output_path == input_path:
+            for input_label, input_path in input_paths:
+                if _same_file(options.output, input_path):
                     raise ReportError(f"output must differ from the {input_label}")
         capture_sha256 = file_sha256(options.capture)
         evidence_manifest_sha256 = file_sha256(options.evidence)

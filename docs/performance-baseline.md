@@ -498,3 +498,10 @@ and their percentages, and correlates transition-boundary counts with `district_
 and maximum/hitch state. Tests reject a changed hitch count, changed hitch threshold, and transition
 count disconnected from load samples. Both locally retained Xvfb diagnostics pass the stricter
 parser with their existing one-hitch results unchanged.
+
+The external-VRAM source roles are now physically distinct as well as hash-bound. The binder and
+archive verifier reject any original/manifest/raw-artifact pair referring to the same file or
+hardlinked inode, and require the raw profiler artifact to be a non-empty regular file. Output
+hardlinks to an input are refused too. Existing CLI coverage now exercises an empty artifact, a
+raw-artifact hardlink to the original profile, and an output hardlink while confirming no source
+bytes change. This is a sanity boundary, not certification of the external tool's semantics.

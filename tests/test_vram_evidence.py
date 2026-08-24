@@ -296,6 +296,25 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertIn("source_artifact.sha256 does not match", result.stderr)
             self.assertFalse(output_path.exists())
 
+            artifact_path.write_bytes(b"")
+            evidence_path.write_text(
+                json.dumps(evidence_fixture(capture_path, artifact_path)), encoding="utf-8"
+            )
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("raw evidence artifact must be a non-empty regular file", result.stderr)
+            self.assertFalse(output_path.exists())
+
+            artifact_path.unlink()
+            artifact_path.hardlink_to(capture_path)
+            evidence_path.write_text(
+                json.dumps(evidence_fixture(capture_path, artifact_path)), encoding="utf-8"
+            )
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("original capture and raw evidence artifact must be distinct", result.stderr)
+            self.assertFalse(output_path.exists())
+
     def test_logical_total_is_conservative_floor_and_input_is_never_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
@@ -324,6 +343,19 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("output must differ from the raw evidence artifact", result.stderr)
             self.assertEqual(artifact_path.read_bytes(), artifact_before)
+
+            hardlink_output = directory / "capture-output-hardlink.json"
+            capture_before = capture_path.read_bytes()
+            hardlink_output.hardlink_to(capture_path)
+            result = self.run_binding(
+                capture_path,
+                evidence_path,
+                artifact_path,
+                hardlink_output,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("output must differ from the original capture", result.stderr)
+            self.assertEqual(capture_path.read_bytes(), capture_before)
 
 
 if __name__ == "__main__":

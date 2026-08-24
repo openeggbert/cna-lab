@@ -450,6 +450,10 @@ interval must start no later than the capture and end no earlier than the captur
 and scope on both sides. Verification reconstructs the expected enriched capture from the three
 source files and requires semantic equality of the entire JSON object, not just its VRAM fields;
 it therefore detects a stale, cross-bound, or subsequently edited enriched profile.
+The original profile, manifest, and raw artifact must resolve to three distinct files, including
+inode identity: a hardlink cannot fill two evidence roles. The raw artifact must be a non-empty
+regular file. Binding also refuses an output path that equals or hardlinks any source, preserving
+the archive inputs; verification is read-only.
 
 This contract binds evidence; it does not certify a profiler's semantics or fabricate a
 measurement. `apitrace`, adapter-global free-memory queries, Xvfb/llvmpipe, and a hand-authored
