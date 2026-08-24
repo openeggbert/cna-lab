@@ -132,8 +132,15 @@ int main()
     Expect(!exploration.Visit(1.5f, 1.5f), "revisiting a cell does not reveal it twice");
     Expect(!exploration.Visit(0.5f, 0.5f), "wall cells cannot become visited");
     Expect(!exploration.IsVisited(2, 1), "unvisited floor remains hidden");
+    const WolfCna::LevelDefinition goalLevel = WolfCna::LevelDefinition::Parse(
+        "#####\n#P.E#\n#####\n",
+        "goal.level");
+    exploration.Reset(goalLevel);
+    Expect(exploration.GoalX() == 3 && exploration.GoalZ() == 1, "automap records the sector goal");
+    Expect(!exploration.IsVisited(3, 1), "goal marker does not reveal its unvisited cell");
     exploration.Reset(starterLevel);
     Expect(exploration.Width() == 64 && exploration.Height() == 64, "sector reset resizes exploration");
+    Expect(exploration.GoalX() >= 0 && exploration.GoalZ() >= 0, "campaign sector reset records its goal");
     Expect(!exploration.IsVisited(1, 1), "sector reset clears prior exploration");
 
     WolfCna::MapToggleLatch mapToggle;

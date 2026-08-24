@@ -40,11 +40,20 @@ namespace WolfCna
         const auto& rows = level.Rows();
         height_ = static_cast<int>(rows.size());
         width_ = rows.empty() ? 0 : static_cast<int>(rows.front().size());
+        goalX_ = -1;
+        goalZ_ = -1;
         visited_.assign(static_cast<std::size_t>(width_ * height_), false);
         walkable_.assign(static_cast<std::size_t>(width_ * height_), false);
         for (int z = 0; z < height_; ++z)
             for (int x = 0; x < width_; ++x)
+            {
                 walkable_[Index(x, z)] = rows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] != '#';
+                if (rows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == 'E')
+                {
+                    goalX_ = x;
+                    goalZ_ = z;
+                }
+            }
     }
 
     bool ExplorationMap::Visit(float worldX, float worldZ)
@@ -73,6 +82,16 @@ namespace WolfCna
     int ExplorationMap::Height() const
     {
         return height_;
+    }
+
+    int ExplorationMap::GoalX() const
+    {
+        return goalX_;
+    }
+
+    int ExplorationMap::GoalZ() const
+    {
+        return goalZ_;
     }
 
     std::size_t ExplorationMap::Index(int x, int z) const

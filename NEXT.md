@@ -18,6 +18,8 @@
 - Health kits are preserved when the player is already at 100% and can be collected after later damage.
 - Weapon sprites now lunge or recoil during attacks instead of remaining completely static.
 - Pressing and releasing `M` opens a paused map of visited cells; a latched cheat chord keeps gradual `I+L+M` input independent.
+- The map always marks the sector exit as red `GOAL`, changing it to cyan after its objective is activated, without revealing nearby rooms.
+- Firearm attack frames remain visible for a few extra frames so their generated muzzle flashes read clearly.
 - The illustrated splash is separate from the main menu.
 - Every campaign sector now has an exact authored 64×64 footprint; tests require substantial use of the area and no disconnected rooms.
 

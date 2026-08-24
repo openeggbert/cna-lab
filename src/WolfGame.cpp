@@ -44,6 +44,10 @@ namespace WolfCna
             "SECTOR 3 LABS"
         };
         constexpr std::string_view ProgressFile = "wolf-cna-progress.dat";
+        constexpr float KnifeAttackVisualSeconds = 0.11f;
+        constexpr float SidearmAttackVisualSeconds = 0.13f;
+        constexpr float RepeaterAttackVisualSeconds = 0.14f;
+        constexpr float HeavyAttackVisualSeconds = 0.17f;
 
         int Noise(int x, int y)
         {
@@ -735,10 +739,12 @@ namespace WolfCna
         if (weaponFlashSeconds_ > 0.0f)
         {
             const float actionDuration = weapon_ == Weapon::Knife
-                ? 0.11f
+                ? KnifeAttackVisualSeconds
                 : weapon_ == Weapon::Sidearm
-                    ? 0.08f
-                    : weapon_ == Weapon::Repeater ? 0.09f : 0.12f;
+                    ? SidearmAttackVisualSeconds
+                    : weapon_ == Weapon::Repeater
+                        ? RepeaterAttackVisualSeconds
+                        : HeavyAttackVisualSeconds;
             const float remaining = std::clamp(weaponFlashSeconds_ / actionDuration, 0.0f, 1.0f);
             if (weapon_ == Weapon::Knife)
             {
@@ -937,6 +943,52 @@ namespace WolfCna
                 if (isWall(x + 1, z))
                     hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left + cellSize - edge, top, edge, cellSize), wallColor);
             }
+        }
+
+        if (exploration_.GoalX() >= 0 && exploration_.GoalZ() >= 0)
+        {
+            const int goalCenterX = mapLeft + exploration_.GoalX() * cellSize + cellSize / 2;
+            const int goalCenterY = mapTop + exploration_.GoalZ() * cellSize + cellSize / 2;
+            const int goalSize = std::max(7, cellSize + 2);
+            const int goalThickness = std::max(2, cellSize / 4);
+            const Color goalColor = world_.IsExitUnlocked()
+                ? Color(55, 225, 220, 255)
+                : Color(239, 76, 83, 255);
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(goalCenterX - goalSize / 2, goalCenterY - goalThickness / 2, goalSize, goalThickness),
+                goalColor);
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(goalCenterX - goalThickness / 2, goalCenterY - goalSize / 2, goalThickness, goalSize),
+                goalColor);
+
+            constexpr std::string_view goalLabel = "GOAL";
+            constexpr int goalLabelScale = 1;
+            const int goalLabelWidth = HudTextWidth(goalLabel, goalLabelScale);
+            int goalLabelX = goalCenterX + goalSize / 2 + 4;
+            if (goalLabelX + goalLabelWidth + 4 > viewport.getXProperty() + width)
+                goalLabelX = goalCenterX - goalSize / 2 - goalLabelWidth - 4;
+            goalLabelX = std::clamp(
+                goalLabelX,
+                viewport.getXProperty() + 3,
+                viewport.getXProperty() + width - goalLabelWidth - 3);
+            const int goalLabelY = std::clamp(
+                goalCenterY - 3,
+                viewport.getYProperty() + 35,
+                viewport.getYProperty() + height - 32);
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(goalLabelX - 2, goalLabelY - 2, goalLabelWidth + 4, 11),
+                Color(2, 6, 16, 230));
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                goalLabelX,
+                goalLabelY,
+                goalLabel,
+                goalColor,
+                goalLabelScale);
         }
 
         const int playerX = static_cast<int>(std::floor(playerPosition_.X));
@@ -1501,7 +1553,7 @@ namespace WolfCna
         {
             const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection(), 0.9f);
             AwardScore(attack.score);
-            weaponFlashSeconds_ = 0.11f;
+            weaponFlashSeconds_ = KnifeAttackVisualSeconds;
             if (knifeSound_)
                 static_cast<void>(knifeSound_->Play(0.62f, -0.2f, 0.0f));
             if (attack.score > 0 && enemyDefeatedSound_)
@@ -1527,7 +1579,9 @@ namespace WolfCna
                 }
                 AwardScore(defeatedScore);
                 playerFireCooldownSeconds_ = isHeavy ? 0.42f : 0.28f;
-                weaponFlashSeconds_ = isHeavy ? 0.12f : 0.09f;
+                weaponFlashSeconds_ = isHeavy
+                    ? HeavyAttackVisualSeconds
+                    : RepeaterAttackVisualSeconds;
                 if (shotSound_)
                     static_cast<void>(shotSound_->Play(isHeavy ? 1.0f : 0.95f, isHeavy ? 0.08f : -0.04f, 0.0f));
                 if (defeatedScore > 0 && enemyDefeatedSound_)
@@ -1538,7 +1592,7 @@ namespace WolfCna
                 --ammo_;
                 const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection());
                 AwardScore(attack.score);
-                weaponFlashSeconds_ = 0.08f;
+                weaponFlashSeconds_ = SidearmAttackVisualSeconds;
                 if (shotSound_)
                     static_cast<void>(shotSound_->Play(0.9f, -0.12f, 0.0f));
                 if (attack.score > 0 && enemyDefeatedSound_)

@@ -28,10 +28,14 @@ namespace WolfCna
         [[nodiscard]] bool IsVisited(int x, int z) const;
         [[nodiscard]] int Width() const;
         [[nodiscard]] int Height() const;
+        [[nodiscard]] int GoalX() const;
+        [[nodiscard]] int GoalZ() const;
 
     private:
         int width_ = 0;
         int height_ = 0;
+        int goalX_ = -1;
+        int goalZ_ = -1;
         std::vector<bool> visited_;
         std::vector<bool> walkable_;
 
