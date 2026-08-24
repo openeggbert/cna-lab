@@ -1,0 +1,38 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "web-emscripten",
+      "displayName": "Web - Emscripten / SDL Renderer",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-web-emscripten",
+      "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "EXPLORE2D_SOURCE_DIR": "${sourceDir}/../explore-2d",
+        "CNA_SOURCE_DIR": "${sourceDir}/../cna",
+        "CNA_USE_CCACHE": "OFF",
+        "CNA_BUILD_TESTS": "OFF",
+        "CNA_BUILD_EXAMPLES": "OFF",
+        "CNA_ENABLE_NET": "OFF",
+        "CNA_ENABLE_VIDEO": "OFF",
+        "CNA_PLATFORM_RATCHET": "OFF",
+        "CNA_PLATFORM": "SDL3",
+        "BLACK_PINE_BUILD_TESTS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "web-emscripten",
+      "configurePreset": "web-emscripten",
+      "jobs": 2
+    }
+  ]
+}

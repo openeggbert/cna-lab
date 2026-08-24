@@ -1,8 +1,9 @@
 # Black Pine
 
-> **Development status:** Black Pine is still in active development. It is
-> unfinished and only partially playable, and the current builds may contain
-> bugs, incomplete interactions, progression blockers, or other problems.
+> **Development status:** Black Pine is still in active development. Its full
+> 124-screen main route is playable end to end, but the game is unfinished and
+> the final two regions still need their human-playability and visual-authoring
+> passes. Current builds may contain bugs or progression problems.
 
 Black Pine: The Long Silence is an original full-length C++23 exploration and
 puzzle adventure for the **Explore2D** engine. It expands the original vertical
@@ -109,6 +110,24 @@ ctest --test-dir build-core --output-on-failure
 The scenario test scripts the complete five-act puzzle chain through the
 evidence-broadcast victory and renders representative rooms from all ten visual
 regions.
+
+### Web build
+
+With the Emscripten SDK installed, build the browser version using the checked
+in preset and wrapper:
+
+```bash
+./scripts/build-web.sh
+python3 -m http.server 8080 --directory build-web-emscripten
+```
+
+Open `http://localhost:8080/black-pine.html`. The wrapper locates the local SDK
+when possible, sets the additional `EMSCRIPTEN` variable required by CNA's
+Draco dependency, disables an unusable system `ccache`, and verifies that the
+HTML, JavaScript and WebAssembly outputs are non-empty. The project CMake also
+supplies the `<algorithm>` include omitted by CNA's bundled Draco revision when
+that target is compiled by recent Emscripten versions and links with the same
+WebAssembly exception mode used by CNA. The CNA checkout itself is not modified.
 
 ## Controls
 

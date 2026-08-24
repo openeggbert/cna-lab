@@ -22,6 +22,15 @@ endif()
 set(EXPLORE2D_BUILD_TESTS OFF CACHE BOOL "Tests are owned by this top-level build" FORCE)
 add_subdirectory("${EXPLORE2D_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/_deps/explore2d")
 
+# CNA's bundled Draco revision uses std::all_of in ply_reader.cc without
+# including <algorithm>. Native standard-library includes currently mask this,
+# while recent Emscripten/LLVM releases correctly reject it. Keep the
+# compatibility shim local to the affected third-party target and do not patch
+# the sibling CNA checkout.
+if(EMSCRIPTEN AND TARGET draco_io)
+    target_compile_options(draco_io PRIVATE "SHELL:-include algorithm")
+endif()
+
 add_library(black_pine_world src/BlackPineFullWorld.cpp)
 target_include_directories(black_pine_world PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(black_pine_world PUBLIC Explore2D::Core)
@@ -31,6 +40,15 @@ if(TARGET Explore2D::Cna)
     add_executable(black_pine src/Main.cpp)
     target_link_libraries(black_pine PRIVATE black_pine_world Explore2D::Cna)
     set_target_properties(black_pine PROPERTIES OUTPUT_NAME black-pine)
+    if(EMSCRIPTEN)
+        target_link_options(black_pine PRIVATE
+            "-fwasm-exceptions"
+            "-sWASM_LEGACY_EXCEPTIONS=0"
+            "-sALLOW_MEMORY_GROWTH=1"
+            "-sINITIAL_MEMORY=268435456"
+            "-sNO_EXIT_RUNTIME=1")
+        set_target_properties(black_pine PROPERTIES SUFFIX ".html")
+    endif()
 else()
     message(STATUS "CNA unavailable: black-pine executable is not generated")
 endif()

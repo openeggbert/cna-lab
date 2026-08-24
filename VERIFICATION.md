@@ -34,3 +34,41 @@ frames through Explore2D's CNA host with SDL's dummy video and audio drivers.
 This initializes the generated title tone through CNA's `SoundEffect` path.
 The F11 binding compiles against CNA's fullscreen toggle API. No CNA or
 sharp-runtime sources were changed.
+
+## Regional playability status
+
+The authored, physical-route audit currently covers screens 1-103: the storm
+gate, relay, forest, quarry, logging railway, reservoir, dam, mine, underground
+power, observatory and Nightjar entrance. These routes use visible doors,
+ladders and paths, persistent before/after art, contextual hints and public
+session controls. Screens 104-124 remain fully scripted and reachable, but the
+Nightjar bunker and summit still require the same human-playability and visual
+authoring pass. `plan.md` is the canonical continuation handoff.
+
+## Browser build
+
+The `web-emscripten` CMake preset and `scripts/build-web.sh` provide a
+reproducible Emscripten build against the sibling Explore2D and CNA checkouts.
+The wrapper sets the additional `EMSCRIPTEN` variable required by CNA's Draco
+dependency, disables an unusable system `ccache`, and checks for non-empty
+`black-pine.html`, `black-pine.js` and `black-pine.wasm` outputs.
+Black Pine's CMake adds a web-only forced `<algorithm>` include to `draco_io`
+because CNA's bundled `ply_reader.cc` uses `std::all_of` without including that
+header. This keeps the compatibility workaround local and leaves CNA and
+sharp-runtime unchanged. The executable link also selects CNA's
+`-fwasm-exceptions` mode so Emscripten uses the matching C++ runtime.
+
+```bash
+./scripts/build-web.sh
+python3 -m http.server 8080 --directory build-web-emscripten
+```
+
+The web verification in this document covers configure, compile, link and
+artifact checks. Browser input, audio unlock, fullscreen and persistence remain
+explicit release-hardening tasks until they have been exercised interactively.
+
+The release profile was compiled and linked successfully with Emscripten 6.0.3
+on 2026-08-24. The artifact checks produced non-empty HTML (19,605 bytes),
+JavaScript (186,951 bytes) and WebAssembly (4,469,968 bytes) files. The native
+CNA build and `black-pine.scenario` test were then rerun successfully after the
+web compatibility changes.
