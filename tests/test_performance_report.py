@@ -282,6 +282,7 @@ class PerformanceReportTests(unittest.TestCase):
         first = capture_fixture()
         second = deepcopy(first)
         second["measurements"]["frame_interval"]["p95_ms"] = 17.1
+        second["measurements"]["frame_interval"]["maximum_ms"] = 17.1
         result = self.run_report(
             [first, second],
             "Minimum Linux EasyGL GPU",
@@ -387,6 +388,7 @@ class PerformanceReportTests(unittest.TestCase):
         first = capture_fixture()
         second = deepcopy(first)
         second["measurements"]["frame_interval"]["p95_ms"] = 17.1
+        second["measurements"]["frame_interval"]["maximum_ms"] = 17.1
         first["swap_interval"]["apply_succeeded"] = False
         first["swap_interval"]["applied"] = None
         result = self.run_report(
@@ -438,6 +440,24 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_budget], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("budgets.minimum_frame_p95_ms must be 33.333", result.stderr)
+
+        bad_maximum = capture_fixture()
+        bad_maximum["measurements"]["render_cpu"]["p95_ms"] = 2.0
+        result = self.run_report([bad_maximum], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("p95_ms must not exceed maximum_ms", result.stderr)
+
+        bad_percentile_bucket = capture_fixture()
+        bad_percentile_bucket["measurements"]["frame_interval"]["p95_ms"] = 10.0
+        result = self.run_report([bad_percentile_bucket], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("histogram bucket containing the nearest-rank p95", result.stderr)
+
+        bad_zero_sample_summary = capture_fixture()
+        bad_zero_sample_summary["measurements"]["gpu_render"]["samples"] = 0
+        result = self.run_report([bad_zero_sample_summary], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("with zero samples must have zero statistics", result.stderr)
 
         bad_histogram = capture_fixture()
         bad_histogram["frame_pacing"]["histogram"]["at_or_below_recommended_budget"]["count"] = 2
@@ -551,6 +571,7 @@ class PerformanceReportTests(unittest.TestCase):
             first_path, first_bundle = self.bind_capture(root, 0, capture_fixture())
             second = capture_fixture()
             second["measurements"]["frame_interval"]["p95_ms"] = 17.1
+            second["measurements"]["frame_interval"]["maximum_ms"] = 17.1
             second_path, second_bundle = self.bind_capture(root, 1, second)
             artifact_before = first_bundle[2].read_bytes()
             result = subprocess.run(

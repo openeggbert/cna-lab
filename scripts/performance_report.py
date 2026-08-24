@@ -366,6 +366,33 @@ def validate_locked_budgets(capture: dict[str, Any]) -> None:
             raise ReportError(f"budgets.{key} must be {expected}")
 
 
+def validate_measurement_summary(capture: dict[str, Any], metric: str) -> None:
+    samples = _integer(capture, "measurements", metric, "samples")
+    average = _number(capture, "measurements", metric, "average_ms")
+    percentile = _number(capture, "measurements", metric, "p95_ms")
+    maximum = _number(capture, "measurements", metric, "maximum_ms")
+    if samples == 0:
+        if any(
+            not math.isclose(value, 0.0, rel_tol=0.0, abs_tol=0.000001)
+            for value in (average, percentile, maximum)
+        ):
+            raise ReportError(
+                f"measurements.{metric} with zero samples must have zero statistics"
+            )
+        return
+    if average > maximum or percentile > maximum:
+        raise ReportError(
+            f"measurements.{metric} average_ms and p95_ms must not exceed maximum_ms"
+        )
+    if samples == 1 and not (
+        math.isclose(average, percentile, rel_tol=0.0, abs_tol=0.000001)
+        and math.isclose(percentile, maximum, rel_tol=0.0, abs_tol=0.000001)
+    ):
+        raise ReportError(
+            f"measurements.{metric} with one sample must have identical statistics"
+        )
+
+
 def _validate_pacing_counter(
     capture: dict[str, Any],
     key: str,
@@ -443,6 +470,33 @@ def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
         ("above_severe_hitch", "lower_bound_exclusive_ms"),
         SEVERE_FRAME_HITCH_MS,
     )
+
+    if frame_samples > 0:
+        percentile_rank = math.ceil(0.95 * frame_samples)
+        cumulative = 0
+        percentile_bucket = -1
+        for index, bucket in enumerate(HISTOGRAM_BUCKETS):
+            cumulative += counts[bucket]
+            if cumulative >= percentile_rank:
+                percentile_bucket = index
+                break
+        bounds = (
+            (None, SCHEMA_RECOMMENDED_FRAME_MS),
+            (SCHEMA_RECOMMENDED_FRAME_MS, SCHEMA_MINIMUM_FRAME_MS),
+            (SCHEMA_MINIMUM_FRAME_MS, FRAME_HITCH_MS),
+            (FRAME_HITCH_MS, SEVERE_FRAME_HITCH_MS),
+            (SEVERE_FRAME_HITCH_MS, None),
+        )
+        lower, upper = bounds[percentile_bucket]
+        percentile = _number(capture, "measurements", "frame_interval", "p95_ms")
+        rounding_tolerance = 0.0005
+        if (lower is not None and percentile < lower - rounding_tolerance) or (
+            upper is not None and percentile > upper + rounding_tolerance
+        ):
+            raise ReportError(
+                "measurements.frame_interval.p95_ms does not fall in the frame-pacing "
+                "histogram bucket containing the nearest-rank p95 sample"
+            )
 
     minimum_misses = (
         counts["above_minimum_at_or_below_hitch"]
@@ -584,15 +638,18 @@ def load_capture(path: Path) -> dict[str, Any]:
         "police_vehicles",
     ):
         _integer(capture, "workload", workload)
-    for metric in (
+    required_metrics = (
         "frame_interval",
         *CPU_BUDGETS_MS,
         "present_cpu",
         "gpu_render",
         "district_load_cpu",
-    ):
-        _integer(capture, "measurements", metric, "samples")
-        _number(capture, "measurements", metric, "p95_ms")
+    )
+    measurements = _mapping(_path(capture, "measurements"), "measurements")
+    for metric in required_metrics:
+        _mapping(_path(measurements, metric), f"measurements.{metric}")
+    for metric in measurements:
+        validate_measurement_summary(capture, metric)
     validate_frame_pacing(capture, path)
     _number(capture, "memory", "peak_resident_bytes")
     _number(capture, "video_memory", "tracked_bytes")

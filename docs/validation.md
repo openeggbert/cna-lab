@@ -266,6 +266,12 @@ inode with another bundle. The release integration uses two valid enriched outpu
 source; comparator coverage uses a cross-bundle hardlink. Both exit 2, while diagnostic
 self-comparison remains available. Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass.
 
+All schema-8 measurement summaries now enforce zero-sample zero values, one-sample equality, and
+average/p95 not exceeding maximum. Frame-pacing histogram counts additionally locate the
+nearest-rank p95 bucket, and `frame_interval.p95_ms` must lie within its threshold bounds. Focused
+tests reject all three contradiction classes. Report 7/7, comparator 7/7, VRAM 6/6, both retained
+Xvfb captures, and the known-hash self-comparison pass; no graphical process was launched.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

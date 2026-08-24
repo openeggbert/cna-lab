@@ -578,3 +578,18 @@ raw profiler source. Comparator coverage replaces the candidate raw source with 
 baseline artifact. Both are refused; the ordinary two-artifact synthetic flow still passes. Report
 7/7, comparator 7/7, and VRAM 6/6 focused suites pass. Diagnostic self-comparison remains allowed,
 and no graphical process or physical qualification was involved.
+
+## 2026-08-24 — measurement-summary consistency
+
+The shared schema-8 loader now validates all timing summaries, including measurements not directly
+shown in the release table. Zero samples require zero average/p95/maximum; a one-sample block must
+have all three values equal; average and p95 can never exceed maximum. Frame cadence receives a
+stronger cross-check: histogram counts determine which threshold bucket contains the nearest-rank
+`ceil(0.95 * samples)` observation, and the serialized p95 must be inside that bucket within
+three-decimal rounding tolerance.
+
+Tests reject a render p95 above maximum, a nonzero zero-sample GPU block, and a frame p95 moved from
+its derived 16.667-33.333 ms bucket to 10 ms. Report 7/7, comparator 7/7, and VRAM 6/6 focused suites
+pass. Both retained Xvfb captures pass the new invariant checks and the diagnostic self-comparison
+retains `df217f17…41cd0`. Raw samples are still intentionally not archived, so this proves internal
+consistency rather than recomputing exact p95 from first principles.

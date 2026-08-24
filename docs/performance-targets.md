@@ -585,6 +585,10 @@ The successful presentation row means the exact requested 0/1 interval was ackno
 recorded as applied; a merely non-null but different integer is malformed evidence, not a pass.
 Displayed hitch/severe/boundary values likewise come from a histogram and boundary summary whose
 internal derivations were checked before report evaluation.
+Every `measurements.*` summary is also checked for zero-sample zero values, one-sample equality,
+and `average_ms`/`p95_ms <= maximum_ms`. For frame cadence, the histogram counts identify the
+bucket containing `ceil(0.95 * samples)`; the serialized p95 must fall inside that bucket (allowing
+only its three-decimal rounding tolerance).
 Renaming, copying, or changing only JSON whitespace cannot turn one capture into the two independent
 runs required for repeatability. Canonical performance identity is independent of file path and key
 ordering and normalizes externally bound VRAM metadata, so rebinding the same original profile to a

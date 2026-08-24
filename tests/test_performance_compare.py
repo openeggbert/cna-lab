@@ -57,11 +57,11 @@ def capture_fixture() -> dict:
         "frame_pacing": {
             "samples": 100,
             "histogram": {
-                "at_or_below_recommended_budget": {"upper_bound_ms": 16.667, "count": 80},
+                "at_or_below_recommended_budget": {"upper_bound_ms": 16.667, "count": 95},
                 "above_recommended_at_or_below_minimum_budget": {
                     "lower_bound_exclusive_ms": 16.667,
                     "upper_bound_ms": 33.333,
-                    "count": 20,
+                    "count": 5,
                 },
                 "above_minimum_at_or_below_hitch": {
                     "lower_bound_exclusive_ms": 33.333,
@@ -196,7 +196,13 @@ class PerformanceCompareTests(unittest.TestCase):
         baseline = capture_fixture()
         candidate = deepcopy(baseline)
         candidate["measurements"]["frame_interval"]["p95_ms"] = 20.0
+        candidate["measurements"]["frame_interval"]["maximum_ms"] = 20.0
+        candidate["frame_pacing"]["histogram"]["at_or_below_recommended_budget"]["count"] = 94
+        candidate["frame_pacing"]["histogram"][
+            "above_recommended_at_or_below_minimum_budget"
+        ]["count"] = 6
         candidate["measurements"]["update_cpu"]["p95_ms"] = 0.5
+        candidate["measurements"]["update_cpu"]["maximum_ms"] = 0.5
         result = self.run_compare(baseline, candidate)
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn("Overall result: **REGRESSION**", result.stdout)
@@ -208,6 +214,11 @@ class PerformanceCompareTests(unittest.TestCase):
         baseline = capture_fixture()
         candidate = deepcopy(baseline)
         candidate["measurements"]["frame_interval"]["p95_ms"] = 20.0
+        candidate["measurements"]["frame_interval"]["maximum_ms"] = 20.0
+        candidate["frame_pacing"]["histogram"]["at_or_below_recommended_budget"]["count"] = 94
+        candidate["frame_pacing"]["histogram"][
+            "above_recommended_at_or_below_minimum_budget"
+        ]["count"] = 6
         result = self.run_compare(
             baseline,
             candidate,
@@ -299,6 +310,9 @@ class PerformanceCompareTests(unittest.TestCase):
 
         candidate = deepcopy(baseline)
         candidate["measurements"]["gpu_render"]["samples"] = 0
+        candidate["measurements"]["gpu_render"]["average_ms"] = 0.0
+        candidate["measurements"]["gpu_render"]["p95_ms"] = 0.0
+        candidate["measurements"]["gpu_render"]["maximum_ms"] = 0.0
         result = self.run_compare(baseline, candidate)
         self.assertEqual(result.returncode, 2)
         self.assertIn("incompatible gpu_render sample availability", result.stderr)
@@ -337,6 +351,7 @@ class PerformanceCompareTests(unittest.TestCase):
             baseline = capture_fixture()
             candidate = deepcopy(baseline)
             candidate["measurements"]["frame_interval"]["p95_ms"] = 16.1
+            candidate["measurements"]["frame_interval"]["maximum_ms"] = 16.1
             baseline["video_memory"]["complete_evidence"]["hardware_identity"] = (
                 "Test `<b>| GPU"
             )

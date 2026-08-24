@@ -158,6 +158,7 @@ class VramEvidenceTests(unittest.TestCase):
             second_path = directory / "enriched-second.json"
             second_capture = raw_capture_fixture()
             second_capture["measurements"]["frame_interval"]["p95_ms"] = 17.0
+            second_capture["measurements"]["frame_interval"]["maximum_ms"] = 17.0
             second_capture_path.write_text(json.dumps(second_capture), encoding="utf-8")
             second_artifact_path.write_bytes(b"second raw vendor profiler capture fixture")
             second_evidence_path.write_text(
@@ -279,6 +280,7 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             enriched = json.loads(output_path.read_text(encoding="utf-8"))
             enriched["measurements"]["render_cpu"]["p95_ms"] = 7.5
+            enriched["measurements"]["render_cpu"]["maximum_ms"] = 7.5
             output_path.write_text(json.dumps(enriched), encoding="utf-8")
 
             verification = self.run_verification(

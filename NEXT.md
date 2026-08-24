@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 measurement summaries now have independently checked invariants.** Every measurement rejects
+nonzero statistics with zero samples, unequal one-sample summaries, or average/p95 above maximum.
+Frame p95 must also lie in the histogram bucket containing the nearest-rank 95th-percentile sample.
+
+- Report coverage rejects a p95 above maximum, a nonzero zero-sample GPU summary, and a frame p95
+  placed in the wrong bucket. Comparator fixtures retain meaningful regression/availability cases.
+- Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass. Both real Xvfb captures parse and
+  the self-comparison remains `NO REGRESSION` with `df217f17…41cd0`; no game process ran.
+- Bucket-level correlation cannot reconstruct raw samples, but prevents independently edited
+  summaries from contradicting the evidence that is stored.
+
 **M12 qualifying archives are now physically independent across runs.** In addition to requiring
 three distinct roles inside each bundle, release reports and qualifying comparisons reject any
 source path or hardlinked inode reused by two bundles.

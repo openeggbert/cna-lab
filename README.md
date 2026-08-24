@@ -284,7 +284,9 @@ must agree with `timing.vertical_sync_requested`, and a successful `applied` val
 equal the request. Inconsistent hand-edited captures are rejected rather than promoted.
 Frame-pacing metadata is checked the same way: fixed histogram bounds, derived minimum-miss/hitch/
 severe counts and percentages, and district-boundary counts must agree with the underlying bucket
-and district-load sample counts.
+and district-load sample counts. Every measurement also enforces coherent zero/one-sample and
+average/p95/maximum relationships; frame p95 must fall in the histogram bucket containing its
+nearest-rank sample.
 The original profile, evidence manifest, and raw VRAM profiler artifact must be three distinct
 files (hardlink aliases do not count), and the raw artifact must be a non-empty regular file.
 Separate bundles in a qualifying report/comparison may not reuse any source file or hardlinked
