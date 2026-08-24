@@ -93,6 +93,8 @@ int main()
     static_cast<void>(secretWorld.Update(0.5f, playerPosition));
     static_cast<void>(secretWorld.Update(5.0f, playerPosition));
     Expect(!secretWorld.Collides(2.5f, 1.5f, 0.1f), "secret wall remains open after discovery");
+    const WolfCna::World::CompletionStats secretStats = secretWorld.GetCompletionStats();
+    Expect(secretStats.foundSecrets == 1 && secretStats.totalSecrets == 1, "secret discovery is counted once");
 
     WolfCna::World bodyDoorWorld(WolfCna::LevelDefinition::Parse(
         "######\n#PDK.#\n######\n",
@@ -147,6 +149,9 @@ int main()
     const WolfCna::World::PickupResult goldPickup = exitWorld.CollectPickups(
         Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f));
     Expect(goldPickup.gold == 100, "gold pickup is collected");
+    Expect(
+        exitWorld.GetCompletionStats().collectedGold == 1 && exitWorld.GetCompletionStats().totalGold == 1,
+        "gold collection appears in completion statistics");
 
     WolfCna::World terminalWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PME#\n#####\n",
@@ -166,6 +171,9 @@ int main()
     Expect(combatWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "wounding a guard has no score");
     Expect(combatWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "second guard wound has no score");
     Expect(combatWorld.FireHitscan(combatPlayer, lookDirection).score == 100, "guard kill awards score");
+    Expect(
+        combatWorld.GetCompletionStats().defeatedEnemies == 1 && combatWorld.GetCompletionStats().totalEnemies == 1,
+        "enemy defeat appears in completion statistics");
 
     WolfCna::World houndWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PK.#\n#####\n",

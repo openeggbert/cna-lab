@@ -64,6 +64,7 @@ namespace WolfCna
         int lives_ = 3;
         int nextExtraLifeScore_ = 40000;
         int levelIndex_ = 0;
+        float levelElapsedSeconds_ = 0.0f;
         bool hasSecurityCard_ = false;
         bool completed_ = false;
         enum class Screen

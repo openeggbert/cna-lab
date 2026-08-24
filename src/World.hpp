@@ -54,6 +54,16 @@ namespace WolfCna
             int houndAttacks = 0;
         };
 
+        struct CompletionStats
+        {
+            int defeatedEnemies = 0;
+            int totalEnemies = 0;
+            int collectedGold = 0;
+            int totalGold = 0;
+            int foundSecrets = 0;
+            int totalSecrets = 0;
+        };
+
         explicit World(const LevelDefinition& level);
 
         [[nodiscard]] int Update(
@@ -80,6 +90,7 @@ namespace WolfCna
         [[nodiscard]] bool ReachedExit(
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         [[nodiscard]] bool IsExitUnlocked() const;
+        [[nodiscard]] CompletionStats GetCompletionStats() const;
         [[nodiscard]] int ConsumeGuardShotCount();
         [[nodiscard]] EnemyAudioEvents ConsumeEnemyAudioEvents();
         [[nodiscard]] InteractionResult TryActivate(
@@ -179,10 +190,15 @@ namespace WolfCna
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> impactVertices_;
         std::vector<std::uint16_t> impactIndices_;
         std::vector<Enemy> enemies_;
+        int defeatedEnemies_ = 0;
         std::vector<EnemyProjectile> enemyProjectiles_;
         int pendingGuardShotCount_ = 0;
         EnemyAudioEvents pendingEnemyAudioEvents_;
         std::vector<Pickup> pickups_;
+        int collectedGold_ = 0;
+        int totalGold_ = 0;
+        int foundSecrets_ = 0;
+        int totalSecrets_ = 0;
         std::vector<Terminal> terminals_;
         std::vector<Microsoft::Xna::Framework::Vector3> exits_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> enemyVertices_;

@@ -109,6 +109,7 @@ namespace WolfCna
             case '8': return {"111", "101", "111", "101", "111"};
             case '9': return {"111", "101", "111", "001", "111"};
             case '%': return {"101", "001", "010", "100", "101"};
+            case '/': return {"001", "001", "010", "100", "100"};
             default: return {"000", "000", "000", "000", "000"};
             }
         }
@@ -426,14 +427,52 @@ namespace WolfCna
                 : weapon_ == Weapon::Knife ? *knifeIcon_ : *repeaterIcon_,
             Rectangle(weaponCenter - 30, panelY + 12, 60, 60),
             Color(255, 255, 255, 255));
-        if (completed_ || screen_ == Screen::GameOver)
+        if (completed_)
         {
-            const std::string_view message = completed_ ? "LEVEL COMPLETE" : "GAME OVER";
-            const std::string_view prompt = screen_ == Screen::GameOver
-                ? "SPACE TITLE"
-                : levelIndex_ + 1 < static_cast<int>(CampaignLevelFiles.size())
-                    ? "SPACE NEXT"
-                    : "SPACE TITLE";
+            const World::CompletionStats stats = world_.GetCompletionStats();
+            const std::array<std::string, 4> rows = {
+                "KILLS " + std::to_string(stats.defeatedEnemies) + "/" + std::to_string(stats.totalEnemies),
+                "TREASURE " + std::to_string(stats.collectedGold) + "/" + std::to_string(stats.totalGold),
+                "SECRETS " + std::to_string(stats.foundSecrets) + "/" + std::to_string(stats.totalSecrets),
+                "TIME " + std::to_string(static_cast<int>(levelElapsedSeconds_)) + "S"};
+            const std::string_view prompt = levelIndex_ + 1 < static_cast<int>(CampaignLevelFiles.size())
+                ? "SPACE NEXT"
+                : "SPACE TITLE";
+            const int cardTop = centerY - 94;
+            constexpr int cardWidth = 260;
+            constexpr int cardHeight = 180;
+            const int cardLeft = centerX - cardWidth / 2;
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(cardLeft, cardTop, cardWidth, cardHeight),
+                Color(17, 59, 116, 255));
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(cardLeft, cardTop, cardWidth, 3),
+                Color(184, 238, 255, 255));
+            const std::string_view message = "LEVEL COMPLETE";
+            const int messageWidth = HudTextWidth(message);
+            const int messageX = centerX - messageWidth / 2;
+            DrawHudText(*hudSpriteBatch_, *hudPixel_, messageX, cardTop + 16, message, Color(184, 238, 255, 255));
+            for (int index = 0; index < static_cast<int>(rows.size()); ++index)
+                DrawHudText(
+                    *hudSpriteBatch_,
+                    *hudPixel_,
+                    centerX - HudTextWidth(rows[static_cast<std::size_t>(index)]) / 2,
+                    cardTop + 48 + index * 22,
+                    rows[static_cast<std::size_t>(index)],
+                    Color(255, 233, 136, 255));
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                centerX - HudTextWidth(prompt) / 2,
+                cardTop + 146,
+                prompt,
+                Color(255, 233, 136, 255));
+        }
+        else if (screen_ == Screen::GameOver)
+        {
+            constexpr std::string_view message = "GAME OVER";
             const int messageWidth = HudTextWidth(message);
             const int messageX = centerX - messageWidth / 2;
             const int messageY = centerY - 34;
@@ -442,13 +481,8 @@ namespace WolfCna
                 Rectangle(messageX - 15, messageY - 11, messageWidth + 30, 57),
                 Color(17, 59, 116, 255));
             DrawHudText(*hudSpriteBatch_, *hudPixel_, messageX, messageY, message, Color(184, 238, 255, 255));
-            DrawHudText(
-                *hudSpriteBatch_,
-                *hudPixel_,
-                centerX - HudTextWidth(prompt) / 2,
-                messageY + 21,
-                prompt,
-                Color(255, 233, 136, 255));
+            constexpr std::string_view prompt = "SPACE TITLE";
+            DrawHudText(*hudSpriteBatch_, *hudPixel_, centerX - HudTextWidth(prompt) / 2, messageY + 21, prompt, Color(255, 233, 136, 255));
         }
         hudSpriteBatch_->End();
     }
@@ -584,6 +618,7 @@ namespace WolfCna
         yaw_ = 0.0f;
         hasSecurityCard_ = false;
         completed_ = false;
+        levelElapsedSeconds_ = 0.0f;
         screen_ = Screen::Playing;
         actionWasDown_ = false;
         attackWasDown_ = false;
@@ -841,6 +876,7 @@ namespace WolfCna
             return;
         }
 
+        levelElapsedSeconds_ += clampedElapsed;
         const int incomingDamage = world_.Update(clampedElapsed, playerPosition_, DamageMultiplier());
         if (world_.ConsumeGuardShotCount() > 0 && guardShotSound_)
             static_cast<void>(guardShotSound_->Play(0.18f, 0.12f, 0.0f));

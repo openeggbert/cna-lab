@@ -545,7 +545,8 @@ Status: started. The original title menu and its Scout / Operative / Veteran
 difficulty selection are implemented. Difficulty currently changes incoming enemy
 damage. Three authored sectors now run in sequence while carrying score, lives,
 health, ammunition and weapon selection; a sector-specific access card resets at
-each elevator transition. Save/load, settings and end-of-level statistics remain.
+each elevator transition. Each exit now presents time plus kill, treasure and
+secret completion ratios. Save/load and settings remain.
 
 ## M10 — procedural/roguelite mode
 
@@ -992,7 +993,8 @@ Current progress:
 - the starter level is an authored room-and-corridor route with distributed guards, hounds, pickups, gold, a normal door, a security door and an exit;
 - the game now starts at an original blue-and-amber title menu, with a short controls page and three difficulty choices; Scout takes 70% enemy damage, Operative is the baseline and Veteran takes 140%;
 - three original external level files now form a short room-and-corridor campaign; exits advance with Space and preserve score, lives, health, ammunition and weapon selection;
-- next: add a completion-statistics card (time, kills, treasure and secrets) before each sector transition, then playtest and rebalance the encounter pacing.
+- every sector exit now presents a completion card with time and kill, treasure and secret ratios; each category is independently tracked in `World` and covered by unit tests;
+- next: playtest and rebalance the encounter pacing, then add original generated music/ambient layers and an audio toggle to the menu.
 
 ---
 

@@ -41,6 +41,8 @@ This starter is deliberately small. It proves the basic direction before local A
 After all lives are lost, press `Space` to return to the title menu and start a new run.
 At a sector exit, `Space` takes the run to the next sector; score, lives, health,
 ammunition and the selected weapon carry forward, while sector access cards do not.
+Before the transition, the game shows the sector time and the collected/total
+counts for kills, gold and secrets.
 
 ## Level files
 

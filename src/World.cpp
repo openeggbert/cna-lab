@@ -162,10 +162,11 @@ namespace WolfCna
                     continue;
 
                 --enemy.health;
-                enemy.state = enemy.health <= 0 ? EnemyState::Dead : EnemyState::Chase;
-                return {true, enemy.state == EnemyState::Dead
-                    ? enemy.type == Enemy::Type::Hound ? 200 : 100
-                    : 0};
+                const bool defeated = enemy.health <= 0;
+                enemy.state = defeated ? EnemyState::Dead : EnemyState::Chase;
+                if (defeated)
+                    ++defeatedEnemies_;
+                return {true, defeated ? enemy.type == Enemy::Type::Hound ? 200 : 100 : 0};
             }
 
             if (!IsStaticWallCell(cellX, cellZ))
@@ -232,7 +233,10 @@ namespace WolfCna
             else if (pickup.type == PickupType::Ammo)
                 result.ammo += 6;
             else if (pickup.type == PickupType::Gold)
+            {
                 result.gold += 100;
+                ++collectedGold_;
+            }
             else
                 ++result.accessCards;
         }
@@ -262,6 +266,17 @@ namespace WolfCna
             terminals_.begin(),
             terminals_.end(),
             [](const Terminal& terminal) { return terminal.activated; });
+    }
+
+    World::CompletionStats World::GetCompletionStats() const
+    {
+        return {
+            defeatedEnemies_,
+            static_cast<int>(enemies_.size()),
+            collectedGold_,
+            totalGold_,
+            foundSecrets_,
+            totalSecrets_};
     }
 
     int World::ConsumeGuardShotCount()
@@ -341,7 +356,12 @@ namespace WolfCna
 
         target->opening = true;
         target->closeDelay = DoorAutoCloseDelay;
-        return target->isSecret ? InteractionResult::SecretRevealed : InteractionResult::DoorOpened;
+        if (target->isSecret)
+        {
+            ++foundSecrets_;
+            return InteractionResult::SecretRevealed;
+        }
+        return InteractionResult::DoorOpened;
     }
 
     int World::Update(
@@ -599,6 +619,8 @@ namespace WolfCna
                         ? Material::SecurityDoor
                         : map_[z][x] == 'S' ? Material::Wall : Material::Door,
                     map_[z][x] == 'S'});
+                if (map_[z][x] == 'S')
+                    ++totalSecrets_;
             }
         }
     }
@@ -718,6 +740,8 @@ namespace WolfCna
                         : symbol == 'A'
                             ? PickupType::Ammo
                             : symbol == 'T' ? PickupType::Gold : PickupType::AccessCard});
+                if (symbol == 'T')
+                    ++totalGold_;
             }
         }
     }
