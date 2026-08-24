@@ -21,6 +21,12 @@ removed; the production and test graphs contain only the P1 programme domain.
 The old prototype remains recoverable from Git history, while legacy-save
 detection remains intentionally independent of those removed types.
 
+The English tutorial now matches the observed icon renderer: selected and
+urgent pictograms become fully black without a tile or cursor, dormant segments
+remain faint, illness uses the P1 skull rather than the action-feedback cross,
+and the bottom-left care function is consistently named Toilet rather than
+the prototype-oriented Clean label.
+
 The project must never ship a P1 ROM, a ROM-derived binary asset, TamaLIB, or
 another emulator core. A reference program may be viewed externally only to
 write and verify the clean implementation.
