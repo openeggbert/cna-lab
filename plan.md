@@ -55,10 +55,16 @@ presentation through CNA storage without coupling file I/O to simulation.
 Alternating checksummed save slots now persist unlock, best score and completion
 ticks with corrupt-newest recovery through CNA storage.
 
-**Current: M7 — performance visibility**
+**M7 — performance visibility — ACHIEVED**
 
-Complete the existing debug measurements with entity, allocation and draw-call
-evidence, then document the normal-frame allocation policy.
+The debug overlay now combines timing, sprite submissions, active entities and
+post-load gameplay allocation evidence while explicitly reporting the missing
+generic CNA draw-call counter.
+
+**Current: M8 — display lifecycle validation**
+
+Exercise resize, aspect changes and CNA fullscreen transitions while preserving
+logical presentation and player/input coordinates.
 
 ## Foundation and research
 
@@ -514,7 +520,7 @@ Acceptance:
 - Repeated runs produce identical state hashes for scripted inputs.
 - CTest exposes focused logic and smoke labels.
 
-### MAR-071 — Performance instrumentation — TODO
+### MAR-071 — Performance instrumentation — DONE
 
 Acceptance:
 
@@ -610,5 +616,5 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Add performance instrumentation under `MAR-071`.
-2. Validate resize/fullscreen behavior under `MAR-073` after counters land.
+1. Validate resize/fullscreen behavior under `MAR-073`.
+2. Expand the renderer compatibility matrix under `MAR-072`.

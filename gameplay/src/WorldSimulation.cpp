@@ -35,6 +35,15 @@ namespace CopperBoots
             return std::max(value - maximumDelta, target);
         }
 
+        template <typename Value>
+        void PushGameplayValue(std::vector<Value>& values, Value value,
+                               std::uint64_t& allocationCount)
+        {
+            if (values.size() == values.capacity())
+                ++allocationCount;
+            values.push_back(std::move(value));
+        }
+
         struct StateHasher
         {
             void AddByte(const std::uint8_t value) noexcept
@@ -176,9 +185,26 @@ namespace CopperBoots
 
     void WorldSimulation::LoadLevel(LevelDefinition level)
     {
+        const std::size_t cogBlockCount = static_cast<std::size_t>(std::count_if(
+            level.InteractiveBlocks.begin(), level.InteractiveBlocks.end(),
+            [](const InteractiveBlockDefinition& block) {
+                return block.Content == BlockContent::Cog;
+            }));
+        const std::size_t platingBlockCount = static_cast<std::size_t>(
+            std::count_if(level.InteractiveBlocks.begin(),
+                          level.InteractiveBlocks.end(),
+                          [](const InteractiveBlockDefinition& block) {
+                              return block.Content == BlockContent::Plating;
+                          }));
+        const std::size_t capacitorBlockCount = static_cast<std::size_t>(
+            std::count_if(level.InteractiveBlocks.begin(),
+                          level.InteractiveBlocks.end(),
+                          [](const InteractiveBlockDefinition& block) {
+                              return block.Content == BlockContent::Capacitor;
+                          }));
         levelName_ = std::move(level.Name);
         cogs_.clear();
-        cogs_.reserve(level.Cogs.size());
+        cogs_.reserve(level.Cogs.size() + cogBlockCount);
         for (const TileCoordinate& cog : level.Cogs) {
             cogs_.push_back({
                 static_cast<float>(cog.X * TileMap::TileSize) +
@@ -228,7 +254,8 @@ namespace CopperBoots
             platforms_.push_back(state);
         }
         platingPickups_.clear();
-        platingPickups_.reserve(level.PlatingPickups.size());
+        platingPickups_.reserve(
+            level.PlatingPickups.size() + platingBlockCount);
         for (const TileCoordinate& pickup : level.PlatingPickups) {
             platingPickups_.push_back({
                 static_cast<float>(pickup.X * TileMap::TileSize) + 2.0F,
@@ -236,7 +263,8 @@ namespace CopperBoots
                 0.0F, 1, 0, false});
         }
         capacitorPickups_.clear();
-        capacitorPickups_.reserve(level.CapacitorPickups.size());
+        capacitorPickups_.reserve(
+            level.CapacitorPickups.size() + capacitorBlockCount);
         for (const TileCoordinate& pickup : level.CapacitorPickups) {
             capacitorPickups_.push_back({
                 static_cast<float>(pickup.X * TileMap::TileSize) + 3.0F,
@@ -274,6 +302,7 @@ namespace CopperBoots
         tickCount_ = 0;
         result_ = {};
         completionTicks_ = 0;
+        gameplayAllocationCount_ = 0;
         lastEvents_ = {};
         camera_.SetWorldBounds(static_cast<float>(level_.PixelWidth()),
                                static_cast<float>(level_.PixelHeight()));
@@ -608,27 +637,27 @@ namespace CopperBoots
             block.Used = true;
             level_.Set(tileX, tileY, Tiles::UsedBlock);
             if (block.Content == BlockContent::Cog) {
-                cogs_.push_back({
+                PushGameplayValue(cogs_, CogState{
                     static_cast<float>(tileX * TileMap::TileSize) +
                         (TileMap::TileSize - CogState::Size) * 0.5F,
                     static_cast<float>((tileY - 1) * TileMap::TileSize) +
                         (TileMap::TileSize - CogState::Size) * 0.5F,
-                    false});
+                    false}, gameplayAllocationCount_);
                 ++lastEvents_.BlockContentsReleased;
             }
             else if (block.Content == BlockContent::Plating) {
-                platingPickups_.push_back({
+                PushGameplayValue(platingPickups_, PlatingPickupState{
                     static_cast<float>(tileX * TileMap::TileSize) + 2.0F,
                     static_cast<float>(tileY * TileMap::TileSize),
-                    0.0F, 1, 24, false});
+                    0.0F, 1, 24, false}, gameplayAllocationCount_);
                 ++lastEvents_.BlockContentsReleased;
                 ++lastEvents_.PowerUpsReleased;
             }
             else if (block.Content == BlockContent::Capacitor) {
-                capacitorPickups_.push_back({
+                PushGameplayValue(capacitorPickups_, CapacitorPickupState{
                     static_cast<float>(tileX * TileMap::TileSize) + 3.0F,
                     static_cast<float>(tileY * TileMap::TileSize),
-                    24, false});
+                    24, false}, gameplayAllocationCount_);
                 ++lastEvents_.BlockContentsReleased;
                 ++lastEvents_.CapacitorsReleased;
             }
@@ -921,6 +950,22 @@ namespace CopperBoots
             routeTransition_.DestinationEndpoint));
         hash.AddBool(routeInteractionLocked_);
         return hash.Value;
+    }
+
+    int WorldSimulation::ActiveEntityCount() const noexcept
+    {
+        int count = 1 + static_cast<int>(platforms_.size());
+        for (const CogState& cog : cogs_)
+            count += static_cast<int>(!cog.Collected);
+        for (const CrawlerState& crawler : crawlers_)
+            count += static_cast<int>(!crawler.Defeated);
+        for (const PlatingPickupState& pickup : platingPickups_)
+            count += static_cast<int>(!pickup.Collected);
+        for (const CapacitorPickupState& pickup : capacitorPickups_)
+            count += static_cast<int>(!pickup.Collected);
+        for (const ProjectileState& projectile : projectiles_)
+            count += static_cast<int>(projectile.Active);
+        return count;
     }
 
     bool WorldSimulation::TryStartRouteTransition(

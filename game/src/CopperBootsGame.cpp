@@ -952,7 +952,7 @@ namespace CopperBoots
         OutlineRectangle(Rectangle(0, 0, LogicalWidth, LogicalHeight),
                          Color(99, 164, 201));
 
-        FillRectangle(Rectangle(2, 16, 156, 43), Color(24, 36, 42));
+        FillRectangle(Rectangle(2, 16, 156, 50), Color(24, 36, 42));
         DrawText("DEBUG F1 T", 5, 19, Color(235, 189, 67));
         DrawNumber(static_cast<int>(world_.TickCount() % 1'000'000U),
                    6, 49, 19, Color(231, 224, 181));
@@ -993,6 +993,14 @@ namespace CopperBoots
                    109, 40, Color(231, 224, 181));
         DrawText("BOX SOLID ONE HAZ EXIT PLAT", 5, 49,
                  Color(231, 224, 181));
+        DrawText("ENT", 5, 56, Color(95, 192, 158));
+        DrawNumber(world_.ActiveEntityCount(), 3, 21, 56,
+                   Color(231, 224, 181));
+        DrawText("ALL", 37, 56, Color(95, 192, 158));
+        DrawNumber(static_cast<int>(std::min<std::uint64_t>(
+                       world_.GameplayAllocationCount(), 9'999U)),
+                   4, 53, 56, Color(231, 224, 181));
+        DrawText("DC NA", 77, 56, Color(229, 96, 122));
     }
 
     void CopperBootsGame::DrawPauseOverlay()

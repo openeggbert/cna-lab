@@ -670,9 +670,22 @@ settings plus two successive progress generations without opening a window.
 F1 independently toggles a CNA-rendered debug overlay. It outlines visible tile
 collision cells, the player, active crawlers and the 320x180 camera viewport;
 text reports player tile, signed velocity, camera edges, simulation tick, world
-sprite submissions, frame time, update CPU time and prior draw CPU time. With
+sprite submissions, active entities, gameplay vector growth, frame time, update
+CPU time and prior draw CPU time. With
 the overlay disabled, timing clocks and collision-grid traversal are skipped;
 the normal path pays only the F1 edge check and a lightweight draw counter.
+
+The pinned CNA public `GraphicsDevice` has no renderer-neutral draw-call
+statistic. A few renderer-internal types expose bespoke counters, but consuming
+them would violate the abstraction and make the overlay backend-specific;
+therefore it explicitly displays `DC NA` and reports the exact game-side
+SpriteBatch submission count instead. Entity counting walks fixed live vectors
+without allocation. Level load pre-counts cog/plating/capacitor block contents
+and reserves their final vector capacities, so later block release cannot
+reallocate. The only simulation push sites use a capacity-growth counter, and
+tests release every content type while requiring that counter to remain zero.
+Tile rendering reads the persistent `TileMap` in visible bounds and never
+rebuilds static tile data per frame.
 
 The milestone HUD is also asset-free: a new 3x5 glyph table renders the external
 level name, cogs, lives and score through the same one-texel CNA `SpriteBatch`

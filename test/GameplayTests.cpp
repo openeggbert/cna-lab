@@ -709,6 +709,7 @@ namespace
             CopperBoots::LevelDefinition::Parse(source, "collectible.cbl"));
         Check(collectibleWorld.LevelName() == "Parser Workshop",
               "loaded level name remains available to read-only HUD state");
+        const int entitiesBeforeCollection = collectibleWorld.ActiveEntityCount();
         collectibleWorld.Update({}, static_cast<float>(
             CopperBoots::SimulationClock::TickSeconds));
         Check(collectibleWorld.CollectedCogCount() == 1 &&
@@ -717,6 +718,9 @@ namespace
         Check(collectibleWorld.LastEvents().CogsCollected == 1 &&
                   collectibleWorld.LastEvents().ScoreAdded == 100,
               "collection emits a one-tick event");
+        Check(collectibleWorld.ActiveEntityCount() ==
+                  entitiesBeforeCollection - 1,
+              "active entity counter drops when a cog is collected");
         collectibleWorld.Update({}, static_cast<float>(
             CopperBoots::SimulationClock::TickSeconds));
         Check(collectibleWorld.CollectedCogCount() == 1 &&
@@ -861,6 +865,10 @@ namespace
                   capacitorBlockWorld.CapacitorPickups().size() == 1 &&
                   capacitorBlockWorld.CapacitorPickups()[0].EmergenceTicks == 23,
               "capacitor block releases one emerging ability pickup");
+        Check(contentBlockWorld.GameplayAllocationCount() == 0 &&
+                  powerBlockWorld.GameplayAllocationCount() == 0 &&
+                  capacitorBlockWorld.GameplayAllocationCount() == 0,
+              "level load reserves every block-spawned gameplay entity");
     }
 
     void TestMovementAndJump()

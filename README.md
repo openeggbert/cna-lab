@@ -142,6 +142,11 @@ Current intended defaults are:
 | presentation style | F2 | — |
 | fullscreen | F11 | — |
 
+F1 also reports frame/update/draw milliseconds, world sprite submissions,
+active entities and any simulation-vector growth after level load. Generic
+draw-call count is shown as unavailable because current CNA exposes it only on
+selected renderer internals, which game code intentionally does not access.
+
 Stomping a crawler always bounces the courier. Keep Jump held during contact for
 the higher bounce needed by some elevated Green Ruins routes.
 

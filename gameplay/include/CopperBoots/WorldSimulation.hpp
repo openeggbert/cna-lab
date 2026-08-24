@@ -324,6 +324,11 @@ namespace CopperBoots
         }
         [[nodiscard]] float RouteFadeAmount() const noexcept;
         [[nodiscard]] std::uint64_t DeterministicStateHash() const noexcept;
+        [[nodiscard]] int ActiveEntityCount() const noexcept;
+        [[nodiscard]] std::uint64_t GameplayAllocationCount() const noexcept
+        {
+            return gameplayAllocationCount_;
+        }
         [[nodiscard]] int BlockVisualOffset(int tileX, int tileY) const noexcept;
 
     private:
@@ -393,5 +398,6 @@ namespace CopperBoots
         std::uint64_t tickCount_ = 0;
         LevelResult result_;
         int completionTicks_ = 0;
+        std::uint64_t gameplayAllocationCount_ = 0;
     };
 }
