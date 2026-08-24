@@ -65,6 +65,7 @@ add_subdirectory("${CNA_ROOT_DIR}" cna)
 set(CNA_TAMAGOTCHI_SOURCES
     src/main.cpp
     src/Application/CnaTamagotchiGame.cpp
+    src/Application/DeviceShellRenderer.cpp
     src/Display/MonochromeDisplay.cpp
     src/Domain/CreatureCatalog.cpp
     src/Domain/P1Program.cpp
@@ -92,6 +93,7 @@ target_include_directories(${CNA_TAMAGOTCHI_TARGET} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 configure_file(assets/p1-icon-atlas.png assets/p1-icon-atlas.png COPYONLY)
+configure_file(assets/p1-icon-atlas-smooth.png assets/p1-icon-atlas-smooth.png COPYONLY)
 
 # Link only the framework modules this application consumes.  CNA::Runtime
 # closes over graphics, input, audio, media, content, math and platform; the
@@ -196,4 +198,11 @@ if(CNA_TAMAGOTCHI_BUILD_TESTS AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_C
     target_include_directories(CnaTamagotchiPersistenceTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
     add_test(NAME CnaTamagotchiPersistenceTests COMMAND CnaTamagotchiPersistenceTests)
+
+    add_executable(CnaTamagotchiDeviceShellTests
+        tests/DeviceShellTests.cpp
+    )
+    target_include_directories(CnaTamagotchiDeviceShellTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    add_test(NAME CnaTamagotchiDeviceShellTests COMMAND CnaTamagotchiDeviceShellTests)
 endif()

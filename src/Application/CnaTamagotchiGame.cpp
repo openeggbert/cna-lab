@@ -1,7 +1,9 @@
 #include "CnaTamagotchi/Application/CnaTamagotchiGame.hpp"
+#include "CnaTamagotchi/Application/DeviceShellRenderer.hpp"
 #include "CnaTamagotchi/Domain/P1Program.hpp"
 #include "CnaTamagotchi/Domain/P1SpriteCatalog.hpp"
 #include "CnaTamagotchi/Persistence/SaveLocation.hpp"
+#include "CnaTamagotchi/Presentation/DeviceShell.hpp"
 
 #include <algorithm>
 #include <array>
@@ -49,38 +51,19 @@ struct Rgb final {
     std::uint8_t blue;
 };
 
-// The selected external P1 reference is a translucent turquoise shell with
-// warm yellow controls.  These are deliberately authored colour values, not
-// sampled image data or a shipped reference asset.
-const Color ShellOutline(0, 83, 96, 255);
-const Color ShellMain(0, 172, 184, 255);
-const Color ShellHighlight(92, 224, 225, 255);
-const Color ShellShadow(0, 124, 139, 255);
-const Color ButtonMain(248, 203, 65, 255);
-const Color ButtonHighlight(255, 238, 139, 255);
-const Color Ink(28, 65, 71, 255);
-
 Color asColor(const Display::LcdColour colour) noexcept
 {
     return Color(colour.red, colour.green, colour.blue, 255U);
 }
 
-struct ButtonPosition final {
-    int x;
-    int y;
-};
+Color asColor(const Presentation::ShellRgba colour) noexcept
+{
+    return Color(colour.red, colour.green, colour.blue, colour.alpha);
+}
 
 constexpr int IconCount = 8;
 constexpr int SelectableIconCount = IconCount - 1;
-constexpr int ButtonY = 555;
-constexpr int ResetButtonX = 408;
-constexpr int ResetButtonY = 542;
-constexpr int ResetButtonRadius = 10;
 constexpr float ResetHoldSeconds = 1.5F;
-constexpr int ButtonHitRadius = 29;
-constexpr std::array<ButtonPosition, 3> ButtonPositions{{
-    {202, ButtonY}, {270, ButtonY + 12}, {338, ButtonY},
-}};
 
 const Domain::ProgramDefinition& activeProgramme() noexcept
 {
@@ -173,9 +156,15 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     const bool cancel = keyboard.IsKeyDown(Keys::C) || keyboard.IsKeyDown(Keys::Back)
         || keyboard.IsKeyDown(Keys::Escape);
     const bool clockChord = keyboard.IsKeyDown(Keys::A) && keyboard.IsKeyDown(Keys::C);
+    const bool cycleShell = keyboard.IsKeyDown(Keys::V);
     bool resetHeld = keyboard.IsKeyDown(Keys::R);
 
     bool saveChanged = false;
+    if (cycleShell && !shellCycleWasDown_ && screen_ != Screen::SaveRecovery) {
+        shellId_ = std::string(Presentation::nextDeviceShellId(shellId_));
+        saveChanged = true;
+    }
+
     const bool pressedClockChord = clockChord && !clockChordWasDown_;
     if (pressedClockChord) {
         if (screen_ == Screen::ClockView) {
@@ -191,7 +180,7 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
         }
     } else if (!clockChord) {
         if (selectNext && !selectNextWasDown_) {
-            saveChanged = pressButton(DeviceButton::A);
+            saveChanged = pressButton(DeviceButton::A) || saveChanged;
         }
         if (selectPrevious && !selectPreviousWasDown_) {
             moveSelectionBackward();
@@ -241,6 +230,7 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     cancelWasDown_ = cancel;
     mouseLeftWasDown_ = mouseLeftDown;
     clockChordWasDown_ = clockChord;
+    shellCycleWasDown_ = cycleShell;
 
     if (screen_ != Screen::SaveRecovery && screen_ != Screen::ResetConfirm
         && screen_ != Screen::ClockSetup) {
@@ -266,9 +256,11 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     } else {
         resetHoldSeconds_ = 0.0F;
     }
-    if (saveChanged && screen_ != Screen::ClockSetup) {
+    if (saveChanged) {
         saveDirty_ = true;
-        saveNow();
+        if (screen_ != Screen::ClockSetup) {
+            saveNow();
+        }
     }
     refreshDisplay();
 }
@@ -458,11 +450,13 @@ CnaTamagotchiGame::buttonAtWindowPosition(const float x, const float y) const no
         / static_cast<float>(clientBounds.Width);
     const float deviceY = y * static_cast<float>(WindowHeight)
         / static_cast<float>(clientBounds.Height);
-    for (std::size_t index = 0; index < ButtonPositions.size(); ++index) {
-        const float deltaX = deviceX - static_cast<float>(ButtonPositions[index].x);
-        const float deltaY = deviceY - static_cast<float>(ButtonPositions[index].y);
+    for (std::size_t index = 0; index < DeviceShellGeometry::Buttons.size(); ++index) {
+        const ShellPoint& button = DeviceShellGeometry::Buttons[index];
+        const float deltaX = deviceX - static_cast<float>(button.x);
+        const float deltaY = deviceY - static_cast<float>(button.y);
         if (deltaX * deltaX + deltaY * deltaY
-            <= static_cast<float>(ButtonHitRadius * ButtonHitRadius)) {
+            <= static_cast<float>(DeviceShellGeometry::ButtonHitRadius
+                * DeviceShellGeometry::ButtonHitRadius)) {
             return static_cast<DeviceButton>(index);
         }
     }
@@ -480,10 +474,10 @@ bool CnaTamagotchiGame::resetAtWindowPosition(const float x, const float y) cons
         / static_cast<float>(clientBounds.Width);
     const float deviceY = y * static_cast<float>(WindowHeight)
         / static_cast<float>(clientBounds.Height);
-    const float deltaX = deviceX - static_cast<float>(ResetButtonX);
-    const float deltaY = deviceY - static_cast<float>(ResetButtonY);
+    const float deltaX = deviceX - static_cast<float>(DeviceShellGeometry::ResetX);
+    const float deltaY = deviceY - static_cast<float>(DeviceShellGeometry::ResetY);
     return deltaX * deltaX + deltaY * deltaY
-        <= static_cast<float>(ResetButtonRadius * ResetButtonRadius);
+        <= static_cast<float>(DeviceShellGeometry::ResetRadius * DeviceShellGeometry::ResetRadius);
 }
 
 void CnaTamagotchiGame::moveSelectionBackward() noexcept
@@ -587,6 +581,7 @@ bool CnaTamagotchiGame::activateSave(const Persistence::SaveData& data)
     }
 
     pet_ = data.pet;
+    shellId_ = data.shellId;
     seed_ = data.seed;
     lastSavedUnixSeconds_ = data.lastSavedUnixSeconds;
     screen_ = Screen::Home;
@@ -667,6 +662,7 @@ void CnaTamagotchiGame::saveNow()
     // file write. It never moves backwards, and it retains sub-minute time.
     const Persistence::SaveData data{
         .programId = std::string(activeProgramme().id),
+        .shellId = shellId_,
         .lastSavedUnixSeconds = lastSavedUnixSeconds_,
         .seed = seed_,
         .pet = pet_,
@@ -979,39 +975,6 @@ void CnaTamagotchiGame::drawDevice()
         spriteBatch_->Draw(*pixelTexture_, rectangle, color);
     };
 
-    const auto drawEllipse = [&drawRect](const int centreX, const int centreY,
-                                        const int radiusX, const int radiusY,
-                                        const Color colour) {
-        for (int y = -radiusY; y <= radiusY; ++y) {
-            const float normalizedY = static_cast<float>(y) / static_cast<float>(radiusY);
-            const int halfWidth = static_cast<int>(std::sqrt(std::max(
-                0.0F, 1.0F - normalizedY * normalizedY)) * static_cast<float>(radiusX));
-            drawRect(Rectangle(centreX - halfWidth, centreY + y, halfWidth * 2 + 1, 1), colour);
-        }
-    };
-
-    const auto drawEgg = [&drawRect](const int centreX, const int centreY,
-                                     const int radiusX, const int radiusY,
-                                     const Color colour) {
-        for (int y = -radiusY; y <= radiusY; ++y) {
-            const float normalizedY = static_cast<float>(y) / static_cast<float>(radiusY);
-            const float ovalWidth = std::sqrt(std::max(
-                0.0F, 1.0F - normalizedY * normalizedY));
-            // A narrower crown and a slightly lower widest point make this an
-            // egg rather than the previous tall, symmetric capsule.
-            const float lowerHalf = (normalizedY + 1.0F) * 0.5F;
-            const float taper = 0.82F + lowerHalf * 0.26F;
-            const int halfWidth = static_cast<int>(
-                ovalWidth * taper * static_cast<float>(radiusX));
-            drawRect(Rectangle(centreX - halfWidth, centreY + y, halfWidth * 2 + 1, 1), colour);
-        }
-    };
-
-    const auto drawRing = [&drawEllipse](const int centreX, const int centreY,
-                                        const int radius, const Color outer, const Color inner) {
-        drawEllipse(centreX, centreY, radius, radius, outer);
-        drawEllipse(centreX, centreY, radius - 3, radius - 3, inner);
-    };
     const Display::LcdPaletteColours lcdColours =
         Display::MonochromeDisplay::coloursFor(lcdPalette_);
     const Color lcdBezel = asColor(lcdColours.bezel);
@@ -1026,16 +989,10 @@ void CnaTamagotchiGame::drawDevice()
         std::max(0, static_cast<int>(lcdColours.off.green) - 10),
         std::max(0, static_cast<int>(lcdColours.off.blue) - 5), 255);
 
-    // Drop shadow, shell rim, and inner egg. The short, tapered silhouette
-    // and translucent turquoise treatment follow the selected P1 device
-    // visually, while the geometry remains an independently drawn UI.
-    drawEgg(270, 348, 220, 272, ShellOutline);
-    drawEgg(270, 346, 208, 260, ShellMain);
-    drawEllipse(238, 318, 135, 190, ShellHighlight);
-
-    // Small keychain tab: recognisable, but deliberately generic.
-    drawRing(270, 72, 20, ShellOutline, backgroundColor());
-    drawRing(270, 72, 14, ShellMain, backgroundColor());
+    const Presentation::DeviceShellStyle& shellStyle =
+        Presentation::deviceShellStyle(shellId_);
+    DeviceShellRenderer::drawBody(
+        *spriteBatch_, *pixelTexture_, shellStyle, backgroundColor());
 
     // The active game bitmap is exactly 32 × 16 pixels. The eight permanent
     // icon cells live in the physically connected top/bottom LCD surround;
@@ -1044,8 +1001,12 @@ void CnaTamagotchiGame::drawDevice()
     const int moduleY = DisplayY - IconBandHeight - LcdModulePadding;
     const int moduleWidth = DisplayPixelWidth + LcdModulePadding * 2;
     const int moduleHeight = DisplayPixelHeight + IconBandHeight * 2 + LcdModulePadding * 2;
-    drawRect(Rectangle(moduleX, moduleY, moduleWidth, moduleHeight), lcdBezel);
-    drawRect(Rectangle(moduleX + 6, moduleY + 6, moduleWidth - 12, moduleHeight - 12), ShellShadow);
+    drawRect(Rectangle(moduleX, moduleY, moduleWidth, moduleHeight),
+        asColor(shellStyle.outline));
+    drawRect(Rectangle(moduleX + 4, moduleY + 4, moduleWidth - 8, moduleHeight - 8),
+        asColor(shellStyle.bodyShadow));
+    drawRect(Rectangle(moduleX + 8, moduleY + 8, moduleWidth - 16, moduleHeight - 16),
+        lcdBezel);
     drawRect(Rectangle(DisplayX, DisplayY - IconBandHeight,
         DisplayPixelWidth, IconBandHeight), iconBandTop);
     drawRect(Rectangle(DisplayX, DisplayY, DisplayPixelWidth, DisplayPixelHeight), lcdOff);
@@ -1094,18 +1055,8 @@ void CnaTamagotchiGame::drawDevice()
         }
     }
 
-    // Three physical controls: A changes selection, B confirms, C clears it.
-    for (const ButtonPosition button : ButtonPositions) {
-        drawEllipse(button.x, button.y + 4, 25, 25, ShellOutline);
-        drawEllipse(button.x, button.y, 20, 20, ButtonMain);
-        drawEllipse(button.x - 3, button.y - 4, 8, 8, ButtonHighlight);
-    }
-
-    // A small recessed reset pinhole sits apart from the three care controls.
-    // Hold it (or the desktop R key) before the LCD asks for B/C confirmation.
-    drawEllipse(ResetButtonX, ResetButtonY, ResetButtonRadius, ResetButtonRadius, ShellOutline);
-    drawEllipse(ResetButtonX, ResetButtonY, ResetButtonRadius - 3, ResetButtonRadius - 3,
-        ShellShadow);
+    // Controls are rendered last so their moulded rims sit above the body.
+    DeviceShellRenderer::drawControls(*spriteBatch_, *pixelTexture_, shellStyle);
 }
 
 void CnaTamagotchiGame::OnExiting(System::Object* const sender,

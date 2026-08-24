@@ -3,11 +3,13 @@
 #include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
 #include "CnaTamagotchi/Domain/ProgramSimulation.hpp"
 #include "CnaTamagotchi/Persistence/SaveRepository.hpp"
+#include "CnaTamagotchi/Presentation/DeviceShell.hpp"
 
 #include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <string>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Game.hpp"
@@ -94,6 +96,7 @@ private:
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
     std::optional<Microsoft::Xna::Framework::Graphics::Texture2D> pixelTexture_;
     std::optional<Microsoft::Xna::Framework::Graphics::Texture2D> iconAtlasTexture_;
+    std::string shellId_{Presentation::DefaultDeviceShellId};
     Display::LcdPalette lcdPalette_{Display::LcdPalette::ClassicOlive};
     float backgroundTimeSeconds_{0.0F};
     float simulationSeconds_{0.0F};
@@ -124,6 +127,7 @@ private:
     bool cancelWasDown_{false};
     bool mouseLeftWasDown_{false};
     bool clockChordWasDown_{false};
+    bool shellCycleWasDown_{false};
     bool saveDirty_{false};
     bool smokeTest_{false};
     unsigned int drawnFrames_{0};

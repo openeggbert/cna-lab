@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CnaTamagotchi/Domain/ProgramSimulation.hpp"
+#include "CnaTamagotchi/Presentation/DeviceShell.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -10,10 +11,11 @@
 namespace CnaTamagotchi::Persistence {
 
 struct SaveData final {
-    static constexpr int CurrentFormatVersion = 4;
+    static constexpr int CurrentFormatVersion = 5;
 
     int formatVersion{CurrentFormatVersion};
     std::string programId{"international-p1-1997"};
+    std::string shellId{Presentation::DefaultDeviceShellId};
     std::int64_t lastSavedUnixSeconds{0};
     std::uint64_t seed{0};
     Domain::ProgramPetState pet{};

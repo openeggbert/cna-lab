@@ -27,6 +27,7 @@ std::filesystem::path testDirectory()
 Persistence::SaveData p1Save()
 {
     Persistence::SaveData data{};
+    data.shellId = "pink-yellow";
     data.lastSavedUnixSeconds = 1'725'000'000;
     data.seed = 42;
     data.pet.characterId = "marutchi";
@@ -85,6 +86,8 @@ void testP1RoundTripAndBackup()
             "the current P1 format version must survive a round trip");
         expect(loaded.data->programId == "international-p1-1997",
             "P1 programme identifier must survive a round trip");
+        expect(loaded.data->shellId == "pink-yellow",
+            "the selected physical shell must survive a round trip");
         expect(loaded.data->pet.characterId == "marutchi"
                 && loaded.data->pet.stage == Domain::ProgramStage::Child,
             "P1 character identity and stage must survive a round trip");
@@ -199,6 +202,7 @@ void testVersionTwoP1SaveKeepsAConservativeEvolutionDefault()
     expect(loaded.success(), "version-two P1 saves must remain readable after evolution-history storage");
     if (loaded.data) {
         expect(loaded.data->formatVersion == Persistence::SaveData::CurrentFormatVersion
+                && loaded.data->shellId == Presentation::DefaultDeviceShellId
                 && loaded.data->pet.disciplineMistakes == 0
                 && loaded.data->pet.teenLineage == Domain::ProgramTeenLineage::None
                 && loaded.data->pet.disciplineCallQuota == 3
@@ -251,11 +255,92 @@ void testVersionThreeP1SaveReceivesTimerDefaults()
     const Persistence::LoadResult loaded = repository.load(path);
     expect(loaded.success() && loaded.data
             && loaded.data->formatVersion == Persistence::SaveData::CurrentFormatVersion
+            && loaded.data->shellId == Presentation::DefaultDeviceShellId
             && loaded.data->pet.stageAwakeMinutes == 0
             && loaded.data->pet.disciplineCallQuota == 3
             && loaded.data->pet.disciplineCallsIssued == 0
             && !loaded.data->pet.pendingDisciplineCall,
         "a version-three P1 save must migrate conservatively to the current timer state");
+
+    std::filesystem::remove_all(directory, error);
+}
+
+void testVersionFourP1SaveReceivesDefaultShell()
+{
+    const std::filesystem::path directory = testDirectory();
+    const std::filesystem::path path = directory / "version-four.json";
+    std::error_code error;
+    std::filesystem::remove_all(directory, error);
+
+    Persistence::SaveRepository repository;
+    expect(repository.save(path, p1Save()).success,
+        "a current P1 save must be available as a version-four migration fixture");
+
+    std::ifstream input(path);
+    std::string versionFour((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    const std::string currentVersion = "\"formatVersion\": "
+        + std::to_string(Persistence::SaveData::CurrentFormatVersion);
+    const std::size_t versionPosition = versionFour.find(currentVersion);
+    expect(versionPosition != std::string::npos,
+        "the current save must expose its format version for v4 migration testing");
+    if (versionPosition != std::string::npos) {
+        versionFour.replace(versionPosition, currentVersion.size(), "\"formatVersion\": 4");
+    }
+
+    const std::size_t shellPosition = versionFour.find("\"shellId\"");
+    expect(shellPosition != std::string::npos,
+        "the current save must contain the removable shell identifier");
+    if (shellPosition != std::string::npos) {
+        const std::size_t lineStart = versionFour.rfind('\n', shellPosition);
+        const std::size_t lineEnd = versionFour.find('\n', shellPosition);
+        versionFour.erase(lineStart == std::string::npos ? 0 : lineStart + 1,
+            lineEnd == std::string::npos ? std::string::npos : lineEnd - lineStart);
+    }
+    {
+        std::ofstream output(path, std::ios::trunc);
+        output << versionFour;
+    }
+
+    const Persistence::LoadResult loaded = repository.load(path);
+    expect(loaded.success() && loaded.data
+            && loaded.data->formatVersion == Persistence::SaveData::CurrentFormatVersion
+            && loaded.data->shellId == Presentation::DefaultDeviceShellId
+            && loaded.data->pet.characterId == "marutchi",
+        "a version-four P1 save must retain its pet and receive the default shell");
+
+    std::filesystem::remove_all(directory, error);
+}
+
+void testUnknownCurrentShellIsRejected()
+{
+    const std::filesystem::path directory = testDirectory();
+    const std::filesystem::path path = directory / "unknown-shell.json";
+    std::error_code error;
+    std::filesystem::remove_all(directory, error);
+
+    Persistence::SaveRepository repository;
+    expect(repository.save(path, p1Save()).success,
+        "a valid current save must be available for shell validation");
+
+    std::ifstream input(path);
+    std::string json((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    const std::size_t shellPosition = json.find("pink-yellow");
+    expect(shellPosition != std::string::npos,
+        "the generated save must expose its selected shell identifier");
+    if (shellPosition != std::string::npos) {
+        json.replace(shellPosition, std::string("pink-yellow").size(), "unknown-shell");
+    }
+    {
+        std::ofstream output(path, std::ios::trunc);
+        output << json;
+    }
+    expect(!repository.load(path).success(),
+        "an unsupported shell identifier in a current save must be rejected");
+
+    Persistence::SaveData invalid = p1Save();
+    invalid.shellId = "unknown-shell";
+    expect(!repository.save(directory / "invalid-write.json", invalid).success,
+        "an unsupported shell identifier must never be written");
 
     std::filesystem::remove_all(directory, error);
 }
@@ -348,6 +433,8 @@ int main()
     testIgnoredAttentionCallRoundTrips();
     testVersionTwoP1SaveKeepsAConservativeEvolutionDefault();
     testVersionThreeP1SaveReceivesTimerDefaults();
+    testVersionFourP1SaveReceivesDefaultShell();
+    testUnknownCurrentShellIsRejected();
     testBackupRestorationAndArchives();
     testLegacyPrototypeIsNeverConvertedToP1();
 

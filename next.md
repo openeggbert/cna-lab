@@ -59,22 +59,23 @@ write and verify the clean implementation.
 
 ## Priority 0 — Add selectable physical shell variants
 
-1. Replace the provisional flat shell drawing with a reusable CNA shell renderer
+1. [x] Replace the provisional flat shell drawing with a reusable CNA shell renderer
    that models the rim, translucent or opaque body, recessed LCD bezel, three
    physical buttons, reset pinhole, highlights, and material depth without a
    detached floor shadow.
-2. Add historically grounded P1 colour families, beginning with Translucent
+2. [x] Add historically grounded P1 colour families, beginning with Translucent
    Blue/Yellow, Blue/Yellow, Pink/Yellow, Green/Yellow, and White/Blue.
-3. Provide an in-application host control for cycling the shell; it must not
+3. [x] Provide an in-application host control for cycling the shell; it must not
    consume an original P1 A/B/C action or alter the 32 x 16 simulation.
-4. Persist the selected shell identifier in the versioned save format, retain a
+4. [x] Persist the selected shell identifier in the versioned save format, retain a
    safe default for existing saves, and add save/load validation tests.
-5. Capture every variant on the same virtual display and compare silhouette,
+5. [x] Capture every variant on the same virtual display and compare silhouette,
    bezel, button offset, reset recess, highlights, and material treatment.
 
-**Acceptance condition:** the player can switch among multiple recognisable P1
-shell treatments, the choice survives restart, and no shell changes LCD pixels
-or P1 behaviour.
+**Acceptance condition met (2026-08-24):** `V` cycles all five shell treatments,
+format-5 persistence survives a process restart, pre-v5 saves receive the safe
+default, same-display captures retain identical LCD geometry, and the
+shell-control path does not mutate P1 state or framebuffer data.
 
 ## Priority 1 — Make the home LCD visually faithful
 

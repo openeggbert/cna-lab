@@ -34,8 +34,10 @@ active `cna-tamagotchi` slot remains preferred, so the rename keeps the pet.
 
 The current build opens a CNA window and renders an egg-shaped device with a
 full 32 × 16 one-bit game field, connected top/bottom icon bands, and three
-physical controls. Its active state is now the shared P1 programme state, not
-the retired Pipple/Budbit prototype. The implemented P1 trace covers the egg,
+physical controls. Five presentation-only P1 shell families can be cycled with
+`V`; the selected shell is stored independently from the P1 pet state. Its
+active state is now the shared P1 programme state, not the retired
+Pipple/Budbit prototype. The implemented P1 trace covers the egg,
 Babytchi, Marutchi, early illness and two-dose medicine, baby waste, P1
 Bread/Candy, the five-round Character game, weight effects, Toilet, and the
 captured Marutchi sleep schedule. P1 JSON saves have an explicit programme id;
@@ -93,8 +95,11 @@ historical device:
 | C | right | Cancel, close a submenu, or return to the previous screen | `C`, Backspace, Escape |
 
 Mouse and touch input now press these same three virtual buttons; their hit
-areas remain correct when the game window is resized. Icons do not become
-independent modern UI buttons: clicking an icon may be offered as an
+areas remain correct when the game window is resized. `V` is a desktop host
+control that cycles Translucent Blue/Yellow, Blue/Yellow, Pink/Yellow,
+Green/Yellow, and White/Blue shells. It never sends A, B, or C and never
+changes the 32 × 16 framebuffer. The selection survives restart. Icons do not
+become independent modern UI buttons: clicking an icon may be offered as an
 accessibility shortcut later, but it must invoke the equivalent A/B/C sequence.
 
 The active P1 mapping includes the original clock behaviour: with no icon
@@ -252,8 +257,8 @@ schema migrations remain to be added.
 4. Archive legacy hybrid saves instead of converting them into fictional P1
    pets, then rewrite the detailed English player tutorial.
 
-Each completed milestone is built, tested, and committed locally. No remote
-push is performed until a remote exists and the user explicitly requests it.
+Each cohesive milestone is built, tested, committed, and pushed to the
+user-approved `origin/develop` branch.
 
 ## Build and run
 
@@ -289,14 +294,14 @@ repeat a capture that shows a blank LCD.
 ## Tests
 
 ```bash
-cmake --build --preset sdl-renderer --parallel 2 --target CnaTamagotchiDomainTests CnaTamagotchiCreatureCatalogTests CnaTamagotchiP1StateTests CnaTamagotchiP1ProgramTests CnaTamagotchiP1SpriteCatalogTests CnaTamagotchiProgramSimulationTests CnaTamagotchiDisplayTests CnaTamagotchiSaveLocationTests CnaTamagotchiPersistenceTests
+cmake --build --preset sdl-renderer --parallel 2 --target CnaTamagotchiDomainTests CnaTamagotchiCreatureCatalogTests CnaTamagotchiP1StateTests CnaTamagotchiP1ProgramTests CnaTamagotchiP1SpriteCatalogTests CnaTamagotchiProgramSimulationTests CnaTamagotchiDisplayTests CnaTamagotchiSaveLocationTests CnaTamagotchiPersistenceTests CnaTamagotchiDeviceShellTests
 ctest --test-dir cmake-build-sdl-renderer --output-on-failure --parallel 2
 ```
 
 ## Repository layout
 
 ```text
-include/CnaTamagotchi/  application, display, domain, and persistence headers
+include/CnaTamagotchi/  application, display, domain, persistence, and presentation headers
 src/                    executable entry point and implementations
 tests/                  framework-free domain and persistence tests
 analysis.md             technical analysis

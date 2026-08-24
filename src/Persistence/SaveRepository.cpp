@@ -159,6 +159,7 @@ bool validSaveData(const SaveData& data) noexcept
 {
     return data.formatVersion == SaveData::CurrentFormatVersion
         && data.lastSavedUnixSeconds >= 0
+        && Presentation::isValidDeviceShellId(data.shellId)
         && validIdentifier(data.programId)
         && validPetState(data.pet);
 }
@@ -169,6 +170,7 @@ std::string serialise(const SaveData& data)
     return "{\n"
         "  \"formatVersion\": " + std::to_string(data.formatVersion) + ",\n"
         "  \"programId\": \"" + data.programId + "\",\n"
+        "  \"shellId\": \"" + data.shellId + "\",\n"
         "  \"lastSavedUnixSeconds\": " + std::to_string(data.lastSavedUnixSeconds) + ",\n"
         "  \"seed\": " + std::to_string(data.seed) + ",\n"
         "  \"pet\": {\n"
@@ -301,12 +303,13 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     if (*formatVersion == 1) {
         return legacyPrototype();
     }
-    if (*formatVersion != 2 && *formatVersion != 3
+    if (*formatVersion != 2 && *formatVersion != 3 && *formatVersion != 4
         && *formatVersion != SaveData::CurrentFormatVersion) {
         return invalid("Unsupported save format version.");
     }
 
     const auto programId = extractIdentifier(json, "programId");
+    const auto shellId = extractIdentifier(json, "shellId");
     const auto lastSaved = extractInteger<std::int64_t>(json, "lastSavedUnixSeconds");
     const auto seed = extractInteger<std::uint64_t>(json, "seed");
     const auto characterId = extractIdentifier(json, "characterId");
@@ -351,11 +354,15 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
         && (!disciplineMistakes || !teenLineage || !teenStartedWithNoDiscipline)) {
         return invalid("Save file is missing or repeats an evolution-history field.");
     }
-    if (*formatVersion == SaveData::CurrentFormatVersion
+    if (*formatVersion >= 4
         && (!stageAwakeMinutes || !hungerLossElapsedMinutes || !happinessLossElapsedMinutes
             || !needHeartDecrementsSinceDisciplineCall || !disciplineCallQuota
             || !disciplineCallsIssued || !pendingDisciplineCall)) {
         return invalid("Save file is missing or repeats a P1 timer field.");
+    }
+    if (*formatVersion == SaveData::CurrentFormatVersion
+        && (!shellId || !Presentation::isValidDeviceShellId(*shellId))) {
+        return invalid("Save file is missing or contains an unsupported shell identifier.");
     }
     if (!validIdentifier(*programId) || !validIdentifier(*characterId) || *lastSaved < 0
         || !validStage(*stage) || *minutesSinceClockSet < 0 || *minutesSinceHatch < 0
@@ -375,7 +382,7 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
             || !validBoolean(*teenStartedWithNoDiscipline))) {
         return invalid("Save file contains an invalid P1 evolution-history value.");
     }
-    if (*formatVersion == SaveData::CurrentFormatVersion
+    if (*formatVersion >= 4
         && (*stageAwakeMinutes < 0 || *hungerLossElapsedMinutes < 0
             || *happinessLossElapsedMinutes < 0 || *needHeartDecrementsSinceDisciplineCall < 0
             || *stageAwakeMinutes > MaximumPersistedMinutes
@@ -389,10 +396,13 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     }
 
     SaveData data{};
-    // Accepted v2/v3 data is migrated in memory and is written back as the
-    // current format at the next real save action.
+    // Accepted older P1 data is migrated in memory and written back as the
+    // current format at the next real save action. Pre-v5 slots receive the
+    // stable default shell without changing any P1 simulation state.
     data.formatVersion = SaveData::CurrentFormatVersion;
     data.programId = *programId;
+    data.shellId = *formatVersion == SaveData::CurrentFormatVersion
+        ? *shellId : std::string(Presentation::DefaultDeviceShellId);
     data.lastSavedUnixSeconds = *lastSaved;
     data.seed = *seed;
     data.pet.characterId = *characterId;

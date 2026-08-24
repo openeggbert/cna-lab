@@ -80,9 +80,9 @@ similar emulation core is permitted in the application, build, or test suite.
   - [x] Manually transcribe the observed asymmetric first egg silhouette from
     a visual P1 LCD trace and protect its crown, crack, and lower shell with a
     catalogue regression test.
-  - [x] Replace the previous generic pink desktop shell treatment with an
-    independently drawn turquoise shell and yellow controls, visually checked
-    against the selected P1 reference without adding a reference asset.
+  - [x] Replace the previous generic pink desktop shell treatment with a
+    reusable CNA renderer and five independently authored P1 colour families;
+    persist the selected shell without changing the LCD or P1 controls.
   - Compare and replace every remaining provisional home redraw before calling
     the character catalogue visually faithful; then capture its distinct care
     action frames rather than reusing home-idle art.
