@@ -100,6 +100,21 @@ cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure -j2
 ```
 
+The validated non-SDL-renderer lane uses CNA's CPU rasterizer in an independent
+build directory:
+
+```bash
+cmake -S . -B build-software -G Ninja \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCNA_ROOT_DIR=../cna \
+  -DCNA_GRAPHICS_RENDERER=SOFTWARE
+cmake --build build-software --parallel 2
+ctest --test-dir build-software --output-on-failure -j2
+```
+
+`SOFTWARE` is the graphics renderer; the current Linux lane still uses CNA's
+SDL3 platform implementation for input and audio and has no visible OS window.
+
 Run `./build/copper-boots --no-audio` for an explicit silent configuration.
 Failure to initialize or play CNA audio also degrades to silence instead of
 terminating gameplay.
@@ -123,10 +138,10 @@ labels. `./build/copper-boots --display-smoke-test --no-audio --no-settings`
 also performs the resize, minimize/restore, fullscreen round trip on a real
 desktop. Unsupported headless window operations are reported explicitly.
 
-`SDL_RENDERER` is the initial conservative 2D validation lane. It does not mean
-game code depends on SDL: the executable links CNA's public `CNA` target and
-uses only CNA/XNA-style public APIs. Other CNA renderers will be added to the
-compatibility matrix as milestones stabilize.
+`SDL_RENDERER` is the visible conservative 2D lane and `SOFTWARE` is the
+validated independent CNA CPU-rasterizer lane. Neither choice changes game
+code: the executable links CNA's public `CNA` target and uses only CNA/XNA-style
+public APIs. See `analysis.md` for the exact runtime matrix and limitations.
 
 ## Controls
 

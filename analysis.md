@@ -751,12 +751,17 @@ render target, SpriteBatch pass, point-scaled presentation, and exits after a
 small frame count. Runtime reports selected renderer and important
 capabilities. Later compatibility records use:
 
-| Renderer | Configure | Build | Startup | SpriteBatch | Texture | RT | Point | Input | Audio | Defects |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| SDL_RENDERER | pass | pass | pass (offscreen) | pass | pass | pass | pass | keyboard + disconnected-gamepad pass | generated `SoundEffect` construction pass (dummy) | Xvfb unavailable in this container; CNA offscreen driver passes |
+| Renderer / platform | Configure | Build | Startup | SpriteBatch | Texture | RT | Point | Input | Audio | Boundaries / defects |
+|---|---|---|---|---|---|---|---|---|---|---|
+| SDL_RENDERER / SDL3 | pass, Debug | pass, game + tests | pass offscreen and real Linux desktop | API smoke pass | generated 1x1 pass | 320x180 bind/sample pass | API smoke pass | keyboard + disconnected gamepad pass | generated `SoundEffect` pass on dummy device | offscreen cannot minimize/restore or find an exclusive-fullscreen mode; real desktop lifecycle passes; no pixel readback in game test |
+| SOFTWARE / SDL3 | pass, Debug | pass, game + tests | pass, CPU framebuffer/no renderer window | API smoke pass | generated 1x1 pass | 320x180 bind/sample pass | API smoke pass | keyboard + disconnected gamepad pass through CNA SDL3 platform | generated `SoundEffect` pass on dummy CNA SDL3 audio | no visible OS presentation by renderer design, so fullscreen is not visually validated; no pixel readback in game test |
 
 Only available/mature lanes are tested; a compile result is never mislabeled as
-a runtime result.
+a runtime result. The renderer and platform are separate CNA axes: SOFTWARE is
+a genuine non-SDL renderer even though this configuration deliberately retains
+the SDL3 platform services for input and audio. Both matrix rows ran all five
+project CTests at CNA `1bb2145d99ed572dd4eb15009c34e2e5f410fcf0` and
+sharp-runtime `54578590b328aa9612fe38bfddca9fd8ca795144` on 2026-08-24.
 
 The initial Debug build configured with CMake/Ninja and
 `CNA_GRAPHICS_RENDERER=SDL_RENDERER`, then built with two jobs. Renderer-free

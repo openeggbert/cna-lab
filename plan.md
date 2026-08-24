@@ -67,10 +67,17 @@ Automated aspect/resize coverage plus a real Linux desktop run now exercise
 minimize/restore and CNA fullscreen transitions while preserving the 320x180
 surface, bounded camera and live CNA input polling.
 
-**Current: M9 — renderer compatibility evidence**
+**M9 — renderer compatibility evidence — ACHIEVED**
 
-Expand the compatibility matrix beyond the proven SDL_RENDERER lane without
-mistaking descriptor compilation for a usable CNA renderer implementation.
+The SDL_RENDERER lane and CNA's independent SOFTWARE CPU rasterizer both
+configure, build and run all five project tests. Evidence distinguishes the
+SDL3 platform used for input/audio from the selected graphics renderer and does
+not mistake descriptor compilation for runtime support.
+
+**Current: M10 — historical physics comparison**
+
+Measure the original executable when a legal local DOSBox path is available,
+then compare its observed motion to the deterministic modern controller.
 
 ## Foundation and research
 
@@ -535,7 +542,7 @@ Acceptance:
 - Static tile data is not rebuilt per frame and normal gameplay update performs
   no avoidable heap allocation.
 
-### MAR-072 — Renderer compatibility matrix — TODO
+### MAR-072 — Renderer compatibility matrix — DONE
 
 Acceptance:
 
@@ -543,6 +550,16 @@ Acceptance:
   textures, render targets, point filtering, input, audio, and known defects.
 - SDL_RENDERER plus at least one non-SDL-renderer CNA lane run the milestone when
   available; compile-only results are labeled correctly.
+
+Evidence: Debug builds at CNA `1bb2145d99ed572dd4eb15009c34e2e5f410fcf0`
+ran all five Copper Boots tests on both SDL_RENDERER and the independent
+SOFTWARE CPU rasterizer. Both exercise SpriteBatch, generated Texture2D data, a
+320x180 RenderTarget2D, point sampling, CNA keyboard/disconnected-gamepad input,
+generated SoundEffect construction/playback on dummy audio, storage and clean
+startup/exit. These are API/runtime smoke results, not pixel-readback or
+subjective audio validation. SOFTWARE uses the SDL3 *platform* lane for
+input/audio but no SDL renderer; it owns a CPU framebuffer and no visible OS
+window. The detailed matrix and capability boundaries live in `analysis.md`.
 
 ### MAR-073 — Resize and fullscreen validation — DONE
 
@@ -629,4 +646,7 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Expand the renderer compatibility matrix under `MAR-072`.
+1. Measure and compare historical physics under `MAR-028` when the reference
+   executable and DOSBox are locally available.
+2. Revisit `MAR-CNA-001` through `MAR-CNA-003` only with minimal upstream
+   reproductions; none currently blocks gameplay work.
