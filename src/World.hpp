@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -77,6 +78,12 @@ namespace WolfCna
             int totalTerminals = 0;
         };
 
+        struct ExitApproach
+        {
+            Microsoft::Xna::Framework::Vector3 position;
+            Microsoft::Xna::Framework::Vector3 lookDirection;
+        };
+
         explicit World(const LevelDefinition& level);
 
         [[nodiscard]] int Update(
@@ -139,6 +146,7 @@ namespace WolfCna
         [[nodiscard]] bool ReachedExit(
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         [[nodiscard]] bool IsExitUnlocked() const;
+        [[nodiscard]] std::optional<ExitApproach> GetExitApproach() const;
         [[nodiscard]] ObjectiveStatus GetObjectiveStatus() const;
         [[nodiscard]] CompletionStats GetCompletionStats() const;
         [[nodiscard]] int ConsumeGuardShotCount();

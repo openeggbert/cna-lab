@@ -1389,6 +1389,7 @@ namespace WolfCna
         attackWasDown_ = false;
         playerFireCooldownSeconds_ = 0.0f;
         ilmWasDown_ = false;
+        goalCheatWasDown_ = false;
         pauseWasDown_ = false;
         cheatMessageSeconds_ = 0.0f;
         objectiveMessage_.clear();
@@ -1573,6 +1574,11 @@ namespace WolfCna
             keyboard.IsKeyDown(Keys::I) &&
             keyboard.IsKeyDown(Keys::L) &&
             keyboard.IsKeyDown(Keys::M);
+        const bool goalCheatIsDown =
+            keyboard.IsKeyDown(Keys::G) &&
+            keyboard.IsKeyDown(Keys::O) &&
+            keyboard.IsKeyDown(Keys::A) &&
+            keyboard.IsKeyDown(Keys::L);
 
         if (keyboard.IsKeyDown(Keys::Escape))
         {
@@ -1643,6 +1649,25 @@ namespace WolfCna
             cheatMessageSeconds_ = 2.0f;
         }
         ilmWasDown_ = ilmIsDown;
+
+        if (goalCheatIsDown && !goalCheatWasDown_)
+        {
+            const std::optional<World::ExitApproach> approach = world_.GetExitApproach();
+            if (approach &&
+                !world_.Collides(approach->position.X, approach->position.Z, PlayerRadius))
+            {
+                playerPosition_ = approach->position;
+                yaw_ = std::atan2(
+                    approach->lookDirection.X,
+                    -approach->lookDirection.Z);
+                static_cast<void>(exploration_.Visit(playerPosition_.X, playerPosition_.Z));
+                objectiveMessage_ = "GOAL APPROACH";
+                objectiveMessageSeconds_ = 2.0f;
+                if (secretSound_)
+                    static_cast<void>(secretSound_->Play(0.24f, 0.2f, 0.0f));
+            }
+        }
+        goalCheatWasDown_ = goalCheatIsDown;
 
         if (actionIsDown && !actionWasDown_)
         {

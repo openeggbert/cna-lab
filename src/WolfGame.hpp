@@ -152,6 +152,7 @@ namespace WolfCna
         bool fullScreenWasDown_ = false;
         bool pauseWasDown_ = false;
         bool ilmWasDown_ = false;
+        bool goalCheatWasDown_ = false;
         bool upWasDown_ = false;
         bool downWasDown_ = false;
         bool confirmWasDown_ = false;

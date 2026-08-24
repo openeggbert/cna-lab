@@ -369,6 +369,23 @@ namespace WolfCna
         return terminalsActivated && relaysActivated;
     }
 
+    std::optional<World::ExitApproach> World::GetExitApproach() const
+    {
+        if (exits_.empty())
+            return std::nullopt;
+
+        const Exit& exit = exits_.front();
+        return ExitApproach{
+            Vector3(
+                exit.position.X + static_cast<float>(exit.approachX),
+                playerStart_.Y,
+                exit.position.Z + static_cast<float>(exit.approachZ)),
+            Vector3(
+                -static_cast<float>(exit.approachX),
+                0.0f,
+                -static_cast<float>(exit.approachZ))};
+    }
+
     World::ObjectiveStatus World::GetObjectiveStatus() const
     {
         return {

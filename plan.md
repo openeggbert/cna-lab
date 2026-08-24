@@ -1278,3 +1278,17 @@ completion, while campaign-map tests require exactly one approach to every eleva
 - block the entrance until the current relay and terminal objective is complete;
 - animate the elevator gate through the existing CNA-rendered dynamic geometry path;
 - retain M7's later true vertical elevator travel as separate future work.
+
+### WOLF-023 — goal-approach cheat
+
+Status: complete. Pressing the unused `G` + `O` + `A` + `L` chord once moves the
+player to the authored walkable cell immediately outside the current sector elevator
+and turns the view toward its doors. The cheat does not activate relays, terminals or
+the elevator gate, so objective behavior remains testable. Input is edge-triggered,
+the latch resets with each sector and the destination/heading calculation is covered
+by a focused test.
+
+- use a memorable chord that does not collide with movement, map or loadout controls;
+- place the player outside rather than inside a locked elevator;
+- face the elevator automatically after teleporting;
+- preserve normal objective and completion requirements.

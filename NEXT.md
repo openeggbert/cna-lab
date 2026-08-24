@@ -37,6 +37,7 @@
 - Four original generated wall families now alternate in coherent room-scale regions, and every polygonal table uses a dedicated dark-oak texture.
 - Access cards, both weapon pickups, terminals, power relays, exits and enemy projectiles now use original transparent sprites; the last untextured colored cuboid path is gone.
 - Every map `GOAL` now corresponds to a three-sided steel elevator cabin whose red polygonal gate blocks entry and rises only after the sector objective is complete.
+- Holding `G+O+A+L` once teleports the player to the safe approach cell outside the current elevator and turns them toward its doors without unlocking it.
 
 ## Next tasks
 
