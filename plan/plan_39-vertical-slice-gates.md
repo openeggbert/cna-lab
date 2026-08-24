@@ -79,7 +79,10 @@ rather than being a one-time final check.
     isolated Xvfb identified llvmpipe and stayed blocked under a misleading discrete-GPU label. No
     visible window or physical capture was added. A subsequent real short DRM-wrapper integration
     preserved both machine-evidence blocks through raw/manifest/enriched semantic verification and
-    complete residency accounting, while still refusing the Headless presentation path.*
+    complete residency accounting, while still refusing the Headless presentation path. Two later
+    full independent 900-draw Release mixed runs passed every direct budget with stable 55.574 MiB
+    complete residency and no comparison regression; archive verification still reports the
+    offscreen label and machine-derived `Headless` state as the only qualification blockers.*
     *Schema-type follow-up: capture `schema_version` must be an actual JSON integer equal to 8;
     floating-point `8.0` exits 2 and no capture was added.*
     *Frame-maximum follow-up: the stored maximum must occupy the highest non-empty pacing bucket;

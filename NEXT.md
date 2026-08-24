@@ -67,6 +67,29 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has a full representative pair with both machine-evidence blocks.** Two new independent
+Release EasyGL `mixed --smoke 900` runs used the real AMD Radeon 780M and complete DRM wrapper while
+remaining strictly offscreen. Each profile contains `Headless / false` native-window evidence and
+the current Radeon/radeonsi GL identity.
+
+- Both runs contain 899 frame intervals, one real district transition, and the locked workload.
+  Frame p95/max is 17.147/26.343 ms and 17.907/33.145 ms; neither has a >33.333 ms miss or hitch.
+  CPU update/physics/AI/audio/render p95 is 0.344/0.290/0.008/0.022/0.961 ms and
+  0.429/0.369/0.008/0.022/1.013 ms. GPU/Present p95 is 0.114/0.047 and 0.115/0.049 ms.
+  District load/following frame is 0.874/18.146 and 0.580/17.687 ms; RAM is 177.1/177.6 MiB.
+- Both complete DRM peaks are exactly 58,273,792 B (55.574 MiB). Region placement again moves while
+  the total stays fixed: 41,943,040 GTT + 16,330,752 VRAM versus 27,262,976 GTT + 31,010,816 VRAM.
+  The sampler retained 2,498/2,441 complete snapshots from 2,537/2,478 attempts, excluding six/
+  three fd read races.
+- The diagnostic comparator reports `NO REGRESSION` across every metric. The qualifying audit
+  semantically verifies both distinct archives and reports only the explicit offscreen-label blocker
+  plus one machine-derived `Headless` blocker per capture; every performance/memory/workload/swap/
+  renderer condition passes. No physical-display evidence was claimed.
+- First original/raw/manifest/complete hashes are `5100e706…bf577b`, `f5f69a8d…e2fcf31`,
+  `07c7d12f…15045a`, `022e3a6c…242513`; second hashes are `479ebb32…c3d4c7`,
+  `38654aee…0ae1a2`, `17b790f0…d72296`, `0d37df26…fb71b`. Diagnostic report, audit, and comparison
+  hashes are `1e226b75…cdd86`, `5fad1163…43621`, and `4994bc63…32312a`.
+
 **M12 profiles now identify the graphics runtime from the current GL context.** The hardware label
 could previously hide Xvfb's software renderer just as it could hide an offscreen window system.
 The EasyGL producer now records the standard `GL_VENDOR`, `GL_RENDERER`, and `GL_VERSION` strings

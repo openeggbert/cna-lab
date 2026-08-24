@@ -535,6 +535,10 @@ on operator prose. Old diagnostics remain readable but missing runtime identity 
 A complete short DRM-wrapper follow-up then retained 100 samples, bound a 49.57 MiB peak, verified
 the enriched profile, and reported Radeon runtime plus `Headless/false`; all direct metrics passed
 while the presentation classification remained diagnostic. No visible display was used.
+A subsequent pair of full Release `mixed --smoke 900` DRM runs passes every direct minimum with
+17.147/17.907 ms frame p95, no minimum misses or hitches, stable 55.574 MiB complete residency, and
+`NO REGRESSION` comparison. Both archives verify independently. The qualifying audit fails only on
+the offscreen label and each capture's machine-derived `Headless` state. No visible display was used.
 
 ## Full CNA-linked build status
 

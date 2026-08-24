@@ -142,6 +142,10 @@ EasyGL profiles additionally record `GL_VENDOR`, `GL_RENDERER`, and `GL_VERSION`
 context. Qualification rejects known software runtimes such as llvmpipe/softpipe/swrast even when
 the CLI hardware label omits those words. The strings identify the active GL implementation; they
 still do not prove which physical display, if any, receives presentation.
+A newer independent 900-draw pair includes both machine-evidence blocks and again measures the same
+55.574 MiB complete peak, with 17.147/17.907 ms frame p95 and no >33.333 ms misses. Its comparator
+reports no regression; qualifying audit failure is limited to the declared offscreen environment
+and each capture's `Headless` native-window classification.
 
 When complete per-process VRAM residency comes from that sampler or another authoritative vendor/OS
 profiler, bind its raw artifact and manifest to the original profile without overwriting it:

@@ -1072,3 +1072,33 @@ and `Headless / no`, then correctly kept the run diagnostic. Original/raw/manife
 hashes are `c59ce404…3b9791`, `d5b7f85a…3a84d7`, `2d462a15…3def0b`, `37a7071f…174b0c`, and
 `ef6e225d…ab50a0`. This proves the additive machine evidence survives the real four-file binding
 path without turning an offscreen hardware run into physical-presentation evidence.
+
+## 2026-08-24 — full representative machine-evidence pair
+
+Two new independent Release EasyGL `mixed --smoke 900` DRM-wrapper runs extend the short integration
+to the complete M12 workload. Each has 899 frame intervals, one district transition, complete
+process residency, `Headless/false`, and the current AMD Radeon 780M/radeonsi identity.
+
+| Measurement | Machine-evidence mixed 1 | Machine-evidence mixed 2 | Minimum budget |
+| --- | ---: | ---: | ---: |
+| Frame interval p95 / max | 17.147 / 26.343 ms | 17.907 / 33.145 ms | 33.333 ms p95 |
+| Update / physics CPU p95 | 0.344 / 0.290 ms | 0.429 / 0.369 ms | 8 / 3 ms |
+| AI / audio / render CPU p95 | 0.008 / 0.022 / 0.961 ms | 0.008 / 0.022 / 1.013 ms | 2 / 1 / 8 ms |
+| GPU Draw / Present CPU p95 | 0.114 / 0.047 ms | 0.115 / 0.049 ms | diagnostic |
+| District load / following frame | 0.874 / 18.146 ms | 0.580 / 17.687 ms | 1000 ms load |
+| Peak resident RAM | 177.1 MiB | 177.6 MiB | 2 GiB |
+| Complete DRM residency | 55.574 MiB | 55.574 MiB | 512 MiB |
+
+Neither run has a minimum-budget miss, hitch, or severe hitch. The identical 58,273,792 B peaks
+again migrate between regions: 41,943,040 GTT + 16,330,752 VRAM versus 27,262,976 GTT + 31,010,816
+VRAM. The sampler retained 2,498/2,441 complete snapshots from 2,537/2,478 attempts, excluding six/
+three fd read races.
+
+The diagnostic comparator reports `NO REGRESSION`. A qualifying-intent audit reconstructs both
+independent archives and reports only the offscreen hardware label plus the two per-capture
+`Headless` blockers; every direct budget, workload, runtime identity, swap acknowledgement, and
+archive policy passes. First original/raw/manifest/complete hashes are `5100e706…bf577b`,
+`f5f69a8d…e2fcf31`, `07c7d12f…15045a`, `022e3a6c…242513`; second hashes are
+`479ebb32…c3d4c7`, `38654aee…0ae1a2`, `17b790f0…d72296`, `0d37df26…fb71b`. Diagnostic report,
+audit, and comparison hashes are `1e226b75…cdd86`, `5fad1163…43621`, and `4994bc63…32312a`.
+This supersedes the older offscreen pair as the current diagnostic format but still cannot close M12.
