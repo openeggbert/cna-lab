@@ -81,6 +81,14 @@ namespace
         int relays = 0;
         int plants = 0;
         int tables = 0;
+        int healthPickups = 0;
+        int ammoPickups = 0;
+        int repeaterPickups = 0;
+        int heavyWeaponPickups = 0;
+        int guards = 0;
+        int hounds = 0;
+        int rapidTroopers = 0;
+        int heavyUnits = 0;
         for (const std::string& row : rows)
         {
             for (const char symbol : row)
@@ -95,6 +103,22 @@ namespace
                     ++plants;
                 else if (symbol == 'Y')
                     ++tables;
+                else if (symbol == 'H')
+                    ++healthPickups;
+                else if (symbol == 'A')
+                    ++ammoPickups;
+                else if (symbol == 'W')
+                    ++repeaterPickups;
+                else if (symbol == 'V')
+                    ++heavyWeaponPickups;
+                else if (symbol == 'G')
+                    ++guards;
+                else if (symbol == 'K')
+                    ++hounds;
+                else if (symbol == 'F')
+                    ++rapidTroopers;
+                else if (symbol == 'U')
+                    ++heavyUnits;
             }
         }
         Expect(walkable >= 1500, std::string(name) + " uses a substantial part of its footprint");
@@ -103,6 +127,14 @@ namespace
         Expect(relays == 1, std::string(name) + " has one power relay");
         Expect(plants == 3, std::string(name) + " has three sector plants");
         Expect(tables == 2, std::string(name) + " has two polygonal tables");
+        Expect(healthPickups >= 2, std::string(name) + " has recovery beyond one health kit");
+        const int guaranteedAmmo =
+            ammoPickups * 6 + repeaterPickups * 6 + heavyWeaponPickups * 10 +
+            guards * 3 + rapidTroopers * 5 + heavyUnits * 8;
+        const int hitsToClear = guards * 3 + hounds * 2 + rapidTroopers * 4 + heavyUnits * 8;
+        Expect(
+            guaranteedAmmo >= hitsToClear,
+            std::string(name) + " has enough guaranteed ammunition for a full clear");
     }
 }
 

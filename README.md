@@ -36,6 +36,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - defeated guards, rapid troopers and heavy units drop 3, 5 and 8 collectible rounds respectively; hounds do not drop ammunition
 - health, ammunition and three differently valued treasures use original transparent pixel-art pickup sprites instead of colored blocks
 - health kits remain in the level at 100% health and can be collected after the player takes damage
+- every sector provides at least two health kits and enough fixed/drop ammunition for a deterministic full clear
 - no external copyrighted game assets
 - original title menu with difficulty selection before a run begins
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
