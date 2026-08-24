@@ -557,6 +557,9 @@ pipes encoded. Backticks, markup-like names, pipes, and non-printable filename c
 remain literal provenance data rather than Markdown/HTML structure.
 Duplicate object keys are malformed input rather than last-value-wins aliases; this applies to both
 generated profiles and external evidence manifests.
+Python's otherwise accepted non-standard numeric constants `NaN`, `Infinity`, and `-Infinity` are
+also rejected during parsing, including in unknown extension fields, so every accepted file is
+strict JSON before schema-specific validation begins.
 Exactly one `--vram-bundle ORIGINAL EVIDENCE ARTIFACT` must correspond, by argument order, to each
 enriched capture in a qualifying report. The generator reconstructs and verifies each enriched
 capture before parsing it and rejects a missing bundle, missing source, hash mismatch, semantic

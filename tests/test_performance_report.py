@@ -523,6 +523,25 @@ class PerformanceReportTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("duplicate JSON object key 'schema_version'", result.stderr)
 
+            non_standard_path = Path(directory) / "non-standard-number.json"
+            non_standard = capture_fixture()
+            non_standard["ignored_extension"] = float("nan")
+            non_standard_path.write_text(json.dumps(non_standard), encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--hardware",
+                    "Test hardware",
+                    str(non_standard_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("non-standard JSON numeric constant 'NaN'", result.stderr)
+
     def test_output_is_atomic_and_never_overwrites_evidence_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

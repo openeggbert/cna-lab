@@ -593,3 +593,14 @@ its derived 16.667-33.333 ms bucket to 10 ms. Report 7/7, comparator 7/7, and VR
 pass. Both retained Xvfb captures pass the new invariant checks and the diagnostic self-comparison
 retains `df217f17…41cd0`. Raw samples are still intentionally not archived, so this proves internal
 consistency rather than recomputing exact p95 from first principles.
+
+## 2026-08-24 — strict non-finite JSON refusal
+
+Python's standard JSON decoder accepts JavaScript-style `NaN`, `Infinity`, and `-Infinity` even
+though JSON does not. The shared capture/manifest loader now rejects all three via its parse hook
+before inspecting the schema, so hiding one in an unknown extension field cannot produce a
+non-portable accepted archive. Existing duplicate-key refusal is unchanged.
+
+Report coverage places `NaN` in an unused capture field, comparator coverage uses `Infinity`, and
+the VRAM manifest test uses `-Infinity`; all exit 2. Focused suites remain report 7/7, comparator
+7/7, and VRAM 6/6. This is parser integrity only and does not affect the physical M12 blocker.

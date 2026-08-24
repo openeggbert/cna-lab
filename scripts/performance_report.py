@@ -103,8 +103,16 @@ def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def _reject_json_constant(value: str) -> None:
+    raise ReportError(f"non-standard JSON numeric constant {value!r} is not allowed")
+
+
 def _strict_json_load(source: TextIO) -> Any:
-    return json.load(source, object_pairs_hook=_unique_json_object)
+    return json.load(
+        source,
+        object_pairs_hook=_unique_json_object,
+        parse_constant=_reject_json_constant,
+    )
 
 
 def _file_sha256(path: Path) -> str:

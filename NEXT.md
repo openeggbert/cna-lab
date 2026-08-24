@@ -67,6 +67,14 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 evidence parsing is now strict about numeric JSON syntax.** The shared loader rejects
+Python's non-standard `NaN`, `Infinity`, and `-Infinity` tokens before schema validation, even when
+they occur in an otherwise ignored extension field.
+
+- Report, comparator, and VRAM manifest coverage each exercise a different forbidden constant.
+  Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass.
+- This closes a deterministic/interoperable parsing gap; it does not add physical evidence.
+
 **M12 measurement summaries now have independently checked invariants.** Every measurement rejects
 nonzero statistics with zero samples, unequal one-sample summaries, or average/p95 above maximum.
 Frame p95 must also lie in the histogram bucket containing the nearest-rank 95th-percentile sample.

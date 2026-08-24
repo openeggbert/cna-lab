@@ -272,6 +272,11 @@ nearest-rank p95 bucket, and `frame_interval.p95_ms` must lie within its thresho
 tests reject all three contradiction classes. Report 7/7, comparator 7/7, VRAM 6/6, both retained
 Xvfb captures, and the known-hash self-comparison pass; no graphical process was launched.
 
+The common JSON loader now rejects non-standard `NaN`, `Infinity`, and `-Infinity` constants at
+parse time, including in unknown fields, alongside its existing duplicate-key refusal. Report,
+comparator, and VRAM manifest tests each cover one token and exit 2. Focused suites remain 7/7,
+7/7, and 6/6; no runtime process was launched.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

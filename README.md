@@ -140,9 +140,10 @@ reconstructs the expected output and rejects any missing, cross-bound, or edited
 The exact manifest schema, hash procedure, accepted measurement scope, and limitations are in
 [`docs/performance-targets.md`](docs/performance-targets.md#binding-complete-external-vram-evidence).
 Profile and manifest parsing is strict: duplicate JSON object keys are rejected instead of silently
-using the last occurrence. Complete-residency evidence must name `iron_gang`/`iron_gang.exe` with a
-positive PID and a strictly positive UTC measurement interval. Generated profiles record the same
-PID and their own UTC session interval; binding requires an exact PID match and external interval
+using the last occurrence, and non-standard `NaN`/`Infinity` numeric tokens are rejected anywhere
+in the document. Complete-residency evidence must name `iron_gang`/`iron_gang.exe` with a positive
+PID and a strictly positive UTC measurement interval. Generated profiles record the same PID and
+their own UTC session interval; binding requires an exact PID match and external interval
 containment.
 
 To compare one compatible capture against a named historical baseline with CI-significant

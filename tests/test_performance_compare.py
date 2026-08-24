@@ -324,6 +324,12 @@ class PerformanceCompareTests(unittest.TestCase):
         self.assertIn("incompatible video_memory.complete_evidence.tool.version", result.stderr)
 
         candidate = deepcopy(baseline)
+        candidate["ignored_extension"] = float("inf")
+        result = self.run_compare(baseline, candidate)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("non-standard JSON numeric constant 'Infinity'", result.stderr)
+
+        candidate = deepcopy(baseline)
         candidate["swap_interval"]["applied"] = 0
         result = self.run_compare(baseline, candidate)
         self.assertEqual(result.returncode, 2)

@@ -389,6 +389,13 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("duplicate JSON object key 'schema_version'", result.stderr)
 
+            evidence = evidence_fixture(capture_path, artifact_path)
+            evidence["ignored_extension"] = float("-inf")
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("non-standard JSON numeric constant '-Infinity'", result.stderr)
+
     def test_mutated_raw_artifact_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             capture_path, evidence_path, artifact_path, output_path = self.write_inputs(
