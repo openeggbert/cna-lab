@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -12,6 +13,13 @@ from pathlib import Path
 
 
 SCRIPT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path("scripts/performance_report.py")
+VRAM_SCRIPT = (
+    Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else Path("scripts/vram_evidence.py")
+)
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def capture_fixture() -> dict:
@@ -90,15 +98,98 @@ def capture_fixture() -> dict:
 
 
 class PerformanceReportTests(unittest.TestCase):
-    def run_report(self, captures: list[dict], *arguments: str) -> subprocess.CompletedProcess[str]:
+    def bind_capture(
+        self,
+        directory: Path,
+        index: int,
+        capture: dict,
+    ) -> tuple[Path, tuple[Path, Path, Path]]:
+        original_path = directory / f"original-{index}.json"
+        evidence_path = directory / f"evidence-{index}.json"
+        artifact_path = directory / f"artifact-{index}.bin"
+        enriched_path = directory / f"capture-{index}.json"
+
+        original = deepcopy(capture)
+        video = original["video_memory"]
+        evidence_template = video.pop("complete_evidence")
+        logical_bytes = video.pop("logical_tracked_bytes")
+        video["tracked_bytes"] = logical_bytes
+        video["game_owned_bytes"] = logical_bytes
+        video["imported_model_buffer_bytes"] = 0
+        video["imported_model_texture_bytes"] = 0
+        video["tracking_complete"] = False
+        video["tracked_budget_pass"] = True
+        video["coverage"] = "logical report-test resources only"
+        original_path.write_text(json.dumps(original), encoding="utf-8")
+        artifact_path.write_bytes(f"raw report-test profiler artifact {index}".encode())
+        evidence = {
+            "schema_version": 1,
+            "measurement_scope": evidence_template["measurement_scope"],
+            "hardware_identity": evidence_template["hardware_identity"],
+            "tool": evidence_template["tool"],
+            "process": evidence_template["process"],
+            "measurement": evidence_template["measurement"],
+            "profile_capture_sha256": sha256(original_path),
+            "source_artifact": {
+                "file_name": artifact_path.name,
+                "sha256": sha256(artifact_path),
+            },
+        }
+        evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+        binding = subprocess.run(
+            [
+                sys.executable,
+                str(VRAM_SCRIPT),
+                "--capture",
+                str(original_path),
+                "--evidence",
+                str(evidence_path),
+                "--artifact",
+                str(artifact_path),
+                "--output",
+                str(enriched_path),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(binding.returncode, 0, binding.stderr)
+        return enriched_path, (original_path, evidence_path, artifact_path)
+
+    def run_report(
+        self,
+        captures: list[dict],
+        *arguments: str,
+        include_bundles: bool = True,
+        tamper_first_artifact: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
             paths: list[str] = []
+            bundle_arguments: list[str] = []
+            qualifying = "--qualifying-hardware" in arguments
             for index, capture in enumerate(captures):
-                path = Path(directory) / f"capture-{index}.json"
-                path.write_text(json.dumps(capture), encoding="utf-8")
+                if qualifying and include_bundles and capture["video_memory"]["tracking_complete"]:
+                    path, bundle = self.bind_capture(root, index, capture)
+                    if index == 0 and tamper_first_artifact:
+                        bundle[2].write_bytes(b"tampered report-test profiler artifact")
+                    bundle_arguments.extend(
+                        ["--vram-bundle", *(str(bundle_path) for bundle_path in bundle)]
+                    )
+                else:
+                    path = root / f"capture-{index}.json"
+                    path.write_text(json.dumps(capture), encoding="utf-8")
                 paths.append(str(path))
             return subprocess.run(
-                [sys.executable, str(SCRIPT), "--hardware", arguments[0], *arguments[1:], *paths],
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--hardware",
+                    arguments[0],
+                    *arguments[1:],
+                    *bundle_arguments,
+                    *paths,
+                ],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -126,6 +217,25 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertIn("- None.", result.stdout)
         self.assertEqual(result.stdout.count("| PASS |"), 2)
 
+        result = self.run_report(
+            [first, second],
+            "Minimum Linux EasyGL GPU",
+            "--qualifying-hardware",
+            include_bundles=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("require one --vram-bundle", result.stderr)
+
+        result = self.run_report(
+            [first, second],
+            "Minimum Linux EasyGL GPU",
+            "--qualifying-hardware",
+            tamper_first_artifact=True,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("VRAM bundle verification failed", result.stderr)
+        self.assertIn("source_artifact.sha256 does not match", result.stderr)
+
     def test_copied_capture_does_not_meet_repeatability_requirement(self) -> None:
         first = capture_fixture()
         second = deepcopy(first)
@@ -140,12 +250,12 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertIn("Overall status: **FAIL**", result.stdout)
         self.assertIn("mixed captures with distinct canonical contents", result.stdout)
 
-    def test_incomplete_capture_fails_qualification(self) -> None:
+    def test_swap_failure_and_incomplete_diagnostic_are_reported(self) -> None:
         first = capture_fixture()
         second = deepcopy(first)
+        second["measurements"]["frame_interval"]["p95_ms"] = 17.1
         first["swap_interval"]["apply_succeeded"] = False
         first["swap_interval"]["applied"] = None
-        second["video_memory"]["tracking_complete"] = False
         result = self.run_report(
             [first, second],
             "Minimum Linux EasyGL GPU",
@@ -154,6 +264,12 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Overall status: **FAIL**", result.stdout)
         self.assertIn("lacks a successful platform acknowledgement", result.stdout)
+
+        incomplete = capture_fixture()
+        incomplete["video_memory"]["tracking_complete"] = False
+        result = self.run_report([incomplete], "Test diagnostic hardware")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Overall status: **DIAGNOSTIC**", result.stdout)
         self.assertIn("VRAM tracking is incomplete", result.stdout)
 
     def test_complete_evidence_must_match_hardware_label(self) -> None:
@@ -173,7 +289,6 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report(
             [first, second],
             "Minimum Linux EasyGL GPU",
-            "--qualifying-hardware",
         )
         self.assertEqual(result.returncode, 2)
         self.assertIn("must identify iron_gang", result.stderr)

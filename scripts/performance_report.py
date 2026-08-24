@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import re
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -58,6 +60,14 @@ def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def _strict_json_load(source: TextIO) -> Any:
     return json.load(source, object_pairs_hook=_unique_json_object)
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def _mapping(value: Any, label: str) -> dict[str, Any]:
@@ -499,6 +509,15 @@ def parse_args(arguments: list[str]) -> argparse.Namespace:
         action="store_true",
         help="declare that captures came from controlled physical minimum-target hardware",
     )
+    parser.add_argument(
+        "--vram-bundle",
+        action="append",
+        default=[],
+        nargs=3,
+        type=Path,
+        metavar=("ORIGINAL", "EVIDENCE", "ARTIFACT"),
+        help="verify these three archived sources against the corresponding enriched capture",
+    )
     parser.add_argument("--output", type=Path, help="write Markdown here instead of stdout")
     parser.add_argument("--title", default="Iron Gang M12 performance release report")
     return parser.parse_args(arguments)
@@ -507,7 +526,47 @@ def parse_args(arguments: list[str]) -> argparse.Namespace:
 def main(arguments: list[str] | None = None) -> int:
     options = parse_args(sys.argv[1:] if arguments is None else arguments)
     try:
+        bundles: list[list[Path]] = options.vram_bundle
+        if options.qualifying_hardware and len(bundles) != len(options.captures):
+            raise ReportError(
+                "qualifying reports require one --vram-bundle ORIGINAL EVIDENCE ARTIFACT "
+                "for every enriched capture"
+            )
+        if bundles and len(bundles) != len(options.captures):
+            raise ReportError("--vram-bundle count must match the capture count")
+
+        verified_capture_hashes: list[str] = []
+        verifier = Path(__file__).resolve().with_name("vram_evidence.py")
+        for capture_path, bundle in zip(options.captures, bundles):
+            capture_sha256 = _file_sha256(capture_path)
+            verification = subprocess.run(
+                [
+                    sys.executable,
+                    str(verifier),
+                    "--capture",
+                    str(bundle[0]),
+                    "--evidence",
+                    str(bundle[1]),
+                    "--artifact",
+                    str(bundle[2]),
+                    "--verify-enriched",
+                    str(capture_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if verification.returncode != 0:
+                detail = verification.stderr.strip() or "verification command failed"
+                raise ReportError(f"VRAM bundle verification failed for {capture_path}: {detail}")
+            if _file_sha256(capture_path) != capture_sha256:
+                raise ReportError(f"{capture_path} changed while its VRAM bundle was verified")
+            verified_capture_hashes.append(capture_sha256)
+
         captures = [load_capture(path) for path in options.captures]
+        for capture_path, expected_sha256 in zip(options.captures, verified_capture_hashes):
+            if _file_sha256(capture_path) != expected_sha256:
+                raise ReportError(f"{capture_path} changed after its VRAM bundle was verified")
         report = build_markdown(
             options.captures,
             captures,

@@ -114,8 +114,10 @@ hardware:
 
 Physical qualification additionally requires `--qualifying-hardware`, an explicit CPU/GPU/driver/
 display identity, at least two mixed captures with distinct canonical contents, acknowledged
-presentation, and complete VRAM evidence. A copied/renamed/reformatted single capture does not
-satisfy repeatability. See
+presentation, complete VRAM evidence, and one ordered archived source bundle per enriched capture.
+A copied/renamed/reformatted single capture does not satisfy repeatability, and an enriched JSON
+without its original profile, evidence manifest, and raw profiler artifact is invalid qualifying
+input. See
 [`docs/performance-targets.md`](docs/performance-targets.md#release-summary-generator).
 
 When complete per-process VRAM residency comes from a vendor/OS profiler, bind its raw artifact and
@@ -254,5 +256,8 @@ All of gates M0-M11 are now fully done at prototype/first-pass fidelity. M12 is 
 `scripts/performance_report.py` turns schema-8 captures into a release Markdown summary and
 deliberately keeps unasserted or Xvfb/llvmpipe runs diagnostic. A qualifying pass requires two
 mixed physical-hardware captures with distinct canonical contents, acknowledged presentation,
-complete VRAM, and every locked minimum budget; a copied capture under a second path is explicitly
-rejected by its CTest coverage.
+complete VRAM, and every locked minimum budget. Each qualifying enriched capture must also be
+paired, in input order, with `--vram-bundle <original-profile> <evidence-manifest> <raw-artifact>`;
+the report re-runs full four-file archive verification before evaluating it. A copied capture under
+a second path, a missing source file, or a subsequently changed artifact is explicitly rejected by
+CTest coverage.

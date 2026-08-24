@@ -441,8 +441,9 @@ it therefore detects a stale, cross-bound, or subsequently edited enriched profi
 This contract binds evidence; it does not certify a profiler's semantics or fabricate a
 measurement. `apitrace`, adapter-global free-memory queries, Xvfb/llvmpipe, and a hand-authored
 manifest without an authoritative complete-residency artifact remain non-qualifying. Archive the
-original profile JSON, raw profiler artifact, evidence manifest, and enriched JSON together; later
-report generation validates embedded hashes and metadata but cannot recreate a missing raw file.
+original profile JSON, raw profiler artifact, evidence manifest, and enriched JSON together. A
+qualifying report requires all four files and invokes the same reconstruction verifier itself; it
+does not accept embedded hashes alone and cannot recreate a missing source file.
 
 A repeatable representative capture is:
 
@@ -505,20 +506,34 @@ canonical performance contents, and write the release artifact:
 ./scripts/performance_report.py \
   --hardware "<CPU, GPU, driver, display/compositor identity>" \
   --qualifying-hardware \
+  --vram-bundle \
+    runtime/performance/m12-mixed-01.json \
+    runtime/performance/m12-vram-evidence-01.json \
+    runtime/performance/vendor-capture-01.bin \
+  --vram-bundle \
+    runtime/performance/m12-mixed-02.json \
+    runtime/performance/m12-vram-evidence-02.json \
+    runtime/performance/vendor-capture-02.bin \
   --output runtime/performance/m12-release-summary.md \
-  runtime/performance/m12-mixed-01.json \
-  runtime/performance/m12-mixed-02.json
+  runtime/performance/m12-mixed-01-complete.json \
+  runtime/performance/m12-mixed-02-complete.json
 ```
 
 `--qualifying-hardware` is an operator assertion, not automatic hardware detection. The generator
 still rejects labels identifying Xvfb/llvmpipe/software rasterization and requires Release
 OPENGLES3, at least 1280x720, a successfully acknowledged swap interval, direct p95 budget passes,
 known RAM, complete VRAM accounting within budget, and a real passing district transition in each
-mixed capture. It reports `FAIL` when a declared qualification misses any condition and exits zero
-because the report was generated successfully; malformed/stale input exits 2. `PASS` is therefore
-a strict evidence summary, while successful command execution alone is not a gate result.
+mixed capture. Once all mandatory archive inputs verify, it reports `FAIL` when a declared
+qualification misses a measured condition and exits zero because the report was generated
+successfully. Missing/unverifiable archives and other malformed or stale input exit 2. `PASS` is
+therefore a strict evidence summary, while successful command execution alone is not a gate result.
 Duplicate object keys are malformed input rather than last-value-wins aliases; this applies to both
 generated profiles and external evidence manifests.
+Exactly one `--vram-bundle ORIGINAL EVIDENCE ARTIFACT` must correspond, by argument order, to each
+enriched capture in a qualifying report. The generator reconstructs and verifies each enriched
+capture before parsing it and rejects a missing bundle, missing source, hash mismatch, semantic
+change, or capture mutation during verification with exit 2. Diagnostic reports remain usable
+without archived bundles and stay `DIAGNOSTIC`.
 Renaming, copying, or changing only JSON whitespace cannot turn one capture into the two independent
 runs required for repeatability. Canonical performance identity is independent of file path and key
 ordering and normalizes externally bound VRAM metadata, so rebinding the same original profile to a

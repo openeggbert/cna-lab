@@ -67,6 +67,20 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 qualifying reports now require the complete archived VRAM source bundle.** An enriched JSON
+alone can no longer reach the physical qualification path. For every enriched capture,
+`performance_report.py --qualifying-hardware` requires an ordered `--vram-bundle ORIGINAL EVIDENCE
+ARTIFACT`, invokes the existing whole-object archive verifier, and confirms the enriched input did
+not change across verification and parsing.
+
+- Missing/misaligned bundles and missing or changed sources exit 2 before a gate result. Diagnostic
+  reports remain readable without archives and stay `DIAGNOSTIC`.
+- The synthetic release integration binds two independent four-file bundles. Tests additionally
+  prove missing-bundle and post-binding raw-artifact mutation refusal; report, VRAM, and comparator
+  suites remain 6/6.
+- This closes an evidence-integrity gap only. No physical complete-residency artifact exists here,
+  so M12 remains open and the next action is still a controlled named-hardware capture.
+
 **M12 complete-VRAM evidence is now correlated to the exact profiled process session.** Generated
 schema-8 reports add backward-compatible `capture_session` metadata: `iron_gang` executable,
 PID-known state/value, and microsecond UTC start/end spanning profile enablement through report
@@ -195,13 +209,15 @@ Markdown with per-capture frame/CPU/RAM/VRAM/load/hitch/presentation evidence. I
 checks raw measurements against locked targets and separates `DIAGNOSTIC`, `FAIL`, and `PASS`.
 Qualification needs at least two mixed captures with distinct canonical contents, explicit physical
 hardware identity, Release OPENGLES3, acknowledged swap application, complete VRAM, and every
-minimum budget; copies under another path and labels containing Xvfb/llvmpipe/software rasterizer
-are never promoted.
+minimum budget. The current path additionally verifies an ordered original/manifest/raw-artifact
+archive for each enriched capture; copies under another path, missing sources, and labels containing
+Xvfb/llvmpipe/software rasterizer are never promoted.
 
 - New `iron_gang_performance_report_tests` makes CTest 4/4 and covers diagnostic virtual input, a
-  synthetic two-capture pass, swap/VRAM failures, stale schema, and inconsistent histograms. The
-  real latest Xvfb report correctly produces `DIAGNOSTIC` with one-run, virtual-display,
-  rejected-swap, and incomplete-VRAM blockers while retaining its useful numbers.
+  synthetic two-capture pass, swap/VRAM failures, stale schema, and inconsistent histograms. Later
+  hardening rebuilt the pass from two independent verified archives and added missing/mutated
+  archive refusal. The real latest Xvfb report correctly produces `DIAGNOSTIC` with one-run,
+  virtual-display, rejected-swap, and incomplete-VRAM blockers while retaining its useful numbers.
 - The CLI is standard-library Python only. `docs/performance-targets.md` documents diagnostic and
   physical commands, explicit operator-assertion semantics, Markdown output, and exit behavior.
   Successful report generation is not itself a passing M12 result.

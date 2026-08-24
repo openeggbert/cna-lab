@@ -219,7 +219,8 @@ if(IRON_GANG_BUILD_TESTS)
     add_test(NAME iron_gang_performance_report_tests
         COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_performance_report.py"
-            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/performance_report.py")
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/performance_report.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/vram_evidence.py")
     add_test(NAME iron_gang_performance_compare_tests
         COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_performance_compare.py"

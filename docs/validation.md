@@ -117,9 +117,11 @@ The release-summary follow-up adds `scripts/performance_report.py`, a standard-l
 Markdown generator that independently evaluates raw measurements against locked targets. It
 requires two mixed captures with distinct canonical contents, explicit physical hardware identity,
 Release OPENGLES3, acknowledged presentation, complete VRAM, and all direct budgets before emitting `PASS`; absent
-qualification remains `DIAGNOSTIC`, while declared but incomplete evidence is `FAIL`. A new fourth
-CTest covers diagnostic Xvfb, a synthetic two-capture pass, duplicate-copy refusal, swap/VRAM
-failures, stale schemas, and histogram mismatch. The real isolated capture correctly remains
+qualification remains `DIAGNOSTIC`, while a declared qualification with verified archives but
+measured blockers is `FAIL`. Missing or unverifiable archive sources are invalid input (exit 2), as
+recorded by the later archive-enforcement follow-up. A new fourth CTest covers diagnostic Xvfb, a
+synthetic two-capture pass, duplicate-copy refusal, swap/VRAM failures, stale schemas, and histogram
+mismatch. The real isolated capture correctly remains
 diagnostic with one-run, virtual-display, rejected-swap, and incomplete-VRAM blockers.
 
 The content-budget follow-up adds versioned `assets/content-budgets.json` plus standard-library
@@ -179,6 +181,15 @@ game capture. Python fixtures cover PID/interval mismatch; the C++ report test c
 metadata. Software, development/Release EasyGL, Web/Emscripten, strict syntax, and all 8 CTests pass.
 A 60-frame Release EasyGL `idle` run on isolated Xvfb emitted a positive 1.198-second session and
 remained correctly diagnostic; no host-visible window was used.
+
+The qualification-archive follow-up makes the report itself re-run complete four-file VRAM
+verification. Every declared qualifying enriched capture now requires one ordered
+`--vram-bundle` containing its original profile, manifest, and raw profiler artifact. Missing
+bundles/sources, count mismatches, raw-artifact mutation, semantic enriched-output changes, and an
+enriched input changing during verification/parsing exit 2 before evaluation. The report and VRAM
+CLI suites both remain 6/6, including a two-independent-bundle synthetic `PASS`; diagnostics remain
+readable without bundles. This strengthens provenance but does not supply the still-missing
+physical M12 capture.
 
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,

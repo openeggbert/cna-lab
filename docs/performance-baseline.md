@@ -337,10 +337,12 @@ boundary, RAM, and logical VRAM evidence in its per-capture table.
 
 A synthetic two-capture test proves the strict physical path can reach `PASS` only with Release
 OPENGLES3, acknowledged presentation, complete in-budget VRAM, and all direct minimum budgets
-passing. Separate tests prove a copied capture under a second path, stale schema, inconsistent
-histograms, rejected swap application, and incomplete VRAM cannot be promoted. Repeatability uses
-canonical JSON object contents rather than paths or formatting. The CLI cases are wired into CTest as
-`iron_gang_performance_report_tests`; generating a report successfully never by itself closes M12.
+passing. The current integration binds two independent archive bundles; separate tests prove a
+copied capture under a second path, missing archive, mutated raw artifact, stale schema,
+inconsistent histograms, rejected swap application, and incomplete VRAM cannot be promoted.
+Repeatability uses canonical JSON object contents rather than paths or formatting. The CLI cases
+are wired into CTest as `iron_gang_performance_report_tests`; generating a report successfully never
+by itself closes M12.
 
 ## 2026-08-24 — automated capture-comparison follow-up
 
@@ -452,3 +454,18 @@ gap where an operator-provided manifest could not be correlated to the profiled 
 60-frame Release EasyGL `idle` integration ran only on isolated Xvfb and emitted PID `1059289` with
 `2026-08-24T12:31:41.991744Z` through `2026-08-24T12:31:43.189643Z`. The report parsed it as
 `DIAGNOSTIC`; Xvfb, rejected swap acknowledgement, and incomplete VRAM remain unchanged blockers.
+
+## 2026-08-24 — qualification archive enforcement
+
+The release-summary path no longer accepts an enriched complete-VRAM JSON as sufficient evidence
+by itself. Every capture in a declared physical qualification must have an ordered
+`--vram-bundle ORIGINAL EVIDENCE ARTIFACT`; the report invokes `vram_evidence.py
+--verify-enriched` and checks that the enriched input does not change across verification and
+parsing. Missing sources, mismatched counts, altered raw artifacts, stale manifests, cross-bound
+captures, and semantically edited enriched outputs exit 2 before any gate result is emitted.
+
+The synthetic integration now creates and verifies two independent four-file bundles. Focused
+coverage also proves that omitting the bundles or mutating a raw artifact after binding is refused.
+Ordinary diagnostic reports intentionally remain readable without archive sources. No physical
+profiler artifact is available in this workspace, so this closes an evidence-integrity gap rather
+than M12 itself.
