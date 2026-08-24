@@ -779,10 +779,25 @@ namespace WolfCna
                 weaponY += recoil;
             }
         }
-        hudSpriteBatch_->Draw(
-            *viewTexture,
-            Rectangle(weaponX, weaponY, weaponSize, weaponSize),
-            Color(255, 255, 255, 255));
+        const Rectangle weaponRectangle(weaponX, weaponY, weaponSize, weaponSize);
+        if (weaponFlashSeconds_ > 0.0f && weapon_ != Weapon::Knife)
+        {
+            hudSpriteBatch_->Draw(
+                *idleTexture,
+                weaponRectangle,
+                Color(255, 255, 255, 255));
+            hudSpriteBatch_->Draw(
+                *attackTexture,
+                weaponRectangle,
+                Color(255, 255, 255, 176));
+        }
+        else
+        {
+            hudSpriteBatch_->Draw(
+                *viewTexture,
+                weaponRectangle,
+                Color(255, 255, 255, 255));
+        }
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), panelY, viewport.getWidthProperty(), panelHeight), Color(31, 62, 137, 255));
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), panelY, viewport.getWidthProperty(), 3), Color(14, 25, 70, 255));
         const Color labelColor(188, 213, 255, 255);
