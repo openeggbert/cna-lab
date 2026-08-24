@@ -111,8 +111,13 @@ private:
     float poseTimeRemaining_{};
 
     [[nodiscard]] Rect playerRect() const noexcept;
-    [[nodiscard]] const HotspotDefinition* nearbyHotspotFor(Verb verb) const noexcept;
-    [[nodiscard]] bool hasApplicableRule(Verb verb, std::string_view targetId) const noexcept;
+    [[nodiscard]] const HotspotDefinition* nearbyHotspotFor(
+        Verb verb,
+        std::optional<std::string_view> itemId = std::nullopt) const noexcept;
+    [[nodiscard]] bool hasApplicableRule(
+        Verb verb,
+        std::string_view targetId,
+        std::optional<std::string_view> itemId = std::nullopt) const noexcept;
     [[nodiscard]] bool isSupported() const;
     [[nodiscard]] bool horizontalBlocked(const Rect& candidate) const;
     [[nodiscard]] const ExitDefinition* exitFor(Direction direction) const noexcept;

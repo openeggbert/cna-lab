@@ -340,9 +340,14 @@ const HotspotDefinition* AdventureSession::nearbyHotspot() const noexcept {
     return best;
 }
 
-bool AdventureSession::hasApplicableRule(const Verb verb, const std::string_view targetId) const noexcept {
+bool AdventureSession::hasApplicableRule(
+    const Verb verb,
+    const std::string_view targetId,
+    const std::optional<std::string_view> itemId) const noexcept
+{
     for (const InteractionRule& rule : world_.interactions) {
         if (rule.verb != verb || rule.targetId != targetId) continue;
+        if (itemId.has_value() && rule.itemId != std::optional<std::string>{*itemId}) continue;
         if (!rule.onceFlag.empty() && flag(rule.onceFlag)) continue;
         if (!allConditionsSatisfied(rule.when)) continue;
         return true;
@@ -350,7 +355,10 @@ bool AdventureSession::hasApplicableRule(const Verb verb, const std::string_view
     return false;
 }
 
-const HotspotDefinition* AdventureSession::nearbyHotspotFor(const Verb verb) const noexcept {
+const HotspotDefinition* AdventureSession::nearbyHotspotFor(
+    const Verb verb,
+    const std::optional<std::string_view> itemId) const noexcept
+{
     if (mode_ != SessionMode::world) return nullptr;
     const Rect p = playerRect();
     const Vec2 center{p.x + p.width * 0.5F, p.y + p.height * 0.5F};
@@ -370,7 +378,7 @@ const HotspotDefinition* AdventureSession::nearbyHotspotFor(const Verb verb) con
             bestAny = &hotspot;
             bestAnyDistance = d;
         }
-        if (hasApplicableRule(verb, hotspot.id) && d < bestActionableDistance) {
+        if (hasApplicableRule(verb, hotspot.id, itemId) && d < bestActionableDistance) {
             bestActionable = &hotspot;
             bestActionableDistance = d;
         }
@@ -642,7 +650,13 @@ void AdventureSession::finishChoice() {
     mode_ = SessionMode::world;
 
     if (choicePurpose_ == ChoicePurpose::useItem && pendingTarget_.has_value() && selected.itemId.has_value()) {
-        const InteractionRule* rule = findRule(Verb::use, *pendingTarget_, selected.itemId);
+        // Resolve the target again with the selected item. A scene may contain
+        // overlapping interaction areas (for example a fuse holder above a
+        // generator lever); the item-specific rule is a stronger signal than
+        // whichever hotspot happened to be closest before the inventory menu.
+        const HotspotDefinition* itemTarget = nearbyHotspotFor(Verb::use, *selected.itemId);
+        const std::string targetId = itemTarget != nullptr ? itemTarget->id : *pendingTarget_;
+        const InteractionRule* rule = findRule(Verb::use, targetId, selected.itemId);
         pendingTarget_.reset();
         choicePurpose_ = ChoicePurpose::none;
         if (rule != nullptr) executeRule(*rule);

@@ -28,6 +28,8 @@ static e2d::WorldDefinition makeWorld() {
     world.startRoom = "a";
     world.addItem({"key", testText("KEY", "KLÍČ"),
         testText("A small test key.", "Malý zkušební klíč."), true});
+    world.addItem({"fuse", testText("FUSE", "POJISTKA"),
+        testText("A ceramic test fuse.", "Keramická zkušební pojistka."), true});
 
     e2d::RoomDefinition a;
     a.id = "a";
@@ -36,6 +38,13 @@ static e2d::WorldDefinition makeWorld() {
     a.travelAnchor = true;
     a.solids.push_back({0, 260, 492, 28});
     a.hotspots.push_back({"box", "BOX", {0, 200, 80, 60}, e2d::HotspotKind::item, {}, {}});
+    // These deliberately overlap. The nearer lever has a rule for KEY, while
+    // the holder has a rule for FUSE. USE must resolve the target after the
+    // player chooses an inventory item.
+    a.hotspots.push_back({"test_lever", "LEVER", {30, 200, 70, 60},
+        e2d::HotspotKind::mechanism, {}, {}});
+    a.hotspots.push_back({"test_fuse_holder", "FUSE HOLDER", {0, 190, 100, 70},
+        e2d::HotspotKind::mechanism, {}, {}});
     a.animations.push_back({"box_flash", false, false, {}, {
         {1, {e2d::CircleVisual{{40, 205}, 5, e2d::PaletteColor::brightYellow, false}}},
         {2, {e2d::CircleVisual{{40, 205}, 8, e2d::PaletteColor::brightCyan, false}}},
@@ -59,9 +68,18 @@ static e2d::WorldDefinition makeWorld() {
     world.addInteraction({
         e2d::Verb::take, "box", std::nullopt, {},
         {{testText("You take the key.", "Vezmeš klíč."), e2d::MessageStyle::inspect}},
-        {e2d::Mutation::addItem("key"), e2d::Mutation::setFlag("box_taken"),
+        {e2d::Mutation::addItem("key"), e2d::Mutation::addItem("fuse"),
+            e2d::Mutation::setFlag("box_taken"),
             e2d::Mutation::playAnimation("box_flash")},
         0, "taken_once"});
+    world.addInteraction({
+        e2d::Verb::use, "test_lever", "key", {},
+        {{"The key turns the lever lock.", e2d::MessageStyle::inspect}},
+        {e2d::Mutation::setFlag("lever_unlocked")}, 0, ""});
+    world.addInteraction({
+        e2d::Verb::use, "test_fuse_holder", "fuse", {},
+        {{"The fuse fits the holder.", e2d::MessageStyle::inspect}},
+        {e2d::Mutation::removeItem("fuse"), e2d::Mutation::setFlag("fuse_installed")}, 0, ""});
     world.addInteraction({
         e2d::Verb::context, "box", std::nullopt, {},
         {{"I am standing beside the box.", e2d::MessageStyle::speech, e2d::MessageSpeaker::player},
@@ -169,6 +187,18 @@ int main() {
     session.advanceMessage();
     assert(session.messageAnchoredToTarget());
     assert(session.messageAnchor() == e2d::Vec2(40, 200));
+    session.advanceMessage();
+
+    session.performVerb(e2d::Verb::use);
+    assert(session.mode() == e2d::SessionMode::choice);
+    while (!session.choices()[session.selectionIndex()].itemId.has_value()
+        || *session.choices()[session.selectionIndex()].itemId != "fuse") {
+        session.menuMove(1);
+    }
+    session.confirm();
+    assert(session.flag("fuse_installed"));
+    assert(!session.flag("lever_unlocked"));
+    assert(!session.hasItem("fuse"));
     session.advanceMessage();
 
     const auto snapshot = session.snapshot();
