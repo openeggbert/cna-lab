@@ -135,7 +135,8 @@ pre-production `docs/GAME_DESIGN.md` intentionally remains English-only.
 
 Every room is presented only by its ordinary place name; catalogue numbers are
 internal design references and never appear in the scene artwork or F1 help.
-Left and right move between adjacent locations; important milestones become map anchors. Several
+Left and right follow outdoor paths, while visible doors, hatches and ladders
+use ENTER to connect authored interior branches; important milestones become map anchors. Several
 puzzles deliberately require returning to earlier equipment—for example, the
 generator can only start after downstream battery, fuel and transformer work,
 and the observatory dome key is found beyond the dome itself.
@@ -146,6 +147,9 @@ EXAMINE, conversations and revisiting locations are expected to matter.
 If you become stuck, press **F1**. Explore2D pauses the action and Black Pine
 selects the highest-priority unfinished objective whose conditions match the
 current session. The hint is localized and closes with F1, Enter, or Escape.
+
+Automated story completeness and human-readable playability are tracked
+separately in [`docs/PLAYABILITY_AUDIT.md`](docs/PLAYABILITY_AUDIT.md).
 
 ## License
 

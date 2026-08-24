@@ -116,6 +116,15 @@ static void context(e2d::AdventureSession& session, const e2d::WorldDefinition& 
     dismiss(session);
 }
 
+static void portal(e2d::AdventureSession& session, const e2d::WorldDefinition& world,
+    const std::string_view targetId, const std::string_view destinationRoom)
+{
+    walkToTarget(session, world, targetId);
+    session.jumpOrContext();
+    dismiss(session);
+    assert(session.currentRoomId() == destinationRoom);
+}
+
 static void examine(e2d::AdventureSession& session, const e2d::WorldDefinition& world,
     const std::string_view targetId, const std::string_view expectedFlag)
 {
@@ -181,12 +190,21 @@ int main() {
     const auto& markedDeerPath = hotspot(world, "s003_deer_path");
     const auto& returningDeerPath = hotspot(world, "s005_deer_path_return");
     const auto& cabinDoor = hotspot(world, "s006_cabin_door");
+    const auto& radioDoor = hotspot(world, "s007_radio_door");
+    const auto& cellarHatch = hotspot(world, "s007_cellar_hatch");
+    const auto& serviceHatch = hotspot(world, "s010_service_hatch");
     assert(ringingPhone.visuals.size() >= 10);
     assert(answeredPhone.visuals.size() >= 10);
     assert(markedDeerPath.visuals.size() >= 7);
     assert(returningDeerPath.visuals.size() >= 5);
     assert(cabinDoor.visuals.size() >= 4);
+    assert(radioDoor.visuals.size() >= 4);
+    assert(cellarHatch.visuals.size() >= 4);
+    assert(serviceHatch.visuals.size() >= 1);
     assert(world.room("caretaker_cabin_main")->decorations.size() >= 30);
+    assert(world.room("cabin_radio_nook")->decorations.size() >= 20);
+    assert(world.room("caretaker_tool_shed")->decorations.size() >= 20);
+    assert(world.room("cabin_root_cellar")->decorations.size() >= 25);
 
     std::size_t anchors = 0;
     std::size_t animatedRooms = 0;
@@ -216,19 +234,36 @@ int main() {
             assert(candidate.interactionArea.bottom() == 260.0F);
         }
         anchors += current->travelAnchor ? 1U : 0U;
-        if (i > 0) {
+        const bool authoredCaretakerHub = spec.number >= 6 && spec.number <= 11;
+        if (i > 0 && !authoredCaretakerHub) {
             assert(std::ranges::any_of(current->exits, [i](const e2d::ExitDefinition& exit) {
                 return exit.direction == e2d::Direction::left
                     && exit.destinationRoom == black_pine::content::screens[i - 1].id;
             }));
         }
-        if (i + 1 < black_pine::content::screens.size()) {
+        if (i + 1 < black_pine::content::screens.size() && !authoredCaretakerHub) {
             assert(std::ranges::any_of(current->exits, [i](const e2d::ExitDefinition& exit) {
                 return exit.direction == e2d::Direction::right
                     && exit.destinationRoom == black_pine::content::screens[i + 1].id;
             }));
         }
     }
+    const auto hasExit = [&world](const std::string_view roomId, const e2d::Direction direction,
+                             const std::string_view destination) {
+        return std::ranges::any_of(world.room(roomId)->exits,
+            [direction, destination](const e2d::ExitDefinition& exit) {
+                return exit.direction == direction && exit.destinationRoom == destination;
+            });
+    };
+    assert(hasExit("caretaker_cabin_exterior", e2d::Direction::left, "pine_hollow_footbridge"));
+    assert(hasExit("caretaker_cabin_exterior", e2d::Direction::right, "caretaker_tool_shed"));
+    assert(world.room("caretaker_cabin_main")->exits.empty());
+    assert(hasExit("cabin_radio_nook", e2d::Direction::left, "caretaker_cabin_main"));
+    assert(hasExit("caretaker_tool_shed", e2d::Direction::left, "caretaker_cabin_exterior"));
+    assert(hasExit("caretaker_tool_shed", e2d::Direction::right, "weather_mast_clearing"));
+    assert(world.room("cabin_root_cellar")->exits.empty());
+    assert(hasExit("weather_mast_clearing", e2d::Direction::left, "caretaker_tool_shed"));
+    assert(hasExit("weather_mast_clearing", e2d::Direction::right, "old_service_road_fork"));
     assert(anchors == 17);
     assert(visiblePickups >= 45);
     assert(animatedRooms > 80 && animatedRooms < world.rooms.size());
@@ -250,12 +285,23 @@ int main() {
     context(session, world, "s007_mara", "met_mara");
     examine(session, world, "s007_mara_desk", "key_revealed");
     take(session, world, "s007_take_brass_key", "brass_key");
+    assert(session.currentHint()->text.resolve("en").find("RADIO") != std::string_view::npos);
+    portal(session, world, "s007_radio_door", "cabin_radio_nook");
     take(session, world, "s008_take_site_map", "site_map");
+    assert(session.currentHint()->text.resolve("en").find("CELLAR") != std::string_view::npos);
+    portal(session, world, "s008_cabin_return", "caretaker_cabin_main");
+    portal(session, world, "s007_cellar_hatch", "cabin_root_cellar");
+    take(session, world, "s010_take_ceramic_fuse", "ceramic_fuse");
+    take(session, world, "s010_take_hand_crank_torch", "hand_crank_torch");
+    assert(session.currentHint()->text.resolve("en").find("SHED") != std::string_view::npos);
+    portal(session, world, "s010_cellar_stairs", "caretaker_cabin_main");
+    portal(session, world, "s007_cabin_exit", "caretaker_cabin_exterior");
+    portal(session, world, "s006_shed_path", "caretaker_tool_shed");
     take(session, world, "s009_take_wrench", "wrench");
     take(session, world, "s009_take_lineman_gloves", "lineman_gloves");
     take(session, world, "s009_take_pruning_saw", "pruning_saw");
-    take(session, world, "s010_take_ceramic_fuse", "ceramic_fuse");
-    take(session, world, "s010_take_hand_crank_torch", "hand_crank_torch");
+    assert(session.currentHint()->text.resolve("en").find("Vehicle Gate") != std::string_view::npos);
+    portal(session, world, "s009_mast_path", "weather_mast_clearing");
     use(session, world, "s014_vehicle_gate", "brass_key", "vehicle_gate_open");
     use(session, world, "s017_blue_terminals", "patch_cable", "cable_patched");
     use(session, world, "s018_main_fuse_holder", "ceramic_fuse", "fuse_installed");
@@ -460,6 +506,20 @@ int main() {
     keeperSession.jumpOrContext();
     assert(keeperSession.mode() == e2d::SessionMode::won);
     assert(keeperSession.terminalMessage().find("KEEPER OF BLACK PINE") != std::string_view::npos);
+
+    e2d::AdventureSession darkHatchSession{world};
+    auto darkHatchSnapshot = darkHatchSession.snapshot();
+    darkHatchSnapshot.roomId = "cabin_root_cellar";
+    darkHatchSnapshot.player.position = {340, 232};
+    assert(darkHatchSession.restore(darkHatchSnapshot));
+    walkToTarget(darkHatchSession, world, "s010_service_hatch");
+    darkHatchSession.jumpOrContext();
+    assert(darkHatchSession.mode() == e2d::SessionMode::message);
+    assert(darkHatchSession.currentRoomId() == "cabin_root_cellar");
+    dismiss(darkHatchSession);
+    darkHatchSnapshot.inventory.insert("hand_crank_torch");
+    assert(darkHatchSession.restore(darkHatchSnapshot));
+    portal(darkHatchSession, world, "s010_service_hatch", "weather_mast_clearing");
 
     e2d::AdventureSession safeRouteSession{world};
     context(safeRouteSession, world, "s001_emergency_phone", "mission_started");

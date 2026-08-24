@@ -311,6 +311,110 @@ void replaceWithCabinInterior(e2d::RoomDefinition& result) {
     });
 }
 
+void replaceWithRadioNookInterior(e2d::RoomDefinition& result) {
+    result.background = P::black;
+    result.decorations.clear();
+    result.decorations.insert(result.decorations.end(), {
+        box(0, 0, 492, 260, P::brown),
+        box(10, 12, 472, 208, P::darkGray),
+        box(20, 22, 452, 188, P::brown),
+        box(0, 220, 492, 40, P::darkGray),
+        line(0, 220, 492, 220, amber),
+
+        box(8, 126, 54, 134, P::darkGray),
+        box(14, 133, 42, 121, P::brown),
+        circle(48, 199, 3, amber),
+        label(16, 145, tr("BACK", "ZPĚT"), pale),
+
+        box(105, 80, 330, 135, P::lightGray),
+        box(114, 89, 312, 116, P::black),
+        circle(155, 147, 31, P::lightGray, false),
+        circle(155, 147, 21, P::darkGray, false),
+        box(206, 108, 173, 58, P::blue),
+        line(214, 145, 236, 126, signalBlue),
+        line(236, 126, 259, 149, P::brightGreen),
+        line(259, 149, 283, 122, signalBlue),
+        line(283, 122, 311, 145, danger),
+        line(311, 145, 370, 145, signalBlue),
+        circle(226, 186, 6, danger),
+        circle(254, 186, 6, amber),
+        circle(282, 186, 6, P::brightGreen),
+        box(343, 176, 65, 19, P::brown),
+        label(127, 96, tr("BLACK PINE RADIO", "RÁDIO BLACK PINE"), amber),
+    });
+}
+
+void replaceWithToolShedInterior(e2d::RoomDefinition& result) {
+    result.background = P::black;
+    result.decorations.clear();
+    result.decorations.insert(result.decorations.end(), {
+        box(0, 0, 492, 260, P::brown),
+        box(10, 10, 472, 210, P::darkGray),
+        box(18, 18, 456, 194, P::brown),
+        box(0, 220, 492, 40, P::darkGray),
+        line(0, 220, 492, 220, amber),
+
+        box(18, 91, 48, 129, P::red),
+        box(24, 98, 36, 116, P::brown),
+        label(25, 108, tr("CABIN", "CHATA"), pale),
+        circle(53, 166, 3, amber),
+
+        box(86, 52, 290, 112, P::black),
+        box(94, 60, 274, 96, P::brown),
+        line(111, 71, 111, 139, P::lightGray),
+        circle(111, 71, 10, P::lightGray, false),
+        line(158, 69, 208, 142, amber),
+        line(158, 142, 208, 69, amber),
+        line(250, 72, 250, 139, P::lightGray),
+        line(250, 89, 287, 72, P::lightGray),
+        box(313, 85, 39, 31, P::red, false),
+        line(313, 135, 352, 135, signalBlue),
+        box(79, 164, 306, 16, P::darkGray),
+        box(91, 180, 12, 40, P::brown),
+        box(361, 180, 12, 40, P::brown),
+
+        e2d::PolygonVisual{{{397, 104}, {451, 104}, {466, 118}, {451, 132}, {397, 132}}, amber, true},
+        label(404, 113, tr("MAST", "STOŽÁR"), P::black),
+    });
+}
+
+void replaceWithRootCellarInterior(e2d::RoomDefinition& result) {
+    result.background = P::black;
+    result.decorations.clear();
+    result.decorations.insert(result.decorations.end(), {
+        box(0, 0, 492, 260, P::darkGray),
+        box(8, 8, 476, 212, P::black),
+        line(8, 54, 484, 54, P::lightGray),
+        line(8, 102, 484, 102, P::lightGray),
+        line(8, 150, 484, 150, P::lightGray),
+        line(8, 198, 484, 198, P::lightGray),
+        line(82, 8, 82, 220, P::lightGray),
+        line(172, 8, 172, 220, P::lightGray),
+        line(268, 8, 268, 220, P::lightGray),
+        line(380, 8, 380, 220, P::lightGray),
+        box(0, 220, 492, 40, P::brown),
+        line(0, 220, 492, 220, amber),
+
+        line(14, 210, 79, 115, P::brown),
+        line(35, 210, 100, 115, P::brown),
+        line(29, 188, 49, 188, P::lightGray),
+        line(41, 170, 61, 170, P::lightGray),
+        line(53, 152, 73, 152, P::lightGray),
+        line(65, 134, 85, 134, P::lightGray),
+        label(18, 108, tr("UP", "NAHORU"), pale),
+
+        box(194, 139, 112, 81, P::brown),
+        box(202, 147, 96, 65, P::red, false),
+        line(202, 179, 298, 179, P::red),
+        label(215, 158, tr("NIGHTJAR", "NIGHTJAR"), danger),
+
+        box(375, 188, 98, 32, P::darkGray),
+        box(381, 193, 86, 21, P::brown),
+        line(392, 202, 456, 202, signalBlue),
+        label(390, 174, tr("SERVICE HATCH", "SERVISNÍ POKLOP"), amber),
+    });
+}
+
 enum class Motif {
     trailSign,
     gate,
@@ -1111,6 +1215,22 @@ void gateLeft(
     found->blockedMessage = tr(std::move(englishMessage), std::move(czechMessage));
 }
 
+void setHorizontalRoute(
+    e2d::WorldDefinition& world,
+    const int screenNumber,
+    const std::optional<int> leftScreen,
+    const std::optional<int> rightScreen)
+{
+    auto& exits = room(world, screenNumber).exits;
+    exits.clear();
+    if (leftScreen.has_value()) {
+        exits.push_back({e2d::Direction::left, std::string{screen(*leftScreen).id}, {462, 232}, {}, {}});
+    }
+    if (rightScreen.has_value()) {
+        exits.push_back({e2d::Direction::right, std::string{screen(*rightScreen).id}, {8, 232}, {}, {}});
+    }
+}
+
 void addCharacter(
     e2d::WorldDefinition& world,
     const int screenNumber,
@@ -1250,6 +1370,19 @@ void addActOne(e2d::WorldDefinition& world) {
             "Iris se vrátí po jelení stezce pod živým přívodem."))},
         {e2d::Mutation::moveTo(std::string{screen(3).id})}, 10, {}, "climb"});
 
+    // The caretaker area is a small hub in the design, not a run of six
+    // unrelated left/right screens. Keep its outdoor paths directional and
+    // use visible doors and hatches for the indoor branches.
+    setHorizontalRoute(world, 6, 5, 9);
+    setHorizontalRoute(world, 7, std::nullopt, std::nullopt);
+    setHorizontalRoute(world, 8, 7, std::nullopt);
+    setHorizontalRoute(world, 9, 6, 11);
+    setHorizontalRoute(world, 10, std::nullopt, std::nullopt);
+    setHorizontalRoute(world, 11, 9, 12);
+    replaceWithRadioNookInterior(room(world, 8));
+    replaceWithToolShedInterior(room(world, 9));
+    replaceWithRootCellarInterior(room(world, 10));
+
     auto& cabinDoor = ensureHotspot(world, 6, "cabin_door",
         tr("CARETAKER CABIN DOOR", "DVEŘE SPRÁVCOVSKÉ CHATY"),
         {235, 145, 80, 115}, e2d::HotspotKind::mechanism, 1);
@@ -1283,6 +1416,98 @@ void addActOne(e2d::WorldDefinition& world) {
     world.addInteraction({e2d::Verb::context, insideDoor.id, std::nullopt, {}, {},
         {e2d::Mutation::moveTo(std::string{screen(6).id})}, 20, {}, "climb"});
 
+    auto& radioDoor = ensureHotspot(world, 7, "radio_door",
+        tr("DOOR TO RADIO NOOK", "DVEŘE DO RÁDIOVÉHO KOUTU"),
+        {424, 116, 68, 144}, e2d::HotspotKind::mechanism, 1);
+    radioDoor.visuals = {
+        box(438, 121, 46, 139, P::darkGray),
+        box(444, 128, 34, 126, P::brown),
+        circle(450, 198, 3, amber),
+        label(441, 143, tr("RADIO", "RÁDIO"), pale),
+    };
+    world.addInteraction({e2d::Verb::context, radioDoor.id, std::nullopt,
+        {e2d::Condition::flag("met_mara")}, {},
+        {e2d::Mutation::moveTo(std::string{screen(8).id})}, 20, {}, "climb"});
+
+    auto& cellarHatch = ensureHotspot(world, 7, "cellar_hatch",
+        tr("ROOT CELLAR HATCH", "POKLOP DO SKLEPA"),
+        {280, 208, 89, 52}, e2d::HotspotKind::mechanism, 2);
+    cellarHatch.visuals = {
+        box(286, 230, 73, 27, P::black),
+        box(292, 234, 61, 19, P::brown),
+        line(300, 243, 345, 243, amber),
+        label(299, 218, tr("CELLAR", "SKLEP"), amber),
+    };
+    world.addInteraction({e2d::Verb::context, cellarHatch.id, std::nullopt,
+        {e2d::Condition::flag("met_mara")}, {},
+        {e2d::Mutation::moveTo(std::string{screen(10).id})}, 20, {}, "climb"});
+
+    auto& radioReturn = ensureHotspot(world, 8, "cabin_return",
+        tr("DOOR BACK TO CABIN", "DVEŘE ZPĚT DO CHATY"),
+        {0, 126, 70, 134}, e2d::HotspotKind::mechanism, 0);
+    radioReturn.visuals = {
+        box(12, 131, 46, 129, amber, false),
+        circle(48, 199, 3, amber),
+    };
+    world.addInteraction({e2d::Verb::context, radioReturn.id, std::nullopt, {}, {},
+        {e2d::Mutation::moveTo(std::string{screen(7).id})}, 20, {}, "climb"});
+
+    auto& shedPath = ensureHotspot(world, 6, "shed_path",
+        tr("PATH TO TOOL SHED", "CESTA KE KŮLNĚ"),
+        {372, 170, 120, 90}, e2d::HotspotKind::mechanism, 3);
+    shedPath.visuals = {
+        e2d::PolygonVisual{{{385, 213}, {438, 213}, {456, 226}, {438, 239}, {385, 239}}, amber, true},
+        label(397, 220, tr("SHED", "KŮLNA"), P::black),
+    };
+    world.addInteraction({e2d::Verb::context, shedPath.id, std::nullopt,
+        {e2d::Condition::flag("cabin_entered")}, {},
+        {e2d::Mutation::moveTo(std::string{screen(9).id})}, 20, {}, "climb"});
+
+    auto& shedReturn = ensureHotspot(world, 9, "cabin_path",
+        tr("PATH BACK TO CABIN", "CESTA ZPĚT K CHATĚ"),
+        {0, 91, 72, 169}, e2d::HotspotKind::mechanism, 0);
+    shedReturn.visuals = {box(20, 96, 44, 124, amber, false)};
+    world.addInteraction({e2d::Verb::context, shedReturn.id, std::nullopt, {}, {},
+        {e2d::Mutation::moveTo(std::string{screen(6).id})}, 20, {}, "climb"});
+
+    auto& mastPath = ensureHotspot(world, 9, "mast_path",
+        tr("PATH TO WEATHER MAST", "CESTA K METEOSTOŽÁRU"),
+        {386, 89, 106, 171}, e2d::HotspotKind::mechanism, 3);
+    mastPath.visuals = {box(396, 100, 73, 36, amber, false)};
+    world.addInteraction({e2d::Verb::context, mastPath.id, std::nullopt, {}, {},
+        {e2d::Mutation::moveTo(std::string{screen(11).id})}, 20, {}, "climb"});
+
+    auto& cellarStairs = ensureHotspot(world, 10, "cellar_stairs",
+        tr("STAIRS TO CABIN", "SCHODY DO CHATY"),
+        {0, 104, 112, 156}, e2d::HotspotKind::mechanism, 0);
+    cellarStairs.visuals = {box(10, 108, 94, 108, amber, false)};
+    world.addInteraction({e2d::Verb::context, cellarStairs.id, std::nullopt, {}, {},
+        {e2d::Mutation::moveTo(std::string{screen(7).id})}, 20, {}, "climb"});
+
+    auto& serviceHatch = ensureHotspot(world, 10, "service_hatch",
+        tr("LOW SERVICE HATCH", "NÍZKÝ SERVISNÍ POKLOP"),
+        {365, 166, 119, 94}, e2d::HotspotKind::mechanism, 3);
+    serviceHatch.visuals = {box(375, 184, 98, 39, amber, false)};
+    world.addInteraction({e2d::Verb::context, serviceHatch.id, std::nullopt,
+        {e2d::Condition::has("hand_crank_torch")}, {},
+        {e2d::Mutation::moveTo(std::string{screen(11).id})}, 30, {}, "climb"});
+    world.addInteraction({e2d::Verb::context, serviceHatch.id, std::nullopt,
+        {e2d::Condition::lacks("hand_crank_torch")},
+        {inspect(tr("The service crawl is completely dark. A portable light is needed.",
+            "Servisní průlez je úplně temný. Je potřeba přenosné světlo."))}, {}, 10, {}});
+
+    auto& mastCellarHatch = ensureHotspot(world, 11, "cellar_hatch",
+        tr("CELLAR SERVICE HATCH", "SERVISNÍ POKLOP DO SKLEPA"),
+        {8, 201, 100, 59}, e2d::HotspotKind::mechanism, 0);
+    mastCellarHatch.visuals = {
+        box(16, 229, 84, 28, P::brown),
+        box(20, 233, 76, 20, amber, false),
+        label(29, 217, tr("CELLAR", "SKLEP"), amber),
+    };
+    world.addInteraction({e2d::Verb::context, mastCellarHatch.id, std::nullopt,
+        {e2d::Condition::has("hand_crank_torch")}, {},
+        {e2d::Mutation::moveTo(std::string{screen(10).id})}, 20, {}, "climb"});
+
     addCharacter(world, 7, "mara", "MARA VENN", "MARA VENN", "met_mara", {
         speech(tr("Mara: This should have been a fuse and cable job. The storm is hiding something deliberate.",
             "Mara: Měla to být výměna pojistky a kabelu. Bouře skrývá něco úmyslného.")),
@@ -1315,6 +1540,17 @@ void addActOne(e2d::WorldDefinition& world) {
     addPickup(world, 8, "site_map", "Mara's annotations name the relay, quarry, dam and lookout.",
         "Mařiny poznámky označují převaděč, lom, přehradu a hlásku.", 0,
         {e2d::Condition::flag("met_mara")});
+    auto& siteMapPickup = ensureHotspot(world, 8, "take_site_map",
+        world.item("site_map")->label, {326, 148, 116, 112}, e2d::HotspotKind::item, 0);
+    siteMapPickup.interactionArea = {326, 148, 116, 112};
+    siteMapPickup.visuals = {
+        box(352, 174, 50, 22, pale),
+        line(377, 174, 377, 196, P::lightGray),
+        line(357, 181, 372, 188, P::green),
+        line(382, 188, 397, 180, P::blue),
+        line(407, 170, 407, 176, pale),
+        line(404, 173, 410, 173, pale),
+    };
     addPickup(world, 9, "wrench", "You take Mara's scarred 17 mm field wrench.",
         "Vezmeš Mařin odřený montážní klíč 17 mm.", 0);
     addPickup(world, 9, "lineman_gloves", "The lineman gloves are dry and their insulation is sound.",
@@ -2132,6 +2368,18 @@ void addHints(e2d::WorldDefinition& world) {
         "Uvnitř správcovské chaty dojdi k Maře a promluv klávesou ENTER.");
     next("key_revealed", "EXAMINE Mara's desk after speaking with her.", "Po rozhovoru s Marou PROZKOUMEJ její stůl.");
     next("taken_brass_key", "TAKE the brass yard key revealed on Mara's desk.", "SEBER mosazný klíč odkrytý na Mařině stole.");
+    next("taken_site_map", "Use the RADIO door in Mara's cabin and TAKE her annotated site map from the console.",
+        "Použij dveře RÁDIO v Mařině chatě a SEBER její popsanou mapu z pultu.");
+    next("taken_ceramic_fuse", "Use the CELLAR hatch in Mara's cabin and TAKE the ceramic fuse beside the Nightjar crate.",
+        "Použij poklop SKLEP v Mařině chatě a SEBER keramickou pojistku vedle bedny Nightjar.");
+    next("taken_hand_crank_torch", "In the Root Cellar, TAKE the blue hand-crank torch.",
+        "Ve sklepě SEBER modrou ruční svítilnu.");
+    next("taken_wrench", "Leave by the front door, follow the SHED sign and TAKE the 17 mm wrench.",
+        "Vyjdi hlavními dveřmi, sleduj šipku KŮLNA a SEBER montážní klíč 17 mm.");
+    next("taken_lineman_gloves", "In the Tool Shed, TAKE the insulated lineman gloves.",
+        "V kůlně SEBER izolované elektrikářské rukavice.");
+    next("taken_pruning_saw", "In the Tool Shed, TAKE the folding pruning saw, then follow the MAST sign.",
+        "V kůlně SEBER skládací prořezávací pilu a potom sleduj šipku STOŽÁR.");
     next("vehicle_gate_open", "USE the brass key on the Vehicle Gate.", "U Vjezdové brány POUŽIJ mosazný klíč.");
     next("cable_patched", "In the Cable Trench, USE the patch cable on the blue terminals.", "V Kabelovém výkopu POUŽIJ kabel na modré svorky.");
     next("fuse_installed", "In the Generator Shed, USE the ceramic fuse on the MAIN holder.", "V Generátorovně POUŽIJ keramickou pojistku na HLAVNÍ držák.");
