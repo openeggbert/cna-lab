@@ -117,25 +117,25 @@ void testEggKeepsItsObservedP1Silhouette()
 
     // These are hand transcriptions of stable cells in a fresh visual P1 LCD
     // trace, rather than data imported from a ROM or emulator implementation.
-    constexpr std::array<std::string_view, 11> expectedWide{{
-        ".......###......", ".....#######....", "....#.#####.#...", "...#..#####..#..",
-        "..##.##########.", "..##.##########.", "..#####...#####.", "..#..##...#####.",
-        "...#..#####..#..", "....#######.#...", "...###########..",
+    constexpr std::array<std::string_view, 10> expectedWide{{
+        ".....##.....", "...######...", "..#.####.#..", ".#..####..#.",
+        "##.#########", "#####..#####", "#..##..#####", ".#..####..#.",
+        "..######.#..", ".##########.",
     }};
-    constexpr std::array<std::string_view, 12> expectedTall{{
-        "......#####.....", ".....#.#####....", "....#..##..##...", "....#.###...#...",
-        "...###########..", "...###########..", "...####...####..", "...####...#..#..",
-        "...#..#####.##..", "....#..######...", ".....###...#....", "....#########...",
+    constexpr std::array<std::string_view, 11> expectedTall{{
+        "...##.#...", "..#.####..", ".#..##.##.", ".#.###..#.", "##########",
+        "####..####", "####..#..#", "#..####.##", ".#..#####.", "..###..#..",
+        ".########.",
     }};
 
     expect(egg.idleFrameCount == 2U, "the P1 egg must alternate exactly two stable silhouettes");
-    expect(egg.idleFrame(0).originX == 8 && egg.idleFrame(0).originY == 4 &&
-               egg.idleFrame(0).rowCount == 11U,
+    expect(egg.idleFrame(0).originX == 10 && egg.idleFrame(0).originY == 3 &&
+               egg.idleFrame(0).rowCount == expectedWide.size(),
            "the wide P1 egg phase must retain its true LCD bounds");
-    expect(egg.idleFrame(1).originX == 8 && egg.idleFrame(1).originY == 3 &&
-               egg.idleFrame(1).rowCount == 12U,
+    expect(egg.idleFrame(1).originX == 11 && egg.idleFrame(1).originY == 2 &&
+               egg.idleFrame(1).rowCount == expectedTall.size(),
            "the tall P1 egg phase must retain its true LCD bounds");
-    expect(egg.idleFrameSeconds == 0.625F,
+    expect(egg.idleFrameSeconds == 0.70F,
            "the P1 egg must retain the cadence inferred from its 30 fps trace");
     for (std::size_t row = 0; row < expectedWide.size(); ++row) {
         expect(egg.idleFrame(0).rows[row] == expectedWide[row],

@@ -48,18 +48,18 @@ write and verify the clean implementation.
   `P1SpriteCatalog.cpp` were manually written from the visible LCD grid, not
   imported or algorithmically extracted.
 - A freshly started, unaccelerated reference run was recorded at 30 fps. Its
-  stable egg silhouettes changed every 18–19 host frames; the catalogue uses
-  the nearest exact cadence, 0.625 seconds per phase. Variable-length home
+  corrected stable egg silhouettes change every 21–22 host frames; the
+  catalogue uses 0.70 seconds per phase. Variable-length home
   sequences are represented explicitly, so the egg wraps wide → tall → wide
   without an artificial A/B/A pause.
-- The wide egg phase is a hand-read 16 × 11 cell at `(8, 4)` and the tall phase
-  is a hand-read 16 × 12 cell at `(8, 3)`. Partial LCD writes visible across
-  two or three host frames were excluded. Focused tests protect both bounds,
+- The wide egg phase is a hand-read 12 × 10 cell at `(10, 3)` and the tall phase
+  is a hand-read 10 × 11 cell at `(11, 2)`. Partial LCD writes visible across
+  one or two host frames were excluded. Focused tests protect both bounds,
   every hand-read row, timing, active frame count, and direct wrapping.
-- A two-second same-display render trace confirmed both phases at normal LCD
-  scale: they remain centred, wrap directly, and stay inside the 32 × 16 game
-  field without touching either permanent icon band. The working capture is
-  outside the repository.
+- A fresh three-second same-display trace confirmed both corrected phases at
+  normal LCD scale: they remain centred, wrap directly, and stay inside the
+  32 × 16 game field without touching either permanent icon band. The working
+  capture is outside the repository.
 - A confirmed activation and post-hatch capture established Babytchi's real
   home motion. At 1× it repeats two full 6 × 6 poses at `y=9`, then two
   compressed 8 × 3 poses at `y=13`, while moving through observed horizontal
@@ -73,9 +73,9 @@ write and verify the clean implementation.
   care-action sequences under Priority 2.
 - A later layout audit found that the original 288 × 144 working crop did not
   cover TamaTool v0.1's 10-pixel-stride matrix. That crop's coordinates and
-  lower rows were discarded. The accepted replacement covers the complete
-  319 × 159 active matrix extent, samples the centre of every logical cell,
-  and yields the corrected rows and origins above. Do not infer a 32 × 16 grid
+  lower rows were discarded. Accepted replacement traces cover the complete
+  319 × 159 active matrix extent, sample the centre of every logical cell, and
+  yield the corrected egg and Babytchi data above. Do not infer a 32 × 16 grid
   by merely resizing a reference crop; derive its stride and extent first.
 
 ## Priority 0 — Add selectable physical shell variants

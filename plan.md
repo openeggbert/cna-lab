@@ -78,8 +78,9 @@ similar emulation core is permitted in the application, build, or test suite.
     captured Mametchi idle trace is represented as one-bit frame data and is
     covered by a focused catalogue test.
   - [x] Manually transcribe both stable egg silhouettes from a fresh visual P1
-    LCD trace, represent their true two-phase count and 0.625-second cadence,
-    and protect their distinct geometry and rows with catalogue regression
+    full-LCD trace, represent their true two-phase count and 0.70-second cadence,
+    reject the earlier incomplete-crop geometry, and protect their corrected
+    distinct geometry and rows with catalogue regression
     tests.
   - [x] Transcribe Babytchi's complete 36-phase home cycle from confirmed
     post-hatch 1× traces, including its alternating 6 × 6 full and 8 × 3
