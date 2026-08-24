@@ -18,7 +18,7 @@ Establish budgets and measure representative district workloads against the lock
 - [ ] **IG-35-012 P1** — Create representative walking, driving, interior, traffic, district-transition, and mission captures. *(Partial: deterministic `intro`, `idle`, `walk`, `drive`, and `mixed` scenarios now isolate the first four relevant first-district workloads and mixed includes traffic plus a real district transition. Dedicated interior and mission captures remain.)*
 - [ ] **IG-35-013 P1** — Create memory high-water and leak checks across repeated district load/unload cycles.
 - [ ] **IG-35-014 P1** — Create content budgets enforced by validators (triangle/texture/material budgets per building/vehicle/character).
-- [ ] **IG-35-015 P1** — Create frame-pacing and hitch histograms, including at district-transition load boundaries.
+- [x] **IG-35-015 P1** — Create frame-pacing and hitch histograms, including at district-transition load boundaries. *(Schema 8 bins every frame interval into mutually exclusive <=16.667, <=33.333, <=50, <=100, and >100 ms ranges; reports >33.333 ms misses, >50 ms hitches, and >100 ms severe hitches; and associates each synchronous district transition with the first following measured frame interval.)*
 - [ ] **IG-35-016 P1** — Create release performance reports against the locked minimum/recommended hardware targets.
 - [ ] **IG-35-017 P1** — Optimize only measured bottlenecks and record before/after evidence.
 - [ ] **IG-35-018 P1** — Keep low-detail AI and rendering paths visually coherent at LOD/culling distance.
@@ -51,8 +51,8 @@ Establish budgets and measure representative district workloads against the lock
 - [ ] **IG-35-045 P2** — Define scope and implement the smallest working content budget validator (triangle/texture/material limits at authoring/import time).
 - [ ] **IG-35-046 P2** — Add unit tests and CI wiring for the content budget validator.
 - [ ] **IG-35-047 P2** — Document usage and failure modes of the content budget validator.
-- [ ] **IG-35-048 P2** — Define scope and implement the smallest working frame-pacing/hitch detector (combines pacing histogram and hitch flagging into one tool).
-- [ ] **IG-35-049 P2** — Add unit tests and one real-flow integration test for the frame-pacing/hitch detector.
-- [ ] **IG-35-050 P2** — Document usage of the frame-pacing/hitch detector.
+- [x] **IG-35-048 P2** — Define scope and implement the smallest working frame-pacing/hitch detector (combines pacing histogram and hitch flagging into one tool). *(Implemented directly in the existing bounded JSON capture: no second recorder or raw-sample duplication. Threshold comparisons and histogram inclusivity are explicit, with count/percentage output and district-boundary coverage.)*
+- [x] **IG-35-049 P2** — Add unit tests and one real-flow integration test for the frame-pacing/hitch detector. *(Unit coverage proves all five buckets, strict 50/100 ms thresholds, and first-frame-after-transition selection. An isolated 540-frame Release EasyGL/Xvfb mixed flow sampled 539 intervals and found one 55.936 ms non-transition hitch, zero severe hitches, and a 17.345 ms transition boundary.)*
+- [x] **IG-35-050 P2** — Document usage of the frame-pacing/hitch detector. *(Schema-8 semantics, thresholds, real-flow baseline, Xvfb limitation, and JSON reproduction are documented in the performance target/baseline/validation continuity docs; a separate live overlay is unnecessary for bounded automated capture.)*
 - [ ] **IG-35-051 P2** — Define scope and implement the smallest working memory-leak soak test (repeated district load/unload, mission replay, save/load cycles).
 - [ ] **IG-35-052 P2** — Add CI wiring and documentation for the memory-leak soak test.

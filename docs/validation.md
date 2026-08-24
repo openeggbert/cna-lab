@@ -104,6 +104,15 @@ channel, or bus costs, so the report marks those unavailable instead of inventin
 plus 3/3 CTest, strict syntax, Release/development EasyGL, Web/Emscripten, and the isolated real flow
 pass; no visible host display was used.
 
+The frame-pacing follow-up adds schema 8 with five mutually exclusive histogram buckets, strict
+>33.333 ms minimum-budget misses, >50 ms hitches, >100 ms severe hitches, and first-frame-after-
+district-transition association. Unit coverage proves exact-threshold inclusivity and transition
+indexing. An isolated 540-frame Release EasyGL `mixed` run sampled 539 intervals at 16.988 ms p95
+and found one 55.936 ms hitch (0.186%), no severe hitch, and a non-hitch 17.345 ms transition
+boundary. Software plus 3/3 CTest, strict syntax, Release/development EasyGL, Web/Emscripten, and
+the isolated real flow pass. The result validates the detector but does not qualify llvmpipe/Xvfb
+as physical target hardware or diagnose the one hitch; no visible host display was used.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

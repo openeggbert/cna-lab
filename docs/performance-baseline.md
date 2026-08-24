@@ -295,3 +295,27 @@ streaming audio object. It is not a claim about backend decoder activity. CNA ex
 lifetime of fire-and-forget one-shot voices nor decoder/mixer callback, active backend channel, or
 bus costs, so schema 7 labels those unavailable instead of reporting false zeroes. Xvfb/dummy audio
 validates the integrated command and report path, not audible quality or physical audio hardware.
+
+## 2026-08-24 — frame-pacing and hitch follow-up
+
+JSON schema 8 derives a stable histogram and explicit hitch counts from the existing wall-clock
+frame intervals. A 540-frame Release EasyGL `mixed` run, executed only on isolated Xvfb/X11 with
+dummy SDL audio and v-sync requested off, produced 539 intervals:
+
+| Frame-pacing bucket | Count | Share |
+| --- | ---: | ---: |
+| <=16.667 ms (recommended budget) | 46 | 8.534% |
+| >16.667 and <=33.333 ms (minimum budget) | 492 | 91.280% |
+| >33.333 and <=50 ms | 0 | 0.000% |
+| >50 and <=100 ms (hitch) | 1 | 0.186% |
+| >100 ms (severe hitch) | 0 | 0.000% |
+
+Frame interval averaged 16.871 ms, with 16.988 ms p95 and 55.936 ms maximum. The one interval over
+the 33.333 ms minimum budget was also the capture's sole >50 ms hitch; no severe hitch occurred.
+The one real WarehouseBlock -> Countryside transition had a measured first-following interval of
+17.345 ms, so the 55.936 ms hitch was not at that transition boundary.
+
+This single llvmpipe/Xvfb run validates classification, report plumbing, and boundary association;
+it does not explain the hitch or qualify physical frame pacing. Xvfb has no real vblank and remains
+unsuitable for closing M12. Controlled repeated captures on named minimum hardware are still
+required, using the same strict thresholds and a platform-acknowledged swap interval.

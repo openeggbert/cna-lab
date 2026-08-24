@@ -115,6 +115,25 @@ namespace IronGang
         double maximumMilliseconds{0.0};
     };
 
+    // Mutually exclusive frame-interval buckets plus explicit long-frame counts. A district
+    // boundary sample is the first frame interval recorded after a synchronous district change.
+    struct FramePacingStatistics
+    {
+        std::size_t sampleCount{0};
+        std::size_t atOrBelowRecommendedBudgetCount{0};
+        std::size_t aboveRecommendedAtOrBelowMinimumBudgetCount{0};
+        std::size_t aboveMinimumAtOrBelowHitchCount{0};
+        std::size_t aboveHitchAtOrBelowSevereHitchCount{0};
+        std::size_t aboveSevereHitchCount{0};
+        std::size_t minimumBudgetMissCount{0};
+        std::size_t hitchCount{0};
+        std::size_t severeHitchCount{0};
+        std::size_t districtTransitionCount{0};
+        std::size_t measuredDistrictTransitionCount{0};
+        std::size_t districtTransitionHitchCount{0};
+        std::optional<double> maximumDistrictTransitionMilliseconds;
+    };
+
     struct RenderWorkloadStatistics
     {
         std::size_t sampleCount{0};
@@ -224,6 +243,8 @@ namespace IronGang
 
     inline constexpr double kMinimumFrameBudgetMilliseconds = 1000.0 / 30.0;
     inline constexpr double kRecommendedFrameBudgetMilliseconds = 1000.0 / 60.0;
+    inline constexpr double kFrameHitchThresholdMilliseconds = 50.0;
+    inline constexpr double kSevereFrameHitchThresholdMilliseconds = 100.0;
     inline constexpr double kMinimumUpdateCpuBudgetMilliseconds = 8.0;
     inline constexpr double kMinimumPhysicsCpuBudgetMilliseconds = 3.0;
     inline constexpr double kMinimumAiCpuBudgetMilliseconds = 2.0;
@@ -252,6 +273,7 @@ namespace IronGang
         void RecordDistrictLoad(DistrictLoadSample sample);
 
         [[nodiscard]] PerformanceStatistics GetStatistics(PerformanceMetric metric) const;
+        [[nodiscard]] FramePacingStatistics GetFramePacingStatistics() const;
         [[nodiscard]] RenderWorkloadStatistics
         GetRenderWorkloadStatistics(RenderWorkloadMetric metric) const;
         [[nodiscard]] PhysicsWorkloadStatistics
@@ -308,6 +330,7 @@ namespace IronGang
         std::array<std::vector<double>, static_cast<std::size_t>(AudioWorkloadMetric::Count)>
             audioWorkloadSamples_;
         std::vector<DistrictLoadSample> districtLoadSamples_;
+        std::vector<std::size_t> districtTransitionFrameSampleIndices_;
     };
 
     // RAII timing for whole Update()/Draw()/Initialize() scopes, including early-return paths.

@@ -1010,6 +1010,12 @@ namespace
                 "performance profiler p95 must use the nearest-rank definition");
         Require(std::abs(frame.maximumMilliseconds - 20.0) < 1e-9,
                 "performance profiler maximum must match the largest sample");
+        const IronGang::FramePacingStatistics framePacing = profiler.GetFramePacingStatistics();
+        Require(framePacing.sampleCount == 20 &&
+                    framePacing.atOrBelowRecommendedBudgetCount == 16 &&
+                    framePacing.aboveRecommendedAtOrBelowMinimumBudgetCount == 4 &&
+                    framePacing.minimumBudgetMissCount == 0 && framePacing.hitchCount == 0,
+                "frame-pacing histogram must place every interval into exact budget buckets");
         const IronGang::PerformanceStatistics districtLoadTotal =
             profiler.GetStatistics(IronGang::PerformanceMetric::DistrictLoadCpu);
         Require(districtLoadTotal.sampleCount == 1 &&
@@ -1037,6 +1043,34 @@ namespace
                     std::abs(oneShotRequests.p95 - 2.0) < 1e-9 &&
                     std::abs(oneShotRequests.maximum - 2.0) < 1e-9,
                 "audio workload statistics must retain exact command counts and use nearest-rank p95");
+
+        IronGang::PerformanceProfiler hitchProfiler;
+        hitchProfiler.SetEnabled(true);
+        for (const double interval : {16.0, 20.0, 33.0, 40.0})
+        {
+            hitchProfiler.Record(IronGang::PerformanceMetric::FrameInterval, interval);
+        }
+        hitchProfiler.RecordDistrictLoad({});
+        hitchProfiler.Record(IronGang::PerformanceMetric::FrameInterval, 50.0);
+        hitchProfiler.RecordDistrictLoad({});
+        for (const double interval : {50.001, 100.0, 100.001})
+        {
+            hitchProfiler.Record(IronGang::PerformanceMetric::FrameInterval, interval);
+        }
+        const IronGang::FramePacingStatistics hitches = hitchProfiler.GetFramePacingStatistics();
+        Require(hitches.sampleCount == 8 && hitches.atOrBelowRecommendedBudgetCount == 1 &&
+                    hitches.aboveRecommendedAtOrBelowMinimumBudgetCount == 2 &&
+                    hitches.aboveMinimumAtOrBelowHitchCount == 2 &&
+                    hitches.aboveHitchAtOrBelowSevereHitchCount == 2 &&
+                    hitches.aboveSevereHitchCount == 1 && hitches.minimumBudgetMissCount == 5 &&
+                    hitches.hitchCount == 3 && hitches.severeHitchCount == 1,
+                "frame-pacing detector must use strict hitch thresholds and exclusive buckets");
+        Require(hitches.districtTransitionCount == 2 &&
+                    hitches.measuredDistrictTransitionCount == 2 &&
+                    hitches.districtTransitionHitchCount == 1 &&
+                    hitches.maximumDistrictTransitionMilliseconds &&
+                    std::abs(*hitches.maximumDistrictTransitionMilliseconds - 50.001) < 1e-9,
+                "district boundaries must select the first following frame interval and flag its hitches");
 
         IronGang::PerformanceReportContext context;
         context.backend = "TEST";
@@ -1072,7 +1106,7 @@ namespace
         const std::string report((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
         Require(report.find("\"backend\": \"TEST\"") != std::string::npos,
                 "performance report must identify its graphics backend");
-        Require(report.find("\"schema_version\": 7") != std::string::npos &&
+        Require(report.find("\"schema_version\": 8") != std::string::npos &&
                     report.find("\"draw_calls\": {\"samples\": 2, \"average\": 11.000, \"p95\": 12.000") !=
                         std::string::npos &&
                     report.find("\"state_change_calls\": {\"samples\": 1, \"average\": 31.000") !=
@@ -1081,6 +1115,16 @@ namespace
                         std::string::npos &&
                     report.find("excludes Clear, HUD SpriteBatch internal batching") != std::string::npos,
                 "performance report must expose scoped 3D workload counts without claiming backend counters");
+        Require(report.find("\"frame_pacing\": {") != std::string::npos &&
+                    report.find("\"at_or_below_recommended_budget\": {\"upper_bound_ms\": 16.667, \"count\": 16}") !=
+                        std::string::npos &&
+                    report.find("\"above_recommended_at_or_below_minimum_budget\": {\"lower_bound_exclusive_ms\": 16.667, \"upper_bound_ms\": 33.333, \"count\": 4}") !=
+                        std::string::npos &&
+                    report.find("\"hitches\": {\"threshold_ms\": 50.000, \"comparison\": \"greater_than\", \"count\": 0") !=
+                        std::string::npos &&
+                    report.find("\"district_transition_boundaries\": {\"transitions\": 1, \"measured_samples\": 0, \"hitch_count\": 0, \"maximum_ms\": null}") !=
+                        std::string::npos,
+                "performance report must expose stable pacing buckets, strict hitch policy, and boundary coverage");
         Require(report.find("\"bodies\": {\"samples\": 2, \"average\": 8.000, \"p95\": 9.000") !=
                         std::string::npos &&
                     report.find("\"rigid_body_contact_manifolds\": {\"samples\": 1, \"average\": 3.000") !=

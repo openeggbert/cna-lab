@@ -67,6 +67,21 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has a complete smallest-scope frame-pacing/hitch detector (`IG-35-015`,
+`048`-`050`).** JSON schema 8 derives five mutually exclusive frame-interval buckets at 16.667,
+33.333, 50, and 100 ms, plus explicit minimum-budget miss, hitch, and severe-hitch counts/rates.
+Every real synchronous district transition is associated with the first following frame-interval
+sample; a capture ending too early reports an unmeasured boundary rather than borrowing a frame.
+
+- Unit coverage proves exact boundary inclusivity (`50.000` ms is not a hitch, `50.001` is), all
+  buckets/counts, and district-transition indexing. A 540-frame Release EasyGL `mixed` run only on
+  isolated Xvfb/X11 sampled 539 intervals: 16.871 ms average / 16.988 ms p95 / 55.936 ms maximum,
+  one hitch (0.186%), and no severe hitch. The actual transition boundary was 17.345 ms, so the
+  hitch was elsewhere.
+- Software, all 3 CTest targets, strict syntax, Release/development EasyGL, Web/Emscripten, and the
+  isolated real flow pass. This validates the detector but neither diagnoses the one hitch nor
+  qualifies unaccelerated Xvfb/llvmpipe as physical target hardware. No visible display was used.
+
 **M12 now has a complete smallest-scope game-owned audio profiler (`IG-35-040`-`041`).** JSON
 schema 7 retains the budgeted `audio_cpu` timer and adds per-update loaded `SoundEffect` assets,
 retained/playing loop state, streamed game assets, one-shot request/success counts, loop play/stop
@@ -1046,9 +1061,9 @@ physical-hardware capture should first require `swap_interval.apply_succeeded`, 
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside
-budget. The next safe code-side M12 slice is the frame-pacing/hitch detector (`IG-35-015`,
-`048`-`050`): derive stable histogram buckets and explicit hitch counts from the already-captured
-frame-interval samples, add exact unit/report coverage, and validate one isolated real flow. Do not
+budget. The next safe code-side M12 slice is the release performance report generator
+(`IG-35-016`, `042`-`044`): consume one or more versioned JSON captures and emit a concise summary
+against locked minimum/recommended targets without treating Xvfb as qualifying hardware. Do not
 mark M12 complete until repeated mixed workloads pass 33.333 ms p95 on named minimum hardware and
 VRAM tracking is complete.
 

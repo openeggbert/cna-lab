@@ -188,6 +188,11 @@ namespace IronGang
             return statistics.sampleCount > 0 && statistics.p95Milliseconds <= budgetMilliseconds;
         }
 
+        double Percentage(std::size_t count, std::size_t total)
+        {
+            return total == 0 ? 0.0 : 100.0 * static_cast<double>(count) / static_cast<double>(total);
+        }
+
         void WriteByteDelta(std::ostream& output, std::uint64_t before, std::uint64_t after)
         {
             if (after < before)
@@ -381,6 +386,8 @@ namespace IronGang
         Record(PerformanceMetric::DistrictRendererUploadCpu, sample.rendererUploadMilliseconds);
         Record(PerformanceMetric::DistrictLoadCpu,
                sample.worldPhysicsMilliseconds + sample.rendererUploadMilliseconds);
+        districtTransitionFrameSampleIndices_.push_back(
+            samples_[MetricIndex(PerformanceMetric::FrameInterval)].size());
         districtLoadSamples_.push_back(std::move(sample));
     }
 
@@ -412,6 +419,70 @@ namespace IronGang
         const std::size_t percentileIndex = static_cast<std::size_t>(
             std::ceil(0.95 * static_cast<double>(sorted.size()))) - 1U;
         result.p95Milliseconds = sorted[percentileIndex];
+        return result;
+    }
+
+    FramePacingStatistics PerformanceProfiler::GetFramePacingStatistics() const
+    {
+        FramePacingStatistics result;
+        const std::vector<double>& samples = samples_[MetricIndex(PerformanceMetric::FrameInterval)];
+        result.sampleCount = samples.size();
+        for (const double sample : samples)
+        {
+            if (sample <= kRecommendedFrameBudgetMilliseconds)
+            {
+                ++result.atOrBelowRecommendedBudgetCount;
+            }
+            else if (sample <= kMinimumFrameBudgetMilliseconds)
+            {
+                ++result.aboveRecommendedAtOrBelowMinimumBudgetCount;
+            }
+            else if (sample <= kFrameHitchThresholdMilliseconds)
+            {
+                ++result.aboveMinimumAtOrBelowHitchCount;
+            }
+            else if (sample <= kSevereFrameHitchThresholdMilliseconds)
+            {
+                ++result.aboveHitchAtOrBelowSevereHitchCount;
+            }
+            else
+            {
+                ++result.aboveSevereHitchCount;
+            }
+
+            if (sample > kMinimumFrameBudgetMilliseconds)
+            {
+                ++result.minimumBudgetMissCount;
+            }
+            if (sample > kFrameHitchThresholdMilliseconds)
+            {
+                ++result.hitchCount;
+            }
+            if (sample > kSevereFrameHitchThresholdMilliseconds)
+            {
+                ++result.severeHitchCount;
+            }
+        }
+
+        result.districtTransitionCount = districtTransitionFrameSampleIndices_.size();
+        for (const std::size_t sampleIndex : districtTransitionFrameSampleIndices_)
+        {
+            if (sampleIndex >= samples.size())
+            {
+                continue;
+            }
+            const double sample = samples[sampleIndex];
+            ++result.measuredDistrictTransitionCount;
+            if (sample > kFrameHitchThresholdMilliseconds)
+            {
+                ++result.districtTransitionHitchCount;
+            }
+            if (!result.maximumDistrictTransitionMilliseconds ||
+                sample > *result.maximumDistrictTransitionMilliseconds)
+            {
+                result.maximumDistrictTransitionMilliseconds = sample;
+            }
+        }
         return result;
     }
 
@@ -562,6 +633,7 @@ namespace IronGang
             }
 
             const PerformanceStatistics frame = GetStatistics(PerformanceMetric::FrameInterval);
+            const FramePacingStatistics framePacing = GetFramePacingStatistics();
             const PerformanceStatistics update = GetStatistics(PerformanceMetric::UpdateCpu);
             const PerformanceStatistics physics = GetStatistics(PerformanceMetric::PhysicsCpu);
             const PerformanceStatistics ai = GetStatistics(PerformanceMetric::AiCpu);
@@ -574,7 +646,7 @@ namespace IronGang
 
             output << std::fixed << std::setprecision(3);
             output << "{\n"
-                   << "  \"schema_version\": 7,\n"
+                   << "  \"schema_version\": 8,\n"
                    << "  \"backend\": \"" << EscapeJson(context.backend) << "\",\n"
                    << "  \"build_configuration\": \"" << EscapeJson(context.buildConfiguration) << "\",\n"
                    << "  \"scenario\": \"" << EscapeJson(context.scenario) << "\",\n"
@@ -640,6 +712,57 @@ namespace IronGang
             }
 
             output << "  },\n"
+                   << "  \"frame_pacing\": {\n"
+                   << "    \"scope\": \"wall-clock intervals between consecutive BeginFrame calls; the first frame establishes a baseline and has no sample\",\n"
+                   << "    \"boundary_scope\": \"a district-transition boundary is the first frame-interval sample recorded after RecordDistrictLoad\",\n"
+                   << "    \"samples\": " << framePacing.sampleCount << ",\n"
+                   << "    \"histogram\": {\n"
+                   << "      \"at_or_below_recommended_budget\": {\"upper_bound_ms\": "
+                   << kRecommendedFrameBudgetMilliseconds << ", \"count\": "
+                   << framePacing.atOrBelowRecommendedBudgetCount << "},\n"
+                   << "      \"above_recommended_at_or_below_minimum_budget\": {\"lower_bound_exclusive_ms\": "
+                   << kRecommendedFrameBudgetMilliseconds << ", \"upper_bound_ms\": "
+                   << kMinimumFrameBudgetMilliseconds << ", \"count\": "
+                   << framePacing.aboveRecommendedAtOrBelowMinimumBudgetCount << "},\n"
+                   << "      \"above_minimum_at_or_below_hitch\": {\"lower_bound_exclusive_ms\": "
+                   << kMinimumFrameBudgetMilliseconds << ", \"upper_bound_ms\": "
+                   << kFrameHitchThresholdMilliseconds << ", \"count\": "
+                   << framePacing.aboveMinimumAtOrBelowHitchCount << "},\n"
+                   << "      \"above_hitch_at_or_below_severe_hitch\": {\"lower_bound_exclusive_ms\": "
+                   << kFrameHitchThresholdMilliseconds << ", \"upper_bound_ms\": "
+                   << kSevereFrameHitchThresholdMilliseconds << ", \"count\": "
+                   << framePacing.aboveHitchAtOrBelowSevereHitchCount << "},\n"
+                   << "      \"above_severe_hitch\": {\"lower_bound_exclusive_ms\": "
+                   << kSevereFrameHitchThresholdMilliseconds << ", \"count\": "
+                   << framePacing.aboveSevereHitchCount << "}\n"
+                   << "    },\n"
+                   << "    \"minimum_budget_misses\": {\"threshold_ms\": "
+                   << kMinimumFrameBudgetMilliseconds << ", \"comparison\": \"greater_than\", \"count\": "
+                   << framePacing.minimumBudgetMissCount << ", \"percent\": "
+                   << Percentage(framePacing.minimumBudgetMissCount, framePacing.sampleCount) << "},\n"
+                   << "    \"hitches\": {\"threshold_ms\": " << kFrameHitchThresholdMilliseconds
+                   << ", \"comparison\": \"greater_than\", \"count\": " << framePacing.hitchCount
+                   << ", \"percent\": " << Percentage(framePacing.hitchCount, framePacing.sampleCount)
+                   << "},\n"
+                   << "    \"severe_hitches\": {\"threshold_ms\": "
+                   << kSevereFrameHitchThresholdMilliseconds
+                   << ", \"comparison\": \"greater_than\", \"count\": "
+                   << framePacing.severeHitchCount << ", \"percent\": "
+                   << Percentage(framePacing.severeHitchCount, framePacing.sampleCount) << "},\n"
+                   << "    \"district_transition_boundaries\": {\"transitions\": "
+                   << framePacing.districtTransitionCount << ", \"measured_samples\": "
+                   << framePacing.measuredDistrictTransitionCount << ", \"hitch_count\": "
+                   << framePacing.districtTransitionHitchCount << ", \"maximum_ms\": ";
+            if (framePacing.maximumDistrictTransitionMilliseconds)
+            {
+                output << *framePacing.maximumDistrictTransitionMilliseconds;
+            }
+            else
+            {
+                output << "null";
+            }
+            output << "}\n"
+                   << "  },\n"
                    << "  \"district_load\": {\n"
                    << "    \"content_path\": \"procedural in-memory PrototypeWorld; no district file/package is read during a transition\",\n"
                    << "    \"unload_activation_scope\": \"destroy old static physics bodies, construct target world, and build target static physics bodies; exit-trigger samples also include player/vehicle arrival placement\",\n"

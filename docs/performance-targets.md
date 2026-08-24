@@ -342,6 +342,18 @@ query for fire-and-forget voices started by `SoundEffect::Play()`, nor decoder t
 time, active backend channel count, or bus cost. Report metadata marks those fields unavailable;
 they must not be inferred from the successful-play count or represented by misleading zeroes.
 
+JSON schema 8 adds `frame_pacing` derived from the existing wall-clock `frame_interval` samples.
+Its mutually exclusive histogram buckets end at the recommended 16.667 ms budget, minimum 33.333
+ms budget, 50 ms hitch threshold, and 100 ms severe-hitch threshold, followed by an unbounded final
+bucket. A minimum-budget miss is strictly greater than 33.333 ms, a hitch strictly greater than 50
+ms, and a severe hitch strictly greater than 100 ms; exact threshold values stay in the lower bucket.
+
+Each synchronous `RecordDistrictLoad` marks the index of the first frame-interval sample recorded
+after it. `district_transition_boundaries` reports total transitions, boundaries actually measured
+before capture end, how many crossed the 50 ms hitch threshold, and their maximum. A transition on
+the final unpresented update remains counted but unmeasured (`measured_samples < transitions`)
+instead of borrowing a neighboring frame or inventing zero duration.
+
 The current CNA/EasyGL API does not expose complete GPU residency. The report records the exact
 logical size of known Iron Gang-owned meshes/lightmaps/HUD resources plus imported CNJ vertex and
 index buffers and textures bound by CNA's built-in or generic effects. Imported resources are
