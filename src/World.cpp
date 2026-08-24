@@ -33,11 +33,15 @@ namespace WolfCna
         constexpr float ImpactHalfSize = 0.075f;
         constexpr float ImpactSurfaceOffset = 0.003f;
         constexpr float EnemyWakeRange = 7.0f;
-        constexpr float EnemyAttackRange = 0.85f;
+        constexpr float HoundAttackRange = 0.85f;
+        constexpr float GuardAttackRange = 6.0f;
         constexpr float EnemySpeed = 0.8f;
         constexpr float EnemyPathRefreshSeconds = 0.35f;
         constexpr float EnemyAttackInterval = 0.9f;
         constexpr int EnemyAttackDamage = 12;
+        constexpr float GuardProjectileSpeed = 4.5f;
+        constexpr float GuardProjectileHitRadius = 0.25f;
+        constexpr float GuardProjectileLifetime = 2.0f;
         constexpr float PickupRadius = 0.42f;
         constexpr float ExitRadius = 0.45f;
     }
@@ -385,11 +389,17 @@ namespace WolfCna
                 distanceSquared <= EnemyWakeRange * EnemyWakeRange &&
                 HasLineOfSight(enemy.position, playerPosition);
 
+            const float attackRange = enemy.type == Enemy::Type::Guard
+                ? GuardAttackRange
+                : HoundAttackRange;
+            const bool canAttack = distanceSquared <= attackRange * attackRange &&
+                (enemy.type == Enemy::Type::Hound || canSeePlayer);
+
             if (enemy.state == EnemyState::Idle && canSeePlayer)
                 enemy.state = EnemyState::Chase;
-            if (enemy.state == EnemyState::Chase && distanceSquared <= EnemyAttackRange * EnemyAttackRange)
+            if (enemy.state == EnemyState::Chase && canAttack)
                 enemy.state = EnemyState::Attack;
-            else if (enemy.state == EnemyState::Attack && distanceSquared > EnemyAttackRange * EnemyAttackRange)
+            else if (enemy.state == EnemyState::Attack && !canAttack)
                 enemy.state = EnemyState::Chase;
 
             if (enemy.state == EnemyState::Attack)
@@ -397,7 +407,18 @@ namespace WolfCna
                 enemy.attackCooldown -= elapsedSeconds;
                 if (enemy.attackCooldown <= 0.0f)
                 {
-                    damage += enemy.type == Enemy::Type::Hound ? EnemyAttackDamage + 6 : EnemyAttackDamage;
+                    if (enemy.type == Enemy::Type::Hound)
+                    {
+                        damage += EnemyAttackDamage + 6;
+                    }
+                    else
+                    {
+                        const float inverseDistance = 1.0f / std::sqrt(distanceSquared);
+                        enemyProjectiles_.push_back({
+                            enemy.position + Vector3(0.0f, 0.5f, 0.0f),
+                            Vector3(dx * inverseDistance * GuardProjectileSpeed, 0.0f, dz * inverseDistance * GuardProjectileSpeed),
+                            GuardProjectileLifetime});
+                    }
                     enemy.attackCooldown = EnemyAttackInterval;
                 }
             }
@@ -445,6 +466,32 @@ namespace WolfCna
                 enemy.position.X = nextX;
             if (!Collides(enemy.position.X, nextZ, 0.2f))
                 enemy.position.Z = nextZ;
+        }
+
+        for (auto iterator = enemyProjectiles_.begin(); iterator != enemyProjectiles_.end();)
+        {
+            iterator->remainingLifetime -= elapsedSeconds;
+            iterator->position.X += iterator->velocity.X * elapsedSeconds;
+            iterator->position.Y += iterator->velocity.Y * elapsedSeconds;
+            iterator->position.Z += iterator->velocity.Z * elapsedSeconds;
+
+            const int cellX = static_cast<int>(std::floor(iterator->position.X));
+            const int cellZ = static_cast<int>(std::floor(iterator->position.Z));
+            const float dx = playerPosition.X - iterator->position.X;
+            const float dz = playerPosition.Z - iterator->position.Z;
+            if (dx * dx + dz * dz <= GuardProjectileHitRadius * GuardProjectileHitRadius)
+            {
+                damage += EnemyAttackDamage;
+                iterator = enemyProjectiles_.erase(iterator);
+            }
+            else if (iterator->remainingLifetime <= 0.0f || IsBlockedCell(cellX, cellZ))
+            {
+                iterator = enemyProjectiles_.erase(iterator);
+            }
+            else
+            {
+                ++iterator;
+            }
         }
 
         return damage;
@@ -1070,6 +1117,25 @@ namespace WolfCna
                 Matrix::CreateScale(0.34f, 0.8f, 0.34f) * Matrix::CreateTranslation(terminal.position));
             effect.setDiffuseColorProperty(
                 terminal.activated ? Vector3(0.2f, 0.88f, 0.94f) : Vector3(0.92f, 0.44f, 0.08f));
+
+            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+            {
+                pass.Apply();
+                device.DrawIndexedPrimitives(
+                    PrimitiveType::TriangleList,
+                    0,
+                    0,
+                    static_cast<int>(enemyVertices_.size()),
+                    0,
+                    static_cast<int>(enemyIndices_.size() / 3));
+            }
+        }
+
+        for (const EnemyProjectile& projectile : enemyProjectiles_)
+        {
+            effect.setWorldProperty(
+                Matrix::CreateScale(0.09f) * Matrix::CreateTranslation(projectile.position));
+            effect.setDiffuseColorProperty(Vector3(1.0f, 0.42f, 0.08f));
 
             for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
             {

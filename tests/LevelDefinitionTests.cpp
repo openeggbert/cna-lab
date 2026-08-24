@@ -76,19 +76,16 @@ int main()
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "door closes after its delay");
 
     WolfCna::World bodyDoorWorld(WolfCna::LevelDefinition::Parse(
-        "######\n#PDG.#\n######\n",
+        "######\n#PDK.#\n######\n",
         "body-door.level"));
     Expect(
         bodyDoorWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::DoorOpened,
         "body door activates");
     static_cast<void>(bodyDoorWorld.Update(0.5f, playerPosition));
-    static_cast<void>(bodyDoorWorld.Update(1.0f, playerPosition));
-    Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "first shot hits doorway guard");
-    Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "second shot hits doorway guard");
-    Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "third shot kills doorway guard");
+    Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "shot kills doorway hound");
     static_cast<void>(bodyDoorWorld.Update(4.0f, playerPosition));
     static_cast<void>(bodyDoorWorld.Update(0.5f, playerPosition));
-    Expect(!bodyDoorWorld.Collides(2.5f, 1.5f, 0.1f), "dead guard keeps the door open");
+    Expect(!bodyDoorWorld.Collides(2.5f, 1.5f, 0.1f), "dead hound keeps the door open");
 
     WolfCna::World securityDoorWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PQ.#\n#####\n",
@@ -159,8 +156,10 @@ int main()
     WolfCna::World damageWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PG.#\n#####\n",
         "damage.level"));
-    Expect(damageWorld.Update(0.3f, combatPlayer) == 0, "guard starts pursuing a player");
-    Expect(damageWorld.Update(1.0f, combatPlayer) > 0, "guard damages a nearby player");
+    int guardProjectileDamage = 0;
+    for (int tick = 0; tick < 20; ++tick)
+        guardProjectileDamage += damageWorld.Update(0.05f, combatPlayer);
+    Expect(guardProjectileDamage == 12, "guard projectile damages a player at range");
 
     return EXIT_SUCCESS;
 }

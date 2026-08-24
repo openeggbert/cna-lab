@@ -22,6 +22,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - grid collision with wall sliding
 - level loaded from a validated text file
 - an authored bunker route with guards, hounds, pickups, sliding doors, a security door, and an exit
+- guards fire visible ranged projectiles; hounds remain close-range attackers
 - no external copyrighted game assets
 
 ## Controls

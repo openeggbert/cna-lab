@@ -125,6 +125,13 @@ namespace WolfCna
             float attackCooldown = 0.0f;
         };
 
+        struct EnemyProjectile
+        {
+            Microsoft::Xna::Framework::Vector3 position;
+            Microsoft::Xna::Framework::Vector3 velocity;
+            float remainingLifetime = 0.0f;
+        };
+
         enum class PickupType
         {
             Health,
@@ -160,6 +167,7 @@ namespace WolfCna
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> impactVertices_;
         std::vector<std::uint16_t> impactIndices_;
         std::vector<Enemy> enemies_;
+        std::vector<EnemyProjectile> enemyProjectiles_;
         std::vector<Pickup> pickups_;
         std::vector<Terminal> terminals_;
         std::vector<Microsoft::Xna::Framework::Vector3> exits_;
