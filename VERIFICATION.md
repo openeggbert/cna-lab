@@ -381,3 +381,29 @@ the five graphics files recorded under PEO-071 plus `Sdl3Window.cpp` and
 source. sharp-runtime remained clean at HEAD
 `54578590b328aa9612fe38bfddca9fd8ca795144`. People did not modify either
 dependency. No new visual result or framework blocker is claimed.
+
+## 2026-08-24: PEO-076 route to interaction slot
+
+`InteractionRoutePlanner` resolves a stable placed-object/slot pair, validates
+the rotated approach and each clearance tile against one static navigation
+snapshot, and invokes A* with the approach tile rather than the object's
+occupied anchor. A successful result retains slot identity, required facing,
+posture, capacity, exact route, and expanded-node count for later action and
+debug systems.
+
+Failures distinguish unknown object, unknown slot, outside/blocked start,
+outside/blocked approach, outside/blocked clearance, and a valid but
+unreachable target. Tests prove a rotated target differs from the object
+anchor, the route ends exactly there with the rotated facing, target validation
+has stable precedence, clearance errors still retain resolved target data, and
+a fully divided lot returns `NoPath` without a partial route.
+
+HEADLESS and SDL_RENDERER/SDL3 configurations both built and passed 14/14
+CTests, including the CNA runtime smoke. Verification used CNA HEAD
+`b6cbfcd87c08a6e0172eaf866358bf95bec277b1` with the same seven unrelated dirty
+files recorded under PEO-057 and clean sharp-runtime HEAD
+`54578590b328aa9612fe38bfddca9fd8ca795144`. The displayed rebuild compiled the
+current changed CNA window source; People modified neither dependency. An
+interactive build also launched successfully on the user's real `:0` display
+at 1280 x 720 and remained running, but it exposes the pre-movement visual demo;
+no visual route execution is claimed yet.

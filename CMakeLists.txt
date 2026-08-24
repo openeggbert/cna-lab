@@ -59,6 +59,7 @@ add_library(people_core STATIC
     game/src/Content/DemoFurniture.cpp
     game/src/Content/DemoResident.cpp
     game/src/Navigation/AStarPathfinder.cpp
+    game/src/Navigation/InteractionRoutePlanner.cpp
     game/src/Navigation/StaticNavigationGrid.cpp
     game/src/Objects/ObjectModel.cpp
     game/src/Rendering/ObjectPresentation.cpp
@@ -243,6 +244,18 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
     endif()
     add_test(NAME people_interaction_slot_tests COMMAND people_interaction_slot_tests)
+
+    add_executable(people_interaction_route_tests
+        tests/InteractionRoutePlannerTests.cpp
+    )
+    target_link_libraries(people_interaction_route_tests PRIVATE people_core)
+    if(MSVC)
+        target_compile_options(people_interaction_route_tests PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(people_interaction_route_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
+    endif()
+    add_test(NAME people_interaction_route_tests COMMAND people_interaction_route_tests)
 
     add_test(NAME people_runtime_smoke COMMAND People --smoke-test)
     set_tests_properties(people_runtime_smoke PROPERTIES

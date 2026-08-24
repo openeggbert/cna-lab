@@ -492,6 +492,13 @@ Manhattan distance, and an increasing insertion sequence after total-cost and
 heuristic comparisons. Equal-cost predecessors are not replaced, so the grid's
 stable neighbor order produces reproducible paths and expanded-node counts.
 
+Interaction routing resolves a stable object/slot pair before searching. It
+validates the rotated approach and every authored clearance cell against the
+same immutable navigation snapshot, then uses the approach—not the object's
+anchor—as the A* goal. Results retain the resolved facing/posture/capacity and
+distinguish unknown content, invalid or blocked target geometry, invalid start,
+and genuine no-path outcomes.
+
 Dynamic people should be a soft occupancy cost initially rather than permanent
 walls, with local waiting/replan to avoid deadlock. Exclusive destinations are
 protected by reservations before route execution. Stairs later add explicit

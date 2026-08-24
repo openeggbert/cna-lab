@@ -126,9 +126,9 @@ Statuses:
 | PEO-073 | DONE | Static occupancy grid | Floor/walls/object footprints produce deterministic walkability independent of renderer |
 | PEO-074 | DONE | Tile-grid A* | Deterministic four-neighbor path finds shortest routes, handles no-path/start=goal, and passes fixed maps |
 | PEO-075 | DONE | Door routing | Closed/open/passable policy integrates wall portals and produces expected paths |
-| PEO-076 | DOING | Route to interaction slot | Planner targets authored approach tile/facing rather than object origin and reports exact failure reason |
+| PEO-076 | DONE | Route to interaction slot | Planner targets authored approach tile/facing rather than object origin and reports exact failure reason |
 | PEO-077 | TODO | Dynamic occupancy policy | Residents wait/replan around temporary people without permanent deadlock in two corridor scenarios |
-| PEO-078 | TODO | Movement executor | Fixed-tick sub-tile progress follows path, updates facing, arrives exactly, and handles obstruction/replan |
+| PEO-078 | DOING | Movement executor | Fixed-tick sub-tile progress follows path, updates facing, arrives exactly, and handles obstruction/replan |
 | PEO-079 | TODO | Explicit action states | Queued/Routing/Executing/Completed/Failed/Canceled/Interrupted transitions and reason data are centralized/tested |
 | PEO-080 | TODO | Per-resident action queue | Enqueue, priority, cancel current/queued, inspection, and bounded length policies pass tests |
 | PEO-081 | TODO | Player-directed action command | Selecting resident/object can enqueue an eligible interaction without directly mutating motive/object state |
