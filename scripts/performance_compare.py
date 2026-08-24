@@ -364,6 +364,22 @@ def build_markdown(
     title: str,
 ) -> str:
     regressions = sum(result.regressed for result in results)
+    native_window_cells: list[str] = []
+    graphics_runtime_cells: list[tuple[str, str, str]] = []
+    for capture in (baseline, candidate):
+        native_window = native_window_evidence(capture)
+        native_window_cells.append(
+            "—"
+            if native_window is None
+            else f"{native_window[0]} / {'yes' if native_window[1] else 'no'}"
+        )
+        graphics_runtime = graphics_runtime_evidence(capture)
+        if graphics_runtime is None:
+            graphics_runtime_cells.append(("—", "—", "—"))
+        elif not graphics_runtime[0]:
+            graphics_runtime_cells.append(("unknown", "unknown", "unknown"))
+        else:
+            graphics_runtime_cells.append(graphics_runtime[1:])
     bundle_cells: list[tuple[str, str, str]] = []
     for bundle in (baseline_bundle, candidate_bundle):
         if bundle is None:
@@ -394,6 +410,17 @@ def build_markdown(
         "| --- | --- | --- | --- | --- | --- |",
         f"| Baseline | {_markdown_code(baseline_path.name)} | {_markdown_code(baseline_sha256)} | {bundle_cells[0][0]} | {bundle_cells[0][1]} | {bundle_cells[0][2]} |",
         f"| Candidate | {_markdown_code(candidate_path.name)} | {_markdown_code(candidate_sha256)} | {bundle_cells[1][0]} | {bundle_cells[1][1]} | {bundle_cells[1][2]} |",
+        "",
+        "## Machine environment",
+        "",
+        "These capture-reported values are displayed independently of the operator hardware label.",
+        "",
+        "| Evidence | Baseline | Candidate |",
+        "| --- | --- | --- |",
+        f"| Native window | {_escape(native_window_cells[0])} | {_escape(native_window_cells[1])} |",
+        f"| GL vendor | {_escape(graphics_runtime_cells[0][0])} | {_escape(graphics_runtime_cells[1][0])} |",
+        f"| GL renderer | {_escape(graphics_runtime_cells[0][1])} | {_escape(graphics_runtime_cells[1][1])} |",
+        f"| GL version | {_escape(graphics_runtime_cells[0][2])} | {_escape(graphics_runtime_cells[1][2])} |",
         "",
         "## Tolerances",
         "",

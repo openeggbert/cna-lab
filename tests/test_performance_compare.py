@@ -297,6 +297,12 @@ class PerformanceCompareTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Overall result: **NO REGRESSION**", result.stdout)
         self.assertIn("## Evidence provenance", result.stdout)
+        self.assertIn("## Machine environment", result.stdout)
+        self.assertIn("| Native window | X11 / yes | X11 / yes |", result.stdout)
+        self.assertIn(
+            "| GL renderer | AMD Radeon test GPU | AMD Radeon test GPU |",
+            result.stdout,
+        )
         self.assertIn(
             hashlib.sha256(json.dumps(baseline).encode()).hexdigest(),
             result.stdout,

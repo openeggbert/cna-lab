@@ -803,6 +803,10 @@ floor as release qualification; a shorter structurally valid capture is rejected
 compared. Use `--baseline-kind diagnostic --candidate-kind diagnostic` for Xvfb or other
 non-qualifying engineering runs; those comparisons intentionally retain shorter capture support,
 and diagnostic and qualifying evidence can never be mixed.
+Every comparison output includes a separate machine-environment table for each side's native-window
+classification and current GL vendor/renderer/version. Diagnostic comparisons may intentionally
+show different or legacy-unavailable values without failing compatibility; qualifying comparisons
+require the complete machine evidence to be present, usable, non-software, and identical.
 Budget metadata is validated against the locked schema-8 values before compatibility comparison,
 so two consistently edited policies are invalid rather than self-consistent evidence.
 Both inputs first pass the same request/v-sync/applied consistency validator as the release report,

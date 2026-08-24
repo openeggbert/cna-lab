@@ -67,6 +67,12 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 comparison artifacts now show their machine environment.** The comparator already enforced
+native-window and GL-runtime agreement for qualifying captures, but its Markdown displayed only the
+operator hardware label. It now includes baseline/candidate rows for native window, GL vendor,
+renderer, and version. Diagnostics remain permissive, so intentional Xvfb/offscreen or legacy
+differences are visible evidence rather than hidden compatibility failures.
+
 **M12 now has a full representative pair with both machine-evidence blocks.** Two new independent
 Release EasyGL `mixed --smoke 900` runs used the real AMD Radeon 780M and complete DRM wrapper while
 remaining strictly offscreen. Each profile contains `Headless / false` native-window evidence and
@@ -88,7 +94,8 @@ the current Radeon/radeonsi GL identity.
 - First original/raw/manifest/complete hashes are `5100e706…bf577b`, `f5f69a8d…e2fcf31`,
   `07c7d12f…15045a`, `022e3a6c…242513`; second hashes are `479ebb32…c3d4c7`,
   `38654aee…0ae1a2`, `17b790f0…d72296`, `0d37df26…fb71b`. Diagnostic report, audit, and comparison
-  hashes are `1e226b75…cdd86`, `5fad1163…43621`, and `4994bc63…32312a`.
+  hashes are `1e226b75…cdd86`, `5fad1163…43621`, and `8c47afde…d81cfb` (the latter includes the new
+  machine-environment table).
 
 **M12 profiles now identify the graphics runtime from the current GL context.** The hardware label
 could previously hide Xvfb's software renderer just as it could hide an offscreen window system.

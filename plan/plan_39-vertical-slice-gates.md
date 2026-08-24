@@ -83,6 +83,10 @@ rather than being a one-time final check.
     full independent 900-draw Release mixed runs passed every direct budget with stable 55.574 MiB
     complete residency and no comparison regression; archive verification still reports the
     offscreen label and machine-derived `Headless` state as the only qualification blockers.*
+    *Comparison-output follow-up: every baseline/candidate Markdown artifact now displays native
+    window plus GL vendor/renderer/version independently of the operator hardware label. Qualifying
+    runs still require identical machine evidence; diagnostics expose differences without turning
+    them into compatibility failures. No physical capture was added.*
     *Schema-type follow-up: capture `schema_version` must be an actual JSON integer equal to 8;
     floating-point `8.0` exits 2 and no capture was added.*
     *Frame-maximum follow-up: the stored maximum must occupy the highest non-empty pacing bucket;

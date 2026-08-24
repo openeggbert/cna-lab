@@ -1101,4 +1101,5 @@ archive policy passes. First original/raw/manifest/complete hashes are `5100e706
 `f5f69a8d…e2fcf31`, `07c7d12f…15045a`, `022e3a6c…242513`; second hashes are
 `479ebb32…c3d4c7`, `38654aee…0ae1a2`, `17b790f0…d72296`, `0d37df26…fb71b`. Diagnostic report,
 audit, and comparison hashes are `1e226b75…cdd86`, `5fad1163…43621`, and `4994bc63…32312a`.
+The comparator's subsequently regenerated machine-environment-table form is `8c47afde…d81cfb`.
 This supersedes the older offscreen pair as the current diagnostic format but still cannot close M12.
