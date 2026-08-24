@@ -193,6 +193,10 @@ int main() {
     const auto& radioDoor = hotspot(world, "s007_radio_door");
     const auto& cellarHatch = hotspot(world, "s007_cellar_hatch");
     const auto& serviceHatch = hotspot(world, "s010_service_hatch");
+    const auto& forestRoute = hotspot(world, "s012_forest_route");
+    const auto& trenchLadder = hotspot(world, "s015_trench_ladder");
+    const auto& generatorPath = hotspot(world, "s016_generator_path");
+    const auto& controlStairs = hotspot(world, "s023_control_stairs");
     assert(ringingPhone.visuals.size() >= 10);
     assert(answeredPhone.visuals.size() >= 10);
     assert(markedDeerPath.visuals.size() >= 7);
@@ -201,6 +205,10 @@ int main() {
     assert(radioDoor.visuals.size() >= 4);
     assert(cellarHatch.visuals.size() >= 4);
     assert(serviceHatch.visuals.size() >= 1);
+    assert(forestRoute.visuals.size() >= 7);
+    assert(trenchLadder.visuals.size() >= 7);
+    assert(generatorPath.visuals.size() >= 2);
+    assert(controlStairs.visuals.size() >= 6);
     assert(world.room("caretaker_cabin_main")->decorations.size() >= 30);
     assert(world.room("cabin_radio_nook")->decorations.size() >= 20);
     assert(world.room("caretaker_tool_shed")->decorations.size() >= 20);
@@ -234,14 +242,14 @@ int main() {
             assert(candidate.interactionArea.bottom() == 260.0F);
         }
         anchors += current->travelAnchor ? 1U : 0U;
-        const bool authoredCaretakerHub = spec.number >= 6 && spec.number <= 11;
-        if (i > 0 && !authoredCaretakerHub) {
+        const bool authoredHub = spec.number >= 6 && spec.number <= 25;
+        if (i > 0 && !authoredHub) {
             assert(std::ranges::any_of(current->exits, [i](const e2d::ExitDefinition& exit) {
                 return exit.direction == e2d::Direction::left
                     && exit.destinationRoom == black_pine::content::screens[i - 1].id;
             }));
         }
-        if (i + 1 < black_pine::content::screens.size() && !authoredCaretakerHub) {
+        if (i + 1 < black_pine::content::screens.size() && !authoredHub) {
             assert(std::ranges::any_of(current->exits, [i](const e2d::ExitDefinition& exit) {
                 return exit.direction == e2d::Direction::right
                     && exit.destinationRoom == black_pine::content::screens[i + 1].id;
@@ -264,6 +272,21 @@ int main() {
     assert(world.room("cabin_root_cellar")->exits.empty());
     assert(hasExit("weather_mast_clearing", e2d::Direction::left, "caretaker_tool_shed"));
     assert(hasExit("weather_mast_clearing", e2d::Direction::right, "old_service_road_fork"));
+    assert(hasExit("old_service_road_fork", e2d::Direction::left, "weather_mast_clearing"));
+    assert(hasExit("old_service_road_fork", e2d::Direction::right, "relay_perimeter"));
+    assert(hasExit("relay_perimeter", e2d::Direction::left, "old_service_road_fork"));
+    assert(hasExit("relay_perimeter", e2d::Direction::right, "vehicle_gate"));
+    assert(hasExit("vehicle_gate", e2d::Direction::left, "relay_perimeter"));
+    assert(hasExit("vehicle_gate", e2d::Direction::right, "relay_yard_west"));
+    assert(hasExit("relay_yard_west", e2d::Direction::left, "vehicle_gate"));
+    assert(hasExit("relay_yard_west", e2d::Direction::right, "relay_yard_east"));
+    assert(hasExit("relay_yard_east", e2d::Direction::left, "relay_yard_west"));
+    assert(world.room("relay_yard_east")->exits.size() == 1);
+    for (const int branch : {17, 18, 19, 20, 21, 22, 23, 24}) {
+        assert(world.room(black_pine::content::screens[static_cast<std::size_t>(branch - 1)].id)->exits.empty());
+    }
+    assert(hasExit("north_service_road", e2d::Direction::left, "old_service_road_fork"));
+    assert(hasExit("north_service_road", e2d::Direction::right, "burned_pine_stand"));
     assert(anchors == 17);
     assert(visiblePickups >= 45);
     assert(animatedRooms > 80 && animatedRooms < world.rooms.size());
@@ -302,20 +325,49 @@ int main() {
     take(session, world, "s009_take_pruning_saw", "pruning_saw");
     assert(session.currentHint()->text.resolve("en").find("Vehicle Gate") != std::string_view::npos);
     portal(session, world, "s009_mast_path", "weather_mast_clearing");
+    walkToTarget(session, world, "s012_forest_route");
+    session.jumpOrContext();
+    assert(session.currentRoomId() == "old_service_road_fork");
+    assert(session.mode() == e2d::SessionMode::message);
+    dismiss(session);
     use(session, world, "s014_vehicle_gate", "brass_key", "vehicle_gate_open");
+    portal(session, world, "s015_trench_ladder", "cable_trench");
     use(session, world, "s017_blue_terminals", "patch_cable", "cable_patched");
+    portal(session, world, "s017_yard_ladder", "relay_yard_west");
+    portal(session, world, "s016_generator_path", "generator_shed");
     use(session, world, "s018_main_fuse_holder", "ceramic_fuse", "fuse_installed");
+    portal(session, world, "s018_battery_door", "battery_room");
     use(session, world, "s019_battery_bus", "wrench", "battery_linked");
+    portal(session, world, "s019_generator_door", "generator_shed");
+    portal(session, world, "s018_yard_door", "relay_yard_east");
+    portal(session, world, "s016_fuel_path", "fuel_pump_alcove");
     use(session, world, "s020_fuel_valve", "wrench", "fuel_valve_open");
     take(session, world, "s020_take_siphon_hose", "siphon_hose");
+    portal(session, world, "s020_yard_path", "relay_yard_east");
+    portal(session, world, "s016_transformer_path", "transformer_pad");
     use(session, world, "s021_fallen_feeder", "lineman_gloves", "feeder_isolated");
+    portal(session, world, "s021_switchback_path", "upper_switchback");
     examine(session, world, "s004_story", "observed_upper_switchback");
+    portal(session, world, "s016_generator_path", "generator_shed");
+    portal(session, world, "s018_workshop_door", "relay_workshop");
     use(session, world, "s022_locked_cabinet", "brass_key", "workshop_open");
     assert(session.hasItem("multimeter"));
+    portal(session, world, "s022_generator_door", "generator_shed");
+    portal(session, world, "s018_yard_door", "relay_yard_east");
+    portal(session, world, "s015_hall_door", "lower_relay_hall");
     use(session, world, "s023_nightjar_trunk", "multimeter", "nightjar_signal_found");
+    portal(session, world, "s023_yard_door", "relay_yard_west");
+    portal(session, world, "s016_generator_path", "generator_shed");
     context(session, world, "s018_main_lever", "power_on");
+    portal(session, world, "s018_yard_door", "relay_yard_east");
     use(session, world, "s011_weather_mast", "multimeter", "mast_calibrated");
+    portal(session, world, "s015_hall_door", "lower_relay_hall");
+    portal(session, world, "s023_control_stairs", "local_control_room");
     context(session, world, "s024_direction_console", "act1_complete");
+    portal(session, world, "s024_hall_stairs", "lower_relay_hall");
+    portal(session, world, "s023_yard_door", "relay_yard_west");
+    portal(session, world, "s012_forest_route", "north_service_road");
+    assert(session.flag("forest_route_entered"));
 
     // Act II — rescue Theo, cross the forest and take the stolen phase coil.
     take(session, world, "s026_take_bandage_roll", "bandage_roll");

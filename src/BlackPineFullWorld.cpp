@@ -1231,6 +1231,28 @@ void setHorizontalRoute(
     }
 }
 
+e2d::HotspotDefinition& addPortal(
+    e2d::WorldDefinition& world,
+    const int screenNumber,
+    const std::string_view name,
+    std::string englishLabel,
+    std::string czechLabel,
+    const e2d::Rect area,
+    const int destinationScreen,
+    std::vector<e2d::Visual> visuals,
+    std::vector<e2d::Condition> conditions = {})
+{
+    auto& hotspot = ensureHotspot(world, screenNumber, name,
+        tr(std::move(englishLabel), std::move(czechLabel)), area,
+        e2d::HotspotKind::mechanism);
+    hotspot.visuals = std::move(visuals);
+    world.addInteraction({e2d::Verb::context, hotspot.id, std::nullopt,
+        std::move(conditions), {},
+        {e2d::Mutation::moveTo(std::string{screen(destinationScreen).id})},
+        20, {}, "climb"});
+    return hotspot;
+}
+
 void addCharacter(
     e2d::WorldDefinition& world,
     const int screenNumber,
@@ -1562,49 +1584,341 @@ void addActOne(e2d::WorldDefinition& world) {
     addPickup(world, 10, "hand_crank_torch", "The crank torch produces a narrow but dependable beam.",
         "Ruční svítilna vydává úzký, ale spolehlivý paprsek.", 1);
 
+    // The service-road fork and relay compound are a navigable hub. The
+    // catalogue remains ordered for documentation, but indoor branches are
+    // entered through visible, labelled portals instead of fake edge exits.
+    setHorizontalRoute(world, 12, 11, 13);
+    setHorizontalRoute(world, 13, 12, 14);
+    setHorizontalRoute(world, 14, 13, 15);
+    setHorizontalRoute(world, 15, 14, 16);
+    setHorizontalRoute(world, 16, 15, std::nullopt);
+    for (int branch = 17; branch <= 24; ++branch) {
+        setHorizontalRoute(world, branch, std::nullopt, std::nullopt);
+    }
+    setHorizontalRoute(world, 25, 12, 26);
+
+    auto& forestRoute = ensureHotspot(world, 12, "forest_route",
+        tr("FORESTRY BARRIER TO NORTH ROAD", "LESNICKÁ ZÁVORA K SEVERNÍ CESTĚ"),
+        {181, 126, 142, 134}, e2d::HotspotKind::mechanism, 1);
+    forestRoute.visuals = {
+        box(190, 154, 9, 106, P::brown), box(300, 154, 9, 106, P::brown),
+        box(193, 178, 110, 12, danger), box(193, 181, 110, 4, pale),
+        circle(249, 184, 5, amber),
+        e2d::PolygonVisual{{{198, 135}, {286, 135}, {304, 146}, {286, 157}, {198, 157}}, amber, true},
+        label(215, 141, tr("FOREST", "LES"), P::black),
+    };
+    world.addInteraction({e2d::Verb::context, forestRoute.id, std::nullopt,
+        {e2d::Condition::flag("act1_complete"), e2d::Condition::notFlag("forest_route_entered")},
+        {inspect(tr("The site-map code lifts the forestry barrier. Iris follows bearing 017 north.",
+            "Kód z mapy zvedne lesnickou závoru. Iris pokračuje na sever podle náměru 017."))},
+        {e2d::Mutation::setFlag("forest_route_entered"),
+            e2d::Mutation::moveTo(std::string{screen(25).id})}, 40, {}, "unlock"});
+    world.addInteraction({e2d::Verb::context, forestRoute.id, std::nullopt,
+        {e2d::Condition::flag("act1_complete"), e2d::Condition::flag("forest_route_entered")}, {},
+        {e2d::Mutation::moveTo(std::string{screen(25).id})}, 30, {}, "climb"});
+    world.addInteraction({e2d::Verb::context, forestRoute.id, std::nullopt,
+        {e2d::Condition::notFlag("act1_complete")},
+        {inspect(tr("The forestry barrier needs Mara's map code and a confirmed Nightjar bearing. Restore the relay first.",
+            "Lesnická závora vyžaduje kód z Mařiny mapy a potvrzený náměr Nightjaru. Nejprve obnov převaděč."))},
+        {}, 10, {}});
+    room(world, 12).hotspots.push_back({targetId(12, "forest_route_open"),
+        tr("OPEN NORTH ROAD", "OTEVŘENÁ SEVERNÍ CESTA"), {0, 0, 0, 0},
+        e2d::HotspotKind::scenery, {e2d::Condition::flag("act1_complete")}, {
+            box(299, 83, 9, 103, P::brown),
+            box(301, 89, 12, 100, danger),
+            circle(304, 190, 5, P::brightGreen),
+        }});
+
+    addPortal(world, 15, "trench_ladder", "LADDER TO CABLE TRENCH", "ŽEBŘÍK DO KABELOVÉHO VÝKOPU",
+        {24, 165, 126, 95}, 17, {
+            box(31, 233, 110, 24, P::black), line(43, 184, 43, 256, amber),
+            line(66, 184, 66, 256, amber), line(43, 198, 66, 198, pale),
+            line(43, 216, 66, 216, pale), line(43, 234, 66, 234, pale),
+            label(79, 210, tr("TRENCH", "VÝKOP"), amber),
+        });
+    addPortal(world, 15, "hall_door", "DOOR TO LOWER RELAY HALL", "DVEŘE DO DOLNÍHO SÁLU",
+        {356, 127, 128, 133}, 23, {
+            box(382, 136, 78, 124, P::lightGray), box(389, 144, 64, 110, P::blue),
+            circle(443, 199, 4, amber), label(396, 158, tr("HALL", "SÁL"), pale),
+        });
+    addPortal(world, 17, "yard_ladder", "LADDER TO RELAY YARD", "ŽEBŘÍK DO AREÁLU",
+        {365, 139, 119, 121}, 15, {
+            line(395, 146, 395, 258, amber), line(426, 146, 426, 258, amber),
+            line(395, 164, 426, 164, pale), line(395, 186, 426, 186, pale),
+            line(395, 208, 426, 208, pale), line(395, 230, 426, 230, pale),
+            label(386, 130, tr("YARD", "AREÁL"), amber),
+        });
+
+    addPortal(world, 16, "generator_path", "PATH TO GENERATOR SHED", "CESTA KE GENERÁTOROVNĚ",
+        {18, 139, 130, 121}, 18, {
+            e2d::PolygonVisual{{{26, 180}, {105, 180}, {126, 194}, {105, 208}, {26, 208}}, amber, true},
+            label(38, 189, tr("GENERATOR", "GENERÁTOR"), P::black),
+        });
+    addPortal(world, 16, "fuel_path", "PATH TO FUEL PUMP", "CESTA K PALIVOVÉMU ČERPADLU",
+        {180, 139, 132, 121}, 20, {
+            box(192, 174, 107, 38, P::brown), box(198, 180, 95, 26, amber),
+            label(224, 189, tr("PUMP", "ČERPADLO"), P::black),
+        });
+    addPortal(world, 16, "transformer_path", "PATH TO TRANSFORMER PAD", "CESTA K TRANSFORMÁTORU",
+        {346, 139, 138, 121}, 21, {
+            e2d::PolygonVisual{{{357, 180}, {440, 180}, {466, 194}, {440, 208}, {357, 208}}, signalBlue, true},
+            label(371, 189, tr("TRANSFORMER", "TRANSFORMÁTOR"), P::black),
+        });
+
+    addPortal(world, 18, "yard_door", "DOOR TO RELAY YARD", "DVEŘE DO AREÁLU",
+        {0, 126, 60, 134}, 16, {
+            box(8, 132, 44, 128, P::brown), circle(43, 198, 3, amber),
+            label(13, 145, tr("YARD", "AREÁL"), pale),
+        });
+    addPortal(world, 18, "workshop_door", "DOOR TO RELAY WORKSHOP", "DVEŘE DO DÍLNY",
+        {172, 126, 84, 134}, 22, {
+            box(181, 136, 66, 124, P::brown), circle(238, 199, 3, amber),
+            label(188, 150, tr("WORKSHOP", "DÍLNA"), pale),
+        });
+    addPortal(world, 18, "battery_door", "DOOR TO BATTERY ROOM", "DVEŘE DO AKUMULÁTOROVNY",
+        {386, 126, 98, 134}, 19, {
+            box(397, 136, 77, 124, P::brown), circle(464, 199, 3, amber),
+            label(405, 150, tr("BATTERY", "BATERIE"), pale),
+        });
+    addPortal(world, 19, "generator_door", "DOOR TO GENERATOR SHED", "DVEŘE DO GENERÁTOROVNY",
+        {387, 126, 97, 134}, 18, {
+            box(399, 136, 74, 124, P::brown), circle(463, 199, 3, amber),
+            label(405, 150, tr("GENERATOR", "GENERÁTOR"), pale),
+        });
+    addPortal(world, 20, "yard_path", "PATH TO RELAY YARD", "CESTA DO AREÁLU",
+        {382, 151, 102, 109}, 16, {
+            e2d::PolygonVisual{{{391, 181}, {447, 181}, {470, 195}, {447, 209}, {391, 209}}, amber, true},
+            label(404, 190, tr("YARD", "AREÁL"), P::black),
+        });
+    addPortal(world, 21, "yard_path", "PATH TO RELAY YARD", "CESTA DO AREÁLU",
+        {382, 151, 102, 109}, 16, {
+            e2d::PolygonVisual{{{391, 181}, {447, 181}, {470, 195}, {447, 209}, {391, 209}}, amber, true},
+            label(404, 190, tr("YARD", "AREÁL"), P::black),
+        });
+    auto& switchbackPath = addPortal(world, 21, "switchback_path",
+        "MAINTENANCE PATH TO SWITCHBACK", "ÚDRŽBOVÁ CESTA K SERPENTINĚ",
+        {220, 151, 140, 109}, 4, {
+            e2d::PolygonVisual{{{230, 181}, {318, 181}, {344, 195}, {318, 209}, {230, 209}}, signalBlue, true},
+            label(241, 190, tr("SWITCHBACK", "SERPENTINA"), P::black),
+        }, {e2d::Condition::flag("feeder_isolated")});
+    world.addInteraction({e2d::Verb::context, switchbackPath.id, std::nullopt,
+        {e2d::Condition::notFlag("feeder_isolated")},
+        {warning(tr("Blue arcs cover the maintenance path. Isolate the fallen feeder first.",
+            "Údržbovou cestu křižují modré výboje. Nejprve odpoj spadlý přívod."))},
+        {}, 10, {}, "warning"});
+    addPortal(world, 22, "generator_door", "DOOR TO GENERATOR SHED", "DVEŘE DO GENERÁTOROVNY",
+        {386, 126, 98, 134}, 18, {
+            box(397, 136, 77, 124, P::brown), circle(464, 199, 3, amber),
+            label(403, 150, tr("GENERATOR", "GENERÁTOR"), pale),
+        });
+    addPortal(world, 23, "yard_door", "DOOR TO RELAY YARD", "DVEŘE DO AREÁLU",
+        {0, 126, 62, 134}, 15, {
+            box(8, 136, 46, 124, P::brown), circle(45, 199, 3, amber),
+            label(13, 150, tr("YARD", "AREÁL"), pale),
+        });
+    addPortal(world, 23, "control_stairs", "STAIRS TO LOCAL CONTROL", "SCHODY DO MÍSTNÍHO VELÍNU",
+        {376, 126, 108, 134}, 24, {
+            line(389, 250, 464, 151, amber), line(411, 250, 484, 151, amber),
+            line(397, 235, 420, 235, pale), line(409, 217, 433, 217, pale),
+            line(422, 199, 446, 199, pale), line(435, 181, 459, 181, pale),
+            label(382, 137, tr("CONTROL", "VELÍN"), amber),
+        });
+    addPortal(world, 24, "hall_stairs", "STAIRS TO LOWER RELAY HALL", "SCHODY DO DOLNÍHO SÁLU",
+        {0, 126, 92, 134}, 23, {
+            line(10, 151, 74, 250, amber), line(32, 151, 94, 250, amber),
+            line(23, 173, 46, 173, pale), line(35, 191, 59, 191, pale),
+            line(47, 209, 71, 209, pale), line(59, 227, 83, 227, pale),
+            label(11, 137, tr("DOWN", "DOLŮ"), amber),
+        });
+
     addUse(world, 14, "vehicle_gate", "VEHICLE GATE", "VJEZDOVÁ BRÁNA", "brass_key", "vehicle_gate_open",
         "The old master key drops the gate chain. You keep it for the workshop.",
         "Starý hlavní klíč uvolní řetěz brány. Necháš si ho pro dílnu.");
+    auto& vehicleGate = ensureHotspot(world, 14, "vehicle_gate",
+        tr("VEHICLE GATE", "VJEZDOVÁ BRÁNA"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    vehicleGate.visibleWhen = {e2d::Condition::notFlag("vehicle_gate_open")};
+    vehicleGate.visuals = {
+        line(75, 194, 145, 194, P::lightGray), line(80, 188, 140, 201, P::lightGray),
+        box(101, 181, 27, 31, amber), circle(114, 191, 4, P::black),
+        label(86, 218, tr("LOCKED", "ZAMČENO"), danger),
+    };
+    auto& openGate = ensureHotspot(world, 14, "vehicle_gate_complete",
+        tr("OPEN VEHICLE GATE", "OTEVŘENÁ VJEZDOVÁ BRÁNA"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    openGate.visuals = {
+        box(101, 181, 27, 31, P::brightGreen, false),
+        label(82, 218, tr("GATE OPEN", "BRÁNA OTEVŘENA"), P::brightGreen),
+    };
     gateRight(world, 14, {e2d::Condition::flag("vehicle_gate_open")},
         "The locked vehicle gate blocks the relay yard.", "Zamčená vjezdová brána blokuje areál převaděče.");
     addUse(world, 17, "blue_terminals", "BLUE TERMINALS", "MODRÉ SVORKY", "patch_cable", "cable_patched",
         "Iris kneels and bridges the deliberately empty blue terminals.",
         "Iris se skloní a propojí úmyslně prázdné modré svorky.", {}, true);
+    auto& blueTerminals = ensureHotspot(world, 17, "blue_terminals",
+        tr("BLUE TERMINALS", "MODRÉ SVORKY"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    blueTerminals.visibleWhen = {e2d::Condition::notFlag("cable_patched")};
+    blueTerminals.visuals = {
+        box(73, 157, 76, 80, P::darkGray), box(79, 163, 64, 68, P::black),
+        circle(94, 190, 8, signalBlue, false), circle(128, 190, 8, signalBlue, false),
+        line(102, 190, 120, 190, danger), label(82, 169, tr("BLUE", "MODRÉ"), signalBlue),
+    };
+    auto& patchedTerminals = ensureHotspot(world, 17, "blue_terminals_complete",
+        tr("PATCHED BLUE TERMINALS", "PROPOJENÉ MODRÉ SVORKY"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    patchedTerminals.visuals = {
+        box(73, 157, 76, 80, P::darkGray), box(79, 163, 64, 68, P::black),
+        circle(94, 190, 8, signalBlue, false), circle(128, 190, 8, signalBlue, false),
+        e2d::PolylineVisual{{{94, 190}, {109, 174}, {128, 190}}, P::brightGreen, false},
+        circle(111, 210, 4, P::brightGreen),
+    };
     addUse(world, 18, "main_fuse_holder", "MAIN FUSE HOLDER", "DRŽÁK HLAVNÍ POJISTKY", "ceramic_fuse", "fuse_installed",
         "The ceramic fuse locks into the MAIN holder with a clean click.",
         "Keramická pojistka čistě zaklapne do HLAVNÍHO držáku.", {}, true);
+    auto& fuseHolder = ensureHotspot(world, 18, "main_fuse_holder",
+        tr("MAIN FUSE HOLDER", "DRŽÁK HLAVNÍ POJISTKY"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    fuseHolder.visibleWhen = {e2d::Condition::notFlag("fuse_installed")};
+    fuseHolder.visuals = {
+        box(74, 155, 75, 80, P::darkGray), box(82, 163, 59, 64, P::black),
+        circle(95, 195, 7, P::red), circle(128, 195, 7, P::red),
+        line(95, 195, 128, 195, P::lightGray),
+        label(88, 169, tr("MAIN", "HLAVNÍ"), amber),
+    };
+    auto& installedFuse = ensureHotspot(world, 18, "main_fuse_holder_complete",
+        tr("INSTALLED MAIN FUSE", "NASAZENÁ HLAVNÍ POJISTKA"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    installedFuse.visuals = {
+        box(74, 155, 75, 80, P::darkGray), box(82, 163, 59, 64, P::black),
+        circle(95, 195, 7, amber), circle(128, 195, 7, signalBlue),
+        box(95, 188, 33, 14, danger), box(100, 191, 23, 8, P::red),
+        circle(111, 216, 4, P::brightGreen),
+    };
     addUse(world, 19, "battery_bus", "BATTERY BUS LINK", "SPOJNICE AKUMULÁTORŮ", "wrench", "battery_linked",
         "The wrench secures the loose battery bus without crossing the acid stain.",
         "Klíčem upevníš spojení akumulátorů, aniž vstoupíš do kyseliny.");
+    auto& batteryBus = ensureHotspot(world, 19, "battery_bus",
+        tr("BATTERY BUS LINK", "SPOJNICE AKUMULÁTORŮ"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    batteryBus.visibleWhen = {e2d::Condition::notFlag("battery_linked")};
+    batteryBus.visuals = {
+        box(70, 167, 38, 59, P::blue), box(113, 167, 38, 59, P::blue),
+        box(77, 158, 9, 9, danger), box(92, 158, 9, 9, P::brightGreen),
+        box(120, 158, 9, 9, danger), box(135, 158, 9, 9, P::brightGreen),
+        line(97, 162, 124, 181, P::lightGray), label(78, 234, tr("BUS", "SPOJNICE"), amber),
+    };
+    auto& linkedBus = ensureHotspot(world, 19, "battery_bus_complete",
+        tr("CONNECTED BATTERY BUS", "PŘIPOJENÁ SPOJNICE AKUMULÁTORŮ"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    linkedBus.visuals = {
+        box(70, 167, 38, 59, P::blue), box(113, 167, 38, 59, P::blue),
+        box(77, 158, 9, 9, danger), box(92, 158, 9, 9, P::brightGreen),
+        box(120, 158, 9, 9, danger), box(135, 158, 9, 9, P::brightGreen),
+        box(97, 158, 27, 8, amber), circle(111, 181, 4, P::brightGreen),
+    };
     addUse(world, 20, "fuel_valve", "FUEL SUPPLY VALVE", "PŘÍVODNÍ VENTIL PALIVA", "wrench", "fuel_valve_open",
         "The seized valve turns and fuel rises in the sight glass.",
         "Zadřený ventil se otočí a palivo stoupne v průhledítku.");
+    auto& fuelValve = ensureHotspot(world, 20, "fuel_valve",
+        tr("FUEL SUPPLY VALVE", "PŘÍVODNÍ VENTIL PALIVA"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    fuelValve.visibleWhen = {e2d::Condition::notFlag("fuel_valve_open")};
+    fuelValve.visuals = {
+        line(68, 210, 154, 210, amber), box(87, 202, 47, 16, P::brown),
+        circle(111, 179, 23, danger, false), circle(111, 179, 6, amber),
+        line(88, 179, 134, 179, danger), line(111, 156, 111, 202, danger),
+        label(85, 232, tr("FUEL", "PALIVO"), amber),
+    };
+    auto& openFuelValve = ensureHotspot(world, 20, "fuel_valve_complete",
+        tr("OPEN FUEL SUPPLY", "OTEVŘENÝ PŘÍVOD PALIVA"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    openFuelValve.visuals = {
+        line(68, 210, 154, 210, amber), box(87, 202, 47, 16, P::brown),
+        circle(111, 179, 23, P::brightGreen, false), circle(111, 179, 6, amber),
+        line(95, 163, 127, 195, P::brightGreen), line(127, 163, 95, 195, P::brightGreen),
+        box(141, 169, 8, 38, P::black), box(143, 178, 4, 27, amber),
+    };
     addPickup(world, 20, "siphon_hose", "You take the empty fuel-safe siphon hose.",
         "Vezmeš prázdnou hadici vhodnou pro přečerpávání paliva.", 2);
     addUse(world, 21, "fallen_feeder", "FALLEN FEEDER ISOLATOR", "ODPOJOVAČ SPADLÉHO PŘÍVODU",
         "lineman_gloves", "feeder_isolated", "Insulated hands open the feeder switch. The blue arcs die.",
         "Izolované ruce otevřou odpojovač. Modré výboje zhasnou.");
+    auto& feeder = ensureHotspot(world, 21, "fallen_feeder",
+        tr("FALLEN FEEDER ISOLATOR", "ODPOJOVAČ SPADLÉHO PŘÍVODU"),
+        {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    feeder.visibleWhen = {e2d::Condition::notFlag("feeder_isolated")};
+    feeder.visuals = {
+        box(76, 154, 70, 83, P::lightGray), box(84, 163, 54, 65, P::black),
+        circle(94, 181, 7, signalBlue), circle(128, 181, 7, signalBlue),
+        line(94, 188, 124, 214, danger), line(128, 188, 98, 214, danger),
+        label(88, 219, tr("LIVE", "ŽIVÉ"), danger),
+    };
+    auto& isolatedFeeder = ensureHotspot(world, 21, "fallen_feeder_complete",
+        tr("ISOLATED FEEDER", "ODPOJENÝ PŘÍVOD"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    isolatedFeeder.visuals = {
+        box(76, 154, 70, 83, P::lightGray), box(84, 163, 54, 65, P::black),
+        circle(94, 181, 7, P::darkGray), circle(128, 181, 7, P::darkGray),
+        line(94, 188, 128, 216, P::lightGray), circle(111, 218, 4, P::brightGreen),
+        label(87, 169, tr("SAFE", "BEZPEČNÉ"), P::brightGreen),
+    };
     addHazard(world, 4, "live_feeder", "feeder_isolated",
         "The fallen feeder arcs through Iris before she can pull away.",
         "Spadlý přívod zasáhne Iris dřív, než stačí ucuknout.");
 
     auto& cabinet = ensureHotspot(world, 22, "locked_cabinet", tr("CALDER'S CABINET", "CALDEROVÉ SKŘÍŇ"),
         {91, 132, 116, 128}, e2d::HotspotKind::mechanism, 0);
+    cabinet.visibleWhen = {e2d::Condition::notFlag("workshop_open")};
+    cabinet.visuals = {
+        box(101, 143, 96, 112, P::brown), box(109, 151, 80, 96, P::red, false),
+        line(149, 151, 149, 247, P::red), circle(158, 199, 5, amber),
+        label(113, 161, tr("CALDER", "CALDEROVÁ"), pale),
+    };
     world.addInteraction({e2d::Verb::use, cabinet.id, std::string{"brass_key"},
         {e2d::Condition::notFlag("workshop_open")},
         {inspect(tr("The key opens Calder's cabinet. Her multimeter and enamel badge are still inside.",
             "Klíč otevře Calderové skříň. Uvnitř zůstal multimetr a smaltovaný odznak."))},
         {e2d::Mutation::setFlag("workshop_open"), e2d::Mutation::addItem("multimeter"),
             e2d::Mutation::addItem("relay_badge")}, 30, {}, "unlock"});
+    room(world, 22).hotspots.push_back({targetId(22, "locked_cabinet_open"),
+        tr("OPEN CALDER CABINET", "OTEVŘENÁ CALDEROVÉ SKŘÍŇ"), {0, 0, 0, 0},
+        e2d::HotspotKind::scenery, {e2d::Condition::flag("workshop_open")}, {
+            box(101, 143, 96, 112, P::brown), box(109, 151, 34, 96, P::black),
+            box(151, 151, 38, 96, P::red, false),
+            line(116, 191, 136, 181, signalBlue), circle(126, 197, 8, amber),
+            circle(170, 199, 4, P::brightGreen),
+        }});
     addUse(world, 23, "nightjar_trunk", "NIGHTJAR TRUNK", "TRASA NIGHTJAR", "multimeter", "nightjar_signal_found",
         "The meter proves that a timed signal lives on a physically disconnected trunk.",
         "Měřidlo dokáže, že na fyzicky odpojené trase žije časovaný signál.");
+    auto& nightjarTrunk = ensureHotspot(world, 23, "nightjar_trunk",
+        tr("NIGHTJAR TRUNK", "TRASA NIGHTJAR"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    nightjarTrunk.visibleWhen = {e2d::Condition::notFlag("nightjar_signal_found")};
+    nightjarTrunk.visuals = {
+        box(72, 148, 78, 96, P::darkGray), box(80, 156, 62, 80, P::black),
+        line(91, 166, 91, 226, signalBlue), line(111, 166, 111, 226, P::lightGray),
+        line(131, 166, 131, 226, danger), circle(111, 197, 5, amber),
+        label(83, 232, tr("NIGHTJAR", "NIGHTJAR"), danger),
+    };
+    auto& tracedTrunk = ensureHotspot(world, 23, "nightjar_trunk_complete",
+        tr("TRACED NIGHTJAR TRUNK", "PROMĚŘENÁ TRASA NIGHTJAR"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    tracedTrunk.visuals = {
+        box(72, 148, 78, 96, P::darkGray), box(80, 156, 62, 80, P::black),
+        line(91, 166, 91, 226, signalBlue), line(111, 166, 111, 226, P::lightGray),
+        line(131, 166, 131, 226, danger),
+        e2d::PolylineVisual{{{84, 208}, {96, 190}, {107, 211}, {119, 184}, {138, 208}}, P::brightGreen, false},
+    };
     addContext(world, 18, "main_lever", "MAIN LEVER", "HLAVNÍ PÁKA", "power_on", {
         inspect(tr("The generator coughs twice, catches, and drives power through every repaired link.",
             "Generátor dvakrát zakašle, chytne se a žene proud všemi opravenými spoji.")),
     }, {e2d::Condition::flag("fuse_installed"), e2d::Condition::flag("cable_patched"),
         e2d::Condition::flag("battery_linked"), e2d::Condition::flag("fuel_valve_open"),
         e2d::Condition::flag("feeder_isolated")}, {}, 2, "power");
+    auto& mainLever = ensureHotspot(world, 18, "main_lever",
+        tr("MAIN LEVER", "HLAVNÍ PÁKA"), {270, 137, 92, 123}, e2d::HotspotKind::mechanism, 2);
+    mainLever.visibleWhen = {e2d::Condition::notFlag("power_on")};
+    mainLever.visuals = {
+        box(286, 171, 59, 67, P::darkGray), circle(315, 204, 20, P::black),
+        line(315, 204, 300, 177, danger), circle(300, 177, 7, amber),
+        label(293, 223, tr("MAIN", "HLAVNÍ"), pale),
+    };
+    auto& poweredLever = ensureHotspot(world, 18, "main_lever_complete",
+        tr("POWERED MAIN LEVER", "ZAPNUTÁ HLAVNÍ PÁKA"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    poweredLever.visuals = {
+        box(286, 171, 59, 67, P::darkGray), circle(315, 204, 20, P::black),
+        line(315, 204, 331, 177, P::brightGreen), circle(331, 177, 7, amber),
+        circle(315, 229, 4, P::brightGreen),
+    };
     addUse(world, 11, "weather_mast", "WEATHER MAST TEST LEADS", "TESTOVACÍ VÝVODY METEOSTOŽÁRU",
         "multimeter", "mast_calibrated", "The live mast settles on bearing 017 toward the north forest.",
         "Živý stožár se ustálí na náměru 017 k severnímu lesu.", {e2d::Condition::flag("power_on")});
@@ -1616,9 +1930,23 @@ void addActOne(e2d::WorldDefinition& world) {
                 "Mara: Nightjar byl pohřben před lety. Otevři severní závoru a najdi, kdo ho probudil.")),
         }, {e2d::Condition::flag("power_on"), e2d::Condition::flag("nightjar_signal_found"),
             e2d::Condition::flag("mast_calibrated")}, {}, 2, "power");
-    gateRight(world, 24, {e2d::Condition::flag("act1_complete")},
-        "The control-room trace is incomplete. F1 lists the missing repair.",
-        "Trasování ve velínu není hotové. F1 ukáže chybějící opravu.");
+    auto& directionConsole = ensureHotspot(world, 24, "direction_console",
+        tr("DIRECTION TRACE CONSOLE", "PANEL SMĚROVÉHO TRASOVAČE"),
+        {270, 137, 92, 123}, e2d::HotspotKind::mechanism, 2);
+    directionConsole.visibleWhen = {e2d::Condition::notFlag("act1_complete")};
+    directionConsole.visuals = {
+        box(275, 151, 82, 93, P::lightGray), box(282, 159, 68, 48, P::blue),
+        circle(316, 183, 19, P::black, false), line(316, 183, 302, 170, signalBlue),
+        circle(292, 221, 5, danger), circle(316, 221, 5, amber), circle(340, 221, 5, P::brightGreen),
+        label(282, 235, tr("TRACE", "TRASA"), pale),
+    };
+    auto& tracedConsole = ensureHotspot(world, 24, "direction_console_complete",
+        tr("NIGHTJAR BEARING 017", "NÁMĚR NIGHTJAR 017"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    tracedConsole.visuals = {
+        box(275, 151, 82, 93, P::lightGray), box(282, 159, 68, 48, P::blue),
+        circle(316, 183, 19, P::black, false), line(316, 183, 326, 167, P::brightGreen),
+        circle(340, 221, 5, P::brightGreen), label(287, 212, tr("017", "017"), amber),
+    };
     addFollowUpDialogue(world, 7, "mara", "mara_nightjar_briefing", {
         speech(tr("Mara: Bearing zero-one-seven ends at Nightjar. Ruth Calder shut that place down because the field could pull aircraft off their instruments.",
             "Mara: Náměr nula-jedna-sedm končí u Nightjaru. Ruth Calderová to místo zavřela, protože pole mohlo odvést letadla z přístrojů.")),
@@ -2380,20 +2708,32 @@ void addHints(e2d::WorldDefinition& world) {
         "V kůlně SEBER izolované elektrikářské rukavice.");
     next("taken_pruning_saw", "In the Tool Shed, TAKE the folding pruning saw, then follow the MAST sign.",
         "V kůlně SEBER skládací prořezávací pilu a potom sleduj šipku STOŽÁR.");
-    next("vehicle_gate_open", "USE the brass key on the Vehicle Gate.", "U Vjezdové brány POUŽIJ mosazný klíč.");
-    next("cable_patched", "In the Cable Trench, USE the patch cable on the blue terminals.", "V Kabelovém výkopu POUŽIJ kabel na modré svorky.");
-    next("fuse_installed", "In the Generator Shed, USE the ceramic fuse on the MAIN holder.", "V Generátorovně POUŽIJ keramickou pojistku na HLAVNÍ držák.");
-    next("battery_linked", "In the Battery Room, USE the wrench on the loose bus link.", "V Akumulátorovně POUŽIJ klíč na uvolněnou spojnici.");
-    next("fuel_valve_open", "At the Fuel Pump Alcove, USE the wrench on the supply valve.", "U Palivového čerpadla POUŽIJ klíč na přívodní ventil.");
-    next("feeder_isolated", "At the Transformer Pad, USE the lineman gloves on the feeder isolator.", "U Transformátoru POUŽIJ elektrikářské rukavice na odpojovač.");
-    next("workshop_open", "In the Relay Workshop, USE the brass key on Calder's cabinet.",
-        "V Dílně převaděče POUŽIJ mosazný klíč na Calderové skříň.");
-    next("power_on", "Return to the Generator Shed and operate the repaired MAIN lever with ENTER.",
-        "Vrať se do Generátorovny a spusť opravenou HLAVNÍ páku klávesou ENTER.");
+    next("vehicle_gate_open", "Follow the service road east and USE the brass key on the Vehicle Gate.",
+        "Pokračuj po servisní cestě na východ a u Vjezdové brány POUŽIJ mosazný klíč.");
+    next("cable_patched", "At Relay Yard West enter the labelled TRENCH and USE the patch cable on the blue terminals.",
+        "V Západní části areálu vstup do označeného VÝKOPU a POUŽIJ kabel na modré svorky.");
+    next("fuse_installed", "At Relay Yard East follow GENERATOR and USE the ceramic fuse on the MAIN holder.",
+        "Ve Východní části areálu sleduj GENERÁTOR a POUŽIJ keramickou pojistku na HLAVNÍ držák.");
+    next("battery_linked", "From the Generator Shed enter BATTERY and USE the wrench on the loose bus link.",
+        "Z Generátorovny vstup do BATERIE a POUŽIJ klíč na uvolněnou spojnici.");
+    next("fuel_valve_open", "Return to Relay Yard East, follow PUMP and USE the wrench on the fuel valve.",
+        "Vrať se do Východní části areálu, sleduj ČERPADLO a POUŽIJ klíč na palivový ventil.");
+    next("taken_siphon_hose", "At the Fuel Pump, TAKE the coiled siphon hose before leaving.",
+        "U Palivového čerpadla před odchodem SEBER stočenou přečerpávací hadici.");
+    next("feeder_isolated", "At Relay Yard East follow TRANSFORMER and USE the lineman gloves on the feeder isolator.",
+        "Ve Východní části areálu sleduj TRANSFORMÁTOR a POUŽIJ elektrikářské rukavice na odpojovač.");
+    next("workshop_open", "From the Generator Shed enter WORKSHOP and USE the brass key on Calder's cabinet.",
+        "Z Generátorovny vstup do DÍLNY a POUŽIJ mosazný klíč na Calderové skříň.");
+    next("nightjar_signal_found", "At Relay Yard West enter HALL and USE the multimeter on the Nightjar trunk.",
+        "V Západní části areálu vstup do SÁLU a POUŽIJ multimetr na trase Nightjar.");
+    next("power_on", "Return through YARD and GENERATOR, then operate the repaired MAIN lever with ENTER.",
+        "Vrať se přes AREÁL a GENERÁTOR a spusť opravenou HLAVNÍ páku klávesou ENTER.");
     next("mast_calibrated", "Return to the Weather Mast Clearing and USE the multimeter on its test leads.",
         "Vrať se na Mýtinu s meteostožárem a POUŽIJ multimetr na testovací vývody.");
     next("act1_complete", "In the Local Control Room, operate the direction console after tracing Nightjar.",
         "V Místním velíně spusť směrový panel po proměření trasy Nightjar.");
+    next("forest_route_entered", "Return to Old Service Road Fork and press ENTER at the FOREST barrier.",
+        "Vrať se na Rozcestí staré servisní cesty a stiskni ENTER u závory LES.");
     next("theo_briefed", "In Mossy Hollow, free Theo with the saw and bandage, then speak to him.",
         "V Mechové prohlubni osvoboď Thea pilou a obvazem a pak s ním promluv.");
     next("echo_route_solved", "In Echo Grove, USE Theo's compass with bearing 017.",

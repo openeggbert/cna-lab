@@ -23,8 +23,8 @@ A region is human-playable only when all of the following are true:
 
 | Region | Screens | Status | Remaining work |
 |---|---:|---|---|
-| Storm gate and caretaker hub | 1–12 | In progress | Screens 1–11 have a safe opening route, visible phone and pickups, an enterable cabin, distinct cabin/radio/shed/cellar interiors and authored hub portals. Screen 12 still needs its three-way service-road fork and forestry barrier. |
-| Relay yard and local power | 13–24 | Scripted, not audited | Replace the linear route with the yard/trench/generator branches; draw each repair target and verify the full fuse/cable/fuel/battery/transformer order manually. |
+| Storm gate and caretaker hub | 1–12 | Audited | Safe opening route, visible phone and pickups, enterable cabin, distinct cabin/radio/shed/cellar interiors, authored hub portals and a gated three-way service-road fork. |
+| Relay yard and local power | 13–24 | Audited | The yard, trench, generator, battery, pump, transformer, workshop, hall and control-room branches use visible labelled portals. Repair targets have persistent before/after artwork and the physical scenario traverses the complete route. |
 | North forest | 25–38 | Scripted, not audited | Author the rescue and cache branches, visible clues, harmless bear solution and lookout route. |
 | Quarry and ravine | 39–50 | Scripted, not audited | Author vertical rope/hoist topology, water route, guard positions and crusher-safe path. |
 | Logging railway | 51–63 | Scripted, not audited | Build the sawmill/camp/engine hub, visibly persistent five-part engine repair and trestle sequence. |
@@ -43,7 +43,16 @@ A region is human-playable only when all of the following are true:
 - The caretaker cabin is entered through visible doors with ENTER.
 - Screens 6–11 now form the authored caretaker hub instead of a false linear
   sequence: porch, cabin, radio nook, cellar, tool shed and weather mast.
+- Screen 12 is a real relay/forest fork. Its visible FOREST barrier stays
+  closed until the direction trace is complete, then returns through screen 25.
+- Screens 13–24 form the authored relay-yard hub. Every branch has a labelled
+  entrance and return route, and F1 names those labels rather than internal
+  screen numbers.
+- Cable, fuse, battery, fuel, feeder, cabinet, Nightjar trunk, generator lever
+  and trace-console states have dedicated 16-colour before/after drawings.
+- The render-preview utility emits repaired-state frames for the relay region,
+  and the scenario test now walks through the same portals as a player.
 
-The next implementation pass starts with screen 12 and the relay-yard hub,
-because that is the first remaining place where the documented geography and
-the playable geography diverge.
+The next implementation pass starts with the North Forest (screens 25–38),
+where the rescue/cache branches and Echo Grove route still differ from the
+documented geography.
