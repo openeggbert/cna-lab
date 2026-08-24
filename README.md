@@ -36,6 +36,10 @@ route.
 - Visited-location fast travel.
 - A ravine hazard, death and restart.
 - Save/load through the Explore2D host.
+- A configurable code-drawn title/menu screen before play begins.
+- Seven original code-drawn scenes using only the fixed 16-colour EGA palette.
+- Visible state changes for the gate, installed generator components, power
+  lamps, tower beacon and antenna alignment.
 - Entirely procedural graphics; there are no external art assets.
 
 ## Build
@@ -93,6 +97,11 @@ also verifies the hazard/death/restart path.
 | Q | quit |
 | Up / Down + Enter | choice/map navigation |
 | Escape | cancel |
+
+Black Pine inherits Explore2D's fixed 640×350 display, room/inventory/action
+layout and palette. Its mountain, forest, cabin, machinery and title artwork are
+original combinations of rectangles, lines, circles, ellipses and bitmap text
+declared in `BlackPineWorld.cpp`.
 
 ## Suggested route if you are testing mechanics
 

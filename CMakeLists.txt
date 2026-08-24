@@ -41,4 +41,7 @@ if(BLACK_PINE_BUILD_TESTS)
     add_executable(black_pine_scenario_tests test/ScenarioTests.cpp)
     target_link_libraries(black_pine_scenario_tests PRIVATE black_pine_world)
     add_test(NAME black-pine.scenario COMMAND black_pine_scenario_tests)
+
+    add_executable(black_pine_render_preview test/RenderPreview.cpp)
+    target_link_libraries(black_pine_render_preview PRIVATE black_pine_world)
 endif()

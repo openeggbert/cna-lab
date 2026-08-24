@@ -42,6 +42,7 @@ int main() {
     assert(world.validate().empty());
     assert(world.rooms.size() == 7);
     assert(world.items.size() == 6);
+    assert(!world.presentation.title.artwork.empty());
 
     e2d::AdventureSession session{world};
 
