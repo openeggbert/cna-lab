@@ -331,6 +331,7 @@ namespace WolfCna
         soundVolumeStep_ = profile.soundVolume;
         fieldOfViewDegrees_ = profile.fieldOfView;
         difficulty_ = static_cast<Difficulty>(profile.difficulty);
+        controlSettings_ = profile.controls;
         highScores_ = profile.highScores;
     }
 
@@ -1048,13 +1049,15 @@ namespace WolfCna
                 "PERFECT +" + std::to_string(perfectBonus),
                 "AWARD +" + std::to_string(completionScore_.totalBonus)};
             const CampaignSector& sector = GetCampaignSector(levelIndex_);
-            const std::string_view prompt = sector.kind == CampaignSectorKind::Boss
-                ? "SPACE FINALE"
+            const std::string actionName = ControlKeyName(
+                controlSettings_.bindings[ControlIndex(ControlAction::Action)]);
+            const std::string prompt = sector.kind == CampaignSectorKind::Boss
+                ? actionName + " FINALE"
                 : sector.kind == CampaignSectorKind::Secret
-                    ? "SPACE RETURN"
+                    ? actionName + " RETURN"
                     : completedExitRoute_ == CampaignExitRoute::Secret
-                        ? "SPACE SECRET"
-                        : "SPACE NEXT";
+                        ? actionName + " SECRET"
+                        : actionName + " NEXT";
             const int cardTop = centerY - 120;
             constexpr int cardWidth = 300;
             constexpr int cardHeight = 236;
@@ -1177,7 +1180,8 @@ namespace WolfCna
                 Rectangle(messageX - 15, messageY - 11, messageWidth + 30, 57),
                 Color(17, 59, 116, 255));
             DrawHudText(*hudSpriteBatch_, *hudPixel_, messageX, messageY, message, Color(184, 238, 255, 255));
-            constexpr std::string_view prompt = "SPACE TITLE";
+            const std::string prompt = ControlKeyName(
+                controlSettings_.bindings[ControlIndex(ControlAction::Action)]) + " TITLE";
             DrawHudText(*hudSpriteBatch_, *hudPixel_, centerX - HudTextWidth(prompt) / 2, messageY + 21, prompt, Color(255, 233, 136, 255));
         }
         else if (screen_ == Screen::Defeated)
@@ -1422,7 +1426,8 @@ namespace WolfCna
         drawLegendItem(3, "SECRET", secretColor);
         drawLegendItem(4, "GOAL", goalColor);
 
-        constexpr std::string_view prompt = "RELEASE TAB";
+        const std::string prompt = "RELEASE " + ControlKeyName(
+            controlSettings_.bindings[ControlIndex(ControlAction::Map)]);
         DrawHudText(
             *hudSpriteBatch_,
             *hudPixel_,
@@ -1639,18 +1644,53 @@ namespace WolfCna
             centered(top + 202, "THE BUNKER IS SECURE", normal);
             centered(top + 228, "ENTER TITLE", selected);
         }
-        else
+        else if (screen_ == Screen::Controls)
         {
-            centered(top + 22, "BUNKER 1987", title);
-            centered(top + 58, "CONTROLS", normal);
-            centered(top + 84, "UP DOWN WALK SHIFT RUN", normal);
-            centered(top + 105, "LEFT RIGHT TURN", normal);
-            centered(top + 126, "SPACE ACTION", normal);
-            centered(top + 147, "CTRL ATTACK", normal);
-            centered(top + 168, "1 2 3 4 WEAPONS", normal);
-            centered(top + 189, "TAB MAP", normal);
-            centered(top + 210, "F8 SAVE F9 LOAD F11 SCREEN", normal);
-            centered(top + 238, "ENTER OR ESC BACK", selected);
+            centered(top + 15, "CONTROL SETUP", title);
+            const auto centeredSmall = [&](int y, std::string_view text, Color color)
+            {
+                DrawHudText(
+                    *hudSpriteBatch_,
+                    *hudPixel_,
+                    left + 160 - HudTextWidth(text, 1) / 2,
+                    y,
+                    text,
+                    color,
+                    1);
+            };
+            for (std::size_t index = 0; index < ControlActionCount; ++index)
+            {
+                const int y = top + 43 + static_cast<int>(index) * 15;
+                const bool isSelected = menuSelection_ == static_cast<int>(index);
+                const std::string option = std::string(ControlActionName(BindableControlActions[index])) +
+                    "  " + ControlKeyName(controlSettings_.bindings[index]);
+                if (isSelected)
+                    DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 18, y, ">", selected, 1);
+                centeredSmall(y, option, isSelected ? selected : normal);
+            }
+
+            constexpr int sensitivityIndex = static_cast<int>(ControlActionCount);
+            const std::array<std::string, 3> trailingOptions{
+                "TURN SPEED  " + std::to_string(
+                    TurnSensitivityPercent(controlSettings_.turnSensitivityStep)) + "%",
+                "RESTORE DEFAULTS",
+                "BACK"};
+            for (int index = 0; index < static_cast<int>(trailingOptions.size()); ++index)
+            {
+                const int selection = sensitivityIndex + index;
+                const int y = top + 193 + index * 16;
+                const bool isSelected = menuSelection_ == selection;
+                if (isSelected)
+                    DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 18, y, ">", selected, 1);
+                centeredSmall(y, trailingOptions[static_cast<std::size_t>(index)],
+                    isSelected ? selected : normal);
+            }
+            const std::string_view prompt = waitingForBinding_
+                ? "PRESS KEY  ESC CANCEL"
+                : controlsStatusMessage_.empty()
+                    ? "ENTER REBIND  ARROWS SELECT"
+                    : std::string_view(controlsStatusMessage_);
+            centeredSmall(top + 243, prompt, waitingForBinding_ ? selected : normal);
         }
         hudSpriteBatch_->End();
     }
@@ -1842,6 +1882,7 @@ namespace WolfCna
                 .soundVolume = soundVolumeStep_,
                 .difficulty = static_cast<int>(difficulty_),
                 .fieldOfView = fieldOfViewDegrees_,
+                .controls = controlSettings_,
                 .highScores = highScores_},
             static_cast<int>(SelectableCampaignSectors.size()));
     }
@@ -2007,6 +2048,7 @@ namespace WolfCna
         const bool confirmIsDown = keyboard.IsKeyDown(Keys::Enter) || keyboard.IsKeyDown(Keys::Space);
         const bool escapeIsDown = keyboard.IsKeyDown(Keys::Escape);
         const bool mouseIsDown = mouse.getLeftButtonProperty() == ButtonState::Pressed;
+        const std::vector<Keys> pressedKeys = keyboard.GetPressedKeys();
 
         if (screen_ == Screen::Splash)
         {
@@ -2051,6 +2093,10 @@ namespace WolfCna
                 else if (menuSelection_ == 3)
                 {
                     screen_ = Screen::Controls;
+                    menuSelection_ = 0;
+                    waitingForBinding_ = false;
+                    bindingKeysHeld_ = pressedKeys;
+                    controlsStatusMessage_.clear();
                 }
                 else if (menuSelection_ == 4)
                 {
@@ -2112,6 +2158,102 @@ namespace WolfCna
                 menuSelection_ = selectedLevelIndex_;
             }
         }
+        else if (screen_ == Screen::Controls)
+        {
+            constexpr int sensitivityIndex = static_cast<int>(ControlActionCount);
+            constexpr int restoreIndex = sensitivityIndex + 1;
+            constexpr int backIndex = restoreIndex + 1;
+            constexpr int itemCount = backIndex + 1;
+
+            if (waitingForBinding_)
+            {
+                for (const Keys rawKey : pressedKeys)
+                {
+                    if (std::find(bindingKeysHeld_.begin(), bindingKeysHeld_.end(), rawKey) !=
+                        bindingKeysHeld_.end())
+                    {
+                        continue;
+                    }
+                    if (rawKey == Keys::Escape)
+                    {
+                        waitingForBinding_ = false;
+                        controlsStatusMessage_ = "REBIND CANCELLED";
+                        break;
+                    }
+
+                    const ControlAction action = BindableControlActions[
+                        static_cast<std::size_t>(menuSelection_)];
+                    const RebindResult result = RebindControl(controlSettings_, action, rawKey);
+                    if (!result.accepted)
+                    {
+                        controlsStatusMessage_ = "KEY RESERVED  TRY AGAIN";
+                        break;
+                    }
+
+                    waitingForBinding_ = false;
+                    controlsStatusMessage_ = result.swappedAction
+                        ? "SWAPPED WITH " + std::string(ControlActionName(*result.swappedAction))
+                        : "BOUND TO " + ControlKeyName(rawKey);
+                    SaveCampaignProfile();
+                    break;
+                }
+                bindingKeysHeld_ = pressedKeys;
+            }
+            else
+            {
+                if (upIsDown && !upWasDown_)
+                    menuSelection_ = (menuSelection_ + itemCount - 1) % itemCount;
+                if (downIsDown && !downWasDown_)
+                    menuSelection_ = (menuSelection_ + 1) % itemCount;
+
+                const bool decrease = leftIsDown && !leftWasDown_;
+                const bool increase = rightIsDown && !rightWasDown_;
+                if (menuSelection_ == sensitivityIndex && (decrease || increase))
+                {
+                    const int direction = increase ? 1 : -1;
+                    controlSettings_.turnSensitivityStep =
+                        (controlSettings_.turnSensitivityStep + MaximumTurnSensitivityStep + 1 +
+                            direction) %
+                        (MaximumTurnSensitivityStep + 1);
+                    controlsStatusMessage_ = "TURN SPEED UPDATED";
+                    SaveCampaignProfile();
+                }
+
+                if (confirmIsDown && !confirmWasDown_)
+                {
+                    if (menuSelection_ < sensitivityIndex)
+                    {
+                        waitingForBinding_ = true;
+                        bindingKeysHeld_ = pressedKeys;
+                        controlsStatusMessage_.clear();
+                    }
+                    else if (menuSelection_ == sensitivityIndex)
+                    {
+                        controlSettings_.turnSensitivityStep =
+                            (controlSettings_.turnSensitivityStep + 1) %
+                            (MaximumTurnSensitivityStep + 1);
+                        controlsStatusMessage_ = "TURN SPEED UPDATED";
+                        SaveCampaignProfile();
+                    }
+                    else if (menuSelection_ == restoreIndex)
+                    {
+                        controlSettings_ = ControlSettings{};
+                        controlsStatusMessage_ = "CLASSIC DEFAULTS RESTORED";
+                        SaveCampaignProfile();
+                    }
+                    else
+                    {
+                        screen_ = Screen::Title;
+                        menuSelection_ = 3;
+                    }
+                }
+                if (escapeIsDown && !escapeWasDown_)
+                {
+                    screen_ = Screen::Title;
+                    menuSelection_ = 3;
+                }
+            }
+        }
         else if (screen_ == Screen::Initials)
         {
             char& character = pendingInitials_[static_cast<std::size_t>(initialsSelection_)];
@@ -2144,7 +2286,6 @@ namespace WolfCna
     void WolfGame::HandleInput(float elapsedSeconds)
     {
         const KeyboardState keyboard = Keyboard::GetState();
-        const bool mapIsDown = keyboard.IsKeyDown(Keys::Tab);
         const bool ilmIsDown =
             keyboard.IsKeyDown(Keys::I) &&
             keyboard.IsKeyDown(Keys::L) &&
@@ -2154,7 +2295,10 @@ namespace WolfCna
             keyboard.IsKeyDown(Keys::O) &&
             keyboard.IsKeyDown(Keys::A) &&
             keyboard.IsKeyDown(Keys::L);
-        const bool actionIsDown = keyboard.IsKeyDown(Keys::Space);
+        const bool mapIsDown = !ilmIsDown && !goalCheatIsDown &&
+            IsControlDown(keyboard, controlSettings_, ControlAction::Map);
+        const bool actionIsDown = !ilmIsDown && !goalCheatIsDown &&
+            IsControlDown(keyboard, controlSettings_, ControlAction::Action);
         const bool confirmIsDown = actionIsDown || keyboard.IsKeyDown(Keys::Enter);
         const bool pauseIsDown = keyboard.IsKeyDown(Keys::P);
         const bool escapeIsDown = keyboard.IsKeyDown(Keys::Escape);
@@ -2338,6 +2482,15 @@ namespace WolfCna
         }
         goalCheatWasDown_ = goalCheatIsDown;
 
+        // Cheat chords are commands, not movement input. In particular, the classic
+        // default A strafe binding must not nudge the player after the GOAL teleport.
+        if (ilmIsDown || goalCheatIsDown)
+        {
+            actionWasDown_ = false;
+            attackWasDown_ = false;
+            return;
+        }
+
         if (actionIsDown && !actionWasDown_)
         {
             const World::InteractionResult activation =
@@ -2412,8 +2565,10 @@ namespace WolfCna
             lastFirearm_ = Weapon::HeavyAutomatic;
         }
 
-        const bool attackIsDown =
-            keyboard.IsKeyDown(Keys::LeftControl) || keyboard.IsKeyDown(Keys::RightControl);
+        const bool attackIsDown = IsControlDown(
+            keyboard,
+            controlSettings_,
+            ControlAction::Attack);
         const bool automaticWeapon =
             weapon_ == Weapon::Repeater || weapon_ == Weapon::HeavyAutomatic;
         const bool attackTriggered = attackIsDown &&
@@ -2476,32 +2631,38 @@ namespace WolfCna
             weapon_ = Weapon::Knife;
         attackWasDown_ = attackIsDown;
 
-        const float turnStep = KeyboardTurnSpeed * elapsedSeconds;
+        const float turnStep = KeyboardTurnSpeed *
+            TurnSensitivityMultiplier(controlSettings_.turnSensitivityStep) * elapsedSeconds;
 
-        if (keyboard.IsKeyDown(Keys::Left))
+        if (IsControlDown(keyboard, controlSettings_, ControlAction::TurnLeft))
             yaw_ -= turnStep;
-        if (keyboard.IsKeyDown(Keys::Right))
+        if (IsControlDown(keyboard, controlSettings_, ControlAction::TurnRight))
             yaw_ += turnStep;
 
-        float forwardInput = 0.0f;
+        MovementInput movement;
+        if (IsControlDown(keyboard, controlSettings_, ControlAction::MoveForward))
+            movement.forward += 1.0f;
+        if (IsControlDown(keyboard, controlSettings_, ControlAction::MoveBackward))
+            movement.forward -= 1.0f;
+        if (IsControlDown(keyboard, controlSettings_, ControlAction::StrafeRight))
+            movement.strafe += 1.0f;
+        if (IsControlDown(keyboard, controlSettings_, ControlAction::StrafeLeft))
+            movement.strafe -= 1.0f;
+        movement = NormalizeMovementInput(movement);
 
-        if (keyboard.IsKeyDown(Keys::Up))
-            forwardInput += 1.0f;
-        if (keyboard.IsKeyDown(Keys::Down))
-            forwardInput -= 1.0f;
-
-        if (forwardInput == 0.0f)
+        if (movement.forward == 0.0f && movement.strafe == 0.0f)
             return;
 
         const float forwardX = std::sin(yaw_);
         const float forwardZ = -std::cos(yaw_);
+        const float rightX = std::cos(yaw_);
+        const float rightZ = std::sin(yaw_);
 
-        const bool isRunning =
-            keyboard.IsKeyDown(Keys::LeftShift) || keyboard.IsKeyDown(Keys::RightShift);
+        const bool isRunning = IsControlDown(keyboard, controlSettings_, ControlAction::Run);
         const float speed = WalkSpeed * (isRunning ? RunSpeedMultiplier : 1.0f);
         const float distance = speed * elapsedSeconds;
-        const float dx = forwardX * forwardInput * distance;
-        const float dz = forwardZ * forwardInput * distance;
+        const float dx = (forwardX * movement.forward + rightX * movement.strafe) * distance;
+        const float dz = (forwardZ * movement.forward + rightZ * movement.strafe) * distance;
 
         TryMove(dx, dz);
     }

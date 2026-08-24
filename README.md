@@ -13,8 +13,8 @@ This starter is deliberately small. It proves the basic direction before local A
 - depth testing
 - CNA-loaded original stone, brick, steel, laboratory and wood materials combined with generated floor, ceiling and door panels in one texture atlas
 - first-person camera
-- classic arrow-key movement
-- keyboard turning with a fixed horizon
+- classic arrow-key movement plus normalized `A`/`D` strafing
+- configurable keyboard turning with a fixed horizon and five persisted speed levels
 - crosshair-free play view with a large original AI-generated knife, sidearm, repeater or heavy automatic sprite in the lower center
 - discoverable repeater and heavy automatic weapon with distinct first-person sprites and matching HUD icons
 - every weapon has an original dedicated slash/firing frame, combined with visible knife lunge or firearm recoil for immediate attack feedback
@@ -46,17 +46,20 @@ This starter is deliberately small. It proves the basic direction before local A
 - no external copyrighted game assets
 - original title menu with three deterministic difficulty profiles that change enemy count, health, speed, firing cadence, incoming damage and ammunition supply
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
-- persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume, view angle, last selected difficulty and the best eight campaign scores survive restarts
+- persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume, view angle, last selected difficulty, validated controls and the best eight campaign scores survive restarts
 - three versioned in-run save slots preserve the player, inventory, score, lives, sector time, enemies and AI state, pickups, doors, projectiles, objectives and explored automap; the title and pause menus can load them
-- holding `Tab` shows a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
+- holding the map key (`Tab` by default) shows a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
 - every `GOAL` corresponds to a steel elevator cabin whose raised gate allows immediate Wolf-like action activation or physical entry
 
 ## Controls
 
 - up/down arrow keys: forward / backward
+- `A` / `D`: strafe left / right; diagonal movement is normalized to the same maximum speed
 - hold left or right `Shift` while moving: run at 165% speed
 - left/right arrow keys: turn left / right
 - title/sector/difficulty menus: arrows select, `Enter` or `Space` confirms, `Escape` backs out; the title menu cycles master volume through 0/25/50/75/100% and view angle through 60/72/84/96 degrees
+- `CONTROLS`: rebind forward/back, turning, strafing, run, action, attack and map; assigning an occupied key swaps the two actions, reserved menu/system keys are rejected, and `RESTORE DEFAULTS` restores the classic layout
+- control setup also offers 70/85/100/115/130% keyboard turn speed; left/right and `Enter` change it
 - high-score initials: up/down changes the selected letter, left/right selects one of three positions and `Enter` saves
 - three difficulty modes: Scout has fewer, weaker and slower enemies plus more ammunition; Operative is the baseline; Veteran adds reinforcements, health, speed and firing frequency while reducing ammunition and applying 130% incoming damage
 - `Space`: open the door in front of you or activate a faced sector elevator (doors close after four seconds unless the player or a body blocks them)
@@ -67,20 +70,22 @@ This starter is deliberately small. It proves the basic direction before local A
 - `P` or `Escape`: open the in-run pause menu; either key resumes directly, while the menu can also change sound/view settings or return to the title
 - `F8`: safely save the current run to the selected slot through a temporary file
 - `F9`: quick-load the selected slot; the pause and title menus also select, save and load slots 1–3
-- hold `Tab`: show the explored-area map; releasing it resumes play; it includes a marker legend, optional `POWER`/`TERMINAL` progress and an always-cyan `GOAL`
+- hold the configured map key (`Tab` by default): show the explored-area map; releasing it resumes play; it includes a marker legend, optional `POWER`/`TERMINAL` progress and an always-cyan `GOAL`
 - quitting the application is an explicit `QUIT` choice in the main menu
 - `I` + `L` + `M` together: retro loadout cheat — full health, all weapons,
   access card, heavy automatic selected, ammunition set to 99, and score reset to zero
 - `G` + `O` + `A` + `L` together: teleport to the free cell immediately outside
   the current sector elevator and face its doors; objective state is unchanged
 
-After all lives are lost, press `Space` to return to the title menu and start a new run.
+After all lives are lost, press the configured action key (`Space` by default) to
+return to the title menu and start a new run.
 Before that final game over, losing a life shows a short `LIFE LOST` transition and
 restarts the current sector from its authored state: enemies, pickups, doors,
 objectives, secrets and automap reset; score returns to its sector-entry value and
 the player receives full health, knife, sidearm and the difficulty's starting ammo.
-At a standard sector exit, `Space` takes the run to the next sector; score, lives, health,
-ammunition and the selected weapon carry forward, while sector access cards do not.
+At a standard sector exit, the configured action key takes the run to the next sector;
+score, lives, health, ammunition and the selected weapon carry forward, while sector
+access cards do not.
 The foundry also hides a three-sided `X` elevator behind a moving secret wall. It
 branches to the Hidden Reservoir and its standard elevator returns to the Labs,
 without exposing the hidden sector in the normal sector-selection menu.
@@ -92,7 +97,7 @@ After the campaign finale, a qualifying score enters three initials and joins a
 validated, descending table of the best eight results shown on the ending screen.
 Unlocked sectors and high scores are stored in `wolf-cna-progress.dat` in the launch
 working directory. Invalid progress data safely falls back to sector 1 with an empty
-score table; profile versions 1–4 migrate into the current version 5 format.
+score table; profile versions 1–5 migrate into the current version 6 format.
 Run slots are stored as `wolf-cna-save-1.dat` through `wolf-cna-save-3.dat`.
 Malformed, incompatible or sector-mismatched saves are rejected without replacing
 the current run.

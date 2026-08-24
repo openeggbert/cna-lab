@@ -55,11 +55,14 @@
 - Warden Core adds an original 32-health Bunker Warden with a dedicated HUD bar, AI-generated idle/attack/pain/defeated sprites, a three-projectile fan, tested final-elevator lockdown and a separate campaign-complete screen.
 - Sector completion now awards authored target-time, clear and 100% category bonuses and presents the exact percentages and award breakdown.
 - Profile version 5 migrates versions 1–4 and persists a validated best-eight table; qualifying finales use a three-letter arrow-key initials editor and show the top three scores.
+- `A`/`D` now strafe while arrows retain classic movement and turning; diagonal walking and run-plus-strafe are speed-normalized.
+- The CNA control screen rebinds ten actions with conflict swapping, reserved system keys, classic-default restoration and five keyboard turn speeds.
+- Profile version 6 migrates versions 1–5 and strictly persists unique bindings, turn speed and the existing high-score table.
 
 ## Next tasks
 
-1. Implement WOLF-038 strafing and configurable CNA-only controls.
-2. Continue through WOLF-039–WOLF-044 in the dependency order recorded in `plan.md`.
+1. Implement WOLF-039 expanded pickups, access cards and resource economy.
+2. Continue through WOLF-040–WOLF-044 in the dependency order recorded in `plan.md`.
 3. Subjectively playtest all three deterministic difficulty profiles, save slots, life loss and the full six-sector route including the hidden branch.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from

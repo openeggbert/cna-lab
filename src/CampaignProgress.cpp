@@ -15,7 +15,8 @@ namespace WolfCna
         constexpr std::string_view BooleanSoundHeader = "WOLF-CNA-PROGRESS-2";
         constexpr std::string_view VolumeHeader = "WOLF-CNA-PROGRESS-3";
         constexpr std::string_view FieldOfViewHeader = "WOLF-CNA-PROGRESS-4";
-        constexpr std::string_view Header = "WOLF-CNA-PROGRESS-5";
+        constexpr std::string_view HighScoreHeader = "WOLF-CNA-PROGRESS-5";
+        constexpr std::string_view Header = "WOLF-CNA-PROGRESS-6";
         constexpr std::array SupportedFieldOfView = {60, 72, 84, 96};
 
         bool IsSupportedFieldOfView(int fieldOfView)
@@ -101,7 +102,7 @@ namespace WolfCna
                 return {};
             }
         }
-        else if (header == Header)
+        else if (header == HighScoreHeader)
         {
             std::size_t highScoreCount = 0;
             if (!(input >> profile.soundVolume >> profile.difficulty >>
@@ -114,6 +115,52 @@ namespace WolfCna
                 return {};
             }
 
+            profile.highScores.reserve(highScoreCount);
+            for (std::size_t index = 0; index < highScoreCount; ++index)
+            {
+                HighScoreEntry entry;
+                if (!(input >> entry.initials >> entry.score) ||
+                    !AreValidInitials(entry.initials) ||
+                    entry.score <= 0 || entry.score > MaximumHighScoreValue)
+                {
+                    return {};
+                }
+                profile.highScores.push_back(std::move(entry));
+            }
+            if (input >> trailing)
+                return {};
+            profile.highScores = NormalizeHighScores(std::move(profile.highScores));
+        }
+        else if (header == Header)
+        {
+            std::size_t bindingCount = 0;
+            if (!(input >> profile.soundVolume >> profile.difficulty >>
+                    profile.fieldOfView >> profile.controls.turnSensitivityStep >> bindingCount) ||
+                profile.soundVolume < 0 || profile.soundVolume > 4 ||
+                profile.difficulty < 0 || profile.difficulty > 2 ||
+                !IsSupportedFieldOfView(profile.fieldOfView) ||
+                bindingCount != ControlActionCount)
+            {
+                return {};
+            }
+
+            for (std::size_t index = 0; index < bindingCount; ++index)
+            {
+                int actionValue = -1;
+                int keyValue = 0;
+                if (!(input >> actionValue >> keyValue) ||
+                    actionValue != static_cast<int>(index))
+                {
+                    return {};
+                }
+                profile.controls.bindings[index] = static_cast<Keys>(keyValue);
+            }
+            if (!AreValidControlSettings(profile.controls))
+                return {};
+
+            std::size_t highScoreCount = 0;
+            if (!(input >> highScoreCount) || highScoreCount > MaximumHighScoreEntries)
+                return {};
             profile.highScores.reserve(highScoreCount);
             for (std::size_t index = 0; index < highScoreCount; ++index)
             {
@@ -147,6 +194,9 @@ namespace WolfCna
         const int fieldOfView = IsSupportedFieldOfView(profile.fieldOfView)
             ? profile.fieldOfView
             : 72;
+        const ControlSettings controls = AreValidControlSettings(profile.controls)
+            ? profile.controls
+            : ControlSettings{};
         const std::vector<HighScoreEntry> highScores = NormalizeHighScores(profile.highScores);
         std::ostringstream output;
         output << Header << '\n'
@@ -154,7 +204,11 @@ namespace WolfCna
             << std::clamp(profile.soundVolume, 0, 4) << '\n'
             << std::clamp(profile.difficulty, 0, 2) << '\n'
             << fieldOfView << '\n'
-            << highScores.size() << '\n';
+            << controls.turnSensitivityStep << '\n'
+            << controls.bindings.size() << '\n';
+        for (std::size_t index = 0; index < controls.bindings.size(); ++index)
+            output << index << ' ' << static_cast<int>(controls.bindings[index]) << '\n';
+        output << highScores.size() << '\n';
         for (const HighScoreEntry& entry : highScores)
             output << entry.initials << ' ' << entry.score << '\n';
         return output.str();

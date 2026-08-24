@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
@@ -14,6 +15,7 @@
 #include "World.hpp"
 #include "CampaignProgress.hpp"
 #include "Campaign.hpp"
+#include "Controls.hpp"
 #include "ExplorationMap.hpp"
 #include "RunSave.hpp"
 #include "RunRules.hpp"
@@ -264,6 +266,50 @@ namespace
 
 int main()
 {
+    WolfCna::ControlSettings controls;
+    Expect(
+        WolfCna::AreValidControlSettings(controls) &&
+            controls.bindings[WolfCna::ControlIndex(WolfCna::ControlAction::MoveForward)] ==
+                WolfCna::Keys::Up &&
+            controls.bindings[WolfCna::ControlIndex(WolfCna::ControlAction::TurnLeft)] ==
+                WolfCna::Keys::Left &&
+            controls.bindings[WolfCna::ControlIndex(WolfCna::ControlAction::Action)] ==
+                WolfCna::Keys::Space,
+        "default controls preserve classic arrow movement and Space action");
+    const WolfCna::RebindResult swappedControl = WolfCna::RebindControl(
+        controls,
+        WolfCna::ControlAction::MoveForward,
+        WolfCna::Keys::A);
+    Expect(
+        swappedControl.accepted &&
+            swappedControl.swappedAction == WolfCna::ControlAction::StrafeLeft &&
+            controls.bindings[WolfCna::ControlIndex(WolfCna::ControlAction::MoveForward)] ==
+                WolfCna::Keys::A &&
+            controls.bindings[WolfCna::ControlIndex(WolfCna::ControlAction::StrafeLeft)] ==
+                WolfCna::Keys::Up &&
+            WolfCna::AreValidControlSettings(controls),
+        "rebinding a used key swaps actions without leaving a conflict");
+    const WolfCna::ControlSettings controlsBeforeReservedKey = controls;
+    Expect(
+        !WolfCna::RebindControl(
+            controls,
+            WolfCna::ControlAction::Action,
+            WolfCna::Keys::P).accepted &&
+            controls == controlsBeforeReservedKey,
+        "pause and menu-safe keys cannot be assigned to gameplay actions");
+    Expect(
+        WolfCna::IsControlDown(
+            WolfCna::KeyboardState{WolfCna::Keys::RightShift},
+            WolfCna::ControlSettings{},
+            WolfCna::ControlAction::Run),
+        "right Shift activates the normalized default run binding");
+    const WolfCna::MovementInput diagonalMovement =
+        WolfCna::NormalizeMovementInput({1.0f, 1.0f});
+    Expect(
+        std::abs(diagonalMovement.forward * diagonalMovement.forward +
+                diagonalMovement.strafe * diagonalMovement.strafe - 1.0f) < 0.0001f,
+        "diagonal run and strafe input is normalized to direct movement speed");
+
     Expect(WolfCna::CompletionPercentage(3, 4) == 75, "completion percentage uses integer progress");
     Expect(WolfCna::CompletionPercentage(0, 0) == 100, "empty completion categories count as perfect");
     const WolfCna::CompletionScore mixedCompletion = WolfCna::CalculateCompletionScore(
@@ -391,6 +437,21 @@ int main()
             fieldOfViewProfile.fieldOfView == 84 &&
             fieldOfViewProfile.highScores.empty(),
         "version four profile migrates settings with an empty high-score table");
+    const WolfCna::CampaignProfile highScoreProfile = WolfCna::CampaignProgress::Parse(
+        "WOLF-CNA-PROGRESS-5\n1\n3\n2\n84\n1\nACE 4200\n",
+        3);
+    Expect(
+        highScoreProfile.highestUnlocked == 1 &&
+            highScoreProfile.controls == WolfCna::ControlSettings{} &&
+            highScoreProfile.highScores ==
+                std::vector<WolfCna::HighScoreEntry>{{"ACE", 4200}},
+        "version five high scores migrate with classic control defaults");
+    WolfCna::ControlSettings savedControls;
+    savedControls.turnSensitivityStep = 4;
+    static_cast<void>(WolfCna::RebindControl(
+        savedControls,
+        WolfCna::ControlAction::Map,
+        WolfCna::Keys::M));
     const WolfCna::CampaignProfile savedProfile = WolfCna::CampaignProgress::Parse(
         WolfCna::CampaignProgress::Serialize(
             WolfCna::CampaignProfile{
@@ -398,14 +459,16 @@ int main()
                 .soundVolume = 3,
                 .difficulty = 2,
                 .fieldOfView = 84,
+                .controls = savedControls,
                 .highScores = {{"LOW", 1200}, {"TOP", 9800}, {"BAD", -1}}},
             3),
         3);
     Expect(
         savedProfile.highestUnlocked == 2 && savedProfile.soundVolume == 3 &&
             savedProfile.difficulty == 2 && savedProfile.fieldOfView == 84 &&
+            savedProfile.controls == savedControls &&
             savedProfile.highScores == std::vector<WolfCna::HighScoreEntry>{{"TOP", 9800}, {"LOW", 1200}},
-        "campaign profile restores settings and a normalized high-score table");
+        "campaign profile restores controls, settings and a normalized high-score table");
     const WolfCna::CampaignProfile invalidProfile = WolfCna::CampaignProgress::Parse(
         "WOLF-CNA-PROGRESS-4\n2\n5\n1\n72\n", 3);
     Expect(
@@ -423,6 +486,14 @@ int main()
         invalidHighScoreProfile.highestUnlocked == 0 &&
             invalidHighScoreProfile.highScores.empty(),
         "malformed initials invalidate the new profile without accepting partial scores");
+    const WolfCna::CampaignProfile duplicateControlProfile = WolfCna::CampaignProgress::Parse(
+        "WOLF-CNA-PROGRESS-6\n2\n4\n1\n72\n2\n10\n"
+        "0 38\n1 40\n2 37\n3 39\n4 65\n5 65\n6 160\n7 32\n8 162\n9 9\n0\n",
+        3);
+    Expect(
+        duplicateControlProfile.highestUnlocked == 0 &&
+            duplicateControlProfile.controls == WolfCna::ControlSettings{},
+        "duplicate persisted bindings invalidate the profile and restore classic controls");
 
     Expect(WolfCna::CampaignSectors.size() == 6, "campaign includes its hidden sector");
     Expect(

@@ -184,6 +184,10 @@ namespace WolfCna
         std::string pauseStatusMessage_;
         int soundVolumeStep_ = 4;
         int fieldOfViewDegrees_ = 72;
+        ControlSettings controlSettings_;
+        bool waitingForBinding_ = false;
+        std::vector<Keys> bindingKeysHeld_;
+        std::string controlsStatusMessage_;
         float cheatMessageSeconds_ = 0.0f;
         std::string objectiveMessage_;
         float objectiveMessageSeconds_ = 0.0f;

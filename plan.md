@@ -553,9 +553,9 @@ damage, active encounter tiers, enemy health, movement speed, firing cadence and
 ammunition supply. Five main sectors and a hidden branch now carry score, lives,
 health, ammunition and weapon selection; a sector-specific access card resets at
 each elevator transition. Each exit now presents time plus kill, treasure and secret
-percentages with clear, speed and perfect-category awards. Profile version 5 persists
-sector unlocks, five-step master volume, view angle, last selected difficulty and a
-bounded high-score table while accepting all older profile formats. Three in-run save slots with title/pause loading and F8/F9
+percentages with clear, speed and perfect-category awards. Profile version 6 persists
+sector unlocks, five-step master volume, view angle, last selected difficulty, validated
+controls and a bounded high-score table while accepting all older profile formats. Three in-run save slots with title/pause loading and F8/F9
 quick access now persist the full active world and automap through a separately
 versioned, validated and safely replaced format. Additional settings remain.
 
@@ -1534,10 +1534,24 @@ migration/round-trip behavior.
 
 ### WOLF-038 — strafing and configurable controls
 
-Status: planned. Add left/right strafing and a CNA-only control settings screen
-while retaining the default arrow-key turn/forward/back layout. Optional mouse and
-controller support may be added only through CNA public APIs; a missing CNA feature
-must be recorded as a blocker instead of bypassed.
+Status: complete. The default profile retains arrow-key forward/back and turning,
+`Space` action, `Ctrl` attack, `Shift` run and `Tab` map while adding `A`/`D` left/right
+strafe. Forward and lateral inputs share one normalized movement vector, so diagonal
+walking and run-plus-strafe do not exceed the authored direct speed. Both left and
+right variants of Shift, Ctrl and Alt activate their normalized binding.
+
+The CNA-rendered control setup exposes ten gameplay actions, a 70–130-percent
+keyboard turn-speed setting, classic-default restoration and one-key capture through
+the public CNA `KeyboardState` API. Assigning an occupied key swaps actions instead
+of creating an ambiguous conflict. Pause, menu, save/load, fullscreen and weapon keys
+remain fixed and reserved so every menu stays operable. Profile version 6 strictly
+validates action order, key range, uniqueness and turn speed, migrates versions 1–5,
+and preserves the existing high-score table. Cheat chords suppress bound gameplay
+input while active, keeping `I+L+M` and `G+O+A+L` independent of custom map/action or
+the default `A` strafe binding. Unit tests cover defaults, conflict swapping, reserved
+keys, modifier aliases, diagonal normalization, V5 migration, V6 round-trip and
+malformed duplicate bindings. Mouse/controller turning remains a future CNA-only
+extension; no backend API was introduced.
 
 - provide keyboard bindings for strafe and run-plus-strafe behavior;
 - allow supported gameplay actions to be rebound and restored to defaults;

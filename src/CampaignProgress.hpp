@@ -5,6 +5,7 @@
 #include <string_view>
 #include <vector>
 
+#include "Controls.hpp"
 #include "HighScores.hpp"
 
 namespace WolfCna
@@ -15,6 +16,7 @@ namespace WolfCna
         int soundVolume = 4;
         int difficulty = 1;
         int fieldOfView = 72;
+        ControlSettings controls;
         std::vector<HighScoreEntry> highScores;
     };
 
