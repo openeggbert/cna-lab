@@ -733,6 +733,8 @@ void configureInterface(e2d::InterfaceTextDefinition& ui) {
     ui.missionComplete = tr("MISSION COMPLETE", "MISE SPLNĚNA");
     ui.missionFailed = tr("MISSION FAILED", "MISE SELHALA");
     ui.restartPrompt = tr("ENTER TO RESTART", "ENTER PRO NOVÝ START");
+    ui.resumePrompt = tr("ENTER TO RETURN TO THE LAST SAFE PLACE",
+        "ENTER PRO NÁVRAT NA POSLEDNÍ BEZPEČNÉ MÍSTO");
     ui.paused = tr("GAME PAUSED", "HRA POZASTAVENA");
     ui.resume = tr("RESUME GAME", "POKRAČOVAT");
     ui.settings = tr("SETTINGS", "NASTAVENÍ");
@@ -1047,6 +1049,21 @@ void gateRight(
     found->blockedMessage = tr(std::move(englishMessage), std::move(czechMessage));
 }
 
+void gateLeft(
+    e2d::WorldDefinition& world,
+    const int screenNumber,
+    std::vector<e2d::Condition> conditions,
+    std::string englishMessage,
+    std::string czechMessage)
+{
+    auto& exits = room(world, screenNumber).exits;
+    const auto found = std::ranges::find_if(exits,
+        [](const e2d::ExitDefinition& candidate) { return candidate.direction == e2d::Direction::left; });
+    if (found == exits.end()) return;
+    found->availableWhen = std::move(conditions);
+    found->blockedMessage = tr(std::move(englishMessage), std::move(czechMessage));
+}
+
 void addCharacter(
     e2d::WorldDefinition& world,
     const int screenNumber,
@@ -1145,6 +1162,46 @@ void addActOne(e2d::WorldDefinition& world) {
             "Iris sleduje úzkou jelení stezku přes Borový úvoz a nechá jiskřící vedení nad sebou."))},
         {e2d::Condition::flag("mission_started")},
         {e2d::Mutation::moveTo(std::string{screen(5).id})}, 2, "climb");
+    auto& deerPath = ensureHotspot(world, 3, "deer_path",
+        tr("MARKED DEER PATH TO CABIN", "OZNAČENÁ JELENÍ STEZKA K CHATĚ"),
+        {270, 137, 92, 123}, e2d::HotspotKind::mechanism, 2);
+    const std::vector<e2d::Visual> deerPathVisuals{
+        ellipse(316, 258, 36, 4, P::black),
+        box(311, 211, 8, 47, P::brown),
+        e2d::PolygonVisual{{{278, 211}, {334, 211}, {350, 224}, {334, 237}, {278, 237}}, amber, true},
+        box(282, 215, 49, 18, P::brightYellow),
+        label(291, 221, tr("CABIN", "CHATA"), P::black),
+        line(273, 251, 281, 247, pale),
+        line(287, 256, 295, 252, pale),
+    };
+    deerPath.visuals = deerPathVisuals;
+    room(world, 3).hotspots.back().visuals = deerPathVisuals;
+    world.addInteraction({e2d::Verb::context, deerPath.id, std::nullopt,
+        {e2d::Condition::flag("deer_path_taken")},
+        {inspect(tr("Iris takes the marked deer path around the live feeder.",
+            "Iris obejde živý přívod po označené jelení stezce."))},
+        {e2d::Mutation::moveTo(std::string{screen(5).id})}, 10, {}, "climb"});
+    gateRight(world, 3, {e2d::Condition::flag("feeder_isolated")},
+        "Blue arcs block the direct switchback. Use the yellow CABIN sign with ENTER to take the safe deer path.",
+        "Modré výboje blokují přímou serpentinu. U žluté šipky CHATA stiskni ENTER a použij bezpečnou jelení stezku.");
+    gateLeft(world, 5, {e2d::Condition::flag("feeder_isolated")},
+        "The direct switchback is still live. Use the yellow TRAIL sign with ENTER to return safely.",
+        "Přímá serpentina je stále pod proudem. Pro bezpečný návrat použij klávesou ENTER žlutou šipku STEZKA.");
+    auto& deerPathReturn = ensureHotspot(world, 5, "deer_path_return",
+        tr("MARKED DEER PATH BACK", "OZNAČENÁ JELENÍ STEZKA ZPĚT"),
+        {0, 137, 92, 123}, e2d::HotspotKind::mechanism, 0);
+    deerPathReturn.visuals = {
+        ellipse(46, 258, 36, 4, P::black),
+        box(42, 211, 8, 47, P::brown),
+        e2d::PolygonVisual{{{8, 224}, {24, 211}, {80, 211}, {80, 237}, {24, 237}}, amber, true},
+        box(28, 215, 47, 18, P::brightYellow),
+        label(34, 221, tr("TRAIL", "STEZKA"), P::black),
+    };
+    world.addInteraction({e2d::Verb::context, deerPathReturn.id, std::nullopt,
+        {e2d::Condition::notFlag("feeder_isolated")},
+        {inspect(tr("Iris follows the deer path back below the live feeder.",
+            "Iris se vrátí po jelení stezce pod živým přívodem."))},
+        {e2d::Mutation::moveTo(std::string{screen(3).id})}, 10, {}, "climb"});
 
     addCharacter(world, 7, "mara", "MARA VENN", "MARA VENN", "met_mara", {
         speech(tr("Mara: This should have been a fuse and cable job. The storm is hiding something deliberate.",
@@ -1978,8 +2035,8 @@ void addHints(e2d::WorldDefinition& world) {
         "U Výchoziště u bouřkové brány zvedni pulzující nouzový telefon klávesou ENTER.");
     next("taken_patch_cable", "At Storm Gate Trailhead, TAKE the patch cable from the damaged toolbox.",
         "U Výchoziště u bouřkové brány SEBER propojovací kabel z poškozené skříňky.");
-    next("met_mara", "Reach Mara in the caretaker cabin and speak with ENTER.",
-        "Dojdi za Marou do správcovské chaty a promluv klávesou ENTER.");
+    next("met_mara", "At Lower Switchback use the yellow CABIN sign with ENTER, then reach Mara.",
+        "U Dolní serpentiny použij klávesou ENTER žlutou šipku CHATA a potom dojdi za Marou.");
     next("key_revealed", "EXAMINE Mara's desk after speaking with her.", "Po rozhovoru s Marou PROZKOUMEJ její stůl.");
     next("taken_brass_key", "TAKE the brass yard key revealed on Mara's desk.", "SEBER mosazný klíč odkrytý na Mařině stole.");
     next("vehicle_gate_open", "USE the brass key on the Vehicle Gate.", "U Vjezdové brány POUŽIJ mosazný klíč.");

@@ -178,8 +178,12 @@ int main() {
     assert(world.localization.supports("cs"));
     const auto& ringingPhone = hotspot(world, "s001_emergency_phone");
     const auto& answeredPhone = hotspot(world, "s001_emergency_phone_complete");
+    const auto& markedDeerPath = hotspot(world, "s003_deer_path");
+    const auto& returningDeerPath = hotspot(world, "s005_deer_path_return");
     assert(ringingPhone.visuals.size() >= 10);
     assert(answeredPhone.visuals.size() >= 10);
+    assert(markedDeerPath.visuals.size() >= 7);
+    assert(returningDeerPath.visuals.size() >= 5);
 
     std::size_t anchors = 0;
     std::size_t animatedRooms = 0;
@@ -453,21 +457,36 @@ int main() {
     assert(keeperSession.mode() == e2d::SessionMode::won);
     assert(keeperSession.terminalMessage().find("KEEPER OF BLACK PINE") != std::string_view::npos);
 
+    e2d::AdventureSession safeRouteSession{world};
+    context(safeRouteSession, world, "s001_emergency_phone", "mission_started");
+    context(safeRouteSession, world, "s003_deer_path", "deer_path_taken");
+    assert(safeRouteSession.currentRoomId() == "pine_hollow_footbridge");
+    walkToTarget(safeRouteSession, world, "s005_deer_path_return");
+    safeRouteSession.jumpOrContext();
+    dismiss(safeRouteSession);
+    assert(safeRouteSession.currentRoomId() == "lower_switchback");
+    std::size_t blockedApproach = 0;
+    while (safeRouteSession.mode() == e2d::SessionMode::world && blockedApproach++ < 1000) {
+        safeRouteSession.walk(e2d::Direction::right);
+    }
+    assert(safeRouteSession.mode() == e2d::SessionMode::message);
+    assert(safeRouteSession.currentRoomId() == "lower_switchback");
+
     e2d::AdventureSession hazardSession{world};
     context(hazardSession, world, "s001_emergency_phone", "mission_started");
+    auto hazardSnapshot = hazardSession.snapshot();
+    hazardSnapshot.roomId = "upper_switchback";
+    hazardSnapshot.player.position = {330, 232};
+    assert(hazardSession.restore(hazardSnapshot));
     std::size_t hazardApproach = 0;
-    while (hazardSession.currentRoomId() != "upper_switchback" && hazardApproach++ < 5000) {
-        hazardSession.walk(e2d::Direction::right);
-        assert(hazardSession.mode() == e2d::SessionMode::world);
-    }
-    assert(hazardSession.currentRoomId() == "upper_switchback");
     while (hazardSession.mode() == e2d::SessionMode::world && hazardApproach++ < 6000) {
         hazardSession.walk(e2d::Direction::right);
     }
     assert(hazardSession.mode() == e2d::SessionMode::dead);
     hazardSession.jumpOrContext();
     assert(hazardSession.mode() == e2d::SessionMode::world);
-    assert(hazardSession.currentRoomId() == "storm_gate_trailhead");
+    assert(hazardSession.currentRoomId() == "upper_switchback");
+    assert(hazardSession.flag("mission_started"));
 
     e2d::AdventureRenderer renderer{world};
     for (const int number : {1, 14, 25, 39, 52, 64, 76, 91, 104, 124}) {
