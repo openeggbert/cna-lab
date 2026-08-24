@@ -429,13 +429,28 @@ assert(session.flag("key_taken"));</code></pre>
 
           <article id="lesson-17" class="lesson-card" data-lesson="17">
             <header><span class="lesson-number">Lesson 17</span><label><input type="checkbox" data-lesson-check="17"> Mark complete</label></header>
-            <h3>Design the title screen</h3>
-            <p class="lesson-outcome">Outcome: an engine-owned NEW GAME / LOAD / QUIT screen with original Signal Cabin artwork.</p>
+            <h3>Design the title screen and language settings</h3>
+            <p class="lesson-outcome">Outcome: an engine-owned NEW GAME / LOAD / SETTINGS / QUIT screen with original Signal Cabin artwork and English/Czech selection.</p>
             <div class="lesson-body">
-              <pre><code>world.presentation.title.subtitle =
-    "A MOUNTAIN RADIO ADVENTURE";
+              <pre><code>auto tr = [](std::string english, std::string czech) {
+    e2d::LocalizedText text{std::move(english)};
+    text.addTranslation("cs", std::move(czech));
+    return text;
+};
+
+world.presentation.title.subtitle =
+    tr("A MOUNTAIN RADIO ADVENTURE",
+       "DOBRODRUŽSTVÍ HORSKÉHO RÁDIA");
 world.presentation.title.byline =
-    "AN EXPLORE2D GAME";
+    tr("AN EXPLORE2D GAME", "HRA V EXPLORE2D");
+world.localization.languages = {
+    {"en", tr("English", "Angličtina")},
+    {"cs", tr("Czech", "Čeština")}
+};
+world.presentation.title.startLabel =
+    tr("NEW GAME", "NOVÁ HRA");
+world.presentation.title.settingsLabel =
+    tr("SETTINGS", "NASTAVENÍ");
 world.presentation.title.titleColors = {
     P::brightCyan, P::brightMagenta,
     P::brightYellow, P::brightGreen};
@@ -444,7 +459,8 @@ world.presentation.title.artwork = {
     e2d::CircleVisual{{548, 110}, 18, P::brightYellow, true},
     e2d::LineVisual{{80, 210}, {280, 86}, P::white}
 };</code></pre>
-              <div class="checkpoint"><strong>Checkpoint</strong><span><code>renderTitle()</code> produces original art while retaining the shared Explore2D menu flow.</span></div>
+              <p>Apply the same helper to every item, room, hotspot, code-drawn label, dialogue line, hazard and interface string created in earlier lessons. Stable IDs such as <code>brass_key</code> stay untranslated.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span><code>renderTitle()</code> produces original art, Settings changes language without starting a new game, and both complete routes run with English and Czech text.</span></div>
             </div>
           </article>
 

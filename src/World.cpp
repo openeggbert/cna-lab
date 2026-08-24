@@ -13,17 +13,17 @@ Condition Condition::counterAtLeast(std::string key, const int value) { return {
 Condition Condition::counterEquals(std::string key, const int value) { return {ConditionType::counterEquals, std::move(key), value}; }
 Condition Condition::visited(std::string room) { return {ConditionType::roomVisited, std::move(room), 0}; }
 
-Mutation Mutation::setFlag(std::string key) { return {MutationType::setFlag, std::move(key), 0}; }
-Mutation Mutation::clearFlag(std::string key) { return {MutationType::clearFlag, std::move(key), 0}; }
-Mutation Mutation::addItem(std::string item) { return {MutationType::addItem, std::move(item), 0}; }
-Mutation Mutation::removeItem(std::string item) { return {MutationType::removeItem, std::move(item), 0}; }
-Mutation Mutation::setCounter(std::string key, const int value) { return {MutationType::setCounter, std::move(key), value}; }
-Mutation Mutation::addCounter(std::string key, const int delta) { return {MutationType::addCounter, std::move(key), delta}; }
-Mutation Mutation::unlockTravel(std::string room) { return {MutationType::unlockTravel, std::move(room), 0}; }
-Mutation Mutation::moveTo(std::string room) { return {MutationType::moveToRoom, std::move(room), 0}; }
-Mutation Mutation::playAnimation(std::string animation) { return {MutationType::playAnimation, std::move(animation), 0}; }
-Mutation Mutation::kill(std::string message) { return {MutationType::killPlayer, std::move(message), 0}; }
-Mutation Mutation::win(std::string message) { return {MutationType::winGame, std::move(message), 0}; }
+Mutation Mutation::setFlag(std::string key) { return {MutationType::setFlag, std::move(key), 0, {}}; }
+Mutation Mutation::clearFlag(std::string key) { return {MutationType::clearFlag, std::move(key), 0, {}}; }
+Mutation Mutation::addItem(std::string item) { return {MutationType::addItem, std::move(item), 0, {}}; }
+Mutation Mutation::removeItem(std::string item) { return {MutationType::removeItem, std::move(item), 0, {}}; }
+Mutation Mutation::setCounter(std::string key, const int value) { return {MutationType::setCounter, std::move(key), value, {}}; }
+Mutation Mutation::addCounter(std::string key, const int delta) { return {MutationType::addCounter, std::move(key), delta, {}}; }
+Mutation Mutation::unlockTravel(std::string room) { return {MutationType::unlockTravel, std::move(room), 0, {}}; }
+Mutation Mutation::moveTo(std::string room) { return {MutationType::moveToRoom, std::move(room), 0, {}}; }
+Mutation Mutation::playAnimation(std::string animation) { return {MutationType::playAnimation, std::move(animation), 0, {}}; }
+Mutation Mutation::kill(LocalizedText message) { return {MutationType::killPlayer, {}, 0, std::move(message)}; }
+Mutation Mutation::win(LocalizedText message) { return {MutationType::winGame, {}, 0, std::move(message)}; }
 
 WorldDefinition& WorldDefinition::addItem(ItemDefinition itemValue) {
     items.insert_or_assign(itemValue.id, std::move(itemValue));
@@ -62,6 +62,17 @@ const ToneEffectDefinition* WorldDefinition::soundEffect(const std::string_view 
 
 std::vector<std::string> WorldDefinition::validate() const {
     std::vector<std::string> errors;
+    std::set<std::string> languageIds;
+    for (const LanguageDefinition& language : localization.languages) {
+        if (language.id.empty()) errors.emplace_back("language id must be non-empty");
+        else if (!languageIds.insert(language.id).second) {
+            errors.push_back("language id must be unique: " + language.id);
+        }
+    }
+    if (localization.languages.empty()) errors.emplace_back("at least one language must be defined");
+    else if (!languageIds.contains(localization.defaultLanguage)) {
+        errors.push_back("defaultLanguage does not name a supported language: " + localization.defaultLanguage);
+    }
     if (startRoom.empty() || room(startRoom) == nullptr) {
         errors.emplace_back("startRoom does not name an existing room");
     }

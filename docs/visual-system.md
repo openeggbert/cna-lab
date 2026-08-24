@@ -56,7 +56,7 @@ The full primitive vocabulary is:
 - pixel, filled/outlined rectangle and line;
 - filled/outlined circle and ellipse, plus elliptical arc;
 - open/closed polyline and filled/outlined polygon;
-- boundary flood fill and 5×7 bitmap text;
+- boundary flood fill and UTF-8-aware 5×7 bitmap text with Czech diacritics;
 - palette-indexed `capture()`/`blit()` corresponding to QBasic `GET`/`PUT`,
   including COPY, PRESET, AND, OR, XOR and transparent operations.
 
@@ -89,8 +89,10 @@ trees, walls and every prop to move.
 - background and border palette indices;
 - the repeating colours used to draw the game title;
 - subtitle and byline;
-- NEW GAME, LOAD GAME and QUIT wording;
+- NEW GAME, LOAD GAME, SETTINGS and QUIT wording;
 - procedural title artwork.
 
-The host opens on this screen. Arrow keys move through its three choices and
-Enter confirms. Starting or loading transitions into the shared game layout.
+The host opens on this screen. Arrow keys move through its four choices and
+Enter confirms. Settings selects any language declared by the game. Escape
+during play opens a pause menu with the same language settings; changing the
+language redraws the current screen immediately.

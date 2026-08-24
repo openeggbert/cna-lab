@@ -4,6 +4,9 @@
 #include "explore2d/Session.hpp"
 
 #include <cstddef>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace explore2d {
 
@@ -26,7 +29,10 @@ public:
     AdventureRenderer(const WorldDefinition& world, SessionConfig config = {}, RendererTheme theme = {});
 
     void render(const AdventureSession& session);
-    void renderTitle(std::size_t selectedItem = 0);
+    void renderTitle(std::size_t selectedItem = 0, std::string_view language = {});
+    void renderPause(const AdventureSession& session, std::size_t selectedItem = 0);
+    void renderSettings(std::size_t selectedItem, std::string_view language,
+        const AdventureSession* background = nullptr);
     [[nodiscard]] const Canvas& canvas() const noexcept { return canvas_; }
 
 private:
@@ -34,7 +40,9 @@ private:
     SessionConfig config_;
     RendererTheme theme_;
     Canvas canvas_;
+    std::string language_;
 
+    [[nodiscard]] std::string_view localize(const LocalizedText& text) const noexcept;
     void drawVisual(const Visual& visual, Vec2 offset = {});
     void drawFrame();
     void drawLogo();
@@ -46,6 +54,8 @@ private:
     void drawMap(const AdventureSession& session);
     void drawMessage(const AdventureSession& session);
     void drawTerminal(const AdventureSession& session);
+    void drawOverlayMenu(std::string_view heading, const std::vector<std::string>& labels,
+        std::size_t selectedItem, std::string_view help);
 };
 
 } // namespace explore2d

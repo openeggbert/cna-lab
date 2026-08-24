@@ -65,6 +65,8 @@ one-shot animation cues, death and victory. Rules can also name a tone effect.
 The session owns all mutable state: player pose, inventory, flags, counters,
 visited rooms, unlocked fast-travel anchors, the selected verb, UI choice state,
 message queues, active one-shot animations, scene time and pending audio cue IDs.
+The selected language is a presentation preference held by the session but is
+not part of `SessionSnapshot`, so switching languages never forks game state.
 
 A `SessionSnapshot` is deliberately presentation-independent. Saving the game is
 therefore a serialization problem, not a GPU/game-loop problem.
@@ -108,8 +110,27 @@ a list of the same procedural `Visual` values used by static art.
 
 `WorldDefinition::presentation` lets a game configure title text, menu wording,
 title colour cycling, byline and code-drawn title artwork. The title layout and
-three-entry NEW GAME / LOAD / QUIT flow remain engine-owned, so games can have
+four-entry NEW GAME / LOAD / SETTINGS / QUIT flow remain engine-owned, so games can have
 their own identity without losing the Explore2D identity.
+
+## Localization
+
+Every user-facing world value is `LocalizedText`: an English-compatible
+fallback plus translations indexed by stable language ID. This covers title,
+interface, rooms, travel anchors, hotspots, inventory, procedural `TextVisual`
+labels, messages, exit warnings, hazards, and terminal outcomes. Games declare
+the languages available in `WorldDefinition::localization`; unsupported or
+missing translations resolve to the fallback rather than an internal key.
+
+`AdventureSession::setLanguage()` changes resolution at runtime. Choice lists
+are rebuilt from localized labels when opened, while active messages and stable
+world data resolve during rendering. The CNA shell exposes Settings from both
+the title screen and the Escape pause menu and persists the language ID to the
+host's separate settings file.
+
+`Canvas` decodes UTF-8 by code point for drawing, measuring, wrapping, and
+truncation. Its fixed 5×7 font includes Czech uppercase/lowercase diacritics;
+glyphs are still code-drawn into the same indexed EGA framebuffer.
 
 The CNA adapter owns one `Texture2D`, uploads the logical framebuffer through
 `SetDataRGBA`, and draws it using `SpriteBatch` with `PointClamp` and opaque

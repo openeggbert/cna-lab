@@ -1,5 +1,7 @@
 #pragma once
 
+#include "explore2d/Localization.hpp"
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -150,6 +152,7 @@ struct Mutation final {
     MutationType type{MutationType::setFlag};
     std::string key;
     int value{};
+    LocalizedText text;
 
     [[nodiscard]] static Mutation setFlag(std::string key);
     [[nodiscard]] static Mutation clearFlag(std::string key);
@@ -160,8 +163,8 @@ struct Mutation final {
     [[nodiscard]] static Mutation unlockTravel(std::string room);
     [[nodiscard]] static Mutation moveTo(std::string room);
     [[nodiscard]] static Mutation playAnimation(std::string animation);
-    [[nodiscard]] static Mutation kill(std::string message);
-    [[nodiscard]] static Mutation win(std::string message);
+    [[nodiscard]] static Mutation kill(LocalizedText message);
+    [[nodiscard]] static Mutation win(LocalizedText message);
 };
 
 struct PixelVisual final { Vec2 at; PaletteColor color{PaletteColor::white}; };
@@ -191,7 +194,7 @@ struct PaintVisual final {
     PaletteColor fill{PaletteColor::white};
     PaletteColor boundary{PaletteColor::white};
 };
-struct TextVisual final { Vec2 at; std::string text; PaletteColor color{PaletteColor::white}; int scale{1}; };
+struct TextVisual final { Vec2 at; LocalizedText text; PaletteColor color{PaletteColor::white}; int scale{1}; };
 
 enum class RasterOperation : std::uint8_t { copy, preset, bitAnd, bitOr, bitXor, transparent };
 
@@ -212,7 +215,7 @@ using Visual = std::variant<PixelVisual, RectVisual, LineVisual, CircleVisual, E
     ArcVisual, PolylineVisual, PolygonVisual, PaintVisual, TextVisual, ImageVisual>;
 
 struct Message final {
-    std::string text;
+    LocalizedText text;
     MessageStyle style{MessageStyle::inspect};
     MessageSpeaker speaker{MessageSpeaker::automatic};
 };

@@ -7,14 +7,27 @@
 #include <cassert>
 #include <filesystem>
 #include <iostream>
+#include <string>
+#include <utility>
 
 namespace e2d = explore2d;
 
+static e2d::LocalizedText testText(std::string english, std::string czech) {
+    e2d::LocalizedText result{std::move(english)};
+    result.addTranslation("cs", std::move(czech));
+    return result;
+}
+
 static e2d::WorldDefinition makeWorld() {
     e2d::WorldDefinition world;
+    world.localization.languages = {
+        {"en", testText("English", "Angličtina")},
+        {"cs", testText("Czech", "Čeština")},
+    };
     world.title = "Test";
     world.startRoom = "a";
-    world.addItem({"key", "KEY", "A small test key.", true});
+    world.addItem({"key", testText("KEY", "KLÍČ"),
+        testText("A small test key.", "Malý zkušební klíč."), true});
 
     e2d::RoomDefinition a;
     a.id = "a";
@@ -45,7 +58,7 @@ static e2d::WorldDefinition makeWorld() {
 
     world.addInteraction({
         e2d::Verb::take, "box", std::nullopt, {},
-        {{"You take the key.", e2d::MessageStyle::inspect}},
+        {{testText("You take the key.", "Vezmeš klíč."), e2d::MessageStyle::inspect}},
         {e2d::Mutation::addItem("key"), e2d::Mutation::setFlag("box_taken"),
             e2d::Mutation::playAnimation("box_flash")},
         0, "taken_once"});
@@ -62,6 +75,11 @@ static e2d::WorldDefinition makeWorld() {
 }
 
 int main() {
+    e2d::LocalizedText fallback{"Fallback"};
+    fallback.addTranslation("cs", "Náhradní text");
+    assert(fallback.resolve("en") == "Fallback");
+    assert(fallback.resolve("cs") == "Náhradní text");
+
     e2d::Canvas primitiveCanvas{32, 32};
     primitiveCanvas.clear(e2d::PaletteColor::black);
     primitiveCanvas.strokeRect({3, 3, 20, 20}, e2d::PaletteColor::brightYellow);
@@ -81,6 +99,12 @@ int main() {
     assert(primitiveCanvas.colorAt(10, 6) == e2d::PaletteColor::brightGreen);
     primitiveCanvas.blit(captured, {2, 2}, e2d::RasterOperation::bitXor);
     assert(primitiveCanvas.colorAt(10, 6) == e2d::PaletteColor::black);
+    primitiveCanvas.clear(e2d::PaletteColor::black);
+    primitiveCanvas.text(0, 0, "ČEŠTINA", e2d::PaletteColor::white);
+    assert(primitiveCanvas.textWidth("ČEŠTINA") == 7 * 6);
+    assert(primitiveCanvas.textWidth("ÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ") == 15 * 6);
+    assert(primitiveCanvas.colorAt(1, 0) == e2d::PaletteColor::white);
+    assert(primitiveCanvas.colorAt(2, 0) == e2d::PaletteColor::black);
 
     e2d::Drawing drawing;
     drawing.origin({10, 12})
@@ -99,6 +123,10 @@ int main() {
     auto world = makeWorld();
     assert(world.validate().empty());
     e2d::AdventureSession session{world};
+    assert(session.language() == "en");
+    assert(!session.setLanguage("missing"));
+    assert(session.setLanguage("cs"));
+    assert(session.localize(world.item("key")->label) == "KLÍČ");
     assert(session.currentRoomId() == "a");
     assert(session.unlockedTravel().contains("a"));
 
@@ -118,6 +146,10 @@ int main() {
     const auto pickupSounds = session.takePendingSoundEffects();
     assert(pickupSounds.size() == 1 && pickupSounds.front() == "pickup");
     assert(session.mode() == e2d::SessionMode::message);
+    assert(session.localize(session.activeMessage()->text) == "Vezmeš klíč.");
+    assert(session.setLanguage("en"));
+    assert(session.localize(session.activeMessage()->text) == "You take the key.");
+    assert(session.setLanguage("cs"));
     session.tick(0.5F);
     assert(session.player().pose == e2d::PlayerPose::standing);
     session.advanceMessage();
@@ -148,12 +180,14 @@ int main() {
     session.cancel();
 
     e2d::AdventureRenderer renderer{world};
-    renderer.renderTitle();
+    renderer.renderTitle(0, "cs");
     assert(renderer.canvas().width() == e2d::ScreenMetrics::width);
     assert(renderer.canvas().height() == e2d::ScreenMetrics::height);
     assert(renderer.canvas().bytes().size() ==
         static_cast<std::size_t>(e2d::ScreenMetrics::width * e2d::ScreenMetrics::height * 4));
     renderer.render(session);
+    renderer.renderPause(session, 1);
+    renderer.renderSettings(0, "cs", &session);
 
     std::cout << "Explore2D core tests passed\n";
     return 0;

@@ -44,7 +44,8 @@ public:
     void cancel();
     void openMap();
     void advanceMessage();
-    void showSystemMessage(std::string text);
+    void showSystemMessage(LocalizedText text);
+    [[nodiscard]] bool setLanguage(std::string_view languageId);
     [[nodiscard]] std::vector<std::string> takePendingSoundEffects();
 
     [[nodiscard]] SessionSnapshot snapshot() const;
@@ -61,9 +62,13 @@ public:
     [[nodiscard]] const std::vector<ChoiceEntry>& choices() const noexcept { return choices_; }
     [[nodiscard]] std::size_t selectionIndex() const noexcept { return selectionIndex_; }
     [[nodiscard]] const std::optional<Message>& activeMessage() const noexcept { return activeMessage_; }
+    [[nodiscard]] std::string_view language() const noexcept { return language_; }
+    [[nodiscard]] std::string_view localize(const LocalizedText& text) const noexcept {
+        return text.resolve(language_);
+    }
     [[nodiscard]] Vec2 messageAnchor() const noexcept;
     [[nodiscard]] bool messageAnchoredToTarget() const noexcept;
-    [[nodiscard]] std::string_view terminalMessage() const noexcept { return terminalMessage_; }
+    [[nodiscard]] std::string_view terminalMessage() const noexcept { return localize(terminalMessage_); }
     [[nodiscard]] float sceneElapsedSeconds() const noexcept { return sceneElapsedSeconds_; }
     [[nodiscard]] std::optional<float> animationElapsed(std::string_view id) const noexcept;
     [[nodiscard]] const HotspotDefinition* nearbyHotspot() const noexcept;
@@ -81,6 +86,7 @@ private:
 
     const WorldDefinition& world_;
     SessionConfig config_;
+    std::string language_;
     std::string currentRoomId_;
     PlayerState player_{};
     Verb selectedVerb_{Verb::examine};
@@ -96,7 +102,7 @@ private:
     std::optional<std::string> pendingTarget_;
     std::vector<Message> messageQueue_;
     std::optional<Message> activeMessage_;
-    std::string terminalMessage_;
+    LocalizedText terminalMessage_;
     std::optional<std::string> messageTargetId_;
     std::vector<std::string> pendingSoundEffects_;
     std::map<std::string, float> activeAnimations_;

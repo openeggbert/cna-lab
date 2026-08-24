@@ -16,6 +16,7 @@ set(CNA_SOURCE_DIR "" CACHE PATH "Path to a CNA source checkout")
 add_library(explore2d_core
     src/Canvas.cpp
     src/Drawing.cpp
+    src/Localization.cpp
     src/Persistence.cpp
     src/QBasicSound.cpp
     src/Renderer.cpp

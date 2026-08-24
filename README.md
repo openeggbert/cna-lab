@@ -42,6 +42,9 @@ strips below. This is a defining feature rather than a temporary limitation.
 - Death and win states.
 - Versioned text save/load snapshots.
 - A configurable title/menu screen shown before a game session starts.
+- Runtime localization through `LocalizedText`, with language selection in
+  title-screen and in-game settings and a persisted host preference.
+- UTF-8 bitmap text with built-in Czech diacritics in addition to ASCII.
 - Optional looping scene animations and one-shot action animations, both made
   from ordinary palette visuals with QBasic timer-tick frame durations.
 - QBasic-style procedural drawing through `PSET`, rectangles, lines, arcs,
@@ -67,6 +70,7 @@ real Black Pine screenshots, a developer guide, API patterns and a complete
 ```text
 include/explore2d/
   Types.hpp         basic types, conditions, mutations, visuals
+  Localization.hpp translated text and supported-language definitions
   World.hpp         static game/world definitions
   Session.hpp       live gameplay state and interaction engine
   Canvas.hpp        CPU RGBA canvas + tiny bitmap font
@@ -125,8 +129,9 @@ its design inspiration:
 | S / L | quick save / quick load |
 | F11 | toggle window / fullscreen |
 | Q | quit |
-| Up / Down + Enter | navigate the title menu, choices, or map |
-| Escape | cancel a choice/message |
+| Up / Down + Enter | navigate the title menu, pause/settings, choices, or map |
+| Left / Right | change the selected language in Settings |
+| Escape | pause in the world; cancel/back in choices and menus |
 
 ## Defining a game
 
@@ -169,6 +174,31 @@ world.addInteraction({
     "key_taken_once"});
 ```
 
+User-facing values are `LocalizedText`. Plain literals are English-compatible
+fallbacks, while games that support multiple languages attach translations and
+list the languages offered by Settings:
+
+```cpp
+explore2d::LocalizedText translated(std::string english, std::string czech) {
+    explore2d::LocalizedText text{std::move(english)};
+    text.addTranslation("cs", std::move(czech));
+    return text;
+}
+
+world.localization.languages = {
+    {"en", translated("English", "Angličtina")},
+    {"cs", translated("Czech", "Čeština")},
+};
+world.addItem({"key", translated("KEY", "KLÍČ"),
+    translated("A small brass key.", "Malý mosazný klíč."), true});
+```
+
+The same type is used by titles, room/travel/hotspot labels, code-drawn text,
+messages, item descriptions, blocked exits, hazards, death/victory mutations,
+and engine interface wording. `AdventureSession::setLanguage()` changes all of
+them without restarting or modifying saved world state. The CNA host stores the
+selected language in `HostConfig::settingsPath`.
+
 Animations are optional room overlays. Static artwork remains static unless a
 game explicitly adds an animation:
 
@@ -197,7 +227,8 @@ Explore2D 0.1 is intentionally an adventure-game foundation, not a general
 sprite/physics engine. It provides small scene/action animations and historical
 tone effects, but not a general skeletal animation system, tracker/music player,
 sampled-asset pipeline, editor, localization database, arbitrary scripted
-minigame plug-ins, or serialized external world format. Those can be added
+minigame plug-ins, or serialized external world format. Localized values are
+currently authored directly in C++; an external translation catalog can be added
 without changing the core room/rule/state model.
 
 ## License

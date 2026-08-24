@@ -7,6 +7,7 @@
 #include "Microsoft/Xna/Framework/Input/KeyboardState.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -29,6 +30,7 @@ struct HostConfig final {
     std::string windowTitle{"Explore2D"};
     int presentationScale{2};
     std::filesystem::path savePath{"explore2d.e2dsave"};
+    std::filesystem::path settingsPath{"explore2d.e2dsettings"};
     std::size_t exitAfterFrames{};
     bool audioEnabled{true};
 };
@@ -53,6 +55,8 @@ protected:
     void UnloadContent() override;
 
 private:
+    enum class ShellMode : std::uint8_t { title, titleSettings, playing, pause, pauseSettings };
+
     WorldDefinition world_;
     SessionConfig sessionConfig_;
     RendererTheme rendererTheme_;
@@ -69,13 +73,20 @@ private:
     Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_{};
     std::size_t updateCounter_{};
     std::size_t renderedFrames_{};
-    bool titleActive_{};
+    ShellMode shellMode_{ShellMode::title};
     std::size_t titleSelection_{};
+    std::size_t pauseSelection_{};
+    std::size_t settingsSelection_{};
 
     [[nodiscard]] bool pressed(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard, int virtualKey) const;
     [[nodiscard]] bool down(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard, int virtualKey) const;
     void updateWorldInput(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard);
     void updateTitleInput(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard);
+    void updatePauseInput(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard);
+    void updateSettingsInput(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard, bool fromPause);
+    void cycleLanguage(int delta);
+    void loadLanguageSetting();
+    void saveLanguageSetting() const;
     void quickSave();
     void quickLoad();
     void playSoundEffect(std::string_view id);

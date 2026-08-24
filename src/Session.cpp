@@ -32,7 +32,8 @@ namespace {
 } // namespace
 
 AdventureSession::AdventureSession(const WorldDefinition& world, SessionConfig config)
-    : world_{world}, config_{config}
+    : world_{world}, config_{config},
+      language_{world.localization.normalized(world.localization.defaultLanguage)}
 {
     const auto errors = world_.validate();
     if (!errors.empty()) {
@@ -55,7 +56,7 @@ void AdventureSession::restart() {
     activeAnimations_.clear();
     sceneElapsedSeconds_ = 0.0F;
     poseTimeRemaining_ = 0.0F;
-    terminalMessage_.clear();
+    terminalMessage_ = {};
     pendingTarget_.reset();
     selectionIndex_ = 0;
     choicePurpose_ = ChoicePurpose::none;
@@ -271,7 +272,7 @@ void AdventureSession::applyGravity(const float seconds) {
         }
     } else if (player_.position.y > worldBottom) {
         if (!tryExit(Direction::down)) {
-            terminalMessage_ = "You fell beyond the edge of the screen.";
+            terminalMessage_ = world_.presentation.interfaceText.fellBeyondEdge;
             mode_ = SessionMode::dead;
             queueSoundEffect(world_.presentation.sounds.death);
         }
@@ -421,8 +422,14 @@ void AdventureSession::advanceMessage() {
     mode_ = SessionMode::world;
 }
 
-void AdventureSession::showSystemMessage(std::string text) {
+void AdventureSession::showSystemMessage(LocalizedText text) {
     beginMessages({Message{std::move(text), MessageStyle::system}});
+}
+
+bool AdventureSession::setLanguage(const std::string_view languageId) {
+    if (!world_.localization.supports(languageId)) return false;
+    language_ = languageId;
+    return true;
 }
 
 void AdventureSession::queueSoundEffect(const std::string_view id) {
@@ -490,7 +497,7 @@ void AdventureSession::applyMutation(const Mutation& mutation) {
         activeAnimations_.insert_or_assign(mutation.key, 0.0F);
         break;
     case MutationType::killPlayer:
-        terminalMessage_ = mutation.key;
+        terminalMessage_ = mutation.text;
         mode_ = SessionMode::dead;
         activeMessage_.reset();
         messageQueue_.clear();
@@ -498,7 +505,7 @@ void AdventureSession::applyMutation(const Mutation& mutation) {
         queueSoundEffect(world_.presentation.sounds.death);
         break;
     case MutationType::winGame:
-        terminalMessage_ = mutation.key;
+        terminalMessage_ = mutation.text;
         mode_ = SessionMode::won;
         activeMessage_.reset();
         messageQueue_.clear();
@@ -529,16 +536,18 @@ void AdventureSession::executeRule(const InteractionRule& rule) {
 void AdventureSession::beginUse() {
     const HotspotDefinition* hotspot = nearbyHotspotFor(Verb::use);
     if (hotspot == nullptr) {
-        showSystemMessage("There is nothing close enough to use an item on.");
+        showSystemMessage(world_.presentation.interfaceText.nothingToUseOn);
         return;
     }
     choices_.clear();
     for (const std::string& itemId : inventory_) {
         const ItemDefinition* item = world_.item(itemId);
-        if (item != nullptr && item->usable) choices_.push_back({item->label, std::nullopt, itemId});
+        if (item != nullptr && item->usable) {
+            choices_.push_back({std::string{localize(item->label)}, std::nullopt, itemId});
+        }
     }
     if (choices_.empty()) {
-        showSystemMessage("You are not carrying anything usable.");
+        showSystemMessage(world_.presentation.interfaceText.nothingUsable);
         return;
     }
     pendingTarget_ = hotspot->id;
@@ -550,15 +559,15 @@ void AdventureSession::beginUse() {
 void AdventureSession::beginExamine() {
     choices_.clear();
     if (const HotspotDefinition* hotspot = nearbyHotspotFor(Verb::examine); hotspot != nullptr) {
-        choices_.push_back({hotspot->label, hotspot->id, std::nullopt});
+        choices_.push_back({std::string{localize(hotspot->label)}, hotspot->id, std::nullopt});
     }
     for (const std::string& itemId : inventory_) {
         if (const ItemDefinition* item = world_.item(itemId); item != nullptr) {
-            choices_.push_back({item->label, std::nullopt, itemId});
+            choices_.push_back({std::string{localize(item->label)}, std::nullopt, itemId});
         }
     }
     if (choices_.empty()) {
-        showSystemMessage("There is nothing here that catches your eye.");
+        showSystemMessage(world_.presentation.interfaceText.nothingToExamine);
         return;
     }
     selectionIndex_ = 0;
@@ -569,7 +578,7 @@ void AdventureSession::beginExamine() {
 void AdventureSession::takeNearby() {
     const HotspotDefinition* hotspot = nearbyHotspotFor(Verb::take);
     if (hotspot == nullptr) {
-        showSystemMessage("There is nothing within reach to take.");
+        showSystemMessage(world_.presentation.interfaceText.nothingToTake);
         return;
     }
     if (const InteractionRule* rule = findRule(Verb::take, hotspot->id, std::nullopt); rule != nullptr) {
@@ -580,7 +589,7 @@ void AdventureSession::takeNearby() {
         poseTimeRemaining_ = 0.45F;
         executeRule(*rule);
     } else {
-        showSystemMessage("You cannot take that.");
+        showSystemMessage(world_.presentation.interfaceText.cannotTake);
     }
 }
 
@@ -628,7 +637,7 @@ void AdventureSession::finishChoice() {
         pendingTarget_.reset();
         choicePurpose_ = ChoicePurpose::none;
         if (rule != nullptr) executeRule(*rule);
-        else showSystemMessage("That does not seem to work here.");
+        else showSystemMessage(world_.presentation.interfaceText.doesNotWork);
         return;
     }
 
@@ -646,7 +655,7 @@ void AdventureSession::finishChoice() {
                 return;
             }
         }
-        showSystemMessage("You notice nothing unusual.");
+        showSystemMessage(world_.presentation.interfaceText.noticeNothing);
     }
 }
 
@@ -655,10 +664,11 @@ void AdventureSession::openMap() {
     choices_.clear();
     for (const auto& [roomId, room] : world_.rooms) {
         if (!room.travelAnchor || !unlockedTravel_.contains(roomId)) continue;
-        choices_.push_back({room.travelLabel.empty() ? room.label : room.travelLabel, roomId, std::nullopt});
+        const LocalizedText& label = room.travelLabel.empty() ? room.label : room.travelLabel;
+        choices_.push_back({std::string{localize(label)}, roomId, std::nullopt});
     }
     if (choices_.empty()) {
-        showSystemMessage("No travel destinations have been discovered yet.");
+        showSystemMessage(world_.presentation.interfaceText.noTravelDestinations);
         return;
     }
     std::ranges::sort(choices_, [](const ChoiceEntry& a, const ChoiceEntry& b) { return a.label < b.label; });
@@ -729,7 +739,7 @@ bool AdventureSession::restore(const SessionSnapshot& snapshotValue) {
     activeAnimations_.clear();
     sceneElapsedSeconds_ = 0.0F;
     poseTimeRemaining_ = 0.0F;
-    terminalMessage_.clear();
+    terminalMessage_ = {};
     pendingTarget_.reset();
     choicePurpose_ = ChoicePurpose::none;
     selectionIndex_ = 0;

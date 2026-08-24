@@ -115,6 +115,12 @@
           <p>Describe monophonic square-wave effects as QBasic SOUND frequency and timer-tick pairs; the CNA host handles playback.</p>
           <code>ToneEffectDefinition</code>
         </article>
+        <article class="feature-card feature-card-blue">
+          <p class="card-number">07</p>
+          <h3>Runtime localization</h3>
+          <p>Translate every player-facing value, switch language from title or pause settings, and keep the preference between launches.</p>
+          <code>LocalizedText</code>
+        </article>
       </div>
     </section>
 
@@ -266,7 +272,7 @@ game.Run();</code></pre>
           <h2>Logic stays testable.<br>The host stays thin.</h2>
         </div>
         <div class="architecture-flow" aria-label="Explore2D architecture flow">
-          <article><span>GAME</span><h3>World definition</h3><p>Rooms · art · items · rules · dialogue</p></article>
+          <article><span>GAME</span><h3>World definition</h3><p>Rooms · art · items · rules · localized text</p></article>
           <div class="flow-arrow" aria-hidden="true">→</div>
           <article><span>CORE</span><h3>Session + renderer</h3><p>State · actions · saves · indexed canvas</p></article>
           <div class="flow-arrow" aria-hidden="true">→</div>
@@ -285,12 +291,13 @@ game.Run();</code></pre>
         <p>Everything is ordinary typed C++ data. Stable string IDs keep story-heavy definitions readable and saves independent of memory layout.</p>
       </div>
       <div class="reference-grid">
-        <article><code>WorldDefinition</code><h3>The complete game</h3><p>Owns rooms, items, interactions, sound effects and presentation settings. Call <code>validate()</code> before play.</p></article>
+        <article><code>WorldDefinition</code><h3>The complete game</h3><p>Owns rooms, items, interactions, languages, sound effects and presentation settings. Call <code>validate()</code> before play.</p></article>
         <article><code>RoomDefinition</code><h3>One fixed scene</h3><p>Provides background, procedural decoration, solids, hotspots, animations, hazards, exits and travel metadata.</p></article>
         <article><code>InteractionRule</code><h3>Intent becomes state</h3><p>Matches verb + target + optional item + conditions, then applies messages, mutations and a sound cue.</p></article>
-        <article><code>AdventureSession</code><h3>The live playthrough</h3><p>Tracks player, inventory, flags, counters, visited rooms, messages and transient actions.</p></article>
+        <article><code>AdventureSession</code><h3>The live playthrough</h3><p>Tracks player, inventory, flags, counters, visited rooms, messages, active language and transient actions.</p></article>
         <article><code>Drawing / Canvas</code><h3>Procedural EGA art</h3><p>Pixels, lines, rectangles, circles, ellipses, arcs, polygons, PAINT, bitmap text and indexed GET/PUT operations.</p></article>
         <article><code>AdventureRenderer</code><h3>The shared machine</h3><p>Draws rooms, player poses, inventory, verbs, maps, title screen, compact bubbles and terminal states.</p></article>
+        <article><code>LocalizedText</code><h3>One value, many languages</h3><p>Keeps an English-compatible fallback plus translations resolved at runtime without changing game state.</p></article>
       </div>
 
       <div class="advanced-grid">

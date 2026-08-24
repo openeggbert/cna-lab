@@ -70,6 +70,7 @@ Explore2D world is valid.</code></pre>
           <a href="#dialogue">Dialogue</a>
           <a href="#animation">Animation</a>
           <a href="#audio">QBasic-style audio</a>
+          <a href="#localization">Localization</a>
           <a href="#host">CNA host</a>
           <a href="#save-test">Saving and tests</a>
           <a href="#checklist">Ship checklist</a>
@@ -189,7 +190,7 @@ if (!errors.empty()) {
 }
 
 e2d::AdventureSession session{world};</code></pre>
-          <p><code>validate()</code> catches missing start rooms, dangling exits, duplicate hotspot or animation IDs, invalid sound steps and broken interaction references. The session constructor also validates and refuses an invalid world.</p>
+          <p><code>validate()</code> catches missing start rooms, invalid or duplicate language IDs, dangling exits, duplicate hotspot or animation IDs, invalid sound steps and broken interaction references. The session constructor also validates and refuses an invalid world.</p>
         </section>
 
         <section id="drawing" class="doc-section">
@@ -400,8 +401,32 @@ rule.soundEffect = "unlock";</code></pre>
           <p>Core code validates and queues effect IDs without touching an audio device. The CNA adapter synthesizes signed 16-bit mono square-wave PCM and plays it through CNA <code>SoundEffect</code>. A new effect interrupts the previous one.</p>
         </section>
 
+        <section id="localization" class="doc-section">
+          <p class="eyebrow">11 · Runtime localization</p>
+          <h2>Translate values, not game state.</h2>
+          <p>Every player-facing value accepts <code>LocalizedText</code>. Its fallback is normally English, while translations use stable language IDs. Plain string literals still work for a single-language game.</p>
+          <pre><code>e2d::LocalizedText tr(std::string english,
+                      std::string czech) {
+    e2d::LocalizedText text{std::move(english)};
+    text.addTranslation("cs", std::move(czech));
+    return text;
+}
+
+world.localization.defaultLanguage = "en";
+world.localization.languages = {
+    {"en", tr("English", "Angličtina")},
+    {"cs", tr("Czech", "Čeština")},
+};
+
+world.title = tr("Signal Cabin", "Signální stanice");
+world.addItem({"key", tr("KEY", "KLÍČ"),
+    tr("A small brass key.", "Malý mosazný klíč."), true});</code></pre>
+          <p>Use the same helper for room and hotspot labels, code-drawn text, dialogue, item descriptions, blocked exits, hazards, terminal messages and <code>world.interfaceText</code>. The bitmap font decodes UTF-8 and includes Czech accented capitals.</p>
+          <div class="doc-note"><strong>Settings are engine-owned</strong><p>The title menu includes Settings. Escape during play opens a pause menu with the same language selector. A change redraws the current screen immediately and the CNA host stores the preference separately from save-game state.</p></div>
+        </section>
+
         <section id="host" class="doc-section">
-          <p class="eyebrow">11 · CNA host</p>
+          <p class="eyebrow">12 · CNA host</p>
           <h2>Turn the tested world into a desktop game.</h2>
           <div class="code-panel">
             <div class="code-title"><span>Main.cpp</span><button type="button" data-copy="developer-host">Copy</button></div>
@@ -413,6 +438,7 @@ int main() {
     host.windowTitle = "Signal Cabin";
     host.presentationScale = 2;
     host.savePath = "signal-cabin.e2dsave";
+    host.settingsPath = "signal-cabin.e2dsettings";
     host.audioEnabled = true;
 
     explore2d::SessionConfig session;
@@ -427,7 +453,7 @@ int main() {
         </section>
 
         <section id="save-test" class="doc-section">
-          <p class="eyebrow">12 · Saving and deterministic tests</p>
+          <p class="eyebrow">13 · Saving and deterministic tests</p>
           <h2>Test the route, not only the functions.</h2>
           <p><code>SessionSnapshot</code> stores the stable adventure state: current room, player, selected verb, inventory, flags, counters, visited rooms and travel anchors. Transient bubbles, poses, sounds and action animations are deliberately not saved.</p>
           <pre><code>auto world = buildWorld();
@@ -458,7 +484,7 @@ while (session.mode() == e2d::SessionMode::message) {
         </section>
 
         <section id="checklist" class="doc-section">
-          <p class="eyebrow">13 · Shipping checklist</p>
+          <p class="eyebrow">14 · Shipping checklist</p>
           <h2>Finish the small game well.</h2>
           <div class="checklist-grid">
             <label><input type="checkbox"> Every room has a valid spawn and supporting floor.</label>
@@ -468,6 +494,7 @@ while (session.mode() == e2d::SessionMode::message) {
             <label><input type="checkbox"> Player and target speech lines use the correct anchor.</label>
             <label><input type="checkbox"> Animation communicates state without making every prop move.</label>
             <label><input type="checkbox"> Tone effects stay short, quiet and monophonic.</label>
+            <label><input type="checkbox"> Every supported language covers interface, world text and dialogue.</label>
             <label><input type="checkbox"> A clean headless build passes the complete winning route.</label>
             <label><input type="checkbox"> Death/restart and save/load are tested separately.</label>
             <label><input type="checkbox"> The full CNA build launches with real video and audio.</label>

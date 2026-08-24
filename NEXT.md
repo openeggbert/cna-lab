@@ -9,13 +9,13 @@ minimal CNA host. Good follow-up work, in roughly this order:
    content-version metadata for saves.
 3. Add richer scripted sequences: waits, presentation cues, conditional
    branches and explicit choice dialogue.
-4. Add localization keys rather than embedding user-facing strings directly in
-   world definitions.
+4. Optionally add external localization catalogs and translation-completeness
+   tooling on top of the implemented `LocalizedText` runtime model.
 5. Add a room/hotspot debug overlay and eventually an authoring/editor tool.
 6. Add gamepad input mapping and configurable controls.
 7. Add install/export CMake packaging once the API stabilizes.
 8. Expand deterministic tests around transitions, overlapping hotspots, save
-    migration and rule priority conflicts.
+   migration and rule priority conflicts.
 
 Selective palette animation, QBasic-like GET/PUT drawing, speaker-anchored
 bubbles, action poses and monophonic tone effects are implemented in the current

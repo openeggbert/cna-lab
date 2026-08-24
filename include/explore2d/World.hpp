@@ -12,14 +12,14 @@ namespace explore2d {
 
 struct ItemDefinition final {
     std::string id;
-    std::string label;
-    std::string description;
+    LocalizedText label;
+    LocalizedText description;
     bool usable{true};
 };
 
 struct HotspotDefinition final {
     std::string id;
-    std::string label;
+    LocalizedText label;
     Rect interactionArea{};
     HotspotKind kind{HotspotKind::scenery};
     std::vector<Condition> visibleWhen;
@@ -29,7 +29,7 @@ struct HotspotDefinition final {
 struct HazardDefinition final {
     std::string id;
     Rect area{};
-    std::string deathMessage;
+    LocalizedText deathMessage;
     std::vector<Condition> activeWhen;
 };
 
@@ -38,7 +38,7 @@ struct ExitDefinition final {
     std::string destinationRoom;
     Vec2 spawn{};
     std::vector<Condition> availableWhen;
-    std::string blockedMessage;
+    LocalizedText blockedMessage;
 };
 
 struct AnimationFrame final {
@@ -56,11 +56,11 @@ struct SceneAnimationDefinition final {
 
 struct RoomDefinition final {
     std::string id;
-    std::string label;
+    LocalizedText label;
     PaletteColor background{PaletteColor::black};
     Vec2 defaultSpawn{32.0F, 220.0F};
     bool travelAnchor{};
-    std::string travelLabel;
+    LocalizedText travelLabel;
     std::vector<Visual> decorations;
     std::vector<Rect> solids;
     std::vector<HotspotDefinition> hotspots;
@@ -80,11 +80,12 @@ struct TitleScreenDefinition final {
         PaletteColor::brightYellow,
         PaletteColor::brightGreen,
     };
-    std::string subtitle{"AN EXPLORE2D ADVENTURE"};
-    std::string byline{"CREATED WITH EXPLORE2D"};
-    std::string startLabel{"NEW GAME"};
-    std::string loadLabel{"LOAD GAME"};
-    std::string quitLabel{"QUIT"};
+    LocalizedText subtitle{"AN EXPLORE2D ADVENTURE"};
+    LocalizedText byline{"CREATED WITH EXPLORE2D"};
+    LocalizedText startLabel{"NEW GAME"};
+    LocalizedText loadLabel{"LOAD GAME"};
+    LocalizedText settingsLabel{"SETTINGS"};
+    LocalizedText quitLabel{"QUIT"};
     std::vector<Visual> artwork;
 };
 
@@ -102,11 +103,51 @@ struct SoundBindings final {
     std::string load;
 };
 
+// Engine-owned wording is also game-configurable and localizable. A game may
+// leave translations out; LocalizedText then falls back to these English
+// strings rather than displaying a missing-key marker.
+struct InterfaceTextDefinition final {
+    LocalizedText inventoryEmpty{"(NOTHING)"};
+    LocalizedText verbUse{"USE"};
+    LocalizedText verbExamine{"EXAMINE"};
+    LocalizedText verbTake{"TAKE"};
+    LocalizedText useWhat{"USE WHAT?"};
+    LocalizedText confirmCancel{"ENTER / ESC"};
+    LocalizedText travelMap{"TRAVEL MAP"};
+    LocalizedText travelHelp{"ARROWS + ENTER   ESC BACK"};
+    LocalizedText messageAdvance{"ENTER"};
+    LocalizedText missionComplete{"MISSION COMPLETE"};
+    LocalizedText missionFailed{"MISSION FAILED"};
+    LocalizedText restartPrompt{"ENTER TO RESTART"};
+    LocalizedText paused{"GAME PAUSED"};
+    LocalizedText resume{"RESUME GAME"};
+    LocalizedText settings{"SETTINGS"};
+    LocalizedText returnToTitle{"RETURN TO TITLE"};
+    LocalizedText language{"LANGUAGE"};
+    LocalizedText back{"BACK"};
+    LocalizedText settingsHelp{"LEFT / RIGHT CHANGE   ESC BACK"};
+    LocalizedText nothingToUseOn{"There is nothing close enough to use an item on."};
+    LocalizedText nothingUsable{"You are not carrying anything usable."};
+    LocalizedText nothingToExamine{"There is nothing here that catches your eye."};
+    LocalizedText nothingToTake{"There is nothing within reach to take."};
+    LocalizedText cannotTake{"You cannot take that."};
+    LocalizedText doesNotWork{"That does not seem to work here."};
+    LocalizedText noticeNothing{"You notice nothing unusual."};
+    LocalizedText noTravelDestinations{"No travel destinations have been discovered yet."};
+    LocalizedText gameSaved{"Game saved."};
+    LocalizedText saveFailed{"Save failed."};
+    LocalizedText loadFailed{"Load failed."};
+    LocalizedText loadWorldMismatch{"Load failed: save does not match this world."};
+    LocalizedText gameLoaded{"Game loaded."};
+    LocalizedText fellBeyondEdge{"You fell beyond the edge of the screen."};
+};
+
 struct PresentationDefinition final {
     TitleScreenDefinition title;
     SoundBindings sounds;
-    std::string inventoryHeading{"CARRYING"};
-    std::string creditLine{"CREATED WITH EXPLORE2D"};
+    InterfaceTextDefinition interfaceText;
+    LocalizedText inventoryHeading{"CARRYING"};
+    LocalizedText creditLine{"CREATED WITH EXPLORE2D"};
 };
 
 struct InteractionRule final {
@@ -123,12 +164,13 @@ struct InteractionRule final {
 
 class WorldDefinition final {
 public:
-    std::string title{"Untitled Explore2D"};
+    LocalizedText title{"Untitled Explore2D"};
     std::string startRoom;
     std::map<std::string, ItemDefinition> items;
     std::map<std::string, RoomDefinition> rooms;
     std::map<std::string, ToneEffectDefinition> soundEffects;
     std::vector<InteractionRule> interactions;
+    LocalizationDefinition localization;
     PresentationDefinition presentation;
 
     WorldDefinition& addItem(ItemDefinition item);

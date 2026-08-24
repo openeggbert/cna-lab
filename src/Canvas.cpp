@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <cmath>
 #include <deque>
 #include <limits>
@@ -14,8 +13,58 @@ namespace {
 
 using Glyph = std::array<std::uint8_t, 7>;
 
-[[nodiscard]] Glyph glyph(const char input) noexcept {
-    const char c = static_cast<char>(std::toupper(static_cast<unsigned char>(input)));
+[[nodiscard]] char32_t uppercase(const char32_t input) noexcept {
+    if (input >= U'a' && input <= U'z') return input - U'a' + U'A';
+    switch (input) {
+    case U'á': return U'Á';
+    case U'č': return U'Č';
+    case U'ď': return U'Ď';
+    case U'é': return U'É';
+    case U'ě': return U'Ě';
+    case U'í': return U'Í';
+    case U'ň': return U'Ň';
+    case U'ó': return U'Ó';
+    case U'ř': return U'Ř';
+    case U'š': return U'Š';
+    case U'ť': return U'Ť';
+    case U'ú': return U'Ú';
+    case U'ů': return U'Ů';
+    case U'ý': return U'Ý';
+    case U'ž': return U'Ž';
+    default: return input;
+    }
+}
+
+[[nodiscard]] char32_t decodeNext(const std::string_view value, std::size_t& offset) noexcept {
+    if (offset >= value.size()) return U'\0';
+    const auto first = static_cast<unsigned char>(value[offset++]);
+    if (first < 0x80U) return first;
+    int trailing = 0;
+    char32_t result = 0;
+    if ((first & 0xE0U) == 0xC0U) {
+        trailing = 1;
+        result = first & 0x1FU;
+    } else if ((first & 0xF0U) == 0xE0U) {
+        trailing = 2;
+        result = first & 0x0FU;
+    } else if ((first & 0xF8U) == 0xF0U) {
+        trailing = 3;
+        result = first & 0x07U;
+    } else {
+        return U'?';
+    }
+    if (offset + static_cast<std::size_t>(trailing) > value.size()) return U'?';
+    for (int index = 0; index < trailing; ++index) {
+        const auto next = static_cast<unsigned char>(value[offset]);
+        if ((next & 0xC0U) != 0x80U) return U'?';
+        ++offset;
+        result = (result << 6U) | static_cast<char32_t>(next & 0x3FU);
+    }
+    return result;
+}
+
+[[nodiscard]] Glyph glyph(const char32_t input) noexcept {
+    const char32_t c = uppercase(input);
     switch (c) {
     case 'A': return {0x0E,0x11,0x11,0x1F,0x11,0x11,0x11};
     case 'B': return {0x1E,0x11,0x11,0x1E,0x11,0x11,0x1E};
@@ -43,6 +92,21 @@ using Glyph = std::array<std::uint8_t, 7>;
     case 'X': return {0x11,0x11,0x0A,0x04,0x0A,0x11,0x11};
     case 'Y': return {0x11,0x11,0x0A,0x04,0x04,0x04,0x04};
     case 'Z': return {0x1F,0x01,0x02,0x04,0x08,0x10,0x1F};
+    case U'Á': return {0x04,0x0E,0x11,0x1F,0x11,0x11,0x11};
+    case U'Č': return {0x0A,0x0E,0x10,0x10,0x10,0x11,0x0E};
+    case U'Ď': return {0x0A,0x1E,0x11,0x11,0x11,0x11,0x1E};
+    case U'É': return {0x04,0x1F,0x10,0x1E,0x10,0x10,0x1F};
+    case U'Ě': return {0x0A,0x1F,0x10,0x1E,0x10,0x10,0x1F};
+    case U'Í': return {0x02,0x0E,0x04,0x04,0x04,0x04,0x0E};
+    case U'Ň': return {0x0A,0x11,0x19,0x15,0x13,0x11,0x11};
+    case U'Ó': return {0x04,0x0E,0x11,0x11,0x11,0x11,0x0E};
+    case U'Ř': return {0x0A,0x1E,0x11,0x1E,0x14,0x12,0x11};
+    case U'Š': return {0x0A,0x0F,0x10,0x0E,0x01,0x01,0x1E};
+    case U'Ť': return {0x0A,0x1F,0x04,0x04,0x04,0x04,0x04};
+    case U'Ú': return {0x04,0x11,0x11,0x11,0x11,0x11,0x0E};
+    case U'Ů': return {0x04,0x0A,0x11,0x11,0x11,0x11,0x0E};
+    case U'Ý': return {0x04,0x11,0x11,0x0A,0x04,0x04,0x04};
+    case U'Ž': return {0x0A,0x1F,0x01,0x02,0x04,0x08,0x1F};
     case '0': return {0x0E,0x11,0x13,0x15,0x19,0x11,0x0E};
     case '1': return {0x04,0x0C,0x04,0x04,0x04,0x04,0x0E};
     case '2': return {0x0E,0x11,0x01,0x02,0x04,0x08,0x1F};
@@ -336,8 +400,10 @@ void Canvas::resetClip() noexcept {
 void Canvas::text(int x, int y, const std::string_view value, const PaletteColor color, const int scaleValue) {
     const int scale = std::max(1, scaleValue);
     const int startX = x;
-    for (const char c : value) {
-        if (c == '\n') { x = startX; y += 9 * scale; continue; }
+    std::size_t offset = 0;
+    while (offset < value.size()) {
+        const char32_t c = decodeNext(value, offset);
+        if (c == U'\n') { x = startX; y += 9 * scale; continue; }
         const Glyph g = glyph(c);
         for (int row = 0; row < 7; ++row) {
             for (int col = 0; col < 5; ++col) {
@@ -354,8 +420,10 @@ int Canvas::textWidth(const std::string_view value, const int scaleValue) const 
     const int scale = std::max(1, scaleValue);
     int current = 0;
     int widest = 0;
-    for (const char c : value) {
-        if (c == '\n') { widest = std::max(widest, current); current = 0; }
+    std::size_t offset = 0;
+    while (offset < value.size()) {
+        const char32_t c = decodeNext(value, offset);
+        if (c == U'\n') { widest = std::max(widest, current); current = 0; }
         else current += 6 * scale;
     }
     return std::max(widest, current);
@@ -372,7 +440,6 @@ void Canvas::wrappedText(
 {
     std::string lineValue;
     std::string word;
-    const int maxChars = std::max(1, width / (6 * std::max(1, scale)));
     auto flushLine = [&]() {
         text(x, y, lineValue, color, scale);
         y += 7 * std::max(1, scale) + lineGap;
@@ -381,7 +448,7 @@ void Canvas::wrappedText(
     auto appendWord = [&]() {
         if (word.empty()) return;
         if (lineValue.empty()) lineValue = word;
-        else if (static_cast<int>(lineValue.size() + 1 + word.size()) <= maxChars) lineValue += " " + word;
+        else if (textWidth(lineValue + " " + word, scale) <= width) lineValue += " " + word;
         else { flushLine(); lineValue = word; }
         word.clear();
     };

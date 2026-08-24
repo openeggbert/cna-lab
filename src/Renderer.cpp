@@ -22,14 +22,51 @@ constexpr Rect actionPanel{70.0F, 306.0F, 364.0F, 17.0F};
     return {rect.x + offset.x, rect.y + offset.y, rect.width, rect.height};
 }
 
-[[nodiscard]] std::vector<std::string> wrapBubbleText(const std::string_view value, const int maxChars) {
+[[nodiscard]] std::string utf8Prefix(const std::string_view value, const std::size_t maxCharacters) {
+    std::size_t offset = 0;
+    std::size_t characters = 0;
+    while (offset < value.size() && characters < maxCharacters) {
+        const auto first = static_cast<unsigned char>(value[offset]);
+        std::size_t bytes = 1;
+        if ((first & 0xE0U) == 0xC0U) bytes = 2;
+        else if ((first & 0xF0U) == 0xE0U) bytes = 3;
+        else if ((first & 0xF8U) == 0xF0U) bytes = 4;
+        if (offset + bytes > value.size()) bytes = 1;
+        offset += bytes;
+        ++characters;
+    }
+    return std::string{value.substr(0, offset)};
+}
+
+[[nodiscard]] std::vector<std::string> utf8Characters(const std::string_view value) {
+    std::vector<std::string> result;
+    std::size_t offset = 0;
+    while (offset < value.size()) {
+        const std::size_t firstOffset = offset;
+        const auto first = static_cast<unsigned char>(value[offset]);
+        std::size_t bytes = 1;
+        if ((first & 0xE0U) == 0xC0U) bytes = 2;
+        else if ((first & 0xF0U) == 0xE0U) bytes = 3;
+        else if ((first & 0xF8U) == 0xF0U) bytes = 4;
+        if (offset + bytes > value.size()) bytes = 1;
+        offset += bytes;
+        result.emplace_back(value.substr(firstOffset, bytes));
+    }
+    return result;
+}
+
+[[nodiscard]] std::vector<std::string> wrapBubbleText(
+    const std::string_view value,
+    const int maxWidth,
+    const Canvas& canvas)
+{
     std::istringstream input{std::string{value}};
     std::vector<std::string> lines;
     std::string word;
     std::string current;
     while (input >> word) {
         if (current.empty()) current = word;
-        else if (static_cast<int>(current.size() + 1U + word.size()) <= maxChars) current += " " + word;
+        else if (canvas.textWidth(current + " " + word, 1) <= maxWidth) current += " " + word;
         else {
             lines.push_back(std::move(current));
             current = std::move(word);
@@ -43,8 +80,13 @@ constexpr Rect actionPanel{70.0F, 306.0F, 364.0F, 17.0F};
 } // namespace
 
 AdventureRenderer::AdventureRenderer(const WorldDefinition& world, SessionConfig config, RendererTheme theme)
-    : world_{world}, config_{config}, theme_{theme}, canvas_{ScreenMetrics::width, ScreenMetrics::height}
+    : world_{world}, config_{config}, theme_{theme}, canvas_{ScreenMetrics::width, ScreenMetrics::height},
+      language_{world.localization.normalized(world.localization.defaultLanguage)}
 {
+}
+
+std::string_view AdventureRenderer::localize(const LocalizedText& text) const noexcept {
+    return text.resolve(language_);
 }
 
 void AdventureRenderer::drawVisual(const Visual& visual, const Vec2 offset) {
@@ -77,7 +119,7 @@ void AdventureRenderer::drawVisual(const Visual& visual, const Vec2 offset) {
             canvas_.paint(shifted(value.at, offset), value.fill, value.boundary);
         } else if constexpr (std::is_same_v<T, TextVisual>) {
             const Vec2 at = shifted(value.at, offset);
-            canvas_.text(static_cast<int>(at.x), static_cast<int>(at.y), value.text, value.color, value.scale);
+            canvas_.text(static_cast<int>(at.x), static_cast<int>(at.y), localize(value.text), value.color, value.scale);
         } else if constexpr (std::is_same_v<T, ImageVisual>) {
             canvas_.blit(value.image, shifted(value.at, offset), value.operation, value.transparentColor);
         }
@@ -105,14 +147,14 @@ void AdventureRenderer::drawFrame() {
 
 void AdventureRenderer::drawLogo() {
     const auto& colors = world_.presentation.title.titleColors;
-    const std::string logoTitle = world_.title.substr(0, 18);
+    const std::string logoTitle = utf8Prefix(localize(world_.title), 18);
     int x = 565 - canvas_.textWidth(logoTitle, 1) / 2;
     int colorIndex = 0;
-    for (const char character : logoTitle) {
+    for (const std::string& character : utf8Characters(logoTitle)) {
         const PaletteColor color = colors.empty() ? theme_.accent : colors[static_cast<std::size_t>(colorIndex) % colors.size()];
-        canvas_.text(x, 28, std::string(1, character), color, 1);
+        canvas_.text(x, 28, character, color, 1);
         x += 6;
-        if (character != ' ') ++colorIndex;
+        if (character != " ") ++colorIndex;
     }
     canvas_.line({522.0F, 42.0F}, {607.0F, 42.0F}, theme_.panelPattern);
     canvas_.text(526, 50, "EXPLORE2D", theme_.dimText, 1);
@@ -193,27 +235,32 @@ void AdventureRenderer::drawPlayer(const AdventureSession& session) {
 
 void AdventureRenderer::drawHud(const AdventureSession& session) {
     drawLogo();
-    canvas_.text(516, 116, world_.presentation.inventoryHeading, theme_.text, 1);
+    const InterfaceTextDefinition& ui = world_.presentation.interfaceText;
+    canvas_.text(516, 116, localize(world_.presentation.inventoryHeading), theme_.text, 1);
     canvas_.line({516.0F, 127.0F}, {612.0F, 127.0F}, theme_.panelPattern);
     int y = 136;
     if (session.inventory().empty()) {
-        canvas_.text(516, y, "(NOTHING)", theme_.dimText, 1);
+        canvas_.text(516, y, localize(ui.inventoryEmpty), theme_.dimText, 1);
     } else {
         for (const std::string& itemId : session.inventory()) {
             if (const ItemDefinition* item = world_.item(itemId); item != nullptr) {
-                canvas_.text(516, y, item->label.substr(0, 16), theme_.text, 1);
+                canvas_.text(516, y, utf8Prefix(localize(item->label), 16), theme_.text, 1);
                 y += 10;
                 if (y > 244) break;
             }
         }
     }
-    canvas_.text(44, 283, session.currentRoom().label.substr(0, 34), theme_.text, 1);
-    const int creditWidth = canvas_.textWidth(world_.presentation.creditLine, 1);
-    canvas_.text(std::max(44, 459 - creditWidth), 283, world_.presentation.creditLine, theme_.dimText, 1);
+    canvas_.text(44, 283, utf8Prefix(localize(session.currentRoom().label), 34), theme_.text, 1);
+    const std::string_view credit = localize(world_.presentation.creditLine);
+    const int creditWidth = canvas_.textWidth(credit, 1);
+    canvas_.text(std::max(44, 459 - creditWidth), 283, credit, theme_.dimText, 1);
 
     constexpr std::array<Verb, 3> verbs{Verb::use, Verb::examine, Verb::take};
-    constexpr std::array<std::string_view, 3> labels{"1 - USE", "2 - EXAMINE", "3 - TAKE"};
     constexpr std::array<int, 3> positions{83, 190, 330};
+    const std::array<std::string, 3> labels{
+        "1 - " + std::string{localize(ui.verbUse)},
+        "2 - " + std::string{localize(ui.verbExamine)},
+        "3 - " + std::string{localize(ui.verbTake)}};
     for (std::size_t index = 0; index < verbs.size(); ++index) {
         canvas_.text(positions[index], 311, labels[index],
             session.selectedVerb() == verbs[index] ? theme_.selected : theme_.accent, 1);
@@ -221,24 +268,27 @@ void AdventureRenderer::drawHud(const AdventureSession& session) {
 }
 
 void AdventureRenderer::drawChoice(const AdventureSession& session, const std::string_view title) {
+    const InterfaceTextDefinition& ui = world_.presentation.interfaceText;
     canvas_.fillRect({509.0F, 109.0F, 111.0F, 147.0F}, theme_.panel);
     canvas_.text(516, 116, title, theme_.selected, 1);
     canvas_.line({516.0F, 127.0F}, {612.0F, 127.0F}, theme_.panelPattern);
     int rowY = 136;
     for (std::size_t i = 0; i < session.choices().size() && rowY <= 234; ++i) {
         const bool selected = i == session.selectionIndex();
-        const std::string label = (selected ? ">" : " ") + session.choices()[i].label.substr(0, 15);
+        const std::string label = (selected ? ">" : " ") + utf8Prefix(session.choices()[i].label, 15);
         canvas_.text(512, rowY, label, selected ? theme_.selected : theme_.text, 1);
         rowY += 10;
     }
-    canvas_.text(516, 245, "ENTER / ESC", theme_.dimText, 1);
+    canvas_.text(516, 245, localize(ui.confirmCancel), theme_.dimText, 1);
 }
 
 void AdventureRenderer::drawMap(const AdventureSession& session) {
+    const InterfaceTextDefinition& ui = world_.presentation.interfaceText;
     canvas_.setClip(ScreenMetrics::sceneRect);
     canvas_.fillRect(ScreenMetrics::sceneRect, PaletteColor::blue);
     canvas_.strokeRect({24.0F, 23.0F, 459.0F, 229.0F}, theme_.text);
-    canvas_.text(185, 35, "TRAVEL MAP", theme_.selected, 2);
+    const std::string_view mapTitle = localize(ui.travelMap);
+    canvas_.text((ScreenMetrics::width - canvas_.textWidth(mapTitle, 2)) / 2, 35, mapTitle, theme_.selected, 2);
     canvas_.line({55.0F, 64.0F}, {450.0F, 64.0F}, theme_.accent);
     int y = 86;
     for (std::size_t i = 0; i < session.choices().size() && y < 230; ++i) {
@@ -249,17 +299,19 @@ void AdventureRenderer::drawMap(const AdventureSession& session) {
         canvas_.text(122, y, session.choices()[i].label, selected ? theme_.selected : theme_.text, 1);
         y += 20;
     }
-    canvas_.text(171, 237, "ARROWS + ENTER   ESC BACK", theme_.dimText, 1);
+    const std::string_view help = localize(ui.travelHelp);
+    canvas_.text((ScreenMetrics::width - canvas_.textWidth(help, 1)) / 2, 237, help, theme_.dimText, 1);
     canvas_.resetClip();
 }
 
 void AdventureRenderer::drawMessage(const AdventureSession& session) {
     if (!session.activeMessage().has_value()) return;
     const Message& message = *session.activeMessage();
-    const std::vector<std::string> lines = wrapBubbleText(message.text, 34);
-    std::size_t widest = 0;
-    for (const std::string& lineValue : lines) widest = std::max(widest, lineValue.size());
-    const int width = std::clamp(static_cast<int>(widest) * 6 + 16, 112, 220);
+    const std::string_view messageText = localize(message.text);
+    const std::vector<std::string> lines = wrapBubbleText(messageText, 204, canvas_);
+    int widest = 0;
+    for (const std::string& lineValue : lines) widest = std::max(widest, canvas_.textWidth(lineValue, 1));
+    const int width = std::clamp(widest + 16, 112, 220);
     const int height = static_cast<int>(lines.size()) * 10 + 20;
     const Vec2 localAnchor = session.messageAnchor();
     const Vec2 anchor{localAnchor.x + ScreenMetrics::sceneOrigin.x,
@@ -295,56 +347,69 @@ void AdventureRenderer::drawMessage(const AdventureSession& session) {
     for (std::size_t index = 0; index < lines.size(); ++index) {
         canvas_.text(x + 8, y + 7 + static_cast<int>(index) * 10, lines[index], theme_.text, 1);
     }
-    canvas_.text(x + width - 40, y + height - 9, "ENTER", theme_.dimText, 1);
+    const std::string_view advance = localize(world_.presentation.interfaceText.messageAdvance);
+    canvas_.text(x + width - canvas_.textWidth(advance, 1) - 8, y + height - 9, advance, theme_.dimText, 1);
 }
 
 void AdventureRenderer::drawTerminal(const AdventureSession& session) {
     const bool won = session.mode() == SessionMode::won;
+    const InterfaceTextDefinition& ui = world_.presentation.interfaceText;
     canvas_.fillRect(ScreenMetrics::sceneRect, PaletteColor::black);
     canvas_.strokeRect({38.0F, 44.0F, 434.0F, 185.0F}, won ? theme_.accent : theme_.danger);
-    canvas_.text(won ? 105 : 117, 69, won ? "MISSION COMPLETE" : "MISSION FAILED",
+    const std::string_view heading = localize(won ? ui.missionComplete : ui.missionFailed);
+    canvas_.text((ScreenMetrics::width - canvas_.textWidth(heading, 3)) / 2, 69, heading,
         won ? theme_.accent : theme_.danger, 3);
     canvas_.wrappedText(62, 113, 388, session.terminalMessage(), theme_.text, 1, 4);
-    canvas_.text(174, 205, "ENTER TO RESTART", theme_.selected, 1);
+    const std::string_view restart = localize(ui.restartPrompt);
+    canvas_.text((ScreenMetrics::width - canvas_.textWidth(restart, 1)) / 2, 205, restart, theme_.selected, 1);
 }
 
-void AdventureRenderer::renderTitle(const std::size_t selectedItem) {
+void AdventureRenderer::renderTitle(const std::size_t selectedItem, const std::string_view language) {
+    language_ = world_.localization.normalized(language);
     const TitleScreenDefinition& title = world_.presentation.title;
     canvas_.clear(title.background);
     canvas_.strokeRect({5.0F, 5.0F, 630.0F, 340.0F}, title.border);
     canvas_.strokeRect({9.0F, 9.0F, 622.0F, 332.0F}, theme_.panelPattern);
     for (const Visual& visual : title.artwork) drawVisual(visual);
 
-    const int baseTitleWidth = std::max(1, canvas_.textWidth(world_.title, 1));
+    const std::string_view resolvedTitle = localize(world_.title);
+    const int baseTitleWidth = std::max(1, canvas_.textWidth(resolvedTitle, 1));
     const int titleScale = std::clamp(560 / baseTitleWidth, 1, 4);
-    const int titleWidth = canvas_.textWidth(world_.title, titleScale);
+    const int titleWidth = canvas_.textWidth(resolvedTitle, titleScale);
     int x = (ScreenMetrics::width - titleWidth) / 2;
     int colorIndex = 0;
-    for (const char character : world_.title) {
+    for (const std::string& character : utf8Characters(resolvedTitle)) {
         const auto& colors = title.titleColors;
         const PaletteColor color = colors.empty() ? theme_.accent : colors[static_cast<std::size_t>(colorIndex) % colors.size()];
-        canvas_.text(x, 26, std::string(1, character), color, titleScale);
+        canvas_.text(x, 26, character, color, titleScale);
         x += 6 * titleScale;
-        if (character != ' ') ++colorIndex;
+        if (character != " ") ++colorIndex;
     }
-    canvas_.text((ScreenMetrics::width - canvas_.textWidth(title.subtitle, 1)) / 2, 62, title.subtitle, theme_.text, 1);
+    const std::string_view subtitle = localize(title.subtitle);
+    canvas_.text((ScreenMetrics::width - canvas_.textWidth(subtitle, 1)) / 2, 62, subtitle, theme_.text, 1);
 
-    constexpr int menuX = 238;
-    constexpr int menuY = 246;
-    constexpr int menuW = 164;
-    constexpr int menuH = 70;
+    constexpr int menuX = 218;
+    constexpr int menuY = 235;
+    constexpr int menuW = 204;
+    constexpr int menuH = 84;
     canvas_.fillRect({menuX, menuY, menuW, menuH}, PaletteColor::blue);
     canvas_.strokeRect({menuX, menuY, menuW, menuH}, title.border);
-    const std::array<std::string, 3> labels{title.startLabel, title.loadLabel, title.quitLabel};
+    const std::array<std::string, 4> labels{
+        std::string{localize(title.startLabel)},
+        std::string{localize(title.loadLabel)},
+        std::string{localize(title.settingsLabel)},
+        std::string{localize(title.quitLabel)}};
     for (std::size_t index = 0; index < labels.size(); ++index) {
         const std::string prefix = index == selectedItem ? "> " : "  ";
-        canvas_.text(menuX + 16, menuY + 12 + static_cast<int>(index) * 17,
+        canvas_.text(menuX + 16, menuY + 10 + static_cast<int>(index) * 17,
             prefix + labels[index], index == selectedItem ? theme_.selected : theme_.text, 1);
     }
-    canvas_.text((ScreenMetrics::width - canvas_.textWidth(title.byline, 1)) / 2, 328, title.byline, theme_.dimText, 1);
+    const std::string_view byline = localize(title.byline);
+    canvas_.text((ScreenMetrics::width - canvas_.textWidth(byline, 1)) / 2, 328, byline, theme_.dimText, 1);
 }
 
 void AdventureRenderer::render(const AdventureSession& session) {
+    language_ = session.language();
     canvas_.clear(theme_.panel);
     drawWorld(session);
     drawPlayer(session);
@@ -352,7 +417,9 @@ void AdventureRenderer::render(const AdventureSession& session) {
     drawHud(session);
     switch (session.mode()) {
     case SessionMode::choice:
-        drawChoice(session, session.selectedVerb() == Verb::use ? "USE WHAT?" : "EXAMINE");
+        drawChoice(session, localize(session.selectedVerb() == Verb::use
+            ? world_.presentation.interfaceText.useWhat
+            : world_.presentation.interfaceText.verbExamine));
         break;
     case SessionMode::map:
         drawMap(session);
@@ -367,6 +434,61 @@ void AdventureRenderer::render(const AdventureSession& session) {
     case SessionMode::world:
         break;
     }
+}
+
+void AdventureRenderer::drawOverlayMenu(
+    const std::string_view heading,
+    const std::vector<std::string>& labels,
+    const std::size_t selectedItem,
+    const std::string_view help)
+{
+    constexpr int panelX = 154;
+    constexpr int panelY = 78;
+    constexpr int panelW = 332;
+    constexpr int panelH = 194;
+    canvas_.fillRect({panelX, panelY, panelW, panelH}, PaletteColor::blue);
+    canvas_.strokeRect({panelX, panelY, panelW, panelH}, theme_.frame);
+    canvas_.strokeRect({panelX + 4, panelY + 4, panelW - 8, panelH - 8}, theme_.panelPattern);
+    canvas_.text((ScreenMetrics::width - canvas_.textWidth(heading, 2)) / 2,
+        panelY + 20, heading, theme_.selected, 2);
+    canvas_.line({panelX + 28.0F, panelY + 48.0F}, {panelX + panelW - 28.0F, panelY + 48.0F}, theme_.accent);
+    int y = panelY + 70;
+    for (std::size_t index = 0; index < labels.size(); ++index) {
+        const std::string prefix = index == selectedItem ? "> " : "  ";
+        canvas_.text(panelX + 38, y, prefix + labels[index],
+            index == selectedItem ? theme_.selected : theme_.text, 1);
+        y += 22;
+    }
+    canvas_.text((ScreenMetrics::width - canvas_.textWidth(help, 1)) / 2,
+        panelY + panelH - 22, help, theme_.dimText, 1);
+}
+
+void AdventureRenderer::renderPause(const AdventureSession& session, const std::size_t selectedItem) {
+    render(session);
+    const InterfaceTextDefinition& ui = world_.presentation.interfaceText;
+    drawOverlayMenu(localize(ui.paused),
+        {std::string{localize(ui.resume)}, std::string{localize(ui.settings)},
+            std::string{localize(ui.returnToTitle)}},
+        selectedItem, localize(ui.confirmCancel));
+}
+
+void AdventureRenderer::renderSettings(
+    const std::size_t selectedItem,
+    const std::string_view language,
+    const AdventureSession* const background)
+{
+    language_ = world_.localization.normalized(language);
+    if (background != nullptr) render(*background);
+    else renderTitle(0, language_);
+    const InterfaceTextDefinition& ui = world_.presentation.interfaceText;
+    const LanguageDefinition* definition = world_.localization.language(language_);
+    const std::string languageName = definition == nullptr
+        ? std::string{language_}
+        : std::string{definition->label.resolve(language_)};
+    drawOverlayMenu(localize(ui.settings),
+        {std::string{localize(ui.language)} + ": < " + languageName + " >",
+            std::string{localize(ui.back)}},
+        selectedItem, localize(ui.settingsHelp));
 }
 
 } // namespace explore2d

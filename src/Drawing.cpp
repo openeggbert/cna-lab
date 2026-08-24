@@ -70,7 +70,7 @@ Drawing& Drawing::paint(const Vec2 at, const PaletteColor fill, const PaletteCol
     return *this;
 }
 
-Drawing& Drawing::text(Vec2 at, std::string value, const PaletteColor color, const int scale) {
+Drawing& Drawing::text(Vec2 at, LocalizedText value, const PaletteColor color, const int scale) {
     visuals_.emplace_back(TextVisual{shifted(at), std::move(value), color, scale});
     return *this;
 }

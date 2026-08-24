@@ -18,6 +18,8 @@
 #include <cstdint>
 #include <cmath>
 #include <exception>
+#include <fstream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -59,7 +61,6 @@ AdventureGame::AdventureGame(
       session_{world_, sessionConfig_},
       renderer_{world_, sessionConfig_, rendererTheme_}
 {
-    titleActive_ = true;
     audioAvailable_ = hostConfig_.audioEnabled;
     const int scale = std::max(1, hostConfig_.presentationScale);
     graphics_->setPreferredBackBufferWidthProperty(ScreenMetrics::width * scale);
@@ -70,6 +71,7 @@ AdventureGame::AdventureGame(
 AdventureGame::~AdventureGame() = default;
 
 void AdventureGame::Initialize() {
+    loadLanguageSetting();
     Microsoft::Xna::Framework::Game::Initialize();
     getWindowProperty().setAllowUserResizingProperty(true);
 }
@@ -128,11 +130,11 @@ void AdventureGame::updateSound(const float seconds) {
 
 void AdventureGame::updateTitleInput(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard) {
     if (pressed(keyboard, kUp)) {
-        titleSelection_ = (titleSelection_ + 2U) % 3U;
+        titleSelection_ = (titleSelection_ + 3U) % 4U;
         playSoundEffect(world_.presentation.sounds.menuMove);
     }
     if (pressed(keyboard, kDown)) {
-        titleSelection_ = (titleSelection_ + 1U) % 3U;
+        titleSelection_ = (titleSelection_ + 1U) % 4U;
         playSoundEffect(world_.presentation.sounds.menuMove);
     }
     if (pressed(keyboard, kEscape)) {
@@ -144,11 +146,16 @@ void AdventureGame::updateTitleInput(const Microsoft::Xna::Framework::Input::Key
     case 0:
         playSoundEffect(world_.presentation.sounds.menuConfirm);
         session_.restart();
-        titleActive_ = false;
+        shellMode_ = ShellMode::playing;
         break;
     case 1:
         quickLoad();
-        titleActive_ = false;
+        shellMode_ = ShellMode::playing;
+        break;
+    case 2:
+        playSoundEffect(world_.presentation.sounds.menuConfirm);
+        settingsSelection_ = 0;
+        shellMode_ = ShellMode::titleSettings;
         break;
     default:
         Exit();
@@ -174,10 +181,10 @@ void AdventureGame::quickSave() {
     std::string error;
     if (saveSnapshot(session_.snapshot(), hostConfig_.savePath, &error)) {
         playSoundEffect(world_.presentation.sounds.save);
-        session_.showSystemMessage("Game saved to " + hostConfig_.savePath.string());
+        session_.showSystemMessage(world_.presentation.interfaceText.gameSaved);
     } else {
         playSoundEffect(world_.presentation.sounds.warning);
-        session_.showSystemMessage("Save failed: " + error);
+        session_.showSystemMessage(world_.presentation.interfaceText.saveFailed);
     }
 }
 
@@ -185,19 +192,24 @@ void AdventureGame::quickLoad() {
     LoadResult loaded = loadSnapshot(hostConfig_.savePath);
     if (!loaded) {
         playSoundEffect(world_.presentation.sounds.warning);
-        session_.showSystemMessage("Load failed: " + loaded.error);
+        session_.showSystemMessage(world_.presentation.interfaceText.loadFailed);
         return;
     }
     if (!session_.restore(*loaded.snapshot)) {
         playSoundEffect(world_.presentation.sounds.warning);
-        session_.showSystemMessage("Load failed: save does not match this world.");
+        session_.showSystemMessage(world_.presentation.interfaceText.loadWorldMismatch);
         return;
     }
     playSoundEffect(world_.presentation.sounds.load);
-    session_.showSystemMessage("Game loaded.");
+    session_.showSystemMessage(world_.presentation.interfaceText.gameLoaded);
 }
 
 void AdventureGame::updateWorldInput(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard) {
+    if (pressed(keyboard, kEscape)) {
+        pauseSelection_ = 0;
+        shellMode_ = ShellMode::pause;
+        return;
+    }
     if (pressed(keyboard, kUp)) session_.cycleVerb(1);
     if (pressed(keyboard, kDown)) session_.performSelectedVerb();
     if (pressed(keyboard, kD1)) session_.performVerb(Verb::use);
@@ -213,6 +225,94 @@ void AdventureGame::updateWorldInput(const Microsoft::Xna::Framework::Input::Key
     if (down(keyboard, kRight) && (pressed(keyboard, kRight) || repeatFrame)) session_.walk(Direction::right);
 }
 
+void AdventureGame::updatePauseInput(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard) {
+    if (pressed(keyboard, kUp)) {
+        pauseSelection_ = (pauseSelection_ + 2U) % 3U;
+        playSoundEffect(world_.presentation.sounds.menuMove);
+    }
+    if (pressed(keyboard, kDown)) {
+        pauseSelection_ = (pauseSelection_ + 1U) % 3U;
+        playSoundEffect(world_.presentation.sounds.menuMove);
+    }
+    if (pressed(keyboard, kEscape)) {
+        shellMode_ = ShellMode::playing;
+        return;
+    }
+    if (!pressed(keyboard, kEnter) && !pressed(keyboard, kSpace)) return;
+    playSoundEffect(world_.presentation.sounds.menuConfirm);
+    switch (pauseSelection_) {
+    case 0:
+        shellMode_ = ShellMode::playing;
+        break;
+    case 1:
+        settingsSelection_ = 0;
+        shellMode_ = ShellMode::pauseSettings;
+        break;
+    default:
+        titleSelection_ = 0;
+        shellMode_ = ShellMode::title;
+        break;
+    }
+}
+
+void AdventureGame::cycleLanguage(const int delta) {
+    const auto& languages = world_.localization.languages;
+    if (languages.empty()) return;
+    int current = 0;
+    for (std::size_t index = 0; index < languages.size(); ++index) {
+        if (languages[index].id == session_.language()) {
+            current = static_cast<int>(index);
+            break;
+        }
+    }
+    const int size = static_cast<int>(languages.size());
+    current = (current + delta) % size;
+    if (current < 0) current += size;
+    if (session_.setLanguage(languages[static_cast<std::size_t>(current)].id)) {
+        saveLanguageSetting();
+        playSoundEffect(world_.presentation.sounds.menuMove);
+    }
+}
+
+void AdventureGame::updateSettingsInput(
+    const Microsoft::Xna::Framework::Input::KeyboardState& keyboard,
+    const bool fromPause)
+{
+    if (pressed(keyboard, kUp) || pressed(keyboard, kDown)) {
+        settingsSelection_ = (settingsSelection_ + 1U) % 2U;
+        playSoundEffect(world_.presentation.sounds.menuMove);
+    }
+    if (settingsSelection_ == 0U && pressed(keyboard, kLeft)) cycleLanguage(-1);
+    if (settingsSelection_ == 0U && pressed(keyboard, kRight)) cycleLanguage(1);
+    if (pressed(keyboard, kEscape)) {
+        shellMode_ = fromPause ? ShellMode::pause : ShellMode::title;
+        return;
+    }
+    if (!pressed(keyboard, kEnter) && !pressed(keyboard, kSpace)) return;
+    if (settingsSelection_ == 0U) {
+        cycleLanguage(1);
+    } else {
+        playSoundEffect(world_.presentation.sounds.menuConfirm);
+        shellMode_ = fromPause ? ShellMode::pause : ShellMode::title;
+    }
+}
+
+void AdventureGame::loadLanguageSetting() {
+    if (hostConfig_.settingsPath.empty()) return;
+    std::ifstream input{hostConfig_.settingsPath};
+    std::string label;
+    std::string language;
+    if (input >> label >> language && label == "LANGUAGE") {
+        static_cast<void>(session_.setLanguage(language));
+    }
+}
+
+void AdventureGame::saveLanguageSetting() const {
+    if (hostConfig_.settingsPath.empty()) return;
+    std::ofstream output{hostConfig_.settingsPath, std::ios::trunc};
+    if (output) output << "LANGUAGE " << session_.language() << '\n';
+}
+
 void AdventureGame::Update(Microsoft::Xna::Framework::GameTime& gameTime) {
     ++updateCounter_;
     const auto keyboard = Microsoft::Xna::Framework::Input::Keyboard::GetState();
@@ -220,30 +320,44 @@ void AdventureGame::Update(Microsoft::Xna::Framework::GameTime& gameTime) {
     if (pressed(keyboard, kF11)) graphics_->ToggleFullScreen();
     if (pressed(keyboard, kQ)) {
         Exit();
-    } else if (titleActive_) {
-        updateTitleInput(keyboard);
     } else {
-        switch (session_.mode()) {
-        case SessionMode::world:
-            updateWorldInput(keyboard);
+        switch (shellMode_) {
+        case ShellMode::title:
+            updateTitleInput(keyboard);
             break;
-        case SessionMode::choice:
-        case SessionMode::map:
-            if (pressed(keyboard, kUp)) session_.menuMove(-1);
-            if (pressed(keyboard, kDown)) session_.menuMove(1);
-            if (pressed(keyboard, kEnter) || pressed(keyboard, kSpace)) session_.confirm();
-            if (pressed(keyboard, kEscape) || pressed(keyboard, kBackspace)) session_.cancel();
+        case ShellMode::titleSettings:
+            updateSettingsInput(keyboard, false);
             break;
-        case SessionMode::message:
-            if (pressed(keyboard, kEnter) || pressed(keyboard, kSpace)) session_.advanceMessage();
-            if (pressed(keyboard, kEscape)) session_.cancel();
+        case ShellMode::pause:
+            updatePauseInput(keyboard);
             break;
-        case SessionMode::dead:
-        case SessionMode::won:
-            if (pressed(keyboard, kEnter) || pressed(keyboard, kSpace)) session_.restart();
+        case ShellMode::pauseSettings:
+            updateSettingsInput(keyboard, true);
+            break;
+        case ShellMode::playing:
+            switch (session_.mode()) {
+            case SessionMode::world:
+                updateWorldInput(keyboard);
+                break;
+            case SessionMode::choice:
+            case SessionMode::map:
+                if (pressed(keyboard, kUp)) session_.menuMove(-1);
+                if (pressed(keyboard, kDown)) session_.menuMove(1);
+                if (pressed(keyboard, kEnter) || pressed(keyboard, kSpace)) session_.confirm();
+                if (pressed(keyboard, kEscape) || pressed(keyboard, kBackspace)) session_.cancel();
+                break;
+            case SessionMode::message:
+                if (pressed(keyboard, kEnter) || pressed(keyboard, kSpace)) session_.advanceMessage();
+                if (pressed(keyboard, kEscape)) session_.cancel();
+                break;
+            case SessionMode::dead:
+            case SessionMode::won:
+                if (pressed(keyboard, kEnter) || pressed(keyboard, kSpace)) session_.restart();
+                break;
+            }
+            session_.tick(1.0F / 60.0F);
             break;
         }
-        session_.tick(1.0F / 60.0F);
     }
     drainSessionSounds();
     updateSound(1.0F / 60.0F);
@@ -254,8 +368,23 @@ void AdventureGame::Update(Microsoft::Xna::Framework::GameTime& gameTime) {
 
 void AdventureGame::Draw(const Microsoft::Xna::Framework::GameTime& gameTime) {
     getGraphicsDeviceProperty().Clear(Microsoft::Xna::Framework::Color::Black);
-    if (titleActive_) renderer_.renderTitle(titleSelection_);
-    else renderer_.render(session_);
+    switch (shellMode_) {
+    case ShellMode::title:
+        renderer_.renderTitle(titleSelection_, session_.language());
+        break;
+    case ShellMode::titleSettings:
+        renderer_.renderSettings(settingsSelection_, session_.language());
+        break;
+    case ShellMode::playing:
+        renderer_.render(session_);
+        break;
+    case ShellMode::pause:
+        renderer_.renderPause(session_, pauseSelection_);
+        break;
+    case ShellMode::pauseSettings:
+        renderer_.renderSettings(settingsSelection_, session_.language(), &session_);
+        break;
+    }
     if (frameTexture_ != nullptr && spriteBatch_ != nullptr) {
         const auto bytes = renderer_.canvas().bytes();
         frameTexture_->SetDataRGBA(bytes.data(), ScreenMetrics::width * ScreenMetrics::height);

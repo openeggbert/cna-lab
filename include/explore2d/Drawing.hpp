@@ -23,7 +23,7 @@ public:
     Drawing& polyline(std::vector<Vec2> points, PaletteColor color, bool closed = false);
     Drawing& polygon(std::vector<Vec2> points, PaletteColor color, bool filled = true);
     Drawing& paint(Vec2 at, PaletteColor fill, PaletteColor boundary);
-    Drawing& text(Vec2 at, std::string value, PaletteColor color, int scale = 1);
+    Drawing& text(Vec2 at, LocalizedText value, PaletteColor color, int scale = 1);
     Drawing& image(Vec2 at, IndexedImage value, RasterOperation operation = RasterOperation::copy,
         PaletteColor transparentColor = PaletteColor::black);
 
