@@ -146,12 +146,14 @@ def workload_fixtures(samples: int) -> dict:
 
 
 def capture_fixture() -> dict:
-    measurement = lambda samples, p95: {
-        "samples": samples,
-        "average_ms": p95,
-        "p95_ms": p95,
-        "maximum_ms": p95,
-    }
+    def measurement(samples: int, p95: float, maximum: float | None = None) -> dict:
+        return {
+            "samples": samples,
+            "average_ms": p95,
+            "p95_ms": p95,
+            "maximum_ms": p95 if maximum is None else maximum,
+        }
+
     return {
         "schema_version": 8,
         "capture_session": {
@@ -186,7 +188,7 @@ def capture_fixture() -> dict:
             "unsupported_reason": "",
         },
         "measurements": {
-            "frame_interval": measurement(4, 16.8),
+            "frame_interval": measurement(4, 16.8, 20.0),
             "update_cpu": measurement(4, 0.3),
             "physics_cpu": measurement(4, 0.2),
             "ai_cpu": measurement(4, 0.01),
@@ -787,6 +789,39 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_boundary_count], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("transitions must match district_load_cpu samples", result.stderr)
+
+        bad_boundary_hitches = capture_fixture()
+        boundaries = bad_boundary_hitches["frame_pacing"]["district_transition_boundaries"]
+        boundaries["hitch_count"] = 1
+        boundaries["maximum_ms"] = 50.0
+        result = self.run_report([bad_boundary_hitches], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("hitch_count cannot exceed total frame hitches", result.stderr)
+
+        bad_boundary_maximum = capture_fixture()
+        bad_boundary_maximum["frame_pacing"]["district_transition_boundaries"][
+            "maximum_ms"
+        ] = 21.0
+        result = self.run_report([bad_boundary_maximum], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("maximum_ms cannot exceed frame_interval.maximum_ms", result.stderr)
+
+        rounded_boundary_hitch = capture_fixture()
+        pacing = rounded_boundary_hitch["frame_pacing"]
+        pacing["histogram"]["above_recommended_at_or_below_minimum_budget"]["count"] = 2
+        pacing["histogram"]["above_hitch_at_or_below_severe_hitch"]["count"] = 1
+        pacing["minimum_budget_misses"]["count"] = 1
+        pacing["minimum_budget_misses"]["percent"] = 25.0
+        pacing["hitches"]["count"] = 1
+        pacing["hitches"]["percent"] = 25.0
+        pacing["district_transition_boundaries"]["hitch_count"] = 1
+        pacing["district_transition_boundaries"]["maximum_ms"] = 50.0
+        frame = rounded_boundary_hitch["measurements"]["frame_interval"]
+        frame["p95_ms"] = 50.0
+        frame["maximum_ms"] = 50.0
+        rounded_boundary_hitch["checks"]["minimum_frame_rate_pass"] = False
+        result = self.run_report([rounded_boundary_hitch], "Test hardware")
+        self.assertEqual(result.returncode, 0, result.stderr)
 
         bad_memory_known = capture_fixture()
         bad_memory_known["memory"]["known"] = False

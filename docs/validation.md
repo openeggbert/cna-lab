@@ -277,6 +277,11 @@ Frame-pacing validation now also locates the highest non-empty bucket and requir
 comparator's older internally inconsistent maximum keeps all focused suites and retained
 diagnostics passing. Full isolated 8/8 CTest also passes with its smoke process inside Xvfb.
 
+District-boundary pacing now preserves its subset relationship: boundary hitches cannot outnumber
+global hitches and boundary maximum cannot exceed the global frame maximum. Two contradictions
+exit 2; an exact serialized 50.000 ms accepts either hidden-precision hitch state. Focused suites
+and both retained diagnostics pass; full isolated 8/8 CTest also passes inside Xvfb.
+
 The common JSON loader now rejects non-standard `NaN`, `Infinity`, and `-Infinity` constants at
 parse time, including in unknown fields, alongside its existing duplicate-key refusal. Report,
 comparator, and VRAM manifest tests each cover one token and exit 2. Focused suites remain 7/7,

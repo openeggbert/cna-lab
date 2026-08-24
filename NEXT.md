@@ -67,6 +67,16 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 district-boundary pacing is now validated as a subset of all frame intervals.** Boundary
+statistics could previously exceed the global histogram/maximum while remaining locally coherent.
+
+- Boundary hitch count cannot exceed total frame hitches, and boundary maximum cannot exceed
+  `frame_interval.maximum_ms`.
+- An exactly serialized 50.000 ms boundary accepts either hitch state because the producer compares
+  full precision before rounding. Two contradiction cases and one boundary case cover the policy.
+- Report 7/7, comparator 7/7, VRAM 6/6, and both retained diagnostics pass; full isolated CTest
+  passes 8/8 with its smoke process inside Xvfb.
+
 **M12 frame maximum is now correlated with the pacing histogram.** The nearest-rank p95 bucket was
 already checked, but an editable `frame_interval.maximum_ms` could contradict the highest non-empty
 bucket.

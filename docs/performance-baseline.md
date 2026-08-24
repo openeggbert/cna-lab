@@ -785,3 +785,16 @@ The comparator fixture itself exposed and corrected an older contradiction (five
 samples paired with a 16 ms maximum). Report 7/7, comparator 7/7, VRAM 6/6, and both retained
 diagnostics pass. Full isolated CTest passes 8/8 with its smoke process inside Xvfb; no capture was
 added.
+
+## 2026-08-24 — district-boundary frame subset consistency
+
+The shared schema-8 loader now enforces that district-transition boundary samples remain a subset
+of all frame intervals. Boundary hitch count cannot exceed global hitch count, and boundary
+`maximum_ms` cannot exceed `measurements.frame_interval.maximum_ms`.
+
+An exactly serialized 50.000 ms boundary deliberately accepts either hitch state because C++ tests
+the full-precision interval before serialization. Two report negatives cover the impossible count
+and maximum; one positive case preserves the rounded threshold ambiguity. Fixing the base fixture's
+older 17 ms boundary versus 16.8 ms frame maximum also made its histogram/statistics coherent.
+Report 7/7, comparator 7/7, VRAM 6/6, and both retained diagnostics pass. Full isolated CTest passes
+8/8 with its smoke process inside Xvfb; no capture was added.

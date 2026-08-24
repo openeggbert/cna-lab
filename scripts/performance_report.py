@@ -1021,6 +1021,10 @@ def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
         )
     if measured > transitions or boundary_hitches > measured:
         raise ReportError("district-transition boundary counts are inconsistent")
+    if boundary_hitches > hitches:
+        raise ReportError(
+            "district-transition boundary hitch_count cannot exceed total frame hitches"
+        )
     raw_maximum = _path(capture, "frame_pacing", "district_transition_boundaries", "maximum_ms")
     if measured == 0:
         if raw_maximum is not None:
@@ -1029,9 +1033,18 @@ def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
         maximum = _number(
             capture, "frame_pacing", "district_transition_boundaries", "maximum_ms"
         )
-        if (maximum > FRAME_HITCH_MS) != (boundary_hitches > 0):
+        if maximum != FRAME_HITCH_MS and (maximum > FRAME_HITCH_MS) != (
+            boundary_hitches > 0
+        ):
             raise ReportError(
                 "district-transition boundary hitch_count does not match maximum_ms"
+            )
+        frame_maximum = _number(
+            capture, "measurements", "frame_interval", "maximum_ms"
+        )
+        if maximum > frame_maximum:
+            raise ReportError(
+                "district-transition boundary maximum_ms cannot exceed frame_interval.maximum_ms"
             )
 
 

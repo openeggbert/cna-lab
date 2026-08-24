@@ -413,6 +413,10 @@ instead of borrowing a neighboring frame or inventing zero duration.
 The validator also requires boundary `transitions == district_load_cpu.samples`, measured samples
 no greater than transitions, hitch count no greater than measured samples, `maximum_ms:null` when
 none were measured, and maximum/hitch state to agree at the strict 50 ms threshold.
+Because boundary samples are a subset of frame intervals, boundary hitch count must also be no
+greater than the global hitch count and boundary maximum must not exceed `frame_interval.maximum_ms`.
+At an exactly serialized 50.000 ms boundary either hitch state is readable: the producer compares
+the hidden full-precision interval before writing three decimals.
 
 The detailed `district_load.samples` array is also authoritative rather than decorative. Its length
 must equal each of `district_world_physics_cpu`, `district_renderer_upload_cpu`, and
