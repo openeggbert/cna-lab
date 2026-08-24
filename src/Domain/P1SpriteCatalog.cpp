@@ -39,7 +39,7 @@ constexpr P1Sprite sprite(const P1SpriteFrame first, const P1SpriteFrame second,
                           const P1SpriteFrame third,
                           const float idleFrameSeconds = P1Sprite::DefaultIdleFrameSeconds) noexcept
 {
-    return {idleFrameSeconds, P1Sprite::MaximumIdleFrameCount, {{first, second, third}}};
+    return {idleFrameSeconds, 3U, {{first, second, third}}};
 }
 
 constexpr P1Sprite twoPhaseSprite(const P1SpriteFrame first, const P1SpriteFrame second,
@@ -48,9 +48,29 @@ constexpr P1Sprite twoPhaseSprite(const P1SpriteFrame first, const P1SpriteFrame
     return {idleFrameSeconds, 2U, {{first, second, first}}};
 }
 
-// Each drawing is a hand-transcribed P1 LCD phase.  The phases deliberately
-// alter their silhouette as independent data rather than translating a static
-// contemporary sprite around the field.
+template <typename... Frames>
+constexpr P1Sprite sequence(const float idleFrameSeconds, const Frames... frames) noexcept
+{
+    static_assert(sizeof...(Frames) > 0U);
+    static_assert(sizeof...(Frames) <= P1Sprite::MaximumIdleFrameCount);
+    return {idleFrameSeconds, sizeof...(Frames), {{frames...}}};
+}
+
+constexpr P1SpriteFrame babytchiFullFrame(const int originX) noexcept
+{
+    return {originX, 10, 6U,
+            {{".####.", "#.##.#", "######", "##..##", "##..##", "######",
+              "", "", "", "", "", ""}}};
+}
+
+constexpr P1SpriteFrame babytchiSquashFrame(const int originX) noexcept
+{
+    return {originX, 15, 1U, {{"####", "", "", "", "", "", "", "", "", "", "", ""}}};
+}
+
+// Every drawing and origin is hand-transcribed P1 LCD data. Repeated character
+// poses at new origins are retained when the reference really moves them; the
+// renderer never invents a translation that is absent from the sequence.
 constexpr P1Sprite Egg = twoPhaseSprite(
     // Manually read from the stable cells of a fresh 32x16 reference trace.
     // The external programme redraws the LCD over several host frames; those
@@ -63,16 +83,20 @@ constexpr P1Sprite Egg = twoPhaseSprite(
                  "...#..#####.##..", "....#..######...", ".....###...#....", "....#########..."),
     0.625F);
 
-constexpr P1Sprite Babytchi = sprite(
-    frame("................", "......##........", ".....####.......", "....##..##......",
-          "...##.##.##.....", "...##....##.....", "....######......", ".....#..#.......",
-          "....##..##......", "................"),
-    frame("................", ".......##.......", ".....#####......", "....##..##......",
-          "...##.##.##.....", "...##....##.....", "....######......", "....##..##......",
-          ".....#..#.......", "................"),
-    frame("................", "......##........", "....#####.......", "...##..##.......",
-          "...##.##.##.....", "....##....##....", ".....######.....", "....##..##......",
-          "...##....##.....", "................"));
+// Twenty consecutive stable phases from a fresh post-hatch trace. The
+// one-host-frame incremental LCD writes between them are deliberately omitted.
+constexpr P1Sprite Babytchi = sequence(
+    0.46F,
+    babytchiFullFrame(11), babytchiFullFrame(9),
+    babytchiSquashFrame(13), babytchiSquashFrame(16),
+    babytchiFullFrame(18), babytchiFullFrame(15),
+    babytchiSquashFrame(14), babytchiSquashFrame(11),
+    babytchiFullFrame(6), babytchiFullFrame(11),
+    babytchiSquashFrame(9), babytchiSquashFrame(13),
+    babytchiFullFrame(15), babytchiFullFrame(18),
+    babytchiSquashFrame(16), babytchiSquashFrame(14),
+    babytchiFullFrame(10), babytchiFullFrame(6),
+    babytchiSquashFrame(12), babytchiSquashFrame(9));
 
 constexpr P1Sprite Marutchi = sprite(
     frame("................", ".....######.....", "....##....##....", "...##..##..##...",

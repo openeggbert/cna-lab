@@ -27,14 +27,14 @@ struct P1SpriteFrame final {
 };
 
 struct P1Sprite final {
-    static constexpr std::size_t MaximumIdleFrameCount = 3;
+    static constexpr std::size_t MaximumIdleFrameCount = 24;
     static constexpr float DefaultIdleFrameSeconds = 0.42F;
 
     // Frame count and timing belong to the observed sequence, not to the
-    // renderer. The P1 egg has two stable phases; storing that fact avoids a
-    // repeated A/B/A pause caused by treating every sequence as three frames.
+    // renderer. Sequences range from the egg's two silhouettes to longer
+    // moving character traces, and must wrap at their own active count.
     float idleFrameSeconds{DefaultIdleFrameSeconds};
-    std::size_t idleFrameCount{MaximumIdleFrameCount};
+    std::size_t idleFrameCount{1U};
     std::array<P1SpriteFrame, MaximumIdleFrameCount> idleFrames;
 
     [[nodiscard]] constexpr std::span<const P1SpriteFrame> visibleIdleFrames() const noexcept

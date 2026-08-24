@@ -7,15 +7,15 @@ implemented as a clean, data-driven C++ behaviour engine. The LCD framebuffer
 is exactly 32 × 16 and one bit. The home renderer uses explicit geometry and
 an explicit per-sequence frame count, so it no longer fakes motion by shifting
 a static creature around the LCD. Most provisional frames use the centred
-16 × 10 cell. The egg's two stable silhouettes and a Mametchi idle sequence
-have been visually transcribed from P1 reference traces; the other character
-redraws remain provisional.
+16 × 10 cell. The egg's two stable silhouettes, twenty consecutive stable
+Babytchi phases, and a Mametchi idle sequence have been visually transcribed
+from P1 reference traces; the other character redraws remain provisional.
 
 The project must never ship a P1 ROM, a ROM-derived binary asset, TamaLIB, or
 another emulator core. A reference program may be viewed externally only to
 write and verify the clean implementation.
 
-## Context handoff — 2026-08-22
+## Context handoff — 2026-08-24
 
 - The CMake integration was updated for the current sibling `../cna` and its
   modular `../sharp-runtime`. `CNA_GRAPHICS_RENDERER` accepts only
@@ -49,8 +49,8 @@ write and verify the clean implementation.
   imported or algorithmically extracted.
 - A freshly started, unaccelerated reference run was recorded at 30 fps. Its
   stable egg silhouettes changed every 18–19 host frames; the catalogue uses
-  the nearest exact cadence, 0.625 seconds per phase. Two- or three-frame home
-  sequences are represented explicitly so the egg wraps wide → tall → wide
+  the nearest exact cadence, 0.625 seconds per phase. Variable-length home
+  sequences are represented explicitly, so the egg wraps wide → tall → wide
   without an artificial A/B/A pause.
 - The wide egg phase is a hand-read 16 × 11 cell at `(8, 4)` and the tall phase
   is a hand-read 16 × 12 cell at `(8, 3)`. Partial LCD writes visible across
@@ -60,8 +60,17 @@ write and verify the clean implementation.
   scale: they remain centred, wrap directly, and stay inside the 32 × 16 game
   field without touching either permanent icon band. The working capture is
   outside the repository.
-- Continue the per-form reference ledger with Babytchi before replacing more
-  provisional character sprites.
+- A confirmed activation and post-hatch capture established Babytchi's real
+  home motion. At 1× it repeats two full 6 × 6 poses at `y=10`, then two
+  squashed 4 × 1 poses at `y=15`, while moving through observed horizontal
+  origins. Twenty consecutive stable phases are hand-transcribed at an inferred
+  0.46-second cadence; focused tests protect every row, origin, bound, count,
+  and the local wrap.
+- The phase-20 wrap is deliberately recorded as an implementation boundary,
+  not evidence that the original path repeats there. A five-second normal-scale
+  application trace confirms both poses stay inside the LCD without touching
+  the icon bands. Capture a longer reference continuation, then continue the
+  per-form ledger with Marutchi.
 
 ## Priority 0 — Add selectable physical shell variants
 
@@ -86,21 +95,24 @@ shell-control path does not mutate P1 state or framebuffer data.
 ## Priority 1 — Make the home LCD visually faithful
 
 1. [x] Complete and regression-check the egg's two stable idle phases.
-2. Create a visual-reference ledger for each remaining P1 home form: Babytchi,
-   Marutchi, Tamatchi, Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi,
+2. [x] Capture and transcribe twenty consecutive stable Babytchi home phases,
+   including its true full/squashed geometry, observed horizontal origins,
+   cadence, and partial-write exclusion.
+3. Create a visual-reference ledger for each remaining P1 home form: Marutchi,
+   Tamatchi, Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi,
    Kuchipatchi, Nyorotchi, Tarakotchi, and Bill.
-3. For each form, identify the stable 32 × 16 cell origin, its true idle-frame
+4. For each form, identify the stable 32 × 16 cell origin, its true idle-frame
    count, and the pixel changes between frames. Record uncertainty rather than
    inventing a source value.
-4. Replace the provisional redraw of one form at a time with independently
-   written 16 × 10 one-bit frame data. Keep the public sprite catalogue free
+5. Replace the provisional redraw of one form at a time with independently
+   written one-bit frame data at its observed bounds. Keep the catalogue free
    from source-ROM data and make no use of frame translation as animation.
-5. Extend `P1SpriteCatalogTests` for every verified sequence: all rows must be
-   sixteen pixels wide, all frames must remain inside the centred LCD cell,
-   and the expected frame differences must be explicit.
-6. Compare the rendered result against the P1 reference at normal LCD scale,
+6. Extend `P1SpriteCatalogTests` for every verified sequence: each phase's rows
+   must share its true observed width, all frames must remain inside the 32 × 16
+   LCD, and the expected geometry and frame differences must be explicit.
+7. Compare the rendered result against the P1 reference at normal LCD scale,
    not only a magnified bitmap. Verify that the character stays centred within
-   the 32 × 16 field and does not overwrite the physical face-icon bands.
+   its observed motion range and does not overwrite the physical face-icon bands.
 
 **Acceptance condition:** the entire home roster has reference-compared idle
 frames, with known uncertainty stated in `docs/p1-specification.md`; no form

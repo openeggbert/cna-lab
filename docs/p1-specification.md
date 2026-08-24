@@ -58,7 +58,7 @@ Each entry has a confidence status:
 
 | Stage | International P1 character | Status |
 | --- | --- | --- |
-| Baby | Babytchi | Provisional |
+| Baby | Babytchi | Home idle transcribed from a 20-phase observed trace; other visuals provisional |
 | Child | Marutchi | Provisional |
 | Teen | Tamatchi, Kuchitamatchi | Provisional |
 | Adult | Mametchi, Ginjirotchi, Maskutchi, Kuchipatchi, Nyorotchi, Tarakotchi | Provisional |
@@ -67,10 +67,11 @@ Each entry has a confidence status:
 The roster is corroborated by historical character references. The application
 now renders home animation with a per-sequence frame count, hand-authored LCD
 data, and explicit origin and height, rather than translating one static
-picture around the screen. One Mametchi idle trace and both stable egg
-silhouettes were visually transcribed from the selected P1 reference. Character
-redraws, all care-action frames, and every branch condition remain open until
-they are compared frame by frame with the selected target programme. No ROM,
+picture around the screen. One Mametchi idle trace, both stable egg silhouettes,
+and twenty consecutive stable Babytchi home phases were visually transcribed
+from the selected P1 reference. Remaining character redraws, all care-action
+frames, and every branch condition remain open until they are compared frame
+by frame with the selected target programme. No ROM,
 emulator core, or reference-programme data is included in this project.
 
 ## Home-LCD visual reference ledger
@@ -85,7 +86,7 @@ open rather than substitute a plausible modern redraw.
 | Form / sequence | Observation and geometry | Catalogue status | Next evidence needed |
 | --- | --- | --- | --- |
 | Egg idle sequence | Fresh unaccelerated 30 fps trace: hand-read wide 16 × 11 phase at `(8, 4)` and tall 16 × 12 phase at `(8, 3)`. Stable changes begin every 18–19 host frames, represented as 0.625 seconds per phase; partial LCD-write frames are excluded. | Two phases transcribed; every row, geometry, count, cadence, wrapping, and normal-scale placement checked. | Capture cracking/hatching separately. |
-| Babytchi | No hand transcription is accepted yet. The existing drawing is a provisional placeholder. | Provisional. | Capture immediately after a confirmed hatch and record its idle cadence. |
+| Babytchi | Fresh confirmed post-hatch 30 fps trace at 1×: two 6 × 6 full poses at `y=10`, followed by two 4 × 1 squashed poses at `y=15`, repeat while moving horizontally. Twenty consecutive stable origins are retained: `11, 9, 13, 16, 18, 15, 14, 11, 6, 11, 9, 13, 15, 18, 16, 14, 10, 6, 12, 9`. Stable phases average about 0.46 seconds; incremental one-host-frame LCD writes are excluded. | Twenty observed phases transcribed; pose rows, origins, bounds, count, cadence, and wrapping regression checked; normal-scale placement visually checked. The wrap after phase 20 is an implementation boundary, not yet a claim that the original horizontal path repeats there. | Capture a longer continuation to establish the path beyond phase 20. |
 | Marutchi | No selected-reference home sequence has been transcribed. | Provisional. | Observe after the Baby → Child transition. |
 | Tamatchi / Kuchitamatchi | No selected-reference home sequence has been transcribed. | Provisional. | Observe one trace for each lineage. |
 | Mametchi | Three independently drawn home phases are retained with a focused distinct-frame test. | Transcribed; regression checked. | Recheck the complete sequence at normal LCD scale. |
@@ -95,12 +96,14 @@ Reference-session note: a fresh unaccelerated TamaTool process was observed on
 a dedicated Xvfb display. A lossless 30 fps working capture showed two stable
 egg silhouettes; each transition was written over two or three host frames,
 which are not additional animation phases. Stable transition starts were
-18–19 frames apart. Working screenshots and video remain outside this
+18–19 frames apart. A second run confirmed activation by setting the timer and
+explicitly returning to the home egg, used 10× only to pass the approximately
+five-minute hatch wait, then captured Babytchi at 1×. Its stable poses lasted
+mostly 12–15 frames at 30 fps, with one-host-frame partial LCD writes between
+them. Working screenshots, video, and emulator saves remain outside this
 repository. An Xvfb process is ephemeral between tooling sessions, so relaunch
 the reference and its virtual display before drawing conclusions from a
-missing later capture. The exact accelerated timebase and activation sequence
-still need to be established before treating a later phase as a confirmed
-hatch or Babytchi observation.
+missing later capture.
 
 ## Evolution-rule representation
 
