@@ -145,6 +145,33 @@ namespace WolfCna
             return pcm;
         }
 
+        std::vector<SharpRuntime::bytecs> MakeProjectileImpact()
+        {
+            constexpr float sampleRate = 22050.0f;
+            constexpr int sampleCount = 2400;
+            std::vector<SharpRuntime::bytecs> pcm;
+            pcm.reserve(static_cast<std::size_t>(sampleCount * 2));
+            std::uint32_t noiseState = 0xa13759bdu;
+
+            for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
+            {
+                noiseState = noiseState * 1664525u + 1013904223u;
+                const float noise = static_cast<float>(
+                    static_cast<int>((noiseState >> 16u) & 0xffffu) - 32768) / 32768.0f;
+                const float progress = static_cast<float>(sampleIndex) / sampleCount;
+                const float envelope = (1.0f - progress) * (1.0f - progress);
+                const float spark = std::sin(
+                    2.0f * MathHelper::Pi * (920.0f - progress * 540.0f) *
+                    static_cast<float>(sampleIndex) / sampleRate);
+                const auto sample = static_cast<std::int16_t>(
+                    std::clamp((noise * 0.58f + spark * 0.42f) * envelope, -1.0f, 1.0f) *
+                    19000.0f);
+                pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
+                pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
+            }
+            return pcm;
+        }
+
         std::vector<SharpRuntime::bytecs> MakeAmbientLoop()
         {
             constexpr float sampleRate = 22050.0f;
@@ -316,6 +343,7 @@ namespace WolfCna
         titleBackground_ = std::make_unique<Texture2D>("assets/title/title-background.png", device);
         CreateProceduralBloodDecal();
         CreateProceduralDecorationTextures();
+        CreateProceduralEnemyImpactTexture();
         CreateHudResources();
         SoundEffect::setMasterVolumeProperty(soundEnabled_ ? 1.0f : 0.0f);
         CreateSoundEffects();
@@ -654,6 +682,37 @@ namespace WolfCna
         heavyWeaponAttackView_ = std::make_unique<Texture2D>("assets/weapons/heavy-automatic-attack.png", device);
     }
 
+    void WolfGame::CreateProceduralEnemyImpactTexture()
+    {
+        auto& device = getGraphicsDeviceProperty();
+        constexpr int size = 64;
+        enemyImpactSprite_ = std::make_unique<Texture2D>(device, size, size);
+        std::vector<Color> pixels(static_cast<std::size_t>(size * size), Color(0, 0, 0, 0));
+
+        for (int y = 0; y < size; ++y)
+        {
+            for (int x = 0; x < size; ++x)
+            {
+                const float dx = static_cast<float>(x) - 31.5f;
+                const float dy = static_cast<float>(y) - 31.5f;
+                const float radius = std::sqrt(dx * dx + dy * dy);
+                const bool core = radius < 7.0f;
+                const bool ring = std::abs(radius - 16.0f) < 2.6f;
+                const bool rays = radius < 28.0f &&
+                    (std::abs(dx) < 1.8f || std::abs(dy) < 1.8f ||
+                     std::abs(std::abs(dx) - std::abs(dy)) < 1.8f);
+                if (!core && !ring && !rays)
+                    continue;
+
+                const int alpha = core ? 245 : ring ? 210 : std::max(28, 190 - static_cast<int>(radius * 5.0f));
+                pixels[static_cast<std::size_t>(y * size + x)] = core
+                    ? Color(255, 249, 205, alpha)
+                    : ring ? Color(112, 225, 255, alpha) : Color(255, 161, 72, alpha);
+            }
+        }
+        enemyImpactSprite_->SetData(pixels.data(), static_cast<int>(pixels.size()));
+    }
+
     void WolfGame::CreateSoundEffects()
     {
         shotSound_ = std::make_unique<SoundEffect>(
@@ -694,6 +753,10 @@ namespace WolfCna
             AudioChannels::Mono);
         guardShotSound_ = std::make_unique<SoundEffect>(
             MakeTone(270.0f, 1700),
+            22050,
+            AudioChannels::Mono);
+        enemyImpactSound_ = std::make_unique<SoundEffect>(
+            MakeProjectileImpact(),
             22050,
             AudioChannels::Mono);
         secretSound_ = std::make_unique<SoundEffect>(
@@ -746,6 +809,19 @@ namespace WolfCna
         hudSpriteBatch_->Begin(SpriteSortMode::Deferred, BlendState::NonPremultiplied);
         const int panelHeight = 84;
         const int panelY = viewport.getYProperty() + viewport.getHeightProperty() - panelHeight;
+        if (playerImpactFlashSeconds_ > 0.0f)
+        {
+            const int alpha = static_cast<int>(std::lround(
+                std::clamp(playerImpactFlashSeconds_ / 0.18f, 0.0f, 1.0f) * 72.0f));
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(
+                    viewport.getXProperty(),
+                    viewport.getYProperty(),
+                    viewport.getWidthProperty(),
+                    viewport.getHeightProperty() - panelHeight),
+                Color(255, 70, 32, alpha));
+        }
         const int viewSize = std::clamp(viewport.getHeightProperty() / 3, 144, 236);
         Texture2D* idleTexture = weapon_ == Weapon::Knife
             ? knifeView_.get()
@@ -1387,6 +1463,8 @@ namespace WolfCna
         screen_ = Screen::Playing;
         actionWasDown_ = false;
         attackWasDown_ = false;
+        weaponFlashSeconds_ = 0.0f;
+        playerImpactFlashSeconds_ = 0.0f;
         playerFireCooldownSeconds_ = 0.0f;
         ilmWasDown_ = false;
         goalCheatWasDown_ = false;
@@ -1868,6 +1946,7 @@ namespace WolfCna
         cheatMessageSeconds_ = std::max(0.0f, cheatMessageSeconds_ - clampedElapsed);
         objectiveMessageSeconds_ = std::max(0.0f, objectiveMessageSeconds_ - clampedElapsed);
         weaponFlashSeconds_ = std::max(0.0f, weaponFlashSeconds_ - clampedElapsed);
+        playerImpactFlashSeconds_ = std::max(0.0f, playerImpactFlashSeconds_ - clampedElapsed);
         const int incomingDamage = world_.Update(clampedElapsed, playerPosition_, DamageMultiplier());
         if (world_.ConsumeGuardShotCount() > 0 && guardShotSound_)
             static_cast<void>(guardShotSound_->Play(0.18f, 0.12f, 0.0f));
@@ -1878,9 +1957,13 @@ namespace WolfCna
             static_cast<void>(houndAlertSound_->Play(0.22f, -0.3f, 0.0f));
         if (enemyAudioEvents.houndAttacks > 0 && houndAttackSound_)
             static_cast<void>(houndAttackSound_->Play(0.25f, -0.4f, 0.0f));
+        if (enemyAudioEvents.projectileImpacts > 0 && enemyImpactSound_)
+            static_cast<void>(enemyImpactSound_->Play(0.2f, 0.18f, 0.0f));
         health_ -= incomingDamage;
         if (incomingDamage > 0 && hurtSound_)
             static_cast<void>(hurtSound_->Play(0.3f, -0.25f, 0.0f));
+        if (incomingDamage > 0)
+            playerImpactFlashSeconds_ = 0.18f;
         if (health_ <= 0)
         {
             lives_ = std::max(0, lives_ - 1);
@@ -1955,6 +2038,7 @@ namespace WolfCna
             goldenGobletSprite_ && peaceMedallionSprite_ &&
             accessCardSprite_ && repeaterPickupSprite_ && heavyWeaponPickupSprite_ &&
             terminalSprite_ && relaySprite_ && exitSprite_ && enemyProjectileSprite_ &&
+            enemyImpactSprite_ &&
             paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_ && lampLightTexture_ &&
             storagePlantSprite_ && foundryPlantSprite_ && labsPlantSprite_ && archivePlantSprite_)
         {
@@ -1992,6 +2076,7 @@ namespace WolfCna
                 *relaySprite_,
                 *exitSprite_,
                 *enemyProjectileSprite_,
+                *enemyImpactSprite_,
                 *bloodDecal_,
                 *paintingTexture_,
                 *peaceBannerTexture_,

@@ -520,13 +520,21 @@ int main()
         "damage.level"));
     int guardProjectileDamage = 0;
     int guardShots = 0;
+    int activeProjectileImpacts = 0;
     for (int tick = 0; tick < 20; ++tick)
     {
         guardProjectileDamage += damageWorld.Update(0.05f, combatPlayer);
         guardShots += damageWorld.ConsumeGuardShotCount();
+        activeProjectileImpacts = std::max(
+            activeProjectileImpacts,
+            damageWorld.ActiveEnemyImpactCount());
     }
+    const WolfCna::World::EnemyAudioEvents projectileImpactEvents =
+        damageWorld.ConsumeEnemyAudioEvents();
     Expect(guardShots >= 1, "guard emits a shot at the player");
     Expect(guardProjectileDamage == 8, "guard projectile damages a player at range");
+    Expect(activeProjectileImpacts > 0, "enemy projectile hit creates a temporary visual impact");
+    Expect(projectileImpactEvents.projectileImpacts == 1, "enemy projectile hit emits one impact event");
 
     WolfCna::World coordinatedFireWorld(WolfCna::LevelDefinition::Parse(
         "######\n#P.GG#\n######\n",

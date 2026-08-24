@@ -117,6 +117,10 @@ or pressing `Space` while facing the online elevator completes the sector. Press
 `Space` at an offline elevator reports `EXIT OFFLINE` instead of failing silently.
 Activating either component briefly reports `POWER ONLINE`, `TERMINAL ONLINE` or
 `EXIT ONLINE` in the play view.
+
+Enemy projectiles end in a short expanding cyan-and-amber spark when they hit the
+world. A player hit also produces a deliberately translucent amber screen flash and
+a generated impact sound, while damage remains tied to projectile collision only.
 All four campaign sectors use an exact 64×64-cell footprint with large authored
 rooms, connecting corridors, loops and optional secret spaces. Focused test maps
 may remain smaller.

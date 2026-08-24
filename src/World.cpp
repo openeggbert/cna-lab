@@ -45,6 +45,8 @@ namespace WolfCna
         constexpr float GuardProjectileSpeed = 4.5f;
         constexpr float GuardProjectileHitRadius = 0.25f;
         constexpr float GuardProjectileLifetime = 2.0f;
+        constexpr float EnemyImpactDuration = 0.28f;
+        constexpr std::size_t MaxEnemyImpactCount = 12;
         constexpr float RangedAttackVisualSeconds = 0.18f;
         constexpr float HoundAttackVisualSeconds = 0.24f;
         constexpr float EnemyPainVisualSeconds = 0.16f;
@@ -426,6 +428,19 @@ namespace WolfCna
         return events;
     }
 
+    int World::ActiveEnemyImpactCount() const
+    {
+        return static_cast<int>(enemyImpacts_.size());
+    }
+
+    void World::AddEnemyImpact(const Vector3& position, bool hitPlayer)
+    {
+        if (enemyImpacts_.size() == MaxEnemyImpactCount)
+            enemyImpacts_.erase(enemyImpacts_.begin());
+        enemyImpacts_.push_back({position, EnemyImpactDuration, hitPlayer});
+        ++pendingEnemyAudioEvents_.projectileImpacts;
+    }
+
     World::InteractionResult World::TryActivate(
         const Vector3& playerPosition,
         const Vector3& lookDirection,
@@ -754,8 +769,15 @@ namespace WolfCna
                 enemy.position.Z = nextZ;
         }
 
+        for (EnemyImpact& impact : enemyImpacts_)
+            impact.remainingSeconds -= elapsedSeconds;
+        std::erase_if(
+            enemyImpacts_,
+            [](const EnemyImpact& impact) { return impact.remainingSeconds <= 0.0f; });
+
         for (auto iterator = enemyProjectiles_.begin(); iterator != enemyProjectiles_.end();)
         {
+            const Vector3 previousPosition = iterator->position;
             iterator->remainingLifetime -= elapsedSeconds;
             iterator->position.X += iterator->velocity.X * elapsedSeconds;
             iterator->position.Y += iterator->velocity.Y * elapsedSeconds;
@@ -768,9 +790,26 @@ namespace WolfCna
             if (dx * dx + dz * dz <= GuardProjectileHitRadius * GuardProjectileHitRadius)
             {
                 damage += static_cast<int>(std::lround(iterator->damage * damageMultiplier));
+                const float speedSquared =
+                    iterator->velocity.X * iterator->velocity.X +
+                    iterator->velocity.Z * iterator->velocity.Z;
+                const float inverseSpeed = speedSquared > 0.0001f
+                    ? 1.0f / std::sqrt(speedSquared)
+                    : 0.0f;
+                AddEnemyImpact(
+                    Vector3(
+                        playerPosition.X - iterator->velocity.X * inverseSpeed * 0.34f,
+                        0.42f,
+                        playerPosition.Z - iterator->velocity.Z * inverseSpeed * 0.34f),
+                    true);
                 iterator = enemyProjectiles_.erase(iterator);
             }
-            else if (iterator->remainingLifetime <= 0.0f || IsBlockedCell(cellX, cellZ))
+            else if (IsBlockedCell(cellX, cellZ))
+            {
+                AddEnemyImpact(Vector3(previousPosition.X, 0.4f, previousPosition.Z), false);
+                iterator = enemyProjectiles_.erase(iterator);
+            }
+            else if (iterator->remainingLifetime <= 0.0f)
             {
                 iterator = enemyProjectiles_.erase(iterator);
             }
@@ -1540,6 +1579,7 @@ namespace WolfCna
         Texture2D& relaySprite,
         Texture2D& exitSprite,
         Texture2D& enemyProjectileSprite,
+        Texture2D& enemyImpactSprite,
         Texture2D& bloodDecal,
         Texture2D& paintingTexture,
         Texture2D& peaceBannerTexture,
@@ -1774,7 +1814,8 @@ namespace WolfCna
 
         if (billboardVertexBuffer_ && billboardIndexBuffer_ &&
             (!enemies_.empty() || !pickups_.empty() || !terminals_.empty() ||
-                !relays_.empty() || !exits_.empty() || !enemyProjectiles_.empty()))
+                !relays_.empty() || !exits_.empty() || !enemyProjectiles_.empty() ||
+                !enemyImpacts_.empty()))
         {
             std::vector<const Enemy*> sortedEnemies;
             sortedEnemies.reserve(enemies_.size());
@@ -2019,6 +2060,26 @@ namespace WolfCna
                     0.15f,
                     Vector3(1.0f, 1.0f, 1.0f));
             }
+
+            for (const EnemyImpact& impact : enemyImpacts_)
+            {
+                const float remaining = std::clamp(
+                    impact.remainingSeconds / EnemyImpactDuration,
+                    0.0f,
+                    1.0f);
+                const float progress = 1.0f - remaining;
+                const float size = 0.22f + progress * 0.5f;
+                effect.setAlphaProperty(remaining * 0.86f);
+                drawBillboard(
+                    enemyImpactSprite,
+                    impact.position,
+                    size,
+                    size,
+                    impact.hitPlayer
+                        ? Vector3(1.0f, 0.48f, 0.26f)
+                        : Vector3(0.52f, 0.9f, 1.0f));
+            }
+            effect.setAlphaProperty(1.0f);
 
             for (const Exit& exit : exits_)
             {

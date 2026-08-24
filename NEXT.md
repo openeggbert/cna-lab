@@ -39,14 +39,14 @@
 - Every map `GOAL` now corresponds to a three-sided steel elevator cabin whose red polygonal gate blocks entry and rises only after the sector objective is complete.
 - Holding `G+O+A+L` once teleports the player to the safe approach cell outside the current elevator and turns them toward its doors without changing objective progress.
 - `Space` now activates an online elevator from its approach; an offline elevator responds with visible `EXIT OFFLINE` feedback and a lock sound.
+- Enemy projectiles now create a short expanding project-generated spark on impact; player hits also add a translucent amber flash and a generated impact sound.
 
 ## Next tasks
 
 1. Playtest the authored route and rebalance health placement and difficulty-specific incoming damage.
 2. Playtest sprite motion amplitudes together with the authored combat route.
 3. Playtest the full four-sector objective route and completion pacing.
-4. Add the planned original impact effect when an enemy projectile hits the player or world.
-5. Add the planned sector-completion fanfare through CNA audio.
+4. Add the planned sector-completion fanfare through CNA audio.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.

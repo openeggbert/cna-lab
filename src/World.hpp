@@ -60,6 +60,7 @@ namespace WolfCna
             int guardAlerts = 0;
             int houndAlerts = 0;
             int houndAttacks = 0;
+            int projectileImpacts = 0;
         };
 
         struct CompletionStats
@@ -128,6 +129,7 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::Texture2D& relaySprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& exitSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& enemyProjectileSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& enemyImpactSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& bloodDecal,
             Microsoft::Xna::Framework::Graphics::Texture2D& paintingTexture,
             Microsoft::Xna::Framework::Graphics::Texture2D& peaceBannerTexture,
@@ -153,6 +155,7 @@ namespace WolfCna
         [[nodiscard]] CompletionStats GetCompletionStats() const;
         [[nodiscard]] int ConsumeGuardShotCount();
         [[nodiscard]] EnemyAudioEvents ConsumeEnemyAudioEvents();
+        [[nodiscard]] int ActiveEnemyImpactCount() const;
         [[nodiscard]] InteractionResult TryActivate(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection,
@@ -230,6 +233,13 @@ namespace WolfCna
             int damage = 8;
         };
 
+        struct EnemyImpact
+        {
+            Microsoft::Xna::Framework::Vector3 position;
+            float remainingSeconds = 0.0f;
+            bool hitPlayer = false;
+        };
+
         enum class PickupType
         {
             Health,
@@ -297,6 +307,7 @@ namespace WolfCna
         std::vector<Enemy> enemies_;
         int defeatedEnemies_ = 0;
         std::vector<EnemyProjectile> enemyProjectiles_;
+        std::vector<EnemyImpact> enemyImpacts_;
         int pendingGuardShotCount_ = 0;
         EnemyAudioEvents pendingEnemyAudioEvents_;
         std::vector<Pickup> pickups_;
@@ -352,6 +363,9 @@ namespace WolfCna
             int startZ,
             int goalX,
             int goalZ) const;
+        void AddEnemyImpact(
+            const Microsoft::Xna::Framework::Vector3& position,
+            bool hitPlayer);
 
         void AddQuad(
             const Microsoft::Xna::Framework::Vector3& a,

@@ -65,6 +65,7 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> relaySprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> exitSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> enemyProjectileSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> enemyImpactSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> bloodDecal_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> paintingTexture_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> peaceBannerTexture_;
@@ -95,6 +96,7 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> enemyDefeatedSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> terminalSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> guardShotSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> enemyImpactSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> secretSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> guardAlertSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAlertSound_;
@@ -163,6 +165,7 @@ namespace WolfCna
         std::string objectiveMessage_;
         float objectiveMessageSeconds_ = 0.0f;
         float weaponFlashSeconds_ = 0.0f;
+        float playerImpactFlashSeconds_ = 0.0f;
         float playerFireCooldownSeconds_ = 0.0f;
 
         static constexpr float PlayerRadius = 0.22f;
@@ -191,6 +194,7 @@ namespace WolfCna
         void CreateProceduralAtlas();
         void CreateProceduralBloodDecal();
         void CreateProceduralDecorationTextures();
+        void CreateProceduralEnemyImpactTexture();
         void CreateHudResources();
         void CreateSoundEffects();
         void DrawHud();

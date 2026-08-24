@@ -1305,3 +1305,17 @@ audio path as walking into its open cabin. Focused tests cover both interaction 
 - retain relay and terminal requirements during ordinary play;
 - allow both Wolf-like action activation and physical cabin entry;
 - keep completion rewards idempotent through one shared helper.
+
+### WOLF-025 — enemy projectile impact feedback
+
+Status: complete. Enemy projectiles now create a bounded, short-lived expanding
+spark when they collide with the player or blocked world geometry. The original
+transparent spark texture and its crisp impact sound are generated deterministically
+by project code and use CNA texture/audio APIs. Player hits additionally show a
+brief translucent amber overlay rather than an opaque rectangle. Focused tests pin
+the visual-impact lifetime state and one event per projectile collision.
+
+- distinguish projectile disappearance from an actual visible collision;
+- provide world-space feedback for impacts against level geometry;
+- make player impacts readable without obscuring the view;
+- keep all generated visuals and audio original and CNA-only.
