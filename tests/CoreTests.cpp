@@ -987,6 +987,19 @@ namespace
         profiler.RecordAiWorkload(aiWorkload);
         aiWorkload.trafficObstacleChecks = 2;
         profiler.RecordAiWorkload(aiWorkload);
+        IronGang::AudioWorkloadSample audioWorkload;
+        audioWorkload.loadedSoundAssets = 3;
+        audioWorkload.trackedLoopInstances = 1;
+        audioWorkload.trackedPlayingLoopVoices = 1;
+        audioWorkload.oneShotPlayRequests = 2;
+        audioWorkload.oneShotPlaySuccesses = 1;
+        audioWorkload.loopPlayCommands = 1;
+        audioWorkload.loopParameterUpdates = 2;
+        profiler.RecordAudioWorkload(audioWorkload);
+        audioWorkload.oneShotPlayRequests = 0;
+        audioWorkload.oneShotPlaySuccesses = 0;
+        audioWorkload.loopPlayCommands = 0;
+        profiler.RecordAudioWorkload(audioWorkload);
 
         const IronGang::PerformanceStatistics frame =
             profiler.GetStatistics(IronGang::PerformanceMetric::FrameInterval);
@@ -1018,6 +1031,12 @@ namespace
                     std::abs(obstacleChecks.p95 - 4.0) < 1e-9 &&
                     std::abs(obstacleChecks.maximum - 4.0) < 1e-9,
                 "AI workload statistics must retain exact loop counts and use nearest-rank p95");
+        const IronGang::AudioWorkloadStatistics oneShotRequests =
+            profiler.GetAudioWorkloadStatistics(IronGang::AudioWorkloadMetric::OneShotPlayRequests);
+        Require(oneShotRequests.sampleCount == 2 && std::abs(oneShotRequests.average - 1.0) < 1e-9 &&
+                    std::abs(oneShotRequests.p95 - 2.0) < 1e-9 &&
+                    std::abs(oneShotRequests.maximum - 2.0) < 1e-9,
+                "audio workload statistics must retain exact command counts and use nearest-rank p95");
 
         IronGang::PerformanceReportContext context;
         context.backend = "TEST";
@@ -1053,7 +1072,7 @@ namespace
         const std::string report((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
         Require(report.find("\"backend\": \"TEST\"") != std::string::npos,
                 "performance report must identify its graphics backend");
-        Require(report.find("\"schema_version\": 6") != std::string::npos &&
+        Require(report.find("\"schema_version\": 7") != std::string::npos &&
                     report.find("\"draw_calls\": {\"samples\": 2, \"average\": 11.000, \"p95\": 12.000") !=
                         std::string::npos &&
                     report.find("\"state_change_calls\": {\"samples\": 1, \"average\": 31.000") !=
@@ -1079,6 +1098,15 @@ namespace
                     report.find("mission state progression is excluded") != std::string::npos &&
                     report.find("no road graph or path-request queue exists yet") != std::string::npos,
                 "performance report must expose exact ambient-AI state and loop work without inventing path requests");
+        Require(report.find("\"loaded_sound_assets\": {\"samples\": 2, \"average\": 3.000") !=
+                        std::string::npos &&
+                    report.find("\"one_shot_play_requests\": {\"samples\": 2, \"average\": 1.000, \"p95\": 2.000") !=
+                        std::string::npos &&
+                    report.find("tracked_playing_loop_voices covers only retained SoundEffectInstances") !=
+                        std::string::npos &&
+                    report.find("bus cost are unavailable through CNA and are not reported as zero") !=
+                        std::string::npos,
+                "performance report must limit audio workload to observable assets, loop state, and commands");
         Require(report.find("\"district_world_physics_cpu\": {\"samples\": 1, \"average_ms\": 4.500") !=
                         std::string::npos &&
                     report.find("\"district_renderer_upload_cpu\": {\"samples\": 1, \"average_ms\": 8.000") !=

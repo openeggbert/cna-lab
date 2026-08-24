@@ -124,6 +124,34 @@ namespace IronGang
             return "unknown";
         }
 
+        const char* AudioWorkloadMetricName(AudioWorkloadMetric metric)
+        {
+            switch (metric)
+            {
+            case AudioWorkloadMetric::LoadedSoundAssets:
+                return "loaded_sound_assets";
+            case AudioWorkloadMetric::TrackedLoopInstances:
+                return "tracked_loop_instances";
+            case AudioWorkloadMetric::TrackedPlayingLoopVoices:
+                return "tracked_playing_loop_voices";
+            case AudioWorkloadMetric::StreamedAudioAssets:
+                return "streamed_audio_assets";
+            case AudioWorkloadMetric::OneShotPlayRequests:
+                return "one_shot_play_requests";
+            case AudioWorkloadMetric::OneShotPlaySuccesses:
+                return "one_shot_play_successes";
+            case AudioWorkloadMetric::LoopPlayCommands:
+                return "loop_play_commands";
+            case AudioWorkloadMetric::LoopStopCommands:
+                return "loop_stop_commands";
+            case AudioWorkloadMetric::LoopParameterUpdates:
+                return "loop_parameter_updates";
+            case AudioWorkloadMetric::Count:
+                break;
+            }
+            return "unknown";
+        }
+
         std::string EscapeJson(const std::string& value)
         {
             std::string escaped;
@@ -317,6 +345,29 @@ namespace IronGang
         }
     }
 
+    void PerformanceProfiler::RecordAudioWorkload(const AudioWorkloadSample& sample)
+    {
+        if (!enabled_)
+        {
+            return;
+        }
+        const std::array<std::uint64_t, static_cast<std::size_t>(AudioWorkloadMetric::Count)> values{
+            sample.loadedSoundAssets,
+            sample.trackedLoopInstances,
+            sample.trackedPlayingLoopVoices,
+            sample.streamedAudioAssets,
+            sample.oneShotPlayRequests,
+            sample.oneShotPlaySuccesses,
+            sample.loopPlayCommands,
+            sample.loopStopCommands,
+            sample.loopParameterUpdates,
+        };
+        for (std::size_t index = 0; index < values.size(); ++index)
+        {
+            audioWorkloadSamples_[index].push_back(static_cast<double>(values[index]));
+        }
+    }
+
     void PerformanceProfiler::RecordDistrictLoad(DistrictLoadSample sample)
     {
         if (!enabled_ || !std::isfinite(sample.worldPhysicsMilliseconds) ||
@@ -459,6 +510,38 @@ namespace IronGang
         return result;
     }
 
+    AudioWorkloadStatistics
+    PerformanceProfiler::GetAudioWorkloadStatistics(AudioWorkloadMetric metric) const
+    {
+        AudioWorkloadStatistics result;
+        if (metric == AudioWorkloadMetric::Count)
+        {
+            return result;
+        }
+
+        const std::vector<double>& samples = audioWorkloadSamples_[AudioWorkloadMetricIndex(metric)];
+        result.sampleCount = samples.size();
+        if (samples.empty())
+        {
+            return result;
+        }
+
+        double total = 0.0;
+        for (const double sample : samples)
+        {
+            total += sample;
+            result.maximum = std::max(result.maximum, sample);
+        }
+        result.average = total / static_cast<double>(samples.size());
+
+        std::vector<double> sorted = samples;
+        std::sort(sorted.begin(), sorted.end());
+        const std::size_t percentileIndex = static_cast<std::size_t>(
+            std::ceil(0.95 * static_cast<double>(sorted.size()))) - 1U;
+        result.p95 = sorted[percentileIndex];
+        return result;
+    }
+
     bool PerformanceProfiler::WriteJsonReport(const std::string& path,
                                                const PerformanceReportContext& context,
                                                std::string& error) const
@@ -491,7 +574,7 @@ namespace IronGang
 
             output << std::fixed << std::setprecision(3);
             output << "{\n"
-                   << "  \"schema_version\": 6,\n"
+                   << "  \"schema_version\": 7,\n"
                    << "  \"backend\": \"" << EscapeJson(context.backend) << "\",\n"
                    << "  \"build_configuration\": \"" << EscapeJson(context.buildConfiguration) << "\",\n"
                    << "  \"scenario\": \"" << EscapeJson(context.scenario) << "\",\n"
@@ -651,6 +734,23 @@ namespace IronGang
                        << ", \"p95\": " << statistics.p95
                        << ", \"maximum\": " << statistics.maximum << "}";
                 output << (index + 1U == static_cast<std::size_t>(AiWorkloadMetric::Count) ? "\n" : ",\n");
+            }
+
+            output << "  },\n"
+                   << "  \"audio_workload\": {\n"
+                   << "    \"scope\": \"per game Update; exact Iron Gang-owned SoundEffect assets, tracked loop state, and playback/control commands\",\n"
+                   << "    \"voice_scope\": \"tracked_playing_loop_voices covers only retained SoundEffectInstances; CNA exposes no lifetime query for fire-and-forget SoundEffect::Play voices\",\n"
+                   << "    \"backend_scope\": \"decoder time, mixer callback time, active backend channels, and bus cost are unavailable through CNA and are not reported as zero\",\n";
+
+            for (std::size_t index = 0; index < static_cast<std::size_t>(AudioWorkloadMetric::Count); ++index)
+            {
+                const auto metric = static_cast<AudioWorkloadMetric>(index);
+                const AudioWorkloadStatistics statistics = GetAudioWorkloadStatistics(metric);
+                output << "    \"" << AudioWorkloadMetricName(metric) << "\": {\"samples\": "
+                       << statistics.sampleCount << ", \"average\": " << statistics.average
+                       << ", \"p95\": " << statistics.p95
+                       << ", \"maximum\": " << statistics.maximum << "}";
+                output << (index + 1U == static_cast<std::size_t>(AudioWorkloadMetric::Count) ? "\n" : ",\n");
             }
 
             output << "  },\n"

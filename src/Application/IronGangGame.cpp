@@ -817,6 +817,7 @@ namespace IronGang
         bool physicsSampleRecorded = false;
         bool aiSampleRecorded = false;
         AiWorkloadSample aiWorkload;
+        AudioWorkloadSample audioWorkload;
         const auto measureAudio = [&](auto&& operation)
         {
             if (!performanceProfiler_.IsEnabled())
@@ -913,7 +914,14 @@ namespace IronGang
         }
         if (WasPressed(keyboard, Keys::H) && playerDriving_ && hornSound_)
         {
-            measureAudio([&]() { hornSound_->Play(); });
+            measureAudio([&]()
+            {
+                ++audioWorkload.oneShotPlayRequests;
+                if (hornSound_->Play())
+                {
+                    ++audioWorkload.oneShotPlaySuccesses;
+                }
+            });
         }
 
         if (!dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning)
@@ -987,7 +995,11 @@ namespace IronGang
                             if (footstepTimer_ >= kFootstepIntervalSeconds)
                             {
                                 footstepTimer_ -= kFootstepIntervalSeconds;
-                                footstepSound_->Play();
+                                ++audioWorkload.oneShotPlayRequests;
+                                if (footstepSound_->Play())
+                                {
+                                    ++audioWorkload.oneShotPlaySuccesses;
+                                }
                             }
                         }
                         else
@@ -1015,14 +1027,17 @@ namespace IronGang
                     {
                         if (engineSoundInstance_->getStateProperty() != Audio::SoundState::Playing)
                         {
+                            ++audioWorkload.loopPlayCommands;
                             engineSoundInstance_->Play();
                         }
                         const float speedFactor = std::clamp(vehicle_.GetSpeedKph() / 80.0F, 0.0F, 1.0F);
                         engineSoundInstance_->setVolumeProperty(0.4F + 0.4F * speedFactor);
                         engineSoundInstance_->setPitchProperty(-0.15F + 0.3F * speedFactor);
+                        audioWorkload.loopParameterUpdates += 2U;
                     }
                     else if (engineSoundInstance_->getStateProperty() == Audio::SoundState::Playing)
                     {
+                        ++audioWorkload.loopStopCommands;
                         engineSoundInstance_->Stop();
                     }
                 });
@@ -1152,6 +1167,18 @@ namespace IronGang
             performanceProfiler_.Record(PerformanceMetric::AiCpu, 0.0);
         }
         performanceProfiler_.Record(PerformanceMetric::AudioCpu, audioCpuMilliseconds);
+        if (performanceProfiler_.IsEnabled())
+        {
+            audioWorkload.loadedSoundAssets =
+                static_cast<std::uint64_t>(engineSound_.has_value()) +
+                static_cast<std::uint64_t>(footstepSound_.has_value()) +
+                static_cast<std::uint64_t>(hornSound_.has_value());
+            audioWorkload.trackedLoopInstances = static_cast<std::uint64_t>(engineSoundInstance_.has_value());
+            audioWorkload.trackedPlayingLoopVoices = static_cast<std::uint64_t>(
+                engineSoundInstance_ &&
+                engineSoundInstance_->getStateProperty() == Audio::SoundState::Playing);
+            performanceProfiler_.RecordAudioWorkload(audioWorkload);
+        }
         RecordPhysicsWorkload();
         if (performanceProfiler_.IsEnabled())
         {

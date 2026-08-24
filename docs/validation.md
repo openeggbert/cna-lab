@@ -94,6 +94,16 @@ pedestrians, 4 obstacle checks, 2 threat checks, and 4 witness checks. This rout
 fleeing pedestrian or active police patrol; the deterministic police test covers their nonzero
 work. No road-graph/path-request numbers are invented while only fixed WaypointPaths exist.
 
+The audio follow-up adds schema 7 with exact game-owned loaded-asset, retained-loop state, streamed-
+asset, one-shot start, loop-control, and parameter-update counts. Unit coverage proves nearest-rank
+statistics and the report's explicit observability boundary. An isolated 540-frame Release EasyGL
+`mixed` run with dummy SDL audio sampled 544 updates: audio-control CPU was 0.019 ms p95, all four
+one-shot footstep requests succeeded, and the one retained engine loop started and reached playing
+state. CNA exposes neither fire-and-forget voice lifetime nor decoder/mixer callback, active backend
+channel, or bus costs, so the report marks those unavailable instead of inventing zeroes. Software
+plus 3/3 CTest, strict syntax, Release/development EasyGL, Web/Emscripten, and the isolated real flow
+pass; no visible host display was used.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

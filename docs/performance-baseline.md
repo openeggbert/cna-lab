@@ -265,3 +265,33 @@ nonzero witness work and exactly two patrol updates on an escalation tick. The s
 average difference is also intentional: district-transition frames retain the currently spawned
 actors while their AI operations are suspended, followed by a Countryside arrival with no ambient
 actors. No road/path-request metrics are reported because only fixed WaypointPaths exist today.
+
+## 2026-08-24 — game-owned audio workload follow-up
+
+JSON schema 7 retains the budgeted game-owned `audio_cpu` timer and adds only the audio state and
+commands observable through CNA. A 540-frame Release EasyGL `mixed` run, executed only on isolated
+Xvfb/X11 with dummy SDL audio and v-sync requested off, produced 544 update samples:
+
+| Audio workload per update | Average | p95 | Maximum |
+| --- | ---: | ---: | ---: |
+| Loaded sound assets | 3.000 | 3 | 3 |
+| Retained loop instances | 1.000 | 1 | 1 |
+| Retained loops playing | 0.779 | 1 | 1 |
+| Streamed game assets | 0.000 | 0 | 0 |
+| One-shot play requests | 0.007 | 0 | 1 |
+| Successful one-shot starts | 0.007 | 0 | 1 |
+| Loop play commands | 0.002 | 0 | 1 |
+| Loop stop commands | 0.000 | 0 | 0 |
+| Loop parameter updates | 1.423 | 2 | 2 |
+
+Audio-control CPU averaged 0.010 ms, with 0.019 ms p95 and 0.095 ms maximum. The four one-shot
+requests in the capture were footsteps and all four succeeded. The one retained engine-loop
+instance started once and played through the driving phase; it received volume and pitch updates
+on each active driving update. No stop command is expected because the deterministic route remains
+in the vehicle until the district transition suspends audio control.
+
+Zero streamed assets is exact for Iron Gang's current content: it owns three `SoundEffect`s and no
+streaming audio object. It is not a claim about backend decoder activity. CNA exposes neither the
+lifetime of fire-and-forget one-shot voices nor decoder/mixer callback, active backend channel, or
+bus costs, so schema 7 labels those unavailable instead of reporting false zeroes. Xvfb/dummy audio
+validates the integrated command and report path, not audible quality or physical audio hardware.

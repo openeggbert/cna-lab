@@ -67,6 +67,23 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has a complete smallest-scope game-owned audio profiler (`IG-35-040`-`041`).** JSON
+schema 7 retains the budgeted `audio_cpu` timer and adds per-update loaded `SoundEffect` assets,
+retained/playing loop state, streamed game assets, one-shot request/success counts, loop play/stop
+commands, and volume/pitch updates. The report is explicit about its observability boundary: CNA
+does not expose fire-and-forget voice lifetime, decoder/mixer callback time, active backend
+channels, or bus cost, so none is fabricated as zero. Broader `IG-35-011` therefore remains
+partial.
+
+- Unit coverage verifies nearest-rank statistics, schema-7 output, and the unavailable-backend
+  metadata. A 540-frame Release EasyGL `mixed` run only on isolated Xvfb/X11 sampled 544 updates.
+  Audio CPU was 0.010 ms average / 0.019 ms p95 / 0.095 ms maximum; the three assets and one
+  retained engine loop were present, all four footstep requests succeeded, and the loop started
+  exactly once and reached playing state.
+- Software, all 3 CTest targets, strict syntax, Release/development EasyGL, Web/Emscripten, and the
+  isolated real flow pass. Dummy audio validates the command/report path, not audible quality or
+  physical audio hardware. No GUI run used the visible host display.
+
 **M12 now has a complete smallest-scope ambient-AI profiler (`IG-35-037`-`039`).** JSON schema 6
 retains `ai_cpu` but narrows it to traffic/pedestrian/witness/police work (mission progression is
 outside the timer), then records current traffic, pedestrian, fleeing-pedestrian, and patrol counts
@@ -1029,10 +1046,11 @@ physical-hardware capture should first require `swap_interval.apply_succeeded`, 
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside
-budget. The next safe code-side M12 slice is the smallest audio profiler (`IG-35-011`, `040`-`041`):
-retain the existing game-owned audio-control timer and add exact voice/playback state without
-claiming backend mixer/decode/bus time CNA does not expose. Do not mark M12 complete until repeated
-mixed workloads pass 33.333 ms p95 on named minimum hardware and VRAM tracking is complete.
+budget. The next safe code-side M12 slice is the frame-pacing/hitch detector (`IG-35-015`,
+`048`-`050`): derive stable histogram buckets and explicit hitch counts from the already-captured
+frame-interval samples, add exact unit/report coverage, and validate one isolated real flow. Do not
+mark M12 complete until repeated mixed workloads pass 33.333 ms p95 on named minimum hardware and
+VRAM tracking is complete.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --

@@ -76,6 +76,22 @@ namespace IronGang
         Count,
     };
 
+    // Game-owned audio state and commands. CNA does not expose fire-and-forget one-shot voice
+    // lifetime, decoder work, mixer buses, or backend callback cost, so none are guessed here.
+    enum class AudioWorkloadMetric : std::size_t
+    {
+        LoadedSoundAssets,
+        TrackedLoopInstances,
+        TrackedPlayingLoopVoices,
+        StreamedAudioAssets,
+        OneShotPlayRequests,
+        OneShotPlaySuccesses,
+        LoopPlayCommands,
+        LoopStopCommands,
+        LoopParameterUpdates,
+        Count,
+    };
+
     // Named, repeatable M12 workloads. InteractiveOrIntro preserves the ordinary game path;
     // every other value is selected explicitly through --profile-scenario.
     enum class PerformanceScenario
@@ -135,6 +151,27 @@ namespace IronGang
         std::uint64_t pedestrianThreatChecks{0};
         std::uint64_t policeWitnessChecks{0};
         std::uint64_t policePatrolUpdates{0};
+    };
+
+    struct AudioWorkloadStatistics
+    {
+        std::size_t sampleCount{0};
+        double average{0.0};
+        double p95{0.0};
+        double maximum{0.0};
+    };
+
+    struct AudioWorkloadSample
+    {
+        std::uint64_t loadedSoundAssets{0};
+        std::uint64_t trackedLoopInstances{0};
+        std::uint64_t trackedPlayingLoopVoices{0};
+        std::uint64_t streamedAudioAssets{0};
+        std::uint64_t oneShotPlayRequests{0};
+        std::uint64_t oneShotPlaySuccesses{0};
+        std::uint64_t loopPlayCommands{0};
+        std::uint64_t loopStopCommands{0};
+        std::uint64_t loopParameterUpdates{0};
     };
 
     // One complete synchronous district change. District content is currently generated in
@@ -211,6 +248,7 @@ namespace IronGang
         void RecordRenderWorkload(RenderWorkloadMetric metric, std::uint64_t count);
         void RecordPhysicsWorkload(PhysicsWorkloadMetric metric, std::uint64_t count);
         void RecordAiWorkload(const AiWorkloadSample& sample);
+        void RecordAudioWorkload(const AudioWorkloadSample& sample);
         void RecordDistrictLoad(DistrictLoadSample sample);
 
         [[nodiscard]] PerformanceStatistics GetStatistics(PerformanceMetric metric) const;
@@ -219,6 +257,8 @@ namespace IronGang
         [[nodiscard]] PhysicsWorkloadStatistics
         GetPhysicsWorkloadStatistics(PhysicsWorkloadMetric metric) const;
         [[nodiscard]] AiWorkloadStatistics GetAiWorkloadStatistics(AiWorkloadMetric metric) const;
+        [[nodiscard]] AudioWorkloadStatistics
+        GetAudioWorkloadStatistics(AudioWorkloadMetric metric) const;
         [[nodiscard]] bool WriteJsonReport(const std::string& path,
                                            const PerformanceReportContext& context,
                                            std::string& error) const;
@@ -251,6 +291,11 @@ namespace IronGang
             return static_cast<std::size_t>(metric);
         }
 
+        static constexpr std::size_t AudioWorkloadMetricIndex(AudioWorkloadMetric metric)
+        {
+            return static_cast<std::size_t>(metric);
+        }
+
         bool enabled_{false};
         std::optional<Clock::time_point> previousFrameStart_;
         std::array<std::vector<double>, static_cast<std::size_t>(PerformanceMetric::Count)> samples_;
@@ -260,6 +305,8 @@ namespace IronGang
             physicsWorkloadSamples_;
         std::array<std::vector<double>, static_cast<std::size_t>(AiWorkloadMetric::Count)>
             aiWorkloadSamples_;
+        std::array<std::vector<double>, static_cast<std::size_t>(AudioWorkloadMetric::Count)>
+            audioWorkloadSamples_;
         std::vector<DistrictLoadSample> districtLoadSamples_;
     };
 

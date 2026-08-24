@@ -332,6 +332,16 @@ traffic, pedestrian, witness, and police work only. The current movers follow fi
 or failure state to report. Those fields must not be fabricated as zero—add them with the real
 road/path system required by IG-35-010.
 
+JSON schema 7 adds `audio_workload` once per game `Update()`. It records the exact game-owned audio
+surface available through CNA: loaded `SoundEffect` assets, retained loop instances and their
+playing state, streamed game assets, one-shot play requests/successes, loop play/stop commands, and
+loop volume/pitch updates. `audio_cpu` remains the budgeted time for these game-owned control calls.
+
+`tracked_playing_loop_voices` covers only retained `SoundEffectInstance`s. CNA exposes no lifetime
+query for fire-and-forget voices started by `SoundEffect::Play()`, nor decoder time, mixer callback
+time, active backend channel count, or bus cost. Report metadata marks those fields unavailable;
+they must not be inferred from the successful-play count or represented by misleading zeroes.
+
 The current CNA/EasyGL API does not expose complete GPU residency. The report records the exact
 logical size of known Iron Gang-owned meshes/lightmaps/HUD resources plus imported CNJ vertex and
 index buffers and textures bound by CNA's built-in or generic effects. Imported resources are
