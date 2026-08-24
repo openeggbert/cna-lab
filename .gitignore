@@ -1,0 +1,29 @@
+# Build trees and generated build-system files
+/build/
+/build-*/
+/cmake-build-*/
+/out/
+/Testing/
+CMakeUserPresets.json
+compile_commands.json
+
+# Runtime output
+*.log
+*.sav
+*.tmp
+/screenshots/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*~
+*.swp
+
+# Generated asset products are admitted through reviewed manifests, not wholesale.
+/assets/generated/*
+!/assets/generated/.gitkeep
+/assets/processed/*
+!/assets/processed/.gitkeep
+
