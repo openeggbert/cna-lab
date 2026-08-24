@@ -972,15 +972,17 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     // Each phase carries its observed origin, rather than turning one modern
     // sprite into a synthetic bobbing animation. Sleeping leaves the first
     // quiet frame on screen.
-    const std::size_t idleFrame = pet_.asleep ? 0U : static_cast<std::size_t>(
+    const bool freezeUnobservedSleepPose = pet_.asleep && pet_.characterId != "marutchi";
+    const std::size_t idleFrame = freezeUnobservedSleepPose ? 0U : static_cast<std::size_t>(
         backgroundTimeSeconds_ / sprite.idleFrameSeconds);
     const Domain::P1SpriteFrame& frame = sprite.idleFrame(idleFrame);
     display_.drawSprite(frame.originX, frame.originY, frame.visibleRows());
 
     if (pet_.asleep) {
-        display_.setPixel(27, 4, true);
-        display_.setPixel(28, 4, true);
-        display_.setPixel(28, 5, true);
+        const Domain::P1Sprite& sleep = Domain::P1SpriteCatalog::sleepIndicator();
+        const Domain::P1SpriteFrame& sleepFrame = sleep.idleFrame(static_cast<std::size_t>(
+            backgroundTimeSeconds_ / sleep.idleFrameSeconds));
+        display_.drawSprite(sleepFrame.originX, sleepFrame.originY, sleepFrame.visibleRows());
     }
 
     if (pet_.sick) {

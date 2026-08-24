@@ -101,6 +101,20 @@ constexpr P1SpriteFrame babytchiSickFrame(const std::string_view row0,
 }
 
 
+constexpr P1SpriteFrame smallSleepFrame() noexcept
+{
+    return {24, 0, 6U,
+            {{"....###", "......#", ".....#.", "....#..", "..#.###", "#......",
+              "", "", "", "", "", ""}}};
+}
+
+constexpr P1SpriteFrame largeSleepFrame() noexcept
+{
+    return {25, 2, 6U,
+            {{"####", "...#", "..#.", ".#..", "#...", "####",
+              "", "", "", "", "", ""}}};
+}
+
 // Every drawing and origin is hand-transcribed P1 LCD data. Repeated character
 // poses at new origins are retained when the reference really moves them; the
 // renderer never invents a translation that is absent from the sequence.
@@ -161,6 +175,11 @@ constexpr P1Sprite Waste = twoPhaseSprite(
     wasteFrame("#.......", ".#....#.", "#......#", "...#..#.",
                "...##...", "..##.#..", ".#.####.", ".######."),
     1.0F);
+
+// The two Z arrangements remain spatially independent from the sleeping
+// character and waste. Stable transitions begin every 24-25 frames at 30 fps.
+constexpr P1Sprite SleepIndicator =
+    twoPhaseSprite(smallSleepFrame(), largeSleepFrame(), 0.82F);
 
 constexpr P1Sprite Tamatchi = sprite(
     frame("....##....##....", "...####..####...", "...##.####.##...", "..##........##..",
@@ -296,6 +315,11 @@ const P1Sprite& P1SpriteCatalog::sickSpriteForCharacter(
 const P1SpriteFrame& P1SpriteCatalog::sicknessIndicator() noexcept
 {
     return SicknessIndicator;
+}
+
+const P1Sprite& P1SpriteCatalog::sleepIndicator() noexcept
+{
+    return SleepIndicator;
 }
 
 const P1Sprite& P1SpriteCatalog::waste() noexcept

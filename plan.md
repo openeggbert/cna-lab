@@ -102,6 +102,9 @@ similar emulation core is permitted in the application, build, or test suite.
     Babytchi's two observed 8 × 3 bottom poses at their real origin and cadence;
     keep later-form sick poses and illness/Medicine transitions open rather
     than reusing or inventing Babytchi art.
+  - [x] Replace the generic Marutchi sleep symbol with the two exact observed Z
+    arrangements and their 0.82-second cadence while preserving independent
+    Marutchi-body and waste animation; keep every other form's sleep pose open.
   - [x] Replace the previous generic pink desktop shell treatment with a
     reusable CNA renderer and five independently authored P1 colour families;
     persist the selected shell without changing the LCD or P1 controls.

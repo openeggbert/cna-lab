@@ -313,6 +313,39 @@ void testBabytchiSicknessKeepsItsObservedP1Cycle()
            "an unobserved sick form must keep its normal pose rather than inventing one");
 }
 
+void testSleepIndicatorKeepsItsObservedP1Cycle()
+{
+    const P1Sprite& sleep = P1SpriteCatalog::sleepIndicator();
+    constexpr std::array<std::string_view, 6> expectedSmall{{
+        "....###", "......#", ".....#.", "....#..", "..#.###", "#......",
+    }};
+    constexpr std::array<std::string_view, 6> expectedLarge{{
+        "####", "...#", "..#.", ".#..", "#...", "####",
+    }};
+
+    expect(sleep.idleFrameCount == 2U && sleep.idleFrameSeconds == 0.82F,
+           "the P1 sleep overlay must retain its two observed Z phases and cadence");
+    expect(sleep.idleFrame(0).originX == 24 && sleep.idleFrame(0).originY == 0
+               && sleep.idleFrame(0).rowCount == expectedSmall.size(),
+           "the small-Z arrangement must retain its exact 7x6 bounds");
+    expect(sleep.idleFrame(1).originX == 25 && sleep.idleFrame(1).originY == 2
+               && sleep.idleFrame(1).rowCount == expectedLarge.size(),
+           "the large Z must retain its exact 4x6 bounds");
+    for (std::size_t row = 0U; row < expectedSmall.size(); ++row) {
+        expect(sleep.idleFrame(0).rows[row] == expectedSmall[row],
+               "every hand-read small-Z row must remain exact");
+        expect(sleep.idleFrame(1).rows[row] == expectedLarge[row],
+               "every hand-read large-Z row must remain exact");
+    }
+    expect(!framesDiffer(sleep.idleFrame(2), sleep.idleFrame(0)),
+           "the two-phase sleep overlay must wrap directly");
+
+    const P1Sprite& marutchi = P1SpriteCatalog::spriteForCharacter("marutchi");
+    expect(marutchi.idleFrameCount == 2U && framesDiffer(
+               marutchi.idleFrame(0), marutchi.idleFrame(1)),
+           "the observed sleeping Marutchi body must remain able to alternate below the Z overlay");
+}
+
 } // namespace
 
 int main()
@@ -324,6 +357,7 @@ int main()
     testMarutchiKeepsItsObservedP1Silhouettes();
     testWasteKeepsItsObservedStackedP1Animation();
     testBabytchiSicknessKeepsItsObservedP1Cycle();
+    testSleepIndicatorKeepsItsObservedP1Cycle();
     if (failures == 0) {
         std::cout << "P1SpriteCatalogTests passed\n";
     }

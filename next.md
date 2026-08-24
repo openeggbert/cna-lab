@@ -8,7 +8,8 @@ is exactly 32 × 16 and one bit. The home renderer uses explicit geometry and
 an explicit per-sequence frame count, so it no longer fakes motion by shifting
 a static creature around the LCD. Most provisional frames use the centred
 16 × 10 cell. The egg's two stable silhouettes, Babytchi's complete 36-phase
-home and two-phase sick cycles, two stable Marutchi silhouettes, and a Mametchi idle sequence have
+home and two-phase sick cycles, two stable Marutchi silhouettes, the exact
+two-phase Marutchi sleep overlay, and a Mametchi idle sequence have
 been visually transcribed from P1 reference traces. The exact two-phase stacked
 waste overlay is also implemented; Marutchi's clean-state path
 and the other character redraws remain provisional.
@@ -116,6 +117,13 @@ write and verify the clean implementation.
   normal-scale application run with one waste pile was checked. Illness onset,
   Medicine/recovery, and later-form sick poses remain open.
 
+- The naturally evolved reference later showed sleeping Marutchi. Its regular
+  long/short body cycle continues while an independent two-phase Z overlay
+  alternates every 24–25 host frames (0.82 seconds): a 7 × 6 arrangement at
+  `(24, 0)` and a 4 × 6 Z at `(25, 2)`. Existing waste also continues on its
+  own cadence. Exact catalogue tests and a six-second normal-scale application
+  run cover this combination. Sleep poses for every other form remain open.
+
 ## Priority 0 — Add selectable physical shell variants
 
 1. [x] Replace the provisional flat shell drawing with a reusable CNA shell renderer
@@ -175,18 +183,22 @@ uses the previous translated-sprite bobbing behaviour.
    open until a complete reference trace is captured.
 3. [x] Replace the generic sickness plus with the exact common 7 × 7 skull and
    both observed Babytchi bottom poses. Do not invent sick poses for later forms.
-4. Capture separate frame sequences for egg cracking/hatching, eating Bread,
-   eating Candy, Character game play, sleeping, unhappy/refusal, illness,
+4. [x] Replace the generic sleep symbol for Marutchi with both exact observed Z
+   arrangements and preserve the independent body and waste animation clocks.
+   Do not reuse this body behaviour for unobserved forms.
+5. Capture separate frame sequences for egg cracking/hatching, eating Bread,
+   eating Candy, Character game play, sleeping for every remaining form,
+   unhappy/refusal, illness,
    medicine, waste, attention, discipline, evolution, death, and the
    angel-and-stars ending.
-5. Add a rendering state key to the programme/UI boundary for the remaining
+6. Add a rendering state key to the programme/UI boundary for the remaining
    actions. The renderer must
    select a named P1 action sequence; it must not infer an action by mutating
    or replacing the persistent pet state.
-6. Define action duration, frame cadence, interruption rules, and what A, B,
+7. Define action duration, frame cadence, interruption rules, and what A, B,
    and C do while each action is on screen. Keep those rules separate from the
    one-bit drawing data.
-7. Add deterministic display/controller tests for each finite animation:
+8. Add deterministic display/controller tests for each finite animation:
    start frame, frame order, completion, cancellation where P1 permits it,
    and return to the expected screen.
 

@@ -53,6 +53,7 @@ public:
     [[nodiscard]] static const P1Sprite& spriteForCharacter(std::string_view characterId) noexcept;
     [[nodiscard]] static const P1Sprite& sickSpriteForCharacter(std::string_view characterId) noexcept;
     [[nodiscard]] static const P1SpriteFrame& sicknessIndicator() noexcept;
+    [[nodiscard]] static const P1Sprite& sleepIndicator() noexcept;
     [[nodiscard]] static const P1Sprite& waste() noexcept;
 };
 
