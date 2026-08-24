@@ -289,6 +289,12 @@ baseline and proves exit 2, while the ordinary 11:00 candidate remains `NO REGRE
 retains its own refusal and diagnostic self-comparison remains supported. Focused suites pass 7/7,
 7/7, and 6/6.
 
+Schema-8 memory summaries are also re-derived. Peak RSS must agree with `memory.known`; RAM/VRAM
+budget flags must agree with the locked limits; and the three logical VRAM categories must sum to
+raw `tracked_bytes` or enriched `logical_tracked_bytes`. Four report negatives reject contradictions,
+and enrichment validates its result. Report 7/7, comparator 7/7, VRAM 6/6, both retained Xvfb
+diagnostics, and full 8/8 CTest pass; no graphical process ran.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

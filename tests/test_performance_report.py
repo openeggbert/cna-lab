@@ -112,11 +112,17 @@ def capture_fixture() -> dict:
         "memory": {
             "peak_resident_bytes": 128 * 1024 * 1024,
             "known": True,
+            "budget_pass": True,
         },
         "video_memory": {
             "tracked_bytes": 64 * 1024 * 1024,
+            "game_owned_bytes": 64 * 1024 * 1024,
+            "imported_model_buffer_bytes": 0,
+            "imported_model_texture_bytes": 0,
             "logical_tracked_bytes": 64 * 1024 * 1024,
             "tracking_complete": True,
+            "tracked_budget_pass": True,
+            "coverage": "complete test coverage",
             "complete_evidence": {
                 "schema_version": 1,
                 "source": "external_capture",
@@ -509,6 +515,30 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_boundary_count], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("transitions must match district_load_cpu samples", result.stderr)
+
+        bad_memory_known = capture_fixture()
+        bad_memory_known["memory"]["known"] = False
+        result = self.run_report([bad_memory_known], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("memory.known must equal", result.stderr)
+
+        bad_memory_budget = capture_fixture()
+        bad_memory_budget["memory"]["budget_pass"] = False
+        result = self.run_report([bad_memory_budget], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("memory.budget_pass must match", result.stderr)
+
+        bad_vram_categories = capture_fixture()
+        bad_vram_categories["video_memory"]["game_owned_bytes"] -= 1
+        result = self.run_report([bad_vram_categories], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("logical_tracked_bytes must equal", result.stderr)
+
+        bad_vram_budget = capture_fixture()
+        bad_vram_budget["video_memory"]["tracked_budget_pass"] = False
+        result = self.run_report([bad_vram_budget], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("tracked_budget_pass must match", result.stderr)
 
         bad_session_time = capture_fixture()
         bad_session_time["capture_session"]["started_utc"] = (

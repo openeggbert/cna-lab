@@ -100,11 +100,19 @@ def capture_fixture() -> dict:
                 "maximum_ms": 17.0,
             },
         },
-        "memory": {"peak_resident_bytes": 128 * 1024 * 1024, "known": True},
+        "memory": {
+            "peak_resident_bytes": 128 * 1024 * 1024,
+            "known": True,
+            "budget_pass": True,
+        },
         "video_memory": {
             "tracked_bytes": 64 * 1024 * 1024,
+            "game_owned_bytes": 64 * 1024 * 1024,
+            "imported_model_buffer_bytes": 0,
+            "imported_model_texture_bytes": 0,
             "logical_tracked_bytes": 64 * 1024 * 1024,
             "tracking_complete": True,
+            "tracked_budget_pass": True,
             "coverage": "complete test coverage",
             "complete_evidence": {
                 "schema_version": 1,

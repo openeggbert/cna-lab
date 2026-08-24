@@ -630,3 +630,16 @@ The VRAM integration rebinds the candidate to PID 4244 at 09:00:05-09:00:55 whil
 10:00:05 baseline and separate source archive, then proves exit 2. Its normal PID-4243 11:00:05
 candidate still reaches `NO REGRESSION`. Focused suites remain report 7/7, comparator 7/7, and VRAM
 6/6. Diagnostic self-comparison remains intentionally exempt.
+
+## 2026-08-24 — memory-summary consistency
+
+The shared schema-8 loader now reconstructs the producer's memory relationships. Nonzero peak RSS
+must agree with `memory.known`; RAM and tracked-VRAM `budget_pass` flags must equal decisions from
+the locked 2 GiB and 512 MiB limits. The three logical VRAM categories must sum to raw
+`tracked_bytes`, or to enriched `logical_tracked_bytes` once an external residency maximum replaces
+the tracked total. Coverage remains a required printable single line.
+
+Report negatives exercise false known/budget flags and mismatched logical category totals; the VRAM
+binder validates both the raw input and its enriched output. Report 7/7, comparator 7/7, VRAM 6/6,
+both retained real Xvfb captures, and full 8/8 CTest pass without launching the game. This rejects
+internally contradictory evidence but supplies no physical M12 measurement.

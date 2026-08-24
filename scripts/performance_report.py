@@ -639,6 +639,54 @@ def validate_complete_vram_evidence(
         )
 
 
+def validate_memory_summary(capture: dict[str, Any]) -> None:
+    peak_resident_bytes = _integer(capture, "memory", "peak_resident_bytes")
+    memory_known = _boolean(capture, "memory", "known")
+    expected_known = peak_resident_bytes > 0
+    if memory_known != expected_known:
+        raise ReportError(
+            "memory.known must equal whether memory.peak_resident_bytes is nonzero"
+        )
+    memory_budget_pass = _boolean(capture, "memory", "budget_pass")
+    expected_memory_pass = expected_known and peak_resident_bytes <= RAM_BUDGET_BYTES
+    if memory_budget_pass != expected_memory_pass:
+        raise ReportError(
+            "memory.budget_pass must match the derived peak-resident RAM budget result"
+        )
+
+    tracked_bytes = _integer(capture, "video_memory", "tracked_bytes")
+    category_bytes = sum(
+        _integer(capture, "video_memory", key)
+        for key in (
+            "game_owned_bytes",
+            "imported_model_buffer_bytes",
+            "imported_model_texture_bytes",
+        )
+    )
+    tracking_complete = _boolean(capture, "video_memory", "tracking_complete")
+    if tracking_complete:
+        logical_tracked_bytes = _integer(
+            capture, "video_memory", "logical_tracked_bytes"
+        )
+        if logical_tracked_bytes != category_bytes:
+            raise ReportError(
+                "video_memory.logical_tracked_bytes must equal the sum of the three "
+                "logical VRAM categories"
+            )
+    elif tracked_bytes != category_bytes:
+        raise ReportError(
+            "incomplete video_memory.tracked_bytes must equal the sum of the three "
+            "logical VRAM categories"
+        )
+
+    tracked_budget_pass = _boolean(capture, "video_memory", "tracked_budget_pass")
+    if tracked_budget_pass != (tracked_bytes <= VRAM_BUDGET_BYTES):
+        raise ReportError(
+            "video_memory.tracked_budget_pass must match the derived tracked VRAM budget result"
+        )
+    _single_line_string(capture, "video_memory", "coverage")
+
+
 def load_capture(path: Path) -> dict[str, Any]:
     try:
         with path.open("r", encoding="utf-8") as source:
@@ -674,8 +722,7 @@ def load_capture(path: Path) -> dict[str, Any]:
     for metric in measurements:
         validate_measurement_summary(capture, metric)
     validate_frame_pacing(capture, path)
-    _number(capture, "memory", "peak_resident_bytes")
-    _number(capture, "video_memory", "tracked_bytes")
+    validate_memory_summary(capture)
     swap_interval_acknowledged(capture)
     validate_capture_session(capture, required=False)
     validate_complete_vram_evidence(capture)

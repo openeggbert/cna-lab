@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 memory summaries are now checked against their stored byte counts.** The shared loader no
+longer trusts producer-authored RAM/VRAM booleans or independently editable category totals.
+
+- `memory.known` must exactly describe whether peak RSS is nonzero, and `memory.budget_pass` plus
+  `video_memory.tracked_budget_pass` must equal the results derived from the locked budgets.
+- Raw logical `tracked_bytes`, or enriched `logical_tracked_bytes`, must equal the sum of game-owned,
+  imported-model-buffer, and imported-model-texture bytes. Report coverage rejects all four
+  contradiction classes; the binder revalidates the enriched result it creates.
+- Report 7/7, comparator 7/7, VRAM 6/6, both retained real Xvfb diagnostics, and full 8/8 CTest pass.
+  No game process ran and this supplies no physical M12 capture.
+
 **M12 qualifying comparisons now enforce baseline-before-candidate chronology.** Non-overlap alone
 is insufficient: candidate UTC start must be at or after baseline UTC end.
 

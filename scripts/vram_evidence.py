@@ -24,6 +24,7 @@ from performance_report import (
     load_capture,
     validate_complete_vram_evidence,
     validate_external_vram_measurement,
+    validate_memory_summary,
 )
 
 
@@ -104,6 +105,7 @@ def enrich_capture(
         "source_artifact": evidence["source_artifact"],
         "evidence_manifest_sha256": evidence_manifest_sha256,
     }
+    validate_memory_summary(capture)
     validate_complete_vram_evidence(capture)
     return capture
 
