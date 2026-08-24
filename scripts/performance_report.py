@@ -416,6 +416,87 @@ def validate_measurement_summary(capture: dict[str, Any], metric: str) -> None:
         )
 
 
+def _validate_stored_pass(
+    capture: dict[str, Any],
+    check: str,
+    metric: str,
+    budget_ms: float,
+) -> None:
+    actual = _boolean(capture, "checks", check)
+    samples = _integer(capture, "measurements", metric, "samples")
+    percentile = _number(capture, "measurements", metric, "p95_ms")
+    if samples == 0:
+        expected = False
+    elif percentile == budget_ms:
+        # The producer evaluates full-precision samples but serializes p95 to three decimals.
+        # At the rounded boundary either stored result can be faithful to the hidden value.
+        return
+    else:
+        expected = percentile < budget_ms
+    if actual != expected:
+        raise ReportError(
+            f"checks.{check} must match measurements.{metric} availability and p95 budget"
+        )
+
+
+def validate_derived_checks(capture: dict[str, Any]) -> None:
+    _validate_stored_pass(
+        capture,
+        "minimum_frame_rate_pass",
+        "frame_interval",
+        SCHEMA_MINIMUM_FRAME_MS,
+    )
+    _validate_stored_pass(
+        capture,
+        "recommended_frame_rate_pass",
+        "frame_interval",
+        SCHEMA_RECOMMENDED_FRAME_MS,
+    )
+
+    cpu_pass = _boolean(capture, "checks", "cpu_subsystems_pass")
+    cpu_definitely_fails = False
+    cpu_has_rounded_boundary = False
+    for metric, budget_ms in CPU_BUDGETS_MS.items():
+        samples = _integer(capture, "measurements", metric, "samples")
+        percentile = _number(capture, "measurements", metric, "p95_ms")
+        cpu_definitely_fails |= samples == 0 or percentile > budget_ms
+        cpu_has_rounded_boundary |= samples > 0 and percentile == budget_ms
+    if cpu_definitely_fails:
+        expected_cpu_pass: bool | None = False
+    elif cpu_has_rounded_boundary:
+        expected_cpu_pass = None
+    else:
+        expected_cpu_pass = True
+    if expected_cpu_pass is not None and cpu_pass != expected_cpu_pass:
+        raise ReportError(
+            "checks.cpu_subsystems_pass must match CPU measurement availability and p95 budgets"
+        )
+
+    district_samples = _integer(
+        capture, "measurements", "district_load_cpu", "samples"
+    )
+    district_check = _path(capture, "checks", "district_load_pass")
+    if district_samples == 0:
+        if district_check is not None:
+            raise ReportError(
+                "checks.district_load_pass must be null when district_load_cpu has no samples"
+            )
+    else:
+        if not isinstance(district_check, bool):
+            raise ReportError(
+                "checks.district_load_pass must be boolean when district_load_cpu has samples"
+            )
+        district_p95 = _number(
+            capture, "measurements", "district_load_cpu", "p95_ms"
+        )
+        if district_p95 != DISTRICT_LOAD_BUDGET_MS:
+            expected_district_pass = district_p95 < DISTRICT_LOAD_BUDGET_MS
+            if district_check != expected_district_pass:
+                raise ReportError(
+                    "checks.district_load_pass must match district_load_cpu p95 budget"
+                )
+
+
 def _validate_pacing_counter(
     capture: dict[str, Any],
     key: str,
@@ -722,6 +803,7 @@ def load_capture(path: Path) -> dict[str, Any]:
     for metric in measurements:
         validate_measurement_summary(capture, metric)
     validate_frame_pacing(capture, path)
+    validate_derived_checks(capture)
     validate_memory_summary(capture)
     swap_interval_acknowledged(capture)
     validate_capture_session(capture, required=False)

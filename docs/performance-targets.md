@@ -358,6 +358,14 @@ source of truth. Their sum must equal `frame_interval.samples`; fixed bound meta
 three-decimal percentages are re-derived from the buckets. A changed derived count, percentage,
 comparison, or threshold makes the capture malformed (exit 2).
 
+The schema's `checks` object is redundant by design and is therefore correlated with the stored
+summaries rather than trusted. Frame minimum/recommended and aggregate CPU booleans must agree with
+sample availability and p95 budget direction; district load is `null` exactly when no load sample
+exists and otherwise follows its p95. One caveat is deliberate: the producer evaluates a
+full-precision p95 but writes three decimals, so when a stored p95 exactly equals its serialized
+budget either boolean can represent a valid hidden value. Outside that rounded boundary,
+contradictions are malformed evidence (exit 2).
+
 Each synchronous `RecordDistrictLoad` marks the index of the first frame-interval sample recorded
 after it. `district_transition_boundaries` reports total transitions, boundaries actually measured
 before capture end, how many crossed the 50 ms hitch threshold, and their maximum. A transition on

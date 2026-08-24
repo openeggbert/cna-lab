@@ -67,6 +67,18 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 producer-authored `checks` are now correlated with measurement summaries.** Frame minimum,
+frame recommended, aggregate CPU, and district-load pass fields can no longer contradict stored
+sample availability and p95 values.
+
+- Four negative report cases flip or null those fields and prove exit 2. A fifth case preserves
+  either boolean at a p95 exactly equal to a three-decimal budget, because C++ evaluates its hidden
+  full-precision value before serializing the rounded summary.
+- Primary measurement/histogram invariants are evaluated first, so errors name the underlying data
+  corruption before a downstream derived-check mismatch.
+- Report 7/7, comparator 7/7, VRAM 6/6, both retained real Xvfb diagnostics, and full isolated 8/8
+  CTest pass. Its smoke process ran only inside Xvfb and this supplies no physical M12 capture.
+
 **M12 memory summaries are now checked against their stored byte counts.** The shared loader no
 longer trusts producer-authored RAM/VRAM booleans or independently editable category totals.
 

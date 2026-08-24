@@ -295,6 +295,13 @@ raw `tracked_bytes` or enriched `logical_tracked_bytes`. Four report negatives r
 and enrichment validates its result. Report 7/7, comparator 7/7, VRAM 6/6, both retained Xvfb
 diagnostics, and full 8/8 CTest pass; no graphical process ran.
 
+Producer-authored `checks` are correlated with frame/CPU/district sample availability and p95 budget
+direction. Frame minimum/recommended, aggregate CPU, and district-load contradictions exit 2;
+district load is `null` only without samples. Exact serialized budget equality deliberately accepts
+either boolean because C++ evaluates full precision before writing three decimals. Four negative
+and one boundary report cases pass alongside comparator 7/7, VRAM 6/6, both retained diagnostics,
+and full 8/8 CTest with its graphical smoke process isolated inside Xvfb.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

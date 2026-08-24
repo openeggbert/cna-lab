@@ -643,3 +643,17 @@ Report negatives exercise false known/budget flags and mismatched logical catego
 binder validates both the raw input and its enriched output. Report 7/7, comparator 7/7, VRAM 6/6,
 both retained real Xvfb captures, and full 8/8 CTest pass without launching the game. This rejects
 internally contradictory evidence but supplies no physical M12 measurement.
+
+## 2026-08-24 — derived-check consistency
+
+The shared loader now correlates schema-8 `checks.minimum_frame_rate_pass`,
+`recommended_frame_rate_pass`, `cpu_subsystems_pass`, and `district_load_pass` with measurement
+sample availability and stored p95 values. District load must be `null` only with zero samples;
+ordinary contradictory booleans are malformed evidence rather than ignored metadata.
+
+At a stored p95 exactly equal to a three-decimal budget, either boolean remains allowed: C++ makes
+the decision from its full-precision statistic before serializing the rounded p95, so the hidden
+value cannot be reconstructed honestly. Report coverage proves four contradictions fail and a
+rounded CPU-boundary case remains readable. Report 7/7, comparator 7/7, VRAM 6/6, and both retained
+Xvfb captures pass without launching the game. Full 8/8 CTest also passes with its smoke process
+isolated inside Xvfb; this adds no physical M12 measurement.

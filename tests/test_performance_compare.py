@@ -137,6 +137,12 @@ def capture_fixture() -> dict:
             "pedestrians": 2,
             "police_vehicles": 0,
         },
+        "checks": {
+            "minimum_frame_rate_pass": True,
+            "recommended_frame_rate_pass": True,
+            "cpu_subsystems_pass": True,
+            "district_load_pass": True,
+        },
         "budgets": {
             "minimum_frame_p95_ms": 33.333,
             "recommended_frame_p95_ms": 16.667,
@@ -205,6 +211,7 @@ class PerformanceCompareTests(unittest.TestCase):
         candidate = deepcopy(baseline)
         candidate["measurements"]["frame_interval"]["p95_ms"] = 20.0
         candidate["measurements"]["frame_interval"]["maximum_ms"] = 20.0
+        candidate["checks"]["recommended_frame_rate_pass"] = False
         candidate["frame_pacing"]["histogram"]["at_or_below_recommended_budget"]["count"] = 94
         candidate["frame_pacing"]["histogram"][
             "above_recommended_at_or_below_minimum_budget"
@@ -223,6 +230,7 @@ class PerformanceCompareTests(unittest.TestCase):
         candidate = deepcopy(baseline)
         candidate["measurements"]["frame_interval"]["p95_ms"] = 20.0
         candidate["measurements"]["frame_interval"]["maximum_ms"] = 20.0
+        candidate["checks"]["recommended_frame_rate_pass"] = False
         candidate["frame_pacing"]["histogram"]["at_or_below_recommended_budget"]["count"] = 94
         candidate["frame_pacing"]["histogram"][
             "above_recommended_at_or_below_minimum_budget"

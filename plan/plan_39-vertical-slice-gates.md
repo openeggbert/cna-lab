@@ -40,6 +40,9 @@ rather than being a one-time final check.
     *Memory-summary follow-up: peak-RSS known/budget flags, tracked-VRAM budget state, and the three
     logical VRAM category totals are now re-derived by the shared loader and binder instead of
     trusted as independent claims. Contradictory records exit 2; no physical capture was added.*
+    *Derived-check follow-up: frame, aggregate-CPU, and nullable district-load pass fields must agree
+    with stored sample/p95 direction, except at an exact three-decimal budget boundary where hidden
+    producer precision makes either boolean possible. Contradictions exit 2; no capture was added.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).

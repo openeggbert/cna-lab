@@ -146,6 +146,12 @@ def capture_fixture() -> dict:
             "pedestrians": 2,
             "police_vehicles": 0,
         },
+        "checks": {
+            "minimum_frame_rate_pass": True,
+            "recommended_frame_rate_pass": False,
+            "cpu_subsystems_pass": True,
+            "district_load_pass": True,
+        },
         "budgets": {
             "minimum_frame_p95_ms": 33.333,
             "recommended_frame_p95_ms": 16.667,
@@ -539,6 +545,37 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_vram_budget], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("tracked_budget_pass must match", result.stderr)
+
+        bad_frame_check = capture_fixture()
+        bad_frame_check["checks"]["minimum_frame_rate_pass"] = False
+        result = self.run_report([bad_frame_check], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("minimum_frame_rate_pass must match", result.stderr)
+
+        bad_recommended_check = capture_fixture()
+        bad_recommended_check["checks"]["recommended_frame_rate_pass"] = True
+        result = self.run_report([bad_recommended_check], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("recommended_frame_rate_pass must match", result.stderr)
+
+        bad_cpu_check = capture_fixture()
+        bad_cpu_check["checks"]["cpu_subsystems_pass"] = False
+        result = self.run_report([bad_cpu_check], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("cpu_subsystems_pass must match", result.stderr)
+
+        bad_district_check = capture_fixture()
+        bad_district_check["checks"]["district_load_pass"] = None
+        result = self.run_report([bad_district_check], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("district_load_pass must be boolean", result.stderr)
+
+        rounded_cpu_boundary = capture_fixture()
+        rounded_cpu_boundary["measurements"]["render_cpu"]["p95_ms"] = 8.0
+        rounded_cpu_boundary["measurements"]["render_cpu"]["maximum_ms"] = 8.0
+        rounded_cpu_boundary["checks"]["cpu_subsystems_pass"] = False
+        result = self.run_report([rounded_cpu_boundary], "Test hardware")
+        self.assertEqual(result.returncode, 0, result.stderr)
 
         bad_session_time = capture_fixture()
         bad_session_time["capture_session"]["started_utc"] = (
