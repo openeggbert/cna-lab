@@ -1014,6 +1014,27 @@ namespace
                 "performance profiler p95 must use the nearest-rank definition");
         Require(std::abs(frame.maximumMilliseconds - 20.0) < 1e-9,
                 "performance profiler maximum must match the largest sample");
+        const std::vector<IronGang::WorstFrameInterval>& worstFrames =
+            profiler.GetWorstFrameIntervals();
+        Require(worstFrames.size() == IronGang::kWorstFrameIntervalRetentionCount &&
+                    worstFrames.front().sampleIndex == 19 &&
+                    std::abs(worstFrames.front().milliseconds - 20.0) < 1e-9 &&
+                    worstFrames.back().sampleIndex == 12 &&
+                    std::abs(worstFrames.back().milliseconds - 13.0) < 1e-9,
+                "worst-frame retention must keep the bounded largest intervals in descending order");
+
+        IronGang::PerformanceProfiler phaseProfiler;
+        phaseProfiler.SetEnabled(true);
+        phaseProfiler.RecordFrameInterval(18.0, "mixed_walk", 119);
+        phaseProfiler.RecordFrameInterval(75.0, "mixed_drive", 121);
+        phaseProfiler.RecordFrameInterval(75.0, "mixed_walk", 80);
+        const std::vector<IronGang::WorstFrameInterval>& phasedFrames =
+            phaseProfiler.GetWorstFrameIntervals();
+        Require(phasedFrames.size() == 3 && phasedFrames[0].sampleIndex == 1 &&
+                    phasedFrames[0].phase == "mixed_drive" &&
+                    phasedFrames[0].scenarioUpdate == 121 &&
+                    phasedFrames[1].sampleIndex == 2 && phasedFrames[1].phase == "mixed_walk",
+                "worst-frame ties must preserve sample order and retain phase/update correlation");
         const IronGang::FramePacingStatistics framePacing = profiler.GetFramePacingStatistics();
         Require(framePacing.sampleCount == 20 &&
                     framePacing.atOrBelowRecommendedBudgetCount == 16 &&
@@ -1139,6 +1160,11 @@ namespace
                     report.find("\"district_transition_boundaries\": {\"transitions\": 1, \"measured_samples\": 0, \"hitch_count\": 0, \"maximum_ms\": null}") !=
                         std::string::npos,
                 "performance report must expose stable pacing buckets, strict hitch policy, and boundary coverage");
+        Require(report.find("\"worst_frame_intervals\": {") != std::string::npos &&
+                    report.find("\"retention_limit\": 8") != std::string::npos &&
+                    report.find("{\"sample_index\": 19, \"interval_ms\": 20.000, \"phase\": \"unspecified\", \"scenario_update\": null}") !=
+                        std::string::npos,
+                "performance report must retain bounded worst-frame index/phase correlation");
         Require(report.find("\"bodies\": {\"samples\": 2, \"average\": 8.000, \"p95\": 9.000") !=
                         std::string::npos &&
                     report.find("\"rigid_body_contact_manifolds\": {\"samples\": 1, \"average\": 3.000") !=

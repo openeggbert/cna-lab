@@ -45,6 +45,12 @@ Establish budgets and measure representative district workloads against the lock
   *Boundary-occupancy follow-up: a boundary maximum must match at least one populated global
   histogram bucket. Threshold rounding may match either adjacent bucket; an interior value in an
   empty bucket exits 2.*
+  *Worst-frame-correlation follow-up: the producer keeps the eight largest existing frame-interval
+  samples online with bounded storage and records zero-based index plus phase/scenario update. The
+  shared loader validates scope/count/order/index/histogram/maximum correlation, and release and
+  comparison reports expose the records without making them new gate metrics. A real invisible AMD
+  pair localized 30.114/26.204 ms maxima to mixed-drive updates 536/210; the earlier ~76 ms hitch did
+  not reproduce.*
 - [x] **IG-35-016 P1** — Create release performance reports against the locked minimum/recommended hardware targets. *(`scripts/performance_report.py` consumes one or more schema-8 captures and emits a deterministic Markdown summary with per-capture 30/60 FPS, CPU, RAM, complete-VRAM, district-load, hitch, exact requested/applied presentation, and file/session provenance. Qualification requires at least two mixed captures with distinct canonical contents and non-overlapping session intervals on explicitly declared single-line physical hardware plus one verified, cross-bundle inode-independent original/manifest/raw-artifact archive per enriched capture. Mixed runs must share exact resolution/timing/presentation/GPU-timer/workload/VRAM-tool policy and stored budgets must equal the locked evaluator constants. Copied/renamed/reformatted evidence, overlapping sessions, inconsistent policy, ambiguous/control-character identities, missing/mutated/reused sources, duplicate keys/non-standard numeric JSON, and output aliases that could overwrite evidence are rejected. Dynamic text/file names are escaped so they cannot alter Markdown/HTML structure.)*
   *Presentation-boundary follow-up: fixed proof text cannot claim physical vblank/compositor
   behavior, and unavailable reason must be empty exactly on successful apply. Three contradictory
@@ -67,6 +73,9 @@ Establish budgets and measure representative district workloads against the lock
   *Sample-window follow-up: qualifying mixed comparisons share the release report's 899-sample
   frame/CPU/workload floor. A fully rebound four-interval candidate exits 2, while shorter
   diagnostic comparisons remain available.*
+  *Worst-frame-context follow-up: baseline/candidate Markdown displays each capture's optional
+  bounded top-eight interval/index/phase/update list after shared integrity validation. The context
+  remains non-regressing and older schema-8 diagnostics stay comparable.*
 - [x] **IG-35-025 P1** — Define scope and implement the smallest working frame profiler (CPU/GPU time per subsystem, one sun + limited shadows, EasyGL only). *(Done: CPU subsystem/Present timings plus a true asynchronous GPU Draw-range query; unsupported drivers report why and never receive a fabricated CPU fallback.)*
 - [x] **IG-35-026 P1** — Add unit tests and one real-flow integration test for the frame profiler. *(Done: exact statistic/report-policy tests plus isolated full-mixed and 120-frame GPU-timed EasyGL/Xvfb flows.)*
 - [x] **IG-35-027 P1** — Add logging/overlay output and documentation for the frame profiler. *(Done through versioned JSON report output and `docs/performance-targets.md`/`performance-baseline.md`; a live overlay is unnecessary for the smallest automated profiler scope.)*
@@ -125,5 +134,8 @@ Establish budgets and measure representative district workloads against the lock
   *Scope-integrity follow-up: the report loader requires the exact producer meanings for ordinary
   frame intervals and post-`RecordDistrictLoad` boundaries. Two relabelled-scope cases exit 2, so
   otherwise consistent histogram data cannot claim a different sampling boundary.*
+  *Outlier-correlation follow-up: schema-8 documentation now defines the optional bounded
+  `worst_frame_intervals` extension, exact retention/ordering semantics, phase/update meaning,
+  backward compatibility, and report/comparator presentation.*
 - [x] **IG-35-051 P2** — Define scope and implement the smallest working memory-leak soak test (repeated district load/unload, mission replay, save/load cycles). *(The no-window executable has a bounded default/CTest run of 200 cycles and configurable `--cycles` up to 100,000. After 20-cycle warm-up it checks <=8 MiB current-RSS growth, <=16 MiB peak growth, <=32 KiB/cycle linear trend, and exact restoration of 8 WarehouseBlock static bodies.)*
 - [x] **IG-35-052 P2** — Add CI wiring and documentation for the memory-leak soak test. *(A sixth CTest runs 200 cycles with a 60-second timeout and `soak;performance` labels. Real 200- and 5,000-cycle runs both finished with only +4 KiB current/peak RSS; the long run's slope rounded to 0 B/cycle. Docs distinguish this lifecycle leak guard from graphical/physical qualification.)*

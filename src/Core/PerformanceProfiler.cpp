@@ -338,7 +338,8 @@ namespace IronGang
         }
     }
 
-    void PerformanceProfiler::BeginFrame()
+    void PerformanceProfiler::BeginFrame(std::string_view phase,
+                                         std::optional<std::uint64_t> scenarioUpdate)
     {
         if (!enabled_)
         {
@@ -348,8 +349,10 @@ namespace IronGang
         const Clock::time_point now = Clock::now();
         if (previousFrameStart_)
         {
-            Record(PerformanceMetric::FrameInterval,
-                   std::chrono::duration<double, std::milli>(now - *previousFrameStart_).count());
+            RecordFrameInterval(
+                std::chrono::duration<double, std::milli>(now - *previousFrameStart_).count(),
+                phase,
+                scenarioUpdate);
         }
         previousFrameStart_ = now;
     }
@@ -360,7 +363,47 @@ namespace IronGang
         {
             return;
         }
+        if (metric == PerformanceMetric::FrameInterval)
+        {
+            RecordFrameInterval(milliseconds);
+            return;
+        }
         samples_[MetricIndex(metric)].push_back(milliseconds);
+    }
+
+    void PerformanceProfiler::RecordFrameInterval(
+        double milliseconds,
+        std::string_view phase,
+        std::optional<std::uint64_t> scenarioUpdate)
+    {
+        if (!enabled_ || !std::isfinite(milliseconds) || milliseconds < 0.0)
+        {
+            return;
+        }
+
+        std::vector<double>& samples = samples_[MetricIndex(PerformanceMetric::FrameInterval)];
+        const std::size_t sampleIndex = samples.size();
+        samples.push_back(milliseconds);
+        WorstFrameInterval outlier;
+        outlier.sampleIndex = sampleIndex;
+        outlier.milliseconds = milliseconds;
+        outlier.phase = phase.empty() ? "unspecified" : std::string(phase);
+        outlier.scenarioUpdate = scenarioUpdate;
+        worstFrameIntervals_.push_back(std::move(outlier));
+        std::sort(worstFrameIntervals_.begin(),
+                  worstFrameIntervals_.end(),
+                  [](const WorstFrameInterval& left, const WorstFrameInterval& right)
+                  {
+                      if (left.milliseconds != right.milliseconds)
+                      {
+                          return left.milliseconds > right.milliseconds;
+                      }
+                      return left.sampleIndex < right.sampleIndex;
+                  });
+        if (worstFrameIntervals_.size() > kWorstFrameIntervalRetentionCount)
+        {
+            worstFrameIntervals_.resize(kWorstFrameIntervalRetentionCount);
+        }
     }
 
     void PerformanceProfiler::RecordRenderWorkload(RenderWorkloadMetric metric, std::uint64_t count)
@@ -849,6 +892,29 @@ namespace IronGang
                 output << "null";
             }
             output << "}\n"
+                   << "  },\n"
+                   << "  \"worst_frame_intervals\": {\n"
+                   << "    \"scope\": \"largest frame intervals selected online from the same BeginFrame wall-clock samples; sample_index is zero-based and phase/scenario_update describe the BeginFrame ending the interval\",\n"
+                   << "    \"retention_limit\": " << kWorstFrameIntervalRetentionCount << ",\n"
+                   << "    \"samples\": [\n";
+            for (std::size_t index = 0; index < worstFrameIntervals_.size(); ++index)
+            {
+                const WorstFrameInterval& outlier = worstFrameIntervals_[index];
+                output << "      {\"sample_index\": " << outlier.sampleIndex
+                       << ", \"interval_ms\": " << outlier.milliseconds
+                       << ", \"phase\": \"" << EscapeJson(outlier.phase)
+                       << "\", \"scenario_update\": ";
+                if (outlier.scenarioUpdate)
+                {
+                    output << *outlier.scenarioUpdate;
+                }
+                else
+                {
+                    output << "null";
+                }
+                output << "}" << (index + 1U == worstFrameIntervals_.size() ? "\n" : ",\n");
+            }
+            output << "    ]\n"
                    << "  },\n"
                    << "  \"district_load\": {\n"
                    << "    \"content_path\": \"procedural in-memory PrototypeWorld; no district file/package is read during a transition\",\n"

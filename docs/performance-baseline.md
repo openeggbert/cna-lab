@@ -1157,3 +1157,36 @@ workflow-error status 2. First original/raw/manifest/complete hashes are
 `11da715a…c0ecf`, `0a0705a9…11a81`, `9ccc4b45…487f`, `8d247399…7193`.
 Qualification/comparison hashes are `df144a02…6f677` and `cdfd731b…e4e8c`. This validates the
 orchestrator, not physical presentation; no visible window was possible during the run.
+
+## 2026-08-24 — bounded worst-frame correlation and repeatability check
+
+Schema 8 now adds an optional bounded `worst_frame_intervals` block. The producer selects the eight
+largest existing `BeginFrame` wall-clock intervals online, recording the zero-based aggregate sample
+index and the scenario phase/update at the call ending each interval. It does not duplicate the full
+sample stream or alter any qualification threshold. The shared loader verifies its exact scope,
+limit/count, unique in-range indices, descending order, histogram occupancy, canonical context, and
+first-record equality with `frame_interval.maximum_ms`; report and comparator Markdown expose it.
+Older schema-8 diagnostics without the block remain readable.
+
+The paired orchestrator was rerun on the real AMD Radeon 780M using SDL `offscreen`, dummy audio,
+and no `DISPLAY`/`WAYLAND_DISPLAY`. Run 1 (PID 2242104, 17:45:40.927890Z–17:45:56.063274Z) records
+899 intervals at 17.997 ms p95/30.114 ms maximum; run 2 (PID 2242594,
+17:45:56.624895Z–17:46:11.775075Z) records 17.868/26.204 ms. Both have zero >33.333 ms misses,
+>50 ms hitches, and >100 ms severe hitches. Their transition frames are 17.662/17.445 ms and loads
+0.763/0.670 ms. Update/physics/render p95 is 0.525/0.454/1.056 ms and
+0.408/0.345/1.002 ms; GPU Draw/Present p95 is 0.115/0.050 and 0.114/0.049 ms. RAM is
+185,782,272/185,491,456 B. The earlier paired ~76 ms hitch did not reproduce.
+
+The largest records localize to `mixed_drive`: run 1 sample 534/update 536 at 30.114 ms, run 2
+sample 208/update 210 at 26.204 ms. Both complete DRM peaks remain 58,273,792 B (55.574 MiB), based
+on 711/717 successful snapshots out of 723/729 attempts with zero fdinfo read error. Qualification
+still returns the designed valid-failure exit 1 with only the explicit offscreen label and each
+capture's machine-derived `Headless` state; diagnostic comparison is `NO REGRESSION`.
+
+Artifacts are under `/tmp/iron-gang-m12-worst-frame-real-20260824`. Run-1 original/raw/manifest/
+complete SHA-256 values are `8c8b1ede…4b97`, `0d017ae4…218a`, `343c755d…27bb`,
+`5ae8e8d2…7686`; run 2 values are `fa73e9c7…53d0`, `721db84f…9176`, `8c56885d…cf8d`,
+`d77d4d67…98b6`. Qualification/comparison hashes are `f295ac8c…fde4` and
+`1ac808a2…987`. Release EasyGL and compile-software builds, focused 8/8 report and 8/8 comparison
+suites, strict syntax validation, and complete CTest 9/9 all pass. No visible window was created;
+physical-display M12 remains open.

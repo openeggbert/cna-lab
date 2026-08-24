@@ -27,6 +27,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace IronGang
@@ -87,6 +88,7 @@ namespace IronGang
         void RespawnTrafficAndPedestrians();
         void RecordRenderWorkload();
         void RecordPhysicsWorkload();
+        [[nodiscard]] std::string_view CurrentPerformancePhase() const noexcept;
         void CaptureSwapIntervalAcceptance();
         void CaptureGraphicsRuntimeIdentity();
         void RecordDistrictLoadSample(const char* reason,

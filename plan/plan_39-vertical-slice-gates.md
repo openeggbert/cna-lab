@@ -146,6 +146,13 @@ rather than being a one-time final check.
     frame/CPU/RAM/complete-VRAM/district budgets and produce semantically verified source bundles.
     Both peak at 55.57 MiB total DRM residency despite different GTT/VRAM placement. A qualifying
     audit's sole blocker is the offscreen label; M12 still requires the physical display path.*
+    *Worst-frame-correlation follow-up: schema 8 now retains the bounded top eight frame intervals
+    with exact aggregate sample index and scenario phase/update, validates them in both Markdown
+    consumers, and remains backward-compatible with older diagnostics. A fresh no-visible-display
+    AMD pair reports 17.997/17.868 ms p95, 30.114/26.204 ms maximum, zero misses/hitches, stable
+    55.574 MiB complete residency, and `NO REGRESSION`; maxima are mixed-drive updates 536/210. The
+    offscreen label and two machine-derived `Headless` states remain the only qualification blockers,
+    so this improves diagnosis without closing M12.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).

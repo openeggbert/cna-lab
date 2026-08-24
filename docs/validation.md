@@ -560,9 +560,26 @@ budgets pass, qualification has only the explicit offscreen label plus two `Head
 comparison says `NO REGRESSION`. The designed process exit is 1 (valid gate failure), not workflow
 error 2. No visible display was available to the processes.
 
+The frame-outlier correlation follow-up adds bounded top-eight context to new schema-8 profiles:
+every retained existing frame interval includes its zero-based aggregate sample index and the
+scenario phase/update at the `BeginFrame` ending it. C++ tests prove top-eight retention, descending
+order, stable ties, phase/update storage, and JSON output. The report's expanded 8/8 suite validates
+good rendering plus duplicate/negative/out-of-range indices, wrong maximum/order, non-canonical
+phase/update, and record-count failures; comparator 8/8 proves both retained lists render. Older
+schema-8 diagnostics remain accepted without the additive block.
+
+Release EasyGL and compile-software rebuild, complete 9/9 CTest, and strict syntax validation pass.
+A real AMD offscreen paired run with both desktop display variables absent then exercised producer,
+DRM binding, report, and comparison end to end. Its two 899-interval captures record
+17.997/17.868 ms p95, 30.114/26.204 ms maximum, no >33.333 ms miss or hitch, and stable 55.574 MiB
+complete residency. The maxima correlate to `mixed_drive` samples 534/208 and scenario updates
+536/210; the earlier isolated ~76 ms hitch did not reproduce. Comparison is `NO REGRESSION` and the
+qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
+`Headless` states. No visible display was used and physical M12 remains open.
+
 ## Full CNA-linked build status
 
-A full Iron Gang executable (`iron_gang`) links successfully in this workspace using the `compile-software` preset against `../cnanext` and `../sharp-runtime`. The CNA-vendored SDL/SDL_image/SDL_mixer submodules are populated here; `cna-extended` is no longer required. The `dev-easygl` preset now selects CNA's public `OPENGLES3` renderer name (whose implementation is EasyGL), while `dev-vulkan` selects `VULKAN`. Only `compile-software` has been exercised end to end in this validation environment.
+A full Iron Gang executable (`iron_gang`) links successfully in this workspace using the `compile-software` preset against `../cnanext` and `../sharp-runtime`. The CNA-vendored SDL/SDL_image/SDL_mixer submodules are populated here; `cna-extended` is no longer required. The `dev-easygl` preset now selects CNA's public `OPENGLES3` renderer name (whose implementation is EasyGL), while `dev-vulkan` selects `VULKAN`. Both compile-software and Release EasyGL are exercised here; Vulkan remains unverified in this environment.
 
 ## Reproduction
 

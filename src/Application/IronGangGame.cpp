@@ -1409,9 +1409,52 @@ namespace IronGang
                                Color(205, 210, 205, 255));
     }
 
+    std::string_view IronGangGame::CurrentPerformancePhase() const noexcept
+    {
+        if (districtManager_.IsTransitioning())
+        {
+            return "district_transition";
+        }
+        switch (performanceScenario_)
+        {
+        case PerformanceScenario::InteractiveOrIntro:
+            return "interactive";
+        case PerformanceScenario::Intro:
+            return "intro";
+        case PerformanceScenario::Idle:
+            return "idle";
+        case PerformanceScenario::Walk:
+            return "walk";
+        case PerformanceScenario::Drive:
+            return "drive";
+        case PerformanceScenario::Mixed:
+            return playerDriving_ ? "mixed_drive" : "mixed_walk";
+        case PerformanceScenario::Mission:
+            if (dialogue_.IsActive())
+            {
+                return "mission_dialogue";
+            }
+            if (cutscene_.IsActive())
+            {
+                return "mission_cutscene";
+            }
+            if (vehicleTransitionState_ != VehicleTransitionState::None)
+            {
+                return "mission_vehicle_transition";
+            }
+            return playerDriving_ ? "mission_drive" : "mission_walk";
+        }
+        return "unknown";
+    }
+
     void IronGangGame::Draw(const GameTime& gameTime)
     {
-        performanceProfiler_.BeginFrame();
+        const std::optional<std::uint64_t> scenarioUpdate =
+            performanceScenario_ == PerformanceScenario::InteractiveOrIntro
+                ? std::nullopt
+                : std::optional<std::uint64_t>(
+                      static_cast<std::uint64_t>(performanceScenarioUpdate_));
+        performanceProfiler_.BeginFrame(CurrentPerformancePhase(), scenarioUpdate);
         if (performanceProfiler_.IsEnabled())
         {
             renderer_.BeginFrameWorkloadTracking();

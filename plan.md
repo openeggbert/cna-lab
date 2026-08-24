@@ -63,7 +63,11 @@ AMD offscreen `mixed` captures already pass every direct frame/CPU/district/RAM/
 and compare `NO REGRESSION`, but their machine-derived native-window evidence is `Headless/false`.
 They therefore establish the Linux EasyGL baseline and memory result without being promoted to a
 physical presentation/vblank gate pass. See `NEXT.md` and `docs/performance-baseline.md` for exact
-artifacts and the remaining capture procedure.
+artifacts and the remaining capture procedure. The latest schema-8 producer also retains the eight
+largest frame intervals with zero-based sample index plus scenario phase/update correlation; a fresh
+no-window AMD pair had 17.997/17.868 ms p95, 30.114/26.204 ms maximum, no minimum misses/hitches,
+stable 55.574 MiB complete residency, and `NO REGRESSION`. This diagnostic addition localizes future
+outliers but does not change the physical-display qualification boundary.
 
 ## Task index
 

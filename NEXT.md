@@ -8,8 +8,8 @@ until the end of a session to reconstruct it from memory.
 
 Repo: `/rv/data/development/github.com/openeggbert/iron-gang`, branch `develop` (not `master` —
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
-Remote `origin` is configured. Work is normally kept in local commits until explicitly authorized;
-the 2026-08-24 handoff described below is being pushed to `origin/develop` at the user's request.
+Remote `origin` is configured. Work is currently kept in local commits until explicitly authorized;
+`origin/develop` ends at `01613d0`, while the paired-capture automation and later work remain local.
 
 Gates M0-M11 (see `plan.md` milestone order) are done at prototype/first-pass fidelity, including
 M9's and M11's own literal "ten-minute soak" criteria (`plan_39-vertical-slice-gates.md`
@@ -67,6 +67,33 @@ scope decisions that drove that cut (Mafia-1 (2002) content scope, Mafia-1-era s
 no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting target, etc.).
 
 ## What changed most recently (this session)
+
+**The formerly unlocatable frame maximum is now correlated to bounded scenario context.** Schema 8
+keeps its aggregate/histogram contract and adds `worst_frame_intervals`: the eight largest existing
+`BeginFrame` wall-clock samples, selected online without retaining a second unbounded frame stream.
+
+- Each record contains the zero-based aggregate sample index, interval, the phase at the
+  `BeginFrame` ending that interval (`mixed_walk`, `mixed_drive`, transition/mission variants, etc.),
+  and the deterministic scenario update when applicable. The producer sorts by descending interval
+  and stable sample order and caps storage at eight.
+- The shared report loader accepts older schema-8 diagnostics without the additive block. When the
+  block exists it verifies exact scope/limit/count, unique in-range indices, descending intervals,
+  populated histogram occupancy, canonical phase/update values, and equality of the first record to
+  `frame_interval.maximum_ms`. Release and comparison Markdown show the retained records directly.
+- C++ retention/JSON tests and focused report/comparator positive/negative cases pass. Release
+  EasyGL and compile-software builds pass, as do syntax validation and the complete 9/9 CTest.
+- A new no-visible-display paired AMD run under SDL `offscreen` produced two independent 899-interval
+  archives at 17.997/17.868 ms p95 and 30.114/26.204 ms maximum. There are zero >33.333 ms misses,
+  hitches, or severe hitches in both runs; the earlier isolated ~76 ms maximum did not reproduce.
+  The two maxima correlate to `mixed_drive` updates 536 and 210 (sample indices 534 and 208).
+- Both new archives independently verify at 58,273,792 B (55.574 MiB) complete DRM residency, with
+  711/717 successful samples and no fdinfo read error. Comparison is `NO REGRESSION`; qualification
+  still fails only for the explicit offscreen label and both machine-derived `Headless` states.
+  Output is under `/tmp/iron-gang-m12-worst-frame-real-20260824`; complete-capture hashes are
+  `5ae8e8d2…7686` and `d77d4d67…98b6`, qualification/comparison hashes are
+  `f295ac8c…fde4` and `1ac808a2…987`.
+- M12 remains open solely for the controlled physical-display pair. Continue from that operator
+  action when allowed; do not treat this diagnostic correlation run as physical vblank evidence.
 
 **The remaining physical M12 runbook is now one fail-safe paired command.** New
 `scripts/m12_capture_pair.py` removes the manual six-stage/ten-output assembly around the already

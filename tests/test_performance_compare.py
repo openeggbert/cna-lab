@@ -14,6 +14,7 @@ from pathlib import Path
 from test_performance_report import (
     COMPLETE_VRAM_COVERAGE,
     LOGICAL_VRAM_COVERAGE,
+    add_worst_frame_intervals,
     workload_fixtures,
 )
 
@@ -314,6 +315,23 @@ class PerformanceCompareTests(unittest.TestCase):
         )
         self.assertIn("| Frame interval p95 | 16.000 ms | 16.000 ms | +0.000 ms", result.stdout)
         self.assertIn("| Physics bodies | 9 | 9 |", result.stdout)
+
+    def test_retained_worst_frames_are_shown_for_both_captures(self) -> None:
+        baseline = capture_fixture()
+        candidate = deepcopy(baseline)
+        add_worst_frame_intervals(baseline, "mixed_walk")
+        add_worst_frame_intervals(candidate, "mixed_drive")
+        result = self.run_compare(baseline, candidate)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("## Retained worst frame intervals", result.stdout)
+        self.assertIn(
+            r"| Baseline | <code>baseline.json</code> | 1 | 40 | 20.000 ms | mixed\_walk | 100 |",
+            result.stdout,
+        )
+        self.assertIn(
+            r"| Candidate | <code>candidate.json</code> | 1 | 40 | 20.000 ms | mixed\_drive | 100 |",
+            result.stdout,
+        )
 
     def test_regression_returns_one_and_names_metrics(self) -> None:
         baseline = capture_fixture()

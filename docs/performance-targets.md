@@ -454,6 +454,25 @@ The boundary maximum must also fit at least one non-empty global histogram bucke
 0.0005 ms tolerance allows an exact serialized threshold to match either adjacent bucket, but not a
 value in the interior of a bucket whose count is zero.
 
+Current producers add a bounded `worst_frame_intervals` block without changing schema version 8.
+It selects the largest eight samples online from the same `BeginFrame` wall-clock stream used by
+`measurements.frame_interval` and `frame_pacing`; it is correlation metadata, not a second timing
+source. Each retained record stores the zero-based frame-interval `sample_index`, `interval_ms`, the
+game phase at the `BeginFrame` ending that interval, and a non-negative deterministic
+`scenario_update` (`null` for ordinary interactive play). Producer phases currently distinguish
+interactive/intro/idle/walk/drive, mixed walk/drive, district transition, and mission dialogue,
+cutscene, vehicle-transition, walk, and drive states. Storage is always
+`min(frame_interval.samples, 8)` records, ordered by descending full-precision interval and then
+earlier sample index, so profiling memory remains bounded even during long runs.
+
+The shared loader keeps older schema-8 diagnostics readable when this additive object is absent.
+When present, it requires the exact producer scope, retention limit 8, exact bounded record count,
+unique in-range indices, descending non-negative intervals, canonical printable phases, and null or
+non-negative updates. Every retained interval must fit a populated pacing bucket, and the first must
+equal `frame_interval.maximum_ms` within the existing three-decimal serialization tolerance. The
+release report and baseline/candidate comparator render these records in a separate table, allowing
+a maximum or hitch to be correlated without weakening any aggregate budget or qualification rule.
+
 The detailed `district_load.samples` array is also authoritative rather than decorative. Its length
 must equal each of `district_world_physics_cpu`, `district_renderer_upload_cpu`, and
 `district_load_cpu` sample counts; serialized phase/total values must reproduce those rows' average,
@@ -799,6 +818,9 @@ Every `measurements.*` summary is also checked for zero-sample zero values, one-
 and `average_ms`/`p95_ms <= maximum_ms`. For frame cadence, the histogram counts identify the
 bucket containing `ceil(0.95 * samples)`; the serialized p95 must fall inside that bucket (allowing
 only its three-decimal rounding tolerance).
+If bounded worst-frame correlation exists, the summary also shows its sample index, interval, phase,
+and scenario update. This section is diagnostic context only: it neither adds a new gate metric nor
+permits an old capture without the additive block to qualify differently.
 Renaming, copying, or changing only JSON whitespace cannot turn one capture into the two independent
 runs required for repeatability. Canonical performance identity is independent of file path and key
 ordering and normalizes externally bound VRAM metadata, so rebinding the same original profile to a
@@ -870,7 +892,9 @@ frame, 0.1 ms for CPU subsystems, 1 ms for district load, 8 MiB for RAM/VRAM, an
 points for minimum-budget misses/hitches. Every tolerance has a named CLI override. The Markdown
 table covers frame, update/physics/AI/audio/render/Present/GPU/load p95, miss/hitch rates, peak RAM,
 tracked VRAM, and the district-transition frame; workload counts are context and do not fail the
-comparison by themselves.
+comparison by themselves. When either input contains bounded worst-frame correlation, a separate
+baseline/candidate table exposes both retained lists; they are context and do not independently
+trigger a regression.
 
 Exit 0 means no measured regression beyond tolerance, exit 1 means at least one regression, and
 exit 2 means invalid or incompatible evidence. A no-regression result is not an M12 budget pass;

@@ -121,6 +121,11 @@ FRAME_BOUNDARY_SCOPE = (
     "a district-transition boundary is the first frame-interval sample recorded after "
     "RecordDistrictLoad"
 )
+WORST_FRAME_SCOPE = (
+    "largest frame intervals selected online from the same BeginFrame wall-clock samples; "
+    "sample_index is zero-based and phase/scenario_update describe the BeginFrame ending the interval"
+)
+WORST_FRAME_RETENTION_LIMIT = 8
 LOGICAL_VRAM_COVERAGE = (
     "Iron Gang-owned meshes, lightmaps, and HUD/map textures plus imported CNA model buffers and "
     "effect-bound textures; backend effect programs, swapchain/depth/render-target/transient "
@@ -1028,6 +1033,68 @@ def _fits_histogram_bucket(value: float, bucket_index: int) -> bool:
     )
 
 
+def worst_frame_intervals(
+    capture: dict[str, Any],
+) -> list[tuple[int, float, str, int | None]]:
+    raw = capture.get("worst_frame_intervals")
+    if raw is None:
+        return []
+    block = _mapping(raw, "worst_frame_intervals")
+    if _single_line_string(block, "scope") != WORST_FRAME_SCOPE:
+        raise ReportError("worst_frame_intervals.scope does not match schema-8 sampling scope")
+    if _integer(block, "retention_limit") != WORST_FRAME_RETENTION_LIMIT:
+        raise ReportError("worst_frame_intervals.retention_limit must be 8")
+
+    frame_count = _integer(capture, "measurements", "frame_interval", "samples")
+    samples = _array(_path(block, "samples"), "worst_frame_intervals.samples")
+    expected_count = min(frame_count, WORST_FRAME_RETENTION_LIMIT)
+    if len(samples) != expected_count:
+        raise ReportError(
+            "worst_frame_intervals.samples must contain min(frame samples, retention limit) entries"
+        )
+
+    result: list[tuple[int, float, str, int | None]] = []
+    indices: set[int] = set()
+    previous_interval = math.inf
+    histogram = _mapping(
+        _path(capture, "frame_pacing", "histogram"), "frame_pacing.histogram"
+    )
+    histogram_counts = [
+        _integer(histogram, bucket, "count") for bucket in HISTOGRAM_BUCKETS
+    ]
+    for position, raw_sample in enumerate(samples):
+        label = f"worst_frame_intervals.samples[{position}]"
+        sample = _mapping(raw_sample, label)
+        sample_index = _integer(sample, "sample_index")
+        if sample_index >= frame_count or sample_index in indices:
+            raise ReportError(f"{label}.sample_index is out of range or duplicated")
+        indices.add(sample_index)
+        interval = _number(sample, "interval_ms")
+        if interval > previous_interval:
+            raise ReportError("worst_frame_intervals.samples must be sorted by descending interval")
+        previous_interval = interval
+        if not any(
+            count > 0 and _fits_histogram_bucket(interval, bucket_index)
+            for bucket_index, count in enumerate(histogram_counts)
+        ):
+            raise ReportError(f"{label}.interval_ms has no populated frame-pacing bucket")
+        phase = _canonical_single_line_string(sample, "phase")
+        raw_update = _path(sample, "scenario_update")
+        if raw_update is None:
+            scenario_update = None
+        else:
+            scenario_update = _integer(sample, "scenario_update")
+        result.append((sample_index, interval, phase, scenario_update))
+
+    if result:
+        maximum = _number(capture, "measurements", "frame_interval", "maximum_ms")
+        if not math.isclose(result[0][1], maximum, rel_tol=0.0, abs_tol=0.0005):
+            raise ReportError(
+                "worst_frame_intervals first interval must equal frame_interval.maximum_ms"
+            )
+    return result
+
+
 def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
     if _single_line_string(capture, "frame_pacing", "scope") != FRAME_PACING_SCOPE:
         raise ReportError("frame_pacing.scope does not match schema-8 sampling scope")
@@ -1194,6 +1261,7 @@ def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
                 "district-transition boundary maximum_ms has no matching non-empty "
                 "frame-pacing histogram bucket"
             )
+    worst_frame_intervals(capture)
 
 
 def validate_complete_vram_evidence(
@@ -1742,6 +1810,29 @@ def build_markdown(
             f"{swap_request} / {'yes' if swap_ack else 'no'} | "
             f"{'PASS' if not local_blockers else 'FAIL'} |"
         )
+
+    retained_worst_frames = [worst_frame_intervals(capture) for capture in captures]
+    if any(retained_worst_frames):
+        lines.extend(
+            [
+                "",
+                "## Retained worst frame intervals",
+                "",
+                "The phase/update describe the `BeginFrame` call ending each zero-based interval sample.",
+                "",
+                "| Capture | Rank | Sample index | Interval | Phase | Scenario update |",
+                "| --- | ---: | ---: | ---: | --- | ---: |",
+            ]
+        )
+        for path, samples in zip(capture_paths, retained_worst_frames):
+            for rank, (sample_index, interval, phase, scenario_update) in enumerate(
+                samples, start=1
+            ):
+                update_text = "—" if scenario_update is None else str(scenario_update)
+                lines.append(
+                    f"| {_markdown_code(path.name)} | {rank} | {sample_index} | "
+                    f"{interval:.3f} ms | {_escape(phase)} | {update_text} |"
+                )
 
     lines.extend(
         [

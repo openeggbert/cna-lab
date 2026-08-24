@@ -37,6 +37,7 @@ from performance_report import (
     representative_sample_blocker,
     swap_interval_acknowledged,
     validate_complete_vram_evidence,
+    worst_frame_intervals,
 )
 
 
@@ -452,6 +453,30 @@ def build_markdown(
             f"{result.allowed_increase:.3f} {result.spec.unit} | "
             f"{'REGRESSION' if result.regressed else 'pass'} |"
         )
+
+    retained_worst_frames = (
+        ("Baseline", baseline_path, worst_frame_intervals(baseline)),
+        ("Candidate", candidate_path, worst_frame_intervals(candidate)),
+    )
+    if any(samples for _, _, samples in retained_worst_frames):
+        lines.extend(
+            [
+                "",
+                "## Retained worst frame intervals",
+                "",
+                "| Role | Capture | Rank | Sample index | Interval | Phase | Scenario update |",
+                "| --- | --- | ---: | ---: | ---: | --- | ---: |",
+            ]
+        )
+        for role, path, samples in retained_worst_frames:
+            for rank, (sample_index, interval, phase, scenario_update) in enumerate(
+                samples, start=1
+            ):
+                update_text = "—" if scenario_update is None else str(scenario_update)
+                lines.append(
+                    f"| {role} | {_markdown_code(path.name)} | {rank} | {sample_index} | "
+                    f"{interval:.3f} ms | {_escape(phase)} | {update_text} |"
+                )
 
     lines.extend(
         [

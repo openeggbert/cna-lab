@@ -135,6 +135,17 @@ namespace IronGang
         std::optional<double> maximumDistrictTransitionMilliseconds;
     };
 
+    // Bounded diagnostic correlation for the largest end-to-end frame intervals. sampleIndex is
+    // zero-based in the same FrameInterval vector used by the aggregate statistics. phase and
+    // scenarioUpdate describe the state at the BeginFrame call that ended this interval.
+    struct WorstFrameInterval
+    {
+        std::size_t sampleIndex{0};
+        double milliseconds{0.0};
+        std::string phase{"unspecified"};
+        std::optional<std::uint64_t> scenarioUpdate;
+    };
+
     struct RenderWorkloadStatistics
     {
         std::size_t sampleCount{0};
@@ -253,6 +264,7 @@ namespace IronGang
     inline constexpr double kRecommendedFrameBudgetMilliseconds = 1000.0 / 60.0;
     inline constexpr double kFrameHitchThresholdMilliseconds = 50.0;
     inline constexpr double kSevereFrameHitchThresholdMilliseconds = 100.0;
+    inline constexpr std::size_t kWorstFrameIntervalRetentionCount = 8;
     inline constexpr double kMinimumUpdateCpuBudgetMilliseconds = 8.0;
     inline constexpr double kMinimumPhysicsCpuBudgetMilliseconds = 3.0;
     inline constexpr double kMinimumAiCpuBudgetMilliseconds = 2.0;
@@ -273,8 +285,14 @@ namespace IronGang
 
         // Call once at the beginning of every Draw(). The interval between consecutive calls is
         // the end-to-end presented-frame cadence; the first call establishes the baseline only.
-        void BeginFrame();
+        void BeginFrame(std::string_view phase = "unspecified",
+                        std::optional<std::uint64_t> scenarioUpdate = std::nullopt);
         void Record(PerformanceMetric metric, double milliseconds);
+        // Deterministic seam used by BeginFrame and focused tests. Ordinary callers should use
+        // BeginFrame so the measured interval retains the correct wall-clock scope.
+        void RecordFrameInterval(double milliseconds,
+                                 std::string_view phase = "unspecified",
+                                 std::optional<std::uint64_t> scenarioUpdate = std::nullopt);
         void RecordRenderWorkload(RenderWorkloadMetric metric, std::uint64_t count);
         void RecordPhysicsWorkload(PhysicsWorkloadMetric metric, std::uint64_t count);
         void RecordAiWorkload(const AiWorkloadSample& sample);
@@ -283,6 +301,10 @@ namespace IronGang
 
         [[nodiscard]] PerformanceStatistics GetStatistics(PerformanceMetric metric) const;
         [[nodiscard]] FramePacingStatistics GetFramePacingStatistics() const;
+        [[nodiscard]] const std::vector<WorstFrameInterval>& GetWorstFrameIntervals() const noexcept
+        {
+            return worstFrameIntervals_;
+        }
         [[nodiscard]] RenderWorkloadStatistics
         GetRenderWorkloadStatistics(RenderWorkloadMetric metric) const;
         [[nodiscard]] PhysicsWorkloadStatistics
@@ -341,6 +363,7 @@ namespace IronGang
             audioWorkloadSamples_;
         std::vector<DistrictLoadSample> districtLoadSamples_;
         std::vector<std::size_t> districtTransitionFrameSampleIndices_;
+        std::vector<WorstFrameInterval> worstFrameIntervals_;
     };
 
     // RAII timing for whole Update()/Draw()/Initialize() scopes, including early-return paths.

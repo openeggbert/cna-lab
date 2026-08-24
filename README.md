@@ -155,6 +155,12 @@ A newer independent 900-draw pair includes both machine-evidence blocks and agai
 55.574 MiB complete peak, with 17.147/17.907 ms frame p95 and no >33.333 ms misses. Its comparator
 reports no regression; qualifying audit failure is limited to the declared offscreen environment
 and each capture's `Headless` native-window classification.
+Current profiles also retain the eight largest frame intervals with their zero-based sample index
+and the scenario phase/update at the `BeginFrame` ending each interval. Both release summaries and
+comparisons display this bounded context, while older schema-8 diagnostics without it remain valid.
+A fresh invisible AMD offscreen pair used that correlation end to end: p95 was 17.997/17.868 ms,
+maximum was 30.114/26.204 ms, neither run had a >33.333 ms miss or hitch, and complete residency
+remained 55.574 MiB. This is diagnostic evidence only, not physical-display qualification.
 
 When complete per-process VRAM residency comes from that sampler or another authoritative vendor/OS
 profiler, bind its raw artifact and manifest to the original profile without overwriting it:

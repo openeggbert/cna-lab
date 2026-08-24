@@ -25,6 +25,10 @@ COMPLETE_VRAM_COVERAGE = (
     "complete external peak process GPU residency bound to this profile capture; tracked_bytes is "
     "the conservative maximum of external residency and Iron Gang's logical resource total"
 )
+WORST_FRAME_SCOPE = (
+    "largest frame intervals selected online from the same BeginFrame wall-clock samples; "
+    "sample_index is zero-based and phase/scenario_update describe the BeginFrame ending the interval"
+)
 
 
 def sha256(path: Path) -> str:
@@ -379,6 +383,24 @@ def capture_fixture() -> dict:
     }
 
 
+def add_worst_frame_intervals(capture: dict, phase: str = "mixed_walk") -> None:
+    maximum = capture["measurements"]["frame_interval"]["maximum_ms"]
+    count = min(capture["measurements"]["frame_interval"]["samples"], 8)
+    capture["worst_frame_intervals"] = {
+        "scope": WORST_FRAME_SCOPE,
+        "retention_limit": 8,
+        "samples": [
+            {
+                "sample_index": 40 + rank,
+                "interval_ms": maximum - rank * 0.01,
+                "phase": phase,
+                "scenario_update": 100 + rank,
+            }
+            for rank in range(count)
+        ],
+    }
+
+
 def independent_capture_fixture() -> dict:
     capture = capture_fixture()
     capture["capture_session"] = {
@@ -538,6 +560,50 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertIn("Overall status: **DIAGNOSTIC**", result.stdout)
         self.assertIn("lacks machine-readable native-window evidence", result.stdout)
         self.assertIn("lacks machine-readable graphics-runtime evidence", result.stdout)
+
+    def test_worst_frame_intervals_are_reported_and_strictly_validated(self) -> None:
+        capture = capture_fixture()
+        add_worst_frame_intervals(capture)
+        result = self.run_report([capture], "Test diagnostic hardware")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("## Retained worst frame intervals", result.stdout)
+        self.assertIn(r"| 1 | 40 | 20.000 ms | mixed\_walk | 100 |", result.stdout)
+
+        invalid_cases = []
+
+        duplicate_index = deepcopy(capture)
+        duplicate_index["worst_frame_intervals"]["samples"][1]["sample_index"] = 40
+        invalid_cases.append((duplicate_index, "sample_index is out of range or duplicated"))
+
+        negative_index = deepcopy(capture)
+        negative_index["worst_frame_intervals"]["samples"][0]["sample_index"] = -1
+        invalid_cases.append((negative_index, "sample_index must be a non-negative integer"))
+
+        wrong_maximum = deepcopy(capture)
+        wrong_maximum["worst_frame_intervals"]["samples"][0]["interval_ms"] = 19.99
+        invalid_cases.append((wrong_maximum, "first interval must equal"))
+
+        descending_violation = deepcopy(capture)
+        descending_violation["worst_frame_intervals"]["samples"][1]["interval_ms"] = 20.01
+        invalid_cases.append((descending_violation, "sorted by descending interval"))
+
+        bad_phase = deepcopy(capture)
+        bad_phase["worst_frame_intervals"]["samples"][0]["phase"] = " mixed_walk"
+        invalid_cases.append((bad_phase, "phase must not have leading or trailing whitespace"))
+
+        negative_update = deepcopy(capture)
+        negative_update["worst_frame_intervals"]["samples"][0]["scenario_update"] = -1
+        invalid_cases.append((negative_update, "scenario_update must be a non-negative integer"))
+
+        short_list = deepcopy(capture)
+        short_list["worst_frame_intervals"]["samples"].pop()
+        invalid_cases.append((short_list, "must contain min(frame samples, retention limit)"))
+
+        for invalid_capture, expected_error in invalid_cases:
+            with self.subTest(expected_error=expected_error):
+                result = self.run_report([invalid_capture], "Test diagnostic hardware")
+                self.assertEqual(result.returncode, 2)
+                self.assertIn(expected_error, result.stderr)
 
     def test_two_complete_physical_captures_pass(self) -> None:
         first = capture_fixture()
