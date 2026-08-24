@@ -17,6 +17,7 @@
 #include "Campaign.hpp"
 #include "Combat.hpp"
 #include "Controls.hpp"
+#include "DoorMotion.hpp"
 #include "ExplorationMap.hpp"
 #include "RunSave.hpp"
 #include "RunRules.hpp"
@@ -357,6 +358,32 @@ int main()
         "world audio attenuates with distance");
     Expect(inaudibleAudio.volume == 0.0f,
         "world audio is silent beyond its bounded range");
+
+    const WolfCna::DoorPanelOffset northSouthPositive =
+        WolfCna::CalculateLateralDoorOffset(true, 0.75f,
+            WolfCna::SelectDoorSlideDirection(2, 2, true, true));
+    const WolfCna::DoorPanelOffset northSouthNegative =
+        WolfCna::CalculateLateralDoorOffset(true, 0.75f,
+            WolfCna::SelectDoorSlideDirection(3, 2, true, true));
+    const WolfCna::DoorPanelOffset eastWestPositive =
+        WolfCna::CalculateLateralDoorOffset(false, 0.75f,
+            WolfCna::SelectDoorSlideDirection(2, 2, true, true));
+    const WolfCna::DoorPanelOffset onlyWestPocket =
+        WolfCna::CalculateLateralDoorOffset(false, 0.75f,
+            WolfCna::SelectDoorSlideDirection(2, 2, true, false));
+    const WolfCna::DoorPanelOffset closedDoor =
+        WolfCna::CalculateLateralDoorOffset(false, 0.0f, 1);
+    Expect(
+        northSouthPositive.x == 0.0f && northSouthPositive.z == 0.75f &&
+            northSouthNegative.x == 0.0f && northSouthNegative.z == -0.75f,
+        "north-south door panels alternate right-to-left and left-to-right travel");
+    Expect(
+        eastWestPositive.x == 0.75f && eastWestPositive.z == 0.0f,
+        "east-west door panels slide along their horizontal long axis");
+    Expect(onlyWestPocket.x == -0.75f && onlyWestPocket.z == 0.0f,
+        "a one-sided doorway always slides into its actual wall pocket");
+    Expect(closedDoor.x == 0.0f && closedDoor.z == 0.0f,
+        "a closed door remains at floor-level doorway coordinates");
 
     const WolfCna::WeaponSpec knifeSpec =
         WolfCna::GetWeaponSpec(WolfCna::PlayerWeapon::Knife);
@@ -1135,6 +1162,9 @@ int main()
     ExpectParseFailure(
         "#####\n#P.>#\n#####\n",
         "patrol marker pointing into a blocked cell");
+    ExpectParseFailure(
+        "#####\n#P..#\n#.D.#\n#...#\n#####\n",
+        "sliding door without a wall pocket");
     ExpectParseFailure(
         "#####\n#PS##\n#####\n",
         "push wall without a safe destination and approach");

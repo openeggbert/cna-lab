@@ -1,5 +1,7 @@
 #include "World.hpp"
 
+#include "DoorMotion.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -1865,10 +1867,26 @@ namespace WolfCna
                     continue;
 
                 const char symbol = map_[z][x];
+                const bool northPocket = IsStaticWallCell(x, z - 1);
+                const bool southPocket = IsStaticWallCell(x, z + 1);
+                const bool westPocket = IsStaticWallCell(x - 1, z);
+                const bool eastPocket = IsStaticWallCell(x + 1, z);
+                const bool blocksAlongX = northPocket && southPocket
+                    ? true
+                    : (westPocket || eastPocket)
+                        ? false
+                        : true;
+                const bool negativePocket = blocksAlongX ? northPocket : westPocket;
+                const bool positivePocket = blocksAlongX ? southPocket : eastPocket;
                 doors_.push_back({
                     .x = x,
                     .z = z,
-                    .blocksAlongX = IsStaticWallCell(x, z - 1) && IsStaticWallCell(x, z + 1),
+                    .blocksAlongX = blocksAlongX,
+                    .slideDirection = SelectDoorSlideDirection(
+                        x,
+                        z,
+                        negativePocket,
+                        positivePocket),
                     .material = symbol == 'Q'
                         ? Material::SecurityDoor
                         : symbol == 'q'
@@ -1913,12 +1931,14 @@ namespace WolfCna
             const float maximumX = door.blocksAlongX ? centerX + halfThickness : static_cast<float>(door.x) + 1.0f;
             const float minimumZ = door.blocksAlongX ? static_cast<float>(door.z) : centerZ - halfThickness;
             const float maximumZ = door.blocksAlongX ? static_cast<float>(door.z) + 1.0f : centerZ + halfThickness;
-            const float minimumY = door.openAmount * WallHeight;
-            const float maximumY = minimumY + WallHeight;
+            const DoorPanelOffset offset = CalculateLateralDoorOffset(
+                door.blocksAlongX,
+                door.openAmount,
+                door.slideDirection);
 
             AddDoorBox(
-                Vector3(minimumX, minimumY, minimumZ),
-                Vector3(maximumX, maximumY, maximumZ),
+                Vector3(minimumX + offset.x, 0.0f, minimumZ + offset.z),
+                Vector3(maximumX + offset.x, WallHeight, maximumZ + offset.z),
                 door.material);
         }
 
@@ -1944,12 +1964,14 @@ namespace WolfCna
             const float maximumZ = blocksAlongX
                 ? static_cast<float>(exit.z) + 1.0f
                 : doorwayZ + halfThickness;
-            const float minimumY = exit.openAmount * WallHeight;
-            const float maximumY = minimumY + WallHeight;
+            const DoorPanelOffset offset = CalculateLateralDoorOffset(
+                blocksAlongX,
+                exit.openAmount,
+                exit.slideDirection);
 
             AddDoorBox(
-                Vector3(minimumX, minimumY, minimumZ),
-                Vector3(maximumX, maximumY, maximumZ),
+                Vector3(minimumX + offset.x, 0.0f, minimumZ + offset.z),
+                Vector3(maximumX + offset.x, WallHeight, maximumZ + offset.z),
                 Material::SecurityDoor);
         }
     }
@@ -2262,14 +2284,31 @@ namespace WolfCna
                 if (approach == directions.end())
                     throw std::runtime_error("Sector elevator has no walkable approach cell.");
 
+                const bool blocksAlongX = approach->first != 0;
+                const bool negativePocket = blocksAlongX
+                    ? IsStaticWallCell(x, z - 1)
+                    : IsStaticWallCell(x - 1, z);
+                const bool positivePocket = blocksAlongX
+                    ? IsStaticWallCell(x, z + 1)
+                    : IsStaticWallCell(x + 1, z);
                 exits_.push_back({
-                    Vector3(static_cast<float>(x) + 0.5f, 0.08f, static_cast<float>(z) + 0.5f),
-                    x,
-                    z,
-                    approach->first,
-                    approach->second,
-                    map_[z][x] == 'X' ? ExitRoute::Secret : ExitRoute::Standard,
-                    1.0f});
+                    .position = Vector3(
+                        static_cast<float>(x) + 0.5f,
+                        0.08f,
+                        static_cast<float>(z) + 0.5f),
+                    .x = x,
+                    .z = z,
+                    .approachX = approach->first,
+                    .approachZ = approach->second,
+                    .slideDirection = SelectDoorSlideDirection(
+                        x,
+                        z,
+                        negativePocket,
+                        positivePocket),
+                    .route = map_[z][x] == 'X'
+                        ? ExitRoute::Secret
+                        : ExitRoute::Standard,
+                    .openAmount = 1.0f});
             }
         }
     }

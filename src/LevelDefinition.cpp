@@ -165,6 +165,16 @@ namespace WolfCna
                             " has a wall decoration without an adjacent wall");
                 }
 
+                if ((symbol == 'D' || symbol == 'Q' || symbol == 'q') &&
+                    !isWall(x, z - 1) && !isWall(x, z + 1) &&
+                    !isWall(x - 1, z) && !isWall(x + 1, z))
+                {
+                    throw LevelError(
+                        sourceName,
+                        "line " + std::to_string(z + 1) +
+                            " has a sliding door without a wall pocket");
+                }
+
                 if (symbol == 'S')
                 {
                     bool hasSafePushDirection = false;

@@ -333,6 +333,7 @@ namespace WolfCna
             int x = 0;
             int z = 0;
             bool blocksAlongX = true;
+            int slideDirection = 1;
             Material material = Material::Door;
             bool isSecret = false;
             bool opening = false;
@@ -457,6 +458,7 @@ namespace WolfCna
             int z = 0;
             int approachX = 0;
             int approachZ = 0;
+            int slideDirection = 1;
             ExitRoute route = ExitRoute::Standard;
             float openAmount = 0.0f;
         };

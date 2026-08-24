@@ -36,7 +36,7 @@
 - Holding left or right `Shift` now runs at 1.65× walking speed while retaining the clamped frame step and existing collision path.
 - Four original generated wall families now alternate in coherent room-scale regions, and every polygonal table uses a dedicated dark-oak texture.
 - Access cards, both weapon pickups, terminals, power relays, exits and enemy projectiles now use original transparent sprites; the last untextured colored cuboid path is gone.
-- Every map `GOAL` now corresponds to a three-sided steel elevator cabin whose polygonal gate starts raised so the exit is immediately usable.
+- Every map `GOAL` now corresponds to a three-sided steel elevator cabin whose polygonal gate starts retracted sideways so the exit is immediately usable.
 - Holding `G+O+A+L` once teleports the player to the safe approach cell outside the current elevator and turns them toward its doors without changing objective progress.
 - `Space` now activates an elevator from its approach regardless of optional relay and terminal progress; entering the cabin follows the same completion path.
 - The `G+O+A+L` cheat remains purely positional and gives the same usable elevator as reaching the goal on foot.
@@ -71,12 +71,13 @@
 - World sounds now pan from the listener's facing and attenuate by distance through CNA; event bursts are capped at four voices while UI feedback stays centered.
 - Campaign metadata selects one of two original generated ambient loops, and living/defeated hounds now have deterministic positional bark/whimper voices.
 - The `I+L+M` implementation was re-audited: it grants 99 rounds and resets score plus sector score checkpoints to zero.
+- Ordinary, access and elevator doors now stay at floor height and slide left or right into a real wall pocket; push walls retain their separate full-cell motion.
 
 ## Next tasks
 
-1. Implement WOLF-045 classic lateral door travel, replacing upward-moving panels while preserving collision and push walls.
-2. Continue through WOLF-043–WOLF-044 in the dependency order recorded in `plan.md`.
-3. Subjectively playtest positional audio, all three deterministic difficulty profiles, save slots, life loss, push walls and the full six-sector route including the hidden branch.
+1. Implement WOLF-043 expressive HUD status indicators.
+2. Implement WOLF-044 deliberate manual door closing while retaining occupied-door protection.
+3. Subjectively playtest positional audio, lateral doors, all three deterministic difficulty profiles, save slots, life loss, push walls and the full six-sector route including the hidden branch.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.

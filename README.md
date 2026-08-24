@@ -51,7 +51,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume, view angle, last selected difficulty, validated controls and the best eight campaign scores survive restarts
 - three versioned in-run save slots preserve the player, both access colors, inventory, score, lives, sector time, enemies and AI state, pickups, doors, projectiles, objectives and explored automap; the title and pause menus can load them
 - holding the map key (`Tab` by default) shows a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
-- every `GOAL` corresponds to a steel elevator cabin whose raised gate allows immediate Wolf-like action activation or physical entry
+- every `GOAL` corresponds to a steel elevator cabin whose side-retracted gate allows immediate Wolf-like action activation or physical entry
 
 ## Controls
 
@@ -166,8 +166,12 @@ increase for a carried repeater or heavy automatic. Shared ammunition never exce
 ammunition value instead of re-awarding ownership. Health items likewise remain when
 health is already 100%.
 
-An elevator is available from the beginning of a sector. Its gate starts raised,
+An elevator is available from the beginning of a sector. Its gate starts retracted sideways,
 and entering the cabin or pressing `Space` while facing it completes the sector.
+Ordinary, access and elevator door panels stay at floor height and slide horizontally
+into an adjacent wall pocket; they never rise through the ceiling. Doorways with two
+valid pockets alternate their opening direction, while one-sided doors always retract
+into the wall that is actually present. Secret `S` blocks remain physical push walls.
 The `G` + `O` + `A` + `L` cheat changes only the player's position and facing, so
 the same elevator behavior applies after walking there normally. Power relays and
 terminals remain optional bunker systems; their interactions briefly report

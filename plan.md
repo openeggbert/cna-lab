@@ -1005,7 +1005,7 @@ Current progress:
 - score has no run-time cap: enemies, treasure and secrets retain their individual values; every clear awards 1,000 plus authored target-time and perfect-category bonuses, and every 40,000 points awards an extra life;
 - reaching the exit presents a centered completion card while preserving the final score in the status bar;
 - amber terminals and violet relays are optional bunker systems with generated CNA audio and independent progress tracking;
-- each shipping exit is a three-sided steel elevator cabin whose raised gate and
+- each shipping exit is a three-sided steel elevator cabin whose side-retracted gate and
   cyan marker make the immediately usable goal readable;
 - secret moving walls use a full polygonal wall block, travel permanently into up to two empty cells and award 500 score for hidden rewards;
 - the starter level is an authored room-and-corridor route with distributed guards, hounds, pickups, gold, a normal door, a security door and an exit;
@@ -1272,14 +1272,14 @@ and asset handling are recorded in `ASSET_PROVENANCE.md`.
 
 Status: complete. Every shipping `E` cell is now authored as a three-sided steel
 elevator cabin with one room-facing approach. A textured elevator gate is real
-polygonal geometry and starts raised, leaving the cabin immediately accessible.
+polygonal geometry and starts retracted sideways, leaving the cabin immediately accessible.
 The generated cyan destination pedestal remains inside the cabin. Focused tests
 cover initial passability and completion, while campaign-map tests require exactly
 one approach to every elevator.
 
 - make the automap `GOAL` correspond to visible elevator geometry in the 3D world;
 - enclose every shipping elevator on three sides with a single readable entrance;
-- keep the entrance raised and passable independently of optional bunker systems;
+- keep the entrance retracted and passable independently of optional bunker systems;
 - retain the elevator gate in the existing CNA-rendered dynamic geometry path;
 - retain M7's later true vertical elevator travel as separate future work.
 
@@ -1395,7 +1395,7 @@ through the explicit main-menu `QUIT` action, preventing accidental run loss.
 ### WOLF-031 — always-available sector elevators
 
 Status: complete. Sector elevators now follow the classic action-exit contract:
-their polygonal gates start raised, `Space` from the approach always activates them,
+their polygonal gates start retracted sideways, `Space` from the approach always activates them,
 and entering the cabin uses the same idempotent completion path. Relay and terminal
 progress remains available as optional bunker-system activity but can never produce
 an `EXIT OFFLINE` state. The `G` + `O` + `A` + `L` cheat remains purely positional,
@@ -1714,9 +1714,19 @@ that a player or defeated body safely holds the door open.
 
 ### WOLF-045 — classic lateral door travel
 
-Status: planned. Replace the current upward-moving ordinary, access and elevator
-door panels with horizontal travel along the doorway, alternating deterministic
-left-to-right or right-to-left motion where either wall pocket is valid.
+Status: complete. Ordinary, cyan-access, amber-access and elevator panels remain at
+floor height and move horizontally along their long axis instead of rising into the
+ceiling. A doorway with one adjacent wall always retracts into that real pocket;
+where both sides are valid, cell parity deterministically alternates left-to-right
+and right-to-left travel. The level boundary now rejects a normal/access door with
+no adjacent wall pocket.
+
+The existing normalized open amount still drives geometry, collision, automatic
+closing and run-save state, so passability timing and occupied-door protection are
+unchanged. Elevator gates use the same motion and remain fully open at sector start.
+Secret `S` blocks retain their separate full-cell physical push-wall path. Pure tests
+cover both panel orientations, both deterministic directions, one-sided pocket
+selection and the closed position; all six authored sectors pass the new validation.
 
 - keep every polygonal panel at floor height throughout opening and closing;
 - slide along the panel's long axis without changing collision timing;
