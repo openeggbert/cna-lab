@@ -565,3 +565,16 @@ check. The synthetic same-policy pair still reaches `PASS`. Focused tests prove 
 profiler-version mismatch failures plus a changed 33.333 ms metadata refusal. Report 7/7,
 comparator 7/7, VRAM 6/6, both retained real diagnostics, and the diagnostic self-comparison pass
 without launching the game. No physical complete-VRAM capture exists, so M12 remains open.
+
+## 2026-08-24 — cross-run archive independence
+
+The three roles inside one VRAM bundle were already required to be distinct files/inodes, but a
+second qualifying capture could still reuse a source from the first bundle. Qualifying release
+reports and qualifying baseline/candidate comparisons now compare every source path/inode across
+bundles and reject reuse or a hardlink alias with exit 2 before verification/evaluation.
+
+The report integration constructs two otherwise valid independently enriched captures bound to one
+raw profiler source. Comparator coverage replaces the candidate raw source with a hardlink to the
+baseline artifact. Both are refused; the ordinary two-artifact synthetic flow still passes. Report
+7/7, comparator 7/7, and VRAM 6/6 focused suites pass. Diagnostic self-comparison remains allowed,
+and no graphical process or physical qualification was involved.

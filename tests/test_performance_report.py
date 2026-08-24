@@ -161,10 +161,11 @@ class PerformanceReportTests(unittest.TestCase):
         directory: Path,
         index: int,
         capture: dict,
+        shared_artifact_path: Path | None = None,
     ) -> tuple[Path, tuple[Path, Path, Path]]:
         original_path = directory / f"original-{index}.json"
         evidence_path = directory / f"evidence-{index}.json"
-        artifact_path = directory / f"artifact-{index}.bin"
+        artifact_path = shared_artifact_path or directory / f"artifact-{index}.bin"
         enriched_path = directory / f"capture-{index}.json"
 
         original = deepcopy(capture)
@@ -179,7 +180,8 @@ class PerformanceReportTests(unittest.TestCase):
         video["tracked_budget_pass"] = True
         video["coverage"] = "logical report-test resources only"
         original_path.write_text(json.dumps(original), encoding="utf-8")
-        artifact_path.write_bytes(f"raw report-test profiler artifact {index}".encode())
+        if shared_artifact_path is None:
+            artifact_path.write_bytes(f"raw report-test profiler artifact {index}".encode())
         evidence = {
             "schema_version": 1,
             "measurement_scope": evidence_template["measurement_scope"],
@@ -336,6 +338,36 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Overall status: **FAIL**", result.stdout)
         self.assertIn("complete\\_evidence.tool.version", result.stdout)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first_path, first_bundle = self.bind_capture(root, 0, first)
+            second_path, second_bundle = self.bind_capture(
+                root,
+                1,
+                second,
+                shared_artifact_path=first_bundle[2],
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--hardware",
+                    "Minimum Linux EasyGL GPU",
+                    "--qualifying-hardware",
+                    "--vram-bundle",
+                    *(str(path) for path in first_bundle),
+                    "--vram-bundle",
+                    *(str(path) for path in second_bundle),
+                    str(first_path),
+                    str(second_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("must not share source files or hardlinks", result.stderr)
 
     def test_copied_capture_does_not_meet_repeatability_requirement(self) -> None:
         first = capture_fixture()

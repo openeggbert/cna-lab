@@ -124,6 +124,16 @@ def _same_file(left: Path, right: Path) -> bool:
         return False
 
 
+def _require_distinct_bundle_sources(bundles: list[list[Path]], context: str) -> None:
+    for bundle_index, bundle in enumerate(bundles):
+        for earlier_index, earlier in enumerate(bundles[:bundle_index]):
+            if any(_same_file(left, right) for left in bundle for right in earlier):
+                raise ReportError(
+                    f"{context} VRAM bundles {earlier_index + 1} and "
+                    f"{bundle_index + 1} must not share source files or hardlinks"
+                )
+
+
 def _write_text_atomic(path: Path, contents: str) -> None:
     temporary_path: Path | None = None
     try:
@@ -910,6 +920,8 @@ def main(arguments: list[str] | None = None) -> int:
             )
         if bundles and len(bundles) != len(options.captures):
             raise ReportError("--vram-bundle count must match the capture count")
+        if options.qualifying_hardware:
+            _require_distinct_bundle_sources(bundles, "qualifying report")
 
         if options.output is not None:
             protected_inputs = [("capture", path) for path in options.captures]

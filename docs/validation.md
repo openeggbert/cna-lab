@@ -260,6 +260,12 @@ budget value is also checked against the locked schema-8 constants; changing 33.
 including through the comparator's shared loader. Report 7/7, comparator 7/7, VRAM 6/6, and both
 retained Xvfb diagnostics pass; no graphical process was launched.
 
+Archive independence is now checked across captures as well as inside each bundle. A qualifying
+report/comparison refuses any original, manifest, or raw source that shares a path or hardlinked
+inode with another bundle. The release integration uses two valid enriched outputs sharing one raw
+source; comparator coverage uses a cross-bundle hardlink. Both exit 2, while diagnostic
+self-comparison remains available. Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

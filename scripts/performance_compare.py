@@ -22,6 +22,7 @@ from performance_report import (
     _markdown_code,
     _number,
     _path,
+    _require_distinct_bundle_sources,
     _require_unchanged,
     _same_file,
     _single_line_text,
@@ -443,6 +444,13 @@ def main(arguments: list[str] | None = None) -> int:
             raise ReportError("qualifying baseline requires --baseline-vram-bundle")
         if options.candidate_kind == "qualifying" and options.candidate_vram_bundle is None:
             raise ReportError("qualifying candidate requires --candidate-vram-bundle")
+        if options.baseline_kind == "qualifying":
+            assert options.baseline_vram_bundle is not None
+            assert options.candidate_vram_bundle is not None
+            _require_distinct_bundle_sources(
+                [options.baseline_vram_bundle, options.candidate_vram_bundle],
+                "qualifying comparison",
+            )
         if options.output is not None:
             protected_inputs = [
                 ("baseline", options.baseline),

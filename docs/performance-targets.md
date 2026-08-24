@@ -562,6 +562,9 @@ enriched capture in a qualifying report. The generator reconstructs and verifies
 capture before parsing it and rejects a missing bundle, missing source, hash mismatch, semantic
 change, or capture mutation during verification with exit 2. Diagnostic reports remain usable
 without archived bundles and stay `DIAGNOSTIC`.
+No source path/inode may be reused across qualifying bundles, even under a different hardlink name;
+each capture must retain its own original profile, manifest, and raw profiler source. Reuse is
+invalid input (exit 2), not repeatability evidence.
 The schema's `budgets` object must reproduce every locked value in this document exactly; changing
 the JSON policy cannot change the evaluator's thresholds and is rejected as malformed input.
 For repeatability, every pair of mixed captures in a declared qualification must agree on exact
@@ -625,7 +628,8 @@ so two identically tampered presentation objects cannot compare as valid evidenc
 Every qualifying side must also provide its ordered original-profile/evidence-manifest/raw-artifact
 archive. The comparator reconstructs each enriched capture through the binder's full verifier and
 refuses a missing, cross-bound, or subsequently changed member with exit 2. Diagnostic comparisons
-may omit archives or supply them for additional provenance checking.
+may omit archives or supply them for additional provenance checking. A qualifying baseline and
+candidate cannot share any source file/inode or hardlink between their two archives.
 Baseline/candidate hardware identities and the comparison title also use the same printable
 single-line rule as release reports.
 The comparison Markdown includes an `Evidence provenance` table with exact baseline/candidate

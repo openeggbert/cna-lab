@@ -230,6 +230,21 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertIn("Overall result: **NO REGRESSION**", comparison.stdout)
             self.assertIn(sha256(second_artifact_path), comparison.stdout)
 
+            reused_artifact_hardlink = directory / "reused-artifact-hardlink.bin"
+            reused_artifact_hardlink.hardlink_to(artifact_path)
+            reused_artifact_arguments = comparison_arguments.copy()
+            reused_artifact_arguments[
+                reused_artifact_arguments.index(str(second_artifact_path))
+            ] = str(reused_artifact_hardlink)
+            comparison = subprocess.run(
+                reused_artifact_arguments,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(comparison.returncode, 2)
+            self.assertIn("must not share source files or hardlinks", comparison.stderr)
+
             artifact_before_alias_attempt = second_artifact_path.read_bytes()
             comparison = subprocess.run(
                 [*comparison_arguments, "--output", str(second_artifact_path)],

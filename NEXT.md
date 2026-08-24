@@ -67,6 +67,16 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 qualifying archives are now physically independent across runs.** In addition to requiring
+three distinct roles inside each bundle, release reports and qualifying comparisons reject any
+source path or hardlinked inode reused by two bundles.
+
+- The report integration binds two valid enriched captures to one raw source and proves exit 2.
+  Comparator coverage substitutes a hardlink to the baseline artifact on the candidate side and
+  proves the same refusal. Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass.
+- Diagnostic comparisons remain archive-optional and may self-check one capture. This prevents a
+  reused archive from masquerading as independent evidence; it adds no physical capture.
+
 **M12 qualifying repeatability now means the same capture policy and workload.** Individually
 passing mixed runs no longer form a `PASS` pair if they differ in resolution, timestep/v-sync/swap
 request, GPU-timer policy, representative actor counts, VRAM coverage, or external profiler
