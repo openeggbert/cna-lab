@@ -920,12 +920,14 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     }
 
     const Domain::P1Sprite& sprite = Domain::P1SpriteCatalog::spriteForCharacter(pet_.characterId);
-    // P1 home animation changes pixels *inside* a fixed character cell.  It
-    // does not make a modern-looking sprite bob by translating it across the
-    // LCD.  Sleeping leaves the first quiet frame on screen.
+    // P1 home animation consists of independently transcribed LCD phases.
+    // Each phase carries its observed origin, rather than turning one modern
+    // sprite into a synthetic bobbing animation. Sleeping leaves the first
+    // quiet frame on screen.
     const std::size_t idleFrame = pet_.asleep ? 0U : static_cast<std::size_t>(
         backgroundTimeSeconds_ / P1IdleFrameSeconds);
-    display_.drawSprite(8, 3, sprite.idleFrame(idleFrame).rows);
+    const Domain::P1SpriteFrame& frame = sprite.idleFrame(idleFrame);
+    display_.drawSprite(frame.originX, frame.originY, frame.visibleRows());
 
     if (pet_.asleep) {
         display_.setPixel(27, 4, true);

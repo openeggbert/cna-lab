@@ -25,8 +25,10 @@ void testP1FramesAreFixedCellAnimations()
         "every P1 home sprite must provide all idle animation phases");
 
     for (const P1SpriteFrame& frame : mametchi.idleFrames) {
-        expect(frame.rows.size() == 10U, "P1 character cells must be ten pixels high");
-        for (const std::string_view row : frame.rows) {
+        expect(frame.rowCount == 10U, "current Mametchi cells must be ten pixels high");
+        expect(frame.originX == 8 && frame.originY == 3,
+            "current Mametchi cells must retain their observed origin");
+        for (const std::string_view row : frame.visibleRows()) {
             expect(row.size() == 16U, "P1 character cells must be sixteen pixels wide");
         }
     }
@@ -54,9 +56,17 @@ void testEveryKnownP1CharacterHasUsableFrames()
     for (const std::string_view id : characterIds) {
         const P1Sprite& sprite = P1SpriteCatalog::spriteForCharacter(id);
         for (const P1SpriteFrame& frame : sprite.idleFrames) {
-            for (const std::string_view row : frame.rows) {
+            expect(frame.rowCount > 0U && frame.rowCount <= P1SpriteFrame::MaximumRows,
+                "each P1 frame must declare a usable row count");
+            expect(frame.originX >= 0 && frame.originY >= 0,
+                "each P1 frame must start inside the LCD");
+            for (const std::string_view row : frame.visibleRows()) {
                 expect(row.size() == 16U, "all P1 animation rows must fit their cell");
+                expect(frame.originX + static_cast<int>(row.size()) <= 32,
+                    "all P1 animation rows must stay inside the LCD width");
             }
+            expect(frame.originY + static_cast<int>(frame.rowCount) <= 16,
+                "all P1 animation rows must stay inside the LCD height");
         }
     }
 }

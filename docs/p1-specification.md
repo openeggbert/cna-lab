@@ -65,13 +65,13 @@ Each entry has a confidence status:
 | Hidden international character | Bill | Provisional |
 
 The roster is corroborated by historical character references. The application
-now renders a 16 × 10 fixed-cell, three-phase home animation rather than
-translating one static picture around the screen; one Mametchi idle trace and
-one egg silhouette were visually transcribed from the selected P1 reference.
-The remaining egg phases, character redraws, all care-action frames, and every
-branch condition remain open until they are compared frame by frame with the
-selected target programme. No ROM, emulator core, or reference-programme data
-is included in this project.
+now renders three-phase home animation as hand-authored LCD frame data with an
+explicit origin and height, rather than translating one static picture around
+the screen. One Mametchi idle trace and one egg silhouette were visually
+transcribed from the selected P1 reference. The remaining egg phases, character
+redraws, all care-action frames, and every branch condition remain open until
+they are compared frame by frame with the selected target programme. No ROM,
+emulator core, or reference-programme data is included in this project.
 
 ## Evolution-rule representation
 

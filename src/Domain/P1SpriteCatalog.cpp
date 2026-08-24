@@ -9,7 +9,8 @@ constexpr P1SpriteFrame frame(const std::string_view row0, const std::string_vie
                               const std::string_view row6, const std::string_view row7,
                               const std::string_view row8, const std::string_view row9) noexcept
 {
-    return {{{row0, row1, row2, row3, row4, row5, row6, row7, row8, row9}}};
+    return {8, 3, 10U, {{row0, row1, row2, row3, row4, row5, row6, row7, row8, row9,
+                         "", ""}}};
 }
 
 constexpr P1Sprite sprite(const P1SpriteFrame first, const P1SpriteFrame second,
@@ -18,9 +19,8 @@ constexpr P1Sprite sprite(const P1SpriteFrame first, const P1SpriteFrame second,
     return {{{first, second, third}}};
 }
 
-// Each drawing is a hand-transcribed 16×10 P1-style LCD cell.  The three
-// phases deliberately alter the internal silhouette at one fixed origin; this
-// is the visual language of the original display, unlike translating a static
+// Each drawing is a hand-transcribed P1 LCD phase.  The phases deliberately
+// alter their silhouette as independent data rather than translating a static
 // contemporary sprite around the field.
 constexpr P1Sprite Egg = sprite(
     // Manually transcribed from a visual 32x16 LCD observation of the

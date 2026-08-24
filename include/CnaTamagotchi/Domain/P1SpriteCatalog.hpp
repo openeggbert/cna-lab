@@ -2,17 +2,29 @@
 
 #include <array>
 #include <cstddef>
+#include <span>
 #include <string_view>
 
 namespace CnaTamagotchi::Domain {
 
-// A home-screen character occupies a 16×10 cell inside the 32×16 P1 LCD.
-// A character is never animated by merely moving one static picture around:
-// every idle phase has its own one-bit drawing, anchored at the same origin.
-// This retains the P1 LCD's wide, low proportion and lets the visual catalogue
-// evolve independently from the programme simulation.
+// A P1 home phase is a hand-written one-bit drawing with an explicit LCD
+// origin. Most characters currently use the classic 16×10 cell at (8, 3), but
+// the reference egg expands one row above that cell in one observed phase.
+// Keeping the geometry with the drawing avoids faking a movement by translating
+// one contemporary sprite, while allowing a verified P1 phase to use its own
+// true bounds.
 struct P1SpriteFrame final {
-    std::array<std::string_view, 10> rows;
+    static constexpr std::size_t MaximumRows = 12;
+
+    int originX = 8;
+    int originY = 3;
+    std::size_t rowCount = 10;
+    std::array<std::string_view, MaximumRows> rows;
+
+    [[nodiscard]] constexpr std::span<const std::string_view> visibleRows() const noexcept
+    {
+        return std::span<const std::string_view>(rows).first(rowCount);
+    }
 };
 
 struct P1Sprite final {

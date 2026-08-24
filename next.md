@@ -37,9 +37,11 @@ write and verify the clean implementation.
   TamaLIB, or any other emulator artefact to this repository. The egg rows in
   `P1SpriteCatalog.cpp` were manually written from the visible LCD grid, not
   imported or algorithmically extracted.
-- The next concrete visual task is to observe and transcribe the remaining
-  egg phases, then build a per-form reference ledger before changing further
-  provisional sprites. Retain a focused test for each manually verified row.
+- The next concrete visual task is to transcribe the observed expanded egg
+  phase into its own frame geometry, then build a per-form reference ledger
+  before changing further provisional sprites. `P1SpriteFrame` now carries an
+  origin and a row count because the reference egg uses a different vertical
+  extent between phases. Retain a focused test for each manually verified row.
 
 ## Priority 1 — Make the home LCD visually faithful
 

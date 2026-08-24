@@ -73,8 +73,8 @@ similar emulation core is permitted in the application, build, or test suite.
   - Replace Pipple/Budbit assets with Babytchi, Marutchi, Tamatchi,
     Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi, Kuchipatchi, Nyorotchi,
     Tarakotchi, and Bill.
-  - [x] Replace the provisional translated home sprite with a fixed 16 × 10
-    P1 character cell and three separately drawn, anchored idle phases. One
+  - [x] Replace the provisional translated home sprite with separately drawn
+    P1 idle phases whose LCD origin and height are explicit frame data. One
     captured Mametchi idle trace is represented as one-bit frame data and is
     covered by a focused catalogue test.
   - [x] Manually transcribe the observed asymmetric first egg silhouette from
