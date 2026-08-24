@@ -21,6 +21,7 @@
 #include "CampaignProgress.hpp"
 #include "Combat.hpp"
 #include "ExplorationMap.hpp"
+#include "HudStatus.hpp"
 #include "RunSave.hpp"
 #include "RunRules.hpp"
 #include "Scoring.hpp"
@@ -97,6 +98,9 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> knifeView_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterView_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyWeaponView_;
+        std::array<
+            std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D>,
+            HudPortraitIndex(HudPortraitState::Count)> hudPortraits_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> knifeAttackView_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> sidearmAttackView_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterAttackView_;
@@ -240,6 +244,7 @@ namespace WolfCna
         void CreateProceduralDecorationTextures();
         void CreateProceduralEnemyImpactTexture();
         void CreateHudResources();
+        void CreateProceduralHudPortraits();
         void CreateSoundEffects();
         void UpdateAmbientTheme();
         void PlaySpatialSound(

@@ -19,6 +19,7 @@
 #include "Controls.hpp"
 #include "DoorMotion.hpp"
 #include "ExplorationMap.hpp"
+#include "HudStatus.hpp"
 #include "RunSave.hpp"
 #include "RunRules.hpp"
 #include "Scoring.hpp"
@@ -384,6 +385,27 @@ int main()
         "a one-sided doorway always slides into its actual wall pocket");
     Expect(closedDoor.x == 0.0f && closedDoor.z == 0.0f,
         "a closed door remains at floor-level doorway coordinates");
+
+    Expect(
+        WolfCna::SelectHudPortraitState(100, false, false, false, 0) ==
+            WolfCna::HudPortraitState::ReadyA &&
+        WolfCna::SelectHudPortraitState(100, false, false, false, 1) ==
+            WolfCna::HudPortraitState::ReadyB,
+        "healthy HUD portrait alternates its two idle expressions");
+    Expect(
+        WolfCna::SelectHudPortraitState(50, false, false, false, 0) ==
+            WolfCna::HudPortraitState::Wounded &&
+        WolfCna::SelectHudPortraitState(20, false, false, false, 0) ==
+            WolfCna::HudPortraitState::Critical,
+        "HUD portrait follows the documented wounded and critical health bands");
+    Expect(
+        WolfCna::SelectHudPortraitState(100, false, true, false, 0) ==
+            WolfCna::HudPortraitState::Attacking &&
+        WolfCna::SelectHudPortraitState(100, true, true, false, 0) ==
+            WolfCna::HudPortraitState::Hurt &&
+        WolfCna::SelectHudPortraitState(100, true, true, true, 0) ==
+            WolfCna::HudPortraitState::Defeated,
+        "defeat, recent damage and attack states use explicit display priority");
 
     const WolfCna::WeaponSpec knifeSpec =
         WolfCna::GetWeaponSpec(WolfCna::PlayerWeapon::Knife);

@@ -40,6 +40,7 @@ add_executable(wolf-cna
     src/Combat.cpp
     src/DoorMotion.cpp
     src/ExplorationMap.cpp
+    src/HudStatus.cpp
     src/LevelDefinition.cpp
     src/Program.cpp
     src/RunSave.cpp
@@ -298,6 +299,7 @@ add_executable(level-definition-tests
     src/Combat.cpp
     src/DoorMotion.cpp
     src/ExplorationMap.cpp
+    src/HudStatus.cpp
     src/LevelDefinition.cpp
     src/RunSave.cpp
     src/SpatialAudio.cpp

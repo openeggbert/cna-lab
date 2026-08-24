@@ -1690,9 +1690,17 @@ theme routing and positioned world-event payloads without requiring an audio dev
 
 ### WOLF-043 — expressive HUD status indicators
 
-Status: planned. Extend the full-width blue status bar with an original animated
-player-status portrait plus visible access-card indicators while preserving the
-current level, score, lives, health, ammunition and final weapon-icon ordering.
+Status: complete. The full-width blue bar now includes an original project-generated
+64×64 pixel-art bunker-explorer portrait between the lives and health readouts. Two
+healthy idle expressions alternate every 0.7 seconds; dedicated wounded, critical,
+attacking, recently hurt and defeated expressions follow an explicit tested priority.
+The portrait frame scales down for narrow viewports so it does not overlap labels.
+
+Cyan and amber card sprites remain independently visible beneath `LEVEL`, while the
+six requested anchors retain their full-width order: `LEVEL`, `SCORE`, `LIVES`,
+`HEALTH` with `%`, `AMMO`, then the final weapon icon. The status art is generated at
+load time through public CNA texture APIs and contains no copied character or asset.
+Pure tests cover health thresholds, idle animation and event priority.
 
 - react the portrait to health bands, recent damage, attacks and defeat;
 - display every carried access type without crowding numeric readouts;

@@ -72,12 +72,13 @@
 - Campaign metadata selects one of two original generated ambient loops, and living/defeated hounds now have deterministic positional bark/whimper voices.
 - The `I+L+M` implementation was re-audited: it grants 99 rounds and resets score plus sector score checkpoints to zero.
 - Ordinary, access and elevator doors now stay at floor height and slide left or right into a real wall pocket; push walls retain their separate full-cell motion.
+- The blue HUD now adds an original animated status portrait with healthy, wounded, critical, attack, hurt and defeated expressions while retaining card indicators and `LEVEL / SCORE / LIVES / HEALTH / AMMO / WEAPON` order.
 
 ## Next tasks
 
-1. Implement WOLF-043 expressive HUD status indicators.
-2. Implement WOLF-044 deliberate manual door closing while retaining occupied-door protection.
-3. Subjectively playtest positional audio, lateral doors, all three deterministic difficulty profiles, save slots, life loss, push walls and the full six-sector route including the hidden branch.
+1. Implement WOLF-044 deliberate manual door closing while retaining occupied-door protection.
+2. Subjectively playtest the animated HUD, positional audio, lateral doors and all three deterministic difficulty profiles.
+3. Playtest save slots, life loss, push walls and the full six-sector route including the hidden branch.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.

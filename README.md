@@ -17,6 +17,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - configurable keyboard turning with a fixed horizon and five persisted speed levels
 - crosshair-free play view with a large original AI-generated knife, sidearm, repeater or heavy automatic sprite in the lower center
 - discoverable repeater and heavy automatic weapon with distinct first-person sprites and matching HUD icons
+- full-width blue HUD keeps `LEVEL`, `SCORE`, `LIVES`, `HEALTH%`, `AMMO` and the final weapon icon in order, with independent cyan/amber card indicators and an original animated player-status portrait
 - explicit weapon profiles give knife, sidearm, repeater and heavy automatic distinct range, damage, spread and cadence; firearm damage falls with distance and movement widens deterministic seeded spread
 - every weapon has an original dedicated slash/firing frame, combined with visible knife lunge or firearm recoil for immediate attack feedback
 - clearly audible generated CNA effects for firearm shots, knife attacks, ammunition, enemy alerts and attacks, defeated enemies, doors, locks and player damage

@@ -824,6 +824,139 @@ namespace WolfCna
         sidearmAttackView_ = std::make_unique<Texture2D>("assets/weapons/sidearm-attack.png", device);
         repeaterAttackView_ = std::make_unique<Texture2D>("assets/weapons/repeater-attack.png", device);
         heavyWeaponAttackView_ = std::make_unique<Texture2D>("assets/weapons/heavy-automatic-attack.png", device);
+        CreateProceduralHudPortraits();
+    }
+
+    void WolfGame::CreateProceduralHudPortraits()
+    {
+        auto& device = getGraphicsDeviceProperty();
+        constexpr int size = 64;
+
+        for (std::size_t stateIndex = 0; stateIndex < hudPortraits_.size(); ++stateIndex)
+        {
+            const HudPortraitState state = static_cast<HudPortraitState>(stateIndex);
+            std::vector<Color> pixels(
+                static_cast<std::size_t>(size * size),
+                Color(8, 18, 43, 255));
+            const auto setPixel = [&pixels](int x, int y, const Color& color)
+            {
+                if (x >= 0 && x < size && y >= 0 && y < size)
+                    pixels[static_cast<std::size_t>(y * size + x)] = color;
+            };
+            const auto fillRect = [&setPixel](
+                int left,
+                int top,
+                int width,
+                int height,
+                const Color& color)
+            {
+                for (int y = top; y < top + height; ++y)
+                {
+                    for (int x = left; x < left + width; ++x)
+                        setPixel(x, y, color);
+                }
+            };
+            const auto fillEllipse = [&setPixel](
+                int centerX,
+                int centerY,
+                int radiusX,
+                int radiusY,
+                const Color& color)
+            {
+                for (int y = centerY - radiusY; y <= centerY + radiusY; ++y)
+                {
+                    for (int x = centerX - radiusX; x <= centerX + radiusX; ++x)
+                    {
+                        const float dx = static_cast<float>(x - centerX) / radiusX;
+                        const float dy = static_cast<float>(y - centerY) / radiusY;
+                        if (dx * dx + dy * dy <= 1.0f)
+                            setPixel(x, y, color);
+                    }
+                }
+            };
+
+            const bool wounded = state == HudPortraitState::Wounded;
+            const bool critical = state == HudPortraitState::Critical;
+            const bool defeated = state == HudPortraitState::Defeated;
+            const Color skin = critical || defeated
+                ? Color(185, 158, 139, 255)
+                : wounded ? Color(207, 166, 137, 255) : Color(225, 184, 148, 255);
+            const Color skinShadow = critical || defeated
+                ? Color(121, 102, 101, 255)
+                : Color(151, 105, 91, 255);
+            const Color hair(55, 40, 43, 255);
+            const Color dark(29, 26, 38, 255);
+
+            fillEllipse(32, 60, 27, 17, Color(31, 104, 125, 255));
+            fillRect(27, 43, 10, 12, skinShadow);
+            fillEllipse(32, defeated ? 34 : 30, 18, 23, skin);
+            fillEllipse(14, defeated ? 34 : 30, 3, 7, skinShadow);
+            fillEllipse(50, defeated ? 34 : 30, 3, 7, skinShadow);
+            fillRect(17, defeated ? 14 : 9, 30, 9, hair);
+            fillRect(14, defeated ? 18 : 13, 7, 14, hair);
+            fillRect(43, defeated ? 18 : 13, 7, 14, hair);
+
+            const int eyeY = defeated ? 34 : 29;
+            if (defeated)
+            {
+                for (int step = 0; step < 6; ++step)
+                {
+                    setPixel(21 + step, eyeY - 3 + step, dark);
+                    setPixel(26 - step, eyeY - 3 + step, dark);
+                    setPixel(38 + step, eyeY - 3 + step, dark);
+                    setPixel(43 - step, eyeY - 3 + step, dark);
+                }
+            }
+            else if (state == HudPortraitState::ReadyB ||
+                state == HudPortraitState::Hurt)
+            {
+                fillRect(20, eyeY, 8, 2, dark);
+                fillRect(36, eyeY, 8, 2, dark);
+            }
+            else
+            {
+                const int leftEyeHeight = wounded ? 2 : 4;
+                fillRect(22, eyeY, 4, leftEyeHeight, dark);
+                fillRect(38, eyeY, 4, 4, dark);
+                if (state == HudPortraitState::Attacking || critical)
+                {
+                    fillRect(20, eyeY - 5, 8, 2, dark);
+                    fillRect(36, eyeY - 5, 8, 2, dark);
+                }
+            }
+
+            fillRect(30, eyeY + 5, 4, 7, skinShadow);
+            if (state == HudPortraitState::Attacking)
+            {
+                fillRect(25, eyeY + 15, 14, 6, dark);
+                fillRect(28, eyeY + 15, 8, 2, Color(230, 222, 202, 255));
+            }
+            else if (state == HudPortraitState::Hurt)
+            {
+                fillEllipse(32, eyeY + 17, 5, 6, dark);
+            }
+            else if (defeated)
+            {
+                fillRect(26, eyeY + 14, 12, 2, dark);
+            }
+            else
+            {
+                fillRect(27, eyeY + 16, 10, 2, dark);
+                if (critical)
+                    fillRect(29, eyeY + 14, 6, 2, dark);
+            }
+
+            if (wounded || critical)
+            {
+                fillRect(16, 34, wounded ? 7 : 10, 4, Color(105, 73, 104, 255));
+                fillRect(43, 22, critical ? 6 : 3, 5, Color(105, 73, 104, 255));
+            }
+
+            hudPortraits_[stateIndex] = std::make_unique<Texture2D>(device, size, size);
+            hudPortraits_[stateIndex]->SetData(
+                pixels.data(),
+                static_cast<int>(pixels.size()));
+        }
     }
 
     void WolfGame::CreateProceduralEnemyImpactTexture()
@@ -1012,7 +1145,11 @@ namespace WolfCna
         if (!hudSpriteBatch_ || !hudPixel_ || !sidearmView_ || !knifeView_ ||
             !repeaterView_ || !heavyWeaponView_ || !knifeAttackView_ ||
             !sidearmAttackView_ || !repeaterAttackView_ || !heavyWeaponAttackView_ ||
-            !accessCardSprite_ || !amberAccessCardSprite_)
+            !accessCardSprite_ || !amberAccessCardSprite_ ||
+            std::any_of(
+                hudPortraits_.begin(),
+                hudPortraits_.end(),
+                [](const auto& portrait) { return !portrait; }))
             return;
 
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
@@ -1125,6 +1262,34 @@ namespace WolfCna
                 Rectangle(levelCenter + 3, panelY + 63, 26, 18),
                 Color(255, 255, 255, 255));
         }
+        const HudPortraitState portraitState = SelectHudPortraitState(
+            health_,
+            playerImpactFlashSeconds_ > 0.0f,
+            weaponFlashSeconds_ > 0.0f,
+            health_ <= 0,
+            static_cast<unsigned>(levelElapsedSeconds_ / 0.7f));
+        const int portraitFrameSize = std::clamp(
+            viewport.getWidthProperty() / 18,
+            34,
+            62);
+        const int portraitSize = portraitFrameSize - 6;
+        const int portraitFrameY = panelY + (panelHeight - portraitFrameSize) / 2;
+        hudSpriteBatch_->Draw(
+            *hudPixel_,
+            Rectangle(
+                centerX - portraitFrameSize / 2,
+                portraitFrameY,
+                portraitFrameSize,
+                portraitFrameSize),
+            Color(9, 20, 52, 255));
+        hudSpriteBatch_->Draw(
+            *hudPortraits_[HudPortraitIndex(portraitState)],
+            Rectangle(
+                centerX - portraitSize / 2,
+                portraitFrameY + 3,
+                portraitSize,
+                portraitSize),
+            Color(255, 255, 255, 255));
         const int weaponCenter = viewport.getXProperty() + viewport.getWidthProperty() * 11 / 12;
         hudSpriteBatch_->Draw(
             *idleTexture,
