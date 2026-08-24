@@ -234,6 +234,7 @@ namespace CopperBoots
         DrawPlatingPickups(cameraX, cameraY);
         DrawCapacitorPickups(cameraX, cameraY);
         DrawProjectiles(cameraX, cameraY);
+        DrawRouteEndpoints(cameraX, cameraY);
         DrawPlayer(cameraX, cameraY);
         DrawHud();
         if (world_.Result().Completed)
@@ -241,6 +242,8 @@ namespace CopperBoots
         worldSpriteDrawCount_ = spriteDrawCount_;
         if (debugOverlay_)
             DrawDebugOverlay(cameraX, cameraY);
+        if (world_.RouteTransition().Active)
+            DrawRouteTransitionOverlay();
         if (paused_)
             DrawPauseOverlay();
         spriteBatch_->End();
@@ -580,6 +583,26 @@ namespace CopperBoots
         }
     }
 
+    void CopperBootsGame::DrawRouteEndpoints(const float cameraX,
+                                             const float cameraY)
+    {
+        for (const RouteEndpointDefinition& endpoint : world_.RouteEndpoints()) {
+            if (endpoint.Area != world_.CurrentArea())
+                continue;
+            const int x = ScreenCoordinate(static_cast<float>(
+                endpoint.Position.X * TileMap::TileSize), cameraX);
+            const int y = ScreenCoordinate(static_cast<float>(
+                endpoint.Position.Y * TileMap::TileSize), cameraY);
+            if (x < -16 || x > LogicalWidth || y < 0 || y > LogicalHeight + 4)
+                continue;
+            FillRectangle(Rectangle(x + 1, y - 4, 14, 4), Color(40, 71, 73));
+            FillRectangle(Rectangle(x + 3, y - 3, 10, 2),
+                          Color(95, 192, 158));
+            FillRectangle(Rectangle(x + 7, y - 6, 2, 2),
+                          Color(235, 189, 67));
+        }
+    }
+
     void CopperBootsGame::DrawHud()
     {
         const Color ink(231, 224, 181);
@@ -704,6 +727,17 @@ namespace CopperBoots
         DrawText("ESC START RESUME", 116, 82, ink);
         DrawText("R Y RESTART", 132, 94, ink);
         DrawText("Q BACK QUIT", 132, 106, ink);
+    }
+
+    void CopperBootsGame::DrawRouteTransitionOverlay()
+    {
+        const int barHeight = std::clamp(static_cast<int>(std::round(
+            world_.RouteFadeAmount() * LogicalHeight * 0.5F)),
+            0, LogicalHeight / 2);
+        FillRectangle(Rectangle(0, 0, LogicalWidth, barHeight),
+                      Color(8, 10, 18));
+        FillRectangle(Rectangle(0, LogicalHeight - barHeight,
+                                LogicalWidth, barHeight), Color(8, 10, 18));
     }
 
     void CopperBootsGame::DrawCompletionOverlay()

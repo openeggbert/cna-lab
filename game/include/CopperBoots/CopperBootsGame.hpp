@@ -46,9 +46,11 @@ namespace CopperBoots
         void DrawPlatingPickups(float cameraX, float cameraY);
         void DrawCapacitorPickups(float cameraX, float cameraY);
         void DrawProjectiles(float cameraX, float cameraY);
+        void DrawRouteEndpoints(float cameraX, float cameraY);
         void DrawPlayer(float cameraX, float cameraY);
         void DrawHud();
         void DrawDebugOverlay(float cameraX, float cameraY);
+        void DrawRouteTransitionOverlay();
         void DrawPauseOverlay();
         void DrawCompletionOverlay();
         void DrawText(std::string_view text, int x, int y,

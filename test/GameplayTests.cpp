@@ -230,6 +230,47 @@ namespace
         return result;
     }
 
+    [[nodiscard]] std::string MakeRouteTravelLevel(
+        const std::string_view destinationArea, const int spawnX = 1)
+    {
+        return
+            "copper-boots-level 1\n"
+            "name Route Workshop\n"
+            "size 40 5\n"
+            "spawn " + std::to_string(spawnX) + " 4\n"
+            "checkpoint 1 4\n"
+            "parallax 0.1 0.25 0.5\n"
+            "initial-area main\n"
+            "endpoint entry main 1 4\n"
+            "endpoint remote " + std::string(destinationArea) + " 30 4\n"
+            "route entry remote\n"
+            "route remote entry\n"
+            "legend\n"
+            ". empty\n"
+            "# solid\n"
+            "- one-way\n"
+            "B breakable\n"
+            "! hazard\n"
+            "E exit\n"
+            "d decoration\n"
+            "G cog\n"
+            "? cog-block\n"
+            "o empty-block\n"
+            "P plated-block\n"
+            "A plating\n"
+            "R capacitor-block\n"
+            "K capacitor\n"
+            "H checkpoint\n"
+            "C crawler\n"
+            "c crawler-fall\n"
+            "map\n"
+            "........................................\n"
+            "........................................\n"
+            "........................................\n"
+            "........................................\n"
+            "########################################\n";
+    }
+
     void TestSimulationClock()
     {
         CopperBoots::SimulationClock clock;
@@ -438,6 +479,36 @@ namespace
                                "spawn 1 2\ncheckpoint 2 2"),
                       "case.cbl:5:"),
               "duplicate ordered directive is rejected deterministically");
+
+        std::string routeSource(source);
+        routeSource.replace(routeSource.find("d?oC"), 4, "d..C");
+        routeSource.replace(routeSource.find("BG!E"), 4, "B..E");
+        routeSource.insert(routeSource.find("legend\n"),
+            "initial-area main\n"
+            "endpoint entry main 1 2\n"
+            "endpoint tunnel conduit 2 2\n"
+            "route entry tunnel\n"
+            "route tunnel entry\n");
+        const CopperBoots::LevelDefinition routeLevel =
+            CopperBoots::LevelDefinition::Parse(routeSource, "routes.cbl");
+        Check(routeLevel.InitialArea == "main" &&
+                  routeLevel.RouteEndpoints.size() == 2 &&
+                  routeLevel.RouteEndpoints[1].Area == "conduit" &&
+                  routeLevel.Routes.size() == 2,
+              "named same-file subarea route metadata is parsed explicitly");
+
+        std::string unknownRoute(routeSource);
+        unknownRoute.replace(unknownRoute.find("route entry tunnel"),
+                             std::string_view("route entry tunnel").size(),
+                             "route entry missing");
+        Check(failsAt(unknownRoute, "case.cbl:10:"),
+              "route referencing unknown endpoint reports its directive");
+        std::string selfRoute(routeSource);
+        selfRoute.replace(selfRoute.find("route entry tunnel"),
+                          std::string_view("route entry tunnel").size(),
+                          "route entry entry");
+        Check(failsAt(selfRoute, "case.cbl:10:"),
+              "self-linked route is rejected explicitly");
 
         CopperBoots::WorldSimulation collectibleWorld;
         collectibleWorld.LoadLevel(
@@ -1358,6 +1429,74 @@ namespace
                   std::abs(completionWorld.Player().X - completedX) < 0.01F,
               "completion event is one-shot and freezes harmful simulation");
     }
+
+    void TestRouteTransitions()
+    {
+        constexpr float tick = static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds);
+        CopperBoots::PlayerInput interact;
+        interact.InteractHeld = true;
+
+        CopperBoots::WorldSimulation world;
+        world.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeRouteTravelLevel("conduit"), "route-travel.cbl"));
+        world.Update(interact, tick);
+        Check(world.RouteTransition().Active &&
+                  world.RouteTransition().ChangesArea &&
+                  world.Player().Motion == CopperBoots::PlayerMotion::Transition &&
+                  world.LastEvents().RouteTransitionsStarted == 1,
+              "aligned grounded interaction starts explicit subarea transition");
+        CheckNear(world.Player().X, 18.0F, 0.01F,
+                  "route start aligns player to source endpoint center");
+        CheckNear(world.RouteFadeAmount(), 0.0F, 0.001F,
+                  "route fade starts transparent");
+
+        for (int i = 0; i < 14; ++i)
+            world.Update(interact, tick);
+        Check(world.CurrentArea() == "main" &&
+                  !world.RouteTransition().DestinationReached &&
+                  world.RouteFadeAmount() > 0.85F,
+              "transition remains locked while fade approaches midpoint");
+        world.Update(interact, tick);
+        Check(world.CurrentArea() == "conduit" &&
+                  world.RouteTransition().DestinationReached &&
+                  world.LastEvents().RouteDestinationsReached == 1 &&
+                  std::abs(world.Player().X - 482.0F) < 0.01F &&
+                  world.Camera().X() > 300.0F &&
+                  std::abs(world.RouteFadeAmount() - 1.0F) < 0.001F,
+              "fade midpoint moves to named destination and resets camera");
+
+        for (int i = 0; i < 15; ++i)
+            world.Update(interact, tick);
+        Check(!world.RouteTransition().Active && world.Player().Grounded &&
+                  world.Player().Motion == CopperBoots::PlayerMotion::Standing &&
+                  world.LastEvents().RouteTransitionsCompleted == 1,
+              "route fade-in completes at a stable destination spawn");
+        world.Update(interact, tick);
+        Check(world.LastEvents().RouteTransitionsStarted == 0,
+              "held interaction cannot immediately cycle through return route");
+        world.Update({}, tick);
+        world.Update(interact, tick);
+        Check(world.RouteTransition().Active &&
+                  world.LastEvents().RouteTransitionsStarted == 1,
+              "release then interact permits explicit bidirectional return");
+
+        CopperBoots::WorldSimulation sameAreaWorld;
+        sameAreaWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeRouteTravelLevel("main"), "same-area.cbl"));
+        sameAreaWorld.Update(interact, tick);
+        Check(sameAreaWorld.RouteTransition().Active &&
+                  !sameAreaWorld.RouteTransition().ChangesArea,
+              "named endpoints also support same-area travel");
+
+        CopperBoots::WorldSimulation misalignedWorld;
+        misalignedWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeRouteTravelLevel("conduit", 2), "misaligned-route.cbl"));
+        misalignedWorld.Update(interact, tick);
+        Check(!misalignedWorld.RouteTransition().Active &&
+                  misalignedWorld.LastEvents().RouteTransitionsStarted == 0,
+              "route interaction requires explicit horizontal alignment");
+    }
 }
 
 int main()
@@ -1379,6 +1518,7 @@ int main()
     TestDeathAndRespawn();
     TestArcProjectiles();
     TestCheckpointAndCompletion();
+    TestRouteTransitions();
 
     if (failures != 0) {
         std::cerr << failures << " gameplay test(s) failed\n";

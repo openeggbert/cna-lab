@@ -5,6 +5,7 @@
 #include "CopperBoots/TileMap.hpp"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string>
@@ -98,6 +99,9 @@ namespace CopperBoots
         int ProjectilesFired = 0;
         int CheckpointsActivated = 0;
         int LevelCompleted = 0;
+        int RouteTransitionsStarted = 0;
+        int RouteDestinationsReached = 0;
+        int RouteTransitionsCompleted = 0;
     };
 
     struct CheckpointState
@@ -113,6 +117,19 @@ namespace CopperBoots
         int Score = 0;
         int CollectedCogs = 0;
         std::uint64_t CompletionTick = 0;
+    };
+
+    struct RouteTransitionState
+    {
+        static constexpr int TotalTicks = 30;
+        static constexpr int DestinationTick = 15;
+
+        bool Active = false;
+        bool DestinationReached = false;
+        bool ChangesArea = false;
+        int TicksRemaining = 0;
+        std::size_t SourceEndpoint = 0;
+        std::size_t DestinationEndpoint = 0;
     };
 
     struct PlatingPickupState
@@ -264,6 +281,21 @@ namespace CopperBoots
         [[nodiscard]] std::uint64_t TickCount() const noexcept { return tickCount_; }
         [[nodiscard]] const LevelResult& Result() const noexcept { return result_; }
         [[nodiscard]] int CompletionTicks() const noexcept { return completionTicks_; }
+        [[nodiscard]] const std::vector<RouteEndpointDefinition>& RouteEndpoints()
+            const noexcept
+        {
+            return routeEndpoints_;
+        }
+        [[nodiscard]] const RouteTransitionState& RouteTransition()
+            const noexcept
+        {
+            return routeTransition_;
+        }
+        [[nodiscard]] const std::string& CurrentArea() const noexcept
+        {
+            return currentArea_;
+        }
+        [[nodiscard]] float RouteFadeAmount() const noexcept;
         [[nodiscard]] int BlockVisualOffset(int tileX, int tileY) const noexcept;
 
     private:
@@ -285,6 +317,9 @@ namespace CopperBoots
         void UpdateProjectiles(float seconds);
         void ActivateOverlappingCheckpoints() noexcept;
         void StartLevelCompletion() noexcept;
+        [[nodiscard]] bool TryStartRouteTransition(
+            const PlayerInput& input) noexcept;
+        void UpdateRouteTransition() noexcept;
         void ResolvePlayerCrawlerContacts(float previousPlayerX,
                                            float previousPlayerY,
                                            bool jumpHeld);
@@ -311,6 +346,11 @@ namespace CopperBoots
         std::array<ProjectileState, 2> projectiles_{};
         std::vector<CheckpointState> checkpoints_;
         std::vector<InteractiveBlockState> interactiveBlocks_;
+        std::vector<RouteEndpointDefinition> routeEndpoints_;
+        std::vector<RouteDefinition> routes_;
+        std::string currentArea_ = "main";
+        RouteTransitionState routeTransition_;
+        bool routeInteractionLocked_ = false;
         WorldEvents lastEvents_;
         int collectedCogs_ = 0;
         int score_ = 0;

@@ -1,6 +1,7 @@
 #include "CopperBoots/LevelDefinition.hpp"
 
 #include <charconv>
+#include <cctype>
 #include <cstddef>
 #include <stdexcept>
 #include <string>
@@ -84,6 +85,29 @@ namespace CopperBoots
                 Fail(sourceName, line.Number, "unexpected trailing value");
         }
 
+        [[nodiscard]] std::string ParseIdentifier(
+            std::string_view& text, const SourceLine& line,
+            const std::string_view sourceName)
+        {
+            while (!text.empty() && text.front() == ' ')
+                text.remove_prefix(1);
+            const std::size_t end = text.find(' ');
+            const std::string_view value = text.substr(0, end);
+            if (value.empty())
+                Fail(sourceName, line.Number, "expected an identifier");
+            for (const unsigned char character : value) {
+                if (!std::isalnum(character) && character != '-' &&
+                    character != '_') {
+                    Fail(sourceName, line.Number,
+                         "identifier contains an invalid character");
+                }
+            }
+            text.remove_prefix(end == std::string_view::npos
+                ? text.size()
+                : end);
+            return std::string(value);
+        }
+
         [[nodiscard]] Tile DecodeTile(const char glyph,
                                       const std::string_view sourceName,
                                       const std::size_t line)
@@ -107,8 +131,8 @@ namespace CopperBoots
                                            const std::string_view sourceName)
     {
         const std::vector<SourceLine> lines = SplitLines(text);
-        constexpr std::size_t HeaderLineCount = 25;
-        if (lines.size() < HeaderLineCount)
+        constexpr std::size_t MinimumHeaderLineCount = 25;
+        if (lines.size() < MinimumHeaderLineCount)
             Fail(sourceName, lines.empty() ? 1 : lines.back().Number,
                  "incomplete level header");
 
@@ -154,6 +178,74 @@ namespace CopperBoots
             Fail(sourceName, lines[5].Number,
                  "parallax factors must be ascending values from 0 to 1.5");
 
+        std::string initialArea = "main";
+        bool initialAreaSeen = false;
+        std::vector<RouteEndpointDefinition> routeEndpoints;
+        std::vector<RouteDefinition> routes;
+        std::vector<std::size_t> endpointLines;
+        std::vector<std::size_t> routeLines;
+        std::size_t legendIndex = 6;
+        while (legendIndex < lines.size() &&
+               lines[legendIndex].Text != "legend") {
+            const SourceLine& line = lines[legendIndex];
+            if (line.Text.starts_with("initial-area ")) {
+                if (initialAreaSeen)
+                    Fail(sourceName, line.Number,
+                         "initial-area may only be declared once");
+                std::string_view value = ValueAfter(
+                    line, "initial-area ", sourceName);
+                initialArea = ParseIdentifier(value, line, sourceName);
+                RequireEnd(value, line, sourceName);
+                initialAreaSeen = true;
+            }
+            else if (line.Text.starts_with("endpoint ")) {
+                std::string_view value = ValueAfter(
+                    line, "endpoint ", sourceName);
+                RouteEndpointDefinition endpoint;
+                endpoint.Name = ParseIdentifier(value, line, sourceName);
+                endpoint.Area = ParseIdentifier(value, line, sourceName);
+                endpoint.Position.X = ParseNumber<int>(value, line, sourceName);
+                endpoint.Position.Y = ParseNumber<int>(value, line, sourceName);
+                RequireEnd(value, line, sourceName);
+                if (endpoint.Position.X < 0 || endpoint.Position.X >= width ||
+                    endpoint.Position.Y <= 0 || endpoint.Position.Y >= height) {
+                    Fail(sourceName, line.Number,
+                         "route endpoint coordinate is out of range");
+                }
+                for (const RouteEndpointDefinition& existing : routeEndpoints) {
+                    if (existing.Name == endpoint.Name)
+                        Fail(sourceName, line.Number,
+                             "route endpoint name is duplicated");
+                }
+                routeEndpoints.push_back(std::move(endpoint));
+                endpointLines.push_back(line.Number);
+            }
+            else if (line.Text.starts_with("route ")) {
+                std::string_view value = ValueAfter(line, "route ", sourceName);
+                RouteDefinition route;
+                route.Source = ParseIdentifier(value, line, sourceName);
+                route.Destination = ParseIdentifier(value, line, sourceName);
+                RequireEnd(value, line, sourceName);
+                if (route.Source == route.Destination)
+                    Fail(sourceName, line.Number,
+                         "self-linked routes are not allowed");
+                for (const RouteDefinition& existing : routes) {
+                    if (existing.Source == route.Source)
+                        Fail(sourceName, line.Number,
+                             "route source is duplicated");
+                }
+                routes.push_back(std::move(route));
+                routeLines.push_back(line.Number);
+            }
+            else {
+                Fail(sourceName, line.Number,
+                     "unknown level metadata directive");
+            }
+            ++legendIndex;
+        }
+        if (legendIndex >= lines.size())
+            Fail(sourceName, lines.back().Number, "missing level legend");
+
         constexpr std::array<std::string_view, 19> fixedLines{
             "legend", ". empty", "# solid", "- one-way", "B breakable", "! hazard",
             "E exit", "d decoration", "G cog", "? cog-block",
@@ -161,13 +253,16 @@ namespace CopperBoots
             "R capacitor-block", "K capacitor",
             "H checkpoint", "C crawler", "c crawler-fall", "map"};
         for (std::size_t i = 0; i < fixedLines.size(); ++i) {
-            const std::size_t lineIndex = 6 + i;
+            const std::size_t lineIndex = legendIndex + i;
+            if (lineIndex >= lines.size())
+                Fail(sourceName, lines.back().Number,
+                     "incomplete level legend");
             if (lines[lineIndex].Text != fixedLines[i])
                 Fail(sourceName, lines[lineIndex].Number,
                      "expected '" + std::string(fixedLines[i]) + "'");
         }
 
-        const std::size_t mapStart = HeaderLineCount;
+        const std::size_t mapStart = legendIndex + fixedLines.size();
         if (lines.size() < mapStart + static_cast<std::size_t>(height))
             Fail(sourceName, lines.back().Number, "level map has too few rows");
 
@@ -229,10 +324,38 @@ namespace CopperBoots
                 Fail(sourceName, lines[i].Number, "unexpected content after map");
         }
 
+        const auto findEndpoint = [&](const std::string& endpointName) {
+            for (const RouteEndpointDefinition& endpoint : routeEndpoints) {
+                if (endpoint.Name == endpointName)
+                    return &endpoint;
+            }
+            return static_cast<const RouteEndpointDefinition*>(nullptr);
+        };
+        for (std::size_t index = 0; index < routes.size(); ++index) {
+            const RouteDefinition& route = routes[index];
+            if (findEndpoint(route.Source) == nullptr ||
+                findEndpoint(route.Destination) == nullptr) {
+                Fail(sourceName, routeLines[index],
+                     "route references an unknown endpoint");
+            }
+        }
+        for (std::size_t index = 0; index < routeEndpoints.size(); ++index) {
+            const RouteEndpointDefinition& endpoint = routeEndpoints[index];
+            const int x = endpoint.Position.X;
+            const int footY = endpoint.Position.Y;
+            if (!map.IsSolid(x, footY) || map.IsSolid(x, footY - 1) ||
+                map.IsSolid(x, footY - 2)) {
+                Fail(sourceName, endpointLines[index],
+                     "route endpoint must have clear standing space above solid ground");
+            }
+        }
+
         return {name, std::move(map), spawnX, spawnY,
-                checkpointX, checkpointY, parallax, std::move(cogs),
+                checkpointX, checkpointY, std::move(initialArea), parallax,
+                std::move(cogs),
                 std::move(crawlers), std::move(platingPickups),
                 std::move(capacitorPickups), std::move(checkpoints),
-                std::move(interactiveBlocks)};
+                std::move(interactiveBlocks), std::move(routeEndpoints),
+                std::move(routes)};
     }
 }

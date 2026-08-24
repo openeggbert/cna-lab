@@ -488,6 +488,11 @@ size 80 12
 spawn 3 9
 checkpoint 3 9
 parallax 0.10 0.25 0.50
+initial-area main
+endpoint hatch-main main 12 9
+endpoint hatch-secret conduit 70 9
+route hatch-main hatch-secret
+route hatch-secret hatch-main
 legend
 . empty
 # solid
@@ -517,10 +522,23 @@ semantic tile records. The historical character codes are not reused.
 
 The version-1 grammar is deliberately strict and ordered. Unknown directives,
 duplicate directives, unknown glyphs, and non-empty data after the declared map
-are errors rather than silently ignored extensions. An incompatible grammar
-increments the magic version; compatible optional metadata will be introduced
-in a documented section before `legend`, with old loaders failing clearly
-instead of guessing.
+are errors rather than silently ignored extensions. Compatible route metadata
+now occupies the documented section between `parallax` and `legend`:
+`initial-area`, named `endpoint` records carrying area and standing-foot tile,
+and directed `route` links. Existing files with an empty metadata section remain
+valid. Endpoint names and route sources are unique, references and clear solid
+landing cells are validated, and self-links fail with line-numbered errors.
+Bidirectional and longer cycles are intentionally legal because every hop needs
+a fresh aligned interaction after the input-release lock.
+
+Route activation requires grounded Down/S input within four pixels of the
+source center. Simulation then aligns and locks the courier for 30 fixed ticks,
+fades through a CNA-drawn full cover, moves to the named destination at tick 15,
+updates the logical area and snaps the camera, then restores grounded motion.
+The transition exposes one-tick start/destination/completion events and a pure
+fade amount. Same-area and cross-area routes share this small mechanism; maps
+may place a physically separated subarea in the same external tile grid without
+a general scene engine.
 
 `G` is an object marker, not a visual/collision tile: loading extracts its tile
 coordinate into a cog list and leaves empty terrain behind. The fixed-step world

@@ -187,6 +187,11 @@ namespace CopperBoots
             interactiveBlocks_.push_back({block.Position.X, block.Position.Y,
                                           block.Content, false, 0});
         }
+        routeEndpoints_ = std::move(level.RouteEndpoints);
+        routes_ = std::move(level.Routes);
+        currentArea_ = std::move(level.InitialArea);
+        routeTransition_ = {};
+        routeInteractionLocked_ = false;
         level_ = std::move(level.Map);
         spawnX_ = static_cast<float>(level.SpawnTileX * TileMap::TileSize);
         spawnY_ = static_cast<float>(level.SpawnFootTileY * TileMap::TileSize) -
@@ -230,6 +235,13 @@ namespace CopperBoots
             ++tickCount_;
             return;
         }
+        if (!input.InteractHeld)
+            routeInteractionLocked_ = false;
+        if (routeTransition_.Active) {
+            UpdateRouteTransition();
+            ++tickCount_;
+            return;
+        }
         if (player_.Dead) {
             if (player_.DeathTicksRemaining > 0)
                 --player_.DeathTicksRemaining;
@@ -244,6 +256,10 @@ namespace CopperBoots
             --player_.InvulnerabilityTicks;
         if (player_.PowerTransitionTicks > 0)
             --player_.PowerTransitionTicks;
+        if (TryStartRouteTransition(input)) {
+            ++tickCount_;
+            return;
+        }
         const float previousPlayerX = player_.X;
         const float previousPlayerY = player_.Y;
         const float direction = std::clamp(input.Move, -1.0F, 1.0F);
@@ -555,6 +571,111 @@ namespace CopperBoots
             return phase >= 6 ? -2 : (phase >= 3 ? -1 : 0);
         }
         return 0;
+    }
+
+    float WorldSimulation::RouteFadeAmount() const noexcept
+    {
+        if (!routeTransition_.Active)
+            return 0.0F;
+        const int elapsed = RouteTransitionState::TotalTicks -
+                            routeTransition_.TicksRemaining;
+        const int phase = std::min(elapsed,
+            RouteTransitionState::TotalTicks - elapsed);
+        return static_cast<float>(phase) /
+               static_cast<float>(RouteTransitionState::DestinationTick);
+    }
+
+    bool WorldSimulation::TryStartRouteTransition(
+        const PlayerInput& input) noexcept
+    {
+        if (!input.InteractHeld || routeInteractionLocked_ ||
+            !player_.Grounded || routeEndpoints_.empty()) {
+            return false;
+        }
+
+        constexpr float HorizontalAlignmentTolerance = 4.0F;
+        constexpr float VerticalAlignmentTolerance = 0.01F;
+        const float playerCenter = player_.X + PlayerState::Width * 0.5F;
+        const float playerFoot = player_.Y + PlayerState::Height;
+        for (std::size_t endpointIndex = 0;
+             endpointIndex < routeEndpoints_.size(); ++endpointIndex) {
+            const RouteEndpointDefinition& source =
+                routeEndpoints_[endpointIndex];
+            if (source.Area != currentArea_)
+                continue;
+            const float endpointCenter = static_cast<float>(
+                source.Position.X * TileMap::TileSize) +
+                TileMap::TileSize * 0.5F;
+            const float endpointFoot = static_cast<float>(
+                source.Position.Y * TileMap::TileSize);
+            if (std::abs(playerCenter - endpointCenter) >
+                    HorizontalAlignmentTolerance ||
+                std::abs(playerFoot - endpointFoot) >
+                    VerticalAlignmentTolerance) {
+                continue;
+            }
+
+            for (const RouteDefinition& route : routes_) {
+                if (route.Source != source.Name)
+                    continue;
+                for (std::size_t destinationIndex = 0;
+                     destinationIndex < routeEndpoints_.size();
+                     ++destinationIndex) {
+                    const RouteEndpointDefinition& destination =
+                        routeEndpoints_[destinationIndex];
+                    if (destination.Name != route.Destination)
+                        continue;
+                    player_.X = endpointCenter - PlayerState::Width * 0.5F;
+                    player_.VelocityX = 0.0F;
+                    player_.VelocityY = 0.0F;
+                    player_.Motion = PlayerMotion::Transition;
+                    routeTransition_ = {
+                        true, false, source.Area != destination.Area,
+                        RouteTransitionState::TotalTicks,
+                        endpointIndex, destinationIndex};
+                    routeInteractionLocked_ = true;
+                    ++lastEvents_.RouteTransitionsStarted;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    void WorldSimulation::UpdateRouteTransition() noexcept
+    {
+        if (!routeTransition_.Active)
+            return;
+        if (routeTransition_.TicksRemaining > 0)
+            --routeTransition_.TicksRemaining;
+        if (!routeTransition_.DestinationReached &&
+            routeTransition_.TicksRemaining ==
+                RouteTransitionState::DestinationTick) {
+            const RouteEndpointDefinition& destination =
+                routeEndpoints_[routeTransition_.DestinationEndpoint];
+            player_.X = static_cast<float>(
+                destination.Position.X * TileMap::TileSize) +
+                (TileMap::TileSize - PlayerState::Width) * 0.5F;
+            player_.Y = static_cast<float>(
+                destination.Position.Y * TileMap::TileSize) -
+                PlayerState::Height;
+            currentArea_ = destination.Area;
+            routeTransition_.DestinationReached = true;
+            camera_.SnapTo(player_.X + PlayerState::Width * 0.5F,
+                           player_.Y + PlayerState::Height * 0.5F);
+            ++lastEvents_.RouteDestinationsReached;
+        }
+        if (routeTransition_.TicksRemaining > 0)
+            return;
+
+        routeTransition_.Active = false;
+        routeInteractionLocked_ = true;
+        player_.Grounded = Collides(player_.X, player_.Y + 1.0F,
+                                    PlayerState::Width, PlayerState::Height);
+        player_.Motion = player_.Grounded
+            ? PlayerMotion::Standing
+            : PlayerMotion::Falling;
+        ++lastEvents_.RouteTransitionsCompleted;
     }
 
     bool WorldSimulation::SolidAabb(const float x, const float y,

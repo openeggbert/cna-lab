@@ -30,9 +30,9 @@ gamepad input. Logic and CNA offscreen smoke tests pass.
 
 **Current: M2 — presentation and conduit/subarea foundation**
 
-The procedural courier pose set, enemy contact matrix and first debug overlay
-are complete. Build the first data-driven maintenance-conduit transition next,
-without broadening into a generic scene engine.
+The procedural courier pose set, enemy contact matrix, debug overlay and named
+route transition foundation are complete. Add the first optional Green Ruins
+maintenance-conduit secret next without broadening into a generic scene engine.
 
 ## Foundation and research
 
@@ -293,7 +293,7 @@ Acceptance:
 - Layout is new and has no column-for-column relation to historical levels.
 - Spawn, checkpoint, exit, camera bounds, and parallax metadata load externally.
 
-### MAR-033 — Transition/subarea model — TODO
+### MAR-033 — Transition/subarea model — DONE
 
 Acceptance:
 
@@ -584,7 +584,7 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Implement `MAR-033` and use it for the `MAR-047` maintenance-conduit secret.
+1. Use `MAR-033` for the `MAR-047` maintenance-conduit secret.
 2. Add deterministic state hashes and CTest labels for `MAR-070`.
 3. Add generated CNA sound effects under `MAR-056`, retaining silence fallback.
-4. Begin moving platforms (`MAR-046`) only after the transition model is stable.
+4. Begin moving platforms (`MAR-046`) now that the transition model is stable.
