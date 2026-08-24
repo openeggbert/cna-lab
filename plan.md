@@ -1658,12 +1658,31 @@ seed replay, movement spread, near/far damage, dynamic obstruction and save migr
 
 ### WOLF-042 — positional audio and sector music
 
-Status: planned. Replace fixed stereo pan values for world events with listener-
-relative audio positioning through CNA and add original sector-specific music or
-ambient themes. UI sounds remain non-positional and every channel obeys master
-volume.
+Status: complete. World events now carry their exact emitter positions into a pure,
+tested listener-relative mixer. The player's facing determines bounded CNA stereo
+pan, distance applies linear attenuation to a per-event hearing range and no event
+is submitted beyond that range. Enemy shots, alerts, hound attacks, projectile
+impacts, enemy-opened doors, action doors and locks, terminals, relays, push walls,
+pickups and defeated enemies use this path. At most four simultaneous instances of
+one event family are submitted per update to avoid burst clipping; player/UI feedback
+remains non-positional and CNA master volume still governs every instance.
+
+Living hounds emit deterministic occasional positional barks, and defeating one
+selects a distinct original generated whimper instead of the generic enemy tone.
+Campaign metadata now routes Lower Bunker and Warden Network sectors to two different
+original deterministic two-second ambient loops. Both CNA instances remain looped as
+the previous ambience did, with only the selected family audible, so title, pause and
+volume behavior remain unchanged.
+
+CNA capability note: the public `SoundEffect::Play(volume, pitch, pan)` and looped
+`SoundEffectInstance` properties provide all positioning needed for these short-lived
+2D-world events. Wolf CNA therefore uses no backend API. There are currently no
+long-running world emitters whose pan must be updated after creation; adding one later
+should use a retained CNA instance. Pure tests cover orientation, attenuation, range,
+theme routing and positioned world-event payloads without requiring an audio device.
 
 - position enemy, projectile, door, secret, pickup and objective sounds;
+- let living hounds occasionally bark and play a distinct whimper when one is defeated;
 - update long-running emitters as the listener moves where CNA supports it;
 - assign an original looping theme or ambience identity to each sector family;
 - avoid clipping when several nearby emitters trigger together;
@@ -1692,3 +1711,22 @@ that a player or defeated body safely holds the door open.
 - preserve distinct locked-door and secret-wall behavior;
 - keep door movement and collision synchronized in both directions;
 - test manual close, occupied close refusal and automatic-close fallback.
+
+### WOLF-045 — classic lateral door travel
+
+Status: planned. Replace the current upward-moving ordinary, access and elevator
+door panels with horizontal travel along the doorway, alternating deterministic
+left-to-right or right-to-left motion where either wall pocket is valid.
+
+- keep every polygonal panel at floor height throughout opening and closing;
+- slide along the panel's long axis without changing collision timing;
+- apply the same readable motion to ordinary, locked and elevator doors;
+- preserve physical push-wall movement as a separate mechanic;
+- test both doorway orientations and both deterministic slide directions.
+
+### WOLF-046 — classic ILM score reset
+
+Status: complete. The existing edge-triggered `I+L+M` command was audited against
+the requested classic contract: it restores health, grants 99 rounds, access and
+weapons, resets score to zero and resets both the next-life and sector-entry score
+checkpoints so the removed score cannot return after a life loss.

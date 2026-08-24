@@ -33,6 +33,7 @@ namespace WolfCna
         int standardDestination = -1;
         int secretDestination = -1;
         int selectableIndex = -1;
+        int audioTheme = 0;
     };
 
     inline constexpr std::array<CampaignSector, 6> CampaignSectors = {{
@@ -46,6 +47,7 @@ namespace WolfCna
             CampaignSectorKind::Standard,
             1,
             -1,
+            0,
             0},
         {
             "assets/levels/sector-02.level",
@@ -57,7 +59,8 @@ namespace WolfCna
             CampaignSectorKind::Standard,
             2,
             4,
-            1},
+            1,
+            0},
         {
             "assets/levels/sector-03.level",
             "SECTOR 3 LABS",
@@ -68,7 +71,8 @@ namespace WolfCna
             CampaignSectorKind::Standard,
             3,
             -1,
-            2},
+            2,
+            1},
         {
             "assets/levels/sector-04.level",
             "SECTOR 4 ARCHIVE",
@@ -79,7 +83,8 @@ namespace WolfCna
             CampaignSectorKind::Standard,
             5,
             -1,
-            3},
+            3,
+            1},
         {
             "assets/levels/hidden-reservoir.level",
             "HIDDEN RESERVOIR",
@@ -90,7 +95,8 @@ namespace WolfCna
             CampaignSectorKind::Secret,
             2,
             -1,
-            -1},
+            -1,
+            0},
         {
             "assets/levels/warden-core.level",
             "SECTOR 5 CORE",
@@ -101,7 +107,8 @@ namespace WolfCna
             CampaignSectorKind::Boss,
             -1,
             -1,
-            4}
+            4,
+            1}
     }};
 
     inline constexpr std::array<int, 5> SelectableCampaignSectors = {0, 1, 2, 3, 5};

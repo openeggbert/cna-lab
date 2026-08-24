@@ -435,7 +435,9 @@ namespace WolfCna
                     .hit = true,
                     .score = defeated ? enemy.scoreValue : 0,
                     .damage = damage,
-                    .distance = distance};
+                    .distance = distance,
+                    .position = enemy.position,
+                    .defeatedHound = defeated && enemy.type == Enemy::Type::Hound};
             }
 
             if (!IsBlockedCell(cellX, cellZ))
@@ -579,6 +581,18 @@ namespace WolfCna
                 result.health += std::max(0, 100 - currentHealth - result.health);
                 ++result.extraLives;
             }
+
+            if (!pickup.collected)
+                continue;
+
+            if (pickup.type == PickupType::Ammo ||
+                pickup.type == PickupType::RepeaterWeapon ||
+                pickup.type == PickupType::HeavyWeapon)
+            {
+                result.ammunitionAudioPositions.push_back(pickup.position);
+            }
+            if (pickup.type != PickupType::Ammo)
+                result.pickupAudioPositions.push_back(pickup.position);
         }
 
         return result;
@@ -1021,7 +1035,9 @@ namespace WolfCna
         enemyImpacts_.clear();
         impacts_.clear();
         pendingGuardShotCount_ = 0;
+        pendingGuardShotPositions_.clear();
         pendingEnemyAudioEvents_ = {};
+        lastInteractionPosition_.reset();
         pendingPlayerNoise_.reset();
         RebuildDoorGeometry();
         BuildImpactGeometry();
@@ -1034,7 +1050,16 @@ namespace WolfCna
     {
         const int shotCount = pendingGuardShotCount_;
         pendingGuardShotCount_ = 0;
+        pendingGuardShotPositions_.clear();
         return shotCount;
+    }
+
+    std::vector<Vector3> World::ConsumeGuardShotPositions()
+    {
+        pendingGuardShotCount_ = 0;
+        std::vector<Vector3> positions = std::move(pendingGuardShotPositions_);
+        pendingGuardShotPositions_.clear();
+        return positions;
     }
 
     World::EnemyAudioEvents World::ConsumeEnemyAudioEvents()
@@ -1042,6 +1067,11 @@ namespace WolfCna
         const EnemyAudioEvents events = pendingEnemyAudioEvents_;
         pendingEnemyAudioEvents_ = {};
         return events;
+    }
+
+    std::optional<Vector3> World::GetLastInteractionPosition() const
+    {
+        return lastInteractionPosition_;
     }
 
     int World::ActiveEnemyImpactCount() const
@@ -1072,6 +1102,7 @@ namespace WolfCna
             enemyImpacts_.erase(enemyImpacts_.begin());
         enemyImpacts_.push_back({position, EnemyImpactDuration, hitPlayer});
         ++pendingEnemyAudioEvents_.projectileImpacts;
+        pendingEnemyAudioEvents_.projectileImpactPositions.push_back(position);
     }
 
     World::InteractionResult World::TryActivate(
@@ -1079,6 +1110,7 @@ namespace WolfCna
         const Vector3& lookDirection,
         int accessMask)
     {
+        lastInteractionPosition_.reset();
         Door* target = nullptr;
         Terminal* targetTerminal = nullptr;
         Relay* targetRelay = nullptr;
@@ -1169,6 +1201,7 @@ namespace WolfCna
 
         if (targetExit)
         {
+            lastInteractionPosition_ = targetExit->position;
             const BossStatus boss = GetBossStatus();
             if (boss.present && !boss.defeated)
                 return InteractionResult::ExitSealed;
@@ -1179,18 +1212,25 @@ namespace WolfCna
 
         if (targetRelay)
         {
+            lastInteractionPosition_ = targetRelay->position;
             targetRelay->activated = true;
             return InteractionResult::RelayActivated;
         }
 
         if (targetTerminal)
         {
+            lastInteractionPosition_ = targetTerminal->position;
             targetTerminal->activated = true;
             return InteractionResult::TerminalActivated;
         }
 
         if (!target)
             return InteractionResult::None;
+
+        lastInteractionPosition_ = Vector3(
+            static_cast<float>(target->x) + 0.5f,
+            0.5f,
+            static_cast<float>(target->z) + 0.5f);
 
         if (target->isSecret)
         {
@@ -1376,8 +1416,28 @@ namespace WolfCna
             enemy.painVisualSeconds = std::max(0.0f, enemy.painVisualSeconds - elapsedSeconds);
             if (enemy.state == EnemyState::Dead)
                 continue;
+            const float previousAnimationSeconds = enemy.visualAnimationSeconds;
             enemy.visualAnimationSeconds = std::fmod(
                 enemy.visualAnimationSeconds + elapsedSeconds, 1000.0f);
+            if (enemy.type == Enemy::Type::Hound)
+            {
+                constexpr float BarkCycleSeconds = 7.0f;
+                const float phase = std::fmod(
+                    std::floor(enemy.position.X) * 0.73f +
+                    std::floor(enemy.position.Z) * 1.17f,
+                    BarkCycleSeconds);
+                const float previousCycle = std::fmod(
+                    previousAnimationSeconds + phase,
+                    BarkCycleSeconds);
+                const float currentCycle = std::fmod(
+                    enemy.visualAnimationSeconds + phase,
+                    BarkCycleSeconds);
+                if (elapsedSeconds >= BarkCycleSeconds || currentCycle < previousCycle)
+                {
+                    ++pendingEnemyAudioEvents_.houndBarks;
+                    pendingEnemyAudioEvents_.houndBarkPositions.push_back(enemy.position);
+                }
+            }
 
             const bool passivelyObserving =
                 enemy.state == EnemyState::Idle || enemy.state == EnemyState::Patrol;
@@ -1544,6 +1604,7 @@ namespace WolfCna
                         damage += static_cast<int>(std::lround(
                             enemy.attackDamage * difficultyProfile_.incomingDamageMultiplier));
                         ++pendingEnemyAudioEvents_.houndAttacks;
+                        pendingEnemyAudioEvents_.houndAttackPositions.push_back(enemy.position);
                     }
                     else
                     {
@@ -1574,6 +1635,7 @@ namespace WolfCna
                                 enemy.attackDamage});
                         }
                         ++pendingGuardShotCount_;
+                        pendingGuardShotPositions_.push_back(enemy.position);
                     }
                     enemy.attackVisualSeconds = enemy.melee
                         ? HoundAttackVisualSeconds
@@ -2362,9 +2424,15 @@ namespace WolfCna
         enemy.reactionRemaining = enemy.reactionDuration;
         enemy.lastKnownTarget = target;
         if (enemy.melee)
+        {
             ++pendingEnemyAudioEvents_.houndAlerts;
+            pendingEnemyAudioEvents_.houndAlertPositions.push_back(enemy.position);
+        }
         else
+        {
             ++pendingEnemyAudioEvents_.guardAlerts;
+            pendingEnemyAudioEvents_.guardAlertPositions.push_back(enemy.position);
+        }
     }
 
     bool World::TryOpenOrdinaryDoor(int x, int z)
@@ -2380,6 +2448,10 @@ namespace WolfCna
                 door.opening = true;
                 door.closeDelay = DoorAutoCloseDelay;
                 ++pendingEnemyAudioEvents_.doorsOpened;
+                pendingEnemyAudioEvents_.doorPositions.push_back(Vector3(
+                    static_cast<float>(door.x) + 0.5f,
+                    0.5f,
+                    static_cast<float>(door.z) + 0.5f));
             }
             return true;
         }

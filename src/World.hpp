@@ -59,6 +59,8 @@ namespace WolfCna
             int repeaterWeapons = 0;
             int heavyWeapons = 0;
             int extraLives = 0;
+            std::vector<Microsoft::Xna::Framework::Vector3> ammunitionAudioPositions;
+            std::vector<Microsoft::Xna::Framework::Vector3> pickupAudioPositions;
         };
 
         struct AttackResult
@@ -67,6 +69,8 @@ namespace WolfCna
             int score = 0;
             int damage = 0;
             float distance = 0.0f;
+            Microsoft::Xna::Framework::Vector3 position;
+            bool defeatedHound = false;
 
             operator bool() const { return hit; }
         };
@@ -75,9 +79,16 @@ namespace WolfCna
         {
             int guardAlerts = 0;
             int houndAlerts = 0;
+            int houndBarks = 0;
             int houndAttacks = 0;
             int projectileImpacts = 0;
             int doorsOpened = 0;
+            std::vector<Microsoft::Xna::Framework::Vector3> guardAlertPositions;
+            std::vector<Microsoft::Xna::Framework::Vector3> houndAlertPositions;
+            std::vector<Microsoft::Xna::Framework::Vector3> houndBarkPositions;
+            std::vector<Microsoft::Xna::Framework::Vector3> houndAttackPositions;
+            std::vector<Microsoft::Xna::Framework::Vector3> projectileImpactPositions;
+            std::vector<Microsoft::Xna::Framework::Vector3> doorPositions;
         };
 
         struct CompletionStats
@@ -289,7 +300,11 @@ namespace WolfCna
         [[nodiscard]] SaveState CaptureSaveState() const;
         [[nodiscard]] bool RestoreSaveState(const SaveState& state);
         [[nodiscard]] int ConsumeGuardShotCount();
+        [[nodiscard]] std::vector<Microsoft::Xna::Framework::Vector3>
+            ConsumeGuardShotPositions();
         [[nodiscard]] EnemyAudioEvents ConsumeEnemyAudioEvents();
+        [[nodiscard]] std::optional<Microsoft::Xna::Framework::Vector3>
+            GetLastInteractionPosition() const;
         [[nodiscard]] int ActiveEnemyImpactCount() const;
         [[nodiscard]] bool IsPushWallAtCell(int x, int z) const;
         [[nodiscard]] bool IsActivatedPushWallSource(int x, int z) const;
@@ -474,7 +489,9 @@ namespace WolfCna
         std::vector<EnemyProjectile> enemyProjectiles_;
         std::vector<EnemyImpact> enemyImpacts_;
         int pendingGuardShotCount_ = 0;
+        std::vector<Microsoft::Xna::Framework::Vector3> pendingGuardShotPositions_;
         EnemyAudioEvents pendingEnemyAudioEvents_;
+        std::optional<Microsoft::Xna::Framework::Vector3> lastInteractionPosition_;
         std::optional<Microsoft::Xna::Framework::Vector3> pendingPlayerNoise_;
         std::vector<Pickup> pickups_;
         std::size_t basePickupCount_ = 0;

@@ -21,6 +21,8 @@
 #include "Microsoft/Xna/Framework/Input/Keys.hpp"
 #include "Microsoft/Xna/Framework/Input/Mouse.hpp"
 
+#include "SpatialAudio.hpp"
+
 namespace WolfCna
 {
     using namespace Microsoft::Xna::Framework;
@@ -167,6 +169,46 @@ namespace WolfCna
             return pcm;
         }
 
+        std::vector<SharpRuntime::bytecs> MakeHoundVoice(bool whimper)
+        {
+            constexpr float sampleRate = 22050.0f;
+            const int sampleCount = whimper ? 7600 : 4300;
+            std::vector<SharpRuntime::bytecs> pcm;
+            pcm.reserve(static_cast<std::size_t>(sampleCount * 2));
+            std::uint32_t noiseState = whimper ? 0x91c53a7bu : 0x42de7189u;
+
+            for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
+            {
+                noiseState = noiseState * 1664525u + 1013904223u;
+                const float noise = static_cast<float>(
+                    static_cast<int>((noiseState >> 16u) & 0xffffu) - 32768) /
+                    32768.0f;
+                const float progress = static_cast<float>(sampleIndex) /
+                    static_cast<float>(sampleCount);
+                const float frequency = whimper
+                    ? 410.0f - progress * 225.0f
+                    : 185.0f - progress * 75.0f;
+                const float voice = std::sin(
+                    2.0f * MathHelper::Pi * frequency *
+                    static_cast<float>(sampleIndex) / sampleRate);
+                const float pulse = whimper
+                    ? 1.0f
+                    : (progress < 0.42f || (progress > 0.56f && progress < 0.88f)
+                        ? 1.0f
+                        : 0.12f);
+                const float envelope = whimper
+                    ? std::sin(MathHelper::Pi * progress)
+                    : (1.0f - progress) * pulse;
+                const float signal = (voice * (whimper ? 0.82f : 0.62f) +
+                    noise * (whimper ? 0.08f : 0.25f)) * envelope;
+                const auto sample = static_cast<std::int16_t>(
+                    std::clamp(signal, -1.0f, 1.0f) * 23000.0f);
+                pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
+                pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
+            }
+            return pcm;
+        }
+
         std::vector<SharpRuntime::bytecs> MakeSectorCompletionFanfare()
         {
             constexpr float sampleRate = 22050.0f;
@@ -220,7 +262,7 @@ namespace WolfCna
             return pcm;
         }
 
-        std::vector<SharpRuntime::bytecs> MakeAmbientLoop()
+        std::vector<SharpRuntime::bytecs> MakeAmbientLoop(int theme)
         {
             constexpr float sampleRate = 22050.0f;
             constexpr int sampleCount = 44100;
@@ -230,11 +272,24 @@ namespace WolfCna
             for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
             {
                 const float time = static_cast<float>(sampleIndex) / sampleRate;
-                const float drone = std::sin(2.0f * MathHelper::Pi * 55.0f * time) * 0.18f;
-                const float pulse = std::sin(2.0f * MathHelper::Pi * 82.5f * time) * 0.10f;
-                const float signal = std::sin(2.0f * MathHelper::Pi * 220.0f * time) *
+                const bool networkTheme = theme == 1;
+                const float droneFrequency = networkTheme ? 60.0f : 55.0f;
+                const float pulseFrequency = networkTheme ? 120.0f : 82.5f;
+                const float signalFrequency = networkTheme ? 300.0f : 220.0f;
+                const float drone = std::sin(
+                    2.0f * MathHelper::Pi * droneFrequency * time) *
+                    (networkTheme ? 0.12f : 0.18f);
+                const float pulseGate = networkTheme
+                    ? (std::sin(2.0f * MathHelper::Pi * 2.0f * time) > 0.15f ? 1.0f : 0.25f)
+                    : 1.0f;
+                const float pulse = std::sin(
+                    2.0f * MathHelper::Pi * pulseFrequency * time) *
+                    (networkTheme ? 0.13f : 0.10f) * pulseGate;
+                const float signal = std::sin(
+                    2.0f * MathHelper::Pi * signalFrequency * time) *
                     (0.025f + 0.02f * std::sin(2.0f * MathHelper::Pi * 0.5f * time));
-                const auto sample = static_cast<std::int16_t>((drone + pulse + signal) * 9000.0f);
+                const auto sample = static_cast<std::int16_t>(
+                    (drone + pulse + signal) * 9000.0f);
                 pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
                 pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
             }
@@ -860,8 +915,16 @@ namespace WolfCna
             MakeTone(175.0f, 2500),
             22050,
             AudioChannels::Mono);
+        houndBarkSound_ = std::make_unique<SoundEffect>(
+            MakeHoundVoice(false),
+            22050,
+            AudioChannels::Mono);
         houndAttackSound_ = std::make_unique<SoundEffect>(
             MakeTone(105.0f, 1500),
+            22050,
+            AudioChannels::Mono);
+        houndWhimperSound_ = std::make_unique<SoundEffect>(
+            MakeHoundVoice(true),
             22050,
             AudioChannels::Mono);
         extraLifeSound_ = std::make_unique<SoundEffect>(
@@ -876,14 +939,72 @@ namespace WolfCna
             MakeSectorCompletionFanfare(),
             22050,
             AudioChannels::Mono);
-        ambientSound_ = std::make_unique<SoundEffect>(
-            MakeAmbientLoop(),
-            22050,
-            AudioChannels::Mono);
-        ambientInstance_ = std::make_unique<SoundEffectInstance>(ambientSound_->CreateInstance());
-        ambientInstance_->setIsLoopedProperty(true);
-        ambientInstance_->setVolumeProperty(0.12f);
-        ambientInstance_->Play();
+        for (std::size_t theme = 0; theme < ambientSounds_.size(); ++theme)
+        {
+            ambientSounds_[theme] = std::make_unique<SoundEffect>(
+                MakeAmbientLoop(static_cast<int>(theme)),
+                22050,
+                AudioChannels::Mono);
+            ambientInstances_[theme] = std::make_unique<SoundEffectInstance>(
+                ambientSounds_[theme]->CreateInstance());
+            ambientInstances_[theme]->setIsLoopedProperty(true);
+            ambientInstances_[theme]->setVolumeProperty(0.0f);
+            ambientInstances_[theme]->Play();
+        }
+        UpdateAmbientTheme();
+    }
+
+    void WolfGame::UpdateAmbientTheme()
+    {
+        const int selectedTheme = std::clamp(
+            GetCampaignSector(levelIndex_).audioTheme,
+            0,
+            static_cast<int>(ambientInstances_.size()) - 1);
+        for (std::size_t theme = 0; theme < ambientInstances_.size(); ++theme)
+        {
+            if (ambientInstances_[theme])
+            {
+                ambientInstances_[theme]->setVolumeProperty(
+                    static_cast<int>(theme) == selectedTheme ? 0.12f : 0.0f);
+            }
+        }
+    }
+
+    void WolfGame::PlaySpatialSound(
+        SoundEffect& sound,
+        const Vector3& source,
+        float baseVolume,
+        float pitch,
+        float maximumDistance)
+    {
+        const Vector3 forward = LookDirection();
+        const SpatialAudioMix mix = CalculateSpatialAudioMix(
+            playerPosition_.X,
+            playerPosition_.Z,
+            forward.X,
+            forward.Z,
+            source.X,
+            source.Z,
+            baseVolume,
+            1.0f,
+            maximumDistance);
+        if (mix.volume > 0.001f)
+            static_cast<void>(sound.Play(mix.volume, pitch, mix.pan));
+    }
+
+    void WolfGame::PlaySpatialSounds(
+        SoundEffect& sound,
+        const std::vector<Vector3>& sources,
+        float baseVolume,
+        float pitch,
+        float maximumDistance)
+    {
+        constexpr std::size_t MaximumVoicesPerEvent = 4;
+        const std::size_t first = sources.size() > MaximumVoicesPerEvent
+            ? sources.size() - MaximumVoicesPerEvent
+            : 0;
+        for (std::size_t index = first; index < sources.size(); ++index)
+            PlaySpatialSound(sound, sources[index], baseVolume, pitch, maximumDistance);
     }
 
     void WolfGame::DrawHud()
@@ -1793,6 +1914,7 @@ namespace WolfCna
     {
         const int maximumIndex = static_cast<int>(CampaignSectors.size()) - 1;
         levelIndex_ = std::clamp(index, 0, maximumIndex);
+        UpdateAmbientTheme();
         level_ = LevelDefinition::LoadFromFile(
             std::string(GetCampaignSector(levelIndex_).file));
         world_ = World(level_, difficulty_);
@@ -1996,6 +2118,7 @@ namespace WolfCna
         if (atlas_)
             CreateProceduralAtlas();
         levelIndex_ = state.levelIndex;
+        UpdateAmbientTheme();
         const int selectableIndex = GetCampaignSector(state.levelIndex).selectableIndex;
         if (selectableIndex >= 0)
         {
@@ -2540,13 +2663,23 @@ namespace WolfCna
         {
             const World::InteractionResult activation =
                 world_.TryActivate(playerPosition_, LookDirection(), accessMask_);
+            const std::optional<Vector3> interactionPosition =
+                world_.GetLastInteractionPosition();
+            const auto playInteractionSound = [this, &interactionPosition](
+                SoundEffect& sound,
+                float volume,
+                float pitch)
+            {
+                if (interactionPosition)
+                    PlaySpatialSound(sound, *interactionPosition, volume, pitch, 10.0f);
+            };
             if (activation == World::InteractionResult::DoorOpened && doorSound_)
-                static_cast<void>(doorSound_->Play(0.68f, -0.15f, 0.0f));
+                playInteractionSound(*doorSound_, 0.68f, -0.15f);
             else if (activation == World::InteractionResult::DoorLocked ||
                 activation == World::InteractionResult::AmberDoorLocked)
             {
                 if (lockedSound_)
-                    static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
+                    playInteractionSound(*lockedSound_, 0.24f, -0.7f);
                 objectiveMessage_ = activation == World::InteractionResult::AmberDoorLocked
                     ? "AMBER ACCESS REQUIRED"
                     : "CYAN ACCESS REQUIRED";
@@ -2567,14 +2700,14 @@ namespace WolfCna
             else if (activation == World::InteractionResult::ExitSealed)
             {
                 if (lockedSound_)
-                    static_cast<void>(lockedSound_->Play(0.28f, -0.45f, 0.0f));
+                    playInteractionSound(*lockedSound_, 0.28f, -0.45f);
                 objectiveMessage_ = "WARDEN LOCKDOWN";
                 objectiveMessageSeconds_ = 2.0f;
             }
             else if (activation == World::InteractionResult::TerminalActivated)
             {
                 if (terminalSound_)
-                    static_cast<void>(terminalSound_->Play(0.32f, 0.25f, 0.0f));
+                    playInteractionSound(*terminalSound_, 0.32f, 0.25f);
                 objectiveMessage_ = world_.AreObjectivesComplete()
                     ? "SYSTEMS COMPLETE"
                     : "TERMINAL ONLINE";
@@ -2583,7 +2716,7 @@ namespace WolfCna
             else if (activation == World::InteractionResult::RelayActivated)
             {
                 if (terminalSound_)
-                    static_cast<void>(terminalSound_->Play(0.38f, -0.2f, 0.0f));
+                    playInteractionSound(*terminalSound_, 0.38f, -0.2f);
                 objectiveMessage_ = world_.AreObjectivesComplete()
                     ? "SYSTEMS COMPLETE"
                     : "POWER ONLINE";
@@ -2593,12 +2726,12 @@ namespace WolfCna
             {
                 AwardScore(500);
                 if (secretSound_)
-                    static_cast<void>(secretSound_->Play(0.3f, 0.45f, 0.0f));
+                    playInteractionSound(*secretSound_, 0.3f, 0.45f);
             }
             else if (activation == World::InteractionResult::SecretBlocked)
             {
                 if (lockedSound_)
-                    static_cast<void>(lockedSound_->Play(0.18f, -0.5f, 0.0f));
+                    playInteractionSound(*lockedSound_, 0.18f, -0.5f);
                 objectiveMessage_ = "PUSH WALL BLOCKED";
                 objectiveMessageSeconds_ = 2.0f;
             }
@@ -2650,7 +2783,12 @@ namespace WolfCna
             if (knifeSound_)
                 static_cast<void>(knifeSound_->Play(0.62f, -0.2f, 0.0f));
             if (attack.score > 0 && enemyDefeatedSound_)
-                static_cast<void>(enemyDefeatedSound_->Play(0.28f, -0.3f, 0.0f));
+            {
+                if (attack.defeatedHound && houndWhimperSound_)
+                    PlaySpatialSound(*houndWhimperSound_, attack.position, 0.42f, 0.0f);
+                else
+                    PlaySpatialSound(*enemyDefeatedSound_, attack.position, 0.34f, -0.3f);
+            }
         }
         else if (attackTriggered && ammo_ > 0)
         {
@@ -2695,10 +2833,16 @@ namespace WolfCna
                         0.0f));
                 }
                 if (attack.score > 0 && enemyDefeatedSound_)
-                    static_cast<void>(enemyDefeatedSound_->Play(
-                        automaticWeapon ? 0.32f : 0.28f,
-                        automaticWeapon ? -0.22f : -0.3f,
-                        0.0f));
+                {
+                    if (attack.defeatedHound && houndWhimperSound_)
+                        PlaySpatialSound(*houndWhimperSound_, attack.position, 0.42f, 0.0f);
+                    else
+                        PlaySpatialSound(
+                            *enemyDefeatedSound_,
+                            attack.position,
+                            automaticWeapon ? 0.38f : 0.34f,
+                            automaticWeapon ? -0.22f : -0.3f);
+                }
             }
         }
         if (ammo_ <= 0)
@@ -2791,19 +2935,23 @@ namespace WolfCna
         weaponFlashSeconds_ = std::max(0.0f, weaponFlashSeconds_ - clampedElapsed);
         playerImpactFlashSeconds_ = std::max(0.0f, playerImpactFlashSeconds_ - clampedElapsed);
         const int incomingDamage = world_.Update(clampedElapsed, playerPosition_);
-        if (world_.ConsumeGuardShotCount() > 0 && guardShotSound_)
-            static_cast<void>(guardShotSound_->Play(0.18f, 0.12f, 0.0f));
+        const std::vector<Vector3> guardShotPositions =
+            world_.ConsumeGuardShotPositions();
+        if (guardShotSound_)
+            PlaySpatialSounds(*guardShotSound_, guardShotPositions, 0.34f, 0.12f, 16.0f);
         const World::EnemyAudioEvents enemyAudioEvents = world_.ConsumeEnemyAudioEvents();
-        if (enemyAudioEvents.guardAlerts > 0 && guardAlertSound_)
-            static_cast<void>(guardAlertSound_->Play(0.2f, -0.1f, 0.0f));
-        if (enemyAudioEvents.houndAlerts > 0 && houndAlertSound_)
-            static_cast<void>(houndAlertSound_->Play(0.22f, -0.3f, 0.0f));
-        if (enemyAudioEvents.houndAttacks > 0 && houndAttackSound_)
-            static_cast<void>(houndAttackSound_->Play(0.25f, -0.4f, 0.0f));
-        if (enemyAudioEvents.projectileImpacts > 0 && enemyImpactSound_)
-            static_cast<void>(enemyImpactSound_->Play(0.2f, 0.18f, 0.0f));
-        if (enemyAudioEvents.doorsOpened > 0 && doorSound_)
-            static_cast<void>(doorSound_->Play(0.35f, 0.0f, 0.0f));
+        if (guardAlertSound_)
+            PlaySpatialSounds(*guardAlertSound_, enemyAudioEvents.guardAlertPositions, 0.32f, -0.1f);
+        if (houndAlertSound_)
+            PlaySpatialSounds(*houndAlertSound_, enemyAudioEvents.houndAlertPositions, 0.34f, -0.3f);
+        if (houndBarkSound_)
+            PlaySpatialSounds(*houndBarkSound_, enemyAudioEvents.houndBarkPositions, 0.38f, 0.0f);
+        if (houndAttackSound_)
+            PlaySpatialSounds(*houndAttackSound_, enemyAudioEvents.houndAttackPositions, 0.4f, -0.4f, 8.0f);
+        if (enemyImpactSound_)
+            PlaySpatialSounds(*enemyImpactSound_, enemyAudioEvents.projectileImpactPositions, 0.34f, 0.18f);
+        if (doorSound_)
+            PlaySpatialSounds(*doorSound_, enemyAudioEvents.doorPositions, 0.45f, 0.0f, 10.0f);
         health_ -= incomingDamage;
         if (incomingDamage > 0 && hurtSound_)
             static_cast<void>(hurtSound_->Play(0.3f, -0.25f, 0.0f));
@@ -2879,11 +3027,20 @@ namespace WolfCna
                 : "CYAN ACCESS ACQUIRED";
             objectiveMessageSeconds_ = 2.0f;
         }
-        if (pickups.ammo > 0 && ammoPickupSound_)
-            static_cast<void>(ammoPickupSound_->Play(0.72f, 0.0f, 0.0f));
-        if ((pickups.health + pickups.gold + pickups.accessMask + pickups.extraLives +
-            pickups.repeaterWeapons + pickups.heavyWeapons) > 0 && pickupSound_)
-            static_cast<void>(pickupSound_->Play(0.28f, 0.0f, 0.0f));
+        if (ammoPickupSound_)
+            PlaySpatialSounds(
+                *ammoPickupSound_,
+                pickups.ammunitionAudioPositions,
+                0.72f,
+                0.0f,
+                6.0f);
+        if (pickupSound_)
+            PlaySpatialSounds(
+                *pickupSound_,
+                pickups.pickupAudioPositions,
+                0.32f,
+                0.0f,
+                6.0f);
         if (!completed_)
         {
             const std::optional<World::ExitRoute> exitRoute =

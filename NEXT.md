@@ -68,12 +68,15 @@
 - Held automatics emit and charge one round per projectile, dynamic doors/push walls block hitscan, and rebalanced enemy health preserves the audited clear budget.
 - Four main sectors gained only the ammunition their stricter Veteran close-sidearm audits required; all six sectors now enforce per-difficulty clear budgets.
 - Run-save version 5 persists the combat-shot sequence and migrates versions 1–4.
+- World sounds now pan from the listener's facing and attenuate by distance through CNA; event bursts are capped at four voices while UI feedback stays centered.
+- Campaign metadata selects one of two original generated ambient loops, and living/defeated hounds now have deterministic positional bark/whimper voices.
+- The `I+L+M` implementation was re-audited: it grants 99 rounds and resets score plus sector score checkpoints to zero.
 
 ## Next tasks
 
-1. Implement WOLF-042 positional audio and sector music.
+1. Implement WOLF-045 classic lateral door travel, replacing upward-moving panels while preserving collision and push walls.
 2. Continue through WOLF-043–WOLF-044 in the dependency order recorded in `plan.md`.
-3. Subjectively playtest all three deterministic difficulty profiles, save slots, life loss, push walls and the full six-sector route including the hidden branch.
+3. Subjectively playtest positional audio, all three deterministic difficulty profiles, save slots, life loss, push walls and the full six-sector route including the hidden branch.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.

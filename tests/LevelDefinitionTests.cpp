@@ -21,6 +21,7 @@
 #include "RunSave.hpp"
 #include "RunRules.hpp"
 #include "Scoring.hpp"
+#include "SpatialAudio.hpp"
 
 namespace
 {
@@ -336,6 +337,27 @@ namespace
 
 int main()
 {
+    const WolfCna::SpatialAudioMix centeredAudio =
+        WolfCna::CalculateSpatialAudioMix(0.0f, 0.0f, 0.0f, -1.0f, 0.0f, -1.0f, 0.8f);
+    const WolfCna::SpatialAudioMix rightAudio =
+        WolfCna::CalculateSpatialAudioMix(0.0f, 0.0f, 0.0f, -1.0f, 2.0f, 0.0f, 0.8f);
+    const WolfCna::SpatialAudioMix leftAudio =
+        WolfCna::CalculateSpatialAudioMix(0.0f, 0.0f, 0.0f, -1.0f, -2.0f, 0.0f, 0.8f);
+    const WolfCna::SpatialAudioMix distantAudio =
+        WolfCna::CalculateSpatialAudioMix(0.0f, 0.0f, 0.0f, -1.0f, 0.0f, -8.0f, 0.8f);
+    const WolfCna::SpatialAudioMix inaudibleAudio =
+        WolfCna::CalculateSpatialAudioMix(0.0f, 0.0f, 0.0f, -1.0f, 0.0f, -20.0f, 0.8f);
+    Expect(
+        std::abs(centeredAudio.pan) < 0.001f &&
+            std::abs(centeredAudio.volume - 0.8f) < 0.001f,
+        "a close centered source retains volume without stereo bias");
+    Expect(rightAudio.pan > 0.99f && leftAudio.pan < -0.99f,
+        "listener orientation places side sources in opposite stereo channels");
+    Expect(distantAudio.volume > 0.0f && distantAudio.volume < centeredAudio.volume,
+        "world audio attenuates with distance");
+    Expect(inaudibleAudio.volume == 0.0f,
+        "world audio is silent beyond its bounded range");
+
     const WolfCna::WeaponSpec knifeSpec =
         WolfCna::GetWeaponSpec(WolfCna::PlayerWeapon::Knife);
     const WolfCna::WeaponSpec sidearmSpec =
@@ -627,6 +649,12 @@ int main()
             WolfCna::GetCampaignSector(2).chapter == 2 &&
             WolfCna::GetCampaignSector(5).chapterName == "WARDEN NETWORK",
         "campaign metadata groups main and secret sectors into two named chapters");
+    Expect(
+        WolfCna::GetCampaignSector(0).audioTheme == 0 &&
+            WolfCna::GetCampaignSector(4).audioTheme == 0 &&
+            WolfCna::GetCampaignSector(2).audioTheme == 1 &&
+            WolfCna::GetCampaignSector(5).audioTheme == 1,
+        "campaign metadata routes both chapter families to distinct audio themes");
     Expect(
         std::all_of(
             WolfCna::CampaignSectors.begin(),
@@ -1295,6 +1323,12 @@ int main()
         Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f));
     Expect(healthPickup.health == 25 && healthPickup.ammo == 0, "health pickup is collected once");
     Expect(ammoPickup.health == 0 && ammoPickup.ammo == 8, "large ammo pickup grants eight rounds");
+    Expect(
+        healthPickup.pickupAudioPositions.size() == 1 &&
+            healthPickup.ammunitionAudioPositions.empty() &&
+            ammoPickup.pickupAudioPositions.empty() &&
+            ammoPickup.ammunitionAudioPositions.size() == 1,
+        "health and ammunition pickups report their positions to the matching audio channel");
 
     WolfCna::World smallSupplyWorld(WolfCna::LevelDefinition::Parse(
         "######\n#Pha.#\n######\n",
@@ -1627,7 +1661,10 @@ int main()
         "#####\n#PK.#\n#####\n",
         "hound.level"));
     Expect(fireSidearm(houndWorld).score == 0, "first shot wounds a hound");
-    Expect(fireSidearm(houndWorld).score == 200, "second hound shot awards score");
+    const WolfCna::World::AttackResult defeatedHound = fireSidearm(houndWorld);
+    Expect(
+        defeatedHound.score == 200 && defeatedHound.defeatedHound,
+        "second hound shot awards score and requests the distinct defeat voice");
     Expect(houndWorld.CollectPickups(enemyDropPosition).ammo == 0, "hound does not drop ammunition");
 
     WolfCna::World rapidTrooperWorld(WolfCna::LevelDefinition::Parse(
@@ -1659,7 +1696,8 @@ int main()
     for (int tick = 0; tick < 20; ++tick)
     {
         guardProjectileDamage += damageWorld.Update(0.05f, combatPlayer);
-        guardShots += damageWorld.ConsumeGuardShotCount();
+        guardShots += static_cast<int>(
+            damageWorld.ConsumeGuardShotPositions().size());
         activeProjectileImpacts = std::max(
             activeProjectileImpacts,
             damageWorld.ActiveEnemyImpactCount());
@@ -1669,7 +1707,10 @@ int main()
     Expect(guardShots >= 1, "guard emits a shot at the player");
     Expect(guardProjectileDamage == 8, "guard projectile damages a player at range");
     Expect(activeProjectileImpacts > 0, "enemy projectile hit creates a temporary visual impact");
-    Expect(projectileImpactEvents.projectileImpacts == 1, "enemy projectile hit emits one impact event");
+    Expect(
+        projectileImpactEvents.projectileImpacts == 1 &&
+            projectileImpactEvents.projectileImpactPositions.size() == 1,
+        "enemy projectile hit emits one positioned impact event");
 
     WolfCna::World coordinatedFireWorld(WolfCna::LevelDefinition::Parse(
         "######\n#P.GG#\n######\n",
@@ -1779,12 +1820,32 @@ int main()
     const WolfCna::World::EnemyAudioEvents firstHoundEvents =
         (static_cast<void>(houndAudioWorld.Update(0.05f, combatPlayer)), houndAudioWorld.ConsumeEnemyAudioEvents());
     Expect(firstHoundEvents.houndAlerts == 1, "hound emits an alert when it sees the player");
+    Expect(firstHoundEvents.houndAlertPositions.size() == 1,
+        "hound alert carries its world position");
+    int houndBarks = 0;
     for (int tick = 0; tick < 10; ++tick)
     {
         static_cast<void>(houndAudioWorld.Update(0.05f, combatPlayer));
-        houndAttacks += houndAudioWorld.ConsumeEnemyAudioEvents().houndAttacks;
+        const WolfCna::World::EnemyAudioEvents houndEvents =
+            houndAudioWorld.ConsumeEnemyAudioEvents();
+        houndAttacks += houndEvents.houndAttacks;
+        houndBarks += houndEvents.houndBarks;
     }
     Expect(houndAttacks >= 1, "hound emits an attack event on a close-range hit");
+    for (int tick = 0; tick < 150; ++tick)
+    {
+        static_cast<void>(houndAudioWorld.Update(0.05f, combatPlayer));
+        const WolfCna::World::EnemyAudioEvents houndEvents =
+            houndAudioWorld.ConsumeEnemyAudioEvents();
+        houndBarks += houndEvents.houndBarks;
+        if (houndEvents.houndBarks > 0)
+        {
+            Expect(houndEvents.houndBarkPositions.size() ==
+                static_cast<std::size_t>(houndEvents.houndBarks),
+                "every occasional hound bark carries an emitter position");
+        }
+    }
+    Expect(houndBarks >= 1, "a living hound occasionally barks");
 
     WolfCna::World scoutDamageWorld(
         WolfCna::LevelDefinition::Parse(

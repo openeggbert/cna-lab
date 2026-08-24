@@ -115,12 +115,16 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> secretSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> guardAlertSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAlertSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndBarkSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAttackSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndWhimperSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> extraLifeSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> exitSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> completionFanfareSound_;
-        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> ambientSound_;
-        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffectInstance> ambientInstance_;
+        std::array<std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect>, 2>
+            ambientSounds_;
+        std::array<std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffectInstance>, 2>
+            ambientInstances_;
 
         LevelDefinition level_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
         World world_{level_};
@@ -237,6 +241,19 @@ namespace WolfCna
         void CreateProceduralEnemyImpactTexture();
         void CreateHudResources();
         void CreateSoundEffects();
+        void UpdateAmbientTheme();
+        void PlaySpatialSound(
+            Microsoft::Xna::Framework::Audio::SoundEffect& sound,
+            const Microsoft::Xna::Framework::Vector3& source,
+            float baseVolume,
+            float pitch = 0.0f,
+            float maximumDistance = 14.0f);
+        void PlaySpatialSounds(
+            Microsoft::Xna::Framework::Audio::SoundEffect& sound,
+            const std::vector<Microsoft::Xna::Framework::Vector3>& sources,
+            float baseVolume,
+            float pitch = 0.0f,
+            float maximumDistance = 14.0f);
         void DrawHud();
         void DrawAutomap();
         void DrawMenu();
