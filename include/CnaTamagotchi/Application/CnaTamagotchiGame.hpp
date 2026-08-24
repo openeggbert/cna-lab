@@ -19,6 +19,8 @@
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 
+#include <array>
+
 namespace CnaTamagotchi::Application {
 
 // CNA adapter only. Simulation and persistence must stay out of this class.
@@ -140,6 +142,8 @@ private:
     bool mouseLeftWasDown_{false};
     bool clockChordWasDown_{false};
     bool shellCycleWasDown_{false};
+    std::array<bool, 3> pressedButtons_{};
+    bool resetPressed_{false};
     bool saveDirty_{false};
     bool smokeTest_{false};
     unsigned int drawnFrames_{0};

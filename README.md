@@ -101,6 +101,9 @@ Green/Yellow, and White/Blue shells. It never sends A, B, or C and never
 changes the 32 × 16 framebuffer. The selection survives restart. Icons do not
 become independent modern UI buttons: clicking an icon may be offered as an
 accessibility shortcut later, but it must invoke the equivalent A/B/C sequence.
+Every shell button visibly depresses for exactly as long as its keyboard,
+mouse, or touch input is held. Holding the recessed reset similarly lights its
+rim, while a graduated contact shadow grounds the egg-shaped device.
 
 The active P1 mapping includes the original clock behaviour: with no icon
 selected and no Attention call, B opens the clock and B returns to the home

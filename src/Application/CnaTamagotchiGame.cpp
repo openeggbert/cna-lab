@@ -194,6 +194,14 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     const bool clockChord = keyboard.IsKeyDown(Keys::A) && keyboard.IsKeyDown(Keys::C);
     const bool cycleShell = keyboard.IsKeyDown(Keys::V);
     bool resetHeld = keyboard.IsKeyDown(Keys::R);
+    std::array<bool, 3> buttonsHeld{{
+        selectNext || selectPrevious,
+        confirm,
+        cancel,
+    }};
+    const auto markButtonHeld = [&buttonsHeld](const DeviceButton button) {
+        buttonsHeld[static_cast<std::size_t>(button)] = true;
+    };
 
     bool saveChanged = false;
     if (cycleShell && !shellCycleWasDown_ && screen_ != Screen::SaveRecovery) {
@@ -234,10 +242,16 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     for (int index = 0; index < touches.getCountProperty(); ++index) {
         const Touch::TouchLocation& touch = touches[static_cast<std::size_t>(index)];
         const Vector2& position = touch.getPositionProperty();
-        if (touch.getStateProperty() == Touch::TouchLocationState::Pressed) {
-            pointerButton = buttonAtWindowPosition(position.X, position.Y);
-            if (pointerButton.has_value()) {
-                break;
+        if (touch.getStateProperty() == Touch::TouchLocationState::Pressed
+            || touch.getStateProperty() == Touch::TouchLocationState::Moved) {
+            const std::optional<DeviceButton> touchButton =
+                buttonAtWindowPosition(position.X, position.Y);
+            if (touchButton.has_value()) {
+                markButtonHeld(*touchButton);
+                if (touch.getStateProperty() == Touch::TouchLocationState::Pressed
+                    && !pointerButton.has_value()) {
+                    pointerButton = touchButton;
+                }
             }
         }
         if (touch.getStateProperty() == Touch::TouchLocationState::Pressed
@@ -249,8 +263,13 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     const MouseState mouse = Mouse::GetState();
     const bool mouseLeftDown = mouse.getLeftButtonProperty() == ButtonState::Pressed;
     if (mouseLeftDown) {
-        resetHeld = resetHeld || resetAtWindowPosition(
-            static_cast<float>(mouse.getXProperty()), static_cast<float>(mouse.getYProperty()));
+        const float mouseX = static_cast<float>(mouse.getXProperty());
+        const float mouseY = static_cast<float>(mouse.getYProperty());
+        resetHeld = resetHeld || resetAtWindowPosition(mouseX, mouseY);
+        const std::optional<DeviceButton> mouseButton = buttonAtWindowPosition(mouseX, mouseY);
+        if (mouseButton.has_value()) {
+            markButtonHeld(*mouseButton);
+        }
     }
     if (!pointerButton.has_value() && mouseLeftDown && !mouseLeftWasDown_) {
         pointerButton = buttonAtWindowPosition(
@@ -259,6 +278,9 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     if (pointerButton.has_value()) {
         saveChanged = pressButton(*pointerButton) || saveChanged;
     }
+
+    pressedButtons_ = buttonsHeld;
+    resetPressed_ = resetHeld;
 
     selectNextWasDown_ = selectNext;
     selectPreviousWasDown_ = selectPrevious;
@@ -1130,7 +1152,8 @@ void CnaTamagotchiGame::drawDevice()
     }
 
     // Controls are rendered last so their moulded rims sit above the body.
-    DeviceShellRenderer::drawControls(*spriteBatch_, *pixelTexture_, shellStyle);
+    DeviceShellRenderer::drawControls(*spriteBatch_, *pixelTexture_, shellStyle,
+        DeviceShellControlState{.buttons = pressedButtons_, .resetPressed = resetPressed_});
 }
 
 void CnaTamagotchiGame::OnExiting(System::Object* const sender,

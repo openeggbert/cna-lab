@@ -68,6 +68,11 @@ write and verify the clean implementation.
   its colours and geometry are authored C++ values, with no reference image
   added to the repository. Continue to treat this as an approximate shell
   treatment rather than a claim that every retail P1 shell is identical.
+- A/B/C now depress and darken for the complete held duration from keyboard,
+  mouse, or touch input. The reset recess gains a held-state halo, and a
+  premultiplied-alpha three-layer contact shadow grounds the egg. Xvfb QA
+  checked idle, held-A, and held-reset states; the first non-premultiplied
+  bright shadow attempt was rejected and corrected before commit.
 - TamaTool v0.1 was used only as an external visual reference in a separate
   Xvfb display. Do not add its executable, ROM, screenshots, extracted data,
   TamaLIB, or any other emulator artefact to this repository. The egg rows in

@@ -108,6 +108,9 @@ similar emulation core is permitted in the application, build, or test suite.
   - [x] Replace the previous generic pink desktop shell treatment with a
     reusable CNA renderer and five independently authored P1 colour families;
     persist the selected shell without changing the LCD or P1 controls.
+  - [x] Render held A/B/C caps as physically depressed for keyboard, mouse,
+    and touch input; highlight the reset recess while held and restore a soft
+    graduated contact shadow beneath the egg shell.
   - Compare and replace every remaining provisional home redraw before calling
     the character catalogue visually faithful; then capture its distinct care
     action frames rather than reusing home-idle art.

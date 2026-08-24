@@ -18,15 +18,23 @@ struct ShellPoint final {
 struct DeviceShellGeometry final {
     static constexpr int CentreX = 270;
     static constexpr int CentreY = 348;
+    static constexpr int BodyRadiusY = 272;
+    static constexpr int FloorShadowCentreY = 625;
     static constexpr int ResetX = 408;
     static constexpr int ResetY = 542;
     static constexpr int ResetRadius = 10;
     static constexpr int ButtonHitRadius = 29;
+    static constexpr int PressedButtonTravel = 4;
     static constexpr std::array<ShellPoint, 3> Buttons{{
         {202, 555},
         {270, 567},
         {338, 555},
     }};
+};
+
+struct DeviceShellControlState final {
+    std::array<bool, DeviceShellGeometry::Buttons.size()> buttons{};
+    bool resetPressed{false};
 };
 
 // Reusable CNA presentation renderer for the physical device. It draws no LCD
@@ -41,7 +49,8 @@ class DeviceShellRenderer final {
 
     static void drawControls(Microsoft::Xna::Framework::Graphics::SpriteBatch& spriteBatch,
                              Microsoft::Xna::Framework::Graphics::Texture2D& pixelTexture,
-                             const Presentation::DeviceShellStyle& style);
+                             const Presentation::DeviceShellStyle& style,
+                             const DeviceShellControlState& controlState);
 };
 
 } // namespace CnaTamagotchi::Application

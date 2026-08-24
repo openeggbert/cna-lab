@@ -67,9 +67,21 @@ void DeviceShellRenderer::drawBody(SpriteBatch& spriteBatch, Texture2D& pixelTex
     const Color shadow = asColor(style.bodyShadow);
     const Color highlight = asColor(style.bodyHighlight);
 
-    // Concentric shells form a continuous moulded rim; there is intentionally
-    // no detached floor shadow below the device.
-    drawEgg(spriteBatch, pixelTexture, 270, 348, 220, 272, outline);
+    // A soft three-layer contact shadow grounds the device without recreating
+    // the former hard-edged dark block beneath it.
+    drawEllipse(spriteBatch, pixelTexture, DeviceShellGeometry::CentreX,
+                DeviceShellGeometry::FloorShadowCentreY, 174, 20,
+                Color(3, 4, 4, 26));
+    drawEllipse(spriteBatch, pixelTexture, DeviceShellGeometry::CentreX,
+                DeviceShellGeometry::FloorShadowCentreY - 2, 132, 14,
+                Color(4, 5, 6, 38));
+    drawEllipse(spriteBatch, pixelTexture, DeviceShellGeometry::CentreX,
+                DeviceShellGeometry::FloorShadowCentreY - 4, 88, 8,
+                Color(5, 7, 7, 52));
+
+    // Concentric shells form a continuous moulded rim.
+    drawEgg(spriteBatch, pixelTexture, 270, 348, 220,
+            DeviceShellGeometry::BodyRadiusY, outline);
     drawEgg(spriteBatch, pixelTexture, 270, 346, 212, 264, shadow);
     drawEgg(spriteBatch, pixelTexture, 268, 339, 202, 253, body);
 
@@ -94,7 +106,8 @@ void DeviceShellRenderer::drawBody(SpriteBatch& spriteBatch, Texture2D& pixelTex
 }
 
 void DeviceShellRenderer::drawControls(SpriteBatch& spriteBatch, Texture2D& pixelTexture,
-                                       const Presentation::DeviceShellStyle& style)
+                                       const Presentation::DeviceShellStyle& style,
+                                       const DeviceShellControlState& controlState)
 {
     const Color outline = asColor(style.outline);
     const Color bodyShadow = asColor(style.bodyShadow);
@@ -102,17 +115,40 @@ void DeviceShellRenderer::drawControls(SpriteBatch& spriteBatch, Texture2D& pixe
     const Color buttonShadow = asColor(style.buttonShadow);
     const Color buttonHighlight = asColor(style.buttonHighlight);
 
-    for (const ShellPoint position : DeviceShellGeometry::Buttons) {
+    const Color pressedButton(
+        (static_cast<int>(style.button.red) * 3 + style.buttonShadow.red) / 4,
+        (static_cast<int>(style.button.green) * 3 + style.buttonShadow.green) / 4,
+        (static_cast<int>(style.button.blue) * 3 + style.buttonShadow.blue) / 4,
+        255);
+    const Color pressedHighlight(style.buttonHighlight.red, style.buttonHighlight.green,
+                                 style.buttonHighlight.blue, 105U);
+
+    for (std::size_t index = 0; index < DeviceShellGeometry::Buttons.size(); ++index) {
+        const ShellPoint position = DeviceShellGeometry::Buttons[index];
+        const bool pressed = controlState.buttons[index];
+        const int capY = position.y + (pressed ? DeviceShellGeometry::PressedButtonTravel : 0);
         drawEllipse(spriteBatch, pixelTexture, position.x, position.y + 5, 25, 25, outline);
         drawEllipse(spriteBatch, pixelTexture, position.x, position.y + 3, 22, 22, buttonShadow);
-        drawEllipse(spriteBatch, pixelTexture, position.x, position.y, 20, 20, button);
-        drawEllipse(spriteBatch, pixelTexture, position.x - 5, position.y - 5, 8, 8,
-                    buttonHighlight);
-        drawEllipse(spriteBatch, pixelTexture, position.x - 7, position.y - 7, 3, 3,
-                    Color(255, 255, 255, 135));
+        drawEllipse(spriteBatch, pixelTexture, position.x, capY, pressed ? 19 : 20,
+                    pressed ? 19 : 20, pressed ? pressedButton : button);
+        drawEllipse(spriteBatch, pixelTexture, position.x - (pressed ? 4 : 5),
+                    capY - (pressed ? 3 : 5), pressed ? 6 : 8, pressed ? 6 : 8,
+                    pressed ? pressedHighlight : buttonHighlight);
+        if (!pressed) {
+            drawEllipse(spriteBatch, pixelTexture, position.x - 7, position.y - 7, 3, 3,
+                        Color(255, 255, 255, 135));
+        }
     }
 
     // The recessed reset pinhole remains separate from the three P1 controls.
+    if (controlState.resetPressed) {
+        const Color resetHalo(style.bodyHighlight.red, style.bodyHighlight.green,
+                              style.bodyHighlight.blue, 190U);
+        drawEllipse(spriteBatch, pixelTexture, DeviceShellGeometry::ResetX,
+                    DeviceShellGeometry::ResetY,
+                    DeviceShellGeometry::ResetRadius + 5,
+                    DeviceShellGeometry::ResetRadius + 5, resetHalo);
+    }
     drawEllipse(spriteBatch, pixelTexture, DeviceShellGeometry::ResetX, DeviceShellGeometry::ResetY,
                 DeviceShellGeometry::ResetRadius + 1, DeviceShellGeometry::ResetRadius + 1,
                 outline);
@@ -120,7 +156,8 @@ void DeviceShellRenderer::drawControls(SpriteBatch& spriteBatch, Texture2D& pixe
                 DeviceShellGeometry::ResetRadius - 2, DeviceShellGeometry::ResetRadius - 2,
                 bodyShadow);
     drawEllipse(spriteBatch, pixelTexture, DeviceShellGeometry::ResetX, DeviceShellGeometry::ResetY,
-                3, 3, Color(22, 28, 30, 255));
+                controlState.resetPressed ? 2 : 3, controlState.resetPressed ? 2 : 3,
+                Color(22, 28, 30, 255));
 }
 
 } // namespace CnaTamagotchi::Application
