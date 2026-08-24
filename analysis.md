@@ -668,7 +668,12 @@ Logic tests cover level parsing, tile lookup, acceleration, run cap,
 deceleration, jump apex, early release, floor/wall/ceiling collision, camera
 bounds, enemy state transitions, relative-motion contact classification,
 simultaneous-contact priority, projectiles, and transitions. Tests link the
-gameplay library only.
+gameplay library only. A canonical 64-bit FNV-1a hash serializes persistent
+simulation fields explicitly (including float bit patterns, dynamic tiles,
+entities, camera, progress and route state) without hashing C++ padding or raw
+object layouts. Two independent 180-tick scripted worlds must match after every
+tick, while divergent input must change the hash. CTest labels the suite
+`logic;deterministic` and the runtime lane `graphics;smoke;cna`.
 
 A graphics smoke test creates a CNA game, programmatic 1x1 texture, logical
 render target, SpriteBatch pass, point-scaled presentation, and exits after a

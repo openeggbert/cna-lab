@@ -296,6 +296,7 @@ namespace CopperBoots
             return currentArea_;
         }
         [[nodiscard]] float RouteFadeAmount() const noexcept;
+        [[nodiscard]] std::uint64_t DeterministicStateHash() const noexcept;
         [[nodiscard]] int BlockVisualOffset(int tileX, int tileY) const noexcept;
 
     private:

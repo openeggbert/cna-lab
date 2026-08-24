@@ -135,10 +135,14 @@ if(COPPER_BOOTS_BUILD_TESTS)
             -Wall -Wextra -Werror)
     endif()
     add_test(NAME copper_boots_gameplay COMMAND copper_boots_gameplay_tests)
+    set_tests_properties(copper_boots_gameplay PROPERTIES
+        LABELS "logic;deterministic")
 
     if(NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         add_test(NAME copper_boots_smoke COMMAND copper-boots --smoke-test)
-        set_tests_properties(copper_boots_smoke PROPERTIES TIMEOUT 20)
+        set_tests_properties(copper_boots_smoke PROPERTIES
+            TIMEOUT 20
+            LABELS "graphics;smoke;cna")
         if(UNIX AND NOT APPLE)
             set_tests_properties(copper_boots_smoke PROPERTIES
                 ENVIRONMENT "SDL_VIDEODRIVER=offscreen;SDL_AUDIODRIVER=dummy")

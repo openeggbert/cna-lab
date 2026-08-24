@@ -1,7 +1,10 @@
 #include "CopperBoots/WorldSimulation.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 
 namespace CopperBoots
@@ -31,6 +34,47 @@ namespace CopperBoots
                 return std::min(value + maximumDelta, target);
             return std::max(value - maximumDelta, target);
         }
+
+        struct StateHasher
+        {
+            void AddByte(const std::uint8_t value) noexcept
+            {
+                Value ^= value;
+                Value *= 1'099'511'628'211ULL;
+            }
+
+            template <typename ValueType>
+            void AddInteger(const ValueType value) noexcept
+            {
+                static_assert(std::is_integral_v<ValueType> &&
+                              !std::is_same_v<ValueType, bool>);
+                using Unsigned = std::make_unsigned_t<ValueType>;
+                Unsigned bits = static_cast<Unsigned>(value);
+                for (std::size_t byte = 0; byte < sizeof(Unsigned); ++byte) {
+                    AddByte(static_cast<std::uint8_t>(bits & 0xFFU));
+                    bits >>= 8U;
+                }
+            }
+
+            void AddBool(const bool value) noexcept
+            {
+                AddByte(value ? 1U : 0U);
+            }
+
+            void AddFloat(const float value) noexcept
+            {
+                AddInteger(std::bit_cast<std::uint32_t>(value));
+            }
+
+            void AddString(const std::string_view value) noexcept
+            {
+                AddInteger(static_cast<std::uint64_t>(value.size()));
+                for (const unsigned char character : value)
+                    AddByte(character);
+            }
+
+            std::uint64_t Value = 14'695'981'039'346'656'037ULL;
+        };
     }
 
     EnemyContactKind ClassifyEnemyContact(
@@ -583,6 +627,122 @@ namespace CopperBoots
             RouteTransitionState::TotalTicks - elapsed);
         return static_cast<float>(phase) /
                static_cast<float>(RouteTransitionState::DestinationTick);
+    }
+
+    std::uint64_t WorldSimulation::DeterministicStateHash() const noexcept
+    {
+        StateHasher hash;
+        hash.AddString(levelName_);
+        hash.AddString(currentArea_);
+        hash.AddInteger(level_.Width());
+        hash.AddInteger(level_.Height());
+        for (int y = 0; y < level_.Height(); ++y) {
+            for (int x = 0; x < level_.Width(); ++x) {
+                const Tile tile = level_.Get(x, y);
+                hash.AddInteger(static_cast<int>(tile.Visual));
+                hash.AddInteger(static_cast<int>(tile.Collision));
+            }
+        }
+
+        hash.AddFloat(player_.X);
+        hash.AddFloat(player_.Y);
+        hash.AddFloat(player_.VelocityX);
+        hash.AddFloat(player_.VelocityY);
+        hash.AddBool(player_.Grounded);
+        hash.AddBool(player_.FacingRight);
+        hash.AddBool(player_.Plated);
+        hash.AddBool(player_.ArcCapacitor);
+        hash.AddInteger(player_.PowerTransitionTicks);
+        hash.AddInteger(player_.InvulnerabilityTicks);
+        hash.AddBool(player_.Dead);
+        hash.AddInteger(player_.DeathTicksRemaining);
+        hash.AddInteger(static_cast<int>(player_.Motion));
+        hash.AddFloat(camera_.BaseX());
+        hash.AddFloat(camera_.BaseY());
+        hash.AddFloat(camera_.X());
+        hash.AddFloat(camera_.Y());
+        for (const float factor : parallaxFactors_)
+            hash.AddFloat(factor);
+
+        hash.AddInteger(static_cast<std::uint64_t>(cogs_.size()));
+        for (const CogState& cog : cogs_) {
+            hash.AddFloat(cog.X);
+            hash.AddFloat(cog.Y);
+            hash.AddBool(cog.Collected);
+        }
+        hash.AddInteger(static_cast<std::uint64_t>(crawlers_.size()));
+        for (const CrawlerState& crawler : crawlers_) {
+            hash.AddFloat(crawler.X);
+            hash.AddFloat(crawler.Y);
+            hash.AddFloat(crawler.PreviousX);
+            hash.AddFloat(crawler.PreviousY);
+            hash.AddFloat(crawler.VelocityY);
+            hash.AddInteger(crawler.Direction);
+            hash.AddInteger(static_cast<int>(crawler.EdgePolicy));
+            hash.AddBool(crawler.Active);
+            hash.AddBool(crawler.Defeated);
+        }
+        hash.AddInteger(static_cast<std::uint64_t>(platingPickups_.size()));
+        for (const PlatingPickupState& pickup : platingPickups_) {
+            hash.AddFloat(pickup.X);
+            hash.AddFloat(pickup.Y);
+            hash.AddFloat(pickup.VelocityY);
+            hash.AddInteger(pickup.Direction);
+            hash.AddInteger(pickup.EmergenceTicks);
+            hash.AddBool(pickup.Collected);
+        }
+        hash.AddInteger(static_cast<std::uint64_t>(capacitorPickups_.size()));
+        for (const CapacitorPickupState& pickup : capacitorPickups_) {
+            hash.AddFloat(pickup.X);
+            hash.AddFloat(pickup.Y);
+            hash.AddInteger(pickup.EmergenceTicks);
+            hash.AddBool(pickup.Collected);
+        }
+        for (const ProjectileState& projectile : projectiles_) {
+            hash.AddFloat(projectile.X);
+            hash.AddFloat(projectile.Y);
+            hash.AddFloat(projectile.VelocityX);
+            hash.AddFloat(projectile.VelocityY);
+            hash.AddBool(projectile.Active);
+        }
+        hash.AddInteger(static_cast<std::uint64_t>(checkpoints_.size()));
+        for (const CheckpointState& checkpoint : checkpoints_) {
+            hash.AddInteger(checkpoint.TileX);
+            hash.AddInteger(checkpoint.TileY);
+            hash.AddBool(checkpoint.Activated);
+        }
+        hash.AddInteger(static_cast<std::uint64_t>(interactiveBlocks_.size()));
+        for (const InteractiveBlockState& block : interactiveBlocks_) {
+            hash.AddInteger(block.TileX);
+            hash.AddInteger(block.TileY);
+            hash.AddInteger(static_cast<int>(block.Content));
+            hash.AddBool(block.Used);
+            hash.AddInteger(block.BumpTicksRemaining);
+        }
+
+        hash.AddInteger(collectedCogs_);
+        hash.AddInteger(score_);
+        hash.AddInteger(lives_);
+        hash.AddInteger(tickCount_);
+        hash.AddFloat(spawnX_);
+        hash.AddFloat(spawnY_);
+        hash.AddFloat(checkpointX_);
+        hash.AddFloat(checkpointY_);
+        hash.AddBool(result_.Completed);
+        hash.AddInteger(result_.Score);
+        hash.AddInteger(result_.CollectedCogs);
+        hash.AddInteger(result_.CompletionTick);
+        hash.AddInteger(completionTicks_);
+        hash.AddBool(routeTransition_.Active);
+        hash.AddBool(routeTransition_.DestinationReached);
+        hash.AddBool(routeTransition_.ChangesArea);
+        hash.AddInteger(routeTransition_.TicksRemaining);
+        hash.AddInteger(static_cast<std::uint64_t>(
+            routeTransition_.SourceEndpoint));
+        hash.AddInteger(static_cast<std::uint64_t>(
+            routeTransition_.DestinationEndpoint));
+        hash.AddBool(routeInteractionLocked_);
+        return hash.Value;
     }
 
     bool WorldSimulation::TryStartRouteTransition(

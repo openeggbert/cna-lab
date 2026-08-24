@@ -36,8 +36,8 @@ prompted maintenance hatch and a separated optional cache.
 
 **Current: M3 — deterministic quality and generated audio**
 
-Add stable scripted state hashes and focused CTest labels before introducing
-generated CNA sound cues.
+Stable scripted state hashes and focused CTest labels are complete. Introduce
+generated CNA sound cues next, retaining a clean silent fallback.
 
 ## Foundation and research
 
@@ -484,7 +484,7 @@ Acceptance:
 
 ## Quality, portability, and release
 
-### MAR-070 — Deterministic gameplay test suite — TODO
+### MAR-070 — Deterministic gameplay test suite — DONE
 
 Acceptance:
 
@@ -589,6 +589,5 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Add deterministic state hashes and CTest labels for `MAR-070`.
-2. Add generated CNA sound effects under `MAR-056`, retaining silence fallback.
-3. Begin moving platforms (`MAR-046`) now that the transition model is stable.
+1. Add generated CNA sound effects under `MAR-056`, retaining silence fallback.
+2. Begin moving platforms (`MAR-046`) now that the transition model is stable.

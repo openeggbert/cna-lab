@@ -1497,6 +1497,57 @@ namespace
                   misalignedWorld.LastEvents().RouteTransitionsStarted == 0,
               "route interaction requires explicit horizontal alignment");
     }
+
+    void TestDeterministicStateHashes()
+    {
+        constexpr float tick = static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds);
+        const CopperBoots::LevelDefinition firstLevel =
+            CopperBoots::LevelDefinition::Parse(
+                MakeRouteTravelLevel("conduit"), "hash-first.cbl");
+        const CopperBoots::LevelDefinition secondLevel =
+            CopperBoots::LevelDefinition::Parse(
+                MakeRouteTravelLevel("conduit"), "hash-second.cbl");
+        CopperBoots::WorldSimulation first;
+        CopperBoots::WorldSimulation second;
+        first.LoadLevel(firstLevel);
+        second.LoadLevel(secondLevel);
+        bool identical = first.DeterministicStateHash() ==
+                         second.DeterministicStateHash();
+        for (int simulationTick = 0; simulationTick < 180; ++simulationTick) {
+            CopperBoots::PlayerInput input;
+            input.InteractHeld = simulationTick <= 30 ||
+                                 (simulationTick >= 32 && simulationTick <= 62);
+            if (simulationTick >= 70) {
+                input.Move = simulationTick < 130 ? 1.0F : -1.0F;
+                input.Run = simulationTick % 24 < 12;
+                input.JumpHeld = simulationTick >= 82 && simulationTick < 104;
+                input.JumpPressed = simulationTick == 82;
+            }
+            first.Update(input, tick);
+            second.Update(input, tick);
+            identical = identical && first.DeterministicStateHash() ==
+                                     second.DeterministicStateHash();
+        }
+        Check(identical,
+              "repeated scripted simulations produce identical state hashes");
+
+        CopperBoots::WorldSimulation rightWorld;
+        CopperBoots::WorldSimulation leftWorld;
+        rightWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeRouteTravelLevel("main"), "hash-right.cbl"));
+        leftWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeRouteTravelLevel("main"), "hash-left.cbl"));
+        CopperBoots::PlayerInput right;
+        right.Move = 1.0F;
+        CopperBoots::PlayerInput left;
+        left.Move = -1.0F;
+        rightWorld.Update(right, tick);
+        leftWorld.Update(left, tick);
+        Check(rightWorld.DeterministicStateHash() !=
+                  leftWorld.DeterministicStateHash(),
+              "state hash distinguishes divergent scripted input");
+    }
 }
 
 int main()
@@ -1519,6 +1570,7 @@ int main()
     TestArcProjectiles();
     TestCheckpointAndCompletion();
     TestRouteTransitions();
+    TestDeterministicStateHashes();
 
     if (failures != 0) {
         std::cerr << failures << " gameplay test(s) failed\n";

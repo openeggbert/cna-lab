@@ -99,6 +99,10 @@ cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure -j2
 ```
 
+Focused lanes are available with `ctest --test-dir build -L logic` and
+`ctest --test-dir build -L smoke`; deterministic logic and CNA graphics tests
+carry separate labels.
+
 `SDL_RENDERER` is the initial conservative 2D validation lane. It does not mean
 game code depends on SDL: the executable links CNA's public `CNA` target and
 uses only CNA/XNA-style public APIs. Other CNA renderers will be added to the
