@@ -136,7 +136,9 @@ writes the qualification plus repeatability reports without manually pairing arc
 means qualification PASS with no regression, exit 1 preserves a valid FAIL/regression evidence set,
 and exit 2 means the workflow itself was invalid or incomplete. The tool never overwrites an
 existing pair output and does not turn its `--hardware` operator assertion into automatic physical-
-monitor proof.
+monitor proof. A real AMD offscreen end-to-end invocation produced both independent complete DRM
+bundles, the expected Headless qualification FAIL, and a diagnostic `NO REGRESSION` comparison,
+confirming the full workflow without opening a visible window.
 Two no-window AMD Radeon 780M/OPENGLES3 900-draw `mixed` integrations have each produced and
 verified a 55.57 MiB complete DRM peak while passing every direct minimum budget. They remain
 diagnostic because offscreen presentation is not a physical display/vblank path. The release tools

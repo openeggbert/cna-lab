@@ -53,7 +53,9 @@ Establish budgets and measure representative district workloads against the lock
   performs the two locked 900-draw mixed DRM captures and bindings sequentially, and emits the
   qualification and repeatability reports with the correct source triples. Four isolated tests
   cover PASS, preserved FAIL, regression, and pre-capture overwrite refusal. It automates the
-  remaining runbook without asserting that the selected display is physical.*
+  remaining runbook without asserting that the selected display is physical. A real no-display AMD
+  pair subsequently completed all six stages, re-verified both 55.574 MiB archives, returned the
+  expected Headless FAIL, and produced a diagnostic `NO REGRESSION` comparison.*
 - [ ] **IG-35-017 P1** — Optimize only measured bottlenecks and record before/after evidence.
 - [ ] **IG-35-018 P1** — Keep low-detail AI and rendering paths visually coherent at LOD/culling distance.
 - [ ] **IG-35-019 P2** — Evaluate multithreaded culling after single-threaded costs are measured.

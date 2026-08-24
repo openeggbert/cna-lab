@@ -98,7 +98,9 @@ rather than being a one-time final check.
     *Pair-orchestration follow-up: a single `m12_capture_pair.py` command now preflights and runs the
     two required physical mixed captures, both bindings, the qualifying audit, and repeatability
     comparison. It preserves valid FAIL evidence, distinguishes gate failure from broken workflow,
-    and is covered by four fake-tool integrations; it does not add a physical capture.*
+    and is covered by four fake-tool integrations. A real AMD offscreen pair then exercised every
+    stage, re-verified both complete archives, and returned the expected Headless FAIL plus
+    diagnostic `NO REGRESSION`; it does not add a physical capture.*
     *Schema-type follow-up: capture `schema_version` must be an actual JSON integer equal to 8;
     floating-point `8.0` exits 2 and no capture was added.*
     *Frame-maximum follow-up: the stored maximum must occupy the highest non-empty pacing bucket;

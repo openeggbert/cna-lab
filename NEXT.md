@@ -82,6 +82,16 @@ completed profiler tools.
   ordering, PASS-to-qualifying comparison, preserved FAIL-to-diagnostic comparison, regression, and
   all-output collision refusal. The complete compile-software CTest is 9/9. No game or visible
   display was used.
+- A subsequent real AMD offscreen invocation exercised all six stages without `DISPLAY` or
+  `WAYLAND_DISPLAY`. Both independent 899-interval captures bind and re-verify at 55.574 MiB
+  complete DRM residency, pass every direct minimum, and compare `NO REGRESSION`. Frame p95 is
+  20.494/19.879 ms; each run contains one isolated ~76 ms hitch and no severe hitch.
+- The real qualification report returns the designed exit 1 with exactly the offscreen-label and
+  two `Headless` blockers; its comparison automatically uses diagnostic kind. First original/raw/
+  manifest/complete hashes are `76686d3d…029bc`, `4388a53b…16d35`, `38bce1b8…26500`,
+  `357712c2…fc58c`; second are `11da715a…c0ecf`, `0a0705a9…11a81`, `9ccc4b45…487f`,
+  `8d247399…7193`. Qualification/comparison hashes are `df144a02…6f677` and
+  `cdfd731b…e4e8c`.
 - The command remains an operator-driven physical-capture workflow, not monitor detection. M12 stays
   open until it is run on an allowed controlled physical Linux EasyGL display and returns PASS.
 

@@ -1138,3 +1138,22 @@ Four fake-tool end-to-end cases, the registered focused CTest, and the complete 
 suite pass. This adds no performance measurement and does not infer a physical monitor from an
 operator label. It removes manual path/ordering risk from the next authorized physical-display
 capture; M12 remains open until that real pair returns report PASS on named Linux EasyGL hardware.
+
+A subsequent real AMD offscreen run exercised the command end to end with `DISPLAY` and
+`WAYLAND_DISPLAY` absent. Both independent mixed captures contain 899 intervals and one transition.
+Frame p95/max is 20.494/77.208 ms and 19.879/75.956 ms; each contains one minimum-budget miss/hitch
+and no severe hitch. Update/physics/render p95 is 1.635/1.528/2.720 ms and
+1.650/1.439/2.328 ms; GPU Draw/Present is 0.115/0.066 and 0.112/0.066 ms. District load/following
+frame is 0.791/18.569 and 0.817/18.245 ms; RAM is 178.2/178.7 MiB. Both complete DRM peaks are
+58,273,792 B (55.574 MiB), retained from 676/677 successful samples out of 693/695 attempts with
+three/two fd read races excluded.
+
+Both archives independently return `VRAM EVIDENCE VERIFIED`. The qualification report has exactly
+three blockers—the explicit diagnostic/offscreen label and each capture's `Headless` machine
+state—while every direct minimum budget passes. The automatically selected diagnostic comparison
+reports `NO REGRESSION`, so the command returns its designed gate-failure status 1 rather than
+workflow-error status 2. First original/raw/manifest/complete hashes are
+`76686d3d…029bc`, `4388a53b…16d35`, `38bce1b8…26500`, `357712c2…fc58c`; second are
+`11da715a…c0ecf`, `0a0705a9…11a81`, `9ccc4b45…487f`, `8d247399…7193`.
+Qualification/comparison hashes are `df144a02…6f677` and `cdfd731b…e4e8c`. This validates the
+orchestrator, not physical presentation; no visible window was possible during the run.

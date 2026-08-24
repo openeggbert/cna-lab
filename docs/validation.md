@@ -552,6 +552,13 @@ arguments, qualifying comparison after PASS, diagnostic comparison plus preserve
 FAIL, regression exit 1, and all-output collision refusal before the first tool starts. The focused
 CTest passes 1/1 and the complete compile-software suite passes 9/9; no game or visible display is
 used by this orchestration test.
+A real follow-up invoked the orchestrator with both desktop display variables removed and
+`SDL_VIDEODRIVER=offscreen`. All six stages completed: two independent 899-interval AMD EasyGL
+captures, both DRM bindings, qualifying-intent report, and diagnostic comparison. Both four-file
+archives independently re-verify, each records 58,273,792 B complete residency, all direct minimum
+budgets pass, qualification has only the explicit offscreen label plus two `Headless` blockers, and
+comparison says `NO REGRESSION`. The designed process exit is 1 (valid gate failure), not workflow
+error 2. No visible display was available to the processes.
 
 ## Full CNA-linked build status
 
