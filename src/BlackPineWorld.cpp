@@ -352,7 +352,10 @@ e2d::WorldDefinition buildWorld() {
     });
     generator.hotspots.push_back({"fuse_pickup", tr("CERAMIC FUSE", "KERAMICKÁ POJISTKA"), {340, 132, 105, 112}, e2d::HotspotKind::item,
         {e2d::Condition::notFlag("fuse_taken")}, {box(382, 181, 18, 6, pale)}});
-    generator.hotspots.push_back({"fuse_socket", tr("FUSE SOCKET", "DRŽÁK POJISTKY"), {190, 114, 120, 104}, e2d::HotspotKind::mechanism, {}, {}});
+    // Cover the complete MAIN panel and the standing space directly below it.
+    // USE resolves overlapping targets by selected item, so the ceramic fuse
+    // remains reliable even where this area meets the physical lever below.
+    generator.hotspots.push_back({"fuse_socket", tr("FUSE SOCKET", "DRŽÁK POJISTKY"), {190, 114, 120, 144}, e2d::HotspotKind::mechanism, {}, {}});
     generator.hotspots.push_back({"cable_terminals", tr("BLUE TERMINALS", "MODRÉ SVORKY"), {88, 178, 92, 80}, e2d::HotspotKind::mechanism, {}, {}});
     generator.hotspots.push_back({"generator_lever", tr("MAIN LEVER", "HLAVNÍ PÁKA"), {228, 184, 70, 74}, e2d::HotspotKind::mechanism, {}, {}});
     generator.hotspots.push_back({"installed_fuse_visual", tr("INSTALLED FUSE", "VLOŽENÁ POJISTKA"), {0, 0, 0, 0}, e2d::HotspotKind::scenery,

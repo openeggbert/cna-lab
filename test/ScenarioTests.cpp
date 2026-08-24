@@ -219,7 +219,10 @@ int main() {
     assertHint(session,
         "USE the ceramic fuse on the empty MAIN FUSE holder in the generator.");
 
-    moveSession(session, "generator", {225, 198});
+    // A normal player stands directly beneath MAIN, where the fuse holder and
+    // lever interaction areas overlap. Selecting the fuse must disambiguate
+    // the holder instead of producing "does not work here".
+    moveSession(session, "generator", {250, 220});
     session.performVerb(e2d::Verb::use);
     chooseItem(session, "ceramic_fuse");
     dismiss(session);
