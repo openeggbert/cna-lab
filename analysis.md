@@ -189,7 +189,30 @@ wheel state through CNA's XNA-style property naming.
 People game code will not branch on renderer names. It will use the common 2D
 surface and create `PEO-CNA-*` blockers for behavior that violates it.
 
-### 4.2 CNA risks and validation strategy
+### 4.2 Web consumption finding
+
+The first People Emscripten build deliberately selects CNA's `CANVAS` renderer:
+it is browser-only, uses `CanvasRenderingContext2D`, and implements the exact
+`SpriteBatch`/`Texture2D` surface used by the prototype without adding a 3D
+runtime. CNA still uses its `SDL3` platform implementation under Emscripten;
+`CNA_PLATFORM=EMSCRIPTEN` is a reserved, unimplemented value and must not be
+invented. NULL audio is sufficient for the current silent milestone.
+
+People adds only an Emscripten target suffix (`.html`) and
+`ALLOW_MEMORY_GROWTH`. CNA supplies its required common exception/Asyncify ABI.
+The game contains no Canvas, DOM, SDL, or other web-backend calls. Generated
+textures avoid preload-file requirements for this milestone. CNA's documented
+web constraints require the emsdk zlib port and intentionally disable pinned
+Draco 1.5.7; neither affects current People content.
+
+The Release build produced and linked `People.html`, `People.js`, and
+`People.wasm`. JavaScript syntax and the WASM module with its declared modern
+feature set validated locally. A real browser was not available through the
+session's browser-testing surface, so rendering, input mapping, browser resize,
+and runtime console behavior remain unclaimed follow-up evidence rather than a
+framework blocker.
+
+### 4.3 CNA risks and validation strategy
 
 - A dirty dependency may change mid-session. Record SHA and dirty count at each
   milestone; reconfigure if headers or CMake files change.

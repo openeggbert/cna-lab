@@ -449,3 +449,70 @@ contact. The current-revision X11 smoke validates runtime startup/rendering but
 does not simulate a mouse command; therefore no new exact-revision interactive
 movement claim is made. Resident rendering intentionally remains an idle pose
 sliding between tiles until `PEO-072` supplies simulation-driven walk frames.
+
+## 2026-08-24: PEO-277 Emscripten/CANVAS web build
+
+People now emits an Emscripten `.html` executable and enables WASM memory
+growth only when `EMSCRIPTEN` is true. No game source contains a Canvas, DOM,
+SDL, or web-platform call. The selected CNA renderer is `CANVAS`, its
+browser-only 2D `SpriteBatch` implementation; CNA's supported SDL3 platform and
+NULL audio implementations complete the configuration. Draco is intentionally
+off because CNA documents pinned Draco 1.5.7 as unavailable in this web profile.
+
+The actual configure used emsdk 6.0.3, Ninja, Release, the installed Emscripten
+zlib port, `BUILD_TESTING=OFF`, and the following significant values:
+
+```text
+CNA_GRAPHICS_RENDERER=CANVAS
+CNA_PLATFORM=SDL3
+CNA_AUDIO_PLATFORM=NULL
+CNA_ENABLE_DRACO=OFF
+CMAKE_CXX_FLAGS=-Wno-error=unused-function
+```
+
+The full build completed 499 Ninja steps and linked these artifacts:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `build-web/People.html` | 19,601 | `58750f1a9dacf8b766c9ba19926a94c59bc26873942bbef3374d81f306859326` |
+| `build-web/People.js` | 235,688 | `241c37fa53fbd8d21bd75392a6ac738a1f22417bff6ef09faf7eccefe48e7b30` |
+| `build-web/People.wasm` | 5,105,329 | `002fa3271f635005bd992951ac27fde7cb4edb1a71b61dbf5988f2330c3eb952` |
+
+`file` identified the outputs as HTML, JavaScript, and a WebAssembly MVP
+binary. The emsdk Node 22.16.0 `--check` accepted `People.js`. Binaryen
+`wasm-opt --all-features` parsed and validated `People.wasm` successfully with
+the expected warning that no transformation pass was requested. The generated
+HTML contains its canvas and references the adjacent `People.js`; that script
+resolves `People.wasm` and contains the CNA Asyncify path.
+
+After adding the Emscripten-only target settings, the normal HEADLESS build
+also completed and all 15 CTests passed, including the runtime smoke test.
+
+The first restricted final link was denied while trying to create an emsdk
+symbol-cache lock outside the writable repository. Repeating only that link
+with ordinary SDK-cache write access succeeded. During the lengthy build,
+another agent left five CNA ContentManager/SDL3 platform paths modified. Final dependency
+state was CNA branch `next`, HEAD
+`14ff4be7c9690ead2030a02878c6be39802f6863`, with:
+
+```text
+modules/content/include/Microsoft/Xna/Framework/Content/ContentManager.hpp
+modules/content/src/Xna/ContentManager.cpp
+modules/content/tests/Microsoft/Xna/Framework/Content/ContentManagerXnbTests.cpp
+modules/platform/src/Sdl3/Sdl3Platform.cpp
+modules/platform/tests/CNA/Platform/Sdl3WindowTests.cpp
+```
+
+The final incremental `cmake --build build-web --target People` rebuilt the
+changed SDL3 platform source and relinked the HTML/WASM output. sharp-runtime remained clean at
+`54578590b328aa9612fe38bfddca9fd8ca795144`. People modified neither checkout;
+the CNA SHA alone does not reproduce the observed dirty state.
+
+A local HTTP server successfully bound `127.0.0.1:8765` for the generated
+directory and was then stopped. The session's required browser-testing surface
+reported an empty browser list, so no browser was available to open the page.
+No screenshot, Canvas pixels, input, resize behavior, or browser-console result
+is claimed. This is an environment evidence gap, not a failed build and not a
+recorded CNA blocker. `PEO-277` is complete at its explicit feasibility scope;
+a future connected-browser validation remains part of the eventual Web release
+gate.

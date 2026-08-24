@@ -122,7 +122,7 @@ Statuses:
 |---|---|---|---|
 | PEO-070 | DONE | Resident simulation entity | Stable ID, household, logical position, movement/action references, and deletion lifecycle exist without sprite state |
 | PEO-071 | DONE | Four-view placeholder resident | Original procedural resident has four directions and idle frames with common foot anchor |
-| PEO-072 | TODO | Walk animation | Movement direction selects walk frames by simulation progress; animation cannot alter route state |
+| PEO-072 | DOING | Walk animation | Movement direction selects walk frames by simulation progress; animation cannot alter route state |
 | PEO-073 | DONE | Static occupancy grid | Floor/walls/object footprints produce deterministic walkability independent of renderer |
 | PEO-074 | DONE | Tile-grid A* | Deterministic four-neighbor path finds shortest routes, handles no-path/start=goal, and passes fixed maps |
 | PEO-075 | DONE | Door routing | Closed/open/passable policy integrates wall portals and produces expected paths |
@@ -340,7 +340,7 @@ Statuses:
 | PEO-274 | TODO | Linux release gate | Clean configure/build/tests/displayed runtime/package run on documented toolchain |
 | PEO-275 | TODO | Windows release gate | Native or approved cross-build plus real Windows runtime verifies CNA renderer/input/audio/save paths |
 | PEO-276 | TODO | macOS release gate | Apple build and real runtime verify supported CNA path without claiming unrun coverage |
-| PEO-277 | DOING | Web feasibility gate | Owner-directed early check: configure and build the current 2D prototype with CNA's supported Emscripten path, exercise it in a real browser when available, and record exact limitations without expanding gameplay scope |
+| PEO-277 | DONE | Web feasibility gate | Owner-directed early check: configure and build the current 2D prototype with CNA's supported Emscripten path, exercise it in a real browser when available, and record exact limitations without expanding gameplay scope |
 | PEO-278 | TODO | Mod content safety model | Namespaced data packages, validation, dependency/version rules, and no arbitrary native plugins |
 | PEO-279 | TODO | Public alpha checklist | M5 or later gate, known issues, save compatibility, notices, asset rights, crash/log path, and feedback channel complete |
 | PEO-280 | DEFERRED | Aging/life stages | Adult household simulation and persistence must be strong first |

@@ -86,6 +86,14 @@ target_include_directories(People PRIVATE
 )
 target_link_libraries(People PRIVATE people_core CNA)
 
+if(EMSCRIPTEN)
+    # Emit a directly loadable browser shell. CNA supplies the common
+    # exception/Asyncify ABI; People only needs room for runtime-generated
+    # sprite textures as the prototype grows.
+    set_target_properties(People PROPERTIES SUFFIX ".html")
+    target_link_options(People PRIVATE -sALLOW_MEMORY_GROWTH=1)
+endif()
+
 if(COMMAND cna_copy_renderer_runtime)
     cna_copy_renderer_runtime(People)
 endif()

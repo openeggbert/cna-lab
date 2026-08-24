@@ -88,6 +88,11 @@ SDL_RENDERER/SDL3 configurations passed the complete test suite at that
 revision. See the verification record; neither dependency checkout was edited
 by People work.
 
+The first Emscripten/CANVAS build subsequently linked at the same CNA HEAD
+while another agent had five uncommitted CNA ContentManager/SDL3 platform paths
+in progress. That web result is therefore exact for the observed working tree
+but not reproducible from the CNA SHA alone.
+
 ## Build
 
 Configure the tested Linux displayed build explicitly with CNA's SDL3 platform
@@ -115,6 +120,29 @@ cmake -S . -B build-headless \
 cmake --build build-headless --parallel 2
 ctest --test-dir build-headless --output-on-failure
 ```
+
+The current browser build uses CNA's Emscripten-only 2D Canvas renderer. With
+an activated emsdk and its zlib port available:
+
+```bash
+emcmake cmake -S . -B build-web -G Ninja \
+  -DBUILD_TESTING=OFF \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCNA_GRAPHICS_RENDERER=CANVAS \
+  -DCNA_PLATFORM=SDL3 \
+  -DCNA_AUDIO_PLATFORM=NULL \
+  -DCNA_ENABLE_DRACO=OFF \
+  -DZLIB_LIBRARY="$EMSDK/upstream/emscripten/cache/sysroot/lib/wasm32-emscripten/libz.a" \
+  -DZLIB_INCLUDE_DIR="$EMSDK/upstream/emscripten/cache/sysroot/include" \
+  -DCMAKE_CXX_FLAGS="-Wno-error=unused-function"
+cmake --build build-web --target People --parallel 2
+```
+
+Serve `build-web/` over HTTP and open `People.html`; browsers normally reject
+loading the adjacent WASM module correctly from a `file://` URL. The generated
+HTML/JS/WASM bundle has built and passed static validation, but no real browser
+was connected in the verification session, so interactive Canvas behavior is
+not yet claimed.
 
 No modeler or image-generation service is required to build or play. Generated
 placeholder textures keep early builds self-contained.
