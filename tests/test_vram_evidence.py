@@ -430,6 +430,16 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertIn("must identify iron_gang", result.stderr)
 
             evidence = evidence_fixture(capture_path, artifact_path)
+            evidence["process"]["executable"] = "spoofed\n/iron_gang"
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn(
+                "evidence.process.executable must be a single printable line",
+                result.stderr,
+            )
+
+            evidence = evidence_fixture(capture_path, artifact_path)
             evidence["process"]["pid"] = 4243
             evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
             result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)

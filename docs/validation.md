@@ -301,6 +301,12 @@ enriched captures retain the exact complete-process-residency and conservative-m
 Two broader false claims exit 2. Focused suites, both retained diagnostics, and full isolated 8/8
 CTest pass; its smoke process remained confined to Xvfb.
 
+Process executable identity validation now checks the full path/name for a single printable line
+before accepting its `iron_gang`/`iron_gang.exe` basename. Separate report and VRAM cases reject a
+newline-prefixed path in capture-session and external-manifest data. Focused suites, both retained
+diagnostics, and full isolated 8/8 CTest pass. Its Xvfb smoke remained separate from the
+user-requested visible instance, which stayed running.
+
 Producer-authored `checks` are correlated with frame/CPU/district sample availability and p95 budget
 direction. Frame minimum/recommended, aggregate CPU, and district-load contradictions exit 2;
 district load is `null` only without samples. Exact serialized budget equality deliberately accepts

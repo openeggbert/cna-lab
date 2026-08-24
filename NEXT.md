@@ -67,6 +67,15 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 process executable identities now reject control-character path prefixes.** Basename checks
+alone allowed a path such as `spoofed\n/iron_gang` to identify the expected process.
+
+- The shared validator now requires the full executable path/name to be one printable line before
+  normalizing its basename. This protects both `capture_session` and external VRAM evidence.
+- Report and VRAM negatives cover the two sources independently. Report 7/7, comparator 7/7, VRAM
+  6/6, both retained diagnostics, and full isolated CTest 8/8 pass. The Xvfb smoke ran alongside
+  but separately from the explicitly requested visible game instance, which remained open.
+
 **M12 VRAM coverage text now preserves the measurement boundary.** A capture can no longer replace
 the fixed logical or externally complete scope with a broader claim while keeping consistent bytes.
 

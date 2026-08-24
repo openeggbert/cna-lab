@@ -749,3 +749,16 @@ Two report negatives independently replace the complete and logical scopes with 
 Report 7/7, comparator 7/7, VRAM 6/6, and both retained Xvfb diagnostics pass without launching the
 game. Full isolated Xvfb CTest passes 8/8 with its smoke process confined to Xvfb; no physical VRAM
 capture was created.
+
+## 2026-08-24 — process executable identity consistency
+
+The shared schema-8/VRAM validator now requires the complete process executable path or name to be
+one printable line before reducing it to the allowed `iron_gang`/`iron_gang.exe` basename. A
+control-character prefix followed by an otherwise valid basename can no longer cross the capture or
+external-evidence trust boundary.
+
+Report coverage mutates `capture_session.process.executable`; VRAM coverage independently mutates
+the external profiler manifest. Both exit 2 with source-specific diagnostics. Report 7/7,
+comparator 7/7, VRAM 6/6, both retained diagnostics, and full isolated CTest 8/8 pass. Its Xvfb
+smoke ran separately while the explicitly requested visible instance remained open; no evidence
+was added.

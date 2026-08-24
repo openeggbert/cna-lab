@@ -508,7 +508,8 @@ Before generating or publishing a release report, re-verify the archived four-fi
 ```
 
 The binder verifies schema, rejects duplicate JSON object keys, requires the process basename to be
-`iron_gang` or `iron_gang.exe` with a positive PID, checks exact capture and raw-artifact hashes,
+`iron_gang` or `iron_gang.exe` with a positive PID, and requires the entire executable path/name to
+be one printable line before basename normalization. It checks exact capture and raw-artifact hashes,
 requires a strictly positive UTC measurement interval and peak value, and enforces the exact
 measurement scope. The evidence PID must equal `capture_session.process.pid`, and its measurement
 interval must start no later than the capture and end no earlier than the capture. The enriched

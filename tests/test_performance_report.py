@@ -661,6 +661,17 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("must identify iron_gang", result.stderr)
 
+        multiline_session_executable = capture_fixture()
+        multiline_session_executable["capture_session"]["process"]["executable"] = (
+            "spoofed\n/iron_gang"
+        )
+        result = self.run_report([multiline_session_executable], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(
+            "capture_session.process.executable must be a single printable line",
+            result.stderr,
+        )
+
     def test_schema_and_histogram_mismatch_is_rejected(self) -> None:
         bad_schema = capture_fixture()
         bad_schema["schema_version"] = 7

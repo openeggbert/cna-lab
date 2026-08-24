@@ -412,7 +412,7 @@ def _utc_timestamp(value: dict[str, Any], *keys: str) -> datetime:
 
 
 def _iron_gang_executable_name(value: dict[str, Any], *keys: str, label: str) -> str:
-    executable = _non_empty_string(value, *keys)
+    executable = _single_line_text(_non_empty_string(value, *keys), label)
     executable_name = executable.replace("\\", "/").rsplit("/", 1)[-1].casefold()
     if executable_name not in IRON_GANG_EXECUTABLES:
         raise ReportError(f"{label} must identify iron_gang")
