@@ -55,7 +55,7 @@ Statuses:
 | PEO-017 | DONE | Camera zoom | Wheel and +/- clamp zoom; cursor-centered zoom preserves the logical point under the cursor within tolerance |
 | PEO-018 | DONE | Camera rotation controls | Q/E change exactly one of four orientations on key edges and preserve lot focus/selection |
 | PEO-019 | DONE | Selection highlight | Hovered in-bounds tile is overlaid with an original generated diamond; selection tracks pan/zoom/rotation |
-| PEO-020 | DOING | Deterministic render keys | Layer/floor/depth/anchor/stable-ID comparison is independent of insertion order and unit tested |
+| PEO-020 | DONE | Deterministic render keys | Layer/floor/depth/anchor/stable-ID comparison is independent of insertion order and unit tested |
 | PEO-021 | TODO | Render-item gather/sort | World renderables are gathered then globally sorted before SpriteBatch submission; debug builds can display keys |
 | PEO-022 | TODO | Viewport culling | Conservative projected bounds omit invisible tiles without popping at zoom/rotation edges; tests cover bounds math |
 | PEO-023 | TODO | Multi-tile sort analysis spike | At least three overlap cases establish segmentation/multiple-anchor policy; no unused runtime framework is added |
@@ -70,7 +70,7 @@ Statuses:
 
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
-| PEO-030 | TODO | Lot grid model | Bounded width/height/floor storage validates coordinates and remains renderer-independent |
+| PEO-030 | DOING | Lot grid model | Bounded width/height/floor storage validates coordinates and remains renderer-independent |
 | PEO-031 | TODO | Floor tile state | Base terrain and optional floor-covering IDs persist independently from textures and support dirty flags |
 | PEO-032 | TODO | Canonical wall edges | Shared edges normalize to one record; add/remove/query and boundary cases pass tests |
 | PEO-033 | TODO | Procedural wall sprites | Original placeholder wall segments render in correct back/front layers for all views |

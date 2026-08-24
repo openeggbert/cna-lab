@@ -80,3 +80,17 @@ No `PEO-CNA-*` or `PEO-SR-*` blocker was confirmed. The initial inability to
 create an X socket inside the filesystem sandbox disappeared when the approved
 display smoke ran outside that sandbox, so it is an environment constraint, not
 a CNA defect.
+
+## 2026-08-24: PEO-020 deterministic render keys
+
+The renderer-independent `RenderKey` orders lexicographically by logical floor,
+farthest rotated footprint depth, draw layer, rotated anchor Y/X, local segment
+offset, and stable entity ID. The 20 x 20 tile gather now constructs and sorts
+these keys instead of using an application-local comparison.
+
+`people_render_order_tests` verifies every field's priority, farthest-footprint
+depth and authored anchors in four rotations, invalid empty/mixed-floor/outside
+footprints, and identical sorted output after 20 seeded input shuffles. Headless
+and displayed configurations both passed 3/3 CTests against clean CNA
+`b6cbfcd87c08a6e0172eaf866358bf95bec277b1` and clean sharp-runtime
+`54578590b328aa9612fe38bfddca9fd8ca795144`.

@@ -2,11 +2,14 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <vector>
 
+#include "People/Rendering/RenderOrder.hpp"
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
@@ -25,8 +28,10 @@ using namespace Microsoft::Xna::Framework::Input;
 using People::World::IsometricProjection;
 using People::World::PixelPoint;
 using People::World::TileCoordinate;
-using People::World::ViewCoordinate;
 using People::World::ViewRotation;
+using People::Rendering::DrawLayer;
+using People::Rendering::RenderKey;
+using People::Rendering::RenderOrder;
 
 namespace
 {
@@ -198,19 +203,32 @@ void PeopleGame::Update(GameTime& gameTime)
 
 void PeopleGame::DrawLot()
 {
-    std::vector<TileCoordinate> tiles;
+    struct TileDrawItem
+    {
+        TileCoordinate tile;
+        RenderKey key;
+    };
+
+    std::vector<TileDrawItem> tiles;
     tiles.reserve(static_cast<std::size_t>(Lot.width * Lot.height));
     for (int y = 0; y < Lot.height; ++y)
+    {
         for (int x = 0; x < Lot.width; ++x)
-            tiles.push_back({x, y, 0});
+        {
+            const TileCoordinate tile{x, y, 0};
+            const std::uint64_t stableId = static_cast<std::uint64_t>(
+                y * Lot.width + x + 1);
+            tiles.push_back({
+                tile,
+                RenderOrder::BuildKey(
+                    std::span<const TileCoordinate>(&tile, 1), tile, Lot,
+                    camera_.rotation, DrawLayer::Terrain, 0, stableId)
+            });
+        }
+    }
 
-    std::ranges::sort(tiles, [this](const TileCoordinate left, const TileCoordinate right) {
-        const ViewCoordinate leftView = IsometricProjection::Rotate(left, Lot, camera_.rotation);
-        const ViewCoordinate rightView = IsometricProjection::Rotate(right, Lot, camera_.rotation);
-        if (leftView.x + leftView.y != rightView.x + rightView.y)
-            return leftView.x + leftView.y < rightView.x + rightView.y;
-        if (leftView.y != rightView.y) return leftView.y < rightView.y;
-        return leftView.x < rightView.x;
+    std::ranges::sort(tiles, [](const TileDrawItem& left, const TileDrawItem& right) {
+        return left.key < right.key;
     });
 
     spriteBatch_->Begin(
@@ -219,8 +237,9 @@ void PeopleGame::DrawLot()
         const_cast<SamplerState*>(&SamplerState::PointClamp),
         nullptr, nullptr);
 
-    for (const TileCoordinate tile : tiles)
+    for (const TileDrawItem& item : tiles)
     {
+        const TileCoordinate tile = item.tile;
         const PixelPoint center = IsometricProjection::WorldToScreen(tile, Lot, camera_);
         const Vector2 topLeft{
             static_cast<float>(center.x - IsometricProjection::HalfTileWidth * camera_.zoom),
