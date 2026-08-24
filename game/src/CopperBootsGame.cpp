@@ -586,6 +586,9 @@ namespace CopperBoots
     void CopperBootsGame::DrawRouteEndpoints(const float cameraX,
                                              const float cameraY)
     {
+        const PlayerState& player = world_.Player();
+        const float playerCenter = player.X + PlayerState::Width * 0.5F;
+        const float playerFoot = player.Y + PlayerState::Height;
         for (const RouteEndpointDefinition& endpoint : world_.RouteEndpoints()) {
             if (endpoint.Area != world_.CurrentArea())
                 continue;
@@ -600,6 +603,16 @@ namespace CopperBoots
                           Color(95, 192, 158));
             FillRectangle(Rectangle(x + 7, y - 6, 2, 2),
                           Color(235, 189, 67));
+            const float endpointCenter = static_cast<float>(
+                endpoint.Position.X * TileMap::TileSize) +
+                TileMap::TileSize * 0.5F;
+            const float endpointFoot = static_cast<float>(
+                endpoint.Position.Y * TileMap::TileSize);
+            if (std::abs(playerCenter - endpointCenter) <= 20.0F &&
+                std::abs(playerFoot - endpointFoot) <= 1.0F &&
+                !world_.RouteTransition().Active) {
+                DrawText("DOWN", x, y - 14, Color(235, 189, 67));
+            }
         }
     }
 

@@ -484,15 +484,15 @@ The first format is deliberately transparent, line-oriented text:
 ```text
 copper-boots-level 1
 name Green Ruins Relay
-size 80 12
+size 110 12
 spawn 3 9
 checkpoint 3 9
 parallax 0.10 0.25 0.50
 initial-area main
-endpoint hatch-main main 12 9
-endpoint hatch-secret conduit 70 9
-route hatch-main hatch-secret
-route hatch-secret hatch-main
+endpoint relay-hatch main 43 9
+endpoint cache-hatch conduit 96 9
+route relay-hatch cache-hatch
+route cache-hatch relay-hatch
 legend
 . empty
 # solid
@@ -539,6 +539,14 @@ The transition exposes one-tick start/destination/completion events and a pure
 fade amount. Same-area and cross-area routes share this small mechanism; maps
 may place a physically separated subarea in the same external tile grid without
 a general scene engine.
+
+Green Ruins uses the model for an original optional cache. Its 80-tile main
+route remains unchanged while a sealed 30-tile horizontal extension holds a
+separate `conduit` area with three cogs and a free arc capacitor. A generated
+hatch sits three tiles after the checkpoint; proximity draws a small `DOWN`
+prompt. The destination hatch offers the same discoverable return interaction.
+Because the cache is beyond the frozen main exit and enclosed by solids, normal
+camera scrolling cannot reveal or enter it.
 
 `G` is an object marker, not a visual/collision tile: loading extracts its tile
 coordinate into a cog list and leaves empty terrain behind. The fixed-step world

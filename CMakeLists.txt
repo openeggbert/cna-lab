@@ -105,11 +105,12 @@ if(COMMAND cna_copy_renderer_runtime)
     cna_copy_renderer_runtime(copper-boots)
 endif()
 
-add_custom_command(TARGET copper-boots POST_BUILD
+add_custom_target(copper_boots_content
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/Content"
         "$<TARGET_FILE_DIR:copper-boots>/Content"
-    COMMENT "Copying Copper Boots content")
+    COMMENT "Synchronizing Copper Boots content")
+add_dependencies(copper-boots copper_boots_content)
 
 if(MSVC)
     target_compile_options(copper_boots_gameplay PRIVATE /W4 /WX)

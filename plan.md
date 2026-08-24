@@ -22,17 +22,22 @@ met and the evidence is recorded in its commit or this file.
 
 **M1 — First playable Green Ruins Relay — ACHIEVED**
 
-The original 80x12 stage now has deterministic walk/run/jump, solid and one-way
-collision, scrolling camera, descriptor-driven parallax, collectibles,
+The original 80-tile main route plus a 30-tile secret area now has deterministic
+walk/run/jump, solid and one-way collision, scrolling camera, parallax, collectibles,
 interactive/breakable blocks, crawler enemies, damage/death/checkpoint/exit,
 plating and capacitor abilities, projectiles, HUD, pause, and CNA keyboard plus
 gamepad input. Logic and CNA offscreen smoke tests pass.
 
-**Current: M2 — presentation and conduit/subarea foundation**
+**M2 — presentation and conduit/subarea foundation — ACHIEVED**
 
 The procedural courier pose set, enemy contact matrix, debug overlay and named
-route transition foundation are complete. Add the first optional Green Ruins
-maintenance-conduit secret next without broadening into a generic scene engine.
+route transition foundation are complete. Green Ruins now contains a generated,
+prompted maintenance hatch and a separated optional cache.
+
+**Current: M3 — deterministic quality and generated audio**
+
+Add stable scripted state hashes and focused CTest labels before introducing
+generated CNA sound cues.
 
 ## Foundation and research
 
@@ -388,7 +393,7 @@ Acceptance:
 - Player is carried without jitter or collision penetration.
 - Horizontal, vertical, and delayed-fall paths are data-driven and tested.
 
-### MAR-047 — Secrets and maintenance conduits — TODO
+### MAR-047 — Secrets and maintenance conduits — DONE
 
 Acceptance:
 
@@ -584,7 +589,6 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Use `MAR-033` for the `MAR-047` maintenance-conduit secret.
-2. Add deterministic state hashes and CTest labels for `MAR-070`.
-3. Add generated CNA sound effects under `MAR-056`, retaining silence fallback.
-4. Begin moving platforms (`MAR-046`) now that the transition model is stable.
+1. Add deterministic state hashes and CTest labels for `MAR-070`.
+2. Add generated CNA sound effects under `MAR-056`, retaining silence fallback.
+3. Begin moving platforms (`MAR-046`) now that the transition model is stable.

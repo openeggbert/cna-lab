@@ -43,8 +43,10 @@ working vocabulary replaces the historical presentation with an original one:
 | pipe/subarea route | maintenance conduit |
 | basic enemy | clockwork crawler |
 
-The intended first milestone is a compact original level with walk, run, jump,
-tile collision, smooth bounded camera movement, and visible parallax.
+The current playable Green Ruins Relay includes walk/run/jump, tile collision,
+bounded camera movement, parallax, enemies, abilities and an optional
+maintenance-conduit cache. Near a hatch, the in-world `DOWN` prompt explains
+the interaction without external assets.
 
 ## Technology
 
