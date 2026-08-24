@@ -79,6 +79,7 @@ add_subdirectory("${CNA_ROOT_DIR}" CNA)
 
 add_library(copper_boots_gameplay STATIC
     gameplay/src/Camera2D.cpp
+    gameplay/src/InputActionAdapter.cpp
     gameplay/src/LevelDefinition.cpp
     gameplay/src/SimulationClock.cpp
     gameplay/src/TileMap.cpp

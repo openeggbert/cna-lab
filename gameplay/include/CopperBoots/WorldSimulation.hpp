@@ -19,6 +19,8 @@ namespace CopperBoots
         bool JumpHeld = false;
         bool AttackPressed = false;
         int Aim = 0;
+        bool InteractHeld = false;
+        bool PausePressed = false;
     };
 
     enum class PlayerMotion

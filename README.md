@@ -106,16 +106,19 @@ compatibility matrix as milestones stabilize.
 
 Current intended defaults are:
 
-| Action | Keyboard |
-|---|---|
-| move | A/D or Left/Right |
-| run | Left or Right Shift |
-| jump | Space |
-| interact/down | S or Down |
-| attack | Ctrl |
-| pause/back | Escape |
+| Action | Keyboard | Gamepad |
+|---|---|---|
+| move | A/D or Left/Right | left stick or D-pad |
+| run | Left/Right Shift | X, right shoulder, or right trigger |
+| jump | Space | A |
+| interact/down | S or Down | Y or D-pad Down |
+| attack | Ctrl | B |
+| aim projectile | W/S or Up/Down | D-pad/left-stick vertical |
+| pause/resume | Escape | Start |
 
-Controls and gamepad bindings will become configurable. Historical controls and
+While paused, R/Y restarts at the current spawn and Q/Back quits safely.
+
+Controls and bindings will become configurable. Historical controls and
 their verified meanings are documented in [analysis.md](analysis.md).
 
 ## Branches and contributions
@@ -137,4 +140,3 @@ under the MIT License; see [LICENSE](LICENSE).
 That license does not apply to Mike Wiering's historical source/reference
 material, Nintendo-owned material, CNA, sharp-runtime, or any other third-party
 work. Their respective ownership and license terms remain unchanged.
-

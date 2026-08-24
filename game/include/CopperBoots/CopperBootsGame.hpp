@@ -8,6 +8,7 @@
 
 #include "CopperBoots/SimulationClock.hpp"
 #include "CopperBoots/ParallaxLayer.hpp"
+#include "CopperBoots/InputActionAdapter.hpp"
 #include "CopperBoots/WorldSimulation.hpp"
 #include "Microsoft/Xna/Framework/Game.hpp"
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
@@ -16,6 +17,7 @@
 #include "Microsoft/Xna/Framework/Graphics/SpriteBatch.hpp"
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 #include "Microsoft/Xna/Framework/Input/KeyboardState.hpp"
+#include "Microsoft/Xna/Framework/Input/GamePadState.hpp"
 
 namespace CopperBoots
 {
@@ -33,7 +35,8 @@ namespace CopperBoots
 
     private:
         [[nodiscard]] PlayerInput ReadPlayerInput(
-            const Microsoft::Xna::Framework::Input::KeyboardState& keyboard);
+            const Microsoft::Xna::Framework::Input::KeyboardState& keyboard,
+            const Microsoft::Xna::Framework::Input::GamePadState& gamepad);
         void DrawWorld();
         void DrawParallax(float cameraX);
         void DrawParallaxLayer(const ParallaxLayer& layer, float cameraX);
@@ -45,6 +48,7 @@ namespace CopperBoots
         void DrawProjectiles(float cameraX, float cameraY);
         void DrawPlayer(float cameraX, float cameraY);
         void DrawHud();
+        void DrawPauseOverlay();
         void DrawText(std::string_view text, int x, int y,
                       const Microsoft::Xna::Framework::Color& color);
         void DrawNumber(int value, int digits, int x, int y,
@@ -64,12 +68,11 @@ namespace CopperBoots
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> solidTexture_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::RenderTarget2D> logicalTarget_;
         Microsoft::Xna::Framework::Graphics::SamplerState pointSampler_;
-        Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_;
         WorldSimulation world_;
         SimulationClock clock_;
-        bool jumpLatched_ = false;
-        bool attackLatched_ = false;
+        InputActionAdapter inputAdapter_;
         bool smokeTest_ = false;
+        bool paused_ = false;
         std::uint32_t drawnFrames_ = 0;
     };
 }

@@ -8,6 +8,7 @@
 
 #include "CopperBoots/Camera2D.hpp"
 #include "CopperBoots/LevelDefinition.hpp"
+#include "CopperBoots/InputActionAdapter.hpp"
 #include "CopperBoots/ParallaxLayer.hpp"
 #include "CopperBoots/SimulationClock.hpp"
 #include "CopperBoots/TileMap.hpp"
@@ -169,6 +170,65 @@ namespace
         Check(stalled.RemainderSeconds() <
                   CopperBoots::SimulationClock::TickSeconds,
               "dropped backlog retains less than one tick");
+    }
+
+    void TestInputActionAdapter()
+    {
+        CopperBoots::InputActionAdapter adapter;
+        CopperBoots::InputSnapshot snapshot;
+        snapshot.AnalogMove = 0.19F;
+        CheckNear(adapter.Sample(snapshot).Move, 0.0F, 0.001F,
+                  "analog movement inside dead zone is neutral");
+        snapshot.AnalogMove = 0.65F;
+        CheckNear(adapter.Sample(snapshot).Move, 0.65F, 0.001F,
+                  "analog movement outside dead zone is preserved");
+        snapshot.Left = true;
+        CheckNear(adapter.Sample(snapshot).Move, -1.0F, 0.001F,
+                  "digital movement overrides analog stick");
+        snapshot.Right = true;
+        CheckNear(adapter.Sample(snapshot).Move, 0.0F, 0.001F,
+                  "opposing digital movement is neutral even with analog input");
+
+        snapshot.Left = false;
+        snapshot.Right = false;
+        snapshot.AnalogMove = 0.0F;
+        snapshot.Jump = true;
+        snapshot.Attack = true;
+        snapshot.AimUp = true;
+        CopperBoots::PlayerInput first = adapter.Sample(snapshot);
+        Check(first.JumpPressed && first.AttackPressed && first.Aim == -1,
+              "new jump and attack holds emit upward-aimed edges");
+        CopperBoots::PlayerInput pending = adapter.Sample(snapshot);
+        Check(pending.JumpPressed && pending.AttackPressed,
+              "edges stay pending across render samples without a simulation tick");
+        adapter.ConsumeEdges();
+        CopperBoots::PlayerInput held = adapter.Sample(snapshot);
+        Check(!held.JumpPressed && !held.AttackPressed && held.JumpHeld,
+              "consumed held actions do not auto-repeat");
+        snapshot.Jump = false;
+        snapshot.Attack = false;
+        snapshot.AimDown = true;
+        Check(adapter.Sample(snapshot).Aim == 0,
+              "opposing aim directions are neutral");
+        snapshot.AimUp = false;
+        Check(adapter.Sample(snapshot).Aim == 1,
+              "down aim maps to positive aim action");
+        snapshot.Jump = true;
+        Check(adapter.Sample(snapshot).JumpPressed,
+              "release then press produces a fresh jump edge");
+        snapshot.Pause = true;
+        snapshot.Interact = true;
+        CopperBoots::PlayerInput pause = adapter.Sample(snapshot);
+        Check(pause.PausePressed && pause.InteractHeld,
+              "pause edge and interaction hold map independently");
+        adapter.ConsumeEdges();
+        Check(!adapter.Sample(snapshot).PausePressed,
+              "held pause cannot toggle repeatedly after consumption");
+        snapshot = {};
+        (void)adapter.Sample(snapshot);
+        snapshot.Pause = true;
+        Check(adapter.Sample(snapshot).PausePressed,
+              "disconnect/release then reconnect/press produces a clean pause edge");
     }
 
     void TestTileBounds()
@@ -979,6 +1039,7 @@ namespace
 int main()
 {
     TestSimulationClock();
+    TestInputActionAdapter();
     TestTileBounds();
     TestLevelParsing();
     TestMovementAndJump();

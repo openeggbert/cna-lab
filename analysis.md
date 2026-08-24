@@ -558,6 +558,14 @@ contact retires the shot, crawler overlap defeats once, and camera/world margins
 clean up survivors. Game input derives the attack edge from CNA Ctrl key state
 and accepts Up/Down or W/S for aim.
 
+Keyboard and CNA gamepad state feed a renderer-free action adapter. Digital
+opposites are neutral, the left stick uses a 0.20 dead zone, and
+jump/attack/pause edges remain pending until a fixed tick or UI toggle consumes
+them. Defaults are A/D or arrows plus Shift/Space/Ctrl, and gamepad left
+stick/D-pad plus X/A/B; Y/Down is interaction and Start/Escape pauses. The pause
+path does not feed wall time into the accumulator and offers resume, player
+restart and quit without latent action edges.
+
 The milestone HUD is also asset-free: a new 3x5 glyph table renders the external
 level name, cogs, lives and score through the same one-texel CNA `SpriteBatch`
 path, with colored plating/capacitor indicators. It reads const world accessors,
@@ -602,7 +610,7 @@ capabilities. Later compatibility records use:
 
 | Renderer | Configure | Build | Startup | SpriteBatch | Texture | RT | Point | Input | Audio | Defects |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| SDL_RENDERER | pass | pass | pass (offscreen) | pass | pass | pass | pass | keyboard pass | dummy init only | Xvfb unavailable in this container; CNA offscreen driver passes |
+| SDL_RENDERER | pass | pass | pass (offscreen) | pass | pass | pass | pass | keyboard + disconnected-gamepad pass | dummy init only | Xvfb unavailable in this container; CNA offscreen driver passes |
 
 Only available/mature lanes are tested; a compile result is never mislabeled as
 a runtime result.

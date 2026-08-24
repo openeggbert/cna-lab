@@ -14,8 +14,11 @@
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SpriteSortMode.hpp"
 #include "Microsoft/Xna/Framework/Graphics/TextureFilter.hpp"
+#include "Microsoft/Xna/Framework/Input/Buttons.hpp"
+#include "Microsoft/Xna/Framework/Input/GamePad.hpp"
 #include "Microsoft/Xna/Framework/Input/Keyboard.hpp"
 #include "Microsoft/Xna/Framework/Input/Keys.hpp"
+#include "Microsoft/Xna/Framework/PlayerIndex.hpp"
 #include "System/IO/StreamReader.hpp"
 
 namespace CopperBoots
@@ -28,6 +31,9 @@ namespace CopperBoots
     using Microsoft::Xna::Framework::Graphics::SpriteSortMode;
     using Microsoft::Xna::Framework::Graphics::Texture2D;
     using Microsoft::Xna::Framework::Graphics::TextureFilter;
+    using Microsoft::Xna::Framework::Input::Buttons;
+    using Microsoft::Xna::Framework::Input::GamePad;
+    using Microsoft::Xna::Framework::Input::GamePadState;
     using Microsoft::Xna::Framework::Input::Keyboard;
     using Microsoft::Xna::Framework::Input::KeyboardState;
     using Microsoft::Xna::Framework::Input::Keys;
@@ -85,48 +91,69 @@ namespace CopperBoots
         std::cout.flush();
     }
 
-    PlayerInput CopperBootsGame::ReadPlayerInput(const KeyboardState& keyboard)
+    PlayerInput CopperBootsGame::ReadPlayerInput(const KeyboardState& keyboard,
+                                                 const GamePadState& gamepad)
     {
-        const bool left = keyboard.IsKeyDown(Keys::A) ||
-                          keyboard.IsKeyDown(Keys::Left);
-        const bool right = keyboard.IsKeyDown(Keys::D) ||
-                           keyboard.IsKeyDown(Keys::Right);
-        const bool jumpHeld = keyboard.IsKeyDown(Keys::Space);
-        const bool jumpWasHeld = previousKeyboard_.IsKeyDown(Keys::Space);
-        jumpLatched_ = jumpLatched_ || (jumpHeld && !jumpWasHeld);
-        const bool attackHeld = keyboard.IsKeyDown(Keys::LeftControl) ||
-                                keyboard.IsKeyDown(Keys::RightControl);
-        const bool attackWasHeld =
-            previousKeyboard_.IsKeyDown(Keys::LeftControl) ||
-            previousKeyboard_.IsKeyDown(Keys::RightControl);
-        attackLatched_ = attackLatched_ || (attackHeld && !attackWasHeld);
-
-        PlayerInput result;
-        result.Move = static_cast<float>(static_cast<int>(right) -
-                                         static_cast<int>(left));
-        result.Run = keyboard.IsKeyDown(Keys::LeftShift) ||
-                     keyboard.IsKeyDown(Keys::RightShift);
-        result.JumpHeld = jumpHeld;
-        result.JumpPressed = jumpLatched_;
-        result.AttackPressed = attackLatched_;
-        const bool aimUp = keyboard.IsKeyDown(Keys::Up) ||
-                           keyboard.IsKeyDown(Keys::W);
-        const bool aimDown = keyboard.IsKeyDown(Keys::Down) ||
-                             keyboard.IsKeyDown(Keys::S);
-        result.Aim = static_cast<int>(aimDown) - static_cast<int>(aimUp);
-        previousKeyboard_ = keyboard;
-        return result;
+        InputSnapshot snapshot;
+        snapshot.Left = keyboard.IsKeyDown(Keys::A) ||
+                        keyboard.IsKeyDown(Keys::Left) ||
+                        gamepad.IsButtonDown(Buttons::DPadLeft);
+        snapshot.Right = keyboard.IsKeyDown(Keys::D) ||
+                         keyboard.IsKeyDown(Keys::Right) ||
+                         gamepad.IsButtonDown(Buttons::DPadRight);
+        snapshot.Run = keyboard.IsKeyDown(Keys::LeftShift) ||
+                       keyboard.IsKeyDown(Keys::RightShift) ||
+                       gamepad.IsButtonDown(Buttons::X) ||
+                       gamepad.IsButtonDown(Buttons::RightShoulder) ||
+                       gamepad.IsButtonDown(Buttons::RightTrigger);
+        snapshot.Jump = keyboard.IsKeyDown(Keys::Space) ||
+                        gamepad.IsButtonDown(Buttons::A);
+        snapshot.Attack = keyboard.IsKeyDown(Keys::LeftControl) ||
+                          keyboard.IsKeyDown(Keys::RightControl) ||
+                          gamepad.IsButtonDown(Buttons::B);
+        snapshot.AimUp = keyboard.IsKeyDown(Keys::Up) ||
+                         keyboard.IsKeyDown(Keys::W) ||
+                         gamepad.IsButtonDown(Buttons::DPadUp) ||
+                         gamepad.IsButtonDown(Buttons::LeftThumbstickUp);
+        snapshot.AimDown = keyboard.IsKeyDown(Keys::Down) ||
+                           keyboard.IsKeyDown(Keys::S) ||
+                           gamepad.IsButtonDown(Buttons::DPadDown) ||
+                           gamepad.IsButtonDown(Buttons::LeftThumbstickDown);
+        snapshot.Interact = keyboard.IsKeyDown(Keys::Down) ||
+                            keyboard.IsKeyDown(Keys::S) ||
+                            gamepad.IsButtonDown(Buttons::Y) ||
+                            gamepad.IsButtonDown(Buttons::DPadDown);
+        snapshot.Pause = keyboard.IsKeyDown(Keys::Escape) ||
+                         gamepad.IsButtonDown(Buttons::Start);
+        snapshot.AnalogMove = gamepad.getThumbSticksProperty().getLeftProperty().X;
+        return inputAdapter_.Sample(snapshot);
     }
 
     void CopperBootsGame::Update(Microsoft::Xna::Framework::GameTime& gameTime)
     {
         const KeyboardState keyboard = Keyboard::GetState();
-        if (keyboard.IsKeyDown(Keys::Escape)) {
-            Exit();
+        const GamePadState gamepad = GamePad::GetState(
+            Microsoft::Xna::Framework::PlayerIndex::One);
+        PlayerInput input = ReadPlayerInput(keyboard, gamepad);
+        if (input.PausePressed) {
+            paused_ = !paused_;
+            inputAdapter_.ConsumeEdges();
+            Game::Update(gameTime);
             return;
         }
-
-        PlayerInput input = ReadPlayerInput(keyboard);
+        if (paused_) {
+            if (keyboard.IsKeyDown(Keys::R) || gamepad.IsButtonDown(Buttons::Y)) {
+                world_.ResetPlayer();
+                paused_ = false;
+                inputAdapter_.ConsumeEdges();
+            }
+            else if (keyboard.IsKeyDown(Keys::Q) ||
+                     gamepad.IsButtonDown(Buttons::Back)) {
+                Exit();
+            }
+            Game::Update(gameTime);
+            return;
+        }
         const double elapsed =
             gameTime.getElapsedGameTimeProperty().getTotalSecondsProperty();
         const int steps = clock_.AddFrameTime(elapsed);
@@ -136,8 +163,7 @@ namespace CopperBoots
             clock_.MarkStep();
             input.JumpPressed = false;
             input.AttackPressed = false;
-            jumpLatched_ = false;
-            attackLatched_ = false;
+            inputAdapter_.ConsumeEdges();
         }
 
         Game::Update(gameTime);
@@ -181,6 +207,8 @@ namespace CopperBoots
         DrawProjectiles(cameraX, cameraY);
         DrawPlayer(cameraX, cameraY);
         DrawHud();
+        if (paused_)
+            DrawPauseOverlay();
         spriteBatch_->End();
     }
 
@@ -459,6 +487,18 @@ namespace CopperBoots
             : Color(53, 58, 57));
     }
 
+    void CopperBootsGame::DrawPauseOverlay()
+    {
+        FillRectangle(Rectangle(72, 52, 176, 76), Color(24, 36, 42));
+        FillRectangle(Rectangle(75, 55, 170, 70), Color(53, 81, 94));
+        const Color title(235, 189, 67);
+        const Color ink(231, 224, 181);
+        DrawText("PAUSED", 148, 64, title);
+        DrawText("ESC START RESUME", 116, 82, ink);
+        DrawText("R Y RESTART", 132, 94, ink);
+        DrawText("Q BACK QUIT", 132, 106, ink);
+    }
+
     void CopperBootsGame::DrawText(const std::string_view text,
                                    const int x, const int y,
                                    const Color& color)
@@ -515,15 +555,22 @@ namespace CopperBoots
         case '8': return {7, 5, 7, 5, 7};
         case '9': return {7, 5, 7, 1, 7};
         case 'A': return {2, 5, 7, 5, 5};
+        case 'B': return {6, 5, 6, 5, 6};
         case 'C': return {3, 4, 4, 4, 3};
+        case 'D': return {6, 5, 5, 5, 6};
         case 'E': return {7, 4, 6, 4, 7};
         case 'G': return {3, 4, 5, 5, 3};
         case 'I': return {7, 2, 2, 2, 7};
+        case 'K': return {5, 5, 6, 5, 5};
         case 'L': return {4, 4, 4, 4, 7};
+        case 'M': return {5, 7, 7, 5, 5};
         case 'N': return {5, 7, 7, 5, 5};
         case 'O': return {2, 5, 5, 5, 2};
+        case 'P': return {6, 5, 6, 4, 4};
+        case 'Q': return {2, 5, 5, 3, 1};
         case 'R': return {6, 5, 6, 5, 5};
         case 'S': return {3, 4, 2, 1, 6};
+        case 'T': return {7, 2, 2, 2, 2};
         case 'U': return {5, 5, 5, 5, 7};
         case 'Y': return {5, 5, 2, 2, 2};
         default: return {0, 0, 0, 0, 0};

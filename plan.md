@@ -402,7 +402,7 @@ Acceptance:
 
 ## Input, UI, persistence, and audio
 
-### MAR-050 — Input action adapter — TODO
+### MAR-050 — Input action adapter — DONE
 
 Acceptance:
 
@@ -411,7 +411,7 @@ Acceptance:
 - Simulation consumes action values, not CNA key enums.
 - Pressed/released/held semantics are tested.
 
-### MAR-051 — CNA gamepad support — TODO
+### MAR-051 — CNA gamepad support — DONE
 
 Acceptance:
 
@@ -427,7 +427,7 @@ Acceptance:
   debug-independent status at logical resolution.
 - HUD remains within safe bounds and is legible at integer scales.
 
-### MAR-053 — Pause menu — TODO
+### MAR-053 — Pause menu — DONE
 
 Acceptance:
 
