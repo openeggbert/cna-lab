@@ -41,7 +41,7 @@ constexpr int LcdModulePadding = 12;
 constexpr int IconAtlasCellWidth = 38;
 constexpr int IconAtlasCellHeight = 36;
 constexpr int IconDrawWidth = 32;
-constexpr int IconDrawHeight = 22;
+constexpr int IconDrawHeight = 30;
 
 struct Rgb final {
     std::uint8_t red;
@@ -1017,11 +1017,18 @@ void CnaTamagotchiGame::drawDevice()
     const Color lcdBezel = asColor(lcdColours.bezel);
     const Color lcdOff = asColor(lcdColours.off);
     const Color lcdOn = asColor(lcdColours.on);
+    const Color iconBandTop(
+        std::min(255, static_cast<int>(lcdColours.off.red) + 13),
+        std::min(255, static_cast<int>(lcdColours.off.green) + 13),
+        std::min(255, static_cast<int>(lcdColours.off.blue) + 7), 255);
+    const Color iconBandBottom(
+        std::max(0, static_cast<int>(lcdColours.off.red) - 10),
+        std::max(0, static_cast<int>(lcdColours.off.green) - 10),
+        std::max(0, static_cast<int>(lcdColours.off.blue) - 5), 255);
 
     // Drop shadow, shell rim, and inner egg. The short, tapered silhouette
     // and translucent turquoise treatment follow the selected P1 device
     // visually, while the geometry remains an independently drawn UI.
-    drawEllipse(278, 638, 164, 15, Color(38, 108, 112, 44));
     drawEgg(270, 348, 220, 272, ShellOutline);
     drawEgg(270, 346, 208, 260, ShellMain);
     drawEllipse(238, 318, 135, 190, ShellHighlight);
@@ -1040,8 +1047,10 @@ void CnaTamagotchiGame::drawDevice()
     drawRect(Rectangle(moduleX, moduleY, moduleWidth, moduleHeight), lcdBezel);
     drawRect(Rectangle(moduleX + 6, moduleY + 6, moduleWidth - 12, moduleHeight - 12), ShellShadow);
     drawRect(Rectangle(DisplayX, DisplayY - IconBandHeight,
-        DisplayPixelWidth, DisplayPixelHeight + IconBandHeight * 2), lcdOff);
+        DisplayPixelWidth, IconBandHeight), iconBandTop);
     drawRect(Rectangle(DisplayX, DisplayY, DisplayPixelWidth, DisplayPixelHeight), lcdOff);
+    drawRect(Rectangle(DisplayX, DisplayY + DisplayPixelHeight,
+        DisplayPixelWidth, IconBandHeight), iconBandBottom);
 
     for (int y = 0; y < Display::MonochromeDisplay::Height; ++y) {
         for (int x = 0; x < Display::MonochromeDisplay::Width; ++x) {
