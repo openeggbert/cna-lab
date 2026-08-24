@@ -82,6 +82,11 @@ namespace IronGang
         int width{0};
         int height{0};
         bool verticalSyncRequested{true};
+        int requestedSwapInterval{1};
+        bool swapIntervalApplyResultKnown{false};
+        bool swapIntervalApplySucceeded{false};
+        std::optional<int> appliedSwapInterval;
+        std::string swapIntervalUnavailableReason;
         bool fixedTimeStep{true};
         double targetFrameMilliseconds{0.0};
         std::uint64_t peakResidentBytes{0};

@@ -56,6 +56,13 @@ The report explicitly excludes HUD backend batching and driver state deduplicati
 submitted because no culling path exists yet. Software/CTest, syntax, Release/development EasyGL,
 Web/Emscripten, and the mixed runtime flow all pass.
 
+The next presentation diagnostic uses CNA's public platform GL-context acknowledgement rather than
+linking Iron Gang directly to SDL. JSON schema 3 distinguishes requested/applied/unknown and warns
+that platform acceptance is not physical-vblank proof. Two 60-frame Release EasyGL idle runs on
+isolated Xvfb requested intervals 0 and 1; the platform rejected both (`apply_succeeded=false`,
+`applied=null`). Their frame p95 values, 17.049/16.950 ms, are therefore correctly treated as an
+invalid v-sync comparison instead of evidence that the settings are equivalent.
+
 ## Current modular dependency baseline (2026-08-22)
 
 Iron Gang now configures against the sibling `../cnanext` and modular `../sharp-runtime`

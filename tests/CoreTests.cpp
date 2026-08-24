@@ -939,6 +939,10 @@ namespace
         context.width = 1280;
         context.height = 720;
         context.verticalSyncRequested = false;
+        context.requestedSwapInterval = 0;
+        context.swapIntervalApplyResultKnown = true;
+        context.swapIntervalApplySucceeded = true;
+        context.appliedSwapInterval = 0;
         context.fixedTimeStep = true;
         context.targetFrameMilliseconds = 1000.0 / 60.0;
         context.peakResidentBytes = 64ULL * 1024ULL * 1024ULL;
@@ -962,7 +966,7 @@ namespace
         const std::string report((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
         Require(report.find("\"backend\": \"TEST\"") != std::string::npos,
                 "performance report must identify its graphics backend");
-        Require(report.find("\"schema_version\": 2") != std::string::npos &&
+        Require(report.find("\"schema_version\": 3") != std::string::npos &&
                     report.find("\"draw_calls\": {\"samples\": 2, \"average\": 11.000, \"p95\": 12.000") !=
                         std::string::npos &&
                     report.find("\"state_change_calls\": {\"samples\": 1, \"average\": 31.000") !=
@@ -983,6 +987,11 @@ namespace
                     report.find("\"fixed_timestep\": true") != std::string::npos &&
                     report.find("\"target_frame_ms\": 16.667") != std::string::npos,
                 "performance report must identify requested presentation and scheduler timing");
+        Require(report.find("\"swap_interval\": {\"requested\": 0, \"apply_result_known\": true") !=
+                        std::string::npos &&
+                    report.find("\"apply_succeeded\": true, \"applied\": 0") != std::string::npos &&
+                    report.find("not physical vblank or compositor proof") != std::string::npos,
+                "performance report must separate platform swap acknowledgement from vblank proof");
         Require(report.find("\"minimum_frame_rate_pass\": true") != std::string::npos,
                 "19ms p95 must pass the 30 FPS minimum budget");
         Require(report.find("\"recommended_frame_rate_pass\": false") != std::string::npos,

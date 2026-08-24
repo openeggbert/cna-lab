@@ -282,8 +282,11 @@ yet. They establish the baseline needed before draw batching, instancing, or cul
 justified and later compared.
 
 Every report also records whether v-sync was requested, whether CNA's fixed timestep was enabled,
-and the target frame duration. `vertical_sync_requested` describes the requested presentation
-parameters; it is not proof that a virtual display or driver accepted a real swap interval.
+and the target frame duration. JSON schema 3's `swap_interval` separately records the 0/1 request
+and CNA platform `SetSwapInterval` acknowledgement. `apply_succeeded=true` means the current GL
+platform accepted that setting; it is still not proof of a physical vertical-retrace signal or
+compositor pacing. A declined or unqueryable path reports `applied:null` plus an explicit reason.
+WebGL is always unqueryable here because browser presentation is compositor-controlled.
 
 The current CNA/EasyGL API does not expose complete GPU residency. The report records the exact
 logical size of known Iron Gang-owned meshes/lightmaps/HUD resources plus imported CNJ vertex and

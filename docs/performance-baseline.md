@@ -155,3 +155,24 @@ The full 540-frame Release EasyGL mixed run on isolated Xvfb/X11, v-sync request
 All 540 frames contributed a sample. The non-integral averages include the district-transition
 loading frames, whose 3D counts correctly reset to zero; p95/max describe the populated district
 workload. These measurements are a diagnostic baseline, not content-budget pass/fail checks.
+
+## 2026-08-24 — swap-interval acknowledgement follow-up
+
+JSON schema 3 no longer leaves `--vsync` as requested-only metadata. Once the EasyGL context is
+current, profiling repeats the same interval through CNA's public platform GL-context seam and
+records whether the platform reports it applied. This acknowledgement is stronger than echoing a
+preference, but deliberately does not claim a physical vblank/compositor result.
+
+Two 60-frame Release EasyGL idle runs used only isolated Xvfb/X11:
+
+| Measurement | Requested interval 0 | Requested interval 1 |
+| --- | ---: | ---: |
+| Platform apply succeeded | no | no |
+| Reported applied interval | unknown (`null`) | unknown (`null`) |
+| Frame interval p95 | 17.049 ms | 16.950 ms |
+| Present CPU p95 | 13.301 ms | 12.169 ms |
+
+This explains the earlier paired Xvfb result more precisely: the virtual platform rejected both
+settings, so similar timing is not evidence that “v-sync on” and “off” perform the same. Future
+hardware comparisons must first require `swap_interval.apply_succeeded=true`; only then can timing
+be attributed to an accepted request, and even then external compositor behavior remains separate.

@@ -67,6 +67,19 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now distinguishes a requested swap interval from a platform-acknowledged one.** In
+`--profile` mode, after EasyGL has created the current context, Iron Gang reapplies the same 0/1
+interval through CNA's public `IPlatformGlContext::SetSwapInterval` seam and retains its boolean
+“applied” result. JSON schema 3 adds requested/apply-known/apply-succeeded/applied/reason fields and
+states that the acknowledgement is not proof of physical vblank or compositor pacing. WebGL and
+non-GL renderers report an explicit unknown reason instead of a fabricated interval.
+
+- Two 60-frame Release EasyGL idle runs on isolated Xvfb/X11 requested intervals 0 and 1. The
+  platform rejected both, so both correctly report `apply_succeeded:false`, `applied:null`; their
+  similar frame p95 (17.049/16.950 ms) can no longer be misread as a valid v-sync comparison.
+- Software plus 3/3 CTest, strict syntax checks, Release/development EasyGL, Web/Emscripten, and a
+  final isolated schema-3 runtime report all pass.
+
 **M12 now reports scoped per-frame 3D workload (`IG-35-005`).** `PrototypeRenderer` counts the
 actual game/CNA front-end submissions it makes while `--profile` is active: draw calls, explicit
 effect-pass/buffer/blend state calls, declared vertex ranges, triangle primitives, geometry
@@ -940,9 +953,10 @@ are real but not gate-blocking — see each file's own status note for the itemi
 **If continuing autonomous work, remain on gate M12** (`plan_39` `IG-39-013`). Phase-labelled
 scenarios, direct Present/GPU timing, and public-resource VRAM accounting now exist, but graphical
 automation in this workspace must stay on isolated Xvfb (never the visible host display). The
-remaining useful code-side seams are complete backend VRAM residency and an accepted (not merely
-requested) swap-interval query; do not duplicate the CNJ buffer/texture or GPU timer work now
-completed. The next physical-hardware capture should use `gpu_render` and `present_cpu` to locate
+remaining code-side residency seam is complete backend VRAM accounting; do not duplicate the CNJ
+buffer/texture, GPU timer, render-workload, or swap-acknowledgement work now completed. The next
+physical-hardware capture should first require `swap_interval.apply_succeeded`, then use
+`gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside
 budget. Do not mark M12 complete until repeated mixed workloads pass 33.333 ms p95 on named

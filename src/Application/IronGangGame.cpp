@@ -4,6 +4,7 @@
 #include "IronGang/Persistence/SaveGame.hpp"
 #include "IronGang/UI/BitmapFont.hpp"
 
+#include "CNA/Platform/IPlatform.hpp"
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Content/ContentManager.hpp"
 #include "Microsoft/Xna/Framework/GameTime.hpp"
@@ -114,6 +115,11 @@ namespace IronGang
         context.width = kBackBufferWidth;
         context.height = kBackBufferHeight;
         context.verticalSyncRequested = graphicsDeviceManager_->getSynchronizeWithVerticalRetraceProperty();
+        context.requestedSwapInterval = context.verticalSyncRequested ? 1 : 0;
+        context.swapIntervalApplyResultKnown = swapIntervalApplyResultKnown_;
+        context.swapIntervalApplySucceeded = swapIntervalApplySucceeded_;
+        context.appliedSwapInterval = appliedSwapInterval_;
+        context.swapIntervalUnavailableReason = swapIntervalUnavailableReason_;
         context.fixedTimeStep = getIsFixedTimeStepProperty();
         context.targetFrameMilliseconds = getTargetElapsedTimeProperty().getTotalMillisecondsProperty();
         context.peakResidentBytes = PerformanceProfiler::ReadPeakResidentBytes();
@@ -138,6 +144,41 @@ namespace IronGang
         return performanceProfiler_.WriteJsonReport(performanceReportPath_, context, error);
     }
 
+    void IronGangGame::CaptureSwapIntervalAcceptance()
+    {
+        swapIntervalApplyResultKnown_ = false;
+        swapIntervalApplySucceeded_ = false;
+        appliedSwapInterval_.reset();
+        swapIntervalUnavailableReason_.clear();
+
+#if defined(__EMSCRIPTEN__)
+        swapIntervalUnavailableReason_ =
+            "browser presentation is compositor-controlled; WebGL has no qualifying swap-interval acknowledgement";
+#elif defined(CNA_RENDERER_EASYGL)
+        CNA::Platform::IPlatformGlContext* glContext = GetPlatformEXT().GetGlContext();
+        if (glContext == nullptr)
+        {
+            swapIntervalUnavailableReason_ = "the active platform exposes no OpenGL context service";
+            return;
+        }
+
+        const int requestedInterval =
+            graphicsDeviceManager_->getSynchronizeWithVerticalRetraceProperty() ? 1 : 0;
+        swapIntervalApplyResultKnown_ = true;
+        swapIntervalApplySucceeded_ = glContext->SetSwapInterval(requestedInterval);
+        if (swapIntervalApplySucceeded_)
+        {
+            appliedSwapInterval_ = requestedInterval;
+        }
+        else
+        {
+            swapIntervalUnavailableReason_ = "the platform declined the requested swap interval";
+        }
+#else
+        swapIntervalUnavailableReason_ = "the active graphics backend does not use the OpenGL swap-interval seam";
+#endif
+    }
+
     void IronGangGame::RecordRenderWorkload()
     {
         if (!performanceProfiler_.IsEnabled())
@@ -160,6 +201,7 @@ namespace IronGang
         Game::Initialize();
         if (performanceProfiler_.IsEnabled())
         {
+            CaptureSwapIntervalAcceptance();
             gpuFrameTimer_ = std::make_unique<GpuFrameTimer>(getGraphicsDeviceProperty());
         }
         districtManager_.Initialize(physics_);

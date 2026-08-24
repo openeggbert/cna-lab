@@ -283,7 +283,7 @@ namespace IronGang
 
             output << std::fixed << std::setprecision(3);
             output << "{\n"
-                   << "  \"schema_version\": 2,\n"
+                   << "  \"schema_version\": 3,\n"
                    << "  \"backend\": \"" << EscapeJson(context.backend) << "\",\n"
                    << "  \"build_configuration\": \"" << EscapeJson(context.buildConfiguration) << "\",\n"
                    << "  \"scenario\": \"" << EscapeJson(context.scenario) << "\",\n"
@@ -293,6 +293,30 @@ namespace IronGang
                    << (context.verticalSyncRequested ? "true" : "false")
                    << ", \"fixed_timestep\": " << (context.fixedTimeStep ? "true" : "false")
                    << ", \"target_frame_ms\": " << context.targetFrameMilliseconds << "},\n"
+                   << "  \"swap_interval\": {\"requested\": " << context.requestedSwapInterval
+                   << ", \"apply_result_known\": "
+                   << (context.swapIntervalApplyResultKnown ? "true" : "false")
+                   << ", \"apply_succeeded\": ";
+            if (context.swapIntervalApplyResultKnown)
+            {
+                output << (context.swapIntervalApplySucceeded ? "true" : "false");
+            }
+            else
+            {
+                output << "null";
+            }
+            output << ", \"applied\": ";
+            if (context.appliedSwapInterval)
+            {
+                output << *context.appliedSwapInterval;
+            }
+            else
+            {
+                output << "null";
+            }
+            output << ", \"proof\": \"platform SetSwapInterval acknowledgement; not physical vblank or compositor proof\""
+                   << ", \"unavailable_reason\": \""
+                   << EscapeJson(context.swapIntervalUnavailableReason) << "\"},\n"
                    << "  \"gpu_timing\": {\"supported\": "
                    << (context.gpuTimerSupported ? "true" : "false")
                    << ", \"non_blocking\": true, \"scope\": \"draw_commands_excluding_present\""

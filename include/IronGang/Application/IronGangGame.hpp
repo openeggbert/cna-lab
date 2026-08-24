@@ -79,6 +79,7 @@ namespace IronGang
         // of SaveGame (plan_19/20/21/22's own scope note: no NPC/wanted persistence yet).
         void RespawnTrafficAndPedestrians();
         void RecordRenderWorkload();
+        void CaptureSwapIntervalAcceptance();
 
         std::unique_ptr<Microsoft::Xna::Framework::GraphicsDeviceManager> graphicsDeviceManager_;
         std::string assetRoot_;
@@ -139,6 +140,10 @@ namespace IronGang
         std::size_t peakTrafficVehicleCount_{0};
         std::size_t peakPedestrianCount_{0};
         int peakPoliceVehicleCount_{0};
+        bool swapIntervalApplyResultKnown_{false};
+        bool swapIntervalApplySucceeded_{false};
+        std::optional<int> appliedSwapInterval_;
+        std::string swapIntervalUnavailableReason_;
 
         // Gate M6 vehicle entry/exit animation state (see VehicleTransitionState's own comment).
         VehicleTransitionState vehicleTransitionState_{VehicleTransitionState::None};
