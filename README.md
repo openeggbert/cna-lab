@@ -46,6 +46,9 @@ route.
 - Monophonic QBasic/PC-speaker-style cues for menu, movement actions, pickups,
   repairs, warnings, death, save/load and victory, played through CNA.
 - Entirely procedural graphics; there are no external art assets.
+- Complete English and Czech localization for the current game, including
+  menus, settings, room and hotspot names, inventory, descriptions, dialogue,
+  system feedback, hazards and ending text.
 
 ## Build
 
@@ -102,13 +105,25 @@ also verifies the hazard/death/restart path.
 | F11 | toggle window / fullscreen |
 | Q | quit |
 | Up / Down + Enter | choice/map navigation |
-| Escape | cancel |
+| Escape | pause from the world; cancel/back in choices and menus |
+| Left / Right in Settings | change language |
 
 Black Pine inherits Explore2D's fixed 640×350 display, room/inventory/action
 layout and palette. Its mountain, forest, cabin, machinery and title artwork are
 original combinations of rectangles, lines, circles, ellipses and bitmap text
 declared in `BlackPineWorld.cpp`. Only story-relevant actions and machinery are
 animated; static scenery deliberately remains static.
+
+## Language settings
+
+Choose **Settings** on the title screen to switch between English and Czech.
+During play, press **Escape**, choose **Settings**, and change the language
+without restarting or altering the current game state. Explore2D stores the
+preference in `black-pine.e2dsettings` and restores it on the next launch.
+
+English is the canonical fallback. Czech is supplied as UTF-8 text and rendered
+by Explore2D's code-drawn bitmap font, including Czech diacritics. The
+pre-production `docs/GAME_DESIGN.md` intentionally remains English-only.
 
 ## Suggested route if you are testing mechanics
 

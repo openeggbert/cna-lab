@@ -18,6 +18,7 @@ int main(const int argc, const char* const argv[]) {
     host.windowTitle = "Black Pine - Explore2D demo";
     host.presentationScale = 2;
     host.savePath = "black-pine.e2dsave";
+    host.settingsPath = "black-pine.e2dsettings";
     host.exitAfterFrames = smoke ? 2U : 0U;
 
     explore2d::SessionConfig sessionConfig;
