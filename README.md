@@ -116,6 +116,16 @@ Physical qualification additionally requires `--qualifying-hardware`, an explici
 display identity, at least two distinct mixed captures, acknowledged presentation, and complete
 VRAM evidence. See [`docs/performance-targets.md`](docs/performance-targets.md#release-summary-generator).
 
+The bounded no-window lifecycle soak is part of CTest and can be extended locally:
+
+```bash
+ctest --preset compile-software -R iron_gang_memory_soak_tests --output-on-failure
+./cmake-build-compile-software/iron_gang_memory_soak_tests --cycles 5000
+```
+
+It repeats district round trips, mission replay, and save/load while checking Jolt body counts and
+Linux RSS growth. It does not replace an integrated graphics/audio run on physical target hardware.
+
 ## MC3 asset conversion
 
 Build Mesh Craft and CNA's conversion tools first, then set:

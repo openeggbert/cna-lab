@@ -257,6 +257,17 @@ if(IRON_GANG_BUILD_TESTS)
     add_test(NAME iron_gang_physics_tests COMMAND iron_gang_physics_tests)
     set_tests_properties(iron_gang_physics_tests PROPERTIES
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+    # Gate M12 / IG-35-051: bounded no-window lifecycle soak for district, mission, and save/load.
+    add_executable(iron_gang_memory_soak_tests tests/MemorySoakTests.cpp)
+    target_include_directories(iron_gang_memory_soak_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(iron_gang_memory_soak_tests PRIVATE iron_gang_core)
+    iron_gang_apply_warnings(iron_gang_memory_soak_tests)
+    add_test(NAME iron_gang_memory_soak_tests COMMAND iron_gang_memory_soak_tests --cycles 200)
+    set_tests_properties(iron_gang_memory_soak_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+        LABELS "soak;performance"
+        TIMEOUT 60)
 endif()
 
 install(TARGETS iron_gang RUNTIME DESTINATION bin)

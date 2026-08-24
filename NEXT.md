@@ -67,6 +67,20 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has a complete smallest-scope lifecycle memory soak (`IG-35-013`, `051`-`052`).** New
+no-window `iron_gang_memory_soak_tests` repeats mission reset/replay, real mid-mission save/read/
+resume/completion, and WarehouseBlock↔Countryside round trips in one process. After warm-up it
+checks exact Jolt body restoration, current RSS growth, peak RSS growth, and linear RSS trend;
+platforms without `/proc` keep all lifecycle checks and report memory unknown.
+
+- CTest is now 6/6; its 200-cycle/400-transition case has a 60-second timeout and `soak;performance`
+  labels. It measured +4,096 B current/peak RSS, 34 B/cycle trend, and exactly 8 bodies after every
+  return to WarehouseBlock.
+- A separate 5,000-cycle run completed 10,000 transitions and 5,000 mission/save-load replays with
+  +4,096 B current/peak RSS, 0 B/cycle rounded trend, and 8 final bodies. This is strong core
+  lifecycle evidence but deliberately excludes graphics/audio/backend residency and does not close
+  physical-hardware M12.
+
 **M12 now has a complete smallest-scope source content-budget validator (`IG-35-014`,
 `045`-`047`).** `assets/content-budgets.json` versions bootstrap triangle/material/texture-count
 limits; `scripts/content_budget.py` exactly counts MC3 boxes/cubes and glTF triangle primitives,
@@ -1093,12 +1107,11 @@ physical-hardware capture should first require `swap_interval.apply_succeeded`, 
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside
-budget. The next safe code-side M12 slice is the smallest memory-leak soak harness
-(`IG-35-013`, `051`-`052`): exercise repeated district round trips plus mission/save-load cycles,
-sample current/high-water RSS at fixed checkpoints, and keep duration bounded for CI while
-documenting that long physical-hardware soak qualification remains separate. Do not mark M12
-complete until repeated mixed workloads pass 33.333 ms p95 on named minimum hardware and VRAM
-tracking is complete.
+budget. The next safe code-side M12 slice is automated capture comparison over time (`IG-35-024`):
+compare compatible schema-8 reports against a named baseline with explicit absolute/relative
+regression tolerances, while refusing cross-hardware or diagnostic-vs-qualifying comparisons. Do
+not mark M12 complete until repeated mixed workloads pass 33.333 ms p95 on named minimum hardware
+and VRAM tracking is complete.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --

@@ -340,3 +340,29 @@ OPENGLES3, acknowledged presentation, complete in-budget VRAM, and all direct mi
 passing. Separate tests prove stale schema, inconsistent histograms, rejected swap application, and
 incomplete VRAM cannot be promoted. The CLI plus these four cases are wired into CTest as
 `iron_gang_performance_report_tests`; generating a report successfully never by itself closes M12.
+
+## 2026-08-24 — bounded lifecycle memory-soak follow-up
+
+The new no-window `iron_gang_memory_soak_tests` repeatedly combines mission reset/replay, real
+mid-mission save/read/resume/completion, and full WarehouseBlock/Countryside round trips in one
+process. It verifies the WarehouseBlock returns to exactly 8 static Jolt bodies after every pair of
+transitions and samples Linux current/high-water RSS after a fixed warm-up.
+
+| Lifecycle soak | CI-sized run | Extended local run |
+| --- | ---: | ---: |
+| Cycles | 200 | 5,000 |
+| District transitions | 400 | 10,000 |
+| Mission replay + save/load cycles | 200 | 5,000 |
+| Warm-up cycles | 20 | 20 |
+| RSS checkpoints | 10 | 10 |
+| Current RSS baseline -> final | 7,962,624 -> 7,966,720 B | 8,032,256 -> 8,036,352 B |
+| Current RSS delta | +4,096 B | +4,096 B |
+| Peak RSS delta | +4,096 B | +4,096 B |
+| Linear current-RSS trend | 34 B/cycle | 0 B/cycle (rounded) |
+| Final WarehouseBlock bodies | 8 | 8 |
+
+Both runs pass the bounded allowances (8 MiB current growth, 16 MiB high-water growth, 32 KiB per
+cycle trend). These numbers are process-local diagnostics and can vary by allocator/build; the
+thresholded result and absence of continued growth matter more than the absolute 7.6-7.7 MiB RSS.
+This lifecycle test excludes rendering, audio hardware, backend allocations, and physical GPU
+residency, so it does not replace the still-required integrated target-hardware M12 qualification.

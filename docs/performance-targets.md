@@ -467,3 +467,30 @@ group passes, exit 1 is an actionable limit failure, and exit 2 is invalid polic
 boxes/cubes and glTF triangle lists/strips/fans have exact counting rules. Any other MC3 primitive
 or non-triangle glTF mode fails with a request to add exact triangulation logic; the validator never
 guesses a cost.
+
+### Bounded lifecycle memory soak
+
+`iron_gang_memory_soak_tests` is a no-window M12 lifecycle guard. Every cycle:
+
+1. resets and advances the prototype mission to its driving checkpoint;
+2. writes and reads a real save, resumes it in a fresh mission runtime, and completes the mission;
+3. performs WarehouseBlock -> Countryside -> WarehouseBlock transitions; and
+4. verifies Jolt's body count returns to the exact WarehouseBlock baseline.
+
+The CTest target runs 200 cycles with a 60-second timeout. After a 20-cycle warm-up, Linux samples
+current RSS at ten fixed checkpoints and peak RSS at baseline/end. It fails above 8 MiB current-RSS
+growth, 16 MiB high-water growth, or a +32 KiB/cycle least-squares trend. These deliberately loose
+page/allocator allowances catch unbounded lifecycle retention without treating normal allocator
+caching as a leak. Platforms without `/proc/self/status` still execute all lifecycle/body checks
+and report `rss_known=false` instead of fabricating memory values.
+
+Run the CI-sized or a longer local soak with:
+
+```bash
+ctest --preset compile-software -R iron_gang_memory_soak_tests --output-on-failure
+./cmake-build-compile-software/iron_gang_memory_soak_tests --cycles 5000
+```
+
+This is not a rendering, GPU residency, audio-device, or physical-hardware soak; it cannot close
+the remaining M12 graphics gate. It isolates repeated district/mission/save ownership in a fast,
+deterministic process so lifecycle regressions fail CI before a longer integrated run.

@@ -133,6 +133,15 @@ triangle rejection, and unregistered-source rejection. Texture resolution remain
 outside this first policy until representative production textures exist; aggregate M12 VRAM
 tracking remains authoritative.
 
+The lifecycle-memory follow-up adds no-window `iron_gang_memory_soak_tests`, making CTest 6/6. Its
+bounded CI case runs 200 mission-reset/save-read-resume completions and 400 district transitions;
+after 20 warm-up cycles, current and peak RSS each grew only 4,096 B, current-RSS slope was 34
+B/cycle, and WarehouseBlock returned to exactly 8 Jolt bodies after every round trip. A separate
+5,000-cycle local run (10,000 transitions/save replay each cycle) also ended at +4,096 B current/
+peak RSS with 0 B/cycle rounded trend and 8 bodies. The test enforces 8 MiB current, 16 MiB peak,
+and 32 KiB/cycle trend allowances with a 60-second CTest timeout. It validates core ownership, not
+render/audio/backend residency or physical-hardware M12 qualification.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The
