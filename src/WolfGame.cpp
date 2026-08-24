@@ -32,6 +32,11 @@ namespace WolfCna
         constexpr int PanelCount = 5;
         constexpr int AtlasWidth = PanelSize * PanelCount;
         constexpr int AtlasHeight = PanelSize;
+        constexpr std::array<std::string_view, 3> CampaignLevelFiles = {
+            "assets/levels/starter.level",
+            "assets/levels/sector-02.level",
+            "assets/levels/sector-03.level"
+        };
 
         int Noise(int x, int y)
         {
@@ -410,7 +415,7 @@ namespace WolfCna
             DrawHudText(*hudSpriteBatch_, *hudPixel_, center - HudTextWidth(label) / 2, panelY + 17, label, labelColor);
             DrawHudText(*hudSpriteBatch_, *hudPixel_, center - HudTextWidth(value) / 2, panelY + 47, value, valueColor);
         };
-        drawReadout(0, "LEVEL", "1");
+        drawReadout(0, "LEVEL", std::to_string(levelIndex_ + 1));
         drawReadout(1, "SCORE", std::to_string(score_));
         drawReadout(2, "LIVES", std::to_string(lives_));
         drawReadout(3, "HEALTH", std::to_string(health_) + "%");
@@ -424,14 +429,26 @@ namespace WolfCna
         if (completed_ || screen_ == Screen::GameOver)
         {
             const std::string_view message = completed_ ? "LEVEL COMPLETE" : "GAME OVER";
+            const std::string_view prompt = screen_ == Screen::GameOver
+                ? "SPACE TITLE"
+                : levelIndex_ + 1 < static_cast<int>(CampaignLevelFiles.size())
+                    ? "SPACE NEXT"
+                    : "SPACE TITLE";
             const int messageWidth = HudTextWidth(message);
             const int messageX = centerX - messageWidth / 2;
             const int messageY = centerY - 34;
             hudSpriteBatch_->Draw(
                 *hudPixel_,
-                Rectangle(messageX - 15, messageY - 11, messageWidth + 30, 39),
+                Rectangle(messageX - 15, messageY - 11, messageWidth + 30, 57),
                 Color(17, 59, 116, 255));
             DrawHudText(*hudSpriteBatch_, *hudPixel_, messageX, messageY, message, Color(184, 238, 255, 255));
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                centerX - HudTextWidth(prompt) / 2,
+                messageY + 21,
+                prompt,
+                Color(255, 233, 136, 255));
         }
         hudSpriteBatch_->End();
     }
@@ -547,21 +564,41 @@ namespace WolfCna
 
     void WolfGame::ResetRun()
     {
-        world_ = World(level_);
-        world_.Upload(getGraphicsDeviceProperty());
-        playerPosition_ = world_.PlayerStart();
-        yaw_ = 0.0f;
         health_ = 100;
         ammo_ = 12;
         score_ = 0;
         lives_ = 3;
         nextExtraLifeScore_ = 40000;
+        weapon_ = Weapon::Sidearm;
+        LoadCampaignLevel(0);
+    }
+
+    void WolfGame::LoadCampaignLevel(int index)
+    {
+        const int maximumIndex = static_cast<int>(CampaignLevelFiles.size()) - 1;
+        levelIndex_ = std::clamp(index, 0, maximumIndex);
+        level_ = LevelDefinition::LoadFromFile(std::string(CampaignLevelFiles[static_cast<std::size_t>(levelIndex_)]));
+        world_ = World(level_);
+        world_.Upload(getGraphicsDeviceProperty());
+        playerPosition_ = world_.PlayerStart();
+        yaw_ = 0.0f;
         hasSecurityCard_ = false;
         completed_ = false;
         screen_ = Screen::Playing;
-        weapon_ = Weapon::Sidearm;
         actionWasDown_ = false;
         attackWasDown_ = false;
+    }
+
+    void WolfGame::AdvanceCampaign()
+    {
+        if (levelIndex_ + 1 < static_cast<int>(CampaignLevelFiles.size()))
+            LoadCampaignLevel(levelIndex_ + 1);
+        else
+        {
+            completed_ = false;
+            screen_ = Screen::Title;
+            menuSelection_ = 0;
+        }
     }
 
     void WolfGame::AwardScore(int points)
@@ -663,14 +700,20 @@ namespace WolfCna
         }
 
         const bool actionIsDown = keyboard.IsKeyDown(Keys::Space);
-        if (screen_ == Screen::GameOver || completed_)
+        if (screen_ == Screen::GameOver)
         {
             if (actionIsDown && !actionWasDown_)
             {
                 screen_ = Screen::Title;
                 menuSelection_ = 0;
-                completed_ = false;
             }
+            actionWasDown_ = actionIsDown;
+            return;
+        }
+        if (completed_)
+        {
+            if (actionIsDown && !actionWasDown_)
+                AdvanceCampaign();
             actionWasDown_ = actionIsDown;
             return;
         }

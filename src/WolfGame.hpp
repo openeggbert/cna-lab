@@ -63,6 +63,7 @@ namespace WolfCna
         int score_ = 0;
         int lives_ = 3;
         int nextExtraLifeScore_ = 40000;
+        int levelIndex_ = 0;
         bool hasSecurityCard_ = false;
         bool completed_ = false;
         enum class Screen
@@ -100,6 +101,8 @@ namespace WolfCna
         void HandleMenuInput();
         void TryMove(float dx, float dz);
         void ResetRun();
+        void LoadCampaignLevel(int index);
+        void AdvanceCampaign();
         void AwardScore(int points);
 
         [[nodiscard]] float DamageMultiplier() const;

@@ -21,7 +21,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - a centered completion card appears at the level exit
 - grid collision with wall sliding
 - level loaded from a validated text file
-- an authored bunker route with guards, hounds, pickups, sliding doors, a security door, and an exit
+- a three-sector authored bunker campaign with guards, hounds, pickups, sliding doors, security doors, terminals and exits
 - guards fire visible ranged projectiles; hounds remain close-range attackers
 - no external copyrighted game assets
 - original title menu with difficulty selection before a run begins
@@ -39,10 +39,14 @@ This starter is deliberately small. It proves the basic direction before local A
 - `Escape`: quit
 
 After all lives are lost, press `Space` to return to the title menu and start a new run.
+At a sector exit, `Space` takes the run to the next sector; score, lives, health,
+ammunition and the selected weapon carry forward, while sector access cards do not.
 
 ## Level files
 
-The starter level is [`assets/levels/starter.level`](assets/levels/starter.level). It uses larger
+The campaign uses [`assets/levels/starter.level`](assets/levels/starter.level),
+[`assets/levels/sector-02.level`](assets/levels/sector-02.level) and
+[`assets/levels/sector-03.level`](assets/levels/sector-03.level). They use larger
 rooms connected by corridors rather than a single continuous maze. Each row must
 have the same width and use only these symbols:
 

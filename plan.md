@@ -543,7 +543,9 @@ Goal: give wolf-cna an identity beyond being a retro-FPS technology demo.
 
 Status: started. The original title menu and its Scout / Operative / Veteran
 difficulty selection are implemented. Difficulty currently changes incoming enemy
-damage; the next campaign task is a sequence of authored original sectors.
+damage. Three authored sectors now run in sequence while carrying score, lives,
+health, ammunition and weapon selection; a sector-specific access card resets at
+each elevator transition. Save/load, settings and end-of-level statistics remain.
 
 ## M10 — procedural/roguelite mode
 
@@ -989,7 +991,8 @@ Current progress:
 - secret moving walls use the wall material, stay open once found and award 500 score for hidden rewards;
 - the starter level is an authored room-and-corridor route with distributed guards, hounds, pickups, gold, a normal door, a security door and an exit;
 - the game now starts at an original blue-and-amber title menu, with a short controls page and three difficulty choices; Scout takes 70% enemy damage, Operative is the baseline and Veteran takes 140%;
-- next: turn the single sector into a short, authored three-sector campaign, carry the run score/lives between sectors and show completion statistics before each elevator transition.
+- three original external level files now form a short room-and-corridor campaign; exits advance with Space and preserve score, lives, health, ammunition and weapon selection;
+- next: add a completion-statistics card (time, kills, treasure and secrets) before each sector transition, then playtest and rebalance the encounter pacing.
 
 ---
 

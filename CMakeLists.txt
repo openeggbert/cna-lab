@@ -49,6 +49,14 @@ configure_file(
     assets/levels/starter.level
     "${CMAKE_CURRENT_BINARY_DIR}/assets/levels/starter.level"
     COPYONLY)
+configure_file(
+    assets/levels/sector-02.level
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/levels/sector-02.level"
+    COPYONLY)
+configure_file(
+    assets/levels/sector-03.level
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/levels/sector-03.level"
+    COPYONLY)
 
 enable_testing()
 add_executable(level-definition-tests

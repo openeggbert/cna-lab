@@ -41,6 +41,13 @@ int main()
     Expect(starterLevel.Rows().front().size() == 35, "starter level width");
     Expect(starterLevel.PlayerStartX() == 3 && starterLevel.PlayerStartZ() == 3, "starter spawn");
 
+    const WolfCna::LevelDefinition sectorTwo = WolfCna::LevelDefinition::LoadFromFile(
+        "assets/levels/sector-02.level");
+    const WolfCna::LevelDefinition sectorThree = WolfCna::LevelDefinition::LoadFromFile(
+        "assets/levels/sector-03.level");
+    Expect(sectorTwo.Rows().size() >= 12 && sectorTwo.PlayerStartX() >= 0, "sector two is a valid authored level");
+    Expect(sectorThree.Rows().size() >= 12 && sectorThree.PlayerStartX() >= 0, "sector three is a valid authored level");
+
     const WolfCna::LevelDefinition level = WolfCna::LevelDefinition::Parse(
         "#####\n#P..#\n#####\n",
         "valid.level");
