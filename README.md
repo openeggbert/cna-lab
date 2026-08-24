@@ -49,6 +49,8 @@ route.
 - Complete English and Czech localization for the current game, including
   menus, settings, room and hotspot names, inventory, descriptions, dialogue,
   system feedback, hazards and ending text.
+- Context-sensitive F1 help that follows the actual puzzle state and suggests
+  the next required action without changing progress.
 
 ## Build
 
@@ -103,6 +105,7 @@ also verifies the hazard/death/restart path.
 | M | travel to a discovered anchor |
 | S / L | save / load |
 | F11 | toggle window / fullscreen |
+| F1 | show or close the context-sensitive next-step hint |
 | Q | quit |
 | Up / Down + Enter | choice/map navigation |
 | Escape | pause from the world; cancel/back in choices and menus |
@@ -133,6 +136,10 @@ climb the tower, align the antenna mount, and use the relay console.
 
 The game intentionally does not print a full item-by-item solution in its HUD;
 EXAMINE is expected to matter.
+
+If you become stuck, press **F1**. Explore2D pauses the action and Black Pine
+selects the highest-priority unfinished objective whose conditions match the
+current session. The hint is localized and closes with F1, Enter, or Escape.
 
 ## License
 

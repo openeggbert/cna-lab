@@ -96,6 +96,11 @@ void configureCzechInterface(e2d::InterfaceTextDefinition& ui) {
     ui.language = tr("LANGUAGE", "JAZYK");
     ui.back = tr("BACK", "ZPĚT");
     ui.settingsHelp = tr("LEFT / RIGHT CHANGE   ESC BACK", "VLEVO / VPRAVO ZMĚNIT   ESC ZPĚT");
+    ui.help = tr("HELP", "NÁPOVĚDA");
+    ui.nextStep = tr("NEXT STEP", "DALŠÍ KROK");
+    ui.closeHelp = tr("F1 / ENTER / ESC BACK", "F1 / ENTER / ESC ZPĚT");
+    ui.noHint = tr("Explore nearby objects and characters for another clue.",
+        "Prozkoumej okolní předměty a postavy a hledej další stopu.");
     ui.nothingToUseOn = tr("There is nothing close enough to use an item on.",
         "Nablízku není nic, na co by šel předmět použít.");
     ui.nothingUsable = tr("You are not carrying anything usable.",
@@ -477,6 +482,64 @@ e2d::WorldDefinition buildWorld() {
             "Shnilý most se utrhl a rokle zvítězila."), {}});
     ravine.exits.push_back(exit(e2d::Direction::left, "tower_base", {462, 232}));
     world.addRoom(std::move(ravine));
+
+    // Context-sensitive F1 guidance. Higher priorities keep required earlier
+    // steps ahead of later objectives even when the player explores out of
+    // sequence; completed flags naturally remove obsolete hints.
+    world.hints.push_back({tr(
+        "At the trailhead, TAKE the patch cable from the toolbox. You will need it for the generator.",
+        "Na výchozišti SEBER propojovací kabel ze skříňky. Bude potřeba u generátoru."),
+        {e2d::Condition::notFlag("cable_taken")}, 120});
+    world.hints.push_back({tr(
+        "Go right to the caretaker cabin and speak to Mara with ENTER.",
+        "Jdi doprava do správcovské chaty a promluv s Marou klávesou ENTER."),
+        {e2d::Condition::flag("cable_taken"), e2d::Condition::notFlag("met_mara")}, 110});
+    world.hints.push_back({tr(
+        "EXAMINE Mara's desk in the cabin. Her logbook hides the yard key.",
+        "PROZKOUMEJ Mařin stůl v chatě. Pod knihou záznamů je ukrytý klíč od areálu."),
+        {e2d::Condition::flag("met_mara"), e2d::Condition::notFlag("key_revealed")}, 100});
+    world.hints.push_back({tr(
+        "TAKE the brass key revealed on the cabin desk.",
+        "SEBER mosazný klíč odkrytý na stole v chatě."),
+        {e2d::Condition::flag("key_revealed"), e2d::Condition::notFlag("key_taken")}, 90});
+    world.hints.push_back({tr(
+        "TAKE the wrench leaning inside the caretaker cabin.",
+        "SEBER montážní klíč opřený uvnitř správcovské chaty."),
+        {e2d::Condition::flag("key_taken"), e2d::Condition::notFlag("wrench_taken")}, 80});
+    world.hints.push_back({tr(
+        "Go right to the relay yard and USE the brass key on the locked gate.",
+        "Jdi doprava do areálu převaděče a POUŽIJ mosazný klíč na zamčenou bránu."),
+        {e2d::Condition::flag("wrench_taken"), e2d::Condition::notFlag("gate_open")}, 70});
+    world.hints.push_back({tr(
+        "Enter the generator shed beyond the gate and TAKE the spare ceramic fuse.",
+        "Vstup za bránou do generátorovny a SEBER náhradní keramickou pojistku."),
+        {e2d::Condition::flag("gate_open"), e2d::Condition::notFlag("fuse_taken")}, 60});
+    world.hints.push_back({tr(
+        "USE the ceramic fuse on the empty MAIN FUSE holder in the generator.",
+        "POUŽIJ keramickou pojistku na prázdný držák HLAVNÍ POJISTKY v generátoru."),
+        {e2d::Condition::flag("fuse_taken"), e2d::Condition::notFlag("fuse_installed")}, 50});
+    world.hints.push_back({tr(
+        "USE the patch cable on the two blue terminals in the generator shed.",
+        "POUŽIJ propojovací kabel na dvě modré svorky v generátorovně."),
+        {e2d::Condition::flag("fuse_installed"), e2d::Condition::notFlag("cable_installed")}, 40});
+    world.hints.push_back({tr(
+        "With the fuse and cable installed, operate the generator's main lever with ENTER.",
+        "Po instalaci pojistky a kabelu spusť hlavní páku generátoru klávesou ENTER."),
+        {e2d::Condition::flag("fuse_installed"), e2d::Condition::flag("cable_installed"),
+            e2d::Condition::notFlag("power_on")}, 30});
+    world.hints.push_back({tr(
+        "Go right to the tower base and climb the ladder with ENTER.",
+        "Jdi doprava k patě věže a vyšplhej po žebříku klávesou ENTER."),
+        {e2d::Condition::flag("power_on")}, 20});
+    world.hints.push_back({tr(
+        "On the tower platform, USE the wrench on the twisted antenna mount.",
+        "Na plošině věže POUŽIJ montážní klíč na pootočený držák antény."),
+        {e2d::Condition::flag("power_on"), e2d::Condition::visited("tower_top"),
+            e2d::Condition::notFlag("antenna_aligned")}, 30});
+    world.hints.push_back({tr(
+        "Use ENTER at the powered relay console to put Black Pine back on the air.",
+        "U aktivního panelu převaděče stiskni ENTER a vrať Black Pine do éteru."),
+        {e2d::Condition::flag("power_on"), e2d::Condition::flag("antenna_aligned")}, 40});
 
     // Interactions: trail -------------------------------------------------------
     world.addInteraction({e2d::Verb::examine, "trail_sign", std::nullopt, {},

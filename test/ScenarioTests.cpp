@@ -39,6 +39,11 @@ static void chooseItem(e2d::AdventureSession& session, const std::string_view it
     session.confirm();
 }
 
+static void assertHint(const e2d::AdventureSession& session, const std::string_view expected) {
+    assert(session.currentHint() != nullptr);
+    assert(session.localize(session.currentHint()->text) == expected);
+}
+
 static void assertCzech(const e2d::LocalizedText& text) {
     if (!text.empty()) assert(text.translations().contains("cs"));
 }
@@ -69,6 +74,7 @@ static void assertWorldCzechComplete(const e2d::WorldDefinition& world) {
         &ui.messageAdvance, &ui.missionComplete, &ui.missionFailed,
         &ui.restartPrompt, &ui.paused, &ui.resume, &ui.settings,
         &ui.returnToTitle, &ui.language, &ui.back, &ui.settingsHelp,
+        &ui.help, &ui.nextStep, &ui.closeHelp, &ui.noHint,
         &ui.nothingToUseOn, &ui.nothingUsable, &ui.nothingToExamine,
         &ui.nothingToTake, &ui.cannotTake, &ui.doesNotWork,
         &ui.noticeNothing, &ui.noTravelDestinations, &ui.gameSaved,
@@ -103,6 +109,7 @@ static void assertWorldCzechComplete(const e2d::WorldDefinition& world) {
         for (const e2d::Message& message : rule.messages) assertCzech(message.text);
         for (const e2d::Mutation& mutation : rule.mutations) assertCzech(mutation.text);
     }
+    for (const e2d::HintDefinition& hint : world.hints) assertCzech(hint.text);
 }
 
 int main() {
@@ -111,6 +118,7 @@ int main() {
     assertWorldCzechComplete(world);
     assert(world.rooms.size() == 7);
     assert(world.items.size() == 6);
+    assert(world.hints.size() == 13);
     assert(world.localization.languages.size() == 2);
     assert(world.localization.supports("en"));
     assert(world.localization.supports("cs"));
@@ -124,17 +132,25 @@ int main() {
 
     e2d::AdventureSession czechSession{world};
     assert(czechSession.setLanguage("cs"));
+    assert(czechSession.currentHint() != nullptr);
+    assert(czechSession.localize(czechSession.currentHint()->text) ==
+        "Na výchozišti SEBER propojovací kabel ze skříňky. Bude potřeba u generátoru.");
     moveSession(czechSession, "trailhead", {410, 228});
     czechSession.performVerb(e2d::Verb::take);
     assert(czechSession.mode() == e2d::SessionMode::message);
     assert(czechSession.localize(czechSession.activeMessage()->text) ==
         "Smotáš propojovací kabel a uložíš ho do batohu.");
+    assert(czechSession.localize(czechSession.currentHint()->text) ==
+        "Jdi doprava do správcovské chaty a promluv s Marou klávesou ENTER.");
     e2d::AdventureRenderer czechRenderer{world};
     czechRenderer.renderSettings(0, "cs", &czechSession);
+    czechRenderer.renderHelp(czechSession);
     assert(czechRenderer.canvas().bytes().size() ==
         static_cast<std::size_t>(e2d::ScreenMetrics::width * e2d::ScreenMetrics::height * 4));
 
     e2d::AdventureSession session{world};
+    assertHint(session,
+        "At the trailhead, TAKE the patch cable from the toolbox. You will need it for the generator.");
 
     // Trailhead: collect the required cable and the optional clue note.
     moveSession(session, "trailhead", {410, 228});
@@ -146,6 +162,7 @@ int main() {
     session.tick(0.5F);
     assert(session.player().pose == e2d::PlayerPose::standing);
     dismiss(session);
+    assertHint(session, "Go right to the caretaker cabin and speak to Mara with ENTER.");
 
     moveSession(session, "trailhead", {250, 228});
     session.performVerb(e2d::Verb::take);
@@ -162,6 +179,7 @@ int main() {
     assert(session.messageAnchoredToTarget());
     dismiss(session);
     assert(session.flag("met_mara"));
+    assertHint(session, "EXAMINE Mara's desk in the cabin. Her logbook hides the yard key.");
 
     moveSession(session, "cabin", {214, 220});
     session.performVerb(e2d::Verb::examine);
@@ -169,17 +187,20 @@ int main() {
     session.confirm();
     dismiss(session);
     assert(session.flag("key_revealed"));
+    assertHint(session, "TAKE the brass key revealed on the cabin desk.");
 
     // The key hotspot overlaps the desk; TAKE must still resolve to the actionable pickup.
     moveSession(session, "cabin", {225, 220});
     session.performVerb(e2d::Verb::take);
     dismiss(session);
     assert(session.hasItem("brass_key"));
+    assertHint(session, "TAKE the wrench leaning inside the caretaker cabin.");
 
     moveSession(session, "cabin", {88, 220});
     session.performVerb(e2d::Verb::take);
     dismiss(session);
     assert(session.hasItem("wrench"));
+    assertHint(session, "Go right to the relay yard and USE the brass key on the locked gate.");
 
     // Yard: use an inventory item on a world mechanism.
     moveSession(session, "yard", {390, 220});
@@ -187,12 +208,16 @@ int main() {
     chooseItem(session, "brass_key");
     dismiss(session);
     assert(session.flag("gate_open"));
+    assertHint(session,
+        "Enter the generator shed beyond the gate and TAKE the spare ceramic fuse.");
 
     // Generator: collect and consume one item, consume another, then use ENTER on the lever.
     moveSession(session, "generator", {375, 220});
     session.performVerb(e2d::Verb::take);
     dismiss(session);
     assert(session.hasItem("ceramic_fuse"));
+    assertHint(session,
+        "USE the ceramic fuse on the empty MAIN FUSE holder in the generator.");
 
     moveSession(session, "generator", {225, 198});
     session.performVerb(e2d::Verb::use);
@@ -200,6 +225,8 @@ int main() {
     dismiss(session);
     assert(session.flag("fuse_installed"));
     assert(!session.hasItem("ceramic_fuse"));
+    assertHint(session,
+        "USE the patch cable on the two blue terminals in the generator shed.");
 
     moveSession(session, "generator", {118, 220});
     session.performVerb(e2d::Verb::use);
@@ -207,6 +234,8 @@ int main() {
     dismiss(session);
     assert(session.flag("cable_installed"));
     assert(!session.hasItem("patch_cable"));
+    assertHint(session,
+        "With the fuse and cable installed, operate the generator's main lever with ENTER.");
 
     moveSession(session, "generator", {250, 220});
     session.jumpOrContext();
@@ -215,12 +244,15 @@ int main() {
     const auto powerSounds = session.takePendingSoundEffects();
     assert(std::ranges::find(powerSounds, "power") != powerSounds.end());
     dismiss(session);
+    assertHint(session, "Go right to the tower base and climb the ladder with ENTER.");
 
     // Tower: context transition to another screen, then align the antenna and finish.
     moveSession(session, "tower_base", {395, 220});
     session.jumpOrContext();
     assert(session.currentRoomId() == "tower_top");
     dismiss(session);
+    assertHint(session,
+        "On the tower platform, USE the wrench on the twisted antenna mount.");
 
     moveSession(session, "tower_top", {90, 220});
     session.performVerb(e2d::Verb::use);
@@ -228,6 +260,8 @@ int main() {
     assert(session.flag("antenna_aligned"));
     assert(session.animationElapsed("antenna_align").has_value());
     dismiss(session);
+    assertHint(session,
+        "Use ENTER at the powered relay console to put Black Pine back on the air.");
 
     moveSession(session, "tower_top", {350, 220});
     session.jumpOrContext();
