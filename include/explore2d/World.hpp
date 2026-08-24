@@ -126,6 +126,10 @@ struct InterfaceTextDefinition final {
     LocalizedText language{"LANGUAGE"};
     LocalizedText back{"BACK"};
     LocalizedText settingsHelp{"LEFT / RIGHT CHANGE   ESC BACK"};
+    LocalizedText help{"HELP"};
+    LocalizedText nextStep{"NEXT STEP"};
+    LocalizedText closeHelp{"F1 / ENTER / ESC BACK"};
+    LocalizedText noHint{"Explore nearby objects and characters for another clue."};
     LocalizedText nothingToUseOn{"There is nothing close enough to use an item on."};
     LocalizedText nothingUsable{"You are not carrying anything usable."};
     LocalizedText nothingToExamine{"There is nothing here that catches your eye."};
@@ -162,6 +166,15 @@ struct InteractionRule final {
     std::string soundEffect;
 };
 
+// Games describe context-sensitive guidance with the same conditions used by
+// interaction rules. The highest-priority matching hint is shown by F1;
+// declaration order breaks ties.
+struct HintDefinition final {
+    LocalizedText text;
+    std::vector<Condition> when;
+    int priority{};
+};
+
 class WorldDefinition final {
 public:
     LocalizedText title{"Untitled Explore2D"};
@@ -170,6 +183,7 @@ public:
     std::map<std::string, RoomDefinition> rooms;
     std::map<std::string, ToneEffectDefinition> soundEffects;
     std::vector<InteractionRule> interactions;
+    std::vector<HintDefinition> hints;
     LocalizationDefinition localization;
     PresentationDefinition presentation;
 

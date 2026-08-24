@@ -18,5 +18,6 @@ minimal CNA host. Good follow-up work, in roughly this order:
    migration and rule priority conflicts.
 
 Selective palette animation, QBasic-like GET/PUT drawing, speaker-anchored
-bubbles, action poses and monophonic tone effects are implemented in the current
-prototype rather than remaining future work.
+bubbles, action poses, localized condition-driven F1 hints and monophonic tone
+effects are implemented in the current prototype rather than remaining future
+work.

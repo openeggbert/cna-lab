@@ -62,6 +62,7 @@ public:
     [[nodiscard]] const std::vector<ChoiceEntry>& choices() const noexcept { return choices_; }
     [[nodiscard]] std::size_t selectionIndex() const noexcept { return selectionIndex_; }
     [[nodiscard]] const std::optional<Message>& activeMessage() const noexcept { return activeMessage_; }
+    [[nodiscard]] const HintDefinition* currentHint() const noexcept;
     [[nodiscard]] std::string_view language() const noexcept { return language_; }
     [[nodiscard]] std::string_view localize(const LocalizedText& text) const noexcept {
         return text.resolve(language_);

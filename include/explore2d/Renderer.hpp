@@ -33,6 +33,7 @@ public:
     void renderPause(const AdventureSession& session, std::size_t selectedItem = 0);
     void renderSettings(std::size_t selectedItem, std::string_view language,
         const AdventureSession* background = nullptr);
+    void renderHelp(const AdventureSession& session);
     [[nodiscard]] const Canvas& canvas() const noexcept { return canvas_; }
 
 private:

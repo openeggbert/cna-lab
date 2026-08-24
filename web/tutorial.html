@@ -520,8 +520,16 @@ world.addInteraction({
      e2d::Condition::flag("gate_open")}, {},
     {e2d::Mutation::win(
         "THE SIGNAL CABIN TRANSMITTER IS BACK ON THE AIR.")},
-    20, ""});</code></pre>
-              <div class="checkpoint"><strong>Checkpoint</strong><span>Victory and death enter distinct terminal modes, play their cues and restart cleanly.</span></div>
+    20, ""});
+
+world.hints.push_back({
+    "Install the fuse and patch both blue terminals.",
+    {e2d::Condition::notFlag("power_on")}, 20});
+world.hints.push_back({
+    "Climb the tower and operate the relay console.",
+    {e2d::Condition::flag("power_on")}, 20});</code></pre>
+              <p>Pressing F1 does not change these flags. It pauses the visible action and shows whichever matching hint has the highest priority.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>Victory and death restart cleanly, while F1 follows the unfinished objective without mutating the session.</span></div>
             </div>
           </article>
         </section>
@@ -584,8 +592,8 @@ host.savePath = "signal-cabin.e2dsave";
 e2d::cna::AdventureGame game{
     buildWorld(), {}, {}, host};
 game.Run();</code></pre>
-              <p>Configure with a complete CNA checkout via <code>-DCNA_SOURCE_DIR=/path/to/cna</code>. Play the real route once. Verify point-sampled scaling, F11 in both directions, title audio, pickup/repair cues, save/load and clean quit.</p>
-              <div class="checkpoint"><strong>Checkpoint</strong><span>The executable reaches the title, begins a game, toggles fullscreen and produces sound.</span></div>
+              <p>Configure with a complete CNA checkout via <code>-DCNA_SOURCE_DIR=/path/to/cna</code>. Play the real route once. Verify point-sampled scaling, F1 at multiple puzzle stages, F11 in both directions, title audio, pickup/repair cues, save/load and clean quit.</p>
+              <div class="checkpoint"><strong>Checkpoint</strong><span>The executable reaches the title, begins a game, shows F1 help, toggles fullscreen and produces sound.</span></div>
             </div>
           </article>
 

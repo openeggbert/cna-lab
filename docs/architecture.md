@@ -60,6 +60,15 @@ Conditions currently cover flags, item possession, counters and room visitation.
 Mutations cover flags, inventory, counters, travel unlocks, room moves, optional
 one-shot animation cues, death and victory. Rules can also name a tone effect.
 
+### `HintDefinition`
+
+Hints reuse the same condition vocabulary as interaction rules. The session
+selects the highest-priority matching hint, with declaration order breaking
+ties. Hint lookup is read-only: opening F1 help never applies a mutation,
+advances dialogue, or changes a snapshot. Games can therefore author guidance
+against their real puzzle flags instead of maintaining a parallel objective
+tracker.
+
 ## `AdventureSession`
 
 The session owns all mutable state: player pose, inventory, flags, counters,
@@ -142,7 +151,9 @@ Audio follows the same boundary. The headless core validates and queues
 synthesizes signed 16-bit mono square-wave PCM and gives it to CNA
 `SoundEffect`. Effects are monophonic and newly started sounds interrupt the old
 one, intentionally matching PC-speaker/QBasic-era limitations. F11 delegates
-fullscreen switching to CNA's `GraphicsDeviceManager`.
+fullscreen switching to CNA's `GraphicsDeviceManager`. F1 temporarily pauses
+the host shell and renders the session's current `HintDefinition`; F1, Enter,
+or Escape restores the previous play/pause shell without altering session mode.
 
 The fixed resolution, palette and interface are intentionally not abstracted
 away. A game built on Explore2D accepts these constraints in the same way that

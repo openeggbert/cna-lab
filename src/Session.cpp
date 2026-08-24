@@ -432,6 +432,15 @@ bool AdventureSession::setLanguage(const std::string_view languageId) {
     return true;
 }
 
+const HintDefinition* AdventureSession::currentHint() const noexcept {
+    const HintDefinition* selected = nullptr;
+    for (const HintDefinition& hint : world_.hints) {
+        if (!allConditionsSatisfied(hint.when)) continue;
+        if (selected == nullptr || hint.priority > selected->priority) selected = &hint;
+    }
+    return selected;
+}
+
 void AdventureSession::queueSoundEffect(const std::string_view id) {
     if (!id.empty()) pendingSoundEffects_.emplace_back(id);
 }

@@ -44,6 +44,7 @@ constexpr int kL = 76;
 constexpr int kM = 77;
 constexpr int kQ = 81;
 constexpr int kS = 83;
+constexpr int kF1 = 112;
 constexpr int kF11 = 122;
 
 } // namespace
@@ -320,6 +321,16 @@ void AdventureGame::Update(Microsoft::Xna::Framework::GameTime& gameTime) {
     if (pressed(keyboard, kF11)) graphics_->ToggleFullScreen();
     if (pressed(keyboard, kQ)) {
         Exit();
+    } else if (pressed(keyboard, kF1) && (shellMode_ == ShellMode::playing ||
+        shellMode_ == ShellMode::pause || shellMode_ == ShellMode::help)) {
+        if (shellMode_ == ShellMode::help) {
+            shellMode_ = helpReturnMode_;
+            playSoundEffect(world_.presentation.sounds.menuConfirm);
+        } else if (session_.mode() != SessionMode::dead && session_.mode() != SessionMode::won) {
+            helpReturnMode_ = shellMode_;
+            shellMode_ = ShellMode::help;
+            playSoundEffect(world_.presentation.sounds.menuConfirm);
+        }
     } else {
         switch (shellMode_) {
         case ShellMode::title:
@@ -333,6 +344,12 @@ void AdventureGame::Update(Microsoft::Xna::Framework::GameTime& gameTime) {
             break;
         case ShellMode::pauseSettings:
             updateSettingsInput(keyboard, true);
+            break;
+        case ShellMode::help:
+            if (pressed(keyboard, kEscape) || pressed(keyboard, kEnter) || pressed(keyboard, kSpace)) {
+                playSoundEffect(world_.presentation.sounds.menuConfirm);
+                shellMode_ = helpReturnMode_;
+            }
             break;
         case ShellMode::playing:
             switch (session_.mode()) {
@@ -383,6 +400,9 @@ void AdventureGame::Draw(const Microsoft::Xna::Framework::GameTime& gameTime) {
         break;
     case ShellMode::pauseSettings:
         renderer_.renderSettings(settingsSelection_, session_.language(), &session_);
+        break;
+    case ShellMode::help:
+        renderer_.renderHelp(session_);
         break;
     }
     if (frameTexture_ != nullptr && spriteBatch_ != nullptr) {

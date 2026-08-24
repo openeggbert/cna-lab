@@ -55,7 +55,7 @@ protected:
     void UnloadContent() override;
 
 private:
-    enum class ShellMode : std::uint8_t { title, titleSettings, playing, pause, pauseSettings };
+    enum class ShellMode : std::uint8_t { title, titleSettings, playing, pause, pauseSettings, help };
 
     WorldDefinition world_;
     SessionConfig sessionConfig_;
@@ -77,6 +77,7 @@ private:
     std::size_t titleSelection_{};
     std::size_t pauseSelection_{};
     std::size_t settingsSelection_{};
+    ShellMode helpReturnMode_{ShellMode::playing};
 
     [[nodiscard]] bool pressed(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard, int virtualKey) const;
     [[nodiscard]] bool down(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard, int virtualKey) const;

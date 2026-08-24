@@ -67,6 +67,11 @@ static e2d::WorldDefinition makeWorld() {
         {{"I am standing beside the box.", e2d::MessageStyle::speech, e2d::MessageSpeaker::player},
             {"The box cannot answer.", e2d::MessageStyle::speech, e2d::MessageSpeaker::target}},
         {}, 0, ""});
+    world.hints.push_back({testText("Keep exploring.", "Pokračuj v průzkumu."), {}, 0});
+    world.hints.push_back({testText("Take the key from the box.", "Vezmi klíč z krabice."),
+        {e2d::Condition::notFlag("box_taken")}, 20});
+    world.hints.push_back({testText("Travel to room B.", "Přejdi do místnosti B."),
+        {e2d::Condition::flag("box_taken")}, 20});
     world.addSoundEffect({"pickup", {{440, 1}, {660, 1}}, 0.2F});
     world.addSoundEffect({"talk", {{330, 1}}, 0.15F});
     world.presentation.sounds.pickup = "pickup";
@@ -127,6 +132,8 @@ int main() {
     assert(!session.setLanguage("missing"));
     assert(session.setLanguage("cs"));
     assert(session.localize(world.item("key")->label) == "KLÍČ");
+    assert(session.currentHint() != nullptr);
+    assert(session.localize(session.currentHint()->text) == "Vezmi klíč z krabice.");
     assert(session.currentRoomId() == "a");
     assert(session.unlockedTravel().contains("a"));
 
@@ -146,6 +153,7 @@ int main() {
     const auto pickupSounds = session.takePendingSoundEffects();
     assert(pickupSounds.size() == 1 && pickupSounds.front() == "pickup");
     assert(session.mode() == e2d::SessionMode::message);
+    assert(session.localize(session.currentHint()->text) == "Přejdi do místnosti B.");
     assert(session.localize(session.activeMessage()->text) == "Vezmeš klíč.");
     assert(session.setLanguage("en"));
     assert(session.localize(session.activeMessage()->text) == "You take the key.");
@@ -188,6 +196,8 @@ int main() {
     renderer.render(session);
     renderer.renderPause(session, 1);
     renderer.renderSettings(0, "cs", &session);
+    renderer.renderHelp(session);
+    assert(renderer.canvas().colorAt(110, 90) == e2d::PaletteColor::blue);
 
     std::cout << "Explore2D core tests passed\n";
     return 0;

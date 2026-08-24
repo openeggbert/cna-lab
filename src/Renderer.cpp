@@ -491,4 +491,34 @@ void AdventureRenderer::renderSettings(
         selectedItem, localize(ui.settingsHelp));
 }
 
+void AdventureRenderer::renderHelp(const AdventureSession& session) {
+    render(session);
+    const InterfaceTextDefinition& ui = world_.presentation.interfaceText;
+    const HintDefinition* hint = session.currentHint();
+    const std::string_view hintText = hint == nullptr ? localize(ui.noHint) : localize(hint->text);
+
+    constexpr int panelX = 104;
+    constexpr int panelY = 78;
+    constexpr int panelW = 432;
+    constexpr int panelH = 194;
+    canvas_.fillRect({panelX, panelY, panelW, panelH}, PaletteColor::blue);
+    canvas_.strokeRect({panelX, panelY, panelW, panelH}, theme_.frame);
+    canvas_.strokeRect({panelX + 4, panelY + 4, panelW - 8, panelH - 8}, theme_.panelPattern);
+
+    const std::string_view heading = localize(ui.help);
+    canvas_.text((ScreenMetrics::width - canvas_.textWidth(heading, 2)) / 2,
+        panelY + 18, heading, theme_.selected, 2);
+    const std::string_view nextStep = localize(ui.nextStep);
+    canvas_.text((ScreenMetrics::width - canvas_.textWidth(nextStep, 1)) / 2,
+        panelY + 48, nextStep, theme_.accent, 1);
+    canvas_.line({panelX + 24.0F, panelY + 63.0F},
+        {panelX + panelW - 24.0F, panelY + 63.0F}, theme_.accent);
+    canvas_.wrappedText(panelX + 26, panelY + 82, panelW - 52,
+        hintText, theme_.text, 1, 5);
+
+    const std::string_view close = localize(ui.closeHelp);
+    canvas_.text((ScreenMetrics::width - canvas_.textWidth(close, 1)) / 2,
+        panelY + panelH - 22, close, theme_.dimText, 1);
+}
+
 } // namespace explore2d

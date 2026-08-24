@@ -12,9 +12,13 @@ Verified on 2026-08-24 with GCC 14.2 and CMake 3.31-compatible project syntax.
 - Independent Black Pine hazard/death/restart test.
 - English/Czech runtime switching, including an already-open dialogue message,
   translated title/pause/settings rendering and unsupported-language rejection.
+- Condition/priority-driven hint selection before and after state mutations,
+  plus localized F1 help-panel rendering over an unchanged session.
 - Exhaustive Black Pine localization coverage test for title art, engine UI,
   items, rooms, hotspots, procedural text, animation frames, exits, hazards,
   interaction messages and terminal mutations.
+- The complete 13-step Black Pine hint route, from the trailhead cable through
+  the final relay-console objective, in addition to Czech hint coverage.
 - UTF-8 decoding, width calculation and bitmap rendering checks covering all
   Czech accented capitals used by the game.
 - Two-frame CNA-host smoke run of the demo with SDL's dummy video and audio
@@ -27,6 +31,8 @@ Verified on 2026-08-24 with GCC 14.2 and CMake 3.31-compatible project syntax.
 - Player TAKE pose and per-line player/target speech-anchor tests.
 - F11 fullscreen binding compiled against CNA's
   `GraphicsDeviceManager::ToggleFullScreen()` API.
+- F1 help binding compiled through the full CNA host, including help open/close
+  shell states that preserve the underlying world, choice, map, or dialogue.
 - Configurable title renderer at the fixed 640×350 resolution.
 - CPU renderer previews generated for the title, HUD, messages, speaker-anchored
   bubbles, TAKE pose, generator action and all seven Black Pine rooms; every

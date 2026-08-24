@@ -317,6 +317,16 @@ world.addInteraction({
           </div>
           <h3>Use priorities for state-specific behaviour</h3>
           <p>All matching rules are considered; the highest priority wins. Put a specific powered/open/repaired rule above a general fallback. Use <code>onceFlag</code> when the rule itself must execute only once.</p>
+          <h3>Drive F1 help from the same state</h3>
+          <p>Hints are localized, read-only definitions. F1 shows the highest-priority matching hint, and declaration order resolves a tie. A required early objective can therefore stay above later guidance without a separate quest tracker.</p>
+          <pre><code>world.hints.push_back({
+    tr("Examine the desk for the missing key.",
+       "Prozkoumej stůl a najdi chybějící klíč."),
+    {e2d::Condition::flag("met_caretaker"),
+     e2d::Condition::notFlag("key_found")},
+    50});
+
+const e2d::HintDefinition* hint = session.currentHint();</code></pre>
         </section>
 
         <section id="dialogue" class="doc-section">
@@ -449,7 +459,7 @@ int main() {
     game.Run();
 }</code></pre>
           </div>
-          <p>The host maps the standard controls, uploads one CPU-rendered RGBA texture with point sampling, letterboxes at integer scale, toggles fullscreen with F11 and drains monophonic sound cues.</p>
+          <p>The host maps the standard controls, uploads one CPU-rendered RGBA texture with point sampling, letterboxes at integer scale, opens context help with F1, toggles fullscreen with F11 and drains monophonic sound cues. Help freezes the current session presentation and closes with F1, Enter or Escape.</p>
         </section>
 
         <section id="save-test" class="doc-section">
@@ -495,6 +505,7 @@ while (session.mode() == e2d::SessionMode::message) {
             <label><input type="checkbox"> Animation communicates state without making every prop move.</label>
             <label><input type="checkbox"> Tone effects stay short, quiet and monophonic.</label>
             <label><input type="checkbox"> Every supported language covers interface, world text and dialogue.</label>
+            <label><input type="checkbox"> F1 guidance reaches every required puzzle stage in each supported language.</label>
             <label><input type="checkbox"> A clean headless build passes the complete winning route.</label>
             <label><input type="checkbox"> Death/restart and save/load are tested separately.</label>
             <label><input type="checkbox"> The full CNA build launches with real video and audio.</label>

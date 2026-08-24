@@ -121,6 +121,12 @@
           <p>Translate every player-facing value, switch language from title or pause settings, and keep the preference between launches.</p>
           <code>LocalizedText</code>
         </article>
+        <article class="feature-card feature-card-green">
+          <p class="card-number">08</p>
+          <h3>Context-sensitive help</h3>
+          <p>Press F1 for the highest-priority unfinished objective selected from the same flags and conditions that drive the world.</p>
+          <code>HintDefinition</code>
+        </article>
       </div>
     </section>
 
@@ -298,6 +304,7 @@ game.Run();</code></pre>
         <article><code>Drawing / Canvas</code><h3>Procedural EGA art</h3><p>Pixels, lines, rectangles, circles, ellipses, arcs, polygons, PAINT, bitmap text and indexed GET/PUT operations.</p></article>
         <article><code>AdventureRenderer</code><h3>The shared machine</h3><p>Draws rooms, player poses, inventory, verbs, maps, title screen, compact bubbles and terminal states.</p></article>
         <article><code>LocalizedText</code><h3>One value, many languages</h3><p>Keeps an English-compatible fallback plus translations resolved at runtime without changing game state.</p></article>
+        <article><code>HintDefinition</code><h3>The next useful step</h3><p>Pairs localized guidance with ordinary conditions and priority for an engine-owned F1 overlay.</p></article>
       </div>
 
       <div class="advanced-grid">
@@ -352,6 +359,7 @@ world.presentation.sounds.pickup =
           <div><dt><kbd>Enter</kbd></dt><dd>Act or jump</dd></div>
           <div><dt><kbd>M</kbd></dt><dd>Travel map</dd></div>
           <div><dt><kbd>S</kbd> <kbd>L</kbd></dt><dd>Save · Load</dd></div>
+          <div><dt><kbd>F1</kbd></dt><dd>Show next-step help</dd></div>
           <div><dt><kbd>F11</kbd></dt><dd>Toggle fullscreen</dd></div>
           <div><dt><kbd>Q</kbd></dt><dd>Quit</dd></div>
         </dl>

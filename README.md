@@ -34,6 +34,8 @@ strips below. This is a defining feature rather than a temporary limitation.
   available, ENTER becomes jump.
 - Inventory items with descriptions and a `usable` property.
 - Rule-driven interactions with conditions, priorities and once-only rules.
+- Declarative, condition-driven F1 hints that select the highest-priority
+  unfinished next step without modifying game state.
 - Persistent flags, counters, visited rooms and inventory mutations.
 - Multi-message dialogue / inspection sequences in compact blue speech bubbles,
   anchored independently to the player or the target character for each line.
@@ -127,6 +129,7 @@ its design inspiration:
 | Enter or Space | contextual action, otherwise jump |
 | M | discovered-destination travel map |
 | S / L | quick save / quick load |
+| F1 | show/close the context-sensitive next-step hint |
 | F11 | toggle window / fullscreen |
 | Q | quit |
 | Up / Down + Enter | navigate the title menu, pause/settings, choices, or map |
@@ -198,6 +201,22 @@ messages, item descriptions, blocked exits, hazards, death/victory mutations,
 and engine interface wording. `AdventureSession::setLanguage()` changes all of
 them without restarting or modifying saved world state. The CNA host stores the
 selected language in `HostConfig::settingsPath`.
+
+Games can reuse ordinary rule conditions to describe contextual F1 guidance.
+The highest-priority matching definition is shown, so completed objectives fall
+away automatically while a required earlier step can override later advice:
+
+```cpp
+world.hints.push_back({
+    translated("Examine the desk for the missing key.",
+        "Prozkoumej stůl a najdi chybějící klíč."),
+    {explore2d::Condition::flag("met_caretaker"),
+        explore2d::Condition::notFlag("key_found")},
+    50});
+```
+
+F1 pauses presentation behind a compact help panel. Closing it with F1, Enter,
+or Escape resumes the exact choice, dialogue, map, or world state underneath.
 
 Animations are optional room overlays. Static artwork remains static unless a
 game explicitly adds an animation:

@@ -96,3 +96,11 @@ The host opens on this screen. Arrow keys move through its four choices and
 Enter confirms. Settings selects any language declared by the game. Escape
 during play opens a pause menu with the same language settings; changing the
 language redraws the current screen immediately.
+
+## Context help
+
+F1 places a compact blue HELP / NEXT STEP panel over the current game view.
+The room, dialogue, choice, or map remains frozen underneath, so requesting a
+hint cannot accidentally advance the game. The panel uses the same EGA frame,
+bitmap font, localization rules, and restrained menu cue as the rest of the
+engine. F1, Enter, or Escape closes it and returns to the exact prior shell.
