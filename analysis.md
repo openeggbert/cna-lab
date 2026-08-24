@@ -34,6 +34,15 @@ not needed for the initial analysis because the page identifies TP6/7 as the
 original inline-assembly implementation and the user requested it as the main
 technical reference.
 
+For executable-only behavior measurement, the
+[official download page](https://www.wieringsoftware.nl/mario/download.html)
+also provided [`MARIO.EXE`](https://www.wieringsoftware.nl/mario/MARIO.EXE).
+It was downloaded on 2026-08-24 into the same ignored reference area: 57,480
+bytes, SHA-256
+`955d184ce60a70ae83b9ad49c013eb070f55a80d4b3022ad574944188839852b`.
+The executable is retained only as a private research copy and is not committed
+or shipped.
+
 ### Actual license-language finding
 
 There is no standard open-source license in the archive and no blanket grant
@@ -186,8 +195,58 @@ fade/rebuild where needed.
 
 The old simulation advances once per displayed page. `ShowPage` waits outside
 then inside vertical retrace, so nominal Mode 13h hardware ties gameplay to the
-roughly 70 Hz VGA refresh rather than a clock-derived fixed timestep. Exact
-real-machine/DOSBox observations remain a future measurement task.
+roughly 70 Hz VGA refresh rather than a clock-derived fixed timestep.
+
+### DOSBox executable measurement
+
+The official executable was run locally on 2026-08-24 in DOSBox 0.74-3. This is
+a behavioral observation, not a redistribution or compatibility requirement.
+The emulator used `machine=svga_s3`, `core=normal`, `cputype=486_slow`, fixed
+20,000 cycles, `frameskip=0`, `output=surface`, `scaler=normal2x`, sound disabled
+and joystick disabled. Its 640x400 X11 window was captured losslessly at 70 fps;
+positions below are converted back to 320x200 logical VGA pixels. The manual
+trace used level 1 with no save and one player. The repeatable built-in demo was
+used for the camera/enemy trace.
+
+Wall-clock results are specific to those emulator settings and have roughly
+one captured-frame (14 ms) timing precision. Source constants are included as a
+cross-check, not substituted for the observed values:
+
+| Behavior | Executable observation | Source cross-check |
+|---|---|---|
+| standing held jump | first airborne to apex: about 0.329 s (23 nominal VGA frames); airtime: about 0.686 s (48 frames); apex 61 +/- 1 px above the floor | `JumpVel=4`, gravity step every `JumpDelay=6` loops, terminal `MaxYVel=8` |
+| walking acceleration | after the input sampling delay, motion changed directly to 1 px on each consecutive 70-fps sample rather than passing through subpixel speeds | integer X velocity changes only when `Counter mod Slip=0`; `Slip=6`, walking cap 1 px/loop |
+| walking stop | the timed release coasted approximately 4 px for 0.057 s before the X position became stable | walking velocity drops from 1 to 0 on the next sixth-loop gate, so the exact coast depends on release phase |
+| camera lag/dead zone | in the demo, the player crossed from screen x about 52 to 188-192 before the world began following; at observed run speed this was about 1.0 s, after which the player remained near x=190 | `SCROLL_AT=112` starts rightward scrolling when player-left exceeds 188 px; view motion is capped at 2 px/loop (3 in Turbo) |
+| first ground walker | with the camera still fixed, its left edge moved 12 px in 0.50 s: approximately 24 px/s | spawn velocity is 1 px with `MoveDelay=2`, producing one world pixel per three simulation loops through interpolation |
+
+The horizontal trace also visually confirms the source's discrete character:
+walking starts/stops on a six-loop gate, while a held walk is the exact integer
+1 px/loop. Ctrl raises the source cap to 2 px/loop; it does not introduce a
+separate continuous acceleration curve.
+
+### Modern physics comparison
+
+Copper Boots deliberately keeps deterministic 60 Hz units rather than tying
+simulation to presentation. Exact current held-jump values follow directly from
+the tested 330 px/s impulse and 1,200 px/s-squared gravity: apex at tick 16
+(0.267 s), height 42.7 px, and landing at tick 32 (0.533 s). The comparison is:
+
+| Property | 1994 observation/source | Copper Boots | Decision |
+|---|---|---|---|
+| walk cap | 1 px/roughly-70-Hz loop; observed about 70 px/s | 72 px/s | intentionally close |
+| run cap | 2 px/loop, nominally about 140 px/s | 128 px/s | slightly slower for the denser 16 px tile layout |
+| acceleration | one integer speed step every six loops; walk therefore starts in at most about 86 ms | 720 px/s-squared; walk cap in 6 fixed ticks (0.100 s) | preserve short momentum ramp without integer stutter |
+| ground stop | observed about 4 px/0.057 s for that release phase; source permits 0-5 loops at walking speed | 900 px/s-squared; walk stops in 5 ticks (0.083 s), about 2.3 px after release | similarly prompt, deterministic at every phase |
+| held jump | 61 px; apex 0.329 s; airtime 0.686 s | 42.7 px; apex 0.267 s; airtime 0.533 s | intentionally more compact; original used 14 px-high tiles while the new route uses 16 px squares |
+| variable jump | releasing Alt applies the next gravity step immediately | 2.2x gravity while rising after release | same visible intent with continuous units |
+| enemy bounce | base jump when not held; `-6` versus base `-4` when Alt is held on contact | automatic 300 px/s; held 390 px/s, with the high case clearing more than three new tiles | separately tuned after playability testing; not inferred from sprite identity |
+| basic walker | observed about 24 px/s | clockwork crawler 24 px/s | direct feel match under new art/behavior |
+| camera | wide 112 px edge band, then hard per-loop catch-up; observed right anchor about x=190 | continuous exponential follow, 0.28x velocity look-ahead capped at 34 px; 63% response in 0.125 s | intentionally earlier and smoother for widescreen/resizing, while preserving momentum look-ahead |
+
+No constants were changed merely to make the numerical columns identical. The
+external level geometry and deterministic tests remain the acceptance oracle;
+future feel changes must update both this comparison and the tick-based tests.
 
 ### Player
 

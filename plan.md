@@ -74,10 +74,16 @@ configure, build and run all five project tests. Evidence distinguishes the
 SDL3 platform used for input/audio from the selected graphics renderer and does
 not mistake descriptor compilation for runtime support.
 
-**Current: M10 — historical physics comparison**
+**M10 — historical physics comparison — ACHIEVED**
 
 Measure the original executable when a legal local DOSBox path is available,
 then compare its observed motion to the deterministic modern controller.
+
+**Current: M11 — framework consumer reproductions**
+
+Turn the two known embedded-CNA integration workarounds into minimal, isolated
+reproductions before considering any dependency change. Continue game work in
+parallel only where it does not conceal those framework issues.
 
 ## Foundation and research
 
@@ -298,7 +304,7 @@ Acceptance:
   at an explicit checkpoint.
 - Tests cover repeated contact, life decrement/progress policy, and reset state.
 
-### MAR-028 — Physics fidelity measurement — TODO
+### MAR-028 — Physics fidelity measurement — DONE
 
 Acceptance:
 
@@ -646,7 +652,7 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Measure and compare historical physics under `MAR-028` when the reference
-   executable and DOSBox are locally available.
-2. Revisit `MAR-CNA-001` through `MAR-CNA-003` only with minimal upstream
+1. Revisit `MAR-CNA-001` through `MAR-CNA-003` only with minimal upstream
    reproductions; none currently blocks gameplay work.
+2. Resume deferred original-content work only as a consciously selected
+   milestone, beginning with `MAR-036` rather than release packaging.
