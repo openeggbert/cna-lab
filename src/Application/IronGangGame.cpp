@@ -52,6 +52,18 @@ namespace IronGang
         // vehicle spawn point, clear of the road and sidewalks.
         const Vector3 kPoliceSpawnOffset{10.0F, 0.0F, -6.0F};
 
+        const char* DistrictName(DistrictId district) noexcept
+        {
+            switch (district)
+            {
+            case DistrictId::WarehouseBlock:
+                return "warehouse_block";
+            case DistrictId::Countryside:
+                return "countryside";
+            }
+            return "unknown";
+        }
+
         float DistanceAheadIfInLane(const Vector3& fromPosition, float fromYaw, const Vector3& obstaclePosition)
         {
             const Vector3 forward = ForwardFromYaw(fromYaw);
@@ -194,10 +206,45 @@ namespace IronGang
         performanceProfiler_.RecordRenderWorkload(RenderWorkloadMetric::VisibleObjects, workload.visibleObjects);
     }
 
+    std::uint64_t IronGangGame::GetTrackedRendererVideoMemoryBytes() const
+    {
+        const RendererVideoMemoryBreakdown memory = renderer_.GetTrackedVideoMemory();
+        return static_cast<std::uint64_t>(memory.gameOwnedBytes) +
+            static_cast<std::uint64_t>(memory.importedModels.bufferBytes) +
+            static_cast<std::uint64_t>(memory.importedModels.textureBytes);
+    }
+
+    void IronGangGame::RecordDistrictLoadSample(const char* reason,
+                                                DistrictId sourceDistrict,
+                                                double worldPhysicsMilliseconds,
+                                                double rendererUploadMilliseconds,
+                                                std::uint64_t residentBytesBefore,
+                                                std::uint64_t trackedVideoMemoryBytesBefore)
+    {
+        if (!performanceProfiler_.IsEnabled())
+        {
+            return;
+        }
+
+        const PrototypeWorld& world = districtManager_.GetWorld();
+        DistrictLoadSample sample;
+        sample.reason = reason;
+        sample.sourceDistrict = DistrictName(sourceDistrict);
+        sample.targetDistrict = DistrictName(world.GetId());
+        sample.worldPhysicsMilliseconds = worldPhysicsMilliseconds;
+        sample.rendererUploadMilliseconds = rendererUploadMilliseconds;
+        sample.proceduralWorldObjectCount = world.GetBoxes().size();
+        sample.staticPhysicsBodyCount = world.GetSolidColliders().size() + 1U; // one ground body
+        sample.residentBytesBefore = residentBytesBefore;
+        sample.residentBytesAfter = PerformanceProfiler::ReadCurrentResidentBytes();
+        sample.trackedVideoMemoryBytesBefore = trackedVideoMemoryBytesBefore;
+        sample.trackedVideoMemoryBytesAfter = GetTrackedRendererVideoMemoryBytes();
+        performanceProfiler_.RecordDistrictLoad(std::move(sample));
+    }
+
     void IronGangGame::Initialize()
     {
         ScopedPerformanceSample startupSample(performanceProfiler_, PerformanceMetric::StartupCpu);
-        const PerformanceProfiler::Clock::time_point initialDistrictLoadStart = PerformanceProfiler::Clock::now();
         Game::Initialize();
         if (performanceProfiler_.IsEnabled())
         {
@@ -319,10 +366,6 @@ namespace IronGang
 
         renderer_.Initialize(getGraphicsDeviceProperty(), districtManager_.GetWorld(),
                              std::move(warehouseModel), std::move(vehicleModels), std::move(characterModel));
-        performanceProfiler_.Record(
-            PerformanceMetric::DistrictLoadCpu,
-            std::chrono::duration<double, std::milli>(PerformanceProfiler::Clock::now() - initialDistrictLoadStart)
-                .count());
         RespawnTrafficAndPedestrians();
 
         // Gate M10: a real on-screen HUD (see BitmapFont.hpp for why this is a hand-built bitmap
@@ -504,11 +547,18 @@ namespace IronGang
 
     void IronGangGame::BeginDistrictTransition()
     {
+        pendingDistrictSource_ = districtManager_.GetWorld().GetId();
+        pendingDistrictResidentBytesBefore_ = performanceProfiler_.IsEnabled()
+            ? PerformanceProfiler::ReadCurrentResidentBytes()
+            : 0;
+        pendingDistrictVideoMemoryBytesBefore_ = performanceProfiler_.IsEnabled()
+            ? GetTrackedRendererVideoMemoryBytes()
+            : 0;
         const PerformanceProfiler::Clock::time_point loadStart = PerformanceProfiler::Clock::now();
         districtManager_.RequestTransition(physics_);
-        pendingDistrictLoadCpuMilliseconds_ = std::chrono::duration<double, std::milli>(
-                                                   PerformanceProfiler::Clock::now() - loadStart)
-                                                   .count();
+        pendingDistrictWorldPhysicsMilliseconds_ = std::chrono::duration<double, std::milli>(
+                                                       PerformanceProfiler::Clock::now() - loadStart)
+                                                       .count();
     }
 
     void IronGangGame::HandleDistrictArrival()
@@ -518,6 +568,7 @@ namespace IronGang
             return;
         }
 
+        const PerformanceProfiler::Clock::time_point arrivalActivationStart = PerformanceProfiler::Clock::now();
         const PrototypeWorld& world = districtManager_.GetWorld();
         player_.Reset(world.GetPlayerSpawn(), 0.0F, physics_);
         vehicle_.Reset(world.GetVehicleSpawn(), world.GetVehicleSpawnYaw(), physics_);
@@ -529,14 +580,24 @@ namespace IronGang
             player_.SetPosition(vehicle_.GetPosition(), physics_);
             player_.SetYaw(vehicle_.GetYaw(), physics_);
         }
+        pendingDistrictWorldPhysicsMilliseconds_ += std::chrono::duration<double, std::milli>(
+                                                        PerformanceProfiler::Clock::now() - arrivalActivationStart)
+                                                        .count();
 
         const PerformanceProfiler::Clock::time_point renderLoadStart = PerformanceProfiler::Clock::now();
         renderer_.RebuildStaticGeometry(getGraphicsDeviceProperty(), world);
-        pendingDistrictLoadCpuMilliseconds_ += std::chrono::duration<double, std::milli>(
-                                                   PerformanceProfiler::Clock::now() - renderLoadStart)
-                                                   .count();
-        performanceProfiler_.Record(PerformanceMetric::DistrictLoadCpu, pendingDistrictLoadCpuMilliseconds_);
-        pendingDistrictLoadCpuMilliseconds_ = 0.0;
+        const double rendererUploadMilliseconds = std::chrono::duration<double, std::milli>(
+                                                      PerformanceProfiler::Clock::now() - renderLoadStart)
+                                                      .count();
+        RecordDistrictLoadSample("exit_transition",
+                                 pendingDistrictSource_,
+                                 pendingDistrictWorldPhysicsMilliseconds_,
+                                 rendererUploadMilliseconds,
+                                 pendingDistrictResidentBytesBefore_,
+                                 pendingDistrictVideoMemoryBytesBefore_);
+        pendingDistrictWorldPhysicsMilliseconds_ = 0.0;
+        pendingDistrictResidentBytesBefore_ = 0;
+        pendingDistrictVideoMemoryBytesBefore_ = 0;
         RespawnTrafficAndPedestrians();
         transientStatus_ = "Arrived";
         transientStatusSeconds_ = 2.0F;
@@ -579,12 +640,29 @@ namespace IronGang
 
         if (snapshot->districtId != districtManager_.GetWorld().GetId())
         {
-            const PerformanceProfiler::Clock::time_point loadStart = PerformanceProfiler::Clock::now();
+            const DistrictId sourceDistrict = districtManager_.GetWorld().GetId();
+            const std::uint64_t residentBytesBefore = performanceProfiler_.IsEnabled()
+                ? PerformanceProfiler::ReadCurrentResidentBytes()
+                : 0;
+            const std::uint64_t videoMemoryBytesBefore = performanceProfiler_.IsEnabled()
+                ? GetTrackedRendererVideoMemoryBytes()
+                : 0;
+            const PerformanceProfiler::Clock::time_point worldPhysicsStart = PerformanceProfiler::Clock::now();
             districtManager_.LoadDistrict(snapshot->districtId, physics_);
+            const double worldPhysicsMilliseconds = std::chrono::duration<double, std::milli>(
+                                                        PerformanceProfiler::Clock::now() - worldPhysicsStart)
+                                                        .count();
+            const PerformanceProfiler::Clock::time_point rendererUploadStart = PerformanceProfiler::Clock::now();
             renderer_.RebuildStaticGeometry(getGraphicsDeviceProperty(), districtManager_.GetWorld());
-            performanceProfiler_.Record(
-                PerformanceMetric::DistrictLoadCpu,
-                std::chrono::duration<double, std::milli>(PerformanceProfiler::Clock::now() - loadStart).count());
+            const double rendererUploadMilliseconds = std::chrono::duration<double, std::milli>(
+                                                          PerformanceProfiler::Clock::now() - rendererUploadStart)
+                                                          .count();
+            RecordDistrictLoadSample("save_load",
+                                     sourceDistrict,
+                                     worldPhysicsMilliseconds,
+                                     rendererUploadMilliseconds,
+                                     residentBytesBefore,
+                                     videoMemoryBytesBefore);
         }
 
         mission_.SetState(snapshot->missionState);
@@ -603,12 +681,29 @@ namespace IronGang
 
     void IronGangGame::ResetPrototype()
     {
-        const PerformanceProfiler::Clock::time_point loadStart = PerformanceProfiler::Clock::now();
+        const DistrictId sourceDistrict = districtManager_.GetWorld().GetId();
+        const std::uint64_t residentBytesBefore = performanceProfiler_.IsEnabled()
+            ? PerformanceProfiler::ReadCurrentResidentBytes()
+            : 0;
+        const std::uint64_t videoMemoryBytesBefore = performanceProfiler_.IsEnabled()
+            ? GetTrackedRendererVideoMemoryBytes()
+            : 0;
+        const PerformanceProfiler::Clock::time_point worldPhysicsStart = PerformanceProfiler::Clock::now();
         districtManager_.LoadDistrict(DistrictId::WarehouseBlock, physics_);
+        const double worldPhysicsMilliseconds = std::chrono::duration<double, std::milli>(
+                                                    PerformanceProfiler::Clock::now() - worldPhysicsStart)
+                                                    .count();
+        const PerformanceProfiler::Clock::time_point rendererUploadStart = PerformanceProfiler::Clock::now();
         renderer_.RebuildStaticGeometry(getGraphicsDeviceProperty(), districtManager_.GetWorld());
-        performanceProfiler_.Record(
-            PerformanceMetric::DistrictLoadCpu,
-            std::chrono::duration<double, std::milli>(PerformanceProfiler::Clock::now() - loadStart).count());
+        const double rendererUploadMilliseconds = std::chrono::duration<double, std::milli>(
+                                                      PerformanceProfiler::Clock::now() - rendererUploadStart)
+                                                      .count();
+        RecordDistrictLoadSample("prototype_reset",
+                                 sourceDistrict,
+                                 worldPhysicsMilliseconds,
+                                 rendererUploadMilliseconds,
+                                 residentBytesBefore,
+                                 videoMemoryBytesBefore);
 
         player_.Reset(districtManager_.GetWorld().GetPlayerSpawn(), 0.0F, physics_);
         vehicle_.Reset(districtManager_.GetWorld().GetVehicleSpawn(),

@@ -288,6 +288,23 @@ platform accepted that setting; it is still not proof of a physical vertical-ret
 compositor pacing. A declined or unqueryable path reports `applied:null` plus an explicit reason.
 WebGL is always unqueryable here because browser presentation is compositor-controlled.
 
+JSON schema 4 makes district loading a per-transition record instead of one opaque stopwatch.
+`district_world_physics_cpu` covers destruction of the old static bodies, construction/activation
+of the target procedural world, target static-body creation, and (for an exit-trigger transition)
+arrival placement. `district_renderer_upload_cpu` is CPU time to rebuild the target static mesh and
+lightmap and issue its resource uploads; it is not a GPU-completion timer. Their sum remains the
+budgeted `district_load_cpu`. Application initialization is measured only by `startup_cpu`, not
+mislabelled as a district transition.
+
+Each `district_load.samples[]` entry carries its reason, source/target district, target procedural
+world-object and static-body counts, Linux current-RSS before/after/signed delta, and tracked
+renderer video-memory before/after/signed delta. The video-memory delta has the same logical,
+partial semantics as the global tracker and omits the constant HUD atlas. Current districts have
+no serialized runtime package: their transition constructs `PrototypeWorld` in memory, so
+`io_ms`, `decompression_ms`, and `parse_ms` are `null` with an explicit not-applicable reason.
+They must become real measured phases if district files/packages are added later; `null` must not
+be converted to a misleading measured zero.
+
 The current CNA/EasyGL API does not expose complete GPU residency. The report records the exact
 logical size of known Iron Gang-owned meshes/lightmaps/HUD resources plus imported CNJ vertex and
 index buffers and textures bound by CNA's built-in or generic effects. Imported resources are

@@ -67,6 +67,27 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has a complete smallest-scope district-load profiler (`IG-35-007`, `031`-`033`).**
+JSON schema 4 records every real exit/save-load/reset district change by source, target and reason,
+with separate world/static-physics unload+activation CPU and renderer static-geometry/lightmap
+rebuild-upload-submission CPU; the existing budgeted total is derived from those phases. Each
+sample also reports target procedural-world/static-body counts, current RSS before/after/signed
+delta, and partial logical renderer-video-memory before/after/signed delta. Broad application
+initialization is now correctly only `startup_cpu`, not a fake district-load sample.
+
+- Runtime districts are procedural in-memory `PrototypeWorld`s and read no serialized package.
+  Schema 4 therefore reports district I/O, decompression, and parse as `null` with an explicit
+  not-applicable reason, never as fabricated measured-zero timings. Add real phases when/if a
+  district package format lands.
+- A full 540-frame Release EasyGL `mixed` run on isolated Xvfb/X11 captured exactly one real
+  WarehouseBlock -> Countryside transition: world/physics 0.045 ms, renderer upload submission
+  0.219 ms, total 0.264 ms, 25 target procedural objects, 5 target static bodies, 0 B RSS delta,
+  and -135,576 B tracked logical renderer-memory delta. The former ~5-6 ms district baseline
+  included broad startup work and is superseded.
+- Exact aggregation/count/signed-delta/report-policy unit coverage passes. Software plus all 3
+  CTest targets, strict syntax, Release/development EasyGL, Web/Emscripten, and the isolated real
+  mixed flow pass. The GUI run used only Xvfb with Wayland removed and X11 forced.
+
 **M12 now distinguishes a requested swap interval from a platform-acknowledged one.** In
 `--profile` mode, after EasyGL has created the current context, Iron Gang reapplies the same 0/1
 interval through CNA's public `IPlatformGlContext::SetSwapInterval` seam and retains its boolean
@@ -959,8 +980,10 @@ physical-hardware capture should first require `swap_interval.apply_succeeded`, 
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside
-budget. Do not mark M12 complete until repeated mixed workloads pass 33.333 ms p95 on named
-minimum hardware and VRAM tracking is complete.
+budget. The next safe code-side M12 slice is the smallest physics profiler (`IG-35-008`,
+`034`-`036`): retain the existing physics-step timing and add exact body/contact/query evidence
+without changing simulation behavior. Do not mark M12 complete until repeated mixed workloads
+pass 33.333 ms p95 on named minimum hardware and VRAM tracking is complete.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --

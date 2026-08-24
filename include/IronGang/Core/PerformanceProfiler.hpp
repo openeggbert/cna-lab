@@ -25,6 +25,8 @@ namespace IronGang
         RenderCpu,
         PresentCpu,
         GpuRender,
+        DistrictWorldPhysicsCpu,
+        DistrictRendererUploadCpu,
         DistrictLoadCpu,
         StartupCpu,
         Count,
@@ -72,6 +74,24 @@ namespace IronGang
         double average{0.0};
         double p95{0.0};
         double maximum{0.0};
+    };
+
+    // One complete synchronous district change. District content is currently generated in
+    // memory, so there are deliberately no fabricated I/O/decompression/parse durations here;
+    // the report labels those phases not applicable and records the two phases that really run.
+    struct DistrictLoadSample
+    {
+        std::string reason;
+        std::string sourceDistrict;
+        std::string targetDistrict;
+        double worldPhysicsMilliseconds{0.0};
+        double rendererUploadMilliseconds{0.0};
+        std::size_t proceduralWorldObjectCount{0};
+        std::size_t staticPhysicsBodyCount{0};
+        std::uint64_t residentBytesBefore{0};
+        std::uint64_t residentBytesAfter{0};
+        std::uint64_t trackedVideoMemoryBytesBefore{0};
+        std::uint64_t trackedVideoMemoryBytesAfter{0};
     };
 
     struct PerformanceReportContext
@@ -128,6 +148,7 @@ namespace IronGang
         void BeginFrame();
         void Record(PerformanceMetric metric, double milliseconds);
         void RecordRenderWorkload(RenderWorkloadMetric metric, std::uint64_t count);
+        void RecordDistrictLoad(DistrictLoadSample sample);
 
         [[nodiscard]] PerformanceStatistics GetStatistics(PerformanceMetric metric) const;
         [[nodiscard]] RenderWorkloadStatistics
@@ -139,6 +160,9 @@ namespace IronGang
         // Linux reads VmHWM from /proc/self/status. Other platforms return 0 (unknown) rather
         // than fabricating a value; platform-specific implementations can be added later.
         [[nodiscard]] static std::uint64_t ReadPeakResidentBytes();
+        // Linux reads the current VmRSS for before/after district-load deltas. As above, zero
+        // means unavailable rather than a real zero-byte resident set.
+        [[nodiscard]] static std::uint64_t ReadCurrentResidentBytes();
 
     private:
         static constexpr std::size_t MetricIndex(PerformanceMetric metric)
@@ -156,6 +180,7 @@ namespace IronGang
         std::array<std::vector<double>, static_cast<std::size_t>(PerformanceMetric::Count)> samples_;
         std::array<std::vector<double>, static_cast<std::size_t>(RenderWorkloadMetric::Count)>
             renderWorkloadSamples_;
+        std::vector<DistrictLoadSample> districtLoadSamples_;
     };
 
     // RAII timing for whole Update()/Draw()/Initialize() scopes, including early-return paths.

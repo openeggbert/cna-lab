@@ -22,6 +22,7 @@
 #include "Microsoft/Xna/Framework/Graphics/SpriteFont.hpp"
 #include "Microsoft/Xna/Framework/Input/KeyboardState.hpp"
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -80,6 +81,13 @@ namespace IronGang
         void RespawnTrafficAndPedestrians();
         void RecordRenderWorkload();
         void CaptureSwapIntervalAcceptance();
+        void RecordDistrictLoadSample(const char* reason,
+                                      DistrictId sourceDistrict,
+                                      double worldPhysicsMilliseconds,
+                                      double rendererUploadMilliseconds,
+                                      std::uint64_t residentBytesBefore,
+                                      std::uint64_t trackedVideoMemoryBytesBefore);
+        [[nodiscard]] std::uint64_t GetTrackedRendererVideoMemoryBytes() const;
 
         std::unique_ptr<Microsoft::Xna::Framework::GraphicsDeviceManager> graphicsDeviceManager_;
         std::string assetRoot_;
@@ -128,12 +136,15 @@ namespace IronGang
 
         // Gate M12: enabled only by --profile, so ordinary per-frame play pays no clock reads or
         // sample-vector growth beyond negligible IsEnabled() checks. Infrequent load paths retain
-        // isolated Clock calls. The pending load value combines synchronous world/physics swapping
-        // with the later renderer rebuild while excluding the loading screen's cosmetic delay.
+        // isolated Clock calls. The pending values retain the real synchronous phases across the
+        // loading screen's cosmetic delay; that delay is never counted as load work.
         PerformanceProfiler performanceProfiler_;
         std::unique_ptr<GpuFrameTimer> gpuFrameTimer_;
         std::string performanceReportPath_;
-        double pendingDistrictLoadCpuMilliseconds_{0.0};
+        double pendingDistrictWorldPhysicsMilliseconds_{0.0};
+        std::uint64_t pendingDistrictResidentBytesBefore_{0};
+        std::uint64_t pendingDistrictVideoMemoryBytesBefore_{0};
+        DistrictId pendingDistrictSource_{DistrictId::WarehouseBlock};
         PerformanceScenario performanceScenario_{PerformanceScenario::InteractiveOrIntro};
         int performanceScenarioUpdate_{0};
         std::size_t peakPhysicsBodyCount_{0};

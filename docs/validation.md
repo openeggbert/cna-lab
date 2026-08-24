@@ -63,6 +63,17 @@ isolated Xvfb requested intervals 0 and 1; the platform rejected both (`apply_su
 `applied=null`). Their frame p95 values, 17.049/16.950 ms, are therefore correctly treated as an
 invalid v-sync comparison instead of evidence that the settings are equivalent.
 
+The district-load follow-up adds schema-4 per-transition phase, target-object, and memory-delta
+evidence. Unit tests verify exact phase aggregation, counts, negative RSS delta and positive tracked
+video-memory delta output. One isolated 540-frame Release EasyGL `mixed` run captured exactly one
+WarehouseBlock -> Countryside transition: 0.045 ms world/static-physics activation + 0.219 ms
+renderer rebuild/upload submission = 0.264 ms total, 25 procedural world objects, 5 target static
+bodies, 0 B RSS delta, and -135,576 B tracked logical renderer-memory delta. District I/O,
+decompression, and parse are correctly `null`: runtime districts are generated in memory and read
+no package. Software plus 3/3 CTest, strict syntax, Release/development EasyGL, Web/Emscripten, and
+the isolated real flow pass. Initialization is now solely `startup_cpu`, correcting the older
+district p95 that accidentally included broad startup work.
+
 ## Current modular dependency baseline (2026-08-22)
 
 Iron Gang now configures against the sibling `../cnanext` and modular `../sharp-runtime`

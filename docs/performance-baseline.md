@@ -176,3 +176,35 @@ This explains the earlier paired Xvfb result more precisely: the virtual platfor
 settings, so similar timing is not evidence that “v-sync on” and “off” perform the same. Future
 hardware comparisons must first require `swap_interval.apply_succeeded=true`; only then can timing
 be attributed to an accepted request, and even then external compositor behavior remains separate.
+
+## 2026-08-24 — district-load phase and memory-delta follow-up
+
+JSON schema 4 replaces the district-load profiler's opaque aggregate with per-transition evidence.
+It separately records world/static-physics unload+activation CPU and renderer static-geometry/
+lightmap rebuild-upload CPU, then derives the existing budgeted total from those two values. Every
+sample also identifies source, target, reason, target procedural-object/static-body counts, current
+RSS delta, and logical tracked renderer-video-memory delta. Startup remains under `startup_cpu` and
+is no longer incorrectly included as a district-load sample.
+
+That last correction explains the older tables' roughly 5-6 ms district p95 and two samples in one
+mixed run: one sample was actually broad initialization work, not a district transition. Those
+historical values remain useful only as evidence of the old profiler behavior and are superseded
+for district-load qualification by schema 4.
+
+A 540-frame Release EasyGL `mixed` run, executed only on isolated Xvfb/X11 with v-sync requested
+off, captured exactly one real WarehouseBlock -> Countryside transition:
+
+| Transition evidence | Value |
+| --- | ---: |
+| World/static-physics unload + activation CPU | 0.045 ms |
+| Renderer rebuild/upload-submission CPU | 0.219 ms |
+| **Derived total** | **0.264 ms** |
+| Target procedural world objects | 25 |
+| Target static physics bodies (including ground) | 5 |
+| Current resident-memory delta | 0 B |
+| Tracked logical renderer-video-memory delta | -135,576 B |
+
+The target is generated in memory and reads zero district files, so I/O, decompression, and parse
+durations are reported as `null`/not applicable rather than measured zero. Xvfb remains unsuitable
+for graphics-hardware qualification, but this CPU/resource-lifecycle path is the real integrated
+transition and passes the 1000 ms district-load budget by a wide margin.

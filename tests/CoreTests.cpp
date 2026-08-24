@@ -29,6 +29,7 @@
 #include <numbers>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace
 {
@@ -907,7 +908,19 @@ namespace
         {
             profiler.Record(IronGang::PerformanceMetric::FrameInterval, static_cast<double>(sample));
         }
-        profiler.Record(IronGang::PerformanceMetric::DistrictLoadCpu, 12.5);
+        IronGang::DistrictLoadSample districtLoad;
+        districtLoad.reason = "exit_transition";
+        districtLoad.sourceDistrict = "warehouse_block";
+        districtLoad.targetDistrict = "countryside";
+        districtLoad.worldPhysicsMilliseconds = 4.5;
+        districtLoad.rendererUploadMilliseconds = 8.0;
+        districtLoad.proceduralWorldObjectCount = 17;
+        districtLoad.staticPhysicsBodyCount = 9;
+        districtLoad.residentBytesBefore = 1000;
+        districtLoad.residentBytesAfter = 900;
+        districtLoad.trackedVideoMemoryBytesBefore = 200;
+        districtLoad.trackedVideoMemoryBytesAfter = 250;
+        profiler.RecordDistrictLoad(std::move(districtLoad));
         profiler.Record(IronGang::PerformanceMetric::GpuRender, 3.25);
         profiler.RecordRenderWorkload(IronGang::RenderWorkloadMetric::DrawCalls, 10);
         profiler.RecordRenderWorkload(IronGang::RenderWorkloadMetric::DrawCalls, 12);
@@ -926,6 +939,11 @@ namespace
                 "performance profiler p95 must use the nearest-rank definition");
         Require(std::abs(frame.maximumMilliseconds - 20.0) < 1e-9,
                 "performance profiler maximum must match the largest sample");
+        const IronGang::PerformanceStatistics districtLoadTotal =
+            profiler.GetStatistics(IronGang::PerformanceMetric::DistrictLoadCpu);
+        Require(districtLoadTotal.sampleCount == 1 &&
+                    std::abs(districtLoadTotal.averageMilliseconds - 12.5) < 1e-9,
+                "district load total must equal its measured world/physics and renderer phases");
         const IronGang::RenderWorkloadStatistics drawCalls =
             profiler.GetRenderWorkloadStatistics(IronGang::RenderWorkloadMetric::DrawCalls);
         Require(drawCalls.sampleCount == 2 && std::abs(drawCalls.average - 11.0) < 1e-9 &&
@@ -966,7 +984,7 @@ namespace
         const std::string report((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
         Require(report.find("\"backend\": \"TEST\"") != std::string::npos,
                 "performance report must identify its graphics backend");
-        Require(report.find("\"schema_version\": 3") != std::string::npos &&
+        Require(report.find("\"schema_version\": 4") != std::string::npos &&
                     report.find("\"draw_calls\": {\"samples\": 2, \"average\": 11.000, \"p95\": 12.000") !=
                         std::string::npos &&
                     report.find("\"state_change_calls\": {\"samples\": 1, \"average\": 31.000") !=
@@ -975,6 +993,18 @@ namespace
                         std::string::npos &&
                     report.find("excludes Clear, HUD SpriteBatch internal batching") != std::string::npos,
                 "performance report must expose scoped 3D workload counts without claiming backend counters");
+        Require(report.find("\"district_world_physics_cpu\": {\"samples\": 1, \"average_ms\": 4.500") !=
+                        std::string::npos &&
+                    report.find("\"district_renderer_upload_cpu\": {\"samples\": 1, \"average_ms\": 8.000") !=
+                        std::string::npos &&
+                    report.find("\"reason\": \"exit_transition\", \"source\": \"warehouse_block\", \"target\": \"countryside\"") !=
+                        std::string::npos &&
+                    report.find("\"district_files\": 0, \"procedural_world_objects\": 17, \"static_physics_bodies\": 9") !=
+                        std::string::npos &&
+                    report.find("\"resident_delta_bytes\": -100") != std::string::npos &&
+                    report.find("\"tracked_video_memory_delta_bytes\": 50") != std::string::npos &&
+                    report.find("null means not applicable, not measured zero") != std::string::npos,
+                "district-load report must preserve real phase, asset-count, and signed memory-delta evidence");
         Require(report.find("\"present_cpu\"") != std::string::npos,
                 "performance report must expose the EndDraw/Present diagnostic separately");
         Require(report.find("\"gpu_render\": {\"samples\": 1, \"average_ms\": 3.250") !=

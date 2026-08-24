@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <utility>
 
 namespace IronGang
 {
@@ -31,6 +32,10 @@ namespace IronGang
                 return "present_cpu";
             case PerformanceMetric::GpuRender:
                 return "gpu_render";
+            case PerformanceMetric::DistrictWorldPhysicsCpu:
+                return "district_world_physics_cpu";
+            case PerformanceMetric::DistrictRendererUploadCpu:
+                return "district_renderer_upload_cpu";
             case PerformanceMetric::DistrictLoadCpu:
                 return "district_load_cpu";
             case PerformanceMetric::StartupCpu:
@@ -97,6 +102,41 @@ namespace IronGang
         bool PassesP95(const PerformanceStatistics& statistics, double budgetMilliseconds)
         {
             return statistics.sampleCount > 0 && statistics.p95Milliseconds <= budgetMilliseconds;
+        }
+
+        void WriteByteDelta(std::ostream& output, std::uint64_t before, std::uint64_t after)
+        {
+            if (after < before)
+            {
+                output << '-' << (before - after);
+            }
+            else
+            {
+                output << (after - before);
+            }
+        }
+
+        std::uint64_t ReadLinuxStatusBytes(const char* requestedKey)
+        {
+#if defined(__linux__) && !defined(__EMSCRIPTEN__)
+            std::ifstream status("/proc/self/status");
+            std::string key;
+            while (status >> key)
+            {
+                if (key == requestedKey)
+                {
+                    std::uint64_t kibibytes = 0;
+                    std::string unit;
+                    status >> kibibytes >> unit;
+                    return kibibytes * 1024ULL;
+                }
+                std::string remainder;
+                std::getline(status, remainder);
+            }
+#else
+            (void)requestedKey;
+#endif
+            return 0;
         }
     }
 
@@ -186,6 +226,22 @@ namespace IronGang
             return;
         }
         renderWorkloadSamples_[RenderWorkloadMetricIndex(metric)].push_back(static_cast<double>(count));
+    }
+
+    void PerformanceProfiler::RecordDistrictLoad(DistrictLoadSample sample)
+    {
+        if (!enabled_ || !std::isfinite(sample.worldPhysicsMilliseconds) ||
+            !std::isfinite(sample.rendererUploadMilliseconds) || sample.worldPhysicsMilliseconds < 0.0 ||
+            sample.rendererUploadMilliseconds < 0.0)
+        {
+            return;
+        }
+
+        Record(PerformanceMetric::DistrictWorldPhysicsCpu, sample.worldPhysicsMilliseconds);
+        Record(PerformanceMetric::DistrictRendererUploadCpu, sample.rendererUploadMilliseconds);
+        Record(PerformanceMetric::DistrictLoadCpu,
+               sample.worldPhysicsMilliseconds + sample.rendererUploadMilliseconds);
+        districtLoadSamples_.push_back(std::move(sample));
     }
 
     PerformanceStatistics PerformanceProfiler::GetStatistics(PerformanceMetric metric) const
@@ -283,7 +339,7 @@ namespace IronGang
 
             output << std::fixed << std::setprecision(3);
             output << "{\n"
-                   << "  \"schema_version\": 3,\n"
+                   << "  \"schema_version\": 4,\n"
                    << "  \"backend\": \"" << EscapeJson(context.backend) << "\",\n"
                    << "  \"build_configuration\": \"" << EscapeJson(context.buildConfiguration) << "\",\n"
                    << "  \"scenario\": \"" << EscapeJson(context.scenario) << "\",\n"
@@ -349,6 +405,53 @@ namespace IronGang
             }
 
             output << "  },\n"
+                   << "  \"district_load\": {\n"
+                   << "    \"content_path\": \"procedural in-memory PrototypeWorld; no district file/package is read during a transition\",\n"
+                   << "    \"unload_activation_scope\": \"destroy old static physics bodies, construct target world, and build target static physics bodies; exit-trigger samples also include player/vehicle arrival placement\",\n"
+                   << "    \"renderer_upload_scope\": \"CPU time to rebuild target static geometry/lightmap and issue resource uploads; not GPU-completion time\",\n"
+                   << "    \"io_ms\": null, \"decompression_ms\": null, \"parse_ms\": null,\n"
+                   << "    \"unavailable_reason\": \"districts have no serialized runtime package yet; null means not applicable, not measured zero\",\n"
+                   << "    \"samples\": [\n";
+
+            for (std::size_t index = 0; index < districtLoadSamples_.size(); ++index)
+            {
+                const DistrictLoadSample& sample = districtLoadSamples_[index];
+                const bool residentKnown = sample.residentBytesBefore > 0 && sample.residentBytesAfter > 0;
+                output << "      {\"reason\": \"" << EscapeJson(sample.reason)
+                       << "\", \"source\": \"" << EscapeJson(sample.sourceDistrict)
+                       << "\", \"target\": \"" << EscapeJson(sample.targetDistrict)
+                       << "\", \"world_physics_ms\": " << sample.worldPhysicsMilliseconds
+                       << ", \"renderer_upload_ms\": " << sample.rendererUploadMilliseconds
+                       << ", \"total_ms\": "
+                       << (sample.worldPhysicsMilliseconds + sample.rendererUploadMilliseconds)
+                       << ", \"asset_counts\": {\"district_files\": 0, \"procedural_world_objects\": "
+                       << sample.proceduralWorldObjectCount << ", \"static_physics_bodies\": "
+                       << sample.staticPhysicsBodyCount << "}, \"memory\": {\"resident_known\": "
+                       << (residentKnown ? "true" : "false")
+                       << ", \"resident_before_bytes\": " << sample.residentBytesBefore
+                       << ", \"resident_after_bytes\": " << sample.residentBytesAfter
+                       << ", \"resident_delta_bytes\": ";
+                if (residentKnown)
+                {
+                    WriteByteDelta(output, sample.residentBytesBefore, sample.residentBytesAfter);
+                }
+                else
+                {
+                    output << "null";
+                }
+                output << ", \"tracked_video_memory_before_bytes\": "
+                       << sample.trackedVideoMemoryBytesBefore
+                       << ", \"tracked_video_memory_after_bytes\": "
+                       << sample.trackedVideoMemoryBytesAfter
+                       << ", \"tracked_video_memory_delta_bytes\": ";
+                WriteByteDelta(output,
+                               sample.trackedVideoMemoryBytesBefore,
+                               sample.trackedVideoMemoryBytesAfter);
+                output << "}}" << (index + 1U == districtLoadSamples_.size() ? "\n" : ",\n");
+            }
+
+            output << "    ]\n"
+                   << "  },\n"
                    << "  \"render_workload\": {\n"
                    << "    \"scope\": \"Iron Gang 3D front-end submissions; excludes Clear, HUD SpriteBatch internal batching, Present, and backend state deduplication\",\n"
                    << "    \"visibility_policy\": \"no frustum or occlusion culling; every submitted scene object counts as visible\",\n";
@@ -423,23 +526,12 @@ namespace IronGang
 
     std::uint64_t PerformanceProfiler::ReadPeakResidentBytes()
     {
-#if defined(__linux__) && !defined(__EMSCRIPTEN__)
-        std::ifstream status("/proc/self/status");
-        std::string key;
-        while (status >> key)
-        {
-            if (key == "VmHWM:")
-            {
-                std::uint64_t kibibytes = 0;
-                std::string unit;
-                status >> kibibytes >> unit;
-                return kibibytes * 1024ULL;
-            }
-            std::string remainder;
-            std::getline(status, remainder);
-        }
-#endif
-        return 0;
+        return ReadLinuxStatusBytes("VmHWM:");
+    }
+
+    std::uint64_t PerformanceProfiler::ReadCurrentResidentBytes()
+    {
+        return ReadLinuxStatusBytes("VmRSS:");
     }
 
     ScopedPerformanceSample::ScopedPerformanceSample(PerformanceProfiler& profiler, PerformanceMetric metric)
