@@ -1206,7 +1206,8 @@ Status: complete. Every authored sector places one original violet power relay
 away from its amber terminal. The player must activate both components with the
 normal action key before the exit changes from red to cyan. The relay has a
 distinct green active state and lower confirmation tone, and focused tests cover
-relay-only, terminal-only and fully unlocked states.
+relay-only, terminal-only and fully unlocked states. Two-second play-view messages
+report each completed component and clearly announce when the exit comes online.
 
 - add a second interactive objective component distinct from doors and terminals;
 - require every relay and terminal before enabling the sector exit;

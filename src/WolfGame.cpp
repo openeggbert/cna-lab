@@ -810,6 +810,22 @@ namespace WolfCna
                 Color(17, 59, 116, 255));
             DrawHudText(*hudSpriteBatch_, *hudPixel_, messageX, centerY - 18, message, Color(255, 233, 136, 255));
         }
+        else if (objectiveMessageSeconds_ > 0.0f && !objectiveMessage_.empty())
+        {
+            const int messageWidth = HudTextWidth(objectiveMessage_);
+            const int messageX = centerX - messageWidth / 2;
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(messageX - 12, centerY - 26, messageWidth + 24, 31),
+                Color(17, 59, 116, 255));
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                messageX,
+                centerY - 18,
+                objectiveMessage_,
+                Color(125, 244, 186, 255));
+        }
         if (completed_)
         {
             const World::CompletionStats stats = world_.GetCompletionStats();
@@ -1350,6 +1366,8 @@ namespace WolfCna
         pauseWasDown_ = false;
         mapToggle_.Reset();
         cheatMessageSeconds_ = 0.0f;
+        objectiveMessage_.clear();
+        objectiveMessageSeconds_ = 0.0f;
     }
 
     void WolfGame::AdvanceCampaign()
@@ -1598,10 +1616,20 @@ namespace WolfCna
                 static_cast<void>(doorSound_->Play(0.68f, -0.15f, 0.0f));
             else if (activation == World::InteractionResult::DoorLocked && lockedSound_)
                 static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
-            else if (activation == World::InteractionResult::TerminalActivated && terminalSound_)
-                static_cast<void>(terminalSound_->Play(0.32f, 0.25f, 0.0f));
-            else if (activation == World::InteractionResult::RelayActivated && terminalSound_)
-                static_cast<void>(terminalSound_->Play(0.38f, -0.2f, 0.0f));
+            else if (activation == World::InteractionResult::TerminalActivated)
+            {
+                if (terminalSound_)
+                    static_cast<void>(terminalSound_->Play(0.32f, 0.25f, 0.0f));
+                objectiveMessage_ = world_.IsExitUnlocked() ? "EXIT ONLINE" : "TERMINAL ONLINE";
+                objectiveMessageSeconds_ = 2.0f;
+            }
+            else if (activation == World::InteractionResult::RelayActivated)
+            {
+                if (terminalSound_)
+                    static_cast<void>(terminalSound_->Play(0.38f, -0.2f, 0.0f));
+                objectiveMessage_ = world_.IsExitUnlocked() ? "EXIT ONLINE" : "POWER ONLINE";
+                objectiveMessageSeconds_ = 2.0f;
+            }
             else if (activation == World::InteractionResult::SecretRevealed)
             {
                 AwardScore(500);
@@ -1749,6 +1777,7 @@ namespace WolfCna
 
         levelElapsedSeconds_ += clampedElapsed;
         cheatMessageSeconds_ = std::max(0.0f, cheatMessageSeconds_ - clampedElapsed);
+        objectiveMessageSeconds_ = std::max(0.0f, objectiveMessageSeconds_ - clampedElapsed);
         weaponFlashSeconds_ = std::max(0.0f, weaponFlashSeconds_ - clampedElapsed);
         const int incomingDamage = world_.Update(clampedElapsed, playerPosition_, DamageMultiplier());
         if (world_.ConsumeGuardShotCount() > 0 && guardShotSound_)

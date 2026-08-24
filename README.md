@@ -106,6 +106,8 @@ have the same width and use only these symbols:
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 
 An exit is red until every power relay and terminal is active, then turns cyan.
+Activating either component briefly reports `POWER ONLINE`, `TERMINAL ONLINE` or
+`EXIT ONLINE` in the play view.
 All four campaign sectors use an exact 64×64-cell footprint with large authored
 rooms, connecting corridors, loops and optional secret spaces. Focused test maps
 may remain smaller.

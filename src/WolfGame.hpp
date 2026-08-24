@@ -153,6 +153,8 @@ namespace WolfCna
         bool mouseWasDown_ = false;
         bool soundEnabled_ = true;
         float cheatMessageSeconds_ = 0.0f;
+        std::string objectiveMessage_;
+        float objectiveMessageSeconds_ = 0.0f;
         float weaponFlashSeconds_ = 0.0f;
         float playerFireCooldownSeconds_ = 0.0f;
 
