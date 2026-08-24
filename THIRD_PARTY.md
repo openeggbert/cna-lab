@@ -7,7 +7,7 @@ dependencies, tools, references, or content.
 
 | Component | Role | Checkout observed 2026-08-24 | License/status |
 |---|---|---|---|
-| CNA (`../cnanext`) | Public game/framework abstraction | `next`, `33ff296f5ffe42cfa9c3a2060da55a953f2a9f4e` | Microsoft Public License; working tree had 31 pre-existing changes |
+| CNA (`../cnanext`) | Public game/framework abstraction | `next`, executable verified at `b6cbfcd87c08a6e0172eaf866358bf95bec277b1` | Microsoft Public License; clean working tree |
 | sharp-runtime (`../sharp-runtimenext`) | Supported runtime layer consumed by CNA | `next`, `54578590b328aa9612fe38bfddca9fd8ca795144`, `v0.1.0-beta.1` | MIT; clean working tree |
 | CMake | Build generator | System tool | Governed by its own distribution terms |
 
@@ -16,9 +16,14 @@ CNA owns its backend and transitive third-party dependency selection. Consult
 build before distribution. People game code does not call those backends
 directly.
 
-The recorded CNA SHA is not a reproducible dependency pin while its checkout is
-dirty. Before a release, build against a clean, reviewed CNA commit and update
-this table.
+The initial planning inspection saw CNA at
+`33ff296f5ffe42cfa9c3a2060da55a953f2a9f4e` with 31 pre-existing changes. It
+advanced externally before executable verification. The recorded build SHA is
+a verification snapshot, not a long-term dependency pin. Before a release,
+build against the then-current clean, reviewed CNA commit and update this table.
+During active development People follows the newest local `next` HEAD supplied
+by dependency work. Historical SHAs remain evidence only, never rollback
+targets.
 
 ## Architecture-only references
 
@@ -79,4 +84,3 @@ with creator/tool, source, creation date, prompt or source-model identifier,
 processing steps, result files, license, and review status. Unknown,
 noncommercial-only, attribution-free-without-proof, and otherwise ambiguous
 assets do not ship.
-

@@ -4,6 +4,7 @@
 /cmake-build-*/
 /out/
 /Testing/
+/.cache/
 CMakeUserPresets.json
 compile_commands.json
 
@@ -26,4 +27,3 @@ Thumbs.db
 !/assets/generated/.gitkeep
 /assets/processed/*
 !/assets/processed/.gitkeep
-

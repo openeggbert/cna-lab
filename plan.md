@@ -32,10 +32,10 @@ Statuses:
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
 | PEO-001 | DONE | Repository planning baseline | Required documents exist, consistently name People/`people-cna`, state zero proprietary data and 2D runtime, record `cnanext`/`sharp-runtimenext` SHA and dirty state, pass documentation checks, and are committed on `main` |
-| PEO-002 | TODO | CNA/sharp-runtime CMake integration | CMake uses C++23, finds `../cnanext`, forces `CNA_SHARP_RUNTIME_ROOT` to `../sharp-runtimenext`, disables unused CNA tests/examples/video, links aggregate `CNA`, and configures without changing dependencies |
-| PEO-003 | TODO | Minimal People executable | CNA opens/runs, clears/draws with SpriteBatch, supports `--smoke-test`, exits cleanly, and has no backend API in game code |
+| PEO-002 | DONE | CNA/sharp-runtime CMake integration | CMake uses C++23, finds `../cnanext`, forces `CNA_SHARP_RUNTIME_ROOT` to `../sharp-runtimenext`, disables unused CNA tests/examples/video, links aggregate `CNA`, and configures without changing dependencies |
+| PEO-003 | DONE | Minimal People executable | CNA opens/runs, clears/draws with SpriteBatch, supports `--smoke-test`, exits cleanly, and has no backend API in game code |
 | PEO-004 | TODO | Deterministic simulation clock | Fixed-step accumulator supports pause/1x/2x/3x, clamps runaway catch-up, is render-independent, and passes timing tests |
-| PEO-005 | TODO | Core test infrastructure | Dependency-free `people_core_tests` is registered with CTest, reports individual failures, and runs without display/audio |
+| PEO-005 | DONE | Core test infrastructure | Dependency-free `people_core_tests` is registered with CTest, reports individual failures, and runs without display/audio |
 | PEO-006 | TODO | Runtime/dependency diagnostics | Startup reports People version, CNA renderer/capabilities, dependency identity supplied at configure, and simulation seed without branching on renderer name |
 | PEO-007 | TODO | Warning-clean build policy | People targets enable practical warnings, Debug build is warning-free on current compiler, and warnings from untouched dependencies are not hidden globally |
 | PEO-008 | TODO | Seeded random service | Named streams derive reproducibly from world seed plus stable IDs; no `rand()`; sequence and stream-isolation tests pass |
@@ -45,26 +45,26 @@ Statuses:
 
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
-| PEO-010 | TODO | Coordinate value types | World tile, view tile, projected pixel, and camera state cannot be accidentally mixed; units/invariants are documented |
-| PEO-011 | TODO | Four bounded rotations | All four world-to-view and inverse transforms work for square and rectangular lots with exhaustive bounds round trips |
-| PEO-012 | TODO | Isometric projection | 96 x 48 projection and floor elevation produce expected exact tile centers; no render dependency |
-| PEO-013 | TODO | Inverse projection/picking | Screen-to-world selects tile centers/insides, rejects outside points, and has deterministic shared-edge rules in all rotations |
-| PEO-014 | TODO | Generated floor texture | CNA creates an original transparent diamond tile in memory with clean outline/alpha and no external asset |
-| PEO-015 | TODO | 20 x 20 lot renderer | Visible grass/background and complete 20 x 20 diamond grid render through SpriteBatch with deterministic draw order |
-| PEO-016 | TODO | Camera pan | WASD/arrows pan by elapsed real time, diagonal motion is normalized, and focus remains numerically stable |
-| PEO-017 | TODO | Camera zoom | Wheel and +/- clamp zoom; cursor-centered zoom preserves the logical point under the cursor within tolerance |
-| PEO-018 | TODO | Camera rotation controls | Q/E change exactly one of four orientations on key edges and preserve lot focus/selection |
-| PEO-019 | TODO | Selection highlight | Hovered in-bounds tile is overlaid with an original generated diamond; selection tracks pan/zoom/rotation |
-| PEO-020 | TODO | Deterministic render keys | Layer/floor/depth/anchor/stable-ID comparison is independent of insertion order and unit tested |
+| PEO-010 | DONE | Coordinate value types | World tile, view tile, projected pixel, and camera state cannot be accidentally mixed; units/invariants are documented |
+| PEO-011 | DONE | Four bounded rotations | All four world-to-view and inverse transforms work for square and rectangular lots with exhaustive bounds round trips |
+| PEO-012 | DONE | Isometric projection | 96 x 48 projection and floor elevation produce expected exact tile centers; no render dependency |
+| PEO-013 | DONE | Inverse projection/picking | Screen-to-world selects tile centers/insides, rejects outside points, and has deterministic shared-edge rules in all rotations |
+| PEO-014 | DONE | Generated floor texture | CNA creates an original transparent diamond tile in memory with clean outline/alpha and no external asset |
+| PEO-015 | DONE | 20 x 20 lot renderer | Visible grass/background and complete 20 x 20 diamond grid render through SpriteBatch with deterministic draw order |
+| PEO-016 | DONE | Camera pan | WASD/arrows pan by elapsed real time, diagonal motion is normalized, and focus remains numerically stable |
+| PEO-017 | DONE | Camera zoom | Wheel and +/- clamp zoom; cursor-centered zoom preserves the logical point under the cursor within tolerance |
+| PEO-018 | DONE | Camera rotation controls | Q/E change exactly one of four orientations on key edges and preserve lot focus/selection |
+| PEO-019 | DONE | Selection highlight | Hovered in-bounds tile is overlaid with an original generated diamond; selection tracks pan/zoom/rotation |
+| PEO-020 | DOING | Deterministic render keys | Layer/floor/depth/anchor/stable-ID comparison is independent of insertion order and unit tested |
 | PEO-021 | TODO | Render-item gather/sort | World renderables are gathered then globally sorted before SpriteBatch submission; debug builds can display keys |
 | PEO-022 | TODO | Viewport culling | Conservative projected bounds omit invisible tiles without popping at zoom/rotation edges; tests cover bounds math |
 | PEO-023 | TODO | Multi-tile sort analysis spike | At least three overlap cases establish segmentation/multiple-anchor policy; no unused runtime framework is added |
 | PEO-024 | TODO | Object screen picking | Front-to-back authored bounds/hit regions select overlapping objects consistently under all rotations |
 | PEO-025 | TODO | Floor-level projection | Floor offset and visible-floor filtering work in transform/tests without yet enabling upper-floor gameplay |
-| PEO-026 | TODO | Renderer smoke screenshot | A displayed or backbuffer-read smoke captures the generated lot; result and limitations are recorded |
+| PEO-026 | DONE | Renderer smoke screenshot | A displayed or backbuffer-read smoke captures the generated lot; result and limitations are recorded |
 | PEO-027 | TODO | Cross-renderer 2D corpus | Two available CNA renderers draw/read a minimal People tile/object corpus with documented exact/tolerant comparisons |
 | PEO-028 | TODO | Render performance counters | Gather, sort, draw-item, batch, frame, and simulation timing are inspectable without affecting release determinism |
-| PEO-029 | TODO | M1 isometric-lot gate | Build/tests/runtime verify pan, zoom, rotation, picking, sorting, and zero runtime 3D; milestone state is documented |
+| PEO-029 | DONE | M1 isometric-lot gate | Build/tests/runtime verify pan, zoom, rotation, picking, sorting, and zero runtime 3D; milestone state is documented |
 
 ## Lot and architecture (`PEO-030`–`PEO-049`)
 
@@ -366,13 +366,9 @@ reproduction demonstrates actual behavior.
 
 ## Immediate execution queue
 
-1. Finish and commit `PEO-001` on `main` with message
-   `Initial People project planning`.
-2. Create `develop` without merging it back during the initial campaign.
-3. Complete `PEO-002`, `PEO-003`, `PEO-005`, and the coordinate slice of
-   `PEO-010`–`PEO-019` as one verified bootstrap milestone.
-4. Commit the prescribed second milestone as
-   `Add initial isometric People skeleton`.
-5. Continue through `PEO-020`, `PEO-030`–`PEO-035`, then visible walls and
-   objects toward M2.
-6. Preserve a runnable build after every coherent commit.
+1. Commit the verified bootstrap milestone as
+   `Add initial isometric People skeleton` on `develop`.
+2. Complete `PEO-020` deterministic render keys without changing the working
+   presentation.
+3. Implement `PEO-030`–`PEO-035`, then visible walls and objects toward M2.
+4. Preserve a runnable build after every coherent commit.

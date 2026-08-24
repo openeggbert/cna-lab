@@ -137,6 +137,19 @@ People targets the newer sibling checkouts requested by the project owner:
 | `../cnanext` | `next` | `33ff296f5ffe42cfa9c3a2060da55a953f2a9f4e` | dirty, 31 pre-existing paths |
 | `../sharp-runtimenext` | `next` | `54578590b328aa9612fe38bfddca9fd8ca795144` | clean |
 
+The table above records the initial planning inspection. Before the executable
+milestone was finalized later on 2026-08-24, `../cnanext` advanced externally
+through `975156d140c5277eecf54f7f23335af3725c2ae8` to clean HEAD
+`b6cbfcd87c08a6e0172eaf866358bf95bec277b1`. Both headless and displayed People
+builds were finally verified against that newest checkout. The sharp-runtime
+revision remained unchanged and clean.
+
+People consumes the newest local `cnanext` and `sharp-runtimenext` HEADs as
+they advance. SHA records establish which code a particular result exercised;
+they are not pins and must never be used to roll a dependency backward. A
+milestone whose dependency HEAD moved after testing is rebuilt before its final
+commit or handoff.
+
 The dirty CNA tree is a reproducibility risk: its actual API/build behavior may
 include changes not named by HEAD. People must not edit or clean it. A release
 must switch to a reviewed clean commit or record a patch identity separately.

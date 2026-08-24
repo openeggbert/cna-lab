@@ -37,6 +37,10 @@ another independent task when useful work remains.
 - Use `../cnanext`, never `../cna`.
 - Configure CNA's `CNA_SHARP_RUNTIME_ROOT` as `../sharp-runtimenext`, never
   `../sharp-runtime`.
+- Track the newest local HEAD present in both `*next` repositories. Do not pin,
+  reset, check out, or roll dependencies back to a previously recorded People
+  verification SHA. Re-record exact SHAs and rebuild when another agent advances
+  either checkout.
 - Do not invent CNA APIs or CMake options. Search the current checkout first.
 - Game code must not call SDL, OpenGL, Vulkan, Direct3D, Metal, native window
   APIs, or another backend to bypass CNA.
@@ -116,4 +120,3 @@ next tasks, build/test commands and actual results, runtime result, exact CNA
 and sharp-runtime SHAs plus dirty state, blockers, playable functionality,
 architecture decisions, asset provenance, and major risks. Never report a
 command or visual result that was not actually observed.
-

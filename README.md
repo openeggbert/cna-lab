@@ -18,10 +18,16 @@ be completed before a serious public or commercial release.
 
 ## Current maturity
 
-The repository is at its planning foundation. The first executable milestone
-will provide a CNA window, a generated 20 x 20 isometric lot, camera pan and
-zoom, four rotations, and mouse tile picking. See [plan.md](plan.md) for stable
-tasks and [analysis.md](analysis.md) for the architectural rationale.
+The first executable milestone is working on `develop`. People opens through
+CNA, generates and draws a 20 x 20 isometric lot with `SpriteBatch`, supports
+camera pan/zoom, cycles exactly four presentation rotations, and highlights the
+tile under the mouse. Projection, inverse picking, rotation, camera focus, and
+runtime startup are covered by CTest. The lot is currently an intentionally
+asset-free rendering foundation; it has no walls, objects, or residents yet.
+
+See [plan.md](plan.md) for stable tasks, [analysis.md](analysis.md) for the
+architectural rationale, and [VERIFICATION.md](VERIFICATION.md) for commands
+and results that have actually run.
 
 ## Technology and invariants
 
@@ -50,7 +56,11 @@ People intentionally targets `../cnanext` and configures CNA to consume
 `../sharp-runtimenext`. The older sibling directories `../cna` and
 `../sharp-runtime` are not the project dependencies.
 
-Observed baseline on 2026-08-24:
+Development tracks the newest local commits in both `*next` checkouts. Recorded
+SHAs are verification snapshots, not requests to roll either dependency back;
+milestones are rebuilt when those local HEADs advance.
+
+Planning-baseline inspection on 2026-08-24:
 
 - CNA next: branch `next`, HEAD
   `33ff296f5ffe42cfa9c3a2060da55a953f2a9f4e`; its working tree had 31
@@ -59,19 +69,27 @@ Observed baseline on 2026-08-24:
   `54578590b328aa9612fe38bfddca9fd8ca795144`, tag
   `v0.1.0-beta.1`; working tree clean.
 
+The final executable verification used clean CNA HEAD
+`b6cbfcd87c08a6e0172eaf866358bf95bec277b1` on `next`. See the verification
+record; neither dependency checkout was edited by People work.
+
 ## Build
 
-The executable is added in the second milestone commit. From that commit
-onward, the native development build is configured and tested with:
+Configure the tested Linux displayed build explicitly with CNA's SDL3 platform
+and 2D SDL renderer:
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCNA_GRAPHICS_RENDERER=SDL_RENDERER \
+  -DCNA_PLATFORM=SDL3 \
+  -DCNA_AUDIO_PLATFORM=NULL
 cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
+./build/People
 ```
 
-The default displayed build uses CNA's selected renderer. A deterministic
-windowless smoke build can be requested with:
+A deterministic windowless test/smoke build is:
 
 ```bash
 cmake -S . -B build-headless \
@@ -86,6 +104,17 @@ ctest --test-dir build-headless --output-on-failure
 No modeler or image-generation service is required to build or play. Generated
 placeholder textures keep early builds self-contained.
 
+## Controls
+
+- `WASD` or arrow keys: pan the lot.
+- Mouse wheel or `+`/`-`: cursor-centered zoom.
+- `Q`/`E`: rotate the presentation 90 degrees counter-clockwise/clockwise.
+- `Escape`: exit.
+
+`./build/People --smoke-test` draws four bounded frames, one in each world
+orientation, then exits. `--smoke-frames N` runs a bounded interactive smoke
+session without automatic rotation.
+
 ## Documentation
 
 - [analysis.md](analysis.md): design, reference, CNA, scaling, and risk analysis.
@@ -93,4 +122,4 @@ placeholder textures keep early builds self-contained.
 - [ASSET_PIPELINE.md](ASSET_PIPELINE.md): four-view visual standard and provenance.
 - [THIRD_PARTY.md](THIRD_PARTY.md): dependencies and reference-only projects.
 - [AGENTS.md](AGENTS.md): mandatory contributor workflow and hard boundaries.
-
+- [VERIFICATION.md](VERIFICATION.md): build, test, runtime, and visual evidence.
