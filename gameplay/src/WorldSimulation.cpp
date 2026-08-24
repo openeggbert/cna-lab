@@ -33,7 +33,9 @@ namespace CopperBoots
         : level_(TileMap::CreateTestRoom()),
           camera_(320.0F, 180.0F),
           spawnX_(3.0F * static_cast<float>(TileMap::TileSize)),
-          spawnY_(9.0F * static_cast<float>(TileMap::TileSize) - PlayerState::Height)
+          spawnY_(9.0F * static_cast<float>(TileMap::TileSize) - PlayerState::Height),
+          checkpointX_(spawnX_),
+          checkpointY_(spawnY_)
     {
         camera_.SetWorldBounds(static_cast<float>(level_.PixelWidth()),
                                static_cast<float>(level_.PixelHeight()));
@@ -75,9 +77,14 @@ namespace CopperBoots
         spawnX_ = static_cast<float>(level.SpawnTileX * TileMap::TileSize);
         spawnY_ = static_cast<float>(level.SpawnFootTileY * TileMap::TileSize) -
                   PlayerState::Height;
+        checkpointX_ = static_cast<float>(
+            level.CheckpointTileX * TileMap::TileSize);
+        checkpointY_ = static_cast<float>(
+            level.CheckpointFootTileY * TileMap::TileSize) - PlayerState::Height;
         parallaxFactors_ = level.ParallaxFactors;
         collectedCogs_ = 0;
         score_ = 0;
+        lives_ = 3;
         tickCount_ = 0;
         lastEvents_ = {};
         camera_.SetWorldBounds(static_cast<float>(level_.PixelWidth()),
@@ -102,6 +109,16 @@ namespace CopperBoots
     {
         lastEvents_ = {};
         UpdateBlockAnimations();
+        if (player_.Dead) {
+            if (player_.DeathTicksRemaining > 0)
+                --player_.DeathTicksRemaining;
+            if (player_.DeathTicksRemaining == 0) {
+                RespawnAtCheckpoint();
+                ++lastEvents_.PlayerRespawned;
+            }
+            ++tickCount_;
+            return;
+        }
         if (player_.InvulnerabilityTicks > 0)
             --player_.InvulnerabilityTicks;
         const float previousPlayerBottom = player_.Y + PlayerState::Height;
@@ -140,11 +157,16 @@ namespace CopperBoots
         MoveVertical(player_.VelocityY * seconds);
 
         if (player_.Y > static_cast<float>(level_.PixelHeight() + 64))
-            ResetPlayer();
+            StartPlayerDeath();
+
+        if (!player_.Dead && TouchesCollision(TileCollision::Hazard))
+            StartPlayerDeath();
 
         UpdateCrawlers(seconds);
-        ResolvePlayerCrawlerContacts(previousPlayerBottom);
-        CollectOverlappingCogs();
+        if (!player_.Dead) {
+            ResolvePlayerCrawlerContacts(previousPlayerBottom);
+            CollectOverlappingCogs();
+        }
         UpdateMotion(input);
         camera_.Update(player_.X + PlayerState::Width * 0.5F,
                        player_.Y + PlayerState::Height * 0.5F,
@@ -241,7 +263,10 @@ namespace CopperBoots
 
     void WorldSimulation::UpdateMotion(const PlayerInput& input) noexcept
     {
-        if (!player_.Grounded) {
+        if (player_.Dead) {
+            player_.Motion = PlayerMotion::Dead;
+        }
+        else if (!player_.Grounded) {
             player_.Motion = player_.VelocityY < 0.0F
                 ? PlayerMotion::Jumping
                 : PlayerMotion::Falling;
@@ -462,13 +487,69 @@ namespace CopperBoots
 
             if (player_.InvulnerabilityTicks > 0)
                 continue;
-            player_.InvulnerabilityTicks = 75;
-            if (player_.Plated)
+            if (player_.Plated) {
                 player_.Plated = false;
+                player_.InvulnerabilityTicks = 75;
+            }
+            else {
+                StartPlayerDeath();
+            }
             player_.VelocityX = player_.X < crawler.X ? -110.0F : 110.0F;
             player_.VelocityY = -170.0F;
             player_.Grounded = false;
             ++lastEvents_.PlayerDamaged;
+            if (player_.Dead)
+                return;
         }
+    }
+
+    void WorldSimulation::StartPlayerDeath() noexcept
+    {
+        if (player_.Dead)
+            return;
+        player_.Dead = true;
+        player_.DeathTicksRemaining = 45;
+        player_.Motion = PlayerMotion::Dead;
+        player_.VelocityX = 0.0F;
+        player_.VelocityY = 0.0F;
+        lives_ = std::max(0, lives_ - 1);
+        ++lastEvents_.PlayerDied;
+    }
+
+    void WorldSimulation::RespawnAtCheckpoint()
+    {
+        player_ = {};
+        player_.X = checkpointX_;
+        player_.Y = checkpointY_;
+        player_.Grounded = Collides(player_.X, player_.Y + 1.0F,
+                                    PlayerState::Width, PlayerState::Height);
+        player_.FacingRight = true;
+        player_.Motion = player_.Grounded
+            ? PlayerMotion::Standing
+            : PlayerMotion::Falling;
+        camera_.SnapTo(player_.X + PlayerState::Width * 0.5F,
+                       player_.Y + PlayerState::Height * 0.5F);
+    }
+
+    bool WorldSimulation::TouchesCollision(
+        const TileCollision collision) const noexcept
+    {
+        const int left = static_cast<int>(std::floor(
+            player_.X / TileMap::TileSize));
+        const int right = static_cast<int>(std::floor(
+            (player_.X + PlayerState::Width - CollisionEpsilon) /
+            TileMap::TileSize));
+        const int top = static_cast<int>(std::floor(
+            player_.Y / TileMap::TileSize));
+        const int bottom = static_cast<int>(std::floor(
+            (player_.Y + PlayerState::Height - CollisionEpsilon) /
+            TileMap::TileSize));
+        for (int tileY = top; tileY <= bottom; ++tileY) {
+            for (int tileX = left; tileX <= right; ++tileX) {
+                if (level_.Get(tileX, tileY).Collision == collision)
+                    return true;
+            }
+        }
+        return false;
     }
 }

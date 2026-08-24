@@ -24,6 +24,7 @@ namespace CopperBoots
         Running,
         Jumping,
         Falling,
+        Dead,
     };
 
     struct PlayerState
@@ -39,6 +40,8 @@ namespace CopperBoots
         bool FacingRight = true;
         bool Plated = false;
         int InvulnerabilityTicks = 0;
+        bool Dead = false;
+        int DeathTicksRemaining = 0;
         PlayerMotion Motion = PlayerMotion::Falling;
     };
 
@@ -60,6 +63,8 @@ namespace CopperBoots
         int BlocksBroken = 0;
         int EnemiesDefeated = 0;
         int PlayerDamaged = 0;
+        int PlayerDied = 0;
+        int PlayerRespawned = 0;
     };
 
     enum class CrawlerEdgePolicy
@@ -122,6 +127,7 @@ namespace CopperBoots
         }
         [[nodiscard]] int CollectedCogCount() const noexcept { return collectedCogs_; }
         [[nodiscard]] int Score() const noexcept { return score_; }
+        [[nodiscard]] int Lives() const noexcept { return lives_; }
         [[nodiscard]] std::uint64_t TickCount() const noexcept { return tickCount_; }
         [[nodiscard]] int BlockVisualOffset(int tileX, int tileY) const noexcept;
 
@@ -137,6 +143,9 @@ namespace CopperBoots
         void StartBlockBump(int tileX, int tileY);
         void UpdateCrawlers(float seconds);
         void ResolvePlayerCrawlerContacts(float previousPlayerBottom);
+        void StartPlayerDeath() noexcept;
+        void RespawnAtCheckpoint();
+        [[nodiscard]] bool TouchesCollision(TileCollision collision) const noexcept;
         [[nodiscard]] bool SolidAabb(float x, float y, float width,
                                      float height) const noexcept;
 
@@ -145,6 +154,8 @@ namespace CopperBoots
         Camera2D camera_;
         float spawnX_;
         float spawnY_;
+        float checkpointX_;
+        float checkpointY_;
         std::array<float, 3> parallaxFactors_{0.10F, 0.25F, 0.50F};
         std::vector<CogState> cogs_;
         std::vector<CrawlerState> crawlers_;
@@ -152,6 +163,7 @@ namespace CopperBoots
         WorldEvents lastEvents_;
         int collectedCogs_ = 0;
         int score_ = 0;
+        int lives_ = 3;
         std::uint64_t tickCount_ = 0;
     };
 }

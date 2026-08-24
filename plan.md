@@ -236,7 +236,7 @@ Acceptance:
   rise, fall, damage blink, and death.
 - Animation selection reads simulation state and cannot affect collision.
 
-### MAR-027 — Damage, death, checkpoint, respawn — TODO
+### MAR-027 — Damage, death, checkpoint, respawn — DONE
 
 Acceptance:
 

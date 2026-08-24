@@ -62,8 +62,10 @@ namespace CopperBoots
     {
         if (y < 0)
             return false;
-        if (x < 0 || x >= width_ || y >= height_)
+        if (x < 0 || x >= width_)
             return true;
+        if (y >= height_)
+            return false;
         return Get(x, y).Collision == TileCollision::Solid;
     }
 

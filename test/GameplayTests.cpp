@@ -67,6 +67,36 @@ namespace
         return result;
     }
 
+    [[nodiscard]] std::string MakeDeathLevel(const bool hazard)
+    {
+        std::string result =
+            "copper-boots-level 1\n"
+            "name Death Workshop\n"
+            "size 8 5\n"
+            "spawn 1 4\n"
+            "checkpoint 5 4\n"
+            "parallax 0.1 0.25 0.5\n"
+            "legend\n"
+            ". empty\n"
+            "# solid\n"
+            "B breakable\n"
+            "! hazard\n"
+            "E exit\n"
+            "d decoration\n"
+            "G cog\n"
+            "? cog-block\n"
+            "o empty-block\n"
+            "C crawler\n"
+            "c crawler-fall\n"
+            "map\n"
+            "........\n"
+            "........\n"
+            "........\n";
+        result += hazard ? ".!......\n" : "........\n";
+        result += hazard ? "########\n" : "#.######\n";
+        return result;
+    }
+
     void TestSimulationClock()
     {
         CopperBoots::SimulationClock clock;
@@ -92,7 +122,7 @@ namespace
         Check(map.IsSolid(-1, 0), "left of map is solid");
         Check(map.IsSolid(2, 0), "right of map is solid");
         Check(!map.IsSolid(0, -1), "above map is empty");
-        Check(map.IsSolid(0, 2), "below map is solid");
+        Check(!map.IsSolid(0, 2), "below map is open for fall-death handling");
         map.Set(1, 1, CopperBoots::Tiles::Ruin);
         Check(map.IsSolid(1, 1), "set solid tile is returned");
         map.Set(0, 0, CopperBoots::Tiles::Decoration);
@@ -422,11 +452,11 @@ namespace
             MakeCrawlerLevel(8, 2, 2, 4), "side.cbl"));
         sideWorld.Update({}, tick);
         Check(sideWorld.LastEvents().PlayerDamaged == 1 &&
-                  sideWorld.Player().InvulnerabilityTicks > 0,
-              "side contact damages player and starts invulnerability");
+                  sideWorld.Player().Dead && sideWorld.Lives() == 2,
+              "unprotected side contact damages player and starts death");
         sideWorld.Update({}, tick);
         Check(sideWorld.LastEvents().PlayerDamaged == 0,
-              "continued crawler contact cannot damage during invulnerability");
+              "continued crawler contact cannot damage during death");
 
         CopperBoots::WorldSimulation platedWorld;
         platedWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
@@ -434,8 +464,10 @@ namespace
         platedWorld.SetPlayerPlated(true);
         platedWorld.Update({}, tick);
         Check(!platedWorld.Player().Plated &&
+                  !platedWorld.Player().Dead &&
+                  platedWorld.Player().InvulnerabilityTicks > 0 &&
                   platedWorld.LastEvents().PlayerDamaged == 1,
-              "crawler contact consumes plated protection");
+              "crawler contact consumes plated protection and grants invulnerability");
 
         CopperBoots::WorldSimulation patrolWorld;
         patrolWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
@@ -488,10 +520,54 @@ namespace
         activationWorld.Update({}, tick);
         Check(!activationWorld.Crawlers()[0].Active,
               "crawler outside camera margin remains inactive");
-        for (int i = 0; i < 250; ++i)
+        bool activatedOnApproach = false;
+        for (int i = 0; i < 250; ++i) {
             activationWorld.Update(runAway, tick);
-        Check(activationWorld.Crawlers()[0].Active,
+            activatedOnApproach = activatedOnApproach ||
+                                  activationWorld.Crawlers()[0].Active;
+        }
+        Check(activatedOnApproach,
               "crawler activates when camera approaches its range");
+    }
+
+    void TestDeathAndRespawn()
+    {
+        constexpr float tick = static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds);
+        CopperBoots::WorldSimulation hazardWorld;
+        hazardWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeDeathLevel(true), "hazard.cbl"));
+        hazardWorld.Update({}, tick);
+        Check(hazardWorld.Player().Dead && hazardWorld.Lives() == 2 &&
+                  hazardWorld.LastEvents().PlayerDied == 1,
+              "hazard starts one death and decrements one life");
+        for (int i = 0; i < 44; ++i)
+            hazardWorld.Update({}, tick);
+        Check(hazardWorld.Player().Dead,
+              "death state remains bounded through tick 44");
+        hazardWorld.Update({}, tick);
+        Check(!hazardWorld.Player().Dead &&
+                  hazardWorld.LastEvents().PlayerRespawned == 1 &&
+                  std::abs(hazardWorld.Player().X - 80.0F) < 0.01F,
+              "tick 45 respawns at external checkpoint coordinate");
+        hazardWorld.Update({}, tick);
+        Check(hazardWorld.LastEvents().PlayerDied == 0 &&
+                  hazardWorld.Lives() == 2,
+              "respawn away from hazard does not repeat death");
+
+        CopperBoots::WorldSimulation fallWorld;
+        fallWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeDeathLevel(false), "fall.cbl"));
+        bool fellOut = false;
+        for (int i = 0; i < 120; ++i) {
+            fallWorld.Update({}, tick);
+            if (fallWorld.LastEvents().PlayerDied == 1) {
+                fellOut = true;
+                break;
+            }
+        }
+        Check(fellOut && fallWorld.Player().Dead && fallWorld.Lives() == 2,
+              "falling through an open lower boundary starts death once");
     }
 }
 
@@ -504,6 +580,7 @@ int main()
     TestVariableJumpHeight();
     TestCameraBounds();
     TestClockworkCrawler();
+    TestDeathAndRespawn();
 
     if (failures != 0) {
         std::cerr << failures << " gameplay test(s) failed\n";

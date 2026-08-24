@@ -499,6 +499,14 @@ position and current falling motion: an unambiguous top crossing defeats and
 bounces, while side contact emits damage, knockback and 75 ticks of protection.
 Generated body/eye/leg rectangles are presentation only.
 
+Damage now has a bounded lifecycle. Plating is consumed by one crawler hit and
+starts 75 invulnerable ticks; an unprotected enemy hit, hazard overlap, or fall
+below the open lower map boundary enters a 45-tick dead state and decrements one
+life exactly once. Respawn uses the external checkpoint rather than the initial
+spawn, preserves level object progress, resets player transient state, and snaps
+the camera. There is not yet a game-over screen when the life counter reaches
+zero; that remains UI/campaign policy rather than collision behavior.
+
 ## CNA and sharp-runtime baseline
 
 Initial local dependency inspection on 2026-08-24 found:

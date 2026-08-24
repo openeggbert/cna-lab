@@ -287,11 +287,16 @@ namespace CopperBoots
     void CopperBootsGame::DrawPlayer(const float cameraX, const float cameraY)
     {
         const PlayerState& player = world_.Player();
+        const int x = ScreenCoordinate(player.X, cameraX);
+        const int y = ScreenCoordinate(player.Y, cameraY);
+        if (player.Dead) {
+            FillRectangle(Rectangle(x, y + 15, 12, 5), Color(124, 73, 48));
+            FillRectangle(Rectangle(x + 2, y + 13, 8, 3), Color(205, 119, 42));
+            return;
+        }
         if (player.InvulnerabilityTicks > 0 &&
             (player.InvulnerabilityTicks / 3) % 2 == 0)
             return;
-        const int x = ScreenCoordinate(player.X, cameraX);
-        const int y = ScreenCoordinate(player.Y, cameraY);
 
         const Color coat = player.Motion == PlayerMotion::Running
             ? Color(232, 154, 48)
