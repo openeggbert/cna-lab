@@ -172,3 +172,24 @@ the HEADLESS and SDL_RENDERER/SDL3 configurations passed 5/5 CTests against
 clean CNA `b6cbfcd87c08a6e0172eaf866358bf95bec277b1` and clean sharp-runtime
 `54578590b328aa9612fe38bfddca9fd8ca795144`. The displayed runtime test ran
 under Xvfb; no new visual acceptance is claimed for this model-only increment.
+
+## 2026-08-24: PEO-051 four-view sprite metadata
+
+Object definitions can now carry renderer-independent visual metadata: an
+authored default state, any number of exact named state sets, four asset IDs per
+set, and a floor-contact anchor per frame. Catalog validation rejects a missing
+default state and any incomplete directional set. The metadata still contains
+no CNA texture or renderer handle.
+
+`ObjectPresentation` converts simulation orientation to presented sprite
+direction using the same clockwise convention as `IsometricProjection`; the
+logical object does not rotate when the camera does. It then selects the exact
+state/direction reference without a silent fallback. The dedicated tests cover
+all 16 object-orientation/view-rotation combinations, alternate state lookup,
+anchor preservation, missing states, and invalid authored definitions.
+
+HEADLESS and SDL_RENDERER/SDL3 builds each passed 6/6 CTests against clean CNA
+`b6cbfcd87c08a6e0172eaf866358bf95bec277b1` and clean sharp-runtime
+`54578590b328aa9612fe38bfddca9fd8ca795144`. No visual result is claimed yet;
+this increment establishes the deterministic metadata contract used by the
+next procedural-furniture renderer.

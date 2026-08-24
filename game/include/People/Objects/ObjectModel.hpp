@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <compare>
 #include <cstdint>
 #include <functional>
@@ -48,6 +49,29 @@ namespace People::Objects
         auto operator<=>(const FootprintOffset&) const = default;
     };
 
+    /** @brief Authored 2D sprite metadata; no texture or renderer handle lives here. */
+    struct ObjectSpriteReference
+    {
+        std::string assetId;
+        int anchorX = 0;
+        int anchorY = 0;
+
+        bool operator==(const ObjectSpriteReference&) const = default;
+    };
+
+    struct DirectionalSpriteSet
+    {
+        std::array<ObjectSpriteReference, 4> directions;
+
+        bool operator==(const DirectionalSpriteSet&) const = default;
+    };
+
+    struct ObjectVisualDefinition
+    {
+        std::string defaultState = "default";
+        std::map<std::string, DirectionalSpriteSet, std::less<>> states;
+    };
+
     /** @brief Immutable simulation/catalog data; it contains no runtime texture. */
     struct ObjectDefinition
     {
@@ -58,6 +82,7 @@ namespace People::Objects
         std::vector<FootprintOffset> footprint;
         std::vector<FootprintOffset> clearance;
         std::uint8_t allowedRotations = 0x0F;
+        ObjectVisualDefinition visual;
     };
 
     /** @brief Persistent mutable identity/placement with no renderer state. */

@@ -96,7 +96,7 @@ Statuses:
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
 | PEO-050 | DONE | Definition/instance split | Immutable definitions and persistent instances use stable IDs; renderer state is absent from simulation instances |
-| PEO-051 | DOING | Four-view sprite references | Direction/state selection maps view plus object orientation deterministically to authored sprite metadata |
+| PEO-051 | DONE | Four-view sprite references | Direction/state selection maps view plus object orientation deterministically to authored sprite metadata |
 | PEO-052 | DONE | Rotatable footprints | Arbitrary small cell masks rotate through four orientations and return to origin after four turns |
 | PEO-053 | DONE | Basic placement validator | Bounds, floor support, occupied footprint, allowed rotation, and clearance return structured results with tests |
 | PEO-054 | TODO | Object rotation | Rotation transforms footprint, slots, sprite choice, and selection preview without moving the anchor |
@@ -111,7 +111,7 @@ Statuses:
 | PEO-063 | TODO | Wall object constraints | Painting-like placeholder proves wall requirement/orientation validation without adding final decoration content |
 | PEO-064 | TODO | State-derived sprites | Visual state selection reacts to typed object state without renderer mutation of state |
 | PEO-065 | TODO | Object condition/degradation seed | Optional condition clock and break/dirty events are deterministic and disabled for objects without policy |
-| PEO-066 | TODO | Procedural furniture generator | Bed, chair, table, refrigerator, and toilet each have original four-view placeholder sprites and metadata |
+| PEO-066 | DOING | Procedural furniture generator | Bed, chair, table, refrigerator, and toilet each have original four-view placeholder sprites and metadata |
 | PEO-067 | TODO | Five-object demo placement | Objects validate footprints, rotate, render/sort, and remain selectable inside the demo room |
 | PEO-068 | TODO | Catalog/object inspector | Developer UI displays ID, footprint, orientation, state, slots, reservations, and sort anchor |
 | PEO-069 | TODO | Object M2 gate | Five furniture types plus room/door satisfy displayed four-view placement and sorting acceptance |

@@ -27,7 +27,8 @@ procedural warm-wood room with logical edge walls rendered from generated
 textures in all four views plus one stateful procedural door. A headless object
 model now separates immutable catalog definitions from persistent instances and
 validates rotated footprints, occupancy, and access clearance. Catalog objects
-are not rendered in the lot yet, and there are no residents.
+carry validated four-view/state asset IDs and floor-contact anchors, but are not
+rendered in the lot yet. There are no residents.
 
 See [plan.md](plan.md) for stable tasks, [analysis.md](analysis.md) for the
 architectural rationale, and [VERIFICATION.md](VERIFICATION.md) for commands

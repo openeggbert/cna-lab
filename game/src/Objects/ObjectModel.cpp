@@ -41,6 +41,29 @@ namespace People::Objects
                 if (footprint.contains(clearance))
                     throw std::invalid_argument("object clearance overlaps its footprint");
             }
+
+            if (!definition.visual.states.empty())
+            {
+                if (definition.visual.defaultState.empty()
+                    || !definition.visual.states.contains(definition.visual.defaultState))
+                {
+                    throw std::invalid_argument(
+                        "object default visual state must reference an authored state");
+                }
+                for (const auto& [state, spriteSet] : definition.visual.states)
+                {
+                    if (state.empty())
+                        throw std::invalid_argument("object visual state ID must not be empty");
+                    for (const ObjectSpriteReference& sprite : spriteSet.directions)
+                    {
+                        if (sprite.assetId.empty())
+                        {
+                            throw std::invalid_argument(
+                                "every object visual direction requires an asset ID");
+                        }
+                    }
+                }
+            }
         }
     }
 
