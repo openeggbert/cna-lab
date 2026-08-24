@@ -1181,7 +1181,8 @@ namespace WolfCna
         for (const Vector3& exit : exits_)
         {
             effect.setWorldProperty(Matrix::CreateScale(0.62f, 1.0f, 0.62f) * Matrix::CreateTranslation(exit));
-            effect.setDiffuseColorProperty(Vector3(0.18f, 0.72f, 0.94f));
+            effect.setDiffuseColorProperty(
+                IsExitUnlocked() ? Vector3(0.18f, 0.72f, 0.94f) : Vector3(0.86f, 0.18f, 0.12f));
 
             for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
             {

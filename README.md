@@ -60,6 +60,8 @@ have the same width and use only these symbols:
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 
+An exit is red while its terminal objective is incomplete and turns cyan when it is online.
+
 ## Expected checkout layout
 
 The default CMake configuration expects CNA to be a sibling checkout:

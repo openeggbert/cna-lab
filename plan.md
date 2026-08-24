@@ -981,6 +981,7 @@ Current progress:
 - score has no cap: gold awards 100, guards 100, hounds 200 and the exit awards a one-time 1000-point bonus; every 40,000 points awards an extra life;
 - reaching the exit presents a centered completion card while preserving the final score in the status bar;
 - an amber terminal must be activated before the exit comes online; activation changes it cyan and has generated CNA audio;
+- a terminal-locked exit is red and turns cyan after the objective is complete;
 - secret moving walls use the wall material, stay open once found and award 500 score for hidden rewards;
 - the starter level is an authored room-and-corridor route with distributed guards, hounds, pickups, gold, a normal door, a security door and an exit;
 - next: playtest balance and encounter pacing, then broaden the level with another authored route and advanced vertical features such as elevators.
