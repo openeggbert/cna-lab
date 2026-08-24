@@ -93,6 +93,14 @@ write and verify the clean implementation.
   phases animate together at about 1.0 second. Catalogue tests protect their
   rows, geometry, cadence, and wrap; a six-second normal-scale two-pile
   application trace confirms placement. The Toilet/flush action remains open.
+- A subsequent 30 fps Babytchi Toilet trace establishes the wipe core. It moves
+  the complete pre-clean framebuffer left by two cells through 16 positions
+  while the exact six-column water band `..##.# / .##.#. / ##.#.. / .##.#.`
+  enters from the right. The implementation uses 0.10 seconds per moving phase,
+  holds the complete band at the left for 0.30 seconds, then briefly blanks the
+  LCD. Display tests protect the transform, clipping, all water cells, timing,
+  and completion; a normal-scale two-pile Marutchi application run was checked.
+  The character-specific post-flush celebration remains open evidence.
 
 ## Priority 0 — Add selectable physical shell variants
 
@@ -147,17 +155,21 @@ uses the previous translated-sprite bobbing behaviour.
 1. [x] Replace the generic home-screen waste marks with the exact observed
    two-phase 8 × 8 glyph, stacking, and cadence. This does not complete the
    distinct Toilet/flush action.
-2. Capture separate frame sequences for egg cracking/hatching, eating Bread,
+2. [x] Implement the observed Toilet wipe core as a transient visual that
+   transforms a framebuffer snapshot without persisting animation state or
+   accepting A/B/C during the wipe. Keep its following character celebration
+   open until a complete reference trace is captured.
+3. Capture separate frame sequences for egg cracking/hatching, eating Bread,
    eating Candy, Character game play, sleeping, unhappy/refusal, illness,
    medicine, waste, attention, discipline, evolution, death, and the
    angel-and-stars ending.
-3. Add a rendering state key to the programme/UI boundary. The renderer must
+4. Add a rendering state key to the programme/UI boundary for the remaining actions. The renderer must
    select a named P1 action sequence; it must not infer an action by mutating
    or replacing the persistent pet state.
-4. Define action duration, frame cadence, interruption rules, and what A, B,
+5. Define action duration, frame cadence, interruption rules, and what A, B,
    and C do while each action is on screen. Keep those rules separate from the
    one-bit drawing data.
-5. Add deterministic display/controller tests for each finite animation:
+6. Add deterministic display/controller tests for each finite animation:
    start frame, frame order, completion, cancellation where P1 permits it,
    and return to the expected screen.
 

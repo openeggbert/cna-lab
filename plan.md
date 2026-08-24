@@ -93,6 +93,11 @@ similar emulation core is permitted in the application, build, or test suite.
     phases, stack the first at `(24, 8)` and the second at `(24, 0)`, preserve
     the shared approximately one-second cadence, and verify the two-pile result
     at normal application scale. The finite Toilet/flush sequence remains open.
+  - [x] Implement the observed Toilet wipe core as a transient framebuffer
+    transform: 16 two-cell shifts, the exact repeating six-column water band,
+    its measured cadence/final hold, and a blank closing phase. Block P1 input
+    during it and regression-test the transform independently of CNA; keep the
+    following form-specific celebration explicitly open.
   - [x] Replace the previous generic pink desktop shell treatment with a
     reusable CNA renderer and five independently authored P1 colour families;
     persist the selected shell without changing the LCD or P1 controls.

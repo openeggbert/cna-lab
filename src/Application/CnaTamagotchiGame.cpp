@@ -148,6 +148,14 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
             feedback_ = Feedback::None;
         }
     }
+    if (transientVisual_ == TransientVisual::ToiletWipe) {
+        transientVisualSeconds_ += elapsedSeconds;
+        if (Display::P1ToiletWipe::complete(transientVisualSeconds_)) {
+            transientVisual_ = TransientVisual::None;
+            transientVisualSeconds_ = 0.0F;
+            selectedIcon_ = -1;
+        }
+    }
 
     const bool selectNext = keyboard.IsKeyDown(Keys::A) || keyboard.IsKeyDown(Keys::Right);
     const bool selectPrevious = keyboard.IsKeyDown(Keys::Left);
@@ -267,6 +275,10 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
 
 bool CnaTamagotchiGame::pressButton(const DeviceButton button)
 {
+    if (transientVisual_ != TransientVisual::None) {
+        return false;
+    }
+
     if (screen_ == Screen::ResetConfirm) {
         if (button == DeviceButton::B) {
             const bool completed = resetCurrentSession();
@@ -417,8 +429,15 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             return changed;
         }
         if (selectedIcon_ == 4) {
+            toiletWipeSource_ = display_;
             const bool changed = simulation_.cleanWaste(pet_);
-            setFeedback(changed ? Feedback::Success : Feedback::Blocked);
+            if (changed) {
+                setFeedback(Feedback::None);
+                transientVisual_ = TransientVisual::ToiletWipe;
+                transientVisualSeconds_ = 0.0F;
+            } else {
+                setFeedback(Feedback::Blocked);
+            }
             return changed;
         }
         if (selectedIcon_ == 6) {
@@ -903,6 +922,12 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         }
         const int markerX = gameChoice_ == 0 ? 8 : 23;
         display_.setPixel(markerX, 12, true);
+        return;
+    }
+
+    if (transientVisual_ == TransientVisual::ToiletWipe) {
+        Display::P1ToiletWipe::render(display_, toiletWipeSource_,
+            Display::P1ToiletWipe::phaseAt(transientVisualSeconds_));
         return;
     }
 

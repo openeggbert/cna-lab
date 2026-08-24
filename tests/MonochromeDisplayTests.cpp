@@ -1,10 +1,12 @@
 #include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
+#include "CnaTamagotchi/Display/P1ToiletWipe.hpp"
 
 #include <array>
 #include <iostream>
 
 using CnaTamagotchi::Display::LcdPalette;
 using CnaTamagotchi::Display::MonochromeDisplay;
+using CnaTamagotchi::Display::P1ToiletWipe;
 
 namespace {
 
@@ -97,6 +99,65 @@ void testPalettesRemainOneBit()
         "palette selection must change the renderer colours, not framebuffer data");
 }
 
+void testP1ToiletWipeMovesTheWholeFramebuffer()
+{
+    MonochromeDisplay source;
+    source.setPixel(2, 0, true);
+    source.setPixel(10, 0, true);
+    MonochromeDisplay destination;
+
+    P1ToiletWipe::render(destination, source, 0U);
+
+    expect(destination.pixel(0, 0) && destination.pixel(8, 0),
+           "the first Toilet phase must shift every source pixel two cells left");
+    expect(!destination.pixel(2, 0) && !destination.pixel(10, 0),
+           "the Toilet wipe must not retain the source at its old position");
+    expect(litPixelCount(destination) == 18,
+           "the clipped first water band must add its exact 16 visible pixels");
+}
+
+void testP1ToiletWipeKeepsTheObservedWaterPattern()
+{
+    MonochromeDisplay source;
+    MonochromeDisplay destination;
+    constexpr std::array<std::string_view, 4> expectedRows{{
+        "..##.#", ".##.#.", "##.#..", ".##.#.",
+    }};
+
+    P1ToiletWipe::render(destination, source, 8U);
+    expect(litPixelCount(destination) == 48,
+           "a fully visible P1 Toilet water band must contain 48 lit cells");
+    for (int y = 0; y < MonochromeDisplay::Height; ++y) {
+        for (int x = 0; x < 6; ++x) {
+            const bool expected = expectedRows[static_cast<std::size_t>(y % 4)]
+                [static_cast<std::size_t>(x)] == '#';
+            expect(destination.pixel(14 + x, y) == expected,
+                   "every repeated water-band cell must remain exact");
+        }
+    }
+
+    P1ToiletWipe::render(destination, source, P1ToiletWipe::MovingPhaseCount - 1U);
+    expect(litPixelCount(destination) == 48 && destination.pixel(2, 0)
+               && destination.pixel(5, 0),
+           "the last moving phase must hold the complete band at the left edge");
+    P1ToiletWipe::render(destination, source, P1ToiletWipe::EmptyPhase);
+    expect(litPixelCount(destination) == 0,
+           "the observed blank phase must follow the departing water band");
+}
+
+void testP1ToiletWipeTimingIsDeterministic()
+{
+    expect(P1ToiletWipe::phaseAt(0.0F) == 0U
+               && P1ToiletWipe::phaseAt(0.10F) == 1U,
+           "the moving Toilet phases must advance at a tenth-second cadence");
+    expect(P1ToiletWipe::phaseAt(1.79F) == 15U,
+           "the complete left-edge water band must receive its observed longer hold");
+    expect(P1ToiletWipe::phaseAt(1.80F) == P1ToiletWipe::EmptyPhase,
+           "the left-edge band must transition into the blank phase");
+    expect(!P1ToiletWipe::complete(1.89F) && P1ToiletWipe::complete(1.90F),
+           "the verified wipe core must finish after its blank hold");
+}
+
 } // namespace
 
 int main()
@@ -106,6 +167,9 @@ int main()
     testSpriteBlitIsClipped();
     testTextUsesTheFramebufferFont();
     testPalettesRemainOneBit();
+    testP1ToiletWipeMovesTheWholeFramebuffer();
+    testP1ToiletWipeKeepsTheObservedWaterPattern();
+    testP1ToiletWipeTimingIsDeterministic();
 
     if (failures == 0) {
         std::cout << "MonochromeDisplayTests passed\n";

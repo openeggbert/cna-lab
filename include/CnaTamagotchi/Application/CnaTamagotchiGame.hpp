@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
+#include "CnaTamagotchi/Display/P1ToiletWipe.hpp"
 #include "CnaTamagotchi/Domain/ProgramSimulation.hpp"
 #include "CnaTamagotchi/Persistence/SaveRepository.hpp"
 #include "CnaTamagotchi/Presentation/DeviceShell.hpp"
@@ -60,6 +61,11 @@ private:
         Blocked,
     };
 
+    enum class TransientVisual {
+        None,
+        ToiletWipe,
+    };
+
     enum class RecoveryChoice {
         RestoreBackup,
         NewEgg,
@@ -89,6 +95,7 @@ private:
 
     Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
     Display::MonochromeDisplay display_;
+    Display::MonochromeDisplay toiletWipeSource_;
     Domain::ProgramPetState pet_;
     Domain::ProgramSimulation simulation_;
     Persistence::SaveRepository saveRepository_;
@@ -111,6 +118,7 @@ private:
     int gameWins_{0};
     int clockSetupMinutes_{12 * 60};
     float feedbackSeconds_{0.0F};
+    float transientVisualSeconds_{0.0F};
     float resetHoldSeconds_{0.0F};
     std::int64_t lastSavedUnixSeconds_{0};
     std::uint64_t seed_{0};
@@ -121,6 +129,7 @@ private:
     bool legacySaveAwaitingArchive_{false};
     RecoveryChoice recoveryChoice_{RecoveryChoice::NewEgg};
     Feedback feedback_{Feedback::None};
+    TransientVisual transientVisual_{TransientVisual::None};
     bool selectNextWasDown_{false};
     bool selectPreviousWasDown_{false};
     bool confirmWasDown_{false};
