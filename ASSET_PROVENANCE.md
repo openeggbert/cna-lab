@@ -772,3 +772,68 @@ Avoid: white or checkerboard background, rectangular opaque backdrop, photoreali
 
 All seven prop exports contained genuine alpha and were accepted without color
 editing or background masking. No third-party pixels were added.
+
+## `assets/sprites/bunker-warden.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent-background game enemy sprite
+Primary request: create one original retro first-person shooter boss character for the independent game wolf-cna: a towering fictional bunker warden in dark teal industrial armor, broad silhouette, mechanical shoulder coils, holding an original compact energy repeater
+Subject: full body enemy viewed straight from the front, centered, feet fully visible, readable at small size
+Style/medium: polished hand-painted pixel-art-like raster sprite with chunky early-1990s PC game readability but twice the pixel detail; original design, not based on any existing game character
+Composition/framing: square canvas, front orthographic view, generous transparent padding, no ground plane
+Lighting/mood: dramatic cool cyan rim light and warm amber face light
+Color palette: dark teal, gunmetal, muted amber, small cyan energy accents
+Constraints: genuinely transparent background and preserve alpha; one character only; crisp silhouette; no text; no logo; no watermark; no flags; no uniforms from real regimes; no swastikas; no hate symbols; no peace symbol; no copyrighted character likeness
+Avoid: photorealism, blurry edges, scenery, shadows extending beyond the character, sprite sheet, multiple poses
+```
+
+## `assets/sprites/bunker-warden-attack.png`
+
+Prompt (using the committed idle Warden as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent-background game enemy attack sprite
+Input images: Image 1 is the identity and style reference
+Primary request: redraw exactly the same original bunker warden boss during a ranged attack, bracing the same energy repeater while three compact cyan muzzle-energy bolts fan forward
+Constraints: preserve identity, armor design, colors, body proportions, front-facing full-body framing, pixel-art-like rendering, canvas dimensions, transparent background and alpha; change only the pose enough to read as firing; one character only; no text; no logo; no watermark; no flags; no swastikas; no hate symbols; no scenery; no gore
+Avoid: character redesign, different weapon, cropped feet, opaque background, photorealism
+```
+
+The first attack export painted a checkerboard. A `background-extraction` edit
+removed only that checkerboard and produced the committed genuine-alpha PNG.
+
+## `assets/sprites/bunker-warden-pain.png`
+
+Prompt (using the committed idle Warden as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent-background game enemy pain sprite
+Input images: Image 1 is the identity and style reference
+Primary request: redraw exactly the same original bunker warden boss recoiling from a non-graphic hit, shoulders turned slightly and weapon lowered, with a clear strained expression
+Constraints: preserve identity, armor design, weapon, colors, body proportions, front-facing full-body framing, pixel-art-like rendering, canvas dimensions, genuinely transparent background and alpha; one character only; no projectile; no blood; no injury; no text; no logo; no watermark; no flags; no swastikas; no hate symbols; no scenery
+Avoid: character redesign, cropped feet, opaque or checkerboard background, gore, photorealism
+```
+
+The first pain export painted a checkerboard. A `background-extraction` edit
+removed only that checkerboard and produced the committed genuine-alpha PNG.
+
+## `assets/sprites/bunker-warden-defeated.png`
+
+Prompt (using the committed idle Warden as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent defeated-enemy billboard sprite
+Input images: Image 1 is the identity and style reference
+Primary request: redraw exactly the same original bunker warden boss in a clearly defeated non-gory pose, lying heavily on his side with the powered armor disabled and the same energy repeater resting beside his hands
+Constraints: preserve identity, armor design, weapon, colors, body proportions and pixel-art-like rendering; one complete horizontal low body only; genuinely transparent background and alpha; generous transparent padding; no standing pose; no visible wound; no blood; no gore; no text; no logo; no watermark; no flags; no swastikas; no hate symbols; no scenery; no drop shadow
+Avoid: character redesign, dismemberment, cropped body, opaque or checkerboard background, photorealism
+```
+
+The first defeated export painted a checkerboard. A `background-extraction` edit
+removed only that checkerboard and produced the committed genuine-alpha PNG.

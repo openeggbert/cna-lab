@@ -51,12 +51,14 @@
 - Enemies now patrol authored arrow routes, see directionally, react after archetype-specific delays, hear firearm noise through connected ordinary doors, search last-known positions and open ordinary doors without bypassing locks; every sector includes a patrol and ambush encounter.
 - Three versioned run-save slots now preserve full player/world/AI/objective/automap state, use recoverable temporary-file replacement and are available from title/pause menus plus F8/F9.
 - Losing a non-final life now shows a short `LIFE LOST` transition, rolls score/extra-life progress back to sector entry and rebuilds the entire sector with the basic sidearm loadout; the final life still enters game over.
+- Campaign metadata now defines two named chapters, five selectable sectors, a hidden Foundry elevator, a menu-hidden 64×64 reservoir and a deterministic return to Labs; all routes are tested.
+- Warden Core adds an original 32-health Bunker Warden with a dedicated HUD bar, AI-generated idle/attack/pain/defeated sprites, a three-projectile fan, tested final-elevator lockdown and a separate campaign-complete screen.
 
 ## Next tasks
 
-1. Implement WOLF-034 campaign chapters, secret sectors and an original boss encounter.
-2. Continue through WOLF-037–WOLF-044 in the dependency order recorded in `plan.md`.
-3. Subjectively playtest all three deterministic difficulty profiles, save slots, life loss and the full four-sector route.
+1. Implement WOLF-037 completion bonuses, category percentages and persisted high scores.
+2. Continue through WOLF-038–WOLF-044 in the dependency order recorded in `plan.md`.
+3. Subjectively playtest all three deterministic difficulty profiles, save slots, life loss and the full six-sector route including the hidden branch.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.
@@ -64,7 +66,8 @@ the current campaign-transition cabins.
 ## Verification
 
 ```bash
-cmake --build build-cnanext --target wolf-cna level-definition-tests -j8
-ctest --test-dir build-cnanext --output-on-failure
-./build-cnanext/wolf-cna
+cmake -S . -B build -DCNA_GRAPHICS_RENDERER=OPENGLES3
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+./build/wolf-cna
 ```

@@ -150,7 +150,8 @@ namespace WolfCna
             return false;
         if (x < 0 || x >= static_cast<int>(map_[static_cast<std::size_t>(z)].size()))
             return false;
-        return map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == 'E';
+        const char symbol = map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)];
+        return symbol == 'E' || symbol == 'X';
     }
 
     World::Material World::WallMaterialForCell(int x, int z) const
@@ -376,16 +377,26 @@ namespace WolfCna
 
     bool World::ReachedExit(const Vector3& playerPosition) const
     {
+        return ReachedExitRoute(playerPosition).has_value();
+    }
+
+    std::optional<World::ExitRoute> World::ReachedExitRoute(
+        const Vector3& playerPosition) const
+    {
+        const BossStatus boss = GetBossStatus();
+        if (boss.present && !boss.defeated)
+            return std::nullopt;
+
         for (const Exit& exit : exits_)
         {
             const float dx = exit.position.X - playerPosition.X;
             const float dz = exit.position.Z - playerPosition.Z;
             if (exit.openAmount >= DoorPassableAt &&
                 dx * dx + dz * dz <= ExitRadius * ExitRadius)
-                return true;
+                return exit.route;
         }
 
-        return false;
+        return std::nullopt;
     }
 
     bool World::AreObjectivesComplete() const
@@ -406,7 +417,11 @@ namespace WolfCna
         if (exits_.empty())
             return std::nullopt;
 
-        const Exit& exit = exits_.front();
+        const auto standardExit = std::find_if(
+            exits_.begin(),
+            exits_.end(),
+            [](const Exit& exit) { return exit.route == ExitRoute::Standard; });
+        const Exit& exit = standardExit != exits_.end() ? *standardExit : exits_.front();
         return ExitApproach{
             Vector3(
                 exit.position.X + static_cast<float>(exit.approachX),
@@ -472,6 +487,21 @@ namespace WolfCna
             }
         }
         return result;
+    }
+
+    World::BossStatus World::GetBossStatus() const
+    {
+        for (const Enemy& enemy : enemies_)
+        {
+            if (enemy.type != Enemy::Type::Boss)
+                continue;
+            return {
+                true,
+                enemy.state == EnemyState::Dead,
+                std::max(0, enemy.health),
+                ScalePositiveAmount(32, difficultyProfile_.enemyHealthMultiplier)};
+        }
+        return {};
     }
 
     World::SaveState World::CaptureSaveState() const
@@ -846,7 +876,14 @@ namespace WolfCna
         }
 
         if (targetExit)
-            return InteractionResult::ExitActivated;
+        {
+            const BossStatus boss = GetBossStatus();
+            if (boss.present && !boss.defeated)
+                return InteractionResult::ExitSealed;
+            return targetExit->route == ExitRoute::Secret
+                ? InteractionResult::SecretExitActivated
+                : InteractionResult::ExitActivated;
+        }
 
         if (targetRelay)
         {
@@ -1153,11 +1190,29 @@ namespace WolfCna
                         const float inverseDistance = distanceSquared > 0.0001f
                             ? 1.0f / std::sqrt(distanceSquared)
                             : 0.0f;
-                        enemyProjectiles_.push_back({
-                            enemy.position + Vector3(0.0f, 0.5f, 0.0f),
-                            Vector3(dx * inverseDistance * enemy.projectileSpeed, 0.0f, dz * inverseDistance * enemy.projectileSpeed),
-                            GuardProjectileLifetime,
-                            enemy.attackDamage});
+                        const float baseDirectionX = dx * inverseDistance;
+                        const float baseDirectionZ = dz * inverseDistance;
+                        for (int projectileIndex = 0;
+                            projectileIndex < enemy.projectileBurst;
+                            ++projectileIndex)
+                        {
+                            const float spread = enemy.projectileBurst == 1
+                                ? 0.0f
+                                : (static_cast<float>(projectileIndex) -
+                                    static_cast<float>(enemy.projectileBurst - 1) * 0.5f) * 0.16f;
+                            const float cosine = std::cos(spread);
+                            const float sine = std::sin(spread);
+                            const float directionX = baseDirectionX * cosine - baseDirectionZ * sine;
+                            const float directionZ = baseDirectionX * sine + baseDirectionZ * cosine;
+                            enemyProjectiles_.push_back({
+                                enemy.position + Vector3(0.0f, 0.5f, 0.0f),
+                                Vector3(
+                                    directionX * enemy.projectileSpeed,
+                                    0.0f,
+                                    directionZ * enemy.projectileSpeed),
+                                GuardProjectileLifetime,
+                                enemy.attackDamage});
+                        }
                         ++pendingGuardShotCount_;
                     }
                     enemy.attackVisualSeconds = enemy.melee
@@ -1513,6 +1568,7 @@ namespace WolfCna
             {
                 const char symbol = map_[z][x];
                 if (symbol == 'G' || symbol == 'K' || symbol == 'F' || symbol == 'U' ||
+                    symbol == 'Z' ||
                     symbol == 'g' || symbol == 'k' || symbol == 'f' || symbol == 'u')
                 {
                     const bool ambushSymbol =
@@ -1545,7 +1601,7 @@ namespace WolfCna
                             }
                         }
                     }
-                    const bool authoredBehaviorEncounter = ambushSymbol ||
+                    const bool authoredBehaviorEncounter = ambushSymbol || symbol == 'Z' ||
                         patrolDirectionX != 0 || patrolDirectionZ != 0;
                     const int spawnTier = authoredBehaviorEncounter
                         ? 0
@@ -1607,6 +1663,22 @@ namespace WolfCna
                         enemy.reactionDuration = 0.55f;
                         enemy.viewDotThreshold = 0.5f;
                         enemy.hearingRange = 10.0f;
+                    }
+                    else if (archetype == 'Z')
+                    {
+                        enemy.type = Enemy::Type::Boss;
+                        enemy.health = 32;
+                        enemy.scoreValue = 5000;
+                        enemy.attackDamage = 9;
+                        enemy.moveSpeed = EnemySpeed * 0.72f;
+                        enemy.attackRange = GuardAttackRange + 1.0f;
+                        enemy.attackInterval = 1.25f;
+                        enemy.projectileSpeed = GuardProjectileSpeed * 0.95f;
+                        enemy.projectileBurst = 3;
+                        enemy.ammunitionDrop = 12;
+                        enemy.reactionDuration = 0.65f;
+                        enemy.viewDotThreshold = 0.55f;
+                        enemy.hearingRange = 16.0f;
                     }
 
                     const float playerDx = playerStart_.X - enemy.position.X;
@@ -1710,7 +1782,7 @@ namespace WolfCna
         {
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
             {
-                if (map_[z][x] != 'E')
+                if (map_[z][x] != 'E' && map_[z][x] != 'X')
                     continue;
 
                 auto approach = directions.end();
@@ -1732,6 +1804,7 @@ namespace WolfCna
                     z,
                     approach->first,
                     approach->second,
+                    map_[z][x] == 'X' ? ExitRoute::Secret : ExitRoute::Standard,
                     1.0f});
             }
         }
@@ -2197,18 +2270,22 @@ namespace WolfCna
         Texture2D& houndSprite,
         Texture2D& rapidTrooperSprite,
         Texture2D& heavyUnitSprite,
+        Texture2D& bossSprite,
         Texture2D& guardAttackSprite,
         Texture2D& houndAttackSprite,
         Texture2D& rapidTrooperAttackSprite,
         Texture2D& heavyUnitAttackSprite,
+        Texture2D& bossAttackSprite,
         Texture2D& guardPainSprite,
         Texture2D& houndPainSprite,
         Texture2D& rapidTrooperPainSprite,
         Texture2D& heavyUnitPainSprite,
+        Texture2D& bossPainSprite,
         Texture2D& defeatedGuardSprite,
         Texture2D& defeatedHoundSprite,
         Texture2D& defeatedRapidTrooperSprite,
         Texture2D& defeatedHeavyUnitSprite,
+        Texture2D& defeatedBossSprite,
         Texture2D& ammoPickupSprite,
         Texture2D& healthPickupSprite,
         Texture2D& goldBarsSprite,
@@ -2429,8 +2506,9 @@ namespace WolfCna
 
                 const bool isHound = enemy.type == Enemy::Type::Hound;
                 const bool isHeavy = enemy.type == Enemy::Type::HeavyUnit;
-                const float width = isHound ? 0.58f : isHeavy ? 0.82f : 0.72f;
-                const float depth = isHound ? 0.46f : isHeavy ? 0.62f : 0.54f;
+                const bool isBoss = enemy.type == Enemy::Type::Boss;
+                const float width = isHound ? 0.58f : isBoss ? 1.18f : isHeavy ? 0.82f : 0.72f;
+                const float depth = isHound ? 0.46f : isBoss ? 0.82f : isHeavy ? 0.62f : 0.54f;
                 const float rotation = enemy.position.X * 1.73f + enemy.position.Z * 0.91f;
                 effect.setWorldProperty(
                     Matrix::CreateScale(width, 1.0f, depth) *
@@ -2514,16 +2592,17 @@ namespace WolfCna
             {
                 const bool isHound = enemy->type == Enemy::Type::Hound;
                 const bool isHeavy = enemy->type == Enemy::Type::HeavyUnit;
+                const bool isBoss = enemy->type == Enemy::Type::Boss;
                 const bool isDead = enemy->state == EnemyState::Dead;
                 const bool isAttacking = !isDead && enemy->attackVisualSeconds > 0.0f;
                 const bool isInPain = !isDead && !isAttacking && enemy->painVisualSeconds > 0.0f;
                 const bool isRapid = enemy->type == Enemy::Type::RapidTrooper;
                 float width = isDead
-                    ? (isHound ? 0.95f : isHeavy ? 1.05f : isRapid ? 1.0f : 0.95f)
-                    : (isHound ? 0.82f : isHeavy ? 0.9f : 0.72f);
+                    ? (isHound ? 0.95f : isBoss ? 1.58f : isHeavy ? 1.05f : isRapid ? 1.0f : 0.95f)
+                    : (isHound ? 0.82f : isBoss ? 1.32f : isHeavy ? 0.9f : 0.72f);
                 float height = isDead
-                    ? (isHound ? 0.43f : isHeavy ? 0.64f : isRapid ? 0.54f : 0.44f)
-                    : (isHound ? 0.72f : isHeavy ? 1.08f : 1.02f);
+                    ? (isHound ? 0.43f : isBoss ? 0.72f : isHeavy ? 0.64f : isRapid ? 0.54f : 0.44f)
+                    : (isHound ? 0.72f : isBoss ? 1.42f : isHeavy ? 1.08f : 1.02f);
                 Vector3 position = enemy->position;
                 position.Y = 0.0f;
 
@@ -2568,6 +2647,11 @@ namespace WolfCna
                         ? &defeatedHeavyUnitSprite
                         : isAttacking ? &heavyUnitAttackSprite
                         : isInPain ? &heavyUnitPainSprite : &heavyUnitSprite;
+                else if (isBoss)
+                    enemyTexture = isDead
+                        ? &defeatedBossSprite
+                        : isAttacking ? &bossAttackSprite
+                        : isInPain ? &bossPainSprite : &bossSprite;
                 effect.setTextureProperty(enemyTexture);
                 effect.setWorldProperty(
                     Matrix::CreateScale(width, height, 1.0f) *

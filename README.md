@@ -25,8 +25,8 @@ This starter is deliberately small. It proves the basic direction before local A
 - a centered completion card appears at the level exit
 - grid collision with wall sliding
 - level loaded from a validated text file
-- a four-sector authored bunker campaign with guards, hounds, pickups, sliding doors, security doors, terminals and exits
-- original transparent pixel-art guard, hound, rapid-trooper and heavy-unit sprites rendered as camera-facing polygons in the 3D world
+- five progressively unlocked authored bunker sectors plus a discoverable hidden sector, deterministic return route, original boss encounter and campaign-ending screen
+- original transparent pixel-art guard, hound, rapid-trooper, heavy-unit and Bunker Warden sprites rendered as camera-facing polygons in the 3D world
 - idle enemies breathe subtly, while chasing enemies use faster archetype-specific step bob and sway
 - unaware enemies use directional sight, archetype-specific reaction delays, connected-route hearing and authored patrol arrows; lowercase enemy symbols create noise-ignoring ambush encounters
 - alerted enemies remember the last seen or heard position, search it and can open ordinary doors without bypassing security locks
@@ -36,6 +36,8 @@ This starter is deliberately small. It proves the basic direction before local A
 - authored rooms include procedural framed paintings, peace-symbol banners, ceiling lamps with warm floor-light pools, wood-textured polygonal tables and three sector-specific freestanding plant landmarks
 - room-scale wall regions use four original generated material families: cool bunker stone, dark industrial brick, teal riveted steel and cold laboratory panels
 - only the nearest eligible ranged enemy fires at one time; guards, rapid troopers and heavy units use slower distinct cadences while hounds remain close-range attackers
+- the original Bunker Warden boss has a dedicated health bar, 32-point base health, four generated visual states and a deterministic three-projectile fan attack
+- optional relay and terminal state never blocks an elevator; only the Warden Core's explicit boss lockdown holds its final elevator until the Warden is defeated
 - defeated guards, rapid troopers and heavy units drop difficulty-scaled ammunition; hounds do not drop ammunition
 - health, ammunition, three treasures, access cards and both weapon pickups use original transparent pixel-art sprites instead of colored blocks
 - terminals, power relays, sector exits and enemy projectiles use original transparent sprites with readable state tinting instead of colored cuboids
@@ -76,8 +78,11 @@ Before that final game over, losing a life shows a short `LIFE LOST` transition 
 restarts the current sector from its authored state: enemies, pickups, doors,
 objectives, secrets and automap reset; score returns to its sector-entry value and
 the player receives full health, knife, sidearm and the difficulty's starting ammo.
-At a sector exit, `Space` takes the run to the next sector; score, lives, health,
+At a standard sector exit, `Space` takes the run to the next sector; score, lives, health,
 ammunition and the selected weapon carry forward, while sector access cards do not.
+The foundry also hides a three-sided `X` elevator behind a moving secret wall. It
+branches to the Hidden Reservoir and its standard elevator returns to the Labs,
+without exposing the hidden sector in the normal sector-selection menu.
 Before the transition, the game shows the sector time and the collected/total
 counts for kills, gold and secrets.
 Unlocked sectors are stored in `wolf-cna-progress.dat` in the launch working
@@ -91,7 +96,9 @@ the current run.
 The campaign uses [`assets/levels/starter.level`](assets/levels/starter.level),
 [`assets/levels/sector-02.level`](assets/levels/sector-02.level),
 [`assets/levels/sector-03.level`](assets/levels/sector-03.level) and
-[`assets/levels/sector-04.level`](assets/levels/sector-04.level). They use larger
+[`assets/levels/sector-04.level`](assets/levels/sector-04.level), plus the hidden
+[`assets/levels/hidden-reservoir.level`](assets/levels/hidden-reservoir.level) and
+boss [`assets/levels/warden-core.level`](assets/levels/warden-core.level). They use larger
 rooms connected by corridors rather than a single continuous maze. Each row must
 have the same width and use only these symbols:
 
@@ -108,6 +115,7 @@ have the same width and use only these symbols:
 - `K`: hound spawn
 - `F`: rapid-fire trooper spawn
 - `U`: heavy-unit spawn
+- `Z`: original Bunker Warden boss spawn
 - `g` / `k` / `f` / `u`: matching ambush enemy, initially facing away from the player spawn and ignoring weapon noise until it sees, touches or is hit by the player
 - `^` / `>` / `v` / `<`: invisible logical patrol direction; place the first marker next to an uppercase enemy and keep its destination walkable
 - `H`: health pickup
@@ -116,6 +124,7 @@ have the same width and use only these symbols:
 - `J`: golden-goblet pickup worth 250 score
 - `N`: peace-medallion pickup worth 500 score
 - `E`: steel elevator cabin and level exit; shipping levels enclose it on three sides
+- `X`: hidden-sector elevator; it looks like an ordinary exit but follows the sector metadata's secret route
 - `R`: wall-mounted framed landscape painting; must be next to a wall
 - `B`: wall-mounted banner with an original peace symbol; must be next to a wall
 - `I`: freestanding decorative plant using the current sector's original sprite
@@ -144,7 +153,7 @@ a generated impact sound, while damage remains tied to projectile collision only
 Completing a sector plays a short original four-note fanfare over the elevator
 confirmation. Both sounds are generated by project code and follow the master-sound
 setting through CNA audio.
-All four campaign sectors use an exact 64×64-cell footprint with large authored
+All six campaign sectors use an exact 64×64-cell footprint with large authored
 rooms, connecting corridors, loops and optional secret spaces. Focused test maps
 may remain smaller.
 

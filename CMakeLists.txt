@@ -65,6 +65,14 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/levels/sector-04.level"
     COPYONLY)
 configure_file(
+    assets/levels/hidden-reservoir.level
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/levels/hidden-reservoir.level"
+    COPYONLY)
+configure_file(
+    assets/levels/warden-core.level
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/levels/warden-core.level"
+    COPYONLY)
+configure_file(
     assets/sprites/security-guard.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/security-guard.png"
     COPYONLY)
@@ -79,6 +87,10 @@ configure_file(
 configure_file(
     assets/sprites/heavy-unit.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/heavy-unit.png"
+    COPYONLY)
+configure_file(
+    assets/sprites/bunker-warden.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/bunker-warden.png"
     COPYONLY)
 configure_file(
     assets/sprites/security-guard-attack.png
@@ -97,6 +109,10 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/heavy-unit-attack.png"
     COPYONLY)
 configure_file(
+    assets/sprites/bunker-warden-attack.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/bunker-warden-attack.png"
+    COPYONLY)
+configure_file(
     assets/sprites/security-guard-pain.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/security-guard-pain.png"
     COPYONLY)
@@ -113,6 +129,10 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/heavy-unit-pain.png"
     COPYONLY)
 configure_file(
+    assets/sprites/bunker-warden-pain.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/bunker-warden-pain.png"
+    COPYONLY)
+configure_file(
     assets/sprites/security-guard-defeated.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/security-guard-defeated.png"
     COPYONLY)
@@ -127,6 +147,10 @@ configure_file(
 configure_file(
     assets/sprites/heavy-unit-defeated.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/heavy-unit-defeated.png"
+    COPYONLY)
+configure_file(
+    assets/sprites/bunker-warden-defeated.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/bunker-warden-defeated.png"
     COPYONLY)
 configure_file(
     assets/weapons/knife.png

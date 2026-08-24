@@ -82,6 +82,7 @@ namespace WolfCna
                 case 'J':
                 case 'N':
                 case 'E':
+                case 'X':
                 case 'R':
                 case 'B':
                 case 'I':
@@ -92,6 +93,7 @@ namespace WolfCna
                 case 'U':
                 case 'f':
                 case 'u':
+                case 'Z':
                 case 'Y':
                 case '^':
                 case '>':
@@ -161,7 +163,7 @@ namespace WolfCna
                     : '#';
                 if (!destinationInBounds || destination == '#' || destination == 'Y' ||
                     destination == 'D' || destination == 'Q' || destination == 'S' ||
-                    destination == 'E')
+                    destination == 'E' || destination == 'X')
                 {
                     throw LevelError(
                         sourceName,

@@ -34,18 +34,6 @@ namespace WolfCna
         constexpr int PanelCount = World::MaterialPanelCount;
         constexpr int AtlasWidth = PanelSize * PanelCount;
         constexpr int AtlasHeight = PanelSize;
-        constexpr std::array<std::string_view, 4> CampaignLevelFiles = {
-            "assets/levels/starter.level",
-            "assets/levels/sector-02.level",
-            "assets/levels/sector-03.level",
-            "assets/levels/sector-04.level"
-        };
-        constexpr std::array<std::string_view, 4> CampaignLevelNames = {
-            "SECTOR 1 STORAGE",
-            "SECTOR 2 FOUNDRY",
-            "SECTOR 3 LABS",
-            "SECTOR 4 ARCHIVE"
-        };
         constexpr std::string_view ProgressFile = "wolf-cna-progress.dat";
         constexpr int SaveSlotCount = 3;
         constexpr float KnifeAttackVisualSeconds = 0.11f;
@@ -338,7 +326,7 @@ namespace WolfCna
         graphics_->ApplyChanges();
         const CampaignProfile profile = CampaignProgress::Load(
             std::string(ProgressFile),
-            static_cast<int>(CampaignLevelFiles.size()));
+            static_cast<int>(SelectableCampaignSectors.size()));
         highestUnlockedLevel_ = profile.highestUnlocked;
         soundVolumeStep_ = profile.soundVolume;
         fieldOfViewDegrees_ = profile.fieldOfView;
@@ -373,18 +361,22 @@ namespace WolfCna
         houndSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound.png", device);
         rapidTrooperSprite_ = std::make_unique<Texture2D>("assets/sprites/rapid-trooper.png", device);
         heavyUnitSprite_ = std::make_unique<Texture2D>("assets/sprites/heavy-unit.png", device);
+        bossSprite_ = std::make_unique<Texture2D>("assets/sprites/bunker-warden.png", device);
         guardAttackSprite_ = std::make_unique<Texture2D>("assets/sprites/security-guard-attack.png", device);
         houndAttackSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound-attack.png", device);
         rapidTrooperAttackSprite_ = std::make_unique<Texture2D>("assets/sprites/rapid-trooper-attack.png", device);
         heavyUnitAttackSprite_ = std::make_unique<Texture2D>("assets/sprites/heavy-unit-attack.png", device);
+        bossAttackSprite_ = std::make_unique<Texture2D>("assets/sprites/bunker-warden-attack.png", device);
         guardPainSprite_ = std::make_unique<Texture2D>("assets/sprites/security-guard-pain.png", device);
         houndPainSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound-pain.png", device);
         rapidTrooperPainSprite_ = std::make_unique<Texture2D>("assets/sprites/rapid-trooper-pain.png", device);
         heavyUnitPainSprite_ = std::make_unique<Texture2D>("assets/sprites/heavy-unit-pain.png", device);
+        bossPainSprite_ = std::make_unique<Texture2D>("assets/sprites/bunker-warden-pain.png", device);
         defeatedGuardSprite_ = std::make_unique<Texture2D>("assets/sprites/security-guard-defeated.png", device);
         defeatedHoundSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound-defeated.png", device);
         defeatedRapidTrooperSprite_ = std::make_unique<Texture2D>("assets/sprites/rapid-trooper-defeated.png", device);
         defeatedHeavyUnitSprite_ = std::make_unique<Texture2D>("assets/sprites/heavy-unit-defeated.png", device);
+        defeatedBossSprite_ = std::make_unique<Texture2D>("assets/sprites/bunker-warden-defeated.png", device);
         ammoPickupSprite_ = std::make_unique<Texture2D>("assets/pickups/ammo-box.png", device);
         healthPickupSprite_ = std::make_unique<Texture2D>("assets/pickups/health-kit.png", device);
         goldBarsSprite_ = std::make_unique<Texture2D>("assets/pickups/gold-bars.png", device);
@@ -452,6 +444,20 @@ namespace WolfCna
             ceilingR = 148; ceilingG = 123; ceilingB = 139;
             doorR = 118; doorG = 76; doorB = 54;
             securityR = 164; securityG = 53; securityB = 76;
+        }
+        else if (levelIndex_ == 4)
+        {
+            floorR = 38; floorG = 70; floorB = 73;
+            ceilingR = 106; ceilingG = 145; ceilingB = 137;
+            doorR = 36; doorG = 115; doorB = 122;
+            securityR = 142; securityG = 92; securityB = 42;
+        }
+        else if (levelIndex_ == 5)
+        {
+            floorR = 34; floorG = 42; floorB = 48;
+            ceilingR = 82; ceilingG = 105; ceilingB = 110;
+            doorR = 29; doorG = 89; doorB = 98;
+            securityR = 178; securityG = 91; securityB = 28;
         }
 
         for (int y = 0; y < PanelSize; ++y)
@@ -955,7 +961,7 @@ namespace WolfCna
             DrawHudText(*hudSpriteBatch_, *hudPixel_, center - HudTextWidth(label) / 2, panelY + 17, label, labelColor);
             DrawHudText(*hudSpriteBatch_, *hudPixel_, center - HudTextWidth(value) / 2, panelY + 47, value, valueColor);
         };
-        drawReadout(0, "LEVEL", std::to_string(levelIndex_ + 1));
+        drawReadout(0, "LEVEL", std::string(GetCampaignSector(levelIndex_).displayCode));
         drawReadout(1, "SCORE", std::to_string(score_));
         drawReadout(2, "LIVES", std::to_string(lives_));
         drawReadout(3, "HEALTH", std::to_string(health_) + "%");
@@ -965,6 +971,37 @@ namespace WolfCna
             *idleTexture,
             Rectangle(weaponCenter - 30, panelY + 12, 60, 60),
             Color(255, 255, 255, 255));
+        const World::BossStatus bossStatus = world_.GetBossStatus();
+        if (bossStatus.present && !bossStatus.defeated && !completed_)
+        {
+            constexpr int bossBarWidth = 260;
+            constexpr int bossBarHeight = 12;
+            const int bossBarX = centerX - bossBarWidth / 2;
+            const int bossBarY = viewport.getYProperty() + 18;
+            constexpr std::string_view bossName = "BUNKER WARDEN";
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                centerX - HudTextWidth(bossName) / 2,
+                bossBarY,
+                bossName,
+                Color(255, 211, 104, 255));
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(bossBarX - 2, bossBarY + 19, bossBarWidth + 4, bossBarHeight + 4),
+                Color(9, 16, 34, 230));
+            const float healthRatio = bossStatus.maximumHealth > 0
+                ? static_cast<float>(bossStatus.health) / bossStatus.maximumHealth
+                : 0.0f;
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(
+                    bossBarX,
+                    bossBarY + 21,
+                    static_cast<int>(std::lround(bossBarWidth * std::clamp(healthRatio, 0.0f, 1.0f))),
+                    bossBarHeight),
+                Color(51, 207, 220, 240));
+        }
         if (cheatMessageSeconds_ > 0.0f)
         {
             constexpr std::string_view message = "LOADOUT READY";
@@ -1000,9 +1037,14 @@ namespace WolfCna
                 "TREASURE " + std::to_string(stats.collectedGold) + "/" + std::to_string(stats.totalGold),
                 "SECRETS " + std::to_string(stats.foundSecrets) + "/" + std::to_string(stats.totalSecrets),
                 "TIME " + std::to_string(static_cast<int>(levelElapsedSeconds_)) + "S"};
-            const std::string_view prompt = levelIndex_ + 1 < static_cast<int>(CampaignLevelFiles.size())
-                ? "SPACE NEXT"
-                : "SPACE TITLE";
+            const CampaignSector& sector = GetCampaignSector(levelIndex_);
+            const std::string_view prompt = sector.kind == CampaignSectorKind::Boss
+                ? "SPACE FINALE"
+                : sector.kind == CampaignSectorKind::Secret
+                    ? "SPACE RETURN"
+                    : completedExitRoute_ == CampaignExitRoute::Secret
+                        ? "SPACE SECRET"
+                        : "SPACE NEXT";
             const int cardTop = centerY - 94;
             constexpr int cardWidth = 260;
             constexpr int cardHeight = 180;
@@ -1015,7 +1057,11 @@ namespace WolfCna
                 *hudPixel_,
                 Rectangle(cardLeft, cardTop, cardWidth, 3),
                 Color(184, 238, 255, 255));
-            const std::string_view message = "LEVEL COMPLETE";
+            const std::string_view message = sector.kind == CampaignSectorKind::Boss
+                ? "BOSS DEFEATED"
+                : completedExitRoute_ == CampaignExitRoute::Secret
+                    ? "SECRET ROUTE FOUND"
+                    : "LEVEL COMPLETE";
             const int messageWidth = HudTextWidth(message);
             const int messageX = centerX - messageWidth / 2;
             DrawHudText(*hudSpriteBatch_, *hudPixel_, messageX, cardTop + 16, message, Color(184, 238, 255, 255));
@@ -1141,7 +1187,8 @@ namespace WolfCna
                 messageY,
                 message,
                 Color(255, 222, 180, 255));
-            const std::string restart = "RESTARTING SECTOR " + std::to_string(levelIndex_ + 1);
+            const std::string restart = "RESTARTING SECTOR " +
+                std::string(GetCampaignSector(levelIndex_).displayCode);
             DrawHudText(
                 *hudSpriteBatch_,
                 *hudPixel_,
@@ -1500,12 +1547,12 @@ namespace WolfCna
         {
             centered(top + 22, "BUNKER 1987", title);
             centered(top + 58, "SELECT SECTOR", normal);
-            for (int index = 0; index < static_cast<int>(CampaignLevelNames.size()); ++index)
+            for (int index = 0; index < static_cast<int>(SelectableCampaignSectors.size()); ++index)
             {
                 const bool unlocked = index <= highestUnlockedLevel_;
-                const std::string option = std::string(CampaignLevelNames[static_cast<std::size_t>(index)]) +
+                const std::string option = std::string(GetSelectableCampaignSector(index).menuName) +
                     (unlocked ? "" : " LOCKED");
-                const int y = top + 92 + index * 34;
+                const int y = top + 86 + index * 29;
                 const Color color = unlocked
                     ? menuSelection_ == index ? selected : normal
                     : Color(83, 99, 128, 255);
@@ -1531,6 +1578,15 @@ namespace WolfCna
             }
             centered(top + 220, "FOES AND SUPPLIES CHANGE", normal);
             centered(top + 238, "ESC BACK", normal);
+        }
+        else if (screen_ == Screen::CampaignComplete)
+        {
+            centered(top + 28, "CAMPAIGN COMPLETE", title);
+            centered(top + 64, "WARDEN NETWORK DISABLED", selected);
+            centered(top + 100, "THE BUNKER IS SECURE", normal);
+            centered(top + 138, "FINAL SCORE", normal);
+            centered(top + 164, std::to_string(score_), title);
+            centered(top + 218, "ENTER TITLE", selected);
         }
         else
         {
@@ -1597,14 +1653,15 @@ namespace WolfCna
         lastFirearm_ = Weapon::Sidearm;
         hasRepeater_ = false;
         hasHeavyWeapon_ = false;
-        LoadCampaignLevel(selectedLevelIndex_);
+        LoadCampaignLevel(SelectableCampaignSectors[static_cast<std::size_t>(selectedLevelIndex_)]);
     }
 
     void WolfGame::LoadCampaignLevel(int index)
     {
-        const int maximumIndex = static_cast<int>(CampaignLevelFiles.size()) - 1;
+        const int maximumIndex = static_cast<int>(CampaignSectors.size()) - 1;
         levelIndex_ = std::clamp(index, 0, maximumIndex);
-        level_ = LevelDefinition::LoadFromFile(std::string(CampaignLevelFiles[static_cast<std::size_t>(levelIndex_)]));
+        level_ = LevelDefinition::LoadFromFile(
+            std::string(GetCampaignSector(levelIndex_).file));
         world_ = World(level_, difficulty_);
         exploration_.Reset(level_);
         world_.Upload(getGraphicsDeviceProperty());
@@ -1615,6 +1672,7 @@ namespace WolfCna
         yaw_ = 0.0f;
         hasSecurityCard_ = false;
         completed_ = false;
+        completedExitRoute_ = CampaignExitRoute::Standard;
         levelElapsedSeconds_ = 0.0f;
         sectorEntryScore_ = score_;
         sectorEntryNextExtraLifeScore_ = nextExtraLifeScore_;
@@ -1638,21 +1696,25 @@ namespace WolfCna
 
     void WolfGame::AdvanceCampaign()
     {
-        if (levelIndex_ + 1 < static_cast<int>(CampaignLevelFiles.size()))
-            LoadCampaignLevel(levelIndex_ + 1);
+        const std::optional<int> destination = CampaignDestination(
+            levelIndex_,
+            completedExitRoute_);
+        if (destination)
+            LoadCampaignLevel(*destination);
         else
         {
             completed_ = false;
-            screen_ = Screen::Title;
+            screen_ = Screen::CampaignComplete;
             menuSelection_ = 0;
+            actionWasDown_ = false;
         }
     }
 
     void WolfGame::UnlockNextLevel()
     {
-        const int nextLevel = std::min(
-            levelIndex_ + 1,
-            static_cast<int>(CampaignLevelFiles.size()) - 1);
+        const int nextLevel = HighestUnlockAfterCompletion(
+            levelIndex_,
+            highestUnlockedLevel_);
         if (nextLevel <= highestUnlockedLevel_)
             return;
 
@@ -1660,12 +1722,13 @@ namespace WolfCna
         SaveCampaignProfile();
     }
 
-    void WolfGame::CompleteLevel()
+    void WolfGame::CompleteLevel(CampaignExitRoute route)
     {
         if (completed_)
             return;
 
         completed_ = true;
+        completedExitRoute_ = route;
         UnlockNextLevel();
         AwardScore(1000);
         if (exitSound_)
@@ -1696,7 +1759,7 @@ namespace WolfCna
                 .soundVolume = soundVolumeStep_,
                 .difficulty = static_cast<int>(difficulty_),
                 .fieldOfView = fieldOfViewDegrees_},
-            static_cast<int>(CampaignLevelFiles.size()));
+            static_cast<int>(SelectableCampaignSectors.size()));
     }
 
     RunSaveState WolfGame::CaptureRunSaveState() const
@@ -1728,7 +1791,7 @@ namespace WolfCna
     bool WolfGame::ApplyRunSaveState(const RunSaveState& state, std::string& error)
     {
         if (state.levelIndex < 0 ||
-            state.levelIndex >= static_cast<int>(CampaignLevelFiles.size()) ||
+            state.levelIndex >= static_cast<int>(CampaignSectors.size()) ||
             state.difficulty < 0 || state.difficulty > 2 ||
             state.playerY < 0.0f || state.playerY > 4.0f)
         {
@@ -1737,7 +1800,7 @@ namespace WolfCna
         }
 
         LevelDefinition loadedLevel = LevelDefinition::LoadFromFile(
-            std::string(CampaignLevelFiles[static_cast<std::size_t>(state.levelIndex)]));
+            std::string(GetCampaignSector(state.levelIndex).file));
         const Difficulty loadedDifficulty = static_cast<Difficulty>(state.difficulty);
         World loadedWorld(loadedLevel, loadedDifficulty);
         ExplorationMap loadedExploration(loadedLevel);
@@ -1764,8 +1827,12 @@ namespace WolfCna
         if (atlas_)
             CreateProceduralAtlas();
         levelIndex_ = state.levelIndex;
-        selectedLevelIndex_ = state.levelIndex;
-        highestUnlockedLevel_ = std::max(highestUnlockedLevel_, state.levelIndex);
+        const int selectableIndex = GetCampaignSector(state.levelIndex).selectableIndex;
+        if (selectableIndex >= 0)
+        {
+            selectedLevelIndex_ = selectableIndex;
+            highestUnlockedLevel_ = std::max(highestUnlockedLevel_, selectableIndex);
+        }
         difficulty_ = loadedDifficulty;
         playerPosition_ = Vector3(state.playerX, state.playerY, state.playerZ);
         yaw_ = state.yaw;
@@ -1924,10 +1991,11 @@ namespace WolfCna
         else if (screen_ == Screen::SectorSelect)
         {
             if (upIsDown && !upWasDown_)
-                menuSelection_ = (menuSelection_ + static_cast<int>(CampaignLevelFiles.size()) - 1) %
-                    static_cast<int>(CampaignLevelFiles.size());
+                menuSelection_ = (menuSelection_ + static_cast<int>(SelectableCampaignSectors.size()) - 1) %
+                    static_cast<int>(SelectableCampaignSectors.size());
             if (downIsDown && !downWasDown_)
-                menuSelection_ = (menuSelection_ + 1) % static_cast<int>(CampaignLevelFiles.size());
+                menuSelection_ = (menuSelection_ + 1) %
+                    static_cast<int>(SelectableCampaignSectors.size());
             if (confirmIsDown && !confirmWasDown_ && menuSelection_ <= highestUnlockedLevel_)
             {
                 selectedLevelIndex_ = menuSelection_;
@@ -2182,6 +2250,19 @@ namespace WolfCna
                 actionWasDown_ = actionIsDown;
                 return;
             }
+            else if (activation == World::InteractionResult::SecretExitActivated)
+            {
+                CompleteLevel(CampaignExitRoute::Secret);
+                actionWasDown_ = actionIsDown;
+                return;
+            }
+            else if (activation == World::InteractionResult::ExitSealed)
+            {
+                if (lockedSound_)
+                    static_cast<void>(lockedSound_->Play(0.28f, -0.45f, 0.0f));
+                objectiveMessage_ = "WARDEN LOCKDOWN";
+                objectiveMessageSeconds_ = 2.0f;
+            }
             else if (activation == World::InteractionResult::TerminalActivated)
             {
                 if (terminalSound_)
@@ -2337,7 +2418,8 @@ namespace WolfCna
         fullScreenWasDown_ = fullScreenIsDown;
 
         if (screen_ == Screen::Splash || screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
-            screen_ == Screen::Difficulty || screen_ == Screen::Controls)
+            screen_ == Screen::Difficulty || screen_ == Screen::Controls ||
+            screen_ == Screen::CampaignComplete)
         {
             HandleMenuInput();
             Game::Update(gameTime);
@@ -2447,8 +2529,17 @@ namespace WolfCna
         if ((pickups.health + pickups.gold + pickups.accessCards +
             pickups.repeaterWeapons + pickups.heavyWeapons) > 0 && pickupSound_)
             static_cast<void>(pickupSound_->Play(0.28f, 0.0f, 0.0f));
-        if (!completed_ && world_.ReachedExit(playerPosition_))
-            CompleteLevel();
+        if (!completed_)
+        {
+            const std::optional<World::ExitRoute> exitRoute =
+                world_.ReachedExitRoute(playerPosition_);
+            if (exitRoute)
+            {
+                CompleteLevel(*exitRoute == World::ExitRoute::Secret
+                    ? CampaignExitRoute::Secret
+                    : CampaignExitRoute::Standard);
+            }
+        }
 
         Game::Update(gameTime);
     }
@@ -2467,13 +2558,13 @@ namespace WolfCna
             screen_ == Screen::Paused || screen_ == Screen::Defeated ||
             screen_ == Screen::GameOver) &&
             effect_ && atlas_ && guardSprite_ && houndSprite_ && bloodDecal_ &&
-            rapidTrooperSprite_ && heavyUnitSprite_ &&
+            rapidTrooperSprite_ && heavyUnitSprite_ && bossSprite_ &&
             guardAttackSprite_ && houndAttackSprite_ &&
-            rapidTrooperAttackSprite_ && heavyUnitAttackSprite_ &&
+            rapidTrooperAttackSprite_ && heavyUnitAttackSprite_ && bossAttackSprite_ &&
             guardPainSprite_ && houndPainSprite_ &&
-            rapidTrooperPainSprite_ && heavyUnitPainSprite_ &&
+            rapidTrooperPainSprite_ && heavyUnitPainSprite_ && bossPainSprite_ &&
             defeatedGuardSprite_ && defeatedHoundSprite_ &&
-            defeatedRapidTrooperSprite_ && defeatedHeavyUnitSprite_ &&
+            defeatedRapidTrooperSprite_ && defeatedHeavyUnitSprite_ && defeatedBossSprite_ &&
             ammoPickupSprite_ && healthPickupSprite_ && goldBarsSprite_ &&
             goldenGobletSprite_ && peaceMedallionSprite_ &&
             accessCardSprite_ && repeaterPickupSprite_ && heavyWeaponPickupSprite_ &&
@@ -2492,18 +2583,22 @@ namespace WolfCna
                 *houndSprite_,
                 *rapidTrooperSprite_,
                 *heavyUnitSprite_,
+                *bossSprite_,
                 *guardAttackSprite_,
                 *houndAttackSprite_,
                 *rapidTrooperAttackSprite_,
                 *heavyUnitAttackSprite_,
+                *bossAttackSprite_,
                 *guardPainSprite_,
                 *houndPainSprite_,
                 *rapidTrooperPainSprite_,
                 *heavyUnitPainSprite_,
+                *bossPainSprite_,
                 *defeatedGuardSprite_,
                 *defeatedHoundSprite_,
                 *defeatedRapidTrooperSprite_,
                 *defeatedHeavyUnitSprite_,
+                *defeatedBossSprite_,
                 *ammoPickupSprite_,
                 *healthPickupSprite_,
                 *goldBarsSprite_,
@@ -2531,7 +2626,8 @@ namespace WolfCna
         }
 
         if (screen_ == Screen::Splash || screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
-            screen_ == Screen::Difficulty || screen_ == Screen::Controls)
+            screen_ == Screen::Difficulty || screen_ == Screen::Controls ||
+            screen_ == Screen::CampaignComplete)
             DrawMenu();
         else
         {

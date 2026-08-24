@@ -13,6 +13,7 @@
 #include "LevelDefinition.hpp"
 #include "World.hpp"
 #include "CampaignProgress.hpp"
+#include "Campaign.hpp"
 #include "ExplorationMap.hpp"
 #include "RunSave.hpp"
 #include "RunRules.hpp"
@@ -354,6 +355,36 @@ int main()
         invalidViewProfile.highestUnlocked == 0 && invalidViewProfile.fieldOfView == 72,
         "unsupported view angle safely restores defaults");
 
+    Expect(WolfCna::CampaignSectors.size() == 6, "campaign includes its hidden sector");
+    Expect(
+        WolfCna::SelectableCampaignSectors.size() == 5 &&
+            WolfCna::GetSelectableCampaignSector(4).kind ==
+                WolfCna::CampaignSectorKind::Boss,
+        "five main sectors are selectable and the finale is a boss sector");
+    Expect(
+        WolfCna::GetCampaignSector(0).chapter == 1 &&
+            WolfCna::GetCampaignSector(4).chapter == 1 &&
+            WolfCna::GetCampaignSector(2).chapter == 2 &&
+            WolfCna::GetCampaignSector(5).chapterName == "WARDEN NETWORK",
+        "campaign metadata groups main and secret sectors into two named chapters");
+    Expect(
+        WolfCna::CampaignDestination(0, WolfCna::CampaignExitRoute::Standard) == 1 &&
+            WolfCna::CampaignDestination(1, WolfCna::CampaignExitRoute::Standard) == 2 &&
+            WolfCna::CampaignDestination(2, WolfCna::CampaignExitRoute::Standard) == 3 &&
+            WolfCna::CampaignDestination(3, WolfCna::CampaignExitRoute::Standard) == 5 &&
+            !WolfCna::CampaignDestination(5, WolfCna::CampaignExitRoute::Standard),
+        "main campaign route reaches the boss and then terminates");
+    Expect(
+        WolfCna::CampaignDestination(1, WolfCna::CampaignExitRoute::Secret) == 4 &&
+            WolfCna::CampaignDestination(4, WolfCna::CampaignExitRoute::Standard) == 2 &&
+            !WolfCna::CampaignDestination(0, WolfCna::CampaignExitRoute::Secret),
+        "secret foundry route visits the reservoir and returns to the labs");
+    Expect(
+        WolfCna::HighestUnlockAfterCompletion(0, 0) == 1 &&
+            WolfCna::HighestUnlockAfterCompletion(3, 3) == 4 &&
+            WolfCna::HighestUnlockAfterCompletion(4, 2) == 2,
+        "main completion unlocks menu sectors while hidden completion does not leak entries");
+
     const WolfCna::LevelDefinition starterLevel = WolfCna::LevelDefinition::LoadFromFile(
         "assets/levels/starter.level");
     ExpectCampaignLayout(starterLevel, "starter level");
@@ -365,18 +396,65 @@ int main()
         "assets/levels/sector-03.level");
     const WolfCna::LevelDefinition sectorFour = WolfCna::LevelDefinition::LoadFromFile(
         "assets/levels/sector-04.level");
+    const WolfCna::LevelDefinition hiddenReservoir = WolfCna::LevelDefinition::LoadFromFile(
+        "assets/levels/hidden-reservoir.level");
+    const WolfCna::LevelDefinition wardenCore = WolfCna::LevelDefinition::LoadFromFile(
+        "assets/levels/warden-core.level");
     ExpectCampaignLayout(sectorTwo, "sector two");
     ExpectCampaignLayout(sectorThree, "sector three");
     ExpectCampaignLayout(sectorFour, "sector four");
     Expect(sectorFour.Rows() != starterLevel.Rows(), "sector four is not the starter layout");
     Expect(sectorFour.Rows() != sectorTwo.Rows(), "sector four is not the foundry layout");
     Expect(sectorFour.Rows() != sectorThree.Rows(), "sector four is not the labs layout");
+    for (const auto* extraSector : {&hiddenReservoir, &wardenCore})
+    {
+        Expect(extraSector->Rows().size() == 64, "extra campaign sector has 64 rows");
+        Expect(
+            std::all_of(
+                extraSector->Rows().begin(),
+                extraSector->Rows().end(),
+                [](const std::string& row) { return row.size() == 64; }),
+            "extra campaign sector has 64 columns");
+        const DistanceGrid distances = BuildDistances(
+            extraSector->Rows(),
+            extraSector->PlayerStartX(),
+            extraSector->PlayerStartZ());
+        int walkable = 0;
+        int reachable = 0;
+        for (int z = 0; z < 64; ++z)
+        {
+            for (int x = 0; x < 64; ++x)
+            {
+                const char symbol = extraSector->Rows()[static_cast<std::size_t>(z)]
+                    [static_cast<std::size_t>(x)];
+                if (symbol != '#' && symbol != 'Y')
+                    ++walkable;
+                if (distances[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] >= 0)
+                    ++reachable;
+            }
+        }
+        Expect(reachable == walkable, "extra campaign sector has no disconnected rooms");
+    }
+    Expect(
+        std::count_if(
+            sectorTwo.Rows().begin(),
+            sectorTwo.Rows().end(),
+            [](const std::string& row) { return row.find('X') != std::string::npos; }) == 1,
+        "foundry contains one discoverable hidden-sector elevator");
+    Expect(
+        std::count_if(
+            wardenCore.Rows().begin(),
+            wardenCore.Rows().end(),
+            [](const std::string& row) { return row.find('Z') != std::string::npos; }) == 1,
+        "warden core contains one original boss encounter");
 
-    const std::array<const WolfCna::LevelDefinition*, 4> campaignLevels{
+    const std::array<const WolfCna::LevelDefinition*, 6> campaignLevels{
         &starterLevel,
         &sectorTwo,
         &sectorThree,
-        &sectorFour};
+        &sectorFour,
+        &hiddenReservoir,
+        &wardenCore};
     for (const WolfCna::LevelDefinition* campaignLevel : campaignLevels)
     {
         const WolfCna::World scoutWorld(*campaignLevel, WolfCna::Difficulty::Scout);
@@ -645,7 +723,7 @@ int main()
     std::filesystem::remove(saveTestPath, removeError);
 
     ExpectParseFailure("#####\n#P.#\n#####\n", "different width");
-    ExpectParseFailure("#####\n#X.P#\n#####\n", "unknown symbol");
+    ExpectParseFailure("#####\n#@.P#\n#####\n", "unknown symbol");
     ExpectParseFailure("#####\n#...#\n#####\n", "no player spawn");
     ExpectParseFailure("#####\n#P.P#\n#####\n", "more than one player spawn");
     const WolfCna::LevelDefinition decoratedLevel = WolfCna::LevelDefinition::Parse(
@@ -823,6 +901,68 @@ int main()
         goalCheatWorld.TryActivate(goalInteractionPosition, lookDirection, false) ==
             WolfCna::World::InteractionResult::ExitActivated,
         "the elevator action also works after walking to its approach");
+
+    WolfCna::World secretExitWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PX.#\n#####\n",
+        "secret-exit.level"));
+    Expect(
+        secretExitWorld.TryActivate(playerPosition, lookDirection, false) ==
+            WolfCna::World::InteractionResult::SecretExitActivated,
+        "hidden elevator reports the secret campaign route");
+    Expect(
+        secretExitWorld.ReachedExitRoute(
+            Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f)) ==
+            WolfCna::World::ExitRoute::Secret,
+        "contact with a hidden elevator preserves its route type");
+
+    const WolfCna::LevelDefinition bossLevel = WolfCna::LevelDefinition::Parse(
+        "##########\n#P.....Z.#\n##########\n",
+        "boss.level");
+    WolfCna::World bossWorld(bossLevel, WolfCna::Difficulty::Operative);
+    const WolfCna::World::BossStatus initialBoss = bossWorld.GetBossStatus();
+    Expect(
+        initialBoss.present && !initialBoss.defeated && initialBoss.health == 32 &&
+            initialBoss.maximumHealth == 32,
+        "original boss starts with its dedicated health budget");
+    for (int shot = 0; shot < 31; ++shot)
+    {
+        Expect(
+            bossWorld.FireHitscan(playerPosition, lookDirection),
+            "each pre-final boss shot registers");
+    }
+    Expect(
+        bossWorld.GetBossStatus().health == 1 && !bossWorld.GetBossStatus().defeated,
+        "boss survives repeated hits before its final health point");
+    const WolfCna::World::AttackResult bossFinalHit =
+        bossWorld.FireHitscan(playerPosition, lookDirection);
+    Expect(
+        bossFinalHit.score == 5000 && bossWorld.GetBossStatus().defeated,
+        "defeating the Warden awards its dedicated score");
+
+    WolfCna::World bossExitWorld(WolfCna::LevelDefinition::Parse(
+        "######\n#PZ.E#\n######\n",
+        "boss-exit.level"));
+    const Microsoft::Xna::Framework::Vector3 bossExitApproach(3.5f, 0.62f, 1.5f);
+    Expect(
+        bossExitWorld.TryActivate(bossExitApproach, lookDirection, false) ==
+            WolfCna::World::InteractionResult::ExitSealed &&
+            !bossExitWorld.ReachedExitRoute(
+                Microsoft::Xna::Framework::Vector3(4.5f, 0.62f, 1.5f)),
+        "living boss keeps the campaign-completion elevator in lockdown");
+    for (int shot = 0; shot < 32; ++shot)
+        static_cast<void>(bossExitWorld.FireHitscan(playerPosition, lookDirection));
+    Expect(
+        bossExitWorld.TryActivate(bossExitApproach, lookDirection, false) ==
+            WolfCna::World::InteractionResult::ExitActivated,
+        "defeating the boss releases the campaign-completion elevator");
+
+    WolfCna::World bossBurstWorld(bossLevel, WolfCna::Difficulty::Operative);
+    static_cast<void>(bossBurstWorld.Update(0.05f, playerPosition));
+    static_cast<void>(bossBurstWorld.Update(0.65f, playerPosition));
+    static_cast<void>(bossBurstWorld.Update(0.05f, playerPosition));
+    Expect(
+        bossBurstWorld.CaptureSaveState().projectiles.size() == 3,
+        "Warden ranged attack emits a deterministic three-projectile fan");
 
     WolfCna::World exitWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PET#\n#####\n",

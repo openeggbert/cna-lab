@@ -15,6 +15,7 @@
 #include "Microsoft/Xna/Framework/Audio/SoundEffectInstance.hpp"
 
 #include "World.hpp"
+#include "Campaign.hpp"
 #include "CampaignProgress.hpp"
 #include "ExplorationMap.hpp"
 #include "RunSave.hpp"
@@ -43,18 +44,22 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> houndSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> rapidTrooperSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyUnitSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> bossSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> guardAttackSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> houndAttackSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> rapidTrooperAttackSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyUnitAttackSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> bossAttackSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> guardPainSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> houndPainSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> rapidTrooperPainSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyUnitPainSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> bossPainSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> defeatedGuardSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> defeatedHoundSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> defeatedRapidTrooperSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> defeatedHeavyUnitSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> defeatedBossSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> ammoPickupSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> healthPickupSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> goldBarsSprite_;
@@ -128,6 +133,7 @@ namespace WolfCna
         float levelElapsedSeconds_ = 0.0f;
         bool hasSecurityCard_ = false;
         bool completed_ = false;
+        CampaignExitRoute completedExitRoute_ = CampaignExitRoute::Standard;
         enum class Screen
         {
             Splash,
@@ -139,7 +145,8 @@ namespace WolfCna
             Map,
             Paused,
             Defeated,
-            GameOver
+            GameOver,
+            CampaignComplete
         };
         Screen screen_ = Screen::Splash;
         Difficulty difficulty_ = Difficulty::Operative;
@@ -188,7 +195,7 @@ namespace WolfCna
         void LoadCampaignLevel(int index);
         void AdvanceCampaign();
         void UnlockNextLevel();
-        void CompleteLevel();
+        void CompleteLevel(CampaignExitRoute route = CampaignExitRoute::Standard);
         void RestartSectorAfterLifeLoss();
         void SaveCampaignProfile() const;
         [[nodiscard]] RunSaveState CaptureRunSaveState() const;

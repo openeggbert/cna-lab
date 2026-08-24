@@ -1447,10 +1447,23 @@ focused tests cover facing, movement, hearing, reaction, ordinary doors and lock
 
 ### WOLF-034 — campaign chapters, secret sectors and bosses
 
-Status: planned. Grow the four-sector sequence into original campaign chapters
-with optional secret sectors, dedicated boss encounters and a clear campaign-ending
-sequence. All maps, enemies, names, story and artwork remain original wolf-cna
-content even where pacing is inspired by early-1990s shooters.
+Status: complete. Campaign routing now lives in explicit metadata independent from
+the sector menu. Two named chapters group five progressively unlocked main sectors
+and the hidden branch while the playable route runs from Storage
+to Warden Core; Foundry contains a second three-sided elevator hidden behind its
+authored moving wall, leading to the menu-hidden 64×64 Hidden Reservoir and then
+returning deterministically to Labs. Both new maps are original room-led layouts and
+every main, secret, return and terminal route is covered by focused tests.
+
+Warden Core contains one original Bunker Warden boss with 32 base health, difficulty
+scaling, a distinct deterministic three-projectile fan, 5,000-point defeat value,
+dedicated health bar and four original AI-generated genuine-alpha visual states.
+Its living presence explicitly holds only the final elevator in lockdown; tests prove
+that defeating it releases the same interaction path. Boss and secret-route completion cards use distinct prompts, and finishing the boss
+advances to a separate campaign-complete screen with the final score. The secret
+sector stays outside progressive menu unlocks while completing its source sector
+still unlocks the normal continuation. Versioned run saves accept both additional
+sector indices without changing their serialized world-state model.
 
 - define chapter and sector metadata independently from menu presentation;
 - add discoverable secret-sector exits and deterministic return destinations;

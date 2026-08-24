@@ -14,7 +14,7 @@ prompts are recorded in `../ASSET_PROVENANCE.md`.
 The generated title artwork under `title/` is also project-owned and recorded in
 `../ASSET_PROVENANCE.md`; exact menu text is rendered separately by game code.
 
-`levels/starter.level` is the starter's original text level. Its symbols are documented in the
-top-level README.
+All six files under `levels/` are original 64×64 text levels. The main route,
+hidden-sector branch and their symbols are documented in the top-level README.
 
 Future external assets must be recorded in `../THIRD_PARTY.md` before they are committed.

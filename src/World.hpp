@@ -34,7 +34,15 @@ namespace WolfCna
             TerminalActivated,
             RelayActivated,
             SecretRevealed,
-            ExitActivated
+            ExitActivated,
+            SecretExitActivated,
+            ExitSealed
+        };
+
+        enum class ExitRoute
+        {
+            Standard,
+            Secret
         };
 
         struct PickupResult
@@ -107,6 +115,14 @@ namespace WolfCna
             int deadEnemies = 0;
             int ambushEnemies = 0;
             float totalTravelDistance = 0.0f;
+        };
+
+        struct BossStatus
+        {
+            bool present = false;
+            bool defeated = false;
+            int health = 0;
+            int maximumHealth = 0;
         };
 
         struct DoorSaveState
@@ -189,18 +205,22 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::Texture2D& houndSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& rapidTrooperSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& heavyUnitSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& bossSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& guardAttackSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& houndAttackSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& rapidTrooperAttackSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& heavyUnitAttackSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& bossAttackSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& guardPainSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& houndPainSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& rapidTrooperPainSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& heavyUnitPainSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& bossPainSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& defeatedGuardSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& defeatedHoundSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& defeatedRapidTrooperSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& defeatedHeavyUnitSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& defeatedBossSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& ammoPickupSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& healthPickupSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& goldBarsSprite,
@@ -234,12 +254,15 @@ namespace WolfCna
             int currentHealth = 0);
         [[nodiscard]] bool ReachedExit(
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
+        [[nodiscard]] std::optional<ExitRoute> ReachedExitRoute(
+            const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         [[nodiscard]] bool AreObjectivesComplete() const;
         [[nodiscard]] std::optional<ExitApproach> GetExitApproach() const;
         [[nodiscard]] ObjectiveStatus GetObjectiveStatus() const;
         [[nodiscard]] CompletionStats GetCompletionStats() const;
         [[nodiscard]] DifficultyBalance GetDifficultyBalance() const;
         [[nodiscard]] EnemyBehaviorStats GetEnemyBehaviorStats() const;
+        [[nodiscard]] BossStatus GetBossStatus() const;
         [[nodiscard]] SaveState CaptureSaveState() const;
         [[nodiscard]] bool RestoreSaveState(const SaveState& state);
         [[nodiscard]] int ConsumeGuardShotCount();
@@ -295,7 +318,7 @@ namespace WolfCna
 
         struct Enemy
         {
-            enum class Type { Guard, Hound, RapidTrooper, HeavyUnit };
+            enum class Type { Guard, Hound, RapidTrooper, HeavyUnit, Boss };
 
             Microsoft::Xna::Framework::Vector3 position;
             Microsoft::Xna::Framework::Vector3 facing{0.0f, 0.0f, -1.0f};
@@ -313,6 +336,7 @@ namespace WolfCna
             bool ambush = false;
             bool hasPatrolRoute = false;
             int ammunitionDrop = 3;
+            int projectileBurst = 1;
             int patrolDirectionX = 0;
             int patrolDirectionZ = 0;
             float reactionDuration = 0.35f;
@@ -384,6 +408,7 @@ namespace WolfCna
             int z = 0;
             int approachX = 0;
             int approachZ = 0;
+            ExitRoute route = ExitRoute::Standard;
             float openAmount = 0.0f;
         };
 
