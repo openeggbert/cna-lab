@@ -20,7 +20,7 @@
 - Pressing `Tab` opens or closes the paused map of visited cells; `I+L+M` remains an independent loadout cheat.
 - The map always marks the sector exit as red `GOAL`, changing it to cyan after its objective is activated, without revealing nearby rooms.
 - Firearm attack frames remain visible for a few extra frames so their generated muzzle flashes read clearly.
-- Firearm attack frames blend translucently over the solid weapon view so a muzzle flash cannot become an opaque white rectangle.
+- Firearm attack frames use CNA straight-alpha blending and partial opacity over the solid weapon view, preventing transparent RGB from becoming a white rectangle.
 - Every sector now requires activating a separate violet power relay and amber terminal before its exit comes online.
 - Every sector now places three freestanding plant landmarks with its own original transparent storage, foundry or laboratory sprite.
 - Every sector now has two solid polygonal tables with four-leg silhouettes, static geometry and matching player/enemy collision.

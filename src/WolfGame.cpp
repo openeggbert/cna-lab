@@ -737,7 +737,10 @@ namespace WolfCna
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
         const int centerX = viewport.getXProperty() + viewport.getWidthProperty() / 2;
         const int centerY = viewport.getYProperty() + viewport.getHeightProperty() / 2;
-        hudSpriteBatch_->Begin();
+        // Generated PNGs contain straight-alpha color data, so the matching blend
+        // state is required to prevent RGB in transparent pixels from bleeding
+        // into a white rectangle around muzzle flashes.
+        hudSpriteBatch_->Begin(SpriteSortMode::Deferred, BlendState::NonPremultiplied);
         const int panelHeight = 84;
         const int panelY = viewport.getYProperty() + viewport.getHeightProperty() - panelHeight;
         const int viewSize = std::clamp(viewport.getHeightProperty() / 3, 144, 236);

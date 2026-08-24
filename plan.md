@@ -1087,8 +1087,9 @@ chasing archetypes use distinct deterministic step cadence, bob and sway, while
 every weapon switches to its own generated slash/firing frame during
 the existing knife lunge or firearm recoil. The former rectangular muzzle-flash
 overlay has been removed. Firearm attack frames are composited at partial opacity
-over their solid idle weapon, keeping the generated flash visible without an
-opaque white rectangle obscuring the world.
+over their solid idle weapon with CNA's straight-alpha blend state, keeping the
+generated flash visible without transparent-pixel RGB becoming an opaque white
+rectangle over the world.
 
 - replace colored enemy cuboids with camera-facing textured polygon billboards;
 - create original transparent pixel-art sprites for every enemy archetype and weapon view;
