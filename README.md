@@ -59,7 +59,8 @@ strips below. This is a defining feature rather than a temporary limitation.
 
 An English presentation and practical usage guide is available in the
 [web directory](web/README.md). It is a dependency-free static site and includes
-real Black Pine screenshots, integration examples and an API tour.
+real Black Pine screenshots, a developer guide, API patterns and a complete
+24-lesson tutorial.
 
 ## Project layout
 

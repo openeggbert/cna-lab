@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0000aa">
+  <meta name="description" content="Explore2D developer guide: integrate the C++23 engine, define rooms and rules, draw EGA scenes, add animation and audio, test and ship a game.">
+  <meta property="og:title" content="Explore2D Developer Guide">
+  <meta property="og:description" content="Practical API reference for building fixed-screen C++ adventures with Explore2D and CNA.">
+  <meta property="og:type" content="website">
+  <title>Developer Guide — Explore2D</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body class="docs-page">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <a class="wordmark" href="index.html" aria-label="Explore2D home">
+      <span class="wordmark-mark" aria-hidden="true">E2</span>
+      <span>EXPLORE<span class="accent-cyan">2D</span></span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
+      <a href="index.html">Overview</a>
+      <a class="active" href="developers.html" aria-current="page">Developers</a>
+      <a href="tutorial.html">24-lesson tutorial</a>
+      <a href="index.html#visuals">Visual system</a>
+      <a class="nav-github" href="https://github.com/openeggbert/explore-2d">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="docs-hero">
+      <div class="section-shell docs-hero-grid">
+        <div>
+          <p class="eyebrow">Developer guide · Explore2D 0.1</p>
+          <h1>Build an adventure<br>from typed C++ data.</h1>
+          <p class="hero-lead">This guide explains the stable core concepts and the shortest path from an empty game project to a complete fixed-screen adventure. Start headless, validate the world, then add CNA at the edge.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#setup">Integrate the engine</a>
+            <a class="button button-secondary" href="tutorial.html">Follow the tutorial</a>
+          </div>
+        </div>
+        <div class="docs-terminal" aria-label="Explore2D world validation example">
+          <div class="terminal-bar"><span>WORLD CHECK</span><span class="terminal-status">PASS</span></div>
+          <pre><code>$ ./signal-cabin-tests
+[core] start room ........ cabin
+[core] rooms ............. 4
+[core] interactions ...... 19
+[core] dangling ids ...... 0
+[route] new game → win ... PASS
+
+Explore2D world is valid.</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-shell docs-layout">
+      <aside class="docs-sidebar" aria-label="Developer guide contents">
+        <p class="sidebar-title">On this page</p>
+        <nav>
+          <a href="#mental-model">Mental model</a>
+          <a href="#setup">Project setup</a>
+          <a href="#world">World definition</a>
+          <a href="#drawing">Drawing system</a>
+          <a href="#rooms">Rooms and movement</a>
+          <a href="#rules">Hotspots and rules</a>
+          <a href="#state">Conditions and mutations</a>
+          <a href="#dialogue">Dialogue</a>
+          <a href="#animation">Animation</a>
+          <a href="#audio">QBasic-style audio</a>
+          <a href="#host">CNA host</a>
+          <a href="#save-test">Saving and tests</a>
+          <a href="#checklist">Ship checklist</a>
+        </nav>
+        <div class="sidebar-callout">
+          <strong>Prefer a guided build?</strong>
+          <p>The 24-lesson tutorial creates a small playable game step by step.</p>
+          <a href="tutorial.html">Start lesson 1 →</a>
+        </div>
+      </aside>
+
+      <article class="docs-content">
+        <section id="mental-model" class="doc-section">
+          <p class="eyebrow">01 · Mental model</p>
+          <h2>Four layers, one clear boundary.</h2>
+          <p>Explore2D treats a game as immutable definitions plus one mutable session. Rendering is deterministic and CPU-owned. CNA supplies the desktop loop, platform input, final texture and simple audio playback.</p>
+          <div class="concept-grid">
+            <div><code>WorldDefinition</code><strong>What exists</strong><p>Rooms, items, rules, art, animations, sounds and presentation.</p></div>
+            <div><code>AdventureSession</code><strong>What changed</strong><p>Player, inventory, flags, counters, visits, messages and active actions.</p></div>
+            <div><code>AdventureRenderer</code><strong>What is visible</strong><p>A fixed 640×350 indexed canvas and the shared Explore2D interface.</p></div>
+            <div><code>AdventureGame</code><strong>How it runs</strong><p>The optional CNA host for input, fullscreen, audio and frame presentation.</p></div>
+          </div>
+          <div class="doc-note"><strong>Recommended workflow</strong><p>Create and test the world against <code>Explore2D::Core</code>. Add <code>Explore2D::Cna</code> only to the executable that launches the real game.</p></div>
+        </section>
+
+        <section id="setup" class="doc-section">
+          <p class="eyebrow">02 · Project setup</p>
+          <h2>Keep the engine beside the game.</h2>
+          <p>The simplest development layout uses sibling repositories. It keeps the game independent while making local engine changes immediately available.</p>
+          <pre><code>workspace/
+├── explore-2d/
+├── cna/                 # required only for the desktop host
+└── signal-cabin/
+    ├── CMakeLists.txt
+    ├── src/
+    │   ├── Main.cpp
+    │   ├── SignalCabinWorld.cpp
+    │   └── SignalCabinWorld.hpp
+    └── test/
+        └── ScenarioTests.cpp</code></pre>
+          <p>If Explore2D is not already present, clone it beside the game:</p>
+          <pre><code>git clone https://github.com/openeggbert/explore-2d.git
+git -C explore-2d switch develop</code></pre>
+          <h3>Minimal CMake integration</h3>
+          <div class="code-panel">
+            <div class="code-title"><span>CMakeLists.txt</span><button type="button" data-copy="developer-cmake">Copy</button></div>
+            <pre id="developer-cmake"><code>cmake_minimum_required(VERSION 3.25)
+project(SignalCabin LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(EXPLORE2D_SOURCE_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}/../explore-2d"
+    CACHE PATH "Explore2D checkout")
+
+set(EXPLORE2D_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+add_subdirectory("${EXPLORE2D_SOURCE_DIR}"
+    "${CMAKE_BINARY_DIR}/_deps/explore2d")
+
+add_library(signal_cabin_world src/SignalCabinWorld.cpp)
+target_include_directories(signal_cabin_world PUBLIC src)
+target_link_libraries(signal_cabin_world PUBLIC Explore2D::Core)
+
+if(TARGET Explore2D::Cna)
+    add_executable(signal_cabin src/Main.cpp)
+    target_link_libraries(signal_cabin
+        PRIVATE signal_cabin_world Explore2D::Cna)
+endif()</code></pre>
+          </div>
+          <div class="command-pair">
+            <div><span>Headless core</span><pre><code>cmake -S . -B build-core \
+  -DEXPLORE2D_BUILD_CNA=OFF
+cmake --build build-core -j</code></pre></div>
+            <div><span>Desktop CNA host</span><pre><code>cmake -S . -B build \
+  -DCNA_SOURCE_DIR=/path/to/cna
+cmake --build build -j</code></pre></div>
+          </div>
+        </section>
+
+        <section id="world" class="doc-section">
+          <p class="eyebrow">03 · World definition</p>
+          <h2>Construct the game once.</h2>
+          <p>A game normally exports one function that returns a fully populated <code>WorldDefinition</code>. The session holds a const reference to it, so finish construction before creating a session or host.</p>
+          <div class="code-panel">
+            <div class="code-title"><span>SignalCabinWorld.cpp</span><button type="button" data-copy="world-skeleton">Copy</button></div>
+            <pre id="world-skeleton"><code>#include "SignalCabinWorld.hpp"
+#include "explore2d/Drawing.hpp"
+
+namespace e2d = explore2d;
+
+e2d::WorldDefinition buildWorld() {
+    e2d::WorldDefinition world;
+    world.title = "Signal Cabin";
+    world.startRoom = "cabin";
+
+    world.addItem({
+        "brass_key", "BRASS KEY",
+        "A worn key with a triangular bow.", true});
+
+    e2d::RoomDefinition cabin;
+    cabin.id = "cabin";
+    cabin.label = "SIGNAL CABIN";
+    cabin.background = e2d::PaletteColor::blue;
+    cabin.defaultSpawn = {32, 232};
+    cabin.solids.push_back({0, 260, 492, 28});
+
+    world.addRoom(std::move(cabin));
+    return world;
+}</code></pre>
+          </div>
+          <h3>Validate before play</h3>
+          <pre><code>auto world = buildWorld();
+const auto errors = world.validate();
+if (!errors.empty()) {
+    throw std::runtime_error(errors.front());
+}
+
+e2d::AdventureSession session{world};</code></pre>
+          <p><code>validate()</code> catches missing start rooms, dangling exits, duplicate hotspot or animation IDs, invalid sound steps and broken interaction references. The session constructor also validates and refuses an invalid world.</p>
+        </section>
+
+        <section id="drawing" class="doc-section">
+          <p class="eyebrow">04 · Drawing system</p>
+          <h2>Draw with EGA primitives.</h2>
+          <p>Game-facing art uses only <code>PaletteColor</code>. This makes arbitrary RGB drift impossible and preserves the exact 16-colour SCREEN 9 identity.</p>
+          <div class="api-table-wrap">
+            <table class="api-table">
+              <thead><tr><th>Operation</th><th>Declarative visual</th><th>Purpose</th></tr></thead>
+              <tbody>
+                <tr><td><code>pixel</code></td><td><code>PixelVisual</code></td><td>QBasic PSET equivalent</td></tr>
+                <tr><td><code>line / rectangle</code></td><td><code>LineVisual / RectVisual</code></td><td>Lines, boxes and filled areas</td></tr>
+                <tr><td><code>circle / ellipse / arc</code></td><td><code>CircleVisual / EllipseVisual / ArcVisual</code></td><td>Curved outlines and filled forms</td></tr>
+                <tr><td><code>polyline / polygon</code></td><td><code>PolylineVisual / PolygonVisual</code></td><td>Connected outlines and filled shapes</td></tr>
+                <tr><td><code>paint</code></td><td><code>PaintVisual</code></td><td>Boundary flood fill</td></tr>
+                <tr><td><code>text</code></td><td><code>TextVisual</code></td><td>Built-in 5×7 bitmap lettering</td></tr>
+                <tr><td><code>capture / blit</code></td><td><code>ImageVisual</code></td><td>Indexed GET/PUT with raster operations</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>Build reusable motifs with <code>Drawing</code></h3>
+          <pre><code>void addPine(e2d::RoomDefinition&amp; room,
+             e2d::Vec2 origin) {
+    e2d::Drawing pine;
+    pine.origin(origin)
+        .rectangle({-3, -34, 6, 34},
+            e2d::PaletteColor::brown)
+        .polygon({{-25, -24}, {0, -78}, {25, -24}},
+            e2d::PaletteColor::green)
+        .polygon({{-19, -48}, {0, -92}, {19, -48}},
+            e2d::PaletteColor::brightGreen);
+    pine.appendTo(room.decorations);
+}</code></pre>
+          <div class="doc-note"><strong>Coordinate rule</strong><p>Room decoration, solids, hotspots and animation frames all use room-local coordinates. The renderer adds the viewport origin at <code>(8, 8)</code>.</p></div>
+        </section>
+
+        <section id="rooms" class="doc-section">
+          <p class="eyebrow">05 · Rooms and movement</p>
+          <h2>A room is one authored composition.</h2>
+          <p>The room-local world is 492×262 pixels. Add solid rectangles for floors and platforms, then connect scenes with directional exits and explicit destination spawns.</p>
+          <pre><code>cabin.solids.push_back({0, 260, 492, 28});
+cabin.solids.push_back({210, 205, 90, 12});
+
+cabin.exits.push_back({
+    e2d::Direction::right,
+    "forest_path",
+    {8, 232},
+    {},
+    {}});
+
+e2d::ExitDefinition lockedExit{
+    e2d::Direction::left,
+    "radio_room",
+    {462, 232},
+    {e2d::Condition::flag("door_open")},
+    "The radio-room door is locked."};
+cabin.exits.push_back(std::move(lockedExit));</code></pre>
+          <ul class="doc-list">
+            <li><strong><code>defaultSpawn</code></strong> is used on new game, map travel and mutations that do not provide another spawn.</li>
+            <li><strong><code>travelAnchor</code></strong> makes a visited room available on the discovered-location map.</li>
+            <li><strong><code>turnBeforeWalk</code></strong> makes the first opposite-direction press turn the player without moving.</li>
+            <li><strong>ENTER/Space</strong> attempts a nearby contextual rule first and jumps only when none applies.</li>
+          </ul>
+        </section>
+
+        <section id="rules" class="doc-section">
+          <p class="eyebrow">06 · Hotspots and rules</p>
+          <h2>Separate targets from outcomes.</h2>
+          <p>A hotspot describes where and what something is. An interaction rule describes what a particular intent does to it. Several rules may target the same hotspot under different conditions.</p>
+          <pre><code>cabin.hotspots.push_back({
+    "desk_drawer",
+    "DESK DRAWER",
+    {174, 190, 126, 70},
+    e2d::HotspotKind::mechanism,
+    {},
+    {e2d::RectVisual{
+        {194, 214, 86, 18},
+        e2d::PaletteColor::brown, true}}
+});
+
+world.addInteraction({
+    e2d::Verb::examine,
+    "desk_drawer",
+    std::nullopt,
+    {e2d::Condition::notFlag("key_revealed")},
+    {{"Behind the ledger, a brass key catches the light.",
+        e2d::MessageStyle::inspect}},
+    {e2d::Mutation::setFlag("key_revealed")},
+    10,
+    "reveal_key_once"
+});</code></pre>
+          <p>When interaction areas overlap, Explore2D prefers the nearby hotspot with an applicable rule for the requested verb. A key lying on a desk therefore wins for TAKE while the desk wins for EXAMINE.</p>
+        </section>
+
+        <section id="state" class="doc-section">
+          <p class="eyebrow">07 · Conditions and mutations</p>
+          <h2>World state is the puzzle language.</h2>
+          <div class="two-column-reference">
+            <div>
+              <h3>Conditions</h3>
+              <ul class="code-list">
+                <li><code>Condition::flag("power_on")</code></li>
+                <li><code>Condition::notFlag("gate_open")</code></li>
+                <li><code>Condition::has("brass_key")</code></li>
+                <li><code>Condition::lacks("fuse")</code></li>
+                <li><code>Condition::counterAtLeast("clues", 3)</code></li>
+                <li><code>Condition::counterEquals("dial", 7)</code></li>
+                <li><code>Condition::visited("tower")</code></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Mutations</h3>
+              <ul class="code-list">
+                <li><code>Mutation::setFlag("power_on")</code></li>
+                <li><code>Mutation::clearFlag("alarm")</code></li>
+                <li><code>Mutation::addItem("fuse")</code></li>
+                <li><code>Mutation::removeItem("fuse")</code></li>
+                <li><code>Mutation::addCounter("clues", 1)</code></li>
+                <li><code>Mutation::moveTo("tower_top")</code></li>
+                <li><code>Mutation::playAnimation("repair")</code></li>
+                <li><code>Mutation::win("The signal returns.")</code></li>
+              </ul>
+            </div>
+          </div>
+          <h3>Use priorities for state-specific behaviour</h3>
+          <p>All matching rules are considered; the highest priority wins. Put a specific powered/open/repaired rule above a general fallback. Use <code>onceFlag</code> when the rule itself must execute only once.</p>
+        </section>
+
+        <section id="dialogue" class="doc-section">
+          <p class="eyebrow">08 · Dialogue</p>
+          <h2>Anchor every line to its speaker.</h2>
+          <p>Messages appear as compact blue bubbles and keep the room visible. Speech can follow the target character or the player independently on every line.</p>
+          <pre><code>world.addInteraction({
+    e2d::Verb::context, "caretaker", std::nullopt, {},
+    {
+        {"Mara: The transmitter lost power at dawn.",
+            e2d::MessageStyle::speech,
+            e2d::MessageSpeaker::target},
+        {"I will inspect the generator.",
+            e2d::MessageStyle::speech,
+            e2d::MessageSpeaker::player},
+        {"Mara: Take the path beyond the gate.",
+            e2d::MessageStyle::speech,
+            e2d::MessageSpeaker::target}
+    },
+    {e2d::Mutation::setFlag("met_mara")},
+    10, "first_talk"
+});</code></pre>
+          <div class="message-style-grid">
+            <div><code>inspect</code><p>Observation or action result, normally anchored to the player.</p></div>
+            <div><code>speech</code><p>Character dialogue; automatic mode follows the interaction target.</p></div>
+            <div><code>system</code><p>Save/load feedback and engine-level information.</p></div>
+            <div><code>warning</code><p>Blocked actions, danger and failure cues.</p></div>
+          </div>
+        </section>
+
+        <section id="animation" class="doc-section">
+          <p class="eyebrow">09 · Selective animation</p>
+          <h2>Animate an overlay, not the entire world.</h2>
+          <p>Every frame is a list of ordinary procedural visuals. Durations use QBasic's 18.2 Hz timer ticks. Autoplay animations are ideal for indicators; rule-triggered animations are ideal for actions.</p>
+          <h3>Conditioned looping animation</h3>
+          <pre><code>room.animations.push_back({
+    "beacon",
+    true,   // autoplay
+    true,   // loop
+    {e2d::Condition::flag("power_on")},
+    {
+        {8, {e2d::CircleVisual{
+            {230, 40}, 7,
+            e2d::PaletteColor::brightRed, true}}},
+        {8, {e2d::CircleVisual{
+            {230, 40}, 4,
+            e2d::PaletteColor::red, true}}}
+    }
+});</code></pre>
+          <h3>One-shot action animation</h3>
+          <pre><code>room.animations.push_back({
+    "repair_spark", false, false, {}, {
+        {2, {sparkLeft}},
+        {2, {sparkRing}},
+        {3, {sparkRight}}
+    }});
+
+// Add this to the successful repair rule:
+e2d::Mutation::playAnimation("repair_spark")</code></pre>
+          <div class="doc-warning"><strong>Keep it selective</strong><p>A static tree does not need an animation object. Use animation when motion communicates state, consequence or character action.</p></div>
+        </section>
+
+        <section id="audio" class="doc-section">
+          <p class="eyebrow">10 · QBasic-style audio</p>
+          <h2>Compose effects from tones and ticks.</h2>
+          <p>Explore2D intentionally exposes a historical sound vocabulary: frequency in hertz, duration in 18.2 Hz timer ticks, frequency zero for a rest, and one monophonic voice.</p>
+          <pre><code>world.addSoundEffect({
+    "pickup",
+    {
+        {440, 1},
+        {660, 1},
+        {880, 2}
+    },
+    0.15F
+});
+
+world.presentation.sounds.pickup = "pickup";
+world.presentation.sounds.warning = "warning";
+
+// A rule may override the general binding:
+rule.soundEffect = "unlock";</code></pre>
+          <p>Core code validates and queues effect IDs without touching an audio device. The CNA adapter synthesizes signed 16-bit mono square-wave PCM and plays it through CNA <code>SoundEffect</code>. A new effect interrupts the previous one.</p>
+        </section>
+
+        <section id="host" class="doc-section">
+          <p class="eyebrow">11 · CNA host</p>
+          <h2>Turn the tested world into a desktop game.</h2>
+          <div class="code-panel">
+            <div class="code-title"><span>Main.cpp</span><button type="button" data-copy="developer-host">Copy</button></div>
+            <pre id="developer-host"><code>#include "SignalCabinWorld.hpp"
+#include "explore2d/CnaGame.hpp"
+
+int main() {
+    explore2d::cna::HostConfig host;
+    host.windowTitle = "Signal Cabin";
+    host.presentationScale = 2;
+    host.savePath = "signal-cabin.e2dsave";
+    host.audioEnabled = true;
+
+    explore2d::SessionConfig session;
+    session.turnBeforeWalk = true;
+
+    explore2d::cna::AdventureGame game{
+        buildWorld(), session, {}, host};
+    game.Run();
+}</code></pre>
+          </div>
+          <p>The host maps the standard controls, uploads one CPU-rendered RGBA texture with point sampling, letterboxes at integer scale, toggles fullscreen with F11 and drains monophonic sound cues.</p>
+        </section>
+
+        <section id="save-test" class="doc-section">
+          <p class="eyebrow">12 · Saving and deterministic tests</p>
+          <h2>Test the route, not only the functions.</h2>
+          <p><code>SessionSnapshot</code> stores the stable adventure state: current room, player, selected verb, inventory, flags, counters, visited rooms and travel anchors. Transient bubbles, poses, sounds and action animations are deliberately not saved.</p>
+          <pre><code>auto world = buildWorld();
+e2d::AdventureSession session{world};
+
+// Place the player beside a pickup in a test helper.
+auto snapshot = session.snapshot();
+snapshot.roomId = "cabin";
+snapshot.player.position = {205, 232};
+snapshot.player.grounded = true;
+assert(session.restore(snapshot));
+
+session.performVerb(e2d::Verb::take);
+assert(session.hasItem("brass_key"));
+assert(session.player().pose == e2d::PlayerPose::taking);
+
+while (session.mode() == e2d::SessionMode::message) {
+    session.advanceMessage();
+}</code></pre>
+          <h3>Recommended test layers</h3>
+          <ol class="doc-steps">
+            <li><span>1</span><div><strong>World validation</strong><p>No dangling IDs, exits, sound bindings or animation cues.</p></div></li>
+            <li><span>2</span><div><strong>Full winning route</strong><p>Script every required collection, reveal, use, transition and final action.</p></div></li>
+            <li><span>3</span><div><strong>Failure route</strong><p>Exercise hazards, blocked conditions, death and restart independently.</p></div></li>
+            <li><span>4</span><div><strong>Renderer preview</strong><p>Write indexed frames for title, rooms, dialogue and transient actions.</p></div></li>
+            <li><span>5</span><div><strong>CNA smoke test</strong><p>Start the actual host for a bounded number of frames with dummy video/audio.</p></div></li>
+          </ol>
+        </section>
+
+        <section id="checklist" class="doc-section">
+          <p class="eyebrow">13 · Shipping checklist</p>
+          <h2>Finish the small game well.</h2>
+          <div class="checklist-grid">
+            <label><input type="checkbox"> Every room has a valid spawn and supporting floor.</label>
+            <label><input type="checkbox"> Every hotspot ID is globally unique.</label>
+            <label><input type="checkbox"> Overlapping hotspots resolve correctly for each verb.</label>
+            <label><input type="checkbox"> Important state changes are visible after their dialogue closes.</label>
+            <label><input type="checkbox"> Player and target speech lines use the correct anchor.</label>
+            <label><input type="checkbox"> Animation communicates state without making every prop move.</label>
+            <label><input type="checkbox"> Tone effects stay short, quiet and monophonic.</label>
+            <label><input type="checkbox"> A clean headless build passes the complete winning route.</label>
+            <label><input type="checkbox"> Death/restart and save/load are tested separately.</label>
+            <label><input type="checkbox"> The full CNA build launches with real video and audio.</label>
+          </div>
+          <div class="next-banner">
+            <div><p class="eyebrow">Ready to apply it?</p><h3>Build Signal Cabin in 24 lessons.</h3><p>The tutorial turns every concept above into one concrete checkpoint.</p></div>
+            <a class="button button-primary" href="tutorial.html">Begin the tutorial</a>
+          </div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div><a class="wordmark-small" href="index.html">EXPLORE<span>2D</span></a><p>Fixed-screen adventure engine for C++23 and CNA.</p></div>
+    <p><a href="tutorial.html">Tutorial</a> · <a href="https://github.com/openeggbert/explore-2d">Source</a> · MIT licensed · <span id="year">2026</span></p>
+  </footer>
+</body>
+</html>

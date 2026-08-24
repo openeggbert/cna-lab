@@ -8,6 +8,14 @@
   <meta property="og:title" content="Explore2D — Make worlds one screen at a time">
   <meta property="og:description" content="A C++23 engine for fixed-screen exploration adventures, built around procedural 16-colour art and compact interaction design.">
   <meta property="og:type" content="website">
+  <meta property="og:image" content="https://raw.githubusercontent.com/openeggbert/explore-2d/develop/web/assets/explore2d-social-preview.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Explore2D — Make worlds one screen at a time">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Explore2D — Make worlds one screen at a time">
+  <meta name="twitter:description" content="C++23 fixed-screen adventure engine with procedural EGA graphics.">
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/openeggbert/explore-2d/develop/web/assets/explore2d-social-preview.png">
   <title>Explore2D — Fixed-screen adventure engine</title>
   <link rel="stylesheet" href="styles.css">
   <script src="site.js" defer></script>
@@ -23,9 +31,9 @@
     <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
     <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
       <a href="#features">Features</a>
-      <a href="#visuals">Visual system</a>
-      <a href="#quickstart">Quickstart</a>
-      <a href="#reference">Reference</a>
+      <a href="developers.html">Developers</a>
+      <a href="tutorial.html">24-lesson tutorial</a>
+      <a href="#reference">API tour</a>
       <a class="nav-github" href="https://github.com/openeggbert/explore-2d">GitHub</a>
     </nav>
   </header>
@@ -343,13 +351,37 @@ world.presentation.sounds.pickup =
       </div>
     </section>
 
+    <section class="section-shell section-block learning-section">
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow">Developer learning centre</p>
+          <h2>Understand the API.<br>Then build a game.</h2>
+        </div>
+        <p>Use the developer guide as a searchable reference, or follow the complete 24-lesson path that grows one small adventure from an empty directory to a tested CNA desktop build.</p>
+      </div>
+      <div class="learning-grid">
+        <a class="learning-card learning-guide" href="developers.html">
+          <span class="learning-kicker">Reference path</span>
+          <strong>Developer guide</strong>
+          <p>Architecture, integration, drawing, rooms, rules, dialogue, animation, sound, saves, testing and common patterns.</p>
+          <span class="learning-link">Open the guide →</span>
+        </a>
+        <a class="learning-card learning-tutorial" href="tutorial.html">
+          <span class="learning-kicker">Guided path · 24 lessons</span>
+          <strong>Build Signal Cabin</strong>
+          <p>A six-module tutorial with concrete checkpoints, exercises, code samples and progress saved in your browser.</p>
+          <span class="learning-link">Start lesson 1 →</span>
+        </a>
+      </div>
+    </section>
+
     <section class="final-cta section-shell section-block">
       <p class="eyebrow">Build a place worth examining</p>
       <h2>Your first room is<br>492 × 262 pixels away.</h2>
       <p>Start with one screen, one object and one meaningful state change. The rest of the world can grow from there.</p>
       <div class="hero-actions">
-        <a class="button button-primary" href="https://github.com/openeggbert/explore-2d">Explore the source</a>
-        <a class="button button-secondary" href="https://github.com/openeggbert/black-pine">Study Black Pine</a>
+        <a class="button button-primary" href="tutorial.html">Start the tutorial</a>
+        <a class="button button-secondary" href="developers.html">Read the guide</a>
       </div>
     </section>
   </main>
