@@ -35,6 +35,18 @@ stronger lower bound, not full residency; backend programs, swapchain/depth/rend
 transients, driver padding, and physical residency remain unknown, so `tracking_complete=false`
 and M12 stays open.
 
+The next M12 follow-up added a non-blocking GPU command-range timer without enabling CNA's entire
+77-source GraphicsExt module: `GpuFrameTimer` uses the same renderer timer-query contract, guards
+one pending query from overwrite, and never substitutes a CPU clock. JSON tests cover support
+metadata, escaped unsupported reasons, discarded-result counts, and the `gpu_render` metric. A
+full 540-frame Release EasyGL mixed run on isolated Xvfb/X11 produced 538 valid samples with GPU
+p95 7.786 ms, Present CPU p95 12.189 ms, and frame p95 16.918 ms; a separate 120-frame idle run
+reported GPU/frame p95 9.150/17.091 ms. One 32-bit all-ones EasyGL/metagl timer sentinel in each
+run was explicitly counted and discarded rather than reported as a false 4.295-second GPU frame.
+Release/development EasyGL, software plus all CTest targets, strict syntax checks, Emscripten/Web,
+and the full mixed runtime flow pass. This proves the reporting path; llvmpipe is still not
+qualifying hardware.
+
 ## Current modular dependency baseline (2026-08-22)
 
 Iron Gang now configures against the sibling `../cnanext` and modular `../sharp-runtime`

@@ -100,3 +100,35 @@ false because backend effect programs,
 swapchain/depth/render-target/transient allocations, driver padding, and physical residency remain
 unobservable. The earlier table's tracked totals predate imported-resource accounting and should
 not be compared as a VRAM-growth measurement.
+
+## 2026-08-24 — non-blocking EasyGL GPU timer follow-up
+
+The profiler now places a real CNA renderer timer query around each frame's Draw command range,
+from before Clear through the HUD and explicitly excluding Present. Results are collected only when
+available in a later frame; no query result is waited on and a pending query is never overwritten.
+The JSON reports support/unsupported reason and the count of discarded samples alongside the new
+`gpu_render` measurement.
+
+A 120-frame idle run and a full 540-frame mixed walking/driving/district-transition run used the
+Release EasyGL build on the isolated Xvfb/X11 path with v-sync requested off:
+
+| Measurement | Idle, 120 frames | Mixed, 540 frames |
+| --- | ---: | ---: |
+| Frame interval p95 | 17.091 ms | 16.918 ms |
+| Render-submission CPU p95 | 1.914 ms | 1.387 ms |
+| Present CPU p95 | 13.604 ms | 12.189 ms |
+| GPU Draw-range p95 | 9.150 ms | 7.786 ms |
+| GPU Draw-range average / maximum | 6.207 / 15.615 ms | 4.341 / 13.250 ms |
+| GPU samples | 118 valid, 1 discarded | 538 valid, 1 discarded |
+
+The mixed run also retained the expected small non-rendering costs: update/physics p95 were
+0.267/0.208 ms and two district-load samples had a 5.036 ms p95.
+
+The discarded result was EasyGL/metagl's 32-bit all-ones timer saturation value
+(`4,294,967,295 ns`), first observed as an impossible 4,294.967 ms result while the complete host
+frame was at most tens of milliseconds. `GpuFrameTimer` now recognizes that explicit sentinel,
+keeps a discard count as evidence, and excludes it from statistics. llvmpipe implements the timer
+extension, but remains unaccelerated software GL; these values validate collection and make future
+hardware captures materially more diagnostic, but do not replace named-hardware qualification.
+The historic 51-58 ms hardware-backed runs predate this metric and must be rerun before their
+Draw/GPU/Present split is known.

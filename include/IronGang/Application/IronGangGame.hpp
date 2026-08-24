@@ -8,6 +8,7 @@
 #include "IronGang/Gameplay/PoliceSystem.hpp"
 #include "IronGang/Gameplay/TrafficVehicle.hpp"
 #include "IronGang/Gameplay/VehicleController.hpp"
+#include "IronGang/Graphics/GpuFrameTimer.hpp"
 #include "IronGang/Graphics/PrototypeRenderer.hpp"
 #include "IronGang/Missions/PrototypeMission.hpp"
 #include "IronGang/Physics/PhysicsWorld.hpp"
@@ -128,6 +129,7 @@ namespace IronGang
         // isolated Clock calls. The pending load value combines synchronous world/physics swapping
         // with the later renderer rebuild while excluding the loading screen's cosmetic delay.
         PerformanceProfiler performanceProfiler_;
+        std::unique_ptr<GpuFrameTimer> gpuFrameTimer_;
         std::string performanceReportPath_;
         double pendingDistrictLoadCpuMilliseconds_{0.0};
         PerformanceScenario performanceScenario_{PerformanceScenario::InteractiveOrIntro};

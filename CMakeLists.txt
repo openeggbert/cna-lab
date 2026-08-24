@@ -147,6 +147,7 @@ iron_gang_apply_warnings(iron_gang_core)
 
 add_executable(iron_gang
     src/Application/IronGangGame.cpp
+    src/Graphics/GpuFrameTimer.cpp
     src/Graphics/PrimitiveMesh.cpp
     src/Graphics/PrototypeRenderer.cpp
     src/main.cpp)
@@ -166,11 +167,12 @@ target_compile_definitions(iron_gang PRIVATE
 target_link_libraries(iron_gang PRIVATE
     iron_gang_core
     CNA::Runtime)
-# Game.hpp reaches sharp-runtime's Decimal.hpp through CNA's public content headers. Mark that
-# dependency include root as external for Iron Gang so -Wpedantic diagnoses our sources, not the
-# dependency's intentional GNU __int128 implementation (sharp-runtime itself still builds with
-# its own strict warning policy).
+# GpuFrameTimer uses CNA's renderer timer contract, whose broad interface supplies many default
+# no-op methods with intentionally unnamed-at-call-site parameters. Game.hpp also reaches
+# sharp-runtime's Decimal.hpp through CNA's public content headers. Mark both dependency roots as
+# external for Iron Gang so strict warnings diagnose our sources rather than dependency internals.
 target_include_directories(iron_gang SYSTEM PRIVATE
+    "${IRON_GANG_CNA_DIR}/modules/graphics/include"
     "${IRON_GANG_SHARP_RUNTIME_DIR}/modules/core/include")
 iron_gang_apply_warnings(iron_gang)
 

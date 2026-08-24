@@ -261,6 +261,16 @@ CNA's `Game::EndDraw()`/`GraphicsDeviceManager::EndDraw()` path, including swap,
 any rendering work the backend defers until presentation. It is diagnostic rather than a separate
 budget because the end-to-end frame interval is still the gate.
 
+On a renderer/driver with a real timer-query implementation, `gpu_render` measures the GPU command
+range from the pre-Clear start of `Draw()` through the HUD, excluding Present. The query is polled
+asynchronously in a later frame and never waited on; while a result is pending, that single timer
+is not reused, so a slow GPU can produce fewer samples without the profiler introducing a stall.
+`gpu_timing.supported` and `unsupported_reason` distinguish unavailable timing from zero work. The
+current EasyGL/metagl seam returns a 32-bit nanosecond result; its all-ones saturation sentinel is
+discarded and counted in `gpu_timing.discarded_samples` instead of contaminating statistics.
+`gpu_render` remains diagnostic rather than a separate pass/fail budget: frame interval is still
+the user-visible gate and includes GPU back-pressure plus presentation behavior.
+
 Every report also records whether v-sync was requested, whether CNA's fixed timestep was enabled,
 and the target frame duration. `vertical_sync_requested` describes the requested presentation
 parameters; it is not proof that a virtual display or driver accepted a real swap interval.

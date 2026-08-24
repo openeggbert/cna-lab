@@ -908,6 +908,7 @@ namespace
             profiler.Record(IronGang::PerformanceMetric::FrameInterval, static_cast<double>(sample));
         }
         profiler.Record(IronGang::PerformanceMetric::DistrictLoadCpu, 12.5);
+        profiler.Record(IronGang::PerformanceMetric::GpuRender, 3.25);
 
         const IronGang::PerformanceStatistics frame =
             profiler.GetStatistics(IronGang::PerformanceMetric::FrameInterval);
@@ -933,6 +934,9 @@ namespace
         context.trackedGameOwnedVideoMemoryBytes = 5ULL * 1024ULL * 1024ULL;
         context.trackedImportedModelBufferBytes = 2ULL * 1024ULL * 1024ULL;
         context.trackedImportedModelTextureBytes = 1ULL * 1024ULL * 1024ULL;
+        context.gpuTimerSupported = false;
+        context.gpuTimerUnsupportedReason = "test renderer has no timer \"query\"";
+        context.gpuTimerDiscardedSamples = 2;
         context.physicsBodyCount = 7;
         context.trafficVehicleCount = 2;
         context.pedestrianCount = 2;
@@ -948,6 +952,12 @@ namespace
                 "performance report must identify its graphics backend");
         Require(report.find("\"present_cpu\"") != std::string::npos,
                 "performance report must expose the EndDraw/Present diagnostic separately");
+        Require(report.find("\"gpu_render\": {\"samples\": 1, \"average_ms\": 3.250") !=
+                        std::string::npos &&
+                    report.find("\"gpu_timing\": {\"supported\": false") != std::string::npos &&
+                    report.find("\"discarded_samples\": 2") != std::string::npos &&
+                    report.find("test renderer has no timer \\\"query\\\"") != std::string::npos,
+                "performance report must distinguish an unavailable real GPU timer from zero GPU work");
         Require(report.find("\"vertical_sync_requested\": false") != std::string::npos &&
                     report.find("\"fixed_timestep\": true") != std::string::npos &&
                     report.find("\"target_frame_ms\": 16.667") != std::string::npos,

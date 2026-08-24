@@ -29,6 +29,8 @@ namespace IronGang
                 return "render_cpu";
             case PerformanceMetric::PresentCpu:
                 return "present_cpu";
+            case PerformanceMetric::GpuRender:
+                return "gpu_render";
             case PerformanceMetric::DistrictLoadCpu:
                 return "district_load_cpu";
             case PerformanceMetric::StartupCpu:
@@ -228,6 +230,12 @@ namespace IronGang
                    << (context.verticalSyncRequested ? "true" : "false")
                    << ", \"fixed_timestep\": " << (context.fixedTimeStep ? "true" : "false")
                    << ", \"target_frame_ms\": " << context.targetFrameMilliseconds << "},\n"
+                   << "  \"gpu_timing\": {\"supported\": "
+                   << (context.gpuTimerSupported ? "true" : "false")
+                   << ", \"non_blocking\": true, \"scope\": \"draw_commands_excluding_present\""
+                   << ", \"discarded_samples\": "
+                   << context.gpuTimerDiscardedSamples << ", \"unsupported_reason\": \""
+                   << EscapeJson(context.gpuTimerUnsupportedReason) << "\"},\n"
                    << "  \"budgets\": {\n"
                    << "    \"minimum_frame_p95_ms\": " << kMinimumFrameBudgetMilliseconds << ",\n"
                    << "    \"recommended_frame_p95_ms\": " << kRecommendedFrameBudgetMilliseconds << ",\n"

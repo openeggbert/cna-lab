@@ -13,7 +13,8 @@ namespace IronGang
 {
     // Gate M12 / plan_35: the small set of timings needed to decide whether the first district
     // fits its performance budget. FrameInterval includes the scheduler, vertical sync, and the
-    // preceding Present(); RenderCpu only measures Iron Gang's CPU-side Draw() submission work.
+    // preceding Present(); RenderCpu measures Iron Gang's CPU-side Draw() submission work and
+    // GpuRender is the renderer's asynchronous command-range timer when the driver supports one.
     enum class PerformanceMetric : std::size_t
     {
         FrameInterval,
@@ -23,6 +24,7 @@ namespace IronGang
         AudioCpu,
         RenderCpu,
         PresentCpu,
+        GpuRender,
         DistrictLoadCpu,
         StartupCpu,
         Count,
@@ -67,6 +69,9 @@ namespace IronGang
         std::uint64_t trackedImportedModelBufferBytes{0};
         std::uint64_t trackedImportedModelTextureBytes{0};
         bool videoMemoryTrackingComplete{false};
+        bool gpuTimerSupported{false};
+        std::string gpuTimerUnsupportedReason;
+        std::size_t gpuTimerDiscardedSamples{0};
         std::size_t physicsBodyCount{0};
         std::size_t trafficVehicleCount{0};
         std::size_t pedestrianCount{0};

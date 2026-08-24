@@ -126,6 +126,11 @@ namespace IronGang
         context.trackedVideoMemoryBytes = context.trackedGameOwnedVideoMemoryBytes +
             context.trackedImportedModelBufferBytes + context.trackedImportedModelTextureBytes;
         context.videoMemoryTrackingComplete = false;
+        context.gpuTimerSupported = gpuFrameTimer_ && gpuFrameTimer_->IsSupported();
+        context.gpuTimerUnsupportedReason = context.gpuTimerSupported
+            ? std::string{}
+            : (gpuFrameTimer_ ? gpuFrameTimer_->GetUnsupportedReason() : "GPU timer was not initialized");
+        context.gpuTimerDiscardedSamples = gpuFrameTimer_ ? gpuFrameTimer_->GetDiscardedSampleCount() : 0;
         context.physicsBodyCount = peakPhysicsBodyCount_;
         context.trafficVehicleCount = peakTrafficVehicleCount_;
         context.pedestrianCount = peakPedestrianCount_;
@@ -138,6 +143,10 @@ namespace IronGang
         ScopedPerformanceSample startupSample(performanceProfiler_, PerformanceMetric::StartupCpu);
         const PerformanceProfiler::Clock::time_point initialDistrictLoadStart = PerformanceProfiler::Clock::now();
         Game::Initialize();
+        if (performanceProfiler_.IsEnabled())
+        {
+            gpuFrameTimer_ = std::make_unique<GpuFrameTimer>(getGraphicsDeviceProperty());
+        }
         districtManager_.Initialize(physics_);
         player_.Reset(districtManager_.GetWorld().GetPlayerSpawn(), 0.0F, physics_);
         vehicle_.Reset(districtManager_.GetWorld().GetVehicleSpawn(),
@@ -944,6 +953,15 @@ namespace IronGang
         ScopedPerformanceSample renderSample(performanceProfiler_, PerformanceMetric::RenderCpu);
         (void)gameTime;
         Graphics::GraphicsDevice& device = getGraphicsDeviceProperty();
+        if (gpuFrameTimer_)
+        {
+            double gpuMilliseconds = 0.0;
+            if (gpuFrameTimer_->Poll(gpuMilliseconds))
+            {
+                performanceProfiler_.Record(PerformanceMetric::GpuRender, gpuMilliseconds);
+            }
+            gpuFrameTimer_->Begin();
+        }
 
         // IG-13-013: a solid-color loading screen for a district transition's minimum display
         // time. The 3D scene is deliberately not drawn here -- physics has already swapped to
@@ -959,6 +977,10 @@ namespace IronGang
                 {
                     Exit();
                 }
+            }
+            if (gpuFrameTimer_)
+            {
+                gpuFrameTimer_->End();
             }
             return;
         }
@@ -1099,6 +1121,10 @@ namespace IronGang
             {
                 Exit();
             }
+        }
+        if (gpuFrameTimer_)
+        {
+            gpuFrameTimer_->End();
         }
     }
 

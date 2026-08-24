@@ -67,6 +67,27 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now records a true asynchronous GPU Draw-range time.** New `GpuFrameTimer`
+(`include/`/`src/Graphics/GpuFrameTimer.*`) uses CNA's renderer timer-query contract without
+enabling the full 77-source GraphicsExt module. It starts before Clear, ends after the HUD,
+excludes Present, polls only in later frames, never waits, and never overwrites a pending result.
+Unsupported drivers report an explicit reason rather than receiving a CPU-clock substitute. JSON
+adds `gpu_render` and `gpu_timing` support/scope/discard metadata.
+
+- A full 540-frame Release EasyGL `mixed` run used only isolated Xvfb/X11 and returned 538 valid
+  GPU samples: GPU Draw-range p95 7.786 ms (average 4.341, max 13.250), Present CPU p95
+  12.189 ms, and frame p95 16.918 ms. A separate 120-frame idle run returned GPU/frame p95
+  9.150/17.091 ms.
+- EasyGL/metagl exposed one 32-bit all-ones timer result (`4,294,967,295 ns`) that would have been
+  an impossible 4.295-second GPU sample while the host frame stayed under 70 ms. The wrapper now
+  counts and discards that explicit saturation sentinel; the integration report shows
+  `discarded_samples: 1` and clean statistics.
+- llvmpipe supports the query but is unaccelerated software GL, so this proves plumbing rather
+  than hardware performance. Historic 51-58 ms hardware captures predate `gpu_render` and need a
+  controlled rerun to establish their Draw/GPU/Present split.
+- Release and development EasyGL builds, the software build plus all three CTest targets, strict
+  syntax checks, and the Emscripten/Web build all pass with the timer contract.
+
 **M12 logical VRAM visibility now includes imported CNJ resources.** New
 `VideoMemoryAccumulator` (`include/`/`src/Graphics/VideoMemoryAccounting.*`) traverses every loaded
 model through CNA's public mesh/effect API, deduplicates shared vertex/index buffers and textures
@@ -902,12 +923,12 @@ audio bus graph or spatial 3D positioning, no ambience/siren content, no menus/g
 are real but not gate-blocking — see each file's own status note for the itemized list.
 
 **If continuing autonomous work, remain on gate M12** (`plan_39` `IG-39-013`). Phase-labelled
-scenarios, direct Present timing, and public-resource VRAM accounting now exist, but graphical
-automation in this workspace must stay on isolated Xvfb (never the visible host display). The next
-code-side slice is a reliable EasyGL backend residency/GPU-timer/accepted-swap-interval query; do
-not duplicate the CNJ buffer/texture accounting now completed. The next physical-hardware capture
-should use the scenarios and `present_cpu` to determine whether the historic 51-58 ms mixed p95 is
-spent inside Present and whether intro/walk/drive differ under a controlled compositor. CPU
+scenarios, direct Present/GPU timing, and public-resource VRAM accounting now exist, but graphical
+automation in this workspace must stay on isolated Xvfb (never the visible host display). The
+remaining useful code-side seams are complete backend VRAM residency and an accepted (not merely
+requested) swap-interval query; do not duplicate the CNJ buffer/texture or GPU timer work now
+completed. The next physical-hardware capture should use `gpu_render` and `present_cpu` to locate
+the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside
 budget. Do not mark M12 complete until repeated mixed workloads pass 33.333 ms p95 on named
 minimum hardware and VRAM tracking is complete.
