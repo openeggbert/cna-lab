@@ -1672,9 +1672,8 @@ namespace WolfCna
                 yaw_ = std::atan2(
                     approach->lookDirection.X,
                     -approach->lookDirection.Z);
-                world_.ActivateExitObjectiveForCheat();
                 static_cast<void>(exploration_.Visit(playerPosition_.X, playerPosition_.Z));
-                objectiveMessage_ = "EXIT ONLINE";
+                objectiveMessage_ = "GOAL APPROACH";
                 objectiveMessageSeconds_ = 2.0f;
                 if (secretSound_)
                     static_cast<void>(secretSound_->Play(0.24f, 0.2f, 0.0f));

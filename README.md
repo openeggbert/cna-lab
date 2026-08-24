@@ -63,7 +63,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - `I` + `L` + `M` together: retro loadout cheat — full health, all weapons,
   access card, heavy automatic selected, ammunition set to 99, and score reset to zero
 - `G` + `O` + `A` + `L` together: teleport to the free cell immediately outside
-  the current sector elevator, face its doors and bring its objective online
+  the current sector elevator and face its doors; objective state is unchanged
 
 After all lives are lost, press `Space` to return to the title menu and start a new run.
 At a sector exit, `Space` takes the run to the next sector; score, lives, health,

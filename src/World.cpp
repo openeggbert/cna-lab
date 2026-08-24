@@ -386,14 +386,6 @@ namespace WolfCna
                 -static_cast<float>(exit.approachZ))};
     }
 
-    void World::ActivateExitObjectiveForCheat()
-    {
-        for (Terminal& terminal : terminals_)
-            terminal.activated = true;
-        for (Relay& relay : relays_)
-            relay.activated = true;
-    }
-
     World::ObjectiveStatus World::GetObjectiveStatus() const
     {
         return {

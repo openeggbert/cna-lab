@@ -149,7 +149,6 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         [[nodiscard]] bool IsExitUnlocked() const;
         [[nodiscard]] std::optional<ExitApproach> GetExitApproach() const;
-        void ActivateExitObjectiveForCheat();
         [[nodiscard]] ObjectiveStatus GetObjectiveStatus() const;
         [[nodiscard]] CompletionStats GetCompletionStats() const;
         [[nodiscard]] int ConsumeGuardShotCount();

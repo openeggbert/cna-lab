@@ -360,32 +360,38 @@ int main()
     Expect(cardPickup.accessCards == 1, "security card is collected once");
 
     WolfCna::World goalCheatWorld(WolfCna::LevelDefinition::Parse(
-        "######\n#P.E##\n######\n",
+        "########\n#POM..E#\n########\n",
         "goal-cheat.level"));
     const std::optional<WolfCna::World::ExitApproach> goalApproach =
         goalCheatWorld.GetExitApproach();
     Expect(goalApproach.has_value(), "goal cheat finds an authored elevator approach");
     Expect(
-        goalApproach->position.X == 2.5f && goalApproach->position.Z == 1.5f,
+        goalApproach->position.X == 5.5f && goalApproach->position.Z == 1.5f,
         "goal cheat destination is one cell outside the elevator");
     Expect(
         goalApproach->lookDirection.X == 1.0f && goalApproach->lookDirection.Z == 0.0f,
         "goal cheat faces the player toward the elevator doors");
-
-    WolfCna::World goalInteractionWorld(WolfCna::LevelDefinition::Parse(
-        "#######\n#PM..E#\n#######\n",
-        "goal-interaction.level"));
-    const Microsoft::Xna::Framework::Vector3 goalInteractionPosition(4.5f, 0.62f, 1.5f);
+    Expect(!goalCheatWorld.IsExitUnlocked(), "goal cheat lookup does not activate objectives");
+    const Microsoft::Xna::Framework::Vector3 goalInteractionPosition(5.5f, 0.62f, 1.5f);
     Expect(
-        goalInteractionWorld.TryActivate(goalInteractionPosition, lookDirection, false) ==
+        goalCheatWorld.TryActivate(goalInteractionPosition, lookDirection, false) ==
             WolfCna::World::InteractionResult::ExitOffline,
         "action on a locked elevator reports that the exit is offline");
-    goalInteractionWorld.ActivateExitObjectiveForCheat();
-    Expect(goalInteractionWorld.IsExitUnlocked(), "goal cheat brings the sector objective online");
     Expect(
-        goalInteractionWorld.TryActivate(goalInteractionPosition, lookDirection, false) ==
+        goalCheatWorld.TryActivate(playerPosition, lookDirection, false) ==
+            WolfCna::World::InteractionResult::RelayActivated,
+        "normal play activates the power relay");
+    Expect(
+        goalCheatWorld.TryActivate(
+            Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f),
+            lookDirection,
+            false) == WolfCna::World::InteractionResult::TerminalActivated,
+        "normal play activates the terminal");
+    Expect(goalCheatWorld.IsExitUnlocked(), "normal objectives bring the elevator online");
+    Expect(
+        goalCheatWorld.TryActivate(goalInteractionPosition, lookDirection, false) ==
             WolfCna::World::InteractionResult::ExitActivated,
-        "action on an online elevator activates sector completion");
+        "the elevator action works after walking or teleporting to its approach");
 
     WolfCna::World exitWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PET#\n#####\n",
