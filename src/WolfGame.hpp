@@ -16,6 +16,7 @@
 
 #include "World.hpp"
 #include "CampaignProgress.hpp"
+#include "ExplorationMap.hpp"
 
 namespace WolfCna
 {
@@ -78,6 +79,7 @@ namespace WolfCna
 
         LevelDefinition level_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
         World world_{level_};
+        ExplorationMap exploration_{level_};
         Microsoft::Xna::Framework::Vector3 playerPosition_;
 
         float yaw_ = 0.0f;
@@ -100,6 +102,7 @@ namespace WolfCna
             Difficulty,
             Controls,
             Playing,
+            Map,
             Paused,
             GameOver
         };
@@ -121,6 +124,7 @@ namespace WolfCna
         bool attackWasDown_ = false;
         bool fullScreenWasDown_ = false;
         bool pauseWasDown_ = false;
+        MapToggleLatch mapToggle_;
         bool ilmWasDown_ = false;
         bool upWasDown_ = false;
         bool downWasDown_ = false;
@@ -158,6 +162,7 @@ namespace WolfCna
         void CreateHudResources();
         void CreateSoundEffects();
         void DrawHud();
+        void DrawAutomap();
         void DrawMenu();
     };
 }

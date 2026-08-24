@@ -237,6 +237,7 @@ namespace WolfCna
     WolfGame::WolfGame()
         : playerPosition_(world_.PlayerStart())
     {
+        static_cast<void>(exploration_.Visit(playerPosition_.X, playerPosition_.Z));
         getContentProperty().setRootDirectoryProperty("Content");
 
         graphics_ = std::make_unique<GraphicsDeviceManager>(this);
@@ -845,6 +846,113 @@ namespace WolfCna
         hudSpriteBatch_->End();
     }
 
+    void WolfGame::DrawAutomap()
+    {
+        if (!hudSpriteBatch_ || !hudPixel_ || exploration_.Width() <= 0 || exploration_.Height() <= 0)
+            return;
+
+        const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
+        const int width = viewport.getWidthProperty();
+        const int height = viewport.getHeightProperty();
+        const int cellSize = std::max(
+            2,
+            std::min(
+                std::max(2, (width - 64) / exploration_.Width()),
+                std::max(2, (height - 96) / exploration_.Height())));
+        const int mapWidth = exploration_.Width() * cellSize;
+        const int mapHeight = exploration_.Height() * cellSize;
+        const int mapLeft = viewport.getXProperty() + (width - mapWidth) / 2;
+        const int mapTop = viewport.getYProperty() + (height - mapHeight) / 2 + 10;
+        const int edge = std::max(1, cellSize / 5);
+        const auto& rows = level_.Rows();
+
+        hudSpriteBatch_->Begin();
+        hudSpriteBatch_->Draw(
+            *hudPixel_,
+            Rectangle(viewport.getXProperty(), viewport.getYProperty(), width, height),
+            Color(2, 6, 16, 246));
+
+        constexpr std::string_view title = "EXPLORED MAP";
+        DrawHudText(
+            *hudSpriteBatch_,
+            *hudPixel_,
+            viewport.getXProperty() + width / 2 - HudTextWidth(title) / 2,
+            viewport.getYProperty() + 14,
+            title,
+            Color(184, 238, 255, 255));
+
+        for (int z = 0; z < exploration_.Height(); ++z)
+        {
+            for (int x = 0; x < exploration_.Width(); ++x)
+            {
+                if (!exploration_.IsVisited(x, z))
+                    continue;
+
+                const char symbol = rows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)];
+                Color floorColor(29, 58, 91, 255);
+                if (symbol == 'D')
+                    floorColor = Color(75, 137, 193, 255);
+                else if (symbol == 'Q')
+                    floorColor = Color(174, 57, 65, 255);
+                else if (symbol == 'S')
+                    floorColor = Color(194, 144, 50, 255);
+                else if (symbol == 'E' || symbol == 'M')
+                    floorColor = Color(36, 173, 177, 255);
+
+                const int left = mapLeft + x * cellSize;
+                const int top = mapTop + z * cellSize;
+                hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left, top, cellSize, cellSize), floorColor);
+
+                const auto isWall = [&rows](int wallX, int wallZ)
+                {
+                    return wallZ < 0 || wallX < 0 ||
+                        wallZ >= static_cast<int>(rows.size()) ||
+                        wallX >= static_cast<int>(rows[static_cast<std::size_t>(wallZ)].size()) ||
+                        rows[static_cast<std::size_t>(wallZ)][static_cast<std::size_t>(wallX)] == '#';
+                };
+                const Color wallColor(119, 148, 180, 255);
+                if (isWall(x, z - 1))
+                    hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left, top, cellSize, edge), wallColor);
+                if (isWall(x, z + 1))
+                    hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left, top + cellSize - edge, cellSize, edge), wallColor);
+                if (isWall(x - 1, z))
+                    hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left, top, edge, cellSize), wallColor);
+                if (isWall(x + 1, z))
+                    hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left + cellSize - edge, top, edge, cellSize), wallColor);
+            }
+        }
+
+        const int playerX = static_cast<int>(std::floor(playerPosition_.X));
+        const int playerZ = static_cast<int>(std::floor(playerPosition_.Z));
+        const int playerCenterX = mapLeft + playerX * cellSize + cellSize / 2;
+        const int playerCenterY = mapTop + playerZ * cellSize + cellSize / 2;
+        const int markerSize = std::max(3, cellSize / 2);
+        hudSpriteBatch_->Draw(
+            *hudPixel_,
+            Rectangle(playerCenterX - markerSize / 2, playerCenterY - markerSize / 2, markerSize, markerSize),
+            Color(255, 231, 116, 255));
+        const int directionLength = std::max(5, cellSize);
+        for (int step = 1; step <= directionLength; ++step)
+        {
+            const int directionX = playerCenterX + static_cast<int>(std::lround(std::sin(yaw_) * step));
+            const int directionY = playerCenterY - static_cast<int>(std::lround(std::cos(yaw_) * step));
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(directionX - 1, directionY - 1, 3, 3),
+                Color(255, 231, 116, 255));
+        }
+
+        constexpr std::string_view prompt = "M CLOSE";
+        DrawHudText(
+            *hudSpriteBatch_,
+            *hudPixel_,
+            viewport.getXProperty() + width / 2 - HudTextWidth(prompt) / 2,
+            viewport.getYProperty() + height - 25,
+            prompt,
+            Color(255, 233, 136, 255));
+        hudSpriteBatch_->End();
+    }
+
     void WolfGame::DrawMenu()
     {
         if (!hudSpriteBatch_ || !hudPixel_)
@@ -1069,10 +1177,12 @@ namespace WolfCna
         levelIndex_ = std::clamp(index, 0, maximumIndex);
         level_ = LevelDefinition::LoadFromFile(std::string(CampaignLevelFiles[static_cast<std::size_t>(levelIndex_)]));
         world_ = World(level_);
+        exploration_.Reset(level_);
         world_.Upload(getGraphicsDeviceProperty());
         if (atlas_)
             CreateProceduralAtlas();
         playerPosition_ = world_.PlayerStart();
+        static_cast<void>(exploration_.Visit(playerPosition_.X, playerPosition_.Z));
         yaw_ = 0.0f;
         hasSecurityCard_ = false;
         completed_ = false;
@@ -1083,6 +1193,7 @@ namespace WolfCna
         playerFireCooldownSeconds_ = 0.0f;
         ilmWasDown_ = false;
         pauseWasDown_ = false;
+        mapToggle_.Reset();
         cheatMessageSeconds_ = 0.0f;
     }
 
@@ -1249,6 +1360,10 @@ namespace WolfCna
     void WolfGame::HandleInput(float elapsedSeconds)
     {
         const KeyboardState keyboard = Keyboard::GetState();
+        const bool mapIsDown = keyboard.IsKeyDown(Keys::M);
+        const bool ilmIsDown =
+            keyboard.IsKeyDown(Keys::I) && keyboard.IsKeyDown(Keys::L) && mapIsDown;
+        const bool mapToggleRequested = mapToggle_.Update(mapIsDown, ilmIsDown);
 
         if (keyboard.IsKeyDown(Keys::Escape))
         {
@@ -1258,6 +1373,12 @@ namespace WolfCna
 
         const bool actionIsDown = keyboard.IsKeyDown(Keys::Space);
         const bool pauseIsDown = keyboard.IsKeyDown(Keys::P);
+        if (screen_ == Screen::Map)
+        {
+            if (mapToggleRequested)
+                screen_ = Screen::Playing;
+            return;
+        }
         if (screen_ == Screen::Paused)
         {
             if (pauseIsDown && !pauseWasDown_)
@@ -1291,10 +1412,14 @@ namespace WolfCna
             return;
         }
 
+        if (mapToggleRequested)
+        {
+            screen_ = Screen::Map;
+            return;
+        }
+
         playerFireCooldownSeconds_ = std::max(0.0f, playerFireCooldownSeconds_ - elapsedSeconds);
 
-        const bool ilmIsDown =
-            keyboard.IsKeyDown(Keys::I) && keyboard.IsKeyDown(Keys::L) && keyboard.IsKeyDown(Keys::M);
         if (ilmIsDown && !ilmWasDown_)
         {
             health_ = 100;
@@ -1455,7 +1580,8 @@ namespace WolfCna
             return;
         }
 
-        if (screen_ == Screen::Paused || screen_ == Screen::GameOver || completed_)
+        if (screen_ == Screen::Map || screen_ == Screen::Paused ||
+            screen_ == Screen::GameOver || completed_)
         {
             HandleInput(clampedElapsed);
             Game::Update(gameTime);
@@ -1496,6 +1622,7 @@ namespace WolfCna
             }
         }
         HandleInput(clampedElapsed);
+        static_cast<void>(exploration_.Visit(playerPosition_.X, playerPosition_.Z));
         const World::PickupResult pickups = world_.CollectPickups(playerPosition_, health_);
         const bool wasOutOfAmmo = ammo_ <= 0;
         health_ = std::min(100, health_ + pickups.health);
@@ -1543,7 +1670,8 @@ namespace WolfCna
         device.setRasterizerStateProperty(RasterizerState::CullNone);
         device.getSamplerStatesProperty()[0] = SamplerState::PointClamp;
 
-        if ((screen_ == Screen::Playing || screen_ == Screen::Paused || screen_ == Screen::GameOver) &&
+        if ((screen_ == Screen::Playing || screen_ == Screen::Map ||
+            screen_ == Screen::Paused || screen_ == Screen::GameOver) &&
             effect_ && atlas_ && guardSprite_ && houndSprite_ && bloodDecal_ &&
             rapidTrooperSprite_ && heavyUnitSprite_ &&
             ammoPickupSprite_ && healthPickupSprite_ && goldBarsSprite_ &&
@@ -1577,7 +1705,11 @@ namespace WolfCna
             screen_ == Screen::Difficulty || screen_ == Screen::Controls)
             DrawMenu();
         else
+        {
             DrawHud();
+            if (screen_ == Screen::Map)
+                DrawAutomap();
+        }
 
         Game::Draw(gameTime);
     }

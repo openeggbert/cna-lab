@@ -1159,7 +1159,12 @@ entirely original room layouts and real polygonal 3D rendering.
 
 ### WOLF-018 — explored-area automap
 
-Status: planned.
+Status: complete. A testable exploration tracker records only entered walkable
+cells and resets on sector changes. The standalone `M` edge opens a CNA
+`SpriteBatch` map overlay that pauses simulation, shows visited floor and adjacent
+wall boundaries, colors known doors/objectives and draws the player's facing.
+Unknown geometry and entities remain hidden. A tested input latch gives the
+`I` + `L` + `M` loadout chord priority without breaking the next standalone `M`.
 
 - toggle a map of the current floor with the standalone `M` key;
 - reveal only cells and nearby boundaries the player has already visited, leaving

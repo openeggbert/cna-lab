@@ -11,6 +11,7 @@
 #include "LevelDefinition.hpp"
 #include "World.hpp"
 #include "CampaignProgress.hpp"
+#include "ExplorationMap.hpp"
 
 namespace
 {
@@ -123,6 +124,26 @@ int main()
     Expect(level.Rows().size() == 3, "valid level row count");
     Expect(level.Rows().front().size() == 5, "valid level width");
     Expect(level.PlayerStartX() == 1 && level.PlayerStartZ() == 1, "player spawn position");
+
+    WolfCna::ExplorationMap exploration(level);
+    Expect(!exploration.IsVisited(1, 1), "new exploration map starts hidden");
+    Expect(exploration.Visit(1.5f, 1.5f), "entering a floor cell reveals it");
+    Expect(exploration.IsVisited(1, 1), "visited floor cell stays revealed");
+    Expect(!exploration.Visit(1.5f, 1.5f), "revisiting a cell does not reveal it twice");
+    Expect(!exploration.Visit(0.5f, 0.5f), "wall cells cannot become visited");
+    Expect(!exploration.IsVisited(2, 1), "unvisited floor remains hidden");
+    exploration.Reset(starterLevel);
+    Expect(exploration.Width() == 64 && exploration.Height() == 64, "sector reset resizes exploration");
+    Expect(!exploration.IsVisited(1, 1), "sector reset clears prior exploration");
+
+    WolfCna::MapToggleLatch mapToggle;
+    Expect(!mapToggle.Update(false, false), "released map key does not toggle");
+    Expect(mapToggle.Update(true, false), "first standalone M press toggles the map");
+    Expect(!mapToggle.Update(true, false), "holding M does not repeatedly toggle the map");
+    Expect(!mapToggle.Update(false, false), "releasing M only rearms the toggle");
+    Expect(!mapToggle.Update(true, true), "I+L+M does not toggle the map");
+    Expect(!mapToggle.Update(false, false), "releasing the cheat chord rearms the map");
+    Expect(mapToggle.Update(true, false), "standalone M works after the loadout cheat");
 
     ExpectParseFailure("#####\n#P.#\n#####\n", "different width");
     ExpectParseFailure("#####\n#X.P#\n#####\n", "unknown symbol");
