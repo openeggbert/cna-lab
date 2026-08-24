@@ -77,6 +77,9 @@ namespace WolfCna
                 case 'A':
                 case 'T':
                 case 'E':
+                case 'R':
+                case 'B':
+                case 'L':
                     break;
                 case 'P':
                     if (level.playerStartX_ >= 0)
@@ -103,6 +106,30 @@ namespace WolfCna
             throw LevelError(sourceName, "level contains no rows");
         if (level.playerStartX_ < 0)
             throw LevelError(sourceName, "level contains no player spawn");
+
+        const auto isWall = [&level](int x, int z)
+        {
+            return z >= 0 && z < static_cast<int>(level.rows_.size()) &&
+                x >= 0 && x < static_cast<int>(level.rows_[static_cast<std::size_t>(z)].size()) &&
+                level.rows_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == '#';
+        };
+        for (int z = 0; z < static_cast<int>(level.rows_.size()); ++z)
+        {
+            for (int x = 0; x < static_cast<int>(level.rows_[static_cast<std::size_t>(z)].size()); ++x)
+            {
+                const char symbol = level.rows_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)];
+                if (symbol != 'R' && symbol != 'B')
+                    continue;
+                if (!isWall(x, z - 1) && !isWall(x, z + 1) &&
+                    !isWall(x - 1, z) && !isWall(x + 1, z))
+                {
+                    throw LevelError(
+                        sourceName,
+                        "line " + std::to_string(z + 1) +
+                            " has a wall decoration without an adjacent wall");
+                }
+            }
+        }
 
         return level;
     }

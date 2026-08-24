@@ -9,6 +9,7 @@
 #include <stdexcept>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
+#include "Microsoft/Xna/Framework/MathHelper.hpp"
 #include "Microsoft/Xna/Framework/Vector2.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BufferUsage.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
@@ -62,6 +63,7 @@ namespace WolfCna
         BuildPickups();
         BuildTerminals();
         BuildExits();
+        BuildDecorations();
         BuildMesh();
         RebuildDoorGeometry();
         BuildImpactGeometry();
@@ -775,6 +777,58 @@ namespace WolfCna
         }
     }
 
+    void World::BuildDecorations()
+    {
+        for (int z = 0; z < static_cast<int>(map_.size()); ++z)
+        {
+            for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
+            {
+                const char symbol = map_[z][x];
+                if (symbol == 'L')
+                {
+                    decorations_.push_back({
+                        Vector3(static_cast<float>(x) + 0.5f, 0.985f, static_cast<float>(z) + 0.5f),
+                        Decoration::Type::CeilingLamp,
+                        0.0f});
+                    continue;
+                }
+                if (symbol != 'R' && symbol != 'B')
+                    continue;
+
+                Decoration decoration;
+                decoration.type = symbol == 'R'
+                    ? Decoration::Type::Painting
+                    : Decoration::Type::PeaceBanner;
+                decoration.position.Y = symbol == 'R' ? 0.22f : 0.1f;
+
+                if (IsStaticWallCell(x, z - 1))
+                {
+                    decoration.position.X = static_cast<float>(x) + 0.5f;
+                    decoration.position.Z = static_cast<float>(z) + 0.012f;
+                }
+                else if (IsStaticWallCell(x, z + 1))
+                {
+                    decoration.position.X = static_cast<float>(x) + 0.5f;
+                    decoration.position.Z = static_cast<float>(z) + 0.988f;
+                    decoration.rotationY = MathHelper::Pi;
+                }
+                else if (IsStaticWallCell(x - 1, z))
+                {
+                    decoration.position.X = static_cast<float>(x) + 0.012f;
+                    decoration.position.Z = static_cast<float>(z) + 0.5f;
+                    decoration.rotationY = MathHelper::PiOver2;
+                }
+                else
+                {
+                    decoration.position.X = static_cast<float>(x) + 0.988f;
+                    decoration.position.Z = static_cast<float>(z) + 0.5f;
+                    decoration.rotationY = -MathHelper::PiOver2;
+                }
+                decorations_.push_back(decoration);
+            }
+        }
+    }
+
     bool World::HasLineOfSight(const Vector3& from, const Vector3& to) const
     {
         const float dx = to.X - from.X;
@@ -1047,7 +1101,7 @@ namespace WolfCna
             enemyIndexBuffer_->SetData(enemyIndices_.data(), static_cast<int>(enemyIndices_.size()));
         }
 
-        if (!enemies_.empty())
+        if (!enemies_.empty() || !decorations_.empty())
         {
             billboardVertexBuffer_ = std::make_unique<VertexBuffer>(
                 device,
@@ -1092,6 +1146,9 @@ namespace WolfCna
         Texture2D& guardSprite,
         Texture2D& houndSprite,
         Texture2D& bloodDecal,
+        Texture2D& paintingTexture,
+        Texture2D& peaceBannerTexture,
+        Texture2D& ceilingLampTexture,
         const Vector3& cameraPosition)
     {
         if (!vertexBuffer_ || !indexBuffer_ || indices_.empty())
@@ -1139,6 +1196,69 @@ namespace WolfCna
                     0,
                     static_cast<int>(doorIndices_.size() / 3));
             }
+        }
+
+        if (!decorations_.empty() && billboardVertexBuffer_ && billboardIndexBuffer_ &&
+            bloodPoolVertexBuffer_ && bloodPoolIndexBuffer_)
+        {
+            device.setBlendStateProperty(BlendState::NonPremultiplied);
+            device.setDepthStencilStateProperty(DepthStencilState::DepthRead);
+            effect.setTextureEnabledProperty(true);
+            effect.setDiffuseColorProperty(Vector3(1.0f, 1.0f, 1.0f));
+
+            device.SetVertexBuffer(billboardVertexBuffer_.get());
+            device.setIndicesProperty(billboardIndexBuffer_.get());
+            for (const Decoration& decoration : decorations_)
+            {
+                if (decoration.type == Decoration::Type::CeilingLamp)
+                    continue;
+
+                const bool isPainting = decoration.type == Decoration::Type::Painting;
+                effect.setTextureProperty(isPainting ? &paintingTexture : &peaceBannerTexture);
+                effect.setWorldProperty(
+                    Matrix::CreateScale(isPainting ? 0.58f : 0.56f, isPainting ? 0.56f : 0.78f, 1.0f) *
+                    Matrix::CreateRotationY(decoration.rotationY) *
+                    Matrix::CreateTranslation(decoration.position));
+
+                for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+                {
+                    pass.Apply();
+                    device.DrawIndexedPrimitives(
+                        PrimitiveType::TriangleList,
+                        0,
+                        0,
+                        static_cast<int>(billboardVertices_.size()),
+                        0,
+                        static_cast<int>(billboardIndices_.size() / 3));
+                }
+            }
+
+            device.SetVertexBuffer(bloodPoolVertexBuffer_.get());
+            device.setIndicesProperty(bloodPoolIndexBuffer_.get());
+            effect.setTextureProperty(&ceilingLampTexture);
+            for (const Decoration& decoration : decorations_)
+            {
+                if (decoration.type != Decoration::Type::CeilingLamp)
+                    continue;
+
+                effect.setWorldProperty(
+                    Matrix::CreateScale(0.54f, 1.0f, 0.54f) *
+                    Matrix::CreateTranslation(decoration.position));
+                for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+                {
+                    pass.Apply();
+                    device.DrawIndexedPrimitives(
+                        PrimitiveType::TriangleList,
+                        0,
+                        0,
+                        static_cast<int>(bloodPoolVertices_.size()),
+                        0,
+                        static_cast<int>(bloodPoolIndices_.size() / 3));
+                }
+            }
+
+            device.setBlendStateProperty(BlendState::Opaque);
+            device.setDepthStencilStateProperty(DepthStencilState::Default);
         }
 
         if (!impacts_.empty() && impactVertexBuffer_ && impactIndexBuffer_)

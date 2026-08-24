@@ -81,6 +81,9 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::Texture2D& guardSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& houndSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& bloodDecal,
+            Microsoft::Xna::Framework::Graphics::Texture2D& paintingTexture,
+            Microsoft::Xna::Framework::Graphics::Texture2D& peaceBannerTexture,
+            Microsoft::Xna::Framework::Graphics::Texture2D& ceilingLampTexture,
             const Microsoft::Xna::Framework::Vector3& cameraPosition);
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 PlayerStart() const;
@@ -180,6 +183,15 @@ namespace WolfCna
             bool activated = false;
         };
 
+        struct Decoration
+        {
+            enum class Type { Painting, PeaceBanner, CeilingLamp };
+
+            Microsoft::Xna::Framework::Vector3 position;
+            Type type = Type::Painting;
+            float rotationY = 0.0f;
+        };
+
         static constexpr std::size_t MaxImpactCount = 24;
 
         std::vector<std::string> map_;
@@ -205,6 +217,7 @@ namespace WolfCna
         int totalSecrets_ = 0;
         std::vector<Terminal> terminals_;
         std::vector<Microsoft::Xna::Framework::Vector3> exits_;
+        std::vector<Decoration> decorations_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> enemyVertices_;
         std::vector<std::uint16_t> enemyIndices_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> billboardVertices_;
@@ -236,6 +249,7 @@ namespace WolfCna
         void BuildPickups();
         void BuildTerminals();
         void BuildExits();
+        void BuildDecorations();
         void BuildEnemyGeometry();
         void BuildBillboardGeometry();
         void BuildBloodPoolGeometry();

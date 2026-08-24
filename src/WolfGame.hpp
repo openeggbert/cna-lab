@@ -39,6 +39,9 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> guardSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> houndSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> bloodDecal_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> paintingTexture_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> peaceBannerTexture_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> ceilingLampTexture_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> hudSpriteBatch_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> hudPixel_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> weaponIcon_;
@@ -120,6 +123,7 @@ namespace WolfCna
         static constexpr float PlayerRadius = 0.22f;
         static constexpr float WalkSpeed = 2.4f;
         static constexpr float KeyboardTurnSpeed = 1.65f;
+        static constexpr int MaxAmmo = 99;
 
         void HandleInput(float elapsedSeconds);
         void HandleMenuInput();
@@ -138,6 +142,7 @@ namespace WolfCna
 
         void CreateProceduralAtlas();
         void CreateProceduralBloodDecal();
+        void CreateProceduralDecorationTextures();
         void CreateHudResources();
         void CreateSoundEffects();
         void DrawHud();

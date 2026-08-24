@@ -267,6 +267,7 @@ namespace WolfCna
         guardSprite_ = std::make_unique<Texture2D>("assets/sprites/security-guard.png", device);
         houndSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound.png", device);
         CreateProceduralBloodDecal();
+        CreateProceduralDecorationTextures();
         CreateHudResources();
         CreateSoundEffects();
 
@@ -462,6 +463,98 @@ namespace WolfCna
         }
 
         bloodDecal_->SetData(pixels.data(), static_cast<int>(pixels.size()));
+    }
+
+    void WolfGame::CreateProceduralDecorationTextures()
+    {
+        constexpr int size = 64;
+        auto& device = getGraphicsDeviceProperty();
+
+        paintingTexture_ = std::make_unique<Texture2D>(device, size, size);
+        std::vector<Color> paintingPixels(
+            static_cast<std::size_t>(size * size),
+            Color(0, 0, 0, 255));
+        for (int y = 0; y < size; ++y)
+        {
+            for (int x = 0; x < size; ++x)
+            {
+                const bool outerFrame = x < 5 || x >= size - 5 || y < 5 || y >= size - 5;
+                const bool innerFrame = x < 8 || x >= size - 8 || y < 8 || y >= size - 8;
+                Color color(0, 0, 0, 255);
+                if (outerFrame)
+                    color = Color(48 + Noise(x, y) / 2, 24, 13, 255);
+                else if (innerFrame)
+                    color = Color(164, 111 + Noise(x, y), 42, 255);
+                else
+                {
+                    const int localY = y - 8;
+                    const int hillLine = 33 + static_cast<int>(5.0f * std::sin(static_cast<float>(x) * 0.18f));
+                    const int sunX = x - 46;
+                    const int sunY = y - 20;
+                    if (sunX * sunX + sunY * sunY < 45)
+                        color = Color(246, 191, 54, 255);
+                    else if (y < hillLine)
+                        color = Color(42 + localY / 2, 101 + localY, 151 + localY, 255);
+                    else if (y < 48)
+                        color = Color(41 + Noise(x, y), 102 + Noise(x + 9, y), 61, 255);
+                    else
+                        color = Color(24, 61 + Noise(x, y), 49, 255);
+                }
+                paintingPixels[static_cast<std::size_t>(y * size + x)] = color;
+            }
+        }
+        paintingTexture_->SetData(paintingPixels.data(), static_cast<int>(paintingPixels.size()));
+
+        peaceBannerTexture_ = std::make_unique<Texture2D>(device, size, size);
+        std::vector<Color> bannerPixels(
+            static_cast<std::size_t>(size * size),
+            Color(0, 0, 0, 255));
+        for (int y = 0; y < size; ++y)
+        {
+            for (int x = 0; x < size; ++x)
+            {
+                const int weave = ((x + y) & 3) == 0 ? 8 : 0;
+                Color color(18, 72 + weave, 91 + weave, 255);
+                if (x < 3 || x >= size - 3 || y < 3 || y >= size - 3)
+                    color = Color(10, 36, 51, 255);
+
+                const float dx = static_cast<float>(x) - 31.5f;
+                const float dy = static_cast<float>(y) - 29.5f;
+                const float distance = std::sqrt(dx * dx + dy * dy);
+                const bool ring = std::abs(distance - 20.0f) < 2.0f;
+                const bool stem = std::abs(dx) < 2.0f && dy >= -1.0f && dy <= 20.0f;
+                const bool branches = dy >= 0.0f && dy <= 15.0f && std::abs(std::abs(dx) - dy) < 2.2f;
+                if (ring || stem || branches)
+                    color = Color(226, 225, 198, 255);
+
+                bannerPixels[static_cast<std::size_t>(y * size + x)] = color;
+            }
+        }
+        peaceBannerTexture_->SetData(bannerPixels.data(), static_cast<int>(bannerPixels.size()));
+
+        ceilingLampTexture_ = std::make_unique<Texture2D>(device, size, size);
+        std::vector<Color> lampPixels(static_cast<std::size_t>(size * size), Color(0, 0, 0, 0));
+        for (int y = 0; y < size; ++y)
+        {
+            for (int x = 0; x < size; ++x)
+            {
+                const float dx = static_cast<float>(x) - 31.5f;
+                const float dy = static_cast<float>(y) - 31.5f;
+                const float distance = std::sqrt(dx * dx + dy * dy);
+                if (distance > 28.0f)
+                    continue;
+
+                Color color = distance > 23.0f
+                    ? Color(44, 48, 52, 255)
+                    : distance > 18.0f
+                        ? Color(119, 123, 116, 255)
+                        : Color(255, 224 + Noise(x, y), 145 + Noise(x + 4, y), 245);
+                if ((x % 8 == 0 || y % 8 == 0) && distance < 20.0f)
+                    color = Color(194, 169, 106, 255);
+                lampPixels[static_cast<std::size_t>(y * size + x)] = color;
+            }
+        }
+        ceilingLampTexture_->SetData(lampPixels.data(), static_cast<int>(lampPixels.size()));
     }
 
     void WolfGame::CreateHudResources()
@@ -1120,7 +1213,7 @@ namespace WolfCna
         if (ilmIsDown && !ilmWasDown_)
         {
             health_ = 100;
-            ammo_ = 12;
+            ammo_ = MaxAmmo;
             score_ = 0;
             nextExtraLifeScore_ = 40000;
             hasSecurityCard_ = true;
@@ -1303,7 +1396,7 @@ namespace WolfCna
         const World::PickupResult pickups = world_.CollectPickups(playerPosition_);
         const bool wasOutOfAmmo = ammo_ <= 0;
         health_ = std::min(100, health_ + pickups.health);
-        ammo_ = std::min(12, ammo_ + pickups.ammo);
+        ammo_ = std::min(MaxAmmo, ammo_ + pickups.ammo);
         if (pickups.ammo > 0 && wasOutOfAmmo && ammo_ > 0)
             weapon_ = lastFirearm_;
         AwardScore(pickups.gold);
@@ -1335,7 +1428,8 @@ namespace WolfCna
         device.getSamplerStatesProperty()[0] = SamplerState::PointClamp;
 
         if ((screen_ == Screen::Playing || screen_ == Screen::Paused || screen_ == Screen::GameOver) &&
-            effect_ && atlas_ && guardSprite_ && houndSprite_ && bloodDecal_)
+            effect_ && atlas_ && guardSprite_ && houndSprite_ && bloodDecal_ &&
+            paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_)
         {
             world_.Draw(
                 device,
@@ -1346,6 +1440,9 @@ namespace WolfCna
                 *guardSprite_,
                 *houndSprite_,
                 *bloodDecal_,
+                *paintingTexture_,
+                *peaceBannerTexture_,
+                *ceilingLampTexture_,
                 playerPosition_);
         }
 

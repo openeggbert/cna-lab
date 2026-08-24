@@ -71,6 +71,13 @@ int main()
     ExpectParseFailure("#####\n#X.P#\n#####\n", "unknown symbol");
     ExpectParseFailure("#####\n#...#\n#####\n", "no player spawn");
     ExpectParseFailure("#####\n#P.P#\n#####\n", "more than one player spawn");
+    const WolfCna::LevelDefinition decoratedLevel = WolfCna::LevelDefinition::Parse(
+        "######\n#PBRL#\n######\n",
+        "decorated.level");
+    Expect(decoratedLevel.Rows().front().size() == 6, "decoration symbols are accepted");
+    ExpectParseFailure(
+        "#######\n#P....#\n#..R..#\n#.....#\n#######\n",
+        "without an adjacent wall");
 
     WolfCna::World doorWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PD.#\n#####\n",

@@ -25,6 +25,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - a three-sector authored bunker campaign with guards, hounds, pickups, sliding doors, security doors, terminals and exits
 - original transparent pixel-art guard and hound sprites rendered as camera-facing polygons in the 3D world
 - defeated guards and hounds leave a stylized procedurally textured blood-pool decal on the floor
+- authored rooms include procedural framed paintings, peace-symbol banners and ceiling lamps
 - distinct generated material palettes for each sector: warm bunker, green industrial, and cold technical
 - guards fire visible ranged projectiles; hounds remain close-range attackers
 - no external copyrighted game assets
@@ -44,7 +45,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - `P`: pause / resume
 - `Escape`: quit
 - `I` + `L` + `M` together: retro loadout cheat — full health and ammunition,
-  access card, repeater selected, and score reset to zero
+  access card, repeater selected, ammunition set to 99, and score reset to zero
 
 After all lives are lost, press `Space` to return to the title menu and start a new run.
 At a sector exit, `Space` takes the run to the next sector; score, lives, health,
@@ -76,6 +77,9 @@ have the same width and use only these symbols:
 - `A`: ammunition pickup
 - `T`: gold pickup
 - `E`: level exit
+- `R`: wall-mounted framed landscape painting; must be next to a wall
+- `B`: wall-mounted banner with an original peace symbol; must be next to a wall
+- `L`: ceiling lamp
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 

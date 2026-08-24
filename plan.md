@@ -995,6 +995,8 @@ Current progress:
 - three original external level files now form a short room-and-corridor campaign; exits advance with Space and preserve score, lives, health, ammunition and weapon selection;
 - every sector exit now presents a completion card with time and kill, treasure and secret ratios; each category is independently tracked in `World` and covered by unit tests;
 - the in-game `I` + `L` + `M` retro loadout cheat restores health and ammunition, grants the sector card, selects the repeater and resets score, matching the original cheat's gameplay role with wolf-cna's own systems and message;
+- the ammunition capacity is 99 and the `I` + `L` + `M` loadout cheat fills it
+  to that maximum rather than to the ordinary starting supply;
 - a generated looping bunker-ambient layer now runs through CNA `SoundEffectInstance`; the title menu can toggle master sound on/off;
 - `P` now pauses all gameplay simulation and draws a pause card; exits play a generated elevator-confirmation sound;
 - each of the three authored sectors now regenerates the wall, floor, ceiling and door atlas colors from its own original palette;
@@ -1085,8 +1087,23 @@ textured floor decal. Animation frames and weapon sprite sheets remain.
 
 ### WOLF-015 — rooms and decorations
 
+Status: in progress. Every authored sector now introduces a framed landscape,
+an original peace-symbol banner and a ceiling lamp through validated level
+symbols and project-generated textures. Freestanding furniture, plants, treasure
+props and sector-specific variants remain.
+
 - add generated paintings, ceiling lamps, tables, plants and treasure props;
 - add original wall banners carrying a peace symbol only;
 - give each sector its own decoration/material set;
 - decorations may block movement only when their silhouette clearly communicates it;
 - authored rooms should use landmarks and decoration placement for navigation.
+
+### WOLF-016 — illustrated title screen
+
+- show `WOLF CNA` in large, sharp letters as the dominant title-menu element;
+- place an original generated bunker-action illustration behind the menu;
+- keep menu choices readable over the image at windowed and fullscreen sizes;
+- render the exact title text in game rather than baking it into generated art;
+- record the image-generation prompt and provenance;
+- include no copied characters, logos, uniforms, prohibited symbols or other
+  proprietary Wolfenstein material.
