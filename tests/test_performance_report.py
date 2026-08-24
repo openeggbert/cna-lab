@@ -325,6 +325,100 @@ class PerformanceReportTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("duplicate JSON object key 'schema_version'", result.stderr)
 
+    def test_output_is_atomic_and_never_overwrites_evidence_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            capture_path = root / "diagnostic.json"
+            capture_path.write_text(json.dumps(capture_fixture()), encoding="utf-8")
+            capture_before = capture_path.read_bytes()
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--hardware",
+                    "Test diagnostic hardware",
+                    "--output",
+                    str(capture_path),
+                    str(capture_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("output must differ from every capture input", result.stderr)
+            self.assertEqual(capture_path.read_bytes(), capture_before)
+
+            hardlink_path = root / "diagnostic-hardlink.json"
+            hardlink_path.hardlink_to(capture_path)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--hardware",
+                    "Test diagnostic hardware",
+                    "--output",
+                    str(hardlink_path),
+                    str(capture_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("output must differ from every capture input", result.stderr)
+            self.assertEqual(capture_path.read_bytes(), capture_before)
+
+            first_path, first_bundle = self.bind_capture(root, 0, capture_fixture())
+            second = capture_fixture()
+            second["measurements"]["frame_interval"]["p95_ms"] = 17.1
+            second_path, second_bundle = self.bind_capture(root, 1, second)
+            artifact_before = first_bundle[2].read_bytes()
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--hardware",
+                    "Minimum Linux EasyGL GPU",
+                    "--qualifying-hardware",
+                    "--vram-bundle",
+                    *(str(path) for path in first_bundle),
+                    "--vram-bundle",
+                    *(str(path) for path in second_bundle),
+                    "--output",
+                    str(first_bundle[2]),
+                    str(first_path),
+                    str(second_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("output must differ from every raw evidence artifact input", result.stderr)
+            self.assertEqual(first_bundle[2].read_bytes(), artifact_before)
+
+            report_path = root / "reports" / "release.md"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--hardware",
+                    "Test diagnostic hardware",
+                    "--output",
+                    str(report_path),
+                    str(capture_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("Overall status: **DIAGNOSTIC**", report_path.read_text(encoding="utf-8"))
+            self.assertEqual(list(report_path.parent.glob("release.md.*.tmp")), [])
+
 
 if __name__ == "__main__":
     unittest.main(argv=[sys.argv[0]])

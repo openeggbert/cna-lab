@@ -67,6 +67,15 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 release-report output can no longer destroy its evidence.** `performance_report.py --output`
+now rejects destinations equal to or hardlinked with any enriched capture, original profile,
+evidence manifest, or raw profiler artifact. Valid Markdown output is staged in the destination
+directory and atomically replaced; temporary output is cleaned on failure.
+
+- A seventh report CLI test proves direct capture, capture-hardlink, and raw-artifact collisions
+  exit 2 without changing input bytes, while a normal nested output succeeds and leaves no `.tmp`.
+- This is evidence preservation only and does not change the physical M12 blocker.
+
 **M12 qualifying reports now require the complete archived VRAM source bundle.** An enriched JSON
 alone can no longer reach the physical qualification path. For every enriched capture,
 `performance_report.py --qualifying-hardware` requires an ordered `--vram-bundle ORIGINAL EVIDENCE
@@ -77,7 +86,7 @@ not change across verification and parsing.
   reports remain readable without archives and stay `DIAGNOSTIC`.
 - The synthetic release integration binds two independent four-file bundles. Tests additionally
   prove missing-bundle and post-binding raw-artifact mutation refusal; report, VRAM, and comparator
-  suites remain 6/6.
+  suites pass (the report suite later grew to 7/7 for output-preservation coverage).
 - This closes an evidence-integrity gap only. No physical complete-residency artifact exists here,
   so M12 remains open and the next action is still a controlled named-hardware capture.
 

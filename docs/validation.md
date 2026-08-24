@@ -191,6 +191,11 @@ CLI suites both remain 6/6, including a two-independent-bundle synthetic `PASS`;
 readable without bundles. This strengthens provenance but does not supply the still-missing
 physical M12 capture.
 
+Report-output preservation then closes the destructive alias case: `--output` is refused when it
+equals or hardlinks to any capture/archive input, and valid output uses a same-directory atomic
+replace. The seventh report CLI test proves the protected bytes remain identical for capture,
+hardlink, and raw-artifact collisions and that a successful nested output leaves no temporary file.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

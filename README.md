@@ -260,4 +260,5 @@ complete VRAM, and every locked minimum budget. Each qualifying enriched capture
 paired, in input order, with `--vram-bundle <original-profile> <evidence-manifest> <raw-artifact>`;
 the report re-runs full four-file archive verification before evaluating it. A copied capture under
 a second path, a missing source file, or a subsequently changed artifact is explicitly rejected by
-CTest coverage.
+CTest coverage. `--output` is written atomically and cannot name (or hardlink to) any capture or
+archive input, so generating the Markdown summary cannot destroy its own evidence.

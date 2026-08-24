@@ -534,6 +534,10 @@ enriched capture in a qualifying report. The generator reconstructs and verifies
 capture before parsing it and rejects a missing bundle, missing source, hash mismatch, semantic
 change, or capture mutation during verification with exit 2. Diagnostic reports remain usable
 without archived bundles and stay `DIAGNOSTIC`.
+When `--output` is supplied, the Markdown file is written atomically in its destination directory.
+The destination must differ from every enriched capture and every original profile, evidence
+manifest, and raw artifact, including an existing hardlink alias; a collision exits 2 without
+changing the input.
 Renaming, copying, or changing only JSON whitespace cannot turn one capture into the two independent
 runs required for repeatability. Canonical performance identity is independent of file path and key
 ordering and normalizes externally bound VRAM metadata, so rebinding the same original profile to a

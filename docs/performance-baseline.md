@@ -469,3 +469,9 @@ coverage also proves that omitting the bundles or mutating a raw artifact after 
 Ordinary diagnostic reports intentionally remain readable without archive sources. No physical
 profiler artifact is available in this workspace, so this closes an evidence-integrity gap rather
 than M12 itself.
+
+The report output path is now part of the same preservation contract. It cannot equal or hardlink
+to an enriched capture or any bundle source, and successful Markdown output is staged beside its
+destination before an atomic replace. A focused regression test proves direct-capture, capture-
+hardlink, and raw-artifact collisions leave their bytes unchanged and that a normal nested output
+leaves no temporary file behind.

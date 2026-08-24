@@ -7,9 +7,11 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import re
 import subprocess
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, TextIO
@@ -68,6 +70,39 @@ def _file_sha256(path: Path) -> str:
         for block in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _same_file(left: Path, right: Path) -> bool:
+    if left.resolve() == right.resolve():
+        return True
+    try:
+        return left.samefile(right)
+    except OSError:
+        return False
+
+
+def _write_text_atomic(path: Path, contents: str) -> None:
+    temporary_path: Path | None = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=path.name + ".",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary.write(contents)
+            temporary_path = Path(temporary.name)
+        os.replace(temporary_path, path)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def _mapping(value: Any, label: str) -> dict[str, Any]:
@@ -535,6 +570,15 @@ def main(arguments: list[str] | None = None) -> int:
         if bundles and len(bundles) != len(options.captures):
             raise ReportError("--vram-bundle count must match the capture count")
 
+        if options.output is not None:
+            protected_inputs = [("capture", path) for path in options.captures]
+            bundle_labels = ("original capture", "evidence manifest", "raw evidence artifact")
+            for bundle in bundles:
+                protected_inputs.extend(zip(bundle_labels, bundle))
+            for input_label, input_path in protected_inputs:
+                if _same_file(options.output, input_path):
+                    raise ReportError(f"output must differ from every {input_label} input")
+
         verified_capture_hashes: list[str] = []
         verifier = Path(__file__).resolve().with_name("vram_evidence.py")
         for capture_path, bundle in zip(options.captures, bundles):
@@ -575,8 +619,7 @@ def main(arguments: list[str] | None = None) -> int:
             options.title,
         )
         if options.output:
-            options.output.parent.mkdir(parents=True, exist_ok=True)
-            options.output.write_text(report, encoding="utf-8")
+            _write_text_atomic(options.output, report)
         else:
             sys.stdout.write(report)
         return 0
