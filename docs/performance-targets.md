@@ -256,7 +256,14 @@ The recommended frame interval is 16.667 ms (60 FPS). The subsystem CPU rows are
 the whole update/render work and therefore are not added together as independent frame costs.
 `frame_interval` is the authoritative end-to-end measurement: it includes scheduling, vertical
 sync, the preceding buffer presentation, and GPU back-pressure. `render_cpu` measures only command
-submission and can be small while `frame_interval` is slow.
+submission and can be small while `frame_interval` is slow. `present_cpu` separately measures
+CNA's `Game::EndDraw()`/`GraphicsDeviceManager::EndDraw()` path, including swap, v-sync waits, and
+any rendering work the backend defers until presentation. It is diagnostic rather than a separate
+budget because the end-to-end frame interval is still the gate.
+
+Every report also records whether v-sync was requested, whether CNA's fixed timestep was enabled,
+and the target frame duration. `vertical_sync_requested` describes the requested presentation
+parameters; it is not proof that a virtual display or driver accepted a real swap interval.
 
 The current CNA/EasyGL API does not expose complete GPU residency. The report therefore records
 known Iron Gang-owned mesh/lightmap/HUD allocations as `tracked_bytes`, sets
@@ -276,6 +283,26 @@ SDL_AUDIODRIVER=dummy ./cmake-build-release-easygl/iron_gang \
   --profile-scenario mixed
 ```
 
-The `mixed` scenario deterministically skips the intro, walks for two fixed-time seconds, drives,
-and performs a real district transition after eight fixed-time seconds. It exists only for
-profiling; ordinary play and ordinary `--smoke` behavior are unchanged.
+Supported `--profile-scenario` values are `intro`, `idle`, `walk`, `drive`, and `mixed`. `intro`
+keeps the real opening sequence. `idle`, `walk`, and `drive` skip it and hold one isolated workload;
+`mixed` skips it, walks for two fixed-time seconds, drives, and performs a real district transition
+after eight fixed-time seconds. The scenarios exist only for profiling; ordinary play and ordinary
+`--smoke` behavior are unchanged. `--vsync on|off` selects the requested presentation interval.
+
+For isolated automation that must not open a visible Wayland window, force SDL onto X11 as well as
+setting a virtual `DISPLAY`; otherwise SDL may prefer an inherited `WAYLAND_DISPLAY`:
+
+```bash
+env -u WAYLAND_DISPLAY \
+  SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy \
+  xvfb-run -a -s "-screen 0 1280x720x24" \
+  ./cmake-build-release-easygl/iron_gang \
+    --smoke 540 \
+    --profile runtime/performance/m12-xvfb-mixed.json \
+    --profile-scenario mixed \
+    --vsync off
+```
+
+Xvfb on this workspace uses unaccelerated Mesa llvmpipe and has no real vblank. Such runs validate
+automation, report plumbing, and CPU/software-GL behavior, but cannot close the EasyGL hardware
+frame-rate or VRAM gates.

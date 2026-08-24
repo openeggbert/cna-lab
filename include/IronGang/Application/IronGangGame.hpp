@@ -43,8 +43,9 @@ namespace IronGang
     public:
         explicit IronGangGame(std::string assetRoot);
         void SetSmokeFrames(int frames) noexcept { smokeFramesRemaining_ = frames; }
+        void SetVerticalSync(bool enabled);
         void EnablePerformanceProfile(std::string reportPath);
-        void EnableAutomatedPerformanceScenario() noexcept { automatedPerformanceScenario_ = true; }
+        void SetPerformanceScenario(PerformanceScenario scenario) noexcept { performanceScenario_ = scenario; }
         [[nodiscard]] bool WritePerformanceReport(std::string& error) const;
 
         [[nodiscard]] const std::string& GetTypeName() const override;
@@ -53,6 +54,7 @@ namespace IronGang
         void Initialize() override;
         void Update(Microsoft::Xna::Framework::GameTime& gameTime) override;
         void Draw(const Microsoft::Xna::Framework::GameTime& gameTime) override;
+        void EndDraw() override;
 
     private:
         [[nodiscard]] bool WasPressed(const Microsoft::Xna::Framework::Input::KeyboardState& current,
@@ -128,8 +130,8 @@ namespace IronGang
         PerformanceProfiler performanceProfiler_;
         std::string performanceReportPath_;
         double pendingDistrictLoadCpuMilliseconds_{0.0};
-        bool automatedPerformanceScenario_{false};
-        int automatedPerformanceUpdate_{0};
+        PerformanceScenario performanceScenario_{PerformanceScenario::InteractiveOrIntro};
+        int performanceScenarioUpdate_{0};
         std::size_t peakPhysicsBodyCount_{0};
         std::size_t peakTrafficVehicleCount_{0};
         std::size_t peakPedestrianCount_{0};

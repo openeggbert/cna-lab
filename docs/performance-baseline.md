@@ -47,3 +47,31 @@ the measurements, not yet a diagnosis. M12 remains open until:
 
 Reproduction commands and the exact budget semantics are in
 [`performance-targets.md`](performance-targets.md#automated-capture-budgets).
+
+## 2026-08-24 — isolated Xvfb diagnostic follow-up
+
+The profiler now supports separate `intro`, `idle`, `walk`, `drive`, and `mixed` scenarios,
+`--vsync on|off`, requested timing metadata, and a dedicated `present_cpu` measurement around
+CNA's virtual `Game::EndDraw()` path. This directly measures buffer swap/v-sync/backend flush time
+instead of inferring all of it from the gap between frame cadence and Draw submission.
+
+Per the workspace automation constraint, the follow-up ran on an isolated Xvfb display with
+`WAYLAND_DISPLAY` removed and `SDL_VIDEODRIVER=x11` forced. `glxinfo -B` identified the renderer as
+unaccelerated Mesa llvmpipe. A full 540-frame mixed run completed its walking, driving, and district
+transition phases in both requested presentation modes:
+
+| Measurement | Xvfb v-sync requested off | Xvfb v-sync requested on |
+| --- | ---: | ---: |
+| Frame interval p95 | 17.087 ms | 16.898 ms |
+| Render-submission CPU p95 | 1.289 ms | 1.389 ms |
+| Present CPU p95 | 11.604 ms | 13.220 ms |
+| Update CPU p95 | 0.292 ms | 0.255 ms |
+| Physics CPU p95 | 0.233 ms | 0.196 ms |
+| District-load CPU p95 | 5.165 ms | 4.932 ms |
+| District-load samples | 2 | 2 |
+
+The paired results are effectively the same at end-to-end frame level. This is expected because
+Xvfb has no real vertical-retrace signal; `vertical_sync_requested` does not claim the driver
+accepted it. llvmpipe also performs substantial deferred work in Present, so this is not comparable
+to the earlier hardware-backed capture. The result validates the new diagnostic path and full mixed
+automation without opening a visible window, but it does not qualify M12.

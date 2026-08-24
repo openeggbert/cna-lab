@@ -88,6 +88,11 @@ namespace IronGang
         return typeName;
     }
 
+    void IronGangGame::SetVerticalSync(bool enabled)
+    {
+        graphicsDeviceManager_->setSynchronizeWithVerticalRetraceProperty(enabled);
+    }
+
     void IronGangGame::EnablePerformanceProfile(std::string reportPath)
     {
         performanceReportPath_ = std::move(reportPath);
@@ -105,9 +110,12 @@ namespace IronGang
         PerformanceReportContext context;
         context.backend = IRON_GANG_GRAPHICS_BACKEND;
         context.buildConfiguration = IRON_GANG_BUILD_CONFIGURATION;
-        context.scenario = automatedPerformanceScenario_ ? "mixed" : "interactive_or_intro";
+        context.scenario = PerformanceScenarioName(performanceScenario_);
         context.width = kBackBufferWidth;
         context.height = kBackBufferHeight;
+        context.verticalSyncRequested = graphicsDeviceManager_->getSynchronizeWithVerticalRetraceProperty();
+        context.fixedTimeStep = getIsFixedTimeStepProperty();
+        context.targetFrameMilliseconds = getTargetElapsedTimeProperty().getTotalMillisecondsProperty();
         context.peakResidentBytes = PerformanceProfiler::ReadPeakResidentBytes();
         context.trackedVideoMemoryBytes = renderer_.GetTrackedVideoMemoryBytes() +
             static_cast<std::uint64_t>(kFont8x8AtlasWidth) * static_cast<std::uint64_t>(kFont8x8AtlasHeight) *
@@ -286,16 +294,26 @@ namespace IronGang
             std::cerr << "[IronGang] " << audioError.what() << " -- no horn sound.\n";
         }
 
-        // The explicit profiling workload must reach gameplay without synthetic keyboard events.
-        // Ordinary smoke/play behavior is unchanged: only --profile-scenario mixed takes this
-        // deterministic shortcut through the opening dialogue/cutscene.
-        if (automatedPerformanceScenario_)
+        // Gameplay profiling workloads must reach control without synthetic keyboard events.
+        // Ordinary smoke/play and the explicit intro scenario keep the real opening sequence;
+        // idle/walk/drive/mixed take this deterministic shortcut through dialogue and cutscene.
+        const bool skipsOpening = performanceScenario_ == PerformanceScenario::Idle ||
+            performanceScenario_ == PerformanceScenario::Walk ||
+            performanceScenario_ == PerformanceScenario::Drive ||
+            performanceScenario_ == PerformanceScenario::Mixed;
+        if (skipsOpening)
         {
             while (dialogue_.IsActive())
             {
                 dialogue_.Advance();
             }
             cutscene_.Skip();
+        }
+        if (performanceScenario_ == PerformanceScenario::Drive)
+        {
+            playerDriving_ = true;
+            player_.SetPosition(vehicle_.GetPosition(), physics_);
+            player_.SetYaw(vehicle_.GetYaw(), physics_);
         }
 
         UpdateWindowTitle(10.0F);
@@ -581,15 +599,15 @@ namespace IronGang
         // walking, then driving, then one real district swap after eight seconds. It exercises
         // character/vehicle physics, footsteps/engine control, ambient AI, the loading screen,
         // static-body replacement, and renderer geometry rebuild in one bounded capture.
-        if (automatedPerformanceScenario_ && !transitioning)
+        if (performanceScenario_ == PerformanceScenario::Mixed && !transitioning)
         {
-            if (automatedPerformanceUpdate_ == 120)
+            if (performanceScenarioUpdate_ == 120)
             {
                 playerDriving_ = true;
                 player_.SetPosition(vehicle_.GetPosition(), physics_);
                 player_.SetYaw(vehicle_.GetYaw(), physics_);
             }
-            else if (automatedPerformanceUpdate_ == 480)
+            else if (performanceScenarioUpdate_ == 480)
             {
                 BeginDistrictTransition();
                 transitioning = true;
@@ -652,7 +670,8 @@ namespace IronGang
                 input.steering = (keyboard.IsKeyDown(Keys::D) || keyboard.IsKeyDown(Keys::Right) ? 1.0F : 0.0F) -
                                  (keyboard.IsKeyDown(Keys::A) || keyboard.IsKeyDown(Keys::Left) ? 1.0F : 0.0F);
                 input.handbrake = keyboard.IsKeyDown(Keys::Space);
-                if (automatedPerformanceScenario_)
+                if (performanceScenario_ == PerformanceScenario::Drive ||
+                    performanceScenario_ == PerformanceScenario::Mixed)
                 {
                     input.throttle = 0.65F;
                     input.steering = 0.0F;
@@ -679,7 +698,8 @@ namespace IronGang
                 input.turn = (keyboard.IsKeyDown(Keys::Right) ? 1.0F : 0.0F) -
                              (keyboard.IsKeyDown(Keys::Left) ? 1.0F : 0.0F);
                 input.sprint = keyboard.IsKeyDown(Keys::LeftShift) || keyboard.IsKeyDown(Keys::RightShift);
-                if (automatedPerformanceScenario_)
+                if (performanceScenario_ == PerformanceScenario::Walk ||
+                    performanceScenario_ == PerformanceScenario::Mixed)
                 {
                     input.forward = 1.0F;
                     input.strafe = 0.0F;
@@ -858,9 +878,9 @@ namespace IronGang
             performanceProfiler_.Record(PerformanceMetric::AiCpu, 0.0);
         }
         performanceProfiler_.Record(PerformanceMetric::AudioCpu, audioCpuMilliseconds);
-        if (automatedPerformanceScenario_)
+        if (performanceScenario_ != PerformanceScenario::InteractiveOrIntro)
         {
-            ++automatedPerformanceUpdate_;
+            ++performanceScenarioUpdate_;
         }
     }
 
@@ -1075,5 +1095,14 @@ namespace IronGang
                 Exit();
             }
         }
+    }
+
+    void IronGangGame::EndDraw()
+    {
+        // CNA's base EndDraw() routes to GraphicsDeviceManager::EndDraw() and then Present().
+        // Keeping this separate from Draw() distinguishes CPU submission from swap/v-sync/GPU
+        // back-pressure without changing the renderer or relying on backend-specific timers.
+        ScopedPerformanceSample presentSample(performanceProfiler_, PerformanceMetric::PresentCpu);
+        Game::EndDraw();
     }
 }

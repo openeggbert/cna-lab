@@ -2,6 +2,7 @@
 
 #include <exception>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -15,7 +16,8 @@ int main(int argc, char* argv[])
     {
         std::string assetRoot = IRON_GANG_DEFAULT_ASSET_DIR;
         std::string profilePath;
-        bool automatedProfileScenario = false;
+        std::optional<IronGang::PerformanceScenario> profileScenario;
+        bool verticalSync = true;
         int smokeFrames = -1;
 
         for (int index = 1; index < argc; ++index)
@@ -40,11 +42,21 @@ int main(int argc, char* argv[])
             else if (argument == "--profile-scenario" && index + 1 < argc)
             {
                 const std::string scenario = argv[++index];
-                if (scenario != "mixed")
+                profileScenario = IronGang::ParsePerformanceScenario(scenario);
+                if (!profileScenario)
                 {
-                    throw std::invalid_argument("--profile-scenario currently supports only 'mixed'");
+                    throw std::invalid_argument(
+                        "--profile-scenario must be one of: intro, idle, walk, drive, mixed");
                 }
-                automatedProfileScenario = true;
+            }
+            else if (argument == "--vsync" && index + 1 < argc)
+            {
+                const std::string value = argv[++index];
+                if (value != "on" && value != "off")
+                {
+                    throw std::invalid_argument("--vsync must be 'on' or 'off'");
+                }
+                verticalSync = value == "on";
             }
             else if (argument == "--help" || argument == "-h")
             {
@@ -53,7 +65,8 @@ int main(int argc, char* argv[])
                     << "  --assets <path>  Override the source asset root\n"
                     << "  --smoke [frames] Exit after a bounded number of draw frames\n"
                     << "  --profile <path> Write an M12 JSON performance report on exit\n"
-                    << "  --profile-scenario mixed  Automate walk, drive, and district-load workload\n";
+                    << "  --profile-scenario <name>  intro, idle, walk, drive, or mixed\n"
+                    << "  --vsync on|off  Request synchronized or immediate presentation\n";
                 return 0;
             }
             else if (argument == "--profile")
@@ -64,21 +77,26 @@ int main(int argc, char* argv[])
             {
                 throw std::invalid_argument("--profile-scenario requires a scenario name");
             }
+            else if (argument == "--vsync")
+            {
+                throw std::invalid_argument("--vsync requires 'on' or 'off'");
+            }
         }
 
         IronGang::IronGangGame game(assetRoot);
         game.SetSmokeFrames(smokeFrames);
+        game.SetVerticalSync(verticalSync);
         if (!profilePath.empty())
         {
             game.EnablePerformanceProfile(profilePath);
         }
-        if (automatedProfileScenario)
+        if (profileScenario)
         {
             if (profilePath.empty())
             {
                 throw std::invalid_argument("--profile-scenario requires --profile");
             }
-            game.EnableAutomatedPerformanceScenario();
+            game.SetPerformanceScenario(*profileScenario);
         }
         game.Run();
         std::string reportError;

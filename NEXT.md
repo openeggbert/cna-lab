@@ -67,6 +67,23 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 follow-up diagnostics are now isolated-window safe and phase-selectable.** The profiler adds
+`present_cpu` around CNA's virtual `Game::EndDraw()` (the path that calls buffer Present), so future
+captures can distinguish Draw submission from swap/v-sync/backend flush directly. New
+`--profile-scenario intro|idle|walk|drive|mixed` workloads isolate camera/movement phases, while
+`--vsync on|off` and JSON `timing` metadata record the requested presentation and fixed-step state.
+Unit tests cover parsing/report names and the new metadata.
+
+- Graphical automation must use Xvfb without leaking to the visible Wayland desktop: remove
+  `WAYLAND_DISPLAY` **and** force `SDL_VIDEODRIVER=x11`; setting only `DISPLAY=:99` is insufficient
+  because SDL otherwise prefers the inherited Wayland session. The exact command is documented in
+  `docs/performance-targets.md`.
+- On isolated Xvfb `:99`, `glxinfo` reports unaccelerated Mesa llvmpipe. Paired 540-frame full
+  `mixed` captures completed walking, driving and one real district transition: requested v-sync
+  off/on produced frame p95 17.087/16.898 ms, render CPU p95 1.289/1.389 ms, and Present CPU p95
+  11.604/13.220 ms. The near-identical frame result is expected because Xvfb has no real vblank.
+  It validates automation and the Present measurement but **does not qualify M12 hardware**.
+
 **Gate M12 is now instrumented and baselined, but remains OPEN** (`plan_39` `IG-39-013`). The
 old continuity note said EasyGL had never been build-verified and that this headless environment
 might block there; that is no longer true. `dev-easygl` and `release-easygl` both configure/build,
@@ -79,9 +96,10 @@ and the executable successfully opened the host display through CNA EasyGL (Open
   control, Draw command submission, synchronous district load, and startup. It computes
   average/p95/maximum with nearest-rank p95 and writes a versioned JSON report via new
   `--profile <path>`.
-- New `--profile-scenario mixed` is deterministic profiling-only automation: it dismisses the
-  intro, walks for 2 fixed-update seconds, switches to driving, and forces one real district
-  transition after 8 fixed-update seconds. Ordinary play and ordinary `--smoke` are unchanged.
+- The `mixed` profiling scenario dismisses the intro, walks for 2 fixed-update seconds, switches
+  to driving, and forces one real district transition after 8 fixed-update seconds. The newer
+  phase-specific scenarios above reuse that deterministic path. Ordinary play and ordinary
+  `--smoke` are unchanged.
 - The JSON embeds the locked 720p/30 FPS, 2 GiB RAM, 512 MiB VRAM, 1-second district-load and
   per-CPU-subsystem p95 budgets; reports peak physics/traffic/pedestrian/police counts; Linux RAM
   high-water comes from `/proc/self/status`. Iron Gang-owned mesh/lightmap/HUD allocations are
@@ -865,16 +883,15 @@ patrol cars, save/load persistence of NPC/wanted state, debug views), and `plan_
 audio bus graph or spatial 3D positioning, no ambience/siren content, no menus/gamepad-rebinding)
 are real but not gate-blocking — see each file's own status note for the itemized list.
 
-**If continuing autonomous work, remain on gate M12** (`plan_39` `IG-39-013`), but do not rerun
-the same mixed capture without a diagnostic change. EasyGL is now build- and run-verified here.
-The next useful slice is repeated, phase-labelled intro/walk/drive captures under controlled
-v-sync/compositor conditions, correlating camera position with GPU/present time (or, if CNA cannot
-expose a GPU timer, an external Mesa capture). The back-to-back intro flip must be understood before
-attributing the 51-58 ms mixed p95 only to movement. CPU subsystem and district-load optimization
-is not justified by current evidence; all are far inside budget. In parallel, close the explicit
-VRAM gap by adding a CNA/EasyGL residency counter or a documented external capture, then qualify
-the result on named minimum hardware. Do not mark M12 complete until repeated mixed workloads pass
-33.333 ms p95 and VRAM tracking is complete.
+**If continuing autonomous work, remain on gate M12** (`plan_39` `IG-39-013`). Phase-labelled
+scenarios and direct Present timing now exist, but graphical automation in this workspace must stay
+on isolated Xvfb (never the visible host display). The next code-side slice is to expose complete
+CNA/EasyGL GPU residency or a reliable backend GPU timer/accepted-swap-interval query. The next
+physical-hardware capture should use the new scenarios and `present_cpu` to determine whether the
+historic 51-58 ms mixed p95 is spent inside Present and whether intro/walk/drive differ under a
+controlled compositor. CPU subsystem and district-load optimization is not justified by current
+evidence; all are far inside budget. Do not mark M12 complete until repeated mixed workloads pass
+33.333 ms p95 on named minimum hardware and VRAM tracking is complete.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --

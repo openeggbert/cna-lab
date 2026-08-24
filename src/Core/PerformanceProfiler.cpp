@@ -27,6 +27,8 @@ namespace IronGang
                 return "audio_cpu";
             case PerformanceMetric::RenderCpu:
                 return "render_cpu";
+            case PerformanceMetric::PresentCpu:
+                return "present_cpu";
             case PerformanceMetric::DistrictLoadCpu:
                 return "district_load_cpu";
             case PerformanceMetric::StartupCpu:
@@ -72,6 +74,51 @@ namespace IronGang
         {
             return statistics.sampleCount > 0 && statistics.p95Milliseconds <= budgetMilliseconds;
         }
+    }
+
+    const char* PerformanceScenarioName(PerformanceScenario scenario) noexcept
+    {
+        switch (scenario)
+        {
+        case PerformanceScenario::InteractiveOrIntro:
+            return "interactive_or_intro";
+        case PerformanceScenario::Intro:
+            return "intro";
+        case PerformanceScenario::Idle:
+            return "idle";
+        case PerformanceScenario::Walk:
+            return "walk";
+        case PerformanceScenario::Drive:
+            return "drive";
+        case PerformanceScenario::Mixed:
+            return "mixed";
+        }
+        return "unknown";
+    }
+
+    std::optional<PerformanceScenario> ParsePerformanceScenario(std::string_view name) noexcept
+    {
+        if (name == "intro")
+        {
+            return PerformanceScenario::Intro;
+        }
+        if (name == "idle")
+        {
+            return PerformanceScenario::Idle;
+        }
+        if (name == "walk")
+        {
+            return PerformanceScenario::Walk;
+        }
+        if (name == "drive")
+        {
+            return PerformanceScenario::Drive;
+        }
+        if (name == "mixed")
+        {
+            return PerformanceScenario::Mixed;
+        }
+        return std::nullopt;
     }
 
     void PerformanceProfiler::SetEnabled(bool enabled) noexcept
@@ -177,6 +224,10 @@ namespace IronGang
                    << "  \"scenario\": \"" << EscapeJson(context.scenario) << "\",\n"
                    << "  \"resolution\": {\"width\": " << context.width << ", \"height\": " << context.height
                    << "},\n"
+                   << "  \"timing\": {\"vertical_sync_requested\": "
+                   << (context.verticalSyncRequested ? "true" : "false")
+                   << ", \"fixed_timestep\": " << (context.fixedTimeStep ? "true" : "false")
+                   << ", \"target_frame_ms\": " << context.targetFrameMilliseconds << "},\n"
                    << "  \"budgets\": {\n"
                    << "    \"minimum_frame_p95_ms\": " << kMinimumFrameBudgetMilliseconds << ",\n"
                    << "    \"recommended_frame_p95_ms\": " << kRecommendedFrameBudgetMilliseconds << ",\n"

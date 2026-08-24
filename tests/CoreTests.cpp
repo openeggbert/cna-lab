@@ -882,6 +882,22 @@ namespace
 
     void TestPerformanceProfilerStatisticsAndReport()
     {
+        const auto introScenario = IronGang::ParsePerformanceScenario("intro");
+        const auto idleScenario = IronGang::ParsePerformanceScenario("idle");
+        const auto walkScenario = IronGang::ParsePerformanceScenario("walk");
+        const auto driveScenario = IronGang::ParsePerformanceScenario("drive");
+        const auto mixedScenario = IronGang::ParsePerformanceScenario("mixed");
+        Require(introScenario == IronGang::PerformanceScenario::Intro &&
+                    idleScenario == IronGang::PerformanceScenario::Idle &&
+                    walkScenario == IronGang::PerformanceScenario::Walk &&
+                    driveScenario == IronGang::PerformanceScenario::Drive &&
+                    mixedScenario == IronGang::PerformanceScenario::Mixed,
+                "every documented performance scenario must parse to its distinct enum value");
+        Require(!IronGang::ParsePerformanceScenario("unknown"),
+                "an unknown performance scenario must be rejected");
+        Require(std::string(IronGang::PerformanceScenarioName(*driveScenario)) == "drive",
+                "performance scenario report names must round-trip through the parser");
+
         IronGang::PerformanceProfiler profiler;
         profiler.SetEnabled(true);
         for (int sample = 1; sample <= 20; ++sample)
@@ -906,6 +922,9 @@ namespace
         context.scenario = "unit_test";
         context.width = 1280;
         context.height = 720;
+        context.verticalSyncRequested = false;
+        context.fixedTimeStep = true;
+        context.targetFrameMilliseconds = 1000.0 / 60.0;
         context.peakResidentBytes = 64ULL * 1024ULL * 1024ULL;
         context.trackedVideoMemoryBytes = 8ULL * 1024ULL * 1024ULL;
         context.physicsBodyCount = 7;
@@ -921,6 +940,12 @@ namespace
         const std::string report((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
         Require(report.find("\"backend\": \"TEST\"") != std::string::npos,
                 "performance report must identify its graphics backend");
+        Require(report.find("\"present_cpu\"") != std::string::npos,
+                "performance report must expose the EndDraw/Present diagnostic separately");
+        Require(report.find("\"vertical_sync_requested\": false") != std::string::npos &&
+                    report.find("\"fixed_timestep\": true") != std::string::npos &&
+                    report.find("\"target_frame_ms\": 16.667") != std::string::npos,
+                "performance report must identify requested presentation and scheduler timing");
         Require(report.find("\"minimum_frame_rate_pass\": true") != std::string::npos,
                 "19ms p95 must pass the 30 FPS minimum budget");
         Require(report.find("\"recommended_frame_rate_pass\": false") != std::string::npos,

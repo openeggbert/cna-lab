@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace IronGang
@@ -21,10 +22,26 @@ namespace IronGang
         AiCpu,
         AudioCpu,
         RenderCpu,
+        PresentCpu,
         DistrictLoadCpu,
         StartupCpu,
         Count,
     };
+
+    // Named, repeatable M12 workloads. InteractiveOrIntro preserves the ordinary game path;
+    // every other value is selected explicitly through --profile-scenario.
+    enum class PerformanceScenario
+    {
+        InteractiveOrIntro,
+        Intro,
+        Idle,
+        Walk,
+        Drive,
+        Mixed,
+    };
+
+    [[nodiscard]] const char* PerformanceScenarioName(PerformanceScenario scenario) noexcept;
+    [[nodiscard]] std::optional<PerformanceScenario> ParsePerformanceScenario(std::string_view name) noexcept;
 
     struct PerformanceStatistics
     {
@@ -41,6 +58,9 @@ namespace IronGang
         std::string scenario;
         int width{0};
         int height{0};
+        bool verticalSyncRequested{true};
+        bool fixedTimeStep{true};
+        double targetFrameMilliseconds{0.0};
         std::uint64_t peakResidentBytes{0};
         std::uint64_t trackedVideoMemoryBytes{0};
         bool videoMemoryTrackingComplete{false};

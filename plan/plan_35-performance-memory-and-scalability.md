@@ -6,7 +6,7 @@ Establish budgets and measure representative district workloads against the lock
 
 - [x] **IG-35-001 P0** — Define target hardware and frame-rate/resolution goals from docs/performance-targets.md. *(Locked minimum: 720p/30 FPS, 2 GiB RAM, 512 MiB VRAM; recommended: 1080p/60 FPS. The automated first-district capture currently runs at 1280x720.)*
 - [x] **IG-35-002 P0** — Define initial CPU, GPU, memory, district-load, physics, AI, and audio budgets sized for one district (10-20 pedestrians, 5-10 physics vehicles, one sun, limited shadows). *(Initial p95 budgets are now explicit in `docs/performance-targets.md` and emitted in every JSON report. GPU time is represented by end-to-end frame interval until CNA exposes a direct GPU timer.)*
-- [x] **IG-35-003 P0** — Instrument frame time by major subsystem (render, physics, AI, audio, district load). *(`PerformanceProfiler` captures end-to-end frame interval plus update/render/physics/AI/audio/district-load/startup CPU. Render CPU is explicitly command submission only; frame interval includes GPU/present back-pressure.)*
+- [x] **IG-35-003 P0** — Instrument frame time by major subsystem (render, physics, AI, audio, district load). *(`PerformanceProfiler` captures end-to-end frame interval plus update/render/Present/physics/AI/audio/district-load/startup CPU. Render CPU is command submission; Present CPU measures CNA EndDraw/swap/backend flush; frame interval remains the authoritative gate.)*
 - [x] **IG-35-004 P0** — Record a baseline from the first running procedural prototype. *(Release EasyGL baseline recorded in `docs/performance-baseline.md`: intro passes 30 FPS, mixed workload fails; RAM/load pass; VRAM incomplete.)*
 - [ ] **IG-35-005 P1** — Track draw calls, state changes, vertices, triangles, instances, and visible objects.
 - [ ] **IG-35-006 P1** — Track texture, buffer, render-target, and transient GPU memory against the 512MB-1GB VRAM target. *(Partial: game-owned meshes/lightmaps/HUD atlas are counted, but imported CNA model/effect allocations are not exposed; reports set `tracking_complete=false`.)*
@@ -15,7 +15,7 @@ Establish budgets and measure representative district workloads against the lock
 - [x] **IG-35-009 P1** — Track simplified pedestrian/traffic/police AI counts and update time. *(Reports include peak traffic/pedestrian/police counts and AI update p95/average/maximum.)*
 - [ ] **IG-35-010 P1** — Track pedestrian waypoint-graph path requests, queue time, and failures.
 - [ ] **IG-35-011 P1** — Track active audio voices, decoders, streams, and bus cost.
-- [ ] **IG-35-012 P1** — Create representative walking, driving, interior, traffic, district-transition, and mission captures.
+- [ ] **IG-35-012 P1** — Create representative walking, driving, interior, traffic, district-transition, and mission captures. *(Partial: deterministic `intro`, `idle`, `walk`, `drive`, and `mixed` scenarios now isolate the first four relevant first-district workloads and mixed includes traffic plus a real district transition. Dedicated interior and mission captures remain.)*
 - [ ] **IG-35-013 P1** — Create memory high-water and leak checks across repeated district load/unload cycles.
 - [ ] **IG-35-014 P1** — Create content budgets enforced by validators (triangle/texture/material budgets per building/vehicle/character).
 - [ ] **IG-35-015 P1** — Create frame-pacing and hitch histograms, including at district-transition load boundaries.

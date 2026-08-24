@@ -16,6 +16,15 @@ load passes at ~6 ms. Two final identical 180-frame intro runs also flipped back
 frame-pacing instability. VRAM reporting is deliberately marked incomplete. Full evidence and the
 next diagnostic question are in `docs/performance-baseline.md`.
 
+Follow-up instrumentation adds isolated `intro`/`idle`/`walk`/`drive`/`mixed` scenarios,
+`--vsync on|off`, requested scheduler/presentation metadata, and direct `present_cpu` timing around
+CNA's `Game::EndDraw()`. The final graphical integration used an isolated Xvfb `:99` with
+`WAYLAND_DISPLAY` removed and `SDL_VIDEODRIVER=x11` forced, preventing a visible Wayland window.
+Mesa llvmpipe completed paired 540-frame full-mixed runs at 17.087 ms p95 (v-sync requested off)
+and 16.898 ms p95 (requested on), each with two district-load samples. Present p95 was 11.604 ms
+and 13.220 ms respectively. Xvfb has no real vblank and is unaccelerated, so these are diagnostic
+integration results rather than hardware qualification; M12 remains open.
+
 ## Current modular dependency baseline (2026-08-22)
 
 Iron Gang now configures against the sibling `../cnanext` and modular `../sharp-runtime`
