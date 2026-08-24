@@ -408,6 +408,8 @@ Tasks:
 - mouse capture/recenter or relative mode through CNA public API;
 - configurable sensitivity;
 - acceleration-independent movement;
+- hold left or right `Shift` for a 1.65× run-speed modifier while preserving
+  collision, frame-rate independence and anti-tunneling behavior (implemented);
 - optional head bob;
 - optional crouch;
 - robust collision using capsule/cylinder-like horizontal footprint;

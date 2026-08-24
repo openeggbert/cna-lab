@@ -46,6 +46,7 @@ This starter is deliberately small. It proves the basic direction before local A
 ## Controls
 
 - up/down arrow keys: forward / backward
+- hold left or right `Shift` while moving: run at 165% speed
 - left/right arrow keys: turn left / right
 - title/sector/difficulty menus: arrows select, `Enter` or `Space` confirms, `Escape` backs out; the title menu also has a master sound toggle
 - three difficulty modes: Scout (70% enemy damage), Operative (normal), Veteran (140% enemy damage)

@@ -1301,7 +1301,7 @@ namespace WolfCna
         {
             centered(top + 22, "BUNKER 1987", title);
             centered(top + 58, "CONTROLS", normal);
-            centered(top + 84, "UP DOWN WALK", normal);
+            centered(top + 84, "UP DOWN WALK SHIFT RUN", normal);
             centered(top + 105, "LEFT RIGHT TURN", normal);
             centered(top + 126, "SPACE ACTION", normal);
             centered(top + 147, "CTRL ATTACK", normal);
@@ -1774,7 +1774,10 @@ namespace WolfCna
         const float forwardX = std::sin(yaw_);
         const float forwardZ = -std::cos(yaw_);
 
-        const float distance = WalkSpeed * elapsedSeconds;
+        const bool isRunning =
+            keyboard.IsKeyDown(Keys::LeftShift) || keyboard.IsKeyDown(Keys::RightShift);
+        const float speed = WalkSpeed * (isRunning ? RunSpeedMultiplier : 1.0f);
+        const float distance = speed * elapsedSeconds;
         const float dx = forwardX * forwardInput * distance;
         const float dz = forwardZ * forwardInput * distance;
 

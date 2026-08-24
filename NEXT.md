@@ -33,6 +33,7 @@
 - Every campaign sector now has an exact authored 64×64 footprint; tests require substantial use of the area and no disconnected rooms.
 - Sector unlocks, master sound and the last selected difficulty now persist in one validated, legacy-compatible profile.
 - WOLF-013 is complete: all enemy and weapon states use original provenance-recorded sprites with deterministic animation and translucent firing feedback.
+- Holding left or right `Shift` now runs at 1.65× walking speed while retaining the clamped frame step and existing collision path.
 
 ## Next tasks
 

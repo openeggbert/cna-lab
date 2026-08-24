@@ -160,6 +160,7 @@ namespace WolfCna
 
         static constexpr float PlayerRadius = 0.22f;
         static constexpr float WalkSpeed = 2.4f;
+        static constexpr float RunSpeedMultiplier = 1.65f;
         static constexpr float KeyboardTurnSpeed = 1.65f;
         static constexpr int MaxAmmo = 99;
 
