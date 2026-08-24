@@ -712,3 +712,15 @@ runs. Six report negatives cover the missing row, multiline/blank identity field
 or target duration. Report 7/7, comparator 7/7, VRAM 6/6, and both retained diagnostics pass without
 launching the game. Full 8/8 CTest also passes with its smoke process isolated inside Xvfb. This is
 schema completeness, not new M12 evidence.
+
+## 2026-08-24 — swap evidence-boundary consistency
+
+The shared loader now fixes `swap_interval.proof` to platform `SetSwapInterval` acknowledgement that
+explicitly is not physical vblank/compositor proof. A successful apply requires an empty
+`unavailable_reason`; a failed or unknown apply requires a printable non-empty one. The synthetic
+failure fixture now uses the same platform-declined reason as the application.
+
+Three report negatives cover proof mutation, a reason attached to success, and a missing failure
+reason. Report 7/7, comparator 7/7, VRAM 6/6, and both retained declined-Xvfb diagnostics pass
+without launching the game. Full 8/8 CTest also passes with its smoke process isolated inside Xvfb.
+No physical presentation evidence was created.

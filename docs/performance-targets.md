@@ -306,6 +306,9 @@ Schema validation requires `requested` to be exactly 0/1 and agree with
 carry an integer `applied`, and that value must equal `requested`. Unknown/failed results require
 `applied:null`. Report and comparison tools reject inconsistent JSON with exit 2 before treating it
 as presentation evidence.
+The fixed `proof` text must continue to say this is only platform `SetSwapInterval` acknowledgement,
+not physical vblank/compositor proof. Successful apply has an empty `unavailable_reason`; failed or
+unknown apply requires a printable non-empty reason.
 
 JSON schema 4 makes district loading a per-transition record instead of one opaque stopwatch.
 `district_world_physics_cpu` covers destruction of the old static bodies, construction/activation

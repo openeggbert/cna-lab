@@ -75,6 +75,9 @@ QUALIFICATION_REPEATABILITY_PATHS = (
 DIAGNOSTIC_HARDWARE_TERMS = ("xvfb", "llvmpipe", "software rasterizer")
 COMPLETE_VRAM_SCOPE = "complete_process_gpu_residency_peak"
 GPU_TIMING_SCOPE = "draw_commands_excluding_present"
+SWAP_INTERVAL_PROOF = (
+    "platform SetSwapInterval acknowledgement; not physical vblank or compositor proof"
+)
 DISTRICT_CONTENT_PATH = (
     "procedural in-memory PrototypeWorld; no district file/package is read during a transition"
 )
@@ -499,6 +502,19 @@ def swap_interval_acknowledged(capture: dict[str, Any]) -> bool:
             raise ReportError("swap_interval.applied must equal swap_interval.requested")
     elif applied is not None:
         raise ReportError("swap_interval.applied must be null unless apply succeeded")
+
+    if _single_line_string(capture, "swap_interval", "proof") != SWAP_INTERVAL_PROOF:
+        raise ReportError("swap_interval.proof does not match schema-8 presentation scope")
+    reason = _path(capture, "swap_interval", "unavailable_reason")
+    if not isinstance(reason, str):
+        raise ReportError("swap_interval.unavailable_reason must be a string")
+    if apply_succeeded is True:
+        if reason != "":
+            raise ReportError(
+                "swap_interval.unavailable_reason must be empty after successful apply"
+            )
+    else:
+        _single_line_text(reason, "swap_interval.unavailable_reason")
     return result_known and apply_succeeded is True
 
 

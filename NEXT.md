@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 swap-interval metadata now preserves its evidence boundary.** The fixed proof cannot be
+rewritten to claim physical vblank/compositor behavior, and success/failure reasons are consistent.
+
+- `proof` must remain `platform SetSwapInterval acknowledgement; not physical vblank or compositor
+  proof`. Successful apply requires an empty reason; failed or unknown apply requires a printable
+  non-empty reason.
+- The existing qualifying failure fixture now carries the same platform-declined reason as C++.
+  Three report negatives cover mutated proof and both reason contradictions.
+- Report 7/7, comparator 7/7, VRAM 6/6, both retained declined-Xvfb diagnostics, and full isolated
+  8/8 CTest pass; its smoke process ran only inside Xvfb and no physical evidence was added.
+
 **M12 base capture metadata and `startup_cpu` are now mandatory.** The last C++ timing row can no
 longer disappear, and malformed top-level identity/timing fields fail in every shared consumer.
 

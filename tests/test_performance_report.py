@@ -164,6 +164,10 @@ def capture_fixture() -> dict:
             "apply_result_known": True,
             "apply_succeeded": True,
             "applied": 1,
+            "proof": (
+                "platform SetSwapInterval acknowledgement; not physical vblank or compositor proof"
+            ),
+            "unavailable_reason": "",
         },
         "gpu_timing": {
             "supported": True,
@@ -599,6 +603,9 @@ class PerformanceReportTests(unittest.TestCase):
         second = independent_capture_fixture()
         first["swap_interval"]["apply_succeeded"] = False
         first["swap_interval"]["applied"] = None
+        first["swap_interval"]["unavailable_reason"] = (
+            "the platform declined the requested swap interval"
+        )
         result = self.run_report(
             [first, second],
             "Minimum Linux EasyGL GPU",
@@ -916,6 +923,25 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([mismatched_vsync], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("vertical_sync_requested must agree", result.stderr)
+
+        bad_swap_proof = capture_fixture()
+        bad_swap_proof["swap_interval"]["proof"] = "physical vblank proven"
+        result = self.run_report([bad_swap_proof], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("swap_interval.proof does not match", result.stderr)
+
+        successful_swap_with_reason = capture_fixture()
+        successful_swap_with_reason["swap_interval"]["unavailable_reason"] = "contradiction"
+        result = self.run_report([successful_swap_with_reason], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("must be empty after successful apply", result.stderr)
+
+        failed_swap_without_reason = capture_fixture()
+        failed_swap_without_reason["swap_interval"]["apply_succeeded"] = False
+        failed_swap_without_reason["swap_interval"]["applied"] = None
+        result = self.run_report([failed_swap_without_reason], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("swap_interval.unavailable_reason must be non-empty", result.stderr)
 
         with tempfile.TemporaryDirectory() as directory:
             duplicate_path = Path(directory) / "duplicate.json"

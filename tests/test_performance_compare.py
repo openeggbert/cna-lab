@@ -43,6 +43,10 @@ def capture_fixture() -> dict:
             "apply_result_known": True,
             "apply_succeeded": True,
             "applied": 1,
+            "proof": (
+                "platform SetSwapInterval acknowledgement; not physical vblank or compositor proof"
+            ),
+            "unavailable_reason": "",
         },
         "gpu_timing": {
             "supported": True,

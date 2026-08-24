@@ -55,6 +55,9 @@ rather than being a one-time final check.
     *Base-schema follow-up: printable backend/build/scenario, positive resolution/target duration,
     boolean timing flags, and complete `startup_cpu` are mandatory while generic diagnostic values
     remain extensible. Six malformed cases exit 2; no capture was added.*
+    *Presentation-boundary follow-up: swap proof remains platform acknowledgement explicitly not
+    physical vblank/compositor proof; success/failure reasons must match state. Three contradictions
+    exit 2 and no physical presentation evidence was added.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).

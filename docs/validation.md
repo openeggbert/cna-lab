@@ -327,6 +327,12 @@ row. Values stay extensible for the generic diagnostic writer; qualifying policy
 Six malformed shapes exit 2 while focused suites, both retained diagnostics, and full isolated 8/8
 CTest pass; the smoke process remained confined to Xvfb.
 
+Swap metadata now fixes its proof to platform acknowledgement that explicitly excludes physical
+vblank/compositor proof. Success requires an empty reason; failure/unknown requires a printable
+non-empty one. Three contradictions exit 2, the qualifying failure fixture carries a real reason,
+and focused suites, both retained declined-Xvfb diagnostics, and full isolated 8/8 CTest pass; the
+smoke process remained confined to Xvfb.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The
