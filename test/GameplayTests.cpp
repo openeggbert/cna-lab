@@ -60,6 +60,7 @@ namespace
             "A plating\n"
             "R capacitor-block\n"
             "K capacitor\n"
+            "H checkpoint\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n";
@@ -97,6 +98,7 @@ namespace
             "A plating\n"
             "R capacitor-block\n"
             "K capacitor\n"
+            "H checkpoint\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n"
@@ -133,6 +135,7 @@ namespace
             "A plating\n"
             "R capacitor-block\n"
             "K capacitor\n"
+            "H checkpoint\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n";
@@ -150,6 +153,41 @@ namespace
             objectRow[6] = '#';
         result += objectRow + '\n';
         result += std::string(static_cast<std::size_t>(width), '#') + '\n';
+        return result;
+    }
+
+    [[nodiscard]] std::string MakeProgressLevel(const bool hazard)
+    {
+        std::string result =
+            "copper-boots-level 1\n"
+            "name Progress Workshop\n"
+            "size 12 5\n"
+            "spawn 1 4\n"
+            "checkpoint 1 4\n"
+            "parallax 0.1 0.25 0.5\n"
+            "legend\n"
+            ". empty\n"
+            "# solid\n"
+            "B breakable\n"
+            "! hazard\n"
+            "E exit\n"
+            "d decoration\n"
+            "G cog\n"
+            "? cog-block\n"
+            "o empty-block\n"
+            "P plated-block\n"
+            "A plating\n"
+            "R capacitor-block\n"
+            "K capacitor\n"
+            "H checkpoint\n"
+            "C crawler\n"
+            "c crawler-fall\n"
+            "map\n"
+            "............\n"
+            "............\n"
+            "............\n";
+        result += hazard ? "..G.H...!.E.\n" : "..G.H.....E.\n";
+        result += "############\n";
         return result;
     }
 
@@ -268,6 +306,7 @@ namespace
             "A plating\n"
             "R capacitor-block\n"
             "K capacitor\n"
+            "H checkpoint\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n"
@@ -319,7 +358,7 @@ namespace
         }
         catch (const std::runtime_error& error) {
             threwLineError = std::string_view(error.what()).starts_with(
-                "broken.cbl:24:");
+                "broken.cbl:25:");
         }
         Check(threwLineError, "malformed map reports source and line number");
 
@@ -351,7 +390,7 @@ namespace
         Check(failsAt(replaced("checkpoint 2 2", "checkpoint 5 2"),
                       "case.cbl:5:"),
               "out-of-bounds checkpoint reports its line");
-        Check(failsAt(replaced("BG!E", "BGXE"), "case.cbl:25:"),
+        Check(failsAt(replaced("BG!E", "BGXE"), "case.cbl:26:"),
               "unknown map glyph reports its row");
         Check(failsAt(replaced("checkpoint 2 2",
                                "spawn 1 2\ncheckpoint 2 2"),
@@ -404,6 +443,7 @@ namespace
             "A plating\n"
             "R capacitor-block\n"
             "K capacitor\n"
+            "H checkpoint\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n"
@@ -862,6 +902,7 @@ namespace
             "A plating\n"
             "R capacitor-block\n"
             "K capacitor\n"
+            "H checkpoint\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n"
@@ -1034,6 +1075,62 @@ namespace
         Check(activeCount(upWorld) == 0,
               "projectile outside camera cleanup margin is retired");
     }
+
+    void TestCheckpointAndCompletion()
+    {
+        constexpr float tick = static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds);
+        CopperBoots::PlayerInput run;
+        run.Move = 1.0F;
+        run.Run = true;
+
+        CopperBoots::WorldSimulation checkpointWorld;
+        checkpointWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeProgressLevel(true), "checkpoint.cbl"));
+        bool activated = false;
+        bool died = false;
+        for (int i = 0; i < 180; ++i) {
+            checkpointWorld.Update(run, tick);
+            activated = activated ||
+                        checkpointWorld.LastEvents().CheckpointsActivated == 1;
+            if (checkpointWorld.LastEvents().PlayerDied == 1) {
+                died = true;
+                break;
+            }
+        }
+        Check(activated && died && checkpointWorld.CollectedCogCount() == 1,
+              "route activates checkpoint and preserves earlier cog before hazard");
+        for (int i = 0; i < 45; ++i)
+            checkpointWorld.Update({}, tick);
+        Check(!checkpointWorld.Player().Dead &&
+                  std::abs(checkpointWorld.Player().X - 64.0F) < 0.01F &&
+                  checkpointWorld.CollectedCogCount() == 1 &&
+                  checkpointWorld.Score() == 100,
+              "checkpoint respawn preserves intended level object progress");
+
+        CopperBoots::WorldSimulation completionWorld;
+        completionWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeProgressLevel(false), "completion.cbl"));
+        bool completed = false;
+        for (int i = 0; i < 180; ++i) {
+            completionWorld.Update(run, tick);
+            if (completionWorld.LastEvents().LevelCompleted == 1) {
+                completed = true;
+                break;
+            }
+        }
+        const float completedX = completionWorld.Player().X;
+        Check(completed && completionWorld.Result().Completed &&
+                  completionWorld.Result().CollectedCogs == 1 &&
+                  completionWorld.Result().Score == 100,
+              "exit emits structured result with final score and cogs");
+        for (int i = 0; i < 90; ++i)
+            completionWorld.Update(run, tick);
+        Check(completionWorld.LastEvents().LevelCompleted == 0 &&
+                  completionWorld.CompletionTicks() == 60 &&
+                  std::abs(completionWorld.Player().X - completedX) < 0.01F,
+              "completion event is one-shot and freezes harmful simulation");
+    }
 }
 
 int main()
@@ -1051,6 +1148,7 @@ int main()
     TestClockworkCrawler();
     TestDeathAndRespawn();
     TestArcProjectiles();
+    TestCheckpointAndCompletion();
 
     if (failures != 0) {
         std::cerr << failures << " gameplay test(s) failed\n";

@@ -48,6 +48,7 @@ namespace CopperBoots
         std::vector<CrawlerDefinition> Crawlers;
         std::vector<TileCoordinate> PlatingPickups;
         std::vector<TileCoordinate> CapacitorPickups;
+        std::vector<TileCoordinate> Checkpoints;
         std::vector<InteractiveBlockDefinition> InteractiveBlocks;
 
         [[nodiscard]] static LevelDefinition Parse(

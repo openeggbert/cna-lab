@@ -295,7 +295,7 @@ Acceptance:
   reset are explicit and testable.
 - Invalid or cyclic route metadata fails clearly or behaves by documented rule.
 
-### MAR-034 — Level exits and completion — TODO
+### MAR-034 — Level exits and completion — DONE
 
 Acceptance:
 
@@ -303,7 +303,7 @@ Acceptance:
   transition, and returns a structured result.
 - Exit collision and repeat-contact behavior are unit-tested.
 
-### MAR-035 — Checkpoints — TODO
+### MAR-035 — Checkpoints — DONE
 
 Acceptance:
 

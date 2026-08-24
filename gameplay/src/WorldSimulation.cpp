@@ -84,6 +84,10 @@ namespace CopperBoots
                 static_cast<float>(pickup.Y * TileMap::TileSize) + 3.0F,
                 0, false});
         }
+        checkpoints_.clear();
+        checkpoints_.reserve(level.Checkpoints.size());
+        for (const TileCoordinate& checkpoint : level.Checkpoints)
+            checkpoints_.push_back({checkpoint.X, checkpoint.Y, false});
         projectiles_ = {};
         interactiveBlocks_.clear();
         interactiveBlocks_.reserve(level.InteractiveBlocks.size());
@@ -104,6 +108,8 @@ namespace CopperBoots
         score_ = 0;
         lives_ = 3;
         tickCount_ = 0;
+        result_ = {};
+        completionTicks_ = 0;
         lastEvents_ = {};
         camera_.SetWorldBounds(static_cast<float>(level_.PixelWidth()),
                                static_cast<float>(level_.PixelHeight()));
@@ -127,6 +133,11 @@ namespace CopperBoots
     {
         lastEvents_ = {};
         UpdateBlockAnimations();
+        if (result_.Completed) {
+            completionTicks_ = std::min(completionTicks_ + 1, 60);
+            ++tickCount_;
+            return;
+        }
         if (player_.Dead) {
             if (player_.DeathTicksRemaining > 0)
                 --player_.DeathTicksRemaining;
@@ -181,6 +192,18 @@ namespace CopperBoots
 
         if (!player_.Dead && TouchesCollision(TileCollision::Hazard))
             StartPlayerDeath();
+
+        if (!player_.Dead) {
+            ActivateOverlappingCheckpoints();
+            if (TouchesCollision(TileCollision::Exit)) {
+                StartLevelCompletion();
+                camera_.Update(player_.X + PlayerState::Width * 0.5F,
+                               player_.Y + PlayerState::Height * 0.5F,
+                               0.0F, seconds);
+                ++tickCount_;
+                return;
+            }
+        }
 
         UpdateCrawlers(seconds);
         UpdatePlatingPickups(seconds);
@@ -593,6 +616,47 @@ namespace CopperBoots
             }
         }
         return false;
+    }
+
+    void WorldSimulation::ActivateOverlappingCheckpoints() noexcept
+    {
+        const float playerRight = player_.X + PlayerState::Width;
+        const float playerBottom = player_.Y + PlayerState::Height;
+        for (CheckpointState& checkpoint : checkpoints_) {
+            if (checkpoint.Activated)
+                continue;
+            const float x = static_cast<float>(checkpoint.TileX * TileMap::TileSize);
+            const float y = static_cast<float>(checkpoint.TileY * TileMap::TileSize);
+            const bool overlaps = player_.X < x + TileMap::TileSize &&
+                                  playerRight > x &&
+                                  player_.Y < y + TileMap::TileSize &&
+                                  playerBottom > y;
+            if (!overlaps)
+                continue;
+            for (CheckpointState& other : checkpoints_)
+                other.Activated = false;
+            checkpoint.Activated = true;
+            checkpointX_ = x;
+            checkpointY_ = static_cast<float>(
+                (checkpoint.TileY + 1) * TileMap::TileSize) - PlayerState::Height;
+            ++lastEvents_.CheckpointsActivated;
+            return;
+        }
+    }
+
+    void WorldSimulation::StartLevelCompletion() noexcept
+    {
+        if (result_.Completed)
+            return;
+        result_.Completed = true;
+        result_.Score = score_;
+        result_.CollectedCogs = collectedCogs_;
+        result_.CompletionTick = tickCount_;
+        completionTicks_ = 1;
+        player_.Motion = PlayerMotion::Transition;
+        player_.VelocityX = 0.0F;
+        player_.VelocityY = 0.0F;
+        ++lastEvents_.LevelCompleted;
     }
 
     void WorldSimulation::UpdatePlatingPickups(const float seconds)

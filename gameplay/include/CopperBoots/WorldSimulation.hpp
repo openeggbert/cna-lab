@@ -31,6 +31,7 @@ namespace CopperBoots
         Jumping,
         Falling,
         Dead,
+        Transition,
     };
 
     struct PlayerState
@@ -78,6 +79,23 @@ namespace CopperBoots
         int CapacitorsReleased = 0;
         int CapacitorsCollected = 0;
         int ProjectilesFired = 0;
+        int CheckpointsActivated = 0;
+        int LevelCompleted = 0;
+    };
+
+    struct CheckpointState
+    {
+        int TileX = 0;
+        int TileY = 0;
+        bool Activated = false;
+    };
+
+    struct LevelResult
+    {
+        bool Completed = false;
+        int Score = 0;
+        int CollectedCogs = 0;
+        std::uint64_t CompletionTick = 0;
     };
 
     struct PlatingPickupState
@@ -187,6 +205,10 @@ namespace CopperBoots
         {
             return projectiles_;
         }
+        [[nodiscard]] const std::vector<CheckpointState>& Checkpoints() const noexcept
+        {
+            return checkpoints_;
+        }
         [[nodiscard]] const WorldEvents& LastEvents() const noexcept
         {
             return lastEvents_;
@@ -199,6 +221,8 @@ namespace CopperBoots
             return levelName_;
         }
         [[nodiscard]] std::uint64_t TickCount() const noexcept { return tickCount_; }
+        [[nodiscard]] const LevelResult& Result() const noexcept { return result_; }
+        [[nodiscard]] int CompletionTicks() const noexcept { return completionTicks_; }
         [[nodiscard]] int BlockVisualOffset(int tileX, int tileY) const noexcept;
 
     private:
@@ -218,6 +242,8 @@ namespace CopperBoots
         void CollectOverlappingCapacitorPickups() noexcept;
         void TryFireProjectile(const PlayerInput& input) noexcept;
         void UpdateProjectiles(float seconds);
+        void ActivateOverlappingCheckpoints() noexcept;
+        void StartLevelCompletion() noexcept;
         void ResolvePlayerCrawlerContacts(float previousPlayerBottom);
         void StartPlayerDeath() noexcept;
         void RespawnAtCheckpoint();
@@ -239,11 +265,14 @@ namespace CopperBoots
         std::vector<PlatingPickupState> platingPickups_;
         std::vector<CapacitorPickupState> capacitorPickups_;
         std::array<ProjectileState, 2> projectiles_{};
+        std::vector<CheckpointState> checkpoints_;
         std::vector<InteractiveBlockState> interactiveBlocks_;
         WorldEvents lastEvents_;
         int collectedCogs_ = 0;
         int score_ = 0;
         int lives_ = 3;
         std::uint64_t tickCount_ = 0;
+        LevelResult result_;
+        int completionTicks_ = 0;
     };
 }

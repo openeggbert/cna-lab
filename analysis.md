@@ -495,6 +495,7 @@ P plated-jacket block
 A plated-jacket pickup object
 R arc-capacitor block
 K arc-capacitor pickup object
+H checkpoint object
 C clockwork crawler object
 c ledge-falling crawler object
 map
@@ -571,6 +572,13 @@ level name, cogs, lives and score through the same one-texel CNA `SpriteBatch`
 path, with colored plating/capacitor indicators. It reads const world accessors,
 uses arithmetic fixed-width number drawing instead of per-frame strings, and
 has no effect on simulation state.
+
+Optional `H` objects activate a later respawn coordinate while leaving terrain
+empty; death preserves collected, used-block and defeated-enemy state. `E` tile
+overlap produces one `LevelResult` containing score, cog count and completion
+tick, changes player presentation to transition, and freezes the fixed-step
+world. CNA presentation grows a 60-tick top/bottom-bar transition and displays
+the structured result without deciding campaign progression yet.
 
 ## CNA and sharp-runtime baseline
 

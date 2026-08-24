@@ -49,6 +49,7 @@ namespace CopperBoots
         void DrawPlayer(float cameraX, float cameraY);
         void DrawHud();
         void DrawPauseOverlay();
+        void DrawCompletionOverlay();
         void DrawText(std::string_view text, int x, int y,
                       const Microsoft::Xna::Framework::Color& color);
         void DrawNumber(int value, int digits, int x, int y,

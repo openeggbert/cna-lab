@@ -207,6 +207,8 @@ namespace CopperBoots
         DrawProjectiles(cameraX, cameraY);
         DrawPlayer(cameraX, cameraY);
         DrawHud();
+        if (world_.Result().Completed)
+            DrawCompletionOverlay();
         if (paused_)
             DrawPauseOverlay();
         spriteBatch_->End();
@@ -497,6 +499,21 @@ namespace CopperBoots
         DrawText("ESC START RESUME", 116, 82, ink);
         DrawText("R Y RESTART", 132, 94, ink);
         DrawText("Q BACK QUIT", 132, 106, ink);
+    }
+
+    void CopperBootsGame::DrawCompletionOverlay()
+    {
+        const int progress = std::min(world_.CompletionTicks(), 30);
+        const int barHeight = progress * 2;
+        FillRectangle(Rectangle(0, 0, LogicalWidth, barHeight),
+                      Color(24, 36, 42));
+        FillRectangle(Rectangle(0, LogicalHeight - barHeight,
+                                LogicalWidth, barHeight), Color(24, 36, 42));
+        if (world_.CompletionTicks() > 15) {
+            DrawText("RELAY COMPLETE", 132, 84, Color(235, 189, 67));
+            DrawNumber(world_.Result().Score, 6, 148, 96,
+                       Color(231, 224, 181));
+        }
     }
 
     void CopperBootsGame::DrawText(const std::string_view text,
