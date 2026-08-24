@@ -1,6 +1,7 @@
 #include "CopperBoots/CopperBootsGame.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <utility>
@@ -185,31 +186,52 @@ namespace CopperBoots
     void CopperBootsGame::DrawParallax(const float cameraX)
     {
         FillRectangle(Rectangle(0, 112, LogicalWidth, 68), Color(57, 99, 112));
-
-        const auto repeatLayer = [this, cameraX](const float factor,
-                                                  const int spacing,
-                                                  const int baseline,
-                                                  const int minimumHeight,
-                                                  const Color& color) {
-            const int offset = static_cast<int>(std::floor(cameraX * factor)) % spacing;
-            for (int x = -spacing - offset; x < LogicalWidth + spacing; x += spacing) {
-                const int variation = std::abs((x / spacing) * 17) % 22;
-                const int height = minimumHeight + variation;
-                FillRectangle(Rectangle(x, baseline - height,
-                                        spacing - 5, height), color);
-            }
-        };
-
         const auto& factors = world_.ParallaxFactors();
-        repeatLayer(factors[0], 78, 116, 22, Color(60, 83, 112));
-        repeatLayer(factors[1], 54, 130, 30, Color(58, 107, 104));
-        repeatLayer(factors[2], 38, 146, 20, Color(70, 126, 95));
+        const std::array<ParallaxLayer, 4> layers{
+            ParallaxLayer{factors[0], 0.10F, 78, 116, 22,
+                          {60, 83, 112}, ParallaxGeometry::BlockSilhouette,
+                          true, false},
+            ParallaxLayer{factors[0], 0.15F, 110, 33, 7,
+                          {181, 211, 196}, ParallaxGeometry::CloudBand,
+                          true, false},
+            ParallaxLayer{factors[1], 0.25F, 54, 130, 30,
+                          {58, 107, 104}, ParallaxGeometry::BlockSilhouette,
+                          true, false},
+            ParallaxLayer{factors[2], 0.50F, 38, 146, 20,
+                          {70, 126, 95}, ParallaxGeometry::BlockSilhouette,
+                          true, false},
+        };
+        for (const ParallaxLayer& layer : layers)
+            DrawParallaxLayer(layer, cameraX);
+    }
 
-        const int cloudOffset =
-            static_cast<int>(std::floor(cameraX * factors[0])) % 110;
-        for (int x = 20 - cloudOffset; x < LogicalWidth + 80; x += 110) {
-            FillRectangle(Rectangle(x, 26, 42, 7), Color(181, 211, 196));
-            FillRectangle(Rectangle(x + 9, 21, 25, 6), Color(205, 225, 207));
+    void CopperBootsGame::DrawParallaxLayer(const ParallaxLayer& layer,
+                                             const float cameraX)
+    {
+        if (layer.Spacing <= 0)
+            return;
+        const Color tint(layer.Tint.R, layer.Tint.G, layer.Tint.B);
+        const int offset = layer.WrappedOffset(cameraX);
+        const int startX = layer.Repeating ? -layer.Spacing - offset : -offset;
+        const int endX = layer.Repeating
+            ? LogicalWidth + layer.Spacing
+            : startX + layer.Spacing;
+        int worldIndex = layer.Fixed || layer.Spacing <= 0
+            ? -1
+            : static_cast<int>(std::floor(cameraX * layer.ScrollFactor)) /
+                  layer.Spacing - 1;
+
+        for (int x = startX; x < endX; x += layer.Spacing, ++worldIndex) {
+            if (layer.Geometry == ParallaxGeometry::CloudBand) {
+                FillRectangle(Rectangle(x + 20, layer.Baseline - 7, 42, 7), tint);
+                FillRectangle(Rectangle(x + 29, layer.Baseline - 12, 25, 6),
+                              Color(205, 225, 207));
+                continue;
+            }
+            const int variation = std::abs(worldIndex * 17) % 22;
+            const int height = layer.MinimumHeight + variation;
+            FillRectangle(Rectangle(x, layer.Baseline - height,
+                                    layer.Spacing - 5, height), tint);
         }
     }
 

@@ -33,10 +33,18 @@ namespace CopperBoots
         const float lookAhead = std::clamp(horizontalVelocity * 0.28F,
                                            -34.0F, 34.0F);
         const float targetX = ClampX(focusX + lookAhead - viewportWidth_ * 0.5F);
-        const float targetY = ClampY(focusY - viewportHeight_ * 0.55F);
+        const float targetY = verticalPolicy_ == CameraVerticalPolicy::Follow
+            ? ClampY(focusY - viewportHeight_ * 0.55F)
+            : y_;
         const float blend = 1.0F - std::exp(-8.0F * std::max(seconds, 0.0F));
         x_ = ClampX(x_ + (targetX - x_) * blend);
         y_ = ClampY(y_ + (targetY - y_) * blend);
+    }
+
+    void Camera2D::SetShakeOffset(const float x, const float y) noexcept
+    {
+        shakeX_ = x;
+        shakeY_ = y;
     }
 
     float Camera2D::ClampX(const float value) const noexcept
@@ -51,4 +59,3 @@ namespace CopperBoots
                           std::max(0.0F, worldHeight_ - viewportHeight_));
     }
 }
-

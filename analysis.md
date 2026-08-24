@@ -463,6 +463,13 @@ procedural layers at factors 0.10, 0.25, 0.50, 1.00, and optionally 1.10 for
 foreground pieces. Repeating geometry is drawn from stable formulas without
 per-frame heap allocation.
 
+The implemented camera exposes clamped base coordinates separately from a
+clamped shake offset and supports `Follow`/`Locked` vertical policies. Parallax
+uses a renderer-neutral `ParallaxLayer` descriptor carrying factor, depth,
+spacing, geometry, fixed/repeating flags and RGB tint. Its wrapped offset is
+tested across positive, negative and seam coordinates; CNA rendering consumes a
+stack `std::array` already ordered by depth.
+
 ### Data format
 
 The first format is deliberately transparent, line-oriented text:

@@ -139,7 +139,7 @@ Acceptance:
   visually distinguishable.
 - Rendering accepts a camera snapshot and never mutates simulation.
 
-### MAR-014 — Camera2D — TODO
+### MAR-014 — Camera2D — DONE
 
 Acceptance:
 
@@ -149,7 +149,7 @@ Acceptance:
 - Unit tests cover left/right/top/bottom clamps and look-ahead convergence.
 - Player code does not directly set the camera position.
 
-### MAR-015 — Reusable parallax layers — TODO
+### MAR-015 — Reusable parallax layers — DONE
 
 Acceptance:
 

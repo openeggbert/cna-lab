@@ -8,6 +8,7 @@
 
 #include "CopperBoots/Camera2D.hpp"
 #include "CopperBoots/LevelDefinition.hpp"
+#include "CopperBoots/ParallaxLayer.hpp"
 #include "CopperBoots/SimulationClock.hpp"
 #include "CopperBoots/TileMap.hpp"
 #include "CopperBoots/WorldSimulation.hpp"
@@ -671,6 +672,53 @@ namespace
         camera.SnapTo(2'000.0F, 2'000.0F);
         CheckNear(camera.X(), 680.0F, 0.001F, "camera clamps right");
         CheckNear(camera.Y(), 120.0F, 0.001F, "camera clamps bottom");
+
+        camera.SetWorldBounds(1'000.0F, 1'000.0F);
+        camera.SnapTo(500.0F, 400.0F);
+        const float initialX = camera.BaseX();
+        for (int i = 0; i < 120; ++i)
+            camera.Update(500.0F, 400.0F, 100.0F, 1.0F / 60.0F);
+        Check(camera.BaseX() > initialX + 27.0F && camera.BaseX() < 368.1F,
+              "camera converges on velocity look-ahead target");
+
+        camera.SetVerticalPolicy(CopperBoots::CameraVerticalPolicy::Locked);
+        const float lockedY = camera.BaseY();
+        camera.Update(500.0F, 900.0F, 0.0F, 1.0F);
+        CheckNear(camera.BaseY(), lockedY, 0.001F,
+                  "locked vertical policy preserves base Y");
+        camera.SetVerticalPolicy(CopperBoots::CameraVerticalPolicy::Follow);
+
+        const float baseX = camera.BaseX();
+        const float baseY = camera.BaseY();
+        camera.SetShakeOffset(7.0F, -5.0F);
+        CheckNear(camera.X(), baseX + 7.0F, 0.001F,
+                  "shake offset is isolated from camera base X");
+        CheckNear(camera.Y(), baseY - 5.0F, 0.001F,
+                  "shake offset is isolated from camera base Y");
+        camera.ClearShake();
+        CheckNear(camera.X(), baseX, 0.001F, "clearing shake restores base X");
+        camera.SnapTo(2'000.0F, 400.0F);
+        camera.SetShakeOffset(100.0F, 0.0F);
+        CheckNear(camera.X(), 680.0F, 0.001F,
+                  "shake cannot expose beyond right world bound");
+        camera.ClearShake();
+    }
+
+    void TestParallaxDescriptor()
+    {
+        const CopperBoots::ParallaxLayer layer{
+            0.25F, 0.5F, 64, 120, 20, {60, 83, 112},
+            CopperBoots::ParallaxGeometry::BlockSilhouette, true, false};
+        Check(layer.WrappedOffset(252.0F) == 63,
+              "parallax offset reaches last pixel before repeat seam");
+        Check(layer.WrappedOffset(256.0F) == 0,
+              "parallax offset wraps without a missing seam pixel");
+        Check(layer.WrappedOffset(-4.0F) == 63,
+              "parallax wrapping is deterministic for negative camera input");
+        CopperBoots::ParallaxLayer fixed = layer;
+        fixed.Fixed = true;
+        Check(fixed.WrappedOffset(999.0F) == 0,
+              "fixed parallax layer ignores camera movement");
     }
 
     void TestClockworkCrawler()
@@ -936,6 +984,7 @@ int main()
     TestControllerRanges();
     TestLedgeFallAndTerminalVelocity();
     TestCameraBounds();
+    TestParallaxDescriptor();
     TestClockworkCrawler();
     TestDeathAndRespawn();
     TestArcProjectiles();

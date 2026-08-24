@@ -5,6 +5,7 @@
 #include <string>
 
 #include "CopperBoots/SimulationClock.hpp"
+#include "CopperBoots/ParallaxLayer.hpp"
 #include "CopperBoots/WorldSimulation.hpp"
 #include "Microsoft/Xna/Framework/Game.hpp"
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
@@ -33,6 +34,7 @@ namespace CopperBoots
             const Microsoft::Xna::Framework::Input::KeyboardState& keyboard);
         void DrawWorld();
         void DrawParallax(float cameraX);
+        void DrawParallaxLayer(const ParallaxLayer& layer, float cameraX);
         void DrawTiles(float cameraX, float cameraY);
         void DrawCogs(float cameraX, float cameraY);
         void DrawCrawlers(float cameraX, float cameraY);
