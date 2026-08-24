@@ -67,6 +67,12 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 artifacts now display the exact swap state.** Release rows show `request / ack` instead of a
+bare acknowledgement, and comparator machine-environment rows show requested, applied, and ack
+values for both sides. The locked policy is unchanged: interval 0 remains valid hardware-headroom
+evidence when the physical presentation path is otherwise established; artifacts no longer hide
+which interval was measured.
+
 **M12 comparison artifacts now show their machine environment.** The comparator already enforced
 native-window and GL-runtime agreement for qualifying captures, but its Markdown displayed only the
 operator hardware label. It now includes baseline/candidate rows for native window, GL vendor,
@@ -94,8 +100,9 @@ the current Radeon/radeonsi GL identity.
 - First original/raw/manifest/complete hashes are `5100e706…bf577b`, `f5f69a8d…e2fcf31`,
   `07c7d12f…15045a`, `022e3a6c…242513`; second hashes are `479ebb32…c3d4c7`,
   `38654aee…0ae1a2`, `17b790f0…d72296`, `0d37df26…fb71b`. Diagnostic report, audit, and comparison
-  hashes are `1e226b75…cdd86`, `5fad1163…43621`, and `8c47afde…d81cfb` (the latter includes the new
-  machine-environment table).
+  hashes are now `24333703…8c83a6`, `d896d995…0d5fbe`, and `d58296d2…d57809`; these regenerated
+  forms expose `0 / yes` and `requested 0; applied 0; ack yes` rather than hiding the measured
+  interval.
 
 **M12 profiles now identify the graphics runtime from the current GL context.** The hardware label
 could previously hide Xvfb's software renderer just as it could hide an offscreen window system.

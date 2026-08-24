@@ -1685,7 +1685,7 @@ def build_markdown(
             "",
             "## Capture summary",
             "",
-            "| Capture | Scenario | Resolution | Native window | GL renderer | Frame p95 | 30 FPS | 60 FPS | CPU p95 U/P/AI/Au/R | GPU/Present p95 | Load p95 | Hitches | Severe | Transition frame | RAM MiB | Tracked VRAM MiB | VRAM complete | Swap ack | Local result |",
+            "| Capture | Scenario | Resolution | Native window | GL renderer | Frame p95 | 30 FPS | 60 FPS | CPU p95 U/P/AI/Au/R | GPU/Present p95 | Load p95 | Hitches | Severe | Transition frame | RAM MiB | Tracked VRAM MiB | VRAM complete | Swap request/ack | Local result |",
             "| --- | --- | ---: | --- | --- | ---: | :---: | :---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | :---: | :---: | :---: |",
         ]
     )
@@ -1712,6 +1712,7 @@ def build_markdown(
         vram = _number(capture, "video_memory", "tracked_bytes")
         vram_complete = _boolean(capture, "video_memory", "tracking_complete")
         swap_ack = swap_interval_acknowledged(capture)
+        swap_request = _integer(capture, "swap_interval", "requested")
         native_window = native_window_evidence(capture)
         native_window_text = (
             "—"
@@ -1738,7 +1739,8 @@ def build_markdown(
             f"{'yes' if recommended else 'no'} | {cpu_p95} ms | {gpu_present} | {load_text} | "
             f"{hitches} | {severe} | {boundary_text} | "
             f"{_mib(ram)} | {_mib(vram)} | {'yes' if vram_complete else 'no'} | "
-            f"{'yes' if swap_ack else 'no'} | {'PASS' if not local_blockers else 'FAIL'} |"
+            f"{swap_request} / {'yes' if swap_ack else 'no'} | "
+            f"{'PASS' if not local_blockers else 'FAIL'} |"
         )
 
     lines.extend(

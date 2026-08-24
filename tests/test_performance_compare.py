@@ -300,6 +300,11 @@ class PerformanceCompareTests(unittest.TestCase):
         self.assertIn("## Machine environment", result.stdout)
         self.assertIn("| Native window | X11 / yes | X11 / yes |", result.stdout)
         self.assertIn(
+            "| Swap interval | requested 1; applied 1; ack yes | "
+            "requested 1; applied 1; ack yes |",
+            result.stdout,
+        )
+        self.assertIn(
             "| GL renderer | AMD Radeon test GPU | AMD Radeon test GPU |",
             result.stdout,
         )

@@ -87,6 +87,9 @@ rather than being a one-time final check.
     window plus GL vendor/renderer/version independently of the operator hardware label. Qualifying
     runs still require identical machine evidence; diagnostics expose differences without turning
     them into compatibility failures. No physical capture was added.*
+    *Swap-display follow-up: report rows now display requested interval plus acknowledgement, and
+    comparison machine-environment rows display requested/applied/ack state on both sides. The
+    qualification policy is unchanged; evidence no longer hides whether interval 0 or 1 was used.*
     *Schema-type follow-up: capture `schema_version` must be an actual JSON integer equal to 8;
     floating-point `8.0` exits 2 and no capture was added.*
     *Frame-maximum follow-up: the stored maximum must occupy the highest non-empty pacing bucket;

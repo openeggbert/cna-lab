@@ -314,6 +314,8 @@ New captures additionally carry `native_window.system`, `available`, and a fixed
 Older schema-8 diagnostics without the additive block remain readable but cannot qualify.
 EasyGL captures likewise carry a fixed-scope `graphics_runtime` identity obtained from the current
 context; missing/unknown identities and known software rasterizers cannot qualify.
+Release capture rows display the requested swap interval together with acknowledgement, and
+comparison artifacts display requested/applied/ack state for baseline and candidate separately.
 Frame-pacing metadata is checked the same way: fixed histogram bounds, derived minimum-miss/hitch/
 severe counts and percentages, and district-boundary counts must agree with the underlying bucket
 and district-load sample counts. Every measurement also enforces coherent zero/one-sample and

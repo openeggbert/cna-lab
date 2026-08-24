@@ -753,7 +753,9 @@ manifest, and raw artifact, including an existing hardlink alias; a collision ex
 changing the input.
 Every summary carries an `Evidence provenance` row per capture. It records the evaluated JSON
 SHA-256 and capture-session PID/UTC interval; a supplied bundle additionally records the file name
-and SHA-256 of the original profile, evidence manifest, and raw profiler artifact. The generator
+and SHA-256 of the original profile, evidence manifest, and raw profiler artifact. The capture
+table shows swap state as `requested / acknowledged`; it does not collapse an acknowledged interval
+0 and an acknowledged interval 1 into the same display value. The generator
 checks every recorded digest again after parsing and after Markdown construction, immediately
 before output, so the table cannot silently describe files changed during report generation.
 The successful presentation row means the exact requested 0/1 interval was acknowledged and
@@ -807,6 +809,7 @@ Every comparison output includes a separate machine-environment table for each s
 classification and current GL vendor/renderer/version. Diagnostic comparisons may intentionally
 show different or legacy-unavailable values without failing compatibility; qualifying comparisons
 require the complete machine evidence to be present, usable, non-software, and identical.
+The same table displays requested/applied/acknowledged swap state for baseline and candidate.
 Budget metadata is validated against the locked schema-8 values before compatibility comparison,
 so two consistently edited policies are invalid rather than self-consistent evidence.
 Both inputs first pass the same request/v-sync/applied consistency validator as the release report,

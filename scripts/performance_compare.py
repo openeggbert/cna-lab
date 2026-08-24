@@ -366,6 +366,7 @@ def build_markdown(
     regressions = sum(result.regressed for result in results)
     native_window_cells: list[str] = []
     graphics_runtime_cells: list[tuple[str, str, str]] = []
+    swap_interval_cells: list[str] = []
     for capture in (baseline, candidate):
         native_window = native_window_evidence(capture)
         native_window_cells.append(
@@ -380,6 +381,13 @@ def build_markdown(
             graphics_runtime_cells.append(("unknown", "unknown", "unknown"))
         else:
             graphics_runtime_cells.append(graphics_runtime[1:])
+        requested_interval = _integer(capture, "swap_interval", "requested")
+        applied_interval = _path(capture, "swap_interval", "applied")
+        swap_interval_cells.append(
+            f"requested {requested_interval}; applied "
+            + ("—" if applied_interval is None else str(applied_interval))
+            + f"; ack {'yes' if swap_interval_acknowledged(capture) else 'no'}"
+        )
     bundle_cells: list[tuple[str, str, str]] = []
     for bundle in (baseline_bundle, candidate_bundle):
         if bundle is None:
@@ -418,6 +426,7 @@ def build_markdown(
         "| Evidence | Baseline | Candidate |",
         "| --- | --- | --- |",
         f"| Native window | {_escape(native_window_cells[0])} | {_escape(native_window_cells[1])} |",
+        f"| Swap interval | {_escape(swap_interval_cells[0])} | {_escape(swap_interval_cells[1])} |",
         f"| GL vendor | {_escape(graphics_runtime_cells[0][0])} | {_escape(graphics_runtime_cells[1][0])} |",
         f"| GL renderer | {_escape(graphics_runtime_cells[0][1])} | {_escape(graphics_runtime_cells[1][1])} |",
         f"| GL version | {_escape(graphics_runtime_cells[0][2])} | {_escape(graphics_runtime_cells[1][2])} |",

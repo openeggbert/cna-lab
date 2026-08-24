@@ -551,6 +551,7 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertIn("Overall status: **PASS**", result.stdout)
         self.assertIn("- None.", result.stdout)
         self.assertEqual(result.stdout.count("| PASS |"), 2)
+        self.assertEqual(result.stdout.count("| 1 / yes | PASS |"), 2)
         self.assertIn("## Evidence provenance", result.stdout)
         self.assertIn(
             hashlib.sha256(b"raw report-test profiler artifact 0").hexdigest(),
