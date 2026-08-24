@@ -67,6 +67,20 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 qualification now respects producer decisions at rounded budget boundaries.** The schema
+loader deliberately accepts either pass boolean when a stored p95 equals a three-decimal budget,
+because the C++ producer compares hidden full precision before serialization. The release gate
+previously discarded that valid extra bit and recomputed a pass from the rounded number alone.
+
+- A producer-authored frame, aggregate-CPU, or mixed-district failure now blocks qualification even
+  when the serialized p95 prints exactly at its budget. Clear over-budget metrics retain their
+  specific blockers without a duplicate aggregate-CPU message.
+- The release table's 30/60 FPS cells now use the producer's full-precision decisions (with the
+  resolution requirement still applied to 60 FPS), not a second rounded comparison.
+- Three exact-boundary report cases cover frame `33.333`, CPU `8.000`, and district load `1000.000`
+  failures. Report 7/7, comparator 7/7, VRAM 6/6, and both retained diagnostics pass; full isolated
+  CTest passes 8/8 with its smoke process inside Xvfb.
+
 **M12 incomplete VRAM captures now reject binder-only fields.** `tracking_complete=false` could
 previously coexist with stale `logical_tracked_bytes` or `complete_evidence` from an enriched file.
 

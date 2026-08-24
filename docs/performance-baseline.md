@@ -658,6 +658,19 @@ rounded CPU-boundary case remains readable. Report 7/7, comparator 7/7, VRAM 6/6
 Xvfb captures pass without launching the game. Full 8/8 CTest also passes with its smoke process
 isolated inside Xvfb; this adds no physical M12 measurement.
 
+## 2026-08-24 — rounded-budget qualification consistency
+
+Structural readability and release qualification now preserve the same information boundary. A
+producer `false` at an exactly serialized frame, CPU, or district-load budget remains structurally
+valid because hidden precision explains it, but it blocks qualification instead of being replaced
+with a pass recomputed from the rounded p95. The release table's 30/60 FPS decisions also come from
+the producer checks, with resolution still independently required for the recommended target.
+
+Exact-boundary report cases cover frame 33.333 ms, update CPU 8.000 ms, and district load 1000.000
+ms producer failures. Report 7/7, comparator 7/7, VRAM 6/6, and both retained Xvfb diagnostics pass
+without launching the game. Full isolated CTest passes 8/8 with its smoke process inside Xvfb; this
+adds no physical M12 measurement.
+
 ## 2026-08-24 — GPU timing metadata consistency
 
 The shared loader now requires schema-8 GPU timing to remain explicitly non-blocking with exact

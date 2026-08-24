@@ -339,6 +339,13 @@ either boolean because C++ evaluates full precision before writing three decimal
 and one boundary report cases pass alongside comparator 7/7, VRAM 6/6, both retained diagnostics,
 and full 8/8 CTest with its graphical smoke process isolated inside Xvfb.
 
+Release qualification now retains the producer's full-precision decision at that rounded boundary:
+a valid stored `false` for frame, aggregate CPU, or mixed-district load blocks qualification rather
+than being overwritten by a comparison against the serialized p95. The 30/60 FPS table cells use
+the same producer checks. Exact 33.333/8.000/1000.000 failure cases pass with report 7/7, comparator
+7/7, VRAM 6/6, and both retained diagnostics; full isolated CTest passes 8/8 with its smoke process
+inside Xvfb.
+
 GPU timing metadata now requires `non_blocking:true`, exact Draw-excluding-Present scope, a
 non-negative discard count, and empty/non-empty unsupported reason matching the support flag. Four
 report contradictions exit 2; sample count intentionally does not imply support because the generic

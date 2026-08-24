@@ -78,6 +78,9 @@ rather than being a one-time final check.
     an interior value in an empty bucket exits 2 and no capture was added.*
     *VRAM-state follow-up: binder-only logical-total/evidence fields are forbidden when completeness
     is false. Two stale-field shapes exit 2 and no capture was added.*
+    *Qualification-boundary follow-up: structurally valid frame, aggregate-CPU, and district-load
+    producer failures at exact serialized budget equality remain release blockers and drive the
+    frame-rate summary cells. Three boundary cases cover the rule; no capture was added.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).

@@ -19,8 +19,6 @@ from typing import Any, TextIO
 
 
 SCHEMA_VERSION = 8
-MINIMUM_FRAME_MS = 1000.0 / 30.0
-RECOMMENDED_FRAME_MS = 1000.0 / 60.0
 MINIMUM_WIDTH = 1280
 MINIMUM_HEIGHT = 720
 RECOMMENDED_WIDTH = 1920
@@ -1268,14 +1266,23 @@ def capture_blockers(path: Path, capture: dict[str, Any], hardware: str) -> list
 
     frame_samples = _integer(capture, "measurements", "frame_interval", "samples")
     frame_p95 = _number(capture, "measurements", "frame_interval", "p95_ms")
-    if frame_samples == 0 or frame_p95 > MINIMUM_FRAME_MS:
-        blockers.append(prefix + f"frame p95 {frame_p95:.3f} ms does not pass 33.333 ms")
+    frame_check = _boolean(capture, "checks", "minimum_frame_rate_pass")
+    if frame_samples == 0 or frame_p95 > SCHEMA_MINIMUM_FRAME_MS or not frame_check:
+        blockers.append(
+            prefix
+            + f"frame p95 {frame_p95:.3f} ms/full-precision producer check does not pass "
+            "33.333 ms"
+        )
 
+    cpu_metric_failed = False
     for metric, budget in CPU_BUDGETS_MS.items():
         samples = _integer(capture, "measurements", metric, "samples")
         p95 = _number(capture, "measurements", metric, "p95_ms")
         if samples == 0 or p95 > budget:
+            cpu_metric_failed = True
             blockers.append(prefix + f"{metric} p95 {p95:.3f} ms does not pass {budget:.3f} ms")
+    if not _boolean(capture, "checks", "cpu_subsystems_pass") and not cpu_metric_failed:
+        blockers.append(prefix + "full-precision producer CPU subsystem check does not pass")
 
     peak_ram = int(_number(capture, "memory", "peak_resident_bytes"))
     if not _boolean(capture, "memory", "known") or peak_ram > RAM_BUDGET_BYTES:
@@ -1295,7 +1302,12 @@ def capture_blockers(path: Path, capture: dict[str, Any], hardware: str) -> list
     if _path(capture, "scenario") == "mixed":
         load_samples = _integer(capture, "measurements", "district_load_cpu", "samples")
         load_p95 = _number(capture, "measurements", "district_load_cpu", "p95_ms")
-        if load_samples == 0 or load_p95 > DISTRICT_LOAD_BUDGET_MS:
+        load_check = _path(capture, "checks", "district_load_pass")
+        if (
+            load_samples == 0
+            or load_p95 > DISTRICT_LOAD_BUDGET_MS
+            or load_check is not True
+        ):
             blockers.append(prefix + "mixed capture lacks a passing real district transition")
     return blockers
 
@@ -1493,15 +1505,16 @@ def build_markdown(
         vram = _number(capture, "video_memory", "tracked_bytes")
         vram_complete = _boolean(capture, "video_memory", "tracking_complete")
         swap_ack = swap_interval_acknowledged(capture)
+        minimum_pass = _boolean(capture, "checks", "minimum_frame_rate_pass")
         recommended = (
             width >= RECOMMENDED_WIDTH
             and height >= RECOMMENDED_HEIGHT
-            and frame_p95 <= RECOMMENDED_FRAME_MS
+            and _boolean(capture, "checks", "recommended_frame_rate_pass")
         )
         lines.append(
             f"| {_markdown_code(path.name)} | {_escape(_path(capture, 'scenario'))} | "
             f"{width}x{height} | "
-            f"{frame_p95:.3f} ms | {'yes' if frame_p95 <= MINIMUM_FRAME_MS else 'no'} | "
+            f"{frame_p95:.3f} ms | {'yes' if minimum_pass else 'no'} | "
             f"{'yes' if recommended else 'no'} | {cpu_p95} ms | {gpu_present} | {load_text} | "
             f"{hitches} | {severe} | {boundary_text} | "
             f"{_mib(ram)} | {_mib(vram)} | {'yes' if vram_complete else 'no'} | "

@@ -405,6 +405,13 @@ full-precision p95 but writes three decimals, so when a stored p95 exactly equal
 budget either boolean can represent a valid hidden value. Outside that rounded boundary,
 contradictions are malformed evidence (exit 2).
 
+That structural ambiguity does not authorize a release report to promote an explicit producer
+failure. At exact serialized equality, a stored `false` remains a qualification blocker for frame,
+aggregate CPU, or mixed-district load even though the capture is well-formed. The 30/60 FPS summary
+cells likewise use the producer booleans; the recommended column additionally requires at least
+1920x1080. A stored `true` at equality remains readable because the hidden value may genuinely be
+within budget.
+
 Each synchronous `RecordDistrictLoad` marks the index of the first frame-interval sample recorded
 after it. `district_transition_boundaries` reports total transitions, boundaries actually measured
 before capture end, how many crossed the 50 ms hitch threshold, and their maximum. A transition on

@@ -1047,6 +1047,45 @@ class PerformanceReportTests(unittest.TestCase):
         rounded_cpu_boundary["checks"]["cpu_subsystems_pass"] = False
         result = self.run_report([rounded_cpu_boundary], "Test hardware")
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "full-precision producer CPU subsystem check does not pass",
+            result.stdout,
+        )
+
+        rounded_frame_boundary = capture_fixture()
+        rounded_frame = rounded_frame_boundary["measurements"]["frame_interval"]
+        rounded_frame["p95_ms"] = 33.333
+        rounded_frame["maximum_ms"] = 33.333
+        rounded_frame_boundary["checks"]["minimum_frame_rate_pass"] = False
+        result = self.run_report([rounded_frame_boundary], "Test hardware")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "full-precision producer check does not pass 33.333 ms",
+            result.stdout,
+        )
+        self.assertIn("| 33.333 ms | no | no |", result.stdout)
+
+        rounded_district_boundary = capture_fixture()
+        rounded_district_sample = rounded_district_boundary["district_load"]["samples"][0]
+        rounded_district_sample["world_physics_ms"] = 400.0
+        rounded_district_sample["renderer_upload_ms"] = 600.0
+        rounded_district_sample["total_ms"] = 1000.0
+        for metric, value in (
+            ("district_world_physics_cpu", 400.0),
+            ("district_renderer_upload_cpu", 600.0),
+            ("district_load_cpu", 1000.0),
+        ):
+            summary = rounded_district_boundary["measurements"][metric]
+            summary["average_ms"] = value
+            summary["p95_ms"] = value
+            summary["maximum_ms"] = value
+        rounded_district_boundary["checks"]["district_load_pass"] = False
+        result = self.run_report([rounded_district_boundary], "Test hardware")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "mixed capture lacks a passing real district transition",
+            result.stdout,
+        )
 
         bad_session_time = capture_fixture()
         bad_session_time["capture_session"]["started_utc"] = (
