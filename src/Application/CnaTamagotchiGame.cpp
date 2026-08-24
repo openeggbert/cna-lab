@@ -945,13 +945,13 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     }
 
     const int visibleWaste = std::min(pet_.wasteCount, 2);
+    const Domain::P1Sprite& wasteSprite = Domain::P1SpriteCatalog::waste();
+    const std::size_t wastePhase = static_cast<std::size_t>(
+        backgroundTimeSeconds_ / wasteSprite.idleFrameSeconds);
+    const Domain::P1SpriteFrame& wasteFrame = wasteSprite.idleFrame(wastePhase);
     for (int waste = 0; waste < visibleWaste; ++waste) {
-        const int x = 26 + waste * 3;
-        display_.setPixel(x + 1, 10, true);
-        display_.setPixel(x, 11, true);
-        display_.setPixel(x + 1, 11, true);
-        display_.setPixel(x + 2, 11, true);
-        display_.setPixel(x + 1, 12, true);
+        const int y = wasteFrame.originY - waste * 8;
+        display_.drawSprite(wasteFrame.originX, y, wasteFrame.visibleRows());
     }
 
     if (feedback_ == Feedback::Success) {

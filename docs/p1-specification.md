@@ -69,7 +69,8 @@ now renders home animation with a per-sequence frame count, hand-authored LCD
 data, and explicit origin and height, rather than translating one static
 picture around the screen. One Mametchi idle trace, both stable egg silhouettes,
 and a complete 36-phase Babytchi home cycle were visually transcribed from the
-selected P1 reference; two Marutchi silhouettes are also transcribed. Remaining
+selected P1 reference; two Marutchi silhouettes and the two-phase stacked-waste
+home overlay are also transcribed. Remaining
 redraws, all care-action frames, and every branch condition remain open until
 they are compared frame by frame with the selected target programme. No ROM,
 emulator core, or reference-programme data is included in this project.
@@ -88,6 +89,7 @@ open rather than substitute a plausible modern redraw.
 | Egg idle sequence | Fresh unaccelerated 30 fps audit over the complete LCD: hand-read wide 12 × 10 phase at `(10, 3)` and tall 10 × 11 phase at `(11, 2)`. Stable changes begin every 21–22 host frames, represented as 0.70 seconds per phase; partial LCD-write frames are excluded. | Two corrected phases transcribed; every row, geometry, count, cadence, wrapping, and corrected normal-scale placement checked. | Capture cracking/hatching separately. |
 | Babytchi | Fresh confirmed post-hatch 30 fps traces at 1× over the complete LCD: two 6 × 6 full poses at `y=9`, followed by two 8 × 3 compressed poses at `y=13`, repeat while moving horizontally. The complete stable-origin cycle is `7, 11, 8, 11, 15, 18, 14, 12, 10, 7, 10, 8, 12, 15, 17, 14, 13, 10, 6, 10, 9, 12, 14, 17, 15, 13, 9, 6, 11, 9, 11, 14, 18, 15, 12, 9`. It repeated in a separate trace. Stable phases average about 0.46 seconds; incremental one-host-frame LCD writes are excluded. | Complete 36-phase cycle transcribed; every pose row, origin, bound, count, cadence, wrap, and corrected normal-scale placement checked. | Capture Babytchi care-action sequences separately. |
 | Marutchi | Confirmed Baby → Child run, complete-LCD 30 fps trace at 1×: 10 × 9 long pose and 10 × 8 short pose, both at `(11, 3)`, alternate every 27–28 host frames (0.92 seconds). Two waste piles were spatially separate at `x≥24`; their cells are excluded from every transcribed row. | Both stable silhouettes, cadence, two-phase count, wrapping, and normal-scale application placement checked. A clean-state horizontal path is not inferred from this waste-present trace. | Capture the same reference cycle without waste and compare its origins. |
+| Waste home overlay | Complete-LCD 1× traces with one and two piles: each pile is an 8 × 8 glyph at `x=24`; the first occupies `(24, 8)` and the second stacks at `(24, 0)`. Both use the same two stable one-bit phases and change together about once per second. | Both exact phases, bounds, stacking positions, cadence, direct wrapping, and normal-scale two-pile placement checked. | Capture Toilet/flush as a separate finite action sequence. |
 | Tamatchi / Kuchitamatchi | No selected-reference home sequence has been transcribed. | Provisional. | Observe one trace for each lineage. |
 | Mametchi | Three independently drawn home phases are retained with a focused distinct-frame test. | Transcribed; regression checked. | Recheck the complete sequence at normal LCD scale. |
 | Ginjirotchi / Maskutchi / Kuchipatchi / Nyorotchi / Tarakotchi / Bill | No selected-reference home sequence has been transcribed. | Provisional. | Capture the relevant qualified evolution path before replacing one form at a time. |

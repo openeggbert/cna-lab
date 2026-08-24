@@ -51,6 +51,7 @@ struct P1Sprite final {
 class P1SpriteCatalog final {
 public:
     [[nodiscard]] static const P1Sprite& spriteForCharacter(std::string_view characterId) noexcept;
+    [[nodiscard]] static const P1Sprite& waste() noexcept;
 };
 
 } // namespace CnaTamagotchi::Domain

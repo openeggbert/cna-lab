@@ -9,7 +9,8 @@ an explicit per-sequence frame count, so it no longer fakes motion by shifting
 a static creature around the LCD. Most provisional frames use the centred
 16 × 10 cell. The egg's two stable silhouettes, Babytchi's complete 36-phase
 home cycle, two stable Marutchi silhouettes, and a Mametchi idle sequence have
-been visually transcribed from P1 reference traces; Marutchi's clean-state path
+been visually transcribed from P1 reference traces. The exact two-phase stacked
+waste overlay is also implemented; Marutchi's clean-state path
 and the other character redraws remain provisional.
 
 The project must never ship a P1 ROM, a ROM-derived binary asset, TamaLIB, or
@@ -87,6 +88,12 @@ write and verify the clean implementation.
   reliably release P1 A in this TamaTool v0.1 session.
 - A four-second normal-scale application trace with an isolated waste-free
   save confirms both transcribed Marutchi silhouettes fit and wrap cleanly.
+- One- and two-pile reference traces establish an 8 × 8 waste glyph at
+  `(24, 8)`, with a second copy stacked at `(24, 0)`. Both exact hand-read
+  phases animate together at about 1.0 second. Catalogue tests protect their
+  rows, geometry, cadence, and wrap; a six-second normal-scale two-pile
+  application trace confirms placement. The Toilet/flush action remains open.
+
 ## Priority 0 — Add selectable physical shell variants
 
 1. [x] Replace the provisional flat shell drawing with a reusable CNA shell renderer
@@ -137,17 +144,20 @@ uses the previous translated-sprite bobbing behaviour.
 
 ## Priority 2 — Add P1-specific action and transition visuals
 
-1. Capture separate frame sequences for egg cracking/hatching, eating Bread,
+1. [x] Replace the generic home-screen waste marks with the exact observed
+   two-phase 8 × 8 glyph, stacking, and cadence. This does not complete the
+   distinct Toilet/flush action.
+2. Capture separate frame sequences for egg cracking/hatching, eating Bread,
    eating Candy, Character game play, sleeping, unhappy/refusal, illness,
    medicine, waste, attention, discipline, evolution, death, and the
    angel-and-stars ending.
-2. Add a rendering state key to the programme/UI boundary. The renderer must
+3. Add a rendering state key to the programme/UI boundary. The renderer must
    select a named P1 action sequence; it must not infer an action by mutating
    or replacing the persistent pet state.
-3. Define action duration, frame cadence, interruption rules, and what A, B,
+4. Define action duration, frame cadence, interruption rules, and what A, B,
    and C do while each action is on screen. Keep those rules separate from the
    one-bit drawing data.
-4. Add deterministic display/controller tests for each finite animation:
+5. Add deterministic display/controller tests for each finite animation:
    start frame, frame order, completion, cancellation where P1 permits it,
    and return to the expected screen.
 

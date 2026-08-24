@@ -83,6 +83,16 @@ constexpr P1SpriteFrame marutchiShortFrame() noexcept
               "#........#", ".#......#.", "..######..", "", "", "", ""}}};
 }
 
+constexpr P1SpriteFrame wasteFrame(const std::string_view row0, const std::string_view row1,
+                                   const std::string_view row2, const std::string_view row3,
+                                   const std::string_view row4, const std::string_view row5,
+                                   const std::string_view row6,
+                                   const std::string_view row7) noexcept
+{
+    return {24, 8, 8U,
+            {{row0, row1, row2, row3, row4, row5, row6, row7, "", "", "", ""}}};
+}
+
 // Every drawing and origin is hand-transcribed P1 LCD data. Repeated character
 // poses at new origins are retained when the reference really moves them; the
 // renderer never invents a translation that is absent from the sequence.
@@ -125,6 +135,13 @@ constexpr P1Sprite Babytchi = sequence(
 // the source trace. A clean-state horizontal path, if any, remains unverified.
 constexpr P1Sprite Marutchi =
     twoPhaseSprite(marutchiLongFrame(), marutchiShortFrame(), 0.92F);
+
+constexpr P1Sprite Waste = twoPhaseSprite(
+    wasteFrame(".......#", ".#....#.", "#......#", ".#.#....",
+               "...##...", "..##.#..", ".####.#.", ".######."),
+    wasteFrame("#.......", ".#....#.", "#......#", "...#..#.",
+               "...##...", "..##.#..", ".#.####.", ".######."),
+    1.0F);
 
 constexpr P1Sprite Tamatchi = sprite(
     frame("....##....##....", "...####..####...", "...##.####.##...", "..##........##..",
@@ -246,6 +263,11 @@ const P1Sprite& P1SpriteCatalog::spriteForCharacter(const std::string_view chara
     if (characterId == "tarakotchi") return Tarakotchi;
     if (characterId == "bill") return Bill;
     return Egg;
+}
+
+const P1Sprite& P1SpriteCatalog::waste() noexcept
+{
+    return Waste;
 }
 
 } // namespace CnaTamagotchi::Domain

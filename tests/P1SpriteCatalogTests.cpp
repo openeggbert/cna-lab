@@ -236,6 +236,41 @@ void testMarutchiKeepsItsObservedP1Silhouettes()
            "the two-phase Marutchi sequence must wrap directly");
 }
 
+void testWasteKeepsItsObservedStackedP1Animation()
+{
+    const P1Sprite& waste = P1SpriteCatalog::waste();
+    constexpr std::array<std::string_view, 8> expectedFirst{{
+        ".......#", ".#....#.", "#......#", ".#.#....",
+        "...##...", "..##.#..", ".####.#.", ".######.",
+    }};
+    constexpr std::array<std::string_view, 8> expectedSecond{{
+        "#.......", ".#....#.", "#......#", "...#..#.",
+        "...##...", "..##.#..", ".#.####.", ".######.",
+    }};
+
+    expect(waste.idleFrameCount == 2U,
+           "P1 waste must alternate exactly two observed stable phases");
+    expect(waste.idleFrameSeconds == 1.0F,
+           "P1 waste must retain its approximately one-second cadence");
+    for (std::size_t phase = 0U; phase < waste.idleFrameCount; ++phase) {
+        const P1SpriteFrame& frame = waste.idleFrame(phase);
+        expect(frame.originX == 24 && frame.originY == 8 && frame.rowCount == 8U,
+               "one P1 waste glyph must occupy the bottom-right 8x8 cell");
+        const auto& expected = phase == 0U ? expectedFirst : expectedSecond;
+        for (std::size_t row = 0U; row < expected.size(); ++row) {
+            expect(frame.rows[row] == expected[row],
+                   "every hand-read P1 waste row must remain exact");
+        }
+    }
+    expect(!framesDiffer(waste.idleFrame(2), waste.idleFrame(0)),
+           "the two-phase waste animation must wrap directly");
+
+    expect(waste.idleFrame(0).originY == 8,
+           "one waste must occupy the lower-right 8x8 cell");
+    expect(waste.idleFrame(0).originY - 8 == 0,
+           "a second waste must stack directly above the first at the top edge");
+}
+
 } // namespace
 
 int main()
@@ -244,8 +279,8 @@ int main()
     testEveryKnownP1CharacterHasUsableFrames();
     testEggKeepsItsObservedP1Silhouette();
     testBabytchiKeepsItsObservedMovingTrace();
-
     testMarutchiKeepsItsObservedP1Silhouettes();
+    testWasteKeepsItsObservedStackedP1Animation();
     if (failures == 0) {
         std::cout << "P1SpriteCatalogTests passed\n";
     }

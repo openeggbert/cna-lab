@@ -89,6 +89,10 @@ similar emulation core is permitted in the application, build, or test suite.
   - [x] Replace Marutchi's invented redraw with the two exact stable silhouettes
     spatially separated from waste in a full-LCD trace; preserve the clean-state
     origin/path as open evidence rather than inferring it from a care-state run.
+  - [x] Replace the generic plus-sign waste marks with both exact observed 8 × 8
+    phases, stack the first at `(24, 8)` and the second at `(24, 0)`, preserve
+    the shared approximately one-second cadence, and verify the two-pile result
+    at normal application scale. The finite Toilet/flush sequence remains open.
   - [x] Replace the previous generic pink desktop shell treatment with a
     reusable CNA renderer and five independently authored P1 colour families;
     persist the selected shell without changing the LCD or P1 controls.
