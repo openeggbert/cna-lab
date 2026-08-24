@@ -15,6 +15,18 @@ namespace CopperBoots
         int Y;
     };
 
+    enum class BlockContent
+    {
+        None,
+        Cog,
+    };
+
+    struct InteractiveBlockDefinition
+    {
+        TileCoordinate Position;
+        BlockContent Content;
+    };
+
     struct LevelDefinition
     {
         std::string Name;
@@ -25,6 +37,7 @@ namespace CopperBoots
         int CheckpointFootTileY;
         std::array<float, 3> ParallaxFactors;
         std::vector<TileCoordinate> Cogs;
+        std::vector<InteractiveBlockDefinition> InteractiveBlocks;
 
         [[nodiscard]] static LevelDefinition Parse(
             std::string_view text,

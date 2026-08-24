@@ -328,7 +328,7 @@ Acceptance:
   generated animation, and provenance-free presentation.
 - Tests cover duplicate ticks and save/reload state policy.
 
-### MAR-041 — Interactive and breakable blocks — TODO
+### MAR-041 — Interactive and breakable blocks — DONE
 
 Acceptance:
 

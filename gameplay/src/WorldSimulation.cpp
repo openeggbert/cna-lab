@@ -52,6 +52,12 @@ namespace CopperBoots
                     (TileMap::TileSize - CogState::Size) * 0.5F,
                 false});
         }
+        interactiveBlocks_.clear();
+        interactiveBlocks_.reserve(level.InteractiveBlocks.size());
+        for (const InteractiveBlockDefinition& block : level.InteractiveBlocks) {
+            interactiveBlocks_.push_back({block.Position.X, block.Position.Y,
+                                          block.Content, false, 0});
+        }
         level_ = std::move(level.Map);
         spawnX_ = static_cast<float>(level.SpawnTileX * TileMap::TileSize);
         spawnY_ = static_cast<float>(level.SpawnFootTileY * TileMap::TileSize) -
@@ -81,6 +87,7 @@ namespace CopperBoots
     void WorldSimulation::Update(const PlayerInput& input, const float seconds)
     {
         lastEvents_ = {};
+        UpdateBlockAnimations();
         const float direction = std::clamp(input.Move, -1.0F, 1.0F);
         const float speedLimit = input.Run ? RunSpeed : WalkSpeed;
         const float acceleration = player_.Grounded
@@ -180,6 +187,23 @@ namespace CopperBoots
                       PlayerState::Width, PlayerState::Height))
             return;
 
+        if (amount < 0.0F) {
+            const int tileY = static_cast<int>(std::floor(
+                player_.Y / TileMap::TileSize));
+            const int left = static_cast<int>(std::floor(
+                player_.X / TileMap::TileSize));
+            const int right = static_cast<int>(std::floor(
+                (player_.X + PlayerState::Width - CollisionEpsilon) /
+                TileMap::TileSize));
+            for (int tileX = left; tileX <= right; ++tileX) {
+                if (level_.IsSolid(tileX, tileY))
+                    HitBlock(tileX, tileY);
+            }
+            if (!Collides(player_.X, player_.Y,
+                          PlayerState::Width, PlayerState::Height))
+                return;
+        }
+
         if (amount > 0.0F) {
             const int tileY = static_cast<int>(std::floor(
                 (player_.Y + PlayerState::Height - CollisionEpsilon) /
@@ -233,5 +257,74 @@ namespace CopperBoots
             ++lastEvents_.CogsCollected;
             lastEvents_.ScoreAdded += 100;
         }
+    }
+
+    void WorldSimulation::UpdateBlockAnimations() noexcept
+    {
+        for (InteractiveBlockState& block : interactiveBlocks_) {
+            if (block.BumpTicksRemaining > 0)
+                --block.BumpTicksRemaining;
+        }
+    }
+
+    void WorldSimulation::HitBlock(const int tileX, const int tileY)
+    {
+        const Tile tile = level_.Get(tileX, tileY);
+        if (tile.Visual == TileVisual::Breakable) {
+            if (player_.Plated) {
+                level_.Set(tileX, tileY, Tiles::Empty);
+                ++lastEvents_.BlocksBroken;
+            }
+            else {
+                ++lastEvents_.BlocksBumped;
+            }
+            return;
+        }
+
+        if (tile.Visual != TileVisual::Interactive &&
+            tile.Visual != TileVisual::UsedBlock)
+            return;
+
+        ++lastEvents_.BlocksBumped;
+        StartBlockBump(tileX, tileY);
+        for (InteractiveBlockState& block : interactiveBlocks_) {
+            if (block.TileX != tileX || block.TileY != tileY || block.Used)
+                continue;
+
+            block.Used = true;
+            level_.Set(tileX, tileY, Tiles::UsedBlock);
+            if (block.Content == BlockContent::Cog) {
+                cogs_.push_back({
+                    static_cast<float>(tileX * TileMap::TileSize) +
+                        (TileMap::TileSize - CogState::Size) * 0.5F,
+                    static_cast<float>((tileY - 1) * TileMap::TileSize) +
+                        (TileMap::TileSize - CogState::Size) * 0.5F,
+                    false});
+                ++lastEvents_.BlockContentsReleased;
+            }
+            return;
+        }
+    }
+
+    void WorldSimulation::StartBlockBump(const int tileX, const int tileY)
+    {
+        for (InteractiveBlockState& block : interactiveBlocks_) {
+            if (block.TileX == tileX && block.TileY == tileY) {
+                block.BumpTicksRemaining = 8;
+                return;
+            }
+        }
+    }
+
+    int WorldSimulation::BlockVisualOffset(const int tileX,
+                                           const int tileY) const noexcept
+    {
+        for (const InteractiveBlockState& block : interactiveBlocks_) {
+            if (block.TileX != tileX || block.TileY != tileY)
+                continue;
+            const int phase = block.BumpTicksRemaining;
+            return phase >= 6 ? -2 : (phase >= 3 ? -1 : 0);
+        }
+        return 0;
     }
 }

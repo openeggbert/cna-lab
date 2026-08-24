@@ -79,8 +79,10 @@ namespace
             "E exit\n"
             "d decoration\n"
             "G cog\n"
+            "? cog-block\n"
+            "o empty-block\n"
             "map\n"
-            "d...\n"
+            "d?o.\n"
             "BG!E\n"
             "####\n";
 
@@ -109,9 +111,13 @@ namespace
               "cog glyph becomes an object coordinate");
         Check(level.Map.Get(1, 1) == CopperBoots::Tiles::Empty,
               "cog marker does not become a collision tile");
+        Check(level.InteractiveBlocks.size() == 2 &&
+                  level.InteractiveBlocks[0].Content == CopperBoots::BlockContent::Cog &&
+                  level.InteractiveBlocks[1].Content == CopperBoots::BlockContent::None,
+              "interactive block contents are parsed separately from tiles");
 
         std::string malformed(source);
-        const std::size_t row = malformed.find("d...\n");
+        const std::size_t row = malformed.find("d?o.\n");
         malformed.erase(row, 1);
         bool threwLineError = false;
         try {
@@ -119,7 +125,7 @@ namespace
         }
         catch (const std::runtime_error& error) {
             threwLineError = std::string_view(error.what()).starts_with(
-                "broken.cbl:16:");
+                "broken.cbl:18:");
         }
         Check(threwLineError, "malformed map reports source and line number");
 
@@ -151,7 +157,7 @@ namespace
         Check(failsAt(replaced("checkpoint 2 2", "checkpoint 5 2"),
                       "case.cbl:5:"),
               "out-of-bounds checkpoint reports its line");
-        Check(failsAt(replaced("BG!E", "B?!E"), "case.cbl:17:"),
+        Check(failsAt(replaced("BG!E", "BGXE"), "case.cbl:19:"),
               "unknown map glyph reports its row");
         Check(failsAt(replaced("checkpoint 2 2",
                                "spawn 1 2\ncheckpoint 2 2"),
@@ -180,6 +186,82 @@ namespace
                   collectibleWorld.Score() == 0 &&
                   !collectibleWorld.Cogs()[0].Collected,
               "reloading a level resets transient cog progress");
+
+        constexpr std::string_view blockSource =
+            "copper-boots-level 1\n"
+            "name Block Workshop\n"
+            "size 4 4\n"
+            "spawn 1 3\n"
+            "checkpoint 1 3\n"
+            "parallax 0.1 0.25 0.5\n"
+            "legend\n"
+            ". empty\n"
+            "# solid\n"
+            "B breakable\n"
+            "! hazard\n"
+            "E exit\n"
+            "d decoration\n"
+            "G cog\n"
+            "? cog-block\n"
+            "o empty-block\n"
+            "map\n"
+            "....\n"
+            "B?o.\n"
+            "....\n"
+            "####\n";
+        CopperBoots::PlayerInput headHit;
+        headHit.JumpPressed = true;
+        headHit.JumpHeld = true;
+        constexpr float fixedTick = static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds);
+
+        CopperBoots::WorldSimulation contentBlockWorld;
+        contentBlockWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            blockSource, "blocks.cbl"));
+        contentBlockWorld.Update(headHit, fixedTick);
+        Check(contentBlockWorld.LastEvents().BlocksBumped == 1 &&
+                  contentBlockWorld.LastEvents().BlockContentsReleased == 1,
+              "first cog-block ceiling hit bumps and releases content");
+        Check(contentBlockWorld.Level().Get(1, 1) == CopperBoots::Tiles::UsedBlock &&
+                  contentBlockWorld.Level().IsSolid(1, 1),
+              "used block visual changes while collision stays solid");
+        Check(contentBlockWorld.BlockVisualOffset(1, 1) < 0,
+              "block bump is exposed as a visual-only offset");
+        contentBlockWorld.ResetPlayer();
+        contentBlockWorld.Update(headHit, fixedTick);
+        Check(contentBlockWorld.LastEvents().BlockContentsReleased == 0,
+              "used block cannot release its content twice");
+
+        std::string emptyBlockSource(blockSource);
+        emptyBlockSource.replace(emptyBlockSource.find("spawn 1 3"), 9,
+                                 "spawn 2 3");
+        CopperBoots::WorldSimulation emptyBlockWorld;
+        emptyBlockWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            emptyBlockSource, "empty-block.cbl"));
+        emptyBlockWorld.Update(headHit, fixedTick);
+        Check(emptyBlockWorld.LastEvents().BlocksBumped == 1 &&
+                  emptyBlockWorld.LastEvents().BlockContentsReleased == 0 &&
+                  emptyBlockWorld.Level().Get(2, 1) == CopperBoots::Tiles::UsedBlock,
+              "empty interactive block bumps once and becomes used");
+
+        std::string breakableSource(blockSource);
+        breakableSource.replace(breakableSource.find("spawn 1 3"), 9,
+                                "spawn 0 3");
+        CopperBoots::WorldSimulation breakableWorld;
+        breakableWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            breakableSource, "breakable.cbl"));
+        breakableWorld.Update(headHit, fixedTick);
+        Check(breakableWorld.LastEvents().BlocksBumped == 1 &&
+                  breakableWorld.LastEvents().BlocksBroken == 0 &&
+                  breakableWorld.Level().Get(0, 1) == CopperBoots::Tiles::Breakable,
+              "unplated ceiling hit cannot break a marked block");
+        breakableWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            breakableSource, "breakable.cbl"));
+        breakableWorld.SetPlayerPlated(true);
+        breakableWorld.Update(headHit, fixedTick);
+        Check(breakableWorld.LastEvents().BlocksBroken == 1 &&
+                  breakableWorld.Level().Get(0, 1) == CopperBoots::Tiles::Empty,
+              "plated ceiling hit breaks a marked block");
     }
 
     void TestMovementAndJump()

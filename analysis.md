@@ -457,6 +457,8 @@ B breakable
 E exit
 d decoration
 G cog object
+? cog block
+o empty interactive block
 map
 ...row-major UTF-8/ASCII rows...
 ```
@@ -479,6 +481,13 @@ owns collected state, emits a one-tick event, awards 100 points exactly once,
 and resets transient cog progress when a level is reloaded. This establishes the
 same data path future enemies and pickups can use without making decorative map
 glyphs physically solid.
+
+Interactive `?`/`o` blocks likewise carry content metadata outside `TileMap`.
+Ceiling collision emits block events and drives an eight-tick visual offset;
+the collision cell never moves. First contact changes an interactive tile to a
+solid used-block visual and optionally emits a new cog. A `B` tile remains solid
+for an unplated courier and is removed by a plated ceiling hit. These are clean
+new mechanics and glyphs rather than translations of the historical map data.
 
 ## CNA and sharp-runtime baseline
 

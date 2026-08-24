@@ -214,7 +214,8 @@ namespace CopperBoots
                 const int screenX = ScreenCoordinate(
                     static_cast<float>(x * TileMap::TileSize), cameraX);
                 const int screenY = ScreenCoordinate(
-                    static_cast<float>(y * TileMap::TileSize), cameraY);
+                    static_cast<float>(y * TileMap::TileSize), cameraY) +
+                    world_.BlockVisualOffset(x, y);
                 switch (tile.Visual) {
                 case TileVisual::Ruin: {
                     const Color body = ((x + y) % 2 == 0)
@@ -235,6 +236,22 @@ namespace CopperBoots
                                   Color(221, 150, 65));
                     FillRectangle(Rectangle(screenX + 7, screenY + 4, 2, 12),
                                   Color(91, 55, 43));
+                    break;
+                case TileVisual::Interactive:
+                    FillRectangle(Rectangle(screenX, screenY, 16, 16),
+                                  Color(203, 137, 43));
+                    FillRectangle(Rectangle(screenX + 2, screenY + 2, 12, 12),
+                                  Color(236, 184, 61));
+                    FillRectangle(Rectangle(screenX + 6, screenY + 4, 4, 2),
+                                  Color(91, 65, 48));
+                    FillRectangle(Rectangle(screenX + 8, screenY + 6, 2, 5),
+                                  Color(91, 65, 48));
+                    break;
+                case TileVisual::UsedBlock:
+                    FillRectangle(Rectangle(screenX, screenY, 16, 16),
+                                  Color(93, 83, 65));
+                    FillRectangle(Rectangle(screenX + 2, screenY + 2, 12, 12),
+                                  Color(126, 111, 80));
                     break;
                 case TileVisual::Hazard:
                     FillRectangle(Rectangle(screenX, screenY + 12, 16, 4),

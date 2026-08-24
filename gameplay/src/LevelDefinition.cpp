@@ -106,7 +106,7 @@ namespace CopperBoots
                                            const std::string_view sourceName)
     {
         const std::vector<SourceLine> lines = SplitLines(text);
-        constexpr std::size_t HeaderLineCount = 15;
+        constexpr std::size_t HeaderLineCount = 17;
         if (lines.size() < HeaderLineCount)
             Fail(sourceName, lines.empty() ? 1 : lines.back().Number,
                  "incomplete level header");
@@ -153,9 +153,10 @@ namespace CopperBoots
             Fail(sourceName, lines[5].Number,
                  "parallax factors must be ascending values from 0 to 1.5");
 
-        constexpr std::array<std::string_view, 9> fixedLines{
+        constexpr std::array<std::string_view, 11> fixedLines{
             "legend", ". empty", "# solid", "B breakable", "! hazard",
-            "E exit", "d decoration", "G cog", "map"};
+            "E exit", "d decoration", "G cog", "? cog-block",
+            "o empty-block", "map"};
         for (std::size_t i = 0; i < fixedLines.size(); ++i) {
             const std::size_t lineIndex = 6 + i;
             if (lines[lineIndex].Text != fixedLines[i])
@@ -169,6 +170,7 @@ namespace CopperBoots
 
         TileMap map(width, height);
         std::vector<TileCoordinate> cogs;
+        std::vector<InteractiveBlockDefinition> interactiveBlocks;
         for (int y = 0; y < height; ++y) {
             const SourceLine& line = lines[mapStart + static_cast<std::size_t>(y)];
             if (line.Text.size() != static_cast<std::size_t>(width))
@@ -179,6 +181,12 @@ namespace CopperBoots
                 if (glyph == 'G') {
                     cogs.push_back({x, y});
                     map.Set(x, y, Tiles::Empty);
+                }
+                else if (glyph == '?' || glyph == 'o') {
+                    interactiveBlocks.push_back({{x, y}, glyph == '?'
+                        ? BlockContent::Cog
+                        : BlockContent::None});
+                    map.Set(x, y, Tiles::Interactive);
                 }
                 else {
                     map.Set(x, y, DecodeTile(glyph, sourceName, line.Number));
@@ -193,6 +201,7 @@ namespace CopperBoots
         }
 
         return {name, std::move(map), spawnX, spawnY,
-                checkpointX, checkpointY, parallax, std::move(cogs)};
+                checkpointX, checkpointY, parallax, std::move(cogs),
+                std::move(interactiveBlocks)};
     }
 }

@@ -10,6 +10,8 @@ namespace CopperBoots
         None,
         Ruin,
         Breakable,
+        Interactive,
+        UsedBlock,
         Hazard,
         Exit,
         Decoration,
@@ -36,6 +38,8 @@ namespace CopperBoots
         inline constexpr Tile Empty{};
         inline constexpr Tile Ruin{TileVisual::Ruin, TileCollision::Solid};
         inline constexpr Tile Breakable{TileVisual::Breakable, TileCollision::Solid};
+        inline constexpr Tile Interactive{TileVisual::Interactive, TileCollision::Solid};
+        inline constexpr Tile UsedBlock{TileVisual::UsedBlock, TileCollision::Solid};
         inline constexpr Tile Hazard{TileVisual::Hazard, TileCollision::Hazard};
         inline constexpr Tile Exit{TileVisual::Exit, TileCollision::Exit};
         inline constexpr Tile Decoration{TileVisual::Decoration, TileCollision::None};

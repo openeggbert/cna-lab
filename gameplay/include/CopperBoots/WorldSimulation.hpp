@@ -37,6 +37,7 @@ namespace CopperBoots
         float VelocityY = 0.0F;
         bool Grounded = false;
         bool FacingRight = true;
+        bool Plated = false;
         PlayerMotion Motion = PlayerMotion::Falling;
     };
 
@@ -53,6 +54,18 @@ namespace CopperBoots
     {
         int CogsCollected = 0;
         int ScoreAdded = 0;
+        int BlocksBumped = 0;
+        int BlockContentsReleased = 0;
+        int BlocksBroken = 0;
+    };
+
+    struct InteractiveBlockState
+    {
+        int TileX = 0;
+        int TileY = 0;
+        BlockContent Content = BlockContent::None;
+        bool Used = false;
+        int BumpTicksRemaining = 0;
     };
 
     class WorldSimulation
@@ -63,6 +76,7 @@ namespace CopperBoots
         void LoadLevel(LevelDefinition level);
         void Update(const PlayerInput& input, float seconds);
         void ResetPlayer();
+        void SetPlayerPlated(bool plated) noexcept { player_.Plated = plated; }
 
         [[nodiscard]] const TileMap& Level() const noexcept { return level_; }
         [[nodiscard]] const PlayerState& Player() const noexcept { return player_; }
@@ -82,6 +96,7 @@ namespace CopperBoots
         [[nodiscard]] int CollectedCogCount() const noexcept { return collectedCogs_; }
         [[nodiscard]] int Score() const noexcept { return score_; }
         [[nodiscard]] std::uint64_t TickCount() const noexcept { return tickCount_; }
+        [[nodiscard]] int BlockVisualOffset(int tileX, int tileY) const noexcept;
 
     private:
         [[nodiscard]] bool Collides(float x, float y, float width,
@@ -90,6 +105,9 @@ namespace CopperBoots
         void MoveVertical(float amount);
         void UpdateMotion(const PlayerInput& input) noexcept;
         void CollectOverlappingCogs() noexcept;
+        void UpdateBlockAnimations() noexcept;
+        void HitBlock(int tileX, int tileY);
+        void StartBlockBump(int tileX, int tileY);
 
         TileMap level_;
         PlayerState player_;
@@ -98,6 +116,7 @@ namespace CopperBoots
         float spawnY_;
         std::array<float, 3> parallaxFactors_{0.10F, 0.25F, 0.50F};
         std::vector<CogState> cogs_;
+        std::vector<InteractiveBlockState> interactiveBlocks_;
         WorldEvents lastEvents_;
         int collectedCogs_ = 0;
         int score_ = 0;
