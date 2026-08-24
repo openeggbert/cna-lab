@@ -176,6 +176,25 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("do not match frame_interval samples", result.stderr)
 
+        with tempfile.TemporaryDirectory() as directory:
+            duplicate_path = Path(directory) / "duplicate.json"
+            serialized = json.dumps(capture_fixture())
+            duplicate_path.write_text(serialized[:-1] + ', "schema_version": 8}', encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--hardware",
+                    "Test hardware",
+                    str(duplicate_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("duplicate JSON object key 'schema_version'", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main(argv=[sys.argv[0]])

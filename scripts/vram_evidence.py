@@ -18,6 +18,7 @@ from performance_report import (
     _integer,
     _mapping,
     _non_empty_string,
+    _strict_json_load,
     _utc_timestamp,
     load_capture,
     validate_complete_vram_evidence,
@@ -48,7 +49,7 @@ def load_evidence(
 ) -> dict[str, Any]:
     try:
         with path.open("r", encoding="utf-8") as source:
-            evidence = _mapping(json.load(source), str(path))
+            evidence = _mapping(_strict_json_load(source), str(path))
     except (OSError, json.JSONDecodeError) as error:
         raise ReportError(f"could not read {path}: {error}") from error
 

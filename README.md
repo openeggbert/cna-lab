@@ -135,6 +135,8 @@ reconstructs the expected output and rejects any missing, cross-bound, or edited
 
 The exact manifest schema, hash procedure, accepted measurement scope, and limitations are in
 [`docs/performance-targets.md`](docs/performance-targets.md#binding-complete-external-vram-evidence).
+Profile and manifest parsing is strict: duplicate JSON object keys are rejected instead of silently
+using the last occurrence.
 
 To compare one compatible capture against a named historical baseline with CI-significant
 regression exit codes:

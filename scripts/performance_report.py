@@ -10,7 +10,7 @@ import re
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 
 SCHEMA_VERSION = 8
@@ -44,6 +44,19 @@ HISTOGRAM_BUCKETS = (
 
 class ReportError(ValueError):
     pass
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ReportError(f"duplicate JSON object key {key!r}")
+        result[key] = value
+    return result
+
+
+def _strict_json_load(source: TextIO) -> Any:
+    return json.load(source, object_pairs_hook=_unique_json_object)
 
 
 def _mapping(value: Any, label: str) -> dict[str, Any]:
@@ -166,7 +179,7 @@ def validate_complete_vram_evidence(
 def load_capture(path: Path) -> dict[str, Any]:
     try:
         with path.open("r", encoding="utf-8") as source:
-            capture = _mapping(json.load(source), str(path))
+            capture = _mapping(_strict_json_load(source), str(path))
     except (OSError, json.JSONDecodeError) as error:
         raise ReportError(f"could not read {path}: {error}") from error
 

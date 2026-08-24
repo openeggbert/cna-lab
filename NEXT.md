@@ -67,6 +67,15 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 JSON evidence parsing is now unambiguous.** Python's default JSON loader silently accepts
+duplicate object keys and keeps the last value, which is unsafe for a human-authored qualification
+manifest. The shared profile/evidence loader now rejects duplicates at any nesting level with the
+key named in the error.
+
+- Report coverage injects a duplicate root `schema_version`; VRAM coverage does the same in the
+  external manifest. Both commands exit 2 and write no promoted evidence.
+- Report, VRAM, and comparator suites remain 6/6; full CTest remains 8/8.
+
 **M12 repeatability now rejects copied capture evidence.** The release-summary generator previously
 counted two different file paths as two runs, so a byte-for-byte copy under a new name could satisfy
 the repeatability count. It now identifies each mixed run from canonical performance-capture

@@ -437,7 +437,7 @@ source, and measurement scope. The same CLI can re-verify an archive by reconstr
 enriched JSON from its original capture, manifest, and raw artifact and comparing the complete
 object. Six focused CLI tests cover the qualifying synthetic/verification path, semantic tamper
 refusal, capture hash refusal, scope/time refusal, raw-artifact mutation, conservative flooring,
-and every input-overwrite path. This is contract/plumbing coverage only: no qualifying physical
-artifact was invented, and the real Xvfb captures correctly remain `tracking_complete=false`. M12
-still needs repeated mixed captures plus authoritative complete-residency artifacts on named
-physical minimum hardware.
+duplicate-key ambiguity, and every input-overwrite path. This is contract/plumbing coverage only:
+no qualifying physical artifact was invented, and the real Xvfb captures correctly remain
+`tracking_complete=false`. M12 still needs repeated mixed captures plus authoritative
+complete-residency artifacts on named physical minimum hardware.

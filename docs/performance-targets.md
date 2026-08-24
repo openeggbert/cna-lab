@@ -419,8 +419,9 @@ Before generating or publishing a release report, re-verify the archived four-fi
   --verify-enriched runtime/performance/m12-mixed-01-complete.json
 ```
 
-The binder verifies schema, exact capture and raw-artifact hashes, positive process/peak values,
-UTC interval ordering, and the exact measurement scope. The enriched `tracked_bytes` is the
+The binder verifies schema, rejects duplicate JSON object keys, checks exact capture and
+raw-artifact hashes, positive process/peak values, UTC interval ordering, and the exact measurement
+scope. The enriched `tracked_bytes` is the
 conservative maximum of Iron Gang's logical total and the external peak; only that output sets
 `tracking_complete=true`. The release-summary hardware label must exactly match
 `hardware_identity`, and capture comparison also requires the same profiler name, version, source,
@@ -507,6 +508,8 @@ known RAM, complete VRAM accounting within budget, and a real passing district t
 mixed capture. It reports `FAIL` when a declared qualification misses any condition and exits zero
 because the report was generated successfully; malformed/stale input exits 2. `PASS` is therefore
 a strict evidence summary, while successful command execution alone is not a gate result.
+Duplicate object keys are malformed input rather than last-value-wins aliases; this applies to both
+generated profiles and external evidence manifests.
 Renaming, copying, or changing only JSON whitespace cannot turn one capture into the two independent
 runs required for repeatability. Canonical performance identity is independent of file path and key
 ordering and normalizes externally bound VRAM metadata, so rebinding the same original profile to a

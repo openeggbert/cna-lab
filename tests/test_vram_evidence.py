@@ -225,6 +225,15 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("must not precede", result.stderr)
 
+            evidence = evidence_fixture(capture_path, artifact_path)
+            serialized = json.dumps(evidence)
+            evidence_path.write_text(
+                serialized[:-1] + ', "schema_version": 1}', encoding="utf-8"
+            )
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("duplicate JSON object key 'schema_version'", result.stderr)
+
     def test_mutated_raw_artifact_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             capture_path, evidence_path, artifact_path, output_path = self.write_inputs(

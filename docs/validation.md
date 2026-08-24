@@ -164,10 +164,10 @@ artifacts, exact scope/process/time metadata is validated, inputs cannot be over
 enriched total conservatively keeps the larger of logical bytes and external peak residency.
 The CLI also reconstructs and verifies a later archived enriched capture without writing any file.
 Six tests cover a synthetic report-qualified/verified flow plus semantic tampering, capture hash,
-scope/time, raw-artifact, flooring, and overwrite failures. Report/comparison tests validate
-evidence structure, hardware identity, and profiler compatibility. No physical profiler artifact
-exists in this workspace, so the real Xvfb evidence remains incomplete and this plumbing does not
-close M12.
+scope/time, raw-artifact, flooring, duplicate JSON keys, and overwrite failures. Report/comparison
+tests validate evidence structure, hardware identity, profiler compatibility, and duplicate-key
+refusal for generated capture input. No physical profiler artifact exists in this workspace, so the
+real Xvfb evidence remains incomplete and this plumbing does not close M12.
 
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
