@@ -60,8 +60,9 @@ similar emulation core is permitted in the application, build, or test suite.
     retire the Pipple/Budbit state from the active renderer and save path.
   - Make schedules, evolution rules, menu/icon data, and sprite keys part of
     programme data before P1 behaviour is migrated into the shared engine.
-  - Remove custom species, two-line generation seed, Elder, generic Farewell,
-    and `0…100` needs from the active simulation.
+  - [x] Remove the unused custom-species catalogue, two-line generation seed,
+    Elder, generic Farewell, `0…100` needs, their source files, and their two
+    obsolete test targets; only the P1 programme domain remains in the build.
   - Model P1’s form, stage, four hunger hearts, four happiness hearts, four
     discipline bars, age, weight, clock, care-event history, waste, illness,
     sleep, light, attention, and game state.

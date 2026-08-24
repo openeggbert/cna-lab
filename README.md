@@ -309,7 +309,7 @@ repeat a capture that shows a blank LCD.
 ## Tests
 
 ```bash
-cmake --build --preset sdl-renderer --parallel 2 --target CnaTamagotchiDomainTests CnaTamagotchiCreatureCatalogTests CnaTamagotchiP1StateTests CnaTamagotchiP1ProgramTests CnaTamagotchiP1SpriteCatalogTests CnaTamagotchiProgramSimulationTests CnaTamagotchiDisplayTests CnaTamagotchiSaveLocationTests CnaTamagotchiPersistenceTests CnaTamagotchiDeviceShellTests
+cmake --build --preset sdl-renderer --parallel 2 --target CnaTamagotchiP1StateTests CnaTamagotchiP1ProgramTests CnaTamagotchiP1SpriteCatalogTests CnaTamagotchiProgramSimulationTests CnaTamagotchiDisplayTests CnaTamagotchiSaveLocationTests CnaTamagotchiPersistenceTests CnaTamagotchiDeviceShellTests
 ctest --test-dir cmake-build-sdl-renderer --output-on-failure --parallel 2
 ```
 

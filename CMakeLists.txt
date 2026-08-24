@@ -69,11 +69,9 @@ set(CNA_TAMAGOTCHI_SOURCES
     src/Display/MonochromeDisplay.cpp
     src/Display/P1LightScreen.cpp
     src/Display/P1ToiletWipe.cpp
-    src/Domain/CreatureCatalog.cpp
     src/Domain/P1Program.cpp
     src/Domain/P1SpriteCatalog.cpp
     src/Domain/ProgramSimulation.cpp
-    src/Domain/PetSimulation.cpp
     src/Persistence/SaveLocation.cpp
     src/Persistence/SaveRepository.cpp
 )
@@ -129,22 +127,6 @@ endif()
 option(CNA_TAMAGOTCHI_BUILD_TESTS "Build framework-free domain tests" ON)
 if(CNA_TAMAGOTCHI_BUILD_TESTS AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_CROSSCOMPILING)
     enable_testing()
-    add_executable(CnaTamagotchiDomainTests
-        tests/PetSimulationTests.cpp
-        src/Domain/PetSimulation.cpp
-    )
-    target_include_directories(CnaTamagotchiDomainTests PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    add_test(NAME CnaTamagotchiDomainTests COMMAND CnaTamagotchiDomainTests)
-
-    add_executable(CnaTamagotchiCreatureCatalogTests
-        tests/CreatureCatalogTests.cpp
-        src/Domain/CreatureCatalog.cpp
-    )
-    target_include_directories(CnaTamagotchiCreatureCatalogTests PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    add_test(NAME CnaTamagotchiCreatureCatalogTests COMMAND CnaTamagotchiCreatureCatalogTests)
-
     add_executable(CnaTamagotchiP1StateTests
         tests/P1StateTests.cpp
     )

@@ -14,6 +14,13 @@ been visually transcribed from P1 reference traces. The exact two-phase stacked
 waste overlay is also implemented; Marutchi's clean-state path
 and the other character redraws remain provisional.
 
+The retired Pipple/Budbit `PetSimulation` and `CreatureCatalog` were no longer
+referenced by the active application but were still compiled and tested by
+default. Their implementation/header/test files and two CMake targets are now
+removed; the production and test graphs contain only the P1 programme domain.
+The old prototype remains recoverable from Git history, while legacy-save
+detection remains intentionally independent of those removed types.
+
 The project must never ship a P1 ROM, a ROM-derived binary asset, TamaLIB, or
 another emulator core. A reference program may be viewed externally only to
 write and verify the clean implementation.
@@ -29,7 +36,7 @@ write and verify the clean implementation.
   closure; this game disables the genuinely unused network/ENet, CNAEXT, and
   device-extension branches before CNA is added.
 - Both supported modular renderer presets configure and build: SDL also passes
-  all ten CTest tests with `--parallel 2`, and a fresh HEADLESS application
+  all eight CTest tests with `--parallel 2`, and a fresh HEADLESS application
   build completed on 2026-08-24. Keep the two-job ceiling. This runner can
   intermittently fail while `ar` replaces a static library (observed with both
   two and one job); retry the unchanged incremental build before attributing
