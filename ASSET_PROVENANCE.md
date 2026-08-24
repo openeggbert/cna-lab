@@ -36,3 +36,20 @@ Lighting/mood: simple high-contrast sprite shading readable in dark rooms
 Constraints: genuinely transparent background and preserved alpha; no text; no logos; no watermark; no political or military insignia; no swastikas; no Nazi imagery; no blood; no scenery; no drop shadow; no anti-aliased halo
 Avoid: photorealism, 3D render, smooth painterly gradients, robotic dog, copyrighted game creatures, resemblance to Wolfenstein dog sprites
 ```
+
+## `assets/title/title-background.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: landscape title-menu background for an original retro first-person shooter game
+Primary request: a dramatic original underground research-bunker entrance and deep corridor, suggesting an imminent fast-paced action mission without depicting a copied game scene
+Scene/backdrop: late-1980s fictional industrial bunker with steel doors, concrete arches, teal utility lights, warm amber warning lights, pipes, vents, floor reflections, distant fog, and one small cloth banner bearing only a simple peace symbol
+Subject: the bunker environment is the hero; two distant indistinct original security silhouettes may appear near the far doorway, with no recognizable existing characters
+Style/medium: hand-painted early-1990s VGA-inspired game key art, deliberately pixel-textured edges and limited rich color palette, polished enough for a modern enhanced retro game
+Composition/framing: landscape 3:2 composition that can be center-cropped to 16:9; strong symmetrical perspective; keep the upper center and middle center relatively dark and uncluttered for a large title and menu overlay; important bunker details around the outer thirds
+Lighting/mood: ominous but adventurous, high contrast teal-and-amber cinematic lighting, readable dark shapes
+Constraints: no text, no title, no letters, no logos, no watermark; no swastikas; no Nazi imagery; no totalitarian or political insignia; no historical uniforms; no gore; no copyrighted characters, weapons, maps, architecture, or recognizable assets; fully original visual identity; peace symbol is the only emblem
+Avoid: resemblance to Wolfenstein title art, photorealism, modern military branding, illegible busy center, bright center behind menu text
+```

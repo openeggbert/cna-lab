@@ -42,6 +42,7 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> paintingTexture_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> peaceBannerTexture_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> ceilingLampTexture_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> titleBackground_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> hudSpriteBatch_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> hudPixel_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> weaponIcon_;

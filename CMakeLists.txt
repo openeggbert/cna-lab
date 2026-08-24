@@ -66,6 +66,10 @@ configure_file(
     assets/sprites/security-hound.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/security-hound.png"
     COPYONLY)
+configure_file(
+    assets/title/title-background.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/title/title-background.png"
+    COPYONLY)
 
 enable_testing()
 add_executable(level-definition-tests

@@ -1100,6 +1100,10 @@ props and sector-specific variants remain.
 
 ### WOLF-016 — illustrated title screen
 
+Status: complete. The title screen uses an original generated bunker illustration
+with aspect-preserving center crop, a dark readability veil and a large code-rendered
+`WOLF CNA` heading. Full generation provenance is recorded.
+
 - show `WOLF CNA` in large, sharp letters as the dominant title-menu element;
 - place an original generated bunker-action illustration behind the menu;
 - keep menu choices readable over the image at windowed and fullscreen sizes;

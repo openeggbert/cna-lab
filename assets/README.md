@@ -8,6 +8,9 @@ peace-symbol banner and ceiling lamp are generated at runtime in `src/WolfGame.c
 Original generated sprites under `sprites/` are project-owned assets. Their source,
 generation date and complete prompts are recorded in `../ASSET_PROVENANCE.md`.
 
+The generated title artwork under `title/` is also project-owned and recorded in
+`../ASSET_PROVENANCE.md`; exact menu text is rendered separately by game code.
+
 `levels/starter.level` is the starter's original text level. Its symbols are documented in the
 top-level README.
 

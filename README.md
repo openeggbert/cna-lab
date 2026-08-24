@@ -30,6 +30,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - guards fire visible ranged projectiles; hounds remain close-range attackers
 - no external copyrighted game assets
 - original title menu with difficulty selection before a run begins
+- illustrated title menu with a generated original bunker background and a large sharp `WOLF CNA` heading
 - persistent sector selection: a fresh profile starts with sector 1 and completing a sector unlocks the next one
 
 ## Controls

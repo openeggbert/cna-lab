@@ -207,9 +207,15 @@ namespace WolfCna
             }
         }
 
-        void DrawHudText(SpriteBatch& batch, Texture2D& pixel, int x, int y, std::string_view text, Color color)
+        void DrawHudText(
+            SpriteBatch& batch,
+            Texture2D& pixel,
+            int x,
+            int y,
+            std::string_view text,
+            Color color,
+            int scale = 2)
         {
-            constexpr int scale = 2;
             for (char character : text)
             {
                 const auto glyph = Glyph(character);
@@ -217,13 +223,13 @@ namespace WolfCna
                     for (int column = 0; column < 5; ++column)
                         if (glyph[row][column] == '1')
                             batch.Draw(pixel, Rectangle(x + column * scale, y + row * scale, scale, scale), color);
-                x += 12;
+                x += 6 * scale;
             }
         }
 
-        int HudTextWidth(std::string_view text)
+        int HudTextWidth(std::string_view text, int scale = 2)
         {
-            return text.empty() ? 0 : static_cast<int>(text.size()) * 12 - 2;
+            return text.empty() ? 0 : static_cast<int>(text.size()) * 6 * scale - scale;
         }
     }
 
@@ -266,6 +272,7 @@ namespace WolfCna
         CreateProceduralAtlas();
         guardSprite_ = std::make_unique<Texture2D>("assets/sprites/security-guard.png", device);
         houndSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound.png", device);
+        titleBackground_ = std::make_unique<Texture2D>("assets/title/title-background.png", device);
         CreateProceduralBloodDecal();
         CreateProceduralDecorationTextures();
         CreateHudResources();
@@ -867,14 +874,44 @@ namespace WolfCna
         const int height = viewport.getHeightProperty();
         const int left = viewport.getXProperty() + std::max(16, width / 2 - 160);
         const int top = viewport.getYProperty() + std::max(16, height / 2 - 130);
-        const Color background(8, 18, 48, 255);
+        const Color background(8, 18, 48, screen_ == Screen::Title ? 224 : 255);
         const Color border(92, 150, 225, 255);
         const Color title(255, 211, 104, 255);
         const Color normal(202, 223, 255, 255);
         const Color selected(255, 236, 137, 255);
 
         hudSpriteBatch_->Begin();
-        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), viewport.getYProperty(), width, height), Color(4, 8, 21, 255));
+        const Rectangle viewportRectangle(
+            viewport.getXProperty(), viewport.getYProperty(), width, height);
+        if (screen_ == Screen::Title && titleBackground_)
+        {
+            const int imageWidth = titleBackground_->getWidthProperty();
+            const int imageHeight = titleBackground_->getHeightProperty();
+            int sourceWidth = imageWidth;
+            int sourceHeight = imageHeight;
+            int sourceX = 0;
+            int sourceY = 0;
+            if (width * imageHeight > height * imageWidth)
+            {
+                sourceHeight = std::max(1, imageWidth * height / std::max(1, width));
+                sourceY = (imageHeight - sourceHeight) / 2;
+            }
+            else
+            {
+                sourceWidth = std::max(1, imageHeight * width / std::max(1, height));
+                sourceX = (imageWidth - sourceWidth) / 2;
+            }
+            hudSpriteBatch_->Draw(
+                *titleBackground_,
+                viewportRectangle,
+                Rectangle(sourceX, sourceY, sourceWidth, sourceHeight),
+                Color(255, 255, 255, 255));
+            hudSpriteBatch_->Draw(*hudPixel_, viewportRectangle, Color(2, 5, 12, 82));
+        }
+        else
+        {
+            hudSpriteBatch_->Draw(*hudPixel_, viewportRectangle, Color(4, 8, 21, 255));
+        }
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left, top, 320, 260), background);
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left, top, 320, 3), border);
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left, top + 257, 320, 3), border);
@@ -883,11 +920,22 @@ namespace WolfCna
         {
             DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 160 - HudTextWidth(text) / 2, y, text, color);
         };
-        centered(top + 22, "BUNKER 1987", title);
+        const auto centeredScaled = [&](int y, std::string_view text, Color color, int scale)
+        {
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                left + 160 - HudTextWidth(text, scale) / 2,
+                y,
+                text,
+                color,
+                scale);
+        };
 
         if (screen_ == Screen::Title)
         {
-            centered(top + 58, "CNA OPERATIONS", normal);
+            centeredScaled(top + 13, "WOLF CNA", title, 6);
+            centered(top + 65, "BUNKER OPERATIONS", normal);
             const std::array<std::string, 4> options{
                 "START RUN",
                 "CONTROLS",
@@ -895,7 +943,7 @@ namespace WolfCna
                 "QUIT"};
             for (int index = 0; index < static_cast<int>(options.size()); ++index)
             {
-                const int y = top + 96 + index * 30;
+                const int y = top + 98 + index * 30;
                 const Color color = menuSelection_ == index ? selected : normal;
                 if (menuSelection_ == index)
                     DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 45, y, ">", selected);
@@ -906,6 +954,7 @@ namespace WolfCna
         }
         else if (screen_ == Screen::SectorSelect)
         {
+            centered(top + 22, "BUNKER 1987", title);
             centered(top + 58, "SELECT SECTOR", normal);
             for (int index = 0; index < static_cast<int>(CampaignLevelNames.size()); ++index)
             {
@@ -925,6 +974,7 @@ namespace WolfCna
         }
         else if (screen_ == Screen::Difficulty)
         {
+            centered(top + 22, "BUNKER 1987", title);
             centered(top + 58, "SELECT DIFFICULTY", normal);
             constexpr std::array<std::string_view, 3> options{"SCOUT", "OPERATIVE", "VETERAN"};
             for (int index = 0; index < static_cast<int>(options.size()); ++index)
@@ -940,6 +990,7 @@ namespace WolfCna
         }
         else
         {
+            centered(top + 22, "BUNKER 1987", title);
             centered(top + 58, "CONTROLS", normal);
             centered(top + 94, "UP DOWN WALK", normal);
             centered(top + 118, "LEFT RIGHT TURN", normal);
