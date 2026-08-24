@@ -112,6 +112,41 @@ namespace
         return result;
     }
 
+    [[nodiscard]] std::string MakeCrawlerDuelLevel()
+    {
+        return
+            "copper-boots-level 1\n"
+            "name Crawler Duel Workshop\n"
+            "size 8 5\n"
+            "spawn 7 4\n"
+            "checkpoint 7 4\n"
+            "parallax 0.1 0.25 0.5\n"
+            "legend\n"
+            ". empty\n"
+            "# solid\n"
+            "- one-way\n"
+            "B breakable\n"
+            "! hazard\n"
+            "E exit\n"
+            "d decoration\n"
+            "G cog\n"
+            "? cog-block\n"
+            "o empty-block\n"
+            "P plated-block\n"
+            "A plating\n"
+            "R capacitor-block\n"
+            "K capacitor\n"
+            "H checkpoint\n"
+            "C crawler\n"
+            "c crawler-fall\n"
+            "map\n"
+            "........\n"
+            "........\n"
+            "........\n"
+            ".C.C....\n"
+            "########\n";
+    }
+
     [[nodiscard]] std::string MakeProjectileLevel(const bool crawler,
                                                   const bool wall)
     {
@@ -878,6 +913,52 @@ namespace
               "fixed parallax layer ignores camera movement");
     }
 
+    void TestEnemyContactClassification()
+    {
+        using CopperBoots::EnemyContactKind;
+        using CopperBoots::MotionBounds;
+
+        const MotionBounds enemy{10.0F, 12.0F, 10.0F, 12.0F,
+                                 10.0F, 10.0F};
+        Check(CopperBoots::ClassifyEnemyContact(
+                  {10.0F, 0.0F, 10.0F, 4.0F, 10.0F, 10.0F}, enemy) ==
+                  EnemyContactKind::Stomp,
+              "relative downward crossing with solid overlap is a stomp");
+        Check(CopperBoots::ClassifyEnemyContact(
+                  {0.0F, 10.0F, 3.0F, 10.0F, 10.0F, 10.0F}, enemy) ==
+                  EnemyContactKind::Harmful,
+              "horizontal side overlap remains harmful");
+        Check(CopperBoots::ClassifyEnemyContact(
+                  {10.0F, 20.0F, 10.0F, 16.0F, 10.0F, 10.0F}, enemy) ==
+                  EnemyContactKind::Harmful,
+              "upward underside contact cannot become a stomp");
+        Check(CopperBoots::ClassifyEnemyContact(
+                  {0.0F, 0.0F, 1.0F, 4.0F, 10.0F, 10.0F},
+                  {10.5F, 12.0F, 10.5F, 12.0F, 10.0F, 10.0F}) ==
+                  EnemyContactKind::Harmful,
+              "sub-two-pixel corner graze is not an ambiguous stomp");
+        Check(CopperBoots::ClassifyEnemyContact(
+                  {10.0F, 0.0F, 10.0F, 5.0F, 10.0F, 10.0F},
+                  {10.0F, 12.0F, 10.0F, 14.0F, 10.0F, 10.0F}) ==
+                  EnemyContactKind::Stomp,
+              "classification uses relative rather than absolute vertical motion");
+
+        constexpr std::array simultaneous{
+            EnemyContactKind::Harmful,
+            EnemyContactKind::None,
+            EnemyContactKind::Stomp};
+        Check(CopperBoots::HighestPriorityEnemyContact(simultaneous) ==
+                  EnemyContactKind::Stomp,
+              "simultaneous stomp has deterministic priority over side damage");
+        constexpr std::array harmfulOnly{
+            EnemyContactKind::None,
+            EnemyContactKind::Harmful,
+            EnemyContactKind::Harmful};
+        Check(CopperBoots::HighestPriorityEnemyContact(harmfulOnly) ==
+                  EnemyContactKind::Harmful,
+              "simultaneous harmful contacts collapse to one damage class");
+    }
+
     void TestClockworkCrawler()
     {
         constexpr float tick = static_cast<float>(
@@ -927,6 +1008,14 @@ namespace
                   platedWorld.Player().InvulnerabilityTicks > 0 &&
                   platedWorld.LastEvents().PlayerDamaged == 1,
               "crawler contact consumes plated protection and grants invulnerability");
+        const int invulnerabilityAfterHit =
+            platedWorld.Player().InvulnerabilityTicks;
+        platedWorld.Update({}, tick);
+        Check(!platedWorld.Player().Dead &&
+                  platedWorld.LastEvents().PlayerDamaged == 0 &&
+                  platedWorld.Player().InvulnerabilityTicks ==
+                      invulnerabilityAfterHit - 1,
+              "continued enemy overlap is harmless during invulnerability");
 
         CopperBoots::WorldSimulation patrolWorld;
         patrolWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
@@ -993,6 +1082,26 @@ namespace
         }
         Check(activatedOnApproach,
               "crawler activates when camera approaches its range");
+
+        CopperBoots::WorldSimulation duelWorld;
+        duelWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeCrawlerDuelLevel(), "crawler-duel.cbl"));
+        bool crawlersTurnedApart = false;
+        for (int i = 0; i < 120; ++i) {
+            duelWorld.Update({}, tick);
+            const auto& crawlers = duelWorld.Crawlers();
+            if (crawlers[0].Direction == -1 && crawlers[1].Direction == 1) {
+                crawlersTurnedApart = true;
+                const bool separated =
+                    crawlers[0].X + CopperBoots::CrawlerState::Width <=
+                    crawlers[1].X;
+                Check(separated,
+                      "crawler pair restores non-overlapping previous bounds");
+                break;
+            }
+        }
+        Check(crawlersTurnedApart,
+              "crawler pair contact reverses outward in stable level order");
     }
 
     void TestDeathAndRespawn()
@@ -1202,6 +1311,7 @@ int main()
     TestOneWayAndLongRunCollision();
     TestCameraBounds();
     TestParallaxDescriptor();
+    TestEnemyContactClassification();
     TestClockworkCrawler();
     TestDeathAndRespawn();
     TestArcProjectiles();

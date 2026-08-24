@@ -4,8 +4,9 @@
 #include "CopperBoots/LevelDefinition.hpp"
 #include "CopperBoots/TileMap.hpp"
 
-#include <cstdint>
 #include <array>
+#include <cstdint>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -132,6 +133,28 @@ namespace CopperBoots
         bool Active = false;
     };
 
+    struct MotionBounds
+    {
+        float PreviousX = 0.0F;
+        float PreviousY = 0.0F;
+        float CurrentX = 0.0F;
+        float CurrentY = 0.0F;
+        float Width = 0.0F;
+        float Height = 0.0F;
+    };
+
+    enum class EnemyContactKind
+    {
+        None,
+        Harmful,
+        Stomp,
+    };
+
+    [[nodiscard]] EnemyContactKind ClassifyEnemyContact(
+        const MotionBounds& player, const MotionBounds& enemy) noexcept;
+    [[nodiscard]] EnemyContactKind HighestPriorityEnemyContact(
+        std::span<const EnemyContactKind> contacts) noexcept;
+
     enum class CrawlerEdgePolicy
     {
         Turn,
@@ -145,6 +168,8 @@ namespace CopperBoots
 
         float X = 0.0F;
         float Y = 0.0F;
+        float PreviousX = 0.0F;
+        float PreviousY = 0.0F;
         float VelocityY = 0.0F;
         int Direction = -1;
         CrawlerEdgePolicy EdgePolicy = CrawlerEdgePolicy::Turn;
@@ -244,7 +269,8 @@ namespace CopperBoots
         void UpdateProjectiles(float seconds);
         void ActivateOverlappingCheckpoints() noexcept;
         void StartLevelCompletion() noexcept;
-        void ResolvePlayerCrawlerContacts(float previousPlayerBottom);
+        void ResolvePlayerCrawlerContacts(float previousPlayerX,
+                                           float previousPlayerY);
         void StartPlayerDeath() noexcept;
         void RespawnAtCheckpoint();
         [[nodiscard]] bool TouchesCollision(TileCollision collision) const noexcept;
@@ -262,6 +288,7 @@ namespace CopperBoots
         std::array<float, 3> parallaxFactors_{0.10F, 0.25F, 0.50F};
         std::vector<CogState> cogs_;
         std::vector<CrawlerState> crawlers_;
+        std::vector<EnemyContactKind> crawlerContacts_;
         std::vector<PlatingPickupState> platingPickups_;
         std::vector<CapacitorPickupState> capacitorPickups_;
         std::array<ProjectileState, 2> projectiles_{};

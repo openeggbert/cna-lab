@@ -28,11 +28,12 @@ interactive/breakable blocks, crawler enemies, damage/death/checkpoint/exit,
 plating and capacitor abilities, projectiles, HUD, pause, and CNA keyboard plus
 gamepad input. Logic and CNA offscreen smoke tests pass.
 
-**Current: M2 — collision classification and conduit/subarea foundation**
+**Current: M2 — presentation and conduit/subarea foundation**
 
-Finish the explicit enemy corner/underside/simultaneous-contact matrix, then add
+Add readable procedural courier poses and the first debug overlay, then build
 the first data-driven maintenance-conduit transition without broadening into a
-generic scene engine.
+generic scene engine. The enemy corner/underside/simultaneous-contact matrix is
+complete.
 
 ## Foundation and research
 
@@ -354,7 +355,7 @@ Acceptance:
 - Top contact defeats/bounces; side contact damages.
 - State and collision tests require no renderer.
 
-### MAR-043 — Enemy collision framework — DOING
+### MAR-043 — Enemy collision framework — DONE
 
 Acceptance:
 
@@ -583,10 +584,8 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Complete `MAR-043` with underside, corner and simultaneous enemy-contact
-   tests plus a clear priority rule.
-2. Complete `MAR-026` procedural courier poses and `MAR-016` debug overlay.
-3. Implement `MAR-033` and use it for the `MAR-047` maintenance-conduit secret.
-4. Add deterministic state hashes and CTest labels for `MAR-070`.
-5. Add generated CNA sound effects under `MAR-056`, retaining silence fallback.
-6. Begin moving platforms (`MAR-046`) only after the transition model is stable.
+1. Complete `MAR-026` procedural courier poses and `MAR-016` debug overlay.
+2. Implement `MAR-033` and use it for the `MAR-047` maintenance-conduit secret.
+3. Add deterministic state hashes and CTest labels for `MAR-070`.
+4. Add generated CNA sound effects under `MAR-056`, retaining silence fallback.
+5. Begin moving platforms (`MAR-046`) only after the transition model is stable.

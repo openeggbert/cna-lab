@@ -538,10 +538,14 @@ new mechanics and glyphs rather than translations of the historical map data.
 Clockwork crawlers are extracted from `C`/`c` object markers. `C` patrols and
 turns at walls or ledges; `c` uses the same patrol with deterministic gravity
 after leaving a ledge. Crawler simulation sleeps outside the camera margin but
-retains active/defeated state. Player contact compares the previous foot
-position and current falling motion: an unambiguous top crossing defeats and
-bounces, while side contact emits damage, knockback and 75 ticks of protection.
-Generated body/eye/leg rectangles are presentation only.
+retains active/defeated state. Player contact compares previous and current
+bounds for both bodies. A stomp requires downward relative motion, a top-plane
+crossing, and at least two pixels of interpolated horizontal overlap; underside
+and thin corner contacts remain harmful. When a tick contains both a stomp and
+a side contact, the stomp wins, while harmful-only contacts apply damage at most
+once. Crawler pairs restore their non-overlapping previous horizontal poses and
+turn outward in stable level order. Generated body/eye/leg rectangles are
+presentation only.
 
 Damage now has a bounded lifecycle. Plating is consumed by one crawler hit and
 starts 75 invulnerable ticks; an unprotected enemy hit, hazard overlap, or fall
@@ -615,7 +619,8 @@ vendored `cgltf`/`stb` paths also use the consumer source root. The project uses
 
 Logic tests cover level parsing, tile lookup, acceleration, run cap,
 deceleration, jump apex, early release, floor/wall/ceiling collision, camera
-bounds, enemy state transitions, projectiles, and transitions. Tests link the
+bounds, enemy state transitions, relative-motion contact classification,
+simultaneous-contact priority, projectiles, and transitions. Tests link the
 gameplay library only.
 
 A graphics smoke test creates a CNA game, programmatic 1x1 texture, logical

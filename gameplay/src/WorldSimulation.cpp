@@ -19,6 +19,8 @@ namespace CopperBoots
         constexpr float MaximumFallSpeed = 420.0F;
         constexpr float EarlyReleaseGravityMultiplier = 2.2F;
         constexpr float CollisionEpsilon = 0.001F;
+        constexpr float StompContactTolerance = 2.0F;
+        constexpr float MinimumStompOverlap = 2.0F;
 
         [[nodiscard]] float Approach(const float value, const float target,
                                      const float maximumDelta)
@@ -27,6 +29,59 @@ namespace CopperBoots
                 return std::min(value + maximumDelta, target);
             return std::max(value - maximumDelta, target);
         }
+    }
+
+    EnemyContactKind ClassifyEnemyContact(
+        const MotionBounds& player, const MotionBounds& enemy) noexcept
+    {
+        const float playerRight = player.CurrentX + player.Width;
+        const float playerBottom = player.CurrentY + player.Height;
+        const float enemyRight = enemy.CurrentX + enemy.Width;
+        const float enemyBottom = enemy.CurrentY + enemy.Height;
+        const bool overlapsNow = player.CurrentX < enemyRight &&
+                                 playerRight > enemy.CurrentX &&
+                                 player.CurrentY < enemyBottom &&
+                                 playerBottom > enemy.CurrentY;
+        if (!overlapsNow)
+            return EnemyContactKind::None;
+
+        const float previousPlayerBottom = player.PreviousY + player.Height;
+        const float previousEnemyTop = enemy.PreviousY;
+        const float previousSeparation = previousPlayerBottom - previousEnemyTop;
+        const float currentSeparation = playerBottom - enemy.CurrentY;
+        const float relativeDownwardMotion = currentSeparation -
+                                             previousSeparation;
+        if (relativeDownwardMotion <= CollisionEpsilon ||
+            previousSeparation > StompContactTolerance ||
+            currentSeparation < 0.0F) {
+            return EnemyContactKind::Harmful;
+        }
+
+        const float crossingTime = std::clamp(
+            -previousSeparation / relativeDownwardMotion, 0.0F, 1.0F);
+        const float playerCrossingX = player.PreviousX +
+            (player.CurrentX - player.PreviousX) * crossingTime;
+        const float enemyCrossingX = enemy.PreviousX +
+            (enemy.CurrentX - enemy.PreviousX) * crossingTime;
+        const float horizontalOverlap = std::min(
+            playerCrossingX + player.Width, enemyCrossingX + enemy.Width) -
+            std::max(playerCrossingX, enemyCrossingX);
+        return horizontalOverlap >= MinimumStompOverlap
+            ? EnemyContactKind::Stomp
+            : EnemyContactKind::Harmful;
+    }
+
+    EnemyContactKind HighestPriorityEnemyContact(
+        const std::span<const EnemyContactKind> contacts) noexcept
+    {
+        EnemyContactKind result = EnemyContactKind::None;
+        for (const EnemyContactKind contact : contacts) {
+            if (contact == EnemyContactKind::Stomp)
+                return contact;
+            if (contact == EnemyContactKind::Harmful)
+                result = contact;
+        }
+        return result;
     }
 
     WorldSimulation::WorldSimulation()
@@ -58,16 +113,20 @@ namespace CopperBoots
         crawlers_.clear();
         crawlers_.reserve(level.Crawlers.size());
         for (const CrawlerDefinition& crawler : level.Crawlers) {
-            crawlers_.push_back({
-                static_cast<float>(crawler.Position.X * TileMap::TileSize) + 1.0F,
-                static_cast<float>((crawler.Position.Y + 1) * TileMap::TileSize) -
-                    CrawlerState::Height,
-                0.0F, -1,
-                crawler.FallsAtEdges
-                    ? CrawlerEdgePolicy::Fall
-                    : CrawlerEdgePolicy::Turn,
-                false, false});
+            CrawlerState state;
+            state.X = static_cast<float>(
+                crawler.Position.X * TileMap::TileSize) + 1.0F;
+            state.Y = static_cast<float>(
+                (crawler.Position.Y + 1) * TileMap::TileSize) -
+                CrawlerState::Height;
+            state.PreviousX = state.X;
+            state.PreviousY = state.Y;
+            state.EdgePolicy = crawler.FallsAtEdges
+                ? CrawlerEdgePolicy::Fall
+                : CrawlerEdgePolicy::Turn;
+            crawlers_.push_back(state);
         }
+        crawlerContacts_.assign(crawlers_.size(), EnemyContactKind::None);
         platingPickups_.clear();
         platingPickups_.reserve(level.PlatingPickups.size());
         for (const TileCoordinate& pickup : level.PlatingPickups) {
@@ -152,7 +211,8 @@ namespace CopperBoots
             --player_.InvulnerabilityTicks;
         if (player_.PowerTransitionTicks > 0)
             --player_.PowerTransitionTicks;
-        const float previousPlayerBottom = player_.Y + PlayerState::Height;
+        const float previousPlayerX = player_.X;
+        const float previousPlayerY = player_.Y;
         const float direction = std::clamp(input.Move, -1.0F, 1.0F);
         const float speedLimit = input.Run ? RunSpeed : WalkSpeed;
         const float acceleration = player_.Grounded
@@ -209,7 +269,7 @@ namespace CopperBoots
         UpdatePlatingPickups(seconds);
         UpdateCapacitorPickups();
         if (!player_.Dead) {
-            ResolvePlayerCrawlerContacts(previousPlayerBottom);
+            ResolvePlayerCrawlerContacts(previousPlayerX, previousPlayerY);
             CollectOverlappingCogs();
             CollectOverlappingPlatingPickups();
             CollectOverlappingCapacitorPickups();
@@ -493,6 +553,8 @@ namespace CopperBoots
                                   activationMargin;
 
         for (CrawlerState& crawler : crawlers_) {
+            crawler.PreviousX = crawler.X;
+            crawler.PreviousY = crawler.Y;
             if (crawler.Defeated)
                 continue;
             if (crawler.X + CrawlerState::Width < activeLeft ||
@@ -546,52 +608,99 @@ namespace CopperBoots
             }
             crawler.VelocityY = 0.0F;
         }
+
+        for (std::size_t first = 0; first < crawlers_.size(); ++first) {
+            CrawlerState& a = crawlers_[first];
+            if (!a.Active || a.Defeated)
+                continue;
+            for (std::size_t second = first + 1; second < crawlers_.size();
+                 ++second) {
+                CrawlerState& b = crawlers_[second];
+                if (!b.Active || b.Defeated)
+                    continue;
+                const bool overlaps = a.X < b.X + CrawlerState::Width &&
+                    a.X + CrawlerState::Width > b.X &&
+                    a.Y < b.Y + CrawlerState::Height &&
+                    a.Y + CrawlerState::Height > b.Y;
+                if (!overlaps)
+                    continue;
+
+                const bool aWasLeft =
+                    a.PreviousX + CrawlerState::Width * 0.5F <=
+                    b.PreviousX + CrawlerState::Width * 0.5F;
+                a.X = a.PreviousX;
+                b.X = b.PreviousX;
+                a.Direction = aWasLeft ? -1 : 1;
+                b.Direction = aWasLeft ? 1 : -1;
+            }
+        }
     }
 
     void WorldSimulation::ResolvePlayerCrawlerContacts(
-        const float previousPlayerBottom)
+        const float previousPlayerX, const float previousPlayerY)
     {
-        const float playerRight = player_.X + PlayerState::Width;
-        const float playerBottom = player_.Y + PlayerState::Height;
-        for (CrawlerState& crawler : crawlers_) {
+        const MotionBounds playerBounds{
+            previousPlayerX, previousPlayerY, player_.X, player_.Y,
+            PlayerState::Width, PlayerState::Height};
+        std::fill(crawlerContacts_.begin(), crawlerContacts_.end(),
+                  EnemyContactKind::None);
+        for (std::size_t index = 0; index < crawlers_.size(); ++index) {
+            const CrawlerState& crawler = crawlers_[index];
             if (!crawler.Active || crawler.Defeated)
                 continue;
-            const bool overlaps = player_.X < crawler.X + CrawlerState::Width &&
-                                  playerRight > crawler.X &&
-                                  player_.Y < crawler.Y + CrawlerState::Height &&
-                                  playerBottom > crawler.Y;
-            if (!overlaps)
-                continue;
+            crawlerContacts_[index] = ClassifyEnemyContact(playerBounds, {
+                crawler.PreviousX, crawler.PreviousY, crawler.X, crawler.Y,
+                CrawlerState::Width, CrawlerState::Height});
+        }
 
-            const bool stomp = player_.VelocityY >= 0.0F &&
-                               previousPlayerBottom <= crawler.Y + 2.0F;
-            if (stomp) {
+        const EnemyContactKind priority = HighestPriorityEnemyContact(
+            crawlerContacts_);
+        if (priority == EnemyContactKind::None)
+            return;
+        if (priority == EnemyContactKind::Stomp) {
+            int defeatedCount = 0;
+            for (std::size_t index = 0; index < crawlers_.size(); ++index) {
+                if (crawlerContacts_[index] != EnemyContactKind::Stomp)
+                    continue;
+                CrawlerState& crawler = crawlers_[index];
                 crawler.Defeated = true;
                 crawler.Active = false;
-                player_.VelocityY = -190.0F;
-                player_.Grounded = false;
                 ++lastEvents_.EnemiesDefeated;
                 lastEvents_.ScoreAdded += 200;
                 score_ += 200;
-                continue;
+                ++defeatedCount;
             }
-
-            if (player_.InvulnerabilityTicks > 0)
-                continue;
-            if (player_.Plated) {
-                player_.Plated = false;
-                player_.InvulnerabilityTicks = 75;
+            if (defeatedCount > 0) {
+                player_.VelocityY = -190.0F;
+                player_.Grounded = false;
             }
-            else {
-                StartPlayerDeath();
-            }
-            player_.VelocityX = player_.X < crawler.X ? -110.0F : 110.0F;
-            player_.VelocityY = -170.0F;
-            player_.Grounded = false;
-            ++lastEvents_.PlayerDamaged;
-            if (player_.Dead)
-                return;
+            return;
         }
+
+        if (player_.InvulnerabilityTicks > 0)
+            return;
+        std::size_t damagingIndex = 0;
+        while (damagingIndex < crawlerContacts_.size() &&
+               crawlerContacts_[damagingIndex] != EnemyContactKind::Harmful) {
+            ++damagingIndex;
+        }
+        if (damagingIndex == crawlerContacts_.size())
+            return;
+
+        const CrawlerState& crawler = crawlers_[damagingIndex];
+        if (player_.Plated) {
+            player_.Plated = false;
+            player_.InvulnerabilityTicks = 75;
+        }
+        else {
+            StartPlayerDeath();
+        }
+        const float playerCenter = player_.X + PlayerState::Width * 0.5F;
+        const float crawlerCenter = crawler.X + CrawlerState::Width * 0.5F;
+        player_.VelocityX = playerCenter < crawlerCenter ? -110.0F : 110.0F;
+        player_.VelocityY = -170.0F;
+        player_.Grounded = false;
+        ++lastEvents_.PlayerDamaged;
     }
 
     void WorldSimulation::StartPlayerDeath() noexcept
