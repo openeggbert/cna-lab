@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 workload sections are now mandatory and structurally validated.** A capture can no longer omit
+render, physics, AI, or audio context while retaining only the four top-level peak counts.
+
+- Every producer-defined metric and fixed scope string is required. Zero/one-sample and
+  average/p95/maximum invariants mirror timing summaries; count p95 and maximum must be integral.
+- Six report negatives cover a missing section, altered scope, corrupt zero/one summaries, p95 above
+  maximum, and fractional count. Cross-metric sample equality and peak==maximum are intentionally
+  not asserted because the general writer's per-metric APIs and unit fixture do not guarantee them.
+- Report 7/7, comparator 7/7, VRAM 6/6, both retained real Xvfb diagnostics, and full isolated 8/8
+  CTest pass. Its smoke process ran only inside Xvfb and no physical M12 capture was added.
+
 **M12 district-load detail is now tied back to its measurement rows.** Every stored transition must
 account for the same sample in world/physics, renderer-upload, and total CPU summaries.
 

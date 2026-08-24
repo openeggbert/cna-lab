@@ -315,6 +315,12 @@ and signed RAM/VRAM deltas are validated too. Six contradictions fail and one ro
 passes; focused suites, both retained zero-transition diagnostics, and full isolated 8/8 CTest
 remain clean, with the smoke process confined to Xvfb.
 
+All producer-defined render/physics/AI/audio workload metrics and fixed scopes are now mandatory.
+Count summaries enforce zero/one-sample, average/p95/maximum, and integral p95/maximum invariants.
+Six missing/mutated/corrupt cases exit 2. Cross-metric count equality and peak==maximum are not
+invented because the generic writer does not guarantee them; focused suites and both retained
+diagnostics pass, followed by full isolated 8/8 CTest with its smoke process confined to Xvfb.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

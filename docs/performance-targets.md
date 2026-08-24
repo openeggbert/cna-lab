@@ -286,6 +286,10 @@ counted until a real visibility rejection path exists. These counts have no pass
 yet. They establish the baseline needed before draw batching, instancing, or culling work can be
 justified and later compared.
 
+Consumers require every producer-defined render metric and both fixed scope strings. Workload count
+summaries use the same zero/one-sample and average/p95/maximum invariants as timing summaries, with
+integer-valued p95 and maximum because their source samples are integer counts.
+
 Every report also records whether v-sync was requested, whether CNA's fixed timestep was enabled,
 and the target frame duration. JSON schema 3's `swap_interval` separately records the 0/1 request
 and CNA platform `SetSwapInterval` acknowledgement. `apply_succeeded=true` means the current GL
@@ -329,6 +333,11 @@ does not fabricate one generic “query count” by adding semantically differen
 CPU p95 remains the budgeted time; these workload counters explain that time and provide a stable
 baseline for later content growth.
 
+All producer-defined physics metrics and their fixed scope metadata are mandatory under the same
+count-summary rules. Per-metric sample counts are not forced equal: the generic C++ writer exposes
+individual render/physics recording APIs even though the game integration records each group
+together.
+
 JSON schema 6 adds `ai_workload` once per game `Update()`. Current-state fields report traffic
 vehicles, pedestrians, pedestrians in their timed flee state, and active police patrols. Operation
 fields report the exact loops that actually ran: traffic updates and obstacle comparisons,
@@ -342,6 +351,11 @@ traffic, pedestrian, witness, and police work only. The current movers follow fi
 or failure state to report. Those fields must not be fabricated as zero—add them with the real
 road/path system required by IG-35-010.
 
+Every producer-defined AI metric and all three scope strings are mandatory. Top-level representative
+peak counts are not required to equal detailed maxima because the generic writer accepts an
+independently supplied final context; qualification repeatability still compares those peaks
+directly between runs.
+
 JSON schema 7 adds `audio_workload` once per game `Update()`. It records the exact game-owned audio
 surface available through CNA: loaded `SoundEffect` assets, retained loop instances and their
 playing state, streamed game assets, one-shot play requests/successes, loop play/stop commands, and
@@ -351,6 +365,9 @@ loop volume/pitch updates. `audio_cpu` remains the budgeted time for these game-
 query for fire-and-forget voices started by `SoundEffect::Play()`, nor decoder time, mixer callback
 time, active backend channel count, or bus cost. Report metadata marks those fields unavailable;
 they must not be inferred from the successful-play count or represented by misleading zeroes.
+
+Every producer-defined audio metric and all three scope strings remain mandatory under the same
+integer-count summary rules.
 
 JSON schema 8 adds `frame_pacing` derived from the existing wall-clock `frame_interval` samples.
 Its mutually exclusive histogram buckets end at the recommended 16.667 ms budget, minimum 33.333

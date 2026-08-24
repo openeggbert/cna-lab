@@ -89,6 +89,110 @@ DISTRICT_RENDERER_SCOPE = (
 DISTRICT_UNAVAILABLE_REASON = (
     "districts have no serialized runtime package yet; null means not applicable, not measured zero"
 )
+WORKLOAD_SCHEMAS = {
+    "render_workload": (
+        {
+            "scope": (
+                "Iron Gang 3D front-end submissions; excludes Clear, HUD SpriteBatch internal "
+                "batching, Present, and backend state deduplication"
+            ),
+            "visibility_policy": (
+                "no frustum or occlusion culling; every submitted scene object counts as visible"
+            ),
+        },
+        (
+            "draw_calls",
+            "state_change_calls",
+            "vertices",
+            "triangles",
+            "geometry_instances",
+            "visible_objects",
+        ),
+    ),
+    "physics_workload": (
+        {
+            "scope": (
+                "per game Update; body/contact fields are current state and step/query fields are "
+                "operations consumed since the previous sample"
+            ),
+            "contact_scope": (
+                "Jolt rigid-body/subshape contact manifolds plus actual CharacterVirtual contacts; "
+                "contact points within a manifold are not counted separately"
+            ),
+            "query_scope": (
+                "public PhysicsWorld raycasts, actual vehicle suspension raycasts, and "
+                "CharacterVirtual collision-update batches are separate because their "
+                "granularities differ"
+            ),
+        },
+        (
+            "bodies",
+            "active_rigid_bodies",
+            "rigid_body_contact_manifolds",
+            "character_contacts",
+            "fixed_steps",
+            "public_raycasts",
+            "character_collision_updates",
+            "vehicle_wheel_raycasts",
+        ),
+    ),
+    "ai_workload": (
+        {
+            "scope": (
+                "per game Update; state counts are current after the Update (including "
+                "AI-suspended transition frames) and operation counts are exact loop work for "
+                "that update"
+            ),
+            "cpu_scope": (
+                "ai_cpu covers traffic, pedestrian, witness, and police updates; mission state "
+                "progression is excluded"
+            ),
+            "route_scope": (
+                "traffic and pedestrians follow fixed WaypointPaths; no road graph or "
+                "path-request queue exists yet"
+            ),
+        },
+        (
+            "traffic_vehicles",
+            "pedestrians",
+            "fleeing_pedestrians",
+            "police_patrols",
+            "traffic_updates",
+            "traffic_obstacle_checks",
+            "pedestrian_updates",
+            "pedestrian_threat_checks",
+            "police_witness_checks",
+            "police_patrol_updates",
+        ),
+    ),
+    "audio_workload": (
+        {
+            "scope": (
+                "per game Update; exact Iron Gang-owned SoundEffect assets, tracked loop state, "
+                "and playback/control commands"
+            ),
+            "voice_scope": (
+                "tracked_playing_loop_voices covers only retained SoundEffectInstances; CNA "
+                "exposes no lifetime query for fire-and-forget SoundEffect::Play voices"
+            ),
+            "backend_scope": (
+                "decoder time, mixer callback time, active backend channels, and bus cost are "
+                "unavailable through CNA and are not reported as zero"
+            ),
+        },
+        (
+            "loaded_sound_assets",
+            "tracked_loop_instances",
+            "tracked_playing_loop_voices",
+            "streamed_audio_assets",
+            "one_shot_play_requests",
+            "one_shot_play_successes",
+            "loop_play_commands",
+            "loop_stop_commands",
+            "loop_parameter_updates",
+        ),
+    ),
+}
 IRON_GANG_EXECUTABLES = frozenset(("iron_gang", "iron_gang.exe"))
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 UTC_TIMESTAMP_PATTERN = re.compile(
@@ -654,6 +758,53 @@ def validate_district_load(capture: dict[str, Any]) -> None:
     _validate_district_measurement(capture, "district_load_cpu", total_samples)
 
 
+def _validate_workload_summary(
+    workload: dict[str, Any],
+    section: str,
+    metric: str,
+) -> None:
+    summary = _mapping(_path(workload, metric), f"{section}.{metric}")
+    samples = _integer(summary, "samples")
+    average = _number(summary, "average")
+    percentile = _number(summary, "p95")
+    maximum = _number(summary, "maximum")
+    if samples == 0:
+        if any(
+            not math.isclose(value, 0.0, rel_tol=0.0, abs_tol=0.000001)
+            for value in (average, percentile, maximum)
+        ):
+            raise ReportError(
+                f"{section}.{metric} with zero samples must have zero statistics"
+            )
+        return
+    if average > maximum or percentile > maximum:
+        raise ReportError(
+            f"{section}.{metric} average and p95 must not exceed maximum"
+        )
+    if samples == 1 and not (
+        math.isclose(average, percentile, rel_tol=0.0, abs_tol=0.000001)
+        and math.isclose(percentile, maximum, rel_tol=0.0, abs_tol=0.000001)
+    ):
+        raise ReportError(
+            f"{section}.{metric} with one sample must have identical statistics"
+        )
+    for key, value in (("p95", percentile), ("maximum", maximum)):
+        if not math.isclose(value, round(value), rel_tol=0.0, abs_tol=0.000001):
+            raise ReportError(
+                f"{section}.{metric}.{key} must be an integer-valued count"
+            )
+
+
+def validate_workloads(capture: dict[str, Any]) -> None:
+    for section, (metadata, metrics) in WORKLOAD_SCHEMAS.items():
+        workload = _mapping(_path(capture, section), section)
+        for key, expected in metadata.items():
+            if _single_line_string(workload, key) != expected:
+                raise ReportError(f"{section}.{key} does not match schema-8 scope")
+        for metric in metrics:
+            _validate_workload_summary(workload, section, metric)
+
+
 def _validate_pacing_counter(
     capture: dict[str, Any],
     key: str,
@@ -963,6 +1114,7 @@ def load_capture(path: Path) -> dict[str, Any]:
     validate_frame_pacing(capture, path)
     validate_derived_checks(capture)
     validate_district_load(capture)
+    validate_workloads(capture)
     validate_memory_summary(capture)
     swap_interval_acknowledged(capture)
     validate_capture_session(capture, required=False)

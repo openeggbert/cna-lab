@@ -22,6 +22,120 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def workload_summary(samples: int, value: float) -> dict:
+    return {"samples": samples, "average": value, "p95": value, "maximum": value}
+
+
+def workload_fixtures(samples: int) -> dict:
+    def summaries(values: dict[str, float]) -> dict:
+        return {key: workload_summary(samples, value) for key, value in values.items()}
+
+    return {
+        "render_workload": {
+            "scope": (
+                "Iron Gang 3D front-end submissions; excludes Clear, HUD SpriteBatch internal "
+                "batching, Present, and backend state deduplication"
+            ),
+            "visibility_policy": (
+                "no frustum or occlusion culling; every submitted scene object counts as visible"
+            ),
+            **summaries(
+                {
+                    "draw_calls": 18,
+                    "state_change_calls": 56,
+                    "vertices": 1768,
+                    "triangles": 948,
+                    "geometry_instances": 16,
+                    "visible_objects": 67,
+                }
+            ),
+        },
+        "physics_workload": {
+            "scope": (
+                "per game Update; body/contact fields are current state and step/query fields are "
+                "operations consumed since the previous sample"
+            ),
+            "contact_scope": (
+                "Jolt rigid-body/subshape contact manifolds plus actual CharacterVirtual contacts; "
+                "contact points within a manifold are not counted separately"
+            ),
+            "query_scope": (
+                "public PhysicsWorld raycasts, actual vehicle suspension raycasts, and "
+                "CharacterVirtual collision-update batches are separate because their "
+                "granularities differ"
+            ),
+            **summaries(
+                {
+                    "bodies": 9,
+                    "active_rigid_bodies": 1,
+                    "rigid_body_contact_manifolds": 0,
+                    "character_contacts": 1,
+                    "fixed_steps": 1,
+                    "public_raycasts": 0,
+                    "character_collision_updates": 1,
+                    "vehicle_wheel_raycasts": 4,
+                }
+            ),
+        },
+        "ai_workload": {
+            "scope": (
+                "per game Update; state counts are current after the Update (including "
+                "AI-suspended transition frames) and operation counts are exact loop work for "
+                "that update"
+            ),
+            "cpu_scope": (
+                "ai_cpu covers traffic, pedestrian, witness, and police updates; mission state "
+                "progression is excluded"
+            ),
+            "route_scope": (
+                "traffic and pedestrians follow fixed WaypointPaths; no road graph or "
+                "path-request queue exists yet"
+            ),
+            **summaries(
+                {
+                    "traffic_vehicles": 2,
+                    "pedestrians": 2,
+                    "fleeing_pedestrians": 0,
+                    "police_patrols": 0,
+                    "traffic_updates": 2,
+                    "traffic_obstacle_checks": 2,
+                    "pedestrian_updates": 2,
+                    "pedestrian_threat_checks": 0,
+                    "police_witness_checks": 0,
+                    "police_patrol_updates": 0,
+                }
+            ),
+        },
+        "audio_workload": {
+            "scope": (
+                "per game Update; exact Iron Gang-owned SoundEffect assets, tracked loop state, "
+                "and playback/control commands"
+            ),
+            "voice_scope": (
+                "tracked_playing_loop_voices covers only retained SoundEffectInstances; CNA "
+                "exposes no lifetime query for fire-and-forget SoundEffect::Play voices"
+            ),
+            "backend_scope": (
+                "decoder time, mixer callback time, active backend channels, and bus cost are "
+                "unavailable through CNA and are not reported as zero"
+            ),
+            **summaries(
+                {
+                    "loaded_sound_assets": 3,
+                    "tracked_loop_instances": 1,
+                    "tracked_playing_loop_voices": 0,
+                    "streamed_audio_assets": 0,
+                    "one_shot_play_requests": 0,
+                    "one_shot_play_successes": 0,
+                    "loop_play_commands": 0,
+                    "loop_stop_commands": 0,
+                    "loop_parameter_updates": 0,
+                }
+            ),
+        },
+    }
+
+
 def capture_fixture() -> dict:
     measurement = lambda samples, p95: {
         "samples": samples,
@@ -163,6 +277,7 @@ def capture_fixture() -> dict:
                 }
             ],
         },
+        **workload_fixtures(4),
         "memory": {
             "peak_resident_bytes": 128 * 1024 * 1024,
             "known": True,
@@ -675,6 +790,44 @@ class PerformanceReportTests(unittest.TestCase):
         rounded_district_total["district_load"]["samples"][0]["total_ms"] = 0.301
         result = self.run_report([rounded_district_total], "Test hardware")
         self.assertEqual(result.returncode, 0, result.stderr)
+
+        missing_workload = capture_fixture()
+        missing_workload.pop("audio_workload")
+        result = self.run_report([missing_workload], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("missing audio_workload", result.stderr)
+
+        bad_workload_scope = capture_fixture()
+        bad_workload_scope["render_workload"]["scope"] = "backend draw calls"
+        result = self.run_report([bad_workload_scope], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("render_workload.scope does not match schema-8 scope", result.stderr)
+
+        bad_zero_workload = capture_fixture()
+        bad_zero_workload["physics_workload"]["bodies"]["samples"] = 0
+        result = self.run_report([bad_zero_workload], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("with zero samples must have zero statistics", result.stderr)
+
+        bad_workload_maximum = capture_fixture()
+        bad_workload_maximum["ai_workload"]["traffic_updates"]["maximum"] = 1
+        result = self.run_report([bad_workload_maximum], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("average and p95 must not exceed maximum", result.stderr)
+
+        fractional_workload_count = capture_fixture()
+        fractional_workload_count["audio_workload"]["loaded_sound_assets"]["p95"] = 2.5
+        result = self.run_report([fractional_workload_count], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("p95 must be an integer-valued count", result.stderr)
+
+        bad_one_sample_workload = capture_fixture()
+        one_sample = bad_one_sample_workload["render_workload"]["draw_calls"]
+        one_sample["samples"] = 1
+        one_sample["average"] = 17
+        result = self.run_report([bad_one_sample_workload], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("with one sample must have identical statistics", result.stderr)
 
         blocking_gpu_timing = capture_fixture()
         blocking_gpu_timing["gpu_timing"]["non_blocking"] = False

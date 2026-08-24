@@ -684,3 +684,17 @@ negatives cover sum, count, statistics, known state, and both deltas. Report 7/7
 VRAM 6/6, and both retained zero-transition Xvfb diagnostics pass without launching the game. This
 is followed by full 8/8 CTest with its smoke process isolated inside Xvfb. No physical transition
 capture was added.
+
+## 2026-08-24 — workload-summary integrity
+
+Schema-8 loading now requires all producer-defined render, physics, AI, and audio workload metrics
+plus their fixed scope metadata. Each count summary rejects nonzero statistics without samples,
+unequal one-sample statistics, average/p95 above maximum, and fractional p95/maximum values. A
+capture can no longer drop workload context while retaining only top-level peaks.
+
+Six report negatives cover missing section, scope mutation, zero/one corruption, invalid maximum,
+and fractional count. Cross-metric sample equality and top-level peak equality are deliberately not
+claimed: the generic writer exposes individual render/physics record calls and an independent final
+context. Report 7/7, comparator 7/7, VRAM 6/6, and both retained Xvfb diagnostics pass without
+launching the game. Full 8/8 CTest also passes with its smoke process isolated inside Xvfb. This
+adds no physical workload capture.

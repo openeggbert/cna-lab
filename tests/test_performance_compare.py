@@ -11,6 +11,8 @@ import unittest
 from copy import deepcopy
 from pathlib import Path
 
+from test_performance_report import workload_fixtures
+
 
 SCRIPT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path("scripts/performance_compare.py")
 
@@ -154,6 +156,7 @@ def capture_fixture() -> dict:
                 }
             ],
         },
+        **workload_fixtures(100),
         "memory": {
             "peak_resident_bytes": 128 * 1024 * 1024,
             "known": True,
