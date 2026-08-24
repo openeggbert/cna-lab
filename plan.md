@@ -1006,7 +1006,7 @@ Current progress:
   entry until the objective is complete, then rises to reveal its cyan marker;
 - secret moving walls use the wall material, stay open once found and award 500 score for hidden rewards;
 - the starter level is an authored room-and-corridor route with distributed guards, hounds, pickups, gold, a normal door, a security door and an exit;
-- the game now starts at an original blue-and-amber title menu, with a short controls page and three difficulty choices; Scout takes 70% enemy damage, Operative is the baseline and Veteran takes 140%;
+- the game now starts at an original blue-and-amber title menu, with a short controls page and three difficulty choices; Scout takes 70% enemy damage, Operative is the baseline and Veteran takes 130%;
 - four original external level files now form a room-and-corridor campaign; exits advance with Space and preserve score, lives, health, ammunition and weapon selection;
 - every sector exit now presents a completion card with time and kill, treasure and secret ratios; each category is independently tracked in `World` and covered by unit tests;
 - the in-game `I` + `L` + `M` retro loadout cheat restores health, grants all
@@ -1120,8 +1120,10 @@ and heavy units drop 3, 5 and 8 rounds respectively, while hounds drop none, so 
 full campaign clear is sustainable without removing ammunition pressure. Health
 placement now scales from two kits in storage/foundry to three in the more hostile
 laboratory/archive sectors. Shipping-map tests also require guaranteed fixed and
-enemy-drop ammunition to cover every enemy's hit points. Difficulty playtesting
-remains. Ranged enemies coordinate so
+enemy-drop ammunition to cover every enemy's hit points. An initial deterministic
+campaign audit now guarantees both early and late recovery, and Veteran incoming
+damage has been tuned from 140% to 130%; subjective difficulty playtesting remains.
+Ranged enemies coordinate so
 only the nearest eligible shooter attacks at one time, avoiding simultaneous
 volleys when the player enters a populated room.
 
@@ -1332,3 +1334,17 @@ so no external or proprietary sound asset is introduced.
 - retain the concise elevator confirmation as a separate layer;
 - trigger the fanfare exactly once per completed sector;
 - use CNA audio exclusively.
+
+### WOLF-027 — deterministic campaign pacing guardrails
+
+Status: complete. Every shipping sector now has tested early recovery within 15
+walkable steps, later recovery after at least 50 steps and a shortest complete
+relay/terminal/elevator route between 90 and 130 cells. The audit found sector 1's
+second health kit too close to its first, so it now appears in the late combat room.
+Veteran incoming damage is reduced from 140% to 130% to keep its six-heavy-unit
+archive encounters severe without making each 25-health kit disproportionately weak.
+
+- preserve meaningful campaign scale while preventing excessive objective detours;
+- distribute recovery across the authored route instead of clustering it at spawn;
+- retain Scout at 70% and Operative at baseline damage;
+- keep subjective combat and animation playtesting as the next manual validation.

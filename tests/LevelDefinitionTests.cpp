@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <exception>
@@ -15,6 +16,45 @@
 
 namespace
 {
+    using DistanceGrid = std::vector<std::vector<int>>;
+
+    DistanceGrid BuildDistances(
+        const std::vector<std::string>& rows,
+        int startX,
+        int startZ)
+    {
+        DistanceGrid distances(rows.size(), std::vector<int>(rows.front().size(), -1));
+        std::queue<std::pair<int, int>> frontier;
+        frontier.emplace(startX, startZ);
+        distances[static_cast<std::size_t>(startZ)][static_cast<std::size_t>(startX)] = 0;
+
+        while (!frontier.empty())
+        {
+            const auto [x, z] = frontier.front();
+            frontier.pop();
+            constexpr std::array<std::pair<int, int>, 4> Directions = {
+                std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1}, std::pair{0, -1}};
+            for (const auto [dx, dz] : Directions)
+            {
+                const int nextX = x + dx;
+                const int nextZ = z + dz;
+                if (nextX < 0 || nextZ < 0 ||
+                    nextZ >= static_cast<int>(rows.size()) ||
+                    nextX >= static_cast<int>(rows[static_cast<std::size_t>(nextZ)].size()) ||
+                    distances[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] >= 0 ||
+                    rows[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] == '#' ||
+                    rows[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] == 'Y')
+                    continue;
+
+                distances[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] =
+                    distances[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] + 1;
+                frontier.emplace(nextX, nextZ);
+            }
+        }
+
+        return distances;
+    }
+
     void Expect(bool condition, std::string_view message)
     {
         if (!condition)
@@ -48,37 +88,21 @@ namespace
         for (const std::string& row : rows)
             Expect(row.size() == 64, std::string(name) + " has 64 columns");
 
-        std::vector<std::vector<bool>> visited(64, std::vector<bool>(64, false));
-        std::queue<std::pair<int, int>> frontier;
-        frontier.emplace(level.PlayerStartX(), level.PlayerStartZ());
-        visited[static_cast<std::size_t>(level.PlayerStartZ())]
-            [static_cast<std::size_t>(level.PlayerStartX())] = true;
-
+        const DistanceGrid startDistances =
+            BuildDistances(rows, level.PlayerStartX(), level.PlayerStartZ());
         int reachable = 0;
-        while (!frontier.empty())
+        for (const auto& distanceRow : startDistances)
         {
-            const auto [x, z] = frontier.front();
-            frontier.pop();
-            ++reachable;
-            constexpr std::array<std::pair<int, int>, 4> Directions = {
-                std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1}, std::pair{0, -1}};
-            for (const auto [dx, dz] : Directions)
-            {
-                const int nextX = x + dx;
-                const int nextZ = z + dz;
-                if (nextX < 0 || nextZ < 0 || nextX >= 64 || nextZ >= 64 ||
-                    visited[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] ||
-                    rows[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] == '#' ||
-                    rows[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] == 'Y')
-                    continue;
-                visited[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] = true;
-                frontier.emplace(nextX, nextZ);
-            }
+            reachable += static_cast<int>(std::count_if(
+                distanceRow.begin(),
+                distanceRow.end(),
+                [](int distance) { return distance >= 0; }));
         }
 
         int walkable = 0;
         int exits = 0;
         int relays = 0;
+        int terminals = 0;
         int plants = 0;
         int tables = 0;
         int healthPickups = 0;
@@ -89,22 +113,42 @@ namespace
         int hounds = 0;
         int rapidTroopers = 0;
         int heavyUnits = 0;
-        for (const std::string& row : rows)
+        std::pair<int, int> exitPosition{-1, -1};
+        std::pair<int, int> relayPosition{-1, -1};
+        std::pair<int, int> terminalPosition{-1, -1};
+        std::vector<int> healthDistances;
+        for (int z = 0; z < static_cast<int>(rows.size()); ++z)
         {
-            for (const char symbol : row)
+            for (int x = 0; x < static_cast<int>(rows[static_cast<std::size_t>(z)].size()); ++x)
             {
+                const char symbol = rows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)];
                 if (symbol != '#' && symbol != 'Y')
                     ++walkable;
                 if (symbol == 'E')
+                {
                     ++exits;
+                    exitPosition = {x, z};
+                }
                 else if (symbol == 'O')
+                {
                     ++relays;
+                    relayPosition = {x, z};
+                }
+                else if (symbol == 'M')
+                {
+                    ++terminals;
+                    terminalPosition = {x, z};
+                }
                 else if (symbol == 'I')
                     ++plants;
                 else if (symbol == 'Y')
                     ++tables;
                 else if (symbol == 'H')
+                {
                     ++healthPickups;
+                    healthDistances.push_back(
+                        startDistances[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)]);
+                }
                 else if (symbol == 'A')
                     ++ammoPickups;
                 else if (symbol == 'W')
@@ -146,9 +190,45 @@ namespace
         Expect(exits == 1, std::string(name) + " has one exit");
         Expect(elevatorApproaches == 1, std::string(name) + " exit is a three-sided elevator cabin");
         Expect(relays == 1, std::string(name) + " has one power relay");
+        Expect(terminals == 1, std::string(name) + " has one terminal");
         Expect(plants == 3, std::string(name) + " has three sector plants");
         Expect(tables == 2, std::string(name) + " has two polygonal tables");
         Expect(healthPickups >= 2, std::string(name) + " has recovery beyond one health kit");
+        Expect(
+            std::any_of(
+                healthDistances.begin(),
+                healthDistances.end(),
+                [](int distance) { return distance >= 0 && distance <= 15; }),
+            std::string(name) + " offers early recovery");
+        Expect(
+            std::any_of(
+                healthDistances.begin(),
+                healthDistances.end(),
+                [](int distance) { return distance >= 50; }),
+            std::string(name) + " preserves recovery for the later route");
+
+        const DistanceGrid relayDistances =
+            BuildDistances(rows, relayPosition.first, relayPosition.second);
+        const DistanceGrid terminalDistances =
+            BuildDistances(rows, terminalPosition.first, terminalPosition.second);
+        const auto distanceAt = [](const DistanceGrid& distances, const std::pair<int, int>& position)
+        {
+            return distances[static_cast<std::size_t>(position.second)]
+                [static_cast<std::size_t>(position.first)];
+        };
+        const int relayFirstRoute =
+            distanceAt(startDistances, relayPosition) +
+            distanceAt(relayDistances, terminalPosition) +
+            distanceAt(terminalDistances, exitPosition);
+        const int terminalFirstRoute =
+            distanceAt(startDistances, terminalPosition) +
+            distanceAt(terminalDistances, relayPosition) +
+            distanceAt(relayDistances, exitPosition);
+        const int shortestObjectiveRoute = std::min(relayFirstRoute, terminalFirstRoute);
+        Expect(
+            shortestObjectiveRoute >= 90 && shortestObjectiveRoute <= 130,
+            std::string(name) + " has a substantial but bounded objective route");
+
         const int guaranteedAmmo =
             ammoPickups * 6 + repeaterPickups * 6 + heavyWeaponPickups * 10 +
             guards * 3 + rapidTroopers * 5 + heavyUnits * 8;

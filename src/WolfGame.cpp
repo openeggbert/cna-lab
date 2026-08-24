@@ -1601,7 +1601,7 @@ namespace WolfCna
         {
         case Difficulty::Scout: return 0.7f;
         case Difficulty::Operative: return 1.0f;
-        case Difficulty::Veteran: return 1.4f;
+        case Difficulty::Veteran: return 1.3f;
         }
         return 1.0f;
     }

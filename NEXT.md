@@ -41,12 +41,13 @@
 - `Space` now activates an online elevator from its approach; an offline elevator responds with visible `EXIT OFFLINE` feedback and a lock sound.
 - Enemy projectiles now create a short expanding project-generated spark on impact; player hits also add a translucent amber flash and a generated impact sound.
 - Sector completion now plays a deterministic original four-note fanfare through CNA audio in addition to the elevator confirmation.
+- Campaign pacing tests now require early and late health recovery plus a 90–130-cell relay/terminal/exit route; sector 1's second kit moved into its late combat room and Veteran damage is now 130%.
 
 ## Next tasks
 
-1. Playtest the authored route and rebalance health placement and difficulty-specific incoming damage.
+1. Subjectively playtest the updated health placement and 130% Veteran damage.
 2. Playtest sprite motion amplitudes together with the authored combat route.
-3. Playtest the full four-sector objective route and completion pacing.
+3. Playtest the full four-sector objective route and completion pacing against the new deterministic guardrails.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.
