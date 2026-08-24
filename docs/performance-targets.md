@@ -393,6 +393,9 @@ source of truth. Their sum must equal `frame_interval.samples`; fixed bound meta
 16.667/33.333/50/100 ms; and `minimum_budget_misses`, `hitches`, and `severe_hitches` counts and
 three-decimal percentages are re-derived from the buckets. A changed derived count, percentage,
 comparison, or threshold makes the capture malformed (exit 2).
+The nearest-rank p95 must occupy its cumulative histogram bucket, and `frame_interval.maximum_ms`
+must occupy the highest non-empty bucket. A 0.0005 ms boundary tolerance preserves ambiguity caused
+only by the producer's three-decimal serialization, not a value in a different bucket.
 
 The schema's `checks` object is redundant by design and is therefore correlated with the stored
 summaries rather than trusted. Frame minimum/recommended and aggregate CPU booleans must agree with

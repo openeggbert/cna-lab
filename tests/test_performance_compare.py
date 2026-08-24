@@ -21,8 +21,13 @@ from test_performance_report import (
 SCRIPT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path("scripts/performance_compare.py")
 
 
-def measurement(samples: int, p95: float) -> dict:
-    return {"samples": samples, "average_ms": p95, "p95_ms": p95, "maximum_ms": p95}
+def measurement(samples: int, p95: float, maximum: float | None = None) -> dict:
+    return {
+        "samples": samples,
+        "average_ms": p95,
+        "p95_ms": p95,
+        "maximum_ms": p95 if maximum is None else maximum,
+    }
 
 
 def capture_fixture() -> dict:
@@ -60,7 +65,7 @@ def capture_fixture() -> dict:
             "unsupported_reason": "",
         },
         "measurements": {
-            "frame_interval": measurement(100, 16.0),
+            "frame_interval": measurement(100, 16.0, 20.0),
             "update_cpu": measurement(100, 0.3),
             "physics_cpu": measurement(100, 0.2),
             "ai_cpu": measurement(100, 0.01),
@@ -449,7 +454,6 @@ class PerformanceCompareTests(unittest.TestCase):
             baseline = capture_fixture()
             candidate = deepcopy(baseline)
             candidate["measurements"]["frame_interval"]["p95_ms"] = 16.1
-            candidate["measurements"]["frame_interval"]["maximum_ms"] = 16.1
             baseline["video_memory"]["complete_evidence"]["hardware_identity"] = (
                 "Test `<b>| GPU"
             )

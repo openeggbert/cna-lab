@@ -272,6 +272,11 @@ nearest-rank p95 bucket, and `frame_interval.p95_ms` must lie within its thresho
 tests reject all three contradiction classes. Report 7/7, comparator 7/7, VRAM 6/6, both retained
 Xvfb captures, and the known-hash self-comparison pass; no graphical process was launched.
 
+Frame-pacing validation now also locates the highest non-empty bucket and requires
+`frame_interval.maximum_ms` within its bounds. A false 60 ms maximum exits 2; correcting the
+comparator's older internally inconsistent maximum keeps all focused suites and retained
+diagnostics passing. Full isolated 8/8 CTest also passes with its smoke process inside Xvfb.
+
 The common JSON loader now rejects non-standard `NaN`, `Infinity`, and `-Infinity` constants at
 parse time, including in unknown fields, alongside its existing duplicate-key refusal. Report,
 comparator, and VRAM manifest tests each cover one token and exit 2. Focused suites remain 7/7,

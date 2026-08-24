@@ -739,6 +739,12 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("histogram bucket containing the nearest-rank p95", result.stderr)
 
+        bad_maximum_bucket = capture_fixture()
+        bad_maximum_bucket["measurements"]["frame_interval"]["maximum_ms"] = 60.0
+        result = self.run_report([bad_maximum_bucket], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("maximum_ms does not fall in the highest non-empty", result.stderr)
+
         bad_pacing_scope = capture_fixture()
         bad_pacing_scope["frame_pacing"]["scope"] = "Draw CPU time"
         result = self.run_report([bad_pacing_scope], "Test hardware")

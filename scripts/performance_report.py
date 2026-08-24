@@ -225,6 +225,13 @@ HISTOGRAM_BUCKETS = (
     "above_hitch_at_or_below_severe_hitch",
     "above_severe_hitch",
 )
+HISTOGRAM_BUCKET_BOUNDS = (
+    (None, SCHEMA_RECOMMENDED_FRAME_MS),
+    (SCHEMA_RECOMMENDED_FRAME_MS, SCHEMA_MINIMUM_FRAME_MS),
+    (SCHEMA_MINIMUM_FRAME_MS, FRAME_HITCH_MS),
+    (FRAME_HITCH_MS, SEVERE_FRAME_HITCH_MS),
+    (SEVERE_FRAME_HITCH_MS, None),
+)
 FileFingerprint = tuple[Path, str]
 VramBundleFingerprint = tuple[FileFingerprint, FileFingerprint, FileFingerprint]
 
@@ -947,14 +954,7 @@ def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
             if cumulative >= percentile_rank:
                 percentile_bucket = index
                 break
-        bounds = (
-            (None, SCHEMA_RECOMMENDED_FRAME_MS),
-            (SCHEMA_RECOMMENDED_FRAME_MS, SCHEMA_MINIMUM_FRAME_MS),
-            (SCHEMA_MINIMUM_FRAME_MS, FRAME_HITCH_MS),
-            (FRAME_HITCH_MS, SEVERE_FRAME_HITCH_MS),
-            (SEVERE_FRAME_HITCH_MS, None),
-        )
-        lower, upper = bounds[percentile_bucket]
+        lower, upper = HISTOGRAM_BUCKET_BOUNDS[percentile_bucket]
         percentile = _number(capture, "measurements", "frame_interval", "p95_ms")
         rounding_tolerance = 0.0005
         if (lower is not None and percentile < lower - rounding_tolerance) or (
@@ -963,6 +963,21 @@ def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
             raise ReportError(
                 "measurements.frame_interval.p95_ms does not fall in the frame-pacing "
                 "histogram bucket containing the nearest-rank p95 sample"
+            )
+
+        maximum_bucket = max(
+            index
+            for index, bucket in enumerate(HISTOGRAM_BUCKETS)
+            if counts[bucket] > 0
+        )
+        lower, upper = HISTOGRAM_BUCKET_BOUNDS[maximum_bucket]
+        maximum = _number(capture, "measurements", "frame_interval", "maximum_ms")
+        if (lower is not None and maximum < lower - rounding_tolerance) or (
+            upper is not None and maximum > upper + rounding_tolerance
+        ):
+            raise ReportError(
+                "measurements.frame_interval.maximum_ms does not fall in the highest "
+                "non-empty frame-pacing histogram bucket"
             )
 
     minimum_misses = (

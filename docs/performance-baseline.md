@@ -772,3 +772,16 @@ though the versioned producer and external evidence schemas use integer tokens.
 A report negative proves `8.0` exits 2 with the received value identified. Report 7/7, comparator
 7/7, VRAM 6/6, both retained diagnostics, and full isolated CTest 8/8 pass. Its smoke process ran
 inside Xvfb; no capture was added.
+
+## 2026-08-24 — frame-maximum histogram consistency
+
+The shared schema-8 loader now correlates `measurements.frame_interval.maximum_ms` with the highest
+non-empty `frame_pacing.histogram` bucket, complementing the existing nearest-rank p95 check. The
+same 0.0005 ms serialization tolerance handles a full-precision sample that rounds exactly onto a
+three-decimal threshold.
+
+A report negative claims a 60 ms maximum while all stored samples end in the <=33.333 ms bucket.
+The comparator fixture itself exposed and corrected an older contradiction (five >16.667 ms
+samples paired with a 16 ms maximum). Report 7/7, comparator 7/7, VRAM 6/6, and both retained
+diagnostics pass. Full isolated CTest passes 8/8 with its smoke process inside Xvfb; no capture was
+added.

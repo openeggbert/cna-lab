@@ -67,6 +67,16 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 frame maximum is now correlated with the pacing histogram.** The nearest-rank p95 bucket was
+already checked, but an editable `frame_interval.maximum_ms` could contradict the highest non-empty
+bucket.
+
+- The loader locates the last bucket containing a sample and requires the serialized maximum to
+  fall within its bounds, retaining 0.0005 ms tolerance for threshold rounding.
+- A report negative covers a false 60 ms maximum when every bucket ends at 33.333 ms. The comparator
+  fixture's older false 16 ms maximum was corrected to 20 ms. Focused suites and both retained
+  diagnostics pass; full isolated CTest passes 8/8 with its smoke process inside Xvfb.
+
 **M12 root schema version is now type-strict.** Python equality previously allowed JSON `8.0` to
 match integer schema version `8`, unlike the already strict external-evidence schema.
 
