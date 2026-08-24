@@ -1079,8 +1079,9 @@ or resting sprite above a stylized procedurally textured floor decal when defeat
 The four primitive weapon views and icons have been replaced by original
 high-resolution transparent pixel-art sprites. Every archetype now also has a
 dedicated firing or lunge frame shown for a short timer synchronized to the actual
-attack event. Additional idle/chase transitions and damage reactions remain,
-while every weapon now switches to its own generated slash/firing frame during
+attack event. Every archetype also has a dedicated non-gory recoil frame shown
+briefly after surviving a hit. Additional idle/chase transitions remain, while
+every weapon now switches to its own generated slash/firing frame during
 the existing knife lunge or firearm recoil. The former rectangular muzzle-flash
 overlay has been removed.
 

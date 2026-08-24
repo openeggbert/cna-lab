@@ -88,6 +88,10 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::Texture2D& houndAttackSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& rapidTrooperAttackSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& heavyUnitAttackSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& guardPainSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& houndPainSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& rapidTrooperPainSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& heavyUnitPainSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& defeatedGuardSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& defeatedHoundSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& defeatedRapidTrooperSprite,
@@ -180,6 +184,7 @@ namespace WolfCna
             float pathRefreshTime = 0.0f;
             float attackCooldown = 0.0f;
             float attackVisualSeconds = 0.0f;
+            float painVisualSeconds = 0.0f;
         };
 
         struct EnemyProjectile

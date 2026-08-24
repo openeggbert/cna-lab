@@ -27,6 +27,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - a three-sector authored bunker campaign with guards, hounds, pickups, sliding doors, security doors, terminals and exits
 - original transparent pixel-art guard, hound, rapid-trooper and heavy-unit sprites rendered as camera-facing polygons in the 3D world
 - every enemy uses a brief dedicated firing/lunge sprite synchronized with its actual attack event
+- every surviving enemy briefly switches to its own non-gory recoil pose when hit
 - every defeated enemy switches to its own original collapsed/resting sprite above a stylized procedurally textured blood-pool decal
 - authored rooms include procedural framed paintings, peace-symbol banners and ceiling lamps with warm floor-light pools
 - distinct generated material palettes for each sector: warm bunker, green industrial, and cold technical

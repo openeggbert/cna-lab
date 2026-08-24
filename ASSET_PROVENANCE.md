@@ -449,3 +449,84 @@ Their unchanged color pixels were combined with project-generated
 brightness/chroma masks. Small neutral highlights are retained by connected-area
 filtering, colored muzzle flashes remain opaque, and large neutral checkerboard
 regions become transparent. No third-party pixels were added.
+
+## `assets/sprites/security-guard-pain.png`
+
+Prompt (using the committed ready guard as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent non-gory hit-reaction enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the exact identity and style reference
+Primary request: redraw the same original gray-and-muted-teal bunker security guard from Image 1 recoiling from a non-lethal impact, upper body twisted slightly backward, free arm raised defensively and fictional sidearm lowered
+Subject: preserve the identical adult face, helmet, gray and teal utility uniform, boots, gloves, palette, proportions and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: one full-body character only, front-facing readable flinch pose completely visible, centered, feet aligned near bottom, same vertical framing as Image 1, suitable for a brief camera-facing billboard damage frame
+Constraints: genuinely transparent background and preserved alpha; non-gory reaction; no wound; no blood; no projectile; no text; no logo; no watermark; no scenery; no shadow; no political or military insignia; no swastikas; no Nazi imagery; no historical uniform
+Avoid: death pose, falling to floor, dismemberment, graphic pain, photorealism, 3D render, smooth gradients, extra people or weapons, copyrighted game characters, resemblance to Wolfenstein pain sprites, anti-aliased halo
+```
+
+## `assets/sprites/security-hound-pain.png`
+
+Prompt (using the committed ready hound as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent non-gory hit-reaction creature billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the exact identity and style reference
+Primary request: redraw the same original brown bunker security hound from Image 1 making a brief non-lethal flinch, head turned slightly aside, ears lowered partway and one forepaw lifted while remaining firmly standing
+Subject: preserve the identical brown coat, dark muzzle, teal fabric collar, small peace-symbol medallion, proportions and real-dog identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: one entire dog only, near-front readable flinch pose completely visible, centered, same vertical framing as Image 1, suitable for a brief camera-facing billboard damage frame
+Constraints: genuinely transparent background and preserved alpha; non-gory reaction; no wound; no blood; no projectile; no distress beyond a momentary game flinch; no text; no logo; no watermark; no scenery; no shadow; no political or military insignia
+Avoid: defeated or lying pose, graphic pain, photorealism, 3D render, smooth gradients, robotic dog, additional creatures, copyrighted game creatures, resemblance to Wolfenstein pain sprites, anti-aliased halo
+```
+
+The hound was passed through one additional exact-background-removal edit:
+
+```text
+Use case: precise-object-edit
+Input image: Image 1 is the exact sprite to edit.
+Primary request: keep the security hound character, pose, proportions, pixel-art pixels, colors, teal collar and peace-symbol medallion exactly unchanged. Remove every brown, black or glowing background pixel outside the dog's physical silhouette. Replace all pixels outside the dog with genuine zero-alpha transparency.
+Constraints: one unchanged dog only; crisp clean silhouette; preserve transparent alpha; no aura; no backdrop; no floor shadow; no checkerboard; no added or removed anatomy; no blood; no wound; no scenery; no text; no logo; no watermark.
+Avoid: redrawing or restyling the dog, changing the pose, smooth gradients outside the silhouette, dark rectangle, checker pattern, anti-aliased halo.
+```
+
+## `assets/sprites/rapid-trooper-pain.png`
+
+Prompt (using the committed ready rapid trooper as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent non-gory hit-reaction enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the exact identity and style reference
+Primary request: redraw the same original navy-and-muted-amber rapid-response bunker trooper from Image 1 recoiling from a non-lethal impact, lean upper body rocked backward and compact fictional automatic weapon lowered across the torso
+Subject: preserve the identical adult face, helmet, navy and amber reinforced utility uniform, boots, gloves, lean silhouette, palette, proportions and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: one full-body character only, front-facing readable flinch pose completely visible, centered, feet aligned near bottom, same vertical framing as Image 1, suitable for a brief camera-facing billboard damage frame
+Constraints: genuinely transparent background and preserved alpha; non-gory reaction; no wound; no blood; no projectile; no text; no logo; no watermark; no scenery; no shadow; no political or military insignia; no swastikas; no Nazi imagery; no historical uniform
+Avoid: death pose, falling to floor, dismemberment, graphic pain, photorealism, 3D render, smooth gradients, extra people or weapons, copyrighted game characters, resemblance to Wolfenstein pain sprites, anti-aliased halo
+```
+
+## `assets/sprites/heavy-unit-pain.png`
+
+Prompt (using the committed ready heavy unit as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent non-gory hit-reaction enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the exact identity and style reference
+Primary request: redraw the same original graphite-and-muted-crimson heavy bunker security unit from Image 1 absorbing a non-lethal impact, broad armored torso jolted slightly sideways, one shoulder dipped and large fictional weapon lowered but still firmly held
+Subject: preserve the identical adult face, broad helmet, fictional industrial protective armor, graphite and crimson palette, heavy boots, gloves, broad silhouette, proportions and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: one full-body character only, front-facing readable flinch pose completely visible, centered, feet aligned near bottom, same vertical framing as Image 1, suitable for a brief camera-facing billboard damage frame
+Constraints: genuinely transparent background and preserved alpha; non-gory reaction; no wound; no blood; no projectile; no text; no logo; no watermark; no scenery; no shadow; armor remains fictional industrial protection; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: death pose, falling to floor, dismemberment, graphic pain, historical armor, photorealism, 3D render, smooth gradients, extra people or weapons, copyrighted game characters, resemblance to Wolfenstein pain sprites, anti-aliased halo
+```
+
+The guard, rapid-trooper and heavy-unit exports contained baked light
+checkerboards. Their unchanged color pixels were combined with
+project-generated brightness/chroma connected-area masks. The hound export used
+a project-generated edge flood mask followed by binary closing and hole filling
+to remove its dark background without altering its color pixels. No third-party
+pixels were added to any hit-reaction sprite.

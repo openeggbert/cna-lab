@@ -45,6 +45,10 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> houndAttackSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> rapidTrooperAttackSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyUnitAttackSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> guardPainSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> houndPainSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> rapidTrooperPainSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyUnitPainSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> defeatedGuardSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> defeatedHoundSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> defeatedRapidTrooperSprite_;
