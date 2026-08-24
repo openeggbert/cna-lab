@@ -53,6 +53,8 @@ namespace
             "G cog\n"
             "? cog-block\n"
             "o empty-block\n"
+            "P plated-block\n"
+            "A plating\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n";
@@ -86,6 +88,8 @@ namespace
             "G cog\n"
             "? cog-block\n"
             "o empty-block\n"
+            "P plated-block\n"
+            "A plating\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n"
@@ -149,6 +153,8 @@ namespace
             "G cog\n"
             "? cog-block\n"
             "o empty-block\n"
+            "P plated-block\n"
+            "A plating\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n"
@@ -200,7 +206,7 @@ namespace
         }
         catch (const std::runtime_error& error) {
             threwLineError = std::string_view(error.what()).starts_with(
-                "broken.cbl:20:");
+                "broken.cbl:22:");
         }
         Check(threwLineError, "malformed map reports source and line number");
 
@@ -232,7 +238,7 @@ namespace
         Check(failsAt(replaced("checkpoint 2 2", "checkpoint 5 2"),
                       "case.cbl:5:"),
               "out-of-bounds checkpoint reports its line");
-        Check(failsAt(replaced("BG!E", "BGXE"), "case.cbl:21:"),
+        Check(failsAt(replaced("BG!E", "BGXE"), "case.cbl:23:"),
               "unknown map glyph reports its row");
         Check(failsAt(replaced("checkpoint 2 2",
                                "spawn 1 2\ncheckpoint 2 2"),
@@ -279,6 +285,8 @@ namespace
             "G cog\n"
             "? cog-block\n"
             "o empty-block\n"
+            "P plated-block\n"
+            "A plating\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n"
@@ -339,6 +347,43 @@ namespace
         Check(breakableWorld.LastEvents().BlocksBroken == 1 &&
                   breakableWorld.Level().Get(0, 1) == CopperBoots::Tiles::Empty,
               "plated ceiling hit breaks a marked block");
+
+        std::string powerBlockSource(blockSource);
+        powerBlockSource.replace(powerBlockSource.find("B?o."), 4, "BPo.");
+        CopperBoots::WorldSimulation powerBlockWorld;
+        powerBlockWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            powerBlockSource, "power-block.cbl"));
+        powerBlockWorld.Update(headHit, fixedTick);
+        Check(powerBlockWorld.LastEvents().PowerUpsReleased == 1 &&
+                  powerBlockWorld.PlatingPickups().size() == 1 &&
+                  powerBlockWorld.PlatingPickups()[0].EmergenceTicks == 23,
+              "plated block releases one emerging jacket module");
+        const float releasedY = powerBlockWorld.PlatingPickups()[0].Y;
+        for (int i = 0; i < 23; ++i)
+            powerBlockWorld.Update({}, fixedTick);
+        Check(powerBlockWorld.PlatingPickups()[0].EmergenceTicks == 0 &&
+                  powerBlockWorld.PlatingPickups()[0].Y < releasedY - 10.0F,
+              "jacket module emerges for exactly 24 fixed ticks");
+        const float emergedX = powerBlockWorld.PlatingPickups()[0].X;
+        powerBlockWorld.Update({}, fixedTick);
+        Check(powerBlockWorld.PlatingPickups()[0].X > emergedX,
+              "emerged jacket module begins deterministic ground movement");
+
+        std::string freePowerSource(blockSource);
+        freePowerSource.replace(freePowerSource.find("B?o."), 4, ".A..");
+        CopperBoots::WorldSimulation freePowerWorld;
+        freePowerWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            freePowerSource, "free-power.cbl"));
+        freePowerWorld.Update({}, fixedTick);
+        Check(freePowerWorld.Player().Plated &&
+                  freePowerWorld.Player().PowerTransitionTicks > 0 &&
+                  freePowerWorld.LastEvents().PowerUpsCollected == 1 &&
+                  freePowerWorld.Score() == 500,
+              "jacket pickup grants plating, transition, and score once");
+        freePowerWorld.Update({}, fixedTick);
+        Check(freePowerWorld.LastEvents().PowerUpsCollected == 0 &&
+                  freePowerWorld.Score() == 500,
+              "collected jacket module cannot score twice");
     }
 
     void TestMovementAndJump()
@@ -494,6 +539,8 @@ namespace
             "G cog\n"
             "? cog-block\n"
             "o empty-block\n"
+            "P plated-block\n"
+            "A plating\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n"

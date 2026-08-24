@@ -19,6 +19,7 @@ namespace CopperBoots
     {
         None,
         Cog,
+        Plating,
     };
 
     struct InteractiveBlockDefinition
@@ -44,6 +45,7 @@ namespace CopperBoots
         std::array<float, 3> ParallaxFactors;
         std::vector<TileCoordinate> Cogs;
         std::vector<CrawlerDefinition> Crawlers;
+        std::vector<TileCoordinate> PlatingPickups;
         std::vector<InteractiveBlockDefinition> InteractiveBlocks;
 
         [[nodiscard]] static LevelDefinition Parse(

@@ -355,7 +355,7 @@ Acceptance:
 - Enemy/world and selected enemy/enemy contacts are deterministic.
 - Tests cover stomp, side hit, underside, invulnerability, and simultaneous hit.
 
-### MAR-044 — Plated-jacket power-up — TODO
+### MAR-044 — Plated-jacket power-up — DONE
 
 Acceptance:
 

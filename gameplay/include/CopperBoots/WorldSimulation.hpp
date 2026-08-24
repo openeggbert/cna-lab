@@ -39,6 +39,7 @@ namespace CopperBoots
         bool Grounded = false;
         bool FacingRight = true;
         bool Plated = false;
+        int PowerTransitionTicks = 0;
         int InvulnerabilityTicks = 0;
         bool Dead = false;
         int DeathTicksRemaining = 0;
@@ -65,6 +66,21 @@ namespace CopperBoots
         int PlayerDamaged = 0;
         int PlayerDied = 0;
         int PlayerRespawned = 0;
+        int PowerUpsReleased = 0;
+        int PowerUpsCollected = 0;
+    };
+
+    struct PlatingPickupState
+    {
+        static constexpr float Width = 12.0F;
+        static constexpr float Height = 12.0F;
+
+        float X = 0.0F;
+        float Y = 0.0F;
+        float VelocityY = 0.0F;
+        int Direction = 1;
+        int EmergenceTicks = 0;
+        bool Collected = false;
     };
 
     enum class CrawlerEdgePolicy
@@ -121,6 +137,11 @@ namespace CopperBoots
         {
             return crawlers_;
         }
+        [[nodiscard]] const std::vector<PlatingPickupState>& PlatingPickups()
+            const noexcept
+        {
+            return platingPickups_;
+        }
         [[nodiscard]] const WorldEvents& LastEvents() const noexcept
         {
             return lastEvents_;
@@ -142,6 +163,8 @@ namespace CopperBoots
         void HitBlock(int tileX, int tileY);
         void StartBlockBump(int tileX, int tileY);
         void UpdateCrawlers(float seconds);
+        void UpdatePlatingPickups(float seconds);
+        void CollectOverlappingPlatingPickups() noexcept;
         void ResolvePlayerCrawlerContacts(float previousPlayerBottom);
         void StartPlayerDeath() noexcept;
         void RespawnAtCheckpoint();
@@ -159,6 +182,7 @@ namespace CopperBoots
         std::array<float, 3> parallaxFactors_{0.10F, 0.25F, 0.50F};
         std::vector<CogState> cogs_;
         std::vector<CrawlerState> crawlers_;
+        std::vector<PlatingPickupState> platingPickups_;
         std::vector<InteractiveBlockState> interactiveBlocks_;
         WorldEvents lastEvents_;
         int collectedCogs_ = 0;

@@ -459,6 +459,8 @@ d decoration
 G cog object
 ? cog block
 o empty interactive block
+P plated-jacket block
+A plated-jacket pickup object
 C clockwork crawler object
 c ledge-falling crawler object
 map
@@ -506,6 +508,13 @@ life exactly once. Respawn uses the external checkpoint rather than the initial
 spawn, preserves level object progress, resets player transient state, and snaps
 the camera. There is not yet a game-over screen when the life counter reaches
 zero; that remains UI/campaign policy rather than collision behavior.
+
+Plating is acquired through the normal level pipeline. A `P` interactive block
+releases a jacket module that rises 12 pixels over 24 fixed ticks, then walks at
+28 pixels/second with tile gravity and wall reversal. `A` creates the same state
+as a free pickup. Collection is one-shot, grants plating, awards 500 points and
+drives an 18-tick palette-like courier flash; crawler contact consumes the
+protection under the damage rules above.
 
 ## CNA and sharp-runtime baseline
 

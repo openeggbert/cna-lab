@@ -67,6 +67,14 @@ namespace CopperBoots
                     : CrawlerEdgePolicy::Turn,
                 false, false});
         }
+        platingPickups_.clear();
+        platingPickups_.reserve(level.PlatingPickups.size());
+        for (const TileCoordinate& pickup : level.PlatingPickups) {
+            platingPickups_.push_back({
+                static_cast<float>(pickup.X * TileMap::TileSize) + 2.0F,
+                static_cast<float>(pickup.Y * TileMap::TileSize) + 2.0F,
+                0.0F, 1, 0, false});
+        }
         interactiveBlocks_.clear();
         interactiveBlocks_.reserve(level.InteractiveBlocks.size());
         for (const InteractiveBlockDefinition& block : level.InteractiveBlocks) {
@@ -121,6 +129,8 @@ namespace CopperBoots
         }
         if (player_.InvulnerabilityTicks > 0)
             --player_.InvulnerabilityTicks;
+        if (player_.PowerTransitionTicks > 0)
+            --player_.PowerTransitionTicks;
         const float previousPlayerBottom = player_.Y + PlayerState::Height;
         const float direction = std::clamp(input.Move, -1.0F, 1.0F);
         const float speedLimit = input.Run ? RunSpeed : WalkSpeed;
@@ -163,9 +173,11 @@ namespace CopperBoots
             StartPlayerDeath();
 
         UpdateCrawlers(seconds);
+        UpdatePlatingPickups(seconds);
         if (!player_.Dead) {
             ResolvePlayerCrawlerContacts(previousPlayerBottom);
             CollectOverlappingCogs();
+            CollectOverlappingPlatingPickups();
         }
         UpdateMotion(input);
         camera_.Update(player_.X + PlayerState::Width * 0.5F,
@@ -345,6 +357,14 @@ namespace CopperBoots
                         (TileMap::TileSize - CogState::Size) * 0.5F,
                     false});
                 ++lastEvents_.BlockContentsReleased;
+            }
+            else if (block.Content == BlockContent::Plating) {
+                platingPickups_.push_back({
+                    static_cast<float>(tileX * TileMap::TileSize) + 2.0F,
+                    static_cast<float>(tileY * TileMap::TileSize),
+                    0.0F, 1, 24, false});
+                ++lastEvents_.BlockContentsReleased;
+                ++lastEvents_.PowerUpsReleased;
             }
             return;
         }
@@ -551,5 +571,74 @@ namespace CopperBoots
             }
         }
         return false;
+    }
+
+    void WorldSimulation::UpdatePlatingPickups(const float seconds)
+    {
+        constexpr float horizontalSpeed = 28.0F;
+        constexpr float gravity = 900.0F;
+        constexpr float maximumFallSpeed = 300.0F;
+        for (PlatingPickupState& pickup : platingPickups_) {
+            if (pickup.Collected)
+                continue;
+            if (pickup.EmergenceTicks > 0) {
+                pickup.Y -= 0.5F;
+                --pickup.EmergenceTicks;
+                continue;
+            }
+
+            const float proposedX = pickup.X +
+                static_cast<float>(pickup.Direction) * horizontalSpeed * seconds;
+            if (SolidAabb(proposedX, pickup.Y, PlatingPickupState::Width,
+                          PlatingPickupState::Height)) {
+                pickup.Direction = -pickup.Direction;
+            }
+            else {
+                pickup.X = proposedX;
+            }
+
+            pickup.VelocityY = std::min(pickup.VelocityY + gravity * seconds,
+                                        maximumFallSpeed);
+            const float verticalAmount = pickup.VelocityY * seconds;
+            pickup.Y += verticalAmount;
+            if (!SolidAabb(pickup.X, pickup.Y, PlatingPickupState::Width,
+                           PlatingPickupState::Height))
+                continue;
+            if (verticalAmount > 0.0F) {
+                const int tileY = static_cast<int>(std::floor(
+                    (pickup.Y + PlatingPickupState::Height - CollisionEpsilon) /
+                    TileMap::TileSize));
+                pickup.Y = static_cast<float>(tileY * TileMap::TileSize) -
+                           PlatingPickupState::Height;
+            }
+            else {
+                const int tileY = static_cast<int>(std::floor(
+                    pickup.Y / TileMap::TileSize));
+                pickup.Y = static_cast<float>((tileY + 1) * TileMap::TileSize);
+            }
+            pickup.VelocityY = 0.0F;
+        }
+    }
+
+    void WorldSimulation::CollectOverlappingPlatingPickups() noexcept
+    {
+        const float playerRight = player_.X + PlayerState::Width;
+        const float playerBottom = player_.Y + PlayerState::Height;
+        for (PlatingPickupState& pickup : platingPickups_) {
+            if (pickup.Collected)
+                continue;
+            const bool overlaps = player_.X < pickup.X + PlatingPickupState::Width &&
+                                  playerRight > pickup.X &&
+                                  player_.Y < pickup.Y + PlatingPickupState::Height &&
+                                  playerBottom > pickup.Y;
+            if (!overlaps)
+                continue;
+            pickup.Collected = true;
+            player_.Plated = true;
+            player_.PowerTransitionTicks = 18;
+            score_ += 500;
+            lastEvents_.ScoreAdded += 500;
+            ++lastEvents_.PowerUpsCollected;
+        }
     }
 }

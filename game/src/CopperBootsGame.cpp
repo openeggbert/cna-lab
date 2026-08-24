@@ -161,6 +161,7 @@ namespace CopperBoots
         DrawTiles(cameraX, cameraY);
         DrawCogs(cameraX, cameraY);
         DrawCrawlers(cameraX, cameraY);
+        DrawPlatingPickups(cameraX, cameraY);
         DrawPlayer(cameraX, cameraY);
         spriteBatch_->End();
     }
@@ -298,9 +299,14 @@ namespace CopperBoots
             (player.InvulnerabilityTicks / 3) % 2 == 0)
             return;
 
-        const Color coat = player.Motion == PlayerMotion::Running
+        Color coat = player.Motion == PlayerMotion::Running
             ? Color(232, 154, 48)
             : Color(205, 119, 42);
+        if (player.Plated)
+            coat = Color(79, 157, 124);
+        if (player.PowerTransitionTicks > 0 &&
+            (player.PowerTransitionTicks / 2) % 2 == 0)
+            coat = Color(222, 225, 180);
         FillRectangle(Rectangle(x + 2, y, 8, 5), Color(217, 189, 143));
         FillRectangle(Rectangle(x + 1, y + 5, 10, 10), coat);
         FillRectangle(Rectangle(x + 2, y + 15, 3, 5), Color(53, 81, 94));
@@ -345,6 +351,25 @@ namespace CopperBoots
             FillRectangle(Rectangle(x + 9, y + 10, 5, 2), Color(61, 64, 63));
             const int eyeX = crawler.Direction > 0 ? x + 9 : x + 3;
             FillRectangle(Rectangle(eyeX, y + 4, 2, 2), Color(240, 198, 76));
+        }
+    }
+
+    void CopperBootsGame::DrawPlatingPickups(const float cameraX,
+                                             const float cameraY)
+    {
+        for (const PlatingPickupState& pickup : world_.PlatingPickups()) {
+            if (pickup.Collected)
+                continue;
+            const int x = ScreenCoordinate(pickup.X, cameraX);
+            const int y = ScreenCoordinate(pickup.Y, cameraY);
+            if (x < -12 || x > LogicalWidth || y < -12 || y > LogicalHeight)
+                continue;
+            FillRectangle(Rectangle(x + 1, y + 2, 10, 9),
+                          Color(67, 137, 112));
+            FillRectangle(Rectangle(x + 3, y, 6, 3), Color(112, 188, 143));
+            FillRectangle(Rectangle(x + 3, y + 5, 6, 3), Color(191, 124, 56));
+            FillRectangle(Rectangle(x, y + 3, 2, 6), Color(48, 87, 82));
+            FillRectangle(Rectangle(x + 10, y + 3, 2, 6), Color(48, 87, 82));
         }
     }
 
