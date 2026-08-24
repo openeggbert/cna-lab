@@ -286,3 +286,27 @@ grounded and correctly ordered with furniture/walls in North, East, South, and
 West while showing the expected directional variation. The captures remain in
 `/tmp`; procedural provenance is recorded in `ASSET_PIPELINE.md`. Idle is the
 only clip—walk frames and simulation-driven animation remain `PEO-072`.
+
+## 2026-08-24: PEO-073 static navigation snapshot
+
+`StaticNavigationGrid` builds an immutable, renderer-independent snapshot of
+one logical lot floor. It marks physical object footprint cells unavailable but
+leaves placement-clearance cells traversable for later interaction approaches.
+Cardinal movement crosses a tile edge only when both cells are walkable and the
+edge has no blocking wall; an open attached door makes its canonical wall edge
+passable. Neighbor queries use the documented North, East, South, West order.
+
+The snapshot deliberately does not observe later lot/object mutations. Tests
+prove that object removal and door opening affect a newly rebuilt snapshot but
+cannot mutate an in-flight route query. They also cover floor isolation, lot
+bounds, diagonal/non-adjacent rejection, stable corner/center neighbor order,
+multi-cell footprints, traversable clearance, walls in both directions, and
+closed/open door portals.
+
+HEADLESS and SDL_RENDERER/SDL3 configurations both built and passed 10/10
+CTests, including the CNA runtime smoke. Dependency state was CNA HEAD
+`b6cbfcd87c08a6e0172eaf866358bf95bec277b1` and clean sharp-runtime HEAD
+`54578590b328aa9612fe38bfddca9fd8ca795144`. CNA still contained the same five
+uncommitted external graphics changes recorded under PEO-071; People did not
+edit or depend on them. No new visual acceptance or framework blocker is
+claimed for this simulation-only increment.

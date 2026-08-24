@@ -472,6 +472,13 @@ considers bounds, floor, static footprints, wall edges, door portals, target
 slot access, and a stable neighbor order. The heuristic is Manhattan distance
 with deterministic tie breaks.
 
+The first routing input is an immutable snapshot of one logical floor. Physical
+object footprints block cells, while authored placement clearance remains
+walkable approach space. Walls block cardinal edges and an open attached door
+turns its wall edge into a portal. Neighbor enumeration is always North, East,
+South, West. Topology, door, or object mutations affect routing only after a
+controlled snapshot rebuild, avoiding partially updated route queries.
+
 Dynamic people should be a soft occupancy cost initially rather than permanent
 walls, with local waiting/replan to avoid deadlock. Exclusive destinations are
 protected by reservations before route execution. Stairs later add explicit

@@ -123,8 +123,8 @@ Statuses:
 | PEO-070 | DONE | Resident simulation entity | Stable ID, household, logical position, movement/action references, and deletion lifecycle exist without sprite state |
 | PEO-071 | DONE | Four-view placeholder resident | Original procedural resident has four directions and idle frames with common foot anchor |
 | PEO-072 | TODO | Walk animation | Movement direction selects walk frames by simulation progress; animation cannot alter route state |
-| PEO-073 | DOING | Static occupancy grid | Floor/walls/object footprints produce deterministic walkability independent of renderer |
-| PEO-074 | TODO | Tile-grid A* | Deterministic four-neighbor path finds shortest routes, handles no-path/start=goal, and passes fixed maps |
+| PEO-073 | DONE | Static occupancy grid | Floor/walls/object footprints produce deterministic walkability independent of renderer |
+| PEO-074 | DOING | Tile-grid A* | Deterministic four-neighbor path finds shortest routes, handles no-path/start=goal, and passes fixed maps |
 | PEO-075 | TODO | Door routing | Closed/open/passable policy integrates wall portals and produces expected paths |
 | PEO-076 | TODO | Route to interaction slot | Planner targets authored approach tile/facing rather than object origin and reports exact failure reason |
 | PEO-077 | TODO | Dynamic occupancy policy | Residents wait/replan around temporary people without permanent deadlock in two corridor scenarios |
