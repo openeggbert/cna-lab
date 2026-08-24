@@ -35,6 +35,7 @@ namespace CopperBoots
         void DrawParallax(float cameraX);
         void DrawTiles(float cameraX, float cameraY);
         void DrawCogs(float cameraX, float cameraY);
+        void DrawCrawlers(float cameraX, float cameraY);
         void DrawPlayer(float cameraX, float cameraY);
         void FillRectangle(const Microsoft::Xna::Framework::Rectangle& rectangle,
                            const Microsoft::Xna::Framework::Color& color);

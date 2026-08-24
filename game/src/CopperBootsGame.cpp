@@ -160,6 +160,7 @@ namespace CopperBoots
         DrawParallax(cameraX);
         DrawTiles(cameraX, cameraY);
         DrawCogs(cameraX, cameraY);
+        DrawCrawlers(cameraX, cameraY);
         DrawPlayer(cameraX, cameraY);
         spriteBatch_->End();
     }
@@ -286,6 +287,9 @@ namespace CopperBoots
     void CopperBootsGame::DrawPlayer(const float cameraX, const float cameraY)
     {
         const PlayerState& player = world_.Player();
+        if (player.InvulnerabilityTicks > 0 &&
+            (player.InvulnerabilityTicks / 3) % 2 == 0)
+            return;
         const int x = ScreenCoordinate(player.X, cameraX);
         const int y = ScreenCoordinate(player.Y, cameraY);
 
@@ -314,6 +318,28 @@ namespace CopperBoots
             FillRectangle(Rectangle(x + 2, y, 4, 8), Color(230, 173, 54));
             FillRectangle(Rectangle(x, y + 2, 8, 4), Color(230, 173, 54));
             FillRectangle(Rectangle(x + 3, y + 3, 2, 2), Color(102, 68, 46));
+        }
+    }
+
+    void CopperBootsGame::DrawCrawlers(const float cameraX, const float cameraY)
+    {
+        for (const CrawlerState& crawler : world_.Crawlers()) {
+            const int x = ScreenCoordinate(crawler.X, cameraX);
+            const int y = ScreenCoordinate(crawler.Y, cameraY);
+            if (x < -16 || x > LogicalWidth || y < -12 || y > LogicalHeight)
+                continue;
+
+            if (crawler.Defeated) {
+                FillRectangle(Rectangle(x, y + 9, 14, 3), Color(93, 67, 51));
+                continue;
+            }
+            FillRectangle(Rectangle(x + 1, y + 2, 12, 8),
+                          Color(125, 71, 55));
+            FillRectangle(Rectangle(x + 3, y, 8, 3), Color(188, 113, 59));
+            FillRectangle(Rectangle(x, y + 10, 5, 2), Color(61, 64, 63));
+            FillRectangle(Rectangle(x + 9, y + 10, 5, 2), Color(61, 64, 63));
+            const int eyeX = crawler.Direction > 0 ? x + 9 : x + 3;
+            FillRectangle(Rectangle(eyeX, y + 4, 2, 2), Color(240, 198, 76));
         }
     }
 

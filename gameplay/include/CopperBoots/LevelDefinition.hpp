@@ -27,6 +27,12 @@ namespace CopperBoots
         BlockContent Content;
     };
 
+    struct CrawlerDefinition
+    {
+        TileCoordinate Position;
+        bool FallsAtEdges;
+    };
+
     struct LevelDefinition
     {
         std::string Name;
@@ -37,6 +43,7 @@ namespace CopperBoots
         int CheckpointFootTileY;
         std::array<float, 3> ParallaxFactors;
         std::vector<TileCoordinate> Cogs;
+        std::vector<CrawlerDefinition> Crawlers;
         std::vector<InteractiveBlockDefinition> InteractiveBlocks;
 
         [[nodiscard]] static LevelDefinition Parse(

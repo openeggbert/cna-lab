@@ -29,6 +29,44 @@ namespace
         Check(std::abs(actual - expected) <= tolerance, message);
     }
 
+    [[nodiscard]] std::string MakeCrawlerLevel(const int width,
+                                               const int crawlerX,
+                                               const int spawnX,
+                                               const int spawnFootY)
+    {
+        std::string result =
+            "copper-boots-level 1\n"
+            "name Crawler Workshop\n"
+            "size " + std::to_string(width) + " 5\n" +
+            "spawn " + std::to_string(spawnX) + ' ' +
+                std::to_string(spawnFootY) + "\n" +
+            "checkpoint " + std::to_string(spawnX) + ' ' +
+                std::to_string(spawnFootY) + "\n" +
+            "parallax 0.1 0.25 0.5\n"
+            "legend\n"
+            ". empty\n"
+            "# solid\n"
+            "B breakable\n"
+            "! hazard\n"
+            "E exit\n"
+            "d decoration\n"
+            "G cog\n"
+            "? cog-block\n"
+            "o empty-block\n"
+            "C crawler\n"
+            "c crawler-fall\n"
+            "map\n";
+        const std::string emptyRow(static_cast<std::size_t>(width), '.');
+        result += emptyRow + '\n';
+        result += emptyRow + '\n';
+        result += emptyRow + '\n';
+        std::string crawlerRow = emptyRow;
+        crawlerRow[static_cast<std::size_t>(crawlerX)] = 'C';
+        result += crawlerRow + '\n';
+        result += std::string(static_cast<std::size_t>(width), '#') + '\n';
+        return result;
+    }
+
     void TestSimulationClock()
     {
         CopperBoots::SimulationClock clock;
@@ -81,8 +119,10 @@ namespace
             "G cog\n"
             "? cog-block\n"
             "o empty-block\n"
+            "C crawler\n"
+            "c crawler-fall\n"
             "map\n"
-            "d?o.\n"
+            "d?oC\n"
             "BG!E\n"
             "####\n";
 
@@ -115,9 +155,14 @@ namespace
                   level.InteractiveBlocks[0].Content == CopperBoots::BlockContent::Cog &&
                   level.InteractiveBlocks[1].Content == CopperBoots::BlockContent::None,
               "interactive block contents are parsed separately from tiles");
+        Check(level.Crawlers.size() == 1 &&
+                  level.Crawlers[0].Position.X == 3 &&
+                  level.Crawlers[0].Position.Y == 0 &&
+                  !level.Crawlers[0].FallsAtEdges,
+              "crawler glyph becomes an object coordinate");
 
         std::string malformed(source);
-        const std::size_t row = malformed.find("d?o.\n");
+        const std::size_t row = malformed.find("d?oC\n");
         malformed.erase(row, 1);
         bool threwLineError = false;
         try {
@@ -125,7 +170,7 @@ namespace
         }
         catch (const std::runtime_error& error) {
             threwLineError = std::string_view(error.what()).starts_with(
-                "broken.cbl:18:");
+                "broken.cbl:20:");
         }
         Check(threwLineError, "malformed map reports source and line number");
 
@@ -157,7 +202,7 @@ namespace
         Check(failsAt(replaced("checkpoint 2 2", "checkpoint 5 2"),
                       "case.cbl:5:"),
               "out-of-bounds checkpoint reports its line");
-        Check(failsAt(replaced("BG!E", "BGXE"), "case.cbl:19:"),
+        Check(failsAt(replaced("BG!E", "BGXE"), "case.cbl:21:"),
               "unknown map glyph reports its row");
         Check(failsAt(replaced("checkpoint 2 2",
                                "spawn 1 2\ncheckpoint 2 2"),
@@ -204,6 +249,8 @@ namespace
             "G cog\n"
             "? cog-block\n"
             "o empty-block\n"
+            "C crawler\n"
+            "c crawler-fall\n"
             "map\n"
             "....\n"
             "B?o.\n"
@@ -341,6 +388,111 @@ namespace
         CheckNear(camera.X(), 680.0F, 0.001F, "camera clamps right");
         CheckNear(camera.Y(), 120.0F, 0.001F, "camera clamps bottom");
     }
+
+    void TestClockworkCrawler()
+    {
+        constexpr float tick = static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds);
+
+        CopperBoots::WorldSimulation stompWorld;
+        stompWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeCrawlerLevel(40, 2, 2, 1), "stomp.cbl"));
+        bool stomped = false;
+        for (int i = 0; i < 90; ++i) {
+            stompWorld.Update({}, tick);
+            if (stompWorld.LastEvents().EnemiesDefeated == 1) {
+                stomped = true;
+                break;
+            }
+        }
+        Check(stomped && stompWorld.Crawlers()[0].Defeated &&
+                  stompWorld.Score() == 200,
+              "falling top contact defeats crawler and awards score");
+        CopperBoots::PlayerInput runAway;
+        runAway.Move = 1.0F;
+        runAway.Run = true;
+        for (int i = 0; i < 280; ++i)
+            stompWorld.Update(runAway, tick);
+        Check(stompWorld.Crawlers()[0].Defeated &&
+                  !stompWorld.Crawlers()[0].Active,
+              "defeated crawler state persists after leaving its activation range");
+
+        CopperBoots::WorldSimulation sideWorld;
+        sideWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeCrawlerLevel(8, 2, 2, 4), "side.cbl"));
+        sideWorld.Update({}, tick);
+        Check(sideWorld.LastEvents().PlayerDamaged == 1 &&
+                  sideWorld.Player().InvulnerabilityTicks > 0,
+              "side contact damages player and starts invulnerability");
+        sideWorld.Update({}, tick);
+        Check(sideWorld.LastEvents().PlayerDamaged == 0,
+              "continued crawler contact cannot damage during invulnerability");
+
+        CopperBoots::WorldSimulation platedWorld;
+        platedWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeCrawlerLevel(8, 2, 2, 4), "plated-side.cbl"));
+        platedWorld.SetPlayerPlated(true);
+        platedWorld.Update({}, tick);
+        Check(!platedWorld.Player().Plated &&
+                  platedWorld.LastEvents().PlayerDamaged == 1,
+              "crawler contact consumes plated protection");
+
+        CopperBoots::WorldSimulation patrolWorld;
+        patrolWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeCrawlerLevel(8, 2, 7, 4), "patrol.cbl"));
+        for (int i = 0; i < 120; ++i)
+            patrolWorld.Update({}, tick);
+        Check(patrolWorld.Crawlers()[0].Direction == 1,
+              "turn-edge crawler reverses at the left world wall");
+
+        constexpr std::string_view fallingSource =
+            "copper-boots-level 1\n"
+            "name Falling Crawler Workshop\n"
+            "size 8 6\n"
+            "spawn 7 5\n"
+            "checkpoint 7 5\n"
+            "parallax 0.1 0.25 0.5\n"
+            "legend\n"
+            ". empty\n"
+            "# solid\n"
+            "B breakable\n"
+            "! hazard\n"
+            "E exit\n"
+            "d decoration\n"
+            "G cog\n"
+            "? cog-block\n"
+            "o empty-block\n"
+            "C crawler\n"
+            "c crawler-fall\n"
+            "map\n"
+            "........\n"
+            "........\n"
+            "..c.....\n"
+            "..##....\n"
+            "........\n"
+            "########\n";
+        CopperBoots::WorldSimulation fallingWorld;
+        fallingWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            fallingSource, "falling.cbl"));
+        const float initialCrawlerY = fallingWorld.Crawlers()[0].Y;
+        for (int i = 0; i < 90; ++i)
+            fallingWorld.Update({}, tick);
+        Check(fallingWorld.Crawlers()[0].EdgePolicy ==
+                  CopperBoots::CrawlerEdgePolicy::Fall &&
+                  fallingWorld.Crawlers()[0].Y > initialCrawlerY + 20.0F,
+              "fall-edge crawler walks off a platform and lands below");
+
+        CopperBoots::WorldSimulation activationWorld;
+        activationWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeCrawlerLevel(40, 30, 2, 4), "activation.cbl"));
+        activationWorld.Update({}, tick);
+        Check(!activationWorld.Crawlers()[0].Active,
+              "crawler outside camera margin remains inactive");
+        for (int i = 0; i < 250; ++i)
+            activationWorld.Update(runAway, tick);
+        Check(activationWorld.Crawlers()[0].Active,
+              "crawler activates when camera approaches its range");
+    }
 }
 
 int main()
@@ -351,6 +503,7 @@ int main()
     TestMovementAndJump();
     TestVariableJumpHeight();
     TestCameraBounds();
+    TestClockworkCrawler();
 
     if (failures != 0) {
         std::cerr << failures << " gameplay test(s) failed\n";

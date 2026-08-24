@@ -38,6 +38,7 @@ namespace CopperBoots
         bool Grounded = false;
         bool FacingRight = true;
         bool Plated = false;
+        int InvulnerabilityTicks = 0;
         PlayerMotion Motion = PlayerMotion::Falling;
     };
 
@@ -57,6 +58,28 @@ namespace CopperBoots
         int BlocksBumped = 0;
         int BlockContentsReleased = 0;
         int BlocksBroken = 0;
+        int EnemiesDefeated = 0;
+        int PlayerDamaged = 0;
+    };
+
+    enum class CrawlerEdgePolicy
+    {
+        Turn,
+        Fall,
+    };
+
+    struct CrawlerState
+    {
+        static constexpr float Width = 14.0F;
+        static constexpr float Height = 12.0F;
+
+        float X = 0.0F;
+        float Y = 0.0F;
+        float VelocityY = 0.0F;
+        int Direction = -1;
+        CrawlerEdgePolicy EdgePolicy = CrawlerEdgePolicy::Turn;
+        bool Active = false;
+        bool Defeated = false;
     };
 
     struct InteractiveBlockState
@@ -89,6 +112,10 @@ namespace CopperBoots
         {
             return cogs_;
         }
+        [[nodiscard]] const std::vector<CrawlerState>& Crawlers() const noexcept
+        {
+            return crawlers_;
+        }
         [[nodiscard]] const WorldEvents& LastEvents() const noexcept
         {
             return lastEvents_;
@@ -108,6 +135,10 @@ namespace CopperBoots
         void UpdateBlockAnimations() noexcept;
         void HitBlock(int tileX, int tileY);
         void StartBlockBump(int tileX, int tileY);
+        void UpdateCrawlers(float seconds);
+        void ResolvePlayerCrawlerContacts(float previousPlayerBottom);
+        [[nodiscard]] bool SolidAabb(float x, float y, float width,
+                                     float height) const noexcept;
 
         TileMap level_;
         PlayerState player_;
@@ -116,6 +147,7 @@ namespace CopperBoots
         float spawnY_;
         std::array<float, 3> parallaxFactors_{0.10F, 0.25F, 0.50F};
         std::vector<CogState> cogs_;
+        std::vector<CrawlerState> crawlers_;
         std::vector<InteractiveBlockState> interactiveBlocks_;
         WorldEvents lastEvents_;
         int collectedCogs_ = 0;

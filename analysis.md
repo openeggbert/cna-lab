@@ -459,6 +459,8 @@ d decoration
 G cog object
 ? cog block
 o empty interactive block
+C clockwork crawler object
+c ledge-falling crawler object
 map
 ...row-major UTF-8/ASCII rows...
 ```
@@ -488,6 +490,14 @@ the collision cell never moves. First contact changes an interactive tile to a
 solid used-block visual and optionally emits a new cog. A `B` tile remains solid
 for an unplated courier and is removed by a plated ceiling hit. These are clean
 new mechanics and glyphs rather than translations of the historical map data.
+
+Clockwork crawlers are extracted from `C`/`c` object markers. `C` patrols and
+turns at walls or ledges; `c` uses the same patrol with deterministic gravity
+after leaving a ledge. Crawler simulation sleeps outside the camera margin but
+retains active/defeated state. Player contact compares the previous foot
+position and current falling motion: an unambiguous top crossing defeats and
+bounces, while side contact emits damage, knockback and 75 ticks of protection.
+Generated body/eye/leg rectangles are presentation only.
 
 ## CNA and sharp-runtime baseline
 

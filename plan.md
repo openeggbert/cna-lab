@@ -337,7 +337,7 @@ Acceptance:
 - Collision remains stable while visual bump animates.
 - Tests cover empty/content/used/breakable cases.
 
-### MAR-042 — Clockwork crawler enemy — TODO
+### MAR-042 — Clockwork crawler enemy — DONE
 
 Acceptance:
 
@@ -346,7 +346,7 @@ Acceptance:
 - Top contact defeats/bounces; side contact damages.
 - State and collision tests require no renderer.
 
-### MAR-043 — Enemy collision framework — TODO
+### MAR-043 — Enemy collision framework — DOING
 
 Acceptance:
 
