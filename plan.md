@@ -1106,8 +1106,9 @@ hold-to-fire cadence and campaign balance remain.
 
 Status: in progress. Every authored sector now introduces a framed landscape,
 an original peace-symbol banner and a ceiling lamp through validated level
-symbols and project-generated textures. Freestanding furniture, plants, treasure
-props and sector-specific variants remain.
+symbols and project-generated textures. Each ceiling lamp projects a warm radial
+light pool onto the floor. Freestanding furniture, plants, treasure props and
+sector-specific variants remain.
 
 - add generated paintings, ceiling lamps, tables, plants and treasure props;
 - add original wall banners carrying a peace symbol only;

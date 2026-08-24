@@ -565,6 +565,30 @@ namespace WolfCna
             }
         }
         ceilingLampTexture_->SetData(lampPixels.data(), static_cast<int>(lampPixels.size()));
+
+        lampLightTexture_ = std::make_unique<Texture2D>(device, size, size);
+        std::vector<Color> lightPixels(static_cast<std::size_t>(size * size), Color(0, 0, 0, 0));
+        for (int y = 0; y < size; ++y)
+        {
+            for (int x = 0; x < size; ++x)
+            {
+                const float nx = (static_cast<float>(x) + 0.5f - size * 0.5f) / (size * 0.5f);
+                const float ny = (static_cast<float>(y) + 0.5f - size * 0.5f) / (size * 0.5f);
+                const float radius = std::sqrt(nx * nx + ny * ny);
+                if (radius >= 1.0f)
+                    continue;
+
+                const float falloff = 1.0f - radius;
+                const float softened = falloff * falloff * (3.0f - 2.0f * falloff);
+                const int alpha = static_cast<int>(18.0f + softened * 78.0f);
+                lightPixels[static_cast<std::size_t>(y * size + x)] = Color(
+                    255,
+                    224 + Noise(x + 17, y + 31) / 3,
+                    142 + Noise(x + 43, y + 7) / 3,
+                    alpha);
+            }
+        }
+        lampLightTexture_->SetData(lightPixels.data(), static_cast<int>(lightPixels.size()));
     }
 
     void WolfGame::CreateHudResources()
@@ -1484,7 +1508,7 @@ namespace WolfCna
         if ((screen_ == Screen::Playing || screen_ == Screen::Paused || screen_ == Screen::GameOver) &&
             effect_ && atlas_ && guardSprite_ && houndSprite_ && bloodDecal_ &&
             rapidTrooperSprite_ && heavyUnitSprite_ &&
-            paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_)
+            paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_ && lampLightTexture_)
         {
             world_.Draw(
                 device,
@@ -1500,6 +1524,7 @@ namespace WolfCna
                 *paintingTexture_,
                 *peaceBannerTexture_,
                 *ceilingLampTexture_,
+                *lampLightTexture_,
                 playerPosition_);
         }
 

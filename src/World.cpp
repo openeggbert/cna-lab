@@ -1205,6 +1205,7 @@ namespace WolfCna
         Texture2D& paintingTexture,
         Texture2D& peaceBannerTexture,
         Texture2D& ceilingLampTexture,
+        Texture2D& lampLightTexture,
         const Vector3& cameraPosition)
     {
         if (!vertexBuffer_ || !indexBuffer_ || indices_.empty())
@@ -1300,6 +1301,29 @@ namespace WolfCna
                 effect.setWorldProperty(
                     Matrix::CreateScale(0.54f, 1.0f, 0.54f) *
                     Matrix::CreateTranslation(decoration.position));
+                for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+                {
+                    pass.Apply();
+                    device.DrawIndexedPrimitives(
+                        PrimitiveType::TriangleList,
+                        0,
+                        0,
+                        static_cast<int>(bloodPoolVertices_.size()),
+                        0,
+                        static_cast<int>(bloodPoolIndices_.size() / 3));
+                }
+            }
+
+            effect.setTextureProperty(&lampLightTexture);
+            effect.setDiffuseColorProperty(Vector3(1.0f, 1.0f, 1.0f));
+            for (const Decoration& decoration : decorations_)
+            {
+                if (decoration.type != Decoration::Type::CeilingLamp)
+                    continue;
+
+                effect.setWorldProperty(
+                    Matrix::CreateScale(2.45f, 1.0f, 2.45f) *
+                    Matrix::CreateTranslation(decoration.position.X, 0.004f, decoration.position.Z));
                 for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
                 {
                     pass.Apply();

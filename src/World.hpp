@@ -88,6 +88,7 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::Texture2D& paintingTexture,
             Microsoft::Xna::Framework::Graphics::Texture2D& peaceBannerTexture,
             Microsoft::Xna::Framework::Graphics::Texture2D& ceilingLampTexture,
+            Microsoft::Xna::Framework::Graphics::Texture2D& lampLightTexture,
             const Microsoft::Xna::Framework::Vector3& cameraPosition);
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 PlayerStart() const;
