@@ -1,10 +1,1 @@
-# P1 icon atlas
-
-`p1-icon-atlas.png` is a transparent, one-colour RGBA mask of the eight face
-pictograms in the user-supplied `tamagotchi.png` reference image. It contains
-four top-band icons followed by four bottom-band icons.  It deliberately has
-no white backing pixels, including around the anti-aliased source outlines.
-
-The application does not use the reference photograph or its LCD background at
-runtime. CNA tints the same mask muted grey for inactive icons and near-black
-for a selected or urgent icon.
+# P1 icon atlases\n\n`p1-icon-atlas.png` is the original transparent, one-colour mask of the eight\nface pictograms in the user-supplied visual reference: Food, Light, Game,\nMedicine; Toilet, Health, Discipline, and Attention. It is retained as the\nsource for the normalised derivative and is not loaded at runtime.\n\n`p1-icon-atlas-smooth.png` is the runtime atlas. Each source pictogram is\ntrimmed by its alpha bounds, scaled with Lanczos filtering, converted to black\nRGB with a genuine alpha channel, and centred in an equal 152 x 144 cell. The\n4 x 2 atlas is 608 x 288 pixels. Transparent pixels contain no white backing,\nso the independently coloured upper and lower LCD bands remain visible.\n\nCNA draws every icon at the same destination size. A selected or urgent icon\nuses a separate small cursor; the icon bitmap itself is not given a coloured\ncell background.\n

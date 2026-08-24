@@ -38,9 +38,10 @@ constexpr int DisplayX = (WindowWidth - DisplayPixelWidth) / 2;
 constexpr int DisplayY = 280;
 constexpr int IconBandHeight = 34;
 constexpr int LcdModulePadding = 12;
-constexpr int IconGlyphWidth = 15;
-constexpr int IconGlyphHeight = 10;
-constexpr int IconGlyphScale = 2;
+constexpr int IconAtlasCellWidth = 152;
+constexpr int IconAtlasCellHeight = 144;
+constexpr int IconDrawWidth = 40;
+constexpr int IconDrawHeight = 32;
 
 struct Rgb final {
     std::uint8_t red;
@@ -81,17 +82,6 @@ constexpr std::array<ButtonPosition, 3> ButtonPositions{{
     {202, ButtonY}, {270, ButtonY + 12}, {338, ButtonY},
 }};
 
-constexpr std::array<std::array<std::string_view, IconGlyphHeight>, IconCount> P1IconRows{{
-    {{".#.#.....###...", ".#.#....#...#..", ".###....#...#..", "..#......###...", "..#.......#....", "..#.......#....", "..#.......#....", "..#.......#....", "...............", "..............."}},
-    {{"......#........", "..#...#...#....", "...#.###.#.....", "....#...#......", ".#..#.#.#..#...", "....#...#......", "...#.###.#.....", "......#........", ".....###.......", "..............."}},
-    {{"...........##..", "..........#..#.", "....##.....##..", "...####........", "..######.......", "...####........", "....##.........", ".....##........", "......##.......", ".......##......"}},
-    {{".........##....", "........####...", ".......##..##..", "......##..##...", ".....##..##....", "....##..##.....", "...##..##......", "..##..##.......", ".####..........", "..##..........."}},
-    {{"..######.......", "..#....#.......", "..#....####....", "..######..##...", ".....#.....#...", ".....#######...", "......#####....", ".......###.....", ".......###.....", ".....#######..."}},
-    {{"....#######....", "..##.......##..", ".#...#...#...#.", ".#....###....#.", ".#.....#.....#.", "..##.......##..", "....#######....", ".....#####.....", "....#######....", "..............."}},
-    {{"..##...........", ".####.....#.....", ".#..#....###....", ".####.....#.....", "..##....#####..", "...#......#....", "..###.....#....", ".#.#.#....#....", "...#...........", "..............."}},
-    {{"....#####......", "...#.....#.....", "..#..#.#..#....", "..#.......#....", "...#..#..#.....", "....#####......", "......#........", ".....###.......", "......#........", ".....###......."}},
-}};
-
 const Domain::ProgramDefinition& activeProgramme() noexcept
 {
     // The application has one selected programme today. All programme-specific
@@ -115,6 +105,23 @@ std::filesystem::path defaultSavePath()
     }
     return Persistence::SaveLocation::resolveSlot(
         workingDirectory, Persistence::SaveLocation::platformDataDirectory());
+}
+
+std::filesystem::path iconAtlasPath()
+{
+    constexpr std::array<std::string_view, 2> candidates{{
+        "assets/p1-icon-atlas-smooth.png",
+        "../assets/p1-icon-atlas-smooth.png",
+    }};
+    std::error_code error;
+    for (const std::string_view candidate : candidates) {
+        const std::filesystem::path path(candidate);
+        if (std::filesystem::exists(path, error) && !error) {
+            return path;
+        }
+        error.clear();
+    }
+    return std::filesystem::path(candidates.front());
 }
 
 } // namespace
@@ -142,6 +149,7 @@ void CnaTamagotchiGame::LoadContent()
     pixelTexture_.emplace(getGraphicsDeviceProperty(), 1, 1);
     const Color white(255, 255, 255, 255);
     pixelTexture_->SetData(&white, 1);
+    iconAtlasTexture_.emplace(iconAtlasPath().string(), getGraphicsDeviceProperty());
 }
 
 void CnaTamagotchiGame::Update(GameTime& gameTime)
@@ -1057,37 +1065,31 @@ void CnaTamagotchiGame::drawDevice()
         }
     }
 
-    // The P1 face icons are authored as one-bit glyphs. Only set pixels are
-    // drawn, so the two LCD bands remain fully visible through every cell.
+    // The eight original face pictograms are normalised into equal transparent
+    // cells. The atlas contains black RGB plus alpha only; no cell background
+    // can cover the independently coloured LCD bands.
     for (int index = 0; index < IconCount; ++index) {
         const int slot = index % 4;
         const bool topBand = index < 4;
         const int bandY = topBand ? DisplayY - IconBandHeight : DisplayY + DisplayPixelHeight;
         const int slotWidth = DisplayPixelWidth / 4;
-        const int glyphWidth = IconGlyphWidth * IconGlyphScale;
-        const int glyphHeight = IconGlyphHeight * IconGlyphScale;
-        const int glyphX = DisplayX + slot * slotWidth + (slotWidth - glyphWidth) / 2;
-        const int glyphY = bandY + (IconBandHeight - glyphHeight) / 2;
-        for (int row = 0; row < IconGlyphHeight; ++row) {
-            for (int column = 0; column < IconGlyphWidth; ++column) {
-                if (P1IconRows[static_cast<std::size_t>(index)][static_cast<std::size_t>(row)]
-                        [static_cast<std::size_t>(column)] == '#') {
-                    drawRect(Rectangle(glyphX + column * IconGlyphScale,
-                        glyphY + row * IconGlyphScale, IconGlyphScale, IconGlyphScale), lcdOn);
-                }
-            }
-        }
+        const int iconX = DisplayX + slot * slotWidth + (slotWidth - IconDrawWidth) / 2;
+        const int iconY = bandY + (IconBandHeight - IconDrawHeight) / 2;
+        const Rectangle source(slot * IconAtlasCellWidth, (index / 4) * IconAtlasCellHeight,
+            IconAtlasCellWidth, IconAtlasCellHeight);
+        const Rectangle destination(iconX, iconY, IconDrawWidth, IconDrawHeight);
+        spriteBatch_->Draw(*iconAtlasTexture_, destination, source, lcdOn);
 
         const bool urgent = (index == 3 && pet_.sick)
             || (index == 4 && pet_.wasteCount > 0)
             || (index == 7 && pet_.attentionReason != Domain::ProgramAttentionReason::None);
         if (index == selectedIcon_ || urgent) {
             if (topBand) {
-                drawRect(Rectangle(glyphX + 12, bandY + IconBandHeight - 5, 6, 2), lcdOn);
-                drawRect(Rectangle(glyphX + 14, bandY + IconBandHeight - 3, 2, 2), lcdOn);
+                drawRect(Rectangle(iconX + 17, bandY + IconBandHeight - 5, 6, 2), lcdOn);
+                drawRect(Rectangle(iconX + 19, bandY + IconBandHeight - 3, 2, 2), lcdOn);
             } else {
-                drawRect(Rectangle(glyphX + 14, bandY + 1, 2, 2), lcdOn);
-                drawRect(Rectangle(glyphX + 12, bandY + 3, 6, 2), lcdOn);
+                drawRect(Rectangle(iconX + 19, bandY + 1, 2, 2), lcdOn);
+                drawRect(Rectangle(iconX + 17, bandY + 3, 6, 2), lcdOn);
             }
         }
     }

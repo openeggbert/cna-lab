@@ -57,6 +57,25 @@ write and verify the clean implementation.
   uses a different vertical extent between phases. Retain a focused test for
   each manually verified row.
 
+## Priority 0 — Add selectable physical shell variants
+
+1. Replace the provisional flat shell drawing with a reusable CNA shell renderer
+   that models the rim, translucent or opaque body, recessed LCD bezel, three
+   physical buttons, reset pinhole, highlights, and material depth without a
+   detached floor shadow.
+2. Add historically grounded P1 colour families, beginning with Translucent
+   Blue/Yellow, Blue/Yellow, Pink/Yellow, Green/Yellow, and White/Blue.
+3. Provide an in-application host control for cycling the shell; it must not
+   consume an original P1 A/B/C action or alter the 32 x 16 simulation.
+4. Persist the selected shell identifier in the versioned save format, retain a
+   safe default for existing saves, and add save/load validation tests.
+5. Capture every variant on the same virtual display and compare silhouette,
+   bezel, button offset, reset recess, highlights, and material treatment.
+
+**Acceptance condition:** the player can switch among multiple recognisable P1
+shell treatments, the choice survives restart, and no shell changes LCD pixels
+or P1 behaviour.
+
 ## Priority 1 — Make the home LCD visually faithful
 
 1. Complete the egg's remaining idle phases, then create a visual-reference
