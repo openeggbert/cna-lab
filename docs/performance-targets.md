@@ -271,6 +271,16 @@ discarded and counted in `gpu_timing.discarded_samples` instead of contaminating
 `gpu_render` remains diagnostic rather than a separate pass/fail budget: frame interval is still
 the user-visible gate and includes GPU back-pressure plus presentation behavior.
 
+JSON schema 2 also records per-frame `render_workload` counts. These are exact for Iron Gang's 3D
+front-end submissions: `draw_calls`, explicit EffectPass/buffer/blend `state_change_calls`, declared
+`vertices`, triangle primitives, high-level `geometry_instances`, and `visible_objects`. They do
+not pretend to be driver counters: Clear, Present, backend state deduplication, and HUD
+`SpriteBatch`'s renderer-internal batching are outside the scope. The prototype currently performs
+no frustum or occlusion culling, so “visible” means submitted scene objects; every candidate is
+counted until a real visibility rejection path exists. These counts have no pass/fail threshold
+yet. They establish the baseline needed before draw batching, instancing, or culling work can be
+justified and later compared.
+
 Every report also records whether v-sync was requested, whether CNA's fixed timestep was enabled,
 and the target frame duration. `vertical_sync_requested` describes the requested presentation
 parameters; it is not proof that a virtual display or driver accepted a real swap interval.

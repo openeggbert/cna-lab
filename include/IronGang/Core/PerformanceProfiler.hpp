@@ -30,6 +30,19 @@ namespace IronGang
         Count,
     };
 
+    // Per-frame integer workload submitted by Iron Gang's 3D renderer. These are deliberately
+    // separate from PerformanceMetric: their values are counts, never milliseconds.
+    enum class RenderWorkloadMetric : std::size_t
+    {
+        DrawCalls,
+        StateChanges,
+        Vertices,
+        Triangles,
+        Instances,
+        VisibleObjects,
+        Count,
+    };
+
     // Named, repeatable M12 workloads. InteractiveOrIntro preserves the ordinary game path;
     // every other value is selected explicitly through --profile-scenario.
     enum class PerformanceScenario
@@ -51,6 +64,14 @@ namespace IronGang
         double averageMilliseconds{0.0};
         double p95Milliseconds{0.0};
         double maximumMilliseconds{0.0};
+    };
+
+    struct RenderWorkloadStatistics
+    {
+        std::size_t sampleCount{0};
+        double average{0.0};
+        double p95{0.0};
+        double maximum{0.0};
     };
 
     struct PerformanceReportContext
@@ -101,8 +122,11 @@ namespace IronGang
         // the end-to-end presented-frame cadence; the first call establishes the baseline only.
         void BeginFrame();
         void Record(PerformanceMetric metric, double milliseconds);
+        void RecordRenderWorkload(RenderWorkloadMetric metric, std::uint64_t count);
 
         [[nodiscard]] PerformanceStatistics GetStatistics(PerformanceMetric metric) const;
+        [[nodiscard]] RenderWorkloadStatistics
+        GetRenderWorkloadStatistics(RenderWorkloadMetric metric) const;
         [[nodiscard]] bool WriteJsonReport(const std::string& path,
                                            const PerformanceReportContext& context,
                                            std::string& error) const;
@@ -117,9 +141,16 @@ namespace IronGang
             return static_cast<std::size_t>(metric);
         }
 
+        static constexpr std::size_t RenderWorkloadMetricIndex(RenderWorkloadMetric metric)
+        {
+            return static_cast<std::size_t>(metric);
+        }
+
         bool enabled_{false};
         std::optional<Clock::time_point> previousFrameStart_;
         std::array<std::vector<double>, static_cast<std::size_t>(PerformanceMetric::Count)> samples_;
+        std::array<std::vector<double>, static_cast<std::size_t>(RenderWorkloadMetric::Count)>
+            renderWorkloadSamples_;
     };
 
     // RAII timing for whole Update()/Draw()/Initialize() scopes, including early-return paths.

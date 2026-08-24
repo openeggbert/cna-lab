@@ -11,6 +11,7 @@
 #include "Microsoft/Xna/Framework/Matrix.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -54,6 +55,20 @@ namespace IronGang
         {
             return gameOwnedBytes + importedModels.TotalBytes();
         }
+    };
+
+    // Exact game/front-end 3D submission counts for one frame. StateChanges counts explicit
+    // EffectPass applications plus vertex/index-buffer and blend-state binding calls; a backend
+    // may deduplicate them. VisibleObjects means submitted scene objects: the prototype has no
+    // frustum/occlusion rejection yet, so every submitted object is treated as visible.
+    struct RenderWorkload
+    {
+        std::uint64_t drawCalls{0};
+        std::uint64_t stateChanges{0};
+        std::uint64_t vertices{0};
+        std::uint64_t triangles{0};
+        std::uint64_t instances{0};
+        std::uint64_t visibleObjects{0};
     };
 
     class PrototypeRenderer final
@@ -122,6 +137,11 @@ namespace IronGang
         // driver padding remain outside this value; reports label that limitation explicitly.
         [[nodiscard]] RendererVideoMemoryBreakdown GetTrackedVideoMemory() const;
 
+        // Enabled only for --profile runs. HUD SpriteBatch batching is backend-internal and is
+        // intentionally outside these exact 3D counters.
+        void BeginFrameWorkloadTracking() noexcept;
+        [[nodiscard]] const RenderWorkload& GetFrameWorkload() const noexcept { return frameWorkload_; }
+
     private:
         // tint multiplies vertex color (see SunLight.hpp's own comment on why this, rather than
         // CNA's built-in lighting, drives gate M10's "dynamic sun"). Defaults to full brightness
@@ -152,6 +172,14 @@ namespace IronGang
                                 const Microsoft::Xna::Framework::Matrix& view,
                                 const Microsoft::Xna::Framework::Matrix& projection);
 
+        void DrawModel(Microsoft::Xna::Framework::Graphics::Model& model,
+                       const Microsoft::Xna::Framework::Matrix& world,
+                       const Microsoft::Xna::Framework::Matrix& view,
+                       const Microsoft::Xna::Framework::Matrix& projection);
+        void RecordPrimitiveDraw(const PrimitiveMesh& mesh) noexcept;
+        void RecordLightmapDraw() noexcept;
+        void RecordModelDraw(const Microsoft::Xna::Framework::Graphics::Model& model);
+
         LightmapPrimitiveMesh staticCityLightmapMesh_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::DualTextureEffect> lightmapEffect_;
         // texture0 for lightmapEffect_: a flat, near-50%-gray 1x1 texture so DualTextureEffect's
@@ -162,6 +190,7 @@ namespace IronGang
         // shared ownership, matching real XNA's GC-tracked Effect.Texture) can keep them alive.
         std::shared_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> lightmapNeutralTexture_;
         std::size_t lightmapTextureBytes_{0};
+        std::size_t staticPrimitiveObjectCount_{0};
 
         PrimitiveMesh vehicleMesh_;
         PrimitiveMesh playerMesh_;
@@ -181,5 +210,8 @@ namespace IronGang
         // model; rendering stays on the direct Model::Draw() path used by the other CNJ assets.
         std::optional<Microsoft::Xna::Framework::Graphics::Model> characterModel_;
         std::unique_ptr<CharacterAnimationState> characterAnimation_;
+
+        bool workloadTrackingEnabled_{false};
+        RenderWorkload frameWorkload_;
     };
 }

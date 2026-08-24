@@ -78,6 +78,11 @@ namespace IronGang
                     const LightmapMeshBuilder& builder);
         void Draw(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device) const;
         [[nodiscard]] bool IsReady() const noexcept { return vertexBuffer_ != nullptr && indexBuffer_ != nullptr; }
+        [[nodiscard]] int GetVertexCount() const noexcept
+        {
+            return vertexBuffer_ ? vertexBuffer_->getVertexCountProperty() : 0;
+        }
+        [[nodiscard]] int GetTriangleCount() const noexcept { return primitiveCount_; }
         [[nodiscard]] std::size_t GetTrackedVideoMemoryBytes() const noexcept { return trackedVideoMemoryBytes_; }
 
     private:

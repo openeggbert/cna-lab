@@ -909,6 +909,13 @@ namespace
         }
         profiler.Record(IronGang::PerformanceMetric::DistrictLoadCpu, 12.5);
         profiler.Record(IronGang::PerformanceMetric::GpuRender, 3.25);
+        profiler.RecordRenderWorkload(IronGang::RenderWorkloadMetric::DrawCalls, 10);
+        profiler.RecordRenderWorkload(IronGang::RenderWorkloadMetric::DrawCalls, 12);
+        profiler.RecordRenderWorkload(IronGang::RenderWorkloadMetric::StateChanges, 31);
+        profiler.RecordRenderWorkload(IronGang::RenderWorkloadMetric::Vertices, 2400);
+        profiler.RecordRenderWorkload(IronGang::RenderWorkloadMetric::Triangles, 1200);
+        profiler.RecordRenderWorkload(IronGang::RenderWorkloadMetric::Instances, 8);
+        profiler.RecordRenderWorkload(IronGang::RenderWorkloadMetric::VisibleObjects, 42);
 
         const IronGang::PerformanceStatistics frame =
             profiler.GetStatistics(IronGang::PerformanceMetric::FrameInterval);
@@ -919,6 +926,11 @@ namespace
                 "performance profiler p95 must use the nearest-rank definition");
         Require(std::abs(frame.maximumMilliseconds - 20.0) < 1e-9,
                 "performance profiler maximum must match the largest sample");
+        const IronGang::RenderWorkloadStatistics drawCalls =
+            profiler.GetRenderWorkloadStatistics(IronGang::RenderWorkloadMetric::DrawCalls);
+        Require(drawCalls.sampleCount == 2 && std::abs(drawCalls.average - 11.0) < 1e-9 &&
+                    std::abs(drawCalls.p95 - 12.0) < 1e-9 && std::abs(drawCalls.maximum - 12.0) < 1e-9,
+                "render workload statistics must retain integer counts and use nearest-rank p95");
 
         IronGang::PerformanceReportContext context;
         context.backend = "TEST";
@@ -950,6 +962,15 @@ namespace
         const std::string report((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
         Require(report.find("\"backend\": \"TEST\"") != std::string::npos,
                 "performance report must identify its graphics backend");
+        Require(report.find("\"schema_version\": 2") != std::string::npos &&
+                    report.find("\"draw_calls\": {\"samples\": 2, \"average\": 11.000, \"p95\": 12.000") !=
+                        std::string::npos &&
+                    report.find("\"state_change_calls\": {\"samples\": 1, \"average\": 31.000") !=
+                        std::string::npos &&
+                    report.find("\"visible_objects\": {\"samples\": 1, \"average\": 42.000") !=
+                        std::string::npos &&
+                    report.find("excludes Clear, HUD SpriteBatch internal batching") != std::string::npos,
+                "performance report must expose scoped 3D workload counts without claiming backend counters");
         Require(report.find("\"present_cpu\"") != std::string::npos,
                 "performance report must expose the EndDraw/Present diagnostic separately");
         Require(report.find("\"gpu_render\": {\"samples\": 1, \"average_ms\": 3.250") !=

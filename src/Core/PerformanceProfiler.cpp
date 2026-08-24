@@ -41,6 +41,28 @@ namespace IronGang
             return "unknown";
         }
 
+        const char* RenderWorkloadMetricName(RenderWorkloadMetric metric)
+        {
+            switch (metric)
+            {
+            case RenderWorkloadMetric::DrawCalls:
+                return "draw_calls";
+            case RenderWorkloadMetric::StateChanges:
+                return "state_change_calls";
+            case RenderWorkloadMetric::Vertices:
+                return "vertices";
+            case RenderWorkloadMetric::Triangles:
+                return "triangles";
+            case RenderWorkloadMetric::Instances:
+                return "geometry_instances";
+            case RenderWorkloadMetric::VisibleObjects:
+                return "visible_objects";
+            case RenderWorkloadMetric::Count:
+                break;
+            }
+            return "unknown";
+        }
+
         std::string EscapeJson(const std::string& value)
         {
             std::string escaped;
@@ -157,6 +179,15 @@ namespace IronGang
         samples_[MetricIndex(metric)].push_back(milliseconds);
     }
 
+    void PerformanceProfiler::RecordRenderWorkload(RenderWorkloadMetric metric, std::uint64_t count)
+    {
+        if (!enabled_ || metric == RenderWorkloadMetric::Count)
+        {
+            return;
+        }
+        renderWorkloadSamples_[RenderWorkloadMetricIndex(metric)].push_back(static_cast<double>(count));
+    }
+
     PerformanceStatistics PerformanceProfiler::GetStatistics(PerformanceMetric metric) const
     {
         PerformanceStatistics result;
@@ -185,6 +216,38 @@ namespace IronGang
         const std::size_t percentileIndex = static_cast<std::size_t>(
             std::ceil(0.95 * static_cast<double>(sorted.size()))) - 1U;
         result.p95Milliseconds = sorted[percentileIndex];
+        return result;
+    }
+
+    RenderWorkloadStatistics
+    PerformanceProfiler::GetRenderWorkloadStatistics(RenderWorkloadMetric metric) const
+    {
+        RenderWorkloadStatistics result;
+        if (metric == RenderWorkloadMetric::Count)
+        {
+            return result;
+        }
+
+        const std::vector<double>& samples = renderWorkloadSamples_[RenderWorkloadMetricIndex(metric)];
+        result.sampleCount = samples.size();
+        if (samples.empty())
+        {
+            return result;
+        }
+
+        double total = 0.0;
+        for (const double sample : samples)
+        {
+            total += sample;
+            result.maximum = std::max(result.maximum, sample);
+        }
+        result.average = total / static_cast<double>(samples.size());
+
+        std::vector<double> sorted = samples;
+        std::sort(sorted.begin(), sorted.end());
+        const std::size_t percentileIndex = static_cast<std::size_t>(
+            std::ceil(0.95 * static_cast<double>(sorted.size()))) - 1U;
+        result.p95 = sorted[percentileIndex];
         return result;
     }
 
@@ -220,7 +283,7 @@ namespace IronGang
 
             output << std::fixed << std::setprecision(3);
             output << "{\n"
-                   << "  \"schema_version\": 1,\n"
+                   << "  \"schema_version\": 2,\n"
                    << "  \"backend\": \"" << EscapeJson(context.backend) << "\",\n"
                    << "  \"build_configuration\": \"" << EscapeJson(context.buildConfiguration) << "\",\n"
                    << "  \"scenario\": \"" << EscapeJson(context.scenario) << "\",\n"
@@ -259,6 +322,22 @@ namespace IronGang
                        << ", \"p95_ms\": " << statistics.p95Milliseconds
                        << ", \"maximum_ms\": " << statistics.maximumMilliseconds << "}";
                 output << (index + 1U == static_cast<std::size_t>(PerformanceMetric::Count) ? "\n" : ",\n");
+            }
+
+            output << "  },\n"
+                   << "  \"render_workload\": {\n"
+                   << "    \"scope\": \"Iron Gang 3D front-end submissions; excludes Clear, HUD SpriteBatch internal batching, Present, and backend state deduplication\",\n"
+                   << "    \"visibility_policy\": \"no frustum or occlusion culling; every submitted scene object counts as visible\",\n";
+
+            for (std::size_t index = 0; index < static_cast<std::size_t>(RenderWorkloadMetric::Count); ++index)
+            {
+                const auto metric = static_cast<RenderWorkloadMetric>(index);
+                const RenderWorkloadStatistics statistics = GetRenderWorkloadStatistics(metric);
+                output << "    \"" << RenderWorkloadMetricName(metric) << "\": {\"samples\": "
+                       << statistics.sampleCount << ", \"average\": " << statistics.average
+                       << ", \"p95\": " << statistics.p95
+                       << ", \"maximum\": " << statistics.maximum << "}";
+                output << (index + 1U == static_cast<std::size_t>(RenderWorkloadMetric::Count) ? "\n" : ",\n");
             }
 
             output << "  },\n"

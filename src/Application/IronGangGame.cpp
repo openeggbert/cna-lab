@@ -138,6 +138,21 @@ namespace IronGang
         return performanceProfiler_.WriteJsonReport(performanceReportPath_, context, error);
     }
 
+    void IronGangGame::RecordRenderWorkload()
+    {
+        if (!performanceProfiler_.IsEnabled())
+        {
+            return;
+        }
+        const RenderWorkload& workload = renderer_.GetFrameWorkload();
+        performanceProfiler_.RecordRenderWorkload(RenderWorkloadMetric::DrawCalls, workload.drawCalls);
+        performanceProfiler_.RecordRenderWorkload(RenderWorkloadMetric::StateChanges, workload.stateChanges);
+        performanceProfiler_.RecordRenderWorkload(RenderWorkloadMetric::Vertices, workload.vertices);
+        performanceProfiler_.RecordRenderWorkload(RenderWorkloadMetric::Triangles, workload.triangles);
+        performanceProfiler_.RecordRenderWorkload(RenderWorkloadMetric::Instances, workload.instances);
+        performanceProfiler_.RecordRenderWorkload(RenderWorkloadMetric::VisibleObjects, workload.visibleObjects);
+    }
+
     void IronGangGame::Initialize()
     {
         ScopedPerformanceSample startupSample(performanceProfiler_, PerformanceMetric::StartupCpu);
@@ -950,6 +965,10 @@ namespace IronGang
     void IronGangGame::Draw(const GameTime& gameTime)
     {
         performanceProfiler_.BeginFrame();
+        if (performanceProfiler_.IsEnabled())
+        {
+            renderer_.BeginFrameWorkloadTracking();
+        }
         ScopedPerformanceSample renderSample(performanceProfiler_, PerformanceMetric::RenderCpu);
         (void)gameTime;
         Graphics::GraphicsDevice& device = getGraphicsDeviceProperty();
@@ -982,6 +1001,7 @@ namespace IronGang
             {
                 gpuFrameTimer_->End();
             }
+            RecordRenderWorkload();
             return;
         }
 
@@ -1126,6 +1146,7 @@ namespace IronGang
         {
             gpuFrameTimer_->End();
         }
+        RecordRenderWorkload();
     }
 
     void IronGangGame::EndDraw()

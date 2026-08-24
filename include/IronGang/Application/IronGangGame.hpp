@@ -78,6 +78,7 @@ namespace IronGang
         // (Initialize, district arrival, load, reset), since none of this ambient state is part
         // of SaveGame (plan_19/20/21/22's own scope note: no NPC/wanted persistence yet).
         void RespawnTrafficAndPedestrians();
+        void RecordRenderWorkload();
 
         std::unique_ptr<Microsoft::Xna::Framework::GraphicsDeviceManager> graphicsDeviceManager_;
         std::string assetRoot_;

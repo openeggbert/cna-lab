@@ -47,6 +47,15 @@ Release/development EasyGL, software plus all CTest targets, strict syntax check
 and the full mixed runtime flow pass. This proves the reporting path; llvmpipe is still not
 qualifying hardware.
 
+`IG-35-005` then added scoped render-workload counts to JSON schema 2. Unit coverage checks exact
+nearest-rank statistics and scope metadata. A 540-frame Release EasyGL mixed run, again only on
+isolated Xvfb/X11, sampled every frame and reported p95/max of 18 draw calls, 56 explicit
+state-change calls, 1,768 declared vertices, 948 triangles, 16 geometry instances, and 67 submitted
+visible objects. Transition frames reset to zero instead of leaking the previous frame's counts.
+The report explicitly excludes HUD backend batching and driver state deduplication; “visible” means
+submitted because no culling path exists yet. Software/CTest, syntax, Release/development EasyGL,
+Web/Emscripten, and the mixed runtime flow all pass.
+
 ## Current modular dependency baseline (2026-08-22)
 
 Iron Gang now configures against the sibling `../cnanext` and modular `../sharp-runtime`

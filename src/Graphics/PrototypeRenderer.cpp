@@ -5,9 +5,13 @@
 
 #include "Microsoft/Xna/Framework/Graphics/AnimationPlayer.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
+#include "Microsoft/Xna/Framework/Graphics/Effect.hpp"
+#include "Microsoft/Xna/Framework/Graphics/EffectTechnique.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Graphics/ModelMesh.hpp"
+#include "Microsoft/Xna/Framework/Graphics/ModelMeshPart.hpp"
 #include "Microsoft/Xna/Framework/Graphics/PbrEffect.hpp"
+#include "Microsoft/Xna/Framework/Graphics/PrimitiveType.hpp"
 #include "Microsoft/Xna/Framework/Graphics/RasterizerState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SkinnedEffect.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SkinnedPbrEffect.hpp"
@@ -217,6 +221,7 @@ namespace IronGang
         // not per-vertex vertex color -- MC3-sourced models (warehouseModel_) have no lightmap UV
         // channel from the current pipeline and stay out of scope for this pass.
         LightmapMeshBuilder cityBuilder;
+        staticPrimitiveObjectCount_ = 0;
         for (const WorldBox& box : world.GetBoxes())
         {
             if (warehouseModel_.has_value() && box.name == "warehouse")
@@ -225,6 +230,7 @@ namespace IronGang
                 continue;
             }
             cityBuilder.AddBox(box.center, box.size, box.color);
+            ++staticPrimitiveObjectCount_;
         }
         cityBuilder.Finalize();
         staticCityLightmapMesh_.Upload(device, cityBuilder);
@@ -267,6 +273,98 @@ namespace IronGang
         return result;
     }
 
+    void PrototypeRenderer::BeginFrameWorkloadTracking() noexcept
+    {
+        workloadTrackingEnabled_ = true;
+        frameWorkload_ = {};
+    }
+
+    void PrototypeRenderer::RecordPrimitiveDraw(const PrimitiveMesh& mesh) noexcept
+    {
+        if (!workloadTrackingEnabled_ || !mesh.IsReady())
+        {
+            return;
+        }
+        ++frameWorkload_.drawCalls;
+        // One EffectPass::Apply plus SetVertexBuffer and Indices in PrimitiveMesh::Draw.
+        frameWorkload_.stateChanges += 3;
+        frameWorkload_.vertices += static_cast<std::uint64_t>(std::max(0, mesh.GetVertexCount()));
+        frameWorkload_.triangles += static_cast<std::uint64_t>(std::max(0, mesh.GetTriangleCount()));
+    }
+
+    void PrototypeRenderer::RecordLightmapDraw() noexcept
+    {
+        if (!workloadTrackingEnabled_ || !staticCityLightmapMesh_.IsReady())
+        {
+            return;
+        }
+        ++frameWorkload_.drawCalls;
+        // One EffectPass::Apply plus the lightmap mesh's two buffer-binding calls.
+        frameWorkload_.stateChanges += 3;
+        frameWorkload_.vertices +=
+            static_cast<std::uint64_t>(std::max(0, staticCityLightmapMesh_.GetVertexCount()));
+        frameWorkload_.triangles +=
+            static_cast<std::uint64_t>(std::max(0, staticCityLightmapMesh_.GetTriangleCount()));
+    }
+
+    void PrototypeRenderer::RecordModelDraw(const Model& model)
+    {
+        if (!workloadTrackingEnabled_)
+        {
+            return;
+        }
+
+        bool submitted = false;
+        for (const ModelMesh* mesh : model.getMeshesProperty())
+        {
+            if (mesh == nullptr)
+            {
+                continue;
+            }
+            for (const ModelMeshPart* part : mesh->getMeshPartsProperty())
+            {
+                if (part == nullptr || part->getEffectProperty() == nullptr ||
+                    part->getPrimitiveCountProperty() <= 0)
+                {
+                    continue;
+                }
+                const int passCount = part->getEffectProperty()->getCurrentTechniqueProperty()
+                    ->getPassesProperty().getCountProperty();
+                if (passCount <= 0)
+                {
+                    continue;
+                }
+
+                const std::uint64_t passes = static_cast<std::uint64_t>(passCount);
+                frameWorkload_.drawCalls += passes;
+                // ModelMesh::Draw binds VB/IB once per part and applies each effect pass once.
+                frameWorkload_.stateChanges += 2U + passes;
+                frameWorkload_.vertices +=
+                    static_cast<std::uint64_t>(std::max(0, part->getNumVerticesProperty())) * passes;
+                const PrimitiveType topology = part->getPrimitiveTypeEXTProperty();
+                if (topology == PrimitiveType::TriangleList || topology == PrimitiveType::TriangleStrip)
+                {
+                    frameWorkload_.triangles +=
+                        static_cast<std::uint64_t>(part->getPrimitiveCountProperty()) * passes;
+                }
+                submitted = true;
+            }
+        }
+        if (submitted)
+        {
+            ++frameWorkload_.instances;
+        }
+    }
+
+    void PrototypeRenderer::DrawModel(Model& model,
+                                      const Matrix& world,
+                                      const Matrix& view,
+                                      const Matrix& projection)
+    {
+        model.Draw(world, view, projection);
+        RecordModelDraw(model);
+    }
+
     void PrototypeRenderer::DrawMesh(GraphicsDevice& device,
                                      PrimitiveMesh& mesh,
                                      const Matrix& worldMatrix,
@@ -274,10 +372,17 @@ namespace IronGang
     {
         effect_->World = worldMatrix;
         effect_->setDiffuseColorProperty(tint);
+        bool submitted = false;
         for (auto& pass : effect_->getCurrentTechniqueProperty()->getPassesProperty())
         {
             pass.Apply();
             mesh.Draw(device);
+            RecordPrimitiveDraw(mesh);
+            submitted = submitted || mesh.IsReady();
+        }
+        if (workloadTrackingEnabled_ && submitted)
+        {
+            ++frameWorkload_.instances;
         }
     }
 
@@ -286,10 +391,17 @@ namespace IronGang
         lightmapEffect_->setWorldProperty(Matrix::getIdentityProperty());
         lightmapEffect_->setViewProperty(view);
         lightmapEffect_->setProjectionProperty(projection);
+        bool submitted = false;
         for (auto& pass : lightmapEffect_->getCurrentTechniqueProperty()->getPassesProperty())
         {
             pass.Apply();
             staticCityLightmapMesh_.Draw(device);
+            RecordLightmapDraw();
+            submitted = submitted || staticCityLightmapMesh_.IsReady();
+        }
+        if (workloadTrackingEnabled_ && submitted)
+        {
+            ++frameWorkload_.instances;
         }
     }
 
@@ -329,6 +441,11 @@ namespace IronGang
         const float sunBrightness = ComputeSunBrightness();
         const Vector3 sunTint(sunBrightness, sunBrightness, sunBrightness);
 
+        if (workloadTrackingEnabled_)
+        {
+            frameWorkload_.visibleObjects += static_cast<std::uint64_t>(staticPrimitiveObjectCount_);
+        }
+
         // The static city mesh gets real per-face baked lighting (DrawStaticCityMesh(), a
         // DualTextureEffect) instead of the CPU brightness tint below.
         DrawStaticCityMesh(device, view, projection);
@@ -348,22 +465,32 @@ namespace IronGang
             SetModelDiffuseColor(vehicleModels_->windshield, sunTint);
             SetModelDiffuseColor(vehicleModels_->wheel, sunTint);
 
-            vehicleModels_->body.Draw(vehicleWorld, view, projection);
-            vehicleModels_->cabin.Draw(Matrix::CreateTranslation(kCabinOffset) * vehicleWorld, view, projection);
-            vehicleModels_->windshield.Draw(Matrix::CreateTranslation(kWindshieldOffset) * vehicleWorld, view, projection);
+            DrawModel(vehicleModels_->body, vehicleWorld, view, projection);
+            DrawModel(vehicleModels_->cabin, Matrix::CreateTranslation(kCabinOffset) * vehicleWorld, view, projection);
+            DrawModel(vehicleModels_->windshield,
+                      Matrix::CreateTranslation(kWindshieldOffset) * vehicleWorld, view, projection);
             for (const Vector3& wheelOffset : kWheelOffsets)
             {
-                vehicleModels_->wheel.Draw(Matrix::CreateTranslation(wheelOffset) * vehicleWorld, view, projection);
+                DrawModel(vehicleModels_->wheel,
+                          Matrix::CreateTranslation(wheelOffset) * vehicleWorld, view, projection);
             }
         }
         else
         {
             DrawMesh(device, vehicleMesh_, vehicleWorld, sunTint);
         }
+        if (workloadTrackingEnabled_)
+        {
+            ++frameWorkload_.visibleObjects;
+        }
 
         if (warehouseModel_.has_value())
         {
-            warehouseModel_->Draw(Matrix::CreateTranslation(warehousePosition_), view, projection);
+            DrawModel(*warehouseModel_, Matrix::CreateTranslation(warehousePosition_), view, projection);
+            if (workloadTrackingEnabled_)
+            {
+                ++frameWorkload_.visibleObjects;
+            }
         }
 
         if (drawPlayer)
@@ -391,14 +518,19 @@ namespace IronGang
                         }
                     }
                 }
-                characterModel_->Draw(Matrix::CreateRotationY(playerYaw) * Matrix::CreateTranslation(playerPosition),
-                                      view, projection);
+                DrawModel(*characterModel_,
+                          Matrix::CreateRotationY(playerYaw) * Matrix::CreateTranslation(playerPosition),
+                          view, projection);
             }
             else
             {
                 const Vector3 playerBodyPosition = playerPosition + Vector3(0.0F, -0.95F, 0.0F);
                 DrawMesh(device, playerMesh_,
                         Matrix::CreateRotationY(playerYaw) * Matrix::CreateTranslation(playerBodyPosition), sunTint);
+            }
+            if (workloadTrackingEnabled_)
+            {
+                ++frameWorkload_.visibleObjects;
             }
         }
 
@@ -412,6 +544,10 @@ namespace IronGang
         }
         DrawShadowDecal(device, vehiclePosition, vehicleYaw, 1.9F, 3.7F);
         device.setBlendStateProperty(BlendState::Opaque);
+        if (workloadTrackingEnabled_)
+        {
+            frameWorkload_.stateChanges += 2;
+        }
     }
 
     void PrototypeRenderer::DrawTraffic(GraphicsDevice& device,
@@ -428,6 +564,13 @@ namespace IronGang
         // SunLight.hpp's own comment.
         const float sunBrightness = ComputeSunBrightness();
         const Vector3 sunTint(sunBrightness, sunBrightness, sunBrightness);
+
+        if (workloadTrackingEnabled_)
+        {
+            frameWorkload_.visibleObjects += static_cast<std::uint64_t>(trafficVehicles.size()) +
+                                             static_cast<std::uint64_t>(pedestrians.size()) +
+                                             static_cast<std::uint64_t>(policeCars.size());
+        }
 
         for (const ActorPose& pose : trafficVehicles)
         {

@@ -132,3 +132,26 @@ extension, but remains unaccelerated software GL; these values validate collecti
 hardware captures materially more diagnostic, but do not replace named-hardware qualification.
 The historic 51-58 ms hardware-backed runs predate this metric and must be rerun before their
 Draw/GPU/Present split is known.
+
+## 2026-08-24 — scoped 3D workload counters
+
+JSON schema 2 adds per-frame counts for the exact 3D work Iron Gang submits through its procedural
+meshes and CNA `Model` parts. Effect passes and vertex/index/blend binding calls are counted at the
+front-end seam; the report does not invent driver state transitions after backend deduplication.
+HUD `SpriteBatch` internal batching is likewise excluded. With no frustum/occlusion culling in the
+prototype, every submitted scene object is labelled visible and the policy is embedded in JSON.
+
+The full 540-frame Release EasyGL mixed run on isolated Xvfb/X11, v-sync requested off, reported:
+
+| Per-frame 3D workload | Average | p95 | Maximum |
+| --- | ---: | ---: | ---: |
+| Draw calls | 13.730 | 18 | 18 |
+| State-change calls | 43.052 | 56 | 56 |
+| Declared vertices | 1,548.711 | 1,768 | 1,768 |
+| Triangles | 826.044 | 948 | 948 |
+| Geometry instances | 13.293 | 16 | 16 |
+| Submitted visible objects | 59.891 | 67 | 67 |
+
+All 540 frames contributed a sample. The non-integral averages include the district-transition
+loading frames, whose 3D counts correctly reset to zero; p95/max describe the populated district
+workload. These measurements are a diagnostic baseline, not content-budget pass/fail checks.

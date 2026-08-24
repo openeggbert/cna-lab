@@ -67,6 +67,21 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now reports scoped per-frame 3D workload (`IG-35-005`).** `PrototypeRenderer` counts the
+actual game/CNA front-end submissions it makes while `--profile` is active: draw calls, explicit
+effect-pass/buffer/blend state calls, declared vertex ranges, triangle primitives, geometry
+instances, and submitted scene objects. JSON schema 2 adds nearest-rank p95/average/maximum for
+all six under `render_workload`, with explicit scope text: HUD `SpriteBatch`'s backend-internal
+batching and driver state deduplication are not guessed, and the current renderer has no
+frustum/occlusion culling, so every submitted scene object counts as visible.
+
+- A full 540-frame Release EasyGL `mixed` run on isolated Xvfb/X11 produced p95/max values of 18
+  draw calls, 56 state-change calls, 1,768 vertices, 948 triangles, 16 geometry instances, and 67
+  visible objects. All 540 frames were sampled; district-transition loading frames correctly
+  contributed zero 3D workload rather than retaining stale values.
+- Software plus all three CTest targets, strict syntax checks, Release/development EasyGL, the
+  Emscripten/Web build, and the isolated mixed real flow pass.
+
 **M12 now records a true asynchronous GPU Draw-range time.** New `GpuFrameTimer`
 (`include/`/`src/Graphics/GpuFrameTimer.*`) uses CNA's renderer timer-query contract without
 enabling the full 77-source GraphicsExt module. It starts before Clear, ends after the HUD,
