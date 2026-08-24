@@ -17,7 +17,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - keyboard turning with a fixed horizon
 - crosshair-free play view with a large original AI-generated knife, sidearm, repeater or heavy automatic sprite in the lower center
 - discoverable repeater and heavy automatic weapon with distinct first-person sprites and matching HUD icons
-- visible knife lunge and firearm recoil animations provide immediate attack feedback
+- every weapon has an original dedicated slash/firing frame, combined with visible knife lunge or firearm recoil for immediate attack feedback
 - clearly audible generated CNA effects for firearm shots, knife attacks, ammunition, enemy alerts and attacks, defeated enemies, doors, locks and player damage
 - a generated looping bunker ambience, with a master sound on/off control in the title menu
 - uncapped score for gold, defeated enemies and completing the level; every 40,000 points awards another life

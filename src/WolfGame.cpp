@@ -618,6 +618,10 @@ namespace WolfCna
         sidearmView_ = std::make_unique<Texture2D>("assets/weapons/sidearm.png", device);
         repeaterView_ = std::make_unique<Texture2D>("assets/weapons/repeater.png", device);
         heavyWeaponView_ = std::make_unique<Texture2D>("assets/weapons/heavy-automatic.png", device);
+        knifeAttackView_ = std::make_unique<Texture2D>("assets/weapons/knife-attack.png", device);
+        sidearmAttackView_ = std::make_unique<Texture2D>("assets/weapons/sidearm-attack.png", device);
+        repeaterAttackView_ = std::make_unique<Texture2D>("assets/weapons/repeater-attack.png", device);
+        heavyWeaponAttackView_ = std::make_unique<Texture2D>("assets/weapons/heavy-automatic-attack.png", device);
     }
 
     void WolfGame::CreateSoundEffects()
@@ -699,7 +703,8 @@ namespace WolfCna
     void WolfGame::DrawHud()
     {
         if (!hudSpriteBatch_ || !hudPixel_ || !sidearmView_ || !knifeView_ ||
-            !repeaterView_ || !heavyWeaponView_)
+            !repeaterView_ || !heavyWeaponView_ || !knifeAttackView_ ||
+            !sidearmAttackView_ || !repeaterAttackView_ || !heavyWeaponAttackView_)
             return;
 
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
@@ -709,11 +714,17 @@ namespace WolfCna
         const int panelHeight = 84;
         const int panelY = viewport.getYProperty() + viewport.getHeightProperty() - panelHeight;
         const int viewSize = std::clamp(viewport.getHeightProperty() / 3, 144, 236);
-        Texture2D* viewTexture = weapon_ == Weapon::Knife
+        Texture2D* idleTexture = weapon_ == Weapon::Knife
             ? knifeView_.get()
             : weapon_ == Weapon::Sidearm
                 ? sidearmView_.get()
                 : weapon_ == Weapon::Repeater ? repeaterView_.get() : heavyWeaponView_.get();
+        Texture2D* attackTexture = weapon_ == Weapon::Knife
+            ? knifeAttackView_.get()
+            : weapon_ == Weapon::Sidearm
+                ? sidearmAttackView_.get()
+                : weapon_ == Weapon::Repeater ? repeaterAttackView_.get() : heavyWeaponAttackView_.get();
+        Texture2D* viewTexture = weaponFlashSeconds_ > 0.0f ? attackTexture : idleTexture;
         int weaponSize = viewSize;
         int weaponX = centerX - weaponSize / 2;
         int weaponY = panelY - weaponSize + 18;
@@ -743,12 +754,6 @@ namespace WolfCna
             *viewTexture,
             Rectangle(weaponX, weaponY, weaponSize, weaponSize),
             Color(255, 255, 255, 255));
-        if (weaponFlashSeconds_ > 0.0f && weapon_ != Weapon::Knife)
-        {
-            const int muzzleY = weaponY - 4;
-            hudSpriteBatch_->Draw(*hudPixel_, Rectangle(centerX - 7, muzzleY - 20, 15, 31), Color(255, 239, 119, 255));
-            hudSpriteBatch_->Draw(*hudPixel_, Rectangle(centerX - 18, muzzleY - 10, 37, 12), Color(255, 143, 42, 255));
-        }
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), panelY, viewport.getWidthProperty(), panelHeight), Color(31, 62, 137, 255));
         hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), panelY, viewport.getWidthProperty(), 3), Color(14, 25, 70, 255));
         const Color labelColor(188, 213, 255, 255);
@@ -766,7 +771,7 @@ namespace WolfCna
         drawReadout(4, "AMMO", std::to_string(ammo_));
         const int weaponCenter = viewport.getXProperty() + viewport.getWidthProperty() * 11 / 12;
         hudSpriteBatch_->Draw(
-            *viewTexture,
+            *idleTexture,
             Rectangle(weaponCenter - 30, panelY + 12, 60, 60),
             Color(255, 255, 255, 255));
         if (cheatMessageSeconds_ > 0.0f)

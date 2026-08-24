@@ -379,3 +379,73 @@ checkerboard despite requesting alpha. Their unchanged color pixels were combine
 with project-generated edge-connected binary background masks. This preserves
 enclosed bright details such as teeth and muzzle flashes while removing only the
 checkerboard connected to the image boundary. No third-party pixels were added.
+
+## `assets/weapons/knife-attack.png`
+
+Prompt (using the committed ready knife as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent first-person melee attack-frame sprite for an original retro first-person shooter
+Input images: Image 1 is the exact weapon, hand and style reference
+Primary request: redraw the same original bunker utility knife and same tan fingerless-gloved right hand from Image 1 at the strongest instant of a fast diagonal knife slash, forearm thrust farther into the view, blade crossing the center from lower right toward upper left
+Subject: preserve the identical broad silver-gray blade, dark teal grip, glove, skin tone, palette and original fictional design
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: square transparent canvas; exactly one knife and one hand; energetic diagonal attack silhouette centered and fully visible; forearm exits through the bottom edge; same first-person viewpoint and scale family as Image 1
+Constraints: genuinely transparent background and preserved alpha; no blood; no gore; no target; no second hand; no text; no logo; no watermark; no scenery; no political or military insignia; no motion-blur haze
+Avoid: changing weapon identity, photorealism, 3D render, smooth gradients, detached hand, extra blade, copyrighted game weapons, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+## `assets/weapons/sidearm-attack.png`
+
+Prompt (using the committed ready sidearm as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent first-person firearm attack-frame sprite for an original retro first-person shooter
+Input images: Image 1 is the exact weapon, hands and style reference
+Primary request: redraw the same original compact graphite-and-teal fictional sidearm and same two tan fingerless-gloved hands from Image 1 at the instant of firing, slide kicked slightly rearward and muzzle raised by recoil, with one compact amber-white muzzle flash
+Subject: preserve the identical weapon body, teal grip panels, hands, forearms, palette and original fictional design
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: square transparent canvas; centered symmetrical first-person firing view; entire weapon and both hands visible; forearms exit through the bottom edge; same scale and viewpoint family as Image 1
+Constraints: genuinely transparent background and preserved alpha; exactly one sidearm and two hands; one contained muzzle flash only; no projectile; no casing; no blood; no gore; no text; no logo; no watermark; no scenery; no political or military insignia
+Avoid: oversized explosion, changing weapon identity, real weapon brand, photorealism, 3D render, smooth gradients, extra hands or guns, copyrighted game weapons, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+## `assets/weapons/repeater-attack.png`
+
+Prompt (using the committed ready repeater as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent first-person automatic-weapon attack-frame sprite for an original retro first-person shooter
+Input images: Image 1 is the exact weapon, hands and style reference
+Primary request: redraw the same original graphite-and-amber three-shot repeater and same two tan fingerless-gloved hands from Image 1 at the instant of firing a burst, weapon pushed slightly rearward by recoil, upper cooling rails brightened, with one compact amber-white muzzle flash at the center muzzle
+Subject: preserve the identical boxy fictional weapon, twin upper rails, graphite body, amber details, hands, forearms, palette and original design
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: square transparent canvas; centered symmetrical first-person firing view; entire weapon and both hands visible; forearms exit through the bottom edge; same scale and viewpoint family as Image 1
+Constraints: genuinely transparent background and preserved alpha; exactly one repeater and two hands; one contained muzzle flash only; no projectile; no casing; no blood; no gore; no text; no logo; no watermark; no scenery; no political or military insignia
+Avoid: oversized explosion, minigun, changing weapon identity, real weapon brand, photorealism, 3D render, smooth gradients, extra hands or guns, copyrighted game weapons, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+## `assets/weapons/heavy-automatic-attack.png`
+
+Prompt (using the committed ready heavy automatic as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent first-person heavy-weapon attack-frame sprite for an original retro first-person shooter
+Input images: Image 1 is the exact weapon, hands and style reference
+Primary request: redraw the same original graphite-crimson-and-brass heavy automatic bunker weapon and same two tan fingerless-gloved hands from Image 1 at the instant of firing, broad assembly recoiling slightly downward into the hands, all four vented barrel shrouds active, with compact red-amber muzzle flashes contained at their tips
+Subject: preserve the identical four-shroud fictional industrial weapon, graphite housing, crimson and brass details, hands, forearms, palette and original design
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited palette and crisp hard edges
+Composition/framing: square transparent canvas; centered symmetrical first-person firing view; entire weapon and both hands visible; forearms exit through the bottom edge; same scale and viewpoint family as Image 1
+Constraints: genuinely transparent background and preserved alpha; exactly one heavy weapon and two hands; compact contained flashes only; no projectile; no casing; no blood; no gore; no text; no logo; no watermark; no scenery; no political or military insignia
+Avoid: oversized explosion, recognizable minigun design, changing weapon identity, real weapon brand, photorealism, 3D render, smooth gradients, extra hands or guns, copyrighted game weapons, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+The sidearm and heavy-automatic exports contained a baked light checkerboard.
+Their unchanged color pixels were combined with project-generated
+brightness/chroma masks. Small neutral highlights are retained by connected-area
+filtering, colored muzzle flashes remain opaque, and large neutral checkerboard
+regions become transparent. No third-party pixels were added.

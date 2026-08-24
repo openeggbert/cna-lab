@@ -66,6 +66,10 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> knifeView_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterView_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyWeaponView_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> knifeAttackView_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> sidearmAttackView_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterAttackView_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyWeaponAttackView_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> shotSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> knifeSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> pickupSound_;

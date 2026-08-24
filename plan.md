@@ -1080,8 +1080,9 @@ The four primitive weapon views and icons have been replaced by original
 high-resolution transparent pixel-art sprites. Every archetype now also has a
 dedicated firing or lunge frame shown for a short timer synchronized to the actual
 attack event. Additional idle/chase transitions and damage reactions remain,
-while a first transform-based weapon pass gives the knife a forward lunge and
-firearms visible recoil.
+while every weapon now switches to its own generated slash/firing frame during
+the existing knife lunge or firearm recoil. The former rectangular muzzle-flash
+overlay has been removed.
 
 - replace colored enemy cuboids with camera-facing textured polygon billboards;
 - create original transparent pixel-art sprites for every enemy archetype and weapon view;

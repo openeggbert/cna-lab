@@ -124,6 +124,22 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/weapons/heavy-automatic.png"
     COPYONLY)
 configure_file(
+    assets/weapons/knife-attack.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/weapons/knife-attack.png"
+    COPYONLY)
+configure_file(
+    assets/weapons/sidearm-attack.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/weapons/sidearm-attack.png"
+    COPYONLY)
+configure_file(
+    assets/weapons/repeater-attack.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/weapons/repeater-attack.png"
+    COPYONLY)
+configure_file(
+    assets/weapons/heavy-automatic-attack.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/weapons/heavy-automatic-attack.png"
+    COPYONLY)
+configure_file(
     assets/pickups/ammo-box.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/ammo-box.png"
     COPYONLY)
