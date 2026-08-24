@@ -45,6 +45,8 @@ namespace WolfCna
         constexpr float GuardProjectileSpeed = 4.5f;
         constexpr float GuardProjectileHitRadius = 0.25f;
         constexpr float GuardProjectileLifetime = 2.0f;
+        constexpr float RangedAttackVisualSeconds = 0.18f;
+        constexpr float HoundAttackVisualSeconds = 0.24f;
         constexpr float PickupRadius = 0.42f;
         constexpr float ExitRadius = 0.45f;
     }
@@ -179,6 +181,7 @@ namespace WolfCna
                 --enemy.health;
                 const bool defeated = enemy.health <= 0;
                 enemy.state = defeated ? EnemyState::Dead : EnemyState::Chase;
+                enemy.attackVisualSeconds = 0.0f;
                 if (defeated)
                     ++defeatedEnemies_;
                 return {true, defeated ? enemy.scoreValue : 0};
@@ -486,6 +489,7 @@ namespace WolfCna
 
         for (Enemy& enemy : enemies_)
         {
+            enemy.attackVisualSeconds = std::max(0.0f, enemy.attackVisualSeconds - elapsedSeconds);
             if (enemy.state == EnemyState::Dead)
                 continue;
 
@@ -535,6 +539,9 @@ namespace WolfCna
                             enemy.attackDamage});
                         ++pendingGuardShotCount_;
                     }
+                    enemy.attackVisualSeconds = enemy.melee
+                        ? HoundAttackVisualSeconds
+                        : RangedAttackVisualSeconds;
                     enemy.attackCooldown = enemy.attackInterval;
                 }
             }
@@ -1253,6 +1260,10 @@ namespace WolfCna
         Texture2D& houndSprite,
         Texture2D& rapidTrooperSprite,
         Texture2D& heavyUnitSprite,
+        Texture2D& guardAttackSprite,
+        Texture2D& houndAttackSprite,
+        Texture2D& rapidTrooperAttackSprite,
+        Texture2D& heavyUnitAttackSprite,
         Texture2D& defeatedGuardSprite,
         Texture2D& defeatedHoundSprite,
         Texture2D& defeatedRapidTrooperSprite,
@@ -1496,6 +1507,7 @@ namespace WolfCna
                 const bool isHound = enemy->type == Enemy::Type::Hound;
                 const bool isHeavy = enemy->type == Enemy::Type::HeavyUnit;
                 const bool isDead = enemy->state == EnemyState::Dead;
+                const bool isAttacking = !isDead && enemy->attackVisualSeconds > 0.0f;
                 const bool isRapid = enemy->type == Enemy::Type::RapidTrooper;
                 const float width = isDead
                     ? (isHound ? 0.95f : isHeavy ? 1.05f : isRapid ? 1.0f : 0.95f)
@@ -1506,13 +1518,21 @@ namespace WolfCna
                 Vector3 position = enemy->position;
                 position.Y = 0.0f;
 
-                Texture2D* enemyTexture = isDead ? &defeatedGuardSprite : &guardSprite;
+                Texture2D* enemyTexture = isDead
+                    ? &defeatedGuardSprite
+                    : isAttacking ? &guardAttackSprite : &guardSprite;
                 if (isHound)
-                    enemyTexture = isDead ? &defeatedHoundSprite : &houndSprite;
+                    enemyTexture = isDead
+                        ? &defeatedHoundSprite
+                        : isAttacking ? &houndAttackSprite : &houndSprite;
                 else if (isRapid)
-                    enemyTexture = isDead ? &defeatedRapidTrooperSprite : &rapidTrooperSprite;
+                    enemyTexture = isDead
+                        ? &defeatedRapidTrooperSprite
+                        : isAttacking ? &rapidTrooperAttackSprite : &rapidTrooperSprite;
                 else if (isHeavy)
-                    enemyTexture = isDead ? &defeatedHeavyUnitSprite : &heavyUnitSprite;
+                    enemyTexture = isDead
+                        ? &defeatedHeavyUnitSprite
+                        : isAttacking ? &heavyUnitAttackSprite : &heavyUnitSprite;
                 effect.setTextureProperty(enemyTexture);
                 effect.setWorldProperty(
                     Matrix::CreateScale(width, height, 1.0f) *

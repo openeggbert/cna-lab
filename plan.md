@@ -1077,12 +1077,14 @@ original transparent camera-facing billboard sprites and records their complete
 generation provenance. Every archetype now switches to its own non-gory collapsed
 or resting sprite above a stylized procedurally textured floor decal when defeated.
 The four primitive weapon views and icons have been replaced by original
-high-resolution transparent pixel-art sprites. Enemy attack frames and animated
-state transitions remain, while a first transform-based animation pass gives the
-knife a forward lunge and firearms visible recoil.
+high-resolution transparent pixel-art sprites. Every archetype now also has a
+dedicated firing or lunge frame shown for a short timer synchronized to the actual
+attack event. Additional idle/chase transitions and damage reactions remain,
+while a first transform-based weapon pass gives the knife a forward lunge and
+firearms visible recoil.
 
 - replace colored enemy cuboids with camera-facing textured polygon billboards;
-- create original transparent pixel-art guards, hounds and weapon view sprites;
+- create original transparent pixel-art sprites for every enemy archetype and weapon view;
 - animate idle/chase/attack/death and weapon attack frames;
 - leave an original procedurally textured blood-pool floor decal beneath defeated
   guards and hounds, while keeping the presentation stylized and non-gory;

@@ -76,6 +76,22 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/heavy-unit.png"
     COPYONLY)
 configure_file(
+    assets/sprites/security-guard-attack.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/security-guard-attack.png"
+    COPYONLY)
+configure_file(
+    assets/sprites/security-hound-attack.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/security-hound-attack.png"
+    COPYONLY)
+configure_file(
+    assets/sprites/rapid-trooper-attack.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/rapid-trooper-attack.png"
+    COPYONLY)
+configure_file(
+    assets/sprites/heavy-unit-attack.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/heavy-unit-attack.png"
+    COPYONLY)
+configure_file(
     assets/sprites/security-guard-defeated.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/security-guard-defeated.png"
     COPYONLY)

@@ -276,6 +276,10 @@ namespace WolfCna
         houndSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound.png", device);
         rapidTrooperSprite_ = std::make_unique<Texture2D>("assets/sprites/rapid-trooper.png", device);
         heavyUnitSprite_ = std::make_unique<Texture2D>("assets/sprites/heavy-unit.png", device);
+        guardAttackSprite_ = std::make_unique<Texture2D>("assets/sprites/security-guard-attack.png", device);
+        houndAttackSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound-attack.png", device);
+        rapidTrooperAttackSprite_ = std::make_unique<Texture2D>("assets/sprites/rapid-trooper-attack.png", device);
+        heavyUnitAttackSprite_ = std::make_unique<Texture2D>("assets/sprites/heavy-unit-attack.png", device);
         defeatedGuardSprite_ = std::make_unique<Texture2D>("assets/sprites/security-guard-defeated.png", device);
         defeatedHoundSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound-defeated.png", device);
         defeatedRapidTrooperSprite_ = std::make_unique<Texture2D>("assets/sprites/rapid-trooper-defeated.png", device);
@@ -1678,6 +1682,8 @@ namespace WolfCna
             screen_ == Screen::Paused || screen_ == Screen::GameOver) &&
             effect_ && atlas_ && guardSprite_ && houndSprite_ && bloodDecal_ &&
             rapidTrooperSprite_ && heavyUnitSprite_ &&
+            guardAttackSprite_ && houndAttackSprite_ &&
+            rapidTrooperAttackSprite_ && heavyUnitAttackSprite_ &&
             defeatedGuardSprite_ && defeatedHoundSprite_ &&
             defeatedRapidTrooperSprite_ && defeatedHeavyUnitSprite_ &&
             ammoPickupSprite_ && healthPickupSprite_ && goldBarsSprite_ &&
@@ -1694,6 +1700,10 @@ namespace WolfCna
                 *houndSprite_,
                 *rapidTrooperSprite_,
                 *heavyUnitSprite_,
+                *guardAttackSprite_,
+                *houndAttackSprite_,
+                *rapidTrooperAttackSprite_,
+                *heavyUnitAttackSprite_,
                 *defeatedGuardSprite_,
                 *defeatedHoundSprite_,
                 *defeatedRapidTrooperSprite_,

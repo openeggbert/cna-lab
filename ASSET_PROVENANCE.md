@@ -309,3 +309,73 @@ Because that cleanup export still lacked an alpha channel, its unchanged color
 pixels were combined with a project-generated binary silhouette mask. The mask
 removes only large bright connected background regions and retains the sprite's
 small bright pixel-art details. No third-party pixels were added.
+
+## `assets/sprites/security-guard-attack.png`
+
+Prompt (using the committed standing guard as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent attack-frame enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original gray-and-muted-teal bunker security guard from Image 1 at the instant of firing, with the compact fictional sidearm raised and aimed directly toward the viewer, shoulders squared and a tiny amber muzzle flash
+Subject: preserve the same adult face, helmet, gray and teal utility uniform, boots, gloves, palette, proportions and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one full-body character only, front-facing orthographic attack pose completely visible, centered, feet aligned near bottom, same vertical framing as Image 1, suitable for a brief camera-facing billboard attack frame
+Constraints: genuinely transparent background and preserved alpha; one tiny contained muzzle flash only; no projectile; no blood; no gore; no text; no logos; no watermark; no scenery; no shadow; no political or military insignia; no swastikas; no Nazi imagery; no historical uniform
+Avoid: photorealism, 3D render, smooth gradients, oversized explosion, additional weapons or people, copyrighted game characters, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+## `assets/sprites/security-hound-attack.png`
+
+Prompt (using the committed alert hound as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent melee-attack-frame creature billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original brown bunker security hound from Image 1 lunging forward toward the viewer at the instant of a close-range attack, forepaws extended, mouth open in a bark, body compact and readable
+Subject: preserve the same brown coat, dark muzzle, teal fabric collar, small peace-symbol medallion, proportions and real-dog identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one entire dog only, front-facing action pose completely visible, centered, same vertical framing as Image 1, suitable for a brief camera-facing billboard attack frame
+Constraints: genuinely transparent background and preserved alpha; energetic but non-gory; no contact victim; no blood; no wounds; no saliva; no text; no logos; no watermark; no scenery; no shadow; no political or military insignia
+Avoid: photorealism, 3D render, smooth gradients, distress or injury, robotic dog, additional creatures, copyrighted game creatures, resemblance to Wolfenstein dog attack sprites, anti-aliased halo
+```
+
+## `assets/sprites/rapid-trooper-attack.png`
+
+Prompt (using the committed standing rapid trooper as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent attack-frame enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original navy-and-muted-amber rapid-response bunker trooper from Image 1 at the instant of firing, compact fictional automatic weapon raised and aimed directly toward the viewer, lean stance braced, with a small contained amber muzzle flash
+Subject: preserve the same adult face, helmet, navy and amber reinforced utility uniform, boots, gloves, lean silhouette, palette, proportions and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one full-body character only, front-facing orthographic attack pose completely visible, centered, feet aligned near bottom, same vertical framing as Image 1, suitable for a brief camera-facing billboard attack frame
+Constraints: genuinely transparent background and preserved alpha; one small contained muzzle flash only; no projectile; no blood; no gore; no text; no logos; no watermark; no scenery; no shadow; no political or military insignia; no swastikas; no Nazi imagery; no historical uniform
+Avoid: photorealism, 3D render, smooth gradients, oversized explosion, additional weapons or people, copyrighted game characters, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+## `assets/sprites/heavy-unit-attack.png`
+
+Prompt (using the committed standing heavy unit as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent attack-frame enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original graphite-and-muted-crimson heavy bunker security unit from Image 1 at the instant of firing, broad body deeply braced, large fictional heavy automatic weapon aimed directly toward the viewer, with a compact red-amber muzzle flash
+Subject: preserve the same adult face, broad helmet, fictional industrial protective armor, graphite and crimson palette, heavy boots, gloves, broad silhouette, proportions and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one full-body character only, front-facing orthographic attack pose completely visible, centered, feet aligned near bottom, same vertical framing as Image 1, suitable for a brief camera-facing billboard attack frame
+Constraints: genuinely transparent background and preserved alpha; one compact contained muzzle flash only; no projectile; no blood; no gore; no text; no logos; no watermark; no scenery; no shadow; armor remains fictional industrial protection; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: photorealism, 3D render, smooth gradients, oversized explosion, historical armor, additional weapons or people, copyrighted game characters, resemblance to Wolfenstein attack sprites, anti-aliased halo
+```
+
+The hound, rapid-trooper and heavy-unit exports contained a baked light
+checkerboard despite requesting alpha. Their unchanged color pixels were combined
+with project-generated edge-connected binary background masks. This preserves
+enclosed bright details such as teeth and muzzle flashes while removing only the
+checkerboard connected to the image boundary. No third-party pixels were added.

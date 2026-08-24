@@ -6,6 +6,7 @@
 - Guards and hounds require multiple hits; rapid troopers and heavy units add distinct ranged combat roles.
 - Primitive weapon shapes are replaced by original transparent high-resolution knife, sidearm, repeater and heavy-automatic sprites.
 - Every enemy archetype now has its own original non-gory defeated sprite above the existing floor decal.
+- Guard, hound, rapid trooper and heavy unit attacks now trigger dedicated firing/lunge sprites for a short synchronized interval.
 - Ceiling lamps now cast a warm, softly fading pool of light onto the floor below.
 - Only one visible ranged enemy attacks at a time, with lower damage and slower archetype-specific cadences.
 - Health, ammunition and three treasure values now use original transparent sprites instead of colored blocks.
@@ -19,7 +20,7 @@
 ## Next tasks
 
 1. Playtest the authored route and rebalance the four enemy archetypes, ammunition and health placement.
-2. Add enemy attack frames, animated state transitions and dedicated weapon attack frames.
+2. Add enemy chase/damage transitions and dedicated weapon attack frames.
 3. Add another objective interaction and sector-specific freestanding room decorations.
 
 ## Verification
