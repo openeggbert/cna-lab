@@ -1,10 +1,10 @@
-#include "CnaTamagotchi/Presentation/DeviceShell.hpp"
+#include "TamagotchiCna/Presentation/DeviceShell.hpp"
 
 #include <iostream>
 #include <set>
 #include <string>
 
-using namespace CnaTamagotchi;
+using namespace TamagotchiCna;
 
 namespace {
 

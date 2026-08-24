@@ -1,11 +1,11 @@
-#include "CnaTamagotchi/Persistence/SaveRepository.hpp"
+#include "TamagotchiCna/Persistence/SaveRepository.hpp"
 
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
 
-using namespace CnaTamagotchi;
+using namespace TamagotchiCna;
 
 namespace {
 

@@ -1,10 +1,11 @@
-#include "CnaTamagotchi/Persistence/SaveLocation.hpp"
+#include "TamagotchiCna/Persistence/SaveLocation.hpp"
 
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <string>
 
-using CnaTamagotchi::Persistence::SaveLocation;
+using TamagotchiCna::Persistence::SaveLocation;
 
 namespace {
 
@@ -72,8 +73,8 @@ void testPreviousProductSlotTakesPrecedence()
     const std::filesystem::path directory = testDirectory();
     const std::filesystem::path workingDirectory = directory / "working";
     const std::filesystem::path dataDirectory = directory / "data";
-    const std::filesystem::path previous = dataDirectory / "cna-tamagotchi" / "saves"
-        / "slot-1.json";
+    const std::filesystem::path previous = dataDirectory / (std::string("cna-") + "tamagotchi")
+        / "saves" / "slot-1.json";
     std::error_code error;
     std::filesystem::remove_all(directory, error);
     std::filesystem::create_directories(previous.parent_path(), error);

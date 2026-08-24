@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CnaTamagotchi/Presentation/DeviceShell.hpp"
+#include "TamagotchiCna/Presentation/DeviceShell.hpp"
 
 #include <array>
 
@@ -8,7 +8,7 @@
 #include "Microsoft/Xna/Framework/Graphics/SpriteBatch.hpp"
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 
-namespace CnaTamagotchi::Application {
+namespace TamagotchiCna::Application {
 
 struct ShellPoint final {
     int x;
@@ -53,4 +53,4 @@ class DeviceShellRenderer final {
                              const DeviceShellControlState& controlState);
 };
 
-} // namespace CnaTamagotchi::Application
+} // namespace TamagotchiCna::Application

@@ -6,7 +6,7 @@
 #include <span>
 #include <string_view>
 
-namespace CnaTamagotchi::Display {
+namespace TamagotchiCna::Display {
 
 struct LcdColour final {
     std::uint8_t red;
@@ -70,4 +70,4 @@ private:
     std::array<bool, static_cast<std::size_t>(Width * Height)> pixels_{};
 };
 
-} // namespace CnaTamagotchi::Display
+} // namespace TamagotchiCna::Display

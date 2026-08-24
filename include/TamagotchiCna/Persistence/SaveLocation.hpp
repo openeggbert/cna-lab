@@ -2,7 +2,7 @@
 
 #include <filesystem>
 
-namespace CnaTamagotchi::Persistence {
+namespace TamagotchiCna::Persistence {
 
 // Keeps the choice of save path outside the CNA adapter. An existing relative
 // slot is deliberately preferred, so updating the game never relocates a pet.
@@ -16,4 +16,4 @@ public:
         const std::filesystem::path& platformDataDirectory);
 };
 
-} // namespace CnaTamagotchi::Persistence
+} // namespace TamagotchiCna::Persistence

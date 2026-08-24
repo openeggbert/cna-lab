@@ -1,10 +1,10 @@
 #pragma once
 
-#include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
+#include "TamagotchiCna/Display/MonochromeDisplay.hpp"
 
 #include <cstddef>
 
-namespace CnaTamagotchi::Display {
+namespace TamagotchiCna::Display {
 
 // One complete, manually transcribed international-P1 Marutchi Medicine
 // action. The seven visible phases occupy sixteen frames of a 30 fps trace.
@@ -19,4 +19,4 @@ public:
     static void render(MonochromeDisplay& destination, std::size_t phase) noexcept;
 };
 
-} // namespace CnaTamagotchi::Display
+} // namespace TamagotchiCna::Display

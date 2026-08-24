@@ -1,4 +1,4 @@
-#include "CnaTamagotchi/Application/CnaTamagotchiGame.hpp"
+#include "TamagotchiCna/Application/TamagotchiCnaGame.hpp"
 
 #include <iostream>
 #include <string_view>
@@ -6,8 +6,8 @@
 int main(const int argc, char* argv[])
 {
     bool smokeTest = false;
-    CnaTamagotchi::Display::LcdPalette lcdPalette =
-        CnaTamagotchi::Display::LcdPalette::ClassicOlive;
+    TamagotchiCna::Display::LcdPalette lcdPalette =
+        TamagotchiCna::Display::LcdPalette::ClassicOlive;
 
     for (int index = 1; index < argc; ++index) {
         const std::string_view argument(argv[index]);
@@ -20,13 +20,13 @@ int main(const int argc, char* argv[])
         if (argument.starts_with(palettePrefix)) {
             const std::string_view value = argument.substr(palettePrefix.size());
             if (value == "olive") {
-                lcdPalette = CnaTamagotchi::Display::LcdPalette::ClassicOlive;
+                lcdPalette = TamagotchiCna::Display::LcdPalette::ClassicOlive;
             } else if (value == "amber") {
-                lcdPalette = CnaTamagotchi::Display::LcdPalette::Amber;
+                lcdPalette = TamagotchiCna::Display::LcdPalette::Amber;
             } else if (value == "ice") {
-                lcdPalette = CnaTamagotchi::Display::LcdPalette::IceBlue;
+                lcdPalette = TamagotchiCna::Display::LcdPalette::IceBlue;
             } else if (value == "mono") {
-                lcdPalette = CnaTamagotchi::Display::LcdPalette::HighContrast;
+                lcdPalette = TamagotchiCna::Display::LcdPalette::HighContrast;
             } else {
                 std::cerr << "Unknown LCD palette: '" << value
                           << "'. Choose olive, amber, ice, or mono.\n";
@@ -40,7 +40,7 @@ int main(const int argc, char* argv[])
         return 2;
     }
 
-    CnaTamagotchi::Application::CnaTamagotchiGame game(smokeTest, lcdPalette);
+    TamagotchiCna::Application::TamagotchiCnaGame game(smokeTest, lcdPalette);
     game.Run();
     return 0;
 }

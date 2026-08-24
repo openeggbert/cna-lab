@@ -5,7 +5,7 @@
 #include <span>
 #include <string_view>
 
-namespace CnaTamagotchi::Domain {
+namespace TamagotchiCna::Domain {
 
 // A P1 home phase is a hand-written one-bit drawing with an explicit LCD
 // origin. Most characters currently use the classic 16×10 cell at (8, 3), but
@@ -51,10 +51,12 @@ struct P1Sprite final {
 class P1SpriteCatalog final {
 public:
     [[nodiscard]] static const P1Sprite& spriteForCharacter(std::string_view characterId) noexcept;
+    [[nodiscard]] static const P1Sprite& sleepingSpriteForCharacter(
+        std::string_view characterId) noexcept;
     [[nodiscard]] static const P1Sprite& sickSpriteForCharacter(std::string_view characterId) noexcept;
     [[nodiscard]] static const P1SpriteFrame& sicknessIndicator() noexcept;
     [[nodiscard]] static const P1Sprite& sleepIndicator() noexcept;
     [[nodiscard]] static const P1Sprite& waste() noexcept;
 };
 
-} // namespace CnaTamagotchi::Domain
+} // namespace TamagotchiCna::Domain

@@ -1,10 +1,10 @@
 #pragma once
 
-#include "CnaTamagotchi/Domain/ProgramDefinition.hpp"
+#include "TamagotchiCna/Domain/ProgramDefinition.hpp"
 
 #include <string>
 
-namespace CnaTamagotchi::Domain {
+namespace TamagotchiCna::Domain {
 
 enum class ProgramAttentionReason : std::uint8_t {
     None,
@@ -104,4 +104,4 @@ private:
                                     ProgramPetState& state) noexcept;
 };
 
-} // namespace CnaTamagotchi::Domain
+} // namespace TamagotchiCna::Domain

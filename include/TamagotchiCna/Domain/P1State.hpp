@@ -1,8 +1,8 @@
 #pragma once
 
-#include "CnaTamagotchi/Domain/ProgramDefinition.hpp"
+#include "TamagotchiCna/Domain/ProgramDefinition.hpp"
 
-namespace CnaTamagotchi::Domain {
+namespace TamagotchiCna::Domain {
 
 // The fixed roster of the English-language international Tamagotchi P1
 // programme. Egg and Angel are display states, not raisable characters.
@@ -73,4 +73,4 @@ struct P1VisibleState final {
         && state.disciplineBars <= 4 && state.age >= 0 && state.weight >= 0;
 }
 
-} // namespace CnaTamagotchi::Domain
+} // namespace TamagotchiCna::Domain

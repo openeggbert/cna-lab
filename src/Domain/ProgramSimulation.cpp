@@ -1,8 +1,8 @@
-#include "CnaTamagotchi/Domain/ProgramSimulation.hpp"
+#include "TamagotchiCna/Domain/ProgramSimulation.hpp"
 
 #include <algorithm>
 
-namespace CnaTamagotchi::Domain {
+namespace TamagotchiCna::Domain {
 
 ProgramAdvanceReport ProgramSimulation::advance(const ProgramDefinition& programme,
                                                 ProgramPetState& state,
@@ -484,4 +484,4 @@ void ProgramSimulation::updateSleepSchedule(const ProgramDefinition& programme,
     }
 }
 
-} // namespace CnaTamagotchi::Domain
+} // namespace TamagotchiCna::Domain

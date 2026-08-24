@@ -1,10 +1,10 @@
-#include "CnaTamagotchi/Domain/P1Program.hpp"
-#include "CnaTamagotchi/Domain/ProgramSimulation.hpp"
+#include "TamagotchiCna/Domain/P1Program.hpp"
+#include "TamagotchiCna/Domain/ProgramSimulation.hpp"
 
 #include <array>
 #include <iostream>
 
-using namespace CnaTamagotchi::Domain;
+using namespace TamagotchiCna::Domain;
 
 namespace {
 

@@ -1,4 +1,4 @@
-#include "CnaTamagotchi/Application/DeviceShellRenderer.hpp"
+#include "TamagotchiCna/Application/DeviceShellRenderer.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -8,7 +8,7 @@
 using namespace Microsoft::Xna::Framework;
 using namespace Microsoft::Xna::Framework::Graphics;
 
-namespace CnaTamagotchi::Application {
+namespace TamagotchiCna::Application {
 namespace {
 
 Color asColor(const Presentation::ShellRgba colour) noexcept
@@ -160,4 +160,4 @@ void DeviceShellRenderer::drawControls(SpriteBatch& spriteBatch, Texture2D& pixe
                 Color(22, 28, 30, 255));
 }
 
-} // namespace CnaTamagotchi::Application
+} // namespace TamagotchiCna::Application

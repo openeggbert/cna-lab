@@ -1,4 +1,4 @@
-# CNA Tamagotchi — International P1 Analysis and Technical Proposal
+# tamagotchi-cna — International P1 Analysis and Technical Proposal
 
 ## Product decision
 

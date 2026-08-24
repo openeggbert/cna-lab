@@ -1,8 +1,8 @@
-#include "CnaTamagotchi/Domain/P1Program.hpp"
+#include "TamagotchiCna/Domain/P1Program.hpp"
 
 #include <array>
 
-namespace CnaTamagotchi::Domain::Programs {
+namespace TamagotchiCna::Domain::Programs {
 namespace {
 
 constexpr std::array<FoodDefinition, 2> Foods{{
@@ -147,4 +147,4 @@ const ProgramDefinition& internationalP1() noexcept
     return Definition;
 }
 
-} // namespace CnaTamagotchi::Domain::Programs
+} // namespace TamagotchiCna::Domain::Programs

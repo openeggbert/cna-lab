@@ -1,9 +1,9 @@
-#include "CnaTamagotchi/Domain/P1State.hpp"
+#include "TamagotchiCna/Domain/P1State.hpp"
 
 #include <array>
 #include <iostream>
 
-using namespace CnaTamagotchi::Domain;
+using namespace TamagotchiCna::Domain;
 
 namespace {
 

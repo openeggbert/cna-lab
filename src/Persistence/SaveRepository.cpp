@@ -1,4 +1,4 @@
-#include "CnaTamagotchi/Persistence/SaveRepository.hpp"
+#include "TamagotchiCna/Persistence/SaveRepository.hpp"
 
 #include <array>
 #include <charconv>
@@ -9,7 +9,7 @@
 #include <string_view>
 #include <system_error>
 
-namespace CnaTamagotchi::Persistence {
+namespace TamagotchiCna::Persistence {
 namespace {
 
 constexpr std::size_t MaximumSaveBytes = 64U * 1024U;
@@ -555,4 +555,4 @@ SaveResult SaveRepository::archiveLegacySave(const std::filesystem::path& path) 
     return archiveSaveFile(path, ".legacy");
 }
 
-} // namespace CnaTamagotchi::Persistence
+} // namespace TamagotchiCna::Persistence

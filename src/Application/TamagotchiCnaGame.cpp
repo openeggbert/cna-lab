@@ -1,10 +1,10 @@
-#include "CnaTamagotchi/Application/CnaTamagotchiGame.hpp"
-#include "CnaTamagotchi/Application/DeviceShellRenderer.hpp"
-#include "CnaTamagotchi/Display/P1LightScreen.hpp"
-#include "CnaTamagotchi/Domain/P1Program.hpp"
-#include "CnaTamagotchi/Domain/P1SpriteCatalog.hpp"
-#include "CnaTamagotchi/Persistence/SaveLocation.hpp"
-#include "CnaTamagotchi/Presentation/DeviceShell.hpp"
+#include "TamagotchiCna/Application/TamagotchiCnaGame.hpp"
+#include "TamagotchiCna/Application/DeviceShellRenderer.hpp"
+#include "TamagotchiCna/Display/P1LightScreen.hpp"
+#include "TamagotchiCna/Domain/P1Program.hpp"
+#include "TamagotchiCna/Domain/P1SpriteCatalog.hpp"
+#include "TamagotchiCna/Persistence/SaveLocation.hpp"
+#include "TamagotchiCna/Presentation/DeviceShell.hpp"
 
 #include <algorithm>
 #include <array>
@@ -28,7 +28,7 @@ using namespace Microsoft::Xna::Framework;
 using namespace Microsoft::Xna::Framework::Graphics;
 using namespace Microsoft::Xna::Framework::Input;
 
-namespace CnaTamagotchi::Application {
+namespace TamagotchiCna::Application {
 namespace {
 
 constexpr int WindowWidth = 540;
@@ -110,7 +110,7 @@ std::filesystem::path iconAtlasPath()
 
 } // namespace
 
-CnaTamagotchiGame::CnaTamagotchiGame(const bool smokeTest,
+TamagotchiCnaGame::TamagotchiCnaGame(const bool smokeTest,
                                      const Display::LcdPalette lcdPalette)
     : graphics_(this),
       lcdPalette_(lcdPalette),
@@ -127,7 +127,7 @@ CnaTamagotchiGame::CnaTamagotchiGame(const bool smokeTest,
     refreshDisplay();
 }
 
-void CnaTamagotchiGame::LoadContent()
+void TamagotchiCnaGame::LoadContent()
 {
     spriteBatch_ = std::make_unique<SpriteBatch>(getGraphicsDeviceProperty());
     pixelTexture_.emplace(getGraphicsDeviceProperty(), 1, 1);
@@ -136,7 +136,7 @@ void CnaTamagotchiGame::LoadContent()
     iconAtlasTexture_.emplace(iconAtlasPath().string(), getGraphicsDeviceProperty());
 }
 
-void CnaTamagotchiGame::Update(GameTime& gameTime)
+void TamagotchiCnaGame::Update(GameTime& gameTime)
 {
     const KeyboardState keyboard = Keyboard::GetState();
     const auto elapsedMilliseconds =
@@ -325,7 +325,7 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     refreshDisplay();
 }
 
-bool CnaTamagotchiGame::pressButton(const DeviceButton button)
+bool TamagotchiCnaGame::pressButton(const DeviceButton button)
 {
     if (transientVisual_ != TransientVisual::None) {
         return false;
@@ -527,8 +527,8 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
     return false;
 }
 
-std::optional<CnaTamagotchiGame::DeviceButton>
-CnaTamagotchiGame::buttonAtWindowPosition(const float x, const float y) const noexcept
+std::optional<TamagotchiCnaGame::DeviceButton>
+TamagotchiCnaGame::buttonAtWindowPosition(const float x, const float y) const noexcept
 {
     const Rectangle clientBounds = getWindowProperty().getClientBoundsProperty();
     if (clientBounds.Width <= 0 || clientBounds.Height <= 0) {
@@ -552,7 +552,7 @@ CnaTamagotchiGame::buttonAtWindowPosition(const float x, const float y) const no
     return std::nullopt;
 }
 
-bool CnaTamagotchiGame::resetAtWindowPosition(const float x, const float y) const noexcept
+bool TamagotchiCnaGame::resetAtWindowPosition(const float x, const float y) const noexcept
 {
     const Rectangle clientBounds = getWindowProperty().getClientBoundsProperty();
     if (clientBounds.Width <= 0 || clientBounds.Height <= 0) {
@@ -569,7 +569,7 @@ bool CnaTamagotchiGame::resetAtWindowPosition(const float x, const float y) cons
         <= static_cast<float>(DeviceShellGeometry::ResetRadius * DeviceShellGeometry::ResetRadius);
 }
 
-void CnaTamagotchiGame::moveSelectionBackward() noexcept
+void TamagotchiCnaGame::moveSelectionBackward() noexcept
 {
     if (screen_ == Screen::Home) {
         selectedIcon_ = selectedIcon_ < 0 ? SelectableIconCount - 1
@@ -588,7 +588,7 @@ void CnaTamagotchiGame::moveSelectionBackward() noexcept
     }
 }
 
-void CnaTamagotchiGame::Draw(const GameTime& gameTime)
+void TamagotchiCnaGame::Draw(const GameTime& gameTime)
 {
     (void)gameTime;
     getGraphicsDeviceProperty().Clear(backgroundColor());
@@ -602,7 +602,7 @@ void CnaTamagotchiGame::Draw(const GameTime& gameTime)
     }
 }
 
-Color CnaTamagotchiGame::backgroundColor() const
+Color TamagotchiCnaGame::backgroundColor() const
 {
     constexpr std::array<Rgb, 4> colours{{
         {255U, 249U, 238U}, // ivory
@@ -630,7 +630,7 @@ Color CnaTamagotchiGame::backgroundColor() const
         255U);
 }
 
-bool CnaTamagotchiGame::loadSave()
+bool TamagotchiCnaGame::loadSave()
 {
     std::error_code error;
     const bool saveExists = std::filesystem::exists(savePath_, error);
@@ -661,7 +661,7 @@ bool CnaTamagotchiGame::loadSave()
     return activateSave(*loaded.data);
 }
 
-bool CnaTamagotchiGame::activateSave(const Persistence::SaveData& data)
+bool TamagotchiCnaGame::activateSave(const Persistence::SaveData& data)
 {
     if (data.programId != activeProgramme().id) {
         legacySaveAwaitingArchive_ = false;
@@ -711,7 +711,7 @@ bool CnaTamagotchiGame::activateSave(const Persistence::SaveData& data)
     return report.appliedMinutes > 0;
 }
 
-bool CnaTamagotchiGame::restoreBackup()
+bool TamagotchiCnaGame::restoreBackup()
 {
     if (!recoveryBackupAvailable_) {
         return false;
@@ -729,7 +729,7 @@ bool CnaTamagotchiGame::restoreBackup()
     return true;
 }
 
-bool CnaTamagotchiGame::archiveAndStartFreshEgg()
+bool TamagotchiCnaGame::archiveAndStartFreshEgg()
 {
     const Persistence::SaveResult archive = legacySaveAwaitingArchive_
         ? saveRepository_.archiveLegacySave(savePath_)
@@ -745,7 +745,7 @@ bool CnaTamagotchiGame::archiveAndStartFreshEgg()
     return true;
 }
 
-bool CnaTamagotchiGame::resetCurrentSession()
+bool TamagotchiCnaGame::resetCurrentSession()
 {
     if (savePath_.empty() || !saveRepository_.archiveResetSave(savePath_).success) {
         return false;
@@ -755,7 +755,7 @@ bool CnaTamagotchiGame::resetCurrentSession()
     return true;
 }
 
-void CnaTamagotchiGame::saveNow()
+void TamagotchiCnaGame::saveNow()
 {
     const bool persistentClockSetPause =
         screen_ == Screen::ClockSetup && clockSetupReturnsToClockView_;
@@ -782,14 +782,14 @@ void CnaTamagotchiGame::saveNow()
     }
 }
 
-void CnaTamagotchiGame::startCharacterGame() noexcept
+void TamagotchiCnaGame::startCharacterGame() noexcept
 {
     gameRound_ = 0;
     gameWins_ = 0;
     startNextCharacterRound();
 }
 
-void CnaTamagotchiGame::startNextCharacterRound() noexcept
+void TamagotchiCnaGame::startNextCharacterRound() noexcept
 {
     // The direction stays hidden until the A/B prediction is committed.
     // The persisted seed keeps the local sequence stable across restarts.
@@ -799,7 +799,7 @@ void CnaTamagotchiGame::startNextCharacterRound() noexcept
     gameWon_ = false;
 }
 
-void CnaTamagotchiGame::resolveCharacterRound(const int choice) noexcept
+void TamagotchiCnaGame::resolveCharacterRound(const int choice) noexcept
 {
     // The P1 base data has a per-form success fraction. Derive the displayed
     // direction after the user's prediction so it carries that exact chance,
@@ -827,7 +827,7 @@ void CnaTamagotchiGame::resolveCharacterRound(const int choice) noexcept
     }
 }
 
-void CnaTamagotchiGame::startNewEgg() noexcept
+void TamagotchiCnaGame::startNewEgg() noexcept
 {
     // A P1 death/new-egg chord keeps the already configured device clock. It
     // clears the departed generation only; reset is the separate path that
@@ -838,21 +838,21 @@ void CnaTamagotchiGame::startNewEgg() noexcept
     pet_.clockMinutesOfDay = retainedClockMinutes;
 }
 
-void CnaTamagotchiGame::startFreshEgg() noexcept
+void TamagotchiCnaGame::startFreshEgg() noexcept
 {
     seed_ = static_cast<std::uint64_t>(unixSecondsNow());
     resetPetToEgg();
     beginClockSetup();
 }
 
-void CnaTamagotchiGame::beginClockSetup(const bool returnToClockView) noexcept
+void TamagotchiCnaGame::beginClockSetup(const bool returnToClockView) noexcept
 {
     clockSetupMinutes_ = pet_.clockMinutesOfDay;
     clockSetupReturnsToClockView_ = returnToClockView;
     screen_ = Screen::ClockSetup;
 }
 
-void CnaTamagotchiGame::resetPetToEgg() noexcept
+void TamagotchiCnaGame::resetPetToEgg() noexcept
 {
     pet_ = Domain::ProgramPetState{};
     screen_ = Screen::Home;
@@ -874,13 +874,13 @@ void CnaTamagotchiGame::resetPetToEgg() noexcept
     saveDirty_ = false;
 }
 
-void CnaTamagotchiGame::setFeedback(const Feedback feedback) noexcept
+void TamagotchiCnaGame::setFeedback(const Feedback feedback) noexcept
 {
     feedback_ = feedback;
     feedbackSeconds_ = feedback == Feedback::None ? 0.0F : 0.8F;
 }
 
-void CnaTamagotchiGame::refreshDisplay() noexcept
+void TamagotchiCnaGame::refreshDisplay() noexcept
 {
     display_.clear();
 
@@ -1048,14 +1048,16 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         return;
     }
 
-    const Domain::P1Sprite& sprite = pet_.sick
-        ? Domain::P1SpriteCatalog::sickSpriteForCharacter(pet_.characterId)
-        : Domain::P1SpriteCatalog::spriteForCharacter(pet_.characterId);
+    const Domain::P1Sprite& sprite = pet_.asleep
+        ? Domain::P1SpriteCatalog::sleepingSpriteForCharacter(pet_.characterId)
+        : pet_.sick
+            ? Domain::P1SpriteCatalog::sickSpriteForCharacter(pet_.characterId)
+            : Domain::P1SpriteCatalog::spriteForCharacter(pet_.characterId);
     // P1 home animation consists of independently transcribed LCD phases.
     // Each phase carries its observed origin, rather than turning one modern
     // sprite into a synthetic bobbing animation. Unobserved sleeping forms
-    // retain the first quiet pose; the observed Marutchi body keeps its normal
-    // independent cycle.
+    // retain the first quiet pose; observed Marutchi selects its separate
+    // closed-eye sleep-body sequence beneath the independent Z overlay.
     const bool freezeUnobservedSleepPose = pet_.asleep && pet_.characterId != "marutchi";
     const std::size_t idleFrame = freezeUnobservedSleepPose ? 0U : static_cast<std::size_t>(
         backgroundTimeSeconds_ / sprite.idleFrameSeconds);
@@ -1099,7 +1101,7 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     }
 }
 
-void CnaTamagotchiGame::drawDevice()
+void TamagotchiCnaGame::drawDevice()
 {
     const auto drawRect = [this](const Rectangle& rectangle, const Color color) {
         spriteBatch_->Draw(*pixelTexture_, rectangle, color);
@@ -1188,7 +1190,7 @@ void CnaTamagotchiGame::drawDevice()
         DeviceShellControlState{.buttons = pressedButtons_, .resetPressed = resetPressed_});
 }
 
-void CnaTamagotchiGame::OnExiting(System::Object* const sender,
+void TamagotchiCnaGame::OnExiting(System::Object* const sender,
                                   const System::EventArgs& args)
 {
     if (saveDirty_) {
@@ -1197,6 +1199,6 @@ void CnaTamagotchiGame::OnExiting(System::Object* const sender,
     Game::OnExiting(sender, args);
 }
 
-GetTypeNameCPP(CnaTamagotchiGame, "CnaTamagotchiGame")
+GetTypeNameCPP(TamagotchiCnaGame, "TamagotchiCnaGame")
 
-} // namespace CnaTamagotchi::Application
+} // namespace TamagotchiCna::Application

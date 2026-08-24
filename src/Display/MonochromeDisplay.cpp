@@ -1,8 +1,8 @@
-#include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
+#include "TamagotchiCna/Display/MonochromeDisplay.hpp"
 
 #include <algorithm>
 
-namespace CnaTamagotchi::Display {
+namespace TamagotchiCna::Display {
 namespace {
 
 using Glyph = std::array<std::string_view, 5>;
@@ -152,4 +152,4 @@ void MonochromeDisplay::drawText(const int x, const int y, const std::string_vie
     }
 }
 
-} // namespace CnaTamagotchi::Display
+} // namespace TamagotchiCna::Display

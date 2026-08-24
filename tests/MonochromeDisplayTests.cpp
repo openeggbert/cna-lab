@@ -1,16 +1,16 @@
-#include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
-#include "CnaTamagotchi/Display/P1LightScreen.hpp"
-#include "CnaTamagotchi/Display/P1MedicineAnimation.hpp"
-#include "CnaTamagotchi/Display/P1ToiletWipe.hpp"
+#include "TamagotchiCna/Display/MonochromeDisplay.hpp"
+#include "TamagotchiCna/Display/P1LightScreen.hpp"
+#include "TamagotchiCna/Display/P1MedicineAnimation.hpp"
+#include "TamagotchiCna/Display/P1ToiletWipe.hpp"
 
 #include <array>
 #include <iostream>
 
-using CnaTamagotchi::Display::LcdPalette;
-using CnaTamagotchi::Display::MonochromeDisplay;
-using CnaTamagotchi::Display::P1LightScreen;
-using CnaTamagotchi::Display::P1MedicineAnimation;
-using CnaTamagotchi::Display::P1ToiletWipe;
+using TamagotchiCna::Display::LcdPalette;
+using TamagotchiCna::Display::MonochromeDisplay;
+using TamagotchiCna::Display::P1LightScreen;
+using TamagotchiCna::Display::P1MedicineAnimation;
+using TamagotchiCna::Display::P1ToiletWipe;
 
 namespace {
 

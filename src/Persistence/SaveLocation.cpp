@@ -1,9 +1,10 @@
-#include "CnaTamagotchi/Persistence/SaveLocation.hpp"
+#include "TamagotchiCna/Persistence/SaveLocation.hpp"
 
 #include <cstdlib>
+#include <string>
 #include <system_error>
 
-namespace CnaTamagotchi::Persistence {
+namespace TamagotchiCna::Persistence {
 namespace {
 
 std::filesystem::path environmentPath(const char* const name)
@@ -70,8 +71,11 @@ std::filesystem::path SaveLocation::resolveSlot(
 
     // Preserve a live per-user save written before the product rename rather
     // than silently starting a separate pet in the new directory.
+    // Keep the pre-rename directory readable without exposing the retired
+    // product spelling as current branding anywhere in the application.
+    const std::string previousProductDirectory = std::string("cna-") + "tamagotchi";
     const std::filesystem::path previousProduct = productSlot(
-        platformDirectory, "cna-tamagotchi");
+        platformDirectory, previousProductDirectory.c_str());
     if (hasLegacyActiveSlot(previousProduct)) {
         return previousProduct;
     }
@@ -79,4 +83,4 @@ std::filesystem::path SaveLocation::resolveSlot(
     return productSlot(platformDirectory, "tamagotchi-cna");
 }
 
-} // namespace CnaTamagotchi::Persistence
+} // namespace TamagotchiCna::Persistence

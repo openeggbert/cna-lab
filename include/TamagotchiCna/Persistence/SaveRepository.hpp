@@ -1,14 +1,14 @@
 #pragma once
 
-#include "CnaTamagotchi/Domain/ProgramSimulation.hpp"
-#include "CnaTamagotchi/Presentation/DeviceShell.hpp"
+#include "TamagotchiCna/Domain/ProgramSimulation.hpp"
+#include "TamagotchiCna/Presentation/DeviceShell.hpp"
 
 #include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <string>
 
-namespace CnaTamagotchi::Persistence {
+namespace TamagotchiCna::Persistence {
 
 struct SaveData final {
     static constexpr int CurrentFormatVersion = 6;
@@ -50,4 +50,4 @@ public:
     [[nodiscard]] SaveResult archiveLegacySave(const std::filesystem::path& path) const;
 };
 
-} // namespace CnaTamagotchi::Persistence
+} // namespace TamagotchiCna::Persistence

@@ -4,7 +4,7 @@
 #include <span>
 #include <string_view>
 
-namespace CnaTamagotchi::Domain {
+namespace TamagotchiCna::Domain {
 
 // These types describe a virtual-pet programme. The simulator consumes this
 // data rather than branching on a P1/P2 enum, so a later P2 package can reuse
@@ -127,4 +127,4 @@ struct ProgramDefinition final {
     std::span<const EvolutionRule> evolutionRules;
 };
 
-} // namespace CnaTamagotchi::Domain
+} // namespace TamagotchiCna::Domain

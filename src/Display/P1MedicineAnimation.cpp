@@ -1,9 +1,9 @@
-#include "CnaTamagotchi/Display/P1MedicineAnimation.hpp"
+#include "TamagotchiCna/Display/P1MedicineAnimation.hpp"
 
 #include <array>
 #include <string_view>
 
-namespace CnaTamagotchi::Display {
+namespace TamagotchiCna::Display {
 namespace {
 
 using Frame = std::array<std::string_view, MonochromeDisplay::Height>;
@@ -106,4 +106,4 @@ void P1MedicineAnimation::render(MonochromeDisplay& destination,
     }
 }
 
-} // namespace CnaTamagotchi::Display
+} // namespace TamagotchiCna::Display

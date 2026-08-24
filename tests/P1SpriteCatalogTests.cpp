@@ -1,10 +1,10 @@
-#include "CnaTamagotchi/Domain/P1SpriteCatalog.hpp"
+#include "TamagotchiCna/Domain/P1SpriteCatalog.hpp"
 
 #include <array>
 #include <iostream>
 #include <string_view>
 
-using namespace CnaTamagotchi::Domain;
+using namespace TamagotchiCna::Domain;
 
 namespace {
 
@@ -206,34 +206,39 @@ void testMarutchiKeepsItsObservedP1Silhouettes()
 {
     const P1Sprite& marutchi = P1SpriteCatalog::spriteForCharacter("marutchi");
     constexpr std::array<std::string_view, 9> expectedLong{{
-        "..######..", ".#......#.", "#.##..##.#", "#........#", "#...##...#",
+        "..######..", ".#......#.", "#..#..#..#", "#........#", "#...##...#",
         "#........#", "#........#", ".#......#.", "..######..",
     }};
     constexpr std::array<std::string_view, 8> expectedShort{{
-        "..######..", ".#......#.", "#.##..##.#", "#........#", "#...##...#",
+        "..######..", ".#......#.", "#.#....#.#", "#...##...#", "#...##...#",
         "#........#", ".#......#.", "..######..",
     }};
+    constexpr std::array<int, 28> expectedOrigins{{
+        9, 7, 5, 7, 9, 11, 13, 11, 9, 10, 11, 12, 13, 11,
+        9, 7, 5, 7, 9, 11, 13, 11, 9, 10, 11, 12, 13, 11,
+    }};
 
-    expect(marutchi.idleFrameCount == 2U,
-           "Marutchi must alternate its two observed stable silhouettes");
-    expect(marutchi.idleFrameSeconds == 0.92F,
-           "Marutchi must retain the cadence inferred from its full-LCD trace");
-    expect(marutchi.idleFrame(0).originX == 11 && marutchi.idleFrame(0).originY == 3 &&
-               marutchi.idleFrame(0).rowCount == expectedLong.size(),
-           "the long Marutchi pose must retain its exact 10x9 bounds");
-    expect(marutchi.idleFrame(1).originX == 11 && marutchi.idleFrame(1).originY == 3 &&
-               marutchi.idleFrame(1).rowCount == expectedShort.size(),
-           "the short Marutchi pose must retain its exact 10x8 bounds");
-    for (std::size_t row = 0U; row < expectedLong.size(); ++row) {
-        expect(marutchi.idleFrame(0).rows[row] == expectedLong[row],
-               "every hand-read long Marutchi row must remain exact");
+    expect(marutchi.idleFrameCount == expectedOrigins.size(),
+           "awake Marutchi must retain its complete observed 28-phase path");
+    expect(marutchi.idleFrameSeconds == 16.0F / 30.0F,
+           "awake Marutchi must retain its observed nominal 16-frame cadence");
+    for (std::size_t phase = 0U; phase < expectedOrigins.size(); ++phase) {
+        const bool longPose = phase % 4U == 0U || phase % 4U == 3U;
+        const P1SpriteFrame& frame = marutchi.idleFrame(phase);
+        expect(frame.originX == expectedOrigins[phase] && frame.originY == 3,
+               "each awake Marutchi phase must retain its observed LCD origin");
+        expect(frame.rowCount == (longPose ? expectedLong.size() : expectedShort.size()),
+               "each awake Marutchi phase must retain its observed pose height");
+        const std::span<const std::string_view> expected = longPose
+            ? std::span<const std::string_view>(expectedLong)
+            : std::span<const std::string_view>(expectedShort);
+        for (std::size_t row = 0U; row < expected.size(); ++row) {
+            expect(frame.rows[row] == expected[row],
+                   "every hand-read awake Marutchi row must remain exact");
+        }
     }
-    for (std::size_t row = 0U; row < expectedShort.size(); ++row) {
-        expect(marutchi.idleFrame(1).rows[row] == expectedShort[row],
-               "every hand-read short Marutchi row must remain exact");
-    }
-    expect(!framesDiffer(marutchi.idleFrame(2), marutchi.idleFrame(0)),
-           "the two-phase Marutchi sequence must wrap directly");
+    expect(!framesDiffer(marutchi.idleFrame(expectedOrigins.size()), marutchi.idleFrame(0)),
+           "the 28-phase awake Marutchi path must wrap directly");
 }
 
 void testWasteKeepsItsObservedStackedP1Animation()
@@ -340,10 +345,20 @@ void testSleepIndicatorKeepsItsObservedP1Cycle()
     expect(!framesDiffer(sleep.idleFrame(2), sleep.idleFrame(0)),
            "the two-phase sleep overlay must wrap directly");
 
-    const P1Sprite& marutchi = P1SpriteCatalog::spriteForCharacter("marutchi");
-    expect(marutchi.idleFrameCount == 2U && framesDiffer(
-               marutchi.idleFrame(0), marutchi.idleFrame(1)),
-           "the observed sleeping Marutchi body must remain able to alternate below the Z overlay");
+    const P1Sprite& marutchi = P1SpriteCatalog::sleepingSpriteForCharacter("marutchi");
+    constexpr std::array<std::string_view, 9> expectedLongBody{{
+        "..######..", ".#......#.", "#.##..##.#", "#........#", "#...##...#",
+        "#........#", "#........#", ".#......#.", "..######..",
+    }};
+    expect(marutchi.idleFrameCount == 2U && marutchi.idleFrameSeconds == 0.92F
+               && framesDiffer(marutchi.idleFrame(0), marutchi.idleFrame(1)),
+           "sleeping Marutchi must retain its separate fixed-origin two-phase body cycle");
+    expect(marutchi.idleFrame(0).originX == 11 && marutchi.idleFrame(0).originY == 3,
+           "sleeping Marutchi must retain its measured body origin below the Z overlay");
+    for (std::size_t row = 0U; row < expectedLongBody.size(); ++row) {
+        expect(marutchi.idleFrame(0).rows[row] == expectedLongBody[row],
+               "every closed-eye sleeping Marutchi row must remain exact");
+    }
 }
 
 } // namespace

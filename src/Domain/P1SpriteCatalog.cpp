@@ -1,6 +1,6 @@
-#include "CnaTamagotchi/Domain/P1SpriteCatalog.hpp"
+#include "TamagotchiCna/Domain/P1SpriteCatalog.hpp"
 
-namespace CnaTamagotchi::Domain {
+namespace TamagotchiCna::Domain {
 namespace {
 
 constexpr P1SpriteFrame frame(const std::string_view row0, const std::string_view row1,
@@ -69,14 +69,28 @@ constexpr P1SpriteFrame babytchiSquashFrame(const int originX) noexcept
     return {originX, 13, 3U,
             {{"..####..", ".#.##.#.", "########", "", "", "", "", "", "", "", "", ""}}};
 }
-constexpr P1SpriteFrame marutchiLongFrame() noexcept
+constexpr P1SpriteFrame awakeMarutchiLongFrame(const int originX) noexcept
+{
+    return {originX, 3, 9U,
+            {{"..######..", ".#......#.", "#..#..#..#", "#........#", "#...##...#",
+              "#........#", "#........#", ".#......#.", "..######..", "", "", ""}}};
+}
+
+constexpr P1SpriteFrame awakeMarutchiShortFrame(const int originX) noexcept
+{
+    return {originX, 3, 8U,
+            {{"..######..", ".#......#.", "#.#....#.#", "#...##...#", "#...##...#",
+              "#........#", ".#......#.", "..######..", "", "", "", ""}}};
+}
+
+constexpr P1SpriteFrame sleepingMarutchiLongFrame() noexcept
 {
     return {11, 3, 9U,
             {{"..######..", ".#......#.", "#.##..##.#", "#........#", "#...##...#",
               "#........#", "#........#", ".#......#.", "..######..", "", "", ""}}};
 }
 
-constexpr P1SpriteFrame marutchiShortFrame() noexcept
+constexpr P1SpriteFrame sleepingMarutchiShortFrame() noexcept
 {
     return {11, 3, 8U,
             {{"..######..", ".#......#.", "#.##..##.#", "#........#", "#...##...#",
@@ -164,10 +178,31 @@ constexpr P1SpriteFrame SicknessIndicator{
     {{".#####.", "#######", "#..#..#", "#######", "###.###", ".#####.", ".#.#.#.",
       "", "", "", "", ""}}};
 
-// The two stable silhouettes are separated spatially from two waste piles in
-// the source trace. A clean-state horizontal path, if any, remains unverified.
-constexpr P1Sprite Marutchi =
-    twoPhaseSprite(marutchiLongFrame(), marutchiShortFrame(), 0.92F);
+// A clean 30 fps trace repeats this complete 28-phase awake path. Stable LCD
+// phases are separated by one- to three-host-frame incremental writes. The
+// nominal phase cadence is 16/30 seconds; the observed body origins and pose
+// changes are retained rather than synthesised by the renderer.
+constexpr P1Sprite Marutchi = sequence(
+    16.0F / 30.0F,
+    awakeMarutchiLongFrame(9), awakeMarutchiShortFrame(7),
+    awakeMarutchiShortFrame(5), awakeMarutchiLongFrame(7),
+    awakeMarutchiLongFrame(9), awakeMarutchiShortFrame(11),
+    awakeMarutchiShortFrame(13), awakeMarutchiLongFrame(11),
+    awakeMarutchiLongFrame(9), awakeMarutchiShortFrame(10),
+    awakeMarutchiShortFrame(11), awakeMarutchiLongFrame(12),
+    awakeMarutchiLongFrame(13), awakeMarutchiShortFrame(11),
+    awakeMarutchiShortFrame(9), awakeMarutchiLongFrame(7),
+    awakeMarutchiLongFrame(5), awakeMarutchiShortFrame(7),
+    awakeMarutchiShortFrame(9), awakeMarutchiLongFrame(11),
+    awakeMarutchiLongFrame(13), awakeMarutchiShortFrame(11),
+    awakeMarutchiShortFrame(9), awakeMarutchiLongFrame(10),
+    awakeMarutchiLongFrame(11), awakeMarutchiShortFrame(12),
+    awakeMarutchiShortFrame(13), awakeMarutchiLongFrame(11));
+
+// Sleeping Marutchi keeps the previously measured fixed-origin, closed-eye
+// two-phase body cycle beneath the independent Z overlay.
+constexpr P1Sprite SleepingMarutchi = twoPhaseSprite(
+    sleepingMarutchiLongFrame(), sleepingMarutchiShortFrame(), 0.92F);
 
 constexpr P1Sprite Waste = twoPhaseSprite(
     wasteFrame(".......#", ".#....#.", "#......#", ".#.#....",
@@ -303,6 +338,15 @@ const P1Sprite& P1SpriteCatalog::spriteForCharacter(const std::string_view chara
     return Egg;
 }
 
+const P1Sprite& P1SpriteCatalog::sleepingSpriteForCharacter(
+    const std::string_view characterId) noexcept
+{
+    if (characterId == "marutchi") {
+        return SleepingMarutchi;
+    }
+    return spriteForCharacter(characterId);
+}
+
 const P1Sprite& P1SpriteCatalog::sickSpriteForCharacter(
     const std::string_view characterId) noexcept
 {
@@ -327,4 +371,4 @@ const P1Sprite& P1SpriteCatalog::waste() noexcept
     return Waste;
 }
 
-} // namespace CnaTamagotchi::Domain
+} // namespace TamagotchiCna::Domain

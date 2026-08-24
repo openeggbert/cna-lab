@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace CnaTamagotchi::Presentation {
+namespace TamagotchiCna::Presentation {
 
 struct ShellRgba final {
     std::uint8_t red;
@@ -120,4 +120,4 @@ nextDeviceShellId(const std::string_view current) noexcept
     return DefaultDeviceShellId;
 }
 
-} // namespace CnaTamagotchi::Presentation
+} // namespace TamagotchiCna::Presentation

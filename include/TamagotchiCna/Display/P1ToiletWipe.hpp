@@ -1,10 +1,10 @@
 #pragma once
 
-#include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
+#include "TamagotchiCna/Display/MonochromeDisplay.hpp"
 
 #include <cstddef>
 
-namespace CnaTamagotchi::Display {
+namespace TamagotchiCna::Display {
 
 // The observed P1 Toilet core scrolls the complete 32x16 image left by two
 // cells per phase while a six-cell diagonal water band enters from the right.
@@ -27,4 +27,4 @@ public:
                        std::size_t phase) noexcept;
 };
 
-} // namespace CnaTamagotchi::Display
+} // namespace TamagotchiCna::Display

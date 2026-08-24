@@ -1,4 +1,4 @@
-# CNA Tamagotchi — Next Work
+# tamagotchi-cna — Next Work
 
 ## Status at the start of this backlog
 
@@ -8,11 +8,10 @@ is exactly 32 × 16 and one bit. The home renderer uses explicit geometry and
 an explicit per-sequence frame count, so it no longer fakes motion by shifting
 a static creature around the LCD. Most provisional frames use the centred
 16 × 10 cell. The egg's two stable silhouettes, Babytchi's complete 36-phase
-home and two-phase sick cycles, two stable Marutchi silhouettes, the exact
-two-phase Marutchi sleep overlay, and a Mametchi idle sequence have
+home and two-phase sick cycles, Marutchi's complete 28-phase awake path, its
+separate two-phase sleeping body and Z overlay, and a Mametchi idle sequence have
 been visually transcribed from P1 reference traces. The exact two-phase stacked
-waste overlay is also implemented; Marutchi's clean-state path
-and the other character redraws remain provisional.
+waste overlay is also implemented; the other character redraws remain provisional.
 
 The retired Pipple/Budbit `PetSimulation` and `CreatureCatalog` were no longer
 referenced by the active application but were still compiled and tested by
@@ -38,6 +37,13 @@ write and verify the clean implementation.
 
 ## Context handoff — 2026-08-24
 
+- Product naming is now consistent end to end: repository branding is
+  `tamagotchi-cna`, C++ namespaces/includes and the game class use
+  `TamagotchiCna`, CMake internals use `TAMAGOTCHI_CNA`, and all eight test
+  targets begin with `TamagotchiCna`. No tracked file contains the retired
+  product spelling. Save-location compatibility is intentionally retained by
+  constructing the pre-rename directory name from two string fragments; the
+  migration test confirms an existing pet still wins over a new slot.
 - The CMake integration was updated for the current sibling `../cna` and its
   modular `../sharp-runtime`. `CNA_GRAPHICS_RENDERER` accepts only
   `SDL_RENDERER` or `HEADLESS`; the application links `CNA::Runtime` plus the
@@ -52,6 +58,9 @@ write and verify the clean implementation.
   intermittently fail while `ar` replaces a static library (observed with both
   two and one job); retry the unchanged incremental build before attributing
   that message to a source or dependency change.
+- After the complete internal product rename and awake/sleeping Marutchi split,
+  SDL CMake regenerated successfully and all eight newly named tests passed on
+  2026-08-24.
 - A clean SDL application run was checked on Xvfb with
   `SDL_VIDEODRIVER=x11`, `WAYLAND_DISPLAY` unset, and an isolated
   `XDG_DATA_HOME` under `/tmp`. The initial clock setup needs a held virtual
@@ -70,7 +79,7 @@ write and verify the clean implementation.
   initial/reset SET can still start the egg directly. A missed synthetic C let
   the attempted 08:59 wake boundary pass while SET was still open, so no wake
   transition frames are accepted from that attempt; a later 30-second home run
-  contained only the already transcribed two stable Marutchi silhouettes.
+  contained only the then-known fixed-origin sleeping Marutchi silhouettes.
   A six-state normal-scale CNA run confirmed Clock → C/Clock → SET → C/Clock
   → B/Home with the corrected implementation.
 - Clock SET is also the user-facing P1 pause workaround: on SET, the simulation,
@@ -120,7 +129,7 @@ write and verify the clean implementation.
   repeat and resolved the former phase-20 uncertainty.
 - A new five-second normal-scale application trace using an isolated clean save
   confirms both corrected poses stay inside the LCD without touching the icon
-  bands. Continue the per-form home ledger with Marutchi; capture Babytchi
+  bands. Continue the per-form home ledger with Tamatchi; capture Babytchi
   care-action sequences under Priority 2.
 - A later layout audit found that the original 288 × 144 working crop did not
   cover TamaTool v0.1's 10-pixel-stride matrix. That crop's coordinates and
@@ -129,14 +138,18 @@ write and verify the clean implementation.
   yield the corrected egg and Babytchi data above. Do not infer a 32 × 16 grid
   by merely resizing a reference crop; derive its stride and extent first.
 
-- A confirmed Baby → Child run yielded Marutchi at 1×. Its spatially separate
-  left-hand character alternates exact 10 × 9 and 10 × 8 silhouettes at
-  `(11, 3)` every 27–28 host frames, represented as 0.92 seconds. Two right-hand
-  waste piles were excluded from the hand-written rows. The clean-state
-  horizontal path remains open because synthetic XTest release events do not
-  reliably release P1 A in this TamaTool v0.1 session.
-- A four-second normal-scale application trace with an isolated waste-free
-  save confirms both transcribed Marutchi silhouettes fit and wrap cleanly.
+- Clock SET moved an isolated save to daytime; two Medicine doses followed by
+  Toilet produced a confirmed awake, waste-free Marutchi state. A complete-LCD
+  30 fps 1× trace repeats 28 stable phases at a nominal 16-host-frame (0.53 s)
+  cadence. Its 10 × 9 long and 10 × 8 short open-eye poses follow origins
+  `9, 7, 5, 7, 9, 11, 13, 11, 9, 10, 11, 12, 13, 11, 9, 7, 5, 7, 9, 11,
+  13, 11, 9, 10, 11, 12, 13, 11`, always at `y=3`. One- to three-host-frame
+  partial LCD writes are excluded. Catalogue tests protect both row sets,
+  every origin, pose order, cadence, and direct wrap.
+- The earlier fixed-origin, double-eye 0.92-second trace included the measured
+  Z overlay and is therefore a sleeping body, not normal home. It now lives in
+  a separate two-phase sleeping Marutchi catalogue so awake rendering cannot
+  reuse closed eyes and sleeping rendering cannot run the horizontal path.
 - One- and two-pile reference traces establish an 8 × 8 waste glyph at
   `(24, 8)`, with a second copy stacked at `(24, 0)`. Both exact hand-read
   phases animate together at about 1.0 second. Catalogue tests protect their
@@ -165,8 +178,8 @@ write and verify the clean implementation.
   home cycle. Other-form Medicine art remains open rather than reusing the
   observed Marutchi states.
 
-- The naturally evolved reference later showed sleeping Marutchi. Its regular
-  long/short body cycle continues while an independent two-phase Z overlay
+- The naturally evolved reference later showed sleeping Marutchi. Its separate
+  fixed-origin, closed-eye long/short body cycle continues while an independent two-phase Z overlay
   alternates every 24–25 host frames (0.82 seconds): a 7 × 6 arrangement at
   `(24, 0)` and a 4 × 6 Z at `(25, 2)`. Existing waste also continues on its
   own cadence. Exact catalogue tests and a six-second normal-scale application
@@ -207,10 +220,11 @@ shell-control path does not mutate P1 state or framebuffer data.
 2. [x] Capture and transcribe Babytchi's complete 36-phase home cycle, including
    its true full/compressed geometry, horizontal path, cadence, wrap, and
    partial-write exclusion.
-3. Transcribe Marutchi's two waste-separated stable silhouettes and cadence;
-   capture a waste-free run before accepting its home origin/path as complete.
-4. Create a visual-reference ledger for each remaining P1 home form: Marutchi,
-   Tamatchi, Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi,
+3. [x] Replace the misclassified sleeping Marutchi body with the complete
+   28-phase waste-free awake path, and retain the fixed-origin closed-eye
+   silhouettes only in a separate sleeping sequence.
+4. Create a visual-reference ledger for each remaining P1 home form: Tamatchi,
+   Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi,
    Kuchipatchi, Nyorotchi, Tarakotchi, and Bill.
 5. For each form, identify the stable 32 × 16 cell origin, its true idle-frame
    count, and the pixel changes between frames. Record uncertainty rather than

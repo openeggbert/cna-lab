@@ -1,10 +1,10 @@
-#include "CnaTamagotchi/Display/P1ToiletWipe.hpp"
+#include "TamagotchiCna/Display/P1ToiletWipe.hpp"
 
 #include <algorithm>
 #include <array>
 #include <string_view>
 
-namespace CnaTamagotchi::Display {
+namespace TamagotchiCna::Display {
 namespace {
 
 constexpr std::array<std::string_view, 4> WaterRows{{
@@ -67,4 +67,4 @@ void P1ToiletWipe::render(MonochromeDisplay& destination,
     }
 }
 
-} // namespace CnaTamagotchi::Display
+} // namespace TamagotchiCna::Display

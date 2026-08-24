@@ -1,8 +1,8 @@
-#include "CnaTamagotchi/Display/P1LightScreen.hpp"
+#include "TamagotchiCna/Display/P1LightScreen.hpp"
 
 #include <array>
 
-namespace CnaTamagotchi::Display {
+namespace TamagotchiCna::Display {
 namespace {
 
 constexpr std::array<std::string_view, 16> MenuRows{{
@@ -62,4 +62,4 @@ void P1LightScreen::renderLightsOut(MonochromeDisplay& destination,
     }
 }
 
-} // namespace CnaTamagotchi::Display
+} // namespace TamagotchiCna::Display

@@ -22,7 +22,7 @@ endif()
 # the retired CNA_GRAPHICS_BACKEND names.  Keep the selectable surface small:
 # this game needs a real SDL window for play and a headless renderer for
 # framework integration checks.
-set(CNA_TAMAGOTCHI_RENDERERS SDL_RENDERER HEADLESS)
+set(TAMAGOTCHI_CNA_RENDERERS SDL_RENDERER HEADLESS)
 if(ANDROID OR EMSCRIPTEN)
     set(CNA_GRAPHICS_RENDERER "SDL_RENDERER" CACHE STRING
         "CNA graphics renderer" FORCE)
@@ -30,12 +30,12 @@ else()
     set(CNA_GRAPHICS_RENDERER "SDL_RENDERER" CACHE STRING
         "CNA graphics renderer")
 endif()
-set_property(CACHE CNA_GRAPHICS_RENDERER PROPERTY STRINGS ${CNA_TAMAGOTCHI_RENDERERS})
+set_property(CACHE CNA_GRAPHICS_RENDERER PROPERTY STRINGS ${TAMAGOTCHI_CNA_RENDERERS})
 
-if(NOT CNA_GRAPHICS_RENDERER IN_LIST CNA_TAMAGOTCHI_RENDERERS)
+if(NOT CNA_GRAPHICS_RENDERER IN_LIST TAMAGOTCHI_CNA_RENDERERS)
     message(FATAL_ERROR
         "tamagotchi-cna: unsupported CNA_GRAPHICS_RENDERER='${CNA_GRAPHICS_RENDERER}'. "
-        "Choose one of: ${CNA_TAMAGOTCHI_RENDERERS}")
+        "Choose one of: ${TAMAGOTCHI_CNA_RENDERERS}")
 endif()
 
 # The framework's own samples/tests are not part of this game's build.
@@ -62,9 +62,9 @@ set(SHARP_RUNTIME_COMPONENTS
     CACHE STRING "Sharp Runtime components required by tamagotchi-cna and CNA")
 add_subdirectory("${CNA_ROOT_DIR}" cna)
 
-set(CNA_TAMAGOTCHI_SOURCES
+set(TAMAGOTCHI_CNA_SOURCES
     src/main.cpp
-    src/Application/CnaTamagotchiGame.cpp
+    src/Application/TamagotchiCnaGame.cpp
     src/Application/DeviceShellRenderer.cpp
     src/Display/MonochromeDisplay.cpp
     src/Display/P1LightScreen.cpp
@@ -79,18 +79,18 @@ set(CNA_TAMAGOTCHI_SOURCES
 
 # Android's SDL activity loads libmain.so; desktop builds a normal executable.
 if(ANDROID)
-    set(CNA_TAMAGOTCHI_TARGET main)
-    add_library(${CNA_TAMAGOTCHI_TARGET} SHARED ${CNA_TAMAGOTCHI_SOURCES})
+    set(TAMAGOTCHI_CNA_TARGET main)
+    add_library(${TAMAGOTCHI_CNA_TARGET} SHARED ${TAMAGOTCHI_CNA_SOURCES})
 else()
-    set(CNA_TAMAGOTCHI_TARGET TamagotchiCna)
-    add_executable(${CNA_TAMAGOTCHI_TARGET} ${CNA_TAMAGOTCHI_SOURCES})
+    set(TAMAGOTCHI_CNA_TARGET TamagotchiCna)
+    add_executable(${TAMAGOTCHI_CNA_TARGET} ${TAMAGOTCHI_CNA_SOURCES})
 endif()
 
 if(EMSCRIPTEN)
-    set_target_properties(${CNA_TAMAGOTCHI_TARGET} PROPERTIES SUFFIX ".html")
+    set_target_properties(${TAMAGOTCHI_CNA_TARGET} PROPERTIES SUFFIX ".html")
 endif()
 
-target_include_directories(${CNA_TAMAGOTCHI_TARGET} PRIVATE
+target_include_directories(${TAMAGOTCHI_CNA_TARGET} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 configure_file(assets/p1-icon-atlas.png assets/p1-icon-atlas.png COPYONLY)
@@ -102,95 +102,95 @@ configure_file(assets/p1-icon-atlas-smooth.png assets/p1-icon-atlas-smooth.png C
 # CNA's compatibility umbrella, which also brings in devices, networking,
 # storage and CNAEXT.
 if(CNA_GRAPHICS_RENDERER STREQUAL "SDL_RENDERER")
-    set(CNA_TAMAGOTCHI_RENDERER_TARGET cna_renderer_sdl_renderer)
+    set(TAMAGOTCHI_CNA_RENDERER_TARGET cna_renderer_sdl_renderer)
 elseif(CNA_GRAPHICS_RENDERER STREQUAL "HEADLESS")
-    set(CNA_TAMAGOTCHI_RENDERER_TARGET cna_renderer_headless)
+    set(TAMAGOTCHI_CNA_RENDERER_TARGET cna_renderer_headless)
 endif()
 
-if(NOT TARGET ${CNA_TAMAGOTCHI_RENDERER_TARGET})
+if(NOT TARGET ${TAMAGOTCHI_CNA_RENDERER_TARGET})
     message(FATAL_ERROR
-        "tamagotchi-cna: CNA renderer target '${CNA_TAMAGOTCHI_RENDERER_TARGET}' was not created.")
+        "tamagotchi-cna: CNA renderer target '${TAMAGOTCHI_CNA_RENDERER_TARGET}' was not created.")
 endif()
 
-target_link_libraries(${CNA_TAMAGOTCHI_TARGET} PRIVATE
+target_link_libraries(${TAMAGOTCHI_CNA_TARGET} PRIVATE
     CNA::Runtime
-    ${CNA_TAMAGOTCHI_RENDERER_TARGET})
+    ${TAMAGOTCHI_CNA_RENDERER_TARGET})
 
 if(ANDROID)
     # CNA's mobile entry-point header directly includes SDL_main.h.
     find_package(SDL3 REQUIRED CONFIG)
-    target_link_libraries(${CNA_TAMAGOTCHI_TARGET} PRIVATE SDL3::SDL3 android log)
+    target_link_libraries(${TAMAGOTCHI_CNA_TARGET} PRIVATE SDL3::SDL3 android log)
     if(TARGET SDL3::SDL3main)
-        target_link_libraries(${CNA_TAMAGOTCHI_TARGET} PRIVATE SDL3::SDL3main)
+        target_link_libraries(${TAMAGOTCHI_CNA_TARGET} PRIVATE SDL3::SDL3main)
     endif()
 endif()
 
-option(CNA_TAMAGOTCHI_BUILD_TESTS "Build framework-free domain tests" ON)
-if(CNA_TAMAGOTCHI_BUILD_TESTS AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_CROSSCOMPILING)
+option(TAMAGOTCHI_CNA_BUILD_TESTS "Build framework-free domain tests" ON)
+if(TAMAGOTCHI_CNA_BUILD_TESTS AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_CROSSCOMPILING)
     enable_testing()
-    add_executable(CnaTamagotchiP1StateTests
+    add_executable(TamagotchiCnaP1StateTests
         tests/P1StateTests.cpp
     )
-    target_include_directories(CnaTamagotchiP1StateTests PRIVATE
+    target_include_directories(TamagotchiCnaP1StateTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    add_test(NAME CnaTamagotchiP1StateTests COMMAND CnaTamagotchiP1StateTests)
+    add_test(NAME TamagotchiCnaP1StateTests COMMAND TamagotchiCnaP1StateTests)
 
-    add_executable(CnaTamagotchiP1ProgramTests
+    add_executable(TamagotchiCnaP1ProgramTests
         tests/P1ProgramTests.cpp
         src/Domain/P1Program.cpp
     )
-    target_include_directories(CnaTamagotchiP1ProgramTests PRIVATE
+    target_include_directories(TamagotchiCnaP1ProgramTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    add_test(NAME CnaTamagotchiP1ProgramTests COMMAND CnaTamagotchiP1ProgramTests)
+    add_test(NAME TamagotchiCnaP1ProgramTests COMMAND TamagotchiCnaP1ProgramTests)
 
-    add_executable(CnaTamagotchiP1SpriteCatalogTests
+    add_executable(TamagotchiCnaP1SpriteCatalogTests
         tests/P1SpriteCatalogTests.cpp
         src/Domain/P1SpriteCatalog.cpp
     )
-    target_include_directories(CnaTamagotchiP1SpriteCatalogTests PRIVATE
+    target_include_directories(TamagotchiCnaP1SpriteCatalogTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    add_test(NAME CnaTamagotchiP1SpriteCatalogTests COMMAND CnaTamagotchiP1SpriteCatalogTests)
+    add_test(NAME TamagotchiCnaP1SpriteCatalogTests COMMAND TamagotchiCnaP1SpriteCatalogTests)
 
-    add_executable(CnaTamagotchiProgramSimulationTests
+    add_executable(TamagotchiCnaProgramSimulationTests
         tests/ProgramSimulationTests.cpp
         src/Domain/P1Program.cpp
         src/Domain/ProgramSimulation.cpp
     )
-    target_include_directories(CnaTamagotchiProgramSimulationTests PRIVATE
+    target_include_directories(TamagotchiCnaProgramSimulationTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    add_test(NAME CnaTamagotchiProgramSimulationTests COMMAND CnaTamagotchiProgramSimulationTests)
+    add_test(NAME TamagotchiCnaProgramSimulationTests COMMAND TamagotchiCnaProgramSimulationTests)
 
-    add_executable(CnaTamagotchiDisplayTests
+    add_executable(TamagotchiCnaDisplayTests
         tests/MonochromeDisplayTests.cpp
         src/Display/MonochromeDisplay.cpp
         src/Display/P1LightScreen.cpp
         src/Display/P1MedicineAnimation.cpp
         src/Display/P1ToiletWipe.cpp
     )
-    target_include_directories(CnaTamagotchiDisplayTests PRIVATE
+    target_include_directories(TamagotchiCnaDisplayTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    add_test(NAME CnaTamagotchiDisplayTests COMMAND CnaTamagotchiDisplayTests)
+    add_test(NAME TamagotchiCnaDisplayTests COMMAND TamagotchiCnaDisplayTests)
 
-    add_executable(CnaTamagotchiSaveLocationTests
+    add_executable(TamagotchiCnaSaveLocationTests
         tests/SaveLocationTests.cpp
         src/Persistence/SaveLocation.cpp
     )
-    target_include_directories(CnaTamagotchiSaveLocationTests PRIVATE
+    target_include_directories(TamagotchiCnaSaveLocationTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    add_test(NAME CnaTamagotchiSaveLocationTests COMMAND CnaTamagotchiSaveLocationTests)
+    add_test(NAME TamagotchiCnaSaveLocationTests COMMAND TamagotchiCnaSaveLocationTests)
 
-    add_executable(CnaTamagotchiPersistenceTests
+    add_executable(TamagotchiCnaPersistenceTests
         tests/SaveRepositoryTests.cpp
         src/Persistence/SaveRepository.cpp
     )
-    target_include_directories(CnaTamagotchiPersistenceTests PRIVATE
+    target_include_directories(TamagotchiCnaPersistenceTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    add_test(NAME CnaTamagotchiPersistenceTests COMMAND CnaTamagotchiPersistenceTests)
+    add_test(NAME TamagotchiCnaPersistenceTests COMMAND TamagotchiCnaPersistenceTests)
 
-    add_executable(CnaTamagotchiDeviceShellTests
+    add_executable(TamagotchiCnaDeviceShellTests
         tests/DeviceShellTests.cpp
     )
-    target_include_directories(CnaTamagotchiDeviceShellTests PRIVATE
+    target_include_directories(TamagotchiCnaDeviceShellTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include")
-    add_test(NAME CnaTamagotchiDeviceShellTests COMMAND CnaTamagotchiDeviceShellTests)
+    add_test(NAME TamagotchiCnaDeviceShellTests COMMAND TamagotchiCnaDeviceShellTests)
 endif()

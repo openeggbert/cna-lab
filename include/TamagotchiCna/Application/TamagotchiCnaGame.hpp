@@ -1,11 +1,11 @@
 #pragma once
 
-#include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
-#include "CnaTamagotchi/Display/P1MedicineAnimation.hpp"
-#include "CnaTamagotchi/Display/P1ToiletWipe.hpp"
-#include "CnaTamagotchi/Domain/ProgramSimulation.hpp"
-#include "CnaTamagotchi/Persistence/SaveRepository.hpp"
-#include "CnaTamagotchi/Presentation/DeviceShell.hpp"
+#include "TamagotchiCna/Display/MonochromeDisplay.hpp"
+#include "TamagotchiCna/Display/P1MedicineAnimation.hpp"
+#include "TamagotchiCna/Display/P1ToiletWipe.hpp"
+#include "TamagotchiCna/Domain/ProgramSimulation.hpp"
+#include "TamagotchiCna/Persistence/SaveRepository.hpp"
+#include "TamagotchiCna/Presentation/DeviceShell.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -22,12 +22,12 @@
 
 #include <array>
 
-namespace CnaTamagotchi::Application {
+namespace TamagotchiCna::Application {
 
 // CNA adapter only. Simulation and persistence must stay out of this class.
-class CnaTamagotchiGame final : public Microsoft::Xna::Framework::Game {
+class TamagotchiCnaGame final : public Microsoft::Xna::Framework::Game {
 public:
-    explicit CnaTamagotchiGame(
+    explicit TamagotchiCnaGame(
         bool smokeTest = false,
         Display::LcdPalette lcdPalette = Display::LcdPalette::ClassicOlive);
 
@@ -151,4 +151,4 @@ private:
     unsigned int drawnFrames_{0};
 };
 
-} // namespace CnaTamagotchi::Application
+} // namespace TamagotchiCna::Application

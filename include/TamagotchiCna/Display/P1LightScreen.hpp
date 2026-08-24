@@ -1,11 +1,11 @@
 #pragma once
 
-#include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
+#include "TamagotchiCna/Display/MonochromeDisplay.hpp"
 
 #include <span>
 #include <string_view>
 
-namespace CnaTamagotchi::Display {
+namespace TamagotchiCna::Display {
 
 // Exact stable P1 Light menu and lights-out presentation. The normal sleep Z
 // data remains in P1SpriteCatalog; lights-out inverts it over a filled LCD and
@@ -22,4 +22,4 @@ public:
                                 std::span<const std::string_view> sleepRows) noexcept;
 };
 
-} // namespace CnaTamagotchi::Display
+} // namespace TamagotchiCna::Display

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 700" role="img" aria-labelledby="title desc">
-  <title id="title">CNA Tamagotchi with icons inside the LCD</title>
+  <title id="title">tamagotchi-cna with icons inside the LCD</title>
   <desc id="desc">A short pink egg-shaped virtual-pet device with four small icons above and four below its creature on a one-bit LCD.</desc>
   <rect width="540" height="700" rx="40" fill="#fff4e8"/>
   <ellipse cx="278" cy="638" rx="164" ry="15" fill="#b07f7744"/>

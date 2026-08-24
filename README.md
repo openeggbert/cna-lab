@@ -30,7 +30,8 @@ from the earlier prototype to the selected 1997 international P1 reference.
 ## Current prototype
 
 New platform saves use the `tamagotchi-cna` product directory. An existing
-active `cna-tamagotchi` slot remains preferred, so the rename keeps the pet.
+pre-rename platform slot remains preferred, so upgrading keeps the pet without
+presenting the retired product name as current branding.
 
 The current build opens a CNA window and renders an egg-shaped device with a
 full 32 × 16 one-bit game field, connected top/bottom icon bands, and three
@@ -40,8 +41,11 @@ active state is now the shared P1 programme state, not the retired
 Pipple/Budbit prototype. The implemented P1 trace covers the egg,
 Babytchi, Marutchi, early illness and two-dose medicine, baby waste, P1
 Bread/Candy, the five-round Character game, weight effects, Toilet, and the
-captured Marutchi sleep schedule. Marutchi Medicine now uses its observed
-seven-phase 16-frame treatment animation instead of the generic success mark.
+captured Marutchi sleep schedule. Awake Marutchi now follows its complete
+observed 28-phase horizontal path with open eyes, while sleeping Marutchi keeps
+the separately measured fixed-origin closed-eye body beneath the Z overlay.
+Marutchi Medicine uses its observed seven-phase 16-frame treatment animation
+instead of the generic success mark.
 P1 JSON saves have an explicit programme id;
 an incompatible prototype save is preserved under a `.legacy` suffix rather
 than invented into a P1 pet. A persisted, data-driven P1 growth resolver now
@@ -311,14 +315,14 @@ repeat a capture that shows a blank LCD.
 ## Tests
 
 ```bash
-cmake --build --preset sdl-renderer --parallel 2 --target CnaTamagotchiP1StateTests CnaTamagotchiP1ProgramTests CnaTamagotchiP1SpriteCatalogTests CnaTamagotchiProgramSimulationTests CnaTamagotchiDisplayTests CnaTamagotchiSaveLocationTests CnaTamagotchiPersistenceTests CnaTamagotchiDeviceShellTests
+cmake --build --preset sdl-renderer --parallel 2 --target TamagotchiCnaP1StateTests TamagotchiCnaP1ProgramTests TamagotchiCnaP1SpriteCatalogTests TamagotchiCnaProgramSimulationTests TamagotchiCnaDisplayTests TamagotchiCnaSaveLocationTests TamagotchiCnaPersistenceTests TamagotchiCnaDeviceShellTests
 ctest --test-dir cmake-build-sdl-renderer --output-on-failure --parallel 2
 ```
 
 ## Repository layout
 
 ```text
-include/CnaTamagotchi/  application, display, domain, persistence, and presentation headers
+include/TamagotchiCna/  application, display, domain, persistence, and presentation headers
 src/                    executable entry point and implementations
 tests/                  framework-free domain and persistence tests
 analysis.md             technical analysis

@@ -1,4 +1,4 @@
-# CNA Tamagotchi — International P1 Development Plan
+# tamagotchi-cna — International P1 Development Plan
 
 ## Fixed target
 
@@ -26,6 +26,9 @@ similar emulation core is permitted in the application, build, or test suite.
     `../sharp-runtime`: link `CNA::Runtime` plus only the selected renderer,
     provide the required sharp-runtime component closure, and disable the
     unused networking, CNAEXT, device-extension, and Draco paths.
+  - [x] Complete the repository rename in branding, C++ namespaces/includes,
+    the main game class, CMake variables, and test targets while retaining a
+    tested, non-branded compatibility lookup for the pre-rename save slot.
 
 - [x] **2. P1 target decision**
   - Select international P1 (1997), rather than P2 or a hybrid.
@@ -87,9 +90,10 @@ similar emulation core is permitted in the application, build, or test suite.
     post-hatch 1× traces, including its alternating 6 × 6 full and 8 × 3
     compressed poses, horizontal path, 0.46-second cadence, and observed wrap;
     reject and replace geometry derived from an incomplete reference crop.
-  - [x] Replace Marutchi's invented redraw with the two exact stable silhouettes
-    spatially separated from waste in a full-LCD trace; preserve the clean-state
-    origin/path as open evidence rather than inferring it from a care-state run.
+  - [x] Replace Marutchi's provisional home redraw with its complete 28-phase
+    clean awake path, two exact open-eye poses, measured horizontal origins,
+    and 0.53-second cadence; retain the earlier fixed-origin closed-eye rows
+    only in a separate 0.92-second sleeping-body sequence.
   - [x] Replace the generic plus-sign waste marks with both exact observed 8 × 8
     phases, stack the first at `(24, 8)` and the second at `(24, 0)`, preserve
     the shared approximately one-second cadence, and verify the two-pile result
@@ -196,7 +200,8 @@ similar emulation core is permitted in the application, build, or test suite.
 ## Immediate next task
 
 Follow the ordered visual and behaviour backlog in [next.md](next.md). Next,
-capture a waste-free Marutchi home cycle and compare its path. The
-explicit-frame renderer removes the incorrect generic bobbing behaviour, but
-the remaining provisional character redraws and all care-action animations
-still need a frame-by-frame comparison before they can be described as exact.
+capture and transcribe the first teen home form, Tamatchi, without borrowing
+Marutchi geometry. The explicit-frame renderer now covers verified egg,
+Babytchi, and awake/sleeping Marutchi paths, but the remaining provisional
+character redraws and care-action animations still need a frame-by-frame
+comparison before they can be described as exact.
