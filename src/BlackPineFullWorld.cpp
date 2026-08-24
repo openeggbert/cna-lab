@@ -479,6 +479,137 @@ void addStoryLandmark(e2d::RoomDefinition& result, const int number) {
     }
 }
 
+void addStoryAnimation(e2d::RoomDefinition& result, const content::Screen& spec) {
+    const Motif motif = motifFor(spec.number);
+    const float x = 182.0F + static_cast<float>((spec.number * 7) % 37);
+    std::vector<e2d::AnimationFrame> frames;
+    switch (motif) {
+    case Motif::trailSign:
+        frames = {
+            {8, {line(x + 4, 114, x + 1, 125, signalBlue)}},
+            {8, {line(x + 4, 118, x + 1, 129, signalBlue)}},
+        };
+        break;
+    case Motif::gate:
+        frames = {
+            {10, {line(x + 31, 133, x + 73, 151, P::lightGray)}},
+            {10, {line(x + 31, 136, x + 73, 148, P::lightGray)}},
+        };
+        break;
+    case Motif::bridge:
+        frames = {
+            {7, {line(103, 244, 215, 244, signalBlue), line(281, 251, 397, 251, P::brightCyan)}},
+            {7, {line(86, 251, 198, 251, P::brightCyan), line(298, 244, 414, 244, signalBlue)}},
+        };
+        break;
+    case Motif::cabin:
+        frames = {
+            {12, {circle(x + 116, 87, 5, P::lightGray, false), circle(x + 121, 76, 3, P::darkGray, false)}},
+            {12, {circle(x + 120, 82, 6, P::lightGray, false), circle(x + 127, 69, 3, P::darkGray, false)}},
+        };
+        break;
+    case Motif::radio:
+    case Motif::control:
+    case Motif::laboratory:
+    case Motif::finalConsole:
+        frames = {
+            {6, {line(x - 35, 74, x - 8, 66, signalBlue), line(x - 8, 66, x + 18, 80, P::brightGreen),
+                line(x + 18, 80, x + 47, 61, signalBlue)}},
+            {6, {line(x - 35, 74, x - 8, 82, P::brightGreen), line(x - 8, 82, x + 18, 62, signalBlue),
+                line(x + 18, 62, x + 47, 76, amber)}},
+        };
+        break;
+    case Motif::mast:
+    case Motif::tower:
+        frames = {
+            {9, {circle(x + 20, 25, 7, danger), line(x - 3, 25, x - 18, 25, danger)}},
+            {9, {circle(x + 20, 25, 7, amber), line(x + 43, 25, x + 58, 25, amber)}},
+        };
+        break;
+    case Motif::cable:
+    case Motif::capacitor:
+        frames = {
+            {5, {e2d::PolylineVisual{{{x - 12, 82}, {x + 3, 69}, {x + 13, 85}, {x + 29, 66}}, signalBlue, false}}},
+            {8, {e2d::PolylineVisual{{{x - 7, 72}, {x + 6, 86}, {x + 18, 68}, {x + 33, 81}}, pale, false}}},
+        };
+        break;
+    case Motif::generator:
+    case Motif::hoist:
+    case Motif::pump:
+    case Motif::lift:
+        frames = {
+            {7, {circle(x + 22, 72, 13, P::lightGray, false), line(x + 22, 59, x + 22, 85, amber)}},
+            {7, {circle(x + 22, 72, 13, P::lightGray, false), line(x + 9, 72, x + 35, 72, amber)}},
+        };
+        break;
+    case Motif::person:
+        frames = {
+            {13, {circle(x + 40, 123, 15, amber)}},
+            {13, {circle(x + 40, 121, 15, amber)}},
+        };
+        break;
+    case Motif::bear:
+        frames = {
+            {12, {circle(x + 91, 160, 3, amber), line(x + 102, 170, x + 119, 174, P::brightRed)}},
+            {12, {circle(x + 91, 160, 3, amber), line(x + 102, 174, x + 119, 170, P::brightRed)}},
+        };
+        break;
+    case Motif::rope:
+        frames = {
+            {10, {e2d::PolylineVisual{{{x - 42, 110}, {x + 1, 141}, {x + 31, 184}, {x + 91, 235}}, amber, false}}},
+            {10, {e2d::PolylineVisual{{{x - 42, 110}, {x + 8, 136}, {x + 25, 190}, {x + 91, 235}}, amber, false}}},
+        };
+        break;
+    case Motif::tunnel:
+    case Motif::mine:
+        frames = {
+            {11, {circle(x + 24, 185, 10, amber), circle(x + 24, 185, 15, P::brown, false)}},
+            {11, {circle(x + 24, 185, 13, P::brightYellow), circle(x + 24, 185, 18, P::brown, false)}},
+        };
+        break;
+    case Motif::crusher:
+        frames = {
+            {6, {line(x - 55, 212, x + 125, 212, danger), line(x - 35, 207, x - 18, 217, amber)}},
+            {6, {line(x - 55, 212, x + 125, 212, danger), line(x + 62, 207, x + 79, 217, amber)}},
+        };
+        break;
+    case Motif::rail:
+        frames = {
+            {8, {circle(x - 48, 226, 14, P::lightGray), line(x - 62, 226, x - 34, 226, P::black)}},
+            {8, {circle(x - 48, 226, 14, P::lightGray), line(x - 48, 212, x - 48, 240, P::black)}},
+        };
+        break;
+    case Motif::waterworks:
+        frames = {
+            {7, {line(25, 248, 172, 248, P::brightCyan), line(251, 242, 445, 242, signalBlue)}},
+            {7, {line(51, 242, 206, 242, signalBlue), line(278, 248, 471, 248, P::brightCyan)}},
+        };
+        break;
+    case Motif::camera:
+        frames = {
+            {8, {line(x + 21, 190, x - 31, 245, signalBlue)}},
+            {8, {line(x + 21, 190, x + 79, 245, signalBlue)}},
+        };
+        break;
+    case Motif::archive:
+        frames = {
+            {9, {circle(x - 55, 196, 22, P::lightGray, false), line(x - 55, 174, x - 55, 218, amber)}},
+            {9, {circle(x - 55, 196, 22, P::lightGray, false), line(x - 77, 196, x - 33, 196, amber)}},
+        };
+        break;
+    case Motif::dome:
+        frames = {
+            {12, {line(x + 20, 95, x + 20, 213, signalBlue)}},
+            {12, {line(x - 5, 98, x + 20, 213, signalBlue)}},
+        };
+        break;
+    case Motif::tools:
+    case Motif::forestClue:
+        return;
+    }
+    result.animations.push_back({targetId(spec.number, "story_motion"), true, true, {}, std::move(frames)});
+}
+
 void addRegionArtwork(e2d::RoomDefinition& result, const content::Screen& spec) {
     switch (spec.region) {
     case Region::caretaker:
@@ -497,16 +628,7 @@ void addRegionArtwork(e2d::RoomDefinition& result, const content::Screen& spec) 
     }
 
     addStoryLandmark(result, spec.number);
-
-    const std::string code = "SCREEN " + screenPrefix(spec.number).substr(1, 3);
-    result.decorations.push_back(box(8, 35, 144, 17, P::black));
-    result.decorations.push_back(label(15, 40, tr(code, "OBRAZOVKA " + code.substr(7)), amber));
-
-    const float motionX = 455.0F - static_cast<float>(spec.number % 37);
-    result.animations.push_back({targetId(spec.number, "scene_motion"), true, true, {}, {
-        {6 + spec.number % 5, {circle(motionX, 67 + spec.number % 29, 3, danger)}},
-        {6 + (spec.number + 2) % 5, {circle(motionX, 67 + spec.number % 29, 3, signalBlue)}},
-    }});
+    addStoryAnimation(result, spec);
 }
 
 void configureInterface(e2d::InterfaceTextDefinition& ui) {
@@ -585,6 +707,7 @@ constexpr std::array items{
     ItemSpec{"red_phase_coil", "RED PHASE COIL", "ČERVENÁ FÁZOVÁ CÍVKA", "A stolen Nightjar phase component.", "Ukradená fázová součást Nightjaru."},
     ItemSpec{"survey_notebook", "SURVEY NOTEBOOK", "PRŮZKUMNICKÝ ZÁPISNÍK", "Voss's false survey records.", "Vossovy falešné průzkumnické záznamy.", false},
     ItemSpec{"siphon_hose", "SIPHON HOSE", "PŘEČERPÁVACÍ HADICE", "A fuel-safe service hose.", "Servisní hadice odolná palivu."},
+    ItemSpec{"filled_fuel_can", "FILLED FUEL CAN", "PLNÝ KANYSTR", "Protected reserve fuel for the logging engine.", "Palivo z chráněné zásoby pro lesní lokomotivu."},
     ItemSpec{"quartz_sample", "BLUE QUARTZ", "MODRÝ KŘEMEN", "An optional mountain keepsake.", "Volitelná horská památka.", false},
     ItemSpec{"drive_belt", "DRIVE BELT", "HNACÍ ŘEMEN", "A serviceable planer belt.", "Použitelný řemen z hoblovky."},
     ItemSpec{"oil_can", "OIL CAN", "OLEJNIČKA", "Heavy machine oil.", "Hustý strojní olej."},
@@ -595,27 +718,34 @@ constexpr std::array items{
     ItemSpec{"sealed_ration", "SEALED RATION", "UZAVŘENÁ DÁVKA", "June's emergency ration.", "Junina nouzová dávka."},
     ItemSpec{"insulated_boots", "INSULATED BOOTS", "IZOLAČNÍ BOTY", "Rubber boots for wet electrical work.", "Gumové boty pro práci ve vodě."},
     ItemSpec{"turbine_badge", "TURBINE BADGE", "ODZNAK TURBÍNY", "Jonah's dam access badge.", "Jonahův přístupový odznak přehrady."},
+    ItemSpec{"spillway_crank", "SPILLWAY HAND CRANK", "RUČNÍ KLIKA PŘELIVU", "The removable emergency crank for the gatehouse.", "Odnimatelná nouzová klika domku stavidel."},
     ItemSpec{"pump_gasket", "PUMP GASKET", "TĚSNĚNÍ ČERPADLA", "A fresh emergency-pump gasket.", "Nové těsnění nouzového čerpadla."},
     ItemSpec{"dry_cell", "DRY-CELL BATTERY", "SUCHÝ ČLÁNEK", "A charged pump starter cell.", "Nabitý článek startéru čerpadla."},
     ItemSpec{"magnet_cord", "MAGNET ON CORD", "MAGNET NA ŠŇŮŘE", "A retrieval magnet on strong cord.", "Vytahovací magnet na pevné šňůře."},
     ItemSpec{"valve_wheel", "VALVE WHEEL", "VENTILOVÉ KOLO", "A detachable bypass wheel.", "Odnímatelné kolo obtoku."},
     ItemSpec{"respirator", "RESPIRATOR", "RESPIRÁTOR", "A mask body awaiting filter charcoal.", "Tělo masky čekající na filtrační uhlí."},
+    ItemSpec{"filter_housing", "EMPTY FILTER HOUSING", "PRÁZDNÉ POUZDRO FILTRU", "A respirator cartridge ready for clean charcoal.", "Respirátorová vložka připravená na čisté uhlí."},
     ItemSpec{"copper_bus_bar", "COPPER BUS BAR", "MĚDĚNÁ PŘÍPOJNICE", "A heavy cut copper link.", "Těžká měděná spojnice."},
     ItemSpec{"lift_fuse", "LIFT FUSE", "POJISTKA VÝTAHU", "A sealed freight-lift fuse.", "Utěsněná pojistka nákladního výtahu."},
     ItemSpec{"mine_map", "MINE MAP", "DŮLNÍ MAPA", "A marked underground route map.", "Označená mapa podzemních tras.", false},
     ItemSpec{"research_badge", "KLINE'S RESEARCH BADGE", "KLINEOVÉ VÝZKUMNÝ ODZNAK", "Emergency Nightjar access.", "Nouzový přístup do Nightjaru."},
     ItemSpec{"punched_card", "PUNCHED CODE CARD", "DĚRNÝ KÓDOVÝ ŠTÍTEK", "A reversible emergency code card.", "Oboustranný nouzový kódový štítek."},
     ItemSpec{"nightjar_patch", "NIGHTJAR PATCH", "NÁŠIVKA NIGHTJAR", "An optional cloth insignia.", "Volitelná látková nášivka.", false},
+    ItemSpec{"ranger_patch", "RANGER SERVICE PATCH", "SLUŽEBNÍ NÁŠIVKA STRÁŽCŮ", "Theo's optional service patch.", "Theova volitelná služební nášivka.", false},
+    ItemSpec{"old_relay_badge", "SILTED RELAY BADGE", "STARÝ ODZNAK Z NÁNOSU", "A 1964 predecessor to Mara's enamel badge.", "Předchůdce Mařina smaltovaného odznaku z roku 1964.", false},
     ItemSpec{"first_aid_kit", "FIRST-AID KIT", "LÉKÁRNIČKA", "A complete observatory kit.", "Úplná lékárnička observatoře."},
     ItemSpec{"cipher_lens", "CIPHER LENS", "ŠIFROVACÍ ČOČKA", "A coloured Nightjar decoding lens.", "Barevná dekódovací čočka Nightjaru."},
     ItemSpec{"archive_reel", "ARCHIVE REEL", "ARCHIVNÍ KOTOUČ", "Calder's magnetic project archive.", "Calderové magnetický projektový archiv."},
     ItemSpec{"phase_prism", "PHASE PRISM", "FÁZOVÝ HRANOL", "The second stolen field component.", "Druhá ukradená součást pole."},
     ItemSpec{"calibration_fork", "CALIBRATION FORK", "KALIBRAČNÍ LADIČKA", "A precisely tuned Nightjar fork.", "Přesně naladěná ladička Nightjaru."},
+    ItemSpec{"alignment_chart", "ANTENNA ALIGNMENT CHART", "PLÁN SEŘÍZENÍ ANTÉNY", "Nell's three-landmark azimuth record.", "Nellin azimutový záznam tří orientačních bodů.", false},
     ItemSpec{"dome_key", "INSTRUMENT DOME KEY", "KLÍČ OD PŘÍSTROJOVÉ KOPULE", "The security office dome key.", "Klíč od kopule z bezpečnostní kanceláře."},
     ItemSpec{"coolant_hose", "COOLANT HOSE", "CHLADICÍ HADICE", "A pressure-rated replacement hose.", "Náhradní tlaková hadice."},
     ItemSpec{"grounding_clamp", "GROUNDING CLAMP", "ZEMNICÍ SVORKA", "A heavy high-current clamp.", "Těžká silnoproudá svorka."},
+    ItemSpec{"calder_photo", "RUTH CALDER PHOTOGRAPH", "FOTOGRAFIE RUTH CALDEROVÉ", "Calder beside the first protected-carrier rig.", "Calderová u první soupravy chráněné nosné vlny.", false},
     ItemSpec{"evidence_spool", "EVIDENCE SPOOL", "DŮKAZNÍ KOTOUČ", "A copy of Nightjar records and Voss's admission.", "Kopie záznamů Nightjaru a Vossova přiznání."},
     ItemSpec{"override_key", "EMERGENCY OVERRIDE KEY", "NOUZOVÝ OVLÁDACÍ KLÍČ", "Kline's local-control key.", "Klineové klíč místního ovládání."},
+    ItemSpec{"beacon_crystal", "BEACON CRYSTAL", "KRYSTAL MAJÁKU", "The removable reference crystal from the summit beacon.", "Odnimatelný referenční krystal z vrcholového majáku."},
     ItemSpec{"transmitter_key", "TRANSMITTER KEY", "KLÍČ VYSÍLAČE", "Voss's summit transmitter key.", "Vossův klíč vrcholového vysílače."},
 };
 
@@ -681,7 +811,7 @@ void addScreens(e2d::WorldDefinition& world) {
         addRegionArtwork(result, spec);
 
         const std::string sceneTarget = targetId(spec.number, "story");
-        result.hotspots.push_back({sceneTarget, tr("SCENE CLUES", "STOPY VE SCÉNĚ"),
+        result.hotspots.push_back({sceneTarget, result.label,
             {327, 84, 157, 166}, e2d::HotspotKind::scenery, {}, {
                 box(436 - static_cast<float>(spec.number % 51), 205, 18, 10, signalBlue, false)}});
 
@@ -693,8 +823,16 @@ void addScreens(e2d::WorldDefinition& world) {
         }
         world.addRoom(std::move(result));
 
-        world.addInteraction({e2d::Verb::examine, sceneTarget, std::nullopt, {},
-            {inspect(tr(std::string{spec.englishStory}, std::string{spec.czechStory}))}, {}, 0, {}});
+        const std::string observedFlag = "observed_" + std::string{spec.id};
+        world.addInteraction({e2d::Verb::examine, sceneTarget, std::nullopt,
+            {e2d::Condition::notFlag(observedFlag)},
+            {inspect(tr(std::string{spec.englishStory}, std::string{spec.czechStory}))},
+            {e2d::Mutation::setFlag(observedFlag)}, 10, "once_" + observedFlag});
+        world.addInteraction({e2d::Verb::examine, sceneTarget, std::nullopt,
+            {e2d::Condition::flag(observedFlag)},
+            {inspect(tr("Iris has already recorded this location and its useful details in her field notes.",
+                "Iris už toto místo i jeho užitečné podrobnosti zaznamenala do terénních poznámek."))},
+            {}, 0, {}});
     }
 }
 
@@ -843,6 +981,20 @@ void addCharacter(
         std::move(messages), std::move(mutations), 40, {}, "talk"});
 }
 
+void addFollowUpDialogue(
+    e2d::WorldDefinition& world,
+    const int screenNumber,
+    const std::string_view characterName,
+    const std::string_view onceFlag,
+    std::vector<e2d::Message> messages,
+    std::vector<e2d::Condition> conditions)
+{
+    conditions.push_back(e2d::Condition::notFlag(std::string{onceFlag}));
+    world.addInteraction({e2d::Verb::context, targetId(screenNumber, characterName), std::nullopt,
+        std::move(conditions), std::move(messages), {e2d::Mutation::setFlag(std::string{onceFlag})},
+        60, {}, "talk"});
+}
+
 void addHazard(
     e2d::WorldDefinition& world,
     const int screenNumber,
@@ -851,7 +1003,7 @@ void addHazard(
     std::string englishDeath,
     std::string czechDeath)
 {
-    room(world, screenNumber).hazards.push_back({targetId(screenNumber, name), {314, 112, 92, 68},
+    room(world, screenNumber).hazards.push_back({targetId(screenNumber, name), {360, 200, 92, 60},
         tr(std::move(englishDeath), std::move(czechDeath)),
         {e2d::Condition::notFlag(std::string{safeFlag})}});
 }
@@ -869,12 +1021,29 @@ void addHint(
 }
 
 void addActOne(e2d::WorldDefinition& world) {
+    addContext(world, 1, "emergency_phone", "STORM EMERGENCY PHONE", "BOUŘKOVÝ NOUZOVÝ TELEFON",
+        "mission_started", {
+            speech(tr("Mara: Iris, the relay failed at 02:17. Kestrel Six is down beyond the ridge with an injured child aboard.",
+                "Mara: Iris, převaděč selhal ve 02:17. Kestrel Six je za hřebenem na zemi a na palubě má zraněné dítě.")),
+            speech(tr("Iris: I am at the storm gate. Ordinary radio is only carrying a timed pulse.",
+                "Iris: Jsem u bouřkové brány. Běžné rádio přenáší jen pravidelný pulz."), e2d::MessageSpeaker::player),
+            speech(tr("Mara: Reach the cabin. Bring any dry repair supplies you find. We need one clear channel before the beacon dies.",
+                "Mara: Dojdi k chatě. Vezmi všechno suché vybavení k opravě, které najdeš. Potřebujeme jeden čistý kanál, než maják zhasne.")),
+        }, {}, {}, 3, "warning");
+    gateRight(world, 1, {e2d::Condition::flag("mission_started")},
+        "The emergency phone is pulsing. Iris must answer before leaving the trailhead.",
+        "Nouzový telefon pulzuje. Iris ho musí před odchodem z výchoziště zvednout.");
     addPickup(world, 1, "patch_cable", "You coil the weatherproof cable from the damaged toolbox.",
         "Z poškozené skříňky smotáš kabel odolný proti počasí.", 0);
     addPickup(world, 1, "field_note", "The folded note gives the generator repair order.",
         "Složená poznámka uvádí pořadí opravy generátoru.", 1);
     addPickup(world, 2, "pine_bird", "You save a tiny carved bird from the wet noticeboard.",
         "Z mokré nástěnky zachráníš malého vyřezávaného ptáčka.", 0);
+    addContext(world, 3, "deer_path", "DEER-PATH DETOUR", "OBJÍŽĎKA PO JELENÍ STEZCE",
+        "deer_path_taken", {inspect(tr("Iris follows the narrow deer path through Pine Hollow and leaves the arcing feeder above her.",
+            "Iris sleduje úzkou jelení stezku přes Borový úvoz a nechá jiskřící vedení nad sebou."))},
+        {e2d::Condition::flag("mission_started")},
+        {e2d::Mutation::moveTo(std::string{screen(5).id})}, 2, "climb");
 
     addCharacter(world, 7, "mara", "MARA VENN", "MARA VENN", "met_mara", {
         speech(tr("Mara: This should have been a fuse and cable job. The storm is hiding something deliberate.",
@@ -965,6 +1134,12 @@ void addActOne(e2d::WorldDefinition& world) {
     gateRight(world, 24, {e2d::Condition::flag("act1_complete")},
         "The control-room trace is incomplete. F1 lists the missing repair.",
         "Trasování ve velínu není hotové. F1 ukáže chybějící opravu.");
+    addFollowUpDialogue(world, 7, "mara", "mara_nightjar_briefing", {
+        speech(tr("Mara: Bearing zero-one-seven ends at Nightjar. Ruth Calder shut that place down because the field could pull aircraft off their instruments.",
+            "Mara: Náměr nula-jedna-sedm končí u Nightjaru. Ruth Calderová to místo zavřela, protože pole mohlo odvést letadla z přístrojů.")),
+        speech(tr("Iris: Then Kestrel Six was not only caught by weather. I will follow the pulse north.",
+            "Iris: Pak Kestrel Six nezasáhlo jen počasí. Budu sledovat pulz na sever."), e2d::MessageSpeaker::player),
+    }, {e2d::Condition::flag("met_mara"), e2d::Condition::flag("act1_complete")});
 }
 
 void addActTwo(e2d::WorldDefinition& world) {
@@ -1003,6 +1178,9 @@ void addActTwo(e2d::WorldDefinition& world) {
         "Do batohu přibude odolná důlní lampa.", 2, {e2d::Condition::flag("theo_briefed")});
     addPickup(world, 31, "compass", "Theo's liquid compass settles without a tremor.",
         "Theův kapalinový kompas se ustálí bez zachvění.", 3, {e2d::Condition::flag("theo_briefed")});
+    addPickup(world, 31, "ranger_patch", "Theo presses his service patch into Iris's hand as a promise to answer her final call.",
+        "Theo vloží Iris do ruky svou služební nášivku jako slib, že odpoví na její závěrečné volání.", 4,
+        {e2d::Condition::flag("theo_briefed")});
     addPickup(world, 32, "charcoal", "You bag clean hardwood charcoal for a future filter.",
         "Nabereš čisté dřevěné uhlí pro budoucí filtr.", 0);
     addUse(world, 33, "bearing_route", "ECHO GROVE BEARING", "NÁMĚR V HÁJI OZVĚN", "compass", "echo_route_solved",
@@ -1040,11 +1218,19 @@ void addActTwo(e2d::WorldDefinition& world) {
         "Iris ties, tests and fixes the climbing rope down the ravine wall.",
         "Iris lano uváže, vyzkouší a upevní dolů po stěně rokle.",
         {e2d::Condition::flag("hook_fixed")}, true, 1);
+    addContext(world, 39, "rope_descent", "FIXED DESCENT ROPE", "PEVNÉ SESTUPOVÉ LANO",
+        "ravine_descended", {inspect(tr("Iris descends below the broken bridge and reaches the west ravine floor.",
+            "Iris sestoupí pod zřícený most a dorazí na západní dno rokle."))},
+        {e2d::Condition::flag("ravine_rope_fixed")},
+        {e2d::Mutation::moveTo(std::string{screen(41).id})}, 3, "climb");
     gateRight(world, 39, {e2d::Condition::flag("ravine_rope_fixed")},
         "The ravine descent needs the iron hook and climbing rope.",
         "Sestup do rokle potřebuje železný hák a horolezecké lano.");
     addHazard(world, 40, "flooded_span", "hoist_running",
         "The broken span drops Iris into the flooded ravine.", "Zřícený most shodí Iris do rozvodněné rokle.");
+    addPickup(world, 41, "old_relay_badge", "You rinse a silted 1964 relay badge and keep the mountain's older memory.",
+        "Opláchneš z nánosu odznak převaděče z roku 1964 a uchováš starší paměť hory.", 0,
+        {e2d::Condition::flag("ravine_rope_fixed")});
     addUse(world, 43, "sluice", "SMALL SLUICE", "MALÉ STAVIDLO", "wrench", "sluice_closed",
         "The wrench closes the sluice and weakens the waterfall current.",
         "Klíč zavře stavidlo a oslabí proud vodopádu.");
@@ -1099,6 +1285,20 @@ void addActTwo(e2d::WorldDefinition& world) {
     gateRight(world, 50, {e2d::Condition::flag("act2_complete")},
         "The hoist needs its signal wire, pulley pin and safe crusher deck.",
         "Naviják potřebuje signalizaci, čep kladky a bezpečnou plošinu drtiče.");
+    addFollowUpDialogue(world, 30, "theo", "theo_followup", {
+        speech(tr("Theo: The quarry is quiet on my receiver. You stopped them without becoming like them.",
+            "Theo: Lom je v mém přijímači tichý. Zastavila jsi je, aniž ses jim podobala.")),
+        speech(tr("Iris: Save your strength. Answer when the carrier comes back.",
+            "Iris: Šetři síly. Odpověz, až se nosná vlna vrátí."), e2d::MessageSpeaker::player),
+    }, {e2d::Condition::flag("theo_briefed"), e2d::Condition::flag("act2_complete")});
+    addFollowUpDialogue(world, 38, "nell", "nell_followup", {
+        speech(tr("Nell: Kestrel's beacon answered twice. Your repairs are giving the valley breathing room.",
+            "Nell: Maják Kestrelu odpověděl dvakrát. Tvoje opravy dávají údolí prostor k nadechnutí.")),
+    }, {e2d::Condition::flag("lookout_briefed"), e2d::Condition::flag("act2_complete")});
+    addFollowUpDialogue(world, 46, "owen", "owen_followup", {
+        speech(tr("Owen: Brant can wait in that empty cage until the rangers arrive. The east hoist is yours.",
+            "Owen: Brant může v prázdné kleci počkat na strážce. Východní naviják je tvůj.")),
+    }, {e2d::Condition::flag("owen_freed"), e2d::Condition::flag("brant_secured")});
 }
 
 void addActThree(e2d::WorldDefinition& world) {
@@ -1120,8 +1320,9 @@ void addActThree(e2d::WorldDefinition& world) {
     addPickup(world, 54, "hand_mirror", "A polished hand mirror survives in the filing-room cabinet.",
         "V brusírně přežilo vyleštěné ruční zrcátko.", 1);
     addUse(world, 55, "reserve_tank", "PROTECTED RESERVE TANK", "CHRÁNĚNÁ REZERVNÍ NÁDRŽ",
-        "siphon_hose", "engine_fueled", "The hose fills the engine can from the protected reserve. Iris keeps the hose.",
+        "siphon_hose", "fuel_can_filled", "The hose fills the engine can from the protected reserve. Iris keeps the hose.",
         "Hadice naplní kanystr z chráněné zásoby. Iris si hadici ponechá.");
+    world.interactions.back().mutations.push_back(e2d::Mutation::addItem("filled_fuel_can"));
     addContext(world, 56, "log_pike", "LOG PIKE", "HÁK NA KLÁDY", "spark_retrieved", {
         inspect(tr("The pike draws the floating maintenance box close enough to recover its dry spark plug.",
             "Hák přitáhne plovoucí servisní skříňku a její suchou zapalovací svíčku.")),
@@ -1152,6 +1353,9 @@ void addActThree(e2d::WorldDefinition& world) {
         "The dry spark plug seats in the cleaned cylinder head.", "Suchá svíčka zapadne do vyčištěné hlavy válce.", {}, true, 1);
     addUse(world, 61, "engine_bearings", "ENGINE BEARINGS", "LOŽISKA LOKOMOTIVY", "oil_can", "engine_oiled",
         "Heavy oil reaches every marked bearing cup.", "Hustý olej dorazí do každé označené maznice.", {}, true, 2);
+    addUse(world, 61, "engine_fuel_tank", "ENGINE FUEL TANK", "PALIVOVÁ NÁDRŽ LOKOMOTIVY",
+        "filled_fuel_can", "engine_fueled", "The protected reserve fuel fills the engine tank without a drop wasted.",
+        "Palivo z chráněné zásoby naplní nádrž lokomotivy beze ztráty jediné kapky.", {}, true, 3);
     addContext(world, 61, "engine_start", "ENGINE STARTER", "STARTÉR LOKOMOTIVY", "logging_engine_running", {
         speech(tr("Lila: Timing set. Give her the crank.", "Lila: Časování je hotové. Zatoč klikou.")),
         inspect(tr("The old engine fires, shakes loose thirty years of dust, and settles into a hard idle.",
@@ -1195,10 +1399,13 @@ void addActThree(e2d::WorldDefinition& world) {
     addUse(world, 67, "gatehouse_reader", "GATEHOUSE BADGE READER", "ČTEČKA DOMKU STAVIDEL",
         "turbine_badge", "gatehouse_open", "Jonah's badge opens the control vestibule.",
         "Jonahův odznak otevře vestibul ovládání.");
-    addContext(world, 67, "spillway_crank", "SPILLWAY CRANK", "KLIKA PŘELIVU", "spillway_closed", {
-        inspect(tr("Iris inserts the emergency crank and closes the false-open command by hand.",
-            "Iris zasune nouzovou kliku a ručně zruší falešný povel k otevření.")),
-    }, {e2d::Condition::flag("gatehouse_open")}, {}, 2, "power");
+    addPickup(world, 67, "spillway_crank", "You lift the removable emergency crank from Jonah's control locker.",
+        "Z Jonahovy ovládací skříňky zvedneš odnimatelnou nouzovou kliku.", 1,
+        {e2d::Condition::flag("gatehouse_open")});
+    addUse(world, 67, "spillway_crank_socket", "SPILLWAY CRANK SOCKET", "OBJÍMKA KLIKY PŘELIVU",
+        "spillway_crank", "spillway_closed", "Iris inserts the emergency crank and closes the false-open command by hand.",
+        "Iris zasune nouzovou kliku a ručně zruší falešný povel k otevření.",
+        {e2d::Condition::flag("gatehouse_open")}, true, 2);
     addCharacter(world, 67, "jonah", "JONAH REED", "JONAH REED", "jonah_briefed", {
         speech(tr("Jonah: That flood command came from the ridge, not this gatehouse.",
             "Jonah: Ten povel k záplavě přišel z hřebene, ne z tohoto domku.")),
@@ -1258,9 +1465,14 @@ void addActThree(e2d::WorldDefinition& world) {
         "Před zavalenou chodbou je nutné zajistit označenou výdřevu.");
     addHazard(world, 78, "rockfall", "drift_braced",
         "The unsupported drift gives way above Iris.", "Nezajištěná chodba se nad Iris zřítí.");
+    addPickup(world, 79, "filter_housing", "You take the empty respirator cartridge from the ventilation locker.",
+        "Z větrací skříňky vezmeš prázdnou respirátorovou vložku.", 1,
+        {e2d::Condition::has("respirator")});
     addUse(world, 79, "respirator_filter", "RESPIRATOR FILTER", "FILTR RESPIRÁTORU", "charcoal", "respirator_fitted",
         "Clean charcoal packs the filter housing and completes the respirator.",
-        "Čisté uhlí naplní pouzdro filtru a dokončí respirátor.", {e2d::Condition::has("respirator")}, true, 0);
+        "Čisté uhlí naplní pouzdro filtru a dokončí respirátor.",
+        {e2d::Condition::has("respirator"), e2d::Condition::has("filter_housing")}, true, 0);
+    world.interactions.back().mutations.push_back(e2d::Mutation::removeItem("filter_housing"));
     addUse(world, 79, "fan_starter", "VENTILATION FAN STARTER", "STARTÉR VĚTRÁKU", "multimeter", "ventilation_running",
         "The meter finds a dead starter contact; Iris bridges it and the fan accelerates.",
         "Multimetr najde mrtvý kontakt; Iris ho propojí a větrák zrychlí.", {}, false, 2);
@@ -1319,12 +1531,32 @@ void addActThree(e2d::WorldDefinition& world) {
     gateRight(world, 90, {e2d::Condition::flag("act3_complete")},
         "The ridge lift needs its fuse, mine power and Kline's emergency access.",
         "Hřebenový výtah potřebuje pojistku, důlní napájení a Klineové nouzový přístup.");
+    addFollowUpDialogue(world, 52, "lila", "lila_followup", {
+        speech(tr("Lila: The engine made the reservoir run and is still holding pressure. I will relay Mara's calls east.",
+            "Lila: Lokomotiva zvládla cestu k nádrži a stále drží tlak. Budu předávat Mařina volání na východ.")),
+    }, {e2d::Condition::flag("met_lila"), e2d::Condition::flag("logging_engine_running")});
+    addFollowUpDialogue(world, 58, "june", "june_history_heard", {
+        speech(tr("June: That silted badge predates the enamel one. Black Pine belonged to working voices before Nightjar borrowed its wires.",
+            "June: Ten odznak z nánosu je starší než smaltovaný. Black Pine patřil pracujícím hlasům dřív, než si Nightjar vypůjčil jeho dráty.")),
+        speech(tr("Iris: Then we will return every wire to the people who kept it alive.",
+            "Iris: Pak vrátíme každý drát lidem, kteří ho udržovali při životě."), e2d::MessageSpeaker::player),
+    }, {e2d::Condition::flag("met_june"), e2d::Condition::has("old_relay_badge"),
+        e2d::Condition::has("logger_token")});
+    addFollowUpDialogue(world, 67, "jonah", "jonah_followup", {
+        speech(tr("Jonah: The false flood command is isolated and the east shaft is stable. I will keep it that way.",
+            "Jonah: Falešný povel k záplavě je odpojený a východní šachta je stabilní. Udržím ji tak.")),
+    }, {e2d::Condition::flag("jonah_briefed"), e2d::Condition::flag("reservoir_complete")});
 }
 
 void addActFour(e2d::WorldDefinition& world) {
     addUse(world, 91, "tracking_camera", "TRACKING CAMERA", "SLEDUJÍCÍ KAMERA", "hand_mirror", "camera_blinded",
         "The mirror returns one hard flash. The tracking camera iris closes.",
         "Zrcátko vrátí ostrý záblesk. Clona sledující kamery se zavře.");
+    addContext(world, 91, "staff_passage", "BADGED STAFF PASSAGE", "SLUŽEBNÍ CHODBA NA ODZNAK",
+        "staff_passage_taken", {inspect(tr("Kline's badge opens the quiet staff corridor behind the patrol courtyard.",
+            "Klineové odznak otevře tichou služební chodbu za hlídaným nádvořím."))},
+        {e2d::Condition::flag("camera_blinded"), e2d::Condition::has("research_badge")},
+        {e2d::Mutation::moveTo(std::string{screen(96).id})}, 3, "unlock");
     addHazard(world, 92, "paired_patrol", "courtyard_patrol_diverted",
         "Kade and Morrow catch Iris in the searchlight.", "Kade a Morrow chytí Iris ve světlometu.");
     addPickup(world, 93, "nightjar_patch", "You save a cloth Nightjar patch from Voss's temporary bunk.",
@@ -1381,7 +1613,7 @@ void addActFour(e2d::WorldDefinition& world) {
             inspect(tr("The sight confirms the tower north mark. The old fog horn wakes below.",
                 "Zaměřovač potvrdí severní značku věže. Dole se probudí stará mlhová siréna.")),
         }, {e2d::Condition::flag("dome_aligned"), e2d::Condition::flag("lookout_briefed")},
-        {e2d::Mutation::setFlag("fog_horn_ready")}, 2, "warning");
+        {e2d::Mutation::setFlag("fog_horn_ready"), e2d::Mutation::addItem("alignment_chart")}, 2, "warning");
     addCharacter(world, 101, "sable", "SABLE DUNN", "SABLE DUNNOVÁ", "sable_persuaded", {
         speech(tr("Sable: Voss said the protected carrier would keep aircraft safe.",
             "Sable: Voss tvrdil, že chráněná nosná vlna udrží letadla v bezpečí.")),
@@ -1443,6 +1675,9 @@ void addActFour(e2d::WorldDefinition& world) {
         "Vezmeš náhradní tlakovou chladicí hadici.", 1, {e2d::Condition::flag("machine_rack_open")});
     addPickup(world, 109, "grounding_clamp", "The high-current grounding clamp is heavy but essential.",
         "Silnoproudá zemnicí svorka je těžká, ale nezbytná.", 2, {e2d::Condition::flag("machine_rack_open")});
+    addPickup(world, 109, "calder_photo", "Behind the rack is Ruth Calder beside the first protected-carrier rig.",
+        "Za stojanem je fotografie Ruth Calderové u první soupravy chráněné nosné vlny.", 3,
+        {e2d::Condition::flag("machine_rack_open")});
     addUse(world, 110, "capacitor_banks", "CAPACITOR BANKS 4-1-3", "KONDENZÁTOROVÉ BLOKY 4-1-3",
         "grounding_clamp", "capacitors_grounded", "The clamp follows 4-1-3. Three immense arcs collapse safely into ground.",
         "Svorka následuje 4-1-3. Tři mohutné výboje bezpečně zmizí do země.",
@@ -1474,6 +1709,10 @@ void addActFour(e2d::WorldDefinition& world) {
             "Klineová: Přesně. Vezmi můj nouzový klíč. Ať ho odhalí jeho vlastní vysílač.")),
     }, {e2d::Condition::flag("calder_testimony_heard"), e2d::Condition::flag("evidence_copied")},
         {e2d::Mutation::addItem("override_key")});
+    addUse(world, 113, "miriam", "DR. MIRIAM KLINE", "DR. MIRIAM KLINEOVÁ", "first_aid_kit", "kline_treated",
+        "Iris cleans Kline's cut and secures her wrist. The remaining clean cloth stays in the kit.",
+        "Iris Klineové vyčistí ránu a zpevni zápěstí. Zbývající čistá látka zůstane v lékárničce.",
+        {e2d::Condition::flag("kline_freed")}, false, 2);
     addUse(world, 114, "dark_stair", "DARK EMERGENCY STAIR", "TEMNÉ NOUZOVÉ SCHODIŠTĚ",
         "hand_crank_torch", "emergency_stair_lit", "The crank torch catches the red stair markers as Voss seals the lower blast door.",
         "Ruční svítilna zachytí červené značky schodů, zatímco Voss zavírá spodní pancéřové dveře.",
@@ -1545,17 +1784,25 @@ void addActFive(e2d::WorldDefinition& world) {
     gateRight(world, 121, {e2d::Condition::flag("waveguide_tuned")},
         "The waveguide still needs the phase prism and calibration fork.",
         "Vlnovod stále potřebuje fázový hranol a kalibrační ladičku.");
-    addContext(world, 122, "beacon_crystal", "CRACKED BEACON HOUSING", "PRASKLÝ KRYT MAJÁKU",
-        "beacon_reference_ready", {inspect(tr("Iris removes the crystal, cleans it with cloth, and reseats it. The red rotation becomes a steady green pulse.",
-            "Iris vyjme krystal, očistí ho látkou a vrátí zpět. Červené otáčení se změní ve stálý zelený pulz."))},
-        {e2d::Condition::flag("waveguide_tuned")}, {}, 2, "power");
+    addContext(world, 122, "beacon_housing", "CRACKED BEACON HOUSING", "PRASKLÝ KRYT MAJÁKU",
+        "beacon_crystal_removed", {inspect(tr("Iris opens the cracked housing and lifts out its clouded reference crystal.",
+            "Iris otevře prasklý kryt a vyjme zakalený referenční krystal."))},
+        {e2d::Condition::flag("waveguide_tuned")}, {e2d::Mutation::addItem("beacon_crystal")}, 0, "unlock");
+    addUse(world, 122, "beacon_cleaning", "CLOUDED BEACON CRYSTAL", "ZAKALENÝ KRYSTAL MAJÁKU",
+        "first_aid_kit", "beacon_crystal_cleaned", "A clean cloth from the first-aid kit clears smoke residue without scratching the crystal.",
+        "Čistá látka z lékárničky odstraní kouřový povlak bez poškrábání krystalu.",
+        {e2d::Condition::flag("beacon_crystal_removed"), e2d::Condition::has("beacon_crystal")}, false, 1);
+    addUse(world, 122, "beacon_socket", "BEACON REFERENCE SOCKET", "OBJÍMKA REFERENCE MAJÁKU",
+        "beacon_crystal", "beacon_reference_ready", "The clean crystal locks home. The red rotation becomes a steady green pulse.",
+        "Čistý krystal zapadne na místo. Červené otáčení se změní ve stálý zelený pulz.",
+        {e2d::Condition::flag("beacon_crystal_cleaned")}, true, 2);
     gateRight(world, 122, {e2d::Condition::flag("beacon_reference_ready")},
         "The protected carrier needs a clean beacon-crystal reference.",
         "Chráněná nosná vlna potřebuje čistou referenci krystalu majáku.");
     addUse(world, 123, "azimuth_mount", "ANTENNA AZIMUTH MOUNT", "AZIMUTOVÝ DRŽÁK ANTÉNY", "wrench", "antenna_aligned",
         "Using Nell's chart, Iris rotates the mount onto the true north mark.",
         "Podle Nellina plánu Iris otočí držák na značku pravého severu.",
-        {e2d::Condition::flag("tower_alignment_known")});
+        {e2d::Condition::flag("tower_alignment_known"), e2d::Condition::has("alignment_chart")});
     addUse(world, 123, "local_motor_lock", "LOCAL MOTOR OVERRIDE", "MÍSTNÍ NOUZOVÉ OVLÁDÁNÍ MOTORU",
         "override_key", "antenna_control_locked", "Kline's key locks local control before Voss can reverse the antenna motor.",
         "Klineové klíč uzamkne místní ovládání dřív, než Voss obrátí motor antény.",
@@ -1590,6 +1837,22 @@ void addActFive(e2d::WorldDefinition& world) {
         e2d::Condition::flag("waveguide_tuned"), e2d::Condition::flag("beacon_reference_ready"),
         e2d::Condition::flag("antenna_control_locked"), e2d::Condition::flag("protected_sequence_known"),
     };
+    auto keeperConditions = finalConditions;
+    keeperConditions.insert(keeperConditions.end(), {
+        e2d::Condition::flag("evidence_loaded"), e2d::Condition::flag("theo_followup"),
+        e2d::Condition::flag("nell_followup"), e2d::Condition::flag("owen_followup"),
+        e2d::Condition::flag("lila_followup"), e2d::Condition::flag("june_history_heard"),
+        e2d::Condition::flag("jonah_followup"), e2d::Condition::flag("sable_persuaded"),
+        e2d::Condition::flag("kline_treated"), e2d::Condition::has("pine_bird"),
+        e2d::Condition::has("relay_badge"), e2d::Condition::has("ranger_patch"),
+        e2d::Condition::has("old_relay_badge"), e2d::Condition::has("quartz_sample"),
+        e2d::Condition::has("logger_token"), e2d::Condition::has("nightjar_patch"),
+        e2d::Condition::has("calder_photo"),
+    });
+    world.addInteraction({e2d::Verb::context, finalConsole.id, std::nullopt, keeperConditions, {}, {
+        e2d::Mutation::win(tr(
+            "KEEPER OF BLACK PINE. Iris keys 4-1-3 and opens Calder's carrier with the complete Nightjar record beneath it. Kestrel Six answers. Every rescued voice joins Mara's channel, Ruth Calder's name returns to the ridge, and the community chooses Iris to keep Black Pine open for everyone.",
+            "STRÁŽKYNĚ BLACK PINE. Iris zadá 4-1-3 a otevře Calderové nosnou vlnu s úplným záznamem Nightjaru. Kestrel Six odpoví. Každý zachráněný hlas se připojí k Mařinu kanálu, jméno Ruth Calderové se vrátí na hřeben a komunita zvolí Iris strážkyní Black Pine pro všechny."))}, 60, {}});
     auto evidenceConditions = finalConditions;
     evidenceConditions.push_back(e2d::Condition::flag("evidence_loaded"));
     world.addInteraction({e2d::Verb::context, finalConsole.id, std::nullopt, evidenceConditions, {}, {
@@ -1600,8 +1863,8 @@ void addActFive(e2d::WorldDefinition& world) {
     rescueConditions.push_back(e2d::Condition::notFlag("evidence_loaded"));
     world.addInteraction({e2d::Verb::context, finalConsole.id, std::nullopt, rescueConditions, {}, {
         e2d::Mutation::win(tr(
-            "OPEN CHANNEL. Iris keys 4-1-3 and the Quiet Field collapses into a clean rescue carrier. Kestrel Six answers and the Black Pine beacon turns green. Voss is stopped; some proof remains hidden in Nightjar.",
-            "OTEVŘENÝ KANÁL. Iris zadá 4-1-3 a Tiché pole se zhroutí do čisté záchranné nosné vlny. Kestrel Six odpoví a maják Black Pine zezelená. Voss je zastaven; část důkazů zůstává skrytá v Nightjaru."))}, 40, {}});
+            "CARRIER RESTORED. Iris keys 4-1-3 and the Quiet Field collapses into a clean rescue carrier. Kestrel Six answers and the Black Pine beacon turns green. Voss is stopped; some proof remains hidden in Nightjar.",
+            "NOSNÁ VLNA OBNOVENA. Iris zadá 4-1-3 a Tiché pole se zhroutí do čisté záchranné nosné vlny. Kestrel Six odpoví a maják Black Pine zezelená. Voss je zastaven; část důkazů zůstává skrytá v Nightjaru."))}, 40, {}});
 }
 
 void addHints(e2d::WorldDefinition& world) {
@@ -1610,79 +1873,81 @@ void addHints(e2d::WorldDefinition& world) {
         std::vector<e2d::Condition> prerequisites = {}) {
         addHint(world, flag, en, cs, priority--, std::move(prerequisites));
     };
-    next("taken_patch_cable", "At screen 001, TAKE the patch cable from the damaged toolbox.",
-        "Na obrazovce 001 SEBER propojovací kabel z poškozené skříňky.");
+    next("mission_started", "Answer the pulsing emergency phone at Storm Gate Trailhead with ENTER.",
+        "U Výchoziště u bouřkové brány zvedni pulzující nouzový telefon klávesou ENTER.");
+    next("taken_patch_cable", "At Storm Gate Trailhead, TAKE the patch cable from the damaged toolbox.",
+        "U Výchoziště u bouřkové brány SEBER propojovací kabel z poškozené skříňky.");
     next("met_mara", "Reach Mara in the caretaker cabin and speak with ENTER.",
         "Dojdi za Marou do správcovské chaty a promluv klávesou ENTER.");
     next("key_revealed", "EXAMINE Mara's desk after speaking with her.", "Po rozhovoru s Marou PROZKOUMEJ její stůl.");
     next("taken_brass_key", "TAKE the brass yard key revealed on Mara's desk.", "SEBER mosazný klíč odkrytý na Mařině stole.");
-    next("vehicle_gate_open", "USE the brass key on the vehicle gate at screen 014.", "Na obrazovce 014 POUŽIJ mosazný klíč na vjezdovou bránu.");
-    next("cable_patched", "USE the patch cable on the blue terminals in screen 017.", "Na obrazovce 017 POUŽIJ kabel na modré svorky.");
-    next("fuse_installed", "USE the ceramic fuse on the MAIN holder in screen 018.", "Na obrazovce 018 POUŽIJ keramickou pojistku na HLAVNÍ držák.");
-    next("battery_linked", "USE the wrench on the battery bus in screen 019.", "Na obrazovce 019 POUŽIJ klíč na spojnici akumulátorů.");
-    next("fuel_valve_open", "USE the wrench on the fuel valve in screen 020.", "Na obrazovce 020 POUŽIJ klíč na palivový ventil.");
-    next("feeder_isolated", "USE the lineman gloves on the feeder isolator in screen 021.", "Na obrazovce 021 POUŽIJ elektrikářské rukavice na odpojovač.");
-    next("workshop_open", "USE the brass key on Calder's cabinet in screen 022 to obtain the multimeter.",
-        "Na obrazovce 022 POUŽIJ mosazný klíč na Calderové skříň a získej multimetr.");
-    next("power_on", "Return to screen 018 and operate the repaired generator's MAIN lever with ENTER.",
-        "Vrať se na obrazovku 018 a spusť opravený generátor klávesou ENTER u HLAVNÍ páky.");
-    next("mast_calibrated", "Return to screen 011 and USE the multimeter on the powered weather mast.",
-        "Vrať se na obrazovku 011 a POUŽIJ multimetr na napájený meteostožár.");
-    next("act1_complete", "At screen 024, operate the direction console after tracing the Nightjar trunk.",
-        "Na obrazovce 024 spusť směrový panel po proměření trasy Nightjar.");
-    next("theo_briefed", "Free Theo in screen 030 with the saw and bandage, then speak to him.",
-        "Na obrazovce 030 osvoboď Thea pilou a obvazem a pak s ním promluv.");
-    next("echo_route_solved", "USE Theo's compass with bearing 017 in Echo Grove, screen 033.",
-        "Na obrazovce 033 v Háji ozvěn POUŽIJ Theův kompas a náměr 017.");
-    next("bear_gone", "At screen 035, USE the signal flare from the upwind edge.",
-        "Na obrazovce 035 POUŽIJ signální světlici z návětrné hrany.");
-    next("lookout_briefed", "Speak to Nell at the fire lookout, screen 038.", "Promluv s Nell na požární hlásce, obrazovka 038.");
-    next("ravine_rope_fixed", "At screen 039, fix the iron hook first, then the climbing rope.",
-        "Na obrazovce 039 upevni nejprve železný hák a potom lano.");
+    next("vehicle_gate_open", "USE the brass key on the Vehicle Gate.", "U Vjezdové brány POUŽIJ mosazný klíč.");
+    next("cable_patched", "In the Cable Trench, USE the patch cable on the blue terminals.", "V Kabelovém výkopu POUŽIJ kabel na modré svorky.");
+    next("fuse_installed", "In the Generator Shed, USE the ceramic fuse on the MAIN holder.", "V Generátorovně POUŽIJ keramickou pojistku na HLAVNÍ držák.");
+    next("battery_linked", "In the Battery Room, USE the wrench on the loose bus link.", "V Akumulátorovně POUŽIJ klíč na uvolněnou spojnici.");
+    next("fuel_valve_open", "At the Fuel Pump Alcove, USE the wrench on the supply valve.", "U Palivového čerpadla POUŽIJ klíč na přívodní ventil.");
+    next("feeder_isolated", "At the Transformer Pad, USE the lineman gloves on the feeder isolator.", "U Transformátoru POUŽIJ elektrikářské rukavice na odpojovač.");
+    next("workshop_open", "In the Relay Workshop, USE the brass key on Calder's cabinet.",
+        "V Dílně převaděče POUŽIJ mosazný klíč na Calderové skříň.");
+    next("power_on", "Return to the Generator Shed and operate the repaired MAIN lever with ENTER.",
+        "Vrať se do Generátorovny a spusť opravenou HLAVNÍ páku klávesou ENTER.");
+    next("mast_calibrated", "Return to the Weather Mast Clearing and USE the multimeter on its test leads.",
+        "Vrať se na Mýtinu s meteostožárem a POUŽIJ multimetr na testovací vývody.");
+    next("act1_complete", "In the Local Control Room, operate the direction console after tracing Nightjar.",
+        "V Místním velíně spusť směrový panel po proměření trasy Nightjar.");
+    next("theo_briefed", "In Mossy Hollow, free Theo with the saw and bandage, then speak to him.",
+        "V Mechové prohlubni osvoboď Thea pilou a obvazem a pak s ním promluv.");
+    next("echo_route_solved", "In Echo Grove, USE Theo's compass with bearing 017.",
+        "V Háji ozvěn POUŽIJ Theův kompas a náměr 017.");
+    next("bear_gone", "In Bear Meadow, USE the signal flare from the upwind edge.",
+        "Na Medvědí louce POUŽIJ signální světlici z návětrné hrany.");
+    next("lookout_briefed", "Speak to Nell at North Fire Lookout.", "Promluv s Nell na Severní požární hlásce.");
+    next("ravine_rope_fixed", "At the Service Ravine West Lip, fix the iron hook first, then the climbing rope.",
+        "Na Západní hraně servisní rokle upevni nejprve železný hák a potom lano.");
     next("brant_secured", "Free Owen, sound the crusher horn, then USE the brass key on Brant's cage.",
         "Osvoboď Owena, spusť houkačku a POUŽIJ mosazný klíč na Brantovu klec.");
-    next("act2_complete", "Repair the hoist signal and pulley at screens 049–050, then run the controls.",
-        "Na obrazovkách 049–050 oprav signalizaci a kladku navijáku a pak ho spusť.");
-    next("logging_engine_running", "Collect belt, plug, oil and fuel, align screen 060 points, then start screen 061 engine.",
-        "Seber řemen, svíčku, olej a palivo, srovnej výhybku 060 a spusť lokomotivu 061.");
-    next("trestle_brake_fixed", "At screen 062, sound June's whistle and repair the brake linkage.",
-        "Na obrazovce 062 spusť Juninu píšťalu a oprav táhlo brzdy.");
-    next("spillway_closed", "Use Jonah's badge and operate the spillway crank at screen 067.",
-        "Použij Jonahův odznak a ovládej kliku přelivu na obrazovce 067.");
-    next("pump_running", "Isolate the bay, fit the pump gasket and cell, open screen 074 intake, then return to screen 070.",
-        "Odpoj prostor, namontuj těsnění a článek, otevři přívod 074 a vrať se na 070.");
-    next("mine_access_open", "Retrieve the magnet in drained screen 071, then ask Jonah to open screen 075 shaft.",
-        "V odčerpané obrazovce 071 vezmi magnet a požádej Jonaha o otevření šachty 075.");
-    next("respirator_fitted", "At screen 079, USE charcoal on the respirator before entering the gas zone.",
-        "Na obrazovce 079 POUŽIJ uhlí na respirátor před vstupem do plynu.");
-    next("lift_powered", "Ground screen 087 switchgear, cut the black feed, then install the copper bus at 088.",
-        "Odpoj rozvaděče 087, přeruš černý přívod a namontuj měděnou přípojnici na 088.");
-    next("act3_complete", "Open research door 089 and operate the powered ridge lift at screen 090.",
-        "Otevři výzkumné dveře 089 a spusť napájený hřebenový výtah 090.");
-    next("courtyard_patrol_diverted", "Place June's ration and set the kitchen timer at screen 094.",
-        "Polož Juninu dávku a nastav kuchyňskou minutku na obrazovce 094.");
-    next("archive_open", "Read project dates at 096, then align the four drawers at 097.",
-        "Přečti data projektu na 096 a srovnej čtyři zásuvky na 097.");
-    next("dome_aligned", "Get the dome key from security 102, return to 099, unlock and align the dome north.",
-        "Získej klíč v kanceláři 102, vrať se na 099, odemkni a srovnej kopuli na sever.");
-    next("sable_persuaded", "Use Nell's telescope at 100, then confront Sable at 101 with the accumulated evidence.",
-        "Použij Nellin teleskop na 100 a pak konfrontuj Sable na 101 se získanými důkazy.");
-    next("bunker_door_open", "At 103, use Kline's badge, cipher lens and calibration fork on the three locks.",
-        "Na 103 použij Klineové odznak, šifrovací čočku a kalibrační ladičku na tři zámky.");
-    next("protected_sequence_known", "Diagnose coil and prism at 106, then operate the fork positions at 107.",
-        "Diagnostikuj cívku a hranol na 106 a pak ovládej polohy ladičky na 107.");
-    next("evidence_copied", "Ground capacitors, divert cooling, then copy the command archive at 112.",
-        "Uzemni kondenzátory, odveď chlazení a zkopíruj velitelský archiv na 112.");
-    next("act4_complete", "Free Kline, light the emergency stair, and enter 4-1-3 at summit lock 115.",
-        "Osvoboď Klineovou, rozsviť nouzové schody a zadej 4-1-3 do zámku 115.");
-    next("summit_grounded", "At 118, USE the grounding clamp, then the wrench, on the broken copper strap.",
-        "Na 118 POUŽIJ zemnicí svorku a potom klíč na prasklý měděný pás.");
-    next("waveguide_tuned", "Install the coil at 119; install prism and tune with the fork at 121.",
-        "Namontuj cívku na 119; namontuj hranol a nalaď ho ladičkou na 121.");
-    next("antenna_control_locked", "Clean the beacon at 122, then align and lock the antenna controls at 123.",
-        "Očisti maják na 122, potom srovnej a uzamkni ovládání antény na 123.");
-    next("transmitter_unlocked", "Confront Voss at 124 and USE his transmitter key on the console lock.",
-        "Konfrontuj Vosse na 124 a POUŽIJ jeho klíč vysílače na zámek panelu.");
+    next("act2_complete", "Repair the signal in Quarry Tunnel and the pulley at East Hoist Landing, then run the hoist.",
+        "Oprav signalizaci v Lomovém tunelu a kladku ve Východní stanici navijáku, potom naviják spusť.");
+    next("logging_engine_running", "Fill a can at the Boiler House, install fuel, belt, plug and oil, align Rail Spur West, then start the Logging Engine.",
+        "Naplň kanystr v Kotelně, namontuj palivo, řemen, svíčku a olej, srovnej Západní vlečku a spusť Lesní lokomotivu.");
+    next("trestle_brake_fixed", "At Trestle Approach, sound June's whistle and repair the brake linkage.",
+        "U Příjezdu k viaduktu spusť Juninu píšťalu a oprav táhlo brzdy.");
+    next("spillway_closed", "Use Jonah's badge in the Gatehouse, TAKE the emergency crank, then USE it in the spillway socket.",
+        "V Domku stavidel použij Jonahův odznak, SEBER nouzovou kliku a POUŽIJ ji v objímce přelivu.");
+    next("pump_running", "Isolate the bay, fit the gasket and cell, open the Valve Garden intake, then return to Pump Gallery.",
+        "Odpoj prostor, namontuj těsnění a článek, otevři přívod ve Ventilovém poli a vrať se do Čerpací galerie.");
+    next("mine_access_open", "Retrieve the magnet in the drained Maintenance Bay, then ask Jonah to open East Access Shaft.",
+        "V odčerpaném Servisním prostoru vezmi magnet a požádej Jonaha o otevření Východní šachty.");
+    next("respirator_fitted", "In the Ventilation Room, TAKE the empty filter housing and USE charcoal to complete the respirator.",
+        "Ve Větrací strojně SEBER prázdné pouzdro filtru a POUŽIJ uhlí k dokončení respirátoru.");
+    next("lift_powered", "Ground the Switchgear Aisle, cut the black feed, then install the copper bus in the Cable Vault.",
+        "Odpoj Uličku rozvaděčů, přeruš černý přívod a namontuj měděnou přípojnici v Kabelové komoře.");
+    next("act3_complete", "Open the Sealed Research Door and operate the powered Ridge Freight Lift.",
+        "Otevři Utěsněné výzkumné dveře a spusť napájený Hřebenový nákladní výtah.");
+    next("courtyard_patrol_diverted", "Place June's ration and set the timer in the Observatory Kitchen.",
+        "Polož Juninu dávku a nastav minutku v Kuchyni observatoře.");
+    next("archive_open", "Read the project dates in Archive Hall, then align the four drawers in Records Room.",
+        "Přečti data projektu v Archivní hale a srovnej čtyři zásuvky ve Spisovně.");
+    next("dome_aligned", "Get the dome key from Security Office, then unlock and align Instrument Dome north.",
+        "Získej klíč v Bezpečnostní kanceláři, potom odemkni a srovnej Přístrojovou kopuli na sever.");
+    next("sable_persuaded", "Use the Telescope Platform, then confront Sable in Communications Lab with your evidence.",
+        "Použij Teleskopovou plošinu a pak konfrontuj Sable v Komunikační laboratoři se získanými důkazy.");
+    next("bunker_door_open", "In Nightjar Antechamber, use Kline's badge, cipher lens and calibration fork on the three locks.",
+        "V Předsíni Nightjaru použij Klineové odznak, šifrovací čočku a kalibrační ladičku na tři zámky.");
+    next("protected_sequence_known", "Diagnose coil and prism in Phase Laboratory, then operate the fork positions in Calibration Chamber.",
+        "Diagnostikuj cívku a hranol ve Fázové laboratoři a pak ovládej polohy ladičky v Kalibrační komoře.");
+    next("evidence_copied", "Ground Capacitor Hall, divert Cooling Gallery, then copy the Command Archive.",
+        "Uzemni Kondenzátorovou halu, odveď chlazení v Chladicí galerii a zkopíruj Velitelský archiv.");
+    next("act4_complete", "Free Kline, light Emergency Stair, and enter 4-1-3 at Summit Access Lock.",
+        "Osvoboď Klineovou, rozsviť Nouzové schodiště a zadej 4-1-3 do Zámku přístupu na vrchol.");
+    next("summit_grounded", "At Lightning Gallery, USE the grounding clamp, then the wrench, on the broken copper strap.",
+        "V Bleskové galerii POUŽIJ zemnicí svorku a potom klíč na prasklý měděný pás.");
+    next("waveguide_tuned", "Install the coil at Black Pine Tower Base; install the prism and tune it on Microwave Deck.",
+        "Namontuj cívku u Paty věže Black Pine; namontuj hranol a nalaď ho na Mikrovlnné plošině.");
+    next("antenna_control_locked", "Remove the Beacon Ring crystal, clean it with the first-aid kit, reinstall it, then align and lock the antenna.",
+        "Vyjmi krystal na Prstenci majáku, očisti ho lékárničkou, vrať ho a potom srovnej a uzamkni anténu.");
+    next("transmitter_unlocked", "Confront Voss in Summit Control Capsule and USE his key on the transmitter lock.",
+        "Konfrontuj Vosse ve Vrcholové řídicí kabině a POUŽIJ jeho klíč na zámek vysílače.");
     next("evidence_loaded", "Optionally USE the evidence spool on the reel bay, then press ENTER at the carrier console.",
         "Volitelně POUŽIJ důkazní kotouč v mechanice a pak stiskni ENTER u panelu nosné vlny.");
 }

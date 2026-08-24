@@ -1,11 +1,11 @@
 # Black Pine next steps
 
-The complete 124-screen narrative and required five-act route are implemented.
-Future work is polish rather than missing story scope:
+The complete required five-act route now walks through all 124 named locations
+without test teleportation. The remaining completion work is:
 
-1. Give additional background objects optional EXAMINE responses beyond each
-   screen's canonical story clue.
-2. Add more screen-specific animation frames while keeping motion selective and
-   limited to story-bearing details.
-3. Add a content/save-schema version before changing shipped puzzle flags.
-4. Add optional epilogue variations for every rescued character and collectible.
+1. Replace remaining broad motif variants with individually composed background
+   details where the design calls for a unique landmark.
+2. Exercise all three epilogues and every lethal warning/restart route through
+   public session inputs.
+3. Perform a complete human keyboard playthrough and record every usability fix.
+4. Add a content/save-schema version before changing shipped puzzle flags.

@@ -33,23 +33,46 @@ static const e2d::HotspotDefinition& hotspot(
     return world.rooms.begin()->second.hotspots.front();
 }
 
-static void moveToTarget(
+static std::size_t catalogueIndex(const std::string_view roomId) {
+    const auto found = std::ranges::find_if(black_pine::content::screens,
+        [roomId](const black_pine::content::Screen& candidate) { return candidate.id == roomId; });
+    assert(found != black_pine::content::screens.end());
+    return static_cast<std::size_t>(std::distance(black_pine::content::screens.begin(), found));
+}
+
+static bool intersectsTarget(
+    const e2d::AdventureSession& session,
+    const e2d::HotspotDefinition& target)
+{
+    const e2d::Rect player{session.player().position.x, session.player().position.y, 14.0F, 28.0F};
+    return player.intersects(target.interactionArea);
+}
+
+static void walkToTarget(
     e2d::AdventureSession& session,
     const e2d::WorldDefinition& world,
     const std::string_view targetId)
 {
     std::string roomId;
     const auto& target = hotspot(world, targetId, &roomId);
-    auto snapshot = session.snapshot();
-    snapshot.roomId = roomId;
-    snapshot.player.position = {
-        target.interactionArea.x + target.interactionArea.width * 0.5F - 7.0F,
-        std::clamp(target.interactionArea.bottom() - 28.0F, target.interactionArea.y, 232.0F),
-    };
-    snapshot.player.verticalVelocity = 0.0F;
-    snapshot.player.grounded = true;
-    snapshot.visitedRooms.insert(roomId);
-    assert(session.restore(snapshot));
+    std::size_t travelSteps = 0;
+    while (session.currentRoomId() != roomId && travelSteps++ < 100000) {
+        const std::size_t current = catalogueIndex(session.currentRoomId());
+        const std::size_t destination = catalogueIndex(roomId);
+        session.walk(destination < current ? e2d::Direction::left : e2d::Direction::right);
+        assert(session.mode() == e2d::SessionMode::world);
+    }
+    assert(session.currentRoomId() == roomId);
+
+    std::size_t approachSteps = 0;
+    while (!intersectsTarget(session, target) && approachSteps++ < 1000) {
+        const float playerCenter = session.player().position.x + 7.0F;
+        const float targetCenter = target.interactionArea.x + target.interactionArea.width * 0.5F;
+        session.walk(playerCenter < targetCenter ? e2d::Direction::right : e2d::Direction::left);
+        assert(session.mode() == e2d::SessionMode::world);
+        assert(session.currentRoomId() == roomId);
+    }
+    assert(intersectsTarget(session, target));
 }
 
 static void chooseItem(e2d::AdventureSession& session, const std::string_view itemId) {
@@ -68,7 +91,7 @@ static void chooseItem(e2d::AdventureSession& session, const std::string_view it
 static void take(e2d::AdventureSession& session, const e2d::WorldDefinition& world,
     const std::string_view targetId, const std::string_view itemId)
 {
-    moveToTarget(session, world, targetId);
+    walkToTarget(session, world, targetId);
     session.performVerb(e2d::Verb::take);
     assert(session.hasItem(itemId));
     dismiss(session);
@@ -77,7 +100,7 @@ static void take(e2d::AdventureSession& session, const e2d::WorldDefinition& wor
 static void use(e2d::AdventureSession& session, const e2d::WorldDefinition& world,
     const std::string_view targetId, const std::string_view itemId, const std::string_view expectedFlag)
 {
-    moveToTarget(session, world, targetId);
+    walkToTarget(session, world, targetId);
     session.performVerb(e2d::Verb::use);
     chooseItem(session, itemId);
     assert(session.flag(expectedFlag));
@@ -87,7 +110,7 @@ static void use(e2d::AdventureSession& session, const e2d::WorldDefinition& worl
 static void context(e2d::AdventureSession& session, const e2d::WorldDefinition& world,
     const std::string_view targetId, const std::string_view expectedFlag)
 {
-    moveToTarget(session, world, targetId);
+    walkToTarget(session, world, targetId);
     session.jumpOrContext();
     assert(session.flag(expectedFlag));
     dismiss(session);
@@ -96,7 +119,7 @@ static void context(e2d::AdventureSession& session, const e2d::WorldDefinition& 
 static void examine(e2d::AdventureSession& session, const e2d::WorldDefinition& world,
     const std::string_view targetId, const std::string_view expectedFlag)
 {
-    moveToTarget(session, world, targetId);
+    walkToTarget(session, world, targetId);
     session.performVerb(e2d::Verb::examine);
     assert(session.mode() == e2d::SessionMode::choice);
     session.confirm();
@@ -150,18 +173,30 @@ int main() {
     assertLocalizationComplete(world);
     assert(world.rooms.size() == 124);
     assert(world.hints.size() >= 40);
-    assert(world.items.size() >= 50);
+    assert(world.items.size() == 64);
     assert(world.localization.supports("en"));
     assert(world.localization.supports("cs"));
 
     std::size_t anchors = 0;
+    std::size_t animatedRooms = 0;
     for (std::size_t i = 0; i < black_pine::content::screens.size(); ++i) {
         const auto& spec = black_pine::content::screens[i];
         const auto* current = world.room(spec.id);
         assert(current != nullptr);
         assert(current->travelAnchor == spec.travelAnchor);
-        assert(current->animations.size() == 1);
         assert(!current->decorations.empty());
+        assert(current->label.resolve("en").find("SCREEN") == std::string_view::npos);
+        assert(current->label.resolve("cs").find("OBRAZOVKA") == std::string_view::npos);
+        animatedRooms += current->animations.empty() ? 0U : 1U;
+        const std::string observationFlag = "once_observed_" + std::string{spec.id};
+        assert(std::ranges::any_of(world.interactions,
+            [&observationFlag](const e2d::InteractionRule& rule) { return rule.onceFlag == observationFlag; }));
+        for (const auto& visual : current->decorations) {
+            if (const auto* text = std::get_if<e2d::TextVisual>(&visual); text != nullptr) {
+                assert(text->text.resolve("en").find("SCREEN ") == std::string_view::npos);
+                assert(text->text.resolve("cs").find("OBRAZOVKA ") == std::string_view::npos);
+            }
+        }
         anchors += current->travelAnchor ? 1U : 0U;
         if (i > 0) {
             assert(std::ranges::any_of(current->exits, [i](const e2d::ExitDefinition& exit) {
@@ -177,14 +212,21 @@ int main() {
         }
     }
     assert(anchors == 17);
+    assert(animatedRooms > 80 && animatedRooms < world.rooms.size());
+    for (const auto& hint : world.hints) {
+        assert(hint.text.resolve("en").find("screen ") == std::string_view::npos);
+        assert(hint.text.resolve("cs").find("obrazov") == std::string_view::npos);
+    }
 
     e2d::AdventureSession session{world};
     assert(session.currentRoomId() == "storm_gate_trailhead");
     assert(session.currentHint() != nullptr);
 
     // Act I — restore the relay chain, return to the generator, and trace Nightjar.
+    context(session, world, "s001_emergency_phone", "mission_started");
     take(session, world, "s001_take_patch_cable", "patch_cable");
     take(session, world, "s001_take_field_note", "field_note");
+    context(session, world, "s003_deer_path", "deer_path_taken");
     context(session, world, "s007_mara", "met_mara");
     examine(session, world, "s007_mara_desk", "key_revealed");
     take(session, world, "s007_take_brass_key", "brass_key");
@@ -201,6 +243,7 @@ int main() {
     use(session, world, "s020_fuel_valve", "wrench", "fuel_valve_open");
     take(session, world, "s020_take_siphon_hose", "siphon_hose");
     use(session, world, "s021_fallen_feeder", "lineman_gloves", "feeder_isolated");
+    examine(session, world, "s004_story", "observed_upper_switchback");
     use(session, world, "s022_locked_cabinet", "brass_key", "workshop_open");
     assert(session.hasItem("multimeter"));
     use(session, world, "s023_nightjar_trunk", "multimeter", "nightjar_signal_found");
@@ -219,6 +262,7 @@ int main() {
     take(session, world, "s031_take_iron_hook", "iron_hook");
     take(session, world, "s031_take_mine_lamp", "mine_lamp");
     take(session, world, "s031_take_compass", "compass");
+    take(session, world, "s031_take_ranger_patch", "ranger_patch");
     take(session, world, "s032_take_charcoal", "charcoal");
     use(session, world, "s033_bearing_route", "compass", "echo_route_solved");
     use(session, world, "s034_cable_posts", "multimeter", "quarry_trace_found");
@@ -226,6 +270,8 @@ int main() {
     context(session, world, "s038_nell", "lookout_briefed");
     use(session, world, "s039_anchor_eye", "iron_hook", "hook_fixed");
     use(session, world, "s039_fixed_hook", "climbing_rope", "ravine_rope_fixed");
+    context(session, world, "s039_rope_descent", "ravine_descended");
+    take(session, world, "s041_take_old_relay_badge", "old_relay_badge");
     use(session, world, "s043_sluice", "wrench", "sluice_closed");
     take(session, world, "s043_take_quarry_office_key", "quarry_office_key");
     use(session, world, "s045_quarry_gate", "quarry_office_key", "quarry_gate_open");
@@ -238,6 +284,7 @@ int main() {
     use(session, world, "s050_hoist_pulley", "pulley_pin", "pulley_repaired");
     context(session, world, "s050_hoist_controls", "hoist_running");
     assert(session.flag("act2_complete"));
+    examine(session, world, "s040_story", "observed_broken_service_bridge");
 
     // Act III — logging railway, dam, mine and freight lift.
     context(session, world, "s052_lila", "met_lila");
@@ -245,7 +292,8 @@ int main() {
     take(session, world, "s053_take_drive_belt", "drive_belt");
     take(session, world, "s054_take_oil_can", "oil_can");
     take(session, world, "s054_take_hand_mirror", "hand_mirror");
-    use(session, world, "s055_reserve_tank", "siphon_hose", "engine_fueled");
+    use(session, world, "s055_reserve_tank", "siphon_hose", "fuel_can_filled");
+    assert(session.hasItem("filled_fuel_can"));
     context(session, world, "s056_log_pike", "spark_retrieved");
     take(session, world, "s057_take_rail_switch_key", "rail_switch_key");
     context(session, world, "s058_june", "met_june");
@@ -254,6 +302,7 @@ int main() {
     use(session, world, "s061_engine_belt", "drive_belt", "engine_belt_installed");
     use(session, world, "s061_engine_ignition", "spark_plug", "engine_plug_installed");
     use(session, world, "s061_engine_bearings", "oil_can", "engine_oiled");
+    use(session, world, "s061_engine_fuel_tank", "filled_fuel_can", "engine_fueled");
     context(session, world, "s061_engine_start", "logging_engine_running");
     context(session, world, "s062_mill_whistle", "trestle_guard_diverted");
     use(session, world, "s062_brake_linkage", "wrench", "trestle_brake_fixed");
@@ -262,7 +311,8 @@ int main() {
     take(session, world, "s065_take_turbine_badge", "turbine_badge");
     use(session, world, "s066_spray_shield", "wrench", "spray_shield_fixed");
     use(session, world, "s067_gatehouse_reader", "turbine_badge", "gatehouse_open");
-    context(session, world, "s067_spillway_crank", "spillway_closed");
+    take(session, world, "s067_take_spillway_crank", "spillway_crank");
+    use(session, world, "s067_spillway_crank_socket", "spillway_crank", "spillway_closed");
     context(session, world, "s067_jonah", "jonah_briefed");
     context(session, world, "s068_power_diagram", "dam_diagram_read");
     take(session, world, "s069_take_pump_gasket", "pump_gasket");
@@ -277,6 +327,7 @@ int main() {
     context(session, world, "s075_shaft_grille", "mine_access_open");
     take(session, world, "s076_take_respirator", "respirator");
     use(session, world, "s077_timber_brace", "wrench", "drift_braced");
+    take(session, world, "s079_take_filter_housing", "filter_housing");
     use(session, world, "s079_respirator_filter", "charcoal", "respirator_fitted");
     use(session, world, "s079_fan_starter", "multimeter", "ventilation_running");
     take(session, world, "s080_take_copper_bus_bar", "copper_bus_bar");
@@ -296,8 +347,10 @@ int main() {
 
     // Act IV — observatory infiltration and Nightjar shutdown.
     use(session, world, "s091_tracking_camera", "hand_mirror", "camera_blinded");
+    context(session, world, "s091_staff_passage", "staff_passage_taken");
     use(session, world, "s094_kitchen_bait", "sealed_ration", "guard_bait_placed");
     context(session, world, "s094_kitchen_timer", "courtyard_patrol_diverted");
+    examine(session, world, "s092_story", "observed_ridge_courtyard");
     take(session, world, "s095_take_first_aid_kit", "first_aid_kit");
     context(session, world, "s095_kline_recording", "calder_warning_known");
     context(session, world, "s096_project_portraits", "archive_dates_known");
@@ -325,12 +378,14 @@ int main() {
     use(session, world, "s109_seized_rack", "wrench", "machine_rack_open");
     take(session, world, "s109_take_coolant_hose", "coolant_hose");
     take(session, world, "s109_take_grounding_clamp", "grounding_clamp");
+    take(session, world, "s109_take_calder_photo", "calder_photo");
     use(session, world, "s110_capacitor_banks", "grounding_clamp", "capacitors_grounded");
     use(session, world, "s111_split_coolant_line", "coolant_hose", "cooling_diverted");
     use(session, world, "s112_archive_deck", "archive_reel", "command_archive_loaded");
     use(session, world, "s112_archive_decoder", "cipher_lens", "evidence_copied");
     assert(session.hasItem("evidence_spool"));
     context(session, world, "s113_miriam", "kline_freed");
+    use(session, world, "s113_miriam", "first_aid_kit", "kline_treated");
     use(session, world, "s114_dark_stair", "hand_crank_torch", "emergency_stair_lit");
     use(session, world, "s115_summit_override", "override_key", "summit_override_open");
     context(session, world, "s115_summit_sequence", "act4_complete");
@@ -346,16 +401,61 @@ int main() {
     use(session, world, "s120_sheltered_ladder", "compass", "mid_tower_crossed");
     use(session, world, "s121_waveguide_prism", "phase_prism", "tower_prism_installed");
     use(session, world, "s121_waveguide_tuning", "calibration_fork", "waveguide_tuned");
-    context(session, world, "s122_beacon_crystal", "beacon_reference_ready");
+    context(session, world, "s122_beacon_housing", "beacon_crystal_removed");
+    use(session, world, "s122_beacon_cleaning", "first_aid_kit", "beacon_crystal_cleaned");
+    use(session, world, "s122_beacon_socket", "beacon_crystal", "beacon_reference_ready");
     use(session, world, "s123_azimuth_mount", "wrench", "antenna_aligned");
     use(session, world, "s123_local_motor_lock", "override_key", "antenna_control_locked");
     context(session, world, "s124_voss", "voss_confronted");
     use(session, world, "s124_transmitter_lock", "transmitter_key", "transmitter_unlocked");
+    const auto beforeEvidence = session.snapshot();
+
+    e2d::AdventureSession carrierSession{world};
+    assert(carrierSession.restore(beforeEvidence));
+    walkToTarget(carrierSession, world, "s124_protected_carrier_console");
+    carrierSession.jumpOrContext();
+    assert(carrierSession.mode() == e2d::SessionMode::won);
+    assert(carrierSession.terminalMessage().find("CARRIER RESTORED") != std::string_view::npos);
+
     use(session, world, "s124_evidence_loader", "evidence_spool", "evidence_loaded");
-    moveToTarget(session, world, "s124_protected_carrier_console");
+    assert(session.visitedRooms().size() == 124);
+    const auto beforeOpenChannel = session.snapshot();
+    walkToTarget(session, world, "s124_protected_carrier_console");
     session.jumpOrContext();
     assert(session.mode() == e2d::SessionMode::won);
     assert(session.terminalMessage().find("OPEN CHANNEL") != std::string_view::npos);
+
+    auto keeperSnapshot = beforeOpenChannel;
+    for (const std::string_view item : {"pine_bird", "relay_badge", "ranger_patch", "old_relay_badge",
+            "quartz_sample", "logger_token", "nightjar_patch", "calder_photo"}) {
+        keeperSnapshot.inventory.insert(std::string{item});
+    }
+    for (const std::string_view flag : {"theo_followup", "nell_followup", "owen_followup", "lila_followup",
+            "june_history_heard", "jonah_followup", "sable_persuaded", "kline_treated"}) {
+        keeperSnapshot.flags[std::string{flag}] = true;
+    }
+    e2d::AdventureSession keeperSession{world};
+    assert(keeperSession.restore(keeperSnapshot));
+    walkToTarget(keeperSession, world, "s124_protected_carrier_console");
+    keeperSession.jumpOrContext();
+    assert(keeperSession.mode() == e2d::SessionMode::won);
+    assert(keeperSession.terminalMessage().find("KEEPER OF BLACK PINE") != std::string_view::npos);
+
+    e2d::AdventureSession hazardSession{world};
+    context(hazardSession, world, "s001_emergency_phone", "mission_started");
+    std::size_t hazardApproach = 0;
+    while (hazardSession.currentRoomId() != "upper_switchback" && hazardApproach++ < 5000) {
+        hazardSession.walk(e2d::Direction::right);
+        assert(hazardSession.mode() == e2d::SessionMode::world);
+    }
+    assert(hazardSession.currentRoomId() == "upper_switchback");
+    while (hazardSession.mode() == e2d::SessionMode::world && hazardApproach++ < 6000) {
+        hazardSession.walk(e2d::Direction::right);
+    }
+    assert(hazardSession.mode() == e2d::SessionMode::dead);
+    hazardSession.jumpOrContext();
+    assert(hazardSession.mode() == e2d::SessionMode::world);
+    assert(hazardSession.currentRoomId() == "storm_gate_trailhead");
 
     e2d::AdventureRenderer renderer{world};
     for (const int number : {1, 14, 25, 39, 52, 64, 76, 91, 104, 124}) {

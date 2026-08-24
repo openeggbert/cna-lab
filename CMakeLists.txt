@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25...3.31)
-project(BlackPine VERSION 0.2.0 LANGUAGES CXX)
+project(BlackPine VERSION 0.3.0 LANGUAGES CXX)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "In-source builds are unsupported; use cmake -S . -B build")

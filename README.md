@@ -18,10 +18,11 @@ invert the field and reopen the emergency network.
 
 ## Implemented game scope
 
-- Exactly 124 numbered, fixed connected screens plus title, settings, map,
+- Exactly 124 fixed connected locations with ordinary place names, plus title, settings, map,
   help, death and ending states.
 - Ten visually distinct code-drawn regions and 17 travel-map anchors.
-- More than 50 inventory and evidence items, including optional discoveries.
+- Exactly 64 inventory records: 56 functional tools, components and clues plus
+  eight optional keepsakes.
 - USE / EXAMINE / TAKE.
 - Main characters Mara, Theo, Nell, Owen, Lila, June, Jonah, Sable, Miriam
   Kline, Gideon Voss and dispatcher Elias, with anchored dialogue bubbles.
@@ -32,8 +33,8 @@ invert the field and reopen the emergency network.
   observatory infiltration; and the Nightjar shutdown sequence.
 - A final summit assembly using grounding, phase coil, prism, calibration fork,
   beacon reference, antenna alignment and protected sequence `4-1-3`.
-- Two successful epilogues: the evidence broadcast is optional, while restoring
-  the rescue carrier is mandatory.
+- Three successful epilogues: Carrier Restored, evidence-bearing Open Channel,
+  and the completionist Keeper of Black Pine.
 - Visited-location fast travel.
 - Twelve designed hazard families with readable warning states.
 - Save/load through the Explore2D host.
@@ -42,8 +43,8 @@ invert the field and reopen the emergency network.
 - Persistent code-drawn state overlays for completed repairs and activated
   machinery, including the generator chain, pumps, lift, Nightjar systems and
   summit transmitter.
-- Low-bandwidth two-frame scene motion in the QBasic style, with interaction
-  sound cues reserved for story-bearing actions and machinery.
+- Selective low-bandwidth two-frame motion tied to water, weather, people,
+  wildlife, signals and machinery; static scenery deliberately remains still.
 - Monophonic QBasic/PC-speaker-style cues for menu, movement actions, pickups,
   repairs, warnings, death, save/load and victory, played through CNA.
 - Entirely procedural graphics; there are no external art assets.
@@ -132,8 +133,9 @@ pre-production `docs/GAME_DESIGN.md` intentionally remains English-only.
 
 ## Playing and navigation
 
-Rooms are numbered `001` through `124` in the scene artwork. Left and right move
-between adjacent screens; important milestones become map anchors. Several
+Every room is presented only by its ordinary place name; catalogue numbers are
+internal design references and never appear in the scene artwork or F1 help.
+Left and right move between adjacent locations; important milestones become map anchors. Several
 puzzles deliberately require returning to earlier equipment—for example, the
 generator can only start after downstream battery, fuel and transformer work,
 and the observatory dome key is found beyond the dome itself.
