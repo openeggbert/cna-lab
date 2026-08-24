@@ -553,6 +553,35 @@ test plumbing but cannot produce qualifying hardware evidence. SDL offscreen/hea
 contexts may expose real DRM residency and are useful end-to-end profiler diagnostics, but they do
 not prove a physical display/vblank path and are rejected as qualifying hardware labels.
 
+For the complete required pair, use the orchestrator instead of manually repeating capture, bind,
+report, and comparison commands:
+
+```bash
+./scripts/m12_capture_pair.py \
+  --output-dir runtime/performance/physical-2026-08-24 \
+  --prefix m12-linux-easygl \
+  --hardware "<CPU, GPU, driver, display/compositor identity>" \
+  --game ./cmake-build-release-easygl/iron_gang \
+  --poll-ms 20 \
+  --vsync off
+```
+
+Before launching the first game process, the orchestrator validates the executable/tool paths,
+single-line identity/title, poll interval and safe filename prefix, creates the output directory,
+and refuses the entire run if any of its ten planned paths already exists (including symlinks).
+It then performs two sequential locked `mixed --smoke 900` captures, binds each independent source
+triple, generates a qualifying-intent release report, and creates a compatible comparison with both
+source bundles. PASS pairs use qualifying comparison rules; failed qualification is deliberately
+compared as diagnostic so its measurements remain useful without being promoted. Exit 0 means
+qualification PASS and `NO REGRESSION`; exit 1 means a valid preserved FAIL or regression; exit 2
+means a malformed request, failed stage, missing artifact, or incompatible workflow. Partial source
+evidence is never deleted after a failed stage—use a new prefix after investigating it.
+
+This convenience command does not detect a physical monitor. `--hardware` remains the same explicit
+operator assertion described below, and the generated report still independently enforces native-
+window, current GL runtime, swap acknowledgement, archive, workload, and budget requirements. Do
+not run it under Xvfb or an offscreen/headless SDL driver for physical qualification.
+
 Keep the profiler's raw artifact and write a small evidence manifest alongside the original
 schema-8 capture. The Linux wrapper above writes this manifest automatically; the generic shape for
 another authoritative vendor/OS profiler is:

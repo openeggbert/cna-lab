@@ -546,6 +546,12 @@ A further Release AMD offscreen `--vsync on` integration recorded requested/appl
 successful acknowledgement, 17.122 ms frame p95, and a verified 49.57 MiB DRM peak. Its independent
 window evidence remained `Headless/false`, so the visible `1 / yes` report row correctly failed
 local qualification. This validates the non-vblank proof boundary without using a visible display.
+The final physical-pair workflow is now covered by `iron_gang_m12_capture_pair_tests`. Four isolated
+fake-tool integrations prove exact two-run ordering and the locked `mixed --smoke 900`/v-sync
+arguments, qualifying comparison after PASS, diagnostic comparison plus preserved artifacts after
+FAIL, regression exit 1, and all-output collision refusal before the first tool starts. The focused
+CTest passes 1/1 and the complete compile-software suite passes 9/9; no game or visible display is
+used by this orchestration test.
 
 ## Full CNA-linked build status
 

@@ -1124,3 +1124,17 @@ manifest/complete/report hashes are `e88a7c0f…9627c2`, `c75642c8…6cbb9c`,
 This real counterexample validates the schema's conservative proof string: successful interval-1
 application and fixed-step cadence are not by themselves physical display, vblank, or compositor
 evidence. No visible display was used and M12 remains open.
+
+## 2026-08-24 — repeatable physical-pair capture workflow
+
+`scripts/m12_capture_pair.py` now turns the remaining physical runbook into one fail-safe command.
+It preflights all ten destinations before capture, performs two independent locked 900-draw mixed
+DRM runs and bindings, and generates both the qualifying-intent release report and compatible
+repeatability comparison. It preserves failed evidence and distinguishes gate failure/regression
+(exit 1) from invalid or incomplete orchestration (exit 2); existing files and symlinks are never
+overwritten.
+
+Four fake-tool end-to-end cases, the registered focused CTest, and the complete 9/9 compile-software
+suite pass. This adds no performance measurement and does not infer a physical monitor from an
+operator label. It removes manual path/ordering risk from the next authorized physical-display
+capture; M12 remains open until that real pair returns report PASS on named Linux EasyGL hardware.

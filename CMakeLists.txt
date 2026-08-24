@@ -232,6 +232,10 @@ if(IRON_GANG_BUILD_TESTS)
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/performance_report.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/performance_compare.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/drm_vram_capture.py")
+    add_test(NAME iron_gang_m12_capture_pair_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_m12_capture_pair.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/m12_capture_pair.py")
     add_test(NAME iron_gang_content_budget_tests
         COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_content_budget.py"

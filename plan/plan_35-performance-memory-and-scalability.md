@@ -49,6 +49,11 @@ Establish budgets and measure representative district workloads against the lock
   *Presentation-boundary follow-up: fixed proof text cannot claim physical vblank/compositor
   behavior, and unavailable reason must be empty exactly on successful apply. Three contradictory
   shapes exit 2 while real declined-Xvfb diagnostics remain readable.*
+  *Pair-orchestration follow-up: `scripts/m12_capture_pair.py` preflights all ten destinations,
+  performs the two locked 900-draw mixed DRM captures and bindings sequentially, and emits the
+  qualification and repeatability reports with the correct source triples. Four isolated tests
+  cover PASS, preserved FAIL, regression, and pre-capture overwrite refusal. It automates the
+  remaining runbook without asserting that the selected display is physical.*
 - [ ] **IG-35-017 P1** — Optimize only measured bottlenecks and record before/after evidence.
 - [ ] **IG-35-018 P1** — Keep low-detail AI and rendering paths visually coherent at LOD/culling distance.
 - [ ] **IG-35-019 P2** — Evaluate multithreaded culling after single-threaded costs are measured.

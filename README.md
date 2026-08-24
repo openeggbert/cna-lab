@@ -130,6 +130,13 @@ the hash-bound raw artifact and evidence manifest automatically. Its machine-rea
 semantically reconstructed by the binder rather than merely hash-checked. The exact command and
 kernel-interface scope are documented in
 [`performance-targets.md`](docs/performance-targets.md#binding-complete-external-vram-evidence).
+For the required two-run gate, prefer `scripts/m12_capture_pair.py`: one command preflights all ten
+output paths, performs both locked `mixed --smoke 900` DRM captures and bindings sequentially, and
+writes the qualification plus repeatability reports without manually pairing archive paths. Exit 0
+means qualification PASS with no regression, exit 1 preserves a valid FAIL/regression evidence set,
+and exit 2 means the workflow itself was invalid or incomplete. The tool never overwrites an
+existing pair output and does not turn its `--hardware` operator assertion into automatic physical-
+monitor proof.
 Two no-window AMD Radeon 780M/OPENGLES3 900-draw `mixed` integrations have each produced and
 verified a 55.57 MiB complete DRM peak while passing every direct minimum budget. They remain
 diagnostic because offscreen presentation is not a physical display/vblank path. The release tools

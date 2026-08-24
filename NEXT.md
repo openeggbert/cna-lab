@@ -68,6 +68,23 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**The remaining physical M12 runbook is now one fail-safe paired command.** New
+`scripts/m12_capture_pair.py` removes the manual six-stage/ten-output assembly around the already
+completed profiler tools.
+
+- It preflights all ten outputs and refuses any existing file or symlink before starting the game,
+  then runs two sequential locked `mixed --smoke 900` DRM captures, binds both independent
+  source triples, and emits the qualifying-intent report plus repeatability comparison.
+- Exit 0 means report PASS and `NO REGRESSION`; exit 1 preserves a valid FAIL or regression evidence
+  set; exit 2 identifies a malformed/incomplete workflow. A failed qualification uses diagnostic
+  comparison rules so useful data is retained without promotion.
+- Four isolated fake-tool integrations pass directly and through focused CTest: exact stage/workload
+  ordering, PASS-to-qualifying comparison, preserved FAIL-to-diagnostic comparison, regression, and
+  all-output collision refusal. The complete compile-software CTest is 9/9. No game or visible
+  display was used.
+- The command remains an operator-driven physical-capture workflow, not monitor detection. M12 stays
+  open until it is run on an allowed controlled physical Linux EasyGL display and returns PASS.
+
 **The completed Linux EasyGL baseline is reconciled across the master plans for handoff.** The two
 independent full-window AMD offscreen runs already satisfy three narrower tasks even though they do
 not close physical M12: first-district RAM/VRAM profiling (`IG-06-021`), full-district CPU/GPU/frame/
