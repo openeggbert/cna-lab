@@ -120,8 +120,8 @@ Statuses:
 
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
-| PEO-070 | DOING | Resident simulation entity | Stable ID, household, logical position, movement/action references, and deletion lifecycle exist without sprite state |
-| PEO-071 | TODO | Four-view placeholder resident | Original procedural resident has four directions and idle frames with common foot anchor |
+| PEO-070 | DONE | Resident simulation entity | Stable ID, household, logical position, movement/action references, and deletion lifecycle exist without sprite state |
+| PEO-071 | DOING | Four-view placeholder resident | Original procedural resident has four directions and idle frames with common foot anchor |
 | PEO-072 | TODO | Walk animation | Movement direction selects walk frames by simulation progress; animation cannot alter route state |
 | PEO-073 | TODO | Static occupancy grid | Floor/walls/object footprints produce deterministic walkability independent of renderer |
 | PEO-074 | TODO | Tile-grid A* | Deterministic four-neighbor path finds shortest routes, handles no-path/start=goal, and passes fixed maps |

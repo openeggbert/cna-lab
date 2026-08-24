@@ -8,6 +8,7 @@
 
 #include "People/Objects/ObjectModel.hpp"
 #include "People/Rendering/ObjectPresentation.hpp"
+#include "People/Simulation/ResidentModel.hpp"
 #include "People/World/IsometricProjection.hpp"
 #include "People/World/LotGrid.hpp"
 #include "Microsoft/Xna/Framework/Game.hpp"
@@ -57,6 +58,7 @@ private:
     Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
     People::World::LotGrid lot_{20, 20, 1};
     People::Objects::ObjectWorld objects_{lot_};
+    People::Simulation::ResidentRegistry residents_{lot_};
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
     Microsoft::Xna::Framework::Graphics::Texture2D tileTexture_;
     Microsoft::Xna::Framework::Graphics::Texture2D highlightTexture_;

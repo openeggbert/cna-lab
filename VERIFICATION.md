@@ -229,3 +229,27 @@ bounds and front-to-back overlap picking remain `PEO-024`. Screenshots stayed
 in `/tmp` and are not shipping assets. Procedural provenance is recorded in
 `ASSET_PIPELINE.md`. This closes the small-house M2 gate, not the resident or
 interaction milestones.
+
+## 2026-08-24: PEO-070 resident simulation identity
+
+`ResidentRegistry` adds a renderer-independent active-lot resident model.
+Residents have explicit nonzero 64-bit resident and household IDs, an original
+display name, one logical `TileCoordinate`, and optional stable references to a
+movement request and active action. The registry exposes only const resident
+views; validated mutations cannot move a resident outside the current lot or
+introduce zero/unknown handles.
+
+Removal returns resident/household identity plus any live movement/action
+handles before erasing the state, establishing an explicit cleanup handoff for
+the later movement and action owners. It does not pretend to implement action
+cancellation or reservations yet; those remain `PEO-079`, `PEO-084`, and the
+reservation tasks. The demo active lot now contains predefined adult resident
+Mara Vale at a free logical room tile, but deliberately has no resident sprite.
+
+`people_resident_model_tests` covers identity/household/name/location
+validation, duplicate and unknown IDs, in/out-of-bounds movement, assign/clear
+of movement and action references, zero-handle rejection, and deletion cleanup
+results. HEADLESS and SDL_RENDERER/SDL3 configurations both passed 8/8 CTests
+against clean CNA `b6cbfcd87c08a6e0172eaf866358bf95bec277b1` and clean
+sharp-runtime `54578590b328aa9612fe38bfddca9fd8ca795144`. Startup smoke reports
+`residents=1`; no new visual result is claimed for this model-only increment.

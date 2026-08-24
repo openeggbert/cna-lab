@@ -302,6 +302,11 @@ void PeopleGame::InitializeDemoLot()
     (void)lot_.AddDoor(doorTile, People::World::TileEdge::MaxY);
     demoDoor_ = lot_.CanonicalWall(doorTile, People::World::TileEdge::MaxY);
     People::Content::DemoFurniture::Populate(objects_);
+    const People::Simulation::ResidentMutationResult resident = residents_.Add({
+        2001, 1, "Mara Vale", {9, 10, 0}, std::nullopt, std::nullopt
+    });
+    if (!resident.IsValid())
+        throw std::logic_error("demo resident failed active-lot validation");
 }
 
 Texture2D PeopleGame::CreateTileTexture(const bool highlight)
@@ -657,6 +662,7 @@ void PeopleGame::LoadContent()
               << ", walls=" << lot_.Walls().size()
               << ", doors=" << lot_.Doors().size()
               << ", objects=" << objects_.Instances().size()
+              << ", residents=" << residents_.Residents().size()
               << ", enclosed-rooms=" << rooms.EnclosedRoomCount()
               << ", runtime world=2D\n";
 }
