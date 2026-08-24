@@ -660,6 +660,26 @@ reject padded manifest scope, profile digest, artifact name, and timestamp. Repo
 launching the game. Full isolated CTest passes 8/8 with its smoke process inside Xvfb; no physical
 evidence was added.
 
+## 2026-08-24 — full representative-window Xvfb integration
+
+A fresh Release OPENGLES3 run executed the real `mixed --smoke 900 --vsync off` route entirely in
+isolated Xvfb/X11. It produced 899 frame intervals, 900 render samples, 903 samples for each
+update/physics/AI/audio timing and workload group, and one real WarehouseBlock -> Countryside
+transition. This is the first retained real-flow capture to meet the new representative sample
+floor rather than merely remaining structurally readable below it.
+
+Frame average/p95/maximum were 16.879/17.127/64.649 ms. The one >50 ms hitch was not the transition
+boundary; that boundary was 17.361 ms, and there were no >100 ms severe hitches. Update, physics,
+AI, audio, and render CPU p95 were 0.304/0.242/0.007/0.023/1.440 ms. GPU Draw/Present p95 were
+8.435/13.711 ms. The measured district phases were 0.044 ms world/physics plus 0.236 ms renderer
+submission, totaling 0.280 ms. Peak RAM was 168.5 MiB and logical tracked VRAM about 0.2 MiB.
+
+The retained file is `/tmp/iron-gang-m12-xvfb-mixed-900-20260824.json`, SHA-256
+`63a62c8bc8a6601ed35f7eacbd369bb857d47f9e5c94ff0e5230c00176a3230c`. The release report parses it
+without a short-window blocker and remains `DIAGNOSTIC` for the honest residual reasons: virtual
+llvmpipe hardware, one mixed run, declined requested swap interval, and incomplete physical VRAM.
+No visible/real-screen process was launched, and this does not close M12.
+
 ## 2026-08-24 — capture-session independence
 
 The synthetic release `PASS` previously used two metric-distinct JSON objects but left both at PID

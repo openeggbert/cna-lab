@@ -92,6 +92,9 @@ rather than being a one-time final check.
     physical capture was added.*
     *Canonical-token follow-up: machine UTC/source/scope/artifact-name/SHA strings must be unpadded
     exact encodings. Six whitespace aliases exit 2; no physical evidence was added.*
+    *Full-window diagnostic follow-up: a real isolated 900-draw Xvfb mixed route meets the 899-sample
+    floor and all direct budgets, with one real transition, but remains blocked by virtual hardware,
+    declined swap, repeatability, and physical VRAM. It does not close M12.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).

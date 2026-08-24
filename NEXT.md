@@ -67,6 +67,19 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has a real full-window schema-8 Xvfb `mixed` capture.** The new 900-draw Release EasyGL
+run exercises the actual walk -> drive -> district-transition route instead of only proving the
+899-sample policy with synthetic fixtures.
+
+- `/tmp/iron-gang-m12-xvfb-mixed-900-20260824.json` contains 899 frame intervals, 900 render and
+  903 update/physics/AI/audio samples, complete workload summaries, and one real 0.280 ms district
+  transition with a 17.361 ms following frame.
+- Frame p95 is 17.127 ms, with one 64.649 ms non-transition hitch and no severe hitch. CPU p95 is
+  0.304/0.242/0.007/0.023/1.440 ms; RAM is 168.5 MiB and logical VRAM about 0.2 MiB.
+- The report hash is `63a62c8bc8a6601ed35f7eacbd369bb857d47f9e5c94ff0e5230c00176a3230c`.
+  It correctly remains `DIAGNOSTIC`: Xvfb/llvmpipe, declined swap interval, one run, and incomplete
+  physical VRAM still cannot close M12. No real-screen window was opened.
+
 **M12 machine-readable evidence tokens are now canonical, not silently trimmed.** UTC timestamps,
 external measurement scope/source, SHA-256 fields, and the raw-artifact file name could carry
 leading/trailing whitespace while validators compared only their stripped values.

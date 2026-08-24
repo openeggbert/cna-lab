@@ -318,6 +318,13 @@ capture time/embedded digest report cases and padded scope/profile digest/artifa
 VRAM cases all exit 2. Focused suites pass 7/7, 7/7, and 6/6; both retained diagnostics and their
 diagnostic self-comparison pass. Full isolated CTest passes 8/8 with its smoke process inside Xvfb.
 
+A new isolated Release EasyGL/Xvfb `mixed --smoke 900` integration then exercised the full sample
+floor through the real game: 899 frame intervals, 900 render samples, 903 update/physics/AI/audio
+samples, complete workload summaries, and one 0.280 ms district transition. Its report hash is
+`63a62c8b…a3230c`; frame p95 is 17.127 ms with one non-transition hitch and no severe hitch. It has
+no short-window blocker but remains `DIAGNOSTIC` for Xvfb/llvmpipe, one run, declined swap, and
+incomplete physical VRAM. No real-screen window was opened.
+
 Qualifying repeatability now requires non-overlapping `capture_session` UTC intervals. The
 synthetic `PASS` fixture was corrected from two metric-distinct objects sharing PID/time to PID 123
 at 10:00 and PID 124 at 11:00 with separately bound evidence. The former overlapping form produces
