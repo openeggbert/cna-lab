@@ -20,6 +20,7 @@
 - Pressing and releasing `M` opens a paused map of visited cells; a latched cheat chord keeps gradual `I+L+M` input independent.
 - The map always marks the sector exit as red `GOAL`, changing it to cyan after its objective is activated, without revealing nearby rooms.
 - Firearm attack frames remain visible for a few extra frames so their generated muzzle flashes read clearly.
+- Every sector now requires activating a separate violet power relay and amber terminal before its exit comes online.
 - The illustrated splash is separate from the main menu.
 - Every campaign sector now has an exact authored 64×64 footprint; tests require substantial use of the area and no disconnected rooms.
 

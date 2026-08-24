@@ -28,6 +28,7 @@ namespace WolfCna
             DoorOpened,
             DoorLocked,
             TerminalActivated,
+            RelayActivated,
             SecretRevealed
         };
 
@@ -222,6 +223,12 @@ namespace WolfCna
             bool activated = false;
         };
 
+        struct Relay
+        {
+            Microsoft::Xna::Framework::Vector3 position;
+            bool activated = false;
+        };
+
         struct Decoration
         {
             enum class Type { Painting, PeaceBanner, CeilingLamp };
@@ -255,6 +262,7 @@ namespace WolfCna
         int foundSecrets_ = 0;
         int totalSecrets_ = 0;
         std::vector<Terminal> terminals_;
+        std::vector<Relay> relays_;
         std::vector<Microsoft::Xna::Framework::Vector3> exits_;
         std::vector<Decoration> decorations_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> enemyVertices_;
@@ -290,6 +298,7 @@ namespace WolfCna
         void BuildEnemies();
         void BuildPickups();
         void BuildTerminals();
+        void BuildRelays();
         void BuildExits();
         void BuildDecorations();
         void BuildEnemyGeometry();

@@ -1191,3 +1191,17 @@ without breaking the next standalone `M`.
 - keep the existing `I` + `L` + `M` loadout cheat working without accidentally
   toggling the map when the three-key chord is pressed;
 - cover visited-cell tracking, map toggle edge detection and sector reset with tests.
+
+### WOLF-019 — two-stage sector objective
+
+Status: complete. Every authored sector places one original violet power relay
+away from its amber terminal. The player must activate both components with the
+normal action key before the exit changes from red to cyan. The relay has a
+distinct green active state and lower confirmation tone, and focused tests cover
+relay-only, terminal-only and fully unlocked states.
+
+- add a second interactive objective component distinct from doors and terminals;
+- require every relay and terminal before enabling the sector exit;
+- give inactive and active relays unmistakably different colors and audio feedback;
+- distribute one relay through each campaign route rather than placing it beside the exit;
+- validate the two-stage unlock sequence with deterministic tests.

@@ -64,6 +64,7 @@ namespace WolfCna
         BuildEnemies();
         BuildPickups();
         BuildTerminals();
+        BuildRelays();
         BuildExits();
         BuildDecorations();
         BuildMesh();
@@ -325,10 +326,15 @@ namespace WolfCna
 
     bool World::IsExitUnlocked() const
     {
-        return terminals_.empty() || std::all_of(
+        const bool terminalsActivated = terminals_.empty() || std::all_of(
             terminals_.begin(),
             terminals_.end(),
             [](const Terminal& terminal) { return terminal.activated; });
+        const bool relaysActivated = relays_.empty() || std::all_of(
+            relays_.begin(),
+            relays_.end(),
+            [](const Relay& relay) { return relay.activated; });
+        return terminalsActivated && relaysActivated;
     }
 
     World::CompletionStats World::GetCompletionStats() const
@@ -363,6 +369,7 @@ namespace WolfCna
     {
         Door* target = nullptr;
         Terminal* targetTerminal = nullptr;
+        Relay* targetRelay = nullptr;
         float closestDistanceSquared = ActivationRange * ActivationRange;
 
         for (Door& door : doors_)
@@ -403,6 +410,33 @@ namespace WolfCna
 
             targetTerminal = &terminal;
             closestDistanceSquared = distanceSquared;
+        }
+
+        for (Relay& relay : relays_)
+        {
+            if (relay.activated)
+                continue;
+
+            const float offsetX = relay.position.X - playerPosition.X;
+            const float offsetZ = relay.position.Z - playerPosition.Z;
+            const float distanceSquared = offsetX * offsetX + offsetZ * offsetZ;
+            if (distanceSquared > closestDistanceSquared || distanceSquared <= 0.0f)
+                continue;
+
+            const float inverseDistance = 1.0f / std::sqrt(distanceSquared);
+            const float facing = (offsetX * lookDirection.X + offsetZ * lookDirection.Z) * inverseDistance;
+            if (facing < ActivationDotThreshold)
+                continue;
+
+            targetRelay = &relay;
+            targetTerminal = nullptr;
+            closestDistanceSquared = distanceSquared;
+        }
+
+        if (targetRelay)
+        {
+            targetRelay->activated = true;
+            return InteractionResult::RelayActivated;
         }
 
         if (targetTerminal)
@@ -909,6 +943,18 @@ namespace WolfCna
         }
     }
 
+    void World::BuildRelays()
+    {
+        for (int z = 0; z < static_cast<int>(map_.size()); ++z)
+        {
+            for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
+            {
+                if (map_[z][x] == 'O')
+                    relays_.push_back({Vector3(static_cast<float>(x) + 0.5f, 0.08f, static_cast<float>(z) + 0.5f)});
+            }
+        }
+    }
+
     void World::BuildDecorations()
     {
         for (int z = 0; z < static_cast<int>(map_.size()); ++z)
@@ -1217,7 +1263,8 @@ namespace WolfCna
             BufferUsage::None);
         impactIndexBuffer_->SetData(impactIndices_.data(), static_cast<int>(impactIndices_.size()));
 
-        if (!enemies_.empty() || !pickups_.empty() || !terminals_.empty() || !exits_.empty())
+        if (!enemies_.empty() || !pickups_.empty() || !terminals_.empty() ||
+            !relays_.empty() || !exits_.empty())
         {
             enemyVertexBuffer_ = std::make_unique<VertexBuffer>(
                 device,
@@ -1718,6 +1765,26 @@ namespace WolfCna
                 Matrix::CreateScale(0.34f, 0.8f, 0.34f) * Matrix::CreateTranslation(terminal.position));
             effect.setDiffuseColorProperty(
                 terminal.activated ? Vector3(0.2f, 0.88f, 0.94f) : Vector3(0.92f, 0.44f, 0.08f));
+
+            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+            {
+                pass.Apply();
+                device.DrawIndexedPrimitives(
+                    PrimitiveType::TriangleList,
+                    0,
+                    0,
+                    static_cast<int>(enemyVertices_.size()),
+                    0,
+                    static_cast<int>(enemyIndices_.size() / 3));
+            }
+        }
+
+        for (const Relay& relay : relays_)
+        {
+            effect.setWorldProperty(
+                Matrix::CreateScale(0.5f, 0.52f, 0.5f) * Matrix::CreateTranslation(relay.position));
+            effect.setDiffuseColorProperty(
+                relay.activated ? Vector3(0.28f, 0.92f, 0.46f) : Vector3(0.72f, 0.24f, 0.86f));
 
             for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
             {

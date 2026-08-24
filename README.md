@@ -82,6 +82,7 @@ have the same width and use only these symbols:
 - `Q`: closed red security door
 - `C`: cyan security-card pickup, required to open `Q`
 - `M`: amber terminal; use it to bring the exit online
+- `O`: violet power relay; activate it as the other half of the exit objective
 - `S`: secret moving wall; use it to expose a hidden reward
 - `G`: guard spawn
 - `K`: hound spawn
@@ -101,7 +102,7 @@ have the same width and use only these symbols:
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 
-An exit is red while its terminal objective is incomplete and turns cyan when it is online.
+An exit is red until every power relay and terminal is active, then turns cyan.
 All three campaign sectors use an exact 64×64-cell footprint with large authored
 rooms, connecting corridors, loops and optional secret spaces. Focused test maps
 may remain smaller.

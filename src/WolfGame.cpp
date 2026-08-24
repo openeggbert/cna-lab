@@ -1514,6 +1514,8 @@ namespace WolfCna
                 static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
             else if (activation == World::InteractionResult::TerminalActivated && terminalSound_)
                 static_cast<void>(terminalSound_->Play(0.32f, 0.25f, 0.0f));
+            else if (activation == World::InteractionResult::RelayActivated && terminalSound_)
+                static_cast<void>(terminalSound_->Play(0.38f, -0.2f, 0.0f));
             else if (activation == World::InteractionResult::SecretRevealed)
             {
                 AwardScore(500);

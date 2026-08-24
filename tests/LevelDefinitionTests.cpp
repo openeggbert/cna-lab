@@ -77,6 +77,7 @@ namespace
 
         int walkable = 0;
         int exits = 0;
+        int relays = 0;
         for (const std::string& row : rows)
         {
             for (const char symbol : row)
@@ -85,11 +86,14 @@ namespace
                     ++walkable;
                 if (symbol == 'E')
                     ++exits;
+                else if (symbol == 'O')
+                    ++relays;
             }
         }
         Expect(walkable >= 1500, std::string(name) + " uses a substantial part of its footprint");
         Expect(reachable == walkable, std::string(name) + " has no disconnected rooms");
         Expect(exits == 1, std::string(name) + " has one exit");
+        Expect(relays == 1, std::string(name) + " has one power relay");
     }
 }
 
@@ -330,6 +334,21 @@ int main()
         "terminal activates when used from the front");
     Expect(terminalWorld.IsExitUnlocked(), "terminal unlocks the exit");
     Expect(terminalWorld.ReachedExit(terminalExit), "activated terminal allows the exit");
+
+    WolfCna::World relayWorld(WolfCna::LevelDefinition::Parse(
+        "######\n#POME#\n######\n",
+        "relay.level"));
+    Expect(
+        relayWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::RelayActivated,
+        "power relay activates when used from the front");
+    Expect(!relayWorld.IsExitUnlocked(), "power relay alone does not bypass the terminal");
+    Expect(
+        relayWorld.TryActivate(
+            Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f),
+            lookDirection,
+            false) == WolfCna::World::InteractionResult::TerminalActivated,
+        "terminal remains independently required after the relay");
+    Expect(relayWorld.IsExitUnlocked(), "relay and terminal together unlock the exit");
 
     WolfCna::World combatWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PG.#\n#####\n",
