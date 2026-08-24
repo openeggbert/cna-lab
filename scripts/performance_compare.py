@@ -15,6 +15,7 @@ from performance_report import (
     DIAGNOSTIC_HARDWARE_TERMS,
     ReportError,
     VramBundleFingerprint,
+    _capture_session_interval,
     _boolean,
     _capture_sessions_overlap,
     _escape,
@@ -185,6 +186,12 @@ def require_compatible(
         if _capture_sessions_overlap(baseline, candidate):
             raise ReportError(
                 "qualifying capture sessions overlap; temporal comparison is refused"
+            )
+        _, baseline_ended = _capture_session_interval(baseline)
+        candidate_started, _ = _capture_session_interval(candidate)
+        if candidate_started < baseline_ended:
+            raise ReportError(
+                "qualifying candidate capture session must follow the baseline session"
             )
         for label, capture in (("baseline", baseline), ("candidate", candidate)):
             if not swap_interval_acknowledged(capture):

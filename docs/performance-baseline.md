@@ -618,3 +618,15 @@ qualifying regression comparison rejects an overlapping baseline/candidate pair 
 Release coverage proves the former same-session shape fails, and the VRAM integration rebinds an
 overlapping candidate to reach the comparator check. Diagnostic self-comparison remains valid.
 Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass; no physical run was created.
+
+## 2026-08-24 — qualifying comparison chronology
+
+Qualifying baseline/candidate comparison now requires the candidate session to start at or after
+the baseline session ends. The existing overlap refusal remains a distinct error; a fully valid,
+non-overlapping candidate captured earlier than the baseline is also invalid because its regression
+direction would be mislabeled.
+
+The VRAM integration rebinds the candidate to PID 4244 at 09:00:05-09:00:55 while retaining a
+10:00:05 baseline and separate source archive, then proves exit 2. Its normal PID-4243 11:00:05
+candidate still reaches `NO REGRESSION`. Focused suites remain report 7/7, comparator 7/7, and VRAM
+6/6. Diagnostic self-comparison remains intentionally exempt.

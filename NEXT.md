@@ -67,6 +67,14 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 qualifying comparisons now enforce baseline-before-candidate chronology.** Non-overlap alone
+is insufficient: candidate UTC start must be at or after baseline UTC end.
+
+- The VRAM integration rebinds a fully valid PID-4244 candidate at 09:00 against the 10:00
+  baseline and proves exit 2; the normal 11:00 candidate still reaches `NO REGRESSION`.
+- Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass. Diagnostic self-comparison remains
+  allowed. This prevents reversed labels from misrepresenting regression direction.
+
 **M12 repeatability now requires separate capture sessions.** Qualifying mixed runs must have
 non-overlapping UTC session intervals; qualifying baseline/candidate comparison enforces the same
 temporal separation. Diagnostic self-comparison remains intentionally available.

@@ -300,16 +300,18 @@ def validate_capture_session(
     return executable_name, pid, started, ended
 
 
+def _capture_session_interval(capture: dict[str, Any]) -> tuple[datetime, datetime]:
+    session = validate_capture_session(capture, required=True)
+    assert session is not None
+    return session[2], session[3]
+
+
 def _capture_sessions_overlap(
     left: dict[str, Any],
     right: dict[str, Any],
 ) -> bool:
-    left_session = validate_capture_session(left, required=True)
-    right_session = validate_capture_session(right, required=True)
-    assert left_session is not None
-    assert right_session is not None
-    _, _, left_started, left_ended = left_session
-    _, _, right_started, right_ended = right_session
+    left_started, left_ended = _capture_session_interval(left)
+    right_started, right_ended = _capture_session_interval(right)
     return left_started < right_ended and right_started < left_ended
 
 

@@ -290,6 +290,35 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertEqual(comparison.returncode, 2)
             self.assertIn("qualifying capture sessions overlap", comparison.stderr)
 
+            earlier_capture = raw_capture_fixture()
+            earlier_capture["capture_session"] = {
+                "process": {"executable": "iron_gang", "pid_known": True, "pid": 4244},
+                "started_utc": "2026-08-24T09:00:05Z",
+                "ended_utc": "2026-08-24T09:00:55Z",
+            }
+            earlier_capture["measurements"]["frame_interval"]["p95_ms"] = 17.0
+            earlier_capture["measurements"]["frame_interval"]["maximum_ms"] = 17.0
+            second_capture_path.write_text(json.dumps(earlier_capture), encoding="utf-8")
+            second_evidence_path.write_text(
+                json.dumps(evidence_fixture(second_capture_path, second_artifact_path)),
+                encoding="utf-8",
+            )
+            second_binding = self.run_binding(
+                second_capture_path,
+                second_evidence_path,
+                second_artifact_path,
+                second_path,
+            )
+            self.assertEqual(second_binding.returncode, 0, second_binding.stderr)
+            comparison = subprocess.run(
+                comparison_arguments,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(comparison.returncode, 2)
+            self.assertIn("candidate capture session must follow", comparison.stderr)
+
             artifact_before_alias_attempt = second_artifact_path.read_bytes()
             comparison = subprocess.run(
                 [*comparison_arguments, "--output", str(second_artifact_path)],

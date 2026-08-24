@@ -283,6 +283,12 @@ at 10:00 and PID 124 at 11:00 with separately bound evidence. The former overlap
 report `FAIL`; a separately rebound overlapping comparator candidate exits 2. Diagnostic
 self-comparison remains supported. Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass.
 
+Qualifying comparison additionally enforces direction: candidate UTC start must be at or after
+baseline UTC end. The VRAM integration binds a valid separate 09:00 candidate against the 10:00
+baseline and proves exit 2, while the ordinary 11:00 candidate remains `NO REGRESSION`. Overlap
+retains its own refusal and diagnostic self-comparison remains supported. Focused suites pass 7/7,
+7/7, and 6/6.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

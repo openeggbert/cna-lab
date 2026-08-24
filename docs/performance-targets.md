@@ -641,6 +641,9 @@ archive. The comparator reconstructs each enriched capture through the binder's 
 refuses a missing, cross-bound, or subsequently changed member with exit 2. Diagnostic comparisons
 may omit archives or supply them for additional provenance checking. A qualifying baseline and
 candidate cannot share any source file/inode or hardlink between their two archives.
+For qualifying temporal comparison, `candidate.capture_session.started_utc` must be at or after
+`baseline.capture_session.ended_utc`. Overlap and a non-overlapping but older candidate both exit 2;
+diagnostic comparisons remain usable for same-capture parser checks.
 Baseline/candidate hardware identities and the comparison title also use the same printable
 single-line rule as release reports.
 The comparison Markdown includes an `Evidence provenance` table with exact baseline/candidate

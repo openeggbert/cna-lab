@@ -174,7 +174,9 @@ The comparator refuses unlike hardware, diagnostic/qualifying kinds, scenarios, 
 timing/presentation policy, GPU timing availability, budget definitions, or RAM/VRAM coverage.
 Both archived source bundles are mandatory for a qualifying comparison and are reconstructed
 against their corresponding enriched captures before any metrics are compared. Diagnostic
-comparisons may omit them. A no-regression comparison is not an M12 qualification result.
+comparisons may omit them. A qualifying candidate session must start at or after the baseline
+session ends; overlapping or reverse-ordered evidence is refused. A no-regression comparison is
+not an M12 qualification result.
 Its default relative and metric-specific absolute tolerances are documented in
 [`docs/performance-targets.md`](docs/performance-targets.md#capture-regression-comparison).
 
