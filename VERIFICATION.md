@@ -333,3 +333,24 @@ CTests, including the CNA runtime smoke. Verification used CNA HEAD
 graphics files and clean sharp-runtime HEAD
 `54578590b328aa9612fe38bfddca9fd8ca795144`. People did not modify either
 dependency. No new visual result or framework blocker is claimed.
+
+## 2026-08-24: PEO-075 door routing integration
+
+Dedicated integration scenarios now join `LotGrid` wall/door state,
+`StaticNavigationGrid`, and `AStarPathfinder`. A closed door between adjacent
+tiles produces the exact stable northern detour; opening it and rebuilding the
+snapshot reduces the path to the direct two-tile portal. Closing the same
+door restores the original route, while the old immutable snapshot remains
+unchanged.
+
+A second fixture spans a lot with a complete three-edge divider. Its closed
+middle door yields `NoPath`; opening it yields the exact straight route through
+the portal to the opposite side. This proves door state affects full route
+outcomes rather than only a low-level edge query.
+
+HEADLESS and SDL_RENDERER/SDL3 configurations both built and passed 12/12
+CTests, including the CNA runtime smoke. Verification used CNA HEAD
+`b6cbfcd87c08a6e0172eaf866358bf95bec277b1` with the same five unrelated dirty
+graphics files and clean sharp-runtime HEAD
+`54578590b328aa9612fe38bfddca9fd8ca795144`. People did not modify either
+dependency. No new visual result or framework blocker is claimed.

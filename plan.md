@@ -125,8 +125,8 @@ Statuses:
 | PEO-072 | TODO | Walk animation | Movement direction selects walk frames by simulation progress; animation cannot alter route state |
 | PEO-073 | DONE | Static occupancy grid | Floor/walls/object footprints produce deterministic walkability independent of renderer |
 | PEO-074 | DONE | Tile-grid A* | Deterministic four-neighbor path finds shortest routes, handles no-path/start=goal, and passes fixed maps |
-| PEO-075 | DOING | Door routing | Closed/open/passable policy integrates wall portals and produces expected paths |
-| PEO-076 | TODO | Route to interaction slot | Planner targets authored approach tile/facing rather than object origin and reports exact failure reason |
+| PEO-075 | DONE | Door routing | Closed/open/passable policy integrates wall portals and produces expected paths |
+| PEO-076 | DOING | Route to interaction slot | Planner targets authored approach tile/facing rather than object origin and reports exact failure reason |
 | PEO-077 | TODO | Dynamic occupancy policy | Residents wait/replan around temporary people without permanent deadlock in two corridor scenarios |
 | PEO-078 | TODO | Movement executor | Fixed-tick sub-tile progress follows path, updates facing, arrives exactly, and handles obstruction/replan |
 | PEO-079 | TODO | Explicit action states | Queued/Routing/Executing/Completed/Failed/Canceled/Interrupted transitions and reason data are centralized/tested |
