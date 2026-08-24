@@ -24,18 +24,21 @@ This starter is deliberately small. It proves the basic direction before local A
 - an authored bunker route with guards, hounds, pickups, sliding doors, a security door, and an exit
 - guards fire visible ranged projectiles; hounds remain close-range attackers
 - no external copyrighted game assets
+- original title menu with difficulty selection before a run begins
 
 ## Controls
 
 - up/down arrow keys: forward / backward
 - left/right arrow keys: turn left / right
+- title menu: arrows select, `Enter` or `Space` confirms, `Escape` backs out
+- three difficulty modes: Scout (70% enemy damage), Operative (normal), Veteran (140% enemy damage)
 - `Space`: open the door in front of you (doors close after four seconds unless a body blocks them)
 - left or right `Ctrl`: fire the sidearm
 - `1` / `2` / `3`: knife / sidearm / three-round repeater
 - `F11`: toggle fullscreen
 - `Escape`: quit
 
-After all lives are lost, press `Space` to start a new run.
+After all lives are lost, press `Space` to return to the title menu and start a new run.
 
 ## Level files
 

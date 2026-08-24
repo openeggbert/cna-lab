@@ -58,7 +58,8 @@ namespace WolfCna
 
         [[nodiscard]] int Update(
             float elapsedSeconds,
-            const Microsoft::Xna::Framework::Vector3& playerPosition);
+            const Microsoft::Xna::Framework::Vector3& playerPosition,
+            float damageMultiplier = 1.0f);
         void Upload(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
 
         void Draw(

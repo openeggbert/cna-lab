@@ -192,5 +192,12 @@ int main()
     }
     Expect(houndAttacks >= 1, "hound emits an attack event on a close-range hit");
 
+    WolfCna::World scoutDamageWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PK.#\n#####\n",
+        "scout-damage.level"));
+    Expect(
+        scoutDamageWorld.Update(0.05f, Microsoft::Xna::Framework::Vector3(1.8f, 0.62f, 1.5f), 0.5f) == 9,
+        "damage multiplier scales hound attacks for difficulty");
+
     return EXIT_SUCCESS;
 }

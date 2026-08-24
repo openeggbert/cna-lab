@@ -68,18 +68,31 @@ namespace WolfCna
             switch (c)
             {
             case 'A': return {"010", "101", "111", "101", "101"};
+            case 'B': return {"110", "101", "110", "101", "110"};
             case 'C': return {"111", "100", "100", "100", "111"};
+            case 'D': return {"110", "101", "101", "101", "110"};
             case 'E': return {"111", "100", "110", "100", "111"};
+            case 'F': return {"111", "100", "110", "100", "100"};
+            case 'G': return {"111", "100", "101", "101", "111"};
             case 'H': return {"101", "101", "111", "101", "101"};
             case 'I': return {"111", "010", "010", "010", "111"};
+            case 'J': return {"011", "001", "001", "101", "010"};
+            case 'K': return {"101", "101", "110", "101", "101"};
             case 'L': return {"100", "100", "100", "100", "111"};
             case 'M': return {"101", "111", "111", "101", "101"};
+            case 'N': return {"101", "111", "111", "111", "101"};
             case 'O': return {"111", "101", "101", "101", "111"};
             case 'P': return {"110", "101", "110", "100", "100"};
+            case 'Q': return {"111", "101", "101", "111", "001"};
             case 'R': return {"110", "101", "110", "101", "101"};
             case 'S': return {"111", "100", "111", "001", "111"};
             case 'T': return {"111", "010", "010", "010", "010"};
+            case 'U': return {"101", "101", "101", "101", "111"};
             case 'V': return {"101", "101", "101", "101", "010"};
+            case 'W': return {"101", "101", "111", "111", "101"};
+            case 'X': return {"101", "101", "010", "101", "101"};
+            case 'Y': return {"101", "101", "010", "010", "010"};
+            case 'Z': return {"111", "001", "010", "100", "111"};
             case '0': return {"111", "101", "101", "101", "111"};
             case '1': return {"010", "110", "010", "010", "111"};
             case '2': return {"111", "001", "111", "100", "111"};
@@ -408,7 +421,7 @@ namespace WolfCna
                 : weapon_ == Weapon::Knife ? *knifeIcon_ : *repeaterIcon_,
             Rectangle(weaponCenter - 30, panelY + 12, 60, 60),
             Color(255, 255, 255, 255));
-        if (completed_ || gameOver_)
+        if (completed_ || screen_ == Screen::GameOver)
         {
             const std::string_view message = completed_ ? "LEVEL COMPLETE" : "GAME OVER";
             const int messageWidth = HudTextWidth(message);
@@ -419,6 +432,77 @@ namespace WolfCna
                 Rectangle(messageX - 15, messageY - 11, messageWidth + 30, 39),
                 Color(17, 59, 116, 255));
             DrawHudText(*hudSpriteBatch_, *hudPixel_, messageX, messageY, message, Color(184, 238, 255, 255));
+        }
+        hudSpriteBatch_->End();
+    }
+
+    void WolfGame::DrawMenu()
+    {
+        if (!hudSpriteBatch_ || !hudPixel_)
+            return;
+
+        const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
+        const int width = viewport.getWidthProperty();
+        const int height = viewport.getHeightProperty();
+        const int left = viewport.getXProperty() + std::max(16, width / 2 - 160);
+        const int top = viewport.getYProperty() + std::max(16, height / 2 - 130);
+        const Color background(8, 18, 48, 255);
+        const Color border(92, 150, 225, 255);
+        const Color title(255, 211, 104, 255);
+        const Color normal(202, 223, 255, 255);
+        const Color selected(255, 236, 137, 255);
+
+        hudSpriteBatch_->Begin();
+        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(viewport.getXProperty(), viewport.getYProperty(), width, height), Color(4, 8, 21, 255));
+        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left, top, 320, 260), background);
+        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left, top, 320, 3), border);
+        hudSpriteBatch_->Draw(*hudPixel_, Rectangle(left, top + 257, 320, 3), border);
+
+        const auto centered = [&](int y, std::string_view text, Color color)
+        {
+            DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 160 - HudTextWidth(text) / 2, y, text, color);
+        };
+        centered(top + 22, "BUNKER 1987", title);
+
+        if (screen_ == Screen::Title)
+        {
+            centered(top + 58, "CNA OPERATIONS", normal);
+            constexpr std::array<std::string_view, 3> options{"START RUN", "CONTROLS", "QUIT"};
+            for (int index = 0; index < static_cast<int>(options.size()); ++index)
+            {
+                const int y = top + 96 + index * 30;
+                const Color color = menuSelection_ == index ? selected : normal;
+                if (menuSelection_ == index)
+                    DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 45, y, ">", selected);
+                centered(y, options[static_cast<std::size_t>(index)], color);
+            }
+            centered(top + 220, "ARROWS SELECT", normal);
+            centered(top + 238, "ENTER START", normal);
+        }
+        else if (screen_ == Screen::Difficulty)
+        {
+            centered(top + 58, "SELECT DIFFICULTY", normal);
+            constexpr std::array<std::string_view, 3> options{"SCOUT", "OPERATIVE", "VETERAN"};
+            for (int index = 0; index < static_cast<int>(options.size()); ++index)
+            {
+                const int y = top + 96 + index * 30;
+                const Color color = menuSelection_ == index ? selected : normal;
+                if (menuSelection_ == index)
+                    DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 45, y, ">", selected);
+                centered(y, options[static_cast<std::size_t>(index)], color);
+            }
+            centered(top + 220, "SCOUT LESS DAMAGE", normal);
+            centered(top + 238, "ESC BACK", normal);
+        }
+        else
+        {
+            centered(top + 58, "CONTROLS", normal);
+            centered(top + 94, "UP DOWN WALK", normal);
+            centered(top + 118, "LEFT RIGHT TURN", normal);
+            centered(top + 142, "SPACE ACTION", normal);
+            centered(top + 166, "CTRL ATTACK", normal);
+            centered(top + 190, "F11 FULLSCREEN", normal);
+            centered(top + 232, "ENTER OR ESC BACK", selected);
         }
         hudSpriteBatch_->End();
     }
@@ -474,8 +558,10 @@ namespace WolfCna
         nextExtraLifeScore_ = 40000;
         hasSecurityCard_ = false;
         completed_ = false;
-        gameOver_ = false;
+        screen_ = Screen::Playing;
         weapon_ = Weapon::Sidearm;
+        actionWasDown_ = false;
+        attackWasDown_ = false;
     }
 
     void WolfGame::AwardScore(int points)
@@ -493,6 +579,79 @@ namespace WolfCna
         }
     }
 
+    float WolfGame::DamageMultiplier() const
+    {
+        switch (difficulty_)
+        {
+        case Difficulty::Scout: return 0.7f;
+        case Difficulty::Operative: return 1.0f;
+        case Difficulty::Veteran: return 1.4f;
+        }
+        return 1.0f;
+    }
+
+    void WolfGame::HandleMenuInput()
+    {
+        const KeyboardState keyboard = Keyboard::GetState();
+        const bool upIsDown = keyboard.IsKeyDown(Keys::Up);
+        const bool downIsDown = keyboard.IsKeyDown(Keys::Down);
+        const bool confirmIsDown = keyboard.IsKeyDown(Keys::Enter) || keyboard.IsKeyDown(Keys::Space);
+        const bool escapeIsDown = keyboard.IsKeyDown(Keys::Escape);
+
+        if (screen_ == Screen::Title)
+        {
+            if (upIsDown && !upWasDown_)
+                menuSelection_ = (menuSelection_ + 2) % 3;
+            if (downIsDown && !downWasDown_)
+                menuSelection_ = (menuSelection_ + 1) % 3;
+            if (confirmIsDown && !confirmWasDown_)
+            {
+                if (menuSelection_ == 0)
+                {
+                    screen_ = Screen::Difficulty;
+                    menuSelection_ = static_cast<int>(difficulty_);
+                }
+                else if (menuSelection_ == 1)
+                {
+                    screen_ = Screen::Controls;
+                }
+                else
+                {
+                    Exit();
+                }
+            }
+            if (escapeIsDown && !escapeWasDown_)
+                Exit();
+        }
+        else if (screen_ == Screen::Difficulty)
+        {
+            if (upIsDown && !upWasDown_)
+                menuSelection_ = (menuSelection_ + 2) % 3;
+            if (downIsDown && !downWasDown_)
+                menuSelection_ = (menuSelection_ + 1) % 3;
+            if (confirmIsDown && !confirmWasDown_)
+            {
+                difficulty_ = static_cast<Difficulty>(menuSelection_);
+                ResetRun();
+            }
+            if (escapeIsDown && !escapeWasDown_)
+            {
+                screen_ = Screen::Title;
+                menuSelection_ = 0;
+            }
+        }
+        else if ((confirmIsDown && !confirmWasDown_) || (escapeIsDown && !escapeWasDown_))
+        {
+            screen_ = Screen::Title;
+            menuSelection_ = 0;
+        }
+
+        upWasDown_ = upIsDown;
+        downWasDown_ = downIsDown;
+        confirmWasDown_ = confirmIsDown;
+        escapeWasDown_ = escapeIsDown;
+    }
+
     void WolfGame::HandleInput(float elapsedSeconds)
     {
         const KeyboardState keyboard = Keyboard::GetState();
@@ -503,16 +662,15 @@ namespace WolfCna
             return;
         }
 
-        const bool fullScreenIsDown = keyboard.IsKeyDown(Keys::F11);
-        if (fullScreenIsDown && !fullScreenWasDown_)
-            graphics_->ToggleFullScreen();
-        fullScreenWasDown_ = fullScreenIsDown;
-
         const bool actionIsDown = keyboard.IsKeyDown(Keys::Space);
-        if (gameOver_)
+        if (screen_ == Screen::GameOver || completed_)
         {
             if (actionIsDown && !actionWasDown_)
-                ResetRun();
+            {
+                screen_ = Screen::Title;
+                menuSelection_ = 0;
+                completed_ = false;
+            }
             actionWasDown_ = actionIsDown;
             return;
         }
@@ -620,14 +778,27 @@ namespace WolfCna
 
         // Clamp unusually long frames so a debugger pause cannot launch the player through walls.
         const float clampedElapsed = std::min(elapsed, 0.05f);
-        if (gameOver_)
+        const KeyboardState keyboard = Keyboard::GetState();
+        const bool fullScreenIsDown = keyboard.IsKeyDown(Keys::F11);
+        if (fullScreenIsDown && !fullScreenWasDown_)
+            graphics_->ToggleFullScreen();
+        fullScreenWasDown_ = fullScreenIsDown;
+
+        if (screen_ == Screen::Title || screen_ == Screen::Difficulty || screen_ == Screen::Controls)
+        {
+            HandleMenuInput();
+            Game::Update(gameTime);
+            return;
+        }
+
+        if (screen_ == Screen::GameOver || completed_)
         {
             HandleInput(clampedElapsed);
             Game::Update(gameTime);
             return;
         }
 
-        const int incomingDamage = world_.Update(clampedElapsed, playerPosition_);
+        const int incomingDamage = world_.Update(clampedElapsed, playerPosition_, DamageMultiplier());
         if (world_.ConsumeGuardShotCount() > 0 && guardShotSound_)
             static_cast<void>(guardShotSound_->Play(0.18f, 0.12f, 0.0f));
         const World::EnemyAudioEvents enemyAudioEvents = world_.ConsumeEnemyAudioEvents();
@@ -645,7 +816,7 @@ namespace WolfCna
             lives_ = std::max(0, lives_ - 1);
             if (lives_ == 0)
             {
-                gameOver_ = true;
+                screen_ = Screen::GameOver;
                 actionWasDown_ = false;
             }
             else
@@ -683,7 +854,7 @@ namespace WolfCna
         device.setRasterizerStateProperty(RasterizerState::CullNone);
         device.getSamplerStatesProperty()[0] = SamplerState::PointClamp;
 
-        if (effect_ && atlas_)
+        if ((screen_ == Screen::Playing || screen_ == Screen::GameOver) && effect_ && atlas_)
         {
             world_.Draw(
                 device,
@@ -693,7 +864,10 @@ namespace WolfCna
                 *atlas_);
         }
 
-        DrawHud();
+        if (screen_ == Screen::Title || screen_ == Screen::Difficulty || screen_ == Screen::Controls)
+            DrawMenu();
+        else
+            DrawHud();
 
         Game::Draw(gameTime);
     }

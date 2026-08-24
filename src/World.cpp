@@ -344,7 +344,10 @@ namespace WolfCna
         return target->isSecret ? InteractionResult::SecretRevealed : InteractionResult::DoorOpened;
     }
 
-    int World::Update(float elapsedSeconds, const Vector3& playerPosition)
+    int World::Update(
+        float elapsedSeconds,
+        const Vector3& playerPosition,
+        float damageMultiplier)
     {
         bool changed = false;
         int damage = 0;
@@ -432,7 +435,7 @@ namespace WolfCna
                 {
                     if (enemy.type == Enemy::Type::Hound)
                     {
-                        damage += EnemyAttackDamage + 6;
+                        damage += static_cast<int>(std::lround((EnemyAttackDamage + 6) * damageMultiplier));
                         ++pendingEnemyAudioEvents_.houndAttacks;
                     }
                     else
@@ -506,7 +509,7 @@ namespace WolfCna
             const float dz = playerPosition.Z - iterator->position.Z;
             if (dx * dx + dz * dz <= GuardProjectileHitRadius * GuardProjectileHitRadius)
             {
-                damage += EnemyAttackDamage;
+                damage += static_cast<int>(std::lround(EnemyAttackDamage * damageMultiplier));
                 iterator = enemyProjectiles_.erase(iterator);
             }
             else if (iterator->remainingLifetime <= 0.0f || IsBlockedCell(cellX, cellZ))

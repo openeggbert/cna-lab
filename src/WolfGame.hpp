@@ -65,21 +65,44 @@ namespace WolfCna
         int nextExtraLifeScore_ = 40000;
         bool hasSecurityCard_ = false;
         bool completed_ = false;
-        bool gameOver_ = false;
+        enum class Screen
+        {
+            Title,
+            Difficulty,
+            Controls,
+            Playing,
+            GameOver
+        };
+        enum class Difficulty
+        {
+            Scout,
+            Operative,
+            Veteran
+        };
+        Screen screen_ = Screen::Title;
+        Difficulty difficulty_ = Difficulty::Operative;
+        int menuSelection_ = 0;
         enum class Weapon { Knife, Sidearm, Repeater };
         Weapon weapon_ = Weapon::Sidearm;
         bool actionWasDown_ = false;
         bool attackWasDown_ = false;
         bool fullScreenWasDown_ = false;
+        bool upWasDown_ = false;
+        bool downWasDown_ = false;
+        bool confirmWasDown_ = false;
+        bool escapeWasDown_ = false;
 
         static constexpr float PlayerRadius = 0.22f;
         static constexpr float WalkSpeed = 2.4f;
         static constexpr float KeyboardTurnSpeed = 1.65f;
 
         void HandleInput(float elapsedSeconds);
+        void HandleMenuInput();
         void TryMove(float dx, float dz);
         void ResetRun();
         void AwardScore(int points);
+
+        [[nodiscard]] float DamageMultiplier() const;
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 LookDirection() const;
         [[nodiscard]] Microsoft::Xna::Framework::Matrix ViewMatrix() const;
@@ -89,5 +112,6 @@ namespace WolfCna
         void CreateHudResources();
         void CreateSoundEffects();
         void DrawHud();
+        void DrawMenu();
     };
 }
