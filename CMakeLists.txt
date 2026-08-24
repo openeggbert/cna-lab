@@ -35,6 +35,14 @@ set(EASYGL_BUILD_EXAMPLES OFF CACHE BOOL "Build EasyGL examples" FORCE)
 
 add_subdirectory("${CNA_ROOT}" "${CMAKE_BINARY_DIR}/cna-build")
 
+# CNA's pinned Draco 1.5.7 PLY reader uses std::all_of without including
+# <algorithm>. Newer Emscripten libc++ versions no longer expose it transitively.
+# Keep the compatibility fix scoped to that CNA dependency until it is repaired
+# upstream; game code continues to use CNA's public API without backend access.
+if(EMSCRIPTEN AND TARGET draco_io)
+    target_compile_options(draco_io PRIVATE -include algorithm)
+endif()
+
 add_executable(wolf-cna
     src/CampaignProgress.cpp
     src/Combat.cpp
@@ -51,6 +59,15 @@ add_executable(wolf-cna
 
 target_include_directories(wolf-cna PRIVATE src)
 target_link_libraries(wolf-cna PRIVATE CNA)
+
+if(EMSCRIPTEN)
+    set_target_properties(wolf-cna PROPERTIES SUFFIX ".html")
+    target_link_options(wolf-cna PRIVATE
+        -fwasm-exceptions
+        -sWASM_LEGACY_EXCEPTIONS=0
+        "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
+        -sALLOW_MEMORY_GROWTH=1)
+endif()
 
 configure_file(
     assets/levels/starter.level

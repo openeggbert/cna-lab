@@ -1769,3 +1769,24 @@ Status: complete. The existing edge-triggered `I+L+M` command was audited agains
 the requested classic contract: it restores health, grants 99 rounds, access and
 weapons, resets score to zero and resets both the next-life and sector-entry score
 checkpoints so the removed score cannot return after a life loss.
+
+### WOLF-047 — WebAssembly/WebGL2 build
+
+Status: complete. Emscripten now produces a directly servable `wolf-cna.html`
+plus JavaScript, WebAssembly and data files through CNA's `WEBGL2` renderer. All
+project levels and original textures are preloaded at `/assets`, matching the
+same relative paths used by the native game, and WebAssembly memory is allowed
+to grow for the 64×64 campaign worlds and decoded textures.
+
+The top-level executable explicitly matches CNA's native WebAssembly exception
+model (`-fwasm-exceptions`, legacy exceptions disabled). CNA's pinned Draco
+1.5.7 currently omits `<algorithm>` in its PLY reader, so the Emscripten build
+documents and applies a narrowly scoped forced include to the `draco_io` target;
+no CNA backend or native platform API is called by game code. This compatibility
+line should be removed when the sibling CNA dependency incorporates that include.
+
+The release bundle was built with Emscripten 6.0.3. Structural verification
+confirmed valid HTML/JavaScript/WASM/data output, the expected asset manifest and
+HTTP 200 responses with the correct WebAssembly MIME type. No browser instance
+was available in the build environment, so an interactive visual/audio browser
+playtest remains a handoff check rather than a compilation blocker.

@@ -76,16 +76,19 @@
 - Pressing action on a fully open ordinary door now closes it deliberately when the doorway is clear; players, living enemies and defeated bodies safely block both manual and automatic closure.
 - WOLF-014 is complete: guard, rapid trooper, heavy unit and Warden alert/attack events retain their archetype and select four distinct original generated positional cue families.
 - Hound bark noise is gently filtered while preserving its louder two-part alert bark and distinct defeat whimper.
+- WOLF-047 is complete: Emscripten 6.0.3 builds a CNA `WEBGL2` HTML/JS/WASM/data deployment with every game asset preloaded.
+- The web target carries CNA's WebAssembly exception flags and a documented target-scoped `<algorithm>` compatibility include for CNA's pinned Draco 1.5.7 PLY reader.
 
 ## Current handoff
 
 - Work is on `develop`; do not modify `main`.
 - Native `build-cnanext` compiles `wolf-cna` and `level-definition-tests`; the focused test suite passes.
-- The immediate requested continuation after the audio commit is to configure, compile and verify a WebAssembly/WebGL2 build against the sibling CNA checkout.
+- Web output is in ignored `build-web-cnanext/` as `wolf-cna.html`, `.js`, `.wasm` and `.data`; all four files were served successfully over local HTTP.
+- No browser backend was attached to the build environment, so the next context should begin with an interactive browser smoke/playtest if one is available.
 
 ## Next tasks
 
-1. Produce and verify the requested WebAssembly/WebGL2 build, documenting any CNA/toolchain blocker instead of bypassing CNA.
+1. Interactively smoke-test `build-web-cnanext/wolf-cna.html` in a WebGL2 browser, including keyboard input, audio unlock and fullscreen behavior.
 2. Subjectively playtest the animated HUD, positional audio, lateral doors and all three deterministic difficulty profiles.
 3. Playtest save slots, life loss, push walls and the full six-sector route including the hidden branch.
 4. Review the remaining longer-term milestones in `plan.md` before selecting the next coherent implementation task.
