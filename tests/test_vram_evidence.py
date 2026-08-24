@@ -223,7 +223,21 @@ class VramEvidenceTests(unittest.TestCase):
             evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
             result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
             self.assertEqual(result.returncode, 2)
-            self.assertIn("must not precede", result.stderr)
+            self.assertIn("must follow started_utc", result.stderr)
+
+            evidence = evidence_fixture(capture_path, artifact_path)
+            evidence["measurement"]["ended_utc"] = evidence["measurement"]["started_utc"]
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("must follow started_utc", result.stderr)
+
+            evidence = evidence_fixture(capture_path, artifact_path)
+            evidence["process"]["executable"] = "unrelated_process"
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("must identify iron_gang", result.stderr)
 
             evidence = evidence_fixture(capture_path, artifact_path)
             serialized = json.dumps(evidence)

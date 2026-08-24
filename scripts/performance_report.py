@@ -32,6 +32,7 @@ CPU_BUDGETS_MS = {
 }
 DIAGNOSTIC_HARDWARE_TERMS = ("xvfb", "llvmpipe", "software rasterizer")
 COMPLETE_VRAM_SCOPE = "complete_process_gpu_residency_peak"
+IRON_GANG_EXECUTABLES = frozenset(("iron_gang", "iron_gang.exe"))
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 HISTOGRAM_BUCKETS = (
     "at_or_below_recommended_budget",
@@ -117,6 +118,26 @@ def _utc_timestamp(value: dict[str, Any], *keys: str) -> datetime:
         raise ReportError(f"{'.'.join(keys)} must be an ISO-8601 UTC timestamp") from error
 
 
+def validate_external_vram_measurement(
+    evidence: dict[str, Any],
+    label: str,
+) -> int:
+    executable = _non_empty_string(evidence, "process", "executable")
+    executable_name = executable.replace("\\", "/").rsplit("/", 1)[-1].casefold()
+    if executable_name not in IRON_GANG_EXECUTABLES:
+        raise ReportError(f"{label}.process.executable must identify iron_gang")
+    if _integer(evidence, "process", "pid") == 0:
+        raise ReportError(f"{label}.process.pid must be positive")
+    started = _utc_timestamp(evidence, "measurement", "started_utc")
+    ended = _utc_timestamp(evidence, "measurement", "ended_utc")
+    if ended <= started:
+        raise ReportError(f"{label}.measurement.ended_utc must follow started_utc")
+    peak_resident_bytes = _integer(evidence, "measurement", "peak_resident_bytes")
+    if peak_resident_bytes == 0:
+        raise ReportError(f"{label}.measurement.peak_resident_bytes must be positive")
+    return peak_resident_bytes
+
+
 def validate_complete_vram_evidence(
     capture: dict[str, Any],
     hardware: str | None = None,
@@ -139,20 +160,9 @@ def validate_complete_vram_evidence(
     evidence_hardware = _non_empty_string(evidence, "hardware_identity")
     _non_empty_string(evidence, "tool", "name")
     _non_empty_string(evidence, "tool", "version")
-    _non_empty_string(evidence, "process", "executable")
-    if _integer(evidence, "process", "pid") == 0:
-        raise ReportError("video_memory.complete_evidence.process.pid must be positive")
-    started = _utc_timestamp(evidence, "measurement", "started_utc")
-    ended = _utc_timestamp(evidence, "measurement", "ended_utc")
-    if ended < started:
-        raise ReportError(
-            "video_memory.complete_evidence.measurement.ended_utc must not precede started_utc"
-        )
-    peak_resident_bytes = _integer(evidence, "measurement", "peak_resident_bytes")
-    if peak_resident_bytes == 0:
-        raise ReportError(
-            "video_memory.complete_evidence.measurement.peak_resident_bytes must be positive"
-        )
+    peak_resident_bytes = validate_external_vram_measurement(
+        evidence, "video_memory.complete_evidence"
+    )
     logical_tracked_bytes = _integer(capture, "video_memory", "logical_tracked_bytes")
     tracked_bytes = _integer(capture, "video_memory", "tracked_bytes")
     if tracked_bytes != max(logical_tracked_bytes, peak_resident_bytes):

@@ -136,7 +136,8 @@ reconstructs the expected output and rejects any missing, cross-bound, or edited
 The exact manifest schema, hash procedure, accepted measurement scope, and limitations are in
 [`docs/performance-targets.md`](docs/performance-targets.md#binding-complete-external-vram-evidence).
 Profile and manifest parsing is strict: duplicate JSON object keys are rejected instead of silently
-using the last occurrence.
+using the last occurrence. Complete-residency evidence must name `iron_gang`/`iron_gang.exe` with a
+positive PID and a strictly positive UTC measurement interval.
 
 To compare one compatible capture against a named historical baseline with CI-significant
 regression exit codes:

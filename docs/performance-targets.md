@@ -419,9 +419,10 @@ Before generating or publishing a release report, re-verify the archived four-fi
   --verify-enriched runtime/performance/m12-mixed-01-complete.json
 ```
 
-The binder verifies schema, rejects duplicate JSON object keys, checks exact capture and
-raw-artifact hashes, positive process/peak values, UTC interval ordering, and the exact measurement
-scope. The enriched `tracked_bytes` is the
+The binder verifies schema, rejects duplicate JSON object keys, requires the process basename to be
+`iron_gang` or `iron_gang.exe` with a positive PID, checks exact capture and raw-artifact hashes,
+requires a strictly positive UTC measurement interval and peak value, and enforces the exact
+measurement scope. The enriched `tracked_bytes` is the
 conservative maximum of Iron Gang's logical total and the external peak; only that output sets
 `tracking_complete=true`. The release-summary hardware label must exactly match
 `hardware_identity`, and capture comparison also requires the same profiler name, version, source,

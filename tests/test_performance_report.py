@@ -163,6 +163,16 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertIn("Overall status: **FAIL**", result.stdout)
         self.assertIn("external VRAM evidence hardware identity does not match", result.stdout)
 
+        first["video_memory"]["complete_evidence"]["process"]["executable"] = "other_game"
+        second = deepcopy(first)
+        result = self.run_report(
+            [first, second],
+            "Minimum Linux EasyGL GPU",
+            "--qualifying-hardware",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("must identify iron_gang", result.stderr)
+
     def test_schema_and_histogram_mismatch_is_rejected(self) -> None:
         bad_schema = capture_fixture()
         bad_schema["schema_version"] = 7

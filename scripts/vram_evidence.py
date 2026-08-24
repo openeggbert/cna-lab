@@ -19,9 +19,9 @@ from performance_report import (
     _mapping,
     _non_empty_string,
     _strict_json_load,
-    _utc_timestamp,
     load_capture,
     validate_complete_vram_evidence,
+    validate_external_vram_measurement,
 )
 
 
@@ -60,16 +60,7 @@ def load_evidence(
     _non_empty_string(evidence, "hardware_identity")
     _non_empty_string(evidence, "tool", "name")
     _non_empty_string(evidence, "tool", "version")
-    _non_empty_string(evidence, "process", "executable")
-    if _integer(evidence, "process", "pid") == 0:
-        raise ReportError("process.pid must be positive")
-    peak_resident_bytes = _integer(evidence, "measurement", "peak_resident_bytes")
-    if peak_resident_bytes == 0:
-        raise ReportError("measurement.peak_resident_bytes must be positive")
-    started = _utc_timestamp(evidence, "measurement", "started_utc")
-    ended = _utc_timestamp(evidence, "measurement", "ended_utc")
-    if ended < started:
-        raise ReportError("measurement.ended_utc must not precede measurement.started_utc")
+    validate_external_vram_measurement(evidence, "evidence")
     bound_digest = _non_empty_string(evidence, "profile_capture_sha256")
     if bound_digest != capture_sha256:
         raise ReportError("profile_capture_sha256 does not match the input capture")

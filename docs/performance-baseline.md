@@ -441,3 +441,7 @@ duplicate-key ambiguity, and every input-overwrite path. This is contract/plumbi
 no qualifying physical artifact was invented, and the real Xvfb captures correctly remain
 `tracking_complete=false`. M12 still needs repeated mixed captures plus authoritative
 complete-residency artifacts on named physical minimum hardware.
+
+The manifest process is also constrained to an `iron_gang`/`iron_gang.exe` basename, positive PID,
+and strictly positive start/end interval. The binder and downstream report use the same validator,
+so changing those fields after binding cannot turn unrelated or instantaneous evidence into a pass.

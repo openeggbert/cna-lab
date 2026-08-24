@@ -67,6 +67,15 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 complete-VRAM evidence now requires an Iron Gang process and positive interval.** The shared
+binder/report validator no longer accepts an arbitrary executable name or a zero-duration capture. Process
+basename must be `iron_gang`/`iron_gang.exe`, PID must be positive, and `ended_utc` must be strictly
+later than `started_utc`.
+
+- VRAM CLI coverage rejects unrelated executables, backwards time, and equal start/end time.
+- Report coverage proves the executable check is repeated downstream after binding rather than
+  trusted from the binder alone. All three Python suites remain 6/6.
+
 **M12 JSON evidence parsing is now unambiguous.** Python's default JSON loader silently accepts
 duplicate object keys and keeps the last value, which is unsafe for a human-authored qualification
 manifest. The shared profile/evidence loader now rejects duplicates at any nesting level with the

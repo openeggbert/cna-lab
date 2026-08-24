@@ -168,6 +168,9 @@ scope/time, raw-artifact, flooring, duplicate JSON keys, and overwrite failures.
 tests validate evidence structure, hardware identity, profiler compatibility, and duplicate-key
 refusal for generated capture input. No physical profiler artifact exists in this workspace, so the
 real Xvfb evidence remains incomplete and this plumbing does not close M12.
+The shared evidence validator additionally refuses any process basename other than
+`iron_gang`/`iron_gang.exe`, a non-positive PID, and an end time that is not strictly later than the
+start; binder and report tests cover the same downstream contract.
 
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
