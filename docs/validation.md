@@ -302,6 +302,12 @@ either boolean because C++ evaluates full precision before writing three decimal
 and one boundary report cases pass alongside comparator 7/7, VRAM 6/6, both retained diagnostics,
 and full 8/8 CTest with its graphical smoke process isolated inside Xvfb.
 
+GPU timing metadata now requires `non_blocking:true`, exact Draw-excluding-Present scope, a
+non-negative discard count, and empty/non-empty unsupported reason matching the support flag. Four
+report contradictions exit 2; sample count intentionally does not imply support because the generic
+C++ writer allows manual measurements. Focused suites, both retained diagnostics, and full isolated
+8/8 CTest pass; the smoke process ran only inside Xvfb.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

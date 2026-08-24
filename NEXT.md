@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 GPU timing metadata now has a fixed validated contract.** Schema-8 captures must identify the
+real asynchronous Draw-range timer instead of accepting arbitrary or contradictory labels.
+
+- `non_blocking` must be true, scope exactly `draw_commands_excluding_present`, discarded samples a
+  non-negative integer, and `unsupported_reason` empty exactly when timing is supported (otherwise
+  a printable non-empty line). Four report negatives prove exit 2.
+- GPU sample count is deliberately not inferred from `supported`: the general C++ writer can contain
+  manually accumulated samples alongside a final unsupported context, as its unit test demonstrates.
+- Report 7/7, comparator 7/7, VRAM 6/6, both retained real Xvfb diagnostics, and full isolated 8/8
+  CTest pass. Its smoke process ran only inside Xvfb and this supplies no physical M12 capture.
+
 **M12 producer-authored `checks` are now correlated with measurement summaries.** Frame minimum,
 frame recommended, aggregate CPU, and district-load pass fields can no longer contradict stored
 sample availability and p95 values.

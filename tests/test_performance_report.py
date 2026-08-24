@@ -51,7 +51,13 @@ def capture_fixture() -> dict:
             "apply_succeeded": True,
             "applied": 1,
         },
-        "gpu_timing": {"supported": True, "scope": "draw_commands_excluding_present"},
+        "gpu_timing": {
+            "supported": True,
+            "non_blocking": True,
+            "scope": "draw_commands_excluding_present",
+            "discarded_samples": 1,
+            "unsupported_reason": "",
+        },
         "measurements": {
             "frame_interval": measurement(4, 16.8),
             "update_cpu": measurement(4, 0.3),
@@ -569,6 +575,30 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_district_check], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("district_load_pass must be boolean", result.stderr)
+
+        blocking_gpu_timing = capture_fixture()
+        blocking_gpu_timing["gpu_timing"]["non_blocking"] = False
+        result = self.run_report([blocking_gpu_timing], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("gpu_timing.non_blocking must be true", result.stderr)
+
+        bad_gpu_scope = capture_fixture()
+        bad_gpu_scope["gpu_timing"]["scope"] = "including_present"
+        result = self.run_report([bad_gpu_scope], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("gpu_timing.scope must be draw_commands_excluding_present", result.stderr)
+
+        supported_with_reason = capture_fixture()
+        supported_with_reason["gpu_timing"]["unsupported_reason"] = "contradiction"
+        result = self.run_report([supported_with_reason], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("must be empty when GPU timing is supported", result.stderr)
+
+        unsupported_without_reason = capture_fixture()
+        unsupported_without_reason["gpu_timing"]["supported"] = False
+        result = self.run_report([unsupported_without_reason], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("gpu_timing.unsupported_reason must be non-empty", result.stderr)
 
         rounded_cpu_boundary = capture_fixture()
         rounded_cpu_boundary["measurements"]["render_cpu"]["p95_ms"] = 8.0

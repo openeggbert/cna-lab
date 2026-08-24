@@ -268,6 +268,11 @@ is not reused, so a slow GPU can produce fewer samples without the profiler intr
 `gpu_timing.supported` and `unsupported_reason` distinguish unavailable timing from zero work. The
 current EasyGL/metagl seam returns a 32-bit nanosecond result; its all-ones saturation sentinel is
 discarded and counted in `gpu_timing.discarded_samples` instead of contaminating statistics.
+Consumers require `non_blocking:true`, the exact `draw_commands_excluding_present` scope, a
+non-negative integer discard count, and an empty unsupported reason exactly when support is true;
+an unsupported timer needs a printable non-empty reason. The generic writer does permit manually
+recorded GPU samples with an unsupported final context, so support is not falsely derived from the
+sample count.
 `gpu_render` remains diagnostic rather than a separate pass/fail budget: frame interval is still
 the user-visible gate and includes GPU back-pressure plus presentation behavior.
 

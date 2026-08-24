@@ -657,3 +657,16 @@ value cannot be reconstructed honestly. Report coverage proves four contradictio
 rounded CPU-boundary case remains readable. Report 7/7, comparator 7/7, VRAM 6/6, and both retained
 Xvfb captures pass without launching the game. Full 8/8 CTest also passes with its smoke process
 isolated inside Xvfb; this adds no physical M12 measurement.
+
+## 2026-08-24 — GPU timing metadata consistency
+
+The shared loader now requires schema-8 GPU timing to remain explicitly non-blocking with exact
+`draw_commands_excluding_present` scope and a non-negative integer discard count. A supported timer
+must have an empty `unsupported_reason`; an unsupported timer must carry a printable non-empty one.
+Four report negatives cover each contradiction class.
+
+The loader does not derive support from `gpu_render.samples`: the generic C++ report writer permits
+manually accumulated GPU measurements with an unsupported final context, a shape used by its unit
+test. Report 7/7, comparator 7/7, VRAM 6/6, and both retained Xvfb diagnostics pass without launching
+the game. Full 8/8 CTest also passes with its smoke process isolated inside Xvfb. This is
+evidence-schema hardening, not a physical capture.

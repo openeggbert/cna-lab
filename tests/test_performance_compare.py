@@ -42,7 +42,13 @@ def capture_fixture() -> dict:
             "apply_succeeded": True,
             "applied": 1,
         },
-        "gpu_timing": {"supported": True, "scope": "draw_commands_excluding_present"},
+        "gpu_timing": {
+            "supported": True,
+            "non_blocking": True,
+            "scope": "draw_commands_excluding_present",
+            "discarded_samples": 1,
+            "unsupported_reason": "",
+        },
         "measurements": {
             "frame_interval": measurement(100, 16.0),
             "update_cpu": measurement(100, 0.3),

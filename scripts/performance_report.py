@@ -74,6 +74,7 @@ QUALIFICATION_REPEATABILITY_PATHS = (
 )
 DIAGNOSTIC_HARDWARE_TERMS = ("xvfb", "llvmpipe", "software rasterizer")
 COMPLETE_VRAM_SCOPE = "complete_process_gpu_residency_peak"
+GPU_TIMING_SCOPE = "draw_commands_excluding_present"
 IRON_GANG_EXECUTABLES = frozenset(("iron_gang", "iron_gang.exe"))
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 UTC_TIMESTAMP_PATTERN = re.compile(
@@ -387,6 +388,25 @@ def validate_locked_budgets(capture: dict[str, Any]) -> None:
         actual = _integer(capture, "budgets", key)
         if actual != expected:
             raise ReportError(f"budgets.{key} must be {expected}")
+
+
+def validate_gpu_timing(capture: dict[str, Any]) -> None:
+    supported = _boolean(capture, "gpu_timing", "supported")
+    if not _boolean(capture, "gpu_timing", "non_blocking"):
+        raise ReportError("gpu_timing.non_blocking must be true")
+    if _single_line_string(capture, "gpu_timing", "scope") != GPU_TIMING_SCOPE:
+        raise ReportError(f"gpu_timing.scope must be {GPU_TIMING_SCOPE}")
+    _integer(capture, "gpu_timing", "discarded_samples")
+    reason = _path(capture, "gpu_timing", "unsupported_reason")
+    if not isinstance(reason, str):
+        raise ReportError("gpu_timing.unsupported_reason must be a string")
+    if supported:
+        if reason != "":
+            raise ReportError(
+                "gpu_timing.unsupported_reason must be empty when GPU timing is supported"
+            )
+    else:
+        _single_line_text(reason, "gpu_timing.unsupported_reason")
 
 
 def validate_measurement_summary(capture: dict[str, Any], metric: str) -> None:
@@ -781,8 +801,7 @@ def load_capture(path: Path) -> dict[str, Any]:
         )
 
     validate_locked_budgets(capture)
-    _boolean(capture, "gpu_timing", "supported")
-    _single_line_string(capture, "gpu_timing", "scope")
+    validate_gpu_timing(capture)
     for workload in (
         "physics_bodies",
         "traffic_vehicles",
