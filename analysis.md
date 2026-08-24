@@ -502,10 +502,20 @@ capabilities. Later compatibility records use:
 
 | Renderer | Configure | Build | Startup | SpriteBatch | Texture | RT | Point | Input | Audio | Defects |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| SDL_RENDERER | pending | pending | pending | pending | pending | pending | pending | pending | pending | none recorded |
+| SDL_RENDERER | pass | pass | pass (offscreen) | pass | pass | pass | pass | keyboard pass | dummy init only | Xvfb unavailable in this container; CNA offscreen driver passes |
 
 Only available/mature lanes are tested; a compile result is never mislabeled as
 a runtime result.
+
+The initial Debug build configured with CMake/Ninja and
+`CNA_GRAPHICS_RENDERER=SDL_RENDERER`, then built with two jobs. Renderer-free
+CTest coverage passed. The three-frame runtime smoke test passed using CNA's
+compiled-in offscreen platform route with a dummy audio device; it exercised
+window/game initialization, `Texture2D`, `SpriteBatch`, a 320x180
+`RenderTarget2D`, point-filtered presentation, keyboard state acquisition, and
+clean game exit. `xvfb-run` could not provide an SDL video device in this
+container, so Linux CTest explicitly selects the offscreen driver for repeatable
+headless validation. No audio playback is claimed by this smoke result.
 
 ## Risks and mitigations
 
@@ -534,4 +544,3 @@ a runtime result.
   resize, input, and audio behavior on supported platforms.
 - Decide whether 320x180 remains the sole presentation mode after playtesting or
   becomes the retro option beside a native-width camera.
-

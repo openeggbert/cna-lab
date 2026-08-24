@@ -69,7 +69,7 @@ Acceptance:
   sets, preprocessing, and stage order are recorded.
 - Historical facts and new-design targets are clearly distinguished.
 
-### MAR-005 — CNA/sharp-runtime integration — DOING
+### MAR-005 — CNA/sharp-runtime integration — DONE
 
 Acceptance:
 
@@ -80,7 +80,7 @@ Acceptance:
 - Game targets link `CNA`, not renderer or sharp-runtime implementation targets.
 - CNA and sharp-runtime source trees remain unmodified.
 
-### MAR-006 — Minimal runnable CNA game — TODO
+### MAR-006 — Minimal runnable CNA game — DONE
 
 Depends on: MAR-005.
 
@@ -95,7 +95,7 @@ Acceptance:
 
 ## Core simulation and rendering
 
-### MAR-010 — Fixed simulation clock — TODO
+### MAR-010 — Fixed simulation clock — DONE
 
 Acceptance:
 
@@ -105,7 +105,7 @@ Acceptance:
   simulation speed.
 - Unit tests cover accumulation, clamp, catch-up cap, and fractional remainder.
 
-### MAR-011 — Logical low-resolution framebuffer — TODO
+### MAR-011 — Logical low-resolution framebuffer — DONE
 
 Depends on: MAR-006.
 
@@ -583,4 +583,3 @@ and a task that cannot proceed through CNA's public surface.
 5. Complete parallax `MAR-015` and validate the M1 runtime.
 6. Proceed to collectibles, blocks, crawler, damage, power-up and projectile in
    `MAR-040` through `MAR-045` before menus or elaborate content.
-
