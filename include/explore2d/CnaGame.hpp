@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <string_view>
 
 namespace Microsoft::Xna::Framework {
 class GameTime;
@@ -19,6 +20,7 @@ class SamplerState;
 class SpriteBatch;
 class Texture2D;
 }
+namespace Audio { class SoundEffect; }
 }
 
 namespace explore2d::cna {
@@ -28,6 +30,7 @@ struct HostConfig final {
     int presentationScale{2};
     std::filesystem::path savePath{"explore2d.e2dsave"};
     std::size_t exitAfterFrames{};
+    bool audioEnabled{true};
 };
 
 class AdventureGame final : public Microsoft::Xna::Framework::Game {
@@ -60,6 +63,9 @@ private:
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> frameTexture_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::SamplerState> pointClamp_;
+    std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> activeSound_;
+    float activeSoundRemaining_{};
+    bool audioAvailable_{true};
     Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_{};
     std::size_t updateCounter_{};
     std::size_t renderedFrames_{};
@@ -72,6 +78,9 @@ private:
     void updateTitleInput(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard);
     void quickSave();
     void quickLoad();
+    void playSoundEffect(std::string_view id);
+    void drainSessionSounds();
+    void updateSound(float seconds);
 };
 
 } // namespace explore2d::cna

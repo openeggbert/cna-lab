@@ -50,6 +50,11 @@ void AdventureSession::restart() {
     choices_.clear();
     messageQueue_.clear();
     activeMessage_.reset();
+    messageTargetId_.reset();
+    pendingSoundEffects_.clear();
+    activeAnimations_.clear();
+    sceneElapsedSeconds_ = 0.0F;
+    poseTimeRemaining_ = 0.0F;
     terminalMessage_.clear();
     pendingTarget_.reset();
     selectionIndex_ = 0;
@@ -154,6 +159,10 @@ void AdventureSession::enterRoom(const std::string_view roomId, const std::optio
     currentRoomId_ = room->id;
     player_.position = spawn.value_or(room->defaultSpawn);
     player_.verticalVelocity = 0.0F;
+    player_.pose = PlayerPose::standing;
+    poseTimeRemaining_ = 0.0F;
+    sceneElapsedSeconds_ = 0.0F;
+    activeAnimations_.clear();
     player_.grounded = isSupported();
     visitedRooms_.insert(room->id);
     if (room->travelAnchor) unlockedTravel_.insert(room->id);
@@ -167,6 +176,7 @@ void AdventureSession::walk(const Direction direction) {
         return;
     }
     player_.facing = desired;
+    player_.pose = player_.grounded ? PlayerPose::standing : PlayerPose::jumping;
     const float dx = direction == Direction::left ? -config_.walkStep : config_.walkStep;
     Rect candidate = playerRect();
     candidate.x += dx;
@@ -179,7 +189,10 @@ void AdventureSession::walk(const Direction direction) {
     } else if (player_.position.x > worldRight) {
         if (!tryExit(Direction::right)) player_.position.x = worldRight - config_.playerSize.x;
     }
-    if (!isSupported()) player_.grounded = false;
+    if (!isSupported()) {
+        player_.grounded = false;
+        player_.pose = PlayerPose::jumping;
+    }
     checkHazards();
 }
 
@@ -187,6 +200,8 @@ void AdventureSession::jump() {
     if (!player_.grounded) return;
     player_.grounded = false;
     player_.verticalVelocity = config_.jumpVelocity;
+    player_.pose = PlayerPose::jumping;
+    queueSoundEffect(world_.presentation.sounds.jump);
 }
 
 void AdventureSession::contextNearbyOrJump() {
@@ -234,6 +249,7 @@ void AdventureSession::applyGravity(const float seconds) {
             nextY = landingY;
             player_.verticalVelocity = 0.0F;
             player_.grounded = true;
+            if (player_.pose != PlayerPose::taking) player_.pose = PlayerPose::standing;
         }
     } else {
         for (const Rect& solid : currentRoom().solids) {
@@ -257,6 +273,7 @@ void AdventureSession::applyGravity(const float seconds) {
         if (!tryExit(Direction::down)) {
             terminalMessage_ = "You fell beyond the edge of the screen.";
             mode_ = SessionMode::dead;
+            queueSoundEffect(world_.presentation.sounds.death);
         }
     }
 }
@@ -268,6 +285,7 @@ void AdventureSession::checkHazards() {
         if (hazardActive(hazard) && p.intersects(hazard.area)) {
             terminalMessage_ = hazard.deathMessage;
             mode_ = SessionMode::dead;
+            queueSoundEffect(world_.presentation.sounds.death);
             return;
         }
     }
@@ -275,6 +293,27 @@ void AdventureSession::checkHazards() {
 
 void AdventureSession::tick(const float seconds) {
     if (seconds <= 0.0F) return;
+    sceneElapsedSeconds_ += seconds;
+    if (poseTimeRemaining_ > 0.0F) {
+        poseTimeRemaining_ = std::max(0.0F, poseTimeRemaining_ - seconds);
+        if (poseTimeRemaining_ == 0.0F && player_.pose == PlayerPose::taking) {
+            player_.pose = player_.grounded ? PlayerPose::standing : PlayerPose::jumping;
+        }
+    }
+    for (auto it = activeAnimations_.begin(); it != activeAnimations_.end();) {
+        const auto animation = std::ranges::find_if(currentRoom().animations,
+            [&it](const SceneAnimationDefinition& candidate) { return candidate.id == it->first; });
+        if (animation == currentRoom().animations.end()) {
+            it = activeAnimations_.erase(it);
+            continue;
+        }
+        it->second += seconds;
+        int durationTicks = 0;
+        for (const AnimationFrame& frame : animation->frames) durationTicks += std::max(0, frame.durationTicks);
+        const float duration = static_cast<float>(durationTicks) / qbasicTimerTicksPerSecond;
+        if (!animation->loop && it->second >= duration) it = activeAnimations_.erase(it);
+        else ++it;
+    }
     applyGravity(seconds);
     checkHazards();
 }
@@ -357,8 +396,12 @@ const InteractionRule* AdventureSession::findRule(
     return best;
 }
 
-void AdventureSession::beginMessages(const std::vector<Message>& messages) {
+void AdventureSession::beginMessages(
+    const std::vector<Message>& messages,
+    std::optional<std::string> targetId)
+{
     if (messages.empty()) return;
+    messageTargetId_ = std::move(targetId);
     messageQueue_ = messages;
     activeMessage_ = messageQueue_.front();
     messageQueue_.erase(messageQueue_.begin());
@@ -370,14 +413,51 @@ void AdventureSession::advanceMessage() {
     if (!messageQueue_.empty()) {
         activeMessage_ = messageQueue_.front();
         messageQueue_.erase(messageQueue_.begin());
+        queueSoundEffect(world_.presentation.sounds.interaction);
         return;
     }
     activeMessage_.reset();
+    messageTargetId_.reset();
     mode_ = SessionMode::world;
 }
 
 void AdventureSession::showSystemMessage(std::string text) {
     beginMessages({Message{std::move(text), MessageStyle::system}});
+}
+
+void AdventureSession::queueSoundEffect(const std::string_view id) {
+    if (!id.empty()) pendingSoundEffects_.emplace_back(id);
+}
+
+std::vector<std::string> AdventureSession::takePendingSoundEffects() {
+    std::vector<std::string> result = std::move(pendingSoundEffects_);
+    pendingSoundEffects_.clear();
+    return result;
+}
+
+bool AdventureSession::messageAnchoredToTarget() const noexcept {
+    if (!activeMessage_.has_value() || !messageTargetId_.has_value()) return false;
+    if (activeMessage_->speaker == MessageSpeaker::target) return true;
+    if (activeMessage_->speaker == MessageSpeaker::player) return false;
+    return activeMessage_->style == MessageStyle::speech;
+}
+
+Vec2 AdventureSession::messageAnchor() const noexcept {
+    if (messageAnchoredToTarget()) {
+        for (const HotspotDefinition& hotspot : currentRoom().hotspots) {
+            if (hotspot.id == *messageTargetId_ && hotspotVisible(hotspot)) {
+                return {hotspot.interactionArea.x + hotspot.interactionArea.width * 0.5F,
+                    hotspot.interactionArea.y};
+            }
+        }
+    }
+    return {player_.position.x + config_.playerSize.x * 0.5F, player_.position.y};
+}
+
+std::optional<float> AdventureSession::animationElapsed(const std::string_view id) const noexcept {
+    const auto it = activeAnimations_.find(std::string{id});
+    if (it == activeAnimations_.end()) return std::nullopt;
+    return it->second;
 }
 
 void AdventureSession::applyMutation(const Mutation& mutation) {
@@ -406,26 +486,44 @@ void AdventureSession::applyMutation(const Mutation& mutation) {
     case MutationType::moveToRoom:
         enterRoom(mutation.key);
         break;
+    case MutationType::playAnimation:
+        activeAnimations_.insert_or_assign(mutation.key, 0.0F);
+        break;
     case MutationType::killPlayer:
         terminalMessage_ = mutation.key;
         mode_ = SessionMode::dead;
         activeMessage_.reset();
         messageQueue_.clear();
+        messageTargetId_.reset();
+        queueSoundEffect(world_.presentation.sounds.death);
         break;
     case MutationType::winGame:
         terminalMessage_ = mutation.key;
         mode_ = SessionMode::won;
         activeMessage_.reset();
         messageQueue_.clear();
+        messageTargetId_.reset();
+        queueSoundEffect(world_.presentation.sounds.victory);
         break;
     }
 }
 
 void AdventureSession::executeRule(const InteractionRule& rule) {
+    if (!rule.soundEffect.empty()) {
+        queueSoundEffect(rule.soundEffect);
+    } else {
+        const bool warningMessage = std::ranges::any_of(rule.messages,
+            [](const Message& message) { return message.style == MessageStyle::warning; });
+        const bool addsItem = std::ranges::any_of(rule.mutations,
+            [](const Mutation& mutation) { return mutation.type == MutationType::addItem; });
+        if (warningMessage) queueSoundEffect(world_.presentation.sounds.warning);
+        else if (addsItem) queueSoundEffect(world_.presentation.sounds.pickup);
+        else queueSoundEffect(world_.presentation.sounds.interaction);
+    }
     if (!rule.onceFlag.empty()) flags_[rule.onceFlag] = true;
     for (const Mutation& mutation : rule.mutations) applyMutation(mutation);
     if (mode_ == SessionMode::dead || mode_ == SessionMode::won) return;
-    beginMessages(rule.messages);
+    beginMessages(rule.messages, rule.targetId);
 }
 
 void AdventureSession::beginUse() {
@@ -475,6 +573,11 @@ void AdventureSession::takeNearby() {
         return;
     }
     if (const InteractionRule* rule = findRule(Verb::take, hotspot->id, std::nullopt); rule != nullptr) {
+        const float playerCenter = player_.position.x + config_.playerSize.x * 0.5F;
+        const float targetCenter = hotspot->interactionArea.x + hotspot->interactionArea.width * 0.5F;
+        player_.facing = targetCenter < playerCenter ? Facing::left : Facing::right;
+        player_.pose = PlayerPose::taking;
+        poseTimeRemaining_ = 0.45F;
         executeRule(*rule);
     } else {
         showSystemMessage("You cannot take that.");
@@ -497,6 +600,7 @@ void AdventureSession::performSelectedVerb() { performVerb(selectedVerb_); }
 void AdventureSession::cycleVerb(const int delta) {
     if (mode_ != SessionMode::world) return;
     selectedVerb_ = indexedVerb(verbIndex(selectedVerb_) + delta);
+    queueSoundEffect(world_.presentation.sounds.menuMove);
 }
 
 void AdventureSession::menuMove(const int delta) {
@@ -506,6 +610,7 @@ void AdventureSession::menuMove(const int delta) {
     index %= size;
     if (index < 0) index += size;
     selectionIndex_ = static_cast<std::size_t>(index);
+    queueSoundEffect(world_.presentation.sounds.menuMove);
 }
 
 void AdventureSession::finishChoice() {
@@ -583,6 +688,7 @@ void AdventureSession::cancel() {
     if (mode_ == SessionMode::message) {
         activeMessage_.reset();
         messageQueue_.clear();
+        messageTargetId_.reset();
         mode_ = SessionMode::world;
         return;
     }
@@ -606,6 +712,7 @@ bool AdventureSession::restore(const SessionSnapshot& snapshotValue) {
     }
     currentRoomId_ = snapshotValue.roomId;
     player_ = snapshotValue.player;
+    player_.pose = player_.grounded ? PlayerPose::standing : PlayerPose::jumping;
     selectedVerb_ = snapshotValue.selectedVerb;
     inventory_ = snapshotValue.inventory;
     flags_ = snapshotValue.flags;
@@ -617,6 +724,11 @@ bool AdventureSession::restore(const SessionSnapshot& snapshotValue) {
     choices_.clear();
     messageQueue_.clear();
     activeMessage_.reset();
+    messageTargetId_.reset();
+    pendingSoundEffects_.clear();
+    activeAnimations_.clear();
+    sceneElapsedSeconds_ = 0.0F;
+    poseTimeRemaining_ = 0.0F;
     terminalMessage_.clear();
     pendingTarget_.reset();
     choicePurpose_ = ChoicePurpose::none;

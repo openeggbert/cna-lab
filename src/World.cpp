@@ -21,6 +21,7 @@ Mutation Mutation::setCounter(std::string key, const int value) { return {Mutati
 Mutation Mutation::addCounter(std::string key, const int delta) { return {MutationType::addCounter, std::move(key), delta}; }
 Mutation Mutation::unlockTravel(std::string room) { return {MutationType::unlockTravel, std::move(room), 0}; }
 Mutation Mutation::moveTo(std::string room) { return {MutationType::moveToRoom, std::move(room), 0}; }
+Mutation Mutation::playAnimation(std::string animation) { return {MutationType::playAnimation, std::move(animation), 0}; }
 Mutation Mutation::kill(std::string message) { return {MutationType::killPlayer, std::move(message), 0}; }
 Mutation Mutation::win(std::string message) { return {MutationType::winGame, std::move(message), 0}; }
 
@@ -39,6 +40,11 @@ WorldDefinition& WorldDefinition::addInteraction(InteractionRule rule) {
     return *this;
 }
 
+WorldDefinition& WorldDefinition::addSoundEffect(ToneEffectDefinition soundEffectValue) {
+    soundEffects.insert_or_assign(soundEffectValue.id, std::move(soundEffectValue));
+    return *this;
+}
+
 const RoomDefinition* WorldDefinition::room(const std::string_view id) const noexcept {
     const auto it = rooms.find(std::string{id});
     return it == rooms.end() ? nullptr : &it->second;
@@ -49,6 +55,11 @@ const ItemDefinition* WorldDefinition::item(const std::string_view id) const noe
     return it == items.end() ? nullptr : &it->second;
 }
 
+const ToneEffectDefinition* WorldDefinition::soundEffect(const std::string_view id) const noexcept {
+    const auto it = soundEffects.find(std::string{id});
+    return it == soundEffects.end() ? nullptr : &it->second;
+}
+
 std::vector<std::string> WorldDefinition::validate() const {
     std::vector<std::string> errors;
     if (startRoom.empty() || room(startRoom) == nullptr) {
@@ -56,6 +67,7 @@ std::vector<std::string> WorldDefinition::validate() const {
     }
 
     std::set<std::string> hotspots;
+    std::set<std::string> animations;
     for (const auto& [roomId, roomValue] : rooms) {
         if (roomValue.id != roomId) {
             errors.push_back("room map key/id mismatch for " + roomId);
@@ -70,6 +82,37 @@ std::vector<std::string> WorldDefinition::validate() const {
                 errors.push_back("room " + roomId + " exits to missing room " + exit.destinationRoom);
             }
         }
+        for (const SceneAnimationDefinition& animation : roomValue.animations) {
+            if (animation.id.empty() || !animations.insert(animation.id).second) {
+                errors.push_back("animation id must be non-empty and globally unique: " + animation.id);
+            }
+            if (animation.frames.empty()) errors.push_back("animation has no frames: " + animation.id);
+            for (const AnimationFrame& frame : animation.frames) {
+                if (frame.durationTicks <= 0) errors.push_back("animation frame duration must be positive: " + animation.id);
+            }
+        }
+    }
+
+    for (const auto& [soundId, sound] : soundEffects) {
+        if (sound.id != soundId) errors.push_back("sound effect map key/id mismatch for " + soundId);
+        if (sound.steps.empty()) errors.push_back("sound effect has no tone steps: " + soundId);
+        if (sound.volume < 0.0F || sound.volume > 1.0F) errors.push_back("sound effect volume is outside 0..1: " + soundId);
+        for (const ToneStep& step : sound.steps) {
+            if ((step.frequencyHz != 0 && (step.frequencyHz < 37 || step.frequencyHz > 32767)) || step.durationTicks <= 0) {
+                errors.push_back("sound effect contains an invalid QBasic SOUND step: " + soundId);
+                break;
+            }
+        }
+    }
+
+    const SoundBindings& sounds = presentation.sounds;
+    const std::string* bindings[] = {&sounds.title, &sounds.menuMove, &sounds.menuConfirm,
+        &sounds.interaction, &sounds.pickup, &sounds.jump, &sounds.warning, &sounds.death,
+        &sounds.victory, &sounds.save, &sounds.load};
+    for (const std::string* binding : bindings) {
+        if (!binding->empty() && soundEffect(*binding) == nullptr) {
+            errors.push_back("presentation references missing sound effect " + *binding);
+        }
     }
 
     for (const auto& rule : interactions) {
@@ -78,6 +121,14 @@ std::vector<std::string> WorldDefinition::validate() const {
         }
         if (rule.itemId.has_value() && item(*rule.itemId) == nullptr) {
             errors.push_back("interaction references missing item " + *rule.itemId);
+        }
+        if (!rule.soundEffect.empty() && soundEffect(rule.soundEffect) == nullptr) {
+            errors.push_back("interaction references missing sound effect " + rule.soundEffect);
+        }
+        for (const Mutation& mutation : rule.mutations) {
+            if (mutation.type == MutationType::playAnimation && !animations.contains(mutation.key)) {
+                errors.push_back("interaction references missing animation " + mutation.key);
+            }
         }
     }
     return errors;

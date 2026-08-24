@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cmath>
 #include <deque>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -174,9 +175,127 @@ void Canvas::circle(const Vec2 center, const float radius, const PaletteColor co
     ellipse(center, {radius, radius}, color, filled);
 }
 
+void Canvas::arc(
+    const Vec2 center,
+    const Vec2 radii,
+    const float startRadians,
+    float endRadians,
+    const PaletteColor color)
+{
+    constexpr float tau = 6.2831853071795864769F;
+    while (endRadians < startRadians) endRadians += tau;
+    const float span = std::min(tau, endRadians - startRadians);
+    const float radius = std::max(std::abs(radii.x), std::abs(radii.y));
+    const int steps = std::max(2, static_cast<int>(std::ceil(std::max(1.0F, radius) * span)));
+    Vec2 previous{center.x + radii.x * std::cos(startRadians), center.y + radii.y * std::sin(startRadians)};
+    for (int step = 1; step <= steps; ++step) {
+        const float angle = startRadians + span * static_cast<float>(step) / static_cast<float>(steps);
+        const Vec2 next{center.x + radii.x * std::cos(angle), center.y + radii.y * std::sin(angle)};
+        line(previous, next, color);
+        previous = next;
+    }
+}
+
+void Canvas::polyline(const std::span<const Vec2> points, const PaletteColor color, const bool closed) {
+    if (points.size() < 2U) return;
+    for (std::size_t index = 1; index < points.size(); ++index) line(points[index - 1U], points[index], color);
+    if (closed) line(points.back(), points.front(), color);
+}
+
+void Canvas::polygon(const std::span<const Vec2> points, const PaletteColor color, const bool filled) {
+    if (points.size() < 3U) {
+        polyline(points, color, false);
+        return;
+    }
+    if (filled) {
+        float minY = std::numeric_limits<float>::max();
+        float maxY = std::numeric_limits<float>::lowest();
+        for (const Vec2 point : points) {
+            minY = std::min(minY, point.y);
+            maxY = std::max(maxY, point.y);
+        }
+        const int firstY = static_cast<int>(std::ceil(minY));
+        const int lastY = static_cast<int>(std::floor(maxY));
+        std::vector<float> intersections;
+        intersections.reserve(points.size());
+        for (int y = firstY; y <= lastY; ++y) {
+            intersections.clear();
+            const float scanY = static_cast<float>(y) + 0.5F;
+            for (std::size_t index = 0; index < points.size(); ++index) {
+                const Vec2 a = points[index];
+                const Vec2 b = points[(index + 1U) % points.size()];
+                if ((a.y <= scanY && b.y > scanY) || (b.y <= scanY && a.y > scanY)) {
+                    intersections.push_back(a.x + (scanY - a.y) * (b.x - a.x) / (b.y - a.y));
+                }
+            }
+            std::ranges::sort(intersections);
+            for (std::size_t index = 1; index < intersections.size(); index += 2U) {
+                line({std::ceil(intersections[index - 1U]), static_cast<float>(y)},
+                    {std::floor(intersections[index]), static_cast<float>(y)}, color);
+            }
+        }
+    }
+    polyline(points, color, true);
+}
+
 PaletteColor Canvas::colorAt(const int x, const int y) const noexcept {
     if (x < 0 || y < 0 || x >= width_ || y >= height_) return PaletteColor::black;
     return indices_[static_cast<std::size_t>(y * width_ + x)];
+}
+
+IndexedImage Canvas::capture(const Rect area) const {
+    const int width = std::max(0, static_cast<int>(std::ceil(area.width)));
+    const int height = std::max(0, static_cast<int>(std::ceil(area.height)));
+    const int originX = static_cast<int>(std::floor(area.x));
+    const int originY = static_cast<int>(std::floor(area.y));
+    IndexedImage image{width, height, {}};
+    image.pixels.reserve(static_cast<std::size_t>(width) * static_cast<std::size_t>(height));
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) image.pixels.push_back(colorAt(originX + x, originY + y));
+    }
+    return image;
+}
+
+void Canvas::blit(
+    const IndexedImage& image,
+    const Vec2 at,
+    const RasterOperation operation,
+    const PaletteColor transparentColor)
+{
+    if (image.width <= 0 || image.height <= 0) return;
+    const std::size_t expected = static_cast<std::size_t>(image.width) * static_cast<std::size_t>(image.height);
+    if (image.pixels.size() < expected) return;
+    const int originX = static_cast<int>(std::lround(at.x));
+    const int originY = static_cast<int>(std::lround(at.y));
+    for (int y = 0; y < image.height; ++y) {
+        for (int x = 0; x < image.width; ++x) {
+            const PaletteColor source = image.pixels[static_cast<std::size_t>(y * image.width + x)];
+            if (operation == RasterOperation::transparent && source == transparentColor) continue;
+            const int destinationX = originX + x;
+            const int destinationY = originY + y;
+            const auto src = static_cast<std::uint8_t>(source);
+            const auto dst = static_cast<std::uint8_t>(colorAt(destinationX, destinationY));
+            std::uint8_t result = src;
+            switch (operation) {
+            case RasterOperation::copy:
+            case RasterOperation::transparent:
+                break;
+            case RasterOperation::preset:
+                result = static_cast<std::uint8_t>((~src) & 0x0FU);
+                break;
+            case RasterOperation::bitAnd:
+                result = static_cast<std::uint8_t>((src & dst) & 0x0FU);
+                break;
+            case RasterOperation::bitOr:
+                result = static_cast<std::uint8_t>((src | dst) & 0x0FU);
+                break;
+            case RasterOperation::bitXor:
+                result = static_cast<std::uint8_t>((src ^ dst) & 0x0FU);
+                break;
+            }
+            pixel(destinationX, destinationY, static_cast<PaletteColor>(result));
+        }
+    }
 }
 
 void Canvas::paint(const Vec2 at, const PaletteColor fill, const PaletteColor boundary) {

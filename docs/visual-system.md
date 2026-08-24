@@ -51,6 +51,37 @@ room.decorations = {
 plotting and boundary fill. Visuals have `PixelVisual` and `PaintVisual`
 equivalents, so those operations can remain declarative in a world definition.
 
+The full primitive vocabulary is:
+
+- pixel, filled/outlined rectangle and line;
+- filled/outlined circle and ellipse, plus elliptical arc;
+- open/closed polyline and filled/outlined polygon;
+- boundary flood fill and 5×7 bitmap text;
+- palette-indexed `capture()`/`blit()` corresponding to QBasic `GET`/`PUT`,
+  including COPY, PRESET, AND, OR, XOR and transparent operations.
+
+For larger procedural definitions, `Drawing` offers the same operations as an
+origin-aware fluent builder:
+
+```cpp
+Drawing pine;
+pine.origin({80, 210})
+    .rectangle({-3, -30, 6, 30}, PaletteColor::brown)
+    .polygon({{-24, -24}, {0, -72}, {24, -24}}, PaletteColor::green)
+    .circle({0, -75}, 3, PaletteColor::brightGreen, true);
+pine.appendTo(room.decorations);
+```
+
+## Selective animation
+
+Animations are optional procedural overlays owned by a room. Frame content uses
+the exact same `Visual` variant and remains inside the 16-colour model. An
+animation can autoplay or be triggered by a rule, loop or stop after one pass,
+and appear only while conditions are true. Durations are integer QBasic timer
+ticks, not unconstrained floating-point timelines. This supports a blinking
+beacon, moving machine indicator, short spark or repair action without forcing
+trees, walls and every prop to move.
+
 ## Title configuration
 
 `WorldDefinition::presentation.title` contains:

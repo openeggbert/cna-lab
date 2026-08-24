@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <sstream>
 #include <string>
 #include <type_traits>
 
@@ -18,6 +20,24 @@ constexpr Rect actionPanel{70.0F, 306.0F, 364.0F, 17.0F};
 
 [[nodiscard]] Rect shifted(const Rect rect, const Vec2 offset) noexcept {
     return {rect.x + offset.x, rect.y + offset.y, rect.width, rect.height};
+}
+
+[[nodiscard]] std::vector<std::string> wrapBubbleText(const std::string_view value, const int maxChars) {
+    std::istringstream input{std::string{value}};
+    std::vector<std::string> lines;
+    std::string word;
+    std::string current;
+    while (input >> word) {
+        if (current.empty()) current = word;
+        else if (static_cast<int>(current.size() + 1U + word.size()) <= maxChars) current += " " + word;
+        else {
+            lines.push_back(std::move(current));
+            current = std::move(word);
+        }
+    }
+    if (!current.empty()) lines.push_back(std::move(current));
+    if (lines.empty()) lines.emplace_back();
+    return lines;
 }
 
 } // namespace
@@ -42,11 +62,24 @@ void AdventureRenderer::drawVisual(const Visual& visual, const Vec2 offset) {
             canvas_.circle(shifted(value.center, offset), value.radius, value.color, value.filled);
         } else if constexpr (std::is_same_v<T, EllipseVisual>) {
             canvas_.ellipse(shifted(value.center, offset), value.radii, value.color, value.filled);
+        } else if constexpr (std::is_same_v<T, ArcVisual>) {
+            canvas_.arc(shifted(value.center, offset), value.radii,
+                value.startRadians, value.endRadians, value.color);
+        } else if constexpr (std::is_same_v<T, PolylineVisual>) {
+            std::vector<Vec2> points = value.points;
+            for (Vec2& point : points) point = shifted(point, offset);
+            canvas_.polyline(points, value.color, value.closed);
+        } else if constexpr (std::is_same_v<T, PolygonVisual>) {
+            std::vector<Vec2> points = value.points;
+            for (Vec2& point : points) point = shifted(point, offset);
+            canvas_.polygon(points, value.color, value.filled);
         } else if constexpr (std::is_same_v<T, PaintVisual>) {
             canvas_.paint(shifted(value.at, offset), value.fill, value.boundary);
         } else if constexpr (std::is_same_v<T, TextVisual>) {
             const Vec2 at = shifted(value.at, offset);
             canvas_.text(static_cast<int>(at.x), static_cast<int>(at.y), value.text, value.color, value.scale);
+        } else if constexpr (std::is_same_v<T, ImageVisual>) {
+            canvas_.blit(value.image, shifted(value.at, offset), value.operation, value.transparentColor);
         }
     }, visual);
 }
@@ -96,7 +129,34 @@ void AdventureRenderer::drawWorld(const AdventureSession& session) {
         if (!session.hotspotVisible(hotspot)) continue;
         for (const Visual& visual : hotspot.visuals) drawVisual(visual, ScreenMetrics::sceneOrigin);
     }
+    drawAnimations(session);
     canvas_.resetClip();
+}
+
+void AdventureRenderer::drawAnimations(const AdventureSession& session) {
+    for (const SceneAnimationDefinition& animation : session.currentRoom().animations) {
+        if (animation.frames.empty() || !session.allConditionsSatisfied(animation.visibleWhen)) continue;
+        float elapsed = session.sceneElapsedSeconds();
+        if (!animation.autoplay) {
+            const std::optional<float> activeElapsed = session.animationElapsed(animation.id);
+            if (!activeElapsed.has_value()) continue;
+            elapsed = *activeElapsed;
+        }
+        int totalTicks = 0;
+        for (const AnimationFrame& frame : animation.frames) totalTicks += std::max(1, frame.durationTicks);
+        float tick = elapsed * qbasicTimerTicksPerSecond;
+        if (animation.loop && totalTicks > 0) tick = std::fmod(tick, static_cast<float>(totalTicks));
+        else if (tick >= static_cast<float>(totalTicks)) continue;
+        const AnimationFrame* selected = &animation.frames.back();
+        for (const AnimationFrame& frame : animation.frames) {
+            if (tick < static_cast<float>(std::max(1, frame.durationTicks))) {
+                selected = &frame;
+                break;
+            }
+            tick -= static_cast<float>(std::max(1, frame.durationTicks));
+        }
+        for (const Visual& visual : selected->visuals) drawVisual(visual, ScreenMetrics::sceneOrigin);
+    }
 }
 
 void AdventureRenderer::drawPlayer(const AdventureSession& session) {
@@ -104,6 +164,20 @@ void AdventureRenderer::drawPlayer(const AdventureSession& session) {
     const float x = p.position.x + ScreenMetrics::sceneOrigin.x;
     const float y = p.position.y + ScreenMetrics::sceneOrigin.y;
     canvas_.setClip(ScreenMetrics::sceneRect);
+    if (p.pose == PlayerPose::taking) {
+        const float direction = p.facing == Facing::right ? 1.0F : -1.0F;
+        const float headX = x + 7.0F + direction * 3.0F;
+        canvas_.circle({headX, y + 13.0F}, 4.0F, theme_.playerSkin, true);
+        canvas_.pixel(static_cast<int>(headX + direction * 2.0F), static_cast<int>(y + 13.0F), PaletteColor::black);
+        canvas_.fillRect({x + 3.0F, y + 16.0F, 8.0F, 7.0F}, theme_.playerShirt);
+        canvas_.line({x + 7.0F, y + 18.0F}, {x + 7.0F + direction * 8.0F, y + 27.0F}, theme_.playerSkin);
+        canvas_.line({x + 4.0F, y + 23.0F}, {x + 1.0F, y + 27.0F}, theme_.playerPants);
+        canvas_.line({x + 9.0F, y + 23.0F}, {x + 13.0F, y + 27.0F}, theme_.playerPants);
+        canvas_.line({x, y + 27.0F}, {x + 4.0F, y + 27.0F}, PaletteColor::black);
+        canvas_.line({x + 10.0F, y + 27.0F}, {x + 14.0F, y + 27.0F}, PaletteColor::black);
+        canvas_.resetClip();
+        return;
+    }
     canvas_.circle({x + 7.0F, y + 5.0F}, 4.0F, theme_.playerSkin, true);
     canvas_.pixel(static_cast<int>(x + (p.facing == Facing::right ? 9.0F : 4.0F)),
         static_cast<int>(y + 4.0F), PaletteColor::black);
@@ -182,17 +256,46 @@ void AdventureRenderer::drawMap(const AdventureSession& session) {
 void AdventureRenderer::drawMessage(const AdventureSession& session) {
     if (!session.activeMessage().has_value()) return;
     const Message& message = *session.activeMessage();
-    constexpr Rect bubble{46.0F, 73.0F, 416.0F, 112.0F};
-    canvas_.fillRect(bubble, PaletteColor::blue);
-    canvas_.strokeRect(bubble, theme_.text);
-    const PaletteColor headingColor = message.style == MessageStyle::warning ? theme_.danger : theme_.accent;
-    std::string heading = "OBSERVATION";
-    if (message.style == MessageStyle::speech) heading = "DIALOGUE";
-    else if (message.style == MessageStyle::system) heading = "MESSAGE";
-    else if (message.style == MessageStyle::warning) heading = "WARNING";
-    canvas_.text(58, 84, heading, headingColor, 1);
-    canvas_.wrappedText(58, 103, 392, message.text, theme_.text, 1, 3);
-    canvas_.text(350, 169, "ENTER", theme_.dimText, 1);
+    const std::vector<std::string> lines = wrapBubbleText(message.text, 34);
+    std::size_t widest = 0;
+    for (const std::string& lineValue : lines) widest = std::max(widest, lineValue.size());
+    const int width = std::clamp(static_cast<int>(widest) * 6 + 16, 112, 220);
+    const int height = static_cast<int>(lines.size()) * 10 + 20;
+    const Vec2 localAnchor = session.messageAnchor();
+    const Vec2 anchor{localAnchor.x + ScreenMetrics::sceneOrigin.x,
+        localAnchor.y + ScreenMetrics::sceneOrigin.y};
+    const int minX = static_cast<int>(ScreenMetrics::sceneRect.left()) + 6;
+    const int maxX = static_cast<int>(ScreenMetrics::sceneRect.right()) - width - 6;
+    const int x = std::clamp(static_cast<int>(std::lround(anchor.x)) - width / 2, minX, maxX);
+    const int minY = static_cast<int>(ScreenMetrics::sceneRect.top()) + 6;
+    const int maxY = static_cast<int>(ScreenMetrics::sceneRect.bottom()) - height - 6;
+    int y = static_cast<int>(std::lround(anchor.y)) - height - 13;
+    bool tailBelow = true;
+    if (y < minY) {
+        y = static_cast<int>(std::lround(anchor.y)) + 13;
+        tailBelow = false;
+    }
+    y = std::clamp(y, minY, std::max(minY, maxY));
+
+    const float tailX = std::clamp(anchor.x, static_cast<float>(x + 12), static_cast<float>(x + width - 12));
+    std::vector<Vec2> tail;
+    if (tailBelow) {
+        tail = {{tailX - 6.0F, static_cast<float>(y + height - 1)},
+            {tailX + 6.0F, static_cast<float>(y + height - 1)}, anchor};
+    } else {
+        tail = {{tailX - 6.0F, static_cast<float>(y)},
+            {tailX + 6.0F, static_cast<float>(y)}, anchor};
+    }
+    canvas_.polygon(tail, PaletteColor::blue, true);
+    canvas_.fillRect({static_cast<float>(x), static_cast<float>(y), static_cast<float>(width), static_cast<float>(height)},
+        PaletteColor::blue);
+    canvas_.polyline(tail, message.style == MessageStyle::warning ? theme_.danger : theme_.text, true);
+    canvas_.strokeRect({static_cast<float>(x), static_cast<float>(y), static_cast<float>(width), static_cast<float>(height)},
+        message.style == MessageStyle::warning ? theme_.danger : theme_.text);
+    for (std::size_t index = 0; index < lines.size(); ++index) {
+        canvas_.text(x + 8, y + 7 + static_cast<int>(index) * 10, lines[index], theme_.text, 1);
+    }
+    canvas_.text(x + width - 40, y + height - 9, "ENTER", theme_.dimText, 1);
 }
 
 void AdventureRenderer::drawTerminal(const AdventureSession& session) {

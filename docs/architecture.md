@@ -57,14 +57,14 @@ Rules can have priorities and once-only flags. This permits progressive dialogue
 and state-sensitive descriptions without hard-coding individual room classes.
 
 Conditions currently cover flags, item possession, counters and room visitation.
-Mutations cover flags, inventory, counters, travel unlocks, room moves, death and
-victory.
+Mutations cover flags, inventory, counters, travel unlocks, room moves, optional
+one-shot animation cues, death and victory. Rules can also name a tone effect.
 
 ## `AdventureSession`
 
 The session owns all mutable state: player pose, inventory, flags, counters,
 visited rooms, unlocked fast-travel anchors, the selected verb, UI choice state,
-and message queues.
+message queues, active one-shot animations, scene time and pending audio cue IDs.
 
 A `SessionSnapshot` is deliberately presentation-independent. Saving the game is
 therefore a serialization problem, not a GPU/game-loop problem.
@@ -86,16 +86,25 @@ actions.
 `AdventureRenderer` always draws a 640×350 logical image. Its layout is part of
 the engine contract: the 492×262 room view sits at `(8,8)`, a right-hand panel
 contains the game mark and text inventory, and bordered strips below contain
-the location and the three verbs. Messages overlay the room in a blue bordered
-box; inventory choices remain in the side panel; the travel map replaces the
-room view.
+the location and the three verbs. Messages use compact blue bordered speech
+bubbles near the player or target speaker; inventory choices remain in the side
+panel; the travel map replaces the room view.
 
 `Canvas` is CPU-owned and palette indexed. It retains RGBA bytes only for the
 final CNA upload. Public drawing methods accept one of the 16 exact EGA colours,
 not arbitrary RGB values. It offers pixel plotting, filled or outlined
-rectangles, lines, filled or outlined circles and ellipses, flood filling, and
-a built-in 5×7 bitmap font. These are direct modern equivalents of the small
-QBasic drawing vocabulary used by the design reference.
+rectangles, lines, arcs, filled or outlined circles and ellipses, polylines,
+filled polygons, flood filling, palette-indexed image capture/blitting with
+QBasic-style raster operations, and a built-in 5×7 bitmap font. `Drawing`
+provides an origin-aware fluent C++ builder over the same `Visual` values. These
+are direct modern equivalents of the small QBasic drawing vocabulary used by
+the design reference.
+
+Room animation is deliberately an overlay rather than a demand that every
+object become a sprite. A `SceneAnimationDefinition` may autoplay or wait for a
+`playAnimation` mutation, may loop or run once, and may have ordinary world-state
+conditions. Frame lengths use QBasic's 18.2 Hz timer tick. Each frame is simply
+a list of the same procedural `Visual` values used by static art.
 
 `WorldDefinition::presentation` lets a game configure title text, menu wording,
 title colour cycling, byline and code-drawn title artwork. The title layout and
@@ -106,6 +115,13 @@ The CNA adapter owns one `Texture2D`, uploads the logical framebuffer through
 `SetDataRGBA`, and draws it using `SpriteBatch` with `PointClamp` and opaque
 blending. The logical image is integer-scaled and centred in the current back
 buffer.
+
+Audio follows the same boundary. The headless core validates and queues
+`ToneEffectDefinition` IDs; it does not initialize an audio device. The CNA host
+synthesizes signed 16-bit mono square-wave PCM and gives it to CNA
+`SoundEffect`. Effects are monophonic and newly started sounds interrupt the old
+one, intentionally matching PC-speaker/QBasic-era limitations. F11 delegates
+fullscreen switching to CNA's `GraphicsDeviceManager`.
 
 The fixed resolution, palette and interface are intentionally not abstracted
 away. A game built on Explore2D accepts these constraints in the same way that

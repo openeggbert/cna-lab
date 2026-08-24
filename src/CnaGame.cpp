@@ -2,6 +2,8 @@
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
+#include "Microsoft/Xna/Framework/Audio/AudioChannels.hpp"
+#include "Microsoft/Xna/Framework/Audio/SoundEffect.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/GraphicsDevice.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SamplerState.hpp"
@@ -13,8 +15,11 @@
 #include "Microsoft/Xna/Framework/Rectangle.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <cmath>
+#include <exception>
 #include <utility>
+#include <vector>
 
 namespace explore2d::cna {
 namespace {
@@ -37,6 +42,7 @@ constexpr int kL = 76;
 constexpr int kM = 77;
 constexpr int kQ = 81;
 constexpr int kS = 83;
+constexpr int kF11 = 122;
 
 } // namespace
 
@@ -54,6 +60,7 @@ AdventureGame::AdventureGame(
       renderer_{world_, sessionConfig_, rendererTheme_}
 {
     titleActive_ = true;
+    audioAvailable_ = hostConfig_.audioEnabled;
     const int scale = std::max(1, hostConfig_.presentationScale);
     graphics_->setPreferredBackBufferWidthProperty(ScreenMetrics::width * scale);
     graphics_->setPreferredBackBufferHeightProperty(ScreenMetrics::height * scale);
@@ -74,11 +81,60 @@ void AdventureGame::LoadContent() {
     spriteBatch_ = std::make_unique<Microsoft::Xna::Framework::Graphics::SpriteBatch>(getGraphicsDeviceProperty());
     pointClamp_ = std::make_unique<Microsoft::Xna::Framework::Graphics::SamplerState>(
         Microsoft::Xna::Framework::Graphics::SamplerState::PointClamp);
+    playSoundEffect(world_.presentation.sounds.title);
+}
+
+void AdventureGame::playSoundEffect(const std::string_view id) {
+    if (!audioAvailable_ || id.empty()) return;
+    const ToneEffectDefinition* effect = world_.soundEffect(id);
+    if (effect == nullptr) return;
+    const std::vector<std::int16_t> samples = synthesizeToneEffect(*effect);
+    if (samples.empty()) return;
+    std::vector<std::uint8_t> bytes;
+    bytes.reserve(samples.size() * 2U);
+    for (const std::int16_t sample : samples) {
+        const auto raw = static_cast<std::uint16_t>(sample);
+        bytes.push_back(static_cast<std::uint8_t>(raw & 0xFFU));
+        bytes.push_back(static_cast<std::uint8_t>((raw >> 8U) & 0xFFU));
+    }
+    try {
+        // QBasic's PC speaker is monophonic: a fresh SOUND interrupts the old one.
+        activeSound_.reset();
+        activeSound_ = std::make_unique<Microsoft::Xna::Framework::Audio::SoundEffect>(
+            bytes,
+            qbasicSoundSampleRate,
+            Microsoft::Xna::Framework::Audio::AudioChannels::Mono);
+        if (!activeSound_->Play()) activeSound_.reset();
+        activeSoundRemaining_ = toneEffectDurationSeconds(*effect) + 0.05F;
+    } catch (const std::exception&) {
+        activeSound_.reset();
+        activeSoundRemaining_ = 0.0F;
+        audioAvailable_ = false;
+    }
+}
+
+void AdventureGame::drainSessionSounds() {
+    for (const std::string& id : session_.takePendingSoundEffects()) playSoundEffect(id);
+}
+
+void AdventureGame::updateSound(const float seconds) {
+    if (activeSound_ == nullptr) return;
+    activeSoundRemaining_ -= std::max(0.0F, seconds);
+    if (activeSoundRemaining_ <= 0.0F) {
+        activeSound_.reset();
+        activeSoundRemaining_ = 0.0F;
+    }
 }
 
 void AdventureGame::updateTitleInput(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard) {
-    if (pressed(keyboard, kUp)) titleSelection_ = (titleSelection_ + 2U) % 3U;
-    if (pressed(keyboard, kDown)) titleSelection_ = (titleSelection_ + 1U) % 3U;
+    if (pressed(keyboard, kUp)) {
+        titleSelection_ = (titleSelection_ + 2U) % 3U;
+        playSoundEffect(world_.presentation.sounds.menuMove);
+    }
+    if (pressed(keyboard, kDown)) {
+        titleSelection_ = (titleSelection_ + 1U) % 3U;
+        playSoundEffect(world_.presentation.sounds.menuMove);
+    }
     if (pressed(keyboard, kEscape)) {
         Exit();
         return;
@@ -86,6 +142,7 @@ void AdventureGame::updateTitleInput(const Microsoft::Xna::Framework::Input::Key
     if (!pressed(keyboard, kEnter) && !pressed(keyboard, kSpace)) return;
     switch (titleSelection_) {
     case 0:
+        playSoundEffect(world_.presentation.sounds.menuConfirm);
         session_.restart();
         titleActive_ = false;
         break;
@@ -116,8 +173,10 @@ bool AdventureGame::pressed(
 void AdventureGame::quickSave() {
     std::string error;
     if (saveSnapshot(session_.snapshot(), hostConfig_.savePath, &error)) {
+        playSoundEffect(world_.presentation.sounds.save);
         session_.showSystemMessage("Game saved to " + hostConfig_.savePath.string());
     } else {
+        playSoundEffect(world_.presentation.sounds.warning);
         session_.showSystemMessage("Save failed: " + error);
     }
 }
@@ -125,13 +184,16 @@ void AdventureGame::quickSave() {
 void AdventureGame::quickLoad() {
     LoadResult loaded = loadSnapshot(hostConfig_.savePath);
     if (!loaded) {
+        playSoundEffect(world_.presentation.sounds.warning);
         session_.showSystemMessage("Load failed: " + loaded.error);
         return;
     }
     if (!session_.restore(*loaded.snapshot)) {
+        playSoundEffect(world_.presentation.sounds.warning);
         session_.showSystemMessage("Load failed: save does not match this world.");
         return;
     }
+    playSoundEffect(world_.presentation.sounds.load);
     session_.showSystemMessage("Game loaded.");
 }
 
@@ -155,6 +217,7 @@ void AdventureGame::Update(Microsoft::Xna::Framework::GameTime& gameTime) {
     ++updateCounter_;
     const auto keyboard = Microsoft::Xna::Framework::Input::Keyboard::GetState();
 
+    if (pressed(keyboard, kF11)) graphics_->ToggleFullScreen();
     if (pressed(keyboard, kQ)) {
         Exit();
     } else if (titleActive_) {
@@ -182,6 +245,8 @@ void AdventureGame::Update(Microsoft::Xna::Framework::GameTime& gameTime) {
         }
         session_.tick(1.0F / 60.0F);
     }
+    drainSessionSounds();
+    updateSound(1.0F / 60.0F);
 
     previousKeyboard_ = keyboard;
     Microsoft::Xna::Framework::Game::Update(gameTime);
@@ -221,6 +286,7 @@ void AdventureGame::Draw(const Microsoft::Xna::Framework::GameTime& gameTime) {
 }
 
 void AdventureGame::UnloadContent() {
+    activeSound_.reset();
     frameTexture_.reset();
     spriteBatch_.reset();
     pointClamp_.reset();

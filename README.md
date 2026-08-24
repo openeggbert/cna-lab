@@ -26,6 +26,7 @@ strips below. This is a defining feature rather than a temporary limitation.
 - Fixed, non-scrolling rooms connected by left/right/up/down exits.
 - Per-room spawn points and conditional exits with blocked-route messages.
 - Player walking, optional turn-before-walk behaviour, jumping and gravity.
+- A distinct left/right-facing crouch-and-reach pose while TAKE is performed.
 - Declarative solids and hazardous regions.
 - Hotspots for scenery, items, characters, mechanisms and hazards.
 - Three explicit verbs: **USE / EXAMINE / TAKE**.
@@ -34,14 +35,22 @@ strips below. This is a defining feature rather than a temporary limitation.
 - Inventory items with descriptions and a `usable` property.
 - Rule-driven interactions with conditions, priorities and once-only rules.
 - Persistent flags, counters, visited rooms and inventory mutations.
-- Multi-message dialogue / inspection sequences.
+- Multi-message dialogue / inspection sequences in compact blue speech bubbles,
+  anchored independently to the player or the target character for each line.
 - Hidden or conditional hotspots, allowing examination to reveal later items.
 - Fast travel to visited travel-anchor rooms.
 - Death and win states.
 - Versioned text save/load snapshots.
 - A configurable title/menu screen shown before a game session starts.
-- QBasic-style procedural drawing through `PSET`, rectangles, lines,
-  circles/ellipses, boundary `PAINT`, and bitmap-font text equivalents.
+- Optional looping scene animations and one-shot action animations, both made
+  from ordinary palette visuals with QBasic timer-tick frame durations.
+- QBasic-style procedural drawing through `PSET`, rectangles, lines, arcs,
+  circles/ellipses, polylines, filled polygons, boundary `PAINT`, bitmap-font
+  text and palette-indexed `GET`/`PUT` equivalents.
+- Both declarative `Visual` values and a fluent C++ `Drawing` builder for
+  reusable code-drawn objects and scenes.
+- Monophonic square-wave sound effects described as QBasic-compatible
+  frequency/duration steps and played through CNA's audio API.
 - Palette-indexed game definitions: arbitrary RGB values cannot leak into room
   art, title art, or the shared interface.
 - A CPU RGBA framebuffer renderer. The CNA host uploads one texture and presents
@@ -56,6 +65,8 @@ include/explore2d/
   World.hpp         static game/world definitions
   Session.hpp       live gameplay state and interaction engine
   Canvas.hpp        CPU RGBA canvas + tiny bitmap font
+  Drawing.hpp       fluent procedural scene-art builder
+  QBasicSound.hpp   PC-speaker-like tone definitions and synthesis
   Renderer.hpp      generic world/HUD renderer
   Persistence.hpp   save/load snapshots
   CnaGame.hpp       optional CNA Game host
@@ -106,6 +117,7 @@ its design inspiration:
 | Enter or Space | contextual action, otherwise jump |
 | M | discovered-destination travel map |
 | S / L | quick save / quick load |
+| F11 | toggle window / fullscreen |
 | Q | quit |
 | Up / Down + Enter | navigate the title menu, choices, or map |
 | Escape | cancel a choice/message |
@@ -151,6 +163,24 @@ world.addInteraction({
     "key_taken_once"});
 ```
 
+Animations are optional room overlays. Static artwork remains static unless a
+game explicitly adds an animation:
+
+```cpp
+foyer.animations.push_back({
+    "lamp_blink", true, true, {explore2d::Condition::flag("power_on")}, {
+        {8, {explore2d::CircleVisual{{120, 80}, 4,
+            explore2d::PaletteColor::brightYellow, true}}},
+        {8, {explore2d::CircleVisual{{120, 80}, 4,
+            explore2d::PaletteColor::brown, true}}},
+    }});
+```
+
+One-shot animations are started by
+`Mutation::playAnimation("animation_id")`. Simple effects use `ToneStep`
+values equivalent to QBasic `SOUND frequency, duration`; duration is measured
+in the historical 18.2 Hz timer ticks and frequency `0` is a rest.
+
 See **Black Pine** for a complete game using conditional discovery,
 dialogue, inventory use, consumed items, fast-travel anchors, contextual room
 transitions, hazards and a win state.
@@ -158,10 +188,11 @@ transitions, hazards and a win state.
 ## Scope
 
 Explore2D 0.1 is intentionally an adventure-game foundation, not a general
-sprite/physics engine. It does not yet provide an editor, animated sprite system,
-audio layer, localization database, arbitrary scripted minigame plug-ins, or a
-serialized external world format. Those can be added without changing the core
-room/rule/state model.
+sprite/physics engine. It provides small scene/action animations and historical
+tone effects, but not a general skeletal animation system, tracker/music player,
+sampled-asset pipeline, editor, localization database, arbitrary scripted
+minigame plug-ins, or serialized external world format. Those can be added
+without changing the core room/rule/state model.
 
 ## License
 

@@ -45,6 +45,7 @@ public:
     void openMap();
     void advanceMessage();
     void showSystemMessage(std::string text);
+    [[nodiscard]] std::vector<std::string> takePendingSoundEffects();
 
     [[nodiscard]] SessionSnapshot snapshot() const;
     [[nodiscard]] bool restore(const SessionSnapshot& snapshot);
@@ -60,7 +61,11 @@ public:
     [[nodiscard]] const std::vector<ChoiceEntry>& choices() const noexcept { return choices_; }
     [[nodiscard]] std::size_t selectionIndex() const noexcept { return selectionIndex_; }
     [[nodiscard]] const std::optional<Message>& activeMessage() const noexcept { return activeMessage_; }
+    [[nodiscard]] Vec2 messageAnchor() const noexcept;
+    [[nodiscard]] bool messageAnchoredToTarget() const noexcept;
     [[nodiscard]] std::string_view terminalMessage() const noexcept { return terminalMessage_; }
+    [[nodiscard]] float sceneElapsedSeconds() const noexcept { return sceneElapsedSeconds_; }
+    [[nodiscard]] std::optional<float> animationElapsed(std::string_view id) const noexcept;
     [[nodiscard]] const HotspotDefinition* nearbyHotspot() const noexcept;
     [[nodiscard]] bool hasItem(std::string_view id) const;
     [[nodiscard]] bool flag(std::string_view key) const;
@@ -92,6 +97,11 @@ private:
     std::vector<Message> messageQueue_;
     std::optional<Message> activeMessage_;
     std::string terminalMessage_;
+    std::optional<std::string> messageTargetId_;
+    std::vector<std::string> pendingSoundEffects_;
+    std::map<std::string, float> activeAnimations_;
+    float sceneElapsedSeconds_{};
+    float poseTimeRemaining_{};
 
     [[nodiscard]] Rect playerRect() const noexcept;
     [[nodiscard]] const HotspotDefinition* nearbyHotspotFor(Verb verb) const noexcept;
@@ -103,7 +113,8 @@ private:
     void enterRoom(std::string_view roomId, std::optional<Vec2> spawn = std::nullopt);
     void applyGravity(float seconds);
     void checkHazards();
-    void beginMessages(const std::vector<Message>& messages);
+    void beginMessages(const std::vector<Message>& messages, std::optional<std::string> targetId = std::nullopt);
+    void queueSoundEffect(std::string_view id);
     void executeRule(const InteractionRule& rule);
     [[nodiscard]] const InteractionRule* findRule(
         Verb verb,

@@ -55,6 +55,17 @@ state.
 An interaction can enqueue multiple speech/inspection/warning messages and apply
 mutations before the sequence. This is enough for conversations, discoveries,
 chapter gates and many scripted beats while keeping them declarative.
+Each line can identify the player or target as speaker. The renderer places a
+small blue bubble by that speaker, preserving the scene instead of covering it
+with a full-width modal panel.
+
+### Selective animation and action poses
+
+The reference animates particular scenery and actions without treating every
+room detail as an animated entity. Explore2D follows that economy: rooms may
+declare conditioned looping overlays, while rules may trigger short one-shot
+sequences. TAKE also selects a temporary facing-aware crouch/reach player pose.
+Static visuals remain the normal case.
 
 ### Discovered fast travel
 
@@ -76,7 +87,15 @@ The supplied game website and QBasic source confirm that ordinary scenes use
 `SCREEN 9`: 640×350 with 16 EGA colours. Explore2D now makes that exact display
 model part of its public contract. Its `Canvas` provides palette-indexed
 equivalents of `PSET`, `LINE`, rectangle fill/outline, `CIRCLE`, ellipse,
-`PAINT`, and text over a CPU framebuffer.
+`PAINT`, arcs, connected lines/polygons, text, and palette-indexed `GET`/`PUT`
+with copy, preset, AND, OR and XOR operations over a CPU framebuffer.
+
+### Restrained tone sound
+
+Effects use sequences equivalent to QBasic `SOUND frequency, duration`, with
+historical 18.2 Hz timer ticks, square waves, rests and monophonic playback.
+CNA owns the actual audio device; the game does not gain a modern sampled-audio
+or music layer merely because CNA could provide one.
 
 ### Shared interface and title sequence
 

@@ -39,6 +39,7 @@ private:
     void drawFrame();
     void drawLogo();
     void drawWorld(const AdventureSession& session);
+    void drawAnimations(const AdventureSession& session);
     void drawPlayer(const AdventureSession& session);
     void drawHud(const AdventureSession& session);
     void drawChoice(const AdventureSession& session, std::string_view title);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "explore2d/QBasicSound.hpp"
 #include "explore2d/Types.hpp"
 
 #include <map>
@@ -40,6 +41,19 @@ struct ExitDefinition final {
     std::string blockedMessage;
 };
 
+struct AnimationFrame final {
+    int durationTicks{1};
+    std::vector<Visual> visuals;
+};
+
+struct SceneAnimationDefinition final {
+    std::string id;
+    bool autoplay{true};
+    bool loop{true};
+    std::vector<Condition> visibleWhen;
+    std::vector<AnimationFrame> frames;
+};
+
 struct RoomDefinition final {
     std::string id;
     std::string label;
@@ -50,6 +64,7 @@ struct RoomDefinition final {
     std::vector<Visual> decorations;
     std::vector<Rect> solids;
     std::vector<HotspotDefinition> hotspots;
+    std::vector<SceneAnimationDefinition> animations;
     std::vector<HazardDefinition> hazards;
     std::vector<ExitDefinition> exits;
 };
@@ -73,8 +88,23 @@ struct TitleScreenDefinition final {
     std::vector<Visual> artwork;
 };
 
+struct SoundBindings final {
+    std::string title;
+    std::string menuMove;
+    std::string menuConfirm;
+    std::string interaction;
+    std::string pickup;
+    std::string jump;
+    std::string warning;
+    std::string death;
+    std::string victory;
+    std::string save;
+    std::string load;
+};
+
 struct PresentationDefinition final {
     TitleScreenDefinition title;
+    SoundBindings sounds;
     std::string inventoryHeading{"CARRYING"};
     std::string creditLine{"CREATED WITH EXPLORE2D"};
 };
@@ -88,6 +118,7 @@ struct InteractionRule final {
     std::vector<Mutation> mutations;
     int priority{};
     std::string onceFlag;
+    std::string soundEffect;
 };
 
 class WorldDefinition final {
@@ -96,15 +127,18 @@ public:
     std::string startRoom;
     std::map<std::string, ItemDefinition> items;
     std::map<std::string, RoomDefinition> rooms;
+    std::map<std::string, ToneEffectDefinition> soundEffects;
     std::vector<InteractionRule> interactions;
     PresentationDefinition presentation;
 
     WorldDefinition& addItem(ItemDefinition item);
     WorldDefinition& addRoom(RoomDefinition room);
     WorldDefinition& addInteraction(InteractionRule rule);
+    WorldDefinition& addSoundEffect(ToneEffectDefinition soundEffect);
 
     [[nodiscard]] const RoomDefinition* room(std::string_view id) const noexcept;
     [[nodiscard]] const ItemDefinition* item(std::string_view id) const noexcept;
+    [[nodiscard]] const ToneEffectDefinition* soundEffect(std::string_view id) const noexcept;
     [[nodiscard]] std::vector<std::string> validate() const;
 };
 
