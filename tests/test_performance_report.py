@@ -155,6 +155,24 @@ def capture_fixture() -> dict:
     }
 
 
+def independent_capture_fixture() -> dict:
+    capture = capture_fixture()
+    capture["capture_session"] = {
+        "process": {"executable": "iron_gang", "pid_known": True, "pid": 124},
+        "started_utc": "2026-08-24T11:00:05Z",
+        "ended_utc": "2026-08-24T11:00:55Z",
+    }
+    capture["video_memory"]["complete_evidence"]["process"]["pid"] = 124
+    capture["video_memory"]["complete_evidence"]["measurement"] = {
+        "peak_resident_bytes": 64 * 1024 * 1024,
+        "started_utc": "2026-08-24T11:00:00Z",
+        "ended_utc": "2026-08-24T11:01:00Z",
+    }
+    capture["measurements"]["frame_interval"]["p95_ms"] = 17.1
+    capture["measurements"]["frame_interval"]["maximum_ms"] = 17.1
+    return capture
+
+
 class PerformanceReportTests(unittest.TestCase):
     def bind_capture(
         self,
@@ -280,9 +298,7 @@ class PerformanceReportTests(unittest.TestCase):
 
     def test_two_complete_physical_captures_pass(self) -> None:
         first = capture_fixture()
-        second = deepcopy(first)
-        second["measurements"]["frame_interval"]["p95_ms"] = 17.1
-        second["measurements"]["frame_interval"]["maximum_ms"] = 17.1
+        second = independent_capture_fixture()
         result = self.run_report(
             [first, second],
             "Minimum Linux EasyGL GPU",
@@ -297,6 +313,18 @@ class PerformanceReportTests(unittest.TestCase):
             hashlib.sha256(b"raw report-test profiler artifact 0").hexdigest(),
             result.stdout,
         )
+
+        overlapping = deepcopy(first)
+        overlapping["measurements"]["frame_interval"]["p95_ms"] = 17.1
+        overlapping["measurements"]["frame_interval"]["maximum_ms"] = 17.1
+        result = self.run_report(
+            [first, overlapping],
+            "Minimum Linux EasyGL GPU",
+            "--qualifying-hardware",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Overall status: **FAIL**", result.stdout)
+        self.assertIn("capture sessions overlap", result.stdout)
 
         result = self.run_report(
             [first, second],
@@ -386,9 +414,7 @@ class PerformanceReportTests(unittest.TestCase):
 
     def test_swap_failure_and_incomplete_diagnostic_are_reported(self) -> None:
         first = capture_fixture()
-        second = deepcopy(first)
-        second["measurements"]["frame_interval"]["p95_ms"] = 17.1
-        second["measurements"]["frame_interval"]["maximum_ms"] = 17.1
+        second = independent_capture_fixture()
         first["swap_interval"]["apply_succeeded"] = False
         first["swap_interval"]["applied"] = None
         result = self.run_report(
@@ -409,7 +435,7 @@ class PerformanceReportTests(unittest.TestCase):
 
     def test_complete_evidence_must_match_hardware_label(self) -> None:
         first = capture_fixture()
-        second = deepcopy(first)
+        second = independent_capture_fixture()
         result = self.run_report(
             [first, second],
             "Different physical GPU",
@@ -588,9 +614,7 @@ class PerformanceReportTests(unittest.TestCase):
             self.assertEqual(capture_path.read_bytes(), capture_before)
 
             first_path, first_bundle = self.bind_capture(root, 0, capture_fixture())
-            second = capture_fixture()
-            second["measurements"]["frame_interval"]["p95_ms"] = 17.1
-            second["measurements"]["frame_interval"]["maximum_ms"] = 17.1
+            second = independent_capture_fixture()
             second_path, second_bundle = self.bind_capture(root, 1, second)
             artifact_before = first_bundle[2].read_bytes()
             result = subprocess.run(

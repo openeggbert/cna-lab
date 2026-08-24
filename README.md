@@ -119,7 +119,9 @@ A copied/renamed/reformatted single capture does not satisfy repeatability, and 
 without its original profile, evidence manifest, and raw profiler artifact is invalid qualifying
 input. Repeated mixed captures must also share resolution, timestep/v-sync request, GPU-timer
 policy, representative workload, VRAM coverage, and profiler identity; incompatible runs produce
-`FAIL`. Stored budget metadata must equal the locked M12 values or the input is malformed. See
+`FAIL`. Their capture-session UTC intervals must not overlap, so a changed metric inside one run
+cannot satisfy repeatability. Stored budget metadata must equal the locked M12 values or the input
+is malformed. See
 [`docs/performance-targets.md`](docs/performance-targets.md#release-summary-generator).
 
 When complete per-process VRAM residency comes from a vendor/OS profiler, bind its raw artifact and

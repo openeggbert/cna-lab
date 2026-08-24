@@ -277,6 +277,12 @@ parse time, including in unknown fields, alongside its existing duplicate-key re
 comparator, and VRAM manifest tests each cover one token and exit 2. Focused suites remain 7/7,
 7/7, and 6/6; no runtime process was launched.
 
+Qualifying repeatability now requires non-overlapping `capture_session` UTC intervals. The
+synthetic `PASS` fixture was corrected from two metric-distinct objects sharing PID/time to PID 123
+at 10:00 and PID 124 at 11:00 with separately bound evidence. The former overlapping form produces
+report `FAIL`; a separately rebound overlapping comparator candidate exits 2. Diagnostic
+self-comparison remains supported. Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

@@ -50,16 +50,28 @@ def evidence_fixture(
     artifact_path: Path,
     peak_bytes: int = 96 * 1024 * 1024,
 ) -> dict:
+    capture = json.loads(capture_path.read_text(encoding="utf-8"))
+    capture_session = capture.get(
+        "capture_session",
+        {
+            "process": {"pid": 4242},
+            "started_utc": "2026-08-24T10:00:05Z",
+            "ended_utc": "2026-08-24T10:00:55Z",
+        },
+    )
     return {
         "schema_version": 1,
         "measurement_scope": "complete_process_gpu_residency_peak",
         "hardware_identity": "Evidence GPU",
         "tool": {"name": "Vendor profiler", "version": "2.1"},
-        "process": {"executable": "iron_gang", "pid": 4242},
+        "process": {
+            "executable": "iron_gang",
+            "pid": capture_session["process"]["pid"],
+        },
         "measurement": {
             "peak_resident_bytes": peak_bytes,
-            "started_utc": "2026-08-24T10:00:00Z",
-            "ended_utc": "2026-08-24T10:01:00Z",
+            "started_utc": capture_session["started_utc"],
+            "ended_utc": capture_session["ended_utc"],
         },
         "profile_capture_sha256": sha256(capture_path),
         "source_artifact": {"file_name": artifact_path.name, "sha256": sha256(artifact_path)},
@@ -157,6 +169,11 @@ class VramEvidenceTests(unittest.TestCase):
             second_artifact_path = directory / "vendor-capture-second.bin"
             second_path = directory / "enriched-second.json"
             second_capture = raw_capture_fixture()
+            second_capture["capture_session"] = {
+                "process": {"executable": "iron_gang", "pid_known": True, "pid": 4243},
+                "started_utc": "2026-08-24T11:00:05Z",
+                "ended_utc": "2026-08-24T11:00:55Z",
+            }
             second_capture["measurements"]["frame_interval"]["p95_ms"] = 17.0
             second_capture["measurements"]["frame_interval"]["maximum_ms"] = 17.0
             second_capture_path.write_text(json.dumps(second_capture), encoding="utf-8")
@@ -245,6 +262,33 @@ class VramEvidenceTests(unittest.TestCase):
             )
             self.assertEqual(comparison.returncode, 2)
             self.assertIn("must not share source files or hardlinks", comparison.stderr)
+
+            overlapping_capture = raw_capture_fixture()
+            overlapping_capture["measurements"]["frame_interval"]["p95_ms"] = 17.0
+            overlapping_capture["measurements"]["frame_interval"]["maximum_ms"] = 17.0
+            second_capture_path.write_text(
+                json.dumps(overlapping_capture),
+                encoding="utf-8",
+            )
+            second_evidence_path.write_text(
+                json.dumps(evidence_fixture(second_capture_path, second_artifact_path)),
+                encoding="utf-8",
+            )
+            second_binding = self.run_binding(
+                second_capture_path,
+                second_evidence_path,
+                second_artifact_path,
+                second_path,
+            )
+            self.assertEqual(second_binding.returncode, 0, second_binding.stderr)
+            comparison = subprocess.run(
+                comparison_arguments,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(comparison.returncode, 2)
+            self.assertIn("qualifying capture sessions overlap", comparison.stderr)
 
             artifact_before_alias_attempt = second_artifact_path.read_bytes()
             comparison = subprocess.run(

@@ -300,6 +300,19 @@ def validate_capture_session(
     return executable_name, pid, started, ended
 
 
+def _capture_sessions_overlap(
+    left: dict[str, Any],
+    right: dict[str, Any],
+) -> bool:
+    left_session = validate_capture_session(left, required=True)
+    right_session = validate_capture_session(right, required=True)
+    assert left_session is not None
+    assert right_session is not None
+    _, _, left_started, left_ended = left_session
+    _, _, right_started, right_ended = right_session
+    return left_started < right_ended and right_started < left_ended
+
+
 def validate_external_vram_measurement(
     evidence: dict[str, Any],
     label: str,
@@ -747,6 +760,13 @@ def qualification_repeatability_blockers(
                 blockers.append(
                     f"{candidate_path.name}: repeatability policy does not match "
                     f"{reference_path.name} at {'.'.join(policy_path)}"
+                )
+    for left_index, (left_path, left) in enumerate(mixed):
+        for right_path, right in mixed[left_index + 1 :]:
+            if _capture_sessions_overlap(left, right):
+                blockers.append(
+                    f"{left_path.name} and {right_path.name}: qualifying capture sessions "
+                    "overlap and are not independent runs"
                 )
     return blockers
 

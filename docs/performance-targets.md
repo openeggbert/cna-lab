@@ -575,6 +575,10 @@ resolution, fixed-timestep/v-sync request, swap request, GPU-timer support/scope
 physics/traffic/pedestrian/police workload, complete-VRAM coverage, and external profiler source,
 scope, name, and version. A mismatch is a qualification blocker and yields `FAIL`, even when both
 runs pass their budgets individually.
+Every pair of qualifying mixed `capture_session` intervals must also be non-overlapping. Touching
+end/start boundaries are allowed; any positive overlap means the inputs are not independent runs
+and yields `FAIL`. The same overlap is invalid for a qualifying temporal comparison, while a
+diagnostic self-comparison remains available for parser/integration checks.
 When `--output` is supplied, the Markdown file is written atomically in its destination directory.
 The destination must differ from every enriched capture and every original profile, evidence
 manifest, and raw artifact, including an existing hardlink alias; a collision exits 2 without

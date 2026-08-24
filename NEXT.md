@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 repeatability now requires separate capture sessions.** Qualifying mixed runs must have
+non-overlapping UTC session intervals; qualifying baseline/candidate comparison enforces the same
+temporal separation. Diagnostic self-comparison remains intentionally available.
+
+- The former synthetic positive pair accidentally shared PID 123 and an identical interval despite
+  different metrics. Its second run now uses PID 124 at 11:00 UTC and still reaches `PASS`.
+- An otherwise valid overlapping release pair now produces `FAIL`; the VRAM integration rebinds an
+  overlapping candidate and proves qualifying comparison exit 2. Focused suites pass 7/7, 7/7,
+  and 6/6.
+- This makes synthetic and future physical repeatability honest; it supplies no real hardware run.
+
 **M12 evidence parsing is now strict about numeric JSON syntax.** The shared loader rejects
 Python's non-standard `NaN`, `Infinity`, and `-Infinity` tokens before schema validation, even when
 they occur in an otherwise ignored extension field.

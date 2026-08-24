@@ -604,3 +604,17 @@ non-portable accepted archive. Existing duplicate-key refusal is unchanged.
 Report coverage places `NaN` in an unused capture field, comparator coverage uses `Infinity`, and
 the VRAM manifest test uses `-Infinity`; all exit 2. Focused suites remain report 7/7, comparator
 7/7, and VRAM 6/6. This is parser integrity only and does not affect the physical M12 blocker.
+
+## 2026-08-24 — capture-session independence
+
+The synthetic release `PASS` previously used two metric-distinct JSON objects but left both at PID
+123 with exactly the same 10:00:05-10:00:55 UTC capture interval. Canonical-content distinction
+alone therefore overstated that fixture's run independence. The positive second capture now uses
+PID 124 and a non-overlapping 11:00:05-11:00:55 interval, with matching separately bound external
+evidence.
+
+The qualifying report compares every mixed-session pair and emits `FAIL` on positive overlap;
+qualifying regression comparison rejects an overlapping baseline/candidate pair with exit 2.
+Release coverage proves the former same-session shape fails, and the VRAM integration rebinds an
+overlapping candidate to reach the comparator check. Diagnostic self-comparison remains valid.
+Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass; no physical run was created.

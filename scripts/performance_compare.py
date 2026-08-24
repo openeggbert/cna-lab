@@ -16,6 +16,7 @@ from performance_report import (
     ReportError,
     VramBundleFingerprint,
     _boolean,
+    _capture_sessions_overlap,
     _escape,
     _file_sha256,
     _integer,
@@ -181,6 +182,10 @@ def require_compatible(
         lowered = baseline_hardware.lower()
         if any(term in lowered for term in DIAGNOSTIC_HARDWARE_TERMS):
             raise ReportError("virtual/software display cannot be labelled qualifying")
+        if _capture_sessions_overlap(baseline, candidate):
+            raise ReportError(
+                "qualifying capture sessions overlap; temporal comparison is refused"
+            )
         for label, capture in (("baseline", baseline), ("candidate", candidate)):
             if not swap_interval_acknowledged(capture):
                 raise ReportError(f"{label} qualifying capture lacks acknowledged presentation")
