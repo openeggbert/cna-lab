@@ -213,6 +213,7 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     if (pressedClockChord) {
         if (screen_ == Screen::ClockView) {
             beginClockSetup(true);
+            saveChanged = true;
         } else if (screen_ == Screen::Home && pet_.stage == Domain::ProgramStage::End) {
             startNewEgg();
         } else if (screen_ == Screen::Home && selectedIcon_ < 0) {
@@ -316,9 +317,7 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     }
     if (saveChanged) {
         saveDirty_ = true;
-        if (screen_ != Screen::ClockSetup) {
-            saveNow();
-        }
+        saveNow();
     }
     refreshDisplay();
 }
@@ -366,11 +365,11 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
     if (screen_ == Screen::ClockSetup) {
         if (button == DeviceButton::A) {
             clockSetupMinutes_ = (clockSetupMinutes_ + 60) % (24 * 60);
-            return false;
+            return clockSetupReturnsToClockView_;
         }
         if (button == DeviceButton::B) {
             clockSetupMinutes_ = (clockSetupMinutes_ + 1) % (24 * 60);
-            return false;
+            return clockSetupReturnsToClockView_;
         }
 
         pet_.clockMinutesOfDay = clockSetupMinutes_;
@@ -670,6 +669,17 @@ bool CnaTamagotchiGame::activateSave(const Persistence::SaveData& data)
     selectedIcon_ = -1;
     iconSelectionSeconds_ = 0.0F;
     simulationSeconds_ = 0.0F;
+    clockSetupMinutes_ = pet_.clockMinutesOfDay;
+    clockSetupReturnsToClockView_ = false;
+
+    if (data.clockSetPaused) {
+        clockSetupMinutes_ = data.clockSetupMinutes;
+        clockSetupReturnsToClockView_ = true;
+        screen_ = Screen::ClockSetup;
+        // A saved Clock SET pause deliberately has no offline catch-up. C
+        // establishes a fresh wall-clock anchor when the player resumes.
+        return false;
+    }
 
     const std::int64_t now = unixSecondsNow();
     if (now <= lastSavedUnixSeconds_) {
@@ -737,7 +747,10 @@ bool CnaTamagotchiGame::resetCurrentSession()
 
 void CnaTamagotchiGame::saveNow()
 {
-    if (smokeTest_ || !saveDirty_ || screen_ == Screen::ClockSetup) {
+    const bool persistentClockSetPause =
+        screen_ == Screen::ClockSetup && clockSetupReturnsToClockView_;
+    if (smokeTest_ || !saveDirty_
+        || (screen_ == Screen::ClockSetup && !persistentClockSetPause)) {
         return;
     }
 
@@ -747,6 +760,9 @@ void CnaTamagotchiGame::saveNow()
         .programId = std::string(activeProgramme().id),
         .shellId = shellId_,
         .lastSavedUnixSeconds = lastSavedUnixSeconds_,
+        .clockSetPaused = persistentClockSetPause,
+        .clockSetupMinutes = persistentClockSetPause
+            ? clockSetupMinutes_ : pet_.clockMinutesOfDay,
         .seed = seed_,
         .pet = pet_,
     };
@@ -1159,7 +1175,7 @@ void CnaTamagotchiGame::drawDevice()
 void CnaTamagotchiGame::OnExiting(System::Object* const sender,
                                   const System::EventArgs& args)
 {
-    if (saveDirty_ && screen_ != Screen::ClockSetup) {
+    if (saveDirty_) {
         saveNow();
     }
     Game::OnExiting(sender, args);

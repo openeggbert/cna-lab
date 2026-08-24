@@ -73,9 +73,11 @@ write and verify the clean implementation.
   contained only the already transcribed two stable Marutchi silhouettes.
   A six-state normal-scale CNA run confirmed Clock → C/Clock → SET → C/Clock
   → B/Home with the corrected implementation.
-- Clock SET is also the user-facing P1 pause workaround: with the application
-  left running on SET, the simulation, clock, UI timeouts, action visuals, and
-  animation phase all remain frozen until C resumes. README and the web FAQ
+- Clock SET is also the user-facing P1 pause workaround: on SET, the simulation,
+  clock, UI timeouts, action visuals, and animation phase all remain frozen
+  until C resumes. Format-6 saves retain the paused screen and displayed time,
+  so closing and reopening the desktop application performs no offline
+  catch-up. Version-5 slots migrate to a running clock. README and the web FAQ
   document the exact keyboard/shell sequence B, A+C, C, B.
 - P1 ROM observation confirmed that selection energises the pictogram itself;
   it does not add a cursor or a modern highlight tile. The renderer therefore
@@ -189,7 +191,7 @@ write and verify the clean implementation.
    bezel, button offset, reset recess, highlights, and material treatment.
 
 **Acceptance condition met (2026-08-24):** `V` cycles all five shell treatments,
-format-5 persistence survives a process restart, pre-v5 saves receive the safe
+format-6 persistence survives a process restart, pre-v5 saves receive the safe
 default, same-display captures retain identical LCD geometry, and the
 shell-control path does not mutate P1 state or framebuffer data.
 

@@ -128,7 +128,8 @@ similar emulation core is permitted in the application, build, or test suite.
     egg directly; A+C starts an end-screen egg while retaining the clock.
   - [x] Preserve the original P1 Clock SET pause workaround: B opens Clock,
     A+C enters SET, all simulation and presentation timers freeze there, and C
-    resumes without applying elapsed absence time.
+    resumes without applying elapsed absence time. Persist this paused state
+    and its displayed time so a desktop process restart also remains frozen.
   - [x] Reproduce the measured nominal ten-second home-icon selection timeout
     as programme display data, restart it after each A, and keep menu/action
     timing independent from this non-persisted UI timer.

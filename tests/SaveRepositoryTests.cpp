@@ -158,6 +158,32 @@ void testIgnoredAttentionCallRoundTrips()
     std::filesystem::remove_all(directory, error);
 }
 
+void testClockSetPauseRoundTrips()
+{
+    const std::filesystem::path directory = testDirectory();
+    const std::filesystem::path path = directory / "clock-set-paused.json";
+    std::error_code error;
+    std::filesystem::remove_all(directory, error);
+
+    Persistence::SaveData data = p1Save();
+    data.clockSetPaused = true;
+    data.clockSetupMinutes = 9 * 60 + 37;
+
+    Persistence::SaveRepository repository;
+    expect(repository.save(path, data).success,
+        "a P1 Clock SET pause must be saveable");
+    const Persistence::LoadResult loaded = repository.load(path);
+    expect(loaded.success() && loaded.data && loaded.data->clockSetPaused
+            && loaded.data->clockSetupMinutes == 9 * 60 + 37,
+        "Clock SET pause state and its displayed time must survive a round trip");
+
+    data.clockSetupMinutes = 24 * 60;
+    expect(!repository.save(directory / "invalid-clock-set.json", data).success,
+        "an out-of-range paused Clock SET time must never be written");
+
+    std::filesystem::remove_all(directory, error);
+}
+
 void testVersionTwoP1SaveKeepsAConservativeEvolutionDefault()
 {
     const std::filesystem::path directory = testDirectory();
@@ -311,6 +337,54 @@ void testVersionFourP1SaveReceivesDefaultShell()
     std::filesystem::remove_all(directory, error);
 }
 
+void testVersionFiveP1SaveReceivesRunningClockState()
+{
+    const std::filesystem::path directory = testDirectory();
+    const std::filesystem::path path = directory / "version-five.json";
+    std::error_code error;
+    std::filesystem::remove_all(directory, error);
+
+    Persistence::SaveRepository repository;
+    expect(repository.save(path, p1Save()).success,
+        "a current P1 save must be available as a version-five migration fixture");
+
+    std::ifstream input(path);
+    std::string versionFive((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    const std::string currentVersion = "\"formatVersion\": "
+        + std::to_string(Persistence::SaveData::CurrentFormatVersion);
+    const std::size_t versionPosition = versionFive.find(currentVersion);
+    expect(versionPosition != std::string::npos,
+        "the current save must expose its format version for v5 migration testing");
+    if (versionPosition != std::string::npos) {
+        versionFive.replace(versionPosition, currentVersion.size(), "\"formatVersion\": 5");
+    }
+    for (const char* const key : {"clockSetPaused", "clockSetupMinutes"}) {
+        const std::size_t keyPosition = versionFive.find(std::string("\"") + key + "\"");
+        expect(keyPosition != std::string::npos,
+            "the current save must contain every removable Clock SET field");
+        if (keyPosition != std::string::npos) {
+            const std::size_t lineStart = versionFive.rfind('\n', keyPosition);
+            const std::size_t lineEnd = versionFive.find('\n', keyPosition);
+            versionFive.erase(lineStart == std::string::npos ? 0 : lineStart + 1,
+                lineEnd == std::string::npos ? std::string::npos : lineEnd - lineStart);
+        }
+    }
+    {
+        std::ofstream output(path, std::ios::trunc);
+        output << versionFive;
+    }
+
+    const Persistence::LoadResult loaded = repository.load(path);
+    expect(loaded.success() && loaded.data
+            && loaded.data->formatVersion == Persistence::SaveData::CurrentFormatVersion
+            && loaded.data->shellId == "pink-yellow"
+            && !loaded.data->clockSetPaused
+            && loaded.data->clockSetupMinutes == loaded.data->pet.clockMinutesOfDay,
+        "a version-five P1 save must retain its shell and receive a running clock state");
+
+    std::filesystem::remove_all(directory, error);
+}
+
 void testUnknownCurrentShellIsRejected()
 {
     const std::filesystem::path directory = testDirectory();
@@ -431,9 +505,11 @@ int main()
     testP1RoundTripAndBackup();
     testInvalidDataIsRejected();
     testIgnoredAttentionCallRoundTrips();
+    testClockSetPauseRoundTrips();
     testVersionTwoP1SaveKeepsAConservativeEvolutionDefault();
     testVersionThreeP1SaveReceivesTimerDefaults();
     testVersionFourP1SaveReceivesDefaultShell();
+    testVersionFiveP1SaveReceivesRunningClockState();
     testUnknownCurrentShellIsRejected();
     testBackupRestorationAndArchives();
     testLegacyPrototypeIsNeverConvertedToP1();

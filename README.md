@@ -115,12 +115,13 @@ clock. Desktop shortcuts mirror those button combinations but do not introduce
 a fourth care action.
 
 Clock SET also reproduces the classic P1 pause workaround. Press B on a clear
-home LCD, hold A+C until `SET` appears, and leave the application running on
-that screen. Pet needs, growth, calls, the device clock, and visible animation
-phases remain frozen even over a long absence. Press C to keep the displayed
-time and resume, then B to return from the clock to the pet. This is reached
-through the same `A`, `B`, and `C` keyboard keys or the three shell buttons;
-there is no separate desktop-only pause control.
+home LCD and hold A+C until `SET` appears. Pet needs, growth, calls, the device
+clock, and visible animation phases remain frozen even over a long absence.
+The paused SET screen is stored in the save slot, so closing and reopening the
+desktop application does not apply offline catch-up. Press C to keep the
+displayed time and resume, then B to return from the clock to the pet. This is
+reached through the same `A`, `B`, and `C` keyboard keys or the three shell
+buttons; there is no separate desktop-only pause control.
 
 The recessed pinhole at the lower-right of the shell simulates the original
 rear reset switch without making it an accidental fourth care control. Hold it

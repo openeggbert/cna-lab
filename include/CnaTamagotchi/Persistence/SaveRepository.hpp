@@ -11,12 +11,14 @@
 namespace CnaTamagotchi::Persistence {
 
 struct SaveData final {
-    static constexpr int CurrentFormatVersion = 5;
+    static constexpr int CurrentFormatVersion = 6;
 
     int formatVersion{CurrentFormatVersion};
     std::string programId{"international-p1-1997"};
     std::string shellId{Presentation::DefaultDeviceShellId};
     std::int64_t lastSavedUnixSeconds{0};
+    bool clockSetPaused{false};
+    int clockSetupMinutes{0};
     std::uint64_t seed{0};
     Domain::ProgramPetState pet{};
 };

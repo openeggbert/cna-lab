@@ -159,6 +159,7 @@ bool validSaveData(const SaveData& data) noexcept
 {
     return data.formatVersion == SaveData::CurrentFormatVersion
         && data.lastSavedUnixSeconds >= 0
+        && data.clockSetupMinutes >= 0 && data.clockSetupMinutes < 24 * 60
         && Presentation::isValidDeviceShellId(data.shellId)
         && validIdentifier(data.programId)
         && validPetState(data.pet);
@@ -172,6 +173,8 @@ std::string serialise(const SaveData& data)
         "  \"programId\": \"" + data.programId + "\",\n"
         "  \"shellId\": \"" + data.shellId + "\",\n"
         "  \"lastSavedUnixSeconds\": " + std::to_string(data.lastSavedUnixSeconds) + ",\n"
+        "  \"clockSetPaused\": " + std::to_string(data.clockSetPaused ? 1 : 0) + ",\n"
+        "  \"clockSetupMinutes\": " + std::to_string(data.clockSetupMinutes) + ",\n"
         "  \"seed\": " + std::to_string(data.seed) + ",\n"
         "  \"pet\": {\n"
         "    \"characterId\": \"" + pet.characterId + "\",\n"
@@ -304,6 +307,7 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
         return legacyPrototype();
     }
     if (*formatVersion != 2 && *formatVersion != 3 && *formatVersion != 4
+        && *formatVersion != 5
         && *formatVersion != SaveData::CurrentFormatVersion) {
         return invalid("Unsupported save format version.");
     }
@@ -311,6 +315,8 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
     const auto programId = extractIdentifier(json, "programId");
     const auto shellId = extractIdentifier(json, "shellId");
     const auto lastSaved = extractInteger<std::int64_t>(json, "lastSavedUnixSeconds");
+    const auto clockSetPaused = extractInteger<int>(json, "clockSetPaused");
+    const auto clockSetupMinutes = extractInteger<int>(json, "clockSetupMinutes");
     const auto seed = extractInteger<std::uint64_t>(json, "seed");
     const auto characterId = extractIdentifier(json, "characterId");
     const auto stage = extractInteger<int>(json, "stage");
@@ -360,9 +366,13 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
             || !disciplineCallsIssued || !pendingDisciplineCall)) {
         return invalid("Save file is missing or repeats a P1 timer field.");
     }
-    if (*formatVersion == SaveData::CurrentFormatVersion
+    if (*formatVersion >= 5
         && (!shellId || !Presentation::isValidDeviceShellId(*shellId))) {
         return invalid("Save file is missing or contains an unsupported shell identifier.");
+    }
+    if (*formatVersion == SaveData::CurrentFormatVersion
+        && (!clockSetPaused || !clockSetupMinutes)) {
+        return invalid("Save file is missing or repeats its Clock SET pause state.");
     }
     if (!validIdentifier(*programId) || !validIdentifier(*characterId) || *lastSaved < 0
         || !validStage(*stage) || *minutesSinceClockSet < 0 || *minutesSinceHatch < 0
@@ -394,16 +404,26 @@ LoadResult SaveRepository::load(const std::filesystem::path& path) const
             || !validBoolean(*pendingDisciplineCall))) {
         return invalid("Save file contains an invalid P1 timer value.");
     }
+    if (*formatVersion == SaveData::CurrentFormatVersion
+        && (!validBoolean(*clockSetPaused)
+            || *clockSetupMinutes < 0 || *clockSetupMinutes >= 24 * 60)) {
+        return invalid("Save file contains an invalid Clock SET pause state.");
+    }
 
     SaveData data{};
     // Accepted older P1 data is migrated in memory and written back as the
     // current format at the next real save action. Pre-v5 slots receive the
-    // stable default shell without changing any P1 simulation state.
+    // stable default shell; pre-v6 slots receive a running clock without
+    // changing any P1 simulation state.
     data.formatVersion = SaveData::CurrentFormatVersion;
     data.programId = *programId;
-    data.shellId = *formatVersion == SaveData::CurrentFormatVersion
+    data.shellId = *formatVersion >= 5
         ? *shellId : std::string(Presentation::DefaultDeviceShellId);
     data.lastSavedUnixSeconds = *lastSaved;
+    data.clockSetPaused = *formatVersion == SaveData::CurrentFormatVersion
+        && *clockSetPaused == 1;
+    data.clockSetupMinutes = *formatVersion == SaveData::CurrentFormatVersion
+        ? *clockSetupMinutes : *clockMinutesOfDay;
     data.seed = *seed;
     data.pet.characterId = *characterId;
     data.pet.stage = static_cast<Domain::ProgramStage>(*stage);
