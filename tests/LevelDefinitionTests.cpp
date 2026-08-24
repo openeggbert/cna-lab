@@ -60,7 +60,7 @@ int main()
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "closed door blocks movement");
 
     Expect(
-        doorWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::DoorActivation::Opened,
+        doorWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::DoorOpened,
         "normal door activates");
     static_cast<void>(doorWorld.Update(0.2f, playerPosition));
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "partly open door still blocks movement");
@@ -79,7 +79,7 @@ int main()
         "######\n#PDG.#\n######\n",
         "body-door.level"));
     Expect(
-        bodyDoorWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::DoorActivation::Opened,
+        bodyDoorWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::DoorOpened,
         "body door activates");
     static_cast<void>(bodyDoorWorld.Update(0.5f, playerPosition));
     static_cast<void>(bodyDoorWorld.Update(1.0f, playerPosition));
@@ -95,12 +95,12 @@ int main()
         "security-door.level"));
     Expect(securityDoorWorld.Collides(2.5f, 1.5f, 0.1f), "closed security door blocks movement");
     Expect(
-        securityDoorWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::DoorActivation::Locked,
+        securityDoorWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::DoorLocked,
         "security door reports that it is locked");
     static_cast<void>(securityDoorWorld.Update(0.5f, playerPosition));
     Expect(securityDoorWorld.Collides(2.5f, 1.5f, 0.1f), "security door needs an access card");
     Expect(
-        securityDoorWorld.TryActivate(playerPosition, lookDirection, true) == WolfCna::World::DoorActivation::Opened,
+        securityDoorWorld.TryActivate(playerPosition, lookDirection, true) == WolfCna::World::InteractionResult::DoorOpened,
         "security door activates with an access card");
     static_cast<void>(securityDoorWorld.Update(0.5f, playerPosition));
     Expect(!securityDoorWorld.Collides(2.5f, 1.5f, 0.1f), "security door opens safely");
@@ -131,6 +131,17 @@ int main()
     const WolfCna::World::PickupResult goldPickup = exitWorld.CollectPickups(
         Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f));
     Expect(goldPickup.gold == 100, "gold pickup is collected");
+
+    WolfCna::World terminalWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PME#\n#####\n",
+        "terminal.level"));
+    const Microsoft::Xna::Framework::Vector3 terminalExit(3.5f, 0.62f, 1.5f);
+    Expect(!terminalWorld.ReachedExit(terminalExit), "terminal locks the exit until activated");
+    Expect(
+        terminalWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::TerminalActivated,
+        "terminal activates when used from the front");
+    Expect(terminalWorld.IsExitUnlocked(), "terminal unlocks the exit");
+    Expect(terminalWorld.ReachedExit(terminalExit), "activated terminal allows the exit");
 
     WolfCna::World combatWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PG.#\n#####\n",

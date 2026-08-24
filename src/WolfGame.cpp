@@ -324,6 +324,10 @@ namespace WolfCna
             MakeTone(105.0f, 3200),
             22050,
             AudioChannels::Mono);
+        terminalSound_ = std::make_unique<SoundEffect>(
+            MakeTone(520.0f, 4400),
+            22050,
+            AudioChannels::Mono);
     }
 
     void WolfGame::DrawHud()
@@ -438,12 +442,14 @@ namespace WolfCna
         const bool actionIsDown = keyboard.IsKeyDown(Keys::Space);
         if (actionIsDown && !actionWasDown_)
         {
-            const World::DoorActivation activation =
+            const World::InteractionResult activation =
                 world_.TryActivate(playerPosition_, LookDirection(), hasSecurityCard_);
-            if (activation == World::DoorActivation::Opened && doorSound_)
+            if (activation == World::InteractionResult::DoorOpened && doorSound_)
                 static_cast<void>(doorSound_->Play(0.22f, -0.2f, 0.0f));
-            else if (activation == World::DoorActivation::Locked && lockedSound_)
+            else if (activation == World::InteractionResult::DoorLocked && lockedSound_)
                 static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
+            else if (activation == World::InteractionResult::TerminalActivated && terminalSound_)
+                static_cast<void>(terminalSound_->Play(0.32f, 0.25f, 0.0f));
         }
         actionWasDown_ = actionIsDown;
 

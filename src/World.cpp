@@ -1,5 +1,6 @@
 #include "World.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
@@ -52,6 +53,7 @@ namespace WolfCna
         BuildDoors();
         BuildEnemies();
         BuildPickups();
+        BuildTerminals();
         BuildExits();
         BuildMesh();
         RebuildDoorGeometry();
@@ -236,6 +238,9 @@ namespace WolfCna
 
     bool World::ReachedExit(const Vector3& playerPosition) const
     {
+        if (!IsExitUnlocked())
+            return false;
+
         for (const Vector3& exit : exits_)
         {
             const float dx = exit.X - playerPosition.X;
@@ -247,12 +252,21 @@ namespace WolfCna
         return false;
     }
 
-    World::DoorActivation World::TryActivate(
+    bool World::IsExitUnlocked() const
+    {
+        return terminals_.empty() || std::all_of(
+            terminals_.begin(),
+            terminals_.end(),
+            [](const Terminal& terminal) { return terminal.activated; });
+    }
+
+    World::InteractionResult World::TryActivate(
         const Vector3& playerPosition,
         const Vector3& lookDirection,
         bool hasSecurityCard)
     {
         Door* target = nullptr;
+        Terminal* targetTerminal = nullptr;
         float closestDistanceSquared = ActivationRange * ActivationRange;
 
         for (Door& door : doors_)
@@ -275,15 +289,41 @@ namespace WolfCna
             closestDistanceSquared = distanceSquared;
         }
 
+        for (Terminal& terminal : terminals_)
+        {
+            if (terminal.activated)
+                continue;
+
+            const float offsetX = terminal.position.X - playerPosition.X;
+            const float offsetZ = terminal.position.Z - playerPosition.Z;
+            const float distanceSquared = offsetX * offsetX + offsetZ * offsetZ;
+            if (distanceSquared > closestDistanceSquared || distanceSquared <= 0.0f)
+                continue;
+
+            const float inverseDistance = 1.0f / std::sqrt(distanceSquared);
+            const float facing = (offsetX * lookDirection.X + offsetZ * lookDirection.Z) * inverseDistance;
+            if (facing < ActivationDotThreshold)
+                continue;
+
+            targetTerminal = &terminal;
+            closestDistanceSquared = distanceSquared;
+        }
+
+        if (targetTerminal)
+        {
+            targetTerminal->activated = true;
+            return InteractionResult::TerminalActivated;
+        }
+
         if (!target)
-            return DoorActivation::None;
+            return InteractionResult::None;
 
         if (target->material == Material::SecurityDoor && !hasSecurityCard)
-            return DoorActivation::Locked;
+            return InteractionResult::DoorLocked;
 
         target->opening = true;
         target->closeDelay = DoorAutoCloseDelay;
-        return DoorActivation::Opened;
+        return InteractionResult::DoorOpened;
     }
 
     int World::Update(float elapsedSeconds, const Vector3& playerPosition)
@@ -616,6 +656,18 @@ namespace WolfCna
         }
     }
 
+    void World::BuildTerminals()
+    {
+        for (int z = 0; z < static_cast<int>(map_.size()); ++z)
+        {
+            for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
+            {
+                if (map_[z][x] == 'M')
+                    terminals_.push_back({Vector3(static_cast<float>(x) + 0.5f, 0.08f, static_cast<float>(z) + 0.5f)});
+            }
+        }
+    }
+
     bool World::HasLineOfSight(const Vector3& from, const Vector3& to) const
     {
         const float dx = to.X - from.X;
@@ -852,7 +904,7 @@ namespace WolfCna
             BufferUsage::None);
         impactIndexBuffer_->SetData(impactIndices_.data(), static_cast<int>(impactIndices_.size()));
 
-        if (!enemies_.empty() || !pickups_.empty() || !exits_.empty())
+        if (!enemies_.empty() || !pickups_.empty() || !terminals_.empty() || !exits_.empty())
         {
             enemyVertexBuffer_ = std::make_unique<VertexBuffer>(
                 device,
@@ -998,6 +1050,26 @@ namespace WolfCna
                         : pickup.type == PickupType::Gold
                             ? Vector3(0.98f, 0.54f, 0.08f)
                             : Vector3(0.28f, 0.72f, 0.94f));
+
+            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+            {
+                pass.Apply();
+                device.DrawIndexedPrimitives(
+                    PrimitiveType::TriangleList,
+                    0,
+                    0,
+                    static_cast<int>(enemyVertices_.size()),
+                    0,
+                    static_cast<int>(enemyIndices_.size() / 3));
+            }
+        }
+
+        for (const Terminal& terminal : terminals_)
+        {
+            effect.setWorldProperty(
+                Matrix::CreateScale(0.34f, 0.8f, 0.34f) * Matrix::CreateTranslation(terminal.position));
+            effect.setDiffuseColorProperty(
+                terminal.activated ? Vector3(0.2f, 0.88f, 0.94f) : Vector3(0.92f, 0.44f, 0.08f));
 
             for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
             {

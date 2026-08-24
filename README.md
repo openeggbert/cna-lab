@@ -45,6 +45,7 @@ have the same width and use only these symbols:
 - `D`: closed sliding door
 - `Q`: closed red security door
 - `C`: cyan security-card pickup, required to open `Q`
+- `M`: amber terminal; use it to bring the exit online
 - `G`: guard spawn
 - `K`: hound spawn
 - `H`: health pickup

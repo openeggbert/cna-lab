@@ -22,11 +22,12 @@ namespace WolfCna
     class World final
     {
     public:
-        enum class DoorActivation
+        enum class InteractionResult
         {
             None,
-            Opened,
-            Locked
+            DoorOpened,
+            DoorLocked,
+            TerminalActivated
         };
 
         struct PickupResult
@@ -69,7 +70,8 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& playerPosition);
         [[nodiscard]] bool ReachedExit(
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
-        [[nodiscard]] DoorActivation TryActivate(
+        [[nodiscard]] bool IsExitUnlocked() const;
+        [[nodiscard]] InteractionResult TryActivate(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection,
             bool hasSecurityCard);
@@ -138,6 +140,12 @@ namespace WolfCna
             bool collected = false;
         };
 
+        struct Terminal
+        {
+            Microsoft::Xna::Framework::Vector3 position;
+            bool activated = false;
+        };
+
         static constexpr std::size_t MaxImpactCount = 24;
 
         std::vector<std::string> map_;
@@ -153,6 +161,7 @@ namespace WolfCna
         std::vector<std::uint16_t> impactIndices_;
         std::vector<Enemy> enemies_;
         std::vector<Pickup> pickups_;
+        std::vector<Terminal> terminals_;
         std::vector<Microsoft::Xna::Framework::Vector3> exits_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> enemyVertices_;
         std::vector<std::uint16_t> enemyIndices_;
@@ -175,6 +184,7 @@ namespace WolfCna
         void BuildImpactGeometry();
         void BuildEnemies();
         void BuildPickups();
+        void BuildTerminals();
         void BuildExits();
         void BuildEnemyGeometry();
         [[nodiscard]] bool HasLineOfSight(
