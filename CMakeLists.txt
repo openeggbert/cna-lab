@@ -66,6 +66,7 @@ add_library(people_core STATIC
     game/src/Rendering/ResidentPresentation.cpp
     game/src/Rendering/RenderOrder.cpp
     game/src/Rendering/WallPresentation.cpp
+    game/src/Simulation/MovementExecutor.cpp
     game/src/Simulation/ResidentModel.cpp
     game/src/World/IsometricProjection.cpp
     game/src/World/LotGrid.cpp
@@ -256,6 +257,18 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
     endif()
     add_test(NAME people_interaction_route_tests COMMAND people_interaction_route_tests)
+
+    add_executable(people_movement_executor_tests
+        tests/MovementExecutorTests.cpp
+    )
+    target_link_libraries(people_movement_executor_tests PRIVATE people_core)
+    if(MSVC)
+        target_compile_options(people_movement_executor_tests PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(people_movement_executor_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
+    endif()
+    add_test(NAME people_movement_executor_tests COMMAND people_movement_executor_tests)
 
     add_test(NAME people_runtime_smoke COMMAND People --smoke-test)
     set_tests_properties(people_runtime_smoke PROPERTIES

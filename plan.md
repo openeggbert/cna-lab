@@ -128,7 +128,7 @@ Statuses:
 | PEO-075 | DONE | Door routing | Closed/open/passable policy integrates wall portals and produces expected paths |
 | PEO-076 | DONE | Route to interaction slot | Planner targets authored approach tile/facing rather than object origin and reports exact failure reason |
 | PEO-077 | TODO | Dynamic occupancy policy | Residents wait/replan around temporary people without permanent deadlock in two corridor scenarios |
-| PEO-078 | DOING | Movement executor | Fixed-tick sub-tile progress follows path, updates facing, arrives exactly, and handles obstruction/replan |
+| PEO-078 | DONE | Movement executor | Fixed-tick sub-tile progress follows path, updates facing, arrives exactly, and handles obstruction/replan |
 | PEO-079 | TODO | Explicit action states | Queued/Routing/Executing/Completed/Failed/Canceled/Interrupted transitions and reason data are centralized/tested |
 | PEO-080 | TODO | Per-resident action queue | Enqueue, priority, cancel current/queued, inspection, and bounded length policies pass tests |
 | PEO-081 | TODO | Player-directed action command | Selecting resident/object can enqueue an eligible interaction without directly mutating motive/object state |
@@ -340,7 +340,7 @@ Statuses:
 | PEO-274 | TODO | Linux release gate | Clean configure/build/tests/displayed runtime/package run on documented toolchain |
 | PEO-275 | TODO | Windows release gate | Native or approved cross-build plus real Windows runtime verifies CNA renderer/input/audio/save paths |
 | PEO-276 | TODO | macOS release gate | Apple build and real runtime verify supported CNA path without claiming unrun coverage |
-| PEO-277 | TODO | Web feasibility gate | Only after desktop slice: assess Emscripten renderer/content/save/input limitations with actual build |
+| PEO-277 | DOING | Web feasibility gate | Owner-directed early check: configure and build the current 2D prototype with CNA's supported Emscripten path, exercise it in a real browser when available, and record exact limitations without expanding gameplay scope |
 | PEO-278 | TODO | Mod content safety model | Namespaced data packages, validation, dependency/version rules, and no arbitrary native plugins |
 | PEO-279 | TODO | Public alpha checklist | M5 or later gate, known issues, save compatibility, notices, asset rights, crash/log path, and feedback channel complete |
 | PEO-280 | DEFERRED | Aging/life stages | Adult household simulation and persistence must be strong first |

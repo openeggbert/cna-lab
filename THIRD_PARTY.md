@@ -7,7 +7,7 @@ dependencies, tools, references, or content.
 
 | Component | Role | Checkout observed 2026-08-24 | License/status |
 |---|---|---|---|
-| CNA (`../cnanext`) | Public game/framework abstraction | `next`, executable verified at `b6cbfcd87c08a6e0172eaf866358bf95bec277b1` | Microsoft Public License; clean working tree |
+| CNA (`../cnanext`) | Public game/framework abstraction | `next`, executable verified at `14ff4be7c9690ead2030a02878c6be39802f6863` | Microsoft Public License; clean working tree |
 | sharp-runtime (`../sharp-runtimenext`) | Supported runtime layer consumed by CNA | `next`, `54578590b328aa9612fe38bfddca9fd8ca795144`, `v0.1.0-beta.1` | MIT; clean working tree |
 | CMake | Build generator | System tool | Governed by its own distribution terms |
 

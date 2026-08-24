@@ -276,7 +276,7 @@ PeopleGame::PeopleGame(const int smokeFrames, const bool smokeRotations)
     graphics_.setPreferredBackBufferWidthProperty(1280);
     graphics_.setPreferredBackBufferHeightProperty(720);
     setIsMouseVisibleProperty(true);
-    getWindowProperty().setTitleProperty("People - furnished room milestone");
+    getWindowProperty().setTitleProperty("People - resident routing milestone");
     InitializeDemoLot();
 }
 
@@ -730,6 +730,7 @@ void PeopleGame::LoadContent()
     const auto mouse = Mouse::GetState();
     previousWheel_ = mouse.getScrollWheelValueProperty();
     previousLeftButton_ = mouse.getLeftButtonProperty();
+    previousRightButton_ = mouse.getRightButtonProperty();
 
     const People::World::RoomMap rooms = People::World::RoomMap::Rebuild(lot_, 0);
     std::cout << "People: CNA SpriteBatch foundation loaded; lot="
@@ -813,6 +814,71 @@ void PeopleGame::RefreshHoveredTile()
         lot_.Size(), camera_);
 }
 
+void PeopleGame::IssueDemoMove(const TileCoordinate destination)
+{
+    const People::Simulation::ResidentState* resident = residents_.Find(
+        People::Content::DemoResident::MaraId);
+    if (resident == nullptr)
+        return;
+    if (resident->movementRequest.has_value())
+    {
+        std::cout << "People: move command ignored; resident is already moving\n";
+        return;
+    }
+
+    const People::Navigation::StaticNavigationGrid grid =
+        People::Navigation::StaticNavigationGrid::Build(lot_, objects_, destination.floor);
+    const People::Navigation::PathResult path = People::Navigation::AStarPathfinder::FindPath(
+        grid, resident->tile, destination);
+    if (!path.Succeeded())
+    {
+        std::cout << "People: move command rejected; path-failure="
+                  << static_cast<int>(path.failure) << '\n';
+        return;
+    }
+
+    const People::Simulation::MovementRequestId requestId = nextDemoMovementRequest_++;
+    const People::Simulation::MovementStartResult started = movement_.Begin(
+        requestId, resident->id, path.tiles, grid);
+    if (!started.IsValid())
+    {
+        std::cout << "People: move command rejected; movement-failure="
+                  << static_cast<int>(started.failure) << '\n';
+        return;
+    }
+    std::cout << "People: move command resident=" << resident->id
+              << "; destination=" << destination.x << ',' << destination.y
+              << "; path-tiles=" << path.tiles.size()
+              << (started.completedImmediately ? "; already-there=yes" : "") << '\n';
+}
+
+void PeopleGame::AdvanceSimulationTick()
+{
+    const People::Simulation::ResidentState* resident = residents_.Find(
+        People::Content::DemoResident::MaraId);
+    if (resident == nullptr || !resident->movementRequest.has_value())
+        return;
+
+    const People::Navigation::StaticNavigationGrid grid =
+        People::Navigation::StaticNavigationGrid::Build(lot_, objects_, resident->tile.floor);
+    const People::Simulation::MovementTickResult result = movement_.Advance(
+        *resident->movementRequest, grid);
+    if (result.status == People::Simulation::MovementTickStatus::Failed)
+    {
+        std::cout << "People: movement failed; reason="
+                  << static_cast<int>(result.failure) << '\n';
+    }
+    else if (result.status == People::Simulation::MovementTickStatus::Replanned)
+    {
+        std::cout << "People: movement replanned around changed obstruction\n";
+    }
+    else if (result.status == People::Simulation::MovementTickStatus::Completed)
+    {
+        std::cout << "People: movement completed at "
+                  << result.tile.x << ',' << result.tile.y << '\n';
+    }
+}
+
 void PeopleGame::Update(GameTime& gameTime)
 {
     const double elapsedSeconds = std::min(
@@ -827,7 +893,21 @@ void PeopleGame::Update(GameTime& gameTime)
         selectedObject_ = hoveredTile_.has_value()
             ? objects_.OccupiedBy(*hoveredTile_) : std::nullopt;
     }
+    if (mouse.getRightButtonProperty() == ButtonState::Pressed
+        && previousRightButton_ == ButtonState::Released
+        && hoveredTile_.has_value())
+    {
+        IssueDemoMove(*hoveredTile_);
+    }
     previousLeftButton_ = mouse.getLeftButtonProperty();
+    previousRightButton_ = mouse.getRightButtonProperty();
+
+    simulationAccumulator_ += elapsedSeconds;
+    while (simulationAccumulator_ >= SimulationTickSeconds)
+    {
+        AdvanceSimulationTick();
+        simulationAccumulator_ -= SimulationTickSeconds;
+    }
 }
 
 void PeopleGame::DrawLot()
@@ -1013,8 +1093,12 @@ void PeopleGame::DrawResident(const People::Simulation::ResidentId residentId)
     if (texture == residentTextures_.end())
         throw std::logic_error("resident idle metadata has no generated texture");
 
-    const PixelPoint contact = IsometricProjection::WorldToScreen(
-        resident->tile, lot_.Size(), camera_);
+    const std::optional<People::World::WorldPoint> worldPosition =
+        movement_.PositionFor(residentId);
+    if (!worldPosition.has_value())
+        throw std::logic_error("resident has no valid movement presentation position");
+    const PixelPoint contact = IsometricProjection::WorldPointToScreen(
+        *worldPosition, lot_.Size(), camera_);
     const Vector2 topLeft{
         static_cast<float>(contact.x - sprite.footAnchorX * camera_.zoom),
         static_cast<float>(contact.y - sprite.footAnchorY * camera_.zoom)

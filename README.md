@@ -32,7 +32,11 @@ furnished with an original procedural bed, chair, table, refrigerator, and
 toilet; all rotate, sort, and render from 2D textures generated at runtime.
 Objects can be selected through their logical footprint. One predefined
 resident, Mara Vale, now exists in the active-lot simulation and renders from
-an original procedural four-direction idle sprite set.
+an original procedural four-direction idle sprite set. Right-clicking a free
+floor tile now finds a deterministic A* route and moves the resident through
+fixed-tick sub-tile positions; changed static obstructions trigger a stable
+replan. Walk animation, action queues, motives, and autonomy are still future
+milestones.
 
 See [plan.md](plan.md) for stable tasks, [analysis.md](analysis.md) for the
 architectural rationale, and [VERIFICATION.md](VERIFICATION.md) for commands
@@ -79,8 +83,10 @@ Planning-baseline inspection on 2026-08-24:
   `v0.1.0-beta.1`; working tree clean.
 
 The final executable verification used clean CNA HEAD
-`b6cbfcd87c08a6e0172eaf866358bf95bec277b1` on `next`. See the verification
-record; neither dependency checkout was edited by People work.
+`14ff4be7c9690ead2030a02878c6be39802f6863` on `next`. Both headless and
+SDL_RENDERER/SDL3 configurations passed the complete test suite at that
+revision. See the verification record; neither dependency checkout was edited
+by People work.
 
 ## Build
 
@@ -120,6 +126,7 @@ placeholder textures keep early builds self-contained.
 - `Q`/`E`: rotate the presentation 90 degrees counter-clockwise/clockwise.
 - `F`: toggle the demo door open/closed (temporary developer control).
 - Left click: select the object occupying the pointed floor tile.
+- Right click: route the demo resident to a free pointed floor tile.
 - `Escape`: exit.
 
 `./build/People --smoke-test` draws four bounded frames, one in each world
@@ -134,3 +141,4 @@ session without automatic rotation.
 - [THIRD_PARTY.md](THIRD_PARTY.md): dependencies and reference-only projects.
 - [AGENTS.md](AGENTS.md): mandatory contributor workflow and hard boundaries.
 - [VERIFICATION.md](VERIFICATION.md): build, test, runtime, and visual evidence.
+- [NEXT.md](NEXT.md): exact continuation state for the next development context.

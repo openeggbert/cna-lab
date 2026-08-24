@@ -144,6 +144,11 @@ through `975156d140c5277eecf54f7f23335af3725c2ae8` to clean HEAD
 builds were finally verified against that newest checkout. The sharp-runtime
 revision remained unchanged and clean.
 
+For the fixed-tick resident movement milestone, CNA advanced again to clean
+HEAD `14ff4be7c9690ead2030a02878c6be39802f6863`. Both headless and
+SDL_RENDERER/SDL3 People configurations passed their complete 15-test suites
+there; sharp-runtime remained unchanged and clean.
+
 People consumes the newest local `cnanext` and `sharp-runtimenext` HEADs as
 they advance. SHA records establish which code a particular result exercised;
 they are not pins and must never be used to roll a dependency backward. A
@@ -506,6 +511,23 @@ cross-floor edges.
 
 Navigation does not know sprite dimensions. Movement converts path segments to
 sub-tile progress and a cardinal/isometric-facing animation state.
+
+The first movement executor consumes a complete logical path and advances it
+at 20 fixed ticks per second. Segment progress uses integer units (`1000` per
+tile, `125` per tick), so a resident reaches each tile after exactly eight
+ticks without floating-point accumulation changing simulation state. The
+logical resident tile changes only on segment arrival; presentation derives a
+continuous `WorldPoint` from the immutable tile plus inspectable fixed-point
+progress.
+
+At a segment boundary, a rebuilt navigation snapshot may reveal a newly
+blocked edge. The executor then deterministically replans from the resident's
+committed tile to the original destination, or terminates with an explicit
+failure and detaches its request. Completion, cancellation, resident deletion,
+and external detachment leave no hidden active movement. The current
+right-click runtime command is deliberately only a developer control: it
+rejects a second destination while movement is active instead of introducing
+mid-segment snapping or pretending that the future action queue exists.
 
 ## 17. Time and determinism
 

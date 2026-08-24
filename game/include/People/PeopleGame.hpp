@@ -6,10 +6,13 @@
 #include <string>
 #include <string_view>
 
+#include "People/Navigation/AStarPathfinder.hpp"
+#include "People/Navigation/StaticNavigationGrid.hpp"
 #include "People/Objects/ObjectModel.hpp"
 #include "People/Rendering/ObjectPresentation.hpp"
 #include "People/Rendering/ResidentPresentation.hpp"
 #include "People/Simulation/ResidentModel.hpp"
+#include "People/Simulation/MovementExecutor.hpp"
 #include "People/World/IsometricProjection.hpp"
 #include "People/World/LotGrid.hpp"
 #include "Microsoft/Xna/Framework/Game.hpp"
@@ -39,6 +42,8 @@ private:
     void ChangeRotation(int clockwiseQuarterTurns);
     void ChangeZoom(double newZoom, People::World::PixelPoint screenFocus);
     void RefreshHoveredTile();
+    void IssueDemoMove(People::World::TileCoordinate destination);
+    void AdvanceSimulationTick();
     void InitializeDemoLot();
     void DrawLot();
     void DrawTile(People::World::TileCoordinate tile);
@@ -58,11 +63,13 @@ private:
     static constexpr double MinimumZoom = 0.35;
     static constexpr double MaximumZoom = 2.0;
     static constexpr double PanPixelsPerSecond = 420.0;
+    static constexpr double SimulationTickSeconds = 1.0 / 20.0;
 
     Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
     People::World::LotGrid lot_{20, 20, 1};
     People::Objects::ObjectWorld objects_{lot_};
     People::Simulation::ResidentRegistry residents_{lot_};
+    People::Simulation::MovementExecutor movement_{residents_};
     std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
     Microsoft::Xna::Framework::Graphics::Texture2D tileTexture_;
     Microsoft::Xna::Framework::Graphics::Texture2D highlightTexture_;
@@ -84,7 +91,11 @@ private:
     Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_;
     Microsoft::Xna::Framework::Input::ButtonState previousLeftButton_ =
         Microsoft::Xna::Framework::Input::ButtonState::Released;
+    Microsoft::Xna::Framework::Input::ButtonState previousRightButton_ =
+        Microsoft::Xna::Framework::Input::ButtonState::Released;
     int previousWheel_ = 0;
+    double simulationAccumulator_ = 0.0;
+    People::Simulation::MovementRequestId nextDemoMovementRequest_ = 1;
     int smokeFrames_ = 0;
     int drawnFrames_ = 0;
     bool smokeRotations_ = false;

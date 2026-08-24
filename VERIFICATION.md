@@ -407,3 +407,45 @@ current changed CNA window source; People modified neither dependency. An
 interactive build also launched successfully on the user's real `:0` display
 at 1280 x 720 and remained running, but it exposes the pre-movement visual demo;
 no visual route execution is claimed yet.
+
+## 2026-08-24: PEO-078 fixed-tick resident movement
+
+`MovementExecutor` owns inspectable active routes independently from CNA and
+the renderer. One tile is exactly 1000 progress units and one 20 Hz simulation
+tick advances 125 units. The resident's logical tile changes only at the exact
+eighth-tick segment boundary, while rendering interpolates a `WorldPoint` from
+the integer progress. Facing follows each cardinal segment. Completion and
+cancellation detach the stable movement request and erase its executor state.
+
+Before entering a new segment, the executor validates its next edge against a
+fresh immutable navigation snapshot. A changed wall, door, or footprint causes
+a deterministic A* replan from the last committed tile to the original goal;
+an impossible replacement reports `NoReplanPath` and performs the same cleanup.
+Resident deletion or external request detachment also terminates without
+dangling state. The runtime drives this at 20 Hz and maps a right click on a
+free hovered tile to one developer movement request. A second command while the
+resident is moving is ignored, avoiding a presentation snap until the action
+queue defines an intentional redirect policy.
+
+`people_movement_executor_tests` verifies half-tile interpolation after four
+ticks, exact first/second-segment arrival, completion cleanup, a stable detour
+and facing after obstruction, no-route failure, cancellation, invalid inputs,
+and resident-deletion safety. The complete HEADLESS configuration built and
+passed 15/15 CTests. The SDL_RENDERER/SDL3 configuration also built and passed
+15/15 CTests, including `people_runtime_smoke`, under an isolated 1280 x 720
+X11 display. A direct SDL offscreen run independently passed the same suite.
+
+Verification used clean CNA `14ff4be7c9690ead2030a02878c6be39802f6863`
+and clean sharp-runtime
+`54578590b328aa9612fe38bfddca9fd8ca795144`; both were on branch `next` and
+People modified neither checkout. The only compiler diagnostic in the People
+translation-unit build was sharp-runtime's existing pedantic `__int128`
+warning. CNA's vendored Draco configuration still emits its existing CMP0148
+developer warning. No People, CNA, or sharp-runtime blocker is recorded.
+
+Earlier interactive movement QA, before CNA advanced to this clean revision,
+captured mid-route and arrived frames and confirmed visible motion and floor
+contact. The current-revision X11 smoke validates runtime startup/rendering but
+does not simulate a mouse command; therefore no new exact-revision interactive
+movement claim is made. Resident rendering intentionally remains an idle pose
+sliding between tiles until `PEO-072` supplies simulation-driven walk frames.
