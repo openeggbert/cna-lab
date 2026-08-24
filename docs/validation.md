@@ -577,6 +577,32 @@ complete residency. The maxima correlate to `mixed_drive` samples 534/208 and sc
 qualifying-intent report fails only for the deliberate offscreen label plus two machine-derived
 `Headless` states. No visible display was used and physical M12 remains open.
 
+## M13 asset provenance and notice gate
+
+The current first-district production set is now enforced by `scripts/asset_registry.py`, not a
+manual CSV convention. The exact version-1 registry contains 15 approved shipping rows (11 original,
+4 external) and now includes the previously omitted runtime `assets/config/game.json`. Each row
+binds both content and local license evidence by SHA-256 and records source/acquisition where
+external, allow-listed license, modification/attribution/commercial/redistribution/AI review,
+reviewer, approval, shipping state, and notes. Recursive coverage includes runtime audio/config/
+cutscene/dialogue/mission content, MC3/glTF production sources, and the code-embedded bitmap font;
+generated GLB/CNJ files inherit source/converter provenance.
+
+Primary evidence was refreshed from the authors' own sources on 2026-08-24. The font8x8 README and
+`font8x8_basic.h` identify the data as Public Domain; the Nox Sound Design product page identifies
+all sounds as CC0, allows commercial use without attribution/restrictions, and reports no generative
+AI. Review records preserve the observed upstream SHA-256/source facts under
+`assets/licenses/evidence/`, and registry rows bind those local files by a second hash.
+
+`THIRD_PARTY_ASSETS.md` is generated atomically and deterministically with per-file source/license/
+content hash and evidence/reviewer tables. `THIRD_PARTY.md` links it, CMake installs both notices,
+and `build-assets.sh` refuses conversion when the registry or notice is stale. Seven focused tests
+cover the real registry, deterministic generation, unknown-file coverage, asset/evidence tamper,
+license/rights/approval policy, duplicate/case collision, stale output, and input-overwrite refusal.
+The complete virtual-display-free CTest passes 10/10. A clean install to
+`/tmp/iron-gang-m13-install-20260824` includes a byte-identical generated notice. This closes M13
+asset provenance/notices; actual dependency-license copies and clean runnable packaging remain M14.
+
 ## Full CNA-linked build status
 
 A full Iron Gang executable (`iron_gang`) links successfully in this workspace using the `compile-software` preset against `../cnanext` and `../sharp-runtime`. The CNA-vendored SDL/SDL_image/SDL_mixer submodules are populated here; `cna-extended` is no longer required. The `dev-easygl` preset now selects CNA's public `OPENGLES3` renderer name (whose implementation is EasyGL), while `dev-vulkan` selects `VULKAN`. Both compile-software and Release EasyGL are exercised here; Vulkan remains unverified in this environment.

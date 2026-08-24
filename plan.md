@@ -57,8 +57,9 @@ Guiding philosophy: full Mafia-1 **content** scope, but Mafia-1-era **system** f
 14. **M13 — Legal/content gate:** all shipping assets are approved and credited.
 15. **M14 — External build/release gate:** clean machine/workspace can build, install, and complete the demo.
 
-Current integrated status (2026-08-24): M0-M11 are complete at prototype/first-pass fidelity. M12
-remains open only for the controlled physical-display qualification: two independent Release EasyGL
+Current integrated status (2026-08-24): M0-M11 and the independently verifiable M13 asset/legal gate
+are complete at prototype/first-pass fidelity. M12 remains open only for the controlled
+physical-display qualification: two independent Release EasyGL
 AMD offscreen `mixed` captures already pass every direct frame/CPU/district/RAM/complete-DRM budget
 and compare `NO REGRESSION`, but their machine-derived native-window evidence is `Headless/false`.
 They therefore establish the Linux EasyGL baseline and memory result without being promoted to a
@@ -68,6 +69,9 @@ largest frame intervals with zero-based sample index plus scenario phase/update 
 no-window AMD pair had 17.997/17.868 ms p95, 30.114/26.204 ms maximum, no minimum misses/hitches,
 stable 55.574 MiB complete residency, and `NO REGRESSION`. This diagnostic addition localizes future
 outliers but does not change the physical-display qualification boundary.
+M13 now has a versioned, hash/evidence/rights/reviewer/approval-enforced production asset registry,
+seven focused tests, deterministic `THIRD_PARTY_ASSETS.md`, and verified CMake installation of that
+notice. M14 remains open for the broader clean runnable release package and dependency bundling.
 
 ## Task index
 

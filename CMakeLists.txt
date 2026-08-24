@@ -236,6 +236,11 @@ if(IRON_GANG_BUILD_TESTS)
         COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_m12_capture_pair.py"
             "${CMAKE_CURRENT_SOURCE_DIR}/scripts/m12_capture_pair.py")
+    add_test(NAME iron_gang_asset_registry_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_asset_registry.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/asset_registry.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME iron_gang_content_budget_tests
         COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_content_budget.py"
@@ -288,4 +293,4 @@ endif()
 
 install(TARGETS iron_gang RUNTIME DESTINATION bin)
 install(DIRECTORY assets/ DESTINATION share/iron-gang/assets)
-install(FILES README.md LICENSE THIRD_PARTY.md DESTINATION share/iron-gang)
+install(FILES README.md LICENSE THIRD_PARTY.md THIRD_PARTY_ASSETS.md DESTINATION share/iron-gang)

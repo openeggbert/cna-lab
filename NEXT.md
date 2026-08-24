@@ -8,10 +8,12 @@ until the end of a session to reconstruct it from memory.
 
 Repo: `/rv/data/development/github.com/openeggbert/iron-gang`, branch `develop` (not `master` —
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
-Remote `origin` is configured. Work is currently kept in local commits until explicitly authorized;
-`origin/develop` ends at `01613d0`, while the paired-capture automation and later work remain local.
+Remote `origin` is configured. The owner explicitly authorized this handoff to push the accumulated
+paired-capture, worst-frame-correlation, and M13 asset-provenance commits; after the handoff,
+`develop` and `origin/develop` are synchronized through the M13 commit.
 
-Gates M0-M11 (see `plan.md` milestone order) are done at prototype/first-pass fidelity, including
+Gates M0-M11 and the independently verifiable M13 asset/legal gate (see `plan.md` milestone order)
+are done at prototype/first-pass fidelity, including
 M9's and M11's own literal "ten-minute soak" criteria (`plan_39-vertical-slice-gates.md`
 `IG-39-010`/`049`, `IG-39-067`) — see each entry below. Gate M10 (production assets/collision,
 baked lighting, one dynamic sun, limited shadows, audio, UI) is fully done: on-screen HUD, dynamic
@@ -67,6 +69,31 @@ scope decisions that drove that cut (Mafia-1 (2002) content scope, Mafia-1-era s
 no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting target, etc.).
 
 ## What changed most recently (this session)
+
+**M13 asset provenance and generated notices are complete for the current slice.** The prior CSV was
+a manual list without content/evidence hashes, approval state, coverage enforcement, or generated
+output; it also omitted the shipped runtime `assets/config/game.json`.
+
+- New standard-library `scripts/asset_registry.py` defines an exact schema-version-1 CSV and checks
+  all current runtime content directories, MC3/glTF production sources, and the embedded bitmap font.
+  Every row binds the asset plus local license evidence by SHA-256 and records source/acquisition,
+  allow-listed license, modification/attribution/commercial/redistribution/AI review, reviewer,
+  approval, and shipping state.
+- Unknown files/licenses, stale asset or evidence hashes, duplicate content/ids/paths, path escape,
+  symlink/case collision, denied shipping rights, incomplete approval, malformed HTTPS/date data,
+  stale notice, and output aliasing all fail closed with exit 2. `build-assets.sh` runs the check
+  before conversion.
+- Primary-source license facts were rechecked on 2026-08-24: font8x8's upstream README/header say
+  Public Domain; Nox Sound Design's product page says all sounds are CC0, commercial use is allowed,
+  attribution is not required, and no generative AI was used. Hash-bound review records are under
+  `assets/licenses/evidence/`.
+- `THIRD_PARTY_ASSETS.md` is generated deterministically from the four external rows and installed
+  with `LICENSE` and `THIRD_PARTY.md`. Seven focused tests cover the real registry plus failure modes;
+  the full no-display CTest is now 10/10. A clean install under
+  `/tmp/iron-gang-m13-install-20260824` contains a byte-identical generated notice.
+- `IG-39-014` and the implemented asset-registry/license-policy tasks in `plan_11` are closed. M14
+  still needs an actual clean runnable release package and copies of dependency license texts; do
+  not confuse the completed asset notice with that broader package gate.
 
 **The formerly unlocatable frame maximum is now correlated to bounded scenario context.** Schema 8
 keeps its aggregate/histogram contract and adds `worst_frame_intervals`: the eight largest existing

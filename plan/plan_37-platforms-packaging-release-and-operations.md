@@ -13,7 +13,7 @@ and console/mobile/web ports are explicit non-goals for v1 (see group 40).
 - [ ] **IG-37-001 P0** — Define Linux desktop + EasyGL as the officially supported primary OS/backend combination.
 - [ ] **IG-37-002 P0** — Define Windows desktop + EasyGL as the officially supported secondary OS/backend combination.
 - [ ] **IG-37-003 P0** — Create one reproducible development package and one release package per supported OS.
-- [ ] **IG-37-004 P0** — Include license and third-party notices in every package.
+- [ ] **IG-37-004 P0** — Include license and third-party notices in every package. *(Partial: CMake now installs repository `LICENSE`, dependency summary `THIRD_PARTY.md`, and generated/CTest-verified `THIRD_PARTY_ASSETS.md`; a clean temporary install confirms all three. Still open: copy the actual required dependency license texts into the final release archive rather than relying only on the summary.)*
 - [ ] **IG-37-005 P1** — Create platform-specific settings/save/cache directories for Linux and Windows.
 - [ ] **IG-37-006 P1** — Create application icon, metadata, and version resources after branding is cleared.
 - [ ] **IG-37-007 P1** — Create clean install/uninstall tests for both supported platforms.

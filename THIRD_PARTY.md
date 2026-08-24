@@ -16,4 +16,8 @@ Two pieces of external content are now bundled (gate M10), both tracked in `asse
 - **font8x8** (Public Domain, no attribution required) — a public-domain 8x8 bitmap font (`https://github.com/dhepper/font8x8`) embedded directly as a C++ array in `src/UI/BitmapFont.cpp` to build the on-screen HUD's `SpriteFont`.
 - **Nox Sound Design's "Essentials Series"** (CC0, no attribution required) — three individual sound effects (`assets/audio/engine_loop.wav`, `horn.wav`, `footstep.wav`) extracted from the pack on itch.io.
 
+The per-file content notice, exact SHA-256 values, primary-source links, and local review-evidence
+hashes are generated from the approved registry in `THIRD_PARTY_ASSETS.md`. Both notice files are
+installed with every CMake package; CTest refuses a stale generated asset notice.
+
 No other external textures, character models, vehicle models, music, or other downloaded content is bundled — everything else (MC3 scenes, the hand-authored test-character glTF, mission/cutscene/dialogue data) is an original Iron Gang asset. Future additions must be entered in `assets/licenses/asset-registry.csv` and reviewed for commercial use, modification, attribution, and redistribution rights.

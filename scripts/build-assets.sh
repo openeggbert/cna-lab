@@ -11,6 +11,10 @@ output_root="${2:-$project_root/assets/generated/prototype_city_block}"
 mc3togltf="$MESH_CRAFT_BUILD_DIR/mc3togltf/mc3togltf"
 gltf_to_cnj="$CNA_BUILD_DIR/cna_tool_gltf_to_cnj"
 
+"$project_root/scripts/asset_registry.py" \
+  --project-root "$project_root" \
+  --check-notice "$project_root/THIRD_PARTY_ASSETS.md"
+
 if [[ ! -x "$mc3togltf" ]]; then
   echo "mc3togltf not found or not executable: $mc3togltf" >&2
   exit 1
