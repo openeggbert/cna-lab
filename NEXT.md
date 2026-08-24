@@ -67,6 +67,41 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**Gate M12 is now instrumented and baselined, but remains OPEN** (`plan_39` `IG-39-013`). The
+old continuity note said EasyGL had never been build-verified and that this headless environment
+might block there; that is no longer true. `dev-easygl` and `release-easygl` both configure/build,
+and the executable successfully opened the host display through CNA EasyGL (OpenGL ES 3.2 Mesa
+25.0.7) and completed bounded real-GPU runs at 1280x720.
+
+- New `IronGang::PerformanceProfiler` (`include/`/`src/Core/PerformanceProfiler.*`) records
+  end-to-end Draw-start frame intervals (therefore including scheduling, v-sync and preceding
+  Present/GPU back-pressure) plus CPU time for whole Update, physics, AI, game-owned audio
+  control, Draw command submission, synchronous district load, and startup. It computes
+  average/p95/maximum with nearest-rank p95 and writes a versioned JSON report via new
+  `--profile <path>`.
+- New `--profile-scenario mixed` is deterministic profiling-only automation: it dismisses the
+  intro, walks for 2 fixed-update seconds, switches to driving, and forces one real district
+  transition after 8 fixed-update seconds. Ordinary play and ordinary `--smoke` are unchanged.
+- The JSON embeds the locked 720p/30 FPS, 2 GiB RAM, 512 MiB VRAM, 1-second district-load and
+  per-CPU-subsystem p95 budgets; reports peak physics/traffic/pedestrian/police counts; Linux RAM
+  high-water comes from `/proc/self/status`. Iron Gang-owned mesh/lightmap/HUD allocations are
+  counted, but imported CNA model/effect residency is not exposed by CNA, so reports explicitly
+  say `tracking_complete=false` instead of presenting a partial VRAM value as a gate pass.
+- New unit coverage validates exact average/p95/max values and report pass/fail policy. Full
+  `compile-software` build and all 3 CTest targets pass; both EasyGL configurations compile and
+  real host-display runs exit cleanly.
+- Release EasyGL results (`docs/performance-baseline.md`): intro/idle 300-frame p95 **16.876 ms**
+  (passes 30 FPS, narrowly misses strict 16.667 ms/60 FPS); mixed 900-frame rerun p95
+  **57.705 ms** and longer 1800-frame p95 **51.628 ms** (both fail 30 FPS). Yet mixed CPU p95 is
+  tiny: render submission <=0.532 ms, physics <=0.168 ms, district load <=6.269 ms; RAM ~220 MiB.
+  An earlier Debug mixed run passed 30 FPS at 28.925 ms. Two otherwise identical final 180-frame
+  Release intro runs made back-to-back also flipped from 51.381 ms to 16.897 ms p95 while render
+  CPU stayed below 0.71 ms. The end-to-end-vs-CPU gap and this workload-independent flip make
+  GPU/present back-pressure, compositor/v-sync behavior, and unstable host frame pacing the first
+  diagnostic targets; movement-dependent camera/overdraw is still possible but not proven. M12
+  must remain open. Complete VRAM residency and qualification on named minimum hardware are also
+  still missing.
+
 **Gate M11 is now FULLY DONE** (mission happy-path/failure/retry/save-load/cutscene-skip
 automation, `plan_39` `IG-39-012`, itemized in `IG-39-060`-`069`). Unlike M0-M10, this gate needed
 almost no new production code -- it's mostly proving what already exists end-to-end:
@@ -830,16 +865,16 @@ patrol cars, save/load persistence of NPC/wanted state, debug views), and `plan_
 audio bus graph or spatial 3D positioning, no ambience/siren content, no menus/gamepad-rebinding)
 are real but not gate-blocking — see each file's own status note for the itemized list.
 
-**If continuing headless/autonomous work, the next milestone is gate M12**
-(`plan/plan_39-vertical-slice-gates.md` `IG-39-013`): frame-time, memory (~2-4GB RAM), VRAM
-(~512MB-1GB), and district-load-time budgets from `docs/performance-targets.md` pass on the
-primary target hardware/backend (Linux EasyGL). This is the gate where the M11 performance
-capture's own caveat becomes directly relevant: real frame-time verification needs an actual
-GPU-backed build (`dev-easygl`/`dev-vulkan` presets), which have never been build-verified in this
-environment (`docs/validation.md`'s own note) -- this may be the point where headless/autonomous
-work genuinely hits a wall that needs the user's own machine with a real display/GPU, not just
-more Claude Code hours. Memory is already confirmed comfortably within budget (~55MB measured vs.
-~2-4GB target) and unlikely to be the actual constraint.
+**If continuing autonomous work, remain on gate M12** (`plan_39` `IG-39-013`), but do not rerun
+the same mixed capture without a diagnostic change. EasyGL is now build- and run-verified here.
+The next useful slice is repeated, phase-labelled intro/walk/drive captures under controlled
+v-sync/compositor conditions, correlating camera position with GPU/present time (or, if CNA cannot
+expose a GPU timer, an external Mesa capture). The back-to-back intro flip must be understood before
+attributing the 51-58 ms mixed p95 only to movement. CPU subsystem and district-load optimization
+is not justified by current evidence; all are far inside budget. In parallel, close the explicit
+VRAM gap by adding a CNA/EasyGL residency counter or a documented external capture, then qualify
+the result on named minimum hardware. Do not mark M12 complete until repeated mixed workloads pass
+33.333 ms p95 and VRAM tracking is complete.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --

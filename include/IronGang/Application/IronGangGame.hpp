@@ -1,5 +1,6 @@
 #pragma once
 
+#include "IronGang/Core/PerformanceProfiler.hpp"
 #include "IronGang/Cutscenes/CutscenePlayer.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
@@ -42,6 +43,9 @@ namespace IronGang
     public:
         explicit IronGangGame(std::string assetRoot);
         void SetSmokeFrames(int frames) noexcept { smokeFramesRemaining_ = frames; }
+        void EnablePerformanceProfile(std::string reportPath);
+        void EnableAutomatedPerformanceScenario() noexcept { automatedPerformanceScenario_ = true; }
+        [[nodiscard]] bool WritePerformanceReport(std::string& error) const;
 
         [[nodiscard]] const std::string& GetTypeName() const override;
 
@@ -62,6 +66,7 @@ namespace IronGang
         // Checks the current district's exit trigger against whichever of player/vehicle is
         // active and requests a transition if it was entered (plan_13 IG-13-002/006).
         void CheckDistrictExit();
+        void BeginDistrictTransition();
         // Repositions player/vehicle at the new district's spawn points once DistrictManager
         // reports the loading screen's minimum display time has elapsed (IG-13-008/009/017/018).
         void HandleDistrictArrival();
@@ -115,6 +120,20 @@ namespace IronGang
         std::string transientStatus_;
         float transientStatusSeconds_{0.0F};
         int smokeFramesRemaining_{-1};
+
+        // Gate M12: enabled only by --profile, so ordinary per-frame play pays no clock reads or
+        // sample-vector growth beyond negligible IsEnabled() checks. Infrequent load paths retain
+        // isolated Clock calls. The pending load value combines synchronous world/physics swapping
+        // with the later renderer rebuild while excluding the loading screen's cosmetic delay.
+        PerformanceProfiler performanceProfiler_;
+        std::string performanceReportPath_;
+        double pendingDistrictLoadCpuMilliseconds_{0.0};
+        bool automatedPerformanceScenario_{false};
+        int automatedPerformanceUpdate_{0};
+        std::size_t peakPhysicsBodyCount_{0};
+        std::size_t peakTrafficVehicleCount_{0};
+        std::size_t peakPedestrianCount_{0};
+        int peakPoliceVehicleCount_{0};
 
         // Gate M6 vehicle entry/exit animation state (see VehicleTransitionState's own comment).
         VehicleTransitionState vehicleTransitionState_{VehicleTransitionState::None};

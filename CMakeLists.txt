@@ -101,6 +101,7 @@ add_subdirectory("${IRON_GANG_JOLT_DIR}/Build" "${CMAKE_BINARY_DIR}/_deps/jolt")
 include(cmake/CompilerWarnings.cmake)
 
 add_library(iron_gang_core STATIC
+    src/Core/PerformanceProfiler.cpp
     src/Cutscenes/CutscenePlayer.cpp
     src/Cutscenes/CutsceneSequence.cpp
     src/Dialogue/DialogueSystem.cpp
@@ -157,7 +158,9 @@ target_include_directories(iron_gang
 
 target_compile_definitions(iron_gang PRIVATE
     IRON_GANG_VERSION="${PROJECT_VERSION}"
-    IRON_GANG_DEFAULT_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets")
+    IRON_GANG_DEFAULT_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
+    IRON_GANG_GRAPHICS_BACKEND="${CNA_GRAPHICS_RENDERER}"
+    IRON_GANG_BUILD_CONFIGURATION="${CMAKE_BUILD_TYPE}")
 
 target_link_libraries(iron_gang PRIVATE
     iron_gang_core

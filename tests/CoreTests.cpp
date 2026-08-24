@@ -1,5 +1,6 @@
 #include "IronGang/Cutscenes/CutscenePlayer.hpp"
 #include "IronGang/Cutscenes/CutsceneSequence.hpp"
+#include "IronGang/Core/PerformanceProfiler.hpp"
 #include "IronGang/Dialogue/DialogueSystem.hpp"
 #include "IronGang/Gameplay/Pedestrian.hpp"
 #include "IronGang/Gameplay/PlayerController.hpp"
@@ -21,6 +22,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <numbers>
 #include <stdexcept>
 #include <string>
@@ -877,6 +879,58 @@ namespace
         Require(loaded->districtId == source.districtId, "district id round-trip failed");
         std::filesystem::remove(path);
     }
+
+    void TestPerformanceProfilerStatisticsAndReport()
+    {
+        IronGang::PerformanceProfiler profiler;
+        profiler.SetEnabled(true);
+        for (int sample = 1; sample <= 20; ++sample)
+        {
+            profiler.Record(IronGang::PerformanceMetric::FrameInterval, static_cast<double>(sample));
+        }
+        profiler.Record(IronGang::PerformanceMetric::DistrictLoadCpu, 12.5);
+
+        const IronGang::PerformanceStatistics frame =
+            profiler.GetStatistics(IronGang::PerformanceMetric::FrameInterval);
+        Require(frame.sampleCount == 20, "performance profiler must retain every recorded sample");
+        Require(std::abs(frame.averageMilliseconds - 10.5) < 1e-9,
+                "performance profiler average must match the hand-computed value");
+        Require(std::abs(frame.p95Milliseconds - 19.0) < 1e-9,
+                "performance profiler p95 must use the nearest-rank definition");
+        Require(std::abs(frame.maximumMilliseconds - 20.0) < 1e-9,
+                "performance profiler maximum must match the largest sample");
+
+        IronGang::PerformanceReportContext context;
+        context.backend = "TEST";
+        context.buildConfiguration = "Debug";
+        context.scenario = "unit_test";
+        context.width = 1280;
+        context.height = 720;
+        context.peakResidentBytes = 64ULL * 1024ULL * 1024ULL;
+        context.trackedVideoMemoryBytes = 8ULL * 1024ULL * 1024ULL;
+        context.physicsBodyCount = 7;
+        context.trafficVehicleCount = 2;
+        context.pedestrianCount = 2;
+
+        const std::filesystem::path path =
+            std::filesystem::current_path() / "iron_gang_performance_report_test.json";
+        std::string error;
+        Require(profiler.WriteJsonReport(path.string(), context, error),
+                "performance report write failed: " + error);
+        std::ifstream input(path);
+        const std::string report((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+        Require(report.find("\"backend\": \"TEST\"") != std::string::npos,
+                "performance report must identify its graphics backend");
+        Require(report.find("\"minimum_frame_rate_pass\": true") != std::string::npos,
+                "19ms p95 must pass the 30 FPS minimum budget");
+        Require(report.find("\"recommended_frame_rate_pass\": false") != std::string::npos,
+                "19ms p95 must fail the stricter 60 FPS recommended budget");
+        Require(report.find("\"cpu_subsystems_pass\": false") != std::string::npos,
+                "missing CPU subsystem samples must not be represented as a pass");
+        Require(report.find("\"tracking_complete\": false") != std::string::npos,
+                "partial VRAM accounting must never be represented as complete");
+        std::filesystem::remove(path);
+    }
 }
 
 int main()
@@ -907,6 +961,7 @@ int main()
         TestVehicleStatePersistsIndependentlyOfPlayer();
         TestDistrictTransitionPreservesMissionState();
         TestSaveRoundTrip();
+        TestPerformanceProfilerStatisticsAndReport();
         std::cout << "Iron Gang core tests passed\n";
         return 0;
     }

@@ -233,6 +233,18 @@ namespace IronGang
         const auto& atlasPixels = cityBuilder.GetAtlasPixels();
         atlasTexture->SetData(atlasPixels.data(), static_cast<int>(atlasPixels.size()));
         lightmapEffect_->SetOwnedTexture2(std::move(atlasTexture));
+        lightmapTextureBytes_ = sizeof(Color) + atlasPixels.size() * sizeof(Color);
+    }
+
+    std::size_t PrototypeRenderer::GetTrackedVideoMemoryBytes() const noexcept
+    {
+        return staticCityLightmapMesh_.GetTrackedVideoMemoryBytes() +
+               vehicleMesh_.GetTrackedVideoMemoryBytes() +
+               playerMesh_.GetTrackedVideoMemoryBytes() +
+               trafficVehicleMesh_.GetTrackedVideoMemoryBytes() +
+               pedestrianMesh_.GetTrackedVideoMemoryBytes() +
+               policeCarMesh_.GetTrackedVideoMemoryBytes() +
+               shadowDecalMesh_.GetTrackedVideoMemoryBytes() + lightmapTextureBytes_;
     }
 
     void PrototypeRenderer::DrawMesh(GraphicsDevice& device,

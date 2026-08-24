@@ -9,6 +9,7 @@
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 #include "Microsoft/Xna/Framework/Matrix.hpp"
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -104,6 +105,11 @@ namespace IronGang
                          const std::vector<ActorPose>& pedestrians,
                          const std::vector<ActorPose>& policeCars);
 
+        // Counts allocations Iron Gang creates with known dimensions. Imported CNJ model/effect
+        // resources remain outside this value because CNA currently exposes no complete backend
+        // residency counter; performance reports label that limitation explicitly.
+        [[nodiscard]] std::size_t GetTrackedVideoMemoryBytes() const noexcept;
+
     private:
         // tint multiplies vertex color (see SunLight.hpp's own comment on why this, rather than
         // CNA's built-in lighting, drives gate M10's "dynamic sun"). Defaults to full brightness
@@ -143,6 +149,7 @@ namespace IronGang
         // std::shared_ptr so lightmapEffect_'s SetOwnedTexture()/SetOwnedTexture2() (which take
         // shared ownership, matching real XNA's GC-tracked Effect.Texture) can keep them alive.
         std::shared_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> lightmapNeutralTexture_;
+        std::size_t lightmapTextureBytes_{0};
 
         PrimitiveMesh vehicleMesh_;
         PrimitiveMesh playerMesh_;

@@ -234,3 +234,48 @@ Heaven, and a lightly modernized indie 3D look**, a more realistic target is:
 
 With disciplined optimization, the game could run on quite old hardware while
 reaching hundreds of FPS on modern machines.
+
+## Automated capture budgets
+
+Gate M12 uses p95 rather than an average so a capture cannot hide frequent slow frames behind
+fast ones. The first-district budgets enforced by `--profile` are:
+
+| Metric | Minimum gate |
+| --- | ---: |
+| End-to-end frame interval at 1280x720 | 33.333 ms (30 FPS) |
+| Whole game update CPU | 8.0 ms |
+| Physics CPU | 3.0 ms |
+| Traffic/pedestrian/police AI CPU | 2.0 ms |
+| Game-owned audio control CPU | 1.0 ms |
+| Render submission CPU | 8.0 ms |
+| Synchronous district load + renderer rebuild | 1000 ms |
+| Peak resident RAM | 2 GiB |
+| VRAM | 512 MiB |
+
+The recommended frame interval is 16.667 ms (60 FPS). The subsystem CPU rows are nested inside
+the whole update/render work and therefore are not added together as independent frame costs.
+`frame_interval` is the authoritative end-to-end measurement: it includes scheduling, vertical
+sync, the preceding buffer presentation, and GPU back-pressure. `render_cpu` measures only command
+submission and can be small while `frame_interval` is slow.
+
+The current CNA/EasyGL API does not expose complete GPU residency. The report therefore records
+known Iron Gang-owned mesh/lightmap/HUD allocations as `tracked_bytes`, sets
+`tracking_complete: false`, and does not treat that partial count as proof that the VRAM gate is
+complete. Imported CNJ model/effect allocations still require a backend counter or an external
+GPU capture.
+
+A repeatable representative capture is:
+
+```bash
+./scripts/preflight.sh release-easygl
+cmake --preset release-easygl
+cmake --build --preset release-easygl
+SDL_AUDIODRIVER=dummy ./cmake-build-release-easygl/iron_gang \
+  --smoke 900 \
+  --profile runtime/performance/m12-release-easygl.json \
+  --profile-scenario mixed
+```
+
+The `mixed` scenario deterministically skips the intro, walks for two fixed-time seconds, drives,
+and performs a real district transition after eight fixed-time seconds. It exists only for
+profiling; ordinary play and ordinary `--smoke` behavior are unchanged.

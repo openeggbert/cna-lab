@@ -140,6 +140,8 @@ namespace IronGang
             BufferUsage::None);
         indexBuffer_->SetData(indices.data(), static_cast<int>(indices.size()));
         primitiveCount_ = static_cast<int>(indices.size() / 3U);
+        trackedVideoMemoryBytes_ = vertices.size() * sizeof(VertexPositionColorTexture) +
+                                   indices.size() * sizeof(std::uint16_t);
     }
 
     void LightmapPrimitiveMesh::Draw(GraphicsDevice& device) const

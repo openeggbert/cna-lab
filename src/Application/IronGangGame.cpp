@@ -14,6 +14,7 @@
 #include "System/TimeSpan.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <iostream>
@@ -30,6 +31,15 @@ namespace IronGang
 
     namespace
     {
+#ifndef IRON_GANG_GRAPHICS_BACKEND
+#define IRON_GANG_GRAPHICS_BACKEND "unknown"
+#endif
+#ifndef IRON_GANG_BUILD_CONFIGURATION
+#define IRON_GANG_BUILD_CONFIGURATION "unknown"
+#endif
+
+        constexpr int kBackBufferWidth = 1280;
+        constexpr int kBackBufferHeight = 720;
         // Gate M9: how far ahead (and how far sideways from dead-ahead) something must be to
         // count as an obstacle a TrafficVehicle should brake for -- a simplified stand-in for a
         // real forward collision sensor, matching this system's kinematic-mover scope.
@@ -64,8 +74,8 @@ namespace IronGang
         : graphicsDeviceManager_(std::make_unique<GraphicsDeviceManager>(this)),
           assetRoot_(std::move(assetRoot))
     {
-        graphicsDeviceManager_->setPreferredBackBufferWidthProperty(1280);
-        graphicsDeviceManager_->setPreferredBackBufferHeightProperty(720);
+        graphicsDeviceManager_->setPreferredBackBufferWidthProperty(kBackBufferWidth);
+        graphicsDeviceManager_->setPreferredBackBufferHeightProperty(kBackBufferHeight);
         graphicsDeviceManager_->setSynchronizeWithVerticalRetraceProperty(true);
         setTargetElapsedTimeProperty(System::TimeSpan::FromMilliseconds(1000.0 / 60.0));
         getWindowProperty().setTitleProperty("Iron Gang - starting");
@@ -78,8 +88,42 @@ namespace IronGang
         return typeName;
     }
 
+    void IronGangGame::EnablePerformanceProfile(std::string reportPath)
+    {
+        performanceReportPath_ = std::move(reportPath);
+        performanceProfiler_.SetEnabled(!performanceReportPath_.empty());
+    }
+
+    bool IronGangGame::WritePerformanceReport(std::string& error) const
+    {
+        if (performanceReportPath_.empty())
+        {
+            error.clear();
+            return true;
+        }
+
+        PerformanceReportContext context;
+        context.backend = IRON_GANG_GRAPHICS_BACKEND;
+        context.buildConfiguration = IRON_GANG_BUILD_CONFIGURATION;
+        context.scenario = automatedPerformanceScenario_ ? "mixed" : "interactive_or_intro";
+        context.width = kBackBufferWidth;
+        context.height = kBackBufferHeight;
+        context.peakResidentBytes = PerformanceProfiler::ReadPeakResidentBytes();
+        context.trackedVideoMemoryBytes = renderer_.GetTrackedVideoMemoryBytes() +
+            static_cast<std::uint64_t>(kFont8x8AtlasWidth) * static_cast<std::uint64_t>(kFont8x8AtlasHeight) *
+                sizeof(Color);
+        context.videoMemoryTrackingComplete = false;
+        context.physicsBodyCount = peakPhysicsBodyCount_;
+        context.trafficVehicleCount = peakTrafficVehicleCount_;
+        context.pedestrianCount = peakPedestrianCount_;
+        context.policeVehicleCount = peakPoliceVehicleCount_;
+        return performanceProfiler_.WriteJsonReport(performanceReportPath_, context, error);
+    }
+
     void IronGangGame::Initialize()
     {
+        ScopedPerformanceSample startupSample(performanceProfiler_, PerformanceMetric::StartupCpu);
+        const PerformanceProfiler::Clock::time_point initialDistrictLoadStart = PerformanceProfiler::Clock::now();
         Game::Initialize();
         districtManager_.Initialize(physics_);
         player_.Reset(districtManager_.GetWorld().GetPlayerSpawn(), 0.0F, physics_);
@@ -196,6 +240,10 @@ namespace IronGang
 
         renderer_.Initialize(getGraphicsDeviceProperty(), districtManager_.GetWorld(),
                              std::move(warehouseModel), std::move(vehicleModels), std::move(characterModel));
+        performanceProfiler_.Record(
+            PerformanceMetric::DistrictLoadCpu,
+            std::chrono::duration<double, std::milli>(PerformanceProfiler::Clock::now() - initialDistrictLoadStart)
+                .count());
         RespawnTrafficAndPedestrians();
 
         // Gate M10: a real on-screen HUD (see BitmapFont.hpp for why this is a hand-built bitmap
@@ -238,6 +286,18 @@ namespace IronGang
             std::cerr << "[IronGang] " << audioError.what() << " -- no horn sound.\n";
         }
 
+        // The explicit profiling workload must reach gameplay without synthetic keyboard events.
+        // Ordinary smoke/play behavior is unchanged: only --profile-scenario mixed takes this
+        // deterministic shortcut through the opening dialogue/cutscene.
+        if (automatedPerformanceScenario_)
+        {
+            while (dialogue_.IsActive())
+            {
+                dialogue_.Advance();
+            }
+            cutscene_.Skip();
+        }
+
         UpdateWindowTitle(10.0F);
     }
 
@@ -271,6 +331,9 @@ namespace IronGang
         }
 
         police_.Reset();
+        peakPhysicsBodyCount_ = std::max(peakPhysicsBodyCount_, physics_.GetBodyCount());
+        peakTrafficVehicleCount_ = std::max(peakTrafficVehicleCount_, trafficVehicles_.size());
+        peakPedestrianCount_ = std::max(peakPedestrianCount_, pedestrians_.size());
     }
 
     bool IronGangGame::WasPressed(const KeyboardState& current, Keys key) const
@@ -345,9 +408,18 @@ namespace IronGang
         const Vector3& checkPosition = playerDriving_ ? vehicle_.GetPosition() : player_.GetPosition();
         if (exit.trigger.bounds.ContainsXZ(checkPosition))
         {
-            districtManager_.RequestTransition(physics_);
+            BeginDistrictTransition();
             transientStatus_.clear();
         }
+    }
+
+    void IronGangGame::BeginDistrictTransition()
+    {
+        const PerformanceProfiler::Clock::time_point loadStart = PerformanceProfiler::Clock::now();
+        districtManager_.RequestTransition(physics_);
+        pendingDistrictLoadCpuMilliseconds_ = std::chrono::duration<double, std::milli>(
+                                                   PerformanceProfiler::Clock::now() - loadStart)
+                                                   .count();
     }
 
     void IronGangGame::HandleDistrictArrival()
@@ -369,7 +441,13 @@ namespace IronGang
             player_.SetYaw(vehicle_.GetYaw(), physics_);
         }
 
+        const PerformanceProfiler::Clock::time_point renderLoadStart = PerformanceProfiler::Clock::now();
         renderer_.RebuildStaticGeometry(getGraphicsDeviceProperty(), world);
+        pendingDistrictLoadCpuMilliseconds_ += std::chrono::duration<double, std::milli>(
+                                                   PerformanceProfiler::Clock::now() - renderLoadStart)
+                                                   .count();
+        performanceProfiler_.Record(PerformanceMetric::DistrictLoadCpu, pendingDistrictLoadCpuMilliseconds_);
+        pendingDistrictLoadCpuMilliseconds_ = 0.0;
         RespawnTrafficAndPedestrians();
         transientStatus_ = "Arrived";
         transientStatusSeconds_ = 2.0F;
@@ -412,8 +490,12 @@ namespace IronGang
 
         if (snapshot->districtId != districtManager_.GetWorld().GetId())
         {
+            const PerformanceProfiler::Clock::time_point loadStart = PerformanceProfiler::Clock::now();
             districtManager_.LoadDistrict(snapshot->districtId, physics_);
             renderer_.RebuildStaticGeometry(getGraphicsDeviceProperty(), districtManager_.GetWorld());
+            performanceProfiler_.Record(
+                PerformanceMetric::DistrictLoadCpu,
+                std::chrono::duration<double, std::milli>(PerformanceProfiler::Clock::now() - loadStart).count());
         }
 
         mission_.SetState(snapshot->missionState);
@@ -432,8 +514,12 @@ namespace IronGang
 
     void IronGangGame::ResetPrototype()
     {
+        const PerformanceProfiler::Clock::time_point loadStart = PerformanceProfiler::Clock::now();
         districtManager_.LoadDistrict(DistrictId::WarehouseBlock, physics_);
         renderer_.RebuildStaticGeometry(getGraphicsDeviceProperty(), districtManager_.GetWorld());
+        performanceProfiler_.Record(
+            PerformanceMetric::DistrictLoadCpu,
+            std::chrono::duration<double, std::milli>(PerformanceProfiler::Clock::now() - loadStart).count());
 
         player_.Reset(districtManager_.GetWorld().GetPlayerSpawn(), 0.0F, physics_);
         vehicle_.Reset(districtManager_.GetWorld().GetVehicleSpawn(),
@@ -458,6 +544,24 @@ namespace IronGang
 
     void IronGangGame::Update(GameTime& gameTime)
     {
+        ScopedPerformanceSample updateSample(performanceProfiler_, PerformanceMetric::UpdateCpu);
+        double audioCpuMilliseconds = 0.0;
+        bool physicsSampleRecorded = false;
+        bool aiSampleRecorded = false;
+        const auto measureAudio = [&](auto&& operation)
+        {
+            if (!performanceProfiler_.IsEnabled())
+            {
+                operation();
+                return;
+            }
+            const PerformanceProfiler::Clock::time_point start = PerformanceProfiler::Clock::now();
+            operation();
+            audioCpuMilliseconds += std::chrono::duration<double, std::milli>(
+                                        PerformanceProfiler::Clock::now() - start)
+                                        .count();
+        };
+
         Game::Update(gameTime);
         const float deltaSeconds = static_cast<float>(
             gameTime.getElapsedGameTimeProperty().getTotalSecondsProperty());
@@ -471,7 +575,26 @@ namespace IronGang
 
         districtManager_.Update(deltaSeconds);
         HandleDistrictArrival();
-        const bool transitioning = districtManager_.IsTransitioning();
+        bool transitioning = districtManager_.IsTransitioning();
+
+        // Representative M12 workload at a deterministic 60 Hz fixed update: two seconds of
+        // walking, then driving, then one real district swap after eight seconds. It exercises
+        // character/vehicle physics, footsteps/engine control, ambient AI, the loading screen,
+        // static-body replacement, and renderer geometry rebuild in one bounded capture.
+        if (automatedPerformanceScenario_ && !transitioning)
+        {
+            if (automatedPerformanceUpdate_ == 120)
+            {
+                playerDriving_ = true;
+                player_.SetPosition(vehicle_.GetPosition(), physics_);
+                player_.SetYaw(vehicle_.GetYaw(), physics_);
+            }
+            else if (automatedPerformanceUpdate_ == 480)
+            {
+                BeginDistrictTransition();
+                transitioning = true;
+            }
+        }
 
         // Gate M8: ticks independently of dialogue's own pace -- the cutscene has its own short,
         // fixed duration and naturally hands control back on its own, but pressing Enter while
@@ -516,7 +639,7 @@ namespace IronGang
         }
         if (WasPressed(keyboard, Keys::H) && playerDriving_ && hornSound_)
         {
-            hornSound_->Play();
+            measureAudio([&]() { hornSound_->Play(); });
         }
 
         if (!dialogue_.IsActive() && !cutscene_.IsActive() && !transitioning)
@@ -529,7 +652,17 @@ namespace IronGang
                 input.steering = (keyboard.IsKeyDown(Keys::D) || keyboard.IsKeyDown(Keys::Right) ? 1.0F : 0.0F) -
                                  (keyboard.IsKeyDown(Keys::A) || keyboard.IsKeyDown(Keys::Left) ? 1.0F : 0.0F);
                 input.handbrake = keyboard.IsKeyDown(Keys::Space);
-                vehicle_.Update(deltaSeconds, input, physics_);
+                if (automatedPerformanceScenario_)
+                {
+                    input.throttle = 0.65F;
+                    input.steering = 0.0F;
+                    input.handbrake = false;
+                }
+                {
+                    ScopedPerformanceSample physicsSample(performanceProfiler_, PerformanceMetric::PhysicsCpu);
+                    vehicle_.Update(deltaSeconds, input, physics_);
+                }
+                physicsSampleRecorded = true;
                 player_.SetPosition(vehicle_.GetPosition(), physics_);
                 player_.SetYaw(vehicle_.GetYaw(), physics_);
             }
@@ -546,7 +679,18 @@ namespace IronGang
                 input.turn = (keyboard.IsKeyDown(Keys::Right) ? 1.0F : 0.0F) -
                              (keyboard.IsKeyDown(Keys::Left) ? 1.0F : 0.0F);
                 input.sprint = keyboard.IsKeyDown(Keys::LeftShift) || keyboard.IsKeyDown(Keys::RightShift);
-                player_.Update(deltaSeconds, input, physics_);
+                if (automatedPerformanceScenario_)
+                {
+                    input.forward = 1.0F;
+                    input.strafe = 0.0F;
+                    input.turn = 0.0F;
+                    input.sprint = false;
+                }
+                {
+                    ScopedPerformanceSample physicsSample(performanceProfiler_, PerformanceMetric::PhysicsCpu);
+                    player_.Update(deltaSeconds, input, physics_);
+                }
+                physicsSampleRecorded = true;
 
                 // Gate M6: locomotion clip switching, crossfaded by the renderer's small
                 // AnimationPlayer-backed state. A no-op if the skinned test character failed to load.
@@ -559,19 +703,22 @@ namespace IronGang
                 // fresh partial-interval wait.
                 if (footstepSound_)
                 {
-                    if (playerIsMoving)
+                    measureAudio([&]()
                     {
-                        footstepTimer_ += deltaSeconds;
-                        if (footstepTimer_ >= kFootstepIntervalSeconds)
+                        if (playerIsMoving)
                         {
-                            footstepTimer_ -= kFootstepIntervalSeconds;
-                            footstepSound_->Play();
+                            footstepTimer_ += deltaSeconds;
+                            if (footstepTimer_ >= kFootstepIntervalSeconds)
+                            {
+                                footstepTimer_ -= kFootstepIntervalSeconds;
+                                footstepSound_->Play();
+                            }
                         }
-                    }
-                    else
-                    {
-                        footstepTimer_ = kFootstepIntervalSeconds;
-                    }
+                        else
+                        {
+                            footstepTimer_ = kFootstepIntervalSeconds;
+                        }
+                    });
                 }
             }
             if (vehicleTransitionState_ == VehicleTransitionState::None)
@@ -586,20 +733,23 @@ namespace IronGang
             // scaling by speed for a bit of dynamism -- not real per-RPM engine modeling.
             if (engineSoundInstance_)
             {
-                if (playerDriving_)
+                measureAudio([&]()
                 {
-                    if (engineSoundInstance_->getStateProperty() != Audio::SoundState::Playing)
+                    if (playerDriving_)
                     {
-                        engineSoundInstance_->Play();
+                        if (engineSoundInstance_->getStateProperty() != Audio::SoundState::Playing)
+                        {
+                            engineSoundInstance_->Play();
+                        }
+                        const float speedFactor = std::clamp(vehicle_.GetSpeedKph() / 80.0F, 0.0F, 1.0F);
+                        engineSoundInstance_->setVolumeProperty(0.4F + 0.4F * speedFactor);
+                        engineSoundInstance_->setPitchProperty(-0.15F + 0.3F * speedFactor);
                     }
-                    const float speedFactor = std::clamp(vehicle_.GetSpeedKph() / 80.0F, 0.0F, 1.0F);
-                    engineSoundInstance_->setVolumeProperty(0.4F + 0.4F * speedFactor);
-                    engineSoundInstance_->setPitchProperty(-0.15F + 0.3F * speedFactor);
-                }
-                else if (engineSoundInstance_->getStateProperty() == Audio::SoundState::Playing)
-                {
-                    engineSoundInstance_->Stop();
-                }
+                    else if (engineSoundInstance_->getStateProperty() == Audio::SoundState::Playing)
+                    {
+                        engineSoundInstance_->Stop();
+                    }
+                });
             }
         }
 
@@ -632,6 +782,8 @@ namespace IronGang
 
         if (!transitioning)
         {
+            ScopedPerformanceSample aiSample(performanceProfiler_, PerformanceMetric::AiCpu);
+            aiSampleRecorded = true;
             // Gate M9: traffic/pedestrians/police keep ticking through dialogue and cutscenes
             // (ambient city life, matching Mafia 1's own feel) -- only a district transition
             // suspends them, same as everything else gated on `transitioning` in this function.
@@ -682,6 +834,7 @@ namespace IronGang
                           vehicle_.GetSpeedKph(),
                           witnessPositions,
                           districtManager_.GetWorld().GetVehicleSpawn() + kPoliceSpawnOffset);
+            peakPoliceVehicleCount_ = std::max(peakPoliceVehicleCount_, police_.GetActivePatrolCount());
 
             mission_.Update(dialogue_.IsFinished(),
                             player_.GetPosition(),
@@ -696,6 +849,19 @@ namespace IronGang
         }
         UpdateWindowTitle(deltaSeconds);
         previousKeyboard_ = keyboard;
+        if (!physicsSampleRecorded)
+        {
+            performanceProfiler_.Record(PerformanceMetric::PhysicsCpu, 0.0);
+        }
+        if (!aiSampleRecorded)
+        {
+            performanceProfiler_.Record(PerformanceMetric::AiCpu, 0.0);
+        }
+        performanceProfiler_.Record(PerformanceMetric::AudioCpu, audioCpuMilliseconds);
+        if (automatedPerformanceScenario_)
+        {
+            ++automatedPerformanceUpdate_;
+        }
     }
 
     void IronGangGame::UpdateWindowTitle(float deltaSeconds)
@@ -749,6 +915,8 @@ namespace IronGang
 
     void IronGangGame::Draw(const GameTime& gameTime)
     {
+        performanceProfiler_.BeginFrame();
+        ScopedPerformanceSample renderSample(performanceProfiler_, PerformanceMetric::RenderCpu);
         (void)gameTime;
         Graphics::GraphicsDevice& device = getGraphicsDeviceProperty();
 

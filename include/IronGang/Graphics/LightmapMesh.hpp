@@ -6,6 +6,7 @@
 #include "Microsoft/Xna/Framework/Graphics/VertexPositionColorTexture.hpp"
 #include "Microsoft/Xna/Framework/Vector3.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -77,10 +78,12 @@ namespace IronGang
                     const LightmapMeshBuilder& builder);
         void Draw(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device) const;
         [[nodiscard]] bool IsReady() const noexcept { return vertexBuffer_ != nullptr && indexBuffer_ != nullptr; }
+        [[nodiscard]] std::size_t GetTrackedVideoMemoryBytes() const noexcept { return trackedVideoMemoryBytes_; }
 
     private:
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> vertexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> indexBuffer_;
         int primitiveCount_{0};
+        std::size_t trackedVideoMemoryBytes_{0};
     };
 }

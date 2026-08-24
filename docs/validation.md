@@ -1,5 +1,21 @@
 # Validation record
 
+## M12 profiling baseline (2026-08-24)
+
+The `dev-easygl` and `release-easygl` presets now both configure, compile, launch, and render on
+this workspace's host display (OpenGL ES 3.2 Mesa through CNA EasyGL). Iron Gang now has a bounded
+`--profile <json>` capture and a deterministic `--profile-scenario mixed` workload covering walk,
+drive, ambient AI, physics, audio control, and a real district transition. Unit tests cover p95/
+average/maximum calculation and report policy; the real EasyGL runs validate the integrated path.
+
+The first Release baseline does **not** close M12. Intro/idle passes the 30 FPS minimum at 16.876 ms
+frame p95, but mixed movement/load captures reproduce a 51.628-57.705 ms p95 failure even though
+all measured CPU subsystem p95 values are far inside budget. RAM passes at ~220 MiB and district
+load passes at ~6 ms. Two final identical 180-frame intro runs also flipped back-to-back from
+51.381 ms to 16.897 ms p95 with virtually unchanged render CPU, exposing independent host/display
+frame-pacing instability. VRAM reporting is deliberately marked incomplete. Full evidence and the
+next diagnostic question are in `docs/performance-baseline.md`.
+
 ## Current modular dependency baseline (2026-08-22)
 
 Iron Gang now configures against the sibling `../cnanext` and modular `../sharp-runtime`
