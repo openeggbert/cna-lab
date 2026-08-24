@@ -119,8 +119,9 @@ similar emulation core is permitted in the application, build, or test suite.
 - [ ] **6. P1 controls and care menus**
   - [x] Add P1 clock flow: an unconfigured new/reset egg does not run or save;
     A sets the hour, B sets the minute, C confirms, B views the clock with no
-    selected icon, A+C from that Clock view enters SET, and A+C starts an
-    end-screen egg while retaining the established clock.
+    selected icon, C does not leave Clock view, A+C from that view enters SET,
+    C confirms back to Clock view, and B returns home. Initial SET starts the
+    egg directly; A+C starts an end-screen egg while retaining the clock.
   - [x] Reproduce the measured nominal ten-second home-icon selection timeout
     as programme display data, restart it after each A, and keep menu/action
     timing independent from this non-persisted UI timer.

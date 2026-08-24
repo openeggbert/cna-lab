@@ -198,7 +198,7 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
     const bool pressedClockChord = clockChord && !clockChordWasDown_;
     if (pressedClockChord) {
         if (screen_ == Screen::ClockView) {
-            beginClockSetup();
+            beginClockSetup(true);
         } else if (screen_ == Screen::Home && pet_.stage == Domain::ProgramStage::End) {
             startNewEgg();
         } else if (screen_ == Screen::Home && selectedIcon_ < 0) {
@@ -329,7 +329,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
     }
 
     if (screen_ == Screen::ClockView) {
-        if (button == DeviceButton::B || button == DeviceButton::C) {
+        if (button == DeviceButton::B) {
             screen_ = Screen::Home;
         }
         return false;
@@ -348,7 +348,8 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         pet_.clockMinutesOfDay = clockSetupMinutes_;
         lastSavedUnixSeconds_ = unixSecondsNow();
         simulationSeconds_ = 0.0F;
-        screen_ = Screen::Home;
+        screen_ = clockSetupReturnsToClockView_ ? Screen::ClockView : Screen::Home;
+        clockSetupReturnsToClockView_ = false;
         return true;
     }
 
@@ -790,9 +791,10 @@ void CnaTamagotchiGame::startFreshEgg() noexcept
     beginClockSetup();
 }
 
-void CnaTamagotchiGame::beginClockSetup() noexcept
+void CnaTamagotchiGame::beginClockSetup(const bool returnToClockView) noexcept
 {
     clockSetupMinutes_ = pet_.clockMinutesOfDay;
+    clockSetupReturnsToClockView_ = returnToClockView;
     screen_ = Screen::ClockSetup;
 }
 
@@ -802,6 +804,7 @@ void CnaTamagotchiGame::resetPetToEgg() noexcept
     screen_ = Screen::Home;
     selectedIcon_ = -1;
     iconSelectionSeconds_ = 0.0F;
+    clockSetupReturnsToClockView_ = false;
     foodSelection_ = 0;
     menuInactivitySeconds_ = 0.0F;
     lightSelection_ = 0;

@@ -87,7 +87,7 @@ private:
     void resolveCharacterRound(int choice) noexcept;
     void startNewEgg() noexcept;
     void startFreshEgg() noexcept;
-    void beginClockSetup() noexcept;
+    void beginClockSetup(bool returnToClockView = false) noexcept;
     void resetPetToEgg() noexcept;
     void setFeedback(Feedback feedback) noexcept;
     void refreshDisplay() noexcept;
@@ -132,6 +132,7 @@ private:
     RecoveryChoice recoveryChoice_{RecoveryChoice::NewEgg};
     Feedback feedback_{Feedback::None};
     TransientVisual transientVisual_{TransientVisual::None};
+    bool clockSetupReturnsToClockView_{false};
     bool selectNextWasDown_{false};
     bool selectPreviousWasDown_{false};
     bool confirmWasDown_{false};

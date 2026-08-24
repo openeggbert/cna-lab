@@ -46,6 +46,15 @@ write and verify the clean implementation.
   now lives in `DisplayDefinition`; each home A resets the transient timer and
   a 30 fps application trace showed exactly 300 dark-marker frames. The timer
   is not persisted and does not close menus or interrupt named action visuals.
+- A direct existing-pet clock session verified that C does not leave Clock view,
+  A+C enters SET, C confirms that SET back to Clock view, and B alone returns
+  home. The application now remembers whether SET came from Clock view so the
+  initial/reset SET can still start the egg directly. A missed synthetic C let
+  the attempted 08:59 wake boundary pass while SET was still open, so no wake
+  transition frames are accepted from that attempt; a later 30-second home run
+  contained only the already transcribed two stable Marutchi silhouettes.
+  A six-state normal-scale CNA run confirmed Clock → C/Clock → SET → C/Clock
+  → B/Home with the corrected implementation.
 - The hand-drawn device treatment now uses the selected reference's turquoise
   shell family and yellow buttons. It was inspected on a separate Xvfb screen;
   its colours and geometry are authored C++ values, with no reference image
