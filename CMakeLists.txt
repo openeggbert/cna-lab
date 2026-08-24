@@ -60,6 +60,10 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/levels/sector-03.level"
     COPYONLY)
 configure_file(
+    assets/levels/sector-04.level
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/levels/sector-04.level"
+    COPYONLY)
+configure_file(
     assets/sprites/security-guard.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/security-guard.png"
     COPYONLY)
@@ -186,6 +190,10 @@ configure_file(
 configure_file(
     assets/decorations/labs-plant.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/decorations/labs-plant.png"
+    COPYONLY)
+configure_file(
+    assets/decorations/archive-plant.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/decorations/archive-plant.png"
     COPYONLY)
 configure_file(
     assets/title/title-background.png

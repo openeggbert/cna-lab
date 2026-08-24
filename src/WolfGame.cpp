@@ -33,15 +33,17 @@ namespace WolfCna
         constexpr int PanelCount = 5;
         constexpr int AtlasWidth = PanelSize * PanelCount;
         constexpr int AtlasHeight = PanelSize;
-        constexpr std::array<std::string_view, 3> CampaignLevelFiles = {
+        constexpr std::array<std::string_view, 4> CampaignLevelFiles = {
             "assets/levels/starter.level",
             "assets/levels/sector-02.level",
-            "assets/levels/sector-03.level"
+            "assets/levels/sector-03.level",
+            "assets/levels/sector-04.level"
         };
-        constexpr std::array<std::string_view, 3> CampaignLevelNames = {
+        constexpr std::array<std::string_view, 4> CampaignLevelNames = {
             "SECTOR 1 STORAGE",
             "SECTOR 2 FOUNDRY",
-            "SECTOR 3 LABS"
+            "SECTOR 3 LABS",
+            "SECTOR 4 ARCHIVE"
         };
         constexpr std::string_view ProgressFile = "wolf-cna-progress.dat";
         constexpr float KnifeAttackVisualSeconds = 0.11f;
@@ -300,6 +302,7 @@ namespace WolfCna
         storagePlantSprite_ = std::make_unique<Texture2D>("assets/decorations/storage-plant.png", device);
         foundryPlantSprite_ = std::make_unique<Texture2D>("assets/decorations/foundry-plant.png", device);
         labsPlantSprite_ = std::make_unique<Texture2D>("assets/decorations/labs-plant.png", device);
+        archivePlantSprite_ = std::make_unique<Texture2D>("assets/decorations/archive-plant.png", device);
         titleBackground_ = std::make_unique<Texture2D>("assets/title/title-background.png", device);
         CreateProceduralBloodDecal();
         CreateProceduralDecorationTextures();
@@ -352,6 +355,15 @@ namespace WolfCna
             ceilingR = 137; ceilingG = 151; ceilingB = 174;
             doorR = 67; doorG = 91; doorB = 151;
             securityR = 145; securityG = 47; securityB = 104;
+        }
+        else if (levelIndex_ == 3)
+        {
+            mortarR = 48; mortarG = 30; mortarB = 53;
+            wallR = 92; wallG = 54; wallB = 105;
+            floorR = 62; floorG = 43; floorB = 68;
+            ceilingR = 148; ceilingG = 123; ceilingB = 139;
+            doorR = 118; doorG = 76; doorB = 54;
+            securityR = 164; securityG = 53; securityB = 76;
         }
 
         for (int y = 0; y < PanelSize; ++y)
@@ -1830,7 +1842,7 @@ namespace WolfCna
             ammoPickupSprite_ && healthPickupSprite_ && goldBarsSprite_ &&
             goldenGobletSprite_ && peaceMedallionSprite_ &&
             paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_ && lampLightTexture_ &&
-            storagePlantSprite_ && foundryPlantSprite_ && labsPlantSprite_)
+            storagePlantSprite_ && foundryPlantSprite_ && labsPlantSprite_ && archivePlantSprite_)
         {
             world_.Draw(
                 device,
@@ -1866,7 +1878,9 @@ namespace WolfCna
                 *lampLightTexture_,
                 levelIndex_ == 0
                     ? *storagePlantSprite_
-                    : levelIndex_ == 1 ? *foundryPlantSprite_ : *labsPlantSprite_,
+                    : levelIndex_ == 1
+                        ? *foundryPlantSprite_
+                        : levelIndex_ == 2 ? *labsPlantSprite_ : *archivePlantSprite_,
                 playerPosition_);
         }
 

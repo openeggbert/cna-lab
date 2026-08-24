@@ -543,7 +543,7 @@ Goal: give wolf-cna an identity beyond being a retro-FPS technology demo.
 
 Status: started. The original title menu and its Scout / Operative / Veteran
 difficulty selection are implemented. Difficulty currently changes incoming enemy
-damage. Three authored sectors now run in sequence while carrying score, lives,
+damage. Four authored sectors now run in sequence while carrying score, lives,
 health, ammunition and weapon selection; a sector-specific access card resets at
 each elevator transition. Each exit now presents time plus kill, treasure and
 secret completion ratios. Save/load and settings remain.
@@ -998,7 +998,7 @@ Current progress:
 - secret moving walls use the wall material, stay open once found and award 500 score for hidden rewards;
 - the starter level is an authored room-and-corridor route with distributed guards, hounds, pickups, gold, a normal door, a security door and an exit;
 - the game now starts at an original blue-and-amber title menu, with a short controls page and three difficulty choices; Scout takes 70% enemy damage, Operative is the baseline and Veteran takes 140%;
-- three original external level files now form a short room-and-corridor campaign; exits advance with Space and preserve score, lives, health, ammunition and weapon selection;
+- four original external level files now form a room-and-corridor campaign; exits advance with Space and preserve score, lives, health, ammunition and weapon selection;
 - every sector exit now presents a completion card with time and kill, treasure and secret ratios; each category is independently tracked in `World` and covered by unit tests;
 - the in-game `I` + `L` + `M` retro loadout cheat restores health, grants all
   weapons plus the sector card, selects the heavy automatic, fills ammunition
@@ -1007,7 +1007,7 @@ Current progress:
   to that maximum rather than to the ordinary starting supply;
 - a generated looping bunker-ambient layer now runs through CNA `SoundEffectInstance`; the title menu can toggle master sound on/off;
 - `P` now pauses all gameplay simulation and draws a pause card; exits play a generated elevator-confirmation sound;
-- each of the three authored sectors now regenerates the wall, floor, ceiling and door atlas colors from its own original palette;
+- each of the four authored sectors now regenerates the wall, floor, ceiling and door atlas colors from its own original palette;
 - next: playtest and rebalance encounter pacing, then add an original enemy projectile impact effect and a sector-completion fanfare.
 
 ---
@@ -1153,7 +1153,7 @@ separate main menu shown. Full generation provenance is recorded.
 
 ### WOLF-017 — 64×64 sector footprint
 
-Status: complete. All three shipping campaign sectors are exactly 64×64 cells
+Status: complete. All four shipping campaign sectors are exactly 64×64 cells
 and distribute large rooms, loops, landmarks, encounters and secrets throughout
 the footprint. Tests pin both dimensions, require at least 1,500 non-wall cells,
 require one exit and flood-fill every walkable cell from the player spawn to
@@ -1213,3 +1213,19 @@ relay-only, terminal-only and fully unlocked states.
 - give inactive and active relays unmistakably different colors and audio feedback;
 - distribute one relay through each campaign route rather than placing it beside the exit;
 - validate the two-stage unlock sequence with deterministic tests.
+
+### WOLF-020 — archive campaign sector
+
+Status: complete. A fourth selectable and progressively unlocked 64×64 sector
+extends the campaign into an original underground archive. It uses a distinct
+violet, burgundy and bronze generated material palette, its own transparent
+archive-palm landmark, a reflected room route with an altered combat roster and
+all current objective, weapon, decoration and completion systems. Shipping-map
+tests pin its dimensions, connectivity, landmarks and uniqueness from sectors
+one through three.
+
+- add a fourth authored campaign sector and selection entry;
+- give the archive a distinct generated material and decoration identity;
+- include current relay, terminal, exit, secret, combat and weapon systems;
+- preserve progressive unlocking and campaign carry-over;
+- validate the same 64×64 and full-connectivity invariants as earlier sectors.

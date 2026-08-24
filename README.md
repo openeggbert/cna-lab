@@ -24,7 +24,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - a centered completion card appears at the level exit
 - grid collision with wall sliding
 - level loaded from a validated text file
-- a three-sector authored bunker campaign with guards, hounds, pickups, sliding doors, security doors, terminals and exits
+- a four-sector authored bunker campaign with guards, hounds, pickups, sliding doors, security doors, terminals and exits
 - original transparent pixel-art guard, hound, rapid-trooper and heavy-unit sprites rendered as camera-facing polygons in the 3D world
 - idle enemies breathe subtly, while chasing enemies use faster archetype-specific step bob and sway
 - every enemy uses a brief dedicated firing/lunge sprite synchronized with its actual attack event
@@ -70,8 +70,9 @@ directory. Invalid progress data safely falls back to sector 1 only.
 ## Level files
 
 The campaign uses [`assets/levels/starter.level`](assets/levels/starter.level),
-[`assets/levels/sector-02.level`](assets/levels/sector-02.level) and
-[`assets/levels/sector-03.level`](assets/levels/sector-03.level). They use larger
+[`assets/levels/sector-02.level`](assets/levels/sector-02.level),
+[`assets/levels/sector-03.level`](assets/levels/sector-03.level) and
+[`assets/levels/sector-04.level`](assets/levels/sector-04.level). They use larger
 rooms connected by corridors rather than a single continuous maze. Each row must
 have the same width and use only these symbols:
 
@@ -105,7 +106,7 @@ have the same width and use only these symbols:
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 
 An exit is red until every power relay and terminal is active, then turns cyan.
-All three campaign sectors use an exact 64×64-cell footprint with large authored
+All four campaign sectors use an exact 64×64-cell footprint with large authored
 rooms, connecting corridors, loops and optional secret spaces. Focused test maps
 may remain smaller.
 

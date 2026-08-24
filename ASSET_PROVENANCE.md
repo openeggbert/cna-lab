@@ -575,3 +575,20 @@ Avoid: dangerous mutation, horror, photorealism, 3D render, smooth vector art, c
 
 All three image-generation exports contained genuine alpha and were accepted
 without color editing or background masking. No third-party pixels were added.
+
+## `assets/decorations/archive-plant.png`
+
+Prompt:
+
+```text
+Asset type: transparent freestanding decoration billboard sprite for an original retro first-person shooter
+Use: archive-sector potted plant landmark in a real polygonal 3D underground records complex
+Subject: one original deep violet and muted burgundy archive palm with fan-shaped layered leaves growing from a compact dark bronze octagonal planter, small warm amber catalog light built into the pot, dignified fictional institutional design
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art at high source resolution, chunky deliberate pixels, limited violet/burgundy/bronze/amber palette, crisp hard edges
+Composition: exactly one entire plant and planter, front three-quarter view, centered, pot rests at bottom, broad formal silhouette with all leaves visible, generous transparent padding, readable as a camera-facing billboard
+Constraints: genuinely transparent zero-alpha background; no floor; no shadow; no scenery; no text; no logo; no watermark; no people; no weapons; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: horror, decay, photorealism, 3D render, smooth vector art, checkerboard background, glow, halo, detached leaves, copyrighted game assets or resemblance to Wolfenstein decorations
+```
+
+The export contained genuine alpha and was accepted without color editing or
+background masking. No third-party pixels were added.

@@ -112,6 +112,9 @@ int main()
         WolfCna::CampaignProgress::ParseHighestUnlocked("WOLF-CNA-PROGRESS-1\n1\n", 3) == 1,
         "campaign progress restores an unlocked sector");
     Expect(
+        WolfCna::CampaignProgress::ParseHighestUnlocked("WOLF-CNA-PROGRESS-1\n3\n", 4) == 3,
+        "campaign progress restores the fourth sector");
+    Expect(
         WolfCna::CampaignProgress::ParseHighestUnlocked("broken\n2\n", 3) == 0,
         "invalid campaign progress safely locks later sectors");
     Expect(
@@ -128,8 +131,14 @@ int main()
         "assets/levels/sector-02.level");
     const WolfCna::LevelDefinition sectorThree = WolfCna::LevelDefinition::LoadFromFile(
         "assets/levels/sector-03.level");
+    const WolfCna::LevelDefinition sectorFour = WolfCna::LevelDefinition::LoadFromFile(
+        "assets/levels/sector-04.level");
     ExpectCampaignLayout(sectorTwo, "sector two");
     ExpectCampaignLayout(sectorThree, "sector three");
+    ExpectCampaignLayout(sectorFour, "sector four");
+    Expect(sectorFour.Rows() != starterLevel.Rows(), "sector four is not the starter layout");
+    Expect(sectorFour.Rows() != sectorTwo.Rows(), "sector four is not the foundry layout");
+    Expect(sectorFour.Rows() != sectorThree.Rows(), "sector four is not the labs layout");
 
     const WolfCna::LevelDefinition level = WolfCna::LevelDefinition::Parse(
         "#####\n#P..#\n#####\n",
