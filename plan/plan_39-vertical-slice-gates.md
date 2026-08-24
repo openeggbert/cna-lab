@@ -98,6 +98,12 @@ rather than being a one-time final check.
     *Diagnostic-pair follow-up: a second independent full-window Xvfb run removes only the
     repeatability-count blocker and exposes substantial virtual timing variance. Both remain blocked
     by Xvfb, declined swap, and incomplete physical VRAM; M12 stays open.*
+    *Linux VRAM-profiler follow-up: `drm_vram_capture.py` launches the exact Iron Gang child PID,
+    polls standard DRM fdinfo resident-buffer regions across the complete capture interval,
+    deduplicates repeated client descriptors, and writes the raw artifact plus hash-bound manifest.
+    The binder reconstructs source fields, regions, clients, samples, and peak for this built-in
+    artifact. Synthetic coverage passes, but no physical game capture was opened or claimed; M12
+    stays open.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).

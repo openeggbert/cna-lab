@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import subprocess
 import sys
@@ -20,6 +21,16 @@ REPORT_SCRIPT = (
 COMPARE_SCRIPT = (
     Path(sys.argv[3]).resolve() if len(sys.argv) > 3 else Path("scripts/performance_compare.py")
 )
+DRM_CAPTURE_SCRIPT = (
+    Path(sys.argv[4]).resolve() if len(sys.argv) > 4 else Path("scripts/drm_vram_capture.py")
+)
+DRM_CAPTURE_SPEC = importlib.util.spec_from_file_location(
+    "iron_gang_drm_vram_capture", DRM_CAPTURE_SCRIPT
+)
+assert DRM_CAPTURE_SPEC is not None and DRM_CAPTURE_SPEC.loader is not None
+sys.path.insert(0, str(DRM_CAPTURE_SCRIPT.parent))
+DRM_CAPTURE = importlib.util.module_from_spec(DRM_CAPTURE_SPEC)
+DRM_CAPTURE_SPEC.loader.exec_module(DRM_CAPTURE)
 
 
 def raw_capture_fixture() -> dict:
@@ -625,6 +636,176 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("output must differ from the original capture", result.stderr)
             self.assertEqual(capture_path.read_bytes(), capture_before)
+
+    def test_drm_fdinfo_parser_deduplicates_clients_and_sums_resident_regions(self) -> None:
+        first = """\
+pos:\t0
+drm-driver:\tamdgpu
+drm-client-id:\t1743
+drm-pdev:\t0000:c3:00.0
+drm-memory-vram:\t2076 KiB
+drm-memory-gtt:\t4096 KiB
+drm-memory-cpu:\t0 KiB
+"""
+        later_duplicate = first.replace("2076 KiB", "2100 KiB")
+        second_client = """\
+drm-driver:\ti915
+drm-client-id:\t88
+drm-pdev:\t0000:00:02.0
+drm-resident-local:\t2 MiB
+drm-resident-memory:\t4096
+"""
+        snapshot = DRM_CAPTURE.parse_fdinfo_snapshot(
+            {"3": first, "4": first, "5": later_duplicate, "7": second_client}
+        )
+        self.assertIsNotNone(snapshot)
+        assert snapshot is not None
+        self.assertEqual(len(snapshot["clients"]), 2)
+        amd = next(client for client in snapshot["clients"] if client["driver"] == "amdgpu")
+        self.assertEqual(amd["file_descriptors"], [3, 4, 5])
+        self.assertEqual(
+            amd["resident_regions_bytes"],
+            {"cpu": 0, "gtt": 4096 * 1024, "vram": 2100 * 1024},
+        )
+        intel = next(client for client in snapshot["clients"] if client["driver"] == "i915")
+        self.assertEqual(
+            intel["resident_regions_bytes"],
+            {"local": 2 * 1024 * 1024, "memory": 4096},
+        )
+        self.assertEqual(
+            snapshot["resident_bytes"],
+            4096 * 1024 + 2100 * 1024 + 2 * 1024 * 1024 + 4096,
+        )
+
+    def test_drm_fdinfo_parser_refuses_ambiguous_or_incomplete_memory(self) -> None:
+        cases = {
+            "conflicting resident and deprecated-alias": """\
+drm-driver: amdgpu
+drm-client-id: 1
+drm-pdev: 0000:c3:00.0
+drm-resident-vram: 1 MiB
+drm-memory-vram: 2 MiB
+""",
+            "deprecated drm-memory alias outside amdgpu": """\
+drm-driver: i915
+drm-client-id: 1
+drm-memory-vram: 1 MiB
+""",
+            "unsupported DRM memory size": """\
+drm-driver: amdgpu
+drm-client-id: 1
+drm-memory-vram: 1 MB
+""",
+            "exposes no resident-memory regions": """\
+drm-driver: amdgpu
+drm-client-id: 1
+drm-shared-vram: 0 KiB
+""",
+            "invalid drm-pdev": """\
+drm-driver: amdgpu
+drm-client-id: 1
+drm-pdev: card0
+drm-memory-vram: 1 MiB
+""",
+        }
+        for message, fdinfo in cases.items():
+            with self.subTest(message=message):
+                with self.assertRaisesRegex(DRM_CAPTURE.ReportError, message):
+                    DRM_CAPTURE.parse_fdinfo_snapshot({"3": fdinfo})
+
+        non_drm = DRM_CAPTURE.parse_fdinfo_snapshot(
+            {"0": "pos:\t0\nflags:\t0100000\n"}
+        )
+        self.assertIsNone(non_drm)
+
+    def test_builtin_drm_artifact_is_reconstructed_before_binding(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            capture_path = directory / "capture.json"
+            evidence_path = directory / "evidence.json"
+            artifact_path = directory / "drm-fdinfo.json"
+            output_path = directory / "enriched.json"
+            capture_path.write_text(json.dumps(raw_capture_fixture()), encoding="utf-8")
+
+            snapshot = DRM_CAPTURE.parse_fdinfo_snapshot(
+                {
+                    "3": """\
+drm-driver: amdgpu
+drm-client-id: 1743
+drm-pdev: 0000:c3:00.0
+drm-memory-vram: 32 MiB
+drm-memory-gtt: 64 MiB
+drm-memory-cpu: 0 KiB
+""",
+                    "4": """\
+drm-driver: amdgpu
+drm-client-id: 1743
+drm-pdev: 0000:c3:00.0
+drm-memory-vram: 32 MiB
+drm-memory-gtt: 64 MiB
+drm-memory-cpu: 0 KiB
+""",
+                }
+            )
+            self.assertIsNotNone(snapshot)
+            assert snapshot is not None
+            snapshot["sampled_utc"] = "2026-08-24T10:00:10Z"
+            artifact = {
+                "schema_version": DRM_CAPTURE.ARTIFACT_SCHEMA_VERSION,
+                "measurement_scope": "complete_process_gpu_residency_peak",
+                "hardware_identity": "Evidence GPU",
+                "tool": {
+                    "name": DRM_CAPTURE.TOOL_NAME,
+                    "version": DRM_CAPTURE.TOOL_VERSION,
+                },
+                "kernel_release": "6.12.100-test",
+                "process": {
+                    "executable": "iron_gang",
+                    "pid": 4242,
+                    "command": ["iron_gang", "--smoke", "900"],
+                },
+                "measurement": {
+                    "peak_resident_bytes": 96 * 1024 * 1024,
+                    "started_utc": "2026-08-24T10:00:00Z",
+                    "ended_utc": "2026-08-24T10:01:00Z",
+                    "poll_interval_ms": 20,
+                    "sampling_attempts": 1,
+                    "successful_samples": 1,
+                    "fdinfo_read_errors": 0,
+                },
+                "accounting": DRM_CAPTURE.ACCOUNTING_POLICY,
+                "profile_capture_sha256": sha256(capture_path),
+                "samples": [snapshot],
+            }
+            artifact_path.write_text(json.dumps(artifact), encoding="utf-8")
+            evidence = evidence_fixture(
+                capture_path,
+                artifact_path,
+                peak_bytes=96 * 1024 * 1024,
+            )
+            evidence["tool"] = {
+                "name": DRM_CAPTURE.TOOL_NAME,
+                "version": DRM_CAPTURE.TOOL_VERSION,
+            }
+            evidence["measurement"]["started_utc"] = "2026-08-24T10:00:00Z"
+            evidence["measurement"]["ended_utc"] = "2026-08-24T10:01:00Z"
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+
+            result = self.run_binding(
+                capture_path, evidence_path, artifact_path, output_path
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            artifact["samples"][0]["resident_bytes"] += 1
+            artifact_path.write_text(json.dumps(artifact), encoding="utf-8")
+            evidence["source_artifact"]["sha256"] = sha256(artifact_path)
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+            output_path.unlink()
+            result = self.run_binding(
+                capture_path, evidence_path, artifact_path, output_path
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("samples[0].resident_bytes is inconsistent", result.stderr)
 
 
 if __name__ == "__main__":

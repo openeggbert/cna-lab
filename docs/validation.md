@@ -434,6 +434,20 @@ showed the complete map and the second restored the unobscured game view. No tes
 host display. Both `LeftShift` and `RightShift` remain mapped to sprint only in the on-foot input
 branch.
 
+The Linux M12 VRAM follow-up adds `scripts/drm_vram_capture.py`. A no-window surfaceless EGL probe
+against the host AMD 780M confirmed the kernel exposes three descriptors with one shared
+`drm-client-id` and amdgpu resident aliases for `vram`, `gtt`, and `cpu`; this probe opened no game
+window. Synthetic coverage then proves descriptor/client deduplication, standard
+`drm-resident-<region>` and amdgpu alias parsing, bytes/KiB/MiB conversion, all-region and
+multi-client summation, and refusal of mismatched aliases, unsupported units, invalid device IDs,
+or clients without resident fields. The binder also semantically reconstructs a built-in raw JSON
+artifact before enrichment; mutating a sample total and updating its hash still exits 2. The
+focused VRAM suite passes 9/9 and full isolated CTest passes 8/8. A three-draw Xvfb/SOFTWARE
+integration produced its normal incomplete profile, then the wrapper exited 2 because the process
+had no DRM resident samples; neither a raw artifact nor manifest was created. No physical Iron
+Gang capture was launched, so this validates the measurement/evidence path without claiming M12
+qualification.
+
 ## Current modular dependency baseline (2026-08-22)
 
 Iron Gang now configures against the sibling `../cnanext` and modular `../sharp-runtime`

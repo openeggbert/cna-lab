@@ -12,6 +12,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from drm_vram_capture import (
+    TOOL_NAME as DRM_FDINFO_TOOL_NAME,
+    TOOL_VERSION as DRM_FDINFO_TOOL_VERSION,
+    load_and_validate_artifact,
+)
 from performance_report import (
     COMPLETE_VRAM_COVERAGE,
     COMPLETE_VRAM_SCOPE,
@@ -19,6 +24,7 @@ from performance_report import (
     _canonical_single_line_string,
     _integer,
     _mapping,
+    _path,
     _same_file,
     _sha256_string,
     _single_line_string,
@@ -57,8 +63,8 @@ def load_evidence(
     if _canonical_single_line_string(evidence, "measurement_scope") != COMPLETE_VRAM_SCOPE:
         raise ReportError(f"measurement_scope must be {COMPLETE_VRAM_SCOPE}")
     _single_line_string(evidence, "hardware_identity")
-    _single_line_string(evidence, "tool", "name")
-    _single_line_string(evidence, "tool", "version")
+    tool_name = _single_line_string(evidence, "tool", "name")
+    tool_version = _single_line_string(evidence, "tool", "version")
     validate_external_vram_measurement(evidence, "evidence")
     bound_digest = _sha256_string(evidence, "profile_capture_sha256")
     if bound_digest != capture_sha256:
@@ -71,6 +77,29 @@ def load_evidence(
     bound_artifact_digest = _sha256_string(evidence, "source_artifact", "sha256")
     if bound_artifact_digest != artifact_sha256:
         raise ReportError("source_artifact.sha256 does not match --artifact")
+    if tool_name == DRM_FDINFO_TOOL_NAME:
+        if tool_version != DRM_FDINFO_TOOL_VERSION:
+            raise ReportError(
+                f"built-in DRM fdinfo tool.version must be {DRM_FDINFO_TOOL_VERSION}"
+            )
+        artifact = load_and_validate_artifact(artifact_path)
+        if _single_line_string(artifact, "hardware_identity") != _single_line_string(
+            evidence, "hardware_identity"
+        ):
+            raise ReportError("built-in DRM artifact hardware identity does not match evidence")
+        if _integer(artifact, "process", "pid") != _integer(evidence, "process", "pid"):
+            raise ReportError("built-in DRM artifact PID does not match evidence")
+        if _integer(artifact, "measurement", "peak_resident_bytes") != _integer(
+            evidence, "measurement", "peak_resident_bytes"
+        ):
+            raise ReportError("built-in DRM artifact peak does not match evidence")
+        for key in ("started_utc", "ended_utc"):
+            if _path(artifact, "measurement", key) != _path(evidence, "measurement", key):
+                raise ReportError(
+                    f"built-in DRM artifact measurement.{key} does not match evidence"
+                )
+        if _path(artifact, "profile_capture_sha256") != bound_digest:
+            raise ReportError("built-in DRM artifact profile hash does not match evidence")
     return evidence
 
 

@@ -67,6 +67,26 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has an integrated Linux per-process DRM residency sampler.** Physical EasyGL runs no
+longer require hand-assembling a vendor-profiler manifest before the existing evidence binder can
+be used.
+
+- `scripts/drm_vram_capture.py` launches the exact Iron Gang child, polls its
+  `/proc/<pid>/fdinfo` DRM records for the enclosing capture interval, deduplicates repeated file
+  descriptors by the kernel's client/device identity, and sums every resident buffer-object
+  region. On this host a no-window surfaceless EGL probe confirmed amdgpu exposes duplicate fds for
+  one client plus `vram`, `gtt`, and `cpu` resident aliases.
+- The wrapper atomically writes a raw JSON artifact and hash-bound evidence manifest after a clean
+  run, while requiring the child PID to match schema-8 `capture_session`. The binder recognizes the
+  built-in tool and reconstructs source fields, descriptor/client deduplication, per-region and
+  per-sample totals, and the peak; an edited value with freshly recomputed hashes is rejected.
+- Synthetic standard-key/amdgpu-alias, duplicate-client, unit, incomplete/conflicting data, and raw
+  artifact tamper coverage passes 9/9; full isolated CTest passes 8/8. A short Xvfb/SOFTWARE
+  integration wrote only its ordinary incomplete profile, then exited 2 with `the process exposed
+  no DRM client resident-memory samples`; it correctly created neither artifact nor manifest. This
+  only completes the capture path: no physical game window or qualifying artifact was created, so
+  M12 remains open.
+
 **M12 now has two independent full-window Xvfb runs and a repeatability report.** The second real
 900-draw `mixed` route also supplies 899 intervals and a separate non-overlapping PID/UTC session,
 so the diagnostic pair no longer has the one-run blocker.

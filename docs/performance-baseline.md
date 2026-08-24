@@ -931,3 +931,28 @@ separate 60 ms hitch keeps the global maximum valid. It exits 2. The existing 50
 positive case remains valid through either adjacent populated bucket. Report 7/7, comparator 7/7,
 VRAM 6/6, and both retained diagnostics pass. Full isolated CTest passes 8/8 inside Xvfb; no
 capture was added.
+
+## 2026-08-24 — integrated Linux DRM residency capture path
+
+`scripts/drm_vram_capture.py` now supplies the missing Linux OS-profiler path around a physical
+EasyGL run. It polls `/proc/<pid>/fdinfo` for the exact child PID throughout the schema-8 capture,
+uses `drm-pdev` plus `drm-client-id` (or a global client ID) to deduplicate repeated descriptors,
+and sums all standard resident buffer-object regions. For older amdgpu output it accepts the
+kernel-documented `drm-memory-<region>` alias, prefers the standard key when both exist, and rejects
+different alias/standard values.
+
+A short no-window surfaceless EGL probe on the host AMD Radeon 780M observed three fds for one DRM
+client, each reporting 2,076 KiB VRAM, 4,096 KiB GTT, and 0 KiB CPU residency. Correct
+deduplication therefore yields 6,172 KiB for that snapshot, not three times that number. This was a
+format/semantics probe, not an Iron Gang performance capture.
+
+The wrapper creates the raw JSON artifact and evidence manifest automatically only after the child
+exits successfully, the profile exists, its PID matches the child, and the sampler interval
+encloses the profile interval. `vram_evidence.py` recognizes this built-in artifact and
+reconstructs source fields, region maxima for duplicate descriptors, client/sample totals, and the
+overall peak before binding. Focused VRAM coverage passes 9/9, including a sample-total mutation
+whose manifest hash was recomputed; full isolated CTest passes 8/8. A short Xvfb/SOFTWARE wrapper
+integration then wrote only the game's ordinary incomplete schema-8 profile and exited 2 with no
+DRM samples, leaving both raw-artifact and manifest paths absent. No real physical game window or
+qualifying artifact was created; M12 remains open pending two controlled hardware runs with
+acknowledged presentation.

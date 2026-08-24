@@ -483,8 +483,51 @@ equivalent: they omit or conflate driver allocations, residency, and other proce
 capture therefore needs an authoritative vendor/OS profiler whose documented scope is the peak
 complete graphics residency of the specific Iron Gang process.
 
+On Linux, `scripts/drm_vram_capture.py` supplies the OS-profiler path directly. It launches the
+game as its child and polls that exact PID's `/proc/<pid>/fdinfo` records for the lifetime of the
+profile. The [Linux DRM usage-statistics contract](https://docs.kernel.org/gpu/drm-usage-stats.html)
+defines `drm-resident-<region>` as resident buffer-object backing storage belonging to a DRM client,
+defines `drm-client-id`/`drm-pdev` for avoiding duplicate descriptor accounting, and defines
+amdgpu's deprecated `drm-memory-<region>` keys as aliases of the resident values. The sampler:
+
+- deduplicates repeated file descriptors by global client ID or device-plus-client ID;
+- prefers standard resident keys and requires matching values if an amdgpu alias is also present;
+- sums every reported region, including local VRAM and GPU-accessible system/GTT memory;
+- sums distinct process DRM clients, conservatively retaining any cross-client shared-buffer
+  double count instead of risking an underestimate; and
+- records every normalized source observation, sampling time, policy string, and derived total in
+  the raw JSON artifact.
+
+The binder recognizes this built-in tool and reconstructs every observation, client/region sum,
+sample total, and peak before accepting it. Changing the stored peak and merely recomputing the
+artifact/manifest hashes is therefore insufficient. A driver that exposes no resident-memory
+fdinfo fails explicitly; adapter-global counters are never used as a fallback.
+
+Run a new physical-hardware capture (all three output paths must not already exist):
+
+```bash
+./scripts/drm_vram_capture.py \
+  --capture runtime/performance/m12-mixed-01.json \
+  --evidence runtime/performance/m12-vram-evidence-01.json \
+  --artifact runtime/performance/m12-drm-fdinfo-01.json \
+  --hardware "<CPU, GPU, driver, display/compositor identity>" \
+  --poll-ms 20 \
+  -- \
+  ./cmake-build-release-easygl/iron_gang \
+    --smoke 900 \
+    --profile runtime/performance/m12-mixed-01.json \
+    --profile-scenario mixed \
+    --vsync off
+```
+
+The wrapper requires the child's PID to equal `capture_session.process.pid`, requires its own UTC
+interval to enclose the complete profile interval, and writes the manifest automatically after a
+clean game exit. This command normally uses the selected physical display; wrapping it in Xvfb may
+test plumbing but cannot produce qualifying hardware evidence.
+
 Keep the profiler's raw artifact and write a small evidence manifest alongside the original
-schema-8 capture:
+schema-8 capture. The Linux wrapper above writes this manifest automatically; the generic shape for
+another authoritative vendor/OS profiler is:
 
 ```json
 {

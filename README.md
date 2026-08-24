@@ -124,8 +124,15 @@ cannot satisfy repeatability. Stored budget metadata must equal the locked M12 v
 is malformed. See
 [`docs/performance-targets.md`](docs/performance-targets.md#release-summary-generator).
 
-When complete per-process VRAM residency comes from a vendor/OS profiler, bind its raw artifact and
-manifest to the original profile without overwriting it:
+On Linux, `scripts/drm_vram_capture.py` can launch the physical EasyGL run, sample all resident DRM
+buffer-object regions for the exact child PID, deduplicate repeated client descriptors, and create
+the hash-bound raw artifact and evidence manifest automatically. Its machine-readable artifact is
+semantically reconstructed by the binder rather than merely hash-checked. The exact command and
+kernel-interface scope are documented in
+[`performance-targets.md`](docs/performance-targets.md#binding-complete-external-vram-evidence).
+
+When complete per-process VRAM residency comes from that sampler or another authoritative vendor/OS
+profiler, bind its raw artifact and manifest to the original profile without overwriting it:
 
 ```bash
 ./scripts/vram_evidence.py \
