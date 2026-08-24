@@ -124,6 +124,10 @@ similar emulation core is permitted in the application, build, or test suite.
   - [x] Reproduce the measured nominal ten-second home-icon selection timeout
     as programme display data, restart it after each A, and keep menu/action
     timing independent from this non-persisted UI timer.
+  - [x] Replace the generic Light screen with both exact full-frame ON/OFF menu
+    selections, their nominal ten-second inactivity timeout, and the filled
+    lights-out framebuffer whose two Z phases are transparent and shifted eight
+    cells left. Keep wake-up and other-form confirmation open.
   - Finish exact A/B/C navigation and clock behaviour in every transient
     animation and Attention state.
   - Replace legacy menus with P1 bread/candy Food, Light, Toilet, Health Meter,

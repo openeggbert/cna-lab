@@ -80,6 +80,7 @@ struct DisplayDefinition final {
     int logicalWidth{32};
     int logicalHeight{16};
     float iconSelectionTimeoutSeconds{0.0F};
+    float menuTimeoutSeconds{0.0F};
 };
 
 struct LifecycleDefinition final {

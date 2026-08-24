@@ -1,4 +1,5 @@
 #include "CnaTamagotchi/Display/MonochromeDisplay.hpp"
+#include "CnaTamagotchi/Display/P1LightScreen.hpp"
 #include "CnaTamagotchi/Display/P1ToiletWipe.hpp"
 
 #include <array>
@@ -6,6 +7,7 @@
 
 using CnaTamagotchi::Display::LcdPalette;
 using CnaTamagotchi::Display::MonochromeDisplay;
+using CnaTamagotchi::Display::P1LightScreen;
 using CnaTamagotchi::Display::P1ToiletWipe;
 
 namespace {
@@ -29,6 +31,20 @@ int litPixelCount(const MonochromeDisplay& display)
         }
     }
     return count;
+}
+
+bool matchesRows(const MonochromeDisplay& display,
+                 const std::array<std::string_view, 16>& rows)
+{
+    for (int y = 0; y < MonochromeDisplay::Height; ++y) {
+        if (rows[static_cast<std::size_t>(y)].size() != MonochromeDisplay::Width) return false;
+        for (int x = 0; x < MonochromeDisplay::Width; ++x) {
+            const bool expected = rows[static_cast<std::size_t>(y)]
+                [static_cast<std::size_t>(x)] == '#';
+            if (display.pixel(x, y) != expected) return false;
+        }
+    }
+    return true;
 }
 
 void testPixelsAreBounded()
@@ -158,6 +174,92 @@ void testP1ToiletWipeTimingIsDeterministic()
            "the verified wipe core must finish after its blank hold");
 }
 
+void testP1LightMenuKeepsBothExactStableSelections()
+{
+    constexpr std::array<std::string_view, 16> expectedOn{{
+        "................................",
+        "...#......###....##...#.........",
+        "...##....#...#...#.#..#.........",
+        ".#####...#...#...#.#..#.........",
+        ".######..#...#...#..#.#.........",
+        ".#####...#...#...#..#.#.........",
+        "...##.....###....#...##.........",
+        "...#............................",
+        "................................",
+        "..........###..####.####........",
+        ".........#...#.#....#...........",
+        ".........#...#.###..###.........",
+        ".........#...#.#....#...........",
+        ".........#...#.#....#...........",
+        "..........###..#....#...........",
+        "................................",
+    }};
+    constexpr std::array<std::string_view, 16> expectedOff{{
+        "................................",
+        "..........###....##...#.........",
+        ".........#...#...#.#..#.........",
+        ".........#...#...#.#..#.........",
+        ".........#...#...#..#.#.........",
+        ".........#...#...#..#.#.........",
+        "..........###....#...##.........",
+        "................................",
+        "................................",
+        "...#......###..####.####........",
+        "...##....#...#.#....#...........",
+        ".#####...#...#.###..###.........",
+        ".######..#...#.#....#...........",
+        ".#####...#...#.#....#...........",
+        "...##.....###..#....#...........",
+        "...#............................",
+    }};
+
+    MonochromeDisplay display;
+    P1LightScreen::renderMenu(display, false);
+    expect(matchesRows(display, expectedOn) && litPixelCount(display) == 90,
+           "the selected-ON Light menu must retain every observed P1 LCD cell");
+    P1LightScreen::renderMenu(display, true);
+    expect(matchesRows(display, expectedOff) && litPixelCount(display) == 90,
+           "the selected-OFF Light menu must retain every observed P1 LCD cell");
+}
+
+void testP1LightsOutUsesTheShiftedInvertedSleepCycle()
+{
+    constexpr std::array<std::string_view, 6> small{{
+        "....###", "......#", ".....#.", "....#..", "..#.###", "#......",
+    }};
+    constexpr std::array<std::string_view, 6> large{{
+        "####", "...#", "..#.", ".#..", "#...", "####",
+    }};
+    const auto matchesInvertedSprite = [](const MonochromeDisplay& display,
+                                          const int normalOriginX,
+                                          const int originY,
+                                          const std::span<const std::string_view> rows) {
+        for (int y = 0; y < MonochromeDisplay::Height; ++y) {
+            for (int x = 0; x < MonochromeDisplay::Width; ++x) {
+                const int row = y - originY;
+                const int column = x - normalOriginX + P1LightScreen::LightsOutSleepShiftX;
+                const bool hole = row >= 0 && row < static_cast<int>(rows.size())
+                    && column >= 0
+                    && column < static_cast<int>(rows[static_cast<std::size_t>(row)].size())
+                    && rows[static_cast<std::size_t>(row)]
+                           [static_cast<std::size_t>(column)] == '#';
+                if (display.pixel(x, y) != !hole) return false;
+            }
+        }
+        return true;
+    };
+
+    MonochromeDisplay display;
+    P1LightScreen::renderLightsOut(display, 24, 0, small);
+    expect(litPixelCount(display) == 501
+               && matchesInvertedSprite(display, 24, 0, small),
+           "the small lights-out Z must be an exact eleven-cell hole at x=16");
+    P1LightScreen::renderLightsOut(display, 25, 2, large);
+    expect(litPixelCount(display) == 500
+               && matchesInvertedSprite(display, 25, 2, large),
+           "the large lights-out Z must be an exact twelve-cell hole at x=17");
+}
+
 } // namespace
 
 int main()
@@ -170,6 +272,8 @@ int main()
     testP1ToiletWipeMovesTheWholeFramebuffer();
     testP1ToiletWipeKeepsTheObservedWaterPattern();
     testP1ToiletWipeTimingIsDeterministic();
+    testP1LightMenuKeepsBothExactStableSelections();
+    testP1LightsOutUsesTheShiftedInvertedSleepCycle();
 
     if (failures == 0) {
         std::cout << "MonochromeDisplayTests passed\n";

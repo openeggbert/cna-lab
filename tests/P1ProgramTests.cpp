@@ -26,6 +26,8 @@ void testP1ProgrammeDefinesItsOwnContent()
         "programme display data must retain the target LCD dimensions");
     expect(p1.display.iconSelectionTimeoutSeconds == 10.0F,
         "P1 must clear an idle home-icon selection after its observed ten seconds");
+    expect(p1.display.menuTimeoutSeconds == 10.0F,
+        "P1 must close an idle Light menu after its observed ten seconds");
     expect(p1.game.kind == ProgramGameKind::Character, "P1 must select Character, not Number");
     expect(p1.game.rounds == 5 && p1.game.winsNeededForHappiness == 3,
         "P1 Character game must define its five-round win threshold in data");

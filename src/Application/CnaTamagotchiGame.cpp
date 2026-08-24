@@ -1,5 +1,6 @@
 #include "CnaTamagotchi/Application/CnaTamagotchiGame.hpp"
 #include "CnaTamagotchi/Application/DeviceShellRenderer.hpp"
+#include "CnaTamagotchi/Display/P1LightScreen.hpp"
 #include "CnaTamagotchi/Domain/P1Program.hpp"
 #include "CnaTamagotchi/Domain/P1SpriteCatalog.hpp"
 #include "CnaTamagotchi/Persistence/SaveLocation.hpp"
@@ -167,6 +168,16 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
         if (iconSelectionSeconds_ >= iconTimeout) {
             selectedIcon_ = -1;
             iconSelectionSeconds_ = 0.0F;
+        }
+    }
+    const float menuTimeout = activeProgramme().display.menuTimeoutSeconds;
+    if (screen_ == Screen::Light && menuTimeout > 0.0F) {
+        menuInactivitySeconds_ += elapsedSeconds;
+        if (menuInactivitySeconds_ >= menuTimeout) {
+            screen_ = Screen::Home;
+            selectedIcon_ = -1;
+            iconSelectionSeconds_ = 0.0F;
+            menuInactivitySeconds_ = 0.0F;
         }
     }
 
@@ -359,6 +370,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
                 % static_cast<int>(activeProgramme().food.size());
         } else if (screen_ == Screen::Light) {
             lightSelection_ = (lightSelection_ + 1) % 2;
+            menuInactivitySeconds_ = 0.0F;
         } else if (screen_ == Screen::Status) {
             statusPage_ = (statusPage_ + 1) % 4;
         } else if (screen_ == Screen::Game && gameResolved_) {
@@ -396,6 +408,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             selectedIcon_ = -1;
             iconSelectionSeconds_ = 0.0F;
             setFeedback(changed ? Feedback::Success : Feedback::Blocked);
+            menuInactivitySeconds_ = 0.0F;
             return changed;
         }
         if (screen_ == Screen::Status) {
@@ -437,6 +450,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         if (selectedIcon_ == 1) {
             screen_ = Screen::Light;
             lightSelection_ = pet_.lightOff ? 1 : 0;
+            menuInactivitySeconds_ = 0.0F;
             return false;
         }
         if (selectedIcon_ == 3) {
@@ -468,6 +482,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
         }
         selectedIcon_ = -1;
         iconSelectionSeconds_ = 0.0F;
+        menuInactivitySeconds_ = 0.0F;
         return false;
     }
 
@@ -528,6 +543,7 @@ void CnaTamagotchiGame::moveSelectionBackward() noexcept
             % static_cast<int>(activeProgramme().food.size());
     } else if (screen_ == Screen::Light) {
         lightSelection_ = (lightSelection_ + 1) % 2;
+        menuInactivitySeconds_ = 0.0F;
     } else if (screen_ == Screen::SaveRecovery && recoveryBackupAvailable_) {
         recoveryChoice_ = recoveryChoice_ == RecoveryChoice::RestoreBackup
             ? RecoveryChoice::NewEgg : RecoveryChoice::RestoreBackup;
@@ -787,6 +803,7 @@ void CnaTamagotchiGame::resetPetToEgg() noexcept
     selectedIcon_ = -1;
     iconSelectionSeconds_ = 0.0F;
     foodSelection_ = 0;
+    menuInactivitySeconds_ = 0.0F;
     lightSelection_ = 0;
     statusPage_ = 0;
     gameChoice_ = 0;
@@ -883,13 +900,7 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     }
 
     if (screen_ == Screen::Light) {
-        display_.drawText(7, 1, "LIGHT");
-        display_.drawText(11, 5, "ON");
-        display_.drawText(10, 10, "OFF");
-        const int markerY = lightSelection_ == 0 ? 6 : 11;
-        display_.setPixel(6, markerY, true);
-        display_.setPixel(7, markerY + 1, true);
-        display_.setPixel(6, markerY + 2, true);
+        Display::P1LightScreen::renderMenu(display_, lightSelection_ == 1);
         return;
     }
 
@@ -965,13 +976,23 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
         return;
     }
 
+    if (pet_.asleep && pet_.lightOff) {
+        const Domain::P1Sprite& sleep = Domain::P1SpriteCatalog::sleepIndicator();
+        const Domain::P1SpriteFrame& sleepFrame = sleep.idleFrame(
+            static_cast<std::size_t>(backgroundTimeSeconds_ / sleep.idleFrameSeconds));
+        Display::P1LightScreen::renderLightsOut(display_, sleepFrame.originX,
+            sleepFrame.originY, sleepFrame.visibleRows());
+        return;
+    }
+
     const Domain::P1Sprite& sprite = pet_.sick
         ? Domain::P1SpriteCatalog::sickSpriteForCharacter(pet_.characterId)
         : Domain::P1SpriteCatalog::spriteForCharacter(pet_.characterId);
     // P1 home animation consists of independently transcribed LCD phases.
     // Each phase carries its observed origin, rather than turning one modern
-    // sprite into a synthetic bobbing animation. Sleeping leaves the first
-    // quiet frame on screen.
+    // sprite into a synthetic bobbing animation. Unobserved sleeping forms
+    // retain the first quiet pose; the observed Marutchi body keeps its normal
+    // independent cycle.
     const bool freezeUnobservedSleepPose = pet_.asleep && pet_.characterId != "marutchi";
     const std::size_t idleFrame = freezeUnobservedSleepPose ? 0U : static_cast<std::size_t>(
         backgroundTimeSeconds_ / sprite.idleFrameSeconds);

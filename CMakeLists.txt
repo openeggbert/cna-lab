@@ -67,6 +67,7 @@ set(CNA_TAMAGOTCHI_SOURCES
     src/Application/CnaTamagotchiGame.cpp
     src/Application/DeviceShellRenderer.cpp
     src/Display/MonochromeDisplay.cpp
+    src/Display/P1LightScreen.cpp
     src/Display/P1ToiletWipe.cpp
     src/Domain/CreatureCatalog.cpp
     src/Domain/P1Program.cpp
@@ -179,6 +180,7 @@ if(CNA_TAMAGOTCHI_BUILD_TESTS AND NOT ANDROID AND NOT EMSCRIPTEN AND NOT CMAKE_C
     add_executable(CnaTamagotchiDisplayTests
         tests/MonochromeDisplayTests.cpp
         src/Display/MonochromeDisplay.cpp
+        src/Display/P1LightScreen.cpp
         src/Display/P1ToiletWipe.cpp
     )
     target_include_directories(CnaTamagotchiDisplayTests PRIVATE

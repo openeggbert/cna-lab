@@ -123,6 +123,15 @@ write and verify the clean implementation.
   `(24, 0)` and a 4 × 6 Z at `(25, 2)`. Existing waste also continues on its
   own cadence. Exact catalogue tests and a six-second normal-scale application
   run cover this combination. Sleep poses for every other form remain open.
+- A same-session sleeping-Marutchi Light trace established both complete ON/OFF
+  menu frames, the 6 × 7 marker positions, A/B behaviour, and the nominal
+  ten-second inactivity return. Confirming OFF fills all 512 field cells, then
+  renders the existing 11/12-cell Z phases as transparent holes at `(16, 0)`
+  and `(17, 2)`, eight cells left of the light-on overlay; character and waste
+  disappear. `P1LightScreen` keeps this presentation independent of the
+  persistent light flag. Exact display tests and a normal-scale 30 fps trace
+  showing exactly 300 menu frames before timeout were checked. Other-form
+  lights-out placement and wake-up remain open.
 
 ## Priority 0 — Add selectable physical shell variants
 
@@ -186,19 +195,22 @@ uses the previous translated-sprite bobbing behaviour.
 4. [x] Replace the generic sleep symbol for Marutchi with both exact observed Z
    arrangements and preserve the independent body and waste animation clocks.
    Do not reuse this body behaviour for unobserved forms.
-5. Capture separate frame sequences for egg cracking/hatching, eating Bread,
+5. [x] Replace the generic Light text with both exact ON/OFF menu frames, the
+   measured inactivity timeout, and the filled lights-out LCD with shifted,
+   transparent Z phases.
+6. Capture separate frame sequences for egg cracking/hatching, eating Bread,
    eating Candy, Character game play, sleeping for every remaining form,
    unhappy/refusal, illness,
    medicine, waste, attention, discipline, evolution, death, and the
    angel-and-stars ending.
-6. Add a rendering state key to the programme/UI boundary for the remaining
+7. Add a rendering state key to the programme/UI boundary for the remaining
    actions. The renderer must
    select a named P1 action sequence; it must not infer an action by mutating
    or replacing the persistent pet state.
-7. Define action duration, frame cadence, interruption rules, and what A, B,
+8. Define action duration, frame cadence, interruption rules, and what A, B,
    and C do while each action is on screen. Keep those rules separate from the
    one-bit drawing data.
-8. Add deterministic display/controller tests for each finite animation:
+9. Add deterministic display/controller tests for each finite animation:
    start frame, frame order, completion, cancellation where P1 permits it,
    and return to the expected screen.
 
