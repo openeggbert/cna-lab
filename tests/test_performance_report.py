@@ -191,6 +191,14 @@ def capture_fixture() -> dict:
             "startup_cpu": measurement(1, 10.0),
         },
         "frame_pacing": {
+            "scope": (
+                "wall-clock intervals between consecutive BeginFrame calls; the first frame "
+                "establishes a baseline and has no sample"
+            ),
+            "boundary_scope": (
+                "a district-transition boundary is the first frame-interval sample recorded "
+                "after RecordDistrictLoad"
+            ),
             "samples": 4,
             "histogram": {
                 "at_or_below_recommended_budget": {"upper_bound_ms": 16.667, "count": 1},
@@ -703,6 +711,18 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_percentile_bucket], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("histogram bucket containing the nearest-rank p95", result.stderr)
+
+        bad_pacing_scope = capture_fixture()
+        bad_pacing_scope["frame_pacing"]["scope"] = "Draw CPU time"
+        result = self.run_report([bad_pacing_scope], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("frame_pacing.scope does not match", result.stderr)
+
+        bad_boundary_scope = capture_fixture()
+        bad_boundary_scope["frame_pacing"]["boundary_scope"] = "last frame before transition"
+        result = self.run_report([bad_boundary_scope], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("frame_pacing.boundary_scope does not match", result.stderr)
 
         bad_zero_sample_summary = capture_fixture()
         bad_zero_sample_summary["measurements"]["gpu_render"]["samples"] = 0

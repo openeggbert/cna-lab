@@ -70,6 +70,14 @@ def capture_fixture() -> dict:
             "startup_cpu": measurement(1, 10.0),
         },
         "frame_pacing": {
+            "scope": (
+                "wall-clock intervals between consecutive BeginFrame calls; the first frame "
+                "establishes a baseline and has no sample"
+            ),
+            "boundary_scope": (
+                "a district-transition boundary is the first frame-interval sample recorded "
+                "after RecordDistrictLoad"
+            ),
             "samples": 100,
             "histogram": {
                 "at_or_below_recommended_budget": {"upper_bound_ms": 16.667, "count": 95},

@@ -724,3 +724,15 @@ Three report negatives cover proof mutation, a reason attached to success, and a
 reason. Report 7/7, comparator 7/7, VRAM 6/6, and both retained declined-Xvfb diagnostics pass
 without launching the game. Full 8/8 CTest also passes with its smoke process isolated inside Xvfb.
 No physical presentation evidence was created.
+
+## 2026-08-24 — frame-pacing scope consistency
+
+The shared schema-8 loader now fixes both frame-pacing semantic labels to the producer contract:
+wall-clock intervals between consecutive `BeginFrame` calls (with the first frame establishing only
+a baseline), and the first interval recorded after `RecordDistrictLoad` for a district boundary.
+This prevents otherwise internally consistent counts from being relabelled as another timing scope.
+
+Two report negatives mutate the ordinary and boundary scope independently. Report 7/7, comparator
+7/7, VRAM 6/6, and both retained Xvfb diagnostics pass without launching the game. The complete
+isolated Xvfb CTest passes 8/8 with its smoke process confined to Xvfb; no physical capture was
+created.

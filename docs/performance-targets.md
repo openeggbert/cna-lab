@@ -378,6 +378,10 @@ Every producer-defined audio metric and all three scope strings remain mandatory
 integer-count summary rules.
 
 JSON schema 8 adds `frame_pacing` derived from the existing wall-clock `frame_interval` samples.
+Its `scope` is fixed to intervals between consecutive `BeginFrame` calls: the first frame only
+establishes a baseline and produces no sample. `boundary_scope` is fixed to the first such interval
+recorded after `RecordDistrictLoad`. The shared loader rejects missing or rewritten scope text so
+stored counts cannot be presented under different sampling semantics.
 Its mutually exclusive histogram buckets end at the recommended 16.667 ms budget, minimum 33.333
 ms budget, 50 ms hitch threshold, and 100 ms severe-hitch threshold, followed by an unbounded final
 bucket. A minimum-budget miss is strictly greater than 33.333 ms, a hitch strictly greater than 50

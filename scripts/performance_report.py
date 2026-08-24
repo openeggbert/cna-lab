@@ -78,6 +78,14 @@ GPU_TIMING_SCOPE = "draw_commands_excluding_present"
 SWAP_INTERVAL_PROOF = (
     "platform SetSwapInterval acknowledgement; not physical vblank or compositor proof"
 )
+FRAME_PACING_SCOPE = (
+    "wall-clock intervals between consecutive BeginFrame calls; the first frame establishes a "
+    "baseline and has no sample"
+)
+FRAME_BOUNDARY_SCOPE = (
+    "a district-transition boundary is the first frame-interval sample recorded after "
+    "RecordDistrictLoad"
+)
 DISTRICT_CONTENT_PATH = (
     "procedural in-memory PrototypeWorld; no district file/package is read during a transition"
 )
@@ -858,6 +866,15 @@ def _validate_pacing_counter(
 
 
 def validate_frame_pacing(capture: dict[str, Any], path: Path) -> None:
+    if _single_line_string(capture, "frame_pacing", "scope") != FRAME_PACING_SCOPE:
+        raise ReportError("frame_pacing.scope does not match schema-8 sampling scope")
+    if (
+        _single_line_string(capture, "frame_pacing", "boundary_scope")
+        != FRAME_BOUNDARY_SCOPE
+    ):
+        raise ReportError(
+            "frame_pacing.boundary_scope does not match schema-8 transition scope"
+        )
     frame_samples = _integer(capture, "measurements", "frame_interval", "samples")
     pacing_samples = _integer(capture, "frame_pacing", "samples")
     histogram = _mapping(_path(capture, "frame_pacing", "histogram"), "frame_pacing.histogram")

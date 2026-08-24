@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 frame-pacing scope metadata now preserves the producer's sampling semantics.** Stored pacing
+counts could already be recomputed, but a capture could previously relabel what each interval or
+district boundary meant without being rejected.
+
+- `frame_pacing.scope` is fixed to consecutive `BeginFrame` wall-clock intervals with the first
+  frame serving only as the baseline. `boundary_scope` is fixed to the first interval recorded
+  after `RecordDistrictLoad`.
+- Two report negatives cover both semantic mutations. Report 7/7, comparator 7/7, VRAM 6/6, and
+  both retained Xvfb diagnostics pass; full isolated CTest passes 8/8 with its smoke process inside
+  Xvfb and no physical evidence added.
+
 **M12 swap-interval metadata now preserves its evidence boundary.** The fixed proof cannot be
 rewritten to claim physical vblank/compositor behavior, and success/failure reasons are consistent.
 

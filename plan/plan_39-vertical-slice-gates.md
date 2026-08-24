@@ -58,6 +58,10 @@ rather than being a one-time final check.
     *Presentation-boundary follow-up: swap proof remains platform acknowledgement explicitly not
     physical vblank/compositor proof; success/failure reasons must match state. Three contradictions
     exit 2 and no physical presentation evidence was added.*
+    *Frame-pacing-scope follow-up: ordinary intervals remain consecutive `BeginFrame` wall-clock
+    samples with a baseline-only first frame, and transition boundaries remain the first interval
+    after `RecordDistrictLoad`. Both labels are mandatory; two mutations exit 2 and no capture was
+    added.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).

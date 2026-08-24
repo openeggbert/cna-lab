@@ -333,6 +333,12 @@ non-empty one. Three contradictions exit 2, the qualifying failure fixture carri
 and focused suites, both retained declined-Xvfb diagnostics, and full isolated 8/8 CTest pass; the
 smoke process remained confined to Xvfb.
 
+Frame-pacing metadata now fixes both sampling meanings to the C++ producer contract: consecutive
+`BeginFrame` wall-clock intervals with a baseline-only first frame, and the first interval after
+`RecordDistrictLoad` for a transition boundary. Two independently mutated scope cases exit 2;
+focused suites, both retained Xvfb diagnostics, and full isolated 8/8 CTest pass. Its smoke process
+remained inside Xvfb, with no use of the visible host display.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The
