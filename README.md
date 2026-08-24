@@ -24,8 +24,10 @@ camera pan/zoom, cycles exactly four presentation rotations, and highlights the
 tile under the mouse. Projection, inverse picking, rotation, camera focus, and
 runtime startup are covered by CTest. The lot now contains an original
 procedural warm-wood room with logical edge walls rendered from generated
-textures in all four views plus one stateful procedural door. It has no catalog
-objects or residents yet.
+textures in all four views plus one stateful procedural door. A headless object
+model now separates immutable catalog definitions from persistent instances and
+validates rotated footprints, occupancy, and access clearance. Catalog objects
+are not rendered in the lot yet, and there are no residents.
 
 See [plan.md](plan.md) for stable tasks, [analysis.md](analysis.md) for the
 architectural rationale, and [VERIFICATION.md](VERIFICATION.md) for commands

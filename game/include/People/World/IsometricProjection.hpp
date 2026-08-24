@@ -20,7 +20,7 @@ namespace People::World
         int y = 0;
         int floor = 0;
 
-        bool operator==(const TileCoordinate&) const = default;
+        auto operator<=>(const TileCoordinate&) const = default;
     };
 
     /** @brief A tile coordinate after applying the presentation rotation. */

@@ -56,6 +56,7 @@ endif()
 add_subdirectory("${PEOPLE_CNA_ROOT}" "${CMAKE_BINARY_DIR}/_deps/cna")
 
 add_library(people_core STATIC
+    game/src/Objects/ObjectModel.cpp
     game/src/Rendering/RenderOrder.cpp
     game/src/Rendering/WallPresentation.cpp
     game/src/World/IsometricProjection.cpp
@@ -127,6 +128,18 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
     endif()
     add_test(NAME people_lot_grid_tests COMMAND people_lot_grid_tests)
+
+    add_executable(people_object_model_tests
+        tests/ObjectModelTests.cpp
+    )
+    target_link_libraries(people_object_model_tests PRIVATE people_core)
+    if(MSVC)
+        target_compile_options(people_object_model_tests PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(people_object_model_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
+    endif()
+    add_test(NAME people_object_model_tests COMMAND people_object_model_tests)
 
     add_test(NAME people_runtime_smoke COMMAND People --smoke-test)
     set_tests_properties(people_runtime_smoke PROPERTIES

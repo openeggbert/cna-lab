@@ -95,12 +95,12 @@ Statuses:
 
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
-| PEO-050 | DOING | Definition/instance split | Immutable definitions and persistent instances use stable IDs; renderer state is absent from simulation instances |
-| PEO-051 | TODO | Four-view sprite references | Direction/state selection maps view plus object orientation deterministically to authored sprite metadata |
-| PEO-052 | TODO | Rotatable footprints | Arbitrary small cell masks rotate through four orientations and return to origin after four turns |
-| PEO-053 | TODO | Basic placement validator | Bounds, floor support, occupied footprint, allowed rotation, and clearance return structured results with tests |
+| PEO-050 | DONE | Definition/instance split | Immutable definitions and persistent instances use stable IDs; renderer state is absent from simulation instances |
+| PEO-051 | DOING | Four-view sprite references | Direction/state selection maps view plus object orientation deterministically to authored sprite metadata |
+| PEO-052 | DONE | Rotatable footprints | Arbitrary small cell masks rotate through four orientations and return to origin after four turns |
+| PEO-053 | DONE | Basic placement validator | Bounds, floor support, occupied footprint, allowed rotation, and clearance return structured results with tests |
 | PEO-054 | TODO | Object rotation | Rotation transforms footprint, slots, sprite choice, and selection preview without moving the anchor |
-| PEO-055 | TODO | Catalog model | Categories/items are definition-driven and queryable without an object-type switch |
+| PEO-055 | DONE | Catalog model | Categories/items are definition-driven and queryable without an object-type switch |
 | PEO-056 | TODO | Object state values | Typed/validated persistent values support cleanliness/broken/occupied-style fields without living in render code |
 | PEO-057 | TODO | Interaction slot model | Relative tile, facing, posture, capacity, and clearance rotate correctly and expose a world-space target |
 | PEO-058 | TODO | Reservation service | Exclusive slot acquire/query/release supports contention and owner identity deterministically |

@@ -149,3 +149,26 @@ Headless and displayed configurations passed 4/4 CTests. Temporary Xvfb
 captures of closed and open states were visually compared; panel, opening,
 wall contact, sorting, and adjacent floor remained aligned. This completes the
 tested one-room architecture sub-gate, not the five-object M2 content gate.
+
+## 2026-08-24: PEO-050/052/053/055 object placement foundation
+
+`ObjectCatalog` now owns validated, immutable-through-its-public-interface
+definitions. `ObjectWorld` owns persistent instances with explicit nonzero
+64-bit IDs, definition references, logical anchors, and simulation rotations;
+neither type stores a runtime texture or other renderer state.
+
+Footprint offsets rotate through four integer transforms around an unchanged
+anchor. The same definition-driven validator checks the current `LotGrid`
+floor bounds, allowed orientation mask, footprint occupancy, and access
+clearance. Clearance claims remain enforced in both placement orders and are
+released with footprint occupancy when an object is removed. Failures return a
+structured reason and, where applicable, the stable conflicting instance ID.
+
+`people_object_model_tests` covers definition/schema rejection, heterogeneous
+catalog lookup, all four rotation transforms, a four-turn round trip,
+multi-cell/out-of-bounds footprints, allowed rotations, duplicate/zero stable
+IDs, occupation, bidirectional clearance conflicts, and removal cleanup. Both
+the HEADLESS and SDL_RENDERER/SDL3 configurations passed 5/5 CTests against
+clean CNA `b6cbfcd87c08a6e0172eaf866358bf95bec277b1` and clean sharp-runtime
+`54578590b328aa9612fe38bfddca9fd8ca795144`. The displayed runtime test ran
+under Xvfb; no new visual acceptance is claimed for this model-only increment.
