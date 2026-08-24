@@ -588,6 +588,13 @@ namespace WolfCna
 
         // Clamp unusually long frames so a debugger pause cannot launch the player through walls.
         const float clampedElapsed = std::min(elapsed, 0.05f);
+        if (gameOver_)
+        {
+            HandleInput(clampedElapsed);
+            Game::Update(gameTime);
+            return;
+        }
+
         const int incomingDamage = world_.Update(clampedElapsed, playerPosition_);
         if (world_.ConsumeGuardShotCount() > 0 && guardShotSound_)
             static_cast<void>(guardShotSound_->Play(0.18f, 0.12f, 0.0f));
