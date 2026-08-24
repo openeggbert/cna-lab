@@ -84,6 +84,11 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::Texture2D& houndSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& rapidTrooperSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& heavyUnitSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& ammoPickupSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& healthPickupSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& goldBarsSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& goldenGobletSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& peaceMedallionSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& bloodDecal,
             Microsoft::Xna::Framework::Graphics::Texture2D& paintingTexture,
             Microsoft::Xna::Framework::Graphics::Texture2D& peaceBannerTexture,
@@ -155,10 +160,10 @@ namespace WolfCna
             EnemyState state = EnemyState::Idle;
             int health = 3;
             int scoreValue = 100;
-            int attackDamage = 12;
+            int attackDamage = 8;
             float moveSpeed = 0.8f;
             float attackRange = 6.0f;
-            float attackInterval = 0.9f;
+            float attackInterval = 1.35f;
             float projectileSpeed = 4.5f;
             bool melee = false;
             std::vector<std::pair<int, int>> path;
@@ -172,14 +177,16 @@ namespace WolfCna
             Microsoft::Xna::Framework::Vector3 position;
             Microsoft::Xna::Framework::Vector3 velocity;
             float remainingLifetime = 0.0f;
-            int damage = 12;
+            int damage = 8;
         };
 
         enum class PickupType
         {
             Health,
             Ammo,
-            Gold,
+            GoldBars,
+            GoldenGoblet,
+            PeaceMedallion,
             AccessCard,
             RepeaterWeapon,
             HeavyWeapon

@@ -275,6 +275,11 @@ namespace WolfCna
         houndSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound.png", device);
         rapidTrooperSprite_ = std::make_unique<Texture2D>("assets/sprites/rapid-trooper.png", device);
         heavyUnitSprite_ = std::make_unique<Texture2D>("assets/sprites/heavy-unit.png", device);
+        ammoPickupSprite_ = std::make_unique<Texture2D>("assets/pickups/ammo-box.png", device);
+        healthPickupSprite_ = std::make_unique<Texture2D>("assets/pickups/health-kit.png", device);
+        goldBarsSprite_ = std::make_unique<Texture2D>("assets/pickups/gold-bars.png", device);
+        goldenGobletSprite_ = std::make_unique<Texture2D>("assets/pickups/golden-goblet.png", device);
+        peaceMedallionSprite_ = std::make_unique<Texture2D>("assets/pickups/peace-medallion.png", device);
         titleBackground_ = std::make_unique<Texture2D>("assets/title/title-background.png", device);
         CreateProceduralBloodDecal();
         CreateProceduralDecorationTextures();
@@ -1508,6 +1513,8 @@ namespace WolfCna
         if ((screen_ == Screen::Playing || screen_ == Screen::Paused || screen_ == Screen::GameOver) &&
             effect_ && atlas_ && guardSprite_ && houndSprite_ && bloodDecal_ &&
             rapidTrooperSprite_ && heavyUnitSprite_ &&
+            ammoPickupSprite_ && healthPickupSprite_ && goldBarsSprite_ &&
+            goldenGobletSprite_ && peaceMedallionSprite_ &&
             paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_ && lampLightTexture_)
         {
             world_.Draw(
@@ -1520,6 +1527,11 @@ namespace WolfCna
                 *houndSprite_,
                 *rapidTrooperSprite_,
                 *heavyUnitSprite_,
+                *ammoPickupSprite_,
+                *healthPickupSprite_,
+                *goldBarsSprite_,
+                *goldenGobletSprite_,
+                *peaceMedallionSprite_,
                 *bloodDecal_,
                 *paintingTexture_,
                 *peaceBannerTexture_,

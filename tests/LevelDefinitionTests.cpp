@@ -202,6 +202,23 @@ int main()
         exitWorld.GetCompletionStats().collectedGold == 1 && exitWorld.GetCompletionStats().totalGold == 1,
         "gold collection appears in completion statistics");
 
+    WolfCna::World treasureWorld(WolfCna::LevelDefinition::Parse(
+        "######\n#PTJN#\n######\n",
+        "treasure.level"));
+    Expect(
+        treasureWorld.CollectPickups(Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f)).gold == 100,
+        "gold bars award 100 score");
+    Expect(
+        treasureWorld.CollectPickups(Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f)).gold == 250,
+        "golden goblet awards 250 score");
+    Expect(
+        treasureWorld.CollectPickups(Microsoft::Xna::Framework::Vector3(4.5f, 0.62f, 1.5f)).gold == 500,
+        "peace medallion awards 500 score");
+    Expect(
+        treasureWorld.GetCompletionStats().collectedGold == 3 &&
+            treasureWorld.GetCompletionStats().totalGold == 3,
+        "all treasure variants appear in completion statistics");
+
     WolfCna::World terminalWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PME#\n#####\n",
         "terminal.level"));
@@ -255,7 +272,15 @@ int main()
         guardShots += damageWorld.ConsumeGuardShotCount();
     }
     Expect(guardShots >= 1, "guard emits a shot at the player");
-    Expect(guardProjectileDamage == 12, "guard projectile damages a player at range");
+    Expect(guardProjectileDamage == 8, "guard projectile damages a player at range");
+
+    WolfCna::World coordinatedFireWorld(WolfCna::LevelDefinition::Parse(
+        "######\n#P.GG#\n######\n",
+        "coordinated-fire.level"));
+    static_cast<void>(coordinatedFireWorld.Update(0.05f, combatPlayer));
+    Expect(
+        coordinatedFireWorld.ConsumeGuardShotCount() == 1,
+        "only the nearest visible ranged enemy fires at one time");
 
     WolfCna::World houndAudioWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PK.#\n#####\n",
@@ -275,7 +300,7 @@ int main()
         "#####\n#PK.#\n#####\n",
         "scout-damage.level"));
     Expect(
-        scoutDamageWorld.Update(0.05f, Microsoft::Xna::Framework::Vector3(1.8f, 0.62f, 1.5f), 0.5f) == 9,
+        scoutDamageWorld.Update(0.05f, Microsoft::Xna::Framework::Vector3(1.8f, 0.62f, 1.5f), 0.5f) == 7,
         "damage multiplier scales hound attacks for difficulty");
 
     return EXIT_SUCCESS;

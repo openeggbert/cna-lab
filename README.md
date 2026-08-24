@@ -28,7 +28,8 @@ This starter is deliberately small. It proves the basic direction before local A
 - defeated guards and hounds leave a stylized procedurally textured blood-pool decal on the floor
 - authored rooms include procedural framed paintings, peace-symbol banners and ceiling lamps with warm floor-light pools
 - distinct generated material palettes for each sector: warm bunker, green industrial, and cold technical
-- guards fire visible ranged projectiles; hounds remain close-range attackers
+- only the nearest eligible ranged enemy fires at one time; guards, rapid troopers and heavy units use slower distinct cadences while hounds remain close-range attackers
+- health, ammunition and three differently valued treasures use original transparent pixel-art pickup sprites instead of colored blocks
 - no external copyrighted game assets
 - original title menu with difficulty selection before a run begins
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
@@ -76,9 +77,13 @@ have the same width and use only these symbols:
 - `S`: secret moving wall; use it to expose a hidden reward
 - `G`: guard spawn
 - `K`: hound spawn
+- `F`: rapid-fire trooper spawn
+- `U`: heavy-unit spawn
 - `H`: health pickup
 - `A`: ammunition pickup
-- `T`: gold pickup
+- `T`: gold-bars pickup worth 100 score
+- `J`: golden-goblet pickup worth 250 score
+- `N`: peace-medallion pickup worth 500 score
 - `E`: level exit
 - `R`: wall-mounted framed landscape painting; must be next to a wall
 - `B`: wall-mounted banner with an original peace symbol; must be next to a wall

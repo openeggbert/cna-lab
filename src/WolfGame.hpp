@@ -40,6 +40,11 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> houndSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> rapidTrooperSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyUnitSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> ammoPickupSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> healthPickupSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> goldBarsSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> goldenGobletSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> peaceMedallionSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> bloodDecal_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> paintingTexture_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> peaceBannerTexture_;

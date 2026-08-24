@@ -149,3 +149,83 @@ Lighting/mood: high-contrast sprite shading readable against dark bunker rooms
 Constraints: genuinely transparent background and preserved alpha; exactly one fictional heavy automatic weapon and two hands; no text; no logo; no watermark; no blood; no gore; no scenery; no projectile; no muzzle flash; no political or military insignia; fully original industrial design
 Avoid: photorealism, 3D render, smooth painterly gradients, real weapon brand, copyrighted game weapons, resemblance to Wolfenstein weapon sprites, recognizable minigun design, anti-aliased halo
 ```
+
+## `assets/pickups/ammo-box.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent camera-facing collectible sprite for an original retro first-person shooter
+Primary request: one compact ammunition pickup for a bunker level
+Subject: a small open graphite metal ammunition box containing several rows of chunky brass cartridges, muted teal latch, clear readable silhouette
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality matching wolf-cna's original weapon sprites
+Composition/framing: one object only, centered three-quarter front view, entire object visible, generous transparent padding, base aligned near bottom, recognizable at small in-game size
+Lighting/mood: high-contrast warm highlights readable in dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; no text; no logo; no watermark; no weapon; no hands; no scenery; no political or military insignia; fully original design
+Avoid: photorealism, 3D render, smooth painterly gradients, real ammunition branding, copyrighted game items, resemblance to Wolfenstein pickup sprites, anti-aliased halo
+```
+
+## `assets/pickups/health-kit.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent camera-facing collectible sprite for an original retro first-person shooter
+Primary request: one compact health-kit pickup for a bunker level
+Subject: a sturdy off-white and graphite medical case with a simple teal medical plus symbol, metal clasps, handle, subtle worn edges, clear readable silhouette
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality matching wolf-cna's original sprites
+Composition/framing: one object only, centered three-quarter front view, entire object visible, generous transparent padding, base aligned near bottom, recognizable at small in-game size
+Lighting/mood: clean high-contrast highlights readable in dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; teal plus only, not a red-cross emblem; no text; no logo; no watermark; no blood; no gore; no hands; no scenery; no political or military insignia; fully original design
+Avoid: photorealism, 3D render, smooth painterly gradients, red cross, copyrighted game items, resemblance to Wolfenstein pickup sprites, anti-aliased halo
+```
+
+## `assets/pickups/gold-bars.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent camera-facing treasure collectible sprite for an original retro first-person shooter
+Primary request: a small stack of valuable gold ingots for a bunker treasure pickup
+Subject: three chunky original gold bars stacked securely, warm yellow metal, beveled edges, simple geometric stamped lines without letters or currency marks
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality
+Composition/framing: one compact treasure pile only, centered three-quarter front view, entire pile visible, generous transparent padding, base aligned near bottom, readable at small in-game size
+Lighting/mood: bright amber highlights and deep ochre shadows, clearly valuable against dark rooms
+Constraints: genuinely transparent background and preserved alpha; no text; no logo; no watermark; no currency symbol; no hands; no scenery; fully original design
+Avoid: photorealism, 3D render, smooth painterly gradients, copyrighted game items, resemblance to Wolfenstein treasure sprites, anti-aliased halo
+```
+
+## `assets/pickups/golden-goblet.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent camera-facing treasure collectible sprite for an original retro first-person shooter
+Primary request: one ornate golden goblet as a medium-value bunker treasure pickup
+Subject: original broad golden goblet with angular late-1980s geometric engraving and three small teal gemstones, sturdy stem and base, clearly distinct from simple gold bars
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality
+Composition/framing: one object only, centered three-quarter front view, entire goblet visible, generous transparent padding, base aligned near bottom, recognizable at small in-game size
+Lighting/mood: bright amber highlights with deep warm shadows and restrained teal sparkle
+Constraints: genuinely transparent background and preserved alpha; no text; no logo; no watermark; no religious, political or military symbols; no hands; no scenery; fully original design
+Avoid: photorealism, 3D render, smooth painterly gradients, copyrighted game items, resemblance to Wolfenstein treasure sprites, anti-aliased halo
+```
+
+## `assets/pickups/peace-medallion.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent camera-facing high-value treasure collectible sprite for an original retro first-person shooter
+Primary request: one compact original golden display medallion with a large cyan gemstone for a bunker treasure pickup
+Subject: a thick low golden peace medallion standing on a tiny angular gold base, one large faceted cyan gemstone in its center and two tiny amber gems, compact silhouette clearly distinct from gold bars and a goblet
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality
+Composition/framing: one object only, centered three-quarter front view, entire object visible, generous empty transparent padding on every side, base aligned near bottom, readable at small in-game size
+Lighting/mood: crisp highlights contained strictly on the object, deep warm object shadows
+Constraints: genuinely transparent background and preserved alpha; absolutely no glow, aura, shadow, backdrop, gradient, floor or scenery outside the object; no text; no logo; no watermark; peace symbol is the only allowed emblem; no political, totalitarian, military or religious insignia; no hands; fully original fictional design
+Avoid: colored haze, black rectangle, brown background, photorealism, 3D render, smooth painterly gradients, historical crown, copyrighted game items, resemblance to Wolfenstein treasure sprites, anti-aliased halo
+```

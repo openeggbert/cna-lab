@@ -91,6 +91,26 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/weapons/heavy-automatic.png"
     COPYONLY)
 configure_file(
+    assets/pickups/ammo-box.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/ammo-box.png"
+    COPYONLY)
+configure_file(
+    assets/pickups/health-kit.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/health-kit.png"
+    COPYONLY)
+configure_file(
+    assets/pickups/gold-bars.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/gold-bars.png"
+    COPYONLY)
+configure_file(
+    assets/pickups/golden-goblet.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/golden-goblet.png"
+    COPYONLY)
+configure_file(
+    assets/pickups/peace-medallion.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/peace-medallion.png"
+    COPYONLY)
+configure_file(
     assets/title/title-background.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/title/title-background.png"
     COPYONLY)

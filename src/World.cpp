@@ -247,9 +247,13 @@ namespace WolfCna
                 result.health += 25;
             else if (pickup.type == PickupType::Ammo)
                 result.ammo += 6;
-            else if (pickup.type == PickupType::Gold)
+            else if (pickup.type == PickupType::GoldBars ||
+                pickup.type == PickupType::GoldenGoblet ||
+                pickup.type == PickupType::PeaceMedallion)
             {
-                result.gold += 100;
+                result.gold += pickup.type == PickupType::GoldBars
+                    ? 100
+                    : pickup.type == PickupType::GoldenGoblet ? 250 : 500;
                 ++collectedGold_;
             }
             else if (pickup.type == PickupType::AccessCard)
@@ -442,6 +446,28 @@ namespace WolfCna
                 doorVertexBuffer_->SetData(doorVertices_.data(), static_cast<int>(doorVertices_.size()));
         }
 
+        Enemy* designatedRangedAttacker = nullptr;
+        float designatedDistanceSquared = std::numeric_limits<float>::max();
+        for (Enemy& enemy : enemies_)
+        {
+            if (enemy.state == EnemyState::Dead || enemy.melee)
+                continue;
+
+            const float dx = playerPosition.X - enemy.position.X;
+            const float dz = playerPosition.Z - enemy.position.Z;
+            const float distanceSquared = dx * dx + dz * dz;
+            if (distanceSquared > enemy.attackRange * enemy.attackRange ||
+                distanceSquared > EnemyWakeRange * EnemyWakeRange ||
+                !HasLineOfSight(enemy.position, playerPosition))
+                continue;
+
+            if (distanceSquared < designatedDistanceSquared)
+            {
+                designatedRangedAttacker = &enemy;
+                designatedDistanceSquared = distanceSquared;
+            }
+        }
+
         for (Enemy& enemy : enemies_)
         {
             if (enemy.state == EnemyState::Dead)
@@ -465,9 +491,10 @@ namespace WolfCna
                 else
                     ++pendingEnemyAudioEvents_.guardAlerts;
             }
-            if (enemy.state == EnemyState::Chase && canAttack)
+            const bool hasAttackTurn = enemy.melee || &enemy == designatedRangedAttacker;
+            if (enemy.state == EnemyState::Chase && canAttack && hasAttackTurn)
                 enemy.state = EnemyState::Attack;
-            else if (enemy.state == EnemyState::Attack && !canAttack)
+            else if (enemy.state == EnemyState::Attack && (!canAttack || !hasAttackTurn))
                 enemy.state = EnemyState::Chase;
 
             if (enemy.state == EnemyState::Attack)
@@ -482,7 +509,9 @@ namespace WolfCna
                     }
                     else
                     {
-                        const float inverseDistance = 1.0f / std::sqrt(distanceSquared);
+                        const float inverseDistance = distanceSquared > 0.0001f
+                            ? 1.0f / std::sqrt(distanceSquared)
+                            : 0.0f;
                         enemyProjectiles_.push_back({
                             enemy.position + Vector3(0.0f, 0.5f, 0.0f),
                             Vector3(dx * inverseDistance * enemy.projectileSpeed, 0.0f, dz * inverseDistance * enemy.projectileSpeed),
@@ -744,9 +773,10 @@ namespace WolfCna
                         enemy.type = Enemy::Type::Hound;
                         enemy.health = 2;
                         enemy.scoreValue = 200;
-                        enemy.attackDamage = 18;
+                        enemy.attackDamage = 14;
                         enemy.moveSpeed = EnemySpeed * 1.8f;
                         enemy.attackRange = HoundAttackRange;
+                        enemy.attackInterval = 1.05f;
                         enemy.melee = true;
                     }
                     else if (symbol == 'F')
@@ -754,10 +784,10 @@ namespace WolfCna
                         enemy.type = Enemy::Type::RapidTrooper;
                         enemy.health = 4;
                         enemy.scoreValue = 250;
-                        enemy.attackDamage = 8;
+                        enemy.attackDamage = 5;
                         enemy.moveSpeed = EnemySpeed * 1.2f;
                         enemy.attackRange = GuardAttackRange;
-                        enemy.attackInterval = 0.45f;
+                        enemy.attackInterval = 0.8f;
                         enemy.projectileSpeed = GuardProjectileSpeed * 1.15f;
                     }
                     else if (symbol == 'U')
@@ -765,10 +795,10 @@ namespace WolfCna
                         enemy.type = Enemy::Type::HeavyUnit;
                         enemy.health = 8;
                         enemy.scoreValue = 500;
-                        enemy.attackDamage = 20;
+                        enemy.attackDamage = 14;
                         enemy.moveSpeed = EnemySpeed * 0.65f;
                         enemy.attackRange = GuardAttackRange + 1.0f;
-                        enemy.attackInterval = 1.25f;
+                        enemy.attackInterval = 1.7f;
                         enemy.projectileSpeed = GuardProjectileSpeed * 0.85f;
                     }
                     enemies_.push_back(std::move(enemy));
@@ -784,24 +814,30 @@ namespace WolfCna
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
             {
                 const char symbol = map_[z][x];
-                if (symbol != 'H' && symbol != 'A' && symbol != 'T' && symbol != 'C' &&
-                    symbol != 'W' && symbol != 'V')
+                if (symbol != 'H' && symbol != 'A' && symbol != 'T' && symbol != 'J' &&
+                    symbol != 'N' && symbol != 'C' && symbol != 'W' && symbol != 'V')
                     continue;
+
+                PickupType type = PickupType::Health;
+                if (symbol == 'A')
+                    type = PickupType::Ammo;
+                else if (symbol == 'T')
+                    type = PickupType::GoldBars;
+                else if (symbol == 'J')
+                    type = PickupType::GoldenGoblet;
+                else if (symbol == 'N')
+                    type = PickupType::PeaceMedallion;
+                else if (symbol == 'C')
+                    type = PickupType::AccessCard;
+                else if (symbol == 'W')
+                    type = PickupType::RepeaterWeapon;
+                else if (symbol == 'V')
+                    type = PickupType::HeavyWeapon;
 
                 pickups_.push_back({
                     Vector3(static_cast<float>(x) + 0.5f, 0.08f, static_cast<float>(z) + 0.5f),
-                    symbol == 'H'
-                        ? PickupType::Health
-                        : symbol == 'A'
-                            ? PickupType::Ammo
-                            : symbol == 'T'
-                                ? PickupType::Gold
-                                : symbol == 'C'
-                                    ? PickupType::AccessCard
-                                    : symbol == 'W'
-                                        ? PickupType::RepeaterWeapon
-                                        : PickupType::HeavyWeapon});
-                if (symbol == 'T')
+                    type});
+                if (symbol == 'T' || symbol == 'J' || symbol == 'N')
                     ++totalGold_;
             }
         }
@@ -1155,7 +1191,7 @@ namespace WolfCna
             enemyIndexBuffer_->SetData(enemyIndices_.data(), static_cast<int>(enemyIndices_.size()));
         }
 
-        if (!enemies_.empty() || !decorations_.empty())
+        if (!enemies_.empty() || !pickups_.empty() || !decorations_.empty())
         {
             billboardVertexBuffer_ = std::make_unique<VertexBuffer>(
                 device,
@@ -1201,6 +1237,11 @@ namespace WolfCna
         Texture2D& houndSprite,
         Texture2D& rapidTrooperSprite,
         Texture2D& heavyUnitSprite,
+        Texture2D& ammoPickupSprite,
+        Texture2D& healthPickupSprite,
+        Texture2D& goldBarsSprite,
+        Texture2D& goldenGobletSprite,
+        Texture2D& peaceMedallionSprite,
         Texture2D& bloodDecal,
         Texture2D& paintingTexture,
         Texture2D& peaceBannerTexture,
@@ -1403,7 +1444,8 @@ namespace WolfCna
             device.setDepthStencilStateProperty(DepthStencilState::Default);
         }
 
-        if (billboardVertexBuffer_ && billboardIndexBuffer_ && !enemies_.empty())
+        if (billboardVertexBuffer_ && billboardIndexBuffer_ &&
+            (!enemies_.empty() || !pickups_.empty()))
         {
             std::vector<const Enemy*> sortedEnemies;
             sortedEnemies.reserve(enemies_.size());
@@ -1471,6 +1513,69 @@ namespace WolfCna
                 }
             }
 
+            for (const Pickup& pickup : pickups_)
+            {
+                if (pickup.collected)
+                    continue;
+
+                Texture2D* pickupTexture = nullptr;
+                float width = 0.58f;
+                float height = 0.56f;
+                if (pickup.type == PickupType::Ammo)
+                {
+                    pickupTexture = &ammoPickupSprite;
+                    width = 0.66f;
+                }
+                else if (pickup.type == PickupType::Health)
+                {
+                    pickupTexture = &healthPickupSprite;
+                    width = 0.68f;
+                }
+                else if (pickup.type == PickupType::GoldBars)
+                {
+                    pickupTexture = &goldBarsSprite;
+                    height = 0.46f;
+                }
+                else if (pickup.type == PickupType::GoldenGoblet)
+                {
+                    pickupTexture = &goldenGobletSprite;
+                    width = 0.46f;
+                    height = 0.64f;
+                }
+                else if (pickup.type == PickupType::PeaceMedallion)
+                {
+                    pickupTexture = &peaceMedallionSprite;
+                    width = 0.5f;
+                    height = 0.64f;
+                }
+
+                if (!pickupTexture)
+                    continue;
+
+                effect.setTextureProperty(pickupTexture);
+                effect.setDiffuseColorProperty(Vector3(1.0f, 1.0f, 1.0f));
+                effect.setWorldProperty(
+                    Matrix::CreateScale(width, height, 1.0f) *
+                    Matrix::CreateConstrainedBillboard(
+                        Vector3(pickup.position.X, 0.02f, pickup.position.Z),
+                        cameraPosition,
+                        Vector3::Up,
+                        std::nullopt,
+                        std::nullopt));
+
+                for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+                {
+                    pass.Apply();
+                    device.DrawIndexedPrimitives(
+                        PrimitiveType::TriangleList,
+                        0,
+                        0,
+                        static_cast<int>(billboardVertices_.size()),
+                        0,
+                        static_cast<int>(billboardIndices_.size() / 3));
+                }
+            }
+
             device.setBlendStateProperty(BlendState::Opaque);
             device.setDepthStencilStateProperty(DepthStencilState::Default);
         }
@@ -1486,21 +1591,19 @@ namespace WolfCna
         {
             if (pickup.collected)
                 continue;
+            if (pickup.type == PickupType::Health || pickup.type == PickupType::Ammo ||
+                pickup.type == PickupType::GoldBars || pickup.type == PickupType::GoldenGoblet ||
+                pickup.type == PickupType::PeaceMedallion)
+                continue;
 
             effect.setWorldProperty(
                 Matrix::CreateScale(0.38f) * Matrix::CreateTranslation(pickup.position));
             effect.setDiffuseColorProperty(
-                pickup.type == PickupType::Health
-                    ? Vector3(0.22f, 0.82f, 0.3f)
-                    : pickup.type == PickupType::Ammo
-                        ? Vector3(0.92f, 0.76f, 0.12f)
-                        : pickup.type == PickupType::Gold
-                            ? Vector3(0.98f, 0.54f, 0.08f)
-                            : pickup.type == PickupType::AccessCard
-                                ? Vector3(0.28f, 0.72f, 0.94f)
-                                : pickup.type == PickupType::RepeaterWeapon
-                                    ? Vector3(0.66f, 0.36f, 0.92f)
-                                    : Vector3(0.94f, 0.22f, 0.2f));
+                pickup.type == PickupType::AccessCard
+                    ? Vector3(0.28f, 0.72f, 0.94f)
+                    : pickup.type == PickupType::RepeaterWeapon
+                        ? Vector3(0.66f, 0.36f, 0.92f)
+                        : Vector3(0.94f, 0.22f, 0.2f));
 
             for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
             {

@@ -5,7 +5,7 @@ The project does not ship third-party image or audio assets.
 The wall/floor/ceiling atlas, stylized blood-pool decal, framed painting,
 peace-symbol banner and ceiling lamp are generated at runtime in `src/WolfGame.cpp`.
 
-Original generated sprites under `sprites/` and `weapons/` are project-owned assets. Their source,
+Original generated sprites under `sprites/`, `weapons/` and `pickups/` are project-owned assets. Their source,
 generation date and complete prompts are recorded in `../ASSET_PROVENANCE.md`.
 
 The generated title artwork under `title/` is also project-owned and recorded in

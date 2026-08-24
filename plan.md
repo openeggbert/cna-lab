@@ -1094,7 +1094,9 @@ validated level pickups. All four have distinct original generated HUD/view
 sprites, carry through sector transitions and are granted by the loadout cheat.
 Original rapid-fire troopers and heavy units now join guards and hounds with
 distinct health, score, speed, ranged damage and attack cadence. Automatic
-hold-to-fire cadence and campaign balance remain.
+hold-to-fire cadence and campaign balance remain. Ranged enemies coordinate so
+only the nearest eligible shooter attacks at one time, avoiding simultaneous
+volleys when the player enters a populated room.
 
 - add original security guard, rapid-fire trooper and heavy-unit archetypes;
 - add knife, sidearm, automatic weapon and heavy automatic weapon;
@@ -1107,8 +1109,10 @@ hold-to-fire cadence and campaign balance remain.
 Status: in progress. Every authored sector now introduces a framed landscape,
 an original peace-symbol banner and a ceiling lamp through validated level
 symbols and project-generated textures. Each ceiling lamp projects a warm radial
-light pool onto the floor. Freestanding furniture, plants, treasure props and
-sector-specific variants remain.
+light pool onto the floor. Health, ammunition, gold bars, golden goblets and
+high-value peace medallions now use original transparent pickup sprites, with the
+three treasure types awarding 100, 250 and 500 score. Freestanding furniture,
+plants and sector-specific decoration variants remain.
 
 - add generated paintings, ceiling lamps, tables, plants and treasure props;
 - add original wall banners carrying a peace symbol only;
