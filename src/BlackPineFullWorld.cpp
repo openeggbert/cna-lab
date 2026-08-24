@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <initializer_list>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -48,6 +49,94 @@ e2d::Visual ellipse(float x, float y, float rx, float ry, P color, bool filled =
 
 e2d::Visual label(float x, float y, e2d::LocalizedText text, P color = pale, int scale = 1) {
     return e2d::TextVisual{{x, y}, std::move(text), color, scale};
+}
+
+bool oneOf(const std::string_view value, const std::initializer_list<std::string_view> choices) {
+    return std::ranges::find(choices, value) != choices.end();
+}
+
+std::vector<e2d::Visual> pickupVisuals(const std::string_view itemId, const float centerX) {
+    constexpr float ground = 258.0F;
+    std::vector<e2d::Visual> result{
+        ellipse(centerX, ground, 15, 3, P::black),
+    };
+
+    if (oneOf(itemId, {"patch_cable", "climbing_rope", "siphon_hose", "drive_belt",
+            "magnet_cord", "coolant_hose"})) {
+        result.push_back(ellipse(centerX, 247, 13, 8, amber, false));
+        result.push_back(ellipse(centerX, 247, 8, 5, P::brown, false));
+        result.push_back(line(centerX + 11, 250, centerX + 18, 255, amber));
+    } else if (oneOf(itemId, {"field_note", "site_map", "survey_notebook", "mine_map",
+                   "punched_card", "calder_photo"})) {
+        result.push_back(box(centerX - 12, 237, 24, 18, pale));
+        result.push_back(line(centerX + 5, 237, centerX + 12, 244, P::lightGray));
+        result.push_back(line(centerX - 8, 246, centerX + 7, 246, P::blue));
+        result.push_back(line(centerX - 8, 250, centerX + 4, 250, P::blue));
+    } else if (oneOf(itemId, {"brass_key", "quarry_office_key", "rail_switch_key", "dome_key",
+                   "override_key", "transmitter_key"})) {
+        result.push_back(circle(centerX - 8, 246, 6, amber, false));
+        result.push_back(line(centerX - 2, 246, centerX + 14, 246, amber));
+        result.push_back(line(centerX + 8, 246, centerX + 8, 252, amber));
+        result.push_back(line(centerX + 13, 246, centerX + 13, 250, amber));
+    } else if (oneOf(itemId, {"wrench", "pruning_saw", "iron_hook", "pulley_pin",
+                   "spillway_crank", "valve_wheel", "calibration_fork", "grounding_clamp"})) {
+        result.push_back(circle(centerX - 9, 250, 5, P::lightGray, false));
+        result.push_back(line(centerX - 5, 247, centerX + 12, 236, pale));
+        result.push_back(line(centerX + 10, 235, centerX + 15, 239, pale));
+        result.push_back(line(centerX + 10, 235, centerX + 10, 242, P::darkGray));
+    } else if (oneOf(itemId, {"hand_crank_torch", "multimeter", "mine_lamp", "compass", "hand_mirror"})) {
+        result.push_back(box(centerX - 11, 235, 22, 21, P::darkGray));
+        result.push_back(box(centerX - 8, 238, 16, 11, signalBlue));
+        result.push_back(circle(centerX, 243, 4, pale, false));
+        result.push_back(line(centerX - 6, 253, centerX + 6, 253, amber));
+    } else if (oneOf(itemId, {"ceramic_fuse", "red_phase_coil", "dry_cell", "copper_bus_bar",
+                   "lift_fuse", "phase_prism", "beacon_crystal"})) {
+        result.push_back(box(centerX - 14, 240, 28, 12, P::red));
+        result.push_back(box(centerX - 10, 237, 20, 18, danger, false));
+        result.push_back(circle(centerX - 7, 246, 3, amber));
+        result.push_back(circle(centerX + 7, 246, 3, signalBlue));
+    } else if (oneOf(itemId, {"bandage_roll", "signal_flare", "charcoal", "filled_fuel_can",
+                   "oil_can", "sealed_ration", "insulated_boots", "respirator", "filter_housing",
+                   "first_aid_kit"})) {
+        result.push_back(box(centerX - 13, 235, 26, 21, P::brown));
+        result.push_back(box(centerX - 10, 238, 20, 15, P::red));
+        result.push_back(line(centerX - 5, 245, centerX + 5, 245, pale));
+        result.push_back(line(centerX, 240, centerX, 250, pale));
+    } else if (oneOf(itemId, {"pine_bird", "relay_badge", "ranger_patch", "old_relay_badge",
+                   "quartz_sample", "logger_token", "turbine_badge", "nightjar_patch"})) {
+        result.push_back(e2d::PolygonVisual{{
+            {centerX, 234}, {centerX + 12, 246}, {centerX, 256}, {centerX - 12, 246}},
+            signalBlue, true});
+        result.push_back(circle(centerX, 246, 5, amber));
+    } else {
+        result.push_back(box(centerX - 13, 238, 26, 17, P::brightMagenta));
+        result.push_back(box(centerX - 10, 241, 20, 11, P::magenta));
+        result.push_back(line(centerX - 8, 246, centerX + 8, 246, pale));
+    }
+
+    // A tiny SCREEN 9-style glint separates a collectible from scenery without
+    // adding a modern marker or floating label.
+    result.push_back(line(centerX + 17, 232, centerX + 17, 238, pale));
+    result.push_back(line(centerX + 14, 235, centerX + 20, 235, pale));
+    return result;
+}
+
+std::vector<e2d::Visual> emergencyPhoneVisuals(const bool ringing) {
+    const P caseColor = ringing ? danger : P::red;
+    return {
+        ellipse(415, 258, 27, 4, P::black),
+        box(408, 218, 14, 40, P::darkGray),
+        box(389, 184, 52, 42, P::brown),
+        box(393, 188, 44, 34, caseColor),
+        box(397, 192, 36, 26, P::black),
+        circle(415, 205, 8, P::lightGray, false),
+        circle(415, 205, 2, amber),
+        box(397, 185, 36, 7, amber),
+        circle(399, 189, 5, amber),
+        circle(431, 189, 5, amber),
+        line(431, 192, 438, 202, P::black),
+        line(438, 202, 438, 214, P::black),
+    };
 }
 
 e2d::Message inspect(e2d::LocalizedText text) {
@@ -873,6 +962,7 @@ void addPickup(
     auto& hotspot = ensureHotspot(world, screenNumber, std::string{"take_"} + std::string{itemId},
         world.item(itemId)->label, {x, 183, 76, 77}, e2d::HotspotKind::item, slot);
     hotspot.visibleWhen = extraConditions;
+    hotspot.visuals = pickupVisuals(itemId, x + 38.0F);
     world.addInteraction({e2d::Verb::take, hotspot.id, std::nullopt, extraConditions,
         {inspect(tr(std::move(englishMessage), std::move(czechMessage)))},
         {e2d::Mutation::addItem(std::string{itemId}), e2d::Mutation::setFlag(flag)},
@@ -1030,6 +1120,17 @@ void addActOne(e2d::WorldDefinition& world) {
             speech(tr("Mara: Reach the cabin. Bring any dry repair supplies you find. We need one clear channel before the beacon dies.",
                 "Mara: Dojdi k chatě. Vezmi všechno suché vybavení k opravě, které najdeš. Potřebujeme jeden čistý kanál, než maják zhasne.")),
         }, {}, {}, 3, "warning");
+    auto& emergencyPhone = ensureHotspot(world, 1, "emergency_phone",
+        tr("STORM EMERGENCY PHONE", "BOUŘKOVÝ NOUZOVÝ TELEFON"),
+        {369, 137, 92, 123}, e2d::HotspotKind::mechanism, 3);
+    emergencyPhone.visuals = emergencyPhoneVisuals(true);
+    auto& answeredPhone = room(world, 1).hotspots.back();
+    answeredPhone.visuals = emergencyPhoneVisuals(false);
+    room(world, 1).animations.push_back({"emergency_phone_ring", true, true,
+        {e2d::Condition::notFlag("mission_started")}, {
+            {4, {circle(415, 205, 12, amber, false)}},
+            {4, {circle(415, 205, 15, pale, false)}},
+        }});
     gateRight(world, 1, {e2d::Condition::flag("mission_started")},
         "The emergency phone is pulsing. Iris must answer before leaving the trailhead.",
         "Nouzový telefon pulzuje. Iris ho musí před odchodem z výchoziště zvednout.");

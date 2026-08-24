@@ -176,9 +176,14 @@ int main() {
     assert(world.items.size() == 64);
     assert(world.localization.supports("en"));
     assert(world.localization.supports("cs"));
+    const auto& ringingPhone = hotspot(world, "s001_emergency_phone");
+    const auto& answeredPhone = hotspot(world, "s001_emergency_phone_complete");
+    assert(ringingPhone.visuals.size() >= 10);
+    assert(answeredPhone.visuals.size() >= 10);
 
     std::size_t anchors = 0;
     std::size_t animatedRooms = 0;
+    std::size_t visiblePickups = 0;
     for (std::size_t i = 0; i < black_pine::content::screens.size(); ++i) {
         const auto& spec = black_pine::content::screens[i];
         const auto* current = world.room(spec.id);
@@ -197,6 +202,12 @@ int main() {
                 assert(text->text.resolve("cs").find("OBRAZOVKA ") == std::string_view::npos);
             }
         }
+        for (const auto& candidate : current->hotspots) {
+            if (candidate.kind != e2d::HotspotKind::item) continue;
+            ++visiblePickups;
+            assert(candidate.visuals.size() >= 5);
+            assert(candidate.interactionArea.bottom() == 260.0F);
+        }
         anchors += current->travelAnchor ? 1U : 0U;
         if (i > 0) {
             assert(std::ranges::any_of(current->exits, [i](const e2d::ExitDefinition& exit) {
@@ -212,6 +223,7 @@ int main() {
         }
     }
     assert(anchors == 17);
+    assert(visiblePickups >= 45);
     assert(animatedRooms > 80 && animatedRooms < world.rooms.size());
     for (const auto& hint : world.hints) {
         assert(hint.text.resolve("en").find("screen ") == std::string_view::npos);
