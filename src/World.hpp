@@ -103,7 +103,8 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& lookDirection,
             float range = 12.0f);
         [[nodiscard]] PickupResult CollectPickups(
-            const Microsoft::Xna::Framework::Vector3& playerPosition);
+            const Microsoft::Xna::Framework::Vector3& playerPosition,
+            int currentHealth = 0);
         [[nodiscard]] bool ReachedExit(
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         [[nodiscard]] bool IsExitUnlocked() const;

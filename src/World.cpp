@@ -228,7 +228,9 @@ namespace WolfCna
         return {};
     }
 
-    World::PickupResult World::CollectPickups(const Vector3& playerPosition)
+    World::PickupResult World::CollectPickups(
+        const Vector3& playerPosition,
+        int currentHealth)
     {
         PickupResult result;
 
@@ -242,29 +244,43 @@ namespace WolfCna
             if (dx * dx + dz * dz > PickupRadius * PickupRadius)
                 continue;
 
-            pickup.collected = true;
             if (pickup.type == PickupType::Health)
-                result.health += 25;
+            {
+                const int missingHealth = 100 - currentHealth - result.health;
+                if (missingHealth <= 0)
+                    continue;
+                pickup.collected = true;
+                result.health += std::min(25, missingHealth);
+            }
             else if (pickup.type == PickupType::Ammo)
+            {
+                pickup.collected = true;
                 result.ammo += 6;
+            }
             else if (pickup.type == PickupType::GoldBars ||
                 pickup.type == PickupType::GoldenGoblet ||
                 pickup.type == PickupType::PeaceMedallion)
             {
+                pickup.collected = true;
                 result.gold += pickup.type == PickupType::GoldBars
                     ? 100
                     : pickup.type == PickupType::GoldenGoblet ? 250 : 500;
                 ++collectedGold_;
             }
             else if (pickup.type == PickupType::AccessCard)
+            {
+                pickup.collected = true;
                 ++result.accessCards;
+            }
             else if (pickup.type == PickupType::RepeaterWeapon)
             {
+                pickup.collected = true;
                 ++result.repeaterWeapons;
                 result.ammo += 6;
             }
             else
             {
+                pickup.collected = true;
                 ++result.heavyWeapons;
                 result.ammo += 10;
             }

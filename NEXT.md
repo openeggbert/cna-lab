@@ -9,6 +9,7 @@
 - Only one visible ranged enemy attacks at a time, with lower damage and slower archetype-specific cadences.
 - Health, ammunition and three treasure values now use original transparent sprites instead of colored blocks.
 - Holding Ctrl repeats repeater and heavy-automatic bursts at distinct bounded cadences; knife and sidearm remain one attack per press.
+- Health kits are preserved when the player is already at 100% and can be collected after later damage.
 - The illustrated splash is separate from the main menu, and campaign sector size now targets an authored 64×64 footprint.
 
 ## Next tasks

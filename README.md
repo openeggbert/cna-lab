@@ -30,6 +30,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - distinct generated material palettes for each sector: warm bunker, green industrial, and cold technical
 - only the nearest eligible ranged enemy fires at one time; guards, rapid troopers and heavy units use slower distinct cadences while hounds remain close-range attackers
 - health, ammunition and three differently valued treasures use original transparent pixel-art pickup sprites instead of colored blocks
+- health kits remain in the level at 100% health and can be collected after the player takes damage
 - no external copyrighted game assets
 - original title menu with difficulty selection before a run begins
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu

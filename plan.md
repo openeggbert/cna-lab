@@ -965,6 +965,7 @@ Acceptance:
 
 - `H` and `A` spawn visible health and ammunition pickups;
 - pickups are collected once on contact and update player health/ammo with caps;
+- a health pickup is not consumed at 100% and remains available after later damage;
 - the HUD shows the current health and ammunition supplies.
 
 ### WOLF-010 — first 5-minute level

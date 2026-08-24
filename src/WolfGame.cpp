@@ -1471,7 +1471,7 @@ namespace WolfCna
             }
         }
         HandleInput(clampedElapsed);
-        const World::PickupResult pickups = world_.CollectPickups(playerPosition_);
+        const World::PickupResult pickups = world_.CollectPickups(playerPosition_, health_);
         const bool wasOutOfAmmo = ammo_ <= 0;
         health_ = std::min(100, health_ + pickups.health);
         ammo_ = std::min(MaxAmmo, ammo_ + pickups.ammo);

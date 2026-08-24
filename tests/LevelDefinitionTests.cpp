@@ -168,6 +168,20 @@ int main()
     Expect(healthPickup.health == 25 && healthPickup.ammo == 0, "health pickup is collected once");
     Expect(ammoPickup.health == 0 && ammoPickup.ammo == 6, "ammo pickup is collected once");
 
+    WolfCna::World fullHealthPickupWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PH.#\n#####\n",
+        "full-health-pickup.level"));
+    const Microsoft::Xna::Framework::Vector3 healthPosition(2.5f, 0.62f, 1.5f);
+    Expect(
+        fullHealthPickupWorld.CollectPickups(healthPosition, 100).health == 0,
+        "health kit remains when health is already full");
+    Expect(
+        fullHealthPickupWorld.CollectPickups(healthPosition, 90).health == 10,
+        "previously skipped health kit can be collected after taking damage");
+    Expect(
+        fullHealthPickupWorld.CollectPickups(healthPosition, 50).health == 0,
+        "health kit is consumed only once after it heals the player");
+
     WolfCna::World weaponPickupWorld(WolfCna::LevelDefinition::Parse(
         "######\n#PWV.#\n######\n",
         "weapon-pickup.level"));
