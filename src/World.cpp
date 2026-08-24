@@ -93,6 +93,8 @@ namespace WolfCna
     {
         if (IsStaticWallCell(x, z))
             return true;
+        if (map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == 'Y')
+            return true;
 
         for (const Door& door : doors_)
         {
@@ -702,6 +704,25 @@ namespace WolfCna
         indices_.push_back(base + 3);
     }
 
+    void World::AddBox(const Vector3& minimum, const Vector3& maximum, Material material)
+    {
+        const Vector3 lowerNorthWest(minimum.X, minimum.Y, minimum.Z);
+        const Vector3 lowerNorthEast(maximum.X, minimum.Y, minimum.Z);
+        const Vector3 lowerSouthWest(minimum.X, minimum.Y, maximum.Z);
+        const Vector3 lowerSouthEast(maximum.X, minimum.Y, maximum.Z);
+        const Vector3 upperNorthWest(minimum.X, maximum.Y, minimum.Z);
+        const Vector3 upperNorthEast(maximum.X, maximum.Y, minimum.Z);
+        const Vector3 upperSouthWest(minimum.X, maximum.Y, maximum.Z);
+        const Vector3 upperSouthEast(maximum.X, maximum.Y, maximum.Z);
+
+        AddQuad(lowerNorthEast, lowerNorthWest, upperNorthWest, upperNorthEast, material);
+        AddQuad(lowerSouthWest, lowerSouthEast, upperSouthEast, upperSouthWest, material);
+        AddQuad(lowerNorthWest, lowerSouthWest, upperSouthWest, upperNorthWest, material);
+        AddQuad(lowerSouthEast, lowerNorthEast, upperNorthEast, upperSouthEast, material);
+        AddQuad(upperNorthWest, upperNorthEast, upperSouthEast, upperSouthWest, material);
+        AddQuad(lowerNorthWest, lowerSouthWest, lowerSouthEast, lowerNorthEast, material);
+    }
+
     void World::AddDoorQuad(
         const Vector3& a,
         const Vector3& b,
@@ -1166,6 +1187,28 @@ namespace WolfCna
                         Vector3(x1, WallHeight, z1),
                         Vector3(x0, WallHeight, z1),
                         Material::Ceiling);
+
+                    if (map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == 'Y')
+                    {
+                        constexpr float topBottom = 0.48f;
+                        constexpr float topHeight = 0.1f;
+                        constexpr float legWidth = 0.1f;
+                        constexpr float legInset = 0.16f;
+                        AddBox(
+                            Vector3(x0 + 0.12f, topBottom, z0 + 0.18f),
+                            Vector3(x1 - 0.12f, topBottom + topHeight, z1 - 0.18f),
+                            Material::Wall);
+                        for (const float legX : {x0 + legInset, x1 - legInset - legWidth})
+                        {
+                            for (const float legZ : {z0 + legInset, z1 - legInset - legWidth})
+                            {
+                                AddBox(
+                                    Vector3(legX, 0.0f, legZ),
+                                    Vector3(legX + legWidth, topBottom, legZ + legWidth),
+                                    Material::Wall);
+                            }
+                        }
+                    }
 
                     continue;
                 }

@@ -68,7 +68,8 @@ namespace
                 const int nextZ = z + dz;
                 if (nextX < 0 || nextZ < 0 || nextX >= 64 || nextZ >= 64 ||
                     visited[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] ||
-                    rows[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] == '#')
+                    rows[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] == '#' ||
+                    rows[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] == 'Y')
                     continue;
                 visited[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] = true;
                 frontier.emplace(nextX, nextZ);
@@ -79,11 +80,12 @@ namespace
         int exits = 0;
         int relays = 0;
         int plants = 0;
+        int tables = 0;
         for (const std::string& row : rows)
         {
             for (const char symbol : row)
             {
-                if (symbol != '#')
+                if (symbol != '#' && symbol != 'Y')
                     ++walkable;
                 if (symbol == 'E')
                     ++exits;
@@ -91,6 +93,8 @@ namespace
                     ++relays;
                 else if (symbol == 'I')
                     ++plants;
+                else if (symbol == 'Y')
+                    ++tables;
             }
         }
         Expect(walkable >= 1500, std::string(name) + " uses a substantial part of its footprint");
@@ -98,6 +102,7 @@ namespace
         Expect(exits == 1, std::string(name) + " has one exit");
         Expect(relays == 1, std::string(name) + " has one power relay");
         Expect(plants == 3, std::string(name) + " has three sector plants");
+        Expect(tables == 2, std::string(name) + " has two polygonal tables");
     }
 }
 
@@ -353,6 +358,11 @@ int main()
             false) == WolfCna::World::InteractionResult::TerminalActivated,
         "terminal remains independently required after the relay");
     Expect(relayWorld.IsExitUnlocked(), "relay and terminal together unlock the exit");
+
+    WolfCna::World tableWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PY.#\n#####\n",
+        "table.level"));
+    Expect(tableWorld.Collides(2.5f, 1.5f, 0.22f), "polygonal table has matching collision");
 
     WolfCna::World combatWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PG.#\n#####\n",

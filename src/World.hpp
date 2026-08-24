@@ -320,6 +320,10 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& c,
             const Microsoft::Xna::Framework::Vector3& d,
             Material material);
+        void AddBox(
+            const Microsoft::Xna::Framework::Vector3& minimum,
+            const Microsoft::Xna::Framework::Vector3& maximum,
+            Material material);
         void AddDoorQuad(
             const Microsoft::Xna::Framework::Vector3& a,
             const Microsoft::Xna::Framework::Vector3& b,

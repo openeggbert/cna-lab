@@ -100,6 +100,7 @@ have the same width and use only these symbols:
 - `L`: ceiling lamp
 - `W`: repeater weapon pickup with six rounds
 - `V`: heavy automatic weapon pickup with ten rounds
+- `Y`: solid freestanding polygonal table using the sector material palette
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 

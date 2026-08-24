@@ -1118,7 +1118,7 @@ volleys when the player enters a populated room.
 
 ### WOLF-015 — rooms and decorations
 
-Status: in progress. Every authored sector now introduces a framed landscape,
+Status: complete. Every authored sector now introduces a framed landscape,
 an original peace-symbol banner and a ceiling lamp through validated level
 symbols and project-generated textures. Each ceiling lamp projects a warm radial
 light pool onto the floor. Health, ammunition, gold bars, golden goblets and
@@ -1126,7 +1126,9 @@ high-value peace medallions now use original transparent pickup sprites, with th
 three treasure types awarding 100, 250 and 500 score. Each sector also places
 three freestanding plant landmarks using its own original transparent generated
 sprite: storage fern, foundry succulent or laboratory research fern. Additional
-freestanding furniture remains.
+freestanding furniture is represented by two solid real-3D tables in each sector;
+their tops and four legs are static polygonal geometry textured from the current
+sector palette, with collision matching their clearly readable footprint.
 
 - add generated paintings, ceiling lamps, tables, plants and treasure props;
 - add original wall banners carrying a peace symbol only;
