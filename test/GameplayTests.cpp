@@ -49,6 +49,7 @@ namespace
             "legend\n"
             ". empty\n"
             "# solid\n"
+            "- one-way\n"
             "B breakable\n"
             "! hazard\n"
             "E exit\n"
@@ -87,6 +88,7 @@ namespace
             "legend\n"
             ". empty\n"
             "# solid\n"
+            "- one-way\n"
             "B breakable\n"
             "! hazard\n"
             "E exit\n"
@@ -124,6 +126,7 @@ namespace
             "legend\n"
             ". empty\n"
             "# solid\n"
+            "- one-way\n"
             "B breakable\n"
             "! hazard\n"
             "E exit\n"
@@ -168,6 +171,7 @@ namespace
             "legend\n"
             ". empty\n"
             "# solid\n"
+            "- one-way\n"
             "B breakable\n"
             "! hazard\n"
             "E exit\n"
@@ -295,6 +299,7 @@ namespace
             "legend\n"
             ". empty\n"
             "# solid\n"
+            "- one-way\n"
             "B breakable\n"
             "! hazard\n"
             "E exit\n"
@@ -358,7 +363,7 @@ namespace
         }
         catch (const std::runtime_error& error) {
             threwLineError = std::string_view(error.what()).starts_with(
-                "broken.cbl:25:");
+                "broken.cbl:26:");
         }
         Check(threwLineError, "malformed map reports source and line number");
 
@@ -390,8 +395,10 @@ namespace
         Check(failsAt(replaced("checkpoint 2 2", "checkpoint 5 2"),
                       "case.cbl:5:"),
               "out-of-bounds checkpoint reports its line");
-        Check(failsAt(replaced("BG!E", "BGXE"), "case.cbl:26:"),
+        Check(failsAt(replaced("BG!E", "BGXE"), "case.cbl:27:"),
               "unknown map glyph reports its row");
+        Check(failsAt(replaced("BG!E", "BG/E"), "case.cbl:27:"),
+              "unsupported slope glyph is rejected explicitly");
         Check(failsAt(replaced("checkpoint 2 2",
                                "spawn 1 2\ncheckpoint 2 2"),
                       "case.cbl:5:"),
@@ -432,6 +439,7 @@ namespace
             "legend\n"
             ". empty\n"
             "# solid\n"
+            "- one-way\n"
             "B breakable\n"
             "! hazard\n"
             "E exit\n"
@@ -764,6 +772,53 @@ namespace
         Check(died, "long ledge fall emits one out-of-world death event");
     }
 
+    void TestOneWayAndLongRunCollision()
+    {
+        constexpr float tick = static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds);
+        std::string source = MakeProgressLevel(false);
+        source.replace(source.find("spawn 1 4"), 9, "spawn 3 4");
+        source.replace(source.find("checkpoint 1 4"), 14, "checkpoint 3 4");
+        source.replace(source.find("..G.H.....E."), 12, "..----......");
+
+        CopperBoots::WorldSimulation platformWorld;
+        platformWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            source, "one-way.cbl"));
+        CopperBoots::PlayerInput jump;
+        jump.JumpPressed = true;
+        jump.JumpHeld = true;
+        bool passedCompletelyAbove = false;
+        bool landedOnPlatform = false;
+        for (int i = 0; i < 100; ++i) {
+            platformWorld.Update(jump, tick);
+            jump.JumpPressed = false;
+            passedCompletelyAbove = passedCompletelyAbove ||
+                platformWorld.Player().Y + CopperBoots::PlayerState::Height < 48.0F;
+            if (i > 1 && platformWorld.Player().Grounded &&
+                std::abs(platformWorld.Player().Y - 28.0F) < 0.01F) {
+                landedOnPlatform = true;
+                break;
+            }
+        }
+        Check(passedCompletelyAbove,
+              "one-way tile permits upward passage from below");
+        Check(landedOnPlatform,
+              "falling feet crossing one-way top land at stable height");
+
+        CopperBoots::WorldSimulation stabilityWorld;
+        CopperBoots::PlayerInput run;
+        run.Move = 1.0F;
+        run.Run = true;
+        for (int i = 0; i < 5'000; ++i)
+            stabilityWorld.Update(run, tick);
+        Check(std::isfinite(stabilityWorld.Player().X) &&
+                  std::isfinite(stabilityWorld.Player().Y) &&
+                  stabilityWorld.Player().X >= 0.0F &&
+                  stabilityWorld.Player().X + CopperBoots::PlayerState::Width <=
+                      stabilityWorld.Level().PixelWidth() + 0.01F,
+              "long repeated run remains finite and inside horizontal map bounds");
+    }
+
     void TestCameraBounds()
     {
         CopperBoots::Camera2D camera(320.0F, 180.0F);
@@ -891,6 +946,7 @@ namespace
             "legend\n"
             ". empty\n"
             "# solid\n"
+            "- one-way\n"
             "B breakable\n"
             "! hazard\n"
             "E exit\n"
@@ -1143,6 +1199,7 @@ int main()
     TestVariableJumpHeight();
     TestControllerRanges();
     TestLedgeFallAndTerminalVelocity();
+    TestOneWayAndLongRunCollision();
     TestCameraBounds();
     TestParallaxDescriptor();
     TestClockworkCrawler();

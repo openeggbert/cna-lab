@@ -218,7 +218,7 @@ Acceptance:
 - Walking off an edge enters falling cleanly; landing resets vertical state.
 - Pathological fall below world emits a death event once.
 
-### MAR-025 — Tile collision system — TODO
+### MAR-025 — Tile collision system — DONE
 
 Acceptance:
 

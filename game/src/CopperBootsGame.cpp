@@ -324,6 +324,12 @@ namespace CopperBoots
                     FillRectangle(Rectangle(screenX + 2, screenY + 2, 12, 12),
                                   Color(126, 111, 80));
                     break;
+                case TileVisual::OneWay:
+                    FillRectangle(Rectangle(screenX, screenY, 16, 4),
+                                  Color(166, 142, 69));
+                    FillRectangle(Rectangle(screenX + 2, screenY + 4, 12, 2),
+                                  Color(73, 88, 64));
+                    break;
                 case TileVisual::Hazard:
                     FillRectangle(Rectangle(screenX, screenY + 12, 16, 4),
                                   Color(107, 46, 54));

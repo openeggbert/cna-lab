@@ -272,9 +272,35 @@ namespace CopperBoots
         if (amount == 0.0F)
             return;
 
+        const float previousY = player_.Y;
         player_.Y += amount;
-        if (!Collides(player_.X, player_.Y,
-                      PlayerState::Width, PlayerState::Height))
+        const bool hitSolid = Collides(player_.X, player_.Y,
+                                       PlayerState::Width, PlayerState::Height);
+        if (!hitSolid && amount > 0.0F) {
+            const float previousBottom = previousY + PlayerState::Height;
+            const float currentBottom = player_.Y + PlayerState::Height;
+            const int tileY = static_cast<int>(std::floor(
+                (currentBottom - CollisionEpsilon) / TileMap::TileSize));
+            const float tileTop = static_cast<float>(tileY * TileMap::TileSize);
+            const int left = static_cast<int>(std::floor(
+                player_.X / TileMap::TileSize));
+            const int right = static_cast<int>(std::floor(
+                (player_.X + PlayerState::Width - CollisionEpsilon) /
+                TileMap::TileSize));
+            if (previousBottom <= tileTop + CollisionEpsilon &&
+                currentBottom >= tileTop) {
+                for (int tileX = left; tileX <= right; ++tileX) {
+                    if (level_.Get(tileX, tileY).Collision !=
+                        TileCollision::OneWay)
+                        continue;
+                    player_.Y = tileTop - PlayerState::Height;
+                    player_.VelocityY = 0.0F;
+                    player_.Grounded = true;
+                    return;
+                }
+            }
+        }
+        if (!hitSolid)
             return;
 
         if (amount < 0.0F) {

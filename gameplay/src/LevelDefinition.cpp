@@ -91,6 +91,7 @@ namespace CopperBoots
             switch (glyph) {
             case '.': return Tiles::Empty;
             case '#': return Tiles::Ruin;
+            case '-': return Tiles::OneWay;
             case 'B': return Tiles::Breakable;
             case '!': return Tiles::Hazard;
             case 'E': return Tiles::Exit;
@@ -106,7 +107,7 @@ namespace CopperBoots
                                            const std::string_view sourceName)
     {
         const std::vector<SourceLine> lines = SplitLines(text);
-        constexpr std::size_t HeaderLineCount = 24;
+        constexpr std::size_t HeaderLineCount = 25;
         if (lines.size() < HeaderLineCount)
             Fail(sourceName, lines.empty() ? 1 : lines.back().Number,
                  "incomplete level header");
@@ -153,8 +154,8 @@ namespace CopperBoots
             Fail(sourceName, lines[5].Number,
                  "parallax factors must be ascending values from 0 to 1.5");
 
-        constexpr std::array<std::string_view, 18> fixedLines{
-            "legend", ". empty", "# solid", "B breakable", "! hazard",
+        constexpr std::array<std::string_view, 19> fixedLines{
+            "legend", ". empty", "# solid", "- one-way", "B breakable", "! hazard",
             "E exit", "d decoration", "G cog", "? cog-block",
             "o empty-block", "P plated-block", "A plating",
             "R capacitor-block", "K capacitor",

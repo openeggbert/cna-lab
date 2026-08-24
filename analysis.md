@@ -454,6 +454,12 @@ ceiling-hit, hazard, and transition contacts. Tile lookup outside the map is
 solid horizontally, while above and below are open; the open lower boundary is
 required for deterministic fall death. Tests need no CNA device.
 
+`OneWay` is implemented independently from `Solid`: horizontal and upward
+queries ignore it, while a downward step lands only when the previous and
+current player feet cross the platform top. This avoids treating its visual as
+a wall and keeps stable landing snaps under repeated fixed updates. Slopes are
+not supported and are rejected as unknown level glyphs rather than approximated.
+
 ### Camera and parallax
 
 `Camera2D` owns viewport size, world bounds, current/target position,
@@ -484,6 +490,7 @@ parallax 0.10 0.25 0.50
 legend
 . empty
 # solid
+- one-way
 B breakable
 ! hazard
 E exit
