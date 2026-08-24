@@ -82,6 +82,8 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::Texture2D& atlas,
             Microsoft::Xna::Framework::Graphics::Texture2D& guardSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& houndSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& rapidTrooperSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& heavyUnitSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& bloodDecal,
             Microsoft::Xna::Framework::Graphics::Texture2D& paintingTexture,
             Microsoft::Xna::Framework::Graphics::Texture2D& peaceBannerTexture,
@@ -145,12 +147,19 @@ namespace WolfCna
 
         struct Enemy
         {
-            enum class Type { Guard, Hound };
+            enum class Type { Guard, Hound, RapidTrooper, HeavyUnit };
 
             Microsoft::Xna::Framework::Vector3 position;
             Type type = Type::Guard;
             EnemyState state = EnemyState::Idle;
             int health = 3;
+            int scoreValue = 100;
+            int attackDamage = 12;
+            float moveSpeed = 0.8f;
+            float attackRange = 6.0f;
+            float attackInterval = 0.9f;
+            float projectileSpeed = 4.5f;
+            bool melee = false;
             std::vector<std::pair<int, int>> path;
             std::size_t pathIndex = 0;
             float pathRefreshTime = 0.0f;
@@ -162,6 +171,7 @@ namespace WolfCna
             Microsoft::Xna::Framework::Vector3 position;
             Microsoft::Xna::Framework::Vector3 velocity;
             float remainingLifetime = 0.0f;
+            int damage = 12;
         };
 
         enum class PickupType

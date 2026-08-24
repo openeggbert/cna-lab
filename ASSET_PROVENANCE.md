@@ -53,3 +53,99 @@ Lighting/mood: ominous but adventurous, high contrast teal-and-amber cinematic l
 Constraints: no text, no title, no letters, no logos, no watermark; no swastikas; no Nazi imagery; no totalitarian or political insignia; no historical uniforms; no gore; no copyrighted characters, weapons, maps, architecture, or recognizable assets; fully original visual identity; peace symbol is the only emblem
 Avoid: resemblance to Wolfenstein title art, photorealism, modern military branding, illegible busy center, bright center behind menu text
 ```
+
+## `assets/sprites/rapid-trooper.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent game character billboard sprite for an original retro first-person shooter
+Primary request: one original rapid-response bunker trooper, full body, front-facing alert combat stance, holding a compact fictional automatic weapon
+Subject: adult fictional security trooper in a dark navy and muted amber reinforced utility uniform, lightweight protective helmet with clear face, boots and gloves, lean fast silhouette clearly distinct from a standard gray-and-teal guard
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, original design rather than a copy of any existing game character
+Composition/framing: one character only, full body completely visible, centered orthographic front view suitable for a camera-facing 3D billboard, generous transparent padding, feet aligned near bottom
+Lighting/mood: high-contrast sprite shading readable in dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; no text; no logos; no watermark; no military or political insignia; no swastikas; no Nazi imagery; no armbands; no historical uniforms; no blood; no scenery; no drop shadow; no anti-aliased halo
+Avoid: photorealism, 3D render, smooth painterly gradients, copyrighted game characters, resemblance to Wolfenstein sprites, resemblance to the existing wolf-cna gray-and-teal guard
+```
+
+## `assets/sprites/heavy-unit.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent game character billboard sprite for an original retro first-person shooter
+Primary request: one original heavy bunker security unit, full body, front-facing braced combat stance, holding a large fictional heavy automatic weapon
+Subject: imposing adult fictional security specialist in bulky graphite and muted crimson protective utility armor, open readable human face beneath a broad reinforced helmet, heavy boots and gloves, broad slow silhouette clearly distinct from a standard guard and a lean rapid-response trooper
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, original design rather than a copy of any existing game character
+Composition/framing: one character only, full body completely visible, centered orthographic front view suitable for a camera-facing 3D billboard, generous transparent padding, feet aligned near bottom
+Lighting/mood: high-contrast sprite shading readable in dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; no text; no logos; no watermark; no military or political insignia; no swastikas; no Nazi imagery; no armbands; no historical uniforms; no blood; no scenery; no drop shadow; no anti-aliased halo; armor is fictional industrial protection rather than historical or modern military gear
+Avoid: photorealism, 3D render, smooth painterly gradients, copyrighted game characters, resemblance to Wolfenstein sprites, resemblance to the existing wolf-cna gray-and-teal guard or navy-and-amber trooper
+```
+
+## `assets/weapons/knife.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent first-person weapon sprite and HUD icon for an original retro first-person shooter
+Primary request: one original combat knife held ready by the player's right hand, viewed from the player's eyes
+Subject: short practical bunker utility knife with a broad silver-gray blade, dark teal grip, one tan fingerless-gloved hand and a small part of the forearm entering from the bottom center
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality
+Composition/framing: square canvas; weapon and hand centered and completely visible; orthographic first-person view; blade points upward with a slight natural diagonal; silhouette remains recognizable when reduced to a 60x60 HUD icon; generous transparent padding around the upper and side edges; forearm exits through the bottom edge
+Lighting/mood: high-contrast sprite shading readable against dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; exactly one knife and one hand; no text; no logo; no watermark; no blood; no gore; no scenery; no muzzle flash; no political or military insignia; fully original design
+Avoid: photorealism, 3D render, smooth painterly gradients, copyrighted game weapons, resemblance to Wolfenstein weapon sprites, floating disconnected hand, anti-aliased halo
+```
+
+## `assets/weapons/sidearm.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent first-person weapon sprite and HUD icon for an original retro first-person shooter
+Primary request: one original compact fictional sidearm held ready by the player, viewed from the player's eyes
+Subject: angular late-1980s-inspired fictional bunker sidearm in graphite gray with muted teal grip panels, held in two tan fingerless-gloved hands, small forearms entering from the bottom
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality
+Composition/framing: square canvas; centered symmetrical first-person view looking along the weapon; entire weapon and hands visible; barrel near upper center; silhouette remains recognizable when reduced to a 60x60 HUD icon; generous transparent padding at top and sides; forearms exit through bottom edge
+Lighting/mood: high-contrast sprite shading readable against dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; exactly one sidearm and two hands; no text; no logo; no watermark; no blood; no gore; no scenery; no projectile; no muzzle flash; no political or military insignia; fully original fictional design
+Avoid: photorealism, 3D render, smooth painterly gradients, real weapon brand, copyrighted game weapons, resemblance to Wolfenstein weapon sprites, anti-aliased halo
+```
+
+## `assets/weapons/repeater.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent first-person weapon sprite and HUD icon for an original retro first-person shooter
+Primary request: one original compact three-shot repeater held ready by the player, viewed from the player's eyes
+Subject: fictional boxy automatic bunker weapon with twin upper cooling rails, graphite and dark steel body, restrained amber details, held firmly in two tan fingerless-gloved hands with small forearms entering from the bottom
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality matching the knife and sidearm
+Composition/framing: square canvas; centered symmetrical first-person view looking along the weapon; entire weapon and hands visible; compact muzzle at upper center; visibly broader than the sidearm; silhouette remains recognizable when reduced to a 60x60 HUD icon; generous transparent padding at top and sides; forearms exit through bottom edge
+Lighting/mood: high-contrast sprite shading readable against dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; exactly one fictional repeater and two hands; no text; no logo; no watermark; no blood; no gore; no scenery; no projectile; no muzzle flash; no political or military insignia; fully original fictional design
+Avoid: photorealism, 3D render, smooth painterly gradients, real weapon brand, copyrighted game weapons, resemblance to Wolfenstein weapon sprites, minigun, anti-aliased halo
+```
+
+## `assets/weapons/heavy-automatic.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent first-person weapon sprite and HUD icon for an original retro first-person shooter
+Primary request: one original heavy automatic bunker weapon held ready by the player, viewed from the player's eyes
+Subject: bulky fictional industrial automatic weapon with four short vented barrel shrouds, dark graphite housing, muted crimson and brass utility details, held in two tan fingerless-gloved hands with braced forearms entering from the bottom
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art, deliberately chunky pixels, limited 32-color palette, crisp hard edges, polished enhanced-retro quality matching the other weapon sprites
+Composition/framing: square canvas; centered symmetrical first-person view looking along the weapon; entire weapon and hands visible; much wider and heavier silhouette than the repeater; recognizable when reduced to a 60x60 HUD icon; generous transparent padding at top and sides; forearms exit through bottom edge
+Lighting/mood: high-contrast sprite shading readable against dark bunker rooms
+Constraints: genuinely transparent background and preserved alpha; exactly one fictional heavy automatic weapon and two hands; no text; no logo; no watermark; no blood; no gore; no scenery; no projectile; no muzzle flash; no political or military insignia; fully original industrial design
+Avoid: photorealism, 3D render, smooth painterly gradients, real weapon brand, copyrighted game weapons, resemblance to Wolfenstein weapon sprites, recognizable minigun design, anti-aliased halo
+```

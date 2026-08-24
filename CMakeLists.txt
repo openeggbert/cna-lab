@@ -67,6 +67,30 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/security-hound.png"
     COPYONLY)
 configure_file(
+    assets/sprites/rapid-trooper.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/rapid-trooper.png"
+    COPYONLY)
+configure_file(
+    assets/sprites/heavy-unit.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/heavy-unit.png"
+    COPYONLY)
+configure_file(
+    assets/weapons/knife.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/weapons/knife.png"
+    COPYONLY)
+configure_file(
+    assets/weapons/sidearm.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/weapons/sidearm.png"
+    COPYONLY)
+configure_file(
+    assets/weapons/repeater.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/weapons/repeater.png"
+    COPYONLY)
+configure_file(
+    assets/weapons/heavy-automatic.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/weapons/heavy-automatic.png"
+    COPYONLY)
+configure_file(
     assets/title/title-background.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/title/title-background.png"
     COPYONLY)

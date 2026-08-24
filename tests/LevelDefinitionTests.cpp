@@ -230,6 +230,20 @@ int main()
     Expect(houndWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "first shot wounds a hound");
     Expect(houndWorld.FireHitscan(combatPlayer, lookDirection).score == 200, "second hound shot awards score");
 
+    WolfCna::World rapidTrooperWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PF.#\n#####\n",
+        "rapid-trooper.level"));
+    for (int hit = 0; hit < 3; ++hit)
+        Expect(rapidTrooperWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "rapid trooper survives early hits");
+    Expect(rapidTrooperWorld.FireHitscan(combatPlayer, lookDirection).score == 250, "rapid trooper awards score");
+
+    WolfCna::World heavyUnitWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PU.#\n#####\n",
+        "heavy-unit.level"));
+    for (int hit = 0; hit < 7; ++hit)
+        Expect(heavyUnitWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "heavy unit survives early hits");
+    Expect(heavyUnitWorld.FireHitscan(combatPlayer, lookDirection).score == 500, "heavy unit awards score");
+
     WolfCna::World damageWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PG.#\n#####\n",
         "damage.level"));

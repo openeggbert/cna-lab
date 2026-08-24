@@ -38,6 +38,8 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> atlas_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> guardSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> houndSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> rapidTrooperSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyUnitSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> bloodDecal_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> paintingTexture_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> peaceBannerTexture_;
@@ -45,10 +47,6 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> titleBackground_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> hudSpriteBatch_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> hudPixel_;
-        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> weaponIcon_;
-        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> knifeIcon_;
-        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterIcon_;
-        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyWeaponIcon_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> sidearmView_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> knifeView_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterView_;

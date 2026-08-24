@@ -273,6 +273,8 @@ namespace WolfCna
         CreateProceduralAtlas();
         guardSprite_ = std::make_unique<Texture2D>("assets/sprites/security-guard.png", device);
         houndSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound.png", device);
+        rapidTrooperSprite_ = std::make_unique<Texture2D>("assets/sprites/rapid-trooper.png", device);
+        heavyUnitSprite_ = std::make_unique<Texture2D>("assets/sprites/heavy-unit.png", device);
         titleBackground_ = std::make_unique<Texture2D>("assets/title/title-background.png", device);
         CreateProceduralBloodDecal();
         CreateProceduralDecorationTextures();
@@ -574,114 +576,10 @@ namespace WolfCna
         const Color pixel(255, 255, 255, 255);
         hudPixel_->SetData(&pixel, 1);
 
-        constexpr int iconSize = 40;
-        weaponIcon_ = std::make_unique<Texture2D>(device, iconSize, iconSize);
-        std::vector<Color> iconPixels(iconSize * iconSize, Color(0, 0, 0, 0));
-        for (int y = 7; y < 21; ++y)
-            for (int x = 15; x < 30; ++x)
-                if (y < 13 || x < 23)
-                    iconPixels[y * iconSize + x] = Color(82, 88, 98, 255);
-        for (int y = 18; y < 35; ++y)
-            for (int x = 11; x < 24; ++x)
-                if (x > 15 || y > 24)
-                    iconPixels[y * iconSize + x] = Color(184, 126, 83, 255);
-        weaponIcon_->SetData(iconPixels.data(), static_cast<int>(iconPixels.size()));
-
-        knifeIcon_ = std::make_unique<Texture2D>(device, iconSize, iconSize);
-        std::fill(iconPixels.begin(), iconPixels.end(), Color(0, 0, 0, 0));
-        for (int y = 4; y < 25; ++y)
-            for (int x = 20; x < 24; ++x)
-                iconPixels[y * iconSize + x] = Color(202, 208, 218, 255);
-        for (int y = 22; y < 35; ++y)
-            for (int x = 13; x < 28; ++x)
-                if (x > 16 || y > 27)
-                    iconPixels[y * iconSize + x] = Color(184, 126, 83, 255);
-        knifeIcon_->SetData(iconPixels.data(), static_cast<int>(iconPixels.size()));
-
-        repeaterIcon_ = std::make_unique<Texture2D>(device, iconSize, iconSize);
-        std::fill(iconPixels.begin(), iconPixels.end(), Color(0, 0, 0, 0));
-        for (int y = 8; y < 20; ++y)
-            for (int x = 8; x < 33; ++x)
-                if (y < 13 || x < 26)
-                    iconPixels[y * iconSize + x] = Color(72, 83, 94, 255);
-        for (int y = 18; y < 35; ++y)
-            for (int x = 14; x < 27; ++x)
-                if (x > 17 || y > 24)
-                    iconPixels[y * iconSize + x] = Color(166, 112, 72, 255);
-        repeaterIcon_->SetData(iconPixels.data(), static_cast<int>(iconPixels.size()));
-
-        heavyWeaponIcon_ = std::make_unique<Texture2D>(device, iconSize, iconSize);
-        std::fill(iconPixels.begin(), iconPixels.end(), Color(0, 0, 0, 0));
-        for (int barrel = 0; barrel < 4; ++barrel)
-            for (int y = 4; y < 20; ++y)
-                for (int x = 8 + barrel * 6; x < 12 + barrel * 6; ++x)
-                    iconPixels[y * iconSize + x] = barrel % 2 == 0
-                        ? Color(121, 132, 145, 255)
-                        : Color(62, 72, 84, 255);
-        for (int y = 18; y < 31; ++y)
-            for (int x = 7; x < 34; ++x)
-                iconPixels[y * iconSize + x] = Color(54, 62, 74, 255);
-        for (int y = 28; y < 38; ++y)
-            for (int x = 16; x < 26; ++x)
-                iconPixels[y * iconSize + x] = Color(166, 112, 72, 255);
-        heavyWeaponIcon_->SetData(iconPixels.data(), static_cast<int>(iconPixels.size()));
-
-        constexpr int viewSize = 96;
-        std::vector<Color> viewPixels(viewSize * viewSize, Color(0, 0, 0, 0));
-        const auto fill = [&](int left, int top, int right, int bottom, Color color)
-        {
-            for (int y = std::max(0, top); y < std::min(viewSize, bottom); ++y)
-                for (int x = std::max(0, left); x < std::min(viewSize, right); ++x)
-                    viewPixels[static_cast<std::size_t>(y * viewSize + x)] = color;
-        };
-        const Color skin(194, 128, 82, 255);
-        const Color shadowSkin(132, 79, 55, 255);
-        const Color steel(106, 119, 134, 255);
-        const Color darkSteel(42, 51, 62, 255);
-
-        knifeView_ = std::make_unique<Texture2D>(device, viewSize, viewSize);
-        for (int y = 8; y < 66; ++y)
-        {
-            const int center = 50 + (66 - y) / 8;
-            fill(center - 4, y, center + 5, y + 1, y < 16 ? Color(224, 232, 240, 255) : steel);
-        }
-        fill(31, 64, 70, 70, darkSteel);
-        fill(42, 69, 62, 96, shadowSkin);
-        fill(46, 72, 68, 96, skin);
-        knifeView_->SetData(viewPixels.data(), static_cast<int>(viewPixels.size()));
-
-        std::fill(viewPixels.begin(), viewPixels.end(), Color(0, 0, 0, 0));
-        sidearmView_ = std::make_unique<Texture2D>(device, viewSize, viewSize);
-        fill(37, 13, 61, 24, darkSteel);
-        fill(41, 17, 58, 56, steel);
-        fill(36, 25, 63, 50, darkSteel);
-        fill(42, 28, 58, 48, Color(78, 91, 108, 255));
-        fill(45, 49, 63, 78, shadowSkin);
-        fill(40, 71, 69, 96, skin);
-        fill(34, 78, 45, 96, shadowSkin);
-        sidearmView_->SetData(viewPixels.data(), static_cast<int>(viewPixels.size()));
-
-        std::fill(viewPixels.begin(), viewPixels.end(), Color(0, 0, 0, 0));
-        repeaterView_ = std::make_unique<Texture2D>(device, viewSize, viewSize);
-        fill(28, 17, 68, 56, darkSteel);
-        fill(32, 21, 64, 51, Color(71, 84, 99, 255));
-        fill(34, 8, 44, 35, steel);
-        fill(52, 8, 62, 35, steel);
-        fill(38, 51, 59, 78, shadowSkin);
-        fill(20, 72, 44, 96, skin);
-        fill(53, 72, 77, 96, skin);
-        repeaterView_->SetData(viewPixels.data(), static_cast<int>(viewPixels.size()));
-
-        std::fill(viewPixels.begin(), viewPixels.end(), Color(0, 0, 0, 0));
-        heavyWeaponView_ = std::make_unique<Texture2D>(device, viewSize, viewSize);
-        fill(22, 28, 74, 64, darkSteel);
-        fill(26, 32, 70, 59, Color(63, 75, 89, 255));
-        for (int barrel = 0; barrel < 4; ++barrel)
-            fill(29 + barrel * 10, 4, 36 + barrel * 10, 39, barrel % 2 == 0 ? steel : darkSteel);
-        fill(42, 57, 57, 82, shadowSkin);
-        fill(14, 72, 42, 96, skin);
-        fill(55, 72, 83, 96, skin);
-        heavyWeaponView_->SetData(viewPixels.data(), static_cast<int>(viewPixels.size()));
+        knifeView_ = std::make_unique<Texture2D>("assets/weapons/knife.png", device);
+        sidearmView_ = std::make_unique<Texture2D>("assets/weapons/sidearm.png", device);
+        repeaterView_ = std::make_unique<Texture2D>("assets/weapons/repeater.png", device);
+        heavyWeaponView_ = std::make_unique<Texture2D>("assets/weapons/heavy-automatic.png", device);
     }
 
     void WolfGame::CreateSoundEffects()
@@ -762,8 +660,8 @@ namespace WolfCna
 
     void WolfGame::DrawHud()
     {
-        if (!hudSpriteBatch_ || !hudPixel_ || !weaponIcon_ || !knifeIcon_ || !repeaterIcon_ ||
-            !heavyWeaponIcon_ || !sidearmView_ || !knifeView_ || !repeaterView_ || !heavyWeaponView_)
+        if (!hudSpriteBatch_ || !hudPixel_ || !sidearmView_ || !knifeView_ ||
+            !repeaterView_ || !heavyWeaponView_)
             return;
 
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
@@ -805,10 +703,7 @@ namespace WolfCna
         drawReadout(4, "AMMO", std::to_string(ammo_));
         const int weaponCenter = viewport.getXProperty() + viewport.getWidthProperty() * 11 / 12;
         hudSpriteBatch_->Draw(
-            weapon_ == Weapon::Sidearm ? *weaponIcon_
-                : weapon_ == Weapon::Knife
-                    ? *knifeIcon_
-                    : weapon_ == Weapon::Repeater ? *repeaterIcon_ : *heavyWeaponIcon_,
+            *viewTexture,
             Rectangle(weaponCenter - 30, panelY + 12, 60, 60),
             Color(255, 255, 255, 255));
         if (cheatMessageSeconds_ > 0.0f)
@@ -1588,6 +1483,7 @@ namespace WolfCna
 
         if ((screen_ == Screen::Playing || screen_ == Screen::Paused || screen_ == Screen::GameOver) &&
             effect_ && atlas_ && guardSprite_ && houndSprite_ && bloodDecal_ &&
+            rapidTrooperSprite_ && heavyUnitSprite_ &&
             paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_)
         {
             world_.Draw(
@@ -1598,6 +1494,8 @@ namespace WolfCna
                 *atlas_,
                 *guardSprite_,
                 *houndSprite_,
+                *rapidTrooperSprite_,
+                *heavyUnitSprite_,
                 *bloodDecal_,
                 *paintingTexture_,
                 *peaceBannerTexture_,

@@ -42,8 +42,6 @@ namespace WolfCna
         constexpr float GuardAttackRange = 6.0f;
         constexpr float EnemySpeed = 0.8f;
         constexpr float EnemyPathRefreshSeconds = 0.35f;
-        constexpr float EnemyAttackInterval = 0.9f;
-        constexpr int EnemyAttackDamage = 12;
         constexpr float GuardProjectileSpeed = 4.5f;
         constexpr float GuardProjectileHitRadius = 0.25f;
         constexpr float GuardProjectileLifetime = 2.0f;
@@ -183,7 +181,7 @@ namespace WolfCna
                 enemy.state = defeated ? EnemyState::Dead : EnemyState::Chase;
                 if (defeated)
                     ++defeatedEnemies_;
-                return {true, defeated ? enemy.type == Enemy::Type::Hound ? 200 : 100 : 0};
+                return {true, defeated ? enemy.scoreValue : 0};
             }
 
             if (!IsStaticWallCell(cellX, cellZ))
@@ -456,19 +454,16 @@ namespace WolfCna
                 distanceSquared <= EnemyWakeRange * EnemyWakeRange &&
                 HasLineOfSight(enemy.position, playerPosition);
 
-            const float attackRange = enemy.type == Enemy::Type::Guard
-                ? GuardAttackRange
-                : HoundAttackRange;
-            const bool canAttack = distanceSquared <= attackRange * attackRange &&
-                (enemy.type == Enemy::Type::Hound || canSeePlayer);
+            const bool canAttack = distanceSquared <= enemy.attackRange * enemy.attackRange &&
+                (enemy.melee || canSeePlayer);
 
             if (enemy.state == EnemyState::Idle && canSeePlayer)
             {
                 enemy.state = EnemyState::Chase;
-                if (enemy.type == Enemy::Type::Guard)
-                    ++pendingEnemyAudioEvents_.guardAlerts;
-                else
+                if (enemy.melee)
                     ++pendingEnemyAudioEvents_.houndAlerts;
+                else
+                    ++pendingEnemyAudioEvents_.guardAlerts;
             }
             if (enemy.state == EnemyState::Chase && canAttack)
                 enemy.state = EnemyState::Attack;
@@ -480,9 +475,9 @@ namespace WolfCna
                 enemy.attackCooldown -= elapsedSeconds;
                 if (enemy.attackCooldown <= 0.0f)
                 {
-                    if (enemy.type == Enemy::Type::Hound)
+                    if (enemy.melee)
                     {
-                        damage += static_cast<int>(std::lround((EnemyAttackDamage + 6) * damageMultiplier));
+                        damage += static_cast<int>(std::lround(enemy.attackDamage * damageMultiplier));
                         ++pendingEnemyAudioEvents_.houndAttacks;
                     }
                     else
@@ -490,11 +485,12 @@ namespace WolfCna
                         const float inverseDistance = 1.0f / std::sqrt(distanceSquared);
                         enemyProjectiles_.push_back({
                             enemy.position + Vector3(0.0f, 0.5f, 0.0f),
-                            Vector3(dx * inverseDistance * GuardProjectileSpeed, 0.0f, dz * inverseDistance * GuardProjectileSpeed),
-                            GuardProjectileLifetime});
+                            Vector3(dx * inverseDistance * enemy.projectileSpeed, 0.0f, dz * inverseDistance * enemy.projectileSpeed),
+                            GuardProjectileLifetime,
+                            enemy.attackDamage});
                         ++pendingGuardShotCount_;
                     }
-                    enemy.attackCooldown = EnemyAttackInterval;
+                    enemy.attackCooldown = enemy.attackInterval;
                 }
             }
 
@@ -534,7 +530,7 @@ namespace WolfCna
                 continue;
 
             const float inverseDistance = 1.0f / std::sqrt(moveDistanceSquared);
-            const float step = (enemy.type == Enemy::Type::Hound ? EnemySpeed * 1.8f : EnemySpeed) * elapsedSeconds;
+            const float step = enemy.moveSpeed * elapsedSeconds;
             const float nextX = enemy.position.X + moveX * inverseDistance * step;
             const float nextZ = enemy.position.Z + moveZ * inverseDistance * step;
             if (!Collides(nextX, enemy.position.Z, 0.2f))
@@ -556,7 +552,7 @@ namespace WolfCna
             const float dz = playerPosition.Z - iterator->position.Z;
             if (dx * dx + dz * dz <= GuardProjectileHitRadius * GuardProjectileHitRadius)
             {
-                damage += static_cast<int>(std::lround(EnemyAttackDamage * damageMultiplier));
+                damage += static_cast<int>(std::lround(iterator->damage * damageMultiplier));
                 iterator = enemyProjectiles_.erase(iterator);
             }
             else if (iterator->remainingLifetime <= 0.0f || IsBlockedCell(cellX, cellZ))
@@ -738,12 +734,43 @@ namespace WolfCna
         {
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
             {
-                if (map_[z][x] == 'G' || map_[z][x] == 'K')
+                const char symbol = map_[z][x];
+                if (symbol == 'G' || symbol == 'K' || symbol == 'F' || symbol == 'U')
                 {
                     Enemy enemy;
                     enemy.position = Vector3(static_cast<float>(x) + 0.5f, 0.0f, static_cast<float>(z) + 0.5f);
-                    enemy.type = map_[z][x] == 'K' ? Enemy::Type::Hound : Enemy::Type::Guard;
-                    enemy.health = enemy.type == Enemy::Type::Hound ? 2 : 3;
+                    if (symbol == 'K')
+                    {
+                        enemy.type = Enemy::Type::Hound;
+                        enemy.health = 2;
+                        enemy.scoreValue = 200;
+                        enemy.attackDamage = 18;
+                        enemy.moveSpeed = EnemySpeed * 1.8f;
+                        enemy.attackRange = HoundAttackRange;
+                        enemy.melee = true;
+                    }
+                    else if (symbol == 'F')
+                    {
+                        enemy.type = Enemy::Type::RapidTrooper;
+                        enemy.health = 4;
+                        enemy.scoreValue = 250;
+                        enemy.attackDamage = 8;
+                        enemy.moveSpeed = EnemySpeed * 1.2f;
+                        enemy.attackRange = GuardAttackRange;
+                        enemy.attackInterval = 0.45f;
+                        enemy.projectileSpeed = GuardProjectileSpeed * 1.15f;
+                    }
+                    else if (symbol == 'U')
+                    {
+                        enemy.type = Enemy::Type::HeavyUnit;
+                        enemy.health = 8;
+                        enemy.scoreValue = 500;
+                        enemy.attackDamage = 20;
+                        enemy.moveSpeed = EnemySpeed * 0.65f;
+                        enemy.attackRange = GuardAttackRange + 1.0f;
+                        enemy.attackInterval = 1.25f;
+                        enemy.projectileSpeed = GuardProjectileSpeed * 0.85f;
+                    }
                     enemies_.push_back(std::move(enemy));
                 }
             }
@@ -1172,6 +1199,8 @@ namespace WolfCna
         Texture2D& atlas,
         Texture2D& guardSprite,
         Texture2D& houndSprite,
+        Texture2D& rapidTrooperSprite,
+        Texture2D& heavyUnitSprite,
         Texture2D& bloodDecal,
         Texture2D& paintingTexture,
         Texture2D& peaceBannerTexture,
@@ -1324,8 +1353,9 @@ namespace WolfCna
                     continue;
 
                 const bool isHound = enemy.type == Enemy::Type::Hound;
-                const float width = isHound ? 0.58f : 0.72f;
-                const float depth = isHound ? 0.46f : 0.54f;
+                const bool isHeavy = enemy.type == Enemy::Type::HeavyUnit;
+                const float width = isHound ? 0.58f : isHeavy ? 0.82f : 0.72f;
+                const float depth = isHound ? 0.46f : isHeavy ? 0.62f : 0.54f;
                 const float rotation = enemy.position.X * 1.73f + enemy.position.Z * 0.91f;
                 effect.setWorldProperty(
                     Matrix::CreateScale(width, 1.0f, depth) *
@@ -1378,13 +1408,21 @@ namespace WolfCna
             for (const Enemy* enemy : sortedEnemies)
             {
                 const bool isHound = enemy->type == Enemy::Type::Hound;
+                const bool isHeavy = enemy->type == Enemy::Type::HeavyUnit;
                 const bool isDead = enemy->state == EnemyState::Dead;
-                const float width = isHound ? 0.82f : 0.72f;
-                const float height = isDead ? 0.16f : (isHound ? 0.72f : 1.02f);
+                const float width = isHound ? 0.82f : isHeavy ? 0.9f : 0.72f;
+                const float height = isDead ? 0.16f : (isHound ? 0.72f : isHeavy ? 1.08f : 1.02f);
                 Vector3 position = enemy->position;
                 position.Y = 0.0f;
 
-                effect.setTextureProperty(isHound ? &houndSprite : &guardSprite);
+                Texture2D* enemyTexture = &guardSprite;
+                if (isHound)
+                    enemyTexture = &houndSprite;
+                else if (enemy->type == Enemy::Type::RapidTrooper)
+                    enemyTexture = &rapidTrooperSprite;
+                else if (isHeavy)
+                    enemyTexture = &heavyUnitSprite;
+                effect.setTextureProperty(enemyTexture);
                 effect.setWorldProperty(
                     Matrix::CreateScale(isDead ? width * 1.15f : width, height, 1.0f) *
                     Matrix::CreateConstrainedBillboard(

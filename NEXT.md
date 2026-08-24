@@ -2,16 +2,16 @@
 
 ## Last completed work
 
-- The exit now presents a centered `LEVEL COMPLETE` card while keeping the final total in the status bar.
-- Score is uncapped: gold, defeated enemies and the exit add points.
-- Doors close after four seconds, but remain open when a dead guard or hound blocks the doorway.
-- Generated CNA audio now covers shots, defeated enemies, pickups, doors, locks and player damage.
+- Doors defer automatic closing while the player or a defeated enemy occupies the doorway.
+- Guards and hounds require multiple hits; rapid troopers and heavy units add distinct ranged combat roles.
+- Primitive weapon shapes are replaced by original transparent high-resolution knife, sidearm, repeater and heavy-automatic sprites.
+- The illustrated splash is separate from the main menu, and campaign sector size now targets an authored 64×64 footprint.
 
 ## Next tasks
 
-1. Playtest the authored route and rebalance enemy, ammo and health placement.
-2. Add a second objective loop before the exit, such as a terminal or power switch that opens a route.
-3. Extend the authored room-and-corridor content with another route/encounter section before considering advanced vertical features such as elevators.
+1. Playtest the authored route and rebalance the four enemy archetypes, ammunition and health placement.
+2. Add attack/death animation frames for enemies and weapon attack animation frames.
+3. Expand each campaign sector to an authored 64×64 room-and-corridor footprint with dimension tests.
 
 ## Verification
 

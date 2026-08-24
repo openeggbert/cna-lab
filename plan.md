@@ -1074,7 +1074,9 @@ Status: complete.
 Status: in progress. The first milestone replaces guard and hound cuboids with
 original transparent camera-facing billboard sprites and records their complete
 generation provenance. Defeated enemies now leave a stylized procedurally
-textured floor decal. Animation frames and weapon sprite sheets remain.
+textured floor decal. The four primitive weapon views and icons have been replaced
+by original high-resolution transparent pixel-art sprites. Enemy and weapon attack
+animation frames remain.
 
 - replace colored enemy cuboids with camera-facing textured polygon billboards;
 - create original transparent pixel-art guards, hounds and weapon view sprites;
@@ -1087,10 +1089,12 @@ textured floor decal. Animation frames and weapon sprite sheets remain.
 ### WOLF-014 — combat variety
 
 Status: in progress. The knife and sidearm are always available, while the
-three-round repeater and five-round heavy automatic must now be discovered from
-validated level pickups. Both have distinct procedural HUD/view artwork, carry
-through sector transitions and are granted by the loadout cheat. Additional
-enemy archetypes and automatic hold-to-fire cadence remain.
+three-round repeater and five-round heavy automatic must be discovered from
+validated level pickups. All four have distinct original generated HUD/view
+sprites, carry through sector transitions and are granted by the loadout cheat.
+Original rapid-fire troopers and heavy units now join guards and hounds with
+distinct health, score, speed, ranged damage and attack cadence. Automatic
+hold-to-fire cadence and campaign balance remain.
 
 - add original security guard, rapid-fire trooper and heavy-unit archetypes;
 - add knife, sidearm, automatic weapon and heavy automatic weapon;
