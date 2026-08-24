@@ -1,0 +1,108 @@
+# Black Pine
+
+Black Pine is an original C++23 demonstration game for the **Explore2D**
+2D exploration/adventure engine. Its purpose is to exercise the engine's room,
+inventory, exploration and persistent-state model with a small game that can be
+played from start to finish.
+
+No Tajná mise rooms, story, dialogue or art are reused.
+
+## Premise
+
+A storm has knocked the Black Pine mountain radio relay off the air. Starting at
+the trailhead, you must reach the caretaker, find a way through the relay yard,
+repair the generator, climb the tower, realign the antenna, and bring the
+emergency radio net back online.
+
+There is also optional material to discover and one deliberately dangerous side
+route.
+
+## What the demo exercises
+
+- Seven fixed connected screens.
+- Six inventory items, including optional/non-usable discoveries.
+- USE / EXAMINE / TAKE.
+- A character with state-dependent dialogue.
+- Examination that reveals a hidden key.
+- Overlapping hotspots (the key sits on the desk) to exercise action-aware
+  target resolution.
+- A locked conditional exit.
+- Using the key on the gate.
+- Installing/consuming a fuse and patch cable.
+- Contextually operating a generator lever.
+- A contextual ladder transition to a separate tower-top screen.
+- Using a tool to repair/alignment state.
+- A final condition-gated win interaction.
+- Visited-location fast travel.
+- A ravine hazard, death and restart.
+- Save/load through the Explore2D host.
+- Entirely procedural graphics; there are no external art assets.
+
+## Build
+
+The project expects Explore2D next to it by default:
+
+```text
+parent/
+  explore-2d/
+  black-pine/
+```
+
+Then configure against a **complete CNA checkout** (including its required
+third-party/submodule content):
+
+```bash
+cmake -S black-pine -B black-pine/build \
+  -DCNA_SOURCE_DIR=/path/to/cna
+cmake --build black-pine/build -j
+./black-pine/build/black-pine
+```
+
+If Explore2D is elsewhere:
+
+```bash
+-DEXPLORE2D_SOURCE_DIR=/path/to/explore-2d
+```
+
+For a headless rules-only build/test, CNA is unnecessary:
+
+```bash
+cmake -S . -B build-core \
+  -DEXPLORE2D_BUILD_CNA=OFF \
+  -DBLACK_PINE_BUILD_TESTS=ON
+cmake --build build-core -j
+ctest --test-dir build-core --output-on-failure
+```
+
+The scenario test scripts the complete required puzzle chain through victory and
+also verifies the hazard/death/restart path.
+
+## Controls
+
+| Key | Action |
+|---|---|
+| Left / Right | turn or walk |
+| Up | cycle USE / EXAMINE / TAKE |
+| Down | perform selected verb |
+| 1 | USE |
+| 2 | EXAMINE |
+| 3 | TAKE |
+| Enter / Space | contextual action, otherwise jump |
+| M | travel to a discovered anchor |
+| S / L | save / load |
+| Q | quit |
+| Up / Down + Enter | choice/map navigation |
+| Escape | cancel |
+
+## Suggested route if you are testing mechanics
+
+Explore the trailhead, talk to Mara in the cabin, inspect the desk, open the yard
+gate, repair both missing parts of the generator circuit, operate the main lever,
+climb the tower, align the antenna mount, and use the relay console.
+
+The game intentionally does not print a full item-by-item solution in its HUD;
+EXAMINE is expected to matter.
+
+## License
+
+Black Pine is available under the [MIT License](LICENSE).

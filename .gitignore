@@ -1,0 +1,6 @@
+/build*/
+/cmake-build-*/
+*.e2dsave
+*.o
+*.a
+black-pine
