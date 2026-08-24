@@ -203,6 +203,7 @@ namespace CopperBoots
                               return block.Content == BlockContent::Capacitor;
                           }));
         levelName_ = std::move(level.Name);
+        theme_ = level.Theme;
         cogs_.clear();
         cogs_.reserve(level.Cogs.size() + cogBlockCount);
         for (const TileCoordinate& cog : level.Cogs) {
@@ -821,6 +822,7 @@ namespace CopperBoots
     {
         StateHasher hash;
         hash.AddString(levelName_);
+        hash.AddInteger(static_cast<int>(theme_));
         hash.AddString(currentArea_);
         hash.AddInteger(level_.Width());
         hash.AddInteger(level_.Height());

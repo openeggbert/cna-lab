@@ -70,7 +70,7 @@ surface, bounded camera and live CNA input polling.
 **M9 — renderer compatibility evidence — ACHIEVED**
 
 The SDL_RENDERER lane and CNA's independent SOFTWARE CPU rasterizer both
-configure, build and run all five project tests. Evidence distinguishes the
+configure, build and run all six project tests. Evidence distinguishes the
 SDL3 platform used for input/audio from the selected graphics renderer and does
 not mistake descriptor compilation for runtime support.
 
@@ -85,11 +85,16 @@ Turn the two known embedded-CNA integration workarounds into minimal, isolated
 reproductions before considering any dependency change. Continue game work in
 parallel only where it does not conceal those framework issues.
 
-**Current: M12 — Factory stage and campaign path**
+**M12 — Factory stage and campaign path — ACHIEVED**
 
-Return to player-facing work by adding a second original stage that introduces
-an independently measurable mechanic, then connect explicit stage progression
-without coupling campaign state to rendering.
+Brassworks Shift is a second original external stage built around moving
+platform timing and pits. A renderer-free campaign table connects Green Ruins
+to Factory progression, with direct stage selection and runtime smoke coverage.
+
+**Current: M13 — Web build validation**
+
+Configure and build the current two-stage game for CNA's available web target,
+record exact artifacts and limitations, and avoid backend APIs in game code.
 
 ## Foundation and research
 
@@ -383,6 +388,35 @@ Acceptance:
   measured mechanic and use original layouts/themes.
 - Six-stage campaign has progression and a full playthrough test checklist.
 
+### MAR-036A — Brassworks Shift Factory slice — DONE
+
+Acceptance:
+
+- A new external 96x12 Factory stage has original layout/theme, four moving
+  platform demonstrations, pits, hazards, checkpoint, exit, eight cogs and two
+  crawler variants.
+- A renderer-free campaign orders Green Ruins before Factory; completion loads
+  the next stage, while validated `--stage 2` supports focused playtesting.
+- Parser/content tests and a CNA Factory runtime smoke test pass on the validated
+  desktop renderer lanes; stage 2 also starts on the real Linux desktop.
+
+### MAR-036B — Underground stage — TODO
+
+Acceptance:
+
+- Add an original external underground stage centered on conduit transitions,
+  tighter navigation and aimed projectile use.
+- Extend campaign progression and shipping-content/runtime coverage without
+  hard-coding level layout into C++.
+
+### MAR-036C — Rooftops stage — DEFERRED
+
+### MAR-036D — Frozen Facility stage — DEFERRED
+
+### MAR-036E — Core stage — DEFERRED
+
+### MAR-036F — Six-stage playthrough checklist — DEFERRED
+
 ## Gameplay systems
 
 ### MAR-040 — Copper cog collectibles — DONE
@@ -564,7 +598,7 @@ Acceptance:
   available; compile-only results are labeled correctly.
 
 Evidence: Debug builds at CNA `1bb2145d99ed572dd4eb15009c34e2e5f410fcf0`
-ran all five Copper Boots tests on both SDL_RENDERER and the independent
+ran all six Copper Boots tests on both SDL_RENDERER and the independent
 SOFTWARE CPU rasterizer. Both exercise SpriteBatch, generated Texture2D data, a
 320x180 RenderTarget2D, point sampling, CNA keyboard/disconnected-gamepad input,
 generated SoundEffect construction/playback on dummy audio, storage and clean
@@ -587,7 +621,7 @@ and simulation bounds. CNA's offscreen platform explicitly reports
 minimize/restore and exclusive fullscreen as unavailable; a real Linux desktop
 SDL_RENDERER run completed those operations and returned to windowed 960x540.
 
-### MAR-074 — Cross-platform build lanes — DEFERRED
+### MAR-074 — Cross-platform build lanes — DOING
 
 Acceptance:
 
@@ -652,7 +686,7 @@ removing both inherited include directories from its root CMake file.
 No defect was reproduced. The public-API game/display smoke creates, binds and
 samples the 320x180 target with `PointClamp`, then exercises resize, minimize,
 restore and fullscreen state where the platform supports them. SDL_RENDERER and
-SOFTWARE each configured, built, started and passed all five tests at the pinned
+SOFTWARE each configured, built, started and passed all six tests at the pinned
 CNA revision; the real SDL_RENDERER desktop lifecycle also passed. Any future
 pixel difference must reopen this item with renderer/platform and expected versus
 actual capture evidence rather than a game-side backend workaround.
@@ -665,7 +699,8 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Build the Factory slice of `MAR-036` around one existing measured mechanic,
-   then add an explicit Green Ruins -> Factory campaign transition.
-2. Keep the remaining MAR-CNA/MAR-SR ledger closed unless a concrete public-API
+1. Complete `MAR-074` by producing and validating the available CNA web build,
+   recording exact artifacts and runtime limitations.
+2. Start `MAR-036B` with a compact underground transition/projectile slice.
+3. Keep the remaining MAR-CNA/MAR-SR ledger closed unless a concrete public-API
    failure appears.

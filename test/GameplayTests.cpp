@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <optional>
 #include <stdexcept>
@@ -10,6 +11,7 @@
 #include <vector>
 
 #include "CopperBoots/Camera2D.hpp"
+#include "CopperBoots/Campaign.hpp"
 #include "CopperBoots/GameSettings.hpp"
 #include "CopperBoots/LevelDefinition.hpp"
 #include "CopperBoots/InputActionAdapter.hpp"
@@ -620,6 +622,8 @@ namespace
         const CopperBoots::LevelDefinition level =
             CopperBoots::LevelDefinition::Parse(source, "memory.cbl");
         Check(level.Name == "Parser Workshop", "level name is parsed");
+        Check(level.Theme == CopperBoots::LevelTheme::GreenRuins,
+              "omitted theme keeps the backwards-compatible ruins default");
         Check(level.Map.Width() == 4 && level.Map.Height() == 3,
               "level dimensions are parsed");
         Check(level.SpawnTileX == 1 && level.SpawnFootTileY == 2,
@@ -701,6 +705,16 @@ namespace
                                "spawn 1 2\ncheckpoint 2 2"),
                       "case.cbl:5:"),
               "duplicate ordered directive is rejected deterministically");
+
+        std::string factoryTheme(source);
+        factoryTheme.insert(factoryTheme.find("legend\n"), "theme factory\n");
+        Check(CopperBoots::LevelDefinition::Parse(
+                  factoryTheme, "factory-theme.cbl").Theme ==
+                  CopperBoots::LevelTheme::Factory,
+              "factory theme is explicit level metadata");
+        Check(failsAt(replaced("legend\n", "theme unknown\nlegend\n"),
+                      "case.cbl:7:"),
+              "unknown themes fail with their source line");
 
         std::string routeSource(source);
         routeSource.replace(routeSource.find("d?oC"), 4, "d..C");
@@ -897,6 +911,53 @@ namespace
                   powerBlockWorld.GameplayAllocationCount() == 0 &&
                   capacitorBlockWorld.GameplayAllocationCount() == 0,
               "level load reserves every block-spawned gameplay entity");
+    }
+
+    void TestCampaignAndFactoryContent()
+    {
+        const auto stages = CopperBoots::CampaignStages();
+        Check(stages.size() == 2 && stages[0].Id == "green-ruins" &&
+                  stages[1].Id == "factory",
+              "campaign exposes Green Ruins followed by Factory");
+        Check(CopperBoots::NextCampaignStage(0) == 1 &&
+                  !CopperBoots::NextCampaignStage(1).has_value() &&
+                  !CopperBoots::NextCampaignStage(99).has_value(),
+              "campaign progression is bounded at both ends");
+
+        std::ifstream stream(std::string(stages[1].LevelPath));
+        Check(stream.good(), "shipping Factory level can be opened by tests");
+        const std::string source(
+            (std::istreambuf_iterator<char>(stream)),
+            std::istreambuf_iterator<char>());
+        if (source.empty())
+            return;
+        const CopperBoots::LevelDefinition factory =
+            CopperBoots::LevelDefinition::Parse(source, stages[1].LevelPath);
+        Check(factory.Name == stages[1].DisplayName &&
+                  factory.Theme == CopperBoots::LevelTheme::Factory &&
+                  factory.Map.Width() == 96 && factory.Map.Height() == 12,
+              "Factory identity, theme and dimensions load externally");
+        Check(factory.Platforms.size() == 4 &&
+                  factory.Platforms[0].Kind ==
+                      CopperBoots::PlatformKind::Horizontal &&
+                  factory.Platforms[1].Kind ==
+                      CopperBoots::PlatformKind::Vertical &&
+                  factory.Platforms[2].Kind ==
+                      CopperBoots::PlatformKind::Drop,
+              "Factory demonstrates horizontal, vertical and delayed-drop platforms");
+        Check(factory.Cogs.size() == 8 && factory.Crawlers.size() == 2 &&
+                  factory.Checkpoints.size() == 1,
+              "Factory object and checkpoint counts are explicit");
+        Check(factory.Map.Get(23, 9) == CopperBoots::Tiles::Empty &&
+                  factory.Map.Get(35, 9).Collision ==
+                      CopperBoots::TileCollision::Solid &&
+                  factory.Map.Get(76, 9) == CopperBoots::Tiles::Empty &&
+                  factory.Map.Get(88, 9).Collision ==
+                      CopperBoots::TileCollision::Solid,
+              "Factory moving-platform pits have stable takeoff and landing geometry");
+        Check(factory.Map.Get(92, 8).Collision ==
+                  CopperBoots::TileCollision::Exit,
+              "Factory has a reachable externally-authored exit");
     }
 
     void TestMovementAndJump()
@@ -1928,6 +1989,7 @@ int main()
     TestInputActionAdapter();
     TestTileBounds();
     TestLevelParsing();
+    TestCampaignAndFactoryContent();
     TestMovementAndJump();
     TestMovingPlatforms();
     TestVariableJumpHeight();

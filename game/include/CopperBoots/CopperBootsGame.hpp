@@ -1,7 +1,8 @@
 #pragma once
 
-#include <cstdint>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -31,7 +32,8 @@ namespace CopperBoots
         explicit CopperBootsGame(bool smokeTest = false,
                                  bool audioEnabled = true,
                                  bool settingsEnabled = true,
-                                 bool displaySmokeTest = false);
+                                 bool displaySmokeTest = false,
+                                 std::size_t initialStage = 0);
 
         [[nodiscard]] const std::string& GetTypeName() const override;
 
@@ -49,6 +51,7 @@ namespace CopperBoots
         void PlayWorldAudio(const WorldEvents& events);
         void PlayAudioCue(AudioCue cue);
         void SaveSettings();
+        void LoadCampaignStage(std::size_t stageIndex);
         void UpdateProgress(const WorldEvents& events);
         void UpdateDisplaySmokeTest();
         void ValidateDisplaySmokeState();
@@ -89,6 +92,7 @@ namespace CopperBoots
         Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
         GameSettings settings_;
         ProgressData progress_;
+        std::size_t currentStageIndex_ = 0;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> solidTexture_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::RenderTarget2D> logicalTarget_;

@@ -9,6 +9,12 @@
 
 namespace CopperBoots
 {
+    enum class LevelTheme
+    {
+        GreenRuins,
+        Factory,
+    };
+
     struct TileCoordinate
     {
         int X;
@@ -68,6 +74,7 @@ namespace CopperBoots
     struct LevelDefinition
     {
         std::string Name;
+        LevelTheme Theme = LevelTheme::GreenRuins;
         TileMap Map;
         int SpawnTileX;
         int SpawnFootTileY;

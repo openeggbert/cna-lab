@@ -180,6 +180,8 @@ namespace CopperBoots
 
         std::string initialArea = "main";
         bool initialAreaSeen = false;
+        LevelTheme theme = LevelTheme::GreenRuins;
+        bool themeSeen = false;
         std::vector<RouteEndpointDefinition> routeEndpoints;
         std::vector<RouteDefinition> routes;
         std::vector<PlatformDefinition> platforms;
@@ -198,6 +200,23 @@ namespace CopperBoots
                 initialArea = ParseIdentifier(value, line, sourceName);
                 RequireEnd(value, line, sourceName);
                 initialAreaSeen = true;
+            }
+            else if (line.Text.starts_with("theme ")) {
+                if (themeSeen)
+                    Fail(sourceName, line.Number,
+                         "theme may only be declared once");
+                std::string_view value = ValueAfter(
+                    line, "theme ", sourceName);
+                const std::string themeName = ParseIdentifier(
+                    value, line, sourceName);
+                RequireEnd(value, line, sourceName);
+                if (themeName == "green-ruins")
+                    theme = LevelTheme::GreenRuins;
+                else if (themeName == "factory")
+                    theme = LevelTheme::Factory;
+                else
+                    Fail(sourceName, line.Number, "unknown level theme");
+                themeSeen = true;
             }
             else if (line.Text.starts_with("endpoint ")) {
                 std::string_view value = ValueAfter(
@@ -412,7 +431,7 @@ namespace CopperBoots
             }
         }
 
-        return {name, std::move(map), spawnX, spawnY,
+        return {name, theme, std::move(map), spawnX, spawnY,
                 checkpointX, checkpointY, std::move(initialArea), parallax,
                 std::move(cogs),
                 std::move(crawlers), std::move(platforms),

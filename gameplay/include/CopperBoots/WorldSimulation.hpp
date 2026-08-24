@@ -305,6 +305,7 @@ namespace CopperBoots
         {
             return levelName_;
         }
+        [[nodiscard]] LevelTheme Theme() const noexcept { return theme_; }
         [[nodiscard]] std::uint64_t TickCount() const noexcept { return tickCount_; }
         [[nodiscard]] const LevelResult& Result() const noexcept { return result_; }
         [[nodiscard]] int CompletionTicks() const noexcept { return completionTicks_; }
@@ -370,6 +371,7 @@ namespace CopperBoots
 
         TileMap level_;
         std::string levelName_ = "Test Room";
+        LevelTheme theme_ = LevelTheme::GreenRuins;
         PlayerState player_;
         Camera2D camera_;
         float spawnX_;

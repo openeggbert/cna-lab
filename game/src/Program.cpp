@@ -1,11 +1,14 @@
 #include "CopperBoots/CopperBootsGame.hpp"
+#include "CopperBoots/Campaign.hpp"
 #include "CopperBoots/CnaProgressStore.hpp"
 #include "CopperBoots/CnaSettingsStore.hpp"
 
+#include <charconv>
 #include <exception>
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <system_error>
 
 int main(const int argc, char* argv[])
 {
@@ -14,6 +17,7 @@ int main(const int argc, char* argv[])
     bool settingsEnabled = true;
     bool storageSmokeTest = false;
     bool displaySmokeTest = false;
+    std::size_t initialStage = 0;
     for (int index = 1; index < argc; ++index) {
         const std::string_view argument(argv[index]);
         if (argument == "--smoke-test")
@@ -26,11 +30,25 @@ int main(const int argc, char* argv[])
             storageSmokeTest = true;
         else if (argument == "--display-smoke-test")
             displaySmokeTest = true;
+        else if (argument == "--stage" && index + 1 < argc) {
+            const std::string_view value(argv[++index]);
+            std::size_t stageNumber = 0;
+            const auto parsed = std::from_chars(
+                value.data(), value.data() + value.size(), stageNumber);
+            if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size() ||
+                stageNumber == 0 ||
+                stageNumber > CopperBoots::CampaignStages().size()) {
+                std::cerr << "Invalid campaign stage: " << value << '\n';
+                return 2;
+            }
+            initialStage = stageNumber - 1;
+        }
         else {
             std::cerr << "Unknown argument: " << argument << '\n'
                       << "Usage: " << argv[0]
                       << " [--smoke-test] [--no-audio] [--no-settings]"
-                         " [--storage-smoke-test] [--display-smoke-test]\n";
+                         " [--storage-smoke-test] [--display-smoke-test]"
+                         " [--stage NUMBER]\n";
             return 2;
         }
     }
@@ -70,7 +88,8 @@ int main(const int argc, char* argv[])
     }
 
     CopperBoots::CopperBootsGame game(
-        smokeTest, audioEnabled, settingsEnabled, displaySmokeTest);
+        smokeTest, audioEnabled, settingsEnabled, displaySmokeTest,
+        initialStage);
     game.Run();
 
     if (smokeTest)

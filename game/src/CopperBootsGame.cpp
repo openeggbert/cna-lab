@@ -1,4 +1,5 @@
 #include "CopperBoots/CopperBootsGame.hpp"
+#include "CopperBoots/Campaign.hpp"
 #include "CopperBoots/CnaSettingsStore.hpp"
 #include "CopperBoots/CnaProgressStore.hpp"
 #include "CopperBoots/PresentationLayout.hpp"
@@ -105,8 +106,10 @@ namespace CopperBoots
     CopperBootsGame::CopperBootsGame(const bool smokeTest,
                                      const bool audioEnabled,
                                      const bool settingsEnabled,
-                                     const bool displaySmokeTest)
+                                     const bool displaySmokeTest,
+                                     const std::size_t initialStage)
         : graphics_(this),
+          currentStageIndex_(initialStage),
           audioEnabled_(audioEnabled),
           settingsEnabled_(settingsEnabled),
           smokeTest_(smokeTest),
@@ -162,12 +165,7 @@ namespace CopperBoots
 
     void CopperBootsGame::LoadContent()
     {
-        constexpr std::string_view levelPath =
-            "Content/Levels/green_ruins.cbl";
-        auto levelStream = Microsoft::Xna::Framework::TitleContainer::OpenStream(
-            std::string(levelPath));
-        System::IO::StreamReader reader(levelStream.get(), true);
-        world_.LoadLevel(LevelDefinition::Parse(reader.ReadToEnd(), levelPath));
+        LoadCampaignStage(currentStageIndex_);
 
         auto& device = getGraphicsDeviceProperty();
         spriteBatch_ = std::make_unique<SpriteBatch>(device);
@@ -183,8 +181,23 @@ namespace CopperBoots
         std::cout << "Copper Boots: renderer "
                   << device.GetGraphicsRendererName()
                   << ", logical surface " << LogicalWidth << 'x' << LogicalHeight
-                  << ", level " << levelPath
                   << "\n";
+        std::cout.flush();
+    }
+
+    void CopperBootsGame::LoadCampaignStage(const std::size_t stageIndex)
+    {
+        const auto stages = CampaignStages();
+        if (stageIndex >= stages.size())
+            throw std::out_of_range("campaign stage index is out of range");
+        const std::string_view levelPath = stages[stageIndex].LevelPath;
+        auto levelStream = Microsoft::Xna::Framework::TitleContainer::OpenStream(
+            std::string(levelPath));
+        System::IO::StreamReader reader(levelStream.get(), true);
+        world_.LoadLevel(LevelDefinition::Parse(reader.ReadToEnd(), levelPath));
+        currentStageIndex_ = stageIndex;
+        std::cout << "Copper Boots: stage " << stageIndex + 1 << ", level "
+                  << levelPath << '\n';
         std::cout.flush();
     }
 
@@ -232,7 +245,8 @@ namespace CopperBoots
             return;
         const LevelResult& result = world_.Result();
         const bool changed = RecordLevelCompletion(
-            progress_, 1, result.Score, result.CompletionTick);
+            progress_, static_cast<int>(currentStageIndex_ + 1),
+            result.Score, result.CompletionTick);
         if (!changed || !progressEnabled_)
             return;
         try {
@@ -484,6 +498,7 @@ namespace CopperBoots
         const double elapsed =
             gameTime.getElapsedGameTimeProperty().getTotalSecondsProperty();
         const int steps = clock_.AddFrameTime(elapsed);
+        std::optional<std::size_t> nextStage;
 
         for (int step = 0; step < steps; ++step) {
             world_.Update(input, static_cast<float>(SimulationClock::TickSeconds));
@@ -492,6 +507,17 @@ namespace CopperBoots
             clock_.MarkStep();
             input.JumpPressed = false;
             input.AttackPressed = false;
+            inputAdapter_.ConsumeEdges();
+            if (world_.Result().Completed &&
+                world_.CompletionTicks() >= 60) {
+                nextStage = NextCampaignStage(currentStageIndex_);
+                if (nextStage.has_value())
+                    break;
+            }
+        }
+
+        if (nextStage.has_value()) {
+            LoadCampaignStage(*nextStage);
             inputAdapter_.ConsumeEdges();
         }
 
@@ -541,7 +567,9 @@ namespace CopperBoots
     void CopperBootsGame::DrawWorld()
     {
         auto& device = getGraphicsDeviceProperty();
-        device.Clear(Color(42, 74, 105));
+        device.Clear(world_.Theme() == LevelTheme::Factory
+            ? Color(24, 32, 45)
+            : Color(42, 74, 105));
         spriteDrawCount_ = 0;
 
         spriteBatch_->Begin(SpriteSortMode::Deferred, BlendState::Opaque,
@@ -573,6 +601,28 @@ namespace CopperBoots
 
     void CopperBootsGame::DrawParallax(const float cameraX)
     {
+        if (world_.Theme() == LevelTheme::Factory) {
+            FillRectangle(Rectangle(0, 106, LogicalWidth, 74),
+                          Color(51, 54, 64));
+            const auto& factors = world_.ParallaxFactors();
+            const std::array<ParallaxLayer, 4> layers{
+                ParallaxLayer{factors[0], 0.10F, 94, 119, 34,
+                              {42, 52, 67},
+                              ParallaxGeometry::BlockSilhouette, true, false},
+                ParallaxLayer{factors[0], 0.15F, 68, 132, 20,
+                              {65, 69, 76},
+                              ParallaxGeometry::BlockSilhouette, true, false},
+                ParallaxLayer{factors[1], 0.25F, 51, 142, 28,
+                              {82, 72, 67},
+                              ParallaxGeometry::BlockSilhouette, true, false},
+                ParallaxLayer{factors[2], 0.50F, 37, 151, 16,
+                              {103, 83, 62},
+                              ParallaxGeometry::BlockSilhouette, true, false},
+            };
+            for (const ParallaxLayer& layer : layers)
+                DrawParallaxLayer(layer, cameraX);
+            return;
+        }
         FillRectangle(Rectangle(0, 112, LogicalWidth, 68), Color(57, 99, 112));
         const auto& factors = world_.ParallaxFactors();
         const std::array<ParallaxLayer, 4> layers{
@@ -626,6 +676,7 @@ namespace CopperBoots
     void CopperBootsGame::DrawTiles(const float cameraX, const float cameraY)
     {
         const TileMap& level = world_.Level();
+        const bool factory = world_.Theme() == LevelTheme::Factory;
         const int firstX = std::max(0, static_cast<int>(cameraX) / TileMap::TileSize - 1);
         const int lastX = std::min(level.Width() - 1,
             static_cast<int>(cameraX + LogicalWidth) / TileMap::TileSize + 1);
@@ -647,14 +698,21 @@ namespace CopperBoots
                 switch (tile.Visual) {
                 case TileVisual::Ruin: {
                     const Color body = ((x + y) % 2 == 0)
-                        ? Color(118, 82, 53)
-                        : Color(104, 71, 49);
+                        ? (factory ? Color(78, 84, 91) : Color(118, 82, 53))
+                        : (factory ? Color(64, 70, 78) : Color(104, 71, 49));
                     FillRectangle(Rectangle(screenX, screenY,
                                             TileMap::TileSize, TileMap::TileSize), body);
                     FillRectangle(Rectangle(screenX, screenY,
-                                            TileMap::TileSize, 3), Color(166, 142, 69));
+                                            TileMap::TileSize, 3),
+                                  factory ? Color(190, 142, 62)
+                                          : Color(166, 142, 69));
                     FillRectangle(Rectangle(screenX + 2, screenY + 6,
-                                            4, 3), Color(73, 58, 48));
+                                            4, 3),
+                                  factory ? Color(35, 43, 52)
+                                          : Color(73, 58, 48));
+                    if (factory)
+                        FillRectangle(Rectangle(screenX + 12, screenY + 11,
+                                                2, 2), Color(211, 166, 73));
                     break;
                 }
                 case TileVisual::Breakable:
@@ -683,9 +741,11 @@ namespace CopperBoots
                     break;
                 case TileVisual::OneWay:
                     FillRectangle(Rectangle(screenX, screenY, 16, 4),
-                                  Color(166, 142, 69));
+                                  factory ? Color(205, 151, 61)
+                                          : Color(166, 142, 69));
                     FillRectangle(Rectangle(screenX + 2, screenY + 4, 12, 2),
-                                  Color(73, 88, 64));
+                                  factory ? Color(62, 72, 82)
+                                          : Color(73, 88, 64));
                     break;
                 case TileVisual::Hazard:
                     FillRectangle(Rectangle(screenX, screenY + 12, 16, 4),
@@ -705,10 +765,20 @@ namespace CopperBoots
                                   Color(235, 189, 67));
                     break;
                 case TileVisual::Decoration:
-                    FillRectangle(Rectangle(screenX + 3, screenY + 8, 10, 8),
-                                  Color(68, 143, 86));
-                    FillRectangle(Rectangle(screenX + 7, screenY + 3, 3, 12),
-                                  Color(94, 174, 93));
+                    if (factory) {
+                        FillRectangle(Rectangle(screenX + 3, screenY + 2,
+                                                10, 14), Color(99, 67, 54));
+                        FillRectangle(Rectangle(screenX + 6, screenY,
+                                                4, 16), Color(202, 119, 55));
+                        FillRectangle(Rectangle(screenX + 2, screenY + 5,
+                                                12, 3), Color(54, 62, 70));
+                    }
+                    else {
+                        FillRectangle(Rectangle(screenX + 3, screenY + 8,
+                                                10, 8), Color(68, 143, 86));
+                        FillRectangle(Rectangle(screenX + 7, screenY + 3,
+                                                3, 12), Color(94, 174, 93));
+                    }
                     break;
                 case TileVisual::None:
                     break;
@@ -1137,7 +1207,7 @@ namespace CopperBoots
         FillRectangle(Rectangle(0, LogicalHeight - barHeight,
                                 LogicalWidth, barHeight), Color(24, 36, 42));
         if (world_.CompletionTicks() > 15) {
-            DrawText("RELAY COMPLETE", 132, 84, Color(235, 189, 67));
+            DrawText("STAGE COMPLETE", 132, 84, Color(235, 189, 67));
             DrawNumber(world_.Result().Score, 6, 148, 96,
                        Color(231, 224, 181));
         }

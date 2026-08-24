@@ -547,6 +547,7 @@ size 110 12
 spawn 3 9
 checkpoint 3 9
 parallax 0.10 0.25 0.50
+theme green-ruins
 initial-area main
 endpoint relay-hatch main 43 9
 endpoint cache-hatch conduit 96 9
@@ -583,9 +584,12 @@ practical, and reports line-numbered errors. It converts glyphs to visual and
 semantic tile records. The historical character codes are not reused.
 
 The version-1 grammar is deliberately strict and ordered. Unknown directives,
-duplicate directives, unknown glyphs, and non-empty data after the declared map
-are errors rather than silently ignored extensions. Compatible route metadata
-now occupies the documented section between `parallax` and `legend`:
+duplicate directives, unknown themes, unknown glyphs, and non-empty data after
+the declared map are errors rather than silently ignored extensions. An
+optional `theme green-ruins|factory` directive selects presentation without
+putting renderer state into the simulation; omitted theme remains Green Ruins
+for compatibility. Compatible route metadata occupies the documented section
+between `parallax` and `legend`:
 `initial-area`, named `endpoint` records carrying area and standing-foot tile,
 and directed `route` links. Existing files with an empty metadata section remain
 valid. Endpoint names and route sources are unique, references and clear solid
@@ -746,6 +750,26 @@ tests release every content type while requiring that counter to remain zero.
 Tile rendering reads the persistent `TileMap` in visible bounds and never
 rebuilds static tile data per frame.
 
+Brassworks Shift is a new 96x12 industrial stage and is not derived from the
+historical six layouts. Its route is deliberately organized around measured
+moving geometry: a horizontal carrier crosses the first pit, a vertical lift
+opens the middle route, a triggered drop platform spans a hazard bed, and a
+faster horizontal carrier crosses the final pit. It has its own parallax and
+tile palette, eight cogs, two crawler variants, a later checkpoint, plating and
+capacitor blocks, hazards, and an exit. The shipping-content test parses the
+external file and checks those structural counts and pit/exit geometry.
+An SDL_RENDERER run on the real Linux desktop loaded stage 2 from the copied
+shipping content, initialized the 320x180 target and generated audio, and
+presented at 960x540; forced X11 capture was unavailable because the active
+desktop session uses Wayland, so this is startup evidence rather than a stored
+pixel capture or full playthrough claim.
+
+Campaign order is renderer-free data: Green Ruins Relay is stage 1 and
+Brassworks Shift is stage 2. Completion persists the next unlock, presents the
+existing 60-tick transition, then loads the next external stage through CNA's
+`TitleContainer`; final-stage completion remains on its result screen. A
+validated one-based `--stage NUMBER` option supports direct development runs.
+
 The milestone HUD is also asset-free: a new 3x5 glyph table renders the external
 level name, cogs, lives and score through the same one-texel CNA `SpriteBatch`
 path, with colored plating/capacitor indicators. It reads const world accessors,
@@ -765,8 +789,8 @@ Optional `H` objects activate a later respawn coordinate while leaving terrain
 empty; death preserves collected, used-block and defeated-enemy state. `E` tile
 overlap produces one `LevelResult` containing score, cog count and completion
 tick, changes player presentation to transition, and freezes the fixed-step
-world. CNA presentation grows a 60-tick top/bottom-bar transition and displays
-the structured result without deciding campaign progression yet.
+world. CNA presentation grows a 60-tick top/bottom-bar transition; campaign
+code consumes the structured result only after that transition completes.
 
 ## CNA and sharp-runtime baseline
 
@@ -822,7 +846,7 @@ capabilities. Later compatibility records use:
 Only available/mature lanes are tested; a compile result is never mislabeled as
 a runtime result. The renderer and platform are separate CNA axes: SOFTWARE is
 a genuine non-SDL renderer even though this configuration deliberately retains
-the SDL3 platform services for input and audio. Both matrix rows ran all five
+the SDL3 platform services for input and audio. Both matrix rows ran all six
 project CTests at CNA `1bb2145d99ed572dd4eb15009c34e2e5f410fcf0` and
 sharp-runtime `54578590b328aa9612fe38bfddca9fd8ca795144` on 2026-08-24.
 No orientation, first-use, render-target preservation or point-sampling defect

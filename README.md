@@ -44,10 +44,12 @@ working vocabulary replaces the historical presentation with an original one:
 | pipe/subarea route | maintenance conduit |
 | basic enemy | clockwork crawler |
 
-The current playable Green Ruins Relay includes walk/run/jump, tile collision,
-bounded camera movement, parallax, enemies, abilities, horizontal/vertical/drop
-platforms and an optional maintenance-conduit cache. Near a hatch, the in-world
-`DOWN` prompt explains the interaction without external assets.
+The current playable two-stage campaign starts in Green Ruins Relay and then
+continues into the industrial Brassworks Shift. Together they include
+walk/run/jump, tile collision, bounded camera movement, distinct parallax
+themes, enemies, abilities, moving and delayed-drop platforms, checkpoints,
+hazards, pits, and an optional maintenance-conduit cache. Near a hatch, the
+in-world `DOWN` prompt explains the interaction without external assets.
 
 ## Technology
 
@@ -75,9 +77,9 @@ analysis.md           historical research and architecture decisions
 plan.md               stable MAR-* task ledger
 ```
 
-The application avoids a root-level `src/` directory because the pinned CNA
-revision currently mistakes a consumer's `src/` for a reintroduced legacy CNA
-source tree. This is tracked as `MAR-CNA-001` in [plan.md](plan.md).
+The `game/` and renderer-free `gameplay/` split is an organizational choice.
+The pinned CNA revision contains the embedded-consumer fixes recorded under the
+closed `MAR-CNA-001` and `MAR-CNA-002` entries in [plan.md](plan.md).
 
 ## Dependencies
 
@@ -119,6 +121,10 @@ Run `./build/copper-boots --no-audio` for an explicit silent configuration.
 Failure to initialize or play CNA audio also degrades to silence instead of
 terminating gameplay.
 
+Run `./build/copper-boots --stage 2 --no-settings` to start directly in
+Brassworks Shift for development or playtesting. Stage numbers are one-based
+and validated at startup.
+
 On a normal first run, CNA user storage creates `settings.cfg` under the
 platform-appropriate Copper Boots data directory. The versioned text file holds
 two keyboard keys per action, master/effects volume, fullscreen and scaling
@@ -128,8 +134,9 @@ isolated runs.
 
 Completing Green Ruins records the next unlocked stage, best score and best
 60 Hz completion tick in alternating checksummed `progress-a.cfg` and
-`progress-b.cfg` slots. A partial/corrupt newest write therefore falls back to
-the previous generation instead of erasing progress.
+`progress-b.cfg` slots, then advances to Brassworks Shift after the completion
+transition. A partial/corrupt newest write therefore falls back to the previous
+generation instead of erasing progress.
 
 Focused lanes are available with `ctest --test-dir build -L logic`,
 `ctest --test-dir build -L smoke`, and `ctest --test-dir build -L display`;

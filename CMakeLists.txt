@@ -115,6 +115,7 @@ if(COPPER_BOOTS_BUILD_TESTS)
         test/GameplayTests.cpp)
     target_link_libraries(copper_boots_gameplay_tests PRIVATE
         copper_boots_gameplay)
+    add_dependencies(copper_boots_gameplay_tests copper_boots_content)
     if(MSVC)
         target_compile_options(copper_boots_gameplay_tests PRIVATE /W4 /WX)
     else()
@@ -130,12 +131,18 @@ if(COPPER_BOOTS_BUILD_TESTS)
             COMMAND copper-boots --smoke-test --no-settings)
         add_test(NAME copper_boots_smoke_silent
             COMMAND copper-boots --smoke-test --no-audio --no-settings)
+        add_test(NAME copper_boots_factory_smoke
+            COMMAND copper-boots --smoke-test --no-audio --no-settings
+                --stage 2)
         set_tests_properties(copper_boots_smoke PROPERTIES
             TIMEOUT 20
             LABELS "graphics;smoke;cna;audio")
         set_tests_properties(copper_boots_smoke_silent PROPERTIES
             TIMEOUT 20
             LABELS "graphics;smoke;cna;audio-fallback")
+        set_tests_properties(copper_boots_factory_smoke PROPERTIES
+            TIMEOUT 20
+            LABELS "graphics;smoke;cna;campaign;factory")
         add_test(NAME copper_boots_storage
             COMMAND copper-boots --storage-smoke-test)
         set_tests_properties(copper_boots_storage PROPERTIES
@@ -151,6 +158,7 @@ if(COPPER_BOOTS_BUILD_TESTS)
         if(UNIX AND NOT APPLE)
             set_tests_properties(
                 copper_boots_smoke copper_boots_smoke_silent
+                copper_boots_factory_smoke
                 copper_boots_display PROPERTIES
                 ENVIRONMENT "SDL_VIDEODRIVER=offscreen;SDL_AUDIODRIVER=dummy")
         endif()
