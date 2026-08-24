@@ -22,6 +22,9 @@ Verified on 2026-08-24 with GCC 14.2 and CMake 3.31-compatible project syntax.
 - CPU renderer previews generated for the title, HUD, messages, speaker-anchored
   bubbles, TAKE pose, generator action and all seven Black Pine rooms; every
   game-facing draw call is limited to the EGA palette.
+- The dependency-free English website is served successfully over local HTTP;
+  its HTML parses, all internal anchors resolve, and all CSS, JavaScript and
+  Black Pine screenshot assets are present and return successful responses.
 
 ## CNA dependency
 

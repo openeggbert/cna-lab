@@ -57,6 +57,10 @@ strips below. This is a defining feature rather than a temporary limitation.
   it with point sampling, avoiding any mandatory content pipeline or font asset.
 - Headless tests for world rules and persistence.
 
+An English presentation and practical usage guide is available in the
+[web directory](web/README.md). It is a dependency-free static site and includes
+real Black Pine screenshots, integration examples and an API tour.
+
 ## Project layout
 
 ```text
@@ -73,6 +77,7 @@ include/explore2d/
 src/
 test/
 docs/
+web/                 English presentation and usage guide
 ```
 
 `Explore2D::Core` never includes CNA. `Explore2D::Cna` is created only when

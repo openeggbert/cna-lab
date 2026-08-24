@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0000aa">
+  <meta name="description" content="Explore2D is an opinionated C++23 engine for fixed-screen exploration adventures with procedural EGA graphics, stateful interactions and CNA hosting.">
+  <meta property="og:title" content="Explore2D — Make worlds one screen at a time">
+  <meta property="og:description" content="A C++23 engine for fixed-screen exploration adventures, built around procedural 16-colour art and compact interaction design.">
+  <meta property="og:type" content="website">
+  <title>Explore2D — Fixed-screen adventure engine</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <a class="wordmark" href="#top" aria-label="Explore2D home">
+      <span class="wordmark-mark" aria-hidden="true">E2</span>
+      <span>EXPLORE<span class="accent-cyan">2D</span></span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+    <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
+      <a href="#features">Features</a>
+      <a href="#visuals">Visual system</a>
+      <a href="#quickstart">Quickstart</a>
+      <a href="#reference">Reference</a>
+      <a class="nav-github" href="https://github.com/openeggbert/explore-2d">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section id="top" class="hero section-shell">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="status-light"></span>C++23 · CNA · MIT licensed</p>
+        <h1>Make worlds<br><span>one screen</span><br>at a time.</h1>
+        <p class="hero-lead">Explore2D is a focused engine for exploration adventures made from connected rooms, meaningful objects and persistent choices. It turns the economical language of classic QBasic games into a clean, testable C++ API.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#quickstart">Start building</a>
+          <a class="button button-secondary" href="#visuals">See the engine</a>
+        </div>
+        <dl class="hero-facts" aria-label="Engine facts">
+          <div><dt>640×350</dt><dd>fixed logical screen</dd></div>
+          <div><dt>16</dt><dd>exact EGA colours</dd></div>
+          <div><dt>0</dt><dd>required art assets</dd></div>
+        </dl>
+      </div>
+
+      <div class="hero-machine" aria-label="Black Pine running on Explore2D">
+        <div class="machine-topbar">
+          <span>BLACK PINE / EXPLORE2D</span>
+          <span class="machine-leds" aria-hidden="true"><i></i><i></i><i></i></span>
+        </div>
+        <figure class="screen-frame">
+          <img src="assets/black-pine-dialogue.png" width="640" height="350" alt="Black Pine dialogue scene rendered by Explore2D">
+          <figcaption>Real engine output · nearest-neighbour presentation</figcaption>
+        </figure>
+        <div class="machine-labels" aria-hidden="true"><span>ROOM</span><span>ITEM</span><span>STATE</span><span>ACTION</span></div>
+      </div>
+    </section>
+
+    <section class="ticker" aria-label="Core engine vocabulary">
+      <div>ROOM → EXPLORE → ITEM → STATE CHANGE → ROOM <span>◆</span> USE · EXAMINE · TAKE <span>◆</span> WALK · JUMP · ACT</div>
+    </section>
+
+    <section id="features" class="section-shell section-block">
+      <div class="section-heading">
+        <p class="eyebrow">The adventure grammar</p>
+        <h2>Small vocabulary.<br>Deep world state.</h2>
+        <p>Explore2D owns the recurring mechanics, so each game can spend its code on places, puzzles and story.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card feature-card-blue">
+          <p class="card-number">01</p>
+          <h3>Connected scenes</h3>
+          <p>Build non-scrolling rooms with explicit exits, spawn points, solids, hazards and discovered fast-travel anchors.</p>
+          <code>RoomDefinition</code>
+        </article>
+        <article class="feature-card feature-card-green">
+          <p class="card-number">02</p>
+          <h3>Rule-driven interaction</h3>
+          <p>Combine a verb, target, optional item and conditions. Then emit dialogue and mutations without hard-coded room classes.</p>
+          <code>InteractionRule</code>
+        </article>
+        <article class="feature-card feature-card-magenta">
+          <p class="card-number">03</p>
+          <h3>Persistent exploration</h3>
+          <p>Inventory, flags, counters and visited rooms make examination and collection change the world rather than merely decorate it.</p>
+          <code>AdventureSession</code>
+        </article>
+        <article class="feature-card feature-card-yellow">
+          <p class="card-number">04</p>
+          <h3>Selective motion</h3>
+          <p>Loop a beacon or trigger a short repair sequence. Animation is available where it matters; static scenery stays economical.</p>
+          <code>SceneAnimationDefinition</code>
+        </article>
+        <article class="feature-card feature-card-cyan">
+          <p class="card-number">05</p>
+          <h3>Headless by design</h3>
+          <p>World rules, saving and the CPU renderer form a CNA-independent core. Test complete puzzle routes without a window or GPU.</p>
+          <code>Explore2D::Core</code>
+        </article>
+        <article class="feature-card feature-card-red">
+          <p class="card-number">06</p>
+          <h3>Historical sound</h3>
+          <p>Describe monophonic square-wave effects as QBasic SOUND frequency and timer-tick pairs; the CNA host handles playback.</p>
+          <code>ToneEffectDefinition</code>
+        </article>
+      </div>
+    </section>
+
+    <section id="visuals" class="visual-section section-block">
+      <div class="section-shell">
+        <div class="section-heading split-heading">
+          <div>
+            <p class="eyebrow">The visual system</p>
+            <h2>Constraints create<br>a common language.</h2>
+          </div>
+          <p>Every Explore2D game accepts the same 640×350 canvas, 492×262 room viewport, 16-colour EGA palette and shared adventure interface. Different worlds still feel like they belong to the same machine.</p>
+        </div>
+
+        <div class="palette" aria-label="16 colour EGA palette">
+          <span style="--swatch:#000000" title="Black"></span><span style="--swatch:#0000aa" title="Blue"></span>
+          <span style="--swatch:#00aa00" title="Green"></span><span style="--swatch:#00aaaa" title="Cyan"></span>
+          <span style="--swatch:#aa0000" title="Red"></span><span style="--swatch:#aa00aa" title="Magenta"></span>
+          <span style="--swatch:#aa5500" title="Brown"></span><span style="--swatch:#aaaaaa" title="Light gray"></span>
+          <span style="--swatch:#555555" title="Dark gray"></span><span style="--swatch:#5555ff" title="Bright blue"></span>
+          <span style="--swatch:#55ff55" title="Bright green"></span><span style="--swatch:#55ffff" title="Bright cyan"></span>
+          <span style="--swatch:#ff5555" title="Bright red"></span><span style="--swatch:#ff55ff" title="Bright magenta"></span>
+          <span style="--swatch:#ffff55" title="Bright yellow"></span><span style="--swatch:#ffffff" title="White"></span>
+        </div>
+
+        <div class="gallery-grid">
+          <figure class="gallery-main">
+            <img src="assets/black-pine-title.png" width="640" height="350" alt="Code-drawn Black Pine title screen">
+            <figcaption><strong>Configurable title screen</strong><span>Code-drawn identity inside an engine-owned flow</span></figcaption>
+          </figure>
+          <figure>
+            <img src="assets/black-pine-generator.png" width="640" height="350" alt="Generator shed scene with a dialogue bubble">
+            <figcaption><strong>Stateful machinery</strong><span>Conditions, overlays and one-shot action animation</span></figcaption>
+          </figure>
+          <figure>
+            <img src="assets/black-pine-take.png" width="640" height="350" alt="Player bending toward an item while taking it">
+            <figcaption><strong>Readable actions</strong><span>Facing-aware TAKE pose and anchored messages</span></figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="quickstart" class="section-shell section-block quickstart">
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow">Quickstart</p>
+          <h2>From empty project<br>to a playable room.</h2>
+        </div>
+        <p>Keep Explore2D next to your game, link the core, describe the world in ordinary C++, then add the CNA host when you want a playable desktop build.</p>
+      </div>
+
+      <ol class="steps">
+        <li>
+          <div class="step-copy"><span>1</span><h3>Add the engine</h3><p>Include Explore2D as a CMake subdirectory and link the headless core.</p></div>
+          <div class="code-panel">
+            <div class="code-title"><span>CMakeLists.txt</span><button type="button" data-copy="cmake-code">Copy</button></div>
+            <pre id="cmake-code"><code>set(EXPLORE2D_SOURCE_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}/../explore-2d")
+
+add_subdirectory("${EXPLORE2D_SOURCE_DIR}"
+    "${CMAKE_BINARY_DIR}/_deps/explore2d")
+
+target_link_libraries(my_game
+    PRIVATE Explore2D::Core)</code></pre>
+          </div>
+        </li>
+        <li>
+          <div class="step-copy"><span>2</span><h3>Describe a room</h3><p>Coordinates are local to the 492×262 room viewport. Art, collision and hotspots share that space.</p></div>
+          <div class="code-panel">
+            <div class="code-title"><span>World.cpp</span><button type="button" data-copy="room-code">Copy</button></div>
+            <pre id="room-code"><code>namespace e2d = explore2d;
+
+e2d::WorldDefinition world;
+world.title = "My Adventure";
+world.startRoom = "foyer";
+
+e2d::RoomDefinition foyer;
+foyer.id = "foyer";
+foyer.label = "OLD FOYER";
+foyer.background = e2d::PaletteColor::blue;
+foyer.defaultSpawn = {32, 232};
+foyer.solids.push_back({0, 260, 492, 28});
+
+e2d::Drawing{}.origin({80, 210})
+    .rectangle({-3, -30, 6, 30},
+        e2d::PaletteColor::brown)
+    .polygon({{-24, -24}, {0, -72}, {24, -24}},
+        e2d::PaletteColor::green)
+    .appendTo(foyer.decorations);</code></pre>
+          </div>
+        </li>
+        <li>
+          <div class="step-copy"><span>3</span><h3>Add an interaction</h3><p>A rule matches player intent and turns it into dialogue plus persistent state changes.</p></div>
+          <div class="code-panel">
+            <div class="code-title"><span>World.cpp</span><button type="button" data-copy="rule-code">Copy</button></div>
+            <pre id="rule-code"><code>world.addItem({
+    "key", "BRASS KEY", "Cold and heavy.", true});
+
+foyer.hotspots.push_back({
+    "key_pickup", "BRASS KEY", {190, 210, 50, 50},
+    e2d::HotspotKind::item,
+    {e2d::Condition::notFlag("key_taken")}, {}});
+
+world.addRoom(std::move(foyer));
+
+world.addInteraction({
+    e2d::Verb::take, "key_pickup", std::nullopt, {},
+    {{"You take the brass key.",
+        e2d::MessageStyle::inspect}},
+    {e2d::Mutation::addItem("key"),
+        e2d::Mutation::setFlag("key_taken")},
+    10, "take_key_once"});
+
+return world;</code></pre>
+          </div>
+        </li>
+        <li>
+          <div class="step-copy"><span>4</span><h3>Build and test</h3><p>The core needs no CNA checkout. Use it for deterministic world and full-route tests.</p></div>
+          <div class="code-panel">
+            <div class="code-title"><span>Terminal</span><button type="button" data-copy="build-code">Copy</button></div>
+            <pre id="build-code"><code>cmake -S . -B build \
+  -DEXPLORE2D_BUILD_CNA=OFF
+cmake --build build -j
+ctest --test-dir build --output-on-failure</code></pre>
+          </div>
+        </li>
+        <li>
+          <div class="step-copy"><span>5</span><h3>Run through CNA</h3><p>Link the optional host and configure with a complete CNA checkout when you are ready for the window, keyboard, fullscreen and audio.</p></div>
+          <div class="code-panel">
+            <div class="code-title"><span>Main.cpp</span><button type="button" data-copy="host-code">Copy</button></div>
+            <pre id="host-code"><code>explore2d::cna::HostConfig host;
+host.windowTitle = "My Adventure";
+host.presentationScale = 2;
+
+explore2d::cna::AdventureGame game{
+    buildWorld(), {}, {}, host};
+game.Run();</code></pre>
+            <div class="code-title"><span>Terminal · link Explore2D::Cna</span></div>
+            <pre><code>cmake -S . -B build \
+  -DCNA_SOURCE_DIR=/path/to/cna</code></pre>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="architecture-section section-block">
+      <div class="section-shell">
+        <div class="section-heading">
+          <p class="eyebrow">Architecture</p>
+          <h2>Logic stays testable.<br>The host stays thin.</h2>
+        </div>
+        <div class="architecture-flow" aria-label="Explore2D architecture flow">
+          <article><span>GAME</span><h3>World definition</h3><p>Rooms · art · items · rules · dialogue</p></article>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <article><span>CORE</span><h3>Session + renderer</h3><p>State · actions · saves · indexed canvas</p></article>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <article><span>HOST</span><h3>CNA adapter</h3><p>Window · keyboard · texture · audio</p></article>
+        </div>
+        <p class="architecture-note">The engine does not hide CNA behind a fake platform layer. CNA simply lives at the outside edge, where platform work belongs.</p>
+      </div>
+    </section>
+
+    <section id="reference" class="section-shell section-block reference-section">
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow">API tour</p>
+          <h2>The pieces you will<br>use most often.</h2>
+        </div>
+        <p>Everything is ordinary typed C++ data. Stable string IDs keep story-heavy definitions readable and saves independent of memory layout.</p>
+      </div>
+      <div class="reference-grid">
+        <article><code>WorldDefinition</code><h3>The complete game</h3><p>Owns rooms, items, interactions, sound effects and presentation settings. Call <code>validate()</code> before play.</p></article>
+        <article><code>RoomDefinition</code><h3>One fixed scene</h3><p>Provides background, procedural decoration, solids, hotspots, animations, hazards, exits and travel metadata.</p></article>
+        <article><code>InteractionRule</code><h3>Intent becomes state</h3><p>Matches verb + target + optional item + conditions, then applies messages, mutations and a sound cue.</p></article>
+        <article><code>AdventureSession</code><h3>The live playthrough</h3><p>Tracks player, inventory, flags, counters, visited rooms, messages and transient actions.</p></article>
+        <article><code>Drawing / Canvas</code><h3>Procedural EGA art</h3><p>Pixels, lines, rectangles, circles, ellipses, arcs, polygons, PAINT, bitmap text and indexed GET/PUT operations.</p></article>
+        <article><code>AdventureRenderer</code><h3>The shared machine</h3><p>Draws rooms, player poses, inventory, verbs, maps, title screen, compact bubbles and terminal states.</p></article>
+      </div>
+
+      <div class="advanced-grid">
+        <article class="advanced-card">
+          <div><p class="eyebrow">Selective animation</p><h3>Move only what matters.</h3></div>
+          <pre><code>room.animations.push_back({
+  "beacon", true, true,
+  {e2d::Condition::flag("power_on")}, {
+    {8, {brightBeacon}},
+    {8, {dimBeacon}},
+  }});
+
+// For a non-autoplay sequence:
+e2d::Mutation::playAnimation("repair")</code></pre>
+        </article>
+        <article class="advanced-card">
+          <div><p class="eyebrow">QBasic-style audio</p><h3>Tones, ticks and rests.</h3></div>
+          <pre><code>world.addSoundEffect({
+  "pickup",
+  {{440, 1}, {660, 1}, {880, 2}},
+  0.15F
+});
+
+world.presentation.sounds.pickup =
+  "pickup";</code></pre>
+        </article>
+        <article class="advanced-card">
+          <div><p class="eyebrow">Speaker-aware dialogue</p><h3>Keep the scene visible.</h3></div>
+          <pre><code>e2d::Message{
+  "I found the missing fuse.",
+  e2d::MessageStyle::speech,
+  e2d::MessageSpeaker::player
+}
+
+// Use MessageSpeaker::target for
+// the character at the hotspot.</code></pre>
+        </article>
+      </div>
+    </section>
+
+    <section class="controls-section section-block">
+      <div class="section-shell controls-grid">
+        <div class="section-heading">
+          <p class="eyebrow">Default host controls</p>
+          <h2>A compact keyboard<br>vocabulary.</h2>
+          <p>ENTER remains contextual: it operates a nearby character or mechanism, otherwise it jumps.</p>
+        </div>
+        <dl class="controls-list">
+          <div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Turn or walk</dd></div>
+          <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>Choose / perform verb</dd></div>
+          <div><dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd>Use · Examine · Take</dd></div>
+          <div><dt><kbd>Enter</kbd></dt><dd>Act or jump</dd></div>
+          <div><dt><kbd>M</kbd></dt><dd>Travel map</dd></div>
+          <div><dt><kbd>S</kbd> <kbd>L</kbd></dt><dd>Save · Load</dd></div>
+          <div><dt><kbd>F11</kbd></dt><dd>Toggle fullscreen</dd></div>
+          <div><dt><kbd>Q</kbd></dt><dd>Quit</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="final-cta section-shell section-block">
+      <p class="eyebrow">Build a place worth examining</p>
+      <h2>Your first room is<br>492 × 262 pixels away.</h2>
+      <p>Start with one screen, one object and one meaningful state change. The rest of the world can grow from there.</p>
+      <div class="hero-actions">
+        <a class="button button-primary" href="https://github.com/openeggbert/explore-2d">Explore the source</a>
+        <a class="button button-secondary" href="https://github.com/openeggbert/black-pine">Study Black Pine</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div><span class="wordmark-small">EXPLORE<span>2D</span></span><p>Fixed-screen adventure engine for C++23 and CNA.</p></div>
+    <p>MIT licensed · OpenEggbert · <span id="year">2026</span></p>
+  </footer>
+</body>
+</html>
