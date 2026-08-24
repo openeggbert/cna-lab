@@ -20,11 +20,19 @@ met and the evidence is recorded in its commit or this file.
 
 ## Current milestone
 
-**M1 — First playable Green Ruins workshop**
+**M1 — First playable Green Ruins Relay — ACHIEVED**
 
-One original scrolling stage where a generated courier can walk, run, jump, and
-collide with tiles while multiple procedural background layers visibly scroll.
-The game must use CNA-only graphics/input and a stable fixed simulation tick.
+The original 80x12 stage now has deterministic walk/run/jump, solid and one-way
+collision, scrolling camera, descriptor-driven parallax, collectibles,
+interactive/breakable blocks, crawler enemies, damage/death/checkpoint/exit,
+plating and capacitor abilities, projectiles, HUD, pause, and CNA keyboard plus
+gamepad input. Logic and CNA offscreen smoke tests pass.
+
+**Current: M2 — collision classification and conduit/subarea foundation**
+
+Finish the explicit enemy corner/underside/simultaneous-contact matrix, then add
+the first data-driven maintenance-conduit transition without broadening into a
+generic scene engine.
 
 ## Foundation and research
 
@@ -575,11 +583,10 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Finish `MAR-005` and `MAR-006` on `develop`.
-2. Implement `MAR-010`, `MAR-011`, and `MAR-012`.
-3. Implement tile/camera/player path `MAR-013`, `MAR-014`, `MAR-020` through
-   `MAR-025`.
-4. Add external data `MAR-030` through `MAR-032`.
-5. Complete parallax `MAR-015` and validate the M1 runtime.
-6. Proceed to collectibles, blocks, crawler, damage, power-up and projectile in
-   `MAR-040` through `MAR-045` before menus or elaborate content.
+1. Complete `MAR-043` with underside, corner and simultaneous enemy-contact
+   tests plus a clear priority rule.
+2. Complete `MAR-026` procedural courier poses and `MAR-016` debug overlay.
+3. Implement `MAR-033` and use it for the `MAR-047` maintenance-conduit secret.
+4. Add deterministic state hashes and CTest labels for `MAR-070`.
+5. Add generated CNA sound effects under `MAR-056`, retaining silence fallback.
+6. Begin moving platforms (`MAR-046`) only after the transition model is stable.
