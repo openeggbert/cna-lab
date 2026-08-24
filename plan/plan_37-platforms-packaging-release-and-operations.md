@@ -43,7 +43,7 @@ and console/mobile/web ports are explicit non-goals for v1 (see group 40).
 - [ ] **IG-37-028 P1** — Verify audio and media playback on Linux EasyGL.
 - [ ] **IG-37-029 P1** — Verify save/load paths and packaging on Linux EasyGL.
 - [ ] **IG-37-030 P1** — Run smoke and representative mission-scenario tests on Linux EasyGL before every release.
-- [ ] **IG-37-031 P1** — Record known limitations and a performance baseline (frame time, RAM/VRAM) against the docs/performance-targets.md budget for Linux EasyGL.
+- [x] **IG-37-031 P1** — Record known limitations and a performance baseline (frame time, RAM/VRAM) against the docs/performance-targets.md budget for Linux EasyGL. *(`docs/performance-baseline.md` now contains repeated real-AMD EasyGL measurements, full per-process DRM residency, exact archive/report hashes, comparison output, and the limitations of offscreen/Xvfb presentation, swap acknowledgement, logical accounting, and unavailable CNA audio-backend costs. The current representative pair passes every direct minimum budget but remains explicitly diagnostic because no physical display was used.)*
 
 ## Linux Vulkan (secondary validation backend)
 

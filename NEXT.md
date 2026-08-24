@@ -8,7 +8,8 @@ until the end of a session to reconstruct it from memory.
 
 Repo: `/rv/data/development/github.com/openeggbert/iron-gang`, branch `develop` (not `master` —
 someone switched branches outside this session at some point; both exist, `develop` is ahead).
-**No remote configured, nothing pushed** — commit locally only until explicitly told otherwise.
+Remote `origin` is configured. Work is normally kept in local commits until explicitly authorized;
+the 2026-08-24 handoff described below is being pushed to `origin/develop` at the user's request.
 
 Gates M0-M11 (see `plan.md` milestone order) are done at prototype/first-pass fidelity, including
 M9's and M11's own literal "ten-minute soak" criteria (`plan_39-vertical-slice-gates.md`
@@ -66,6 +67,23 @@ scope decisions that drove that cut (Mafia-1 (2002) content scope, Mafia-1-era s
 no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting target, etc.).
 
 ## What changed most recently (this session)
+
+**The completed Linux EasyGL baseline is reconciled across the master plans for handoff.** The two
+independent full-window AMD offscreen runs already satisfy three narrower tasks even though they do
+not close physical M12: first-district RAM/VRAM profiling (`IG-06-021`), full-district CPU/GPU/frame/
+memory profiling (`IG-13-032`), and the documented Linux EasyGL baseline/limitations
+(`IG-37-031`). Their checkboxes and evidence notes now point to the current repeated pair rather
+than remaining stale, and `plan.md`/README summarize the same boundary.
+
+- Representative results remain 17.147/17.907 ms frame p95, 0.114/0.115 ms GPU Draw p95,
+  177.1/177.6 MiB RAM, and 55.574 MiB complete DRM residency in both runs. Every direct minimum
+  budget passes and the comparator says `NO REGRESSION`.
+- Both captures remain `Headless/false`; closing the narrower measurement/documentation tasks does
+  not promote them to physical-display evidence. `IG-39-013` stays open for the already-documented
+  repeated physical Linux EasyGL capture.
+- Handoff state: continue from M12 only when a controlled physical display is allowed; otherwise
+  select an independently verifiable non-presentation task. Do not reopen the completed profiling,
+  DRM binding, swap-state, native-window, GL-runtime, report, or comparison work.
 
 **A real AMD offscreen run proves acknowledged interval 1 is not physical-vblank evidence.** A
 30-draw Release EasyGL/DRM `idle --vsync on` integration returned `requested 1`, `applied 1`, and

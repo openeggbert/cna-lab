@@ -91,7 +91,10 @@ rather than being a one-time final check.
     comparison machine-environment rows display requested/applied/ack state on both sides. The
     qualification policy is unchanged; evidence no longer hides whether interval 0 or 1 was used.
     A real AMD offscreen interval-1 run was acknowledged and paced near 16.7 ms but still reported
-    `Headless/false`, directly proving acknowledgement is not physical-vblank evidence.*
+    `Headless/false`, directly proving acknowledgement is not physical-vblank evidence. Two full
+    independent AMD offscreen mixed runs now pass every direct minimum budget, bind complete DRM
+    residency at 55.574 MiB, and compare `NO REGRESSION`; their machine-derived `Headless/false`
+    state is the remaining presentation blocker, so no physical M12 pass is claimed.*
     *Schema-type follow-up: capture `schema_version` must be an actual JSON integer equal to 8;
     floating-point `8.0` exits 2 and no capture was added.*
     *Frame-maximum follow-up: the stored maximum must occupy the highest non-empty pacing bucket;

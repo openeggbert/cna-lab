@@ -57,6 +57,14 @@ Guiding philosophy: full Mafia-1 **content** scope, but Mafia-1-era **system** f
 14. **M13 — Legal/content gate:** all shipping assets are approved and credited.
 15. **M14 — External build/release gate:** clean machine/workspace can build, install, and complete the demo.
 
+Current integrated status (2026-08-24): M0-M11 are complete at prototype/first-pass fidelity. M12
+remains open only for the controlled physical-display qualification: two independent Release EasyGL
+AMD offscreen `mixed` captures already pass every direct frame/CPU/district/RAM/complete-DRM budget
+and compare `NO REGRESSION`, but their machine-derived native-window evidence is `Headless/false`.
+They therefore establish the Linux EasyGL baseline and memory result without being promoted to a
+physical presentation/vblank gate pass. See `NEXT.md` and `docs/performance-baseline.md` for exact
+artifacts and the remaining capture procedure.
+
 ## Task index
 
 - [00. Repository foundation and completed scaffold](plan/plan_00-repository-foundation-and-completed-scaffold.md) — 33 tasks
