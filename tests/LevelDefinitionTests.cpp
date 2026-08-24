@@ -15,6 +15,7 @@
 #include "CampaignProgress.hpp"
 #include "ExplorationMap.hpp"
 #include "RunSave.hpp"
+#include "RunRules.hpp"
 
 namespace
 {
@@ -261,6 +262,27 @@ namespace
 
 int main()
 {
+    constexpr WolfCna::LifeLossResult restartedLife = WolfCna::ResolveLifeLoss(
+        3,
+        42500,
+        80000,
+        1200,
+        40000);
+    Expect(
+        restartedLife.remainingLives == 2 && restartedLife.restartSector &&
+            restartedLife.score == 1200 && restartedLife.nextExtraLifeScore == 40000,
+        "life loss rolls score and the extra-life threshold back to sector entry");
+    constexpr WolfCna::LifeLossResult finalLife = WolfCna::ResolveLifeLoss(
+        1,
+        42500,
+        80000,
+        1200,
+        40000);
+    Expect(
+        finalLife.remainingLives == 0 && !finalLife.restartSector &&
+            finalLife.score == 42500 && finalLife.nextExtraLifeScore == 80000,
+        "final life loss enters game over without scheduling a sector restart");
+
     constexpr WolfCna::DifficultyProfile scoutProfile =
         WolfCna::GetDifficultyProfile(WolfCna::Difficulty::Scout);
     constexpr WolfCna::DifficultyProfile operativeProfile =
@@ -520,6 +542,8 @@ int main()
         .score = 1234,
         .lives = 2,
         .nextExtraLifeScore = 40000,
+        .sectorEntryScore = 1000,
+        .sectorEntryNextExtraLifeScore = 40000,
         .levelElapsedSeconds = 42.5f,
         .hasSecurityCard = false,
         .weapon = 1,
@@ -534,8 +558,28 @@ int main()
         WolfCna::RunSave::Parse(serializedRunSave, saveError);
     Expect(parsedRunSave.has_value() && saveError.empty(), "versioned run save parses");
     Expect(
+        parsedRunSave->sectorEntryScore == 1000 &&
+            parsedRunSave->sectorEntryNextExtraLifeScore == 40000,
+        "run save preserves the sector restart checkpoint");
+    Expect(
         WolfCna::RunSave::Serialize(*parsedRunSave) == serializedRunSave,
         "run save serialization is a deterministic round trip");
+    std::string legacyRunSave = serializedRunSave;
+    legacyRunSave.replace(
+        legacyRunSave.find("WOLF-CNA-RUN-SAVE-2"),
+        std::string("WOLF-CNA-RUN-SAVE-2").size(),
+        "WOLF-CNA-RUN-SAVE-1");
+    const std::size_t legacyCheckpoint = legacyRunSave.find(" 1000 40000 42.5");
+    Expect(legacyCheckpoint != std::string::npos, "run-save fixture locates its v2 checkpoint fields");
+    legacyRunSave.erase(legacyCheckpoint, std::string(" 1000 40000").size());
+    const std::optional<WolfCna::RunSaveState> parsedLegacyRunSave =
+        WolfCna::RunSave::Parse(legacyRunSave, saveError);
+    Expect(
+        parsedLegacyRunSave.has_value() &&
+            parsedLegacyRunSave->sectorEntryScore == parsedLegacyRunSave->score &&
+            parsedLegacyRunSave->sectorEntryNextExtraLifeScore ==
+                parsedLegacyRunSave->nextExtraLifeScore,
+        "version one run saves migrate to a safe load-time restart checkpoint");
     WolfCna::World restoredSaveWorld(saveLevel, WolfCna::Difficulty::Operative);
     Expect(
         restoredSaveWorld.RestoreSaveState(parsedRunSave->world),
@@ -549,6 +593,12 @@ int main()
         restoredSaveWorld.CollectPickups(
             Microsoft::Xna::Framework::Vector3(3.5f, 0.62f, 1.5f)).ammo == 3,
         "world restore preserves a dynamic enemy ammunition drop");
+    WolfCna::World restartedSaveWorld(saveLevel, WolfCna::Difficulty::Operative);
+    Expect(
+        restartedSaveWorld.Collides(2.5f, 1.5f, 0.1f) &&
+            restartedSaveWorld.GetCompletionStats().defeatedEnemies == 0 &&
+            !restartedSaveWorld.AreObjectivesComplete(),
+        "reconstructing a sector restores doors, enemies and objectives to authored state");
     WolfCna::ExplorationMap restoredExploration(saveLevel);
     Expect(
         restoredExploration.RestoreVisited(parsedRunSave->exploredCells) &&

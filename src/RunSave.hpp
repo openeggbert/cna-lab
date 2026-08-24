@@ -23,6 +23,8 @@ namespace WolfCna
         int score = 0;
         int lives = 3;
         int nextExtraLifeScore = 40000;
+        int sectorEntryScore = 0;
+        int sectorEntryNextExtraLifeScore = 40000;
         float levelElapsedSeconds = 0.0f;
         bool hasSecurityCard = false;
         int weapon = 1;

@@ -1461,13 +1461,14 @@ content even where pacing is inspired by early-1990s shooters.
 ### WOLF-035 — versioned in-run save and load
 
 Status: complete. Three explicit run slots are selectable from the title and pause
-menus; F8 and F9 save/load the selected slot during play. Version 1 stores player,
+menus; F8 and F9 save/load the selected slot during play. Version 2 stores player,
 inventory, score, lives, difficulty, sector time, enemies and AI state, dynamic
 pickups, doors, projectiles, secrets, objectives and explored cells as validated
 primitive records rather than C++ memory. Loading first reconstructs a fresh matching
 sector and commits it only after world, entity, player and automap validation succeeds.
 Saving writes a temporary file, preserves the previous slot as a recoverable backup
-during replacement and cleans staging files after success. Round-trip, malformed,
+during replacement and cleans staging files after success. Version 1 saves migrate
+with their load position as a safe restart checkpoint. Round-trip, malformed,
 mismatched-world, explored-wall and occupied-slot replacement tests are included.
 
 - persist player, inventory, score, lives, current sector and elapsed time;
@@ -1478,10 +1479,15 @@ mismatched-world, explored-wall and occupied-slot replacement tests are included
 
 ### WOLF-036 — classic life loss and sector restart
 
-Status: planned. Losing a life should restart the current sector from its authored
-initial state instead of retaining defeated enemies and collected objects. Preserve
-campaign progress while restoring a documented basic loadout and the score recorded
-at sector entry. Add a short readable defeat transition before restart.
+Status: complete. Lethal damage now resolves through one tested life-loss rule. With
+lives remaining, a 1.15-second `LIFE LOST` card freezes the defeated world before a
+fresh `World` and `ExplorationMap` reconstruct the current authored sector. Enemies,
+pickups, dynamic drops, doors, secrets, projectiles and optional objectives reset;
+score and the next-extra-life threshold roll back to their sector-entry checkpoint.
+The player retains remaining lives but restarts at full health with knife, sidearm,
+no sector card or advanced weapons and the selected difficulty's starting ammunition.
+The final life still enters `GAME OVER`. Run-save version 2 persists both checkpoint
+values and migrates version 1 files to a safe load-time checkpoint.
 
 - snapshot run state at sector entry;
 - rebuild the world, objectives, pickups and exploration state after life loss;

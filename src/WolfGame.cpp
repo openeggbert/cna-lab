@@ -1124,6 +1124,33 @@ namespace WolfCna
             constexpr std::string_view prompt = "SPACE TITLE";
             DrawHudText(*hudSpriteBatch_, *hudPixel_, centerX - HudTextWidth(prompt) / 2, messageY + 21, prompt, Color(255, 233, 136, 255));
         }
+        else if (screen_ == Screen::Defeated)
+        {
+            constexpr std::string_view message = "LIFE LOST";
+            const int messageWidth = HudTextWidth(message);
+            const int messageX = centerX - messageWidth / 2;
+            const int messageY = centerY - 24;
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(messageX - 20, messageY - 14, messageWidth + 40, 62),
+                Color(94, 18, 24, 232));
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                messageX,
+                messageY,
+                message,
+                Color(255, 222, 180, 255));
+            const std::string restart = "RESTARTING SECTOR " + std::to_string(levelIndex_ + 1);
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                centerX - HudTextWidth(restart, 1) / 2,
+                messageY + 25,
+                restart,
+                Color(255, 222, 180, 255),
+                1);
+        }
         hudSpriteBatch_->End();
     }
 
@@ -1589,6 +1616,8 @@ namespace WolfCna
         hasSecurityCard_ = false;
         completed_ = false;
         levelElapsedSeconds_ = 0.0f;
+        sectorEntryScore_ = score_;
+        sectorEntryNextExtraLifeScore_ = nextExtraLifeScore_;
         screen_ = Screen::Playing;
         pauseMenuSelection_ = 0;
         actionWasDown_ = false;
@@ -1645,6 +1674,19 @@ namespace WolfCna
             static_cast<void>(completionFanfareSound_->Play(0.42f, 0.0f, 0.0f));
     }
 
+    void WolfGame::RestartSectorAfterLifeLoss()
+    {
+        health_ = 100;
+        ammo_ = GetDifficultyProfile(difficulty_).startingAmmunition;
+        weapon_ = Weapon::Sidearm;
+        lastFirearm_ = Weapon::Sidearm;
+        hasRepeater_ = false;
+        hasHeavyWeapon_ = false;
+        hasSecurityCard_ = false;
+        defeatTransitionSeconds_ = 0.0f;
+        LoadCampaignLevel(levelIndex_);
+    }
+
     void WolfGame::SaveCampaignProfile() const
     {
         CampaignProgress::Save(
@@ -1671,6 +1713,8 @@ namespace WolfCna
             .score = score_,
             .lives = lives_,
             .nextExtraLifeScore = nextExtraLifeScore_,
+            .sectorEntryScore = sectorEntryScore_,
+            .sectorEntryNextExtraLifeScore = sectorEntryNextExtraLifeScore_,
             .levelElapsedSeconds = levelElapsedSeconds_,
             .hasSecurityCard = hasSecurityCard_,
             .weapon = static_cast<int>(weapon_),
@@ -1730,6 +1774,8 @@ namespace WolfCna
         score_ = state.score;
         lives_ = state.lives;
         nextExtraLifeScore_ = state.nextExtraLifeScore;
+        sectorEntryScore_ = state.sectorEntryScore;
+        sectorEntryNextExtraLifeScore_ = state.sectorEntryNextExtraLifeScore;
         levelElapsedSeconds_ = state.levelElapsedSeconds;
         hasSecurityCard_ = state.hasSecurityCard;
         weapon_ = static_cast<Weapon>(state.weapon);
@@ -2092,6 +2138,8 @@ namespace WolfCna
             ammo_ = MaxAmmo;
             score_ = 0;
             nextExtraLifeScore_ = 40000;
+            sectorEntryScore_ = 0;
+            sectorEntryNextExtraLifeScore_ = 40000;
             hasSecurityCard_ = true;
             hasRepeater_ = true;
             hasHeavyWeapon_ = true;
@@ -2296,6 +2344,20 @@ namespace WolfCna
             return;
         }
 
+        if (screen_ == Screen::Defeated)
+        {
+            defeatTransitionSeconds_ = std::max(
+                0.0f,
+                defeatTransitionSeconds_ - clampedElapsed);
+            playerImpactFlashSeconds_ = std::max(
+                0.0f,
+                playerImpactFlashSeconds_ - clampedElapsed);
+            if (defeatTransitionSeconds_ <= 0.0f)
+                RestartSectorAfterLifeLoss();
+            Game::Update(gameTime);
+            return;
+        }
+
         if (screen_ == Screen::Map || screen_ == Screen::Paused ||
             screen_ == Screen::GameOver || completed_)
         {
@@ -2330,20 +2392,33 @@ namespace WolfCna
             playerImpactFlashSeconds_ = 0.18f;
         if (health_ <= 0)
         {
-            lives_ = std::max(0, lives_ - 1);
-            if (lives_ == 0)
+            health_ = 0;
+            const LifeLossResult lifeLoss = ResolveLifeLoss(
+                lives_,
+                score_,
+                nextExtraLifeScore_,
+                sectorEntryScore_,
+                sectorEntryNextExtraLifeScore_);
+            lives_ = lifeLoss.remainingLives;
+            score_ = lifeLoss.score;
+            nextExtraLifeScore_ = lifeLoss.nextExtraLifeScore;
+            if (!lifeLoss.restartSector)
             {
                 screen_ = Screen::GameOver;
                 actionWasDown_ = false;
             }
             else
             {
-                health_ = 100;
-                ammo_ = GetDifficultyProfile(difficulty_).startingAmmunition;
-                weapon_ = lastFirearm_;
-                playerPosition_ = world_.PlayerStart();
-                completed_ = false;
+                screen_ = Screen::Defeated;
+                defeatTransitionSeconds_ = 1.15f;
+                attackWasDown_ = false;
+                actionWasDown_ = false;
             }
+        }
+        if (screen_ == Screen::Defeated || screen_ == Screen::GameOver)
+        {
+            Game::Update(gameTime);
+            return;
         }
         HandleInput(clampedElapsed);
         static_cast<void>(exploration_.Visit(playerPosition_.X, playerPosition_.Z));
@@ -2389,7 +2464,8 @@ namespace WolfCna
         device.getSamplerStatesProperty()[0] = SamplerState::PointClamp;
 
         if ((screen_ == Screen::Playing || screen_ == Screen::Map ||
-            screen_ == Screen::Paused || screen_ == Screen::GameOver) &&
+            screen_ == Screen::Paused || screen_ == Screen::Defeated ||
+            screen_ == Screen::GameOver) &&
             effect_ && atlas_ && guardSprite_ && houndSprite_ && bloodDecal_ &&
             rapidTrooperSprite_ && heavyUnitSprite_ &&
             guardAttackSprite_ && houndAttackSprite_ &&

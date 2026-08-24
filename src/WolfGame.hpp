@@ -18,6 +18,7 @@
 #include "CampaignProgress.hpp"
 #include "ExplorationMap.hpp"
 #include "RunSave.hpp"
+#include "RunRules.hpp"
 
 namespace WolfCna
 {
@@ -119,6 +120,8 @@ namespace WolfCna
         int score_ = 0;
         int lives_ = 3;
         int nextExtraLifeScore_ = 40000;
+        int sectorEntryScore_ = 0;
+        int sectorEntryNextExtraLifeScore_ = 40000;
         int levelIndex_ = 0;
         int selectedLevelIndex_ = 0;
         int highestUnlockedLevel_ = 0;
@@ -135,6 +138,7 @@ namespace WolfCna
             Playing,
             Map,
             Paused,
+            Defeated,
             GameOver
         };
         Screen screen_ = Screen::Splash;
@@ -169,6 +173,7 @@ namespace WolfCna
         float weaponFlashSeconds_ = 0.0f;
         float playerImpactFlashSeconds_ = 0.0f;
         float playerFireCooldownSeconds_ = 0.0f;
+        float defeatTransitionSeconds_ = 0.0f;
 
         static constexpr float PlayerRadius = 0.22f;
         static constexpr float WalkSpeed = 2.4f;
@@ -184,6 +189,7 @@ namespace WolfCna
         void AdvanceCampaign();
         void UnlockNextLevel();
         void CompleteLevel();
+        void RestartSectorAfterLifeLoss();
         void SaveCampaignProfile() const;
         [[nodiscard]] RunSaveState CaptureRunSaveState() const;
         [[nodiscard]] bool ApplyRunSaveState(

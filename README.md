@@ -72,6 +72,10 @@ This starter is deliberately small. It proves the basic direction before local A
   the current sector elevator and face its doors; objective state is unchanged
 
 After all lives are lost, press `Space` to return to the title menu and start a new run.
+Before that final game over, losing a life shows a short `LIFE LOST` transition and
+restarts the current sector from its authored state: enemies, pickups, doors,
+objectives, secrets and automap reset; score returns to its sector-entry value and
+the player receives full health, knife, sidearm and the difficulty's starting ammo.
 At a sector exit, `Space` takes the run to the next sector; score, lives, health,
 ammunition and the selected weapon carry forward, while sector access cards do not.
 Before the transition, the game shows the sector time and the collected/total
