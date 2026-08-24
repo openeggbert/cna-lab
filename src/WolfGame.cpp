@@ -249,9 +249,12 @@ namespace WolfCna
         graphics_ = std::make_unique<GraphicsDeviceManager>(this);
         graphics_->setIsFullScreenProperty(false);
         graphics_->ApplyChanges();
-        highestUnlockedLevel_ = CampaignProgress::LoadHighestUnlocked(
+        const CampaignProfile profile = CampaignProgress::Load(
             std::string(ProgressFile),
             static_cast<int>(CampaignLevelFiles.size()));
+        highestUnlockedLevel_ = profile.highestUnlocked;
+        soundEnabled_ = profile.soundEnabled;
+        difficulty_ = static_cast<Difficulty>(profile.difficulty);
     }
 
     const std::string& WolfGame::GetTypeName() const
@@ -307,6 +310,7 @@ namespace WolfCna
         CreateProceduralBloodDecal();
         CreateProceduralDecorationTextures();
         CreateHudResources();
+        SoundEffect::setMasterVolumeProperty(soundEnabled_ ? 1.0f : 0.0f);
         CreateSoundEffects();
 
         Game::LoadContent();
@@ -1392,9 +1396,17 @@ namespace WolfCna
             return;
 
         highestUnlockedLevel_ = nextLevel;
-        CampaignProgress::SaveHighestUnlocked(
+        SaveCampaignProfile();
+    }
+
+    void WolfGame::SaveCampaignProfile() const
+    {
+        CampaignProgress::Save(
             std::string(ProgressFile),
-            highestUnlockedLevel_,
+            CampaignProfile{
+                .highestUnlocked = highestUnlockedLevel_,
+                .soundEnabled = soundEnabled_,
+                .difficulty = static_cast<int>(difficulty_)},
             static_cast<int>(CampaignLevelFiles.size()));
     }
 
@@ -1473,6 +1485,7 @@ namespace WolfCna
                 {
                     soundEnabled_ = !soundEnabled_;
                     SoundEffect::setMasterVolumeProperty(soundEnabled_ ? 1.0f : 0.0f);
+                    SaveCampaignProfile();
                 }
                 else
                 {
@@ -1510,6 +1523,7 @@ namespace WolfCna
             if (confirmIsDown && !confirmWasDown_)
             {
                 difficulty_ = static_cast<Difficulty>(menuSelection_);
+                SaveCampaignProfile();
                 ResetRun();
             }
             if (escapeIsDown && !escapeWasDown_)

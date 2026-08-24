@@ -170,6 +170,7 @@ namespace WolfCna
         void LoadCampaignLevel(int index);
         void AdvanceCampaign();
         void UnlockNextLevel();
+        void SaveCampaignProfile() const;
         void AwardScore(int points);
 
         [[nodiscard]] float DamageMultiplier() const;

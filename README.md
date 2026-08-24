@@ -40,7 +40,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - no external copyrighted game assets
 - original title menu with difficulty selection before a run begins
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
-- persistent sector selection: a fresh profile starts with sector 1 and completing a sector unlocks the next one
+- persistent profile: a fresh profile starts with sector 1; sector unlocks, sound and the last selected difficulty survive restarts
 - `Tab` toggles a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
 
 ## Controls

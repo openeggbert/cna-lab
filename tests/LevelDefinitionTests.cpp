@@ -140,19 +140,24 @@ namespace
 
 int main()
 {
+    const WolfCna::CampaignProfile legacyProfile = WolfCna::CampaignProgress::Parse(
+        "WOLF-CNA-PROGRESS-1\n1\n", 3);
     Expect(
-        WolfCna::CampaignProgress::ParseHighestUnlocked("WOLF-CNA-PROGRESS-1\n1\n", 3) == 1,
-        "campaign progress restores an unlocked sector");
+        legacyProfile.highestUnlocked == 1 && legacyProfile.soundEnabled && legacyProfile.difficulty == 1,
+        "legacy campaign progress retains default settings");
+    const WolfCna::CampaignProfile savedProfile = WolfCna::CampaignProgress::Parse(
+        WolfCna::CampaignProgress::Serialize(
+            WolfCna::CampaignProfile{.highestUnlocked = 8, .soundEnabled = false, .difficulty = 2},
+            3),
+        3);
     Expect(
-        WolfCna::CampaignProgress::ParseHighestUnlocked("WOLF-CNA-PROGRESS-1\n3\n", 4) == 3,
-        "campaign progress restores the fourth sector");
+        savedProfile.highestUnlocked == 2 && !savedProfile.soundEnabled && savedProfile.difficulty == 2,
+        "campaign profile restores clamped unlocks, sound and difficulty");
+    const WolfCna::CampaignProfile invalidProfile = WolfCna::CampaignProgress::Parse(
+        "WOLF-CNA-PROGRESS-2\n2\n4\n1\n", 3);
     Expect(
-        WolfCna::CampaignProgress::ParseHighestUnlocked("broken\n2\n", 3) == 0,
-        "invalid campaign progress safely locks later sectors");
-    Expect(
-        WolfCna::CampaignProgress::ParseHighestUnlocked(
-            WolfCna::CampaignProgress::SerializeHighestUnlocked(8, 3), 3) == 2,
-        "campaign progress clamps to the available sector count");
+        invalidProfile.highestUnlocked == 0 && invalidProfile.soundEnabled && invalidProfile.difficulty == 1,
+        "invalid campaign profile safely restores defaults");
 
     const WolfCna::LevelDefinition starterLevel = WolfCna::LevelDefinition::LoadFromFile(
         "assets/levels/starter.level");

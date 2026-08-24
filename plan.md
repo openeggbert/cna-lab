@@ -546,7 +546,9 @@ difficulty selection are implemented. Difficulty currently changes incoming enem
 damage. Four authored sectors now run in sequence while carrying score, lives,
 health, ammunition and weapon selection; a sector-specific access card resets at
 each elevator transition. Each exit now presents time plus kill, treasure and
-secret completion ratios. Save/load and settings remain.
+secret completion ratios. A versioned, validated profile persists sector unlocks,
+master sound and the last selected difficulty while accepting legacy unlock files.
+In-run save/load and additional settings remain.
 
 ## M10 — procedural/roguelite mode
 

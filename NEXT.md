@@ -30,6 +30,7 @@
 - Health placement now scales from two kits in early sectors to three in labs/archive; tests require enough guaranteed ammunition for a full clear.
 - The illustrated splash is separate from the main menu.
 - Every campaign sector now has an exact authored 64×64 footprint; tests require substantial use of the area and no disconnected rooms.
+- Sector unlocks, master sound and the last selected difficulty now persist in one validated, legacy-compatible profile.
 
 ## Next tasks
 

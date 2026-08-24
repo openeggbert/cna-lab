@@ -6,22 +6,29 @@
 
 namespace WolfCna
 {
+    struct CampaignProfile final
+    {
+        int highestUnlocked = 0;
+        bool soundEnabled = true;
+        int difficulty = 1;
+    };
+
     class CampaignProgress final
     {
     public:
-        [[nodiscard]] static int LoadHighestUnlocked(
+        [[nodiscard]] static CampaignProfile Load(
             const std::filesystem::path& path,
             int levelCount);
-        static void SaveHighestUnlocked(
+        static void Save(
             const std::filesystem::path& path,
-            int highestUnlocked,
+            const CampaignProfile& profile,
             int levelCount);
 
-        [[nodiscard]] static int ParseHighestUnlocked(
+        [[nodiscard]] static CampaignProfile Parse(
             std::string_view text,
             int levelCount);
-        [[nodiscard]] static std::string SerializeHighestUnlocked(
-            int highestUnlocked,
+        [[nodiscard]] static std::string Serialize(
+            const CampaignProfile& profile,
             int levelCount);
     };
 }
