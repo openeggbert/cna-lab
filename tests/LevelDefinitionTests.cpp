@@ -198,15 +198,13 @@ int main()
     Expect(!exploration.IsVisited(1, 1), "sector reset clears prior exploration");
 
     WolfCna::MapToggleLatch mapToggle;
-    Expect(!mapToggle.Update(false, false), "released map key does not toggle");
-    Expect(!mapToggle.Update(true, false), "standalone M waits for release before toggling");
-    Expect(!mapToggle.Update(true, false), "holding M does not repeatedly toggle the map");
-    Expect(mapToggle.Update(false, false), "releasing standalone M toggles the map");
-    Expect(!mapToggle.Update(true, false), "M may be pressed before the other cheat keys");
-    Expect(!mapToggle.Update(true, true), "a later I+L+M chord blocks the pending map toggle");
-    Expect(!mapToggle.Update(false, false), "releasing M after the cheat does not toggle the map");
-    Expect(!mapToggle.Update(true, false), "standalone M rearms after the loadout cheat");
-    Expect(mapToggle.Update(false, false), "the next standalone M release toggles the map");
+    Expect(!mapToggle.Update(false), "released map key does not toggle");
+    Expect(mapToggle.Update(true), "pressing Tab toggles the map");
+    Expect(!mapToggle.Update(true), "holding Tab does not repeatedly toggle the map");
+    Expect(!mapToggle.Update(false), "releasing Tab rearms the map toggle");
+    Expect(mapToggle.Update(true), "the next Tab press toggles the map again");
+    mapToggle.Reset();
+    Expect(mapToggle.Update(true), "reset clears the Tab key latch");
 
     ExpectParseFailure("#####\n#P.#\n#####\n", "different width");
     ExpectParseFailure("#####\n#X.P#\n#####\n", "unknown symbol");

@@ -1176,18 +1176,19 @@ entirely original room layouts and real polygonal 3D rendering.
 ### WOLF-018 — explored-area automap
 
 Status: complete. A testable exploration tracker records only entered walkable
-cells and resets on sector changes. The standalone `M` release edge opens a CNA
+cells and resets on sector changes. The standalone `Tab` press edge opens a CNA
 `SpriteBatch` map overlay that pauses simulation, shows visited floor and adjacent
 wall boundaries, colors known doors/objectives and draws the player's facing.
 The sector exit is always marked as `GOAL` without revealing its surrounding
 geometry; it changes from red to cyan when activated. All other unknown geometry
 and entities remain hidden. A centered `POWER` and `TERMINAL` progress readout
 reports objective completion without exposing either object's position. A compact
-side legend explains player, door, lock, discovered-secret and goal colors. A tested input latch gives the
-`I` + `L` + `M` loadout chord priority even when its keys are pressed gradually,
-without breaking the next standalone `M`.
+side legend explains player, door, lock, discovered-secret and goal colors. A
+tested input latch prevents a held `Tab` key from repeatedly toggling the overlay.
+Moving the map away from `M` leaves the `I` + `L` + `M` loadout chord completely
+independent.
 
-- toggle a map of the current floor with the standalone `M` key;
+- toggle a map of the current floor with the standalone `Tab` key;
 - reveal only cells and nearby boundaries the player has already visited, leaving
   unexplored space completely hidden;
 - distinguish explored floor, walls, ordinary doors, security doors, secrets that
@@ -1199,8 +1200,7 @@ without breaking the next standalone `M`.
 - reset exploration when a new sector starts and preserve it while the current
   sector remains active;
 - make the map a CNA `SpriteBatch` overlay that pauses gameplay while open;
-- keep the existing `I` + `L` + `M` loadout cheat working without accidentally
-  toggling the map when the three-key chord is pressed;
+- keep the existing `I` + `L` + `M` loadout cheat independent from the map key;
 - cover visited-cell tracking, map toggle edge detection and sector reset with tests.
 
 ### WOLF-019 — two-stage sector objective

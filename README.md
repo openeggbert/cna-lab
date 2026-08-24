@@ -41,7 +41,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - original title menu with difficulty selection before a run begins
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
 - persistent sector selection: a fresh profile starts with sector 1 and completing a sector unlocks the next one
-- `M` toggles a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
+- `Tab` toggles a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
 
 ## Controls
 
@@ -55,7 +55,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - collecting ammunition after reaching zero restores the last firearm automatically
 - `F11`: toggle fullscreen
 - `P`: pause / resume
-- `M`: press and release to open / close the explored-area map; it includes a marker legend and `POWER`/`TERMINAL` progress, while red `GOAL` marks a locked exit and cyan `GOAL` an active exit; the `I` + `L` + `M` cheat takes priority even when its keys are pressed gradually
+- `Tab`: open / close the explored-area map; it includes a marker legend and `POWER`/`TERMINAL` progress, while red `GOAL` marks a locked exit and cyan `GOAL` an active exit
 - `Escape`: quit
 - `I` + `L` + `M` together: retro loadout cheat — full health, all weapons,
   access card, heavy automatic selected, ammunition set to 99, and score reset to zero

@@ -17,7 +17,7 @@
 - Holding Ctrl repeats repeater and heavy-automatic bursts at distinct bounded cadences; knife and sidearm remain one attack per press.
 - Health kits are preserved when the player is already at 100% and can be collected after later damage.
 - Weapon sprites now lunge or recoil during attacks instead of remaining completely static.
-- Pressing and releasing `M` opens a paused map of visited cells; a latched cheat chord keeps gradual `I+L+M` input independent.
+- Pressing `Tab` opens or closes the paused map of visited cells; `I+L+M` remains an independent loadout cheat.
 - The map always marks the sector exit as red `GOAL`, changing it to cyan after its objective is activated, without revealing nearby rooms.
 - Firearm attack frames remain visible for a few extra frames so their generated muzzle flashes read clearly.
 - Every sector now requires activating a separate violet power relay and amber terminal before its exit comes online.

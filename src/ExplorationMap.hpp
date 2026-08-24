@@ -10,12 +10,11 @@ namespace WolfCna
     class MapToggleLatch final
     {
     public:
-        [[nodiscard]] bool Update(bool mapIsDown, bool loadoutCheatIsDown);
+        [[nodiscard]] bool Update(bool mapIsDown);
         void Reset();
 
     private:
         bool wasDown_ = false;
-        bool loadoutCheatSeen_ = false;
     };
 
     class ExplorationMap final

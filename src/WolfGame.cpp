@@ -1279,12 +1279,13 @@ namespace WolfCna
         {
             centered(top + 22, "BUNKER 1987", title);
             centered(top + 58, "CONTROLS", normal);
-            centered(top + 94, "UP DOWN WALK", normal);
-            centered(top + 118, "LEFT RIGHT TURN", normal);
-            centered(top + 142, "SPACE ACTION", normal);
-            centered(top + 166, "CTRL ATTACK", normal);
-            centered(top + 190, "1 2 3 4 WEAPONS", normal);
-            centered(top + 214, "F11 FULLSCREEN", normal);
+            centered(top + 84, "UP DOWN WALK", normal);
+            centered(top + 105, "LEFT RIGHT TURN", normal);
+            centered(top + 126, "SPACE ACTION", normal);
+            centered(top + 147, "CTRL ATTACK", normal);
+            centered(top + 168, "1 2 3 4 WEAPONS", normal);
+            centered(top + 189, "TAB MAP", normal);
+            centered(top + 210, "P PAUSE  F11 SCREEN", normal);
             centered(top + 238, "ENTER OR ESC BACK", selected);
         }
         hudSpriteBatch_->End();
@@ -1533,10 +1534,12 @@ namespace WolfCna
     void WolfGame::HandleInput(float elapsedSeconds)
     {
         const KeyboardState keyboard = Keyboard::GetState();
-        const bool mapIsDown = keyboard.IsKeyDown(Keys::M);
+        const bool mapIsDown = keyboard.IsKeyDown(Keys::Tab);
         const bool ilmIsDown =
-            keyboard.IsKeyDown(Keys::I) && keyboard.IsKeyDown(Keys::L) && mapIsDown;
-        const bool mapToggleRequested = mapToggle_.Update(mapIsDown, ilmIsDown);
+            keyboard.IsKeyDown(Keys::I) &&
+            keyboard.IsKeyDown(Keys::L) &&
+            keyboard.IsKeyDown(Keys::M);
+        const bool mapToggleRequested = mapToggle_.Update(mapIsDown);
 
         if (keyboard.IsKeyDown(Keys::Escape))
         {
