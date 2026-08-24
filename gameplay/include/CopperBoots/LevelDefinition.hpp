@@ -20,6 +20,7 @@ namespace CopperBoots
         None,
         Cog,
         Plating,
+        Capacitor,
     };
 
     struct InteractiveBlockDefinition
@@ -46,6 +47,7 @@ namespace CopperBoots
         std::vector<TileCoordinate> Cogs;
         std::vector<CrawlerDefinition> Crawlers;
         std::vector<TileCoordinate> PlatingPickups;
+        std::vector<TileCoordinate> CapacitorPickups;
         std::vector<InteractiveBlockDefinition> InteractiveBlocks;
 
         [[nodiscard]] static LevelDefinition Parse(

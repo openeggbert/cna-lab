@@ -55,6 +55,8 @@ namespace
             "o empty-block\n"
             "P plated-block\n"
             "A plating\n"
+            "R capacitor-block\n"
+            "K capacitor\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n";
@@ -90,6 +92,8 @@ namespace
             "o empty-block\n"
             "P plated-block\n"
             "A plating\n"
+            "R capacitor-block\n"
+            "K capacitor\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n"
@@ -98,6 +102,51 @@ namespace
             "........\n";
         result += hazard ? ".!......\n" : "........\n";
         result += hazard ? "########\n" : "#.######\n";
+        return result;
+    }
+
+    [[nodiscard]] std::string MakeProjectileLevel(const bool crawler,
+                                                  const bool wall)
+    {
+        constexpr int width = 40;
+        std::string result =
+            "copper-boots-level 1\n"
+            "name Projectile Workshop\n"
+            "size 40 5\n"
+            "spawn 2 4\n"
+            "checkpoint 2 4\n"
+            "parallax 0.1 0.25 0.5\n"
+            "legend\n"
+            ". empty\n"
+            "# solid\n"
+            "B breakable\n"
+            "! hazard\n"
+            "E exit\n"
+            "d decoration\n"
+            "G cog\n"
+            "? cog-block\n"
+            "o empty-block\n"
+            "P plated-block\n"
+            "A plating\n"
+            "R capacitor-block\n"
+            "K capacitor\n"
+            "C crawler\n"
+            "c crawler-fall\n"
+            "map\n";
+        std::string upper(static_cast<std::size_t>(width), '.');
+        if (wall)
+            upper[6] = '#';
+        result += upper + '\n';
+        result += upper + '\n';
+        result += upper + '\n';
+        std::string objectRow(static_cast<std::size_t>(width), '.');
+        objectRow[2] = 'K';
+        if (crawler)
+            objectRow[10] = 'C';
+        if (wall)
+            objectRow[6] = '#';
+        result += objectRow + '\n';
+        result += std::string(static_cast<std::size_t>(width), '#') + '\n';
         return result;
     }
 
@@ -155,6 +204,8 @@ namespace
             "o empty-block\n"
             "P plated-block\n"
             "A plating\n"
+            "R capacitor-block\n"
+            "K capacitor\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n"
@@ -206,7 +257,7 @@ namespace
         }
         catch (const std::runtime_error& error) {
             threwLineError = std::string_view(error.what()).starts_with(
-                "broken.cbl:22:");
+                "broken.cbl:24:");
         }
         Check(threwLineError, "malformed map reports source and line number");
 
@@ -238,7 +289,7 @@ namespace
         Check(failsAt(replaced("checkpoint 2 2", "checkpoint 5 2"),
                       "case.cbl:5:"),
               "out-of-bounds checkpoint reports its line");
-        Check(failsAt(replaced("BG!E", "BGXE"), "case.cbl:23:"),
+        Check(failsAt(replaced("BG!E", "BGXE"), "case.cbl:25:"),
               "unknown map glyph reports its row");
         Check(failsAt(replaced("checkpoint 2 2",
                                "spawn 1 2\ncheckpoint 2 2"),
@@ -287,6 +338,8 @@ namespace
             "o empty-block\n"
             "P plated-block\n"
             "A plating\n"
+            "R capacitor-block\n"
+            "K capacitor\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n"
@@ -384,6 +437,18 @@ namespace
         Check(freePowerWorld.LastEvents().PowerUpsCollected == 0 &&
                   freePowerWorld.Score() == 500,
               "collected jacket module cannot score twice");
+
+        std::string capacitorBlockSource(blockSource);
+        capacitorBlockSource.replace(capacitorBlockSource.find("B?o."), 4,
+                                     "BRo.");
+        CopperBoots::WorldSimulation capacitorBlockWorld;
+        capacitorBlockWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            capacitorBlockSource, "capacitor-block.cbl"));
+        capacitorBlockWorld.Update(headHit, fixedTick);
+        Check(capacitorBlockWorld.LastEvents().CapacitorsReleased == 1 &&
+                  capacitorBlockWorld.CapacitorPickups().size() == 1 &&
+                  capacitorBlockWorld.CapacitorPickups()[0].EmergenceTicks == 23,
+              "capacitor block releases one emerging ability pickup");
     }
 
     void TestMovementAndJump()
@@ -541,6 +606,8 @@ namespace
             "o empty-block\n"
             "P plated-block\n"
             "A plating\n"
+            "R capacitor-block\n"
+            "K capacitor\n"
             "C crawler\n"
             "c crawler-fall\n"
             "map\n"
@@ -616,6 +683,103 @@ namespace
         Check(fellOut && fallWorld.Player().Dead && fallWorld.Lives() == 2,
               "falling through an open lower boundary starts death once");
     }
+
+    void TestArcProjectiles()
+    {
+        constexpr float tick = static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds);
+        const auto activeCount = [](const CopperBoots::WorldSimulation& world) {
+            int count = 0;
+            for (const CopperBoots::ProjectileState& projectile :
+                 world.Projectiles()) {
+                count += static_cast<int>(projectile.Active);
+            }
+            return count;
+        };
+
+        CopperBoots::WorldSimulation poolWorld;
+        poolWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeProjectileLevel(false, false), "projectile-pool.cbl"));
+        poolWorld.Update({}, tick);
+        Check(poolWorld.Player().ArcCapacitor &&
+                  poolWorld.LastEvents().CapacitorsCollected == 1 &&
+                  poolWorld.Score() == 750,
+              "capacitor pickup grants attack ability and score");
+        CopperBoots::PlayerInput fire;
+        fire.AttackPressed = true;
+        poolWorld.Update(fire, tick);
+        Check(activeCount(poolWorld) == 1 &&
+                  poolWorld.LastEvents().ProjectilesFired == 1,
+              "edge-triggered attack occupies first projectile slot");
+        fire.AttackPressed = false;
+        poolWorld.Update(fire, tick);
+        fire.AttackPressed = true;
+        poolWorld.Update(fire, tick);
+        Check(activeCount(poolWorld) == 2,
+              "second attack occupies second projectile slot");
+        fire.AttackPressed = false;
+        poolWorld.Update(fire, tick);
+        fire.AttackPressed = true;
+        poolWorld.Update(fire, tick);
+        Check(activeCount(poolWorld) == 2 &&
+                  poolWorld.LastEvents().ProjectilesFired == 0,
+              "third attack is rejected while both slots are live");
+
+        CopperBoots::WorldSimulation upWorld;
+        upWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeProjectileLevel(false, false), "aim-up.cbl"));
+        upWorld.Update({}, tick);
+        fire.Aim = -1;
+        upWorld.Update(fire, tick);
+        Check(upWorld.Projectiles()[0].VelocityY < -100.0F &&
+                  std::abs(upWorld.Projectiles()[0].VelocityX) < 130.0F,
+              "up aim selects upward arc trajectory");
+
+        CopperBoots::WorldSimulation bounceWorld;
+        bounceWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeProjectileLevel(false, false), "bounce.cbl"));
+        bounceWorld.Update({}, tick);
+        fire.Aim = 1;
+        bounceWorld.Update(fire, tick);
+        bool bounced = false;
+        for (int i = 0; i < 60 && bounceWorld.Projectiles()[0].Active; ++i) {
+            bounceWorld.Update({}, tick);
+            bounced = bounced || bounceWorld.Projectiles()[0].VelocityY < -100.0F;
+        }
+        Check(bounced, "down-aimed projectile bounces from solid floor");
+
+        CopperBoots::WorldSimulation wallWorld;
+        wallWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeProjectileLevel(false, true), "projectile-wall.cbl"));
+        wallWorld.Update({}, tick);
+        fire.Aim = 0;
+        wallWorld.Update(fire, tick);
+        for (int i = 0; i < 90 && activeCount(wallWorld) != 0; ++i)
+            wallWorld.Update({}, tick);
+        Check(activeCount(wallWorld) == 0,
+              "projectile dies when its horizontal path hits a wall");
+
+        CopperBoots::WorldSimulation enemyWorld;
+        enemyWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeProjectileLevel(true, false), "projectile-enemy.cbl"));
+        enemyWorld.Update({}, tick);
+        enemyWorld.Update(fire, tick);
+        bool projectileDefeat = false;
+        for (int i = 0; i < 120; ++i) {
+            enemyWorld.Update({}, tick);
+            projectileDefeat = projectileDefeat ||
+                enemyWorld.LastEvents().EnemiesDefeated == 1;
+            if (projectileDefeat)
+                break;
+        }
+        Check(projectileDefeat && enemyWorld.Crawlers()[0].Defeated,
+              "projectile overlap defeats crawler deterministically");
+
+        for (int i = 0; i < 240 && activeCount(upWorld) != 0; ++i)
+            upWorld.Update({}, tick);
+        Check(activeCount(upWorld) == 0,
+              "projectile outside camera cleanup margin is retired");
+    }
 }
 
 int main()
@@ -628,6 +792,7 @@ int main()
     TestCameraBounds();
     TestClockworkCrawler();
     TestDeathAndRespawn();
+    TestArcProjectiles();
 
     if (failures != 0) {
         std::cerr << failures << " gameplay test(s) failed\n";

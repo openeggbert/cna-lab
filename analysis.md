@@ -461,6 +461,8 @@ G cog object
 o empty interactive block
 P plated-jacket block
 A plated-jacket pickup object
+R arc-capacitor block
+K arc-capacitor pickup object
 C clockwork crawler object
 c ledge-falling crawler object
 map
@@ -515,6 +517,14 @@ releases a jacket module that rises 12 pixels over 24 fixed ticks, then walks at
 as a free pickup. Collection is one-shot, grants plating, awards 500 points and
 drives an 18-tick palette-like courier flash; crawler contact consumes the
 protection under the damage rules above.
+
+The arc capacitor follows the same pattern through `R` block and `K` free
+markers. Collection enables an edge-triggered attack backed by a fixed two-slot
+projectile array. Facing and an aim value select level, upward or downward
+launch velocities; fixed gravity produces floor bounce, horizontal solid
+contact retires the shot, crawler overlap defeats once, and camera/world margins
+clean up survivors. Game input derives the attack edge from CNA Ctrl key state
+and accepts Up/Down or W/S for aim.
 
 ## CNA and sharp-runtime baseline
 

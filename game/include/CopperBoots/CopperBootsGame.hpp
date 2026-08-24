@@ -37,6 +37,8 @@ namespace CopperBoots
         void DrawCogs(float cameraX, float cameraY);
         void DrawCrawlers(float cameraX, float cameraY);
         void DrawPlatingPickups(float cameraX, float cameraY);
+        void DrawCapacitorPickups(float cameraX, float cameraY);
+        void DrawProjectiles(float cameraX, float cameraY);
         void DrawPlayer(float cameraX, float cameraY);
         void FillRectangle(const Microsoft::Xna::Framework::Rectangle& rectangle,
                            const Microsoft::Xna::Framework::Color& color);
@@ -54,6 +56,7 @@ namespace CopperBoots
         WorldSimulation world_;
         SimulationClock clock_;
         bool jumpLatched_ = false;
+        bool attackLatched_ = false;
         bool smokeTest_ = false;
         std::uint32_t drawnFrames_ = 0;
     };

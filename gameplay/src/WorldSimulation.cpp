@@ -75,6 +75,15 @@ namespace CopperBoots
                 static_cast<float>(pickup.Y * TileMap::TileSize) + 2.0F,
                 0.0F, 1, 0, false});
         }
+        capacitorPickups_.clear();
+        capacitorPickups_.reserve(level.CapacitorPickups.size());
+        for (const TileCoordinate& pickup : level.CapacitorPickups) {
+            capacitorPickups_.push_back({
+                static_cast<float>(pickup.X * TileMap::TileSize) + 3.0F,
+                static_cast<float>(pickup.Y * TileMap::TileSize) + 3.0F,
+                0, false});
+        }
+        projectiles_ = {};
         interactiveBlocks_.clear();
         interactiveBlocks_.reserve(level.InteractiveBlocks.size());
         for (const InteractiveBlockDefinition& block : level.InteractiveBlocks) {
@@ -174,11 +183,15 @@ namespace CopperBoots
 
         UpdateCrawlers(seconds);
         UpdatePlatingPickups(seconds);
+        UpdateCapacitorPickups();
         if (!player_.Dead) {
             ResolvePlayerCrawlerContacts(previousPlayerBottom);
             CollectOverlappingCogs();
             CollectOverlappingPlatingPickups();
+            CollectOverlappingCapacitorPickups();
+            TryFireProjectile(input);
         }
+        UpdateProjectiles(seconds);
         UpdateMotion(input);
         camera_.Update(player_.X + PlayerState::Width * 0.5F,
                        player_.Y + PlayerState::Height * 0.5F,
@@ -365,6 +378,14 @@ namespace CopperBoots
                     0.0F, 1, 24, false});
                 ++lastEvents_.BlockContentsReleased;
                 ++lastEvents_.PowerUpsReleased;
+            }
+            else if (block.Content == BlockContent::Capacitor) {
+                capacitorPickups_.push_back({
+                    static_cast<float>(tileX * TileMap::TileSize) + 3.0F,
+                    static_cast<float>(tileY * TileMap::TileSize),
+                    24, false});
+                ++lastEvents_.BlockContentsReleased;
+                ++lastEvents_.CapacitorsReleased;
             }
             return;
         }
@@ -639,6 +660,121 @@ namespace CopperBoots
             score_ += 500;
             lastEvents_.ScoreAdded += 500;
             ++lastEvents_.PowerUpsCollected;
+        }
+    }
+
+    void WorldSimulation::UpdateCapacitorPickups() noexcept
+    {
+        for (CapacitorPickupState& pickup : capacitorPickups_) {
+            if (!pickup.Collected && pickup.EmergenceTicks > 0) {
+                pickup.Y -= 0.5F;
+                --pickup.EmergenceTicks;
+            }
+        }
+    }
+
+    void WorldSimulation::CollectOverlappingCapacitorPickups() noexcept
+    {
+        const float playerRight = player_.X + PlayerState::Width;
+        const float playerBottom = player_.Y + PlayerState::Height;
+        for (CapacitorPickupState& pickup : capacitorPickups_) {
+            if (pickup.Collected || pickup.EmergenceTicks > 0)
+                continue;
+            const bool overlaps = player_.X < pickup.X + CapacitorPickupState::Size &&
+                                  playerRight > pickup.X &&
+                                  player_.Y < pickup.Y + CapacitorPickupState::Size &&
+                                  playerBottom > pickup.Y;
+            if (!overlaps)
+                continue;
+            pickup.Collected = true;
+            player_.ArcCapacitor = true;
+            player_.PowerTransitionTicks = 18;
+            score_ += 750;
+            lastEvents_.ScoreAdded += 750;
+            ++lastEvents_.CapacitorsCollected;
+        }
+    }
+
+    void WorldSimulation::TryFireProjectile(const PlayerInput& input) noexcept
+    {
+        if (!input.AttackPressed || !player_.ArcCapacitor)
+            return;
+        for (ProjectileState& projectile : projectiles_) {
+            if (projectile.Active)
+                continue;
+            const int aim = std::clamp(input.Aim, -1, 1);
+            const float facing = player_.FacingRight ? 1.0F : -1.0F;
+            projectile.Active = true;
+            projectile.X = player_.FacingRight
+                ? player_.X + PlayerState::Width
+                : player_.X - ProjectileState::Size;
+            projectile.Y = player_.Y + 7.0F;
+            projectile.VelocityX = facing * (aim == 0 ? 160.0F : 110.0F);
+            projectile.VelocityY = aim < 0 ? -150.0F : (aim > 0 ? 85.0F : 0.0F);
+            ++lastEvents_.ProjectilesFired;
+            return;
+        }
+    }
+
+    void WorldSimulation::UpdateProjectiles(const float seconds)
+    {
+        constexpr float gravity = 420.0F;
+        constexpr float bounceVelocity = -125.0F;
+        const float cleanupLeft = camera_.X() - 40.0F;
+        const float cleanupRight = camera_.X() + camera_.ViewportWidth() + 40.0F;
+        for (ProjectileState& projectile : projectiles_) {
+            if (!projectile.Active)
+                continue;
+
+            const float proposedX = projectile.X + projectile.VelocityX * seconds;
+            if (SolidAabb(proposedX, projectile.Y, ProjectileState::Size,
+                          ProjectileState::Size)) {
+                projectile.Active = false;
+                continue;
+            }
+            projectile.X = proposedX;
+            projectile.VelocityY = std::min(projectile.VelocityY + gravity * seconds,
+                                            300.0F);
+            const float verticalAmount = projectile.VelocityY * seconds;
+            projectile.Y += verticalAmount;
+            if (SolidAabb(projectile.X, projectile.Y, ProjectileState::Size,
+                          ProjectileState::Size)) {
+                if (verticalAmount > 0.0F) {
+                    const int tileY = static_cast<int>(std::floor(
+                        (projectile.Y + ProjectileState::Size - CollisionEpsilon) /
+                        TileMap::TileSize));
+                    projectile.Y = static_cast<float>(tileY * TileMap::TileSize) -
+                                   ProjectileState::Size;
+                    projectile.VelocityY = bounceVelocity;
+                }
+                else {
+                    projectile.Active = false;
+                    continue;
+                }
+            }
+
+            for (CrawlerState& crawler : crawlers_) {
+                if (crawler.Defeated)
+                    continue;
+                const bool overlaps = projectile.X < crawler.X + CrawlerState::Width &&
+                                      projectile.X + ProjectileState::Size > crawler.X &&
+                                      projectile.Y < crawler.Y + CrawlerState::Height &&
+                                      projectile.Y + ProjectileState::Size > crawler.Y;
+                if (!overlaps)
+                    continue;
+                crawler.Defeated = true;
+                crawler.Active = false;
+                projectile.Active = false;
+                ++lastEvents_.EnemiesDefeated;
+                lastEvents_.ScoreAdded += 200;
+                score_ += 200;
+                break;
+            }
+
+            if (projectile.X + ProjectileState::Size < cleanupLeft ||
+                projectile.X > cleanupRight || projectile.Y < -40.0F ||
+                projectile.Y > static_cast<float>(level_.PixelHeight() + 40))
+                projectile.Active = false;
         }
     }
 }

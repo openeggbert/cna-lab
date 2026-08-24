@@ -363,7 +363,7 @@ Acceptance:
   rules, grants one-hit protection, score, and a short visual transition.
 - Pickup collection and downgrade are unit-tested.
 
-### MAR-045 — Arc-capacitor projectile ability — TODO
+### MAR-045 — Arc-capacitor projectile ability — DONE
 
 Acceptance:
 

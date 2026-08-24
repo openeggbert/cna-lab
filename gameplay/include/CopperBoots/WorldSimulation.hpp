@@ -5,6 +5,7 @@
 #include "CopperBoots/TileMap.hpp"
 
 #include <cstdint>
+#include <array>
 #include <vector>
 
 namespace CopperBoots
@@ -15,6 +16,8 @@ namespace CopperBoots
         bool Run = false;
         bool JumpPressed = false;
         bool JumpHeld = false;
+        bool AttackPressed = false;
+        int Aim = 0;
     };
 
     enum class PlayerMotion
@@ -39,6 +42,7 @@ namespace CopperBoots
         bool Grounded = false;
         bool FacingRight = true;
         bool Plated = false;
+        bool ArcCapacitor = false;
         int PowerTransitionTicks = 0;
         int InvulnerabilityTicks = 0;
         bool Dead = false;
@@ -68,6 +72,9 @@ namespace CopperBoots
         int PlayerRespawned = 0;
         int PowerUpsReleased = 0;
         int PowerUpsCollected = 0;
+        int CapacitorsReleased = 0;
+        int CapacitorsCollected = 0;
+        int ProjectilesFired = 0;
     };
 
     struct PlatingPickupState
@@ -81,6 +88,27 @@ namespace CopperBoots
         int Direction = 1;
         int EmergenceTicks = 0;
         bool Collected = false;
+    };
+
+    struct CapacitorPickupState
+    {
+        static constexpr float Size = 10.0F;
+
+        float X = 0.0F;
+        float Y = 0.0F;
+        int EmergenceTicks = 0;
+        bool Collected = false;
+    };
+
+    struct ProjectileState
+    {
+        static constexpr float Size = 4.0F;
+
+        float X = 0.0F;
+        float Y = 0.0F;
+        float VelocityX = 0.0F;
+        float VelocityY = 0.0F;
+        bool Active = false;
     };
 
     enum class CrawlerEdgePolicy
@@ -121,6 +149,10 @@ namespace CopperBoots
         void Update(const PlayerInput& input, float seconds);
         void ResetPlayer();
         void SetPlayerPlated(bool plated) noexcept { player_.Plated = plated; }
+        void SetPlayerArcCapacitor(bool enabled) noexcept
+        {
+            player_.ArcCapacitor = enabled;
+        }
 
         [[nodiscard]] const TileMap& Level() const noexcept { return level_; }
         [[nodiscard]] const PlayerState& Player() const noexcept { return player_; }
@@ -141,6 +173,16 @@ namespace CopperBoots
             const noexcept
         {
             return platingPickups_;
+        }
+        [[nodiscard]] const std::vector<CapacitorPickupState>& CapacitorPickups()
+            const noexcept
+        {
+            return capacitorPickups_;
+        }
+        [[nodiscard]] const std::array<ProjectileState, 2>& Projectiles()
+            const noexcept
+        {
+            return projectiles_;
         }
         [[nodiscard]] const WorldEvents& LastEvents() const noexcept
         {
@@ -165,6 +207,10 @@ namespace CopperBoots
         void UpdateCrawlers(float seconds);
         void UpdatePlatingPickups(float seconds);
         void CollectOverlappingPlatingPickups() noexcept;
+        void UpdateCapacitorPickups() noexcept;
+        void CollectOverlappingCapacitorPickups() noexcept;
+        void TryFireProjectile(const PlayerInput& input) noexcept;
+        void UpdateProjectiles(float seconds);
         void ResolvePlayerCrawlerContacts(float previousPlayerBottom);
         void StartPlayerDeath() noexcept;
         void RespawnAtCheckpoint();
@@ -183,6 +229,8 @@ namespace CopperBoots
         std::vector<CogState> cogs_;
         std::vector<CrawlerState> crawlers_;
         std::vector<PlatingPickupState> platingPickups_;
+        std::vector<CapacitorPickupState> capacitorPickups_;
+        std::array<ProjectileState, 2> projectiles_{};
         std::vector<InteractiveBlockState> interactiveBlocks_;
         WorldEvents lastEvents_;
         int collectedCogs_ = 0;

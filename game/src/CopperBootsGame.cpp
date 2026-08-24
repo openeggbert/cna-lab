@@ -93,6 +93,12 @@ namespace CopperBoots
         const bool jumpHeld = keyboard.IsKeyDown(Keys::Space);
         const bool jumpWasHeld = previousKeyboard_.IsKeyDown(Keys::Space);
         jumpLatched_ = jumpLatched_ || (jumpHeld && !jumpWasHeld);
+        const bool attackHeld = keyboard.IsKeyDown(Keys::LeftControl) ||
+                                keyboard.IsKeyDown(Keys::RightControl);
+        const bool attackWasHeld =
+            previousKeyboard_.IsKeyDown(Keys::LeftControl) ||
+            previousKeyboard_.IsKeyDown(Keys::RightControl);
+        attackLatched_ = attackLatched_ || (attackHeld && !attackWasHeld);
 
         PlayerInput result;
         result.Move = static_cast<float>(static_cast<int>(right) -
@@ -101,6 +107,12 @@ namespace CopperBoots
                      keyboard.IsKeyDown(Keys::RightShift);
         result.JumpHeld = jumpHeld;
         result.JumpPressed = jumpLatched_;
+        result.AttackPressed = attackLatched_;
+        const bool aimUp = keyboard.IsKeyDown(Keys::Up) ||
+                           keyboard.IsKeyDown(Keys::W);
+        const bool aimDown = keyboard.IsKeyDown(Keys::Down) ||
+                             keyboard.IsKeyDown(Keys::S);
+        result.Aim = static_cast<int>(aimDown) - static_cast<int>(aimUp);
         previousKeyboard_ = keyboard;
         return result;
     }
@@ -122,7 +134,9 @@ namespace CopperBoots
             world_.Update(input, static_cast<float>(SimulationClock::TickSeconds));
             clock_.MarkStep();
             input.JumpPressed = false;
+            input.AttackPressed = false;
             jumpLatched_ = false;
+            attackLatched_ = false;
         }
 
         Game::Update(gameTime);
@@ -162,6 +176,8 @@ namespace CopperBoots
         DrawCogs(cameraX, cameraY);
         DrawCrawlers(cameraX, cameraY);
         DrawPlatingPickups(cameraX, cameraY);
+        DrawCapacitorPickups(cameraX, cameraY);
+        DrawProjectiles(cameraX, cameraY);
         DrawPlayer(cameraX, cameraY);
         spriteBatch_->End();
     }
@@ -370,6 +386,33 @@ namespace CopperBoots
             FillRectangle(Rectangle(x + 3, y + 5, 6, 3), Color(191, 124, 56));
             FillRectangle(Rectangle(x, y + 3, 2, 6), Color(48, 87, 82));
             FillRectangle(Rectangle(x + 10, y + 3, 2, 6), Color(48, 87, 82));
+        }
+    }
+
+    void CopperBootsGame::DrawCapacitorPickups(const float cameraX,
+                                               const float cameraY)
+    {
+        for (const CapacitorPickupState& pickup : world_.CapacitorPickups()) {
+            if (pickup.Collected)
+                continue;
+            const int x = ScreenCoordinate(pickup.X, cameraX);
+            const int y = ScreenCoordinate(pickup.Y, cameraY);
+            FillRectangle(Rectangle(x + 2, y, 6, 10), Color(99, 87, 177));
+            FillRectangle(Rectangle(x, y + 3, 10, 4), Color(158, 117, 204));
+            FillRectangle(Rectangle(x + 4, y + 2, 2, 6), Color(226, 213, 122));
+        }
+    }
+
+    void CopperBootsGame::DrawProjectiles(const float cameraX,
+                                          const float cameraY)
+    {
+        for (const ProjectileState& projectile : world_.Projectiles()) {
+            if (!projectile.Active)
+                continue;
+            const int x = ScreenCoordinate(projectile.X, cameraX);
+            const int y = ScreenCoordinate(projectile.Y, cameraY);
+            FillRectangle(Rectangle(x, y, 4, 4), Color(229, 198, 74));
+            FillRectangle(Rectangle(x + 1, y + 1, 2, 2), Color(245, 239, 183));
         }
     }
 
