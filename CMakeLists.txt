@@ -81,6 +81,7 @@ add_library(copper_boots_gameplay STATIC
     gameplay/src/Camera2D.cpp
     gameplay/src/InputActionAdapter.cpp
     gameplay/src/LevelDefinition.cpp
+    gameplay/src/ProceduralAudio.cpp
     gameplay/src/SimulationClock.cpp
     gameplay/src/TileMap.cpp
     gameplay/src/WorldSimulation.cpp
@@ -140,11 +141,17 @@ if(COPPER_BOOTS_BUILD_TESTS)
 
     if(NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         add_test(NAME copper_boots_smoke COMMAND copper-boots --smoke-test)
+        add_test(NAME copper_boots_smoke_silent
+            COMMAND copper-boots --smoke-test --no-audio)
         set_tests_properties(copper_boots_smoke PROPERTIES
             TIMEOUT 20
-            LABELS "graphics;smoke;cna")
+            LABELS "graphics;smoke;cna;audio")
+        set_tests_properties(copper_boots_smoke_silent PROPERTIES
+            TIMEOUT 20
+            LABELS "graphics;smoke;cna;audio-fallback")
         if(UNIX AND NOT APPLE)
-            set_tests_properties(copper_boots_smoke PROPERTIES
+            set_tests_properties(
+                copper_boots_smoke copper_boots_smoke_silent PROPERTIES
                 ENVIRONMENT "SDL_VIDEODRIVER=offscreen;SDL_AUDIODRIVER=dummy")
         endif()
     endif()

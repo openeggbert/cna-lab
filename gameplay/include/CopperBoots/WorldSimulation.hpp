@@ -83,6 +83,7 @@ namespace CopperBoots
 
     struct WorldEvents
     {
+        int PlayerJumped = 0;
         int CogsCollected = 0;
         int ScoreAdded = 0;
         int BlocksBumped = 0;

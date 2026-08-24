@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "CopperBoots/SimulationClock.hpp"
+#include "CopperBoots/ProceduralAudio.hpp"
 #include "CopperBoots/ParallaxLayer.hpp"
 #include "CopperBoots/InputActionAdapter.hpp"
 #include "CopperBoots/WorldSimulation.hpp"
@@ -18,13 +19,15 @@
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 #include "Microsoft/Xna/Framework/Input/KeyboardState.hpp"
 #include "Microsoft/Xna/Framework/Input/GamePadState.hpp"
+#include "Microsoft/Xna/Framework/Audio/SoundEffect.hpp"
 
 namespace CopperBoots
 {
     class CopperBootsGame final : public Microsoft::Xna::Framework::Game
     {
     public:
-        explicit CopperBootsGame(bool smokeTest = false);
+        explicit CopperBootsGame(bool smokeTest = false,
+                                 bool audioEnabled = true);
 
         [[nodiscard]] const std::string& GetTypeName() const override;
 
@@ -38,6 +41,9 @@ namespace CopperBoots
             const Microsoft::Xna::Framework::Input::KeyboardState& keyboard,
             const Microsoft::Xna::Framework::Input::GamePadState& gamepad);
         void DrawWorld();
+        void LoadGeneratedAudio();
+        void PlayWorldAudio(const WorldEvents& events);
+        void PlayAudioCue(AudioCue cue);
         void DrawParallax(float cameraX);
         void DrawParallaxLayer(const ParallaxLayer& layer, float cameraX);
         void DrawTiles(float cameraX, float cameraY);
@@ -79,6 +85,11 @@ namespace CopperBoots
         WorldSimulation world_;
         SimulationClock clock_;
         InputActionAdapter inputAdapter_;
+        std::array<std::unique_ptr<
+            Microsoft::Xna::Framework::Audio::SoundEffect>, AudioCueCount>
+            soundEffects_;
+        bool audioEnabled_ = true;
+        bool audioAvailable_ = false;
         bool smokeTest_ = false;
         bool paused_ = false;
         bool debugOverlay_ = false;

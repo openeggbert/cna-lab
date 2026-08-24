@@ -34,10 +34,15 @@ The procedural courier pose set, enemy contact matrix, debug overlay and named
 route transition foundation are complete. Green Ruins now contains a generated,
 prompted maintenance hatch and a separated optional cache.
 
-**Current: M3 — deterministic quality and generated audio**
+**M3 — deterministic quality and generated audio — ACHIEVED**
 
-Stable scripted state hashes and focused CTest labels are complete. Introduce
-generated CNA sound cues next, retaining a clean silent fallback.
+Stable scripted state hashes, focused CTest labels, generated CNA sound cues
+and an explicit silent fallback are complete.
+
+**Current: M4 — moving world geometry**
+
+Introduce data-driven horizontal, vertical and delayed-fall platforms while
+keeping player carrying and collision deterministic.
 
 ## Foundation and research
 
@@ -465,7 +470,7 @@ Acceptance:
   embedding runtime object layouts.
 - Atomic/recoverable write strategy and corrupted-save fallback are tested.
 
-### MAR-056 — Original sound effects — TODO
+### MAR-056 — Original sound effects — DONE
 
 Acceptance:
 
@@ -589,5 +594,5 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Add generated CNA sound effects under `MAR-056`, retaining silence fallback.
-2. Begin moving platforms (`MAR-046`) now that the transition model is stable.
+1. Implement moving platforms and drop plates under `MAR-046`.
+2. Add settings persistence (`MAR-054`) after moving geometry is stable.

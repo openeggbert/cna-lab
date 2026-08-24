@@ -328,6 +328,7 @@ namespace CopperBoots
         if (input.JumpPressed && player_.Grounded) {
             player_.VelocityY = -JumpImpulse;
             player_.Grounded = false;
+            ++lastEvents_.PlayerJumped;
         }
 
         float gravity = Gravity;

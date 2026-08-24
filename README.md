@@ -26,8 +26,9 @@ sprite data, or level layout is shipped here. See [analysis.md](analysis.md) for
 the provenance and licensing findings.
 
 All initial visuals are generated from programmatically created color textures
-and geometric shapes. Externally sourced assets, if added later, must be
-recorded in [THIRD_PARTY.md](THIRD_PARTY.md).
+and geometric shapes. Eight original sound cues are synthesized into PCM at
+startup and played only through CNA's public audio API. Externally sourced
+assets, if added later, must be recorded in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Game direction
 
@@ -98,6 +99,10 @@ cmake -S . -B build \
 cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure -j2
 ```
+
+Run `./build/copper-boots --no-audio` for an explicit silent configuration.
+Failure to initialize or play CNA audio also degrades to silence instead of
+terminating gameplay.
 
 Focused lanes are available with `ctest --test-dir build -L logic` and
 `ctest --test-dir build -L smoke`; deterministic logic and CNA graphics tests

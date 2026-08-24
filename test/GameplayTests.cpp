@@ -5,11 +5,13 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "CopperBoots/Camera2D.hpp"
 #include "CopperBoots/LevelDefinition.hpp"
 #include "CopperBoots/InputActionAdapter.hpp"
 #include "CopperBoots/ParallaxLayer.hpp"
+#include "CopperBoots/ProceduralAudio.hpp"
 #include "CopperBoots/SimulationClock.hpp"
 #include "CopperBoots/TileMap.hpp"
 #include "CopperBoots/WorldSimulation.hpp"
@@ -288,6 +290,45 @@ namespace
         Check(stalled.RemainderSeconds() <
                   CopperBoots::SimulationClock::TickSeconds,
               "dropped backlog retains less than one tick");
+    }
+
+    void TestProceduralAudio()
+    {
+        std::vector<std::vector<std::uint8_t>> generatedCues;
+        generatedCues.reserve(CopperBoots::AudioCueCount);
+        for (std::size_t index = 0;
+             index < CopperBoots::AudioCueCount; ++index) {
+            const auto cue = static_cast<CopperBoots::AudioCue>(index);
+            const CopperBoots::ProceduralSound first =
+                CopperBoots::GenerateProceduralSound(cue);
+            const CopperBoots::ProceduralSound second =
+                CopperBoots::GenerateProceduralSound(cue);
+            Check(first.SampleRate == CopperBoots::ProceduralAudioSampleRate,
+                  "generated cue uses the declared sample rate");
+            Check(!first.Pcm.empty() && first.Pcm.size() % 2U == 0U,
+                  "generated cue contains complete mono 16-bit PCM frames");
+            Check(first.Pcm == second.Pcm,
+                  "generated cue bytes are deterministic");
+            Check(first.Pcm.size() >= 4U && first.Pcm[0] == 0U &&
+                      first.Pcm[1] == 0U &&
+                      first.Pcm[first.Pcm.size() - 2U] == 0U &&
+                      first.Pcm.back() == 0U,
+                  "generated cue envelope begins and ends at silence");
+            Check(std::any_of(first.Pcm.begin(), first.Pcm.end(),
+                              [](const std::uint8_t value) {
+                                  return value != 0U;
+                              }),
+                  "generated cue contains an audible waveform");
+            generatedCues.push_back(first.Pcm);
+        }
+
+        for (std::size_t left = 0; left < generatedCues.size(); ++left) {
+            for (std::size_t right = left + 1;
+                 right < generatedCues.size(); ++right) {
+                Check(generatedCues[left] != generatedCues[right],
+                      "each gameplay cue has distinct PCM data");
+            }
+        }
     }
 
     void TestInputActionAdapter()
@@ -696,10 +737,15 @@ namespace
         jump.JumpPressed = true;
         jump.JumpHeld = true;
         world.Update(jump, tick);
+        Check(world.LastEvents().PlayerJumped == 1,
+              "jump start emits one audio-facing world event");
         float apexY = world.Player().Y;
         for (int i = 0; i < 100; ++i) {
             jump.JumpPressed = false;
             world.Update(jump, tick);
+            if (i == 0)
+                Check(world.LastEvents().PlayerJumped == 0,
+                      "held jump does not repeat its start event");
             apexY = std::min(apexY, world.Player().Y);
         }
         Check(apexY < floorY - 25.0F, "held jump has a visible apex");
@@ -1553,6 +1599,7 @@ namespace
 int main()
 {
     TestSimulationClock();
+    TestProceduralAudio();
     TestInputActionAdapter();
     TestTileBounds();
     TestLevelParsing();

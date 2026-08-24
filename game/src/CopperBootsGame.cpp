@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
+#include "Microsoft/Xna/Framework/Audio/AudioChannels.hpp"
 #include "Microsoft/Xna/Framework/GameTime.hpp"
 #include "Microsoft/Xna/Framework/Rectangle.hpp"
 #include "Microsoft/Xna/Framework/TitleContainer.hpp"
@@ -32,6 +33,8 @@ namespace CopperBoots
     using Microsoft::Xna::Framework::Graphics::SpriteSortMode;
     using Microsoft::Xna::Framework::Graphics::Texture2D;
     using Microsoft::Xna::Framework::Graphics::TextureFilter;
+    using Microsoft::Xna::Framework::Audio::AudioChannels;
+    using Microsoft::Xna::Framework::Audio::SoundEffect;
     using Microsoft::Xna::Framework::Input::Buttons;
     using Microsoft::Xna::Framework::Input::GamePad;
     using Microsoft::Xna::Framework::Input::GamePadState;
@@ -48,8 +51,10 @@ namespace CopperBoots
         }
     }
 
-    CopperBootsGame::CopperBootsGame(const bool smokeTest)
+    CopperBootsGame::CopperBootsGame(const bool smokeTest,
+                                     const bool audioEnabled)
         : graphics_(this),
+          audioEnabled_(audioEnabled),
           smokeTest_(smokeTest)
     {
         graphics_.setPreferredBackBufferWidthProperty(960);
@@ -83,6 +88,7 @@ namespace CopperBoots
         const Color white = Color::White;
         solidTexture_->SetData(&white, 1);
         pointSampler_.setFilterProperty(TextureFilter::Point);
+        LoadGeneratedAudio();
 
         std::cout << "Copper Boots: renderer "
                   << device.GetGraphicsRendererName()
@@ -90,6 +96,71 @@ namespace CopperBoots
                   << ", level " << levelPath
                   << "\n";
         std::cout.flush();
+    }
+
+    void CopperBootsGame::LoadGeneratedAudio()
+    {
+        if (!audioEnabled_) {
+            std::cout << "Copper Boots: audio disabled; continuing silently\n";
+            return;
+        }
+        try {
+            for (std::size_t index = 0; index < AudioCueCount; ++index) {
+                const AudioCue cue = static_cast<AudioCue>(index);
+                ProceduralSound sound = GenerateProceduralSound(cue);
+                soundEffects_[index] = std::make_unique<SoundEffect>(
+                    sound.Pcm, sound.SampleRate, AudioChannels::Mono);
+            }
+            audioAvailable_ = true;
+            std::cout << "Copper Boots: generated CNA sound effects enabled\n";
+        }
+        catch (...) {
+            for (auto& effect : soundEffects_)
+                effect.reset();
+            audioAvailable_ = false;
+            std::cerr << "Copper Boots: audio unavailable; continuing silently\n";
+        }
+    }
+
+    void CopperBootsGame::PlayAudioCue(const AudioCue cue)
+    {
+        if (!audioAvailable_)
+            return;
+        const std::size_t index = static_cast<std::size_t>(cue);
+        if (index >= soundEffects_.size() || soundEffects_[index] == nullptr)
+            return;
+        try {
+            const float volume = cue == AudioCue::Hit ? 0.48F : 0.36F;
+            (void)soundEffects_[index]->Play(volume, 0.0F, 0.0F);
+        }
+        catch (...) {
+            audioAvailable_ = false;
+            std::cerr << "Copper Boots: audio playback failed; disabling sound\n";
+        }
+    }
+
+    void CopperBootsGame::PlayWorldAudio(const WorldEvents& events)
+    {
+        if (events.PlayerJumped > 0)
+            PlayAudioCue(AudioCue::Jump);
+        if (events.CogsCollected > 0 || events.PowerUpsCollected > 0 ||
+            events.CapacitorsCollected > 0) {
+            PlayAudioCue(AudioCue::Cog);
+        }
+        if (events.PlayerDamaged > 0 || events.PlayerDied > 0)
+            PlayAudioCue(AudioCue::Hit);
+        if (events.EnemiesDefeated > 0)
+            PlayAudioCue(AudioCue::EnemyDefeat);
+        if (events.ProjectilesFired > 0)
+            PlayAudioCue(AudioCue::Projectile);
+        if (events.BlocksBumped > 0 || events.BlocksBroken > 0)
+            PlayAudioCue(AudioCue::Block);
+        if (events.LevelCompleted > 0)
+            PlayAudioCue(AudioCue::Complete);
+        if (events.RouteTransitionsStarted > 0 ||
+            events.CheckpointsActivated > 0) {
+            PlayAudioCue(AudioCue::Ui);
+        }
     }
 
     PlayerInput CopperBootsGame::ReadPlayerInput(const KeyboardState& keyboard,
@@ -136,8 +207,10 @@ namespace CopperBoots
         const GamePadState gamepad = GamePad::GetState(
             Microsoft::Xna::Framework::PlayerIndex::One);
         const bool debugToggleDown = keyboard.IsKeyDown(Keys::F1);
-        if (debugToggleDown && !debugToggleDown_)
+        if (debugToggleDown && !debugToggleDown_) {
             debugOverlay_ = !debugOverlay_;
+            PlayAudioCue(AudioCue::Ui);
+        }
         debugToggleDown_ = debugToggleDown;
         const auto updateStarted = debugOverlay_
             ? std::chrono::steady_clock::now()
@@ -150,6 +223,7 @@ namespace CopperBoots
         };
         PlayerInput input = ReadPlayerInput(keyboard, gamepad);
         if (input.PausePressed) {
+            PlayAudioCue(AudioCue::Ui);
             paused_ = !paused_;
             inputAdapter_.ConsumeEdges();
             Game::Update(gameTime);
@@ -158,6 +232,7 @@ namespace CopperBoots
         }
         if (paused_) {
             if (keyboard.IsKeyDown(Keys::R) || gamepad.IsButtonDown(Buttons::Y)) {
+                PlayAudioCue(AudioCue::Ui);
                 world_.ResetPlayer();
                 paused_ = false;
                 inputAdapter_.ConsumeEdges();
@@ -176,6 +251,7 @@ namespace CopperBoots
 
         for (int step = 0; step < steps; ++step) {
             world_.Update(input, static_cast<float>(SimulationClock::TickSeconds));
+            PlayWorldAudio(world_.LastEvents());
             clock_.MarkStep();
             input.JumpPressed = false;
             input.AttackPressed = false;

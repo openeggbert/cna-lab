@@ -631,6 +631,15 @@ path, with colored plating/capacitor indicators. It reads const world accessors,
 uses arithmetic fixed-width number drawing instead of per-frame strings, and
 has no effect on simulation state.
 
+Audio is likewise generated and independent of historical assets. A pure
+renderer-free generator produces deterministic 22.05 kHz mono signed 16-bit
+PCM for jump, cog, hit, crawler defeat, projectile, block, completion and UI
+cues. World simulation emits short-lived semantic counters; presentation maps
+them to CNA `SoundEffect` instances without exposing CNA types to gameplay
+logic. `--no-audio` skips sound construction, while construction or playback
+failure is caught and permanently degrades the session to silence. Tests compare
+repeated PCM bytes and exercise both enabled and silent CNA runtime paths.
+
 Optional `H` objects activate a later respawn coordinate while leaving terrain
 empty; death preserves collected, used-block and defeated-enemy state. `E` tile
 overlap produces one `LevelResult` containing score, cog count and completion
@@ -682,20 +691,23 @@ capabilities. Later compatibility records use:
 
 | Renderer | Configure | Build | Startup | SpriteBatch | Texture | RT | Point | Input | Audio | Defects |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| SDL_RENDERER | pass | pass | pass (offscreen) | pass | pass | pass | pass | keyboard + disconnected-gamepad pass | dummy init only | Xvfb unavailable in this container; CNA offscreen driver passes |
+| SDL_RENDERER | pass | pass | pass (offscreen) | pass | pass | pass | pass | keyboard + disconnected-gamepad pass | generated `SoundEffect` construction pass (dummy) | Xvfb unavailable in this container; CNA offscreen driver passes |
 
 Only available/mature lanes are tested; a compile result is never mislabeled as
 a runtime result.
 
 The initial Debug build configured with CMake/Ninja and
 `CNA_GRAPHICS_RENDERER=SDL_RENDERER`, then built with two jobs. Renderer-free
-CTest coverage passed. The three-frame runtime smoke test passed using CNA's
+CTest coverage passed. Two three-frame runtime smoke tests passed using CNA's
 compiled-in offscreen platform route with a dummy audio device; it exercised
 window/game initialization, `Texture2D`, `SpriteBatch`, a 320x180
 `RenderTarget2D`, point-filtered presentation, keyboard state acquisition, and
-clean game exit. `xvfb-run` could not provide an SDL video device in this
+clean game exit. The enabled test constructed every generated `SoundEffect`;
+the explicit `--no-audio` test verified the silent path. Dummy audio validates
+the CNA API path and lifetime, not acoustic output or subjective mix quality.
+`xvfb-run` could not provide an SDL video device in this
 container, so Linux CTest explicitly selects the offscreen driver for repeatable
-headless validation. No audio playback is claimed by this smoke result.
+headless validation.
 
 ## Risks and mitigations
 
