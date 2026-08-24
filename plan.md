@@ -962,6 +962,7 @@ Current progress:
 - reaching the exit marks the run complete in the HUD;
 - the HUD now has level, score, lives, health and ammunition readouts plus a generated sidearm icon;
 - `1`/`2` switch between the generated knife and sidearm icons; the knife has a short attack range;
+- `3` switches to a generated three-round repeater icon; it consumes three shared ammunition units for a spread burst;
 - generated CNA effects cover player and guard shots, defeated enemies, pickups, doors, locks and player damage; combat includes player death/restart;
 - guards attack with visible ranged projectiles that cause damage only on impact, while hounds attack at close range;
 - ordinary blue bunker doors and red security doors use distinct generated atlas panels;

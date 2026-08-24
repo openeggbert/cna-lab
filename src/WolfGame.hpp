@@ -38,6 +38,7 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> hudPixel_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> weaponIcon_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> knifeIcon_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterIcon_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> shotSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> pickupSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> doorSound_;
@@ -58,7 +59,7 @@ namespace WolfCna
         int lives_ = 3;
         bool hasSecurityCard_ = false;
         bool completed_ = false;
-        enum class Weapon { Knife, Sidearm };
+        enum class Weapon { Knife, Sidearm, Repeater };
         Weapon weapon_ = Weapon::Sidearm;
         bool actionWasDown_ = false;
         bool attackWasDown_ = false;

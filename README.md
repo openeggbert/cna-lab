@@ -31,7 +31,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - left/right arrow keys: turn left / right
 - `Space`: open the door in front of you (doors close after four seconds unless a body blocks them)
 - left or right `Ctrl`: fire the sidearm
-- `1` / `2`: knife / sidearm
+- `1` / `2` / `3`: knife / sidearm / three-round repeater
 - `F11`: toggle fullscreen
 - `Escape`: quit
 

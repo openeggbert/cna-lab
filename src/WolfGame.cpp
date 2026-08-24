@@ -296,6 +296,18 @@ namespace WolfCna
                 if (x > 16 || y > 27)
                     iconPixels[y * iconSize + x] = Color(184, 126, 83, 255);
         knifeIcon_->SetData(iconPixels.data(), static_cast<int>(iconPixels.size()));
+
+        repeaterIcon_ = std::make_unique<Texture2D>(device, iconSize, iconSize);
+        std::fill(iconPixels.begin(), iconPixels.end(), Color(0, 0, 0, 0));
+        for (int y = 8; y < 20; ++y)
+            for (int x = 8; x < 33; ++x)
+                if (y < 13 || x < 26)
+                    iconPixels[y * iconSize + x] = Color(72, 83, 94, 255);
+        for (int y = 18; y < 35; ++y)
+            for (int x = 14; x < 27; ++x)
+                if (x > 17 || y > 24)
+                    iconPixels[y * iconSize + x] = Color(166, 112, 72, 255);
+        repeaterIcon_->SetData(iconPixels.data(), static_cast<int>(iconPixels.size()));
     }
 
     void WolfGame::CreateSoundEffects()
@@ -340,7 +352,7 @@ namespace WolfCna
 
     void WolfGame::DrawHud()
     {
-        if (!hudSpriteBatch_ || !hudPixel_ || !weaponIcon_ || !knifeIcon_)
+        if (!hudSpriteBatch_ || !hudPixel_ || !weaponIcon_ || !knifeIcon_ || !repeaterIcon_)
             return;
 
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
@@ -376,7 +388,8 @@ namespace WolfCna
         drawReadout(4, "AMMO", std::to_string(ammo_));
         const int weaponCenter = viewport.getXProperty() + viewport.getWidthProperty() * 11 / 12;
         hudSpriteBatch_->Draw(
-            weapon_ == Weapon::Sidearm ? *weaponIcon_ : *knifeIcon_,
+            weapon_ == Weapon::Sidearm ? *weaponIcon_
+                : weapon_ == Weapon::Knife ? *knifeIcon_ : *repeaterIcon_,
             Rectangle(weaponCenter - 30, panelY + 12, 60, 60),
             Color(255, 255, 255, 255));
         if (completed_)
@@ -471,6 +484,8 @@ namespace WolfCna
             weapon_ = Weapon::Knife;
         if (keyboard.IsKeyDown(Keys::D2))
             weapon_ = Weapon::Sidearm;
+        if (keyboard.IsKeyDown(Keys::D3))
+            weapon_ = Weapon::Repeater;
 
         const bool attackIsDown =
             keyboard.IsKeyDown(Keys::LeftControl) || keyboard.IsKeyDown(Keys::RightControl);
@@ -485,13 +500,33 @@ namespace WolfCna
         }
         else if (attackIsDown && !attackWasDown_ && ammo_ > 0)
         {
-            --ammo_;
-            const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection());
-            score_ += attack.score;
-            if (shotSound_)
-                static_cast<void>(shotSound_->Play(0.35f, 0.0f, 0.0f));
-            if (attack.score > 0 && enemyDefeatedSound_)
-                static_cast<void>(enemyDefeatedSound_->Play(0.28f, -0.3f, 0.0f));
+            if (weapon_ == Weapon::Repeater && ammo_ >= 3)
+            {
+                ammo_ -= 3;
+                int defeatedScore = 0;
+                for (const float spread : {-0.09f, 0.0f, 0.09f})
+                {
+                    const float shotYaw = yaw_ + spread;
+                    defeatedScore += world_.FireHitscan(
+                        playerPosition_,
+                        Vector3(std::sin(shotYaw), 0.0f, -std::cos(shotYaw))).score;
+                }
+                score_ += defeatedScore;
+                if (shotSound_)
+                    static_cast<void>(shotSound_->Play(0.48f, 0.16f, 0.0f));
+                if (defeatedScore > 0 && enemyDefeatedSound_)
+                    static_cast<void>(enemyDefeatedSound_->Play(0.32f, -0.22f, 0.0f));
+            }
+            else if (weapon_ != Weapon::Repeater)
+            {
+                --ammo_;
+                const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection());
+                score_ += attack.score;
+                if (shotSound_)
+                    static_cast<void>(shotSound_->Play(0.35f, 0.0f, 0.0f));
+                if (attack.score > 0 && enemyDefeatedSound_)
+                    static_cast<void>(enemyDefeatedSound_->Play(0.28f, -0.3f, 0.0f));
+            }
         }
         attackWasDown_ = attackIsDown;
 
