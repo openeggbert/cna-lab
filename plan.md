@@ -1100,7 +1100,10 @@ sprites, carry through sector transitions and are granted by the loadout cheat.
 Original rapid-fire troopers and heavy units now join guards and hounds with
 distinct health, score, speed, ranged damage and attack cadence. Automatic
 hold-to-fire cadence is implemented for the repeater and heavy automatic while
-the knife and sidearm remain one attack per press. Campaign balance remains. Ranged enemies coordinate so
+the knife and sidearm remain one attack per press. Defeated guards, rapid troopers
+and heavy units drop 3, 5 and 8 rounds respectively, while hounds drop none, so a
+full campaign clear is sustainable without removing ammunition pressure. Health
+and difficulty balance remain. Ranged enemies coordinate so
 only the nearest eligible shooter attacks at one time, avoiding simultaneous
 volleys when the player enters a populated room.
 

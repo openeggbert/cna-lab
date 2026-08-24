@@ -31,6 +31,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - authored rooms include procedural framed paintings, peace-symbol banners and ceiling lamps with warm floor-light pools
 - distinct generated material palettes for each sector: warm bunker, green industrial, and cold technical
 - only the nearest eligible ranged enemy fires at one time; guards, rapid troopers and heavy units use slower distinct cadences while hounds remain close-range attackers
+- defeated guards, rapid troopers and heavy units drop 3, 5 and 8 collectible rounds respectively; hounds do not drop ammunition
 - health, ammunition and three differently valued treasures use original transparent pixel-art pickup sprites instead of colored blocks
 - health kits remain in the level at 100% health and can be collected after the player takes damage
 - no external copyrighted game assets

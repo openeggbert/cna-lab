@@ -207,6 +207,7 @@ namespace WolfCna
             Microsoft::Xna::Framework::Vector3 position;
             PickupType type = PickupType::Health;
             bool collected = false;
+            int amount = 6;
         };
 
         struct Terminal

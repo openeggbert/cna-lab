@@ -183,7 +183,20 @@ namespace WolfCna
                 enemy.state = defeated ? EnemyState::Dead : EnemyState::Chase;
                 enemy.attackVisualSeconds = 0.0f;
                 if (defeated)
+                {
                     ++defeatedEnemies_;
+                    if (!enemy.melee)
+                    {
+                        const int ammoDrop = enemy.type == Enemy::Type::HeavyUnit
+                            ? 8
+                            : enemy.type == Enemy::Type::RapidTrooper ? 5 : 3;
+                        pickups_.push_back({
+                            Vector3(enemy.position.X, 0.08f, enemy.position.Z),
+                            PickupType::Ammo,
+                            false,
+                            ammoDrop});
+                    }
+                }
                 return {true, defeated ? enemy.scoreValue : 0};
             }
 
@@ -258,7 +271,7 @@ namespace WolfCna
             else if (pickup.type == PickupType::Ammo)
             {
                 pickup.collected = true;
-                result.ammo += 6;
+                result.ammo += pickup.amount;
             }
             else if (pickup.type == PickupType::GoldBars ||
                 pickup.type == PickupType::GoldenGoblet ||

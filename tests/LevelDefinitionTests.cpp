@@ -334,12 +334,20 @@ int main()
     Expect(
         combatWorld.GetCompletionStats().defeatedEnemies == 1 && combatWorld.GetCompletionStats().totalEnemies == 1,
         "enemy defeat appears in completion statistics");
+    const Microsoft::Xna::Framework::Vector3 enemyDropPosition(2.5f, 0.62f, 1.5f);
+    Expect(
+        combatWorld.CollectPickups(enemyDropPosition).ammo == 3,
+        "defeated guard drops three rounds");
+    Expect(
+        combatWorld.CollectPickups(enemyDropPosition).ammo == 0,
+        "guard ammunition drop is collected once");
 
     WolfCna::World houndWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PK.#\n#####\n",
         "hound.level"));
     Expect(houndWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "first shot wounds a hound");
     Expect(houndWorld.FireHitscan(combatPlayer, lookDirection).score == 200, "second hound shot awards score");
+    Expect(houndWorld.CollectPickups(enemyDropPosition).ammo == 0, "hound does not drop ammunition");
 
     WolfCna::World rapidTrooperWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PF.#\n#####\n",
@@ -347,6 +355,9 @@ int main()
     for (int hit = 0; hit < 3; ++hit)
         Expect(rapidTrooperWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "rapid trooper survives early hits");
     Expect(rapidTrooperWorld.FireHitscan(combatPlayer, lookDirection).score == 250, "rapid trooper awards score");
+    Expect(
+        rapidTrooperWorld.CollectPickups(enemyDropPosition).ammo == 5,
+        "defeated rapid trooper drops five rounds");
 
     WolfCna::World heavyUnitWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PU.#\n#####\n",
@@ -354,6 +365,9 @@ int main()
     for (int hit = 0; hit < 7; ++hit)
         Expect(heavyUnitWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "heavy unit survives early hits");
     Expect(heavyUnitWorld.FireHitscan(combatPlayer, lookDirection).score == 500, "heavy unit awards score");
+    Expect(
+        heavyUnitWorld.CollectPickups(enemyDropPosition).ammo == 8,
+        "defeated heavy unit drops eight rounds");
 
     WolfCna::World damageWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PG.#\n#####\n",
