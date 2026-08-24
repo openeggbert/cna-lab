@@ -73,12 +73,13 @@
 - The `I+L+M` implementation was re-audited: it grants 99 rounds and resets score plus sector score checkpoints to zero.
 - Ordinary, access and elevator doors now stay at floor height and slide left or right into a real wall pocket; push walls retain their separate full-cell motion.
 - The blue HUD now adds an original animated status portrait with healthy, wounded, critical, attack, hurt and defeated expressions while retaining card indicators and `LEVEL / SCORE / LIVES / HEALTH / AMMO / WEAPON` order.
+- Pressing action on a fully open ordinary door now closes it deliberately when the doorway is clear; players, living enemies and defeated bodies safely block both manual and automatic closure.
 
 ## Next tasks
 
-1. Implement WOLF-044 deliberate manual door closing while retaining occupied-door protection.
-2. Subjectively playtest the animated HUD, positional audio, lateral doors and all three deterministic difficulty profiles.
-3. Playtest save slots, life loss, push walls and the full six-sector route including the hidden branch.
+1. Subjectively playtest the animated HUD, positional audio, lateral doors and all three deterministic difficulty profiles.
+2. Playtest save slots, life loss, push walls and the full six-sector route including the hidden branch.
+3. Review the remaining longer-term milestones in `plan.md` before selecting the next coherent implementation task.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.

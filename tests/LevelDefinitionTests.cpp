@@ -1217,6 +1217,23 @@ int main()
     static_cast<void>(doorWorld.Update(0.5f, playerPosition));
     Expect(doorWorld.Collides(2.5f, 1.5f, 0.1f), "door closes after its delay");
 
+    WolfCna::World manualCloseDoorWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PD.#\n#####\n",
+        "manual-close-door.level"));
+    Expect(
+        manualCloseDoorWorld.TryActivate(playerPosition, lookDirection, false) ==
+            WolfCna::World::InteractionResult::DoorOpened,
+        "manual-close fixture opens normally");
+    static_cast<void>(manualCloseDoorWorld.Update(0.6f, playerPosition));
+    Expect(
+        manualCloseDoorWorld.TryActivate(playerPosition, lookDirection, false) ==
+            WolfCna::World::InteractionResult::DoorClosing,
+        "action deliberately starts closing a fully open ordinary door");
+    static_cast<void>(manualCloseDoorWorld.Update(0.2f, playerPosition));
+    Expect(
+        manualCloseDoorWorld.Collides(2.5f, 1.5f, 0.1f),
+        "manual closing uses the same synchronized collision threshold");
+
     WolfCna::World occupiedDoorWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PD.#\n#####\n",
         "occupied-door.level"));
@@ -1228,6 +1245,11 @@ int main()
     static_cast<void>(occupiedDoorWorld.Update(0.6f, playerInDoorway));
     static_cast<void>(occupiedDoorWorld.Update(8.0f, playerInDoorway));
     Expect(!occupiedDoorWorld.Collides(2.5f, 1.5f, 0.1f), "door remains open around the player");
+    const Microsoft::Xna::Framework::Vector3 playerAtDoorEdge(1.85f, 0.62f, 1.5f);
+    Expect(
+        occupiedDoorWorld.TryActivate(playerAtDoorEdge, lookDirection, false) ==
+            WolfCna::World::InteractionResult::DoorCloseBlocked,
+        "manual close refuses to move a door while the player overlaps its doorway");
     static_cast<void>(occupiedDoorWorld.Update(4.0f, playerPosition));
     static_cast<void>(occupiedDoorWorld.Update(0.6f, playerPosition));
     Expect(occupiedDoorWorld.Collides(2.5f, 1.5f, 0.1f), "door closes after the player leaves");
@@ -1347,6 +1369,10 @@ int main()
     static_cast<void>(bodyDoorWorld.Update(4.0f, playerPosition));
     static_cast<void>(bodyDoorWorld.Update(0.5f, playerPosition));
     Expect(!bodyDoorWorld.Collides(2.5f, 1.5f, 0.1f), "dead hound keeps the door open");
+    Expect(
+        bodyDoorWorld.TryActivate(playerPosition, lookDirection, false) ==
+            WolfCna::World::InteractionResult::DoorCloseBlocked,
+        "manual close refuses to move a door held by a defeated hound");
 
     WolfCna::World securityDoorWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PQ.#\n#####\n",

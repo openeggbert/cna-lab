@@ -33,6 +33,8 @@ namespace WolfCna
         {
             None,
             DoorOpened,
+            DoorClosing,
+            DoorCloseBlocked,
             DoorLocked,
             AmberDoorLocked,
             TerminalActivated,
@@ -550,7 +552,7 @@ namespace WolfCna
             bool allowOrdinaryDoors) const;
         [[nodiscard]] bool IsExitCell(int x, int z) const;
         [[nodiscard]] Material WallMaterialForCell(int x, int z) const;
-        [[nodiscard]] bool HasDeadEnemyInDoorway(const Door& door) const;
+        [[nodiscard]] bool HasEnemyInDoorway(const Door& door) const;
         [[nodiscard]] bool HasPlayerInDoorway(
             const Door& door,
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;

@@ -2840,6 +2840,15 @@ namespace WolfCna
             };
             if (activation == World::InteractionResult::DoorOpened && doorSound_)
                 playInteractionSound(*doorSound_, 0.68f, -0.15f);
+            else if (activation == World::InteractionResult::DoorClosing && doorSound_)
+                playInteractionSound(*doorSound_, 0.62f, -0.22f);
+            else if (activation == World::InteractionResult::DoorCloseBlocked)
+            {
+                if (lockedSound_)
+                    playInteractionSound(*lockedSound_, 0.2f, -0.55f);
+                objectiveMessage_ = "DOORWAY BLOCKED";
+                objectiveMessageSeconds_ = 2.0f;
+            }
             else if (activation == World::InteractionResult::DoorLocked ||
                 activation == World::InteractionResult::AmberDoorLocked)
             {

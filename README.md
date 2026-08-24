@@ -65,7 +65,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - control setup also offers 70/85/100/115/130% keyboard turn speed; left/right and `Enter` change it
 - high-score initials: up/down changes the selected letter, left/right selects one of three positions and `Enter` saves
 - three difficulty modes: Scout has fewer, weaker and slower enemies plus more ammunition; Operative is the baseline; Veteran adds reinforcements, health, speed and firing frequency while reducing ammunition and applying 130% incoming damage
-- `Space`: open the door in front of you or activate a faced sector elevator (doors close after four seconds unless the player or a body blocks them)
+- `Space`: open the door in front of you, deliberately close a fully open ordinary door, or activate a faced sector elevator (doors close after four seconds unless the player, an enemy or a body blocks them)
 - left or right `Ctrl`: attack with the selected weapon; hold for repeater/heavy automatic fire, while the knife and sidearm fire once per press; empty firearms automatically fall back to the knife
 - `1` / `2` / `3` / `4`: knife / sidearm / repeater / heavy automatic; weapons 3 and 4 must be found first, and each automatic projectile consumes exactly one round
 - collecting ammunition after reaching zero restores the last firearm automatically

@@ -1710,9 +1710,18 @@ Pure tests cover health thresholds, idle animation and event priority.
 
 ### WOLF-044 — bidirectional door interaction
 
-Status: planned. Let the action key deliberately close a fully open ordinary door
-when the doorway is clear, while retaining delayed automatic closing and the rule
-that a player or defeated body safely holds the door open.
+Status: complete. The action key now starts closing a fully open ordinary door from
+the same facing/range interaction used to open it. Manual closing clears the delay
+and then uses the existing normalized motion, lateral geometry and collision threshold.
+A positional movement sound confirms the command.
+
+If the player, any living enemy or any defeated body overlaps the doorway, manual
+closing returns a distinct blocked result, leaves the panel fully open and shows
+`DOORWAY BLOCKED`. Automatic closing now uses the same actor-safe occupancy rule.
+Security doors still require their matching access only for opening and do not gain
+manual-close behavior; elevators and secret push walls remain separate interactions.
+Focused tests cover manual close, player/body refusal, collision synchronization and
+the retained automatic-close fallback.
 
 - use the same interaction range and facing checks for opening and closing;
 - refuse manual closing while the doorway is occupied;

@@ -295,22 +295,17 @@ namespace WolfCna
         return materials[index];
     }
 
-    bool World::HasDeadEnemyInDoorway(const Door& door) const
+    bool World::HasEnemyInDoorway(const Door& door) const
     {
         const float centerX = static_cast<float>(door.x) + 0.5f;
         const float centerZ = static_cast<float>(door.z) + 0.5f;
-
         for (const Enemy& enemy : enemies_)
         {
-            if (enemy.state != EnemyState::Dead)
-                continue;
-
             const float dx = enemy.position.X - centerX;
             const float dz = enemy.position.Z - centerZ;
             if (dx * dx + dz * dz <= DoorBodyHoldRadius * DoorBodyHoldRadius)
                 return true;
         }
-
         return false;
     }
 
@@ -1121,7 +1116,10 @@ namespace WolfCna
 
         for (Door& door : doors_)
         {
-            if (door.opening || door.openAmount >= 1.0f)
+            const bool canOpen = !door.opening && door.openAmount < 1.0f;
+            const bool canManuallyClose = !door.opening && door.openAmount >= 1.0f &&
+                !door.isSecret && door.material == Material::Door;
+            if (!canOpen && !canManuallyClose)
                 continue;
 
             const float offsetX = static_cast<float>(door.x) + 0.5f - playerPosition.X;
@@ -1234,6 +1232,18 @@ namespace WolfCna
             0.5f,
             static_cast<float>(target->z) + 0.5f);
 
+        if (!target->isSecret && target->material == Material::Door &&
+            target->openAmount >= 1.0f)
+        {
+            if (HasPlayerInDoorway(*target, playerPosition) ||
+                HasEnemyInDoorway(*target))
+            {
+                return InteractionResult::DoorCloseBlocked;
+            }
+            target->closeDelay = 0.0f;
+            return InteractionResult::DoorClosing;
+        }
+
         if (target->isSecret)
         {
             const float offsetX = static_cast<float>(target->x) + 0.5f - playerPosition.X;
@@ -1343,7 +1353,7 @@ namespace WolfCna
             if (door.openAmount <= 0.0f)
                 continue;
 
-            if (HasDeadEnemyInDoorway(door) || HasPlayerInDoorway(door, playerPosition))
+            if (HasEnemyInDoorway(door) || HasPlayerInDoorway(door, playerPosition))
             {
                 door.closeDelay = DoorAutoCloseDelay;
                 continue;
