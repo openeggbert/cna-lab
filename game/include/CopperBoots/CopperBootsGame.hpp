@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "CopperBoots/SimulationClock.hpp"
+#include "CopperBoots/GameSettings.hpp"
 #include "CopperBoots/ProceduralAudio.hpp"
 #include "CopperBoots/ParallaxLayer.hpp"
 #include "CopperBoots/InputActionAdapter.hpp"
@@ -27,7 +28,8 @@ namespace CopperBoots
     {
     public:
         explicit CopperBootsGame(bool smokeTest = false,
-                                 bool audioEnabled = true);
+                                 bool audioEnabled = true,
+                                 bool settingsEnabled = true);
 
         [[nodiscard]] const std::string& GetTypeName() const override;
 
@@ -44,6 +46,7 @@ namespace CopperBoots
         void LoadGeneratedAudio();
         void PlayWorldAudio(const WorldEvents& events);
         void PlayAudioCue(AudioCue cue);
+        void SaveSettings();
         void DrawParallax(float cameraX);
         void DrawParallaxLayer(const ParallaxLayer& layer, float cameraX);
         void DrawTiles(float cameraX, float cameraY);
@@ -79,6 +82,7 @@ namespace CopperBoots
         static constexpr int LogicalHeight = 180;
 
         Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
+        GameSettings settings_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> solidTexture_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::RenderTarget2D> logicalTarget_;
@@ -91,10 +95,13 @@ namespace CopperBoots
             soundEffects_;
         bool audioEnabled_ = true;
         bool audioAvailable_ = false;
+        bool settingsEnabled_ = true;
         bool smokeTest_ = false;
         bool paused_ = false;
         bool debugOverlay_ = false;
         bool debugToggleDown_ = false;
+        bool fullscreenToggleDown_ = false;
+        bool presentationToggleDown_ = false;
         int spriteDrawCount_ = 0;
         int worldSpriteDrawCount_ = 0;
         double frameMilliseconds_ = 0.0;

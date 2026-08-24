@@ -79,6 +79,7 @@ add_subdirectory("${CNA_ROOT_DIR}" CNA)
 
 add_library(copper_boots_gameplay STATIC
     gameplay/src/Camera2D.cpp
+    gameplay/src/GameSettings.cpp
     gameplay/src/InputActionAdapter.cpp
     gameplay/src/LevelDefinition.cpp
     gameplay/src/ProceduralAudio.cpp
@@ -91,6 +92,7 @@ target_include_directories(copper_boots_gameplay PUBLIC
 target_compile_features(copper_boots_gameplay PUBLIC cxx_std_23)
 
 add_executable(copper-boots
+    game/src/CnaSettingsStore.cpp
     game/src/CopperBootsGame.cpp
     game/src/Program.cpp
 )
@@ -140,9 +142,10 @@ if(COPPER_BOOTS_BUILD_TESTS)
         LABELS "logic;deterministic")
 
     if(NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
-        add_test(NAME copper_boots_smoke COMMAND copper-boots --smoke-test)
+        add_test(NAME copper_boots_smoke
+            COMMAND copper-boots --smoke-test --no-settings)
         add_test(NAME copper_boots_smoke_silent
-            COMMAND copper-boots --smoke-test --no-audio)
+            COMMAND copper-boots --smoke-test --no-audio --no-settings)
         set_tests_properties(copper_boots_smoke PROPERTIES
             TIMEOUT 20
             LABELS "graphics;smoke;cna;audio")

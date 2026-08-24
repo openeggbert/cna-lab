@@ -635,6 +635,26 @@ stick/D-pad plus X/A/B; Y/Down is interaction and Start/Escape pauses. The pause
 path does not feed wall time into the accumulator and offers resume, player
 restart and quit without latent action edges.
 
+Settings use a strict line-oriented `copper-boots-settings 1` document rather
+than serialized C++ memory. The renderer-free codec stores master/effects
+volume, fullscreen, integer/fit presentation, and two keyboard keys for each of
+nine actions. Version 0's single sound volume migrates into the new model while
+new fields receive documented defaults; missing or malformed documents reset to
+the same canonical defaults and are rewritten. Round-trip, migration and reset
+paths are logic-tested. Presentation maps the bindings to CNA `Keys`, applies
+volume before CNA `SoundEffect::Play`, requests fullscreen through
+`GraphicsDeviceManager`, and chooses the render-target destination rectangle.
+F11/F2 changes are persisted immediately.
+
+The storage adapter uses CNA `StorageDevice`/`StorageContainer` and
+sharp-runtime `StreamReader`/`StreamWriter` only. It sets the application name
+to `CopperBoots`, opens the `Settings` all-player container, and accesses the
+fixed relative `settings.cfg` name. Storage failure is non-fatal and leaves the
+session on defaults. Automated graphics smoke tests pass `--no-settings`, so
+they cannot mutate a user profile; a separate isolated runtime check under a
+temporary `XDG_DATA_HOME` verified create-then-load behavior and canonical file
+contents.
+
 F1 independently toggles a CNA-rendered debug overlay. It outlines visible tile
 collision cells, the player, active crawlers and the 320x180 camera viewport;
 text reports player tile, signed velocity, camera edges, simulation tick, world

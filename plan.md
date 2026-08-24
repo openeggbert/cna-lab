@@ -45,10 +45,15 @@ Data-driven horizontal, vertical and delayed-fall platforms now carry the
 player with deterministic one-way collision and are demonstrated in Green
 Ruins.
 
-**Current: M5 — settings and persistence foundation**
+**M5 — settings and persistence foundation — ACHIEVED**
 
-Add a versioned settings model and safe storage path without coupling file I/O
-to gameplay simulation.
+A versioned settings model now persists bindings, audio levels, fullscreen and
+presentation through CNA storage without coupling file I/O to simulation.
+
+**Current: M6 — progression persistence**
+
+Build save/progression on the proven codec/storage boundary with a recoverable
+write policy and corrupted-save tests.
 
 ## Foundation and research
 
@@ -459,7 +464,7 @@ Acceptance:
 - Escape/gamepad pause freezes simulation but not required UI timing, resumes
   without latent input, and offers restart/quit safely.
 
-### MAR-054 — Configurable controls and settings — TODO
+### MAR-054 — Configurable controls and settings — DONE
 
 Acceptance:
 
@@ -600,5 +605,5 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Add settings persistence under `MAR-054`.
-2. Add save/progression persistence under `MAR-055` once the settings format is proven.
+1. Add save/progression persistence under `MAR-055`.
+2. Add performance instrumentation under `MAR-071` after persistence is stable.

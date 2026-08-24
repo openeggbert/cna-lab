@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -9,6 +10,7 @@
 #include <vector>
 
 #include "CopperBoots/Camera2D.hpp"
+#include "CopperBoots/GameSettings.hpp"
 #include "CopperBoots/LevelDefinition.hpp"
 #include "CopperBoots/InputActionAdapter.hpp"
 #include "CopperBoots/ParallaxLayer.hpp"
@@ -332,6 +334,52 @@ namespace
         Check(stalled.RemainderSeconds() <
                   CopperBoots::SimulationClock::TickSeconds,
               "dropped backlog retains less than one tick");
+    }
+
+    void TestGameSettings()
+    {
+        CopperBoots::GameSettings configured;
+        configured.MasterVolume = 0.625F;
+        configured.EffectsVolume = 0.375F;
+        configured.Fullscreen = true;
+        configured.Presentation = CopperBoots::PresentationStyle::AspectFit;
+        configured.Binding(CopperBoots::InputAction::Jump) = {
+            CopperBoots::KeyboardKey::W, CopperBoots::KeyboardKey::Space};
+        const std::string encoded = CopperBoots::EncodeSettings(configured);
+        const CopperBoots::SettingsLoadResult loaded =
+            CopperBoots::DecodeSettings(encoded);
+        Check(loaded.Status == CopperBoots::SettingsLoadStatus::Loaded &&
+                  loaded.Settings == configured,
+              "version-one settings round-trip fields and bindings");
+        Check(encoded == CopperBoots::EncodeSettings(loaded.Settings),
+              "settings serialization is canonical and stable");
+
+        constexpr std::string_view legacy =
+            "copper-boots-settings 0\n"
+            "sound-volume 0.500\n"
+            "fullscreen 1\n";
+        const CopperBoots::SettingsLoadResult migrated =
+            CopperBoots::DecodeSettings(legacy);
+        Check(migrated.Status == CopperBoots::SettingsLoadStatus::Migrated &&
+                  std::abs(migrated.Settings.MasterVolume - 0.5F) < 0.001F &&
+                  std::abs(migrated.Settings.EffectsVolume - 1.0F) < 0.001F &&
+                  migrated.Settings.Fullscreen &&
+                  migrated.Settings.Binding(CopperBoots::InputAction::Jump)[0] ==
+                      CopperBoots::KeyboardKey::Space,
+              "version-zero settings migrate volume and retain new defaults");
+
+        const CopperBoots::SettingsLoadResult missing =
+            CopperBoots::DecodeSettings(std::nullopt);
+        const CopperBoots::SettingsLoadResult invalid =
+            CopperBoots::DecodeSettings(
+                "copper-boots-settings 1\nmaster-volume 9\n");
+        Check(missing.Status ==
+                  CopperBoots::SettingsLoadStatus::DefaultedMissing &&
+                  invalid.Status ==
+                  CopperBoots::SettingsLoadStatus::DefaultedInvalid &&
+                  missing.Settings == CopperBoots::GameSettings{} &&
+                  invalid.Settings == CopperBoots::GameSettings{},
+              "missing and invalid settings reset to identical defaults");
     }
 
     void TestProceduralAudio()
@@ -1774,6 +1822,7 @@ namespace
 int main()
 {
     TestSimulationClock();
+    TestGameSettings();
     TestProceduralAudio();
     TestInputActionAdapter();
     TestTileBounds();

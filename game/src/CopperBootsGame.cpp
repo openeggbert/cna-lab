@@ -1,4 +1,5 @@
 #include "CopperBoots/CopperBootsGame.hpp"
+#include "CopperBoots/CnaSettingsStore.hpp"
 
 #include <algorithm>
 #include <array>
@@ -49,16 +50,81 @@ namespace CopperBoots
         {
             return static_cast<int>(std::round(worldCoordinate - cameraCoordinate));
         }
+
+        [[nodiscard]] Keys ToCnaKey(const KeyboardKey key)
+        {
+            switch (key) {
+            case KeyboardKey::None: return Keys::None;
+            case KeyboardKey::A: return Keys::A;
+            case KeyboardKey::D: return Keys::D;
+            case KeyboardKey::W: return Keys::W;
+            case KeyboardKey::S: return Keys::S;
+            case KeyboardKey::Left: return Keys::Left;
+            case KeyboardKey::Right: return Keys::Right;
+            case KeyboardKey::Up: return Keys::Up;
+            case KeyboardKey::Down: return Keys::Down;
+            case KeyboardKey::LeftShift: return Keys::LeftShift;
+            case KeyboardKey::RightShift: return Keys::RightShift;
+            case KeyboardKey::Space: return Keys::Space;
+            case KeyboardKey::LeftControl: return Keys::LeftControl;
+            case KeyboardKey::RightControl: return Keys::RightControl;
+            case KeyboardKey::Escape: return Keys::Escape;
+            }
+            return Keys::None;
+        }
+
+        [[nodiscard]] bool IsActionDown(const GameSettings& settings,
+                                        const KeyboardState& keyboard,
+                                        const InputAction action)
+        {
+            for (const KeyboardKey key : settings.Binding(action)) {
+                if (key != KeyboardKey::None &&
+                    keyboard.IsKeyDown(ToCnaKey(key))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        [[nodiscard]] std::string_view StatusName(
+            const SettingsLoadStatus status)
+        {
+            switch (status) {
+            case SettingsLoadStatus::Loaded: return "loaded";
+            case SettingsLoadStatus::Migrated: return "migrated";
+            case SettingsLoadStatus::DefaultedMissing: return "created defaults";
+            case SettingsLoadStatus::DefaultedInvalid: return "reset invalid file";
+            }
+            return "unknown";
+        }
     }
 
     CopperBootsGame::CopperBootsGame(const bool smokeTest,
-                                     const bool audioEnabled)
+                                     const bool audioEnabled,
+                                     const bool settingsEnabled)
         : graphics_(this),
           audioEnabled_(audioEnabled),
+          settingsEnabled_(settingsEnabled),
           smokeTest_(smokeTest)
     {
+        if (settingsEnabled_) {
+            try {
+                const SettingsLoadResult loaded = CnaSettingsStore::Load();
+                settings_ = loaded.Settings;
+                if (loaded.Status != SettingsLoadStatus::Loaded)
+                    CnaSettingsStore::Save(settings_);
+                std::cout << "Copper Boots: settings "
+                          << StatusName(loaded.Status) << '\n';
+            }
+            catch (...) {
+                settingsEnabled_ = false;
+                std::cerr << "Copper Boots: settings storage unavailable; "
+                             "using defaults\n";
+            }
+        }
         graphics_.setPreferredBackBufferWidthProperty(960);
         graphics_.setPreferredBackBufferHeightProperty(540);
+        graphics_.setIsFullScreenProperty(settings_.Fullscreen);
         graphics_.setSynchronizeWithVerticalRetraceProperty(true);
         getWindowProperty().setTitleProperty("Copper Boots - CNA platformer study");
         getWindowProperty().setAllowUserResizingProperty(true);
@@ -122,6 +188,20 @@ namespace CopperBoots
         }
     }
 
+    void CopperBootsGame::SaveSettings()
+    {
+        if (!settingsEnabled_)
+            return;
+        try {
+            CnaSettingsStore::Save(settings_);
+        }
+        catch (...) {
+            settingsEnabled_ = false;
+            std::cerr << "Copper Boots: settings save failed; "
+                         "continuing without persistence\n";
+        }
+    }
+
     void CopperBootsGame::PlayAudioCue(const AudioCue cue)
     {
         if (!audioAvailable_)
@@ -130,7 +210,11 @@ namespace CopperBoots
         if (index >= soundEffects_.size() || soundEffects_[index] == nullptr)
             return;
         try {
-            const float volume = cue == AudioCue::Hit ? 0.48F : 0.36F;
+            const float cueVolume = cue == AudioCue::Hit ? 0.48F : 0.36F;
+            const float volume = cueVolume * settings_.MasterVolume *
+                                 settings_.EffectsVolume;
+            if (volume <= 0.0F)
+                return;
             (void)soundEffects_[index]->Play(volume, 0.0F, 0.0F);
         }
         catch (...) {
@@ -167,35 +251,29 @@ namespace CopperBoots
                                                  const GamePadState& gamepad)
     {
         InputSnapshot snapshot;
-        snapshot.Left = keyboard.IsKeyDown(Keys::A) ||
-                        keyboard.IsKeyDown(Keys::Left) ||
+        snapshot.Left = IsActionDown(settings_, keyboard, InputAction::MoveLeft) ||
                         gamepad.IsButtonDown(Buttons::DPadLeft);
-        snapshot.Right = keyboard.IsKeyDown(Keys::D) ||
-                         keyboard.IsKeyDown(Keys::Right) ||
+        snapshot.Right = IsActionDown(settings_, keyboard, InputAction::MoveRight) ||
                          gamepad.IsButtonDown(Buttons::DPadRight);
-        snapshot.Run = keyboard.IsKeyDown(Keys::LeftShift) ||
-                       keyboard.IsKeyDown(Keys::RightShift) ||
+        snapshot.Run = IsActionDown(settings_, keyboard, InputAction::Run) ||
                        gamepad.IsButtonDown(Buttons::X) ||
                        gamepad.IsButtonDown(Buttons::RightShoulder) ||
                        gamepad.IsButtonDown(Buttons::RightTrigger);
-        snapshot.Jump = keyboard.IsKeyDown(Keys::Space) ||
+        snapshot.Jump = IsActionDown(settings_, keyboard, InputAction::Jump) ||
                         gamepad.IsButtonDown(Buttons::A);
-        snapshot.Attack = keyboard.IsKeyDown(Keys::LeftControl) ||
-                          keyboard.IsKeyDown(Keys::RightControl) ||
+        snapshot.Attack = IsActionDown(settings_, keyboard, InputAction::Attack) ||
                           gamepad.IsButtonDown(Buttons::B);
-        snapshot.AimUp = keyboard.IsKeyDown(Keys::Up) ||
-                         keyboard.IsKeyDown(Keys::W) ||
+        snapshot.AimUp = IsActionDown(settings_, keyboard, InputAction::AimUp) ||
                          gamepad.IsButtonDown(Buttons::DPadUp) ||
                          gamepad.IsButtonDown(Buttons::LeftThumbstickUp);
-        snapshot.AimDown = keyboard.IsKeyDown(Keys::Down) ||
-                           keyboard.IsKeyDown(Keys::S) ||
+        snapshot.AimDown = IsActionDown(settings_, keyboard, InputAction::AimDown) ||
                            gamepad.IsButtonDown(Buttons::DPadDown) ||
                            gamepad.IsButtonDown(Buttons::LeftThumbstickDown);
-        snapshot.Interact = keyboard.IsKeyDown(Keys::Down) ||
-                            keyboard.IsKeyDown(Keys::S) ||
+        snapshot.Interact = IsActionDown(
+                                settings_, keyboard, InputAction::Interact) ||
                             gamepad.IsButtonDown(Buttons::Y) ||
                             gamepad.IsButtonDown(Buttons::DPadDown);
-        snapshot.Pause = keyboard.IsKeyDown(Keys::Escape) ||
+        snapshot.Pause = IsActionDown(settings_, keyboard, InputAction::Pause) ||
                          gamepad.IsButtonDown(Buttons::Start);
         snapshot.AnalogMove = gamepad.getThumbSticksProperty().getLeftProperty().X;
         return inputAdapter_.Sample(snapshot);
@@ -212,6 +290,30 @@ namespace CopperBoots
             PlayAudioCue(AudioCue::Ui);
         }
         debugToggleDown_ = debugToggleDown;
+        const bool fullscreenToggleDown = keyboard.IsKeyDown(Keys::F11);
+        if (fullscreenToggleDown && !fullscreenToggleDown_) {
+            try {
+                graphics_.ToggleFullScreen();
+                settings_.Fullscreen =
+                    graphics_.getIsFullScreenProperty();
+                SaveSettings();
+                PlayAudioCue(AudioCue::Ui);
+            }
+            catch (...) {
+                std::cerr << "Copper Boots: fullscreen toggle failed\n";
+            }
+        }
+        fullscreenToggleDown_ = fullscreenToggleDown;
+        const bool presentationToggleDown = keyboard.IsKeyDown(Keys::F2);
+        if (presentationToggleDown && !presentationToggleDown_) {
+            settings_.Presentation =
+                settings_.Presentation == PresentationStyle::IntegerScale
+                    ? PresentationStyle::AspectFit
+                    : PresentationStyle::IntegerScale;
+            SaveSettings();
+            PlayAudioCue(AudioCue::Ui);
+        }
+        presentationToggleDown_ = presentationToggleDown;
         const auto updateStarted = debugOverlay_
             ? std::chrono::steady_clock::now()
             : std::chrono::steady_clock::time_point{};
@@ -1013,12 +1115,16 @@ namespace CopperBoots
         const auto& viewport = getGraphicsDeviceProperty().getViewportProperty();
         const int width = viewport.getWidthProperty();
         const int height = viewport.getHeightProperty();
-        const int integerScale = std::max(1,
-            std::min(width / LogicalWidth, height / LogicalHeight));
-
-        int destinationWidth = LogicalWidth * integerScale;
-        int destinationHeight = LogicalHeight * integerScale;
-        if (width < LogicalWidth || height < LogicalHeight) {
+        int destinationWidth = 0;
+        int destinationHeight = 0;
+        if (settings_.Presentation == PresentationStyle::IntegerScale &&
+            width >= LogicalWidth && height >= LogicalHeight) {
+            const int integerScale = std::max(1,
+                std::min(width / LogicalWidth, height / LogicalHeight));
+            destinationWidth = LogicalWidth * integerScale;
+            destinationHeight = LogicalHeight * integerScale;
+        }
+        else {
             const float scale = std::min(
                 static_cast<float>(width) / LogicalWidth,
                 static_cast<float>(height) / LogicalHeight);

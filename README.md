@@ -104,6 +104,13 @@ Run `./build/copper-boots --no-audio` for an explicit silent configuration.
 Failure to initialize or play CNA audio also degrades to silence instead of
 terminating gameplay.
 
+On a normal first run, CNA user storage creates `settings.cfg` under the
+platform-appropriate Copper Boots data directory. The versioned text file holds
+two keyboard keys per action, master/effects volume, fullscreen and scaling
+style. F11 toggles and persists fullscreen; F2 switches between integer pixel
+scaling and aspect-fit scaling. `--no-settings` disables storage access for
+isolated runs.
+
 Focused lanes are available with `ctest --test-dir build -L logic` and
 `ctest --test-dir build -L smoke`; deterministic logic and CNA graphics tests
 carry separate labels.
@@ -127,6 +134,8 @@ Current intended defaults are:
 | aim projectile | W/S or Up/Down | D-pad/left-stick vertical |
 | pause/resume | Escape | Start |
 | debug overlay | F1 | — |
+| presentation style | F2 | — |
+| fullscreen | F11 | — |
 
 Stomping a crawler always bounces the courier. Keep Jump held during contact for
 the higher bounce needed by some elevated Green Ruins routes.
