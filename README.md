@@ -121,7 +121,8 @@ slot as `.reset`, enters P1 clock setup, and produces a fresh pulsating egg.
 
 Eight P1 pictograms sit *inside* the LCD in two permanent bands: four above
 the creature and four below it. Their placement, selection sequence, status
-pages, and care outcome will follow the international P1 programme.
+pages, and care outcome follow the international P1 programme. An icon selected
+on the home LCD clears after the observed ten seconds without another A input.
 
 | Top band | Function | Behaviour |
 | --- | --- | --- |

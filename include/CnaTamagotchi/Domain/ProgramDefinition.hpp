@@ -79,6 +79,7 @@ struct DisplayDefinition final {
     bool checkerboardBackground{false};
     int logicalWidth{32};
     int logicalHeight{16};
+    float iconSelectionTimeoutSeconds{0.0F};
 };
 
 struct LifecycleDefinition final {

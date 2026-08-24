@@ -36,6 +36,7 @@ Each entry has a confidence status:
 | --- | --- | --- |
 | 32 × 16 one-bit game LCD, two four-icon bands | Provisional | Historical P1 documentation and device observation; retain the entire 32 × 16 game bitmap and render the fixed icon cells in its connected top/bottom surround. |
 | A selects, B confirms, C cancels | Verified | Manual activation and care instructions. Do not add direct-care buttons. |
+| Home icon selection clears after ten seconds without A | Verified | A 30 fps 1× trace kept Food dark for frames 16–310 and cleared it at frame 311, 9.83 seconds after its first stable frame. Represent the nominal ten seconds in programme display data; each A restarts it, menus pause it, and transient actions own their own input rules. |
 | B shows the clock when no icon is selected and Attention is not lit | Verified in part | The Clock view remains until B returns; the P1 UI must not use B only as a generic menu key. |
 | A+C on Clock enters clock setting; A+C on the clear home LCD toggles sound | Verified in part | A changes hours, B changes minutes, C confirms. The current app retains the sound setting until P1 audio traces are implemented. |
 | A+C starts a new egg at the end screen without setting the clock again | Verified in part | The existing P1 device clock is retained; only hardware reset enters SET. |

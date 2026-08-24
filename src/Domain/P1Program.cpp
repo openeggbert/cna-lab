@@ -110,7 +110,8 @@ constexpr std::array<EvolutionRule, 20> EvolutionRules{{
 constexpr ProgramDefinition Definition{
     .id = "international-p1-1997",
     .displayName = "International P1 (1997)",
-    .display = DisplayDefinition{.checkerboardBackground = true},
+    .display = DisplayDefinition{
+        .checkerboardBackground = true, .iconSelectionTimeoutSeconds = 10.0F},
     .lifecycle = LifecycleDefinition{
         .hatchDelayMinutes = 5,
         .attentionWindowMinutes = 15,

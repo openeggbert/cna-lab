@@ -154,11 +154,22 @@ void CnaTamagotchiGame::Update(GameTime& gameTime)
             transientVisual_ = TransientVisual::None;
             transientVisualSeconds_ = 0.0F;
             selectedIcon_ = -1;
+            iconSelectionSeconds_ = 0.0F;
         }
     }
 
     const bool selectNext = keyboard.IsKeyDown(Keys::A) || keyboard.IsKeyDown(Keys::Right);
     const bool selectPrevious = keyboard.IsKeyDown(Keys::Left);
+    const float iconTimeout = activeProgramme().display.iconSelectionTimeoutSeconds;
+    if (screen_ == Screen::Home && selectedIcon_ >= 0
+        && transientVisual_ == TransientVisual::None && iconTimeout > 0.0F) {
+        iconSelectionSeconds_ += elapsedSeconds;
+        if (iconSelectionSeconds_ >= iconTimeout) {
+            selectedIcon_ = -1;
+            iconSelectionSeconds_ = 0.0F;
+        }
+    }
+
     const bool confirm = keyboard.IsKeyDown(Keys::B) || keyboard.IsKeyDown(Keys::Enter)
         || keyboard.IsKeyDown(Keys::Space);
     const bool cancel = keyboard.IsKeyDown(Keys::C) || keyboard.IsKeyDown(Keys::Back)
@@ -342,6 +353,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
     case DeviceButton::A:
         if (screen_ == Screen::Home) {
             selectedIcon_ = (selectedIcon_ + 1 + SelectableIconCount) % SelectableIconCount;
+            iconSelectionSeconds_ = 0.0F;
         } else if (screen_ == Screen::Food) {
             foodSelection_ = (foodSelection_ + 1)
                 % static_cast<int>(activeProgramme().food.size());
@@ -353,6 +365,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             if (gameRound_ >= activeProgramme().game.rounds) {
                 screen_ = Screen::Home;
                 selectedIcon_ = -1;
+                iconSelectionSeconds_ = 0.0F;
             } else {
                 startNextCharacterRound();
             }
@@ -373,6 +386,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             const bool fed = simulation_.feed(activeProgramme(), pet_, foodSelection_);
             screen_ = Screen::Home;
             selectedIcon_ = -1;
+            iconSelectionSeconds_ = 0.0F;
             setFeedback(fed ? Feedback::Success : Feedback::Blocked);
             return fed;
         }
@@ -380,6 +394,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             const bool changed = simulation_.setLightOff(pet_, lightSelection_ == 1);
             screen_ = Screen::Home;
             selectedIcon_ = -1;
+            iconSelectionSeconds_ = 0.0F;
             setFeedback(changed ? Feedback::Success : Feedback::Blocked);
             return changed;
         }
@@ -392,6 +407,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
                 if (gameRound_ >= activeProgramme().game.rounds) {
                     screen_ = Screen::Home;
                     selectedIcon_ = -1;
+                    iconSelectionSeconds_ = 0.0F;
                 } else {
                     startNextCharacterRound();
                 }
@@ -451,6 +467,7 @@ bool CnaTamagotchiGame::pressButton(const DeviceButton button)
             screen_ = Screen::Home;
         }
         selectedIcon_ = -1;
+        iconSelectionSeconds_ = 0.0F;
         return false;
     }
 
@@ -505,6 +522,7 @@ void CnaTamagotchiGame::moveSelectionBackward() noexcept
         selectedIcon_ = selectedIcon_ < 0 ? SelectableIconCount - 1
                                           : (selectedIcon_ + SelectableIconCount - 1)
                 % SelectableIconCount;
+        iconSelectionSeconds_ = 0.0F;
     } else if (screen_ == Screen::Food) {
         foodSelection_ = (foodSelection_ + 1)
             % static_cast<int>(activeProgramme().food.size());
@@ -605,6 +623,7 @@ bool CnaTamagotchiGame::activateSave(const Persistence::SaveData& data)
     lastSavedUnixSeconds_ = data.lastSavedUnixSeconds;
     screen_ = Screen::Home;
     selectedIcon_ = -1;
+    iconSelectionSeconds_ = 0.0F;
     simulationSeconds_ = 0.0F;
 
     const std::int64_t now = unixSecondsNow();
@@ -766,6 +785,7 @@ void CnaTamagotchiGame::resetPetToEgg() noexcept
     pet_ = Domain::ProgramPetState{};
     screen_ = Screen::Home;
     selectedIcon_ = -1;
+    iconSelectionSeconds_ = 0.0F;
     foodSelection_ = 0;
     lightSelection_ = 0;
     statusPage_ = 0;

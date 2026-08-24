@@ -114,6 +114,9 @@ similar emulation core is permitted in the application, build, or test suite.
     A sets the hour, B sets the minute, C confirms, B views the clock with no
     selected icon, A+C from that Clock view enters SET, and A+C starts an
     end-screen egg while retaining the established clock.
+  - [x] Reproduce the measured nominal ten-second home-icon selection timeout
+    as programme display data, restart it after each A, and keep menu/action
+    timing independent from this non-persisted UI timer.
   - Finish exact A/B/C navigation and clock behaviour in every transient
     animation and Attention state.
   - Replace legacy menus with P1 bread/candy Food, Light, Toilet, Health Meter,

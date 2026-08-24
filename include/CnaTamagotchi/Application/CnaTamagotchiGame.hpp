@@ -119,6 +119,7 @@ private:
     int clockSetupMinutes_{12 * 60};
     float feedbackSeconds_{0.0F};
     float transientVisualSeconds_{0.0F};
+    float iconSelectionSeconds_{0.0F};
     float resetHoldSeconds_{0.0F};
     std::int64_t lastSavedUnixSeconds_{0};
     std::uint64_t seed_{0};

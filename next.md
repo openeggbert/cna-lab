@@ -39,6 +39,12 @@ write and verify the clean implementation.
   `C` input; an instantaneous synthetic key can be missed by the polling loop.
   Root-window captures can alternate with an empty GL backbuffer under Xvfb;
   capture again before treating a frame as absent.
+- A dedicated 30 fps 1× trace measured the inactive-home icon timeout: Food
+  stayed dark through frame 310 after becoming stable at frame 16 and cleared
+  at frame 311, or 9.83 seconds of visible selection. The nominal 10.0 seconds
+  now lives in `DisplayDefinition`; each home A resets the transient timer and
+  a 30 fps application trace showed exactly 300 dark-marker frames. The timer
+  is not persisted and does not close menus or interrupt named action visuals.
 - The hand-drawn device treatment now uses the selected reference's turquoise
   shell family and yellow buttons. It was inspected on a separate Xvfb screen;
   its colours and geometry are authored C++ values, with no reference image
