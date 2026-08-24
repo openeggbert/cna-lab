@@ -69,6 +69,8 @@ namespace WolfCna
                 case 'D':
                 case 'G':
                 case 'K':
+                case 'g':
+                case 'k':
                 case 'M':
                 case 'O':
                 case 'Q':
@@ -88,7 +90,13 @@ namespace WolfCna
                 case 'V':
                 case 'F':
                 case 'U':
+                case 'f':
+                case 'u':
                 case 'Y':
+                case '^':
+                case '>':
+                case 'v':
+                case '<':
                     break;
                 case 'P':
                     if (level.playerStartX_ >= 0)
@@ -127,15 +135,38 @@ namespace WolfCna
             for (int x = 0; x < static_cast<int>(level.rows_[static_cast<std::size_t>(z)].size()); ++x)
             {
                 const char symbol = level.rows_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)];
-                if (symbol != 'R' && symbol != 'B')
-                    continue;
-                if (!isWall(x, z - 1) && !isWall(x, z + 1) &&
+                if ((symbol == 'R' || symbol == 'B') &&
+                    !isWall(x, z - 1) && !isWall(x, z + 1) &&
                     !isWall(x - 1, z) && !isWall(x + 1, z))
                 {
                     throw LevelError(
                         sourceName,
                         "line " + std::to_string(z + 1) +
                             " has a wall decoration without an adjacent wall");
+                }
+
+                if (symbol != '^' && symbol != '>' && symbol != 'v' && symbol != '<')
+                    continue;
+                const int directionX = symbol == '>' ? 1 : symbol == '<' ? -1 : 0;
+                const int directionZ = symbol == 'v' ? 1 : symbol == '^' ? -1 : 0;
+                const int destinationX = x + directionX;
+                const int destinationZ = z + directionZ;
+                const bool destinationInBounds = destinationZ >= 0 &&
+                    destinationZ < static_cast<int>(level.rows_.size()) &&
+                    destinationX >= 0 && destinationX <
+                        static_cast<int>(level.rows_[static_cast<std::size_t>(destinationZ)].size());
+                const char destination = destinationInBounds
+                    ? level.rows_[static_cast<std::size_t>(destinationZ)]
+                        [static_cast<std::size_t>(destinationX)]
+                    : '#';
+                if (!destinationInBounds || destination == '#' || destination == 'Y' ||
+                    destination == 'D' || destination == 'Q' || destination == 'S' ||
+                    destination == 'E')
+                {
+                    throw LevelError(
+                        sourceName,
+                        "line " + std::to_string(z + 1) +
+                            " has a patrol marker pointing into a blocked cell");
                 }
             }
         }

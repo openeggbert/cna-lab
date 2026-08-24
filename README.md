@@ -28,6 +28,8 @@ This starter is deliberately small. It proves the basic direction before local A
 - a four-sector authored bunker campaign with guards, hounds, pickups, sliding doors, security doors, terminals and exits
 - original transparent pixel-art guard, hound, rapid-trooper and heavy-unit sprites rendered as camera-facing polygons in the 3D world
 - idle enemies breathe subtly, while chasing enemies use faster archetype-specific step bob and sway
+- unaware enemies use directional sight, archetype-specific reaction delays, connected-route hearing and authored patrol arrows; lowercase enemy symbols create noise-ignoring ambush encounters
+- alerted enemies remember the last seen or heard position, search it and can open ordinary doors without bypassing security locks
 - every enemy uses a brief dedicated firing/lunge sprite synchronized with its actual attack event
 - every surviving enemy briefly switches to its own non-gory recoil pose when hit
 - every defeated enemy switches to its own original collapsed/resting sprite above a stylized procedurally textured blood-pool decal
@@ -96,6 +98,8 @@ have the same width and use only these symbols:
 - `K`: hound spawn
 - `F`: rapid-fire trooper spawn
 - `U`: heavy-unit spawn
+- `g` / `k` / `f` / `u`: matching ambush enemy, initially facing away from the player spawn and ignoring weapon noise until it sees, touches or is hit by the player
+- `^` / `>` / `v` / `<`: invisible logical patrol direction; place the first marker next to an uppercase enemy and keep its destination walkable
 - `H`: health pickup
 - `A`: ammunition pickup
 - `T`: gold-bars pickup worth 100 score
@@ -111,6 +115,7 @@ have the same width and use only these symbols:
 - `Y`: solid freestanding polygonal table using an original dark-oak material
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
+It also rejects patrol arrows that point directly into a wall or another blocked cell.
 Enemy symbols remain authored encounter positions. Their stable row-major encounter
 tier determines whether they appear on Scout, Operative or Veteran, so selecting a
 difficulty never introduces random or unauthored spawn locations.

@@ -48,14 +48,14 @@
 - The held automap prompt now correctly says `RELEASE TAB` instead of the obsolete `M CLOSE` binding.
 - `P` or `Escape` now opens an in-run pause menu with resume, sound, view-angle and quit-to-title actions; gameplay no longer exits immediately on Escape.
 - Scout, Operative and Veteran now deterministically scale active encounter tiers, enemy health/speed/firing cadence, incoming damage and starting/fixed/dropped ammunition; all four sectors have monotonic balance audits.
+- Enemies now patrol authored arrow routes, see directionally, react after archetype-specific delays, hear firearm noise through connected ordinary doors, search last-known positions and open ordinary doors without bypassing locks; every sector includes a patrol and ambush encounter.
 
 ## Next tasks
 
-1. Implement WOLF-033 classic enemy perception, patrols, noise response and ordinary-door navigation.
-2. Implement WOLF-035 versioned in-run save/load before campaign content grows further.
-3. Implement WOLF-036 classic life-loss sector restart semantics.
-4. Continue through WOLF-034 and WOLF-037–WOLF-044 in the dependency order recorded in `plan.md`.
-5. Subjectively playtest all three deterministic difficulty profiles and the full four-sector route.
+1. Implement WOLF-035 versioned in-run save/load before campaign content grows further.
+2. Implement WOLF-036 classic life-loss sector restart semantics.
+3. Continue through WOLF-034 and WOLF-037–WOLF-044 in the dependency order recorded in `plan.md`.
+4. Subjectively playtest all three deterministic difficulty profiles and the full four-sector route.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.

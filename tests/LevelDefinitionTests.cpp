@@ -113,6 +113,8 @@ namespace
         int hounds = 0;
         int rapidTroopers = 0;
         int heavyUnits = 0;
+        int patrolMarkers = 0;
+        int ambushEnemies = 0;
         std::pair<int, int> exitPosition{-1, -1};
         std::pair<int, int> relayPosition{-1, -1};
         std::pair<int, int> terminalPosition{-1, -1};
@@ -155,14 +157,28 @@ namespace
                     ++repeaterPickups;
                 else if (symbol == 'V')
                     ++heavyWeaponPickups;
-                else if (symbol == 'G')
+                else if (symbol == '^' || symbol == '>' || symbol == 'v' || symbol == '<')
+                    ++patrolMarkers;
+                else if (symbol == 'G' || symbol == 'g')
+                {
                     ++guards;
-                else if (symbol == 'K')
+                    ambushEnemies += symbol == 'g' ? 1 : 0;
+                }
+                else if (symbol == 'K' || symbol == 'k')
+                {
                     ++hounds;
-                else if (symbol == 'F')
+                    ambushEnemies += symbol == 'k' ? 1 : 0;
+                }
+                else if (symbol == 'F' || symbol == 'f')
+                {
                     ++rapidTroopers;
-                else if (symbol == 'U')
+                    ambushEnemies += symbol == 'f' ? 1 : 0;
+                }
+                else if (symbol == 'U' || symbol == 'u')
+                {
                     ++heavyUnits;
+                    ambushEnemies += symbol == 'u' ? 1 : 0;
+                }
             }
         }
 
@@ -193,6 +209,8 @@ namespace
         Expect(terminals == 1, std::string(name) + " has one terminal");
         Expect(plants == 3, std::string(name) + " has three sector plants");
         Expect(tables == 2, std::string(name) + " has two polygonal tables");
+        Expect(patrolMarkers >= 1, std::string(name) + " has an authored patrol route marker");
+        Expect(ambushEnemies >= 1, std::string(name) + " has an authored ambush encounter");
         Expect(healthPickups >= 2, std::string(name) + " has recovery beyond one health kit");
         Expect(
             std::any_of(
@@ -343,6 +361,12 @@ int main()
         const WolfCna::World::DifficultyBalance scout = scoutWorld.GetDifficultyBalance();
         const WolfCna::World::DifficultyBalance operative = operativeWorld.GetDifficultyBalance();
         const WolfCna::World::DifficultyBalance veteran = veteranWorld.GetDifficultyBalance();
+        const WolfCna::World::EnemyBehaviorStats scoutBehavior =
+            scoutWorld.GetEnemyBehaviorStats();
+        const WolfCna::World::EnemyBehaviorStats operativeBehavior =
+            operativeWorld.GetEnemyBehaviorStats();
+        const WolfCna::World::EnemyBehaviorStats veteranBehavior =
+            veteranWorld.GetEnemyBehaviorStats();
         Expect(
             scout.activeEnemies < operative.activeEnemies &&
                 operative.activeEnemies < veteran.activeEnemies,
@@ -364,6 +388,12 @@ int main()
         Expect(
             scoutSupply > operativeSupply && operativeSupply > veteranSupply,
             "campaign total ammunition supply decreases monotonically with difficulty");
+        Expect(
+            scoutBehavior.patrollingEnemies >= 1 && operativeBehavior.patrollingEnemies >= 1 &&
+                veteranBehavior.patrollingEnemies >= 1 &&
+                scoutBehavior.ambushEnemies >= 1 && operativeBehavior.ambushEnemies >= 1 &&
+                veteranBehavior.ambushEnemies >= 1,
+            "every difficulty retains each sector's authored patrol and ambush encounters");
     }
 
     const WolfCna::LevelDefinition difficultyLevel = WolfCna::LevelDefinition::Parse(
@@ -447,9 +477,19 @@ int main()
         "######\n#PBRL#\n######\n",
         "decorated.level");
     Expect(decoratedLevel.Rows().front().size() == 6, "decoration symbols are accepted");
+    const WolfCna::LevelDefinition patrolAndAmbushLevel = WolfCna::LevelDefinition::Parse(
+        "########\n#P.G>g.#\n########\n",
+        "patrol-and-ambush.level");
+    Expect(
+        patrolAndAmbushLevel.Rows()[1][4] == '>' &&
+            patrolAndAmbushLevel.Rows()[1][5] == 'g',
+        "patrol arrows and ambush enemy symbols are accepted");
     ExpectParseFailure(
         "#######\n#P....#\n#..R..#\n#.....#\n#######\n",
         "without an adjacent wall");
+    ExpectParseFailure(
+        "#####\n#P.>#\n#####\n",
+        "patrol marker pointing into a blocked cell");
 
     WolfCna::World doorWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PD.#\n#####\n",
@@ -751,10 +791,103 @@ int main()
     WolfCna::World coordinatedFireWorld(WolfCna::LevelDefinition::Parse(
         "######\n#P.GG#\n######\n",
         "coordinated-fire.level"));
-    static_cast<void>(coordinatedFireWorld.Update(0.05f, combatPlayer));
+    int coordinatedShots = 0;
+    for (int tick = 0; tick < 10; ++tick)
+    {
+        static_cast<void>(coordinatedFireWorld.Update(0.05f, combatPlayer));
+        coordinatedShots += coordinatedFireWorld.ConsumeGuardShotCount();
+    }
     Expect(
-        coordinatedFireWorld.ConsumeGuardShotCount() == 1,
-        "only the nearest visible ranged enemy fires at one time");
+        coordinatedShots == 1,
+        "only the nearest visible ranged enemy fires after its reaction delay");
+
+    WolfCna::World patrolPerceptionWorld(WolfCna::LevelDefinition::Parse(
+        "########\n#P.G>..#\n########\n",
+        "patrol-perception.level"));
+    static_cast<void>(patrolPerceptionWorld.Update(0.5f, combatPlayer));
+    Expect(
+        patrolPerceptionWorld.ConsumeEnemyAudioEvents().guardAlerts == 0,
+        "a patrol does not see a player behind its facing direction");
+    const WolfCna::World::EnemyBehaviorStats movingPatrol =
+        patrolPerceptionWorld.GetEnemyBehaviorStats();
+    Expect(
+        movingPatrol.patrollingEnemies == 1 && movingPatrol.totalTravelDistance > 0.3f,
+        "an authored patrol marker moves an unaware enemy");
+    static_cast<void>(patrolPerceptionWorld.FireHitscan(
+        combatPlayer,
+        Microsoft::Xna::Framework::Vector3(-1.0f, 0.0f, 0.0f)));
+    static_cast<void>(patrolPerceptionWorld.Update(0.05f, combatPlayer));
+    Expect(
+        patrolPerceptionWorld.GetEnemyBehaviorStats().alertingEnemies == 1 &&
+            patrolPerceptionWorld.ConsumeEnemyAudioEvents().guardAlerts == 1,
+        "firearm noise starts a reaction delay for an enemy facing away");
+
+    WolfCna::World ambushPerceptionWorld(WolfCna::LevelDefinition::Parse(
+        "#######\n#P.g..#\n#######\n",
+        "ambush-perception.level"));
+    static_cast<void>(ambushPerceptionWorld.FireHitscan(
+        combatPlayer,
+        Microsoft::Xna::Framework::Vector3(-1.0f, 0.0f, 0.0f)));
+    static_cast<void>(ambushPerceptionWorld.Update(0.1f, combatPlayer));
+    Expect(
+        ambushPerceptionWorld.GetEnemyBehaviorStats().idleEnemies == 1 &&
+            ambushPerceptionWorld.ConsumeEnemyAudioEvents().guardAlerts == 0,
+        "an ambush enemy ignores weapon noise while the player remains outside its view");
+    static_cast<void>(ambushPerceptionWorld.Update(
+        0.05f,
+        Microsoft::Xna::Framework::Vector3(2.9f, 0.62f, 1.5f)));
+    Expect(
+        ambushPerceptionWorld.GetEnemyBehaviorStats().alertingEnemies == 1,
+        "close awareness reveals an ambush enemy approached from behind");
+
+    WolfCna::World enemyDoorWorld(WolfCna::LevelDefinition::Parse(
+        "########\n#P.D.G.#\n########\n",
+        "enemy-door.level"));
+    static_cast<void>(enemyDoorWorld.FireHitscan(
+        combatPlayer,
+        Microsoft::Xna::Framework::Vector3(-1.0f, 0.0f, 0.0f)));
+    bool ordinaryDoorOpened = false;
+    int enemyDoorAudioEvents = 0;
+    for (int tick = 0; tick < 120 && !ordinaryDoorOpened; ++tick)
+    {
+        static_cast<void>(enemyDoorWorld.Update(0.05f, combatPlayer));
+        enemyDoorAudioEvents += enemyDoorWorld.ConsumeEnemyAudioEvents().doorsOpened;
+        ordinaryDoorOpened = !enemyDoorWorld.Collides(3.5f, 1.5f, 0.1f);
+    }
+    Expect(
+        ordinaryDoorOpened && enemyDoorAudioEvents == 1,
+        "an alerted enemy opens one ordinary door on its path");
+
+    WolfCna::World enemySecurityDoorWorld(WolfCna::LevelDefinition::Parse(
+        "########\n#P.Q.G.#\n########\n",
+        "enemy-security-door.level"));
+    static_cast<void>(enemySecurityDoorWorld.FireHitscan(
+        combatPlayer,
+        Microsoft::Xna::Framework::Vector3(-1.0f, 0.0f, 0.0f)));
+    for (int tick = 0; tick < 80; ++tick)
+        static_cast<void>(enemySecurityDoorWorld.Update(0.05f, combatPlayer));
+    Expect(
+        enemySecurityDoorWorld.Collides(3.5f, 1.5f, 0.1f) &&
+            enemySecurityDoorWorld.GetEnemyBehaviorStats().idleEnemies == 1,
+        "locked security doors block both noise propagation and enemy navigation");
+
+    WolfCna::World searchWorld(WolfCna::LevelDefinition::Parse(
+        "########\n#P....G#\n########\n#......#\n########\n",
+        "enemy-search.level"));
+    static_cast<void>(searchWorld.FireHitscan(
+        combatPlayer,
+        Microsoft::Xna::Framework::Vector3(-1.0f, 0.0f, 0.0f)));
+    const Microsoft::Xna::Framework::Vector3 hiddenPlayer(1.5f, 0.62f, 3.5f);
+    bool searchedLastKnownPosition = false;
+    for (int tick = 0; tick < 180 && !searchedLastKnownPosition; ++tick)
+    {
+        static_cast<void>(searchWorld.Update(0.05f, hiddenPlayer));
+        searchedLastKnownPosition =
+            searchWorld.GetEnemyBehaviorStats().searchingEnemies == 1;
+    }
+    Expect(
+        searchedLastKnownPosition,
+        "an alerted enemy searches the last heard position instead of tracking a hidden player");
 
     WolfCna::World houndAudioWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PK.#\n#####\n",
@@ -775,9 +908,16 @@ int main()
             "#####\n#PK.#\n#####\n",
             "scout-damage.level"),
         WolfCna::Difficulty::Scout);
+    int scoutHoundDamage = 0;
+    for (int tick = 0; tick < 10; ++tick)
+    {
+        scoutHoundDamage += scoutDamageWorld.Update(
+            0.05f,
+            Microsoft::Xna::Framework::Vector3(1.8f, 0.62f, 1.5f));
+    }
     Expect(
-        scoutDamageWorld.Update(0.05f, Microsoft::Xna::Framework::Vector3(1.8f, 0.62f, 1.5f)) == 10,
-        "selected difficulty profile scales hound damage");
+        scoutHoundDamage == 10,
+        "selected difficulty profile scales hound damage after its reaction delay");
 
     return EXIT_SUCCESS;
 }

@@ -1428,11 +1428,15 @@ decreasing fixed and total ammunition supplies.
 
 ### WOLF-033 — classic enemy perception and navigation
 
-Status: planned. Expand the current idle/chase/attack behavior into readable
-directional perception and authored patrol behavior. Enemies should have a facing
-direction, reaction delay, field of view, ambush state and hearing response to
-player weapon noise. Alerted enemies may navigate through and operate ordinary
-doors while still respecting locked routes and collision.
+Status: complete. Enemies now have a facing direction, archetype-specific field of
+view, reaction delay, connected-route hearing, last-known target, search state and
+deterministic travel tracking. Uppercase spawns beside validated arrow markers patrol
+their authored route until sight or firearm noise starts an alert reaction. Lowercase
+spawns are ambush variants that initially face away from the player spawn and ignore
+noise until they see, touch or are hit by the player. Alerted enemies path through and
+open ordinary doors, emit the normal door sound and never treat security or secret
+doors as passable. Every shipping sector contains at least one patrol and one ambush;
+focused tests cover facing, movement, hearing, reaction, ordinary doors and locks.
 
 - add deterministic patrol markers or routes to the level format;
 - distinguish sight, hearing and already-alerted pursuit;

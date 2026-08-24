@@ -61,6 +61,7 @@ namespace WolfCna
             int houndAlerts = 0;
             int houndAttacks = 0;
             int projectileImpacts = 0;
+            int doorsOpened = 0;
         };
 
         struct CompletionStats
@@ -93,6 +94,19 @@ namespace WolfCna
             int totalEnemyHealth = 0;
             int fixedAmmunition = 0;
             int potentialDroppedAmmunition = 0;
+        };
+
+        struct EnemyBehaviorStats
+        {
+            int idleEnemies = 0;
+            int patrollingEnemies = 0;
+            int alertingEnemies = 0;
+            int chasingEnemies = 0;
+            int attackingEnemies = 0;
+            int searchingEnemies = 0;
+            int deadEnemies = 0;
+            int ambushEnemies = 0;
+            float totalTravelDistance = 0.0f;
         };
 
         explicit World(
@@ -152,7 +166,8 @@ namespace WolfCna
         [[nodiscard]] AttackResult FireHitscan(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection,
-            float range = 12.0f);
+            float range = 12.0f,
+            bool emitsNoise = true);
         [[nodiscard]] PickupResult CollectPickups(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             int currentHealth = 0);
@@ -163,6 +178,7 @@ namespace WolfCna
         [[nodiscard]] ObjectiveStatus GetObjectiveStatus() const;
         [[nodiscard]] CompletionStats GetCompletionStats() const;
         [[nodiscard]] DifficultyBalance GetDifficultyBalance() const;
+        [[nodiscard]] EnemyBehaviorStats GetEnemyBehaviorStats() const;
         [[nodiscard]] int ConsumeGuardShotCount();
         [[nodiscard]] EnemyAudioEvents ConsumeEnemyAudioEvents();
         [[nodiscard]] int ActiveEnemyImpactCount() const;
@@ -206,8 +222,11 @@ namespace WolfCna
         enum class EnemyState
         {
             Idle,
+            Patrol,
+            Alert,
             Chase,
             Attack,
+            Search,
             Dead
         };
 
@@ -216,6 +235,8 @@ namespace WolfCna
             enum class Type { Guard, Hound, RapidTrooper, HeavyUnit };
 
             Microsoft::Xna::Framework::Vector3 position;
+            Microsoft::Xna::Framework::Vector3 facing{0.0f, 0.0f, -1.0f};
+            Microsoft::Xna::Framework::Vector3 lastKnownTarget;
             Type type = Type::Guard;
             EnemyState state = EnemyState::Idle;
             int health = 3;
@@ -226,7 +247,17 @@ namespace WolfCna
             float attackInterval = 1.35f;
             float projectileSpeed = 4.5f;
             bool melee = false;
+            bool ambush = false;
+            bool hasPatrolRoute = false;
             int ammunitionDrop = 3;
+            int patrolDirectionX = 0;
+            int patrolDirectionZ = 0;
+            float reactionDuration = 0.35f;
+            float reactionRemaining = 0.0f;
+            float searchRemaining = 0.0f;
+            float viewDotThreshold = 0.35f;
+            float hearingRange = 12.0f;
+            float distanceTravelled = 0.0f;
             std::vector<std::pair<int, int>> path;
             std::size_t pathIndex = 0;
             float pathRefreshTime = 0.0f;
@@ -322,6 +353,7 @@ namespace WolfCna
         std::vector<EnemyImpact> enemyImpacts_;
         int pendingGuardShotCount_ = 0;
         EnemyAudioEvents pendingEnemyAudioEvents_;
+        std::optional<Microsoft::Xna::Framework::Vector3> pendingPlayerNoise_;
         std::vector<Pickup> pickups_;
         int collectedGold_ = 0;
         int totalGold_ = 0;
@@ -352,6 +384,10 @@ namespace WolfCna
 
         [[nodiscard]] bool IsStaticWallCell(int x, int z) const;
         [[nodiscard]] bool IsBlockedCell(int x, int z) const;
+        [[nodiscard]] bool IsNavigationBlockedCell(
+            int x,
+            int z,
+            bool allowOrdinaryDoors) const;
         [[nodiscard]] bool IsExitCell(int x, int z) const;
         [[nodiscard]] Material WallMaterialForCell(int x, int z) const;
         [[nodiscard]] bool HasDeadEnemyInDoorway(const Door& door) const;
@@ -373,11 +409,22 @@ namespace WolfCna
         [[nodiscard]] bool HasLineOfSight(
             const Microsoft::Xna::Framework::Vector3& from,
             const Microsoft::Xna::Framework::Vector3& to) const;
+        [[nodiscard]] bool HasDirectionalSight(
+            const Enemy& enemy,
+            const Microsoft::Xna::Framework::Vector3& target) const;
+        [[nodiscard]] bool CanHearNoise(
+            const Enemy& enemy,
+            const Microsoft::Xna::Framework::Vector3& noisePosition) const;
+        void BeginEnemyAlert(
+            Enemy& enemy,
+            const Microsoft::Xna::Framework::Vector3& target);
+        [[nodiscard]] bool TryOpenOrdinaryDoor(int x, int z);
         [[nodiscard]] std::vector<std::pair<int, int>> FindPath(
             int startX,
             int startZ,
             int goalX,
-            int goalZ) const;
+            int goalZ,
+            bool allowOrdinaryDoors = false) const;
         void AddEnemyImpact(
             const Microsoft::Xna::Framework::Vector3& position,
             bool hitPlayer);

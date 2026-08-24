@@ -38,6 +38,8 @@ namespace WolfCna
         constexpr float ImpactHalfSize = 0.075f;
         constexpr float ImpactSurfaceOffset = 0.003f;
         constexpr float EnemyWakeRange = 7.0f;
+        constexpr float EnemyCloseAwarenessRange = 0.8f;
+        constexpr float EnemySearchSeconds = 2.0f;
         constexpr float HoundAttackRange = 0.85f;
         constexpr float GuardAttackRange = 6.0f;
         constexpr float EnemySpeed = 0.8f;
@@ -114,6 +116,29 @@ namespace WolfCna
         {
             if (door.x == x && door.z == z)
                 return door.openAmount < DoorPassableAt;
+        }
+
+        return false;
+    }
+
+    bool World::IsNavigationBlockedCell(
+        int x,
+        int z,
+        bool allowOrdinaryDoors) const
+    {
+        if (IsStaticWallCell(x, z))
+            return true;
+        if (map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == 'Y' ||
+            IsExitCell(x, z))
+            return true;
+
+        for (const Door& door : doors_)
+        {
+            if (door.x != x || door.z != z || door.openAmount >= DoorPassableAt)
+                continue;
+            if (allowOrdinaryDoors && door.material == Material::Door && !door.isSecret)
+                return false;
+            return true;
         }
 
         return false;
@@ -198,8 +223,12 @@ namespace WolfCna
     World::AttackResult World::FireHitscan(
         const Vector3& playerPosition,
         const Vector3& lookDirection,
-        float range)
+        float range,
+        bool emitsNoise)
     {
+        if (emitsNoise)
+            pendingPlayerNoise_ = playerPosition;
+
         int previousCellX = static_cast<int>(std::floor(playerPosition.X));
         int previousCellZ = static_cast<int>(std::floor(playerPosition.Z));
 
@@ -424,6 +453,27 @@ namespace WolfCna
             .potentialDroppedAmmunition = potentialDroppedAmmunition_};
     }
 
+    World::EnemyBehaviorStats World::GetEnemyBehaviorStats() const
+    {
+        EnemyBehaviorStats result;
+        for (const Enemy& enemy : enemies_)
+        {
+            result.totalTravelDistance += enemy.distanceTravelled;
+            result.ambushEnemies += enemy.ambush ? 1 : 0;
+            switch (enemy.state)
+            {
+            case EnemyState::Idle: ++result.idleEnemies; break;
+            case EnemyState::Patrol: ++result.patrollingEnemies; break;
+            case EnemyState::Alert: ++result.alertingEnemies; break;
+            case EnemyState::Chase: ++result.chasingEnemies; break;
+            case EnemyState::Attack: ++result.attackingEnemies; break;
+            case EnemyState::Search: ++result.searchingEnemies; break;
+            case EnemyState::Dead: ++result.deadEnemies; break;
+            }
+        }
+        return result;
+    }
+
     int World::ConsumeGuardShotCount()
     {
         const int shotCount = pendingGuardShotCount_;
@@ -646,11 +696,93 @@ namespace WolfCna
                 doorVertexBuffer_->SetData(doorVertices_.data(), static_cast<int>(doorVertices_.size()));
         }
 
+        const auto moveEnemyToward = [this, elapsedSeconds](Enemy& enemy, const Vector3& target)
+        {
+            const float moveX = target.X - enemy.position.X;
+            const float moveZ = target.Z - enemy.position.Z;
+            const float moveDistanceSquared = moveX * moveX + moveZ * moveZ;
+            if (moveDistanceSquared <= 0.0001f)
+                return;
+
+            const float inverseDistance = 1.0f / std::sqrt(moveDistanceSquared);
+            enemy.facing = Vector3(moveX * inverseDistance, 0.0f, moveZ * inverseDistance);
+            const float step = std::min(
+                enemy.moveSpeed * elapsedSeconds,
+                std::sqrt(moveDistanceSquared));
+            const Vector3 previous = enemy.position;
+            const float nextX = enemy.position.X + enemy.facing.X * step;
+            const float nextZ = enemy.position.Z + enemy.facing.Z * step;
+            if (!Collides(nextX, enemy.position.Z, 0.2f))
+                enemy.position.X = nextX;
+            if (!Collides(enemy.position.X, nextZ, 0.2f))
+                enemy.position.Z = nextZ;
+            const float traveledX = enemy.position.X - previous.X;
+            const float traveledZ = enemy.position.Z - previous.Z;
+            enemy.distanceTravelled += std::sqrt(
+                traveledX * traveledX + traveledZ * traveledZ);
+        };
+
+        for (Enemy& enemy : enemies_)
+        {
+            enemy.attackVisualSeconds = std::max(0.0f, enemy.attackVisualSeconds - elapsedSeconds);
+            enemy.painVisualSeconds = std::max(0.0f, enemy.painVisualSeconds - elapsedSeconds);
+            if (enemy.state == EnemyState::Dead)
+                continue;
+            enemy.visualAnimationSeconds = std::fmod(
+                enemy.visualAnimationSeconds + elapsedSeconds, 1000.0f);
+
+            const bool passivelyObserving =
+                enemy.state == EnemyState::Idle || enemy.state == EnemyState::Patrol;
+            const float sightDx = playerPosition.X - enemy.position.X;
+            const float sightDz = playerPosition.Z - enemy.position.Z;
+            const bool activeSight =
+                sightDx * sightDx + sightDz * sightDz <= EnemyWakeRange * EnemyWakeRange &&
+                HasLineOfSight(enemy.position, playerPosition);
+            const bool canSeePlayer = passivelyObserving
+                ? HasDirectionalSight(enemy, playerPosition)
+                : activeSight;
+            const bool heardPlayer = pendingPlayerNoise_.has_value() &&
+                CanHearNoise(enemy, *pendingPlayerNoise_);
+            if ((passivelyObserving || enemy.state == EnemyState::Search) &&
+                (canSeePlayer || heardPlayer))
+            {
+                BeginEnemyAlert(
+                    enemy,
+                    canSeePlayer ? playerPosition : *pendingPlayerNoise_);
+            }
+
+            if (enemy.state == EnemyState::Alert)
+            {
+                if (canSeePlayer)
+                    enemy.lastKnownTarget = playerPosition;
+                enemy.reactionRemaining = std::max(
+                    0.0f,
+                    enemy.reactionRemaining - elapsedSeconds);
+                if (enemy.reactionRemaining <= 0.0f)
+                    enemy.state = EnemyState::Chase;
+                continue;
+            }
+
+            if ((enemy.state == EnemyState::Chase || enemy.state == EnemyState::Attack) &&
+                canSeePlayer)
+            {
+                enemy.lastKnownTarget = playerPosition;
+            }
+
+            if (enemy.state == EnemyState::Search)
+            {
+                enemy.searchRemaining = std::max(0.0f, enemy.searchRemaining - elapsedSeconds);
+                if (enemy.searchRemaining <= 0.0f)
+                    enemy.state = enemy.hasPatrolRoute ? EnemyState::Patrol : EnemyState::Idle;
+            }
+        }
+
         Enemy* designatedRangedAttacker = nullptr;
         float designatedDistanceSquared = std::numeric_limits<float>::max();
         for (Enemy& enemy : enemies_)
         {
-            if (enemy.state == EnemyState::Dead || enemy.melee)
+            if ((enemy.state != EnemyState::Chase && enemy.state != EnemyState::Attack) ||
+                enemy.melee)
                 continue;
 
             const float dx = playerPosition.X - enemy.position.X;
@@ -670,12 +802,9 @@ namespace WolfCna
 
         for (Enemy& enemy : enemies_)
         {
-            enemy.attackVisualSeconds = std::max(0.0f, enemy.attackVisualSeconds - elapsedSeconds);
-            enemy.painVisualSeconds = std::max(0.0f, enemy.painVisualSeconds - elapsedSeconds);
-            if (enemy.state == EnemyState::Dead)
+            if (enemy.state == EnemyState::Dead || enemy.state == EnemyState::Idle ||
+                enemy.state == EnemyState::Alert || enemy.state == EnemyState::Search)
                 continue;
-            enemy.visualAnimationSeconds = std::fmod(
-                enemy.visualAnimationSeconds + elapsedSeconds, 1000.0f);
 
             const float dx = playerPosition.X - enemy.position.X;
             const float dz = playerPosition.Z - enemy.position.Z;
@@ -684,17 +813,73 @@ namespace WolfCna
                 distanceSquared <= EnemyWakeRange * EnemyWakeRange &&
                 HasLineOfSight(enemy.position, playerPosition);
 
+            if (enemy.state == EnemyState::Patrol)
+            {
+                const int cellX = static_cast<int>(std::floor(enemy.position.X));
+                const int cellZ = static_cast<int>(std::floor(enemy.position.Z));
+                const float centerX = static_cast<float>(cellX) + 0.5f;
+                const float centerZ = static_cast<float>(cellZ) + 0.5f;
+                const char routeSymbol = map_[static_cast<std::size_t>(cellZ)]
+                    [static_cast<std::size_t>(cellX)];
+                const float centerDx = centerX - enemy.position.X;
+                const float centerDz = centerZ - enemy.position.Z;
+                const bool centered = centerDx * centerDx + centerDz * centerDz <= 0.04f;
+
+                Vector3 patrolTarget;
+                if ((routeSymbol == '^' || routeSymbol == '>' ||
+                    routeSymbol == 'v' || routeSymbol == '<') && !centered)
+                {
+                    patrolTarget = Vector3(centerX, 0.0f, centerZ);
+                }
+                else
+                {
+                    if (routeSymbol == '^')
+                    {
+                        enemy.patrolDirectionX = 0;
+                        enemy.patrolDirectionZ = -1;
+                    }
+                    else if (routeSymbol == '>')
+                    {
+                        enemy.patrolDirectionX = 1;
+                        enemy.patrolDirectionZ = 0;
+                    }
+                    else if (routeSymbol == 'v')
+                    {
+                        enemy.patrolDirectionX = 0;
+                        enemy.patrolDirectionZ = 1;
+                    }
+                    else if (routeSymbol == '<')
+                    {
+                        enemy.patrolDirectionX = -1;
+                        enemy.patrolDirectionZ = 0;
+                    }
+
+                    int targetX = cellX + enemy.patrolDirectionX;
+                    int targetZ = cellZ + enemy.patrolDirectionZ;
+                    if (IsNavigationBlockedCell(targetX, targetZ, false))
+                    {
+                        enemy.patrolDirectionX = -enemy.patrolDirectionX;
+                        enemy.patrolDirectionZ = -enemy.patrolDirectionZ;
+                        targetX = cellX + enemy.patrolDirectionX;
+                        targetZ = cellZ + enemy.patrolDirectionZ;
+                    }
+                    if (IsNavigationBlockedCell(targetX, targetZ, false))
+                    {
+                        enemy.state = EnemyState::Idle;
+                        continue;
+                    }
+                    patrolTarget = Vector3(
+                        static_cast<float>(targetX) + 0.5f,
+                        0.0f,
+                        static_cast<float>(targetZ) + 0.5f);
+                }
+                moveEnemyToward(enemy, patrolTarget);
+                continue;
+            }
+
             const bool canAttack = distanceSquared <= enemy.attackRange * enemy.attackRange &&
                 (enemy.melee || canSeePlayer);
 
-            if (enemy.state == EnemyState::Idle && canSeePlayer)
-            {
-                enemy.state = EnemyState::Chase;
-                if (enemy.melee)
-                    ++pendingEnemyAudioEvents_.houndAlerts;
-                else
-                    ++pendingEnemyAudioEvents_.guardAlerts;
-            }
             const bool hasAttackTurn = enemy.melee || &enemy == designatedRangedAttacker;
             if (enemy.state == EnemyState::Chase && canAttack && hasAttackTurn)
                 enemy.state = EnemyState::Attack;
@@ -735,7 +920,7 @@ namespace WolfCna
             if (enemy.state != EnemyState::Chase || distanceSquared <= 0.0f)
                 continue;
 
-            Vector3 target = playerPosition;
+            Vector3 target = enemy.lastKnownTarget;
             if (!canSeePlayer)
             {
                 enemy.pathRefreshTime -= elapsedSeconds;
@@ -744,12 +929,19 @@ namespace WolfCna
                     enemy.path = FindPath(
                         static_cast<int>(std::floor(enemy.position.X)),
                         static_cast<int>(std::floor(enemy.position.Z)),
-                        static_cast<int>(std::floor(playerPosition.X)),
-                        static_cast<int>(std::floor(playerPosition.Z)));
+                        static_cast<int>(std::floor(enemy.lastKnownTarget.X)),
+                        static_cast<int>(std::floor(enemy.lastKnownTarget.Z)),
+                        true);
                     enemy.pathIndex = 0;
                     enemy.pathRefreshTime = EnemyPathRefreshSeconds;
                 }
 
+                if (enemy.path.empty())
+                {
+                    enemy.state = EnemyState::Search;
+                    enemy.searchRemaining = EnemySearchSeconds;
+                    continue;
+                }
                 if (enemy.pathIndex < enemy.path.size())
                 {
                     const auto [cellX, cellZ] = enemy.path[enemy.pathIndex];
@@ -757,25 +949,33 @@ namespace WolfCna
                     const float targetX = target.X - enemy.position.X;
                     const float targetZ = target.Z - enemy.position.Z;
                     if (targetX * targetX + targetZ * targetZ < 0.04f)
+                    {
                         ++enemy.pathIndex;
+                        if (enemy.pathIndex >= enemy.path.size())
+                        {
+                            enemy.state = EnemyState::Search;
+                            enemy.searchRemaining = EnemySearchSeconds;
+                            continue;
+                        }
+                    }
                 }
             }
+            else
+            {
+                target = playerPosition;
+                enemy.path.clear();
+                enemy.pathIndex = 0;
+            }
 
-            const float moveX = target.X - enemy.position.X;
-            const float moveZ = target.Z - enemy.position.Z;
-            const float moveDistanceSquared = moveX * moveX + moveZ * moveZ;
-            if (moveDistanceSquared <= 0.0f)
+            const int targetCellX = static_cast<int>(std::floor(target.X));
+            const int targetCellZ = static_cast<int>(std::floor(target.Z));
+            if (IsBlockedCell(targetCellX, targetCellZ) &&
+                TryOpenOrdinaryDoor(targetCellX, targetCellZ))
                 continue;
-
-            const float inverseDistance = 1.0f / std::sqrt(moveDistanceSquared);
-            const float step = enemy.moveSpeed * elapsedSeconds;
-            const float nextX = enemy.position.X + moveX * inverseDistance * step;
-            const float nextZ = enemy.position.Z + moveZ * inverseDistance * step;
-            if (!Collides(nextX, enemy.position.Z, 0.2f))
-                enemy.position.X = nextX;
-            if (!Collides(enemy.position.X, nextZ, 0.2f))
-                enemy.position.Z = nextZ;
+            moveEnemyToward(enemy, target);
         }
+
+        pendingPlayerNoise_.reset();
 
         for (EnemyImpact& impact : enemyImpacts_)
             impact.remainingSeconds -= elapsedSeconds;
@@ -1061,16 +1261,58 @@ namespace WolfCna
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
             {
                 const char symbol = map_[z][x];
-                if (symbol == 'G' || symbol == 'K' || symbol == 'F' || symbol == 'U')
+                if (symbol == 'G' || symbol == 'K' || symbol == 'F' || symbol == 'U' ||
+                    symbol == 'g' || symbol == 'k' || symbol == 'f' || symbol == 'u')
                 {
-                    const int spawnTier = spawnTiers[encounterIndex % spawnTiers.size()];
+                    const bool ambushSymbol =
+                        symbol == 'g' || symbol == 'k' || symbol == 'f' || symbol == 'u';
+                    int patrolDirectionX = 0;
+                    int patrolDirectionZ = 0;
+                    if (!ambushSymbol)
+                    {
+                        constexpr std::array<std::pair<int, int>, 4> directions = {
+                            std::pair{1, 0},
+                            std::pair{-1, 0},
+                            std::pair{0, 1},
+                            std::pair{0, -1}};
+                        for (const auto [directionX, directionZ] : directions)
+                        {
+                            const int routeX = x + directionX;
+                            const int routeZ = z + directionZ;
+                            if (routeZ < 0 || routeZ >= static_cast<int>(map_.size()) ||
+                                routeX < 0 ||
+                                routeX >= static_cast<int>(map_[static_cast<std::size_t>(routeZ)].size()))
+                                continue;
+                            const char routeSymbol = map_[static_cast<std::size_t>(routeZ)]
+                                [static_cast<std::size_t>(routeX)];
+                            if (routeSymbol == '^' || routeSymbol == '>' ||
+                                routeSymbol == 'v' || routeSymbol == '<')
+                            {
+                                patrolDirectionX = directionX;
+                                patrolDirectionZ = directionZ;
+                                break;
+                            }
+                        }
+                    }
+                    const bool authoredBehaviorEncounter = ambushSymbol ||
+                        patrolDirectionX != 0 || patrolDirectionZ != 0;
+                    const int spawnTier = authoredBehaviorEncounter
+                        ? 0
+                        : spawnTiers[encounterIndex % spawnTiers.size()];
                     ++encounterIndex;
                     if (spawnTier > difficultyProfile_.maximumEnemySpawnTier)
                         continue;
 
                     Enemy enemy;
                     enemy.position = Vector3(static_cast<float>(x) + 0.5f, 0.0f, static_cast<float>(z) + 0.5f);
-                    if (symbol == 'K')
+                    enemy.lastKnownTarget = enemy.position;
+                    enemy.ambush = ambushSymbol;
+                    const char archetype = symbol == 'g' ? 'G'
+                        : symbol == 'k' ? 'K'
+                        : symbol == 'f' ? 'F'
+                        : symbol == 'u' ? 'U'
+                        : symbol;
+                    if (archetype == 'K')
                     {
                         enemy.type = Enemy::Type::Hound;
                         enemy.health = 2;
@@ -1081,8 +1323,11 @@ namespace WolfCna
                         enemy.attackInterval = 1.05f;
                         enemy.melee = true;
                         enemy.ammunitionDrop = 0;
+                        enemy.reactionDuration = 0.18f;
+                        enemy.viewDotThreshold = 0.0f;
+                        enemy.hearingRange = 10.0f;
                     }
-                    else if (symbol == 'F')
+                    else if (archetype == 'F')
                     {
                         enemy.type = Enemy::Type::RapidTrooper;
                         enemy.health = 4;
@@ -1093,8 +1338,11 @@ namespace WolfCna
                         enemy.attackInterval = 0.8f;
                         enemy.projectileSpeed = GuardProjectileSpeed * 1.15f;
                         enemy.ammunitionDrop = 5;
+                        enemy.reactionDuration = 0.25f;
+                        enemy.viewDotThreshold = 0.25f;
+                        enemy.hearingRange = 14.0f;
                     }
-                    else if (symbol == 'U')
+                    else if (archetype == 'U')
                     {
                         enemy.type = Enemy::Type::HeavyUnit;
                         enemy.health = 8;
@@ -1105,6 +1353,34 @@ namespace WolfCna
                         enemy.attackInterval = 1.7f;
                         enemy.projectileSpeed = GuardProjectileSpeed * 0.85f;
                         enemy.ammunitionDrop = 8;
+                        enemy.reactionDuration = 0.55f;
+                        enemy.viewDotThreshold = 0.5f;
+                        enemy.hearingRange = 10.0f;
+                    }
+
+                    const float playerDx = playerStart_.X - enemy.position.X;
+                    const float playerDz = playerStart_.Z - enemy.position.Z;
+                    const float playerDistanceSquared = playerDx * playerDx + playerDz * playerDz;
+                    if (playerDistanceSquared > 0.0001f)
+                    {
+                        const float inverseDistance = 1.0f / std::sqrt(playerDistanceSquared);
+                        const float ambushDirection = enemy.ambush ? -1.0f : 1.0f;
+                        enemy.facing = Vector3(
+                            playerDx * inverseDistance * ambushDirection,
+                            0.0f,
+                            playerDz * inverseDistance * ambushDirection);
+                    }
+
+                    if (patrolDirectionX != 0 || patrolDirectionZ != 0)
+                    {
+                        enemy.state = EnemyState::Patrol;
+                        enemy.hasPatrolRoute = true;
+                        enemy.patrolDirectionX = patrolDirectionX;
+                        enemy.patrolDirectionZ = patrolDirectionZ;
+                        enemy.facing = Vector3(
+                            static_cast<float>(patrolDirectionX),
+                            0.0f,
+                            static_cast<float>(patrolDirectionZ));
                     }
 
                     enemy.health = ScalePositiveAmount(
@@ -1314,11 +1590,81 @@ namespace WolfCna
         return true;
     }
 
+    bool World::HasDirectionalSight(const Enemy& enemy, const Vector3& target) const
+    {
+        const float dx = target.X - enemy.position.X;
+        const float dz = target.Z - enemy.position.Z;
+        const float distanceSquared = dx * dx + dz * dz;
+        if (distanceSquared > EnemyWakeRange * EnemyWakeRange ||
+            !HasLineOfSight(enemy.position, target))
+            return false;
+        if (distanceSquared <= EnemyCloseAwarenessRange * EnemyCloseAwarenessRange)
+            return true;
+
+        const float inverseDistance = 1.0f / std::sqrt(distanceSquared);
+        const float facing =
+            (dx * enemy.facing.X + dz * enemy.facing.Z) * inverseDistance;
+        return facing >= enemy.viewDotThreshold;
+    }
+
+    bool World::CanHearNoise(const Enemy& enemy, const Vector3& noisePosition) const
+    {
+        if (enemy.ambush)
+            return false;
+
+        const float dx = noisePosition.X - enemy.position.X;
+        const float dz = noisePosition.Z - enemy.position.Z;
+        if (dx * dx + dz * dz > enemy.hearingRange * enemy.hearingRange)
+            return false;
+
+        const int startX = static_cast<int>(std::floor(enemy.position.X));
+        const int startZ = static_cast<int>(std::floor(enemy.position.Z));
+        const int goalX = static_cast<int>(std::floor(noisePosition.X));
+        const int goalZ = static_cast<int>(std::floor(noisePosition.Z));
+        return (startX == goalX && startZ == goalZ) ||
+            !FindPath(startX, startZ, goalX, goalZ, true).empty();
+    }
+
+    void World::BeginEnemyAlert(Enemy& enemy, const Vector3& target)
+    {
+        if (enemy.state == EnemyState::Alert || enemy.state == EnemyState::Chase ||
+            enemy.state == EnemyState::Attack)
+            return;
+
+        enemy.state = EnemyState::Alert;
+        enemy.reactionRemaining = enemy.reactionDuration;
+        enemy.lastKnownTarget = target;
+        if (enemy.melee)
+            ++pendingEnemyAudioEvents_.houndAlerts;
+        else
+            ++pendingEnemyAudioEvents_.guardAlerts;
+    }
+
+    bool World::TryOpenOrdinaryDoor(int x, int z)
+    {
+        for (Door& door : doors_)
+        {
+            if (door.x != x || door.z != z || door.material != Material::Door ||
+                door.isSecret)
+                continue;
+
+            if (!door.opening && door.openAmount < DoorPassableAt)
+            {
+                door.opening = true;
+                door.closeDelay = DoorAutoCloseDelay;
+                ++pendingEnemyAudioEvents_.doorsOpened;
+            }
+            return true;
+        }
+        return false;
+    }
+
     std::vector<std::pair<int, int>> World::FindPath(
         int startX,
         int startZ,
         int goalX,
-        int goalZ) const
+        int goalZ,
+        bool allowOrdinaryDoors) const
     {
         const int width = static_cast<int>(map_.front().size());
         const int height = static_cast<int>(map_.size());
@@ -1349,7 +1695,7 @@ namespace WolfCna
                 const int nextX = x + offsetX;
                 const int nextZ = z + offsetZ;
                 if (nextX < 0 || nextX >= width || nextZ < 0 || nextZ >= height ||
-                    IsBlockedCell(nextX, nextZ))
+                    IsNavigationBlockedCell(nextX, nextZ, allowOrdinaryDoors))
                     continue;
 
                 const int next = toIndex(nextX, nextZ);

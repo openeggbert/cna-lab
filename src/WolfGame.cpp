@@ -1998,7 +1998,11 @@ namespace WolfCna
             (!attackWasDown_ || (automaticWeapon && playerFireCooldownSeconds_ <= 0.0f));
         if (attackIsDown && !attackWasDown_ && weapon_ == Weapon::Knife)
         {
-            const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection(), 0.9f);
+            const World::AttackResult attack = world_.FireHitscan(
+                playerPosition_,
+                LookDirection(),
+                0.9f,
+                false);
             AwardScore(attack.score);
             weaponFlashSeconds_ = KnifeAttackVisualSeconds;
             if (knifeSound_)
@@ -2126,6 +2130,8 @@ namespace WolfCna
             static_cast<void>(houndAttackSound_->Play(0.25f, -0.4f, 0.0f));
         if (enemyAudioEvents.projectileImpacts > 0 && enemyImpactSound_)
             static_cast<void>(enemyImpactSound_->Play(0.2f, 0.18f, 0.0f));
+        if (enemyAudioEvents.doorsOpened > 0 && doorSound_)
+            static_cast<void>(doorSound_->Play(0.35f, 0.0f, 0.0f));
         health_ -= incomingDamage;
         if (incomingDamage > 0 && hurtSound_)
             static_cast<void>(hurtSound_->Play(0.3f, -0.25f, 0.0f));
