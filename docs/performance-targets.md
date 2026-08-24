@@ -401,3 +401,34 @@ env -u WAYLAND_DISPLAY \
 Xvfb on this workspace uses unaccelerated Mesa llvmpipe and has no real vblank. Such runs validate
 automation, report plumbing, and CPU/software-GL behavior, but cannot close the EasyGL hardware
 frame-rate or VRAM gates.
+
+### Release summary generator
+
+Turn one or more schema-8 captures into a deterministic Markdown summary with:
+
+```bash
+./scripts/performance_report.py \
+  --hardware "Xvfb llvmpipe diagnostic" \
+  runtime/performance/m12-xvfb-mixed.json
+```
+
+Without `--qualifying-hardware`, the overall state is always `DIAGNOSTIC`. For a real qualification,
+name the controlled physical target explicitly, provide at least two distinct mixed captures, and
+write the release artifact:
+
+```bash
+./scripts/performance_report.py \
+  --hardware "<CPU, GPU, driver, display/compositor identity>" \
+  --qualifying-hardware \
+  --output runtime/performance/m12-release-summary.md \
+  runtime/performance/m12-mixed-01.json \
+  runtime/performance/m12-mixed-02.json
+```
+
+`--qualifying-hardware` is an operator assertion, not automatic hardware detection. The generator
+still rejects labels identifying Xvfb/llvmpipe/software rasterization and requires Release
+OPENGLES3, at least 1280x720, a successfully acknowledged swap interval, direct p95 budget passes,
+known RAM, complete VRAM accounting within budget, and a real passing district transition in each
+mixed capture. It reports `FAIL` when a declared qualification misses any condition and exits zero
+because the report was generated successfully; malformed/stale input exits 2. `PASS` is therefore
+a strict evidence summary, while successful command execution alone is not a gate result.

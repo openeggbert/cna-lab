@@ -319,3 +319,24 @@ This single llvmpipe/Xvfb run validates classification, report plumbing, and bou
 it does not explain the hitch or qualify physical frame pacing. Xvfb has no real vblank and remains
 unsuitable for closing M12. Controlled repeated captures on named minimum hardware are still
 required, using the same strict thresholds and a platform-acknowledged swap interval.
+
+## 2026-08-24 — release-summary generator follow-up
+
+`scripts/performance_report.py` now validates schema-8 input and produces a Markdown release
+summary from one or more captures. It recomputes the locked frame/CPU/RAM/VRAM/load decisions from
+raw measurements, verifies that pacing histogram counts match frame samples, and has three
+deliberately distinct overall states: `DIAGNOSTIC` without an explicit physical-hardware assertion,
+`FAIL` for a declared qualification with blockers, and `PASS` only for complete evidence.
+
+Running it against the isolated 539-interval capture above with hardware labelled `Xvfb llvmpipe
+diagnostic` correctly produced `DIAGNOSTIC`, not a pass. Its blockers were the absent
+`--qualifying-hardware` assertion, only one mixed capture instead of two distinct runs, a known
+virtual/software display, rejected swap-interval application, and incomplete backend VRAM
+tracking. The summary still preserves the useful 16.988 ms p95, one hitch, 17.345 ms transition
+boundary, RAM, and logical VRAM evidence in its per-capture table.
+
+A synthetic two-capture test proves the strict physical path can reach `PASS` only with Release
+OPENGLES3, acknowledged presentation, complete in-budget VRAM, and all direct minimum budgets
+passing. Separate tests prove stale schema, inconsistent histograms, rejected swap application, and
+incomplete VRAM cannot be promoted. The CLI plus these four cases are wired into CTest as
+`iron_gang_performance_report_tests`; generating a report successfully never by itself closes M12.

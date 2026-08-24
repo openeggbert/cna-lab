@@ -67,6 +67,22 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has a complete smallest-scope release performance report generator (`IG-35-016`,
+`042`-`044`).** `scripts/performance_report.py` consumes schema-8 captures and emits deterministic
+Markdown with per-capture frame/CPU/RAM/VRAM/load/hitch/presentation evidence. It independently
+checks raw measurements against locked targets and separates `DIAGNOSTIC`, `FAIL`, and `PASS`.
+Qualification needs at least two distinct mixed captures, explicit physical hardware identity,
+Release OPENGLES3, acknowledged swap application, complete VRAM, and every minimum budget; labels
+containing Xvfb/llvmpipe/software rasterizer are never promoted.
+
+- New `iron_gang_performance_report_tests` makes CTest 4/4 and covers diagnostic virtual input, a
+  synthetic two-capture pass, swap/VRAM failures, stale schema, and inconsistent histograms. The
+  real latest Xvfb report correctly produces `DIAGNOSTIC` with one-run, virtual-display,
+  rejected-swap, and incomplete-VRAM blockers while retaining its useful numbers.
+- The CLI is standard-library Python only. `docs/performance-targets.md` documents diagnostic and
+  physical commands, explicit operator-assertion semantics, Markdown output, and exit behavior.
+  Successful report generation is not itself a passing M12 result.
+
 **M12 now has a complete smallest-scope frame-pacing/hitch detector (`IG-35-015`,
 `048`-`050`).** JSON schema 8 derives five mutually exclusive frame-interval buckets at 16.667,
 33.333, 50, and 100 ms, plus explicit minimum-budget miss, hitch, and severe-hitch counts/rates.
@@ -1061,11 +1077,11 @@ physical-hardware capture should first require `swap_interval.apply_succeeded`, 
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside
-budget. The next safe code-side M12 slice is the release performance report generator
-(`IG-35-016`, `042`-`044`): consume one or more versioned JSON captures and emit a concise summary
-against locked minimum/recommended targets without treating Xvfb as qualifying hardware. Do not
-mark M12 complete until repeated mixed workloads pass 33.333 ms p95 on named minimum hardware and
-VRAM tracking is complete.
+budget. The next safe code-side M12 slice is the content-budget validator (`IG-35-014`,
+`045`-`047`): enforce first-pass triangle/texture/material ceilings against committed authoring and
+runtime assets, with actionable failures and no invented production-scale limits. Do not mark M12
+complete until repeated mixed workloads pass 33.333 ms p95 on named minimum hardware and VRAM
+tracking is complete.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --

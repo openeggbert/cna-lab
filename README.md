@@ -103,6 +103,19 @@ A software-backend preset is included primarily as a compile and core-test check
 
 The build policy intentionally uses persistent `cmake-build-*` directories, ccache, and no more than four jobs to avoid unnecessary SSD writes.
 
+To summarize schema-8 M12 captures without accidentally treating a virtual display as qualifying
+hardware:
+
+```bash
+./scripts/performance_report.py \
+  --hardware "Xvfb llvmpipe diagnostic" \
+  runtime/performance/m12-xvfb-mixed.json
+```
+
+Physical qualification additionally requires `--qualifying-hardware`, an explicit CPU/GPU/driver/
+display identity, at least two distinct mixed captures, acknowledged presentation, and complete
+VRAM evidence. See [`docs/performance-targets.md`](docs/performance-targets.md#release-summary-generator).
+
 ## MC3 asset conversion
 
 Build Mesh Craft and CNA's conversion tools first, then set:
@@ -176,3 +189,9 @@ Gate M10 is done at first-pass/prototype fidelity across all five pieces: **UI**
 Gate M11 is done: five new integration tests prove the mission's happy-path/save-load/cutscene-skip/retry/vehicle-separation/district-transition scenarios end to end (`tests/CoreTests.cpp`: `TestSaveLoadMidMissionPlaythrough`, `TestCutsceneSkipDoesNotBlockMissionProgression`, `TestMissionResetActsAsRetry`, `TestVehicleStatePersistsIndependentlyOfPlayer`, `TestDistrictTransitionPreservesMissionState`) -- note this prototype's one mission has no real failure/branching state or vehicle-destruction mechanic yet, so "failure retry" and "vehicle-loss recovery" are proven at the level that actually exists (`Reset()`, and independent save/load of player/vehicle position) rather than invented from scratch. A `--smoke 3000` soak ran for 65 minutes (stopped deliberately, not crashed -- the M10 lightmap draw path made it far slower per frame than the M9 baseline) with no error in the log. The older CPU-software performance capture is superseded for M12 by the EasyGL measurements below. A license audit found and fixed two real gaps: two original data files missing from `assets/licenses/asset-registry.csv`, and `THIRD_PARTY.md` still claiming no external content was bundled (false as of gate M10's font/audio additions).
 
 All of gates M0-M11 are now fully done at prototype/first-pass fidelity. M12 is instrumented but open: `--profile <json>` plus `--profile-scenario intro|idle|walk|drive|mixed` records deterministic EasyGL workloads, `--vsync on|off` controls the requested presentation interval, and the schema-8 report separates request from platform swap acknowledgement, CPU Draw submission, asynchronous real GPU Draw-range timing, EndDraw/Present CPU, scoped 3D workload counts, exact Jolt-seam physics workload, exact ambient-AI state/loop work, exact game-owned audio state/control work, per-transition district world/physics vs renderer-upload phases with target counts and memory deltas, and a five-bucket frame-pacing/hitch histogram with district-boundary association. Audio backend voice lifetime, decoder/mixer, channel, and bus costs remain explicitly unavailable through CNA rather than being reported as zero. Historic hardware-backed mixed captures fail at 51.628-57.705 ms despite small subsystem times, while identical intro runs varied between 51.381 ms and 16.897 ms; those captures predate GPU timing and need a controlled rerun. The latest isolated Xvfb/llvmpipe mixed validation found one 55.936 ms non-transition hitch but cannot qualify real hardware or v-sync; Xvfb explicitly rejects both tested 0/1 swap intervals. RAM, physics/AI/audio CPU, and real district-transition time pass. VRAM reporting includes a category breakdown for game-owned resources plus deduplicated imported CNJ buffers and effect-bound textures, but full backend residency is still not exposed by CNA. See `docs/performance-baseline.md`. Next: require an acknowledged interval and use the Draw/GPU/Present split on controlled named hardware, then obtain backend/external VRAM residency before marking `IG-39-013` done.
+
+`scripts/performance_report.py` turns schema-8 captures into a release Markdown summary and
+deliberately keeps unasserted or Xvfb/llvmpipe runs diagnostic. A qualifying pass requires two
+distinct mixed physical-hardware captures, acknowledged presentation, complete VRAM, and every
+locked minimum budget; its synthetic pass/failure cases and the real diagnostic path are the
+fourth CTest target.

@@ -113,6 +113,15 @@ boundary. Software plus 3/3 CTest, strict syntax, Release/development EasyGL, We
 the isolated real flow pass. The result validates the detector but does not qualify llvmpipe/Xvfb
 as physical target hardware or diagnose the one hitch; no visible host display was used.
 
+The release-summary follow-up adds `scripts/performance_report.py`, a standard-library schema-8
+Markdown generator that independently evaluates raw measurements against locked targets. It
+requires two distinct mixed captures, explicit physical hardware identity, Release OPENGLES3,
+acknowledged presentation, complete VRAM, and all direct budgets before emitting `PASS`; absent
+qualification remains `DIAGNOSTIC`, while declared but incomplete evidence is `FAIL`. A new fourth
+CTest covers diagnostic Xvfb, a synthetic two-capture pass, swap/VRAM failures, stale schemas, and
+histogram mismatch. The real isolated capture correctly remains diagnostic with one-run,
+virtual-display, rejected-swap, and incomplete-VRAM blockers.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

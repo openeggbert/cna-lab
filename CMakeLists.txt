@@ -214,6 +214,13 @@ endif()
 
 if(IRON_GANG_BUILD_TESTS)
     enable_testing()
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+    add_test(NAME iron_gang_performance_report_tests
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_performance_report.py"
+            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/performance_report.py")
+
     add_executable(iron_gang_core_tests tests/CoreTests.cpp)
     target_include_directories(iron_gang_core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
     # Gate M7: lets TestMissionLoadsCommittedFile() validate the real, committed
