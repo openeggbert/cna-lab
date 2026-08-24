@@ -196,6 +196,13 @@ equals or hardlinks to any capture/archive input, and valid output uses a same-d
 replace. The seventh report CLI test proves the protected bytes remain identical for capture,
 hardlink, and raw-artifact collisions and that a successful nested output leaves no temporary file.
 
+Release summaries now embed exact evidence provenance: evaluated-capture SHA-256, capture PID/UTC
+interval, and—when supplied—the verified original/manifest/raw-artifact names and hashes. Inputs
+are re-hashed after parsing and again immediately before output. The real stored Xvfb session
+renders its known PID/interval and hash
+`df217f17b3cf32c3c279fbf582a3075a6bb61f759f9ec3d5d2b695be3da41cd0`; bundle fields correctly
+remain absent for that diagnostic. Report 7/7 and VRAM 6/6 focused tests pass.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

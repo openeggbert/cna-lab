@@ -538,6 +538,11 @@ When `--output` is supplied, the Markdown file is written atomically in its dest
 The destination must differ from every enriched capture and every original profile, evidence
 manifest, and raw artifact, including an existing hardlink alias; a collision exits 2 without
 changing the input.
+Every summary carries an `Evidence provenance` row per capture. It records the evaluated JSON
+SHA-256 and capture-session PID/UTC interval; a supplied bundle additionally records the file name
+and SHA-256 of the original profile, evidence manifest, and raw profiler artifact. The generator
+checks every recorded digest again after parsing and after Markdown construction, immediately
+before output, so the table cannot silently describe files changed during report generation.
 Renaming, copying, or changing only JSON whitespace cannot turn one capture into the two independent
 runs required for repeatability. Canonical performance identity is independent of file path and key
 ordering and normalizes externally bound VRAM metadata, so rebinding the same original profile to a

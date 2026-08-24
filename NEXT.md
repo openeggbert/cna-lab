@@ -67,6 +67,18 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 release summaries now identify the exact evidence they evaluated.** The Markdown provenance
+table records every evaluated capture SHA-256 plus its PID/UTC session. A supplied complete-VRAM
+bundle adds the original-profile, manifest, and raw-artifact names and SHA-256 values. All recorded
+files are re-hashed after parsing and immediately before output.
+
+- Report 7/7 and VRAM 6/6 tests pass. The physical synthetic path exposes the known raw-artifact
+  digest in the report.
+- The locally retained Xvfb diagnostic renders hash
+  `df217f17b3cf32c3c279fbf582a3075a6bb61f759f9ec3d5d2b695be3da41cd0`, PID `1059289`, and its
+  exact microsecond session; missing bundle cells remain explicit `—`.
+- This makes a detached Markdown artifact traceable but still does not replace physical evidence.
+
 **M12 release-report output can no longer destroy its evidence.** `performance_report.py --output`
 now rejects destinations equal to or hardlinked with any enriched capture, original profile,
 evidence manifest, or raw profiler artifact. Valid Markdown output is staged in the destination

@@ -45,6 +45,8 @@ HISTOGRAM_BUCKETS = (
     "above_hitch_at_or_below_severe_hitch",
     "above_severe_hitch",
 )
+FileFingerprint = tuple[Path, str]
+VramBundleFingerprint = tuple[FileFingerprint, FileFingerprint, FileFingerprint]
 
 
 class ReportError(ValueError):
@@ -103,6 +105,26 @@ def _write_text_atomic(path: Path, contents: str) -> None:
                 temporary_path.unlink(missing_ok=True)
             except OSError:
                 pass
+
+
+def _require_unchanged(path: Path, expected_sha256: str, label: str) -> None:
+    if _file_sha256(path) != expected_sha256:
+        raise ReportError(f"{label} changed while the report was being generated")
+
+
+def _verify_report_inputs_unchanged(
+    capture_paths: list[Path],
+    capture_sha256s: list[str],
+    bundle_fingerprints: list[VramBundleFingerprint | None],
+) -> None:
+    for capture_path, expected_sha256 in zip(capture_paths, capture_sha256s):
+        _require_unchanged(capture_path, expected_sha256, str(capture_path))
+    bundle_labels = ("original capture", "evidence manifest", "raw evidence artifact")
+    for bundle in bundle_fingerprints:
+        if bundle is None:
+            continue
+        for label, (path, expected_sha256) in zip(bundle_labels, bundle):
+            _require_unchanged(path, expected_sha256, label)
 
 
 def _mapping(value: Any, label: str) -> dict[str, Any]:
@@ -417,6 +439,8 @@ def _capture_identity(capture: dict[str, Any]) -> str:
 def build_markdown(
     capture_paths: list[Path],
     captures: list[dict[str, Any]],
+    capture_sha256s: list[str],
+    bundle_fingerprints: list[VramBundleFingerprint | None],
     hardware: str,
     qualifying_hardware: bool,
     title: str,
@@ -463,6 +487,43 @@ def build_markdown(
         lines.extend(f"- {_escape(blocker)}" for blocker in blockers)
     else:
         lines.append("- None.")
+
+    lines.extend(
+        [
+            "",
+            "## Evidence provenance",
+            "",
+            "| Evaluated capture | SHA-256 | Capture session | Original profile | Evidence manifest | Raw profiler artifact |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for path, capture, capture_sha256, bundle in zip(
+        capture_paths,
+        captures,
+        capture_sha256s,
+        bundle_fingerprints,
+    ):
+        session = validate_capture_session(capture, required=False)
+        if session is None:
+            session_text = "—"
+        else:
+            _, process_id, _, _ = session
+            session_text = (
+                f"PID {process_id if process_id is not None else 'unknown'}; "
+                f"{_non_empty_string(capture, 'capture_session', 'started_utc')} to "
+                f"{_non_empty_string(capture, 'capture_session', 'ended_utc')}"
+            )
+        if bundle is None:
+            bundle_cells = ("—", "—", "—")
+        else:
+            bundle_cells = tuple(
+                f"`{_escape(source_path.name)}`<br>`{source_sha256}`"
+                for source_path, source_sha256 in bundle
+            )
+        lines.append(
+            f"| `{_escape(path.name)}` | `{capture_sha256}` | {_escape(session_text)} | "
+            f"{bundle_cells[0]} | {bundle_cells[1]} | {bundle_cells[2]} |"
+        )
 
     lines.extend(
         [
@@ -529,6 +590,7 @@ def build_markdown(
             "| Presentation evidence | Successful platform swap-interval acknowledgement | Controlled physical vblank/compositor |",
             "",
             "The report generator never promotes an unlabelled capture, Xvfb, llvmpipe, or incomplete VRAM accounting to a qualifying pass.",
+            "The provenance hashes identify the exact files read; qualifying bundle hashes were also reconstructed and verified before evaluation.",
             "",
         ]
     )
@@ -579,10 +641,17 @@ def main(arguments: list[str] | None = None) -> int:
                 if _same_file(options.output, input_path):
                     raise ReportError(f"output must differ from every {input_label} input")
 
-        verified_capture_hashes: list[str] = []
+        capture_sha256s = [_file_sha256(path) for path in options.captures]
+        bundle_fingerprints: list[VramBundleFingerprint | None] = [
+            None for _ in options.captures
+        ]
         verifier = Path(__file__).resolve().with_name("vram_evidence.py")
-        for capture_path, bundle in zip(options.captures, bundles):
-            capture_sha256 = _file_sha256(capture_path)
+        for index, (capture_path, bundle) in enumerate(zip(options.captures, bundles)):
+            bundle_fingerprint: VramBundleFingerprint = (
+                (bundle[0], _file_sha256(bundle[0])),
+                (bundle[1], _file_sha256(bundle[1])),
+                (bundle[2], _file_sha256(bundle[2])),
+            )
             verification = subprocess.run(
                 [
                     sys.executable,
@@ -603,20 +672,37 @@ def main(arguments: list[str] | None = None) -> int:
             if verification.returncode != 0:
                 detail = verification.stderr.strip() or "verification command failed"
                 raise ReportError(f"VRAM bundle verification failed for {capture_path}: {detail}")
-            if _file_sha256(capture_path) != capture_sha256:
-                raise ReportError(f"{capture_path} changed while its VRAM bundle was verified")
-            verified_capture_hashes.append(capture_sha256)
+            _require_unchanged(
+                capture_path,
+                capture_sha256s[index],
+                f"{capture_path} enriched capture",
+            )
+            for label, (path, expected_sha256) in zip(
+                ("original capture", "evidence manifest", "raw evidence artifact"),
+                bundle_fingerprint,
+            ):
+                _require_unchanged(path, expected_sha256, label)
+            bundle_fingerprints[index] = bundle_fingerprint
 
         captures = [load_capture(path) for path in options.captures]
-        for capture_path, expected_sha256 in zip(options.captures, verified_capture_hashes):
-            if _file_sha256(capture_path) != expected_sha256:
-                raise ReportError(f"{capture_path} changed after its VRAM bundle was verified")
+        _verify_report_inputs_unchanged(
+            options.captures,
+            capture_sha256s,
+            bundle_fingerprints,
+        )
         report = build_markdown(
             options.captures,
             captures,
+            capture_sha256s,
+            bundle_fingerprints,
             options.hardware,
             options.qualifying_hardware,
             options.title,
+        )
+        _verify_report_inputs_unchanged(
+            options.captures,
+            capture_sha256s,
+            bundle_fingerprints,
         )
         if options.output:
             _write_text_atomic(options.output, report)

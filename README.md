@@ -262,3 +262,7 @@ the report re-runs full four-file archive verification before evaluating it. A c
 a second path, a missing source file, or a subsequently changed artifact is explicitly rejected by
 CTest coverage. `--output` is written atomically and cannot name (or hardlink to) any capture or
 archive input, so generating the Markdown summary cannot destroy its own evidence.
+Every generated summary includes an evidence-provenance table with the exact evaluated-capture
+SHA-256 and capture PID/UTC interval. When bundles are supplied, it also records the original,
+manifest, and raw-artifact file names and hashes after verifying they stayed unchanged through
+report generation.

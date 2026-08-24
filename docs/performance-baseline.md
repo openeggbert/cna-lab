@@ -475,3 +475,12 @@ to an enriched capture or any bundle source, and successful Markdown output is s
 destination before an atomic replace. A focused regression test proves direct-capture, capture-
 hardlink, and raw-artifact collisions leave their bytes unchanged and that a normal nested output
 leaves no temporary file behind.
+
+The Markdown release artifact now preserves the identity it evaluated rather than only capture
+basenames. Its provenance table includes each evaluated JSON SHA-256 and capture-session PID/UTC
+interval plus all three verified bundle names and hashes when present. All captures and source
+files are re-hashed after parsing and again immediately before output. Running the updated tool on
+the locally retained real Xvfb session produced capture hash
+`df217f17b3cf32c3c279fbf582a3075a6bb61f759f9ec3d5d2b695be3da41cd0`, PID `1059289`, and the
+previously recorded `12:31:41.991744Z`–`12:31:43.189643Z` interval; absent bundle columns are
+explicitly `—` because that diagnostic has no external evidence.

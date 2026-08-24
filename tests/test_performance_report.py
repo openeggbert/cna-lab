@@ -199,6 +199,8 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([capture_fixture()], "Xvfb llvmpipe diagnostic")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Overall status: **DIAGNOSTIC**", result.stdout)
+        self.assertIn("## Evidence provenance", result.stdout)
+        self.assertIn("| — | — | — |", result.stdout)
         self.assertIn("--qualifying-hardware was not supplied", result.stdout)
         self.assertIn("diagnostic software/virtual display", result.stdout)
         self.assertIn("at least two mixed captures", result.stdout)
@@ -216,6 +218,11 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertIn("Overall status: **PASS**", result.stdout)
         self.assertIn("- None.", result.stdout)
         self.assertEqual(result.stdout.count("| PASS |"), 2)
+        self.assertIn("## Evidence provenance", result.stdout)
+        self.assertIn(
+            hashlib.sha256(b"raw report-test profiler artifact 0").hexdigest(),
+            result.stdout,
+        )
 
         result = self.run_report(
             [first, second],
