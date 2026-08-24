@@ -29,7 +29,12 @@ struct P1SpriteFrame final {
 
 struct P1Sprite final {
     static constexpr std::size_t IdleFrameCount = 3;
+    static constexpr float DefaultIdleFrameSeconds = 0.42F;
 
+    // Timing belongs to the observed sequence, not to the renderer.  The egg
+    // stays on each observed phase longer than the provisional character
+    // redraws, so it must not inherit their generic cadence.
+    float idleFrameSeconds{DefaultIdleFrameSeconds};
     std::array<P1SpriteFrame, IdleFrameCount> idleFrames;
 
     [[nodiscard]] const P1SpriteFrame& idleFrame(const std::size_t index) const noexcept

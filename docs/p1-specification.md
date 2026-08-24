@@ -84,7 +84,7 @@ open rather than substitute a plausible modern redraw.
 
 | Form / sequence | Observation and geometry | Catalogue status | Next evidence needed |
 | --- | --- | --- | --- |
-| Egg, first observed idle phase | Hand-read 16 × 11 drawing at `(8, 2)`; its crown, crack, and lower shell have focused regression checks. | Transcribed; regression checked. | Re-observe against a freshly started run after the reference display is relaunched. |
+| Egg, first observed idle phase | Hand-read 16 × 11 drawing at `(8, 2)`; its crown, crack, and lower shell have focused regression checks. The phase persisted for a half-second capture and changed at the next one-second sample. | Transcribed; regression checked; 1-second cadence inferred. | Re-observe against a freshly started run after the reference display is relaunched. |
 | Egg, changing alternate idle phase | A visual P1 phase was observed to use a different lower-cell layout, hence `P1SpriteFrame` supports up to 12 rows and its own origin. Its lifecycle position is not yet proven to be a hatch frame. | Observed only; not encoded as a reference phase. | Restart → clock configuration → hatching trace and an independently repeated three-frame capture. |
 | Babytchi | No hand transcription is accepted yet. The existing drawing is a provisional placeholder. | Provisional. | Capture immediately after a confirmed hatch and record its idle cadence. |
 | Marutchi | No selected-reference home sequence has been transcribed. | Provisional. | Observe after the Baby → Child transition. |

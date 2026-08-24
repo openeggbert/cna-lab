@@ -30,9 +30,10 @@ constexpr P1SpriteFrame expandedEggFrame(const std::string_view row0,
 }
 
 constexpr P1Sprite sprite(const P1SpriteFrame first, const P1SpriteFrame second,
-                          const P1SpriteFrame third) noexcept
+                          const P1SpriteFrame third,
+                          const float idleFrameSeconds = P1Sprite::DefaultIdleFrameSeconds) noexcept
 {
-    return {{{first, second, third}}};
+    return {idleFrameSeconds, {{first, second, third}}};
 }
 
 // Each drawing is a hand-transcribed P1 LCD phase.  The phases deliberately
@@ -54,7 +55,8 @@ constexpr P1Sprite Egg = sprite(
           "................", "................"),
     frame("................", "......####......", "....##....##....", "...##.#....##...",
           "...##.##...##...", "...##..###.##...", "....##....##....", ".....########...",
-          "................", "................"));
+          "................", "................"),
+    1.0F);
 
 constexpr P1Sprite Babytchi = sprite(
     frame("................", "......##........", ".....####.......", "....##..##......",

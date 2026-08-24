@@ -42,7 +42,6 @@ constexpr int IconAtlasCellWidth = 38;
 constexpr int IconAtlasCellHeight = 36;
 constexpr int IconDrawWidth = 32;
 constexpr int IconDrawHeight = 30;
-constexpr float P1IdleFrameSeconds = 0.42F;
 
 struct Rgb final {
     std::uint8_t red;
@@ -930,7 +929,7 @@ void CnaTamagotchiGame::refreshDisplay() noexcept
     // sprite into a synthetic bobbing animation. Sleeping leaves the first
     // quiet frame on screen.
     const std::size_t idleFrame = pet_.asleep ? 0U : static_cast<std::size_t>(
-        backgroundTimeSeconds_ / P1IdleFrameSeconds);
+        backgroundTimeSeconds_ / sprite.idleFrameSeconds);
     const Domain::P1SpriteFrame& frame = sprite.idleFrame(idleFrame);
     display_.drawSprite(frame.originX, frame.originY, frame.visibleRows());
 

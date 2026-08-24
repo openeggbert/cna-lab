@@ -46,9 +46,10 @@ write and verify the clean implementation.
   `P1SpriteCatalog.cpp` were manually written from the visible LCD grid, not
   imported or algorithmically extracted.
 - The first observed expanded egg phase is now transcribed at `(8, 2)` with
-  eleven rows and focused regression checks. Next, complete the changing
-  alternate egg phase from a repeated manual LCD read, then continue the
-  per-form reference ledger before changing further provisional sprites.
+  eleven rows, a one-second observed cadence, and focused regression checks.
+  Next, complete the changing alternate egg phase from a repeated manual LCD
+  read, then continue the per-form reference ledger before changing further
+  provisional sprites.
   `P1SpriteFrame` carries an origin and a row count because the reference egg
   uses a different vertical extent between phases. Retain a focused test for
   each manually verified row.
