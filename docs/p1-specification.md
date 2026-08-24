@@ -96,6 +96,11 @@ Reference-session note: TamaTool accepts the documented host controls when
 focused under Xvfb (the shell-toggle control was visually confirmed), but an
 Xvfb process is ephemeral between tooling sessions. Relaunch the emulator and
 its virtual display before drawing conclusions from a missing later capture.
+A clean bounded run was still visibly in egg idle animation after one speed
+toggle over 24 seconds and after two toggles over eight seconds. This neither
+invalidates the five-minute lifecycle rule nor identifies a Baby drawing: the
+reference's exact accelerated timebase and reset/activation precondition must
+be established before treating a later phase as a confirmed hatch.
 
 ## Evolution-rule representation
 
