@@ -4,12 +4,13 @@
 
 The active product target is the international English Tamagotchi P1 (1997),
 implemented as a clean, data-driven C++ behaviour engine. The LCD framebuffer
-is exactly 32 × 16 and one bit. The home renderer now uses a centred 16 × 10
-cell with three independent idle frames, so it no longer fakes motion by
-shifting a static creature around the LCD. A Mametchi idle sequence and the
-first asymmetric egg silhouette have been visually transcribed from P1
-reference traces; the remaining egg phases and other character redraws remain
-provisional.
+is exactly 32 × 16 and one bit. The home renderer uses explicit geometry and
+three independent idle frames, so it no longer fakes motion by shifting a
+static creature around the LCD. Most frames use the centred 16 × 10 cell; an
+observed egg phase may use its true larger vertical extent. A Mametchi idle
+sequence and the first asymmetric egg silhouette have been visually
+transcribed from P1 reference traces; the remaining egg phases and other
+character redraws remain provisional.
 
 The project must never ship a P1 ROM, a ROM-derived binary asset, TamaLIB, or
 another emulator core. A reference program may be viewed externally only to
@@ -32,6 +33,11 @@ write and verify the clean implementation.
   `C` input; an instantaneous synthetic key can be missed by the polling loop.
   Root-window captures can alternate with an empty GL backbuffer under Xvfb;
   capture again before treating a frame as absent.
+- The hand-drawn device treatment now uses the selected reference's turquoise
+  shell family and yellow buttons. It was inspected on a separate Xvfb screen;
+  its colours and geometry are authored C++ values, with no reference image
+  added to the repository. Continue to treat this as an approximate shell
+  treatment rather than a claim that every retail P1 shell is identical.
 - TamaTool v0.1 was used only as an external visual reference in a separate
   Xvfb display. Do not add its executable, ROM, screenshots, extracted data,
   TamaLIB, or any other emulator artefact to this repository. The egg rows in

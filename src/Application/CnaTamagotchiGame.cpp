@@ -50,11 +50,16 @@ struct Rgb final {
     std::uint8_t blue;
 };
 
-const Color ShellOutline(151, 87, 119, 255);
-const Color ShellMain(242, 174, 199, 255);
-const Color ShellHighlight(255, 216, 228, 255);
-const Color ShellShadow(194, 116, 151, 255);
-const Color Ink(69, 55, 62, 255);
+// The selected external P1 reference is a translucent turquoise shell with
+// warm yellow controls.  These are deliberately authored colour values, not
+// sampled image data or a shipped reference asset.
+const Color ShellOutline(0, 83, 96, 255);
+const Color ShellMain(0, 172, 184, 255);
+const Color ShellHighlight(92, 224, 225, 255);
+const Color ShellShadow(0, 124, 139, 255);
+const Color ButtonMain(248, 203, 65, 255);
+const Color ButtonHighlight(255, 238, 139, 255);
+const Color Ink(28, 65, 71, 255);
 
 Color asColor(const Display::LcdColour colour) noexcept
 {
@@ -1013,10 +1018,10 @@ void CnaTamagotchiGame::drawDevice()
     const Color lcdOff = asColor(lcdColours.off);
     const Color lcdOn = asColor(lcdColours.on);
 
-    // Drop shadow, shell rim, and inner egg. The shorter, tapered silhouette
-    // is original, while retaining the broad handheld proportions of a
-    // 1990s virtual-pet device.
-    drawEllipse(278, 638, 164, 15, Color(178, 129, 111, 44));
+    // Drop shadow, shell rim, and inner egg. The short, tapered silhouette
+    // and translucent turquoise treatment follow the selected P1 device
+    // visually, while the geometry remains an independently drawn UI.
+    drawEllipse(278, 638, 164, 15, Color(38, 108, 112, 44));
     drawEgg(270, 348, 220, 272, ShellOutline);
     drawEgg(270, 346, 208, 260, ShellMain);
     drawEllipse(238, 318, 135, 190, ShellHighlight);
@@ -1080,8 +1085,8 @@ void CnaTamagotchiGame::drawDevice()
     // Three physical controls: A changes selection, B confirms, C clears it.
     for (const ButtonPosition button : ButtonPositions) {
         drawEllipse(button.x, ButtonY + 4, 25, 25, ShellOutline);
-        drawEllipse(button.x, ButtonY, 20, 20, ShellHighlight);
-        drawEllipse(button.x - 3, ButtonY - 4, 8, 8, Color(255, 238, 244, 255));
+        drawEllipse(button.x, ButtonY, 20, 20, ButtonMain);
+        drawEllipse(button.x - 3, ButtonY - 4, 8, 8, ButtonHighlight);
     }
 
     // A small recessed reset pinhole sits apart from the three care controls.
