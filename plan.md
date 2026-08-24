@@ -118,7 +118,7 @@ Acceptance:
   gameplay coordinates.
 - Smoke test exercises render-target bind/unbind and point-filtered presentation.
 
-### MAR-012 — Procedural VGA-inspired palette and primitives — TODO
+### MAR-012 — Procedural VGA-inspired palette and primitives — DONE
 
 Acceptance:
 
@@ -128,7 +128,7 @@ Acceptance:
   solids, hazards, and debug overlays.
 - No shipping image asset is required for the milestone.
 
-### MAR-013 — Tile model and renderer — TODO
+### MAR-013 — Tile model and renderer — DONE
 
 Acceptance:
 
@@ -170,7 +170,7 @@ Acceptance:
 
 ## Player and collision
 
-### MAR-020 — Player entity and state model — TODO
+### MAR-020 — Player entity and state model — DONE
 
 Acceptance:
 
@@ -180,7 +180,7 @@ Acceptance:
   a giant switch-based update function.
 - Spawn/reset behavior is deterministic.
 
-### MAR-021 — Horizontal acceleration and deceleration — TODO
+### MAR-021 — Horizontal acceleration and deceleration — DONE
 
 Acceptance:
 
@@ -190,7 +190,7 @@ Acceptance:
   source-inspired ranges in unit tests.
 - No frame-time value enters the controller directly.
 
-### MAR-022 — Running — TODO
+### MAR-022 — Running — DONE
 
 Depends on: MAR-021.
 
@@ -200,7 +200,7 @@ Acceptance:
 - Walk and run caps are tested in both directions.
 - Releasing run while above walk cap decelerates smoothly rather than snapping.
 
-### MAR-023 — Jumping and variable height — TODO
+### MAR-023 — Jumping and variable height — DONE
 
 Acceptance:
 
@@ -210,7 +210,7 @@ Acceptance:
 - Tests pin impulse, apex tick/range, total airtime, early-release difference,
   and running horizontal reach.
 
-### MAR-024 — Gravity and falling — TODO
+### MAR-024 — Gravity and falling — DONE
 
 Acceptance:
 

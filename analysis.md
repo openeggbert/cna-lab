@@ -373,6 +373,26 @@ Render-target support is present in the pinned CNA public API. If a selected CNA
 renderer reports or demonstrates a defect, direct logical-coordinate drawing is
 an explicit compatibility fallback to track, never a backend bypass.
 
+The initial procedural palette is deliberately small and used through one
+generated white texel plus `SpriteBatch` tinting. Key entries are:
+
+| Role | RGB / hex |
+|---|---|
+| letterbox/night ink | `8,10,18` / `#080A12` |
+| sky | `42,74,105` / `#2A4A69` |
+| far ruins | `60,83,112` / `#3C5370` |
+| mid green stone | `58,107,104` / `#3A6B68` |
+| near foliage | `70,126,95` / `#467E5F` |
+| ruin body/highlight | `118,82,53` / `#765235`; `166,142,69` / `#A68E45` |
+| courier copper | `205,119,42` / `#CD772A` |
+| plated green | `79,157,124` / `#4F9D7C` |
+| hazard ember | `226,100,70` / `#E26446` |
+| exit teal | `95,192,158` / `#5FC09E` |
+| debug/reserved bright | `235,189,67` / `#EBBD43` |
+
+All current art is composed from these original rectangles; the shipping game
+requires no bitmap asset.
+
 ## Modern architecture
 
 ### Modules and ownership
@@ -415,6 +435,11 @@ multiplier. These are new 60-Hz values, not claimed as exact conversions. Tests
 pin acceleration time, apex tick/range, stop distance, collision, and camera
 bounds so tuning is intentional.
 
+The current jump policy is deliberately ground-only: there is no coyote time or
+jump buffer yet. `JumpPressed` is an edge event latched by the CNA input adapter
+until a fixed tick consumes it; `JumpHeld` only controls early-release gravity.
+Landing while the button remains held cannot trigger another jump.
+
 ### Tiles and collision
 
 Visual tile ID and collision semantic are separate fields. Initial semantics:
@@ -426,8 +451,8 @@ Empty  Solid  OneWay  Breakable  Hazard  Interactive  Exit  Transition
 The player uses a floating position and AABB, integrates X and Y separately,
 queries only overlapped cells, snaps to blocking faces, and records grounded,
 ceiling-hit, hazard, and transition contacts. Tile lookup outside the map is
-solid horizontally/below and empty above according to explicit level boundary
-rules. Tests need no CNA device.
+solid horizontally, while above and below are open; the open lower boundary is
+required for deterministic fall death. Tests need no CNA device.
 
 ### Camera and parallax
 

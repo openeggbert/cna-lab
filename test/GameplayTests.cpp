@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -517,6 +518,149 @@ namespace
               "holding jump produces more height than tapping");
     }
 
+    void TestControllerRanges()
+    {
+        constexpr float tick = static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds);
+
+        CopperBoots::WorldSimulation rightWorld;
+        CopperBoots::PlayerInput right;
+        right.Move = 1.0F;
+        for (int i = 0; i < 6; ++i)
+            rightWorld.Update(right, tick);
+        CheckNear(rightWorld.Player().VelocityX, 72.0F, 0.01F,
+                  "walk reaches positive cap after six ticks");
+        for (int i = 0; i < 12; ++i) {
+            right.Move = -1.0F;
+            rightWorld.Update(right, tick);
+        }
+        CheckNear(rightWorld.Player().VelocityX, -72.0F, 0.01F,
+                  "ground reversal reaches negative walk cap in twelve ticks");
+
+        CopperBoots::WorldSimulation runWorld;
+        CopperBoots::PlayerInput run;
+        run.Move = 1.0F;
+        run.Run = true;
+        for (int i = 0; i < 12; ++i)
+            runWorld.Update(run, tick);
+        CheckNear(runWorld.Player().VelocityX, 128.0F, 0.01F,
+                  "run reaches positive cap");
+        run.Move = -1.0F;
+        for (int i = 0; i < 24; ++i)
+            runWorld.Update(run, tick);
+        CheckNear(runWorld.Player().VelocityX, -128.0F, 0.01F,
+                  "run reaches negative cap");
+
+        CopperBoots::WorldSimulation releaseWorld;
+        run.Move = 1.0F;
+        for (int i = 0; i < 12; ++i)
+            releaseWorld.Update(run, tick);
+        run.Run = false;
+        releaseWorld.Update(run, tick);
+        Check(releaseWorld.Player().VelocityX > 72.0F &&
+                  releaseWorld.Player().VelocityX < 128.0F,
+              "releasing run decelerates toward walk cap without snapping");
+
+        CopperBoots::WorldSimulation airWorld;
+        CopperBoots::PlayerInput jumpRight;
+        jumpRight.Move = 1.0F;
+        jumpRight.JumpPressed = true;
+        jumpRight.JumpHeld = true;
+        airWorld.Update(jumpRight, tick);
+        const float firstAirVelocity = airWorld.Player().VelocityX;
+        jumpRight.JumpPressed = false;
+        airWorld.Update(jumpRight, tick);
+        const float airAccelerationStep =
+            airWorld.Player().VelocityX - firstAirVelocity;
+        Check(airAccelerationStep > 7.0F && airAccelerationStep < 7.3F,
+              "air acceleration is the limited 430 pixels-per-second-squared step");
+
+        CopperBoots::WorldSimulation heldJumpWorld;
+        const float startY = heldJumpWorld.Player().Y;
+        CopperBoots::PlayerInput heldJump;
+        heldJump.JumpPressed = true;
+        heldJump.JumpHeld = true;
+        int apexTick = 0;
+        int landingTick = 0;
+        float apexY = startY;
+        for (int i = 1; i <= 100; ++i) {
+            heldJumpWorld.Update(heldJump, tick);
+            heldJump.JumpPressed = false;
+            if (heldJumpWorld.Player().Y < apexY) {
+                apexY = heldJumpWorld.Player().Y;
+                apexTick = i;
+            }
+            if (i > 1 && heldJumpWorld.Player().Grounded) {
+                landingTick = i;
+                break;
+            }
+        }
+        Check(apexTick >= 15 && apexTick <= 18,
+              "held jump apex tick stays in tuned range");
+        Check(startY - apexY >= 40.0F && startY - apexY <= 46.0F,
+              "held jump apex height stays in tuned range");
+        Check(landingTick >= 31 && landingTick <= 39,
+              "held jump total airtime stays in tuned range");
+        for (int i = 0; i < 10; ++i)
+            heldJumpWorld.Update(heldJump, tick);
+        Check(heldJumpWorld.Player().Grounded &&
+                  std::abs(heldJumpWorld.Player().Y - startY) < 0.01F,
+              "held jump without another press cannot auto-repeat after landing");
+
+        CopperBoots::WorldSimulation walkJumpWorld;
+        CopperBoots::WorldSimulation runJumpWorld;
+        CopperBoots::PlayerInput walkJump;
+        walkJump.Move = 1.0F;
+        walkJump.JumpPressed = true;
+        walkJump.JumpHeld = true;
+        CopperBoots::PlayerInput runningJump = walkJump;
+        runningJump.Run = true;
+        for (int i = 0; i < 30; ++i) {
+            walkJumpWorld.Update(walkJump, tick);
+            runJumpWorld.Update(runningJump, tick);
+            walkJump.JumpPressed = false;
+            runningJump.JumpPressed = false;
+        }
+        Check(runJumpWorld.Player().X > walkJumpWorld.Player().X + 15.0F,
+              "run state increases deterministic horizontal jump reach");
+    }
+
+    void TestLedgeFallAndTerminalVelocity()
+    {
+        constexpr float tick = static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds);
+        std::string edgeSource = MakeProjectileLevel(false, false);
+        const std::string fullFloor(40, '#');
+        const std::string shortFloor = "####" + std::string(36, '.');
+        edgeSource.replace(edgeSource.rfind(fullFloor), fullFloor.size(),
+                           shortFloor);
+
+        CopperBoots::WorldSimulation world;
+        world.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            edgeSource, "ledge.cbl"));
+        CopperBoots::PlayerInput run;
+        run.Move = 1.0F;
+        run.Run = true;
+        bool enteredFalling = false;
+        float maximumFallVelocity = 0.0F;
+        bool died = false;
+        for (int i = 0; i < 180; ++i) {
+            world.Update(run, tick);
+            enteredFalling = enteredFalling ||
+                             world.Player().Motion == CopperBoots::PlayerMotion::Falling;
+            maximumFallVelocity = std::max(maximumFallVelocity,
+                                           world.Player().VelocityY);
+            if (world.LastEvents().PlayerDied == 1) {
+                died = true;
+                break;
+            }
+        }
+        Check(enteredFalling, "walking from a ledge enters falling state");
+        Check(maximumFallVelocity <= 420.01F && maximumFallVelocity >= 399.0F,
+              "fall velocity reaches but never exceeds terminal cap");
+        Check(died, "long ledge fall emits one out-of-world death event");
+    }
+
     void TestCameraBounds()
     {
         CopperBoots::Camera2D camera(320.0F, 180.0F);
@@ -789,6 +933,8 @@ int main()
     TestLevelParsing();
     TestMovementAndJump();
     TestVariableJumpHeight();
+    TestControllerRanges();
+    TestLedgeFallAndTerminalVelocity();
     TestCameraBounds();
     TestClockworkCrawler();
     TestDeathAndRespawn();
