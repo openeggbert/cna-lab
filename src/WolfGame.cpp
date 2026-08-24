@@ -406,6 +406,10 @@ namespace WolfCna
             MakeTone(880.0f, 5200),
             22050,
             AudioChannels::Mono);
+        exitSound_ = std::make_unique<SoundEffect>(
+            MakeTone(440.0f, 7000),
+            22050,
+            AudioChannels::Mono);
         ambientSound_ = std::make_unique<SoundEffect>(
             MakeAmbientLoop(),
             22050,
@@ -511,6 +515,20 @@ namespace WolfCna
                 cardTop + 146,
                 prompt,
                 Color(255, 233, 136, 255));
+        }
+        else if (screen_ == Screen::Paused)
+        {
+            constexpr std::string_view message = "PAUSED";
+            constexpr std::string_view prompt = "P RESUME";
+            const int messageWidth = HudTextWidth(message);
+            const int messageX = centerX - messageWidth / 2;
+            const int messageY = centerY - 34;
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(messageX - 20, messageY - 11, messageWidth + 40, 57),
+                Color(17, 59, 116, 255));
+            DrawHudText(*hudSpriteBatch_, *hudPixel_, messageX, messageY, message, Color(184, 238, 255, 255));
+            DrawHudText(*hudSpriteBatch_, *hudPixel_, centerX - HudTextWidth(prompt) / 2, messageY + 21, prompt, Color(255, 233, 136, 255));
         }
         else if (screen_ == Screen::GameOver)
         {
@@ -669,6 +687,7 @@ namespace WolfCna
         actionWasDown_ = false;
         attackWasDown_ = false;
         ilmWasDown_ = false;
+        pauseWasDown_ = false;
         cheatMessageSeconds_ = 0.0f;
     }
 
@@ -788,6 +807,14 @@ namespace WolfCna
         }
 
         const bool actionIsDown = keyboard.IsKeyDown(Keys::Space);
+        const bool pauseIsDown = keyboard.IsKeyDown(Keys::P);
+        if (screen_ == Screen::Paused)
+        {
+            if (pauseIsDown && !pauseWasDown_)
+                screen_ = Screen::Playing;
+            pauseWasDown_ = pauseIsDown;
+            return;
+        }
         if (screen_ == Screen::GameOver)
         {
             if (actionIsDown && !actionWasDown_)
@@ -798,6 +825,14 @@ namespace WolfCna
             actionWasDown_ = actionIsDown;
             return;
         }
+
+        if (pauseIsDown && !pauseWasDown_)
+        {
+            screen_ = Screen::Paused;
+            pauseWasDown_ = true;
+            return;
+        }
+        pauseWasDown_ = pauseIsDown;
         if (completed_)
         {
             if (actionIsDown && !actionWasDown_)
@@ -936,7 +971,7 @@ namespace WolfCna
             return;
         }
 
-        if (screen_ == Screen::GameOver || completed_)
+        if (screen_ == Screen::Paused || screen_ == Screen::GameOver || completed_)
         {
             HandleInput(clampedElapsed);
             Game::Update(gameTime);
@@ -986,6 +1021,8 @@ namespace WolfCna
         {
             completed_ = true;
             AwardScore(1000);
+            if (exitSound_)
+                static_cast<void>(exitSound_->Play(0.38f, 0.4f, 0.0f));
         }
 
         Game::Update(gameTime);
@@ -1001,7 +1038,7 @@ namespace WolfCna
         device.setRasterizerStateProperty(RasterizerState::CullNone);
         device.getSamplerStatesProperty()[0] = SamplerState::PointClamp;
 
-        if ((screen_ == Screen::Playing || screen_ == Screen::GameOver) && effect_ && atlas_)
+        if ((screen_ == Screen::Playing || screen_ == Screen::Paused || screen_ == Screen::GameOver) && effect_ && atlas_)
         {
             world_.Draw(
                 device,

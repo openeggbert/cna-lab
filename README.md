@@ -37,6 +37,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - left or right `Ctrl`: fire the sidearm
 - `1` / `2` / `3`: knife / sidearm / three-round repeater
 - `F11`: toggle fullscreen
+- `P`: pause / resume
 - `Escape`: quit
 - `I` + `L` + `M` together: retro loadout cheat — full health and ammunition,
   access card, repeater selected, and score reset to zero

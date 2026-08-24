@@ -53,6 +53,7 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAlertSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAttackSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> extraLifeSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> exitSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> ambientSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffectInstance> ambientInstance_;
 
@@ -76,6 +77,7 @@ namespace WolfCna
             Difficulty,
             Controls,
             Playing,
+            Paused,
             GameOver
         };
         enum class Difficulty
@@ -92,6 +94,7 @@ namespace WolfCna
         bool actionWasDown_ = false;
         bool attackWasDown_ = false;
         bool fullScreenWasDown_ = false;
+        bool pauseWasDown_ = false;
         bool ilmWasDown_ = false;
         bool upWasDown_ = false;
         bool downWasDown_ = false;
