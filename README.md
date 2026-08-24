@@ -44,7 +44,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
 - persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume, view angle and the last selected difficulty survive restarts
 - holding `Tab` shows a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
-- every `GOAL` corresponds to a steel elevator cabin: locked red doors block entry, then rise after all power relays and terminals are active
+- every `GOAL` corresponds to a steel elevator cabin whose raised gate allows immediate Wolf-like action activation or physical entry
 
 ## Controls
 
@@ -53,13 +53,13 @@ This starter is deliberately small. It proves the basic direction before local A
 - left/right arrow keys: turn left / right
 - title/sector/difficulty menus: arrows select, `Enter` or `Space` confirms, `Escape` backs out; the title menu cycles master volume through 0/25/50/75/100% and view angle through 60/72/84/96 degrees
 - three difficulty modes: Scout (70% enemy damage), Operative (normal), Veteran (130% enemy damage)
-- `Space`: open the door in front of you (doors close after four seconds unless the player or a body blocks them)
+- `Space`: open the door in front of you or activate a faced sector elevator (doors close after four seconds unless the player or a body blocks them)
 - left or right `Ctrl`: attack with the selected weapon; hold for repeater/heavy automatic fire, while the knife and sidearm fire once per press; empty firearms automatically fall back to the knife
 - `1` / `2` / `3` / `4`: knife / sidearm / three-round repeater / five-round heavy automatic; weapons 3 and 4 must be found first
 - collecting ammunition after reaching zero restores the last firearm automatically
 - `F11`: toggle fullscreen
 - `P` or `Escape`: open the in-run pause menu; either key resumes directly, while the menu can also change sound/view settings or return to the title
-- hold `Tab`: show the explored-area map; releasing it resumes play; it includes a marker legend and `POWER`/`TERMINAL` progress, while red `GOAL` marks a locked exit and cyan `GOAL` an active exit
+- hold `Tab`: show the explored-area map; releasing it resumes play; it includes a marker legend, optional `POWER`/`TERMINAL` progress and an always-cyan `GOAL`
 - quitting the application is an explicit `QUIT` choice in the main menu
 - `I` + `L` + `M` together: retro loadout cheat — full health, all weapons,
   access card, heavy automatic selected, ammunition set to 99, and score reset to zero
@@ -89,8 +89,8 @@ have the same width and use only these symbols:
 - `D`: closed sliding door
 - `Q`: closed red security door
 - `C`: cyan security-card pickup, required to open `Q`
-- `M`: amber terminal; use it to bring the exit online
-- `O`: violet power relay; activate it as the other half of the exit objective
+- `M`: optional amber bunker terminal
+- `O`: optional violet power relay
 - `S`: secret moving wall; use it to expose a hidden reward
 - `G`: guard spawn
 - `K`: hound spawn
@@ -112,12 +112,12 @@ have the same width and use only these symbols:
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 
-An elevator is sealed by red doors until every power relay and terminal is active.
-The doors then rise, its destination marker turns cyan and entering the cabin
-or pressing `Space` while facing the online elevator completes the sector. Pressing
-`Space` at an offline elevator reports `EXIT OFFLINE` instead of failing silently.
-Activating either component briefly reports `POWER ONLINE`, `TERMINAL ONLINE` or
-`EXIT ONLINE` in the play view.
+An elevator is available from the beginning of a sector. Its gate starts raised,
+and entering the cabin or pressing `Space` while facing it completes the sector.
+The `G` + `O` + `A` + `L` cheat changes only the player's position and facing, so
+the same elevator behavior applies after walking there normally. Power relays and
+terminals remain optional bunker systems; their interactions briefly report
+`POWER ONLINE`, `TERMINAL ONLINE` or `SYSTEMS COMPLETE` in the play view.
 
 Enemy projectiles end in a short expanding cyan-and-amber spark when they hit the
 world. A player hit also produces a deliberately translucent amber screen flash and

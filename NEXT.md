@@ -18,16 +18,16 @@
 - Health kits are preserved when the player is already at 100% and can be collected after later damage.
 - Weapon sprites now lunge or recoil during attacks instead of remaining completely static.
 - Holding `Tab` shows the paused map of visited cells and releasing it resumes play; `I+L+M` remains an independent loadout cheat.
-- The map always marks the sector exit as red `GOAL`, changing it to cyan after its objective is activated, without revealing nearby rooms.
+- The map always marks the sector exit as cyan `GOAL` without revealing nearby rooms.
 - Firearm attack frames remain visible for a few extra frames so their generated muzzle flashes read clearly.
 - Firearm attack frames use CNA straight-alpha blending and partial opacity over the solid weapon view, preventing transparent RGB from becoming a white rectangle.
-- Every sector now requires activating a separate violet power relay and amber terminal before its exit comes online.
+- Every sector contains a separate violet power relay and amber terminal as optional bunker systems; the elevator remains available independently.
 - Every sector now places three freestanding plant landmarks with its own original transparent storage, foundry or laboratory sprite.
 - Every sector now has two solid polygonal tables with four-leg silhouettes, static geometry and matching player/enemy collision.
 - The automap now shows independent color-coded `POWER` and `TERMINAL` progress without revealing either objective's location.
 - The automap now includes a compact side legend for player, door, lock, discovered-secret and goal colors.
 - A fourth progressively unlocked 64×64 archive sector adds a violet/bronze material palette, altered combat roster and original archive-palm landmarks.
-- Relay and terminal interactions now show `POWER ONLINE`, `TERMINAL ONLINE` or `EXIT ONLINE` for two seconds.
+- Relay and terminal interactions now show `POWER ONLINE`, `TERMINAL ONLINE` or `SYSTEMS COMPLETE` for two seconds.
 - Health placement now scales from two kits in early sectors to three in labs/archive; tests require enough guaranteed ammunition for a full clear.
 - The illustrated splash is separate from the main menu.
 - Every campaign sector now has an exact authored 64×64 footprint; tests require substantial use of the area and no disconnected rooms.
@@ -36,9 +36,10 @@
 - Holding left or right `Shift` now runs at 1.65× walking speed while retaining the clamped frame step and existing collision path.
 - Four original generated wall families now alternate in coherent room-scale regions, and every polygonal table uses a dedicated dark-oak texture.
 - Access cards, both weapon pickups, terminals, power relays, exits and enemy projectiles now use original transparent sprites; the last untextured colored cuboid path is gone.
-- Every map `GOAL` now corresponds to a three-sided steel elevator cabin whose red polygonal gate blocks entry and rises only after the sector objective is complete.
+- Every map `GOAL` now corresponds to a three-sided steel elevator cabin whose polygonal gate starts raised so the exit is immediately usable.
 - Holding `G+O+A+L` once teleports the player to the safe approach cell outside the current elevator and turns them toward its doors without changing objective progress.
-- `Space` now activates an online elevator from its approach; an offline elevator responds with visible `EXIT OFFLINE` feedback and a lock sound.
+- `Space` now activates an elevator from its approach regardless of optional relay and terminal progress; entering the cabin follows the same completion path.
+- The `G+O+A+L` cheat remains purely positional and gives the same usable elevator as reaching the goal on foot.
 - Enemy projectiles now create a short expanding project-generated spark on impact; player hits also add a translucent amber flash and a generated impact sound.
 - Sector completion now plays a deterministic original four-note fanfare through CNA audio in addition to the elevator confirmation.
 - Campaign pacing tests now require early and late health recovery plus a 90–130-cell relay/terminal/exit route; sector 1's second kit moved into its late combat room and Veteran damage is now 130%.
@@ -51,7 +52,7 @@
 
 1. Subjectively playtest the updated health placement and 130% Veteran damage.
 2. Playtest sprite motion amplitudes together with the authored combat route.
-3. Playtest the full four-sector objective route and completion pacing against the new deterministic guardrails.
+3. Playtest the full four-sector optional-systems exploration route and completion pacing against the deterministic guardrails.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.

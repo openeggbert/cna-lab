@@ -343,9 +343,6 @@ namespace WolfCna
 
     bool World::ReachedExit(const Vector3& playerPosition) const
     {
-        if (!IsExitUnlocked())
-            return false;
-
         for (const Exit& exit : exits_)
         {
             const float dx = exit.position.X - playerPosition.X;
@@ -358,7 +355,7 @@ namespace WolfCna
         return false;
     }
 
-    bool World::IsExitUnlocked() const
+    bool World::AreObjectivesComplete() const
     {
         const bool terminalsActivated = terminals_.empty() || std::all_of(
             terminals_.begin(),
@@ -535,9 +532,7 @@ namespace WolfCna
         }
 
         if (targetExit)
-            return IsExitUnlocked()
-                ? InteractionResult::ExitActivated
-                : InteractionResult::ExitOffline;
+            return InteractionResult::ExitActivated;
 
         if (targetRelay)
         {
@@ -613,7 +608,7 @@ namespace WolfCna
             changed = changed || door.openAmount != previousAmount;
         }
 
-        const float elevatorTarget = IsExitUnlocked() ? 1.0f : 0.0f;
+        constexpr float elevatorTarget = 1.0f;
         for (Exit& exit : exits_)
         {
             const float previousAmount = exit.openAmount;
@@ -1160,7 +1155,7 @@ namespace WolfCna
                     z,
                     approach->first,
                     approach->second,
-                    IsExitUnlocked() ? 1.0f : 0.0f});
+                    1.0f});
             }
         }
     }

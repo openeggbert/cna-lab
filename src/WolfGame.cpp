@@ -1129,9 +1129,7 @@ namespace WolfCna
         const Color doorColor(75, 137, 193, 255);
         const Color lockedDoorColor(174, 57, 65, 255);
         const Color secretColor(194, 144, 50, 255);
-        const Color goalColor = world_.IsExitUnlocked()
-            ? Color(55, 225, 220, 255)
-            : Color(239, 76, 83, 255);
+        const Color goalColor(55, 225, 220, 255);
 
         hudSpriteBatch_->Begin();
         hudSpriteBatch_->Draw(
@@ -1950,13 +1948,6 @@ namespace WolfCna
                 static_cast<void>(doorSound_->Play(0.68f, -0.15f, 0.0f));
             else if (activation == World::InteractionResult::DoorLocked && lockedSound_)
                 static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
-            else if (activation == World::InteractionResult::ExitOffline)
-            {
-                objectiveMessage_ = "EXIT OFFLINE";
-                objectiveMessageSeconds_ = 2.0f;
-                if (lockedSound_)
-                    static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
-            }
             else if (activation == World::InteractionResult::ExitActivated)
             {
                 CompleteLevel();
@@ -1967,14 +1958,18 @@ namespace WolfCna
             {
                 if (terminalSound_)
                     static_cast<void>(terminalSound_->Play(0.32f, 0.25f, 0.0f));
-                objectiveMessage_ = world_.IsExitUnlocked() ? "EXIT ONLINE" : "TERMINAL ONLINE";
+                objectiveMessage_ = world_.AreObjectivesComplete()
+                    ? "SYSTEMS COMPLETE"
+                    : "TERMINAL ONLINE";
                 objectiveMessageSeconds_ = 2.0f;
             }
             else if (activation == World::InteractionResult::RelayActivated)
             {
                 if (terminalSound_)
                     static_cast<void>(terminalSound_->Play(0.38f, -0.2f, 0.0f));
-                objectiveMessage_ = world_.IsExitUnlocked() ? "EXIT ONLINE" : "POWER ONLINE";
+                objectiveMessage_ = world_.AreObjectivesComplete()
+                    ? "SYSTEMS COMPLETE"
+                    : "POWER ONLINE";
                 objectiveMessageSeconds_ = 2.0f;
             }
             else if (activation == World::InteractionResult::SecretRevealed)

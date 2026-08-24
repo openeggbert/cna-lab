@@ -1002,9 +1002,9 @@ Current progress:
   is removed by a single pistol shot;
 - score has no cap: gold awards 100, guards 100, hounds 200 and the exit awards a one-time 1000-point bonus; every 40,000 points awards an extra life;
 - reaching the exit presents a centered completion card while preserving the final score in the status bar;
-- an amber terminal must be activated before the exit comes online; activation changes it cyan and has generated CNA audio;
-- each shipping exit is a three-sided steel elevator cabin whose red gate blocks
-  entry until the objective is complete, then rises to reveal its cyan marker;
+- amber terminals and violet relays are optional bunker systems with generated CNA audio and independent progress tracking;
+- each shipping exit is a three-sided steel elevator cabin whose raised gate and
+  cyan marker make the immediately usable goal readable;
 - secret moving walls use the wall material, stay open once found and award 500 score for hidden rewards;
 - the starter level is an authored room-and-corridor route with distributed guards, hounds, pickups, gold, a normal door, a security door and an exit;
 - the game now starts at an original blue-and-amber title menu, with a short controls page and three difficulty choices; Scout takes 70% enemy damage, Operative is the baseline and Veteran takes 130%;
@@ -1195,9 +1195,10 @@ cells and resets on sector changes. Holding `Tab` opens a CNA
 `SpriteBatch` map overlay that pauses simulation, shows visited floor and adjacent
 wall boundaries, colors known doors/objectives and draws the player's facing.
 The sector exit is always marked as `GOAL` without revealing its surrounding
-geometry; it changes from red to cyan when activated. All other unknown geometry
-and entities remain hidden. A centered `POWER` and `TERMINAL` progress readout
-reports objective completion without exposing either object's position. A compact
+geometry; it uses a stable cyan marker because the elevator is always available.
+All other unknown geometry and entities remain hidden. A centered `POWER` and
+`TERMINAL` progress readout reports optional system completion without exposing
+either object's position. A compact
 side legend explains player, door, lock, discovered-secret and goal colors. Releasing
 `Tab` immediately resumes play. Moving the map away from `M` leaves the
 `I` + `L` + `M` loadout chord completely independent.
@@ -1217,20 +1218,20 @@ side legend explains player, door, lock, discovered-secret and goal colors. Rele
 - keep the existing `I` + `L` + `M` loadout cheat independent from the map key;
 - cover visited-cell tracking and sector reset with tests.
 
-### WOLF-019 — two-stage sector objective
+### WOLF-019 — optional two-stage bunker systems
 
 Status: complete. Every authored sector places one original violet power relay
-away from its amber terminal. The player must activate both components with the
-normal action key before the exit changes from red to cyan. The relay has a
-distinct green active state and lower confirmation tone, and focused tests cover
-relay-only, terminal-only and fully unlocked states. Two-second play-view messages
-report each completed component and clearly announce when the exit comes online.
+away from its amber terminal. The player may activate both components with the
+normal action key, but neither blocks the classic immediately usable elevator.
+The relay has a distinct green active state and lower confirmation tone, and focused
+tests cover relay-only, terminal-only and fully completed system states. Two-second
+play-view messages report each completed component and announce `SYSTEMS COMPLETE`.
 
 - add a second interactive objective component distinct from doors and terminals;
-- require every relay and terminal before enabling the sector exit;
+- track relay and terminal completion independently from the sector exit;
 - give inactive and active relays unmistakably different colors and audio feedback;
 - distribute one relay through each campaign route rather than placing it beside the exit;
-- validate the two-stage unlock sequence with deterministic tests.
+- validate the two-stage optional-system sequence with deterministic tests.
 
 ### WOLF-020 — archive campaign sector
 
@@ -1268,18 +1269,16 @@ and asset handling are recorded in `ASSET_PROVENANCE.md`.
 ### WOLF-022 — physical sector elevators
 
 Status: complete. Every shipping `E` cell is now authored as a three-sided steel
-elevator cabin with one room-facing approach. A textured red elevator gate is real
-polygonal geometry and blocks player and enemy movement while the sector objective
-is incomplete. After all power relays and terminals are active, the gate rises at
-the normal door speed; only a sufficiently open cabin can complete the sector. The
-generated destination pedestal remains inside the cabin and changes to its active
-cyan state. Focused tests cover locked collision, opening delay, passability and
-completion, while campaign-map tests require exactly one approach to every elevator.
+elevator cabin with one room-facing approach. A textured elevator gate is real
+polygonal geometry and starts raised, leaving the cabin immediately accessible.
+The generated cyan destination pedestal remains inside the cabin. Focused tests
+cover initial passability and completion, while campaign-map tests require exactly
+one approach to every elevator.
 
 - make the automap `GOAL` correspond to visible elevator geometry in the 3D world;
 - enclose every shipping elevator on three sides with a single readable entrance;
-- block the entrance until the current relay and terminal objective is complete;
-- animate the elevator gate through the existing CNA-rendered dynamic geometry path;
+- keep the entrance raised and passable independently of optional bunker systems;
+- retain the elevator gate in the existing CNA-rendered dynamic geometry path;
 - retain M7's later true vertical elevator travel as separate future work.
 
 ### WOLF-023 — goal-approach cheat
@@ -1293,19 +1292,20 @@ the latch resets with each sector and the destination/heading calculation is cov
 by a focused test.
 
 - use a memorable chord that does not collide with movement, map or loadout controls;
-- place the player outside rather than inside a locked elevator;
+- place the player outside rather than inside the elevator;
 - face the elevator automatically after teleporting;
-- preserve all normal objective requirements and state.
+- preserve relay and terminal state without changing it.
 
 ### WOLF-024 — interactive elevator action
 
 Status: complete. `Space` now recognizes a faced elevator from its authored approach.
-An incomplete objective returns visible `EXIT OFFLINE` feedback with the lock sound;
-an online elevator completes the sector and reuses the same one-time score, unlock and
-audio path as walking into its open cabin. Focused tests cover both interaction results.
+The elevator completes the sector immediately and reuses the same one-time score,
+unlock and audio path as walking into its open cabin. Relay and terminal progress
+does not gate either route. Focused tests cover activation before and after optional
+system completion.
 
 - never leave the action key silently unresponsive at a visible goal;
-- retain relay and terminal requirements during ordinary play;
+- keep relay and terminal systems optional during ordinary play;
 - allow both Wolf-like action activation and physical cabin entry;
 - keep completion rewards idempotent through one shared helper.
 
@@ -1339,8 +1339,10 @@ so no external or proprietary sound asset is introduced.
 ### WOLF-027 — deterministic campaign pacing guardrails
 
 Status: complete. Every shipping sector now has tested early recovery within 15
-walkable steps, later recovery after at least 50 steps and a shortest complete
-relay/terminal/elevator route between 90 and 130 cells. The audit found sector 1's
+walkable steps, later recovery after at least 50 steps and a shortest full systems
+exploration route through the relay, terminal and elevator between 90 and 130 cells.
+The relay and terminal are optional for sector completion; this guardrail preserves
+the scale of a full exploration run. The audit found sector 1's
 second health kit too close to its first, so it now appears in the late combat room.
 Veteran incoming damage is reduced from 140% to 130% to keep its six-heavy-unit
 archive encounters severe without making each 25-health kit disproportionately weak.
@@ -1387,3 +1389,20 @@ through the explicit main-menu `QUIT` action, preventing accidental run loss.
 - keep fast one-key pause/resume behavior;
 - expose current sound and view settings during a run;
 - distinguish returning to title from terminating the application.
+
+### WOLF-031 — always-available sector elevators
+
+Status: complete. Sector elevators now follow the classic action-exit contract:
+their polygonal gates start raised, `Space` from the approach always activates them,
+and entering the cabin uses the same idempotent completion path. Relay and terminal
+progress remains available as optional bunker-system activity but can never produce
+an `EXIT OFFLINE` state. The `G` + `O` + `A` + `L` cheat remains purely positional,
+so walking and teleporting to the goal produce identical behavior. Focused tests
+cover immediate action activation, immediate cabin entry and unchanged optional
+system state after teleport destination lookup.
+
+- make every authored elevator usable from the beginning of its sector;
+- use one completion path for action activation and physical cabin entry;
+- preserve optional relay and terminal interactions without gating progress;
+- keep the goal cheat free of gameplay-state side effects;
+- remove obsolete locked-goal colors and offline feedback from the automap and HUD.

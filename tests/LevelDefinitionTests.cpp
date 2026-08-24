@@ -474,12 +474,12 @@ int main()
     Expect(
         goalApproach->lookDirection.X == 1.0f && goalApproach->lookDirection.Z == 0.0f,
         "goal cheat faces the player toward the elevator doors");
-    Expect(!goalCheatWorld.IsExitUnlocked(), "goal cheat lookup does not activate objectives");
+    Expect(!goalCheatWorld.AreObjectivesComplete(), "goal cheat lookup does not activate optional systems");
     const Microsoft::Xna::Framework::Vector3 goalInteractionPosition(5.5f, 0.62f, 1.5f);
     Expect(
         goalCheatWorld.TryActivate(goalInteractionPosition, lookDirection, false) ==
-            WolfCna::World::InteractionResult::ExitOffline,
-        "action on a locked elevator reports that the exit is offline");
+            WolfCna::World::InteractionResult::ExitActivated,
+        "elevator action works immediately after the positioning cheat");
     Expect(
         goalCheatWorld.TryActivate(playerPosition, lookDirection, false) ==
             WolfCna::World::InteractionResult::RelayActivated,
@@ -490,11 +490,11 @@ int main()
             lookDirection,
             false) == WolfCna::World::InteractionResult::TerminalActivated,
         "normal play activates the terminal");
-    Expect(goalCheatWorld.IsExitUnlocked(), "normal objectives bring the elevator online");
+    Expect(goalCheatWorld.AreObjectivesComplete(), "normal interactions complete the optional systems");
     Expect(
         goalCheatWorld.TryActivate(goalInteractionPosition, lookDirection, false) ==
             WolfCna::World::InteractionResult::ExitActivated,
-        "the elevator action works after walking or teleporting to its approach");
+        "the elevator action also works after walking to its approach");
 
     WolfCna::World exitWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PET#\n#####\n",
@@ -530,16 +530,12 @@ int main()
         "#####\n#PME#\n#####\n",
         "terminal.level"));
     const Microsoft::Xna::Framework::Vector3 terminalExit(3.5f, 0.62f, 1.5f);
-    Expect(!terminalWorld.ReachedExit(terminalExit), "terminal locks the exit until activated");
-    Expect(terminalWorld.Collides(3.5f, 1.5f, 0.1f), "locked elevator doors block entry");
+    Expect(terminalWorld.ReachedExit(terminalExit), "elevator is available independently of terminal state");
+    Expect(!terminalWorld.Collides(3.5f, 1.5f, 0.1f), "elevator entrance is open from sector start");
     Expect(
         terminalWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::TerminalActivated,
         "terminal activates when used from the front");
-    Expect(terminalWorld.IsExitUnlocked(), "terminal unlocks the exit");
-    Expect(!terminalWorld.ReachedExit(terminalExit), "unlocked elevator waits for its doors to rise");
-    static_cast<void>(terminalWorld.Update(0.5f, playerPosition));
-    Expect(!terminalWorld.Collides(3.5f, 1.5f, 0.1f), "raised elevator doors allow entry");
-    Expect(terminalWorld.ReachedExit(terminalExit), "open elevator completes the sector");
+    Expect(terminalWorld.AreObjectivesComplete(), "terminal-only fixture reports optional system completion");
 
     WolfCna::World relayWorld(WolfCna::LevelDefinition::Parse(
         "######\n#POME#\n######\n",
@@ -555,14 +551,14 @@ int main()
         relayWorld.GetObjectiveStatus().activatedRelays == 1 &&
             relayWorld.GetObjectiveStatus().activatedTerminals == 0,
         "objective status reports relay progress independently");
-    Expect(!relayWorld.IsExitUnlocked(), "power relay alone does not bypass the terminal");
+    Expect(!relayWorld.AreObjectivesComplete(), "power relay alone leaves the optional terminal incomplete");
     Expect(
         relayWorld.TryActivate(
             Microsoft::Xna::Framework::Vector3(2.5f, 0.62f, 1.5f),
             lookDirection,
             false) == WolfCna::World::InteractionResult::TerminalActivated,
         "terminal remains independently required after the relay");
-    Expect(relayWorld.IsExitUnlocked(), "relay and terminal together unlock the exit");
+    Expect(relayWorld.AreObjectivesComplete(), "relay and terminal together complete optional systems");
     Expect(
         relayWorld.GetObjectiveStatus().activatedRelays == 1 &&
             relayWorld.GetObjectiveStatus().activatedTerminals == 1,

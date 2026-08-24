@@ -33,7 +33,6 @@ namespace WolfCna
             TerminalActivated,
             RelayActivated,
             SecretRevealed,
-            ExitOffline,
             ExitActivated
         };
 
@@ -149,7 +148,7 @@ namespace WolfCna
             int currentHealth = 0);
         [[nodiscard]] bool ReachedExit(
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
-        [[nodiscard]] bool IsExitUnlocked() const;
+        [[nodiscard]] bool AreObjectivesComplete() const;
         [[nodiscard]] std::optional<ExitApproach> GetExitApproach() const;
         [[nodiscard]] ObjectiveStatus GetObjectiveStatus() const;
         [[nodiscard]] CompletionStats GetCompletionStats() const;
