@@ -8,6 +8,7 @@
 - Every enemy archetype now has its own original non-gory defeated sprite above the existing floor decal.
 - Guard, hound, rapid trooper and heavy unit attacks now trigger dedicated firing/lunge sprites for a short synchronized interval.
 - Every surviving enemy now shows its own brief non-gory hit-reaction sprite before resuming pursuit.
+- Idle enemies now breathe subtly and each chasing archetype has deterministic step bob and sway instead of sliding as a static image.
 - Defeated armed enemies now drop 3/5/8 rounds by archetype; hounds correctly drop none.
 - All four player weapons now use dedicated original attack frames instead of a rectangular muzzle-flash overlay.
 - Ceiling lamps now cast a warm, softly fading pool of light onto the floor below.
@@ -23,7 +24,7 @@
 ## Next tasks
 
 1. Playtest the authored route and rebalance health placement and difficulty-specific incoming damage.
-2. Add enemy idle/chase movement transitions.
+2. Playtest sprite motion amplitudes together with the authored combat route.
 3. Add another objective interaction and sector-specific freestanding room decorations.
 
 ## Verification

@@ -508,6 +508,8 @@ namespace WolfCna
             enemy.painVisualSeconds = std::max(0.0f, enemy.painVisualSeconds - elapsedSeconds);
             if (enemy.state == EnemyState::Dead)
                 continue;
+            enemy.visualAnimationSeconds = std::fmod(
+                enemy.visualAnimationSeconds + elapsedSeconds, 1000.0f);
 
             const float dx = playerPosition.X - enemy.position.X;
             const float dz = playerPosition.Z - enemy.position.Z;
@@ -1531,14 +1533,36 @@ namespace WolfCna
                 const bool isAttacking = !isDead && enemy->attackVisualSeconds > 0.0f;
                 const bool isInPain = !isDead && !isAttacking && enemy->painVisualSeconds > 0.0f;
                 const bool isRapid = enemy->type == Enemy::Type::RapidTrooper;
-                const float width = isDead
+                float width = isDead
                     ? (isHound ? 0.95f : isHeavy ? 1.05f : isRapid ? 1.0f : 0.95f)
                     : (isHound ? 0.82f : isHeavy ? 0.9f : 0.72f);
-                const float height = isDead
+                float height = isDead
                     ? (isHound ? 0.43f : isHeavy ? 0.64f : isRapid ? 0.54f : 0.44f)
                     : (isHound ? 0.72f : isHeavy ? 1.08f : 1.02f);
                 Vector3 position = enemy->position;
                 position.Y = 0.0f;
+
+                if (!isDead && !isAttacking && !isInPain)
+                {
+                    const float phaseOffset = enemy->position.X * 0.73f + enemy->position.Z * 0.41f;
+                    if (enemy->state == EnemyState::Chase)
+                    {
+                        const float strideRate = isHound ? 11.0f : isHeavy ? 6.5f : 8.0f;
+                        const float stride = std::sin(
+                            enemy->visualAnimationSeconds * strideRate + phaseOffset);
+                        const float step = std::abs(stride);
+                        position.Y += step * (isHound ? 0.018f : isHeavy ? 0.022f : 0.027f);
+                        width *= 1.0f + stride * (isHound ? 0.018f : 0.012f);
+                        height *= 1.0f - step * 0.012f;
+                    }
+                    else if (enemy->state == EnemyState::Idle)
+                    {
+                        const float breath = std::sin(
+                            enemy->visualAnimationSeconds * 2.1f + phaseOffset);
+                        position.Y += (breath + 1.0f) * 0.002f;
+                        height *= 1.0f + breath * 0.006f;
+                    }
+                }
 
                 Texture2D* enemyTexture = isDead
                     ? &defeatedGuardSprite

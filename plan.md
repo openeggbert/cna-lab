@@ -1080,8 +1080,9 @@ The four primitive weapon views and icons have been replaced by original
 high-resolution transparent pixel-art sprites. Every archetype now also has a
 dedicated firing or lunge frame shown for a short timer synchronized to the actual
 attack event. Every archetype also has a dedicated non-gory recoil frame shown
-briefly after surviving a hit. Additional idle/chase transitions remain, while
-every weapon now switches to its own generated slash/firing frame during
+briefly after surviving a hit. Idle enemies use a subtle breathing motion and
+chasing archetypes use distinct deterministic step cadence, bob and sway, while
+every weapon switches to its own generated slash/firing frame during
 the existing knife lunge or firearm recoil. The former rectangular muzzle-flash
 overlay has been removed.
 

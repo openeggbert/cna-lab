@@ -26,6 +26,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - level loaded from a validated text file
 - a three-sector authored bunker campaign with guards, hounds, pickups, sliding doors, security doors, terminals and exits
 - original transparent pixel-art guard, hound, rapid-trooper and heavy-unit sprites rendered as camera-facing polygons in the 3D world
+- idle enemies breathe subtly, while chasing enemies use faster archetype-specific step bob and sway
 - every enemy uses a brief dedicated firing/lunge sprite synchronized with its actual attack event
 - every surviving enemy briefly switches to its own non-gory recoil pose when hit
 - every defeated enemy switches to its own original collapsed/resting sprite above a stylized procedurally textured blood-pool decal

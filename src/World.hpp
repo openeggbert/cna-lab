@@ -185,6 +185,7 @@ namespace WolfCna
             float attackCooldown = 0.0f;
             float attackVisualSeconds = 0.0f;
             float painVisualSeconds = 0.0f;
+            float visualAnimationSeconds = 0.0f;
         };
 
         struct EnemyProjectile
