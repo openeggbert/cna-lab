@@ -78,6 +78,7 @@ namespace
         int walkable = 0;
         int exits = 0;
         int relays = 0;
+        int plants = 0;
         for (const std::string& row : rows)
         {
             for (const char symbol : row)
@@ -88,12 +89,15 @@ namespace
                     ++exits;
                 else if (symbol == 'O')
                     ++relays;
+                else if (symbol == 'I')
+                    ++plants;
             }
         }
         Expect(walkable >= 1500, std::string(name) + " uses a substantial part of its footprint");
         Expect(reachable == walkable, std::string(name) + " has no disconnected rooms");
         Expect(exits == 1, std::string(name) + " has one exit");
         Expect(relays == 1, std::string(name) + " has one power relay");
+        Expect(plants == 3, std::string(name) + " has three sector plants");
     }
 }
 

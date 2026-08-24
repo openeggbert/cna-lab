@@ -970,6 +970,14 @@ namespace WolfCna
                         0.0f});
                     continue;
                 }
+                if (symbol == 'I')
+                {
+                    decorations_.push_back({
+                        Vector3(static_cast<float>(x) + 0.5f, 0.0f, static_cast<float>(z) + 0.5f),
+                        Decoration::Type::Plant,
+                        0.0f});
+                    continue;
+                }
                 if (symbol != 'R' && symbol != 'B')
                     continue;
 
@@ -1348,6 +1356,7 @@ namespace WolfCna
         Texture2D& peaceBannerTexture,
         Texture2D& ceilingLampTexture,
         Texture2D& lampLightTexture,
+        Texture2D& plantSprite,
         const Vector3& cameraPosition)
     {
         if (!vertexBuffer_ || !indexBuffer_ || indices_.empty())
@@ -1411,6 +1420,35 @@ namespace WolfCna
             {
                 if (decoration.type == Decoration::Type::CeilingLamp)
                     continue;
+
+                if (decoration.type == Decoration::Type::Plant)
+                {
+                    const float plantHeight = 0.86f;
+                    const float plantAspect = static_cast<float>(plantSprite.getWidthProperty()) /
+                        static_cast<float>(std::max(1, plantSprite.getHeightProperty()));
+                    effect.setTextureProperty(&plantSprite);
+                    effect.setWorldProperty(
+                        Matrix::CreateScale(plantHeight * plantAspect, plantHeight, 1.0f) *
+                        Matrix::CreateConstrainedBillboard(
+                            decoration.position,
+                            cameraPosition,
+                            Vector3::Up,
+                            std::nullopt,
+                            std::nullopt));
+
+                    for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+                    {
+                        pass.Apply();
+                        device.DrawIndexedPrimitives(
+                            PrimitiveType::TriangleList,
+                            0,
+                            0,
+                            static_cast<int>(billboardVertices_.size()),
+                            0,
+                            static_cast<int>(billboardIndices_.size() / 3));
+                    }
+                    continue;
+                }
 
                 const bool isPainting = decoration.type == Decoration::Type::Painting;
                 effect.setTextureProperty(isPainting ? &paintingTexture : &peaceBannerTexture);

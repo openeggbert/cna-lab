@@ -176,6 +176,18 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/peace-medallion.png"
     COPYONLY)
 configure_file(
+    assets/decorations/storage-plant.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/decorations/storage-plant.png"
+    COPYONLY)
+configure_file(
+    assets/decorations/foundry-plant.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/decorations/foundry-plant.png"
+    COPYONLY)
+configure_file(
+    assets/decorations/labs-plant.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/decorations/labs-plant.png"
+    COPYONLY)
+configure_file(
     assets/title/title-background.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/title/title-background.png"
     COPYONLY)

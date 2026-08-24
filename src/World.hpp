@@ -107,6 +107,7 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::Texture2D& peaceBannerTexture,
             Microsoft::Xna::Framework::Graphics::Texture2D& ceilingLampTexture,
             Microsoft::Xna::Framework::Graphics::Texture2D& lampLightTexture,
+            Microsoft::Xna::Framework::Graphics::Texture2D& plantSprite,
             const Microsoft::Xna::Framework::Vector3& cameraPosition);
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 PlayerStart() const;
@@ -231,7 +232,7 @@ namespace WolfCna
 
         struct Decoration
         {
-            enum class Type { Painting, PeaceBanner, CeilingLamp };
+            enum class Type { Painting, PeaceBanner, CeilingLamp, Plant };
 
             Microsoft::Xna::Framework::Vector3 position;
             Type type = Type::Painting;

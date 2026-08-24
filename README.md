@@ -30,7 +30,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - every enemy uses a brief dedicated firing/lunge sprite synchronized with its actual attack event
 - every surviving enemy briefly switches to its own non-gory recoil pose when hit
 - every defeated enemy switches to its own original collapsed/resting sprite above a stylized procedurally textured blood-pool decal
-- authored rooms include procedural framed paintings, peace-symbol banners and ceiling lamps with warm floor-light pools
+- authored rooms include procedural framed paintings, peace-symbol banners, ceiling lamps with warm floor-light pools and three sector-specific freestanding plant landmarks
 - distinct generated material palettes for each sector: warm bunker, green industrial, and cold technical
 - only the nearest eligible ranged enemy fires at one time; guards, rapid troopers and heavy units use slower distinct cadences while hounds remain close-range attackers
 - defeated guards, rapid troopers and heavy units drop 3, 5 and 8 collectible rounds respectively; hounds do not drop ammunition
@@ -96,6 +96,7 @@ have the same width and use only these symbols:
 - `E`: level exit
 - `R`: wall-mounted framed landscape painting; must be next to a wall
 - `B`: wall-mounted banner with an original peace symbol; must be next to a wall
+- `I`: freestanding decorative plant using the current sector's original sprite
 - `L`: ceiling lamp
 - `W`: repeater weapon pickup with six rounds
 - `V`: heavy automatic weapon pickup with ten rounds

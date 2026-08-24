@@ -1123,8 +1123,10 @@ an original peace-symbol banner and a ceiling lamp through validated level
 symbols and project-generated textures. Each ceiling lamp projects a warm radial
 light pool onto the floor. Health, ammunition, gold bars, golden goblets and
 high-value peace medallions now use original transparent pickup sprites, with the
-three treasure types awarding 100, 250 and 500 score. Freestanding furniture,
-plants and sector-specific decoration variants remain.
+three treasure types awarding 100, 250 and 500 score. Each sector also places
+three freestanding plant landmarks using its own original transparent generated
+sprite: storage fern, foundry succulent or laboratory research fern. Additional
+freestanding furniture remains.
 
 - add generated paintings, ceiling lamps, tables, plants and treasure props;
 - add original wall banners carrying a peace symbol only;

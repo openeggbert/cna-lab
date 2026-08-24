@@ -297,6 +297,9 @@ namespace WolfCna
         goldBarsSprite_ = std::make_unique<Texture2D>("assets/pickups/gold-bars.png", device);
         goldenGobletSprite_ = std::make_unique<Texture2D>("assets/pickups/golden-goblet.png", device);
         peaceMedallionSprite_ = std::make_unique<Texture2D>("assets/pickups/peace-medallion.png", device);
+        storagePlantSprite_ = std::make_unique<Texture2D>("assets/decorations/storage-plant.png", device);
+        foundryPlantSprite_ = std::make_unique<Texture2D>("assets/decorations/foundry-plant.png", device);
+        labsPlantSprite_ = std::make_unique<Texture2D>("assets/decorations/labs-plant.png", device);
         titleBackground_ = std::make_unique<Texture2D>("assets/title/title-background.png", device);
         CreateProceduralBloodDecal();
         CreateProceduralDecorationTextures();
@@ -1755,7 +1758,8 @@ namespace WolfCna
             defeatedRapidTrooperSprite_ && defeatedHeavyUnitSprite_ &&
             ammoPickupSprite_ && healthPickupSprite_ && goldBarsSprite_ &&
             goldenGobletSprite_ && peaceMedallionSprite_ &&
-            paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_ && lampLightTexture_)
+            paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_ && lampLightTexture_ &&
+            storagePlantSprite_ && foundryPlantSprite_ && labsPlantSprite_)
         {
             world_.Draw(
                 device,
@@ -1789,6 +1793,9 @@ namespace WolfCna
                 *peaceBannerTexture_,
                 *ceilingLampTexture_,
                 *lampLightTexture_,
+                levelIndex_ == 0
+                    ? *storagePlantSprite_
+                    : levelIndex_ == 1 ? *foundryPlantSprite_ : *labsPlantSprite_,
                 playerPosition_);
         }
 

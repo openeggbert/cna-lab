@@ -530,3 +530,48 @@ project-generated brightness/chroma connected-area masks. The hound export used
 a project-generated edge flood mask followed by binary closing and hole filling
 to remove its dark background without altering its color pixels. No third-party
 pixels were added to any hit-reaction sprite.
+
+## `assets/decorations/storage-plant.png`
+
+Prompt:
+
+```text
+Asset type: transparent freestanding decoration billboard sprite for an original retro first-person shooter
+Use: storage-sector potted plant landmark in a real polygonal 3D bunker
+Subject: one hardy compact green fern with broad readable leaves growing from a worn muted-teal cylindrical steel planter, small amber inventory plate on the pot, original fictional industrial design
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art at high source resolution, chunky deliberate pixels, limited green/teal/amber palette, crisp hard edges
+Composition: exactly one entire plant and planter, front three-quarter view, centered, pot rests at bottom, compact vertical silhouette with all leaves visible, generous transparent padding, readable as a camera-facing billboard
+Constraints: genuinely transparent zero-alpha background; no floor; no shadow; no scenery; no text; no logo; no watermark; no people; no weapons; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: photorealism, 3D render, smooth vector art, checkerboard background, glow, halo, detached leaves, flowers, copyrighted game assets or resemblance to Wolfenstein decorations
+```
+
+## `assets/decorations/foundry-plant.png`
+
+Prompt:
+
+```text
+Asset type: transparent freestanding decoration billboard sprite for an original retro first-person shooter
+Use: foundry-sector potted plant landmark in a real polygonal 3D bunker
+Subject: one tough rust-orange and olive succulent with thick angular leaves growing from a dark graphite square heat-shielded planter with subtle brass corner guards, original fictional industrial design
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art at high source resolution, chunky deliberate pixels, limited graphite/olive/rust/brass palette, crisp hard edges
+Composition: exactly one entire plant and planter, front three-quarter view, centered, pot rests at bottom, squat broad silhouette with all leaves visible, generous transparent padding, readable as a camera-facing billboard
+Constraints: genuinely transparent zero-alpha background; no floor; no shadow; no scenery; no text; no logo; no watermark; no people; no weapons; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: fire, photorealism, 3D render, smooth vector art, checkerboard background, glow, halo, detached leaves, copyrighted game assets or resemblance to Wolfenstein decorations
+```
+
+## `assets/decorations/labs-plant.png`
+
+Prompt:
+
+```text
+Asset type: transparent freestanding decoration billboard sprite for an original retro first-person shooter
+Use: laboratory-sector potted plant landmark in a real polygonal 3D bunker
+Subject: one original pale cyan and deep blue research fern with slender layered leaves growing from a clean white-and-muted-cyan hexagonal laboratory planter, a tiny green status light built into the pot, fictional benign botanical experiment
+Style/medium: hand-crafted early-1990s VGA-inspired pixel art at high source resolution, chunky deliberate pixels, limited cyan/blue/white/green palette, crisp hard edges
+Composition: exactly one entire plant and planter, front three-quarter view, centered, pot rests at bottom, elegant vertical silhouette with all leaves visible, generous transparent padding, readable as a camera-facing billboard
+Constraints: genuinely transparent zero-alpha background; no floor; no shadow; no scenery; no text; no logo; no watermark; no people; no weapons; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: dangerous mutation, horror, photorealism, 3D render, smooth vector art, checkerboard background, glow, halo, detached leaves, copyrighted game assets or resemblance to Wolfenstein decorations
+```
+
+All three image-generation exports contained genuine alpha and were accepted
+without color editing or background masking. No third-party pixels were added.
