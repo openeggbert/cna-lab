@@ -48,17 +48,22 @@ namespace CopperBoots
         void DrawProjectiles(float cameraX, float cameraY);
         void DrawPlayer(float cameraX, float cameraY);
         void DrawHud();
+        void DrawDebugOverlay(float cameraX, float cameraY);
         void DrawPauseOverlay();
         void DrawCompletionOverlay();
         void DrawText(std::string_view text, int x, int y,
                       const Microsoft::Xna::Framework::Color& color);
         void DrawNumber(int value, int digits, int x, int y,
                         const Microsoft::Xna::Framework::Color& color);
+        void DrawSignedNumber(int value, int digits, int x, int y,
+                              const Microsoft::Xna::Framework::Color& color);
         void DrawGlyph(char glyph, int x, int y,
                        const Microsoft::Xna::Framework::Color& color);
         [[nodiscard]] static std::array<std::uint8_t, 5> GlyphRows(char glyph);
         void FillRectangle(const Microsoft::Xna::Framework::Rectangle& rectangle,
                            const Microsoft::Xna::Framework::Color& color);
+        void OutlineRectangle(const Microsoft::Xna::Framework::Rectangle& rectangle,
+                              const Microsoft::Xna::Framework::Color& color);
         [[nodiscard]] Microsoft::Xna::Framework::Rectangle PresentationRectangle();
 
         static constexpr int LogicalWidth = 320;
@@ -74,6 +79,13 @@ namespace CopperBoots
         InputActionAdapter inputAdapter_;
         bool smokeTest_ = false;
         bool paused_ = false;
+        bool debugOverlay_ = false;
+        bool debugToggleDown_ = false;
+        int spriteDrawCount_ = 0;
+        int worldSpriteDrawCount_ = 0;
+        double frameMilliseconds_ = 0.0;
+        double updateMilliseconds_ = 0.0;
+        double drawMilliseconds_ = 0.0;
         std::uint32_t drawnFrames_ = 0;
     };
 }

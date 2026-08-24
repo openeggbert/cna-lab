@@ -592,6 +592,13 @@ stick/D-pad plus X/A/B; Y/Down is interaction and Start/Escape pauses. The pause
 path does not feed wall time into the accumulator and offers resume, player
 restart and quit without latent action edges.
 
+F1 independently toggles a CNA-rendered debug overlay. It outlines visible tile
+collision cells, the player, active crawlers and the 320x180 camera viewport;
+text reports player tile, signed velocity, camera edges, simulation tick, world
+sprite submissions, frame time, update CPU time and prior draw CPU time. With
+the overlay disabled, timing clocks and collision-grid traversal are skipped;
+the normal path pays only the F1 edge check and a lightweight draw counter.
+
 The milestone HUD is also asset-free: a new 3x5 glyph table renders the external
 level name, cogs, lives and score through the same one-texel CNA `SpriteBatch`
 path, with colored plating/capacitor indicators. It reads const world accessors,

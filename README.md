@@ -115,6 +115,7 @@ Current intended defaults are:
 | attack | Ctrl | B |
 | aim projectile | W/S or Up/Down | D-pad/left-stick vertical |
 | pause/resume | Escape | Start |
+| debug overlay | F1 | — |
 
 Stomping a crawler always bounces the courier. Keep Jump held during contact for
 the higher bounce needed by some elevated Green Ruins routes.

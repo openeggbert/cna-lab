@@ -30,9 +30,9 @@ gamepad input. Logic and CNA offscreen smoke tests pass.
 
 **Current: M2 — presentation and conduit/subarea foundation**
 
-The procedural courier pose set and enemy contact matrix are complete. Add the
-first debug overlay, then build the first data-driven maintenance-conduit
-transition without broadening into a generic scene engine.
+The procedural courier pose set, enemy contact matrix and first debug overlay
+are complete. Build the first data-driven maintenance-conduit transition next,
+without broadening into a generic scene engine.
 
 ## Foundation and research
 
@@ -167,7 +167,7 @@ Acceptance:
   layer near 0.1 and mid layer near 0.5.
 - Repetition has no seams at camera bounds and no per-frame heap churn.
 
-### MAR-016 — Debug overlay — TODO
+### MAR-016 — Debug overlay — DONE
 
 Acceptance:
 
@@ -584,8 +584,7 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Complete the `MAR-016` debug overlay.
-2. Implement `MAR-033` and use it for the `MAR-047` maintenance-conduit secret.
-3. Add deterministic state hashes and CTest labels for `MAR-070`.
-4. Add generated CNA sound effects under `MAR-056`, retaining silence fallback.
-5. Begin moving platforms (`MAR-046`) only after the transition model is stable.
+1. Implement `MAR-033` and use it for the `MAR-047` maintenance-conduit secret.
+2. Add deterministic state hashes and CTest labels for `MAR-070`.
+3. Add generated CNA sound effects under `MAR-056`, retaining silence fallback.
+4. Begin moving platforms (`MAR-046`) only after the transition model is stable.

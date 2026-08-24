@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <iostream>
 #include <utility>
@@ -134,11 +135,25 @@ namespace CopperBoots
         const KeyboardState keyboard = Keyboard::GetState();
         const GamePadState gamepad = GamePad::GetState(
             Microsoft::Xna::Framework::PlayerIndex::One);
+        const bool debugToggleDown = keyboard.IsKeyDown(Keys::F1);
+        if (debugToggleDown && !debugToggleDown_)
+            debugOverlay_ = !debugOverlay_;
+        debugToggleDown_ = debugToggleDown;
+        const auto updateStarted = debugOverlay_
+            ? std::chrono::steady_clock::now()
+            : std::chrono::steady_clock::time_point{};
+        const auto finishUpdateTiming = [&]() {
+            if (!debugOverlay_)
+                return;
+            updateMilliseconds_ = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - updateStarted).count();
+        };
         PlayerInput input = ReadPlayerInput(keyboard, gamepad);
         if (input.PausePressed) {
             paused_ = !paused_;
             inputAdapter_.ConsumeEdges();
             Game::Update(gameTime);
+            finishUpdateTiming();
             return;
         }
         if (paused_) {
@@ -152,6 +167,7 @@ namespace CopperBoots
                 Exit();
             }
             Game::Update(gameTime);
+            finishUpdateTiming();
             return;
         }
         const double elapsed =
@@ -167,10 +183,18 @@ namespace CopperBoots
         }
 
         Game::Update(gameTime);
+        finishUpdateTiming();
     }
 
     void CopperBootsGame::Draw(const Microsoft::Xna::Framework::GameTime& gameTime)
     {
+        const auto drawStarted = debugOverlay_
+            ? std::chrono::steady_clock::now()
+            : std::chrono::steady_clock::time_point{};
+        if (debugOverlay_) {
+            frameMilliseconds_ = gameTime.getElapsedGameTimeProperty()
+                .getTotalMillisecondsProperty();
+        }
         auto& device = getGraphicsDeviceProperty();
         device.SetRenderTarget(logicalTarget_.get());
         DrawWorld();
@@ -187,12 +211,17 @@ namespace CopperBoots
             Exit();
 
         Game::Draw(gameTime);
+        if (debugOverlay_) {
+            drawMilliseconds_ = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - drawStarted).count();
+        }
     }
 
     void CopperBootsGame::DrawWorld()
     {
         auto& device = getGraphicsDeviceProperty();
         device.Clear(Color(42, 74, 105));
+        spriteDrawCount_ = 0;
 
         spriteBatch_->Begin(SpriteSortMode::Deferred, BlendState::Opaque,
                             &pointSampler_, nullptr, nullptr);
@@ -209,6 +238,9 @@ namespace CopperBoots
         DrawHud();
         if (world_.Result().Completed)
             DrawCompletionOverlay();
+        worldSpriteDrawCount_ = spriteDrawCount_;
+        if (debugOverlay_)
+            DrawDebugOverlay(cameraX, cameraY);
         if (paused_)
             DrawPauseOverlay();
         spriteBatch_->End();
@@ -568,6 +600,100 @@ namespace CopperBoots
             : Color(53, 58, 57));
     }
 
+    void CopperBootsGame::DrawDebugOverlay(const float cameraX,
+                                            const float cameraY)
+    {
+        const TileMap& level = world_.Level();
+        const int firstX = std::max(0,
+            static_cast<int>(cameraX) / TileMap::TileSize - 1);
+        const int lastX = std::min(level.Width() - 1,
+            static_cast<int>(cameraX + LogicalWidth) / TileMap::TileSize + 1);
+        const int firstY = std::max(0,
+            static_cast<int>(cameraY) / TileMap::TileSize - 1);
+        const int lastY = std::min(level.Height() - 1,
+            static_cast<int>(cameraY + LogicalHeight) / TileMap::TileSize + 1);
+        for (int tileY = firstY; tileY <= lastY; ++tileY) {
+            for (int tileX = firstX; tileX <= lastX; ++tileX) {
+                const TileCollision collision =
+                    level.Get(tileX, tileY).Collision;
+                if (collision == TileCollision::None)
+                    continue;
+                Color color(95, 192, 158);
+                if (collision == TileCollision::OneWay)
+                    color = Color(235, 189, 67);
+                else if (collision == TileCollision::Hazard)
+                    color = Color(226, 100, 70);
+                else if (collision == TileCollision::Exit)
+                    color = Color(158, 117, 204);
+                OutlineRectangle(Rectangle(
+                    ScreenCoordinate(static_cast<float>(
+                        tileX * TileMap::TileSize), cameraX),
+                    ScreenCoordinate(static_cast<float>(
+                        tileY * TileMap::TileSize), cameraY),
+                    TileMap::TileSize, TileMap::TileSize), color);
+            }
+        }
+
+        const PlayerState& player = world_.Player();
+        OutlineRectangle(Rectangle(ScreenCoordinate(player.X, cameraX),
+                                   ScreenCoordinate(player.Y, cameraY),
+                                   static_cast<int>(PlayerState::Width),
+                                   static_cast<int>(PlayerState::Height)),
+                         Color(245, 239, 183));
+        for (const CrawlerState& crawler : world_.Crawlers()) {
+            if (crawler.Defeated)
+                continue;
+            OutlineRectangle(Rectangle(ScreenCoordinate(crawler.X, cameraX),
+                                       ScreenCoordinate(crawler.Y, cameraY),
+                                       static_cast<int>(CrawlerState::Width),
+                                       static_cast<int>(CrawlerState::Height)),
+                             Color(229, 96, 122));
+        }
+        OutlineRectangle(Rectangle(0, 0, LogicalWidth, LogicalHeight),
+                         Color(99, 164, 201));
+
+        FillRectangle(Rectangle(2, 16, 156, 43), Color(24, 36, 42));
+        DrawText("DEBUG F1 T", 5, 19, Color(235, 189, 67));
+        DrawNumber(static_cast<int>(world_.TickCount() % 1'000'000U),
+                   6, 49, 19, Color(231, 224, 181));
+        const int tileX = static_cast<int>(std::floor(
+            (player.X + PlayerState::Width * 0.5F) / TileMap::TileSize));
+        const int tileY = static_cast<int>(std::floor(
+            (player.Y + PlayerState::Height * 0.5F) / TileMap::TileSize));
+        DrawText("TILE", 5, 26, Color(95, 192, 158));
+        DrawNumber(tileX, 3, 25, 26, Color(231, 224, 181));
+        DrawNumber(tileY, 3, 41, 26, Color(231, 224, 181));
+        DrawText("VEL", 61, 26, Color(95, 192, 158));
+        DrawSignedNumber(static_cast<int>(std::round(player.VelocityX)),
+                         3, 77, 26, Color(231, 224, 181));
+        DrawSignedNumber(static_cast<int>(std::round(player.VelocityY)),
+                         3, 97, 26, Color(231, 224, 181));
+
+        DrawText("CAM", 5, 33, Color(99, 164, 201));
+        DrawNumber(static_cast<int>(cameraX), 4, 21, 33,
+                   Color(231, 224, 181));
+        DrawNumber(static_cast<int>(cameraY), 3, 41, 33,
+                   Color(231, 224, 181));
+        DrawNumber(static_cast<int>(cameraX + world_.Camera().ViewportWidth()),
+                   4, 57, 33, Color(231, 224, 181));
+        DrawNumber(static_cast<int>(cameraY + world_.Camera().ViewportHeight()),
+                   3, 77, 33, Color(231, 224, 181));
+
+        DrawText("SPR", 5, 40, Color(229, 96, 122));
+        DrawNumber(worldSpriteDrawCount_, 4, 21, 40,
+                   Color(231, 224, 181));
+        DrawText("MS F", 41, 40, Color(229, 96, 122));
+        DrawNumber(static_cast<int>(std::round(frameMilliseconds_)), 3,
+                   61, 40, Color(231, 224, 181));
+        DrawText("U", 77, 40, Color(229, 96, 122));
+        DrawNumber(static_cast<int>(std::round(updateMilliseconds_)), 3,
+                   85, 40, Color(231, 224, 181));
+        DrawText("D", 101, 40, Color(229, 96, 122));
+        DrawNumber(static_cast<int>(std::round(drawMilliseconds_)), 3,
+                   109, 40, Color(231, 224, 181));
+        DrawText("BOX SOLID ONE HAZ EXIT", 5, 49, Color(231, 224, 181));
+    }
+
     void CopperBootsGame::DrawPauseOverlay()
     {
         FillRectangle(Rectangle(72, 52, 176, 76), Color(24, 36, 42));
@@ -622,6 +748,14 @@ namespace CopperBoots
         }
     }
 
+    void CopperBootsGame::DrawSignedNumber(const int value, const int digits,
+                                           const int x, const int y,
+                                           const Color& color)
+    {
+        DrawGlyph(value < 0 ? '-' : '+', x, y, color);
+        DrawNumber(std::abs(value), digits, x + 4, y, color);
+    }
+
     void CopperBootsGame::DrawGlyph(const char glyph, const int x, const int y,
                                     const Color& color)
     {
@@ -655,7 +789,9 @@ namespace CopperBoots
         case 'C': return {3, 4, 4, 4, 3};
         case 'D': return {6, 5, 5, 5, 6};
         case 'E': return {7, 4, 6, 4, 7};
+        case 'F': return {7, 4, 6, 4, 4};
         case 'G': return {3, 4, 5, 5, 3};
+        case 'H': return {5, 5, 7, 5, 5};
         case 'I': return {7, 2, 2, 2, 7};
         case 'K': return {5, 5, 6, 5, 5};
         case 'L': return {4, 4, 4, 4, 7};
@@ -668,7 +804,13 @@ namespace CopperBoots
         case 'S': return {3, 4, 2, 1, 6};
         case 'T': return {7, 2, 2, 2, 2};
         case 'U': return {5, 5, 5, 5, 7};
+        case 'V': return {5, 5, 5, 5, 2};
+        case 'W': return {5, 5, 7, 7, 5};
+        case 'X': return {5, 5, 2, 5, 5};
         case 'Y': return {5, 5, 2, 2, 2};
+        case 'Z': return {7, 1, 2, 4, 7};
+        case '+': return {0, 2, 7, 2, 0};
+        case '-': return {0, 0, 7, 0, 0};
         default: return {0, 0, 0, 0, 0};
         }
     }
@@ -677,6 +819,24 @@ namespace CopperBoots
                                          const Color& color)
     {
         spriteBatch_->Draw(*solidTexture_, rectangle, color);
+        ++spriteDrawCount_;
+    }
+
+    void CopperBootsGame::OutlineRectangle(const Rectangle& rectangle,
+                                            const Color& color)
+    {
+        if (rectangle.Width <= 0 || rectangle.Height <= 0) {
+            return;
+        }
+        FillRectangle(Rectangle(rectangle.X, rectangle.Y,
+                                rectangle.Width, 1), color);
+        FillRectangle(Rectangle(rectangle.X,
+                                rectangle.Y + rectangle.Height - 1,
+                                rectangle.Width, 1), color);
+        FillRectangle(Rectangle(rectangle.X, rectangle.Y, 1,
+                                rectangle.Height), color);
+        FillRectangle(Rectangle(rectangle.X + rectangle.Width - 1,
+                                rectangle.Y, 1, rectangle.Height), color);
     }
 
     Rectangle CopperBootsGame::PresentationRectangle()
