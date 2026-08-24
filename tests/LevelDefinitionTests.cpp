@@ -178,5 +178,19 @@ int main()
     Expect(guardShots >= 1, "guard emits a shot at the player");
     Expect(guardProjectileDamage == 12, "guard projectile damages a player at range");
 
+    WolfCna::World houndAudioWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PK.#\n#####\n",
+        "hound-audio.level"));
+    int houndAttacks = 0;
+    const WolfCna::World::EnemyAudioEvents firstHoundEvents =
+        (static_cast<void>(houndAudioWorld.Update(0.05f, combatPlayer)), houndAudioWorld.ConsumeEnemyAudioEvents());
+    Expect(firstHoundEvents.houndAlerts == 1, "hound emits an alert when it sees the player");
+    for (int tick = 0; tick < 10; ++tick)
+    {
+        static_cast<void>(houndAudioWorld.Update(0.05f, combatPlayer));
+        houndAttacks += houndAudioWorld.ConsumeEnemyAudioEvents().houndAttacks;
+    }
+    Expect(houndAttacks >= 1, "hound emits an attack event on a close-range hit");
+
     return EXIT_SUCCESS;
 }

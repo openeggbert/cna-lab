@@ -47,6 +47,13 @@ namespace WolfCna
             operator bool() const { return hit; }
         };
 
+        struct EnemyAudioEvents
+        {
+            int guardAlerts = 0;
+            int houndAlerts = 0;
+            int houndAttacks = 0;
+        };
+
         explicit World(const LevelDefinition& level);
 
         [[nodiscard]] int Update(
@@ -73,6 +80,7 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         [[nodiscard]] bool IsExitUnlocked() const;
         [[nodiscard]] int ConsumeGuardShotCount();
+        [[nodiscard]] EnemyAudioEvents ConsumeEnemyAudioEvents();
         [[nodiscard]] InteractionResult TryActivate(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection,
@@ -172,6 +180,7 @@ namespace WolfCna
         std::vector<Enemy> enemies_;
         std::vector<EnemyProjectile> enemyProjectiles_;
         int pendingGuardShotCount_ = 0;
+        EnemyAudioEvents pendingEnemyAudioEvents_;
         std::vector<Pickup> pickups_;
         std::vector<Terminal> terminals_;
         std::vector<Microsoft::Xna::Framework::Vector3> exits_;

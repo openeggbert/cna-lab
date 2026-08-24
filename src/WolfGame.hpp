@@ -48,6 +48,9 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> terminalSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> guardShotSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> secretSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> guardAlertSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAlertSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAttackSound_;
 
         LevelDefinition level_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
         World world_{level_};

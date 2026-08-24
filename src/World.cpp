@@ -271,6 +271,13 @@ namespace WolfCna
         return shotCount;
     }
 
+    World::EnemyAudioEvents World::ConsumeEnemyAudioEvents()
+    {
+        const EnemyAudioEvents events = pendingEnemyAudioEvents_;
+        pendingEnemyAudioEvents_ = {};
+        return events;
+    }
+
     World::InteractionResult World::TryActivate(
         const Vector3& playerPosition,
         const Vector3& lookDirection,
@@ -406,7 +413,13 @@ namespace WolfCna
                 (enemy.type == Enemy::Type::Hound || canSeePlayer);
 
             if (enemy.state == EnemyState::Idle && canSeePlayer)
+            {
                 enemy.state = EnemyState::Chase;
+                if (enemy.type == Enemy::Type::Guard)
+                    ++pendingEnemyAudioEvents_.guardAlerts;
+                else
+                    ++pendingEnemyAudioEvents_.houndAlerts;
+            }
             if (enemy.state == EnemyState::Chase && canAttack)
                 enemy.state = EnemyState::Attack;
             else if (enemy.state == EnemyState::Attack && !canAttack)
@@ -420,6 +433,7 @@ namespace WolfCna
                     if (enemy.type == Enemy::Type::Hound)
                     {
                         damage += EnemyAttackDamage + 6;
+                        ++pendingEnemyAudioEvents_.houndAttacks;
                     }
                     else
                     {

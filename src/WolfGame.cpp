@@ -348,6 +348,18 @@ namespace WolfCna
             MakeTone(790.0f, 4200),
             22050,
             AudioChannels::Mono);
+        guardAlertSound_ = std::make_unique<SoundEffect>(
+            MakeTone(360.0f, 3000),
+            22050,
+            AudioChannels::Mono);
+        houndAlertSound_ = std::make_unique<SoundEffect>(
+            MakeTone(175.0f, 2500),
+            22050,
+            AudioChannels::Mono);
+        houndAttackSound_ = std::make_unique<SoundEffect>(
+            MakeTone(105.0f, 1500),
+            22050,
+            AudioChannels::Mono);
     }
 
     void WolfGame::DrawHud()
@@ -598,6 +610,13 @@ namespace WolfCna
         const int incomingDamage = world_.Update(clampedElapsed, playerPosition_);
         if (world_.ConsumeGuardShotCount() > 0 && guardShotSound_)
             static_cast<void>(guardShotSound_->Play(0.18f, 0.12f, 0.0f));
+        const World::EnemyAudioEvents enemyAudioEvents = world_.ConsumeEnemyAudioEvents();
+        if (enemyAudioEvents.guardAlerts > 0 && guardAlertSound_)
+            static_cast<void>(guardAlertSound_->Play(0.2f, -0.1f, 0.0f));
+        if (enemyAudioEvents.houndAlerts > 0 && houndAlertSound_)
+            static_cast<void>(houndAlertSound_->Play(0.22f, -0.3f, 0.0f));
+        if (enemyAudioEvents.houndAttacks > 0 && houndAttackSound_)
+            static_cast<void>(houndAttackSound_->Play(0.25f, -0.4f, 0.0f));
         health_ -= incomingDamage;
         if (incomingDamage > 0 && hurtSound_)
             static_cast<void>(hurtSound_->Play(0.3f, -0.25f, 0.0f));

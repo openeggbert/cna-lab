@@ -974,6 +974,7 @@ Current progress:
 - generated CNA effects cover player and guard shots, defeated enemies, pickups, doors, locks and player damage; combat includes player death/restart;
 - losing the last life presents `GAME OVER`; Space creates a clean new run with the original level state;
 - guards attack with visible ranged projectiles that cause damage only on impact, while hounds attack at close range;
+- guards and hounds emit generated alert sounds; hounds also emit an attack sound on close-range hits;
 - ordinary blue bunker doors and red security doors use distinct generated atlas panels;
 - the red security door is a locked route; its cyan access card is placed before it;
 - opened doors close automatically, except when a dead guard or hound remains in the doorway;
