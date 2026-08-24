@@ -337,8 +337,14 @@ class PerformanceCompareTests(unittest.TestCase):
             baseline = capture_fixture()
             candidate = deepcopy(baseline)
             candidate["measurements"]["frame_interval"]["p95_ms"] = 16.1
-            baseline_path = root / "baseline.json"
-            candidate_path = root / "candidate.json"
+            baseline["video_memory"]["complete_evidence"]["hardware_identity"] = (
+                "Test `<b>| GPU"
+            )
+            candidate["video_memory"]["complete_evidence"]["hardware_identity"] = (
+                "Test `<b>| GPU"
+            )
+            baseline_path = root / "baseline`<b>|line\nbreak.json"
+            candidate_path = root / "candidate_*[x].json"
             baseline_path.write_text(json.dumps(baseline), encoding="utf-8")
             candidate_path.write_text(json.dumps(candidate), encoding="utf-8")
             baseline_before = baseline_path.read_bytes()
@@ -350,9 +356,9 @@ class PerformanceCompareTests(unittest.TestCase):
                 "--candidate",
                 str(candidate_path),
                 "--baseline-hardware",
-                "Test GPU",
+                "Test `<b>| GPU",
                 "--candidate-hardware",
-                "Test GPU",
+                "Test `<b>| GPU",
                 "--baseline-kind",
                 "diagnostic",
                 "--candidate-kind",
@@ -383,14 +389,27 @@ class PerformanceCompareTests(unittest.TestCase):
 
             report_path = root / "reports" / "comparison.md"
             result = subprocess.run(
-                [*common, "--output", str(report_path)],
+                [
+                    *common,
+                    "--title",
+                    "Comparison <b>*unsafe*",
+                    "--output",
+                    str(report_path),
+                ],
                 check=False,
                 capture_output=True,
                 text=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout, "")
-            self.assertIn("## Evidence provenance", report_path.read_text(encoding="utf-8"))
+            report_text = report_path.read_text(encoding="utf-8")
+            self.assertIn("## Evidence provenance", report_text)
+            self.assertIn("# Comparison &lt;b&gt;\\*unsafe\\*", report_text)
+            self.assertIn("<code>Test `&lt;b&gt;&#124; GPU</code>", report_text)
+            self.assertIn(
+                "<code>baseline`&lt;b&gt;&#124;line\\u000abreak.json</code>",
+                report_text,
+            )
             self.assertEqual(list(report_path.parent.glob("comparison.md.*.tmp")), [])
 
 

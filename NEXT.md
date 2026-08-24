@@ -67,6 +67,16 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 Markdown evidence output now treats every dynamic value as data.** Shared report/comparison
+rendering HTML-escapes code values, encodes table pipes, escapes inline Markdown punctuation, and
+renders non-printable filename characters visibly instead of allowing them to alter output layout.
+
+- Existing output tests now use titles/hardware/file names containing backticks, `<b>`, `*`, `|`,
+  and a newline; report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass.
+- The retained real Xvfb report and self-comparison remain `DIAGNOSTIC`/`NO REGRESSION` with hash
+  `df217f17…41cd0`. No graphical process was launched.
+- This protects detached evidence readability; it does not add physical M12 measurements.
+
 **M12 qualifying comparisons now require both archived VRAM source bundles.** A qualifying
 baseline/candidate pair is refused unless each enriched capture has its ordered original-profile,
 evidence-manifest, and raw-profiler-artifact sources. The comparator runs full archive

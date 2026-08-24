@@ -245,6 +245,13 @@ archives and then proves candidate-artifact mutation exits 2. Diagnostic compari
 bundle-optional. Comparator 7/7 and VRAM 6/6 focused suites pass; this is evidence hardening, not a
 physical M12 capture.
 
+Report and comparator Markdown now render dynamic text through one shared safe path. HTML-like
+content and inline Markdown punctuation are escaped; filenames use HTML `<code>` with encoded table
+pipes, and control characters are displayed as explicit Unicode escapes. Existing atomic-output
+tests now include backticks, `<b>`, `*`, a pipe, and a newline in titles/hardware/capture names and
+prove provenance rows remain data. Report 7/7, comparator 7/7, and VRAM 6/6 focused suites pass;
+the real Xvfb diagnostic outputs retain their prior status/hash without launching the game.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

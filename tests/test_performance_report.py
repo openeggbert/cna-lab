@@ -445,7 +445,7 @@ class PerformanceReportTests(unittest.TestCase):
     def test_output_is_atomic_and_never_overwrites_evidence_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            capture_path = root / "diagnostic.json"
+            capture_path = root / "diagnostic`<b>|line\nbreak.json"
             capture_path.write_text(json.dumps(capture_fixture()), encoding="utf-8")
             capture_before = capture_path.read_bytes()
 
@@ -522,7 +522,9 @@ class PerformanceReportTests(unittest.TestCase):
                     sys.executable,
                     str(SCRIPT),
                     "--hardware",
-                    "Test diagnostic hardware",
+                    "Test `<b>| diagnostic hardware",
+                    "--title",
+                    "Report <b>*unsafe*",
                     "--output",
                     str(report_path),
                     str(capture_path),
@@ -533,7 +535,17 @@ class PerformanceReportTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout, "")
-            self.assertIn("Overall status: **DIAGNOSTIC**", report_path.read_text(encoding="utf-8"))
+            report_text = report_path.read_text(encoding="utf-8")
+            self.assertIn("Overall status: **DIAGNOSTIC**", report_text)
+            self.assertIn("# Report &lt;b&gt;\\*unsafe\\*", report_text)
+            self.assertIn(
+                "<code>Test `&lt;b&gt;&#124; diagnostic hardware</code>",
+                report_text,
+            )
+            self.assertIn(
+                "<code>diagnostic`&lt;b&gt;&#124;line\\u000abreak.json</code>",
+                report_text,
+            )
             self.assertEqual(list(report_path.parent.glob("release.md.*.tmp")), [])
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import html
 import json
 import math
 import os
@@ -593,8 +594,21 @@ def _mib(byte_count: float) -> str:
     return f"{byte_count / (1024.0 * 1024.0):.1f}"
 
 
+def _display_text(value: Any) -> str:
+    return "".join(
+        character if character.isprintable() else f"\\u{ord(character):04x}"
+        for character in str(value)
+    )
+
+
 def _escape(value: Any) -> str:
-    return str(value).replace("|", "\\|").replace("\n", " ")
+    escaped = re.sub(r"([\\`*_{}\[\]!|~])", r"\\\1", _display_text(value))
+    return html.escape(escaped, quote=False)
+
+
+def _markdown_code(value: Any) -> str:
+    escaped = html.escape(_display_text(value), quote=True).replace("|", "&#124;")
+    return f"<code>{escaped}</code>"
 
 
 def _capture_identity(capture: dict[str, Any]) -> str:
@@ -651,9 +665,9 @@ def build_markdown(
         status = "PASS" if not blockers else "FAIL"
 
     lines = [
-        f"# {title}",
+        f"# {_escape(title)}",
         "",
-        f"- Hardware: `{_escape(hardware)}`",
+        f"- Hardware: {_markdown_code(hardware)}",
         f"- Qualification intent: `{'qualifying' if qualifying_hardware else 'diagnostic'}`",
         f"- Schema: `{SCHEMA_VERSION}`",
         f"- Overall status: **{status}**",
@@ -695,11 +709,12 @@ def build_markdown(
             bundle_cells = ("—", "—", "—")
         else:
             bundle_cells = tuple(
-                f"`{_escape(source_path.name)}`<br>`{source_sha256}`"
+                f"{_markdown_code(source_path.name)}<br>{_markdown_code(source_sha256)}"
                 for source_path, source_sha256 in bundle
             )
         lines.append(
-            f"| `{_escape(path.name)}` | `{capture_sha256}` | {_escape(session_text)} | "
+            f"| {_markdown_code(path.name)} | {_markdown_code(capture_sha256)} | "
+            f"{_escape(session_text)} | "
             f"{bundle_cells[0]} | {bundle_cells[1]} | {bundle_cells[2]} |"
         )
 
@@ -741,7 +756,8 @@ def build_markdown(
             and frame_p95 <= RECOMMENDED_FRAME_MS
         )
         lines.append(
-            f"| `{_escape(path.name)}` | {_escape(_path(capture, 'scenario'))} | {width}x{height} | "
+            f"| {_markdown_code(path.name)} | {_escape(_path(capture, 'scenario'))} | "
+            f"{width}x{height} | "
             f"{frame_p95:.3f} ms | {'yes' if frame_p95 <= MINIMUM_FRAME_MS else 'no'} | "
             f"{'yes' if recommended else 'no'} | {cpu_p95} ms | {gpu_present} | {load_text} | "
             f"{hitches} | {severe} | {boundary_text} | "

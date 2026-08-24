@@ -552,6 +552,9 @@ CLI hardware identity and report title are trimmed and must be non-empty printab
 The external manifest's `hardware_identity` and tool name/version use the same string rule. Control
 characters/newlines are malformed input rather than a way to create ambiguous identity matching or
 inject additional Markdown headings.
+Dynamic text is escaped and file names are emitted as HTML-escaped `<code>` elements with table
+pipes encoded. Backticks, markup-like names, pipes, and non-printable filename characters therefore
+remain literal provenance data rather than Markdown/HTML structure.
 Duplicate object keys are malformed input rather than last-value-wins aliases; this applies to both
 generated profiles and external evidence manifests.
 Exactly one `--vram-bundle ORIGINAL EVIDENCE ARTIFACT` must correspond, by argument order, to each
@@ -620,7 +623,8 @@ The comparison Markdown includes an `Evidence provenance` table with exact basel
 SHA-256 values and, when supplied, all six source-archive names and hashes. Captures and archive
 members are re-hashed after verification/parsing and immediately before output. `--output` cannot
 equal or hardlink any capture or supplied archive member and is staged in the destination directory
-for atomic replacement, so comparison cannot destroy or silently outlive changed inputs.
+for atomic replacement, so comparison cannot destroy or silently outlive changed inputs. The same
+safe dynamic-text/file-name rendering as the release report protects this table.
 
 The candidate is a regression only when its increase is greater than both the relative tolerance
 and the applicable absolute tolerance. Defaults are 10%, 0.5 ms for frame/GPU/Present/transition

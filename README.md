@@ -292,3 +292,5 @@ keeps exact identity matching unambiguous and prevents Markdown structure inject
 Regression-comparison output carries exact baseline/candidate SHA-256 provenance plus verified
 source-archive hashes when supplied, is written atomically, and cannot equal or hardlink any
 capture or supplied archive input. Both source archives are required for qualifying comparisons.
+All dynamic titles, identities, and evidence file names are Markdown/HTML-safe; even backticks,
+table pipes, markup-like text, or non-printable filename characters cannot alter report structure.

@@ -16,8 +16,10 @@ from performance_report import (
     ReportError,
     VramBundleFingerprint,
     _boolean,
+    _escape,
     _file_sha256,
     _integer,
+    _markdown_code,
     _number,
     _path,
     _require_unchanged,
@@ -297,10 +299,6 @@ def compare_metrics(
     return results
 
 
-def _escape(value: Any) -> str:
-    return str(value).replace("|", "\\|").replace("\n", " ")
-
-
 def build_markdown(
     baseline_path: Path,
     candidate_path: Path,
@@ -325,17 +323,18 @@ def build_markdown(
         else:
             bundle_cells.append(
                 tuple(
-                    f"`{_escape(path.name)}`<br>`{sha256}`" for path, sha256 in bundle
+                    f"{_markdown_code(path.name)}<br>{_markdown_code(sha256)}"
+                    for path, sha256 in bundle
                 )
             )
     lines = [
-        f"# {title}",
+        f"# {_escape(title)}",
         "",
-        f"- Baseline: `{_escape(baseline_path.name)}`",
-        f"- Candidate: `{_escape(candidate_path.name)}`",
-        f"- Hardware: `{_escape(hardware)}`",
+        f"- Baseline: {_markdown_code(baseline_path.name)}",
+        f"- Candidate: {_markdown_code(candidate_path.name)}",
+        f"- Hardware: {_markdown_code(hardware)}",
         f"- Capture kind: `{kind}`",
-        f"- Scenario: `{_escape(_path(candidate, 'scenario'))}`",
+        f"- Scenario: {_markdown_code(_path(candidate, 'scenario'))}",
         f"- Overall result: **{'REGRESSION' if regressions else 'NO REGRESSION'}**",
         "",
         "A metric regresses only when its increase is greater than both the absolute tolerance "
@@ -345,8 +344,8 @@ def build_markdown(
         "",
         "| Role | Capture | SHA-256 | Original profile | Evidence manifest | Raw profiler artifact |",
         "| --- | --- | --- | --- | --- | --- |",
-        f"| Baseline | `{_escape(baseline_path.name)}` | `{baseline_sha256}` | {bundle_cells[0][0]} | {bundle_cells[0][1]} | {bundle_cells[0][2]} |",
-        f"| Candidate | `{_escape(candidate_path.name)}` | `{candidate_sha256}` | {bundle_cells[1][0]} | {bundle_cells[1][1]} | {bundle_cells[1][2]} |",
+        f"| Baseline | {_markdown_code(baseline_path.name)} | {_markdown_code(baseline_sha256)} | {bundle_cells[0][0]} | {bundle_cells[0][1]} | {bundle_cells[0][2]} |",
+        f"| Candidate | {_markdown_code(candidate_path.name)} | {_markdown_code(candidate_sha256)} | {bundle_cells[1][0]} | {bundle_cells[1][1]} | {bundle_cells[1][2]} |",
         "",
         "## Tolerances",
         "",

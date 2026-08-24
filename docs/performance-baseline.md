@@ -537,3 +537,16 @@ The synthetic integration binds two independent archives and reaches `NO REGRESS
 candidate raw artifact is changed, the same comparison exits 2 on its hash mismatch. Diagnostic
 comparisons remain usable without archived sources. This prevents an enriched-only historical
 comparison claim, but supplies neither a second physical measurement nor the missing M12 gate pass.
+
+## 2026-08-24 — Markdown evidence rendering hardening
+
+Release and comparison Markdown now share safe renderers for every dynamic value. Plain text has
+HTML and inline Markdown syntax escaped; file names and identities use HTML-escaped `<code>` values,
+table pipes are encoded, and non-printable filename characters are rendered as visible Unicode
+escape text. A filename containing a backtick, `<b>`, a pipe, and a newline can no longer close its
+code span, add a table column, inject markup, or split a provenance row.
+
+The existing output-preservation tests exercise adversarial titles, hardware, and capture names in
+both generators while retaining their 7/7 suite counts. Report 7/7, comparator 7/7, and VRAM 6/6
+focused suites pass. The stored Xvfb report/self-comparison still yields `DIAGNOSTIC`/
+`NO REGRESSION` with `df217f17…41cd0`; no graphical process ran and M12 remains open.
