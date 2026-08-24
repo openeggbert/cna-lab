@@ -27,7 +27,7 @@ A region is human-playable only when all of the following are true:
 | Relay yard and local power | 13–24 | Audited | The yard, trench, generator, battery, pump, transformer, workshop, hall and control-room branches use visible labelled portals. Repair targets have persistent before/after artwork and the physical scenario traverses the complete route. |
 | North forest | 25–38 | Audited | The creek, Theo, cache, kiln, Echo Grove, weather station and lookout are connected by visible routes. Hidden supplies require exploration, the bear solution is harmless, and the scenario follows the physical loop. |
 | Quarry and ravine | 39–50 | Audited | The rope descent, lit culvert, safe waterfall route, gate/office/crusher branches, magazine, tunnel and two-way hoist shortcut are physically traversed and visibly labelled. |
-| Logging railway | 51–63 | Scripted, not audited | Build the sawmill/camp/engine hub, visibly persistent five-part engine repair and trestle sequence. |
+| Logging railway | 51–63 | Audited | Sawmill, bunkhouse, mess, office, spur and engine branches use visible two-way routes. June gates the switch-key clue; the engine and trestle have persistent repair states, and the scenario follows the complete physical route. |
 | Reservoir and dam | 64–75 | Scripted, not audited | Build gatehouse/turbine/pump branches, water-state artwork and safe return paths. |
 | Mine and underground power | 76–90 | Scripted, not audited | Build mine branches, readable gas/electrical warnings, lift and switchgear topology. |
 | Observatory | 91–102 | Scripted, not audited | Build courtyard diversion routes, archive/dome branches and room-specific interiors. |
@@ -73,7 +73,20 @@ A region is human-playable only when all of the following are true:
   until he is contained without injury.
 - Running the east hoist visibly deploys the missing-span walkway in both
   directions, creating tested shortcuts from landing to bridge and east floor.
+- Screens 51–63 now form the documented logging-camp hub instead of a linear
+  catalogue route. The yard branches to the mill, bunkhouse, mess hall and rail
+  spur; the mill branches to filing, boiler and pond work areas; every branch
+  has a visible return route.
+- June's conversation now reveals the foreman's switch key, so it cannot be
+  collected before its story clue. The log-pond pike is safely reachable while
+  the moving-log water remains a persistent hazard.
+- Belt tension, reserve fuel, floating service box, rail points, four engine
+  repair stations, starter, whistle, brake linkage and portable radio all have
+  distinct before/after 16-colour drawings. The running engine gains selective
+  smoke animation, while other camp machinery remains deliberately sparse.
+- F1 now guides the logging sequence one visible action at a time, and the
+  automated scenario traverses the same labelled doors and paths as a player.
 
-The next implementation pass starts with the Logging Camp and Railway
-(screens 51–63), where the sawmill, pond, bunkhouse, mess hall and rail yard are
+The next implementation pass starts with the Reservoir and Dam
+(screens 64–75), where the gatehouse, pumpworks and maintenance routes are
 still presented as a linear sequence.

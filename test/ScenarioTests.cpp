@@ -112,6 +112,10 @@ static void context(e2d::AdventureSession& session, const e2d::WorldDefinition& 
 {
     walkToTarget(session, world, targetId);
     session.jumpOrContext();
+    if (!session.flag(expectedFlag)) {
+        std::cerr << "Context " << targetId << " in " << session.currentRoomId()
+                  << " did not set " << expectedFlag << '\n';
+    }
     assert(session.flag(expectedFlag));
     dismiss(session);
 }
@@ -209,6 +213,14 @@ int main() {
     const auto& quarryPath = hotspot(world, "s044_quarry_path");
     const auto& magazineDoor = hotspot(world, "s047_magazine_door");
     const auto& bridgeWalkway = hotspot(world, "s050_bridge_walkway");
+    const auto& millDoor = hotspot(world, "s052_mill_door");
+    const auto& bunkhouseDoor = hotspot(world, "s052_bunkhouse_door");
+    const auto& messDoor = hotspot(world, "s052_mess_door");
+    const auto& railPath = hotspot(world, "s052_rail_path");
+    const auto& filingDoor = hotspot(world, "s053_filing_door");
+    const auto& pondDoor = hotspot(world, "s053_pond_door");
+    const auto& enginePath = hotspot(world, "s060_engine_path");
+    const auto& trestlePath = hotspot(world, "s060_trestle_path");
     assert(ringingPhone.visuals.size() >= 10);
     assert(answeredPhone.visuals.size() >= 10);
     assert(markedDeerPath.visuals.size() >= 7);
@@ -229,6 +241,14 @@ int main() {
     assert(quarryPath.visuals.size() >= 6);
     assert(magazineDoor.visuals.size() >= 3);
     assert(bridgeWalkway.visuals.size() >= 4);
+    assert(millDoor.visuals.size() >= 4);
+    assert(bunkhouseDoor.visuals.size() >= 4);
+    assert(messDoor.visuals.size() >= 4);
+    assert(railPath.visuals.size() >= 2);
+    assert(filingDoor.visuals.size() >= 2);
+    assert(pondDoor.visuals.size() >= 2);
+    assert(enginePath.visuals.size() >= 2);
+    assert(trestlePath.visuals.size() >= 2);
     assert(world.room("caretaker_cabin_main")->decorations.size() >= 30);
     assert(world.room("cabin_radio_nook")->decorations.size() >= 20);
     assert(world.room("caretaker_tool_shed")->decorations.size() >= 20);
@@ -262,7 +282,7 @@ int main() {
             assert(candidate.interactionArea.bottom() == 260.0F);
         }
         anchors += current->travelAnchor ? 1U : 0U;
-        const bool authoredHub = spec.number >= 6 && spec.number <= 50;
+        const bool authoredHub = spec.number >= 6 && spec.number <= 63;
         if (i > 0 && !authoredHub) {
             assert(std::ranges::any_of(current->exits, [i](const e2d::ExitDefinition& exit) {
                 return exit.direction == e2d::Direction::left
@@ -343,6 +363,17 @@ int main() {
     assert(hasExit("quarry_tunnel", e2d::Direction::right, "east_hoist_landing"));
     assert(hasExit("east_hoist_landing", e2d::Direction::left, "quarry_tunnel"));
     assert(hasExit("east_hoist_landing", e2d::Direction::right, "logging_road"));
+    assert(hasExit("logging_road", e2d::Direction::left, "east_hoist_landing"));
+    assert(hasExit("logging_road", e2d::Direction::right, "sawmill_yard"));
+    assert(hasExit("sawmill_yard", e2d::Direction::left, "logging_road"));
+    assert(world.room("sawmill_yard")->exits.size() == 1);
+    for (const int branch : {53, 54, 55, 56, 57, 58, 59, 60, 61}) {
+        assert(world.room(black_pine::content::screens[static_cast<std::size_t>(branch - 1)].id)->exits.empty());
+    }
+    assert(hasExit("trestle_approach", e2d::Direction::left, "rail_spur_west"));
+    assert(hasExit("trestle_approach", e2d::Direction::right, "east_rail_cut"));
+    assert(hasExit("east_rail_cut", e2d::Direction::left, "trestle_approach"));
+    assert(hasExit("east_rail_cut", e2d::Direction::right, "dam_overlook"));
     assert(anchors == 17);
     assert(visiblePickups >= 45);
     assert(animatedRooms > 80 && animatedRooms < world.rooms.size());
@@ -490,24 +521,48 @@ int main() {
 
     // Act III — logging railway, dam, mine and freight lift.
     context(session, world, "s052_lila", "met_lila");
+    assert(session.currentHint()->text.resolve("en").find("MILL") != std::string_view::npos);
+    portal(session, world, "s052_mill_door", "sawmill_floor");
     use(session, world, "s053_planer_tension", "wrench", "belt_released");
     take(session, world, "s053_take_drive_belt", "drive_belt");
+    portal(session, world, "s053_filing_door", "saw_filing_room");
     take(session, world, "s054_take_oil_can", "oil_can");
     take(session, world, "s054_take_hand_mirror", "hand_mirror");
+    portal(session, world, "s054_mill_door", "sawmill_floor");
+    portal(session, world, "s053_boiler_door", "boiler_house");
     use(session, world, "s055_reserve_tank", "siphon_hose", "fuel_can_filled");
     assert(session.hasItem("filled_fuel_can"));
+    portal(session, world, "s055_mill_door", "sawmill_floor");
+    portal(session, world, "s053_pond_door", "log_pond");
     context(session, world, "s056_log_pike", "spark_retrieved");
-    take(session, world, "s057_take_rail_switch_key", "rail_switch_key");
+    portal(session, world, "s056_mill_door", "sawmill_floor");
+    portal(session, world, "s053_yard_door", "sawmill_yard");
+    portal(session, world, "s052_mess_door", "camp_mess_hall");
     context(session, world, "s058_june", "met_june");
+    assert(session.currentHint()->text.resolve("en").find("OFFICE") != std::string_view::npos);
+    portal(session, world, "s058_office_door", "camp_office");
     use(session, world, "s059_carbon_impression", "hand_mirror", "lift_time_known");
+    portal(session, world, "s059_mess_door", "camp_mess_hall");
+    portal(session, world, "s058_yard_door", "sawmill_yard");
+    portal(session, world, "s052_bunkhouse_door", "workers_bunkhouse");
+    take(session, world, "s057_take_rail_switch_key", "rail_switch_key");
+    take(session, world, "s057_take_logger_token", "logger_token");
+    portal(session, world, "s057_yard_door", "sawmill_yard");
+    portal(session, world, "s052_rail_path", "rail_spur_west");
     use(session, world, "s060_rail_points", "rail_switch_key", "rail_points_aligned");
+    assert(session.currentHint()->text.resolve("en").find("ENGINE") != std::string_view::npos);
+    portal(session, world, "s060_engine_path", "derelict_logging_engine");
     use(session, world, "s061_engine_belt", "drive_belt", "engine_belt_installed");
     use(session, world, "s061_engine_ignition", "spark_plug", "engine_plug_installed");
     use(session, world, "s061_engine_bearings", "oil_can", "engine_oiled");
     use(session, world, "s061_engine_fuel_tank", "filled_fuel_can", "engine_fueled");
     context(session, world, "s061_engine_start", "logging_engine_running");
+    assert(session.currentHint()->text.resolve("en").find("TRESTLE") != std::string_view::npos);
+    portal(session, world, "s061_spur_path", "rail_spur_west");
+    portal(session, world, "s060_trestle_path", "trestle_approach");
     context(session, world, "s062_mill_whistle", "trestle_guard_diverted");
     use(session, world, "s062_brake_linkage", "wrench", "trestle_brake_fixed");
+    assert(session.currentHint()->text.resolve("en").find("portable radio") != std::string_view::npos);
     context(session, world, "s063_portable_radio", "elias_contacted");
     take(session, world, "s065_take_insulated_boots", "insulated_boots");
     take(session, world, "s065_take_turbine_badge", "turbine_badge");

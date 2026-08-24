@@ -66,7 +66,13 @@ int main(const int argc, const char* const argv[]) {
              "lookout_briefed", "hook_fixed", "ravine_rope_fixed", "ravine_descended",
              "culvert_lit", "sluice_closed", "quarry_gate_open", "owen_freed",
              "horn_sounded", "brant_secured", "quarry_tunnel_lit", "hoist_signal_fixed",
-             "pulley_repaired", "hoist_running", "act2_complete"}) {
+             "pulley_repaired", "hoist_running", "act2_complete", "met_lila",
+             "belt_released", "taken_drive_belt", "taken_oil_can", "taken_hand_mirror",
+             "fuel_can_filled", "spark_retrieved", "met_june", "lift_time_known",
+             "taken_rail_switch_key", "taken_logger_token", "rail_points_aligned",
+             "engine_belt_installed", "engine_plug_installed", "engine_oiled",
+             "engine_fueled", "logging_engine_running", "trestle_guard_diverted",
+             "trestle_brake_fixed", "elias_contacted", "railway_complete"}) {
         repaired.flags[flag] = true;
     }
     if (!session.restore(repaired)) throw std::runtime_error{"cannot create repaired relay preview"};
@@ -78,7 +84,10 @@ int main(const int argc, const char* const argv[]) {
         "north_fire_lookout", "ravine_west_lip", "broken_service_bridge",
         "ravine_floor_west", "culvert_mouth", "waterfall_shelf", "ravine_floor_east",
         "quarry_gate", "quarry_office", "crusher_deck", "quarry_magazine",
-        "quarry_tunnel", "east_hoist_landing",
+        "quarry_tunnel", "east_hoist_landing", "logging_road", "sawmill_yard",
+        "sawmill_floor", "saw_filing_room", "boiler_house", "log_pond",
+        "workers_bunkhouse", "camp_mess_hall", "camp_office", "rail_spur_west",
+        "derelict_logging_engine", "trestle_approach", "east_rail_cut",
     };
     for (const auto* roomId : repairedRooms) {
         const auto* repairedRoom = world.room(roomId);

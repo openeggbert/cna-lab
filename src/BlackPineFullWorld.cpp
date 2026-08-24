@@ -2621,7 +2621,307 @@ void addActTwo(e2d::WorldDefinition& world) {
     }, {e2d::Condition::flag("owen_freed"), e2d::Condition::flag("brant_secured")});
 }
 
+void configureLoggingCampArtwork(e2d::WorldDefinition& world) {
+    const auto resetRoom = [&world](const int number, const P background, const P floor) -> e2d::RoomDefinition& {
+        auto& result = room(world, number);
+        result.background = background;
+        result.decorations.clear();
+        result.solids.clear();
+        result.animations.clear();
+        addGround(result, floor);
+        return result;
+    };
+
+    auto& road = resetRoom(51, P::brightBlue, P::brown);
+    road.decorations.insert(road.decorations.end(), {
+        circle(422, 39, 14, amber),
+        line(0, 171, 94, 86, P::darkGray), line(94, 86, 181, 171, P::darkGray),
+        line(144, 171, 278, 61, P::lightGray), line(278, 61, 414, 171, P::lightGray),
+        box(0, 171, 492, 89, P::green),
+        e2d::PolygonVisual{{{117, 260}, {205, 183}, {324, 183}, {430, 260}}, P::brown, true},
+        line(150, 252, 225, 190, P::darkGray), line(394, 252, 311, 190, P::darkGray),
+        box(315, 229, 102, 31, P::blue), line(322, 237, 409, 237, signalBlue),
+        line(169, 221, 203, 221, P::black), line(180, 232, 215, 232, P::black),
+        box(65, 174, 8, 86, P::brown),
+        e2d::PolygonVisual{{{37, 174}, {69, 137}, {101, 174}}, P::green, true},
+        label(332, 245, tr("WASHOUT", "VÝMOL"), pale),
+    });
+    road.animations.push_back({targetId(51, "runoff"), true, true, {}, {
+        {8, {line(323, 239, 367, 239, P::brightCyan), line(373, 248, 408, 248, P::cyan)}},
+        {8, {line(334, 239, 378, 239, P::brightCyan), line(363, 248, 398, 248, P::cyan)}},
+    }});
+
+    auto& yard = resetRoom(52, P::brightBlue, P::brown);
+    yard.decorations.insert(yard.decorations.end(), {
+        box(0, 145, 492, 115, P::green),
+        box(36, 111, 130, 105, P::red),
+        e2d::PolygonVisual{{{20, 111}, {101, 67}, {181, 111}}, P::brown, true},
+        box(54, 151, 42, 65, P::black), box(112, 139, 38, 37, P::brightBlue),
+        box(326, 124, 134, 92, P::brown),
+        e2d::PolygonVisual{{{312, 124}, {392, 82}, {474, 124}}, P::red, true},
+        box(344, 154, 38, 62, P::black), box(402, 145, 42, 31, P::brightBlue),
+        line(275, 67, 275, 181, P::lightGray), circle(275, 67, 6, amber),
+        line(275, 67, 242, 40, P::lightGray), line(275, 67, 307, 40, P::lightGray),
+        line(275, 67, 242, 94, P::lightGray), line(275, 67, 307, 94, P::lightGray),
+        line(0, 245, 492, 245, P::lightGray), line(0, 253, 492, 253, P::lightGray),
+    });
+    yard.animations.push_back({targetId(52, "wind_vane"), true, true, {}, {
+        {12, {line(275, 67, 239, 62, amber)}},
+        {12, {line(275, 67, 311, 72, amber)}},
+    }});
+
+    auto& mill = resetRoom(53, P::brown, P::darkGray);
+    mill.decorations.insert(mill.decorations.end(), {
+        box(0, 0, 492, 220, P::brown),
+        line(0, 48, 492, 48, P::red), line(0, 96, 492, 96, P::red),
+        box(63, 92, 191, 113, P::darkGray), box(74, 103, 169, 91, P::black),
+        circle(111, 168, 28, P::lightGray, false), circle(203, 168, 28, P::lightGray, false),
+        line(111, 140, 203, 140, amber), line(111, 196, 203, 196, amber),
+        box(278, 115, 168, 90, P::red), box(289, 126, 146, 68, P::black),
+        line(301, 151, 419, 151, signalBlue), line(301, 171, 419, 171, P::lightGray),
+        line(21, 38, 455, 38, P::lightGray), circle(123, 38, 13, P::lightGray, false),
+        circle(356, 38, 13, P::lightGray, false),
+        label(106, 113, tr("PLANER", "HOBLOVKA"), amber),
+    });
+
+    auto& filing = resetRoom(54, P::brown, P::darkGray);
+    filing.decorations.insert(filing.decorations.end(), {
+        box(0, 0, 492, 220, P::brown),
+        box(34, 40, 182, 134, P::darkGray), box(44, 50, 162, 114, P::black),
+        line(76, 61, 76, 151, P::lightGray), circle(76, 70, 12, P::lightGray, false),
+        line(121, 64, 181, 147, amber), line(121, 147, 181, 64, amber),
+        box(251, 63, 191, 111, P::red), box(261, 73, 171, 91, P::black),
+        circle(310, 118, 31, P::lightGray, false), line(310, 87, 310, 149, danger),
+        box(356, 92, 54, 43, P::brown, false),
+        box(24, 174, 434, 14, P::lightGray),
+        label(272, 78, tr("FILING BENCH", "BRUSNÝ STŮL"), amber),
+    });
+    filing.animations.push_back({targetId(54, "grinder"), true, true, {}, {
+        {7, {line(288, 118, 332, 118, signalBlue)}},
+        {7, {line(310, 96, 310, 140, signalBlue)}},
+    }});
+
+    auto& boiler = resetRoom(55, P::black, P::darkGray);
+    boiler.decorations.insert(boiler.decorations.end(), {
+        box(0, 0, 492, 220, P::brown),
+        box(35, 45, 183, 175, P::red), box(48, 58, 157, 149, P::black),
+        e2d::ArcVisual{{126, 80}, {45, 32}, 3.14159F, 6.28318F, P::lightGray},
+        circle(126, 116, 27, P::red), circle(126, 116, 14, danger),
+        box(269, 73, 151, 147, P::darkGray), box(280, 84, 129, 125, P::black),
+        line(344, 84, 344, 209, P::lightGray), circle(344, 118, 24, P::lightGray, false),
+        line(344, 118, 358, 104, amber),
+        box(291, 169, 105, 19, P::brown), label(303, 174, tr("RESERVE", "REZERVA"), amber),
+        line(54, 34, 192, 34, P::lightGray), line(192, 34, 192, 76, P::lightGray),
+    });
+    boiler.animations.push_back({targetId(55, "pressure"), true, true, {}, {
+        {10, {line(344, 118, 358, 104, amber)}},
+        {10, {line(344, 118, 363, 114, amber)}},
+    }});
+
+    auto& pond = resetRoom(56, P::brightBlue, P::brown);
+    pond.decorations.insert(pond.decorations.end(), {
+        box(0, 0, 492, 118, P::brightBlue), circle(405, 34, 14, amber),
+        box(0, 118, 492, 142, P::blue),
+        line(18, 145, 163, 145, signalBlue), line(277, 156, 464, 156, P::brightCyan),
+        line(79, 188, 232, 188, P::brightCyan), line(309, 213, 455, 213, signalBlue),
+        box(79, 174, 147, 20, P::brown), circle(94, 184, 9, P::darkGray),
+        box(319, 197, 126, 22, P::brown), circle(430, 208, 9, P::darkGray),
+        box(245, 145, 57, 39, amber), box(253, 153, 41, 23, P::brown),
+        line(35, 92, 35, 250, P::brown), line(35, 92, 182, 158, P::lightGray),
+        label(236, 130, tr("SERVICE BOX", "SERVISNÍ BEDNA"), pale),
+    });
+    pond.animations.push_back({targetId(56, "floating_logs"), true, true,
+        {e2d::Condition::notFlag("spark_retrieved")}, {
+            {9, {line(82, 196, 225, 196, amber), box(245, 145, 57, 39, amber, false)}},
+            {9, {line(91, 196, 234, 196, amber), box(237, 145, 57, 39, amber, false)}},
+        }});
+
+    auto& bunkhouse = resetRoom(57, P::brown, P::darkGray);
+    bunkhouse.decorations.insert(bunkhouse.decorations.end(), {
+        box(0, 0, 492, 220, P::brown), line(0, 55, 492, 55, P::red),
+        box(34, 72, 178, 109, P::darkGray), box(45, 83, 156, 38, P::blue),
+        box(45, 132, 156, 38, P::brightBlue), line(68, 72, 68, 181, P::lightGray),
+        line(179, 72, 179, 181, P::lightGray),
+        box(271, 72, 178, 109, P::darkGray), box(282, 83, 156, 38, P::red),
+        box(282, 132, 156, 38, P::brown), line(305, 72, 305, 181, P::lightGray),
+        line(416, 72, 416, 181, P::lightGray),
+        e2d::PolygonVisual{{{48, 219}, {73, 195}, {100, 219}}, P::black, true},
+        label(34, 183, tr("FOREMAN'S BOOT", "PŘEDÁKOVA BOTA"), amber),
+    });
+
+    auto& mess = resetRoom(58, P::brown, P::darkGray);
+    mess.decorations.insert(mess.decorations.end(), {
+        box(0, 0, 492, 220, P::brown),
+        box(39, 49, 128, 92, P::darkGray), box(49, 59, 108, 72, P::black),
+        circle(103, 96, 27, P::red), circle(103, 96, 15, danger),
+        box(206, 146, 230, 21, P::brown), box(222, 167, 13, 53, P::brown),
+        box(408, 167, 13, 53, P::brown),
+        circle(276, 137, 11, P::lightGray, false), circle(346, 137, 11, P::lightGray, false),
+        box(375, 54, 71, 70, P::darkGray), box(384, 63, 53, 52, P::black),
+        label(387, 77, tr("OFFICE", "KANCELÁŘ"), amber),
+    });
+    mess.animations.push_back({targetId(58, "kettle_steam"), true, true, {}, {
+        {8, {e2d::ArcVisual{{276, 121}, {6, 12}, 0.0F, 3.14159F, pale}}},
+        {8, {e2d::ArcVisual{{276, 116}, {8, 14}, 0.0F, 3.14159F, P::lightGray}}},
+    }});
+
+    auto& office = resetRoom(59, P::brown, P::darkGray);
+    office.decorations.insert(office.decorations.end(), {
+        box(0, 0, 492, 220, P::brown),
+        box(44, 44, 166, 92, P::darkGray), box(55, 55, 144, 70, pale),
+        line(65, 68, 188, 68, P::blue), line(65, 82, 168, 82, P::blue),
+        line(65, 96, 181, 96, P::red), label(78, 110, tr("23:40?", "23:40?"), P::black),
+        box(238, 141, 206, 21, P::brown), box(251, 162, 13, 58, P::brown),
+        box(418, 162, 13, 58, P::brown), box(281, 112, 92, 27, pale),
+        line(290, 121, 360, 121, P::blue), line(290, 129, 347, 129, P::blue),
+        circle(411, 86, 29, P::lightGray, false), line(411, 57, 411, 115, P::lightGray),
+        line(382, 86, 440, 86, P::lightGray),
+    });
+
+    auto& spur = resetRoom(60, P::brightBlue, P::brown);
+    spur.decorations.insert(spur.decorations.end(), {
+        box(0, 150, 492, 110, P::green),
+        line(0, 238, 492, 190, P::lightGray), line(0, 254, 492, 206, P::lightGray),
+        line(184, 220, 472, 252, P::lightGray), line(178, 236, 464, 268, P::lightGray),
+        line(61, 234, 438, 197, P::brown), line(92, 251, 459, 215, P::brown),
+        box(202, 154, 9, 91, P::darkGray), line(206, 163, 170, 126, amber),
+        box(153, 116, 43, 22, amber), label(159, 123, tr("POINTS", "VÝHYBKA"), P::black),
+        e2d::PolygonVisual{{{356, 158}, {427, 158}, {455, 176}, {427, 194}, {356, 194}}, P::red, true},
+        label(369, 170, tr("TRESTLE", "VIADUKT"), pale),
+    });
+
+    auto& engine = resetRoom(61, P::brightBlue, P::brown);
+    engine.decorations.insert(engine.decorations.end(), {
+        box(0, 157, 492, 103, P::green),
+        line(0, 247, 492, 247, P::lightGray), line(0, 257, 492, 257, P::lightGray),
+        box(69, 137, 332, 79, P::red), box(105, 93, 135, 65, P::darkGray),
+        box(117, 104, 111, 43, P::black), box(262, 105, 83, 53, P::red),
+        box(355, 81, 25, 76, P::darkGray),
+        circle(127, 222, 34, P::black), circle(127, 222, 18, P::lightGray),
+        circle(333, 222, 34, P::black), circle(333, 222, 18, P::lightGray),
+        line(127, 222, 333, 222, P::lightGray),
+        box(53, 157, 31, 38, amber), box(391, 158, 27, 37, P::brown),
+        label(172, 174, tr("BLACK PINE NO. 4", "BLACK PINE Č. 4"), pale),
+    });
+    engine.animations.push_back({targetId(61, "engine_smoke"), true, true,
+        {e2d::Condition::flag("logging_engine_running")}, {
+            {7, {circle(368, 65, 9, P::lightGray), circle(382, 49, 12, P::darkGray)}},
+            {7, {circle(372, 58, 11, P::lightGray), circle(392, 39, 14, P::darkGray)}},
+        }});
+
+    auto& trestle = resetRoom(62, P::brightBlue, P::brown);
+    trestle.decorations.insert(trestle.decorations.end(), {
+        box(0, 162, 492, 98, P::green),
+        line(39, 183, 453, 183, P::brown), line(39, 198, 453, 198, P::brown),
+        line(54, 198, 54, 260, P::lightGray), line(438, 198, 438, 260, P::lightGray),
+        line(54, 198, 124, 242, P::lightGray), line(124, 242, 194, 198, P::lightGray),
+        line(298, 198, 368, 242, P::lightGray), line(368, 242, 438, 198, P::lightGray),
+        line(194, 198, 232, 215, danger), line(260, 215, 298, 198, danger),
+        box(74, 107, 9, 76, P::brown), circle(78, 97, 13, amber, false),
+        line(78, 110, 111, 139, P::lightGray),
+        label(92, 105, tr("WHISTLE", "PÍŠŤALA"), amber),
+        box(337, 134, 82, 37, P::darkGray), line(349, 152, 407, 152, danger),
+        label(345, 137, tr("BRAKE", "BRZDA"), pale),
+    });
+    trestle.animations.push_back({targetId(62, "trestle_flex"), true, true,
+        {e2d::Condition::notFlag("trestle_brake_fixed")}, {
+            {9, {line(194, 198, 246, 216, danger), line(246, 216, 298, 198, danger)}},
+            {9, {line(194, 198, 246, 221, danger), line(246, 221, 298, 198, danger)}},
+        }});
+
+    auto& railCut = resetRoom(63, P::brightBlue, P::brown);
+    railCut.decorations.insert(railCut.decorations.end(), {
+        box(0, 146, 492, 114, P::green),
+        e2d::PolygonVisual{{{0, 146}, {109, 54}, {183, 146}}, P::darkGray, true},
+        e2d::PolygonVisual{{{309, 146}, {401, 61}, {492, 146}}, P::lightGray, true},
+        line(0, 237, 492, 237, P::lightGray), line(0, 252, 492, 252, P::lightGray),
+        box(81, 158, 224, 58, P::red), box(110, 124, 94, 42, P::darkGray),
+        box(119, 132, 76, 27, P::black), circle(126, 222, 30, P::black),
+        circle(263, 222, 30, P::black), circle(126, 222, 15, P::lightGray),
+        circle(263, 222, 15, P::lightGray),
+        box(357, 160, 84, 60, P::lightGray), box(367, 170, 64, 40, P::black),
+        line(375, 190, 390, 180, signalBlue), line(390, 180, 405, 198, P::brightGreen),
+        line(405, 198, 422, 182, signalBlue), circle(427, 204, 4, amber),
+    });
+    railCut.animations.push_back({targetId(63, "radio_wave"), true, true, {}, {
+        {8, {line(376, 190, 393, 177, signalBlue), line(393, 177, 411, 198, P::brightGreen)}},
+        {8, {line(376, 193, 393, 185, signalBlue), line(393, 185, 411, 192, P::brightGreen)}},
+    }});
+}
+
 void addActThree(e2d::WorldDefinition& world) {
+    // The camp is a set of physical work areas around two hubs, not a linear
+    // catalogue walk. Every branch gets a visible, two-way ENTER route.
+    configureLoggingCampArtwork(world);
+    setHorizontalRoute(world, 51, 50, 52);
+    setHorizontalRoute(world, 52, 51, std::nullopt);
+    for (int branch = 53; branch <= 61; ++branch) {
+        setHorizontalRoute(world, branch, std::nullopt, std::nullopt);
+    }
+    setHorizontalRoute(world, 62, 60, 63);
+    setHorizontalRoute(world, 63, 62, 64);
+
+    addPortal(world, 52, "mill_door", "SAWMILL FLOOR", "PROVOZ PILY",
+        {310, 142, 76, 118}, 53, {
+            box(318, 153, 58, 107, P::darkGray), box(324, 160, 46, 94, P::black),
+            label(329, 174, tr("MILL", "PILA"), amber), circle(363, 210, 3, amber),
+        });
+    addPortal(world, 52, "bunkhouse_door", "WORKERS' BUNKHOUSE", "UBYTOVNA DĚLNÍKŮ",
+        {63, 142, 65, 118}, 57, {
+            box(70, 163, 55, 97, P::darkGray), box(76, 170, 43, 84, P::brown),
+            label(78, 181, tr("BUNK", "UBYT"), pale), circle(112, 212, 3, amber),
+        });
+    addPortal(world, 52, "mess_door", "MESS HALL", "JÍDELNA TÁBORA",
+        {148, 142, 60, 118}, 58, {
+            box(154, 163, 58, 97, P::darkGray), box(160, 170, 46, 84, P::red),
+            label(165, 181, tr("MESS", "JÍDLO"), pale), circle(199, 212, 3, amber),
+        });
+    addPortal(world, 52, "rail_path", "PATH TO RAIL SPUR", "CESTA KE KOLEJOVÉ VLEČCE",
+        {401, 142, 83, 118}, 60, {
+            e2d::PolygonVisual{{{398, 185}, {446, 185}, {478, 201}, {446, 217}, {398, 217}}, amber, true},
+            label(409, 195, tr("RAIL", "KOLEJ"), P::black),
+        });
+
+    addPortal(world, 53, "yard_door", "DOOR TO SAWMILL YARD", "DVEŘE NA DVŮR PILY",
+        {0, 137, 60, 123}, 52, {box(7, 154, 45, 106, P::red), label(14, 174, tr("YARD", "DVŮR"), pale)});
+    addPortal(world, 53, "filing_door", "SAW FILING ROOM", "BRUSÍRNA PIL",
+        {292, 137, 50, 123}, 54, {box(299, 154, 43, 106, P::darkGray), label(302, 174, tr("FILES", "PILY"), amber)});
+    addPortal(world, 53, "boiler_door", "BOILER HOUSE", "KOTELNA",
+        {360, 137, 50, 123}, 55, {box(363, 154, 47, 106, P::red), label(367, 174, tr("FUEL", "PALIVO"), pale)});
+    addPortal(world, 53, "pond_door", "DOOR TO LOG POND", "DVEŘE KE KLÁDOVÉMU RYBNÍKU",
+        {428, 137, 64, 123}, 56, {box(433, 154, 52, 106, P::blue), label(438, 174, tr("POND", "RYBNÍK"), pale)});
+    addPortal(world, 54, "mill_door", "DOOR TO SAWMILL FLOOR", "DVEŘE DO PROVOZU PILY",
+        {415, 137, 77, 123}, 53, {box(425, 151, 57, 109, P::red), label(432, 171, tr("MILL", "PILA"), pale)});
+    addPortal(world, 55, "mill_door", "DOOR TO SAWMILL FLOOR", "DVEŘE DO PROVOZU PILY",
+        {415, 137, 77, 123}, 53, {box(425, 151, 57, 109, P::red), label(432, 171, tr("MILL", "PILA"), pale)});
+    addPortal(world, 56, "mill_door", "DOOR TO SAWMILL FLOOR", "DVEŘE DO PROVOZU PILY",
+        {0, 137, 67, 123}, 53, {box(7, 151, 50, 109, P::brown), label(14, 171, tr("MILL", "PILA"), pale)});
+    addPortal(world, 57, "yard_door", "DOOR TO SAWMILL YARD", "DVEŘE NA DVŮR PILY",
+        {415, 137, 77, 123}, 52, {box(425, 151, 57, 109, P::red), label(432, 171, tr("YARD", "DVŮR"), pale)});
+    addPortal(world, 58, "yard_door", "DOOR TO SAWMILL YARD", "DVEŘE NA DVŮR PILY",
+        {0, 137, 67, 123}, 52, {box(7, 151, 50, 109, P::red), label(14, 171, tr("YARD", "DVŮR"), pale)});
+    addPortal(world, 58, "office_door", "CAMP OFFICE", "KANCELÁŘ TÁBORA",
+        {404, 137, 88, 123}, 59, {box(414, 151, 68, 109, P::darkGray), label(422, 171, tr("OFFICE", "KANCEL."), amber)});
+    addPortal(world, 59, "mess_door", "DOOR TO MESS HALL", "DVEŘE DO JÍDELNY",
+        {0, 137, 67, 123}, 58, {box(7, 151, 50, 109, P::red), label(14, 171, tr("MESS", "JÍDLO"), pale)});
+    addPortal(world, 60, "yard_path", "PATH TO SAWMILL YARD", "CESTA NA DVŮR PILY",
+        {0, 137, 70, 123}, 52, {
+            e2d::PolygonVisual{{{7, 190}, {30, 176}, {67, 176}, {67, 204}, {30, 204}}, amber, true},
+            label(26, 186, tr("YARD", "DVŮR"), P::black),
+        });
+    addPortal(world, 60, "engine_path", "PATH TO LOGGING ENGINE", "CESTA K LESNÍ LOKOMOTIVĚ",
+        {268, 137, 90, 123}, 61, {
+            e2d::PolygonVisual{{{275, 178}, {331, 178}, {359, 195}, {331, 212}, {275, 212}}, P::red, true},
+            label(287, 190, tr("ENGINE", "LOKO"), pale),
+        });
+    addPortal(world, 60, "trestle_path", "TRACK TO TRESTLE", "KOLEJ K VIADUKTU",
+        {382, 137, 110, 123}, 62, {
+            e2d::PolygonVisual{{{386, 178}, {449, 178}, {482, 195}, {449, 212}, {386, 212}}, amber, true},
+            label(398, 190, tr("TRESTLE", "VIADUKT"), P::black),
+        });
+    addPortal(world, 61, "spur_path", "PATH BACK TO RAIL SPUR", "CESTA ZPĚT K VLEČCE",
+        {0, 137, 62, 123}, 60, {box(7, 174, 48, 32, amber), label(13, 185, tr("SPUR", "VLEČKA"), P::black)});
+
     addCharacter(world, 52, "lila", "LILA MERCER", "LILA MERCEROVÁ", "met_lila", {
         speech(tr("Lila: The ridge road is gone. This logging engine is our only heavy transport.",
             "Lila: Cesta na hřeben je pryč. Tahle lokomotiva je naše jediná těžká doprava.")),
@@ -2630,9 +2930,36 @@ void addActThree(e2d::WorldDefinition& world) {
         speech(tr("Iris: I will make the machine whole. You make it run.",
             "Iris: Já stroj doplním. Ty ho rozběhneš."), e2d::MessageSpeaker::player),
     });
+    auto& lila = ensureHotspot(world, 52, "lila", tr("LILA MERCER", "LILA MERCEROVÁ"),
+        {230, 137, 68, 123}, e2d::HotspotKind::character, 2);
+    lila.interactionArea = {230, 137, 68, 123};
+    lila.visuals = {
+        circle(266, 170, 11, amber), box(256, 181, 21, 49, P::brightMagenta),
+        line(258, 230, 251, 258, P::lightGray), line(274, 230, 281, 258, P::lightGray),
+        line(256, 192, 243, 211, amber), line(277, 192, 291, 204, amber),
+    };
     addUse(world, 53, "planer_tension", "PLANER BELT TENSIONER", "NAPÍNÁK ŘEMENU HOBLOVKY",
         "wrench", "belt_released", "The tensioner backs off and leaves the drive belt loose and safe.",
         "Napínák povolí a řemen zůstane volný a bezpečný.");
+    auto& planer = ensureHotspot(world, 53, "planer_tension",
+        tr("PLANER BELT TENSIONER", "NAPÍNÁK ŘEMENU HOBLOVKY"),
+        {63, 135, 132, 125}, e2d::HotspotKind::mechanism);
+    planer.interactionArea = {63, 135, 132, 125};
+    planer.visibleWhen = {e2d::Condition::notFlag("belt_released")};
+    planer.visuals = {
+        circle(94, 194, 20, P::lightGray, false), circle(159, 194, 20, P::lightGray, false),
+        e2d::PolylineVisual{{{94, 174}, {159, 174}, {159, 214}, {94, 214}, {94, 174}}, danger, false},
+        line(178, 171, 178, 217, P::lightGray), line(168, 181, 188, 181, amber),
+        label(82, 225, tr("TENSIONED", "NAPNUTO"), danger),
+    };
+    auto& releasedPlaner = ensureHotspot(world, 53, "planer_tension_complete",
+        tr("RELEASED PLANER DRIVE", "UVOLNĚNÝ POHON HOBLOVKY"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    releasedPlaner.visuals = {
+        circle(94, 194, 20, P::lightGray, false), circle(159, 194, 20, P::lightGray, false),
+        e2d::PolylineVisual{{{94, 214}, {124, 226}, {159, 214}}, P::brightGreen, false},
+        label(94, 229, tr("SAFE", "VOLNÉ"), P::brightGreen),
+    };
     addPickup(world, 53, "drive_belt", "You roll the released drive belt without cracking it.",
         "Uvolněný hnací řemen smotáš bez poškození.", 2, {e2d::Condition::flag("belt_released")});
     addPickup(world, 54, "oil_can", "The oil can is nearly full of heavy machine oil.",
@@ -2643,14 +2970,49 @@ void addActThree(e2d::WorldDefinition& world) {
         "siphon_hose", "fuel_can_filled", "The hose fills the engine can from the protected reserve. Iris keeps the hose.",
         "Hadice naplní kanystr z chráněné zásoby. Iris si hadici ponechá.");
     world.interactions.back().mutations.push_back(e2d::Mutation::addItem("filled_fuel_can"));
+    auto& reserveTank = ensureHotspot(world, 55, "reserve_tank",
+        tr("PROTECTED RESERVE TANK", "CHRÁNĚNÁ REZERVNÍ NÁDRŽ"),
+        {250, 135, 157, 125}, e2d::HotspotKind::mechanism);
+    reserveTank.interactionArea = {250, 135, 157, 125};
+    reserveTank.visibleWhen = {e2d::Condition::notFlag("fuel_can_filled")};
+    reserveTank.visuals = {
+        box(274, 145, 111, 96, P::darkGray), box(284, 155, 91, 76, P::black),
+        box(295, 208, 69, 12, amber), line(329, 155, 329, 205, P::lightGray),
+        label(299, 185, tr("FUEL", "PALIVO"), amber),
+    };
+    auto& filledReserve = ensureHotspot(world, 55, "reserve_tank_complete",
+        tr("SIPHONED RESERVE", "PŘEČERPANÁ REZERVA"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    filledReserve.visuals = {
+        box(274, 145, 111, 96, P::darkGray), box(284, 155, 91, 76, P::black),
+        box(295, 208, 69, 12, P::brightGreen),
+        e2d::PolylineVisual{{{329, 171}, {344, 183}, {356, 229}, {374, 248}}, signalBlue, false},
+        label(297, 185, tr("SIPHONED", "ODEBRÁNO"), P::brightGreen),
+    };
     addContext(world, 56, "log_pike", "LOG PIKE", "HÁK NA KLÁDY", "spark_retrieved", {
         inspect(tr("The pike draws the floating maintenance box close enough to recover its dry spark plug.",
             "Hák přitáhne plovoucí servisní skříňku a její suchou zapalovací svíčku.")),
     }, {}, {e2d::Mutation::addItem("spark_plug")}, 1, "pickup");
-    addHazard(world, 56, "log_pond", "spark_retrieved",
+    auto& pike = ensureHotspot(world, 56, "log_pike", tr("LOG PIKE", "HÁK NA KLÁDY"),
+        {80, 135, 168, 125}, e2d::HotspotKind::mechanism, 1);
+    pike.interactionArea = {80, 135, 168, 125};
+    pike.visibleWhen = {e2d::Condition::notFlag("spark_retrieved")};
+    pike.visuals = {
+        line(92, 239, 224, 151, amber), line(218, 151, 231, 148, P::lightGray),
+        line(224, 151, 228, 164, P::lightGray), box(239, 171, 54, 36, P::brown),
+        label(96, 225, tr("PIKE", "HÁK"), pale),
+    };
+    auto& pikeComplete = ensureHotspot(world, 56, "log_pike_complete",
+        tr("RECOVERED MAINTENANCE BOX", "VYTAŽENÁ SERVISNÍ BEDNA"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    pikeComplete.visuals = {
+        line(92, 239, 188, 185, P::lightGray), box(194, 202, 61, 38, P::brown),
+        box(202, 210, 45, 22, amber), circle(224, 221, 4, P::brightGreen),
+    };
+    addHazard(world, 56, "log_pond", "log_pond_safe",
         "A turning log rolls Iris beneath the cold pond.", "Otáčející se kláda stáhne Iris pod studenou hladinu.");
     addPickup(world, 57, "rail_switch_key", "June's clue leads to the switch key in the foreman's boot.",
-        "Junina nápověda vede ke klíči od výhybky v předákově botě.", 0);
+        "Junina nápověda vede ke klíči od výhybky v předákově botě.", 0,
+        {e2d::Condition::flag("met_june")});
     addPickup(world, 57, "logger_token", "You pocket an old stamped logger token.",
         "Schováš si starý ražený dřevařský žeton.", 1);
     addCharacter(world, 58, "june", "JUNE MERCER", "JUNE MERCEROVÁ", "met_june", {
@@ -2661,12 +3023,53 @@ void addActThree(e2d::WorldDefinition& world) {
         speech(tr("Iris: History and supper. Both may save us tonight.",
             "Iris: Historie a večeře. Dnes v noci nás může zachránit obojí."), e2d::MessageSpeaker::player),
     }, {}, {e2d::Mutation::addItem("sealed_ration"), e2d::Mutation::setFlag("whistle_known")});
+    auto& june = ensureHotspot(world, 58, "june", tr("JUNE MERCER", "JUNE MERCEROVÁ"),
+        {202, 137, 90, 123}, e2d::HotspotKind::character, 2);
+    june.interactionArea = {202, 137, 90, 123};
+    june.visuals = {
+        circle(247, 169, 11, amber), box(237, 180, 21, 50, P::brightMagenta),
+        line(239, 230, 232, 258, P::lightGray), line(255, 230, 262, 258, P::lightGray),
+        line(237, 192, 219, 207, amber), line(258, 192, 278, 205, amber),
+    };
     addUse(world, 59, "carbon_impression", "REVERSED CARBON IMPRESSION", "OBRÁCENÝ OTISK NA KOPÍRÁKU",
         "hand_mirror", "lift_time_known", "In the mirror, the faint pressure marks read RIDGE LIFT / 23:40.",
         "V zrcadle slabé stopy tlaku čtou HŘEBENOVÝ VÝTAH / 23:40.");
+    auto& carbon = ensureHotspot(world, 59, "carbon_impression",
+        tr("REVERSED CARBON IMPRESSION", "OBRÁCENÝ OTISK NA KOPÍRÁKU"),
+        {238, 135, 160, 125}, e2d::HotspotKind::mechanism);
+    carbon.interactionArea = {238, 135, 160, 125};
+    carbon.visibleWhen = {e2d::Condition::notFlag("lift_time_known")};
+    carbon.visuals = {
+        box(267, 194, 110, 51, pale), line(278, 207, 364, 207, P::blue),
+        line(278, 219, 350, 219, P::blue), label(288, 229, tr("?04:32", "?04:32"), P::red),
+    };
+    auto& carbonRead = ensureHotspot(world, 59, "carbon_impression_complete",
+        tr("READ CARBON IMPRESSION", "PŘEČTENÝ OTISK NA KOPÍRÁKU"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    carbonRead.visuals = {
+        box(267, 194, 110, 51, pale), label(279, 204, tr("RIDGE LIFT", "HŘEBEN VÝTAH"), P::black),
+        label(299, 223, tr("23:40", "23:40"), danger), circle(372, 239, 4, P::brightGreen),
+    };
     addUse(world, 60, "rail_points", "RAIL POINTS", "VÝHYBKA", "rail_switch_key", "rail_points_aligned",
         "The switch key locks the points onto the east reservoir line.",
         "Klíč uzamkne výhybku na východní trať k přehradě.");
+    auto& railPoints = ensureHotspot(world, 60, "rail_points", tr("RAIL POINTS", "VÝHYBKA"),
+        {112, 135, 142, 125}, e2d::HotspotKind::mechanism);
+    railPoints.interactionArea = {112, 135, 142, 125};
+    railPoints.visibleWhen = {e2d::Condition::notFlag("rail_points_aligned")};
+    railPoints.visuals = {
+        line(122, 239, 237, 199, P::lightGray), line(122, 249, 237, 209, P::lightGray),
+        line(157, 242, 237, 238, danger), box(165, 156, 10, 73, P::darkGray),
+        line(170, 164, 143, 139, amber), label(137, 225, tr("WEST", "ZÁPAD"), danger),
+    };
+    auto& pointsAligned = ensureHotspot(world, 60, "rail_points_complete",
+        tr("ALIGNED EAST RAIL POINTS", "SROVNANÁ VÝCHODNÍ VÝHYBKA"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    pointsAligned.visuals = {
+        line(122, 239, 237, 199, P::brightGreen), line(122, 249, 237, 209, P::brightGreen),
+        line(157, 242, 237, 209, P::brightGreen), box(165, 156, 10, 73, P::darkGray),
+        line(170, 164, 197, 139, P::brightGreen), label(137, 225, tr("EAST", "VÝCHOD"), P::brightGreen),
+    };
     addUse(world, 61, "engine_belt", "ENGINE DRIVE", "POHON LOKOMOTIVY", "drive_belt", "engine_belt_installed",
         "The planer belt settles around the engine pulleys.", "Řemen z hoblovky se usadí na řemenicích lokomotivy.", {}, true, 0);
     addUse(world, 61, "engine_ignition", "ENGINE IGNITION", "ZAPALOVÁNÍ LOKOMOTIVY", "spark_plug", "engine_plug_installed",
@@ -2676,6 +3079,64 @@ void addActThree(e2d::WorldDefinition& world) {
     addUse(world, 61, "engine_fuel_tank", "ENGINE FUEL TANK", "PALIVOVÁ NÁDRŽ LOKOMOTIVY",
         "filled_fuel_can", "engine_fueled", "The protected reserve fuel fills the engine tank without a drop wasted.",
         "Palivo z chráněné zásoby naplní nádrž lokomotivy beze ztráty jediné kapky.", {}, true, 3);
+    auto& engineBelt = ensureHotspot(world, 61, "engine_belt", tr("ENGINE DRIVE", "POHON LOKOMOTIVY"),
+        {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    engineBelt.visibleWhen = {e2d::Condition::notFlag("engine_belt_installed")};
+    engineBelt.visuals = {
+        circle(94, 201, 18, P::lightGray, false), circle(134, 201, 18, P::lightGray, false),
+        line(94, 183, 134, 219, danger), line(94, 219, 134, 183, danger),
+        label(79, 157, tr("BELT", "ŘEMEN"), pale),
+    };
+    auto& beltInstalled = ensureHotspot(world, 61, "engine_belt_complete",
+        tr("INSTALLED ENGINE BELT", "NAMONTOVANÝ ŘEMEN"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    beltInstalled.visuals = {
+        circle(94, 201, 18, P::lightGray, false), circle(134, 201, 18, P::lightGray, false),
+        e2d::PolylineVisual{{{94, 183}, {134, 183}, {134, 219}, {94, 219}, {94, 183}}, P::brightGreen, false},
+    };
+    auto& engineIgnition = ensureHotspot(world, 61, "engine_ignition",
+        tr("ENGINE IGNITION", "ZAPALOVÁNÍ LOKOMOTIVY"),
+        {164, 135, 96, 125}, e2d::HotspotKind::mechanism, 1);
+    engineIgnition.visibleWhen = {e2d::Condition::notFlag("engine_plug_installed")};
+    engineIgnition.visuals = {
+        box(187, 171, 51, 59, P::black), line(212, 181, 212, 214, P::lightGray),
+        line(201, 181, 223, 181, danger), circle(212, 218, 7, P::darkGray),
+        label(180, 157, tr("PLUG", "SVÍČKA"), pale),
+    };
+    auto& plugInstalled = ensureHotspot(world, 61, "engine_ignition_complete",
+        tr("INSTALLED SPARK PLUG", "NAMONTOVANÁ SVÍČKA"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    plugInstalled.visuals = {
+        box(187, 171, 51, 59, P::black), line(212, 177, 212, 218, pale),
+        line(201, 185, 223, 185, P::brightGreen), circle(212, 220, 7, P::brightGreen),
+    };
+    auto& engineBearings = ensureHotspot(world, 61, "engine_bearings",
+        tr("ENGINE BEARINGS", "LOŽISKA LOKOMOTIVY"),
+        {265, 135, 96, 125}, e2d::HotspotKind::mechanism, 2);
+    engineBearings.visibleWhen = {e2d::Condition::notFlag("engine_oiled")};
+    engineBearings.visuals = {
+        circle(293, 205, 14, P::darkGray, false), circle(333, 205, 14, P::darkGray, false),
+        line(293, 191, 333, 219, danger), label(284, 157, tr("OIL", "OLEJ"), pale),
+    };
+    auto& bearingsOiled = ensureHotspot(world, 61, "engine_bearings_complete",
+        tr("OILED ENGINE BEARINGS", "NAMAZANÁ LOŽISKA"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    bearingsOiled.visuals = {
+        circle(293, 205, 14, P::brightGreen, false), circle(333, 205, 14, P::brightGreen, false),
+        line(293, 205, 333, 205, amber),
+    };
+    auto& engineFuel = ensureHotspot(world, 61, "engine_fuel_tank",
+        tr("ENGINE FUEL TANK", "PALIVOVÁ NÁDRŽ LOKOMOTIVY"),
+        {366, 135, 96, 125}, e2d::HotspotKind::mechanism, 3);
+    engineFuel.visibleWhen = {e2d::Condition::notFlag("engine_fueled")};
+    engineFuel.visuals = {
+        box(382, 176, 63, 49, P::darkGray), box(390, 184, 47, 33, P::black),
+        line(400, 206, 427, 206, danger), circle(414, 170, 6, amber),
+        label(389, 157, tr("FUEL", "PALIVO"), pale),
+    };
+    auto& engineFueled = ensureHotspot(world, 61, "engine_fuel_tank_complete",
+        tr("FILLED ENGINE TANK", "NAPLNĚNÁ NÁDRŽ"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    engineFueled.visuals = {
+        box(382, 176, 63, 49, P::darkGray), box(390, 184, 47, 33, P::black),
+        box(394, 198, 39, 15, P::brightGreen), circle(414, 170, 6, P::brightGreen),
+    };
     addContext(world, 61, "engine_start", "ENGINE STARTER", "STARTÉR LOKOMOTIVY", "logging_engine_running", {
         speech(tr("Lila: Timing set. Give her the crank.", "Lila: Časování je hotové. Zatoč klikou.")),
         inspect(tr("The old engine fires, shakes loose thirty years of dust, and settles into a hard idle.",
@@ -2683,16 +3144,69 @@ void addActThree(e2d::WorldDefinition& world) {
     }, {e2d::Condition::flag("met_lila"), e2d::Condition::flag("engine_belt_installed"),
         e2d::Condition::flag("engine_plug_installed"), e2d::Condition::flag("engine_oiled"),
         e2d::Condition::flag("engine_fueled"), e2d::Condition::flag("rail_points_aligned")}, {}, 3, "power");
-    gateRight(world, 61, {e2d::Condition::flag("logging_engine_running")},
-        "Lila still needs every engine part, fuel and the aligned rail points.",
-        "Lila stále potřebuje všechny části lokomotivy, palivo a srovnanou výhybku.");
+    auto& engineStarter = ensureHotspot(world, 61, "engine_start",
+        tr("ENGINE STARTER", "STARTÉR LOKOMOTIVY"),
+        {404, 135, 80, 125}, e2d::HotspotKind::mechanism, 3);
+    engineStarter.interactionArea = {404, 135, 80, 125};
+    engineStarter.visibleWhen = {
+        e2d::Condition::flag("met_lila"), e2d::Condition::flag("engine_belt_installed"),
+        e2d::Condition::flag("engine_plug_installed"), e2d::Condition::flag("engine_oiled"),
+        e2d::Condition::flag("engine_fueled"), e2d::Condition::flag("rail_points_aligned"),
+        e2d::Condition::notFlag("logging_engine_running"),
+    };
+    engineStarter.visuals = {
+        circle(444, 200, 20, P::lightGray, false), line(444, 200, 461, 185, amber),
+        label(418, 157, tr("START", "START"), P::brightGreen),
+    };
+    auto& engineRunning = ensureHotspot(world, 61, "engine_start_complete",
+        tr("RUNNING LOGGING ENGINE", "BĚŽÍCÍ LESNÍ LOKOMOTIVA"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    engineRunning.visuals = {
+        circle(444, 200, 20, P::brightGreen, false), line(444, 200, 461, 185, P::brightGreen),
+        circle(224, 183, 5, amber), circle(245, 183, 5, P::brightGreen),
+        label(196, 158, tr("RUNNING", "BĚŽÍ"), P::brightGreen),
+    };
     addContext(world, 62, "mill_whistle", "MILL WHISTLE CABLE", "LANKO PÍŠŤALY PILY", "trestle_guard_diverted", {
         inspect(tr("The old whistle rolls across the valley. The guard leaves the trestle to investigate.",
             "Stará píšťala se rozlehne údolím. Strážný opustí viadukt a jde pátrat.")),
     }, {e2d::Condition::flag("whistle_known")}, {}, 0, "warning");
+    auto& whistle = ensureHotspot(world, 62, "mill_whistle",
+        tr("MILL WHISTLE CABLE", "LANKO PÍŠŤALY PILY"),
+        {48, 135, 132, 125}, e2d::HotspotKind::mechanism);
+    whistle.interactionArea = {48, 135, 132, 125};
+    whistle.visibleWhen = {e2d::Condition::flag("whistle_known"), e2d::Condition::notFlag("trestle_guard_diverted")};
+    whistle.visuals = {
+        circle(82, 164, 16, amber, false), line(82, 180, 82, 230, P::lightGray),
+        line(82, 230, 111, 250, amber), label(100, 155, tr("PULL", "ZATÁHNI"), pale),
+    };
+    auto& whistleSounded = ensureHotspot(world, 62, "mill_whistle_complete",
+        tr("SOUNDED MILL WHISTLE", "SPUŠTĚNÁ PÍŠŤALA PILY"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    whistleSounded.visuals = {
+        circle(82, 164, 16, P::brightGreen, false), line(82, 180, 82, 230, P::lightGray),
+        e2d::ArcVisual{{82, 164}, {28, 22}, 4.71239F, 1.5708F, amber},
+        label(102, 155, tr("CLEAR", "VOLNO"), P::brightGreen),
+    };
     addUse(world, 62, "brake_linkage", "BRAKE LINKAGE", "TÁHLO BRZDY", "wrench", "trestle_brake_fixed",
         "The wrench replaces the linkage pin and restores the engine brake.",
         "Klíč nahradí čep táhla a obnoví brzdu lokomotivy.", {}, false, 2);
+    auto& brake = ensureHotspot(world, 62, "brake_linkage", tr("BRAKE LINKAGE", "TÁHLO BRZDY"),
+        {245, 135, 122, 125}, e2d::HotspotKind::mechanism, 2);
+    brake.interactionArea = {245, 135, 122, 125};
+    brake.visibleWhen = {e2d::Condition::notFlag("trestle_brake_fixed")};
+    brake.visuals = {
+        box(268, 183, 76, 41, P::darkGray), circle(285, 203, 12, P::lightGray, false),
+        circle(329, 203, 12, P::lightGray, false), line(297, 196, 317, 211, danger),
+        label(266, 164, tr("MISSING PIN", "CHYBÍ ČEP"), danger),
+    };
+    auto& brakeFixed = ensureHotspot(world, 62, "brake_linkage_complete",
+        tr("REPAIRED BRAKE LINKAGE", "OPRAVENÉ TÁHLO BRZDY"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    brakeFixed.visuals = {
+        box(268, 183, 76, 41, P::darkGray), circle(285, 203, 12, P::brightGreen, false),
+        circle(329, 203, 12, P::brightGreen, false), line(297, 203, 317, 203, P::brightGreen),
+        circle(307, 203, 4, amber), label(270, 164, tr("BRAKE SAFE", "BRZDA OK"), P::brightGreen),
+    };
     addHazard(world, 62, "rotten_trestle", "trestle_brake_fixed",
         "The unrepaired engine tears through the flexing trestle.", "Neopravená lokomotiva prorazí prohýbající se viadukt.");
     gateRight(world, 62, {e2d::Condition::flag("logging_engine_running"),
@@ -2705,6 +3219,26 @@ void addActThree(e2d::WorldDefinition& world) {
         speech(tr("Iris: I hear you. I am following the jammer toward Nightjar. Keep that channel open.",
             "Iris: Slyším vás. Sleduji rušení k Nightjaru. Udržte kanál otevřený."), e2d::MessageSpeaker::player),
     }, {e2d::Condition::flag("logging_engine_running")}, {e2d::Mutation::setFlag("railway_complete")});
+    auto& portableRadio = ensureHotspot(world, 63, "portable_radio",
+        tr("PORTABLE RADIO", "PŘENOSNÉ RÁDIO"),
+        {340, 135, 126, 125}, e2d::HotspotKind::mechanism);
+    portableRadio.interactionArea = {340, 135, 126, 125};
+    portableRadio.visibleWhen = {e2d::Condition::flag("logging_engine_running"), e2d::Condition::notFlag("elias_contacted")};
+    portableRadio.visuals = {
+        box(357, 160, 84, 60, P::lightGray), box(367, 170, 64, 40, P::black),
+        circle(379, 191, 13, P::lightGray, false),
+        line(399, 183, 425, 183, signalBlue), line(399, 194, 431, 194, danger),
+        circle(427, 204, 4, amber), label(372, 225, tr("SIGNAL", "SIGNÁL"), amber),
+    };
+    auto& radioAnswered = ensureHotspot(world, 63, "portable_radio_complete",
+        tr("OPEN DISPATCH CHANNEL", "OTEVŘENÝ KANÁL DISPEČINKU"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    radioAnswered.visuals = {
+        box(357, 160, 84, 60, P::lightGray), box(367, 170, 64, 40, P::black),
+        circle(379, 191, 13, P::brightGreen, false),
+        e2d::PolylineVisual{{{399, 192}, {407, 180}, {415, 198}, {423, 184}, {431, 192}}, P::brightGreen, false},
+        circle(427, 204, 4, P::brightGreen), label(370, 225, tr("ELIAS", "ELIAS"), P::brightGreen),
+    };
 
     addPickup(world, 65, "insulated_boots", "The rescue locker holds dry insulated boots.",
         "Záchranná skříňka obsahuje suché izolační boty.", 0);
@@ -3309,10 +3843,44 @@ void addHints(e2d::WorldDefinition& world) {
         "Pokračuj na východ a na kladce Východního navijáku POUŽIJ Owenův čep.");
     next("act2_complete", "At East Hoist Landing, operate the repaired hoist controls with ENTER.",
         "Ve Východní stanici navijáku spusť opravené ovládání klávesou ENTER.");
-    next("logging_engine_running", "Fill a can at the Boiler House, install fuel, belt, plug and oil, align Rail Spur West, then start the Logging Engine.",
-        "Naplň kanystr v Kotelně, namontuj palivo, řemen, svíčku a olej, srovnej Západní vlečku a spusť Lesní lokomotivu.");
-    next("trestle_brake_fixed", "At Trestle Approach, sound June's whistle and repair the brake linkage.",
-        "U Příjezdu k viaduktu spusť Juninu píšťalu a oprav táhlo brzdy.");
+    next("met_lila", "Continue east to Sawmill Yard and speak to Lila with ENTER.",
+        "Pokračuj na východ na Dvůr pily a promluv s Lilou klávesou ENTER.");
+    next("belt_released", "In Sawmill Yard enter MILL and USE the wrench on the planer's tensioner.",
+        "Na Dvoře pily vstup do PILY a na napínáku hoblovky POUŽIJ montážní klíč.");
+    next("taken_drive_belt", "On Sawmill Floor, TAKE the now-loose drive belt beside the planer.",
+        "V Provozu pily SEBER nyní uvolněný hnací řemen vedle hoblovky.");
+    next("taken_oil_can", "On Sawmill Floor enter FILES and TAKE the oil can.",
+        "V Provozu pily vstup do BRUSÍRNY a SEBER olejničku.");
+    next("taken_hand_mirror", "In Saw Filing Room, TAKE the hand mirror beside the filing bench.",
+        "V Brusírně pil SEBER ruční zrcátko vedle brusného stolu.");
+    next("fuel_can_filled", "Return to MILL, enter FUEL and USE the siphon hose on the protected reserve tank.",
+        "Vrať se do PILY, vstup do KOTELNY a na chráněné nádrži POUŽIJ přečerpávací hadici.");
+    next("spark_retrieved", "Return to MILL, enter POND and press ENTER at the log pike; stay away from the moving logs.",
+        "Vrať se do PILY, vstup k RYBNÍKU a stiskni ENTER u háku na klády; nepřibližuj se k pohyblivým kládám.");
+    next("met_june", "Return through MILL and YARD, enter MESS and speak to June with ENTER.",
+        "Vrať se přes PILU a DVŮR, vstup do JÍDELNY a promluv s June klávesou ENTER.");
+    next("lift_time_known", "From Mess Hall enter OFFICE and USE the hand mirror on the reversed carbon page.",
+        "Z Jídelny vstup do KANCELÁŘE a na obráceném kopíráku POUŽIJ ruční zrcátko.");
+    next("taken_rail_switch_key", "Return to YARD, enter BUNK and TAKE the rail switch key revealed in the foreman's boot.",
+        "Vrať se na DVŮR, vstup do UBYTOVNY a SEBER klíč od výhybky odkrytý v předákově botě.");
+    next("rail_points_aligned", "Return to YARD, follow RAIL and USE the switch key on the west points.",
+        "Vrať se na DVŮR, sleduj KOLEJ a na západní výhybce POUŽIJ klíč.");
+    next("engine_belt_installed", "At Rail Spur West follow ENGINE and USE the drive belt on the engine drive.",
+        "Na Západní vlečce sleduj LOKOMOTIVU a na pohonu POUŽIJ hnací řemen.");
+    next("engine_plug_installed", "On the Logging Engine, USE the spark plug on its ignition.",
+        "U Lesní lokomotivy POUŽIJ zapalovací svíčku na zapalování.");
+    next("engine_oiled", "On the Logging Engine, USE the oil can on the marked bearings.",
+        "U Lesní lokomotivy POUŽIJ olejničku na označená ložiska.");
+    next("engine_fueled", "On the Logging Engine, USE the filled fuel can on its fuel tank.",
+        "U Lesní lokomotivy POUŽIJ plný kanystr na palivovou nádrž.");
+    next("logging_engine_running", "When all four repair stations are green, press ENTER at the engine START control.",
+        "Až budou všechna čtyři místa opravy zelená, stiskni ENTER u ovládání START lokomotivy.");
+    next("trestle_guard_diverted", "Return to SPUR, follow TRESTLE and pull the mill-whistle cable with ENTER.",
+        "Vrať se na VLEČKU, sleduj VIADUKT a klávesou ENTER zatáhni za lanko píšťaly.");
+    next("trestle_brake_fixed", "At Trestle Approach, USE the wrench on the brake linkage marked MISSING PIN.",
+        "U Příjezdu k viaduktu POUŽIJ montážní klíč na táhlo brzdy označené CHYBÍ ČEP.");
+    next("elias_contacted", "Cross east after the whistle and brake are safe, then answer the portable radio with ENTER.",
+        "Po zajištění píšťaly a brzdy přejdi na východ a zvedni přenosné rádio klávesou ENTER.");
     next("spillway_closed", "Use Jonah's badge in the Gatehouse, TAKE the emergency crank, then USE it in the spillway socket.",
         "V Domku stavidel použij Jonahův odznak, SEBER nouzovou kliku a POUŽIJ ji v objímce přelivu.");
     next("pump_running", "Isolate the bay, fit the gasket and cell, open the Valve Garden intake, then return to Pump Gallery.",
