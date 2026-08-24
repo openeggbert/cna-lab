@@ -95,8 +95,9 @@ have the same width and use only these symbols:
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 
 An exit is red while its terminal objective is incomplete and turns cyan when it is online.
-The current authored sectors are compact prototypes; the planned final floor size
-is the classic 64×64-cell grid.
+All three campaign sectors use an exact 64×64-cell footprint with large authored
+rooms, connecting corridors, loops and optional secret spaces. Focused test maps
+may remain smaller.
 
 ## Expected checkout layout
 

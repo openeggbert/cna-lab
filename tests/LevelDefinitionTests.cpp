@@ -1,7 +1,12 @@
+#include <array>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <queue>
+#include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include "LevelDefinition.hpp"
 #include "World.hpp"
@@ -32,6 +37,59 @@ namespace
                 "level error did not explain the cause");
         }
     }
+
+    void ExpectCampaignLayout(
+        const WolfCna::LevelDefinition& level,
+        std::string_view name)
+    {
+        const auto& rows = level.Rows();
+        Expect(rows.size() == 64, std::string(name) + " has 64 rows");
+        for (const std::string& row : rows)
+            Expect(row.size() == 64, std::string(name) + " has 64 columns");
+
+        std::vector<std::vector<bool>> visited(64, std::vector<bool>(64, false));
+        std::queue<std::pair<int, int>> frontier;
+        frontier.emplace(level.PlayerStartX(), level.PlayerStartZ());
+        visited[static_cast<std::size_t>(level.PlayerStartZ())]
+            [static_cast<std::size_t>(level.PlayerStartX())] = true;
+
+        int reachable = 0;
+        while (!frontier.empty())
+        {
+            const auto [x, z] = frontier.front();
+            frontier.pop();
+            ++reachable;
+            constexpr std::array<std::pair<int, int>, 4> Directions = {
+                std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1}, std::pair{0, -1}};
+            for (const auto [dx, dz] : Directions)
+            {
+                const int nextX = x + dx;
+                const int nextZ = z + dz;
+                if (nextX < 0 || nextZ < 0 || nextX >= 64 || nextZ >= 64 ||
+                    visited[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] ||
+                    rows[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] == '#')
+                    continue;
+                visited[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] = true;
+                frontier.emplace(nextX, nextZ);
+            }
+        }
+
+        int walkable = 0;
+        int exits = 0;
+        for (const std::string& row : rows)
+        {
+            for (const char symbol : row)
+            {
+                if (symbol != '#')
+                    ++walkable;
+                if (symbol == 'E')
+                    ++exits;
+            }
+        }
+        Expect(walkable >= 1500, std::string(name) + " uses a substantial part of its footprint");
+        Expect(reachable == walkable, std::string(name) + " has no disconnected rooms");
+        Expect(exits == 1, std::string(name) + " has one exit");
+    }
 }
 
 int main()
@@ -49,16 +107,15 @@ int main()
 
     const WolfCna::LevelDefinition starterLevel = WolfCna::LevelDefinition::LoadFromFile(
         "assets/levels/starter.level");
-    Expect(starterLevel.Rows().size() == 18, "starter level row count");
-    Expect(starterLevel.Rows().front().size() == 35, "starter level width");
-    Expect(starterLevel.PlayerStartX() == 3 && starterLevel.PlayerStartZ() == 3, "starter spawn");
+    ExpectCampaignLayout(starterLevel, "starter level");
+    Expect(starterLevel.PlayerStartX() == 5 && starterLevel.PlayerStartZ() == 7, "starter spawn");
 
     const WolfCna::LevelDefinition sectorTwo = WolfCna::LevelDefinition::LoadFromFile(
         "assets/levels/sector-02.level");
     const WolfCna::LevelDefinition sectorThree = WolfCna::LevelDefinition::LoadFromFile(
         "assets/levels/sector-03.level");
-    Expect(sectorTwo.Rows().size() >= 12 && sectorTwo.PlayerStartX() >= 0, "sector two is a valid authored level");
-    Expect(sectorThree.Rows().size() >= 12 && sectorThree.PlayerStartX() >= 0, "sector three is a valid authored level");
+    ExpectCampaignLayout(sectorTwo, "sector two");
+    ExpectCampaignLayout(sectorThree, "sector three");
 
     const WolfCna::LevelDefinition level = WolfCna::LevelDefinition::Parse(
         "#####\n#P..#\n#####\n",

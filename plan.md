@@ -1139,6 +1139,12 @@ separate main menu shown. Full generation provenance is recorded.
 
 ### WOLF-017 — 64×64 sector footprint
 
+Status: complete. All three shipping campaign sectors are exactly 64×64 cells
+and distribute large rooms, loops, landmarks, encounters and secrets throughout
+the footprint. Tests pin both dimensions, require at least 1,500 non-wall cells,
+require one exit and flood-fill every walkable cell from the player spawn to
+reject disconnected rooms. Smaller focused test fixtures remain supported.
+
 The original Wolfenstein 3D source defines `MAPSIZE` as 64, with 64×64 map
 storage. wolf-cna therefore targets the same logical floor footprint while using
 entirely original room layouts and real polygonal 3D rendering.
