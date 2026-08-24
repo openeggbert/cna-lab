@@ -62,6 +62,9 @@ rather than being a one-time final check.
     samples with a baseline-only first frame, and transition boundaries remain the first interval
     after `RecordDistrictLoad`. Both labels are mandatory; two mutations exit 2 and no capture was
     added.*
+    *VRAM-coverage follow-up: raw logical accounting and externally complete residency each retain
+    their exact producer/binder scope text. Two broader relabelled claims exit 2, including when
+    internally consistent; no physical VRAM capture was added.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).

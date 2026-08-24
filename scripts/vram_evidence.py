@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from performance_report import (
+    COMPLETE_VRAM_COVERAGE,
     COMPLETE_VRAM_SCOPE,
     ReportError,
     _integer,
@@ -30,12 +31,6 @@ from performance_report import (
 
 EVIDENCE_SCHEMA_VERSION = 1
 VRAM_BUDGET_BYTES = 512 * 1024 * 1024
-COMPLETE_COVERAGE = (
-    "complete external peak process GPU residency bound to this profile capture; tracked_bytes is "
-    "the conservative maximum of external residency and Iron Gang's logical resource total"
-)
-
-
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as source:
@@ -92,7 +87,7 @@ def enrich_capture(
     video_memory["tracked_bytes"] = tracked_bytes
     video_memory["tracking_complete"] = True
     video_memory["tracked_budget_pass"] = tracked_bytes <= VRAM_BUDGET_BYTES
-    video_memory["coverage"] = COMPLETE_COVERAGE
+    video_memory["coverage"] = COMPLETE_VRAM_COVERAGE
     video_memory["complete_evidence"] = {
         "schema_version": EVIDENCE_SCHEMA_VERSION,
         "source": "external_capture",

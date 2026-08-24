@@ -67,6 +67,16 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 VRAM coverage text now preserves the measurement boundary.** A capture can no longer replace
+the fixed logical or externally complete scope with a broader claim while keeping consistent bytes.
+
+- Raw captures require the producer's exact logical-resource coverage, including its explicit list
+  of backend/residency omissions. Enriched captures require the binder's exact complete-process
+  residency statement and conservative logical/external maximum rule.
+- Two report negatives cover false complete and false logical claims. Report 7/7, comparator 7/7,
+  VRAM 6/6, both retained Xvfb diagnostics, and full isolated CTest 8/8 pass; its smoke process ran
+  inside Xvfb and no physical VRAM evidence was added.
+
 **M12 frame-pacing scope metadata now preserves the producer's sampling semantics.** Stored pacing
 counts could already be recomputed, but a capture could previously relabel what each interval or
 district boundary meant without being rejected.

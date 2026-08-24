@@ -86,6 +86,15 @@ FRAME_BOUNDARY_SCOPE = (
     "a district-transition boundary is the first frame-interval sample recorded after "
     "RecordDistrictLoad"
 )
+LOGICAL_VRAM_COVERAGE = (
+    "Iron Gang-owned meshes, lightmaps, and HUD/map textures plus imported CNA model buffers and "
+    "effect-bound textures; backend effect programs, swapchain/depth/render-target/transient "
+    "allocations, driver padding, and physical residency are not reported"
+)
+COMPLETE_VRAM_COVERAGE = (
+    "complete external peak process GPU residency bound to this profile capture; tracked_bytes is "
+    "the conservative maximum of external residency and Iron Gang's logical resource total"
+)
 DISTRICT_CONTENT_PATH = (
     "procedural in-memory PrototypeWorld; no district file/package is read during a transition"
 )
@@ -1119,7 +1128,15 @@ def validate_memory_summary(capture: dict[str, Any]) -> None:
         raise ReportError(
             "video_memory.tracked_budget_pass must match the derived tracked VRAM budget result"
         )
-    _single_line_string(capture, "video_memory", "coverage")
+    coverage = _single_line_string(capture, "video_memory", "coverage")
+    expected_coverage = (
+        COMPLETE_VRAM_COVERAGE if tracking_complete else LOGICAL_VRAM_COVERAGE
+    )
+    if coverage != expected_coverage:
+        state = "complete" if tracking_complete else "logical"
+        raise ReportError(
+            f"video_memory.coverage does not match schema-8 {state} measurement scope"
+        )
 
 
 def load_capture(path: Path) -> dict[str, Any]:

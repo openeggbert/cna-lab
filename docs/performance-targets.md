@@ -447,6 +447,13 @@ other render-target or transient allocations, driver padding, and physical resid
 available through the public API. A backend counter or external GPU capture is still required to
 qualify the VRAM gate; the tracked budget check is only an early lower-bound guard.
 
+The raw capture's `coverage` text is part of this evidence contract, not a free-form label. It must
+retain the producer's exact known-resource list and explicit omissions. Once enriched,
+`tracking_complete=true` instead requires the binder's exact complete-process-residency statement,
+including that `tracked_bytes` is the conservative maximum of external residency and the logical
+resource total. Missing or rewritten coverage is malformed evidence (exit 2), even when two runs
+repeat the same altered text.
+
 ### Binding complete external VRAM evidence
 
 Neither CNA/EasyGL nor the generic OpenGL extensions available to Iron Gang expose complete

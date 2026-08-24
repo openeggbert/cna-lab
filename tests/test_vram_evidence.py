@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from test_performance_report import capture_fixture
+from test_performance_report import LOGICAL_VRAM_COVERAGE, capture_fixture
 
 
 SCRIPT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path("scripts/vram_evidence.py")
@@ -36,7 +36,7 @@ def raw_capture_fixture() -> dict:
         "imported_model_texture_bytes": 0,
         "tracking_complete": False,
         "tracked_budget_pass": True,
-        "coverage": "logical test resources only",
+        "coverage": LOGICAL_VRAM_COVERAGE,
     }
     return capture
 

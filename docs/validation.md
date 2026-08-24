@@ -295,6 +295,12 @@ raw `tracked_bytes` or enriched `logical_tracked_bytes`. Four report negatives r
 and enrichment validates its result. Report 7/7, comparator 7/7, VRAM 6/6, both retained Xvfb
 diagnostics, and full 8/8 CTest pass; no graphical process ran.
 
+VRAM `coverage` is now fixed according to completeness instead of merely being printable. Raw
+captures retain the exact logical-resource inclusions and backend/residency omissions; externally
+enriched captures retain the exact complete-process-residency and conservative-maximum statement.
+Two broader false claims exit 2. Focused suites, both retained diagnostics, and full isolated 8/8
+CTest pass; its smoke process remained confined to Xvfb.
+
 Producer-authored `checks` are correlated with frame/CPU/district sample availability and p95 budget
 direction. Frame minimum/recommended, aggregate CPU, and district-load contradictions exit 2;
 district load is `null` only without samples. Exact serialized budget equality deliberately accepts

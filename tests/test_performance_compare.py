@@ -11,7 +11,11 @@ import unittest
 from copy import deepcopy
 from pathlib import Path
 
-from test_performance_report import workload_fixtures
+from test_performance_report import (
+    COMPLETE_VRAM_COVERAGE,
+    LOGICAL_VRAM_COVERAGE,
+    workload_fixtures,
+)
 
 
 SCRIPT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path("scripts/performance_compare.py")
@@ -183,7 +187,7 @@ def capture_fixture() -> dict:
             "logical_tracked_bytes": 64 * 1024 * 1024,
             "tracking_complete": True,
             "tracked_budget_pass": True,
-            "coverage": "complete test coverage",
+            "coverage": COMPLETE_VRAM_COVERAGE,
             "complete_evidence": {
                 "schema_version": 1,
                 "source": "external_capture",
@@ -426,6 +430,8 @@ class PerformanceCompareTests(unittest.TestCase):
         candidate = deepcopy(baseline)
         baseline["video_memory"]["tracking_complete"] = False
         candidate["video_memory"]["tracking_complete"] = False
+        baseline["video_memory"]["coverage"] = LOGICAL_VRAM_COVERAGE
+        candidate["video_memory"]["coverage"] = LOGICAL_VRAM_COVERAGE
         result = self.run_compare(
             baseline,
             candidate,

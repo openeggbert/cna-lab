@@ -736,3 +736,16 @@ Two report negatives mutate the ordinary and boundary scope independently. Repor
 7/7, VRAM 6/6, and both retained Xvfb diagnostics pass without launching the game. The complete
 isolated Xvfb CTest passes 8/8 with its smoke process confined to Xvfb; no physical capture was
 created.
+
+## 2026-08-24 — VRAM coverage-scope consistency
+
+Schema-8 loading now treats `video_memory.coverage` as an evidence boundary. A raw capture must use
+the C++ producer's exact logical-resource list and explicit backend/residency omissions. An enriched
+capture must use the bind tool's exact complete-process-residency statement and conservative
+logical/external maximum rule. A repeated hand-edited scope can no longer pass merely because two
+captures agree with each other.
+
+Two report negatives independently replace the complete and logical scopes with broader claims.
+Report 7/7, comparator 7/7, VRAM 6/6, and both retained Xvfb diagnostics pass without launching the
+game. Full isolated Xvfb CTest passes 8/8 with its smoke process confined to Xvfb; no physical VRAM
+capture was created.

@@ -16,6 +16,15 @@ SCRIPT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path("scripts/per
 VRAM_SCRIPT = (
     Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else Path("scripts/vram_evidence.py")
 )
+LOGICAL_VRAM_COVERAGE = (
+    "Iron Gang-owned meshes, lightmaps, and HUD/map textures plus imported CNA model buffers and "
+    "effect-bound textures; backend effect programs, swapchain/depth/render-target/transient "
+    "allocations, driver padding, and physical residency are not reported"
+)
+COMPLETE_VRAM_COVERAGE = (
+    "complete external peak process GPU residency bound to this profile capture; tracked_bytes is "
+    "the conservative maximum of external residency and Iron Gang's logical resource total"
+)
 
 
 def sha256(path: Path) -> str:
@@ -304,7 +313,7 @@ def capture_fixture() -> dict:
             "logical_tracked_bytes": 64 * 1024 * 1024,
             "tracking_complete": True,
             "tracked_budget_pass": True,
-            "coverage": "complete test coverage",
+            "coverage": COMPLETE_VRAM_COVERAGE,
             "complete_evidence": {
                 "schema_version": 1,
                 "source": "external_capture",
@@ -390,7 +399,7 @@ class PerformanceReportTests(unittest.TestCase):
         video["imported_model_texture_bytes"] = 0
         video["tracking_complete"] = False
         video["tracked_budget_pass"] = True
-        video["coverage"] = "logical report-test resources only"
+        video["coverage"] = LOGICAL_VRAM_COVERAGE
         original_path.write_text(json.dumps(original), encoding="utf-8")
         if shared_artifact_path is None:
             artifact_path.write_bytes(f"raw report-test profiler artifact {index}".encode())
@@ -625,6 +634,7 @@ class PerformanceReportTests(unittest.TestCase):
 
         incomplete = capture_fixture()
         incomplete["video_memory"]["tracking_complete"] = False
+        incomplete["video_memory"]["coverage"] = LOGICAL_VRAM_COVERAGE
         result = self.run_report([incomplete], "Test diagnostic hardware")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Overall status: **DIAGNOSTIC**", result.stdout)
@@ -778,6 +788,24 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_vram_budget], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("tracked_budget_pass must match", result.stderr)
+
+        bad_complete_vram_coverage = capture_fixture()
+        bad_complete_vram_coverage["video_memory"]["coverage"] = (
+            "complete physical residency including every driver allocation"
+        )
+        result = self.run_report([bad_complete_vram_coverage], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("coverage does not match schema-8 complete", result.stderr)
+
+        bad_logical_vram_coverage = capture_fixture()
+        logical_video = bad_logical_vram_coverage["video_memory"]
+        logical_video["tracked_bytes"] = logical_video.pop("logical_tracked_bytes")
+        logical_video["tracking_complete"] = False
+        logical_video.pop("complete_evidence")
+        logical_video["coverage"] = "all process GPU allocations"
+        result = self.run_report([bad_logical_vram_coverage], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("coverage does not match schema-8 logical", result.stderr)
 
         bad_frame_check = capture_fixture()
         bad_frame_check["checks"]["minimum_frame_rate_pass"] = False
