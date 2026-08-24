@@ -67,6 +67,7 @@ namespace WolfCna
         BuildImpactGeometry();
         BuildEnemyGeometry();
         BuildBillboardGeometry();
+        BuildBloodPoolGeometry();
     }
 
     Vector3 World::PlayerStart() const
@@ -886,6 +887,16 @@ namespace WolfCna
         billboardIndices_ = {0, 1, 2, 0, 2, 3};
     }
 
+    void World::BuildBloodPoolGeometry()
+    {
+        bloodPoolVertices_ = {
+            VertexPositionTexture(Vector3(-0.5f, 0.0f, -0.5f), Vector2(0.0f, 0.0f)),
+            VertexPositionTexture(Vector3( 0.5f, 0.0f, -0.5f), Vector2(1.0f, 0.0f)),
+            VertexPositionTexture(Vector3( 0.5f, 0.0f,  0.5f), Vector2(1.0f, 1.0f)),
+            VertexPositionTexture(Vector3(-0.5f, 0.0f,  0.5f), Vector2(0.0f, 1.0f))};
+        bloodPoolIndices_ = {0, 1, 2, 0, 2, 3};
+    }
+
     void World::BuildMesh()
     {
         for (int z = 0; z < static_cast<int>(map_.size()); ++z)
@@ -1053,6 +1064,22 @@ namespace WolfCna
                 BufferUsage::None);
             billboardIndexBuffer_->SetData(
                 billboardIndices_.data(), static_cast<int>(billboardIndices_.size()));
+
+            bloodPoolVertexBuffer_ = std::make_unique<VertexBuffer>(
+                device,
+                VertexPositionTexture::getVertexDeclarationStatic(),
+                static_cast<int>(bloodPoolVertices_.size()),
+                BufferUsage::None);
+            bloodPoolVertexBuffer_->SetData(
+                bloodPoolVertices_.data(), static_cast<int>(bloodPoolVertices_.size()));
+
+            bloodPoolIndexBuffer_ = std::make_unique<IndexBuffer>(
+                device,
+                IndexElementSize::SixteenBits,
+                static_cast<int>(bloodPoolIndices_.size()),
+                BufferUsage::None);
+            bloodPoolIndexBuffer_->SetData(
+                bloodPoolIndices_.data(), static_cast<int>(bloodPoolIndices_.size()));
         }
     }
 
@@ -1064,6 +1091,7 @@ namespace WolfCna
         Texture2D& atlas,
         Texture2D& guardSprite,
         Texture2D& houndSprite,
+        Texture2D& bloodDecal,
         const Vector3& cameraPosition)
     {
         if (!vertexBuffer_ || !indexBuffer_ || indices_.empty())
@@ -1131,6 +1159,47 @@ namespace WolfCna
                     0,
                     static_cast<int>(impacts_.size() * 2));
             }
+        }
+
+        if (bloodPoolVertexBuffer_ && bloodPoolIndexBuffer_)
+        {
+            device.setBlendStateProperty(BlendState::NonPremultiplied);
+            device.setDepthStencilStateProperty(DepthStencilState::DepthRead);
+            device.SetVertexBuffer(bloodPoolVertexBuffer_.get());
+            device.setIndicesProperty(bloodPoolIndexBuffer_.get());
+            effect.setTextureEnabledProperty(true);
+            effect.setTextureProperty(&bloodDecal);
+            effect.setDiffuseColorProperty(Vector3(1.0f, 1.0f, 1.0f));
+
+            for (const Enemy& enemy : enemies_)
+            {
+                if (enemy.state != EnemyState::Dead)
+                    continue;
+
+                const bool isHound = enemy.type == Enemy::Type::Hound;
+                const float width = isHound ? 0.58f : 0.72f;
+                const float depth = isHound ? 0.46f : 0.54f;
+                const float rotation = enemy.position.X * 1.73f + enemy.position.Z * 0.91f;
+                effect.setWorldProperty(
+                    Matrix::CreateScale(width, 1.0f, depth) *
+                    Matrix::CreateRotationY(rotation) *
+                    Matrix::CreateTranslation(enemy.position.X, 0.006f, enemy.position.Z));
+
+                for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+                {
+                    pass.Apply();
+                    device.DrawIndexedPrimitives(
+                        PrimitiveType::TriangleList,
+                        0,
+                        0,
+                        static_cast<int>(bloodPoolVertices_.size()),
+                        0,
+                        static_cast<int>(bloodPoolIndices_.size() / 3));
+                }
+            }
+
+            device.setBlendStateProperty(BlendState::Opaque);
+            device.setDepthStencilStateProperty(DepthStencilState::Default);
         }
 
         if (billboardVertexBuffer_ && billboardIndexBuffer_ && !enemies_.empty())

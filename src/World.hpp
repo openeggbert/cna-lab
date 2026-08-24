@@ -80,6 +80,7 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::Texture2D& atlas,
             Microsoft::Xna::Framework::Graphics::Texture2D& guardSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& houndSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& bloodDecal,
             const Microsoft::Xna::Framework::Vector3& cameraPosition);
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 PlayerStart() const;
@@ -208,6 +209,8 @@ namespace WolfCna
         std::vector<std::uint16_t> enemyIndices_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> billboardVertices_;
         std::vector<std::uint16_t> billboardIndices_;
+        std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> bloodPoolVertices_;
+        std::vector<std::uint16_t> bloodPoolIndices_;
 
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> vertexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> indexBuffer_;
@@ -219,6 +222,8 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> enemyIndexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> billboardVertexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> billboardIndexBuffer_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> bloodPoolVertexBuffer_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> bloodPoolIndexBuffer_;
 
         [[nodiscard]] bool IsStaticWallCell(int x, int z) const;
         [[nodiscard]] bool IsBlockedCell(int x, int z) const;
@@ -233,6 +238,7 @@ namespace WolfCna
         void BuildExits();
         void BuildEnemyGeometry();
         void BuildBillboardGeometry();
+        void BuildBloodPoolGeometry();
         [[nodiscard]] bool HasLineOfSight(
             const Microsoft::Xna::Framework::Vector3& from,
             const Microsoft::Xna::Framework::Vector3& to) const;

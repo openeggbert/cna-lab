@@ -1064,11 +1064,14 @@ Status: complete.
 
 Status: in progress. The first milestone replaces guard and hound cuboids with
 original transparent camera-facing billboard sprites and records their complete
-generation provenance. Animation frames and weapon sprite sheets remain.
+generation provenance. Defeated enemies now leave a stylized procedurally
+textured floor decal. Animation frames and weapon sprite sheets remain.
 
 - replace colored enemy cuboids with camera-facing textured polygon billboards;
 - create original transparent pixel-art guards, hounds and weapon view sprites;
 - animate idle/chase/attack/death and weapon attack frames;
+- leave an original procedurally textured blood-pool floor decal beneath defeated
+  guards and hounds, while keeping the presentation stylized and non-gory;
 - retain true polygonal 3D world geometry and CNA rendering;
 - record generated-asset provenance and never derive pixels from proprietary data.
 

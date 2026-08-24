@@ -2,7 +2,8 @@
 
 The project does not ship third-party image or audio assets.
 
-The initial wall/floor/ceiling atlas is generated at runtime in `src/WolfGame.cpp`.
+The wall/floor/ceiling atlas and stylized blood-pool decal are generated at runtime
+in `src/WolfGame.cpp`.
 
 Original generated sprites under `sprites/` are project-owned assets. Their source,
 generation date and complete prompts are recorded in `../ASSET_PROVENANCE.md`.

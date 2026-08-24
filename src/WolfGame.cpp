@@ -266,6 +266,7 @@ namespace WolfCna
         CreateProceduralAtlas();
         guardSprite_ = std::make_unique<Texture2D>("assets/sprites/security-guard.png", device);
         houndSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound.png", device);
+        CreateProceduralBloodDecal();
         CreateHudResources();
         CreateSoundEffects();
 
@@ -415,6 +416,52 @@ namespace WolfCna
         }
 
         atlas_->SetData(pixels.data(), static_cast<int>(pixels.size()));
+    }
+
+    void WolfGame::CreateProceduralBloodDecal()
+    {
+        constexpr int size = 64;
+        auto& device = getGraphicsDeviceProperty();
+        bloodDecal_ = std::make_unique<Texture2D>(device, size, size);
+        std::vector<Color> pixels(
+            static_cast<std::size_t>(size * size),
+            Color(0, 0, 0, 0));
+
+        for (int y = 0; y < size; ++y)
+        {
+            for (int x = 0; x < size; ++x)
+            {
+                const float nx = (static_cast<float>(x) + 0.5f - size * 0.5f) / (size * 0.5f);
+                const float ny = (static_cast<float>(y) + 0.5f - size * 0.5f) / (size * 0.5f);
+                const float angle = std::atan2(ny, nx);
+                const float radius = std::sqrt(nx * nx + ny * ny);
+                const float irregularEdge =
+                    0.67f + std::sin(angle * 5.0f) * 0.075f + std::sin(angle * 9.0f + 0.8f) * 0.045f;
+                const bool mainPool = radius < irregularEdge;
+
+                const auto inDrop = [nx, ny](float centerX, float centerY, float radiusValue)
+                {
+                    const float dx = nx - centerX;
+                    const float dy = ny - centerY;
+                    return dx * dx + dy * dy < radiusValue * radiusValue;
+                };
+                const bool droplets =
+                    inDrop(-0.77f, 0.18f, 0.09f) ||
+                    inDrop(0.72f, -0.34f, 0.075f) ||
+                    inDrop(0.42f, 0.76f, 0.055f);
+                if (!mainPool && !droplets)
+                    continue;
+
+                const int variation = Noise(x + 41, y + 73) / 2;
+                pixels[static_cast<std::size_t>(y * size + x)] = Color(
+                    112 + variation,
+                    8 + variation / 3,
+                    14 + variation / 2,
+                    mainPool ? 218 : 196);
+            }
+        }
+
+        bloodDecal_->SetData(pixels.data(), static_cast<int>(pixels.size()));
     }
 
     void WolfGame::CreateHudResources()
@@ -1288,7 +1335,7 @@ namespace WolfCna
         device.getSamplerStatesProperty()[0] = SamplerState::PointClamp;
 
         if ((screen_ == Screen::Playing || screen_ == Screen::Paused || screen_ == Screen::GameOver) &&
-            effect_ && atlas_ && guardSprite_ && houndSprite_)
+            effect_ && atlas_ && guardSprite_ && houndSprite_ && bloodDecal_)
         {
             world_.Draw(
                 device,
@@ -1298,6 +1345,7 @@ namespace WolfCna
                 *atlas_,
                 *guardSprite_,
                 *houndSprite_,
+                *bloodDecal_,
                 playerPosition_);
         }
 

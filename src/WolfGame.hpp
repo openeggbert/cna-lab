@@ -38,6 +38,7 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> atlas_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> guardSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> houndSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> bloodDecal_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> hudSpriteBatch_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> hudPixel_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> weaponIcon_;
@@ -136,6 +137,7 @@ namespace WolfCna
         [[nodiscard]] Microsoft::Xna::Framework::Matrix ProjectionMatrix();
 
         void CreateProceduralAtlas();
+        void CreateProceduralBloodDecal();
         void CreateHudResources();
         void CreateSoundEffects();
         void DrawHud();
