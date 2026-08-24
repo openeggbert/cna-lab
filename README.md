@@ -35,6 +35,7 @@ The renderer otherwise uses colored boxes. It is a debug scaffold designed to be
 | On foot | A/D | Strafe |
 | On foot | Left/Right | Turn |
 | On foot | Shift | Sprint |
+| Any | Tab | Toggle district map |
 | Near car | E | Enter |
 | Driving | W/S or Up/Down | Accelerate/reverse |
 | Driving | A/D or Left/Right | Steer |
@@ -44,7 +45,8 @@ The renderer otherwise uses colored boxes. It is a debug scaffold designed to be
 | Any | R | Reset prototype |
 | Any | Escape | Quit |
 
-Current dialogue and objectives are displayed in the window title and console. A proper HUD is planned.
+Dialogue, objectives, status, and the toggleable district map are displayed by the in-game HUD;
+the window title and console retain a compact diagnostic copy.
 
 
 ## Validation status

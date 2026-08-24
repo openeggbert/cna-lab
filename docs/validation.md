@@ -84,6 +84,16 @@ applicable; physics CPU was 0.206 ms p95. Software plus 3/3 CTest, strict syntax
 EasyGL, Web/Emscripten, and the isolated real flow pass. Ordinary play keeps profiling disabled and
 does not take the contact-counter mutex.
 
+The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
+map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
+vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The
+guide is not road-aware because no district road graph exists yet. `TestDistrictMapProjection`
+proves exact X/Z-to-screen point and footprint mapping. Software build plus 3/3 CTest and strict
+syntax pass. Two synthetic `Tab` presses inside isolated Xvfb/X11 were visually captured: the first
+showed the complete map and the second restored the unobscured game view. No test used the visible
+host display. Both `LeftShift` and `RightShift` remain mapped to sprint only in the on-foot input
+branch.
+
 ## Current modular dependency baseline (2026-08-22)
 
 Iron Gang now configures against the sibling `../cnanext` and modular `../sharp-runtime`

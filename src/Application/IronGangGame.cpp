@@ -3,6 +3,7 @@
 
 #include "IronGang/Persistence/SaveGame.hpp"
 #include "IronGang/UI/BitmapFont.hpp"
+#include "IronGang/UI/DistrictMap.hpp"
 
 #include "CNA/Platform/IPlatform.hpp"
 #include "Microsoft/Xna/Framework/Color.hpp"
@@ -81,6 +82,60 @@ namespace IronGang
             }
             return forwardDistance;
         }
+
+        Color DistrictMapBoxColor(const WorldBox& box)
+        {
+            if (box.name.find("road") != std::string::npos)
+            {
+                return Color(70, 75, 82, 255);
+            }
+            if (box.name.find("sidewalk") != std::string::npos)
+            {
+                return Color(150, 145, 135, 255);
+            }
+            if (box.name.find("lane_marking") != std::string::npos)
+            {
+                return Color(225, 211, 173, 255);
+            }
+            if (box.name.find("target") != std::string::npos)
+            {
+                return Color(63, 190, 95, 255);
+            }
+            if (box.name.find("exit_marker") != std::string::npos)
+            {
+                return Color(120, 170, 230, 255);
+            }
+            return box.collidable
+                ? box.color
+                : Color(static_cast<int>(box.color.getRProperty()),
+                        static_cast<int>(box.color.getGProperty()),
+                        static_cast<int>(box.color.getBProperty()),
+                        150);
+        }
+
+        void DrawMapLine(Graphics::SpriteBatch& spriteBatch,
+                         const Graphics::Texture2D& pixel,
+                         const Vector2& start,
+                         const Vector2& end,
+                         const Color& color,
+                         float width)
+        {
+            const Vector2 delta = end - start;
+            const float length = delta.Length();
+            if (length < 0.5F)
+            {
+                return;
+            }
+            spriteBatch.Draw(pixel,
+                             start,
+                             std::nullopt,
+                             color,
+                             std::atan2(delta.Y, delta.X),
+                             Vector2(0.0F, 0.5F),
+                             Vector2(length, width),
+                             Graphics::SpriteEffects::None,
+                             0.0F);
+        }
     }
 
     IronGangGame::IronGangGame(std::string assetRoot)
@@ -140,7 +195,7 @@ namespace IronGang
         const RendererVideoMemoryBreakdown videoMemory = renderer_.GetTrackedVideoMemory();
         const std::uint64_t hudAtlasBytes = static_cast<std::uint64_t>(kFont8x8AtlasWidth) *
             static_cast<std::uint64_t>(kFont8x8AtlasHeight) * sizeof(Color);
-        context.trackedGameOwnedVideoMemoryBytes = videoMemory.gameOwnedBytes + hudAtlasBytes;
+        context.trackedGameOwnedVideoMemoryBytes = videoMemory.gameOwnedBytes + hudAtlasBytes + sizeof(Color);
         context.trackedImportedModelBufferBytes = videoMemory.importedModels.bufferBytes;
         context.trackedImportedModelTextureBytes = videoMemory.importedModels.textureBytes;
         context.trackedVideoMemoryBytes = context.trackedGameOwnedVideoMemoryBytes +
@@ -399,6 +454,9 @@ namespace IronGang
         // fallback case here, unlike the CNJ models above.
         spriteBatch_.emplace(getGraphicsDeviceProperty());
         hudFont_.emplace(BuildBitmapFont8x8(getGraphicsDeviceProperty()));
+        mapPixel_.emplace(getGraphicsDeviceProperty(), 1, 1);
+        const Color whitePixel(255, 255, 255, 255);
+        mapPixel_->SetData(&whitePixel, 1);
 
         // Gate M10 audio (plan_27): real CC0 sound assets (assets/licenses/asset-registry.csv),
         // each optional -- a missing file, or no audio hardware at all (NoAudioHardwareException,
@@ -783,6 +841,11 @@ namespace IronGang
             return;
         }
 
+        if (WasPressed(keyboard, Keys::Tab))
+        {
+            mapVisible_ = !mapVisible_;
+        }
+
         districtManager_.Update(deltaSeconds);
         HandleDistrictArrival();
         bool transitioning = districtManager_.IsTransitioning();
@@ -1126,6 +1189,66 @@ namespace IronGang
         getWindowProperty().setTitleProperty(title.str());
     }
 
+    void IronGangGame::DrawDistrictMap(Graphics::SpriteBatch& spriteBatch,
+                                       Graphics::SpriteFont& font,
+                                       Graphics::Texture2D& pixel,
+                                       int viewportWidth,
+                                       int viewportHeight) const
+    {
+        const int panelSize = std::clamp(std::min(viewportWidth - 80, viewportHeight - 80), 240, 640);
+        const int panelX = (viewportWidth - panelSize) / 2;
+        const int panelY = (viewportHeight - panelSize) / 2;
+        const Rectangle panel(panelX, panelY, panelSize, panelSize);
+        const int mapSize = panelSize - 104;
+        const Rectangle mapBounds(panelX + (panelSize - mapSize) / 2, panelY + 48, mapSize, mapSize);
+
+        spriteBatch.Draw(pixel, panel, Color(12, 18, 24, 238));
+        spriteBatch.Draw(pixel, mapBounds, Color(40, 55, 43, 255));
+
+        const PrototypeWorld& world = districtManager_.GetWorld();
+        const DistrictMapProjection projection = BuildDistrictMapProjection(world.GetBoxes(), mapBounds);
+        for (const WorldBox& box : world.GetBoxes())
+        {
+            spriteBatch.Draw(pixel, projection.ProjectBox(box), DistrictMapBoxColor(box));
+        }
+
+        const Vector3 activePosition = playerDriving_ ? vehicle_.GetPosition() : player_.GetPosition();
+        const Vector2 activePoint = projection.ProjectPoint(activePosition);
+        const Vector2 exitPoint = projection.ProjectPoint(world.GetDistrictExit().trigger.bounds.center);
+        DrawMapLine(spriteBatch, pixel, activePoint, exitPoint, Color(100, 175, 245, 180), 2.0F);
+
+        const auto drawMarker = [&](const Vector3& position, const Color& color, int size)
+        {
+            const Vector2 point = projection.ProjectPoint(position);
+            spriteBatch.Draw(pixel,
+                             Rectangle(static_cast<int>(std::lround(point.X)) - size / 2,
+                                       static_cast<int>(std::lround(point.Y)) - size / 2,
+                                       size,
+                                       size),
+                             color);
+        };
+        drawMarker(world.GetDistrictExit().trigger.bounds.center, Color(100, 175, 245, 255), 9);
+        if (world.GetWarehouseGoal().id != "none")
+        {
+            drawMarker(world.GetWarehouseGoal().bounds.center, Color(75, 230, 115, 255), 9);
+        }
+        drawMarker(vehicle_.GetPosition(), Color(245, 175, 65, 255), 9);
+        drawMarker(activePosition, Color(60, 225, 235, 255), 11);
+
+        std::ostringstream title;
+        title << "DISTRICT MAP | " << DistrictName(world.GetId()) << " | TAB: CLOSE";
+        spriteBatch.DrawString(font, title.str(), Vector2(static_cast<float>(panelX + 16),
+                                                          static_cast<float>(panelY + 14)),
+                               Color(240, 240, 230, 255));
+        spriteBatch.DrawString(font, "N", Vector2(static_cast<float>(mapBounds.X + mapBounds.Width - 12),
+                                                   static_cast<float>(mapBounds.Y + 4)),
+                               Color(240, 240, 230, 255));
+        spriteBatch.DrawString(font, "CYAN YOU  AMBER CAR  GREEN TARGET  BLUE EXIT",
+                               Vector2(static_cast<float>(panelX + 16),
+                                       static_cast<float>(panelY + panelSize - 28)),
+                               Color(205, 210, 205, 255));
+    }
+
     void IronGangGame::Draw(const GameTime& gameTime)
     {
         performanceProfiler_.BeginFrame();
@@ -1294,6 +1417,11 @@ namespace IronGang
                     spriteBatch_->DrawString(*hudFont_, transientStatus_, Vector2(10.0F, lineY),
                                             Color(210, 210, 160, 255));
                 }
+            }
+            if (mapVisible_ && mapPixel_)
+            {
+                DrawDistrictMap(*spriteBatch_, *hudFont_, *mapPixel_,
+                                viewport.getWidthProperty(), viewport.getHeightProperty());
             }
             spriteBatch_->End();
         }

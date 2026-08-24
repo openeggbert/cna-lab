@@ -27,7 +27,7 @@ this group owns how the HUD presents it.
 - [ ] **IG-28-015 P1** — Create loading/district-transition status presentation without exposing technical noise.
 - [ ] **IG-28-016 P1** — Create wanted/vehicle/health UI once those systems exist (groups 17/22).
 - [ ] **IG-28-017 P1** — Create UI state tests and screenshot references.
-- [ ] **IG-28-018 P2** — Create a simple map/route UI for the current district once its road graph exists.
+- [ ] **IG-28-018 P2** — Create a simple map/route UI for the current district once its road graph exists. *(Partial: `Tab` now toggles a real top-down current-district overlay built from authored `WorldBox` footprints, with player, vehicle, mission target, district exit, north indicator, legend, and a direct player-to-exit guide. The projection is deterministically unit-tested. The guide is intentionally straight-line rather than road-aware because the prototype still has only a fixed traffic `WaypointPath`, not the road graph this task requires for completion.)*
 - [ ] **IG-28-019 P2** — Create mission log and dialogue history.
 - [ ] **IG-28-020 P2** — Create accessibility presets (bundles of the options above).
 - [ ] **IG-28-021 P2** — Create a basic UI style/theme pass (consistent fonts, colors, spacing) once the functional screens above exist.

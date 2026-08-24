@@ -15,6 +15,7 @@
 #include "IronGang/Graphics/SunLight.hpp"
 #include "IronGang/Graphics/VideoMemoryAccounting.hpp"
 #include "IronGang/UI/BitmapFont.hpp"
+#include "IronGang/UI/DistrictMap.hpp"
 #include "IronGang/World/DistrictManager.hpp"
 #include "IronGang/World/PrototypeWorld.hpp"
 #include "IronGang/World/WaypointPath.hpp"
@@ -47,6 +48,31 @@ namespace
         const IronGang::Vector3 insideHotel(-18.0F, 1.70F, 18.0F);
         Require(!world.CanOccupy(insideHotel, 0.35F), "hotel collider must reject occupancy");
         Require(world.CanOccupy(world.GetPlayerSpawn(), 0.35F), "player spawn must be free");
+    }
+
+    void TestDistrictMapProjection()
+    {
+        const std::vector<IronGang::WorldBox> boxes{
+            {"ground", {0.0F, 0.0F, 0.0F}, {100.0F, 1.0F, 100.0F}, IronGang::Color::White, false},
+        };
+        const Microsoft::Xna::Framework::Rectangle screenBounds(100, 200, 400, 400);
+        const IronGang::DistrictMapProjection projection =
+            IronGang::BuildDistrictMapProjection(boxes, screenBounds);
+
+        const Microsoft::Xna::Framework::Vector2 northwest =
+            projection.ProjectPoint({-50.0F, 0.0F, -50.0F});
+        const Microsoft::Xna::Framework::Vector2 southeast =
+            projection.ProjectPoint({50.0F, 0.0F, 50.0F});
+        Require(std::abs(northwest.X - 100.0F) < 0.001F && std::abs(northwest.Y - 200.0F) < 0.001F,
+                "district map must project world northwest to screen top-left");
+        Require(std::abs(southeast.X - 499.0F) < 0.001F && std::abs(southeast.Y - 599.0F) < 0.001F,
+                "district map point projection must stay inside the screen rectangle");
+
+        const IronGang::WorldBox centered{"building", {0.0F, 1.0F, 0.0F},
+                                          {20.0F, 2.0F, 10.0F}, IronGang::Color::White, true};
+        const Microsoft::Xna::Framework::Rectangle projected = projection.ProjectBox(centered);
+        Require(projected.X == 260 && projected.Y == 380 && projected.Width == 80 && projected.Height == 40,
+                "district map box projection must preserve authored X/Z extents");
     }
 
     void TestVehicleMotion()
@@ -1086,6 +1112,7 @@ int main()
     try
     {
         TestWorldCollision();
+        TestDistrictMapProjection();
         TestVehicleMotion();
         TestPlayerMotion();
         TestDistrictTransition();

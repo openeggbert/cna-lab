@@ -67,6 +67,23 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**User-requested controls/map follow-up.** `Tab` now toggles a real top-down current-district map;
+there is no `M` binding. The overlay derives road/sidewalk/building footprints from `WorldBox`,
+marks the player, vehicle, mission target and district exit, and draws a simple direct exit guide,
+north indicator, and legend. It is not road-aware yet because the prototype has no road graph.
+`LeftShift`/`RightShift` already feed `OnFootInput::sprint` only in the on-foot branch and remain the
+run control.
+
+- `DistrictMapProjection` has exact point/footprint unit coverage. Software, 3/3 CTest, strict
+  syntax, Release EasyGL, and a real two-press input check pass.
+- Visual input verification ran only inside Xvfb/X11 on a 1600x900 virtual screen: first `Tab`
+  displayed the complete panel and its legend, second `Tab` restored the unobscured scene. No Iron
+  Gang window was opened on the visible host desktop.
+- The separate report of an opaque white muzzle-flash rectangle does not match this checkout:
+  branch `develop` contains no weapon, firing, muzzle-flash, or combat-rendering implementation,
+  and no Iron Gang process from another build was running when checked. Do not invent a fix in an
+  unrelated render path; locate the branch/build containing that effect before changing it.
+
 **M12 now has a complete smallest-scope physics profiler (`IG-35-008`, `034`-`036`).** JSON schema
 5 retains the existing `physics_cpu` timer and adds per-update `physics_workload`: current rigid
 bodies/active bodies/body-contact manifolds/actual CharacterVirtual contacts, plus consumed

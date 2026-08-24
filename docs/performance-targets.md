@@ -299,7 +299,7 @@ mislabelled as a district transition.
 Each `district_load.samples[]` entry carries its reason, source/target district, target procedural
 world-object and static-body counts, Linux current-RSS before/after/signed delta, and tracked
 renderer video-memory before/after/signed delta. The video-memory delta has the same logical,
-partial semantics as the global tracker and omits the constant HUD atlas. Current districts have
+partial semantics as the global tracker and omits the constant HUD/map UI textures. Current districts have
 no serialized runtime package: their transition constructs `PrototypeWorld` in memory, so
 `io_ms`, `decompression_ms`, and `parse_ms` are `null` with an explicit not-applicable reason.
 They must become real measured phases if district files/packages are added later; `null` must not

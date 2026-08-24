@@ -20,6 +20,7 @@
 #include "Microsoft/Xna/Framework/Audio/SoundEffectInstance.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SpriteBatch.hpp"
 #include "Microsoft/Xna/Framework/Graphics/SpriteFont.hpp"
+#include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 #include "Microsoft/Xna/Framework/Input/KeyboardState.hpp"
 
 #include <cstdint>
@@ -65,6 +66,11 @@ namespace IronGang
         void SavePrototype();
         void LoadPrototype();
         void ResetPrototype();
+        void DrawDistrictMap(Microsoft::Xna::Framework::Graphics::SpriteBatch& spriteBatch,
+                             Microsoft::Xna::Framework::Graphics::SpriteFont& font,
+                             Microsoft::Xna::Framework::Graphics::Texture2D& pixel,
+                             int viewportWidth,
+                             int viewportHeight) const;
         void UpdateWindowTitle(float deltaSeconds);
         [[nodiscard]] std::string SavePath() const;
         // Checks the current district's exit trigger against whichever of player/vehicle is
@@ -108,6 +114,7 @@ namespace IronGang
         // there is no "missing asset" case here, the font is always built in-process.
         std::optional<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
         std::optional<Microsoft::Xna::Framework::Graphics::SpriteFont> hudFont_;
+        std::optional<Microsoft::Xna::Framework::Graphics::Texture2D> mapPixel_;
         // Gate M9 (plan_19/20/21/22-...): ambient traffic/pedestrians and the one police-response
         // scenario. Empty in districts with no WaypointPath data (e.g. Countryside), so they are
         // naturally inert there -- see PrototypeWorld::GetTrafficLoop()/GetSidewalkPaths().
@@ -129,6 +136,7 @@ namespace IronGang
         float footstepTimer_{0.0F};
         static constexpr float kFootstepIntervalSeconds = 0.4F;
         Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_{};
+        bool mapVisible_{false};
         bool playerDriving_{false};
         float titleRefreshTimer_{0.0F};
         std::string transientStatus_;
