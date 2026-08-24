@@ -1,8 +1,11 @@
 # Assets
 
-The starter intentionally ships without external image/audio assets.
+The project does not ship third-party image or audio assets.
 
 The initial wall/floor/ceiling atlas is generated at runtime in `src/WolfGame.cpp`.
+
+Original generated sprites under `sprites/` are project-owned assets. Their source,
+generation date and complete prompts are recorded in `../ASSET_PROVENANCE.md`.
 
 `levels/starter.level` is the starter's original text level. Its symbols are documented in the
 top-level README.

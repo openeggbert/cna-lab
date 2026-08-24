@@ -36,6 +36,8 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::GraphicsDeviceManager> graphics_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::BasicEffect> effect_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> atlas_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> guardSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> houndSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> hudSpriteBatch_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> hudPixel_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> weaponIcon_;
@@ -100,6 +102,7 @@ namespace WolfCna
         int menuSelection_ = 0;
         enum class Weapon { Knife, Sidearm, Repeater };
         Weapon weapon_ = Weapon::Sidearm;
+        Weapon lastFirearm_ = Weapon::Sidearm;
         bool actionWasDown_ = false;
         bool attackWasDown_ = false;
         bool fullScreenWasDown_ = false;

@@ -4,12 +4,15 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <queue>
 #include <stdexcept>
 
 #include "Microsoft/Xna/Framework/Color.hpp"
 #include "Microsoft/Xna/Framework/Vector2.hpp"
 #include "Microsoft/Xna/Framework/Graphics/BufferUsage.hpp"
+#include "Microsoft/Xna/Framework/Graphics/BlendState.hpp"
+#include "Microsoft/Xna/Framework/Graphics/DepthStencilState.hpp"
 #include "Microsoft/Xna/Framework/Graphics/IndexElementSize.hpp"
 #include "Microsoft/Xna/Framework/Graphics/PrimitiveType.hpp"
 
@@ -63,6 +66,7 @@ namespace WolfCna
         RebuildDoorGeometry();
         BuildImpactGeometry();
         BuildEnemyGeometry();
+        BuildBillboardGeometry();
     }
 
     Vector3 World::PlayerStart() const
@@ -872,6 +876,16 @@ namespace WolfCna
         AddEnemyQuad(Vector3(-half, height, -half), Vector3(half, height, -half), Vector3(half, height, half), Vector3(-half, height, half));
     }
 
+    void World::BuildBillboardGeometry()
+    {
+        billboardVertices_ = {
+            VertexPositionTexture(Vector3(-0.5f, 0.0f, 0.0f), Vector2(0.0f, 1.0f)),
+            VertexPositionTexture(Vector3( 0.5f, 0.0f, 0.0f), Vector2(1.0f, 1.0f)),
+            VertexPositionTexture(Vector3( 0.5f, 1.0f, 0.0f), Vector2(1.0f, 0.0f)),
+            VertexPositionTexture(Vector3(-0.5f, 1.0f, 0.0f), Vector2(0.0f, 0.0f))};
+        billboardIndices_ = {0, 1, 2, 0, 2, 3};
+    }
+
     void World::BuildMesh()
     {
         for (int z = 0; z < static_cast<int>(map_.size()); ++z)
@@ -1021,6 +1035,25 @@ namespace WolfCna
                 BufferUsage::None);
             enemyIndexBuffer_->SetData(enemyIndices_.data(), static_cast<int>(enemyIndices_.size()));
         }
+
+        if (!enemies_.empty())
+        {
+            billboardVertexBuffer_ = std::make_unique<VertexBuffer>(
+                device,
+                VertexPositionTexture::getVertexDeclarationStatic(),
+                static_cast<int>(billboardVertices_.size()),
+                BufferUsage::None);
+            billboardVertexBuffer_->SetData(
+                billboardVertices_.data(), static_cast<int>(billboardVertices_.size()));
+
+            billboardIndexBuffer_ = std::make_unique<IndexBuffer>(
+                device,
+                IndexElementSize::SixteenBits,
+                static_cast<int>(billboardIndices_.size()),
+                BufferUsage::None);
+            billboardIndexBuffer_->SetData(
+                billboardIndices_.data(), static_cast<int>(billboardIndices_.size()));
+        }
     }
 
     void World::Draw(
@@ -1028,7 +1061,10 @@ namespace WolfCna
         BasicEffect& effect,
         const Matrix& view,
         const Matrix& projection,
-        Texture2D& atlas)
+        Texture2D& atlas,
+        Texture2D& guardSprite,
+        Texture2D& houndSprite,
+        const Vector3& cameraPosition)
     {
         if (!vertexBuffer_ || !indexBuffer_ || indices_.empty())
             return;
@@ -1097,45 +1133,76 @@ namespace WolfCna
             }
         }
 
+        if (billboardVertexBuffer_ && billboardIndexBuffer_ && !enemies_.empty())
+        {
+            std::vector<const Enemy*> sortedEnemies;
+            sortedEnemies.reserve(enemies_.size());
+            for (const Enemy& enemy : enemies_)
+                sortedEnemies.push_back(&enemy);
+
+            std::sort(
+                sortedEnemies.begin(),
+                sortedEnemies.end(),
+                [&cameraPosition](const Enemy* left, const Enemy* right)
+                {
+                    const float leftX = left->position.X - cameraPosition.X;
+                    const float leftZ = left->position.Z - cameraPosition.Z;
+                    const float rightX = right->position.X - cameraPosition.X;
+                    const float rightZ = right->position.Z - cameraPosition.Z;
+                    return leftX * leftX + leftZ * leftZ > rightX * rightX + rightZ * rightZ;
+                });
+
+            device.setBlendStateProperty(BlendState::NonPremultiplied);
+            device.setDepthStencilStateProperty(DepthStencilState::DepthRead);
+            device.SetVertexBuffer(billboardVertexBuffer_.get());
+            device.setIndicesProperty(billboardIndexBuffer_.get());
+            effect.setTextureEnabledProperty(true);
+            effect.setDiffuseColorProperty(Vector3(1.0f, 1.0f, 1.0f));
+
+            for (const Enemy* enemy : sortedEnemies)
+            {
+                const bool isHound = enemy->type == Enemy::Type::Hound;
+                const bool isDead = enemy->state == EnemyState::Dead;
+                const float width = isHound ? 0.82f : 0.72f;
+                const float height = isDead ? 0.16f : (isHound ? 0.72f : 1.02f);
+                Vector3 position = enemy->position;
+                position.Y = 0.0f;
+
+                effect.setTextureProperty(isHound ? &houndSprite : &guardSprite);
+                effect.setWorldProperty(
+                    Matrix::CreateScale(isDead ? width * 1.15f : width, height, 1.0f) *
+                    Matrix::CreateConstrainedBillboard(
+                        position,
+                        cameraPosition,
+                        Vector3::Up,
+                        std::nullopt,
+                        std::nullopt));
+                effect.setDiffuseColorProperty(
+                    isDead ? Vector3(0.42f, 0.32f, 0.3f) : Vector3(1.0f, 1.0f, 1.0f));
+
+                for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+                {
+                    pass.Apply();
+                    device.DrawIndexedPrimitives(
+                        PrimitiveType::TriangleList,
+                        0,
+                        0,
+                        static_cast<int>(billboardVertices_.size()),
+                        0,
+                        static_cast<int>(billboardIndices_.size() / 3));
+                }
+            }
+
+            device.setBlendStateProperty(BlendState::Opaque);
+            device.setDepthStencilStateProperty(DepthStencilState::Default);
+        }
+
         if (!enemyVertexBuffer_ || !enemyIndexBuffer_)
             return;
 
         device.SetVertexBuffer(enemyVertexBuffer_.get());
         device.setIndicesProperty(enemyIndexBuffer_.get());
         effect.setTextureEnabledProperty(false);
-
-        for (const Enemy& enemy : enemies_)
-        {
-            effect.setWorldProperty(
-                (enemy.state == EnemyState::Dead
-                    ? Matrix::CreateScale(
-                        enemy.type == Enemy::Type::Hound ? 1.15f : 1.0f,
-                        0.12f,
-                        enemy.type == Enemy::Type::Hound ? 1.45f : 1.0f)
-                    : enemy.type == Enemy::Type::Hound
-                        ? Matrix::CreateScale(1.15f, 0.48f, 1.45f)
-                        : Matrix::getIdentityProperty()) * Matrix::CreateTranslation(enemy.position));
-            effect.setDiffuseColorProperty(
-                enemy.state == EnemyState::Dead
-                    ? Vector3(0.26f, 0.11f, 0.08f)
-                    : enemy.type == Enemy::Type::Hound
-                    ? Vector3(0.72f, 0.42f, 0.16f)
-                    : enemy.state == EnemyState::Attack
-                    ? Vector3(0.95f, 0.24f, 0.12f)
-                    : Vector3(0.32f, 0.72f, 0.36f));
-
-            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
-            {
-                pass.Apply();
-                device.DrawIndexedPrimitives(
-                    PrimitiveType::TriangleList,
-                    0,
-                    0,
-                    static_cast<int>(enemyVertices_.size()),
-                    0,
-                    static_cast<int>(enemyIndices_.size() / 3));
-            }
-        }
 
         for (const Pickup& pickup : pickups_)
         {

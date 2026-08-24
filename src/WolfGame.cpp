@@ -264,6 +264,8 @@ namespace WolfCna
         effect_ = std::make_unique<BasicEffect>(device);
         world_.Upload(device);
         CreateProceduralAtlas();
+        guardSprite_ = std::make_unique<Texture2D>("assets/sprites/security-guard.png", device);
+        houndSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound.png", device);
         CreateHudResources();
         CreateSoundEffects();
 
@@ -803,8 +805,9 @@ namespace WolfCna
             centered(top + 118, "LEFT RIGHT TURN", normal);
             centered(top + 142, "SPACE ACTION", normal);
             centered(top + 166, "CTRL ATTACK", normal);
-            centered(top + 190, "F11 FULLSCREEN", normal);
-            centered(top + 232, "ENTER OR ESC BACK", selected);
+            centered(top + 190, "1 2 3 WEAPONS", normal);
+            centered(top + 214, "F11 FULLSCREEN", normal);
+            centered(top + 238, "ENTER OR ESC BACK", selected);
         }
         hudSpriteBatch_->End();
     }
@@ -855,6 +858,7 @@ namespace WolfCna
         lives_ = 3;
         nextExtraLifeScore_ = 40000;
         weapon_ = Weapon::Sidearm;
+        lastFirearm_ = Weapon::Sidearm;
         LoadCampaignLevel(selectedLevelIndex_);
     }
 
@@ -1074,6 +1078,7 @@ namespace WolfCna
             nextExtraLifeScore_ = 40000;
             hasSecurityCard_ = true;
             weapon_ = Weapon::Repeater;
+            lastFirearm_ = Weapon::Repeater;
             cheatMessageSeconds_ = 2.0f;
         }
         ilmWasDown_ = ilmIsDown;
@@ -1102,9 +1107,15 @@ namespace WolfCna
         if (keyboard.IsKeyDown(Keys::D1))
             weapon_ = Weapon::Knife;
         if (ammo_ > 0 && keyboard.IsKeyDown(Keys::D2))
+        {
             weapon_ = Weapon::Sidearm;
+            lastFirearm_ = Weapon::Sidearm;
+        }
         if (ammo_ > 0 && keyboard.IsKeyDown(Keys::D3))
+        {
             weapon_ = Weapon::Repeater;
+            lastFirearm_ = Weapon::Repeater;
+        }
 
         const bool attackIsDown =
             keyboard.IsKeyDown(Keys::LeftControl) || keyboard.IsKeyDown(Keys::RightControl);
@@ -1243,8 +1254,11 @@ namespace WolfCna
         }
         HandleInput(clampedElapsed);
         const World::PickupResult pickups = world_.CollectPickups(playerPosition_);
+        const bool wasOutOfAmmo = ammo_ <= 0;
         health_ = std::min(100, health_ + pickups.health);
         ammo_ = std::min(12, ammo_ + pickups.ammo);
+        if (pickups.ammo > 0 && wasOutOfAmmo && ammo_ > 0)
+            weapon_ = lastFirearm_;
         AwardScore(pickups.gold);
         hasSecurityCard_ = hasSecurityCard_ || pickups.accessCards > 0;
         if (pickups.ammo > 0 && ammoPickupSound_)
@@ -1273,14 +1287,18 @@ namespace WolfCna
         device.setRasterizerStateProperty(RasterizerState::CullNone);
         device.getSamplerStatesProperty()[0] = SamplerState::PointClamp;
 
-        if ((screen_ == Screen::Playing || screen_ == Screen::Paused || screen_ == Screen::GameOver) && effect_ && atlas_)
+        if ((screen_ == Screen::Playing || screen_ == Screen::Paused || screen_ == Screen::GameOver) &&
+            effect_ && atlas_ && guardSprite_ && houndSprite_)
         {
             world_.Draw(
                 device,
                 *effect_,
                 ViewMatrix(),
                 ProjectionMatrix(),
-                *atlas_);
+                *atlas_,
+                *guardSprite_,
+                *houndSprite_,
+                playerPosition_);
         }
 
         if (screen_ == Screen::Title || screen_ == Screen::SectorSelect ||

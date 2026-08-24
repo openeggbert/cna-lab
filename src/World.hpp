@@ -77,7 +77,10 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::BasicEffect& effect,
             const Microsoft::Xna::Framework::Matrix& view,
             const Microsoft::Xna::Framework::Matrix& projection,
-            Microsoft::Xna::Framework::Graphics::Texture2D& atlas);
+            Microsoft::Xna::Framework::Graphics::Texture2D& atlas,
+            Microsoft::Xna::Framework::Graphics::Texture2D& guardSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& houndSprite,
+            const Microsoft::Xna::Framework::Vector3& cameraPosition);
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 PlayerStart() const;
         [[nodiscard]] bool Collides(float worldX, float worldZ, float radius) const;
@@ -203,6 +206,8 @@ namespace WolfCna
         std::vector<Microsoft::Xna::Framework::Vector3> exits_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> enemyVertices_;
         std::vector<std::uint16_t> enemyIndices_;
+        std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> billboardVertices_;
+        std::vector<std::uint16_t> billboardIndices_;
 
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> vertexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> indexBuffer_;
@@ -212,6 +217,8 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> impactIndexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> enemyVertexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> enemyIndexBuffer_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> billboardVertexBuffer_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> billboardIndexBuffer_;
 
         [[nodiscard]] bool IsStaticWallCell(int x, int z) const;
         [[nodiscard]] bool IsBlockedCell(int x, int z) const;
@@ -225,6 +232,7 @@ namespace WolfCna
         void BuildTerminals();
         void BuildExits();
         void BuildEnemyGeometry();
+        void BuildBillboardGeometry();
         [[nodiscard]] bool HasLineOfSight(
             const Microsoft::Xna::Framework::Vector3& from,
             const Microsoft::Xna::Framework::Vector3& to) const;

@@ -58,6 +58,14 @@ configure_file(
     assets/levels/sector-03.level
     "${CMAKE_CURRENT_BINARY_DIR}/assets/levels/sector-03.level"
     COPYONLY)
+configure_file(
+    assets/sprites/security-guard.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/security-guard.png"
+    COPYONLY)
+configure_file(
+    assets/sprites/security-hound.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/sprites/security-hound.png"
+    COPYONLY)
 
 enable_testing()
 add_executable(level-definition-tests

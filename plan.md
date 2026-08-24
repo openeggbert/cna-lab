@@ -1036,6 +1036,7 @@ Status: complete.
 
 - remove the aiming crosshair;
 - automatically select the knife when ammunition reaches zero;
+- restore the last selected firearm when ammunition is collected after reaching zero;
 - render a large first-person knife/sidearm/automatic weapon in the lower center;
 - replace quiet placeholder tones with clearly audible generated gunshot, door
   movement and ammunition-pickup effects;
@@ -1060,6 +1061,10 @@ Status: complete.
 - starting an unlocked later sector creates a fresh run at that sector.
 
 ### WOLF-013 — original sprite presentation
+
+Status: in progress. The first milestone replaces guard and hound cuboids with
+original transparent camera-facing billboard sprites and records their complete
+generation provenance. Animation frames and weapon sprite sheets remain.
 
 - replace colored enemy cuboids with camera-facing textured polygon billboards;
 - create original transparent pixel-art guards, hounds and weapon view sprites;
