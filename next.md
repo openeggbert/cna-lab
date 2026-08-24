@@ -61,15 +61,22 @@ write and verify the clean implementation.
   field without touching either permanent icon band. The working capture is
   outside the repository.
 - A confirmed activation and post-hatch capture established Babytchi's real
-  home motion. At 1× it repeats two full 6 × 6 poses at `y=10`, then two
-  squashed 4 × 1 poses at `y=15`, while moving through observed horizontal
+  home motion. At 1× it repeats two full 6 × 6 poses at `y=9`, then two
+  compressed 8 × 3 poses at `y=13`, while moving through observed horizontal
   origins. Its complete 36-phase cycle is hand-transcribed at an inferred
   0.46-second cadence; focused tests protect every row, origin, bound, count,
   and wrap. A separate clean 30-second trace showed the full origin sequence
   repeat and resolved the former phase-20 uncertainty.
-- A five-second normal-scale application trace confirms both poses stay inside
-  the LCD without touching the icon bands. Continue the per-form home ledger
-  with Marutchi; capture Babytchi care-action sequences under Priority 2.
+- A new five-second normal-scale application trace using an isolated clean save
+  confirms both corrected poses stay inside the LCD without touching the icon
+  bands. Continue the per-form home ledger with Marutchi; capture Babytchi
+  care-action sequences under Priority 2.
+- A later layout audit found that the original 288 × 144 working crop did not
+  cover TamaTool v0.1's 10-pixel-stride matrix. That crop's coordinates and
+  lower rows were discarded. The accepted replacement covers the complete
+  319 × 159 active matrix extent, samples the centre of every logical cell,
+  and yields the corrected rows and origins above. Do not infer a 32 × 16 grid
+  by merely resizing a reference crop; derive its stride and extent first.
 
 ## Priority 0 — Add selectable physical shell variants
 
@@ -95,7 +102,7 @@ shell-control path does not mutate P1 state or framebuffer data.
 
 1. [x] Complete and regression-check the egg's two stable idle phases.
 2. [x] Capture and transcribe Babytchi's complete 36-phase home cycle, including
-   its true full/squashed geometry, horizontal path, cadence, wrap, and
+   its true full/compressed geometry, horizontal path, cadence, wrap, and
    partial-write exclusion.
 3. Create a visual-reference ledger for each remaining P1 home form: Marutchi,
    Tamatchi, Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi,

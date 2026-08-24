@@ -58,14 +58,15 @@ constexpr P1Sprite sequence(const float idleFrameSeconds, const Frames... frames
 
 constexpr P1SpriteFrame babytchiFullFrame(const int originX) noexcept
 {
-    return {originX, 10, 6U,
-            {{".####.", "#.##.#", "######", "##..##", "##..##", "######",
+    return {originX, 9, 6U,
+            {{".####.", "#.##.#", "######", "##..##", "######", ".####.",
               "", "", "", "", "", ""}}};
 }
 
 constexpr P1SpriteFrame babytchiSquashFrame(const int originX) noexcept
 {
-    return {originX, 15, 1U, {{"####", "", "", "", "", "", "", "", "", "", "", ""}}};
+    return {originX, 13, 3U,
+            {{"..####..", ".#.##.#.", "########", "", "", "", "", "", "", "", "", ""}}};
 }
 
 // Every drawing and origin is hand-transcribed P1 LCD data. Repeated character
@@ -87,24 +88,24 @@ constexpr P1Sprite Egg = twoPhaseSprite(
 // in a 30-second capture; one-host-frame incremental LCD writes are omitted.
 constexpr P1Sprite Babytchi = sequence(
     0.46F,
-    babytchiFullFrame(11), babytchiFullFrame(9),
-    babytchiSquashFrame(13), babytchiSquashFrame(16),
-    babytchiFullFrame(18), babytchiFullFrame(15),
-    babytchiSquashFrame(14), babytchiSquashFrame(11),
-    babytchiFullFrame(6), babytchiFullFrame(11),
-    babytchiSquashFrame(9), babytchiSquashFrame(13),
+    babytchiFullFrame(7), babytchiFullFrame(11),
+    babytchiSquashFrame(8), babytchiSquashFrame(11),
     babytchiFullFrame(15), babytchiFullFrame(18),
-    babytchiSquashFrame(16), babytchiSquashFrame(14),
-    babytchiFullFrame(10), babytchiFullFrame(6),
-    babytchiSquashFrame(12), babytchiSquashFrame(9),
+    babytchiSquashFrame(14), babytchiSquashFrame(12),
+    babytchiFullFrame(10), babytchiFullFrame(7),
+    babytchiSquashFrame(10), babytchiSquashFrame(8),
     babytchiFullFrame(12), babytchiFullFrame(15),
-    babytchiSquashFrame(20), babytchiSquashFrame(16),
+    babytchiSquashFrame(17), babytchiSquashFrame(14),
     babytchiFullFrame(13), babytchiFullFrame(10),
-    babytchiSquashFrame(8), babytchiSquashFrame(12),
+    babytchiSquashFrame(6), babytchiSquashFrame(10),
     babytchiFullFrame(9), babytchiFullFrame(12),
-    babytchiSquashFrame(16), babytchiSquashFrame(20),
+    babytchiSquashFrame(14), babytchiSquashFrame(17),
     babytchiFullFrame(15), babytchiFullFrame(13),
-    babytchiSquashFrame(11), babytchiSquashFrame(8));
+    babytchiSquashFrame(9), babytchiSquashFrame(6),
+    babytchiFullFrame(11), babytchiFullFrame(9),
+    babytchiSquashFrame(11), babytchiSquashFrame(14),
+    babytchiFullFrame(18), babytchiFullFrame(15),
+    babytchiSquashFrame(12), babytchiSquashFrame(9));
 
 constexpr P1Sprite Marutchi = sprite(
     frame("................", ".....######.....", "....##....##....", "...##..##..##...",

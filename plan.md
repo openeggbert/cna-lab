@@ -82,8 +82,9 @@ similar emulation core is permitted in the application, build, or test suite.
     and protect their distinct geometry and rows with catalogue regression
     tests.
   - [x] Transcribe Babytchi's complete 36-phase home cycle from confirmed
-    post-hatch 1× traces, including its alternating 6 × 6 full and 4 × 1
-    squashed poses, horizontal path, 0.46-second cadence, and observed wrap.
+    post-hatch 1× traces, including its alternating 6 × 6 full and 8 × 3
+    compressed poses, horizontal path, 0.46-second cadence, and observed wrap;
+    reject and replace geometry derived from an incomplete reference crop.
   - [x] Replace the previous generic pink desktop shell treatment with a
     reusable CNA renderer and five independently authored P1 colour families;
     persist the selected shell without changing the LCD or P1 controls.

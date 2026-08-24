@@ -154,19 +154,21 @@ void testBabytchiKeepsItsObservedMovingTrace()
 {
     const P1Sprite& babytchi = P1SpriteCatalog::spriteForCharacter("babytchi");
     constexpr std::array<int, 36> expectedOrigins{{
-        11, 9, 13, 16,
-        18, 15, 14, 11,
-        6, 11, 9, 13,
-        15, 18, 16, 14,
-        10, 6, 12, 9,
-        12, 15, 20, 16,
-        13, 10, 8, 12,
-        9, 12, 16, 20,
-        15, 13, 11, 8,
+        7, 11, 8, 11,
+        15, 18, 14, 12,
+        10, 7, 10, 8,
+        12, 15, 17, 14,
+        13, 10, 6, 10,
+        9, 12, 14, 17,
+        15, 13, 9, 6,
+        11, 9, 11, 14,
+        18, 15, 12, 9,
     }};
     constexpr std::array<std::string_view, 6> expectedFull{{
-        ".####.", "#.##.#", "######", "##..##", "##..##", "######",
+        ".####.", "#.##.#", "######", "##..##", "######", ".####.",
     }};
+    constexpr std::array<std::string_view, 3> expectedSquash{{
+        "..####..", ".#.##.#.", "########"}};
 
     expect(babytchi.idleFrameCount == expectedOrigins.size(),
            "Babytchi must retain its complete thirty-six-phase observed cycle");
@@ -180,17 +182,19 @@ void testBabytchiKeepsItsObservedMovingTrace()
                "every observed Babytchi phase must retain its horizontal origin");
 
         if (isFullPose) {
-            expect(frame.originY == 10 && frame.rowCount == expectedFull.size(),
-                   "each full Babytchi pose must retain its 6x6 lower-LCD bounds");
+            expect(frame.originY == 9 && frame.rowCount == expectedFull.size(),
+                   "each full Babytchi pose must retain its exact 6x6 bounds");
             for (std::size_t row = 0U; row < expectedFull.size(); ++row) {
                 expect(frame.rows[row] == expectedFull[row],
                        "every hand-read full Babytchi row must remain exact");
             }
         } else {
-            expect(frame.originY == 15 && frame.rowCount == 1U,
-                   "each squashed Babytchi pose must stay on the last LCD row");
-            expect(frame.rows[0] == "####",
-                   "the hand-read squashed Babytchi row must remain exact");
+            expect(frame.originY == 13 && frame.rowCount == expectedSquash.size(),
+                   "each squashed Babytchi pose must retain its exact 8x3 bounds");
+            for (std::size_t row = 0U; row < expectedSquash.size(); ++row) {
+                expect(frame.rows[row] == expectedSquash[row],
+                       "every hand-read squashed Babytchi row must remain exact");
+            }
         }
     }
 

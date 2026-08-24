@@ -86,7 +86,7 @@ open rather than substitute a plausible modern redraw.
 | Form / sequence | Observation and geometry | Catalogue status | Next evidence needed |
 | --- | --- | --- | --- |
 | Egg idle sequence | Fresh unaccelerated 30 fps trace: hand-read wide 16 × 11 phase at `(8, 4)` and tall 16 × 12 phase at `(8, 3)`. Stable changes begin every 18–19 host frames, represented as 0.625 seconds per phase; partial LCD-write frames are excluded. | Two phases transcribed; every row, geometry, count, cadence, wrapping, and normal-scale placement checked. | Capture cracking/hatching separately. |
-| Babytchi | Fresh confirmed post-hatch 30 fps traces at 1×: two 6 × 6 full poses at `y=10`, followed by two 4 × 1 squashed poses at `y=15`, repeat while moving horizontally. The complete stable-origin cycle is `11, 9, 13, 16, 18, 15, 14, 11, 6, 11, 9, 13, 15, 18, 16, 14, 10, 6, 12, 9, 12, 15, 20, 16, 13, 10, 8, 12, 9, 12, 16, 20, 15, 13, 11, 8`. It repeated in a separate clean 30-second trace. Stable phases average about 0.46 seconds; incremental one-host-frame LCD writes are excluded. | Complete 36-phase cycle transcribed; pose rows, origins, bounds, count, cadence, and wrapping regression checked; normal-scale placement visually checked. | Capture Babytchi care-action sequences separately. |
+| Babytchi | Fresh confirmed post-hatch 30 fps traces at 1× over the complete LCD: two 6 × 6 full poses at `y=9`, followed by two 8 × 3 compressed poses at `y=13`, repeat while moving horizontally. The complete stable-origin cycle is `7, 11, 8, 11, 15, 18, 14, 12, 10, 7, 10, 8, 12, 15, 17, 14, 13, 10, 6, 10, 9, 12, 14, 17, 15, 13, 9, 6, 11, 9, 11, 14, 18, 15, 12, 9`. It repeated in a separate trace. Stable phases average about 0.46 seconds; incremental one-host-frame LCD writes are excluded. | Complete 36-phase cycle transcribed; every pose row, origin, bound, count, cadence, wrap, and corrected normal-scale placement checked. | Capture Babytchi care-action sequences separately. |
 | Marutchi | No selected-reference home sequence has been transcribed. | Provisional. | Observe after the Baby → Child transition. |
 | Tamatchi / Kuchitamatchi | No selected-reference home sequence has been transcribed. | Provisional. | Observe one trace for each lineage. |
 | Mametchi | Three independently drawn home phases are retained with a focused distinct-frame test. | Transcribed; regression checked. | Recheck the complete sequence at normal LCD scale. |
@@ -102,6 +102,14 @@ five-minute hatch wait, then captured Babytchi at 1×. Its stable poses lasted
 mostly 12–15 frames at 30 fps, with one-host-frame partial LCD writes between
 them. Working screenshots, video, and emulator saves remain outside this
 repository. An Xvfb process is ephemeral between tooling sessions, so relaunch
+
+Capture-geometry correction (2026-08-24): TamaTool v0.1 lays out each logical
+cell on a 10-pixel stride with a 9 × 9 active square. An earlier 288 × 144
+working crop was therefore not a complete 32 × 16 matrix and its Babytchi
+coordinates and lower rows were rejected. The replacement trace covers the
+319 × 159 active matrix extent and samples each logical cell at its known
+centre. The 36-phase period and approximately 0.46-second cadence survived the
+correction; all pose rows, bounds, and origins were independently replaced.
 the reference and its virtual display before drawing conclusions from a
 missing later capture.
 
