@@ -154,11 +154,22 @@ regression exit codes:
   --candidate-hardware "<same CPU, GPU, driver, display/compositor identity>" \
   --baseline-kind qualifying \
   --candidate-kind qualifying \
+  --baseline-vram-bundle \
+    runtime/performance/m12-baseline-original.json \
+    runtime/performance/m12-baseline-vram-evidence.json \
+    runtime/performance/m12-baseline-vram-artifact.bin \
+  --candidate-vram-bundle \
+    runtime/performance/m12-candidate-original.json \
+    runtime/performance/m12-candidate-vram-evidence.json \
+    runtime/performance/m12-candidate-vram-artifact.bin \
   --output runtime/performance/m12-comparison.md
 ```
 
 The comparator refuses unlike hardware, diagnostic/qualifying kinds, scenarios, resolutions,
 timing/presentation policy, GPU timing availability, budget definitions, or RAM/VRAM coverage.
+Both archived source bundles are mandatory for a qualifying comparison and are reconstructed
+against their corresponding enriched captures before any metrics are compared. Diagnostic
+comparisons may omit them. A no-regression comparison is not an M12 qualification result.
 Its default relative and metric-specific absolute tolerances are documented in
 [`docs/performance-targets.md`](docs/performance-targets.md#capture-regression-comparison).
 
@@ -278,5 +289,6 @@ Capture/evidence UTC values use canonical `YYYY-MM-DDTHH:MM:SS[.ffffff]Z`; broad
 sub-microsecond values are rejected so interval enclosure never relies on silent precision loss.
 Hardware identities and report/comparison titles must be non-empty printable single lines; this
 keeps exact identity matching unambiguous and prevents Markdown structure injection.
-Regression-comparison output carries exact baseline/candidate SHA-256 provenance, is written
-atomically, and cannot equal or hardlink either capture input.
+Regression-comparison output carries exact baseline/candidate SHA-256 provenance plus verified
+source-archive hashes when supplied, is written atomically, and cannot equal or hardlink any
+capture or supplied archive input. Both source archives are required for qualifying comparisons.

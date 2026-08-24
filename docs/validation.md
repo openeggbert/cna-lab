@@ -237,6 +237,14 @@ The comparator now hashes and rechecks baseline/candidate, embeds both digests i
 proves preservation and temporary-file cleanup. The real Xvfb self-comparison remains
 `NO REGRESSION` and displays the expected `df217f17…41cd0` hash for both roles.
 
+Qualifying comparisons now also require a verified original-profile/evidence-manifest/raw-artifact
+bundle for both baseline and candidate. The comparator reconstructs each enriched input with
+`vram_evidence.py --verify-enriched`, stability-checks and output-protects all archive members, and
+records their hashes. The synthetic VRAM integration reaches `NO REGRESSION` with two independent
+archives and then proves candidate-artifact mutation exits 2. Diagnostic comparison remains
+bundle-optional. Comparator 7/7 and VRAM 6/6 focused suites pass; this is evidence hardening, not a
+physical M12 capture.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

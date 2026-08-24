@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 qualifying comparisons now require both archived VRAM source bundles.** A qualifying
+baseline/candidate pair is refused unless each enriched capture has its ordered original-profile,
+evidence-manifest, and raw-profiler-artifact sources. The comparator runs full archive
+reconstruction before comparing metrics, protects every source from output aliases, and records
+all six source hashes in its Markdown provenance table.
+
+- The VRAM integration binds two independent bundles, reaches `NO REGRESSION`, then mutates the
+  candidate artifact and proves exit 2. Comparator 7/7 and VRAM 6/6 focused suites pass.
+- Diagnostic comparisons remain archive-optional. A qualifying `NO REGRESSION` is still not an
+  M12 budget pass, and no physical complete-residency capture exists here.
+
 **M12 regression comparisons now preserve exact input provenance.** Baseline/candidate SHA-256
 values are embedded in Markdown and rechecked after parsing and immediately before output.
 `--output` cannot path/hardlink either input and uses atomic replacement.

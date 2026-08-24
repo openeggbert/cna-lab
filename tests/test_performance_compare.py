@@ -315,7 +315,7 @@ class PerformanceCompareTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("applied must equal swap_interval.requested", result.stderr)
 
-    def test_qualifying_mode_rejects_incomplete_evidence(self) -> None:
+    def test_qualifying_mode_requires_archived_evidence(self) -> None:
         baseline = capture_fixture()
         candidate = deepcopy(baseline)
         baseline["video_memory"]["tracking_complete"] = False
@@ -329,7 +329,7 @@ class PerformanceCompareTests(unittest.TestCase):
             "qualifying",
         )
         self.assertEqual(result.returncode, 2)
-        self.assertIn("qualifying capture has incomplete VRAM tracking", result.stderr)
+        self.assertIn("qualifying baseline requires --baseline-vram-bundle", result.stderr)
 
     def test_output_is_atomic_and_never_overwrites_capture_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

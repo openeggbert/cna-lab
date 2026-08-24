@@ -17,6 +17,9 @@ SCRIPT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path("scripts/vra
 REPORT_SCRIPT = (
     Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else Path("scripts/performance_report.py")
 )
+COMPARE_SCRIPT = (
+    Path(sys.argv[3]).resolve() if len(sys.argv) > 3 else Path("scripts/performance_compare.py")
+)
 
 
 def raw_capture_fixture() -> dict:
@@ -192,6 +195,65 @@ class VramEvidenceTests(unittest.TestCase):
             )
             self.assertEqual(report.returncode, 0, report.stderr)
             self.assertIn("Overall status: **PASS**", report.stdout)
+
+            comparison_arguments = [
+                sys.executable,
+                str(COMPARE_SCRIPT),
+                "--baseline",
+                str(output_path),
+                "--candidate",
+                str(second_path),
+                "--baseline-hardware",
+                "Evidence GPU",
+                "--candidate-hardware",
+                "Evidence GPU",
+                "--baseline-kind",
+                "qualifying",
+                "--candidate-kind",
+                "qualifying",
+                "--baseline-vram-bundle",
+                str(capture_path),
+                str(evidence_path),
+                str(artifact_path),
+                "--candidate-vram-bundle",
+                str(second_capture_path),
+                str(second_evidence_path),
+                str(second_artifact_path),
+            ]
+            comparison = subprocess.run(
+                comparison_arguments,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(comparison.returncode, 0, comparison.stderr)
+            self.assertIn("Overall result: **NO REGRESSION**", comparison.stdout)
+            self.assertIn(sha256(second_artifact_path), comparison.stdout)
+
+            artifact_before_alias_attempt = second_artifact_path.read_bytes()
+            comparison = subprocess.run(
+                [*comparison_arguments, "--output", str(second_artifact_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(comparison.returncode, 2)
+            self.assertIn(
+                "output must differ from the candidate VRAM source input",
+                comparison.stderr,
+            )
+            self.assertEqual(second_artifact_path.read_bytes(), artifact_before_alias_attempt)
+
+            second_artifact_path.write_bytes(b"tampered second profiler artifact")
+            comparison = subprocess.run(
+                comparison_arguments,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(comparison.returncode, 2)
+            self.assertIn("candidate VRAM bundle verification failed", comparison.stderr)
+            self.assertIn("source_artifact.sha256 does not match", comparison.stderr)
 
     def test_verification_refuses_semantically_tampered_enriched_capture(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

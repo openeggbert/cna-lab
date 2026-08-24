@@ -590,6 +590,14 @@ Compare a candidate schema-8 capture with a historical baseline using:
   --candidate-hardware "<same CPU, GPU, driver, display/compositor identity>" \
   --baseline-kind qualifying \
   --candidate-kind qualifying \
+  --baseline-vram-bundle \
+    runtime/performance/m12-baseline-original.json \
+    runtime/performance/m12-baseline-vram-evidence.json \
+    runtime/performance/m12-baseline-vram-artifact.bin \
+  --candidate-vram-bundle \
+    runtime/performance/m12-candidate-original.json \
+    runtime/performance/m12-candidate-vram-evidence.json \
+    runtime/performance/m12-candidate-vram-artifact.bin \
   --output runtime/performance/m12-comparison.md
 ```
 
@@ -602,12 +610,17 @@ VRAM. Use `--baseline-kind diagnostic --candidate-kind diagnostic` for Xvfb or o
 engineering runs; diagnostic and qualifying evidence can never be mixed.
 Both inputs first pass the same request/v-sync/applied consistency validator as the release report,
 so two identically tampered presentation objects cannot compare as valid evidence.
+Every qualifying side must also provide its ordered original-profile/evidence-manifest/raw-artifact
+archive. The comparator reconstructs each enriched capture through the binder's full verifier and
+refuses a missing, cross-bound, or subsequently changed member with exit 2. Diagnostic comparisons
+may omit archives or supply them for additional provenance checking.
 Baseline/candidate hardware identities and the comparison title also use the same printable
 single-line rule as release reports.
 The comparison Markdown includes an `Evidence provenance` table with exact baseline/candidate
-SHA-256 values. Both files are re-hashed after parsing and immediately before output. `--output`
-cannot equal or hardlink either capture and is staged in the destination directory for atomic
-replacement, so comparison cannot destroy or silently outlive changed inputs.
+SHA-256 values and, when supplied, all six source-archive names and hashes. Captures and archive
+members are re-hashed after verification/parsing and immediately before output. `--output` cannot
+equal or hardlink any capture or supplied archive member and is staged in the destination directory
+for atomic replacement, so comparison cannot destroy or silently outlive changed inputs.
 
 The candidate is a regression only when its increase is greater than both the relative tolerance
 and the applicable absolute tolerance. Defaults are 10%, 0.5 ms for frame/GPU/Present/transition

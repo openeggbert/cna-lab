@@ -524,3 +524,16 @@ direct or hardlink output aliases, and atomically replaces valid output. The loc
 self-comparison still reports `NO REGRESSION` and now shows
 `df217f17b3cf32c3c279fbf582a3075a6bb61f759f9ec3d5d2b695be3da41cd0` for both roles. The seventh
 comparator CLI test proves direct/hardlink preservation and clean nested output.
+
+## 2026-08-24 — qualifying comparison archive enforcement
+
+Qualifying regression comparisons now require both archived VRAM source bundles, not only their
+two enriched JSON outputs. `--baseline-vram-bundle` and `--candidate-vram-bundle` each identify the
+original profile, evidence manifest, and raw profiler artifact. The comparator invokes the same
+full reconstruction verifier used by release summaries, stability-checks all eight inputs, protects
+them from output aliases, and includes the six source hashes in the Markdown provenance table.
+
+The synthetic integration binds two independent archives and reaches `NO REGRESSION`; after the
+candidate raw artifact is changed, the same comparison exits 2 on its hash mismatch. Diagnostic
+comparisons remain usable without archived sources. This prevents an enriched-only historical
+comparison claim, but supplies neither a second physical measurement nor the missing M12 gate pass.

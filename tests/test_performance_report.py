@@ -51,6 +51,7 @@ def capture_fixture() -> dict:
             "apply_succeeded": True,
             "applied": 1,
         },
+        "gpu_timing": {"supported": True, "scope": "draw_commands_excluding_present"},
         "measurements": {
             "frame_interval": measurement(4, 16.8),
             "update_cpu": measurement(4, 0.3),
@@ -132,6 +133,24 @@ def capture_fixture() -> dict:
                 "source_artifact": {"file_name": "capture.bin", "sha256": "b" * 64},
                 "evidence_manifest_sha256": "c" * 64,
             },
+        },
+        "workload": {
+            "physics_bodies": 9,
+            "traffic_vehicles": 2,
+            "pedestrians": 2,
+            "police_vehicles": 0,
+        },
+        "budgets": {
+            "minimum_frame_p95_ms": 33.333,
+            "recommended_frame_p95_ms": 16.667,
+            "update_cpu_p95_ms": 8.0,
+            "physics_cpu_p95_ms": 3.0,
+            "ai_cpu_p95_ms": 2.0,
+            "audio_cpu_p95_ms": 1.0,
+            "render_cpu_p95_ms": 8.0,
+            "district_load_p95_ms": 1000.0,
+            "ram_bytes": 2 * 1024 * 1024 * 1024,
+            "vram_bytes": 512 * 1024 * 1024,
         },
     }
 

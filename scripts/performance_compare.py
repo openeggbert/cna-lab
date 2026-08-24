@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +14,7 @@ from typing import Any
 from performance_report import (
     DIAGNOSTIC_HARDWARE_TERMS,
     ReportError,
+    VramBundleFingerprint,
     _boolean,
     _file_sha256,
     _integer,
@@ -22,6 +24,7 @@ from performance_report import (
     _same_file,
     _single_line_text,
     _write_text_atomic,
+    _verify_report_inputs_unchanged,
     load_capture,
     swap_interval_acknowledged,
     validate_complete_vram_evidence,
@@ -218,6 +221,47 @@ def require_compatible(
         raise ReportError("incompatible district-transition boundary availability")
 
 
+def verify_vram_bundle(
+    role: str,
+    capture_path: Path,
+    capture_sha256: str,
+    bundle: list[Path],
+) -> VramBundleFingerprint:
+    fingerprint: VramBundleFingerprint = (
+        (bundle[0], _file_sha256(bundle[0])),
+        (bundle[1], _file_sha256(bundle[1])),
+        (bundle[2], _file_sha256(bundle[2])),
+    )
+    verifier = Path(__file__).resolve().with_name("vram_evidence.py")
+    verification = subprocess.run(
+        [
+            sys.executable,
+            str(verifier),
+            "--capture",
+            str(bundle[0]),
+            "--evidence",
+            str(bundle[1]),
+            "--artifact",
+            str(bundle[2]),
+            "--verify-enriched",
+            str(capture_path),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if verification.returncode != 0:
+        detail = verification.stderr.strip() or "verification command failed"
+        raise ReportError(f"{role} VRAM bundle verification failed: {detail}")
+    _require_unchanged(capture_path, capture_sha256, f"{role} enriched capture")
+    for label, (path, expected_sha256) in zip(
+        ("original capture", "evidence manifest", "raw evidence artifact"),
+        fingerprint,
+    ):
+        _require_unchanged(path, expected_sha256, f"{role} {label}")
+    return fingerprint
+
+
 def compare_metrics(
     baseline: dict[str, Any],
     candidate: dict[str, Any],
@@ -262,6 +306,8 @@ def build_markdown(
     candidate_path: Path,
     baseline_sha256: str,
     candidate_sha256: str,
+    baseline_bundle: VramBundleFingerprint | None,
+    candidate_bundle: VramBundleFingerprint | None,
     baseline: dict[str, Any],
     candidate: dict[str, Any],
     hardware: str,
@@ -272,6 +318,16 @@ def build_markdown(
     title: str,
 ) -> str:
     regressions = sum(result.regressed for result in results)
+    bundle_cells: list[tuple[str, str, str]] = []
+    for bundle in (baseline_bundle, candidate_bundle):
+        if bundle is None:
+            bundle_cells.append(("—", "—", "—"))
+        else:
+            bundle_cells.append(
+                tuple(
+                    f"`{_escape(path.name)}`<br>`{sha256}`" for path, sha256 in bundle
+                )
+            )
     lines = [
         f"# {title}",
         "",
@@ -287,10 +343,10 @@ def build_markdown(
         "",
         "## Evidence provenance",
         "",
-        "| Role | Capture | SHA-256 |",
-        "| --- | --- | --- |",
-        f"| Baseline | `{_escape(baseline_path.name)}` | `{baseline_sha256}` |",
-        f"| Candidate | `{_escape(candidate_path.name)}` | `{candidate_sha256}` |",
+        "| Role | Capture | SHA-256 | Original profile | Evidence manifest | Raw profiler artifact |",
+        "| --- | --- | --- | --- | --- | --- |",
+        f"| Baseline | `{_escape(baseline_path.name)}` | `{baseline_sha256}` | {bundle_cells[0][0]} | {bundle_cells[0][1]} | {bundle_cells[0][2]} |",
+        f"| Candidate | `{_escape(candidate_path.name)}` | `{candidate_sha256}` | {bundle_cells[1][0]} | {bundle_cells[1][1]} | {bundle_cells[1][2]} |",
         "",
         "## Tolerances",
         "",
@@ -349,6 +405,18 @@ def parse_args(arguments: list[str]) -> argparse.Namespace:
     parser.add_argument("--candidate-hardware", required=True)
     parser.add_argument("--baseline-kind", required=True, choices=("diagnostic", "qualifying"))
     parser.add_argument("--candidate-kind", required=True, choices=("diagnostic", "qualifying"))
+    parser.add_argument(
+        "--baseline-vram-bundle",
+        nargs=3,
+        type=Path,
+        metavar=("ORIGINAL", "EVIDENCE", "ARTIFACT"),
+    )
+    parser.add_argument(
+        "--candidate-vram-bundle",
+        nargs=3,
+        type=Path,
+        metavar=("ORIGINAL", "EVIDENCE", "ARTIFACT"),
+    )
     parser.add_argument("--relative-tolerance-percent", type=non_negative_float, default=10.0)
     parser.add_argument("--frame-absolute-ms", type=non_negative_float, default=0.5)
     parser.add_argument("--cpu-absolute-ms", type=non_negative_float, default=0.1)
@@ -370,19 +438,55 @@ def main(arguments: list[str] | None = None) -> int:
             options.candidate_hardware, "candidate hardware identity"
         )
         title = _single_line_text(options.title, "comparison title")
+        if options.baseline_kind != options.candidate_kind:
+            raise ReportError("capture kinds differ; diagnostic-vs-qualifying comparison is refused")
+        if options.baseline_kind == "qualifying" and options.baseline_vram_bundle is None:
+            raise ReportError("qualifying baseline requires --baseline-vram-bundle")
+        if options.candidate_kind == "qualifying" and options.candidate_vram_bundle is None:
+            raise ReportError("qualifying candidate requires --candidate-vram-bundle")
         if options.output is not None:
-            for input_label, input_path in (
+            protected_inputs = [
                 ("baseline", options.baseline),
                 ("candidate", options.candidate),
+            ]
+            for role, bundle in (
+                ("baseline", options.baseline_vram_bundle),
+                ("candidate", options.candidate_vram_bundle),
             ):
+                if bundle is not None:
+                    protected_inputs.extend((f"{role} VRAM source", path) for path in bundle)
+            for input_label, input_path in protected_inputs:
                 if _same_file(options.output, input_path):
                     raise ReportError(f"output must differ from the {input_label} input")
         baseline_sha256 = _file_sha256(options.baseline)
         candidate_sha256 = _file_sha256(options.candidate)
+        baseline_bundle = (
+            verify_vram_bundle(
+                "baseline",
+                options.baseline,
+                baseline_sha256,
+                options.baseline_vram_bundle,
+            )
+            if options.baseline_vram_bundle is not None
+            else None
+        )
+        candidate_bundle = (
+            verify_vram_bundle(
+                "candidate",
+                options.candidate,
+                candidate_sha256,
+                options.candidate_vram_bundle,
+            )
+            if options.candidate_vram_bundle is not None
+            else None
+        )
         baseline = load_capture(options.baseline)
         candidate = load_capture(options.candidate)
-        _require_unchanged(options.baseline, baseline_sha256, "baseline capture")
-        _require_unchanged(options.candidate, candidate_sha256, "candidate capture")
+        _verify_report_inputs_unchanged(
+            [options.baseline, options.candidate],
+            [baseline_sha256, candidate_sha256],
+            [baseline_bundle, candidate_bundle],
+        )
         require_compatible(
             baseline,
             candidate,
@@ -409,6 +513,8 @@ def main(arguments: list[str] | None = None) -> int:
             options.candidate,
             baseline_sha256,
             candidate_sha256,
+            baseline_bundle,
+            candidate_bundle,
             baseline,
             candidate,
             candidate_hardware,
@@ -418,8 +524,11 @@ def main(arguments: list[str] | None = None) -> int:
             results,
             title,
         )
-        _require_unchanged(options.baseline, baseline_sha256, "baseline capture")
-        _require_unchanged(options.candidate, candidate_sha256, "candidate capture")
+        _verify_report_inputs_unchanged(
+            [options.baseline, options.candidate],
+            [baseline_sha256, candidate_sha256],
+            [baseline_bundle, candidate_bundle],
+        )
         if options.output:
             _write_text_atomic(options.output, report)
         else:
