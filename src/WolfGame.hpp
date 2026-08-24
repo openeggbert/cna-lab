@@ -118,7 +118,6 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> enemyImpactSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> secretSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> guardAlertSound_;
-        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAlertSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndBarkSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAttackSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndWhimperSound_;

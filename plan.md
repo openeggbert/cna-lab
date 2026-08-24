@@ -1667,8 +1667,10 @@ pickups and defeated enemies use this path. At most four simultaneous instances 
 one event family are submitted per update to avoid burst clipping; player/UI feedback
 remains non-positional and CNA master volume still governs every instance.
 
-Living hounds emit deterministic occasional positional barks, and defeating one
-selects a distinct original generated whimper instead of the generic enemy tone.
+Living hounds emit a clear positional two-part bark as soon as they alert and repeat
+it occasionally on a deterministic cycle. Defeating one always selects a louder,
+longer original generated high whimper instead of the generic enemy tone, with enough
+hearing range to remain audible after a distant sidearm hit.
 Campaign metadata now routes Lower Bunker and Warden Network sectors to two different
 original deterministic two-second ambient loops. Both CNA instances remain looped as
 the previous ambience did, with only the selected family audible, so title, pause and

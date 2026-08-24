@@ -172,7 +172,8 @@ namespace WolfCna
         std::vector<SharpRuntime::bytecs> MakeHoundVoice(bool whimper)
         {
             constexpr float sampleRate = 22050.0f;
-            const int sampleCount = whimper ? 7600 : 4300;
+            const int sampleCount = static_cast<int>(
+                sampleRate * (whimper ? 0.85f : 0.46f));
             std::vector<SharpRuntime::bytecs> pcm;
             pcm.reserve(static_cast<std::size_t>(sampleCount * 2));
             std::uint32_t noiseState = whimper ? 0x91c53a7bu : 0x42de7189u;
@@ -185,24 +186,44 @@ namespace WolfCna
                     32768.0f;
                 const float progress = static_cast<float>(sampleIndex) /
                     static_cast<float>(sampleCount);
-                const float frequency = whimper
-                    ? 410.0f - progress * 225.0f
-                    : 185.0f - progress * 75.0f;
-                const float voice = std::sin(
-                    2.0f * MathHelper::Pi * frequency *
-                    static_cast<float>(sampleIndex) / sampleRate);
-                const float pulse = whimper
-                    ? 1.0f
-                    : (progress < 0.42f || (progress > 0.56f && progress < 0.88f)
-                        ? 1.0f
-                        : 0.12f);
-                const float envelope = whimper
-                    ? std::sin(MathHelper::Pi * progress)
-                    : (1.0f - progress) * pulse;
-                const float signal = (voice * (whimper ? 0.82f : 0.62f) +
-                    noise * (whimper ? 0.08f : 0.25f)) * envelope;
+                const float time = static_cast<float>(sampleIndex) / sampleRate;
+                float signal = 0.0f;
+                if (whimper)
+                {
+                    const float frequency = 690.0f - progress * 170.0f +
+                        std::sin(2.0f * MathHelper::Pi * 8.0f * time) * 34.0f;
+                    const float voice = std::sin(2.0f * MathHelper::Pi * frequency * time);
+                    const float overtone = std::sin(
+                        2.0f * MathHelper::Pi * frequency * 2.0f * time);
+                    const float attack = std::min(1.0f, time / 0.045f);
+                    const float release = std::min(
+                        1.0f,
+                        (0.85f - time) / 0.24f);
+                    signal = (voice * 0.82f + overtone * 0.13f + noise * 0.025f) *
+                        attack * std::max(0.0f, release);
+                }
+                else
+                {
+                    const float firstBurst = time < 0.19f
+                        ? std::sin(MathHelper::Pi * time / 0.19f)
+                        : 0.0f;
+                    const float secondTime = time - 0.245f;
+                    const float secondBurst = secondTime >= 0.0f && secondTime < 0.19f
+                        ? std::sin(MathHelper::Pi * secondTime / 0.19f)
+                        : 0.0f;
+                    const float envelope = std::max(firstBurst, secondBurst * 0.84f);
+                    const float burstProgress = secondTime >= 0.0f
+                        ? secondTime / 0.19f
+                        : time / 0.19f;
+                    const float frequency = 205.0f -
+                        std::clamp(burstProgress, 0.0f, 1.0f) * 82.0f;
+                    const float voice = std::sin(2.0f * MathHelper::Pi * frequency * time);
+                    const float growl = std::sin(
+                        2.0f * MathHelper::Pi * frequency * 0.5f * time);
+                    signal = (voice * 0.58f + growl * 0.19f + noise * 0.32f) * envelope;
+                }
                 const auto sample = static_cast<std::int16_t>(
-                    std::clamp(signal, -1.0f, 1.0f) * 23000.0f);
+                    std::clamp(signal, -1.0f, 1.0f) * 28500.0f);
                 pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
                 pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
             }
@@ -1042,10 +1063,6 @@ namespace WolfCna
             AudioChannels::Mono);
         guardAlertSound_ = std::make_unique<SoundEffect>(
             MakeTone(360.0f, 3000),
-            22050,
-            AudioChannels::Mono);
-        houndAlertSound_ = std::make_unique<SoundEffect>(
-            MakeTone(175.0f, 2500),
             22050,
             AudioChannels::Mono);
         houndBarkSound_ = std::make_unique<SoundEffect>(
@@ -2959,7 +2976,7 @@ namespace WolfCna
             if (attack.score > 0 && enemyDefeatedSound_)
             {
                 if (attack.defeatedHound && houndWhimperSound_)
-                    PlaySpatialSound(*houndWhimperSound_, attack.position, 0.42f, 0.0f);
+                    PlaySpatialSound(*houndWhimperSound_, attack.position, 0.72f, 0.0f, 18.0f);
                 else
                     PlaySpatialSound(*enemyDefeatedSound_, attack.position, 0.34f, -0.3f);
             }
@@ -3009,7 +3026,7 @@ namespace WolfCna
                 if (attack.score > 0 && enemyDefeatedSound_)
                 {
                     if (attack.defeatedHound && houndWhimperSound_)
-                        PlaySpatialSound(*houndWhimperSound_, attack.position, 0.42f, 0.0f);
+                        PlaySpatialSound(*houndWhimperSound_, attack.position, 0.72f, 0.0f, 18.0f);
                     else
                         PlaySpatialSound(
                             *enemyDefeatedSound_,
@@ -3116,10 +3133,21 @@ namespace WolfCna
         const World::EnemyAudioEvents enemyAudioEvents = world_.ConsumeEnemyAudioEvents();
         if (guardAlertSound_)
             PlaySpatialSounds(*guardAlertSound_, enemyAudioEvents.guardAlertPositions, 0.32f, -0.1f);
-        if (houndAlertSound_)
-            PlaySpatialSounds(*houndAlertSound_, enemyAudioEvents.houndAlertPositions, 0.34f, -0.3f);
         if (houndBarkSound_)
-            PlaySpatialSounds(*houndBarkSound_, enemyAudioEvents.houndBarkPositions, 0.38f, 0.0f);
+        {
+            PlaySpatialSounds(
+                *houndBarkSound_,
+                enemyAudioEvents.houndAlertPositions,
+                0.58f,
+                0.0f,
+                16.0f);
+            PlaySpatialSounds(
+                *houndBarkSound_,
+                enemyAudioEvents.houndBarkPositions,
+                0.48f,
+                -0.06f,
+                14.0f);
+        }
         if (houndAttackSound_)
             PlaySpatialSounds(*houndAttackSound_, enemyAudioEvents.houndAttackPositions, 0.4f, -0.4f, 8.0f);
         if (enemyImpactSound_)
