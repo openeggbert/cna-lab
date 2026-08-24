@@ -47,6 +47,7 @@ namespace CopperBoots
         void DrawParallax(float cameraX);
         void DrawParallaxLayer(const ParallaxLayer& layer, float cameraX);
         void DrawTiles(float cameraX, float cameraY);
+        void DrawPlatforms(float cameraX, float cameraY);
         void DrawCogs(float cameraX, float cameraY);
         void DrawCrawlers(float cameraX, float cameraY);
         void DrawPlatingPickups(float cameraX, float cameraY);

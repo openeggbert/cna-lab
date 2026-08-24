@@ -493,6 +493,9 @@ endpoint relay-hatch main 43 9
 endpoint cache-hatch conduit 96 9
 route relay-hatch cache-hatch
 route cache-hatch relay-hatch
+platform horizontal 54 7 2 5 30
+platform vertical 66 8 2 -3 24
+platform drop 99 7 2 2 48 30
 legend
 . empty
 # solid
@@ -530,6 +533,20 @@ valid. Endpoint names and route sources are unique, references and clear solid
 landing cells are validated, and self-links fail with line-numbered errors.
 Bidirectional and longer cycles are intentionally legal because every hop needs
 a fresh aligned interaction after the input-release lock.
+
+Moving geometry uses metadata rather than collision glyphs. Horizontal and
+vertical records are `platform KIND X Y WIDTH_TILES TRAVEL_TILES SPEED`; travel
+is signed and the platform oscillates between its origin and destination. A
+drop record adds `DELAY_TICKS`, permits only positive/downward travel, waits
+after its first supported rider, then falls once to the configured endpoint.
+The parser bounds-checks origin, width, destination, speed and delay. All three
+are one-way top surfaces with a six-pixel procedural body; riders inherit the
+exact platform displacement before their own movement, then gravity re-snaps
+feet to the current top. Static wall/ceiling resolution wins over carrying, so a
+platform cannot force the courier into terrain. Tests cover stable horizontal
+and vertical carrying, wall obstruction, delayed fall, landing from above,
+endpoint clamping and state-hash participation. Green Ruins places one of each
+kind in otherwise clear paths.
 
 Route activation requires grounded Down/S input within four pixels of the
 source center. Simulation then aligns and locks the courier for 30 fixed ticks,

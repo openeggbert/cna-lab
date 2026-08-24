@@ -182,6 +182,7 @@ namespace CopperBoots
         bool initialAreaSeen = false;
         std::vector<RouteEndpointDefinition> routeEndpoints;
         std::vector<RouteDefinition> routes;
+        std::vector<PlatformDefinition> platforms;
         std::vector<std::size_t> endpointLines;
         std::vector<std::size_t> routeLines;
         std::size_t legendIndex = 6;
@@ -236,6 +237,67 @@ namespace CopperBoots
                 }
                 routes.push_back(std::move(route));
                 routeLines.push_back(line.Number);
+            }
+            else if (line.Text.starts_with("platform ")) {
+                std::string_view value = ValueAfter(
+                    line, "platform ", sourceName);
+                const std::string kindName = ParseIdentifier(
+                    value, line, sourceName);
+                PlatformDefinition platform{};
+                if (kindName == "horizontal")
+                    platform.Kind = PlatformKind::Horizontal;
+                else if (kindName == "vertical")
+                    platform.Kind = PlatformKind::Vertical;
+                else if (kindName == "drop")
+                    platform.Kind = PlatformKind::Drop;
+                else
+                    Fail(sourceName, line.Number, "unknown platform kind");
+
+                platform.Position.X = ParseNumber<int>(value, line, sourceName);
+                platform.Position.Y = ParseNumber<int>(value, line, sourceName);
+                platform.WidthTiles = ParseNumber<int>(value, line, sourceName);
+                platform.TravelTiles = ParseNumber<int>(value, line, sourceName);
+                platform.Speed = ParseNumber<float>(value, line, sourceName);
+                if (platform.Kind == PlatformKind::Drop)
+                    platform.DelayTicks = ParseNumber<int>(
+                        value, line, sourceName);
+                RequireEnd(value, line, sourceName);
+
+                if (platform.WidthTiles <= 0 || platform.WidthTiles > 16 ||
+                    platform.Position.X < 0 || platform.Position.Y < 0 ||
+                    platform.Position.X + platform.WidthTiles > width ||
+                    platform.Position.Y >= height) {
+                    Fail(sourceName, line.Number,
+                         "platform origin or width is out of range");
+                }
+                if (platform.TravelTiles == 0 ||
+                    (platform.Kind == PlatformKind::Drop &&
+                     platform.TravelTiles < 0)) {
+                    Fail(sourceName, line.Number,
+                         "platform travel must follow its permitted direction");
+                }
+                if (!(platform.Speed > 0.0F && platform.Speed <= 512.0F))
+                    Fail(sourceName, line.Number,
+                         "platform speed is out of range");
+                if (platform.Kind == PlatformKind::Drop &&
+                    (platform.DelayTicks <= 0 || platform.DelayTicks > 600)) {
+                    Fail(sourceName, line.Number,
+                         "drop platform delay is out of range");
+                }
+
+                const int destinationX = platform.Position.X +
+                    (platform.Kind == PlatformKind::Horizontal
+                        ? platform.TravelTiles : 0);
+                const int destinationY = platform.Position.Y +
+                    (platform.Kind == PlatformKind::Horizontal
+                        ? 0 : platform.TravelTiles);
+                if (destinationX < 0 ||
+                    destinationX + platform.WidthTiles > width ||
+                    destinationY < 0 || destinationY >= height) {
+                    Fail(sourceName, line.Number,
+                         "platform destination is out of range");
+                }
+                platforms.push_back(platform);
             }
             else {
                 Fail(sourceName, line.Number,
@@ -353,7 +415,8 @@ namespace CopperBoots
         return {name, std::move(map), spawnX, spawnY,
                 checkpointX, checkpointY, std::move(initialArea), parallax,
                 std::move(cogs),
-                std::move(crawlers), std::move(platingPickups),
+                std::move(crawlers), std::move(platforms),
+                std::move(platingPickups),
                 std::move(capacitorPickups), std::move(checkpoints),
                 std::move(interactiveBlocks), std::move(routeEndpoints),
                 std::move(routes)};

@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "CopperBoots/Camera2D.hpp"
@@ -271,6 +272,47 @@ namespace
             "........................................\n"
             "........................................\n"
             "########################################\n";
+    }
+
+    [[nodiscard]] std::string MakePlatformLevel(
+        const std::string_view directive, const int spawnX,
+        const int spawnFootY)
+    {
+        constexpr int width = 32;
+        constexpr int height = 12;
+        std::string result =
+            "copper-boots-level 1\n"
+            "name Platform Workshop\n"
+            "size 32 12\n"
+            "spawn " + std::to_string(spawnX) + ' ' +
+                std::to_string(spawnFootY) + "\n" +
+            "checkpoint " + std::to_string(spawnX) + ' ' +
+                std::to_string(spawnFootY) + "\n" +
+            "parallax 0.1 0.25 0.5\n" +
+            std::string(directive) + "\n"
+            "legend\n"
+            ". empty\n"
+            "# solid\n"
+            "- one-way\n"
+            "B breakable\n"
+            "! hazard\n"
+            "E exit\n"
+            "d decoration\n"
+            "G cog\n"
+            "? cog-block\n"
+            "o empty-block\n"
+            "P plated-block\n"
+            "A plating\n"
+            "R capacitor-block\n"
+            "K capacitor\n"
+            "H checkpoint\n"
+            "C crawler\n"
+            "c crawler-fall\n"
+            "map\n";
+        for (int row = 0; row < height - 1; ++row)
+            result += std::string(static_cast<std::size_t>(width), '.') + '\n';
+        result += std::string(static_cast<std::size_t>(width), '#') + '\n';
+        return result;
     }
 
     void TestSimulationClock()
@@ -752,6 +794,139 @@ namespace
         Check(world.Player().Grounded, "player lands after jump");
         CheckNear(world.Player().Y, floorY, 0.01F,
                   "landing snaps to stable floor height");
+    }
+
+    void TestMovingPlatforms()
+    {
+        constexpr float tick = static_cast<float>(
+            CopperBoots::SimulationClock::TickSeconds);
+
+        const CopperBoots::LevelDefinition horizontalLevel =
+            CopperBoots::LevelDefinition::Parse(
+                MakePlatformLevel("platform horizontal 2 8 2 4 30", 2, 8),
+                "horizontal-platform.cbl");
+        Check(horizontalLevel.Platforms.size() == 1 &&
+                  horizontalLevel.Platforms[0].Kind ==
+                      CopperBoots::PlatformKind::Horizontal &&
+                  horizontalLevel.Platforms[0].WidthTiles == 2 &&
+                  horizontalLevel.Platforms[0].TravelTiles == 4,
+              "horizontal platform path is parsed from level metadata");
+        CopperBoots::WorldSimulation horizontal;
+        horizontal.LoadLevel(horizontalLevel);
+        const float horizontalPlayerStart = horizontal.Player().X;
+        const float horizontalPlatformStart = horizontal.Platforms()[0].X;
+        bool horizontalStable = horizontal.Player().Grounded;
+        for (int i = 0; i < 60; ++i) {
+            horizontal.Update({}, tick);
+            const CopperBoots::PlatformState& platform =
+                horizontal.Platforms()[0];
+            horizontalStable = horizontalStable &&
+                horizontal.Player().Grounded &&
+                std::abs(horizontal.Player().Y +
+                         CopperBoots::PlayerState::Height - platform.Y) < 0.01F;
+        }
+        Check(horizontalStable,
+              "horizontal platform carries without vertical jitter");
+        CheckNear(horizontal.Player().X - horizontalPlayerStart,
+                  horizontal.Platforms()[0].X - horizontalPlatformStart,
+                  0.01F,
+                  "horizontal platform preserves rider-relative position");
+        CopperBoots::WorldSimulation horizontalTwin;
+        horizontalTwin.LoadLevel(horizontalLevel);
+        for (int i = 0; i < 60; ++i)
+            horizontalTwin.Update({}, tick);
+        Check(horizontal.DeterministicStateHash() ==
+                  horizontalTwin.DeterministicStateHash(),
+              "platform state participates in deterministic replay hash");
+        horizontalTwin.Update({}, tick);
+        Check(horizontal.DeterministicStateHash() !=
+                  horizontalTwin.DeterministicStateHash(),
+              "platform progress changes deterministic state hash");
+
+        CopperBoots::LevelDefinition wallLevel = horizontalLevel;
+        wallLevel.Map.Set(6, 6, CopperBoots::Tiles::Ruin);
+        wallLevel.Map.Set(6, 7, CopperBoots::Tiles::Ruin);
+        CopperBoots::WorldSimulation wallCarry;
+        wallCarry.LoadLevel(std::move(wallLevel));
+        bool avoidedWallPenetration = true;
+        for (int i = 0; i < 180; ++i) {
+            wallCarry.Update({}, tick);
+            avoidedWallPenetration = avoidedWallPenetration &&
+                wallCarry.Player().X + CopperBoots::PlayerState::Width <=
+                    6.0F * CopperBoots::TileMap::TileSize + 0.01F;
+        }
+        Check(avoidedWallPenetration,
+              "platform carry cannot push rider through a solid wall");
+
+        CopperBoots::WorldSimulation vertical;
+        vertical.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakePlatformLevel("platform vertical 10 8 2 -3 24", 10, 8),
+            "vertical-platform.cbl"));
+        const float verticalStart = vertical.Player().Y;
+        bool verticalStable = vertical.Player().Grounded;
+        for (int i = 0; i < 60; ++i) {
+            vertical.Update({}, tick);
+            const CopperBoots::PlatformState& platform = vertical.Platforms()[0];
+            verticalStable = verticalStable && vertical.Player().Grounded &&
+                std::abs(vertical.Player().Y +
+                         CopperBoots::PlayerState::Height - platform.Y) < 0.01F;
+        }
+        Check(verticalStable && vertical.Player().Y < verticalStart - 23.9F,
+              "upward platform carries rider without penetration or separation");
+
+        CopperBoots::WorldSimulation drop;
+        drop.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakePlatformLevel("platform drop 18 7 2 3 48 12", 18, 7),
+            "drop-platform.cbl"));
+        const float dropOrigin = drop.Platforms()[0].Y;
+        for (int i = 0; i < 12; ++i)
+            drop.Update({}, tick);
+        Check(drop.Platforms()[0].Triggered &&
+                  drop.Platforms()[0].DelayRemaining == 0 &&
+                  std::abs(drop.Platforms()[0].Y - dropOrigin) < 0.01F,
+              "drop plate honors its data-driven trigger delay");
+        bool dropStable = true;
+        for (int i = 0; i < 90; ++i) {
+            drop.Update({}, tick);
+            const CopperBoots::PlatformState& platform = drop.Platforms()[0];
+            dropStable = dropStable && drop.Player().Grounded &&
+                drop.Player().Y + CopperBoots::PlayerState::Height <=
+                    platform.Y + 0.01F;
+        }
+        Check(dropStable &&
+                  std::abs(drop.Platforms()[0].Y - (dropOrigin + 48.0F)) < 0.01F,
+              "drop plate carries to its configured endpoint and stops cleanly");
+
+        CopperBoots::WorldSimulation landing;
+        landing.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakePlatformLevel("platform horizontal 2 8 2 1 1", 2, 6),
+            "platform-landing.cbl"));
+        bool landed = false;
+        for (int i = 0; i < 90; ++i) {
+            landing.Update({}, tick);
+            const CopperBoots::PlatformState& platform = landing.Platforms()[0];
+            if (landing.Player().Grounded &&
+                std::abs(landing.Player().Y + CopperBoots::PlayerState::Height -
+                         platform.Y) < 0.01F) {
+                landed = true;
+                break;
+            }
+        }
+        Check(landed, "falling player lands on moving platform top only");
+
+        bool rejectedDestination = false;
+        try {
+            (void)CopperBoots::LevelDefinition::Parse(
+                MakePlatformLevel(
+                    "platform horizontal 30 8 2 2 30", 30, 8),
+                "invalid-platform.cbl");
+        }
+        catch (const std::runtime_error& error) {
+            rejectedDestination = std::string_view(error.what()).starts_with(
+                "invalid-platform.cbl:7:");
+        }
+        Check(rejectedDestination,
+              "platform path outside level reports its metadata line");
     }
 
     void TestVariableJumpHeight()
@@ -1604,6 +1779,7 @@ int main()
     TestTileBounds();
     TestLevelParsing();
     TestMovementAndJump();
+    TestMovingPlatforms();
     TestVariableJumpHeight();
     TestControllerRanges();
     TestLedgeFallAndTerminalVelocity();

@@ -211,6 +211,28 @@ namespace CopperBoots
         bool Defeated = false;
     };
 
+    struct PlatformState
+    {
+        static constexpr float Height = 6.0F;
+
+        PlatformKind Kind = PlatformKind::Horizontal;
+        float X = 0.0F;
+        float Y = 0.0F;
+        float PreviousX = 0.0F;
+        float PreviousY = 0.0F;
+        float OriginX = 0.0F;
+        float OriginY = 0.0F;
+        float Width = 0.0F;
+        float Distance = 0.0F;
+        float Progress = 0.0F;
+        float Speed = 0.0F;
+        int TravelSign = 1;
+        int MotionDirection = 1;
+        int DelayTicks = 0;
+        int DelayRemaining = 0;
+        bool Triggered = false;
+    };
+
     struct InteractiveBlockState
     {
         int TileX = 0;
@@ -248,6 +270,10 @@ namespace CopperBoots
         [[nodiscard]] const std::vector<CrawlerState>& Crawlers() const noexcept
         {
             return crawlers_;
+        }
+        [[nodiscard]] const std::vector<PlatformState>& Platforms() const noexcept
+        {
+            return platforms_;
         }
         [[nodiscard]] const std::vector<PlatingPickupState>& PlatingPickups()
             const noexcept
@@ -310,6 +336,12 @@ namespace CopperBoots
         void UpdateBlockAnimations() noexcept;
         void HitBlock(int tileX, int tileY);
         void StartBlockBump(int tileX, int tileY);
+        void UpdatePlatforms(float seconds);
+        [[nodiscard]] std::size_t SupportingPlatformIndex() const noexcept;
+        [[nodiscard]] bool IsStandingOnPlatform(
+            const PlatformState& platform) const noexcept;
+        void CarryPlayerWithPlatform(const PlatformState& platform,
+                                     float deltaX, float deltaY);
         void UpdateCrawlers(float seconds);
         void UpdatePlatingPickups(float seconds);
         void CollectOverlappingPlatingPickups() noexcept;
@@ -342,6 +374,7 @@ namespace CopperBoots
         std::array<float, 3> parallaxFactors_{0.10F, 0.25F, 0.50F};
         std::vector<CogState> cogs_;
         std::vector<CrawlerState> crawlers_;
+        std::vector<PlatformState> platforms_;
         std::vector<EnemyContactKind> crawlerContacts_;
         std::vector<PlatingPickupState> platingPickups_;
         std::vector<CapacitorPickupState> capacitorPickups_;

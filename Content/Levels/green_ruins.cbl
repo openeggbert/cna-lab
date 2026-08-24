@@ -9,6 +9,9 @@ endpoint relay-hatch main 43 9
 endpoint cache-hatch conduit 96 9
 route relay-hatch cache-hatch
 route cache-hatch relay-hatch
+platform horizontal 54 7 2 5 30
+platform vertical 66 8 2 -3 24
+platform drop 99 7 2 2 48 30
 legend
 . empty
 # solid

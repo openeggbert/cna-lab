@@ -305,6 +305,7 @@ namespace CopperBoots
         const float cameraY = world_.Camera().Y();
         DrawParallax(cameraX);
         DrawTiles(cameraX, cameraY);
+        DrawPlatforms(cameraX, cameraY);
         DrawCogs(cameraX, cameraY);
         DrawCrawlers(cameraX, cameraY);
         DrawPlatingPickups(cameraX, cameraY);
@@ -591,6 +592,42 @@ namespace CopperBoots
         }
     }
 
+    void CopperBootsGame::DrawPlatforms(const float cameraX,
+                                        const float cameraY)
+    {
+        for (const PlatformState& platform : world_.Platforms()) {
+            const int x = ScreenCoordinate(platform.X, cameraX);
+            const int y = ScreenCoordinate(platform.Y, cameraY);
+            const int width = static_cast<int>(platform.Width);
+            if (x + width < 0 || x > LogicalWidth ||
+                y + static_cast<int>(PlatformState::Height) < 0 ||
+                y > LogicalHeight) {
+                continue;
+            }
+
+            Color body(73, 122, 113);
+            Color edge(128, 190, 151);
+            if (platform.Kind == PlatformKind::Horizontal) {
+                body = Color(134, 94, 53);
+                edge = Color(220, 158, 62);
+            }
+            else if (platform.Kind == PlatformKind::Drop) {
+                body = platform.Triggered
+                    ? Color(137, 64, 55)
+                    : Color(104, 89, 62);
+                edge = platform.Triggered
+                    ? Color(230, 105, 67)
+                    : Color(196, 157, 67);
+            }
+            FillRectangle(Rectangle(x, y, width,
+                                    static_cast<int>(PlatformState::Height)),
+                          body);
+            FillRectangle(Rectangle(x, y, width, 2), edge);
+            for (int brace = 4; brace < width; brace += 8)
+                FillRectangle(Rectangle(x + brace, y + 3, 2, 2), edge);
+        }
+    }
+
     void CopperBootsGame::DrawCrawlers(const float cameraX, const float cameraY)
     {
         for (const CrawlerState& crawler : world_.Crawlers()) {
@@ -761,6 +798,14 @@ namespace CopperBoots
                                        static_cast<int>(CrawlerState::Height)),
                              Color(229, 96, 122));
         }
+        for (const PlatformState& platform : world_.Platforms()) {
+            OutlineRectangle(Rectangle(
+                ScreenCoordinate(platform.X, cameraX),
+                ScreenCoordinate(platform.Y, cameraY),
+                static_cast<int>(platform.Width),
+                static_cast<int>(PlatformState::Height)),
+                Color(99, 164, 201));
+        }
         OutlineRectangle(Rectangle(0, 0, LogicalWidth, LogicalHeight),
                          Color(99, 164, 201));
 
@@ -803,7 +848,8 @@ namespace CopperBoots
         DrawText("D", 101, 40, Color(229, 96, 122));
         DrawNumber(static_cast<int>(std::round(drawMilliseconds_)), 3,
                    109, 40, Color(231, 224, 181));
-        DrawText("BOX SOLID ONE HAZ EXIT", 5, 49, Color(231, 224, 181));
+        DrawText("BOX SOLID ONE HAZ EXIT PLAT", 5, 49,
+                 Color(231, 224, 181));
     }
 
     void CopperBootsGame::DrawPauseOverlay()

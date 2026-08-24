@@ -39,10 +39,16 @@ prompted maintenance hatch and a separated optional cache.
 Stable scripted state hashes, focused CTest labels, generated CNA sound cues
 and an explicit silent fallback are complete.
 
-**Current: M4 — moving world geometry**
+**M4 — moving world geometry — ACHIEVED**
 
-Introduce data-driven horizontal, vertical and delayed-fall platforms while
-keeping player carrying and collision deterministic.
+Data-driven horizontal, vertical and delayed-fall platforms now carry the
+player with deterministic one-way collision and are demonstrated in Green
+Ruins.
+
+**Current: M5 — settings and persistence foundation**
+
+Add a versioned settings model and safe storage path without coupling file I/O
+to gameplay simulation.
 
 ## Foundation and research
 
@@ -391,7 +397,7 @@ Acceptance:
   off-camera cleanup under documented rules.
 - All trajectories and collisions have tick-based tests.
 
-### MAR-046 — Moving platforms and drop plates — TODO
+### MAR-046 — Moving platforms and drop plates — DONE
 
 Acceptance:
 
@@ -594,5 +600,5 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Implement moving platforms and drop plates under `MAR-046`.
-2. Add settings persistence (`MAR-054`) after moving geometry is stable.
+1. Add settings persistence under `MAR-054`.
+2. Add save/progression persistence under `MAR-055` once the settings format is proven.

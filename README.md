@@ -45,9 +45,9 @@ working vocabulary replaces the historical presentation with an original one:
 | basic enemy | clockwork crawler |
 
 The current playable Green Ruins Relay includes walk/run/jump, tile collision,
-bounded camera movement, parallax, enemies, abilities and an optional
-maintenance-conduit cache. Near a hatch, the in-world `DOWN` prompt explains
-the interaction without external assets.
+bounded camera movement, parallax, enemies, abilities, horizontal/vertical/drop
+platforms and an optional maintenance-conduit cache. Near a hatch, the in-world
+`DOWN` prompt explains the interaction without external assets.
 
 ## Technology
 

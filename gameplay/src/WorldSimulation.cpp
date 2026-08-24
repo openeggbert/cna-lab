@@ -204,6 +204,29 @@ namespace CopperBoots
             crawlers_.push_back(state);
         }
         crawlerContacts_.assign(crawlers_.size(), EnemyContactKind::None);
+        platforms_.clear();
+        platforms_.reserve(level.Platforms.size());
+        for (const PlatformDefinition& platform : level.Platforms) {
+            PlatformState state;
+            state.Kind = platform.Kind;
+            state.X = static_cast<float>(
+                platform.Position.X * TileMap::TileSize);
+            state.Y = static_cast<float>(
+                platform.Position.Y * TileMap::TileSize);
+            state.PreviousX = state.X;
+            state.PreviousY = state.Y;
+            state.OriginX = state.X;
+            state.OriginY = state.Y;
+            state.Width = static_cast<float>(
+                platform.WidthTiles * TileMap::TileSize);
+            state.Distance = static_cast<float>(
+                std::abs(platform.TravelTiles) * TileMap::TileSize);
+            state.Speed = platform.Speed;
+            state.TravelSign = platform.TravelTiles < 0 ? -1 : 1;
+            state.DelayTicks = platform.DelayTicks;
+            state.DelayRemaining = platform.DelayTicks;
+            platforms_.push_back(state);
+        }
         platingPickups_.clear();
         platingPickups_.reserve(level.PlatingPickups.size());
         for (const TileCoordinate& pickup : level.PlatingPickups) {
@@ -263,7 +286,8 @@ namespace CopperBoots
         player_.X = spawnX_;
         player_.Y = spawnY_;
         player_.Grounded = Collides(player_.X, player_.Y + 1.0F,
-                                    PlayerState::Width, PlayerState::Height);
+                                    PlayerState::Width, PlayerState::Height) ||
+                           SupportingPlatformIndex() < platforms_.size();
         player_.FacingRight = true;
         player_.Motion = PlayerMotion::Standing;
         camera_.SnapTo(player_.X + PlayerState::Width * 0.5F,
@@ -306,6 +330,7 @@ namespace CopperBoots
         }
         const float previousPlayerX = player_.X;
         const float previousPlayerY = player_.Y;
+        UpdatePlatforms(seconds);
         const float direction = std::clamp(input.Move, -1.0F, 1.0F);
         const float speedLimit = input.Run ? RunSpeed : WalkSpeed;
         const float acceleration = player_.Grounded
@@ -453,6 +478,21 @@ namespace CopperBoots
                     player_.Grounded = true;
                     return;
                 }
+            }
+            for (const PlatformState& platform : platforms_) {
+                const float overlap = std::min(
+                    player_.X + PlayerState::Width,
+                    platform.X + platform.Width) -
+                    std::max(player_.X, platform.X);
+                if (overlap <= CollisionEpsilon ||
+                    previousBottom > platform.Y + CollisionEpsilon ||
+                    currentBottom < platform.Y) {
+                    continue;
+                }
+                player_.Y = platform.Y - PlayerState::Height;
+                player_.VelocityY = 0.0F;
+                player_.Grounded = true;
+                return;
             }
         }
         if (!hitSolid)
@@ -618,6 +658,124 @@ namespace CopperBoots
         return 0;
     }
 
+    bool WorldSimulation::IsStandingOnPlatform(
+        const PlatformState& platform) const noexcept
+    {
+        const float playerRight = player_.X + PlayerState::Width;
+        const float playerFoot = player_.Y + PlayerState::Height;
+        const float overlap = std::min(playerRight,
+                                       platform.X + platform.Width) -
+                              std::max(player_.X, platform.X);
+        return overlap > CollisionEpsilon &&
+               std::abs(playerFoot - platform.Y) <= CollisionEpsilon;
+    }
+
+    std::size_t WorldSimulation::SupportingPlatformIndex() const noexcept
+    {
+        for (std::size_t index = 0; index < platforms_.size(); ++index) {
+            if (IsStandingOnPlatform(platforms_[index]))
+                return index;
+        }
+        return platforms_.size();
+    }
+
+    void WorldSimulation::CarryPlayerWithPlatform(
+        const PlatformState& platform, const float deltaX, const float deltaY)
+    {
+        if (deltaX != 0.0F)
+            MoveHorizontal(deltaX);
+
+        if (deltaY != 0.0F) {
+            player_.Y += deltaY;
+            if (Collides(player_.X, player_.Y,
+                         PlayerState::Width, PlayerState::Height)) {
+                if (deltaY < 0.0F) {
+                    const int tileY = static_cast<int>(std::floor(
+                        player_.Y / TileMap::TileSize));
+                    player_.Y = static_cast<float>(
+                        (tileY + 1) * TileMap::TileSize);
+                    player_.VelocityY = 0.0F;
+                    player_.Grounded = false;
+                }
+                else {
+                    const int tileY = static_cast<int>(std::floor(
+                        (player_.Y + PlayerState::Height - CollisionEpsilon) /
+                        TileMap::TileSize));
+                    player_.Y = static_cast<float>(
+                        tileY * TileMap::TileSize) - PlayerState::Height;
+                    player_.VelocityY = 0.0F;
+                    player_.Grounded = true;
+                }
+                return;
+            }
+        }
+
+        if (player_.X + PlayerState::Width > platform.X + CollisionEpsilon &&
+            player_.X < platform.X + platform.Width - CollisionEpsilon) {
+            player_.Y = platform.Y - PlayerState::Height;
+            player_.Grounded = true;
+        }
+        else {
+            player_.Grounded = false;
+        }
+    }
+
+    void WorldSimulation::UpdatePlatforms(const float seconds)
+    {
+        const std::size_t support = player_.Grounded
+            ? SupportingPlatformIndex()
+            : platforms_.size();
+        for (std::size_t index = 0; index < platforms_.size(); ++index) {
+            PlatformState& platform = platforms_[index];
+            platform.PreviousX = platform.X;
+            platform.PreviousY = platform.Y;
+
+            if (platform.Kind == PlatformKind::Drop) {
+                if (index == support && !platform.Triggered) {
+                    platform.Triggered = true;
+                    platform.DelayRemaining = platform.DelayTicks;
+                }
+                if (!platform.Triggered)
+                    continue;
+                if (platform.DelayRemaining > 0) {
+                    --platform.DelayRemaining;
+                    continue;
+                }
+                platform.Progress = std::min(
+                    platform.Progress + platform.Speed * seconds,
+                    platform.Distance);
+                platform.Y = platform.OriginY + platform.Progress;
+                continue;
+            }
+
+            float nextProgress = platform.Progress +
+                static_cast<float>(platform.MotionDirection) *
+                platform.Speed * seconds;
+            if (nextProgress >= platform.Distance) {
+                nextProgress = platform.Distance;
+                platform.MotionDirection = -1;
+            }
+            else if (nextProgress <= 0.0F) {
+                nextProgress = 0.0F;
+                platform.MotionDirection = 1;
+            }
+            platform.Progress = nextProgress;
+            const float offset = static_cast<float>(platform.TravelSign) *
+                                 platform.Progress;
+            if (platform.Kind == PlatformKind::Horizontal)
+                platform.X = platform.OriginX + offset;
+            else
+                platform.Y = platform.OriginY + offset;
+        }
+
+        if (support >= platforms_.size())
+            return;
+        const PlatformState& platform = platforms_[support];
+        CarryPlayerWithPlatform(platform,
+                                platform.X - platform.PreviousX,
+                                platform.Y - platform.PreviousY);
+    }
+
     float WorldSimulation::RouteFadeAmount() const noexcept
     {
         if (!routeTransition_.Active)
@@ -682,6 +840,25 @@ namespace CopperBoots
             hash.AddInteger(static_cast<int>(crawler.EdgePolicy));
             hash.AddBool(crawler.Active);
             hash.AddBool(crawler.Defeated);
+        }
+        hash.AddInteger(static_cast<std::uint64_t>(platforms_.size()));
+        for (const PlatformState& platform : platforms_) {
+            hash.AddInteger(static_cast<int>(platform.Kind));
+            hash.AddFloat(platform.X);
+            hash.AddFloat(platform.Y);
+            hash.AddFloat(platform.PreviousX);
+            hash.AddFloat(platform.PreviousY);
+            hash.AddFloat(platform.OriginX);
+            hash.AddFloat(platform.OriginY);
+            hash.AddFloat(platform.Width);
+            hash.AddFloat(platform.Distance);
+            hash.AddFloat(platform.Progress);
+            hash.AddFloat(platform.Speed);
+            hash.AddInteger(platform.TravelSign);
+            hash.AddInteger(platform.MotionDirection);
+            hash.AddInteger(platform.DelayTicks);
+            hash.AddInteger(platform.DelayRemaining);
+            hash.AddBool(platform.Triggered);
         }
         hash.AddInteger(static_cast<std::uint64_t>(platingPickups_.size()));
         for (const PlatingPickupState& pickup : platingPickups_) {
@@ -832,7 +1009,8 @@ namespace CopperBoots
         routeTransition_.Active = false;
         routeInteractionLocked_ = true;
         player_.Grounded = Collides(player_.X, player_.Y + 1.0F,
-                                    PlayerState::Width, PlayerState::Height);
+                                    PlayerState::Width, PlayerState::Height) ||
+                           SupportingPlatformIndex() < platforms_.size();
         player_.Motion = player_.Grounded
             ? PlayerMotion::Standing
             : PlayerMotion::Falling;
@@ -1041,7 +1219,8 @@ namespace CopperBoots
         player_.X = checkpointX_;
         player_.Y = checkpointY_;
         player_.Grounded = Collides(player_.X, player_.Y + 1.0F,
-                                    PlayerState::Width, PlayerState::Height);
+                                    PlayerState::Width, PlayerState::Height) ||
+                           SupportingPlatformIndex() < platforms_.size();
         player_.FacingRight = true;
         player_.Motion = player_.Grounded
             ? PlayerMotion::Standing

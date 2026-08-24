@@ -35,6 +35,23 @@ namespace CopperBoots
         bool FallsAtEdges;
     };
 
+    enum class PlatformKind
+    {
+        Horizontal,
+        Vertical,
+        Drop,
+    };
+
+    struct PlatformDefinition
+    {
+        PlatformKind Kind;
+        TileCoordinate Position;
+        int WidthTiles;
+        int TravelTiles;
+        float Speed;
+        int DelayTicks;
+    };
+
     struct RouteEndpointDefinition
     {
         std::string Name;
@@ -60,6 +77,7 @@ namespace CopperBoots
         std::array<float, 3> ParallaxFactors;
         std::vector<TileCoordinate> Cogs;
         std::vector<CrawlerDefinition> Crawlers;
+        std::vector<PlatformDefinition> Platforms;
         std::vector<TileCoordinate> PlatingPickups;
         std::vector<TileCoordinate> CapacitorPickups;
         std::vector<TileCoordinate> Checkpoints;
