@@ -58,6 +58,8 @@ def capture_fixture() -> dict:
             "render_cpu": measurement(100, 1.0),
             "present_cpu": measurement(100, 2.0),
             "gpu_render": measurement(99, 4.0),
+            "district_world_physics_cpu": measurement(1, 0.1),
+            "district_renderer_upload_cpu": measurement(1, 0.2),
             "district_load_cpu": measurement(1, 0.3),
         },
         "frame_pacing": {
@@ -105,6 +107,52 @@ def capture_fixture() -> dict:
                 "hitch_count": 0,
                 "maximum_ms": 17.0,
             },
+        },
+        "district_load": {
+            "content_path": (
+                "procedural in-memory PrototypeWorld; no district file/package is read during a "
+                "transition"
+            ),
+            "unload_activation_scope": (
+                "destroy old static physics bodies, construct target world, and build target "
+                "static physics bodies; exit-trigger samples also include player/vehicle arrival "
+                "placement"
+            ),
+            "renderer_upload_scope": (
+                "CPU time to rebuild target static geometry/lightmap and issue resource uploads; "
+                "not GPU-completion time"
+            ),
+            "io_ms": None,
+            "decompression_ms": None,
+            "parse_ms": None,
+            "unavailable_reason": (
+                "districts have no serialized runtime package yet; null means not applicable, not "
+                "measured zero"
+            ),
+            "samples": [
+                {
+                    "reason": "exit_transition",
+                    "source": "warehouse_block",
+                    "target": "countryside",
+                    "world_physics_ms": 0.1,
+                    "renderer_upload_ms": 0.2,
+                    "total_ms": 0.3,
+                    "asset_counts": {
+                        "district_files": 0,
+                        "procedural_world_objects": 17,
+                        "static_physics_bodies": 9,
+                    },
+                    "memory": {
+                        "resident_known": True,
+                        "resident_before_bytes": 1000,
+                        "resident_after_bytes": 900,
+                        "resident_delta_bytes": -100,
+                        "tracked_video_memory_before_bytes": 200,
+                        "tracked_video_memory_after_bytes": 250,
+                        "tracked_video_memory_delta_bytes": 50,
+                    },
+                }
+            ],
         },
         "memory": {
             "peak_resident_bytes": 128 * 1024 * 1024,

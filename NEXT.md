@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 district-load detail is now tied back to its measurement rows.** Every stored transition must
+account for the same sample in world/physics, renderer-upload, and total CPU summaries.
+
+- Phase durations must sum to `total_ms`; detail count and nearest-rank aggregate statistics must
+  match all three measurement rows, allowing only 0.001001 ms for independent three-decimal output.
+- Procedural scope/null-I/O metadata and zero district-file count are fixed. Resident known state,
+  signed resident delta, and signed logical-VRAM delta are re-derived from exact byte counts.
+- Six report contradictions exit 2 and a legitimate 0.001 ms rounding case remains readable.
+  Report 7/7, comparator 7/7, VRAM 6/6, both retained zero-transition Xvfb diagnostics, and full
+  isolated 8/8 CTest pass; its smoke process ran only inside Xvfb and no physical capture was added.
+
 **M12 GPU timing metadata now has a fixed validated contract.** Schema-8 captures must identify the
 real asynchronous Draw-range timer instead of accepting arbitrary or contradictory labels.
 

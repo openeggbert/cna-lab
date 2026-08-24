@@ -67,6 +67,8 @@ def capture_fixture() -> dict:
             "render_cpu": measurement(4, 1.0),
             "present_cpu": measurement(4, 2.0),
             "gpu_render": measurement(4, 4.0),
+            "district_world_physics_cpu": measurement(1, 0.1),
+            "district_renderer_upload_cpu": measurement(1, 0.2),
             "district_load_cpu": measurement(1, 0.3),
         },
         "frame_pacing": {
@@ -114,6 +116,52 @@ def capture_fixture() -> dict:
                 "hitch_count": 0,
                 "maximum_ms": 17.0,
             },
+        },
+        "district_load": {
+            "content_path": (
+                "procedural in-memory PrototypeWorld; no district file/package is read during a "
+                "transition"
+            ),
+            "unload_activation_scope": (
+                "destroy old static physics bodies, construct target world, and build target "
+                "static physics bodies; exit-trigger samples also include player/vehicle arrival "
+                "placement"
+            ),
+            "renderer_upload_scope": (
+                "CPU time to rebuild target static geometry/lightmap and issue resource uploads; "
+                "not GPU-completion time"
+            ),
+            "io_ms": None,
+            "decompression_ms": None,
+            "parse_ms": None,
+            "unavailable_reason": (
+                "districts have no serialized runtime package yet; null means not applicable, not "
+                "measured zero"
+            ),
+            "samples": [
+                {
+                    "reason": "exit_transition",
+                    "source": "warehouse_block",
+                    "target": "countryside",
+                    "world_physics_ms": 0.1,
+                    "renderer_upload_ms": 0.2,
+                    "total_ms": 0.3,
+                    "asset_counts": {
+                        "district_files": 0,
+                        "procedural_world_objects": 17,
+                        "static_physics_bodies": 9,
+                    },
+                    "memory": {
+                        "resident_known": True,
+                        "resident_before_bytes": 1000,
+                        "resident_after_bytes": 900,
+                        "resident_delta_bytes": -100,
+                        "tracked_video_memory_before_bytes": 200,
+                        "tracked_video_memory_after_bytes": 250,
+                        "tracked_video_memory_delta_bytes": 50,
+                    },
+                }
+            ],
         },
         "memory": {
             "peak_resident_bytes": 128 * 1024 * 1024,
@@ -575,6 +623,58 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_district_check], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("district_load_pass must be boolean", result.stderr)
+
+        bad_district_total = capture_fixture()
+        bad_district_total["district_load"]["samples"][0]["total_ms"] = 0.4
+        result = self.run_report([bad_district_total], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("total_ms must equal its two phase durations", result.stderr)
+
+        bad_district_resident_delta = capture_fixture()
+        bad_district_resident_delta["district_load"]["samples"][0]["memory"][
+            "resident_delta_bytes"
+        ] = -99
+        result = self.run_report([bad_district_resident_delta], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("resident_delta_bytes is inconsistent", result.stderr)
+
+        bad_district_tracked_delta = capture_fixture()
+        bad_district_tracked_delta["district_load"]["samples"][0]["memory"][
+            "tracked_video_memory_delta_bytes"
+        ] = 49
+        result = self.run_report([bad_district_tracked_delta], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("tracked_video_memory_delta_bytes is inconsistent", result.stderr)
+
+        bad_district_resident_known = capture_fixture()
+        bad_district_resident_known["district_load"]["samples"][0]["memory"][
+            "resident_known"
+        ] = False
+        result = self.run_report([bad_district_resident_known], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("resident_known must match", result.stderr)
+
+        missing_district_sample = capture_fixture()
+        missing_district_sample["district_load"]["samples"] = []
+        result = self.run_report([missing_district_sample], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("district_world_physics_cpu.samples must match", result.stderr)
+
+        bad_district_phase_summary = capture_fixture()
+        phase_summary = bad_district_phase_summary["measurements"][
+            "district_world_physics_cpu"
+        ]
+        phase_summary["average_ms"] = 0.2
+        phase_summary["p95_ms"] = 0.2
+        phase_summary["maximum_ms"] = 0.2
+        result = self.run_report([bad_district_phase_summary], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("district_world_physics_cpu.average_ms must match", result.stderr)
+
+        rounded_district_total = capture_fixture()
+        rounded_district_total["district_load"]["samples"][0]["total_ms"] = 0.301
+        result = self.run_report([rounded_district_total], "Test hardware")
+        self.assertEqual(result.returncode, 0, result.stderr)
 
         blocking_gpu_timing = capture_fixture()
         blocking_gpu_timing["gpu_timing"]["non_blocking"] = False

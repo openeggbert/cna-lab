@@ -75,6 +75,20 @@ QUALIFICATION_REPEATABILITY_PATHS = (
 DIAGNOSTIC_HARDWARE_TERMS = ("xvfb", "llvmpipe", "software rasterizer")
 COMPLETE_VRAM_SCOPE = "complete_process_gpu_residency_peak"
 GPU_TIMING_SCOPE = "draw_commands_excluding_present"
+DISTRICT_CONTENT_PATH = (
+    "procedural in-memory PrototypeWorld; no district file/package is read during a transition"
+)
+DISTRICT_UNLOAD_SCOPE = (
+    "destroy old static physics bodies, construct target world, and build target static physics "
+    "bodies; exit-trigger samples also include player/vehicle arrival placement"
+)
+DISTRICT_RENDERER_SCOPE = (
+    "CPU time to rebuild target static geometry/lightmap and issue resource uploads; not "
+    "GPU-completion time"
+)
+DISTRICT_UNAVAILABLE_REASON = (
+    "districts have no serialized runtime package yet; null means not applicable, not measured zero"
+)
 IRON_GANG_EXECUTABLES = frozenset(("iron_gang", "iron_gang.exe"))
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 UTC_TIMESTAMP_PATTERN = re.compile(
@@ -193,6 +207,12 @@ def _mapping(value: Any, label: str) -> dict[str, Any]:
     return value
 
 
+def _array(value: Any, label: str) -> list[Any]:
+    if not isinstance(value, list):
+        raise ReportError(f"{label} must be a JSON array")
+    return value
+
+
 def _path(value: dict[str, Any], *keys: str) -> Any:
     current: Any = value
     traversed: list[str] = []
@@ -218,6 +238,13 @@ def _integer(value: dict[str, Any], *keys: str) -> int:
     result = _path(value, *keys)
     if isinstance(result, bool) or not isinstance(result, int) or result < 0:
         raise ReportError(f"{'.'.join(keys)} must be a non-negative integer")
+    return result
+
+
+def _signed_integer(value: dict[str, Any], *keys: str) -> int:
+    result = _path(value, *keys)
+    if isinstance(result, bool) or not isinstance(result, int):
+        raise ReportError(f"{'.'.join(keys)} must be an integer")
     return result
 
 
@@ -517,6 +544,116 @@ def validate_derived_checks(capture: dict[str, Any]) -> None:
                 )
 
 
+def _validate_district_measurement(
+    capture: dict[str, Any],
+    metric: str,
+    samples: list[float],
+) -> None:
+    sample_count = _integer(capture, "measurements", metric, "samples")
+    if sample_count != len(samples):
+        raise ReportError(
+            f"measurements.{metric}.samples must match district_load.samples"
+        )
+    if not samples:
+        return
+    sorted_samples = sorted(samples)
+    percentile_index = math.ceil(0.95 * len(sorted_samples)) - 1
+    expected = {
+        "average_ms": sum(samples) / len(samples),
+        "p95_ms": sorted_samples[percentile_index],
+        "maximum_ms": max(samples),
+    }
+    for key, expected_value in expected.items():
+        actual = _number(capture, "measurements", metric, key)
+        if not math.isclose(actual, expected_value, rel_tol=0.0, abs_tol=0.001001):
+            raise ReportError(
+                f"measurements.{metric}.{key} must match district_load.samples"
+            )
+
+
+def validate_district_load(capture: dict[str, Any]) -> None:
+    district_load = _mapping(_path(capture, "district_load"), "district_load")
+    fixed_metadata = {
+        "content_path": DISTRICT_CONTENT_PATH,
+        "unload_activation_scope": DISTRICT_UNLOAD_SCOPE,
+        "renderer_upload_scope": DISTRICT_RENDERER_SCOPE,
+        "unavailable_reason": DISTRICT_UNAVAILABLE_REASON,
+    }
+    for key, expected in fixed_metadata.items():
+        if _single_line_string(district_load, key) != expected:
+            raise ReportError(f"district_load.{key} does not match schema-8 scope")
+    for key in ("io_ms", "decompression_ms", "parse_ms"):
+        if _path(district_load, key) is not None:
+            raise ReportError(f"district_load.{key} must be null for procedural districts")
+
+    samples = _array(_path(district_load, "samples"), "district_load.samples")
+    world_samples: list[float] = []
+    renderer_samples: list[float] = []
+    total_samples: list[float] = []
+    for index, raw_sample in enumerate(samples):
+        label = f"district_load.samples[{index}]"
+        sample = _mapping(raw_sample, label)
+        for key in ("reason", "source", "target"):
+            _single_line_string(sample, key)
+        world_ms = _number(sample, "world_physics_ms")
+        renderer_ms = _number(sample, "renderer_upload_ms")
+        total_ms = _number(sample, "total_ms")
+        if not math.isclose(
+            total_ms,
+            world_ms + renderer_ms,
+            rel_tol=0.0,
+            abs_tol=0.001001,
+        ):
+            raise ReportError(f"{label}.total_ms must equal its two phase durations")
+        world_samples.append(world_ms)
+        renderer_samples.append(renderer_ms)
+        total_samples.append(total_ms)
+
+        if _integer(sample, "asset_counts", "district_files") != 0:
+            raise ReportError(f"{label}.asset_counts.district_files must be zero")
+        _integer(sample, "asset_counts", "procedural_world_objects")
+        _integer(sample, "asset_counts", "static_physics_bodies")
+
+        resident_known = _boolean(sample, "memory", "resident_known")
+        resident_before = _integer(sample, "memory", "resident_before_bytes")
+        resident_after = _integer(sample, "memory", "resident_after_bytes")
+        if resident_known != (resident_before > 0 and resident_after > 0):
+            raise ReportError(
+                f"{label}.memory.resident_known must match its before/after byte counts"
+            )
+        resident_delta = _path(sample, "memory", "resident_delta_bytes")
+        if resident_known:
+            if _signed_integer(sample, "memory", "resident_delta_bytes") != (
+                resident_after - resident_before
+            ):
+                raise ReportError(f"{label}.memory.resident_delta_bytes is inconsistent")
+        elif resident_delta is not None:
+            raise ReportError(
+                f"{label}.memory.resident_delta_bytes must be null when resident memory is unknown"
+            )
+
+        tracked_before = _integer(
+            sample, "memory", "tracked_video_memory_before_bytes"
+        )
+        tracked_after = _integer(
+            sample, "memory", "tracked_video_memory_after_bytes"
+        )
+        if _signed_integer(
+            sample, "memory", "tracked_video_memory_delta_bytes"
+        ) != (tracked_after - tracked_before):
+            raise ReportError(
+                f"{label}.memory.tracked_video_memory_delta_bytes is inconsistent"
+            )
+
+    _validate_district_measurement(
+        capture, "district_world_physics_cpu", world_samples
+    )
+    _validate_district_measurement(
+        capture, "district_renderer_upload_cpu", renderer_samples
+    )
+    _validate_district_measurement(capture, "district_load_cpu", total_samples)
+
+
 def _validate_pacing_counter(
     capture: dict[str, Any],
     key: str,
@@ -814,6 +951,8 @@ def load_capture(path: Path) -> dict[str, Any]:
         *CPU_BUDGETS_MS,
         "present_cpu",
         "gpu_render",
+        "district_world_physics_cpu",
+        "district_renderer_upload_cpu",
         "district_load_cpu",
     )
     measurements = _mapping(_path(capture, "measurements"), "measurements")
@@ -823,6 +962,7 @@ def load_capture(path: Path) -> dict[str, Any]:
         validate_measurement_summary(capture, metric)
     validate_frame_pacing(capture, path)
     validate_derived_checks(capture)
+    validate_district_load(capture)
     validate_memory_summary(capture)
     swap_interval_acknowledged(capture)
     validate_capture_session(capture, required=False)

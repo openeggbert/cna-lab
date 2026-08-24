@@ -380,6 +380,14 @@ The validator also requires boundary `transitions == district_load_cpu.samples`,
 no greater than transitions, hitch count no greater than measured samples, `maximum_ms:null` when
 none were measured, and maximum/hitch state to agree at the strict 50 ms threshold.
 
+The detailed `district_load.samples` array is also authoritative rather than decorative. Its length
+must equal each of `district_world_physics_cpu`, `district_renderer_upload_cpu`, and
+`district_load_cpu` sample counts; serialized phase/total values must reproduce those rows' average,
+nearest-rank p95, and maximum. `total_ms` equals its two phases, with 0.001001 ms tolerance only for
+independent three-decimal serialization. Procedural scope and null I/O/decompression/parse fields
+remain fixed. Resident availability and signed resident/logical-VRAM deltas are re-derived exactly
+from before/after bytes.
+
 Schema 8 captures now also include a backward-compatible `capture_session` object. It records the
 `iron_gang` executable, the current process ID where the platform exposes one, and microsecond UTC
 start/end timestamps spanning from `--profile` enablement immediately before `Game::Run()` through

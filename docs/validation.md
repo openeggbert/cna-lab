@@ -308,6 +308,13 @@ report contradictions exit 2; sample count intentionally does not imply support 
 C++ writer allows manual measurements. Focused suites, both retained diagnostics, and full isolated
 8/8 CTest pass; the smoke process ran only inside Xvfb.
 
+District-load detail now reproduces its world/physics, renderer-upload, and total measurement rows:
+sample count, phase sum, average, nearest-rank p95, and maximum are correlated with only a 0.001001 ms
+serialization tolerance. Fixed procedural/null-I/O metadata, asset counts, resident-known state,
+and signed RAM/VRAM deltas are validated too. Six contradictions fail and one rounding-boundary case
+passes; focused suites, both retained zero-transition diagnostics, and full isolated 8/8 CTest
+remain clean, with the smoke process confined to Xvfb.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

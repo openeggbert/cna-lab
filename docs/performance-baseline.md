@@ -670,3 +670,17 @@ manually accumulated GPU measurements with an unsupported final context, a shape
 test. Report 7/7, comparator 7/7, VRAM 6/6, and both retained Xvfb diagnostics pass without launching
 the game. Full 8/8 CTest also passes with its smoke process isolated inside Xvfb. This is
 evidence-schema hardening, not a physical capture.
+
+## 2026-08-24 — district-load detail consistency
+
+The shared loader now treats `district_load.samples` as evidence for all three load measurement
+rows. Detail count, phase sum, average, nearest-rank p95, and maximum must agree for world/physics,
+renderer upload, and their total. A 0.001001 ms tolerance covers only independent three-decimal
+serialization; a positive test exercises the maximum legitimate 0.001 ms difference.
+
+Procedural scope, null package phases, and zero district-file count are fixed. Resident known state
+and both signed resident/logical-VRAM deltas are re-derived from exact before/after bytes. Six report
+negatives cover sum, count, statistics, known state, and both deltas. Report 7/7, comparator 7/7,
+VRAM 6/6, and both retained zero-transition Xvfb diagnostics pass without launching the game. This
+is followed by full 8/8 CTest with its smoke process isolated inside Xvfb. No physical transition
+capture was added.

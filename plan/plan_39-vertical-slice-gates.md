@@ -46,6 +46,9 @@ rather than being a one-time final check.
     *GPU metadata follow-up: non-blocking mode, exact Draw-only scope, discarded count, and
     support/reason consistency are mandatory. Sample count does not falsely imply support; four
     contradiction cases exit 2 and no physical capture was added.*
+    *District-load evidence follow-up: detailed transition count, phase sum/statistics, fixed
+    procedural scope, asset count, and signed RAM/VRAM deltas are correlated instead of trusted.
+    Six contradiction cases exit 2; no physical transition capture was added.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).
