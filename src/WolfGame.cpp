@@ -276,6 +276,10 @@ namespace WolfCna
         houndSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound.png", device);
         rapidTrooperSprite_ = std::make_unique<Texture2D>("assets/sprites/rapid-trooper.png", device);
         heavyUnitSprite_ = std::make_unique<Texture2D>("assets/sprites/heavy-unit.png", device);
+        defeatedGuardSprite_ = std::make_unique<Texture2D>("assets/sprites/security-guard-defeated.png", device);
+        defeatedHoundSprite_ = std::make_unique<Texture2D>("assets/sprites/security-hound-defeated.png", device);
+        defeatedRapidTrooperSprite_ = std::make_unique<Texture2D>("assets/sprites/rapid-trooper-defeated.png", device);
+        defeatedHeavyUnitSprite_ = std::make_unique<Texture2D>("assets/sprites/heavy-unit-defeated.png", device);
         ammoPickupSprite_ = std::make_unique<Texture2D>("assets/pickups/ammo-box.png", device);
         healthPickupSprite_ = std::make_unique<Texture2D>("assets/pickups/health-kit.png", device);
         goldBarsSprite_ = std::make_unique<Texture2D>("assets/pickups/gold-bars.png", device);
@@ -1674,6 +1678,8 @@ namespace WolfCna
             screen_ == Screen::Paused || screen_ == Screen::GameOver) &&
             effect_ && atlas_ && guardSprite_ && houndSprite_ && bloodDecal_ &&
             rapidTrooperSprite_ && heavyUnitSprite_ &&
+            defeatedGuardSprite_ && defeatedHoundSprite_ &&
+            defeatedRapidTrooperSprite_ && defeatedHeavyUnitSprite_ &&
             ammoPickupSprite_ && healthPickupSprite_ && goldBarsSprite_ &&
             goldenGobletSprite_ && peaceMedallionSprite_ &&
             paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_ && lampLightTexture_)
@@ -1688,6 +1694,10 @@ namespace WolfCna
                 *houndSprite_,
                 *rapidTrooperSprite_,
                 *heavyUnitSprite_,
+                *defeatedGuardSprite_,
+                *defeatedHoundSprite_,
+                *defeatedRapidTrooperSprite_,
+                *defeatedHeavyUnitSprite_,
                 *ammoPickupSprite_,
                 *healthPickupSprite_,
                 *goldBarsSprite_,

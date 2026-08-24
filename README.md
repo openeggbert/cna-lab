@@ -26,7 +26,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - level loaded from a validated text file
 - a three-sector authored bunker campaign with guards, hounds, pickups, sliding doors, security doors, terminals and exits
 - original transparent pixel-art guard, hound, rapid-trooper and heavy-unit sprites rendered as camera-facing polygons in the 3D world
-- defeated guards and hounds leave a stylized procedurally textured blood-pool decal on the floor
+- every defeated enemy switches to its own original collapsed/resting sprite above a stylized procedurally textured blood-pool decal
 - authored rooms include procedural framed paintings, peace-symbol banners and ceiling lamps with warm floor-light pools
 - distinct generated material palettes for each sector: warm bunker, green industrial, and cold technical
 - only the nearest eligible ranged enemy fires at one time; guards, rapid troopers and heavy units use slower distinct cadences while hounds remain close-range attackers

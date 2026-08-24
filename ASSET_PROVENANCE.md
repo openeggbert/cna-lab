@@ -229,3 +229,83 @@ Lighting/mood: crisp highlights contained strictly on the object, deep warm obje
 Constraints: genuinely transparent background and preserved alpha; absolutely no glow, aura, shadow, backdrop, gradient, floor or scenery outside the object; no text; no logo; no watermark; peace symbol is the only allowed emblem; no political, totalitarian, military or religious insignia; no hands; fully original fictional design
 Avoid: colored haze, black rectangle, brown background, photorealism, 3D render, smooth painterly gradients, historical crown, copyrighted game items, resemblance to Wolfenstein treasure sprites, anti-aliased halo
 ```
+
+## `assets/sprites/security-guard-defeated.png`
+
+Prompt (using the committed standing guard as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent defeated-enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original gray-and-muted-teal bunker security guard from Image 1 in a clearly defeated collapsed pose, lying on one side with the fictional sidearm resting beside the hand
+Subject: preserve the same adult face, helmet, gray and teal utility uniform, boots, gloves, palette and original character identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one full body only, horizontal low silhouette completely visible, centered, suitable for a low camera-facing billboard above a floor decal, generous transparent padding, no standing pose
+Constraints: genuinely transparent background and preserved alpha; non-gory defeated pose; no visible wounds; no blood in this sprite; no text; no logos; no watermark; no scenery; no shadow; no political or military insignia; no swastikas; no Nazi imagery; no historical uniform
+Avoid: photorealism, 3D render, smooth gradients, dismemberment, graphic injury, copyrighted game characters, resemblance to Wolfenstein defeated sprites, anti-aliased halo
+```
+
+## `assets/sprites/security-hound-defeated.png`
+
+Prompt (using the committed alert hound as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent defeated-creature billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original brown bunker security hound from Image 1 in a clearly defeated resting pose, lying peacefully on its side with paws visible
+Subject: preserve the same brown coat, dark muzzle, teal fabric collar, small peace-symbol medallion, proportions and real-dog identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one entire dog only, horizontal low silhouette completely visible, centered, suitable for a low camera-facing billboard above a floor decal, generous transparent padding
+Constraints: genuinely transparent background and preserved alpha; non-gory defeated pose; no visible wounds; no blood in this sprite; no text; no logos; no watermark; no scenery; no shadow; no political or military insignia
+Avoid: photorealism, 3D render, smooth gradients, distress, graphic injury, robotic dog, copyrighted game creatures, resemblance to Wolfenstein defeated dog sprites, anti-aliased halo
+```
+
+## `assets/sprites/rapid-trooper-defeated.png`
+
+Prompt (using the committed standing rapid trooper as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent defeated-enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original navy-and-muted-amber rapid-response bunker trooper from Image 1 in a clearly defeated collapsed pose, lying across the floor with the compact fictional automatic weapon beside the body
+Subject: preserve the same adult face, light helmet, navy and amber reinforced utility uniform, boots, gloves, lean silhouette, palette and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one full body only, horizontal low silhouette completely visible, centered, suitable for a low camera-facing billboard above a floor decal, generous transparent padding, no standing pose
+Constraints: genuinely transparent background and preserved alpha; non-gory defeated pose; no visible wounds; no blood in this sprite; no text; no logos; no watermark; no scenery; no shadow; no political or military insignia; no swastikas; no Nazi imagery; no historical uniform
+Avoid: photorealism, 3D render, smooth gradients, dismemberment, graphic injury, copyrighted game characters, resemblance to Wolfenstein defeated sprites, anti-aliased halo
+```
+
+## `assets/sprites/heavy-unit-defeated.png`
+
+Prompt (using the committed standing heavy unit as the identity reference):
+
+```text
+Use case: precise-object-edit
+Asset type: transparent defeated-enemy billboard sprite for an original retro first-person shooter
+Input images: Image 1 is the identity and style reference
+Primary request: redraw the same original graphite-and-muted-crimson heavy bunker security unit from Image 1 in a clearly defeated collapsed seated-side pose, bulky body low to the floor with the large fictional weapon resting nearby
+Subject: preserve the same adult face, broad helmet, fictional industrial protective armor, graphite and crimson palette, heavy boots, gloves, broad silhouette and original identity
+Style/medium: preserve the hand-crafted early-1990s VGA-inspired pixel art, chunky pixels, limited 32-color palette and crisp hard edges
+Composition/framing: one full body only, broad horizontal low silhouette completely visible, centered, suitable for a low camera-facing billboard above a floor decal, generous transparent padding, no standing pose
+Constraints: genuinely transparent background and preserved alpha; non-gory defeated pose; no visible wounds; no blood in this sprite; no text; no logos; no watermark; no scenery; no shadow; armor remains fictional industrial protection; no political or military insignia; no swastikas; no Nazi imagery
+Avoid: photorealism, 3D render, smooth gradients, dismemberment, graphic injury, historical armor, copyrighted game characters, resemblance to Wolfenstein defeated sprites, anti-aliased halo
+```
+
+The first heavy-unit result contained a baked light checkerboard. It was sent
+through image generation once more with this exact cleanup prompt:
+
+```text
+Use case: precise-object-edit
+Primary request: remove the entire baked white-and-light-gray checkerboard background from Image 1 and replace it with genuine transparent pixels and a preserved alpha channel. Keep the defeated graphite-and-muted-crimson heavy bunker security unit and its fictional weapon exactly as shown, including every original pixel-art shape, color, pose, facial detail and edge. The only change must be isolating the character and weapon from the checkerboard.
+Output: transparent PNG, original dimensions or similarly high resolution, one complete low horizontal defeated-character billboard sprite with generous transparent padding.
+Constraints: genuinely transparent background; no checkerboard; no white or gray backdrop; no shadow; no scenery; no text; no logo; no watermark; no blood; no gore; no added objects; no political or military insignia; preserve the hand-crafted early-1990s VGA-inspired chunky pixel-art aesthetic and crisp hard silhouette.
+Avoid: changing the pose, armor, face, palette, weapon, proportions or composition; anti-aliased white halo; smooth gradients; photorealism; 3D rendering.
+```
+
+Because that cleanup export still lacked an alpha channel, its unchanged color
+pixels were combined with a project-generated binary silhouette mask. The mask
+removes only large bright connected background regions and retains the sprite's
+small bright pixel-art details. No third-party pixels were added.

@@ -1253,6 +1253,10 @@ namespace WolfCna
         Texture2D& houndSprite,
         Texture2D& rapidTrooperSprite,
         Texture2D& heavyUnitSprite,
+        Texture2D& defeatedGuardSprite,
+        Texture2D& defeatedHoundSprite,
+        Texture2D& defeatedRapidTrooperSprite,
+        Texture2D& defeatedHeavyUnitSprite,
         Texture2D& ammoPickupSprite,
         Texture2D& healthPickupSprite,
         Texture2D& goldBarsSprite,
@@ -1492,29 +1496,33 @@ namespace WolfCna
                 const bool isHound = enemy->type == Enemy::Type::Hound;
                 const bool isHeavy = enemy->type == Enemy::Type::HeavyUnit;
                 const bool isDead = enemy->state == EnemyState::Dead;
-                const float width = isHound ? 0.82f : isHeavy ? 0.9f : 0.72f;
-                const float height = isDead ? 0.16f : (isHound ? 0.72f : isHeavy ? 1.08f : 1.02f);
+                const bool isRapid = enemy->type == Enemy::Type::RapidTrooper;
+                const float width = isDead
+                    ? (isHound ? 0.95f : isHeavy ? 1.05f : isRapid ? 1.0f : 0.95f)
+                    : (isHound ? 0.82f : isHeavy ? 0.9f : 0.72f);
+                const float height = isDead
+                    ? (isHound ? 0.43f : isHeavy ? 0.64f : isRapid ? 0.54f : 0.44f)
+                    : (isHound ? 0.72f : isHeavy ? 1.08f : 1.02f);
                 Vector3 position = enemy->position;
                 position.Y = 0.0f;
 
-                Texture2D* enemyTexture = &guardSprite;
+                Texture2D* enemyTexture = isDead ? &defeatedGuardSprite : &guardSprite;
                 if (isHound)
-                    enemyTexture = &houndSprite;
-                else if (enemy->type == Enemy::Type::RapidTrooper)
-                    enemyTexture = &rapidTrooperSprite;
+                    enemyTexture = isDead ? &defeatedHoundSprite : &houndSprite;
+                else if (isRapid)
+                    enemyTexture = isDead ? &defeatedRapidTrooperSprite : &rapidTrooperSprite;
                 else if (isHeavy)
-                    enemyTexture = &heavyUnitSprite;
+                    enemyTexture = isDead ? &defeatedHeavyUnitSprite : &heavyUnitSprite;
                 effect.setTextureProperty(enemyTexture);
                 effect.setWorldProperty(
-                    Matrix::CreateScale(isDead ? width * 1.15f : width, height, 1.0f) *
+                    Matrix::CreateScale(width, height, 1.0f) *
                     Matrix::CreateConstrainedBillboard(
                         position,
                         cameraPosition,
                         Vector3::Up,
                         std::nullopt,
                         std::nullopt));
-                effect.setDiffuseColorProperty(
-                    isDead ? Vector3(0.42f, 0.32f, 0.3f) : Vector3(1.0f, 1.0f, 1.0f));
+                effect.setDiffuseColorProperty(Vector3(1.0f, 1.0f, 1.0f));
 
                 for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
                 {

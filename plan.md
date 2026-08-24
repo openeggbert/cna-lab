@@ -1072,13 +1072,14 @@ Status: complete.
 
 ### WOLF-013 — original sprite presentation
 
-Status: in progress. The first milestone replaces guard and hound cuboids with
+Status: in progress. The first milestone replaces all four enemy cuboids with
 original transparent camera-facing billboard sprites and records their complete
-generation provenance. Defeated enemies now leave a stylized procedurally
-textured floor decal. The four primitive weapon views and icons have been replaced
-by original high-resolution transparent pixel-art sprites. Enemy and weapon attack
-animation frames remain, while a first transform-based animation pass now gives
-the knife a forward lunge and firearms visible recoil.
+generation provenance. Every archetype now switches to its own non-gory collapsed
+or resting sprite above a stylized procedurally textured floor decal when defeated.
+The four primitive weapon views and icons have been replaced by original
+high-resolution transparent pixel-art sprites. Enemy attack frames and animated
+state transitions remain, while a first transform-based animation pass gives the
+knife a forward lunge and firearms visible recoil.
 
 - replace colored enemy cuboids with camera-facing textured polygon billboards;
 - create original transparent pixel-art guards, hounds and weapon view sprites;
