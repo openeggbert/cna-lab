@@ -29,7 +29,7 @@ A region is human-playable only when all of the following are true:
 | Quarry and ravine | 39–50 | Audited | The rope descent, lit culvert, safe waterfall route, gate/office/crusher branches, magazine, tunnel and two-way hoist shortcut are physically traversed and visibly labelled. |
 | Logging railway | 51–63 | Audited | Sawmill, bunkhouse, mess, office, spur and engine branches use visible two-way routes. June gates the switch-key clue; the engine and trestle have persistent repair states, and the scenario follows the complete physical route. |
 | Reservoir and dam | 64–75 | Audited | Gatehouse, two-level turbine hall, pump gallery, intake route and drained-bay path use visible two-way connections. Water, power, valve, pump and grille states persist, and the scenario follows the complete physical route. |
-| Mine and underground power | 76–90 | Scripted, not audited | Build mine branches, readable gas/electrical warnings, lift and switchgear topology. |
+| Mine and underground power | 76–90 | Audited | Ventilation spur, cart shortcut, flooded drift, maintenance crawl, lift levels, switchgear and cable-vault branches are visibly connected and physically tested. |
 | Observatory | 91–102 | Scripted, not audited | Build courtyard diversion routes, archive/dome branches and room-specific interiors. |
 | Nightjar bunker | 103–115 | Scripted, not audited | Build access-lock sequence, patrol containment, laboratory branches and Kline rescue route. |
 | Summit and transmitter | 116–124 | Scripted, not audited | Build the branching climb, readable lightning shelters, persistent grounding repairs and three ending presentations. |
@@ -102,6 +102,20 @@ A region is human-playable only when all of the following are true:
 - F1 guides every physical dam action by the labels drawn in the scene, and the
   full scenario uses every stair, door, tunnel, shoreline and drained passage.
 
-The next implementation pass starts with the Mine and Underground Power
-(screens 76–90), where the ventilation, drainage, lift and substation routes
-are still presented as a linear sequence.
+- Screens 76–90 now follow the mine survey rather than catalogue order. The
+  ventilation room is a two-way spur, the running fan opens a pump shortcut,
+  and the survey cart creates a tested return route to the ore chamber.
+- Gas, unstable timber, flooded workings and live switchgear have readable
+  16-colour warnings. Bracing, respirator assembly, fan start, drainage, fuse
+  retrieval, isolation, cable cutting, bus installation and both door readers
+  retain distinct completed-state artwork.
+- A labelled maintenance crawl from the dead lower lift reaches the substation,
+  avoiding a power-before-access deadlock. The repaired cage then reaches
+  Kade's radio and its story-gated research passage.
+- F1 guides each mine action by labels visible in the scene. The full scenario
+  walks all required corridors, portals, returns, shortcuts and the final lift
+  into the observatory lobby.
+
+The next implementation pass starts with the Observatory (screens 91–102),
+where the courtyard diversion, archive, dome and laboratory routes are still
+presented as a linear sequence.

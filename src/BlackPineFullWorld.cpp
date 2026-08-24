@@ -3078,6 +3078,234 @@ void configureReservoirArtwork(e2d::WorldDefinition& world) {
     }});
 }
 
+void configureMineArtwork(e2d::WorldDefinition& world) {
+    const auto resetRoom = [&world](const int number, const P background, const P floor) -> e2d::RoomDefinition& {
+        auto& result = room(world, number);
+        result.background = background;
+        result.decorations.clear();
+        result.solids.clear();
+        result.animations.clear();
+        addGround(result, floor);
+        return result;
+    };
+
+    auto& carts = resetRoom(76, P::black, P::brown);
+    carts.decorations.insert(carts.decorations.end(), {
+        e2d::PolygonVisual{{{0, 55}, {92, 25}, {181, 58}, {276, 31}, {382, 57}, {492, 39}, {492, 260}, {0, 260}}, P::darkGray, true},
+        box(43, 72, 13, 188, P::brown), box(433, 72, 13, 188, P::brown), line(49, 72, 439, 72, P::brown),
+        line(48, 72, 106, 124, P::brown), line(439, 72, 381, 124, P::brown),
+        box(83, 142, 159, 64, P::red), e2d::PolygonVisual{{{75, 142}, {104, 112}, {222, 112}, {250, 142}}, P::brown, true},
+        circle(112, 217, 25, P::black), circle(214, 217, 25, P::black),
+        circle(112, 217, 12, P::lightGray), circle(214, 217, 12, P::lightGray),
+        line(73, 241, 431, 241, P::lightGray), line(89, 241, 89, 260, P::lightGray), line(411, 241, 411, 260, P::lightGray),
+        box(303, 108, 97, 94, P::lightGray), box(313, 118, 77, 74, P::black),
+        box(326, 145, 51, 23, P::red), label(329, 151, tr("MASK", "MASKA"), pale),
+        label(109, 126, tr("ORE CART", "DŮLNÍ VOZÍK"), amber),
+    });
+    carts.animations.push_back({targetId(76, "mine_lamp_flicker"), true, true, {}, {
+        {8, {circle(273, 91, 9, amber)}}, {3, {circle(273, 91, 5, P::brown)}},
+    }});
+
+    auto& timber = resetRoom(77, P::black, P::brown);
+    timber.decorations.insert(timber.decorations.end(), {
+        e2d::PolygonVisual{{{0, 47}, {103, 24}, {201, 49}, {301, 28}, {401, 52}, {492, 34}, {492, 260}, {0, 260}}, P::darkGray, true},
+        box(42, 72, 17, 188, P::brown), box(151, 72, 17, 188, P::brown), box(260, 72, 17, 188, P::brown), box(369, 72, 17, 188, P::brown),
+        line(50, 72, 377, 72, P::brown), line(50, 72, 159, 151, P::brown),
+        line(159, 72, 268, 151, P::brown), line(268, 72, 377, 151, P::brown),
+        line(253, 88, 294, 245, P::red), line(271, 88, 312, 245, P::brown),
+        line(259, 121, 287, 121, danger), line(267, 150, 295, 150, danger),
+        label(231, 94, tr("BRACE 3", "VZPĚRA 3"), amber),
+        e2d::PolygonVisual{{{386, 154}, {443, 154}, {478, 174}, {443, 194}, {386, 194}}, signalBlue, true},
+        label(395, 166, tr("VENT", "VĚTRÁNÍ"), P::black),
+    });
+    timber.animations.push_back({targetId(77, "warning_dust"), true, true,
+        {e2d::Condition::notFlag("drift_braced")}, {
+            {8, {circle(288, 95, 3, P::lightGray), circle(300, 112, 2, P::lightGray)}},
+            {8, {circle(292, 119, 3, P::lightGray), circle(304, 141, 2, P::lightGray)}},
+        }});
+
+    auto& collapse = resetRoom(78, P::black, P::brown);
+    collapse.decorations.insert(collapse.decorations.end(), {
+        e2d::PolygonVisual{{{0, 42}, {117, 23}, {228, 51}, {351, 27}, {492, 49}, {492, 260}, {0, 260}}, P::darkGray, true},
+        box(42, 73, 15, 187, P::brown), box(420, 73, 15, 187, P::brown), line(49, 73, 427, 73, P::brown),
+        e2d::PolygonVisual{{{158, 260}, {184, 201}, {215, 217}, {241, 159}, {273, 211}, {304, 176}, {341, 260}}, P::lightGray, true},
+        e2d::PolygonVisual{{{188, 260}, {213, 226}, {247, 239}, {279, 204}, {319, 260}}, P::darkGray, true},
+        line(117, 137, 383, 137, P::black), line(119, 145, 380, 145, signalBlue),
+        box(342, 108, 78, 38, P::black), label(350, 118, tr("CABLE EAST", "KABEL VÝCHOD"), amber),
+    });
+
+    auto& ventilation = resetRoom(79, P::darkGray, P::brown);
+    ventilation.decorations.insert(ventilation.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray),
+        box(42, 54, 191, 154, P::lightGray), box(54, 66, 167, 130, P::black),
+        circle(137, 131, 57, P::lightGray, false), circle(137, 131, 14, P::darkGray),
+        line(137, 74, 137, 188, P::lightGray), line(80, 131, 194, 131, P::lightGray),
+        box(273, 63, 177, 143, P::brown), box(284, 74, 155, 121, P::black),
+        box(297, 91, 58, 72, P::darkGray), circle(326, 112, 8, danger),
+        box(370, 91, 55, 72, P::darkGray), box(382, 107, 31, 19, P::red),
+        label(295, 173, tr("FAN START", "START VĚTRÁKU"), amber),
+        label(363, 173, tr("FILTER", "FILTR"), signalBlue),
+    });
+    ventilation.animations.push_back({targetId(79, "fan_motion"), true, true,
+        {e2d::Condition::flag("ventilation_running")}, {
+            {5, {line(137, 74, 137, 188, signalBlue), line(80, 131, 194, 131, signalBlue)}},
+            {5, {line(96, 90, 178, 172, signalBlue), line(96, 172, 178, 90, signalBlue)}},
+        }});
+
+    auto& copper = resetRoom(80, P::black, P::brown);
+    copper.decorations.insert(copper.decorations.end(), {
+        e2d::PolygonVisual{{{0, 41}, {94, 18}, {185, 48}, {286, 22}, {389, 51}, {492, 31}, {492, 260}, {0, 260}}, P::darkGray, true},
+        e2d::PolygonVisual{{{28, 206}, {74, 91}, {105, 179}, {144, 64}, {181, 201}}, P::brown, true},
+        e2d::PolygonVisual{{{287, 205}, {332, 73}, {365, 167}, {404, 51}, {453, 208}}, P::brown, true},
+        line(75, 102, 97, 183, signalBlue), line(144, 75, 171, 196, P::brightCyan),
+        line(333, 85, 361, 169, signalBlue), line(405, 63, 443, 201, P::brightCyan),
+        box(205, 112, 76, 106, P::lightGray), box(216, 123, 54, 84, P::black),
+        circle(243, 151, 20, P::lightGray, false), line(243, 151, 258, 137, danger),
+        line(190, 233, 302, 233, P::red), label(201, 213, tr("GAS ZONE", "PLYN"), danger),
+    });
+    copper.animations.push_back({targetId(80, "gas_wisp"), true, true, {}, {
+        {9, {e2d::ArcVisual{{222, 91}, {18, 11}, 0.0F, 3.14159F, P::green}}},
+        {9, {e2d::ArcVisual{{248, 84}, {22, 13}, 0.0F, 3.14159F, P::brightGreen}}},
+    }});
+
+    auto& minePump = resetRoom(81, P::darkGray, P::brown);
+    minePump.decorations.insert(minePump.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray),
+        circle(209, 139, 76, P::lightGray, false), circle(209, 139, 28, P::black),
+        line(133, 139, 54, 139, signalBlue), line(285, 139, 448, 139, signalBlue),
+        box(178, 49, 62, 39, P::brown), circle(209, 68, 7, danger),
+        box(321, 72, 117, 111, P::lightGray), box(332, 83, 95, 89, P::black),
+        circle(360, 118, 21, P::lightGray, false), line(360, 118, 373, 104, danger),
+        box(383, 102, 31, 43, P::red), label(326, 190, tr("DRAINAGE", "ODVODNĚNÍ"), amber),
+    });
+    minePump.animations.push_back({targetId(81, "drainage_motion"), true, true,
+        {e2d::Condition::flag("mine_drained")}, {
+            {5, {circle(209, 139, 27, P::brightGreen, false), line(209, 112, 209, 166, amber)}},
+            {5, {circle(209, 139, 27, P::brightGreen, false), line(182, 139, 236, 139, amber)}},
+        }});
+
+    auto& flooded = resetRoom(82, P::black, P::brown);
+    flooded.decorations.insert(flooded.decorations.end(), {
+        e2d::PolygonVisual{{{0, 46}, {112, 21}, {224, 49}, {348, 24}, {492, 44}, {492, 260}, {0, 260}}, P::darkGray, true},
+        box(0, 166, 492, 94, P::blue), line(0, 166, 492, 166, signalBlue),
+        line(34, 194, 183, 194, P::brightCyan), line(271, 216, 452, 216, P::brightCyan),
+        box(178, 188, 147, 43, P::darkGray), line(188, 197, 315, 197, P::lightGray),
+        line(188, 207, 315, 207, P::lightGray), line(188, 217, 315, 217, P::lightGray),
+        circle(252, 215, 7, danger), label(194, 174, tr("SUBMERGED GRATE", "PONOŘENÁ MŘÍŽ"), amber),
+    });
+    flooded.animations.push_back({targetId(82, "flooded_drift_water"), true, true, {}, {
+        {8, {line(23, 180, 167, 180, signalBlue), line(286, 231, 463, 231, P::brightCyan)}},
+        {8, {line(37, 180, 181, 180, P::brightCyan), line(271, 231, 448, 231, signalBlue)}},
+    }});
+
+    auto& survey = resetRoom(83, P::black, P::brown);
+    survey.decorations.insert(survey.decorations.end(), {
+        e2d::PolygonVisual{{{0, 43}, {104, 22}, {213, 48}, {326, 25}, {492, 46}, {492, 260}, {0, 260}}, P::darkGray, true},
+        box(45, 76, 205, 124, P::brown), box(56, 87, 183, 102, P::black),
+        box(69, 102, 66, 51, P::blue), line(78, 143, 99, 116, signalBlue), line(99, 116, 123, 138, danger),
+        box(151, 102, 73, 51, pale), line(160, 115, 215, 115, P::blue), line(160, 127, 207, 127, P::blue),
+        box(293, 137, 148, 58, P::red), e2d::PolygonVisual{{{285, 137}, {316, 108}, {421, 108}, {449, 137}}, P::brown, true},
+        circle(319, 206, 22, P::black), circle(416, 206, 22, P::black),
+        line(284, 232, 452, 232, P::lightGray), label(78, 91, tr("VOSS SURVEY", "VOSSŮV PRŮZKUM"), amber),
+    });
+
+    auto& liftBottom = resetRoom(84, P::black, P::brown);
+    liftBottom.decorations.insert(liftBottom.decorations.end(), {
+        box(74, 39, 252, 221, P::lightGray, false), box(91, 56, 218, 204, P::darkGray),
+        line(200, 56, 200, 260, P::lightGray), line(91, 56, 309, 260, P::lightGray), line(309, 56, 91, 260, P::lightGray),
+        box(112, 71, 176, 29, P::black), circle(268, 85, 7, P::darkGray),
+        box(339, 91, 122, 112, P::brown), box(350, 102, 100, 90, P::black),
+        e2d::ArcVisual{{400, 187}, {42, 68}, 3.14159F, 6.28318F, P::darkGray},
+        label(347, 76, tr("MAINT CRAWL", "SERVISNÍ PRŮLEZ"), amber),
+        box(17, 136, 48, 73, P::lightGray), box(25, 144, 32, 57, P::black),
+        circle(41, 161, 6, danger), label(15, 216, tr("FUSE", "POJISTKA"), pale),
+    });
+
+    auto& liftTop = resetRoom(85, P::darkGray, P::brown);
+    liftTop.decorations.insert(liftTop.decorations.end(), {
+        box(61, 35, 238, 225, P::lightGray, false), box(77, 51, 206, 209, P::darkGray),
+        line(180, 51, 180, 260, P::lightGray), line(77, 51, 283, 260, P::lightGray), line(283, 51, 77, 260, P::lightGray),
+        box(102, 68, 157, 28, P::black), circle(241, 82, 7, P::brightGreen),
+        box(327, 77, 137, 129, P::brown), box(338, 88, 115, 107, P::black),
+        line(348, 117, 443, 117, signalBlue), line(348, 141, 443, 141, danger),
+        box(358, 157, 75, 24, P::red), label(366, 164, tr("VOSS RADIO", "VOSS RÁDIO"), pale),
+        label(329, 62, tr("SUBSTATION", "ROZVODNA"), amber),
+    });
+    liftTop.animations.push_back({targetId(85, "nightjar_cable"), true, true, {}, {
+        {8, {line(348, 117, 395, 117, signalBlue), line(400, 117, 443, 117, P::blue)}},
+        {8, {line(348, 117, 390, 117, P::blue), line(395, 117, 443, 117, signalBlue)}},
+    }});
+
+    auto& substation = resetRoom(86, P::darkGray, P::brown);
+    substation.decorations.insert(substation.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray),
+        box(41, 48, 410, 151, P::lightGray), box(54, 61, 384, 125, P::black),
+        box(69, 78, 96, 79, P::darkGray), box(197, 78, 96, 79, P::darkGray), box(325, 78, 96, 79, P::darkGray),
+        circle(92, 98, 7, amber), circle(220, 98, 7, danger), circle(348, 98, 7, P::darkGray),
+        line(101, 132, 150, 105, signalBlue), line(229, 132, 278, 105, danger), line(357, 132, 406, 105, P::lightGray),
+        label(76, 164, tr("DAM AUX", "PŘEHRADA"), pale), label(201, 164, tr("QUIET", "TICHO"), danger),
+        label(335, 164, tr("LIFT", "VÝTAH"), amber),
+        box(129, 202, 235, 18, P::brown), label(177, 207, tr("ROUTING BOARD", "ROZVODNÁ DESKA"), amber),
+    });
+
+    auto& switchgear = resetRoom(87, P::darkGray, P::brown);
+    switchgear.decorations.insert(switchgear.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray),
+        box(42, 43, 408, 164, P::lightGray), box(54, 55, 384, 140, P::black),
+        box(72, 73, 88, 104, P::darkGray), box(202, 73, 88, 104, P::darkGray), box(332, 73, 88, 104, P::darkGray),
+        line(116, 91, 116, 151, danger), line(246, 91, 246, 151, danger), line(376, 91, 376, 151, danger),
+        circle(116, 91, 8, danger), circle(246, 91, 8, danger), circle(376, 91, 8, danger),
+        label(91, 159, tr("2", "2"), amber), label(221, 159, tr("1", "1"), amber), label(351, 159, tr("3", "3"), amber),
+        e2d::PolylineVisual{{{92, 188}, {221, 188}, {351, 188}}, signalBlue, false},
+        label(161, 211, tr("CALDER: 2-1-3", "CALDEROVÁ: 2-1-3"), amber),
+    });
+    switchgear.animations.push_back({targetId(87, "switchgear_spark"), true, true,
+        {e2d::Condition::notFlag("substation_isolated")}, {
+            {6, {line(246, 59, 257, 47, signalBlue), line(257, 47, 267, 59, pale)}},
+            {6, {line(376, 59, 386, 48, signalBlue), line(386, 48, 397, 59, pale)}},
+        }});
+
+    auto& vault = resetRoom(88, P::black, P::brown);
+    vault.decorations.insert(vault.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray),
+        box(35, 52, 191, 151, P::lightGray), box(47, 64, 167, 127, P::black),
+        circle(90, 111, 21, P::red, false), circle(171, 111, 21, P::red, false),
+        e2d::PolylineVisual{{{90, 132}, {126, 153}, {171, 132}}, danger, false},
+        label(69, 170, tr("QUIET FEED", "PŘÍVOD TICHA"), danger),
+        box(266, 52, 191, 151, P::lightGray), box(278, 64, 167, 127, P::black),
+        circle(321, 111, 21, P::darkGray, false), circle(402, 111, 21, P::darkGray, false),
+        line(321, 132, 402, 132, P::darkGray), label(314, 170, tr("LIFT BUS", "PŘÍVOD VÝTAHU"), amber),
+    });
+    vault.animations.push_back({targetId(88, "quiet_pulse"), true, true,
+        {e2d::Condition::notFlag("quiet_feed_cut")}, {
+            {7, {circle(90, 111, 20, danger, false), circle(171, 111, 20, P::red, false)}},
+            {7, {circle(90, 111, 20, P::red, false), circle(171, 111, 20, danger, false)}},
+        }});
+
+    auto& researchDoor = resetRoom(89, P::darkGray, P::brown);
+    researchDoor.decorations.insert(researchDoor.decorations.end(), {
+        box(72, 31, 294, 229, P::lightGray), box(88, 47, 262, 213, P::black),
+        line(219, 47, 219, 260, P::lightGray),
+        box(390, 71, 79, 67, P::lightGray), box(399, 80, 61, 49, P::black),
+        circle(415, 99, 7, danger), box(426, 91, 25, 17, P::red),
+        box(390, 154, 79, 67, P::lightGray), box(399, 163, 61, 49, P::black),
+        circle(415, 182, 7, danger), box(426, 174, 25, 17, P::red),
+        label(105, 72, tr("KLINE RESEARCH", "VÝZKUM KLINEOVÉ"), amber),
+        label(394, 56, tr("BADGE", "ODZNAK"), pale), label(397, 139, tr("CARD", "KARTA"), pale),
+    });
+
+    auto& ridgeLift = resetRoom(90, P::black, P::brown);
+    ridgeLift.decorations.insert(ridgeLift.decorations.end(), {
+        box(58, 25, 376, 235, P::lightGray, false), box(77, 44, 338, 216, P::darkGray),
+        line(246, 44, 246, 260, P::lightGray), line(77, 44, 415, 260, P::lightGray), line(415, 44, 77, 260, P::lightGray),
+        box(101, 61, 290, 45, P::black), label(125, 76, tr("RIDGE FREIGHT LIFT", "HŘEBENOVÝ VÝTAH"), amber),
+        box(115, 137, 109, 79, P::black), box(126, 148, 87, 57, P::blue),
+        line(135, 191, 154, 169, signalBlue), line(154, 169, 177, 193, P::brightGreen), line(177, 193, 203, 160, danger),
+        box(281, 137, 104, 79, P::black), circle(333, 176, 31, P::lightGray, false),
+        circle(333, 176, 8, P::brightGreen), label(297, 222, tr("ASCEND", "VZHŮRU"), P::brightGreen),
+    });
+}
+
 void addActThree(e2d::WorldDefinition& world) {
     // The camp is a set of physical work areas around two hubs, not a linear
     // catalogue walk. Every branch gets a visible, two-way ENTER route.
@@ -3885,10 +4113,142 @@ void addActThree(e2d::WorldDefinition& world) {
         circle(278, 199, 5, P::brightGreen),
     };
 
+    // The mine follows the workings shown on Voss's survey map. Ventilation is
+    // a side room, the survey chamber is the ore-cart hub, and a maintenance
+    // crawl reaches the substation before the freight cage has power.
+    configureMineArtwork(world);
+    setHorizontalRoute(world, 76, std::nullopt, 77);
+    setHorizontalRoute(world, 77, 76, 78);
+    setHorizontalRoute(world, 78, 77, 80);
+    setHorizontalRoute(world, 79, std::nullopt, std::nullopt);
+    setHorizontalRoute(world, 80, 78, 81);
+    setHorizontalRoute(world, 81, 80, 82);
+    setHorizontalRoute(world, 82, 81, 83);
+    setHorizontalRoute(world, 83, 82, 84);
+    for (int branch = 84; branch <= 90; ++branch) {
+        setHorizontalRoute(world, branch, std::nullopt, std::nullopt);
+    }
+
+    addPortal(world, 76, "shaft_ladder", "LADDER UP TO EAST ACCESS SHAFT",
+        "ŽEBŘÍK NAHORU DO VÝCHODNÍ ŠACHTY", {0, 132, 64, 128}, 75, {
+            line(15, 143, 15, 252, amber), line(39, 143, 39, 252, amber),
+            line(15, 163, 39, 163, pale), line(15, 186, 39, 186, pale),
+            line(15, 209, 39, 209, pale), line(15, 232, 39, 232, pale),
+            label(7, 137, tr("SHAFT", "ŠACHTA"), amber),
+        });
+    auto& cartReturn = addPortal(world, 76, "cart_shortcut", "WORKING ORE-CART SHORTCUT",
+        "FUNKČNÍ ZKRATKA DŮLNÍM VOZÍKEM", {83, 108, 168, 132}, 83, {
+            box(93, 145, 141, 59, P::red), circle(119, 216, 22, P::black),
+            circle(209, 216, 22, P::black), label(108, 126, tr("SURVEY CART", "PRŮZKUMNÝ VOZÍK"), amber),
+        }, {e2d::Condition::flag("mine_cart_ready")});
+    cartReturn.visibleWhen = {e2d::Condition::flag("mine_cart_ready")};
+    addPortal(world, 77, "vent_spur", "BLUE-MARKED VENTILATION SPUR",
+        "MODŘE ZNAČENÁ ODBOČKA VĚTRÁNÍ", {386, 137, 98, 123}, 79, {
+            e2d::PolygonVisual{{{386, 172}, {443, 172}, {478, 192}, {443, 212}, {386, 212}}, signalBlue, true},
+            label(398, 184, tr("VENT", "VĚTRÁNÍ"), P::black),
+        });
+    addPortal(world, 79, "gallery_door", "DOOR TO TIMBER GALLERY", "DVEŘE DO VYZTUŽENÉ CHODBY",
+        {0, 137, 61, 123}, 77, {box(7, 153, 46, 107, P::brown), label(10, 172, tr("GALLERY", "CHODBA"), pale)});
+    auto& pumpPassage = addPortal(world, 79, "pump_passage", "VENT DUCT TO MINE PUMP",
+        "VĚTRACÍ KANÁL K DŮLNÍMU ČERPADLU", {432, 137, 60, 123}, 81, {
+            e2d::ArcVisual{{461, 260}, {27, 91}, 3.14159F, 6.28318F, P::lightGray},
+            label(438, 172, tr("PUMP", "ČERP."), amber),
+        }, {e2d::Condition::flag("ventilation_running")});
+    pumpPassage.visibleWhen = {e2d::Condition::flag("ventilation_running")};
+    auto& ventPassage = addPortal(world, 81, "vent_passage", "RUNNING VENT DUCT",
+        "BĚŽÍCÍ VĚTRACÍ KANÁL", {0, 137, 61, 123}, 79, {
+            e2d::ArcVisual{{30, 260}, {28, 91}, 3.14159F, 6.28318F, P::lightGray},
+            label(8, 172, tr("VENT", "VĚTR."), amber),
+        }, {e2d::Condition::flag("ventilation_running")});
+    ventPassage.visibleWhen = {e2d::Condition::flag("ventilation_running")};
+
+    auto& surveyCart = ensureHotspot(world, 83, "cart_shortcut",
+        tr("SURVEY ORE CART", "PRŮZKUMNÝ DŮLNÍ VOZÍK"), {293, 137, 159, 123}, e2d::HotspotKind::mechanism, 3);
+    surveyCart.interactionArea = {293, 137, 159, 123};
+    surveyCart.visuals = {
+        box(302, 151, 130, 49, P::red), circle(323, 211, 21, P::black), circle(411, 211, 21, P::black),
+        line(295, 235, 446, 235, P::lightGray), label(317, 132, tr("CART WEST", "VOZÍK ZÁPAD"), amber),
+    };
+    world.addInteraction({e2d::Verb::context, surveyCart.id, std::nullopt,
+        {e2d::Condition::notFlag("mine_cart_ready")},
+        {inspect(tr("Iris releases the survey cart brake. The old cable rolls it back to the ore chamber and leaves a usable shortcut.",
+            "Iris uvolní brzdu průzkumného vozíku. Staré lano ho sveze ke komoře s rudou a vytvoří použitelnou zkratku."))},
+        {e2d::Mutation::setFlag("mine_cart_ready"), e2d::Mutation::moveTo(std::string{screen(76).id})}, 30, {}, "climb"});
+    world.addInteraction({e2d::Verb::context, surveyCart.id, std::nullopt,
+        {e2d::Condition::flag("mine_cart_ready")}, {},
+        {e2d::Mutation::moveTo(std::string{screen(76).id})}, 20, {}, "climb"});
+
+    addPortal(world, 84, "survey_door", "DOOR TO SURVEY CHAMBER", "DVEŘE DO PRŮZKUMNÉ KOMORY",
+        {0, 137, 62, 123}, 83, {box(7, 153, 47, 107, P::brown), label(9, 172, tr("SURVEY", "PRŮZK."), pale)});
+    auto& bottomCage = addPortal(world, 84, "freight_cage", "POWERED FREIGHT CAGE",
+        "NAPÁJENÁ NÁKLADNÍ KLEC", {80, 137, 246, 123}, 85, {
+            box(91, 148, 218, 112, P::darkGray), line(200, 148, 200, 260, P::lightGray),
+            line(91, 148, 309, 260, P::lightGray), line(309, 148, 91, 260, P::lightGray),
+            label(122, 161, tr("CAGE TO UPPER", "KLEC NAHORU"), amber),
+        }, {e2d::Condition::flag("lift_fuse_installed"), e2d::Condition::flag("lift_powered")});
+    bottomCage.visibleWhen = {e2d::Condition::flag("lift_fuse_installed"), e2d::Condition::flag("lift_powered")};
+    addPortal(world, 84, "maintenance_crawl", "MAINTENANCE CRAWL TO SUBSTATION",
+        "SERVISNÍ PRŮLEZ DO ROZVODNY", {345, 137, 139, 123}, 86, {
+            e2d::ArcVisual{{411, 260}, {62, 89}, 3.14159F, 6.28318F, P::darkGray},
+            line(356, 240, 466, 240, amber), label(349, 172, tr("SUBSTATION", "ROZVODNA"), amber),
+        });
+    addPortal(world, 85, "freight_cage", "FREIGHT CAGE DOWN", "NÁKLADNÍ KLEC DOLŮ",
+        {61, 137, 190, 123}, 84, {box(77, 148, 206, 112, P::darkGray),
+            line(180, 148, 180, 260, P::lightGray), label(110, 161, tr("CAGE DOWN", "KLEC DOLŮ"), amber)});
+    addPortal(world, 85, "substation_door", "DOOR TO SUBSTATION", "DVEŘE DO ROZVODNY",
+        {407, 137, 77, 123}, 86, {box(414, 151, 63, 109, P::black),
+            label(417, 172, tr("SUBST.", "ROZV."), amber)});
+    addPortal(world, 86, "bottom_crawl", "CRAWL TO LOWER LIFT", "PRŮLEZ K DOLNÍMU VÝTAHU",
+        {0, 137, 58, 123}, 84, {e2d::ArcVisual{{29, 260}, {27, 88}, 3.14159F, 6.28318F, P::brown},
+            label(5, 172, tr("CRAWL", "PRŮLEZ"), pale)});
+    auto& upperLiftDoor = addPortal(world, 86, "upper_lift_door", "DOOR TO UPPER LIFT", "DVEŘE K HORNÍMU VÝTAHU",
+        {78, 137, 62, 123}, 85, {box(85, 151, 48, 109, P::darkGray), label(88, 172, tr("LIFT", "VÝTAH"), amber)},
+        {e2d::Condition::flag("lift_powered")});
+    upperLiftDoor.visibleWhen = {e2d::Condition::flag("lift_powered")};
+    addPortal(world, 86, "switchgear_door", "SWITCHGEAR AISLE", "ULIČKA ROZVADĚČŮ",
+        {315, 137, 70, 123}, 87, {box(322, 151, 56, 109, P::red), label(325, 172, tr("SWITCH", "ROZV."), pale)});
+    addPortal(world, 86, "vault_door", "CABLE VAULT", "KABELOVÁ KOMORA",
+        {407, 137, 77, 123}, 88, {box(414, 151, 63, 109, P::blue), label(421, 172, tr("VAULT", "KABELY"), pale)});
+    addPortal(world, 87, "substation_return", "RETURN TO SUBSTATION", "ZPĚT DO ROZVODNY",
+        {0, 137, 62, 123}, 86, {box(7, 151, 48, 109, P::brown), label(9, 172, tr("BACK", "ZPĚT"), pale)});
+    addPortal(world, 88, "substation_return", "RETURN TO SUBSTATION", "ZPĚT DO ROZVODNY",
+        {0, 137, 62, 123}, 86, {box(7, 151, 48, 109, P::brown), label(9, 172, tr("BACK", "ZPĚT"), pale)});
+    auto& researchRoute = addPortal(world, 88, "research_door", "PASSAGE TO RESEARCH DOOR",
+        "CHODBA K VÝZKUMNÝM DVEŘÍM", {422, 137, 70, 123}, 89, {
+            box(429, 151, 56, 109, P::darkGray), label(432, 172, tr("RESEARCH", "VÝZKUM"), amber),
+        }, {e2d::Condition::flag("flood_order_heard")});
+    researchRoute.visibleWhen = {e2d::Condition::flag("flood_order_heard")};
+    addPortal(world, 89, "vault_return", "RETURN TO CABLE VAULT", "ZPĚT DO KABELOVÉ KOMORY",
+        {0, 137, 62, 123}, 88, {box(7, 151, 48, 109, P::brown), label(9, 172, tr("VAULT", "KABELY"), pale)});
+    auto& ridgeRoute = addPortal(world, 89, "ridge_lift_door", "OPEN DOOR TO RIDGE LIFT",
+        "OTEVŘENÉ DVEŘE K HŘEBENOVÉMU VÝTAHU", {80, 137, 286, 123}, 90, {
+            box(88, 151, 262, 109, P::black), line(219, 151, 219, 260, P::lightGray),
+            label(123, 172, tr("RIDGE LIFT", "HŘEBENOVÝ VÝTAH"), amber),
+        }, {e2d::Condition::flag("research_door_open")});
+    ridgeRoute.visibleWhen = {e2d::Condition::flag("research_door_open")};
+    addPortal(world, 90, "research_return", "RETURN TO RESEARCH DOOR",
+        "ZPĚT K VÝZKUMNÝM DVEŘÍM", {0, 137, 62, 123}, 89, {
+            box(7, 151, 48, 109, P::brown), label(9, 172, tr("BACK", "ZPĚT"), pale),
+        });
+
     addPickup(world, 76, "respirator", "You take the respirator body from the emergency cabinet.",
         "Vezmeš tělo respirátoru z nouzové skříňky.", 0);
     addUse(world, 77, "timber_brace", "LOOSE TIMBER BRACE", "UVOLNĚNÁ VÝDŘEVA", "wrench", "drift_braced",
         "The marked brace tightens until the warning dust stops.", "Označená vzpěra se dotáhne a varovný prach ustane.");
+    auto& timberBrace = ensureHotspot(world, 77, "timber_brace",
+        tr("LOOSE TIMBER BRACE", "UVOLNĚNÁ VÝDŘEVA"), {164, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    timberBrace.visibleWhen = {e2d::Condition::notFlag("drift_braced")};
+    timberBrace.visuals = {
+        line(203, 151, 237, 248, danger), line(217, 145, 251, 242, P::brown),
+        line(202, 177, 230, 177, amber), line(210, 202, 239, 202, amber),
+        label(179, 229, tr("LOOSE BRACE", "VOLNÁ VZPĚRA"), danger),
+    };
+    auto& braceComplete = ensureHotspot(world, 77, "timber_brace_complete",
+        tr("SECURED TIMBER BRACE", "ZAJIŠTĚNÁ VÝDŘEVA"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    braceComplete.visuals = {
+        box(210, 90, 16, 170, P::brown), line(218, 90, 268, 140, P::brown),
+        circle(218, 174, 5, P::brightGreen), label(177, 229, tr("BRACE SECURE", "VZPĚRA DRŽÍ"), P::brightGreen),
+    };
     gateRight(world, 77, {e2d::Condition::flag("drift_braced")},
         "The marked timber brace must be secured before the collapsed drift.",
         "Před zavalenou chodbou je nutné zajistit označenou výdřevu.");
@@ -3902,9 +4262,38 @@ void addActThree(e2d::WorldDefinition& world) {
         "Čisté uhlí naplní pouzdro filtru a dokončí respirátor.",
         {e2d::Condition::has("respirator"), e2d::Condition::has("filter_housing")}, true, 0);
     world.interactions.back().mutations.push_back(e2d::Mutation::removeItem("filter_housing"));
+    auto& respiratorFilter = ensureHotspot(world, 79, "respirator_filter",
+        tr("RESPIRATOR FILTER", "FILTR RESPIRÁTORU"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    respiratorFilter.visibleWhen = {e2d::Condition::has("respirator"), e2d::Condition::has("filter_housing"),
+        e2d::Condition::notFlag("respirator_fitted")};
+    respiratorFilter.visuals = {
+        box(82, 174, 58, 50, P::lightGray), circle(111, 199, 18, P::black),
+        line(93, 199, 129, 199, danger), label(74, 230, tr("PACK FILTER", "NAPLŇ FILTR"), amber),
+    };
+    auto& respiratorReady = ensureHotspot(world, 79, "respirator_filter_complete",
+        tr("FITTED RESPIRATOR", "DOKONČENÝ RESPIRÁTOR"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    respiratorReady.visuals = {
+        box(82, 174, 58, 50, P::lightGray), circle(111, 199, 18, P::brightGreen, false),
+        line(93, 199, 129, 199, amber), label(84, 230, tr("FILTER OK", "FILTR OK"), P::brightGreen),
+    };
     addUse(world, 79, "fan_starter", "VENTILATION FAN STARTER", "STARTÉR VĚTRÁKU", "multimeter", "ventilation_running",
         "The meter finds a dead starter contact; Iris bridges it and the fan accelerates.",
         "Multimetr najde mrtvý kontakt; Iris ho propojí a větrák zrychlí.", {}, false, 2);
+    auto& fanStarter = ensureHotspot(world, 79, "fan_starter",
+        tr("VENTILATION FAN STARTER", "STARTÉR VĚTRÁKU"), {265, 135, 96, 125}, e2d::HotspotKind::mechanism, 2);
+    fanStarter.visibleWhen = {e2d::Condition::notFlag("ventilation_running")};
+    fanStarter.visuals = {
+        box(284, 169, 58, 59, P::darkGray), box(293, 178, 40, 41, P::black),
+        circle(306, 191, 6, danger), line(316, 207, 328, 187, danger),
+        label(279, 233, tr("DEAD CONTACT", "MRTVÝ KONTAKT"), danger),
+    };
+    auto& fanRunning = ensureHotspot(world, 79, "fan_starter_complete",
+        tr("RUNNING VENTILATION FAN", "BĚŽÍCÍ VĚTRÁK"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    fanRunning.visuals = {
+        box(284, 169, 58, 59, P::darkGray), box(293, 178, 40, 41, P::black),
+        circle(306, 191, 6, P::brightGreen), line(316, 207, 328, 187, P::brightGreen),
+        label(286, 233, tr("FAN RUNNING", "VĚTRÁK BĚŽÍ"), P::brightGreen),
+    };
     addHazard(world, 80, "mine_gas", "respirator_fitted",
         "The mine lamp shrinks to blue and the gas takes Iris's breath.",
         "Plamen důlní lampy zmodrá a plyn vezme Iris dech.");
@@ -3915,12 +4304,47 @@ void addActThree(e2d::WorldDefinition& world) {
         inspect(tr("Ventilation lets Iris restart the drainage pump. The flooded drift slows to a shallow current.",
             "Větrání umožní Iris spustit odvodnění. Proud v zatopené chodbě zeslábne.")),
     }, {e2d::Condition::flag("ventilation_running")}, {}, 2, "power");
+    auto& minePumpControl = ensureHotspot(world, 81, "mine_pump",
+        tr("MINE DRAINAGE PUMP", "DŮLNÍ ODVODŇOVACÍ ČERPADLO"), {270, 137, 92, 123}, e2d::HotspotKind::mechanism, 2);
+    minePumpControl.visibleWhen = {e2d::Condition::flag("ventilation_running"), e2d::Condition::notFlag("mine_drained")};
+    minePumpControl.visuals = {
+        box(289, 169, 54, 59, P::darkGray), circle(316, 188, 8, amber),
+        box(303, 204, 26, 11, P::red), label(288, 233, tr("START PUMP", "SPUSŤ ČERP."), amber),
+    };
+    auto& minePumpRunning = ensureHotspot(world, 81, "mine_pump_complete",
+        tr("RUNNING MINE PUMP", "BĚŽÍCÍ DŮLNÍ ČERPADLO"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    minePumpRunning.visuals = {
+        box(289, 169, 54, 59, P::darkGray), circle(316, 188, 8, P::brightGreen),
+        box(303, 204, 26, 11, P::brightGreen), label(290, 233, tr("DRAINING", "ODVODŇUJE"), P::brightGreen),
+    };
+    gateRight(world, 81, {e2d::Condition::flag("mine_drained")},
+        "The flooded drift is impassable until the mine pump drains it.",
+        "Zatopená chodba je neprůchodná, dokud ji důlní čerpadlo neodvodní.");
     addUse(world, 82, "submerged_grate", "SUBMERGED GRATE", "PONOŘENÁ MŘÍŽ", "magnet_cord", "lift_fuse_retrieved",
         "The magnet swings once, catches, and brings the lift fuse out of the water.",
         "Magnet se zhoupne, zachytí a vytáhne z vody pojistku výtahu.",
         {e2d::Condition::flag("mine_drained"), e2d::Condition::has("insulated_boots")}, false);
     // The retrieved fuse becomes a carried item without consuming the reusable magnet.
     world.interactions.back().mutations.push_back(e2d::Mutation::addItem("lift_fuse"));
+    auto& submergedGrate = ensureHotspot(world, 82, "submerged_grate",
+        tr("SUBMERGED GRATE", "PONOŘENÁ MŘÍŽ"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    submergedGrate.visibleWhen = {e2d::Condition::flag("mine_drained"), e2d::Condition::has("insulated_boots"),
+        e2d::Condition::notFlag("lift_fuse_retrieved")};
+    submergedGrate.visuals = {
+        box(73, 188, 76, 42, P::darkGray), line(82, 197, 140, 197, P::lightGray),
+        line(82, 208, 140, 208, P::lightGray), line(82, 219, 140, 219, P::lightGray),
+        circle(111, 215, 7, danger), label(77, 234, tr("FUSE BELOW", "POJISTKA DOLE"), amber),
+    };
+    auto& grateCleared = ensureHotspot(world, 82, "submerged_grate_complete",
+        tr("CLEARED DRAIN GRATE", "VYČIŠTĚNÁ ODTOKOVÁ MŘÍŽ"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    grateCleared.visuals = {
+        box(73, 188, 76, 42, P::darkGray), line(82, 197, 140, 197, P::brightGreen),
+        line(82, 208, 140, 208, P::brightGreen), line(82, 219, 140, 219, P::brightGreen),
+        label(79, 234, tr("FUSE FOUND", "POJISTKA NALEZENA"), P::brightGreen),
+    };
+    gateRight(world, 82, {e2d::Condition::flag("lift_fuse_retrieved")},
+        "The survey chamber route is under the grate; retrieve the lift fuse before crossing.",
+        "Cesta do průzkumné komory vede kolem mříže; před přechodem vytáhni pojistku výtahu.");
     addPickup(world, 83, "mine_map", "You unfold Voss's marked mine map.", "Rozložíš Vossovu označenou důlní mapu.", 0);
     addPickup(world, 83, "research_badge", "Kline's research badge was abandoned in haste.",
         "Klineové výzkumný odznak byl opuštěn ve spěchu.", 1);
@@ -3929,18 +4353,100 @@ void addActThree(e2d::WorldDefinition& world) {
     addUse(world, 84, "lift_fuse_box", "FREIGHT LIFT FUSE BOX", "POJISTKOVÁ SKŘÍŇ VÝTAHU", "lift_fuse", "lift_fuse_installed",
         "The recovered fuse wakes the cage lamp, but the motor feed remains dark.",
         "Získaná pojistka rozsvítí lampu klece, ale napájení motoru zůstane temné.", {}, true);
+    auto& liftFuseBox = ensureHotspot(world, 84, "lift_fuse_box",
+        tr("FREIGHT LIFT FUSE BOX", "POJISTKOVÁ SKŘÍŇ VÝTAHU"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    liftFuseBox.visibleWhen = {e2d::Condition::notFlag("lift_fuse_installed")};
+    liftFuseBox.visuals = {
+        box(70, 166, 54, 63, P::lightGray), box(78, 174, 38, 47, P::black),
+        circle(97, 188, 7, danger), box(84, 204, 26, 9, P::red),
+        label(70, 234, tr("NO FUSE", "BEZ POJISTKY"), danger),
+    };
+    auto& fuseInstalled = ensureHotspot(world, 84, "lift_fuse_box_complete",
+        tr("FUSED FREIGHT LIFT", "JIŠTĚNÝ NÁKLADNÍ VÝTAH"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    fuseInstalled.visuals = {
+        box(70, 166, 54, 63, P::lightGray), box(78, 174, 38, 47, P::black),
+        circle(97, 188, 7, amber), box(84, 204, 26, 9, amber),
+        label(74, 234, tr("FUSE OK", "POJISTKA OK"), amber),
+    };
     addContext(world, 87, "isolation_order", "SWITCHGEAR ISOLATORS", "ODPOJOVAČE ROZVADĚČE", "substation_isolated", {
         inspect(tr("Calder's arrows guide a safe isolation order. The black feed falls quiet.",
             "Calderiny šipky vedou bezpečným pořadím odpojení. Černý přívod ztichne.")),
     }, {e2d::Condition::flag("nightjar_signal_found")}, {}, 1, "power");
+    auto& isolationOrder = ensureHotspot(world, 87, "isolation_order",
+        tr("SWITCHGEAR ISOLATORS", "ODPOJOVAČE ROZVADĚČE"), {171, 137, 92, 123}, e2d::HotspotKind::mechanism, 1);
+    isolationOrder.visibleWhen = {e2d::Condition::flag("nightjar_signal_found"),
+        e2d::Condition::notFlag("substation_isolated")};
+    isolationOrder.visuals = {
+        box(182, 164, 70, 66, P::lightGray), box(191, 173, 52, 48, P::black),
+        line(202, 184, 202, 211, danger), line(217, 184, 217, 211, danger), line(232, 184, 232, 211, danger),
+        label(188, 234, tr("2 - 1 - 3", "2 - 1 - 3"), amber),
+    };
+    auto& isolationComplete = ensureHotspot(world, 87, "isolation_order_complete",
+        tr("ISOLATED SWITCHGEAR", "ODPOJENÝ ROZVADĚČ"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    isolationComplete.visuals = {
+        box(182, 164, 70, 66, P::lightGray), box(191, 173, 52, 48, P::black),
+        line(202, 211, 202, 184, P::brightGreen), line(217, 211, 217, 184, P::brightGreen),
+        line(232, 211, 232, 184, P::brightGreen), label(188, 234, tr("ISOLATED", "ODPOJENO"), P::brightGreen),
+    };
     addUse(world, 88, "quiet_field_feed", "QUIET FIELD FEED", "PŘÍVOD TICHÉHO POLE", "wrench", "quiet_feed_cut",
         "The wrench disconnects the black Quiet Field feed from the mine system.",
         "Klíč odpojí černý přívod Tichého pole od důlního systému.",
         {e2d::Condition::flag("substation_isolated")});
+    auto& quietFeed = ensureHotspot(world, 88, "quiet_field_feed",
+        tr("QUIET FIELD FEED", "PŘÍVOD TICHÉHO POLE"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    quietFeed.visibleWhen = {e2d::Condition::flag("substation_isolated"), e2d::Condition::notFlag("quiet_feed_cut")};
+    quietFeed.visuals = {
+        circle(84, 189, 14, P::red, false), circle(138, 189, 14, P::red, false),
+        e2d::PolylineVisual{{{84, 203}, {111, 218}, {138, 203}}, danger, false},
+        label(73, 230, tr("QUIET LIVE", "TICHO POD PROUDEM"), danger),
+    };
+    auto& quietCut = ensureHotspot(world, 88, "quiet_field_feed_complete",
+        tr("CUT QUIET FIELD FEED", "ODPOJENÝ PŘÍVOD TICHÉHO POLE"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    quietCut.visuals = {
+        circle(84, 189, 14, P::darkGray, false), circle(138, 189, 14, P::darkGray, false),
+        line(84, 203, 100, 212, P::darkGray), line(122, 212, 138, 203, P::darkGray),
+        label(82, 230, tr("FEED CUT", "PŘÍVOD ODPOJEN"), P::brightGreen),
+    };
     addUse(world, 88, "lift_bus", "LIFT BUS CIRCUIT", "OBVOD PŘÍPOJNICE VÝTAHU", "copper_bus_bar", "lift_powered",
         "The copper bar completes the lift circuit. The cage motor hums above.",
         "Měděná přípojnice dokončí obvod výtahu. Motor klece nahoře zabzučí.",
         {e2d::Condition::flag("quiet_feed_cut")}, true, 2);
+    auto& liftBus = ensureHotspot(world, 88, "lift_bus",
+        tr("LIFT BUS CIRCUIT", "OBVOD PŘÍPOJNICE VÝTAHU"), {265, 135, 96, 125}, e2d::HotspotKind::mechanism, 2);
+    liftBus.visibleWhen = {e2d::Condition::flag("quiet_feed_cut"), e2d::Condition::notFlag("lift_powered")};
+    liftBus.visuals = {
+        circle(286, 189, 14, P::darkGray, false), circle(340, 189, 14, P::darkGray, false),
+        line(300, 189, 326, 189, P::darkGray), label(275, 230, tr("BUS MISSING", "CHYBÍ PŘÍPOJNICE"), danger),
+    };
+    auto& liftPowered = ensureHotspot(world, 88, "lift_bus_complete",
+        tr("POWERED LIFT BUS", "NAPÁJENÁ PŘÍPOJNICE VÝTAHU"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    liftPowered.visuals = {
+        circle(286, 189, 14, P::brightGreen, false), circle(340, 189, 14, P::brightGreen, false),
+        box(300, 183, 26, 12, amber), label(283, 230, tr("LIFT POWER", "VÝTAH NAPÁJEN"), P::brightGreen),
+    };
+    addContext(world, 85, "kade_radio", "VOSS FIELD RADIO", "VOSSOVO POLNÍ RÁDIO", "flood_order_heard", {
+        speech(tr("Kade: The east drift is flooded. Kline's badge and card are still below, but nobody can reach them.",
+            "Kade: Východní chodba je zatopená. Klineové odznak a karta jsou stále dole, ale nikdo se k nim nedostane.")),
+        speech(tr("Voss: Then seal the research passage and report to the observatory. Nightjar fires at midnight.",
+            "Voss: Pak uzavři výzkumnou chodbu a hlas se v observatoři. Nightjar spustí o půlnoci.")),
+        speech(tr("Iris: Their flood failed. Now I know which door they fear.",
+            "Iris: Jejich záplava selhala. Teď vím, kterých dveří se bojí."), e2d::MessageSpeaker::player),
+    }, {e2d::Condition::flag("lift_powered")}, {}, 2, "talk");
+    auto& kadeRadio = ensureHotspot(world, 85, "kade_radio",
+        tr("VOSS FIELD RADIO", "VOSSOVO POLNÍ RÁDIO"), {270, 137, 92, 123}, e2d::HotspotKind::mechanism, 2);
+    kadeRadio.visibleWhen = {e2d::Condition::flag("lift_powered"), e2d::Condition::notFlag("flood_order_heard")};
+    kadeRadio.visuals = {
+        box(295, 168, 64, 56, P::red), box(304, 177, 46, 38, P::black),
+        line(310, 190, 344, 190, signalBlue), line(310, 202, 338, 202, danger),
+        circle(344, 213, 4, amber), label(292, 229, tr("VOSS CHANNEL", "VOSSŮV KANÁL"), danger),
+    };
+    auto& radioHeard = ensureHotspot(world, 85, "kade_radio_complete",
+        tr("MONITORED VOSS CHANNEL", "ODPOSLECHNUTÝ VOSSŮV KANÁL"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    radioHeard.visuals = {
+        box(295, 168, 64, 56, P::red), box(304, 177, 46, 38, P::black),
+        line(310, 196, 344, 196, P::brightGreen), circle(344, 213, 4, P::brightGreen),
+        label(299, 229, tr("ORDER HEARD", "ROZKAZ SLYŠEN"), P::brightGreen),
+    };
     addUse(world, 89, "research_reader", "RESEARCH BADGE READER", "ČTEČKA VÝZKUMNÉHO ODZNAKU",
         "research_badge", "research_badge_presented", "The reader accepts Kline's emergency authority.",
         "Čtečka přijme Klineové nouzové oprávnění.");
@@ -3948,6 +4454,24 @@ void addActThree(e2d::WorldDefinition& world) {
         "punched_card", "research_door_open", "Turned upside down, the card exposes Kline's emergency code and retracts the bolts.",
         "Obrácený štítek odhalí Klineové nouzový kód a zasune závory.",
         {e2d::Condition::flag("research_badge_presented"), e2d::Condition::flag("lift_time_known")}, false, 2);
+    auto& badgeReader = ensureHotspot(world, 89, "research_reader",
+        tr("RESEARCH BADGE READER", "ČTEČKA VÝZKUMNÉHO ODZNAKU"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    badgeReader.visibleWhen = {e2d::Condition::notFlag("research_badge_presented")};
+    badgeReader.visuals = {box(82, 166, 58, 63, P::lightGray), box(91, 175, 40, 45, P::black),
+        circle(111, 188, 7, danger), label(81, 234, tr("BADGE FIRST", "NEJPRVE ODZNAK"), danger)};
+    auto& codeReader = ensureHotspot(world, 89, "code_reader",
+        tr("PUNCHED-CARD READER", "ČTEČKA DĚRNÉHO ŠTÍTKU"), {265, 135, 96, 125}, e2d::HotspotKind::mechanism, 2);
+    codeReader.visibleWhen = {e2d::Condition::flag("research_badge_presented"), e2d::Condition::notFlag("research_door_open")};
+    codeReader.visuals = {box(284, 166, 58, 63, P::lightGray), box(293, 175, 40, 45, P::black),
+        box(300, 185, 26, 17, pale), circle(307, 190, 2, P::black), circle(318, 197, 2, P::black),
+        label(279, 234, tr("TURN CARD", "OBRAŤ KARTU"), amber)};
+    auto& researchOpen = ensureHotspot(world, 89, "code_reader_complete",
+        tr("OPEN RESEARCH DOOR", "OTEVŘENÉ VÝZKUMNÉ DVEŘE"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    researchOpen.visuals = {
+        box(88, 151, 118, 109, P::black), box(232, 151, 118, 109, P::black),
+        line(219, 151, 219, 260, P::brightGreen), circle(313, 188, 7, P::brightGreen),
+        label(151, 172, tr("DOOR OPEN", "DVEŘE OTEVŘENY"), P::brightGreen),
+    };
     addContext(world, 90, "ridge_lift", "RIDGE FREIGHT LIFT", "HŘEBENOVÝ NÁKLADNÍ VÝTAH", "act3_complete", {
         speech(tr("Voss: Leave my phase coil in the cage and you may walk away before midnight.",
             "Voss: Nech mou fázovou cívku v kleci a můžeš před půlnocí odejít.")),
@@ -3956,10 +4480,8 @@ void addActThree(e2d::WorldDefinition& world) {
         inspect(tr("The lift climbs through old mine strata toward the observatory and Nightjar.",
             "Výtah stoupá starými důlními vrstvami k observatoři a Nightjaru.")),
     }, {e2d::Condition::flag("lift_fuse_installed"), e2d::Condition::flag("lift_powered"),
-        e2d::Condition::flag("research_door_open"), e2d::Condition::has("red_phase_coil")}, {}, 2, "climb");
-    gateRight(world, 90, {e2d::Condition::flag("act3_complete")},
-        "The ridge lift needs its fuse, mine power and Kline's emergency access.",
-        "Hřebenový výtah potřebuje pojistku, důlní napájení a Klineové nouzový přístup.");
+        e2d::Condition::flag("research_door_open"), e2d::Condition::has("red_phase_coil")},
+        {e2d::Mutation::moveTo(std::string{screen(91).id})}, 2, "climb");
     addFollowUpDialogue(world, 52, "lila", "lila_followup", {
         speech(tr("Lila: The engine made the reservoir run and is still holding pressure. I will relay Mara's calls east.",
             "Lila: Lokomotiva zvládla cestu k nádrži a stále drží tlak. Budu předávat Mařina volání na východ.")),
@@ -4496,12 +5018,42 @@ void addHints(e2d::WorldDefinition& world) {
         "Sleduj cestu ŠACHTA z odčerpaného prostoru a klávesou ENTER požádej Jonaha o zvednutí mříže.");
     next("taken_respirator", "At East Access Shaft take the MINE ladder down and TAKE the respirator from the cabinet.",
         "Ve Východní šachtě slez po žebříku DŮL a SEBER respirátor ze skříňky.");
-    next("respirator_fitted", "In the Ventilation Room, TAKE the empty filter housing and USE charcoal to complete the respirator.",
-        "Ve Větrací strojně SEBER prázdné pouzdro filtru a POUŽIJ uhlí k dokončení respirátoru.");
-    next("lift_powered", "Ground the Switchgear Aisle, cut the black feed, then install the copper bus in the Cable Vault.",
-        "Odpoj Uličku rozvaděčů, přeruš černý přívod a namontuj měděnou přípojnici v Kabelové komoře.");
-    next("act3_complete", "Open the Sealed Research Door and operate the powered Ridge Freight Lift.",
-        "Otevři Utěsněné výzkumné dveře a spusť napájený Hřebenový nákladní výtah.");
+    next("drift_braced", "Walk east to Timber Gallery and USE the wrench on the red-marked LOOSE BRACE.",
+        "Jdi na východ do Výdřevové chodby a POUŽIJ klíč na červeně označenou VOLNOU VZPĚRU.");
+    next("taken_filter_housing", "At Timber Gallery enter the blue VENT spur and TAKE the empty filter housing.",
+        "Ve Výdřevové chodbě vstup do modré odbočky VĚTRÁNÍ a SEBER prázdné pouzdro filtru.");
+    next("respirator_fitted", "In Ventilation Room USE charcoal on PACK FILTER to complete the respirator.",
+        "Ve Větrací strojně POUŽIJ uhlí na NAPLŇ FILTR a dokonči respirátor.");
+    next("ventilation_running", "In Ventilation Room USE the multimeter on the DEAD CONTACT fan starter.",
+        "Ve Větrací strojně POUŽIJ multimetr na MRTVÝ KONTAKT startéru větráku.");
+    next("taken_copper_bus_bar", "Return through GALLERY, walk east through the braced collapse and TAKE the copper bus in the GAS ZONE.",
+        "Vrať se přes CHODBU, jdi na východ zajištěným závalem a SEBER měděnou přípojnici v PLYNU.");
+    next("mine_drained", "Continue east to Mine Pump Station and press ENTER at START PUMP.",
+        "Pokračuj na východ k Důlnímu čerpadlu a stiskni ENTER u SPUSŤ ČERP.");
+    next("lift_fuse_retrieved", "Walk east into the drained drift and USE the magnet cord on FUSE BELOW.",
+        "Jdi na východ do odvodněné chodby a POUŽIJ magnet na laně u POJISTKA DOLE.");
+    next("taken_mine_map", "Continue east to Survey Chamber and TAKE Voss's mine map from the survey board.",
+        "Pokračuj na východ do Průzkumné komory a SEBER Vossovu důlní mapu z tabule.");
+    next("taken_research_badge", "In Survey Chamber TAKE Kline's research badge.",
+        "V Průzkumné komoře SEBER Klineové výzkumný odznak.");
+    next("taken_punched_card", "In Survey Chamber TAKE the punched card.",
+        "V Průzkumné komoře SEBER děrný štítek.");
+    next("lift_fuse_installed", "Walk east to Freight Lift Bottom and USE the recovered fuse on NO FUSE.",
+        "Jdi na východ k Dolní stanici výtahu a POUŽIJ nalezenou pojistku na BEZ POJISTKY.");
+    next("substation_isolated", "At the lower lift enter SUBSTATION through MAINT CRAWL, then enter SWITCH and press ENTER at 2-1-3.",
+        "U dolního výtahu vstup SERVISNÍM PRŮLEZEM do ROZVODNY, pak do ROZV. a stiskni ENTER u 2-1-3.");
+    next("quiet_feed_cut", "Return to SUBSTATION, enter VAULT and USE the wrench on QUIET LIVE.",
+        "Vrať se do ROZVODNY, vstup do KABELŮ a POUŽIJ klíč na TICHO POD PROUDEM.");
+    next("lift_powered", "In Cable Vault USE the copper bus bar on BUS MISSING.",
+        "V Kabelové komoře POUŽIJ měděnou přípojnici na CHYBÍ PŘÍPOJNICE.");
+    next("flood_order_heard", "Return through SUBSTATION and CRAWL, ride the powered CAGE TO UPPER, then press ENTER at VOSS CHANNEL.",
+        "Vrať se přes ROZVODNU a PRŮLEZ, jeď napájenou KLECÍ NAHORU a stiskni ENTER u VOSSŮV KANÁL.");
+    next("research_badge_presented", "Enter SUBSTATION, then VAULT and RESEARCH; USE Kline's badge on BADGE FIRST.",
+        "Vstup do ROZVODNY, pak do KABELŮ a VÝZKUMU; POUŽIJ Klineové odznak na NEJPRVE ODZNAK.");
+    next("research_door_open", "At the research door USE the punched card on TURN CARD.",
+        "U výzkumných dveří POUŽIJ děrný štítek na OBRAŤ KARTU.");
+    next("act3_complete", "Enter the open RIDGE LIFT door and press ENTER at ASCEND.",
+        "Vstup otevřenými dveřmi HŘEBENOVÉHO VÝTAHU a stiskni ENTER u VZHŮRU.");
     next("courtyard_patrol_diverted", "Place June's ration and set the timer in the Observatory Kitchen.",
         "Polož Juninu dávku a nastav minutku v Kuchyni observatoře.");
     next("archive_open", "Read the project dates in Archive Hall, then align the four drawers in Records Room.",

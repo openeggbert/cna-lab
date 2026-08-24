@@ -78,7 +78,14 @@ int main(const int argc, const char* const argv[]) {
              "dam_diagram_read", "taken_pump_gasket", "bay_isolated", "taken_dry_cell",
              "pump_gasket_installed", "pump_battery_installed", "intake_tunnel_lit",
              "taken_valve_wheel", "pump_intake_open", "pump_running",
-             "taken_magnet_cord", "mine_access_open", "reservoir_complete"}) {
+             "taken_magnet_cord", "mine_access_open", "reservoir_complete",
+             "taken_respirator", "drift_braced", "taken_filter_housing",
+             "respirator_fitted", "ventilation_running", "taken_copper_bus_bar",
+             "mine_drained", "lift_fuse_retrieved", "taken_mine_map",
+             "taken_research_badge", "taken_punched_card", "mine_cart_ready",
+             "lift_fuse_installed", "substation_isolated", "quiet_feed_cut",
+             "lift_powered", "flood_order_heard", "research_badge_presented",
+             "research_door_open", "act3_complete"}) {
         repaired.flags[flag] = true;
     }
     if (!session.restore(repaired)) throw std::runtime_error{"cannot create repaired relay preview"};
@@ -97,7 +104,12 @@ int main(const int argc, const char* const argv[]) {
         "dam_overlook", "west_abutment", "spillway_walk", "gatehouse",
         "turbine_hall_upper", "turbine_hall_lower", "pump_gallery",
         "flooded_maintenance_bay", "intake_tunnel", "reservoir_shore",
-        "valve_garden", "east_access_shaft",
+        "valve_garden", "east_access_shaft", "ore_cart_chamber",
+        "timber_gallery", "collapsed_drift", "ventilation_room", "copper_vein",
+        "mine_pump_station", "flooded_drift", "survey_chamber",
+        "freight_lift_bottom", "freight_lift_top", "underground_substation",
+        "switchgear_aisle", "cable_vault", "sealed_research_door",
+        "ridge_freight_lift",
     };
     for (const auto* roomId : repairedRooms) {
         const auto* repairedRoom = world.room(roomId);

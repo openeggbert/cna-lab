@@ -296,7 +296,7 @@ int main() {
             assert(candidate.interactionArea.bottom() == 260.0F);
         }
         anchors += current->travelAnchor ? 1U : 0U;
-        const bool authoredHub = spec.number >= 6 && spec.number <= 75;
+        const bool authoredHub = spec.number >= 6 && spec.number <= 90;
         if (i > 0 && !authoredHub) {
             assert(std::ranges::any_of(current->exits, [i](const e2d::ExitDefinition& exit) {
                 return exit.direction == e2d::Direction::left
@@ -405,6 +405,22 @@ int main() {
     assert(hasExit("reservoir_shore", e2d::Direction::right, "valve_garden"));
     assert(hasExit("valve_garden", e2d::Direction::left, "reservoir_shore"));
     assert(world.room("valve_garden")->exits.size() == 1);
+    assert(hasExit("ore_cart_chamber", e2d::Direction::right, "timber_gallery"));
+    assert(hasExit("timber_gallery", e2d::Direction::left, "ore_cart_chamber"));
+    assert(hasExit("timber_gallery", e2d::Direction::right, "collapsed_drift"));
+    assert(hasExit("collapsed_drift", e2d::Direction::left, "timber_gallery"));
+    assert(hasExit("collapsed_drift", e2d::Direction::right, "copper_vein"));
+    assert(hasExit("copper_vein", e2d::Direction::left, "collapsed_drift"));
+    assert(hasExit("copper_vein", e2d::Direction::right, "mine_pump_station"));
+    assert(hasExit("mine_pump_station", e2d::Direction::left, "copper_vein"));
+    assert(hasExit("mine_pump_station", e2d::Direction::right, "flooded_drift"));
+    assert(hasExit("flooded_drift", e2d::Direction::left, "mine_pump_station"));
+    assert(hasExit("flooded_drift", e2d::Direction::right, "survey_chamber"));
+    assert(hasExit("survey_chamber", e2d::Direction::left, "flooded_drift"));
+    assert(hasExit("survey_chamber", e2d::Direction::right, "freight_lift_bottom"));
+    for (const int branch : {79, 84, 85, 86, 87, 88, 89, 90}) {
+        assert(world.room(black_pine::content::screens[static_cast<std::size_t>(branch - 1)].id)->exits.empty());
+    }
     assert(anchors == 17);
     assert(visiblePickups >= 45);
     assert(animatedRooms > 80 && animatedRooms < world.rooms.size());
@@ -633,9 +649,12 @@ int main() {
     portal(session, world, "s075_mine_ladder", "ore_cart_chamber");
     take(session, world, "s076_take_respirator", "respirator");
     use(session, world, "s077_timber_brace", "wrench", "drift_braced");
+    assert(session.currentHint()->text.resolve("en").find("VENT") != std::string_view::npos);
+    portal(session, world, "s077_vent_spur", "ventilation_room");
     take(session, world, "s079_take_filter_housing", "filter_housing");
     use(session, world, "s079_respirator_filter", "charcoal", "respirator_fitted");
     use(session, world, "s079_fan_starter", "multimeter", "ventilation_running");
+    portal(session, world, "s079_gallery_door", "timber_gallery");
     take(session, world, "s080_take_copper_bus_bar", "copper_bus_bar");
     context(session, world, "s081_mine_pump", "mine_drained");
     use(session, world, "s082_submerged_grate", "magnet_cord", "lift_fuse_retrieved");
@@ -643,13 +662,30 @@ int main() {
     take(session, world, "s083_take_mine_map", "mine_map");
     take(session, world, "s083_take_research_badge", "research_badge");
     take(session, world, "s083_take_punched_card", "punched_card");
+    context(session, world, "s083_cart_shortcut", "mine_cart_ready");
+    assert(session.currentRoomId() == "ore_cart_chamber");
+    portal(session, world, "s076_cart_shortcut", "survey_chamber");
     use(session, world, "s084_lift_fuse_box", "lift_fuse", "lift_fuse_installed");
+    assert(session.currentHint()->text.resolve("en").find("MAINT CRAWL") != std::string_view::npos);
+    portal(session, world, "s084_maintenance_crawl", "underground_substation");
+    portal(session, world, "s086_switchgear_door", "switchgear_aisle");
     context(session, world, "s087_isolation_order", "substation_isolated");
+    portal(session, world, "s087_substation_return", "underground_substation");
+    portal(session, world, "s086_vault_door", "cable_vault");
     use(session, world, "s088_quiet_field_feed", "wrench", "quiet_feed_cut");
     use(session, world, "s088_lift_bus", "copper_bus_bar", "lift_powered");
+    portal(session, world, "s088_substation_return", "underground_substation");
+    portal(session, world, "s086_bottom_crawl", "freight_lift_bottom");
+    portal(session, world, "s084_freight_cage", "freight_lift_top");
+    context(session, world, "s085_kade_radio", "flood_order_heard");
+    portal(session, world, "s085_substation_door", "underground_substation");
+    portal(session, world, "s086_vault_door", "cable_vault");
+    portal(session, world, "s088_research_door", "sealed_research_door");
     use(session, world, "s089_research_reader", "research_badge", "research_badge_presented");
     use(session, world, "s089_code_reader", "punched_card", "research_door_open");
+    portal(session, world, "s089_ridge_lift_door", "ridge_freight_lift");
     context(session, world, "s090_ridge_lift", "act3_complete");
+    assert(session.currentRoomId() == "freight_lift_lobby");
 
     // Act IV — observatory infiltration and Nightjar shutdown.
     use(session, world, "s091_tracking_camera", "hand_mirror", "camera_blinded");
