@@ -698,3 +698,17 @@ claimed: the generic writer exposes individual render/physics record calls and a
 context. Report 7/7, comparator 7/7, VRAM 6/6, and both retained Xvfb diagnostics pass without
 launching the game. Full 8/8 CTest also passes with its smoke process isolated inside Xvfb. This
 adds no physical workload capture.
+
+## 2026-08-24 — base capture metadata completeness
+
+The shared schema-8 loader now requires `startup_cpu`, the final previously optional C++ timing row,
+with the same measurement-summary invariants as every other metric. Backend, build configuration,
+and scenario must be printable non-empty lines; resolution dimensions and target-frame duration
+must be positive and timing flags boolean.
+
+The allowed identity values are deliberately not closed: the generic writer's C++ unit report uses
+`TEST`/`Debug`/`unit_test`, while qualification still separately requires Release OPENGLES3 mixed
+runs. Six report negatives cover the missing row, multiline/blank identity fields, and zero geometry
+or target duration. Report 7/7, comparator 7/7, VRAM 6/6, and both retained diagnostics pass without
+launching the game. Full 8/8 CTest also passes with its smoke process isolated inside Xvfb. This is
+schema completeness, not new M12 evidence.

@@ -63,6 +63,7 @@ def capture_fixture() -> dict:
             "district_world_physics_cpu": measurement(1, 0.1),
             "district_renderer_upload_cpu": measurement(1, 0.2),
             "district_load_cpu": measurement(1, 0.3),
+            "startup_cpu": measurement(1, 10.0),
         },
         "frame_pacing": {
             "samples": 100,

@@ -321,6 +321,12 @@ Six missing/mutated/corrupt cases exit 2. Cross-metric count equality and peak==
 invented because the generic writer does not guarantee them; focused suites and both retained
 diagnostics pass, followed by full isolated 8/8 CTest with its smoke process confined to Xvfb.
 
+Base capture metadata now requires printable non-empty backend/build/scenario text, positive
+resolution and target-frame duration, boolean timing flags, and the formerly omittable `startup_cpu`
+row. Values stay extensible for the generic diagnostic writer; qualifying policy remains separate.
+Six malformed shapes exit 2 while focused suites, both retained diagnostics, and full isolated 8/8
+CTest pass; the smoke process remained confined to Xvfb.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

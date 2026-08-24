@@ -252,6 +252,11 @@ fast ones. The first-district budgets enforced by `--profile` are:
 | Peak resident RAM | 2 GiB |
 | VRAM | 512 MiB |
 
+Schema-8 consumers require all C++ timing rows, including `startup_cpu`; omission is malformed
+evidence. Backend, build configuration, and scenario remain extensible for generic diagnostics but
+must be printable non-empty lines. Resolution width/height and target-frame duration are positive,
+and both timing request flags are boolean before any report/comparison-specific policy is applied.
+
 The recommended frame interval is 16.667 ms (60 FPS). The subsystem CPU rows are nested inside
 the whole update/render work and therefore are not added together as independent frame costs.
 `frame_interval` is the authoritative end-to-end measurement: it includes scheduling, vertical

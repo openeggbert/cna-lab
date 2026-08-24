@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 base capture metadata and `startup_cpu` are now mandatory.** The last C++ timing row can no
+longer disappear, and malformed top-level identity/timing fields fail in every shared consumer.
+
+- Backend, build configuration, and scenario must be printable non-empty lines; values remain open
+  for the generic diagnostic writer (`TEST`/`Debug`/`unit_test` is a valid C++ unit shape).
+- Resolution dimensions and target frame duration must be positive, timing flags boolean, and
+  `startup_cpu` present with the same summary invariants as every measurement.
+- Six report negatives cover omission, control/blank identity text, zero resolution, and zero target.
+  Report 7/7, comparator 7/7, VRAM 6/6, both retained diagnostics, and full isolated 8/8 CTest pass;
+  its smoke process ran only inside Xvfb and no physical capture was added.
+
 **M12 workload sections are now mandatory and structurally validated.** A capture can no longer omit
 render, physics, AI, or audio context while retaining only the four top-level peak counts.
 

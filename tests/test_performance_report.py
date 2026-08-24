@@ -184,6 +184,7 @@ def capture_fixture() -> dict:
             "district_world_physics_cpu": measurement(1, 0.1),
             "district_renderer_upload_cpu": measurement(1, 0.2),
             "district_load_cpu": measurement(1, 0.3),
+            "startup_cpu": measurement(1, 10.0),
         },
         "frame_pacing": {
             "samples": 4,
@@ -641,6 +642,42 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_schema], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("schema_version must be 8", result.stderr)
+
+        missing_startup = capture_fixture()
+        missing_startup["measurements"].pop("startup_cpu")
+        result = self.run_report([missing_startup], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("missing measurements.startup_cpu", result.stderr)
+
+        multiline_backend = capture_fixture()
+        multiline_backend["backend"] = "OPENGLES3\nspoofed"
+        result = self.run_report([multiline_backend], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("backend must be a single printable line", result.stderr)
+
+        blank_build = capture_fixture()
+        blank_build["build_configuration"] = "   "
+        result = self.run_report([blank_build], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("build_configuration must be a non-empty string", result.stderr)
+
+        multiline_scenario = capture_fixture()
+        multiline_scenario["scenario"] = "mixed\nidle"
+        result = self.run_report([multiline_scenario], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("scenario must be a single printable line", result.stderr)
+
+        zero_resolution = capture_fixture()
+        zero_resolution["resolution"]["width"] = 0
+        result = self.run_report([zero_resolution], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("resolution width and height must be positive", result.stderr)
+
+        zero_target_frame = capture_fixture()
+        zero_target_frame["timing"]["target_frame_ms"] = 0.0
+        result = self.run_report([zero_target_frame], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("timing.target_frame_ms must be positive", result.stderr)
 
         bad_budget = capture_fixture()
         bad_budget["budgets"]["minimum_frame_p95_ms"] = 40.0

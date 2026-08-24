@@ -521,6 +521,19 @@ def validate_locked_budgets(capture: dict[str, Any]) -> None:
             raise ReportError(f"budgets.{key} must be {expected}")
 
 
+def validate_capture_metadata(capture: dict[str, Any]) -> None:
+    for key in ("backend", "build_configuration", "scenario"):
+        _single_line_string(capture, key)
+    width = _integer(capture, "resolution", "width")
+    height = _integer(capture, "resolution", "height")
+    if width == 0 or height == 0:
+        raise ReportError("resolution width and height must be positive")
+    _boolean(capture, "timing", "vertical_sync_requested")
+    _boolean(capture, "timing", "fixed_timestep")
+    if _number(capture, "timing", "target_frame_ms") == 0.0:
+        raise ReportError("timing.target_frame_ms must be positive")
+
+
 def validate_gpu_timing(capture: dict[str, Any]) -> None:
     supported = _boolean(capture, "gpu_timing", "supported")
     if not _boolean(capture, "gpu_timing", "non_blocking"):
@@ -1088,6 +1101,7 @@ def load_capture(path: Path) -> dict[str, Any]:
             f"{path}: schema_version must be {SCHEMA_VERSION}, got {capture.get('schema_version')!r}"
         )
 
+    validate_capture_metadata(capture)
     validate_locked_budgets(capture)
     validate_gpu_timing(capture)
     for workload in (
@@ -1105,10 +1119,13 @@ def load_capture(path: Path) -> dict[str, Any]:
         "district_world_physics_cpu",
         "district_renderer_upload_cpu",
         "district_load_cpu",
+        "startup_cpu",
     )
     measurements = _mapping(_path(capture, "measurements"), "measurements")
     for metric in required_metrics:
-        _mapping(_path(measurements, metric), f"measurements.{metric}")
+        if metric not in measurements:
+            raise ReportError(f"missing measurements.{metric}")
+        _mapping(measurements[metric], f"measurements.{metric}")
     for metric in measurements:
         validate_measurement_summary(capture, metric)
     validate_frame_pacing(capture, path)
