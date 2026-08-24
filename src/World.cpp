@@ -386,6 +386,14 @@ namespace WolfCna
                 -static_cast<float>(exit.approachZ))};
     }
 
+    void World::ActivateExitObjectiveForCheat()
+    {
+        for (Terminal& terminal : terminals_)
+            terminal.activated = true;
+        for (Relay& relay : relays_)
+            relay.activated = true;
+    }
+
     World::ObjectiveStatus World::GetObjectiveStatus() const
     {
         return {
@@ -434,6 +442,7 @@ namespace WolfCna
         Door* target = nullptr;
         Terminal* targetTerminal = nullptr;
         Relay* targetRelay = nullptr;
+        Exit* targetExit = nullptr;
         float closestDistanceSquared = ActivationRange * ActivationRange;
 
         for (Door& door : doors_)
@@ -496,6 +505,32 @@ namespace WolfCna
             targetTerminal = nullptr;
             closestDistanceSquared = distanceSquared;
         }
+
+        for (Exit& exit : exits_)
+        {
+            const float offsetX = exit.position.X - playerPosition.X;
+            const float offsetZ = exit.position.Z - playerPosition.Z;
+            const float distanceSquared = offsetX * offsetX + offsetZ * offsetZ;
+            if (distanceSquared > closestDistanceSquared || distanceSquared <= 0.0f)
+                continue;
+
+            const float inverseDistance = 1.0f / std::sqrt(distanceSquared);
+            const float facing =
+                (offsetX * lookDirection.X + offsetZ * lookDirection.Z) * inverseDistance;
+            if (facing < ActivationDotThreshold)
+                continue;
+
+            targetExit = &exit;
+            targetRelay = nullptr;
+            targetTerminal = nullptr;
+            target = nullptr;
+            closestDistanceSquared = distanceSquared;
+        }
+
+        if (targetExit)
+            return IsExitUnlocked()
+                ? InteractionResult::ExitActivated
+                : InteractionResult::ExitOffline;
 
         if (targetRelay)
         {

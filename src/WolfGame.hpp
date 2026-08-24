@@ -178,6 +178,7 @@ namespace WolfCna
         void LoadCampaignLevel(int index);
         void AdvanceCampaign();
         void UnlockNextLevel();
+        void CompleteLevel();
         void SaveCampaignProfile() const;
         void AwardScore(int points);
 

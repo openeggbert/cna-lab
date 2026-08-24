@@ -1283,12 +1283,24 @@ completion, while campaign-map tests require exactly one approach to every eleva
 
 Status: complete. Pressing the unused `G` + `O` + `A` + `L` chord once moves the
 player to the authored walkable cell immediately outside the current sector elevator
-and turns the view toward its doors. The cheat does not activate relays, terminals or
-the elevator gate, so objective behavior remains testable. Input is edge-triggered,
+and turns the view toward its doors. The debug chord also activates the sector relay
+and terminal objective so the elevator can be tested immediately. Input is edge-triggered,
 the latch resets with each sector and the destination/heading calculation is covered
 by a focused test.
 
 - use a memorable chord that does not collide with movement, map or loadout controls;
 - place the player outside rather than inside a locked elevator;
 - face the elevator automatically after teleporting;
-- preserve normal objective and completion requirements.
+- bring the objective online as part of this explicit debug cheat.
+
+### WOLF-024 — interactive elevator action
+
+Status: complete. `Space` now recognizes a faced elevator from its authored approach.
+An incomplete objective returns visible `EXIT OFFLINE` feedback with the lock sound;
+an online elevator completes the sector and reuses the same one-time score, unlock and
+audio path as walking into its open cabin. Focused tests cover both interaction results.
+
+- never leave the action key silently unresponsive at a visible goal;
+- retain relay and terminal requirements during ordinary play;
+- allow both Wolf-like action activation and physical cabin entry;
+- keep completion rewards idempotent through one shared helper.

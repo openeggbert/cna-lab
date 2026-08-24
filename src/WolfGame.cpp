@@ -1420,6 +1420,18 @@ namespace WolfCna
         SaveCampaignProfile();
     }
 
+    void WolfGame::CompleteLevel()
+    {
+        if (completed_)
+            return;
+
+        completed_ = true;
+        UnlockNextLevel();
+        AwardScore(1000);
+        if (exitSound_)
+            static_cast<void>(exitSound_->Play(0.38f, 0.4f, 0.0f));
+    }
+
     void WolfGame::SaveCampaignProfile() const
     {
         CampaignProgress::Save(
@@ -1660,8 +1672,9 @@ namespace WolfCna
                 yaw_ = std::atan2(
                     approach->lookDirection.X,
                     -approach->lookDirection.Z);
+                world_.ActivateExitObjectiveForCheat();
                 static_cast<void>(exploration_.Visit(playerPosition_.X, playerPosition_.Z));
-                objectiveMessage_ = "GOAL APPROACH";
+                objectiveMessage_ = "EXIT ONLINE";
                 objectiveMessageSeconds_ = 2.0f;
                 if (secretSound_)
                     static_cast<void>(secretSound_->Play(0.24f, 0.2f, 0.0f));
@@ -1677,6 +1690,19 @@ namespace WolfCna
                 static_cast<void>(doorSound_->Play(0.68f, -0.15f, 0.0f));
             else if (activation == World::InteractionResult::DoorLocked && lockedSound_)
                 static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
+            else if (activation == World::InteractionResult::ExitOffline)
+            {
+                objectiveMessage_ = "EXIT OFFLINE";
+                objectiveMessageSeconds_ = 2.0f;
+                if (lockedSound_)
+                    static_cast<void>(lockedSound_->Play(0.24f, -0.7f, 0.0f));
+            }
+            else if (activation == World::InteractionResult::ExitActivated)
+            {
+                CompleteLevel();
+                actionWasDown_ = actionIsDown;
+                return;
+            }
             else if (activation == World::InteractionResult::TerminalActivated)
             {
                 if (terminalSound_)
@@ -1901,13 +1927,7 @@ namespace WolfCna
             pickups.repeaterWeapons + pickups.heavyWeapons) > 0 && pickupSound_)
             static_cast<void>(pickupSound_->Play(0.28f, 0.0f, 0.0f));
         if (!completed_ && world_.ReachedExit(playerPosition_))
-        {
-            completed_ = true;
-            UnlockNextLevel();
-            AwardScore(1000);
-            if (exitSound_)
-                static_cast<void>(exitSound_->Play(0.38f, 0.4f, 0.0f));
-        }
+            CompleteLevel();
 
         Game::Update(gameTime);
     }

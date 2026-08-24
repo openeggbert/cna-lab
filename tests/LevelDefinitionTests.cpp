@@ -372,6 +372,21 @@ int main()
         goalApproach->lookDirection.X == 1.0f && goalApproach->lookDirection.Z == 0.0f,
         "goal cheat faces the player toward the elevator doors");
 
+    WolfCna::World goalInteractionWorld(WolfCna::LevelDefinition::Parse(
+        "#######\n#PM..E#\n#######\n",
+        "goal-interaction.level"));
+    const Microsoft::Xna::Framework::Vector3 goalInteractionPosition(4.5f, 0.62f, 1.5f);
+    Expect(
+        goalInteractionWorld.TryActivate(goalInteractionPosition, lookDirection, false) ==
+            WolfCna::World::InteractionResult::ExitOffline,
+        "action on a locked elevator reports that the exit is offline");
+    goalInteractionWorld.ActivateExitObjectiveForCheat();
+    Expect(goalInteractionWorld.IsExitUnlocked(), "goal cheat brings the sector objective online");
+    Expect(
+        goalInteractionWorld.TryActivate(goalInteractionPosition, lookDirection, false) ==
+            WolfCna::World::InteractionResult::ExitActivated,
+        "action on an online elevator activates sector completion");
+
     WolfCna::World exitWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PET#\n#####\n",
         "exit.level"));

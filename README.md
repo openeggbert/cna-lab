@@ -63,7 +63,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - `I` + `L` + `M` together: retro loadout cheat — full health, all weapons,
   access card, heavy automatic selected, ammunition set to 99, and score reset to zero
 - `G` + `O` + `A` + `L` together: teleport to the free cell immediately outside
-  the current sector elevator and face its doors; this does not unlock the objective
+  the current sector elevator, face its doors and bring its objective online
 
 After all lives are lost, press `Space` to return to the title menu and start a new run.
 At a sector exit, `Space` takes the run to the next sector; score, lives, health,
@@ -113,7 +113,8 @@ The loader rejects malformed rows, unknown symbols, and levels without exactly o
 
 An elevator is sealed by red doors until every power relay and terminal is active.
 The doors then rise, its destination marker turns cyan and entering the cabin
-completes the sector.
+or pressing `Space` while facing the online elevator completes the sector. Pressing
+`Space` at an offline elevator reports `EXIT OFFLINE` instead of failing silently.
 Activating either component briefly reports `POWER ONLINE`, `TERMINAL ONLINE` or
 `EXIT ONLINE` in the play view.
 All four campaign sectors use an exact 64×64-cell footprint with large authored
