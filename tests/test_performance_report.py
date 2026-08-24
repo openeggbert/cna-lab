@@ -188,12 +188,12 @@ def capture_fixture() -> dict:
             "unsupported_reason": "",
         },
         "measurements": {
-            "frame_interval": measurement(4, 16.8, 20.0),
-            "update_cpu": measurement(4, 0.3),
-            "physics_cpu": measurement(4, 0.2),
-            "ai_cpu": measurement(4, 0.01),
-            "audio_cpu": measurement(4, 0.02),
-            "render_cpu": measurement(4, 1.0),
+            "frame_interval": measurement(899, 16.8, 20.0),
+            "update_cpu": measurement(899, 0.3),
+            "physics_cpu": measurement(899, 0.2),
+            "ai_cpu": measurement(899, 0.01),
+            "audio_cpu": measurement(899, 0.02),
+            "render_cpu": measurement(899, 1.0),
             "present_cpu": measurement(4, 2.0),
             "gpu_render": measurement(4, 4.0),
             "district_world_physics_cpu": measurement(1, 0.1),
@@ -210,13 +210,13 @@ def capture_fixture() -> dict:
                 "a district-transition boundary is the first frame-interval sample recorded "
                 "after RecordDistrictLoad"
             ),
-            "samples": 4,
+            "samples": 899,
             "histogram": {
                 "at_or_below_recommended_budget": {"upper_bound_ms": 16.667, "count": 1},
                 "above_recommended_at_or_below_minimum_budget": {
                     "lower_bound_exclusive_ms": 16.667,
                     "upper_bound_ms": 33.333,
-                    "count": 3,
+                    "count": 898,
                 },
                 "above_minimum_at_or_below_hitch": {
                     "lower_bound_exclusive_ms": 33.333,
@@ -301,7 +301,7 @@ def capture_fixture() -> dict:
                 }
             ],
         },
-        **workload_fixtures(4),
+        **workload_fixtures(899),
         "memory": {
             "peak_resident_bytes": 128 * 1024 * 1024,
             "known": True,
@@ -518,6 +518,26 @@ class PerformanceReportTests(unittest.TestCase):
             hashlib.sha256(b"raw report-test profiler artifact 0").hexdigest(),
             result.stdout,
         )
+
+        short_capture = deepcopy(first)
+        short_capture["measurements"]["frame_interval"]["samples"] = 4
+        short_capture["measurements"]["render_cpu"]["samples"] = 4
+        short_capture["frame_pacing"]["samples"] = 4
+        short_histogram = short_capture["frame_pacing"]["histogram"]
+        short_histogram["at_or_below_recommended_budget"]["count"] = 1
+        short_histogram["above_recommended_at_or_below_minimum_budget"]["count"] = 3
+        short_capture["audio_workload"]["loaded_sound_assets"]["samples"] = 4
+        result = self.run_report(
+            [short_capture, second],
+            "Minimum Linux EasyGL GPU",
+            "--qualifying-hardware",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Overall status: **FAIL**", result.stdout)
+        self.assertIn("requires at least 899 samples", result.stdout)
+        self.assertIn(r"frame\_interval=4", result.stdout)
+        self.assertIn(r"render\_cpu=4", result.stdout)
+        self.assertIn(r"audio\_workload=4", result.stdout)
 
         overlapping = deepcopy(first)
         overlapping["measurements"]["frame_interval"]["p95_ms"] = 17.1
@@ -811,12 +831,12 @@ class PerformanceReportTests(unittest.TestCase):
 
         empty_boundary_bucket = capture_fixture()
         pacing = empty_boundary_bucket["frame_pacing"]
-        pacing["histogram"]["above_recommended_at_or_below_minimum_budget"]["count"] = 2
-        pacing["histogram"]["above_hitch_at_or_below_severe_hitch"]["count"] = 1
-        pacing["minimum_budget_misses"]["count"] = 1
-        pacing["minimum_budget_misses"]["percent"] = 25.0
-        pacing["hitches"]["count"] = 1
-        pacing["hitches"]["percent"] = 25.0
+        pacing["histogram"]["above_recommended_at_or_below_minimum_budget"]["count"] = 853
+        pacing["histogram"]["above_hitch_at_or_below_severe_hitch"]["count"] = 45
+        pacing["minimum_budget_misses"]["count"] = 45
+        pacing["minimum_budget_misses"]["percent"] = 100.0 * 45 / 899
+        pacing["hitches"]["count"] = 45
+        pacing["hitches"]["percent"] = 100.0 * 45 / 899
         pacing["district_transition_boundaries"]["maximum_ms"] = 40.0
         frame = empty_boundary_bucket["measurements"]["frame_interval"]
         frame["p95_ms"] = 60.0
@@ -828,12 +848,12 @@ class PerformanceReportTests(unittest.TestCase):
 
         rounded_boundary_hitch = capture_fixture()
         pacing = rounded_boundary_hitch["frame_pacing"]
-        pacing["histogram"]["above_recommended_at_or_below_minimum_budget"]["count"] = 2
-        pacing["histogram"]["above_hitch_at_or_below_severe_hitch"]["count"] = 1
-        pacing["minimum_budget_misses"]["count"] = 1
-        pacing["minimum_budget_misses"]["percent"] = 25.0
-        pacing["hitches"]["count"] = 1
-        pacing["hitches"]["percent"] = 25.0
+        pacing["histogram"]["above_recommended_at_or_below_minimum_budget"]["count"] = 853
+        pacing["histogram"]["above_hitch_at_or_below_severe_hitch"]["count"] = 45
+        pacing["minimum_budget_misses"]["count"] = 45
+        pacing["minimum_budget_misses"]["percent"] = 100.0 * 45 / 899
+        pacing["hitches"]["count"] = 45
+        pacing["hitches"]["percent"] = 100.0 * 45 / 899
         pacing["district_transition_boundaries"]["hitch_count"] = 1
         pacing["district_transition_boundaries"]["maximum_ms"] = 50.0
         frame = rounded_boundary_hitch["measurements"]["frame_interval"]

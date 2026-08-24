@@ -630,10 +630,13 @@ canonical performance contents, and write the release artifact:
 still rejects labels identifying Xvfb/llvmpipe/software rasterization and requires Release
 OPENGLES3, at least 1280x720, a successfully acknowledged swap interval, direct p95 budget passes,
 known RAM, complete VRAM accounting within budget, and a real passing district transition in each
-mixed capture. Once all mandatory archive inputs verify, it reports `FAIL` when a declared
-qualification misses a measured condition and exits zero because the report was generated
-successfully. Missing/unverifiable archives and other malformed or stale input exit 2. `PASS` is
-therefore a strict evidence summary, while successful command execution alone is not a gate result.
+mixed capture. Each mixed run must also supply at least 899 samples for frame cadence, every
+budgeted CPU metric, and every render/physics/AI/audio workload summary. This is the locked
+900-draw-frame representative command above minus the first frame, which only establishes the
+interval baseline. Once all mandatory archive inputs verify, the generator reports `FAIL` when a
+declared qualification misses a measured condition and exits zero because the report was generated
+successfully. Missing/unverifiable archives and other malformed or stale input exit 2. `PASS` is a
+strict evidence summary, while successful command execution alone is not a gate result.
 CLI hardware identity and report title are trimmed and must be non-empty printable single lines.
 The external manifest's `hardware_identity` and tool name/version use the same string rule. Control
 characters/newlines are malformed input rather than a way to create ambiguous identity matching or

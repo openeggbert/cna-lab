@@ -30,6 +30,7 @@ FRAME_HITCH_MS = 50.0
 SEVERE_FRAME_HITCH_MS = 100.0
 SCHEMA_MINIMUM_FRAME_MS = 33.333
 SCHEMA_RECOMMENDED_FRAME_MS = 16.667
+QUALIFICATION_MINIMUM_REPRESENTATIVE_SAMPLES = 899
 CPU_BUDGETS_MS = {
     "update_cpu": 8.0,
     "physics_cpu": 3.0,
@@ -1320,6 +1321,25 @@ def capture_blockers(path: Path, capture: dict[str, Any], hardware: str) -> list
             blockers.append(prefix + "VRAM exceeds 512 MiB")
 
     if _path(capture, "scenario") == "mixed":
+        short_sample_groups: list[str] = []
+        for metric in ("frame_interval", *CPU_BUDGETS_MS):
+            samples = _integer(capture, "measurements", metric, "samples")
+            if samples < QUALIFICATION_MINIMUM_REPRESENTATIVE_SAMPLES:
+                short_sample_groups.append(f"{metric}={samples}")
+        for section, (_, metrics) in WORKLOAD_SCHEMAS.items():
+            minimum_samples = min(
+                _integer(capture, section, metric, "samples") for metric in metrics
+            )
+            if minimum_samples < QUALIFICATION_MINIMUM_REPRESENTATIVE_SAMPLES:
+                short_sample_groups.append(f"{section}={minimum_samples}")
+        if short_sample_groups:
+            blockers.append(
+                prefix
+                + "representative mixed capture requires at least 899 samples for frame cadence, "
+                "budgeted CPU metrics, and workload summaries; short groups: "
+                + ", ".join(short_sample_groups)
+            )
+
         load_samples = _integer(capture, "measurements", "district_load_cpu", "samples")
         load_p95 = _number(capture, "measurements", "district_load_cpu", "p95_ms")
         load_check = _path(capture, "checks", "district_load_pass")

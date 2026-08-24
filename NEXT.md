@@ -67,6 +67,19 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 qualification now requires a full representative sample window.** A structurally coherent
+capture with only one or a handful of frame/CPU samples could previously contribute to release
+`PASS`, despite the locked representative command using `--smoke 900`.
+
+- Every qualifying `mixed` capture now needs at least 899 samples (the 900 drawn frames minus the
+  baseline-only first interval) for frame cadence, all five budgeted CPU metrics, and every metric
+  in the render/physics/AI/audio workload summaries.
+- One qualifying test shortens frame cadence, render CPU, and one audio-workload metric to four
+  samples and gets `FAIL`; the full synthetic pair still gets `PASS` at the locked minimum.
+- Report 7/7, comparator 7/7, and VRAM 6/6 pass. The retained 539-interval Xvfb `mixed` capture stays
+  a valid `DIAGNOSTIC` with the new expected short-window blocker; the `mission` diagnostic is
+  unchanged. Full isolated CTest passes 8/8 with its smoke process inside Xvfb.
+
 **M12 JSON numbers now stay inside the C++ producer's representable domain.** Strict JSON syntax
 alone still allowed a finite-looking token such as `1e400` to become Python infinity, while an
 arbitrarily large integer could later raise an uncaught `OverflowError` during report evaluation.

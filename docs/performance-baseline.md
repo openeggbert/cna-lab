@@ -618,6 +618,20 @@ traceback. Report 7/7, comparator 7/7, VRAM 6/6, and both retained diagnostics p
 launching the game. Full isolated CTest passes 8/8 with its smoke process inside Xvfb; no physical
 M12 evidence changes.
 
+## 2026-08-24 — representative qualification sample floor
+
+Release qualification now binds its sample window to the documented `mixed --smoke 900` command.
+The first drawn frame establishes only the interval baseline, so each mixed capture needs at least
+899 frame-interval samples, at least 899 samples for every budgeted CPU metric, and at least 899 for
+every render/physics/AI/audio workload summary. Shorter captures remain structurally readable and
+useful as diagnostics, but cannot contribute to `PASS`.
+
+A qualifying case reduces frame cadence, render CPU, and one audio-workload summary to four samples
+and gets `FAIL`; the synthetic full-window pair still passes. Report 7/7, comparator 7/7, and VRAM
+6/6 pass. The retained 539-interval Xvfb mixed capture remains `DIAGNOSTIC` with the expected new
+short-window blocker, while the retained mission diagnostic is unchanged. Full isolated CTest
+passes 8/8 with its smoke process inside Xvfb; no physical evidence was added.
+
 ## 2026-08-24 — capture-session independence
 
 The synthetic release `PASS` previously used two metric-distinct JSON objects but left both at PID

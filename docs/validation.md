@@ -298,6 +298,14 @@ ignored `1e400` and a 101-digit integer both exit 2 without a traceback. Focused
 7/7, and 6/6, and both retained diagnostics pass; full isolated CTest passes 8/8 with its smoke
 process inside Xvfb.
 
+Qualifying mixed captures now require the documented 900-draw-frame window: at least 899 frame
+intervals after the baseline-only first draw, at least 899 samples for each budgeted CPU metric, and
+at least 899 samples throughout all workload summaries. A four-sample frame/render/audio-workload
+case produces report `FAIL`; the full synthetic pair remains `PASS`. Focused suites pass 7/7, 7/7,
+and 6/6. The retained 539-interval mixed capture remains a valid diagnostic with the expected new
+blocker; the mission diagnostic is unchanged. Full isolated CTest passes 8/8 with its smoke process
+inside Xvfb.
+
 Qualifying repeatability now requires non-overlapping `capture_session` UTC intervals. The
 synthetic `PASS` fixture was corrected from two metric-distinct objects sharing PID/time to PID 123
 at 10:00 and PID 124 at 11:00 with separately bound evidence. The former overlapping form produces
