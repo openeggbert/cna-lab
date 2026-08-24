@@ -1013,6 +1013,8 @@ namespace
         Check(stomped && stompWorld.Crawlers()[0].Defeated &&
                   stompWorld.Score() == 200,
               "falling top contact defeats crawler and awards score");
+        CheckNear(stompWorld.Player().VelocityY, -300.0F, 0.01F,
+                  "stomp always produces a visible automatic bounce");
         CopperBoots::PlayerInput runAway;
         runAway.Move = 1.0F;
         runAway.Run = true;
@@ -1021,6 +1023,31 @@ namespace
         Check(stompWorld.Crawlers()[0].Defeated &&
                   !stompWorld.Crawlers()[0].Active,
               "defeated crawler state persists after leaving its activation range");
+
+        CopperBoots::WorldSimulation highBounceWorld;
+        highBounceWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(
+            MakeCrawlerLevel(40, 2, 2, 1), "high-stomp.cbl"));
+        CopperBoots::PlayerInput holdJump;
+        holdJump.JumpHeld = true;
+        bool highStomped = false;
+        float bounceY = 0.0F;
+        float bounceApexY = 1'000.0F;
+        for (int i = 0; i < 120; ++i) {
+            highBounceWorld.Update(holdJump, tick);
+            if (highBounceWorld.LastEvents().EnemiesDefeated == 1) {
+                highStomped = true;
+                bounceY = highBounceWorld.Player().Y;
+                CheckNear(highBounceWorld.Player().VelocityY, -390.0F, 0.01F,
+                          "holding jump strengthens the stomp bounce");
+            }
+            if (highStomped)
+                bounceApexY = std::min(bounceApexY,
+                                       highBounceWorld.Player().Y);
+            if (highStomped && highBounceWorld.Player().VelocityY >= 0.0F)
+                break;
+        }
+        Check(highStomped && bounceY - bounceApexY > 55.0F,
+              "held stomp bounce clears a three-tile Green Ruins route");
 
         CopperBoots::WorldSimulation sideWorld;
         sideWorld.LoadLevel(CopperBoots::LevelDefinition::Parse(

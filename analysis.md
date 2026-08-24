@@ -437,8 +437,9 @@ bounds so tuning is intentional.
 
 The current jump policy is deliberately ground-only: there is no coyote time or
 jump buffer yet. `JumpPressed` is an edge event latched by the CNA input adapter
-until a fixed tick consumes it; `JumpHeld` only controls early-release gravity.
-Landing while the button remains held cannot trigger another jump.
+until a fixed tick consumes it. `JumpHeld` controls early-release gravity and
+selects the stronger stomp bounce, but landing while the button remains held
+cannot trigger another ordinary jump.
 
 ### Tiles and collision
 
@@ -546,6 +547,13 @@ a side contact, the stomp wins, while harmful-only contacts apply damage at most
 once. Crawler pairs restore their non-overlapping previous horizontal poses and
 turn outward in stable level order. Generated body/eye/leg rectangles are
 presentation only.
+
+A crawler stomp now applies a 300 px/s automatic upward bounce. Holding Jump at
+contact selects a 390 px/s bounce, echoing the historical game's stronger held
+enemy-assisted jump and clearing more than three tiles in the deterministic
+test room. This is intentionally stronger than the earlier 190 px/s placeholder,
+which rose only about one tile and made the designed Green Ruins route feel
+broken.
 
 Courier animation is likewise procedural and presentation-only. A pure selector
 maps motion state and simulation tick to idle, two-frame walk, faster two-frame

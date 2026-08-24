@@ -116,6 +116,9 @@ Current intended defaults are:
 | aim projectile | W/S or Up/Down | D-pad/left-stick vertical |
 | pause/resume | Escape | Start |
 
+Stomping a crawler always bounces the courier. Keep Jump held during contact for
+the higher bounce needed by some elevated Green Ruins routes.
+
 While paused, R/Y restarts at the current spawn and Q/Back quits safely.
 
 Controls and bindings will become configurable. Historical controls and

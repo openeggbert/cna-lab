@@ -16,6 +16,8 @@ namespace CopperBoots
         constexpr float AirBraking = 90.0F;
         constexpr float Gravity = 1'200.0F;
         constexpr float JumpImpulse = 330.0F;
+        constexpr float StompBounceImpulse = 300.0F;
+        constexpr float HighStompBounceImpulse = 390.0F;
         constexpr float MaximumFallSpeed = 420.0F;
         constexpr float EarlyReleaseGravityMultiplier = 2.2F;
         constexpr float CollisionEpsilon = 0.001F;
@@ -300,7 +302,8 @@ namespace CopperBoots
         UpdatePlatingPickups(seconds);
         UpdateCapacitorPickups();
         if (!player_.Dead) {
-            ResolvePlayerCrawlerContacts(previousPlayerX, previousPlayerY);
+            ResolvePlayerCrawlerContacts(previousPlayerX, previousPlayerY,
+                                          input.JumpHeld);
             CollectOverlappingCogs();
             CollectOverlappingPlatingPickups();
             CollectOverlappingCapacitorPickups();
@@ -668,7 +671,8 @@ namespace CopperBoots
     }
 
     void WorldSimulation::ResolvePlayerCrawlerContacts(
-        const float previousPlayerX, const float previousPlayerY)
+        const float previousPlayerX, const float previousPlayerY,
+        const bool jumpHeld)
     {
         const MotionBounds playerBounds{
             previousPlayerX, previousPlayerY, player_.X, player_.Y,
@@ -702,7 +706,9 @@ namespace CopperBoots
                 ++defeatedCount;
             }
             if (defeatedCount > 0) {
-                player_.VelocityY = -190.0F;
+                player_.VelocityY = jumpHeld
+                    ? -HighStompBounceImpulse
+                    : -StompBounceImpulse;
                 player_.Grounded = false;
             }
             return;

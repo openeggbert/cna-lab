@@ -351,7 +351,8 @@ Acceptance:
 
 - Crawler patrols, turns at walls, follows/falls from edges by explicit subtype,
   activates near camera, and despawns without losing persistent defeat state.
-- Top contact defeats/bounces; side contact damages.
+- Top contact defeats and visibly bounces; holding Jump produces the high bounce
+  required by the elevated first-level route; side contact damages.
 - State and collision tests require no renderer.
 
 ### MAR-043 — Enemy collision framework — DONE

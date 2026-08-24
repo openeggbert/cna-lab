@@ -286,7 +286,8 @@ namespace CopperBoots
         void ActivateOverlappingCheckpoints() noexcept;
         void StartLevelCompletion() noexcept;
         void ResolvePlayerCrawlerContacts(float previousPlayerX,
-                                           float previousPlayerY);
+                                           float previousPlayerY,
+                                           bool jumpHeld);
         void StartPlayerDeath() noexcept;
         void RespawnAtCheckpoint();
         [[nodiscard]] bool TouchesCollision(TileCollision collision) const noexcept;
