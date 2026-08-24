@@ -1374,3 +1374,16 @@ format 4 strictly stores a supported value and migrates formats 1–3 to the ori
 - keep 72 degrees as the backward-compatible default;
 - persist the setting independently from difficulty and master volume;
 - reject arbitrary or unsafe projection values at the profile boundary.
+
+### WOLF-030 — in-run pause control panel
+
+Status: complete. `P` and `Escape` now pause simulation and open a compact control
+panel over the preserved 3D view. Arrow/Enter navigation can resume, adjust the same
+persisted master-volume and view-angle settings, or deliberately return to the title.
+Pressing `P` or `Escape` again resumes immediately. The application itself exits only
+through the explicit main-menu `QUIT` action, preventing accidental run loss.
+
+- freeze gameplay while retaining the current world and HUD behind the panel;
+- keep fast one-key pause/resume behavior;
+- expose current sound and view settings during a run;
+- distinguish returning to title from terminating the application.

@@ -58,9 +58,9 @@ This starter is deliberately small. It proves the basic direction before local A
 - `1` / `2` / `3` / `4`: knife / sidearm / three-round repeater / five-round heavy automatic; weapons 3 and 4 must be found first
 - collecting ammunition after reaching zero restores the last firearm automatically
 - `F11`: toggle fullscreen
-- `P`: pause / resume
+- `P` or `Escape`: open the in-run pause menu; either key resumes directly, while the menu can also change sound/view settings or return to the title
 - hold `Tab`: show the explored-area map; releasing it resumes play; it includes a marker legend and `POWER`/`TERMINAL` progress, while red `GOAL` marks a locked exit and cyan `GOAL` an active exit
-- `Escape`: quit
+- quitting the application is an explicit `QUIT` choice in the main menu
 - `I` + `L` + `M` together: retro loadout cheat — full health, all weapons,
   access card, heavy automatic selected, ammunition set to 99, and score reset to zero
 - `G` + `O` + `A` + `L` together: teleport to the free cell immediately outside

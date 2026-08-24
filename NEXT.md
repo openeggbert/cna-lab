@@ -45,6 +45,7 @@
 - The title menu now cycles CNA master volume through 0/25/50/75/100%; profile format 3 persists it and migrates both older profile versions.
 - The title menu now cycles a CNA-rendered 60/72/84/96-degree view angle; profile format 4 persists it and migrates formats 1–3.
 - The held automap prompt now correctly says `RELEASE TAB` instead of the obsolete `M CLOSE` binding.
+- `P` or `Escape` now opens an in-run pause menu with resume, sound, view-angle and quit-to-title actions; gameplay no longer exits immediately on Escape.
 
 ## Next tasks
 

@@ -1030,17 +1030,64 @@ namespace WolfCna
         }
         else if (screen_ == Screen::Paused)
         {
-            constexpr std::string_view message = "PAUSED";
-            constexpr std::string_view prompt = "P RESUME";
-            const int messageWidth = HudTextWidth(message);
-            const int messageX = centerX - messageWidth / 2;
-            const int messageY = centerY - 34;
+            constexpr int cardWidth = 300;
+            constexpr int cardHeight = 174;
+            const int cardLeft = centerX - cardWidth / 2;
+            const int cardTop = centerY - cardHeight / 2;
             hudSpriteBatch_->Draw(
                 *hudPixel_,
-                Rectangle(messageX - 20, messageY - 11, messageWidth + 40, 57),
+                Rectangle(cardLeft, cardTop, cardWidth, cardHeight),
                 Color(17, 59, 116, 255));
-            DrawHudText(*hudSpriteBatch_, *hudPixel_, messageX, messageY, message, Color(184, 238, 255, 255));
-            DrawHudText(*hudSpriteBatch_, *hudPixel_, centerX - HudTextWidth(prompt) / 2, messageY + 21, prompt, Color(255, 233, 136, 255));
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(cardLeft, cardTop, cardWidth, 3),
+                Color(184, 238, 255, 255));
+            constexpr std::string_view title = "PAUSED";
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                centerX - HudTextWidth(title) / 2,
+                cardTop + 14,
+                title,
+                Color(184, 238, 255, 255));
+            const std::array<std::string, 4> options{
+                "RESUME",
+                "SOUND " + std::to_string(soundVolumeStep_ * 25) + "%",
+                "VIEW " + std::to_string(fieldOfViewDegrees_) + " DEG",
+                "QUIT TO TITLE"};
+            for (int index = 0; index < static_cast<int>(options.size()); ++index)
+            {
+                const int y = cardTop + 48 + index * 25;
+                const Color color = pauseMenuSelection_ == index
+                    ? Color(255, 233, 136, 255)
+                    : Color(202, 223, 255, 255);
+                if (pauseMenuSelection_ == index)
+                {
+                    DrawHudText(
+                        *hudSpriteBatch_,
+                        *hudPixel_,
+                        cardLeft + 20,
+                        y,
+                        ">",
+                        color);
+                }
+                DrawHudText(
+                    *hudSpriteBatch_,
+                    *hudPixel_,
+                    centerX - HudTextWidth(options[static_cast<std::size_t>(index)]) / 2,
+                    y,
+                    options[static_cast<std::size_t>(index)],
+                    color);
+            }
+            constexpr std::string_view prompt = "P OR ESC RESUME";
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                centerX - HudTextWidth(prompt, 1) / 2,
+                cardTop + 153,
+                prompt,
+                Color(184, 238, 255, 255),
+                1);
         }
         else if (screen_ == Screen::GameOver)
         {
@@ -1445,7 +1492,7 @@ namespace WolfCna
             centered(top + 147, "CTRL ATTACK", normal);
             centered(top + 168, "1 2 3 4 WEAPONS", normal);
             centered(top + 189, "TAB MAP", normal);
-            centered(top + 210, "P PAUSE  F11 SCREEN", normal);
+            centered(top + 210, "P OR ESC PAUSE  F11 SCREEN", normal);
             centered(top + 238, "ENTER OR ESC BACK", selected);
         }
         hudSpriteBatch_->End();
@@ -1520,6 +1567,7 @@ namespace WolfCna
         completed_ = false;
         levelElapsedSeconds_ = 0.0f;
         screen_ = Screen::Playing;
+        pauseMenuSelection_ = 0;
         actionWasDown_ = false;
         attackWasDown_ = false;
         weaponFlashSeconds_ = 0.0f;
@@ -1739,42 +1787,107 @@ namespace WolfCna
             keyboard.IsKeyDown(Keys::O) &&
             keyboard.IsKeyDown(Keys::A) &&
             keyboard.IsKeyDown(Keys::L);
-
-        if (keyboard.IsKeyDown(Keys::Escape))
-        {
-            Exit();
-            return;
-        }
-
         const bool actionIsDown = keyboard.IsKeyDown(Keys::Space);
+        const bool confirmIsDown = actionIsDown || keyboard.IsKeyDown(Keys::Enter);
         const bool pauseIsDown = keyboard.IsKeyDown(Keys::P);
+        const bool escapeIsDown = keyboard.IsKeyDown(Keys::Escape);
+        const bool upIsDown = keyboard.IsKeyDown(Keys::Up);
+        const bool downIsDown = keyboard.IsKeyDown(Keys::Down);
         if (screen_ == Screen::Map)
         {
-            if (!mapIsDown)
+            if (escapeIsDown && !escapeWasDown_)
+            {
+                screen_ = Screen::Paused;
+                pauseMenuSelection_ = 0;
+                upWasDown_ = upIsDown;
+                downWasDown_ = downIsDown;
+                confirmWasDown_ = confirmIsDown;
+            }
+            else if (!mapIsDown)
                 screen_ = Screen::Playing;
+            escapeWasDown_ = escapeIsDown;
             return;
         }
         if (screen_ == Screen::Paused)
         {
-            if (pauseIsDown && !pauseWasDown_)
+            if ((pauseIsDown && !pauseWasDown_) ||
+                (escapeIsDown && !escapeWasDown_))
+            {
                 screen_ = Screen::Playing;
+            }
+            else
+            {
+                if (upIsDown && !upWasDown_)
+                    pauseMenuSelection_ = (pauseMenuSelection_ + 3) % 4;
+                if (downIsDown && !downWasDown_)
+                    pauseMenuSelection_ = (pauseMenuSelection_ + 1) % 4;
+                if (confirmIsDown && !confirmWasDown_)
+                {
+                    if (pauseMenuSelection_ == 0)
+                    {
+                        screen_ = Screen::Playing;
+                    }
+                    else if (pauseMenuSelection_ == 1)
+                    {
+                        soundVolumeStep_ = (soundVolumeStep_ + 1) % 5;
+                        SoundEffect::setMasterVolumeProperty(
+                            static_cast<float>(soundVolumeStep_) / 4.0f);
+                        SaveCampaignProfile();
+                    }
+                    else if (pauseMenuSelection_ == 2)
+                    {
+                        fieldOfViewDegrees_ = fieldOfViewDegrees_ >= 96
+                            ? 60
+                            : fieldOfViewDegrees_ + 12;
+                        SaveCampaignProfile();
+                    }
+                    else
+                    {
+                        screen_ = Screen::Title;
+                        menuSelection_ = 0;
+                    }
+                }
+            }
+            upWasDown_ = upIsDown;
+            downWasDown_ = downIsDown;
+            confirmWasDown_ = confirmIsDown;
+            actionWasDown_ = actionIsDown;
             pauseWasDown_ = pauseIsDown;
+            escapeWasDown_ = escapeIsDown;
             return;
         }
         if (screen_ == Screen::GameOver)
         {
-            if (actionIsDown && !actionWasDown_)
+            if ((actionIsDown && !actionWasDown_) ||
+                (escapeIsDown && !escapeWasDown_))
             {
                 screen_ = Screen::Title;
                 menuSelection_ = 0;
             }
             actionWasDown_ = actionIsDown;
+            escapeWasDown_ = escapeIsDown;
             return;
         }
+
+        if (escapeIsDown && !escapeWasDown_)
+        {
+            screen_ = Screen::Paused;
+            pauseMenuSelection_ = 0;
+            upWasDown_ = upIsDown;
+            downWasDown_ = downIsDown;
+            confirmWasDown_ = confirmIsDown;
+            escapeWasDown_ = true;
+            return;
+        }
+        escapeWasDown_ = escapeIsDown;
 
         if (pauseIsDown && !pauseWasDown_)
         {
             screen_ = Screen::Paused;
+            pauseMenuSelection_ = 0;
+            upWasDown_ = upIsDown;
+            downWasDown_ = downIsDown;
+            confirmWasDown_ = confirmIsDown;
             pauseWasDown_ = true;
             return;
         }

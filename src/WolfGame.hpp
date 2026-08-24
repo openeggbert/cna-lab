@@ -145,6 +145,7 @@ namespace WolfCna
         Screen screen_ = Screen::Splash;
         Difficulty difficulty_ = Difficulty::Operative;
         int menuSelection_ = 0;
+        int pauseMenuSelection_ = 0;
         enum class Weapon { Knife, Sidearm, Repeater, HeavyAutomatic };
         Weapon weapon_ = Weapon::Sidearm;
         Weapon lastFirearm_ = Weapon::Sidearm;
