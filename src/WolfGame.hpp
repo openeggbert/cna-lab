@@ -12,6 +12,7 @@
 #include "Microsoft/Xna/Framework/Graphics/SpriteBatch.hpp"
 #include "Microsoft/Xna/Framework/Graphics/Texture2D.hpp"
 #include "Microsoft/Xna/Framework/Audio/SoundEffect.hpp"
+#include "Microsoft/Xna/Framework/Audio/SoundEffectInstance.hpp"
 
 #include "World.hpp"
 
@@ -52,6 +53,8 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAlertSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> houndAttackSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> extraLifeSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> ambientSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffectInstance> ambientInstance_;
 
         LevelDefinition level_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
         World world_{level_};
@@ -89,10 +92,13 @@ namespace WolfCna
         bool actionWasDown_ = false;
         bool attackWasDown_ = false;
         bool fullScreenWasDown_ = false;
+        bool ilmWasDown_ = false;
         bool upWasDown_ = false;
         bool downWasDown_ = false;
         bool confirmWasDown_ = false;
         bool escapeWasDown_ = false;
+        bool soundEnabled_ = true;
+        float cheatMessageSeconds_ = 0.0f;
 
         static constexpr float PlayerRadius = 0.22f;
         static constexpr float WalkSpeed = 2.4f;

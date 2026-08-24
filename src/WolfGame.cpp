@@ -68,60 +68,83 @@ namespace WolfCna
             return pcm;
         }
 
-        std::array<std::string_view, 5> Glyph(char c)
+        std::vector<SharpRuntime::bytecs> MakeAmbientLoop()
+        {
+            constexpr float sampleRate = 22050.0f;
+            constexpr int sampleCount = 44100;
+            std::vector<SharpRuntime::bytecs> pcm;
+            pcm.reserve(static_cast<std::size_t>(sampleCount * 2));
+
+            for (int sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
+            {
+                const float time = static_cast<float>(sampleIndex) / sampleRate;
+                const float drone = std::sin(2.0f * MathHelper::Pi * 55.0f * time) * 0.18f;
+                const float pulse = std::sin(2.0f * MathHelper::Pi * 82.5f * time) * 0.10f;
+                const float signal = std::sin(2.0f * MathHelper::Pi * 220.0f * time) *
+                    (0.025f + 0.02f * std::sin(2.0f * MathHelper::Pi * 0.5f * time));
+                const auto sample = static_cast<std::int16_t>((drone + pulse + signal) * 9000.0f);
+                pcm.push_back(static_cast<SharpRuntime::bytecs>(sample & 0xff));
+                pcm.push_back(static_cast<SharpRuntime::bytecs>((sample >> 8) & 0xff));
+            }
+
+            return pcm;
+        }
+
+        std::array<std::string_view, 7> Glyph(char c)
         {
             switch (c)
             {
-            case 'A': return {"010", "101", "111", "101", "101"};
-            case 'B': return {"110", "101", "110", "101", "110"};
-            case 'C': return {"111", "100", "100", "100", "111"};
-            case 'D': return {"110", "101", "101", "101", "110"};
-            case 'E': return {"111", "100", "110", "100", "111"};
-            case 'F': return {"111", "100", "110", "100", "100"};
-            case 'G': return {"111", "100", "101", "101", "111"};
-            case 'H': return {"101", "101", "111", "101", "101"};
-            case 'I': return {"111", "010", "010", "010", "111"};
-            case 'J': return {"011", "001", "001", "101", "010"};
-            case 'K': return {"101", "101", "110", "101", "101"};
-            case 'L': return {"100", "100", "100", "100", "111"};
-            case 'M': return {"101", "111", "111", "101", "101"};
-            case 'N': return {"101", "111", "111", "111", "101"};
-            case 'O': return {"111", "101", "101", "101", "111"};
-            case 'P': return {"110", "101", "110", "100", "100"};
-            case 'Q': return {"111", "101", "101", "111", "001"};
-            case 'R': return {"110", "101", "110", "101", "101"};
-            case 'S': return {"111", "100", "111", "001", "111"};
-            case 'T': return {"111", "010", "010", "010", "010"};
-            case 'U': return {"101", "101", "101", "101", "111"};
-            case 'V': return {"101", "101", "101", "101", "010"};
-            case 'W': return {"101", "101", "111", "111", "101"};
-            case 'X': return {"101", "101", "010", "101", "101"};
-            case 'Y': return {"101", "101", "010", "010", "010"};
-            case 'Z': return {"111", "001", "010", "100", "111"};
-            case '0': return {"111", "101", "101", "101", "111"};
-            case '1': return {"010", "110", "010", "010", "111"};
-            case '2': return {"111", "001", "111", "100", "111"};
-            case '3': return {"111", "001", "111", "001", "111"};
-            case '4': return {"101", "101", "111", "001", "001"};
-            case '5': return {"111", "100", "111", "001", "111"};
-            case '6': return {"111", "100", "111", "101", "111"};
-            case '7': return {"111", "001", "010", "010", "010"};
-            case '8': return {"111", "101", "111", "101", "111"};
-            case '9': return {"111", "101", "111", "001", "111"};
-            case '%': return {"101", "001", "010", "100", "101"};
-            case '/': return {"001", "001", "010", "100", "100"};
-            default: return {"000", "000", "000", "000", "000"};
+            case 'A': return {"01110", "10001", "10001", "11111", "10001", "10001", "10001"};
+            case 'B': return {"11110", "10001", "10001", "11110", "10001", "10001", "11110"};
+            case 'C': return {"01111", "10000", "10000", "10000", "10000", "10000", "01111"};
+            case 'D': return {"11110", "10001", "10001", "10001", "10001", "10001", "11110"};
+            case 'E': return {"11111", "10000", "10000", "11110", "10000", "10000", "11111"};
+            case 'F': return {"11111", "10000", "10000", "11110", "10000", "10000", "10000"};
+            case 'G': return {"01111", "10000", "10000", "10111", "10001", "10001", "01110"};
+            case 'H': return {"10001", "10001", "10001", "11111", "10001", "10001", "10001"};
+            case 'I': return {"11111", "00100", "00100", "00100", "00100", "00100", "11111"};
+            case 'J': return {"00111", "00010", "00010", "00010", "10010", "10010", "01100"};
+            case 'K': return {"10001", "10010", "10100", "11000", "10100", "10010", "10001"};
+            case 'L': return {"10000", "10000", "10000", "10000", "10000", "10000", "11111"};
+            case 'M': return {"10001", "11011", "10101", "10101", "10001", "10001", "10001"};
+            case 'N': return {"10001", "11001", "10101", "10011", "10001", "10001", "10001"};
+            case 'O': return {"01110", "10001", "10001", "10001", "10001", "10001", "01110"};
+            case 'P': return {"11110", "10001", "10001", "11110", "10000", "10000", "10000"};
+            case 'Q': return {"01110", "10001", "10001", "10001", "10101", "10010", "01101"};
+            case 'R': return {"11110", "10001", "10001", "11110", "10100", "10010", "10001"};
+            case 'S': return {"01111", "10000", "10000", "01110", "00001", "00001", "11110"};
+            case 'T': return {"11111", "00100", "00100", "00100", "00100", "00100", "00100"};
+            case 'U': return {"10001", "10001", "10001", "10001", "10001", "10001", "01110"};
+            case 'V': return {"10001", "10001", "10001", "10001", "10001", "01010", "00100"};
+            case 'W': return {"10001", "10001", "10001", "10101", "10101", "10101", "01010"};
+            case 'X': return {"10001", "10001", "01010", "00100", "01010", "10001", "10001"};
+            case 'Y': return {"10001", "10001", "01010", "00100", "00100", "00100", "00100"};
+            case 'Z': return {"11111", "00001", "00010", "00100", "01000", "10000", "11111"};
+            case '0': return {"01110", "10001", "10011", "10101", "11001", "10001", "01110"};
+            case '1': return {"00100", "01100", "00100", "00100", "00100", "00100", "01110"};
+            case '2': return {"01110", "10001", "00001", "00010", "00100", "01000", "11111"};
+            case '3': return {"11110", "00001", "00001", "01110", "00001", "00001", "11110"};
+            case '4': return {"00010", "00110", "01010", "10010", "11111", "00010", "00010"};
+            case '5': return {"11111", "10000", "10000", "11110", "00001", "00001", "11110"};
+            case '6': return {"01110", "10000", "10000", "11110", "10001", "10001", "01110"};
+            case '7': return {"11111", "00001", "00010", "00100", "01000", "01000", "01000"};
+            case '8': return {"01110", "10001", "10001", "01110", "10001", "10001", "01110"};
+            case '9': return {"01110", "10001", "10001", "01111", "00001", "00001", "01110"};
+            case '%': return {"11001", "11010", "00100", "01000", "10110", "00110", "00000"};
+            case '/': return {"00001", "00010", "00010", "00100", "01000", "01000", "10000"};
+            case '>': return {"10000", "01000", "00100", "00010", "00100", "01000", "10000"};
+            default: return {"00000", "00000", "00000", "00000", "00000", "00000", "00000"};
             }
         }
 
         void DrawHudText(SpriteBatch& batch, Texture2D& pixel, int x, int y, std::string_view text, Color color)
         {
-            constexpr int scale = 3;
+            constexpr int scale = 2;
             for (char character : text)
             {
                 const auto glyph = Glyph(character);
-                for (int row = 0; row < 5; ++row)
-                    for (int column = 0; column < 3; ++column)
+                for (int row = 0; row < 7; ++row)
+                    for (int column = 0; column < 5; ++column)
                         if (glyph[row][column] == '1')
                             batch.Draw(pixel, Rectangle(x + column * scale, y + row * scale, scale, scale), color);
                 x += 12;
@@ -130,7 +153,7 @@ namespace WolfCna
 
         int HudTextWidth(std::string_view text)
         {
-            return text.empty() ? 0 : static_cast<int>(text.size()) * 12 - 3;
+            return text.empty() ? 0 : static_cast<int>(text.size()) * 12 - 2;
         }
     }
 
@@ -383,6 +406,14 @@ namespace WolfCna
             MakeTone(880.0f, 5200),
             22050,
             AudioChannels::Mono);
+        ambientSound_ = std::make_unique<SoundEffect>(
+            MakeAmbientLoop(),
+            22050,
+            AudioChannels::Mono);
+        ambientInstance_ = std::make_unique<SoundEffectInstance>(ambientSound_->CreateInstance());
+        ambientInstance_->setIsLoopedProperty(true);
+        ambientInstance_->setVolumeProperty(0.12f);
+        ambientInstance_->Play();
     }
 
     void WolfGame::DrawHud()
@@ -427,6 +458,17 @@ namespace WolfCna
                 : weapon_ == Weapon::Knife ? *knifeIcon_ : *repeaterIcon_,
             Rectangle(weaponCenter - 30, panelY + 12, 60, 60),
             Color(255, 255, 255, 255));
+        if (cheatMessageSeconds_ > 0.0f)
+        {
+            constexpr std::string_view message = "LOADOUT READY";
+            const int messageWidth = HudTextWidth(message);
+            const int messageX = centerX - messageWidth / 2;
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(messageX - 12, centerY - 26, messageWidth + 24, 31),
+                Color(17, 59, 116, 255));
+            DrawHudText(*hudSpriteBatch_, *hudPixel_, messageX, centerY - 18, message, Color(255, 233, 136, 255));
+        }
         if (completed_)
         {
             const World::CompletionStats stats = world_.GetCompletionStats();
@@ -518,7 +560,11 @@ namespace WolfCna
         if (screen_ == Screen::Title)
         {
             centered(top + 58, "CNA OPERATIONS", normal);
-            constexpr std::array<std::string_view, 3> options{"START RUN", "CONTROLS", "QUIT"};
+            const std::array<std::string, 4> options{
+                "START RUN",
+                "CONTROLS",
+                soundEnabled_ ? "SOUND ON" : "SOUND OFF",
+                "QUIT"};
             for (int index = 0; index < static_cast<int>(options.size()); ++index)
             {
                 const int y = top + 96 + index * 30;
@@ -528,7 +574,7 @@ namespace WolfCna
                 centered(y, options[static_cast<std::size_t>(index)], color);
             }
             centered(top + 220, "ARROWS SELECT", normal);
-            centered(top + 238, "ENTER START", normal);
+            centered(top + 238, "ENTER SELECT", normal);
         }
         else if (screen_ == Screen::Difficulty)
         {
@@ -622,6 +668,8 @@ namespace WolfCna
         screen_ = Screen::Playing;
         actionWasDown_ = false;
         attackWasDown_ = false;
+        ilmWasDown_ = false;
+        cheatMessageSeconds_ = 0.0f;
     }
 
     void WolfGame::AdvanceCampaign()
@@ -673,9 +721,9 @@ namespace WolfCna
         if (screen_ == Screen::Title)
         {
             if (upIsDown && !upWasDown_)
-                menuSelection_ = (menuSelection_ + 2) % 3;
+                menuSelection_ = (menuSelection_ + 3) % 4;
             if (downIsDown && !downWasDown_)
-                menuSelection_ = (menuSelection_ + 1) % 3;
+                menuSelection_ = (menuSelection_ + 1) % 4;
             if (confirmIsDown && !confirmWasDown_)
             {
                 if (menuSelection_ == 0)
@@ -686,6 +734,11 @@ namespace WolfCna
                 else if (menuSelection_ == 1)
                 {
                     screen_ = Screen::Controls;
+                }
+                else if (menuSelection_ == 2)
+                {
+                    soundEnabled_ = !soundEnabled_;
+                    SoundEffect::setMasterVolumeProperty(soundEnabled_ ? 1.0f : 0.0f);
                 }
                 else
                 {
@@ -752,6 +805,20 @@ namespace WolfCna
             actionWasDown_ = actionIsDown;
             return;
         }
+
+        const bool ilmIsDown =
+            keyboard.IsKeyDown(Keys::I) && keyboard.IsKeyDown(Keys::L) && keyboard.IsKeyDown(Keys::M);
+        if (ilmIsDown && !ilmWasDown_)
+        {
+            health_ = 100;
+            ammo_ = 12;
+            score_ = 0;
+            nextExtraLifeScore_ = 40000;
+            hasSecurityCard_ = true;
+            weapon_ = Weapon::Repeater;
+            cheatMessageSeconds_ = 2.0f;
+        }
+        ilmWasDown_ = ilmIsDown;
 
         if (actionIsDown && !actionWasDown_)
         {
@@ -877,6 +944,7 @@ namespace WolfCna
         }
 
         levelElapsedSeconds_ += clampedElapsed;
+        cheatMessageSeconds_ = std::max(0.0f, cheatMessageSeconds_ - clampedElapsed);
         const int incomingDamage = world_.Update(clampedElapsed, playerPosition_, DamageMultiplier());
         if (world_.ConsumeGuardShotCount() > 0 && guardShotSound_)
             static_cast<void>(guardShotSound_->Play(0.18f, 0.12f, 0.0f));

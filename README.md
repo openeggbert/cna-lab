@@ -17,6 +17,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - keyboard turning with a fixed horizon
 - centered crosshair and a generated retro status bar with sidearm icon
 - generated CNA sound effects for weapons, enemy alerts and attacks, defeated enemies, pickups, doors, locks and player damage
+- a generated looping bunker ambience, with a master sound on/off control in the title menu
 - uncapped score for gold, defeated enemies and completing the level; every 40,000 points awards another life
 - a centered completion card appears at the level exit
 - grid collision with wall sliding
@@ -30,13 +31,15 @@ This starter is deliberately small. It proves the basic direction before local A
 
 - up/down arrow keys: forward / backward
 - left/right arrow keys: turn left / right
-- title menu: arrows select, `Enter` or `Space` confirms, `Escape` backs out
+- title menu: arrows select, `Enter` or `Space` confirms, `Escape` backs out; it also has a master sound toggle
 - three difficulty modes: Scout (70% enemy damage), Operative (normal), Veteran (140% enemy damage)
 - `Space`: open the door in front of you (doors close after four seconds unless a body blocks them)
 - left or right `Ctrl`: fire the sidearm
 - `1` / `2` / `3`: knife / sidearm / three-round repeater
 - `F11`: toggle fullscreen
 - `Escape`: quit
+- `I` + `L` + `M` together: retro loadout cheat — full health and ammunition,
+  access card, repeater selected, and score reset to zero
 
 After all lives are lost, press `Space` to return to the title menu and start a new run.
 At a sector exit, `Space` takes the run to the next sector; score, lives, health,
