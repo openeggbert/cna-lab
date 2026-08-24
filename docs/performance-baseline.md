@@ -605,6 +605,19 @@ Report coverage places `NaN` in an unused capture field, comparator coverage use
 the VRAM manifest test uses `-Infinity`; all exit 2. Focused suites remain report 7/7, comparator
 7/7, and VRAM 6/6. This is parser integrity only and does not affect the physical M12 blocker.
 
+## 2026-08-24 — representable JSON numeric range
+
+Strict syntax did not by itself make every accepted JSON number safe for the C++ evidence schema.
+Python decodes standard `1e400` syntax as infinity, and its arbitrary-precision integers can exceed
+every type used by the producer before later float arithmetic raises `OverflowError`. The common
+parse hooks now require finite floating-point results and integers within signed-negative or
+unsigned-positive 64-bit bounds, including for unknown extension fields.
+
+Report cases place `1e400` and a 101-digit integer in an unused field; both exit 2 without a
+traceback. Report 7/7, comparator 7/7, VRAM 6/6, and both retained diagnostics pass without
+launching the game. Full isolated CTest passes 8/8 with its smoke process inside Xvfb; no physical
+M12 evidence changes.
+
 ## 2026-08-24 — capture-session independence
 
 The synthetic release `PASS` previously used two metric-distinct JSON objects but left both at PID

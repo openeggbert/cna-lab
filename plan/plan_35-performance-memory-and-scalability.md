@@ -90,6 +90,9 @@ Establish budgets and measure representative district workloads against the lock
   *Qualification-boundary follow-up: a structurally valid producer failure at exact serialized
   equality still blocks frame, aggregate-CPU, or mixed-district qualification. The 30/60 FPS table
   uses the same producer decisions; three exact-boundary cases cover the rule.*
+  *Numeric-range follow-up: shared JSON parsing rejects non-finite decoded floats and integers
+  outside the C++ producer's 64-bit domain, including in unknown fields. Two overflow shapes exit 2
+  without a traceback.*
 - [x] **IG-35-044 P2** — Document usage of the performance report generator. *(README and performance-target docs include diagnostic and qualifying commands, exact capture/bundle provenance, mandatory qualification archive bundles, atomic non-destructive output, explicit hardware-assertion semantics, exit behavior, and the rule that successful report generation does not imply a passing gate.)*
 - [x] **IG-35-045 P2** — Define scope and implement the smallest working content budget validator (triangle/texture/material limits at authoring/import time). *(Bootstrap triangle ceilings use 4x current committed geometry; material/texture reserves are explicit per asset group and are not claimed as final production limits. Texture count is enforced now; texture resolution remains under aggregate M12 VRAM evidence until representative production textures exist.)*
 - [x] **IG-35-046 P2** — Add unit tests and CI wiring for the content budget validator. *(`iron_gang_content_budget_tests` makes CTest 5/5 and covers the real committed sources, an actionable over-budget failure, unknown MC3 primitive rejection, malformed glTF triangle counts, and unbudgeted import-source rejection.)*

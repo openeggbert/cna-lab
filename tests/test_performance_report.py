@@ -1164,6 +1164,52 @@ class PerformanceReportTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("non-standard JSON numeric constant 'NaN'", result.stderr)
 
+            overflow_float_path = Path(directory) / "overflow-float.json"
+            overflow_float_path.write_text(
+                serialized[:-1] + ', "ignored_extension": 1e400}',
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--hardware",
+                    "Test hardware",
+                    str(overflow_float_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn(
+                "JSON floating-point number '1e400' is outside finite range",
+                result.stderr,
+            )
+
+            overflow_integer_path = Path(directory) / "overflow-integer.json"
+            overflow_integer_path.write_text(
+                serialized[:-1] + ', "ignored_extension": ' + "1" + "0" * 100 + "}",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--hardware",
+                    "Test hardware",
+                    str(overflow_integer_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn(
+                "JSON integer is outside the signed/unsigned 64-bit producer range",
+                result.stderr,
+            )
+
     def test_output_is_atomic_and_never_overwrites_evidence_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

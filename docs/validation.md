@@ -292,6 +292,12 @@ parse time, including in unknown fields, alongside its existing duplicate-key re
 comparator, and VRAM manifest tests each cover one token and exit 2. Focused suites remain 7/7,
 7/7, and 6/6; no runtime process was launched.
 
+The same parse boundary now rejects standard-form floating-point tokens that decode outside finite
+range and integers beyond the C++ producer's signed-negative/unsigned-positive 64-bit domain. An
+ignored `1e400` and a 101-digit integer both exit 2 without a traceback. Focused suites remain 7/7,
+7/7, and 6/6, and both retained diagnostics pass; full isolated CTest passes 8/8 with its smoke
+process inside Xvfb.
+
 Qualifying repeatability now requires non-overlapping `capture_session` UTC intervals. The
 synthetic `PASS` fixture was corrected from two metric-distinct objects sharing PID/time to PID 123
 at 10:00 and PID 124 at 11:00 with separately bound evidence. The former overlapping form produces

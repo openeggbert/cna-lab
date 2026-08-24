@@ -216,6 +216,8 @@ SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 UTC_TIMESTAMP_PATTERN = re.compile(
     r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z"
 )
+JSON_INTEGER_MIN = -(1 << 63)
+JSON_INTEGER_MAX = (1 << 64) - 1
 HISTOGRAM_BUCKETS = (
     "at_or_below_recommended_budget",
     "above_recommended_at_or_below_minimum_budget",
@@ -251,11 +253,29 @@ def _reject_json_constant(value: str) -> None:
     raise ReportError(f"non-standard JSON numeric constant {value!r} is not allowed")
 
 
+def _parse_json_float(value: str) -> float:
+    result = float(value)
+    if not math.isfinite(result):
+        raise ReportError(f"JSON floating-point number {value!r} is outside finite range")
+    return result
+
+
+def _parse_json_integer(value: str) -> int:
+    result = int(value)
+    if result < JSON_INTEGER_MIN or result > JSON_INTEGER_MAX:
+        raise ReportError(
+            "JSON integer is outside the signed/unsigned 64-bit producer range"
+        )
+    return result
+
+
 def _strict_json_load(source: TextIO) -> Any:
     return json.load(
         source,
         object_pairs_hook=_unique_json_object,
         parse_constant=_reject_json_constant,
+        parse_float=_parse_json_float,
+        parse_int=_parse_json_integer,
     )
 
 

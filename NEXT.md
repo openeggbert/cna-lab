@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 JSON numbers now stay inside the C++ producer's representable domain.** Strict JSON syntax
+alone still allowed a finite-looking token such as `1e400` to become Python infinity, while an
+arbitrarily large integer could later raise an uncaught `OverflowError` during report evaluation.
+
+- The shared capture/evidence loader rejects floating-point tokens that do not decode to a finite
+  value and integers outside signed-negative/unsigned-positive 64-bit producer bounds, including in
+  ignored extension fields.
+- Two report negatives prove both shapes exit 2 without a traceback. Report 7/7, comparator 7/7,
+  VRAM 6/6, and both retained diagnostics pass; full isolated CTest passes 8/8 with its smoke
+  process inside Xvfb.
+
 **M12 qualification now respects producer decisions at rounded budget boundaries.** The schema
 loader deliberately accepts either pass boolean when a stored p95 equals a three-decimal budget,
 because the C++ producer compares hidden full precision before serialization. The release gate
