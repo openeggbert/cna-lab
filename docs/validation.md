@@ -325,6 +325,14 @@ samples, complete workload summaries, and one 0.280 ms district transition. Its 
 no short-window blocker but remains `DIAGNOSTIC` for Xvfb/llvmpipe, one run, declined swap, and
 incomplete physical VRAM. No real-screen window was opened.
 
+A second independent 900-draw Xvfb mixed run supplies another 899 intervals and removes the
+two-capture-count blocker from the pair report. Its hash is `a80043f0…3149e`; pair-report hash is
+`8a4dd4af…e0a36`. Frame p95 varied from 17.127 to 24.656 ms and the second run contained one
+113.286 ms severe non-transition hitch; comparator exit 1 correctly reports frame/render/GPU/
+Present/miss-rate regressions (`73323a1f…002cc`). Both runs still pass the minimum direct budgets
+but remain diagnostic for virtual hardware, declined swap, and incomplete physical VRAM. No
+real-screen window was opened.
+
 Qualifying repeatability now requires non-overlapping `capture_session` UTC intervals. The
 synthetic `PASS` fixture was corrected from two metric-distinct objects sharing PID/time to PID 123
 at 10:00 and PID 124 at 11:00 with separately bound evidence. The former overlapping form produces

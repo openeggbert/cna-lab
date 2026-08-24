@@ -67,6 +67,20 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has two independent full-window Xvfb runs and a repeatability report.** The second real
+900-draw `mixed` route also supplies 899 intervals and a separate non-overlapping PID/UTC session,
+so the diagnostic pair no longer has the one-run blocker.
+
+- Second capture hash: `a80043f052df0c7efc7adca6edd0980964c735b6ae9b377d345f3435cf73149e`.
+  Pair-report hash: `8a4dd4afc3823783e7222967d7142c79d23597d14632a8e9e53460fcd4be0a36`.
+- The second run passes the 30 FPS/CPU/RAM/district budgets but varies sharply: frame p95 24.656 ms
+  versus 17.127 ms, GPU/Present p95 16.090/21.988 ms, and one 113.286 ms non-transition severe
+  hitch. The diagnostic comparator correctly returns `REGRESSION`; comparison artifact hash is
+  `73323a1f79117ff871392780a77b1e1678dbb11d61c90a18763c6a05c24002cc`.
+- The two-run release report remains `DIAGNOSTIC` only for the honest environmental evidence gaps:
+  Xvfb/llvmpipe, declined swap acknowledgement, and incomplete physical VRAM. This variance further
+  confirms virtual results cannot substitute for controlled physical M12 evidence.
+
 **M12 now has a real full-window schema-8 Xvfb `mixed` capture.** The new 900-draw Release EasyGL
 run exercises the actual walk -> drive -> district-transition route instead of only proving the
 899-sample policy with synthetic fixtures.

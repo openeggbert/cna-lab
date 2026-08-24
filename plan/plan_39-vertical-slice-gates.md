@@ -95,6 +95,9 @@ rather than being a one-time final check.
     *Full-window diagnostic follow-up: a real isolated 900-draw Xvfb mixed route meets the 899-sample
     floor and all direct budgets, with one real transition, but remains blocked by virtual hardware,
     declined swap, repeatability, and physical VRAM. It does not close M12.*
+    *Diagnostic-pair follow-up: a second independent full-window Xvfb run removes only the
+    repeatability-count blocker and exposes substantial virtual timing variance. Both remain blocked
+    by Xvfb, declined swap, and incomplete physical VRAM; M12 stays open.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).

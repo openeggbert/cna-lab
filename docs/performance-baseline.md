@@ -680,6 +680,27 @@ without a short-window blocker and remains `DIAGNOSTIC` for the honest residual 
 llvmpipe hardware, one mixed run, declined requested swap interval, and incomplete physical VRAM.
 No visible/real-screen process was launched, and this does not close M12.
 
+## 2026-08-24 — full-window Xvfb repeatability pair
+
+A second independent Release EasyGL/Xvfb `mixed --smoke 900` run produced another 899 intervals,
+900 render samples, complete workload coverage, and one real transition. Its PID/time interval is
+separate from the first run, and its SHA-256 is
+`a80043f052df0c7efc7adca6edd0980964c735b6ae9b377d345f3435cf73149e`.
+The resulting two-run report no longer lists the minimum-two-mixed-captures blocker; its retained
+Markdown hash is `8a4dd4afc3823783e7222967d7142c79d23597d14632a8e9e53460fcd4be0a36`.
+
+The pair also demonstrates material virtual-environment variance. Frame p95 increased from 17.127
+to 24.656 ms; render CPU from 1.440 to 1.861 ms; GPU Draw from 8.435 to 16.090 ms; and Present from
+13.711 to 21.988 ms. The second run had a 113.286 ms non-transition severe hitch, while its
+17.309 ms transition boundary and 0.347 ms district load remained fast. CPU, 30 FPS, RAM, and
+district budgets still passed. The diagnostic comparator correctly returns exit 1/`REGRESSION`;
+its artifact hash is `73323a1f79117ff871392780a77b1e1678dbb11d61c90a18763c6a05c24002cc`.
+
+Both files remain `DIAGNOSTIC`: Xvfb/llvmpipe is virtual, both requested swap intervals were
+declined, and neither capture has complete physical VRAM evidence. The variability strengthens the
+existing requirement for two controlled physical runs rather than weakening it. No real-screen
+process was launched.
+
 ## 2026-08-24 — capture-session independence
 
 The synthetic release `PASS` previously used two metric-distinct JSON objects but left both at PID
