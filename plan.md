@@ -1002,7 +1002,8 @@ Current progress:
 - score has no cap: gold awards 100, guards 100, hounds 200 and the exit awards a one-time 1000-point bonus; every 40,000 points awards an extra life;
 - reaching the exit presents a centered completion card while preserving the final score in the status bar;
 - an amber terminal must be activated before the exit comes online; activation changes it cyan and has generated CNA audio;
-- a terminal-locked exit is red and turns cyan after the objective is complete;
+- each shipping exit is a three-sided steel elevator cabin whose red gate blocks
+  entry until the objective is complete, then rises to reveal its cyan marker;
 - secret moving walls use the wall material, stay open once found and award 500 score for hidden rewards;
 - the starter level is an authored room-and-corridor route with distributed guards, hounds, pickups, gold, a normal door, a security door and an exit;
 - the game now starts at an original blue-and-amber title menu, with a short controls page and three difficulty choices; Scout takes 70% enemy damage, Operative is the baseline and Veteran takes 140%;
@@ -1260,3 +1261,20 @@ and asset handling are recorded in `ASSET_PROVENANCE.md`.
 - replace every remaining colored pickup, objective and projectile cuboid with original art;
 - keep all image loading, atlas creation and drawing on public CNA APIs;
 - preserve transparency and readable objective states without prohibited symbols.
+
+### WOLF-022 — physical sector elevators
+
+Status: complete. Every shipping `E` cell is now authored as a three-sided steel
+elevator cabin with one room-facing approach. A textured red elevator gate is real
+polygonal geometry and blocks player and enemy movement while the sector objective
+is incomplete. After all power relays and terminals are active, the gate rises at
+the normal door speed; only a sufficiently open cabin can complete the sector. The
+generated destination pedestal remains inside the cabin and changes to its active
+cyan state. Focused tests cover locked collision, opening delay, passability and
+completion, while campaign-map tests require exactly one approach to every elevator.
+
+- make the automap `GOAL` correspond to visible elevator geometry in the 3D world;
+- enclose every shipping elevator on three sides with a single readable entrance;
+- block the entrance until the current relay and terminal objective is complete;
+- animate the elevator gate through the existing CNA-rendered dynamic geometry path;
+- retain M7's later true vertical elevator travel as separate future work.

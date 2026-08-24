@@ -43,6 +43,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
 - persistent profile: a fresh profile starts with sector 1; sector unlocks, sound and the last selected difficulty survive restarts
 - holding `Tab` shows a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
+- every `GOAL` corresponds to a steel elevator cabin: locked red doors block entry, then rise after all power relays and terminals are active
 
 ## Controls
 
@@ -97,7 +98,7 @@ have the same width and use only these symbols:
 - `T`: gold-bars pickup worth 100 score
 - `J`: golden-goblet pickup worth 250 score
 - `N`: peace-medallion pickup worth 500 score
-- `E`: level exit
+- `E`: steel elevator cabin and level exit; shipping levels enclose it on three sides
 - `R`: wall-mounted framed landscape painting; must be next to a wall
 - `B`: wall-mounted banner with an original peace symbol; must be next to a wall
 - `I`: freestanding decorative plant using the current sector's original sprite
@@ -108,7 +109,9 @@ have the same width and use only these symbols:
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
 
-An exit is red until every power relay and terminal is active, then turns cyan.
+An elevator is sealed by red doors until every power relay and terminal is active.
+The doors then rise, its destination marker turns cyan and entering the cabin
+completes the sector.
 Activating either component briefly reports `POWER ONLINE`, `TERMINAL ONLINE` or
 `EXIT ONLINE` in the play view.
 All four campaign sectors use an exact 64×64-cell footprint with large authored

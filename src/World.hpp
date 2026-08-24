@@ -252,6 +252,16 @@ namespace WolfCna
             bool activated = false;
         };
 
+        struct Exit
+        {
+            Microsoft::Xna::Framework::Vector3 position;
+            int x = 0;
+            int z = 0;
+            int approachX = 0;
+            int approachZ = 0;
+            float openAmount = 0.0f;
+        };
+
         struct Decoration
         {
             enum class Type { Painting, PeaceBanner, CeilingLamp, Plant };
@@ -286,7 +296,7 @@ namespace WolfCna
         int totalSecrets_ = 0;
         std::vector<Terminal> terminals_;
         std::vector<Relay> relays_;
-        std::vector<Microsoft::Xna::Framework::Vector3> exits_;
+        std::vector<Exit> exits_;
         std::vector<Decoration> decorations_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> billboardVertices_;
         std::vector<std::uint16_t> billboardIndices_;
@@ -306,6 +316,7 @@ namespace WolfCna
 
         [[nodiscard]] bool IsStaticWallCell(int x, int z) const;
         [[nodiscard]] bool IsBlockedCell(int x, int z) const;
+        [[nodiscard]] bool IsExitCell(int x, int z) const;
         [[nodiscard]] Material WallMaterialForCell(int x, int z) const;
         [[nodiscard]] bool HasDeadEnemyInDoorway(const Door& door) const;
         [[nodiscard]] bool HasPlayerInDoorway(
@@ -347,6 +358,10 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& b,
             const Microsoft::Xna::Framework::Vector3& c,
             const Microsoft::Xna::Framework::Vector3& d,
+            Material material);
+        void AddDoorBox(
+            const Microsoft::Xna::Framework::Vector3& minimum,
+            const Microsoft::Xna::Framework::Vector3& maximum,
             Material material);
     };
 }

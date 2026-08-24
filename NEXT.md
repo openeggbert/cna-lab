@@ -36,12 +36,18 @@
 - Holding left or right `Shift` now runs at 1.65× walking speed while retaining the clamped frame step and existing collision path.
 - Four original generated wall families now alternate in coherent room-scale regions, and every polygonal table uses a dedicated dark-oak texture.
 - Access cards, both weapon pickups, terminals, power relays, exits and enemy projectiles now use original transparent sprites; the last untextured colored cuboid path is gone.
+- Every map `GOAL` now corresponds to a three-sided steel elevator cabin whose red polygonal gate blocks entry and rises only after the sector objective is complete.
 
 ## Next tasks
 
 1. Playtest the authored route and rebalance health placement and difficulty-specific incoming damage.
 2. Playtest sprite motion amplitudes together with the authored combat route.
 3. Playtest the full four-sector objective route and completion pacing.
+4. Add the planned original impact effect when an enemy projectile hits the player or world.
+5. Add the planned sector-completion fanfare through CNA audio.
+
+Longer-term M7 work keeps true vertical spaces and moving elevators separate from
+the current campaign-transition cabins.
 
 ## Verification
 

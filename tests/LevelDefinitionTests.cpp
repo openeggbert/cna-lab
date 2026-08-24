@@ -121,9 +121,30 @@ namespace
                     ++heavyUnits;
             }
         }
+
+        int elevatorApproaches = 0;
+        constexpr std::array<std::pair<int, int>, 4> Directions = {
+            std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1}, std::pair{0, -1}};
+        for (int z = 0; z < 64; ++z)
+        {
+            for (int x = 0; x < 64; ++x)
+            {
+                if (rows[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] != 'E')
+                    continue;
+                for (const auto [dx, dz] : Directions)
+                {
+                    const int nextX = x + dx;
+                    const int nextZ = z + dz;
+                    if (nextX >= 0 && nextZ >= 0 && nextX < 64 && nextZ < 64 &&
+                        rows[static_cast<std::size_t>(nextZ)][static_cast<std::size_t>(nextX)] != '#')
+                        ++elevatorApproaches;
+                }
+            }
+        }
         Expect(walkable >= 1500, std::string(name) + " uses a substantial part of its footprint");
         Expect(reachable == walkable, std::string(name) + " has no disconnected rooms");
         Expect(exits == 1, std::string(name) + " has one exit");
+        Expect(elevatorApproaches == 1, std::string(name) + " exit is a three-sided elevator cabin");
         Expect(relays == 1, std::string(name) + " has one power relay");
         Expect(plants == 3, std::string(name) + " has three sector plants");
         Expect(tables == 2, std::string(name) + " has two polygonal tables");
@@ -373,11 +394,15 @@ int main()
         "terminal.level"));
     const Microsoft::Xna::Framework::Vector3 terminalExit(3.5f, 0.62f, 1.5f);
     Expect(!terminalWorld.ReachedExit(terminalExit), "terminal locks the exit until activated");
+    Expect(terminalWorld.Collides(3.5f, 1.5f, 0.1f), "locked elevator doors block entry");
     Expect(
         terminalWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::TerminalActivated,
         "terminal activates when used from the front");
     Expect(terminalWorld.IsExitUnlocked(), "terminal unlocks the exit");
-    Expect(terminalWorld.ReachedExit(terminalExit), "activated terminal allows the exit");
+    Expect(!terminalWorld.ReachedExit(terminalExit), "unlocked elevator waits for its doors to rise");
+    static_cast<void>(terminalWorld.Update(0.5f, playerPosition));
+    Expect(!terminalWorld.Collides(3.5f, 1.5f, 0.1f), "raised elevator doors allow entry");
+    Expect(terminalWorld.ReachedExit(terminalExit), "open elevator completes the sector");
 
     WolfCna::World relayWorld(WolfCna::LevelDefinition::Parse(
         "######\n#POME#\n######\n",

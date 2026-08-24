@@ -95,6 +95,12 @@ namespace WolfCna
         if (map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == 'Y')
             return true;
 
+        for (const Exit& exit : exits_)
+        {
+            if (exit.x == x && exit.z == z)
+                return exit.openAmount < DoorPassableAt;
+        }
+
         for (const Door& door : doors_)
         {
             if (door.x == x && door.z == z)
@@ -102,6 +108,15 @@ namespace WolfCna
         }
 
         return false;
+    }
+
+    bool World::IsExitCell(int x, int z) const
+    {
+        if (z < 0 || z >= static_cast<int>(map_.size()))
+            return false;
+        if (x < 0 || x >= static_cast<int>(map_[static_cast<std::size_t>(z)].size()))
+            return false;
+        return map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == 'E';
     }
 
     World::Material World::WallMaterialForCell(int x, int z) const
@@ -329,11 +344,12 @@ namespace WolfCna
         if (!IsExitUnlocked())
             return false;
 
-        for (const Vector3& exit : exits_)
+        for (const Exit& exit : exits_)
         {
-            const float dx = exit.X - playerPosition.X;
-            const float dz = exit.Z - playerPosition.Z;
-            if (dx * dx + dz * dz <= ExitRadius * ExitRadius)
+            const float dx = exit.position.X - playerPosition.X;
+            const float dz = exit.position.Z - playerPosition.Z;
+            if (exit.openAmount >= DoorPassableAt &&
+                dx * dx + dz * dz <= ExitRadius * ExitRadius)
                 return true;
         }
 
@@ -536,6 +552,25 @@ namespace WolfCna
             const float previousAmount = door.openAmount;
             door.openAmount = std::max(0.0f, door.openAmount - DoorOpenSpeed * elapsedSeconds);
             changed = changed || door.openAmount != previousAmount;
+        }
+
+        const float elevatorTarget = IsExitUnlocked() ? 1.0f : 0.0f;
+        for (Exit& exit : exits_)
+        {
+            const float previousAmount = exit.openAmount;
+            if (exit.openAmount < elevatorTarget)
+            {
+                exit.openAmount = std::min(
+                    elevatorTarget,
+                    exit.openAmount + DoorOpenSpeed * elapsedSeconds);
+            }
+            else if (exit.openAmount > elevatorTarget)
+            {
+                exit.openAmount = std::max(
+                    elevatorTarget,
+                    exit.openAmount - DoorOpenSpeed * elapsedSeconds);
+            }
+            changed = changed || exit.openAmount != previousAmount;
         }
 
         if (changed)
@@ -780,6 +815,25 @@ namespace WolfCna
         doorIndices_.push_back(base + 3);
     }
 
+    void World::AddDoorBox(const Vector3& minimum, const Vector3& maximum, Material material)
+    {
+        const Vector3 lowerNorthWest(minimum.X, minimum.Y, minimum.Z);
+        const Vector3 lowerNorthEast(maximum.X, minimum.Y, minimum.Z);
+        const Vector3 lowerSouthWest(minimum.X, minimum.Y, maximum.Z);
+        const Vector3 lowerSouthEast(maximum.X, minimum.Y, maximum.Z);
+        const Vector3 upperNorthWest(minimum.X, maximum.Y, minimum.Z);
+        const Vector3 upperNorthEast(maximum.X, maximum.Y, minimum.Z);
+        const Vector3 upperSouthWest(minimum.X, maximum.Y, maximum.Z);
+        const Vector3 upperSouthEast(maximum.X, maximum.Y, maximum.Z);
+
+        AddDoorQuad(lowerNorthEast, lowerNorthWest, upperNorthWest, upperNorthEast, material);
+        AddDoorQuad(lowerSouthWest, lowerSouthEast, upperSouthEast, upperSouthWest, material);
+        AddDoorQuad(lowerNorthWest, lowerSouthWest, upperSouthWest, upperNorthWest, material);
+        AddDoorQuad(lowerSouthEast, lowerNorthEast, upperNorthEast, upperSouthEast, material);
+        AddDoorQuad(upperNorthWest, upperNorthEast, upperSouthEast, upperSouthWest, material);
+        AddDoorQuad(lowerNorthWest, lowerSouthWest, lowerSouthEast, lowerNorthEast, material);
+    }
+
     void World::BuildDoors()
     {
         for (int z = 0; z < static_cast<int>(map_.size()); ++z)
@@ -820,21 +874,41 @@ namespace WolfCna
             const float minimumY = door.openAmount * WallHeight;
             const float maximumY = minimumY + WallHeight;
 
-            const Vector3 lowerNorthWest(minimumX, minimumY, minimumZ);
-            const Vector3 lowerNorthEast(maximumX, minimumY, minimumZ);
-            const Vector3 lowerSouthWest(minimumX, minimumY, maximumZ);
-            const Vector3 lowerSouthEast(maximumX, minimumY, maximumZ);
-            const Vector3 upperNorthWest(minimumX, maximumY, minimumZ);
-            const Vector3 upperNorthEast(maximumX, maximumY, minimumZ);
-            const Vector3 upperSouthWest(minimumX, maximumY, maximumZ);
-            const Vector3 upperSouthEast(maximumX, maximumY, maximumZ);
+            AddDoorBox(
+                Vector3(minimumX, minimumY, minimumZ),
+                Vector3(maximumX, maximumY, maximumZ),
+                door.material);
+        }
 
-            AddDoorQuad(lowerNorthEast, lowerNorthWest, upperNorthWest, upperNorthEast, door.material);
-            AddDoorQuad(lowerSouthWest, lowerSouthEast, upperSouthEast, upperSouthWest, door.material);
-            AddDoorQuad(lowerNorthWest, lowerSouthWest, upperSouthWest, upperNorthWest, door.material);
-            AddDoorQuad(lowerSouthEast, lowerNorthEast, upperNorthEast, upperSouthEast, door.material);
-            AddDoorQuad(upperNorthWest, upperNorthEast, upperSouthEast, upperSouthWest, door.material);
-            AddDoorQuad(lowerNorthWest, lowerSouthWest, lowerSouthEast, lowerNorthEast, door.material);
+        for (const Exit& exit : exits_)
+        {
+            const float halfThickness = DoorThickness * 0.5f;
+            const bool blocksAlongX = exit.approachX != 0;
+            const float doorwayX = exit.approachX < 0
+                ? static_cast<float>(exit.x)
+                : static_cast<float>(exit.x) + 1.0f;
+            const float doorwayZ = exit.approachZ < 0
+                ? static_cast<float>(exit.z)
+                : static_cast<float>(exit.z) + 1.0f;
+            const float minimumX = blocksAlongX
+                ? doorwayX - halfThickness
+                : static_cast<float>(exit.x);
+            const float maximumX = blocksAlongX
+                ? doorwayX + halfThickness
+                : static_cast<float>(exit.x) + 1.0f;
+            const float minimumZ = blocksAlongX
+                ? static_cast<float>(exit.z)
+                : doorwayZ - halfThickness;
+            const float maximumZ = blocksAlongX
+                ? static_cast<float>(exit.z) + 1.0f
+                : doorwayZ + halfThickness;
+            const float minimumY = exit.openAmount * WallHeight;
+            const float maximumY = minimumY + WallHeight;
+
+            AddDoorBox(
+                Vector3(minimumX, minimumY, minimumZ),
+                Vector3(maximumX, maximumY, maximumZ),
+                Material::SecurityDoor);
         }
     }
 
@@ -971,12 +1045,39 @@ namespace WolfCna
 
     void World::BuildExits()
     {
+        constexpr std::array<std::pair<int, int>, 4> directions = {
+            std::pair{-1, 0},
+            std::pair{1, 0},
+            std::pair{0, -1},
+            std::pair{0, 1}};
+
         for (int z = 0; z < static_cast<int>(map_.size()); ++z)
         {
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
             {
-                if (map_[z][x] == 'E')
-                    exits_.emplace_back(static_cast<float>(x) + 0.5f, 0.08f, static_cast<float>(z) + 0.5f);
+                if (map_[z][x] != 'E')
+                    continue;
+
+                auto approach = directions.end();
+                for (auto candidate = directions.begin(); candidate != directions.end(); ++candidate)
+                {
+                    if (!IsStaticWallCell(x + candidate->first, z + candidate->second))
+                    {
+                        approach = candidate;
+                        break;
+                    }
+                }
+
+                if (approach == directions.end())
+                    throw std::runtime_error("Sector elevator has no walkable approach cell.");
+
+                exits_.push_back({
+                    Vector3(static_cast<float>(x) + 0.5f, 0.08f, static_cast<float>(z) + 0.5f),
+                    x,
+                    z,
+                    approach->first,
+                    approach->second,
+                    IsExitUnlocked() ? 1.0f : 0.0f});
             }
         }
     }
@@ -1178,6 +1279,7 @@ namespace WolfCna
                     const float x1 = x0 + 1.0f;
                     const float z0 = static_cast<float>(z);
                     const float z1 = z0 + 1.0f;
+                    const bool isElevator = IsExitCell(x, z);
 
                     // Floor.
                     AddQuad(
@@ -1185,7 +1287,7 @@ namespace WolfCna
                         Vector3(x1, 0.0f, z1),
                         Vector3(x1, 0.0f, z0),
                         Vector3(x0, 0.0f, z0),
-                        Material::Floor);
+                        isElevator ? Material::WallSteel : Material::Floor);
 
                     // Ceiling. CullNone is used in the starter, so winding is deliberately
                     // not relied upon yet.
@@ -1194,7 +1296,7 @@ namespace WolfCna
                         Vector3(x1, WallHeight, z0),
                         Vector3(x1, WallHeight, z1),
                         Vector3(x0, WallHeight, z1),
-                        Material::Ceiling);
+                        isElevator ? Material::WallSteel : Material::Ceiling);
 
                     if (map_[static_cast<std::size_t>(z)][static_cast<std::size_t>(x)] == 'Y')
                     {
@@ -1235,7 +1337,7 @@ namespace WolfCna
                         Vector3(x0, 0.0f, z0),
                         Vector3(x0, WallHeight, z0),
                         Vector3(x1, WallHeight, z0),
-                        wallMaterial);
+                        IsExitCell(x, z - 1) ? Material::WallSteel : wallMaterial);
                 }
 
                 if (!IsStaticWallCell(x, z + 1))
@@ -1245,7 +1347,7 @@ namespace WolfCna
                         Vector3(x1, 0.0f, z1),
                         Vector3(x1, WallHeight, z1),
                         Vector3(x0, WallHeight, z1),
-                        wallMaterial);
+                        IsExitCell(x, z + 1) ? Material::WallSteel : wallMaterial);
                 }
 
                 if (!IsStaticWallCell(x - 1, z))
@@ -1255,7 +1357,7 @@ namespace WolfCna
                         Vector3(x0, 0.0f, z1),
                         Vector3(x0, WallHeight, z1),
                         Vector3(x0, WallHeight, z0),
-                        wallMaterial);
+                        IsExitCell(x - 1, z) ? Material::WallSteel : wallMaterial);
                 }
 
                 if (!IsStaticWallCell(x + 1, z))
@@ -1265,7 +1367,7 @@ namespace WolfCna
                         Vector3(x1, 0.0f, z0),
                         Vector3(x1, WallHeight, z0),
                         Vector3(x1, WallHeight, z1),
-                        wallMaterial);
+                        IsExitCell(x + 1, z) ? Material::WallSteel : wallMaterial);
                 }
             }
         }
@@ -1874,14 +1976,18 @@ namespace WolfCna
                     Vector3(1.0f, 1.0f, 1.0f));
             }
 
-            for (const Vector3& exit : exits_)
+            for (const Exit& exit : exits_)
             {
+                const Vector3 markerPosition(
+                    exit.position.X - static_cast<float>(exit.approachX) * 0.28f,
+                    0.01f,
+                    exit.position.Z - static_cast<float>(exit.approachZ) * 0.28f);
                 drawBillboard(
                     exitSprite,
-                    Vector3(exit.X, 0.01f, exit.Z),
-                    0.72f,
-                    1.0f,
-                    IsExitUnlocked()
+                    markerPosition,
+                    0.54f,
+                    0.86f,
+                    exit.openAmount >= DoorPassableAt
                         ? Vector3(0.82f, 1.0f, 1.0f)
                         : Vector3(1.0f, 0.48f, 0.42f));
             }
