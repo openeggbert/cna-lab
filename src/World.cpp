@@ -264,6 +264,13 @@ namespace WolfCna
             [](const Terminal& terminal) { return terminal.activated; });
     }
 
+    int World::ConsumeGuardShotCount()
+    {
+        const int shotCount = pendingGuardShotCount_;
+        pendingGuardShotCount_ = 0;
+        return shotCount;
+    }
+
     World::InteractionResult World::TryActivate(
         const Vector3& playerPosition,
         const Vector3& lookDirection,
@@ -418,6 +425,7 @@ namespace WolfCna
                             enemy.position + Vector3(0.0f, 0.5f, 0.0f),
                             Vector3(dx * inverseDistance * GuardProjectileSpeed, 0.0f, dz * inverseDistance * GuardProjectileSpeed),
                             GuardProjectileLifetime});
+                        ++pendingGuardShotCount_;
                     }
                     enemy.attackCooldown = EnemyAttackInterval;
                 }

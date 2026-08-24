@@ -71,6 +71,7 @@ namespace WolfCna
         [[nodiscard]] bool ReachedExit(
             const Microsoft::Xna::Framework::Vector3& playerPosition) const;
         [[nodiscard]] bool IsExitUnlocked() const;
+        [[nodiscard]] int ConsumeGuardShotCount();
         [[nodiscard]] InteractionResult TryActivate(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection,
@@ -168,6 +169,7 @@ namespace WolfCna
         std::vector<std::uint16_t> impactIndices_;
         std::vector<Enemy> enemies_;
         std::vector<EnemyProjectile> enemyProjectiles_;
+        int pendingGuardShotCount_ = 0;
         std::vector<Pickup> pickups_;
         std::vector<Terminal> terminals_;
         std::vector<Microsoft::Xna::Framework::Vector3> exits_;

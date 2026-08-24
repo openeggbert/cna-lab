@@ -45,6 +45,7 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> hurtSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> enemyDefeatedSound_;
         std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> terminalSound_;
+        std::unique_ptr<Microsoft::Xna::Framework::Audio::SoundEffect> guardShotSound_;
 
         World world_{LevelDefinition::LoadFromFile("assets/levels/starter.level")};
         Microsoft::Xna::Framework::Vector3 playerPosition_;

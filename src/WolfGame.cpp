@@ -328,6 +328,10 @@ namespace WolfCna
             MakeTone(520.0f, 4400),
             22050,
             AudioChannels::Mono);
+        guardShotSound_ = std::make_unique<SoundEffect>(
+            MakeTone(270.0f, 1700),
+            22050,
+            AudioChannels::Mono);
     }
 
     void WolfGame::DrawHud()
@@ -516,6 +520,8 @@ namespace WolfCna
         // Clamp unusually long frames so a debugger pause cannot launch the player through walls.
         const float clampedElapsed = std::min(elapsed, 0.05f);
         const int incomingDamage = world_.Update(clampedElapsed, playerPosition_);
+        if (world_.ConsumeGuardShotCount() > 0 && guardShotSound_)
+            static_cast<void>(guardShotSound_->Play(0.18f, 0.12f, 0.0f));
         health_ -= incomingDamage;
         if (incomingDamage > 0 && hurtSound_)
             static_cast<void>(hurtSound_->Play(0.3f, -0.25f, 0.0f));

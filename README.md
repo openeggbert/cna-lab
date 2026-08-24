@@ -16,7 +16,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - classic arrow-key movement
 - keyboard turning with a fixed horizon
 - centered crosshair and a generated retro status bar with sidearm icon
-- generated CNA sound effects for shots, defeated enemies, pickups, doors, locks and player damage
+- generated CNA sound effects for player and guard shots, defeated enemies, pickups, doors, locks and player damage
 - uncapped score for gold, defeated enemies and completing the level
 - a centered completion card appears at the level exit
 - grid collision with wall sliding

@@ -962,7 +962,7 @@ Current progress:
 - reaching the exit marks the run complete in the HUD;
 - the HUD now has level, score, lives, health and ammunition readouts plus a generated sidearm icon;
 - `1`/`2` switch between the generated knife and sidearm icons; the knife has a short attack range;
-- generated CNA effects cover shots, defeated enemies, pickups, doors, locks and player damage; combat includes player death/restart;
+- generated CNA effects cover player and guard shots, defeated enemies, pickups, doors, locks and player damage; combat includes player death/restart;
 - guards attack with visible ranged projectiles that cause damage only on impact, while hounds attack at close range;
 - ordinary blue bunker doors and red security doors use distinct generated atlas panels;
 - the red security door is a locked route; its cyan access card is placed before it;

@@ -158,8 +158,13 @@ int main()
         "#####\n#PG.#\n#####\n",
         "damage.level"));
     int guardProjectileDamage = 0;
+    int guardShots = 0;
     for (int tick = 0; tick < 20; ++tick)
+    {
         guardProjectileDamage += damageWorld.Update(0.05f, combatPlayer);
+        guardShots += damageWorld.ConsumeGuardShotCount();
+    }
+    Expect(guardShots >= 1, "guard emits a shot at the player");
     Expect(guardProjectileDamage == 12, "guard projectile damages a player at range");
 
     return EXIT_SUCCESS;
