@@ -1,6 +1,7 @@
 # Explore2D
 
-Explore2D is a small C++23 2D exploration/adventure engine built to sit above
+Explore2D is a small, deliberately opinionated C++23 2D exploration/adventure
+engine built to sit above
 [CNA](https://github.com/openeggbert/cna). It is intended for games made from
 fixed, connected screens: walk into a scene, inspect it, collect objects, use
 inventory items on mechanisms, talk to characters, unlock routes, survive
@@ -11,9 +12,14 @@ an optional **CNA host**. Game rules can therefore be unit-tested without a
 window or GPU while CNA remains responsible for input, the game loop, and final
 presentation.
 
-The API and defaults are inspired by design lessons extracted from *Tajná mise*,
+The API and visual constraints are inspired by design lessons extracted from *Tajná mise*,
 but Explore2D is not a port or compatibility layer and contains no original
 Tajná mise story, room, text, or art assets.
+
+Explore2D games intentionally share a recognisable presentation: a fixed
+640×350 logical screen, the exact 16-colour EGA palette of QBasic `SCREEN 9`, a
+492×262 non-scrolling scene, text inventory on the right, and action/status
+strips below. This is a defining feature rather than a temporary limitation.
 
 ## What the engine already provides
 
@@ -33,7 +39,11 @@ Tajná mise story, room, text, or art assets.
 - Fast travel to visited travel-anchor rooms.
 - Death and win states.
 - Versioned text save/load snapshots.
-- Procedural 2D room drawing through rectangles, lines and bitmap-font text.
+- A configurable title/menu screen shown before a game session starts.
+- QBasic-style procedural drawing through `PSET`, rectangles, lines,
+  circles/ellipses, boundary `PAINT`, and bitmap-font text equivalents.
+- Palette-indexed game definitions: arbitrary RGB values cannot leak into room
+  art, title art, or the shared interface.
 - A CPU RGBA framebuffer renderer. The CNA host uploads one texture and presents
   it with point sampling, avoiding any mandatory content pipeline or font asset.
 - Headless tests for world rules and persistence.
@@ -97,7 +107,7 @@ its design inspiration:
 | M | discovered-destination travel map |
 | S / L | quick save / quick load |
 | Q | quit |
-| Up / Down + Enter | navigate choices/map |
+| Up / Down + Enter | navigate the title menu, choices, or map |
 | Escape | cancel a choice/message |
 
 ## Defining a game
@@ -109,6 +119,11 @@ hotspots and interactions are ordinary C++ data:
 explore2d::WorldDefinition world;
 world.title = "My Adventure";
 world.startRoom = "foyer";
+world.presentation.title.subtitle = "A SHORT EXPLORATION STORY";
+world.presentation.title.artwork = {
+    explore2d::RectVisual{{20, 80, 600, 140}, explore2d::PaletteColor::blue, true},
+    explore2d::CircleVisual{{520, 110}, 20, explore2d::PaletteColor::brightYellow, true},
+};
 
 world.addItem({"key", "KEY", "A small brass key.", true});
 
@@ -116,7 +131,10 @@ explore2d::RoomDefinition foyer;
 foyer.id = "foyer";
 foyer.label = "FOYER";
 foyer.defaultSpawn = {32, 232};
-foyer.solids.push_back({0, 260, 512, 28});
+foyer.background = explore2d::PaletteColor::brightBlue;
+foyer.solids.push_back({0, 260, 492, 28});
+foyer.decorations.push_back(explore2d::LineVisual{
+    {0, 190}, {240, 70}, explore2d::PaletteColor::white});
 foyer.hotspots.push_back({
     "key_pickup", "KEY", {200, 200, 60, 60},
     explore2d::HotspotKind::item, {}, {}});

@@ -53,9 +53,10 @@ AdventureGame::AdventureGame(
       session_{world_, sessionConfig_},
       renderer_{world_, sessionConfig_, rendererTheme_}
 {
+    titleActive_ = true;
     const int scale = std::max(1, hostConfig_.presentationScale);
-    graphics_->setPreferredBackBufferWidthProperty(sessionConfig_.logicalWidth * scale);
-    graphics_->setPreferredBackBufferHeightProperty(sessionConfig_.logicalHeight * scale);
+    graphics_->setPreferredBackBufferWidthProperty(ScreenMetrics::width * scale);
+    graphics_->setPreferredBackBufferHeightProperty(ScreenMetrics::height * scale);
     getWindowProperty().setTitleProperty(hostConfig_.windowTitle);
 }
 
@@ -69,10 +70,33 @@ void AdventureGame::Initialize() {
 void AdventureGame::LoadContent() {
     Microsoft::Xna::Framework::Game::LoadContent();
     frameTexture_ = std::make_unique<Microsoft::Xna::Framework::Graphics::Texture2D>(
-        getGraphicsDeviceProperty(), sessionConfig_.logicalWidth, sessionConfig_.logicalHeight);
+        getGraphicsDeviceProperty(), ScreenMetrics::width, ScreenMetrics::height);
     spriteBatch_ = std::make_unique<Microsoft::Xna::Framework::Graphics::SpriteBatch>(getGraphicsDeviceProperty());
     pointClamp_ = std::make_unique<Microsoft::Xna::Framework::Graphics::SamplerState>(
         Microsoft::Xna::Framework::Graphics::SamplerState::PointClamp);
+}
+
+void AdventureGame::updateTitleInput(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard) {
+    if (pressed(keyboard, kUp)) titleSelection_ = (titleSelection_ + 2U) % 3U;
+    if (pressed(keyboard, kDown)) titleSelection_ = (titleSelection_ + 1U) % 3U;
+    if (pressed(keyboard, kEscape)) {
+        Exit();
+        return;
+    }
+    if (!pressed(keyboard, kEnter) && !pressed(keyboard, kSpace)) return;
+    switch (titleSelection_) {
+    case 0:
+        session_.restart();
+        titleActive_ = false;
+        break;
+    case 1:
+        quickLoad();
+        titleActive_ = false;
+        break;
+    default:
+        Exit();
+        break;
+    }
 }
 
 bool AdventureGame::down(
@@ -133,6 +157,8 @@ void AdventureGame::Update(Microsoft::Xna::Framework::GameTime& gameTime) {
 
     if (pressed(keyboard, kQ)) {
         Exit();
+    } else if (titleActive_) {
+        updateTitleInput(keyboard);
     } else {
         switch (session_.mode()) {
         case SessionMode::world:
@@ -163,18 +189,19 @@ void AdventureGame::Update(Microsoft::Xna::Framework::GameTime& gameTime) {
 
 void AdventureGame::Draw(const Microsoft::Xna::Framework::GameTime& gameTime) {
     getGraphicsDeviceProperty().Clear(Microsoft::Xna::Framework::Color::Black);
-    renderer_.render(session_);
+    if (titleActive_) renderer_.renderTitle(titleSelection_);
+    else renderer_.render(session_);
     if (frameTexture_ != nullptr && spriteBatch_ != nullptr) {
         const auto bytes = renderer_.canvas().bytes();
-        frameTexture_->SetDataRGBA(bytes.data(), sessionConfig_.logicalWidth * sessionConfig_.logicalHeight);
+        frameTexture_->SetDataRGBA(bytes.data(), ScreenMetrics::width * ScreenMetrics::height);
         const auto& params = getGraphicsDeviceProperty().getPresentationParametersProperty();
         const int width = static_cast<int>(params.getBackBufferWidthProperty());
         const int height = static_cast<int>(params.getBackBufferHeightProperty());
-        const float sx = static_cast<float>(width) / static_cast<float>(sessionConfig_.logicalWidth);
-        const float sy = static_cast<float>(height) / static_cast<float>(sessionConfig_.logicalHeight);
+        const float sx = static_cast<float>(width) / static_cast<float>(ScreenMetrics::width);
+        const float sy = static_cast<float>(height) / static_cast<float>(ScreenMetrics::height);
         const float scale = std::max(1.0F, std::floor(std::min(sx, sy)));
-        const int drawWidth = static_cast<int>(static_cast<float>(sessionConfig_.logicalWidth) * scale);
-        const int drawHeight = static_cast<int>(static_cast<float>(sessionConfig_.logicalHeight) * scale);
+        const int drawWidth = static_cast<int>(static_cast<float>(ScreenMetrics::width) * scale);
+        const int drawHeight = static_cast<int>(static_cast<float>(ScreenMetrics::height) * scale);
         const int x = (width - drawWidth) / 2;
         const int y = (height - drawHeight) / 2;
         spriteBatch_->Begin(
@@ -184,7 +211,7 @@ void AdventureGame::Draw(const Microsoft::Xna::Framework::GameTime& gameTime) {
         spriteBatch_->Draw(
             *frameTexture_,
             Microsoft::Xna::Framework::Rectangle{x, y, drawWidth, drawHeight},
-            Microsoft::Xna::Framework::Rectangle{0, 0, sessionConfig_.logicalWidth, sessionConfig_.logicalHeight},
+            Microsoft::Xna::Framework::Rectangle{0, 0, ScreenMetrics::width, ScreenMetrics::height},
             Microsoft::Xna::Framework::Color::White);
         spriteBatch_->End();
     }

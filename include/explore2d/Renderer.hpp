@@ -3,18 +3,22 @@
 #include "explore2d/Canvas.hpp"
 #include "explore2d/Session.hpp"
 
+#include <cstddef>
+
 namespace explore2d {
 
 struct RendererTheme final {
-    Rgba frame{210, 218, 220, 255};
-    Rgba panel{18, 24, 29, 255};
-    Rgba panelAlt{28, 36, 43, 255};
-    Rgba text{228, 236, 238, 255};
-    Rgba dimText{130, 148, 153, 255};
-    Rgba accent{242, 196, 84, 255};
-    Rgba danger{231, 92, 84, 255};
-    Rgba player{236, 229, 210, 255};
-    Rgba playerAccent{74, 154, 171, 255};
+    PaletteColor frame{PaletteColor::brightYellow};
+    PaletteColor panel{PaletteColor::black};
+    PaletteColor panelPattern{PaletteColor::red};
+    PaletteColor text{PaletteColor::white};
+    PaletteColor dimText{PaletteColor::lightGray};
+    PaletteColor accent{PaletteColor::brightCyan};
+    PaletteColor selected{PaletteColor::brightMagenta};
+    PaletteColor danger{PaletteColor::brightRed};
+    PaletteColor playerSkin{PaletteColor::brightYellow};
+    PaletteColor playerShirt{PaletteColor::brightRed};
+    PaletteColor playerPants{PaletteColor::brightBlue};
 };
 
 class AdventureRenderer final {
@@ -22,6 +26,7 @@ public:
     AdventureRenderer(const WorldDefinition& world, SessionConfig config = {}, RendererTheme theme = {});
 
     void render(const AdventureSession& session);
+    void renderTitle(std::size_t selectedItem = 0);
     [[nodiscard]] const Canvas& canvas() const noexcept { return canvas_; }
 
 private:
@@ -30,11 +35,14 @@ private:
     RendererTheme theme_;
     Canvas canvas_;
 
-    void drawVisual(const Visual& visual);
+    void drawVisual(const Visual& visual, Vec2 offset = {});
+    void drawFrame();
+    void drawLogo();
     void drawWorld(const AdventureSession& session);
     void drawPlayer(const AdventureSession& session);
     void drawHud(const AdventureSession& session);
     void drawChoice(const AdventureSession& session, std::string_view title);
+    void drawMap(const AdventureSession& session);
     void drawMessage(const AdventureSession& session);
     void drawTerminal(const AdventureSession& session);
 };

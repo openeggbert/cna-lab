@@ -48,6 +48,57 @@ struct Rgba final {
     [[nodiscard]] friend constexpr bool operator==(const Rgba&, const Rgba&) noexcept = default;
 };
 
+// The fixed 16-colour EGA palette used by the original QBasic SCREEN 9 mode.
+// Games deliberately choose palette indices instead of arbitrary RGB values.
+enum class PaletteColor : std::uint8_t {
+    black,
+    blue,
+    green,
+    cyan,
+    red,
+    magenta,
+    brown,
+    lightGray,
+    darkGray,
+    brightBlue,
+    brightGreen,
+    brightCyan,
+    brightRed,
+    brightMagenta,
+    brightYellow,
+    white,
+};
+
+[[nodiscard]] constexpr Rgba paletteRgba(const PaletteColor color) noexcept {
+    switch (color) {
+    case PaletteColor::black: return {0, 0, 0, 255};
+    case PaletteColor::blue: return {0, 0, 170, 255};
+    case PaletteColor::green: return {0, 170, 0, 255};
+    case PaletteColor::cyan: return {0, 170, 170, 255};
+    case PaletteColor::red: return {170, 0, 0, 255};
+    case PaletteColor::magenta: return {170, 0, 170, 255};
+    case PaletteColor::brown: return {170, 85, 0, 255};
+    case PaletteColor::lightGray: return {170, 170, 170, 255};
+    case PaletteColor::darkGray: return {85, 85, 85, 255};
+    case PaletteColor::brightBlue: return {85, 85, 255, 255};
+    case PaletteColor::brightGreen: return {85, 255, 85, 255};
+    case PaletteColor::brightCyan: return {85, 255, 255, 255};
+    case PaletteColor::brightRed: return {255, 85, 85, 255};
+    case PaletteColor::brightMagenta: return {255, 85, 255, 255};
+    case PaletteColor::brightYellow: return {255, 255, 85, 255};
+    case PaletteColor::white: return {255, 255, 255, 255};
+    }
+    return {0, 0, 0, 255};
+}
+
+struct ScreenMetrics final {
+    static constexpr int width = 640;
+    static constexpr int height = 350;
+    static constexpr Vec2 sceneOrigin{8.0F, 8.0F};
+    static constexpr Rect worldBounds{0.0F, 0.0F, 492.0F, 262.0F};
+    static constexpr Rect sceneRect{8.0F, 8.0F, 492.0F, 262.0F};
+};
+
 enum class Direction : std::uint8_t { left, right, up, down };
 enum class Facing : std::uint8_t { left, right };
 enum class Verb : std::uint8_t { use, examine, take, context };
@@ -109,10 +160,18 @@ struct Mutation final {
     [[nodiscard]] static Mutation win(std::string message);
 };
 
-struct RectVisual final { Rect rect; Rgba color; bool filled{true}; };
-struct LineVisual final { Vec2 from; Vec2 to; Rgba color; };
-struct TextVisual final { Vec2 at; std::string text; Rgba color; int scale{1}; };
-using Visual = std::variant<RectVisual, LineVisual, TextVisual>;
+struct PixelVisual final { Vec2 at; PaletteColor color{PaletteColor::white}; };
+struct RectVisual final { Rect rect; PaletteColor color{PaletteColor::white}; bool filled{true}; };
+struct LineVisual final { Vec2 from; Vec2 to; PaletteColor color{PaletteColor::white}; };
+struct CircleVisual final { Vec2 center; float radius{}; PaletteColor color{PaletteColor::white}; bool filled{}; };
+struct EllipseVisual final { Vec2 center; Vec2 radii; PaletteColor color{PaletteColor::white}; bool filled{}; };
+struct PaintVisual final {
+    Vec2 at;
+    PaletteColor fill{PaletteColor::white};
+    PaletteColor boundary{PaletteColor::white};
+};
+struct TextVisual final { Vec2 at; std::string text; PaletteColor color{PaletteColor::white}; int scale{1}; };
+using Visual = std::variant<PixelVisual, RectVisual, LineVisual, CircleVisual, EllipseVisual, PaintVisual, TextVisual>;
 
 struct Message final {
     std::string text;
@@ -127,9 +186,6 @@ struct PlayerState final {
 };
 
 struct SessionConfig final {
-    int logicalWidth{640};
-    int logicalHeight{360};
-    Rect worldViewport{0.0F, 0.0F, 512.0F, 288.0F};
     Vec2 playerSize{14.0F, 28.0F};
     float walkStep{10.0F};
     float jumpVelocity{-205.0F};

@@ -1,4 +1,5 @@
 #include "explore2d/Persistence.hpp"
+#include "explore2d/Renderer.hpp"
 #include "explore2d/Session.hpp"
 
 #include <cassert>
@@ -18,7 +19,7 @@ static e2d::WorldDefinition makeWorld() {
     a.label = "ROOM A";
     a.defaultSpawn = {10, 232};
     a.travelAnchor = true;
-    a.solids.push_back({0, 260, 512, 28});
+    a.solids.push_back({0, 260, 492, 28});
     a.hotspots.push_back({"box", "BOX", {0, 200, 80, 60}, e2d::HotspotKind::item, {}, {}});
     a.exits.push_back({e2d::Direction::right, "b", {5, 232}, {}, {}});
     world.addRoom(std::move(a));
@@ -28,8 +29,8 @@ static e2d::WorldDefinition makeWorld() {
     b.label = "ROOM B";
     b.defaultSpawn = {20, 232};
     b.travelAnchor = true;
-    b.solids.push_back({0, 260, 512, 28});
-    b.exits.push_back({e2d::Direction::left, "a", {480, 232}, {}, {}});
+    b.solids.push_back({0, 260, 492, 28});
+    b.exits.push_back({e2d::Direction::left, "a", {460, 232}, {}, {}});
     world.addRoom(std::move(b));
 
     world.addInteraction({
@@ -41,6 +42,19 @@ static e2d::WorldDefinition makeWorld() {
 }
 
 int main() {
+    e2d::Canvas primitiveCanvas{32, 32};
+    primitiveCanvas.clear(e2d::PaletteColor::black);
+    primitiveCanvas.strokeRect({3, 3, 20, 20}, e2d::PaletteColor::brightYellow);
+    primitiveCanvas.paint({8, 8}, e2d::PaletteColor::blue, e2d::PaletteColor::brightYellow);
+    primitiveCanvas.circle({12, 12}, 4, e2d::PaletteColor::brightCyan, false);
+    assert(primitiveCanvas.colorAt(3, 3) == e2d::PaletteColor::brightYellow);
+    assert(primitiveCanvas.colorAt(8, 8) == e2d::PaletteColor::blue);
+    primitiveCanvas.pixel(1, 1, e2d::PaletteColor::brightCyan);
+    const std::size_t cyanPixel = static_cast<std::size_t>((1 * primitiveCanvas.width() + 1) * 4);
+    assert(primitiveCanvas.bytes()[cyanPixel] == 85);
+    assert(primitiveCanvas.bytes()[cyanPixel + 1] == 255);
+    assert(primitiveCanvas.bytes()[cyanPixel + 2] == 255);
+
     auto world = makeWorld();
     assert(world.validate().empty());
     e2d::AdventureSession session{world};
@@ -68,6 +82,14 @@ int main() {
     session.openMap();
     assert(session.mode() == e2d::SessionMode::map);
     session.cancel();
+
+    e2d::AdventureRenderer renderer{world};
+    renderer.renderTitle();
+    assert(renderer.canvas().width() == e2d::ScreenMetrics::width);
+    assert(renderer.canvas().height() == e2d::ScreenMetrics::height);
+    assert(renderer.canvas().bytes().size() ==
+        static_cast<std::size_t>(e2d::ScreenMetrics::width * e2d::ScreenMetrics::height * 4));
+    renderer.render(session);
 
     std::cout << "Explore2D core tests passed\n";
     return 0;

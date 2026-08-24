@@ -4,6 +4,7 @@
 #include <array>
 #include <cctype>
 #include <cmath>
+#include <deque>
 #include <stdexcept>
 #include <string>
 
@@ -79,40 +80,52 @@ using Glyph = std::array<std::uint8_t, 7>;
 } // namespace
 
 Canvas::Canvas(const int width, const int height)
-    : width_{width}, height_{height}, pixels_(static_cast<std::size_t>(width * height * 4), 0)
+    : width_{width}, height_{height}
 {
     if (width <= 0 || height <= 0) throw std::invalid_argument{"Canvas dimensions must be positive"};
+    pixels_.resize(static_cast<std::size_t>(width_) * static_cast<std::size_t>(height_) * 4U);
+    indices_.resize(static_cast<std::size_t>(width_) * static_cast<std::size_t>(height_), PaletteColor::black);
+    resetClip();
+    clear(PaletteColor::black);
 }
 
-void Canvas::pixel(const int x, const int y, const Rgba color) {
-    if (x < 0 || y < 0 || x >= width_ || y >= height_) return;
-    const auto index = static_cast<std::size_t>((y * width_ + x) * 4);
-    pixels_[index] = color.r;
-    pixels_[index + 1] = color.g;
-    pixels_[index + 2] = color.b;
-    pixels_[index + 3] = color.a;
+void Canvas::pixel(const int x, const int y, const PaletteColor color) {
+    if (x < 0 || y < 0 || x >= width_ || y >= height_ ||
+        x < static_cast<int>(clip_.left()) || x >= static_cast<int>(clip_.right()) ||
+        y < static_cast<int>(clip_.top()) || y >= static_cast<int>(clip_.bottom())) return;
+    const auto paletteIndex = static_cast<std::size_t>(y * width_ + x);
+    const auto index = paletteIndex * 4U;
+    const Rgba rgba = paletteRgba(color);
+    indices_[paletteIndex] = color;
+    pixels_[index] = rgba.r;
+    pixels_[index + 1] = rgba.g;
+    pixels_[index + 2] = rgba.b;
+    pixels_[index + 3] = rgba.a;
 }
 
-void Canvas::clear(const Rgba color) {
+void Canvas::clear(const PaletteColor color) {
+    const Rect oldClip = clip_;
+    resetClip();
     fillRect({0.0F, 0.0F, static_cast<float>(width_), static_cast<float>(height_)}, color);
+    clip_ = oldClip;
 }
 
-void Canvas::fillRect(const Rect rect, const Rgba color) {
-    const int x0 = std::max(0, static_cast<int>(std::floor(rect.x)));
-    const int y0 = std::max(0, static_cast<int>(std::floor(rect.y)));
-    const int x1 = std::min(width_, static_cast<int>(std::ceil(rect.x + rect.width)));
-    const int y1 = std::min(height_, static_cast<int>(std::ceil(rect.y + rect.height)));
+void Canvas::fillRect(const Rect rect, const PaletteColor color) {
+    const int x0 = std::max({0, static_cast<int>(std::floor(rect.x)), static_cast<int>(clip_.left())});
+    const int y0 = std::max({0, static_cast<int>(std::floor(rect.y)), static_cast<int>(clip_.top())});
+    const int x1 = std::min({width_, static_cast<int>(std::ceil(rect.right())), static_cast<int>(clip_.right())});
+    const int y1 = std::min({height_, static_cast<int>(std::ceil(rect.bottom())), static_cast<int>(clip_.bottom())});
     for (int y = y0; y < y1; ++y) for (int x = x0; x < x1; ++x) pixel(x, y, color);
 }
 
-void Canvas::strokeRect(const Rect rect, const Rgba color) {
+void Canvas::strokeRect(const Rect rect, const PaletteColor color) {
     line({rect.x, rect.y}, {rect.x + rect.width - 1.0F, rect.y}, color);
     line({rect.x, rect.y}, {rect.x, rect.y + rect.height - 1.0F}, color);
     line({rect.x + rect.width - 1.0F, rect.y}, {rect.x + rect.width - 1.0F, rect.y + rect.height - 1.0F}, color);
     line({rect.x, rect.y + rect.height - 1.0F}, {rect.x + rect.width - 1.0F, rect.y + rect.height - 1.0F}, color);
 }
 
-void Canvas::line(const Vec2 from, const Vec2 to, const Rgba color) {
+void Canvas::line(const Vec2 from, const Vec2 to, const PaletteColor color) {
     int x0 = static_cast<int>(std::lround(from.x));
     int y0 = static_cast<int>(std::lround(from.y));
     const int x1 = static_cast<int>(std::lround(to.x));
@@ -131,7 +144,77 @@ void Canvas::line(const Vec2 from, const Vec2 to, const Rgba color) {
     }
 }
 
-void Canvas::text(int x, int y, const std::string_view value, const Rgba color, const int scaleValue) {
+void Canvas::ellipse(const Vec2 center, const Vec2 radii, const PaletteColor color, const bool filled) {
+    const int rx = std::max(1, static_cast<int>(std::lround(std::abs(radii.x))));
+    const int ry = std::max(1, static_cast<int>(std::lround(std::abs(radii.y))));
+    const int cx = static_cast<int>(std::lround(center.x));
+    const int cy = static_cast<int>(std::lround(center.y));
+    if (filled) {
+        for (int y = -ry; y <= ry; ++y) {
+            const float normalized = 1.0F - static_cast<float>(y * y) / static_cast<float>(ry * ry);
+            const int extent = static_cast<int>(std::lround(static_cast<float>(rx) * std::sqrt(std::max(0.0F, normalized))));
+            line({static_cast<float>(cx - extent), static_cast<float>(cy + y)},
+                {static_cast<float>(cx + extent), static_cast<float>(cy + y)}, color);
+        }
+        return;
+    }
+    const int steps = std::max(24, static_cast<int>(std::ceil(6.4F * static_cast<float>(std::max(rx, ry)))));
+    constexpr float tau = 6.2831853071795864769F;
+    Vec2 previous{static_cast<float>(cx + rx), static_cast<float>(cy)};
+    for (int step = 1; step <= steps; ++step) {
+        const float angle = tau * static_cast<float>(step) / static_cast<float>(steps);
+        const Vec2 next{static_cast<float>(cx) + static_cast<float>(rx) * std::cos(angle),
+            static_cast<float>(cy) + static_cast<float>(ry) * std::sin(angle)};
+        line(previous, next, color);
+        previous = next;
+    }
+}
+
+void Canvas::circle(const Vec2 center, const float radius, const PaletteColor color, const bool filled) {
+    ellipse(center, {radius, radius}, color, filled);
+}
+
+PaletteColor Canvas::colorAt(const int x, const int y) const noexcept {
+    if (x < 0 || y < 0 || x >= width_ || y >= height_) return PaletteColor::black;
+    return indices_[static_cast<std::size_t>(y * width_ + x)];
+}
+
+void Canvas::paint(const Vec2 at, const PaletteColor fill, const PaletteColor boundary) {
+    const int startX = static_cast<int>(std::lround(at.x));
+    const int startY = static_cast<int>(std::lround(at.y));
+    if (startX < static_cast<int>(clip_.left()) || startX >= static_cast<int>(clip_.right()) ||
+        startY < static_cast<int>(clip_.top()) || startY >= static_cast<int>(clip_.bottom()) ||
+        colorAt(startX, startY) == boundary || colorAt(startX, startY) == fill) return;
+
+    std::deque<std::pair<int, int>> pending;
+    pending.emplace_back(startX, startY);
+    while (!pending.empty()) {
+        const auto [x, y] = pending.front();
+        pending.pop_front();
+        if (x < static_cast<int>(clip_.left()) || x >= static_cast<int>(clip_.right()) ||
+            y < static_cast<int>(clip_.top()) || y >= static_cast<int>(clip_.bottom()) ||
+            colorAt(x, y) == boundary || colorAt(x, y) == fill) continue;
+        pixel(x, y, fill);
+        pending.emplace_back(x - 1, y);
+        pending.emplace_back(x + 1, y);
+        pending.emplace_back(x, y - 1);
+        pending.emplace_back(x, y + 1);
+    }
+}
+
+void Canvas::setClip(const Rect clip) noexcept {
+    const float left = std::clamp(clip.left(), 0.0F, static_cast<float>(width_));
+    const float top = std::clamp(clip.top(), 0.0F, static_cast<float>(height_));
+    const float right = std::clamp(clip.right(), left, static_cast<float>(width_));
+    const float bottom = std::clamp(clip.bottom(), top, static_cast<float>(height_));
+    clip_ = {left, top, right - left, bottom - top};
+}
+
+void Canvas::resetClip() noexcept {
+    clip_ = {0.0F, 0.0F, static_cast<float>(width_), static_cast<float>(height_)};
+}
+
+void Canvas::text(int x, int y, const std::string_view value, const PaletteColor color, const int scaleValue) {
     const int scale = std::max(1, scaleValue);
     const int startX = x;
     for (const char c : value) {
@@ -164,7 +247,7 @@ void Canvas::wrappedText(
     int y,
     const int width,
     const std::string_view value,
-    const Rgba color,
+    const PaletteColor color,
     const int scale,
     const int lineGap)
 {

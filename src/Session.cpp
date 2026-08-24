@@ -172,8 +172,8 @@ void AdventureSession::walk(const Direction direction) {
     candidate.x += dx;
     if (!horizontalBlocked(candidate)) player_.position.x += dx;
 
-    const float worldLeft = config_.worldViewport.x;
-    const float worldRight = config_.worldViewport.x + config_.worldViewport.width;
+    const float worldLeft = ScreenMetrics::worldBounds.x;
+    const float worldRight = ScreenMetrics::worldBounds.right();
     if (player_.position.x + config_.playerSize.x < worldLeft) {
         if (!tryExit(Direction::left)) player_.position.x = worldLeft;
     } else if (player_.position.x > worldRight) {
@@ -246,8 +246,8 @@ void AdventureSession::applyGravity(const float seconds) {
     }
 
     player_.position.y = nextY;
-    const float worldTop = config_.worldViewport.y;
-    const float worldBottom = config_.worldViewport.y + config_.worldViewport.height;
+    const float worldTop = ScreenMetrics::worldBounds.y;
+    const float worldBottom = ScreenMetrics::worldBounds.bottom();
     if (player_.position.y + config_.playerSize.y < worldTop) {
         if (!tryExit(Direction::up)) {
             player_.position.y = worldTop;

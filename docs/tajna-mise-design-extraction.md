@@ -72,16 +72,25 @@ save/load is separate.
 
 Because the original game demonstrates that visually distinctive rooms can be
 assembled from drawing primitives, Explore2D does not force bitmap assets.
-Its first renderer includes rectangles, lines, text and a CPU framebuffer. A
-future asset/sprite renderer can be layered on top instead of replacing the
-world model.
+The supplied game website and QBasic source confirm that ordinary scenes use
+`SCREEN 9`: 640×350 with 16 EGA colours. Explore2D now makes that exact display
+model part of its public contract. Its `Canvas` provides palette-indexed
+equivalents of `PSET`, `LINE`, rectangle fill/outline, `CIRCLE`, ellipse,
+`PAINT`, and text over a CPU framebuffer.
+
+### Shared interface and title sequence
+
+The original game's scenes are framed by a stable interface: a large room view,
+right-hand textual inventory, and lower action strips. Choices temporarily use
+the side panel and longer messages overlay the scene. Explore2D retains this
+spatial grammar and provides an engine-owned title/menu phase before gameplay.
+Games configure the title, subtitle, colour sequence and procedural artwork,
+but do not replace the overall interface with an unrelated one.
 
 ## Intentionally generalized or changed
 
 - Explore2D does not preserve QBasic memory addresses or numeric item slots;
   stable string IDs are used instead.
-- Default logical resolution is 640x360 rather than reproducing a historical
-  framebuffer exactly.
 - Jumping uses a small generic velocity/gravity model rather than timing-exact
   emulation of the original jump trajectory.
 - The engine does not copy any original room, story, riddle, dialogue or artwork.

@@ -6,7 +6,8 @@ Explore2D treats an exploration adventure as three separable problems:
 
 1. **World definition** — immutable descriptions of rooms, objects and rules.
 2. **Session** — mutable player/world state and deterministic rule execution.
-3. **Presentation/host** — draw the session and obtain input from CNA.
+3. **Presentation/host** — enforce the Explore2D visual language, draw the
+   session, and obtain input from CNA.
 
 This makes the game rules portable and testable. CNA is not hidden behind a
 fake generic platform abstraction; it is simply kept at the outer edge where it
@@ -82,17 +83,33 @@ actions.
 
 ## Renderer
 
-`AdventureRenderer` draws into `Canvas`, a CPU-owned RGBA buffer. The 0.1
-renderer intentionally uses only simple procedural primitives and a small built-
-in 5x7 bitmap font. A game can therefore boot with no asset pipeline.
+`AdventureRenderer` always draws a 640×350 logical image. Its layout is part of
+the engine contract: the 492×262 room view sits at `(8,8)`, a right-hand panel
+contains the game mark and text inventory, and bordered strips below contain
+the location and the three verbs. Messages overlay the room in a blue bordered
+box; inventory choices remain in the side panel; the travel map replaces the
+room view.
+
+`Canvas` is CPU-owned and palette indexed. It retains RGBA bytes only for the
+final CNA upload. Public drawing methods accept one of the 16 exact EGA colours,
+not arbitrary RGB values. It offers pixel plotting, filled or outlined
+rectangles, lines, filled or outlined circles and ellipses, flood filling, and
+a built-in 5×7 bitmap font. These are direct modern equivalents of the small
+QBasic drawing vocabulary used by the design reference.
+
+`WorldDefinition::presentation` lets a game configure title text, menu wording,
+title colour cycling, byline and code-drawn title artwork. The title layout and
+three-entry NEW GAME / LOAD / QUIT flow remain engine-owned, so games can have
+their own identity without losing the Explore2D identity.
 
 The CNA adapter owns one `Texture2D`, uploads the logical framebuffer through
 `SetDataRGBA`, and draws it using `SpriteBatch` with `PointClamp` and opaque
 blending. The logical image is integer-scaled and centred in the current back
 buffer.
 
-This is intentionally simple. A future richer renderer can coexist with the
-same world/session model.
+The fixed resolution, palette and interface are intentionally not abstracted
+away. A game built on Explore2D accepts these constraints in the same way that
+a fantasy console game accepts its console's display model.
 
 ## Persistence
 

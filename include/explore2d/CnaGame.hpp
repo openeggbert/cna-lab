@@ -63,10 +63,13 @@ private:
     Microsoft::Xna::Framework::Input::KeyboardState previousKeyboard_{};
     std::size_t updateCounter_{};
     std::size_t renderedFrames_{};
+    bool titleActive_{};
+    std::size_t titleSelection_{};
 
     [[nodiscard]] bool pressed(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard, int virtualKey) const;
     [[nodiscard]] bool down(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard, int virtualKey) const;
     void updateWorldInput(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard);
+    void updateTitleInput(const Microsoft::Xna::Framework::Input::KeyboardState& keyboard);
     void quickSave();
     void quickLoad();
 };
