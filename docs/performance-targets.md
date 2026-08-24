@@ -409,12 +409,24 @@ sha256sum runtime/performance/m12-mixed-01.json runtime/performance/vendor-captu
   --output runtime/performance/m12-mixed-01-complete.json
 ```
 
+Before generating or publishing a release report, re-verify the archived four-file bundle:
+
+```bash
+./scripts/vram_evidence.py \
+  --capture runtime/performance/m12-mixed-01.json \
+  --evidence runtime/performance/m12-vram-evidence-01.json \
+  --artifact runtime/performance/vendor-capture-01.bin \
+  --verify-enriched runtime/performance/m12-mixed-01-complete.json
+```
+
 The binder verifies schema, exact capture and raw-artifact hashes, positive process/peak values,
 UTC interval ordering, and the exact measurement scope. The enriched `tracked_bytes` is the
 conservative maximum of Iron Gang's logical total and the external peak; only that output sets
 `tracking_complete=true`. The release-summary hardware label must exactly match
 `hardware_identity`, and capture comparison also requires the same profiler name, version, source,
-and scope on both sides.
+and scope on both sides. Verification reconstructs the expected enriched capture from the three
+source files and requires semantic equality of the entire JSON object, not just its VRAM fields;
+it therefore detects a stale, cross-bound, or subsequently edited enriched profile.
 
 This contract binds evidence; it does not certify a profiler's semantics or fabricate a
 measurement. `apitrace`, adapter-global free-memory queries, Xvfb/llvmpipe, and a hand-authored

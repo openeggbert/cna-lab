@@ -127,6 +127,10 @@ manifest to the original profile without overwriting it:
   --output runtime/performance/m12-mixed-01-complete.json
 ```
 
+Use the same three source arguments with
+`--verify-enriched runtime/performance/m12-mixed-01-complete.json` before publishing a report; this
+reconstructs the expected output and rejects any missing, cross-bound, or edited archive member.
+
 The exact manifest schema, hash procedure, accepted measurement scope, and limitations are in
 [`docs/performance-targets.md`](docs/performance-targets.md#binding-complete-external-vram-evidence).
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bind complete external VRAM-residency evidence to one Iron Gang schema-8 capture."""
+"""Bind or verify complete external VRAM evidence for an Iron Gang schema-8 capture."""
 
 from __future__ import annotations
 
@@ -119,7 +119,14 @@ def parse_args(arguments: list[str]) -> argparse.Namespace:
     parser.add_argument("--capture", required=True, type=Path, help="original schema-8 profile JSON")
     parser.add_argument("--evidence", required=True, type=Path, help="external evidence JSON")
     parser.add_argument("--artifact", required=True, type=Path, help="raw vendor/tool capture artifact")
-    parser.add_argument("--output", required=True, type=Path, help="write enriched profile JSON here")
+    action = parser.add_mutually_exclusive_group(required=True)
+    action.add_argument("--output", type=Path, help="bind and write enriched profile JSON here")
+    action.add_argument(
+        "--verify-enriched",
+        type=Path,
+        metavar="CAPTURE",
+        help="verify an archived enriched profile against all three source files",
+    )
     return parser.parse_args(arguments)
 
 
@@ -127,15 +134,16 @@ def main(arguments: list[str] | None = None) -> int:
     options = parse_args(sys.argv[1:] if arguments is None else arguments)
     temporary_path: Path | None = None
     try:
-        output_path = options.output.resolve()
         input_paths = {
             "original capture": options.capture.resolve(),
             "evidence manifest": options.evidence.resolve(),
             "raw evidence artifact": options.artifact.resolve(),
         }
-        for input_label, input_path in input_paths.items():
-            if output_path == input_path:
-                raise ReportError(f"output must differ from the {input_label}")
+        if options.output is not None:
+            output_path = options.output.resolve()
+            for input_label, input_path in input_paths.items():
+                if output_path == input_path:
+                    raise ReportError(f"output must differ from the {input_label}")
         capture_sha256 = file_sha256(options.capture)
         evidence_manifest_sha256 = file_sha256(options.evidence)
         artifact_sha256 = file_sha256(options.artifact)
@@ -159,7 +167,21 @@ def main(arguments: list[str] | None = None) -> int:
         )
         for input_label, input_path, expected_sha256 in stable_inputs:
             if file_sha256(input_path) != expected_sha256:
-                raise ReportError(f"{input_label} changed while evidence was being bound")
+                raise ReportError(f"{input_label} changed while evidence was being processed")
+
+        if options.verify_enriched is not None:
+            enriched_sha256 = file_sha256(options.verify_enriched)
+            archived_enriched = load_capture(options.verify_enriched)
+            if file_sha256(options.verify_enriched) != enriched_sha256:
+                raise ReportError("enriched capture changed while evidence was being verified")
+            if archived_enriched != enriched:
+                raise ReportError(
+                    "enriched capture does not exactly match the original capture and bound evidence"
+                )
+            sys.stdout.write(f"VRAM EVIDENCE VERIFIED: {options.verify_enriched}\n")
+            return 0
+
+        assert options.output is not None
         options.output.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
             "w",

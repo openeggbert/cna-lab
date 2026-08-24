@@ -432,8 +432,11 @@ cannot weaken the existing lower bound.
 
 The report and comparator independently validate the embedded evidence structure. Reports require
 an exact hardware-label match; comparisons additionally require matching profiler name/version,
-source, and measurement scope. Five focused CLI tests cover the qualifying synthetic path, capture
-hash refusal, scope/time refusal, raw-artifact mutation, conservative flooring, and input-overwrite
-protection. This is contract/plumbing coverage only: no qualifying physical artifact was invented,
-and the real Xvfb captures correctly remain `tracking_complete=false`. M12 still needs repeated
-mixed captures plus authoritative complete-residency artifacts on named physical minimum hardware.
+source, and measurement scope. The same CLI can re-verify an archive by reconstructing the expected
+enriched JSON from its original capture, manifest, and raw artifact and comparing the complete
+object. Six focused CLI tests cover the qualifying synthetic/verification path, semantic tamper
+refusal, capture hash refusal, scope/time refusal, raw-artifact mutation, conservative flooring,
+and every input-overwrite path. This is contract/plumbing coverage only: no qualifying physical
+artifact was invented, and the real Xvfb captures correctly remain `tracking_complete=false`. M12
+still needs repeated mixed captures plus authoritative complete-residency artifacts on named
+physical minimum hardware.

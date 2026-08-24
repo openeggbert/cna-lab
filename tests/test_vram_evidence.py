@@ -96,6 +96,31 @@ class VramEvidenceTests(unittest.TestCase):
             text=True,
         )
 
+    def run_verification(
+        self,
+        capture_path: Path,
+        evidence_path: Path,
+        artifact_path: Path,
+        enriched_path: Path,
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                "--capture",
+                str(capture_path),
+                "--evidence",
+                str(evidence_path),
+                "--artifact",
+                str(artifact_path),
+                "--verify-enriched",
+                str(enriched_path),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
     def test_valid_evidence_binds_and_qualifies_through_release_report(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
@@ -112,6 +137,12 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertEqual(evidence["profile_capture_sha256"], sha256(capture_path))
             self.assertEqual(evidence["evidence_manifest_sha256"], sha256(evidence_path))
             self.assertEqual(evidence["source_artifact"]["sha256"], sha256(artifact_path))
+
+            verification = self.run_verification(
+                capture_path, evidence_path, artifact_path, output_path
+            )
+            self.assertEqual(verification.returncode, 0, verification.stderr)
+            self.assertIn("VRAM EVIDENCE VERIFIED", verification.stdout)
 
             second_path = directory / "enriched-second.json"
             second_path.write_text(output_path.read_text(encoding="utf-8"), encoding="utf-8")
@@ -131,6 +162,23 @@ class VramEvidenceTests(unittest.TestCase):
             )
             self.assertEqual(report.returncode, 0, report.stderr)
             self.assertIn("Overall status: **PASS**", report.stdout)
+
+    def test_verification_refuses_semantically_tampered_enriched_capture(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            capture_path, evidence_path, artifact_path, output_path = self.write_inputs(
+                Path(temporary)
+            )
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            enriched = json.loads(output_path.read_text(encoding="utf-8"))
+            enriched["measurements"]["render_cpu"]["p95_ms"] = 7.5
+            output_path.write_text(json.dumps(enriched), encoding="utf-8")
+
+            verification = self.run_verification(
+                capture_path, evidence_path, artifact_path, output_path
+            )
+            self.assertEqual(verification.returncode, 2)
+            self.assertIn("does not exactly match", verification.stderr)
 
     def test_capture_hash_mismatch_is_refused_without_output(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

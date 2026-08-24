@@ -73,14 +73,17 @@ cannot honestly substitute for one. New `scripts/vram_evidence.py` binds an orig
 profile, a versioned evidence manifest, and the raw vendor/OS profiler artifact using SHA-256. It
 validates the exact `complete_process_gpu_residency_peak` scope, process/hardware/tool/time metadata,
 refuses every input-overwrite path, and writes an enriched capture atomically with the conservative
-maximum of logical and external bytes.
+maximum of logical and external bytes. The same CLI can later reconstruct that expected output and
+verify semantic equality of the entire archived enriched capture without writing any file.
 
 - Report and comparison tooling independently validate complete evidence. Hardware identity must
   match the report label; comparable complete captures must also use the same source/scope and tool
   name/version.
-- Five focused CLI tests plus the expanded report/comparison tests pass; CTest is now 8/8. These
-  use synthetic complete evidence only. No physical artifact was fabricated, so real Xvfb captures
-  remain explicitly incomplete and M12 remains open.
+- Six focused CLI tests plus the expanded report/comparison tests pass; CTest is now 8/8. They cover
+  a qualified bind/verify round trip, whole-profile tampering, hash/scope/time/artifact failures,
+  conservative flooring, and every overwrite path. These use synthetic complete evidence only. No
+  physical artifact was fabricated, so real Xvfb captures remain explicitly incomplete and M12
+  remains open.
 - The public runbook archives all four objects: original profile, raw tool artifact, manifest, and
   enriched output. Only a profiler whose documented scope is complete Iron Gang process graphics
   residency may populate the seam; global free-memory queries and `apitrace` do not qualify.
