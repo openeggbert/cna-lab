@@ -117,9 +117,14 @@ namespace IronGang
         context.fixedTimeStep = getIsFixedTimeStepProperty();
         context.targetFrameMilliseconds = getTargetElapsedTimeProperty().getTotalMillisecondsProperty();
         context.peakResidentBytes = PerformanceProfiler::ReadPeakResidentBytes();
-        context.trackedVideoMemoryBytes = renderer_.GetTrackedVideoMemoryBytes() +
-            static_cast<std::uint64_t>(kFont8x8AtlasWidth) * static_cast<std::uint64_t>(kFont8x8AtlasHeight) *
-                sizeof(Color);
+        const RendererVideoMemoryBreakdown videoMemory = renderer_.GetTrackedVideoMemory();
+        const std::uint64_t hudAtlasBytes = static_cast<std::uint64_t>(kFont8x8AtlasWidth) *
+            static_cast<std::uint64_t>(kFont8x8AtlasHeight) * sizeof(Color);
+        context.trackedGameOwnedVideoMemoryBytes = videoMemory.gameOwnedBytes + hudAtlasBytes;
+        context.trackedImportedModelBufferBytes = videoMemory.importedModels.bufferBytes;
+        context.trackedImportedModelTextureBytes = videoMemory.importedModels.textureBytes;
+        context.trackedVideoMemoryBytes = context.trackedGameOwnedVideoMemoryBytes +
+            context.trackedImportedModelBufferBytes + context.trackedImportedModelTextureBytes;
         context.videoMemoryTrackingComplete = false;
         context.physicsBodyCount = peakPhysicsBodyCount_;
         context.trafficVehicleCount = peakTrafficVehicleCount_;

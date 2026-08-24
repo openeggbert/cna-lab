@@ -236,15 +236,35 @@ namespace IronGang
         lightmapTextureBytes_ = sizeof(Color) + atlasPixels.size() * sizeof(Color);
     }
 
-    std::size_t PrototypeRenderer::GetTrackedVideoMemoryBytes() const noexcept
+    RendererVideoMemoryBreakdown PrototypeRenderer::GetTrackedVideoMemory() const
     {
-        return staticCityLightmapMesh_.GetTrackedVideoMemoryBytes() +
-               vehicleMesh_.GetTrackedVideoMemoryBytes() +
-               playerMesh_.GetTrackedVideoMemoryBytes() +
-               trafficVehicleMesh_.GetTrackedVideoMemoryBytes() +
-               pedestrianMesh_.GetTrackedVideoMemoryBytes() +
-               policeCarMesh_.GetTrackedVideoMemoryBytes() +
-               shadowDecalMesh_.GetTrackedVideoMemoryBytes() + lightmapTextureBytes_;
+        VideoMemoryAccumulator importedModels;
+        if (warehouseModel_)
+        {
+            importedModels.AddModel(*warehouseModel_);
+        }
+        if (vehicleModels_)
+        {
+            importedModels.AddModel(vehicleModels_->body);
+            importedModels.AddModel(vehicleModels_->cabin);
+            importedModels.AddModel(vehicleModels_->windshield);
+            importedModels.AddModel(vehicleModels_->wheel);
+        }
+        if (characterModel_)
+        {
+            importedModels.AddModel(*characterModel_);
+        }
+
+        RendererVideoMemoryBreakdown result;
+        result.gameOwnedBytes = staticCityLightmapMesh_.GetTrackedVideoMemoryBytes() +
+                                vehicleMesh_.GetTrackedVideoMemoryBytes() +
+                                playerMesh_.GetTrackedVideoMemoryBytes() +
+                                trafficVehicleMesh_.GetTrackedVideoMemoryBytes() +
+                                pedestrianMesh_.GetTrackedVideoMemoryBytes() +
+                                policeCarMesh_.GetTrackedVideoMemoryBytes() +
+                                shadowDecalMesh_.GetTrackedVideoMemoryBytes() + lightmapTextureBytes_;
+        result.importedModels = importedModels.GetBreakdown();
+        return result;
     }
 
     void PrototypeRenderer::DrawMesh(GraphicsDevice& device,

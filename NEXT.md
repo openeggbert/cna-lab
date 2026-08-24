@@ -67,6 +67,24 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 logical VRAM visibility now includes imported CNJ resources.** New
+`VideoMemoryAccumulator` (`include/`/`src/Graphics/VideoMemoryAccounting.*`) traverses every loaded
+model through CNA's public mesh/effect API, deduplicates shared vertex/index buffers and textures
+by object identity, and computes exact logical texture storage across mip chains and compressed
+block rounding. CNA's built-in typed effect slots (Basic/Skinned/PBR/dual/environment/alpha-test),
+IBL and shadow textures, and generic custom-effect parameters are covered. Reports now separate
+`game_owned_bytes`, `imported_model_buffer_bytes`, and `imported_model_texture_bytes`.
+
+- Exact unit cases cover uncompressed mip chains, DXT block rounding, cube maps, 3D textures, and
+  JSON category fields. Full `compile-software` build and all three CTest targets pass; Release
+  EasyGL builds.
+- A short Release EasyGL real-flow check ran only through isolated Xvfb/X11 (with
+  `WAYLAND_DISPLAY` removed) and reported 394,340 tracked bytes: 386,168 game-owned, 8,160 imported
+  model buffers, and 12 imported model textures.
+- This remains a lower bound, not physical residency. Backend effect programs,
+  swapchain/depth/render targets, transient allocations, driver padding, and physical residency
+  are not public, so `tracking_complete=false` and M12 remains open.
+
 **M12 follow-up diagnostics are now isolated-window safe and phase-selectable.** The profiler adds
 `present_cpu` around CNA's virtual `Game::EndDraw()` (the path that calls buffer Present), so future
 captures can distinguish Draw submission from swap/v-sync/backend flush directly. New
@@ -102,9 +120,9 @@ and the executable successfully opened the host display through CNA EasyGL (Open
   `--smoke` are unchanged.
 - The JSON embeds the locked 720p/30 FPS, 2 GiB RAM, 512 MiB VRAM, 1-second district-load and
   per-CPU-subsystem p95 budgets; reports peak physics/traffic/pedestrian/police counts; Linux RAM
-  high-water comes from `/proc/self/status`. Iron Gang-owned mesh/lightmap/HUD allocations are
-  counted, but imported CNA model/effect residency is not exposed by CNA, so reports explicitly
-  say `tracking_complete=false` instead of presenting a partial VRAM value as a gate pass.
+  high-water comes from `/proc/self/status`. The newer accounting above adds deduplicated imported
+  model buffers/textures to the game-owned mesh/lightmap/HUD lower bound, while still saying
+  `tracking_complete=false` instead of presenting logical allocation as complete residency.
 - New unit coverage validates exact average/p95/max values and report pass/fail policy. Full
   `compile-software` build and all 3 CTest targets pass; both EasyGL configurations compile and
   real host-display runs exit cleanly.
@@ -884,14 +902,15 @@ audio bus graph or spatial 3D positioning, no ambience/siren content, no menus/g
 are real but not gate-blocking — see each file's own status note for the itemized list.
 
 **If continuing autonomous work, remain on gate M12** (`plan_39` `IG-39-013`). Phase-labelled
-scenarios and direct Present timing now exist, but graphical automation in this workspace must stay
-on isolated Xvfb (never the visible host display). The next code-side slice is to expose complete
-CNA/EasyGL GPU residency or a reliable backend GPU timer/accepted-swap-interval query. The next
-physical-hardware capture should use the new scenarios and `present_cpu` to determine whether the
-historic 51-58 ms mixed p95 is spent inside Present and whether intro/walk/drive differ under a
-controlled compositor. CPU subsystem and district-load optimization is not justified by current
-evidence; all are far inside budget. Do not mark M12 complete until repeated mixed workloads pass
-33.333 ms p95 on named minimum hardware and VRAM tracking is complete.
+scenarios, direct Present timing, and public-resource VRAM accounting now exist, but graphical
+automation in this workspace must stay on isolated Xvfb (never the visible host display). The next
+code-side slice is a reliable EasyGL backend residency/GPU-timer/accepted-swap-interval query; do
+not duplicate the CNJ buffer/texture accounting now completed. The next physical-hardware capture
+should use the scenarios and `present_cpu` to determine whether the historic 51-58 ms mixed p95 is
+spent inside Present and whether intro/walk/drive differ under a controlled compositor. CPU
+subsystem and district-load optimization is not justified by current evidence; all are far inside
+budget. Do not mark M12 complete until repeated mixed workloads pass 33.333 ms p95 on named
+minimum hardware and VRAM tracking is complete.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --

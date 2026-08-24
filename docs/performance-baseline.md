@@ -75,3 +75,28 @@ Xvfb has no real vertical-retrace signal; `vertical_sync_requested` does not cla
 accepted it. llvmpipe also performs substantial deferred work in Present, so this is not comparable
 to the earlier hardware-backed capture. The result validates the new diagnostic path and full mixed
 automation without opening a visible window, but it does not qualify M12.
+
+## 2026-08-24 — imported-resource accounting follow-up
+
+The partial VRAM report now traverses every loaded CNJ model through CNA's public model API,
+deduplicates shared vertex/index buffers and effect-bound textures by object identity, and computes
+logical texture storage across complete mip chains and compressed-format block rounding. It also
+reports game-owned, imported-buffer, and imported-texture categories separately.
+
+A 12-frame Release EasyGL integration check, run only on the isolated Xvfb/X11 display described
+above, reported:
+
+| Tracked logical allocation | Bytes |
+| --- | ---: |
+| Iron Gang-owned meshes, lightmaps, and HUD atlas | 386,168 |
+| Imported CNJ vertex/index buffers | 8,160 |
+| Imported effect-bound textures | 12 |
+| **Tracked total** | **394,340** |
+
+The 12 texture bytes are three distinct 1x1 RGBA GPU objects produced from the character model's
+single source image and held by its imported effects; shared object instances would be counted
+once. This short run validates accounting rather than frame pacing. `tracking_complete` remains
+false because backend effect programs,
+swapchain/depth/render-target/transient allocations, driver padding, and physical residency remain
+unobservable. The earlier table's tracked totals predate imported-resource accounting and should
+not be compared as a VRAM-growth measurement.

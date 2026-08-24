@@ -63,6 +63,9 @@ namespace IronGang
         double targetFrameMilliseconds{0.0};
         std::uint64_t peakResidentBytes{0};
         std::uint64_t trackedVideoMemoryBytes{0};
+        std::uint64_t trackedGameOwnedVideoMemoryBytes{0};
+        std::uint64_t trackedImportedModelBufferBytes{0};
+        std::uint64_t trackedImportedModelTextureBytes{0};
         bool videoMemoryTrackingComplete{false};
         std::size_t physicsBodyCount{0};
         std::size_t trafficVehicleCount{0};

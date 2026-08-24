@@ -2,6 +2,7 @@
 
 #include "IronGang/Graphics/LightmapMesh.hpp"
 #include "IronGang/Graphics/PrimitiveMesh.hpp"
+#include "IronGang/Graphics/VideoMemoryAccounting.hpp"
 
 #include "Microsoft/Xna/Framework/Graphics/BasicEffect.hpp"
 #include "Microsoft/Xna/Framework/Graphics/DualTextureEffect.hpp"
@@ -42,6 +43,17 @@ namespace IronGang
         Microsoft::Xna::Framework::Graphics::Model cabin;
         Microsoft::Xna::Framework::Graphics::Model windshield;
         Microsoft::Xna::Framework::Graphics::Model wheel;
+    };
+
+    struct RendererVideoMemoryBreakdown
+    {
+        std::size_t gameOwnedBytes{0};
+        VideoMemoryBreakdown importedModels;
+
+        [[nodiscard]] std::size_t TotalBytes() const noexcept
+        {
+            return gameOwnedBytes + importedModels.TotalBytes();
+        }
     };
 
     class PrototypeRenderer final
@@ -105,10 +117,10 @@ namespace IronGang
                          const std::vector<ActorPose>& pedestrians,
                          const std::vector<ActorPose>& policeCars);
 
-        // Counts allocations Iron Gang creates with known dimensions. Imported CNJ model/effect
-        // resources remain outside this value because CNA currently exposes no complete backend
-        // residency counter; performance reports label that limitation explicitly.
-        [[nodiscard]] std::size_t GetTrackedVideoMemoryBytes() const noexcept;
+        // Counts game-created resources plus imported CNJ model buffers/textures through CNA's
+        // public capacity/format APIs. Backend effect programs, swapchain/depth allocations and
+        // driver padding remain outside this value; reports label that limitation explicitly.
+        [[nodiscard]] RendererVideoMemoryBreakdown GetTrackedVideoMemory() const;
 
     private:
         // tint multiplies vertex color (see SunLight.hpp's own comment on why this, rather than

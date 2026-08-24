@@ -265,11 +265,17 @@ Every report also records whether v-sync was requested, whether CNA's fixed time
 and the target frame duration. `vertical_sync_requested` describes the requested presentation
 parameters; it is not proof that a virtual display or driver accepted a real swap interval.
 
-The current CNA/EasyGL API does not expose complete GPU residency. The report therefore records
-known Iron Gang-owned mesh/lightmap/HUD allocations as `tracked_bytes`, sets
-`tracking_complete: false`, and does not treat that partial count as proof that the VRAM gate is
-complete. Imported CNJ model/effect allocations still require a backend counter or an external
-GPU capture.
+The current CNA/EasyGL API does not expose complete GPU residency. The report records the exact
+logical size of known Iron Gang-owned meshes/lightmaps/HUD resources plus imported CNJ vertex and
+index buffers and textures bound by CNA's built-in or generic effects. Imported resources are
+deduplicated by object identity; texture sizes include their complete mip chains and block-format
+rounding. The JSON separates `game_owned_bytes`, `imported_model_buffer_bytes`, and
+`imported_model_texture_bytes` beneath `tracked_bytes`.
+
+`tracking_complete` nevertheless remains `false`: backend effect programs, swapchain/depth and
+other render-target or transient allocations, driver padding, and physical residency are not
+available through the public API. A backend counter or external GPU capture is still required to
+qualify the VRAM gate; the tracked budget check is only an early lower-bound guard.
 
 A repeatable representative capture is:
 

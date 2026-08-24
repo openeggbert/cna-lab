@@ -111,6 +111,7 @@ add_library(iron_gang_core STATIC
     src/Gameplay/TrafficVehicle.cpp
     src/Gameplay/VehicleController.cpp
     src/Graphics/LightmapMesh.cpp
+    src/Graphics/VideoMemoryAccounting.cpp
     src/Missions/MissionDefinition.cpp
     src/Missions/PrototypeMission.cpp
     src/Persistence/SaveGame.cpp

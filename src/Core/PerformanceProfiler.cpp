@@ -258,10 +258,13 @@ namespace IronGang
                    << ", \"known\": " << (ramKnown ? "true" : "false")
                    << ", \"budget_pass\": " << (ramPass ? "true" : "false") << "},\n"
                    << "  \"video_memory\": {\"tracked_bytes\": " << context.trackedVideoMemoryBytes
+                   << ", \"game_owned_bytes\": " << context.trackedGameOwnedVideoMemoryBytes
+                   << ", \"imported_model_buffer_bytes\": " << context.trackedImportedModelBufferBytes
+                   << ", \"imported_model_texture_bytes\": " << context.trackedImportedModelTextureBytes
                    << ", \"tracking_complete\": "
                    << (context.videoMemoryTrackingComplete ? "true" : "false")
                    << ", \"tracked_budget_pass\": " << (trackedVramPass ? "true" : "false")
-                   << ", \"coverage\": \"Iron Gang-owned meshes, lightmaps, and HUD atlas; imported CNA model/effect allocations are not yet reported by the backend\"},\n"
+                   << ", \"coverage\": \"Iron Gang-owned meshes, lightmaps, and HUD atlas plus imported CNA model buffers and effect-bound textures; backend effect programs, swapchain/depth/render-target/transient allocations, driver padding, and physical residency are not reported\"},\n"
                    << "  \"workload\": {\"physics_bodies\": " << context.physicsBodyCount
                    << ", \"traffic_vehicles\": " << context.trafficVehicleCount
                    << ", \"pedestrians\": " << context.pedestrianCount

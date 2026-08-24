@@ -25,6 +25,16 @@ and 16.898 ms p95 (requested on), each with two district-load samples. Present p
 and 13.220 ms respectively. Xvfb has no real vblank and is unaccelerated, so these are diagnostic
 integration results rather than hardware qualification; M12 remains open.
 
+VRAM visibility was then extended without changing CNA: `VideoMemoryAccumulator` walks loaded CNJ
+meshes, deduplicates their vertex/index buffers and built-in/generic-effect textures by identity,
+and computes logical texture storage including mips and block compression. Unit tests cover exact
+uncompressed, DXT, cube, and 3D texture-size calculations plus JSON category output. A Release
+EasyGL 12-frame idle integration run on the same isolated Xvfb/X11 path reported 394,340 tracked
+bytes: 386,168 game-owned, 8,160 imported model buffers, and 12 imported model textures. This is a
+stronger lower bound, not full residency; backend programs, swapchain/depth/render targets,
+transients, driver padding, and physical residency remain unknown, so `tracking_complete=false`
+and M12 stays open.
+
 ## Current modular dependency baseline (2026-08-22)
 
 Iron Gang now configures against the sibling `../cnanext` and modular `../sharp-runtime`

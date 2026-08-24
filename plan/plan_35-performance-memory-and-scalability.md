@@ -9,7 +9,7 @@ Establish budgets and measure representative district workloads against the lock
 - [x] **IG-35-003 P0** — Instrument frame time by major subsystem (render, physics, AI, audio, district load). *(`PerformanceProfiler` captures end-to-end frame interval plus update/render/Present/physics/AI/audio/district-load/startup CPU. Render CPU is command submission; Present CPU measures CNA EndDraw/swap/backend flush; frame interval remains the authoritative gate.)*
 - [x] **IG-35-004 P0** — Record a baseline from the first running procedural prototype. *(Release EasyGL baseline recorded in `docs/performance-baseline.md`: intro passes 30 FPS, mixed workload fails; RAM/load pass; VRAM incomplete.)*
 - [ ] **IG-35-005 P1** — Track draw calls, state changes, vertices, triangles, instances, and visible objects.
-- [ ] **IG-35-006 P1** — Track texture, buffer, render-target, and transient GPU memory against the 512MB-1GB VRAM target. *(Partial: game-owned meshes/lightmaps/HUD atlas are counted, but imported CNA model/effect allocations are not exposed; reports set `tracking_complete=false`.)*
+- [ ] **IG-35-006 P1** — Track texture, buffer, render-target, and transient GPU memory against the 512MB-1GB VRAM target. *(Partial: game-owned meshes/lightmaps/HUD plus deduplicated imported CNJ vertex/index buffers and effect-bound textures are reported by category using logical public-API sizes. Backend programs, swapchain/depth/render targets, transients, driver padding, and physical residency remain unavailable, so reports still set `tracking_complete=false`.)*
 - [ ] **IG-35-007 P1** — Track district load/unload I/O, decompression, parse, upload, and activation latency (a full level load between districts, not continuous streaming). *(Partial: the profiler measures aggregate synchronous world/physics swap + renderer rebuild, but not yet the requested I/O/parse/upload breakdown.)*
 - [ ] **IG-35-008 P1** — Track active physics bodies, contacts, queries, and physics step time for the modest vehicle/pedestrian count.
 - [x] **IG-35-009 P1** — Track simplified pedestrian/traffic/police AI counts and update time. *(Reports include peak traffic/pedestrian/police counts and AI update p95/average/maximum.)*
@@ -31,9 +31,9 @@ Establish budgets and measure representative district workloads against the lock
 - [ ] **IG-35-025 P1** — Define scope and implement the smallest working frame profiler (CPU/GPU time per subsystem, one sun + limited shadows, EasyGL only).
 - [ ] **IG-35-026 P1** — Add unit tests and one real-flow integration test for the frame profiler.
 - [ ] **IG-35-027 P1** — Add logging/overlay output and documentation for the frame profiler.
-- [ ] **IG-35-028 P1** — Define scope and implement the smallest working memory tracker (RAM/VRAM high-water, per-category breakdown against the 2-4GB/512MB-1GB target).
-- [ ] **IG-35-029 P1** — Add unit tests and one real-flow integration test for the memory tracker.
-- [ ] **IG-35-030 P1** — Add logging/overlay output and documentation for the memory tracker.
+- [ ] **IG-35-028 P1** — Define scope and implement the smallest working memory tracker (RAM/VRAM high-water, per-category breakdown against the 2-4GB/512MB-1GB target). *(Partial: process RAM high-water and the three logical VRAM categories are implemented; a complete VRAM high-water needs backend residency data.)*
+- [ ] **IG-35-029 P1** — Add unit tests and one real-flow integration test for the memory tracker. *(Partial: exact texture-size/JSON tests and an isolated EasyGL/Xvfb real-flow report pass; complete-residency behavior cannot yet be tested.)*
+- [ ] **IG-35-030 P1** — Add logging/overlay output and documentation for the memory tracker. *(Partial: versioned JSON and performance documentation include category semantics and limitations; no live overlay or complete backend output.)*
 - [ ] **IG-35-031 P1** — Define scope and implement the smallest working district-load profiler (load time, asset counts, memory delta per transition).
 - [ ] **IG-35-032 P1** — Add unit tests and one real-flow integration test for the district-load profiler.
 - [ ] **IG-35-033 P1** — Add logging/overlay output and documentation for the district-load profiler.

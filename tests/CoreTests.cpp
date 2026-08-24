@@ -13,10 +13,13 @@
 #include "IronGang/Physics/PhysicsWorld.hpp"
 #include "IronGang/Graphics/LightmapMesh.hpp"
 #include "IronGang/Graphics/SunLight.hpp"
+#include "IronGang/Graphics/VideoMemoryAccounting.hpp"
 #include "IronGang/UI/BitmapFont.hpp"
 #include "IronGang/World/DistrictManager.hpp"
 #include "IronGang/World/PrototypeWorld.hpp"
 #include "IronGang/World/WaypointPath.hpp"
+
+#include "Microsoft/Xna/Framework/Graphics/SurfaceFormat.hpp"
 
 #include <cmath>
 #include <filesystem>
@@ -927,6 +930,9 @@ namespace
         context.targetFrameMilliseconds = 1000.0 / 60.0;
         context.peakResidentBytes = 64ULL * 1024ULL * 1024ULL;
         context.trackedVideoMemoryBytes = 8ULL * 1024ULL * 1024ULL;
+        context.trackedGameOwnedVideoMemoryBytes = 5ULL * 1024ULL * 1024ULL;
+        context.trackedImportedModelBufferBytes = 2ULL * 1024ULL * 1024ULL;
+        context.trackedImportedModelTextureBytes = 1ULL * 1024ULL * 1024ULL;
         context.physicsBodyCount = 7;
         context.trafficVehicleCount = 2;
         context.pedestrianCount = 2;
@@ -954,7 +960,30 @@ namespace
                 "missing CPU subsystem samples must not be represented as a pass");
         Require(report.find("\"tracking_complete\": false") != std::string::npos,
                 "partial VRAM accounting must never be represented as complete");
+        Require(report.find("\"game_owned_bytes\": 5242880") != std::string::npos &&
+                    report.find("\"imported_model_buffer_bytes\": 2097152") != std::string::npos &&
+                    report.find("\"imported_model_texture_bytes\": 1048576") != std::string::npos,
+                "performance report must expose each tracked VRAM category separately");
         std::filesystem::remove(path);
+    }
+
+    void TestVideoMemoryTextureStorageAccounting()
+    {
+        using Microsoft::Xna::Framework::Graphics::SurfaceFormat;
+        Require(IronGang::CalculateTextureStorageBytes(4, 2, 1, 1, 1, SurfaceFormat::Color) == 32,
+                "RGBA8 texture accounting must use four bytes per texel");
+        Require(IronGang::CalculateTextureStorageBytes(4, 4, 1, 1, 3, SurfaceFormat::Color) == 84,
+                "2D texture accounting must include every mip level down to 1x1");
+        Require(IronGang::CalculateTextureStorageBytes(8, 8, 1, 1, 1, SurfaceFormat::Dxt1) == 32,
+                "DXT1 accounting must use one eight-byte block per 4x4 texels");
+        Require(IronGang::CalculateTextureStorageBytes(4, 4, 1, 1, 2, SurfaceFormat::Dxt5) == 32,
+                "compressed sub-4x4 mip levels must still occupy one complete block");
+        Require(IronGang::CalculateTextureStorageBytes(2, 2, 1, 6, 2, SurfaceFormat::Color) == 120,
+                "cube texture accounting must include all six faces and mip levels");
+        Require(IronGang::CalculateTextureStorageBytes(4, 4, 4, 1, 3, SurfaceFormat::Color) == 292,
+                "3D texture accounting must halve depth together with width and height");
+        Require(IronGang::CalculateTextureStorageBytes(0, 4, 1, 1, 1, SurfaceFormat::Color) == 0,
+                "invalid texture dimensions must not fabricate storage");
     }
 }
 
@@ -987,6 +1016,7 @@ int main()
         TestDistrictTransitionPreservesMissionState();
         TestSaveRoundTrip();
         TestPerformanceProfilerStatisticsAndReport();
+        TestVideoMemoryTextureStorageAccounting();
         std::cout << "Iron Gang core tests passed\n";
         return 0;
     }
