@@ -19,6 +19,7 @@ from performance_report import (
     _mapping,
     _non_empty_string,
     _same_file,
+    _single_line_string,
     _strict_json_load,
     load_capture,
     validate_complete_vram_evidence,
@@ -58,9 +59,9 @@ def load_evidence(
         raise ReportError(f"evidence schema_version must be {EVIDENCE_SCHEMA_VERSION}")
     if _non_empty_string(evidence, "measurement_scope") != COMPLETE_VRAM_SCOPE:
         raise ReportError(f"measurement_scope must be {COMPLETE_VRAM_SCOPE}")
-    _non_empty_string(evidence, "hardware_identity")
-    _non_empty_string(evidence, "tool", "name")
-    _non_empty_string(evidence, "tool", "version")
+    _single_line_string(evidence, "hardware_identity")
+    _single_line_string(evidence, "tool", "name")
+    _single_line_string(evidence, "tool", "version")
     validate_external_vram_measurement(evidence, "evidence")
     bound_digest = _non_empty_string(evidence, "profile_capture_sha256")
     if bound_digest != capture_sha256:

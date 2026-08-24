@@ -232,6 +232,13 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertIn("measurement_scope must be complete_process_gpu_residency_peak", result.stderr)
 
             evidence = evidence_fixture(capture_path, artifact_path)
+            evidence["hardware_identity"] = "Evidence GPU\nInjected identity"
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("hardware_identity must be a single printable line", result.stderr)
+
+            evidence = evidence_fixture(capture_path, artifact_path)
             evidence["measurement"]["ended_utc"] = "2026-08-24T09:59:00Z"
             evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
             result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)

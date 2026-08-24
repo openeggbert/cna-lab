@@ -182,6 +182,19 @@ def _non_empty_string(value: dict[str, Any], *keys: str) -> str:
     return result.strip()
 
 
+def _single_line_text(text: str, label: str) -> str:
+    normalized = text.strip()
+    if not normalized:
+        raise ReportError(f"{label} must be non-empty")
+    if not normalized.isprintable():
+        raise ReportError(f"{label} must be a single printable line")
+    return normalized
+
+
+def _single_line_string(value: dict[str, Any], *keys: str) -> str:
+    return _single_line_text(_non_empty_string(value, *keys), ".".join(keys))
+
+
 def _utc_timestamp(value: dict[str, Any], *keys: str) -> datetime:
     text = _non_empty_string(value, *keys)
     if UTC_TIMESTAMP_PATTERN.fullmatch(text) is None:
@@ -458,9 +471,9 @@ def validate_complete_vram_evidence(
         raise ReportError(
             "video_memory.complete_evidence.measurement_scope must be " + COMPLETE_VRAM_SCOPE
         )
-    evidence_hardware = _non_empty_string(evidence, "hardware_identity")
-    _non_empty_string(evidence, "tool", "name")
-    _non_empty_string(evidence, "tool", "version")
+    evidence_hardware = _single_line_string(evidence, "hardware_identity")
+    _single_line_string(evidence, "tool", "name")
+    _single_line_string(evidence, "tool", "version")
     peak_resident_bytes = validate_external_vram_measurement(
         evidence, "video_memory.complete_evidence"
     )
@@ -783,6 +796,8 @@ def parse_args(arguments: list[str]) -> argparse.Namespace:
 def main(arguments: list[str] | None = None) -> int:
     options = parse_args(sys.argv[1:] if arguments is None else arguments)
     try:
+        hardware = _single_line_text(options.hardware, "hardware identity")
+        title = _single_line_text(options.title, "report title")
         bundles: list[list[Path]] = options.vram_bundle
         if options.qualifying_hardware and len(bundles) != len(options.captures):
             raise ReportError(
@@ -855,9 +870,9 @@ def main(arguments: list[str] | None = None) -> int:
             captures,
             capture_sha256s,
             bundle_fingerprints,
-            options.hardware,
+            hardware,
             options.qualifying_hardware,
-            options.title,
+            title,
         )
         _verify_report_inputs_unchanged(
             options.captures,

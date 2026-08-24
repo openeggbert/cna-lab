@@ -548,6 +548,10 @@ mixed capture. Once all mandatory archive inputs verify, it reports `FAIL` when 
 qualification misses a measured condition and exits zero because the report was generated
 successfully. Missing/unverifiable archives and other malformed or stale input exit 2. `PASS` is
 therefore a strict evidence summary, while successful command execution alone is not a gate result.
+CLI hardware identity and report title are trimmed and must be non-empty printable single lines.
+The external manifest's `hardware_identity` and tool name/version use the same string rule. Control
+characters/newlines are malformed input rather than a way to create ambiguous identity matching or
+inject additional Markdown headings.
 Duplicate object keys are malformed input rather than last-value-wins aliases; this applies to both
 generated profiles and external evidence manifests.
 Exactly one `--vram-bundle ORIGINAL EVIDENCE ARTIFACT` must correspond, by argument order, to each
@@ -598,6 +602,8 @@ VRAM. Use `--baseline-kind diagnostic --candidate-kind diagnostic` for Xvfb or o
 engineering runs; diagnostic and qualifying evidence can never be mixed.
 Both inputs first pass the same request/v-sync/applied consistency validator as the release report,
 so two identically tampered presentation objects cannot compare as valid evidence.
+Baseline/candidate hardware identities and the comparison title also use the same printable
+single-line rule as release reports.
 
 The candidate is a regression only when its increase is greater than both the relative tolerance
 and the applicable absolute tolerance. Defaults are 10%, 0.5 ms for frame/GPU/Present/transition

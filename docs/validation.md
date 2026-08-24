@@ -227,6 +227,11 @@ space instead of `T`, and seven fractional digits are refused, avoiding Python I
 would otherwise accept reduced forms or truncate sub-microsecond evidence boundaries. Report 7/7,
 VRAM 6/6, comparator 6/6, and both locally retained real Xvfb captures pass.
 
+Hardware/tool identity strings and report/comparison titles are now normalized to non-empty
+printable single lines. Blank report hardware, newline title, multiline VRAM hardware identity,
+and multiline comparator hardware are refused before Markdown generation. Report 7/7, comparator
+6/6, and VRAM 6/6 pass.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

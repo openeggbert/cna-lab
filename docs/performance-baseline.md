@@ -511,3 +511,9 @@ UTC correlation now accepts one canonical, precision-safe representation only:
 forms and truncates fractions beyond microseconds; the latter could move an actual evidence
 boundary across a capture boundary without changing the parsed value. Tests reject all three
 cases. Report 7/7, VRAM 6/6, comparator 6/6, and both retained real diagnostics pass.
+
+Human-readable identities can no longer alter the Markdown structure. Release/comparison hardware
+labels and titles are normalized to non-empty printable single lines; VRAM hardware identity and
+tool name/version obey the same rule before binding. Tests reject blank report hardware, a newline
+title, a multiline external hardware identity, and multiline comparator hardware. This also makes
+the exact report-to-manifest hardware match canonical rather than whitespace-dependent.

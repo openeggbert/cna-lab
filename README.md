@@ -276,3 +276,5 @@ The original profile, evidence manifest, and raw VRAM profiler artifact must be 
 files (hardlink aliases do not count), and the raw artifact must be a non-empty regular file.
 Capture/evidence UTC values use canonical `YYYY-MM-DDTHH:MM:SS[.ffffff]Z`; broader ISO forms and
 sub-microsecond values are rejected so interval enclosure never relies on silent precision loss.
+Hardware identities and report/comparison titles must be non-empty printable single lines; this
+keeps exact identity matching unambiguous and prevents Markdown structure injection.

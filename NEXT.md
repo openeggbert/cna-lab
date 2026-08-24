@@ -67,6 +67,13 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 evidence identities are now canonical printable single lines.** Blank hardware labels,
+control/newline characters in report/comparison titles or hardware, and multiline VRAM hardware/
+tool identities are refused before matching or Markdown generation.
+
+- Report 7/7, comparator 6/6, and VRAM 6/6 cover blank/newline CLI and manifest cases.
+- This removes ambiguous identity/Markdown injection paths; it does not broaden physical evidence.
+
 **M12 capture/evidence UTC correlation is now precision-safe.** Only
 `YYYY-MM-DDTHH:MM:SS[.ffffff]Z` is accepted; date-only/space-separated forms and fractions beyond
 microseconds are rejected instead of being broadly accepted or silently truncated by Python.

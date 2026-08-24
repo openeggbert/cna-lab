@@ -244,6 +244,19 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertIn("diagnostic software/virtual display", result.stdout)
         self.assertIn("at least two mixed captures", result.stdout)
 
+        result = self.run_report([capture_fixture()], "   ")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("hardware identity must be non-empty", result.stderr)
+
+        result = self.run_report(
+            [capture_fixture()],
+            "Test hardware",
+            "--title",
+            "Release report\n# Injected heading",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("report title must be a single printable line", result.stderr)
+
     def test_two_complete_physical_captures_pass(self) -> None:
         first = capture_fixture()
         second = deepcopy(first)

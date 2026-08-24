@@ -17,6 +17,7 @@ from performance_report import (
     _integer,
     _number,
     _path,
+    _single_line_text,
     load_capture,
     swap_interval_acknowledged,
     validate_complete_vram_evidence,
@@ -349,13 +350,20 @@ def parse_args(arguments: list[str]) -> argparse.Namespace:
 def main(arguments: list[str] | None = None) -> int:
     options = parse_args(sys.argv[1:] if arguments is None else arguments)
     try:
+        baseline_hardware = _single_line_text(
+            options.baseline_hardware, "baseline hardware identity"
+        )
+        candidate_hardware = _single_line_text(
+            options.candidate_hardware, "candidate hardware identity"
+        )
+        title = _single_line_text(options.title, "comparison title")
         baseline = load_capture(options.baseline)
         candidate = load_capture(options.candidate)
         require_compatible(
             baseline,
             candidate,
-            options.baseline_hardware,
-            options.candidate_hardware,
+            baseline_hardware,
+            candidate_hardware,
             options.baseline_kind,
             options.candidate_kind,
         )
@@ -377,12 +385,12 @@ def main(arguments: list[str] | None = None) -> int:
             options.candidate,
             baseline,
             candidate,
-            options.candidate_hardware.strip(),
+            candidate_hardware,
             options.candidate_kind,
             options.relative_tolerance_percent,
             tolerances,
             results,
-            options.title,
+            title,
         )
         if options.output:
             options.output.parent.mkdir(parents=True, exist_ok=True)

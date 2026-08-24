@@ -264,6 +264,25 @@ class PerformanceCompareTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("diagnostic-vs-qualifying comparison is refused", result.stderr)
 
+            result = subprocess.run(
+                [
+                    *common,
+                    "--baseline-hardware",
+                    "GPU A\nInjected identity",
+                    "--candidate-hardware",
+                    "GPU A\nInjected identity",
+                    "--baseline-kind",
+                    "diagnostic",
+                    "--candidate-kind",
+                    "diagnostic",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("baseline hardware identity must be a single printable line", result.stderr)
+
     def test_changed_budget_and_measurement_availability_are_refused(self) -> None:
         baseline = capture_fixture()
         candidate = deepcopy(baseline)
