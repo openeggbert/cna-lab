@@ -202,6 +202,40 @@ void testBabytchiKeepsItsObservedMovingTrace()
            "the observed Babytchi cycle must wrap at its declared active count");
 }
 
+void testMarutchiKeepsItsObservedP1Silhouettes()
+{
+    const P1Sprite& marutchi = P1SpriteCatalog::spriteForCharacter("marutchi");
+    constexpr std::array<std::string_view, 9> expectedLong{{
+        "..######..", ".#......#.", "#.##..##.#", "#........#", "#...##...#",
+        "#........#", "#........#", ".#......#.", "..######..",
+    }};
+    constexpr std::array<std::string_view, 8> expectedShort{{
+        "..######..", ".#......#.", "#.##..##.#", "#........#", "#...##...#",
+        "#........#", ".#......#.", "..######..",
+    }};
+
+    expect(marutchi.idleFrameCount == 2U,
+           "Marutchi must alternate its two observed stable silhouettes");
+    expect(marutchi.idleFrameSeconds == 0.92F,
+           "Marutchi must retain the cadence inferred from its full-LCD trace");
+    expect(marutchi.idleFrame(0).originX == 11 && marutchi.idleFrame(0).originY == 3 &&
+               marutchi.idleFrame(0).rowCount == expectedLong.size(),
+           "the long Marutchi pose must retain its exact 10x9 bounds");
+    expect(marutchi.idleFrame(1).originX == 11 && marutchi.idleFrame(1).originY == 3 &&
+               marutchi.idleFrame(1).rowCount == expectedShort.size(),
+           "the short Marutchi pose must retain its exact 10x8 bounds");
+    for (std::size_t row = 0U; row < expectedLong.size(); ++row) {
+        expect(marutchi.idleFrame(0).rows[row] == expectedLong[row],
+               "every hand-read long Marutchi row must remain exact");
+    }
+    for (std::size_t row = 0U; row < expectedShort.size(); ++row) {
+        expect(marutchi.idleFrame(1).rows[row] == expectedShort[row],
+               "every hand-read short Marutchi row must remain exact");
+    }
+    expect(!framesDiffer(marutchi.idleFrame(2), marutchi.idleFrame(0)),
+           "the two-phase Marutchi sequence must wrap directly");
+}
+
 } // namespace
 
 int main()
@@ -211,6 +245,7 @@ int main()
     testEggKeepsItsObservedP1Silhouette();
     testBabytchiKeepsItsObservedMovingTrace();
 
+    testMarutchiKeepsItsObservedP1Silhouettes();
     if (failures == 0) {
         std::cout << "P1SpriteCatalogTests passed\n";
     }

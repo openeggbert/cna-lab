@@ -65,8 +65,22 @@ constexpr P1SpriteFrame babytchiFullFrame(const int originX) noexcept
 
 constexpr P1SpriteFrame babytchiSquashFrame(const int originX) noexcept
 {
+
     return {originX, 13, 3U,
             {{"..####..", ".#.##.#.", "########", "", "", "", "", "", "", "", "", ""}}};
+}
+constexpr P1SpriteFrame marutchiLongFrame() noexcept
+{
+    return {11, 3, 9U,
+            {{"..######..", ".#......#.", "#.##..##.#", "#........#", "#...##...#",
+              "#........#", "#........#", ".#......#.", "..######..", "", "", ""}}};
+}
+
+constexpr P1SpriteFrame marutchiShortFrame() noexcept
+{
+    return {11, 3, 8U,
+            {{"..######..", ".#......#.", "#.##..##.#", "#........#", "#...##...#",
+              "#........#", ".#......#.", "..######..", "", "", "", ""}}};
 }
 
 // Every drawing and origin is hand-transcribed P1 LCD data. Repeated character
@@ -107,16 +121,10 @@ constexpr P1Sprite Babytchi = sequence(
     babytchiFullFrame(18), babytchiFullFrame(15),
     babytchiSquashFrame(12), babytchiSquashFrame(9));
 
-constexpr P1Sprite Marutchi = sprite(
-    frame("................", ".....######.....", "....##....##....", "...##..##..##...",
-          "...##......##...", "...##.####.##...", "....##....##....", ".....##..##.....",
-          "....##....##....", "................"),
-    frame("................", "......#####.....", "....##....##....", "...##..##..##...",
-          "...##......##...", "...##.####.##...", "....##....##....", "....##....##....",
-          ".....##..##.....", "................"),
-    frame("................", ".....######.....", "....##....##....", "...##..##..##...",
-          "...##......##...", "...##.####.##...", "....##....##....", "....##....##....",
-          "...##..##..##...", "................"));
+// The two stable silhouettes are separated spatially from two waste piles in
+// the source trace. A clean-state horizontal path, if any, remains unverified.
+constexpr P1Sprite Marutchi =
+    twoPhaseSprite(marutchiLongFrame(), marutchiShortFrame(), 0.92F);
 
 constexpr P1Sprite Tamatchi = sprite(
     frame("....##....##....", "...####..####...", "...##.####.##...", "..##........##..",

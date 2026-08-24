@@ -8,8 +8,9 @@ is exactly 32 × 16 and one bit. The home renderer uses explicit geometry and
 an explicit per-sequence frame count, so it no longer fakes motion by shifting
 a static creature around the LCD. Most provisional frames use the centred
 16 × 10 cell. The egg's two stable silhouettes, Babytchi's complete 36-phase
-home cycle, and a Mametchi idle sequence have been visually transcribed
-from P1 reference traces; the other character redraws remain provisional.
+home cycle, two stable Marutchi silhouettes, and a Mametchi idle sequence have
+been visually transcribed from P1 reference traces; Marutchi's clean-state path
+and the other character redraws remain provisional.
 
 The project must never ship a P1 ROM, a ROM-derived binary asset, TamaLIB, or
 another emulator core. A reference program may be viewed externally only to
@@ -78,6 +79,14 @@ write and verify the clean implementation.
   yield the corrected egg and Babytchi data above. Do not infer a 32 × 16 grid
   by merely resizing a reference crop; derive its stride and extent first.
 
+- A confirmed Baby → Child run yielded Marutchi at 1×. Its spatially separate
+  left-hand character alternates exact 10 × 9 and 10 × 8 silhouettes at
+  `(11, 3)` every 27–28 host frames, represented as 0.92 seconds. Two right-hand
+  waste piles were excluded from the hand-written rows. The clean-state
+  horizontal path remains open because synthetic XTest release events do not
+  reliably release P1 A in this TamaTool v0.1 session.
+- A four-second normal-scale application trace with an isolated waste-free
+  save confirms both transcribed Marutchi silhouettes fit and wrap cleanly.
 ## Priority 0 — Add selectable physical shell variants
 
 1. [x] Replace the provisional flat shell drawing with a reusable CNA shell renderer
@@ -104,19 +113,21 @@ shell-control path does not mutate P1 state or framebuffer data.
 2. [x] Capture and transcribe Babytchi's complete 36-phase home cycle, including
    its true full/compressed geometry, horizontal path, cadence, wrap, and
    partial-write exclusion.
-3. Create a visual-reference ledger for each remaining P1 home form: Marutchi,
+3. Transcribe Marutchi's two waste-separated stable silhouettes and cadence;
+   capture a waste-free run before accepting its home origin/path as complete.
+4. Create a visual-reference ledger for each remaining P1 home form: Marutchi,
    Tamatchi, Kuchitamatchi, Mametchi, Ginjirotchi, Maskutchi,
    Kuchipatchi, Nyorotchi, Tarakotchi, and Bill.
-4. For each form, identify the stable 32 × 16 cell origin, its true idle-frame
+5. For each form, identify the stable 32 × 16 cell origin, its true idle-frame
    count, and the pixel changes between frames. Record uncertainty rather than
    inventing a source value.
-5. Replace the provisional redraw of one form at a time with independently
+6. Replace the provisional redraw of one form at a time with independently
    written one-bit frame data at its observed bounds. Keep the catalogue free
    from source-ROM data and make no use of frame translation as animation.
-6. Extend `P1SpriteCatalogTests` for every verified sequence: each phase's rows
+7. Extend `P1SpriteCatalogTests` for every verified sequence: each phase's rows
    must share its true observed width, all frames must remain inside the 32 × 16
    LCD, and the expected geometry and frame differences must be explicit.
-7. Compare the rendered result against the P1 reference at normal LCD scale,
+8. Compare the rendered result against the P1 reference at normal LCD scale,
    not only a magnified bitmap. Verify that the character stays centred within
    its observed motion range and does not overwrite the physical face-icon bands.
 

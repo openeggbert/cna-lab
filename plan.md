@@ -86,6 +86,9 @@ similar emulation core is permitted in the application, build, or test suite.
     post-hatch 1× traces, including its alternating 6 × 6 full and 8 × 3
     compressed poses, horizontal path, 0.46-second cadence, and observed wrap;
     reject and replace geometry derived from an incomplete reference crop.
+  - [x] Replace Marutchi's invented redraw with the two exact stable silhouettes
+    spatially separated from waste in a full-LCD trace; preserve the clean-state
+    origin/path as open evidence rather than inferring it from a care-state run.
   - [x] Replace the previous generic pink desktop shell treatment with a
     reusable CNA renderer and five independently authored P1 colour families;
     persist the selected shell without changing the LCD or P1 controls.
@@ -155,7 +158,7 @@ similar emulation core is permitted in the application, build, or test suite.
 ## Immediate next task
 
 Follow the ordered visual and behaviour backlog in [next.md](next.md). Next,
-capture and compare Marutchi's home cycle. The
+capture a waste-free Marutchi home cycle and compare its path. The
 explicit-frame renderer removes the incorrect generic bobbing behaviour, but
 the remaining provisional character redraws and all care-action animations
 still need a frame-by-frame comparison before they can be described as exact.
