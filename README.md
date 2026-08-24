@@ -17,6 +17,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - configurable keyboard turning with a fixed horizon and five persisted speed levels
 - crosshair-free play view with a large original AI-generated knife, sidearm, repeater or heavy automatic sprite in the lower center
 - discoverable repeater and heavy automatic weapon with distinct first-person sprites and matching HUD icons
+- explicit weapon profiles give knife, sidearm, repeater and heavy automatic distinct range, damage, spread and cadence; firearm damage falls with distance and movement widens deterministic seeded spread
 - every weapon has an original dedicated slash/firing frame, combined with visible knife lunge or firearm recoil for immediate attack feedback
 - clearly audible generated CNA effects for firearm shots, knife attacks, ammunition, enemy alerts and attacks, defeated enemies, doors, locks and player damage
 - a generated looping bunker ambience, with five master-volume levels in the title menu
@@ -37,7 +38,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - authored rooms include procedural framed paintings, peace-symbol banners, ceiling lamps with warm floor-light pools, wood-textured polygonal tables and three sector-specific freestanding plant landmarks
 - room-scale wall regions use four original generated material families: cool bunker stone, dark industrial brick, teal riveted steel and cold laboratory panels
 - only the nearest eligible ranged enemy fires at one time; guards, rapid troopers and heavy units use slower distinct cadences while hounds remain close-range attackers
-- the original Bunker Warden boss has a dedicated health bar, 32-point base health, four generated visual states and a deterministic three-projectile fan attack
+- the original Bunker Warden boss has a dedicated health bar, 48-point base health, four generated visual states and a deterministic three-projectile fan attack
 - optional relay and terminal state never blocks an elevator; only the Warden Core's explicit boss lockdown holds its final elevator until the Warden is defeated
 - defeated guards, rapid troopers and heavy units drop difficulty-scaled ammunition; hounds do not drop ammunition
 - two health sizes, ammunition, four treasure tiers, cyan/amber access cards, a rare recovery beacon and both weapon pickups use original transparent pixel-art sprites instead of colored blocks
@@ -65,7 +66,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - three difficulty modes: Scout has fewer, weaker and slower enemies plus more ammunition; Operative is the baseline; Veteran adds reinforcements, health, speed and firing frequency while reducing ammunition and applying 130% incoming damage
 - `Space`: open the door in front of you or activate a faced sector elevator (doors close after four seconds unless the player or a body blocks them)
 - left or right `Ctrl`: attack with the selected weapon; hold for repeater/heavy automatic fire, while the knife and sidearm fire once per press; empty firearms automatically fall back to the knife
-- `1` / `2` / `3` / `4`: knife / sidearm / three-round repeater / five-round heavy automatic; weapons 3 and 4 must be found first
+- `1` / `2` / `3` / `4`: knife / sidearm / repeater / heavy automatic; weapons 3 and 4 must be found first, and each automatic projectile consumes exactly one round
 - collecting ammunition after reaching zero restores the last firearm automatically
 - `F11`: toggle fullscreen
 - `P` or `Escape`: open the in-run pause menu; either key resumes directly, while the menu can also change sound/view settings or return to the title
@@ -101,8 +102,8 @@ working directory. Invalid progress data safely falls back to sector 1 with an e
 score table; profile versions 1–5 migrate into the current version 6 format.
 Run slots are stored as `wolf-cna-save-1.dat` through `wolf-cna-save-3.dat`.
 Malformed, incompatible or sector-mismatched saves are rejected without replacing
-the current run. The current run-save version 4 persists push-wall direction and
-travel while migrating versions 1–3.
+the current run. The current run-save version 5 persists push-wall direction, travel
+and the deterministic combat-shot sequence while migrating versions 1–4.
 
 ## Level files
 

@@ -371,7 +371,10 @@ namespace WolfCna
         const Vector3& playerPosition,
         const Vector3& lookDirection,
         float range,
-        bool emitsNoise)
+        bool emitsNoise,
+        int nearDamage,
+        int farDamage,
+        float falloffStart)
     {
         if (emitsNoise)
             pendingPlayerNoise_ = playerPosition;
@@ -396,7 +399,22 @@ namespace WolfCna
                 if (enemyX * enemyX + enemyZ * enemyZ > 0.08f)
                     continue;
 
-                --enemy.health;
+                const float clampedRange = std::max(HitScanStep, std::min(HitScanRange, range));
+                const float clampedFalloffStart = std::clamp(
+                    falloffStart,
+                    0.0f,
+                    clampedRange);
+                const float falloffProgress = clampedRange > clampedFalloffStart
+                    ? std::clamp(
+                        (distance - clampedFalloffStart) /
+                            (clampedRange - clampedFalloffStart),
+                        0.0f,
+                        1.0f)
+                    : 0.0f;
+                const int damage = std::max(1, static_cast<int>(std::lround(
+                    static_cast<float>(nearDamage) +
+                    static_cast<float>(farDamage - nearDamage) * falloffProgress)));
+                enemy.health -= damage;
                 const bool defeated = enemy.health <= 0;
                 enemy.state = defeated ? EnemyState::Dead : EnemyState::Chase;
                 enemy.attackVisualSeconds = 0.0f;
@@ -413,15 +431,22 @@ namespace WolfCna
                             enemy.ammunitionDrop});
                     }
                 }
-                return {true, defeated ? enemy.scoreValue : 0};
+                return {
+                    .hit = true,
+                    .score = defeated ? enemy.scoreValue : 0,
+                    .damage = damage,
+                    .distance = distance};
             }
 
-            if (!IsStaticWallCell(cellX, cellZ))
+            if (!IsBlockedCell(cellX, cellZ))
             {
                 previousCellX = cellX;
                 previousCellZ = cellZ;
                 continue;
             }
+
+            if (!IsStaticWallCell(cellX, cellZ))
+                return {};
 
             Vector3 normal(0.0f, 0.0f, 0.0f);
             float impactX = rayX;
@@ -683,7 +708,7 @@ namespace WolfCna
                 true,
                 enemy.state == EnemyState::Dead,
                 std::max(0, enemy.health),
-                ScalePositiveAmount(32, difficultyProfile_.enemyHealthMultiplier)};
+                ScalePositiveAmount(48, difficultyProfile_.enemyHealthMultiplier)};
         }
         return {};
     }
@@ -1979,7 +2004,7 @@ namespace WolfCna
                     if (archetype == 'K')
                     {
                         enemy.type = Enemy::Type::Hound;
-                        enemy.health = 2;
+                        enemy.health = 4;
                         enemy.scoreValue = 200;
                         enemy.attackDamage = 14;
                         enemy.moveSpeed = EnemySpeed * 1.8f;
@@ -1994,7 +2019,7 @@ namespace WolfCna
                     else if (archetype == 'F')
                     {
                         enemy.type = Enemy::Type::RapidTrooper;
-                        enemy.health = 4;
+                        enemy.health = 7;
                         enemy.scoreValue = 250;
                         enemy.attackDamage = 5;
                         enemy.moveSpeed = EnemySpeed * 1.2f;
@@ -2009,7 +2034,7 @@ namespace WolfCna
                     else if (archetype == 'U')
                     {
                         enemy.type = Enemy::Type::HeavyUnit;
-                        enemy.health = 8;
+                        enemy.health = 15;
                         enemy.scoreValue = 500;
                         enemy.attackDamage = 14;
                         enemy.moveSpeed = EnemySpeed * 0.65f;
@@ -2024,7 +2049,7 @@ namespace WolfCna
                     else if (archetype == 'Z')
                     {
                         enemy.type = Enemy::Type::Boss;
-                        enemy.health = 32;
+                        enemy.health = 48;
                         enemy.scoreValue = 5000;
                         enemy.attackDamage = 9;
                         enemy.moveSpeed = EnemySpeed * 0.72f;

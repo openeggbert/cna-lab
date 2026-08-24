@@ -65,6 +65,8 @@ namespace WolfCna
         {
             bool hit = false;
             int score = 0;
+            int damage = 0;
+            float distance = 0.0f;
 
             operator bool() const { return hit; }
         };
@@ -261,7 +263,10 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             const Microsoft::Xna::Framework::Vector3& lookDirection,
             float range = 12.0f,
-            bool emitsNoise = true);
+            bool emitsNoise = true,
+            int nearDamage = 1,
+            int farDamage = 1,
+            float falloffStart = 12.0f);
         [[nodiscard]] PickupResult CollectPickups(
             const Microsoft::Xna::Framework::Vector3& playerPosition,
             int currentHealth = 0,
@@ -350,7 +355,7 @@ namespace WolfCna
             Microsoft::Xna::Framework::Vector3 lastKnownTarget;
             Type type = Type::Guard;
             EnemyState state = EnemyState::Idle;
-            int health = 3;
+            int health = 5;
             int scoreValue = 100;
             int attackDamage = 8;
             float moveSpeed = 0.8f;

@@ -19,6 +19,7 @@
 #include "World.hpp"
 #include "Campaign.hpp"
 #include "CampaignProgress.hpp"
+#include "Combat.hpp"
 #include "ExplorationMap.hpp"
 #include "RunSave.hpp"
 #include "RunRules.hpp"
@@ -164,7 +165,7 @@ namespace WolfCna
         Difficulty difficulty_ = Difficulty::Operative;
         int menuSelection_ = 0;
         int pauseMenuSelection_ = 0;
-        enum class Weapon { Knife, Sidearm, Repeater, HeavyAutomatic };
+        using Weapon = PlayerWeapon;
         Weapon weapon_ = Weapon::Sidearm;
         Weapon lastFirearm_ = Weapon::Sidearm;
         bool hasRepeater_ = false;
@@ -198,6 +199,7 @@ namespace WolfCna
         float weaponFlashSeconds_ = 0.0f;
         float playerImpactFlashSeconds_ = 0.0f;
         float playerFireCooldownSeconds_ = 0.0f;
+        std::uint32_t combatShotSequence_ = 0;
         float defeatTransitionSeconds_ = 0.0f;
 
         static constexpr float PlayerRadius = 0.22f;

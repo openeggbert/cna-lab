@@ -1817,6 +1817,7 @@ namespace WolfCna
         weaponFlashSeconds_ = 0.0f;
         playerImpactFlashSeconds_ = 0.0f;
         playerFireCooldownSeconds_ = 0.0f;
+        combatShotSequence_ = 0;
         ilmWasDown_ = false;
         goalCheatWasDown_ = false;
         pauseWasDown_ = false;
@@ -1951,6 +1952,7 @@ namespace WolfCna
             .lastFirearm = static_cast<int>(lastFirearm_),
             .hasRepeater = hasRepeater_,
             .hasHeavyWeapon = hasHeavyWeapon_,
+            .combatShotSequence = static_cast<int>(combatShotSequence_),
             .exploredCells = exploration_.CaptureVisited(),
             .world = world_.CaptureSaveState()};
     }
@@ -2016,6 +2018,7 @@ namespace WolfCna
         lastFirearm_ = static_cast<Weapon>(state.lastFirearm);
         hasRepeater_ = state.hasRepeater;
         hasHeavyWeapon_ = state.hasHeavyWeapon;
+        combatShotSequence_ = static_cast<std::uint32_t>(state.combatShotSequence);
         completed_ = false;
         screen_ = Screen::Playing;
         actionWasDown_ = false;
@@ -2626,18 +2629,23 @@ namespace WolfCna
             keyboard,
             controlSettings_,
             ControlAction::Attack);
-        const bool automaticWeapon =
-            weapon_ == Weapon::Repeater || weapon_ == Weapon::HeavyAutomatic;
+        const bool automaticWeapon = GetWeaponSpec(weapon_).automatic;
         const bool attackTriggered = attackIsDown &&
-            (!attackWasDown_ || (automaticWeapon && playerFireCooldownSeconds_ <= 0.0f));
-        if (attackIsDown && !attackWasDown_ && weapon_ == Weapon::Knife)
+            playerFireCooldownSeconds_ <= 0.0f &&
+            (!attackWasDown_ || automaticWeapon);
+        if (attackTriggered && weapon_ == Weapon::Knife)
         {
+            const WeaponSpec spec = GetWeaponSpec(Weapon::Knife);
             const World::AttackResult attack = world_.FireHitscan(
                 playerPosition_,
                 LookDirection(),
-                0.9f,
-                false);
+                spec.range,
+                spec.emitsNoise,
+                spec.nearDamage,
+                spec.farDamage,
+                spec.falloffStart);
             AwardScore(attack.score);
+            playerFireCooldownSeconds_ = spec.cadenceSeconds;
             weaponFlashSeconds_ = KnifeAttackVisualSeconds;
             if (knifeSound_)
                 static_cast<void>(knifeSound_->Play(0.62f, -0.2f, 0.0f));
@@ -2646,42 +2654,51 @@ namespace WolfCna
         }
         else if (attackTriggered && ammo_ > 0)
         {
-            if (automaticWeapon)
+            const bool firingWhileMoving =
+                IsControlDown(keyboard, controlSettings_, ControlAction::MoveForward) ||
+                IsControlDown(keyboard, controlSettings_, ControlAction::MoveBackward) ||
+                IsControlDown(keyboard, controlSettings_, ControlAction::StrafeLeft) ||
+                IsControlDown(keyboard, controlSettings_, ControlAction::StrafeRight);
+            const WeaponSpec spec = GetWeaponSpec(weapon_);
+            const FirearmShot shot = ResolveFirearmShot(
+                weapon_,
+                ammo_,
+                CombatSeedForSector(levelIndex_, static_cast<int>(difficulty_)),
+                combatShotSequence_,
+                firingWhileMoving);
+            if (shot.emitted)
             {
-                const bool isHeavy = weapon_ == Weapon::HeavyAutomatic;
-                const int shotCount = std::min(ammo_, isHeavy ? 5 : 3);
-                ammo_ -= shotCount;
-                int defeatedScore = 0;
-                const float spreadStep = isHeavy ? 0.055f : 0.09f;
-                for (int shot = 0; shot < shotCount; ++shot)
-                {
-                    const float spread =
-                        (static_cast<float>(shot) - static_cast<float>(shotCount - 1) * 0.5f) * spreadStep;
-                    const float shotYaw = yaw_ + spread;
-                    defeatedScore += world_.FireHitscan(
-                        playerPosition_,
-                        Vector3(std::sin(shotYaw), 0.0f, -std::cos(shotYaw))).score;
-                }
-                AwardScore(defeatedScore);
-                playerFireCooldownSeconds_ = isHeavy ? 0.42f : 0.28f;
-                weaponFlashSeconds_ = isHeavy
-                    ? HeavyAttackVisualSeconds
-                    : RepeaterAttackVisualSeconds;
-                if (shotSound_)
-                    static_cast<void>(shotSound_->Play(isHeavy ? 1.0f : 0.95f, isHeavy ? 0.08f : -0.04f, 0.0f));
-                if (defeatedScore > 0 && enemyDefeatedSound_)
-                    static_cast<void>(enemyDefeatedSound_->Play(0.32f, -0.22f, 0.0f));
-            }
-            else
-            {
-                --ammo_;
-                const World::AttackResult attack = world_.FireHitscan(playerPosition_, LookDirection());
+                ammo_ = shot.ammunitionAfter;
+                combatShotSequence_ = shot.sequenceAfter;
+                const float shotYaw = yaw_ + shot.yawOffsetRadians;
+                const World::AttackResult attack = world_.FireHitscan(
+                    playerPosition_,
+                    Vector3(std::sin(shotYaw), 0.0f, -std::cos(shotYaw)),
+                    spec.range,
+                    spec.emitsNoise,
+                    spec.nearDamage,
+                    spec.farDamage,
+                    spec.falloffStart);
                 AwardScore(attack.score);
-                weaponFlashSeconds_ = SidearmAttackVisualSeconds;
+                playerFireCooldownSeconds_ = spec.cadenceSeconds;
+                weaponFlashSeconds_ = weapon_ == Weapon::HeavyAutomatic
+                    ? HeavyAttackVisualSeconds
+                    : weapon_ == Weapon::Repeater
+                        ? RepeaterAttackVisualSeconds
+                        : SidearmAttackVisualSeconds;
                 if (shotSound_)
-                    static_cast<void>(shotSound_->Play(0.9f, -0.12f, 0.0f));
+                {
+                    const bool isHeavy = weapon_ == Weapon::HeavyAutomatic;
+                    static_cast<void>(shotSound_->Play(
+                        isHeavy ? 1.0f : weapon_ == Weapon::Repeater ? 0.95f : 0.9f,
+                        isHeavy ? 0.08f : weapon_ == Weapon::Repeater ? -0.04f : -0.12f,
+                        0.0f));
+                }
                 if (attack.score > 0 && enemyDefeatedSound_)
-                    static_cast<void>(enemyDefeatedSound_->Play(0.28f, -0.3f, 0.0f));
+                    static_cast<void>(enemyDefeatedSound_->Play(
+                        automaticWeapon ? 0.32f : 0.28f,
+                        automaticWeapon ? -0.22f : -0.3f,
+                        0.0f));
             }
         }
         if (ammo_ <= 0)

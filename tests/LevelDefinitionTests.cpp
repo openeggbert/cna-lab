@@ -15,6 +15,7 @@
 #include "World.hpp"
 #include "CampaignProgress.hpp"
 #include "Campaign.hpp"
+#include "Combat.hpp"
 #include "Controls.hpp"
 #include "ExplorationMap.hpp"
 #include "RunSave.hpp"
@@ -182,6 +183,7 @@ namespace
         int hounds = 0;
         int rapidTroopers = 0;
         int heavyUnits = 0;
+        int bosses = 0;
         int patrolMarkers = 0;
         int ambushEnemies = 0;
         std::pair<int, int> exitPosition{-1, -1};
@@ -250,6 +252,8 @@ namespace
                     ++heavyUnits;
                     ambushEnemies += symbol == 'u' ? 1 : 0;
                 }
+                else if (symbol == 'Z')
+                    ++bosses;
             }
         }
 
@@ -322,7 +326,8 @@ namespace
             largeAmmoPickups * 8 + smallAmmoPickups * 4 +
             repeaterPickups * 8 + heavyWeaponPickups * 14 +
             guards * 3 + rapidTroopers * 5 + heavyUnits * 8;
-        const int hitsToClear = guards * 3 + hounds * 2 + rapidTroopers * 4 + heavyUnits * 8;
+        const int hitsToClear =
+            guards * 3 + hounds * 2 + rapidTroopers * 4 + heavyUnits * 8 + bosses * 24;
         Expect(
             guaranteedAmmo >= hitsToClear,
             std::string(name) + " has enough guaranteed ammunition for a full clear");
@@ -331,6 +336,56 @@ namespace
 
 int main()
 {
+    const WolfCna::WeaponSpec knifeSpec =
+        WolfCna::GetWeaponSpec(WolfCna::PlayerWeapon::Knife);
+    const WolfCna::WeaponSpec sidearmSpec =
+        WolfCna::GetWeaponSpec(WolfCna::PlayerWeapon::Sidearm);
+    const WolfCna::WeaponSpec repeaterSpec =
+        WolfCna::GetWeaponSpec(WolfCna::PlayerWeapon::Repeater);
+    const WolfCna::WeaponSpec heavySpec =
+        WolfCna::GetWeaponSpec(WolfCna::PlayerWeapon::HeavyAutomatic);
+    Expect(
+        knifeSpec.range == 0.9f && !knifeSpec.emitsNoise &&
+            sidearmSpec.range == 12.0f && sidearmSpec.nearDamage == 2 &&
+            repeaterSpec.automatic && repeaterSpec.cadenceSeconds == 0.12f &&
+            heavySpec.automatic && heavySpec.nearDamage == 3 &&
+            heavySpec.cadenceSeconds < repeaterSpec.cadenceSeconds,
+        "every player weapon has a distinct range, damage, cadence and firing role");
+    const std::uint32_t combatSeed = WolfCna::CombatSeedForSector(2, 1);
+    const WolfCna::FirearmShot standingShot = WolfCna::ResolveFirearmShot(
+        WolfCna::PlayerWeapon::Repeater, 3, combatSeed, 17, false);
+    const WolfCna::FirearmShot replayedShot = WolfCna::ResolveFirearmShot(
+        WolfCna::PlayerWeapon::Repeater, 3, combatSeed, 17, false);
+    const WolfCna::FirearmShot movingShot = WolfCna::ResolveFirearmShot(
+        WolfCna::PlayerWeapon::Repeater, 3, combatSeed, 17, true);
+    Expect(
+        standingShot.emitted && standingShot.ammunitionAfter == 2 &&
+            standingShot.sequenceAfter == 18 &&
+            standingShot.yawOffsetRadians == replayedShot.yawOffsetRadians &&
+            std::abs(standingShot.yawOffsetRadians) <= repeaterSpec.standingSpreadRadians &&
+            std::abs(movingShot.yawOffsetRadians) >=
+                std::abs(standingShot.yawOffsetRadians),
+        "explicit seed and sequence replay spread while movement widens accuracy loss");
+    const WolfCna::FirearmShot nextAutomaticShot = WolfCna::ResolveFirearmShot(
+        WolfCna::PlayerWeapon::Repeater,
+        standingShot.ammunitionAfter,
+        combatSeed,
+        standingShot.sequenceAfter,
+        false);
+    const WolfCna::FirearmShot emptyShot = WolfCna::ResolveFirearmShot(
+        WolfCna::PlayerWeapon::HeavyAutomatic, 0, combatSeed, 25, false);
+    Expect(
+        nextAutomaticShot.emitted && nextAutomaticShot.ammunitionAfter == 1 &&
+            nextAutomaticShot.sequenceAfter == 19 &&
+            nextAutomaticShot.yawOffsetRadians != standingShot.yawOffsetRadians &&
+            !emptyShot.emitted &&
+            emptyShot.ammunitionAfter == 0 && emptyShot.sequenceAfter == 25,
+        "each automatic projectile consumes exactly one round and empty weapons emit none");
+    Expect(
+        WolfCna::CombatSeedForSector(2, 1) != WolfCna::CombatSeedForSector(3, 1) &&
+            WolfCna::CombatSeedForSector(2, 1) != WolfCna::CombatSeedForSector(2, 2),
+        "combat seeds are explicit and distinct per sector and difficulty");
+
     WolfCna::ControlSettings controls;
     Expect(
         WolfCna::AreValidControlSettings(controls) &&
@@ -725,6 +780,14 @@ int main()
         Expect(
             scoutSupply > operativeSupply && operativeSupply > veteranSupply,
             "campaign total ammunition supply decreases monotonically with difficulty");
+        const int scoutClearRounds = (scout.totalEnemyHealth + scout.activeEnemies) / 2;
+        const int operativeClearRounds =
+            (operative.totalEnemyHealth + operative.activeEnemies) / 2;
+        const int veteranClearRounds = (veteran.totalEnemyHealth + veteran.activeEnemies) / 2;
+        Expect(
+            scoutSupply >= scoutClearRounds && operativeSupply >= operativeClearRounds &&
+                veteranSupply >= veteranClearRounds,
+            "each difficulty supplies enough rounds for its rebalanced close-sidearm health budget");
         Expect(
             scoutBehavior.patrollingEnemies >= 1 && operativeBehavior.patrollingEnemies >= 1 &&
                 veteranBehavior.patrollingEnemies >= 1 &&
@@ -747,8 +810,8 @@ int main()
             focusedVeteran.activeEnemies == 4,
         "stable encounter tiers activate two, three and four focused enemies");
     Expect(
-        focusedScout.totalEnemyHealth == 4 && focusedOperative.totalEnemyHealth == 9 &&
-            focusedVeteran.totalEnemyHealth == 16,
+        focusedScout.totalEnemyHealth == 8 && focusedOperative.totalEnemyHealth == 15 &&
+            focusedVeteran.totalEnemyHealth == 24,
         "focused enemy health is scaled after spawn-tier selection");
     Expect(
         focusedScout.fixedAmmunition == 26 && focusedOperative.fixedAmmunition == 16 &&
@@ -817,7 +880,7 @@ int main()
             WolfCna::World::InteractionResult::DoorOpened,
         "save fixture opens its door");
     static_cast<void>(saveWorld.Update(0.5f, savePlayer));
-    for (int hit = 0; hit < 3; ++hit)
+    for (int hit = 0; hit < 5; ++hit)
         static_cast<void>(saveWorld.FireHitscan(savePlayer, saveLook));
     Expect(
         saveWorld.CollectPickups(
@@ -863,6 +926,7 @@ int main()
         .lastFirearm = 1,
         .hasRepeater = false,
         .hasHeavyWeapon = false,
+        .combatShotSequence = 37,
         .exploredCells = saveExploration.CaptureVisited(),
         .world = saveWorld.CaptureSaveState()};
     std::string saveError;
@@ -873,14 +937,34 @@ int main()
     Expect(
         parsedRunSave->sectorEntryScore == 1000 &&
             parsedRunSave->sectorEntryNextExtraLifeScore == 40000 &&
-            parsedRunSave->accessMask == WolfCna::World::CyanAccess,
-        "run save preserves the sector restart checkpoint and access cards");
+            parsedRunSave->accessMask == WolfCna::World::CyanAccess &&
+            parsedRunSave->combatShotSequence == 37,
+        "run save preserves checkpoints, access cards and deterministic combat sequence");
     Expect(
         WolfCna::RunSave::Serialize(*parsedRunSave) == serializedRunSave,
         "run save serialization is a deterministic round trip");
     WolfCna::RunSaveState legacyFormatRunSaveState = runSaveState;
     legacyFormatRunSaveState.world.doors.clear();
-    std::string versionThreeRunSave = WolfCna::RunSave::Serialize(legacyFormatRunSaveState);
+    std::string versionFourRunSave = WolfCna::RunSave::Serialize(legacyFormatRunSaveState);
+    const std::size_t versionFourGameStart = versionFourRunSave.find('\n') + 1;
+    const std::size_t versionFourGameEnd = versionFourRunSave.find('\n', versionFourGameStart);
+    const std::size_t combatSequenceStart = versionFourRunSave.rfind(' ', versionFourGameEnd);
+    Expect(
+        versionFourGameStart > 0 && versionFourGameEnd != std::string::npos &&
+            combatSequenceStart != std::string::npos,
+        "run-save fixture locates the version-five combat sequence");
+    versionFourRunSave.erase(combatSequenceStart, versionFourGameEnd - combatSequenceStart);
+    versionFourRunSave.replace(
+        versionFourRunSave.find("WOLF-CNA-RUN-SAVE-5"),
+        std::string("WOLF-CNA-RUN-SAVE-5").size(),
+        "WOLF-CNA-RUN-SAVE-4");
+    const std::optional<WolfCna::RunSaveState> parsedVersionFourRunSave =
+        WolfCna::RunSave::Parse(versionFourRunSave, saveError);
+    Expect(
+        parsedVersionFourRunSave.has_value() &&
+            parsedVersionFourRunSave->combatShotSequence == 0,
+        "version four run saves migrate with a fresh deterministic combat sequence");
+    std::string versionThreeRunSave = versionFourRunSave;
     versionThreeRunSave.replace(
         versionThreeRunSave.find("WOLF-CNA-RUN-SAVE-4"),
         std::string("WOLF-CNA-RUN-SAVE-4").size(),
@@ -972,6 +1056,13 @@ int main()
             WolfCna::RunSave::Serialize(maximumLivesSave),
             saveError).has_value(),
         "run save rejects lives above the gameplay cap");
+    WolfCna::RunSaveState invalidCombatSequenceSave = runSaveState;
+    invalidCombatSequenceSave.combatShotSequence = -1;
+    Expect(
+        !WolfCna::RunSave::Parse(
+            WolfCna::RunSave::Serialize(invalidCombatSequenceSave),
+            saveError).has_value(),
+        "run save rejects an invalid deterministic combat sequence");
 
     const std::filesystem::path saveTestPath =
         std::filesystem::temp_directory_path() / "wolf-cna-run-save-test.dat";
@@ -1170,8 +1261,9 @@ int main()
         bodyDoorWorld.TryActivate(playerPosition, lookDirection, false) == WolfCna::World::InteractionResult::DoorOpened,
         "body door activates");
     static_cast<void>(bodyDoorWorld.Update(0.5f, playerPosition));
-    Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "first shot hits doorway hound");
-    Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "second shot kills doorway hound");
+    for (int hit = 0; hit < 3; ++hit)
+        Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "early shot hits doorway hound");
+    Expect(bodyDoorWorld.FireHitscan(playerPosition, lookDirection), "fourth shot kills doorway hound");
     static_cast<void>(bodyDoorWorld.Update(4.0f, playerPosition));
     static_cast<void>(bodyDoorWorld.Update(0.5f, playerPosition));
     Expect(!bodyDoorWorld.Collides(2.5f, 1.5f, 0.1f), "dead hound keeps the door open");
@@ -1343,10 +1435,10 @@ int main()
     WolfCna::World bossWorld(bossLevel, WolfCna::Difficulty::Operative);
     const WolfCna::World::BossStatus initialBoss = bossWorld.GetBossStatus();
     Expect(
-        initialBoss.present && !initialBoss.defeated && initialBoss.health == 32 &&
-            initialBoss.maximumHealth == 32,
+        initialBoss.present && !initialBoss.defeated && initialBoss.health == 48 &&
+            initialBoss.maximumHealth == 48,
         "original boss starts with its dedicated health budget");
-    for (int shot = 0; shot < 31; ++shot)
+    for (int shot = 0; shot < 47; ++shot)
     {
         Expect(
             bossWorld.FireHitscan(playerPosition, lookDirection),
@@ -1371,7 +1463,7 @@ int main()
             !bossExitWorld.ReachedExitRoute(
                 Microsoft::Xna::Framework::Vector3(4.5f, 0.62f, 1.5f)),
         "living boss keeps the campaign-completion elevator in lockdown");
-    for (int shot = 0; shot < 32; ++shot)
+    for (int shot = 0; shot < 48; ++shot)
         static_cast<void>(bossExitWorld.FireHitscan(playerPosition, lookDirection));
     Expect(
         bossExitWorld.TryActivate(bossExitApproach, lookDirection, false) ==
@@ -1476,12 +1568,43 @@ int main()
         "#####\n#PG.#\n#####\n",
         "combat.level"));
     const Microsoft::Xna::Framework::Vector3 combatPlayer(1.5f, 0.62f, 1.5f);
-    Expect(combatWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "wounding a guard has no score");
-    Expect(combatWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "second guard wound has no score");
-    Expect(combatWorld.FireHitscan(combatPlayer, lookDirection).score == 100, "guard kill awards score");
+    const auto fireSidearm = [&combatPlayer, &lookDirection, &sidearmSpec](WolfCna::World& target)
+    {
+        return target.FireHitscan(
+            combatPlayer,
+            lookDirection,
+            sidearmSpec.range,
+            sidearmSpec.emitsNoise,
+            sidearmSpec.nearDamage,
+            sidearmSpec.farDamage,
+            sidearmSpec.falloffStart);
+    };
+    Expect(fireSidearm(combatWorld).score == 0, "wounding a guard has no score");
+    Expect(fireSidearm(combatWorld).score == 0, "second guard wound has no score");
+    Expect(fireSidearm(combatWorld).score == 100, "third close sidearm hit defeats a guard");
     Expect(
         combatWorld.GetCompletionStats().defeatedEnemies == 1 && combatWorld.GetCompletionStats().totalEnemies == 1,
         "enemy defeat appears in completion statistics");
+
+    WolfCna::World nearDamageWorld(WolfCna::LevelDefinition::Parse(
+        "#####\n#PG.#\n#####\n",
+        "near-damage.level"));
+    const WolfCna::World::AttackResult nearDamage = fireSidearm(nearDamageWorld);
+    WolfCna::World farDamageWorld(WolfCna::LevelDefinition::Parse(
+        "##############\n#P.........G.#\n##############\n",
+        "far-damage.level"));
+    const WolfCna::World::AttackResult farDamage = fireSidearm(farDamageWorld);
+    Expect(
+        nearDamage.hit && nearDamage.damage == 2 && nearDamage.distance < 2.0f &&
+            farDamage.hit && farDamage.damage == 1 && farDamage.distance > 8.0f,
+        "sidearm damage falls from two to one across its documented range");
+
+    WolfCna::World blockedShotWorld(WolfCna::LevelDefinition::Parse(
+        "#######\n#PD.G.#\n#######\n",
+        "blocked-shot.level"));
+    Expect(
+        !fireSidearm(blockedShotWorld).hit,
+        "closed dynamic doors block player hitscan before enemies are tested");
     const Microsoft::Xna::Framework::Vector3 enemyDropPosition(2.5f, 0.62f, 1.5f);
     Expect(
         combatWorld.CollectPickups(enemyDropPosition).ammo == 3,
@@ -1494,7 +1617,7 @@ int main()
         "#####\n#PG.#\n#####\n",
         "carried-weapon-drop.level"));
     for (int hit = 0; hit < 3; ++hit)
-        static_cast<void>(carriedWeaponDropWorld.FireHitscan(combatPlayer, lookDirection));
+        static_cast<void>(fireSidearm(carriedWeaponDropWorld));
     Expect(
         carriedWeaponDropWorld.CollectPickups(
             enemyDropPosition, 100, 0, 3).ammo == 5,
@@ -1503,16 +1626,16 @@ int main()
     WolfCna::World houndWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PK.#\n#####\n",
         "hound.level"));
-    Expect(houndWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "first shot wounds a hound");
-    Expect(houndWorld.FireHitscan(combatPlayer, lookDirection).score == 200, "second hound shot awards score");
+    Expect(fireSidearm(houndWorld).score == 0, "first shot wounds a hound");
+    Expect(fireSidearm(houndWorld).score == 200, "second hound shot awards score");
     Expect(houndWorld.CollectPickups(enemyDropPosition).ammo == 0, "hound does not drop ammunition");
 
     WolfCna::World rapidTrooperWorld(WolfCna::LevelDefinition::Parse(
         "#####\n#PF.#\n#####\n",
         "rapid-trooper.level"));
     for (int hit = 0; hit < 3; ++hit)
-        Expect(rapidTrooperWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "rapid trooper survives early hits");
-    Expect(rapidTrooperWorld.FireHitscan(combatPlayer, lookDirection).score == 250, "rapid trooper awards score");
+        Expect(fireSidearm(rapidTrooperWorld).score == 0, "rapid trooper survives early hits");
+    Expect(fireSidearm(rapidTrooperWorld).score == 250, "rapid trooper awards score");
     Expect(
         rapidTrooperWorld.CollectPickups(enemyDropPosition).ammo == 5,
         "defeated rapid trooper drops five rounds");
@@ -1521,8 +1644,8 @@ int main()
         "#####\n#PU.#\n#####\n",
         "heavy-unit.level"));
     for (int hit = 0; hit < 7; ++hit)
-        Expect(heavyUnitWorld.FireHitscan(combatPlayer, lookDirection).score == 0, "heavy unit survives early hits");
-    Expect(heavyUnitWorld.FireHitscan(combatPlayer, lookDirection).score == 500, "heavy unit awards score");
+        Expect(fireSidearm(heavyUnitWorld).score == 0, "heavy unit survives early hits");
+    Expect(fireSidearm(heavyUnitWorld).score == 500, "heavy unit awards score");
     Expect(
         heavyUnitWorld.CollectPickups(enemyDropPosition).ammo == 8,
         "defeated heavy unit drops eight rounds");

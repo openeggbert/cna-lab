@@ -37,6 +37,7 @@ add_subdirectory("${CNA_ROOT}" "${CMAKE_BINARY_DIR}/cna-build")
 
 add_executable(wolf-cna
     src/CampaignProgress.cpp
+    src/Combat.cpp
     src/ExplorationMap.cpp
     src/LevelDefinition.cpp
     src/Program.cpp
@@ -292,6 +293,7 @@ configure_file(
 enable_testing()
 add_executable(level-definition-tests
     src/CampaignProgress.cpp
+    src/Combat.cpp
     src/ExplorationMap.cpp
     src/LevelDefinition.cpp
     src/RunSave.cpp

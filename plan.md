@@ -990,8 +990,8 @@ Current progress:
 - the HUD now has level, score, lives, health and ammunition readouts plus a generated sidearm icon;
 - `1`/`2` switch between the generated knife and sidearm icons; the knife has a short attack range;
 - `3` selects a discovered generated three-round repeater and `4` selects a
-  discovered generated five-round heavy automatic weapon; both have distinct
-  first-person views and consume shared ammunition for spread bursts;
+  discovered generated heavy automatic weapon; both have distinct first-person
+  views and consume one shared-ammunition round for every emitted projectile;
 - generated CNA effects cover player and guard shots, defeated enemies, pickups, doors, locks and player damage; combat includes player death/restart;
 - losing the last life presents `GAME OVER`; Space creates a clean new run with the original level state;
 - guards attack with visible ranged projectiles that cause damage only on impact, while hounds attack at close range;
@@ -1455,7 +1455,7 @@ authored moving wall, leading to the menu-hidden 64×64 Hidden Reservoir and the
 returning deterministically to Labs. Both new maps are original room-led layouts and
 every main, secret, return and terminal route is covered by focused tests.
 
-Warden Core contains one original Bunker Warden boss with 32 base health, difficulty
+Warden Core contains one original Bunker Warden boss with 48 base health, difficulty
 scaling, a distinct deterministic three-projectile fan, 5,000-point defeat value,
 dedicated health bar and four original AI-generated genuine-alpha visual states.
 Its living presence explicitly holds only the final elevator in lockdown; tests prove
@@ -1625,10 +1625,30 @@ collision, actor-safe pause/resume, one-time activation, automap state and save 
 
 ### WOLF-041 — distance-aware deterministic weapon combat
 
-Status: planned. Give player firearms deterministic seeded spread, distance-aware
-accuracy and weapon-specific damage while preserving the knife fallback. Automatic
-weapons should consume ammunition per projectile rather than charging several rounds
-for one undifferentiated ray operation.
+Status: complete. A standalone combat profile gives every weapon an explicit range,
+near/far damage, falloff start, standing/moving spread and cadence. The silent knife
+has 0.9-cell range and 2 damage. The sidearm is a 12-cell semi-automatic weapon with
+2-to-1 damage; the repeater is an 11-cell 2-to-1 automatic at 0.12 seconds; and the
+heavy automatic is a wider 10-cell 3-to-1 automatic at 0.085 seconds. Firearms are
+most accurate while stationary and lose accuracy while any movement input is held.
+
+Spread is a pure SplitMix-style function of an explicit sector/difficulty seed,
+weapon and shot sequence. No global random state is used. Each trigger resolution
+emits at most one projectile and subtracts exactly one round, so held automatics now
+represent their visible shots instead of charging three/five rounds for a bundle of
+rays. Run-save version 5 persists the sequence and migrates versions 1–4 with a safe
+zero sequence; sector/life restarts intentionally replay from sequence zero.
+
+World hitscan now reports applied damage and distance, interpolates damage after the
+falloff point and stops at dynamic doors and push walls as well as static geometry.
+Base health was rebalanced to 5 guard, 4 hound, 7 rapid trooper, 15 heavy unit and 48
+Warden before difficulty scaling. This preserves the close-sidearm clear budget of
+3/2/4/8/24 rounds. The starter, Foundry and Labs gained one authored supply each and
+Archive gained two after the stricter Veteran audit exposed their exact shortfalls.
+Campaign ammunition audits now include the Warden and confirm all six sectors remain
+clearable while retaining the established difficulty scaling.
+Focused tests cover profile values, exact per-projectile consumption, empty weapons,
+seed replay, movement spread, near/far damage, dynamic obstruction and save migration.
 
 - define range, spread, damage and cadence for every weapon;
 - include player movement in firearm accuracy where it improves readability;

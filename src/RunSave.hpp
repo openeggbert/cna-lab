@@ -31,6 +31,7 @@ namespace WolfCna
         int lastFirearm = 1;
         bool hasRepeater = false;
         bool hasHeavyWeapon = false;
+        int combatShotSequence = 0;
         std::vector<bool> exploredCells;
         World::SaveState world;
     };

@@ -15,6 +15,7 @@ namespace WolfCna
         constexpr std::string_view MagicV2 = "WOLF-CNA-RUN-SAVE-2";
         constexpr std::string_view MagicV3 = "WOLF-CNA-RUN-SAVE-3";
         constexpr std::string_view MagicV4 = "WOLF-CNA-RUN-SAVE-4";
+        constexpr std::string_view MagicV5 = "WOLF-CNA-RUN-SAVE-5";
         constexpr std::size_t MaximumRecordCount = 65536;
 
         bool ReadTag(std::istream& input, std::string_view expected, std::string& error)
@@ -77,6 +78,7 @@ namespace WolfCna
                 state.accessMask < 0 || state.accessMask > World::AllAccess ||
                 state.weapon < 0 || state.weapon > 3 ||
                 state.lastFirearm < 1 || state.lastFirearm > 3 ||
+                state.combatShotSequence < 0 || state.combatShotSequence > 2000000000 ||
                 state.exploredCells.size() > MaximumRecordCount)
             {
                 error = "save contains invalid player or campaign values";
@@ -100,7 +102,7 @@ namespace WolfCna
     {
         std::ostringstream output;
         output << std::setprecision(std::numeric_limits<float>::max_digits10);
-        output << MagicV4 << '\n';
+        output << MagicV5 << '\n';
         output << "GAME " << state.levelIndex << ' ' << state.difficulty << ' '
             << state.playerX << ' ' << state.playerY << ' ' << state.playerZ << ' '
             << state.yaw << ' ' << state.health << ' ' << state.ammunition << ' '
@@ -108,7 +110,7 @@ namespace WolfCna
             << state.sectorEntryScore << ' ' << state.sectorEntryNextExtraLifeScore << ' '
             << state.levelElapsedSeconds << ' ' << state.accessMask << ' '
             << state.weapon << ' ' << state.lastFirearm << ' ' << state.hasRepeater << ' '
-            << state.hasHeavyWeapon << '\n';
+            << state.hasHeavyWeapon << ' ' << state.combatShotSequence << '\n';
         output << "EXPLORED " << state.exploredCells.size() << ' ';
         for (bool visited : state.exploredCells)
             output << (visited ? '1' : '0');
@@ -171,7 +173,8 @@ namespace WolfCna
         RunSaveState state;
         std::string magic;
         if (!(input >> magic) ||
-            (magic != MagicV1 && magic != MagicV2 && magic != MagicV3 && magic != MagicV4))
+            (magic != MagicV1 && magic != MagicV2 && magic != MagicV3 &&
+                magic != MagicV4 && magic != MagicV5))
         {
             error = "save has an unsupported header";
             return std::nullopt;
@@ -185,7 +188,7 @@ namespace WolfCna
                 error = "save has an invalid GAME section";
             return std::nullopt;
         }
-        if (magic == MagicV2 || magic == MagicV3 || magic == MagicV4)
+        if (magic == MagicV2 || magic == MagicV3 || magic == MagicV4 || magic == MagicV5)
         {
             if (!(input >> state.sectorEntryScore >> state.sectorEntryNextExtraLifeScore))
             {
@@ -203,7 +206,7 @@ namespace WolfCna
             error = "save has an invalid GAME section";
             return std::nullopt;
         }
-        if (magic == MagicV3 || magic == MagicV4)
+        if (magic == MagicV3 || magic == MagicV4 || magic == MagicV5)
         {
             if (!(input >> state.accessMask))
             {
@@ -224,6 +227,11 @@ namespace WolfCna
         {
             if (error.empty())
                 error = "save has an invalid GAME section";
+            return std::nullopt;
+        }
+        if (magic == MagicV5 && !(input >> state.combatShotSequence))
+        {
+            error = "save has an invalid combat sequence";
             return std::nullopt;
         }
 
@@ -256,7 +264,7 @@ namespace WolfCna
             if (!ReadBool(input, door.opening, error) ||
                 !(input >> door.openAmount >> door.closeDelay))
                 return std::nullopt;
-            if (magic == MagicV4 &&
+            if ((magic == MagicV4 || magic == MagicV5) &&
                 !(input >> door.pushDirectionX >> door.pushDirectionZ >>
                     door.pushDistanceCells))
             {
