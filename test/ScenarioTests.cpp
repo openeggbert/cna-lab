@@ -221,6 +221,13 @@ int main() {
     const auto& pondDoor = hotspot(world, "s053_pond_door");
     const auto& enginePath = hotspot(world, "s060_engine_path");
     const auto& trestlePath = hotspot(world, "s060_trestle_path");
+    const auto& turbineStairs = hotspot(world, "s065_turbine_stairs");
+    const auto& lowerStairs = hotspot(world, "s068_lower_stairs");
+    const auto& pumpDoor = hotspot(world, "s069_pump_door");
+    const auto& bayDoor = hotspot(world, "s070_bay_door");
+    const auto& intakeDoor = hotspot(world, "s070_intake_door");
+    const auto& shaftRoute = hotspot(world, "s071_shaft_route");
+    const auto& mineLadder = hotspot(world, "s075_mine_ladder");
     assert(ringingPhone.visuals.size() >= 10);
     assert(answeredPhone.visuals.size() >= 10);
     assert(markedDeerPath.visuals.size() >= 7);
@@ -249,6 +256,13 @@ int main() {
     assert(pondDoor.visuals.size() >= 2);
     assert(enginePath.visuals.size() >= 2);
     assert(trestlePath.visuals.size() >= 2);
+    assert(turbineStairs.visuals.size() >= 6);
+    assert(lowerStairs.visuals.size() >= 5);
+    assert(pumpDoor.visuals.size() >= 4);
+    assert(bayDoor.visuals.size() >= 2);
+    assert(intakeDoor.visuals.size() >= 2);
+    assert(shaftRoute.visuals.size() >= 2);
+    assert(mineLadder.visuals.size() >= 6);
     assert(world.room("caretaker_cabin_main")->decorations.size() >= 30);
     assert(world.room("cabin_radio_nook")->decorations.size() >= 20);
     assert(world.room("caretaker_tool_shed")->decorations.size() >= 20);
@@ -282,7 +296,7 @@ int main() {
             assert(candidate.interactionArea.bottom() == 260.0F);
         }
         anchors += current->travelAnchor ? 1U : 0U;
-        const bool authoredHub = spec.number >= 6 && spec.number <= 63;
+        const bool authoredHub = spec.number >= 6 && spec.number <= 75;
         if (i > 0 && !authoredHub) {
             assert(std::ranges::any_of(current->exits, [i](const e2d::ExitDefinition& exit) {
                 return exit.direction == e2d::Direction::left
@@ -374,6 +388,23 @@ int main() {
     assert(hasExit("trestle_approach", e2d::Direction::right, "east_rail_cut"));
     assert(hasExit("east_rail_cut", e2d::Direction::left, "trestle_approach"));
     assert(hasExit("east_rail_cut", e2d::Direction::right, "dam_overlook"));
+    assert(hasExit("dam_overlook", e2d::Direction::left, "east_rail_cut"));
+    assert(hasExit("dam_overlook", e2d::Direction::right, "west_abutment"));
+    assert(hasExit("west_abutment", e2d::Direction::left, "dam_overlook"));
+    assert(hasExit("west_abutment", e2d::Direction::right, "spillway_walk"));
+    assert(hasExit("spillway_walk", e2d::Direction::left, "west_abutment"));
+    assert(hasExit("spillway_walk", e2d::Direction::right, "gatehouse"));
+    assert(hasExit("gatehouse", e2d::Direction::left, "spillway_walk"));
+    assert(world.room("gatehouse")->exits.size() == 1);
+    for (const int branch : {68, 69, 70, 71, 75}) {
+        assert(world.room(black_pine::content::screens[static_cast<std::size_t>(branch - 1)].id)->exits.empty());
+    }
+    assert(hasExit("intake_tunnel", e2d::Direction::right, "reservoir_shore"));
+    assert(world.room("intake_tunnel")->exits.size() == 1);
+    assert(hasExit("reservoir_shore", e2d::Direction::left, "intake_tunnel"));
+    assert(hasExit("reservoir_shore", e2d::Direction::right, "valve_garden"));
+    assert(hasExit("valve_garden", e2d::Direction::left, "reservoir_shore"));
+    assert(world.room("valve_garden")->exits.size() == 1);
     assert(anchors == 17);
     assert(visiblePickups >= 45);
     assert(animatedRooms > 80 && animatedRooms < world.rooms.size());
@@ -564,6 +595,7 @@ int main() {
     use(session, world, "s062_brake_linkage", "wrench", "trestle_brake_fixed");
     assert(session.currentHint()->text.resolve("en").find("portable radio") != std::string_view::npos);
     context(session, world, "s063_portable_radio", "elias_contacted");
+    assert(session.currentHint()->text.resolve("en").find("RESCUE") != std::string_view::npos);
     take(session, world, "s065_take_insulated_boots", "insulated_boots");
     take(session, world, "s065_take_turbine_badge", "turbine_badge");
     use(session, world, "s066_spray_shield", "wrench", "spray_shield_fixed");
@@ -571,17 +603,34 @@ int main() {
     take(session, world, "s067_take_spillway_crank", "spillway_crank");
     use(session, world, "s067_spillway_crank_socket", "spillway_crank", "spillway_closed");
     context(session, world, "s067_jonah", "jonah_briefed");
+    assert(session.currentHint()->text.resolve("en").find("TURBINES") != std::string_view::npos);
+    portal(session, world, "s065_turbine_stairs", "turbine_hall_upper");
     context(session, world, "s068_power_diagram", "dam_diagram_read");
+    assert(session.currentHint()->text.resolve("en").find("LOWER") != std::string_view::npos);
+    portal(session, world, "s068_lower_stairs", "turbine_hall_lower");
     take(session, world, "s069_take_pump_gasket", "pump_gasket");
     context(session, world, "s069_bay_breakers", "bay_isolated");
+    portal(session, world, "s069_pump_door", "pump_gallery");
     take(session, world, "s070_take_dry_cell", "dry_cell");
     use(session, world, "s070_pump_flange", "pump_gasket", "pump_gasket_installed");
     use(session, world, "s070_pump_starter", "dry_cell", "pump_battery_installed");
+    assert(session.currentHint()->text.resolve("en").find("INTAKE") != std::string_view::npos);
+    portal(session, world, "s070_intake_door", "intake_tunnel");
+    use(session, world, "s072_intake_markings", "hand_crank_torch", "intake_tunnel_lit");
+    assert(session.currentHint()->text.resolve("en").find("valve wheel") != std::string_view::npos);
     take(session, world, "s072_take_valve_wheel", "valve_wheel");
     use(session, world, "s074_intake_valve", "valve_wheel", "pump_intake_open");
+    assert(session.currentHint()->text.resolve("en").find("START") != std::string_view::npos);
+    portal(session, world, "s072_pump_door", "pump_gallery");
     context(session, world, "s070_pump_controls", "pump_running");
+    assert(session.currentHint()->text.resolve("en").find("BAY") != std::string_view::npos);
+    portal(session, world, "s070_bay_door", "flooded_maintenance_bay");
     take(session, world, "s071_take_magnet_cord", "magnet_cord");
+    assert(session.currentHint()->text.resolve("en").find("SHAFT") != std::string_view::npos);
+    portal(session, world, "s071_shaft_route", "east_access_shaft");
     context(session, world, "s075_shaft_grille", "mine_access_open");
+    assert(session.currentHint()->text.resolve("en").find("MINE") != std::string_view::npos);
+    portal(session, world, "s075_mine_ladder", "ore_cart_chamber");
     take(session, world, "s076_take_respirator", "respirator");
     use(session, world, "s077_timber_brace", "wrench", "drift_braced");
     take(session, world, "s079_take_filter_housing", "filter_housing");

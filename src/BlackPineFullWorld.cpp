@@ -2849,6 +2849,235 @@ void configureLoggingCampArtwork(e2d::WorldDefinition& world) {
     }});
 }
 
+void configureReservoirArtwork(e2d::WorldDefinition& world) {
+    const auto resetRoom = [&world](const int number, const P background, const P floor) -> e2d::RoomDefinition& {
+        auto& result = room(world, number);
+        result.background = background;
+        result.decorations.clear();
+        result.solids.clear();
+        result.animations.clear();
+        addGround(result, floor);
+        return result;
+    };
+
+    auto& overlook = resetRoom(64, P::brightBlue, P::brown);
+    overlook.decorations.insert(overlook.decorations.end(), {
+        circle(432, 37, 14, amber),
+        line(0, 139, 104, 65, P::darkGray), line(104, 65, 205, 139, P::darkGray),
+        line(289, 139, 395, 55, P::lightGray), line(395, 55, 492, 139, P::lightGray),
+        box(0, 139, 492, 121, P::blue),
+        e2d::PolygonVisual{{{98, 244}, {135, 121}, {362, 121}, {399, 244}}, P::lightGray, true},
+        box(145, 136, 207, 18, P::darkGray), box(161, 154, 31, 90, P::black),
+        box(231, 154, 31, 90, P::black), box(301, 154, 31, 90, P::black),
+        line(176, 163, 176, 237, signalBlue), line(246, 163, 246, 237, signalBlue),
+        line(316, 163, 316, 237, signalBlue),
+        box(356, 102, 61, 59, P::red), box(365, 111, 43, 41, P::black),
+        circle(386, 123, 5, danger), label(361, 92, tr("JONAH", "JONAH"), amber),
+        box(31, 206, 90, 16, P::brown), label(39, 211, tr("DAM EAST", "HRÁZ VÝCHOD"), pale),
+    });
+    overlook.animations.push_back({targetId(64, "spillway_flow"), true, true, {}, {
+        {7, {line(168, 174, 185, 236, P::brightCyan), line(238, 174, 255, 236, P::brightCyan)}},
+        {7, {line(174, 174, 191, 236, P::brightCyan), line(244, 174, 261, 236, P::brightCyan)}},
+    }});
+    overlook.animations.push_back({targetId(64, "jonah_beacon"), true, true,
+        {e2d::Condition::notFlag("jonah_briefed")}, {
+            {5, {circle(386, 123, 8, danger)}}, {9, {circle(386, 123, 3, P::darkGray)}},
+        }});
+
+    auto& abutment = resetRoom(65, P::brightBlue, P::brown);
+    abutment.decorations.insert(abutment.decorations.end(), {
+        box(0, 132, 492, 128, P::blue), box(0, 192, 492, 68, P::lightGray),
+        line(0, 192, 492, 192, pale), line(0, 213, 492, 213, P::darkGray),
+        box(28, 119, 131, 73, P::darkGray), box(38, 129, 111, 53, P::black),
+        box(54, 143, 79, 25, P::red), label(61, 150, tr("RESCUE", "ZÁCHRANA"), pale),
+        line(184, 96, 184, 192, P::lightGray), line(309, 96, 309, 192, P::lightGray),
+        line(184, 105, 309, 105, P::lightGray), line(184, 137, 309, 137, P::lightGray),
+        line(184, 169, 309, 169, P::lightGray),
+        line(374, 190, 458, 107, amber), line(397, 190, 481, 107, amber),
+        line(388, 174, 411, 174, pale), line(405, 157, 428, 157, pale),
+        line(422, 140, 445, 140, pale), line(439, 123, 462, 123, pale),
+        label(388, 96, tr("TURBINES", "TURBÍNY"), amber),
+    });
+    abutment.animations.push_back({targetId(65, "spray_gust"), true, true, {}, {
+        {10, {line(321, 152, 354, 139, signalBlue), line(326, 168, 363, 154, P::brightCyan)}},
+        {10, {line(326, 145, 363, 132, signalBlue), line(331, 161, 370, 147, P::brightCyan)}},
+    }});
+
+    auto& spillway = resetRoom(66, P::brightBlue, P::brown);
+    spillway.decorations.insert(spillway.decorations.end(), {
+        box(0, 95, 492, 165, P::blue),
+        box(0, 205, 492, 28, P::lightGray), line(0, 204, 492, 204, pale),
+        line(0, 234, 492, 234, P::darkGray),
+        box(66, 101, 13, 104, P::darkGray), box(187, 101, 13, 104, P::darkGray),
+        box(308, 101, 13, 104, P::darkGray), box(429, 101, 13, 104, P::darkGray),
+        line(72, 109, 193, 146, signalBlue), line(193, 109, 314, 146, signalBlue),
+        line(314, 109, 435, 146, signalBlue),
+        box(81, 177, 72, 20, P::darkGray), box(202, 177, 72, 20, P::darkGray),
+        box(323, 177, 72, 20, P::darkGray),
+        label(211, 183, tr("SHIELD 2", "CLONA 2"), amber),
+    });
+    spillway.animations.push_back({targetId(66, "unsafe_spray"), true, true,
+        {e2d::Condition::notFlag("spray_shield_fixed")}, {
+            {5, {line(74, 112, 151, 202, P::brightCyan), line(195, 112, 272, 202, signalBlue)}},
+            {5, {line(195, 112, 272, 202, P::brightCyan), line(316, 112, 393, 202, signalBlue)}},
+            {5, {line(316, 112, 393, 202, P::brightCyan), line(437, 112, 478, 160, signalBlue)}},
+        }});
+
+    auto& gatehouse = resetRoom(67, P::brown, P::darkGray);
+    gatehouse.decorations.insert(gatehouse.decorations.end(), {
+        box(0, 0, 492, 220, P::brown), line(0, 51, 492, 51, P::red),
+        box(25, 71, 108, 139, P::lightGray), box(36, 82, 86, 117, P::black),
+        circle(79, 123, 31, P::lightGray, false), line(79, 123, 102, 102, danger),
+        box(47, 164, 64, 23, P::blue), label(52, 170, tr("GATE", "STAVIDLO"), pale),
+        box(159, 82, 98, 128, P::darkGray), box(170, 93, 76, 106, P::black),
+        circle(208, 127, 21, P::lightGray, false), circle(208, 127, 6, danger),
+        box(180, 166, 56, 21, P::red), label(185, 172, tr("BADGE", "ODZNAK"), pale),
+        box(286, 65, 181, 145, P::lightGray), box(297, 76, 159, 123, P::black),
+        circle(340, 133, 35, P::lightGray, false), circle(340, 133, 7, amber),
+        line(340, 98, 340, 168, P::lightGray), line(305, 133, 375, 133, P::lightGray),
+        box(389, 103, 49, 61, P::darkGray), line(399, 114, 428, 153, danger),
+        label(304, 81, tr("FALSE OPEN", "FALEŠNĚ OTEVŘENO"), danger),
+    });
+    gatehouse.animations.push_back({targetId(67, "gate_alarm"), true, true,
+        {e2d::Condition::notFlag("spillway_closed")}, {
+            {6, {circle(208, 127, 9, danger), line(79, 123, 102, 102, danger)}},
+            {6, {circle(208, 127, 5, P::darkGray), line(79, 123, 96, 111, amber)}},
+        }});
+
+    auto& turbineUpper = resetRoom(68, P::darkGray, P::brown);
+    turbineUpper.decorations.insert(turbineUpper.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray), line(0, 56, 492, 56, P::lightGray),
+        box(37, 70, 190, 128, P::lightGray), box(48, 81, 168, 106, P::black),
+        circle(132, 134, 42, P::lightGray, false), circle(132, 134, 12, amber),
+        line(90, 134, 174, 134, signalBlue), line(132, 92, 132, 176, signalBlue),
+        box(278, 61, 170, 124, P::brown), box(288, 71, 150, 104, P::black),
+        box(301, 86, 124, 69, P::blue), line(310, 143, 331, 118, signalBlue),
+        line(331, 118, 352, 142, P::brightGreen), line(352, 142, 377, 108, signalBlue),
+        line(377, 108, 414, 135, danger),
+        label(301, 76, tr("AUX POWER", "POMOCNÝ PROUD"), amber),
+        line(246, 23, 246, 220, P::lightGray),
+    });
+    turbineUpper.animations.push_back({targetId(68, "turbine_blur"), true, true, {}, {
+        {6, {line(90, 134, 174, 134, signalBlue), line(132, 92, 132, 176, signalBlue)}},
+        {6, {line(102, 104, 162, 164, signalBlue), line(102, 164, 162, 104, signalBlue)}},
+    }});
+
+    auto& turbineLower = resetRoom(69, P::darkGray, P::brown);
+    turbineLower.decorations.insert(turbineLower.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray),
+        circle(123, 127, 73, P::lightGray, false), circle(123, 127, 29, P::black),
+        line(123, 54, 123, 200, P::lightGray), line(50, 127, 196, 127, P::lightGray),
+        box(229, 56, 228, 145, P::lightGray), box(241, 68, 204, 121, P::black),
+        box(255, 83, 48, 79, P::darkGray), box(319, 83, 48, 79, P::darkGray),
+        box(383, 83, 48, 79, P::darkGray),
+        circle(279, 105, 7, danger), circle(343, 105, 7, danger), circle(407, 105, 7, danger),
+        line(269, 134, 289, 117, danger), line(333, 134, 353, 117, danger),
+        line(397, 134, 417, 117, danger),
+        label(265, 170, tr("BAY BREAKERS", "JISTIČE PROSTORU"), amber),
+    });
+    turbineLower.animations.push_back({targetId(69, "breaker_arcs"), true, true,
+        {e2d::Condition::notFlag("bay_isolated")}, {
+            {6, {line(292, 75, 306, 63, signalBlue), line(356, 75, 370, 63, signalBlue)}},
+            {6, {line(356, 75, 370, 63, signalBlue), line(420, 75, 434, 63, signalBlue)}},
+        }});
+
+    auto& pump = resetRoom(70, P::darkGray, P::brown);
+    pump.decorations.insert(pump.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray),
+        circle(238, 139, 79, P::lightGray, false), circle(238, 139, 31, P::black),
+        line(159, 139, 72, 139, signalBlue), line(317, 139, 423, 139, signalBlue),
+        box(203, 49, 70, 39, P::brown), box(214, 58, 48, 21, P::black),
+        circle(238, 68, 6, danger),
+        box(44, 74, 92, 88, P::lightGray), box(54, 84, 72, 68, P::black),
+        circle(90, 118, 25, P::lightGray, false), line(90, 118, 104, 104, danger),
+        box(356, 70, 98, 96, P::lightGray), box(367, 81, 76, 74, P::black),
+        circle(387, 104, 7, danger), circle(423, 104, 7, P::darkGray),
+        label(187, 197, tr("EMERGENCY PUMP", "NOUZOVÉ ČERPADLO"), amber),
+    });
+    pump.animations.push_back({targetId(70, "pump_running_motion"), true, true,
+        {e2d::Condition::flag("pump_running")}, {
+            {5, {circle(238, 139, 30, P::brightGreen, false), line(238, 108, 238, 170, amber)}},
+            {5, {circle(238, 139, 30, P::brightGreen, false), line(207, 139, 269, 139, amber)}},
+        }});
+
+    auto& bay = resetRoom(71, P::darkGray, P::brown);
+    bay.decorations.insert(bay.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray),
+        box(36, 54, 420, 166, P::black), line(36, 54, 456, 54, P::lightGray),
+        line(67, 54, 67, 220, P::lightGray), line(425, 54, 425, 220, P::lightGray),
+        box(96, 96, 111, 95, P::brown), box(106, 106, 91, 75, P::black),
+        box(298, 91, 105, 100, P::lightGray), box(308, 101, 85, 80, P::black),
+        line(318, 119, 383, 119, danger), circle(350, 151, 15, P::lightGray, false),
+        label(112, 113, tr("LOCKER", "SKŘÍŇKA"), amber),
+    });
+
+    auto& intake = resetRoom(72, P::black, P::brown);
+    intake.decorations.insert(intake.decorations.end(), {
+        e2d::ArcVisual{{246, 225}, {225, 194}, 3.14159F, 6.28318F, P::darkGray},
+        box(37, 101, 18, 159, P::brown), box(437, 101, 18, 159, P::brown),
+        line(46, 102, 446, 102, P::brown),
+        line(73, 210, 419, 210, P::lightGray), line(92, 210, 92, 260, P::lightGray),
+        line(400, 210, 400, 260, P::lightGray),
+        box(274, 126, 142, 63, P::darkGray), box(284, 136, 122, 43, P::black),
+        circle(314, 157, 17, P::lightGray, false), line(331, 157, 391, 157, P::darkGray),
+        label(117, 137, tr("NO LIGHT", "BEZ SVĚTLA"), P::darkGray),
+    });
+    intake.animations.push_back({targetId(72, "water_reflection"), true, true, {}, {
+        {9, {line(84, 233, 191, 233, P::blue), line(274, 243, 406, 243, signalBlue)}},
+        {9, {line(98, 233, 205, 233, signalBlue), line(261, 243, 393, 243, P::blue)}},
+    }});
+
+    auto& shore = resetRoom(73, P::brightBlue, P::brown);
+    shore.decorations.insert(shore.decorations.end(), {
+        circle(421, 40, 14, amber),
+        line(0, 141, 103, 71, P::darkGray), line(103, 71, 218, 141, P::darkGray),
+        box(0, 141, 492, 119, P::blue),
+        e2d::PolygonVisual{{{0, 222}, {126, 189}, {246, 219}, {372, 181}, {492, 211}, {492, 260}, {0, 260}}, P::green, true},
+        line(35, 241, 35, 202, P::green), line(49, 241, 49, 197, P::brightGreen),
+        line(442, 241, 442, 201, P::green), line(457, 241, 457, 194, P::brightGreen),
+        circle(226, 233, 8, P::lightGray, false), line(218, 233, 206, 244, P::lightGray),
+        line(226, 225, 238, 216, P::lightGray),
+        line(286, 232, 305, 241, P::black), line(305, 241, 328, 235, P::black),
+        label(194, 198, tr("KLINE", "KLINEOVÁ"), amber),
+    });
+    shore.animations.push_back({targetId(73, "shore_waves"), true, true, {}, {
+        {9, {line(64, 166, 207, 166, signalBlue), line(271, 177, 452, 177, P::brightCyan)}},
+        {9, {line(78, 166, 221, 166, P::brightCyan), line(256, 177, 437, 177, signalBlue)}},
+    }});
+
+    auto& valves = resetRoom(74, P::brightBlue, P::brown);
+    valves.decorations.insert(valves.decorations.end(), {
+        box(0, 147, 492, 113, P::green),
+        box(39, 98, 414, 37, P::lightGray), box(62, 135, 29, 125, P::darkGray),
+        box(217, 135, 29, 125, P::darkGray), box(379, 135, 29, 125, P::darkGray),
+        circle(76, 117, 31, P::lightGray, false), circle(231, 117, 31, P::lightGray, false),
+        circle(393, 117, 31, P::lightGray, false),
+        line(76, 86, 76, 148, P::lightGray), line(45, 117, 107, 117, P::lightGray),
+        line(231, 86, 231, 148, P::lightGray), line(200, 117, 262, 117, P::lightGray),
+        circle(393, 117, 7, danger), box(316, 174, 106, 37, P::darkGray),
+        label(324, 185, tr("PUMP INTAKE", "PŘÍVOD ČERPADLA"), amber),
+    });
+
+    auto& shaft = resetRoom(75, P::black, P::brown);
+    shaft.decorations.insert(shaft.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray),
+        e2d::ArcVisual{{254, 221}, {154, 174}, 3.14159F, 6.28318F, P::brown},
+        box(109, 88, 14, 172, P::brown), box(385, 88, 14, 172, P::brown),
+        line(116, 88, 392, 88, P::brown),
+        box(143, 102, 224, 111, P::lightGray, false),
+        line(143, 102, 367, 213, P::lightGray), line(367, 102, 143, 213, P::lightGray),
+        line(255, 102, 255, 213, P::lightGray),
+        line(420, 94, 420, 244, amber), line(444, 94, 444, 244, amber),
+        line(420, 112, 444, 112, pale), line(420, 135, 444, 135, pale),
+        line(420, 158, 444, 158, pale), line(420, 181, 444, 181, pale),
+        line(420, 204, 444, 204, pale), label(407, 75, tr("MINE", "DŮL"), amber),
+    });
+    shaft.animations.push_back({targetId(75, "shaft_drip"), true, true, {}, {
+        {11, {line(185, 103, 185, 121, signalBlue), circle(185, 126, 2, P::brightCyan)}},
+        {11, {line(185, 112, 185, 130, signalBlue), circle(185, 135, 2, P::brightCyan)}},
+    }});
+}
+
 void addActThree(e2d::WorldDefinition& world) {
     // The camp is a set of physical work areas around two hubs, not a linear
     // catalogue walk. Every branch gets a visible, two-way ENTER route.
@@ -3240,12 +3469,116 @@ void addActThree(e2d::WorldDefinition& world) {
         circle(427, 204, 4, P::brightGreen), label(370, 225, tr("ELIAS", "ELIAS"), P::brightGreen),
     };
 
+    // The dam is a pair of connected work hubs. The catalogue order does not
+    // represent its stairs, control doors, intake tunnel or drained-bay route.
+    configureReservoirArtwork(world);
+    setHorizontalRoute(world, 64, 63, 65);
+    setHorizontalRoute(world, 65, 64, 66);
+    setHorizontalRoute(world, 66, 65, 67);
+    setHorizontalRoute(world, 67, 66, std::nullopt);
+    for (int branch = 68; branch <= 72; ++branch) {
+        setHorizontalRoute(world, branch, std::nullopt, std::nullopt);
+    }
+    setHorizontalRoute(world, 72, std::nullopt, 73);
+    setHorizontalRoute(world, 73, 72, 74);
+    setHorizontalRoute(world, 74, 73, std::nullopt);
+    setHorizontalRoute(world, 75, std::nullopt, std::nullopt);
+
+    addPortal(world, 65, "turbine_stairs", "STAIRS TO TURBINE HALL", "SCHODY DO TURBÍNOVÉ HALY",
+        {360, 132, 124, 128}, 68, {
+            line(374, 248, 458, 151, amber), line(397, 248, 481, 151, amber),
+            line(387, 230, 411, 230, pale), line(403, 211, 427, 211, pale),
+            line(419, 192, 443, 192, pale), line(435, 173, 459, 173, pale),
+            label(375, 137, tr("TURBINES", "TURBÍNY"), amber),
+        });
+    addPortal(world, 68, "abutment_stairs", "STAIRS TO WEST ABUTMENT", "SCHODY K ZÁPADNÍ OPĚŘE",
+        {0, 132, 64, 128}, 65, {
+            line(8, 151, 52, 247, amber), line(28, 151, 72, 247, amber),
+            line(19, 174, 42, 174, pale), line(28, 195, 51, 195, pale),
+            label(8, 137, tr("DAM", "HRÁZ"), amber),
+        });
+    addPortal(world, 68, "lower_stairs", "STAIRS TO LOWER TURBINE HALL", "SCHODY DO DOLNÍ TURBÍNOVÉ HALY",
+        {304, 132, 74, 128}, 69, {
+            line(313, 151, 356, 247, amber), line(333, 151, 376, 247, amber),
+            line(324, 176, 346, 176, pale), line(334, 198, 356, 198, pale),
+            label(315, 137, tr("LOWER", "DOLŮ"), pale),
+        });
+    addPortal(world, 68, "pump_door", "CONTROL DOOR TO PUMP GALLERY", "ŘÍDICÍ DVEŘE DO ČERPACÍ GALERIE",
+        {396, 132, 96, 128}, 70, {
+            box(406, 150, 76, 110, P::lightGray), box(415, 159, 58, 95, P::black),
+            circle(463, 207, 4, amber), label(421, 174, tr("PUMP", "ČERPADLO"), amber),
+        });
+    addPortal(world, 69, "upper_stairs", "STAIRS TO UPPER TURBINE HALL", "SCHODY DO HORNÍ TURBÍNOVÉ HALY",
+        {0, 132, 68, 128}, 68, {
+            line(8, 247, 51, 151, amber), line(28, 247, 71, 151, amber),
+            line(19, 222, 42, 222, pale), line(29, 201, 52, 201, pale),
+            label(8, 137, tr("UPPER", "NAHORU"), pale),
+        });
+    addPortal(world, 69, "pump_door", "DOOR TO PUMP GALLERY", "DVEŘE DO ČERPACÍ GALERIE",
+        {408, 132, 84, 128}, 70, {
+            box(418, 150, 64, 110, P::lightGray), box(427, 159, 46, 95, P::black),
+            circle(464, 207, 4, amber), label(432, 174, tr("PUMP", "ČERP."), amber),
+        });
+    addPortal(world, 70, "upper_door", "DOOR TO UPPER TURBINE HALL", "DVEŘE DO HORNÍ TURBÍNOVÉ HALY",
+        {0, 132, 50, 128}, 68, {box(6, 150, 39, 110, P::brown), label(8, 171, tr("UP", "HORNÍ"), pale)});
+    addPortal(world, 70, "lower_door", "DOOR TO LOWER TURBINE HALL", "DVEŘE DO DOLNÍ TURBÍNOVÉ HALY",
+        {66, 132, 50, 128}, 69, {box(72, 150, 39, 110, P::brown), label(74, 171, tr("LOW", "DOLNÍ"), pale)});
+    addPortal(world, 70, "bay_door", "DOOR TO MAINTENANCE BAY", "DVEŘE DO SERVISNÍHO PROSTORU",
+        {386, 132, 42, 128}, 71, {box(390, 150, 34, 110, P::blue), label(393, 171, tr("BAY", "PROST."), pale)});
+    addPortal(world, 70, "intake_door", "DOOR TO INTAKE TUNNEL", "DVEŘE DO PŘÍVODNÍHO TUNELU",
+        {444, 132, 48, 128}, 72, {box(448, 150, 39, 110, P::black), label(451, 171, tr("INTAKE", "PŘÍV."), amber)});
+    addPortal(world, 71, "pump_door", "DOOR TO PUMP GALLERY", "DVEŘE DO ČERPACÍ GALERIE",
+        {0, 132, 62, 128}, 70, {box(7, 150, 48, 110, P::brown), label(13, 171, tr("PUMP", "ČERP."), pale)});
+    auto& shaftRoute = addPortal(world, 71, "shaft_route", "DRAINED PASSAGE TO EAST SHAFT",
+        "ODČERPANÁ CESTA K VÝCHODNÍ ŠACHTĚ", {397, 132, 95, 128}, 75, {
+            e2d::PolygonVisual{{{401, 183}, {452, 183}, {483, 200}, {452, 217}, {401, 217}}, amber, true},
+            label(412, 195, tr("SHAFT", "ŠACHTA"), P::black),
+        }, {e2d::Condition::flag("pump_running"), e2d::Condition::flag("taken_magnet_cord")});
+    world.addInteraction({e2d::Verb::context, shaftRoute.id, std::nullopt,
+        {e2d::Condition::notFlag("taken_magnet_cord")},
+        {inspect(tr("The east passage remains flooded. Start the pump, then recover the magnet before leaving the bay.",
+            "Východní průchod zůstává zatopený. Spusť čerpadlo a před odchodem vytáhni magnet."))},
+        {}, 10, {}});
+    addPortal(world, 72, "pump_door", "DOOR TO PUMP GALLERY", "DVEŘE DO ČERPACÍ GALERIE",
+        {0, 132, 62, 128}, 70, {box(7, 150, 48, 110, P::brown), label(13, 171, tr("PUMP", "ČERP."), pale)});
+    addPortal(world, 75, "bay_route", "DRAINED PASSAGE TO MAINTENANCE BAY",
+        "ODČERPANÁ CESTA DO SERVISNÍHO PROSTORU", {0, 132, 74, 128}, 71, {
+            e2d::PolygonVisual{{{7, 183}, {31, 168}, {68, 168}, {68, 198}, {31, 198}}, amber, true},
+            label(27, 178, tr("BAY", "PROST."), P::black),
+        });
+    auto& mineLadder = addPortal(world, 75, "mine_ladder", "LADDER DOWN TO ORE CART CHAMBER",
+        "ŽEBŘÍK DOLŮ DO KOMORY S VOZÍKEM", {405, 132, 79, 128}, 76, {
+            line(420, 142, 420, 252, amber), line(444, 142, 444, 252, amber),
+            line(420, 160, 444, 160, pale), line(420, 183, 444, 183, pale),
+            line(420, 206, 444, 206, pale), line(420, 229, 444, 229, pale),
+            label(407, 137, tr("MINE", "DŮL"), amber),
+        }, {e2d::Condition::flag("mine_access_open")});
+    mineLadder.visibleWhen = {e2d::Condition::flag("mine_access_open")};
+
     addPickup(world, 65, "insulated_boots", "The rescue locker holds dry insulated boots.",
         "Záchranná skříňka obsahuje suché izolační boty.", 0);
     addPickup(world, 65, "turbine_badge", "Jonah's turbine badge lies on the safe side of the rail.",
         "Jonahův odznak turbíny leží na bezpečné straně zábradlí.", 1);
     addUse(world, 66, "spray_shield", "LOOSE SPRAY SHIELD", "UVOLNĚNÁ VODNÍ CLONA", "wrench", "spray_shield_fixed",
         "The shield locks into its safe timing position.", "Clona se zajistí v bezpečné časované poloze.");
+    auto& sprayShield = ensureHotspot(world, 66, "spray_shield",
+        tr("LOOSE SPRAY SHIELD", "UVOLNĚNÁ VODNÍ CLONA"),
+        {63, 135, 126, 125}, e2d::HotspotKind::mechanism);
+    sprayShield.interactionArea = {63, 135, 126, 125};
+    sprayShield.visibleWhen = {e2d::Condition::notFlag("spray_shield_fixed")};
+    sprayShield.visuals = {
+        box(83, 173, 82, 24, P::darkGray), line(91, 185, 157, 171, danger),
+        circle(92, 185, 6, P::lightGray, false), circle(156, 173, 6, P::lightGray, false),
+        label(76, 210, tr("LOOSE SHIELD", "VOLNÁ CLONA"), danger),
+    };
+    auto& fixedShield = ensureHotspot(world, 66, "spray_shield_complete",
+        tr("SECURED SPRAY SHIELD", "ZAJIŠTĚNÁ VODNÍ CLONA"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    fixedShield.visuals = {
+        box(83, 173, 82, 24, P::darkGray), line(91, 185, 157, 185, P::brightGreen),
+        circle(92, 185, 6, P::brightGreen, false), circle(156, 185, 6, P::brightGreen, false),
+        label(84, 210, tr("SHIELD SAFE", "CLONA OK"), P::brightGreen),
+    };
     addHazard(world, 66, "spillway_spray", "spray_shield_fixed",
         "The unsecured spray shield sweeps Iris into the spillway.", "Nezajištěná vodní clona smete Iris do přelivu.");
     gateRight(world, 66, {e2d::Condition::flag("spray_shield_fixed")},
@@ -3253,6 +3586,24 @@ void addActThree(e2d::WorldDefinition& world) {
     addUse(world, 67, "gatehouse_reader", "GATEHOUSE BADGE READER", "ČTEČKA DOMKU STAVIDEL",
         "turbine_badge", "gatehouse_open", "Jonah's badge opens the control vestibule.",
         "Jonahův odznak otevře vestibul ovládání.");
+    auto& gateReader = ensureHotspot(world, 67, "gatehouse_reader",
+        tr("GATEHOUSE BADGE READER", "ČTEČKA DOMKU STAVIDEL"),
+        {142, 135, 100, 125}, e2d::HotspotKind::mechanism);
+    gateReader.interactionArea = {142, 135, 100, 125};
+    gateReader.visibleWhen = {e2d::Condition::notFlag("gatehouse_open")};
+    gateReader.visuals = {
+        box(170, 166, 54, 63, P::darkGray), box(178, 174, 38, 47, P::black),
+        circle(197, 188, 7, danger), box(183, 204, 28, 9, P::red),
+        label(174, 235, tr("LOCKED", "ZAMČENO"), danger),
+    };
+    auto& gateReaderOpen = ensureHotspot(world, 67, "gatehouse_reader_complete",
+        tr("OPEN GATEHOUSE VESTIBULE", "OTEVŘENÝ VESTIBUL DOMKU"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    gateReaderOpen.visuals = {
+        box(170, 166, 54, 63, P::darkGray), box(178, 174, 38, 47, P::black),
+        circle(197, 188, 7, P::brightGreen), box(183, 204, 28, 9, P::brightGreen),
+        label(180, 235, tr("OPEN", "OTEVŘENO"), P::brightGreen),
+    };
     addPickup(world, 67, "spillway_crank", "You lift the removable emergency crank from Jonah's control locker.",
         "Z Jonahovy ovládací skříňky zvedneš odnimatelnou nouzovou kliku.", 1,
         {e2d::Condition::flag("gatehouse_open")});
@@ -3260,6 +3611,26 @@ void addActThree(e2d::WorldDefinition& world) {
         "spillway_crank", "spillway_closed", "Iris inserts the emergency crank and closes the false-open command by hand.",
         "Iris zasune nouzovou kliku a ručně zruší falešný povel k otevření.",
         {e2d::Condition::flag("gatehouse_open")}, true, 2);
+    auto& crankSocket = ensureHotspot(world, 67, "spillway_crank_socket",
+        tr("SPILLWAY CRANK SOCKET", "OBJÍMKA KLIKY PŘELIVU"),
+        {260, 135, 105, 125}, e2d::HotspotKind::mechanism, 2);
+    crankSocket.interactionArea = {260, 135, 105, 125};
+    crankSocket.visibleWhen = {e2d::Condition::flag("gatehouse_open"), e2d::Condition::notFlag("spillway_closed")};
+    crankSocket.visuals = {
+        circle(313, 190, 31, P::lightGray, false), circle(313, 190, 8, P::black),
+        line(313, 159, 313, 221, danger), line(282, 190, 344, 190, danger),
+        label(273, 231, tr("CRANK SOCKET", "OBJÍMKA KLIKY"), amber),
+    };
+    auto& spillwayClosed = ensureHotspot(world, 67, "spillway_crank_socket_complete",
+        tr("CLOSED SPILLWAY GATE", "UZAVŘENÉ STAVIDLO PŘELIVU"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    spillwayClosed.visuals = {
+        box(297, 76, 159, 31, P::black), label(315, 86, tr("GATE CLOSED", "STAVIDLO ZAVŘENO"), P::brightGreen),
+        circle(313, 190, 31, P::brightGreen, false), circle(313, 190, 8, amber),
+        line(313, 159, 313, 221, P::brightGreen), line(282, 190, 344, 190, P::brightGreen),
+        label(283, 231, tr("GATE CLOSED", "HRÁZ ZAVŘENA"), P::brightGreen),
+        line(79, 123, 57, 109, P::brightGreen),
+    };
     addCharacter(world, 67, "jonah", "JONAH REED", "JONAH REED", "jonah_briefed", {
         speech(tr("Jonah: That flood command came from the ridge, not this gatehouse.",
             "Jonah: Ten povel k záplavě přišel z hřebene, ne z tohoto domku.")),
@@ -3268,15 +3639,66 @@ void addActThree(e2d::WorldDefinition& world) {
         speech(tr("Iris: Voss is erasing his route. We will preserve it instead.",
             "Iris: Voss maže svou cestu. My ji naopak zachováme."), e2d::MessageSpeaker::player),
     }, {e2d::Condition::flag("spillway_closed")});
+    auto& jonah = ensureHotspot(world, 67, "jonah", tr("JONAH REED", "JONAH REED"),
+        {376, 135, 96, 125}, e2d::HotspotKind::character, 2);
+    jonah.interactionArea = {376, 135, 96, 125};
+    jonah.visibleWhen = {e2d::Condition::flag("spillway_closed")};
+    jonah.visuals = {
+        circle(424, 171, 11, amber), box(414, 182, 21, 49, P::brightCyan),
+        line(416, 231, 409, 258, P::lightGray), line(432, 231, 439, 258, P::lightGray),
+        line(414, 194, 397, 207, amber), line(435, 194, 452, 207, amber),
+    };
     addContext(world, 68, "power_diagram", "AUXILIARY POWER DIAGRAM", "SCHÉMA POMOCNÉHO NAPÁJENÍ",
         "dam_diagram_read", {inspect(tr("The diagram gives a safe breaker order and links the dam feed to the mine substation.",
             "Schéma uvádí bezpečné pořadí jističů a spojuje přehradu s důlní rozvodnou."))});
+    auto& powerDiagram = ensureHotspot(world, 68, "power_diagram",
+        tr("AUXILIARY POWER DIAGRAM", "SCHÉMA POMOCNÉHO NAPÁJENÍ"),
+        {171, 135, 111, 125}, e2d::HotspotKind::mechanism);
+    powerDiagram.interactionArea = {171, 135, 111, 125};
+    powerDiagram.visibleWhen = {e2d::Condition::notFlag("dam_diagram_read")};
+    powerDiagram.visuals = {
+        box(183, 151, 87, 77, pale), box(191, 159, 71, 61, P::blue),
+        line(198, 207, 211, 184, signalBlue), line(211, 184, 227, 203, P::brightGreen),
+        line(227, 203, 244, 174, signalBlue), line(244, 174, 256, 196, danger),
+        label(188, 232, tr("READ ORDER", "ČTI POŘADÍ"), amber),
+    };
+    auto& diagramRead = ensureHotspot(world, 68, "power_diagram_complete",
+        tr("READ AUXILIARY POWER DIAGRAM", "PŘEČTENÉ SCHÉMA POMOCNÉHO NAPÁJENÍ"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    diagramRead.visuals = {
+        box(183, 151, 87, 77, pale), box(191, 159, 71, 61, P::black),
+        circle(204, 178, 5, P::brightGreen), circle(227, 190, 5, P::brightGreen),
+        circle(250, 202, 5, P::brightGreen), line(204, 178, 227, 190, signalBlue),
+        line(227, 190, 250, 202, signalBlue), label(194, 232, tr("1-2-3", "1-2-3"), P::brightGreen),
+    };
     addPickup(world, 69, "pump_gasket", "A fresh pump gasket remains in the service cabinet.",
         "V servisní skříňce zůstalo nové těsnění čerpadla.", 0);
     addContext(world, 69, "bay_breakers", "FLOODED-BAY BREAKERS", "JISTIČE ZATOPENÉHO PROSTORU",
         "bay_isolated", {inspect(tr("Following the diagram, Iris opens the three breakers. The water stops arcing.",
             "Podle schématu Iris vypne tři jističe. Voda přestane jiskřit."))},
         {e2d::Condition::flag("dam_diagram_read")}, {}, 2, "power");
+    auto& bayBreakers = ensureHotspot(world, 69, "bay_breakers",
+        tr("FLOODED-BAY BREAKERS", "JISTIČE ZATOPENÉHO PROSTORU"),
+        {238, 135, 150, 125}, e2d::HotspotKind::mechanism, 2);
+    bayBreakers.interactionArea = {238, 135, 150, 125};
+    bayBreakers.visibleWhen = {e2d::Condition::flag("dam_diagram_read"), e2d::Condition::notFlag("bay_isolated")};
+    bayBreakers.visuals = {
+        box(250, 155, 126, 83, P::lightGray), box(259, 164, 108, 65, P::black),
+        box(268, 176, 20, 36, P::darkGray), box(303, 176, 20, 36, P::darkGray),
+        box(338, 176, 20, 36, P::darkGray),
+        line(278, 181, 278, 205, danger), line(313, 181, 313, 205, danger),
+        line(348, 181, 348, 205, danger), label(273, 218, tr("LIVE BAY", "PROUD V PROST."), danger),
+    };
+    auto& bayIsolated = ensureHotspot(world, 69, "bay_breakers_complete",
+        tr("ISOLATED MAINTENANCE BAY", "ODPOJENÝ SERVISNÍ PROSTOR"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    bayIsolated.visuals = {
+        box(250, 155, 126, 83, P::lightGray), box(259, 164, 108, 65, P::black),
+        box(268, 176, 20, 36, P::darkGray), box(303, 176, 20, 36, P::darkGray),
+        box(338, 176, 20, 36, P::darkGray),
+        line(278, 205, 278, 181, P::brightGreen), line(313, 205, 313, 181, P::brightGreen),
+        line(348, 205, 348, 181, P::brightGreen), label(278, 218, tr("ISOLATED", "ODPOJENO"), P::brightGreen),
+    };
     addPickup(world, 70, "dry_cell", "A charged dry cell waits beside the emergency starter.",
         "Vedle nouzového startéru čeká nabitý suchý článek.", 0);
     addUse(world, 70, "pump_flange", "EMERGENCY PUMP FLANGE", "PŘÍRUBA NOUZOVÉHO ČERPADLA",
@@ -3285,30 +3707,183 @@ void addActThree(e2d::WorldDefinition& world) {
     addUse(world, 70, "pump_starter", "EMERGENCY PUMP STARTER", "STARTÉR NOUZOVÉHO ČERPADLA",
         "dry_cell", "pump_battery_installed", "The charged dry cell wakes the starter lamp.",
         "Nabitý suchý článek rozsvítí kontrolku startéru.", {}, true, 2);
+    auto& pumpFlange = ensureHotspot(world, 70, "pump_flange",
+        tr("EMERGENCY PUMP FLANGE", "PŘÍRUBA NOUZOVÉHO ČERPADLA"),
+        {125, 135, 90, 125}, e2d::HotspotKind::mechanism);
+    pumpFlange.interactionArea = {125, 135, 90, 125};
+    pumpFlange.visibleWhen = {e2d::Condition::notFlag("pump_gasket_installed")};
+    pumpFlange.visuals = {
+        circle(170, 194, 29, P::lightGray, false), circle(170, 194, 13, P::black),
+        line(150, 174, 190, 214, danger), line(190, 174, 150, 214, danger),
+        label(140, 228, tr("NO GASKET", "BEZ TĚSNĚNÍ"), danger),
+    };
+    auto& flangeSealed = ensureHotspot(world, 70, "pump_flange_complete",
+        tr("SEALED PUMP FLANGE", "UTĚSNĚNÁ PŘÍRUBA ČERPADLA"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    flangeSealed.visuals = {
+        circle(170, 194, 29, P::brightGreen, false), circle(170, 194, 13, P::black),
+        circle(170, 194, 20, amber, false), label(145, 228, tr("SEALED", "TĚSNÍ"), P::brightGreen),
+    };
+    auto& pumpStarter = ensureHotspot(world, 70, "pump_starter",
+        tr("EMERGENCY PUMP STARTER", "STARTÉR NOUZOVÉHO ČERPADLA"),
+        {230, 135, 90, 125}, e2d::HotspotKind::mechanism, 2);
+    pumpStarter.interactionArea = {230, 135, 90, 125};
+    pumpStarter.visibleWhen = {e2d::Condition::notFlag("pump_battery_installed")};
+    pumpStarter.visuals = {
+        box(249, 168, 52, 61, P::darkGray), box(257, 176, 36, 45, P::black),
+        circle(275, 188, 7, danger), box(262, 204, 26, 9, P::red),
+        label(245, 233, tr("NO CELL", "BEZ ČLÁNKU"), danger),
+    };
+    auto& starterReady = ensureHotspot(world, 70, "pump_starter_complete",
+        tr("POWERED PUMP STARTER", "NAPÁJENÝ STARTÉR ČERPADLA"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    starterReady.visuals = {
+        box(249, 168, 52, 61, P::darkGray), box(257, 176, 36, 45, P::black),
+        circle(275, 188, 7, P::brightGreen), box(262, 204, 26, 9, P::brightGreen),
+        label(253, 233, tr("READY", "PŘIPRAVEN"), P::brightGreen),
+    };
+
+    addUse(world, 72, "intake_markings", "DARK INTAKE-TUNNEL MARKINGS", "TMAVÉ ZNAČKY PŘÍVODNÍHO TUNELU",
+        "hand_crank_torch", "intake_tunnel_lit",
+        "The hand-crank torch reveals Kline's chalk warning and the removable bypass wheel.",
+        "Ruční svítilna odhalí Klineové křídové varování a odnímatelné kolo obtoku.");
+    auto& intakeMarkings = ensureHotspot(world, 72, "intake_markings",
+        tr("DARK INTAKE-TUNNEL MARKINGS", "TMAVÉ ZNAČKY PŘÍVODNÍHO TUNELU"),
+        {88, 135, 150, 125}, e2d::HotspotKind::mechanism);
+    intakeMarkings.interactionArea = {88, 135, 150, 125};
+    intakeMarkings.visibleWhen = {e2d::Condition::notFlag("intake_tunnel_lit")};
+    intakeMarkings.visuals = {
+        e2d::ArcVisual{{164, 218}, {55, 70}, 3.14159F, 6.28318F, P::darkGray},
+        box(116, 176, 96, 54, P::black), label(134, 193, tr("NO LIGHT", "BEZ SVĚTLA"), P::darkGray),
+    };
+    auto& intakeLit = ensureHotspot(world, 72, "intake_markings_complete",
+        tr("KLINE'S CHALK WARNING", "KLINEOVÉ KŘÍDOVÉ VAROVÁNÍ"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    intakeLit.visuals = {
+        e2d::PolygonVisual{{{72, 247}, {127, 142}, {276, 142}, {334, 247}}, amber, false},
+        label(96, 159, tr("THE FIELD FOLLOWS", "POLE NÁSLEDUJE"), pale),
+        label(112, 178, tr("THE CARRIER", "NOSNOU VLNU"), signalBlue),
+        circle(319, 197, 24, P::lightGray, false), line(295, 197, 343, 197, P::lightGray),
+        line(319, 173, 319, 221, P::lightGray),
+    };
     addPickup(world, 72, "valve_wheel", "You detach the redundant bypass valve wheel.",
-        "Odpojíš kolo nepotřebného obtokového ventilu.", 0);
+        "Odpojíš kolo nepotřebného obtokového ventilu.", 0,
+        {e2d::Condition::flag("intake_tunnel_lit")});
     addUse(world, 74, "intake_valve", "PUMP INTAKE VALVE", "PŘÍVODNÍ VENTIL ČERPADLA", "valve_wheel", "pump_intake_open",
         "The wheel opens the intake in the direction shown by the turbine diagram.",
         "Kolo otevře přívod ve směru označeném na schématu turbíny.",
         {e2d::Condition::flag("dam_diagram_read")}, true);
+    auto& intakeValve = ensureHotspot(world, 74, "intake_valve",
+        tr("PUMP INTAKE VALVE", "PŘÍVODNÍ VENTIL ČERPADLA"),
+        {280, 135, 150, 125}, e2d::HotspotKind::mechanism);
+    intakeValve.interactionArea = {280, 135, 150, 125};
+    intakeValve.visibleWhen = {e2d::Condition::flag("dam_diagram_read"), e2d::Condition::notFlag("pump_intake_open")};
+    intakeValve.visuals = {
+        box(306, 174, 96, 55, P::darkGray), circle(354, 201, 28, P::lightGray, false),
+        circle(354, 201, 7, danger), line(354, 173, 354, 229, P::lightGray),
+        line(326, 201, 382, 201, P::lightGray), label(307, 237, tr("WHEEL MISSING", "CHYBÍ KOLO"), danger),
+    };
+    auto& intakeOpen = ensureHotspot(world, 74, "intake_valve_complete",
+        tr("OPEN PUMP INTAKE", "OTEVŘENÝ PŘÍVOD ČERPADLA"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    intakeOpen.visuals = {
+        box(306, 174, 96, 55, P::darkGray), circle(354, 201, 28, P::brightGreen, false),
+        circle(354, 201, 7, amber), line(334, 181, 374, 221, P::brightGreen),
+        line(374, 181, 334, 221, P::brightGreen), label(325, 237, tr("INTAKE OPEN", "PŘÍVOD OTEVŘEN"), P::brightGreen),
+    };
+    room(world, 74).animations.push_back({targetId(74, "intake_pressure"), true, true,
+        {e2d::Condition::flag("pump_intake_open")}, {
+            {7, {line(39, 106, 185, 106, signalBlue), circle(393, 117, 9, P::brightGreen)}},
+            {7, {line(112, 126, 263, 126, P::brightCyan), circle(393, 117, 6, P::brightGreen)}},
+        }});
     addContext(world, 70, "pump_controls", "EMERGENCY PUMP CONTROLS", "OVLÁDÁNÍ NOUZOVÉHO ČERPADLA",
         "pump_running", {inspect(tr("The primed pump catches and lowers the maintenance-bay water in four visible stages.",
             "Zavodněné čerpadlo se rozběhne a ve čtyřech stupních sníží vodu v servisním prostoru."))},
         {e2d::Condition::flag("pump_gasket_installed"), e2d::Condition::flag("pump_battery_installed"),
             e2d::Condition::flag("pump_intake_open"), e2d::Condition::flag("bay_isolated")}, {}, 3, "power");
+    auto& pumpControls = ensureHotspot(world, 70, "pump_controls",
+        tr("EMERGENCY PUMP CONTROLS", "OVLÁDÁNÍ NOUZOVÉHO ČERPADLA"),
+        {335, 135, 35, 125}, e2d::HotspotKind::mechanism, 3);
+    pumpControls.interactionArea = {335, 135, 35, 125};
+    pumpControls.visibleWhen = {
+        e2d::Condition::flag("pump_gasket_installed"), e2d::Condition::flag("pump_battery_installed"),
+        e2d::Condition::flag("pump_intake_open"), e2d::Condition::flag("bay_isolated"),
+        e2d::Condition::notFlag("pump_running"),
+    };
+    pumpControls.visuals = {
+        box(339, 171, 27, 59, P::darkGray), circle(352, 189, 9, P::brightGreen),
+        line(352, 204, 352, 221, amber), label(337, 234, tr("START", "START"), P::brightGreen),
+    };
+    auto& pumpRunning = ensureHotspot(world, 70, "pump_controls_complete",
+        tr("RUNNING EMERGENCY PUMP", "BĚŽÍCÍ NOUZOVÉ ČERPADLO"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    pumpRunning.visuals = {
+        box(339, 171, 27, 59, P::darkGray), circle(352, 189, 9, P::brightGreen),
+        line(344, 210, 360, 210, P::brightGreen), label(334, 234, tr("RUNNING", "BĚŽÍ"), P::brightGreen),
+    };
     addPickup(world, 71, "magnet_cord", "Wearing insulated boots, Iris retrieves the magnet from the shallow locker.",
         "V izolačních botách Iris vytáhne magnet z mělké skříňky.", 0,
         {e2d::Condition::flag("pump_running"), e2d::Condition::has("insulated_boots")});
     addHazard(world, 71, "electrified_water", "bay_isolated",
         "Current flashes through the flooded maintenance bay.", "Zatopeným servisním prostorem projede proud.");
+    auto& liveBayWater = ensureHotspot(world, 71, "live_bay_water",
+        tr("DEEP ELECTRIFIED WATER", "HLUBOKÁ VODA POD PROUDEM"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    liveBayWater.visibleWhen = {e2d::Condition::notFlag("bay_isolated")};
+    liveBayWater.visuals = {
+        box(36, 125, 420, 135, P::blue), line(36, 125, 456, 125, P::brightCyan),
+        line(79, 161, 192, 161, signalBlue), line(269, 180, 426, 180, signalBlue),
+        line(302, 118, 316, 102, pale), line(316, 102, 329, 119, signalBlue),
+        label(172, 139, tr("LIVE WATER", "VODA POD PROUDEM"), danger),
+    };
+    auto& isolatedBayWater = ensureHotspot(world, 71, "isolated_bay_water",
+        tr("ISOLATED FLOODED BAY", "ODPOJENÝ ZATOPENÝ PROSTOR"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    isolatedBayWater.visibleWhen = {e2d::Condition::flag("bay_isolated"), e2d::Condition::notFlag("pump_running")};
+    isolatedBayWater.visuals = {
+        box(36, 164, 420, 96, P::blue), line(36, 164, 456, 164, signalBlue),
+        line(71, 191, 211, 191, P::brightCyan), line(279, 211, 429, 211, P::brightCyan),
+        label(171, 176, tr("POWER ISOLATED", "PROUD ODPOJEN"), amber),
+    };
+    auto& drainedBay = ensureHotspot(world, 71, "drained_bay_water",
+        tr("DRAINED MAINTENANCE BAY", "ODČERPANÝ SERVISNÍ PROSTOR"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    drainedBay.visibleWhen = {e2d::Condition::flag("pump_running")};
+    drainedBay.visuals = {
+        box(36, 226, 420, 34, P::blue), line(36, 226, 456, 226, P::brightCyan),
+        line(75, 244, 214, 244, signalBlue), line(275, 251, 422, 251, signalBlue),
+        label(166, 231, tr("BAY DRAINED", "PROSTOR ODČERPÁN"), P::brightGreen),
+    };
+    room(world, 71).animations.push_back({targetId(71, "residual_ripple"), true, true,
+        {e2d::Condition::flag("pump_running")}, {
+            {9, {line(71, 244, 187, 244, P::brightCyan)}},
+            {9, {line(86, 244, 202, 244, signalBlue)}},
+        }});
     addContext(world, 75, "shaft_grille", "EAST SHAFT GRILLE", "MŘÍŽ VÝCHODNÍ ŠACHTY", "mine_access_open", {
         speech(tr("Jonah: Water is down. I have released the east grille. Watch the mine gas below.",
             "Jonah: Voda klesla. Uvolnil jsem východní mříž. Dole pozor na důlní plyn.")),
     }, {e2d::Condition::flag("jonah_briefed"), e2d::Condition::flag("pump_running"),
         e2d::Condition::flag("taken_magnet_cord")}, {e2d::Mutation::setFlag("reservoir_complete")}, 2, "unlock");
-    gateRight(world, 75, {e2d::Condition::flag("mine_access_open")},
-        "Jonah cannot open the shaft until the spillway and flooded bay are controlled.",
-        "Jonah nemůže otevřít šachtu, dokud nejsou přeliv a zatopený prostor pod kontrolou.");
+    auto& shaftGrille = ensureHotspot(world, 75, "shaft_grille",
+        tr("EAST SHAFT GRILLE", "MŘÍŽ VÝCHODNÍ ŠACHTY"),
+        {205, 135, 145, 125}, e2d::HotspotKind::mechanism, 2);
+    shaftGrille.interactionArea = {205, 135, 145, 125};
+    shaftGrille.visibleWhen = {e2d::Condition::notFlag("mine_access_open")};
+    shaftGrille.visuals = {
+        box(218, 151, 119, 94, P::lightGray, false),
+        line(218, 151, 337, 245, P::lightGray), line(337, 151, 218, 245, P::lightGray),
+        line(278, 151, 278, 245, P::lightGray), box(263, 188, 30, 23, P::red),
+        circle(278, 199, 5, amber), label(230, 231, tr("GRILLE LOCKED", "MŘÍŽ ZAVŘENA"), danger),
+    };
+    auto& shaftOpen = ensureHotspot(world, 75, "shaft_grille_complete",
+        tr("OPEN EAST SHAFT", "OTEVŘENÁ VÝCHODNÍ ŠACHTA"),
+        {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    shaftOpen.visuals = {
+        box(218, 151, 119, 22, P::lightGray, false),
+        line(218, 151, 248, 173, P::lightGray), line(337, 151, 307, 173, P::lightGray),
+        box(233, 181, 89, 64, P::black), label(239, 231, tr("SHAFT OPEN", "ŠACHTA OTEVŘENA"), P::brightGreen),
+        circle(278, 199, 5, P::brightGreen),
+    };
 
     addPickup(world, 76, "respirator", "You take the respirator body from the emergency cabinet.",
         "Vezmeš tělo respirátoru z nouzové skříňky.", 0);
@@ -3881,12 +4456,46 @@ void addHints(e2d::WorldDefinition& world) {
         "U Příjezdu k viaduktu POUŽIJ montážní klíč na táhlo brzdy označené CHYBÍ ČEP.");
     next("elias_contacted", "Cross east after the whistle and brake are safe, then answer the portable radio with ENTER.",
         "Po zajištění píšťaly a brzdy přejdi na východ a zvedni přenosné rádio klávesou ENTER.");
-    next("spillway_closed", "Use Jonah's badge in the Gatehouse, TAKE the emergency crank, then USE it in the spillway socket.",
-        "V Domku stavidel použij Jonahův odznak, SEBER nouzovou kliku a POUŽIJ ji v objímce přelivu.");
-    next("pump_running", "Isolate the bay, fit the gasket and cell, open the Valve Garden intake, then return to Pump Gallery.",
-        "Odpoj prostor, namontuj těsnění a článek, otevři přívod ve Ventilovém poli a vrať se do Čerpací galerie.");
-    next("mine_access_open", "Retrieve the magnet in the drained Maintenance Bay, then ask Jonah to open East Access Shaft.",
-        "V odčerpaném Servisním prostoru vezmi magnet a požádej Jonaha o otevření Východní šachty.");
+    next("taken_insulated_boots", "Continue east to West Abutment and TAKE the insulated boots from the RESCUE locker.",
+        "Pokračuj na východ k Západní opěře a SEBER izolační boty ze skříňky ZÁCHRANA.");
+    next("taken_turbine_badge", "At West Abutment, TAKE Jonah's turbine badge beside the rescue locker.",
+        "U Západní opěry SEBER Jonahův turbínový odznak vedle záchranné skříňky.");
+    next("spray_shield_fixed", "Continue east and USE the wrench on the LOOSE SHIELD before crossing Spillway Walk.",
+        "Pokračuj na východ a před přechodem přelivu POUŽIJ klíč na VOLNOU CLONU.");
+    next("gatehouse_open", "Cross the now-safe spillway and USE Jonah's turbine badge on the Gatehouse reader.",
+        "Přejdi nyní bezpečný přeliv a na čtečce Domku stavidel POUŽIJ Jonahův turbínový odznak.");
+    next("taken_spillway_crank", "Inside the open Gatehouse vestibule, TAKE the emergency spillway crank.",
+        "V otevřeném vestibulu Domku stavidel SEBER nouzovou kliku přelivu.");
+    next("spillway_closed", "In the Gatehouse, USE the emergency crank on the large CRANK SOCKET.",
+        "V Domku stavidel POUŽIJ nouzovou kliku na velkou OBJÍMKU KLIKY.");
+    next("jonah_briefed", "After the gate closes, speak to Jonah in the Gatehouse with ENTER.",
+        "Po uzavření stavidla promluv v Domku stavidel s Jonahem klávesou ENTER.");
+    next("dam_diagram_read", "Return west to the abutment, follow TURBINES and read the AUX POWER diagram with ENTER.",
+        "Vrať se na západ k opěře, sleduj TURBÍNY a klávesou ENTER přečti schéma POMOCNÉHO PROUDU.");
+    next("taken_pump_gasket", "In Turbine Hall Upper take the LOWER stairs and TAKE the pump gasket.",
+        "V Horní turbínové hale sejdi po schodech DOLŮ a SEBER těsnění čerpadla.");
+    next("bay_isolated", "In Turbine Hall Lower, operate the three BAY BREAKERS with ENTER in the diagram order.",
+        "V Dolní turbínové hale ovládej klávesou ENTER tři JISTIČE PROSTORU v pořadí ze schématu.");
+    next("taken_dry_cell", "From Turbine Hall Lower enter PUMP and TAKE the dry-cell battery.",
+        "Z Dolní turbínové haly vstup do ČERPACÍ GALERIE a SEBER suchý článek.");
+    next("pump_gasket_installed", "In Pump Gallery, USE the gasket on the pump flange marked NO GASKET.",
+        "V Čerpací galerii POUŽIJ těsnění na přírubě označené BEZ TĚSNĚNÍ.");
+    next("pump_battery_installed", "In Pump Gallery, USE the dry cell on the starter marked NO CELL.",
+        "V Čerpací galerii POUŽIJ suchý článek na startéru označeném BEZ ČLÁNKU.");
+    next("intake_tunnel_lit", "From Pump Gallery enter INTAKE and USE the hand-crank torch on the dark markings.",
+        "Z Čerpací galerie vstup do PŘÍVODU a na tmavých značkách POUŽIJ ruční svítilnu.");
+    next("taken_valve_wheel", "In the lit Intake Tunnel, TAKE the removable valve wheel revealed by Kline's warning.",
+        "V osvětleném Přívodním tunelu SEBER odnímatelné ventilové kolo odkryté Klineové varováním.");
+    next("pump_intake_open", "Continue east through Reservoir Shore and USE the valve wheel on PUMP INTAKE.",
+        "Pokračuj na východ přes Břeh nádrže a na PŘÍVODU ČERPADLA POUŽIJ ventilové kolo.");
+    next("pump_running", "Return through the intake tunnel to PUMP and press ENTER at the green START control.",
+        "Vrať se přívodním tunelem k ČERPADLU a stiskni ENTER u zeleného ovládání START.");
+    next("taken_magnet_cord", "In Pump Gallery enter BAY and TAKE the magnet from the now-shallow locker water.",
+        "V Čerpací galerii vstup do PROSTORU a SEBER magnet z nyní mělké vody u skříňky.");
+    next("mine_access_open", "Follow the SHAFT route from the drained bay and ask Jonah to raise the grille with ENTER.",
+        "Sleduj cestu ŠACHTA z odčerpaného prostoru a klávesou ENTER požádej Jonaha o zvednutí mříže.");
+    next("taken_respirator", "At East Access Shaft take the MINE ladder down and TAKE the respirator from the cabinet.",
+        "Ve Východní šachtě slez po žebříku DŮL a SEBER respirátor ze skříňky.");
     next("respirator_fitted", "In the Ventilation Room, TAKE the empty filter housing and USE charcoal to complete the respirator.",
         "Ve Větrací strojně SEBER prázdné pouzdro filtru a POUŽIJ uhlí k dokončení respirátoru.");
     next("lift_powered", "Ground the Switchgear Aisle, cut the black feed, then install the copper bus in the Cable Vault.",

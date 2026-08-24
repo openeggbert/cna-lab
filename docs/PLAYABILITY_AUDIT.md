@@ -28,7 +28,7 @@ A region is human-playable only when all of the following are true:
 | North forest | 25–38 | Audited | The creek, Theo, cache, kiln, Echo Grove, weather station and lookout are connected by visible routes. Hidden supplies require exploration, the bear solution is harmless, and the scenario follows the physical loop. |
 | Quarry and ravine | 39–50 | Audited | The rope descent, lit culvert, safe waterfall route, gate/office/crusher branches, magazine, tunnel and two-way hoist shortcut are physically traversed and visibly labelled. |
 | Logging railway | 51–63 | Audited | Sawmill, bunkhouse, mess, office, spur and engine branches use visible two-way routes. June gates the switch-key clue; the engine and trestle have persistent repair states, and the scenario follows the complete physical route. |
-| Reservoir and dam | 64–75 | Scripted, not audited | Build gatehouse/turbine/pump branches, water-state artwork and safe return paths. |
+| Reservoir and dam | 64–75 | Audited | Gatehouse, two-level turbine hall, pump gallery, intake route and drained-bay path use visible two-way connections. Water, power, valve, pump and grille states persist, and the scenario follows the complete physical route. |
 | Mine and underground power | 76–90 | Scripted, not audited | Build mine branches, readable gas/electrical warnings, lift and switchgear topology. |
 | Observatory | 91–102 | Scripted, not audited | Build courtyard diversion routes, archive/dome branches and room-specific interiors. |
 | Nightjar bunker | 103–115 | Scripted, not audited | Build access-lock sequence, patrol containment, laboratory branches and Kline rescue route. |
@@ -86,7 +86,22 @@ A region is human-playable only when all of the following are true:
   smoke animation, while other camp machinery remains deliberately sparse.
 - F1 now guides the logging sequence one visible action at a time, and the
   automated scenario traverses the same labelled doors and paths as a player.
+- Screens 64–75 now match the dam's vertical design: the west abutment branches
+  to the spillway and turbine hall, both turbine levels return to the pump
+  gallery, and the gallery branches to the intake tunnel and maintenance bay.
+- The hand-crank torch is now required in the dark intake tunnel before
+  Kline's warning and the removable valve wheel become visible. The scenario
+  can no longer bypass this documented step.
+- Spillway shields, badge reader, crank socket, auxiliary diagram, three bay
+  breakers, pump flange, starter, intake valve and shaft grille have distinct
+  before/after drawings. Animated state is limited to water, warning lamps,
+  turbines, pump rotation, pressure and drips.
+- The maintenance bay visibly changes from deep live water to isolated water
+  and finally a shallow drained state. The shaft route cannot be used until the
+  pump is running and the magnet has been recovered safely.
+- F1 guides every physical dam action by the labels drawn in the scene, and the
+  full scenario uses every stair, door, tunnel, shoreline and drained passage.
 
-The next implementation pass starts with the Reservoir and Dam
-(screens 64–75), where the gatehouse, pumpworks and maintenance routes are
-still presented as a linear sequence.
+The next implementation pass starts with the Mine and Underground Power
+(screens 76–90), where the ventilation, drainage, lift and substation routes
+are still presented as a linear sequence.
