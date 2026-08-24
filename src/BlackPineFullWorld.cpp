@@ -4499,19 +4499,249 @@ void addActThree(e2d::WorldDefinition& world) {
     }, {e2d::Condition::flag("jonah_briefed"), e2d::Condition::flag("reservoir_complete")});
 }
 
+void configureObservatoryArtwork(e2d::WorldDefinition& world) {
+    const auto resetRoom = [&world](const int number, const P background, const P floor) -> e2d::RoomDefinition& {
+        auto& result = room(world, number);
+        result.background = background;
+        result.decorations.clear();
+        result.solids.clear();
+        result.animations.clear();
+        addGround(result, floor);
+        return result;
+    };
+
+    auto& lobby = resetRoom(91, P::darkGray, P::brown);
+    lobby.decorations.insert(lobby.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray), box(34, 42, 152, 178, P::lightGray, false),
+        box(51, 59, 118, 161, P::black), line(110, 59, 110, 220, P::lightGray),
+        box(217, 77, 83, 76, P::lightGray), box(228, 88, 61, 54, P::black),
+        circle(258, 115, 18, danger), line(258, 97, 308, 74, P::lightGray),
+        box(337, 57, 120, 163, P::brown), box(350, 70, 94, 150, P::black),
+        label(357, 85, tr("STAFF", "PERSONÁL"), amber), label(65, 74, tr("RIDGE LIFT", "HŘEBENOVÝ VÝTAH"), pale),
+    });
+    lobby.animations.push_back({targetId(91, "camera_sweep"), true, true,
+        {e2d::Condition::notFlag("camera_blinded")}, {
+            {7, {line(258, 115, 352, 203, danger)}}, {7, {line(258, 115, 169, 203, danger)}},
+        }});
+
+    auto& courtyard = resetRoom(92, P::blue, P::brown);
+    courtyard.decorations.insert(courtyard.decorations.end(), {
+        box(0, 0, 492, 175, P::blue), circle(417, 39, 14, amber),
+        box(31, 78, 112, 142, P::darkGray), box(44, 91, 86, 129, P::black),
+        box(190, 55, 111, 165, P::lightGray), box(203, 68, 85, 152, P::black),
+        box(349, 84, 109, 136, P::darkGray), box(362, 97, 83, 123, P::black),
+        line(63, 220, 163, 141, signalBlue), line(421, 220, 321, 141, danger),
+        label(51, 108, tr("KITCHEN", "KUCHYŇ"), amber), label(211, 84, tr("INFIRMARY", "OŠETŘOVNA"), pale),
+        label(378, 113, tr("WEATHER LAB", "METEO LAB"), signalBlue),
+    });
+    courtyard.animations.push_back({targetId(92, "searchlights"), true, true,
+        {e2d::Condition::notFlag("courtyard_patrol_diverted")}, {
+            {8, {line(63, 220, 163, 141, pale), line(421, 220, 321, 141, danger)}},
+            {8, {line(63, 220, 205, 141, danger), line(421, 220, 279, 141, pale)}},
+        }});
+
+    auto& dorm = resetRoom(93, P::brown, P::darkGray);
+    dorm.decorations.insert(dorm.decorations.end(), {
+        box(0, 0, 492, 220, P::brown), box(39, 88, 183, 103, P::lightGray),
+        box(50, 99, 161, 81, P::black), box(61, 139, 139, 31, P::blue),
+        box(276, 51, 155, 169, P::darkGray), box(289, 64, 129, 156, P::black),
+        box(306, 82, 43, 104, P::red), line(370, 77, 370, 188, amber),
+        box(94, 190, 72, 25, pale), label(101, 196, tr("23:40 BUYER", "KUPUJÍCÍ 23:40"), danger),
+        label(64, 76, tr("VOSS BUNK", "VOSSOVO LŮŽKO"), amber),
+    });
+
+    auto& kitchen = resetRoom(94, P::brown, P::darkGray);
+    kitchen.decorations.insert(kitchen.decorations.end(), {
+        box(0, 0, 492, 220, P::brown), box(34, 70, 194, 114, P::lightGray),
+        box(46, 82, 170, 90, P::black), circle(91, 128, 31, P::lightGray, false),
+        box(260, 81, 187, 139, P::darkGray), box(274, 95, 159, 125, P::black),
+        circle(318, 140, 29, amber, false), line(318, 140, 318, 117, danger),
+        line(318, 140, 337, 151, danger), box(368, 158, 47, 36, P::red),
+        label(284, 109, tr("TIMER", "MINUTKA"), amber), label(355, 201, tr("BACK DOOR", "ZADNÍ DVEŘE"), pale),
+    });
+
+    auto& infirmary = resetRoom(95, pale, P::darkGray);
+    infirmary.decorations.insert(infirmary.decorations.end(), {
+        box(0, 0, 492, 220, pale), box(28, 74, 206, 122, P::lightGray),
+        box(42, 88, 178, 94, P::black), box(54, 144, 154, 24, P::blue),
+        box(278, 52, 172, 168, P::lightGray), box(291, 65, 146, 142, P::black),
+        circle(328, 129, 31, P::lightGray, false), circle(398, 129, 31, P::lightGray, false),
+        line(359, 129, 367, 129, signalBlue), label(303, 78, tr("KLINE RECORDING", "NAHRÁVKA KLINEOVÉ"), amber),
+    });
+
+    auto& archive = resetRoom(96, P::brown, P::darkGray);
+    archive.decorations.insert(archive.decorations.end(), {
+        box(0, 0, 492, 220, P::brown), box(27, 41, 438, 179, P::darkGray),
+        box(42, 57, 95, 132, P::black), box(151, 57, 95, 132, P::black),
+        box(260, 57, 95, 132, P::black), box(369, 57, 80, 132, P::black),
+        circle(89, 91, 19, amber), circle(198, 91, 19, P::brightMagenta),
+        circle(307, 91, 19, signalBlue), circle(409, 91, 19, danger),
+        label(52, 127, tr("CALDER 1958", "CALDEROVÁ 1958"), pale),
+        label(163, 127, tr("KLINE 1974", "KLINEOVÁ 1974"), pale),
+        label(276, 127, tr("VOSS 1981", "VOSS 1981"), pale),
+    });
+
+    auto& records = resetRoom(97, P::brown, P::darkGray);
+    records.decorations.insert(records.decorations.end(), {
+        box(0, 0, 492, 220, P::brown), box(59, 51, 374, 169, P::lightGray),
+        box(75, 70, 74, 64, P::darkGray), box(164, 70, 74, 64, P::darkGray),
+        box(253, 70, 74, 64, P::darkGray), box(342, 70, 74, 64, P::darkGray),
+        circle(112, 102, 5, amber), circle(201, 102, 5, amber),
+        circle(290, 102, 5, amber), circle(379, 102, 5, amber),
+        box(151, 157, 190, 47, P::black), label(173, 174, tr("FOUR PROJECT DATES", "ČTYŘI DATA PROJEKTU"), amber),
+    });
+
+    auto& weather = resetRoom(98, P::darkGray, P::brown);
+    weather.decorations.insert(weather.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray), box(35, 53, 189, 151, P::lightGray),
+        box(48, 66, 163, 125, P::black), e2d::PolylineVisual{{{58, 159}, {82, 121}, {109, 164}, {137, 104}, {167, 151}, {201, 92}}, signalBlue, false},
+        box(268, 50, 181, 154, P::lightGray), box(281, 63, 155, 128, P::black),
+        e2d::PolygonVisual{{{340, 90}, {377, 127}, {340, 165}, {303, 127}}, P::brightMagenta, true},
+        line(291, 181, 426, 181, P::brightGreen), label(294, 72, tr("PHASE PRISM", "FÁZOVÝ HRANOL"), amber),
+    });
+    weather.animations.push_back({targetId(98, "radar_sweep"), true, true, {}, {
+        {8, {line(129, 129, 197, 91, P::brightGreen)}}, {8, {line(129, 129, 197, 166, P::brightGreen)}},
+    }});
+
+    auto& dome = resetRoom(99, P::blue, P::darkGray);
+    dome.decorations.insert(dome.decorations.end(), {
+        e2d::ArcVisual{{246, 222}, {205, 190}, 3.14159F, 6.28318F, P::lightGray},
+        line(246, 32, 246, 222, P::black), line(41, 222, 451, 222, P::lightGray),
+        box(182, 159, 128, 63, P::darkGray), circle(246, 184, 24, P::black),
+        line(246, 184, 279, 142, danger), box(339, 140, 83, 70, P::lightGray),
+        box(350, 151, 61, 48, P::black), circle(380, 174, 7, danger),
+        label(330, 126, tr("NORTH DRIVE", "POHON SEVER"), amber),
+    });
+
+    auto& telescope = resetRoom(100, P::blue, P::brown);
+    telescope.decorations.insert(telescope.decorations.end(), {
+        box(0, 0, 492, 171, P::blue), circle(421, 39, 15, amber),
+        line(35, 171, 142, 74, P::darkGray), line(142, 74, 245, 171, P::darkGray),
+        line(281, 171, 379, 61, P::lightGray), line(379, 61, 475, 171, P::lightGray),
+        box(127, 101, 201, 45, P::lightGray), circle(124, 123, 26, P::darkGray),
+        circle(331, 123, 20, P::darkGray), line(228, 146, 228, 235, amber),
+        line(179, 235, 277, 235, amber), label(142, 82, tr("LANDMARK SIGHT", "ZAMĚŘOVAČ BODŮ"), pale),
+    });
+
+    auto& comm = resetRoom(101, P::darkGray, P::brown);
+    comm.decorations.insert(comm.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray), box(33, 45, 426, 158, P::lightGray),
+        box(46, 58, 400, 132, P::black), box(61, 75, 113, 80, P::blue),
+        e2d::PolylineVisual{{{70, 137}, {88, 101}, {109, 143}, {128, 93}, {150, 129}}, signalBlue, false},
+        circle(210, 92, 6, danger), circle(235, 92, 6, amber), circle(260, 92, 6, P::brightGreen),
+        line(199, 129, 410, 129, signalBlue), line(199, 147, 386, 147, danger),
+        label(292, 72, tr("SABLE / JAMMER", "SABLE / RUŠIČKA"), amber),
+    });
+
+    auto& security = resetRoom(102, P::darkGray, P::brown);
+    security.decorations.insert(security.decorations.end(), {
+        box(0, 0, 492, 220, P::darkGray), box(37, 48, 244, 155, P::lightGray),
+        box(49, 60, 220, 131, P::black), box(61, 73, 89, 48, P::blue),
+        box(166, 73, 89, 48, P::blue), line(67, 109, 140, 82, signalBlue),
+        line(172, 82, 248, 109, danger), box(315, 67, 135, 136, P::lightGray),
+        box(328, 80, 109, 110, P::black), box(352, 107, 61, 39, P::red),
+        circle(383, 166, 8, danger), label(333, 88, tr("DOME KEY", "KLÍČ KOPULE"), amber),
+    });
+}
+
 void addActFour(e2d::WorldDefinition& world) {
+    configureObservatoryArtwork(world);
+    for (int branch = 91; branch <= 102; ++branch) {
+        setHorizontalRoute(world, branch, std::nullopt, std::nullopt);
+    }
+    setHorizontalRoute(world, 103, 101, 104);
+
+    addPortal(world, 91, "ridge_lift_return", "RIDGE LIFT DOWN", "HŘEBENOVÝ VÝTAH DOLŮ",
+        {0, 137, 62, 123}, 90, {box(7, 151, 48, 109, P::darkGray), label(10, 172, tr("LIFT", "VÝTAH"), amber)});
+    addPortal(world, 96, "lobby_passage", "STAFF PASSAGE TO LIFT LOBBY", "SLUŽEBNÍ CHODBA K VESTIBULU",
+        {0, 137, 62, 123}, 91, {box(7, 151, 48, 109, P::brown), label(9, 172, tr("LOBBY", "VEST."), pale)});
+    addPortal(world, 96, "dormitory_door", "DOOR TO DORMITORY", "DVEŘE DO UBYTOVNY",
+        {78, 137, 70, 123}, 93, {box(85, 151, 56, 109, P::red), label(90, 172, tr("DORM", "UBYT."), pale)});
+    addPortal(world, 96, "records_door", "RECORDS ROOM", "SPISOVNA",
+        {276, 137, 70, 123}, 97, {box(283, 151, 56, 109, P::brown), label(287, 172, tr("RECORDS", "SPISY"), amber)});
+    addPortal(world, 96, "security_door", "SECURITY OFFICE", "BEZPEČNOSTNÍ KANCELÁŘ",
+        {369, 137, 115, 123}, 102, {box(376, 151, 101, 109, P::blue), label(383, 172, tr("SECURITY", "OCHRANA"), pale)});
+    addPortal(world, 93, "archive_door", "DOOR TO ARCHIVE HALL", "DVEŘE DO ARCHIVNÍ HALY",
+        {0, 137, 62, 123}, 96, {box(7, 151, 48, 109, P::brown), label(9, 172, tr("ARCHIVE", "ARCHIV"), pale)});
+    addPortal(world, 93, "courtyard_door", "DOOR TO COURTYARD", "DVEŘE NA NÁDVOŘÍ",
+        {407, 137, 77, 123}, 92, {box(414, 151, 63, 109, P::blue), label(418, 172, tr("COURT", "DVŮR"), pale)});
+    addPortal(world, 92, "lobby_door", "CHAINED PUBLIC LOBBY DOOR", "ZŘETĚZENÉ DVEŘE DO VESTIBULU",
+        {0, 137, 55, 123}, 91, {box(7, 151, 41, 109, P::darkGray), line(10, 181, 45, 213, amber),
+            label(9, 172, tr("LOBBY", "VEST."), pale)}, {e2d::Condition::flag("camera_blinded")});
+    addPortal(world, 92, "dormitory_door", "DORMITORY", "UBYTOVNA",
+        {72, 137, 55, 123}, 93, {box(79, 151, 41, 109, P::red), label(80, 172, tr("DORM", "UBYT."), pale)});
+    addPortal(world, 92, "kitchen_door", "OBSERVATORY KITCHEN", "KUCHYNĚ OBSERVATOŘE",
+        {145, 137, 63, 123}, 94, {box(152, 151, 49, 109, P::brown), label(155, 172, tr("KITCHEN", "KUCHYŇ"), amber)});
+    addPortal(world, 92, "infirmary_door", "OBSERVATORY INFIRMARY", "OŠETŘOVNA OBSERVATOŘE",
+        {226, 137, 78, 123}, 95, {box(233, 151, 64, 109, pale), label(237, 172, tr("INFIRM.", "OŠETŘ."), P::black)});
+    addPortal(world, 92, "weather_lab_door", "WEATHER LAB", "METEOROLOGICKÁ LABORATOŘ",
+        {340, 137, 144, 123}, 98, {box(351, 151, 126, 109, P::blue), label(365, 172, tr("WEATHER LAB", "METEO LAB"), pale)},
+        {e2d::Condition::flag("courtyard_patrol_diverted")});
+    addPortal(world, 94, "courtyard_door", "DOOR TO COURTYARD", "DVEŘE NA NÁDVOŘÍ",
+        {0, 137, 62, 123}, 92, {box(7, 151, 48, 109, P::brown), label(9, 172, tr("COURT", "DVŮR"), pale)});
+    addPortal(world, 95, "courtyard_door", "DOOR TO COURTYARD", "DVEŘE NA NÁDVOŘÍ",
+        {0, 137, 62, 123}, 92, {box(7, 151, 48, 109, pale), label(9, 172, tr("COURT", "DVŮR"), P::black)});
+    addPortal(world, 97, "archive_door", "DOOR TO ARCHIVE HALL", "DVEŘE DO ARCHIVNÍ HALY",
+        {0, 137, 62, 123}, 96, {box(7, 151, 48, 109, P::brown), label(9, 172, tr("ARCHIVE", "ARCHIV"), pale)});
+    addPortal(world, 98, "courtyard_door", "DOOR TO COURTYARD", "DVEŘE NA NÁDVOŘÍ",
+        {0, 137, 62, 123}, 92, {box(7, 151, 48, 109, P::blue), label(9, 172, tr("COURT", "DVŮR"), pale)});
+    addPortal(world, 98, "dome_door", "INSTRUMENT DOME", "PŘÍSTROJOVÁ KOPULE",
+        {78, 137, 70, 123}, 99, {box(85, 151, 56, 109, P::lightGray), label(91, 172, tr("DOME", "KOPULE"), P::black)});
+    addPortal(world, 98, "communications_door", "COMMUNICATIONS LAB", "KOMUNIKAČNÍ LABORATOŘ",
+        {369, 137, 115, 123}, 101, {box(376, 151, 101, 109, P::red), label(381, 172, tr("COMMS", "KOMUNIKACE"), pale)});
+    addPortal(world, 99, "weather_lab_door", "DOOR TO WEATHER LAB", "DVEŘE DO METEOROLOGICKÉ LABORATOŘE",
+        {0, 137, 62, 123}, 98, {box(7, 151, 48, 109, P::blue), label(9, 172, tr("LAB", "LAB"), pale)});
+    auto& telescopeDoor = addPortal(world, 99, "telescope_stairs", "STAIRS TO TELESCOPE PLATFORM",
+        "SCHODY NA TELESKOPOVOU PLOŠINU", {407, 137, 77, 123}, 100, {
+            line(416, 248, 468, 151, amber), line(438, 248, 490, 151, amber),
+            label(414, 172, tr("SCOPE", "TELESKOP"), amber),
+        }, {e2d::Condition::flag("dome_aligned")});
+    telescopeDoor.visibleWhen = {e2d::Condition::flag("dome_aligned")};
+    addPortal(world, 100, "dome_stairs", "STAIRS TO INSTRUMENT DOME", "SCHODY DO PŘÍSTROJOVÉ KOPULE",
+        {0, 137, 62, 123}, 99, {line(7, 151, 50, 248, amber), line(27, 151, 70, 248, amber),
+            label(9, 172, tr("DOME", "KOPULE"), amber)});
+    addPortal(world, 101, "weather_lab_door", "DOOR TO WEATHER LAB", "DVEŘE DO METEOROLOGICKÉ LABORATOŘE",
+        {0, 137, 62, 123}, 98, {box(7, 151, 48, 109, P::blue), label(9, 172, tr("LAB", "LAB"), pale)});
+    auto& antechamberDoor = addPortal(world, 101, "nightjar_door", "NIGHTJAR ANTECHAMBER",
+        "PŘEDSÍŇ NIGHTJARU", {407, 137, 77, 123}, 103, {box(414, 151, 63, 109, P::black),
+            label(419, 172, tr("NIGHTJAR", "NIGHTJAR"), danger)}, {e2d::Condition::flag("sable_persuaded")});
+    antechamberDoor.visibleWhen = {e2d::Condition::flag("sable_persuaded")};
+    addPortal(world, 102, "archive_door", "DOOR TO ARCHIVE HALL", "DVEŘE DO ARCHIVNÍ HALY",
+        {0, 137, 62, 123}, 96, {box(7, 151, 48, 109, P::brown), label(9, 172, tr("ARCHIVE", "ARCHIV"), pale)});
+
     addUse(world, 91, "tracking_camera", "TRACKING CAMERA", "SLEDUJÍCÍ KAMERA", "hand_mirror", "camera_blinded",
         "The mirror returns one hard flash. The tracking camera iris closes.",
         "Zrcátko vrátí ostrý záblesk. Clona sledující kamery se zavře.");
+    auto& trackingCamera = ensureHotspot(world, 91, "tracking_camera",
+        tr("TRACKING CAMERA", "SLEDUJÍCÍ KAMERA"), {180, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    trackingCamera.interactionArea = {180, 135, 96, 125};
+    trackingCamera.visibleWhen = {e2d::Condition::notFlag("camera_blinded")};
+    trackingCamera.visuals = {box(205, 165, 52, 42, P::lightGray), circle(231, 186, 17, danger),
+        line(231, 169, 270, 151, P::lightGray), label(194, 221, tr("CAMERA LIVE", "KAMERA SLEDUJE"), danger)};
+    auto& cameraBlind = ensureHotspot(world, 91, "tracking_camera_complete",
+        tr("BLINDED TRACKING CAMERA", "OSLEPENÁ SLEDUJÍCÍ KAMERA"), {0, 0, 0, 0}, e2d::HotspotKind::scenery);
+    cameraBlind.visuals = {box(205, 165, 52, 42, P::lightGray), circle(231, 186, 17, P::black),
+        line(219, 174, 243, 198, P::brightGreen), line(243, 174, 219, 198, P::brightGreen),
+        label(197, 221, tr("CAMERA BLIND", "KAMERA SLEPÁ"), P::brightGreen)};
     addContext(world, 91, "staff_passage", "BADGED STAFF PASSAGE", "SLUŽEBNÍ CHODBA NA ODZNAK",
         "staff_passage_taken", {inspect(tr("Kline's badge opens the quiet staff corridor behind the patrol courtyard.",
             "Klineové odznak otevře tichou služební chodbu za hlídaným nádvořím."))},
         {e2d::Condition::flag("camera_blinded"), e2d::Condition::has("research_badge")},
         {e2d::Mutation::moveTo(std::string{screen(96).id})}, 3, "unlock");
+    auto& staffPassage = ensureHotspot(world, 91, "staff_passage",
+        tr("BADGED STAFF PASSAGE", "SLUŽEBNÍ CHODBA NA ODZNAK"), {369, 137, 92, 123}, e2d::HotspotKind::mechanism, 3);
+    staffPassage.visibleWhen = {e2d::Condition::flag("camera_blinded"), e2d::Condition::has("research_badge"),
+        e2d::Condition::notFlag("staff_passage_taken")};
+    staffPassage.visuals = {box(383, 151, 64, 109, P::black), circle(429, 198, 5, amber),
+        box(395, 174, 31, 20, P::blue), label(386, 211, tr("KLINE STAFF", "KLINEOVÁ"), amber)};
     addHazard(world, 92, "paired_patrol", "courtyard_patrol_diverted",
         "Kade and Morrow catch Iris in the searchlight.", "Kade a Morrow chytí Iris ve světlometu.");
     addPickup(world, 93, "nightjar_patch", "You save a cloth Nightjar patch from Voss's temporary bunk.",
         "Z Vossova provizorního lůžka zachráníš látkovou nášivku Nightjar.", 0);
+    addContext(world, 93, "voss_bunk_notes", "VOSS'S BUYER NOTES", "VOSSOVY POZNÁMKY O KUPCI", "buyer_call_known", {
+        inspect(tr("Voss scheduled a protected-carrier demonstration for a buyer at 23:40, twenty minutes before Nightjar's full pulse.",
+            "Voss naplánoval ukázku chráněné nosné vlny pro kupce na 23:40, dvacet minut před plným pulzem Nightjaru.")),
+    }, {}, {}, 2, "pickup");
     addUse(world, 94, "kitchen_bait", "BACK-DOOR BAIT", "NÁVNADA U ZADNÍCH DVEŘÍ", "sealed_ration", "guard_bait_placed",
         "The sealed ration waits outside the kitchen without revealing Iris's route.",
         "Uzavřená dávka čeká před kuchyní, aniž prozradí Irisinu cestu.", {}, true);
@@ -4519,8 +4749,17 @@ void addActFour(e2d::WorldDefinition& world) {
         "courtyard_patrol_diverted", {inspect(tr("The timer rings at the back door. One guard follows the sound and ration away from the courtyard.",
             "Minutka zazvoní u zadních dveří. Jeden strážný následuje zvuk a dávku pryč z nádvoří."))},
         {e2d::Condition::flag("guard_bait_placed")}, {}, 2, "warning");
-    gateRight(world, 94, {e2d::Condition::flag("courtyard_patrol_diverted")},
-        "The paired patrol still covers the infirmary route.", "Dvojice stráží stále kryje cestu k ošetřovně.");
+    auto& kitchenBait = ensureHotspot(world, 94, "kitchen_bait",
+        tr("BACK-DOOR BAIT", "NÁVNADA U ZADNÍCH DVEŘÍ"), {63, 135, 96, 125}, e2d::HotspotKind::mechanism);
+    kitchenBait.visibleWhen = {e2d::Condition::notFlag("guard_bait_placed")};
+    kitchenBait.visuals = {box(81, 189, 60, 35, P::red), line(91, 199, 131, 199, pale),
+        label(74, 230, tr("PLACE RATION", "POLOŽ DÁVKU"), amber)};
+    auto& kitchenTimer = ensureHotspot(world, 94, "kitchen_timer",
+        tr("MECHANICAL KITCHEN TIMER", "MECHANICKÁ KUCHYŇSKÁ MINUTKA"), {265, 137, 92, 123}, e2d::HotspotKind::mechanism, 2);
+    kitchenTimer.visibleWhen = {e2d::Condition::flag("guard_bait_placed"),
+        e2d::Condition::notFlag("courtyard_patrol_diverted")};
+    kitchenTimer.visuals = {circle(311, 191, 29, P::lightGray, false), line(311, 191, 311, 168, danger),
+        line(311, 191, 330, 202, danger), label(285, 230, tr("RING TIMER", "SPUSŤ MINUTKU"), amber)};
     addPickup(world, 95, "first_aid_kit", "The observatory first-aid kit is complete.",
         "Lékárnička observatoře je úplná.", 0);
     addContext(world, 95, "kline_recording", "KLINE'S RECORDING", "KLINEOVÉ NAHRÁVKA", "calder_warning_known", {
@@ -5054,14 +5293,40 @@ void addHints(e2d::WorldDefinition& world) {
         "U výzkumných dveří POUŽIJ děrný štítek na OBRAŤ KARTU.");
     next("act3_complete", "Enter the open RIDGE LIFT door and press ENTER at ASCEND.",
         "Vstup otevřenými dveřmi HŘEBENOVÉHO VÝTAHU a stiskni ENTER u VZHŮRU.");
-    next("courtyard_patrol_diverted", "Place June's ration and set the timer in the Observatory Kitchen.",
-        "Polož Juninu dávku a nastav minutku v Kuchyni observatoře.");
-    next("archive_open", "Read the project dates in Archive Hall, then align the four drawers in Records Room.",
-        "Přečti data projektu v Archivní hale a srovnej čtyři zásuvky ve Spisovně.");
-    next("dome_aligned", "Get the dome key from Security Office, then unlock and align Instrument Dome north.",
-        "Získej klíč v Bezpečnostní kanceláři, potom odemkni a srovnej Přístrojovou kopuli na sever.");
-    next("sable_persuaded", "Use the Telescope Platform, then confront Sable in Communications Lab with your evidence.",
-        "Použij Teleskopovou plošinu a pak konfrontuj Sable v Komunikační laboratoři se získanými důkazy.");
+    next("camera_blinded", "In Ridge Lift Lobby USE the hand mirror on CAMERA LIVE.",
+        "Ve Vestibulu hřebenového výtahu POUŽIJ ruční zrcátko na KAMERA SLEDUJE.");
+    next("staff_passage_taken", "Press ENTER at KLINE STAFF to enter the quiet archive route.",
+        "Stiskni ENTER u KLINEOVÁ a vstup tichou cestou do archivu.");
+    next("buyer_call_known", "In Archive Hall enter DORM and press ENTER on Voss's buyer notes by his bunk.",
+        "V Archivní hale vstup do UBYT. a stiskni ENTER u Vossových poznámek o kupci u jeho lůžka.");
+    next("guard_bait_placed", "From the dorm enter COURT, then KITCHEN, and USE June's ration on PLACE RATION.",
+        "Z ubytovny vstup na DVŮR, pak do KUCHYNĚ a POUŽIJ Juninu dávku na POLOŽ DÁVKU.");
+    next("courtyard_patrol_diverted", "In Observatory Kitchen press ENTER at RING TIMER.",
+        "V Kuchyni observatoře stiskni ENTER u SPUSŤ MINUTKU.");
+    next("taken_first_aid_kit", "Return to COURT, enter INFIRM. and TAKE the first-aid kit.",
+        "Vrať se na DVŮR, vstup do OŠETŘ. a SEBER lékárničku.");
+    next("calder_warning_known", "In the Infirmary press ENTER at KLINE RECORDING.",
+        "V Ošetřovně stiskni ENTER u NAHRÁVKA KLINEOVÉ.");
+    next("archive_dates_known", "Return through COURT and DORM to ARCHIVE, then press ENTER at the project portraits.",
+        "Vrať se přes DVŮR a UBYT. do ARCHIVU a stiskni ENTER u portrétů projektu.");
+    next("archive_open", "From Archive Hall enter RECORDS and press ENTER at FOUR PROJECT DATES.",
+        "Z Archivní haly vstup do SPISŮ a stiskni ENTER u ČTYŘI DATA PROJEKTU.");
+    next("security_office_open", "Return to ARCHIVE, enter SECURITY and USE the hand mirror on the mirrored keypad.",
+        "Vrať se do ARCHIVU, vstup do OCHRANY a POUŽIJ ruční zrcátko na zrcadlené klávesnici.");
+    next("taken_dome_key", "In Security Office TAKE the instrument-dome key from the open drawer.",
+        "V Bezpečnostní kanceláři SEBER klíč přístrojové kopule z otevřené zásuvky.");
+    next("taken_phase_prism", "Return through ARCHIVE, DORM and COURT; enter WEATHER LAB and TAKE the phase prism.",
+        "Vrať se přes ARCHIV, UBYT. a DVŮR; vstup do METEO LAB a SEBER fázový hranol.");
+    next("kline_located", "In Weather Lab press ENTER at the LAB VENTILATION DUCT.",
+        "V Meteorologické laboratoři stiskni ENTER u VĚTRACÍHO KANÁLU LABORATOŘE.");
+    next("dome_open", "From Weather Lab enter DOME and USE the dome key on NORTH DRIVE.",
+        "Z Meteorologické laboratoře vstup do KOPULE a POUŽIJ klíč kopule na POHON SEVER.");
+    next("dome_aligned", "In Instrument Dome press ENTER at DOME DRIVE to align the slit north.",
+        "V Přístrojové kopuli stiskni ENTER u POHON KOPULE a srovnej štěrbinu na sever.");
+    next("tower_alignment_known", "Climb SCOPE to Telescope Platform and press ENTER at LANDMARK SIGHT.",
+        "Vystup přes TELESKOP na Teleskopovou plošinu a stiskni ENTER u ZAMĚŘOVAČ BODŮ.");
+    next("sable_persuaded", "Return through DOME to WEATHER LAB, enter COMMS and speak to Sable with ENTER.",
+        "Vrať se přes KOPULI do METEO LAB, vstup do KOMUNIKACE a klávesou ENTER promluv se Sable.");
     next("bunker_door_open", "In Nightjar Antechamber, use Kline's badge, cipher lens and calibration fork on the three locks.",
         "V Předsíni Nightjaru použij Klineové odznak, šifrovací čočku a kalibrační ladičku na tři zámky.");
     next("protected_sequence_known", "Diagnose coil and prism in Phase Laboratory, then operate the fork positions in Calibration Chamber.",

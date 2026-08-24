@@ -296,7 +296,7 @@ int main() {
             assert(candidate.interactionArea.bottom() == 260.0F);
         }
         anchors += current->travelAnchor ? 1U : 0U;
-        const bool authoredHub = spec.number >= 6 && spec.number <= 90;
+        const bool authoredHub = spec.number >= 6 && spec.number <= 103;
         if (i > 0 && !authoredHub) {
             assert(std::ranges::any_of(current->exits, [i](const e2d::ExitDefinition& exit) {
                 return exit.direction == e2d::Direction::left
@@ -421,6 +421,11 @@ int main() {
     for (const int branch : {79, 84, 85, 86, 87, 88, 89, 90}) {
         assert(world.room(black_pine::content::screens[static_cast<std::size_t>(branch - 1)].id)->exits.empty());
     }
+    for (int branch = 91; branch <= 102; ++branch) {
+        assert(world.room(black_pine::content::screens[static_cast<std::size_t>(branch - 1)].id)->exits.empty());
+    }
+    assert(hasExit("nightjar_antechamber", e2d::Direction::left, "communications_lab"));
+    assert(hasExit("nightjar_antechamber", e2d::Direction::right, "decontamination_hall"));
     assert(anchors == 17);
     assert(visiblePickups >= 45);
     assert(animatedRooms > 80 && animatedRooms < world.rooms.size());
@@ -690,23 +695,47 @@ int main() {
     // Act IV — observatory infiltration and Nightjar shutdown.
     use(session, world, "s091_tracking_camera", "hand_mirror", "camera_blinded");
     context(session, world, "s091_staff_passage", "staff_passage_taken");
+    assert(session.currentRoomId() == "archive_hall");
+    portal(session, world, "s096_dormitory_door", "observatory_dormitory");
+    take(session, world, "s093_take_nightjar_patch", "nightjar_patch");
+    context(session, world, "s093_voss_bunk_notes", "buyer_call_known");
+    portal(session, world, "s093_courtyard_door", "ridge_courtyard");
+    portal(session, world, "s092_kitchen_door", "observatory_kitchen");
     use(session, world, "s094_kitchen_bait", "sealed_ration", "guard_bait_placed");
     context(session, world, "s094_kitchen_timer", "courtyard_patrol_diverted");
+    portal(session, world, "s094_courtyard_door", "ridge_courtyard");
     examine(session, world, "s092_story", "observed_ridge_courtyard");
+    portal(session, world, "s092_infirmary_door", "observatory_infirmary");
     take(session, world, "s095_take_first_aid_kit", "first_aid_kit");
     context(session, world, "s095_kline_recording", "calder_warning_known");
+    portal(session, world, "s095_courtyard_door", "ridge_courtyard");
+    portal(session, world, "s092_dormitory_door", "observatory_dormitory");
+    portal(session, world, "s093_archive_door", "archive_hall");
     context(session, world, "s096_project_portraits", "archive_dates_known");
+    portal(session, world, "s096_records_door", "records_room");
     context(session, world, "s097_archive_drawers", "archive_open");
     assert(session.hasItem("cipher_lens") && session.hasItem("archive_reel"));
-    take(session, world, "s098_take_phase_prism", "phase_prism");
-    context(session, world, "s098_ventilation_duct", "kline_located");
+    portal(session, world, "s097_archive_door", "archive_hall");
+    portal(session, world, "s096_security_door", "security_office");
     use(session, world, "s102_security_keypad", "hand_mirror", "security_office_open");
     take(session, world, "s102_take_dome_key", "dome_key");
+    portal(session, world, "s102_archive_door", "archive_hall");
+    portal(session, world, "s096_dormitory_door", "observatory_dormitory");
+    portal(session, world, "s093_courtyard_door", "ridge_courtyard");
+    portal(session, world, "s092_weather_lab_door", "weather_lab");
+    take(session, world, "s098_take_phase_prism", "phase_prism");
+    context(session, world, "s098_ventilation_duct", "kline_located");
+    portal(session, world, "s098_dome_door", "instrument_dome");
     use(session, world, "s099_dome_lock", "dome_key", "dome_open");
     context(session, world, "s099_dome_drive", "dome_aligned");
     assert(session.hasItem("calibration_fork"));
+    portal(session, world, "s099_telescope_stairs", "telescope_platform");
     context(session, world, "s100_telescope", "tower_alignment_known");
+    portal(session, world, "s100_dome_stairs", "instrument_dome");
+    portal(session, world, "s099_weather_lab_door", "weather_lab");
+    portal(session, world, "s098_communications_door", "communications_lab");
     context(session, world, "s101_sable", "sable_persuaded");
+    portal(session, world, "s101_nightjar_door", "nightjar_antechamber");
     use(session, world, "s103_ante_badge", "research_badge", "ante_badge_open");
     use(session, world, "s103_ante_phrase", "cipher_lens", "ante_phrase_open");
     use(session, world, "s103_ante_tone", "calibration_fork", "bunker_door_open");

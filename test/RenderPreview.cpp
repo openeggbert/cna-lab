@@ -85,7 +85,14 @@ int main(const int argc, const char* const argv[]) {
              "taken_research_badge", "taken_punched_card", "mine_cart_ready",
              "lift_fuse_installed", "substation_isolated", "quiet_feed_cut",
              "lift_powered", "flood_order_heard", "research_badge_presented",
-             "research_door_open", "act3_complete"}) {
+             "research_door_open", "act3_complete", "camera_blinded",
+             "staff_passage_taken", "taken_nightjar_patch", "buyer_call_known",
+             "guard_bait_placed", "courtyard_patrol_diverted",
+             "taken_first_aid_kit", "calder_warning_known", "archive_dates_known",
+             "archive_open", "security_office_open", "taken_dome_key",
+             "taken_phase_prism", "kline_located", "dome_open", "dome_aligned",
+             "tower_alignment_known", "fog_horn_ready", "sable_persuaded",
+             "jammer_disabled"}) {
         repaired.flags[flag] = true;
     }
     if (!session.restore(repaired)) throw std::runtime_error{"cannot create repaired relay preview"};
@@ -109,7 +116,10 @@ int main(const int argc, const char* const argv[]) {
         "mine_pump_station", "flooded_drift", "survey_chamber",
         "freight_lift_bottom", "freight_lift_top", "underground_substation",
         "switchgear_aisle", "cable_vault", "sealed_research_door",
-        "ridge_freight_lift",
+        "ridge_freight_lift", "freight_lift_lobby", "ridge_courtyard",
+        "observatory_dormitory", "observatory_kitchen", "observatory_infirmary",
+        "archive_hall", "records_room", "weather_lab", "instrument_dome",
+        "telescope_platform", "communications_lab", "security_office",
     };
     for (const auto* roomId : repairedRooms) {
         const auto* repairedRoom = world.room(roomId);

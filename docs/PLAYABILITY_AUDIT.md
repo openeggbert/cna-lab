@@ -30,7 +30,7 @@ A region is human-playable only when all of the following are true:
 | Logging railway | 51–63 | Audited | Sawmill, bunkhouse, mess, office, spur and engine branches use visible two-way routes. June gates the switch-key clue; the engine and trestle have persistent repair states, and the scenario follows the complete physical route. |
 | Reservoir and dam | 64–75 | Audited | Gatehouse, two-level turbine hall, pump gallery, intake route and drained-bay path use visible two-way connections. Water, power, valve, pump and grille states persist, and the scenario follows the complete physical route. |
 | Mine and underground power | 76–90 | Audited | Ventilation spur, cart shortcut, flooded drift, maintenance crawl, lift levels, switchgear and cable-vault branches are visibly connected and physically tested. |
-| Observatory | 91–102 | Scripted, not audited | Build courtyard diversion routes, archive/dome branches and room-specific interiors. |
+| Observatory and Nightjar entrance | 91–103 | Audited | Staff route, safe kitchen diversion, archive/security branches, weather lab, dome, telescope and Sable route are physically traversed. |
 | Nightjar bunker | 103–115 | Scripted, not audited | Build access-lock sequence, patrol containment, laboratory branches and Kline rescue route. |
 | Summit and transmitter | 116–124 | Scripted, not audited | Build the branching climb, readable lightning shelters, persistent grounding repairs and three ending presentations. |
 
@@ -116,6 +116,23 @@ A region is human-playable only when all of the following are true:
   walks all required corridors, portals, returns, shortcuts and the final lift
   into the observatory lobby.
 
-The next implementation pass starts with the Observatory (screens 91–102),
-where the courtyard diversion, archive, dome and laboratory routes are still
-presented as a linear sequence.
+- Screens 91–103 now form the documented observatory rather than a linear
+  corridor. Kline's staff route bypasses the exposed lobby door and reaches an
+  archive hub with separate dormitory, records and security branches.
+- The dormitory provides a safe edge of the patrol courtyard. From there Iris
+  can reach the kitchen without crossing the lethal searchlight lane, place
+  June's ration and ring the visible timer before using the infirmary and
+  weather-laboratory doors.
+- Weather Lab branches independently to the instrument dome and Sable's
+  communications lab. The aligned dome exposes a labelled telescope stair;
+  persuading Sable exposes the Nightjar antechamber door.
+- All twelve observatory rooms have individually composed 16-colour artwork.
+  Camera sweep, courtyard searchlights and weather radar are selective
+  animations, while camera, bait, timer and repaired-state indicators persist.
+- F1 names every physical door and mechanism. The scenario traverses all
+  required returns and branches, including the optional Nightjar patch and
+  Voss's buyer note, before entering screen 103.
+
+The next implementation pass starts with the Nightjar Bunker (screens
+104–115), where decontamination, laboratory, machine-shop, archive and Kline
+rescue routes are still presented as a linear sequence.
