@@ -539,12 +539,18 @@ namespace
         const IronGang::Vector3 spawnPosition(20.0F, 0.0F, 0.0F);
 
         // Not driving: even a very close, very fast "witness" must never trigger a chase.
-        police.Update(1.0F, false, origin, 120.0F, {IronGang::Vector3(1.0F, 0.0F, 0.0F)}, spawnPosition);
+        const IronGang::PoliceUpdateWorkload onFootWorkload = police.Update(
+            1.0F, false, origin, 120.0F, {IronGang::Vector3(1.0F, 0.0F, 0.0F)}, spawnPosition);
+        Require(onFootWorkload.witnessChecks == 0 && onFootWorkload.patrolUpdates == 0,
+                "police workload must count only loops that actually execute");
         Require(police.GetState() == IronGang::PoliceState::Clear,
                 "an offense while not driving must never be witnessed");
 
         // Driving fast, but the only witness is far outside the witness radius (15 units).
-        police.Update(1.0F, true, origin, 120.0F, {IronGang::Vector3(1000.0F, 0.0F, 0.0F)}, spawnPosition);
+        const IronGang::PoliceUpdateWorkload farWitnessWorkload = police.Update(
+            1.0F, true, origin, 120.0F, {IronGang::Vector3(1000.0F, 0.0F, 0.0F)}, spawnPosition);
+        Require(farWitnessWorkload.witnessChecks == 1 && farWitnessWorkload.patrolUpdates == 0,
+                "police workload must count each tested witness even when no offense is seen");
         Require(police.GetState() == IronGang::PoliceState::Clear,
                 "a witness outside the witness radius must not trigger a chase");
 
@@ -573,7 +579,10 @@ namespace
         // A single long step (19s more, 20s total chase time) must both escalate (a second patrol
         // car appears) and let both patrol cars close in (clamped so neither overshoots the
         // player's position).
-        police.Update(19.0F, true, origin, 0.0F, {}, spawnPosition);
+        const IronGang::PoliceUpdateWorkload escalationWorkload =
+            police.Update(19.0F, true, origin, 0.0F, {}, spawnPosition);
+        Require(escalationWorkload.patrolUpdates == 2,
+                "police workload must count both patrol updates on the escalation tick");
         Require(police.GetActivePatrolCount() == 2,
                 "a chase running for the full escalation timer must add a second patrol car");
         Require(police.GetPatrolPosition(0).Length() < 1e-4F,
@@ -964,6 +973,20 @@ namespace
         profiler.RecordPhysicsWorkload(IronGang::PhysicsWorkloadMetric::PublicRaycasts, 0);
         profiler.RecordPhysicsWorkload(IronGang::PhysicsWorkloadMetric::CharacterCollisionUpdates, 1);
         profiler.RecordPhysicsWorkload(IronGang::PhysicsWorkloadMetric::VehicleWheelRaycasts, 4);
+        IronGang::AiWorkloadSample aiWorkload;
+        aiWorkload.trafficVehicles = 2;
+        aiWorkload.pedestrians = 2;
+        aiWorkload.fleeingPedestrians = 1;
+        aiWorkload.policePatrols = 1;
+        aiWorkload.trafficUpdates = 2;
+        aiWorkload.trafficObstacleChecks = 4;
+        aiWorkload.pedestrianUpdates = 2;
+        aiWorkload.pedestrianThreatChecks = 2;
+        aiWorkload.policeWitnessChecks = 4;
+        aiWorkload.policePatrolUpdates = 1;
+        profiler.RecordAiWorkload(aiWorkload);
+        aiWorkload.trafficObstacleChecks = 2;
+        profiler.RecordAiWorkload(aiWorkload);
 
         const IronGang::PerformanceStatistics frame =
             profiler.GetStatistics(IronGang::PerformanceMetric::FrameInterval);
@@ -989,6 +1012,12 @@ namespace
         Require(bodies.sampleCount == 2 && std::abs(bodies.average - 8.0) < 1e-9 &&
                     std::abs(bodies.p95 - 9.0) < 1e-9 && std::abs(bodies.maximum - 9.0) < 1e-9,
                 "physics workload statistics must retain per-update counts and use nearest-rank p95");
+        const IronGang::AiWorkloadStatistics obstacleChecks =
+            profiler.GetAiWorkloadStatistics(IronGang::AiWorkloadMetric::TrafficObstacleChecks);
+        Require(obstacleChecks.sampleCount == 2 && std::abs(obstacleChecks.average - 3.0) < 1e-9 &&
+                    std::abs(obstacleChecks.p95 - 4.0) < 1e-9 &&
+                    std::abs(obstacleChecks.maximum - 4.0) < 1e-9,
+                "AI workload statistics must retain exact loop counts and use nearest-rank p95");
 
         IronGang::PerformanceReportContext context;
         context.backend = "TEST";
@@ -1024,7 +1053,7 @@ namespace
         const std::string report((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
         Require(report.find("\"backend\": \"TEST\"") != std::string::npos,
                 "performance report must identify its graphics backend");
-        Require(report.find("\"schema_version\": 5") != std::string::npos &&
+        Require(report.find("\"schema_version\": 6") != std::string::npos &&
                     report.find("\"draw_calls\": {\"samples\": 2, \"average\": 11.000, \"p95\": 12.000") !=
                         std::string::npos &&
                     report.find("\"state_change_calls\": {\"samples\": 1, \"average\": 31.000") !=
@@ -1043,6 +1072,13 @@ namespace
                         std::string::npos &&
                     report.find("separate because their granularities differ") != std::string::npos,
                 "performance report must preserve exact, separately-scoped physics state and query counts");
+        Require(report.find("\"traffic_obstacle_checks\": {\"samples\": 2, \"average\": 3.000, \"p95\": 4.000") !=
+                        std::string::npos &&
+                    report.find("\"fleeing_pedestrians\": {\"samples\": 2, \"average\": 1.000") !=
+                        std::string::npos &&
+                    report.find("mission state progression is excluded") != std::string::npos &&
+                    report.find("no road graph or path-request queue exists yet") != std::string::npos,
+                "performance report must expose exact ambient-AI state and loop work without inventing path requests");
         Require(report.find("\"district_world_physics_cpu\": {\"samples\": 1, \"average_ms\": 4.500") !=
                         std::string::npos &&
                     report.find("\"district_renderer_upload_cpu\": {\"samples\": 1, \"average_ms\": 8.000") !=

@@ -15,6 +15,12 @@ namespace IronGang
         Chasing,
     };
 
+    struct PoliceUpdateWorkload
+    {
+        std::size_t witnessChecks{0};
+        std::size_t patrolUpdates{0};
+    };
+
     // Gate M9 (plan_22-police-witnesses-crime-and-wanted-response.md IG-22-001/002/003/004/010):
     // a minimal witnessed-offense -> chase -> resolve state machine, with exactly one escalation
     // level (a second patrol car joins if the chase runs long) -- matching the locked scope
@@ -32,12 +38,12 @@ namespace IronGang
         // frame (anyone who could "witness" an offense while Clear). spawnPosition is where a
         // newly dispatched patrol car appears; it is only read at the moment a chase starts (or
         // escalates), not every frame.
-        void Update(float deltaSeconds,
-                    bool playerDriving,
-                    const Vector3& playerVehiclePosition,
-                    float playerVehicleSpeedKph,
-                    const std::vector<Vector3>& witnessPositions,
-                    const Vector3& spawnPosition);
+        PoliceUpdateWorkload Update(float deltaSeconds,
+                                    bool playerDriving,
+                                    const Vector3& playerVehiclePosition,
+                                    float playerVehicleSpeedKph,
+                                    const std::vector<Vector3>& witnessPositions,
+                                    const Vector3& spawnPosition);
 
         [[nodiscard]] PoliceState GetState() const noexcept { return state_; }
         [[nodiscard]] int GetActivePatrolCount() const noexcept { return activePatrolCount_; }

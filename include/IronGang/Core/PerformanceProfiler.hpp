@@ -59,6 +59,23 @@ namespace IronGang
         Count,
     };
 
+    // Per-update ambient-AI state and exact loop work from IronGangGame's traffic/pedestrian/
+    // police orchestration. Mission logic is deliberately outside this metric's CPU scope.
+    enum class AiWorkloadMetric : std::size_t
+    {
+        TrafficVehicles,
+        Pedestrians,
+        FleeingPedestrians,
+        PolicePatrols,
+        TrafficUpdates,
+        TrafficObstacleChecks,
+        PedestrianUpdates,
+        PedestrianThreatChecks,
+        PoliceWitnessChecks,
+        PolicePatrolUpdates,
+        Count,
+    };
+
     // Named, repeatable M12 workloads. InteractiveOrIntro preserves the ordinary game path;
     // every other value is selected explicitly through --profile-scenario.
     enum class PerformanceScenario
@@ -96,6 +113,28 @@ namespace IronGang
         double average{0.0};
         double p95{0.0};
         double maximum{0.0};
+    };
+
+    struct AiWorkloadStatistics
+    {
+        std::size_t sampleCount{0};
+        double average{0.0};
+        double p95{0.0};
+        double maximum{0.0};
+    };
+
+    struct AiWorkloadSample
+    {
+        std::uint64_t trafficVehicles{0};
+        std::uint64_t pedestrians{0};
+        std::uint64_t fleeingPedestrians{0};
+        std::uint64_t policePatrols{0};
+        std::uint64_t trafficUpdates{0};
+        std::uint64_t trafficObstacleChecks{0};
+        std::uint64_t pedestrianUpdates{0};
+        std::uint64_t pedestrianThreatChecks{0};
+        std::uint64_t policeWitnessChecks{0};
+        std::uint64_t policePatrolUpdates{0};
     };
 
     // One complete synchronous district change. District content is currently generated in
@@ -171,6 +210,7 @@ namespace IronGang
         void Record(PerformanceMetric metric, double milliseconds);
         void RecordRenderWorkload(RenderWorkloadMetric metric, std::uint64_t count);
         void RecordPhysicsWorkload(PhysicsWorkloadMetric metric, std::uint64_t count);
+        void RecordAiWorkload(const AiWorkloadSample& sample);
         void RecordDistrictLoad(DistrictLoadSample sample);
 
         [[nodiscard]] PerformanceStatistics GetStatistics(PerformanceMetric metric) const;
@@ -178,6 +218,7 @@ namespace IronGang
         GetRenderWorkloadStatistics(RenderWorkloadMetric metric) const;
         [[nodiscard]] PhysicsWorkloadStatistics
         GetPhysicsWorkloadStatistics(PhysicsWorkloadMetric metric) const;
+        [[nodiscard]] AiWorkloadStatistics GetAiWorkloadStatistics(AiWorkloadMetric metric) const;
         [[nodiscard]] bool WriteJsonReport(const std::string& path,
                                            const PerformanceReportContext& context,
                                            std::string& error) const;
@@ -205,6 +246,11 @@ namespace IronGang
             return static_cast<std::size_t>(metric);
         }
 
+        static constexpr std::size_t AiWorkloadMetricIndex(AiWorkloadMetric metric)
+        {
+            return static_cast<std::size_t>(metric);
+        }
+
         bool enabled_{false};
         std::optional<Clock::time_point> previousFrameStart_;
         std::array<std::vector<double>, static_cast<std::size_t>(PerformanceMetric::Count)> samples_;
@@ -212,6 +258,8 @@ namespace IronGang
             renderWorkloadSamples_;
         std::array<std::vector<double>, static_cast<std::size_t>(PhysicsWorkloadMetric::Count)>
             physicsWorkloadSamples_;
+        std::array<std::vector<double>, static_cast<std::size_t>(AiWorkloadMetric::Count)>
+            aiWorkloadSamples_;
         std::vector<DistrictLoadSample> districtLoadSamples_;
     };
 

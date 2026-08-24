@@ -84,6 +84,16 @@ applicable; physics CPU was 0.206 ms p95. Software plus 3/3 CTest, strict syntax
 EasyGL, Web/Emscripten, and the isolated real flow pass. Ordinary play keeps profiling disabled and
 does not take the contact-counter mutex.
 
+The ambient-AI follow-up adds schema 6 with per-update current traffic/pedestrian/fleeing/patrol
+counts and exact traffic-update/obstacle, pedestrian-update/threat, police-witness/patrol loop
+counts. `ai_cpu` now excludes the adjacent mission update so its scope matches the documented
+ambient-AI budget. Unit coverage proves statistics/JSON and direct police instrumentation,
+including two patrol iterations on the escalation tick. An isolated 540-frame Release EasyGL
+`mixed` run sampled 543 updates: AI CPU 0.007 ms p95, with p95/max 2 traffic vehicles, 2
+pedestrians, 4 obstacle checks, 2 threat checks, and 4 witness checks. This route correctly had no
+fleeing pedestrian or active police patrol; the deterministic police test covers their nonzero
+work. No road-graph/path-request numbers are invented while only fixed WaypointPaths exist.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

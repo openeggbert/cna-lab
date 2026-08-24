@@ -94,6 +94,36 @@ namespace IronGang
             return "unknown";
         }
 
+        const char* AiWorkloadMetricName(AiWorkloadMetric metric)
+        {
+            switch (metric)
+            {
+            case AiWorkloadMetric::TrafficVehicles:
+                return "traffic_vehicles";
+            case AiWorkloadMetric::Pedestrians:
+                return "pedestrians";
+            case AiWorkloadMetric::FleeingPedestrians:
+                return "fleeing_pedestrians";
+            case AiWorkloadMetric::PolicePatrols:
+                return "police_patrols";
+            case AiWorkloadMetric::TrafficUpdates:
+                return "traffic_updates";
+            case AiWorkloadMetric::TrafficObstacleChecks:
+                return "traffic_obstacle_checks";
+            case AiWorkloadMetric::PedestrianUpdates:
+                return "pedestrian_updates";
+            case AiWorkloadMetric::PedestrianThreatChecks:
+                return "pedestrian_threat_checks";
+            case AiWorkloadMetric::PoliceWitnessChecks:
+                return "police_witness_checks";
+            case AiWorkloadMetric::PolicePatrolUpdates:
+                return "police_patrol_updates";
+            case AiWorkloadMetric::Count:
+                break;
+            }
+            return "unknown";
+        }
+
         std::string EscapeJson(const std::string& value)
         {
             std::string escaped;
@@ -263,6 +293,30 @@ namespace IronGang
         physicsWorkloadSamples_[PhysicsWorkloadMetricIndex(metric)].push_back(static_cast<double>(count));
     }
 
+    void PerformanceProfiler::RecordAiWorkload(const AiWorkloadSample& sample)
+    {
+        if (!enabled_)
+        {
+            return;
+        }
+        const std::array<std::uint64_t, static_cast<std::size_t>(AiWorkloadMetric::Count)> values{
+            sample.trafficVehicles,
+            sample.pedestrians,
+            sample.fleeingPedestrians,
+            sample.policePatrols,
+            sample.trafficUpdates,
+            sample.trafficObstacleChecks,
+            sample.pedestrianUpdates,
+            sample.pedestrianThreatChecks,
+            sample.policeWitnessChecks,
+            sample.policePatrolUpdates,
+        };
+        for (std::size_t index = 0; index < values.size(); ++index)
+        {
+            aiWorkloadSamples_[index].push_back(static_cast<double>(values[index]));
+        }
+    }
+
     void PerformanceProfiler::RecordDistrictLoad(DistrictLoadSample sample)
     {
         if (!enabled_ || !std::isfinite(sample.worldPhysicsMilliseconds) ||
@@ -374,6 +428,37 @@ namespace IronGang
         return result;
     }
 
+    AiWorkloadStatistics PerformanceProfiler::GetAiWorkloadStatistics(AiWorkloadMetric metric) const
+    {
+        AiWorkloadStatistics result;
+        if (metric == AiWorkloadMetric::Count)
+        {
+            return result;
+        }
+
+        const std::vector<double>& samples = aiWorkloadSamples_[AiWorkloadMetricIndex(metric)];
+        result.sampleCount = samples.size();
+        if (samples.empty())
+        {
+            return result;
+        }
+
+        double total = 0.0;
+        for (const double sample : samples)
+        {
+            total += sample;
+            result.maximum = std::max(result.maximum, sample);
+        }
+        result.average = total / static_cast<double>(samples.size());
+
+        std::vector<double> sorted = samples;
+        std::sort(sorted.begin(), sorted.end());
+        const std::size_t percentileIndex = static_cast<std::size_t>(
+            std::ceil(0.95 * static_cast<double>(sorted.size()))) - 1U;
+        result.p95 = sorted[percentileIndex];
+        return result;
+    }
+
     bool PerformanceProfiler::WriteJsonReport(const std::string& path,
                                                const PerformanceReportContext& context,
                                                std::string& error) const
@@ -406,7 +491,7 @@ namespace IronGang
 
             output << std::fixed << std::setprecision(3);
             output << "{\n"
-                   << "  \"schema_version\": 5,\n"
+                   << "  \"schema_version\": 6,\n"
                    << "  \"backend\": \"" << EscapeJson(context.backend) << "\",\n"
                    << "  \"build_configuration\": \"" << EscapeJson(context.buildConfiguration) << "\",\n"
                    << "  \"scenario\": \"" << EscapeJson(context.scenario) << "\",\n"
@@ -549,6 +634,23 @@ namespace IronGang
                        << ", \"p95\": " << statistics.p95
                        << ", \"maximum\": " << statistics.maximum << "}";
                 output << (index + 1U == static_cast<std::size_t>(PhysicsWorkloadMetric::Count) ? "\n" : ",\n");
+            }
+
+            output << "  },\n"
+                   << "  \"ai_workload\": {\n"
+                   << "    \"scope\": \"per game Update; state counts are current after the Update (including AI-suspended transition frames) and operation counts are exact loop work for that update\",\n"
+                   << "    \"cpu_scope\": \"ai_cpu covers traffic, pedestrian, witness, and police updates; mission state progression is excluded\",\n"
+                   << "    \"route_scope\": \"traffic and pedestrians follow fixed WaypointPaths; no road graph or path-request queue exists yet\",\n";
+
+            for (std::size_t index = 0; index < static_cast<std::size_t>(AiWorkloadMetric::Count); ++index)
+            {
+                const auto metric = static_cast<AiWorkloadMetric>(index);
+                const AiWorkloadStatistics statistics = GetAiWorkloadStatistics(metric);
+                output << "    \"" << AiWorkloadMetricName(metric) << "\": {\"samples\": "
+                       << statistics.sampleCount << ", \"average\": " << statistics.average
+                       << ", \"p95\": " << statistics.p95
+                       << ", \"maximum\": " << statistics.maximum << "}";
+                output << (index + 1U == static_cast<std::size_t>(AiWorkloadMetric::Count) ? "\n" : ",\n");
             }
 
             output << "  },\n"

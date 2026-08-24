@@ -67,6 +67,20 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has a complete smallest-scope ambient-AI profiler (`IG-35-037`-`039`).** JSON schema 6
+retains `ai_cpu` but narrows it to traffic/pedestrian/witness/police work (mission progression is
+outside the timer), then records current traffic, pedestrian, fleeing-pedestrian, and patrol counts
+plus exact update/obstacle/threat/witness/patrol loop counts. District-transition updates retain
+current actor state but correctly contribute zero suspended operations. No path-request metric is
+invented: the prototype still has fixed `WaypointPath`s, not a road graph or request queue.
+
+- Unit coverage verifies nearest-rank statistics, schema/scope output, exact witness iteration,
+  and exactly 2 patrol updates on the one escalation tick.
+- A 540-frame Release EasyGL `mixed` run only on isolated Xvfb/X11 sampled 543 updates. AI CPU was
+  0.004 ms average / 0.007 ms p95 / 0.021 ms maximum; p95/max reached 2 traffic vehicles, 2
+  pedestrians, 4 obstacle checks, 2 pedestrian threat checks, and 4 police witness checks. This
+  route legitimately triggered neither fleeing nor a patrol; their nonzero path is unit-tested.
+
 **User-requested controls/map follow-up.** `Tab` now toggles a real top-down current-district map;
 there is no `M` binding. The overlay derives road/sidewalk/building footprints from `WorldBox`,
 marks the player, vehicle, mission target and district exit, and draws a simple direct exit guide,
@@ -1015,10 +1029,10 @@ physical-hardware capture should first require `swap_interval.apply_succeeded`, 
 `gpu_render` and `present_cpu` to locate
 the historic 51-58 ms mixed p95 and compare intro/walk/drive under a controlled compositor. CPU
 subsystem and district-load optimization is not justified by current evidence; all are far inside
-budget. The next safe code-side M12 slice is the smallest AI profiler (`IG-35-037`-`039`): retain
-the existing AI update timing and add exact per-update pedestrian/traffic/police state/work
-evidence without changing behavior. Do not mark M12 complete until repeated mixed workloads pass
-33.333 ms p95 on named minimum hardware and VRAM tracking is complete.
+budget. The next safe code-side M12 slice is the smallest audio profiler (`IG-35-011`, `040`-`041`):
+retain the existing game-owned audio-control timer and add exact voice/playback state without
+claiming backend mixer/decode/bus time CNA does not expose. Do not mark M12 complete until repeated
+mixed workloads pass 33.333 ms p95 on named minimum hardware and VRAM tracking is complete.
 
 This is also a good point to revisit the user's own concrete feedback earlier this session
 ("doesn't look like Mafia 1") now that M10's lightmap/sun/shadow pieces have actually landed --

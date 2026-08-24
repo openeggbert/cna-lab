@@ -319,6 +319,19 @@ does not fabricate one generic “query count” by adding semantically differen
 CPU p95 remains the budgeted time; these workload counters explain that time and provide a stable
 baseline for later content growth.
 
+JSON schema 6 adds `ai_workload` once per game `Update()`. Current-state fields report traffic
+vehicles, pedestrians, pedestrians in their timed flee state, and active police patrols. Operation
+fields report the exact loops that actually ran: traffic updates and obstacle comparisons,
+pedestrian updates and player-vehicle threat-distance checks, police witness candidates tested,
+and patrol cars moved. AI-suspended district-transition updates retain current state but record
+zero operations.
+
+`ai_cpu` now ends before mission-state progression, so its scope matches the budget row: ambient
+traffic, pedestrian, witness, and police work only. The current movers follow fixed
+`WaypointPath`s; there is no district road graph, asynchronous path-request queue, queue latency,
+or failure state to report. Those fields must not be fabricated as zero—add them with the real
+road/path system required by IG-35-010.
+
 The current CNA/EasyGL API does not expose complete GPU residency. The report records the exact
 logical size of known Iron Gang-owned meshes/lightmaps/HUD resources plus imported CNJ vertex and
 index buffers and textures bound by CNA's built-in or generic effects. Imported resources are

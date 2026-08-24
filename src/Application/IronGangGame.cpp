@@ -816,6 +816,7 @@ namespace IronGang
         double audioCpuMilliseconds = 0.0;
         bool physicsSampleRecorded = false;
         bool aiSampleRecorded = false;
+        AiWorkloadSample aiWorkload;
         const auto measureAudio = [&](auto&& operation)
         {
             if (!performanceProfiler_.IsEnabled())
@@ -1057,65 +1058,83 @@ namespace IronGang
 
         if (!transitioning)
         {
-            ScopedPerformanceSample aiSample(performanceProfiler_, PerformanceMetric::AiCpu);
-            aiSampleRecorded = true;
-            // Gate M9: traffic/pedestrians/police keep ticking through dialogue and cutscenes
-            // (ambient city life, matching Mafia 1's own feel) -- only a district transition
-            // suspends them, same as everything else gated on `transitioning` in this function.
-            for (std::size_t i = 0; i < trafficVehicles_.size(); ++i)
+            // Keep mission progression outside the ambient-AI timer while retaining the same
+            // update order and transition gate.
             {
-                const Vector3 myPosition = trafficVehicles_[i].GetPosition();
-                const float myYaw = trafficVehicles_[i].GetYaw();
-                float obstacleDistance = kNoObstacleAhead;
-                for (std::size_t j = 0; j < trafficVehicles_.size(); ++j)
+                ScopedPerformanceSample aiSample(performanceProfiler_, PerformanceMetric::AiCpu);
+                aiSampleRecorded = true;
+                const std::size_t trafficCount = trafficVehicles_.size();
+                const bool recordsAiWorkload = performanceProfiler_.IsEnabled();
+                if (recordsAiWorkload)
                 {
-                    if (i == j)
+                    aiWorkload.trafficUpdates = trafficCount;
+                    aiWorkload.trafficObstacleChecks =
+                        trafficCount > 0
+                            ? trafficCount * (trafficCount - 1U) + (playerDriving_ ? trafficCount : 0U)
+                            : 0U;
+                    aiWorkload.pedestrianUpdates = pedestrians_.size();
+                    aiWorkload.pedestrianThreatChecks = playerDriving_ ? pedestrians_.size() : 0U;
+                }
+                // Gate M9: traffic/pedestrians/police keep ticking through dialogue and cutscenes
+                // (ambient city life, matching Mafia 1's own feel) -- only a district transition
+                // suspends them, same as everything else gated on `transitioning` in this function.
+                for (std::size_t i = 0; i < trafficVehicles_.size(); ++i)
+                {
+                    const Vector3 myPosition = trafficVehicles_[i].GetPosition();
+                    const float myYaw = trafficVehicles_[i].GetYaw();
+                    float obstacleDistance = kNoObstacleAhead;
+                    for (std::size_t j = 0; j < trafficVehicles_.size(); ++j)
                     {
-                        continue;
+                        if (i == j)
+                        {
+                            continue;
+                        }
+                        obstacleDistance = std::min(
+                            obstacleDistance,
+                            DistanceAheadIfInLane(myPosition, myYaw, trafficVehicles_[j].GetPosition()));
                     }
-                    obstacleDistance = std::min(obstacleDistance,
-                        DistanceAheadIfInLane(myPosition, myYaw, trafficVehicles_[j].GetPosition()));
+                    if (playerDriving_)
+                    {
+                        obstacleDistance =
+                            std::min(obstacleDistance,
+                                     DistanceAheadIfInLane(myPosition, myYaw, vehicle_.GetPosition()));
+                    }
+                    trafficVehicles_[i].Update(deltaSeconds, obstacleDistance);
                 }
-                if (playerDriving_)
+
+                std::vector<Vector3> witnessPositions;
+                witnessPositions.reserve(trafficVehicles_.size() + pedestrians_.size());
+                for (const TrafficVehicle& trafficVehicle : trafficVehicles_)
                 {
-                    obstacleDistance = std::min(obstacleDistance,
-                        DistanceAheadIfInLane(myPosition, myYaw, vehicle_.GetPosition()));
+                    witnessPositions.push_back(trafficVehicle.GetPosition());
                 }
-                trafficVehicles_[i].Update(deltaSeconds, obstacleDistance);
+                for (const Pedestrian& pedestrian : pedestrians_)
+                {
+                    witnessPositions.push_back(pedestrian.GetPosition());
+                }
+
+                for (Pedestrian& pedestrian : pedestrians_)
+                {
+                    const bool hasThreat =
+                        playerDriving_ &&
+                        DistanceSquaredXZ(pedestrian.GetPosition(), vehicle_.GetPosition()) <=
+                            kPedestrianThreatRadius * kPedestrianThreatRadius;
+                    pedestrian.Update(deltaSeconds, hasThreat, vehicle_.GetPosition());
+                }
+
+                const PoliceUpdateWorkload policeWorkload = police_.Update(
+                    deltaSeconds, playerDriving_, vehicle_.GetPosition(), vehicle_.GetSpeedKph(),
+                    witnessPositions, districtManager_.GetWorld().GetVehicleSpawn() + kPoliceSpawnOffset);
+                if (recordsAiWorkload)
+                {
+                    aiWorkload.policeWitnessChecks = policeWorkload.witnessChecks;
+                    aiWorkload.policePatrolUpdates = policeWorkload.patrolUpdates;
+                }
+                peakPoliceVehicleCount_ = std::max(peakPoliceVehicleCount_, police_.GetActivePatrolCount());
             }
 
-            std::vector<Vector3> witnessPositions;
-            witnessPositions.reserve(trafficVehicles_.size() + pedestrians_.size());
-            for (const TrafficVehicle& trafficVehicle : trafficVehicles_)
-            {
-                witnessPositions.push_back(trafficVehicle.GetPosition());
-            }
-            for (const Pedestrian& pedestrian : pedestrians_)
-            {
-                witnessPositions.push_back(pedestrian.GetPosition());
-            }
-
-            for (Pedestrian& pedestrian : pedestrians_)
-            {
-                const bool hasThreat = playerDriving_ &&
-                    DistanceSquaredXZ(pedestrian.GetPosition(), vehicle_.GetPosition()) <=
-                        kPedestrianThreatRadius * kPedestrianThreatRadius;
-                pedestrian.Update(deltaSeconds, hasThreat, vehicle_.GetPosition());
-            }
-
-            police_.Update(deltaSeconds,
-                          playerDriving_,
-                          vehicle_.GetPosition(),
-                          vehicle_.GetSpeedKph(),
-                          witnessPositions,
-                          districtManager_.GetWorld().GetVehicleSpawn() + kPoliceSpawnOffset);
-            peakPoliceVehicleCount_ = std::max(peakPoliceVehicleCount_, police_.GetActivePatrolCount());
-
-            mission_.Update(dialogue_.IsFinished(),
-                            player_.GetPosition(),
-                            vehicle_.GetPosition(),
-                            playerDriving_,
-                            districtManager_.GetWorld().GetWarehouseGoal());
+            mission_.Update(dialogue_.IsFinished(), player_.GetPosition(), vehicle_.GetPosition(),
+                            playerDriving_, districtManager_.GetWorld().GetWarehouseGoal());
         }
 
         if (transientStatusSeconds_ > 0.0F)
@@ -1134,6 +1153,18 @@ namespace IronGang
         }
         performanceProfiler_.Record(PerformanceMetric::AudioCpu, audioCpuMilliseconds);
         RecordPhysicsWorkload();
+        if (performanceProfiler_.IsEnabled())
+        {
+            aiWorkload.trafficVehicles = trafficVehicles_.size();
+            aiWorkload.pedestrians = pedestrians_.size();
+            aiWorkload.fleeingPedestrians = static_cast<std::uint64_t>(std::count_if(
+                pedestrians_.begin(), pedestrians_.end(), [](const Pedestrian& pedestrian)
+                {
+                    return pedestrian.IsFleeing();
+                }));
+            aiWorkload.policePatrols = static_cast<std::uint64_t>(police_.GetActivePatrolCount());
+            performanceProfiler_.RecordAiWorkload(aiWorkload);
+        }
         if (performanceScenario_ != PerformanceScenario::InteractiveOrIntro)
         {
             ++performanceScenarioUpdate_;

@@ -237,3 +237,31 @@ expected for this route: the player uses CharacterVirtual contacts and the sedan
 vehicle. Zero public raycasts is also real—the current integrated route makes none outside those
 separately counted character/wheel paths. Xvfb still cannot qualify graphics hardware, but these
 CPU-side Jolt counters exercise the real mixed gameplay flow and establish the workload baseline.
+
+## 2026-08-24 — ambient-AI workload follow-up
+
+JSON schema 6 scopes `ai_cpu` to the existing traffic, pedestrian, witness, and police update path
+(mission progression is now outside that timer) and adds current state plus exact per-update loop
+counts. A 540-frame Release EasyGL `mixed` run, executed only on isolated Xvfb/X11 with v-sync
+requested off, produced 543 update samples:
+
+| Ambient-AI workload per update | Average | p95 | Maximum |
+| --- | ---: | ---: | ---: |
+| Traffic vehicles | 1.904 | 2 | 2 |
+| Pedestrians | 1.904 | 2 | 2 |
+| Fleeing pedestrians | 0.000 | 0 | 0 |
+| Police patrols | 0.000 | 0 | 0 |
+| Traffic updates | 1.768 | 2 | 2 |
+| Traffic obstacle checks | 3.094 | 4 | 4 |
+| Pedestrian updates | 1.768 | 2 | 2 |
+| Pedestrian threat checks | 1.326 | 2 | 2 |
+| Police witness checks | 2.652 | 4 | 4 |
+| Police patrol updates | 0.000 | 0 | 0 |
+
+AI CPU averaged 0.004 ms, with 0.007 ms p95 and 0.021 ms maximum. The zero flee/patrol state is
+real for this deterministic mixed route: it drives without entering a pedestrian's threat radius
+or triggering the simplified offense thresholds. Deterministic police coverage separately proves
+nonzero witness work and exactly two patrol updates on an escalation tick. The state-vs-operation
+average difference is also intentional: district-transition frames retain the currently spawned
+actors while their AI operations are suspended, followed by a Countryside arrival with no ambient
+actors. No road/path-request metrics are reported because only fixed WaypointPaths exist today.

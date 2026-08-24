@@ -34,13 +34,14 @@ namespace IronGang
         patrolYaws_[0] = 0.0F;
     }
 
-    void PoliceSystem::Update(float deltaSeconds,
-                              bool playerDriving,
-                              const Vector3& playerVehiclePosition,
-                              float playerVehicleSpeedKph,
-                              const std::vector<Vector3>& witnessPositions,
-                              const Vector3& spawnPosition)
+    PoliceUpdateWorkload PoliceSystem::Update(float deltaSeconds,
+                                               bool playerDriving,
+                                               const Vector3& playerVehiclePosition,
+                                               float playerVehicleSpeedKph,
+                                               const std::vector<Vector3>& witnessPositions,
+                                               const Vector3& spawnPosition)
     {
+        PoliceUpdateWorkload workload;
         switch (state_)
         {
         case PoliceState::Clear:
@@ -54,6 +55,7 @@ namespace IronGang
             bool witnessedCrime = false;
             for (const Vector3& witness : witnessPositions)
             {
+                ++workload.witnessChecks;
                 const float distanceSquared = DistanceSquaredXZ(witness, playerVehiclePosition);
                 if (distanceSquared <= kWitnessRadius * kWitnessRadius)
                 {
@@ -96,6 +98,7 @@ namespace IronGang
             float closestDistance = std::numeric_limits<float>::max();
             for (int i = 0; i < activePatrolCount_; ++i)
             {
+                ++workload.patrolUpdates;
                 const std::size_t index = static_cast<std::size_t>(i);
                 Vector3 toPlayer = playerVehiclePosition - patrolPositions_[index];
                 toPlayer.Y = 0.0F;
@@ -128,5 +131,6 @@ namespace IronGang
             break;
         }
         }
+        return workload;
     }
 }
