@@ -28,6 +28,7 @@ namespace WolfCna
         std::string_view displayCode;
         int chapter = 1;
         std::string_view chapterName;
+        int targetSeconds = 240;
         CampaignSectorKind kind = CampaignSectorKind::Standard;
         int standardDestination = -1;
         int secretDestination = -1;
@@ -41,6 +42,7 @@ namespace WolfCna
             "1",
             1,
             "LOWER BUNKER",
+            210,
             CampaignSectorKind::Standard,
             1,
             -1,
@@ -51,6 +53,7 @@ namespace WolfCna
             "2",
             1,
             "LOWER BUNKER",
+            240,
             CampaignSectorKind::Standard,
             2,
             4,
@@ -61,6 +64,7 @@ namespace WolfCna
             "3",
             2,
             "WARDEN NETWORK",
+            250,
             CampaignSectorKind::Standard,
             3,
             -1,
@@ -71,6 +75,7 @@ namespace WolfCna
             "4",
             2,
             "WARDEN NETWORK",
+            270,
             CampaignSectorKind::Standard,
             5,
             -1,
@@ -81,6 +86,7 @@ namespace WolfCna
             "S",
             1,
             "LOWER BUNKER",
+            210,
             CampaignSectorKind::Secret,
             2,
             -1,
@@ -91,6 +97,7 @@ namespace WolfCna
             "5",
             2,
             "WARDEN NETWORK",
+            260,
             CampaignSectorKind::Boss,
             -1,
             -1,

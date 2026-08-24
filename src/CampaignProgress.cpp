@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 namespace WolfCna
 {
@@ -12,7 +14,8 @@ namespace WolfCna
         constexpr std::string_view LegacyHeader = "WOLF-CNA-PROGRESS-1";
         constexpr std::string_view BooleanSoundHeader = "WOLF-CNA-PROGRESS-2";
         constexpr std::string_view VolumeHeader = "WOLF-CNA-PROGRESS-3";
-        constexpr std::string_view Header = "WOLF-CNA-PROGRESS-4";
+        constexpr std::string_view FieldOfViewHeader = "WOLF-CNA-PROGRESS-4";
+        constexpr std::string_view Header = "WOLF-CNA-PROGRESS-5";
         constexpr std::array SupportedFieldOfView = {60, 72, 84, 96};
 
         bool IsSupportedFieldOfView(int fieldOfView)
@@ -87,7 +90,7 @@ namespace WolfCna
                 return {};
             }
         }
-        else if (header == Header)
+        else if (header == FieldOfViewHeader)
         {
             if (!(input >> profile.soundVolume >> profile.difficulty >> profile.fieldOfView) ||
                 profile.soundVolume < 0 || profile.soundVolume > 4 ||
@@ -97,6 +100,35 @@ namespace WolfCna
             {
                 return {};
             }
+        }
+        else if (header == Header)
+        {
+            std::size_t highScoreCount = 0;
+            if (!(input >> profile.soundVolume >> profile.difficulty >>
+                    profile.fieldOfView >> highScoreCount) ||
+                profile.soundVolume < 0 || profile.soundVolume > 4 ||
+                profile.difficulty < 0 || profile.difficulty > 2 ||
+                !IsSupportedFieldOfView(profile.fieldOfView) ||
+                highScoreCount > MaximumHighScoreEntries)
+            {
+                return {};
+            }
+
+            profile.highScores.reserve(highScoreCount);
+            for (std::size_t index = 0; index < highScoreCount; ++index)
+            {
+                HighScoreEntry entry;
+                if (!(input >> entry.initials >> entry.score) ||
+                    !AreValidInitials(entry.initials) ||
+                    entry.score <= 0 || entry.score > MaximumHighScoreValue)
+                {
+                    return {};
+                }
+                profile.highScores.push_back(std::move(entry));
+            }
+            if (input >> trailing)
+                return {};
+            profile.highScores = NormalizeHighScores(std::move(profile.highScores));
         }
         else
         {
@@ -115,10 +147,16 @@ namespace WolfCna
         const int fieldOfView = IsSupportedFieldOfView(profile.fieldOfView)
             ? profile.fieldOfView
             : 72;
-        return std::string(Header) + "\n" +
-            std::to_string(std::clamp(profile.highestUnlocked, 0, maximum)) + "\n" +
-            std::to_string(std::clamp(profile.soundVolume, 0, 4)) + "\n" +
-            std::to_string(std::clamp(profile.difficulty, 0, 2)) + "\n" +
-            std::to_string(fieldOfView) + "\n";
+        const std::vector<HighScoreEntry> highScores = NormalizeHighScores(profile.highScores);
+        std::ostringstream output;
+        output << Header << '\n'
+            << std::clamp(profile.highestUnlocked, 0, maximum) << '\n'
+            << std::clamp(profile.soundVolume, 0, 4) << '\n'
+            << std::clamp(profile.difficulty, 0, 2) << '\n'
+            << fieldOfView << '\n'
+            << highScores.size() << '\n';
+        for (const HighScoreEntry& entry : highScores)
+            output << entry.initials << ' ' << entry.score << '\n';
+        return output.str();
     }
 }

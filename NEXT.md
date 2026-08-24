@@ -53,11 +53,13 @@
 - Losing a non-final life now shows a short `LIFE LOST` transition, rolls score/extra-life progress back to sector entry and rebuilds the entire sector with the basic sidearm loadout; the final life still enters game over.
 - Campaign metadata now defines two named chapters, five selectable sectors, a hidden Foundry elevator, a menu-hidden 64×64 reservoir and a deterministic return to Labs; all routes are tested.
 - Warden Core adds an original 32-health Bunker Warden with a dedicated HUD bar, AI-generated idle/attack/pain/defeated sprites, a three-projectile fan, tested final-elevator lockdown and a separate campaign-complete screen.
+- Sector completion now awards authored target-time, clear and 100% category bonuses and presents the exact percentages and award breakdown.
+- Profile version 5 migrates versions 1–4 and persists a validated best-eight table; qualifying finales use a three-letter arrow-key initials editor and show the top three scores.
 
 ## Next tasks
 
-1. Implement WOLF-037 completion bonuses, category percentages and persisted high scores.
-2. Continue through WOLF-038–WOLF-044 in the dependency order recorded in `plan.md`.
+1. Implement WOLF-038 strafing and configurable CNA-only controls.
+2. Continue through WOLF-039–WOLF-044 in the dependency order recorded in `plan.md`.
 3. Subjectively playtest all three deterministic difficulty profiles, save slots, life loss and the full six-sector route including the hidden branch.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from

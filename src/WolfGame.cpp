@@ -331,6 +331,7 @@ namespace WolfCna
         soundVolumeStep_ = profile.soundVolume;
         fieldOfViewDegrees_ = profile.fieldOfView;
         difficulty_ = static_cast<Difficulty>(profile.difficulty);
+        highScores_ = profile.highScores;
     }
 
     const std::string& WolfGame::GetTypeName() const
@@ -1031,12 +1032,21 @@ namespace WolfCna
         }
         if (completed_)
         {
-            const World::CompletionStats stats = world_.GetCompletionStats();
-            const std::array<std::string, 4> rows = {
-                "KILLS " + std::to_string(stats.defeatedEnemies) + "/" + std::to_string(stats.totalEnemies),
-                "TREASURE " + std::to_string(stats.collectedGold) + "/" + std::to_string(stats.totalGold),
-                "SECRETS " + std::to_string(stats.foundSecrets) + "/" + std::to_string(stats.totalSecrets),
-                "TIME " + std::to_string(static_cast<int>(levelElapsedSeconds_)) + "S"};
+            const int perfectBonus = completionScore_.killPerfectBonus +
+                completionScore_.treasurePerfectBonus + completionScore_.secretPerfectBonus;
+            const std::array<std::string, 7> rows = {
+                "KILLS " + std::to_string(completionScore_.killPercentage) + "% +" +
+                    std::to_string(completionScore_.killPerfectBonus),
+                "TREASURE " + std::to_string(completionScore_.treasurePercentage) + "% +" +
+                    std::to_string(completionScore_.treasurePerfectBonus),
+                "SECRETS " + std::to_string(completionScore_.secretPercentage) + "% +" +
+                    std::to_string(completionScore_.secretPerfectBonus),
+                "TIME " + std::to_string(completionScore_.elapsedSeconds) + "/" +
+                    std::to_string(completionScore_.targetSeconds) + " +" +
+                    std::to_string(completionScore_.timeBonus),
+                "CLEAR +" + std::to_string(completionScore_.baseBonus),
+                "PERFECT +" + std::to_string(perfectBonus),
+                "AWARD +" + std::to_string(completionScore_.totalBonus)};
             const CampaignSector& sector = GetCampaignSector(levelIndex_);
             const std::string_view prompt = sector.kind == CampaignSectorKind::Boss
                 ? "SPACE FINALE"
@@ -1045,9 +1055,9 @@ namespace WolfCna
                     : completedExitRoute_ == CampaignExitRoute::Secret
                         ? "SPACE SECRET"
                         : "SPACE NEXT";
-            const int cardTop = centerY - 94;
-            constexpr int cardWidth = 260;
-            constexpr int cardHeight = 180;
+            const int cardTop = centerY - 120;
+            constexpr int cardWidth = 300;
+            constexpr int cardHeight = 236;
             const int cardLeft = centerX - cardWidth / 2;
             hudSpriteBatch_->Draw(
                 *hudPixel_,
@@ -1070,14 +1080,14 @@ namespace WolfCna
                     *hudSpriteBatch_,
                     *hudPixel_,
                     centerX - HudTextWidth(rows[static_cast<std::size_t>(index)]) / 2,
-                    cardTop + 48 + index * 22,
+                    cardTop + 45 + index * 21,
                     rows[static_cast<std::size_t>(index)],
                     Color(255, 233, 136, 255));
             DrawHudText(
                 *hudSpriteBatch_,
                 *hudPixel_,
                 centerX - HudTextWidth(prompt) / 2,
-                cardTop + 146,
+                cardTop + 210,
                 prompt,
                 Color(255, 233, 136, 255));
         }
@@ -1579,14 +1589,55 @@ namespace WolfCna
             centered(top + 220, "FOES AND SUPPLIES CHANGE", normal);
             centered(top + 238, "ESC BACK", normal);
         }
+        else if (screen_ == Screen::Initials)
+        {
+            centered(top + 26, "NEW HIGH SCORE", title);
+            centered(top + 62, "FINAL SCORE", normal);
+            centered(top + 84, std::to_string(score_), selected);
+            const std::string initials{
+                pendingInitials_[0], ' ', pendingInitials_[1], ' ', pendingInitials_[2]};
+            constexpr int initialsScale = 4;
+            const int initialsX = left + 160 - HudTextWidth(initials, initialsScale) / 2;
+            const int initialsY = top + 120;
+            DrawHudText(
+                *hudSpriteBatch_,
+                *hudPixel_,
+                initialsX,
+                initialsY,
+                initials,
+                title,
+                initialsScale);
+            hudSpriteBatch_->Draw(
+                *hudPixel_,
+                Rectangle(
+                    initialsX + initialsSelection_ * 48,
+                    initialsY + 31,
+                    20,
+                    3),
+                selected);
+            centered(top + 180, "UP DOWN CHANGE LETTER", normal);
+            centered(top + 202, "LEFT RIGHT SELECT", normal);
+            centered(top + 228, "ENTER SAVE", selected);
+        }
         else if (screen_ == Screen::CampaignComplete)
         {
-            centered(top + 28, "CAMPAIGN COMPLETE", title);
-            centered(top + 64, "WARDEN NETWORK DISABLED", selected);
-            centered(top + 100, "THE BUNKER IS SECURE", normal);
-            centered(top + 138, "FINAL SCORE", normal);
-            centered(top + 164, std::to_string(score_), title);
-            centered(top + 218, "ENTER TITLE", selected);
+            centered(top + 20, "CAMPAIGN COMPLETE", title);
+            centered(top + 48, "FINAL SCORE " + std::to_string(score_), selected);
+            centered(top + 80, "HIGH SCORES", normal);
+            const int visibleScores = std::min(3, static_cast<int>(highScores_.size()));
+            for (int index = 0; index < visibleScores; ++index)
+            {
+                const HighScoreEntry& entry = highScores_[static_cast<std::size_t>(index)];
+                centered(
+                    top + 108 + index * 25,
+                    std::to_string(index + 1) + " " + entry.initials + " " +
+                        std::to_string(entry.score),
+                    index == 0 ? title : normal);
+            }
+            if (visibleScores == 0)
+                centered(top + 108, "NO SCORES", normal);
+            centered(top + 202, "THE BUNKER IS SECURE", normal);
+            centered(top + 228, "ENTER TITLE", selected);
         }
         else
         {
@@ -1673,6 +1724,7 @@ namespace WolfCna
         hasSecurityCard_ = false;
         completed_ = false;
         completedExitRoute_ = CampaignExitRoute::Standard;
+        completionScore_ = {};
         levelElapsedSeconds_ = 0.0f;
         sectorEntryScore_ = score_;
         sectorEntryNextExtraLifeScore_ = nextExtraLifeScore_;
@@ -1704,9 +1756,19 @@ namespace WolfCna
         else
         {
             completed_ = false;
-            screen_ = Screen::CampaignComplete;
+            if (QualifiesForHighScores(highScores_, score_))
+            {
+                pendingInitials_ = {'A', 'A', 'A'};
+                initialsSelection_ = 0;
+                screen_ = Screen::Initials;
+            }
+            else
+            {
+                screen_ = Screen::CampaignComplete;
+            }
             menuSelection_ = 0;
             actionWasDown_ = false;
+            confirmWasDown_ = true;
         }
     }
 
@@ -1730,11 +1792,32 @@ namespace WolfCna
         completed_ = true;
         completedExitRoute_ = route;
         UnlockNextLevel();
-        AwardScore(1000);
+        const World::CompletionStats stats = world_.GetCompletionStats();
+        completionScore_ = CalculateCompletionScore(
+            stats.defeatedEnemies,
+            stats.totalEnemies,
+            stats.collectedGold,
+            stats.totalGold,
+            stats.foundSecrets,
+            stats.totalSecrets,
+            levelElapsedSeconds_,
+            GetCampaignSector(levelIndex_).targetSeconds);
+        AwardScore(completionScore_.totalBonus);
         if (exitSound_)
             static_cast<void>(exitSound_->Play(0.38f, 0.4f, 0.0f));
         if (completionFanfareSound_)
             static_cast<void>(completionFanfareSound_->Play(0.42f, 0.0f, 0.0f));
+    }
+
+    void WolfGame::SubmitHighScore()
+    {
+        const std::string initials(pendingInitials_.begin(), pendingInitials_.end());
+        highScores_ = InsertHighScore(
+            std::move(highScores_),
+            HighScoreEntry{initials, score_});
+        SaveCampaignProfile();
+        screen_ = Screen::CampaignComplete;
+        menuSelection_ = 0;
     }
 
     void WolfGame::RestartSectorAfterLifeLoss()
@@ -1758,7 +1841,8 @@ namespace WolfCna
                 .highestUnlocked = highestUnlockedLevel_,
                 .soundVolume = soundVolumeStep_,
                 .difficulty = static_cast<int>(difficulty_),
-                .fieldOfView = fieldOfViewDegrees_},
+                .fieldOfView = fieldOfViewDegrees_,
+                .highScores = highScores_},
             static_cast<int>(SelectableCampaignSectors.size()));
     }
 
@@ -1918,6 +2002,8 @@ namespace WolfCna
         const MouseState mouse = Mouse::GetState();
         const bool upIsDown = keyboard.IsKeyDown(Keys::Up);
         const bool downIsDown = keyboard.IsKeyDown(Keys::Down);
+        const bool leftIsDown = keyboard.IsKeyDown(Keys::Left);
+        const bool rightIsDown = keyboard.IsKeyDown(Keys::Right);
         const bool confirmIsDown = keyboard.IsKeyDown(Keys::Enter) || keyboard.IsKeyDown(Keys::Space);
         const bool escapeIsDown = keyboard.IsKeyDown(Keys::Escape);
         const bool mouseIsDown = mouse.getLeftButtonProperty() == ButtonState::Pressed;
@@ -2026,6 +2112,20 @@ namespace WolfCna
                 menuSelection_ = selectedLevelIndex_;
             }
         }
+        else if (screen_ == Screen::Initials)
+        {
+            char& character = pendingInitials_[static_cast<std::size_t>(initialsSelection_)];
+            if (upIsDown && !upWasDown_)
+                character = character == 'Z' ? 'A' : static_cast<char>(character + 1);
+            if (downIsDown && !downWasDown_)
+                character = character == 'A' ? 'Z' : static_cast<char>(character - 1);
+            if (leftIsDown && !leftWasDown_)
+                initialsSelection_ = (initialsSelection_ + 2) % 3;
+            if (rightIsDown && !rightWasDown_)
+                initialsSelection_ = (initialsSelection_ + 1) % 3;
+            if (confirmIsDown && !confirmWasDown_)
+                SubmitHighScore();
+        }
         else if ((confirmIsDown && !confirmWasDown_) || (escapeIsDown && !escapeWasDown_))
         {
             screen_ = Screen::Title;
@@ -2034,6 +2134,8 @@ namespace WolfCna
 
         upWasDown_ = upIsDown;
         downWasDown_ = downIsDown;
+        leftWasDown_ = leftIsDown;
+        rightWasDown_ = rightIsDown;
         confirmWasDown_ = confirmIsDown;
         escapeWasDown_ = escapeIsDown;
         mouseWasDown_ = mouseIsDown;
@@ -2419,7 +2521,7 @@ namespace WolfCna
 
         if (screen_ == Screen::Splash || screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
             screen_ == Screen::Difficulty || screen_ == Screen::Controls ||
-            screen_ == Screen::CampaignComplete)
+            screen_ == Screen::Initials || screen_ == Screen::CampaignComplete)
         {
             HandleMenuInput();
             Game::Update(gameTime);
@@ -2627,7 +2729,7 @@ namespace WolfCna
 
         if (screen_ == Screen::Splash || screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
             screen_ == Screen::Difficulty || screen_ == Screen::Controls ||
-            screen_ == Screen::CampaignComplete)
+            screen_ == Screen::Initials || screen_ == Screen::CampaignComplete)
             DrawMenu();
         else
         {

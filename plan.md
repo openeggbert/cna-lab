@@ -550,12 +550,12 @@ Goal: give wolf-cna an identity beyond being a retro-FPS technology demo.
 Status: started. The original title menu and its Scout / Operative / Veteran
 difficulty selection are implemented. A shared deterministic profile changes incoming
 damage, active encounter tiers, enemy health, movement speed, firing cadence and
-ammunition supply. Four authored sectors now run in sequence while carrying score, lives,
+ammunition supply. Five main sectors and a hidden branch now carry score, lives,
 health, ammunition and weapon selection; a sector-specific access card resets at
-each elevator transition. Each exit now presents time plus kill, treasure and
-secret completion ratios. A versioned, validated profile persists sector unlocks,
-five-step master volume, view angle and the last selected difficulty while accepting
-all older profile formats. Three in-run save slots with title/pause loading and F8/F9
+each elevator transition. Each exit now presents time plus kill, treasure and secret
+percentages with clear, speed and perfect-category awards. Profile version 5 persists
+sector unlocks, five-step master volume, view angle, last selected difficulty and a
+bounded high-score table while accepting all older profile formats. Three in-run save slots with title/pause loading and F8/F9
 quick access now persist the full active world and automap through a separately
 versioned, validated and safely replaced format. Additional settings remain.
 
@@ -1002,7 +1002,7 @@ Current progress:
   hound overlaps the doorway;
 - guards require three sidearm hits and hounds require two, so neither enemy type
   is removed by a single pistol shot;
-- score has no cap: gold awards 100, guards 100, hounds 200 and the exit awards a one-time 1000-point bonus; every 40,000 points awards an extra life;
+- score has no run-time cap: enemies, treasure and secrets retain their individual values; every clear awards 1,000 plus authored target-time and perfect-category bonuses, and every 40,000 points awards an extra life;
 - reaching the exit presents a centered completion card while preserving the final score in the status bar;
 - amber terminals and violet relays are optional bunker systems with generated CNA audio and independent progress tracking;
 - each shipping exit is a three-sided steel elevator cabin whose raised gate and
@@ -1010,8 +1010,8 @@ Current progress:
 - secret moving walls use the wall material, stay open once found and award 500 score for hidden rewards;
 - the starter level is an authored room-and-corridor route with distributed guards, hounds, pickups, gold, a normal door, a security door and an exit;
 - the game now starts at an original blue-and-amber title menu, with a short controls page and three difficulty choices; Scout takes 70% enemy damage, Operative is the baseline and Veteran takes 130%;
-- four original external level files now form a room-and-corridor campaign; exits advance with Space and preserve score, lives, health, ammunition and weapon selection;
-- every sector exit now presents a completion card with time and kill, treasure and secret ratios; each category is independently tracked in `World` and covered by unit tests;
+- six original external level files now form a two-chapter room-and-corridor campaign with five main sectors and one hidden branch; exits preserve score, lives, health, ammunition and weapon selection;
+- every sector exit now presents a completion card with target time, percentages and awarded bonuses; each category is independently tracked in `World` and covered by unit tests;
 - the in-game `I` + `L` + `M` retro loadout cheat restores health, grants all
   weapons plus the sector card, selects the heavy automatic, fills ammunition
   to 99 and resets score;
@@ -1510,10 +1510,21 @@ values and migrates version 1 files to a safe load-time checkpoint.
 
 ### WOLF-037 — completion bonuses and high scores
 
-Status: planned. Replace the flat exit-only reward with an original scoring model
-that rewards completion time plus kill, treasure and secret percentages. Add
-clearly presented perfect-category bonuses and a persisted high-score table without
-copying proprietary labels or values.
+Status: complete. Each campaign sector metadata record now authors its own positive
+target time. The shared scoring rule rounds elapsed time upward, awards 1,000 points
+for clearing a sector, 20 points per whole second under target and 1,500 points for
+each 100-percent kill, treasure or secret category. The enlarged completion card
+shows all three percentages, time versus target, each category award, combined
+perfect award and total sector award; existing enemy, treasure, secret and 40,000-point
+extra-life paths remain unchanged.
+
+Campaign profile version 5 migrates versions 1–4 and persists a strictly validated,
+descending table of at most eight positive scores with exactly three uppercase
+initials. A qualifying campaign finish opens a CNA-rendered arrow-key initials editor,
+then saves and displays the top three results on the campaign-ending screen. Focused
+tests cover integer percentages, elapsed-time rounding, target boundaries, perfect
+bonuses, malformed initials, stable tie ordering, bounded insertion and profile
+migration/round-trip behavior.
 
 - author per-sector target times and deterministic bonus formulas;
 - show percentages and awarded bonuses on the completion screen;

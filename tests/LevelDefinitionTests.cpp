@@ -17,6 +17,7 @@
 #include "ExplorationMap.hpp"
 #include "RunSave.hpp"
 #include "RunRules.hpp"
+#include "Scoring.hpp"
 
 namespace
 {
@@ -263,6 +264,56 @@ namespace
 
 int main()
 {
+    Expect(WolfCna::CompletionPercentage(3, 4) == 75, "completion percentage uses integer progress");
+    Expect(WolfCna::CompletionPercentage(0, 0) == 100, "empty completion categories count as perfect");
+    const WolfCna::CompletionScore mixedCompletion = WolfCna::CalculateCompletionScore(
+        8, 8, 2, 4, 0, 1, 100.1f, 120);
+    Expect(
+        mixedCompletion.killPercentage == 100 &&
+            mixedCompletion.treasurePercentage == 50 &&
+            mixedCompletion.secretPercentage == 0 &&
+            mixedCompletion.elapsedSeconds == 101 &&
+            mixedCompletion.timeBonus == 380 &&
+            mixedCompletion.killPerfectBonus == 1500 &&
+            mixedCompletion.treasurePerfectBonus == 0 &&
+            mixedCompletion.secretPerfectBonus == 0 &&
+            mixedCompletion.totalBonus == 2880,
+        "completion scoring combines clear, rounded-time and perfect-category bonuses");
+    const WolfCna::CompletionScore perfectCompletion = WolfCna::CalculateCompletionScore(
+        4, 4, 3, 3, 2, 2, 180.0f, 180);
+    Expect(
+        perfectCompletion.timeBonus == 0 && perfectCompletion.totalBonus == 5500,
+        "perfect categories award all three bonuses at the target-time boundary");
+    const WolfCna::CompletionScore slowCompletion = WolfCna::CalculateCompletionScore(
+        0, 4, 0, 3, 0, 2, 181.0f, 180);
+    Expect(
+        slowCompletion.totalBonus == 1000 && slowCompletion.timeBonus == 0,
+        "finishing beyond target time retains only the base clear award");
+
+    std::vector<WolfCna::HighScoreEntry> scoreTable{
+        {"CCC", 3000}, {"AAA", 5000}, {"BAD", -2}, {"BB", 9000}, {"BBB", 3000}};
+    scoreTable = WolfCna::NormalizeHighScores(std::move(scoreTable));
+    Expect(
+        scoreTable.size() == 3 && scoreTable[0] == WolfCna::HighScoreEntry{"AAA", 5000} &&
+            scoreTable[1] == WolfCna::HighScoreEntry{"CCC", 3000} &&
+            scoreTable[2] == WolfCna::HighScoreEntry{"BBB", 3000},
+        "high scores reject malformed rows, sort descending and preserve tie order");
+    std::vector<WolfCna::HighScoreEntry> fullScoreTable;
+    for (int index = 0; index < 8; ++index)
+        fullScoreTable.push_back({"AAA", 8000 - index * 1000});
+    Expect(
+        !WolfCna::QualifiesForHighScores(fullScoreTable, 1000) &&
+            WolfCna::QualifiesForHighScores(fullScoreTable, 1001),
+        "a full high-score table requires strictly beating its final entry");
+    fullScoreTable = WolfCna::InsertHighScore(
+        std::move(fullScoreTable),
+        WolfCna::HighScoreEntry{"NEW", 8500});
+    Expect(
+        fullScoreTable.size() == WolfCna::MaximumHighScoreEntries &&
+            fullScoreTable.front() == WolfCna::HighScoreEntry{"NEW", 8500} &&
+            fullScoreTable.back().score == 2000,
+        "inserting a qualifying score keeps the bounded best eight entries");
+
     constexpr WolfCna::LifeLossResult restartedLife = WolfCna::ResolveLifeLoss(
         3,
         42500,
@@ -331,19 +382,30 @@ int main()
         volumeProfile.highestUnlocked == 1 && volumeProfile.soundVolume == 2 &&
             volumeProfile.difficulty == 0 && volumeProfile.fieldOfView == 72,
         "version three profile migrates to the default view angle");
+    const WolfCna::CampaignProfile fieldOfViewProfile = WolfCna::CampaignProgress::Parse(
+        "WOLF-CNA-PROGRESS-4\n1\n3\n2\n84\n", 3);
+    Expect(
+        fieldOfViewProfile.highestUnlocked == 1 &&
+            fieldOfViewProfile.soundVolume == 3 &&
+            fieldOfViewProfile.difficulty == 2 &&
+            fieldOfViewProfile.fieldOfView == 84 &&
+            fieldOfViewProfile.highScores.empty(),
+        "version four profile migrates settings with an empty high-score table");
     const WolfCna::CampaignProfile savedProfile = WolfCna::CampaignProgress::Parse(
         WolfCna::CampaignProgress::Serialize(
             WolfCna::CampaignProfile{
                 .highestUnlocked = 8,
                 .soundVolume = 3,
                 .difficulty = 2,
-                .fieldOfView = 84},
+                .fieldOfView = 84,
+                .highScores = {{"LOW", 1200}, {"TOP", 9800}, {"BAD", -1}}},
             3),
         3);
     Expect(
         savedProfile.highestUnlocked == 2 && savedProfile.soundVolume == 3 &&
-            savedProfile.difficulty == 2 && savedProfile.fieldOfView == 84,
-        "campaign profile restores clamped unlocks, volume, difficulty and view angle");
+            savedProfile.difficulty == 2 && savedProfile.fieldOfView == 84 &&
+            savedProfile.highScores == std::vector<WolfCna::HighScoreEntry>{{"TOP", 9800}, {"LOW", 1200}},
+        "campaign profile restores settings and a normalized high-score table");
     const WolfCna::CampaignProfile invalidProfile = WolfCna::CampaignProgress::Parse(
         "WOLF-CNA-PROGRESS-4\n2\n5\n1\n72\n", 3);
     Expect(
@@ -354,6 +416,13 @@ int main()
     Expect(
         invalidViewProfile.highestUnlocked == 0 && invalidViewProfile.fieldOfView == 72,
         "unsupported view angle safely restores defaults");
+    const WolfCna::CampaignProfile invalidHighScoreProfile = WolfCna::CampaignProgress::Parse(
+        "WOLF-CNA-PROGRESS-5\n2\n4\n1\n72\n1\nA!A 5000\n",
+        3);
+    Expect(
+        invalidHighScoreProfile.highestUnlocked == 0 &&
+            invalidHighScoreProfile.highScores.empty(),
+        "malformed initials invalidate the new profile without accepting partial scores");
 
     Expect(WolfCna::CampaignSectors.size() == 6, "campaign includes its hidden sector");
     Expect(
@@ -367,6 +436,14 @@ int main()
             WolfCna::GetCampaignSector(2).chapter == 2 &&
             WolfCna::GetCampaignSector(5).chapterName == "WARDEN NETWORK",
         "campaign metadata groups main and secret sectors into two named chapters");
+    Expect(
+        std::all_of(
+            WolfCna::CampaignSectors.begin(),
+            WolfCna::CampaignSectors.end(),
+            [](const WolfCna::CampaignSector& sector) { return sector.targetSeconds > 0; }) &&
+            WolfCna::GetCampaignSector(0).targetSeconds <
+                WolfCna::GetCampaignSector(3).targetSeconds,
+        "every sector has an authored positive target time with longer late-sector pacing");
     Expect(
         WolfCna::CampaignDestination(0, WolfCna::CampaignExitRoute::Standard) == 1 &&
             WolfCna::CampaignDestination(1, WolfCna::CampaignExitRoute::Standard) == 2 &&

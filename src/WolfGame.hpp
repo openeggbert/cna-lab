@@ -1,7 +1,9 @@
 #pragma once
 
+#include <array>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "Microsoft/Xna/Framework/Game.hpp"
 #include "Microsoft/Xna/Framework/GraphicsDeviceManager.hpp"
@@ -20,6 +22,7 @@
 #include "ExplorationMap.hpp"
 #include "RunSave.hpp"
 #include "RunRules.hpp"
+#include "Scoring.hpp"
 
 namespace WolfCna
 {
@@ -134,6 +137,10 @@ namespace WolfCna
         bool hasSecurityCard_ = false;
         bool completed_ = false;
         CampaignExitRoute completedExitRoute_ = CampaignExitRoute::Standard;
+        CompletionScore completionScore_;
+        std::vector<HighScoreEntry> highScores_;
+        std::array<char, 3> pendingInitials_ = {'A', 'A', 'A'};
+        int initialsSelection_ = 0;
         enum class Screen
         {
             Splash,
@@ -146,6 +153,7 @@ namespace WolfCna
             Paused,
             Defeated,
             GameOver,
+            Initials,
             CampaignComplete
         };
         Screen screen_ = Screen::Splash;
@@ -165,6 +173,8 @@ namespace WolfCna
         bool goalCheatWasDown_ = false;
         bool upWasDown_ = false;
         bool downWasDown_ = false;
+        bool leftWasDown_ = false;
+        bool rightWasDown_ = false;
         bool confirmWasDown_ = false;
         bool escapeWasDown_ = false;
         bool mouseWasDown_ = false;
@@ -196,6 +206,7 @@ namespace WolfCna
         void AdvanceCampaign();
         void UnlockNextLevel();
         void CompleteLevel(CampaignExitRoute route = CampaignExitRoute::Standard);
+        void SubmitHighScore();
         void RestartSectorAfterLifeLoss();
         void SaveCampaignProfile() const;
         [[nodiscard]] RunSaveState CaptureRunSaveState() const;

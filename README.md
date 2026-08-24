@@ -21,8 +21,8 @@ This starter is deliberately small. It proves the basic direction before local A
 - clearly audible generated CNA effects for firearm shots, knife attacks, ammunition, enemy alerts and attacks, defeated enemies, doors, locks and player damage
 - a generated looping bunker ambience, with five master-volume levels in the title menu
 - a persisted 60/72/84/96-degree view-angle choice in the title menu
-- uncapped score for gold, defeated enemies and completing the level; every 40,000 points awards another life
-- a centered completion card appears at the level exit
+- uncapped run score for treasure, defeated enemies, secrets and deterministic sector bonuses; every 40,000 points awards another life
+- a centered completion card shows kill, treasure and secret percentages plus clear, target-time and perfect-category awards
 - grid collision with wall sliding
 - level loaded from a validated text file
 - five progressively unlocked authored bunker sectors plus a discoverable hidden sector, deterministic return route, original boss encounter and campaign-ending screen
@@ -46,7 +46,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - no external copyrighted game assets
 - original title menu with three deterministic difficulty profiles that change enemy count, health, speed, firing cadence, incoming damage and ammunition supply
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
-- persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume, view angle and the last selected difficulty survive restarts
+- persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume, view angle, last selected difficulty and the best eight campaign scores survive restarts
 - three versioned in-run save slots preserve the player, inventory, score, lives, sector time, enemies and AI state, pickups, doors, projectiles, objectives and explored automap; the title and pause menus can load them
 - holding `Tab` shows a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
 - every `GOAL` corresponds to a steel elevator cabin whose raised gate allows immediate Wolf-like action activation or physical entry
@@ -57,6 +57,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - hold left or right `Shift` while moving: run at 165% speed
 - left/right arrow keys: turn left / right
 - title/sector/difficulty menus: arrows select, `Enter` or `Space` confirms, `Escape` backs out; the title menu cycles master volume through 0/25/50/75/100% and view angle through 60/72/84/96 degrees
+- high-score initials: up/down changes the selected letter, left/right selects one of three positions and `Enter` saves
 - three difficulty modes: Scout has fewer, weaker and slower enemies plus more ammunition; Operative is the baseline; Veteran adds reinforcements, health, speed and firing frequency while reducing ammunition and applying 130% incoming damage
 - `Space`: open the door in front of you or activate a faced sector elevator (doors close after four seconds unless the player or a body blocks them)
 - left or right `Ctrl`: attack with the selected weapon; hold for repeater/heavy automatic fire, while the knife and sidearm fire once per press; empty firearms automatically fall back to the knife
@@ -83,10 +84,15 @@ ammunition and the selected weapon carry forward, while sector access cards do n
 The foundry also hides a three-sided `X` elevator behind a moving secret wall. It
 branches to the Hidden Reservoir and its standard elevator returns to the Labs,
 without exposing the hidden sector in the normal sector-selection menu.
-Before the transition, the game shows the sector time and the collected/total
-counts for kills, gold and secrets.
-Unlocked sectors are stored in `wolf-cna-progress.dat` in the launch working
-directory. Invalid progress data safely falls back to sector 1 only.
+Before the transition, the game shows kill, treasure and secret percentages. Every
+clear awards 1,000 points, each perfect category awards 1,500, and every whole
+second below the sector's authored target awards 20. Individual enemy, treasure and
+secret scores still accumulate normally, and all awards continue to feed extra lives.
+After the campaign finale, a qualifying score enters three initials and joins a
+validated, descending table of the best eight results shown on the ending screen.
+Unlocked sectors and high scores are stored in `wolf-cna-progress.dat` in the launch
+working directory. Invalid progress data safely falls back to sector 1 with an empty
+score table; profile versions 1–4 migrate into the current version 5 format.
 Run slots are stored as `wolf-cna-save-1.dat` through `wolf-cna-save-3.dat`.
 Malformed, incompatible or sector-mismatched saves are rejected without replacing
 the current run.
