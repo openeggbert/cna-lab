@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 repeatability now rejects copied capture evidence.** The release-summary generator previously
+counted two different file paths as two runs, so a byte-for-byte copy under a new name could satisfy
+the repeatability count. It now identifies each mixed run from canonical performance-capture
+contents with externally bound VRAM metadata normalized away; path, whitespace, object-key ordering,
+and a second evidence manifest for the same profile do not create another run.
+
+- A new report test proves two copied captures produce `FAIL` with a distinct-content blocker.
+- The external-VRAM integration no longer uses a copied enriched fixture for its synthetic `PASS`;
+  it creates two raw profiles, two profiler artifacts, two manifests, and binds both independently.
+- Report, VRAM, and comparator suites each pass 6/6; the full project remains 8/8 CTest.
+
 **M12 now has a complete external-VRAM evidence binding seam.** CNA/EasyGL exposes no complete
 per-process GPU-residency counter, and adapter-global free-memory extensions or API-object tracing
 cannot honestly substitute for one. New `scripts/vram_evidence.py` binds an original schema-8
@@ -151,9 +162,10 @@ explicitly documented as first-pass, not final production limits.
 `042`-`044`).** `scripts/performance_report.py` consumes schema-8 captures and emits deterministic
 Markdown with per-capture frame/CPU/RAM/VRAM/load/hitch/presentation evidence. It independently
 checks raw measurements against locked targets and separates `DIAGNOSTIC`, `FAIL`, and `PASS`.
-Qualification needs at least two distinct mixed captures, explicit physical hardware identity,
-Release OPENGLES3, acknowledged swap application, complete VRAM, and every minimum budget; labels
-containing Xvfb/llvmpipe/software rasterizer are never promoted.
+Qualification needs at least two mixed captures with distinct canonical contents, explicit physical
+hardware identity, Release OPENGLES3, acknowledged swap application, complete VRAM, and every
+minimum budget; copies under another path and labels containing Xvfb/llvmpipe/software rasterizer
+are never promoted.
 
 - New `iron_gang_performance_report_tests` makes CTest 4/4 and covers diagnostic virtual input, a
   synthetic two-capture pass, swap/VRAM failures, stale schema, and inconsistent histograms. The

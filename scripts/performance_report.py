@@ -270,6 +270,23 @@ def _escape(value: Any) -> str:
     return str(value).replace("|", "\\|").replace("\n", " ")
 
 
+def _capture_identity(capture: dict[str, Any]) -> str:
+    identity_capture = dict(capture)
+    video_memory = dict(_mapping(_path(capture, "video_memory"), "video_memory"))
+    logical_bytes = (
+        _integer(capture, "video_memory", "logical_tracked_bytes")
+        if _boolean(capture, "video_memory", "tracking_complete")
+        else _integer(capture, "video_memory", "tracked_bytes")
+    )
+    video_memory["tracked_bytes"] = logical_bytes
+    video_memory["tracking_complete"] = False
+    video_memory["tracked_budget_pass"] = logical_bytes <= VRAM_BUDGET_BYTES
+    for external_key in ("complete_evidence", "logical_tracked_bytes", "coverage"):
+        video_memory.pop(external_key, None)
+    identity_capture["video_memory"] = video_memory
+    return json.dumps(identity_capture, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
+
+
 def build_markdown(
     capture_paths: list[Path],
     captures: list[dict[str, Any]],
@@ -280,13 +297,16 @@ def build_markdown(
     blockers: list[str] = []
     mixed_count = len(
         {
-            path.resolve()
-            for path, capture in zip(capture_paths, captures)
+            _capture_identity(capture)
+            for capture in captures
             if _path(capture, "scenario") == "mixed"
         }
     )
     if mixed_count < 2:
-        blockers.append("at least two mixed captures are required for repeatable qualification")
+        blockers.append(
+            "at least two mixed captures with distinct canonical contents are required for "
+            "repeatable qualification"
+        )
     if any(term in hardware.lower() for term in DIAGNOSTIC_HARDWARE_TERMS):
         blockers.append("the hardware label identifies a diagnostic software/virtual display")
     per_capture_blockers: list[list[str]] = []

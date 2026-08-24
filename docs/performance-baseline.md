@@ -337,8 +337,9 @@ boundary, RAM, and logical VRAM evidence in its per-capture table.
 
 A synthetic two-capture test proves the strict physical path can reach `PASS` only with Release
 OPENGLES3, acknowledged presentation, complete in-budget VRAM, and all direct minimum budgets
-passing. Separate tests prove stale schema, inconsistent histograms, rejected swap application, and
-incomplete VRAM cannot be promoted. The CLI plus these four cases are wired into CTest as
+passing. Separate tests prove a copied capture under a second path, stale schema, inconsistent
+histograms, rejected swap application, and incomplete VRAM cannot be promoted. Repeatability uses
+canonical JSON object contents rather than paths or formatting. The CLI cases are wired into CTest as
 `iron_gang_performance_report_tests`; generating a report successfully never by itself closes M12.
 
 ## 2026-08-24 — automated capture-comparison follow-up

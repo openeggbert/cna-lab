@@ -144,8 +144,25 @@ class VramEvidenceTests(unittest.TestCase):
             self.assertEqual(verification.returncode, 0, verification.stderr)
             self.assertIn("VRAM EVIDENCE VERIFIED", verification.stdout)
 
+            second_capture_path = directory / "capture-second.json"
+            second_evidence_path = directory / "evidence-second.json"
+            second_artifact_path = directory / "vendor-capture-second.bin"
             second_path = directory / "enriched-second.json"
-            second_path.write_text(output_path.read_text(encoding="utf-8"), encoding="utf-8")
+            second_capture = raw_capture_fixture()
+            second_capture["measurements"]["frame_interval"]["p95_ms"] = 17.0
+            second_capture_path.write_text(json.dumps(second_capture), encoding="utf-8")
+            second_artifact_path.write_bytes(b"second raw vendor profiler capture fixture")
+            second_evidence_path.write_text(
+                json.dumps(evidence_fixture(second_capture_path, second_artifact_path)),
+                encoding="utf-8",
+            )
+            second_binding = self.run_binding(
+                second_capture_path,
+                second_evidence_path,
+                second_artifact_path,
+                second_path,
+            )
+            self.assertEqual(second_binding.returncode, 0, second_binding.stderr)
             report = subprocess.run(
                 [
                     sys.executable,

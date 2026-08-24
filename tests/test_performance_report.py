@@ -121,6 +121,20 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertIn("- None.", result.stdout)
         self.assertEqual(result.stdout.count("| PASS |"), 2)
 
+    def test_copied_capture_does_not_meet_repeatability_requirement(self) -> None:
+        first = capture_fixture()
+        second = deepcopy(first)
+        second["video_memory"]["complete_evidence"]["evidence_manifest_sha256"] = "d" * 64
+        second["video_memory"]["complete_evidence"]["source_artifact"]["sha256"] = "e" * 64
+        result = self.run_report(
+            [first, second],
+            "Minimum Linux EasyGL GPU",
+            "--qualifying-hardware",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Overall status: **FAIL**", result.stdout)
+        self.assertIn("mixed captures with distinct canonical contents", result.stdout)
+
     def test_incomplete_capture_fails_qualification(self) -> None:
         first = capture_fixture()
         second = deepcopy(first)

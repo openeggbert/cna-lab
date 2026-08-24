@@ -488,8 +488,8 @@ Turn one or more schema-8 captures into a deterministic Markdown summary with:
 ```
 
 Without `--qualifying-hardware`, the overall state is always `DIAGNOSTIC`. For a real qualification,
-name the controlled physical target explicitly, provide at least two distinct mixed captures, and
-write the release artifact:
+name the controlled physical target explicitly, provide at least two mixed captures with distinct
+canonical performance contents, and write the release artifact:
 
 ```bash
 ./scripts/performance_report.py \
@@ -507,6 +507,10 @@ known RAM, complete VRAM accounting within budget, and a real passing district t
 mixed capture. It reports `FAIL` when a declared qualification misses any condition and exits zero
 because the report was generated successfully; malformed/stale input exits 2. `PASS` is therefore
 a strict evidence summary, while successful command execution alone is not a gate result.
+Renaming, copying, or changing only JSON whitespace cannot turn one capture into the two independent
+runs required for repeatability. Canonical performance identity is independent of file path and key
+ordering and normalizes externally bound VRAM metadata, so rebinding the same original profile to a
+second manifest/artifact also remains one run.
 
 ### Capture regression comparison
 

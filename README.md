@@ -113,8 +113,10 @@ hardware:
 ```
 
 Physical qualification additionally requires `--qualifying-hardware`, an explicit CPU/GPU/driver/
-display identity, at least two distinct mixed captures, acknowledged presentation, and complete
-VRAM evidence. See [`docs/performance-targets.md`](docs/performance-targets.md#release-summary-generator).
+display identity, at least two mixed captures with distinct canonical contents, acknowledged
+presentation, and complete VRAM evidence. A copied/renamed/reformatted single capture does not
+satisfy repeatability. See
+[`docs/performance-targets.md`](docs/performance-targets.md#release-summary-generator).
 
 When complete per-process VRAM residency comes from a vendor/OS profiler, bind its raw artifact and
 manifest to the original profile without overwriting it:
@@ -246,6 +248,6 @@ All of gates M0-M11 are now fully done at prototype/first-pass fidelity. M12 is 
 
 `scripts/performance_report.py` turns schema-8 captures into a release Markdown summary and
 deliberately keeps unasserted or Xvfb/llvmpipe runs diagnostic. A qualifying pass requires two
-distinct mixed physical-hardware captures, acknowledged presentation, complete VRAM, and every
-locked minimum budget; its synthetic pass/failure cases and the real diagnostic path are the
-fourth CTest target.
+mixed physical-hardware captures with distinct canonical contents, acknowledged presentation,
+complete VRAM, and every locked minimum budget; a copied capture under a second path is explicitly
+rejected by its CTest coverage.

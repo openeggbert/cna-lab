@@ -115,12 +115,12 @@ as physical target hardware or diagnose the one hitch; no visible host display w
 
 The release-summary follow-up adds `scripts/performance_report.py`, a standard-library schema-8
 Markdown generator that independently evaluates raw measurements against locked targets. It
-requires two distinct mixed captures, explicit physical hardware identity, Release OPENGLES3,
-acknowledged presentation, complete VRAM, and all direct budgets before emitting `PASS`; absent
+requires two mixed captures with distinct canonical contents, explicit physical hardware identity,
+Release OPENGLES3, acknowledged presentation, complete VRAM, and all direct budgets before emitting `PASS`; absent
 qualification remains `DIAGNOSTIC`, while declared but incomplete evidence is `FAIL`. A new fourth
-CTest covers diagnostic Xvfb, a synthetic two-capture pass, swap/VRAM failures, stale schemas, and
-histogram mismatch. The real isolated capture correctly remains diagnostic with one-run,
-virtual-display, rejected-swap, and incomplete-VRAM blockers.
+CTest covers diagnostic Xvfb, a synthetic two-capture pass, duplicate-copy refusal, swap/VRAM
+failures, stale schemas, and histogram mismatch. The real isolated capture correctly remains
+diagnostic with one-run, virtual-display, rejected-swap, and incomplete-VRAM blockers.
 
 The content-budget follow-up adds versioned `assets/content-budgets.json` plus standard-library
 `scripts/content_budget.py`. Exact committed baselines pass: district prototype 96 triangles/5
