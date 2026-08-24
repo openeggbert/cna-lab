@@ -248,6 +248,39 @@ def validate_external_vram_measurement(
     return peak_resident_bytes
 
 
+def swap_interval_acknowledged(capture: dict[str, Any]) -> bool:
+    requested = _integer(capture, "swap_interval", "requested")
+    if requested not in (0, 1):
+        raise ReportError("swap_interval.requested must be 0 or 1")
+    vertical_sync_requested = _boolean(capture, "timing", "vertical_sync_requested")
+    if vertical_sync_requested != (requested == 1):
+        raise ReportError(
+            "timing.vertical_sync_requested must agree with swap_interval.requested"
+        )
+
+    result_known = _boolean(capture, "swap_interval", "apply_result_known")
+    apply_succeeded = _path(capture, "swap_interval", "apply_succeeded")
+    applied = _path(capture, "swap_interval", "applied")
+    if result_known:
+        if not isinstance(apply_succeeded, bool):
+            raise ReportError(
+                "swap_interval.apply_succeeded must be boolean when apply_result_known is true"
+            )
+    elif apply_succeeded is not None:
+        raise ReportError(
+            "swap_interval.apply_succeeded must be null when apply_result_known is false"
+        )
+
+    if apply_succeeded is True:
+        if isinstance(applied, bool) or not isinstance(applied, int):
+            raise ReportError("swap_interval.applied must be an integer after successful apply")
+        if applied != requested:
+            raise ReportError("swap_interval.applied must equal swap_interval.requested")
+    elif applied is not None:
+        raise ReportError("swap_interval.applied must be null unless apply succeeded")
+    return result_known and apply_succeeded is True
+
+
 def validate_complete_vram_evidence(
     capture: dict[str, Any],
     hardware: str | None = None,
@@ -346,6 +379,7 @@ def load_capture(path: Path) -> dict[str, Any]:
         _number(capture, "measurements", metric, "p95_ms")
     _number(capture, "memory", "peak_resident_bytes")
     _number(capture, "video_memory", "tracked_bytes")
+    swap_interval_acknowledged(capture)
     validate_capture_session(capture, required=False)
     validate_complete_vram_evidence(capture)
     _integer(capture, "frame_pacing", "hitches", "count")
@@ -366,15 +400,7 @@ def capture_blockers(path: Path, capture: dict[str, Any], hardware: str) -> list
     if width < MINIMUM_WIDTH or height < MINIMUM_HEIGHT:
         blockers.append(prefix + f"resolution {width}x{height} is below 1280x720")
 
-    swap_known = _boolean(capture, "swap_interval", "apply_result_known")
-    swap_succeeded = _path(capture, "swap_interval", "apply_succeeded")
-    swap_applied = _path(capture, "swap_interval", "applied")
-    if (
-        not swap_known
-        or swap_succeeded is not True
-        or isinstance(swap_applied, bool)
-        or not isinstance(swap_applied, int)
-    ):
+    if not swap_interval_acknowledged(capture):
         blockers.append(prefix + "requested swap interval lacks a successful platform acknowledgement")
 
     frame_samples = _integer(capture, "measurements", "frame_interval", "samples")
@@ -556,12 +582,7 @@ def build_markdown(
         ram = _number(capture, "memory", "peak_resident_bytes")
         vram = _number(capture, "video_memory", "tracked_bytes")
         vram_complete = _boolean(capture, "video_memory", "tracking_complete")
-        swap_ack = (
-            _boolean(capture, "swap_interval", "apply_result_known")
-            and _path(capture, "swap_interval", "apply_succeeded") is True
-            and not isinstance(_path(capture, "swap_interval", "applied"), bool)
-            and isinstance(_path(capture, "swap_interval", "applied"), int)
-        )
+        swap_ack = swap_interval_acknowledged(capture)
         recommended = (
             width >= RECOMMENDED_WIDTH
             and height >= RECOMMENDED_HEIGHT

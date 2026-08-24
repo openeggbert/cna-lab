@@ -287,6 +287,11 @@ and CNA platform `SetSwapInterval` acknowledgement. `apply_succeeded=true` means
 platform accepted that setting; it is still not proof of a physical vertical-retrace signal or
 compositor pacing. A declined or unqueryable path reports `applied:null` plus an explicit reason.
 WebGL is always unqueryable here because browser presentation is compositor-controlled.
+Schema validation requires `requested` to be exactly 0/1 and agree with
+`timing.vertical_sync_requested`. A known result has a boolean `apply_succeeded`; only success may
+carry an integer `applied`, and that value must equal `requested`. Unknown/failed results require
+`applied:null`. Report and comparison tools reject inconsistent JSON with exit 2 before treating it
+as presentation evidence.
 
 JSON schema 4 makes district loading a per-transition record instead of one opaque stopwatch.
 `district_world_physics_cpu` covers destruction of the old static bodies, construction/activation
@@ -543,6 +548,8 @@ SHA-256 and capture-session PID/UTC interval; a supplied bundle additionally rec
 and SHA-256 of the original profile, evidence manifest, and raw profiler artifact. The generator
 checks every recorded digest again after parsing and after Markdown construction, immediately
 before output, so the table cannot silently describe files changed during report generation.
+The successful presentation row means the exact requested 0/1 interval was acknowledged and
+recorded as applied; a merely non-null but different integer is malformed evidence, not a pass.
 Renaming, copying, or changing only JSON whitespace cannot turn one capture into the two independent
 runs required for repeatability. Canonical performance identity is independent of file path and key
 ordering and normalizes externally bound VRAM metadata, so rebinding the same original profile to a
@@ -571,6 +578,8 @@ coverage, and optional GPU/load/transition measurement availability. A qualifyin
 rejects virtual/software display labels, unacknowledged presentation, unknown RAM, and incomplete
 VRAM. Use `--baseline-kind diagnostic --candidate-kind diagnostic` for Xvfb or other non-qualifying
 engineering runs; diagnostic and qualifying evidence can never be mixed.
+Both inputs first pass the same request/v-sync/applied consistency validator as the release report,
+so two identically tampered presentation objects cannot compare as valid evidence.
 
 The candidate is a regression only when its increase is greater than both the relative tolerance
 and the applicable absolute tolerance. Defaults are 10%, 0.5 ms for frame/GPU/Present/transition

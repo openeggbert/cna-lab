@@ -40,7 +40,13 @@ def capture_fixture() -> dict:
         "build_configuration": "Release",
         "scenario": "mixed",
         "resolution": {"width": 1280, "height": 720},
+        "timing": {
+            "vertical_sync_requested": True,
+            "fixed_timestep": True,
+            "target_frame_ms": 16.667,
+        },
         "swap_interval": {
+            "requested": 1,
             "apply_result_known": True,
             "apply_succeeded": True,
             "applied": 1,
@@ -312,6 +318,18 @@ class PerformanceReportTests(unittest.TestCase):
         result = self.run_report([bad_histogram], "Test hardware")
         self.assertEqual(result.returncode, 2)
         self.assertIn("do not match frame_interval samples", result.stderr)
+
+        mismatched_swap = capture_fixture()
+        mismatched_swap["swap_interval"]["applied"] = 0
+        result = self.run_report([mismatched_swap], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("applied must equal swap_interval.requested", result.stderr)
+
+        mismatched_vsync = capture_fixture()
+        mismatched_vsync["timing"]["vertical_sync_requested"] = False
+        result = self.run_report([mismatched_vsync], "Test hardware")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("vertical_sync_requested must agree", result.stderr)
 
         with tempfile.TemporaryDirectory() as directory:
             duplicate_path = Path(directory) / "duplicate.json"

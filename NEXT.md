@@ -67,6 +67,17 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 presentation acknowledgement now means the requested interval was actually the applied
+interval.** The shared schema-8 loader restricts `swap_interval.requested` to 0/1, correlates it
+with `timing.vertical_sync_requested`, validates known/success/null state combinations, and
+requires successful `applied == requested`.
+
+- Report tests reject request-1/applied-0 and a v-sync/request contradiction; comparator coverage
+  proves the same shared refusal. Report 7/7, comparator 6/6, and VRAM 6/6 pass.
+- Both locally retained Xvfb captures remain valid diagnostics with their original rejected-swap
+  blocker. No graphical process was launched for this check.
+- This closes a hand-edited-JSON promotion gap; physical vblank/compositor proof is still external.
+
 **M12 release summaries now identify the exact evidence they evaluated.** The Markdown provenance
 table records every evaluated capture SHA-256 plus its PID/UTC session. A supplied complete-VRAM
 bundle adds the original-profile, manifest, and raw-artifact names and SHA-256 values. All recorded

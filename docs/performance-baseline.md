@@ -484,3 +484,10 @@ the locally retained real Xvfb session produced capture hash
 `df217f17b3cf32c3c279fbf582a3075a6bb61f759f9ec3d5d2b695be3da41cd0`, PID `1059289`, and the
 previously recorded `12:31:41.991744Z`–`12:31:43.189643Z` interval; absent bundle columns are
 explicitly `—` because that diagnostic has no external evidence.
+
+The schema-8 presentation contract is now checked rather than inferred from any non-null integer.
+`requested` is restricted to 0/1 and must agree with `vertical_sync_requested`; a successful
+`applied` must equal it exactly, while failed/unknown results require null state consistently. A
+hand-edited request-1/applied-0 capture and a v-sync/request contradiction both exit 2. The shared
+loader gives the comparator and VRAM binder the same protection. Both locally retained Xvfb
+diagnostics still parse normally and retain their rejected-swap blocker.

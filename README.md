@@ -266,3 +266,6 @@ Every generated summary includes an evidence-provenance table with the exact eva
 SHA-256 and capture PID/UTC interval. When bundles are supplied, it also records the original,
 manifest, and raw-artifact file names and hashes after verifying they stayed unchanged through
 report generation.
+Presentation acknowledgement is also schema-checked: `swap_interval.requested` must be 0 or 1,
+must agree with `timing.vertical_sync_requested`, and a successful `applied` value must exactly
+equal the request. Inconsistent hand-edited captures are rejected rather than promoted.

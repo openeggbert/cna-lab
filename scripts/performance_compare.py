@@ -18,6 +18,7 @@ from performance_report import (
     _number,
     _path,
     load_capture,
+    swap_interval_acknowledged,
     validate_complete_vram_evidence,
 )
 
@@ -170,13 +171,7 @@ def require_compatible(
         if any(term in lowered for term in DIAGNOSTIC_HARDWARE_TERMS):
             raise ReportError("virtual/software display cannot be labelled qualifying")
         for label, capture in (("baseline", baseline), ("candidate", candidate)):
-            applied_interval = _path(capture, "swap_interval", "applied")
-            if (
-                not _boolean(capture, "swap_interval", "apply_result_known")
-                or _path(capture, "swap_interval", "apply_succeeded") is not True
-                or isinstance(applied_interval, bool)
-                or not isinstance(applied_interval, int)
-            ):
+            if not swap_interval_acknowledged(capture):
                 raise ReportError(f"{label} qualifying capture lacks acknowledged presentation")
             if not _boolean(capture, "memory", "known"):
                 raise ReportError(f"{label} qualifying capture has unknown RAM")

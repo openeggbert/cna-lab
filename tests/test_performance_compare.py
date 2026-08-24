@@ -266,6 +266,12 @@ class PerformanceCompareTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("incompatible video_memory.complete_evidence.tool.version", result.stderr)
 
+        candidate = deepcopy(baseline)
+        candidate["swap_interval"]["applied"] = 0
+        result = self.run_compare(baseline, candidate)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("applied must equal swap_interval.requested", result.stderr)
+
     def test_qualifying_mode_rejects_incomplete_evidence(self) -> None:
         baseline = capture_fixture()
         candidate = deepcopy(baseline)
