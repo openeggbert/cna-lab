@@ -8,6 +8,7 @@
 
 #include "People/Objects/ObjectModel.hpp"
 #include "People/Rendering/ObjectPresentation.hpp"
+#include "People/Rendering/ResidentPresentation.hpp"
 #include "People/Simulation/ResidentModel.hpp"
 #include "People/World/IsometricProjection.hpp"
 #include "People/World/LotGrid.hpp"
@@ -43,6 +44,7 @@ private:
     void DrawTile(People::World::TileCoordinate tile);
     void DrawWall(People::World::WallEdge wall);
     void DrawObject(People::Objects::ObjectInstanceId objectId);
+    void DrawResident(People::Simulation::ResidentId residentId);
     [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D CreateTileTexture(bool highlight);
     [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D CreateWallTexture(
         bool slopesDownRight);
@@ -50,6 +52,8 @@ private:
         bool slopesDownRight, bool open);
     [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D CreateFurnitureTexture(
         std::string_view definitionId, People::Rendering::SpriteDirection direction);
+    [[nodiscard]] Microsoft::Xna::Framework::Graphics::Texture2D CreateResidentTexture(
+        People::Rendering::SpriteDirection direction);
 
     static constexpr double MinimumZoom = 0.35;
     static constexpr double MaximumZoom = 2.0;
@@ -70,6 +74,9 @@ private:
     Microsoft::Xna::Framework::Graphics::Texture2D doorOpenUpRightTexture_;
     std::map<std::string, Microsoft::Xna::Framework::Graphics::Texture2D, std::less<>>
         objectTextures_;
+    People::Rendering::ResidentIdleSpriteSet demoResidentSprites_;
+    std::map<std::string, Microsoft::Xna::Framework::Graphics::Texture2D, std::less<>>
+        residentTextures_;
     std::optional<People::World::WallEdge> demoDoor_;
     People::World::Camera camera_;
     std::optional<People::World::TileCoordinate> hoveredTile_;

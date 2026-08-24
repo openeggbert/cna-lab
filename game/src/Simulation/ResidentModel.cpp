@@ -4,6 +4,21 @@
 
 namespace People::Simulation
 {
+    namespace
+    {
+        [[nodiscard]] bool IsValidFacing(const ResidentFacing facing)
+        {
+            switch (facing)
+            {
+                case ResidentFacing::North:
+                case ResidentFacing::East:
+                case ResidentFacing::South:
+                case ResidentFacing::West: return true;
+            }
+            return false;
+        }
+    }
+
     bool ResidentMutationResult::IsValid() const noexcept
     {
         return failure == ResidentFailure::None;
@@ -28,6 +43,8 @@ namespace People::Simulation
             return {ResidentFailure::EmptyDisplayName};
         if (!lot_.Contains(resident.tile))
             return {ResidentFailure::OutsideLot};
+        if (!IsValidFacing(resident.facing))
+            return {ResidentFailure::InvalidFacing};
         if (resident.movementRequest == MovementRequestId{0})
             return {ResidentFailure::InvalidMovementRequestId};
         if (resident.activeAction == ActionId{0})
@@ -96,6 +113,18 @@ namespace People::Simulation
         if (requestId == MovementRequestId{0})
             return {ResidentFailure::InvalidMovementRequestId};
         found->second.movementRequest = requestId;
+        return {};
+    }
+
+    ResidentMutationResult ResidentRegistry::SetFacing(
+        const ResidentId id, const ResidentFacing facing)
+    {
+        const auto found = residents_.find(id);
+        if (found == residents_.end())
+            return {ResidentFailure::UnknownResident};
+        if (!IsValidFacing(facing))
+            return {ResidentFailure::InvalidFacing};
+        found->second.facing = facing;
         return {};
     }
 

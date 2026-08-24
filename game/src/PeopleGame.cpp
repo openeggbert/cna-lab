@@ -15,7 +15,9 @@
 #include <vector>
 
 #include "People/Content/DemoFurniture.hpp"
+#include "People/Content/DemoResident.hpp"
 #include "People/Rendering/ObjectPresentation.hpp"
+#include "People/Rendering/ResidentPresentation.hpp"
 #include "People/Rendering/RenderOrder.hpp"
 #include "People/Rendering/WallPresentation.hpp"
 #include "People/World/RoomMap.hpp"
@@ -44,6 +46,7 @@ using People::Rendering::DrawLayer;
 using People::Rendering::ObjectPresentation;
 using People::Rendering::RenderKey;
 using People::Rendering::RenderOrder;
+using People::Rendering::ResidentPresentation;
 using People::Rendering::SpriteDirection;
 using People::Rendering::WallPresentation;
 
@@ -302,9 +305,8 @@ void PeopleGame::InitializeDemoLot()
     (void)lot_.AddDoor(doorTile, People::World::TileEdge::MaxY);
     demoDoor_ = lot_.CanonicalWall(doorTile, People::World::TileEdge::MaxY);
     People::Content::DemoFurniture::Populate(objects_);
-    const People::Simulation::ResidentMutationResult resident = residents_.Add({
-        2001, 1, "Mara Vale", {9, 10, 0}, std::nullopt, std::nullopt
-    });
+    const People::Simulation::ResidentMutationResult resident =
+        residents_.Add(People::Content::DemoResident::MaraState());
     if (!resident.IsValid())
         throw std::logic_error("demo resident failed active-lot validation");
 }
@@ -611,6 +613,72 @@ Texture2D PeopleGame::CreateFurnitureTexture(
     return texture;
 }
 
+Texture2D PeopleGame::CreateResidentTexture(const SpriteDirection direction)
+{
+    constexpr int width = 64;
+    constexpr int height = 96;
+    constexpr RasterPoint footAnchor{32, 88};
+    PixelCanvas canvas(width, height);
+    const Color outline(48, 48, 52, 255);
+    const Color skin(188, 127, 91, 255);
+    const Color hair(63, 39, 31, 255);
+    const Color shirt(51, 151, 151, 255);
+    const Color trousers(65, 73, 112, 255);
+    canvas.FillEllipse(footAnchor, 14, 5, Color::FromNonPremultiplied(24, 34, 38, 82));
+
+    int turn = static_cast<int>(direction);
+    if (turn < 0 || turn > 3)
+        throw std::invalid_argument("resident sprite direction must be one of four directions");
+    const int stride = turn % 2 == 0 ? 6 : 4;
+    const int lean = turn == static_cast<int>(SpriteDirection::East)
+        ? 3 : (turn == static_cast<int>(SpriteDirection::West) ? -3 : 0);
+
+    const RasterPoint leftFoot{footAnchor.x - stride, footAnchor.y};
+    const RasterPoint rightFoot{footAnchor.x + stride, footAnchor.y - 1};
+    const RasterPoint leftHip{footAnchor.x - 5 + lean, 64};
+    const RasterPoint rightHip{footAnchor.x + 5 + lean, 64};
+    canvas.DrawLine(leftHip, leftFoot, 3, trousers);
+    canvas.DrawLine(rightHip, rightFoot, 3, Color(54, 61, 96, 255));
+    canvas.DrawLine({leftFoot.x - 2, leftFoot.y}, {leftFoot.x + 3, leftFoot.y}, 2, outline);
+    canvas.DrawLine({rightFoot.x - 2, rightFoot.y}, {rightFoot.x + 3, rightFoot.y}, 2, outline);
+
+    const std::array<RasterPoint, 4> torso{{
+        {20 + lean, 43}, {43 + lean, 43}, {39 + lean, 67}, {24 + lean, 67}
+    }};
+    canvas.FillPolygon(torso, shirt);
+    for (std::size_t index = 0; index < torso.size(); ++index)
+        canvas.DrawLine(torso[index], torso[(index + 1) % torso.size()], 1, outline);
+    canvas.DrawLine({21 + lean, 48}, {16 + lean, 64}, 3, skin);
+    canvas.DrawLine({42 + lean, 48}, {47 + lean, 63}, 3, skin);
+
+    const RasterPoint head{32 + lean, 32};
+    canvas.FillEllipse(head, 11, 13, skin);
+    canvas.FillEllipse({head.x, head.y - 7}, 12, 8, hair);
+    if (direction == SpriteDirection::North)
+    {
+        canvas.FillRectangle(head.x - 11, head.y - 4, head.x + 11, head.y + 4, hair);
+    }
+    else if (direction == SpriteDirection::South)
+    {
+        canvas.FillEllipse({head.x - 4, head.y}, 1, 1, outline);
+        canvas.FillEllipse({head.x + 4, head.y}, 1, 1, outline);
+        canvas.DrawLine({head.x - 3, head.y + 6}, {head.x + 3, head.y + 6}, 1,
+                        Color(121, 66, 61, 255));
+    }
+    else
+    {
+        const int faceSide = direction == SpriteDirection::East ? 5 : -5;
+        canvas.FillEllipse({head.x + faceSide, head.y}, 1, 1, outline);
+        canvas.DrawLine({head.x + faceSide, head.y + 5},
+                        {head.x + faceSide + (faceSide > 0 ? 2 : -2), head.y + 5},
+                        1, Color(121, 66, 61, 255));
+    }
+
+    Texture2D texture(getGraphicsDeviceProperty(), width, height);
+    texture.SetData(canvas.Pixels().data(), static_cast<int>(canvas.Pixels().size()));
+    return texture;
+}
+
 void PeopleGame::LoadContent()
 {
     auto& device = getGraphicsDeviceProperty();
@@ -641,6 +709,14 @@ void PeopleGame::LoadContent()
             objectTextures_.emplace(
                 sprite.assetId, CreateFurnitureTexture(definition->id, direction));
         }
+    }
+    demoResidentSprites_ = People::Content::DemoResident::MaraIdleSprites();
+    for (int directionIndex = 0; directionIndex < 4; ++directionIndex)
+    {
+        const auto direction = static_cast<SpriteDirection>(directionIndex);
+        const People::Rendering::ResidentSpriteReference& sprite =
+            demoResidentSprites_.directions[static_cast<std::size_t>(directionIndex)];
+        residentTextures_.emplace(sprite.assetId, CreateResidentTexture(direction));
     }
 
     const auto& viewport = device.getViewportProperty();
@@ -756,7 +832,16 @@ void PeopleGame::Update(GameTime& gameTime)
 
 void PeopleGame::DrawLot()
 {
-    using Drawable = std::variant<TileCoordinate, WallEdge, ObjectInstanceId>;
+    struct ObjectDrawable
+    {
+        ObjectInstanceId id = 0;
+    };
+    struct ResidentDrawable
+    {
+        People::Simulation::ResidentId id = 0;
+    };
+    using Drawable = std::variant<
+        TileCoordinate, WallEdge, ObjectDrawable, ResidentDrawable>;
     struct WorldDrawItem
     {
         Drawable drawable;
@@ -766,7 +851,8 @@ void PeopleGame::DrawLot()
     std::vector<WorldDrawItem> items;
     const People::World::LotSize lotSize = lot_.Size();
     items.reserve(static_cast<std::size_t>(lotSize.width * lotSize.height)
-                  + lot_.Walls().size() + objects_.Instances().size());
+                  + lot_.Walls().size() + objects_.Instances().size()
+                  + residents_.Residents().size());
     for (int y = 0; y < lotSize.height; ++y)
     {
         for (int x = 0; x < lotSize.width; ++x)
@@ -800,10 +886,21 @@ void PeopleGame::DrawLot()
     {
         const std::vector<TileCoordinate> footprint = objects_.FootprintCells(instance);
         items.push_back({
-            id,
+            ObjectDrawable{id},
             RenderOrder::BuildKey(
                 footprint, instance.anchor, lotSize, camera_.rotation,
                 DrawLayer::WorldEntity, 0, id)
+        });
+    }
+
+    for (const auto& [id, resident] : residents_.Residents())
+    {
+        const std::array<TileCoordinate, 1> footprint{{resident.tile}};
+        items.push_back({
+            ResidentDrawable{id},
+            RenderOrder::BuildKey(
+                footprint, resident.tile, lotSize, camera_.rotation,
+                DrawLayer::WorldEntity, 1, (1ULL << 63U) | id)
         });
     }
 
@@ -823,8 +920,10 @@ void PeopleGame::DrawLot()
             DrawTile(*tile);
         else if (const auto* wall = std::get_if<WallEdge>(&item.drawable))
             DrawWall(*wall);
+        else if (const auto* object = std::get_if<ObjectDrawable>(&item.drawable))
+            DrawObject(object->id);
         else
-            DrawObject(std::get<ObjectInstanceId>(item.drawable));
+            DrawResident(std::get<ResidentDrawable>(item.drawable).id);
     }
 
     if (selectedObject_.has_value())
@@ -895,6 +994,30 @@ void PeopleGame::DrawObject(const ObjectInstanceId objectId)
             contact.x - selection.reference->anchorX * camera_.zoom),
         static_cast<float>(
             contact.y - selection.reference->anchorY * camera_.zoom)
+    };
+    spriteBatch_->Draw(
+        texture->second, topLeft, std::nullopt, Color::White,
+        0.0f, Vector2::Zero, static_cast<float>(camera_.zoom),
+        SpriteEffects::None, 0.0f);
+}
+
+void PeopleGame::DrawResident(const People::Simulation::ResidentId residentId)
+{
+    const People::Simulation::ResidentState* resident = residents_.Find(residentId);
+    if (resident == nullptr)
+        throw std::logic_error("render queue refers to a missing resident");
+    const People::Rendering::ResidentSpriteReference& sprite =
+        ResidentPresentation::SelectIdleSprite(
+            demoResidentSprites_, resident->facing, camera_.rotation);
+    const auto texture = residentTextures_.find(sprite.assetId);
+    if (texture == residentTextures_.end())
+        throw std::logic_error("resident idle metadata has no generated texture");
+
+    const PixelPoint contact = IsometricProjection::WorldToScreen(
+        resident->tile, lot_.Size(), camera_);
+    const Vector2 topLeft{
+        static_cast<float>(contact.x - sprite.footAnchorX * camera_.zoom),
+        static_cast<float>(contact.y - sprite.footAnchorY * camera_.zoom)
     };
     spriteBatch_->Draw(
         texture->second, topLeft, std::nullopt, Color::White,

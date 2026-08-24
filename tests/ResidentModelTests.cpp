@@ -21,7 +21,10 @@ namespace
 
     ResidentState MakeResident()
     {
-        return {2001, 1, "Mara Vale", {2, 3, 0}, std::nullopt, std::nullopt};
+        return {
+            2001, 1, "Mara Vale", {2, 3, 0}, ResidentFacing::South,
+            std::nullopt, std::nullopt
+        };
     }
 
     void TestIdentityAndLocationValidation()
@@ -68,6 +71,12 @@ namespace
               "logical position mutation is observable without render state");
         Check(registry.SetTile(2001, {-1, 1, 0}).failure == ResidentFailure::OutsideLot,
               "position mutation cannot leave the lot");
+        Check(registry.SetFacing(2001, ResidentFacing::West).IsValid()
+                  && registry.Find(2001)->facing == ResidentFacing::West,
+              "simulation facing changes without introducing sprite state");
+        Check(registry.SetFacing(2001, static_cast<ResidentFacing>(99)).failure
+                  == ResidentFailure::InvalidFacing,
+              "invalid simulation facing is rejected");
 
         Check(registry.SetMovementRequest(2001, MovementRequestId{3001}).IsValid(),
               "resident can reference one movement request");

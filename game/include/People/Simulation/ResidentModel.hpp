@@ -14,6 +14,14 @@ namespace People::Simulation
     using MovementRequestId = std::uint64_t;
     using ActionId = std::uint64_t;
 
+    enum class ResidentFacing : std::uint8_t
+    {
+        North = 0,
+        East = 1,
+        South = 2,
+        West = 3
+    };
+
     /** @brief Persistent resident identity and current simulation references. */
     struct ResidentState
     {
@@ -21,6 +29,7 @@ namespace People::Simulation
         HouseholdId householdId = 0;
         std::string displayName;
         World::TileCoordinate tile;
+        ResidentFacing facing = ResidentFacing::South;
         std::optional<MovementRequestId> movementRequest;
         std::optional<ActionId> activeAction;
     };
@@ -32,6 +41,7 @@ namespace People::Simulation
         InvalidHouseholdId,
         EmptyDisplayName,
         OutsideLot,
+        InvalidFacing,
         DuplicateResidentId,
         UnknownResident,
         InvalidMovementRequestId,
@@ -71,6 +81,8 @@ namespace People::Simulation
 
         [[nodiscard]] ResidentMutationResult SetTile(
             ResidentId id, World::TileCoordinate tile);
+        [[nodiscard]] ResidentMutationResult SetFacing(
+            ResidentId id, ResidentFacing facing);
         [[nodiscard]] ResidentMutationResult SetMovementRequest(
             ResidentId id, std::optional<MovementRequestId> requestId);
         [[nodiscard]] ResidentMutationResult SetActiveAction(

@@ -144,6 +144,12 @@ textures are ephemeral build/runtime output rather than files admitted to
 explicitly placeholders and may be replaced only through the normal manifest
 and review process.
 
+The same record applies to Mara Vale's first idle set. `DemoResident` declares
+four unique `people.generated.resident.mara_vale.idle.*` references with common
+foot anchor `(32,88)`; `PeopleGame::CreateResidentTexture` rasterizes original
+64 x 96 front, side, and back variations at runtime. It was authored as new
+People project code on 2026-08-24 with no external or AI-generated source.
+
 ## Reproducible tooling roadmap
 
 - `tools/render-object/`: validate rig, invoke optional headless Blender,

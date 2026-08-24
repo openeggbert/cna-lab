@@ -57,8 +57,10 @@ add_subdirectory("${PEOPLE_CNA_ROOT}" "${CMAKE_BINARY_DIR}/_deps/cna")
 
 add_library(people_core STATIC
     game/src/Content/DemoFurniture.cpp
+    game/src/Content/DemoResident.cpp
     game/src/Objects/ObjectModel.cpp
     game/src/Rendering/ObjectPresentation.cpp
+    game/src/Rendering/ResidentPresentation.cpp
     game/src/Rendering/RenderOrder.cpp
     game/src/Rendering/WallPresentation.cpp
     game/src/Simulation/ResidentModel.cpp
@@ -179,6 +181,18 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
     endif()
     add_test(NAME people_resident_model_tests COMMAND people_resident_model_tests)
+
+    add_executable(people_resident_presentation_tests
+        tests/ResidentPresentationTests.cpp
+    )
+    target_link_libraries(people_resident_presentation_tests PRIVATE people_core)
+    if(MSVC)
+        target_compile_options(people_resident_presentation_tests PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(people_resident_presentation_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
+    endif()
+    add_test(NAME people_resident_presentation_tests COMMAND people_resident_presentation_tests)
 
     add_test(NAME people_runtime_smoke COMMAND People --smoke-test)
     set_tests_properties(people_runtime_smoke PROPERTIES

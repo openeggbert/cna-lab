@@ -253,3 +253,36 @@ results. HEADLESS and SDL_RENDERER/SDL3 configurations both passed 8/8 CTests
 against clean CNA `b6cbfcd87c08a6e0172eaf866358bf95bec277b1` and clean
 sharp-runtime `54578590b328aa9612fe38bfddca9fd8ca795144`. Startup smoke reports
 `residents=1`; no new visual result is claimed for this model-only increment.
+
+## 2026-08-24: PEO-071 four-view idle resident
+
+Simulation-facing direction is now explicit on `ResidentState` and remains
+independent from presentation. `ResidentPresentation` applies the same
+clockwise view transform as lot/object projection and selects one of four
+metadata-only idle references. `DemoResident` supplies Mara Vale's original
+identity, initial south facing, four unique asset IDs, and common `(32,88)` foot
+anchor without adding a customization system or animation graph.
+
+At content load, People rasterizes four transparent 64 x 96 idle textures using
+new project-owned pixel geometry. The frames share scale and ground contact but
+have distinct front, side, and back details. Mara's one-tile footprint enters
+the global deterministic `WorldEntity` painter queue; camera rotation changes
+only the selected frame, never her simulation tile/facing.
+
+`people_resident_presentation_tests` covers the predefined content, unique IDs,
+common anchors, all sixteen facing/view combinations, exact metadata selection,
+and invalid direction rejection. The expanded resident-model test also covers
+validated simulation-facing mutation. HEADLESS and SDL_RENDERER/SDL3 builds
+both passed 9/9 CTests against CNA HEAD
+`b6cbfcd87c08a6e0172eaf866358bf95bec277b1` and clean sharp-runtime
+`54578590b328aa9612fe38bfddca9fd8ca795144`. During this verification the CNA
+checkout contained another agent's five pre-existing uncommitted graphics
+changes (`CHECKLIST.md`, `DirectionalLight.hpp/.cpp`, `BasicEffectTests.cpp`,
+and new `DirectionalLightTests.cpp`), so this CNA state is not reproducible from
+the SHA alone; People did not edit those files.
+
+Four temporary Xvfb captures were visually inspected. Mara remained visibly
+grounded and correctly ordered with furniture/walls in North, East, South, and
+West while showing the expected directional variation. The captures remain in
+`/tmp`; procedural provenance is recorded in `ASSET_PIPELINE.md`. Idle is the
+only clip—walk frames and simulation-driven animation remain `PEO-072`.

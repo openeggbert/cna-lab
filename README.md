@@ -30,9 +30,9 @@ validates rotated footprints, occupancy, and access clearance. Catalog objects
 carry validated four-view/state asset IDs and floor-contact anchors. The room is
 furnished with an original procedural bed, chair, table, refrigerator, and
 toilet; all rotate, sort, and render from 2D textures generated at runtime.
-Objects can be selected through their logical footprint. There are no residents
-rendered yet; one predefined resident, Mara Vale, now exists in the headless
-active-lot simulation model.
+Objects can be selected through their logical footprint. One predefined
+resident, Mara Vale, now exists in the active-lot simulation and renders from
+an original procedural four-direction idle sprite set.
 
 See [plan.md](plan.md) for stable tasks, [analysis.md](analysis.md) for the
 architectural rationale, and [VERIFICATION.md](VERIFICATION.md) for commands
