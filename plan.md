@@ -1074,7 +1074,7 @@ Status: complete.
 
 ### WOLF-013 — original sprite presentation
 
-Status: in progress. The first milestone replaces all four enemy cuboids with
+Status: complete. The implementation replaces all four enemy cuboids with
 original transparent camera-facing billboard sprites and records their complete
 generation provenance. Every archetype now switches to its own non-gory collapsed
 or resting sprite above a stylized procedurally textured floor decal when defeated.
