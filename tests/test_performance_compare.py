@@ -21,6 +21,11 @@ def measurement(samples: int, p95: float) -> dict:
 def capture_fixture() -> dict:
     return {
         "schema_version": 8,
+        "capture_session": {
+            "process": {"executable": "iron_gang", "pid_known": True, "pid": 123},
+            "started_utc": "2026-08-24T10:00:05Z",
+            "ended_utc": "2026-08-24T10:00:55Z",
+        },
         "backend": "OPENGLES3",
         "build_configuration": "Release",
         "scenario": "mixed",

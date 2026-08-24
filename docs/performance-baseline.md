@@ -445,3 +445,10 @@ complete-residency artifacts on named physical minimum hardware.
 The manifest process is also constrained to an `iron_gang`/`iron_gang.exe` basename, positive PID,
 and strictly positive start/end interval. The binder and downstream report use the same validator,
 so changing those fields after binding cannot turn unrelated or instantaneous evidence into a pass.
+
+The generated schema-8 profile now carries its own `capture_session` PID and microsecond UTC
+interval. Complete evidence must use that PID and enclose that full interval, closing the previous
+gap where an operator-provided manifest could not be correlated to the profiled process run. A new
+60-frame Release EasyGL `idle` integration ran only on isolated Xvfb and emitted PID `1059289` with
+`2026-08-24T12:31:41.991744Z` through `2026-08-24T12:31:43.189643Z`. The report parsed it as
+`DIAGNOSTIC`; Xvfb, rejected swap acknowledgement, and incomplete VRAM remain unchanged blockers.

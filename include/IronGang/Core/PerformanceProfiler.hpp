@@ -259,6 +259,7 @@ namespace IronGang
     {
     public:
         using Clock = std::chrono::steady_clock;
+        using WallClock = std::chrono::system_clock;
 
         void SetEnabled(bool enabled) noexcept;
         [[nodiscard]] bool IsEnabled() const noexcept { return enabled_; }
@@ -320,6 +321,7 @@ namespace IronGang
         }
 
         bool enabled_{false};
+        std::optional<WallClock::time_point> captureStartedUtc_;
         std::optional<Clock::time_point> previousFrameStart_;
         std::array<std::vector<double>, static_cast<std::size_t>(PerformanceMetric::Count)> samples_;
         std::array<std::vector<double>, static_cast<std::size_t>(RenderWorkloadMetric::Count)>

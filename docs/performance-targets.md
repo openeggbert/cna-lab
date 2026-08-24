@@ -354,6 +354,13 @@ before capture end, how many crossed the 50 ms hitch threshold, and their maximu
 the final unpresented update remains counted but unmeasured (`measured_samples < transitions`)
 instead of borrowing a neighboring frame or inventing zero duration.
 
+Schema 8 captures now also include a backward-compatible `capture_session` object. It records the
+`iron_gang` executable, the current process ID where the platform exposes one, and microsecond UTC
+start/end timestamps spanning from `--profile` enablement immediately before `Game::Run()` through
+report creation immediately after the run. Older incomplete schema-8 diagnostics without this
+object remain readable; complete external VRAM evidence cannot be bound to them because the process
+and measurement interval would be uncorrelated.
+
 The current CNA/EasyGL API does not expose complete GPU residency. The report records the exact
 logical size of known Iron Gang-owned meshes/lightmaps/HUD resources plus imported CNJ vertex and
 index buffers and textures bound by CNA's built-in or generic effects. Imported resources are
@@ -422,8 +429,9 @@ Before generating or publishing a release report, re-verify the archived four-fi
 The binder verifies schema, rejects duplicate JSON object keys, requires the process basename to be
 `iron_gang` or `iron_gang.exe` with a positive PID, checks exact capture and raw-artifact hashes,
 requires a strictly positive UTC measurement interval and peak value, and enforces the exact
-measurement scope. The enriched `tracked_bytes` is the
-conservative maximum of Iron Gang's logical total and the external peak; only that output sets
+measurement scope. The evidence PID must equal `capture_session.process.pid`, and its measurement
+interval must start no later than the capture and end no earlier than the capture. The enriched
+`tracked_bytes` is the conservative maximum of Iron Gang's logical total and the external peak; only that output sets
 `tracking_complete=true`. The release-summary hardware label must exactly match
 `hardware_identity`, and capture comparison also requires the same profiler name, version, source,
 and scope on both sides. Verification reconstructs the expected enriched capture from the three
@@ -514,7 +522,8 @@ generated profiles and external evidence manifests.
 Renaming, copying, or changing only JSON whitespace cannot turn one capture into the two independent
 runs required for repeatability. Canonical performance identity is independent of file path and key
 ordering and normalizes externally bound VRAM metadata, so rebinding the same original profile to a
-second manifest/artifact also remains one run.
+second manifest/artifact also remains one run. `capture_session` itself remains part of canonical
+performance identity, providing a direct run discriminator even if rounded metrics happen to match.
 
 ### Capture regression comparison
 

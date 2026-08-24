@@ -1111,6 +1111,10 @@ namespace
         Require(report.find("\"backend\": \"TEST\"") != std::string::npos,
                 "performance report must identify its graphics backend");
         Require(report.find("\"schema_version\": 8") != std::string::npos &&
+                    report.find("\"capture_session\": {\"process\": {\"executable\": \"iron_gang\", \"pid_known\": true, \"pid\": ") !=
+                        std::string::npos &&
+                    report.find("\"started_utc\": \"") != std::string::npos &&
+                    report.find("\"ended_utc\": \"") != std::string::npos &&
                     report.find("\"draw_calls\": {\"samples\": 2, \"average\": 11.000, \"p95\": 12.000") !=
                         std::string::npos &&
                     report.find("\"state_change_calls\": {\"samples\": 1, \"average\": 31.000") !=

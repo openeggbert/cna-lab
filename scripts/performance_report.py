@@ -118,14 +118,57 @@ def _utc_timestamp(value: dict[str, Any], *keys: str) -> datetime:
         raise ReportError(f"{'.'.join(keys)} must be an ISO-8601 UTC timestamp") from error
 
 
+def _iron_gang_executable_name(value: dict[str, Any], *keys: str, label: str) -> str:
+    executable = _non_empty_string(value, *keys)
+    executable_name = executable.replace("\\", "/").rsplit("/", 1)[-1].casefold()
+    if executable_name not in IRON_GANG_EXECUTABLES:
+        raise ReportError(f"{label} must identify iron_gang")
+    return executable_name
+
+
+def validate_capture_session(
+    capture: dict[str, Any],
+    required: bool,
+) -> tuple[str, int | None, datetime, datetime] | None:
+    raw_session = capture.get("capture_session")
+    if raw_session is None:
+        if required:
+            raise ReportError("complete VRAM evidence requires capture_session metadata")
+        return None
+    session = _mapping(raw_session, "capture_session")
+    executable_name = _iron_gang_executable_name(
+        session,
+        "process",
+        "executable",
+        label="capture_session.process.executable",
+    )
+    pid_known = _boolean(session, "process", "pid_known")
+    raw_pid = _path(session, "process", "pid")
+    if pid_known:
+        pid = _integer(session, "process", "pid")
+        if pid == 0:
+            raise ReportError("capture_session.process.pid must be positive when known")
+    else:
+        if raw_pid is not None:
+            raise ReportError("capture_session.process.pid must be null when pid_known is false")
+        pid = None
+    started = _utc_timestamp(session, "started_utc")
+    ended = _utc_timestamp(session, "ended_utc")
+    if ended <= started:
+        raise ReportError("capture_session.ended_utc must follow started_utc")
+    return executable_name, pid, started, ended
+
+
 def validate_external_vram_measurement(
     evidence: dict[str, Any],
     label: str,
 ) -> int:
-    executable = _non_empty_string(evidence, "process", "executable")
-    executable_name = executable.replace("\\", "/").rsplit("/", 1)[-1].casefold()
-    if executable_name not in IRON_GANG_EXECUTABLES:
-        raise ReportError(f"{label}.process.executable must identify iron_gang")
+    _iron_gang_executable_name(
+        evidence,
+        "process",
+        "executable",
+        label=f"{label}.process.executable",
+    )
     if _integer(evidence, "process", "pid") == 0:
         raise ReportError(f"{label}.process.pid must be positive")
     started = _utc_timestamp(evidence, "measurement", "started_utc")
@@ -145,6 +188,12 @@ def validate_complete_vram_evidence(
     if not _boolean(capture, "video_memory", "tracking_complete"):
         return
 
+    capture_session = validate_capture_session(capture, required=True)
+    assert capture_session is not None
+    _, capture_pid, capture_started, capture_ended = capture_session
+    if capture_pid is None:
+        raise ReportError("complete VRAM evidence requires a known capture_session process PID")
+
     evidence = _mapping(
         _path(capture, "video_memory", "complete_evidence"),
         "video_memory.complete_evidence",
@@ -163,6 +212,15 @@ def validate_complete_vram_evidence(
     peak_resident_bytes = validate_external_vram_measurement(
         evidence, "video_memory.complete_evidence"
     )
+    evidence_pid = _integer(evidence, "process", "pid")
+    if evidence_pid != capture_pid:
+        raise ReportError("external VRAM evidence PID does not match capture_session process PID")
+    evidence_started = _utc_timestamp(evidence, "measurement", "started_utc")
+    evidence_ended = _utc_timestamp(evidence, "measurement", "ended_utc")
+    if evidence_started > capture_started or evidence_ended < capture_ended:
+        raise ReportError(
+            "external VRAM evidence interval must enclose the complete capture_session interval"
+        )
     logical_tracked_bytes = _integer(capture, "video_memory", "logical_tracked_bytes")
     tracked_bytes = _integer(capture, "video_memory", "tracked_bytes")
     if tracked_bytes != max(logical_tracked_bytes, peak_resident_bytes):
@@ -221,6 +279,7 @@ def load_capture(path: Path) -> dict[str, Any]:
         _number(capture, "measurements", metric, "p95_ms")
     _number(capture, "memory", "peak_resident_bytes")
     _number(capture, "video_memory", "tracked_bytes")
+    validate_capture_session(capture, required=False)
     validate_complete_vram_evidence(capture)
     _integer(capture, "frame_pacing", "hitches", "count")
     _integer(capture, "frame_pacing", "severe_hitches", "count")

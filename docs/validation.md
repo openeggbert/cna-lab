@@ -172,6 +172,14 @@ The shared evidence validator additionally refuses any process basename other th
 `iron_gang`/`iron_gang.exe`, a non-positive PID, and an end time that is not strictly later than the
 start; binder and report tests cover the same downstream contract.
 
+The capture-correlation follow-up adds a backward-compatible schema-8 `capture_session` object with
+executable, PID-known state/value, and microsecond UTC start/end. Complete VRAM binding now requires
+the external artifact manifest to name the same PID and a measurement interval enclosing the whole
+game capture. Python fixtures cover PID/interval mismatch; the C++ report test covers emitted
+metadata. Software, development/Release EasyGL, Web/Emscripten, strict syntax, and all 8 CTests pass.
+A 60-frame Release EasyGL `idle` run on isolated Xvfb emitted a positive 1.198-second session and
+remained correctly diagnostic; no host-visible window was used.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The

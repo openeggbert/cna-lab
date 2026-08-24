@@ -2,16 +2,60 @@
 
 #include <algorithm>
 #include <cmath>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <utility>
+
+#if defined(_WIN32)
+#include <process.h>
+#elif defined(__unix__) && !defined(__EMSCRIPTEN__)
+#include <unistd.h>
+#endif
 
 namespace IronGang
 {
     namespace
     {
+        std::optional<std::uint64_t> CurrentProcessId()
+        {
+#if defined(_WIN32)
+            return static_cast<std::uint64_t>(_getpid());
+#elif defined(__unix__) && !defined(__EMSCRIPTEN__)
+            return static_cast<std::uint64_t>(getpid());
+#else
+            return std::nullopt;
+#endif
+        }
+
+        std::string FormatUtc(PerformanceProfiler::WallClock::time_point timePoint)
+        {
+            const auto seconds = std::chrono::floor<std::chrono::seconds>(timePoint);
+            const auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(
+                timePoint - seconds);
+            const std::time_t rawTime = PerformanceProfiler::WallClock::to_time_t(seconds);
+            std::tm utc{};
+#if defined(_WIN32)
+            if (gmtime_s(&utc, &rawTime) != 0)
+            {
+                throw std::runtime_error("Could not convert performance capture time to UTC");
+            }
+#else
+            if (gmtime_r(&rawTime, &utc) == nullptr)
+            {
+                throw std::runtime_error("Could not convert performance capture time to UTC");
+            }
+#endif
+            std::ostringstream text;
+            text << std::put_time(&utc, "%Y-%m-%dT%H:%M:%S") << '.' << std::setfill('0')
+                 << std::setw(6) << microseconds.count() << 'Z';
+            return text.str();
+        }
+
         const char* MetricName(PerformanceMetric metric)
         {
             switch (metric)
@@ -282,9 +326,14 @@ namespace IronGang
 
     void PerformanceProfiler::SetEnabled(bool enabled) noexcept
     {
+        if (enabled && !enabled_)
+        {
+            captureStartedUtc_ = WallClock::now();
+        }
         enabled_ = enabled;
         if (!enabled_)
         {
+            captureStartedUtc_.reset();
             previousFrameStart_.reset();
         }
     }
@@ -649,10 +698,30 @@ namespace IronGang
             const bool ramKnown = context.peakResidentBytes > 0;
             const bool ramPass = ramKnown && context.peakResidentBytes <= kMinimumRamBudgetBytes;
             const bool trackedVramPass = context.trackedVideoMemoryBytes <= kMinimumVramBudgetBytes;
+            const WallClock::time_point endedUtc = WallClock::now();
+            const WallClock::time_point startedUtc = captureStartedUtc_.value_or(endedUtc);
+            if (endedUtc <= startedUtc)
+            {
+                error = "Performance capture UTC interval is not positive";
+                return false;
+            }
+            const std::optional<std::uint64_t> processId = CurrentProcessId();
 
             output << std::fixed << std::setprecision(3);
             output << "{\n"
                    << "  \"schema_version\": 8,\n"
+                   << "  \"capture_session\": {\"process\": {\"executable\": \"iron_gang\", \"pid_known\": "
+                   << (processId ? "true" : "false") << ", \"pid\": ";
+            if (processId)
+            {
+                output << *processId;
+            }
+            else
+            {
+                output << "null";
+            }
+            output << "}, \"started_utc\": \"" << FormatUtc(startedUtc)
+                   << "\", \"ended_utc\": \"" << FormatUtc(endedUtc) << "\"},\n"
                    << "  \"backend\": \"" << EscapeJson(context.backend) << "\",\n"
                    << "  \"build_configuration\": \"" << EscapeJson(context.buildConfiguration) << "\",\n"
                    << "  \"scenario\": \"" << EscapeJson(context.scenario) << "\",\n"

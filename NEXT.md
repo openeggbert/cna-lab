@@ -67,10 +67,23 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 complete-VRAM evidence is now correlated to the exact profiled process session.** Generated
+schema-8 reports add backward-compatible `capture_session` metadata: `iron_gang` executable,
+PID-known state/value, and microsecond UTC start/end spanning profile enablement through report
+creation. Complete external evidence must match that PID and its measurement interval must enclose
+the entire game capture; old incomplete schema-8 diagnostics remain readable but cannot be promoted.
+
+- C++ report tests assert the generated session object. Python bind/report validation covers missing
+  session, PID mismatch, and non-enclosing intervals while retaining strict artifact hashes.
+- Software, Debug/Release EasyGL, Web/Emscripten, strict syntax, and 8/8 CTest pass.
+- A 60-frame Release EasyGL `idle` integration ran only on isolated Xvfb. It emitted PID `1059289`
+  and `12:31:41.991744Z–12:31:43.189643Z`, then remained correctly `DIAGNOSTIC` for virtual-display,
+  rejected-swap, and incomplete-VRAM reasons. No host-visible window was used.
+
 **M12 complete-VRAM evidence now requires an Iron Gang process and positive interval.** The shared
-binder/report validator no longer accepts an arbitrary executable name or a zero-duration capture. Process
-basename must be `iron_gang`/`iron_gang.exe`, PID must be positive, and `ended_utc` must be strictly
-later than `started_utc`.
+binder/report validator no longer accepts an arbitrary executable name or a zero-duration capture.
+Process basename must be `iron_gang`/`iron_gang.exe`, PID must be positive, and `ended_utc` must be
+strictly later than `started_utc`.
 
 - VRAM CLI coverage rejects unrelated executables, backwards time, and equal start/end time.
 - Report coverage proves the executable check is repeated downstream after binding rather than

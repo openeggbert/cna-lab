@@ -21,6 +21,11 @@ REPORT_SCRIPT = (
 
 def raw_capture_fixture() -> dict:
     capture = capture_fixture()
+    capture["capture_session"] = {
+        "process": {"executable": "iron_gang", "pid_known": True, "pid": 4242},
+        "started_utc": "2026-08-24T10:00:05Z",
+        "ended_utc": "2026-08-24T10:00:55Z",
+    }
     capture["video_memory"] = {
         "tracked_bytes": 64 * 1024 * 1024,
         "game_owned_bytes": 63 * 1024 * 1024,
@@ -238,6 +243,30 @@ class VramEvidenceTests(unittest.TestCase):
             result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
             self.assertEqual(result.returncode, 2)
             self.assertIn("must identify iron_gang", result.stderr)
+
+            evidence = evidence_fixture(capture_path, artifact_path)
+            evidence["process"]["pid"] = 4243
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("PID does not match capture_session", result.stderr)
+
+            evidence = evidence_fixture(capture_path, artifact_path)
+            evidence["measurement"]["started_utc"] = "2026-08-24T10:00:10Z"
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("interval must enclose", result.stderr)
+
+            capture = raw_capture_fixture()
+            capture.pop("capture_session")
+            capture_path.write_text(json.dumps(capture), encoding="utf-8")
+            evidence_path.write_text(
+                json.dumps(evidence_fixture(capture_path, artifact_path)), encoding="utf-8"
+            )
+            result = self.run_binding(capture_path, evidence_path, artifact_path, output_path)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("requires capture_session metadata", result.stderr)
 
             evidence = evidence_fixture(capture_path, artifact_path)
             serialized = json.dumps(evidence)
