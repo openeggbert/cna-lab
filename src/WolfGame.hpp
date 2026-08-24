@@ -136,12 +136,6 @@ namespace WolfCna
             Paused,
             GameOver
         };
-        enum class Difficulty
-        {
-            Scout,
-            Operative,
-            Veteran
-        };
         Screen screen_ = Screen::Splash;
         Difficulty difficulty_ = Difficulty::Operative;
         int menuSelection_ = 0;
@@ -187,8 +181,6 @@ namespace WolfCna
         void CompleteLevel();
         void SaveCampaignProfile() const;
         void AwardScore(int points);
-
-        [[nodiscard]] float DamageMultiplier() const;
 
         [[nodiscard]] Microsoft::Xna::Framework::Vector3 LookDirection() const;
         [[nodiscard]] Microsoft::Xna::Framework::Matrix ViewMatrix() const;

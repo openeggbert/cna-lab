@@ -17,6 +17,7 @@
 #include "Microsoft/Xna/Framework/Graphics/VertexPositionTexture.hpp"
 
 #include "LevelDefinition.hpp"
+#include "Difficulty.hpp"
 
 namespace WolfCna
 {
@@ -86,12 +87,21 @@ namespace WolfCna
             Microsoft::Xna::Framework::Vector3 lookDirection;
         };
 
-        explicit World(const LevelDefinition& level);
+        struct DifficultyBalance
+        {
+            int activeEnemies = 0;
+            int totalEnemyHealth = 0;
+            int fixedAmmunition = 0;
+            int potentialDroppedAmmunition = 0;
+        };
+
+        explicit World(
+            const LevelDefinition& level,
+            Difficulty difficulty = Difficulty::Operative);
 
         [[nodiscard]] int Update(
             float elapsedSeconds,
-            const Microsoft::Xna::Framework::Vector3& playerPosition,
-            float damageMultiplier = 1.0f);
+            const Microsoft::Xna::Framework::Vector3& playerPosition);
         void Upload(Microsoft::Xna::Framework::Graphics::GraphicsDevice& device);
 
         void Draw(
@@ -152,6 +162,7 @@ namespace WolfCna
         [[nodiscard]] std::optional<ExitApproach> GetExitApproach() const;
         [[nodiscard]] ObjectiveStatus GetObjectiveStatus() const;
         [[nodiscard]] CompletionStats GetCompletionStats() const;
+        [[nodiscard]] DifficultyBalance GetDifficultyBalance() const;
         [[nodiscard]] int ConsumeGuardShotCount();
         [[nodiscard]] EnemyAudioEvents ConsumeEnemyAudioEvents();
         [[nodiscard]] int ActiveEnemyImpactCount() const;
@@ -215,6 +226,7 @@ namespace WolfCna
             float attackInterval = 1.35f;
             float projectileSpeed = 4.5f;
             bool melee = false;
+            int ammunitionDrop = 3;
             std::vector<std::pair<int, int>> path;
             std::size_t pathIndex = 0;
             float pathRefreshTime = 0.0f;
@@ -294,6 +306,7 @@ namespace WolfCna
 
         std::vector<std::string> map_;
         Microsoft::Xna::Framework::Vector3 playerStart_;
+        DifficultyProfile difficultyProfile_;
 
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> vertices_;
         std::vector<std::uint16_t> indices_;
@@ -314,6 +327,9 @@ namespace WolfCna
         int totalGold_ = 0;
         int foundSecrets_ = 0;
         int totalSecrets_ = 0;
+        int totalEnemyHealth_ = 0;
+        int fixedAmmunition_ = 0;
+        int potentialDroppedAmmunition_ = 0;
         std::vector<Terminal> terminals_;
         std::vector<Relay> relays_;
         std::vector<Exit> exits_;

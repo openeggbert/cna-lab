@@ -241,6 +241,35 @@ namespace
 
 int main()
 {
+    constexpr WolfCna::DifficultyProfile scoutProfile =
+        WolfCna::GetDifficultyProfile(WolfCna::Difficulty::Scout);
+    constexpr WolfCna::DifficultyProfile operativeProfile =
+        WolfCna::GetDifficultyProfile(WolfCna::Difficulty::Operative);
+    constexpr WolfCna::DifficultyProfile veteranProfile =
+        WolfCna::GetDifficultyProfile(WolfCna::Difficulty::Veteran);
+    Expect(
+        scoutProfile.incomingDamageMultiplier < operativeProfile.incomingDamageMultiplier &&
+            operativeProfile.incomingDamageMultiplier < veteranProfile.incomingDamageMultiplier,
+        "incoming damage increases monotonically with difficulty");
+    Expect(
+        scoutProfile.enemyHealthMultiplier < operativeProfile.enemyHealthMultiplier &&
+            operativeProfile.enemyHealthMultiplier < veteranProfile.enemyHealthMultiplier,
+        "enemy health increases monotonically with difficulty");
+    Expect(
+        scoutProfile.enemySpeedMultiplier < operativeProfile.enemySpeedMultiplier &&
+            operativeProfile.enemySpeedMultiplier < veteranProfile.enemySpeedMultiplier,
+        "enemy movement speed increases monotonically with difficulty");
+    Expect(
+        scoutProfile.enemyAttackIntervalMultiplier > operativeProfile.enemyAttackIntervalMultiplier &&
+            operativeProfile.enemyAttackIntervalMultiplier > veteranProfile.enemyAttackIntervalMultiplier,
+        "enemy firing intervals decrease monotonically with difficulty");
+    Expect(
+        scoutProfile.ammunitionMultiplier > operativeProfile.ammunitionMultiplier &&
+            operativeProfile.ammunitionMultiplier > veteranProfile.ammunitionMultiplier &&
+            scoutProfile.startingAmmunition > operativeProfile.startingAmmunition &&
+            operativeProfile.startingAmmunition > veteranProfile.startingAmmunition,
+        "available ammunition decreases monotonically with difficulty");
+
     const WolfCna::CampaignProfile legacyProfile = WolfCna::CampaignProgress::Parse(
         "WOLF-CNA-PROGRESS-1\n1\n", 3);
     Expect(
@@ -300,6 +329,90 @@ int main()
     Expect(sectorFour.Rows() != starterLevel.Rows(), "sector four is not the starter layout");
     Expect(sectorFour.Rows() != sectorTwo.Rows(), "sector four is not the foundry layout");
     Expect(sectorFour.Rows() != sectorThree.Rows(), "sector four is not the labs layout");
+
+    const std::array<const WolfCna::LevelDefinition*, 4> campaignLevels{
+        &starterLevel,
+        &sectorTwo,
+        &sectorThree,
+        &sectorFour};
+    for (const WolfCna::LevelDefinition* campaignLevel : campaignLevels)
+    {
+        const WolfCna::World scoutWorld(*campaignLevel, WolfCna::Difficulty::Scout);
+        const WolfCna::World operativeWorld(*campaignLevel, WolfCna::Difficulty::Operative);
+        const WolfCna::World veteranWorld(*campaignLevel, WolfCna::Difficulty::Veteran);
+        const WolfCna::World::DifficultyBalance scout = scoutWorld.GetDifficultyBalance();
+        const WolfCna::World::DifficultyBalance operative = operativeWorld.GetDifficultyBalance();
+        const WolfCna::World::DifficultyBalance veteran = veteranWorld.GetDifficultyBalance();
+        Expect(
+            scout.activeEnemies < operative.activeEnemies &&
+                operative.activeEnemies < veteran.activeEnemies,
+            "campaign enemy count increases monotonically with difficulty");
+        Expect(
+            scout.totalEnemyHealth < operative.totalEnemyHealth &&
+                operative.totalEnemyHealth < veteran.totalEnemyHealth,
+            "campaign enemy health budget increases monotonically with difficulty");
+        Expect(
+            scout.fixedAmmunition > operative.fixedAmmunition &&
+                operative.fixedAmmunition > veteran.fixedAmmunition,
+            "campaign fixed ammunition decreases monotonically with difficulty");
+        const int scoutSupply = scoutProfile.startingAmmunition +
+            scout.fixedAmmunition + scout.potentialDroppedAmmunition;
+        const int operativeSupply = operativeProfile.startingAmmunition +
+            operative.fixedAmmunition + operative.potentialDroppedAmmunition;
+        const int veteranSupply = veteranProfile.startingAmmunition +
+            veteran.fixedAmmunition + veteran.potentialDroppedAmmunition;
+        Expect(
+            scoutSupply > operativeSupply && operativeSupply > veteranSupply,
+            "campaign total ammunition supply decreases monotonically with difficulty");
+    }
+
+    const WolfCna::LevelDefinition difficultyLevel = WolfCna::LevelDefinition::Parse(
+        "##########\n#PGGGGAW.#\n##########\n",
+        "difficulty.level");
+    const WolfCna::World difficultyScout(difficultyLevel, WolfCna::Difficulty::Scout);
+    const WolfCna::World difficultyOperative(difficultyLevel, WolfCna::Difficulty::Operative);
+    const WolfCna::World difficultyVeteran(difficultyLevel, WolfCna::Difficulty::Veteran);
+    const WolfCna::World::DifficultyBalance focusedScout = difficultyScout.GetDifficultyBalance();
+    const WolfCna::World::DifficultyBalance focusedOperative = difficultyOperative.GetDifficultyBalance();
+    const WolfCna::World::DifficultyBalance focusedVeteran = difficultyVeteran.GetDifficultyBalance();
+    Expect(
+        focusedScout.activeEnemies == 2 && focusedOperative.activeEnemies == 3 &&
+            focusedVeteran.activeEnemies == 4,
+        "stable encounter tiers activate two, three and four focused enemies");
+    Expect(
+        focusedScout.totalEnemyHealth == 4 && focusedOperative.totalEnemyHealth == 9 &&
+            focusedVeteran.totalEnemyHealth == 16,
+        "focused enemy health is scaled after spawn-tier selection");
+    Expect(
+        focusedScout.fixedAmmunition == 20 && focusedOperative.fixedAmmunition == 12 &&
+            focusedVeteran.fixedAmmunition == 8,
+        "focused fixed ammunition follows the selected resource profile");
+    Expect(
+        focusedScout.potentialDroppedAmmunition == 10 &&
+            focusedOperative.potentialDroppedAmmunition == 9 &&
+            focusedVeteran.potentialDroppedAmmunition == 8,
+        "focused enemy drops follow the selected resource profile");
+    const WolfCna::LevelDefinition cadenceLevel = WolfCna::LevelDefinition::Parse(
+        "#####\n#PG.#\n#####\n",
+        "difficulty-cadence.level");
+    const auto countGuardShots = [&cadenceLevel](WolfCna::Difficulty difficulty)
+    {
+        WolfCna::World cadenceWorld(cadenceLevel, difficulty);
+        const Microsoft::Xna::Framework::Vector3 target(1.5f, 0.62f, 1.5f);
+        int shots = 0;
+        for (int tick = 0; tick < 120; ++tick)
+        {
+            static_cast<void>(cadenceWorld.Update(0.05f, target));
+            shots += cadenceWorld.ConsumeGuardShotCount();
+        }
+        return shots;
+    };
+    const int scoutShots = countGuardShots(WolfCna::Difficulty::Scout);
+    const int operativeShots = countGuardShots(WolfCna::Difficulty::Operative);
+    const int veteranShots = countGuardShots(WolfCna::Difficulty::Veteran);
+    Expect(
+        scoutShots < operativeShots && operativeShots < veteranShots,
+        "guard firing frequency increases monotonically with difficulty");
 
     const WolfCna::LevelDefinition level = WolfCna::LevelDefinition::Parse(
         "#####\n#P..#\n#####\n",
@@ -657,12 +770,14 @@ int main()
     }
     Expect(houndAttacks >= 1, "hound emits an attack event on a close-range hit");
 
-    WolfCna::World scoutDamageWorld(WolfCna::LevelDefinition::Parse(
-        "#####\n#PK.#\n#####\n",
-        "scout-damage.level"));
+    WolfCna::World scoutDamageWorld(
+        WolfCna::LevelDefinition::Parse(
+            "#####\n#PK.#\n#####\n",
+            "scout-damage.level"),
+        WolfCna::Difficulty::Scout);
     Expect(
-        scoutDamageWorld.Update(0.05f, Microsoft::Xna::Framework::Vector3(1.8f, 0.62f, 1.5f), 0.5f) == 7,
-        "damage multiplier scales hound attacks for difficulty");
+        scoutDamageWorld.Update(0.05f, Microsoft::Xna::Framework::Vector3(1.8f, 0.62f, 1.5f)) == 10,
+        "selected difficulty profile scales hound damage");
 
     return EXIT_SUCCESS;
 }

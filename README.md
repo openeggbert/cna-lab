@@ -34,13 +34,13 @@ This starter is deliberately small. It proves the basic direction before local A
 - authored rooms include procedural framed paintings, peace-symbol banners, ceiling lamps with warm floor-light pools, wood-textured polygonal tables and three sector-specific freestanding plant landmarks
 - room-scale wall regions use four original generated material families: cool bunker stone, dark industrial brick, teal riveted steel and cold laboratory panels
 - only the nearest eligible ranged enemy fires at one time; guards, rapid troopers and heavy units use slower distinct cadences while hounds remain close-range attackers
-- defeated guards, rapid troopers and heavy units drop 3, 5 and 8 collectible rounds respectively; hounds do not drop ammunition
+- defeated guards, rapid troopers and heavy units drop difficulty-scaled ammunition; hounds do not drop ammunition
 - health, ammunition, three treasures, access cards and both weapon pickups use original transparent pixel-art sprites instead of colored blocks
 - terminals, power relays, sector exits and enemy projectiles use original transparent sprites with readable state tinting instead of colored cuboids
 - health kits remain in the level at 100% health and can be collected after the player takes damage
-- every sector provides at least two health kits and enough fixed/drop ammunition for a deterministic full clear
+- every sector provides at least two health kits, while the knife fallback keeps a deterministic full clear possible at every ammunition budget
 - no external copyrighted game assets
-- original title menu with difficulty selection before a run begins
+- original title menu with three deterministic difficulty profiles that change enemy count, health, speed, firing cadence, incoming damage and ammunition supply
 - illustrated splash with a generated original bunker background and a large sharp `WOLF CNA` heading before the separate main menu
 - persistent profile: a fresh profile starts with sector 1; sector unlocks, master volume, view angle and the last selected difficulty survive restarts
 - holding `Tab` shows a paused floor map that reveals only visited cells while always marking the sector exit as `GOAL`
@@ -52,7 +52,7 @@ This starter is deliberately small. It proves the basic direction before local A
 - hold left or right `Shift` while moving: run at 165% speed
 - left/right arrow keys: turn left / right
 - title/sector/difficulty menus: arrows select, `Enter` or `Space` confirms, `Escape` backs out; the title menu cycles master volume through 0/25/50/75/100% and view angle through 60/72/84/96 degrees
-- three difficulty modes: Scout (70% enemy damage), Operative (normal), Veteran (130% enemy damage)
+- three difficulty modes: Scout has fewer, weaker and slower enemies plus more ammunition; Operative is the baseline; Veteran adds reinforcements, health, speed and firing frequency while reducing ammunition and applying 130% incoming damage
 - `Space`: open the door in front of you or activate a faced sector elevator (doors close after four seconds unless the player or a body blocks them)
 - left or right `Ctrl`: attack with the selected weapon; hold for repeater/heavy automatic fire, while the knife and sidearm fire once per press; empty firearms automatically fall back to the knife
 - `1` / `2` / `3` / `4`: knife / sidearm / three-round repeater / five-round heavy automatic; weapons 3 and 4 must be found first
@@ -111,6 +111,9 @@ have the same width and use only these symbols:
 - `Y`: solid freestanding polygonal table using an original dark-oak material
 
 The loader rejects malformed rows, unknown symbols, and levels without exactly one player spawn.
+Enemy symbols remain authored encounter positions. Their stable row-major encounter
+tier determines whether they appear on Scout, Operative or Veteran, so selecting a
+difficulty never introduces random or unauthored spawn locations.
 
 An elevator is available from the beginning of a sector. Its gate starts raised,
 and entering the cabin or pressing `Space` while facing it completes the sector.

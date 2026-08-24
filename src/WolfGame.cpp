@@ -1477,7 +1477,7 @@ namespace WolfCna
                     DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 45, y, ">", selected);
                 centered(y, options[static_cast<std::size_t>(index)], color);
             }
-            centered(top + 220, "SCOUT LESS DAMAGE", normal);
+            centered(top + 220, "FOES AND SUPPLIES CHANGE", normal);
             centered(top + 238, "ESC BACK", normal);
         }
         else
@@ -1537,7 +1537,7 @@ namespace WolfCna
     void WolfGame::ResetRun()
     {
         health_ = 100;
-        ammo_ = 12;
+        ammo_ = GetDifficultyProfile(difficulty_).startingAmmunition;
         score_ = 0;
         lives_ = 3;
         nextExtraLifeScore_ = 40000;
@@ -1553,7 +1553,7 @@ namespace WolfCna
         const int maximumIndex = static_cast<int>(CampaignLevelFiles.size()) - 1;
         levelIndex_ = std::clamp(index, 0, maximumIndex);
         level_ = LevelDefinition::LoadFromFile(std::string(CampaignLevelFiles[static_cast<std::size_t>(levelIndex_)]));
-        world_ = World(level_);
+        world_ = World(level_, difficulty_);
         exploration_.Reset(level_);
         world_.Upload(getGraphicsDeviceProperty());
         if (atlas_)
@@ -1642,17 +1642,6 @@ namespace WolfCna
             if (extraLifeSound_)
                 static_cast<void>(extraLifeSound_->Play(0.34f, 0.3f, 0.0f));
         }
-    }
-
-    float WolfGame::DamageMultiplier() const
-    {
-        switch (difficulty_)
-        {
-        case Difficulty::Scout: return 0.7f;
-        case Difficulty::Operative: return 1.0f;
-        case Difficulty::Veteran: return 1.3f;
-        }
-        return 1.0f;
     }
 
     void WolfGame::HandleMenuInput()
@@ -2125,7 +2114,7 @@ namespace WolfCna
         objectiveMessageSeconds_ = std::max(0.0f, objectiveMessageSeconds_ - clampedElapsed);
         weaponFlashSeconds_ = std::max(0.0f, weaponFlashSeconds_ - clampedElapsed);
         playerImpactFlashSeconds_ = std::max(0.0f, playerImpactFlashSeconds_ - clampedElapsed);
-        const int incomingDamage = world_.Update(clampedElapsed, playerPosition_, DamageMultiplier());
+        const int incomingDamage = world_.Update(clampedElapsed, playerPosition_);
         if (world_.ConsumeGuardShotCount() > 0 && guardShotSound_)
             static_cast<void>(guardShotSound_->Play(0.18f, 0.12f, 0.0f));
         const World::EnemyAudioEvents enemyAudioEvents = world_.ConsumeEnemyAudioEvents();
@@ -2153,7 +2142,7 @@ namespace WolfCna
             else
             {
                 health_ = 100;
-                ammo_ = 12;
+                ammo_ = GetDifficultyProfile(difficulty_).startingAmmunition;
                 weapon_ = lastFirearm_;
                 playerPosition_ = world_.PlayerStart();
                 completed_ = false;

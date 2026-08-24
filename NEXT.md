@@ -47,13 +47,15 @@
 - The title menu now cycles a CNA-rendered 60/72/84/96-degree view angle; profile format 4 persists it and migrates formats 1–3.
 - The held automap prompt now correctly says `RELEASE TAB` instead of the obsolete `M CLOSE` binding.
 - `P` or `Escape` now opens an in-run pause menu with resume, sound, view-angle and quit-to-title actions; gameplay no longer exits immediately on Escape.
+- Scout, Operative and Veteran now deterministically scale active encounter tiers, enemy health/speed/firing cadence, incoming damage and starting/fixed/dropped ammunition; all four sectors have monotonic balance audits.
 
 ## Next tasks
 
-1. Subjectively playtest the updated health placement and 130% Veteran damage.
-2. Playtest sprite motion amplitudes together with the authored combat route.
-3. Playtest the full four-sector optional-systems exploration route and completion pacing against the deterministic guardrails.
-4. Implement WOLF-032 so difficulty also changes enemy count, enemy health, movement speed, firing cadence and available ammunition.
+1. Implement WOLF-033 classic enemy perception, patrols, noise response and ordinary-door navigation.
+2. Implement WOLF-035 versioned in-run save/load before campaign content grows further.
+3. Implement WOLF-036 classic life-loss sector restart semantics.
+4. Continue through WOLF-034 and WOLF-037–WOLF-044 in the dependency order recorded in `plan.md`.
+5. Subjectively playtest all three deterministic difficulty profiles and the full four-sector route.
 
 Longer-term M7 work keeps true vertical spaces and moving elevators separate from
 the current campaign-transition cabins.

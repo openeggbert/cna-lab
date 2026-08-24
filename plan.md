@@ -548,8 +548,9 @@ Goal: give wolf-cna an identity beyond being a retro-FPS technology demo.
 - narrative messages/logs.
 
 Status: started. The original title menu and its Scout / Operative / Veteran
-difficulty selection are implemented. Difficulty currently changes incoming enemy
-damage. Four authored sectors now run in sequence while carrying score, lives,
+difficulty selection are implemented. A shared deterministic profile changes incoming
+damage, active encounter tiers, enemy health, movement speed, firing cadence and
+ammunition supply. Four authored sectors now run in sequence while carrying score, lives,
 health, ammunition and weapon selection; a sector-specific access card resets at
 each elevator transition. Each exit now presents time plus kill, treasure and
 secret completion ratios. A versioned, validated profile persists sector unlocks,
@@ -1409,13 +1410,14 @@ system state after teleport destination lookup.
 
 ### WOLF-032 — expanded deterministic difficulty
 
-Status: planned. Replace the current incoming-damage-only difficulty adjustment
-with a broader deterministic combat and resource profile. Difficulty must also
-change the number of active enemies, enemy health, enemy movement speed, enemy
-firing cadence and the amount of ammunition available in a sector. Authored maps
-remain the source of encounter placement, while explicit difficulty metadata or
-stable spawn tiers decide which enemies appear; no unseeded runtime variation is
-allowed.
+Status: complete. One shared deterministic profile now controls incoming damage,
+active enemy spawn tiers, enemy health, movement speed, firing cadence, starting
+ammunition, fixed pickups, weapon-pickup ammunition and defeated-enemy drops. Each
+group of four enemies in stable authored row-major order contributes two Scout
+encounters, one Operative reinforcement and one Veteran reinforcement; all positions
+therefore remain authored and repeatable. Campaign audits cover every shipping sector
+and require strictly increasing enemy counts and health budgets plus strictly
+decreasing fixed and total ammunition supplies.
 
 - retain the current incoming-damage scaling as one part of the difficulty profile;
 - increase active enemy count and health across harder settings;
@@ -1423,3 +1425,157 @@ allowed.
 - reduce fixed and dropped ammunition on harder settings without making a full clear impossible;
 - keep every difficulty deterministic for repeatable tests and playtesting;
 - add campaign audits for enemy counts, ammunition budgets and monotonic difficulty changes.
+
+### WOLF-033 — classic enemy perception and navigation
+
+Status: planned. Expand the current idle/chase/attack behavior into readable
+directional perception and authored patrol behavior. Enemies should have a facing
+direction, reaction delay, field of view, ambush state and hearing response to
+player weapon noise. Alerted enemies may navigate through and operate ordinary
+doors while still respecting locked routes and collision.
+
+- add deterministic patrol markers or routes to the level format;
+- distinguish sight, hearing and already-alerted pursuit;
+- make reaction delay and perception parameters archetype-specific;
+- let enemies open usable doors without bypassing locks;
+- test patrols, noise propagation, ambushes and door-state path changes.
+
+### WOLF-034 — campaign chapters, secret sectors and bosses
+
+Status: planned. Grow the four-sector sequence into original campaign chapters
+with optional secret sectors, dedicated boss encounters and a clear campaign-ending
+sequence. All maps, enemies, names, story and artwork remain original wolf-cna
+content even where pacing is inspired by early-1990s shooters.
+
+- define chapter and sector metadata independently from menu presentation;
+- add discoverable secret-sector exits and deterministic return destinations;
+- introduce at least one original boss archetype with a distinct combat pattern;
+- provide boss-sector and campaign-completion presentation;
+- preserve progressive unlocking and validate every campaign route.
+
+### WOLF-035 — versioned in-run save and load
+
+Status: planned. Add explicit save slots plus quick-save and quick-load for a
+sector in progress. Save data must be versioned and validated and must reconstruct
+gameplay state rather than serializing C++ object memory.
+
+- persist player, inventory, score, lives, current sector and elapsed time;
+- persist enemies, pickups, doors, secrets, objectives and explored map cells;
+- use safe replacement so an interrupted save does not destroy the last valid file;
+- reject corrupt or incompatible saves with a clear menu message;
+- add deterministic round-trip and malformed-save tests.
+
+### WOLF-036 — classic life loss and sector restart
+
+Status: planned. Losing a life should restart the current sector from its authored
+initial state instead of retaining defeated enemies and collected objects. Preserve
+campaign progress while restoring a documented basic loadout and the score recorded
+at sector entry. Add a short readable defeat transition before restart.
+
+- snapshot run state at sector entry;
+- rebuild the world, objectives, pickups and exploration state after life loss;
+- reset health, access cards and weapons/ammunition to the defined restart loadout;
+- retain remaining lives and return to game over when none remain;
+- test repeatable restart state and score rollback.
+
+### WOLF-037 — completion bonuses and high scores
+
+Status: planned. Replace the flat exit-only reward with an original scoring model
+that rewards completion time plus kill, treasure and secret percentages. Add
+clearly presented perfect-category bonuses and a persisted high-score table without
+copying proprietary labels or values.
+
+- author per-sector target times and deterministic bonus formulas;
+- show percentages and awarded bonuses on the completion screen;
+- retain enemy, treasure, secret and extra-life score contributions;
+- persist a bounded, validated high-score table with player-entered initials;
+- test thresholds, perfect scores, ordering and profile migration.
+
+### WOLF-038 — strafing and configurable controls
+
+Status: planned. Add left/right strafing and a CNA-only control settings screen
+while retaining the default arrow-key turn/forward/back layout. Optional mouse and
+controller support may be added only through CNA public APIs; a missing CNA feature
+must be recorded as a blocker instead of bypassed.
+
+- provide keyboard bindings for strafe and run-plus-strafe behavior;
+- allow supported gameplay actions to be rebound and restored to defaults;
+- add sensitivity settings before enabling mouse or analog turning;
+- detect conflicting bindings and keep menus operable;
+- persist and validate the selected control profile.
+
+### WOLF-039 — expanded pickups, keys and resource economy
+
+Status: planned. Add multiple original key/access-card types, locked-door variants,
+health item sizes, four readable treasure tiers and a rare extra-life/full-recovery
+pickup. Enemy ammunition drops must depend on archetype, carried weapon and selected
+difficulty.
+
+- prevent health items from being consumed when they cannot heal;
+- make each access type visible in the HUD and on its matching door;
+- keep shared ammunition capped at 99 while differentiating pickup values;
+- make weapon pickups and duplicate weapons grant documented ammunition amounts;
+- audit every campaign route for key/lock solvability and resource sufficiency.
+
+### WOLF-040 — physical push-wall secrets
+
+Status: planned. Replace secret-door lifting with a real polygonal wall section
+that slides horizontally into valid free cells and permanently reveals a passage.
+The movement, collision, automap and secret counter must describe the same physical
+state.
+
+- validate a push direction and at least one safe destination at load time;
+- animate the wall across one or more grid cells without rebuilding static geometry per frame;
+- prevent player, enemy and door overlap during movement;
+- reveal the destination on the explored automap only when observed;
+- test blocked, valid and already-activated push walls.
+
+### WOLF-041 — distance-aware deterministic weapon combat
+
+Status: planned. Give player firearms deterministic seeded spread, distance-aware
+accuracy and weapon-specific damage while preserving the knife fallback. Automatic
+weapons should consume ammunition per projectile rather than charging several rounds
+for one undifferentiated ray operation.
+
+- define range, spread, damage and cadence for every weapon;
+- include player movement in firearm accuracy where it improves readability;
+- consume exactly the ammunition represented by emitted shots;
+- keep combat replayable from an explicit seed with no hidden global randomness;
+- rebalance enemy health and campaign ammunition after the change.
+
+### WOLF-042 — positional audio and sector music
+
+Status: planned. Replace fixed stereo pan values for world events with listener-
+relative audio positioning through CNA and add original sector-specific music or
+ambient themes. UI sounds remain non-positional and every channel obeys master
+volume.
+
+- position enemy, projectile, door, secret, pickup and objective sounds;
+- update long-running emitters as the listener moves where CNA supports it;
+- assign an original looping theme or ambience identity to each sector family;
+- avoid clipping when several nearby emitters trigger together;
+- add CNA capability notes and deterministic non-device audio tests where practical.
+
+### WOLF-043 — expressive HUD status indicators
+
+Status: planned. Extend the full-width blue status bar with an original animated
+player-status portrait plus visible access-card indicators while preserving the
+current level, score, lives, health, ammunition and final weapon-icon ordering.
+
+- react the portrait to health bands, recent damage, attacks and defeat;
+- display every carried access type without crowding numeric readouts;
+- retain the enlarged HUD proportions and health percent sign;
+- use only original generated/project-owned art and CNA rendering;
+- test status selection logic independently from drawing.
+
+### WOLF-044 — bidirectional door interaction
+
+Status: planned. Let the action key deliberately close a fully open ordinary door
+when the doorway is clear, while retaining delayed automatic closing and the rule
+that a player or defeated body safely holds the door open.
+
+- use the same interaction range and facing checks for opening and closing;
+- refuse manual closing while the doorway is occupied;
+- preserve distinct locked-door and secret-wall behavior;
+- keep door movement and collision synchronized in both directions;
+- test manual close, occupied close refusal and automatic-close fallback.

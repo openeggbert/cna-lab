@@ -52,14 +52,21 @@ namespace WolfCna
         constexpr float EnemyPainVisualSeconds = 0.16f;
         constexpr float PickupRadius = 0.42f;
         constexpr float ExitRadius = 0.45f;
+
+        [[nodiscard]] int ScalePositiveAmount(int amount, float multiplier)
+        {
+            return std::max(1, static_cast<int>(std::lround(
+                static_cast<float>(amount) * multiplier)));
+        }
     }
 
-    World::World(const LevelDefinition& level)
+    World::World(const LevelDefinition& level, Difficulty difficulty)
         : map_(level.Rows())
         , playerStart_(
             static_cast<float>(level.PlayerStartX()) + 0.5f,
             0.62f,
             static_cast<float>(level.PlayerStartZ()) + 0.5f)
+        , difficultyProfile_(GetDifficultyProfile(difficulty))
     {
         impacts_.reserve(MaxImpactCount);
         BuildDoors();
@@ -223,14 +230,11 @@ namespace WolfCna
                     ++defeatedEnemies_;
                     if (!enemy.melee)
                     {
-                        const int ammoDrop = enemy.type == Enemy::Type::HeavyUnit
-                            ? 8
-                            : enemy.type == Enemy::Type::RapidTrooper ? 5 : 3;
                         pickups_.push_back({
                             Vector3(enemy.position.X, 0.08f, enemy.position.Z),
                             PickupType::Ammo,
                             false,
-                            ammoDrop});
+                            enemy.ammunitionDrop});
                     }
                 }
                 return {true, defeated ? enemy.scoreValue : 0};
@@ -328,13 +332,13 @@ namespace WolfCna
             {
                 pickup.collected = true;
                 ++result.repeaterWeapons;
-                result.ammo += 6;
+                result.ammo += pickup.amount;
             }
             else
             {
                 pickup.collected = true;
                 ++result.heavyWeapons;
-                result.ammo += 10;
+                result.ammo += pickup.amount;
             }
         }
 
@@ -409,6 +413,15 @@ namespace WolfCna
             totalGold_,
             foundSecrets_,
             totalSecrets_};
+    }
+
+    World::DifficultyBalance World::GetDifficultyBalance() const
+    {
+        return {
+            .activeEnemies = static_cast<int>(enemies_.size()),
+            .totalEnemyHealth = totalEnemyHealth_,
+            .fixedAmmunition = fixedAmmunition_,
+            .potentialDroppedAmmunition = potentialDroppedAmmunition_};
     }
 
     int World::ConsumeGuardShotCount()
@@ -564,8 +577,7 @@ namespace WolfCna
 
     int World::Update(
         float elapsedSeconds,
-        const Vector3& playerPosition,
-        float damageMultiplier)
+        const Vector3& playerPosition)
     {
         bool changed = false;
         int damage = 0;
@@ -696,7 +708,8 @@ namespace WolfCna
                 {
                     if (enemy.melee)
                     {
-                        damage += static_cast<int>(std::lround(enemy.attackDamage * damageMultiplier));
+                        damage += static_cast<int>(std::lround(
+                            enemy.attackDamage * difficultyProfile_.incomingDamageMultiplier));
                         ++pendingEnemyAudioEvents_.houndAttacks;
                     }
                     else
@@ -784,7 +797,8 @@ namespace WolfCna
             const float dz = playerPosition.Z - iterator->position.Z;
             if (dx * dx + dz * dz <= GuardProjectileHitRadius * GuardProjectileHitRadius)
             {
-                damage += static_cast<int>(std::lround(iterator->damage * damageMultiplier));
+                damage += static_cast<int>(std::lround(
+                    iterator->damage * difficultyProfile_.incomingDamageMultiplier));
                 const float speedSquared =
                     iterator->velocity.X * iterator->velocity.X +
                     iterator->velocity.Z * iterator->velocity.Z;
@@ -1037,6 +1051,11 @@ namespace WolfCna
 
     void World::BuildEnemies()
     {
+        // Authored row-major encounter order supplies stable difficulty tiers:
+        // two encounters per group are available to Scout, one more to Operative,
+        // and the fourth is a Veteran reinforcement.
+        constexpr std::array spawnTiers{0, 1, 0, 2};
+        std::size_t encounterIndex = 0;
         for (int z = 0; z < static_cast<int>(map_.size()); ++z)
         {
             for (int x = 0; x < static_cast<int>(map_[z].size()); ++x)
@@ -1044,6 +1063,11 @@ namespace WolfCna
                 const char symbol = map_[z][x];
                 if (symbol == 'G' || symbol == 'K' || symbol == 'F' || symbol == 'U')
                 {
+                    const int spawnTier = spawnTiers[encounterIndex % spawnTiers.size()];
+                    ++encounterIndex;
+                    if (spawnTier > difficultyProfile_.maximumEnemySpawnTier)
+                        continue;
+
                     Enemy enemy;
                     enemy.position = Vector3(static_cast<float>(x) + 0.5f, 0.0f, static_cast<float>(z) + 0.5f);
                     if (symbol == 'K')
@@ -1056,6 +1080,7 @@ namespace WolfCna
                         enemy.attackRange = HoundAttackRange;
                         enemy.attackInterval = 1.05f;
                         enemy.melee = true;
+                        enemy.ammunitionDrop = 0;
                     }
                     else if (symbol == 'F')
                     {
@@ -1067,6 +1092,7 @@ namespace WolfCna
                         enemy.attackRange = GuardAttackRange;
                         enemy.attackInterval = 0.8f;
                         enemy.projectileSpeed = GuardProjectileSpeed * 1.15f;
+                        enemy.ammunitionDrop = 5;
                     }
                     else if (symbol == 'U')
                     {
@@ -1078,7 +1104,22 @@ namespace WolfCna
                         enemy.attackRange = GuardAttackRange + 1.0f;
                         enemy.attackInterval = 1.7f;
                         enemy.projectileSpeed = GuardProjectileSpeed * 0.85f;
+                        enemy.ammunitionDrop = 8;
                     }
+
+                    enemy.health = ScalePositiveAmount(
+                        enemy.health,
+                        difficultyProfile_.enemyHealthMultiplier);
+                    enemy.moveSpeed *= difficultyProfile_.enemySpeedMultiplier;
+                    enemy.attackInterval *= difficultyProfile_.enemyAttackIntervalMultiplier;
+                    if (enemy.ammunitionDrop > 0)
+                    {
+                        enemy.ammunitionDrop = ScalePositiveAmount(
+                            enemy.ammunitionDrop,
+                            difficultyProfile_.ammunitionMultiplier);
+                    }
+                    totalEnemyHealth_ += enemy.health;
+                    potentialDroppedAmmunition_ += enemy.ammunitionDrop;
                     enemies_.push_back(std::move(enemy));
                 }
             }
@@ -1112,9 +1153,17 @@ namespace WolfCna
                 else if (symbol == 'V')
                     type = PickupType::HeavyWeapon;
 
+                int amount = symbol == 'V' ? 10 : 6;
+                if (symbol == 'A' || symbol == 'W' || symbol == 'V')
+                {
+                    amount = ScalePositiveAmount(amount, difficultyProfile_.ammunitionMultiplier);
+                    fixedAmmunition_ += amount;
+                }
                 pickups_.push_back({
                     Vector3(static_cast<float>(x) + 0.5f, 0.08f, static_cast<float>(z) + 0.5f),
-                    type});
+                    type,
+                    false,
+                    amount});
                 if (symbol == 'T' || symbol == 'J' || symbol == 'N')
                     ++totalGold_;
             }
