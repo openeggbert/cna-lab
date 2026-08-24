@@ -130,6 +130,10 @@ the hash-bound raw artifact and evidence manifest automatically. Its machine-rea
 semantically reconstructed by the binder rather than merely hash-checked. The exact command and
 kernel-interface scope are documented in
 [`performance-targets.md`](docs/performance-targets.md#binding-complete-external-vram-evidence).
+Two no-window AMD Radeon 780M/OPENGLES3 900-draw `mixed` integrations have each produced and
+verified a 55.57 MiB complete DRM peak while passing every direct minimum budget. They remain
+diagnostic because offscreen presentation is not a physical display/vblank path. The release tools
+explicitly refuse offscreen/headless/surfaceless labels as qualifying hardware.
 
 When complete per-process VRAM residency comes from that sampler or another authoritative vendor/OS
 profiler, bind its raw artifact and manifest to the original profile without overwriting it:

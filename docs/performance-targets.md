@@ -523,7 +523,9 @@ Run a new physical-hardware capture (all three output paths must not already exi
 The wrapper requires the child's PID to equal `capture_session.process.pid`, requires its own UTC
 interval to enclose the complete profile interval, and writes the manifest automatically after a
 clean game exit. This command normally uses the selected physical display; wrapping it in Xvfb may
-test plumbing but cannot produce qualifying hardware evidence.
+test plumbing but cannot produce qualifying hardware evidence. SDL offscreen/headless/surfaceless
+contexts may expose real DRM residency and are useful end-to-end profiler diagnostics, but they do
+not prove a physical display/vblank path and are rejected as qualifying hardware labels.
 
 Keep the profiler's raw artifact and write a small evidence manifest alongside the original
 schema-8 capture. The Linux wrapper above writes this manifest automatically; the generic shape for
@@ -676,7 +678,8 @@ canonical performance contents, and write the release artifact:
 ```
 
 `--qualifying-hardware` is an operator assertion, not automatic hardware detection. The generator
-still rejects labels identifying Xvfb/llvmpipe/software rasterization and requires Release
+still rejects labels identifying Xvfb/llvmpipe/software rasterization or
+offscreen/headless/surfaceless presentation and requires Release
 OPENGLES3, at least 1280x720, a successfully acknowledged swap interval, direct p95 budget passes,
 known RAM, complete VRAM accounting within budget, and a real passing district transition in each
 mixed capture. Each mixed run must also supply at least 899 samples for frame cadence, every

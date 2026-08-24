@@ -956,3 +956,75 @@ integration then wrote only the game's ordinary incomplete schema-8 profile and 
 DRM samples, leaving both raw-artifact and manifest paths absent. No real physical game window or
 qualifying artifact was created; M12 remains open pending two controlled hardware runs with
 acknowledged presentation.
+
+## 2026-08-24 — first real Iron Gang DRM artifact (offscreen diagnostic)
+
+SDL's offscreen video driver can create the Release EasyGL OPENGLES3 context on this host's AMD
+Radeon 780M with both visible-display environment variables removed. A 30-draw `idle` run through
+the new wrapper therefore exercised the actual game, Mesa/amdgpu, schema-8 profiler, DRM sampler,
+manifest generator, binder, and release reporter end to end without opening a window.
+
+The sampler made 139 attempts at 5 ms intervals and retained 100 complete process snapshots; two
+fd read races were counted and their partial snapshots excluded. Fds 5, 6, and 7 consistently
+identified the same `0000:c3:00.0/1815` client and were counted once. Peak process DRM residency was
+51,986,432 B (49.58 MiB): 49,020,928 B GTT, 2,965,504 B VRAM, and 0 B CPU. The binder reconstructed
+every raw source field and derived total, then verified the enriched capture. Exact hashes:
+
+- original profile: `c7feeede61827de9e8ad9d24c758d91e348c0457b7af0fd701fc3f4c41289716`;
+- raw artifact: `978cf4843ea33e68113a5d153d945afd77495017347a32e7b34bf886ceaf0930`;
+- evidence manifest: `124b4c843b5a7616945a6338e41e5646927d6f8f3da7c69b82cf32df5fb4bd55`;
+- enriched profile: `0fcc17419e1d8e4694d130173a14478b3a19c1403c1ae248d01f4388b0ca8729`;
+  and
+- diagnostic report: `fd1cb3ba8f7d44f2ddfdbe81b5d4cc187200cec48187a91a23e1d7e2a17304c1`.
+
+Frame p95 was 20.276 ms, GPU Draw-range p95 0.155 ms, Present CPU p95 0.052 ms, and peak RAM
+172.6 MiB. Render CPU p95 was 20.024 ms because this short window includes warm-up and fails its
+8 ms budget. More importantly, offscreen `SetSwapInterval(0)` acknowledgement is not physical
+display/vblank proof. The report now classifies offscreen/headless/surfaceless labels as diagnostic
+even when real GPU residency and platform swap acknowledgement exist. This artifact validates the
+complete VRAM path but cannot close M12.
+
+## 2026-08-24 — full-window offscreen DRM repeatability
+
+Two independent Release EasyGL `mixed --smoke 900` runs repeated the no-window AMD path with the
+locked representative window and one real WarehouseBlock -> Countryside transition each. The
+source sessions are non-overlapping, every original/manifest/raw bundle is independent, and both
+enriched profiles pass semantic reconstruction.
+
+| Measurement | Offscreen mixed 1 | Offscreen mixed 2 | Minimum budget |
+| --- | ---: | ---: | ---: |
+| Frame interval p95 | 18.003 ms | 17.461 ms | 33.333 ms |
+| Update / physics CPU p95 | 0.543 / 0.504 ms | 0.544 / 0.478 ms | 8 / 3 ms |
+| AI / audio / render CPU p95 | 0.008 / 0.024 / 1.265 ms | 0.008 / 0.025 / 1.194 ms | 2 / 1 / 8 ms |
+| GPU Draw / Present CPU p95 | 0.118 / 0.050 ms | 0.113 / 0.052 ms | diagnostic |
+| District load / following frame | 0.599 / 17.680 ms | 0.710 / 20.306 ms | 1000 ms load |
+| Hitches / severe hitches | 0 / 0 | 0 / 0 | diagnostic |
+| Peak resident RAM | 177.1 MiB | 177.1 MiB | 2 GiB |
+| Complete DRM residency | 55.57 MiB | 55.57 MiB | 512 MiB |
+
+The first run has one 44.673 ms frame (a minimum-budget miss, below the strict >50 ms hitch
+threshold); the second maximum is 23.425 ms. Both local report rows are `PASS`.
+
+The identical 58,273,792 B residency peaks have different amdgpu placement at their peak samples:
+54,296,576 B GTT + 3,977,216 B VRAM in the first and 50,331,648 B GTT + 7,942,144 B VRAM in the
+second. This is direct evidence that checking local VRAM alone would be unstable and incomplete;
+the committed policy's all-region sum stays stable.
+
+The diagnostic pair report has only the expected unasserted/offscreen blockers. Re-running it with
+qualifying intent verifies all archives, chronology, repeatability policy, presentation
+acknowledgement, sample floors, workloads, budgets, and transitions, then produces `FAIL` with one
+blocker only: the diagnostic offscreen label. The comparator reports a regression solely for the
+district-boundary frame (+2.626 ms exceeds its 1.768 ms allowed increase); all other metrics pass.
+
+Key hashes:
+
+- first original/raw/evidence/complete: `ae452b03…b5c86`, `b81abdec…fb09d`,
+  `f574a340…f80aa`, `e0247d27…1c7a2`;
+- second original/raw/evidence/complete: `e8e5b57b…99814`, `d6014bb5…9fe6`,
+  `4803085b…2eeba`, `71c5f4cc…a393f`;
+- diagnostic pair report: `6ccfca4a…0498f`;
+- diagnostic comparison: `2627f562…0c74`; and
+- qualifying-intent audit: `4474b358…1af9`.
+
+The memory tracker and its real-flow integration are now implemented and proven. M12 itself remains
+open because an offscreen surface cannot establish the required physical display/vblank behavior.

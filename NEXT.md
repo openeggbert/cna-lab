@@ -67,6 +67,40 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 now has two full-window hardware-GL/offscreen captures with complete DRM residency.** Both
+independent Release EasyGL `mixed --smoke 900` runs use the real AMD Radeon 780M without opening a
+window, supply the full 899-interval window, and pass every direct minimum budget.
+
+- Frame p95 is 18.003/17.461 ms; CPU update/physics/AI/audio/render p95 is
+  0.543/0.504/0.008/0.024/1.265 ms and 0.544/0.478/0.008/0.025/1.194 ms. Neither run has a >50 ms
+  hitch; the first has one 44.673 ms minimum-budget miss and the second none.
+- District load is 0.599/0.710 ms and its following frame is 17.680/20.306 ms. The comparator marks
+  only that +2.626 ms boundary-frame difference as a regression under its tight repeatability
+  tolerance; all ordinary frame, CPU, GPU, Present, RAM, VRAM, and hitch metrics pass.
+- Both complete DRM peaks are exactly 58,273,792 B (55.57 MiB), despite different placement:
+  54,296,576 GTT + 3,977,216 VRAM versus 50,331,648 GTT + 7,942,144 VRAM. Stable total with region
+  migration validates the all-region policy. RAM is 177.1 MiB in both runs.
+- First/second complete hashes are `e0247d27…1c7a2` and `71c5f4cc…a393f`; pair-report,
+  comparator, and qualifying-audit hashes are `6ccfca4a…0498f`, `2627f562…0c74`, and
+  `4474b358…1af9`. The audit's sole blocker is the offscreen label. Memory-tracker implementation
+  tasks are complete; M12 stays open for the same pair on a physical display/vblank path.
+
+**The Linux DRM sampler now has a real Iron Gang end-to-end hardware probe, without a visible
+window.** SDL's `offscreen` video driver created an OPENGLES3 context on the AMD Radeon 780M with
+both `DISPLAY` and `WAYLAND_DISPLAY` unset, so the new wrapper could observe the game's actual DRM
+client rather than only a synthetic fixture.
+
+- The 30-draw Release `idle` probe produced 100 complete DRM samples from 139 attempts (two partial
+  fd reads were counted and excluded), one `0000:c3:00.0` amdgpu client behind fds 5/6/7, and a
+  51,986,432 B (49.58 MiB) peak: 49,020,928 B GTT + 2,965,504 B VRAM + 0 B CPU.
+- Raw/capture/evidence/enriched hashes are `978cf484…f0930`, `c7feeed…89716`,
+  `124b4c84…bd55`, and `0fcc1741…8729`; the binder reconstructed and verified the four-file bundle.
+  The final diagnostic report hash is `fd1cb3ba…304c1`.
+- This is deliberately not M12 qualification: it is a short `idle` run, its render CPU p95 is
+  20.024 ms, and offscreen presentation has no physical display/vblank even though
+  `SetSwapInterval(0)` was acknowledged. `offscreen`, `headless`, and `surfaceless` labels are now
+  explicit diagnostic-hardware blockers, covered alongside the existing virtual/software terms.
+
 **M12 now has an integrated Linux per-process DRM residency sampler.** Physical EasyGL runs no
 longer require hand-assembling a vendor-profiler manifest before the existing evidence binder can
 be used.

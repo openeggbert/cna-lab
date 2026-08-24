@@ -444,9 +444,30 @@ or clients without resident fields. The binder also semantically reconstructs a 
 artifact before enrichment; mutating a sample total and updating its hash still exits 2. The
 focused VRAM suite passes 9/9 and full isolated CTest passes 8/8. A three-draw Xvfb/SOFTWARE
 integration produced its normal incomplete profile, then the wrapper exited 2 because the process
-had no DRM resident samples; neither a raw artifact nor manifest was created. No physical Iron
-Gang capture was launched, so this validates the measurement/evidence path without claiming M12
-qualification.
+had no DRM resident samples; neither a raw artifact nor manifest was created. No physical-display
+Iron Gang capture was launched, so this validates the measurement/evidence path without claiming
+M12 qualification.
+
+A subsequent no-window Release EasyGL integration used `SDL_VIDEODRIVER=offscreen` with both
+`DISPLAY` and `WAYLAND_DISPLAY` removed. It created a real OPENGLES3 context on the AMD Radeon 780M
+and let the wrapper collect 100 complete samples for the exact Iron Gang PID. The peak was
+51,986,432 B across one deduplicated amdgpu client (49,020,928 B GTT, 2,965,504 B VRAM, 0 B CPU);
+the raw artifact, manifest, original profile, and enriched profile passed full binder
+reconstruction. The 30-draw `idle` run is intentionally diagnostic: it is short, render CPU p95 is
+20.024 ms, and offscreen presentation is not physical vblank evidence. New report coverage proves
+that `offscreen`, `headless`, and `surfaceless` labels cannot be promoted with
+`--qualifying-hardware`.
+
+Two subsequent full Release EasyGL `mixed --smoke 900` offscreen captures each supplied 899 frame
+intervals, complete workloads, one real district transition, and independently reconstructed DRM
+archives. Both have the same 58,273,792 B (55.57 MiB) peak, while amdgpu placement differs between
+54,296,576 B GTT + 3,977,216 B VRAM and 50,331,648 B GTT + 7,942,144 B VRAM; the stable sum proves
+why all resident regions are included. Frame p95 is 18.003/17.461 ms, district load 0.599/0.710 ms,
+RAM 177.1 MiB, and both local rows are `PASS`. A qualifying-intent audit verifies all six source
+archives and reports exactly one blocker: the offscreen hardware label. The diagnostic comparator
+flags only the district-boundary frame's 17.680 -> 20.306 ms increase; every ordinary timing,
+memory, and hitch metric passes. This completes the memory-tracker real-flow integration without
+claiming physical-display M12 qualification.
 
 ## Current modular dependency baseline (2026-08-22)
 

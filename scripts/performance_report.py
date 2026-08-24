@@ -71,7 +71,14 @@ QUALIFICATION_REPEATABILITY_PATHS = (
     ("video_memory", "complete_evidence", "tool", "name"),
     ("video_memory", "complete_evidence", "tool", "version"),
 )
-DIAGNOSTIC_HARDWARE_TERMS = ("xvfb", "llvmpipe", "software rasterizer")
+DIAGNOSTIC_HARDWARE_TERMS = (
+    "xvfb",
+    "llvmpipe",
+    "software rasterizer",
+    "offscreen",
+    "headless",
+    "surfaceless",
+)
 COMPLETE_VRAM_SCOPE = "complete_process_gpu_residency_peak"
 GPU_TIMING_SCOPE = "draw_commands_excluding_present"
 SWAP_INTERVAL_PROOF = (
@@ -1596,7 +1603,9 @@ def build_markdown(
             "| District transition | <=1000 ms p95 in at least two mixed captures | Same budget |",
             "| Presentation evidence | Successful platform swap-interval acknowledgement | Controlled physical vblank/compositor |",
             "",
-            "The report generator never promotes an unlabelled capture, Xvfb, llvmpipe, or incomplete VRAM accounting to a qualifying pass.",
+            "The report generator never promotes an unlabelled capture, virtual/offscreen/headless "
+            "presentation, software rasterization, or incomplete VRAM accounting to a qualifying "
+            "pass.",
             "The provenance hashes identify the exact files read; qualifying bundle hashes were also reconstructed and verified before evaluation.",
             "",
         ]

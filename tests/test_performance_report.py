@@ -488,6 +488,16 @@ class PerformanceReportTests(unittest.TestCase):
         self.assertIn("diagnostic software/virtual display", result.stdout)
         self.assertIn("at least two mixed captures", result.stdout)
 
+        for hardware in (
+            "Offscreen AMD GPU diagnostic",
+            "Headless compositor diagnostic",
+            "Surfaceless EGL diagnostic",
+        ):
+            with self.subTest(hardware=hardware):
+                result = self.run_report([capture_fixture()], hardware)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("diagnostic software/virtual display", result.stdout)
+
         result = self.run_report([capture_fixture()], "   ")
         self.assertEqual(result.returncode, 2)
         self.assertIn("hardware identity must be non-empty", result.stderr)
@@ -518,6 +528,21 @@ class PerformanceReportTests(unittest.TestCase):
             hashlib.sha256(b"raw report-test profiler artifact 0").hexdigest(),
             result.stdout,
         )
+
+        offscreen_first = capture_fixture()
+        offscreen_second = independent_capture_fixture()
+        for capture in (offscreen_first, offscreen_second):
+            capture["video_memory"]["complete_evidence"]["hardware_identity"] = (
+                "Offscreen AMD GPU diagnostic"
+            )
+        result = self.run_report(
+            [offscreen_first, offscreen_second],
+            "Offscreen AMD GPU diagnostic",
+            "--qualifying-hardware",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Overall status: **FAIL**", result.stdout)
+        self.assertIn("diagnostic software/virtual display", result.stdout)
 
         short_capture = deepcopy(first)
         short_capture["measurements"]["frame_interval"]["samples"] = 4

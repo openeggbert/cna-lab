@@ -102,8 +102,17 @@ rather than being a one-time final check.
     polls standard DRM fdinfo resident-buffer regions across the complete capture interval,
     deduplicates repeated client descriptors, and writes the raw artifact plus hash-bound manifest.
     The binder reconstructs source fields, regions, clients, samples, and peak for this built-in
-    artifact. Synthetic coverage passes, but no physical game capture was opened or claimed; M12
-    stays open.*
+    artifact. Synthetic coverage passes, but no physical-display game capture was opened or
+    claimed; M12 stays open.*
+    *Offscreen-hardware follow-up: a real Release EasyGL Iron Gang process on the AMD 780M produced
+    a semantically verified 100-sample DRM bundle with a 49.58 MiB peak, entirely without a visible
+    window. This proves the complete VRAM path, not physical presentation: the short idle render
+    p95 fails, and offscreen/headless/surfaceless labels are now explicit qualification blockers.
+    M12 stays open.*
+    *Full-window offscreen follow-up: two independent 900-draw mixed AMD runs each pass all direct
+    frame/CPU/RAM/complete-VRAM/district budgets and produce semantically verified source bundles.
+    Both peak at 55.57 MiB total DRM residency despite different GTT/VRAM placement. A qualifying
+    audit's sole blocker is the offscreen label; M12 still requires the physical display path.*
 - [ ] **IG-39-014 P0** — Gate M13: all shipping assets have approved provenance and generated third-party notices.
 - [ ] **IG-39-015 P0** — Gate M14: an external clean workspace can build, install, launch, and complete the first-district demo using documented steps.
 - [ ] **IG-39-016 P0** — Gate M15: each additional district repeats gates M10-M14 before its missions are considered shippable (see expansion gate below).
