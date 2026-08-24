@@ -111,16 +111,16 @@ Statuses:
 | PEO-063 | TODO | Wall object constraints | Painting-like placeholder proves wall requirement/orientation validation without adding final decoration content |
 | PEO-064 | TODO | State-derived sprites | Visual state selection reacts to typed object state without renderer mutation of state |
 | PEO-065 | TODO | Object condition/degradation seed | Optional condition clock and break/dirty events are deterministic and disabled for objects without policy |
-| PEO-066 | DOING | Procedural furniture generator | Bed, chair, table, refrigerator, and toilet each have original four-view placeholder sprites and metadata |
-| PEO-067 | TODO | Five-object demo placement | Objects validate footprints, rotate, render/sort, and remain selectable inside the demo room |
+| PEO-066 | DONE | Procedural furniture generator | Bed, chair, table, refrigerator, and toilet each have original four-view placeholder sprites and metadata |
+| PEO-067 | DONE | Five-object demo placement | Objects validate footprints, rotate, render/sort, and remain selectable inside the demo room |
 | PEO-068 | TODO | Catalog/object inspector | Developer UI displays ID, footprint, orientation, state, slots, reservations, and sort anchor |
-| PEO-069 | TODO | Object M2 gate | Five furniture types plus room/door satisfy displayed four-view placement and sorting acceptance |
+| PEO-069 | DONE | Object M2 gate | Five furniture types plus room/door satisfy displayed four-view placement and sorting acceptance |
 
 ## Residents, routing, and actions (`PEO-070`–`PEO-089`)
 
 | ID | Status | Task | Acceptance criteria |
 |---|---|---|---|
-| PEO-070 | TODO | Resident simulation entity | Stable ID, household, logical position, movement/action references, and deletion lifecycle exist without sprite state |
+| PEO-070 | DOING | Resident simulation entity | Stable ID, household, logical position, movement/action references, and deletion lifecycle exist without sprite state |
 | PEO-071 | TODO | Four-view placeholder resident | Original procedural resident has four directions and idle frames with common foot anchor |
 | PEO-072 | TODO | Walk animation | Movement direction selects walk frames by simulation progress; animation cannot alter route state |
 | PEO-073 | TODO | Static occupancy grid | Floor/walls/object footprints produce deterministic walkability independent of renderer |

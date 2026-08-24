@@ -123,6 +123,27 @@ Each source/output group records:
 
 Provenance is content data, not an optional comment in a commit message.
 
+## Current procedural placeholder record
+
+The first furnished-room milestone has no imported bitmap or model source.
+`PeopleGame::CreateFurnitureTexture` deterministically rasterizes five original
+placeholder designs into transparent 128 x 128 CNA `Texture2D` instances at
+runtime. `DemoFurniture` owns their catalog metadata and twenty directional
+asset IDs:
+
+- Cedar Nest Bed (`people.bed.cedar_nest`);
+- Sunny Dining Chair (`people.chair.sunny_dining`);
+- Roundleaf Table (`people.table.roundleaf`);
+- Mintbox Refrigerator (`people.fridge.mintbox`);
+- Cloudline Toilet (`people.toilet.cloudline`).
+
+Provenance: authored as new People project code on 2026-08-24, no external
+source material, no AI model, no downloaded asset, MIT project license. The
+textures are ephemeral build/runtime output rather than files admitted to
+`Content/`. Temporary QA screenshots are not shipping assets. These designs are
+explicitly placeholders and may be replaced only through the normal manifest
+and review process.
+
 ## Reproducible tooling roadmap
 
 - `tools/render-object/`: validate rig, invoke optional headless Blender,
@@ -135,4 +156,3 @@ Provenance is content data, not an optional comment in a commit message.
 
 Blender and generators are contributor tools only. Ordinary players and source
 builders receive processed 2D assets.
-

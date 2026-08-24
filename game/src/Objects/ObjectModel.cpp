@@ -240,6 +240,15 @@ namespace People::Objects
         return found == instances_.end() ? nullptr : &found->second;
     }
 
+    std::vector<World::TileCoordinate> ObjectWorld::FootprintCells(
+        const ObjectInstance& instance) const
+    {
+        const ObjectDefinition* definition = catalog_.Find(instance.definitionId);
+        if (definition == nullptr)
+            throw std::invalid_argument("object instance refers to an unknown definition");
+        return ResolveCells(definition->footprint, instance.anchor, instance.rotation);
+    }
+
     std::optional<ObjectInstanceId> ObjectWorld::OccupiedBy(
         const World::TileCoordinate tile) const
     {

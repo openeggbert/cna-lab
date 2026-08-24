@@ -1,15 +1,21 @@
 #include "People/PeopleGame.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <ranges>
 #include <span>
+#include <stdexcept>
+#include <string_view>
 #include <variant>
 #include <vector>
 
+#include "People/Content/DemoFurniture.hpp"
+#include "People/Rendering/ObjectPresentation.hpp"
 #include "People/Rendering/RenderOrder.hpp"
 #include "People/Rendering/WallPresentation.hpp"
 #include "People/World/RoomMap.hpp"
@@ -33,14 +39,209 @@ using People::World::PixelPoint;
 using People::World::TileCoordinate;
 using People::World::ViewRotation;
 using People::World::WallEdge;
+using People::Objects::ObjectInstanceId;
 using People::Rendering::DrawLayer;
+using People::Rendering::ObjectPresentation;
 using People::Rendering::RenderKey;
 using People::Rendering::RenderOrder;
+using People::Rendering::SpriteDirection;
 using People::Rendering::WallPresentation;
 
 namespace
 {
     constexpr int WallHeight = 72;
+    constexpr int FurnitureSpriteWidth = 128;
+    constexpr int FurnitureSpriteHeight = 128;
+
+    struct RasterPoint
+    {
+        int x = 0;
+        int y = 0;
+    };
+
+    [[nodiscard]] RasterPoint Add(const RasterPoint left, const RasterPoint right)
+    {
+        return {left.x + right.x, left.y + right.y};
+    }
+
+    [[nodiscard]] RasterPoint Subtract(const RasterPoint left, const RasterPoint right)
+    {
+        return {left.x - right.x, left.y - right.y};
+    }
+
+    [[nodiscard]] RasterPoint Scale(
+        const RasterPoint value, const int numerator, const int denominator)
+    {
+        return {value.x * numerator / denominator, value.y * numerator / denominator};
+    }
+
+    class PixelCanvas final
+    {
+    public:
+        PixelCanvas(const int width, const int height)
+            : width_(width),
+              height_(height),
+              pixels_(static_cast<std::size_t>(width) * static_cast<std::size_t>(height),
+                      Color::Transparent)
+        {
+        }
+
+        void Put(const int x, const int y, const Color color)
+        {
+            if (x < 0 || y < 0 || x >= width_ || y >= height_)
+                return;
+            pixels_[static_cast<std::size_t>(y) * static_cast<std::size_t>(width_)
+                    + static_cast<std::size_t>(x)] = color;
+        }
+
+        void FillRectangle(
+            const int minimumX, const int minimumY,
+            const int maximumX, const int maximumY,
+            const Color color)
+        {
+            for (int y = minimumY; y <= maximumY; ++y)
+            {
+                for (int x = minimumX; x <= maximumX; ++x)
+                    Put(x, y, color);
+            }
+        }
+
+        void FillEllipse(
+            const RasterPoint center, const int radiusX, const int radiusY,
+            const Color color)
+        {
+            for (int y = center.y - radiusY; y <= center.y + radiusY; ++y)
+            {
+                for (int x = center.x - radiusX; x <= center.x + radiusX; ++x)
+                {
+                    const double normalizedX = static_cast<double>(x - center.x) / radiusX;
+                    const double normalizedY = static_cast<double>(y - center.y) / radiusY;
+                    if (normalizedX * normalizedX + normalizedY * normalizedY <= 1.0)
+                        Put(x, y, color);
+                }
+            }
+        }
+
+        void FillPolygon(const std::span<const RasterPoint> points, const Color color)
+        {
+            if (points.size() < 3)
+                return;
+            int minimumY = std::numeric_limits<int>::max();
+            int maximumY = std::numeric_limits<int>::min();
+            for (const RasterPoint point : points)
+            {
+                minimumY = std::min(minimumY, point.y);
+                maximumY = std::max(maximumY, point.y);
+            }
+
+            std::vector<double> intersections;
+            intersections.reserve(points.size());
+            for (int y = minimumY; y <= maximumY; ++y)
+            {
+                intersections.clear();
+                const double scanY = static_cast<double>(y) + 0.5;
+                for (std::size_t index = 0; index < points.size(); ++index)
+                {
+                    const RasterPoint first = points[index];
+                    const RasterPoint second = points[(index + 1) % points.size()];
+                    const bool crosses = (static_cast<double>(first.y) <= scanY
+                                          && static_cast<double>(second.y) > scanY)
+                        || (static_cast<double>(second.y) <= scanY
+                            && static_cast<double>(first.y) > scanY);
+                    if (!crosses)
+                        continue;
+                    const double ratio = (scanY - first.y)
+                        / static_cast<double>(second.y - first.y);
+                    intersections.push_back(
+                        static_cast<double>(first.x) + ratio * (second.x - first.x));
+                }
+                std::ranges::sort(intersections);
+                for (std::size_t index = 0; index + 1 < intersections.size(); index += 2)
+                {
+                    const int firstX = static_cast<int>(std::ceil(intersections[index]));
+                    const int lastX = static_cast<int>(std::floor(intersections[index + 1]));
+                    for (int x = firstX; x <= lastX; ++x)
+                        Put(x, y, color);
+                }
+            }
+        }
+
+        void DrawLine(
+            RasterPoint start, const RasterPoint end, const int radius, const Color color)
+        {
+            const int differenceX = std::abs(end.x - start.x);
+            const int stepX = start.x < end.x ? 1 : -1;
+            const int differenceY = -std::abs(end.y - start.y);
+            const int stepY = start.y < end.y ? 1 : -1;
+            int error = differenceX + differenceY;
+            while (true)
+            {
+                FillEllipse(start, radius, radius, color);
+                if (start.x == end.x && start.y == end.y)
+                    break;
+                const int doubledError = error * 2;
+                if (doubledError >= differenceY)
+                {
+                    error += differenceY;
+                    start.x += stepX;
+                }
+                if (doubledError <= differenceX)
+                {
+                    error += differenceX;
+                    start.y += stepY;
+                }
+            }
+        }
+
+        [[nodiscard]] const std::vector<Color>& Pixels() const noexcept
+        {
+            return pixels_;
+        }
+
+    private:
+        int width_;
+        int height_;
+        std::vector<Color> pixels_;
+    };
+
+    struct FurnitureBasis
+    {
+        RasterPoint forward;
+        RasterPoint right;
+    };
+
+    [[nodiscard]] FurnitureBasis BasisFor(const SpriteDirection direction)
+    {
+        switch (direction)
+        {
+            case SpriteDirection::North: return {{36, -18}, {24, 12}};
+            case SpriteDirection::East: return {{36, 18}, {-24, 12}};
+            case SpriteDirection::South: return {{-36, 18}, {-24, -12}};
+            case SpriteDirection::West: return {{-36, -18}, {24, -12}};
+        }
+        throw std::invalid_argument("sprite direction must be one of four directions");
+    }
+
+    [[nodiscard]] std::array<RasterPoint, 4> PlanarQuad(
+        const RasterPoint center,
+        const RasterPoint forward,
+        const RasterPoint right)
+    {
+        return {{
+            Subtract(Subtract(center, forward), right),
+            Add(Subtract(center, forward), right),
+            Add(Add(center, forward), right),
+            Subtract(Add(center, forward), right)
+        }};
+    }
+
+    [[nodiscard]] std::array<RasterPoint, 4> Raised(
+        std::array<RasterPoint, 4> points, const int height)
+    {
+        for (RasterPoint& point : points)
+            point.y -= height;
+        return points;
+    }
 
     [[nodiscard]] bool WasPressed(
         const KeyboardState& current, const KeyboardState& previous, const Keys key)
@@ -72,7 +273,7 @@ PeopleGame::PeopleGame(const int smokeFrames, const bool smokeRotations)
     graphics_.setPreferredBackBufferWidthProperty(1280);
     graphics_.setPreferredBackBufferHeightProperty(720);
     setIsMouseVisibleProperty(true);
-    getWindowProperty().setTitleProperty("People - isometric foundation");
+    getWindowProperty().setTitleProperty("People - furnished room milestone");
     InitializeDemoLot();
 }
 
@@ -100,6 +301,7 @@ void PeopleGame::InitializeDemoLot()
     const TileCoordinate doorTile{9, maximumY, 0};
     (void)lot_.AddDoor(doorTile, People::World::TileEdge::MaxY);
     demoDoor_ = lot_.CanonicalWall(doorTile, People::World::TileEdge::MaxY);
+    People::Content::DemoFurniture::Populate(objects_);
 }
 
 Texture2D PeopleGame::CreateTileTexture(const bool highlight)
@@ -251,6 +453,159 @@ Texture2D PeopleGame::CreateDoorTexture(
     return texture;
 }
 
+Texture2D PeopleGame::CreateFurnitureTexture(
+    const std::string_view definitionId, const SpriteDirection direction)
+{
+    PixelCanvas canvas(FurnitureSpriteWidth, FurnitureSpriteHeight);
+    const FurnitureBasis basis = BasisFor(direction);
+    constexpr RasterPoint contact{64, 96};
+    const Color shadow = Color::FromNonPremultiplied(27, 38, 43, 82);
+    const Color outline(54, 54, 54, 255);
+
+    if (definitionId == People::Content::DemoFurniture::BedId)
+    {
+        const RasterPoint length = Scale(basis.forward, 5, 8);
+        const RasterPoint width = Scale(basis.right, 3, 4);
+        const RasterPoint center = Add(contact, length);
+        const auto floorShape = PlanarQuad(center, length, width);
+        canvas.FillPolygon(floorShape, shadow);
+
+        const auto frame = Raised(floorShape, 8);
+        canvas.FillPolygon(frame, Color(119, 74, 48, 255));
+        for (std::size_t index = 0; index < frame.size(); ++index)
+            canvas.DrawLine(frame[index], frame[(index + 1) % frame.size()], 1, outline);
+
+        auto mattress = Raised(frame, 7);
+        for (RasterPoint& point : mattress)
+        {
+            point = Add(point, Scale(Subtract(center, point), 1, 10));
+        }
+        canvas.FillPolygon(mattress, Color(203, 112, 92, 255));
+        for (std::size_t index = 0; index < mattress.size(); ++index)
+            canvas.DrawLine(mattress[index], mattress[(index + 1) % mattress.size()], 1, outline);
+
+        const RasterPoint headCenter = Add(contact, Scale(basis.forward, 5, 4));
+        const RasterPoint headSide = Scale(basis.right, 3, 4);
+        const RasterPoint headLeft = Subtract(headCenter, headSide);
+        const RasterPoint headRight = Add(headCenter, headSide);
+        canvas.DrawLine(headLeft, {headLeft.x, headLeft.y - 29}, 2, Color(91, 56, 38, 255));
+        canvas.DrawLine(headRight, {headRight.x, headRight.y - 29}, 2, Color(91, 56, 38, 255));
+        canvas.DrawLine({headLeft.x, headLeft.y - 26},
+                        {headRight.x, headRight.y - 26}, 2, Color(134, 82, 50, 255));
+
+        const RasterPoint pillowCenter = Add(contact, basis.forward);
+        auto pillow = Raised(
+            PlanarQuad({pillowCenter.x, pillowCenter.y},
+                       Scale(basis.forward, 1, 5), Scale(basis.right, 1, 2)),
+            18);
+        canvas.FillPolygon(pillow, Color(244, 225, 181, 255));
+        for (std::size_t index = 0; index < pillow.size(); ++index)
+            canvas.DrawLine(pillow[index], pillow[(index + 1) % pillow.size()], 1, outline);
+    }
+    else if (definitionId == People::Content::DemoFurniture::ChairId)
+    {
+        canvas.FillEllipse(contact, 19, 8, shadow);
+        const RasterPoint seatCenter{contact.x, contact.y - 31};
+        const RasterPoint seatForward = Scale(basis.forward, 1, 5);
+        const RasterPoint seatRight = Scale(basis.right, 2, 5);
+        const auto ground = PlanarQuad(contact, seatForward, seatRight);
+        const auto seat = PlanarQuad(seatCenter, seatForward, seatRight);
+        for (std::size_t index = 0; index < ground.size(); ++index)
+            canvas.DrawLine(ground[index], seat[index], 2, Color(117, 77, 40, 255));
+        canvas.FillPolygon(seat, Color(226, 171, 65, 255));
+        for (std::size_t index = 0; index < seat.size(); ++index)
+            canvas.DrawLine(seat[index], seat[(index + 1) % seat.size()], 1, outline);
+
+        const RasterPoint backCenter = Subtract(seatCenter, seatForward);
+        const RasterPoint backSide = seatRight;
+        const RasterPoint backLeft = Subtract(backCenter, backSide);
+        const RasterPoint backRight = Add(backCenter, backSide);
+        canvas.DrawLine(backLeft, {backLeft.x, backLeft.y - 28}, 2,
+                        Color(117, 77, 40, 255));
+        canvas.DrawLine(backRight, {backRight.x, backRight.y - 28}, 2,
+                        Color(117, 77, 40, 255));
+        canvas.DrawLine({backLeft.x, backLeft.y - 25},
+                        {backRight.x, backRight.y - 25}, 3,
+                        Color(226, 171, 65, 255));
+    }
+    else if (definitionId == People::Content::DemoFurniture::TableId)
+    {
+        canvas.FillEllipse(contact, 28, 11, shadow);
+        const RasterPoint topCenter{contact.x, contact.y - 43};
+        const RasterPoint topForward = Scale(basis.forward, 2, 5);
+        const RasterPoint topRight = Scale(basis.right, 3, 5);
+        const auto ground = PlanarQuad(contact, Scale(topForward, 2, 3),
+                                      Scale(topRight, 2, 3));
+        const auto top = PlanarQuad(topCenter, topForward, topRight);
+        for (std::size_t index = 0; index < ground.size(); ++index)
+            canvas.DrawLine(ground[index], top[index], 2, Color(66, 81, 65, 255));
+        canvas.FillPolygon(top, Color(94, 139, 96, 255));
+        for (std::size_t index = 0; index < top.size(); ++index)
+            canvas.DrawLine(top[index], top[(index + 1) % top.size()], 1, outline);
+        canvas.DrawLine(Subtract(topCenter, Scale(basis.right, 1, 3)),
+                        Add(topCenter, Scale(basis.right, 1, 3)), 1,
+                        Color(192, 202, 138, 255));
+    }
+    else if (definitionId == People::Content::DemoFurniture::RefrigeratorId)
+    {
+        canvas.FillEllipse(contact, 25, 9, shadow);
+        const bool rightLit = direction == SpriteDirection::North
+            || direction == SpriteDirection::East;
+        const int sideOffset = rightLit ? 9 : -9;
+        const std::array<RasterPoint, 4> front{{
+            {43, 34}, {84, 34}, {84, 96}, {43, 96}
+        }};
+        const std::array<RasterPoint, 4> side = rightLit
+            ? std::array<RasterPoint, 4>{{
+                {84, 34}, {84 + sideOffset, 29}, {84 + sideOffset, 90}, {84, 96}
+            }}
+            : std::array<RasterPoint, 4>{{
+                {43, 34}, {43 + sideOffset, 29}, {43 + sideOffset, 90}, {43, 96}
+            }};
+        canvas.FillPolygon(front, Color(162, 210, 189, 255));
+        canvas.FillPolygon(side, rightLit
+            ? Color(126, 177, 162, 255) : Color(105, 156, 145, 255));
+        for (std::size_t index = 0; index < front.size(); ++index)
+            canvas.DrawLine(front[index], front[(index + 1) % front.size()], 1, outline);
+        for (std::size_t index = 0; index < side.size(); ++index)
+            canvas.DrawLine(side[index], side[(index + 1) % side.size()], 1, outline);
+        canvas.DrawLine({44, 58}, {83, 58}, 1, Color(79, 115, 106, 255));
+        const int handleX = direction == SpriteDirection::North
+            || direction == SpriteDirection::West ? 50 : 77;
+        canvas.DrawLine({handleX, 64}, {handleX, 82}, 1, Color(236, 229, 190, 255));
+        const int badgeX = direction == SpriteDirection::North
+            || direction == SpriteDirection::East ? 72 : 54;
+        canvas.FillRectangle(badgeX - 2, 43, badgeX + 2, 47, Color(229, 171, 65, 255));
+    }
+    else if (definitionId == People::Content::DemoFurniture::ToiletId)
+    {
+        canvas.FillEllipse(contact, 21, 8, shadow);
+        const RasterPoint back = Subtract(contact, Scale(basis.forward, 2, 5));
+        canvas.FillRectangle(back.x - 14, back.y - 55, back.x + 14, back.y - 30,
+                             Color(193, 222, 226, 255));
+        canvas.DrawLine({back.x - 14, back.y - 55}, {back.x + 14, back.y - 55}, 1,
+                        outline);
+        const RasterPoint bowl = Add(contact, Scale(basis.forward, 1, 5));
+        canvas.FillEllipse({bowl.x, bowl.y - 25}, 21, 12, Color(220, 240, 238, 255));
+        canvas.FillEllipse({bowl.x, bowl.y - 26}, 13, 6, Color(95, 151, 159, 255));
+        canvas.FillEllipse({bowl.x, bowl.y - 26}, 9, 4, Color(168, 215, 218, 255));
+        canvas.FillRectangle(bowl.x - 8, bowl.y - 24, bowl.x + 8, contact.y - 2,
+                             Color(193, 222, 226, 255));
+        canvas.DrawLine({back.x - 14, back.y - 30}, {back.x + 14, back.y - 30}, 1,
+                        outline);
+        const int buttonX = back.x + (direction == SpriteDirection::North
+            || direction == SpriteDirection::East ? 7 : -7);
+        canvas.FillEllipse({buttonX, back.y - 51}, 2, 1, Color(92, 145, 151, 255));
+    }
+    else
+        throw std::invalid_argument("unknown procedural furniture definition");
+
+    Texture2D texture(
+        getGraphicsDeviceProperty(), FurnitureSpriteWidth, FurnitureSpriteHeight);
+    texture.SetData(canvas.Pixels().data(), static_cast<int>(canvas.Pixels().size()));
+    return texture;
+}
+
 void PeopleGame::LoadContent()
 {
     auto& device = getGraphicsDeviceProperty();
@@ -263,6 +618,25 @@ void PeopleGame::LoadContent()
     doorClosedUpRightTexture_ = CreateDoorTexture(false, false);
     doorOpenDownRightTexture_ = CreateDoorTexture(true, true);
     doorOpenUpRightTexture_ = CreateDoorTexture(false, true);
+    for (const auto& [id, instance] : objects_.Instances())
+    {
+        (void)id;
+        const People::Objects::ObjectDefinition* definition =
+            objects_.Catalog().Find(instance.definitionId);
+        if (definition == nullptr)
+            throw std::logic_error("demo object definition disappeared before content load");
+        const auto state = definition->visual.states.find(definition->visual.defaultState);
+        if (state == definition->visual.states.end())
+            throw std::logic_error("demo object has no default visual state");
+        for (int directionIndex = 0; directionIndex < 4; ++directionIndex)
+        {
+            const auto direction = static_cast<SpriteDirection>(directionIndex);
+            const People::Objects::ObjectSpriteReference& sprite =
+                state->second.directions[static_cast<std::size_t>(directionIndex)];
+            objectTextures_.emplace(
+                sprite.assetId, CreateFurnitureTexture(definition->id, direction));
+        }
+    }
 
     const auto& viewport = device.getViewportProperty();
     camera_.origin = {
@@ -274,6 +648,7 @@ void PeopleGame::LoadContent()
 
     const auto mouse = Mouse::GetState();
     previousWheel_ = mouse.getScrollWheelValueProperty();
+    previousLeftButton_ = mouse.getLeftButtonProperty();
 
     const People::World::RoomMap rooms = People::World::RoomMap::Rebuild(lot_, 0);
     std::cout << "People: CNA SpriteBatch foundation loaded; lot="
@@ -281,6 +656,7 @@ void PeopleGame::LoadContent()
               << IsometricProjection::TileWidth << 'x' << IsometricProjection::TileHeight
               << ", walls=" << lot_.Walls().size()
               << ", doors=" << lot_.Doors().size()
+              << ", objects=" << objects_.Instances().size()
               << ", enclosed-rooms=" << rooms.EnclosedRoomCount()
               << ", runtime world=2D\n";
 }
@@ -362,11 +738,19 @@ void PeopleGame::Update(GameTime& gameTime)
         gameTime.getElapsedGameTimeProperty().getTotalMillisecondsProperty() / 1000.0);
     HandleCameraInput(elapsedSeconds);
     RefreshHoveredTile();
+    const MouseState mouse = Mouse::GetState();
+    if (mouse.getLeftButtonProperty() == ButtonState::Pressed
+        && previousLeftButton_ == ButtonState::Released)
+    {
+        selectedObject_ = hoveredTile_.has_value()
+            ? objects_.OccupiedBy(*hoveredTile_) : std::nullopt;
+    }
+    previousLeftButton_ = mouse.getLeftButtonProperty();
 }
 
 void PeopleGame::DrawLot()
 {
-    using Drawable = std::variant<TileCoordinate, WallEdge>;
+    using Drawable = std::variant<TileCoordinate, WallEdge, ObjectInstanceId>;
     struct WorldDrawItem
     {
         Drawable drawable;
@@ -376,7 +760,7 @@ void PeopleGame::DrawLot()
     std::vector<WorldDrawItem> items;
     const People::World::LotSize lotSize = lot_.Size();
     items.reserve(static_cast<std::size_t>(lotSize.width * lotSize.height)
-                  + lot_.Walls().size());
+                  + lot_.Walls().size() + objects_.Instances().size());
     for (int y = 0; y < lotSize.height; ++y)
     {
         for (int x = 0; x < lotSize.width; ++x)
@@ -406,6 +790,17 @@ void PeopleGame::DrawLot()
         });
     }
 
+    for (const auto& [id, instance] : objects_.Instances())
+    {
+        const std::vector<TileCoordinate> footprint = objects_.FootprintCells(instance);
+        items.push_back({
+            id,
+            RenderOrder::BuildKey(
+                footprint, instance.anchor, lotSize, camera_.rotation,
+                DrawLayer::WorldEntity, 0, id)
+        });
+    }
+
     std::ranges::sort(items, [](const WorldDrawItem& left, const WorldDrawItem& right) {
         return left.key < right.key;
     });
@@ -420,8 +815,36 @@ void PeopleGame::DrawLot()
     {
         if (const auto* tile = std::get_if<TileCoordinate>(&item.drawable))
             DrawTile(*tile);
+        else if (const auto* wall = std::get_if<WallEdge>(&item.drawable))
+            DrawWall(*wall);
         else
-            DrawWall(std::get<WallEdge>(item.drawable));
+            DrawObject(std::get<ObjectInstanceId>(item.drawable));
+    }
+
+    if (selectedObject_.has_value())
+    {
+        const People::Objects::ObjectInstance* selected = objects_.Find(*selectedObject_);
+        if (selected != nullptr)
+        {
+            for (const TileCoordinate tile : objects_.FootprintCells(*selected))
+            {
+                const PixelPoint center = IsometricProjection::WorldToScreen(
+                    tile, lotSize, camera_);
+                const Vector2 topLeft{
+                    static_cast<float>(
+                        center.x - IsometricProjection::HalfTileWidth * camera_.zoom),
+                    static_cast<float>(
+                        center.y - IsometricProjection::HalfTileHeight * camera_.zoom)
+                };
+                spriteBatch_->Draw(
+                    highlightTexture_, topLeft, std::nullopt,
+                    Color::FromNonPremultiplied(105, 225, 255, 210),
+                    0.0f, Vector2::Zero, static_cast<float>(camera_.zoom),
+                    SpriteEffects::None, 0.0f);
+            }
+        }
+        else
+            selectedObject_.reset();
     }
 
     if (hoveredTile_.has_value())
@@ -439,6 +862,38 @@ void PeopleGame::DrawLot()
     }
 
     spriteBatch_->End();
+}
+
+void PeopleGame::DrawObject(const ObjectInstanceId objectId)
+{
+    const People::Objects::ObjectInstance* instance = objects_.Find(objectId);
+    if (instance == nullptr)
+        throw std::logic_error("render queue refers to a missing object instance");
+    const People::Objects::ObjectDefinition* definition =
+        objects_.Catalog().Find(instance->definitionId);
+    if (definition == nullptr)
+        throw std::logic_error("object instance refers to a missing definition");
+    const People::Rendering::ObjectSpriteSelection selection =
+        ObjectPresentation::SelectDefaultSprite(
+            *definition, instance->rotation, camera_.rotation);
+    if (selection.reference == nullptr)
+        throw std::logic_error("object sprite selection returned no metadata");
+    const auto texture = objectTextures_.find(selection.reference->assetId);
+    if (texture == objectTextures_.end())
+        throw std::logic_error("object sprite metadata has no generated texture");
+
+    const PixelPoint contact = IsometricProjection::WorldToScreen(
+        instance->anchor, lot_.Size(), camera_);
+    const Vector2 topLeft{
+        static_cast<float>(
+            contact.x - selection.reference->anchorX * camera_.zoom),
+        static_cast<float>(
+            contact.y - selection.reference->anchorY * camera_.zoom)
+    };
+    spriteBatch_->Draw(
+        texture->second, topLeft, std::nullopt, Color::White,
+        0.0f, Vector2::Zero, static_cast<float>(camera_.zoom),
+        SpriteEffects::None, 0.0f);
 }
 
 void PeopleGame::DrawTile(const TileCoordinate tile)
@@ -512,6 +967,11 @@ void PeopleGame::Draw(const GameTime& gameTime)
             std::cout << hoveredTile_->x << ',' << hoveredTile_->y;
         else
             std::cout << "outside";
+        std::cout << "; selected-object=";
+        if (selectedObject_.has_value())
+            std::cout << *selectedObject_;
+        else
+            std::cout << "none";
         std::cout << "\n";
         Exit();
     }

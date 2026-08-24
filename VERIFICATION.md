@@ -193,3 +193,39 @@ HEADLESS and SDL_RENDERER/SDL3 builds each passed 6/6 CTests against clean CNA
 `54578590b328aa9612fe38bfddca9fd8ca795144`. No visual result is claimed yet;
 this increment establishes the deterministic metadata contract used by the
 next procedural-furniture renderer.
+
+## 2026-08-24: PEO-066/067/069 furnished-room M2 gate
+
+`DemoFurniture` registers five original native definitions and places one
+instance of each inside the existing room: Cedar Nest Bed, Sunny Dining Chair,
+Roundleaf Table, Mintbox Refrigerator, and Cloudline Toilet. Together they
+exercise all four simulation orientations, twenty unique directional asset
+IDs, a two-cell bed footprint, occupancy, clearance, categories, prices, and
+explicit stable instance IDs. This remains intentionally native content until
+several interactions prove the external schema.
+
+At content load, People deterministically rasterizes each referenced frame to a
+transparent 128 x 128 CNA `Texture2D`. The five independently drawn silhouettes
+use project-owned pixel geometry and colors; there is no source bitmap, model,
+download, or generative service. Runtime rendering resolves state/direction
+metadata, anchors each sprite at its declared floor contact, and inserts object
+IDs into the same global floor/wall painter queue using rotated physical
+footprints and the `WorldEntity` layer.
+
+`people_demo_furniture_tests` proves five definitions/instances, twenty unique
+four-view IDs, common v1 anchors, all four placed orientations, in-lot physical
+footprints, occupancy-based selection, and the bed's multi-tile footprint.
+HEADLESS and SDL_RENDERER/SDL3 configurations both passed 7/7 CTests against
+clean CNA `b6cbfcd87c08a6e0172eaf866358bf95bec277b1` and clean sharp-runtime
+`54578590b328aa9612fe38bfddca9fd8ca795144`.
+
+Four temporary 1040 x 720 Xvfb captures were visually inspected at North,
+East, South, and West. All five objects remained distinct and aligned with the
+warm-wood floor, rotated their authored presentation, and sorted plausibly
+against the door and camera-facing walls. A held XTest click over logical tile
+`9,9` produced `selected-object=1003` for the table and a visible footprint
+overlay. Selection is currently occupancy/tile based; precise opaque sprite
+bounds and front-to-back overlap picking remain `PEO-024`. Screenshots stayed
+in `/tmp` and are not shipping assets. Procedural provenance is recorded in
+`ASSET_PIPELINE.md`. This closes the small-house M2 gate, not the resident or
+interaction milestones.

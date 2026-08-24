@@ -27,8 +27,11 @@ procedural warm-wood room with logical edge walls rendered from generated
 textures in all four views plus one stateful procedural door. A headless object
 model now separates immutable catalog definitions from persistent instances and
 validates rotated footprints, occupancy, and access clearance. Catalog objects
-carry validated four-view/state asset IDs and floor-contact anchors, but are not
-rendered in the lot yet. There are no residents.
+carry validated four-view/state asset IDs and floor-contact anchors. The room is
+furnished with an original procedural bed, chair, table, refrigerator, and
+toilet; all rotate, sort, and render from 2D textures generated at runtime.
+Objects can be selected through their logical footprint. There are no residents
+yet.
 
 See [plan.md](plan.md) for stable tasks, [analysis.md](analysis.md) for the
 architectural rationale, and [VERIFICATION.md](VERIFICATION.md) for commands
@@ -115,6 +118,7 @@ placeholder textures keep early builds self-contained.
 - Mouse wheel or `+`/`-`: cursor-centered zoom.
 - `Q`/`E`: rotate the presentation 90 degrees counter-clockwise/clockwise.
 - `F`: toggle the demo door open/closed (temporary developer control).
+- Left click: select the object occupying the pointed floor tile.
 - `Escape`: exit.
 
 `./build/People --smoke-test` draws four bounded frames, one in each world

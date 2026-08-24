@@ -56,6 +56,7 @@ endif()
 add_subdirectory("${PEOPLE_CNA_ROOT}" "${CMAKE_BINARY_DIR}/_deps/cna")
 
 add_library(people_core STATIC
+    game/src/Content/DemoFurniture.cpp
     game/src/Objects/ObjectModel.cpp
     game/src/Rendering/ObjectPresentation.cpp
     game/src/Rendering/RenderOrder.cpp
@@ -153,6 +154,18 @@ if(BUILD_TESTING)
             -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
     endif()
     add_test(NAME people_object_presentation_tests COMMAND people_object_presentation_tests)
+
+    add_executable(people_demo_furniture_tests
+        tests/DemoFurnitureTests.cpp
+    )
+    target_link_libraries(people_demo_furniture_tests PRIVATE people_core)
+    if(MSVC)
+        target_compile_options(people_demo_furniture_tests PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(people_demo_furniture_tests PRIVATE
+            -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
+    endif()
+    add_test(NAME people_demo_furniture_tests COMMAND people_demo_furniture_tests)
 
     add_test(NAME people_runtime_smoke COMMAND People --smoke-test)
     set_tests_properties(people_runtime_smoke PROPERTIES

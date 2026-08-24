@@ -144,6 +144,8 @@ namespace People::Objects
         [[nodiscard]] bool Remove(ObjectInstanceId id);
 
         [[nodiscard]] const ObjectInstance* Find(ObjectInstanceId id) const noexcept;
+        [[nodiscard]] std::vector<World::TileCoordinate> FootprintCells(
+            const ObjectInstance& instance) const;
         [[nodiscard]] std::optional<ObjectInstanceId> OccupiedBy(
             World::TileCoordinate tile) const;
         [[nodiscard]] const std::map<ObjectInstanceId, ObjectInstance>& Instances() const noexcept;
