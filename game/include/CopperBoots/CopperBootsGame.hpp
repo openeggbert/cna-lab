@@ -9,6 +9,7 @@
 #include "CopperBoots/SimulationClock.hpp"
 #include "CopperBoots/GameSettings.hpp"
 #include "CopperBoots/ProceduralAudio.hpp"
+#include "CopperBoots/ProgressSave.hpp"
 #include "CopperBoots/ParallaxLayer.hpp"
 #include "CopperBoots/InputActionAdapter.hpp"
 #include "CopperBoots/WorldSimulation.hpp"
@@ -47,6 +48,7 @@ namespace CopperBoots
         void PlayWorldAudio(const WorldEvents& events);
         void PlayAudioCue(AudioCue cue);
         void SaveSettings();
+        void UpdateProgress(const WorldEvents& events);
         void DrawParallax(float cameraX);
         void DrawParallaxLayer(const ParallaxLayer& layer, float cameraX);
         void DrawTiles(float cameraX, float cameraY);
@@ -83,6 +85,7 @@ namespace CopperBoots
 
         Microsoft::Xna::Framework::GraphicsDeviceManager graphics_;
         GameSettings settings_;
+        ProgressData progress_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::SpriteBatch> spriteBatch_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> solidTexture_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::RenderTarget2D> logicalTarget_;
@@ -96,6 +99,7 @@ namespace CopperBoots
         bool audioEnabled_ = true;
         bool audioAvailable_ = false;
         bool settingsEnabled_ = true;
+        bool progressEnabled_ = true;
         bool smokeTest_ = false;
         bool paused_ = false;
         bool debugOverlay_ = false;

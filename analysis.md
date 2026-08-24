@@ -655,6 +655,18 @@ they cannot mutate a user profile; a separate isolated runtime check under a
 temporary `XDG_DATA_HOME` verified create-then-load behavior and canonical file
 contents.
 
+Progress uses a separate strict version-1 document with explicit unlocked-stage,
+best-score and best-completion-tick fields. CNA storage intentionally lacks a
+public atomic rename primitive, so the implementation does not fake one with a
+native API. It alternates `progress-a.cfg` and `progress-b.cfg`; each slot has a
+monotonic generation and 64-bit FNV-1a checksum over its canonical payload.
+Loading selects the highest valid generation. Saving writes only the other slot,
+leaving the current valid generation recoverable if creation, writing or flush is
+interrupted. Corrupt-newest fallback, two-invalid reset, generation selection,
+slot alternation and score/time update policy are deterministic logic tests.
+A CNA-only storage CTest runs in an isolated build-local data root and verified
+settings plus two successive progress generations without opening a window.
+
 F1 independently toggles a CNA-rendered debug overlay. It outlines visible tile
 collision cells, the player, active crawlers and the 320x180 camera viewport;
 text reports player tile, signed velocity, camera edges, simulation tick, world

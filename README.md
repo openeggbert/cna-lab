@@ -111,6 +111,11 @@ style. F11 toggles and persists fullscreen; F2 switches between integer pixel
 scaling and aspect-fit scaling. `--no-settings` disables storage access for
 isolated runs.
 
+Completing Green Ruins records the next unlocked stage, best score and best
+60 Hz completion tick in alternating checksummed `progress-a.cfg` and
+`progress-b.cfg` slots. A partial/corrupt newest write therefore falls back to
+the previous generation instead of erasing progress.
+
 Focused lanes are available with `ctest --test-dir build -L logic` and
 `ctest --test-dir build -L smoke`; deterministic logic and CNA graphics tests
 carry separate labels.

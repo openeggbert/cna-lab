@@ -15,6 +15,7 @@
 #include "CopperBoots/InputActionAdapter.hpp"
 #include "CopperBoots/ParallaxLayer.hpp"
 #include "CopperBoots/ProceduralAudio.hpp"
+#include "CopperBoots/ProgressSave.hpp"
 #include "CopperBoots/SimulationClock.hpp"
 #include "CopperBoots/TileMap.hpp"
 #include "CopperBoots/WorldSimulation.hpp"
@@ -380,6 +381,68 @@ namespace
                   missing.Settings == CopperBoots::GameSettings{} &&
                   invalid.Settings == CopperBoots::GameSettings{},
               "missing and invalid settings reset to identical defaults");
+    }
+
+    void TestProgressSave()
+    {
+        CopperBoots::ProgressData older;
+        older.HighestUnlockedStage = 2;
+        older.BestScore = 1'250;
+        older.BestCompletionTicks = 3'600;
+        CopperBoots::ProgressData newer = older;
+        newer.HighestUnlockedStage = 3;
+        newer.BestScore = 1'900;
+        newer.BestCompletionTicks = 3'200;
+        const std::string slotA = CopperBoots::EncodeProgressSlot(older, 4);
+        const std::string slotB = CopperBoots::EncodeProgressSlot(newer, 5);
+        const CopperBoots::DecodedProgressSlot decoded =
+            CopperBoots::DecodeProgressSlot(slotB);
+        Check(decoded.Valid && decoded.Generation == 5 &&
+                  decoded.Data == newer,
+              "checksummed progress slot round-trips explicit fields");
+
+        const CopperBoots::ProgressLoadResult latest =
+            CopperBoots::ChooseProgressSlot(slotA, slotB);
+        Check(latest.Source == CopperBoots::ProgressSlot::B &&
+                  latest.Generation == 5 && latest.Data == newer &&
+                  CopperBoots::NextProgressWriteSlot(latest) ==
+                      CopperBoots::ProgressSlot::A,
+              "highest valid generation wins and next write alternates slots");
+
+        std::string corruptNewest(slotB);
+        corruptNewest[corruptNewest.size() - 2U] =
+            corruptNewest[corruptNewest.size() - 2U] == '0' ? '1' : '0';
+        const CopperBoots::ProgressLoadResult recovered =
+            CopperBoots::ChooseProgressSlot(slotA, corruptNewest);
+        Check(recovered.Source == CopperBoots::ProgressSlot::A &&
+                  recovered.Generation == 4 && recovered.Data == older &&
+                  recovered.RecoveredOlderSlot,
+              "corrupt newest slot falls back to intact older generation");
+
+        const CopperBoots::ProgressLoadResult empty =
+            CopperBoots::ChooseProgressSlot("truncated", "also broken");
+        Check(empty.Source == CopperBoots::ProgressSlot::None &&
+                  empty.Generation == 0 &&
+                  empty.Data == CopperBoots::ProgressData{} &&
+                  CopperBoots::NextProgressWriteSlot(empty) ==
+                      CopperBoots::ProgressSlot::A,
+              "two invalid slots reset to deterministic progress defaults");
+
+        CopperBoots::ProgressData completion;
+        Check(CopperBoots::RecordLevelCompletion(
+                  completion, 1, 800, 4'000) &&
+                  completion.HighestUnlockedStage == 2 &&
+                  completion.BestScore == 800 &&
+                  completion.BestCompletionTicks == 4'000,
+              "completion unlocks next stage and records first score and time");
+        Check(!CopperBoots::RecordLevelCompletion(
+                  completion, 1, 700, 4'500),
+              "worse repeated result does not request a redundant save");
+        Check(CopperBoots::RecordLevelCompletion(
+                  completion, 1, 900, 3'500) &&
+                  completion.BestScore == 900 &&
+                  completion.BestCompletionTicks == 3'500,
+              "independent better score and time replace stored records");
     }
 
     void TestProceduralAudio()
@@ -1823,6 +1886,7 @@ int main()
 {
     TestSimulationClock();
     TestGameSettings();
+    TestProgressSave();
     TestProceduralAudio();
     TestInputActionAdapter();
     TestTileBounds();

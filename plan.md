@@ -50,10 +50,15 @@ Ruins.
 A versioned settings model now persists bindings, audio levels, fullscreen and
 presentation through CNA storage without coupling file I/O to simulation.
 
-**Current: M6 — progression persistence**
+**M6 — progression persistence — ACHIEVED**
 
-Build save/progression on the proven codec/storage boundary with a recoverable
-write policy and corrupted-save tests.
+Alternating checksummed save slots now persist unlock, best score and completion
+ticks with corrupt-newest recovery through CNA storage.
+
+**Current: M7 — performance visibility**
+
+Complete the existing debug measurements with entity, allocation and draw-call
+evidence, then document the normal-frame allocation policy.
 
 ## Foundation and research
 
@@ -473,7 +478,7 @@ Acceptance:
 - Invalid/old settings migrate or reset predictably; no raw object layout is
   serialized.
 
-### MAR-055 — Save/progression — TODO
+### MAR-055 — Save/progression — DONE
 
 Acceptance:
 
@@ -605,5 +610,5 @@ and a task that cannot proceed through CNA's public surface.
 
 ## Next-task order
 
-1. Add save/progression persistence under `MAR-055`.
-2. Add performance instrumentation under `MAR-071` after persistence is stable.
+1. Add performance instrumentation under `MAR-071`.
+2. Validate resize/fullscreen behavior under `MAR-073` after counters land.

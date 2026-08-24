@@ -1,5 +1,6 @@
 #include "CopperBoots/CopperBootsGame.hpp"
 #include "CopperBoots/CnaSettingsStore.hpp"
+#include "CopperBoots/CnaProgressStore.hpp"
 
 #include <algorithm>
 #include <array>
@@ -122,6 +123,25 @@ namespace CopperBoots
                              "using defaults\n";
             }
         }
+        progressEnabled_ = settingsEnabled_;
+        if (progressEnabled_) {
+            try {
+                const ProgressLoadResult loaded = CnaProgressStore::Load();
+                progress_ = loaded.Data;
+                std::cout << "Copper Boots: progress "
+                          << (loaded.Source == ProgressSlot::None
+                                  ? "defaults"
+                                  : (loaded.RecoveredOlderSlot
+                                         ? "recovered older slot"
+                                         : "loaded"))
+                          << '\n';
+            }
+            catch (...) {
+                progressEnabled_ = false;
+                std::cerr << "Copper Boots: progress storage unavailable; "
+                             "continuing without saves\n";
+            }
+        }
         graphics_.setPreferredBackBufferWidthProperty(960);
         graphics_.setPreferredBackBufferHeightProperty(540);
         graphics_.setIsFullScreenProperty(settings_.Fullscreen);
@@ -198,6 +218,26 @@ namespace CopperBoots
         catch (...) {
             settingsEnabled_ = false;
             std::cerr << "Copper Boots: settings save failed; "
+                         "continuing without persistence\n";
+        }
+    }
+
+    void CopperBootsGame::UpdateProgress(const WorldEvents& events)
+    {
+        if (events.LevelCompleted == 0)
+            return;
+        const LevelResult& result = world_.Result();
+        const bool changed = RecordLevelCompletion(
+            progress_, 1, result.Score, result.CompletionTick);
+        if (!changed || !progressEnabled_)
+            return;
+        try {
+            (void)CnaProgressStore::Save(progress_);
+            std::cout << "Copper Boots: progress saved\n";
+        }
+        catch (...) {
+            progressEnabled_ = false;
+            std::cerr << "Copper Boots: progress save failed; "
                          "continuing without persistence\n";
         }
     }
@@ -353,6 +393,7 @@ namespace CopperBoots
 
         for (int step = 0; step < steps; ++step) {
             world_.Update(input, static_cast<float>(SimulationClock::TickSeconds));
+            UpdateProgress(world_.LastEvents());
             PlayWorldAudio(world_.LastEvents());
             clock_.MarkStep();
             input.JumpPressed = false;

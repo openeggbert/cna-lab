@@ -83,6 +83,7 @@ add_library(copper_boots_gameplay STATIC
     gameplay/src/InputActionAdapter.cpp
     gameplay/src/LevelDefinition.cpp
     gameplay/src/ProceduralAudio.cpp
+    gameplay/src/ProgressSave.cpp
     gameplay/src/SimulationClock.cpp
     gameplay/src/TileMap.cpp
     gameplay/src/WorldSimulation.cpp
@@ -92,6 +93,7 @@ target_include_directories(copper_boots_gameplay PUBLIC
 target_compile_features(copper_boots_gameplay PUBLIC cxx_std_23)
 
 add_executable(copper-boots
+    game/src/CnaProgressStore.cpp
     game/src/CnaSettingsStore.cpp
     game/src/CopperBootsGame.cpp
     game/src/Program.cpp
@@ -152,6 +154,13 @@ if(COPPER_BOOTS_BUILD_TESTS)
         set_tests_properties(copper_boots_smoke_silent PROPERTIES
             TIMEOUT 20
             LABELS "graphics;smoke;cna;audio-fallback")
+        add_test(NAME copper_boots_storage
+            COMMAND copper-boots --storage-smoke-test)
+        set_tests_properties(copper_boots_storage PROPERTIES
+            TIMEOUT 20
+            LABELS "storage;cna"
+            ENVIRONMENT
+                "XDG_DATA_HOME=${CMAKE_CURRENT_BINARY_DIR}/test-user-data")
         if(UNIX AND NOT APPLE)
             set_tests_properties(
                 copper_boots_smoke copper_boots_smoke_silent PROPERTIES
