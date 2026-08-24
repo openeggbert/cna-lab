@@ -5,6 +5,7 @@
 
 #include "LevelDefinition.hpp"
 #include "World.hpp"
+#include "CampaignProgress.hpp"
 
 namespace
 {
@@ -35,6 +36,17 @@ namespace
 
 int main()
 {
+    Expect(
+        WolfCna::CampaignProgress::ParseHighestUnlocked("WOLF-CNA-PROGRESS-1\n1\n", 3) == 1,
+        "campaign progress restores an unlocked sector");
+    Expect(
+        WolfCna::CampaignProgress::ParseHighestUnlocked("broken\n2\n", 3) == 0,
+        "invalid campaign progress safely locks later sectors");
+    Expect(
+        WolfCna::CampaignProgress::ParseHighestUnlocked(
+            WolfCna::CampaignProgress::SerializeHighestUnlocked(8, 3), 3) == 2,
+        "campaign progress clamps to the available sector count");
+
     const WolfCna::LevelDefinition starterLevel = WolfCna::LevelDefinition::LoadFromFile(
         "assets/levels/starter.level");
     Expect(starterLevel.Rows().size() == 18, "starter level row count");

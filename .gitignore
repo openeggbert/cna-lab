@@ -6,3 +6,4 @@ cmake-build-*/
 *.user
 *.swp
 *~
+wolf-cna-progress.dat

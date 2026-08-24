@@ -1050,6 +1050,8 @@ Acceptance:
 
 ### WOLF-012 — selectable locked sectors
 
+Status: complete.
+
 - show a sector selection screen after starting a run and before difficulty;
 - only sector 1 is unlocked on a fresh profile;
 - completing sector N permanently unlocks sector N+1;

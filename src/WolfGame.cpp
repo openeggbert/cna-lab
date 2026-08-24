@@ -37,6 +37,12 @@ namespace WolfCna
             "assets/levels/sector-02.level",
             "assets/levels/sector-03.level"
         };
+        constexpr std::array<std::string_view, 3> CampaignLevelNames = {
+            "SECTOR 1 STORAGE",
+            "SECTOR 2 FOUNDRY",
+            "SECTOR 3 LABS"
+        };
+        constexpr std::string_view ProgressFile = "wolf-cna-progress.dat";
 
         int Noise(int x, int y)
         {
@@ -229,6 +235,9 @@ namespace WolfCna
         graphics_ = std::make_unique<GraphicsDeviceManager>(this);
         graphics_->setIsFullScreenProperty(false);
         graphics_->ApplyChanges();
+        highestUnlockedLevel_ = CampaignProgress::LoadHighestUnlocked(
+            std::string(ProgressFile),
+            static_cast<int>(CampaignLevelFiles.size()));
     }
 
     const std::string& WolfGame::GetTypeName() const
@@ -753,6 +762,25 @@ namespace WolfCna
             centered(top + 220, "ARROWS SELECT", normal);
             centered(top + 238, "ENTER SELECT", normal);
         }
+        else if (screen_ == Screen::SectorSelect)
+        {
+            centered(top + 58, "SELECT SECTOR", normal);
+            for (int index = 0; index < static_cast<int>(CampaignLevelNames.size()); ++index)
+            {
+                const bool unlocked = index <= highestUnlockedLevel_;
+                const std::string option = std::string(CampaignLevelNames[static_cast<std::size_t>(index)]) +
+                    (unlocked ? "" : " LOCKED");
+                const int y = top + 92 + index * 34;
+                const Color color = unlocked
+                    ? menuSelection_ == index ? selected : normal
+                    : Color(83, 99, 128, 255);
+                if (menuSelection_ == index)
+                    DrawHudText(*hudSpriteBatch_, *hudPixel_, left + 22, y, ">", selected);
+                centered(y, option, color);
+            }
+            centered(top + 216, "COMPLETE PRIOR SECTOR", normal);
+            centered(top + 238, "ESC BACK", normal);
+        }
         else if (screen_ == Screen::Difficulty)
         {
             centered(top + 58, "SELECT DIFFICULTY", normal);
@@ -827,7 +855,7 @@ namespace WolfCna
         lives_ = 3;
         nextExtraLifeScore_ = 40000;
         weapon_ = Weapon::Sidearm;
-        LoadCampaignLevel(0);
+        LoadCampaignLevel(selectedLevelIndex_);
     }
 
     void WolfGame::LoadCampaignLevel(int index)
@@ -862,6 +890,21 @@ namespace WolfCna
             screen_ = Screen::Title;
             menuSelection_ = 0;
         }
+    }
+
+    void WolfGame::UnlockNextLevel()
+    {
+        const int nextLevel = std::min(
+            levelIndex_ + 1,
+            static_cast<int>(CampaignLevelFiles.size()) - 1);
+        if (nextLevel <= highestUnlockedLevel_)
+            return;
+
+        highestUnlockedLevel_ = nextLevel;
+        CampaignProgress::SaveHighestUnlocked(
+            std::string(ProgressFile),
+            highestUnlockedLevel_,
+            static_cast<int>(CampaignLevelFiles.size()));
     }
 
     void WolfGame::AwardScore(int points)
@@ -908,8 +951,8 @@ namespace WolfCna
             {
                 if (menuSelection_ == 0)
                 {
-                    screen_ = Screen::Difficulty;
-                    menuSelection_ = static_cast<int>(difficulty_);
+                    screen_ = Screen::SectorSelect;
+                    menuSelection_ = selectedLevelIndex_;
                 }
                 else if (menuSelection_ == 1)
                 {
@@ -928,6 +971,25 @@ namespace WolfCna
             if (escapeIsDown && !escapeWasDown_)
                 Exit();
         }
+        else if (screen_ == Screen::SectorSelect)
+        {
+            if (upIsDown && !upWasDown_)
+                menuSelection_ = (menuSelection_ + static_cast<int>(CampaignLevelFiles.size()) - 1) %
+                    static_cast<int>(CampaignLevelFiles.size());
+            if (downIsDown && !downWasDown_)
+                menuSelection_ = (menuSelection_ + 1) % static_cast<int>(CampaignLevelFiles.size());
+            if (confirmIsDown && !confirmWasDown_ && menuSelection_ <= highestUnlockedLevel_)
+            {
+                selectedLevelIndex_ = menuSelection_;
+                screen_ = Screen::Difficulty;
+                menuSelection_ = static_cast<int>(difficulty_);
+            }
+            if (escapeIsDown && !escapeWasDown_)
+            {
+                screen_ = Screen::Title;
+                menuSelection_ = 0;
+            }
+        }
         else if (screen_ == Screen::Difficulty)
         {
             if (upIsDown && !upWasDown_)
@@ -941,8 +1003,8 @@ namespace WolfCna
             }
             if (escapeIsDown && !escapeWasDown_)
             {
-                screen_ = Screen::Title;
-                menuSelection_ = 0;
+                screen_ = Screen::SectorSelect;
+                menuSelection_ = selectedLevelIndex_;
             }
         }
         else if ((confirmIsDown && !confirmWasDown_) || (escapeIsDown && !escapeWasDown_))
@@ -1132,7 +1194,8 @@ namespace WolfCna
             graphics_->ToggleFullScreen();
         fullScreenWasDown_ = fullScreenIsDown;
 
-        if (screen_ == Screen::Title || screen_ == Screen::Difficulty || screen_ == Screen::Controls)
+        if (screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
+            screen_ == Screen::Difficulty || screen_ == Screen::Controls)
         {
             HandleMenuInput();
             Game::Update(gameTime);
@@ -1191,6 +1254,7 @@ namespace WolfCna
         if (!completed_ && world_.ReachedExit(playerPosition_))
         {
             completed_ = true;
+            UnlockNextLevel();
             AwardScore(1000);
             if (exitSound_)
                 static_cast<void>(exitSound_->Play(0.38f, 0.4f, 0.0f));
@@ -1219,7 +1283,8 @@ namespace WolfCna
                 *atlas_);
         }
 
-        if (screen_ == Screen::Title || screen_ == Screen::Difficulty || screen_ == Screen::Controls)
+        if (screen_ == Screen::Title || screen_ == Screen::SectorSelect ||
+            screen_ == Screen::Difficulty || screen_ == Screen::Controls)
             DrawMenu();
         else
             DrawHud();

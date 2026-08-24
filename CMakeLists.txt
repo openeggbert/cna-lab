@@ -36,6 +36,7 @@ set(EASYGL_BUILD_EXAMPLES OFF CACHE BOOL "Build EasyGL examples" FORCE)
 add_subdirectory("${CNA_ROOT}" "${CMAKE_BINARY_DIR}/cna-build")
 
 add_executable(wolf-cna
+    src/CampaignProgress.cpp
     src/LevelDefinition.cpp
     src/Program.cpp
     src/WolfGame.cpp
@@ -60,6 +61,7 @@ configure_file(
 
 enable_testing()
 add_executable(level-definition-tests
+    src/CampaignProgress.cpp
     src/LevelDefinition.cpp
     src/World.cpp
     tests/LevelDefinitionTests.cpp

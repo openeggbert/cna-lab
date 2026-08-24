@@ -15,6 +15,7 @@
 #include "Microsoft/Xna/Framework/Audio/SoundEffectInstance.hpp"
 
 #include "World.hpp"
+#include "CampaignProgress.hpp"
 
 namespace WolfCna
 {
@@ -73,12 +74,15 @@ namespace WolfCna
         int lives_ = 3;
         int nextExtraLifeScore_ = 40000;
         int levelIndex_ = 0;
+        int selectedLevelIndex_ = 0;
+        int highestUnlockedLevel_ = 0;
         float levelElapsedSeconds_ = 0.0f;
         bool hasSecurityCard_ = false;
         bool completed_ = false;
         enum class Screen
         {
             Title,
+            SectorSelect,
             Difficulty,
             Controls,
             Playing,
@@ -119,6 +123,7 @@ namespace WolfCna
         void ResetRun();
         void LoadCampaignLevel(int index);
         void AdvanceCampaign();
+        void UnlockNextLevel();
         void AwardScore(int points);
 
         [[nodiscard]] float DamageMultiplier() const;

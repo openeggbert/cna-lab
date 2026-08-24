@@ -27,12 +27,13 @@ This starter is deliberately small. It proves the basic direction before local A
 - guards fire visible ranged projectiles; hounds remain close-range attackers
 - no external copyrighted game assets
 - original title menu with difficulty selection before a run begins
+- persistent sector selection: a fresh profile starts with sector 1 and completing a sector unlocks the next one
 
 ## Controls
 
 - up/down arrow keys: forward / backward
 - left/right arrow keys: turn left / right
-- title menu: arrows select, `Enter` or `Space` confirms, `Escape` backs out; it also has a master sound toggle
+- title/sector/difficulty menus: arrows select, `Enter` or `Space` confirms, `Escape` backs out; the title menu also has a master sound toggle
 - three difficulty modes: Scout (70% enemy damage), Operative (normal), Veteran (140% enemy damage)
 - `Space`: open the door in front of you (doors close after four seconds unless a body blocks them)
 - left or right `Ctrl`: attack with the selected weapon; empty firearms automatically fall back to the knife
@@ -48,6 +49,8 @@ At a sector exit, `Space` takes the run to the next sector; score, lives, health
 ammunition and the selected weapon carry forward, while sector access cards do not.
 Before the transition, the game shows the sector time and the collected/total
 counts for kills, gold and secrets.
+Unlocked sectors are stored in `wolf-cna-progress.dat` in the launch working
+directory. Invalid progress data safely falls back to sector 1 only.
 
 ## Level files
 
