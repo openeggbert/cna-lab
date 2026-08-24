@@ -14,10 +14,14 @@ from performance_report import (
     DIAGNOSTIC_HARDWARE_TERMS,
     ReportError,
     _boolean,
+    _file_sha256,
     _integer,
     _number,
     _path,
+    _require_unchanged,
+    _same_file,
     _single_line_text,
+    _write_text_atomic,
     load_capture,
     swap_interval_acknowledged,
     validate_complete_vram_evidence,
@@ -256,6 +260,8 @@ def _escape(value: Any) -> str:
 def build_markdown(
     baseline_path: Path,
     candidate_path: Path,
+    baseline_sha256: str,
+    candidate_sha256: str,
     baseline: dict[str, Any],
     candidate: dict[str, Any],
     hardware: str,
@@ -278,6 +284,13 @@ def build_markdown(
         "",
         "A metric regresses only when its increase is greater than both the absolute tolerance "
         "and the relative tolerance from the baseline.",
+        "",
+        "## Evidence provenance",
+        "",
+        "| Role | Capture | SHA-256 |",
+        "| --- | --- | --- |",
+        f"| Baseline | `{_escape(baseline_path.name)}` | `{baseline_sha256}` |",
+        f"| Candidate | `{_escape(candidate_path.name)}` | `{candidate_sha256}` |",
         "",
         "## Tolerances",
         "",
@@ -357,8 +370,19 @@ def main(arguments: list[str] | None = None) -> int:
             options.candidate_hardware, "candidate hardware identity"
         )
         title = _single_line_text(options.title, "comparison title")
+        if options.output is not None:
+            for input_label, input_path in (
+                ("baseline", options.baseline),
+                ("candidate", options.candidate),
+            ):
+                if _same_file(options.output, input_path):
+                    raise ReportError(f"output must differ from the {input_label} input")
+        baseline_sha256 = _file_sha256(options.baseline)
+        candidate_sha256 = _file_sha256(options.candidate)
         baseline = load_capture(options.baseline)
         candidate = load_capture(options.candidate)
+        _require_unchanged(options.baseline, baseline_sha256, "baseline capture")
+        _require_unchanged(options.candidate, candidate_sha256, "candidate capture")
         require_compatible(
             baseline,
             candidate,
@@ -383,6 +407,8 @@ def main(arguments: list[str] | None = None) -> int:
         report = build_markdown(
             options.baseline,
             options.candidate,
+            baseline_sha256,
+            candidate_sha256,
             baseline,
             candidate,
             candidate_hardware,
@@ -392,9 +418,10 @@ def main(arguments: list[str] | None = None) -> int:
             results,
             title,
         )
+        _require_unchanged(options.baseline, baseline_sha256, "baseline capture")
+        _require_unchanged(options.candidate, candidate_sha256, "candidate capture")
         if options.output:
-            options.output.parent.mkdir(parents=True, exist_ok=True)
-            options.output.write_text(report, encoding="utf-8")
+            _write_text_atomic(options.output, report)
         else:
             sys.stdout.write(report)
         return 1 if any(result.regressed for result in results) else 0

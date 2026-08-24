@@ -67,11 +67,20 @@ no in-house editor suite beyond Mesh Craft, manual MC3 authoring, baked lighting
 
 ## What changed most recently (this session)
 
+**M12 regression comparisons now preserve exact input provenance.** Baseline/candidate SHA-256
+values are embedded in Markdown and rechecked after parsing and immediately before output.
+`--output` cannot path/hardlink either input and uses atomic replacement.
+
+- Comparator 7/7 covers direct/hardlink preservation and clean nested output.
+- The retained Xvfb self-comparison remains `NO REGRESSION` and records `df217f17…41cd0` for both
+  roles. No graphical process was launched.
+- This strengthens temporal evidence handling but is not a second point-in-time measurement.
+
 **M12 evidence identities are now canonical printable single lines.** Blank hardware labels,
 control/newline characters in report/comparison titles or hardware, and multiline VRAM hardware/
 tool identities are refused before matching or Markdown generation.
 
-- Report 7/7, comparator 6/6, and VRAM 6/6 cover blank/newline CLI and manifest cases.
+- Report 7/7, comparator 7/7, and VRAM 6/6 cover blank/newline CLI and manifest cases.
 - This removes ambiguous identity/Markdown injection paths; it does not broaden physical evidence.
 
 **M12 capture/evidence UTC correlation is now precision-safe.** Only

@@ -517,3 +517,10 @@ labels and titles are normalized to non-empty printable single lines; VRAM hardw
 tool name/version obey the same rule before binding. Tests reject blank report hardware, a newline
 title, a multiline external hardware identity, and multiline comparator hardware. This also makes
 the exact report-to-manifest hardware match canonical rather than whitespace-dependent.
+
+Regression comparison now preserves and protects its own input identity too. Its Markdown records
+baseline/candidate SHA-256, rechecks both files after parsing and immediately before output, refuses
+direct or hardlink output aliases, and atomically replaces valid output. The locally retained Xvfb
+self-comparison still reports `NO REGRESSION` and now shows
+`df217f17b3cf32c3c279fbf582a3075a6bb61f759f9ec3d5d2b695be3da41cd0` for both roles. The seventh
+comparator CLI test proves direct/hardlink preservation and clean nested output.

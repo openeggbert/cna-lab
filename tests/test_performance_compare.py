@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -183,6 +184,11 @@ class PerformanceCompareTests(unittest.TestCase):
         result = self.run_compare(baseline, deepcopy(baseline))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Overall result: **NO REGRESSION**", result.stdout)
+        self.assertIn("## Evidence provenance", result.stdout)
+        self.assertIn(
+            hashlib.sha256(json.dumps(baseline).encode()).hexdigest(),
+            result.stdout,
+        )
         self.assertIn("| Frame interval p95 | 16.000 ms | 16.000 ms | +0.000 ms", result.stdout)
         self.assertIn("| Physics bodies | 9 | 9 |", result.stdout)
 
@@ -324,6 +330,68 @@ class PerformanceCompareTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 2)
         self.assertIn("qualifying capture has incomplete VRAM tracking", result.stderr)
+
+    def test_output_is_atomic_and_never_overwrites_capture_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            baseline = capture_fixture()
+            candidate = deepcopy(baseline)
+            candidate["measurements"]["frame_interval"]["p95_ms"] = 16.1
+            baseline_path = root / "baseline.json"
+            candidate_path = root / "candidate.json"
+            baseline_path.write_text(json.dumps(baseline), encoding="utf-8")
+            candidate_path.write_text(json.dumps(candidate), encoding="utf-8")
+            baseline_before = baseline_path.read_bytes()
+            common = [
+                sys.executable,
+                str(SCRIPT),
+                "--baseline",
+                str(baseline_path),
+                "--candidate",
+                str(candidate_path),
+                "--baseline-hardware",
+                "Test GPU",
+                "--candidate-hardware",
+                "Test GPU",
+                "--baseline-kind",
+                "diagnostic",
+                "--candidate-kind",
+                "diagnostic",
+            ]
+
+            result = subprocess.run(
+                [*common, "--output", str(baseline_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("output must differ from the baseline input", result.stderr)
+            self.assertEqual(baseline_path.read_bytes(), baseline_before)
+
+            hardlink_output = root / "baseline-hardlink.md"
+            hardlink_output.hardlink_to(baseline_path)
+            result = subprocess.run(
+                [*common, "--output", str(hardlink_output)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("output must differ from the baseline input", result.stderr)
+            self.assertEqual(baseline_path.read_bytes(), baseline_before)
+
+            report_path = root / "reports" / "comparison.md"
+            result = subprocess.run(
+                [*common, "--output", str(report_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("## Evidence provenance", report_path.read_text(encoding="utf-8"))
+            self.assertEqual(list(report_path.parent.glob("comparison.md.*.tmp")), [])
 
 
 if __name__ == "__main__":

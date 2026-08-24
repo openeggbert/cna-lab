@@ -278,3 +278,5 @@ Capture/evidence UTC values use canonical `YYYY-MM-DDTHH:MM:SS[.ffffff]Z`; broad
 sub-microsecond values are rejected so interval enclosure never relies on silent precision loss.
 Hardware identities and report/comparison titles must be non-empty printable single lines; this
 keeps exact identity matching unambiguous and prevents Markdown structure injection.
+Regression-comparison output carries exact baseline/candidate SHA-256 provenance, is written
+atomically, and cannot equal or hardlink either capture input.

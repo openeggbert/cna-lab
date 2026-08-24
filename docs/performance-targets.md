@@ -604,6 +604,10 @@ Both inputs first pass the same request/v-sync/applied consistency validator as 
 so two identically tampered presentation objects cannot compare as valid evidence.
 Baseline/candidate hardware identities and the comparison title also use the same printable
 single-line rule as release reports.
+The comparison Markdown includes an `Evidence provenance` table with exact baseline/candidate
+SHA-256 values. Both files are re-hashed after parsing and immediately before output. `--output`
+cannot equal or hardlink either capture and is staged in the destination directory for atomic
+replacement, so comparison cannot destroy or silently outlive changed inputs.
 
 The candidate is a regression only when its increase is greater than both the relative tolerance
 and the applicable absolute tolerance. Defaults are 10%, 0.5 ms for frame/GPU/Present/transition

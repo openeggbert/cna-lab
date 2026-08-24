@@ -232,6 +232,11 @@ printable single lines. Blank report hardware, newline title, multiline VRAM har
 and multiline comparator hardware are refused before Markdown generation. Report 7/7, comparator
 6/6, and VRAM 6/6 pass.
 
+The comparator now hashes and rechecks baseline/candidate, embeds both digests in Markdown, refuses
+`--output` path/hardlink aliases to either input, and writes atomically. Its new seventh CLI test
+proves preservation and temporary-file cleanup. The real Xvfb self-comparison remains
+`NO REGRESSION` and displays the expected `df217f17…41cd0` hash for both roles.
+
 The user-requested district-map follow-up adds a real top-down overlay toggled by `Tab`; `M` has no
 map binding. It projects the current district's authored `WorldBox` footprints and shows the player,
 vehicle, mission target, district exit, north, a legend, and a straight player-to-exit guide. The
