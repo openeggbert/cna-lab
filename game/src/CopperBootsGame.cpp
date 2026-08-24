@@ -180,6 +180,7 @@ namespace CopperBoots
         DrawCapacitorPickups(cameraX, cameraY);
         DrawProjectiles(cameraX, cameraY);
         DrawPlayer(cameraX, cameraY);
+        DrawHud();
         spriteBatch_->End();
     }
 
@@ -435,6 +436,97 @@ namespace CopperBoots
             const int y = ScreenCoordinate(projectile.Y, cameraY);
             FillRectangle(Rectangle(x, y, 4, 4), Color(229, 198, 74));
             FillRectangle(Rectangle(x + 1, y + 1, 2, 2), Color(245, 239, 183));
+        }
+    }
+
+    void CopperBootsGame::DrawHud()
+    {
+        const Color ink(231, 224, 181);
+        FillRectangle(Rectangle(0, 0, LogicalWidth, 14), Color(24, 36, 42));
+        DrawText(world_.LevelName(), 4, 3, ink);
+        DrawText("COG", 112, 3, Color(230, 173, 54));
+        DrawNumber(world_.CollectedCogCount(), 2, 128, 3, ink);
+        DrawText("L", 146, 3, Color(112, 188, 143));
+        DrawNumber(world_.Lives(), 1, 152, 3, ink);
+        DrawText("S", 164, 3, Color(95, 192, 158));
+        DrawNumber(world_.Score(), 6, 170, 3, ink);
+
+        FillRectangle(Rectangle(300, 3, 7, 7), world_.Player().Plated
+            ? Color(79, 157, 124)
+            : Color(53, 58, 57));
+        FillRectangle(Rectangle(309, 3, 7, 7), world_.Player().ArcCapacitor
+            ? Color(158, 117, 204)
+            : Color(53, 58, 57));
+    }
+
+    void CopperBootsGame::DrawText(const std::string_view text,
+                                   const int x, const int y,
+                                   const Color& color)
+    {
+        int cursor = x;
+        for (const char glyph : text) {
+            DrawGlyph(glyph, cursor, y, color);
+            cursor += 4;
+        }
+    }
+
+    void CopperBootsGame::DrawNumber(int value, const int digits,
+                                     const int x, const int y,
+                                     const Color& color)
+    {
+        value = std::max(value, 0);
+        int divisor = 1;
+        for (int i = 1; i < digits; ++i)
+            divisor *= 10;
+        for (int i = 0; i < digits; ++i) {
+            const int digit = (value / divisor) % 10;
+            DrawGlyph(static_cast<char>('0' + digit), x + i * 4, y, color);
+            if (divisor > 1)
+                divisor /= 10;
+        }
+    }
+
+    void CopperBootsGame::DrawGlyph(const char glyph, const int x, const int y,
+                                    const Color& color)
+    {
+        const auto rows = GlyphRows(glyph);
+        for (int row = 0; row < 5; ++row) {
+            for (int column = 0; column < 3; ++column) {
+                if ((rows[static_cast<std::size_t>(row)] &
+                     (1U << (2 - column))) != 0)
+                    FillRectangle(Rectangle(x + column, y + row, 1, 1), color);
+            }
+        }
+    }
+
+    std::array<std::uint8_t, 5> CopperBootsGame::GlyphRows(char glyph)
+    {
+        if (glyph >= 'a' && glyph <= 'z')
+            glyph = static_cast<char>(glyph - 'a' + 'A');
+        switch (glyph) {
+        case '0': return {7, 5, 5, 5, 7};
+        case '1': return {2, 6, 2, 2, 7};
+        case '2': return {7, 1, 7, 4, 7};
+        case '3': return {7, 1, 7, 1, 7};
+        case '4': return {5, 5, 7, 1, 1};
+        case '5': return {7, 4, 7, 1, 7};
+        case '6': return {7, 4, 7, 5, 7};
+        case '7': return {7, 1, 1, 2, 2};
+        case '8': return {7, 5, 7, 5, 7};
+        case '9': return {7, 5, 7, 1, 7};
+        case 'A': return {2, 5, 7, 5, 5};
+        case 'C': return {3, 4, 4, 4, 3};
+        case 'E': return {7, 4, 6, 4, 7};
+        case 'G': return {3, 4, 5, 5, 3};
+        case 'I': return {7, 2, 2, 2, 7};
+        case 'L': return {4, 4, 4, 4, 7};
+        case 'N': return {5, 7, 7, 5, 5};
+        case 'O': return {2, 5, 5, 5, 2};
+        case 'R': return {6, 5, 6, 5, 5};
+        case 'S': return {3, 4, 2, 1, 6};
+        case 'U': return {5, 5, 5, 5, 7};
+        case 'Y': return {5, 5, 2, 2, 2};
+        default: return {0, 0, 0, 0, 0};
         }
     }
 

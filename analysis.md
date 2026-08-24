@@ -558,6 +558,12 @@ contact retires the shot, crawler overlap defeats once, and camera/world margins
 clean up survivors. Game input derives the attack edge from CNA Ctrl key state
 and accepts Up/Down or W/S for aim.
 
+The milestone HUD is also asset-free: a new 3x5 glyph table renders the external
+level name, cogs, lives and score through the same one-texel CNA `SpriteBatch`
+path, with colored plating/capacitor indicators. It reads const world accessors,
+uses arithmetic fixed-width number drawing instead of per-frame strings, and
+has no effect on simulation state.
+
 ## CNA and sharp-runtime baseline
 
 Initial local dependency inspection on 2026-08-24 found:

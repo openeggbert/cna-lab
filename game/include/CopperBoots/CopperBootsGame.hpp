@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <array>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "CopperBoots/SimulationClock.hpp"
 #include "CopperBoots/ParallaxLayer.hpp"
@@ -42,6 +44,14 @@ namespace CopperBoots
         void DrawCapacitorPickups(float cameraX, float cameraY);
         void DrawProjectiles(float cameraX, float cameraY);
         void DrawPlayer(float cameraX, float cameraY);
+        void DrawHud();
+        void DrawText(std::string_view text, int x, int y,
+                      const Microsoft::Xna::Framework::Color& color);
+        void DrawNumber(int value, int digits, int x, int y,
+                        const Microsoft::Xna::Framework::Color& color);
+        void DrawGlyph(char glyph, int x, int y,
+                       const Microsoft::Xna::Framework::Color& color);
+        [[nodiscard]] static std::array<std::uint8_t, 5> GlyphRows(char glyph);
         void FillRectangle(const Microsoft::Xna::Framework::Rectangle& rectangle,
                            const Microsoft::Xna::Framework::Color& color);
         [[nodiscard]] Microsoft::Xna::Framework::Rectangle PresentationRectangle();

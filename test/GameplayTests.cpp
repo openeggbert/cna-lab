@@ -301,6 +301,8 @@ namespace
         CopperBoots::WorldSimulation collectibleWorld;
         collectibleWorld.LoadLevel(
             CopperBoots::LevelDefinition::Parse(source, "collectible.cbl"));
+        Check(collectibleWorld.LevelName() == "Parser Workshop",
+              "loaded level name remains available to read-only HUD state");
         collectibleWorld.Update({}, static_cast<float>(
             CopperBoots::SimulationClock::TickSeconds));
         Check(collectibleWorld.CollectedCogCount() == 1 &&

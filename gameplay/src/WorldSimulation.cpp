@@ -44,6 +44,7 @@ namespace CopperBoots
 
     void WorldSimulation::LoadLevel(LevelDefinition level)
     {
+        levelName_ = std::move(level.Name);
         cogs_.clear();
         cogs_.reserve(level.Cogs.size());
         for (const TileCoordinate& cog : level.Cogs) {

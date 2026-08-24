@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <array>
+#include <string>
 #include <vector>
 
 namespace CopperBoots
@@ -191,6 +192,10 @@ namespace CopperBoots
         [[nodiscard]] int CollectedCogCount() const noexcept { return collectedCogs_; }
         [[nodiscard]] int Score() const noexcept { return score_; }
         [[nodiscard]] int Lives() const noexcept { return lives_; }
+        [[nodiscard]] const std::string& LevelName() const noexcept
+        {
+            return levelName_;
+        }
         [[nodiscard]] std::uint64_t TickCount() const noexcept { return tickCount_; }
         [[nodiscard]] int BlockVisualOffset(int tileX, int tileY) const noexcept;
 
@@ -219,6 +224,7 @@ namespace CopperBoots
                                      float height) const noexcept;
 
         TileMap level_;
+        std::string levelName_ = "Test Room";
         PlayerState player_;
         Camera2D camera_;
         float spawnX_;

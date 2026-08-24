@@ -419,7 +419,7 @@ Acceptance:
   disconnect/reconnect does not corrupt input state.
 - Dead zone and button defaults are documented and tested where logic-only.
 
-### MAR-052 — HUD — TODO
+### MAR-052 — HUD — DONE
 
 Acceptance:
 
