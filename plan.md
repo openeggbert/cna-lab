@@ -1077,7 +1077,8 @@ original transparent camera-facing billboard sprites and records their complete
 generation provenance. Defeated enemies now leave a stylized procedurally
 textured floor decal. The four primitive weapon views and icons have been replaced
 by original high-resolution transparent pixel-art sprites. Enemy and weapon attack
-animation frames remain.
+animation frames remain, while a first transform-based animation pass now gives
+the knife a forward lunge and firearms visible recoil.
 
 - replace colored enemy cuboids with camera-facing textured polygon billboards;
 - create original transparent pixel-art guards, hounds and weapon view sprites;
@@ -1155,3 +1156,20 @@ entirely original room layouts and real polygonal 3D rendering.
 - retain rectangular validation while requiring 64×64 for shipping campaign files;
 - keep smaller maps valid for focused unit tests and developer fixtures;
 - add validation tests that pin all shipping sector dimensions to 64×64.
+
+### WOLF-018 — explored-area automap
+
+Status: planned.
+
+- toggle a map of the current floor with the standalone `M` key;
+- reveal only cells and nearby boundaries the player has already visited, leaving
+  unexplored space completely hidden;
+- distinguish explored floor, walls, ordinary doors, security doors, secrets that
+  have already been discovered, the player position and facing direction;
+- do not reveal unexplored enemies, pickups, secrets or room geometry;
+- reset exploration when a new sector starts and preserve it while the current
+  sector remains active;
+- make the map a CNA `SpriteBatch` overlay that pauses gameplay while open;
+- keep the existing `I` + `L` + `M` loadout cheat working without accidentally
+  toggling the map when the three-key chord is pressed;
+- cover visited-cell tracking, map toggle edge detection and sector reset with tests.

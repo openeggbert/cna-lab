@@ -705,13 +705,38 @@ namespace WolfCna
             : weapon_ == Weapon::Sidearm
                 ? sidearmView_.get()
                 : weapon_ == Weapon::Repeater ? repeaterView_.get() : heavyWeaponView_.get();
+        int weaponSize = viewSize;
+        int weaponX = centerX - weaponSize / 2;
+        int weaponY = panelY - weaponSize + 18;
+        if (weaponFlashSeconds_ > 0.0f)
+        {
+            const float actionDuration = weapon_ == Weapon::Knife
+                ? 0.11f
+                : weapon_ == Weapon::Sidearm
+                    ? 0.08f
+                    : weapon_ == Weapon::Repeater ? 0.09f : 0.12f;
+            const float remaining = std::clamp(weaponFlashSeconds_ / actionDuration, 0.0f, 1.0f);
+            if (weapon_ == Weapon::Knife)
+            {
+                const float lungePhase = std::sin((1.0f - remaining) * MathHelper::Pi);
+                const int lunge = static_cast<int>(std::lround(lungePhase * viewSize * 0.12f));
+                weaponSize += lunge;
+                weaponX = centerX - weaponSize / 2 - lunge / 3;
+                weaponY = panelY - weaponSize + 18 - lunge / 2;
+            }
+            else
+            {
+                const int recoil = static_cast<int>(std::lround(remaining * viewSize * 0.065f));
+                weaponY += recoil;
+            }
+        }
         hudSpriteBatch_->Draw(
             *viewTexture,
-            Rectangle(centerX - viewSize / 2, panelY - viewSize + 18, viewSize, viewSize),
+            Rectangle(weaponX, weaponY, weaponSize, weaponSize),
             Color(255, 255, 255, 255));
         if (weaponFlashSeconds_ > 0.0f && weapon_ != Weapon::Knife)
         {
-            const int muzzleY = panelY - viewSize + 14;
+            const int muzzleY = weaponY - 4;
             hudSpriteBatch_->Draw(*hudPixel_, Rectangle(centerX - 7, muzzleY - 20, 15, 31), Color(255, 239, 119, 255));
             hudSpriteBatch_->Draw(*hudPixel_, Rectangle(centerX - 18, muzzleY - 10, 37, 12), Color(255, 143, 42, 255));
         }
