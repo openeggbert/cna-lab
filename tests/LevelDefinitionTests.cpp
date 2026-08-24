@@ -202,15 +202,6 @@ int main()
     Expect(exploration.GoalX() >= 0 && exploration.GoalZ() >= 0, "campaign sector reset records its goal");
     Expect(!exploration.IsVisited(1, 1), "sector reset clears prior exploration");
 
-    WolfCna::MapToggleLatch mapToggle;
-    Expect(!mapToggle.Update(false), "released map key does not toggle");
-    Expect(mapToggle.Update(true), "pressing Tab toggles the map");
-    Expect(!mapToggle.Update(true), "holding Tab does not repeatedly toggle the map");
-    Expect(!mapToggle.Update(false), "releasing Tab rearms the map toggle");
-    Expect(mapToggle.Update(true), "the next Tab press toggles the map again");
-    mapToggle.Reset();
-    Expect(mapToggle.Update(true), "reset clears the Tab key latch");
-
     ExpectParseFailure("#####\n#P.#\n#####\n", "different width");
     ExpectParseFailure("#####\n#X.P#\n#####\n", "unknown symbol");
     ExpectParseFailure("#####\n#...#\n#####\n", "no player spawn");

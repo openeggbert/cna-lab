@@ -4,18 +4,6 @@
 
 namespace WolfCna
 {
-    bool MapToggleLatch::Update(bool mapIsDown)
-    {
-        const bool toggleRequested = mapIsDown && !wasDown_;
-        wasDown_ = mapIsDown;
-        return toggleRequested;
-    }
-
-    void MapToggleLatch::Reset()
-    {
-        wasDown_ = false;
-    }
-
     ExplorationMap::ExplorationMap(const LevelDefinition& level)
     {
         Reset(level);

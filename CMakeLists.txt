@@ -180,6 +180,54 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/assets/pickups/peace-medallion.png"
     COPYONLY)
 configure_file(
+    assets/materials/wall-stone.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/materials/wall-stone.png"
+    COPYONLY)
+configure_file(
+    assets/materials/wall-brick.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/materials/wall-brick.png"
+    COPYONLY)
+configure_file(
+    assets/materials/wall-steel.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/materials/wall-steel.png"
+    COPYONLY)
+configure_file(
+    assets/materials/wall-lab.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/materials/wall-lab.png"
+    COPYONLY)
+configure_file(
+    assets/materials/table-wood.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/materials/table-wood.png"
+    COPYONLY)
+configure_file(
+    assets/props/access-card.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/access-card.png"
+    COPYONLY)
+configure_file(
+    assets/props/repeater-pickup.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/repeater-pickup.png"
+    COPYONLY)
+configure_file(
+    assets/props/heavy-automatic-pickup.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/heavy-automatic-pickup.png"
+    COPYONLY)
+configure_file(
+    assets/props/terminal.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/terminal.png"
+    COPYONLY)
+configure_file(
+    assets/props/power-relay.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/power-relay.png"
+    COPYONLY)
+configure_file(
+    assets/props/sector-exit.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/sector-exit.png"
+    COPYONLY)
+configure_file(
+    assets/props/enemy-projectile.png
+    "${CMAKE_CURRENT_BINARY_DIR}/assets/props/enemy-projectile.png"
+    COPYONLY)
+configure_file(
     assets/decorations/storage-plant.png
     "${CMAKE_CURRENT_BINARY_DIR}/assets/decorations/storage-plant.png"
     COPYONLY)

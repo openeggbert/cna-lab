@@ -29,8 +29,8 @@ namespace WolfCna
 
     namespace
     {
-        constexpr int PanelSize = 32;
-        constexpr int PanelCount = 5;
+        constexpr int PanelSize = 64;
+        constexpr int PanelCount = World::MaterialPanelCount;
         constexpr int AtlasWidth = PanelSize * PanelCount;
         constexpr int AtlasHeight = PanelSize;
         constexpr std::array<std::string_view, 4> CampaignLevelFiles = {
@@ -302,6 +302,13 @@ namespace WolfCna
         goldBarsSprite_ = std::make_unique<Texture2D>("assets/pickups/gold-bars.png", device);
         goldenGobletSprite_ = std::make_unique<Texture2D>("assets/pickups/golden-goblet.png", device);
         peaceMedallionSprite_ = std::make_unique<Texture2D>("assets/pickups/peace-medallion.png", device);
+        accessCardSprite_ = std::make_unique<Texture2D>("assets/props/access-card.png", device);
+        repeaterPickupSprite_ = std::make_unique<Texture2D>("assets/props/repeater-pickup.png", device);
+        heavyWeaponPickupSprite_ = std::make_unique<Texture2D>("assets/props/heavy-automatic-pickup.png", device);
+        terminalSprite_ = std::make_unique<Texture2D>("assets/props/terminal.png", device);
+        relaySprite_ = std::make_unique<Texture2D>("assets/props/power-relay.png", device);
+        exitSprite_ = std::make_unique<Texture2D>("assets/props/sector-exit.png", device);
+        enemyProjectileSprite_ = std::make_unique<Texture2D>("assets/props/enemy-projectile.png", device);
         storagePlantSprite_ = std::make_unique<Texture2D>("assets/decorations/storage-plant.png", device);
         foundryPlantSprite_ = std::make_unique<Texture2D>("assets/decorations/foundry-plant.png", device);
         labsPlantSprite_ = std::make_unique<Texture2D>("assets/decorations/labs-plant.png", device);
@@ -324,12 +331,6 @@ namespace WolfCna
         std::vector<Color> pixels(
             static_cast<std::size_t>(AtlasWidth * AtlasHeight),
             Color(0, 0, 0, 255));
-        int mortarR = 45;
-        int mortarG = 47;
-        int mortarB = 45;
-        int wallR = 113;
-        int wallG = 58;
-        int wallB = 43;
         int floorR = 58;
         int floorG = 63;
         int floorB = 65;
@@ -344,8 +345,6 @@ namespace WolfCna
         int securityB = 50;
         if (levelIndex_ == 1)
         {
-            mortarR = 30; mortarG = 51; mortarB = 39;
-            wallR = 55; wallG = 97; wallB = 66;
             floorR = 45; floorG = 71; floorB = 58;
             ceilingR = 102; ceilingG = 126; ceilingB = 104;
             doorR = 44; doorG = 110; doorB = 97;
@@ -353,8 +352,6 @@ namespace WolfCna
         }
         else if (levelIndex_ == 2)
         {
-            mortarR = 42; mortarG = 50; mortarB = 65;
-            wallR = 70; wallG = 88; wallB = 124;
             floorR = 53; floorG = 61; floorB = 82;
             ceilingR = 137; ceilingG = 151; ceilingB = 174;
             doorR = 67; doorG = 91; doorB = 151;
@@ -362,8 +359,6 @@ namespace WolfCna
         }
         else if (levelIndex_ == 3)
         {
-            mortarR = 48; mortarG = 30; mortarB = 53;
-            wallR = 92; wallG = 54; wallB = 105;
             floorR = 62; floorG = 43; floorB = 68;
             ceilingR = 148; ceilingG = 123; ceilingB = 139;
             doorR = 118; doorG = 76; doorB = 54;
@@ -376,34 +371,9 @@ namespace WolfCna
             {
                 const int noise = Noise(x, y);
 
-                // Panel 0: warm bunker bricks.
+                // Panel 4: dark steel floor tiles.
                 {
-                    const int brickHeight = 8;
-                    const int brickWidth = 16;
-                    const int row = y / brickHeight;
-                    const int shiftedX = (x + ((row & 1) ? brickWidth / 2 : 0)) % brickWidth;
-                    const bool mortar = (y % brickHeight) == 0 || shiftedX == 0;
-
-                    Color c(0, 0, 0, 255);
-                    if (mortar)
-                    {
-                        c = Color(mortarR, mortarG, mortarB, 255);
-                    }
-                    else
-                    {
-                        c = Color(
-                            ByteClamp(wallR + noise),
-                            ByteClamp(wallG + noise / 2),
-                            ByteClamp(wallB + noise / 3),
-                            ByteClamp(255));
-                    }
-
-                    pixels[static_cast<std::size_t>(y * AtlasWidth + x)] = c;
-                }
-
-                // Panel 1: dark steel floor tiles.
-                {
-                    const int ax = x + PanelSize;
+                    const int ax = x + PanelSize * 4;
                     const bool seam = (x % 8) == 0 || (y % 8) == 0;
                     const int checker = ((x / 8) + (y / 8)) & 1;
 
@@ -425,9 +395,9 @@ namespace WolfCna
                     pixels[static_cast<std::size_t>(y * AtlasWidth + ax)] = c;
                 }
 
-                // Panel 2: pale concrete ceiling with panel seams.
+                // Panel 5: pale concrete ceiling with panel seams.
                 {
-                    const int ax = x + PanelSize * 2;
+                    const int ax = x + PanelSize * 5;
                     const bool seam = (x % 16) == 0 || (y % 16) == 0;
 
                     Color c(0, 0, 0, 255);
@@ -447,18 +417,18 @@ namespace WolfCna
                     pixels[static_cast<std::size_t>(y * AtlasWidth + ax)] = c;
                 }
 
-                // Panel 3: blue bunker door.
+                // Panel 6: blue bunker door.
                 {
-                    const int ax = x + PanelSize * 3;
+                    const int ax = x + PanelSize * 6;
                     const bool seam = x < 3 || x > PanelSize - 4 || (y % 8) == 0;
                     pixels[static_cast<std::size_t>(y * AtlasWidth + ax)] = seam
                         ? Color(doorR / 2, doorG / 2, doorB / 2, 255)
                         : Color(ByteClamp(doorR + noise), ByteClamp(doorG + noise), ByteClamp(doorB + noise), ByteClamp(255));
                 }
 
-                // Panel 4: red security door.
+                // Panel 7: red security door.
                 {
-                    const int ax = x + PanelSize * 4;
+                    const int ax = x + PanelSize * 7;
                     const bool seam = x < 3 || x > PanelSize - 4 || (y % 8) == 0;
                     pixels[static_cast<std::size_t>(y * AtlasWidth + ax)] = seam
                         ? Color(securityR / 2, securityG / 2, securityB / 2, 255)
@@ -466,6 +436,39 @@ namespace WolfCna
                 }
             }
         }
+
+        const auto copyMaterialPanel = [&](const std::string& path, int panel)
+        {
+            Texture2D source(path, device);
+            const int sourceWidth = source.getWidthProperty();
+            const int sourceHeight = source.getHeightProperty();
+            std::vector<Color> sourcePixels(
+                static_cast<std::size_t>(sourceWidth * sourceHeight),
+                Color(0, 0, 0, 0));
+            source.GetData(sourcePixels.data(), static_cast<int>(sourcePixels.size()));
+
+            for (int y = 0; y < PanelSize; ++y)
+            {
+                const int sourceY = std::min(
+                    sourceHeight - 1,
+                    ((y * 2 + 1) * sourceHeight) / (PanelSize * 2));
+                for (int x = 0; x < PanelSize; ++x)
+                {
+                    const int sourceX = std::min(
+                        sourceWidth - 1,
+                        ((x * 2 + 1) * sourceWidth) / (PanelSize * 2));
+                    pixels[static_cast<std::size_t>(
+                        y * AtlasWidth + panel * PanelSize + x)] =
+                        sourcePixels[static_cast<std::size_t>(sourceY * sourceWidth + sourceX)];
+                }
+            }
+        };
+
+        copyMaterialPanel("assets/materials/wall-stone.png", 0);
+        copyMaterialPanel("assets/materials/wall-brick.png", 1);
+        copyMaterialPanel("assets/materials/wall-steel.png", 2);
+        copyMaterialPanel("assets/materials/wall-lab.png", 3);
+        copyMaterialPanel("assets/materials/table-wood.png", 8);
 
         atlas_->SetData(pixels.data(), static_cast<int>(pixels.size()));
     }
@@ -1387,7 +1390,6 @@ namespace WolfCna
         playerFireCooldownSeconds_ = 0.0f;
         ilmWasDown_ = false;
         pauseWasDown_ = false;
-        mapToggle_.Reset();
         cheatMessageSeconds_ = 0.0f;
         objectiveMessage_.clear();
         objectiveMessageSeconds_ = 0.0f;
@@ -1571,7 +1573,6 @@ namespace WolfCna
             keyboard.IsKeyDown(Keys::I) &&
             keyboard.IsKeyDown(Keys::L) &&
             keyboard.IsKeyDown(Keys::M);
-        const bool mapToggleRequested = mapToggle_.Update(mapIsDown);
 
         if (keyboard.IsKeyDown(Keys::Escape))
         {
@@ -1583,7 +1584,7 @@ namespace WolfCna
         const bool pauseIsDown = keyboard.IsKeyDown(Keys::P);
         if (screen_ == Screen::Map)
         {
-            if (mapToggleRequested)
+            if (!mapIsDown)
                 screen_ = Screen::Playing;
             return;
         }
@@ -1620,7 +1621,7 @@ namespace WolfCna
             return;
         }
 
-        if (mapToggleRequested)
+        if (mapIsDown)
         {
             screen_ = Screen::Map;
             return;
@@ -1908,6 +1909,8 @@ namespace WolfCna
             defeatedRapidTrooperSprite_ && defeatedHeavyUnitSprite_ &&
             ammoPickupSprite_ && healthPickupSprite_ && goldBarsSprite_ &&
             goldenGobletSprite_ && peaceMedallionSprite_ &&
+            accessCardSprite_ && repeaterPickupSprite_ && heavyWeaponPickupSprite_ &&
+            terminalSprite_ && relaySprite_ && exitSprite_ && enemyProjectileSprite_ &&
             paintingTexture_ && peaceBannerTexture_ && ceilingLampTexture_ && lampLightTexture_ &&
             storagePlantSprite_ && foundryPlantSprite_ && labsPlantSprite_ && archivePlantSprite_)
         {
@@ -1938,6 +1941,13 @@ namespace WolfCna
                 *goldBarsSprite_,
                 *goldenGobletSprite_,
                 *peaceMedallionSprite_,
+                *accessCardSprite_,
+                *repeaterPickupSprite_,
+                *heavyWeaponPickupSprite_,
+                *terminalSprite_,
+                *relaySprite_,
+                *exitSprite_,
+                *enemyProjectileSprite_,
                 *bloodDecal_,
                 *paintingTexture_,
                 *peaceBannerTexture_,

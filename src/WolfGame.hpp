@@ -58,6 +58,13 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> goldBarsSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> goldenGobletSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> peaceMedallionSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> accessCardSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> repeaterPickupSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> heavyWeaponPickupSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> terminalSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> relaySprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> exitSprite_;
+        std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> enemyProjectileSprite_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> bloodDecal_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> paintingTexture_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::Texture2D> peaceBannerTexture_;
@@ -144,7 +151,6 @@ namespace WolfCna
         bool attackWasDown_ = false;
         bool fullScreenWasDown_ = false;
         bool pauseWasDown_ = false;
-        MapToggleLatch mapToggle_;
         bool ilmWasDown_ = false;
         bool upWasDown_ = false;
         bool downWasDown_ = false;

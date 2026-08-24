@@ -7,16 +7,6 @@
 
 namespace WolfCna
 {
-    class MapToggleLatch final
-    {
-    public:
-        [[nodiscard]] bool Update(bool mapIsDown);
-        void Reset();
-
-    private:
-        bool wasDown_ = false;
-    };
-
     class ExplorationMap final
     {
     public:

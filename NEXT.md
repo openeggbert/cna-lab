@@ -17,7 +17,7 @@
 - Holding Ctrl repeats repeater and heavy-automatic bursts at distinct bounded cadences; knife and sidearm remain one attack per press.
 - Health kits are preserved when the player is already at 100% and can be collected after later damage.
 - Weapon sprites now lunge or recoil during attacks instead of remaining completely static.
-- Pressing `Tab` opens or closes the paused map of visited cells; `I+L+M` remains an independent loadout cheat.
+- Holding `Tab` shows the paused map of visited cells and releasing it resumes play; `I+L+M` remains an independent loadout cheat.
 - The map always marks the sector exit as red `GOAL`, changing it to cyan after its objective is activated, without revealing nearby rooms.
 - Firearm attack frames remain visible for a few extra frames so their generated muzzle flashes read clearly.
 - Firearm attack frames use CNA straight-alpha blending and partial opacity over the solid weapon view, preventing transparent RGB from becoming a white rectangle.
@@ -34,6 +34,8 @@
 - Sector unlocks, master sound and the last selected difficulty now persist in one validated, legacy-compatible profile.
 - WOLF-013 is complete: all enemy and weapon states use original provenance-recorded sprites with deterministic animation and translucent firing feedback.
 - Holding left or right `Shift` now runs at 1.65× walking speed while retaining the clamped frame step and existing collision path.
+- Four original generated wall families now alternate in coherent room-scale regions, and every polygonal table uses a dedicated dark-oak texture.
+- Access cards, both weapon pickups, terminals, power relays, exits and enemy projectiles now use original transparent sprites; the last untextured colored cuboid path is gone.
 
 ## Next tasks
 

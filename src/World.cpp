@@ -70,7 +70,6 @@ namespace WolfCna
         BuildMesh();
         RebuildDoorGeometry();
         BuildImpactGeometry();
-        BuildEnemyGeometry();
         BuildBillboardGeometry();
         BuildBloodPoolGeometry();
     }
@@ -103,6 +102,21 @@ namespace WolfCna
         }
 
         return false;
+    }
+
+    World::Material World::WallMaterialForCell(int x, int z) const
+    {
+        constexpr std::array materials = {
+            Material::WallStone,
+            Material::WallBrick,
+            Material::WallSteel,
+            Material::WallLab};
+        constexpr int materialRegionSize = 8;
+        const int regionX = std::max(0, x) / materialRegionSize;
+        const int regionZ = std::max(0, z) / materialRegionSize;
+        const std::size_t index = static_cast<std::size_t>(
+            (regionX * 3 + regionZ * 5) % static_cast<int>(materials.size()));
+        return materials[index];
     }
 
     bool World::HasDeadEnemyInDoorway(const Door& door) const
@@ -702,7 +716,7 @@ namespace WolfCna
 
         const auto base = static_cast<std::uint16_t>(vertices_.size());
 
-        constexpr float panelWidth = 1.0f / 5.0f;
+        constexpr float panelWidth = 1.0f / static_cast<float>(MaterialPanelCount);
         const float u0 = panelWidth * static_cast<int>(material);
         const float u1 = u0 + panelWidth;
 
@@ -749,7 +763,7 @@ namespace WolfCna
             throw std::runtime_error("Door geometry exceeded the 16-bit vertex index limit.");
 
         const auto base = static_cast<std::uint16_t>(doorVertices_.size());
-        constexpr float panelWidth = 1.0f / 5.0f;
+        constexpr float panelWidth = 1.0f / static_cast<float>(MaterialPanelCount);
         const float u0 = panelWidth * static_cast<int>(material);
         const float u1 = u0 + panelWidth;
 
@@ -781,7 +795,7 @@ namespace WolfCna
                     IsStaticWallCell(x, z - 1) && IsStaticWallCell(x, z + 1),
                     map_[z][x] == 'Q'
                         ? Material::SecurityDoor
-                        : map_[z][x] == 'S' ? Material::Wall : Material::Door,
+                        : map_[z][x] == 'S' ? WallMaterialForCell(x, z) : Material::Door,
                     map_[z][x] == 'S'});
                 if (map_[z][x] == 'S')
                     ++totalSecrets_;
@@ -859,10 +873,10 @@ namespace WolfCna
                 Vector2(0.0f, 1.0f));
             impactVertices_[vertexBase + 1] = VertexPositionTexture(
                 center + horizontal - vertical,
-                Vector2(1.0f / 5.0f, 1.0f));
+                Vector2(1.0f / static_cast<float>(MaterialPanelCount), 1.0f));
             impactVertices_[vertexBase + 2] = VertexPositionTexture(
                 center + horizontal + vertical,
-                Vector2(1.0f / 5.0f, 0.0f));
+                Vector2(1.0f / static_cast<float>(MaterialPanelCount), 0.0f));
             impactVertices_[vertexBase + 3] = VertexPositionTexture(
                 center - horizontal + vertical,
                 Vector2(0.0f, 0.0f));
@@ -1132,27 +1146,6 @@ namespace WolfCna
         return path;
     }
 
-    void World::AddEnemyQuad(const Vector3& a, const Vector3& b, const Vector3& c, const Vector3& d)
-    {
-        const auto base = static_cast<std::uint16_t>(enemyVertices_.size());
-        enemyVertices_.emplace_back(a, Vector2(0.0f, 1.0f));
-        enemyVertices_.emplace_back(b, Vector2(1.0f / 5.0f, 1.0f));
-        enemyVertices_.emplace_back(c, Vector2(1.0f / 5.0f, 0.0f));
-        enemyVertices_.emplace_back(d, Vector2(0.0f, 0.0f));
-        enemyIndices_.insert(enemyIndices_.end(), {base, static_cast<std::uint16_t>(base + 1), static_cast<std::uint16_t>(base + 2), base, static_cast<std::uint16_t>(base + 2), static_cast<std::uint16_t>(base + 3)});
-    }
-
-    void World::BuildEnemyGeometry()
-    {
-        constexpr float half = 0.22f;
-        constexpr float height = 0.82f;
-        AddEnemyQuad(Vector3(-half, 0, -half), Vector3(half, 0, -half), Vector3(half, height, -half), Vector3(-half, height, -half));
-        AddEnemyQuad(Vector3(half, 0, half), Vector3(-half, 0, half), Vector3(-half, height, half), Vector3(half, height, half));
-        AddEnemyQuad(Vector3(-half, 0, half), Vector3(-half, 0, -half), Vector3(-half, height, -half), Vector3(-half, height, half));
-        AddEnemyQuad(Vector3(half, 0, -half), Vector3(half, 0, half), Vector3(half, height, half), Vector3(half, height, -half));
-        AddEnemyQuad(Vector3(-half, height, -half), Vector3(half, height, -half), Vector3(half, height, half), Vector3(-half, height, half));
-    }
-
     void World::BuildBillboardGeometry()
     {
         billboardVertices_ = {
@@ -1212,7 +1205,7 @@ namespace WolfCna
                         AddBox(
                             Vector3(x0 + 0.12f, topBottom, z0 + 0.18f),
                             Vector3(x1 - 0.12f, topBottom + topHeight, z1 - 0.18f),
-                            Material::Wall);
+                            Material::Wood);
                         for (const float legX : {x0 + legInset, x1 - legInset - legWidth})
                         {
                             for (const float legZ : {z0 + legInset, z1 - legInset - legWidth})
@@ -1220,7 +1213,7 @@ namespace WolfCna
                                 AddBox(
                                     Vector3(legX, 0.0f, legZ),
                                     Vector3(legX + legWidth, topBottom, legZ + legWidth),
-                                    Material::Wall);
+                                    Material::Wood);
                             }
                         }
                     }
@@ -1232,6 +1225,7 @@ namespace WolfCna
                 const float x1 = x0 + 1.0f;
                 const float z0 = static_cast<float>(z);
                 const float z1 = z0 + 1.0f;
+                const Material wallMaterial = WallMaterialForCell(x, z);
 
                 // Emit only wall faces that border open space.
                 if (!IsStaticWallCell(x, z - 1))
@@ -1241,7 +1235,7 @@ namespace WolfCna
                         Vector3(x0, 0.0f, z0),
                         Vector3(x0, WallHeight, z0),
                         Vector3(x1, WallHeight, z0),
-                        Material::Wall);
+                        wallMaterial);
                 }
 
                 if (!IsStaticWallCell(x, z + 1))
@@ -1251,7 +1245,7 @@ namespace WolfCna
                         Vector3(x1, 0.0f, z1),
                         Vector3(x1, WallHeight, z1),
                         Vector3(x0, WallHeight, z1),
-                        Material::Wall);
+                        wallMaterial);
                 }
 
                 if (!IsStaticWallCell(x - 1, z))
@@ -1261,7 +1255,7 @@ namespace WolfCna
                         Vector3(x0, 0.0f, z1),
                         Vector3(x0, WallHeight, z1),
                         Vector3(x0, WallHeight, z0),
-                        Material::Wall);
+                        wallMaterial);
                 }
 
                 if (!IsStaticWallCell(x + 1, z))
@@ -1271,7 +1265,7 @@ namespace WolfCna
                         Vector3(x1, 0.0f, z0),
                         Vector3(x1, WallHeight, z0),
                         Vector3(x1, WallHeight, z1),
-                        Material::Wall);
+                        wallMaterial);
                 }
             }
         }
@@ -1329,24 +1323,8 @@ namespace WolfCna
             BufferUsage::None);
         impactIndexBuffer_->SetData(impactIndices_.data(), static_cast<int>(impactIndices_.size()));
 
-        if (!enemies_.empty() || !pickups_.empty() || !terminals_.empty() ||
-            !relays_.empty() || !exits_.empty())
-        {
-            enemyVertexBuffer_ = std::make_unique<VertexBuffer>(
-                device,
-                VertexPositionTexture::getVertexDeclarationStatic(),
-                static_cast<int>(enemyVertices_.size()),
-                BufferUsage::None);
-            enemyVertexBuffer_->SetData(enemyVertices_.data(), static_cast<int>(enemyVertices_.size()));
-            enemyIndexBuffer_ = std::make_unique<IndexBuffer>(
-                device,
-                IndexElementSize::SixteenBits,
-                static_cast<int>(enemyIndices_.size()),
-                BufferUsage::None);
-            enemyIndexBuffer_->SetData(enemyIndices_.data(), static_cast<int>(enemyIndices_.size()));
-        }
-
-        if (!enemies_.empty() || !pickups_.empty() || !decorations_.empty())
+        if (!enemies_.empty() || !pickups_.empty() || !decorations_.empty() ||
+            !terminals_.empty() || !relays_.empty() || !exits_.empty())
         {
             billboardVertexBuffer_ = std::make_unique<VertexBuffer>(
                 device,
@@ -1409,6 +1387,13 @@ namespace WolfCna
         Texture2D& goldBarsSprite,
         Texture2D& goldenGobletSprite,
         Texture2D& peaceMedallionSprite,
+        Texture2D& accessCardSprite,
+        Texture2D& repeaterPickupSprite,
+        Texture2D& heavyWeaponPickupSprite,
+        Texture2D& terminalSprite,
+        Texture2D& relaySprite,
+        Texture2D& exitSprite,
+        Texture2D& enemyProjectileSprite,
         Texture2D& bloodDecal,
         Texture2D& paintingTexture,
         Texture2D& peaceBannerTexture,
@@ -1642,7 +1627,8 @@ namespace WolfCna
         }
 
         if (billboardVertexBuffer_ && billboardIndexBuffer_ &&
-            (!enemies_.empty() || !pickups_.empty()))
+            (!enemies_.empty() || !pickups_.empty() || !terminals_.empty() ||
+                !relays_.empty() || !exits_.empty() || !enemyProjectiles_.empty()))
         {
             std::vector<const Enemy*> sortedEnemies;
             sortedEnemies.reserve(enemies_.size());
@@ -1667,6 +1653,33 @@ namespace WolfCna
             device.setIndicesProperty(billboardIndexBuffer_.get());
             effect.setTextureEnabledProperty(true);
             effect.setDiffuseColorProperty(Vector3(1.0f, 1.0f, 1.0f));
+
+            const auto drawBillboard = [&](Texture2D& texture, const Vector3& position,
+                                           float width, float height, const Vector3& tint)
+            {
+                effect.setTextureProperty(&texture);
+                effect.setDiffuseColorProperty(tint);
+                effect.setWorldProperty(
+                    Matrix::CreateScale(width, height, 1.0f) *
+                    Matrix::CreateConstrainedBillboard(
+                        position,
+                        cameraPosition,
+                        Vector3::Up,
+                        std::nullopt,
+                        std::nullopt));
+
+                for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
+                {
+                    pass.Apply();
+                    device.DrawIndexedPrimitives(
+                        PrimitiveType::TriangleList,
+                        0,
+                        0,
+                        static_cast<int>(billboardVertices_.size()),
+                        0,
+                        static_cast<int>(billboardIndices_.size() / 3));
+                }
+            };
 
             for (const Enemy* enemy : sortedEnemies)
             {
@@ -1785,6 +1798,24 @@ namespace WolfCna
                     width = 0.5f;
                     height = 0.64f;
                 }
+                else if (pickup.type == PickupType::AccessCard)
+                {
+                    pickupTexture = &accessCardSprite;
+                    width = 0.58f;
+                    height = 0.4f;
+                }
+                else if (pickup.type == PickupType::RepeaterWeapon)
+                {
+                    pickupTexture = &repeaterPickupSprite;
+                    width = 0.82f;
+                    height = 0.48f;
+                }
+                else if (pickup.type == PickupType::HeavyWeapon)
+                {
+                    pickupTexture = &heavyWeaponPickupSprite;
+                    width = 0.9f;
+                    height = 0.52f;
+                }
 
                 if (!pickupTexture)
                     continue;
@@ -1813,124 +1844,50 @@ namespace WolfCna
                 }
             }
 
+            for (const Terminal& terminal : terminals_)
+            {
+                drawBillboard(
+                    terminalSprite,
+                    Vector3(terminal.position.X, 0.02f, terminal.position.Z),
+                    0.58f,
+                    0.9f,
+                    terminal.activated ? Vector3(0.72f, 1.0f, 1.0f) : Vector3(1.0f, 1.0f, 1.0f));
+            }
+
+            for (const Relay& relay : relays_)
+            {
+                drawBillboard(
+                    relaySprite,
+                    Vector3(relay.position.X, 0.02f, relay.position.Z),
+                    0.72f,
+                    0.72f,
+                    relay.activated ? Vector3(0.72f, 1.0f, 0.78f) : Vector3(1.0f, 1.0f, 1.0f));
+            }
+
+            for (const EnemyProjectile& projectile : enemyProjectiles_)
+            {
+                drawBillboard(
+                    enemyProjectileSprite,
+                    Vector3(projectile.position.X, projectile.position.Y - 0.07f, projectile.position.Z),
+                    0.3f,
+                    0.15f,
+                    Vector3(1.0f, 1.0f, 1.0f));
+            }
+
+            for (const Vector3& exit : exits_)
+            {
+                drawBillboard(
+                    exitSprite,
+                    Vector3(exit.X, 0.01f, exit.Z),
+                    0.72f,
+                    1.0f,
+                    IsExitUnlocked()
+                        ? Vector3(0.82f, 1.0f, 1.0f)
+                        : Vector3(1.0f, 0.48f, 0.42f));
+            }
+
             device.setBlendStateProperty(BlendState::Opaque);
             device.setDepthStencilStateProperty(DepthStencilState::Default);
-        }
-
-        if (!enemyVertexBuffer_ || !enemyIndexBuffer_)
-            return;
-
-        device.SetVertexBuffer(enemyVertexBuffer_.get());
-        device.setIndicesProperty(enemyIndexBuffer_.get());
-        effect.setTextureEnabledProperty(false);
-
-        for (const Pickup& pickup : pickups_)
-        {
-            if (pickup.collected)
-                continue;
-            if (pickup.type == PickupType::Health || pickup.type == PickupType::Ammo ||
-                pickup.type == PickupType::GoldBars || pickup.type == PickupType::GoldenGoblet ||
-                pickup.type == PickupType::PeaceMedallion)
-                continue;
-
-            effect.setWorldProperty(
-                Matrix::CreateScale(0.38f) * Matrix::CreateTranslation(pickup.position));
-            effect.setDiffuseColorProperty(
-                pickup.type == PickupType::AccessCard
-                    ? Vector3(0.28f, 0.72f, 0.94f)
-                    : pickup.type == PickupType::RepeaterWeapon
-                        ? Vector3(0.66f, 0.36f, 0.92f)
-                        : Vector3(0.94f, 0.22f, 0.2f));
-
-            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
-            {
-                pass.Apply();
-                device.DrawIndexedPrimitives(
-                    PrimitiveType::TriangleList,
-                    0,
-                    0,
-                    static_cast<int>(enemyVertices_.size()),
-                    0,
-                    static_cast<int>(enemyIndices_.size() / 3));
-            }
-        }
-
-        for (const Terminal& terminal : terminals_)
-        {
-            effect.setWorldProperty(
-                Matrix::CreateScale(0.34f, 0.8f, 0.34f) * Matrix::CreateTranslation(terminal.position));
-            effect.setDiffuseColorProperty(
-                terminal.activated ? Vector3(0.2f, 0.88f, 0.94f) : Vector3(0.92f, 0.44f, 0.08f));
-
-            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
-            {
-                pass.Apply();
-                device.DrawIndexedPrimitives(
-                    PrimitiveType::TriangleList,
-                    0,
-                    0,
-                    static_cast<int>(enemyVertices_.size()),
-                    0,
-                    static_cast<int>(enemyIndices_.size() / 3));
-            }
-        }
-
-        for (const Relay& relay : relays_)
-        {
-            effect.setWorldProperty(
-                Matrix::CreateScale(0.5f, 0.52f, 0.5f) * Matrix::CreateTranslation(relay.position));
-            effect.setDiffuseColorProperty(
-                relay.activated ? Vector3(0.28f, 0.92f, 0.46f) : Vector3(0.72f, 0.24f, 0.86f));
-
-            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
-            {
-                pass.Apply();
-                device.DrawIndexedPrimitives(
-                    PrimitiveType::TriangleList,
-                    0,
-                    0,
-                    static_cast<int>(enemyVertices_.size()),
-                    0,
-                    static_cast<int>(enemyIndices_.size() / 3));
-            }
-        }
-
-        for (const EnemyProjectile& projectile : enemyProjectiles_)
-        {
-            effect.setWorldProperty(
-                Matrix::CreateScale(0.09f) * Matrix::CreateTranslation(projectile.position));
-            effect.setDiffuseColorProperty(Vector3(1.0f, 0.42f, 0.08f));
-
-            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
-            {
-                pass.Apply();
-                device.DrawIndexedPrimitives(
-                    PrimitiveType::TriangleList,
-                    0,
-                    0,
-                    static_cast<int>(enemyVertices_.size()),
-                    0,
-                    static_cast<int>(enemyIndices_.size() / 3));
-            }
-        }
-
-        for (const Vector3& exit : exits_)
-        {
-            effect.setWorldProperty(Matrix::CreateScale(0.62f, 1.0f, 0.62f) * Matrix::CreateTranslation(exit));
-            effect.setDiffuseColorProperty(
-                IsExitUnlocked() ? Vector3(0.18f, 0.72f, 0.94f) : Vector3(0.86f, 0.18f, 0.12f));
-
-            for (auto& pass : effect.getCurrentTechniqueProperty()->getPassesProperty())
-            {
-                pass.Apply();
-                device.DrawIndexedPrimitives(
-                    PrimitiveType::TriangleList,
-                    0,
-                    0,
-                    static_cast<int>(enemyVertices_.size()),
-                    0,
-                    static_cast<int>(enemyIndices_.size() / 3));
-            }
         }
     }
 }

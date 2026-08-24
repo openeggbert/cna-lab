@@ -22,6 +22,8 @@ namespace WolfCna
     class World final
     {
     public:
+        static constexpr int MaterialPanelCount = 9;
+
         enum class InteractionResult
         {
             None,
@@ -110,6 +112,13 @@ namespace WolfCna
             Microsoft::Xna::Framework::Graphics::Texture2D& goldBarsSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& goldenGobletSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& peaceMedallionSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& accessCardSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& repeaterPickupSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& heavyWeaponPickupSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& terminalSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& relaySprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& exitSprite,
+            Microsoft::Xna::Framework::Graphics::Texture2D& enemyProjectileSprite,
             Microsoft::Xna::Framework::Graphics::Texture2D& bloodDecal,
             Microsoft::Xna::Framework::Graphics::Texture2D& paintingTexture,
             Microsoft::Xna::Framework::Graphics::Texture2D& peaceBannerTexture,
@@ -142,11 +151,15 @@ namespace WolfCna
     private:
         enum class Material : int
         {
-            Wall = 0,
-            Floor = 1,
-            Ceiling = 2,
-            Door = 3,
-            SecurityDoor = 4
+            WallStone = 0,
+            WallBrick = 1,
+            WallSteel = 2,
+            WallLab = 3,
+            Floor = 4,
+            Ceiling = 5,
+            Door = 6,
+            SecurityDoor = 7,
+            Wood = 8
         };
 
         struct Door
@@ -275,8 +288,6 @@ namespace WolfCna
         std::vector<Relay> relays_;
         std::vector<Microsoft::Xna::Framework::Vector3> exits_;
         std::vector<Decoration> decorations_;
-        std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> enemyVertices_;
-        std::vector<std::uint16_t> enemyIndices_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> billboardVertices_;
         std::vector<std::uint16_t> billboardIndices_;
         std::vector<Microsoft::Xna::Framework::Graphics::VertexPositionTexture> bloodPoolVertices_;
@@ -288,8 +299,6 @@ namespace WolfCna
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> doorIndexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> impactVertexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> impactIndexBuffer_;
-        std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> enemyVertexBuffer_;
-        std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> enemyIndexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> billboardVertexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::IndexBuffer> billboardIndexBuffer_;
         std::unique_ptr<Microsoft::Xna::Framework::Graphics::VertexBuffer> bloodPoolVertexBuffer_;
@@ -297,6 +306,7 @@ namespace WolfCna
 
         [[nodiscard]] bool IsStaticWallCell(int x, int z) const;
         [[nodiscard]] bool IsBlockedCell(int x, int z) const;
+        [[nodiscard]] Material WallMaterialForCell(int x, int z) const;
         [[nodiscard]] bool HasDeadEnemyInDoorway(const Door& door) const;
         [[nodiscard]] bool HasPlayerInDoorway(
             const Door& door,
@@ -311,7 +321,6 @@ namespace WolfCna
         void BuildRelays();
         void BuildExits();
         void BuildDecorations();
-        void BuildEnemyGeometry();
         void BuildBillboardGeometry();
         void BuildBloodPoolGeometry();
         [[nodiscard]] bool HasLineOfSight(
@@ -339,10 +348,5 @@ namespace WolfCna
             const Microsoft::Xna::Framework::Vector3& c,
             const Microsoft::Xna::Framework::Vector3& d,
             Material material);
-        void AddEnemyQuad(
-            const Microsoft::Xna::Framework::Vector3& a,
-            const Microsoft::Xna::Framework::Vector3& b,
-            const Microsoft::Xna::Framework::Vector3& c,
-            const Microsoft::Xna::Framework::Vector3& d);
     };
 }

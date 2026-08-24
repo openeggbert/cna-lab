@@ -592,3 +592,183 @@ Avoid: horror, decay, photorealism, 3D render, smooth vector art, checkerboard b
 
 The export contained genuine alpha and was accepted without color editing or
 background masking. No third-party pixels were added.
+
+## `assets/materials/wall-stone.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: seamless square wall texture for an original C++ retro first-person shooter
+Primary request: create one fully original seamless repeating cool-gray bunker stone wall texture, inspired only by the broad visual language of early-1990s 256-color VGA shooters: large readable masonry blocks, strong dark mortar lines, compact pixel clusters, restrained highlights, and crisp nearest-neighbor-friendly edges
+Composition/framing: flat orthographic front-facing square texture filling the entire canvas; perfectly tileable on all four edges; no perspective and no border
+Style/medium: polished hand-painted pixel art, visually designed at about 64x64 then cleanly upscaled, deliberately chunky rather than photorealistic
+Color palette: cool gray stone, charcoal mortar, subtle muted blue shadows
+Constraints: entirely original design; no copied game pixels; no text; no logos; no emblems; no symbols; no graffiti; no objects; opaque image; uniform lighting; preserve clear tileability
+Avoid: Nazi imagery, swastikas, eagles, skulls, flags, letters, numbers, photographic detail, perspective, baked directional light, seams at canvas edges
+```
+
+## `assets/materials/wall-brick.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: seamless square wall texture for an original retro first-person shooter
+Primary request: one fully original seamless repeating dark red-brown industrial brick wall texture, with chunky uneven bricks, deep charcoal mortar, occasional steel reinforcement plates and tiny worn corners; broad early-1990s 256-color VGA shooter readability only, no copied motifs
+Composition/framing: flat orthographic front-facing square filling the canvas, perfectly tileable on all four edges, no perspective, no border
+Style/medium: polished hand-painted pixel art designed around 64x64 and cleanly upscaled, crisp hard pixel clusters
+Color palette: dark oxblood brick, rust brown, charcoal, restrained amber highlights
+Constraints: entirely original, opaque, uniform lighting, no text, logos, symbols, graffiti or recognizable iconography
+Avoid: Nazi imagery, swastikas, eagles, skulls, flags, letters, numbers, photorealism, perspective, canvas-edge seams
+```
+
+## `assets/materials/wall-steel.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: seamless square wall texture for an original retro first-person shooter
+Primary request: one fully original seamless repeating teal-gray bunker steel wall texture, made from large riveted rectangular plates, recessed seams, narrow ventilation grooves and sparse scratches; broad early-1990s 256-color VGA shooter readability only
+Composition/framing: flat orthographic front-facing square filling the canvas, perfectly tileable on all four edges, no perspective, no border
+Style/medium: polished chunky pixel art designed around 64x64 and cleanly upscaled, limited palette, crisp nearest-neighbor-friendly edges
+Color palette: desaturated teal steel, gunmetal, charcoal seams, small cyan status accents without text
+Constraints: entirely original, opaque, uniform lighting, no text, logos, symbols, emblems or recognizable iconography
+Avoid: Nazi imagery, swastikas, eagles, skulls, flags, letters, numbers, photorealism, perspective, canvas-edge seams
+```
+
+## `assets/materials/wall-lab.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: seamless square wall texture for an original retro first-person shooter
+Primary request: one fully original seamless repeating cold blue laboratory wall texture, composed of broad ceramic-composite panels, dark joints, inset cable channels and a few small mint indicator lights; broad early-1990s 256-color VGA shooter readability only
+Composition/framing: flat orthographic front-facing square filling the canvas, perfectly tileable on all four edges, no perspective, no border
+Style/medium: polished chunky pixel art designed around 64x64 and cleanly upscaled, limited palette, crisp nearest-neighbor-friendly edges
+Color palette: slate blue, pale blue-gray, navy joints, restrained mint/cyan accents
+Constraints: entirely original, opaque, uniform lighting, no text, logos, symbols, emblems or recognizable iconography
+Avoid: Nazi imagery, swastikas, eagles, skulls, flags, letters, numbers, photorealism, perspective, canvas-edge seams
+```
+
+## `assets/materials/table-wood.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: seamless square wood texture for real polygonal furniture in an original retro first-person shooter
+Primary request: one fully original seamless repeating dark oak plank texture suitable for the top and legs of a bunker table, with broad readable grain, plank joints, small dents and restrained worn highlights
+Composition/framing: flat orthographic front-facing square filling the entire canvas, perfectly tileable on all four edges, no perspective, no border
+Style/medium: polished chunky early-1990s VGA-inspired pixel art designed around 64x64 and cleanly upscaled
+Color palette: dark walnut brown, warm mid-brown, near-black joints, muted honey highlights
+Constraints: entirely original, opaque, uniform lighting, no text, logos, symbols, nails shaped like symbols, or objects
+Avoid: brick, stone, metal wall appearance, photorealism, perspective, canvas-edge seams
+```
+
+All five material exports were opaque and accepted without color editing. Game
+code samples them into a project-generated 64-pixel material atlas through CNA's
+public texture API. No third-party pixels were added.
+
+## `assets/props/access-card.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent world pickup sprite for an original retro first-person shooter
+Primary request: a fully original compact cyan-and-brass bunker access card, thick rugged plastic with one clipped corner, a tiny embedded chip and three simple cyan status bars
+Composition/framing: isolated object centered, slight three-quarter top-down view as if lying just above the floor, full object visible with generous transparent margin, grounded bottom edge
+Style/medium: polished chunky early-1990s VGA-inspired pixel art, designed around 64x64 then cleanly upscaled, crisp silhouette
+Constraints: genuinely transparent background, no hands, no scene, no text, no numbers, no logos, no symbols, no emblems, entirely original
+Avoid: white or checkerboard background, Nazi imagery, swastikas, eagles, flags, readable writing, photorealism, soft blur, copied game asset
+```
+
+## `assets/props/repeater-pickup.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent weapon pickup sprite for an original retro first-person shooter
+Primary request: a fully original compact three-round repeater firearm lying diagonally on the floor, dark gunmetal body, short barrel, violet energy-cell housing and small cyan mechanical accents; clearly a world pickup, not a first-person weapon view
+Composition/framing: isolated full weapon centered in a slight three-quarter top-down view, horizontal-wide silhouette, generous transparent margin, grounded near bottom
+Style/medium: polished chunky early-1990s VGA-inspired pixel art, designed around 96x64 then cleanly upscaled, crisp silhouette
+Constraints: genuinely transparent background, no hands, no person, no scene, no text, no numbers, no logos, no symbols, entirely original fictional design
+Avoid: white or checkerboard background, Nazi imagery, real branded weapon, copied game asset, photorealism, soft blur
+```
+
+## `assets/props/heavy-automatic-pickup.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent heavy weapon pickup sprite for an original retro first-person shooter
+Primary request: a fully original heavy automatic bunker weapon resting on the floor, broad four-vent barrel cluster, dark iron housing, red enamel side plates, brass feed components and restrained amber glow; clearly a world pickup, not a first-person weapon view
+Composition/framing: isolated full weapon centered in a slight three-quarter top-down view, horizontal-wide silhouette, generous transparent margin, grounded near bottom
+Style/medium: polished chunky early-1990s VGA-inspired pixel art, designed around 96x64 then cleanly upscaled, crisp silhouette
+Constraints: genuinely transparent background, no hands, no person, no scene, no text, no numbers, no logos, no symbols, entirely original fictional design
+Avoid: white or checkerboard background, Nazi imagery, real branded weapon, copied game asset, photorealism, soft blur
+```
+
+## `assets/props/terminal.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent interactive terminal sprite for an original retro first-person shooter
+Primary request: a fully original waist-high bunker terminal console, sturdy dark steel pedestal, angled amber monitor, chunky keyboard buttons, cyan cable conduits and small indicator lamps; readable from the front
+Composition/framing: isolated full terminal centered, front three-quarter view with the base at the bottom, generous transparent margin, no surrounding scene
+Style/medium: polished chunky early-1990s VGA-inspired pixel art, designed around 64x96 then cleanly upscaled, crisp silhouette
+Constraints: genuinely transparent background, screen contains only abstract bars and geometric lights, no text, letters, numbers, logos, emblems or symbols, entirely original
+Avoid: white or checkerboard background, Nazi imagery, swastikas, eagles, flags, copied game asset, photorealism, soft blur
+```
+
+## `assets/props/power-relay.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent power-relay sprite for an original retro first-person shooter
+Primary request: a fully original waist-high bunker power relay, squat armored circular generator on a broad base, violet inactive energy core surrounded by copper coils, thick teal cables and a few simple indicator lamps; readable from the front
+Composition/framing: isolated full relay centered, front three-quarter view with base at bottom, generous transparent margin, no surrounding scene
+Style/medium: polished chunky early-1990s VGA-inspired pixel art, designed around 80x80 then cleanly upscaled, crisp silhouette
+Constraints: genuinely transparent background, no text, letters, numbers, logos, emblems or symbols, entirely original
+Avoid: white or checkerboard background, Nazi imagery, swastikas, eagles, flags, copied game asset, photorealism, soft blur
+```
+
+## `assets/props/sector-exit.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent sector-exit sprite for an original retro first-person shooter
+Primary request: a fully original tall bunker elevator exit control pedestal, dark steel vertical frame, large cyan upward chevron made from simple geometric light segments, illuminated side rails and a sturdy floor base; it should clearly read as the destination that completes a sector
+Composition/framing: isolated full pedestal centered, straight-on slight three-quarter view, base at bottom, generous transparent margin, no surrounding scene
+Style/medium: polished chunky early-1990s VGA-inspired pixel art, designed around 64x96 then cleanly upscaled, crisp silhouette
+Constraints: genuinely transparent background, no words, letters, numbers, logos, emblems, flags or historical symbols, entirely original
+Avoid: white or checkerboard background, Nazi imagery, swastikas, eagles, copied game asset, photorealism, soft blur
+```
+
+## `assets/props/enemy-projectile.png`
+
+Prompt:
+
+```text
+Use case: stylized-concept
+Asset type: transparent enemy projectile sprite for an original retro first-person shooter
+Primary request: one fully original small orange-amber plasma tracer bolt, compact bright diamond-shaped core with two short pixelated energy tails and a thin red-orange halo, readable at tiny on-screen size
+Composition/framing: isolated projectile centered horizontally, wide compact silhouette, generous transparent margin
+Style/medium: polished chunky early-1990s VGA-inspired pixel art designed around 32x16 then cleanly upscaled, crisp hard pixels
+Constraints: genuinely transparent background, no weapon, no scene, no text, logos, symbols or emblems, entirely original
+Avoid: white or checkerboard background, rectangular opaque backdrop, photorealism, excessive blur, copied game asset
+```
+
+All seven prop exports contained genuine alpha and were accepted without color
+editing or background masking. No third-party pixels were added.
