@@ -38,6 +38,8 @@ constexpr int DisplayX = (WindowWidth - DisplayPixelWidth) / 2;
 constexpr int DisplayY = 280;
 constexpr int IconBandHeight = 34;
 constexpr int LcdModulePadding = 12;
+constexpr int IconAtlasCellWidth = 38;
+constexpr int IconAtlasCellHeight = 36;
 constexpr int IconDrawWidth = 32;
 constexpr int IconDrawHeight = 22;
 
